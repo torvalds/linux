@@ -636,16 +636,16 @@ static bool find_gid_index(const union ib_gid *gid,
 	return true;
 }
 
-static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,
-				   u16 vlan_id, const union ib_gid *sgid,
-				   enum ib_gid_type gid_type,
-				   u16 *gid_index)
+static const struct ib_gid_attr *
+get_sgid_attr_from_eth(struct ib_device *device, u8 port_num,
+		       u16 vlan_id, const union ib_gid *sgid,
+		       enum ib_gid_type gid_type)
 {
 	struct find_gid_index_context context = {.vlan_id = vlan_id,
 						 .gid_type = gid_type};
 
-	return ib_find_gid_by_filter(device, sgid, port_num, find_gid_index,
-				     &context, gid_index);
+	return rdma_find_gid_by_filter(device, sgid, port_num, find_gid_index,
+				       &context);
 }
 
 int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
@@ -689,37 +689,24 @@ EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 				       struct rdma_ah_attr *ah_attr)
 {
-	struct ib_gid_attr sgid_attr;
-	struct ib_global_route *grh;
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(ah_attr);
+	const struct ib_gid_attr *sgid_attr = grh->sgid_attr;
 	int hop_limit = 0xff;
-	union ib_gid sgid;
-	int ret;
-
-	grh = rdma_ah_retrieve_grh(ah_attr);
-
-	ret = ib_get_cached_gid(device, rdma_ah_get_port_num(ah_attr),
-				grh->sgid_index, &sgid, &sgid_attr);
-	if (ret || !sgid_attr.ndev) {
-		if (!ret)
-			ret = -ENXIO;
-		return ret;
-	}
+	int ret = 0;
 
 	/* If destination is link local and source GID is RoCEv1,
 	 * IP stack is not used.
 	 */
 	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw) &&
-	    sgid_attr.gid_type == IB_GID_TYPE_ROCE) {
+	    sgid_attr->gid_type == IB_GID_TYPE_ROCE) {
 		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
 				ah_attr->roce.dmac);
-		goto done;
+		return ret;
 	}
 
-	ret = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
+	ret = rdma_addr_find_l2_eth_by_grh(&sgid_attr->gid, &grh->dgid,
 					   ah_attr->roce.dmac,
-					   sgid_attr.ndev, &hop_limit);
-done:
-	dev_put(sgid_attr.ndev);
+					   sgid_attr->ndev, &hop_limit);
 
 	grh->hop_limit = hop_limit;
 	return ret;
@@ -734,16 +721,18 @@ done:
  * as sgid and, sgid is used as dgid because sgid contains destinations
  * GID whom to respond to.
  *
+ * On success the caller is responsible to call rdma_destroy_ah_attr on the
+ * attr.
  */
 int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
 			    const struct ib_wc *wc, const struct ib_grh *grh,
 			    struct rdma_ah_attr *ah_attr)
 {
 	u32 flow_class;
-	u16 gid_index;
 	int ret;
 	enum rdma_network_type net_type = RDMA_NETWORK_IB;
 	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
+	const struct ib_gid_attr *sgid_attr;
 	int hoplimit = 0xff;
 	union ib_gid dgid;
 	union ib_gid sgid;
@@ -774,40 +763,49 @@ int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
-		ret = get_sgid_index_from_eth(device, port_num,
-					      vlan_id, &dgid,
-					      gid_type, &gid_index);
-		if (ret)
-			return ret;
+		sgid_attr = get_sgid_attr_from_eth(device, port_num,
+						   vlan_id, &dgid,
+						   gid_type);
+		if (IS_ERR(sgid_attr))
+			return PTR_ERR(sgid_attr);
 
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
-		rdma_ah_set_grh(ah_attr, &sgid,
-				flow_class & 0xFFFFF,
-				(u8)gid_index, hoplimit,
-				(flow_class >> 20) & 0xFF);
-		return ib_resolve_unicast_gid_dmac(device, ah_attr);
+		rdma_move_grh_sgid_attr(ah_attr,
+					&sgid,
+					flow_class & 0xFFFFF,
+					hoplimit,
+					(flow_class >> 20) & 0xFF,
+					sgid_attr);
+
+		ret = ib_resolve_unicast_gid_dmac(device, ah_attr);
+		if (ret)
+			rdma_destroy_ah_attr(ah_attr);
+
+		return ret;
 	} else {
 		rdma_ah_set_dlid(ah_attr, wc->slid);
 		rdma_ah_set_path_bits(ah_attr, wc->dlid_path_bits);
 
-		if (wc->wc_flags & IB_WC_GRH) {
-			if (dgid.global.interface_id != cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
-				ret = ib_find_cached_gid_by_port(device, &dgid,
-								 IB_GID_TYPE_IB,
-								 port_num, NULL,
-								 &gid_index);
-				if (ret)
-					return ret;
-			} else {
-				gid_index = 0;
-			}
+		if ((wc->wc_flags & IB_WC_GRH) == 0)
+			return 0;
 
-			flow_class = be32_to_cpu(grh->version_tclass_flow);
-			rdma_ah_set_grh(ah_attr, &sgid,
+		if (dgid.global.interface_id !=
+					cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
+			sgid_attr = rdma_find_gid_by_port(
+				device, &dgid, IB_GID_TYPE_IB, port_num, NULL);
+		} else
+			sgid_attr = rdma_get_gid_attr(device, port_num, 0);
+
+		if (IS_ERR(sgid_attr))
+			return PTR_ERR(sgid_attr);
+		flow_class = be32_to_cpu(grh->version_tclass_flow);
+		rdma_move_grh_sgid_attr(ah_attr,
+					&sgid,
 					flow_class & 0xFFFFF,
-					(u8)gid_index, hoplimit,
-					(flow_class >> 20) & 0xFF);
-		}
+					hoplimit,
+					(flow_class >> 20) & 0xFF,
+					sgid_attr);
+
 		return 0;
 	}
 }
@@ -860,13 +858,17 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 				   const struct ib_grh *grh, u8 port_num)
 {
 	struct rdma_ah_attr ah_attr;
+	struct ib_ah *ah;
 	int ret;
 
 	ret = ib_init_ah_attr_from_wc(pd->device, port_num, wc, grh, &ah_attr);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return rdma_create_ah(pd, &ah_attr);
+	ah = rdma_create_ah(pd, &ah_attr);
+
+	rdma_destroy_ah_attr(&ah_attr);
+	return ah;
 }
 EXPORT_SYMBOL(ib_create_ah_from_wc);
 

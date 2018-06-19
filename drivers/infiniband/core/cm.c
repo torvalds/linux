@@ -1091,6 +1091,9 @@ retest:
 	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
 		cm_free_work(work);
+
+	rdma_destroy_ah_attr(&cm_id_priv->av.ah_attr);
+	rdma_destroy_ah_attr(&cm_id_priv->alt_av.ah_attr);
 	kfree(cm_id_priv->private_data);
 	kfree(cm_id_priv);
 }

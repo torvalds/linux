@@ -3150,6 +3150,13 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  *   ignored unless the work completion indicates that the GRH is valid.
  * @ah_attr: Returned attributes that can be used when creating an address
  *   handle for replying to the message.
+ * When ib_init_ah_attr_from_wc() returns success,
+ * (a) for IB link layer it optionally contains a reference to SGID attribute
+ * when GRH is present for IB link layer.
+ * (b) for RoCE link layer it contains a reference to SGID attribute.
+ * User must invoke rdma_cleanup_ah_attr_gid_attr() to release reference to SGID
+ * attributes which are initialized using ib_init_ah_attr_from_wc().
+ *
  */
 int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
 			    const struct ib_wc *wc, const struct ib_grh *grh,
