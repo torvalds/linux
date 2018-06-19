@@ -22,8 +22,7 @@
 */
 
 #ifdef CONFIG_PA11
-extern const struct dma_map_ops pcxl_dma_ops;
-extern const struct dma_map_ops pcx_dma_ops;
+extern const struct dma_map_ops pa11_dma_ops;
 #endif
 
 extern const struct dma_map_ops *hppa_dma_ops;

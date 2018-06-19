@@ -395,7 +395,7 @@ pcxl_dma_init(void)
 
 __initcall(pcxl_dma_init);
 
-static void *pa11_dma_alloc(struct device *dev, size_t size,
+static void *pcxl_dma_alloc(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t flag, unsigned long attrs)
 {
 	unsigned long vaddr;
@@ -422,16 +422,44 @@ static void *pa11_dma_alloc(struct device *dev, size_t size,
 	return (void *)vaddr;
 }
 
+static void *pcx_dma_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t flag, unsigned long attrs)
+{
+	void *addr;
+
+	if ((attrs & DMA_ATTR_NON_CONSISTENT) == 0)
+		return NULL;
+
+	addr = (void *)__get_free_pages(flag, get_order(size));
+	if (addr)
+		*dma_handle = (dma_addr_t)virt_to_phys(addr);
+
+	return addr;
+}
+
+static void *pa11_dma_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
+{
+
+	if (boot_cpu_data.cpu_type == pcxl2 || boot_cpu_data.cpu_type == pcxl)
+		return pcxl_dma_alloc(dev, size, dma_handle, gfp, attrs);
+	else
+		return pcx_dma_alloc(dev, size, dma_handle, gfp, attrs);
+}
+
 static void pa11_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
-	int order;
+	int order = get_order(size);
 
-	order = get_order(size);
-	size = 1 << (order + PAGE_SHIFT);
-	unmap_uncached_pages((unsigned long)vaddr, size);
-	pcxl_free_range((unsigned long)vaddr, size);
-	free_pages((unsigned long)__va(dma_handle), order);
+	if (boot_cpu_data.cpu_type == pcxl2 || boot_cpu_data.cpu_type == pcxl) {
+		size = 1 << (order + PAGE_SHIFT);
+		unmap_uncached_pages((unsigned long)vaddr, size);
+		pcxl_free_range((unsigned long)vaddr, size);
+
+		vaddr = __va(dma_handle);
+	}
+	free_pages((unsigned long)vaddr, get_order(size));
 }
 
 static dma_addr_t pa11_dma_map_page(struct device *dev, struct page *page,
@@ -560,45 +588,9 @@ static void pa11_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	flush_kernel_dcache_range((unsigned long)vaddr, size);
 }
 
-const struct dma_map_ops pcxl_dma_ops = {
+const struct dma_map_ops pa11_dma_ops = {
 	.alloc =		pa11_dma_alloc,
 	.free =			pa11_dma_free,
-	.map_page =		pa11_dma_map_page,
-	.unmap_page =		pa11_dma_unmap_page,
-	.map_sg =		pa11_dma_map_sg,
-	.unmap_sg =		pa11_dma_unmap_sg,
-	.sync_single_for_cpu =	pa11_dma_sync_single_for_cpu,
-	.sync_single_for_device = pa11_dma_sync_single_for_device,
-	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
-	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
-	.cache_sync =		pa11_dma_cache_sync,
-};
-
-static void *pcx_dma_alloc(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, gfp_t flag, unsigned long attrs)
-{
-	void *addr;
-
-	if ((attrs & DMA_ATTR_NON_CONSISTENT) == 0)
-		return NULL;
-
-	addr = (void *)__get_free_pages(flag, get_order(size));
-	if (addr)
-		*dma_handle = (dma_addr_t)virt_to_phys(addr);
-
-	return addr;
-}
-
-static void pcx_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t iova, unsigned long attrs)
-{
-	free_pages((unsigned long)vaddr, get_order(size));
-	return;
-}
-
-const struct dma_map_ops pcx_dma_ops = {
-	.alloc =		pcx_dma_alloc,
-	.free =			pcx_dma_free,
 	.map_page =		pa11_dma_map_page,
 	.unmap_page =		pa11_dma_unmap_page,
 	.map_sg =		pa11_dma_map_sg,
