@@ -1005,16 +1005,41 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 {
 	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	bool sigb_data;
+	u16 d1known = IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN;
+	u16 d2known = IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
+		      IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN;
 
-	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN);
+	he->data1 |= cpu_to_le16(d1known);
+	he->data2 |= cpu_to_le16(d2known);
 	he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_BSS_COLOR_MASK,
 						he_phy_data),
 				      IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
-
-	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN);
+	he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_UPLINK,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+	he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_LDPC_EXT_SYM,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
+	he->data4 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SPATIAL_REUSE_MASK,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
+	he->data5 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_PRE_FEC_PAD_MASK,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD);
+	he->data5 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_PE_DISAMBIG,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG);
 	he->data6 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_TXOP_DUR_MASK,
 						he_phy_data),
 				      IEEE80211_RADIOTAP_HE_DATA6_TXOP);
+	he->data6 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_DOPPLER,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA6_DOPPLER);
 
 	switch (he_type) {
 	case RATE_MCS_HE_TYPE_MU:
@@ -1044,7 +1069,8 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 				IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO;
 		if (sigb_data)
 			iwl_mvm_decode_he_sigb(mvm, desc, rate_n_flags, he_mu);
-
+		/* fall through */
+	case RATE_MCS_HE_TYPE_TRIG:
 		he->data2 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN);
 		he->data5 |=
@@ -1061,37 +1087,6 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_DATA3_BEAM_CHANGE);
 		break;
-	}
-
-	if (he_type != RATE_MCS_HE_TYPE_TRIG) {
-		u16 d1known = IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
-			      IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
-			      IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
-			      IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN;
-		u16 d2known = IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
-			      IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN;
-
-		he->data1 |= cpu_to_le16(d1known);
-		he->data2 |= cpu_to_le16(d2known);
-
-		he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_UPLINK,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
-		he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_LDPC_EXT_SYM,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
-		he->data4 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_SPATIAL_REUSE_MASK,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
-		he->data5 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_PRE_FEC_PAD_MASK,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD);
-		he->data5 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_PE_DISAMBIG,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG);
-		he->data6 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_DOPPLER,
-							he_phy_data),
-					      IEEE80211_RADIOTAP_HE_DATA6_DOPPLER);
 	}
 
 	switch (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data)) {
