@@ -930,6 +930,11 @@ struct amdgpu_ngg {
 	bool			init;
 };
 
+struct sq_work {
+	struct work_struct	work;
+	unsigned ih_data;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
@@ -970,6 +975,8 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_inst_irq;
 	struct amdgpu_irq_src		cp_ecc_error_irq;
 	struct amdgpu_irq_src		sq_irq;
+	struct sq_work			sq_work;
+
 	/* gfx status */
 	uint32_t			gfx_current_status;
 	/* ce ram size*/

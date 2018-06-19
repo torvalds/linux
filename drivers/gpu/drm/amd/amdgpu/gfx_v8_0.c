@@ -704,6 +704,17 @@ static const u32 stoney_mgcg_cgcg_init[] =
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96940200,
 };
 
+
+static const char * const sq_edc_source_names[] = {
+	"SQ_EDC_INFO_SOURCE_INVALID: No EDC error has occurred",
+	"SQ_EDC_INFO_SOURCE_INST: EDC source is Instruction Fetch",
+	"SQ_EDC_INFO_SOURCE_SGPR: EDC source is SGPR or SQC data return",
+	"SQ_EDC_INFO_SOURCE_VGPR: EDC source is VGPR",
+	"SQ_EDC_INFO_SOURCE_LDS: EDC source is LDS",
+	"SQ_EDC_INFO_SOURCE_GDS: EDC source is GDS",
+	"SQ_EDC_INFO_SOURCE_TA: EDC source is TA",
+};
+
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
@@ -2006,6 +2017,8 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	return 0;
 }
 
+static void gfx_v8_0_sq_irq_work_func(struct work_struct *work);
+
 static int gfx_v8_0_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id;
@@ -2068,6 +2081,8 @@ static int gfx_v8_0_sw_init(void *handle)
 		DRM_ERROR("amdgpu_irq_add() for SQ failed: %d\n", r);
 		return r;
 	}
+
+	INIT_WORK(&adev->gfx.sq_work.work, gfx_v8_0_sq_irq_work_func);
 
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
 
@@ -6955,14 +6970,11 @@ static int gfx_v8_0_cp_ecc_error_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
-			   struct amdgpu_irq_src *source,
-			   struct amdgpu_iv_entry *entry)
+static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data)
 {
-	u8 enc, se_id;
+	u32 enc, se_id, sh_id, cu_id;
 	char type[20];
-	unsigned ih_data = entry->src_data[0];
-
+	int sq_edc_source = -1;
 
 	enc = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_CMN, ENCODING);
 	se_id = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_CMN, SE_ID);
@@ -6988,6 +7000,24 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 		case 1:
 		case 2:
 
+			cu_id = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, CU_ID);
+			sh_id = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, SH_ID);
+
+			/*
+			 * This function can be called either directly from ISR
+			 * or from BH in which case we can access SQ_EDC_INFO
+			 * instance
+			 */
+			if (in_task()) {
+				mutex_lock(&adev->grbm_idx_mutex);
+				gfx_v8_0_select_se_sh(adev, se_id, sh_id, cu_id);
+
+				sq_edc_source = REG_GET_FIELD(RREG32(mmSQ_EDC_INFO), SQ_EDC_INFO, SOURCE);
+
+				gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+				mutex_unlock(&adev->grbm_idx_mutex);
+			}
+
 			if (enc == 1)
 				sprintf(type, "instruction intr");
 			else
@@ -6995,20 +7025,46 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 
 			DRM_INFO(
 				"SQ %s detected: "
-					"se_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d\n"
-					"trap %s, sh_id %d. ",
-					type, se_id,
-					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, CU_ID),
+					"se_id %d, sh_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d "
+					"trap %s, sq_ed_info.source %s.\n",
+					type, se_id, sh_id, cu_id,
 					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, SIMD_ID),
 					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, WAVE_ID),
 					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, VM_ID),
 					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, PRIV) ? "true" : "false",
-					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, SH_ID)
-					);
+					(sq_edc_source != -1) ? sq_edc_source_names[sq_edc_source] : "unavailable"
+				);
 			break;
 		default:
 			DRM_ERROR("SQ invalid encoding type\n.");
-			return -EINVAL;
+	}
+}
+
+static void gfx_v8_0_sq_irq_work_func(struct work_struct *work)
+{
+
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device, gfx.sq_work.work);
+	struct sq_work *sq_work = container_of(work, struct sq_work, work);
+
+	gfx_v8_0_parse_sq_irq(adev, sq_work->ih_data);
+}
+
+static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
+			   struct amdgpu_irq_src *source,
+			   struct amdgpu_iv_entry *entry)
+{
+	unsigned ih_data = entry->src_data[0];
+
+	/*
+	 * Try to submit work so SQ_EDC_INFO can be accessed from
+	 * BH. If previous work submission hasn't finished yet
+	 * just print whatever info is possible directly from the ISR.
+	 */
+	if (work_pending(&adev->gfx.sq_work.work)) {
+		gfx_v8_0_parse_sq_irq(adev, ih_data);
+	} else {
+		adev->gfx.sq_work.ih_data = ih_data;
+		schedule_work(&adev->gfx.sq_work.work);
 	}
 
 	return 0;
