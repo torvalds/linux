@@ -104,6 +104,26 @@ iomap_sector(struct iomap *iomap, loff_t pos)
 }
 
 static void
+iomap_read_inline_data(struct inode *inode, struct page *page,
+		struct iomap *iomap)
+{
+	size_t size = i_size_read(inode);
+	void *addr;
+
+	if (PageUptodate(page))
+		return;
+
+	BUG_ON(page->index);
+	BUG_ON(size > PAGE_SIZE - offset_in_page(iomap->inline_data));
+
+	addr = kmap_atomic(page);
+	memcpy(addr, iomap->inline_data, size);
+	memset(addr + size, 0, PAGE_SIZE - size);
+	kunmap_atomic(addr);
+	SetPageUptodate(page);
+}
+
+static void
 iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
 {
 	loff_t i_size = i_size_read(inode);
@@ -133,7 +153,11 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 	if (!page)
 		return -ENOMEM;
 
-	status = __block_write_begin_int(page, pos, len, NULL, iomap);
+	if (iomap->type == IOMAP_INLINE)
+		iomap_read_inline_data(inode, page, iomap);
+	else
+		status = __block_write_begin_int(page, pos, len, NULL, iomap);
+
 	if (unlikely(status)) {
 		unlock_page(page);
 		put_page(page);
@@ -147,13 +171,36 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 }
 
 static int
+iomap_write_end_inline(struct inode *inode, struct page *page,
+		struct iomap *iomap, loff_t pos, unsigned copied)
+{
+	void *addr;
+
+	WARN_ON_ONCE(!PageUptodate(page));
+	BUG_ON(pos + copied > PAGE_SIZE - offset_in_page(iomap->inline_data));
+
+	addr = kmap_atomic(page);
+	memcpy(iomap->inline_data + pos, addr + pos, copied);
+	kunmap_atomic(addr);
+
+	mark_inode_dirty(inode);
+	__generic_write_end(inode, pos, copied, page);
+	return copied;
+}
+
+static int
 iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
-		unsigned copied, struct page *page)
+		unsigned copied, struct page *page, struct iomap *iomap)
 {
 	int ret;
 
-	ret = generic_write_end(NULL, inode->i_mapping, pos, len,
-			copied, page, NULL);
+	if (iomap->type == IOMAP_INLINE) {
+		ret = iomap_write_end_inline(inode, page, iomap, pos, copied);
+	} else {
+		ret = generic_write_end(NULL, inode->i_mapping, pos, len,
+				copied, page, NULL);
+	}
+
 	if (ret < len)
 		iomap_write_failed(inode, pos, len);
 	return ret;
@@ -208,7 +255,8 @@ again:
 
 		flush_dcache_page(page);
 
-		status = iomap_write_end(inode, pos, bytes, copied, page);
+		status = iomap_write_end(inode, pos, bytes, copied, page,
+				iomap);
 		if (unlikely(status < 0))
 			break;
 		copied = status;
@@ -302,7 +350,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 
 		WARN_ON_ONCE(!PageUptodate(page));
 
-		status = iomap_write_end(inode, pos, bytes, bytes, page);
+		status = iomap_write_end(inode, pos, bytes, bytes, page, iomap);
 		if (unlikely(status <= 0)) {
 			if (WARN_ON_ONCE(status == 0))
 				return -EIO;
@@ -354,7 +402,7 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 	zero_user(page, offset, bytes);
 	mark_page_accessed(page);
 
-	return iomap_write_end(inode, pos, bytes, bytes, page);
+	return iomap_write_end(inode, pos, bytes, bytes, page, iomap);
 }
 
 static int iomap_dax_zero(loff_t pos, unsigned offset, unsigned bytes,
