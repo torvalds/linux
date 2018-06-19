@@ -35,8 +35,6 @@
 #include <asm/sections.h>
 #include <asm/exception.h>
 
-extern void jprobe_inst_return(void);
-
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -1038,74 +1036,6 @@ static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
 unsigned long arch_deref_entry_point(void *entry)
 {
 	return ((struct fnptr *)entry)->ip;
-}
-
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	unsigned long addr = arch_deref_entry_point(jp->entry);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	struct param_bsp_cfm pa;
-	int bytes;
-
-	/*
-	 * Callee owns the argument space and could overwrite it, eg
-	 * tail call optimization. So to be absolutely safe
-	 * we save the argument space before transferring the control
-	 * to instrumented jprobe function which runs in
-	 * the process context
-	 */
-	pa.ip = regs->cr_iip;
-	unw_init_running(ia64_get_bsp_cfm, &pa);
-	bytes = (char *)ia64_rse_skip_regs(pa.bsp, pa.cfm & 0x3f)
-				- (char *)pa.bsp;
-	memcpy( kcb->jprobes_saved_stacked_regs,
-		pa.bsp,
-		bytes );
-	kcb->bsp = pa.bsp;
-	kcb->cfm = pa.cfm;
-
-	/* save architectural state */
-	kcb->jprobe_saved_regs = *regs;
-
-	/* after rfi, execute the jprobe instrumented function */
-	regs->cr_iip = addr & ~0xFULL;
-	ia64_psr(regs)->ri = addr & 0xf;
-	regs->r1 = ((struct fnptr *)(jp->entry))->gp;
-
-	/*
-	 * fix the return address to our jprobe_inst_return() function
-	 * in the jprobes.S file
-	 */
-	regs->b0 = ((struct fnptr *)(jprobe_inst_return))->ip;
-
-	return 1;
-}
-
-/* ia64 does not need this */
-void __kprobes jprobe_return(void)
-{
-}
-
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	int bytes;
-
-	/* restoring architectural state */
-	*regs = kcb->jprobe_saved_regs;
-
-	/* restoring the original argument space */
-	flush_register_stack();
-	bytes = (char *)ia64_rse_skip_regs(kcb->bsp, kcb->cfm & 0x3f)
-				- (char *)kcb->bsp;
-	memcpy( kcb->bsp,
-		kcb->jprobes_saved_stacked_regs,
-		bytes );
-	invalidate_stacked_regs();
-
-	preempt_enable_no_resched();
-	return 1;
 }
 
 static struct kprobe trampoline_p = {
