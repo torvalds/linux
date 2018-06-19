@@ -66,9 +66,24 @@ config CIFS_STATS2
 	  Unless you are a developer or are doing network performance analysis
 	  or tuning, say N.
 
+config CIFS_ALLOW_INSECURE_LEGACY
+	bool "Support legacy servers which use less secure dialects"
+	depends on CIFS
+	default y
+	help
+	  Modern dialects, SMB2.1 and later (including SMB3 and 3.1.1), have
+	  additional security features, including protection against
+	  man-in-the-middle attacks and stronger crypto hashes, so the use
+	  of legacy dialects (SMB1/CIFS and SMB2.0) is discouraged.
+
+	  Disabling this option prevents users from using vers=1.0 or vers=2.0
+	  on mounts with cifs.ko
+
+	  If unsure, say Y.
+
 config CIFS_WEAK_PW_HASH
 	bool "Support legacy servers which use weaker LANMAN security"
-	depends on CIFS
+	depends on CIFS && CIFS_ALLOW_INSECURE_LEGACY
 	help
 	  Modern CIFS servers including Samba and most Windows versions
 	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
