@@ -87,6 +87,18 @@ struct amdgpu_gmc_funcs {
 			   u64 *dst, u64 *flags);
 };
 
+struct amdgpu_xgmi {
+	/* from psp */
+	u64 device_id;
+	u64 hive_id;
+	/* fixed per family */
+	u64 node_segment_size;
+	/* physical node (0-3) */
+	unsigned physical_node_id;
+	/* number of nodes (0-4) */
+	unsigned num_physical_nodes;
+};
+
 struct amdgpu_gmc {
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
@@ -125,6 +137,8 @@ struct amdgpu_gmc {
 	atomic_t		vm_fault_info_updated;
 
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
+
+	struct amdgpu_xgmi xgmi;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
