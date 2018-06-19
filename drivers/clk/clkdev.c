@@ -35,9 +35,6 @@ static struct clk *__of_clk_get(struct device_node *np, int index,
 	struct clk *clk;
 	int rc;
 
-	if (index < 0)
-		return ERR_PTR(-EINVAL);
-
 	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
 					&clkspec);
 	if (rc)
