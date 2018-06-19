@@ -169,7 +169,7 @@ static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static atomic_long_t n_rcu_torture_timers;
 static long n_barrier_attempts;
-static long n_barrier_successes;
+static long n_barrier_successes; /* did rcu_barrier test succeed? */
 static atomic_long_t n_cbfloods;
 static struct list_head rcu_torture_removed;
 
@@ -1723,8 +1723,9 @@ static int rcu_torture_barrier(void *arg)
 			       atomic_read(&barrier_cbs_invoked),
 			       n_barrier_cbs);
 			WARN_ON_ONCE(1);
+		} else {
+			n_barrier_successes++;
 		}
-		n_barrier_successes++;
 		schedule_timeout_interruptible(HZ / 10);
 	} while (!torture_must_stop());
 	torture_kthread_stopping("rcu_torture_barrier");
@@ -1803,9 +1804,7 @@ static bool rcu_torture_can_boost(void)
 		if (boost_warn_once  == 1)
 			return false;
 
-		pr_alert("%s: WARN: RCU kthread priority too low to test boosting. "
-			 "Skipping RCU boost test. Try passing rcutree.kthread_prio > 1 "
-			 "on the kernel command line.\n", KBUILD_MODNAME);
+		pr_alert("%s: WARN: RCU kthread priority too low to test boosting.  Skipping RCU boost test. Try passing rcutree.kthread_prio > 1 on the kernel command line.\n", KBUILD_MODNAME);
 		boost_warn_once = 1;
 		return false;
 	}
