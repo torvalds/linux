@@ -595,7 +595,7 @@ static ssize_t calibrate_store(struct device *dev,
 	int tries = 20;
 	int retval;
 	int error;
-	u8 val[3];
+	u8 val[ETP_CALIBRATE_MAX_LEN];
 
 	retval = mutex_lock_interruptible(&data->sysfs_mutex);
 	if (retval)
