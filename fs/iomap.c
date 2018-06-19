@@ -811,6 +811,7 @@ struct iomap_dio {
 	atomic_t		ref;
 	unsigned		flags;
 	int			error;
+	bool			wait_for_completion;
 
 	union {
 		/* used during submission and for synchronous completion: */
@@ -914,9 +915,8 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
 
 	if (atomic_dec_and_test(&dio->ref)) {
-		if (is_sync_kiocb(dio->iocb)) {
+		if (dio->wait_for_completion) {
 			struct task_struct *waiter = dio->submit.waiter;
-
 			WRITE_ONCE(dio->submit.waiter, NULL);
 			wake_up_process(waiter);
 		} else if (dio->flags & IOMAP_DIO_WRITE) {
@@ -1131,13 +1131,12 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->end_io = end_io;
 	dio->error = 0;
 	dio->flags = 0;
+	dio->wait_for_completion = is_sync_kiocb(iocb);
 
 	dio->submit.iter = iter;
-	if (is_sync_kiocb(iocb)) {
-		dio->submit.waiter = current;
-		dio->submit.cookie = BLK_QC_T_NONE;
-		dio->submit.last_queue = NULL;
-	}
+	dio->submit.waiter = current;
+	dio->submit.cookie = BLK_QC_T_NONE;
+	dio->submit.last_queue = NULL;
 
 	if (iov_iter_rw(iter) == READ) {
 		if (pos >= dio->i_size)
@@ -1187,7 +1186,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		dio_warn_stale_pagecache(iocb->ki_filp);
 	ret = 0;
 
-	if (iov_iter_rw(iter) == WRITE && !is_sync_kiocb(iocb) &&
+	if (iov_iter_rw(iter) == WRITE && !dio->wait_for_completion &&
 	    !inode->i_sb->s_dio_done_wq) {
 		ret = sb_init_dio_done_wq(inode->i_sb);
 		if (ret < 0)
@@ -1202,8 +1201,10 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				iomap_dio_actor);
 		if (ret <= 0) {
 			/* magic error code to fall back to buffered I/O */
-			if (ret == -ENOTBLK)
+			if (ret == -ENOTBLK) {
+				dio->wait_for_completion = true;
 				ret = 0;
+			}
 			break;
 		}
 		pos += ret;
@@ -1224,7 +1225,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		dio->flags &= ~IOMAP_DIO_NEED_SYNC;
 
 	if (!atomic_dec_and_test(&dio->ref)) {
-		if (!is_sync_kiocb(iocb))
+		if (!dio->wait_for_completion)
 			return -EIOCBQUEUED;
 
 		for (;;) {
