@@ -448,6 +448,29 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 	hw->rate_max = min_not_zero(hw->rate_max, rate_max);
 }
 
+static int soc_pcm_components_close(struct snd_pcm_substream *substream,
+				    struct snd_soc_component *last)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component == last)
+			break;
+
+		if (!component->driver->ops ||
+		    !component->driver->ops->close)
+			continue;
+
+		component->driver->ops->close(substream);
+	}
+
+	return 0;
+}
+
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -462,7 +485,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	const char *codec_dai_name = "multicodec";
-	int i, ret = 0, __ret;
+	int i, ret = 0;
 
 	pinctrl_pm_select_default_state(cpu_dai->dev);
 	for (i = 0; i < rtd->num_codecs; i++)
@@ -486,7 +509,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	ret = 0;
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
@@ -494,16 +516,15 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		    !component->driver->ops->open)
 			continue;
 
-		__ret = component->driver->ops->open(substream);
-		if (__ret < 0) {
+		ret = component->driver->ops->open(substream);
+		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't open component %s: %d\n",
-				component->name, __ret);
-			ret = __ret;
+				component->name, ret);
+			goto component_err;
 		}
 	}
-	if (ret < 0)
-		goto component_err;
+	component = NULL;
 
 	for (i = 0; i < rtd->num_codecs; i++) {
 		codec_dai = rtd->codec_dais[i];
@@ -612,15 +633,7 @@ codec_dai_err:
 	}
 
 component_err:
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->close)
-			continue;
-
-		component->driver->ops->close(substream);
-	}
+	soc_pcm_components_close(substream, component);
 
 	if (cpu_dai->driver->ops->shutdown)
 		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
@@ -714,15 +727,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	if (rtd->dai_link->ops->shutdown)
 		rtd->dai_link->ops->shutdown(substream);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->close)
-			continue;
-
-		component->driver->ops->close(substream);
-	}
+	soc_pcm_components_close(substream, NULL);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
@@ -874,6 +879,29 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int soc_pcm_components_hw_free(struct snd_pcm_substream *substream,
+				      struct snd_soc_component *last)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component == last)
+			break;
+
+		if (!component->driver->ops ||
+		    !component->driver->ops->hw_free)
+			continue;
+
+		component->driver->ops->hw_free(substream);
+	}
+
+	return 0;
+}
+
 /*
  * Called by ALSA when the hardware params are set by application. This
  * function can also be called multiple times and can allocate buffers
@@ -886,7 +914,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int i, ret = 0, __ret;
+	int i, ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 	if (rtd->dai_link->ops->hw_params) {
@@ -944,7 +972,6 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto interface_err;
 
-	ret = 0;
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
@@ -952,16 +979,15 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		    !component->driver->ops->hw_params)
 			continue;
 
-		__ret = component->driver->ops->hw_params(substream, params);
-		if (__ret < 0) {
+		ret = component->driver->ops->hw_params(substream, params);
+		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: %s hw params failed: %d\n",
-				component->name, __ret);
-			ret = __ret;
+				component->name, ret);
+			goto component_err;
 		}
 	}
-	if (ret < 0)
-		goto component_err;
+	component = NULL;
 
 	/* store the parameters for each DAIs */
 	cpu_dai->rate = params_rate(params);
@@ -977,15 +1003,7 @@ out:
 	return ret;
 
 component_err:
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->hw_free)
-			continue;
-
-		component->driver->ops->hw_free(substream);
-	}
+	soc_pcm_components_hw_free(substream, component);
 
 	if (cpu_dai->driver->ops->hw_free)
 		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
@@ -1014,8 +1032,6 @@ codec_err:
 static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	bool playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
@@ -1052,15 +1068,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 		rtd->dai_link->ops->hw_free(substream);
 
 	/* free any component resources */
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->hw_free)
-			continue;
-
-		component->driver->ops->hw_free(substream);
-	}
+	soc_pcm_components_hw_free(substream, NULL);
 
 	/* now free hw params for the DAIs  */
 	for (i = 0; i < rtd->num_codecs; i++) {
