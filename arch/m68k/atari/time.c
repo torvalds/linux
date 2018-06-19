@@ -285,69 +285,6 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
     return( 0 );
 }
 
-
-int atari_mste_set_clock_mmss (unsigned long nowtime)
-{
-    short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-    struct MSTE_RTC val;
-    unsigned char rtc_minutes;
-
-    mste_read(&val);
-    rtc_minutes= val.min_ones + val.min_tens * 10;
-    if ((rtc_minutes < real_minutes
-         ? real_minutes - rtc_minutes
-         : rtc_minutes - real_minutes) < 30)
-    {
-        val.sec_ones = real_seconds % 10;
-        val.sec_tens = real_seconds / 10;
-        val.min_ones = real_minutes % 10;
-        val.min_tens = real_minutes / 10;
-        mste_write(&val);
-    }
-    else
-        return -1;
-    return 0;
-}
-
-int atari_tt_set_clock_mmss (unsigned long nowtime)
-{
-    int retval = 0;
-    short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-    unsigned char save_control, save_freq_select, rtc_minutes;
-
-    save_control = RTC_READ (RTC_CONTROL); /* tell the clock it's being set */
-    RTC_WRITE (RTC_CONTROL, save_control | RTC_SET);
-
-    save_freq_select = RTC_READ (RTC_FREQ_SELECT); /* stop and reset prescaler */
-    RTC_WRITE (RTC_FREQ_SELECT, save_freq_select | RTC_DIV_RESET2);
-
-    rtc_minutes = RTC_READ (RTC_MINUTES);
-    if (!(save_control & RTC_DM_BINARY))
-	rtc_minutes = bcd2bin(rtc_minutes);
-
-    /* Since we're only adjusting minutes and seconds, don't interfere
-       with hour overflow.  This avoids messing with unknown time zones
-       but requires your RTC not to be off by more than 30 minutes.  */
-    if ((rtc_minutes < real_minutes
-         ? real_minutes - rtc_minutes
-         : rtc_minutes - real_minutes) < 30)
-        {
-            if (!(save_control & RTC_DM_BINARY))
-                {
-		    real_seconds = bin2bcd(real_seconds);
-		    real_minutes = bin2bcd(real_minutes);
-                }
-            RTC_WRITE (RTC_SECONDS, real_seconds);
-            RTC_WRITE (RTC_MINUTES, real_minutes);
-        }
-    else
-        retval = -1;
-
-    RTC_WRITE (RTC_FREQ_SELECT, save_freq_select);
-    RTC_WRITE (RTC_CONTROL, save_control);
-    return retval;
-}
-
 /*
  * Local variables:
  *  c-indent-level: 4

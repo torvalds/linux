@@ -57,7 +57,6 @@ static unsigned long mac_orig_videoaddr;
 /* Mac specific timer functions */
 extern u32 mac_gettimeoffset(void);
 extern int mac_hwclk(int, struct rtc_time *);
-extern int mac_set_clock_mmss(unsigned long);
 extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
@@ -158,7 +157,6 @@ void __init config_mac(void)
 	mach_get_model = mac_get_model;
 	arch_gettimeoffset = mac_gettimeoffset;
 	mach_hwclk = mac_hwclk;
-	mach_set_clock_mmss = mac_set_clock_mmss;
 	mach_reset = mac_reset;
 	mach_halt = mac_poweroff;
 	mach_power_off = mac_poweroff;

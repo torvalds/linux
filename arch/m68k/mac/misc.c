@@ -727,19 +727,3 @@ int mac_hwclk(int op, struct rtc_time *t)
 	}
 	return 0;
 }
-
-/*
- * Set minutes/seconds in the hardware clock
- */
-
-int mac_set_clock_mmss (unsigned long nowtime)
-{
-	struct rtc_time now;
-
-	mac_hwclk(0, &now);
-	now.tm_sec = nowtime % 60;
-	now.tm_min = (nowtime / 60) % 60;
-	mac_hwclk(1, &now);
-
-	return 0;
-}

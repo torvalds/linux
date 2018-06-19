@@ -88,7 +88,6 @@ void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 int (*mach_hwclk) (int, struct rtc_time*);
 EXPORT_SYMBOL(mach_hwclk);
-int (*mach_set_clock_mmss) (unsigned long);
 unsigned int (*mach_get_ss)(void);
 int (*mach_get_rtc_pll)(struct rtc_pll_info *);
 int (*mach_set_rtc_pll)(struct rtc_pll_info *);
