@@ -1226,8 +1226,6 @@ out:
 		return ncsi_choose_active_channel(ndp);
 	}
 
-	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-		      "NCSI: No more channels to process\n");
 	ncsi_report_link(ndp, false);
 	return -ENODEV;
 }
