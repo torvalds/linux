@@ -1526,26 +1526,12 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	mutex_lock(&uuid_mutex);
-	error = btrfs_parse_early_options(data, mode, fs_type,
-					  &fs_devices);
-	mutex_unlock(&uuid_mutex);
-	if (error) {
-		return ERR_PTR(error);
-	}
-
 	security_init_mnt_opts(&new_sec_opts);
 	if (data) {
 		error = parse_security_options(data, &new_sec_opts);
 		if (error)
 			return ERR_PTR(error);
 	}
-
-	mutex_lock(&uuid_mutex);
-	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
-	mutex_unlock(&uuid_mutex);
-	if (error)
-		goto error_sec_opts;
 
 	/*
 	 * Setup a dummy root and fs_info for test/set super.  This is because
@@ -1559,8 +1545,6 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		goto error_sec_opts;
 	}
 
-	fs_info->fs_devices = fs_devices;
-
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
 	security_init_mnt_opts(&fs_info->security_opts);
@@ -1568,6 +1552,20 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		error = -ENOMEM;
 		goto error_fs_info;
 	}
+
+	mutex_lock(&uuid_mutex);
+	error = btrfs_parse_early_options(data, mode, fs_type, &fs_devices);
+	mutex_unlock(&uuid_mutex);
+	if (error)
+		goto error_fs_info;
+
+	mutex_lock(&uuid_mutex);
+	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
+	mutex_unlock(&uuid_mutex);
+	if (error)
+		goto error_fs_info;
+
+	fs_info->fs_devices = fs_devices;
 
 	mutex_lock(&uuid_mutex);
 	error = btrfs_open_devices(fs_devices, mode, fs_type);
