@@ -1268,7 +1268,8 @@ void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
 	unsigned long s0 = 0, s1 = 0;
 
 	idx = sp->srcu_idx & 0x1;
-	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):", tt, tf, idx);
+	pr_alert("%s%s Tree SRCU g%ld per-CPU(idx=%d):",
+		 tt, tf, rcu_seq_current(&sp->srcu_gp_seq), idx);
 	for_each_possible_cpu(cpu) {
 		unsigned long l0, l1;
 		unsigned long u0, u1;
