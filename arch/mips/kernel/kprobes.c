@@ -468,51 +468,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	kcb->jprobe_saved_regs = *regs;
-	kcb->jprobe_saved_sp = regs->regs[29];
-
-	memcpy(kcb->jprobes_stack, (void *)kcb->jprobe_saved_sp,
-	       MIN_JPROBES_STACK_SIZE(kcb->jprobe_saved_sp));
-
-	regs->cp0_epc = (unsigned long)(jp->entry);
-
-	return 1;
-}
-
-/* Defined in the inline asm below. */
-void jprobe_return_end(void);
-
-void __kprobes jprobe_return(void)
-{
-	/* Assembler quirk necessitates this '0,code' business.	 */
-	asm volatile(
-		"break 0,%0\n\t"
-		".globl jprobe_return_end\n"
-		"jprobe_return_end:\n"
-		: : "n" (BRK_KPROBE_BP) : "memory");
-}
-
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	if (regs->cp0_epc >= (unsigned long)jprobe_return &&
-	    regs->cp0_epc <= (unsigned long)jprobe_return_end) {
-		*regs = kcb->jprobe_saved_regs;
-		memcpy((void *)kcb->jprobe_saved_sp, kcb->jprobes_stack,
-		       MIN_JPROBES_STACK_SIZE(kcb->jprobe_saved_sp));
-		preempt_enable_no_resched();
-
-		return 1;
-	}
-	return 0;
-}
-
 /*
  * Function return probe trampoline:
  *	- init_kprobes() establishes a probepoint here
