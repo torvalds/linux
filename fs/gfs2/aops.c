@@ -84,12 +84,6 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 	return 0;
 }
 
-static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
-				 struct buffer_head *bh_result, int create)
-{
-	return gfs2_block_map(inode, lblock, bh_result, 0);
-}
-
 /**
  * gfs2_writepage_common - Common bits of writepage
  * @page: The page to be written
@@ -1025,96 +1019,6 @@ out:
 }
 
 /**
- * gfs2_ok_for_dio - check that dio is valid on this file
- * @ip: The inode
- * @offset: The offset at which we are reading or writing
- *
- * Returns: 0 (to ignore the i/o request and thus fall back to buffered i/o)
- *          1 (to accept the i/o request)
- */
-static int gfs2_ok_for_dio(struct gfs2_inode *ip, loff_t offset)
-{
-	/*
-	 * Should we return an error here? I can't see that O_DIRECT for
-	 * a stuffed file makes any sense. For now we'll silently fall
-	 * back to buffered I/O
-	 */
-	if (gfs2_is_stuffed(ip))
-		return 0;
-
-	if (offset >= i_size_read(&ip->i_inode))
-		return 0;
-	return 1;
-}
-
-
-
-static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
-{
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
-	struct address_space *mapping = inode->i_mapping;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	loff_t offset = iocb->ki_pos;
-	struct gfs2_holder gh;
-	int rv;
-
-	/*
-	 * Deferred lock, even if its a write, since we do no allocation
-	 * on this path. All we need change is atime, and this lock mode
-	 * ensures that other nodes have flushed their buffered read caches
-	 * (i.e. their page cache entries for this inode). We do not,
-	 * unfortunately have the option of only flushing a range like
-	 * the VFS does.
-	 */
-	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, 0, &gh);
-	rv = gfs2_glock_nq(&gh);
-	if (rv)
-		goto out_uninit;
-	rv = gfs2_ok_for_dio(ip, offset);
-	if (rv != 1)
-		goto out; /* dio not valid, fall back to buffered i/o */
-
-	/*
-	 * Now since we are holding a deferred (CW) lock at this point, you
-	 * might be wondering why this is ever needed. There is a case however
-	 * where we've granted a deferred local lock against a cached exclusive
-	 * glock. That is ok provided all granted local locks are deferred, but
-	 * it also means that it is possible to encounter pages which are
-	 * cached and possibly also mapped. So here we check for that and sort
-	 * them out ahead of the dio. The glock state machine will take care of
-	 * everything else.
-	 *
-	 * If in fact the cached glock state (gl->gl_state) is deferred (CW) in
-	 * the first place, mapping->nr_pages will always be zero.
-	 */
-	if (mapping->nrpages) {
-		loff_t lstart = offset & ~(PAGE_SIZE - 1);
-		loff_t len = iov_iter_count(iter);
-		loff_t end = PAGE_ALIGN(offset + len) - 1;
-
-		rv = 0;
-		if (len == 0)
-			goto out;
-		if (test_and_clear_bit(GIF_SW_PAGED, &ip->i_flags))
-			unmap_shared_mapping_range(ip->i_inode.i_mapping, offset, len);
-		rv = filemap_write_and_wait_range(mapping, lstart, end);
-		if (rv)
-			goto out;
-		if (iov_iter_rw(iter) == WRITE)
-			truncate_inode_pages_range(mapping, lstart, end);
-	}
-
-	rv = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
-				  gfs2_get_block_direct, NULL, NULL, 0);
-out:
-	gfs2_glock_dq(&gh);
-out_uninit:
-	gfs2_holder_uninit(&gh);
-	return rv;
-}
-
-/**
  * gfs2_releasepage - free the metadata associated with a page
  * @page: the page that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
@@ -1194,7 +1098,7 @@ static const struct address_space_operations gfs2_writeback_aops = {
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
-	.direct_IO = gfs2_direct_IO,
+	.direct_IO = noop_direct_IO,
 	.migratepage = buffer_migrate_page,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
@@ -1211,7 +1115,7 @@ static const struct address_space_operations gfs2_ordered_aops = {
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
-	.direct_IO = gfs2_direct_IO,
+	.direct_IO = noop_direct_IO,
 	.migratepage = buffer_migrate_page,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,

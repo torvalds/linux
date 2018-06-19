@@ -915,6 +915,9 @@ do_alloc:
 	} else if (flags & IOMAP_WRITE) {
 		u64 alloc_size;
 
+		if (flags & IOMAP_DIRECT)
+			goto out;  /* (see gfs2_file_direct_write) */
+
 		len = gfs2_alloc_size(inode, mp, len);
 		alloc_size = len << inode->i_blkbits;
 		if (alloc_size < iomap->length)
@@ -1082,11 +1085,18 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	int ret;
 
 	trace_gfs2_iomap_start(ip, pos, length, flags);
-	if (flags & IOMAP_WRITE) {
+	if ((flags & IOMAP_WRITE) && !(flags & IOMAP_DIRECT)) {
 		ret = gfs2_iomap_begin_write(inode, pos, length, flags, iomap);
 	} else {
 		ret = gfs2_iomap_get(inode, pos, length, flags, iomap, &mp);
 		release_metapath(&mp);
+		/*
+		 * Silently fall back to buffered I/O for stuffed files or if
+		 * we've hot a hole (see gfs2_file_direct_write).
+		 */
+		if ((flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT) &&
+		    iomap->type != IOMAP_MAPPED)
+			ret = -ENOTBLK;
 	}
 	trace_gfs2_iomap_end(ip, iomap, ret);
 	return ret;
@@ -1100,7 +1110,7 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 	struct gfs2_trans *tr = current->journal_info;
 	struct buffer_head *dibh = iomap->private;
 
-	if (!(flags & IOMAP_WRITE))
+	if ((flags & (IOMAP_WRITE | IOMAP_DIRECT)) != IOMAP_WRITE)
 		goto out;
 
 	if (iomap->type != IOMAP_INLINE) {
