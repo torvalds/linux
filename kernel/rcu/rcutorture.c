@@ -1787,6 +1787,32 @@ static void rcu_torture_barrier_cleanup(void)
 	}
 }
 
+static bool rcu_torture_can_boost(void)
+{
+	static int boost_warn_once;
+	int prio;
+
+	if (!(test_boost == 1 && cur_ops->can_boost) && test_boost != 2)
+		return false;
+
+	prio = rcu_get_gp_kthreads_prio();
+	if (!prio)
+		return false;
+
+	if (prio < 2) {
+		if (boost_warn_once  == 1)
+			return false;
+
+		pr_alert("%s: WARN: RCU kthread priority too low to test boosting. "
+			 "Skipping RCU boost test. Try passing rcutree.kthread_prio > 1 "
+			 "on the kernel command line.\n", KBUILD_MODNAME);
+		boost_warn_once = 1;
+		return false;
+	}
+
+	return true;
+}
+
 static enum cpuhp_state rcutor_hp;
 
 static void
@@ -1831,8 +1857,7 @@ rcu_torture_cleanup(void)
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
 	for (i = 0; i < ncbflooders; i++)
 		torture_stop_kthread(rcu_torture_cbflood, cbflood_task[i]);
-	if ((test_boost == 1 && cur_ops->can_boost) ||
-	    test_boost == 2)
+	if (rcu_torture_can_boost())
 		cpuhp_remove_state(rcutor_hp);
 
 	/*
@@ -2056,8 +2081,7 @@ rcu_torture_init(void)
 		test_boost_interval = 1;
 	if (test_boost_duration < 2)
 		test_boost_duration = 2;
-	if ((test_boost == 1 && cur_ops->can_boost) ||
-	    test_boost == 2) {
+	if (rcu_torture_can_boost()) {
 
 		boost_starttime = jiffies + test_boost_interval * HZ;
 

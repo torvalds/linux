@@ -180,6 +180,13 @@ module_param(gp_init_delay, int, 0444);
 static int gp_cleanup_delay;
 module_param(gp_cleanup_delay, int, 0444);
 
+/* Retreive RCU kthreads priority for rcutorture */
+int rcu_get_gp_kthreads_prio(void)
+{
+	return kthread_prio;
+}
+EXPORT_SYMBOL_GPL(rcu_get_gp_kthreads_prio);
+
 /*
  * Number of grace periods between delays, normalized by the duration of
  * the delay.  The longer the delay, the more the grace periods between
