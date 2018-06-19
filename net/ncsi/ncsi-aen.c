@@ -73,8 +73,8 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
 	ncm->data[2] = data;
 	ncm->data[4] = ntohl(lsc->oem_status);
 
-	netdev_info(ndp->ndev.dev, "NCSI: LSC AEN - channel %u state %s\n",
-		    nc->id, data & 0x1 ? "up" : "down");
+	netdev_dbg(ndp->ndev.dev, "NCSI: LSC AEN - channel %u state %s\n",
+		   nc->id, data & 0x1 ? "up" : "down");
 
 	chained = !list_empty(&nc->link);
 	state = nc->state;

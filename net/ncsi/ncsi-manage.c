@@ -816,9 +816,9 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		} else {
 			hot_nc = NULL;
 			nc->state = NCSI_CHANNEL_INACTIVE;
-			netdev_warn(ndp->ndev.dev,
-				    "NCSI: channel %u link down after config\n",
-				    nc->id);
+			netdev_dbg(ndp->ndev.dev,
+				   "NCSI: channel %u link down after config\n",
+				   nc->id);
 		}
 		spin_unlock_irqrestore(&nc->lock, flags);
 
@@ -1199,14 +1199,14 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 	switch (old_state) {
 	case NCSI_CHANNEL_INACTIVE:
 		ndp->ndev.state = ncsi_dev_state_config;
-		netdev_info(ndp->ndev.dev, "NCSI: configuring channel %u\n",
-			    nc->id);
+		netdev_dbg(ndp->ndev.dev, "NCSI: configuring channel %u\n",
+	                   nc->id);
 		ncsi_configure_channel(ndp);
 		break;
 	case NCSI_CHANNEL_ACTIVE:
 		ndp->ndev.state = ncsi_dev_state_suspend;
-		netdev_info(ndp->ndev.dev, "NCSI: suspending channel %u\n",
-			    nc->id);
+		netdev_dbg(ndp->ndev.dev, "NCSI: suspending channel %u\n",
+			   nc->id);
 		ncsi_suspend_channel(ndp);
 		break;
 	default:
