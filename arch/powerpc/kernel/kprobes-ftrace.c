@@ -25,21 +25,6 @@
 #include <linux/preempt.h>
 #include <linux/ftrace.h>
 
-/*
- * This is called from ftrace code after invoking registered handlers to
- * disambiguate regs->nip changes done by jprobes and livepatch. We check if
- * there is an active jprobe at the provided address (mcount location).
- */
-int __is_active_jprobe(unsigned long addr)
-{
-	if (!preemptible()) {
-		struct kprobe *p = raw_cpu_read(current_kprobe);
-		return (p && (unsigned long)p->addr == addr) ? 1 : 0;
-	}
-
-	return 0;
-}
-
 static nokprobe_inline
 int __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 		      struct kprobe_ctlblk *kcb, unsigned long orig_nip)

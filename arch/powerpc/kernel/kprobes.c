@@ -611,60 +611,6 @@ unsigned long arch_deref_entry_point(void *entry)
 }
 NOKPROBE_SYMBOL(arch_deref_entry_point);
 
-int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	memcpy(&kcb->jprobe_saved_regs, regs, sizeof(struct pt_regs));
-
-	/* setup return addr to the jprobe handler routine */
-	regs->nip = arch_deref_entry_point(jp->entry);
-#ifdef PPC64_ELF_ABI_v2
-	regs->gpr[12] = (unsigned long)jp->entry;
-#elif defined(PPC64_ELF_ABI_v1)
-	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
-#endif
-
-	/*
-	 * jprobes use jprobe_return() which skips the normal return
-	 * path of the function, and this messes up the accounting of the
-	 * function graph tracer.
-	 *
-	 * Pause function graph tracing while performing the jprobe function.
-	 */
-	pause_graph_tracing();
-
-	return 1;
-}
-NOKPROBE_SYMBOL(setjmp_pre_handler);
-
-void __used jprobe_return(void)
-{
-	asm volatile("jprobe_return_trap:\n"
-		     "trap\n"
-		     ::: "memory");
-}
-NOKPROBE_SYMBOL(jprobe_return);
-
-int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	if (regs->nip != ppc_kallsyms_lookup_name("jprobe_return_trap")) {
-		pr_debug("longjmp_break_handler NIP (0x%lx) does not match jprobe_return_trap (0x%lx)\n",
-				regs->nip, ppc_kallsyms_lookup_name("jprobe_return_trap"));
-		return 0;
-	}
-
-	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
-	/* It's OK to start function graph tracing again */
-	unpause_graph_tracing();
-	preempt_enable_no_resched();
-	return 1;
-}
-NOKPROBE_SYMBOL(longjmp_break_handler);
-
 static struct kprobe trampoline_p = {
 	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
