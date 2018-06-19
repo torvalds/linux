@@ -885,7 +885,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_eq_sz[0x8];
 	u8         reserved_at_e8[0x2];
 	u8         log_max_mkey[0x6];
-	u8         reserved_at_f0[0xc];
+	u8         reserved_at_f0[0x8];
+	u8         dump_fill_mkey[0x1];
+	u8         reserved_at_f9[0x3];
 	u8         log_max_eq[0x4];
 
 	u8         max_indirection[0x8];
