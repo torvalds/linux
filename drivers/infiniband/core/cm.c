@@ -1941,9 +1941,8 @@ static int cm_req_handler(struct cm_work *work)
 	struct ib_cm_id *cm_id;
 	struct cm_id_private *cm_id_priv, *listen_cm_id_priv;
 	struct cm_req_msg *req_msg;
-	union ib_gid gid;
-	struct ib_gid_attr gid_attr;
 	const struct ib_global_route *grh;
+	const struct ib_gid_attr *gid_attr;
 	int ret;
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
@@ -1988,20 +1987,13 @@ static int cm_req_handler(struct cm_work *work)
 	if (cm_req_has_alt_path(req_msg))
 		memset(&work->path[1], 0, sizeof(work->path[1]));
 	grh = rdma_ah_read_grh(&cm_id_priv->av.ah_attr);
-	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,
-				work->port->port_num,
-				grh->sgid_index,
-				&gid, &gid_attr);
-	if (ret) {
-		ib_send_cm_rej(cm_id, IB_CM_REJ_UNSUPPORTED, NULL, 0, NULL, 0);
-		goto rejected;
-	}
+	gid_attr = grh->sgid_attr;
 
-	if (gid_attr.ndev) {
+	if (gid_attr && gid_attr->ndev) {
 		work->path[0].rec_type =
-			sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
-		dev_put(gid_attr.ndev);
+			sa_conv_gid_to_pathrec_type(gid_attr->gid_type);
 	} else {
+		/* If no GID attribute or ndev is null, it is not RoCE. */
 		cm_path_set_rec_type(work->port->cm_dev->ib_device,
 				     work->port->port_num,
 				     &work->path[0],
@@ -2015,7 +2007,7 @@ static int cm_req_handler(struct cm_work *work)
 		sa_path_set_dmac(&work->path[0],
 				 cm_id_priv->av.ah_attr.roce.dmac);
 	work->path[0].hop_limit = grh->hop_limit;
-	ret = cm_init_av_by_path(&work->path[0], &gid_attr, &cm_id_priv->av,
+	ret = cm_init_av_by_path(&work->path[0], gid_attr, &cm_id_priv->av,
 				 cm_id_priv);
 	if (ret) {
 		int err;
