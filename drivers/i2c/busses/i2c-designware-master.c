@@ -48,7 +48,7 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 {
 	u32 ic_clk = i2c_dw_clk_rate(dev);
-	const char *fp_str = "";
+	const char *mode_str, *fp_str = "";
 	u32 comp_param1;
 	u32 sda_falling_time, scl_falling_time;
 	int ret;
@@ -132,7 +132,24 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		}
 	}
 
-	return i2c_dw_set_sda_hold(dev);
+	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		goto out;
+
+	switch (dev->master_cfg & DW_IC_CON_SPEED_MASK) {
+	case DW_IC_CON_SPEED_STD:
+		mode_str = "Standard Mode";
+		break;
+	case DW_IC_CON_SPEED_HIGH:
+		mode_str = "High Speed Mode";
+		break;
+	default:
+		mode_str = "Fast Mode";
+	}
+	dev_dbg(dev->dev, "Bus speed: %s%s\n", mode_str, fp_str);
+
+out:
+	return ret;
 }
 
 /**
