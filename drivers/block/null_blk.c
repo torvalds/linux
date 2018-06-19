@@ -1365,7 +1365,7 @@ static blk_qc_t null_queue_bio(struct request_queue *q, struct bio *bio)
 static enum blk_eh_timer_return null_rq_timed_out_fn(struct request *rq)
 {
 	pr_info("null: rq %p timed out\n", rq);
-	blk_mq_complete_request(rq);
+	__blk_complete_request(rq);
 	return BLK_EH_DONE;
 }
 
