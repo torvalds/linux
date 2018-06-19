@@ -341,7 +341,13 @@ static bool vmballoon_send_start(struct vmballoon *b, unsigned long req_caps)
 		success = false;
 	}
 
-	if (b->capabilities & VMW_BALLOON_BATCHED_2M_CMDS)
+	/*
+	 * 2MB pages are only supported with batching. If batching is for some
+	 * reason disabled, do not use 2MB pages, since otherwise the legacy
+	 * mechanism is used with 2MB pages, causing a failure.
+	 */
+	if ((b->capabilities & VMW_BALLOON_BATCHED_2M_CMDS) &&
+	    (b->capabilities & VMW_BALLOON_BATCHED_CMDS))
 		b->supported_page_sizes = 2;
 	else
 		b->supported_page_sizes = 1;
