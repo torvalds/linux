@@ -1660,6 +1660,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	int err;
 	size_t min_req_v2 = offsetof(struct mlx5_ib_alloc_ucontext_req_v2,
 				     max_cqe_version);
+	u32 dump_fill_mkey;
 	bool lib_uar_4k;
 
 	if (!dev->ib_active)
@@ -1761,6 +1762,12 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			goto out_uars;
 	}
 
+	if (MLX5_CAP_GEN(dev->mdev, dump_fill_mkey)) {
+		err = mlx5_cmd_dump_fill_mkey(dev->mdev, &dump_fill_mkey);
+		if (err)
+			goto out_td;
+	}
+
 	INIT_LIST_HEAD(&context->vma_private_list);
 	mutex_init(&context->vma_private_list_mutex);
 	INIT_LIST_HEAD(&context->db_page_list);
@@ -1817,6 +1824,15 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (field_avail(typeof(resp), num_dyn_bfregs, udata->outlen)) {
 		resp.num_dyn_bfregs = bfregi->num_dyn_bfregs;
 		resp.response_length += sizeof(resp.num_dyn_bfregs);
+	}
+
+	if (field_avail(typeof(resp), dump_fill_mkey, udata->outlen)) {
+		if (MLX5_CAP_GEN(dev->mdev, dump_fill_mkey)) {
+			resp.dump_fill_mkey = dump_fill_mkey;
+			resp.comp_mask |=
+				MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_DUMP_FILL_MKEY;
+		}
+		resp.response_length += sizeof(resp.dump_fill_mkey);
 	}
 
 	err = ib_copy_to_udata(udata, &resp, resp.response_length);
