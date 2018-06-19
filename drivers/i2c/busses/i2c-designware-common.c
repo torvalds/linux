@@ -94,6 +94,40 @@ void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 	}
 }
 
+/**
+ * i2c_dw_set_reg_access() - Set register access flags
+ * @dev: device private data
+ *
+ * Autodetects needed register access mode and sets access flags accordingly.
+ * This must be called before doing any other register access.
+ */
+int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
+{
+	u32 reg;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	reg = dw_readl(dev, DW_IC_COMP_TYPE);
+	i2c_dw_release_lock(dev);
+
+	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
+		/* Configure register endianess access */
+		dev->flags |= ACCESS_SWAP;
+	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
+		/* Configure register access mode 16bit */
+		dev->flags |= ACCESS_16BIT;
+	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
+		dev_err(dev->dev,
+			"Unknown Synopsys component type: 0x%08x\n", reg);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 {
 	/*

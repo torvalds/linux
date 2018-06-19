@@ -64,20 +64,6 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
-	reg = dw_readl(dev, DW_IC_COMP_TYPE);
-	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
-		dev->flags |= ACCESS_SWAP;
-	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
-		/* Configure register access mode 16bit */
-		dev->flags |= ACCESS_16BIT;
-	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
-		dev_err(dev->dev,
-			"Unknown Synopsys component type: 0x%08x\n", reg);
-		i2c_dw_release_lock(dev);
-		return -ENODEV;
-	}
-
 	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
 
 	/* Disable the adapter */
@@ -680,6 +666,10 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	dev->init = i2c_dw_init_master;
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
+
+	ret = i2c_dw_set_reg_access(dev);
+	if (ret)
+		return ret;
 
 	ret = dev->init(dev);
 	if (ret)
