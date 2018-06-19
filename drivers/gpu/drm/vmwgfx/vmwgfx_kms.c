@@ -1507,7 +1507,151 @@ err_out:
 	return &vfb->base;
 }
 
+/**
+ * vmw_kms_check_display_memory - Validates display memory required for a
+ * topology
+ * @dev: DRM device
+ * @num_rects: number of drm_rect in rects
+ * @rects: array of drm_rect representing the topology to validate indexed by
+ * crtc index.
+ *
+ * Returns:
+ * 0 on success otherwise negative error code
+ */
+static int vmw_kms_check_display_memory(struct drm_device *dev,
+					uint32_t num_rects,
+					struct drm_rect *rects)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_rect bounding_box = {0};
+	u64 total_pixels = 0, pixel_mem, bb_mem;
+	int i;
 
+	for (i = 0; i < num_rects; i++) {
+		/*
+		 * Currently this check is limiting the topology within max
+		 * texture/screentarget size. This should change in future when
+		 * user-space support multiple fb with topology.
+		 */
+		if (rects[i].x1 < 0 ||  rects[i].y1 < 0 ||
+		    rects[i].x2 > mode_config->max_width ||
+		    rects[i].y2 > mode_config->max_height) {
+			DRM_ERROR("Invalid GUI layout.\n");
+			return -EINVAL;
+		}
+
+		/* Bounding box upper left is at (0,0). */
+		if (rects[i].x2 > bounding_box.x2)
+			bounding_box.x2 = rects[i].x2;
+
+		if (rects[i].y2 > bounding_box.y2)
+			bounding_box.y2 = rects[i].y2;
+
+		total_pixels += (u64) drm_rect_width(&rects[i]) *
+			(u64) drm_rect_height(&rects[i]);
+	}
+
+	/* Virtual svga device primary limits are always in 32-bpp. */
+	pixel_mem = total_pixels * 4;
+
+	/*
+	 * For HV10 and below prim_bb_mem is vram size. When
+	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is not present vram size is
+	 * limit on primary bounding box
+	 */
+	if (pixel_mem > dev_priv->prim_bb_mem) {
+		DRM_ERROR("Combined output size too large.\n");
+		return -EINVAL;
+	}
+
+	/* SVGA_CAP_NO_BB_RESTRICTION is available for STDU only. */
+	if (dev_priv->active_display_unit != vmw_du_screen_target ||
+	    !(dev_priv->capabilities & SVGA_CAP_NO_BB_RESTRICTION)) {
+		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
+
+		if (bb_mem > dev_priv->prim_bb_mem) {
+			DRM_ERROR("Topology is beyond supported limits.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_kms_check_topology - Validates topology in drm_atomic_state
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * Returns:
+ * 0 on success otherwise negative error code
+ */
+static int vmw_kms_check_topology(struct drm_device *dev,
+				  struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_rect *rects;
+	struct drm_crtc *crtc;
+	uint32_t i;
+	int ret = 0;
+
+	rects = kcalloc(dev->mode_config.num_crtc, sizeof(struct drm_rect),
+			GFP_KERNEL);
+	if (!rects)
+		return -ENOMEM;
+
+	drm_for_each_crtc(crtc, dev) {
+		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+		struct drm_crtc_state *crtc_state = crtc->state;
+
+		i = drm_crtc_index(crtc);
+
+		if (crtc_state && crtc_state->enable) {
+			/*
+			 * There could be a race condition with update of gui_x/
+			 * gui_y. Those are protected by dev->mode_config.mutex.
+			 */
+			rects[i].x1 = du->gui_x;
+			rects[i].y1 = du->gui_y;
+			rects[i].x2 = du->gui_x + crtc_state->mode.hdisplay;
+			rects[i].y2 = du->gui_y + crtc_state->mode.vdisplay;
+		}
+	}
+
+	/* Determine change to topology due to new atomic state */
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+
+		if (!new_crtc_state->enable && old_crtc_state->enable) {
+			rects[i].x1 = 0;
+			rects[i].y1 = 0;
+			rects[i].x2 = 0;
+			rects[i].y2 = 0;
+		}
+
+		if (new_crtc_state->enable) {
+			/* If display unit is not active cannot enable CRTC */
+			if (!du->pref_active) {
+				ret = -EINVAL;
+				goto clean;
+			}
+
+			rects[i].x1 = du->gui_x;
+			rects[i].y1 = du->gui_y;
+			rects[i].x2 = du->gui_x + new_crtc_state->mode.hdisplay;
+			rects[i].y2 = du->gui_y + new_crtc_state->mode.vdisplay;
+		}
+	}
+
+	ret = vmw_kms_check_display_memory(dev, dev->mode_config.num_crtc,
+					   rects);
+
+clean:
+	kfree(rects);
+	return ret;
+}
 
 /**
  * vmw_kms_atomic_check_modeset- validate state object for modeset changes
@@ -1519,52 +1663,20 @@ err_out:
  * us to assign a value to mode->crtc_clock so that
  * drm_calc_timestamping_constants() won't throw an error message
  *
- * RETURNS
+ * Returns:
  * Zero for success or -errno
  */
 static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
 			     struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *new_crtc_state;
-	struct drm_plane_state *new_plane_state;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	int i, ret, cpp = 0;
+	int ret;
 
 	ret = drm_atomic_helper_check(dev, state);
-
-	/* If this is not a STDU, then no more checking is necessary */
-	if (ret || dev_priv->active_display_unit != vmw_du_screen_target)
+	if (ret)
 		return ret;
 
-	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-		if (new_plane_state->fb) {
-			int current_cpp = new_plane_state->fb->pitches[0] /
-					  new_plane_state->fb->width;
-
-			if (cpp == 0)
-				cpp = current_cpp;
-			else if (current_cpp != cpp)
-				return -EINVAL;
-		}
-	}
-
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		unsigned long requested_bb_mem = 0;
-
-		if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-			requested_bb_mem += new_crtc_state->mode.hdisplay *
-					    new_crtc_state->mode.vdisplay *
-					    cpp;
-
-			if (requested_bb_mem > dev_priv->prim_bb_mem)
-				return -EINVAL;
-		}
-	}
-
-	return ret;
+	return vmw_kms_check_topology(dev, state);
 }
 
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
