@@ -77,8 +77,6 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
-
-	struct dal_logger *logger;
 	void *cgs_device;
 
 	enum dce_environment dce_environment;

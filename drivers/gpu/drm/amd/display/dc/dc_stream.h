@@ -147,10 +147,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 /*
  * Log the current stream state.
  */
-void dc_stream_log(
-	const struct dc_stream_state *stream,
-	struct dal_logger *dc_logger,
-	enum dc_log_type log_type);
+void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream);
 
 uint8_t dc_get_current_stream_count(struct dc *dc);
 struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);

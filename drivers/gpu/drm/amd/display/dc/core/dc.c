@@ -467,9 +467,6 @@ static void destruct(struct dc *dc)
 	if (dc->ctx->created_bios)
 		dal_bios_parser_destroy(&dc->ctx->dc_bios);
 
-	if (dc->ctx->logger)
-		dal_logger_destroy(&dc->ctx->logger);
-
 	kfree(dc->ctx);
 	dc->ctx = NULL;
 
@@ -492,7 +489,6 @@ static void destruct(struct dc *dc)
 static bool construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
-	struct dal_logger *logger;
 	struct dc_context *dc_ctx;
 	struct bw_calcs_dceip *dc_dceip;
 	struct bw_calcs_vbios *dc_vbios;
@@ -557,14 +553,7 @@ static bool construct(struct dc *dc,
 	}
 
 	/* Create logger */
-	logger = dal_logger_create(dc_ctx, init_params->log_mask);
 
-	if (!logger) {
-		/* can *not* call logger. call base driver 'print error' */
-		dm_error("%s: failed to create Logger!\n", __func__);
-		goto fail;
-	}
-	dc_ctx->logger = logger;
 	dc_ctx->dce_environment = init_params->dce_environment;
 
 	dc_version = resource_parse_asic_id(init_params->asic_id);
@@ -983,9 +972,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < context->stream_count; i++) {
 		struct dc_stream_state *stream = context->streams[i];
 
-		dc_stream_log(stream,
-				dc->ctx->logger,
-				LOG_DC);
+		dc_stream_log(dc, stream);
 	}
 
 	result = dc_commit_state_no_check(dc, context);
