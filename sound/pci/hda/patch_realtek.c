@@ -94,6 +94,7 @@ struct alc_spec {
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
+	bool gpio_write_delay;	/* add a delay before writing gpio_data */
 
 	/* mute LED for HP laptops, see alc269_fixup_mic_mute_hook() */
 	int mute_led_polarity;
@@ -265,6 +266,8 @@ static void alc_write_gpio(struct hda_codec *codec)
 			    AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
 	snd_hda_codec_write(codec, codec->core.afg, 0,
 			    AC_VERB_SET_GPIO_DIRECTION, spec->gpio_dir);
+	if (spec->gpio_write_delay)
+		msleep(1);
 	alc_write_gpio_data(codec);
 }
 
@@ -1868,47 +1871,14 @@ static void alc889_fixup_coef(struct hda_codec *codec,
 	alc_update_coef_idx(codec, 7, 0, 0x2030);
 }
 
-/* toggle speaker-output according to the hp-jack state */
-static void alc882_gpio_mute(struct hda_codec *codec, int pin, int muted)
-{
-	unsigned int gpiostate, gpiomask, gpiodir;
-
-	gpiostate = snd_hda_codec_read(codec, codec->core.afg, 0,
-				       AC_VERB_GET_GPIO_DATA, 0);
-
-	if (!muted)
-		gpiostate |= (1 << pin);
-	else
-		gpiostate &= ~(1 << pin);
-
-	gpiomask = snd_hda_codec_read(codec, codec->core.afg, 0,
-				      AC_VERB_GET_GPIO_MASK, 0);
-	gpiomask |= (1 << pin);
-
-	gpiodir = snd_hda_codec_read(codec, codec->core.afg, 0,
-				     AC_VERB_GET_GPIO_DIRECTION, 0);
-	gpiodir |= (1 << pin);
-
-
-	snd_hda_codec_write(codec, codec->core.afg, 0,
-			    AC_VERB_SET_GPIO_MASK, gpiomask);
-	snd_hda_codec_write(codec, codec->core.afg, 0,
-			    AC_VERB_SET_GPIO_DIRECTION, gpiodir);
-
-	msleep(1);
-
-	snd_hda_codec_write(codec, codec->core.afg, 0,
-			    AC_VERB_SET_GPIO_DATA, gpiostate);
-}
-
 /* set up GPIO at initialization */
 static void alc885_fixup_macpro_gpio(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
-	if (action != HDA_FIXUP_ACT_INIT)
-		return;
-	alc882_gpio_mute(codec, 0, 0);
-	alc882_gpio_mute(codec, 1, 0);
+	struct alc_spec *spec = codec->spec;
+
+	spec->gpio_write_delay = true;
+	alc_fixup_gpio3(codec, fix, action);
 }
 
 /* Fix the connection of some pins for ALC889:
