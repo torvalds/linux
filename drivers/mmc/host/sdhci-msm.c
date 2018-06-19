@@ -226,6 +226,22 @@ static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
 	.core_ddr_config_2 = 0x1bc,
 };
 
+struct sdhci_msm_variant_ops {
+	u32 (*msm_readl_relaxed)(struct sdhci_host *host, u32 offset);
+	void (*msm_writel_relaxed)(u32 val, struct sdhci_host *host,
+			u32 offset);
+};
+
+/*
+ * From V5, register spaces have changed. Wrap this info in a structure
+ * and choose the data_structure based on version info mentioned in DT.
+ */
+struct sdhci_msm_variant_info {
+	bool mci_removed;
+	const struct sdhci_msm_variant_ops *var_ops;
+	const struct sdhci_msm_offset *offset;
+};
+
 struct sdhci_msm_host {
 	struct platform_device *pdev;
 	void __iomem *core_mem;	/* MSM SDCC mapped address */
@@ -245,7 +261,44 @@ struct sdhci_msm_host {
 	wait_queue_head_t pwr_irq_wait;
 	bool pwr_irq_flag;
 	u32 caps_0;
+	bool mci_removed;
+	const struct sdhci_msm_variant_ops *var_ops;
+	const struct sdhci_msm_offset *offset;
 };
+
+/*
+ * APIs to read/write to vendor specific registers which were there in the
+ * core_mem region before MCI was removed.
+ */
+static u32 sdhci_msm_mci_variant_readl_relaxed(struct sdhci_host *host,
+		u32 offset)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+
+	return readl_relaxed(msm_host->core_mem + offset);
+}
+
+static u32 sdhci_msm_v5_variant_readl_relaxed(struct sdhci_host *host,
+		u32 offset)
+{
+	return readl_relaxed(host->ioaddr + offset);
+}
+
+static void sdhci_msm_mci_variant_writel_relaxed(u32 val,
+		struct sdhci_host *host, u32 offset)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+
+	writel_relaxed(val, msm_host->core_mem + offset);
+}
+
+static void sdhci_msm_v5_variant_writel_relaxed(u32 val,
+		struct sdhci_host *host, u32 offset)
+{
+	writel_relaxed(val, host->ioaddr + offset);
+}
 
 static unsigned int msm_get_clock_rate_for_bus_mode(struct sdhci_host *host,
 						    unsigned int clock)
@@ -1480,6 +1533,28 @@ static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
 	msm_host->caps_0 |= caps;
 	pr_debug("%s: supported caps: 0x%08x\n", mmc_hostname(mmc), caps);
 }
+
+static const struct sdhci_msm_variant_ops mci_var_ops = {
+	.msm_readl_relaxed = sdhci_msm_mci_variant_readl_relaxed,
+	.msm_writel_relaxed = sdhci_msm_mci_variant_writel_relaxed,
+};
+
+static const struct sdhci_msm_variant_ops v5_var_ops = {
+	.msm_readl_relaxed = sdhci_msm_v5_variant_readl_relaxed,
+	.msm_writel_relaxed = sdhci_msm_v5_variant_writel_relaxed,
+};
+
+static const struct sdhci_msm_variant_info sdhci_msm_mci_var = {
+	.mci_removed = false,
+	.var_ops = &mci_var_ops,
+	.offset = &sdhci_msm_mci_offset,
+};
+
+static const struct sdhci_msm_variant_info sdhci_msm_v5_var = {
+	.mci_removed = true,
+	.var_ops = &v5_var_ops,
+	.offset = &sdhci_msm_v5_offset,
+};
 
 static const struct of_device_id sdhci_msm_dt_match[] = {
 	{ .compatible = "qcom,sdhci-msm-v4" },
