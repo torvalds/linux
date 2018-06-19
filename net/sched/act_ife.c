@@ -415,7 +415,8 @@ static void tcf_ife_cleanup(struct tc_action *a)
 	spin_unlock_bh(&ife->tcf_lock);
 
 	p = rcu_dereference_protected(ife->params, 1);
-	kfree_rcu(p, rcu);
+	if (p)
+		kfree_rcu(p, rcu);
 }
 
 /* under ife->tcf_lock for existing action */
@@ -543,10 +544,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 				       NULL, NULL);
 		if (err) {
 metadata_parse_err:
-			if (exists)
-				tcf_idr_release(*a, bind);
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a);
+				tcf_idr_release(*a, bind);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
@@ -567,7 +566,7 @@ metadata_parse_err:
 		err = use_all_metadata(ife);
 		if (err) {
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a);
+				tcf_idr_release(*a, bind);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
