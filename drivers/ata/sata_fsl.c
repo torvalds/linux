@@ -395,12 +395,6 @@ static inline unsigned int sata_fsl_tag(unsigned int tag,
 {
 	/* We let libATA core do actual (queue) tag allocation */
 
-	/* all non NCQ/queued commands should have tag#0 */
-	if (ata_tag_internal(tag)) {
-		DPRINTK("mapping internal cmds to tag#0\n");
-		return 0;
-	}
-
 	if (unlikely(tag >= SATA_FSL_QUEUE_DEPTH)) {
 		DPRINTK("tag %d invalid : out of range\n", tag);
 		return 0;
