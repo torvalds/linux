@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver for the ST STV0910 DVB-S/S2 demodulator.
  *
