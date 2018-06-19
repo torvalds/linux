@@ -31,6 +31,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/swab.h>
 
 #include "i2c-designware-core.h"
 
@@ -113,7 +114,7 @@ int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
 	reg = dw_readl(dev, DW_IC_COMP_TYPE);
 	i2c_dw_release_lock(dev);
 
-	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
+	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
 		/* Configure register endianess access */
 		dev->flags |= ACCESS_SWAP;
 	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
