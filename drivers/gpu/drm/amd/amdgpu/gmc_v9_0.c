@@ -43,6 +43,7 @@
 
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
+#include "gfxhub_v1_1.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -984,6 +985,12 @@ static int gmc_v9_0_sw_init(void *handle)
 		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
 	}
 	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+
+	if (adev->asic_type == CHIP_VEGA20) {
+		r = gfxhub_v1_1_get_xgmi_info(adev);
+		if (r)
+			return r;
+	}
 
 	r = gmc_v9_0_mc_init(adev);
 	if (r)
