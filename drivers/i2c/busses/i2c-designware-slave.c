@@ -51,7 +51,7 @@ static void i2c_dw_configure_fifo_slave(struct dw_i2c_dev *dev)
  */
 static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 {
-	u32 reg, comp_param1;
+	u32 reg;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
@@ -71,8 +71,6 @@ static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 		i2c_dw_release_lock(dev);
 		return -ENODEV;
 	}
-
-	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
 
 	/* Disable the adapter. */
 	__i2c_dw_disable(dev);
