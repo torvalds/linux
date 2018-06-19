@@ -478,12 +478,9 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			 */
 			break;
 	}
-
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 
-	reset_current_kprobe();
 	kretprobe_hash_unlock(current, &flags);
-	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
@@ -851,13 +848,11 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	set_current_kprobe(p, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
-	if (p->pre_handler && p->pre_handler(p, regs))
-		/*
-		 * Our pre-handler is specifically requesting that we just
-		 * do a return.  This is used for both the jprobe pre-handler
-		 * and the kretprobe trampoline
-		 */
+	if (p->pre_handler && p->pre_handler(p, regs)) {
+		reset_current_kprobe();
+		preempt_enable_no_resched();
 		return 1;
+	}
 
 #if !defined(CONFIG_PREEMPT)
 	if (p->ainsn.inst_flag == INST_FLAG_BOOSTABLE && !p->post_handler) {

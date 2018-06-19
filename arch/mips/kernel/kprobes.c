@@ -358,6 +358,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler has already set things up, so skip ss setup */
+		reset_current_kprobe();
+		preempt_enable_no_resched();
 		return 1;
 	}
 
@@ -543,9 +545,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 	instruction_pointer(regs) = orig_ret_address;
 
-	reset_current_kprobe();
 	kretprobe_hash_unlock(current, &flags);
-	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);

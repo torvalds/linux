@@ -45,8 +45,6 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		/* Kprobe handler expects regs->ip = ip + 1 as breakpoint hit */
 		regs->ip = ip + sizeof(kprobe_opcode_t);
 
-		/* To emulate trap based kprobes, preempt_disable here */
-		preempt_disable();
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
@@ -60,13 +58,12 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 				p->post_handler(p, regs, 0);
 			}
 			regs->ip = orig_ip;
-			__this_cpu_write(current_kprobe, NULL);
-			preempt_enable_no_resched();
 		}
 		/*
-		 * If pre_handler returns !0, it sets regs->ip and
-		 * resets current kprobe, and keep preempt count +1.
+		 * If pre_handler returns !0, it changes regs->ip. We have to
+		 * skip emulating post_handler.
 		 */
+		__this_cpu_write(current_kprobe, NULL);
 	}
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);

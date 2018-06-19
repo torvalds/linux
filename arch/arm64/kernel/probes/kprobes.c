@@ -395,9 +395,9 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * If we have no pre-handler or it returned 0, we
 			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it prepped
-			 * for calling the break_handler below on re-entry,
-			 * so get out doing nothing more here.
+			 * pre-handler and it returned non-zero, it will
+			 * modify the execution path and no need to single
+			 * stepping. Let's just reset current kprobe and exit.
 			 *
 			 * pre_handler can hit a breakpoint and can step thru
 			 * before return, keep PSTATE D-flag enabled until
@@ -405,8 +405,8 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
 				setup_singlestep(p, regs, kcb, 0);
-				return;
-			}
+			} else
+				reset_current_kprobe();
 		}
 	}
 	/*

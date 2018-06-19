@@ -358,9 +358,12 @@ int kprobe_handler(struct pt_regs *regs)
 
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	set_current_kprobe(p, regs, kcb);
-	if (p->pre_handler && p->pre_handler(p, regs))
-		/* handler has already set things up, so skip ss setup */
+	if (p->pre_handler && p->pre_handler(p, regs)) {
+		/* handler changed execution path, so skip ss setup */
+		reset_current_kprobe();
+		preempt_enable_no_resched();
 		return 1;
+	}
 
 	if (p->ainsn.boostable >= 0) {
 		ret = try_to_emulate(p, regs);

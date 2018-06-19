@@ -694,6 +694,10 @@ int kprobe_int3_handler(struct pt_regs *regs)
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs))
 				setup_singlestep(p, regs, kcb, 0);
+			else {
+				reset_current_kprobe();
+				preempt_enable_no_resched();
+			}
 			return 1;
 		}
 	} else if (*addr != BREAKPOINT_INSTRUCTION) {

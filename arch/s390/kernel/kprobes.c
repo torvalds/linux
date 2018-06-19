@@ -326,8 +326,11 @@ static int kprobe_handler(struct pt_regs *regs)
 			 */
 			push_kprobe(kcb, p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-			if (p->pre_handler && p->pre_handler(p, regs))
+			if (p->pre_handler && p->pre_handler(p, regs)) {
+				pop_kprobe(kcb);
+				preempt_enable_no_resched();
 				return 1;
+			}
 			kcb->kprobe_status = KPROBE_HIT_SS;
 		}
 		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
@@ -431,9 +434,7 @@ static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 
 	regs->psw.addr = orig_ret_address;
 
-	pop_kprobe(get_kprobe_ctlblk());
 	kretprobe_hash_unlock(current, &flags);
-	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);

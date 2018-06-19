@@ -1217,16 +1217,11 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 
 		/*
 		 * We need to check and see if we modified the pc of the
-		 * pt_regs, and if so clear the kprobe and return 1 so that we
-		 * don't do the single stepping.
-		 * The ftrace kprobe handler leaves it up to us to re-enable
-		 * preemption here before returning if we've modified the ip.
+		 * pt_regs, and if so return 1 so that we don't do the
+		 * single stepping.
 		 */
-		if (orig_ip != instruction_pointer(regs)) {
-			reset_current_kprobe();
-			preempt_enable_no_resched();
+		if (orig_ip != instruction_pointer(regs))
 			return 1;
-		}
 		if (!ret)
 			return 0;
 	}

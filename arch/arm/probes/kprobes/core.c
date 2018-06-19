@@ -300,10 +300,10 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 
 			/*
 			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it prepped
-			 * for calling the break_handler below on re-entry,
-			 * so get out doing nothing more here.
+			 * continue with normal processing. If we have a
+			 * pre-handler and it returned non-zero, it will
+			 * modify the execution path and no need to single
+			 * stepping. Let's just reset current kprobe and exit.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs)) {
 				kcb->kprobe_status = KPROBE_HIT_SS;
@@ -312,8 +312,8 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 					kcb->kprobe_status = KPROBE_HIT_SSDONE;
 					p->post_handler(p, regs, 0);
 				}
-				reset_current_kprobe();
 			}
+			reset_current_kprobe();
 		}
 	} else {
 		/*
