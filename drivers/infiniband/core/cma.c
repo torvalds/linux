@@ -3988,6 +3988,8 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 		event.event = RDMA_CM_EVENT_MULTICAST_ERROR;
 
 	ret = id_priv->id.event_handler(&id_priv->id, &event);
+
+	rdma_destroy_ah_attr(&event.param.ud.ah_attr);
 	if (ret) {
 		cma_exch(id_priv, RDMA_CM_DESTROYING);
 		mutex_unlock(&id_priv->handler_mutex);
