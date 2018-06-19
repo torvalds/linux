@@ -433,6 +433,7 @@ void vmw_resource_unreserve(struct vmw_resource *res,
  *                             for a resource and in that case, allocate
  *                             one, reserve and validate it.
  *
+ * @ticket:         The ww aqcquire context to use, or NULL if trylocking.
  * @res:            The resource for which to allocate a backup buffer.
  * @interruptible:  Whether any sleeps during allocation should be
  *                  performed while interruptible.
@@ -440,7 +441,8 @@ void vmw_resource_unreserve(struct vmw_resource *res,
  *                  reserved and validated backup buffer.
  */
 static int
-vmw_resource_check_buffer(struct vmw_resource *res,
+vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
+			  struct vmw_resource *res,
 			  bool interruptible,
 			  struct ttm_validate_buffer *val_buf)
 {
@@ -459,7 +461,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	val_buf->bo = ttm_bo_reference(&res->backup->base);
 	val_buf->shared = false;
 	list_add_tail(&val_buf->head, &val_list);
-	ret = ttm_eu_reserve_buffers(NULL, &val_list, interruptible, NULL);
+	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
 		goto out_no_reserve;
 
@@ -477,7 +479,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	return 0;
 
 out_no_validate:
-	ttm_eu_backoff_reservation(NULL, &val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 out_no_reserve:
 	ttm_bo_unref(&val_buf->bo);
 	if (backup_dirty)
@@ -524,10 +526,12 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
  * vmw_resource_backoff_reservation - Unreserve and unreference a
  *                                    backup buffer
  *.
+ * @ticket:         The ww acquire ctx used for reservation.
  * @val_buf:        Backup buffer information.
  */
 static void
-vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
+vmw_resource_backoff_reservation(struct ww_acquire_ctx *ticket,
+				 struct ttm_validate_buffer *val_buf)
 {
 	struct list_head val_list;
 
@@ -536,7 +540,7 @@ vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
 
 	INIT_LIST_HEAD(&val_list);
 	list_add_tail(&val_buf->head, &val_list);
-	ttm_eu_backoff_reservation(NULL, &val_list);
+	ttm_eu_backoff_reservation(ticket, &val_list);
 	ttm_bo_unref(&val_buf->bo);
 }
 
@@ -544,10 +548,12 @@ vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
  * vmw_resource_do_evict - Evict a resource, and transfer its data
  *                         to a backup buffer.
  *
+ * @ticket:         The ww acquire ticket to use, or NULL if trylocking.
  * @res:            The resource to evict.
  * @interruptible:  Whether to wait interruptible.
  */
-static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
+static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
+				 struct vmw_resource *res, bool interruptible)
 {
 	struct ttm_validate_buffer val_buf;
 	const struct vmw_res_func *func = res->func;
@@ -557,7 +563,7 @@ static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
 
 	val_buf.bo = NULL;
 	val_buf.shared = false;
-	ret = vmw_resource_check_buffer(res, interruptible, &val_buf);
+	ret = vmw_resource_check_buffer(ticket, res, interruptible, &val_buf);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -572,7 +578,7 @@ static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
 	res->backup_dirty = true;
 	res->res_dirty = false;
 out_no_unbind:
-	vmw_resource_backoff_reservation(&val_buf);
+	vmw_resource_backoff_reservation(ticket, &val_buf);
 
 	return ret;
 }
@@ -626,7 +632,8 @@ int vmw_resource_validate(struct vmw_resource *res)
 
 		write_unlock(&dev_priv->resource_lock);
 
-		ret = vmw_resource_do_evict(evict_res, true);
+		/* Trylock backup buffers with a NULL ticket. */
+		ret = vmw_resource_do_evict(NULL, evict_res, true);
 		if (unlikely(ret != 0)) {
 			write_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
@@ -809,6 +816,7 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 	struct vmw_resource *evict_res;
 	unsigned err_count = 0;
 	int ret;
+	struct ww_acquire_ctx ticket;
 
 	do {
 		write_lock(&dev_priv->resource_lock);
@@ -822,7 +830,8 @@ static void vmw_resource_evict_type(struct vmw_private *dev_priv,
 		list_del_init(&evict_res->lru_head);
 		write_unlock(&dev_priv->resource_lock);
 
-		ret = vmw_resource_do_evict(evict_res, false);
+		/* Wait lock backup buffers with a ticket. */
+		ret = vmw_resource_do_evict(&ticket, evict_res, false);
 		if (unlikely(ret != 0)) {
 			write_lock(&dev_priv->resource_lock);
 			list_add_tail(&evict_res->lru_head, lru_list);
