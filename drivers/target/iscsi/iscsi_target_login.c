@@ -336,21 +336,15 @@ static int iscsi_login_zero_tsih_s1(
 	timer_setup(&sess->time2retain_timer,
 		    iscsit_handle_time2retain_timeout, 0);
 
-	idr_preload(GFP_KERNEL);
-	spin_lock_bh(&sess_idr_lock);
-	ret = idr_alloc(&sess_idr, NULL, 0, 0, GFP_NOWAIT);
-	if (ret >= 0)
-		sess->session_index = ret;
-	spin_unlock_bh(&sess_idr_lock);
-	idr_preload_end();
-
+	ret = ida_alloc(&sess_ida, GFP_KERNEL);
 	if (ret < 0) {
-		pr_err("idr_alloc() for sess_idr failed\n");
+		pr_err("Session ID allocation failed %d\n", ret);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		goto free_sess;
 	}
 
+	sess->session_index = ret;
 	sess->creation_time = get_jiffies_64();
 	/*
 	 * The FFP CmdSN window values will be allocated from the TPG's
@@ -364,7 +358,7 @@ static int iscsi_login_zero_tsih_s1(
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		pr_err("Unable to allocate memory for"
 				" struct iscsi_sess_ops.\n");
-		goto remove_idr;
+		goto free_id;
 	}
 
 	sess->se_sess = transport_init_session(TARGET_PROT_NORMAL);
@@ -378,10 +372,8 @@ static int iscsi_login_zero_tsih_s1(
 
 free_ops:
 	kfree(sess->sess_ops);
-remove_idr:
-	spin_lock_bh(&sess_idr_lock);
-	idr_remove(&sess_idr, sess->session_index);
-	spin_unlock_bh(&sess_idr_lock);
+free_id:
+	ida_free(&sess_ida, sess->session_index);
 free_sess:
 	kfree(sess);
 	conn->sess = NULL;
@@ -1170,11 +1162,7 @@ void iscsi_target_login_sess_out(struct iscsi_conn *conn,
 		goto old_sess_out;
 
 	transport_free_session(conn->sess->se_sess);
-
-	spin_lock_bh(&sess_idr_lock);
-	idr_remove(&sess_idr, conn->sess->session_index);
-	spin_unlock_bh(&sess_idr_lock);
-
+	ida_free(&sess_ida, conn->sess->session_index);
 	kfree(conn->sess->sess_ops);
 	kfree(conn->sess);
 	conn->sess = NULL;
