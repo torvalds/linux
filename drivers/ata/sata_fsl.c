@@ -1229,8 +1229,7 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 
 	/* Workaround for data length mismatch errata */
 	if (unlikely(hstatus & INT_ON_DATA_LENGTH_MISMATCH)) {
-		for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
-			qc = ata_qc_from_tag(ap, tag);
+		ata_qc_for_each_with_internal(ap, qc, tag) {
 			if (qc && ata_is_atapi(qc->tf.protocol)) {
 				u32 hcontrol;
 				/* Set HControl[27] to clear error registers */
