@@ -78,14 +78,14 @@ void wl1271_scan_complete_work(struct work_struct *work)
 		wl1271_cmd_build_ap_probe_req(wl, wlvif, wlvif->probereq);
 	}
 
-	pm_runtime_put(wl->dev);
-
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
 		wl12xx_queue_recovery_work(wl);
 	}
 
 	wlcore_cmd_regdomain_config_locked(wl);
+
+	pm_runtime_put(wl->dev);
 
 	ieee80211_scan_completed(wl->hw, &info);
 
