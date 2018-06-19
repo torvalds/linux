@@ -1,14 +1,7 @@
-/*
- * Driver for the IMX SNVS ON/OFF Power Key
- * Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Driver for the IMX SNVS ON/OFF Power Key
+// Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/device.h>
 #include <linux/err.h>
