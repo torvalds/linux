@@ -1224,6 +1224,8 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	int ret = 0;
 	u64 bytenr;
 
+	lockdep_assert_held(&uuid_mutex);
+
 	/*
 	 * we would like to check all the supers, but that would make
 	 * a btrfs mount succeed after a mkfs from a different FS.
@@ -1242,7 +1244,6 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		goto error_bdev_put;
 	}
 
-	mutex_lock(&uuid_mutex);
 	device = device_list_add(path, disk_super, &new_device_added);
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
@@ -1251,7 +1252,6 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		if (new_device_added)
 			btrfs_free_stale_devices(path, device);
 	}
-	mutex_unlock(&uuid_mutex);
 
 	btrfs_release_disk_super(page);
 
