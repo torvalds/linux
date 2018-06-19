@@ -3671,7 +3671,8 @@ error:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 }
 EXPORT_SYMBOL(ib_send_cm_sidr_rep);
 
-static void cm_format_sidr_rep_event(struct cm_work *work)
+static void cm_format_sidr_rep_event(struct cm_work *work,
+				     const struct cm_id_private *cm_id_priv)
 {
 	struct cm_sidr_rep_msg *sidr_rep_msg;
 	struct ib_cm_sidr_rep_event_param *param;
@@ -3684,6 +3685,7 @@ static void cm_format_sidr_rep_event(struct cm_work *work)
 	param->qpn = be32_to_cpu(cm_sidr_rep_get_qpn(sidr_rep_msg));
 	param->info = &sidr_rep_msg->info;
 	param->info_len = sidr_rep_msg->info_length;
+	param->sgid_attr = cm_id_priv->av.ah_attr.grh.sgid_attr;
 	work->cm_event.private_data = &sidr_rep_msg->private_data;
 }
 
@@ -3707,7 +3709,7 @@ static int cm_sidr_rep_handler(struct cm_work *work)
 	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	spin_unlock_irq(&cm_id_priv->lock);
 
-	cm_format_sidr_rep_event(work);
+	cm_format_sidr_rep_event(work, cm_id_priv);
 	cm_process_work(cm_id_priv, work);
 	return 0;
 out:
