@@ -304,7 +304,7 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 	int cpu = smp_processor_id();
 
 	/* get information required for multi-node processors */
-	if (cpu_has_topoext) {
+	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
@@ -954,7 +954,7 @@ static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum)
 
 void set_dr_addr_mask(unsigned long mask, int dr)
 {
-	if (!cpu_has_bpext)
+	if (!boot_cpu_has(X86_FEATURE_BPEXT))
 		return;
 
 	switch (dr) {
