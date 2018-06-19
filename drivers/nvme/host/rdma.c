@@ -692,7 +692,7 @@ static struct blk_mq_tag_set *nvme_rdma_alloc_tagset(struct nvme_ctrl *nctrl,
 		set = &ctrl->tag_set;
 		memset(set, 0, sizeof(*set));
 		set->ops = &nvme_rdma_mq_ops;
-		set->queue_depth = nctrl->opts->queue_size;
+		set->queue_depth = nctrl->sqsize + 1;
 		set->reserved_tags = 1; /* fabric connect */
 		set->numa_node = NUMA_NO_NODE;
 		set->flags = BLK_MQ_F_SHOULD_MERGE;
@@ -1975,20 +1975,19 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		goto out_remove_admin_queue;
 	}
 
-	if (opts->queue_size > ctrl->ctrl.maxcmd) {
-		/* warn if maxcmd is lower than queue_size */
-		dev_warn(ctrl->ctrl.device,
-			"queue_size %zu > ctrl maxcmd %u, clamping down\n",
-			opts->queue_size, ctrl->ctrl.maxcmd);
-		opts->queue_size = ctrl->ctrl.maxcmd;
-	}
-
+	/* only warn if argument is too large here, will clamp later */
 	if (opts->queue_size > ctrl->ctrl.sqsize + 1) {
-		/* warn if sqsize is lower than queue_size */
 		dev_warn(ctrl->ctrl.device,
 			"queue_size %zu > ctrl sqsize %u, clamping down\n",
 			opts->queue_size, ctrl->ctrl.sqsize + 1);
-		opts->queue_size = ctrl->ctrl.sqsize + 1;
+	}
+
+	/* warn if maxcmd is lower than sqsize+1 */
+	if (ctrl->ctrl.sqsize + 1 > ctrl->ctrl.maxcmd) {
+		dev_warn(ctrl->ctrl.device,
+			"sqsize %u > ctrl maxcmd %u, clamping down\n",
+			ctrl->ctrl.sqsize + 1, ctrl->ctrl.maxcmd);
+		ctrl->ctrl.sqsize = ctrl->ctrl.maxcmd - 1;
 	}
 
 	if (opts->nr_io_queues) {
