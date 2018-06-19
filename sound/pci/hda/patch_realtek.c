@@ -46,9 +46,6 @@ enum {
 	ALC_INIT_UNDEFINED,
 	ALC_INIT_NONE,
 	ALC_INIT_DEFAULT,
-	ALC_INIT_GPIO1,
-	ALC_INIT_GPIO2,
-	ALC_INIT_GPIO3,
 };
 
 enum {
@@ -92,6 +89,11 @@ struct alc_spec {
 
 	struct alc_customize_define cdefine;
 	unsigned int parse_flags; /* flag for snd_hda_parse_pin_defcfg() */
+
+	/* GPIO bits */
+	unsigned int gpio_mask;
+	unsigned int gpio_dir;
+	unsigned int gpio_data;
 
 	/* mute LED for HP laptops, see alc269_fixup_mic_mute_hook() */
 	int mute_led_polarity;
@@ -220,27 +222,63 @@ static void add_mixer(struct alc_spec *spec, const struct snd_kcontrol_new *mix)
 /*
  * GPIO setup tables, used in initialization
  */
+
 /* Enable GPIO mask and set output */
-static const struct hda_verb alc_gpio1_init_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
-	{ }
-};
+static void alc_setup_gpio(struct hda_codec *codec, unsigned int mask)
+{
+	struct alc_spec *spec = codec->spec;
 
-static const struct hda_verb alc_gpio2_init_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x02},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x02},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x02},
-	{ }
-};
+	spec->gpio_mask |= mask;
+	spec->gpio_dir |= mask;
+	spec->gpio_data |= mask;
+}
 
-static const struct hda_verb alc_gpio3_init_verbs[] = {
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
-	{ }
-};
+static void alc_write_gpio_data(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+			    spec->gpio_data);
+}
+
+static void alc_write_gpio(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (!spec->gpio_mask)
+		return;
+
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_DIRECTION, spec->gpio_dir);
+	alc_write_gpio_data(codec);
+}
+
+static void alc_fixup_gpio(struct hda_codec *codec, int action,
+			   unsigned int mask)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		alc_setup_gpio(codec, mask);
+}
+
+static void alc_fixup_gpio1(struct hda_codec *codec,
+			    const struct hda_fixup *fix, int action)
+{
+	alc_fixup_gpio(codec, action, 0x01);
+}
+
+static void alc_fixup_gpio2(struct hda_codec *codec,
+			    const struct hda_fixup *fix, int action)
+{
+	alc_fixup_gpio(codec, action, 0x02);
+}
+
+static void alc_fixup_gpio3(struct hda_codec *codec,
+			    const struct hda_fixup *fix, int action)
+{
+	alc_fixup_gpio(codec, action, 0x03);
+}
 
 /*
  * Fix hardware PLL issue
@@ -448,16 +486,8 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
 	alc_fill_eapd_coef(codec);
 	alc_auto_setup_eapd(codec, true);
+	alc_write_gpio(codec);
 	switch (type) {
-	case ALC_INIT_GPIO1:
-		snd_hda_sequence_write(codec, alc_gpio1_init_verbs);
-		break;
-	case ALC_INIT_GPIO2:
-		snd_hda_sequence_write(codec, alc_gpio2_init_verbs);
-		break;
-	case ALC_INIT_GPIO3:
-		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
-		break;
 	case ALC_INIT_DEFAULT:
 		switch (codec->core.vendor_id) {
 		case 0x10ec0260:
@@ -660,13 +690,13 @@ do_sku:
 	if (spec->init_amp == ALC_INIT_UNDEFINED) {
 		switch (tmp) {
 		case 1:
-			spec->init_amp = ALC_INIT_GPIO1;
+			alc_setup_gpio(codec, 0x01);
 			break;
 		case 3:
-			spec->init_amp = ALC_INIT_GPIO2;
+			alc_setup_gpio(codec, 0x02);
 			break;
 		case 7:
-			spec->init_amp = ALC_INIT_GPIO3;
+			alc_setup_gpio(codec, 0x03);
 			break;
 		case 5:
 		default:
@@ -1107,12 +1137,12 @@ static void alc880_fixup_vol_knob(struct hda_codec *codec,
 
 static const struct hda_fixup alc880_fixups[] = {
 	[ALC880_FIXUP_GPIO1] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio1_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio1,
 	},
 	[ALC880_FIXUP_GPIO2] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio2_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio2,
 	},
 	[ALC880_FIXUP_MEDION_RIM] = {
 		.type = HDA_FIXUP_VERBS,
@@ -1565,7 +1595,7 @@ static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
 		spec->gen.autocfg.hp_pins[0] = 0x0f; /* copy it for automute */
 		snd_hda_jack_detect_enable_callback(codec, 0x0f,
 						    snd_hda_gen_hp_automute);
-		snd_hda_add_verbs(codec, alc_gpio1_init_verbs);
+		alc_setup_gpio(codec, 0x01);
 	}
 }
 
@@ -1639,8 +1669,8 @@ static const struct hda_fixup alc260_fixups[] = {
 		},
 	},
 	[ALC260_FIXUP_GPIO1] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio1_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio1,
 	},
 	[ALC260_FIXUP_GPIO1_TOGGLE] = {
 		.type = HDA_FIXUP_FUNC,
@@ -2144,20 +2174,20 @@ static const struct hda_fixup alc882_fixups[] = {
 		}
 	},
 	[ALC882_FIXUP_GPIO1] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio1_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio1,
 	},
 	[ALC882_FIXUP_GPIO2] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio2_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio2,
 	},
 	[ALC882_FIXUP_GPIO3] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio3_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio3,
 	},
 	[ALC882_FIXUP_ASUS_W2JC] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = alc_gpio1_init_verbs,
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_gpio1,
 		.chained = true,
 		.chain_id = ALC882_FIXUP_EAPD,
 	},
@@ -5231,6 +5261,9 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 		spec->gen.automute_hook = asus_tx300_automute;
 		snd_hda_jack_detect_enable_callback(codec, 0x1b,
 						    snd_hda_gen_hp_automute);
+		break;
+	case HDA_FIXUP_ACT_PROBE:
+		spec->init_amp = ALC_INIT_DEFAULT;
 		break;
 	case HDA_FIXUP_ACT_BUILD:
 		/* this is a bit tricky; give more sane names for the main
