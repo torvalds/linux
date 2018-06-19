@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
@@ -35,7 +36,6 @@
 #include "wl12xx_80211.h"
 #include "cmd.h"
 #include "event.h"
-#include "ps.h"
 #include "tx.h"
 #include "hw_ops.h"
 
@@ -192,9 +192,12 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 
 	timeout_time = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
+
 		return ret;
+	}
 
 	do {
 		if (time_after(jiffies, timeout_time)) {
@@ -227,7 +230,7 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 	} while (!event);
 
 out:
-	wl1271_ps_elp_sleep(wl);
+	pm_runtime_put(wl->dev);
 	kfree(events_vector);
 	return ret;
 }
