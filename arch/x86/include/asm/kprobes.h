@@ -78,7 +78,7 @@ struct arch_specific_insn {
 	 * boostable = true: This instruction has been boosted: we have
 	 * added a relative jump after the instruction copy in insn,
 	 * so no single-step and fixup are needed (unless there's
-	 * a post_handler or break_handler).
+	 * a post_handler).
 	 */
 	bool boostable;
 	bool if_modifier;
