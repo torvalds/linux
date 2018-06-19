@@ -2583,8 +2583,6 @@ cma_iboe_set_path_rec_l2_fields(struct rdma_id_private *id_priv)
 	route->path_rec->rec_type = sa_conv_gid_to_pathrec_type(gid_type);
 
 	route->path_rec->roce.route_resolved = true;
-	sa_path_set_ndev(route->path_rec, addr->dev_addr.net);
-	sa_path_set_ifindex(route->path_rec, ndev->ifindex);
 	sa_path_set_dmac(route->path_rec, addr->dev_addr.dst_dev_addr);
 	return ndev;
 }
@@ -3510,7 +3508,8 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 		ib_init_ah_attr_from_path(id_priv->id.device,
 					  id_priv->id.port_num,
 					  id_priv->id.route.path_rec,
-					  &event.param.ud.ah_attr);
+					  &event.param.ud.ah_attr,
+					  rep->sgid_attr);
 		event.param.ud.qp_num = rep->qpn;
 		event.param.ud.qkey = rep->qkey;
 		event.event = RDMA_CM_EVENT_ESTABLISHED;
