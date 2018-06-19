@@ -147,18 +147,12 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			prepare_singlestep(p, regs, kcb);
 			return 1;
-		} else {
-			if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
+		} else if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
 			/* The breakpoint instruction was removed by
 			 * another cpu right after we hit, no further
 			 * handling of this interrupt is appropriate
 			 */
-				ret = 1;
-				goto no_kprobe;
-			}
-			p = __this_cpu_read(current_kprobe);
-			if (p->break_handler && p->break_handler(p, regs))
-				goto ss_probe;
+			ret = 1;
 		}
 		goto no_kprobe;
 	}
@@ -184,7 +178,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs))
 		return 1;
 
-ss_probe:
 	prepare_singlestep(p, regs, kcb);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
