@@ -1555,19 +1555,19 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 
 	mutex_lock(&uuid_mutex);
 	error = btrfs_parse_early_options(data, mode, fs_type, &fs_devices);
-	mutex_unlock(&uuid_mutex);
-	if (error)
+	if (error) {
+		mutex_unlock(&uuid_mutex);
 		goto error_fs_info;
+	}
 
-	mutex_lock(&uuid_mutex);
 	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
-	mutex_unlock(&uuid_mutex);
-	if (error)
+	if (error) {
+		mutex_unlock(&uuid_mutex);
 		goto error_fs_info;
+	}
 
 	fs_info->fs_devices = fs_devices;
 
-	mutex_lock(&uuid_mutex);
 	error = btrfs_open_devices(fs_devices, mode, fs_type);
 	mutex_unlock(&uuid_mutex);
 	if (error)
