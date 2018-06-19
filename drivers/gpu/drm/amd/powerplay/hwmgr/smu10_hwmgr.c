@@ -211,12 +211,18 @@ static int smu10_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 	return 0;
 }
 
+static inline uint32_t convert_10k_to_mhz(uint32_t clock)
+{
+	return (clock + 99) / 100;
+}
+
 static int smu10_set_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
-	if (smu10_data->need_min_deep_sleep_dcefclk && smu10_data->deep_sleep_dcefclk != clock/100) {
-		smu10_data->deep_sleep_dcefclk = clock/100;
+	if (smu10_data->need_min_deep_sleep_dcefclk &&
+	    smu10_data->deep_sleep_dcefclk != convert_10k_to_mhz(clock)) {
+		smu10_data->deep_sleep_dcefclk = convert_10k_to_mhz(clock);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinDeepSleepDcefclk,
 					smu10_data->deep_sleep_dcefclk);
