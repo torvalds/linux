@@ -148,9 +148,9 @@ static int ncsi_aen_handler_hncdsc(struct ncsi_dev_priv *ndp,
 	hncdsc = (struct ncsi_aen_hncdsc_pkt *)h;
 	ncm->data[3] = ntohl(hncdsc->status);
 	spin_unlock_irqrestore(&nc->lock, flags);
-	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-		      "NCSI: host driver %srunning on channel %u\n",
-		      ncm->data[3] & 0x1 ? "" : "not ", nc->id);
+	netdev_dbg(ndp->ndev.dev,
+		   "NCSI: host driver %srunning on channel %u\n",
+		   ncm->data[3] & 0x1 ? "" : "not ", nc->id);
 
 	return 0;
 }
