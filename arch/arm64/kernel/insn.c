@@ -149,20 +149,6 @@ int __kprobes aarch64_insn_write(void *addr, u32 insn)
 	return __aarch64_insn_write(addr, cpu_to_le32(insn));
 }
 
-static bool __kprobes __aarch64_insn_hotpatch_safe(u32 insn)
-{
-	if (aarch64_get_insn_class(insn) != AARCH64_INSN_CLS_BR_SYS)
-		return false;
-
-	return	aarch64_insn_is_b(insn) ||
-		aarch64_insn_is_bl(insn) ||
-		aarch64_insn_is_svc(insn) ||
-		aarch64_insn_is_hvc(insn) ||
-		aarch64_insn_is_smc(insn) ||
-		aarch64_insn_is_brk(insn) ||
-		aarch64_insn_is_nop(insn);
-}
-
 bool __kprobes aarch64_insn_uses_literal(u32 insn)
 {
 	/* ldr/ldrsw (literal), prfm */
@@ -187,22 +173,6 @@ bool __kprobes aarch64_insn_is_branch(u32 insn)
 		aarch64_insn_is_br(insn) ||
 		aarch64_insn_is_blr(insn) ||
 		aarch64_insn_is_bcond(insn);
-}
-
-/*
- * ARM Architecture Reference Manual for ARMv8 Profile-A, Issue A.a
- * Section B2.6.5 "Concurrent modification and execution of instructions":
- * Concurrent modification and execution of instructions can lead to the
- * resulting instruction performing any behavior that can be achieved by
- * executing any sequence of instructions that can be executed from the
- * same Exception level, except where the instruction before modification
- * and the instruction after modification is a B, BL, NOP, BKPT, SVC, HVC,
- * or SMC instruction.
- */
-bool __kprobes aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn)
-{
-	return __aarch64_insn_hotpatch_safe(old_insn) &&
-	       __aarch64_insn_hotpatch_safe(new_insn);
 }
 
 int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
@@ -239,11 +209,6 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 		for (i = 0; ret == 0 && i < pp->insn_cnt; i++)
 			ret = aarch64_insn_patch_text_nosync(pp->text_addrs[i],
 							     pp->new_insns[i]);
-		/*
-		 * aarch64_insn_patch_text_nosync() calls flush_icache_range(),
-		 * which ends with "dsb; isb" pair guaranteeing global
-		 * visibility.
-		 */
 		/* Notify other processors with an additional increment. */
 		atomic_inc(&pp->cpu_count);
 	} else {
@@ -255,8 +220,7 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 	return ret;
 }
 
-static
-int __kprobes aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt)
+int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
 {
 	struct aarch64_insn_patch patch = {
 		.text_addrs = addrs,
@@ -270,24 +234,6 @@ int __kprobes aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt)
 
 	return stop_machine_cpuslocked(aarch64_insn_patch_text_cb, &patch,
 				       cpu_online_mask);
-}
-
-int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
-{
-	int ret;
-	u32 insn;
-
-	/* Unsafe to patch multiple instructions without synchronizaiton */
-	if (cnt == 1) {
-		ret = aarch64_insn_read(addrs[0], &insn);
-		if (ret)
-			return ret;
-
-		if (aarch64_insn_hotpatch_safe(insn, insns[0]))
-			return aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
-	}
-
-	return aarch64_insn_patch_text_sync(addrs, insns, cnt);
 }
 
 static int __kprobes aarch64_get_imm_shift_mask(enum aarch64_insn_imm_type type,
