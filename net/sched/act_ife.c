@@ -517,8 +517,6 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			saddr = nla_data(tb[TCA_IFE_SMAC]);
 	}
 
-	ife->tcf_action = parm->action;
-
 	if (parm->flags & IFE_ENCODE) {
 		if (daddr)
 			ether_addr_copy(p->eth_dst, daddr);
@@ -575,6 +573,7 @@ metadata_parse_err:
 		}
 	}
 
+	ife->tcf_action = parm->action;
 	if (exists)
 		spin_unlock_bh(&ife->tcf_lock);
 
