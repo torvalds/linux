@@ -1567,7 +1567,9 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		goto error_fs_info;
 	}
 
+	mutex_lock(&uuid_mutex);
 	error = btrfs_open_devices(fs_devices, mode, fs_type);
+	mutex_unlock(&uuid_mutex);
 	if (error)
 		goto error_fs_info;
 
