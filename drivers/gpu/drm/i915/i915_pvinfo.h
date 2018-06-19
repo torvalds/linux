@@ -94,7 +94,10 @@ struct vgt_if {
 	u32 rsv5[4];
 
 	u32 g2v_notify;
-	u32 rsv6[7];
+	u32 rsv6[5];
+
+	u32 cursor_x_hot;
+	u32 cursor_y_hot;
 
 	struct {
 		u32 lo;
