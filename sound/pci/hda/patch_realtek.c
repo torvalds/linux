@@ -4881,13 +4881,10 @@ static void alc288_update_headset_jack_cb(struct hda_codec *codec,
 				       struct hda_jack_callback *jack)
 {
 	struct alc_spec *spec = codec->spec;
-	int present;
 
 	alc_update_headset_jack_cb(codec, jack);
 	/* Headset Mic enable or disable, only for Dell Dino */
-	present = spec->gen.hp_jack_present ? 0x40 : 0;
-	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
-				present);
+	alc_update_gpio_data(codec, 0x40, spec->gen.hp_jack_present);
 }
 
 static void alc_fixup_headset_mode_dell_alc288(struct hda_codec *codec,
@@ -4896,6 +4893,9 @@ static void alc_fixup_headset_mode_dell_alc288(struct hda_codec *codec,
 	alc_fixup_headset_mode(codec, fix, action);
 	if (action == HDA_FIXUP_ACT_PROBE) {
 		struct alc_spec *spec = codec->spec;
+		/* toggled via hp_automute_hook */
+		spec->gpio_mask |= 0x40;
+		spec->gpio_dir |= 0x40;
 		spec->gen.hp_automute_hook = alc288_update_headset_jack_cb;
 	}
 }
@@ -5433,7 +5433,6 @@ enum {
 	ALC280_FIXUP_HP_9480M,
 	ALC288_FIXUP_DELL_HEADSET_MODE,
 	ALC288_FIXUP_DELL1_MIC_NO_PRESENCE,
-	ALC288_FIXUP_DELL_XPS_13_GPIO6,
 	ALC288_FIXUP_DELL_XPS_13,
 	ALC288_FIXUP_DISABLE_AAMIX,
 	ALC292_FIXUP_DELL_E7X,
@@ -6049,22 +6048,11 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC288_FIXUP_DELL_HEADSET_MODE
 	},
-	[ALC288_FIXUP_DELL_XPS_13_GPIO6] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = (const struct hda_verb[]) {
-			{0x01, AC_VERB_SET_GPIO_MASK, 0x40},
-			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x40},
-			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
-			{ }
-		},
-		.chained = true,
-		.chain_id = ALC288_FIXUP_DELL1_MIC_NO_PRESENCE
-	},
 	[ALC288_FIXUP_DISABLE_AAMIX] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_disable_aamix,
 		.chained = true,
-		.chain_id = ALC288_FIXUP_DELL_XPS_13_GPIO6
+		.chain_id = ALC288_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
 	[ALC288_FIXUP_DELL_XPS_13] = {
 		.type = HDA_FIXUP_FUNC,
@@ -6902,7 +6890,7 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x12, 0x90a60130},
 		{0x19, 0x03a11020},
 		{0x21, 0x0321101f}),
-	SND_HDA_PIN_QUIRK(0x10ec0288, 0x1028, "Dell", ALC288_FIXUP_DELL_XPS_13_GPIO6,
+	SND_HDA_PIN_QUIRK(0x10ec0288, 0x1028, "Dell", ALC288_FIXUP_DELL1_MIC_NO_PRESENCE,
 		{0x12, 0x90a60120},
 		{0x14, 0x90170110},
 		{0x21, 0x0321101f}),
