@@ -1157,6 +1157,9 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 			content_srf.flags             = 0;
 			content_srf.mip_levels[0]     = 1;
 			content_srf.multisample_count = 0;
+			content_srf.multisample_pattern =
+				SVGA3D_MS_PATTERN_NONE;
+			content_srf.quality_level = SVGA3D_MS_QUALITY_NONE;
 		} else {
 			content_srf = *new_vfbs->surface;
 		}

@@ -180,6 +180,8 @@ struct vmw_surface {
 	SVGA3dTextureFilter autogen_filter;
 	uint32_t multisample_count;
 	struct list_head view_list;
+	SVGA3dMSPattern multisample_pattern;
+	SVGA3dMSQualityLevel quality_level;
 };
 
 struct vmw_marker_queue {
