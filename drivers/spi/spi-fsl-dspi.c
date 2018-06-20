@@ -215,15 +215,17 @@ struct fsl_dspi {
 	struct fsl_dspi_dma	*dma;
 };
 
-static u16 dspi_pop_tx(struct fsl_dspi *dspi)
+static u32 dspi_pop_tx(struct fsl_dspi *dspi)
 {
-	u16 txdata = 0;
+	u32 txdata = 0;
 
 	if (dspi->tx) {
 		if (dspi->bytes_per_word == 1)
 			txdata = *(u8 *)dspi->tx;
-		else /* dspi->bytes_per_word == 2 */
+		else if (dspi->bytes_per_word == 2)
 			txdata = *(u16 *)dspi->tx;
+		else  /* dspi->bytes_per_word == 4 */
+			txdata = *(u32 *)dspi->tx;
 		dspi->tx += dspi->bytes_per_word;
 	}
 	dspi->len -= dspi->bytes_per_word;
@@ -249,8 +251,10 @@ static void dspi_push_rx(struct fsl_dspi *dspi, u32 rxdata)
 
 	if (dspi->bytes_per_word == 1)
 		*(u8 *)dspi->rx = rxdata;
-	else /* dspi->bytes_per_word == 2 */
+	else if (dspi->bytes_per_word == 2)
 		*(u16 *)dspi->rx = rxdata;
+	else /* dspi->bytes_per_word == 4 */
+		*(u32 *)dspi->rx = rxdata;
 	dspi->rx += dspi->bytes_per_word;
 }
 
@@ -564,12 +568,47 @@ static void fifo_write(struct fsl_dspi *dspi)
 	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pop_tx_pushr(dspi));
 }
 
+static void cmd_fifo_write(struct fsl_dspi *dspi)
+{
+	u16 cmd = dspi->tx_cmd;
+
+	if (dspi->len > 0)
+		cmd |= SPI_PUSHR_CMD_CONT;
+	regmap_write(dspi->regmap_pushr, PUSHR_CMD, cmd);
+}
+
+static void tx_fifo_write(struct fsl_dspi *dspi, u16 txdata)
+{
+	regmap_write(dspi->regmap_pushr, PUSHR_TX, txdata);
+}
+
 static void dspi_tcfq_write(struct fsl_dspi *dspi)
 {
 	/* Clear transfer count */
 	dspi->tx_cmd |= SPI_PUSHR_CMD_CTCNT;
-	/* Write one entry to both TX FIFO and CMD FIFO simultaneously */
-	fifo_write(dspi);
+
+	if (dspi->devtype_data->xspi_mode && dspi->bits_per_word > 16) {
+		/* Write two TX FIFO entries first, and then the corresponding
+		 * CMD FIFO entry.
+		 */
+		u32 data = dspi_pop_tx(dspi);
+
+		if (dspi->cur_chip->ctar_val & SPI_CTAR_LSBFE(1)) {
+			/* LSB */
+			tx_fifo_write(dspi, data & 0xFFFF);
+			tx_fifo_write(dspi, data >> 16);
+		} else {
+			/* MSB */
+			tx_fifo_write(dspi, data >> 16);
+			tx_fifo_write(dspi, data & 0xFFFF);
+		}
+		cmd_fifo_write(dspi);
+	} else {
+		/* Write one entry to both TX FIFO and CMD FIFO
+		 * simultaneously.
+		 */
+		fifo_write(dspi);
+	}
 }
 
 static u32 fifo_read(struct fsl_dspi *dspi)
@@ -656,8 +695,10 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		dspi->bits_per_word = transfer->bits_per_word;
 		if (transfer->bits_per_word <= 8)
 			dspi->bytes_per_word = 1;
-		else
+		else if (transfer->bits_per_word <= 16)
 			dspi->bytes_per_word = 2;
+		else
+			dspi->bytes_per_word = 4;
 
 		regmap_update_bits(dspi->regmap, SPI_MCR,
 				   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
