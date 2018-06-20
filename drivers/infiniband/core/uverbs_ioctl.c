@@ -152,14 +152,12 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 		object = uverbs_get_object(ibdev, spec->obj.obj_type);
 		if (!object)
 			return -EINVAL;
-		o_attr->type = object->type_attrs;
 
-		o_attr->id = (int)uattr->data;
 		o_attr->uobject = uverbs_get_uobject_from_context(
-					o_attr->type,
+					object->type_attrs,
 					ucontext,
 					spec->obj.access,
-					o_attr->id);
+					(int)uattr->data);
 
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);

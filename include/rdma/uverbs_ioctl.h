@@ -344,11 +344,7 @@ struct uverbs_ptr_attr {
 };
 
 struct uverbs_obj_attr {
-	/* pointer to the kernel descriptor -> type, access, etc */
-	const struct uverbs_obj_type	*type;
 	struct ib_uobject		*uobject;
-	/* fd or id in idr of this object */
-	int				id;
 };
 
 struct uverbs_attr {
