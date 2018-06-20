@@ -197,36 +197,78 @@ struct hfi1_ctxtdata {
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
 	volatile __le64 *rcvhdrtail_kvaddr;
-	/* when waiting for rcv or pioavail */
-	wait_queue_head_t wait;
+	/* so functions that need physical port can get it easily */
+	struct hfi1_pportdata *ppd;
+	/* so file ops can get at unit */
+	struct hfi1_devdata *dd;
+	/* this receive context's assigned PIO ACK send context */
+	struct send_context *sc;
+	/* per context recv functions */
+	const rhf_rcv_function_ptr *rhf_rcv_function_map;
+	/*
+	 * The interrupt handler for a particular receive context can vary
+	 * throughout it's lifetime. This is not a lock protected data member so
+	 * it must be updated atomically and the prev and new value must always
+	 * be valid. Worst case is we process an extra interrupt and up to 64
+	 * packets with the wrong interrupt handler.
+	 */
+	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+	/* verbs rx_stats per rcd */
+	struct hfi1_opcode_stats_perctx *opstats;
+	/* clear interrupt mask */
+	u64 imask;
+	/* ctxt rcvhdrq head offset */
+	u32 head;
 	/* number of rcvhdrq entries */
 	u16 rcvhdrq_cnt;
+	u8 ireg;	/* clear interrupt register */
+	/* receive packet sequence counter */
+	u8 seq_cnt;
 	/* size of each of the rcvhdrq entries */
 	u8 rcvhdrqentsize;
 	/* offset of RHF within receive header entry */
 	u8 rhf_offset;
+	/* dynamic receive available interrupt timeout */
+	u8 rcvavail_timeout;
+	/* Indicates that this is vnic context */
+	bool is_vnic;
+	/* vnic queue index this context is mapped to */
+	u8 vnic_q_idx;
+	/* Is ASPM interrupt supported for this context */
+	bool aspm_intr_supported;
+	/* ASPM state (enabled/disabled) for this context */
+	bool aspm_enabled;
+	/* Is ASPM processing enabled for this context (in intr context) */
+	bool aspm_intr_enable;
+	struct ctxt_eager_bufs egrbufs;
+	/* QPs waiting for context processing */
+	struct list_head qp_wait_list;
+	/* tid allocation lists */
+	struct exp_tid_set tid_group_list;
+	struct exp_tid_set tid_used_list;
+	struct exp_tid_set tid_full_list;
+
+	/* Timer for re-enabling ASPM if interrupt activity quiets down */
+	struct timer_list aspm_timer;
+	/* per-context configuration flags */
+	unsigned long flags;
+	/* array of tid_groups */
+	struct tid_group  *groups;
 	/* mmap of hdrq, must fit in 44 bits */
 	dma_addr_t rcvhdrq_dma;
 	dma_addr_t rcvhdrqtailaddr_dma;
-	struct ctxt_eager_bufs egrbufs;
-	/* this receive context's assigned PIO ACK send context */
-	struct send_context *sc;
-
-	/* dynamic receive available interrupt timeout */
-	u32 rcvavail_timeout;
+	/* Last interrupt timestamp */
+	ktime_t aspm_ts_last_intr;
+	/* Last timestamp at which we scheduled a timer for this context */
+	ktime_t aspm_ts_timer_sched;
+	/* Lock to serialize between intr, timer intr and user threads */
+	spinlock_t aspm_lock;
 	/* Reference count the base context usage */
 	struct kref kref;
-
-	/* Device context index */
-	u16 ctxt;
-	/*
-	 * non-zero if ctxt can be shared, and defines the maximum number of
-	 * sub-contexts for this device context.
-	 */
-	u16 subctxt_cnt;
-	/* non-zero if ctxt is being shared. */
-	u16 subctxt_id;
-	u8 uuid[16];
+	/* numa node of this context */
+	int numa_id;
+	/* associated msix interrupt. */
+	s16 msix_intr;
 	/* job key */
 	u16 jkey;
 	/* number of RcvArray groups for this context. */
@@ -237,87 +279,44 @@ struct hfi1_ctxtdata {
 	u16 expected_count;
 	/* index of first expected TID entry. */
 	u16 expected_base;
-	/* array of tid_groups */
-	struct tid_group  *groups;
+	/* Device context index */
+	u8 ctxt;
 
-	struct exp_tid_set tid_group_list;
-	struct exp_tid_set tid_used_list;
-	struct exp_tid_set tid_full_list;
-
-	/* lock protecting all Expected TID data of user contexts */
+	/* PSM Specific fields */
+	/* lock protecting all Expected TID data */
 	struct mutex exp_mutex;
-	/* per-context configuration flags */
-	unsigned long flags;
-	/* per-context event flags for fileops/intr communication */
-	unsigned long event_flags;
-	/* total number of polled urgent packets */
-	u32 urgent;
-	/* saved total number of polled urgent packets for poll edge trigger */
-	u32 urgent_poll;
+	/* when waiting for rcv or pioavail */
+	wait_queue_head_t wait;
+	/* uuid from PSM */
+	u8 uuid[16];
 	/* same size as task_struct .comm[], command that opened context */
 	char comm[TASK_COMM_LEN];
-	/* so file ops can get at unit */
-	struct hfi1_devdata *dd;
-	/* per context recv functions */
-	const rhf_rcv_function_ptr *rhf_rcv_function_map;
-	/* so functions that need physical port can get it easily */
-	struct hfi1_pportdata *ppd;
-	/* associated msix interrupt */
-	u32 msix_intr;
+	/* Bitmask of in use context(s) */
+	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
+	/* per-context event flags for fileops/intr communication */
+	unsigned long event_flags;
 	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
 	void *subctxt_uregbase;
 	/* An array of pages for the eager receive buffers * N */
 	void *subctxt_rcvegrbuf;
 	/* An array of pages for the eager header queue entries * N */
 	void *subctxt_rcvhdr_base;
-	/* Bitmask of in use context(s) */
-	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
-	/* The version of the library which opened this ctxt */
-	u32 userversion;
+	/* total number of polled urgent packets */
+	u32 urgent;
+	/* saved total number of polled urgent packets for poll edge trigger */
+	u32 urgent_poll;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
-	/* receive packet sequence counter */
-	u8 seq_cnt;
-	/* ctxt rcvhdrq head offset */
-	u32 head;
-	/* QPs waiting for context processing */
-	struct list_head qp_wait_list;
-	/* interrupt handling */
-	u64 imask;	/* clear interrupt mask */
-	int ireg;	/* clear interrupt register */
-	int numa_id; /* numa node of this context */
-	/* verbs rx_stats per rcd */
-	struct hfi1_opcode_stats_perctx *opstats;
-
-	/* Is ASPM interrupt supported for this context */
-	bool aspm_intr_supported;
-	/* ASPM state (enabled/disabled) for this context */
-	bool aspm_enabled;
-	/* Timer for re-enabling ASPM if interrupt activity quietens down */
-	struct timer_list aspm_timer;
-	/* Lock to serialize between intr, timer intr and user threads */
-	spinlock_t aspm_lock;
-	/* Is ASPM processing enabled for this context (in intr context) */
-	bool aspm_intr_enable;
-	/* Last interrupt timestamp */
-	ktime_t aspm_ts_last_intr;
-	/* Last timestamp at which we scheduled a timer for this context */
-	ktime_t aspm_ts_timer_sched;
-
+	/* non-zero if ctxt is being shared. */
+	u16 subctxt_id;
+	/* The version of the library which opened this ctxt */
+	u32 userversion;
 	/*
-	 * The interrupt handler for a particular receive context can vary
-	 * throughout it's lifetime. This is not a lock protected data member so
-	 * it must be updated atomically and the prev and new value must always
-	 * be valid. Worst case is we process an extra interrupt and up to 64
-	 * packets with the wrong interrupt handler.
+	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * sub-contexts for this device context.
 	 */
-	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+	u8 subctxt_cnt;
 
-	/* Indicates that this is vnic context */
-	bool is_vnic;
-
-	/* vnic queue index this context is mapped to */
-	u8 vnic_q_idx;
 };
 
 /**

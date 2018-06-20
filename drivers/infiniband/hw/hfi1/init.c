@@ -1913,9 +1913,9 @@ bail:
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_devdata *dd = rcd->dd;
-	u32 max_entries, egrtop, alloced_bytes = 0, idx = 0;
+	u32 max_entries, egrtop, alloced_bytes = 0;
 	gfp_t gfp_flags;
-	u16 order;
+	u16 order, idx = 0;
 	int ret = 0;
 	u16 round_mtu = roundup_pow_of_two(hfi1_max_mtu);
 
