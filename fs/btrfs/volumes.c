@@ -4900,7 +4900,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	refcount_inc(&em->refs);
 	write_unlock(&em_tree->lock);
 
-	ret = btrfs_make_block_group(trans, info, 0, type, start, num_bytes);
+	ret = btrfs_make_block_group(trans, 0, type, start, num_bytes);
 	if (ret)
 		goto error_del_extent;
 
@@ -5175,7 +5175,7 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		/*
 		 * There could be two corrupted data stripes, we need
 		 * to loop retry in order to rebuild the correct data.
-		 * 
+		 *
 		 * Fail a stripe at a time on every retry except the
 		 * stripe under reconstruction.
 		 */
