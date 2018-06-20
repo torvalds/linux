@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
 #include <linux/gpio.h>
@@ -681,9 +682,9 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out_rel_axi_clk;
 	}
 
-	/* Scan all SPI devices of this controller for direct mapped devices */
 	for_each_available_child_of_node(pdev->dev.of_node, np) {
 		u32 cs;
+		int cs_gpio;
 
 		/* Get chip-select number from the "reg" property */
 		status = of_property_read_u32(np, "reg", &cs);
@@ -692,6 +693,44 @@ static int orion_spi_probe(struct platform_device *pdev)
 				"%pOF has no valid 'reg' property (%d)\n",
 				np, status);
 			continue;
+		}
+
+		/*
+		 * Initialize the CS GPIO:
+		 * - properly request the actual GPIO signal
+		 * - de-assert the logical signal so that all GPIO CS lines
+		 *   are inactive when probing for slaves
+		 * - find an unused physical CS which will be driven for any
+		 *   slave which uses a CS GPIO
+		 */
+		cs_gpio = of_get_named_gpio(pdev->dev.of_node, "cs-gpios", cs);
+		if (cs_gpio > 0) {
+			char *gpio_name;
+			int cs_flags;
+
+			if (spi->unused_hw_gpio == -1) {
+				dev_info(&pdev->dev,
+					"Selected unused HW CS#%d for any GPIO CSes\n",
+					cs);
+				spi->unused_hw_gpio = cs;
+			}
+
+			gpio_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					"%s-CS%d", dev_name(&pdev->dev), cs);
+			if (!gpio_name) {
+				status = -ENOMEM;
+				goto out_rel_axi_clk;
+			}
+
+			cs_flags = of_property_read_bool(np, "spi-cs-high") ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+			status = devm_gpio_request_one(&pdev->dev, cs_gpio,
+					cs_flags, gpio_name);
+			if (status) {
+				dev_err(&pdev->dev,
+					"Can't request GPIO for CS %d\n", cs);
+				goto out_rel_axi_clk;
+			}
 		}
 
 		/*
@@ -740,44 +779,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	if (master->cs_gpios) {
-		int i;
-		for (i = 0; i < master->num_chipselect; ++i) {
-			char *gpio_name;
-
-			if (!gpio_is_valid(master->cs_gpios[i])) {
-				continue;
-			}
-
-			gpio_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-					"%s-CS%d", dev_name(&pdev->dev), i);
-			if (!gpio_name) {
-				status = -ENOMEM;
-				goto out_rel_master;
-			}
-
-			status = devm_gpio_request(&pdev->dev,
-					master->cs_gpios[i], gpio_name);
-			if (status) {
-				dev_err(&pdev->dev,
-					"Can't request GPIO for CS %d\n",
-					master->cs_gpios[i]);
-				goto out_rel_master;
-			}
-			if (spi->unused_hw_gpio == -1) {
-				dev_info(&pdev->dev,
-					"Selected unused HW CS#%d for any GPIO CSes\n",
-					i);
-				spi->unused_hw_gpio = i;
-			}
-		}
-	}
-
-
 	return status;
 
-out_rel_master:
-	spi_unregister_master(master);
 out_rel_pm:
 	pm_runtime_disable(&pdev->dev);
 out_rel_axi_clk:
