@@ -1487,12 +1487,11 @@ static noinline u32 extent_data_ref_count(struct btrfs_path *path,
 }
 
 static noinline int lookup_tree_block_ref(struct btrfs_trans_handle *trans,
-					  struct btrfs_fs_info *fs_info,
 					  struct btrfs_path *path,
 					  u64 bytenr, u64 parent,
 					  u64 root_objectid)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = trans->fs_info->extent_root;
 	struct btrfs_key key;
 	int ret;
 
@@ -1878,8 +1877,8 @@ static int lookup_extent_backref(struct btrfs_trans_handle *trans,
 	*ref_ret = NULL;
 
 	if (owner < BTRFS_FIRST_FREE_OBJECTID) {
-		ret = lookup_tree_block_ref(trans, fs_info, path, bytenr,
-					    parent, root_objectid);
+		ret = lookup_tree_block_ref(trans, path, bytenr, parent,
+					    root_objectid);
 	} else {
 		ret = lookup_extent_data_ref(trans, fs_info, path, bytenr,
 					     parent, root_objectid, owner,
