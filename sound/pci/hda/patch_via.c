@@ -90,10 +90,6 @@ enum VIA_HDA_CODEC {
 struct via_spec {
 	struct hda_gen_spec gen;
 
-	/* codec parameterization */
-	const struct hda_verb *init_verbs[5];
-	unsigned int num_iverbs;
-
 	/* HP mode source */
 	unsigned int dmic_enabled;
 	enum VIA_HDA_CODEC codec_type;
@@ -555,12 +551,6 @@ static int via_parse_auto_config(struct hda_codec *codec)
 
 static int via_init(struct hda_codec *codec)
 {
-	struct via_spec *spec = codec->spec;
-	int i;
-
-	for (i = 0; i < spec->num_iverbs; i++)
-		snd_hda_sequence_write(codec, spec->init_verbs[i]);
-
 	/* init power states */
 	__analog_low_current_mode(codec, true);
 
@@ -639,6 +629,10 @@ static int patch_vt1708(struct hda_codec *codec)
 	vt1708_set_pinconfig_connect(codec, VT1708_HP_PIN_NID);
 	vt1708_set_pinconfig_connect(codec, VT1708_CD_PIN_NID);
 
+	err = snd_hda_add_verbs(codec, vt1708_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
@@ -649,8 +643,6 @@ static int patch_vt1708(struct hda_codec *codec)
 		err = -ENOMEM;
 		goto error;
 	}
-
-	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
 	/* clear jackpoll_interval again; it's set dynamically */
 	codec->jackpoll_interval = 0;
@@ -755,12 +747,14 @@ static int patch_vt1708S(struct hda_codec *codec)
 	if (codec->core.vendor_id == 0x11064397)
 		snd_hda_codec_set_name(codec, "VT1705");
 
+	err = snd_hda_add_verbs(codec, vt1708S_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++] = vt1708S_init_verbs;
 
 	return 0;
 
@@ -798,12 +792,14 @@ static int patch_vt1702(struct hda_codec *codec)
 				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 				  (1 << AC_AMPCAP_MUTE_SHIFT));
 
+	err = snd_hda_add_verbs(codec, vt1702_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++] = vt1702_init_verbs;
 
 	return 0;
 
@@ -872,12 +868,14 @@ static int patch_vt1718S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 	add_secret_dac_path(codec);
 
+	err = snd_hda_add_verbs(codec, vt1718S_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++] = vt1718S_init_verbs;
 
 	return 0;
 
@@ -966,12 +964,14 @@ static int patch_vt1716S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x1a, 0, 3, 40);
 	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
+	err = snd_hda_add_verbs(codec, vt1716S_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++]  = vt1716S_init_verbs;
 
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_vol) ||
 	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_sw) ||
@@ -1079,15 +1079,17 @@ static int patch_vt2002P(struct hda_codec *codec)
 	snd_hda_pick_fixup(codec, NULL, vt2002p_fixups, via_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
+	if (spec->codec_type == VT1802)
+		err = snd_hda_add_verbs(codec, vt1802_init_verbs);
+	else
+		err = snd_hda_add_verbs(codec, vt2002P_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	if (spec->codec_type == VT1802)
-		spec->init_verbs[spec->num_iverbs++] = vt1802_init_verbs;
-	else
-		spec->init_verbs[spec->num_iverbs++] = vt2002P_init_verbs;
 
 	return 0;
 
@@ -1122,12 +1124,14 @@ static int patch_vt1812(struct hda_codec *codec)
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 	add_secret_dac_path(codec);
 
+	err = snd_hda_add_verbs(codec, vt1812_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++]  = vt1812_init_verbs;
 
 	return 0;
 
@@ -1161,12 +1165,14 @@ static int patch_vt3476(struct hda_codec *codec)
 	spec->gen.mixer_nid = 0x3f;
 	add_secret_dac_path(codec);
 
+	err = snd_hda_add_verbs(codec, vt3476_init_verbs);
+	if (err < 0)
+		goto error;
+
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	spec->init_verbs[spec->num_iverbs++] = vt3476_init_verbs;
 
 	return 0;
 
