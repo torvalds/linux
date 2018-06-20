@@ -8263,10 +8263,10 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
  * space cache bits as well
  */
 int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   u64 root_objectid, u64 owner, u64 offset,
 				   struct btrfs_key *ins)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_space_info *space_info;
