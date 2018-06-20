@@ -3992,6 +3992,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(shmem_zero_setup);
 
 /**
  * shmem_read_mapping_page_gfp - read into page cache, using specified page allocation flags.

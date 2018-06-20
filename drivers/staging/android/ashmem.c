@@ -19,6 +19,7 @@
 #include <linux/security.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/personality.h>
 #include <linux/bitops.h>
@@ -902,4 +903,18 @@ out_free1:
 out:
 	return ret;
 }
-device_initcall(ashmem_init);
+
+static void __exit ashmem_exit(void)
+{
+	misc_deregister(&ashmem_misc);
+	unregister_shrinker(&ashmem_shrinker);
+	kmem_cache_destroy(ashmem_range_cachep);
+	kmem_cache_destroy(ashmem_area_cachep);
+}
+
+module_init(ashmem_init);
+module_exit(ashmem_exit);
+
+MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Driver for Android shared memory device");
+MODULE_LICENSE("GPL v2");

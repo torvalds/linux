@@ -3,7 +3,7 @@ menu "Android"
 if ANDROID
 
 config ASHMEM
-	bool "Enable the Anonymous Shared Memory Subsystem"
+       tristate "Enable the Anonymous Shared Memory Subsystem"
 	default n
 	depends on SHMEM
 	help
