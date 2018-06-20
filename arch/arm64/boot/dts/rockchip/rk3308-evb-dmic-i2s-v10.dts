@@ -23,8 +23,16 @@
 		rockchip,grf = <&grf>;
 	};
 
-	i2s-dmic-array {
+	i2s_8ch_0_2_dais: i2s-8ch-0-2-dais {
 		status = "okay";
+		compatible = "rockchip,rk3308-multi-dais", "rockchip,multi-dais";
+		dais = <&i2s_8ch_0>, <&i2s_8ch_2>;
+		capture,channel-mapping = <6 2>;
+		playback,channel-mapping = <0 2>;
+	};
+
+	i2s-dmic-array {
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "rockchip,i2s-dmic-array";
@@ -38,21 +46,26 @@
 	};
 
 	vad-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip,rk3308-vad";
-		rockchip,cpu = <&i2s_8ch_0>;
-		rockchip,codec = <&dummy_codec>, <&vad>;
+		rockchip,cpu = <&i2s_8ch_0_2_dais>;
+		rockchip,codec = <&acodec>, <&vad>;
 	};
 };
 
+&acodec_sound {
+	status = "disabled";
+};
+
 &dummy_codec {
-	status = "okay";
+	status = "disabled";
 	#sound-dai-cells = <0>;
 };
 
 &i2s_8ch_0 {
 	status = "okay";
+	rockchip,no-dmaengine;
 	#sound-dai-cells = <0>;
 };
 
@@ -68,9 +81,16 @@
 		     &i2s_8ch_1_m0_sdi0>;
 };
 
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
+	#sound-dai-cells = <0>;
+};
+
 &vad {
-	status = "disabled";
+	status = "okay";
 	rockchip,audio-src = <&i2s_8ch_0>;
+	rockchip,buffer-time-ms = <200>;
 	rockchip,det-channel = <0>;
 	rockchip,mode = <1>;
 	#sound-dai-cells = <0>;
