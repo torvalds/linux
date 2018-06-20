@@ -1670,13 +1670,32 @@ static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
 			     struct drm_atomic_state *state)
 {
-	int ret;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	bool need_modeset = false;
+	int i, ret;
 
 	ret = drm_atomic_helper_check(dev, state);
 	if (ret)
 		return ret;
 
-	return vmw_kms_check_topology(dev, state);
+	if (!state->allow_modeset)
+		return ret;
+
+	/*
+	 * Legacy path do not set allow_modeset properly like
+	 * @drm_atomic_helper_update_plane, This will result in unnecessary call
+	 * to vmw_kms_check_topology. So extra set of check.
+	 */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			need_modeset = true;
+	}
+
+	if (need_modeset)
+		return vmw_kms_check_topology(dev, state);
+
+	return ret;
 }
 
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
