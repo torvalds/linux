@@ -548,7 +548,7 @@
 			};
 
 			src: reset-controller@20d8000 {
-				compatible = "fsl,imx6sll-src";
+				compatible = "fsl,imx6sll-src", "fsl,imx51-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
