@@ -52,11 +52,10 @@ enum {
 };
 
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info,
-				struct btrfs_delayed_ref_node *node, u64 parent,
-				u64 root_objectid, u64 owner_objectid,
-				u64 owner_offset, int refs_to_drop,
-				struct btrfs_delayed_extent_op *extra_op);
+			       struct btrfs_delayed_ref_node *node, u64 parent,
+			       u64 root_objectid, u64 owner_objectid,
+			       u64 owner_offset, int refs_to_drop,
+			       struct btrfs_delayed_extent_op *extra_op);
 static void __run_delayed_extent_op(struct btrfs_delayed_extent_op *extent_op,
 				    struct extent_buffer *leaf,
 				    struct btrfs_extent_item *ei);
@@ -2327,7 +2326,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 					     ref->offset, node->ref_mod,
 					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, fs_info, node, parent,
+		ret = __btrfs_free_extent(trans, node, parent,
 					  ref_root, ref->objectid,
 					  ref->offset, node->ref_mod,
 					  extent_op);
@@ -2480,8 +2479,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 					     ref->level, 0, 1,
 					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, fs_info, node,
-					  parent, ref_root,
+		ret = __btrfs_free_extent(trans, node, parent, ref_root,
 					  ref->level, 0, 1, extent_op);
 	} else {
 		BUG();
@@ -6840,12 +6838,12 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 }
 
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *info,
-				struct btrfs_delayed_ref_node *node, u64 parent,
-				u64 root_objectid, u64 owner_objectid,
-				u64 owner_offset, int refs_to_drop,
-				struct btrfs_delayed_extent_op *extent_op)
+			       struct btrfs_delayed_ref_node *node, u64 parent,
+			       u64 root_objectid, u64 owner_objectid,
+			       u64 owner_offset, int refs_to_drop,
+			       struct btrfs_delayed_extent_op *extent_op)
 {
+	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct btrfs_root *extent_root = info->extent_root;
