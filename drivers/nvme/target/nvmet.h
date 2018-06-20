@@ -65,6 +65,7 @@ struct nvmet_ns {
 	u8			nguid[16];
 	uuid_t			uuid;
 
+	bool			buffered_io;
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
@@ -268,6 +269,8 @@ struct nvmet_req {
 	void (*execute)(struct nvmet_req *req);
 	const struct nvmet_fabrics_ops *ops;
 };
+
+extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 {

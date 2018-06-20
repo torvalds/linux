@@ -16,6 +16,8 @@
 void nvmet_file_ns_disable(struct nvmet_ns *ns)
 {
 	if (ns->file) {
+		if (ns->buffered_io)
+			flush_workqueue(buffered_io_wq);
 		mempool_destroy(ns->bvec_pool);
 		ns->bvec_pool = NULL;
 		kmem_cache_destroy(ns->bvec_cache);
@@ -27,11 +29,14 @@ void nvmet_file_ns_disable(struct nvmet_ns *ns)
 
 int nvmet_file_ns_enable(struct nvmet_ns *ns)
 {
-	int ret;
+	int flags = O_RDWR | O_LARGEFILE;
 	struct kstat stat;
+	int ret;
 
-	ns->file = filp_open(ns->device_path,
-			O_RDWR | O_LARGEFILE | O_DIRECT, 0);
+	if (!ns->buffered_io)
+		flags |= O_DIRECT;
+
+	ns->file = filp_open(ns->device_path, flags, 0);
 	if (IS_ERR(ns->file)) {
 		pr_err("failed to open file %s: (%ld)\n",
 				ns->device_path, PTR_ERR(ns->file));
@@ -100,7 +105,7 @@ static ssize_t nvmet_file_submit_bvec(struct nvmet_req *req, loff_t pos,
 
 	iocb->ki_pos = pos;
 	iocb->ki_filp = req->ns->file;
-	iocb->ki_flags = IOCB_DIRECT | ki_flags;
+	iocb->ki_flags = ki_flags | iocb_flags(req->ns->file);
 
 	ret = call_iter(iocb, &iter);
 
@@ -187,6 +192,19 @@ out:
 	}
 	req->f.iocb.ki_complete = nvmet_file_io_done;
 	nvmet_file_submit_bvec(req, pos, bv_cnt, total_len);
+}
+
+static void nvmet_file_buffered_io_work(struct work_struct *w)
+{
+	struct nvmet_req *req = container_of(w, struct nvmet_req, f.work);
+
+	nvmet_file_execute_rw(req);
+}
+
+static void nvmet_file_execute_rw_buffered_io(struct nvmet_req *req)
+{
+	INIT_WORK(&req->f.work, nvmet_file_buffered_io_work);
+	queue_work(buffered_io_wq, &req->f.work);
 }
 
 static void nvmet_file_flush_work(struct work_struct *w)
@@ -280,7 +298,10 @@ u16 nvmet_file_parse_io_cmd(struct nvmet_req *req)
 	switch (cmd->common.opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
-		req->execute = nvmet_file_execute_rw;
+		if (req->ns->buffered_io)
+			req->execute = nvmet_file_execute_rw_buffered_io;
+		else
+			req->execute = nvmet_file_execute_rw;
 		req->data_len = nvmet_rw_len(req);
 		return 0;
 	case nvme_cmd_flush:
