@@ -593,8 +593,7 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 			dspi_pushr |= SPI_PUSHR_EOQ;
 			if ((dspi->cs_change) && (!dspi->len))
 				dspi_pushr &= ~SPI_PUSHR_CONT;
-		} else if (tx_word && (dspi->len == 1))
-			dspi_pushr |= SPI_PUSHR_EOQ;
+		}
 
 		regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
