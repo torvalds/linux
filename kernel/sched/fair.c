@@ -1580,9 +1580,8 @@ static bool load_too_imbalanced(long src_load, long dst_load,
  * be exchanged with the source task
  */
 static void task_numa_compare(struct task_numa_env *env,
-			      long taskimp, long groupimp)
+			      long taskimp, long groupimp, bool maymove)
 {
-	struct rq *src_rq = cpu_rq(env->src_cpu);
 	struct rq *dst_rq = cpu_rq(env->dst_cpu);
 	struct task_struct *cur;
 	long src_load, dst_load;
@@ -1603,97 +1602,73 @@ static void task_numa_compare(struct task_numa_env *env,
 	if (cur == env->p)
 		goto unlock;
 
+	if (!cur) {
+		if (maymove || imp > env->best_imp)
+			goto assign;
+		else
+			goto unlock;
+	}
+
 	/*
 	 * "imp" is the fault differential for the source task between the
 	 * source and destination node. Calculate the total differential for
 	 * the source task and potential destination task. The more negative
-	 * the value is, the more rmeote accesses that would be expected to
+	 * the value is, the more remote accesses that would be expected to
 	 * be incurred if the tasks were swapped.
 	 */
-	if (cur) {
-		/* Skip this swap candidate if cannot move to the source CPU: */
-		if (!cpumask_test_cpu(env->src_cpu, &cur->cpus_allowed))
-			goto unlock;
-
-		/*
-		 * If dst and source tasks are in the same NUMA group, or not
-		 * in any group then look only at task weights.
-		 */
-		if (cur->numa_group == env->p->numa_group) {
-			imp = taskimp + task_weight(cur, env->src_nid, dist) -
-			      task_weight(cur, env->dst_nid, dist);
-			/*
-			 * Add some hysteresis to prevent swapping the
-			 * tasks within a group over tiny differences.
-			 */
-			if (cur->numa_group)
-				imp -= imp/16;
-		} else {
-			/*
-			 * Compare the group weights. If a task is all by
-			 * itself (not part of a group), use the task weight
-			 * instead.
-			 */
-			if (cur->numa_group)
-				imp += group_weight(cur, env->src_nid, dist) -
-				       group_weight(cur, env->dst_nid, dist);
-			else
-				imp += task_weight(cur, env->src_nid, dist) -
-				       task_weight(cur, env->dst_nid, dist);
-		}
-	}
-
-	if (imp <= env->best_imp && moveimp <= env->best_imp)
+	/* Skip this swap candidate if cannot move to the source cpu */
+	if (!cpumask_test_cpu(env->src_cpu, &cur->cpus_allowed))
 		goto unlock;
 
-	if (!cur) {
-		/* Is there capacity at our destination? */
-		if (env->src_stats.nr_running <= env->src_stats.task_capacity &&
-		    !env->dst_stats.has_free_capacity)
-			goto unlock;
-
-		goto balance;
-	}
-
-	/* Balance doesn't matter much if we're running a task per CPU: */
-	if (imp > env->best_imp && src_rq->nr_running == 1 &&
-			dst_rq->nr_running == 1)
-		goto assign;
-
 	/*
-	 * In the overloaded case, try and keep the load balanced.
+	 * If dst and source tasks are in the same NUMA group, or not
+	 * in any group then look only at task weights.
 	 */
-balance:
-	load = task_h_load(env->p);
-	dst_load = env->dst_stats.load + load;
-	src_load = env->src_stats.load - load;
-
-	if (moveimp > imp && moveimp > env->best_imp) {
+	if (cur->numa_group == env->p->numa_group) {
+		imp = taskimp + task_weight(cur, env->src_nid, dist) -
+		      task_weight(cur, env->dst_nid, dist);
 		/*
-		 * If the improvement from just moving env->p direction is
-		 * better than swapping tasks around, check if a move is
-		 * possible. Store a slightly smaller score than moveimp,
-		 * so an actually idle CPU will win.
+		 * Add some hysteresis to prevent swapping the
+		 * tasks within a group over tiny differences.
 		 */
-		if (!load_too_imbalanced(src_load, dst_load, env)) {
-			imp = moveimp - 1;
-			cur = NULL;
-			goto assign;
-		}
+		if (cur->numa_group)
+			imp -= imp / 16;
+	} else {
+		/*
+		 * Compare the group weights. If a task is all by itself
+		 * (not part of a group), use the task weight instead.
+		 */
+		if (cur->numa_group && env->p->numa_group)
+			imp += group_weight(cur, env->src_nid, dist) -
+			       group_weight(cur, env->dst_nid, dist);
+		else
+			imp += task_weight(cur, env->src_nid, dist) -
+			       task_weight(cur, env->dst_nid, dist);
 	}
 
 	if (imp <= env->best_imp)
 		goto unlock;
 
-	if (cur) {
-		load = task_h_load(cur);
-		dst_load -= load;
-		src_load += load;
+	if (maymove && moveimp > imp && moveimp > env->best_imp) {
+		imp = moveimp - 1;
+		cur = NULL;
+		goto assign;
 	}
+
+	/*
+	 * In the overloaded case, try and keep the load balanced.
+	 */
+	load = task_h_load(env->p) - task_h_load(cur);
+	if (!load)
+		goto assign;
+
+	dst_load = env->dst_stats.load + load;
+	src_load = env->src_stats.load - load;
 
 	if (load_too_imbalanced(src_load, dst_load, env))
 		goto unlock;
 
+assign:
 	/*
 	 * One idle CPU per node is evaluated for a task numa move.
 	 * Call select_idle_sibling to maybe find a better one.
@@ -1709,7 +1684,6 @@ balance:
 		local_irq_enable();
 	}
 
-assign:
 	task_numa_assign(env, cur, imp);
 unlock:
 	rcu_read_unlock();
@@ -1718,7 +1692,19 @@ unlock:
 static void task_numa_find_cpu(struct task_numa_env *env,
 				long taskimp, long groupimp)
 {
+	long src_load, dst_load, load;
+	bool maymove = false;
 	int cpu;
+
+	load = task_h_load(env->p);
+	dst_load = env->dst_stats.load + load;
+	src_load = env->src_stats.load - load;
+
+	/*
+	 * If the improvement from just moving env->p direction is better
+	 * than swapping tasks around, check if a move is possible.
+	 */
+	maymove = !load_too_imbalanced(src_load, dst_load, env);
 
 	for_each_cpu(cpu, cpumask_of_node(env->dst_nid)) {
 		/* Skip this CPU if the source task cannot migrate */
@@ -1726,7 +1712,7 @@ static void task_numa_find_cpu(struct task_numa_env *env,
 			continue;
 
 		env->dst_cpu = cpu;
-		task_numa_compare(env, taskimp, groupimp);
+		task_numa_compare(env, taskimp, groupimp, maymove);
 	}
 }
 
