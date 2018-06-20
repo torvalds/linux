@@ -1216,13 +1216,12 @@ static int match_extent_data_ref(struct extent_buffer *leaf,
 }
 
 static noinline int lookup_extent_data_ref(struct btrfs_trans_handle *trans,
-					   struct btrfs_fs_info *fs_info,
 					   struct btrfs_path *path,
 					   u64 bytenr, u64 parent,
 					   u64 root_objectid,
 					   u64 owner, u64 offset)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = trans->fs_info->extent_root;
 	struct btrfs_key key;
 	struct btrfs_extent_data_ref *ref;
 	struct extent_buffer *leaf;
@@ -1880,9 +1879,8 @@ static int lookup_extent_backref(struct btrfs_trans_handle *trans,
 		ret = lookup_tree_block_ref(trans, path, bytenr, parent,
 					    root_objectid);
 	} else {
-		ret = lookup_extent_data_ref(trans, fs_info, path, bytenr,
-					     parent, root_objectid, owner,
-					     offset);
+		ret = lookup_extent_data_ref(trans, path, bytenr, parent,
+					     root_objectid, owner, offset);
 	}
 	return ret;
 }
