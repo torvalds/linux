@@ -694,10 +694,8 @@ static int do_load(int argc, char **argv)
 		return -1;
 	}
 
-	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program");
+	if (do_pin_fd(prog_fd, argv[1]))
 		return -1;
-	}
 
 	if (json_output)
 		jsonw_null(json_wtr);
