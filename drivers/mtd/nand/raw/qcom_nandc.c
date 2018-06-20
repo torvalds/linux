@@ -1576,6 +1576,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	unsigned int max_bitflips = 0;
 	struct read_stats *buf;
+	bool flash_op_err = false;
 	int i;
 
 	buf = (struct read_stats *)nandc->reg_read_buf;
@@ -1597,8 +1598,18 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 		buffer = le32_to_cpu(buf->buffer);
 		erased_cw = le32_to_cpu(buf->erased_cw);
 
-		if (flash & (FS_OP_ERR | FS_MPU_ERR)) {
+		/*
+		 * Check ECC failure for each codeword. ECC failure can
+		 * happen in either of the following conditions
+		 * 1. If number of bitflips are greater than ECC engine
+		 *    capability.
+		 * 2. If this codeword contains all 0xff for which erased
+		 *    codeword detection check will be done.
+		 */
+		if ((flash & FS_OP_ERR) && (buffer & BS_UNCORRECTABLE_BIT)) {
 			bool erased;
+			int ret, ecclen, extraooblen;
+			void *eccbuf;
 
 			/* ignore erased codeword errors */
 			if (host->bch_enabled) {
@@ -1616,29 +1627,36 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 				continue;
 			}
 
-			if (buffer & BS_UNCORRECTABLE_BIT) {
-				int ret, ecclen, extraooblen;
-				void *eccbuf;
+			eccbuf = oob_buf ? oob_buf + oob_len : NULL;
+			ecclen = oob_buf ? host->ecc_bytes_hw : 0;
+			extraooblen = oob_buf ? oob_len : 0;
 
-				eccbuf = oob_buf ? oob_buf + oob_len : NULL;
-				ecclen = oob_buf ? host->ecc_bytes_hw : 0;
-				extraooblen = oob_buf ? oob_len : 0;
-
-				/*
-				 * make sure it isn't an erased page reported
-				 * as not-erased by HW because of a few bitflips
-				 */
-				ret = nand_check_erased_ecc_chunk(data_buf,
-					data_len, eccbuf, ecclen, oob_buf,
-					extraooblen, ecc->strength);
-				if (ret < 0) {
-					mtd->ecc_stats.failed++;
-				} else {
-					mtd->ecc_stats.corrected += ret;
-					max_bitflips =
-						max_t(unsigned int, max_bitflips, ret);
-				}
+			/*
+			 * make sure it isn't an erased page reported
+			 * as not-erased by HW because of a few bitflips
+			 */
+			ret = nand_check_erased_ecc_chunk(data_buf,
+				data_len, eccbuf, ecclen, oob_buf,
+				extraooblen, ecc->strength);
+			if (ret < 0) {
+				mtd->ecc_stats.failed++;
+			} else {
+				mtd->ecc_stats.corrected += ret;
+				max_bitflips =
+					max_t(unsigned int, max_bitflips, ret);
 			}
+		/*
+		 * Check if MPU or any other operational error (timeout,
+		 * device failure, etc.) happened for this codeword and
+		 * make flash_op_err true. If flash_op_err is set, then
+		 * EIO will be returned for page read.
+		 */
+		} else if (flash & (FS_OP_ERR | FS_MPU_ERR)) {
+			flash_op_err = true;
+		/*
+		 * No ECC or operational errors happened. Check the number of
+		 * bits corrected and update the ecc_stats.corrected.
+		 */
 		} else {
 			unsigned int stat;
 
@@ -1651,6 +1669,9 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 		if (oob_buf)
 			oob_buf += oob_len + ecc->bytes;
 	}
+
+	if (flash_op_err)
+		return -EIO;
 
 	return max_bitflips;
 }
