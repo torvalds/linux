@@ -193,8 +193,6 @@ struct exp_tid_set {
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 struct hfi1_ctxtdata {
-	/* shadow the ctxt's RcvCtrl register */
-	u64 rcvctrl;
 	/* rcvhdrq base, needs mmap before useful */
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */

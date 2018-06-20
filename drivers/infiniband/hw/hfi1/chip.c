@@ -11952,9 +11952,8 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		rcvctrl |= RCV_CTXT_CTRL_DONT_DROP_EGR_FULL_SMASK;
 	if (op & HFI1_RCVCTRL_NO_EGR_DROP_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_DONT_DROP_EGR_FULL_SMASK;
-	rcd->rcvctrl = rcvctrl;
 	hfi1_cdbg(RCVCTRL, "ctxt %d rcvctrl 0x%llx\n", ctxt, rcvctrl);
-	write_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL, rcd->rcvctrl);
+	write_kctxt_csr(dd, ctxt, RCV_CTXT_CTRL, rcvctrl);
 
 	/* work around sticky RcvCtxtStatus.BlockedRHQFull */
 	if (did_enable &&
