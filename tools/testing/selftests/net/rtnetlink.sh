@@ -535,8 +535,7 @@ kci_test_ipsec()
 
 	# start the monitor in the background
 	tmpfile=`mktemp ipsectestXXX`
-	ip x m > $tmpfile &
-	mpid=$!
+	mpid=`(ip x m > $tmpfile & echo $!) 2>/dev/null`
 	sleep 0.2
 
 	ipsecid="proto esp src $srcip dst $dstip spi 0x07"
