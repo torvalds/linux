@@ -119,6 +119,9 @@
 #define SPI_FRAME_BITS_16	SPI_CTAR_FMSZ(0xf)
 #define SPI_FRAME_BITS_8	SPI_CTAR_FMSZ(0x7)
 
+#define SPI_FRAME_EBITS(bits)	SPI_CTARE_FMSZE(((bits) - 1) >> 4)
+#define SPI_FRAME_EBITS_MASK	SPI_CTARE_FMSZE(1)
+
 /* Register offsets for regmap_pushr */
 #define PUSHR_CMD		0x0
 #define PUSHR_TX		0x2
@@ -662,6 +665,10 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		regmap_write(dspi->regmap, SPI_CTAR(0),
 			     dspi->cur_chip->ctar_val |
 			     SPI_FRAME_BITS(transfer->bits_per_word));
+		if (dspi->devtype_data->xspi_mode)
+			regmap_write(dspi->regmap, SPI_CTARE(0),
+				     SPI_FRAME_EBITS(transfer->bits_per_word)
+				     | SPI_CTARE_DTCP(1));
 
 		trans_mode = dspi->devtype_data->trans_mode;
 		switch (trans_mode) {
@@ -922,6 +929,9 @@ static void dspi_init(struct fsl_dspi *dspi)
 {
 	regmap_write(dspi->regmap, SPI_MCR, SPI_MCR_MASTER | SPI_MCR_PCSIS);
 	regmap_write(dspi->regmap, SPI_SR, SPI_SR_CLEAR);
+	if (dspi->devtype_data->xspi_mode)
+		regmap_write(dspi->regmap, SPI_CTARE(0),
+			     SPI_CTARE_FMSZE(0) | SPI_CTARE_DTCP(1));
 }
 
 static int dspi_probe(struct platform_device *pdev)
