@@ -478,8 +478,8 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 		hists__fprintf(hists, !quiet, 0, 0, rep->min_percent, stdout,
-			       symbol_conf.use_callchain ||
-			       symbol_conf.show_branchflag_count);
+			       !(symbol_conf.use_callchain ||
+			         symbol_conf.show_branchflag_count));
 		fprintf(stdout, "\n\n");
 	}
 
