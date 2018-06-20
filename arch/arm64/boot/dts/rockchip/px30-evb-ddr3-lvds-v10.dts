@@ -309,15 +309,15 @@
 				};
 			};
 
-			vcc2v5_ddr: LDO_REG1 {
+			vcc_1v0: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-name = "vcc2v5_ddr";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-name = "vcc_1v0";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <2500000>;
+					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
