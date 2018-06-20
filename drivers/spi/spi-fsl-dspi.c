@@ -84,11 +84,16 @@
 #define SPI_RSER_TCFQE		0x80000000
 
 #define SPI_PUSHR		0x34
-#define SPI_PUSHR_CONT		(1 << 31)
-#define SPI_PUSHR_CTAS(x)	(((x) & 0x00000003) << 28)
-#define SPI_PUSHR_EOQ		(1 << 27)
-#define SPI_PUSHR_CTCNT	(1 << 26)
-#define SPI_PUSHR_PCS(x)	(((1 << x) & 0x0000003f) << 16)
+#define SPI_PUSHR_CMD_CONT	(1 << 15)
+#define SPI_PUSHR_CONT		(SPI_PUSHR_CMD_CONT << 16)
+#define SPI_PUSHR_CMD_CTAS(x)	(((x) & 0x0003) << 12)
+#define SPI_PUSHR_CTAS(x)	(SPI_PUSHR_CMD_CTAS(x) << 16)
+#define SPI_PUSHR_CMD_EOQ	(1 << 11)
+#define SPI_PUSHR_EOQ		(SPI_PUSHR_CMD_EOQ << 16)
+#define SPI_PUSHR_CMD_CTCNT	(1 << 10)
+#define SPI_PUSHR_CTCNT		(SPI_PUSHR_CMD_CTCNT << 16)
+#define SPI_PUSHR_CMD_PCS(x)	((1 << x) & 0x003f)
+#define SPI_PUSHR_PCS(x)	(SPI_PUSHR_CMD_PCS(x) << 16)
 #define SPI_PUSHR_TXDATA(x)	((x) & 0x0000ffff)
 
 #define SPI_PUSHR_SLAVE	0x34
@@ -189,9 +194,8 @@ struct fsl_dspi {
 	void			*rx;
 	void			*rx_end;
 	char			dataflags;
-	u8			cs;
 	u16			void_write_data;
-	u32			cs_change;
+	u16			tx_cmd;
 	const struct fsl_dspi_devtype_data *devtype_data;
 
 	wait_queue_head_t	waitq;
@@ -254,8 +258,6 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 
 	for (i = 0; i < dma->curr_xfer_len; i++) {
 		dspi->dma->tx_dma_buf[i] = dspi_data_to_pushr(dspi, tx_word);
-		if ((dspi->cs_change) && (!dspi->len))
-			dspi->dma->tx_dma_buf[i] &= ~SPI_PUSHR_CONT;
 	}
 
 	dma->tx_desc = dmaengine_prep_slave_single(dma->chan_tx,
@@ -534,21 +536,22 @@ static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 
 static u32 dspi_data_to_pushr(struct fsl_dspi *dspi, int tx_word)
 {
-	u16 d16;
+	u16 data, cmd;
 
 	if (dspi->tx) {
-		d16 = tx_word ? *(u16 *)dspi->tx : *(u8 *)dspi->tx;
+		data = tx_word ? *(u16 *)dspi->tx : *(u8 *)dspi->tx;
 		dspi->tx += tx_word + 1;
 	} else {
-		d16 = dspi->void_write_data;
+		data = dspi->void_write_data;
 	}
 
 	dspi->len -= tx_word + 1;
 
-	return	SPI_PUSHR_TXDATA(d16) |
-		SPI_PUSHR_PCS(dspi->cs) |
-		SPI_PUSHR_CTAS(0) |
-		SPI_PUSHR_CONT;
+	cmd = dspi->tx_cmd;
+	if (dspi->len > 0)
+		cmd |= SPI_PUSHR_CMD_CONT;
+
+	return (cmd << 16) | SPI_PUSHR_TXDATA(data);
 }
 
 static void dspi_data_from_popr(struct fsl_dspi *dspi, int rx_word)
@@ -587,12 +590,9 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 
 		dspi_pushr = dspi_data_to_pushr(dspi, tx_word);
 
-		if (dspi->len == 0 || tx_count == DSPI_FIFO_SIZE - 1) {
-			/* last transfer in the transfer */
+		if (dspi->len == 0 || tx_count == DSPI_FIFO_SIZE - 1)
+			/* request EOQ flag for last transfer in queue */
 			dspi_pushr |= SPI_PUSHR_EOQ;
-			if ((dspi->cs_change) && (!dspi->len))
-				dspi_pushr &= ~SPI_PUSHR_CONT;
-		}
 
 		regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
@@ -635,9 +635,6 @@ static int dspi_tcfq_write(struct fsl_dspi *dspi)
 
 	dspi_pushr = dspi_data_to_pushr(dspi, tx_word);
 
-	if ((dspi->cs_change) && (!dspi->len))
-		dspi_pushr &= ~SPI_PUSHR_CONT;
-
 	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
 	return tx_word + 1;
@@ -672,11 +669,26 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		dspi->cur_transfer = transfer;
 		dspi->cur_msg = message;
 		dspi->cur_chip = spi_get_ctldata(spi);
-		dspi->cs = spi->chip_select;
-		dspi->cs_change = 0;
+		/* Prepare command word for CMD FIFO */
+		dspi->tx_cmd = SPI_PUSHR_CMD_CTAS(0) |
+			SPI_PUSHR_CMD_PCS(spi->chip_select);
 		if (list_is_last(&dspi->cur_transfer->transfer_list,
-				 &dspi->cur_msg->transfers) || transfer->cs_change)
-			dspi->cs_change = 1;
+				 &dspi->cur_msg->transfers)) {
+			/* Leave PCS activated after last transfer when
+			 * cs_change is set.
+			 */
+			if (transfer->cs_change)
+				dspi->tx_cmd |= SPI_PUSHR_CMD_CONT;
+		} else {
+			/* Keep PCS active between transfers in same message
+			 * when cs_change is not set, and de-activate PCS
+			 * between transfers in the same message when
+			 * cs_change is set.
+			 */
+			if (!transfer->cs_change)
+				dspi->tx_cmd |= SPI_PUSHR_CMD_CONT;
+		}
+
 		dspi->void_write_data = dspi->cur_chip->void_write_data;
 
 		dspi->dataflags = 0;
