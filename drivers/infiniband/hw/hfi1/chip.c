@@ -11857,7 +11857,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
 		 * sequence numbers could land exactly on the same spot.
 		 * E.g. a rcd restart before the receive header wrapped.
 		 */
-		memset(rcd->rcvhdrq, 0, rcd->rcvhdrq_size);
+		memset(rcd->rcvhdrq, 0, rcvhdrq_size(rcd));
 
 		/* starting timeout */
 		rcd->rcvavail_timeout = dd->rcv_intr_timeout_csr;

@@ -201,8 +201,6 @@ struct hfi1_ctxtdata {
 	volatile __le64 *rcvhdrtail_kvaddr;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
-	/* rcvhdrq size (for freeing) */
-	size_t rcvhdrq_size;
 	/* number of rcvhdrq entries */
 	u16 rcvhdrq_cnt;
 	/* size of each of the rcvhdrq entries */
@@ -323,6 +321,19 @@ struct hfi1_ctxtdata {
 	/* vnic queue index this context is mapped to */
 	u8 vnic_q_idx;
 };
+
+/**
+ * rcvhdrq_size - return total size in bytes for header queue
+ * @rcd: the receive context
+ *
+ * rcvhdrqentsize is in DWs, so we have to convert to bytes
+ *
+ */
+static inline u32 rcvhdrq_size(struct hfi1_ctxtdata *rcd)
+{
+	return PAGE_ALIGN(rcd->rcvhdrq_cnt *
+			  rcd->rcvhdrqentsize * sizeof(u32));
+}
 
 /*
  * Represents a single packet at a high level. Put commonly computed things in
