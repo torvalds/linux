@@ -301,6 +301,11 @@ static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_put_ctx(struct scrub_ctx *sctx);
 
+static inline int scrub_is_page_on_raid56(struct scrub_page *page)
+{
+	return page->recover &&
+	       (page->recover->bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK);
+}
 
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
 {
@@ -1323,15 +1328,34 @@ nodatasum_case:
 	 * could happen otherwise that a correct page would be
 	 * overwritten by a bad one).
 	 */
-	for (mirror_index = 0;
-	     mirror_index < BTRFS_MAX_MIRRORS &&
-	     sblocks_for_recheck[mirror_index].page_count > 0;
-	     mirror_index++) {
+	for (mirror_index = 0; ;mirror_index++) {
 		struct scrub_block *sblock_other;
 
 		if (mirror_index == failed_mirror_index)
 			continue;
-		sblock_other = sblocks_for_recheck + mirror_index;
+
+		/* raid56's mirror can be more than BTRFS_MAX_MIRRORS */
+		if (!scrub_is_page_on_raid56(sblock_bad->pagev[0])) {
+			if (mirror_index >= BTRFS_MAX_MIRRORS)
+				break;
+			if (!sblocks_for_recheck[mirror_index].page_count)
+				break;
+
+			sblock_other = sblocks_for_recheck + mirror_index;
+		} else {
+			struct scrub_recover *r = sblock_bad->pagev[0]->recover;
+			int max_allowed = r->bbio->num_stripes -
+						r->bbio->num_tgtdevs;
+
+			if (mirror_index >= max_allowed)
+				break;
+			if (!sblocks_for_recheck[1].page_count)
+				break;
+
+			ASSERT(failed_mirror_index == 0);
+			sblock_other = sblocks_for_recheck + 1;
+			sblock_other->pagev[0]->mirror_num = 1 + mirror_index;
+		}
 
 		/* build and submit the bios, check checksums */
 		scrub_recheck_block(fs_info, sblock_other, 0);
@@ -1679,18 +1703,13 @@ static void scrub_bio_wait_endio(struct bio *bio)
 	complete(&ret->event);
 }
 
-static inline int scrub_is_page_on_raid56(struct scrub_page *page)
-{
-	return page->recover &&
-	       (page->recover->bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK);
-}
-
 static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 					struct bio *bio,
 					struct scrub_page *page)
 {
 	struct scrub_bio_ret done;
 	int ret;
+	int mirror_num;
 
 	init_completion(&done.event);
 	done.status = 0;
@@ -1698,9 +1717,10 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
 
+	mirror_num = page->sblock->pagev[0]->mirror_num;
 	ret = raid56_parity_recover(fs_info, bio, page->recover->bbio,
 				    page->recover->map_length,
-				    page->mirror_num, 0);
+				    mirror_num, 0);
 	if (ret)
 		return ret;
 

@@ -189,7 +189,7 @@ static struct device_driver smsg_driver = {
 
 static void __exit smsg_exit(void)
 {
-	cpcmd("SET SMSG IUCV", NULL, 0, NULL);
+	cpcmd("SET SMSG OFF", NULL, 0, NULL);
 	device_unregister(smsg_dev);
 	iucv_unregister(&smsg_handler, 1);
 	driver_unregister(&smsg_driver);

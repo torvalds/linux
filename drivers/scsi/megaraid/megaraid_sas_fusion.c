@@ -903,7 +903,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		goto fail_fw_init;
 	}
 
-	ret = 0;
+	return 0;
 
 fail_fw_init:
 	megasas_return_cmd(instance, cmd);
@@ -913,8 +913,8 @@ fail_fw_init:
 				  IOCInitMessage, ioc_init_handle);
 fail_get_cmd:
 	dev_err(&instance->pdev->dev,
-		"Init cmd return status %s for SCSI host %d\n",
-		ret ? "FAILED" : "SUCCESS", instance->host->host_no);
+		"Init cmd return status FAILED for SCSI host %d\n",
+		instance->host->host_no);
 
 	return ret;
 }

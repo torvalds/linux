@@ -302,7 +302,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
 	cp.key			= key;
-	cp.security_level	= 0;
+	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,

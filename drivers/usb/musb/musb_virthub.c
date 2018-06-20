@@ -73,14 +73,14 @@ void musb_host_finish_resume(struct work_struct *work)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
-void musb_port_suspend(struct musb *musb, bool do_suspend)
+int musb_port_suspend(struct musb *musb, bool do_suspend)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		power;
 	void __iomem	*mbase = musb->mregs;
 
 	if (!is_host_active(musb))
-		return;
+		return 0;
 
 	/* NOTE:  this doesn't necessarily put PHY into low power mode,
 	 * turning off its clock; that's a function of PHY integration and
@@ -91,16 +91,20 @@ void musb_port_suspend(struct musb *musb, bool do_suspend)
 	if (do_suspend) {
 		int retries = 10000;
 
-		power &= ~MUSB_POWER_RESUME;
-		power |= MUSB_POWER_SUSPENDM;
-		musb_writeb(mbase, MUSB_POWER, power);
+		if (power & MUSB_POWER_RESUME)
+			return -EBUSY;
 
-		/* Needed for OPT A tests */
-		power = musb_readb(mbase, MUSB_POWER);
-		while (power & MUSB_POWER_SUSPENDM) {
+		if (!(power & MUSB_POWER_SUSPENDM)) {
+			power |= MUSB_POWER_SUSPENDM;
+			musb_writeb(mbase, MUSB_POWER, power);
+
+			/* Needed for OPT A tests */
 			power = musb_readb(mbase, MUSB_POWER);
-			if (retries-- < 1)
-				break;
+			while (power & MUSB_POWER_SUSPENDM) {
+				power = musb_readb(mbase, MUSB_POWER);
+				if (retries-- < 1)
+					break;
+			}
 		}
 
 		musb_dbg(musb, "Root port suspended, power %02x", power);
@@ -136,6 +140,7 @@ void musb_port_suspend(struct musb *musb, bool do_suspend)
 		schedule_delayed_work(&musb->finish_resume_work,
 				      msecs_to_jiffies(USB_RESUME_TIMEOUT));
 	}
+	return 0;
 }
 
 void musb_port_reset(struct musb *musb, bool do_reset)

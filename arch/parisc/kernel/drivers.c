@@ -448,7 +448,8 @@ static int match_by_id(struct device * dev, void * data)
  * Checks all the children of @parent for a matching @id.  If none
  * found, it allocates a new device and returns it.
  */
-static struct parisc_device * alloc_tree_node(struct device *parent, char id)
+static struct parisc_device * __init alloc_tree_node(
+			struct device *parent, char id)
 {
 	struct match_id_data d = {
 		.id = id,
@@ -825,8 +826,8 @@ void walk_lower_bus(struct parisc_device *dev)
  * devices which are not physically connected (such as extra serial &
  * keyboard ports).  This problem is not yet solved.
  */
-static void walk_native_bus(unsigned long io_io_low, unsigned long io_io_high,
-                            struct device *parent)
+static void __init walk_native_bus(unsigned long io_io_low,
+	unsigned long io_io_high, struct device *parent)
 {
 	int i, devices_found = 0;
 	unsigned long hpa = io_io_low;

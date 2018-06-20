@@ -10318,6 +10318,16 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static int nested_vmx_check_apic_access_controls(struct kvm_vcpu *vcpu,
+					  struct vmcs12 *vmcs12)
+{
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
+	    !page_address_valid(vcpu, vmcs12->apic_access_addr))
+		return -EINVAL;
+	else
+		return 0;
+}
+
 static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 					   struct vmcs12 *vmcs12)
 {
@@ -10959,6 +10969,9 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_msr_bitmap_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_vmx_check_apic_access_controls(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_tpr_shadow_controls(vcpu, vmcs12))
@@ -12171,7 +12184,7 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		vcpu_info.pi_desc_addr = __pa(vcpu_to_pi_desc(vcpu));
 		vcpu_info.vector = irq.vector;
 
-		trace_kvm_pi_irte_update(vcpu->vcpu_id, host_irq, e->gsi,
+		trace_kvm_pi_irte_update(host_irq, vcpu->vcpu_id, e->gsi,
 				vcpu_info.vector, vcpu_info.pi_desc_addr, set);
 
 		if (set)

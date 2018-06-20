@@ -740,7 +740,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 	switch (mipi_fmt) {
 	case MIPI_DSI_FMT_RGB888:	return CMD_DST_FORMAT_RGB888;
 	case MIPI_DSI_FMT_RGB666_PACKED:
-	case MIPI_DSI_FMT_RGB666:	return VID_DST_FORMAT_RGB666;
+	case MIPI_DSI_FMT_RGB666:	return CMD_DST_FORMAT_RGB666;
 	case MIPI_DSI_FMT_RGB565:	return CMD_DST_FORMAT_RGB565;
 	default:			return CMD_DST_FORMAT_RGB888;
 	}
