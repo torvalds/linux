@@ -201,7 +201,7 @@ struct ion_dma_buf_attachment {
 	struct list_head list;
 };
 
-static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
+static int ion_dma_buf_attach(struct dma_buf *dmabuf,
 			      struct dma_buf_attachment *attachment)
 {
 	struct ion_dma_buf_attachment *a;
@@ -219,7 +219,7 @@ static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
 	}
 
 	a->table = table;
-	a->dev = dev;
+	a->dev = attachment->dev;
 	INIT_LIST_HEAD(&a->list);
 
 	attachment->priv = a;
