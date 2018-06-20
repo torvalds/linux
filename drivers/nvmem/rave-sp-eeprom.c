@@ -35,6 +35,7 @@ enum rave_sp_eeprom_header_size {
 	RAVE_SP_EEPROM_HEADER_SMALL = 4U,
 	RAVE_SP_EEPROM_HEADER_BIG   = 5U,
 };
+#define RAVE_SP_EEPROM_HEADER_MAX	RAVE_SP_EEPROM_HEADER_BIG
 
 #define	RAVE_SP_EEPROM_PAGE_SIZE	32U
 
@@ -97,8 +98,11 @@ static int rave_sp_eeprom_io(struct rave_sp_eeprom *eeprom,
 	const unsigned int rsp_size =
 		is_write ? sizeof(*page) - sizeof(page->data) : sizeof(*page);
 	unsigned int offset = 0;
-	u8 cmd[cmd_size];
+	u8 cmd[RAVE_SP_EEPROM_HEADER_MAX + sizeof(page->data)];
 	int ret;
+
+	if (WARN_ON(cmd_size > sizeof(cmd)))
+		return -EINVAL;
 
 	cmd[offset++] = eeprom->address;
 	cmd[offset++] = 0;
