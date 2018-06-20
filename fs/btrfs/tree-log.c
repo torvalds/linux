@@ -4064,11 +4064,9 @@ static int extent_cmp(void *priv, struct list_head *a, struct list_head *b)
 
 static int log_extent_csums(struct btrfs_trans_handle *trans,
 			    struct btrfs_inode *inode,
-			    struct btrfs_root *root,
+			    struct btrfs_root *log_root,
 			    const struct extent_map *em)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_root *log = root->log_root;
 	u64 csum_offset;
 	u64 csum_len;
 	LIST_HEAD(ordered_sums);
@@ -4089,7 +4087,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	}
 
 	/* block start is already adjusted for the file extent offset. */
-	ret = btrfs_lookup_csums_range(fs_info->csum_root,
+	ret = btrfs_lookup_csums_range(trans->fs_info->csum_root,
 				       em->block_start + csum_offset,
 				       em->block_start + csum_offset +
 				       csum_len - 1, &ordered_sums, 0);
@@ -4101,7 +4099,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 						   struct btrfs_ordered_sum,
 						   list);
 		if (!ret)
-			ret = btrfs_csum_file_blocks(trans, log, sums);
+			ret = btrfs_csum_file_blocks(trans, log_root, sums);
 		list_del(&sums->list);
 		kfree(sums);
 	}
@@ -4125,7 +4123,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	int ret;
 	int extent_inserted = 0;
 
-	ret = log_extent_csums(trans, inode, root, em);
+	ret = log_extent_csums(trans, inode, log, em);
 	if (ret)
 		return ret;
 
