@@ -120,7 +120,6 @@
 #define DMA_COMPLETION_TIMEOUT	msecs_to_jiffies(3000)
 
 struct chip_data {
-	u32 mcr_val;
 	u32 ctar_val;
 	u16 void_write_data;
 };
@@ -644,10 +643,9 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		else
 			dspi->bytes_per_word = 2;
 
-		regmap_write(dspi->regmap, SPI_MCR, dspi->cur_chip->mcr_val);
 		regmap_update_bits(dspi->regmap, SPI_MCR,
-				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
-				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
+				   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
+				   SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
 		regmap_write(dspi->regmap, SPI_CTAR(0),
 			     dspi->cur_chip->ctar_val |
 			     SPI_FRAME_BITS(transfer->bits_per_word));
@@ -724,9 +722,6 @@ static int dspi_setup(struct spi_device *spi)
 		cs_sck_delay = pdata->cs_sck_delay;
 		sck_cs_delay = pdata->sck_cs_delay;
 	}
-
-	chip->mcr_val = SPI_MCR_MASTER | SPI_MCR_PCSIS |
-		SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
 
 	chip->void_write_data = 0;
 
@@ -871,6 +866,7 @@ static const struct regmap_config dspi_regmap_config = {
 
 static void dspi_init(struct fsl_dspi *dspi)
 {
+	regmap_write(dspi->regmap, SPI_MCR, SPI_MCR_MASTER | SPI_MCR_PCSIS);
 	regmap_write(dspi->regmap, SPI_SR, SPI_SR_CLEAR);
 }
 
