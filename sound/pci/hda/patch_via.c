@@ -686,10 +686,8 @@ static int patch_vt1708(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	/* add jack detect on/off control */
 	spec->mixers[spec->num_mixers++] = vt1708_jack_detect_ctl;
@@ -700,6 +698,10 @@ static int patch_vt1708(struct hda_codec *codec)
 	codec->jackpoll_interval = 0;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 static int patch_vt1709(struct hda_codec *codec)
@@ -715,12 +717,14 @@ static int patch_vt1709(struct hda_codec *codec)
 	spec->gen.mixer_nid = 0x18;
 
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 static int patch_vt1708S(struct hda_codec *codec);
@@ -741,12 +745,14 @@ static int patch_vt1708B(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* Patch for VT1708S */
@@ -793,14 +799,16 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* Patch for VT1702 */
@@ -834,14 +842,16 @@ static int patch_vt1702(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++] = vt1702_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* Patch for VT1718S */
@@ -906,14 +916,16 @@ static int patch_vt1718S(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* Patch for VT1716S */
@@ -1002,10 +1014,8 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_init_verbs;
 
@@ -1013,6 +1023,10 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec->mixers[spec->num_mixers++] = vt1716S_mono_out_mixer;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* for vt2002P */
@@ -1109,10 +1123,8 @@ static int patch_vt2002P(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	if (spec->codec_type == VT1802)
 		spec->init_verbs[spec->num_iverbs++] = vt1802_init_verbs;
@@ -1120,6 +1132,10 @@ static int patch_vt2002P(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] = vt2002P_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* for vt1812 */
@@ -1150,14 +1166,16 @@ static int patch_vt1812(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /* patch for vt3476 */
@@ -1187,14 +1205,16 @@ static int patch_vt3476(struct hda_codec *codec)
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
-	if (err < 0) {
-		via_free(codec);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 
 	spec->init_verbs[spec->num_iverbs++] = vt3476_init_verbs;
 
 	return 0;
+
+ error:
+	via_free(codec);
+	return err;
 }
 
 /*
