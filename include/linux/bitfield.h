@@ -143,6 +143,7 @@ static __always_inline base type##_get_bits(__##type v, base field)	\
 	____MAKE_OP(le##size,u##size,cpu_to_le##size,le##size##_to_cpu)	\
 	____MAKE_OP(be##size,u##size,cpu_to_be##size,be##size##_to_cpu)	\
 	____MAKE_OP(u##size,u##size,,)
+____MAKE_OP(u8,u8,,)
 __MAKE_OP(16)
 __MAKE_OP(32)
 __MAKE_OP(64)
