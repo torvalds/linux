@@ -77,7 +77,7 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	struct dpc_dev *dpc;
 	struct pcie_device *pciedev;
 	struct device *devdpc;
-	u16 cap, ctl;
+	u16 cap;
 
 	/*
 	 * DPC disables the Link automatically in hardware, so it has
@@ -104,10 +104,6 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_TRIGGER);
-
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_CTL, &ctl);
-	pci_write_config_word(pdev, cap + PCI_EXP_DPC_CTL,
-			      ctl | PCI_EXP_DPC_CTL_INT_EN);
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
@@ -183,16 +179,11 @@ static irqreturn_t dpc_irq(int irq, void *context)
 	struct dpc_dev *dpc = (struct dpc_dev *)context;
 	struct pci_dev *pdev = dpc->dev->port;
 	struct device *dev = &dpc->dev->device;
-	u16 cap = dpc->cap_pos, ctl, status, source, reason, ext_reason;
-
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_CTL, &ctl);
-
-	if (!(ctl & PCI_EXP_DPC_CTL_INT_EN) || ctl == (u16)(~0))
-		return IRQ_NONE;
+	u16 cap = dpc->cap_pos, status, source, reason, ext_reason;
 
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
 
-	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT))
+	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || status == (u16)(~0))
 		return IRQ_NONE;
 
 	if (!(status & PCI_EXP_DPC_STATUS_TRIGGER)) {
@@ -200,9 +191,6 @@ static irqreturn_t dpc_irq(int irq, void *context)
 				      PCI_EXP_DPC_STATUS_INTERRUPT);
 		return IRQ_HANDLED;
 	}
-
-	pci_write_config_word(pdev, cap + PCI_EXP_DPC_CTL,
-			      ctl & ~PCI_EXP_DPC_CTL_INT_EN);
 
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID,
 			     &source);
@@ -226,9 +214,8 @@ static irqreturn_t dpc_irq(int irq, void *context)
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_INTERRUPT);
-
-	schedule_work(&dpc->work);
-
+	if (status & PCI_EXP_DPC_STATUS_TRIGGER)
+		schedule_work(&dpc->work);
 	return IRQ_HANDLED;
 }
 
