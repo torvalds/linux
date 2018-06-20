@@ -205,7 +205,11 @@ static u32 bbr_bw(const struct sock *sk)
  */
 static u64 bbr_rate_bytes_per_sec(struct sock *sk, u64 rate, int gain)
 {
-	rate *= tcp_mss_to_mtu(sk, tcp_sk(sk)->mss_cache);
+	unsigned int mss = tcp_sk(sk)->mss_cache;
+
+	if (!tcp_needs_internal_pacing(sk))
+		mss = tcp_mss_to_mtu(sk, mss);
+	rate *= mss;
 	rate *= gain;
 	rate >>= BBR_SCALE;
 	rate *= USEC_PER_SEC;
