@@ -250,6 +250,11 @@
 				};
 			};
 
+			aipstz1: bridge@73f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x73f00000 0x60>;
+			};
+
 			usbotg: usb@73f80000 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80000 0x0200>;
@@ -434,6 +439,11 @@
 			#size-cells = <1>;
 			reg = <0x80000000 0x10000000>;
 			ranges;
+
+			aipstz2: bridge@83f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x83f00000 0x60>;
+			};
 
 			iim: iim@83f98000 {
 				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
