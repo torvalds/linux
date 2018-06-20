@@ -1765,7 +1765,7 @@ static int task_numa_migrate(struct task_struct *p)
 	 * elsewhere, so there is no point in (re)trying.
 	 */
 	if (unlikely(!sd)) {
-		p->numa_preferred_nid = task_node(p);
+		sched_setnuma(p, task_node(p));
 		return -EINVAL;
 	}
 
@@ -1824,15 +1824,13 @@ static int task_numa_migrate(struct task_struct *p)
 	 * trying for a better one later. Do not set the preferred node here.
 	 */
 	if (p->numa_group) {
-		struct numa_group *ng = p->numa_group;
-
 		if (env.best_cpu == -1)
 			nid = env.src_nid;
 		else
-			nid = env.dst_nid;
+			nid = cpu_to_node(env.best_cpu);
 
-		if (ng->active_nodes > 1 && numa_is_active_node(env.dst_nid, ng))
-			sched_setnuma(p, env.dst_nid);
+		if (nid != p->numa_preferred_nid)
+			sched_setnuma(p, nid);
 	}
 
 	/* No better CPU than the current one was found. */
