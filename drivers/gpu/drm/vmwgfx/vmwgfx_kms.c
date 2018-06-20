@@ -1577,6 +1577,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 static int vmw_kms_check_topology(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
+	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_rect *rects;
 	struct drm_crtc *crtc;
@@ -1588,6 +1589,8 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 	if (!rects)
 		return -ENOMEM;
 
+	mutex_lock(&dev_priv->requested_layout_mutex);
+
 	drm_for_each_crtc(crtc, dev) {
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 		struct drm_crtc_state *crtc_state = crtc->state;
@@ -1595,10 +1598,6 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 		i = drm_crtc_index(crtc);
 
 		if (crtc_state && crtc_state->enable) {
-			/*
-			 * There could be a race condition with update of gui_x/
-			 * gui_y. Those are protected by dev->mode_config.mutex.
-			 */
 			rects[i].x1 = du->gui_x;
 			rects[i].y1 = du->gui_y;
 			rects[i].x2 = du->gui_x + crtc_state->mode.hdisplay;
@@ -1636,6 +1635,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 					   rects);
 
 clean:
+	mutex_unlock(&dev_priv->requested_layout_mutex);
 	kfree(rects);
 	return ret;
 }
@@ -1987,10 +1987,14 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_display_unit *du;
 	struct drm_connector *con;
+	struct drm_connector_list_iter conn_iter;
 
-	mutex_lock(&dev->mode_config.mutex);
-
-	list_for_each_entry(con, &dev->mode_config.connector_list, head) {
+	/*
+	 * Currently only gui_x/y is protected with requested_layout_mutex.
+	 */
+	mutex_lock(&dev_priv->requested_layout_mutex);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(con, &conn_iter) {
 		du = vmw_connector_to_du(con);
 		if (num_rects > du->unit) {
 			du->pref_width = drm_rect_width(&rects[du->unit]);
@@ -1998,6 +2002,21 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 			du->pref_active = true;
 			du->gui_x = rects[du->unit].x1;
 			du->gui_y = rects[du->unit].y1;
+		} else {
+			du->pref_width = 800;
+			du->pref_height = 600;
+			du->pref_active = false;
+			du->gui_x = 0;
+			du->gui_y = 0;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+	mutex_unlock(&dev_priv->requested_layout_mutex);
+
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(con, &dev->mode_config.connector_list, head) {
+		du = vmw_connector_to_du(con);
+		if (num_rects > du->unit) {
 			drm_object_property_set_value
 			  (&con->base, dev->mode_config.suggested_x_property,
 			   du->gui_x);
@@ -2005,9 +2024,6 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 			  (&con->base, dev->mode_config.suggested_y_property,
 			   du->gui_y);
 		} else {
-			du->pref_width = 800;
-			du->pref_height = 600;
-			du->pref_active = false;
 			drm_object_property_set_value
 			  (&con->base, dev->mode_config.suggested_x_property,
 			   0);
@@ -2017,8 +2033,8 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv,
 		}
 		con->status = vmw_du_connector_detect(con, true);
 	}
-
 	mutex_unlock(&dev->mode_config.mutex);
+
 	drm_sysfs_hotplug_event(dev);
 
 	return 0;
