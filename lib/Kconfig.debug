@@ -1802,6 +1802,13 @@ config TEST_BITMAP
 
 	  If unsure, say N.
 
+config TEST_BITFIELD
+	tristate "Test bitfield functions at runtime"
+	help
+	  Enable this option to test the bitfield functions at boot.
+
+	  If unsure, say N.
+
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
 
