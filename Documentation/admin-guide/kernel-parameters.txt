@@ -1946,6 +1946,12 @@
 			[KVM,ARM] Allow use of GICv4 for direct injection of
 			LPIs.
 
+	kvm-intel.nosmt=[KVM,Intel] If the L1TF CPU bug is present (CVE-2018-3620)
+			and the system has SMT (aka Hyper-Threading) enabled then
+			don't allow guests to be created.
+
+			Default is 0 (allow guests to be created).
+
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
 			Default is 1 (enabled)

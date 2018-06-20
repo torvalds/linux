@@ -345,6 +345,7 @@ EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 
 #ifdef CONFIG_HOTPLUG_SMT
 enum cpuhp_smt_control cpu_smt_control __read_mostly = CPU_SMT_ENABLED;
+EXPORT_SYMBOL_GPL(cpu_smt_control);
 
 static int __init smt_cmdline_disable(char *str)
 {
