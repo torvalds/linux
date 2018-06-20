@@ -169,12 +169,6 @@ extern const struct pci_error_handlers hfi1_pci_err_handler;
 struct hfi1_opcode_stats_perctx;
 
 struct ctxt_eager_bufs {
-	ssize_t size;            /* total size of eager buffers */
-	u32 count;               /* size of buffers array */
-	u32 numbufs;             /* number of buffers allocated */
-	u32 alloced;             /* number of rcvarray entries used */
-	u32 rcvtid_size;         /* size of each eager rcv tid */
-	u32 threshold;           /* head update threshold */
 	struct eager_buffer {
 		void *addr;
 		dma_addr_t dma;
@@ -184,6 +178,12 @@ struct ctxt_eager_bufs {
 		void *addr;
 		dma_addr_t dma;
 	} *rcvtids;
+	u32 size;                /* total size of eager buffers */
+	u32 rcvtid_size;         /* size of each eager rcv tid */
+	u16 count;               /* size of buffers array */
+	u16 numbufs;             /* number of buffers allocated */
+	u16 alloced;             /* number of rcvarray entries used */
+	u16 threshold;           /* head update threshold */
 };
 
 struct exp_tid_set {
