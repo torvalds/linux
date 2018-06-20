@@ -531,6 +531,15 @@ static void log_iova(struct rk_iommu *iommu, int index, dma_addr_t iova)
 	page_offset = rk_iova_page_offset(iova);
 
 	mmu_dte_addr = rk_iommu_read(base, RK_MMU_DTE_ADDR);
+	/*
+	 * Iommu register may be reset by master's reset before processing
+	 * the iommu interrupt,Then cpu would get NULL pointer to dump the
+	 * iommu page table,add check to avoid this
+	 */
+	if (mmu_dte_addr == 0) {
+		dev_err(iommu->dev, "failed to read mmu_dte_addr, get 0x0\n");
+		return;
+	}
 	mmu_dte_addr_phys = (phys_addr_t)mmu_dte_addr;
 
 	dte_addr_phys = mmu_dte_addr_phys + (4 * dte_index);
