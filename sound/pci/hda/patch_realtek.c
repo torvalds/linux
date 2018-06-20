@@ -83,8 +83,6 @@ struct alc_spec {
 	struct hda_gen_spec gen; /* must be at head */
 
 	/* codec parameterization */
-	const struct snd_kcontrol_new *mixers[5];	/* mixer arrays */
-	unsigned int num_mixers;
 	unsigned int beep_amp;	/* beep amp value, set via set_beep_amp() */
 
 	struct alc_customize_define cdefine;
@@ -205,18 +203,6 @@ static void alc_process_coef_fw(struct hda_codec *codec,
 			alc_update_coefex_idx(codec, fw->nid, fw->idx,
 					      fw->mask, fw->val);
 	}
-}
-
-/*
- * Append the given mixer and verb elements for the later use
- * The mixer array is referred in build_controls(), and init_verbs are
- * called in init().
- */
-static void add_mixer(struct alc_spec *spec, const struct snd_kcontrol_new *mix)
-{
-	if (snd_BUG_ON(spec->num_mixers >= ARRAY_SIZE(spec->mixers)))
-		return;
-	spec->mixers[spec->num_mixers++] = mix;
 }
 
 /*
@@ -789,17 +775,11 @@ static const struct snd_kcontrol_new alc_beep_mixer[] = {
 static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int i, err;
+	int err;
 
 	err = snd_hda_gen_build_controls(codec);
 	if (err < 0)
 		return err;
-
-	for (i = 0; i < spec->num_mixers; i++) {
-		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
-		if (err < 0)
-			return err;
-	}
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 	/* create beep controls if needed */
@@ -2663,7 +2643,6 @@ static const struct snd_kcontrol_new alc268_beep_mixer[] = {
 		.put = alc268_beep_switch_put,
 		.private_value = HDA_COMPOSE_AMP_VAL(0x0f, 3, 1, HDA_INPUT)
 	},
-	{ }
 };
 
 /* set PCBEEP vol = 0, mute connections */
@@ -2731,7 +2710,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 static int patch_alc268(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err;
+	int i, err;
 
 	/* ALC268 has no aa-loopback mixer */
 	err = alc_alloc_spec(codec, 0);
@@ -2753,7 +2732,13 @@ static int patch_alc268(struct hda_codec *codec)
 
 	if (err > 0 && !spec->gen.no_analog &&
 	    spec->gen.autocfg.speaker_pins[0] != 0x1d) {
-		add_mixer(spec, alc268_beep_mixer);
+		for (i = 0; i < ARRAY_SIZE(alc268_beep_mixer); i++) {
+			if (!snd_hda_gen_add_kctl(&spec->gen, NULL,
+						  &alc268_beep_mixer[i])) {
+				err = -ENOMEM;
+				goto error;
+			}
+		}
 		snd_hda_add_verbs(codec, alc268_beep_init_verbs);
 		if (!query_amp_caps(codec, 0x1d, HDA_INPUT))
 			/* override the amp caps for beep generator */
