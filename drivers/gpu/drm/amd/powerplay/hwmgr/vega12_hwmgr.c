@@ -1401,7 +1401,8 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 	struct pp_display_clock_request clock_req;
 	uint32_t clk_request;
 
-	if (hwmgr->display_config->num_display > 1)
+	if ((hwmgr->display_config->num_display > 1) &&
+		!hwmgr->display_config->multi_monitor_in_sync)
 		vega12_notify_smc_display_change(hwmgr, false);
 	else
 		vega12_notify_smc_display_change(hwmgr, true);
