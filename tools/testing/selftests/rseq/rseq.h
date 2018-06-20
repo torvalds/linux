@@ -71,6 +71,8 @@ extern __thread volatile struct rseq __rseq_abi;
 #include <rseq-x86.h>
 #elif defined(__ARMEL__)
 #include <rseq-arm.h>
+#elif defined (__AARCH64EL__)
+#include <rseq-arm64.h>
 #elif defined(__PPC__)
 #include <rseq-ppc.h>
 #elif defined(__mips__)

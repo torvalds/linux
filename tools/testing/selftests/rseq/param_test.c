@@ -114,6 +114,26 @@ unsigned int yield_mod_cnt, nr_abort;
 	"bne 222b\n\t" \
 	"333:\n\t"
 
+#elif defined(__AARCH64EL__)
+
+#define RSEQ_INJECT_INPUT \
+	, [loop_cnt_1] "Qo" (loop_cnt[1]) \
+	, [loop_cnt_2] "Qo" (loop_cnt[2]) \
+	, [loop_cnt_3] "Qo" (loop_cnt[3]) \
+	, [loop_cnt_4] "Qo" (loop_cnt[4]) \
+	, [loop_cnt_5] "Qo" (loop_cnt[5]) \
+	, [loop_cnt_6] "Qo" (loop_cnt[6])
+
+#define INJECT_ASM_REG	RSEQ_ASM_TMP_REG32
+
+#define RSEQ_INJECT_ASM(n) \
+	"	ldr	" INJECT_ASM_REG ", %[loop_cnt_" #n "]\n"	\
+	"	cbz	" INJECT_ASM_REG ", 333f\n"			\
+	"222:\n"							\
+	"	sub	" INJECT_ASM_REG ", " INJECT_ASM_REG ", #1\n"	\
+	"	cbnz	" INJECT_ASM_REG ", 222b\n"			\
+	"333:\n"
+
 #elif __PPC__
 
 #define RSEQ_INJECT_INPUT \
