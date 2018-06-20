@@ -606,6 +606,42 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "\n");
 }
 
+/*
+ * Worst case: 32 bits individually specified, in octal at 12 characters
+ * per line (+1 for \n).
+ */
+#define AMDGPU_MASK_BUF_MAX	(32 * 13)
+
+static ssize_t amdgpu_read_mask(const char *buf, size_t count, uint32_t *mask)
+{
+	int ret;
+	long level;
+	char *sub_str = NULL;
+	char *tmp;
+	char buf_cpy[AMDGPU_MASK_BUF_MAX + 1];
+	const char delimiter[3] = {' ', '\n', '\0'};
+	size_t bytes;
+
+	*mask = 0;
+
+	bytes = min(count, sizeof(buf_cpy) - 1);
+	memcpy(buf_cpy, buf, bytes);
+	buf_cpy[bytes] = '\0';
+	tmp = buf_cpy;
+	while (tmp[0]) {
+		sub_str = strsep(&tmp, delimiter);
+		if (strlen(sub_str)) {
+			ret = kstrtol(sub_str, 0, &level);
+			if (ret)
+				return -EINVAL;
+			*mask |= 1 << level;
+		} else
+			break;
+	}
+
+	return 0;
+}
+
 static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
@@ -614,32 +650,15 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 
-fail:
 	return count;
 }
 
@@ -664,32 +683,15 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 
-fail:
 	return count;
 }
 
@@ -714,33 +716,15 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
-	long level;
 	uint32_t mask = 0;
-	char *sub_str = NULL;
-	char *tmp;
-	char buf_cpy[count];
-	const char delimiter[3] = {' ', '\n', '\0'};
 
-	memcpy(buf_cpy, buf, count+1);
-	tmp = buf_cpy;
+	ret = amdgpu_read_mask(buf, count, &mask);
+	if (ret)
+		return ret;
 
-	while (tmp[0]) {
-		sub_str =  strsep(&tmp, delimiter);
-		if (strlen(sub_str)) {
-			ret = kstrtol(sub_str, 0, &level);
-
-			if (ret) {
-				count = -EINVAL;
-				goto fail;
-			}
-			mask |= 1 << level;
-		} else
-			break;
-	}
 	if (adev->powerplay.pp_funcs->force_clock_level)
 		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 
-fail:
 	return count;
 }
 
