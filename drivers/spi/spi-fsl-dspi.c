@@ -1001,7 +1001,6 @@ static int dspi_probe(struct platform_device *pdev)
 
 	master->cleanup = dspi_cleanup;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {
@@ -1032,6 +1031,11 @@ static int dspi_probe(struct platform_device *pdev)
 			goto out_master_put;
 		}
 	}
+
+	if (dspi->devtype_data->xspi_mode)
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+	else
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
