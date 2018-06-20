@@ -842,8 +842,8 @@ void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
 		unsigned long tpf, unsigned long gsf, unsigned long gpf)
 {
 	SEQ_printf(m, "numa_faults node=%d ", node);
-	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tsf, tpf);
-	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gsf, gpf);
+	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tpf, tsf);
+	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gpf, gsf);
 }
 #endif
 
