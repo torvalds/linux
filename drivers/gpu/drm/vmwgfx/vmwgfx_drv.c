@@ -916,9 +916,23 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_no_fifo;
 
+	if (dev_priv->has_dx) {
+		/*
+		 * SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1
+		 * support
+		 */
+		if ((dev_priv->capabilities2 & SVGA_CAP2_DX2) != 0) {
+			vmw_write(dev_priv, SVGA_REG_DEV_CAP,
+					SVGA3D_DEVCAP_SM41);
+			dev_priv->has_sm4_1 = vmw_read(dev_priv,
+							SVGA_REG_DEV_CAP);
+		}
+	}
+
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
-	DRM_INFO("Atomic: %s\n",
-		 (dev->driver->driver_features & DRIVER_ATOMIC) ? "yes" : "no");
+	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
+		 ? "yes." : "no.");
+	DRM_INFO("SM4_1: %s\n", dev_priv->has_sm4_1 ? "yes." : "no.");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);
