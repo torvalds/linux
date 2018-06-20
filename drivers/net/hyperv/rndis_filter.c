@@ -1288,7 +1288,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		   rndis_device->link_state ? "down" : "up");
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
-		return net_device;
+		goto out;
 
 	rndis_filter_query_link_speed(rndis_device, net_device);
 

@@ -157,10 +157,12 @@ static void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 #endif /* CONFIG_BLOCK */
 
 static void ceph_osd_data_bvecs_init(struct ceph_osd_data *osd_data,
-				     struct ceph_bvec_iter *bvec_pos)
+				     struct ceph_bvec_iter *bvec_pos,
+				     u32 num_bvecs)
 {
 	osd_data->type = CEPH_OSD_DATA_TYPE_BVECS;
 	osd_data->bvec_pos = *bvec_pos;
+	osd_data->num_bvecs = num_bvecs;
 }
 
 #define osd_req_op_data(oreq, whch, typ, fld)				\
@@ -237,6 +239,22 @@ void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_bio);
 #endif /* CONFIG_BLOCK */
 
+void osd_req_op_extent_osd_data_bvecs(struct ceph_osd_request *osd_req,
+				      unsigned int which,
+				      struct bio_vec *bvecs, u32 num_bvecs,
+				      u32 bytes)
+{
+	struct ceph_osd_data *osd_data;
+	struct ceph_bvec_iter it = {
+		.bvecs = bvecs,
+		.iter = { .bi_size = bytes },
+	};
+
+	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
+	ceph_osd_data_bvecs_init(osd_data, &it, num_bvecs);
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data_bvecs);
+
 void osd_req_op_extent_osd_data_bvec_pos(struct ceph_osd_request *osd_req,
 					 unsigned int which,
 					 struct ceph_bvec_iter *bvec_pos)
@@ -244,7 +262,7 @@ void osd_req_op_extent_osd_data_bvec_pos(struct ceph_osd_request *osd_req,
 	struct ceph_osd_data *osd_data;
 
 	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
-	ceph_osd_data_bvecs_init(osd_data, bvec_pos);
+	ceph_osd_data_bvecs_init(osd_data, bvec_pos, 0);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_bvec_pos);
 
@@ -287,7 +305,8 @@ EXPORT_SYMBOL(osd_req_op_cls_request_data_pages);
 
 void osd_req_op_cls_request_data_bvecs(struct ceph_osd_request *osd_req,
 				       unsigned int which,
-				       struct bio_vec *bvecs, u32 bytes)
+				       struct bio_vec *bvecs, u32 num_bvecs,
+				       u32 bytes)
 {
 	struct ceph_osd_data *osd_data;
 	struct ceph_bvec_iter it = {
@@ -296,7 +315,7 @@ void osd_req_op_cls_request_data_bvecs(struct ceph_osd_request *osd_req,
 	};
 
 	osd_data = osd_req_op_data(osd_req, which, cls, request_data);
-	ceph_osd_data_bvecs_init(osd_data, &it);
+	ceph_osd_data_bvecs_init(osd_data, &it, num_bvecs);
 	osd_req->r_ops[which].cls.indata_len += bytes;
 	osd_req->r_ops[which].indata_len += bytes;
 }

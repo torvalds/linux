@@ -2466,6 +2466,7 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		else if (strcmp(modifier, "usecs") == 0)
 			*flags |= HIST_FIELD_FL_TIMESTAMP_USECS;
 		else {
+			hist_err("Invalid field modifier: ", modifier);
 			field = ERR_PTR(-EINVAL);
 			goto out;
 		}
@@ -2481,6 +2482,7 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 	else {
 		field = trace_find_event_field(file->event_call, field_name);
 		if (!field || !field->size) {
+			hist_err("Couldn't find field: ", field_name);
 			field = ERR_PTR(-EINVAL);
 			goto out;
 		}
@@ -4913,6 +4915,16 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 		seq_printf(m, "%s", field_name);
 	} else if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP)
 		seq_puts(m, "common_timestamp");
+
+	if (hist_field->flags) {
+		if (!(hist_field->flags & HIST_FIELD_FL_VAR_REF) &&
+		    !(hist_field->flags & HIST_FIELD_FL_EXPR)) {
+			const char *flags = get_hist_field_flags(hist_field);
+
+			if (flags)
+				seq_printf(m, ".%s", flags);
+		}
+	}
 }
 
 static int event_hist_trigger_print(struct seq_file *m,

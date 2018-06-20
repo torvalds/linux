@@ -167,40 +167,16 @@ EXPORT_SYMBOL(iommu_put_dma_cookie);
  * @list: Reserved region list from iommu_get_resv_regions()
  *
  * IOMMU drivers can use this to implement their .get_resv_regions callback
- * for general non-IOMMU-specific reservations. Currently, this covers host
- * bridge windows for PCI devices and GICv3 ITS region reservation on ACPI
- * based ARM platforms that may require HW MSI reservation.
+ * for general non-IOMMU-specific reservations. Currently, this covers GICv3
+ * ITS region reservation on ACPI based ARM platforms that may require HW MSI
+ * reservation.
  */
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
-	struct pci_host_bridge *bridge;
-	struct resource_entry *window;
 
-	if (!is_of_node(dev->iommu_fwspec->iommu_fwnode) &&
-		iort_iommu_msi_get_resv_regions(dev, list) < 0)
-		return;
+	if (!is_of_node(dev->iommu_fwspec->iommu_fwnode))
+		iort_iommu_msi_get_resv_regions(dev, list);
 
-	if (!dev_is_pci(dev))
-		return;
-
-	bridge = pci_find_host_bridge(to_pci_dev(dev)->bus);
-	resource_list_for_each_entry(window, &bridge->windows) {
-		struct iommu_resv_region *region;
-		phys_addr_t start;
-		size_t length;
-
-		if (resource_type(window->res) != IORESOURCE_MEM)
-			continue;
-
-		start = window->res->start - window->offset;
-		length = window->res->end - window->res->start + 1;
-		region = iommu_alloc_resv_region(start, length, 0,
-				IOMMU_RESV_RESERVED);
-		if (!region)
-			return;
-
-		list_add_tail(&region->list, list);
-	}
 }
 EXPORT_SYMBOL(iommu_dma_get_resv_regions);
 
@@ -229,6 +205,23 @@ static int cookie_init_hw_msi_region(struct iommu_dma_cookie *cookie,
 	return 0;
 }
 
+static void iova_reserve_pci_windows(struct pci_dev *dev,
+		struct iova_domain *iovad)
+{
+	struct pci_host_bridge *bridge = pci_find_host_bridge(dev->bus);
+	struct resource_entry *window;
+	unsigned long lo, hi;
+
+	resource_list_for_each_entry(window, &bridge->windows) {
+		if (resource_type(window->res) != IORESOURCE_MEM)
+			continue;
+
+		lo = iova_pfn(iovad, window->res->start - window->offset);
+		hi = iova_pfn(iovad, window->res->end - window->offset);
+		reserve_iova(iovad, lo, hi);
+	}
+}
+
 static int iova_reserve_iommu_regions(struct device *dev,
 		struct iommu_domain *domain)
 {
@@ -237,6 +230,9 @@ static int iova_reserve_iommu_regions(struct device *dev,
 	struct iommu_resv_region *region;
 	LIST_HEAD(resv_regions);
 	int ret = 0;
+
+	if (dev_is_pci(dev))
+		iova_reserve_pci_windows(to_pci_dev(dev), iovad);
 
 	iommu_get_resv_regions(dev, &resv_regions);
 	list_for_each_entry(region, &resv_regions, list) {

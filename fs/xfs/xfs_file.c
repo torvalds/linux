@@ -778,22 +778,26 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		unsigned int blksize_mask = i_blocksize(inode) - 1;
+		unsigned int	blksize_mask = i_blocksize(inode) - 1;
+		loff_t		isize = i_size_read(inode);
 
-		new_size = i_size_read(inode) + len;
 		if (offset & blksize_mask || len & blksize_mask) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
 
-		/* check the new inode size does not wrap through zero */
-		if (new_size > inode->i_sb->s_maxbytes) {
+		/*
+		 * New inode size must not exceed ->s_maxbytes, accounting for
+		 * possible signed overflow.
+		 */
+		if (inode->i_sb->s_maxbytes - isize < len) {
 			error = -EFBIG;
 			goto out_unlock;
 		}
+		new_size = isize + len;
 
 		/* Offset should be less than i_size */
-		if (offset >= i_size_read(inode)) {
+		if (offset >= isize) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
@@ -876,8 +880,18 @@ xfs_file_dedupe_range(
 	struct file	*dst_file,
 	u64		dst_loff)
 {
+	struct inode	*srci = file_inode(src_file);
+	u64		max_dedupe;
 	int		error;
 
+	/*
+	 * Since we have to read all these pages in to compare them, cut
+	 * it off at MAX_RW_COUNT/2 rounded down to the nearest block.
+	 * That means we won't do more than MAX_RW_COUNT IO per request.
+	 */
+	max_dedupe = (MAX_RW_COUNT >> 1) & ~(i_blocksize(srci) - 1);
+	if (len > max_dedupe)
+		len = max_dedupe;
 	error = xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
 				     len, true);
 	if (error)

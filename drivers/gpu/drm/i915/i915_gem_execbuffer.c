@@ -762,7 +762,8 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		}
 
 		/* transfer ref to ctx */
-		vma->open_count++;
+		if (!vma->open_count++)
+			i915_vma_reopen(vma);
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;

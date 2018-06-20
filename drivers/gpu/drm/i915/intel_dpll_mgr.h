@@ -103,6 +103,32 @@ enum intel_dpll_id {
 	 * @DPLL_ID_SKL_DPLL3: SKL and later DPLL3
 	 */
 	DPLL_ID_SKL_DPLL3 = 3,
+
+
+	/**
+	 * @DPLL_ID_ICL_DPLL0: ICL combo PHY DPLL0
+	 */
+	DPLL_ID_ICL_DPLL0 = 0,
+	/**
+	 * @DPLL_ID_ICL_DPLL1: ICL combo PHY DPLL1
+	 */
+	DPLL_ID_ICL_DPLL1 = 1,
+	/**
+	 * @DPLL_ID_ICL_MGPLL1: ICL MG PLL 1 port 1 (C)
+	 */
+	DPLL_ID_ICL_MGPLL1 = 2,
+	/**
+	 * @DPLL_ID_ICL_MGPLL2: ICL MG PLL 1 port 2 (D)
+	 */
+	DPLL_ID_ICL_MGPLL2 = 3,
+	/**
+	 * @DPLL_ID_ICL_MGPLL3: ICL MG PLL 1 port 3 (E)
+	 */
+	DPLL_ID_ICL_MGPLL3 = 4,
+	/**
+	 * @DPLL_ID_ICL_MGPLL4: ICL MG PLL 1 port 4 (F)
+	 */
+	DPLL_ID_ICL_MGPLL4 = 5,
 };
 #define I915_NUM_PLLS 6
 
@@ -135,6 +161,21 @@ struct intel_dpll_hw_state {
 	/* bxt */
 	uint32_t ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10,
 		 pcsdw12;
+
+	/*
+	 * ICL uses the following, already defined:
+	 * uint32_t cfgcr0, cfgcr1;
+	 */
+	uint32_t mg_refclkin_ctl;
+	uint32_t mg_clktop2_coreclkctl1;
+	uint32_t mg_clktop2_hsclkctl;
+	uint32_t mg_pll_div0;
+	uint32_t mg_pll_div1;
+	uint32_t mg_pll_lf;
+	uint32_t mg_pll_frac_lock;
+	uint32_t mg_pll_ssc;
+	uint32_t mg_pll_bias;
+	uint32_t mg_pll_tdc_coldst_bias;
 };
 
 /**

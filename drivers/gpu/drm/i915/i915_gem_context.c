@@ -117,15 +117,15 @@ static void lut_close(struct i915_gem_context *ctx)
 
 static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
-	int i;
+	unsigned int n;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	i915_ppgtt_put(ctx->ppgtt);
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct intel_context *ce = &ctx->engine[i];
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
+		struct intel_context *ce = &ctx->__engine[n];
 
 		if (!ce->state)
 			continue;
@@ -281,7 +281,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
-	ctx->priority = I915_PRIORITY_NORMAL;
+	ctx->sched.priority = I915_PRIORITY_NORMAL;
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
@@ -431,7 +431,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 		return ctx;
 
 	i915_gem_context_clear_bannable(ctx);
-	ctx->priority = prio;
+	ctx->sched.priority = prio;
 	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
@@ -521,7 +521,7 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 		if (!engine->last_retired_context)
 			continue;
 
-		engine->context_unpin(engine, engine->last_retired_context);
+		intel_context_unpin(engine->last_retired_context, engine);
 		engine->last_retired_context = NULL;
 	}
 }
@@ -577,19 +577,29 @@ void i915_gem_context_close(struct drm_file *file)
 	idr_destroy(&file_priv->context_idr);
 }
 
+static struct i915_request *
+last_request_on_engine(struct i915_timeline *timeline,
+		       struct intel_engine_cs *engine)
+{
+	struct i915_request *rq;
+
+	if (timeline == &engine->timeline)
+		return NULL;
+
+	rq = i915_gem_active_raw(&timeline->last_request,
+				 &engine->i915->drm.struct_mutex);
+	if (rq && rq->engine == engine)
+		return rq;
+
+	return NULL;
+}
+
 static bool engine_has_idle_kernel_context(struct intel_engine_cs *engine)
 {
-	struct i915_gem_timeline *timeline;
+	struct i915_timeline *timeline;
 
 	list_for_each_entry(timeline, &engine->i915->gt.timelines, link) {
-		struct intel_timeline *tl;
-
-		if (timeline == &engine->i915->gt.global_timeline)
-			continue;
-
-		tl = &timeline->engine[engine->id];
-		if (i915_gem_active_peek(&tl->last_request,
-					 &engine->i915->drm.struct_mutex))
+		if (last_request_on_engine(timeline, engine))
 			return false;
 	}
 
@@ -599,7 +609,7 @@ static bool engine_has_idle_kernel_context(struct intel_engine_cs *engine)
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	struct i915_gem_timeline *timeline;
+	struct i915_timeline *timeline;
 	enum intel_engine_id id;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
@@ -619,11 +629,8 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 		/* Queue this switch after all other activity */
 		list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
 			struct i915_request *prev;
-			struct intel_timeline *tl;
 
-			tl = &timeline->engine[engine->id];
-			prev = i915_gem_active_raw(&tl->last_request,
-						   &dev_priv->drm.struct_mutex);
+			prev = last_request_on_engine(timeline, engine);
 			if (prev)
 				i915_sw_fence_await_sw_fence_gfp(&rq->submit,
 								 &prev->submit,
@@ -753,7 +760,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
 	case I915_CONTEXT_PARAM_PRIORITY:
-		args->value = ctx->priority;
+		args->value = ctx->sched.priority;
 		break;
 	default:
 		ret = -EINVAL;
@@ -826,7 +833,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				 !capable(CAP_SYS_NICE))
 				ret = -EPERM;
 			else
-				ctx->priority = priority;
+				ctx->sched.priority = priority;
 		}
 		break;
 

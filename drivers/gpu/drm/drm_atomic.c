@@ -156,6 +156,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						       state->connectors[i].state);
 		state->connectors[i].ptr = NULL;
 		state->connectors[i].state = NULL;
+		state->connectors[i].old_state = NULL;
+		state->connectors[i].new_state = NULL;
 		drm_connector_put(connector);
 	}
 
@@ -170,6 +172,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 
 		state->crtcs[i].ptr = NULL;
 		state->crtcs[i].state = NULL;
+		state->crtcs[i].old_state = NULL;
+		state->crtcs[i].new_state = NULL;
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
@@ -182,6 +186,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						   state->planes[i].state);
 		state->planes[i].ptr = NULL;
 		state->planes[i].state = NULL;
+		state->planes[i].old_state = NULL;
+		state->planes[i].new_state = NULL;
 	}
 
 	for (i = 0; i < state->num_private_objs; i++) {
@@ -191,6 +197,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						 state->private_objs[i].state);
 		state->private_objs[i].ptr = NULL;
 		state->private_objs[i].state = NULL;
+		state->private_objs[i].old_state = NULL;
+		state->private_objs[i].new_state = NULL;
 	}
 	state->num_private_objs = 0;
 
@@ -1940,11 +1948,15 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	if (config->funcs->atomic_check)
+	if (config->funcs->atomic_check) {
 		ret = config->funcs->atomic_check(state->dev, state);
 
-	if (ret)
-		return ret;
+		if (ret) {
+			DRM_DEBUG_ATOMIC("atomic driver check for %p failed: %d\n",
+					 state, ret);
+			return ret;
+		}
+	}
 
 	if (!state->allow_modeset) {
 		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {

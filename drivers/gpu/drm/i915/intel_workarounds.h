@@ -12,6 +12,6 @@ int intel_ctx_workarounds_emit(struct i915_request *rq);
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv);
 
-int intel_whitelist_workarounds_apply(struct intel_engine_cs *engine);
+void intel_whitelist_workarounds_apply(struct intel_engine_cs *engine);
 
 #endif

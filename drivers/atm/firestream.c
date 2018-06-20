@@ -191,7 +191,7 @@ static char *res_strings[] = {
 	"reserved 37",
 	"reserved 38",
 	"reserved 39",
-	"reseverd 40",
+	"reserved 40",
 	"reserved 41", 
 	"reserved 42", 
 	"reserved 43", 

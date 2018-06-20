@@ -51,6 +51,10 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
+	/* WaSkipStolenMemoryFirstPage:bdw+ */
+	if (INTEL_GEN(dev_priv) >= 8 && start < 4096)
+		start = 4096;
+
 	mutex_lock(&dev_priv->mm.stolen_lock);
 	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node,
 					  size, alignment, 0,
@@ -343,7 +347,6 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
 	resource_size_t reserved_base, stolen_top;
 	resource_size_t reserved_total, reserved_size;
-	resource_size_t stolen_usable_start;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
 
@@ -435,17 +438,11 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 			 (u64)resource_size(&dev_priv->dsm) >> 10,
 			 ((u64)resource_size(&dev_priv->dsm) - reserved_total) >> 10);
 
-	stolen_usable_start = 0;
-	/* WaSkipStolenMemoryFirstPage:bdw+ */
-	if (INTEL_GEN(dev_priv) >= 8)
-		stolen_usable_start = 4096;
-
 	dev_priv->stolen_usable_size =
-		resource_size(&dev_priv->dsm) - reserved_total - stolen_usable_start;
+		resource_size(&dev_priv->dsm) - reserved_total;
 
 	/* Basic memrange allocator for stolen space. */
-	drm_mm_init(&dev_priv->mm.stolen, stolen_usable_start,
-		    dev_priv->stolen_usable_size);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->stolen_usable_size);
 
 	return 0;
 }

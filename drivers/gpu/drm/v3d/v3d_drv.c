@@ -135,7 +135,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 		drm_sched_entity_init(&v3d->queue[i].sched,
 				      &v3d_priv->sched_entity[i],
 				      &v3d->queue[i].sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				      32, NULL);
+				      NULL);
 	}
 
 	file->driver_priv = v3d_priv;

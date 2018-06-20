@@ -401,11 +401,15 @@ int tiler_unpin(struct tiler_block *block)
 struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 		u16 h, u16 align)
 {
-	struct tiler_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
+	struct tiler_block *block;
 	u32 min_align = 128;
 	int ret;
 	unsigned long flags;
 	u32 slot_bytes;
+
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block)
+		return ERR_PTR(-ENOMEM);
 
 	BUG_ON(!validfmt(fmt));
 

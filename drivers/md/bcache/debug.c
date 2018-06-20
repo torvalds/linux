@@ -106,7 +106,6 @@ void bch_btree_verify(struct btree *b)
 
 void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
-	char name[BDEVNAME_SIZE];
 	struct bio *check;
 	struct bio_vec bv, cbv;
 	struct bvec_iter iter, citer = { 0 };
@@ -134,7 +133,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 					bv.bv_len),
 				 dc->disk.c,
 				 "verify failed at dev %s sector %llu",
-				 bdevname(dc->bdev, name),
+				 dc->backing_dev_name,
 				 (uint64_t) bio->bi_iter.bi_sector);
 
 		kunmap_atomic(p1);

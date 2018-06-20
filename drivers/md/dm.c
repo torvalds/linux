@@ -1020,7 +1020,8 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
 EXPORT_SYMBOL_GPL(dm_set_target_max_io_len);
 
 static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
-		sector_t sector, int *srcu_idx)
+						sector_t sector, int *srcu_idx)
+	__acquires(md->io_barrier)
 {
 	struct dm_table *map;
 	struct dm_target *ti;
@@ -1037,7 +1038,7 @@ static struct dm_target *dm_dax_get_live_target(struct mapped_device *md,
 }
 
 static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
-		long nr_pages, void **kaddr, pfn_t *pfn)
+				 long nr_pages, void **kaddr, pfn_t *pfn)
 {
 	struct mapped_device *md = dax_get_private(dax_dev);
 	sector_t sector = pgoff * PAGE_SECTORS;
@@ -1065,7 +1066,7 @@ static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 }
 
 static size_t dm_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
-		void *addr, size_t bytes, struct iov_iter *i)
+				    void *addr, size_t bytes, struct iov_iter *i)
 {
 	struct mapped_device *md = dax_get_private(dax_dev);
 	sector_t sector = pgoff * PAGE_SECTORS;

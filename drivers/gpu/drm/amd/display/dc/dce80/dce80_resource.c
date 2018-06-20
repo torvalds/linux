@@ -691,23 +691,6 @@ static void destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static enum dc_status build_mapped_resource(
-		const struct dc *dc,
-		struct dc_state *context,
-		struct dc_stream_state *stream)
-{
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
-
-	if (!pipe_ctx)
-		return DC_ERROR_UNEXPECTED;
-
-	dce110_resource_build_pipe_hw_param(pipe_ctx);
-
-	resource_build_info_frame(pipe_ctx);
-
-	return DC_OK;
-}
-
 bool dce80_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context)
@@ -749,37 +732,6 @@ enum dc_status dce80_validate_global(
 	return DC_OK;
 }
 
-enum dc_status dce80_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		result = dce80_validate_bandwidth(dc, context);
-
-	return result;
-}
-
 static void dce80_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -792,7 +744,6 @@ static void dce80_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce80_res_pool_funcs = {
 	.destroy = dce80_destroy_resource_pool,
 	.link_enc_create = dce80_link_encoder_create,
-	.validate_guaranteed = dce80_validate_guaranteed,
 	.validate_bandwidth = dce80_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,

@@ -125,7 +125,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (id->base.br_nominal) {
 		if (id->base.br_nominal != 255) {
 			br_nom = id->base.br_nominal * 100;
-			br_min = br_nom + id->base.br_nominal * id->ext.br_min;
+			br_min = br_nom - id->base.br_nominal * id->ext.br_min;
 			br_max = br_nom + id->base.br_nominal * id->ext.br_max;
 		} else if (id->ext.br_max) {
 			br_nom = 250 * id->ext.br_max;

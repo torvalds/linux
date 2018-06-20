@@ -43,6 +43,7 @@
 #include <net/tcp.h>
 #include <linux/ptr_ring.h>
 #include <net/inet_common.h>
+#include <linux/sched/signal.h>
 
 #define SOCK_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
@@ -325,6 +326,9 @@ retry:
 			if (ret > 0) {
 				if (apply)
 					apply_bytes -= ret;
+
+				sg->offset += ret;
+				sg->length -= ret;
 				size -= ret;
 				offset += ret;
 				if (uncharge)
@@ -332,8 +336,6 @@ retry:
 				goto retry;
 			}
 
-			sg->length = size;
-			sg->offset = offset;
 			return ret;
 		}
 
@@ -391,7 +393,8 @@ static void return_mem_sg(struct sock *sk, int bytes, struct sk_msg_buff *md)
 	} while (i != md->sg_end);
 }
 
-static void free_bytes_sg(struct sock *sk, int bytes, struct sk_msg_buff *md)
+static void free_bytes_sg(struct sock *sk, int bytes,
+			  struct sk_msg_buff *md, bool charge)
 {
 	struct scatterlist *sg = md->sg_data;
 	int i = md->sg_start, free;
@@ -401,11 +404,13 @@ static void free_bytes_sg(struct sock *sk, int bytes, struct sk_msg_buff *md)
 		if (bytes < free) {
 			sg[i].length -= bytes;
 			sg[i].offset += bytes;
-			sk_mem_uncharge(sk, bytes);
+			if (charge)
+				sk_mem_uncharge(sk, bytes);
 			break;
 		}
 
-		sk_mem_uncharge(sk, sg[i].length);
+		if (charge)
+			sk_mem_uncharge(sk, sg[i].length);
 		put_page(sg_page(&sg[i]));
 		bytes -= sg[i].length;
 		sg[i].length = 0;
@@ -416,6 +421,7 @@ static void free_bytes_sg(struct sock *sk, int bytes, struct sk_msg_buff *md)
 		if (i == MAX_SKB_FRAGS)
 			i = 0;
 	}
+	md->sg_start = i;
 }
 
 static int free_sg(struct sock *sk, int start, struct sk_msg_buff *md)
@@ -523,8 +529,6 @@ static int bpf_tcp_ingress(struct sock *sk, int apply_bytes,
 	i = md->sg_start;
 
 	do {
-		r->sg_data[i] = md->sg_data[i];
-
 		size = (apply && apply_bytes < md->sg_data[i].length) ?
 			apply_bytes : md->sg_data[i].length;
 
@@ -535,6 +539,7 @@ static int bpf_tcp_ingress(struct sock *sk, int apply_bytes,
 		}
 
 		sk_mem_charge(sk, size);
+		r->sg_data[i] = md->sg_data[i];
 		r->sg_data[i].length = size;
 		md->sg_data[i].length -= size;
 		md->sg_data[i].offset += size;
@@ -575,10 +580,10 @@ static int bpf_tcp_sendmsg_do_redirect(struct sock *sk, int send,
 				       struct sk_msg_buff *md,
 				       int flags)
 {
+	bool ingress = !!(md->flags & BPF_F_INGRESS);
 	struct smap_psock *psock;
 	struct scatterlist *sg;
-	int i, err, free = 0;
-	bool ingress = !!(md->flags & BPF_F_INGRESS);
+	int err = 0;
 
 	sg = md->sg_data;
 
@@ -606,16 +611,8 @@ static int bpf_tcp_sendmsg_do_redirect(struct sock *sk, int send,
 out_rcu:
 	rcu_read_unlock();
 out:
-	i = md->sg_start;
-	while (sg[i].length) {
-		free += sg[i].length;
-		put_page(sg_page(&sg[i]));
-		sg[i].length = 0;
-		i++;
-		if (i == MAX_SKB_FRAGS)
-			i = 0;
-	}
-	return free;
+	free_bytes_sg(NULL, send, md, false);
+	return err;
 }
 
 static inline void bpf_md_init(struct smap_psock *psock)
@@ -700,19 +697,26 @@ more_data:
 		err = bpf_tcp_sendmsg_do_redirect(redir, send, m, flags);
 		lock_sock(sk);
 
+		if (unlikely(err < 0)) {
+			free_start_sg(sk, m);
+			psock->sg_size = 0;
+			if (!cork)
+				*copied -= send;
+		} else {
+			psock->sg_size -= send;
+		}
+
 		if (cork) {
 			free_start_sg(sk, m);
+			psock->sg_size = 0;
 			kfree(m);
 			m = NULL;
+			err = 0;
 		}
-		if (unlikely(err))
-			*copied -= err;
-		else
-			psock->sg_size -= send;
 		break;
 	case __SK_DROP:
 	default:
-		free_bytes_sg(sk, send, m);
+		free_bytes_sg(sk, send, m, true);
 		apply_bytes_dec(psock, send);
 		*copied -= send;
 		psock->sg_size -= send;
@@ -730,6 +734,26 @@ more_data:
 
 out_err:
 	return err;
+}
+
+static int bpf_wait_data(struct sock *sk,
+			 struct smap_psock *psk, int flags,
+			 long timeo, int *err)
+{
+	int rc;
+
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+
+	add_wait_queue(sk_sleep(sk), &wait);
+	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
+	rc = sk_wait_event(sk, &timeo,
+			   !list_empty(&psk->ingress) ||
+			   !skb_queue_empty(&sk->sk_receive_queue),
+			   &wait);
+	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
+	remove_wait_queue(sk_sleep(sk), &wait);
+
+	return rc;
 }
 
 static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
@@ -755,6 +779,7 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	lock_sock(sk);
+bytes_ready:
 	while (copied != len) {
 		struct scatterlist *sg;
 		struct sk_msg_buff *md;
@@ -807,6 +832,28 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 				consume_skb(md->skb);
 			kfree(md);
 		}
+	}
+
+	if (!copied) {
+		long timeo;
+		int data;
+		int err = 0;
+
+		timeo = sock_rcvtimeo(sk, nonblock);
+		data = bpf_wait_data(sk, psock, flags, timeo, &err);
+
+		if (data) {
+			if (!skb_queue_empty(&sk->sk_receive_queue)) {
+				release_sock(sk);
+				smap_release_sock(psock, sk);
+				copied = tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+				return copied;
+			}
+			goto bytes_ready;
+		}
+
+		if (err)
+			copied = err;
 	}
 
 	release_sock(sk);
@@ -1831,7 +1878,7 @@ static int sock_map_update_elem(struct bpf_map *map,
 	return err;
 }
 
-static void sock_map_release(struct bpf_map *map, struct file *map_file)
+static void sock_map_release(struct bpf_map *map)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	struct bpf_prog *orig;
@@ -1855,7 +1902,7 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_get_next_key = sock_map_get_next_key,
 	.map_update_elem = sock_map_update_elem,
 	.map_delete_elem = sock_map_delete_elem,
-	.map_release = sock_map_release,
+	.map_release_uref = sock_map_release,
 };
 
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,

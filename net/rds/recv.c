@@ -558,6 +558,7 @@ static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg,
 		struct rds_cmsg_rx_trace t;
 		int i, j;
 
+		memset(&t, 0, sizeof(t));
 		inc->i_rx_lat_trace[RDS_MSG_RX_CMSG] = local_clock();
 		t.rx_traces =  rs->rs_rx_traces;
 		for (i = 0; i < rs->rs_rx_traces; i++) {

@@ -152,8 +152,8 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 			NL_SET_ERR_MSG(extack, "TC classifier not found");
 			err = -ENOENT;
 		}
-		goto errout;
 #endif
+		goto errout;
 	}
 	tp->classify = tp->ops->classify;
 	tp->protocol = protocol;

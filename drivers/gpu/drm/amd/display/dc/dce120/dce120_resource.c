@@ -652,7 +652,7 @@ static struct mem_input *dce120_mem_input_create(
 		return NULL;
 	}
 
-	dce112_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
+	dce120_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
 	return &dce_mi->base;
 }
 
@@ -684,7 +684,6 @@ static void dce120_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce120_res_pool_funcs = {
 	.destroy = dce120_destroy_resource_pool,
 	.link_enc_create = dce120_link_encoder_create,
-	.validate_guaranteed = dce112_validate_guaranteed,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce112_add_stream_to_ctx
@@ -815,14 +814,25 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = dm_read_reg_soc15(ctx, mmCC_DC_PIPE_DIS, 0);
+	/* VG20 support max 6 pipes */
+	value = value & 0x3f;
+	return value;
+}
+
 static bool construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dce110_resource_pool *pool)
 {
 	unsigned int i;
+	int j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data irq_init_data;
+	bool harvest_enabled = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
+	uint32_t pipe_fuses;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -916,28 +926,41 @@ static bool construct(
 	if (!pool->base.irqs)
 		goto irqs_create_fail;
 
+	/* retrieve valid pipe fuses */
+	if (harvest_enabled)
+		pipe_fuses = read_pipe_fuses(ctx);
+
+	/* index to valid pipe resource */
+	j = 0;
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		pool->base.timing_generators[i] =
+		if (harvest_enabled) {
+			if ((pipe_fuses & (1 << i)) != 0) {
+				dm_error("DC: skip invalid pipe %d!\n", i);
+				continue;
+			}
+		}
+
+		pool->base.timing_generators[j] =
 				dce120_timing_generator_create(
 					ctx,
 					i,
 					&dce120_tg_offsets[i]);
-		if (pool->base.timing_generators[i] == NULL) {
+		if (pool->base.timing_generators[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create tg!\n");
 			goto controller_create_fail;
 		}
 
-		pool->base.mis[i] = dce120_mem_input_create(ctx, i);
+		pool->base.mis[j] = dce120_mem_input_create(ctx, i);
 
-		if (pool->base.mis[i] == NULL) {
+		if (pool->base.mis[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto controller_create_fail;
 		}
 
-		pool->base.ipps[i] = dce120_ipp_create(ctx, i);
+		pool->base.ipps[j] = dce120_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
@@ -945,7 +968,7 @@ static bool construct(
 			goto controller_create_fail;
 		}
 
-		pool->base.transforms[i] = dce120_transform_create(ctx, i);
+		pool->base.transforms[j] = dce120_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
@@ -953,15 +976,22 @@ static bool construct(
 			goto res_create_fail;
 		}
 
-		pool->base.opps[i] = dce120_opp_create(
+		pool->base.opps[j] = dce120_opp_create(
 			ctx,
 			i);
-		if (pool->base.opps[i] == NULL) {
+		if (pool->base.opps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 		}
+
+		/* check next valid pipe */
+		j++;
 	}
+
+	/* valid pipe num */
+	pool->base.pipe_count = j;
+	pool->base.timing_generator_count = j;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			 &res_create_funcs))

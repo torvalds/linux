@@ -330,11 +330,6 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	return true;
 }
 
-bool dm_helpers_dc_conn_log(struct dc_context *ctx, struct log_entry *entry, enum dc_log_type event)
-{
-	return true;
-}
-
 void dm_dtn_log_begin(struct dc_context *ctx)
 {}
 

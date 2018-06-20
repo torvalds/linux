@@ -1854,7 +1854,6 @@ static int task_numa_migrate(struct task_struct *p)
 static void numa_migrate_preferred(struct task_struct *p)
 {
 	unsigned long interval = HZ;
-	unsigned long numa_migrate_retry;
 
 	/* This task has no NUMA fault statistics yet */
 	if (unlikely(p->numa_preferred_nid == -1 || !p->numa_faults))
@@ -1862,18 +1861,7 @@ static void numa_migrate_preferred(struct task_struct *p)
 
 	/* Periodically retry migrating the task to the preferred node */
 	interval = min(interval, msecs_to_jiffies(p->numa_scan_period) / 16);
-	numa_migrate_retry = jiffies + interval;
-
-	/*
-	 * Check that the new retry threshold is after the current one. If
-	 * the retry is in the future, it implies that wake_affine has
-	 * temporarily asked NUMA balancing to backoff from placement.
-	 */
-	if (numa_migrate_retry > p->numa_migrate_retry)
-		return;
-
-	/* Safe to try placing the task on the preferred node */
-	p->numa_migrate_retry = numa_migrate_retry;
+	p->numa_migrate_retry = jiffies + interval;
 
 	/* Success if task is already running on preferred CPU */
 	if (task_node(p) == p->numa_preferred_nid)
@@ -5922,48 +5910,6 @@ wake_affine_weight(struct sched_domain *sd, struct task_struct *p,
 	return this_eff_load < prev_eff_load ? this_cpu : nr_cpumask_bits;
 }
 
-#ifdef CONFIG_NUMA_BALANCING
-static void
-update_wa_numa_placement(struct task_struct *p, int prev_cpu, int target)
-{
-	unsigned long interval;
-
-	if (!static_branch_likely(&sched_numa_balancing))
-		return;
-
-	/* If balancing has no preference then continue gathering data */
-	if (p->numa_preferred_nid == -1)
-		return;
-
-	/*
-	 * If the wakeup is not affecting locality then it is neutral from
-	 * the perspective of NUMA balacing so continue gathering data.
-	 */
-	if (cpu_to_node(prev_cpu) == cpu_to_node(target))
-		return;
-
-	/*
-	 * Temporarily prevent NUMA balancing trying to place waker/wakee after
-	 * wakee has been moved by wake_affine. This will potentially allow
-	 * related tasks to converge and update their data placement. The
-	 * 4 * numa_scan_period is to allow the two-pass filter to migrate
-	 * hot data to the wakers node.
-	 */
-	interval = max(sysctl_numa_balancing_scan_delay,
-			 p->numa_scan_period << 2);
-	p->numa_migrate_retry = jiffies + msecs_to_jiffies(interval);
-
-	interval = max(sysctl_numa_balancing_scan_delay,
-			 current->numa_scan_period << 2);
-	current->numa_migrate_retry = jiffies + msecs_to_jiffies(interval);
-}
-#else
-static void
-update_wa_numa_placement(struct task_struct *p, int prev_cpu, int target)
-{
-}
-#endif
-
 static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 		       int this_cpu, int prev_cpu, int sync)
 {
@@ -5979,7 +5925,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	if (target == nr_cpumask_bits)
 		return prev_cpu;
 
-	update_wa_numa_placement(p, prev_cpu, target);
 	schedstat_inc(sd->ttwu_move_affine);
 	schedstat_inc(p->se.statistics.nr_wakeups_affine);
 	return target;
@@ -9847,6 +9792,7 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 	if (curr_cost > this_rq->max_idle_balance_cost)
 		this_rq->max_idle_balance_cost = curr_cost;
 
+out:
 	/*
 	 * While browsing the domains, we released the rq lock, a task could
 	 * have been enqueued in the meantime. Since we're not going idle,
@@ -9855,7 +9801,6 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 	if (this_rq->cfs.h_nr_running && !pulled_task)
 		pulled_task = 1;
 
-out:
 	/* Move the next balance forward */
 	if (time_after(this_rq->next_balance, next_balance))
 		this_rq->next_balance = next_balance;

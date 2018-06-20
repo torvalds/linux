@@ -22,11 +22,3 @@ config DRM_ETNAVIV_THERMAL
 	help
 	  Compile in support for thermal throttling.
 	  Say Y unless you want to risk burning your SoC.
-
-config DRM_ETNAVIV_REGISTER_LOGGING
-	bool "enable ETNAVIV register logging"
-	depends on DRM_ETNAVIV
-	help
-	  Compile in support for logging register reads/writes in a format
-	  that can be parsed by envytools demsm tool.  If enabled, register
-	  logging can be switched on via etnaviv.reglog=y module param.

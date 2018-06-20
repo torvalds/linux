@@ -3,17 +3,19 @@
 #define _INTEL_RINGBUFFER_H_
 
 #include <linux/hashtable.h>
+#include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
-#include "i915_gem_timeline.h"
 
 #include "i915_reg.h"
 #include "i915_pmu.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "i915_timeline.h"
 #include "intel_gpu_commands.h"
 
 struct drm_printer;
+struct i915_sched_attr;
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -127,7 +129,9 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
+	struct i915_timeline *timeline;
 	struct list_head request_list;
+	struct list_head active_link;
 
 	u32 head;
 	u32 tail;
@@ -334,7 +338,8 @@ struct intel_engine_cs {
 	u32 mmio_base;
 
 	struct intel_ring *buffer;
-	struct intel_timeline *timeline;
+
+	struct i915_timeline timeline;
 
 	struct drm_i915_gem_object *default_state;
 
@@ -460,7 +465,8 @@ struct intel_engine_cs {
 	 *
 	 * Called under the struct_mutex.
 	 */
-	void		(*schedule)(struct i915_request *request, int priority);
+	void		(*schedule)(struct i915_request *request,
+				    const struct i915_sched_attr *attr);
 
 	/*
 	 * Cancel all requests on the hardware, or queued for execution.
@@ -593,7 +599,7 @@ struct intel_engine_cs {
 		/**
 		 * @lock: Lock protecting the below fields.
 		 */
-		spinlock_t lock;
+		seqlock_t lock;
 		/**
 		 * @enabled: Reference count indicating number of listeners.
 		 */
@@ -764,7 +770,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size);
+intel_engine_create_ring(struct intel_engine_cs *engine,
+			 struct i915_timeline *timeline,
+			 int size);
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
 		   unsigned int offset_bias);
@@ -882,7 +890,7 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * wtih serialising this hint with anything, so document it as
 	 * a hint and nothing more.
 	 */
-	return READ_ONCE(engine->timeline->seqno);
+	return READ_ONCE(engine->timeline.seqno);
 }
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
@@ -1062,7 +1070,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		if (engine->stats.active++ == 0)
@@ -1070,7 +1078,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 		GEM_BUG_ON(engine->stats.active == 0);
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static inline void intel_engine_context_out(struct intel_engine_cs *engine)
@@ -1080,7 +1088,7 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		ktime_t last;
@@ -1107,7 +1115,7 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 		}
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 int intel_enable_engine_stats(struct intel_engine_cs *engine);

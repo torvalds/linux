@@ -247,9 +247,9 @@ static u32
 gen11_gt_engine_identity(struct drm_i915_private * const i915,
 			 const unsigned int bank, const unsigned int bit);
 
-static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
-				const unsigned int bank,
-				const unsigned int bit)
+bool gen11_reset_one_iir(struct drm_i915_private * const i915,
+			 const unsigned int bank,
+			 const unsigned int bit)
 {
 	void __iomem * const regs = i915->regs;
 	u32 dw;
@@ -2464,6 +2464,13 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
 
+	if (de_iir & DE_EDP_PSR_INT_HSW) {
+		u32 psr_iir = I915_READ(EDP_PSR_IIR);
+
+		intel_psr_irq_handler(dev_priv, psr_iir);
+		I915_WRITE(EDP_PSR_IIR, psr_iir);
+	}
+
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
 		dp_aux_irq_handler(dev_priv);
 
@@ -2593,11 +2600,25 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = I915_READ(GEN8_DE_MISC_IIR);
 		if (iir) {
+			bool found = false;
+
 			I915_WRITE(GEN8_DE_MISC_IIR, iir);
 			ret = IRQ_HANDLED;
-			if (iir & GEN8_DE_MISC_GSE)
+
+			if (iir & GEN8_DE_MISC_GSE) {
 				intel_opregion_asle_intr(dev_priv);
-			else
+				found = true;
+			}
+
+			if (iir & GEN8_DE_EDP_PSR) {
+				u32 psr_iir = I915_READ(EDP_PSR_IIR);
+
+				intel_psr_irq_handler(dev_priv, psr_iir);
+				I915_WRITE(EDP_PSR_IIR, psr_iir);
+				found = true;
+			}
+
+			if (!found)
 				DRM_ERROR("Unexpected DE Misc interrupt\n");
 		}
 		else
@@ -3348,6 +3369,11 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	if (IS_GEN7(dev_priv))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
+	if (IS_HASWELL(dev_priv)) {
+		I915_WRITE(EDP_PSR_IMR, 0xffffffff);
+		I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+	}
+
 	gen5_gt_irq_reset(dev_priv);
 
 	ibx_irq_reset(dev_priv);
@@ -3385,6 +3411,9 @@ static void gen8_irq_reset(struct drm_device *dev)
 	POSTING_READ(GEN8_MASTER_IRQ);
 
 	gen8_gt_irq_reset(dev_priv);
+
+	I915_WRITE(EDP_PSR_IMR, 0xffffffff);
+	I915_WRITE(EDP_PSR_IIR, 0xffffffff);
 
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
@@ -3762,6 +3791,12 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			      DE_DP_A_HOTPLUG);
 	}
 
+	if (IS_HASWELL(dev_priv)) {
+		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
+		display_mask |= DE_EDP_PSR_INT_HSW;
+	}
+
 	dev_priv->irq_mask = ~display_mask;
 
 	ibx_irq_pre_postinstall(dev);
@@ -3872,7 +3907,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
-	u32 de_misc_masked = GEN8_DE_MISC_GSE;
+	u32 de_misc_masked = GEN8_DE_MISC_GSE | GEN8_DE_EDP_PSR;
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -3896,6 +3931,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
+
+	gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;

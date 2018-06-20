@@ -448,7 +448,7 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 
 bool is_inhibit_context(struct i915_gem_context *ctx, int ring_id)
 {
-	u32 *reg_state = ctx->engine[ring_id].lrc_reg_state;
+	u32 *reg_state = ctx->__engine[ring_id].lrc_reg_state;
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 

@@ -313,7 +313,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
 	cp.key			= key;
-	cp.security_level	= 0;
+	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;

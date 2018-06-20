@@ -530,6 +530,7 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	 */
 	if (!driver->drrs_enabled)
 		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
+	dev_priv->vbt.psr.enable = driver->psr_enabled;
 }
 
 static void

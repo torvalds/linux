@@ -20,6 +20,7 @@
 #include "i915_gem.h"
 #include "i915_gem_gtt.h"
 #include "i915_params.h"
+#include "i915_scheduler.h"
 
 struct drm_i915_private;
 struct intel_overlay_error_state;
@@ -30,6 +31,8 @@ struct i915_gpu_state {
 	ktime_t time;
 	ktime_t boottime;
 	ktime_t uptime;
+	unsigned long capture;
+	unsigned long epoch;
 
 	struct drm_i915_private *i915;
 
@@ -122,11 +125,11 @@ struct i915_gpu_state {
 			pid_t pid;
 			u32 handle;
 			u32 hw_id;
-			int priority;
 			int ban_score;
 			int active;
 			int guilty;
 			bool bannable;
+			struct i915_sched_attr sched_attr;
 		} context;
 
 		struct drm_i915_error_object {
@@ -147,11 +150,12 @@ struct i915_gpu_state {
 			long jiffies;
 			pid_t pid;
 			u32 context;
-			int priority;
 			int ban_score;
 			u32 seqno;
+			u32 start;
 			u32 head;
 			u32 tail;
+			struct i915_sched_attr sched_attr;
 		} *requests, execlist[EXECLIST_MAX_PORTS];
 		unsigned int num_ports;
 

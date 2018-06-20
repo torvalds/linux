@@ -2,7 +2,7 @@
 //
 // DVB device driver for em28xx
 //
-// (c) 2008-2011 Mauro Carvalho Chehab <mchehab@infradead.org>
+// (c) 2008-2011 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
 // (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 //	- Fixes for the driver to properly work with HVR-950
@@ -63,7 +63,7 @@
 #include "tc90522.h"
 #include "qm1d1c0042.h"
 
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
 MODULE_VERSION(EM28XX_VERSION);

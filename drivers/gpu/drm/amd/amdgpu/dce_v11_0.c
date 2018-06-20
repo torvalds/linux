@@ -173,6 +173,7 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 							ARRAY_SIZE(polaris11_golden_settings_a11));
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							polaris10_golden_settings_a11,
 							ARRAY_SIZE(polaris10_golden_settings_a11));
@@ -473,6 +474,7 @@ static int dce_v11_0_get_num_crtc (struct amdgpu_device *adev)
 		num_crtc = 2;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		num_crtc = 6;
 		break;
 	case CHIP_POLARIS11:
@@ -1445,6 +1447,7 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.num_pins = 7;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.audio.num_pins = 8;
 		break;
 	case CHIP_POLARIS11:
@@ -1862,7 +1865,6 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_framebuffer *amdgpu_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *abo;
@@ -1881,18 +1883,15 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (atomic) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
+	if (atomic)
 		target_fb = fb;
-	} else {
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
+	else
 		target_fb = crtc->primary->fb;
-	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
 	 * just update base pointers
 	 */
-	obj = amdgpu_fb->obj;
+	obj = target_fb->obj[0];
 	abo = gem_to_amdgpu_bo(obj);
 	r = amdgpu_bo_reserve(abo, false);
 	if (unlikely(r != 0))
@@ -2082,8 +2081,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmCRTC_MASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0))
 			return r;
@@ -2253,7 +2251,8 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
@@ -2601,11 +2600,9 @@ static void dce_v11_0_crtc_disable(struct drm_crtc *crtc)
 	dce_v11_0_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		int r;
-		struct amdgpu_framebuffer *amdgpu_fb;
 		struct amdgpu_bo *abo;
 
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(crtc->primary->fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");
@@ -2673,7 +2670,8 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		int encoder_mode =
@@ -2830,6 +2828,7 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_dig = 9;
 		break;
 	case CHIP_POLARIS10:
+	case CHIP_VEGAM:
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
@@ -2949,7 +2948,8 @@ static int dce_v11_0_hw_init(void *handle)
 	amdgpu_atombios_encoder_init_dig(adev);
 	if ((adev->asic_type == CHIP_POLARIS10) ||
 	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM)) {
 		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
 						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
 		amdgpu_atombios_crtc_set_dce_clock(adev, 0,

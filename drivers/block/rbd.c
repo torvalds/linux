@@ -2366,7 +2366,9 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
 			    "copyup");
 	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
-					  obj_req->copyup_bvecs, bytes);
+					  obj_req->copyup_bvecs,
+					  obj_req->copyup_bvec_count,
+					  bytes);
 
 	switch (obj_req->img_request->op_type) {
 	case OBJ_OP_WRITE:
