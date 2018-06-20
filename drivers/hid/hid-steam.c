@@ -573,7 +573,7 @@ static bool steam_is_valve_interface(struct hid_device *hdev)
 
 static int steam_client_ll_parse(struct hid_device *hdev)
 {
-	struct steam_device *steam = hid_get_drvdata(hdev);
+	struct steam_device *steam = hdev->driver_data;
 
 	return hid_parse_report(hdev, steam->hdev->dev_rdesc,
 			steam->hdev->dev_rsize);
@@ -590,7 +590,7 @@ static void steam_client_ll_stop(struct hid_device *hdev)
 
 static int steam_client_ll_open(struct hid_device *hdev)
 {
-	struct steam_device *steam = hid_get_drvdata(hdev);
+	struct steam_device *steam = hdev->driver_data;
 	int ret;
 
 	ret = hid_hw_open(steam->hdev);
@@ -605,7 +605,7 @@ static int steam_client_ll_open(struct hid_device *hdev)
 
 static void steam_client_ll_close(struct hid_device *hdev)
 {
-	struct steam_device *steam = hid_get_drvdata(hdev);
+	struct steam_device *steam = hdev->driver_data;
 
 	mutex_lock(&steam->mutex);
 	steam->client_opened = false;
@@ -623,7 +623,7 @@ static int steam_client_ll_raw_request(struct hid_device *hdev,
 				size_t count, unsigned char report_type,
 				int reqtype)
 {
-	struct steam_device *steam = hid_get_drvdata(hdev);
+	struct steam_device *steam = hdev->driver_data;
 
 	return hid_hw_raw_request(steam->hdev, reportnum, buf, count,
 			report_type, reqtype);
@@ -710,7 +710,7 @@ static int steam_probe(struct hid_device *hdev,
 		ret = PTR_ERR(steam->client_hdev);
 		goto client_hdev_fail;
 	}
-	hid_set_drvdata(steam->client_hdev, steam);
+	steam->client_hdev->driver_data = steam;
 
 	/*
 	 * With the real steam controller interface, do not connect hidraw.
