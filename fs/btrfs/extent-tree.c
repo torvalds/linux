@@ -1523,7 +1523,6 @@ static noinline int lookup_tree_block_ref(struct btrfs_trans_handle *trans,
 }
 
 static noinline int insert_tree_block_ref(struct btrfs_trans_handle *trans,
-					  struct btrfs_fs_info *fs_info,
 					  struct btrfs_path *path,
 					  u64 bytenr, u64 parent,
 					  u64 root_objectid)
@@ -1540,7 +1539,7 @@ static noinline int insert_tree_block_ref(struct btrfs_trans_handle *trans,
 		key.offset = root_objectid;
 	}
 
-	ret = btrfs_insert_empty_item(trans, fs_info->extent_root,
+	ret = btrfs_insert_empty_item(trans, trans->fs_info->extent_root,
 				      path, &key, 0);
 	btrfs_release_path(path);
 	return ret;
@@ -2000,8 +1999,8 @@ static int insert_extent_backref(struct btrfs_trans_handle *trans,
 	int ret;
 	if (owner < BTRFS_FIRST_FREE_OBJECTID) {
 		BUG_ON(refs_to_add != 1);
-		ret = insert_tree_block_ref(trans, fs_info, path, bytenr,
-					    parent, root_objectid);
+		ret = insert_tree_block_ref(trans, path, bytenr, parent,
+					    root_objectid);
 	} else {
 		ret = insert_extent_data_ref(trans, fs_info, path, bytenr,
 					     parent, root_objectid,
