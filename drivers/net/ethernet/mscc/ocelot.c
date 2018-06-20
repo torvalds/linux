@@ -344,10 +344,9 @@ static int ocelot_port_stop(struct net_device *dev)
 static int ocelot_gen_ifh(u32 *ifh, struct frame_info *info)
 {
 	ifh[0] = IFH_INJ_BYPASS;
-	ifh[1] = (0xff00 & info->port) >> 8;
+	ifh[1] = (0xf00 & info->port) >> 8;
 	ifh[2] = (0xff & info->port) << 24;
-	ifh[3] = IFH_INJ_POP_CNT_DISABLE | (info->cpuq << 20) |
-		 (info->tag_type << 16) | info->vid;
+	ifh[3] = (info->tag_type << 16) | info->vid;
 
 	return 0;
 }
@@ -370,11 +369,12 @@ static int ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 			 QS_INJ_CTRL_SOF, QS_INJ_CTRL, grp);
 
 	info.port = BIT(port->chip_port);
-	info.cpuq = 0xff;
+	info.tag_type = IFH_TAG_TYPE_C;
+	info.vid = skb_vlan_tag_get(skb);
 	ocelot_gen_ifh(ifh, &info);
 
 	for (i = 0; i < IFH_LEN; i++)
-		ocelot_write_rix(ocelot, ifh[i], QS_INJ_WR, grp);
+		ocelot_write_rix(ocelot, cpu_to_be32(ifh[i]), QS_INJ_WR, grp);
 
 	count = (skb->len + 3) / 4;
 	last = skb->len % 4;
