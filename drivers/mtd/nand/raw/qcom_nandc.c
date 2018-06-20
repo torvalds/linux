@@ -1898,7 +1898,7 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 
 	free_descs(nandc);
 
-	return 0;
+	return ret;
 }
 
 /* implements ecc->read_oob() */
