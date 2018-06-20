@@ -669,8 +669,8 @@ struct f2fs_inode_info {
 	int i_extra_isize;		/* size of extra space located in i_addr */
 	kprojid_t i_projid;		/* id for project quota */
 	int i_inline_xattr_size;	/* inline xattr size */
-	struct timespec i_crtime;	/* inode creation time */
-	struct timespec i_disk_time[4];	/* inode disk times */
+	struct timespec64 i_crtime;	/* inode creation time */
+	struct timespec64 i_disk_time[4];/* inode disk times */
 };
 
 static inline void get_extent_info(struct extent_info *ext,
@@ -2519,7 +2519,6 @@ static inline void clear_file(struct inode *inode, int type)
 
 static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 {
-	struct timespec ts;
 	bool ret;
 
 	if (dsync) {
@@ -2535,16 +2534,13 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 			i_size_read(inode) & ~PAGE_MASK)
 		return false;
 
-	ts = timespec64_to_timespec(inode->i_atime);
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time, &ts))
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time, &inode->i_atime))
 		return false;
-	ts = timespec64_to_timespec(inode->i_ctime);
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 1, &ts))
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 1, &inode->i_ctime))
 		return false;
-	ts = timespec64_to_timespec(inode->i_mtime);
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 2, &ts))
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 2, &inode->i_mtime))
 		return false;
-	if (!timespec_equal(F2FS_I(inode)->i_disk_time + 3,
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 3,
 						&F2FS_I(inode)->i_crtime))
 		return false;
 
