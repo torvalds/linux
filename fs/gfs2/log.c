@@ -701,7 +701,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	hash = ~crc32(~0, lh, LH_V1_SIZE);
 	lh->lh_hash = cpu_to_be32(hash);
 
-	tv = current_kernel_time64();
+	ktime_get_coarse_real_ts64(&tv);
 	lh->lh_nsec = cpu_to_be32(tv.tv_nsec);
 	lh->lh_sec = cpu_to_be64(tv.tv_sec);
 	addr = gfs2_log_bmap(sdp);
