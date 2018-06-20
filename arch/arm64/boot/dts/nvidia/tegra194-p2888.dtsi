@@ -33,9 +33,7 @@
 
 		/* SDMMC1 (SD/MMC) */
 		sdhci@3400000 {
-/*
 			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(A, 0) GPIO_ACTIVE_LOW>;
-*/
 		};
 
 		/* SDMMC4 (eMMC) */
