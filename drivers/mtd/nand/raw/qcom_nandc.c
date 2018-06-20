@@ -2315,19 +2315,39 @@ static const struct mtd_ooblayout_ops qcom_nand_ooblayout_ops = {
 	.free = qcom_nand_ooblayout_free,
 };
 
+static int
+qcom_nandc_calc_ecc_bytes(int step_size, int strength)
+{
+	return strength == 4 ? 12 : 16;
+}
+NAND_ECC_CAPS_SINGLE(qcom_nandc_ecc_caps, qcom_nandc_calc_ecc_bytes,
+		     NANDC_STEP_SIZE, 4, 8);
+
 static int qcom_nand_host_setup(struct qcom_nand_host *host)
 {
 	struct nand_chip *chip = &host->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	int cwperpage, bad_block_byte;
+	int cwperpage, bad_block_byte, ret;
 	bool wide_bus;
 	int ecc_mode = 1;
 
 	/* controller only supports 512 bytes data steps */
 	ecc->size = NANDC_STEP_SIZE;
 	wide_bus = chip->options & NAND_BUSWIDTH_16 ? true : false;
+	cwperpage = mtd->writesize / NANDC_STEP_SIZE;
+
+	/*
+	 * Each CW has 4 available OOB bytes which will be protected with ECC
+	 * so remaining bytes can be used for ECC.
+	 */
+	ret = nand_ecc_choose_conf(chip, &qcom_nandc_ecc_caps,
+				   mtd->oobsize - (cwperpage * 4));
+	if (ret) {
+		dev_err(nandc->dev, "No valid ECC settings possible\n");
+		return ret;
+	}
 
 	if (ecc->strength >= 8) {
 		/* 8 bit ECC defaults to BCH ECC on all platforms */
@@ -2396,7 +2416,6 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 
 	mtd_set_ooblayout(mtd, &qcom_nand_ooblayout_ops);
 
-	cwperpage = mtd->writesize / ecc->size;
 	nandc->max_cwperpage = max_t(unsigned int, nandc->max_cwperpage,
 				     cwperpage);
 
@@ -2412,12 +2431,6 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 	 * for 8 bit ECC
 	 */
 	host->cw_size = host->cw_data + ecc->bytes;
-
-	if (ecc->bytes * (mtd->writesize / ecc->size) > mtd->oobsize) {
-		dev_err(nandc->dev, "ecc data doesn't fit in OOB area\n");
-		return -EINVAL;
-	}
-
 	bad_block_byte = mtd->writesize - host->cw_size * (cwperpage - 1) + 1;
 
 	host->cfg0 = (cwperpage - 1) << CW_PER_PAGE
