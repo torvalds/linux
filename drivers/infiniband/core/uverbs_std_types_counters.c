@@ -38,10 +38,11 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 				enum rdma_remove_reason why)
 {
 	struct ib_counters *counters = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY &&
-	    atomic_read(&counters->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&counters->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
 	return counters->device->destroy_counters(counters);
 }
@@ -150,7 +151,7 @@ static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_COUNTERS_READ,
 			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COUNTERS,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_counters),
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_counters),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_CREATE),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_DESTROY),
 			    &UVERBS_METHOD(UVERBS_METHOD_COUNTERS_READ));

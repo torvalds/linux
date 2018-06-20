@@ -675,7 +675,7 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	int ret;
 
 	ret = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
-	if (ret && why == RDMA_REMOVE_DESTROY)
+	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
 	kfree(obj);
@@ -976,7 +976,7 @@ static int devx_umem_cleanup(struct ib_uobject *uobject,
 	int err;
 
 	err = mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
-	if (err && why == RDMA_REMOVE_DESTROY)
+	if (ib_is_destroy_retryable(err, why, uobject))
 		return err;
 
 	ib_umem_release(obj->umem);
@@ -1085,14 +1085,14 @@ static DECLARE_UVERBS_GLOBAL_METHODS(MLX5_IB_OBJECT_DEVX,
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_EQN));
 
 static DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
-	&UVERBS_TYPE_ALLOC_IDR(0, devx_obj_cleanup),
+	&UVERBS_TYPE_ALLOC_IDR(devx_obj_cleanup),
 		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_CREATE),
 		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_DESTROY),
 		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_MODIFY),
 		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY));
 
 static DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM,
-	&UVERBS_TYPE_ALLOC_IDR(0, devx_umem_cleanup),
+	&UVERBS_TYPE_ALLOC_IDR(devx_umem_cleanup),
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_REG),
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG));
 

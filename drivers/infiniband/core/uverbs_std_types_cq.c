@@ -44,12 +44,16 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_cq(cq);
-	if (!ret || why != RDMA_REMOVE_DESTROY)
-		ib_uverbs_release_ucq(uobject->context->ufile, ev_queue ?
-				      container_of(ev_queue,
-						   struct ib_uverbs_completion_event_file,
-						   ev_queue) : NULL,
-				      ucq);
+	if (ib_is_destroy_retryable(ret, why, uobject))
+		return ret;
+
+	ib_uverbs_release_ucq(
+		uobject->context->ufile,
+		ev_queue ? container_of(ev_queue,
+					struct ib_uverbs_completion_event_file,
+					ev_queue) :
+			   NULL,
+		ucq);
 	return ret;
 }
 
@@ -201,7 +205,7 @@ static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_CQ_DESTROY,
 			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_CQ,
-			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object), 0,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object),
 						      uverbs_free_cq),
 #if IS_ENABLED(CONFIG_INFINIBAND_EXP_LEGACY_VERBS_NEW_UAPI)
 			    &UVERBS_METHOD(UVERBS_METHOD_CQ_CREATE),

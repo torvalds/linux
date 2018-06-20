@@ -77,6 +77,13 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_uqp_object, uevent.uobject);
 	int ret;
 
+	/*
+	 * If this is a user triggered destroy then do not allow destruction
+	 * until the user cleans up all the mcast bindings. Unlike in other
+	 * places we forcibly clean up the mcast attachments for !DESTROY
+	 * because the mcast attaches are not ubojects and will not be
+	 * destroyed by anything else during cleanup processing.
+	 */
 	if (why == RDMA_REMOVE_DESTROY) {
 		if (!list_empty(&uqp->mcast_list))
 			return -EBUSY;
@@ -85,7 +92,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	}
 
 	ret = ib_destroy_qp(qp);
-	if (ret && why == RDMA_REMOVE_DESTROY)
+	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
 	if (uqp->uxrcd)
@@ -103,8 +110,10 @@ static int uverbs_free_rwq_ind_tbl(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_rwq_ind_table(rwq_ind_tbl);
-	if (!ret || why != RDMA_REMOVE_DESTROY)
-		kfree(ind_tbl);
+	if (ib_is_destroy_retryable(ret, why, uobject))
+		return ret;
+
+	kfree(ind_tbl);
 	return ret;
 }
 
@@ -117,8 +126,10 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_wq(wq);
-	if (!ret || why != RDMA_REMOVE_DESTROY)
-		ib_uverbs_release_uevent(uobject->context->ufile, &uwq->uevent);
+	if (ib_is_destroy_retryable(ret, why, uobject))
+		return ret;
+
+	ib_uverbs_release_uevent(uobject->context->ufile, &uwq->uevent);
 	return ret;
 }
 
@@ -132,8 +143,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	int ret;
 
 	ret = ib_destroy_srq(srq);
-
-	if (ret && why == RDMA_REMOVE_DESTROY)
+	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 
 	if (srq_type == IB_SRQT_XRC) {
@@ -155,12 +165,12 @@ static int uverbs_free_xrcd(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_uxrcd_object, uobject);
 	int ret;
 
+	ret = ib_destroy_usecnt(&uxrcd->refcnt, why, uobject);
+	if (ret)
+		return ret;
+
 	mutex_lock(&uobject->context->ufile->device->xrcd_tree_mutex);
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&uxrcd->refcnt))
-		ret = -EBUSY;
-	else
-		ret = ib_uverbs_dealloc_xrcd(uobject->context->ufile->device,
-					     xrcd, why);
+	ret = ib_uverbs_dealloc_xrcd(uobject, xrcd, why);
 	mutex_unlock(&uobject->context->ufile->device->xrcd_tree_mutex);
 
 	return ret;
@@ -170,9 +180,11 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_pd *pd = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&pd->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&pd->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
 	ib_dealloc_pd((struct ib_pd *)uobject->object);
 	return 0;
@@ -249,44 +261,42 @@ void create_udata(struct uverbs_attr_bundle *ctx, struct ib_udata *udata)
 }
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COMP_CHANNEL,
-			    &UVERBS_TYPE_ALLOC_FD(0,
-						  sizeof(struct ib_uverbs_completion_event_file),
+			    &UVERBS_TYPE_ALLOC_FD(sizeof(struct ib_uverbs_completion_event_file),
 						  uverbs_hot_unplug_completion_event_file,
 						  &uverbs_event_fops,
 						  "[infinibandevent]", O_RDONLY));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_QP,
-			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), 0,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object),
 						      uverbs_free_qp));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MW,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_mw));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_SRQ,
-			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object),
 						      uverbs_free_srq));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_AH,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_ah));
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_ah));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_FLOW,
 			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uflow_object),
-						      0, uverbs_free_flow));
+						      uverbs_free_flow));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_WQ,
-			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object), 0,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object),
 						      uverbs_free_wq));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_rwq_ind_tbl));
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_rwq_ind_tbl));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_XRCD,
-			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object), 0,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object),
 						      uverbs_free_xrcd));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_PD,
-			    /* 2 is used in order to free the PD after MRs */
-			    &UVERBS_TYPE_ALLOC_IDR(2, uverbs_free_pd));
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_pd));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_DEVICE, NULL);
 

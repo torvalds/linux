@@ -142,6 +142,5 @@ static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_DM_MR_REG,
 			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MR,
-			    /* 1 is used in order to free the MR after all the MWs */
-			    &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_mr),
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_mr),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_MR_REG));

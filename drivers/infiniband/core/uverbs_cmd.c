@@ -116,6 +116,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	ucontext->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);
 	rcu_read_unlock();
 	ucontext->closing = 0;
+	ucontext->cleanup_retryable = false;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	ucontext->umem_tree = RB_ROOT_CACHED;
@@ -611,12 +612,13 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 	return ret ?: in_len;
 }
 
-int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
+int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
 			   struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why)
 {
 	struct inode *inode;
 	int ret;
+	struct ib_uverbs_device *dev = uobject->context->ufile->device;
 
 	inode = xrcd->inode;
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
@@ -624,9 +626,12 @@ int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
 
 	ret = ib_dealloc_xrcd(xrcd);
 
-	if (why == RDMA_REMOVE_DESTROY && ret)
+	if (ib_is_destroy_retryable(ret, why, uobject)) {
 		atomic_inc(&xrcd->usecnt);
-	else if (inode)
+		return ret;
+	}
+
+	if (inode)
 		xrcd_table_delete(dev, inode);
 
 	return ret;

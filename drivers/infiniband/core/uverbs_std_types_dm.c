@@ -37,9 +37,11 @@ static int uverbs_free_dm(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_dm *dm = uobject->object;
+	int ret;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&dm->usecnt))
-		return -EBUSY;
+	ret = ib_destroy_usecnt(&dm->usecnt, why, uobject);
+	if (ret)
+		return ret;
 
 	return dm->device->dealloc_dm(dm);
 }
@@ -102,7 +104,6 @@ static DECLARE_UVERBS_NAMED_METHOD_WITH_HANDLER(UVERBS_METHOD_DM_FREE,
 			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_DM,
-			    /* 1 is used in order to free the DM after MRs */
-			    &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_dm),
+			    &UVERBS_TYPE_ALLOC_IDR(uverbs_free_dm),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_ALLOC),
 			    &UVERBS_METHOD(UVERBS_METHOD_DM_FREE));
