@@ -60,7 +60,6 @@ static void __run_delayed_extent_op(struct btrfs_delayed_extent_op *extent_op,
 				    struct extent_buffer *leaf,
 				    struct btrfs_extent_item *ei);
 static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
-				      struct btrfs_fs_info *fs_info,
 				      u64 parent, u64 root_objectid,
 				      u64 flags, u64 owner, u64 offset,
 				      struct btrfs_key *ins, int ref_mod);
@@ -2316,10 +2315,10 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	if (node->action == BTRFS_ADD_DELAYED_REF && insert_reserved) {
 		if (extent_op)
 			flags |= extent_op->flags_to_set;
-		ret = alloc_reserved_file_extent(trans, fs_info,
-						 parent, ref_root, flags,
-						 ref->objectid, ref->offset,
-						 &ins, node->ref_mod);
+		ret = alloc_reserved_file_extent(trans, parent, ref_root,
+						 flags, ref->objectid,
+						 ref->offset, &ins,
+						 node->ref_mod);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, fs_info, node, parent,
 					     ref_root, ref->objectid,
@@ -8075,11 +8074,11 @@ int btrfs_free_and_pin_reserved_extent(struct btrfs_fs_info *fs_info,
 }
 
 static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
-				      struct btrfs_fs_info *fs_info,
 				      u64 parent, u64 root_objectid,
 				      u64 flags, u64 owner, u64 offset,
 				      struct btrfs_key *ins, int ref_mod)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
 	struct btrfs_extent_item *extent_item;
 	struct btrfs_extent_inline_ref *iref;
@@ -8306,8 +8305,8 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	spin_unlock(&block_group->lock);
 	spin_unlock(&space_info->lock);
 
-	ret = alloc_reserved_file_extent(trans, fs_info, 0, root_objectid,
-					 0, owner, offset, ins, 1);
+	ret = alloc_reserved_file_extent(trans, 0, root_objectid, 0, owner,
+					 offset, ins, 1);
 	btrfs_put_block_group(block_group);
 	return ret;
 }
