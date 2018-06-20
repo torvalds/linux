@@ -23,8 +23,9 @@ struct nfs4_slot {
 	unsigned long		generation;
 	u32			slot_nr;
 	u32		 	seq_nr;
-	unsigned int		interrupted : 1,
-				privileged : 1,
+	u32		 	seq_nr_last_acked;
+	u32		 	seq_nr_highest_sent;
+	unsigned int		privileged : 1,
 				seq_done : 1;
 };
 
