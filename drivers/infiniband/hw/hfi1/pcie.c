@@ -347,25 +347,19 @@ int pcie_speeds(struct hfi1_devdata *dd)
 /*
  * Returns:
  *	- actual number of interrupts allocated or
- *	- 0 if fell back to INTx.
  *      - error
  */
 int request_msix(struct hfi1_devdata *dd, u32 msireq)
 {
 	int nvec;
 
-	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, msireq,
-				     PCI_IRQ_MSIX | PCI_IRQ_LEGACY);
+	nvec = pci_alloc_irq_vectors(dd->pcidev, msireq, msireq, PCI_IRQ_MSIX);
 	if (nvec < 0) {
 		dd_dev_err(dd, "pci_alloc_irq_vectors() failed: %d\n", nvec);
 		return nvec;
 	}
 
 	tune_pcie_caps(dd);
-
-	/* check for legacy IRQ */
-	if (nvec == 1 && !dd->pcidev->msix_enabled)
-		return 0;
 
 	return nvec;
 }

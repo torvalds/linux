@@ -1210,9 +1210,6 @@ struct hfi1_devdata {
 	u32 num_msix_entries;
 	u32 first_dyn_msix_idx;
 
-	/* INTx information */
-	u32 requested_intx_irq;		/* did we request one? */
-
 	/* general interrupt: mask of handled interrupts */
 	u64 gi_mask[CCE_NUM_INT_CSRS];
 

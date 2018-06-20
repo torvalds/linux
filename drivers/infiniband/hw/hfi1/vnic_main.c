@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2017 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -120,8 +120,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	uctxt->seq_cnt = 1;
 	uctxt->is_vnic = true;
 
-	if (dd->num_msix_entries)
-		hfi1_set_vnic_msix_info(uctxt);
+	hfi1_set_vnic_msix_info(uctxt);
 
 	hfi1_stats.sps_ctxts++;
 	dd_dev_dbg(dd, "created vnic context %d\n", uctxt->ctxt);
@@ -136,8 +135,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	dd_dev_dbg(dd, "closing vnic context %d\n", uctxt->ctxt);
 	flush_wc();
 
-	if (dd->num_msix_entries)
-		hfi1_reset_vnic_msix_info(uctxt);
+	hfi1_reset_vnic_msix_info(uctxt);
 
 	/*
 	 * Disable receive context and interrupt available, reset all

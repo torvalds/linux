@@ -8260,9 +8260,14 @@ static void is_interrupt(struct hfi1_devdata *dd, unsigned int source)
 	dd_dev_err(dd, "invalid interrupt source %u\n", source);
 }
 
-/*
- * General interrupt handler.  This is able to correctly handle
- * all interrupts in case INTx is used.
+/**
+ * gerneral_interrupt() -  General interrupt handler
+ * @irq: MSIx IRQ vector
+ * @data: hfi1 devdata
+ *
+ * This is able to correctly handle all non-threaded interrupts.  Receive
+ * context DATA IRQs are threaded and are not supported by this handler.
+ *
  */
 static irqreturn_t general_interrupt(int irq, void *data)
 {
@@ -13030,47 +13035,29 @@ static void clear_all_interrupts(struct hfi1_devdata *dd)
 	write_csr(dd, DC_DC8051_ERR_CLR, ~(u64)0);
 }
 
-/* Move to pcie.c? */
-static void disable_intx(struct pci_dev *pdev)
-{
-	pci_intx(pdev, 0);
-}
-
 /**
  * hfi1_clean_up_interrupts() - Free all IRQ resources
  * @dd: valid device data data structure
  *
- * Free the MSI or INTx IRQs and assoicated PCI resources,
- * if they have been allocated.
+ * Free the MSIx and assoicated PCI resources, if they have been allocated.
  */
 void hfi1_clean_up_interrupts(struct hfi1_devdata *dd)
 {
 	int i;
+	struct hfi1_msix_entry *me = dd->msix_entries;
 
 	/* remove irqs - must happen before disabling/turning off */
-	if (dd->num_msix_entries) {
-		/* MSI-X */
-		struct hfi1_msix_entry *me = dd->msix_entries;
-
-		for (i = 0; i < dd->num_msix_entries; i++, me++) {
-			if (!me->arg) /* => no irq, no affinity */
-				continue;
-			hfi1_put_irq_affinity(dd, me);
-			pci_free_irq(dd->pcidev, i, me->arg);
-		}
-
-		/* clean structures */
-		kfree(dd->msix_entries);
-		dd->msix_entries = NULL;
-		dd->num_msix_entries = 0;
-	} else {
-		/* INTx */
-		if (dd->requested_intx_irq) {
-			pci_free_irq(dd->pcidev, 0, dd);
-			dd->requested_intx_irq = 0;
-		}
-		disable_intx(dd->pcidev);
+	for (i = 0; i < dd->num_msix_entries; i++, me++) {
+		if (!me->arg) /* => no irq, no affinity */
+			continue;
+		hfi1_put_irq_affinity(dd, me);
+		pci_free_irq(dd->pcidev, i, me->arg);
 	}
+
+	/* clean structures */
+	kfree(dd->msix_entries);
+	dd->msix_entries = NULL;
+	dd->num_msix_entries = 0;
 
 	pci_free_irq_vectors(dd->pcidev);
 }
@@ -13119,20 +13106,6 @@ static void remap_sdma_interrupts(struct hfi1_devdata *dd,
 		   msix_intr);
 	remap_intr(dd, IS_SDMA_START + 2 * TXE_NUM_SDMA_ENGINES + engine,
 		   msix_intr);
-}
-
-static int request_intx_irq(struct hfi1_devdata *dd)
-{
-	int ret;
-
-	ret = pci_request_irq(dd->pcidev, 0, general_interrupt, NULL, dd,
-			      DRIVER_NAME "_%d", dd->unit);
-	if (ret)
-		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
-			   ret);
-	else
-		dd->requested_intx_irq = 1;
-	return ret;
 }
 
 static int request_msix_irqs(struct hfi1_devdata *dd)
@@ -13253,11 +13226,6 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 {
 	int i;
 
-	if (!dd->num_msix_entries) {
-		synchronize_irq(pci_irq_vector(dd->pcidev, 0));
-		return;
-	}
-
 	for (i = 0; i < dd->vnic.num_ctxt; i++) {
 		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
 		struct hfi1_msix_entry *me = &dd->msix_entries[rcd->msix_intr];
@@ -13346,7 +13314,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 {
 	u32 total;
 	int ret, request;
-	int single_interrupt = 0; /* we expect to have all the interrupts */
 
 	/*
 	 * Interrupt count:
@@ -13362,17 +13329,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	request = request_msix(dd, total);
 	if (request < 0) {
 		ret = request;
-		goto fail;
-	} else if (request == 0) {
-		/* using INTx */
-		/* dd->num_msix_entries already zero */
-		single_interrupt = 1;
-		dd_dev_err(dd, "MSI-X failed, using INTx interrupts\n");
-	} else if (request < total) {
-		/* using MSI-X, with reduced interrupts */
-		dd_dev_err(dd, "reduced interrupt found, wanted %u, got %u\n",
-			   total, request);
-		ret = -EINVAL;
 		goto fail;
 	} else {
 		dd->msix_entries = kcalloc(total, sizeof(*dd->msix_entries),
@@ -13394,10 +13350,7 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	/* reset general handler mask, chip MSI-X mappings */
 	reset_interrupts(dd);
 
-	if (single_interrupt)
-		ret = request_intx_irq(dd);
-	else
-		ret = request_msix_irqs(dd);
+	ret = request_msix_irqs(dd);
 	if (ret)
 		goto fail;
 
