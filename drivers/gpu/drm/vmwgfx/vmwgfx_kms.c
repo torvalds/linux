@@ -1968,13 +1968,15 @@ void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 }
 
-
-/*
- * Small shared kms functions.
+/**
+ * vmw_du_update_layout - Update the display unit with topology from resolution
+ * plugin and generate DRM uevent
+ * @dev_priv: device private
+ * @num_rects: number of drm_rect in rects
+ * @rects: toplogy to update
  */
-
-static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
-			 struct drm_vmw_rect *rects)
+static int vmw_du_update_layout(struct vmw_private *dev_priv,
+				unsigned int num_rects, struct drm_rect *rects)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_display_unit *du;
@@ -1982,26 +1984,14 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 
 	mutex_lock(&dev->mode_config.mutex);
 
-#if 0
-	{
-		unsigned int i;
-
-		DRM_INFO("%s: new layout ", __func__);
-		for (i = 0; i < num; i++)
-			DRM_INFO("(%i, %i %ux%u) ", rects[i].x, rects[i].y,
-				 rects[i].w, rects[i].h);
-		DRM_INFO("\n");
-	}
-#endif
-
 	list_for_each_entry(con, &dev->mode_config.connector_list, head) {
 		du = vmw_connector_to_du(con);
-		if (num > du->unit) {
-			du->pref_width = rects[du->unit].w;
-			du->pref_height = rects[du->unit].h;
+		if (num_rects > du->unit) {
+			du->pref_width = drm_rect_width(&rects[du->unit]);
+			du->pref_height = drm_rect_height(&rects[du->unit]);
 			du->pref_active = true;
-			du->gui_x = rects[du->unit].x;
-			du->gui_y = rects[du->unit].y;
+			du->gui_x = rects[du->unit].x1;
+			du->gui_y = rects[du->unit].y1;
 			drm_object_property_set_value
 			  (&con->base, dev->mode_config.suggested_x_property,
 			   du->gui_x);
@@ -2322,7 +2312,25 @@ vmw_du_connector_atomic_get_property(struct drm_connector *connector,
 	return 0;
 }
 
-
+/**
+ * vmw_kms_update_layout_ioctl - Handler for DRM_VMW_UPDATE_LAYOUT ioctl
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Update preferred topology of display unit as per ioctl request. The topology
+ * is expressed as array of drm_vmw_rect.
+ * e.g.
+ * [0 0 640 480] [640 0 800 600] [0 480 640 480]
+ *
+ * NOTE:
+ * The x and y offset (upper left) in drm_vmw_rect cannot be less than 0. Beside
+ * device limit on topology, x + w and y + h (lower right) cannot be greater
+ * than INT_MAX. So topology beyond these limits will return with error.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
@@ -2331,15 +2339,12 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_update_layout_arg *)data;
 	void __user *user_rects;
 	struct drm_vmw_rect *rects;
+	struct drm_rect *drm_rects;
 	unsigned rects_size;
-	int ret;
-	int i;
-	u64 total_pixels = 0;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_vmw_rect bounding_box = {0};
+	int ret, i;
 
 	if (!arg->num_outputs) {
-		struct drm_vmw_rect def_rect = {0, 0, 800, 600};
+		struct drm_rect def_rect = {0, 0, 800, 600};
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
 		return 0;
 	}
@@ -2358,52 +2363,29 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		goto out_free;
 	}
 
-	for (i = 0; i < arg->num_outputs; ++i) {
-		if (rects[i].x < 0 ||
-		    rects[i].y < 0 ||
-		    rects[i].x + rects[i].w > mode_config->max_width ||
-		    rects[i].y + rects[i].h > mode_config->max_height) {
-			DRM_ERROR("Invalid GUI layout.\n");
-			ret = -EINVAL;
+	drm_rects = (struct drm_rect *)rects;
+
+	for (i = 0; i < arg->num_outputs; i++) {
+		struct drm_vmw_rect curr_rect;
+
+		/* Verify user-space for overflow as kernel use drm_rect */
+		if ((rects[i].x + rects[i].w > INT_MAX) ||
+		    (rects[i].y + rects[i].h > INT_MAX)) {
+			ret = -ERANGE;
 			goto out_free;
 		}
 
-		/*
-		 * bounding_box.w and bunding_box.h are used as
-		 * lower-right coordinates
-		 */
-		if (rects[i].x + rects[i].w > bounding_box.w)
-			bounding_box.w = rects[i].x + rects[i].w;
-
-		if (rects[i].y + rects[i].h > bounding_box.h)
-			bounding_box.h = rects[i].y + rects[i].h;
-
-		total_pixels += (u64) rects[i].w * (u64) rects[i].h;
+		curr_rect = rects[i];
+		drm_rects[i].x1 = curr_rect.x;
+		drm_rects[i].y1 = curr_rect.y;
+		drm_rects[i].x2 = curr_rect.x + curr_rect.w;
+		drm_rects[i].y2 = curr_rect.y + curr_rect.h;
 	}
 
-	if (dev_priv->active_display_unit == vmw_du_screen_target) {
-		/*
-		 * For Screen Targets, the limits for a toplogy are:
-		 *	1. Bounding box (assuming 32bpp) must be < prim_bb_mem
-		 *      2. Total pixels (assuming 32bpp) must be < prim_bb_mem
-		 */
-		u64 bb_mem    = (u64) bounding_box.w * bounding_box.h * 4;
-		u64 pixel_mem = total_pixels * 4;
+	ret = vmw_kms_check_display_memory(dev, arg->num_outputs, drm_rects);
 
-		if (bb_mem > dev_priv->prim_bb_mem) {
-			DRM_ERROR("Topology is beyond supported limits.\n");
-			ret = -EINVAL;
-			goto out_free;
-		}
-
-		if (pixel_mem > dev_priv->prim_bb_mem) {
-			DRM_ERROR("Combined output size too large\n");
-			ret = -EINVAL;
-			goto out_free;
-		}
-	}
-
-	vmw_du_update_layout(dev_priv, arg->num_outputs, rects);
+	if (ret == 0)
+		vmw_du_update_layout(dev_priv, arg->num_outputs, drm_rects);
 
 out_free:
 	kfree(rects);
