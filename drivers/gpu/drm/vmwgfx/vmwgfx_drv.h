@@ -166,7 +166,7 @@ struct vmw_surface_offset;
 
 struct vmw_surface {
 	struct vmw_resource res;
-	uint32_t flags;
+	SVGA3dSurfaceAllFlags flags;
 	uint32_t format;
 	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
 	struct drm_vmw_size base_size;
@@ -1080,7 +1080,7 @@ extern int vmw_surface_validate(struct vmw_private *dev_priv,
 				struct vmw_surface *srf);
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
-			       uint32_t svga3d_flags,
+			       SVGA3dSurfaceAllFlags svga3d_flags,
 			       SVGA3dSurfaceFormat format,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,

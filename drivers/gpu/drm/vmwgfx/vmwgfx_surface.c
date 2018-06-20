@@ -224,7 +224,12 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	cmd->header.id = SVGA_3D_CMD_SURFACE_DEFINE;
 	cmd->header.size = cmd_len;
 	cmd->body.sid = srf->res.id;
-	cmd->body.surfaceFlags = srf->flags;
+	/*
+	 * Downcast of surfaceFlags, was upcasted when received from user-space,
+	 * since driver internally stores as 64 bit.
+	 * For legacy surface define only 32 bit flag is supported.
+	 */
+	cmd->body.surfaceFlags = (SVGA3dSurface1Flags)srf->flags;
 	cmd->body.format = srf->format;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
 		cmd->body.face[i].numMipLevels = srf->mip_levels[i];
@@ -760,7 +765,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	srf = &user_srf->srf;
 	res = &srf->res;
 
-	srf->flags = req->flags;
+	/* Driver internally stores as 64-bit flags */
+	srf->flags = (SVGA3dSurfaceAllFlags)req->flags;
 	srf->format = req->format;
 	srf->scanout = req->scanout;
 
@@ -992,7 +998,8 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
 
-	rep->flags = srf->flags;
+	/* Downcast of flags when sending back to user space */
+	rep->flags = (uint32_t)srf->flags;
 	rep->format = srf->format;
 	memcpy(rep->mip_levels, srf->mip_levels, sizeof(srf->mip_levels));
 	user_sizes = (struct drm_vmw_size __user *)(unsigned long)
@@ -1082,7 +1089,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd3->header.id = cmd_id;
 		cmd3->header.size = cmd_len;
 		cmd3->body.sid = srf->res.id;
-		cmd3->body.surfaceFlags = (SVGA3dSurfaceAllFlags)srf->flags;
+		cmd3->body.surfaceFlags = srf->flags;
 		cmd3->body.format = srf->format;
 		cmd3->body.numMipLevels = srf->mip_levels[0];
 		cmd3->body.multisampleCount = srf->multisample_count;
@@ -1320,7 +1327,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	/* Define a surface based on the parameters. */
 	ret = vmw_surface_gb_priv_define(dev,
 			size,
-			req->svga3d_flags,
+			(SVGA3dSurfaceAllFlags)req->svga3d_flags,
 			req->format,
 			req->drm_surface_flags & drm_vmw_surface_flag_scanout,
 			req->mip_levels,
@@ -1451,7 +1458,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 		goto out_bad_resource;
 	}
 
-	rep->creq.svga3d_flags = srf->flags;
+	rep->creq.svga3d_flags = (uint32_t)srf->flags;
 	rep->creq.format = srf->format;
 	rep->creq.mip_levels = srf->mip_levels[0];
 	rep->creq.drm_surface_flags = 0;
@@ -1495,7 +1502,7 @@ out_bad_resource:
  */
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
-			       uint32_t svga3d_flags,
+			       SVGA3dSurfaceAllFlags svga3d_flags,
 			       SVGA3dSurfaceFormat format,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,
