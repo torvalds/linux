@@ -1399,7 +1399,6 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 			(struct vega12_hwmgr *)(hwmgr->backend);
 	struct PP_Clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
-	uint32_t clk_request;
 
 	if ((hwmgr->display_config->num_display > 1) &&
 		!hwmgr->display_config->multi_monitor_in_sync)
@@ -1425,15 +1424,6 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 		} else {
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
 		}
-	}
-
-	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
-		clk_request = (PPCLK_UCLK << 16) | (min_clocks.memoryClock) / 100;
-		PP_ASSERT_WITH_CODE(
-			smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetHardMinByFreq, clk_request) == 0,
-			"[PhwVega12_NotifySMCDisplayConfigAfterPowerStateAdjustment] Attempt to set UCLK HardMin Failed!",
-			return -1);
-		data->dpm_table.mem_table.dpm_state.hard_min_level = min_clocks.memoryClock;
 	}
 
 	return 0;
