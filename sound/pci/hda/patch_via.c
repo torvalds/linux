@@ -91,9 +91,6 @@ struct via_spec {
 	struct hda_gen_spec gen;
 
 	/* codec parameterization */
-	const struct snd_kcontrol_new *mixers[6];
-	unsigned int num_mixers;
-
 	const struct hda_verb *init_verbs[5];
 	unsigned int num_iverbs;
 
@@ -107,8 +104,6 @@ struct via_spec {
 	/* work to check hp jack state */
 	int hp_work_active;
 	int vt1708_jack_detect;
-
-	unsigned int beep_amp;
 };
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
@@ -262,69 +257,51 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct snd_kcontrol_new via_pin_power_ctl_enum[] = {
-	{
+static const struct snd_kcontrol_new via_pin_power_ctl_enum = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Dynamic Power-Control",
 	.info = via_pin_power_ctl_info,
 	.get = via_pin_power_ctl_get,
 	.put = via_pin_power_ctl_put,
-	},
-	{} /* terminator */
 };
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
-static inline void set_beep_amp(struct via_spec *spec, hda_nid_t nid,
-				int idx, int dir)
-{
-	spec->gen.beep_nid = nid;
-	spec->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
-}
-
 /* additional beep mixers; the actual parameters are overwritten at build */
-static const struct snd_kcontrol_new cxt_beep_mixer[] = {
+static const struct snd_kcontrol_new via_beep_mixer[] = {
 	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
-	{ } /* end */
 };
 
-/* create beep controls if needed */
-static int add_beep_ctls(struct hda_codec *codec)
+static int set_beep_amp(struct via_spec *spec, hda_nid_t nid,
+			int idx, int dir)
 {
-	struct via_spec *spec = codec->spec;
-	int err;
+	struct snd_kcontrol_new *knew;
+	unsigned int beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
+	int i;
 
-	if (spec->beep_amp) {
-		const struct snd_kcontrol_new *knew;
-		for (knew = cxt_beep_mixer; knew->name; knew++) {
-			struct snd_kcontrol *kctl;
-			kctl = snd_ctl_new1(knew, codec);
-			if (!kctl)
-				return -ENOMEM;
-			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec, 0, kctl);
-			if (err < 0)
-				return err;
-		}
+	spec->gen.beep_nid = nid;
+	for (i = 0; i < ARRAY_SIZE(via_beep_mixer); i++) {
+		knew = snd_hda_gen_add_kctl(&spec->gen, NULL,
+					    &via_beep_mixer[i]);
+		if (!knew)
+			return -ENOMEM;
+		knew->private_value = beep_amp;
 	}
 	return 0;
 }
 
-static void auto_parse_beep(struct hda_codec *codec)
+static int auto_parse_beep(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid;
 
 	for_each_hda_codec_node(nid, codec)
-		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP) {
-			set_beep_amp(spec, nid, 0, HDA_OUTPUT);
-			break;
-		}
+		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
+			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
+	return 0;
 }
 #else
-#define set_beep_amp(spec, nid, idx, dir) /* NOP */
-#define add_beep_ctls(codec)	0
-#define auto_parse_beep(codec)
+#define auto_parse_beep(codec)	0
 #endif
 
 /* check AA path's mute status */
@@ -403,30 +380,6 @@ static void analog_low_current_mode(struct hda_codec *codec)
 	return __analog_low_current_mode(codec, false);
 }
 
-static int via_build_controls(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err, i;
-
-	err = snd_hda_gen_build_controls(codec);
-	if (err < 0)
-		return err;
-
-	err = add_beep_ctls(codec);
-	if (err < 0)
-		return err;
-
-	spec->mixers[spec->num_mixers++] = via_pin_power_ctl_enum;
-
-	for (i = 0; i < spec->num_mixers; i++) {
-		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static void via_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
 				  struct snd_pcm_substream *substream,
@@ -481,7 +434,7 @@ static int via_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 static int via_init(struct hda_codec *codec);
 
 static const struct hda_codec_ops via_patch_ops = {
-	.build_controls = via_build_controls,
+	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = via_init,
 	.free = via_free,
@@ -545,16 +498,13 @@ static int vt1708_jack_detect_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct snd_kcontrol_new vt1708_jack_detect_ctl[] = {
-	{
+static const struct snd_kcontrol_new vt1708_jack_detect_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Jack Detect",
 	.count = 1,
 	.info = snd_ctl_boolean_mono_info,
 	.get = vt1708_jack_detect_get,
 	.put = vt1708_jack_detect_put,
-	},
-	{} /* terminator */
 };
 
 static const struct badness_table via_main_out_badness = {
@@ -586,11 +536,16 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	auto_parse_beep(codec);
-
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		return err;
+
+	err = auto_parse_beep(codec);
+	if (err < 0)
+		return err;
+
+	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &via_pin_power_ctl_enum))
+		return -ENOMEM;
 
 	/* disable widget PM at start for compatibility */
 	codec->power_save_node = 0;
@@ -623,7 +578,7 @@ static int vt1708_build_controls(struct hda_codec *codec)
 	int err;
 	int old_interval = codec->jackpoll_interval;
 	codec->jackpoll_interval = msecs_to_jiffies(100);
-	err = via_build_controls(codec);
+	err = snd_hda_gen_build_controls(codec);
 	codec->jackpoll_interval = old_interval;
 	return err;
 }
@@ -690,7 +645,10 @@ static int patch_vt1708(struct hda_codec *codec)
 		goto error;
 
 	/* add jack detect on/off control */
-	spec->mixers[spec->num_mixers++] = vt1708_jack_detect_ctl;
+	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1708_jack_detect_ctl)) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
@@ -967,9 +925,9 @@ static int vt1716s_dmic_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
-	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x22, 0x0, HDA_INPUT),
-	{
+static const struct snd_kcontrol_new vt1716s_dmic_mixer_vol =
+	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x22, 0x0, HDA_INPUT);
+static const struct snd_kcontrol_new vt1716s_dmic_mixer_sw = {
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name = "Digital Mic Capture Switch",
 	 .subdevice = HDA_SUBDEV_NID_FLAG | 0x26,
@@ -977,16 +935,12 @@ static const struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
 	 .info = vt1716s_dmic_info,
 	 .get = vt1716s_dmic_get,
 	 .put = vt1716s_dmic_put,
-	 },
-	{}			/* end */
 };
 
 
 /* mono-out mixer elements */
-static const struct snd_kcontrol_new vt1716S_mono_out_mixer[] = {
-	HDA_CODEC_MUTE("Mono Playback Switch", 0x2a, 0x0, HDA_OUTPUT),
-	{ } /* end */
-};
+static const struct snd_kcontrol_new vt1716S_mono_out_mixer =
+	HDA_CODEC_MUTE("Mono Playback Switch", 0x2a, 0x0, HDA_OUTPUT);
 
 static const struct hda_verb vt1716S_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
@@ -1019,8 +973,12 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_init_verbs;
 
-	spec->mixers[spec->num_mixers++] = vt1716s_dmic_mixer;
-	spec->mixers[spec->num_mixers++] = vt1716S_mono_out_mixer;
+	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_vol) ||
+	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_sw) ||
+	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716S_mono_out_mixer)) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	return 0;
 
