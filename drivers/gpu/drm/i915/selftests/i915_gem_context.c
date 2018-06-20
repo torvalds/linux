@@ -519,8 +519,8 @@ static int igt_switch_to_kernel_context(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out_unlock;
+		mutex_unlock(&i915->drm.struct_mutex);
+		return PTR_ERR(ctx);
 	}
 
 	/* First check idling each individual engine */
