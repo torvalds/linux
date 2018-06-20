@@ -4568,7 +4568,7 @@ void check_system_chunk(struct btrfs_trans_handle *trans,
 		 * the paths we visit in the chunk tree (they were already COWed
 		 * or created in the current transaction for example).
 		 */
-		ret = btrfs_alloc_chunk(trans, fs_info, flags);
+		ret = btrfs_alloc_chunk(trans, flags);
 	}
 
 	if (!ret) {
@@ -4670,7 +4670,7 @@ again:
 	 */
 	check_system_chunk(trans, fs_info, flags);
 
-	ret = btrfs_alloc_chunk(trans, fs_info, flags);
+	ret = btrfs_alloc_chunk(trans, flags);
 	trans->allocating_chunk = false;
 
 	spin_lock(&space_info->lock);
