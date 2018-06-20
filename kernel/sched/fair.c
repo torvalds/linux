@@ -2110,8 +2110,8 @@ static int preferred_group_nid(struct task_struct *p, int nid)
 
 static void task_numa_placement(struct task_struct *p)
 {
-	int seq, nid, max_nid = -1, max_group_nid = -1;
-	unsigned long max_faults = 0, max_group_faults = 0;
+	int seq, nid, max_nid = -1;
+	unsigned long max_faults = 0;
 	unsigned long fault_types[2] = { 0, 0 };
 	unsigned long total_faults;
 	u64 runtime, period;
@@ -2190,14 +2190,14 @@ static void task_numa_placement(struct task_struct *p)
 			}
 		}
 
-		if (faults > max_faults) {
-			max_faults = faults;
+		if (!p->numa_group) {
+			if (faults > max_faults) {
+				max_faults = faults;
+				max_nid = nid;
+			}
+		} else if (group_faults > max_faults) {
+			max_faults = group_faults;
 			max_nid = nid;
-		}
-
-		if (group_faults > max_group_faults) {
-			max_group_faults = group_faults;
-			max_group_nid = nid;
 		}
 	}
 
@@ -2206,7 +2206,7 @@ static void task_numa_placement(struct task_struct *p)
 	if (p->numa_group) {
 		numa_group_count_active_nodes(p->numa_group);
 		spin_unlock_irq(group_lock);
-		max_nid = preferred_group_nid(p, max_group_nid);
+		max_nid = preferred_group_nid(p, max_nid);
 	}
 
 	if (max_faults) {
