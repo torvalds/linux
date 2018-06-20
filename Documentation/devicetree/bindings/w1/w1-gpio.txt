@@ -15,7 +15,7 @@ Optional properties:
 
 Examples:
 
-	onewire@0 {
+	onewire {
 		compatible = "w1-gpio";
 		gpios = <&gpio 126 0>, <&gpio 105 0>;
 	};
