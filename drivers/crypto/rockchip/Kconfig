@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CRYPTO_DEV_ROCKCHIP_DEV
+	tristate "Export rockchip crypto device for user space"
+	depends on CRYPTO_DEV_ROCKCHIP
+	default n
+	help
+	  This is a /dev/crypto device driver.The main idea is to
+	  access existing ciphers in kernel space from userspace,
+	  thus enabling the re-use of a hardware implementation of a cipher.
