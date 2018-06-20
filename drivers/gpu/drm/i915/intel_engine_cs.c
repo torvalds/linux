@@ -1000,10 +1000,12 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->execlists.active)) {
 		struct intel_engine_execlists *execlists = &engine->execlists;
 
+		local_bh_disable();
 		if (tasklet_trylock(&execlists->tasklet)) {
 			execlists->tasklet.func(execlists->tasklet.data);
 			tasklet_unlock(&execlists->tasklet);
 		}
+		local_bh_enable();
 
 		if (READ_ONCE(execlists->active))
 			return false;
