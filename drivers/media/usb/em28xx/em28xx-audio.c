@@ -842,11 +842,11 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	dev->adev.transfer_buffer = kcalloc(num_urb,
 					    sizeof(*dev->adev.transfer_buffer),
-					    GFP_ATOMIC);
+					    GFP_KERNEL);
 	if (!dev->adev.transfer_buffer)
 		return -ENOMEM;
 
-	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_ATOMIC);
+	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_KERNEL);
 	if (!dev->adev.urb) {
 		kfree(dev->adev.transfer_buffer);
 		return -ENOMEM;
@@ -859,14 +859,14 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		int j, k;
 		void *buf;
 
-		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
+		urb = usb_alloc_urb(npackets, GFP_KERNEL);
 		if (!urb) {
 			em28xx_audio_free_urb(dev);
 			return -ENOMEM;
 		}
 		dev->adev.urb[i] = urb;
 
-		buf = usb_alloc_coherent(udev, npackets * ep_size, GFP_ATOMIC,
+		buf = usb_alloc_coherent(udev, npackets * ep_size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			dev_err(&dev->intf->dev,
