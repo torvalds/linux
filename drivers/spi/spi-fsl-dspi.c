@@ -38,8 +38,6 @@
 
 #define DRIVER_NAME "fsl-dspi"
 
-#define TRAN_STATE_RX_VOID		0x01
-#define TRAN_STATE_TX_VOID		0x02
 #define TRAN_STATE_WORD_ODD_NUM	0x04
 
 #define DSPI_FIFO_SIZE			4
@@ -232,7 +230,7 @@ static void dspi_rx_dma_callback(void *arg)
 
 	rx_word = is_double_byte_mode(dspi);
 
-	if (!(dspi->dataflags & TRAN_STATE_RX_VOID)) {
+	if (dspi->rx) {
 		for (i = 0; i < dma->curr_xfer_len; i++) {
 			d = dspi->dma->rx_dma_buf[i];
 			rx_word ? (*(u16 *)dspi->rx = d) :
@@ -538,12 +536,13 @@ static u32 dspi_data_to_pushr(struct fsl_dspi *dspi, int tx_word)
 {
 	u16 d16;
 
-	if (!(dspi->dataflags & TRAN_STATE_TX_VOID))
+	if (dspi->tx) {
 		d16 = tx_word ? *(u16 *)dspi->tx : *(u8 *)dspi->tx;
-	else
+		dspi->tx += tx_word + 1;
+	} else {
 		d16 = dspi->void_write_data;
+	}
 
-	dspi->tx += tx_word + 1;
 	dspi->len -= tx_word + 1;
 
 	return	SPI_PUSHR_TXDATA(d16) |
@@ -560,10 +559,10 @@ static void dspi_data_from_popr(struct fsl_dspi *dspi, int rx_word)
 	regmap_read(dspi->regmap, SPI_POPR, &val);
 	d = SPI_POPR_RXDATA(val);
 
-	if (!(dspi->dataflags & TRAN_STATE_RX_VOID))
+	if (dspi->rx) {
 		rx_word ? (*(u16 *)dspi->rx = d) : (*(u8 *)dspi->rx = d);
-
-	dspi->rx += rx_word + 1;
+		dspi->rx += rx_word + 1;
+	}
 }
 
 static int dspi_eoq_write(struct fsl_dspi *dspi)
@@ -686,12 +685,6 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		dspi->rx = transfer->rx_buf;
 		dspi->rx_end = dspi->rx + transfer->len;
 		dspi->len = transfer->len;
-
-		if (!dspi->rx)
-			dspi->dataflags |= TRAN_STATE_RX_VOID;
-
-		if (!dspi->tx)
-			dspi->dataflags |= TRAN_STATE_TX_VOID;
 
 		regmap_write(dspi->regmap, SPI_MCR, dspi->cur_chip->mcr_val);
 		regmap_update_bits(dspi->regmap, SPI_MCR,
