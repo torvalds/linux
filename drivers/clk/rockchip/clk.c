@@ -410,8 +410,6 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	spin_lock_init(&ctx->lock);
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
 						   "rockchip,grf");
-	ctx->boost = syscon_regmap_lookup_by_phandle(ctx->cru_node,
-						   "rockchip,boost");
 
 	return ctx;
 
@@ -455,8 +453,7 @@ void __init rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				list->con_offset, grf_lock_offset,
 				list->lock_shift, list->mode_offset,
 				list->mode_shift, list->rate_table,
-				list->flags, list->pll_flags,
-				list->boost_enabled);
+				list->flags, list->pll_flags);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);

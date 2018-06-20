@@ -286,6 +286,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 			goto free_cpuclk;
 		}
 		cpuclk->pll_hw = __clk_get_hw(pll_clk);
+		rockchip_boost_init(cpuclk->pll_hw);
 	}
 
 	cpuclk->alt_parent = __clk_lookup(parent_names[reg_data->mux_core_alt]);

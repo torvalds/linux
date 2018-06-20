@@ -190,7 +190,7 @@ PNAME(mux_spdif_rx_src_p)	= { "clk_spdif_rx_div", "clk_spdif_rx_div50" };
 PNAME(mux_spdif_rx_p)		= { "clk_spdif_rx_src", "clk_spdif_rx_frac" };
 
 static struct rockchip_pll_clock rk3308_pll_clks[] __initdata = {
-	[apll] = PLL_BOOST(pll_rk3328, PLL_APLL, "apll", mux_pll_p,
+	[apll] = PLL(pll_rk3328, PLL_APLL, "apll", mux_pll_p,
 		     0, RK3308_PLL_CON(0),
 		     RK3308_MODE_CON, 0, 0, 0, rk3308_pll_rates),
 	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
