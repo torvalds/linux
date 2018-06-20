@@ -109,7 +109,7 @@ static void vmw_sou_crtc_destroy(struct drm_crtc *crtc)
  */
 static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 			       struct vmw_screen_object_unit *sou,
-			       uint32_t x, uint32_t y,
+			       int x, int y,
 			       struct drm_display_mode *mode)
 {
 	size_t fifo_size;
@@ -139,13 +139,8 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 		(sou->base.unit == 0 ? SVGA_SCREEN_IS_PRIMARY : 0);
 	cmd->obj.size.width = mode->hdisplay;
 	cmd->obj.size.height = mode->vdisplay;
-	if (sou->base.is_implicit) {
-		cmd->obj.root.x = x;
-		cmd->obj.root.y = y;
-	} else {
-		cmd->obj.root.x = sou->base.gui_x;
-		cmd->obj.root.y = sou->base.gui_y;
-	}
+	cmd->obj.root.x = x;
+	cmd->obj.root.y = y;
 	sou->base.set_gui_x = cmd->obj.root.x;
 	sou->base.set_gui_y = cmd->obj.root.y;
 
@@ -222,12 +217,11 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct vmw_plane_state *vps;
 	int ret;
 
-
-	sou      = vmw_crtc_to_sou(crtc);
+	sou = vmw_crtc_to_sou(crtc);
 	dev_priv = vmw_priv(crtc->dev);
-	ps       = crtc->primary->state;
-	fb       = ps->fb;
-	vps      = vmw_plane_state_to_vps(ps);
+	ps = crtc->primary->state;
+	fb = ps->fb;
+	vps = vmw_plane_state_to_vps(ps);
 
 	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
 
@@ -240,11 +234,25 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	}
 
 	if (vfb) {
+		struct drm_connector_state *conn_state;
+		struct vmw_connector_state *vmw_conn_state;
+		int x, y;
+
 		sou->buffer = vps->bo;
 		sou->buffer_size = vps->bo_size;
 
-		ret = vmw_sou_fifo_create(dev_priv, sou, crtc->x, crtc->y,
-					  &crtc->mode);
+		if (sou->base.is_implicit) {
+			x = crtc->x;
+			y = crtc->y;
+		} else {
+			conn_state = sou->base.connector.state;
+			vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
+
+			x = vmw_conn_state->gui_x;
+			y = vmw_conn_state->gui_y;
+		}
+
+		ret = vmw_sou_fifo_create(dev_priv, sou, x, y, &crtc->mode);
 		if (ret)
 			DRM_ERROR("Failed to define Screen Object %dx%d\n",
 				  crtc->x, crtc->y);

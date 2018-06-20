@@ -178,13 +178,9 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 	cmd->body.height = mode->vdisplay;
 	cmd->body.flags  = (0 == cmd->body.stid) ? SVGA_STFLAG_PRIMARY : 0;
 	cmd->body.dpi    = 0;
-	if (stdu->base.is_implicit) {
-		cmd->body.xRoot  = crtc_x;
-		cmd->body.yRoot  = crtc_y;
-	} else {
-		cmd->body.xRoot  = stdu->base.gui_x;
-		cmd->body.yRoot  = stdu->base.gui_y;
-	}
+	cmd->body.xRoot  = crtc_x;
+	cmd->body.yRoot  = crtc_y;
+
 	stdu->base.set_gui_x = cmd->body.xRoot;
 	stdu->base.set_gui_y = cmd->body.yRoot;
 
@@ -374,11 +370,14 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
-	int ret;
+	struct drm_connector_state *conn_state;
+	struct vmw_connector_state *vmw_conn_state;
+	int x, y, ret;
 
-
-	stdu     = vmw_crtc_to_stdu(crtc);
+	stdu = vmw_crtc_to_stdu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
+	conn_state = stdu->base.connector.state;
+	vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
 
 	if (stdu->defined) {
 		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
@@ -397,8 +396,16 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	if (!crtc->state->enable)
 		return;
 
+	if (stdu->base.is_implicit) {
+		x = crtc->x;
+		y = crtc->y;
+	} else {
+		x = vmw_conn_state->gui_x;
+		y = vmw_conn_state->gui_y;
+	}
+
 	vmw_svga_enable(dev_priv);
-	ret = vmw_stdu_define_st(dev_priv, stdu, &crtc->mode, crtc->x, crtc->y);
+	ret = vmw_stdu_define_st(dev_priv, stdu, &crtc->mode, x, y);
 
 	if (ret)
 		DRM_ERROR("Failed to define Screen Target of size %dx%d\n",

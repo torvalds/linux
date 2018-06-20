@@ -192,6 +192,24 @@ struct vmw_connector_state {
 	struct drm_connector_state base;
 
 	bool is_implicit;
+
+	/**
+	 * @gui_x:
+	 *
+	 * vmwgfx connector property representing the x position of this display
+	 * unit (connector is synonymous to display unit) in overall topology.
+	 * This is what the device expect as xRoot while creating screen.
+	 */
+	int gui_x;
+
+	/**
+	 * @gui_y:
+	 *
+	 * vmwgfx connector property representing the y position of this display
+	 * unit (connector is synonymous to display unit) in overall topology.
+	 * This is what the device expect as yRoot while creating screen.
+	 */
+	int gui_y;
 };
 
 /**

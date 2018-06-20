@@ -1609,26 +1609,43 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
 				      new_crtc_state, i) {
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+		struct drm_connector *connector;
+		struct drm_connector_state *conn_state;
+		struct vmw_connector_state *vmw_conn_state;
 
 		if (!new_crtc_state->enable && old_crtc_state->enable) {
 			rects[i].x1 = 0;
 			rects[i].y1 = 0;
 			rects[i].x2 = 0;
 			rects[i].y2 = 0;
+			continue;
 		}
 
-		if (new_crtc_state->enable) {
-			/* If display unit is not active cannot enable CRTC */
-			if (!du->pref_active) {
-				ret = -EINVAL;
-				goto clean;
-			}
-
-			rects[i].x1 = du->gui_x;
-			rects[i].y1 = du->gui_y;
-			rects[i].x2 = du->gui_x + new_crtc_state->mode.hdisplay;
-			rects[i].y2 = du->gui_y + new_crtc_state->mode.vdisplay;
+		if (!du->pref_active) {
+			ret = -EINVAL;
+			goto clean;
 		}
+
+		/*
+		 * For vmwgfx each crtc has only one connector attached and it
+		 * is not changed so don't really need to check the
+		 * crtc->connector_mask and iterate over it.
+		 */
+		connector = &du->connector;
+		conn_state = drm_atomic_get_connector_state(state, connector);
+		if (IS_ERR(conn_state)) {
+			ret = PTR_ERR(conn_state);
+			goto clean;
+		}
+
+		vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
+		vmw_conn_state->gui_x = du->gui_x;
+		vmw_conn_state->gui_y = du->gui_y;
+
+		rects[i].x1 = du->gui_x;
+		rects[i].y1 = du->gui_y;
+		rects[i].x2 = du->gui_x + new_crtc_state->mode.hdisplay;
+		rects[i].y2 = du->gui_y + new_crtc_state->mode.vdisplay;
 	}
 
 	ret = vmw_kms_check_display_memory(dev, dev->mode_config.num_crtc,
