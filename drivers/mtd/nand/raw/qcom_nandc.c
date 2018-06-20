@@ -1096,7 +1096,8 @@ static void config_nand_page_read(struct qcom_nand_controller *nandc)
  * Helper to prepare DMA descriptors for configuring registers
  * before reading each codeword in NAND page.
  */
-static void config_nand_cw_read(struct qcom_nand_controller *nandc)
+static void
+config_nand_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 {
 	if (nandc->props->is_bam)
 		write_reg_dma(nandc, NAND_READ_LOCATION_0, 4,
@@ -1105,19 +1106,25 @@ static void config_nand_cw_read(struct qcom_nand_controller *nandc)
 	write_reg_dma(nandc, NAND_FLASH_CMD, 1, NAND_BAM_NEXT_SGL);
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, NAND_BAM_NEXT_SGL);
 
-	read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
-	read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
-		     NAND_BAM_NEXT_SGL);
+	if (use_ecc) {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
+		read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
+			     NAND_BAM_NEXT_SGL);
+	} else {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 1, NAND_BAM_NEXT_SGL);
+	}
 }
 
 /*
  * Helper to prepare dma descriptors to configure registers needed for reading a
  * single codeword in page
  */
-static void config_nand_single_cw_page_read(struct qcom_nand_controller *nandc)
+static void
+config_nand_single_cw_page_read(struct qcom_nand_controller *nandc,
+				bool use_ecc)
 {
 	config_nand_page_read(nandc);
-	config_nand_cw_read(nandc);
+	config_nand_cw_read(nandc, use_ecc);
 }
 
 /*
@@ -1198,7 +1205,7 @@ static int nandc_param(struct qcom_nand_host *host)
 	nandc->buf_count = 512;
 	memset(nandc->data_buffer, 0xff, nandc->buf_count);
 
-	config_nand_single_cw_page_read(nandc);
+	config_nand_single_cw_page_read(nandc, false);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer,
 		      nandc->buf_count, 0);
@@ -1563,6 +1570,23 @@ struct read_stats {
 	__le32 erased_cw;
 };
 
+/* reads back FLASH_STATUS register set by the controller */
+static int check_flash_errors(struct qcom_nand_host *host, int cw_cnt)
+{
+	struct nand_chip *chip = &host->chip;
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	int i;
+
+	for (i = 0; i < cw_cnt; i++) {
+		u32 flash = le32_to_cpu(nandc->reg_read_buf[i]);
+
+		if (flash & (FS_OP_ERR | FS_MPU_ERR))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * reads back status registers set by the controller to notify page read
  * errors. this is equivalent to what 'ecc->correct()' would do.
@@ -1729,7 +1753,7 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 			}
 		}
 
-		config_nand_cw_read(nandc);
+		config_nand_cw_read(nandc, true);
 
 		if (data_buf)
 			read_data_dma(nandc, FLASH_BUF_ACC, data_buf,
@@ -1791,7 +1815,7 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, true);
 
-	config_nand_single_cw_page_read(nandc);
+	config_nand_single_cw_page_read(nandc, host->use_ecc);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer, size, 0);
 
@@ -1874,7 +1898,7 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 			nandc_set_read_loc(nandc, 3, read_loc, oob_size2, 1);
 		}
 
-		config_nand_cw_read(nandc);
+		config_nand_cw_read(nandc, false);
 
 		read_data_dma(nandc, reg_off, data_buf, data_size1, 0);
 		reg_off += data_size1;
@@ -1893,12 +1917,13 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 	}
 
 	ret = submit_descs(nandc);
-	if (ret)
-		dev_err(nandc->dev, "failure to read raw page\n");
-
 	free_descs(nandc);
+	if (ret) {
+		dev_err(nandc->dev, "failure to read raw page\n");
+		return ret;
+	}
 
-	return ret;
+	return check_flash_errors(host, ecc->steps);
 }
 
 /* implements ecc->read_oob() */
@@ -2117,7 +2142,6 @@ static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	int page, ret, bbpos, bad = 0;
-	u32 flash_status;
 
 	page = (int)(ofs >> chip->page_shift) & chip->pagemask;
 
@@ -2134,9 +2158,7 @@ static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
 	if (ret)
 		goto err;
 
-	flash_status = le32_to_cpu(nandc->reg_read_buf[0]);
-
-	if (flash_status & (FS_OP_ERR | FS_MPU_ERR)) {
+	if (check_flash_errors(host, 1)) {
 		dev_warn(nandc->dev, "error when trying to read BBM\n");
 		goto err;
 	}
