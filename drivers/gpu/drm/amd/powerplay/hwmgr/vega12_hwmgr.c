@@ -1786,52 +1786,11 @@ static int vega12_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
-	uint32_t i;
 
 	if (!data->registry_data.disable_water_mark &&
 			data->smu_features[GNLD_DPM_DCEFCLK].supported &&
 			data->smu_features[GNLD_DPM_SOCCLK].supported) {
-		for (i = 0; i < wm_with_clock_ranges->num_wm_sets_dmif; i++) {
-			table->WatermarkRow[WM_DCEFCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_dcefclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_dcefclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_DCEFCLK][i].WmSetting = (uint8_t)
-					wm_with_clock_ranges->wm_sets_dmif[i].wm_set_id;
-		}
-
-		for (i = 0; i < wm_with_clock_ranges->num_wm_sets_mcif; i++) {
-			table->WatermarkRow[WM_SOCCLK][i].MinClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_socclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_socclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MinUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].MaxUclk =
-				cpu_to_le16((uint16_t)
-				(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_memclk_in_khz) /
-				100);
-			table->WatermarkRow[WM_SOCCLK][i].WmSetting = (uint8_t)
-					wm_with_clock_ranges->wm_sets_mcif[i].wm_set_id;
-		}
+		smu_set_watermarks_for_clocks_ranges(table, wm_with_clock_ranges);
 		data->water_marks_bitmap |= WaterMarksExist;
 		data->water_marks_bitmap &= ~WaterMarksLoaded;
 	}
