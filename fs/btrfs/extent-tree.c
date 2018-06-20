@@ -217,9 +217,9 @@ static int add_excluded_extent(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-static void free_excluded_extents(struct btrfs_fs_info *fs_info,
-				  struct btrfs_block_group_cache *cache)
+static void free_excluded_extents(struct btrfs_block_group_cache *cache)
 {
+	struct btrfs_fs_info *fs_info = cache->fs_info;
 	u64 start, end;
 
 	start = cache->key.objectid;
@@ -555,7 +555,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 	caching_ctl->progress = (u64)-1;
 
 	up_read(&fs_info->commit_root_sem);
-	free_excluded_extents(fs_info, block_group);
+	free_excluded_extents(block_group);
 	mutex_unlock(&caching_ctl->mutex);
 
 	wake_up(&caching_ctl->wait);
@@ -663,7 +663,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 		wake_up(&caching_ctl->wait);
 		if (ret == 1) {
 			put_caching_control(caching_ctl);
-			free_excluded_extents(fs_info, cache);
+			free_excluded_extents(cache);
 			return 0;
 		}
 	} else {
@@ -9860,7 +9860,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		 */
 		if (block_group->cached == BTRFS_CACHE_NO ||
 		    block_group->cached == BTRFS_CACHE_ERROR)
-			free_excluded_extents(info, block_group);
+			free_excluded_extents(block_group);
 
 		btrfs_remove_free_space_cache(block_group);
 		ASSERT(block_group->cached != BTRFS_CACHE_STARTED);
@@ -10108,7 +10108,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 			 * We may have excluded something, so call this just in
 			 * case.
 			 */
-			free_excluded_extents(info, cache);
+			free_excluded_extents(cache);
 			btrfs_put_block_group(cache);
 			goto error;
 		}
@@ -10123,14 +10123,14 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		if (found_key.offset == btrfs_block_group_used(&cache->item)) {
 			cache->last_byte_to_unpin = (u64)-1;
 			cache->cached = BTRFS_CACHE_FINISHED;
-			free_excluded_extents(info, cache);
+			free_excluded_extents(cache);
 		} else if (btrfs_block_group_used(&cache->item) == 0) {
 			cache->last_byte_to_unpin = (u64)-1;
 			cache->cached = BTRFS_CACHE_FINISHED;
 			add_new_free_space(cache, found_key.objectid,
 					   found_key.objectid +
 					   found_key.offset);
-			free_excluded_extents(info, cache);
+			free_excluded_extents(cache);
 		}
 
 		ret = btrfs_add_block_group_cache(info, cache);
@@ -10259,14 +10259,14 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 		 * We may have excluded something, so call this just in
 		 * case.
 		 */
-		free_excluded_extents(fs_info, cache);
+		free_excluded_extents(cache);
 		btrfs_put_block_group(cache);
 		return ret;
 	}
 
 	add_new_free_space(cache, chunk_offset, chunk_offset + size);
 
-	free_excluded_extents(fs_info, cache);
+	free_excluded_extents(cache);
 
 #ifdef CONFIG_BTRFS_DEBUG
 	if (btrfs_should_fragment_free_space(cache)) {
@@ -10350,7 +10350,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * Free the reserved super bytes from this block group before
 	 * remove it.
 	 */
-	free_excluded_extents(fs_info, block_group);
+	free_excluded_extents(block_group);
 	btrfs_free_ref_tree_range(fs_info, block_group->key.objectid,
 				  block_group->key.offset);
 
