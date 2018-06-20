@@ -69,6 +69,8 @@ extern "C" {
 #define DRM_VMW_GB_SURFACE_REF       24
 #define DRM_VMW_SYNCCPU              25
 #define DRM_VMW_CREATE_EXTENDED_CONTEXT 26
+#define DRM_VMW_GB_SURFACE_CREATE_EXT   27
+#define DRM_VMW_GB_SURFACE_REF_EXT      28
 
 /*************************************************************************/
 /**
@@ -1104,6 +1106,106 @@ struct drm_vmw_handle_close_arg {
 	__u32 pad64;
 };
 #define drm_vmw_unref_dmabuf_arg drm_vmw_handle_close_arg
+
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_CREATE_EXT - Create a host guest-backed surface.
+ *
+ * Allocates a surface handle and queues a create surface command
+ * for the host on the first use of the surface. The surface ID can
+ * be used as the surface ID in commands referencing the surface.
+ *
+ * This new command extends DRM_VMW_GB_SURFACE_CREATE by adding version
+ * parameter and 64 bit svga flag.
+ */
+
+/**
+ * enum drm_vmw_surface_version
+ *
+ * @drm_vmw_surface_gb_v1: Corresponds to current gb surface format with
+ * svga3d surface flags split into 2, upper half and lower half.
+ */
+enum drm_vmw_surface_version {
+	drm_vmw_gb_surface_v1
+};
+
+/**
+ * struct drm_vmw_gb_surface_create_ext_req
+ *
+ * @base: Surface create parameters.
+ * @version: Version of surface create ioctl.
+ * @svga3d_flags_upper_32_bits: Upper 32 bits of svga3d flags.
+ * @multisample_pattern: Multisampling pattern when msaa is supported.
+ * @quality_level: Precision settings for each sample.
+ * @must_be_zero: Reserved for future usage.
+ *
+ * Input argument to the  DRM_VMW_GB_SURFACE_CREATE_EXT Ioctl.
+ * Part of output argument for the DRM_VMW_GB_SURFACE_REF_EXT Ioctl.
+ */
+struct drm_vmw_gb_surface_create_ext_req {
+	struct drm_vmw_gb_surface_create_req base;
+	enum drm_vmw_surface_version version;
+	uint32_t svga3d_flags_upper_32_bits;
+	SVGA3dMSPattern multisample_pattern;
+	SVGA3dMSQualityLevel quality_level;
+	uint64_t must_be_zero;
+};
+
+/**
+ * union drm_vmw_gb_surface_create_ext_arg
+ *
+ * @req: Input argument as described above.
+ * @rep: Output argument as described above.
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ */
+union drm_vmw_gb_surface_create_ext_arg {
+	struct drm_vmw_gb_surface_create_rep rep;
+	struct drm_vmw_gb_surface_create_ext_req req;
+};
+
+/*************************************************************************/
+/**
+ * DRM_VMW_GB_SURFACE_REF_EXT - Reference a host surface.
+ *
+ * Puts a reference on a host surface with a given handle, as previously
+ * returned by the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ * A reference will make sure the surface isn't destroyed while we hold
+ * it and will allow the calling client to use the surface handle in
+ * the command stream.
+ *
+ * On successful return, the Ioctl returns the surface information given
+ * to and returned from the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
+ */
+
+/**
+ * struct drm_vmw_gb_surface_ref_ext_rep
+ *
+ * @creq: The data used as input when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_ext_req"
+ * @crep: Additional data output when the surface was created, as described
+ *        above at "struct drm_vmw_gb_surface_create_rep"
+ *
+ * Output Argument to the DRM_VMW_GB_SURFACE_REF_EXT ioctl.
+ */
+struct drm_vmw_gb_surface_ref_ext_rep {
+	struct drm_vmw_gb_surface_create_ext_req creq;
+	struct drm_vmw_gb_surface_create_rep crep;
+};
+
+/**
+ * union drm_vmw_gb_surface_reference_ext_arg
+ *
+ * @req: Input data as described above at "struct drm_vmw_surface_arg"
+ * @rep: Output data as described above at
+ *       "struct drm_vmw_gb_surface_ref_ext_rep"
+ *
+ * Argument to the DRM_VMW_GB_SURFACE_REF Ioctl.
+ */
+union drm_vmw_gb_surface_reference_ext_arg {
+	struct drm_vmw_gb_surface_ref_ext_rep rep;
+	struct drm_vmw_surface_arg req;
+};
 
 #if defined(__cplusplus)
 }

@@ -1087,7 +1087,15 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t multisample_count,
 			       uint32_t array_size,
 			       struct drm_vmw_size size,
+			       SVGA3dMSPattern multisample_pattern,
+			       SVGA3dMSQualityLevel quality_level,
 			       struct vmw_surface **srf_out);
+extern int vmw_gb_surface_define_ext_ioctl(struct drm_device *dev,
+					   void *data,
+					   struct drm_file *file_priv);
+extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
+					      void *data,
+					      struct drm_file *file_priv);
 
 /*
  * Shader management - vmwgfx_shader.c

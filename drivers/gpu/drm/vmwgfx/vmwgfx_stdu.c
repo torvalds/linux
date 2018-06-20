@@ -1188,6 +1188,8 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 				 content_srf.multisample_count,
 				 0,
 				 display_base_size,
+				 content_srf.multisample_pattern,
+				 content_srf.quality_level,
 				 &vps->surf);
 			if (ret != 0) {
 				DRM_ERROR("Couldn't allocate STDU surface.\n");

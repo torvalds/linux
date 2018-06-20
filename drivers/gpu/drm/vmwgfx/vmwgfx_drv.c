@@ -137,6 +137,12 @@
 #define DRM_IOCTL_VMW_CREATE_EXTENDED_CONTEXT			\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_CREATE_EXTENDED_CONTEXT,	\
 		struct drm_vmw_context_arg)
+#define DRM_IOCTL_VMW_GB_SURFACE_CREATE_EXT				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_GB_SURFACE_CREATE_EXT,	\
+		union drm_vmw_gb_surface_create_ext_arg)
+#define DRM_IOCTL_VMW_GB_SURFACE_REF_EXT				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_GB_SURFACE_REF_EXT,		\
+		union drm_vmw_gb_surface_reference_ext_arg)
 
 /**
  * The core DRM version of this macro doesn't account for
@@ -223,6 +229,12 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_EXTENDED_CONTEXT,
 		      vmw_extended_context_define_ioctl,
+		      DRM_AUTH | DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_GB_SURFACE_CREATE_EXT,
+		      vmw_gb_surface_define_ext_ioctl,
+		      DRM_AUTH | DRM_RENDER_ALLOW),
+	VMW_IOCTL_DEF(VMW_GB_SURFACE_REF_EXT,
+		      vmw_gb_surface_reference_ext_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
