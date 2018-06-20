@@ -350,6 +350,7 @@ struct tcp_sock {
 #endif
 
 /* Receiver side RTT estimation */
+	u32 rcv_rtt_last_tsecr;
 	struct {
 		u32	rtt_us;
 		u32	seq;
