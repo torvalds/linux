@@ -921,7 +921,7 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 	}
 
 	/* Allocate enough memory for user event notification. */
-	len = PAGE_ALIGN(dd->chip_rcv_contexts * HFI1_MAX_SHARED_CTXTS *
+	len = PAGE_ALIGN(chip_rcv_contexts(dd) * HFI1_MAX_SHARED_CTXTS *
 			 sizeof(*dd->events));
 	dd->events = vmalloc_user(len);
 	if (!dd->events)

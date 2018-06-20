@@ -818,14 +818,14 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 
 	size = sizeof(struct opa_vnic_rdma_netdev) + sizeof(*vinfo);
 	netdev = alloc_netdev_mqs(size, name, name_assign_type, setup,
-				  dd->chip_sdma_engines, dd->num_vnic_contexts);
+				  chip_sdma_engines(dd), dd->num_vnic_contexts);
 	if (!netdev)
 		return ERR_PTR(-ENOMEM);
 
 	rn = netdev_priv(netdev);
 	vinfo = opa_vnic_dev_priv(netdev);
 	vinfo->dd = dd;
-	vinfo->num_tx_q = dd->chip_sdma_engines;
+	vinfo->num_tx_q = chip_sdma_engines(dd);
 	vinfo->num_rx_q = dd->num_vnic_contexts;
 	vinfo->netdev = netdev;
 	rn->free_rdma_netdev = hfi1_vnic_free_rn;

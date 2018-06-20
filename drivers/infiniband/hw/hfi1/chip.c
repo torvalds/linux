@@ -10130,7 +10130,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	       (((lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
 			SEND_CTXT_CHECK_SLID_VALUE_SHIFT);
 
-	for (i = 0; i < dd->chip_send_contexts; i++) {
+	for (i = 0; i < chip_send_contexts(dd); i++) {
 		hfi1_cdbg(LINKVERB, "SendContext[%d].SLID_CHECK = 0x%x",
 			  i, (u32)sreg);
 		write_kctxt_csr(dd, i, SEND_CTXT_CHECK_SLID, sreg);
@@ -12041,7 +12041,7 @@ u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
 				} else if (entry->flags & CNTR_SDMA) {
 					hfi1_cdbg(CNTR,
 						  "\t Per SDMA Engine\n");
-					for (j = 0; j < dd->chip_sdma_engines;
+					for (j = 0; j < chip_sdma_engines(dd);
 					     j++) {
 						val =
 						entry->rw_cntr(entry, dd, j,
@@ -12417,6 +12417,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd;
 	const char *bit_type_32 = ",32";
 	const int bit_type_32_sz = strlen(bit_type_32);
+	u32 sdma_engines = chip_sdma_engines(dd);
 
 	/* set up the stats timer; the add_timer is done at the end */
 	timer_setup(&dd->synth_stats_timer, update_synth_timer, 0);
@@ -12449,7 +12450,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 			}
 		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
 			dev_cntrs[i].offset = dd->ndevcntrs;
-			for (j = 0; j < dd->chip_sdma_engines; j++) {
+			for (j = 0; j < sdma_engines; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
 					 dev_cntrs[i].name, j);
 				sz += strlen(name);
@@ -12506,7 +12507,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 				*p++ = '\n';
 			}
 		} else if (dev_cntrs[i].flags & CNTR_SDMA) {
-			for (j = 0; j < dd->chip_sdma_engines; j++) {
+			for (j = 0; j < sdma_engines; j++) {
 				snprintf(name, C_MAX_NAME, "%s%d",
 					 dev_cntrs[i].name, j);
 				memcpy(p, name, strlen(name));
@@ -13019,9 +13020,9 @@ static void clear_all_interrupts(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_PIO_ERR_CLEAR, ~(u64)0);
 	write_csr(dd, SEND_DMA_ERR_CLEAR, ~(u64)0);
 	write_csr(dd, SEND_EGRESS_ERR_CLEAR, ~(u64)0);
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_ERR_CLEAR, ~(u64)0);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_ENG_ERR_CLEAR, ~(u64)0);
 
 	write_csr(dd, DCC_ERR_FLG_CLR, ~(u64)0);
@@ -13428,6 +13429,8 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	int qos_rmt_count;
 	int user_rmt_reduced;
 	u32 n_usr_ctxts;
+	u32 send_contexts = chip_send_contexts(dd);
+	u32 rcv_contexts = chip_rcv_contexts(dd);
 
 	/*
 	 * Kernel receive contexts:
@@ -13449,16 +13452,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 * Every kernel receive context needs an ACK send context.
 	 * one send context is allocated for each VL{0-7} and VL15
 	 */
-	if (num_kernel_contexts > (dd->chip_send_contexts - num_vls - 1)) {
+	if (num_kernel_contexts > (send_contexts - num_vls - 1)) {
 		dd_dev_err(dd,
 			   "Reducing # kernel rcv contexts to: %d, from %lu\n",
-			   (int)(dd->chip_send_contexts - num_vls - 1),
+			   send_contexts - num_vls - 1,
 			   num_kernel_contexts);
-		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
+		num_kernel_contexts = send_contexts - num_vls - 1;
 	}
 
 	/* Accommodate VNIC contexts if possible */
-	if ((num_kernel_contexts + num_vnic_contexts) > dd->chip_rcv_contexts) {
+	if ((num_kernel_contexts + num_vnic_contexts) > rcv_contexts) {
 		dd_dev_err(dd, "No receive contexts available for VNIC\n");
 		num_vnic_contexts = 0;
 	}
@@ -13476,13 +13479,13 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts + n_usr_ctxts > dd->chip_rcv_contexts) {
+	if (total_contexts + n_usr_ctxts > rcv_contexts) {
 		dd_dev_err(dd,
 			   "Reducing # user receive contexts to: %d, from %u\n",
-			   (int)(dd->chip_rcv_contexts - total_contexts),
+			   rcv_contexts - total_contexts,
 			   n_usr_ctxts);
 		/* recalculate */
-		n_usr_ctxts = dd->chip_rcv_contexts - total_contexts;
+		n_usr_ctxts = rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
@@ -13508,7 +13511,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
 		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
-		    (int)dd->chip_rcv_contexts,
+		    rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
 		    dd->num_vnic_contexts,
@@ -13526,7 +13529,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 *   contexts.
 	 */
 	dd->rcv_entries.group_size = RCV_INCREMENT;
-	ngroups = dd->chip_rcv_array_count / dd->rcv_entries.group_size;
+	ngroups = chip_rcv_array_count(dd) / dd->rcv_entries.group_size;
 	dd->rcv_entries.ngroups = ngroups / dd->num_rcv_contexts;
 	dd->rcv_entries.nctxt_extra = ngroups -
 		(dd->num_rcv_contexts * dd->rcv_entries.ngroups);
@@ -13551,7 +13554,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		dd_dev_info(
 			dd,
 			"send contexts: chip %d, used %d (kernel %d, ack %d, user %d, vl15 %d)\n",
-			dd->chip_send_contexts,
+			send_contexts,
 			dd->num_send_contexts,
 			dd->sc_sizes[SC_KERNEL].count,
 			dd->sc_sizes[SC_ACK].count,
@@ -13609,7 +13612,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 		write_csr(dd, CCE_INT_MAP + (8 * i), 0);
 
 	/* SendCtxtCreditReturnAddr */
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_RETURN_ADDR, 0);
 
 	/* PIO Send buffers */
@@ -13622,7 +13625,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	/* RcvHdrAddr */
 	/* RcvHdrTailAddr */
 	/* RcvTidFlowTable */
-	for (i = 0; i < dd->chip_rcv_contexts; i++) {
+	for (i = 0; i < chip_rcv_contexts(dd); i++) {
 		write_kctxt_csr(dd, i, RCV_HDR_ADDR, 0);
 		write_kctxt_csr(dd, i, RCV_HDR_TAIL_ADDR, 0);
 		for (j = 0; j < RXE_NUM_TID_FLOWS; j++)
@@ -13630,7 +13633,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 	}
 
 	/* RcvArray */
-	for (i = 0; i < dd->chip_rcv_array_count; i++)
+	for (i = 0; i < chip_rcv_array_count(dd); i++)
 		hfi1_put_tid(dd, i, PT_INVALID_FLUSH, 0, 0);
 
 	/* RcvQPMapTable */
@@ -13788,7 +13791,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 		write_csr(dd, SEND_LOW_PRIORITY_LIST + (8 * i), 0);
 	for (i = 0; i < VL_ARB_HIGH_PRIO_TABLE_SIZE; i++)
 		write_csr(dd, SEND_HIGH_PRIORITY_LIST + (8 * i), 0);
-	for (i = 0; i < dd->chip_send_contexts / NUM_CONTEXTS_PER_SET; i++)
+	for (i = 0; i < chip_send_contexts(dd) / NUM_CONTEXTS_PER_SET; i++)
 		write_csr(dd, SEND_CONTEXT_SET_CTRL + (8 * i), 0);
 	for (i = 0; i < TXE_NUM_32_BIT_COUNTER; i++)
 		write_csr(dd, SEND_COUNTER_ARRAY32 + (8 * i), 0);
@@ -13816,7 +13819,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * TXE Per-Context CSRs
 	 */
-	for (i = 0; i < dd->chip_send_contexts; i++) {
+	for (i = 0; i < chip_send_contexts(dd); i++) {
 		write_kctxt_csr(dd, i, SEND_CTXT_CTRL, 0);
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_CTRL, 0);
 		write_kctxt_csr(dd, i, SEND_CTXT_CREDIT_RETURN_ADDR, 0);
@@ -13834,7 +13837,7 @@ static void reset_txe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * TXE Per-SDMA CSRs
 	 */
-	for (i = 0; i < dd->chip_sdma_engines; i++) {
+	for (i = 0; i < chip_sdma_engines(dd); i++) {
 		write_kctxt_csr(dd, i, SEND_DMA_CTRL, 0);
 		/* SEND_DMA_STATUS read-only */
 		write_kctxt_csr(dd, i, SEND_DMA_BASE_ADDR, 0);
@@ -13967,7 +13970,7 @@ static void reset_rxe_csrs(struct hfi1_devdata *dd)
 	/*
 	 * RXE Kernel and User Per-Context CSRs
 	 */
-	for (i = 0; i < dd->chip_rcv_contexts; i++) {
+	for (i = 0; i < chip_rcv_contexts(dd); i++) {
 		/* kernel */
 		write_kctxt_csr(dd, i, RCV_CTXT_CTRL, 0);
 		/* RCV_CTXT_STATUS read-only */
@@ -14083,13 +14086,13 @@ static int init_chip(struct hfi1_devdata *dd)
 
 	/* disable send contexts and SDMA engines */
 	write_csr(dd, SEND_CTRL, 0);
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_CTRL, 0);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_CTRL, 0);
 	/* disable port (turn off RXE inbound traffic) and contexts */
 	write_csr(dd, RCV_CTRL, 0);
-	for (i = 0; i < dd->chip_rcv_contexts; i++)
+	for (i = 0; i < chip_rcv_contexts(dd); i++)
 		write_csr(dd, RCV_CTXT_CTRL, 0);
 	/* mask all interrupt sources */
 	for (i = 0; i < CCE_NUM_INT_CSRS; i++)
@@ -14708,9 +14711,9 @@ static void init_txe(struct hfi1_devdata *dd)
 	write_csr(dd, SEND_EGRESS_ERR_MASK, ~0ull);
 
 	/* enable all per-context and per-SDMA engine errors */
-	for (i = 0; i < dd->chip_send_contexts; i++)
+	for (i = 0; i < chip_send_contexts(dd); i++)
 		write_kctxt_csr(dd, i, SEND_CTXT_ERR_MASK, ~0ull);
-	for (i = 0; i < dd->chip_sdma_engines; i++)
+	for (i = 0; i < chip_sdma_engines(dd); i++)
 		write_kctxt_csr(dd, i, SEND_DMA_ENG_ERR_MASK, ~0ull);
 
 	/* set the local CU to AU mapping */
@@ -14978,11 +14981,13 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		"Functional simulator"
 	};
 	struct pci_dev *parent = pdev->bus->self;
+	u32 sdma_engines;
 
 	dd = hfi1_alloc_devdata(pdev, NUM_IB_PORTS *
 				sizeof(struct hfi1_pportdata));
 	if (IS_ERR(dd))
 		goto bail;
+	sdma_engines = chip_sdma_engines(dd);
 	ppd = dd->pport;
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		int vl;
@@ -15080,11 +15085,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* give a reasonable active value, will be set on link up */
 	dd->pport->link_speed_active = OPA_LINK_SPEED_25G;
 
-	dd->chip_rcv_contexts = read_csr(dd, RCV_CONTEXTS);
-	dd->chip_send_contexts = read_csr(dd, SEND_CONTEXTS);
-	dd->chip_sdma_engines = read_csr(dd, SEND_DMA_ENGINES);
-	dd->chip_pio_mem_size = read_csr(dd, SEND_PIO_MEM_SIZE);
-	dd->chip_sdma_mem_size = read_csr(dd, SEND_DMA_MEM_SIZE);
 	/* fix up link widths for emulation _p */
 	ppd = dd->pport;
 	if (dd->icode == ICODE_FPGA_EMULATION && is_emulator_p(dd)) {
@@ -15095,11 +15095,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 				OPA_LINK_WIDTH_1X;
 	}
 	/* insure num_vls isn't larger than number of sdma engines */
-	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > dd->chip_sdma_engines) {
+	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > sdma_engines) {
 		dd_dev_err(dd, "num_vls %u too large, using %u VLs\n",
-			   num_vls, dd->chip_sdma_engines);
-		num_vls = dd->chip_sdma_engines;
-		ppd->vls_supported = dd->chip_sdma_engines;
+			   num_vls, sdma_engines);
+		num_vls = sdma_engines;
+		ppd->vls_supported = sdma_engines;
 		ppd->vls_operational = ppd->vls_supported;
 	}
 

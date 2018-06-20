@@ -656,6 +656,36 @@ static inline void write_uctxt_csr(struct hfi1_devdata *dd, int ctxt,
 	write_csr(dd, offset0 + (0x1000 * ctxt), value);
 }
 
+static inline u32 chip_rcv_contexts(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, RCV_CONTEXTS);
+}
+
+static inline u32 chip_send_contexts(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_CONTEXTS);
+}
+
+static inline u32 chip_sdma_engines(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_DMA_ENGINES);
+}
+
+static inline u32 chip_pio_mem_size(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_PIO_MEM_SIZE);
+}
+
+static inline u32 chip_sdma_mem_size(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_DMA_MEM_SIZE);
+}
+
+static inline u32 chip_rcv_array_count(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, RCV_ARRAY_CNT);
+}
+
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 	       u32 dw_len);
 

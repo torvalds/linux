@@ -1059,8 +1059,6 @@ struct hfi1_devdata {
 	dma_addr_t                          sdma_pad_phys;
 	/* for deallocation */
 	size_t                              sdma_heads_size;
-	/* number from the chip */
-	u32                                 chip_sdma_engines;
 	/* num used */
 	u32                                 num_sdma;
 	/* array of engines sized by num_sdma */
@@ -1140,19 +1138,6 @@ struct hfi1_devdata {
 	u64 revision;
 	/* Base GUID for device (network order) */
 	u64 base_guid;
-
-	/* these are the "32 bit" regs */
-
-	/* number of receive contexts the chip supports */
-	u32 chip_rcv_contexts;
-	/* number of receive array entries */
-	u32 chip_rcv_array_count;
-	/* number of PIO send contexts the chip supports */
-	u32 chip_send_contexts;
-	/* number of bytes in the PIO memory buffer */
-	u32 chip_pio_mem_size;
-	/* number of bytes in the SDMA memory buffer */
-	u32 chip_sdma_mem_size;
 
 	/* both sides of the PCIe link are gen3 capable */
 	u8 link_gen3_capable;
