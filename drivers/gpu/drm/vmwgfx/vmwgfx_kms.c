@@ -1433,19 +1433,6 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct ttm_base_object *user_obj;
 	int ret;
 
-	/**
-	 * This code should be conditioned on Screen Objects not being used.
-	 * If screen objects are used, we can allocate a GMR to hold the
-	 * requested framebuffer.
-	 */
-
-	if (!vmw_kms_validate_mode_vram(dev_priv,
-					mode_cmd->pitches[0],
-					mode_cmd->height)) {
-		DRM_ERROR("Requested mode exceed bounding box limit.\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
 	/*
 	 * Take a reference on the user object of the resource
 	 * backing the kms fb. This ensures that user-space handle
