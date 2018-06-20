@@ -2885,7 +2885,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_remove_block_group(trans, fs_info, chunk_offset, em);
+	ret = btrfs_remove_block_group(trans, chunk_offset, em);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
