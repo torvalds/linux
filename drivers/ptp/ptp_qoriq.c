@@ -374,7 +374,7 @@ static int qoriq_ptp_probe(struct platform_device *dev)
 		pr_err("ioremap ptp registers failed\n");
 		goto no_ioremap;
 	}
-	getnstimeofday64(&now);
+	ktime_get_real_ts64(&now);
 	ptp_qoriq_settime(&qoriq_ptp->caps, &now);
 
 	tmr_ctrl =

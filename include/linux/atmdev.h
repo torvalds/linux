@@ -214,6 +214,7 @@ struct atmphy_ops {
 struct atm_skb_data {
 	struct atm_vcc	*vcc;		/* ATM VCC */
 	unsigned long	atm_options;	/* ATM layer options */
+	unsigned int	acct_truesize;  /* truesize accounted to vcc */
 };
 
 #define VCC_HTABLE_SIZE 32
@@ -241,6 +242,20 @@ void vcc_insert_socket(struct sock *sk);
 
 void atm_dev_release_vccs(struct atm_dev *dev);
 
+static inline void atm_account_tx(struct atm_vcc *vcc, struct sk_buff *skb)
+{
+	/*
+	 * Because ATM skbs may not belong to a sock (and we don't
+	 * necessarily want to), skb->truesize may be adjusted,
+	 * escaping the hack in pskb_expand_head() which avoids
+	 * doing so for some cases. So stash the value of truesize
+	 * at the time we accounted it, and atm_pop_raw() can use
+	 * that value later, in case it changes.
+	 */
+	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
+	ATM_SKB(skb)->acct_truesize = skb->truesize;
+	ATM_SKB(skb)->atm_options = vcc->atm_options;
+}
 
 static inline void atm_force_charge(struct atm_vcc *vcc,int truesize)
 {

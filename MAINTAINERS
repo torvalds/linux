@@ -9751,6 +9751,11 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/NCR_D700.*
 
+NCSI LIBRARY:
+M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
+S:	Maintained
+F:	net/ncsi/
+
 NCT6775 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
