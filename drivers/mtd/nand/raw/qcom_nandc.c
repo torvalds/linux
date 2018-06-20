@@ -2325,15 +2325,8 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 	bool wide_bus;
 	int ecc_mode = 1;
 
-	/*
-	 * the controller requires each step consists of 512 bytes of data.
-	 * bail out if DT has populated a wrong step size.
-	 */
-	if (ecc->size != NANDC_STEP_SIZE) {
-		dev_err(nandc->dev, "invalid ecc size\n");
-		return -EINVAL;
-	}
-
+	/* controller only supports 512 bytes data steps */
+	ecc->size = NANDC_STEP_SIZE;
 	wide_bus = chip->options & NAND_BUSWIDTH_16 ? true : false;
 
 	if (ecc->strength >= 8) {
