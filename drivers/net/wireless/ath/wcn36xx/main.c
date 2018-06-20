@@ -567,6 +567,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				key_conf->keyidx,
 				key_conf->keylen,
 				key);
+
 			if ((WLAN_CIPHER_SUITE_WEP40 == key_conf->cipher) ||
 			    (WLAN_CIPHER_SUITE_WEP104 == key_conf->cipher)) {
 				sta_priv->is_data_encrypted = true;
@@ -984,6 +985,7 @@ static int wcn36xx_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wcn->conf_mutex);
 
 	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
+	INIT_LIST_HEAD(&vif_priv->sta_list);
 	list_add(&vif_priv->list, &wcn->vif_list);
 	wcn36xx_smd_add_sta_self(wcn, vif);
 
@@ -1005,6 +1007,8 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	spin_lock_init(&sta_priv->ampdu_lock);
 	sta_priv->vif = vif_priv;
+	list_add(&sta_priv->list, &vif_priv->sta_list);
+
 	/*
 	 * For STA mode HW will be configured on BSS_CHANGED_ASSOC because
 	 * at this stage AID is not available yet.
@@ -1032,6 +1036,7 @@ static int wcn36xx_sta_remove(struct ieee80211_hw *hw,
 
 	mutex_lock(&wcn->conf_mutex);
 
+	list_del(&sta_priv->list);
 	wcn36xx_smd_delete_sta(wcn, sta_priv->sta_index);
 	sta_priv->vif = NULL;
 
