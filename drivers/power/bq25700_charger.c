@@ -2015,9 +2015,10 @@ static int bq25700_probe(struct i2c_client *client,
 	}
 
 	bq25700_parse_dt(charger);
-
-	bq25700_init_usb(charger);
 	bq25700_init_sysfs(charger);
+
+	bq25700_power_supply_init(charger);
+	bq25700_init_usb(charger);
 
 	if (client->irq < 0) {
 		dev_err(dev, "No irq resource found.\n");
@@ -2039,7 +2040,6 @@ static int bq25700_probe(struct i2c_client *client,
 		goto irq_fail;
 	enable_irq_wake(client->irq);
 
-	bq25700_power_supply_init(charger);
 	bq25700_charger = charger;
 
 irq_fail:
