@@ -1998,7 +1998,6 @@ static int insert_extent_backref(struct btrfs_trans_handle *trans,
 }
 
 static int remove_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info,
 				 struct btrfs_path *path,
 				 struct btrfs_extent_inline_ref *iref,
 				 int refs_to_drop, int is_data, int *last_ref)
@@ -2014,7 +2013,7 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 					     last_ref);
 	} else {
 		*last_ref = 1;
-		ret = btrfs_del_item(trans, fs_info->extent_root, path);
+		ret = btrfs_del_item(trans, trans->fs_info->extent_root, path);
 	}
 	return ret;
 }
@@ -6896,7 +6895,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 #endif
 		if (!found_extent) {
 			BUG_ON(iref);
-			ret = remove_extent_backref(trans, info, path, NULL,
+			ret = remove_extent_backref(trans, path, NULL,
 						    refs_to_drop,
 						    is_data, &last_ref);
 			if (ret) {
@@ -7040,9 +7039,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			btrfs_mark_buffer_dirty(leaf);
 		}
 		if (found_extent) {
-			ret = remove_extent_backref(trans, info, path,
-						    iref, refs_to_drop,
-						    is_data, &last_ref);
+			ret = remove_extent_backref(trans, path, iref,
+						    refs_to_drop, is_data,
+						    &last_ref);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				goto out;
