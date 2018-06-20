@@ -6899,8 +6899,8 @@ static int task_hot(struct task_struct *p, struct lb_env *env)
 static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 {
 	struct numa_group *numa_group = rcu_dereference(p->numa_group);
-	unsigned long src_faults, dst_faults;
-	int src_nid, dst_nid;
+	unsigned long src_weight, dst_weight;
+	int src_nid, dst_nid, dist;
 
 	if (!static_branch_likely(&sched_numa_balancing))
 		return -1;
@@ -6927,18 +6927,19 @@ static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 		return 0;
 
 	/* Leaving a core idle is often worse than degrading locality. */
-	if (env->idle != CPU_NOT_IDLE)
+	if (env->idle == CPU_IDLE)
 		return -1;
 
+	dist = node_distance(src_nid, dst_nid);
 	if (numa_group) {
-		src_faults = group_faults(p, src_nid);
-		dst_faults = group_faults(p, dst_nid);
+		src_weight = group_weight(p, src_nid, dist);
+		dst_weight = group_weight(p, dst_nid, dist);
 	} else {
-		src_faults = task_faults(p, src_nid);
-		dst_faults = task_faults(p, dst_nid);
+		src_weight = task_weight(p, src_nid, dist);
+		dst_weight = task_weight(p, dst_nid, dist);
 	}
 
-	return dst_faults < src_faults;
+	return dst_weight < src_weight;
 }
 
 #else
