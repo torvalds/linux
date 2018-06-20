@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/libata.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #define DRV_NAME "pata_imx"

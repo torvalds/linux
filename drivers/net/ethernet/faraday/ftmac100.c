@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/mii.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 
