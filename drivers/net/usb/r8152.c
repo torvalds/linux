@@ -1252,6 +1252,7 @@ static void read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct rx_agg *agg;
 	struct r8152 *tp;
+	unsigned long flags;
 
 	agg = urb->context;
 	if (!agg)
@@ -1281,9 +1282,9 @@ static void read_bulk_callback(struct urb *urb)
 		if (urb->actual_length < ETH_ZLEN)
 			break;
 
-		spin_lock(&tp->rx_lock);
+		spin_lock_irqsave(&tp->rx_lock, flags);
 		list_add_tail(&agg->list, &tp->rx_done);
-		spin_unlock(&tp->rx_lock);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
 		napi_schedule(&tp->napi);
 		return;
 	case -ESHUTDOWN:
@@ -1311,6 +1312,7 @@ static void write_bulk_callback(struct urb *urb)
 	struct net_device *netdev;
 	struct tx_agg *agg;
 	struct r8152 *tp;
+	unsigned long flags;
 	int status = urb->status;
 
 	agg = urb->context;
@@ -1332,9 +1334,9 @@ static void write_bulk_callback(struct urb *urb)
 		stats->tx_bytes += agg->skb_len;
 	}
 
-	spin_lock(&tp->tx_lock);
+	spin_lock_irqsave(&tp->tx_lock, flags);
 	list_add_tail(&agg->list, &tp->tx_free);
-	spin_unlock(&tp->tx_lock);
+	spin_unlock_irqrestore(&tp->tx_lock, flags);
 
 	usb_autopm_put_interface_async(tp->intf);
 
