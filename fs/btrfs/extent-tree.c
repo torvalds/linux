@@ -2565,9 +2565,10 @@ static int cleanup_extent_op(struct btrfs_trans_handle *trans,
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_head *head)
 {
+
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	int ret;
 
@@ -2722,7 +2723,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		 * up and move on to the next ref_head.
 		 */
 		if (!ref) {
-			ret = cleanup_ref_head(trans, fs_info, locked_ref);
+			ret = cleanup_ref_head(trans, locked_ref);
 			if (ret > 0 ) {
 				/* We dropped our lock, we need to loop. */
 				ret = 0;
