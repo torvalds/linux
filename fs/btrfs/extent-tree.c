@@ -1304,13 +1304,12 @@ fail:
 }
 
 static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
-					   struct btrfs_fs_info *fs_info,
 					   struct btrfs_path *path,
 					   u64 bytenr, u64 parent,
 					   u64 root_objectid, u64 owner,
 					   u64 offset, int refs_to_add)
 {
-	struct btrfs_root *root = fs_info->extent_root;
+	struct btrfs_root *root = trans->fs_info->extent_root;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	u32 size;
@@ -2002,9 +2001,9 @@ static int insert_extent_backref(struct btrfs_trans_handle *trans,
 		ret = insert_tree_block_ref(trans, path, bytenr, parent,
 					    root_objectid);
 	} else {
-		ret = insert_extent_data_ref(trans, fs_info, path, bytenr,
-					     parent, root_objectid,
-					     owner, offset, refs_to_add);
+		ret = insert_extent_data_ref(trans, path, bytenr, parent,
+					     root_objectid, owner, offset,
+					     refs_to_add);
 	}
 	return ret;
 }
