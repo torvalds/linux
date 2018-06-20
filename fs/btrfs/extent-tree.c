@@ -4527,9 +4527,9 @@ static u64 get_profile_num_devs(struct btrfs_fs_info *fs_info, u64 type)
  * for allocating a chunk, otherwise if it's false, reserve space necessary for
  * removing a chunk.
  */
-void check_system_chunk(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u64 type)
+void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_space_info *info;
 	u64 left;
 	u64 thresh;
@@ -4668,7 +4668,7 @@ again:
 	 * Check if we have enough space in SYSTEM chunk because we may need
 	 * to update devices.
 	 */
-	check_system_chunk(trans, fs_info, flags);
+	check_system_chunk(trans, flags);
 
 	ret = btrfs_alloc_chunk(trans, flags);
 	trans->allocating_chunk = false;
@@ -9493,7 +9493,7 @@ out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
 		alloc_flags = update_block_group_flags(fs_info, cache->flags);
 		mutex_lock(&fs_info->chunk_mutex);
-		check_system_chunk(trans, fs_info, alloc_flags);
+		check_system_chunk(trans, alloc_flags);
 		mutex_unlock(&fs_info->chunk_mutex);
 	}
 	mutex_unlock(&fs_info->ro_block_group_mutex);

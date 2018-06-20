@@ -2829,7 +2829,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	}
 	map = em->map_lookup;
 	mutex_lock(&fs_info->chunk_mutex);
-	check_system_chunk(trans, fs_info, map->type);
+	check_system_chunk(trans, map->type);
 	mutex_unlock(&fs_info->chunk_mutex);
 
 	/*

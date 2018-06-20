@@ -2821,8 +2821,7 @@ int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 int btrfs_start_write_no_snapshotting(struct btrfs_root *root);
 void btrfs_end_write_no_snapshotting(struct btrfs_root *root);
 void btrfs_wait_for_snapshot_creation(struct btrfs_root *root);
-void check_system_chunk(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, const u64 type);
+void check_system_chunk(struct btrfs_trans_handle *trans, const u64 type);
 u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
 		       u64 start, u64 end);
 
