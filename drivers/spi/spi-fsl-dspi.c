@@ -943,11 +943,23 @@ static int dspi_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(dspi_pm, dspi_suspend, dspi_resume);
 
+static const struct regmap_range dspi_volatile_ranges[] = {
+	regmap_reg_range(SPI_MCR, SPI_TCR),
+	regmap_reg_range(SPI_SR, SPI_SR),
+	regmap_reg_range(SPI_PUSHR, SPI_RXFR3),
+};
+
+static const struct regmap_access_table dspi_volatile_table = {
+	.yes_ranges     = dspi_volatile_ranges,
+	.n_yes_ranges   = ARRAY_SIZE(dspi_volatile_ranges),
+};
+
 static const struct regmap_config dspi_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0x88,
+	.volatile_table = &dspi_volatile_table,
 };
 
 static void dspi_init(struct fsl_dspi *dspi)
