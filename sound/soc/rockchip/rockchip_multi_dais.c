@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <sound/pcm_params.h>
@@ -20,6 +21,7 @@
 #define BITCLOCK_MASTER_STR	"bitclock-master"
 #define FRAME_MASTER_STR	"frame-master"
 #define DAIS_DRV_NAME		"rockchip-mdais"
+#define RK3308_GRF_SOC_CON2	0x308
 
 static inline struct rk_mdais_dev *to_info(struct snd_soc_dai *dai)
 {
@@ -169,6 +171,7 @@ static const struct snd_soc_component_driver rockchip_mdais_component = {
 
 static const struct of_device_id rockchip_mdais_match[] = {
 	{ .compatible = "rockchip,multi-dais", },
+	{ .compatible = "rockchip,rk3308-multi-dais", },
 	{},
 };
 
@@ -417,6 +420,36 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 
 	mdais_parse_daifmt(np, dais, count);
 	mdais_fixup_dai(soc_dai, mdais);
+
+	if (of_device_is_compatible(np, "rockchip,rk3308-multi-dais")) {
+		struct regmap *grf;
+		const char *name;
+		unsigned int i2s0_fmt = 0, i2s1_fmt = 0;
+
+		for (i = 0; i < count; i++) {
+			name = dev_name(dais[i].dev);
+			if (strstr(name, "ff300000"))
+				i2s0_fmt = dais[i].fmt;
+			else if (strstr(name, "ff310000"))
+				i2s1_fmt = dais[i].fmt;
+		}
+		i2s0_fmt &= SND_SOC_DAIFMT_MASTER_MASK;
+		i2s1_fmt &= SND_SOC_DAIFMT_MASTER_MASK;
+
+		if ((i2s0_fmt == SND_SOC_DAIFMT_CBS_CFS &&
+		     i2s1_fmt == SND_SOC_DAIFMT_CBM_CFM) ||
+		    (i2s0_fmt == SND_SOC_DAIFMT_CBM_CFM &&
+		     i2s1_fmt == SND_SOC_DAIFMT_CBS_CFS)) {
+			grf = syscon_regmap_lookup_by_phandle(np,
+							      "rockchip,grf");
+			if (IS_ERR(grf))
+				return PTR_ERR(grf);
+
+			dev_info(&pdev->dev, "enable i2s 16ch ctrl en\n");
+			regmap_write(grf, RK3308_GRF_SOC_CON2,
+				     BIT(14) << 16 | BIT(14));
+		}
+	}
 
 	mdais->dais = dais;
 	mdais->dev = &pdev->dev;

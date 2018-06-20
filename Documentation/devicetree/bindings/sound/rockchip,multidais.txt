@@ -2,6 +2,7 @@ ROCKCHIP multi dais driver
 
 Required properties:
 - compatible: "rockchip,multi-dais"
+  - "rockchip,rk3308-multi-dais"
 - dais: The phandle of sub dais, such i2s, pdm etc.
 - capture,channel-mapping: map channels, one for each in dais,
   capture,channel-mapping = <2 6> means:
@@ -9,6 +10,15 @@ Required properties:
 - playback,channel-mapping: map channels, one for each in dais.
   playback,channel-mapping = <4 4> means:
   i2s 4ch + pdm 4ch --> total 8ch playback.
+
+Required properties for i2s 16ch:
+- rockchip,grf: the phandle of the syscon node for GRF register.
+
+Optional properties:
+- frame-master: bool properties, frame master, one for each in dais.
+- bitclock-master: bool properties, bit clock master, one for each in dais.
+- bitclock-inversion: bool properties, bit clock inversion, one for each in dais.
+- frame-inversion: bool properties, frame clock inversion, one for each in dais.
 
 Example:
 
@@ -18,6 +28,11 @@ multi_dais: multi-dais {
 	dais = <&i2s_8ch_2>, <&pdm_8ch>;
 	capture,channel-mapping = <2 6>;
 	playback,channel-mapping = <4 4>;
+	bitclock-master = <1 0>;
+	frame-master = <1 0>;
+	bitclock-inversion = <0 0>;
+	frame-inversion = <0 0>;
+	rockchip,grf = <&grf>;
 };
 
 &i2s_8ch_2 {
