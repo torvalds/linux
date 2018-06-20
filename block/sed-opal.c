@@ -877,7 +877,7 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 		return 0;
 	}
 
-	if (n > resp->num) {
+	if (n >= resp->num) {
 		pr_debug("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;
@@ -899,7 +899,7 @@ static u64 response_get_u64(const struct parsed_resp *resp, int n)
 		return 0;
 	}
 
-	if (n > resp->num) {
+	if (n >= resp->num) {
 		pr_debug("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;
