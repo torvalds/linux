@@ -66,10 +66,14 @@ struct rpmh_request {
 /**
  * struct rpmh_ctrlr: our representation of the controller
  *
- * @drv: the controller instance
+ * @cache: the list of cached requests
+ * @cache_lock: synchronize access to the cache data
+ * @dirty: was the cache updated since flush
  */
 struct rpmh_ctrlr {
-	struct rsc_drv *drv;
+	struct list_head cache;
+	spinlock_t cache_lock;
+	bool dirty;
 };
 
 /**
