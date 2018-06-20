@@ -83,7 +83,7 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
-	bool gb_aware;
+	bool gb_aware; /* user-space is guest-backed aware */
 };
 
 struct vmw_buffer_object {

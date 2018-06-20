@@ -1399,6 +1399,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	struct vmw_surface *srf;
 	int ret;
 	u32 num_layers = 1;
+	u32 sample_count = 1;
 
 	*srf_out = NULL;
 
@@ -1481,11 +1482,15 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	else if (svga3d_flags & SVGA3D_SURFACE_CUBEMAP)
 		num_layers = SVGA3D_MAX_SURFACE_FACES;
 
+	if (srf->flags & SVGA3D_SURFACE_MULTISAMPLE)
+		sample_count = srf->multisample_count;
+
 	srf->res.backup_size   =
-		svga3dsurface_get_serialized_size(srf->format,
-						  srf->base_size,
-						  srf->mip_levels[0],
-						  num_layers);
+		svga3dsurface_get_serialized_size_extended(srf->format,
+							   srf->base_size,
+							   srf->mip_levels[0],
+							   num_layers,
+							   sample_count);
 
 	if (srf->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
 		srf->res.backup_size += sizeof(SVGA3dDXSOState);
@@ -1594,6 +1599,10 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		if (req->quality_level != SVGA3D_MS_QUALITY_NONE)
 			return -EINVAL;
 	}
+
+	if ((svga3d_flags_64 & SVGA3D_SURFACE_MULTISAMPLE) &&
+	    req->base.multisample_count == 0)
+		return -EINVAL;
 
 	if (req->base.mip_levels > DRM_VMW_MAX_MIP_LEVELS)
 		return -EINVAL;

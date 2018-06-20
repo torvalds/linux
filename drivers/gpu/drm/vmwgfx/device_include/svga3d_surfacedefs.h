@@ -1235,6 +1235,26 @@ svga3dsurface_get_serialized_size(SVGA3dSurfaceFormat format,
 	return total_size * num_layers;
 }
 
+/**
+ * svga3dsurface_get_serialized_size_extended - Returns the number of bytes
+ * required for a surface with given parameters. Support for sample count.
+ */
+static inline u32
+svga3dsurface_get_serialized_size_extended(SVGA3dSurfaceFormat format,
+					   surf_size_struct base_level_size,
+					   u32 num_mip_levels,
+					   u32 num_layers,
+					   u32 num_samples)
+{
+	uint64_t total_size =
+		svga3dsurface_get_serialized_size(format,
+						  base_level_size,
+						  num_mip_levels,
+						  num_layers);
+	total_size *= max_t(u32, 1, num_samples);
+
+	return min_t(uint64_t, total_size, (uint64_t)U32_MAX);
+}
 
 /**
  * svga3dsurface_get_pixel_offset - Compute the offset (in bytes) to a pixel
