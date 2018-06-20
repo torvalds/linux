@@ -242,6 +242,10 @@ int nvmet_enable_port(struct nvmet_port *port)
 		return ret;
 	}
 
+	/* If the transport didn't set inline_data_size, then disable it. */
+	if (port->inline_data_size < 0)
+		port->inline_data_size = 0;
+
 	port->enabled = true;
 	return 0;
 }
