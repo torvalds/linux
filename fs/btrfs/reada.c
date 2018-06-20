@@ -355,7 +355,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		dev = bbio->stripes[nzones].dev;
 
 		/* cannot read ahead on missing device. */
-		 if (!dev->bdev)
+		if (!dev->bdev)
 			continue;
 
 		zone = reada_find_zone(dev, logical, bbio);
