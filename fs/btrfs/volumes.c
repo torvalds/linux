@@ -3059,7 +3059,7 @@ static int btrfs_may_alloc_data_chunk(struct btrfs_fs_info *fs_info,
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 
-			ret = btrfs_force_chunk_alloc(trans, fs_info,
+			ret = btrfs_force_chunk_alloc(trans,
 						      BTRFS_BLOCK_GROUP_DATA);
 			btrfs_end_transaction(trans);
 			if (ret < 0)
