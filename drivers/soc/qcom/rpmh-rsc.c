@@ -110,6 +110,12 @@ static struct tcs_group *get_tcs_for_msg(struct rsc_drv *drv,
 	case RPMH_ACTIVE_ONLY_STATE:
 		type = ACTIVE_TCS;
 		break;
+	case RPMH_WAKE_ONLY_STATE:
+		type = WAKE_TCS;
+		break;
+	case RPMH_SLEEP_STATE:
+		type = SLEEP_TCS;
+		break;
 	default:
 		return ERR_PTR(-EINVAL);
 	}
@@ -349,6 +355,108 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	return ret;
 }
 
+static int find_match(const struct tcs_group *tcs, const struct tcs_cmd *cmd,
+		      int len)
+{
+	int i, j;
+
+	/* Check for already cached commands */
+	for_each_set_bit(i, tcs->slots, MAX_TCS_SLOTS) {
+		if (tcs->cmd_cache[i] != cmd[0].addr)
+			continue;
+		if (i + len >= tcs->num_tcs * tcs->ncpt)
+			goto seq_err;
+		for (j = 0; j < len; j++) {
+			if (tcs->cmd_cache[i + j] != cmd[j].addr)
+				goto seq_err;
+		}
+		return i;
+	}
+
+	return -ENODATA;
+
+seq_err:
+	WARN(1, "Message does not match previous sequence.\n");
+	return -EINVAL;
+}
+
+static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
+		      int *tcs_id, int *cmd_id)
+{
+	int slot, offset;
+	int i = 0;
+
+	/* Find if we already have the msg in our TCS */
+	slot = find_match(tcs, msg->cmds, msg->num_cmds);
+	if (slot >= 0)
+		goto copy_data;
+
+	/* Do over, until we can fit the full payload in a TCS */
+	do {
+		slot = bitmap_find_next_zero_area(tcs->slots, MAX_TCS_SLOTS,
+						  i, msg->num_cmds, 0);
+		if (slot == tcs->num_tcs * tcs->ncpt)
+			return -ENOMEM;
+		i += tcs->ncpt;
+	} while (slot + msg->num_cmds - 1 >= i);
+
+copy_data:
+	bitmap_set(tcs->slots, slot, msg->num_cmds);
+	/* Copy the addresses of the resources over to the slots */
+	for (i = 0; i < msg->num_cmds; i++)
+		tcs->cmd_cache[slot + i] = msg->cmds[i].addr;
+
+	offset = slot / tcs->ncpt;
+	*tcs_id = offset + tcs->offset;
+	*cmd_id = slot % tcs->ncpt;
+
+	return 0;
+}
+
+static int tcs_ctrl_write(struct rsc_drv *drv, const struct tcs_request *msg)
+{
+	struct tcs_group *tcs;
+	int tcs_id = 0, cmd_id = 0;
+	unsigned long flags;
+	int ret;
+
+	tcs = get_tcs_for_msg(drv, msg);
+	if (IS_ERR(tcs))
+		return PTR_ERR(tcs);
+
+	spin_lock_irqsave(&tcs->lock, flags);
+	/* find the TCS id and the command in the TCS to write to */
+	ret = find_slots(tcs, msg, &tcs_id, &cmd_id);
+	if (!ret)
+		__tcs_buffer_write(drv, tcs_id, cmd_id, msg);
+	spin_unlock_irqrestore(&tcs->lock, flags);
+
+	return ret;
+}
+
+/**
+ * rpmh_rsc_write_ctrl_data: Write request to the controller
+ *
+ * @drv: the controller
+ * @msg: the data to be written to the controller
+ *
+ * There is no response returned for writing the request to the controller.
+ */
+int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
+{
+	if (!msg || !msg->cmds || !msg->num_cmds ||
+	    msg->num_cmds > MAX_RPMH_PAYLOAD) {
+		pr_err("Payload error\n");
+		return -EINVAL;
+	}
+
+	/* Data sent to this API will not be sent immediately */
+	if (msg->state == RPMH_ACTIVE_ONLY_STATE)
+		return -EINVAL;
+
+	return tcs_ctrl_write(drv, msg);
+}
+
 static int rpmh_probe_tcs_config(struct platform_device *pdev,
 				 struct rsc_drv *drv)
 {
@@ -424,6 +532,19 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 		tcs->mask = ((1 << tcs->num_tcs) - 1) << st;
 		tcs->offset = st;
 		st += tcs->num_tcs;
+
+		/*
+		 * Allocate memory to cache sleep and wake requests to
+		 * avoid reading TCS register memory.
+		 */
+		if (tcs->type == ACTIVE_TCS)
+			continue;
+
+		tcs->cmd_cache = devm_kcalloc(&pdev->dev,
+					      tcs->num_tcs * ncpt, sizeof(u32),
+					      GFP_KERNEL);
+		if (!tcs->cmd_cache)
+			return -ENOMEM;
 	}
 
 	drv->num_tcs = st;
