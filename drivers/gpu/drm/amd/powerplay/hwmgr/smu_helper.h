@@ -107,7 +107,7 @@ int smu_get_voltage_dependency_table_ppt_v1(
 		struct phm_ppt_v1_clock_voltage_dependency_table *dep_table);
 
 int smu_set_watermarks_for_clocks_ranges(void *wt_table,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+		struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define PHM_FIELD_MASK(reg, field) reg##__##field##_MASK

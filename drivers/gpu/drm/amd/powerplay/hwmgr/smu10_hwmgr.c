@@ -1111,7 +1111,7 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		void *clock_ranges)
 {
 	struct smu10_hwmgr *data = hwmgr->backend;
-	struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
 	Watermarks_t *table = &(data->water_marks_table);
 	int result = 0;
 

@@ -1785,7 +1785,7 @@ static int vega12_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
-	struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_ranges;
 
 	if (!data->registry_data.disable_water_mark &&
 			data->smu_features[GNLD_DPM_DCEFCLK].supported &&

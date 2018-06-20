@@ -4197,7 +4197,7 @@ static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 							void *clock_range)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
-	struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_range;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_range;
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	int result = 0;
 
