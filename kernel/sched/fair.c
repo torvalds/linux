@@ -2170,8 +2170,6 @@ static void task_numa_placement(struct task_struct *p)
 		}
 	}
 
-	update_task_scan_period(p, fault_types[0], fault_types[1]);
-
 	if (p->numa_group) {
 		numa_group_count_active_nodes(p->numa_group);
 		spin_unlock_irq(group_lock);
@@ -2186,6 +2184,8 @@ static void task_numa_placement(struct task_struct *p)
 		if (task_node(p) != p->numa_preferred_nid)
 			numa_migrate_preferred(p);
 	}
+
+	update_task_scan_period(p, fault_types[0], fault_types[1]);
 }
 
 static inline int get_numa_group(struct numa_group *grp)
