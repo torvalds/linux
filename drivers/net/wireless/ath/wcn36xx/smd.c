@@ -1708,12 +1708,20 @@ int wcn36xx_smd_set_stakey(struct wcn36xx *wcn,
 	msg_body.set_sta_key_params.sta_index = sta_index;
 	msg_body.set_sta_key_params.enc_type = enc_type;
 
-	msg_body.set_sta_key_params.key[0].id = keyidx;
-	msg_body.set_sta_key_params.key[0].unicast = 1;
-	msg_body.set_sta_key_params.key[0].direction = WCN36XX_HAL_TX_RX;
-	msg_body.set_sta_key_params.key[0].pae_role = 0;
-	msg_body.set_sta_key_params.key[0].length = keylen;
-	memcpy(msg_body.set_sta_key_params.key[0].key, key, keylen);
+	if (enc_type == WCN36XX_HAL_ED_WEP104 ||
+	    enc_type == WCN36XX_HAL_ED_WEP40) {
+		/* Use bss key for wep (static) */
+		msg_body.set_sta_key_params.def_wep_idx = keyidx;
+		msg_body.set_sta_key_params.wep_type = 0;
+	} else {
+		msg_body.set_sta_key_params.key[0].id = keyidx;
+		msg_body.set_sta_key_params.key[0].unicast = 1;
+		msg_body.set_sta_key_params.key[0].direction = WCN36XX_HAL_TX_RX;
+		msg_body.set_sta_key_params.key[0].pae_role = 0;
+		msg_body.set_sta_key_params.key[0].length = keylen;
+		memcpy(msg_body.set_sta_key_params.key[0].key, key, keylen);
+	}
+
 	msg_body.set_sta_key_params.single_tid_rc = 1;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);

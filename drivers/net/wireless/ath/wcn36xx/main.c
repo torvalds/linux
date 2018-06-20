@@ -493,7 +493,7 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
-	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
+	struct wcn36xx_sta *sta_priv = sta ? wcn36xx_sta_to_priv(sta) : NULL;
 	int ret = 0;
 	u8 key[WLAN_MAX_KEY_LEN];
 
@@ -570,13 +570,16 @@ static int wcn36xx_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 			if ((WLAN_CIPHER_SUITE_WEP40 == key_conf->cipher) ||
 			    (WLAN_CIPHER_SUITE_WEP104 == key_conf->cipher)) {
-				sta_priv->is_data_encrypted = true;
-				wcn36xx_smd_set_stakey(wcn,
-					vif_priv->encrypt_type,
-					key_conf->keyidx,
-					key_conf->keylen,
-					key,
-					get_sta_index(vif, sta_priv));
+				list_for_each_entry(sta_priv,
+						    &vif_priv->sta_list, list) {
+					sta_priv->is_data_encrypted = true;
+					wcn36xx_smd_set_stakey(wcn,
+						vif_priv->encrypt_type,
+						key_conf->keyidx,
+						key_conf->keylen,
+						key,
+						get_sta_index(vif, sta_priv));
+				}
 			}
 		}
 		break;
