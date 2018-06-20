@@ -1115,8 +1115,6 @@ struct hfi1_devdata {
 	/* base receive interrupt timeout, in CSR units */
 	u32 rcv_intr_timeout_csr;
 
-	u32 freezelen; /* max length of freezemsg */
-	u64 __iomem *egrtidbase;
 	spinlock_t sendctrl_lock; /* protect changes to SendCtrl */
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
 	spinlock_t uctxt_lock; /* protect rcd changes */
@@ -1156,10 +1154,6 @@ struct hfi1_devdata {
 	/* number of bytes in the SDMA memory buffer */
 	u32 chip_sdma_mem_size;
 
-	/* size of each rcvegrbuffer */
-	u32 rcvegrbufsize;
-	/* log2 of above */
-	u16 rcvegrbufsize_shift;
 	/* both sides of the PCIe link are gen3 capable */
 	u8 link_gen3_capable;
 	u8 dc_shutdown;

@@ -933,9 +933,6 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 	dd->status = vmalloc_user(PAGE_SIZE);
 	if (!dd->status)
 		dd_dev_err(dd, "Failed to allocate dev status page\n");
-	else
-		dd->freezelen = PAGE_SIZE - (sizeof(*dd->status) -
-					     sizeof(dd->status->freezemsg));
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
 		if (dd->status)
