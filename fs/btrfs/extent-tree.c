@@ -1596,13 +1596,13 @@ static int find_next_key(struct btrfs_path *path, int level,
  */
 static noinline_for_stack
 int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info,
 				 struct btrfs_path *path,
 				 struct btrfs_extent_inline_ref **ref_ret,
 				 u64 bytenr, u64 num_bytes,
 				 u64 parent, u64 root_objectid,
 				 u64 owner, u64 offset, int insert)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root = fs_info->extent_root;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
@@ -1868,9 +1868,9 @@ static int lookup_extent_backref(struct btrfs_trans_handle *trans,
 {
 	int ret;
 
-	ret = lookup_inline_extent_backref(trans, fs_info, path, ref_ret,
-					   bytenr, num_bytes, parent,
-					   root_objectid, owner, offset, 0);
+	ret = lookup_inline_extent_backref(trans, path, ref_ret, bytenr,
+					   num_bytes, parent, root_objectid,
+					   owner, offset, 0);
 	if (ret != -ENOENT)
 		return ret;
 
@@ -1972,9 +1972,9 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_inline_ref *iref;
 	int ret;
 
-	ret = lookup_inline_extent_backref(trans, fs_info, path, &iref,
-					   bytenr, num_bytes, parent,
-					   root_objectid, owner, offset, 1);
+	ret = lookup_inline_extent_backref(trans, path, &iref, bytenr,
+					   num_bytes, parent, root_objectid,
+					   owner, offset, 1);
 	if (ret == 0) {
 		BUG_ON(owner < BTRFS_FIRST_FREE_OBJECTID);
 		update_inline_extent_backref(fs_info, path, iref,
