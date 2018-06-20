@@ -137,18 +137,19 @@ micron_nand_read_page_on_die_ecc(struct mtd_info *mtd, struct nand_chip *chip,
 	if (ret)
 		goto out;
 
-	if (status & NAND_STATUS_FAIL)
+	if (status & NAND_STATUS_FAIL) {
 		mtd->ecc_stats.failed++;
-
-	/*
-	 * The internal ECC doesn't tell us the number of bitflips
-	 * that have been corrected, but tells us if it recommends to
-	 * rewrite the block. If it's the case, then we pretend we had
-	 * a number of bitflips equal to the ECC strength, which will
-	 * hint the NAND core to rewrite the block.
-	 */
-	else if (status & NAND_STATUS_WRITE_RECOMMENDED)
+	} else if (status & NAND_STATUS_WRITE_RECOMMENDED) {
+		/*
+		 * The internal ECC doesn't tell us the number of bitflips
+		 * that have been corrected, but tells us if it recommends to
+		 * rewrite the block. If it's the case, then we pretend we had
+		 * a number of bitflips equal to the ECC strength, which will
+		 * hint the NAND core to rewrite the block.
+		 */
+		mtd->ecc_stats.corrected += chip->ecc.strength;
 		max_bitflips = chip->ecc.strength;
+	}
 
 	ret = nand_read_data_op(chip, buf, mtd->writesize, false);
 	if (!ret && oob_required)
