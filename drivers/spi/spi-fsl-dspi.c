@@ -119,8 +119,6 @@
 #define SPI_CS_ASSERT		0x02
 #define SPI_CS_DROP		0x04
 
-#define SPI_TCR_TCNT_MAX	0x10000
-
 #define DMA_COMPLETION_TIMEOUT	msecs_to_jiffies(3000)
 
 struct chip_data {
@@ -201,7 +199,6 @@ struct fsl_dspi {
 	wait_queue_head_t	waitq;
 	u32			waitflags;
 
-	u32			spi_tcnt;
 	struct fsl_dspi_dma	*dma;
 };
 
@@ -594,6 +591,10 @@ static int dspi_eoq_write(struct fsl_dspi *dspi)
 			/* request EOQ flag for last transfer in queue */
 			dspi_pushr |= SPI_PUSHR_EOQ;
 
+		/* Clear transfer counter on first transfer (in FIFO) */
+		if (tx_count == 0)
+			dspi_pushr |= SPI_PUSHR_CTCNT;
+
 		regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
 		tx_count++;
@@ -635,6 +636,9 @@ static int dspi_tcfq_write(struct fsl_dspi *dspi)
 
 	dspi_pushr = dspi_data_to_pushr(dspi, tx_word);
 
+	/* Clear transfer counter on each transfer */
+	dspi_pushr |= SPI_PUSHR_CTCNT;
+
 	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pushr);
 
 	return tx_word + 1;
@@ -658,10 +662,6 @@ static int dspi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *transfer;
 	int status = 0;
 	enum dspi_trans_mode trans_mode;
-	u32 spi_tcr;
-
-	regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
-	dspi->spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
 
 	message->actual_length = 0;
 
@@ -831,7 +831,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	struct spi_message *msg = dspi->cur_msg;
 	enum dspi_trans_mode trans_mode;
 	u32 spi_sr, spi_tcr;
-	u32 spi_tcnt, tcnt_diff;
+	u16 spi_tcnt;
 	int tx_word;
 
 	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
@@ -841,26 +841,15 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	if (spi_sr & (SPI_SR_EOQF | SPI_SR_TCFQF)) {
 		tx_word = is_double_byte_mode(dspi);
 
+		/* Get transfer counter (in number of SPI transfers). It was
+		 * reset to 0 when transfer(s) were started.
+		 */
 		regmap_read(dspi->regmap, SPI_TCR, &spi_tcr);
 		spi_tcnt = SPI_TCR_GET_TCNT(spi_tcr);
-		/*
-		 * The width of SPI Transfer Counter in SPI_TCR is 16bits,
-		 * so the max couner is 65535. When the counter reach 65535,
-		 * it will wrap around, counter reset to zero.
-		 * spi_tcnt my be less than dspi->spi_tcnt, it means the
-		 * counter already wrapped around.
-		 * SPI Transfer Counter is a counter of transmitted frames.
-		 * The size of frame maybe two bytes.
-		 */
-		tcnt_diff = ((spi_tcnt + SPI_TCR_TCNT_MAX) - dspi->spi_tcnt)
-			% SPI_TCR_TCNT_MAX;
-		tcnt_diff *= (tx_word + 1);
-		if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM)
-			tcnt_diff--;
 
-		msg->actual_length += tcnt_diff;
-
-		dspi->spi_tcnt = spi_tcnt;
+		/* Update total number of bytes that were transferred */
+		msg->actual_length += spi_tcnt * (tx_word + 1) -
+			(dspi->dataflags & TRAN_STATE_WORD_ODD_NUM ? 1 : 0);
 
 		trans_mode = dspi->devtype_data->trans_mode;
 		switch (trans_mode) {
