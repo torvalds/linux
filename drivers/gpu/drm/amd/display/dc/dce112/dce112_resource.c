@@ -1000,7 +1000,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[0].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[0].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -1010,7 +1010,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[1].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[1].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[1].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[1].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -1020,7 +1020,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[2].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[2].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[2].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[2].wm_max_mem_clk_in_khz = 5000000;
@@ -1030,7 +1030,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[3].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[3].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_mem_clk_in_khz = 5000000;
