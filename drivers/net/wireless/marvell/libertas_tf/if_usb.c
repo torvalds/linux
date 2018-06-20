@@ -603,6 +603,8 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 				      struct if_usb_card *cardp,
 				      struct lbtf_private *priv)
 {
+	unsigned long flags;
+
 	if (recvlength > LBS_CMD_BUFFER_SIZE) {
 		lbtf_deb_usbd(&cardp->udev->dev,
 			     "The receive buffer is too large\n");
@@ -610,14 +612,12 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 		return;
 	}
 
-	BUG_ON(!in_interrupt());
-
-	spin_lock(&priv->driver_lock);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 	memcpy(priv->cmd_resp_buff, recvbuff + MESSAGE_HEADER_LEN,
 	       recvlength - MESSAGE_HEADER_LEN);
 	kfree_skb(skb);
 	lbtf_cmd_response_rx(priv);
-	spin_unlock(&priv->driver_lock);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 /**
