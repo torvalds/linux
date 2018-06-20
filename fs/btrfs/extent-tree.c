@@ -231,9 +231,9 @@ static void free_excluded_extents(struct btrfs_block_group_cache *cache)
 			  start, end, EXTENT_UPTODATE);
 }
 
-static int exclude_super_stripes(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_group_cache *cache)
+static int exclude_super_stripes(struct btrfs_block_group_cache *cache)
 {
+	struct btrfs_fs_info *fs_info = cache->fs_info;
 	u64 bytenr;
 	u64 *logical;
 	int stripe_len;
@@ -10102,7 +10102,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		 * info has super bytes accounted for, otherwise we'll think
 		 * we have more space than we actually do.
 		 */
-		ret = exclude_super_stripes(info, cache);
+		ret = exclude_super_stripes(cache);
 		if (ret) {
 			/*
 			 * We may have excluded something, so call this just in
@@ -10253,7 +10253,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	cache->last_byte_to_unpin = (u64)-1;
 	cache->cached = BTRFS_CACHE_FINISHED;
 	cache->needs_free_space = 1;
-	ret = exclude_super_stripes(fs_info, cache);
+	ret = exclude_super_stripes(cache);
 	if (ret) {
 		/*
 		 * We may have excluded something, so call this just in
