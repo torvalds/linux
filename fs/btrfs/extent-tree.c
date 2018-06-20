@@ -1954,7 +1954,6 @@ void update_inline_extent_backref(struct btrfs_path *path,
 
 static noinline_for_stack
 int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info,
 				 struct btrfs_path *path,
 				 u64 bytenr, u64 num_bytes, u64 parent,
 				 u64 root_objectid, u64 owner,
@@ -1972,7 +1971,7 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 		update_inline_extent_backref(path, iref, refs_to_add,
 					     extent_op, NULL);
 	} else if (ret == -ENOENT) {
-		setup_inline_extent_backref(fs_info, path, iref, parent,
+		setup_inline_extent_backref(trans->fs_info, path, iref, parent,
 					    root_objectid, owner, offset,
 					    refs_to_add, extent_op);
 		ret = 0;
@@ -2235,7 +2234,6 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  u64 owner, u64 offset, int refs_to_add,
 				  struct btrfs_delayed_extent_op *extent_op)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *item;
@@ -2252,10 +2250,9 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	path->reada = READA_FORWARD;
 	path->leave_spinning = 1;
 	/* this will setup the path even if it fails to insert the back ref */
-	ret = insert_inline_extent_backref(trans, fs_info, path, bytenr,
-					   num_bytes, parent, root_objectid,
-					   owner, offset,
-					   refs_to_add, extent_op);
+	ret = insert_inline_extent_backref(trans, path, bytenr, num_bytes,
+					   parent, root_objectid, owner,
+					   offset, refs_to_add, extent_op);
 	if ((ret < 0 && ret != -EAGAIN) || !ret)
 		goto out;
 
