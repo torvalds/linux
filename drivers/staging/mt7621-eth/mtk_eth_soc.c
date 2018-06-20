@@ -1822,10 +1822,9 @@ static int __init mtk_init(struct net_device *dev)
 
 	/* If the mac address is invalid, use random mac address  */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		dev_err(eth->dev, "generated random MAC address %pM\n",
 			dev->dev_addr);
-		dev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	mac->hw->soc->set_mac(mac, dev->dev_addr);
 
