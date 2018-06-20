@@ -2487,10 +2487,9 @@ EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
  * power domain corresponding to a DT node's "required-opps" property.
  *
  * @dev: Device for which the performance-state needs to be found.
- * @opp_node: DT node where the "required-opps" property is present. This can be
+ * @np: DT node where the "required-opps" property is present. This can be
  *	the device node itself (if it doesn't have an OPP table) or a node
  *	within the OPP table of a device (if device has an OPP table).
- * @state: Pointer to return performance state.
  *
  * Returns performance state corresponding to the "required-opps" property of
  * a DT node. This calls platform specific genpd->opp_to_performance_state()
@@ -2499,7 +2498,7 @@ EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
  * Returns performance state on success and 0 on failure.
  */
 unsigned int of_genpd_opp_to_performance_state(struct device *dev,
-					       struct device_node *opp_node)
+					       struct device_node *np)
 {
 	struct generic_pm_domain *genpd;
 	struct dev_pm_opp *opp;
@@ -2514,7 +2513,7 @@ unsigned int of_genpd_opp_to_performance_state(struct device *dev,
 
 	genpd_lock(genpd);
 
-	opp = of_dev_pm_opp_find_required_opp(&genpd->dev, opp_node);
+	opp = of_dev_pm_opp_find_required_opp(&genpd->dev, np);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "Failed to find required OPP: %ld\n",
 			PTR_ERR(opp));
