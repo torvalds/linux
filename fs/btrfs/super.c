@@ -760,6 +760,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_recovery:
 			btrfs_warn(info,
 				   "'recovery' is deprecated, use 'usebackuproot' instead");
+			/* fall through */
 		case Opt_usebackuproot:
 			btrfs_info(info,
 				   "trying to use backup root at mount time");
