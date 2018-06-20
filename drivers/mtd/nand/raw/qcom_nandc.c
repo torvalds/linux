@@ -1611,13 +1611,24 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 			int ret, ecclen, extraooblen;
 			void *eccbuf;
 
-			/* ignore erased codeword errors */
+			/*
+			 * For BCH ECC, ignore erased codeword errors, if
+			 * ERASED_CW bits are set.
+			 */
 			if (host->bch_enabled) {
 				erased = (erased_cw & ERASED_CW) == ERASED_CW ?
 					 true : false;
-			} else {
+			/*
+			 * For RS ECC, HW reports the erased CW by placing
+			 * special characters at certain offsets in the buffer.
+			 * These special characters will be valid only if
+			 * complete page is read i.e. data_buf is not NULL.
+			 */
+			} else if (data_buf) {
 				erased = erased_chunk_check_and_fixup(data_buf,
 								      data_len);
+			} else {
+				erased = false;
 			}
 
 			if (erased) {
@@ -1665,7 +1676,8 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 			max_bitflips = max(max_bitflips, stat);
 		}
 
-		data_buf += data_len;
+		if (data_buf)
+			data_buf += data_len;
 		if (oob_buf)
 			oob_buf += oob_len + ecc->bytes;
 	}
