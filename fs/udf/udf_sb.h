@@ -138,7 +138,7 @@ struct udf_sb_info {
 	rwlock_t		s_cred_lock;
 
 	/* Root Info */
-	struct timespec		s_record_time;
+	struct timespec64	s_record_time;
 
 	/* Fileset Info */
 	__u16			s_serial_number;

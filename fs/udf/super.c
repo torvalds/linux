@@ -1980,7 +1980,7 @@ static void udf_open_lvid(struct super_block *sb)
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
 	struct logicalVolIntegrityDescImpUse *lvidiu;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!bh)
 		return;
@@ -1992,7 +1992,7 @@ static void udf_open_lvid(struct super_block *sb)
 	mutex_lock(&sbi->s_alloc_mutex);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-	ktime_get_real_ts(&ts);
+	ktime_get_real_ts64(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
 	if (le32_to_cpu(lvid->integrityType) == LVID_INTEGRITY_TYPE_CLOSE)
 		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
@@ -2017,7 +2017,7 @@ static void udf_close_lvid(struct super_block *sb)
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
 	struct logicalVolIntegrityDescImpUse *lvidiu;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!bh)
 		return;
@@ -2029,7 +2029,7 @@ static void udf_close_lvid(struct super_block *sb)
 	mutex_lock(&sbi->s_alloc_mutex);
 	lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-	ktime_get_real_ts(&ts);
+	ktime_get_real_ts64(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
 	if (UDF_MAX_WRITE_VERSION > le16_to_cpu(lvidiu->maxUDFWriteRev))
 		lvidiu->maxUDFWriteRev = cpu_to_le16(UDF_MAX_WRITE_VERSION);

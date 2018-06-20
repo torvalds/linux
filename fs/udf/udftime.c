@@ -41,7 +41,7 @@
 #include <linux/time.h>
 
 void
-udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
+udf_disk_stamp_to_time(struct timespec64 *dest, struct timestamp src)
 {
 	u16 typeAndTimezone = le16_to_cpu(src.typeAndTimezone);
 	u16 year = le16_to_cpu(src.year);
@@ -70,9 +70,9 @@ udf_disk_stamp_to_time(struct timespec *dest, struct timestamp src)
 }
 
 void
-udf_time_to_disk_stamp(struct timestamp *dest, struct timespec ts)
+udf_time_to_disk_stamp(struct timestamp *dest, struct timespec64 ts)
 {
-	long seconds;
+	time64_t seconds;
 	int16_t offset;
 	struct tm tm;
 
