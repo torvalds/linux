@@ -1413,24 +1413,16 @@ static const struct ov5640_mode_info *
 ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 		 int width, int height, bool nearest)
 {
-	const struct ov5640_mode_info *mode = NULL;
-	int i;
+	const struct ov5640_mode_info *mode;
 
-	for (i = OV5640_NUM_MODES - 1; i >= 0; i--) {
-		mode = &ov5640_mode_data[fr][i];
+	mode = v4l2_find_nearest_size(ov5640_mode_data[fr],
+				      ARRAY_SIZE(ov5640_mode_data[fr]),
+				      hact, vact,
+				      width, height);
 
-		if (!mode->reg_data)
-			continue;
-
-		if ((nearest && mode->hact <= width &&
-		     mode->vact <= height) ||
-		    (!nearest && mode->hact == width &&
-		     mode->vact == height))
-			break;
-	}
-
-	if (nearest && i < 0)
-		mode = &ov5640_mode_data[fr][0];
+	if (!mode ||
+	    (!nearest && (mode->hact != width || mode->vact != height)))
+		return NULL;
 
 	return mode;
 }
@@ -2509,8 +2501,14 @@ static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
 
 	sensor->current_fr = frame_rate;
 	sensor->frame_interval = fi->interval;
-	sensor->current_mode = ov5640_find_mode(sensor, frame_rate, mode->hact,
-						mode->vact, true);
+	mode = ov5640_find_mode(sensor, frame_rate, mode->hact,
+				mode->vact, true);
+	if (!mode) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sensor->current_mode = mode;
 	sensor->pending_mode_change = true;
 out:
 	mutex_unlock(&sensor->lock);
