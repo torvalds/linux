@@ -835,11 +835,11 @@ static void init_controller(struct r8a66597 *r8a66597)
 
 		r8a66597_bset(r8a66597, XCKE, SYSCFG0);
 
-		msleep(3);
+		mdelay(3);
 
 		r8a66597_bset(r8a66597, PLLC, SYSCFG0);
 
-		msleep(1);
+		mdelay(1);
 
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
 
