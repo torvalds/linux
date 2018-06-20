@@ -533,6 +533,11 @@ static void rk817_charge_usb_to_sys_enable(struct rk817_charger *charge)
 	rk817_charge_field_write(charge, USB_SYS_EN, ENABLE);
 }
 
+static void rk817_charge_sys_can_sd_disable(struct rk817_charger *charge)
+{
+	rk817_charge_field_write(charge, SYS_CAN_SD, DISABLE);
+}
+
 static int rk817_charge_get_charge_status(struct rk817_charger *charge)
 {
 	int status;
@@ -693,15 +698,18 @@ static void rk817_charge_set_term_current_analog(struct rk817_charger *charge,
 {
 	int value;
 
-	if (chrg_current < 150)
-		chrg_current = 150;
-	if (chrg_current > 400)
-		chrg_current = 400;
+	if (chrg_current < 200)
+		value = CHRG_TERM_150MA;
+	else if (chrg_current < 300)
+		value = CHRG_TERM_200MA;
+	else if (chrg_current < 400)
+		value = CHRG_TERM_300MA;
+	else
+		value = CHRG_TERM_400MA;
 
-	value = (chrg_current - 150) / 50;
 	rk817_charge_field_write(charge,
 				 CHRG_TERM_ANA_SEL,
-				 CHRG_TERM_150MA + value);
+				 value);
 }
 
 static void rk817_charge_set_term_current_digital(struct rk817_charger *charge,
@@ -1257,7 +1265,7 @@ static void rk817_charge_pre_init(struct rk817_charger *charge)
 	rk817_charge_set_chrg_finish_condition(charge);
 
 	rk817_charge_otg_disable(charge);
-
+	rk817_charge_sys_can_sd_disable(charge);
 	rk817_charge_usb_to_sys_enable(charge);
 	rk817_charge_enable_charge(charge);
 
