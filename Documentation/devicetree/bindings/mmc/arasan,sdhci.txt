@@ -39,6 +39,8 @@ Optional Properties:
   - xlnx,fails-without-test-cd: when present, the controller doesn't work when
     the CD line is not connected properly, and the line is not connected
     properly. Test mode can be used to force the controller to function.
+  - xlnx,int-clock-stable-broken: when present, the controller always reports
+    that the internal clock is stable even when it is not.
 
 Example:
 	sdhci@e0100000 {
