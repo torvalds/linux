@@ -92,6 +92,13 @@ struct fsi_slave {
 static const int slave_retries = 2;
 static int discard_errors;
 
+static dev_t fsi_base_dev;
+static DEFINE_IDA(fsi_minor_ida);
+#define FSI_CHAR_MAX_DEVICES	0x1000
+
+/* Legacy /dev numbering: 4 devices per chip, 16 chips */
+#define FSI_CHAR_LEGACY_TOP	64
+
 static int fsi_master_read(struct fsi_master *master, int link,
 		uint8_t slave_id, uint32_t addr, void *val, size_t size);
 static int fsi_master_write(struct fsi_master *master, int link,
@@ -627,6 +634,7 @@ static void fsi_slave_release(struct device *dev)
 {
 	struct fsi_slave *slave = to_fsi_slave(dev);
 
+	fsi_free_minor(slave->dev.devt);
 	of_node_put(dev->of_node);
 	kfree(slave);
 }
@@ -728,6 +736,75 @@ static ssize_t chip_id_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(chip_id);
+
+static char *fsi_cdev_devnode(struct device *dev, umode_t *mode,
+			      kuid_t *uid, kgid_t *gid)
+{
+#ifdef CONFIG_FSI_NEW_DEV_NODE
+	return kasprintf(GFP_KERNEL, "fsi/%s", dev_name(dev));
+#else
+	return kasprintf(GFP_KERNEL, "%s", dev_name(dev));
+#endif
+}
+
+const struct device_type fsi_cdev_type = {
+	.name = "fsi-cdev",
+	.devnode = fsi_cdev_devnode,
+};
+EXPORT_SYMBOL_GPL(fsi_cdev_type);
+
+/* Backward compatible /dev/ numbering in "old style" mode */
+static int fsi_adjust_index(int index)
+{
+#ifdef CONFIG_FSI_NEW_DEV_NODE
+	return index;
+#else
+	return index + 1;
+#endif
+}
+
+static int __fsi_get_new_minor(struct fsi_slave *slave, enum fsi_dev_type type,
+			       dev_t *out_dev, int *out_index)
+{
+	int cid = slave->chip_id;
+	int id;
+
+	/* Check if we qualify for legacy numbering */
+	if (cid >= 0 && cid < 16 && type < 4) {
+		/* Try reserving the legacy number */
+		id = (cid << 4) | type;
+		id = ida_simple_get(&fsi_minor_ida, id, id + 1, GFP_KERNEL);
+		if (id >= 0) {
+			*out_index = fsi_adjust_index(cid);
+			*out_dev = fsi_base_dev + id;
+			return 0;
+		}
+		/* Other failure */
+		if (id != -ENOSPC)
+			return id;
+		/* Fallback to non-legacy allocation */
+	}
+	id = ida_simple_get(&fsi_minor_ida, FSI_CHAR_LEGACY_TOP,
+			    FSI_CHAR_MAX_DEVICES, GFP_KERNEL);
+	if (id < 0)
+		return id;
+	*out_index = fsi_adjust_index(id);
+	*out_dev = fsi_base_dev + id;
+	return 0;
+}
+
+int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
+		      dev_t *out_dev, int *out_index)
+{
+	return __fsi_get_new_minor(fdev->slave, type, out_dev, out_index);
+}
+EXPORT_SYMBOL_GPL(fsi_get_new_minor);
+
+void fsi_free_minor(dev_t dev)
+{
+	ida_simple_remove(&fsi_minor_ida, MINOR(dev));
+}
+EXPORT_SYMBOL_GPL(fsi_free_minor);
 
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
@@ -953,7 +1030,7 @@ static int fsi_slave_remove_device(struct device *dev, void *arg)
 static int fsi_master_remove_slave(struct device *dev, void *arg)
 {
 	device_for_each_child(dev, NULL, fsi_slave_remove_device);
-	device_unregister(dev);
+	put_device(dev);
 	return 0;
 }
 
@@ -1091,13 +1168,27 @@ EXPORT_SYMBOL_GPL(fsi_bus_type);
 
 static int __init fsi_init(void)
 {
-	return bus_register(&fsi_bus_type);
+	int rc;
+
+	rc = alloc_chrdev_region(&fsi_base_dev, 0, FSI_CHAR_MAX_DEVICES, "fsi");
+	if (rc)
+		return rc;
+	rc = bus_register(&fsi_bus_type);
+	if (rc)
+		goto fail_bus;
+	return 0;
+
+ fail_bus:
+	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
+	return rc;
 }
 postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
 	bus_unregister(&fsi_bus_type);
+	unregister_chrdev_region(fsi_base_dev, FSI_CHAR_MAX_DEVICES);
+	ida_destroy(&fsi_minor_ida);
 }
 module_exit(fsi_exit);
 module_param(discard_errors, int, 0664);
