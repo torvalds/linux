@@ -499,22 +499,62 @@ mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
 	mt76x2_phy_set_gain_val(dev);
 }
 
+static int
+mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
+{
+	struct mt76x2_sta *sta;
+	struct mt76_wcid *wcid;
+	int i, j, min_rssi = 0;
+	s8 cur_rssi;
+
+	local_bh_disable();
+	rcu_read_lock();
+
+	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
+		unsigned long mask = dev->wcid_mask[i];
+
+		if (!mask)
+			continue;
+
+		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1) {
+			if (!(mask & 1))
+				continue;
+
+			wcid = rcu_dereference(dev->wcid[j]);
+			if (!wcid)
+				continue;
+
+			sta = container_of(wcid, struct mt76x2_sta, wcid);
+			spin_lock(&dev->mt76.rx_lock);
+			if (sta->inactive_count++ < 5)
+				cur_rssi = ewma_signal_read(&sta->rssi);
+			else
+				cur_rssi = 0;
+			spin_unlock(&dev->mt76.rx_lock);
+
+			if (cur_rssi < min_rssi)
+				min_rssi = cur_rssi;
+		}
+	}
+
+	rcu_read_unlock();
+	local_bh_enable();
+
+	if (!min_rssi)
+		return -75;
+
+	return min_rssi;
+}
+
 static void
 mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 {
-	u32 val = mt76_rr(dev, MT_BBP(AGC, 20));
-	int rssi0 = (s8) FIELD_GET(MT_BBP_AGC20_RSSI0, val);
-	int rssi1 = (s8) FIELD_GET(MT_BBP_AGC20_RSSI1, val);
 	u8 *gain = dev->cal.agc_gain_init;
 	u8 gain_delta;
 	int low_gain;
+	u32 val;
 
-	dev->cal.avg_rssi[0] = (dev->cal.avg_rssi[0] * 15) / 16 +
-			       (rssi0 << 8) / 16;
-	dev->cal.avg_rssi[1] = (dev->cal.avg_rssi[1] * 15) / 16 +
-			       (rssi1 << 8) / 16;
-	dev->cal.avg_rssi_all = (dev->cal.avg_rssi[0] +
-				 dev->cal.avg_rssi[1]) / 512;
+	dev->cal.avg_rssi_all = mt76x2_phy_get_min_avg_rssi(dev);
 
 	low_gain = (dev->cal.avg_rssi_all > mt76x2_get_rssi_gain_thresh(dev)) +
 		   (dev->cal.avg_rssi_all > mt76x2_get_low_rssi_gain_thresh(dev));
