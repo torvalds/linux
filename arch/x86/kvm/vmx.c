@@ -2085,9 +2085,9 @@ static void add_atomic_switch_msr_special(struct vcpu_vmx *vmx,
 }
 
 static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
-				  u64 guest_val, u64 host_val)
+				  u64 guest_val, u64 host_val, bool entry_only)
 {
-	int i, j;
+	int i, j = 0;
 	struct msr_autoload *m = &vmx->msr_autoload;
 
 	switch (msr) {
@@ -2123,7 +2123,9 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	}
 
 	i = find_msr(&m->guest, msr);
-	j = find_msr(&m->host, msr);
+	if (!entry_only)
+		j = find_msr(&m->host, msr);
+
 	if (i == NR_AUTOLOAD_MSRS || j == NR_AUTOLOAD_MSRS) {
 		printk_once(KERN_WARNING "Not enough msr switch entries. "
 				"Can't add msr %x\n", msr);
@@ -2133,12 +2135,16 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 		i = m->guest.nr++;
 		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->guest.nr);
 	}
+	m->guest.val[i].index = msr;
+	m->guest.val[i].value = guest_val;
+
+	if (entry_only)
+		return;
+
 	if (j < 0) {
 		j = m->host.nr++;
 		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->host.nr);
 	}
-	m->guest.val[i].index = msr;
-	m->guest.val[i].value = guest_val;
 	m->host.val[j].index = msr;
 	m->host.val[j].value = host_val;
 }
@@ -2184,7 +2190,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 			guest_efer &= ~EFER_LME;
 		if (guest_efer != host_efer)
 			add_atomic_switch_msr(vmx, MSR_EFER,
-					      guest_efer, host_efer);
+					      guest_efer, host_efer, false);
 		return false;
 	} else {
 		guest_efer &= ~ignore_bits;
@@ -3593,7 +3599,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.ia32_xss = data;
 		if (vcpu->arch.ia32_xss != host_xss)
 			add_atomic_switch_msr(vmx, MSR_IA32_XSS,
-				vcpu->arch.ia32_xss, host_xss);
+				vcpu->arch.ia32_xss, host_xss, false);
 		else
 			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
 		break;
@@ -9517,7 +9523,7 @@ static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
 			clear_atomic_switch_msr(vmx, msrs[i].msr);
 		else
 			add_atomic_switch_msr(vmx, msrs[i].msr, msrs[i].guest,
-					msrs[i].host);
+					msrs[i].host, false);
 }
 
 static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
