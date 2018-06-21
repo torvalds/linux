@@ -174,9 +174,6 @@ struct pciefd_page {
 	u32 size;
 };
 
-#define CANFD_IRQ_SET		0x00000001
-#define CANFD_TX_PATH_SET	0x00000002
-
 /* CAN-FD channel object */
 struct pciefd_board;
 struct pciefd_can {
