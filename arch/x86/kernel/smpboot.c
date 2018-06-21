@@ -321,6 +321,14 @@ bool topology_is_primary_thread(unsigned int cpu)
 }
 
 /**
+ * topology_smt_supported - Check whether SMT is supported by the CPUs
+ */
+bool topology_smt_supported(void)
+{
+	return smp_num_siblings > 1;
+}
+
+/**
  * topology_phys_to_logical_pkg - Map a physical package id to a logical
  *
  * Returns logical package id or -1 if not found
