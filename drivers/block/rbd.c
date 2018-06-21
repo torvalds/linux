@@ -61,7 +61,7 @@ static int atomic_inc_return_safe(atomic_t *v)
 {
 	unsigned int counter;
 
-	counter = (unsigned int)__atomic_add_unless(v, 1, 0);
+	counter = (unsigned int)atomic_fetch_add_unless(v, 1, 0);
 	if (counter <= (unsigned int)INT_MAX)
 		return (int)counter;
 

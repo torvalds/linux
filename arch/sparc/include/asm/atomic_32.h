@@ -27,7 +27,7 @@ int atomic_fetch_or(int, atomic_t *);
 int atomic_fetch_xor(int, atomic_t *);
 int atomic_cmpxchg(atomic_t *, int, int);
 int atomic_xchg(atomic_t *, int);
-int __atomic_add_unless(atomic_t *, int, int);
+int atomic_fetch_add_unless(atomic_t *, int, int);
 void atomic_set(atomic_t *, int);
 
 #define atomic_set_release(v, i)	atomic_set((v), (i))

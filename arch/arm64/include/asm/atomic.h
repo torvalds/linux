@@ -125,7 +125,7 @@
 #define atomic_dec_and_test(v)		(atomic_dec_return(v) == 0)
 #define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
 #define atomic_add_negative(i, v)	(atomic_add_return((i), (v)) < 0)
-#define __atomic_add_unless(v, a, u)	___atomic_add_unless(v, a, u,)
+#define atomic_fetch_add_unless(v, a, u)	___atomic_add_unless(v, a, u,)
 #define atomic_andnot			atomic_andnot
 
 /*

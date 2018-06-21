@@ -211,7 +211,7 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 	return c != 0;
 }
 
-static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
+static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
 	c = atomic_read(v);

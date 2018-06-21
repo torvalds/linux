@@ -332,7 +332,7 @@ ATOMIC_OP(dec_and_test, dec, ==, 0, 64)
 #undef ATOMIC_OP
 
 /* This is required to provide a full barrier on success. */
-static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
+static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
        int prev, rc;
 
@@ -381,7 +381,7 @@ static __always_inline int atomic64_add_unless(atomic64_t *v, long a, long u)
  */
 static __always_inline int atomic_inc_not_zero(atomic_t *v)
 {
-        return __atomic_add_unless(v, 1, 0);
+        return atomic_fetch_add_unless(v, 1, 0);
 }
 
 #ifndef CONFIG_GENERIC_ATOMIC64

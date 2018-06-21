@@ -406,7 +406,7 @@ struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
 	const void *here = __builtin_return_address(0);
 
 	if (peer) {
-		int n = __atomic_add_unless(&peer->usage, 1, 0);
+		int n = atomic_fetch_add_unless(&peer->usage, 1, 0);
 		if (n > 0)
 			trace_rxrpc_peer(peer, rxrpc_peer_got, n + 1, here);
 		else

@@ -121,7 +121,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 	 * this lock.
 	 */
 	if (!exclusive)
-		return __atomic_add_unless(&uobj->usecnt, 1, -1) == -1 ?
+		return atomic_fetch_add_unless(&uobj->usecnt, 1, -1) == -1 ?
 			-EBUSY : 0;
 
 	/* lock is either WRITE or DESTROY - should be exclusive */

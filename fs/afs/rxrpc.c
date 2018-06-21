@@ -648,7 +648,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 	trace_afs_notify_call(rxcall, call);
 	call->need_attention = true;
 
-	u = __atomic_add_unless(&call->usage, 1, 0);
+	u = atomic_fetch_add_unless(&call->usage, 1, 0);
 	if (u != 0) {
 		trace_afs_call(call, afs_call_trace_wake, u,
 			       atomic_read(&call->net->nr_outstanding_calls),
