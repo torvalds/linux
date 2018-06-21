@@ -49,8 +49,6 @@ struct uac_rtd_params {
 
 	void *rbuf;
 
-	size_t period_size;
-
 	unsigned max_psize;	/* MaxPacketSize of endpoint */
 	struct uac_req *ureq;
 
@@ -92,7 +90,6 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	unsigned pending;
 	unsigned long flags;
 	unsigned int hw_ptr;
-	bool update_alsa = false;
 	int status = req->status;
 	struct uac_req *ur = req->context;
 	struct snd_pcm_substream *substream;
@@ -145,11 +142,6 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 		req->actual = req->length;
 	}
 
-	pending = prm->hw_ptr % prm->period_size;
-	pending += req->actual;
-	if (pending >= prm->period_size)
-		update_alsa = true;
-
 	hw_ptr = prm->hw_ptr;
 
 	spin_unlock_irqrestore(&prm->lock, flags);
@@ -180,14 +172,15 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock_irqsave(&prm->lock, flags);
 	/* update hw_ptr after data is copied to memory */
 	prm->hw_ptr = (hw_ptr + req->actual) % runtime->dma_bytes;
+	hw_ptr = prm->hw_ptr;
 	spin_unlock_irqrestore(&prm->lock, flags);
+
+	if ((hw_ptr % snd_pcm_lib_period_bytes(substream)) < req->actual)
+		snd_pcm_period_elapsed(substream);
 
 exit:
 	if (usb_ep_queue(ep, req, GFP_ATOMIC))
 		dev_err(uac->card->dev, "%d Error!\n", __LINE__);
-
-	if (update_alsa)
-		snd_pcm_period_elapsed(substream);
 }
 
 static int uac_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -250,35 +243,12 @@ static snd_pcm_uframes_t uac_pcm_pointer(struct snd_pcm_substream *substream)
 static int uac_pcm_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params)
 {
-	struct snd_uac_chip *uac = snd_pcm_substream_chip(substream);
-	struct uac_rtd_params *prm;
-	int err;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		prm = &uac->p_prm;
-	else
-		prm = &uac->c_prm;
-
-	err = snd_pcm_lib_malloc_pages(substream,
+	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
-	if (err >= 0)
-		prm->period_size = params_period_bytes(hw_params);
-
-	return err;
 }
 
 static int uac_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	struct snd_uac_chip *uac = snd_pcm_substream_chip(substream);
-	struct uac_rtd_params *prm;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		prm = &uac->p_prm;
-	else
-		prm = &uac->c_prm;
-
-	prm->period_size = 0;
-
 	return snd_pcm_lib_free_pages(substream);
 }
 
