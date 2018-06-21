@@ -186,6 +186,7 @@ try_again:
 	 * need to wait for it to be destroyed */
 wait_for_old_object:
 	trace_cachefiles_wait_active(object, dentry, xobject);
+	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
 
 	if (fscache_object_is_live(&xobject->fscache)) {
 		pr_err("\n");
@@ -248,7 +249,6 @@ wait_for_old_object:
 	goto try_again;
 
 requeue:
-	clear_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags);
 	cache->cache.ops->put_object(&xobject->fscache, cachefiles_obj_put_wait_timeo);
 	_leave(" = -ETIMEDOUT");
 	return -ETIMEDOUT;
