@@ -51,19 +51,4 @@ void atomic_set(atomic_t *, int);
 #define atomic_inc_return(v)	(atomic_add_return(        1, (v)))
 #define atomic_dec_return(v)	(atomic_add_return(       -1, (v)))
 
-#define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-
-/*
- * atomic_inc_and_test - increment and test
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
-
-#define atomic_dec_and_test(v) (atomic_dec_return(v) == 0)
-#define atomic_sub_and_test(i, v) (atomic_sub_return(i, v) == 0)
-
 #endif /* !(__ARCH_SPARC_ATOMIC__) */

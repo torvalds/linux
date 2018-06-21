@@ -225,29 +225,41 @@ static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
 	return arch_atomic64_dec_if_positive(v);
 }
 
+#ifdef arch_atomic_dec_and_test
+#define atomic_dec_and_test atomic_dec_and_test
 static __always_inline bool atomic_dec_and_test(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_dec_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic64_dec_and_test
+#define atomic64_dec_and_test atomic64_dec_and_test
 static __always_inline bool atomic64_dec_and_test(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic_inc_and_test
+#define atomic_inc_and_test atomic_inc_and_test
 static __always_inline bool atomic_inc_and_test(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_inc_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic64_inc_and_test
+#define atomic64_inc_and_test atomic64_inc_and_test
 static __always_inline bool atomic64_inc_and_test(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_and_test(v);
 }
+#endif
 
 static __always_inline int atomic_add_return(int i, atomic_t *v)
 {
@@ -333,29 +345,41 @@ static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v)
 	return arch_atomic64_fetch_xor(i, v);
 }
 
+#ifdef arch_atomic_sub_and_test
+#define atomic_sub_and_test atomic_sub_and_test
 static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_sub_and_test(i, v);
 }
+#endif
 
+#ifdef arch_atomic64_sub_and_test
+#define atomic64_sub_and_test atomic64_sub_and_test
 static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_sub_and_test(i, v);
 }
+#endif
 
+#ifdef arch_atomic_add_negative
+#define atomic_add_negative atomic_add_negative
 static __always_inline bool atomic_add_negative(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_add_negative(i, v);
 }
+#endif
 
+#ifdef arch_atomic64_add_negative
+#define atomic64_add_negative atomic64_add_negative
 static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_add_negative(i, v);
 }
+#endif
 
 static __always_inline unsigned long
 cmpxchg_size(volatile void *ptr, unsigned long old, unsigned long new, int size)

@@ -209,36 +209,6 @@ ATOMIC_OPS(xor, xor, i)
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 
-/*
- * The extra atomic operations that are constructed from one of the core
- * AMO-based operations above (aside from sub, which is easier to fit above).
- * These are required to perform a full barrier, but they're OK this way
- * because atomic_*_return is also required to perform a full barrier.
- *
- */
-#define ATOMIC_OP(op, func_op, comp_op, I, c_type, prefix)		\
-static __always_inline							\
-bool atomic##prefix##_##op(c_type i, atomic##prefix##_t *v)		\
-{									\
-	return atomic##prefix##_##func_op##_return(i, v) comp_op I;	\
-}
-
-#ifdef CONFIG_GENERIC_ATOMIC64
-#define ATOMIC_OPS(op, func_op, comp_op, I)				\
-        ATOMIC_OP(op, func_op, comp_op, I,  int,   )
-#else
-#define ATOMIC_OPS(op, func_op, comp_op, I)				\
-        ATOMIC_OP(op, func_op, comp_op, I,  int,   )			\
-        ATOMIC_OP(op, func_op, comp_op, I, long, 64)
-#endif
-
-ATOMIC_OPS(add_and_test, add, ==, 0)
-ATOMIC_OPS(sub_and_test, sub, ==, 0)
-ATOMIC_OPS(add_negative, add,  <, 0)
-
-#undef ATOMIC_OP
-#undef ATOMIC_OPS
-
 #define ATOMIC_OP(op, func_op, I, c_type, prefix)			\
 static __always_inline							\
 void atomic##prefix##_##op(atomic##prefix##_t *v)			\
@@ -314,22 +284,6 @@ ATOMIC_OPS(dec, add, +, -1)
 #undef ATOMIC_OP
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
-
-#define ATOMIC_OP(op, func_op, comp_op, I, prefix)			\
-static __always_inline							\
-bool atomic##prefix##_##op(atomic##prefix##_t *v)			\
-{									\
-	return atomic##prefix##_##func_op##_return(v) comp_op I;	\
-}
-
-ATOMIC_OP(inc_and_test, inc, ==, 0,   )
-ATOMIC_OP(dec_and_test, dec, ==, 0,   )
-#ifndef CONFIG_GENERIC_ATOMIC64
-ATOMIC_OP(inc_and_test, inc, ==, 0, 64)
-ATOMIC_OP(dec_and_test, dec, ==, 0, 64)
-#endif
-
-#undef ATOMIC_OP
 
 /* This is required to provide a full barrier on success. */
 static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)

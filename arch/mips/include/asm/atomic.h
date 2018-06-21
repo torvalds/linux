@@ -278,37 +278,6 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 #define atomic_inc_return(v) atomic_add_return(1, (v))
 
 /*
- * atomic_sub_and_test - subtract value from variable and test result
- * @i: integer value to subtract
- * @v: pointer of type atomic_t
- *
- * Atomically subtracts @i from @v and returns
- * true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_sub_and_test(i, v) (atomic_sub_return((i), (v)) == 0)
-
-/*
- * atomic_inc_and_test - increment and test
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
-
-/*
- * atomic_dec_and_test - decrement by 1 and test
- * @v: pointer of type atomic_t
- *
- * Atomically decrements @v by 1 and
- * returns true if the result is 0, or false for all other
- * cases.
- */
-#define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
-
-/*
  * atomic_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic_t
  */
@@ -329,17 +298,6 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
  * Atomically decrements @v by 1.
  */
 #define atomic_dec(v) atomic_sub(1, (v))
-
-/*
- * atomic_add_negative - add and test if negative
- * @v: pointer of type atomic_t
- * @i: integer value to add
- *
- * Atomically adds @i to @v and returns true
- * if the result is negative, or false when
- * result is greater than or equal to zero.
- */
-#define atomic_add_negative(i, v) (atomic_add_return(i, (v)) < 0)
 
 #ifdef CONFIG_64BIT
 
@@ -600,37 +558,6 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 #define atomic64_inc_return(v) atomic64_add_return(1, (v))
 
 /*
- * atomic64_sub_and_test - subtract value from variable and test result
- * @i: integer value to subtract
- * @v: pointer of type atomic64_t
- *
- * Atomically subtracts @i from @v and returns
- * true if the result is zero, or false for all
- * other cases.
- */
-#define atomic64_sub_and_test(i, v) (atomic64_sub_return((i), (v)) == 0)
-
-/*
- * atomic64_inc_and_test - increment and test
- * @v: pointer of type atomic64_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic64_inc_and_test(v) (atomic64_inc_return(v) == 0)
-
-/*
- * atomic64_dec_and_test - decrement by 1 and test
- * @v: pointer of type atomic64_t
- *
- * Atomically decrements @v by 1 and
- * returns true if the result is 0, or false for all other
- * cases.
- */
-#define atomic64_dec_and_test(v) (atomic64_sub_return(1, (v)) == 0)
-
-/*
  * atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic64_t
  */
@@ -651,17 +578,6 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
  * Atomically decrements @v by 1.
  */
 #define atomic64_dec(v) atomic64_sub(1, (v))
-
-/*
- * atomic64_add_negative - add and test if negative
- * @v: pointer of type atomic64_t
- * @i: integer value to add
- *
- * Atomically adds @i to @v and returns true
- * if the result is negative, or false when
- * result is greater than or equal to zero.
- */
-#define atomic64_add_negative(i, v) (atomic64_add_return(i, (v)) < 0)
 
 #endif /* CONFIG_64BIT */
 

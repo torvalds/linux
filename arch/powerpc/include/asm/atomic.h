@@ -129,8 +129,6 @@ ATOMIC_OPS(xor, xor)
 #undef ATOMIC_OP_RETURN_RELAXED
 #undef ATOMIC_OP
 
-#define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-
 static __inline__ void atomic_inc(atomic_t *v)
 {
 	int t;
@@ -162,16 +160,6 @@ static __inline__ int atomic_inc_return_relaxed(atomic_t *v)
 
 	return t;
 }
-
-/*
- * atomic_inc_and_test - increment and test
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
 
 static __inline__ void atomic_dec(atomic_t *v)
 {
@@ -280,9 +268,6 @@ static __inline__ int atomic_inc_not_zero(atomic_t *v)
 	return t1;
 }
 #define atomic_inc_not_zero(v) atomic_inc_not_zero((v))
-
-#define atomic_sub_and_test(a, v)	(atomic_sub_return((a), (v)) == 0)
-#define atomic_dec_and_test(v)		(atomic_dec_return((v)) == 0)
 
 /*
  * Atomically test *v and decrement if it is greater than 0.
@@ -413,8 +398,6 @@ ATOMIC64_OPS(xor, xor)
 #undef ATOMIC64_OP_RETURN_RELAXED
 #undef ATOMIC64_OP
 
-#define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
-
 static __inline__ void atomic64_inc(atomic64_t *v)
 {
 	long t;
@@ -444,16 +427,6 @@ static __inline__ long atomic64_inc_return_relaxed(atomic64_t *v)
 
 	return t;
 }
-
-/*
- * atomic64_inc_and_test - increment and test
- * @v: pointer of type atomic64_t
- *
- * Atomically increments @v by 1
- * and returns true if the result is zero, or false for all
- * other cases.
- */
-#define atomic64_inc_and_test(v) (atomic64_inc_return(v) == 0)
 
 static __inline__ void atomic64_dec(atomic64_t *v)
 {
@@ -487,9 +460,6 @@ static __inline__ long atomic64_dec_return_relaxed(atomic64_t *v)
 
 #define atomic64_inc_return_relaxed atomic64_inc_return_relaxed
 #define atomic64_dec_return_relaxed atomic64_dec_return_relaxed
-
-#define atomic64_sub_and_test(a, v)	(atomic64_sub_return((a), (v)) == 0)
-#define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 
 /*
  * Atomically test *v and decrement if it is greater than 0.

@@ -569,6 +569,68 @@ static inline bool atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
 #endif
 
+/**
+ * atomic_inc_and_test - increment and test
+ * @v: pointer of type atomic_t
+ *
+ * Atomically increments @v by 1
+ * and returns true if the result is zero, or false for all
+ * other cases.
+ */
+#ifndef atomic_inc_and_test
+static inline bool atomic_inc_and_test(atomic_t *v)
+{
+	return atomic_inc_return(v) == 0;
+}
+#endif
+
+/**
+ * atomic_dec_and_test - decrement and test
+ * @v: pointer of type atomic_t
+ *
+ * Atomically decrements @v by 1 and
+ * returns true if the result is 0, or false for all other
+ * cases.
+ */
+#ifndef atomic_dec_and_test
+static inline bool atomic_dec_and_test(atomic_t *v)
+{
+	return atomic_dec_return(v) == 0;
+}
+#endif
+
+/**
+ * atomic_sub_and_test - subtract value from variable and test result
+ * @i: integer value to subtract
+ * @v: pointer of type atomic_t
+ *
+ * Atomically subtracts @i from @v and returns
+ * true if the result is zero, or false for all
+ * other cases.
+ */
+#ifndef atomic_sub_and_test
+static inline bool atomic_sub_and_test(int i, atomic_t *v)
+{
+	return atomic_sub_return(i, v) == 0;
+}
+#endif
+
+/**
+ * atomic_add_negative - add and test if negative
+ * @i: integer value to add
+ * @v: pointer of type atomic_t
+ *
+ * Atomically adds @i to @v and returns true
+ * if the result is negative, or false when
+ * result is greater than or equal to zero.
+ */
+#ifndef atomic_add_negative
+static inline bool atomic_add_negative(int i, atomic_t *v)
+{
+	return atomic_add_return(i, v) < 0;
+}
+#endif
+
 #ifndef atomic_andnot
 static inline void atomic_andnot(int i, atomic_t *v)
 {
@@ -1089,6 +1151,68 @@ static inline bool atomic64_add_unless(atomic64_t *v, long long a, long long u)
  */
 #ifndef atomic64_inc_not_zero
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
+#endif
+
+/**
+ * atomic64_inc_and_test - increment and test
+ * @v: pointer of type atomic64_t
+ *
+ * Atomically increments @v by 1
+ * and returns true if the result is zero, or false for all
+ * other cases.
+ */
+#ifndef atomic64_inc_and_test
+static inline bool atomic64_inc_and_test(atomic64_t *v)
+{
+	return atomic64_inc_return(v) == 0;
+}
+#endif
+
+/**
+ * atomic64_dec_and_test - decrement and test
+ * @v: pointer of type atomic64_t
+ *
+ * Atomically decrements @v by 1 and
+ * returns true if the result is 0, or false for all other
+ * cases.
+ */
+#ifndef atomic64_dec_and_test
+static inline bool atomic64_dec_and_test(atomic64_t *v)
+{
+	return atomic64_dec_return(v) == 0;
+}
+#endif
+
+/**
+ * atomic64_sub_and_test - subtract value from variable and test result
+ * @i: integer value to subtract
+ * @v: pointer of type atomic64_t
+ *
+ * Atomically subtracts @i from @v and returns
+ * true if the result is zero, or false for all
+ * other cases.
+ */
+#ifndef atomic64_sub_and_test
+static inline bool atomic64_sub_and_test(long long i, atomic64_t *v)
+{
+	return atomic64_sub_return(i, v) == 0;
+}
+#endif
+
+/**
+ * atomic64_add_negative - add and test if negative
+ * @i: integer value to add
+ * @v: pointer of type atomic64_t
+ *
+ * Atomically adds @i to @v and returns true
+ * if the result is negative, or false when
+ * result is greater than or equal to zero.
+ */
+#ifndef atomic64_add_negative
+static inline bool atomic64_add_negative(long long i, atomic64_t *v)
+{
+	return atomic64_add_return(i, v) < 0;
+}
 #endif
 
 #ifndef atomic64_andnot
