@@ -851,7 +851,7 @@
 	codec: codec@20030000 {
 		compatible = "rockchip,rk3128-codec";
 		reg = <0x20030000 0x4000>;
-		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 		boot_depop = <1>;
 		pa_enable_time = <1000>;
 		rockchip,grf = <&grf>;
