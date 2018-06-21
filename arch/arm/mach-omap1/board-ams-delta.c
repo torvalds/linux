@@ -607,6 +607,12 @@ static int gpiochip_match_by_label(struct gpio_chip *chip, void *data)
 	return !strcmp(label, chip->label);
 }
 
+static struct gpiod_hog ams_delta_gpio_hogs[] = {
+	GPIO_HOG(LATCH2_LABEL, LATCH2_PIN_KEYBRD_DATAOUT, "keybrd_dataout",
+		 GPIO_ACTIVE_HIGH, GPIOD_OUT_LOW),
+	{},
+};
+
 static void __init ams_delta_init(void)
 {
 	/* mux pins for uarts */
@@ -626,6 +632,8 @@ static void __init ams_delta_init(void)
 	omap_cfg_reg(J14_1610_CAM_D5);
 	omap_cfg_reg(J19_1610_CAM_D6);
 	omap_cfg_reg(J18_1610_CAM_D7);
+
+	gpiod_add_hogs(ams_delta_gpio_hogs);
 
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
