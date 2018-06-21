@@ -440,6 +440,29 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 	return 1;
 }
 
+/*
+ * Compare the range against max mem limit and update
+ * size if it cross the limit.
+ */
+
+#ifdef CONFIG_SPARSEMEM
+static bool validate_mem_limit(u64 base, u64 *size)
+{
+	u64 max_mem = 1UL << (MAX_PHYSMEM_BITS);
+
+	if (base >= max_mem)
+		return false;
+	if ((base + *size) > max_mem)
+		*size = max_mem - base;
+	return true;
+}
+#else
+static bool validate_mem_limit(u64 base, u64 *size)
+{
+	return true;
+}
+#endif
+
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Interpret the ibm dynamic reconfiguration memory LMBs.
@@ -494,7 +517,8 @@ static void __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 		}
 
 		DBG("Adding: %llx -> %llx\n", base, size);
-		memblock_add(base, size);
+		if (validate_mem_limit(base, &size))
+			memblock_add(base, size);
 	} while (--rngs);
 }
 #endif /* CONFIG_PPC_PSERIES */
@@ -548,8 +572,10 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	}
 
 	/* Add the chunk to the MEMBLOCK list */
-	if (add_mem_to_memblock)
-		memblock_add(base, size);
+	if (add_mem_to_memblock) {
+		if (validate_mem_limit(base, &size))
+			memblock_add(base, size);
+	}
 }
 
 static void __init early_reserve_mem_dt(void)
