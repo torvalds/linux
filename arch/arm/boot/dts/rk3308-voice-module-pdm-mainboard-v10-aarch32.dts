@@ -14,7 +14,7 @@
 
 	pdm_i2s_dais: pdm-i2s-dais {
 		status = "okay";
-		compatible = "rockchip,multi-dais";
+		compatible = "rockchip,rk3308-multi-dais", "rockchip,multi-dais";
 		dais = <&pdm_8ch>, <&i2s_8ch_2>;
 		capture,channel-mapping = <6 2>;
 		playback,channel-mapping = <0 2>;
