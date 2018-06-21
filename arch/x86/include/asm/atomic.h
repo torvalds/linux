@@ -253,27 +253,6 @@ static inline int arch_atomic_fetch_xor(int i, atomic_t *v)
 	return val;
 }
 
-/**
- * arch_atomic_fetch_add_unless - add unless the number is already a given value
- * @v: pointer of type atomic_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns the old value of @v.
- */
-static __always_inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
-{
-	int c = arch_atomic_read(v);
-
-	do {
-		if (unlikely(c == u))
-			break;
-	} while (!arch_atomic_try_cmpxchg(v, &c, c + a));
-
-	return c;
-}
-
 #ifdef CONFIG_X86_32
 # include <asm/atomic64_32.h>
 #else

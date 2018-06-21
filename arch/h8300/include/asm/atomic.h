@@ -106,5 +106,6 @@ static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	arch_local_irq_restore(flags);
 	return ret;
 }
+#define atomic_fetch_add_unless		atomic_fetch_add_unless
 
 #endif /* __ARCH_H8300_ATOMIC __ */

@@ -235,7 +235,7 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	smp_mb();
 	return old;
 }
-
+#define atomic_fetch_add_unless atomic_fetch_add_unless
 
 /**
  * atomic64_add_unless - add unless the number is a given value

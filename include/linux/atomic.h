@@ -522,6 +522,29 @@
 #endif /* xchg_relaxed */
 
 /**
+ * atomic_fetch_add_unless - add unless the number is already a given value
+ * @v: pointer of type atomic_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, if @v was not already @u.
+ * Returns the original value of @v.
+ */
+#ifndef atomic_fetch_add_unless
+static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
+{
+	int c = atomic_read(v);
+
+	do {
+		if (unlikely(c == u))
+			break;
+	} while (!atomic_try_cmpxchg(v, &c, c + a));
+
+	return c;
+}
+#endif
+
+/**
  * atomic_add_unless - add unless the number is already a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...

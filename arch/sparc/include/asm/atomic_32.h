@@ -30,6 +30,8 @@ int atomic_xchg(atomic_t *, int);
 int atomic_fetch_add_unless(atomic_t *, int, int);
 void atomic_set(atomic_t *, int);
 
+#define atomic_fetch_add_unless	atomic_fetch_add_unless
+
 #define atomic_set_release(v, i)	atomic_set((v), (i))
 
 #define atomic_read(v)          READ_ONCE((v)->counter)

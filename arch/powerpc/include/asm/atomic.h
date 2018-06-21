@@ -248,6 +248,7 @@ static __inline__ int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 
 	return t;
 }
+#define atomic_fetch_add_unless atomic_fetch_add_unless
 
 /**
  * atomic_inc_not_zero - increment unless the number is zero

@@ -45,31 +45,6 @@
 #define atomic_xchg(v, new)		(xchg(&((v)->counter), new))
 #define atomic_cmpxchg(v, o, n)		(cmpxchg(&((v)->counter), (o), (n)))
 
-/**
- * atomic_fetch_add_unless - add unless the number is a given value
- * @v: pointer of type atomic_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-
-	return c;
-}
-
 #endif /* CONFIG_CPU_J2 */
 
 #endif /* __ASM_SH_ATOMIC_H */

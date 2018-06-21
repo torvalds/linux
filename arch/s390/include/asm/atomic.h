@@ -90,21 +90,6 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return __atomic_cmpxchg(&v->counter, old, new);
 }
 
-static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == u))
-			break;
-		old = atomic_cmpxchg(v, c, c + a);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
-}
-
 #define ATOMIC64_INIT(i)  { (i) }
 
 static inline long atomic64_read(const atomic64_t *v)

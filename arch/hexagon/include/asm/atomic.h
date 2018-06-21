@@ -196,6 +196,7 @@ static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 	);
 	return __oldval;
 }
+#define atomic_fetch_add_unless atomic_fetch_add_unless
 
 #define atomic_inc(v) atomic_add(1, (v))
 #define atomic_dec(v) atomic_sub(1, (v))

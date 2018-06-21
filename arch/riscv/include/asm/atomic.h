@@ -349,6 +349,7 @@ static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 		: "memory");
 	return prev;
 }
+#define atomic_fetch_add_unless atomic_fetch_add_unless
 
 #ifndef CONFIG_GENERIC_ATOMIC64
 static __always_inline long __atomic64_add_unless(atomic64_t *v, long a, long u)

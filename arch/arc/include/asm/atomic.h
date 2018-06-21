@@ -308,34 +308,6 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-/**
- * atomic_fetch_add_unless - add unless the number is a given value
- * @v: pointer of type atomic_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v
- */
-#define atomic_fetch_add_unless(v, a, u)					\
-({									\
-	int c, old;							\
-									\
-	/*								\
-	 * Explicit full memory barrier needed before/after as		\
-	 * LLOCK/SCOND thmeselves don't provide any such semantics	\
-	 */								\
-	smp_mb();							\
-									\
-	c = atomic_read(v);						\
-	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c)\
-		c = old;						\
-									\
-	smp_mb();							\
-									\
-	c;								\
-})
-
 #define atomic_inc(v)			atomic_add(1, v)
 #define atomic_dec(v)			atomic_sub(1, v)
 
