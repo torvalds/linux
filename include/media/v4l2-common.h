@@ -338,7 +338,7 @@ void v4l_bound_align_image(unsigned int *width, unsigned int wmin,
 	({								\
 		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
 			     sizeof((array)->height_field) != sizeof(u32)); \
-		(typeof(&(*(array))))__v4l2_find_nearest_size(		\
+		(typeof(&(array)[0]))__v4l2_find_nearest_size(		\
 			(array), array_size, sizeof(*(array)),		\
 			offsetof(typeof(*(array)), width_field),	\
 			offsetof(typeof(*(array)), height_field),	\
