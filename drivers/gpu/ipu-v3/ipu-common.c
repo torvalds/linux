@@ -1401,6 +1401,8 @@ static int ipu_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	ipu->id = of_alias_get_id(np, "ipu");
+	if (ipu->id < 0)
+		ipu->id = 0;
 
 	if (of_device_is_compatible(np, "fsl,imx6qp-ipu") &&
 	    IS_ENABLED(CONFIG_DRM)) {
