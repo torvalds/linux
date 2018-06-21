@@ -7,10 +7,8 @@
 #include "px30.dtsi"
 
 &cru {
-	assigned-clocks =
-		<&cru PLL_NPLL>, <&cru ARMCLK>;
-	assigned-clock-rates =
-		<1040000000>, <816000000>;
+	assigned-clocks = <&cru PLL_NPLL>;
+	assigned-clock-rates = <1040000000>;
 };
 
 &gpu_opp_table {
