@@ -82,6 +82,11 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* This will make sure we can use ioremap_nocache() */
+	status = acpi_release_memory(ACPI_HANDLE(&pdev->dev), res, 1);
+	if (ACPI_FAILURE(status))
+		return -ENOMEM;
+
 	/*
 	 * NOTE: The memory region for the data structures is used also in an
 	 * operation region, which means ACPI has already reserved it. Therefore
