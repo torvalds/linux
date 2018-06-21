@@ -41,10 +41,10 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include <mach/ams-delta-fiq.h>
 #include "camera.h"
 #include <mach/usb.h>
 
+#include "ams-delta-fiq.h"
 #include "iomap.h"
 #include "common.h"
 

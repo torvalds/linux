@@ -19,12 +19,13 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/platform_data/ams-delta-fiq.h>
 
 #include <mach/board-ams-delta.h>
 
 #include <asm/fiq.h>
 
-#include <mach/ams-delta-fiq.h>
+#include "ams-delta-fiq.h"
 
 static struct fiq_handler fh = {
 	.name	= "ams-delta-fiq"
@@ -35,8 +36,8 @@ static struct fiq_handler fh = {
  * The FIQ and IRQ isrs can both read and write it.
  * It is structured as a header section several 32bit slots,
  * followed by the circular buffer where the FIQ isr stores
- * keystrokes received from the qwerty keyboard.
- * See ams-delta-fiq.h for details of offsets.
+ * keystrokes received from the qwerty keyboard.  See
+ * <linux/platform_data/ams-delta-fiq.h> for details of offsets.
  */
 unsigned int fiq_buffer[1024];
 EXPORT_SYMBOL(fiq_buffer);

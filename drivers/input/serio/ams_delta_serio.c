@@ -22,6 +22,7 @@
  */
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/platform_data/ams-delta-fiq.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/serio.h>
@@ -29,8 +30,6 @@
 #include <linux/module.h>
 
 #include <mach/board-ams-delta.h>
-
-#include <mach/ams-delta-fiq.h>
 
 #define DRIVER_NAME	"ams-delta-serio"
 
