@@ -4683,6 +4683,15 @@ static const struct mlx5_ib_counter extended_err_cnts[] = {
 	INIT_Q_COUNTER(req_cqe_flush_error),
 };
 
+#define INIT_EXT_PPCNT_COUNTER(_name)		\
+	{ .name = #_name, .offset =	\
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_extended_cntrs_grp_data_layout._name##_high)}
+
+static const struct mlx5_ib_counter ext_ppcnt_cnts[] = {
+	INIT_EXT_PPCNT_COUNTER(rx_icrc_encapsulated),
+};
+
 static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 {
 	int i;
@@ -4718,7 +4727,10 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 		cnts->num_cong_counters = ARRAY_SIZE(cong_cnts);
 		num_counters += ARRAY_SIZE(cong_cnts);
 	}
-
+	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
+		cnts->num_ext_ppcnt_counters = ARRAY_SIZE(ext_ppcnt_cnts);
+		num_counters += ARRAY_SIZE(ext_ppcnt_cnts);
+	}
 	cnts->names = kcalloc(num_counters, sizeof(cnts->names), GFP_KERNEL);
 	if (!cnts->names)
 		return -ENOMEM;
@@ -4775,6 +4787,13 @@ static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
 			offsets[j] = cong_cnts[i].offset;
 		}
 	}
+
+	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
+		for (i = 0; i < ARRAY_SIZE(ext_ppcnt_cnts); i++, j++) {
+			names[j] = ext_ppcnt_cnts[i].name;
+			offsets[j] = ext_ppcnt_cnts[i].offset;
+		}
+	}
 }
 
 static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
@@ -4820,7 +4839,8 @@ static struct rdma_hw_stats *mlx5_ib_alloc_hw_stats(struct ib_device *ibdev,
 
 	return rdma_alloc_hw_stats_struct(port->cnts.names,
 					  port->cnts.num_q_counters +
-					  port->cnts.num_cong_counters,
+					  port->cnts.num_cong_counters +
+					  port->cnts.num_ext_ppcnt_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
@@ -4853,6 +4873,34 @@ free:
 	return ret;
 }
 
+static int mlx5_ib_query_ext_ppcnt_counters(struct mlx5_ib_dev *dev,
+					  struct mlx5_ib_port *port,
+					  struct rdma_hw_stats *stats)
+{
+	int offset = port->cnts.num_q_counters + port->cnts.num_cong_counters;
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+	int ret, i;
+	void *out;
+
+	out = kvzalloc(sz, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	ret = mlx5_cmd_query_ext_ppcnt_counters(dev->mdev, out);
+	if (ret)
+		goto free;
+
+	for (i = 0; i < port->cnts.num_ext_ppcnt_counters; i++) {
+		stats->value[i + offset] =
+			be64_to_cpup((__be64 *)(out +
+				    port->cnts.offsets[i + offset]));
+	}
+
+free:
+	kvfree(out);
+	return ret;
+}
+
 static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 				struct rdma_hw_stats *stats,
 				u8 port_num, int index)
@@ -4866,12 +4914,20 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 	if (!stats)
 		return -EINVAL;
 
-	num_counters = port->cnts.num_q_counters + port->cnts.num_cong_counters;
+	num_counters = port->cnts.num_q_counters +
+		       port->cnts.num_cong_counters +
+		       port->cnts.num_ext_ppcnt_counters;
 
 	/* q_counters are per IB device, query the master mdev */
 	ret = mlx5_ib_query_q_counters(dev->mdev, port, stats);
 	if (ret)
 		return ret;
+
+	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
+		ret =  mlx5_ib_query_ext_ppcnt_counters(dev, port, stats);
+		if (ret)
+			return ret;
+	}
 
 	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
 		mdev = mlx5_ib_get_native_port_mdev(dev, port_num,
