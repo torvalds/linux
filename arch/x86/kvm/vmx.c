@@ -2058,12 +2058,18 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 	}
 	i = find_msr(&m->guest, msr);
 	if (i < 0)
-		return;
+		goto skip_guest;
 	--m->guest.nr;
-	--m->host.nr;
 	m->guest.val[i] = m->guest.val[m->guest.nr];
-	m->host.val[i] = m->host.val[m->host.nr];
 	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->guest.nr);
+
+skip_guest:
+	i = find_msr(&m->host, msr);
+	if (i < 0)
+		return;
+
+	--m->host.nr;
+	m->host.val[i] = m->host.val[m->host.nr];
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->host.nr);
 }
 
@@ -2081,7 +2087,7 @@ static void add_atomic_switch_msr_special(struct vcpu_vmx *vmx,
 static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 				  u64 guest_val, u64 host_val)
 {
-	int i;
+	int i, j;
 	struct msr_autoload *m = &vmx->msr_autoload;
 
 	switch (msr) {
@@ -2117,21 +2123,24 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	}
 
 	i = find_msr(&m->guest, msr);
-	if (i == NR_AUTOLOAD_MSRS) {
+	j = find_msr(&m->host, msr);
+	if (i == NR_AUTOLOAD_MSRS || j == NR_AUTOLOAD_MSRS) {
 		printk_once(KERN_WARNING "Not enough msr switch entries. "
 				"Can't add msr %x\n", msr);
 		return;
-	} else if (i < 0) {
+	}
+	if (i < 0) {
 		i = m->guest.nr++;
-		++m->host.nr;
 		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->guest.nr);
+	}
+	if (j < 0) {
+		j = m->host.nr++;
 		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->host.nr);
 	}
-
 	m->guest.val[i].index = msr;
 	m->guest.val[i].value = guest_val;
-	m->host.val[i].index = msr;
-	m->host.val[i].value = host_val;
+	m->host.val[j].index = msr;
+	m->host.val[j].value = host_val;
 }
 
 static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
