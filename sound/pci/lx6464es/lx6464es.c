@@ -1018,6 +1018,7 @@ static int snd_lx6464es_create(struct snd_card *card,
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
 	if (!chip->port_dsp_bar) {
 		dev_err(card->dev, "cannot remap PCI memory region\n");
+		err = -ENOMEM;
 		goto remap_pci_failed;
 	}
 
