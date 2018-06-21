@@ -488,13 +488,16 @@ static int pciefd_post_cmd(struct peak_canfd_priv *ucan)
 
 		/* controller now in reset mode: */
 
+		/* disable IRQ for this CAN */
+		pciefd_can_writereg(priv, CANFD_CTL_IEN_BIT,
+				    PCIEFD_REG_CAN_RX_CTL_CLR);
+
 		/* stop and reset DMA addresses in Tx/Rx engines */
 		pciefd_can_clear_tx_dma(priv);
 		pciefd_can_clear_rx_dma(priv);
 
-		/* disable IRQ for this CAN */
-		pciefd_can_writereg(priv, CANFD_CTL_IEN_BIT,
-				    PCIEFD_REG_CAN_RX_CTL_CLR);
+		/* wait for above commands to complete (read cycle) */
+		(void)pciefd_sys_readreg(priv->board, PCIEFD_REG_SYS_VER1);
 
 		free_irq(priv->ucan.ndev->irq, priv);
 
