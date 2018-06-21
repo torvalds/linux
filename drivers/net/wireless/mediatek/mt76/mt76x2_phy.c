@@ -559,6 +559,9 @@ mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 	dev->cal.agc_gain_cur[1] = gain[1] - gain_delta;
 	dev->cal.agc_gain_adjust = 0;
 	mt76x2_phy_set_gain_val(dev);
+
+	/* clear false CCA counters */
+	mt76_rr(dev, MT_RX_STAT_1);
 }
 
 int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
