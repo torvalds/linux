@@ -154,12 +154,9 @@ iwl_fw_dbg_trigger_stop_conf_match(struct iwl_fw_runtime *fwrt,
 }
 
 static inline bool
-iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt,
-			  struct iwl_fw_dbg_trigger_tlv *trig)
+iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt, u32 id, u32 dis_ms)
 {
-	unsigned long wind_jiff =
-		msecs_to_jiffies(le16_to_cpu(trig->trig_dis_ms));
-	u32 id = le32_to_cpu(trig->id);
+	unsigned long wind_jiff = msecs_to_jiffies(dis_ms);
 
 	/* If this is the first event checked, jump to update start ts */
 	if (fwrt->dump.non_collect_ts_start[id] &&
@@ -179,7 +176,8 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
 	if (wdev && !iwl_fw_dbg_trigger_vif_match(trig, wdev))
 		return false;
 
-	if (iwl_fw_dbg_no_trig_window(fwrt, trig)) {
+	if (iwl_fw_dbg_no_trig_window(fwrt, le32_to_cpu(trig->id),
+				      le16_to_cpu(trig->trig_dis_ms))) {
 		IWL_WARN(fwrt, "Trigger %d occurred while no-collect window.\n",
 			 trig->id);
 		return false;
