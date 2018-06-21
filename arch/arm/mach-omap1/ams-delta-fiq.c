@@ -40,8 +40,7 @@ static struct fiq_handler fh = {
  * keystrokes received from the qwerty keyboard.  See
  * <linux/platform_data/ams-delta-fiq.h> for details of offsets.
  */
-unsigned int fiq_buffer[1024];
-EXPORT_SYMBOL(fiq_buffer);
+static unsigned int fiq_buffer[1024];
 
 static struct irq_chip *irq_chip;
 static struct irq_data *irq_data[16];
@@ -203,9 +202,10 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 	val = omap_readl(OMAP_IH1_BASE + offset) | 1;
 	omap_writel(val, OMAP_IH1_BASE + offset);
 
-	/* Initialize serio device IRQ resource */
+	/* Initialize serio device IRQ resource and platform_data */
 	serio->resource[0].start = gpiod_to_irq(clk);
 	serio->resource[0].end = serio->resource[0].start;
+	serio->dev.platform_data = fiq_buffer;
 
 	/*
 	 * Since FIQ handler performs handling of GPIO registers for

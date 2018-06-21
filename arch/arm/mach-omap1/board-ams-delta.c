@@ -537,6 +537,14 @@ static struct resource ams_delta_serio_resources[] = {
 static struct platform_device ams_delta_serio_device = {
 	.name		= "ams-delta-serio",
 	.id		= PLATFORM_DEVID_NONE,
+	.dev		= {
+		/*
+		 * Initialize .platform_data explicitly with NULL to
+		 * indicate it is going to be used.  It will be replaced
+		 * with FIQ buffer address as soon as FIQ is initialized.
+		 */
+		.platform_data = NULL,
+	},
 	.num_resources	= ARRAY_SIZE(ams_delta_serio_resources),
 	.resource	= ams_delta_serio_resources,
 };

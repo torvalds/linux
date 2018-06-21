@@ -55,8 +55,4 @@
 
 #define FIQ_CIRC_BUFF		30      /*Start of circular buffer */
 
-#ifndef __ASSEMBLER__
-extern unsigned int fiq_buffer[];
-#endif
-
 #endif

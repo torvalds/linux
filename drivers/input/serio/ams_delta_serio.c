@@ -37,6 +37,7 @@ MODULE_LICENSE("GPL");
 struct ams_delta_serio {
 	struct serio *serio;
 	struct regulator *vcc;
+	unsigned int *fiq_buffer;
 };
 
 static int check_data(struct serio *serio, int data)
@@ -66,22 +67,23 @@ static int check_data(struct serio *serio, int data)
 static irqreturn_t ams_delta_serio_interrupt(int irq, void *dev_id)
 {
 	struct ams_delta_serio *priv = dev_id;
-	int *circ_buff = &fiq_buffer[FIQ_CIRC_BUFF];
+	int *circ_buff = &priv->fiq_buffer[FIQ_CIRC_BUFF];
 	int data, dfl;
 	u8 scancode;
 
-	fiq_buffer[FIQ_IRQ_PEND] = 0;
+	priv->fiq_buffer[FIQ_IRQ_PEND] = 0;
 
 	/*
 	 * Read data from the circular buffer, check it
 	 * and then pass it on the serio
 	 */
-	while (fiq_buffer[FIQ_KEYS_CNT] > 0) {
+	while (priv->fiq_buffer[FIQ_KEYS_CNT] > 0) {
 
-		data = circ_buff[fiq_buffer[FIQ_HEAD_OFFSET]++];
-		fiq_buffer[FIQ_KEYS_CNT]--;
-		if (fiq_buffer[FIQ_HEAD_OFFSET] == fiq_buffer[FIQ_BUF_LEN])
-			fiq_buffer[FIQ_HEAD_OFFSET] = 0;
+		data = circ_buff[priv->fiq_buffer[FIQ_HEAD_OFFSET]++];
+		priv->fiq_buffer[FIQ_KEYS_CNT]--;
+		if (priv->fiq_buffer[FIQ_HEAD_OFFSET] ==
+		    priv->fiq_buffer[FIQ_BUF_LEN])
+			priv->fiq_buffer[FIQ_HEAD_OFFSET] = 0;
 
 		dfl = check_data(priv->serio, data);
 		scancode = (u8) (data >> 1) & 0xFF;
@@ -115,6 +117,10 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->fiq_buffer = pdev->dev.platform_data;
+	if (!priv->fiq_buffer)
+		return -EINVAL;
 
 	priv->vcc = devm_regulator_get(&pdev->dev, "vcc");
 	if (IS_ERR(priv->vcc)) {
