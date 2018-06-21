@@ -829,6 +829,11 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
 int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 			   gfp_t gfp_flags);
 
+/**
+ * End a finished request
+ */
+void fuse_request_end(struct fuse_conn *fc, struct fuse_req *req);
+
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
 void fuse_wait_aborted(struct fuse_conn *fc);
