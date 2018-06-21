@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/serio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -39,6 +40,7 @@ MODULE_LICENSE("GPL");
 
 struct ams_delta_serio {
 	struct serio *serio;
+	struct regulator *vcc;
 };
 
 static int check_data(struct serio *serio, int data)
@@ -94,16 +96,18 @@ static irqreturn_t ams_delta_serio_interrupt(int irq, void *dev_id)
 
 static int ams_delta_serio_open(struct serio *serio)
 {
-	/* enable keyboard */
-	gpio_set_value(AMS_DELTA_GPIO_PIN_KEYBRD_PWR, 1);
+	struct ams_delta_serio *priv = serio->port_data;
 
-	return 0;
+	/* enable keyboard */
+	return regulator_enable(priv->vcc);
 }
 
 static void ams_delta_serio_close(struct serio *serio)
 {
+	struct ams_delta_serio *priv = serio->port_data;
+
 	/* disable keyboard */
-	gpio_set_value(AMS_DELTA_GPIO_PIN_KEYBRD_PWR, 0);
+	regulator_disable(priv->vcc);
 }
 
 static const struct gpio ams_delta_gpios[] __initconst_or_module = {
@@ -116,11 +120,6 @@ static const struct gpio ams_delta_gpios[] __initconst_or_module = {
 		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_CLK,
 		.flags	= GPIOF_DIR_IN,
 		.label	= "serio-clock",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "serio-power",
 	},
 	{
 		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATAOUT,
@@ -144,6 +143,26 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Couldn't request gpio pins\n");
 		goto serio;
+	}
+
+	priv->vcc = devm_regulator_get(&pdev->dev, "vcc");
+	if (IS_ERR(priv->vcc)) {
+		err = PTR_ERR(priv->vcc);
+		dev_err(&pdev->dev, "regulator request failed (%d)\n", err);
+		/*
+		 * When running on a non-dt platform and requested regulator
+		 * is not available, devm_regulator_get() never returns
+		 * -EPROBE_DEFER as it is not able to justify if the regulator
+		 * may still appear later.  On the other hand, the board can
+		 * still set full constriants flag at late_initcall in order
+		 * to instruct devm_regulator_get() to returnn a dummy one
+		 * if sufficient.  Hence, if we get -ENODEV here, let's convert
+		 * it to -EPROBE_DEFER and wait for the board to decide or
+		 * let Deferred Probe infrastructure handle this error.
+		 */
+		if (err == -ENODEV)
+			err = -EPROBE_DEFER;
+		goto gpio;
 	}
 
 	err = request_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
