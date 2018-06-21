@@ -521,9 +521,24 @@ static struct platform_device cx20442_codec_device = {
 	.id     = -1,
 };
 
+static struct resource ams_delta_serio_resources[] = {
+	{
+		.flags	= IORESOURCE_IRQ,
+		/*
+		 * Initialize IRQ resource with invalid IRQ number.
+		 * It will be replaced with dynamically allocated GPIO IRQ
+		 * obtained from GPIO chip as soon as the chip is available.
+		 */
+		.start	= -EINVAL,
+		.end	= -EINVAL,
+	},
+};
+
 static struct platform_device ams_delta_serio_device = {
 	.name		= "ams-delta-serio",
 	.id		= PLATFORM_DEVID_NONE,
+	.num_resources	= ARRAY_SIZE(ams_delta_serio_resources),
+	.resource	= ams_delta_serio_resources,
 };
 
 static struct regulator_consumer_supply keybrd_pwr_consumers[] = {
@@ -632,7 +647,7 @@ static void __init omap_gpio_deps_init(void)
 		return;
 	}
 
-	ams_delta_init_fiq(chip);
+	ams_delta_init_fiq(chip, &ams_delta_serio_device);
 }
 
 static void __init ams_delta_init(void)

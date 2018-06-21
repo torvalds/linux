@@ -20,7 +20,6 @@
  * However, when used with the E3 mailboard that producecs non-standard
  * scancodes, a custom key table must be prepared and loaded from userspace.
  */
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_data/ams-delta-fiq.h>
 #include <linux/platform_device.h>
@@ -28,8 +27,6 @@
 #include <linux/serio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-
-#include <mach/board-ams-delta.h>
 
 #define DRIVER_NAME	"ams-delta-serio"
 
@@ -113,7 +110,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 {
 	struct ams_delta_serio *priv;
 	struct serio *serio;
-	int err;
+	int irq, err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -139,26 +136,20 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 		return err;
 	}
 
-	err = request_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
-			ams_delta_serio_interrupt, IRQ_TYPE_EDGE_RISING,
-			DRIVER_NAME, priv);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -ENXIO;
+
+	err = devm_request_irq(&pdev->dev, irq, ams_delta_serio_interrupt,
+			       IRQ_TYPE_EDGE_RISING, DRIVER_NAME, priv);
 	if (err < 0) {
 		dev_err(&pdev->dev, "IRQ request failed (%d)\n", err);
 		return err;
 	}
-	/*
-	 * Since GPIO register handling for keyboard clock pin is performed
-	 * at FIQ level, switch back from edge to simple interrupt handler
-	 * to avoid bad interaction.
-	 */
-	irq_set_handler(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
-			handle_simple_irq);
 
 	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
-	if (!serio) {
-		err = -ENOMEM;
-		goto irq;
-	}
+	if (!serio)
+		return -ENOMEM;
 
 	priv->serio = serio;
 
@@ -177,10 +168,6 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	dev_info(&serio->dev, "%s\n", serio->name);
 
 	return 0;
-
-irq:
-	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), priv);
-	return err;
 }
 
 static int ams_delta_serio_exit(struct platform_device *pdev)
@@ -188,7 +175,6 @@ static int ams_delta_serio_exit(struct platform_device *pdev)
 	struct ams_delta_serio *priv = platform_get_drvdata(pdev);
 
 	serio_unregister_port(priv->serio);
-	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
 
 	return 0;
 }

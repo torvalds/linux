@@ -35,7 +35,8 @@
 #ifndef __ASSEMBLER__
 extern unsigned char qwerty_fiqin_start, qwerty_fiqin_end;
 
-extern void __init ams_delta_init_fiq(struct gpio_chip *chip);
+extern void __init ams_delta_init_fiq(struct gpio_chip *chip,
+				      struct platform_device *pdev);
 #endif
 
 #endif
