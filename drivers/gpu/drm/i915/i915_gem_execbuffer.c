@@ -534,7 +534,8 @@ eb_add_vma(struct i915_execbuffer *eb,
 	 * paranoia do it everywhere.
 	 */
 	if (i == batch_idx) {
-		if (!(eb->flags[i] & EXEC_OBJECT_PINNED))
+		if (entry->relocation_count &&
+		    !(eb->flags[i] & EXEC_OBJECT_PINNED))
 			eb->flags[i] |= __EXEC_OBJECT_NEEDS_BIAS;
 		if (eb->reloc_cache.has_fence)
 			eb->flags[i] |= EXEC_OBJECT_NEEDS_FENCE;
