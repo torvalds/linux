@@ -2394,30 +2394,9 @@ when invoked from a CPU-hotplug notifier.
 <p>
 RCU depends on the scheduler, and the scheduler uses RCU to
 protect some of its data structures.
-This means the scheduler is forbidden from acquiring
-the runqueue locks and the priority-inheritance locks
-in the middle of an outermost RCU read-side critical section unless either
-(1)&nbsp;it releases them before exiting that same
-RCU read-side critical section, or
-(2)&nbsp;interrupts are disabled across
-that entire RCU read-side critical section.
-This same prohibition also applies (recursively!) to any lock that is acquired
-while holding any lock to which this prohibition applies.
-Adhering to this rule prevents preemptible RCU from invoking
-<tt>rcu_read_unlock_special()</tt> while either runqueue or
-priority-inheritance locks are held, thus avoiding deadlock.
-
-<p>
-Prior to v4.4, it was only necessary to disable preemption across
-RCU read-side critical sections that acquired scheduler locks.
-In v4.4, expedited grace periods started using IPIs, and these
-IPIs could force a <tt>rcu_read_unlock()</tt> to take the slowpath.
-Therefore, this expedited-grace-period change required disabling of
-interrupts, not just preemption.
-
-<p>
-For RCU's part, the preemptible-RCU <tt>rcu_read_unlock()</tt>
-implementation must be written carefully to avoid similar deadlocks.
+The preemptible-RCU <tt>rcu_read_unlock()</tt>
+implementation must therefore be written carefully to avoid deadlocks
+involving the scheduler's runqueue and priority-inheritance locks.
 In particular, <tt>rcu_read_unlock()</tt> must tolerate an
 interrupt where the interrupt handler invokes both
 <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>.
@@ -2426,7 +2405,7 @@ negative nesting levels to avoid destructive recursion via
 interrupt handler's use of RCU.
 
 <p>
-This pair of mutual scheduler-RCU requirements came as a
+This scheduler-RCU requirement came as a
 <a href="https://lwn.net/Articles/453002/">complete surprise</a>.
 
 <p>
@@ -2437,8 +2416,27 @@ when running context-switch-heavy workloads when built with
 <tt>CONFIG_NO_HZ_FULL=y</tt>
 <a href="http://www.rdrop.com/users/paulmck/scalability/paper/BareMetal.2015.01.15b.pdf">did come as a surprise [PDF]</a>.
 RCU has made good progress towards meeting this requirement, even
-for context-switch-have <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
+for context-switch-heavy <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
 but there is room for further improvement.
+
+<p>
+In the past, it was forbidden to disable interrupts across an
+<tt>rcu_read_unlock()</tt> unless that interrupt-disabled region
+of code also included the matching <tt>rcu_read_lock()</tt>.
+Violating this restriction could result in deadlocks involving the
+scheduler's runqueue and priority-inheritance spinlocks.
+This restriction was lifted when interrupt-disabled calls to
+<tt>rcu_read_unlock()</tt> started deferring the reporting of
+the resulting RCU-preempt quiescent state until the end of that
+interrupts-disabled region.
+This deferred reporting means that the scheduler's runqueue and
+priority-inheritance locks cannot be held while reporting an RCU-preempt
+quiescent state, which lifts the earlier restriction, at least from
+a deadlock perspective.
+Unfortunately, real-time systems using RCU priority boosting may
+need this restriction to remain in effect because deferred
+quiescent-state reporting also defers deboosting, which in turn
+degrades real-time latencies.
 
 <h3><a name="Tracing and RCU">Tracing and RCU</a></h3>
 
