@@ -530,7 +530,7 @@ mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 	else
 		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560423);
 
-	if (low_gain) {
+	if (low_gain == 2) {
 		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a991);
 		mt76_wr(dev, MT_BBP(AGC, 35), 0x08080808);
 		mt76_wr(dev, MT_BBP(AGC, 37), 0x08080808);
