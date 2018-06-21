@@ -93,11 +93,20 @@ static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 }
 #endif
 
+#ifdef arch_atomic64_fetch_add_unless
+#define atomic64_fetch_add_unless atomic64_fetch_add_unless
+static __always_inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
+{
+	kasan_check_write(v, sizeof(*v));
+	return arch_atomic64_fetch_add_unless(v, a, u);
+}
+#else
 static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_add_unless(v, a, u);
 }
+#endif
 
 static __always_inline void atomic_inc(atomic_t *v)
 {
