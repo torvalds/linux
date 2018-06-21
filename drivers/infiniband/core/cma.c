@@ -1629,6 +1629,28 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 	mutex_unlock(&lock);
 }
 
+static void cma_leave_roce_mc_group(struct rdma_id_private *id_priv,
+				    struct cma_multicast *mc)
+{
+	if (mc->igmp_joined) {
+		struct rdma_dev_addr *dev_addr =
+			&id_priv->id.route.addr.dev_addr;
+		struct net_device *ndev = NULL;
+
+		if (dev_addr->bound_dev_if)
+			ndev = dev_get_by_index(dev_addr->net,
+						dev_addr->bound_dev_if);
+		if (ndev) {
+			cma_igmp_send(ndev,
+				      &mc->multicast.ib->rec.mgid,
+				      false);
+			dev_put(ndev);
+		}
+		mc->igmp_joined = false;
+	}
+	kref_put(&mc->mcref, release_mc);
+}
+
 static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 {
 	struct cma_multicast *mc;
@@ -1642,22 +1664,7 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 			ib_sa_free_multicast(mc->multicast.ib);
 			kfree(mc);
 		} else {
-			if (mc->igmp_joined) {
-				struct rdma_dev_addr *dev_addr =
-					&id_priv->id.route.addr.dev_addr;
-				struct net_device *ndev = NULL;
-
-				if (dev_addr->bound_dev_if)
-					ndev = dev_get_by_index(&init_net,
-								dev_addr->bound_dev_if);
-				if (ndev) {
-					cma_igmp_send(ndev,
-						      &mc->multicast.ib->rec.mgid,
-						      false);
-					dev_put(ndev);
-				}
-			}
-			kref_put(&mc->mcref, release_mc);
+			cma_leave_roce_mc_group(id_priv, mc);
 		}
 	}
 }
@@ -4268,23 +4275,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 				ib_sa_free_multicast(mc->multicast.ib);
 				kfree(mc);
 			} else if (rdma_protocol_roce(id->device, id->port_num)) {
-				if (mc->igmp_joined) {
-					struct rdma_dev_addr *dev_addr =
-						&id->route.addr.dev_addr;
-					struct net_device *ndev = NULL;
-
-					if (dev_addr->bound_dev_if)
-						ndev = dev_get_by_index(dev_addr->net,
-									dev_addr->bound_dev_if);
-					if (ndev) {
-						cma_igmp_send(ndev,
-							      &mc->multicast.ib->rec.mgid,
-							      false);
-						dev_put(ndev);
-					}
-					mc->igmp_joined = false;
-				}
-				kref_put(&mc->mcref, release_mc);
+				cma_leave_roce_mc_group(id_priv, mc);
 			}
 			return;
 		}
