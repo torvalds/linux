@@ -43,6 +43,7 @@
 
 /* extra amp-initialization sequence types */
 enum {
+	ALC_INIT_UNDEFINED,
 	ALC_INIT_NONE,
 	ALC_INIT_DEFAULT,
 	ALC_INIT_GPIO1,
@@ -656,20 +657,22 @@ do_sku:
 	 * 7~6 : Reserved
 	*/
 	tmp = (ass & 0x38) >> 3;	/* external Amp control */
-	switch (tmp) {
-	case 1:
-		spec->init_amp = ALC_INIT_GPIO1;
-		break;
-	case 3:
-		spec->init_amp = ALC_INIT_GPIO2;
-		break;
-	case 7:
-		spec->init_amp = ALC_INIT_GPIO3;
-		break;
-	case 5:
-	default:
-		spec->init_amp = ALC_INIT_DEFAULT;
-		break;
+	if (spec->init_amp == ALC_INIT_UNDEFINED) {
+		switch (tmp) {
+		case 1:
+			spec->init_amp = ALC_INIT_GPIO1;
+			break;
+		case 3:
+			spec->init_amp = ALC_INIT_GPIO2;
+			break;
+		case 7:
+			spec->init_amp = ALC_INIT_GPIO3;
+			break;
+		case 5:
+		default:
+			spec->init_amp = ALC_INIT_DEFAULT;
+			break;
+		}
 	}
 
 	/* is laptop or Desktop and enable the function "Mute internal speaker
@@ -1589,8 +1592,6 @@ static void alc260_fixup_kn1(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		snd_hda_apply_pincfgs(codec, pincfgs);
-		break;
-	case HDA_FIXUP_ACT_PROBE:
 		spec->init_amp = ALC_INIT_NONE;
 		break;
 	}
@@ -1600,7 +1601,7 @@ static void alc260_fixup_fsc_s7020(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PROBE)
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
 		spec->init_amp = ALC_INIT_NONE;
 }
 
@@ -3892,6 +3893,7 @@ static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->init_amp = ALC_INIT_DEFAULT;
 		if (alc_register_micmute_input_device(codec) != 0)
 			return;
 
@@ -3914,9 +3916,6 @@ static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 		return;
 
 	switch (action) {
-	case HDA_FIXUP_ACT_PROBE:
-		spec->init_amp = ALC_INIT_DEFAULT;
-		break;
 	case HDA_FIXUP_ACT_FREE:
 		input_unregister_device(spec->kb_dev);
 		spec->kb_dev = NULL;
@@ -3937,6 +3936,7 @@ static void alc233_fixup_lenovo_line2_mic_hotkey(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->init_amp = ALC_INIT_DEFAULT;
 		if (alc_register_micmute_input_device(codec) != 0)
 			return;
 
@@ -3955,9 +3955,6 @@ static void alc233_fixup_lenovo_line2_mic_hotkey(struct hda_codec *codec,
 		return;
 
 	switch (action) {
-	case HDA_FIXUP_ACT_PROBE:
-		spec->init_amp = ALC_INIT_DEFAULT;
-		break;
 	case HDA_FIXUP_ACT_FREE:
 		input_unregister_device(spec->kb_dev);
 		spec->kb_dev = NULL;
@@ -5227,6 +5224,7 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
+		spec->init_amp = ALC_INIT_DEFAULT;
 		snd_hda_add_verbs(codec, gpio2_verbs);
 		snd_hda_apply_pincfgs(codec, dock_pins);
 		spec->gen.auto_mute_via_amp = 1;
