@@ -111,7 +111,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig,
 		       const char *str, size_t len,
-		       const struct iwl_fw_dbg_trigger_tlv *trigger);
+		       struct iwl_fw_dbg_trigger_tlv *trigger);
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...) __printf(3, 4);

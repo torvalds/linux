@@ -1044,9 +1044,12 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       enum iwl_fw_dbg_trigger trig,
 		       const char *str, size_t len,
-		       const struct iwl_fw_dbg_trigger_tlv *trigger)
+		       struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
+
+	if (trigger && !le16_to_cpu(trigger->occurrences))
+		return 0;
 
 	if (trigger && trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
 		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", trig);
@@ -1057,6 +1060,12 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
+
+	if (trigger) {
+		u16 occurrences = le16_to_cpu(trigger->occurrences) - 1;
+
+		trigger->occurrences = cpu_to_le16(occurrences);
+	}
 
 	desc->len = len;
 	desc->trig_desc.type = cpu_to_le32(trig);
@@ -1070,12 +1079,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...)
 {
-	u16 occurrences = le16_to_cpu(trigger->occurrences);
 	int ret, len = 0;
 	char buf[64];
-
-	if (!occurrences)
-		return 0;
 
 	if (fmt) {
 		va_list ap;
@@ -1099,7 +1104,6 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 	if (ret)
 		return ret;
 
-	trigger->occurrences = cpu_to_le16(occurrences - 1);
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_trig);
