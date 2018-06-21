@@ -2037,6 +2037,17 @@ static inline void acpi_ec_query_exit(void)
 	}
 }
 
+static const struct dmi_system_id acpi_ec_no_wakeup[] = {
+	{
+		.ident = "Thinkpad X1 Carbon 6th",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20KGS3JF01"),
+		},
+	},
+	{ },
+};
+
 int __init acpi_ec_init(void)
 {
 	int result;
@@ -2046,6 +2057,15 @@ int __init acpi_ec_init(void)
 	result = acpi_ec_query_init();
 	if (result)
 		return result;
+
+	/*
+	 * Disable EC wakeup on following systems to prevent periodic
+	 * wakeup from EC GPE.
+	 */
+	if (dmi_check_system(acpi_ec_no_wakeup)) {
+		ec_no_wakeup = true;
+		pr_debug("Disabling EC wakeup on suspend-to-idle\n");
+	}
 
 	/* Drivers must be started after acpi_ec_query_init() */
 	dsdt_fail = acpi_bus_register_driver(&acpi_ec_driver);
