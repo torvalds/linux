@@ -492,8 +492,9 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (!fbo)
 		return -ENOMEM;
 
+	ttm_bo_get(bo);
 	fbo->base = *bo;
-	fbo->bo = ttm_bo_reference(bo);
+	fbo->bo = bo;
 
 	/**
 	 * Fix up members that we shouldn't copy directly:
