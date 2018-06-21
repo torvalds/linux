@@ -1401,10 +1401,7 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 
 	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
-	if (active_outputs & intel_sdvo_connector->output_flag)
-		return true;
-	else
-		return false;
+	return active_outputs & intel_sdvo_connector->output_flag;
 }
 
 bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
