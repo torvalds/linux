@@ -5633,6 +5633,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
 	bool psl_clkgate_wa;
+	u32 pipe_chicken;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5691,6 +5692,17 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	 * clocks enabled
 	 */
 	intel_color_load_luts(&pipe_config->base);
+
+	/*
+	 * Display WA #1153: enable hardware to bypass the alpha math
+	 * and rounding for per-pixel values 00 and 0xff
+	 */
+	if (INTEL_GEN(dev_priv) >= 11) {
+		pipe_chicken = I915_READ(PIPE_CHICKEN(pipe));
+		if (!(pipe_chicken & PER_PIXEL_ALPHA_BYPASS_EN))
+			I915_WRITE_FW(PIPE_CHICKEN(pipe),
+				      pipe_chicken | PER_PIXEL_ALPHA_BYPASS_EN);
+	}
 
 	intel_ddi_set_pipe_settings(pipe_config);
 	if (!transcoder_is_dsi(cpu_transcoder))

@@ -7366,6 +7366,14 @@ enum {
 #define BDW_SCRATCH1					_MMIO(0xb11c)
 #define  GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE	(1 << 2)
 
+/*GEN11 chicken */
+#define _PIPEA_CHICKEN			0x70038
+#define _PIPEB_CHICKEN			0x71038
+#define _PIPEC_CHICKEN			0x72038
+#define  PER_PIXEL_ALPHA_BYPASS_EN	(1 << 7)
+#define PIPE_CHICKEN(pipe)		_MMIO_PIPE(pipe, _PIPEA_CHICKEN,\
+						   _PIPEB_CHICKEN)
+
 /* PCH */
 
 /* south display engine interrupt: IBX */
