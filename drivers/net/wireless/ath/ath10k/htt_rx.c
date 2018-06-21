@@ -1092,7 +1092,7 @@ static void ath10k_htt_rx_h_queue_msdu(struct ath10k *ar,
 	status = IEEE80211_SKB_RXCB(skb);
 	*status = *rx_status;
 
-	__skb_queue_tail(&ar->htt.rx_msdus_q, skb);
+	skb_queue_tail(&ar->htt.rx_msdus_q, skb);
 }
 
 static void ath10k_process_rx(struct ath10k *ar, struct sk_buff *skb)
@@ -2813,7 +2813,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND: {
-		__skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
+		skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
 		return false;
 	}
 	case HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND:
@@ -2877,7 +2877,7 @@ static int ath10k_htt_rx_deliver_msdu(struct ath10k *ar, int quota, int budget)
 		if (skb_queue_empty(&ar->htt.rx_msdus_q))
 			break;
 
-		skb = __skb_dequeue(&ar->htt.rx_msdus_q);
+		skb = skb_dequeue(&ar->htt.rx_msdus_q);
 		if (!skb)
 			break;
 		ath10k_process_rx(ar, skb);
@@ -2908,7 +2908,7 @@ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 		goto exit;
 	}
 
-	while ((skb = __skb_dequeue(&htt->rx_in_ord_compl_q))) {
+	while ((skb = skb_dequeue(&htt->rx_in_ord_compl_q))) {
 		spin_lock_bh(&htt->rx_ring.lock);
 		ret = ath10k_htt_rx_in_ord_ind(ar, skb);
 		spin_unlock_bh(&htt->rx_ring.lock);
