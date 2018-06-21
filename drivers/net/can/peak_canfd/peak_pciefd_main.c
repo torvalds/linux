@@ -415,7 +415,7 @@ static int pciefd_pre_cmd(struct peak_canfd_priv *ucan)
 			break;
 
 		/* going into operational mode: setup IRQ handler */
-		err = request_irq(priv->board->pci_dev->irq,
+		err = request_irq(priv->ucan.ndev->irq,
 				  pciefd_irq_handler,
 				  IRQF_SHARED,
 				  PCIEFD_DRV_NAME,
@@ -496,7 +496,7 @@ static int pciefd_post_cmd(struct peak_canfd_priv *ucan)
 		pciefd_can_writereg(priv, CANFD_CTL_IEN_BIT,
 				    PCIEFD_REG_CAN_RX_CTL_CLR);
 
-		free_irq(priv->board->pci_dev->irq, priv);
+		free_irq(priv->ucan.ndev->irq, priv);
 
 		ucan->can.state = CAN_STATE_STOPPED;
 
@@ -688,7 +688,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 	pciefd->can[pciefd->can_count] = priv;
 
 	dev_info(&pciefd->pci_dev->dev, "%s at reg_base=0x%p irq=%d\n",
-		 ndev->name, priv->reg_base, pciefd->pci_dev->irq);
+		 ndev->name, priv->reg_base, ndev->irq);
 
 	return 0;
 
