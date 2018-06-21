@@ -486,11 +486,11 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 	return result;
 }
 
-static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
+static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
+						  long long u)
 {
-	long long val;
+	long long oldval, newval;
 	unsigned long tmp;
-	int ret = 1;
 
 	smp_mb();
 	prefetchw(&v->counter);
@@ -499,23 +499,23 @@ static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 "1:	ldrexd	%0, %H0, [%4]\n"
 "	teq	%0, %5\n"
 "	teqeq	%H0, %H5\n"
-"	moveq	%1, #0\n"
 "	beq	2f\n"
-"	adds	%Q0, %Q0, %Q6\n"
-"	adc	%R0, %R0, %R6\n"
-"	strexd	%2, %0, %H0, [%4]\n"
+"	adds	%Q1, %Q0, %Q6\n"
+"	adc	%R1, %R0, %R6\n"
+"	strexd	%2, %1, %H1, [%4]\n"
 "	teq	%2, #0\n"
 "	bne	1b\n"
 "2:"
-	: "=&r" (val), "+r" (ret), "=&r" (tmp), "+Qo" (v->counter)
+	: "=&r" (oldval), "=&r" (newval), "=&r" (tmp), "+Qo" (v->counter)
 	: "r" (&v->counter), "r" (u), "r" (a)
 	: "cc");
 
-	if (ret)
+	if (oldval != u)
 		smp_mb();
 
-	return ret;
+	return oldval;
 }
+#define atomic64_fetch_add_unless atomic64_fetch_add_unless
 
 #define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
 #define atomic64_inc(v)			atomic64_add(1LL, (v))
