@@ -205,7 +205,7 @@ static __always_inline s64 atomic64_dec_return(atomic64_t *v)
 	return arch_atomic64_dec_return(v);
 }
 
-static __always_inline s64 atomic64_inc_not_zero(atomic64_t *v)
+static __always_inline bool atomic64_inc_not_zero(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_not_zero(v);
