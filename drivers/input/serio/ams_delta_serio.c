@@ -22,14 +22,16 @@
  */
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/platform_device.h>
 #include <linux/serio.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include <asm/mach-types.h>
 #include <mach/board-ams-delta.h>
 
 #include <mach/ams-delta-fiq.h>
+
+#define DRIVER_NAME	"ams-delta-serio"
 
 MODULE_AUTHOR("Matt Callow");
 MODULE_DESCRIPTION("AMS Delta (E3) keyboard port driver");
@@ -126,12 +128,9 @@ static const struct gpio ams_delta_gpios[] __initconst_or_module = {
 	},
 };
 
-static int __init ams_delta_serio_init(void)
+static int ams_delta_serio_init(struct platform_device *pdev)
 {
 	int err;
-
-	if (!machine_is_ams_delta())
-		return -ENODEV;
 
 	ams_delta_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ams_delta_serio)
@@ -142,22 +141,22 @@ static int __init ams_delta_serio_init(void)
 	ams_delta_serio->close = ams_delta_serio_close;
 	strlcpy(ams_delta_serio->name, "AMS DELTA keyboard adapter",
 			sizeof(ams_delta_serio->name));
-	strlcpy(ams_delta_serio->phys, "GPIO/serio0",
+	strlcpy(ams_delta_serio->phys, dev_name(&pdev->dev),
 			sizeof(ams_delta_serio->phys));
+	ams_delta_serio->dev.parent = &pdev->dev;
 
 	err = gpio_request_array(ams_delta_gpios,
 				ARRAY_SIZE(ams_delta_gpios));
 	if (err) {
-		pr_err("ams_delta_serio: Couldn't request gpio pins\n");
+		dev_err(&pdev->dev, "Couldn't request gpio pins\n");
 		goto serio;
 	}
 
 	err = request_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
 			ams_delta_serio_interrupt, IRQ_TYPE_EDGE_RISING,
-			"ams-delta-serio", 0);
+			DRIVER_NAME, 0);
 	if (err < 0) {
-		pr_err("ams_delta_serio: couldn't request gpio interrupt %d\n",
-				gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
+		dev_err(&pdev->dev, "IRQ request failed (%d)\n", err);
 		goto gpio;
 	}
 	/*
@@ -179,13 +178,22 @@ serio:
 	kfree(ams_delta_serio);
 	return err;
 }
-module_init(ams_delta_serio_init);
 
-static void __exit ams_delta_serio_exit(void)
+static int ams_delta_serio_exit(struct platform_device *pdev)
 {
 	serio_unregister_port(ams_delta_serio);
 	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
 	gpio_free_array(ams_delta_gpios,
 			ARRAY_SIZE(ams_delta_gpios));
+
+	return 0;
 }
-module_exit(ams_delta_serio_exit);
+
+static struct platform_driver ams_delta_serio_driver = {
+	.probe	= ams_delta_serio_init,
+	.remove	= ams_delta_serio_exit,
+	.driver	= {
+		.name	= DRIVER_NAME
+	},
+};
+module_platform_driver(ams_delta_serio_driver);

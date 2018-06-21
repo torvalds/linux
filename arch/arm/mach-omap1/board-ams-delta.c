@@ -521,12 +521,18 @@ static struct platform_device cx20442_codec_device = {
 	.id     = -1,
 };
 
+static struct platform_device ams_delta_serio_device = {
+	.name		= "ams-delta-serio",
+	.id		= PLATFORM_DEVID_NONE,
+};
+
 static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
 	&ams_delta_audio_device,
+	&ams_delta_serio_device,
 };
 
 static struct platform_device *late_devices[] __initdata = {
