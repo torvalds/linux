@@ -56,43 +56,6 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static inline enum intel_display_power_domain
-psr_aux_domain(struct intel_dp *intel_dp)
-{
-	/* CNL HW requires corresponding AUX IOs to be powered up for PSR.
-	 * However, for non-A AUX ports the corresponding non-EDP transcoders
-	 * would have already enabled power well 2 and DC_OFF. This means we can
-	 * acquire a wider POWER_DOMAIN_AUX_{B,C,D,F} reference instead of a
-	 * specific AUX_IO reference without powering up any extra wells.
-	 * Note that PSR is enabled only on Port A even though this function
-	 * returns the correct domain for other ports too.
-	 */
-	return intel_dp->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
-					      intel_dp->aux_power_domain;
-}
-
-static void psr_aux_io_power_get(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-
-	if (INTEL_GEN(dev_priv) < 10)
-		return;
-
-	intel_display_power_get(dev_priv, psr_aux_domain(intel_dp));
-}
-
-static void psr_aux_io_power_put(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-
-	if (INTEL_GEN(dev_priv) < 10)
-		return;
-
-	intel_display_power_put(dev_priv, psr_aux_domain(intel_dp));
-}
-
 void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
 {
 	u32 debug_mask, mask;
@@ -595,8 +558,6 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	psr_aux_io_power_get(intel_dp);
-
 	/* Only HSW and BDW have PSR AUX registers that need to be setup. SKL+
 	 * use hardcoded values PSR AUX transactions
 	 */
@@ -717,8 +678,6 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 		else
 			WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
 	}
-
-	psr_aux_io_power_put(intel_dp);
 }
 
 /**

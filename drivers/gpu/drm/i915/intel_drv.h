@@ -254,7 +254,8 @@ struct intel_encoder {
 			   struct intel_crtc_state *pipe_config);
 	/* Returns a mask of power domains that need to be referenced as part
 	 * of the hardware state readout code. */
-	u64 (*get_power_domains)(struct intel_encoder *encoder);
+	u64 (*get_power_domains)(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state);
 	/*
 	 * Called during system suspend after all pending requests for the
 	 * encoder are flushed (for example for DP AUX transactions) and

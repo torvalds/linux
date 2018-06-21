@@ -15661,11 +15661,21 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		u64 get_domains;
 		enum intel_display_power_domain domain;
+		struct intel_crtc_state *crtc_state;
 
 		if (!encoder->get_power_domains)
 			continue;
 
-		get_domains = encoder->get_power_domains(encoder);
+		/*
+		 * For MST and inactive encoders we don't have a crtc state.
+		 * FIXME: no need to call get_power_domains in such cases, it
+		 * will always return 0.
+		 */
+		crtc_state = encoder->base.crtc ?
+			     to_intel_crtc_state(encoder->base.crtc->state) :
+			     NULL;
+
+		get_domains = encoder->get_power_domains(encoder, crtc_state);
 		for_each_power_domain(domain, get_domains)
 			intel_display_power_get(dev_priv, domain);
 	}
