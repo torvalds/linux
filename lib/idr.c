@@ -523,25 +523,30 @@ void ida_remove(struct ida *ida, int id)
 EXPORT_SYMBOL(ida_remove);
 
 /**
- * ida_destroy - Free the contents of an ida
- * @ida: ida handle
+ * ida_destroy() - Free all IDs.
+ * @ida: IDA handle.
  *
- * Calling this function releases all resources associated with an IDA.  When
- * this call returns, the IDA is empty and can be reused or freed.  The caller
- * should not allow ida_remove() or ida_get_new_above() to be called at the
- * same time.
+ * Calling this function frees all IDs and releases all resources used
+ * by an IDA.  When this call returns, the IDA is empty and can be reused
+ * or freed.  If the IDA is already empty, there is no need to call this
+ * function.
+ *
+ * Context: Any context.
  */
 void ida_destroy(struct ida *ida)
 {
+	unsigned long flags;
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
+	xa_lock_irqsave(&ida->ida_rt, flags);
 	radix_tree_for_each_slot(slot, &ida->ida_rt, &iter, 0) {
 		struct ida_bitmap *bitmap = rcu_dereference_raw(*slot);
 		if (!radix_tree_exception(bitmap))
 			kfree(bitmap);
 		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
 	}
+	xa_unlock_irqrestore(&ida->ida_rt, flags);
 }
 EXPORT_SYMBOL(ida_destroy);
 
