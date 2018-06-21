@@ -635,7 +635,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 						 GFP_KERNEL);
 	if (!priv->tx_dma_vaddr) {
 		dev_err(&pciefd->pci_dev->dev,
-			"Tx dmaim_alloc_coherent(%u) failure\n",
+			"Tx dmam_alloc_coherent(%u) failure\n",
 			PCIEFD_TX_DMA_SIZE);
 		goto err_free_candev;
 	}
