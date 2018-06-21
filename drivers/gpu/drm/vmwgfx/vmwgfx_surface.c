@@ -1072,7 +1072,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd2->header.size = cmd_len;
 		cmd2->body.sid = srf->res.id;
 		cmd2->body.surfaceFlags = srf->flags;
-		cmd2->body.format = cpu_to_le32(srf->format);
+		cmd2->body.format = srf->format;
 		cmd2->body.numMipLevels = srf->mip_levels[0];
 		cmd2->body.multisampleCount = srf->multisample_count;
 		cmd2->body.autogenFilter = srf->autogen_filter;
@@ -1085,7 +1085,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd->header.size = cmd_len;
 		cmd->body.sid = srf->res.id;
 		cmd->body.surfaceFlags = srf->flags;
-		cmd->body.format = cpu_to_le32(srf->format);
+		cmd->body.format = srf->format;
 		cmd->body.numMipLevels = srf->mip_levels[0];
 		cmd->body.multisampleCount = srf->multisample_count;
 		cmd->body.autogenFilter = srf->autogen_filter;
