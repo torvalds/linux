@@ -61,6 +61,9 @@
 	#size-cells = <2>;
 
 	aliases {
+		dsi0 = &dsi;
+		dsi1 = &dsi1;
+		ethernet0 = &gmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -75,8 +78,6 @@
 		serial2 = &uart2;
 		serial3 = &uart3;
 		serial4 = &uart4;
-		dsi0 = &dsi;
-		dsi1 = &dsi1;
 	};
 
 	cpus {
