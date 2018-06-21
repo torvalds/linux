@@ -18,6 +18,7 @@
 #define DRIVERS_FSI_MASTER_H
 
 #include <linux/device.h>
+#include <linux/mutex.h>
 
 /* Various protocol delays */
 #define	FSI_ECHO_DELAY_CLOCKS	16	/* Number clocks for echo delay */
@@ -59,6 +60,7 @@ struct fsi_master {
 	int		idx;
 	int		n_links;
 	int		flags;
+	struct mutex	scan_lock;
 	int		(*read)(struct fsi_master *, int link, uint8_t id,
 				uint32_t addr, void *val, size_t size);
 	int		(*write)(struct fsi_master *, int link, uint8_t id,

@@ -1203,8 +1203,14 @@ static void fsi_master_unscan(struct fsi_master *master)
 
 int fsi_master_rescan(struct fsi_master *master)
 {
+	int rc;
+
+	mutex_lock(&master->scan_lock);
 	fsi_master_unscan(master);
-	return fsi_master_scan(master);
+	rc = fsi_master_scan(master);
+	mutex_unlock(&master->scan_lock);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(fsi_master_rescan);
 
@@ -1240,6 +1246,7 @@ int fsi_master_register(struct fsi_master *master)
 	int rc;
 	struct device_node *np;
 
+	mutex_init(&master->scan_lock);
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	dev_set_name(&master->dev, "fsi%d", master->idx);
 
@@ -1264,8 +1271,11 @@ int fsi_master_register(struct fsi_master *master)
 	}
 
 	np = dev_of_node(&master->dev);
-	if (!of_property_read_bool(np, "no-scan-on-init"))
+	if (!of_property_read_bool(np, "no-scan-on-init")) {
+		mutex_lock(&master->scan_lock);
 		fsi_master_scan(master);
+		mutex_unlock(&master->scan_lock);
+	}
 
 	return 0;
 }
@@ -1278,7 +1288,9 @@ void fsi_master_unregister(struct fsi_master *master)
 		master->idx = -1;
 	}
 
+	mutex_lock(&master->scan_lock);
 	fsi_master_unscan(master);
+	mutex_unlock(&master->scan_lock);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
