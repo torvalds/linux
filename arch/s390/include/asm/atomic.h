@@ -153,22 +153,6 @@ ATOMIC64_OPS(xor)
 
 #undef ATOMIC64_OPS
 
-static inline int atomic64_add_unless(atomic64_t *v, long i, long u)
-{
-	long c, old;
-
-	c = atomic64_read(v);
-	for (;;) {
-		if (unlikely(c == u))
-			break;
-		old = atomic64_cmpxchg(v, c, c + i);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c != u;
-}
-
 static inline long atomic64_dec_if_positive(atomic64_t *v)
 {
 	long c, old, dec;

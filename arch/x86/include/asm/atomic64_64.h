@@ -188,25 +188,6 @@ static inline long arch_atomic64_xchg(atomic64_t *v, long new)
 	return xchg(&v->counter, new);
 }
 
-/**
- * arch_atomic64_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
- */
-static inline bool arch_atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	s64 c = arch_atomic64_read(v);
-	do {
-		if (unlikely(c == u))
-			return false;
-	} while (!arch_atomic64_try_cmpxchg(v, &c, c + a));
-	return true;
-}
-
 /*
  * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic_t

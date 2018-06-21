@@ -1043,6 +1043,30 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #endif /* atomic64_try_cmpxchg */
 
 /**
+ * atomic64_fetch_add_unless - add unless the number is already a given value
+ * @v: pointer of type atomic64_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, if @v was not already @u.
+ * Returns the original value of @v.
+ */
+#ifndef atomic64_fetch_add_unless
+static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
+						  long long u)
+{
+	long long c = atomic64_read(v);
+
+	do {
+		if (unlikely(c == u))
+			break;
+	} while (!atomic64_try_cmpxchg(v, &c, c + a));
+
+	return c;
+}
+#endif
+
+/**
  * atomic64_add_unless - add unless the number is already a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
@@ -1051,12 +1075,10 @@ static inline int atomic_dec_if_positive(atomic_t *v)
  * Atomically adds @a to @v, if @v was not already @u.
  * Returns true if the addition was done.
  */
-#ifdef atomic64_fetch_add_unless
 static inline bool atomic64_add_unless(atomic64_t *v, long long a, long long u)
 {
 	return atomic64_fetch_add_unless(v, a, u) != u;
 }
-#endif
 
 /**
  * atomic64_inc_not_zero - increment unless the number is zero
