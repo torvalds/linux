@@ -1992,8 +1992,9 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		return -EINVAL;
 	if (gfs2_rs_active(rs)) {
 		begin = rs->rs_rbm.rgd;
-	} else if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal)) {
-		rs->rs_rbm.rgd = begin = ip->i_rgd;
+	} else if (rs->rs_rbm.rgd &&
+		   rgrp_contains_block(rs->rs_rbm.rgd, ip->i_goal)) {
+		begin = rs->rs_rbm.rgd;
 	} else {
 		check_and_update_goal(ip);
 		rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
@@ -2057,8 +2058,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target ||
 		    (loops == 2 && ap->min_target &&
 		     rs->rs_rbm.rgd->rd_free_clone >= ap->min_target)) {
-			ip->i_rgd = rs->rs_rbm.rgd;
-			ap->allowed = ip->i_rgd->rd_free_clone;
+			ap->allowed = rs->rs_rbm.rgd->rd_free_clone;
 			return 0;
 		}
 check_rgrp:
@@ -2336,7 +2336,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
-	struct gfs2_rbm rbm = { .rgd = ip->i_rgd, };
+	struct gfs2_rbm rbm = { .rgd = ip->i_res.rs_rbm.rgd, };
 	unsigned int ndata;
 	u64 block; /* block, within the file system scope */
 	int error;
@@ -2569,7 +2569,7 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 			return;
 		rgd = gfs2_blk2rgrpd(sdp, block, 1);
 	} else {
-		rgd = ip->i_rgd;
+		rgd = ip->i_res.rs_rbm.rgd;
 		if (!rgd || !rgrp_contains_block(rgd, block))
 			rgd = gfs2_blk2rgrpd(sdp, block, 1);
 	}
@@ -2579,7 +2579,6 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 		       (unsigned long long)block);
 		return;
 	}
-	ip->i_rgd = rgd;
 
 	for (x = 0; x < rlist->rl_rgrps; x++) {
 		if (rlist->rl_rgd[x] == rgd) {
