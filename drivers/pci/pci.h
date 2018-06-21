@@ -480,4 +480,12 @@ static inline int devm_of_pci_get_host_bridge_resources(struct device *dev,
 }
 #endif
 
+#ifdef CONFIG_PCIEAER
+void pci_no_aer(void);
+void pci_aer_init(struct pci_dev *dev);
+#else
+static inline void pci_no_aer(void) { }
+static inline int pci_aer_init(struct pci_dev *d) { return -ENODEV; }
+#endif
+
 #endif /* DRIVERS_PCI_H */
