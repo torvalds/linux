@@ -375,15 +375,6 @@ static __always_inline int atomic64_add_unless(atomic64_t *v, long a, long u)
 }
 #endif
 
-/*
- * The extra atomic operations that are constructed from one of the core
- * LR/SC-based operations above.
- */
-static __always_inline int atomic_inc_not_zero(atomic_t *v)
-{
-        return atomic_fetch_add_unless(v, 1, 0);
-}
-
 #ifndef CONFIG_GENERIC_ATOMIC64
 static __always_inline long atomic64_inc_not_zero(atomic64_t *v)
 {
