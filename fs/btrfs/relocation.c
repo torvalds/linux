@@ -586,29 +586,6 @@ static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 	return btrfs_get_fs_root(fs_info, &key, false);
 }
 
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-static noinline_for_stack
-struct btrfs_root *find_tree_root(struct reloc_control *rc,
-				  struct extent_buffer *leaf,
-				  struct btrfs_extent_ref_v0 *ref0)
-{
-	struct btrfs_root *root;
-	u64 root_objectid = btrfs_ref_root_v0(leaf, ref0);
-	u64 generation = btrfs_ref_generation_v0(leaf, ref0);
-
-	BUG_ON(root_objectid == BTRFS_TREE_RELOC_OBJECTID);
-
-	root = read_fs_root(rc->extent_root->fs_info, root_objectid);
-	BUG_ON(IS_ERR(root));
-
-	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
-	    generation != btrfs_root_generation(&root->root_item))
-		return NULL;
-
-	return root;
-}
-#endif
-
 static noinline_for_stack
 int find_inline_backref(struct extent_buffer *leaf, int slot,
 			unsigned long *ptr, unsigned long *end)
@@ -621,12 +598,6 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 
 	item_size = btrfs_item_size_nr(leaf, slot);
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-	if (item_size < sizeof(*ei)) {
-		WARN_ON(item_size != sizeof(struct btrfs_extent_item_v0));
-		return 1;
-	}
-#endif
 	ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
 	WARN_ON(!(btrfs_extent_flags(leaf, ei) &
 		  BTRFS_EXTENT_FLAG_TREE_BLOCK));
@@ -811,29 +782,8 @@ again:
 			goto next;
 		}
 
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY ||
-		    key.type == BTRFS_EXTENT_REF_V0_KEY) {
-			if (key.type == BTRFS_EXTENT_REF_V0_KEY) {
-				struct btrfs_extent_ref_v0 *ref0;
-				ref0 = btrfs_item_ptr(eb, path1->slots[0],
-						struct btrfs_extent_ref_v0);
-				if (key.objectid == key.offset) {
-					root = find_tree_root(rc, eb, ref0);
-					if (root && !should_ignore_root(root))
-						cur->root = root;
-					else
-						list_add(&cur->list, &useless);
-					break;
-				}
-				if (is_cowonly_root(btrfs_ref_root_v0(eb,
-								      ref0)))
-					cur->cowonly = 1;
-			}
-#else
 		ASSERT(key.type != BTRFS_EXTENT_REF_V0_KEY);
 		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY) {
-#endif
 			if (key.objectid == key.offset) {
 				/*
 				 * only root blocks of reloc trees use
@@ -3333,48 +3283,6 @@ int relocate_data_extent(struct inode *inode, struct btrfs_key *extent_key,
 	return 0;
 }
 
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-static int get_ref_objectid_v0(struct reloc_control *rc,
-			       struct btrfs_path *path,
-			       struct btrfs_key *extent_key,
-			       u64 *ref_objectid, int *path_change)
-{
-	struct btrfs_key key;
-	struct extent_buffer *leaf;
-	struct btrfs_extent_ref_v0 *ref0;
-	int ret;
-	int slot;
-
-	leaf = path->nodes[0];
-	slot = path->slots[0];
-	while (1) {
-		if (slot >= btrfs_header_nritems(leaf)) {
-			ret = btrfs_next_leaf(rc->extent_root, path);
-			if (ret < 0)
-				return ret;
-			BUG_ON(ret > 0);
-			leaf = path->nodes[0];
-			slot = path->slots[0];
-			if (path_change)
-				*path_change = 1;
-		}
-		btrfs_item_key_to_cpu(leaf, &key, slot);
-		if (key.objectid != extent_key->objectid)
-			return -ENOENT;
-
-		if (key.type != BTRFS_EXTENT_REF_V0_KEY) {
-			slot++;
-			continue;
-		}
-		ref0 = btrfs_item_ptr(leaf, slot,
-				struct btrfs_extent_ref_v0);
-		*ref_objectid = btrfs_ref_objectid_v0(leaf, ref0);
-		break;
-	}
-	return 0;
-}
-#endif
-
 /*
  * helper to add a tree block to the list.
  * the major work is getting the generation and level of the block
@@ -3408,22 +3316,7 @@ static int add_tree_block(struct reloc_control *rc,
 		}
 		generation = btrfs_extent_generation(eb, ei);
 	} else {
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-		u64 ref_owner;
-		int ret;
-
-		BUG_ON(item_size != sizeof(struct btrfs_extent_item_v0));
-		ret = get_ref_objectid_v0(rc, path, extent_key,
-					  &ref_owner, NULL);
-		if (ret < 0)
-			return ret;
-		BUG_ON(ref_owner >= BTRFS_MAX_LEVEL);
-		level = (int)ref_owner;
-		/* FIXME: get real generation */
-		generation = 0;
-#else
 		BUG();
-#endif
 	}
 
 	btrfs_release_path(path);
@@ -3781,12 +3674,7 @@ int add_data_references(struct reloc_control *rc,
 	eb = path->nodes[0];
 	ptr = btrfs_item_ptr_offset(eb, path->slots[0]);
 	end = ptr + btrfs_item_size_nr(eb, path->slots[0]);
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-	if (ptr + sizeof(struct btrfs_extent_item_v0) == end)
-		ptr = end;
-	else
-#endif
-		ptr += sizeof(struct btrfs_extent_item);
+	ptr += sizeof(struct btrfs_extent_item);
 
 	while (ptr < end) {
 		iref = (struct btrfs_extent_inline_ref *)ptr;
@@ -3832,13 +3720,8 @@ int add_data_references(struct reloc_control *rc,
 		if (key.objectid != extent_key->objectid)
 			break;
 
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-		if (key.type == BTRFS_SHARED_DATA_REF_KEY ||
-		    key.type == BTRFS_EXTENT_REF_V0_KEY) {
-#else
 		BUG_ON(key.type == BTRFS_EXTENT_REF_V0_KEY);
 		if (key.type == BTRFS_SHARED_DATA_REF_KEY) {
-#endif
 			ret = __add_tree_block(rc, key.offset, blocksize,
 					       blocks);
 		} else if (key.type == BTRFS_EXTENT_DATA_REF_KEY) {
@@ -4086,39 +3969,7 @@ restart:
 			BUG_ON(ret);
 
 		} else {
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-			u64 ref_owner;
-			int path_change = 0;
-
-			BUG_ON(item_size !=
-			       sizeof(struct btrfs_extent_item_v0));
-			ret = get_ref_objectid_v0(rc, path, &key, &ref_owner,
-						  &path_change);
-			if (ret < 0) {
-				err = ret;
-				break;
-			}
-			if (ref_owner < BTRFS_FIRST_FREE_OBJECTID)
-				flags = BTRFS_EXTENT_FLAG_TREE_BLOCK;
-			else
-				flags = BTRFS_EXTENT_FLAG_DATA;
-
-			if (path_change) {
-				btrfs_release_path(path);
-
-				path->search_commit_root = 1;
-				path->skip_locking = 1;
-				ret = btrfs_search_slot(NULL, rc->extent_root,
-							&key, path, 0, 0);
-				if (ret < 0) {
-					err = ret;
-					break;
-				}
-				BUG_ON(ret > 0);
-			}
-#else
 			BUG();
-#endif
 		}
 
 		if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {

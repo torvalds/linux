@@ -55,8 +55,6 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_OLDEST_GENERATION	0ULL
 
-#define BTRFS_COMPAT_EXTENT_TREE_V0
-
 /*
  * the max metadata block size.  This limit is somewhat artificial,
  * but the memmove costs go through the roof for larger blocks.

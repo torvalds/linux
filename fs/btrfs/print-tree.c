@@ -52,18 +52,8 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	u64 offset;
 	int ref_index = 0;
 
-	if (item_size < sizeof(*ei)) {
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-		struct btrfs_extent_item_v0 *ei0;
-		BUG_ON(item_size != sizeof(*ei0));
-		ei0 = btrfs_item_ptr(eb, slot, struct btrfs_extent_item_v0);
-		pr_info("\t\textent refs %u\n",
-		       btrfs_extent_refs_v0(eb, ei0));
-		return;
-#else
+	if (item_size < sizeof(*ei))
 		BUG();
-#endif
-	}
 
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
 	flags = btrfs_extent_flags(eb, ei);
@@ -132,20 +122,6 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	}
 	WARN_ON(ptr > end);
 }
-
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-static void print_extent_ref_v0(struct extent_buffer *eb, int slot)
-{
-	struct btrfs_extent_ref_v0 *ref0;
-
-	ref0 = btrfs_item_ptr(eb, slot, struct btrfs_extent_ref_v0);
-	printk("\t\textent back ref root %llu gen %llu owner %llu num_refs %lu\n",
-		btrfs_ref_root_v0(eb, ref0),
-		btrfs_ref_generation_v0(eb, ref0),
-		btrfs_ref_objectid_v0(eb, ref0),
-		(unsigned long)btrfs_ref_count_v0(eb, ref0));
-}
-#endif
 
 static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 			    u32 item_size)
@@ -280,11 +256,7 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			       btrfs_file_extent_ram_bytes(l, fi));
 			break;
 		case BTRFS_EXTENT_REF_V0_KEY:
-#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
-			print_extent_ref_v0(l, i);
-#else
 			BUG();
-#endif
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
