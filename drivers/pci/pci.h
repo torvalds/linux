@@ -484,6 +484,7 @@ static inline int devm_of_pci_get_host_bridge_resources(struct device *dev,
 void pci_no_aer(void);
 void pci_aer_init(struct pci_dev *dev);
 void pci_aer_exit(struct pci_dev *dev);
+extern const struct attribute_group aer_stats_attr_group;
 #else
 static inline void pci_no_aer(void) { }
 static inline int pci_aer_init(struct pci_dev *d) { return -ENODEV; }
