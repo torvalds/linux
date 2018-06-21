@@ -13,7 +13,8 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -40,14 +41,14 @@ static struct fiq_handler fh = {
 unsigned int fiq_buffer[1024];
 EXPORT_SYMBOL(fiq_buffer);
 
+static struct irq_chip *irq_chip;
+static struct irq_data *irq_data[16];
 static unsigned int irq_counter[16];
 
 static irqreturn_t deferred_fiq(int irq, void *dev_id)
 {
+	struct irq_data *d;
 	int gpio, irq_num, fiq_count;
-	struct irq_chip *irq_chip;
-
-	irq_chip = irq_get_chip(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
 
 	/*
 	 * For each handled GPIO interrupt, keep calling its interrupt handler
@@ -55,24 +56,21 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	 */
 	for (gpio = AMS_DELTA_GPIO_PIN_KEYBRD_CLK;
 			gpio <= AMS_DELTA_GPIO_PIN_HOOK_SWITCH; gpio++) {
-		irq_num = gpio_to_irq(gpio);
+		d = irq_data[gpio];
+		irq_num = d->irq;
 		fiq_count = fiq_buffer[FIQ_CNT_INT_00 + gpio];
 
 		if (irq_counter[gpio] < fiq_count &&
 				gpio != AMS_DELTA_GPIO_PIN_KEYBRD_CLK) {
-			struct irq_data *d = irq_get_irq_data(irq_num);
-
 			/*
 			 * handle_simple_irq() that OMAP GPIO edge
 			 * interrupts default to since commit 80ac93c27441
 			 * requires interrupt already acked and unmasked.
 			 */
-			if (irq_chip) {
-				if (irq_chip->irq_ack)
-					irq_chip->irq_ack(d);
-				if (irq_chip->irq_unmask)
-					irq_chip->irq_unmask(d);
-			}
+			if (irq_chip->irq_ack)
+				irq_chip->irq_ack(d);
+			if (irq_chip->irq_unmask)
+				irq_chip->irq_unmask(d);
 		}
 		for (; irq_counter[gpio] < fiq_count; irq_counter[gpio]++)
 			generic_handle_irq(irq_num);
@@ -80,13 +78,35 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void __init ams_delta_init_fiq(void)
+void __init ams_delta_init_fiq(struct gpio_chip *chip)
 {
+	struct gpio_desc *gpiod;
 	void *fiqhandler_start;
 	unsigned int fiqhandler_length;
 	struct pt_regs FIQ_regs;
 	unsigned long val, offset;
 	int i, retval;
+
+	/* Store irq_chip location for IRQ handler use */
+	irq_chip = chip->irq.chip;
+	if (!irq_chip) {
+		pr_err("%s: GPIO chip %s is missing IRQ function\n", __func__,
+		       chip->label);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(irq_data); i++) {
+		gpiod = gpiochip_request_own_desc(chip, i, NULL);
+		if (IS_ERR(gpiod)) {
+			pr_err("%s: failed to get GPIO pin %d (%ld)\n",
+			       __func__, i, PTR_ERR(gpiod));
+			return;
+		}
+		/* Store irq_data location for IRQ handler use */
+		irq_data[i] = irq_get_irq_data(gpiod_to_irq(gpiod));
+
+		gpiochip_free_own_desc(gpiod);
+	}
 
 	fiqhandler_start = &qwerty_fiqin_start;
 	fiqhandler_length = &qwerty_fiqin_end - &qwerty_fiqin_start;
