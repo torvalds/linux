@@ -72,6 +72,15 @@
 	};
 };
 
+&codec {
+	/*
+	 * Override the i2s_clk since codec connects to i2s_8ch in rk3128,
+	 * which is different from rk3126.
+	 */
+	clock-names = "g_pclk_acodec", "i2s_clk";
+	clocks = <&cru PCLK_ACODEC>, <&cru SCLK_I2S0>;
+};
+
 &pd_vio {
 	pm_qos = <&qos_rga>,
 		 <&qos_ebc>,
