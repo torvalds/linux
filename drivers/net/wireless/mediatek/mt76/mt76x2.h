@@ -72,6 +72,7 @@ struct mt76x2_calibration {
 	int avg_rssi[MT_MAX_CHAINS];
 	int avg_rssi_all;
 
+	u16 false_cca;
 	s8 agc_gain_adjust;
 	s8 low_gain;
 

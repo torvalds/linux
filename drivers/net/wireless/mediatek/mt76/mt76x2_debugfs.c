@@ -115,6 +115,18 @@ static const struct file_operations fops_dfs_stat = {
 	.release = single_release,
 };
 
+static int read_agc(struct seq_file *file, void *data)
+{
+	struct mt76x2_dev *dev = dev_get_drvdata(file->private);
+
+	seq_printf(file, "avg_rssi: %d\n", dev->cal.avg_rssi_all);
+	seq_printf(file, "low_gain: %d\n", dev->cal.low_gain);
+	seq_printf(file, "false_cca: %d\n", dev->cal.false_cca);
+	seq_printf(file, "agc_gain_adjust: %d\n", dev->cal.agc_gain_adjust);
+
+	return 0;
+}
+
 void mt76x2_init_debugfs(struct mt76x2_dev *dev)
 {
 	struct dentry *dir;
@@ -130,4 +142,6 @@ void mt76x2_init_debugfs(struct mt76x2_dev *dev)
 	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
 				    read_txpower);
+
+	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
 }

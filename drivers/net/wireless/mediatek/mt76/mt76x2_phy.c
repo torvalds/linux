@@ -488,6 +488,7 @@ mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
 	u8 limit = dev->cal.low_gain > 0 ? 16 : 4;
 
 	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS, mt76_rr(dev, MT_RX_STAT_1));
+	dev->cal.false_cca = false_cca;
 	if (false_cca > 800 && dev->cal.agc_gain_adjust < limit)
 		dev->cal.agc_gain_adjust += 2;
 	else if (false_cca < 10 && dev->cal.agc_gain_adjust > 0)
