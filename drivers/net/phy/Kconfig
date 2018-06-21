@@ -92,7 +92,8 @@ config MDIO_CAVIUM
 
 config MDIO_GPIO
 	tristate "GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && GPIOLIB
+	depends on MDIO_BITBANG
+	depends on GPIOLIB || COMPILE_TEST
 	---help---
 	  Supports GPIO lib-based MDIO busses.
 
