@@ -120,9 +120,12 @@ struct mt76x2_dev {
 	u8 beacon_mask;
 	u8 beacon_data_mask;
 
-	u32 rxfilter;
+	u8 tbtt_count;
+	u16 beacon_int;
 
 	u16 chainmask;
+
+	u32 rxfilter;
 
 	struct mt76x2_calibration cal;
 
