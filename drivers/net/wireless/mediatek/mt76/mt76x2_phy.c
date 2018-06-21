@@ -525,10 +525,17 @@ mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 
 	dev->cal.low_gain = low_gain;
 
-	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
+	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80) {
 		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560211);
-	else
+		val = mt76_rr(dev, MT_BBP(AGC, 26)) & ~0xf;
+		if (low_gain == 2)
+			val |= 0x3;
+		else
+			val |= 0x5;
+		mt76_wr(dev, MT_BBP(AGC, 26), val);
+	} else {
 		mt76_wr(dev, MT_BBP(RXO, 14), 0x00560423);
+	}
 
 	if (low_gain == 2) {
 		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a990);
