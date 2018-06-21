@@ -86,9 +86,18 @@ static inline void msm_kms_init(struct msm_kms *kms,
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
-int msm_mdss_init(struct drm_device *dev);
-void msm_mdss_destroy(struct drm_device *dev);
-int msm_mdss_enable(struct msm_mdss *mdss);
-int msm_mdss_disable(struct msm_mdss *mdss);
+
+struct msm_mdss_funcs {
+	int (*enable)(struct msm_mdss *mdss);
+	int (*disable)(struct msm_mdss *mdss);
+	void (*destroy)(struct drm_device *dev);
+};
+
+struct msm_mdss {
+	struct drm_device *dev;
+	const struct msm_mdss_funcs *funcs;
+};
+
+int mdp5_mdss_init(struct drm_device *dev);
 
 #endif /* __MSM_KMS_H__ */
