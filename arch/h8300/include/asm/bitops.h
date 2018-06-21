@@ -66,7 +66,7 @@ H8300_GEN_BITOP(change_bit, "bnot")
 
 #undef H8300_GEN_BITOP
 
-static inline int test_bit(int nr, const unsigned long *addr)
+static inline int test_bit(int nr, const volatile unsigned long *addr)
 {
 	int ret = 0;
 	unsigned char *b_addr;
