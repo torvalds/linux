@@ -2559,19 +2559,35 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 	if (gfs2_assert_warn(sdp, !rlist->rl_ghs))
 		return;
 
-	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, block))
-		rgd = ip->i_rgd;
-	else
+	/*
+	 * The resource group last accessed is kept in the last position.
+	 */
+
+	if (rlist->rl_rgrps) {
+		rgd = rlist->rl_rgd[rlist->rl_rgrps - 1];
+		if (rgrp_contains_block(rgd, block))
+			return;
 		rgd = gfs2_blk2rgrpd(sdp, block, 1);
+	} else {
+		rgd = ip->i_rgd;
+		if (!rgd || !rgrp_contains_block(rgd, block))
+			rgd = gfs2_blk2rgrpd(sdp, block, 1);
+	}
+
 	if (!rgd) {
-		fs_err(sdp, "rlist_add: no rgrp for block %llu\n", (unsigned long long)block);
+		fs_err(sdp, "rlist_add: no rgrp for block %llu\n",
+		       (unsigned long long)block);
 		return;
 	}
 	ip->i_rgd = rgd;
 
-	for (x = 0; x < rlist->rl_rgrps; x++)
-		if (rlist->rl_rgd[x] == rgd)
+	for (x = 0; x < rlist->rl_rgrps; x++) {
+		if (rlist->rl_rgd[x] == rgd) {
+			swap(rlist->rl_rgd[x],
+			     rlist->rl_rgd[rlist->rl_rgrps - 1]);
 			return;
+		}
+	}
 
 	if (rlist->rl_rgrps == rlist->rl_space) {
 		new_space = rlist->rl_space + 10;
