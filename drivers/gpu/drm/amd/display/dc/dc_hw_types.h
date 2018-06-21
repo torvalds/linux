@@ -408,6 +408,7 @@ struct dc_cursor_mi_param {
 	struct fixed31_32 h_scale_ratio;
 	struct fixed31_32 v_scale_ratio;
 	enum dc_rotation_angle rotation;
+	bool mirror;
 };
 
 /* IPP related types */

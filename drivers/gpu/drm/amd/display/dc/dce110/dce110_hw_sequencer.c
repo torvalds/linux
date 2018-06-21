@@ -2807,7 +2807,8 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
 		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,
-		.rotation = pipe_ctx->plane_state->rotation
+		.rotation = pipe_ctx->plane_state->rotation,
+		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
 	if (pipe_ctx->plane_state->address.type

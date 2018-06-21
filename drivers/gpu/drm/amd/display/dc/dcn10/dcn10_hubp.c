@@ -1084,8 +1084,10 @@ void hubp1_cursor_set_position(
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	int x_hotspot = pos->x_hotspot;
+	int y_hotspot = pos->y_hotspot;
+	uint32_t dst_x_offset;
 	uint32_t cur_en = pos->enable ? 1 : 0;
-	uint32_t dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
 
 	/*
 	 * Guard aganst cursor_set_position() from being called with invalid
@@ -1097,6 +1099,18 @@ void hubp1_cursor_set_position(
 	if (hubp->curs_attr.address.quad_part == 0)
 		return;
 
+	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
+		src_x_offset = pos->y - pos->y_hotspot - param->viewport.x;
+		y_hotspot = pos->x_hotspot;
+		x_hotspot = pos->y_hotspot;
+	}
+
+	if (param->mirror) {
+		x_hotspot = param->viewport.width - x_hotspot;
+		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
+	}
+
+	dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
 	dst_x_offset *= param->ref_clk_khz;
 	dst_x_offset /= param->pixel_clk_khz;
 
@@ -1124,8 +1138,8 @@ void hubp1_cursor_set_position(
 			CURSOR_Y_POSITION, pos->y);
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
-			CURSOR_HOT_SPOT_X, pos->x_hotspot,
-			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
+			CURSOR_HOT_SPOT_X, x_hotspot,
+			CURSOR_HOT_SPOT_Y, y_hotspot);
 
 	REG_SET(CURSOR_DST_OFFSET, 0,
 			CURSOR_DST_X_OFFSET, dst_x_offset);
