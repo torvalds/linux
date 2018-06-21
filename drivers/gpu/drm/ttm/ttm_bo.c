@@ -1204,7 +1204,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		if (!resv)
 			ttm_bo_unreserve(bo);
 
-		ttm_bo_unref(&bo);
+		ttm_bo_put(bo);
 		return ret;
 	}
 
