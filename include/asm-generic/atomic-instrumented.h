@@ -102,29 +102,41 @@ static __always_inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u
 }
 #endif
 
+#ifdef arch_atomic_inc
+#define atomic_inc atomic_inc
 static __always_inline void atomic_inc(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic_inc(v);
 }
+#endif
 
+#ifdef arch_atomic64_inc
+#define atomic64_inc atomic64_inc
 static __always_inline void atomic64_inc(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic64_inc(v);
 }
+#endif
 
+#ifdef arch_atomic_dec
+#define atomic_dec atomic_dec
 static __always_inline void atomic_dec(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic_dec(v);
 }
+#endif
 
+#ifdef atch_atomic64_dec
+#define atomic64_dec
 static __always_inline void atomic64_dec(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic64_dec(v);
 }
+#endif
 
 static __always_inline void atomic_add(int i, atomic_t *v)
 {
@@ -186,29 +198,41 @@ static __always_inline void atomic64_xor(s64 i, atomic64_t *v)
 	arch_atomic64_xor(i, v);
 }
 
+#ifdef arch_atomic_inc_return
+#define atomic_inc_return atomic_inc_return
 static __always_inline int atomic_inc_return(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_inc_return(v);
 }
+#endif
 
+#ifdef arch_atomic64_in_return
+#define atomic64_inc_return atomic64_inc_return
 static __always_inline s64 atomic64_inc_return(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_return(v);
 }
+#endif
 
+#ifdef arch_atomic_dec_return
+#define atomic_dec_return atomic_dec_return
 static __always_inline int atomic_dec_return(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_dec_return(v);
 }
+#endif
 
+#ifdef arch_atomic64_dec_return
+#define atomic64_dec_return atomic64_dec_return
 static __always_inline s64 atomic64_dec_return(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_return(v);
 }
+#endif
 
 #ifdef arch_atomic64_inc_not_zero
 #define atomic64_inc_not_zero atomic64_inc_not_zero

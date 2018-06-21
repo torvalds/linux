@@ -274,30 +274,11 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 #define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), (new)))
 
-#define atomic_dec_return(v) atomic_sub_return(1, (v))
-#define atomic_inc_return(v) atomic_add_return(1, (v))
-
 /*
  * atomic_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic_t
  */
 #define atomic_dec_if_positive(v)	atomic_sub_if_positive(1, v)
-
-/*
- * atomic_inc - increment atomic variable
- * @v: pointer of type atomic_t
- *
- * Atomically increments @v by 1.
- */
-#define atomic_inc(v) atomic_add(1, (v))
-
-/*
- * atomic_dec - decrement and test
- * @v: pointer of type atomic_t
- *
- * Atomically decrements @v by 1.
- */
-#define atomic_dec(v) atomic_sub(1, (v))
 
 #ifdef CONFIG_64BIT
 
@@ -554,30 +535,11 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), (new)))
 
-#define atomic64_dec_return(v) atomic64_sub_return(1, (v))
-#define atomic64_inc_return(v) atomic64_add_return(1, (v))
-
 /*
  * atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic64_t
  */
 #define atomic64_dec_if_positive(v)	atomic64_sub_if_positive(1, v)
-
-/*
- * atomic64_inc - increment atomic variable
- * @v: pointer of type atomic64_t
- *
- * Atomically increments @v by 1.
- */
-#define atomic64_inc(v) atomic64_add(1, (v))
-
-/*
- * atomic64_dec - decrement and test
- * @v: pointer of type atomic64_t
- *
- * Atomically decrements @v by 1.
- */
-#define atomic64_dec(v) atomic64_sub(1, (v))
 
 #endif /* CONFIG_64BIT */
 

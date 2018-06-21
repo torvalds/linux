@@ -55,13 +55,9 @@ static inline void atomic_add(int i, atomic_t *v)
 	__atomic_add(i, &v->counter);
 }
 
-#define atomic_inc(_v)			atomic_add(1, _v)
-#define atomic_inc_return(_v)		atomic_add_return(1, _v)
 #define atomic_sub(_i, _v)		atomic_add(-(int)(_i), _v)
 #define atomic_sub_return(_i, _v)	atomic_add_return(-(int)(_i), _v)
 #define atomic_fetch_sub(_i, _v)	atomic_fetch_add(-(int)(_i), _v)
-#define atomic_dec(_v)			atomic_sub(1, _v)
-#define atomic_dec_return(_v)		atomic_sub_return(1, _v)
 
 #define ATOMIC_OPS(op)							\
 static inline void atomic_##op(int i, atomic_t *v)			\
@@ -166,12 +162,8 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	return dec;
 }
 
-#define atomic64_inc(_v)		atomic64_add(1, _v)
-#define atomic64_inc_return(_v)		atomic64_add_return(1, _v)
 #define atomic64_sub_return(_i, _v)	atomic64_add_return(-(long)(_i), _v)
 #define atomic64_fetch_sub(_i, _v)	atomic64_fetch_add(-(long)(_i), _v)
 #define atomic64_sub(_i, _v)		atomic64_add(-(long)(_i), _v)
-#define atomic64_dec(_v)		atomic64_sub(1, _v)
-#define atomic64_dec_return(_v)		atomic64_sub_return(1, _v)
 
 #endif /* __ARCH_S390_ATOMIC__  */

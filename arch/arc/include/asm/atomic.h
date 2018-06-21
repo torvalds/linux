@@ -308,12 +308,6 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define atomic_inc(v)			atomic_add(1, v)
-#define atomic_dec(v)			atomic_sub(1, v)
-
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
-
 #ifdef CONFIG_GENERIC_ATOMIC64
 
 #include <asm-generic/atomic64.h>
@@ -559,11 +553,6 @@ static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
 	return old;
 }
 #define atomic64_fetch_add_unless atomic64_fetch_add_unless
-
-#define atomic64_inc(v)			atomic64_add(1LL, (v))
-#define atomic64_inc_return(v)		atomic64_add_return(1LL, (v))
-#define atomic64_dec(v)			atomic64_sub(1LL, (v))
-#define atomic64_dec_return(v)		atomic64_sub_return(1LL, (v))
 
 #endif	/* !CONFIG_GENERIC_ATOMIC64 */
 

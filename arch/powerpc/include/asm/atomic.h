@@ -143,6 +143,7 @@ static __inline__ void atomic_inc(atomic_t *v)
 	: "r" (&v->counter)
 	: "cc", "xer");
 }
+#define atomic_inc atomic_inc
 
 static __inline__ int atomic_inc_return_relaxed(atomic_t *v)
 {
@@ -175,6 +176,7 @@ static __inline__ void atomic_dec(atomic_t *v)
 	: "r" (&v->counter)
 	: "cc", "xer");
 }
+#define atomic_dec atomic_dec
 
 static __inline__ int atomic_dec_return_relaxed(atomic_t *v)
 {
@@ -411,6 +413,7 @@ static __inline__ void atomic64_inc(atomic64_t *v)
 	: "r" (&v->counter)
 	: "cc", "xer");
 }
+#define atomic64_inc atomic64_inc
 
 static __inline__ long atomic64_inc_return_relaxed(atomic64_t *v)
 {
@@ -441,6 +444,7 @@ static __inline__ void atomic64_dec(atomic64_t *v)
 	: "r" (&v->counter)
 	: "cc", "xer");
 }
+#define atomic64_dec atomic64_dec
 
 static __inline__ long atomic64_dec_return_relaxed(atomic64_t *v)
 {

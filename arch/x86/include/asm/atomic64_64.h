@@ -83,6 +83,7 @@ static inline bool arch_atomic64_sub_and_test(long i, atomic64_t *v)
  *
  * Atomically increments @v by 1.
  */
+#define arch_atomic64_inc arch_atomic64_inc
 static __always_inline void arch_atomic64_inc(atomic64_t *v)
 {
 	asm volatile(LOCK_PREFIX "incq %0"
@@ -96,6 +97,7 @@ static __always_inline void arch_atomic64_inc(atomic64_t *v)
  *
  * Atomically decrements @v by 1.
  */
+#define arch_atomic64_dec arch_atomic64_dec
 static __always_inline void arch_atomic64_dec(atomic64_t *v)
 {
 	asm volatile(LOCK_PREFIX "decq %0"
@@ -172,9 +174,6 @@ static inline long arch_atomic64_fetch_sub(long i, atomic64_t *v)
 {
 	return xadd(&v->counter, -i);
 }
-
-#define arch_atomic64_inc_return(v)  (arch_atomic64_add_return(1, (v)))
-#define arch_atomic64_dec_return(v)  (arch_atomic64_sub_return(1, (v)))
 
 static inline long arch_atomic64_cmpxchg(atomic64_t *v, long old, long new)
 {

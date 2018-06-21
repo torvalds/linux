@@ -92,6 +92,7 @@ static __always_inline bool arch_atomic_sub_and_test(int i, atomic_t *v)
  *
  * Atomically increments @v by 1.
  */
+#define arch_atomic_inc arch_atomic_inc
 static __always_inline void arch_atomic_inc(atomic_t *v)
 {
 	asm volatile(LOCK_PREFIX "incl %0"
@@ -104,6 +105,7 @@ static __always_inline void arch_atomic_inc(atomic_t *v)
  *
  * Atomically decrements @v by 1.
  */
+#define arch_atomic_dec arch_atomic_dec
 static __always_inline void arch_atomic_dec(atomic_t *v)
 {
 	asm volatile(LOCK_PREFIX "decl %0"
@@ -176,9 +178,6 @@ static __always_inline int arch_atomic_sub_return(int i, atomic_t *v)
 {
 	return arch_atomic_add_return(-i, v);
 }
-
-#define arch_atomic_inc_return(v)  (arch_atomic_add_return(1, v))
-#define arch_atomic_dec_return(v)  (arch_atomic_sub_return(1, v))
 
 static __always_inline int arch_atomic_fetch_add(int i, atomic_t *v)
 {

@@ -56,9 +56,4 @@ extern long long atomic64_xchg(atomic64_t *v, long long new);
 extern long long atomic64_fetch_add_unless(atomic64_t *v, long long a, long long u);
 #define atomic64_fetch_add_unless atomic64_fetch_add_unless
 
-#define atomic64_inc(v)			atomic64_add(1LL, (v))
-#define atomic64_inc_return(v)		atomic64_add_return(1LL, (v))
-#define atomic64_dec(v)			atomic64_sub(1LL, (v))
-#define atomic64_dec_return(v)		atomic64_sub_return(1LL, (v))
-
 #endif  /*  _ASM_GENERIC_ATOMIC64_H  */

@@ -297,16 +297,4 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	return old - 1;
 }
 
-#define atomic_dec_return(v) atomic_sub_return(1,(v))
-#define atomic64_dec_return(v) atomic64_sub_return(1,(v))
-
-#define atomic_inc_return(v) atomic_add_return(1,(v))
-#define atomic64_inc_return(v) atomic64_add_return(1,(v))
-
-#define atomic_inc(v) atomic_add(1,(v))
-#define atomic64_inc(v) atomic64_add(1,(v))
-
-#define atomic_dec(v) atomic_sub(1,(v))
-#define atomic64_dec(v) atomic64_sub(1,(v))
-
 #endif /* _ALPHA_ATOMIC_H */

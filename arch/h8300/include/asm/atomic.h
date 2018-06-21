@@ -69,13 +69,6 @@ ATOMIC_OPS(sub, -=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define atomic_inc_return(v)		atomic_add_return(1, v)
-#define atomic_dec_return(v)		atomic_sub_return(1, v)
-
-#define atomic_inc(v)			(void)atomic_inc_return(v)
-
-#define atomic_dec(v)			(void)atomic_dec_return(v)
-
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	int ret;

@@ -32,12 +32,6 @@
 #include <asm/atomic-irq.h>
 #endif
 
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-
-#define atomic_inc(v)			atomic_add(1, (v))
-#define atomic_dec(v)			atomic_sub(1, (v))
-
 #define atomic_xchg(v, new)		(xchg(&((v)->counter), new))
 #define atomic_cmpxchg(v, o, n)		(cmpxchg(&((v)->counter), (o), (n)))
 

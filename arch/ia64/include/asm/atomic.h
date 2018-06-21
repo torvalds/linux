@@ -231,19 +231,10 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
 	return dec;
 }
 
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-#define atomic64_dec_return(v)		atomic64_sub_return(1, (v))
-#define atomic64_inc_return(v)		atomic64_add_return(1, (v))
-
 #define atomic_add(i,v)			(void)atomic_add_return((i), (v))
 #define atomic_sub(i,v)			(void)atomic_sub_return((i), (v))
-#define atomic_inc(v)			atomic_add(1, (v))
-#define atomic_dec(v)			atomic_sub(1, (v))
 
 #define atomic64_add(i,v)		(void)atomic64_add_return((i), (v))
 #define atomic64_sub(i,v)		(void)atomic64_sub_return((i), (v))
-#define atomic64_inc(v)			atomic64_add(1, (v))
-#define atomic64_dec(v)			atomic64_sub(1, (v))
 
 #endif /* _ASM_IA64_ATOMIC_H */

@@ -158,6 +158,7 @@ static inline long long arch_atomic64_inc_return(atomic64_t *v)
 			     "S" (v) : "memory", "ecx");
 	return a;
 }
+#define arch_atomic64_inc_return arch_atomic64_inc_return
 
 static inline long long arch_atomic64_dec_return(atomic64_t *v)
 {
@@ -166,6 +167,7 @@ static inline long long arch_atomic64_dec_return(atomic64_t *v)
 			     "S" (v) : "memory", "ecx");
 	return a;
 }
+#define arch_atomic64_dec_return arch_atomic64_dec_return
 
 /**
  * arch_atomic64_add - add integer to atomic64 variable
@@ -203,6 +205,7 @@ static inline long long arch_atomic64_sub(long long i, atomic64_t *v)
  *
  * Atomically increments @v by 1.
  */
+#define arch_atomic64_inc arch_atomic64_inc
 static inline void arch_atomic64_inc(atomic64_t *v)
 {
 	__alternative_atomic64(inc, inc_return, /* no output */,
@@ -215,6 +218,7 @@ static inline void arch_atomic64_inc(atomic64_t *v)
  *
  * Atomically decrements @v by 1.
  */
+#define arch_atomic64_dec arch_atomic64_dec
 static inline void arch_atomic64_dec(atomic64_t *v)
 {
 	__alternative_atomic64(dec, dec_return, /* no output */,

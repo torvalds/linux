@@ -97,11 +97,23 @@
 #endif
 #endif /* atomic_add_return_relaxed */
 
+#ifndef atomic_inc
+#define atomic_inc(v)			atomic_add(1, (v))
+#endif
+
 /* atomic_inc_return_relaxed */
 #ifndef atomic_inc_return_relaxed
+
+#ifndef atomic_inc_return
+#define atomic_inc_return(v)		atomic_add_return(1, (v))
+#define atomic_inc_return_relaxed(v)	atomic_add_return_relaxed(1, (v))
+#define atomic_inc_return_acquire(v)	atomic_add_return_acquire(1, (v))
+#define atomic_inc_return_release(v)	atomic_add_return_release(1, (v))
+#else /* atomic_inc_return */
 #define  atomic_inc_return_relaxed	atomic_inc_return
 #define  atomic_inc_return_acquire	atomic_inc_return
 #define  atomic_inc_return_release	atomic_inc_return
+#endif /* atomic_inc_return */
 
 #else /* atomic_inc_return_relaxed */
 
@@ -145,11 +157,23 @@
 #endif
 #endif /* atomic_sub_return_relaxed */
 
+#ifndef atomic_dec
+#define atomic_dec(v)			atomic_sub(1, (v))
+#endif
+
 /* atomic_dec_return_relaxed */
 #ifndef atomic_dec_return_relaxed
+
+#ifndef atomic_dec_return
+#define atomic_dec_return(v)		atomic_sub_return(1, (v))
+#define atomic_dec_return_relaxed(v)	atomic_sub_return_relaxed(1, (v))
+#define atomic_dec_return_acquire(v)	atomic_sub_return_acquire(1, (v))
+#define atomic_dec_return_release(v)	atomic_sub_return_release(1, (v))
+#else /* atomic_dec_return */
 #define  atomic_dec_return_relaxed	atomic_dec_return
 #define  atomic_dec_return_acquire	atomic_dec_return
 #define  atomic_dec_return_release	atomic_dec_return
+#endif /* atomic_dec_return */
 
 #else /* atomic_dec_return_relaxed */
 
@@ -748,11 +772,23 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #endif
 #endif /* atomic64_add_return_relaxed */
 
+#ifndef atomic64_inc
+#define atomic64_inc(v)			atomic64_add(1, (v))
+#endif
+
 /* atomic64_inc_return_relaxed */
 #ifndef atomic64_inc_return_relaxed
+
+#ifndef atomic64_inc_return
+#define atomic64_inc_return(v)		atomic64_add_return(1, (v))
+#define atomic64_inc_return_relaxed(v)	atomic64_add_return_relaxed(1, (v))
+#define atomic64_inc_return_acquire(v)	atomic64_add_return_acquire(1, (v))
+#define atomic64_inc_return_release(v)	atomic64_add_return_release(1, (v))
+#else /* atomic64_inc_return */
 #define  atomic64_inc_return_relaxed	atomic64_inc_return
 #define  atomic64_inc_return_acquire	atomic64_inc_return
 #define  atomic64_inc_return_release	atomic64_inc_return
+#endif /* atomic64_inc_return */
 
 #else /* atomic64_inc_return_relaxed */
 
@@ -797,11 +833,23 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #endif
 #endif /* atomic64_sub_return_relaxed */
 
+#ifndef atomic64_dec
+#define atomic64_dec(v)			atomic64_sub(1, (v))
+#endif
+
 /* atomic64_dec_return_relaxed */
 #ifndef atomic64_dec_return_relaxed
+
+#ifndef atomic64_dec_return
+#define atomic64_dec_return(v)		atomic64_sub_return(1, (v))
+#define atomic64_dec_return_relaxed(v)	atomic64_sub_return_relaxed(1, (v))
+#define atomic64_dec_return_acquire(v)	atomic64_sub_return_acquire(1, (v))
+#define atomic64_dec_return_release(v)	atomic64_sub_return_release(1, (v))
+#else /* atomic64_dec_return */
 #define  atomic64_dec_return_relaxed	atomic64_dec_return
 #define  atomic64_dec_return_acquire	atomic64_dec_return
 #define  atomic64_dec_return_release	atomic64_dec_return
+#endif /* atomic64_dec_return */
 
 #else /* atomic64_dec_return_relaxed */
 

@@ -136,12 +136,6 @@ ATOMIC_OPS(xor, ^=)
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 
-#define atomic_inc(v)	(atomic_add(   1,(v)))
-#define atomic_dec(v)	(atomic_add(  -1,(v)))
-
-#define atomic_inc_return(v)	(atomic_add_return(   1,(v)))
-#define atomic_dec_return(v)	(atomic_add_return(  -1,(v)))
-
 #define ATOMIC_INIT(i)	{ (i) }
 
 #ifdef CONFIG_64BIT
@@ -223,12 +217,6 @@ atomic64_read(const atomic64_t *v)
 {
 	return READ_ONCE((v)->counter);
 }
-
-#define atomic64_inc(v)		(atomic64_add(   1,(v)))
-#define atomic64_dec(v)		(atomic64_add(  -1,(v)))
-
-#define atomic64_inc_return(v)		(atomic64_add_return(   1,(v)))
-#define atomic64_dec_return(v)		(atomic64_add_return(  -1,(v)))
 
 /* exported interface */
 #define atomic64_cmpxchg(v, o, n) \
