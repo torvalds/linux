@@ -271,14 +271,16 @@ static int dmaengine_mpcm_hw_params(struct snd_pcm_substream *substream,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			chan = pcm->tx_chans[i];
 			if (sz) {
-				slave_config.dst_maxburst = sz / slave_config.dst_addr_width;
 				slave_config.src_interlace_size = frame_bytes - sz;
+				if (slave_config.src_interlace_size)
+					slave_config.dst_maxburst = sz / slave_config.dst_addr_width;
 			}
 		} else {
 			chan = pcm->rx_chans[i];
 			if (sz) {
-				slave_config.src_maxburst = sz / slave_config.src_addr_width;
 				slave_config.dst_interlace_size = frame_bytes - sz;
+				if (slave_config.dst_interlace_size)
+					slave_config.src_maxburst = sz / slave_config.src_addr_width;
 			}
 		}
 		if (!chan)
