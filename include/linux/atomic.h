@@ -1019,6 +1019,17 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #define atomic64_try_cmpxchg_release	atomic64_try_cmpxchg
 #endif /* atomic64_try_cmpxchg */
 
+/**
+ * atomic64_inc_not_zero - increment unless the number is zero
+ * @v: pointer of type atomic64_t
+ *
+ * Atomically increments @v by 1, if @v is non-zero.
+ * Returns true if the increment was done.
+ */
+#ifndef atomic64_inc_not_zero
+#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
+#endif
+
 #ifndef atomic64_andnot
 static inline void atomic64_andnot(long long i, atomic64_t *v)
 {

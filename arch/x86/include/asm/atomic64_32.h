@@ -295,7 +295,7 @@ static inline int arch_atomic64_add_unless(atomic64_t *v, long long a,
 	return (int)a;
 }
 
-
+#define arch_atomic64_inc_not_zero arch_atomic64_inc_not_zero
 static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 {
 	int r;

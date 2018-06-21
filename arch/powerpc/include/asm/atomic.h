@@ -582,6 +582,7 @@ static __inline__ int atomic64_inc_not_zero(atomic64_t *v)
 
 	return t1 != 0;
 }
+#define atomic64_inc_not_zero(v) atomic64_inc_not_zero((v))
 
 #endif /* __powerpc64__ */
 

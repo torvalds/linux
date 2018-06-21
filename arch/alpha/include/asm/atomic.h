@@ -296,8 +296,6 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	return old - 1;
 }
 
-#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
-
 #define atomic_add_negative(a, v) (atomic_add_return((a), (v)) < 0)
 #define atomic64_add_negative(a, v) (atomic64_add_return((a), (v)) < 0)
 

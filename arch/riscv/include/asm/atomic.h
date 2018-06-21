@@ -375,13 +375,6 @@ static __always_inline int atomic64_add_unless(atomic64_t *v, long a, long u)
 }
 #endif
 
-#ifndef CONFIG_GENERIC_ATOMIC64
-static __always_inline long atomic64_inc_not_zero(atomic64_t *v)
-{
-        return atomic64_add_unless(v, 1, 0);
-}
-#endif
-
 /*
  * atomic_{cmp,}xchg is required to have exactly the same ordering semantics as
  * {cmp,}xchg and the operations that return, so they need a full barrier.

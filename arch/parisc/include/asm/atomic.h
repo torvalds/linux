@@ -305,8 +305,6 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 	return c != (u);
 }
 
-#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
-
 /*
  * atomic64_dec_if_positive - decrement by 1 if old value positive
  * @v: pointer of type atomic_t

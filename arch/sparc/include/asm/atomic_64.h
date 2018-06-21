@@ -123,8 +123,6 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 	return c != (u);
 }
 
-#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
-
 long atomic64_dec_if_positive(atomic64_t *v);
 
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */

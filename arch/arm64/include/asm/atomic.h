@@ -204,7 +204,5 @@
 #define atomic64_add_unless(v, a, u)	(___atomic_add_unless(v, a, u, 64) != u)
 #define atomic64_andnot			atomic64_andnot
 
-#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
-
 #endif
 #endif
