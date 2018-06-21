@@ -1066,7 +1066,7 @@ static int dspi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"failed to init pushr regmap: %ld\n",
 				PTR_ERR(dspi->regmap_pushr));
-			ret = PTR_ERR(dspi->regmap);
+			ret = PTR_ERR(dspi->regmap_pushr);
 			goto out_master_put;
 		}
 	}
