@@ -2285,6 +2285,9 @@ struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
 	if (IS_ERR(dst) && PTR_ERR(dst) == -EREMOTE)
 		return make_blackhole(net, dst_orig->ops->family, dst_orig);
 
+	if (IS_ERR(dst))
+		dst_release(dst_orig);
+
 	return dst;
 }
 EXPORT_SYMBOL(xfrm_lookup_route);
