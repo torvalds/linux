@@ -296,5 +296,6 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	smp_mb();
 	return old - 1;
 }
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 
 #endif /* _ALPHA_ATOMIC_H */

@@ -62,5 +62,6 @@ static inline int atomic_xchg(atomic_t *v, int new)
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
 
 long atomic64_dec_if_positive(atomic64_t *v);
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */

@@ -51,6 +51,7 @@ ATOMIC64_OPS(xor)
 #undef ATOMIC64_OP
 
 extern long long atomic64_dec_if_positive(atomic64_t *v);
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 extern long long atomic64_cmpxchg(atomic64_t *v, long long o, long long n);
 extern long long atomic64_xchg(atomic64_t *v, long long new);
 extern long long atomic64_fetch_add_unless(atomic64_t *v, long long a, long long u);

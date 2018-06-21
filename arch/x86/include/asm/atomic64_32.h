@@ -254,6 +254,7 @@ static inline int arch_atomic64_inc_not_zero(atomic64_t *v)
 	return r;
 }
 
+#define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 static inline long long arch_atomic64_dec_if_positive(atomic64_t *v)
 {
 	long long r;

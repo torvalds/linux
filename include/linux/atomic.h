@@ -683,28 +683,30 @@ static inline int atomic_fetch_andnot_release(int i, atomic_t *v)
 #endif
 
 #ifndef atomic_inc_unless_negative
-static inline bool atomic_inc_unless_negative(atomic_t *p)
+static inline bool atomic_inc_unless_negative(atomic_t *v)
 {
-	int v, v1;
-	for (v = 0; v >= 0; v = v1) {
-		v1 = atomic_cmpxchg(p, v, v + 1);
-		if (likely(v1 == v))
-			return true;
-	}
-	return false;
+	int c = atomic_read(v);
+
+	do {
+		if (unlikely(c < 0))
+			return false;
+	} while (!atomic_try_cmpxchg(v, &c, c + 1));
+
+	return true;
 }
 #endif
 
 #ifndef atomic_dec_unless_positive
-static inline bool atomic_dec_unless_positive(atomic_t *p)
+static inline bool atomic_dec_unless_positive(atomic_t *v)
 {
-	int v, v1;
-	for (v = 0; v <= 0; v = v1) {
-		v1 = atomic_cmpxchg(p, v, v - 1);
-		if (likely(v1 == v))
-			return true;
-	}
-	return false;
+	int c = atomic_read(v);
+
+	do {
+		if (unlikely(c > 0))
+			return false;
+	} while (!atomic_try_cmpxchg(v, &c, c - 1));
+
+	return true;
 }
 #endif
 
@@ -718,17 +720,14 @@ static inline bool atomic_dec_unless_positive(atomic_t *p)
 #ifndef atomic_dec_if_positive
 static inline int atomic_dec_if_positive(atomic_t *v)
 {
-	int c, old, dec;
-	c = atomic_read(v);
-	for (;;) {
+	int dec, c = atomic_read(v);
+
+	do {
 		dec = c - 1;
 		if (unlikely(dec < 0))
 			break;
-		old = atomic_cmpxchg((v), c, dec);
-		if (likely(old == c))
-			break;
-		c = old;
-	}
+	} while (!atomic_try_cmpxchg(v, &c, dec));
+
 	return dec;
 }
 #endif
@@ -1287,6 +1286,56 @@ static inline long long atomic64_fetch_andnot_acquire(long long i, atomic64_t *v
 static inline long long atomic64_fetch_andnot_release(long long i, atomic64_t *v)
 {
 	return atomic64_fetch_and_release(~i, v);
+}
+#endif
+
+#ifndef atomic64_inc_unless_negative
+static inline bool atomic64_inc_unless_negative(atomic64_t *v)
+{
+	long long c = atomic64_read(v);
+
+	do {
+		if (unlikely(c < 0))
+			return false;
+	} while (!atomic64_try_cmpxchg(v, &c, c + 1));
+
+	return true;
+}
+#endif
+
+#ifndef atomic64_dec_unless_positive
+static inline bool atomic64_dec_unless_positive(atomic64_t *v)
+{
+	long long c = atomic64_read(v);
+
+	do {
+		if (unlikely(c > 0))
+			return false;
+	} while (!atomic64_try_cmpxchg(v, &c, c - 1));
+
+	return true;
+}
+#endif
+
+/*
+ * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * @v: pointer of type atomic64_t
+ *
+ * The function returns the old value of *v minus 1, even if
+ * the atomic64 variable, v, was not decremented.
+ */
+#ifndef atomic64_dec_if_positive
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long dec, c = atomic64_read(v);
+
+	do {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+	} while (!atomic64_try_cmpxchg(v, &c, dec));
+
+	return dec;
 }
 #endif
 

@@ -474,6 +474,7 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 
 	return result;
 }
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 
 static inline long long atomic64_fetch_add_unless(atomic64_t *v, long long a,
 						  long long u)

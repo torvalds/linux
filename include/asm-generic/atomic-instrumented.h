@@ -243,11 +243,14 @@ static __always_inline bool atomic64_inc_not_zero(atomic64_t *v)
 }
 #endif
 
+#ifdef arch_atomic64_dec_if_positive
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_if_positive(v);
 }
+#endif
 
 #ifdef arch_atomic_dec_and_test
 #define atomic_dec_and_test atomic_dec_and_test

@@ -488,6 +488,7 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
 
 	return t;
 }
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 
 #define atomic64_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_cmpxchg_relaxed(v, o, n) \
