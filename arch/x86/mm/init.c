@@ -778,7 +778,15 @@ unsigned long max_swapfile_size(void)
 
 	if (boot_cpu_has_bug(X86_BUG_L1TF)) {
 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
-		pages = min_t(unsigned long, l1tf_pfn_limit() + 1, pages);
+		unsigned long l1tf_limit = l1tf_pfn_limit() + 1;
+		/*
+		 * We encode swap offsets also with 3 bits below those for pfn
+		 * which makes the usable limit higher.
+		 */
+#ifdef CONFIG_X86_64
+		l1tf_limit <<= PAGE_SHIFT - SWP_OFFSET_FIRST_BIT;
+#endif
+		pages = min_t(unsigned long, l1tf_limit, pages);
 	}
 	return pages;
 }
