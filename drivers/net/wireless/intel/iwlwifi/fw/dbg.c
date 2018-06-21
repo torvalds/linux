@@ -1329,10 +1329,10 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 
-int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       enum iwl_fw_dbg_trigger trig,
-		       const char *str, size_t len,
-		       struct iwl_fw_dbg_trigger_tlv *trigger)
+int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+			enum iwl_fw_dbg_trigger trig,
+			const char *str, size_t len,
+			struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
@@ -1367,6 +1367,47 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 
 	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
 }
+IWL_EXPORT_SYMBOL(_iwl_fw_dbg_collect);
+
+int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+		       u32 id, const char *str, size_t len)
+{
+	struct iwl_fw_dump_desc *desc;
+	u32 occur, delay;
+
+	if (!fwrt->trans->ini_valid)
+		return _iwl_fw_dbg_collect(fwrt, id, str, len, NULL);
+
+	if (id == FW_DBG_TRIGGER_USER)
+		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
+
+	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
+		return -EINVAL;
+
+	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->ignore_consec);
+	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
+	if (!occur)
+		return 0;
+
+	if (le32_to_cpu(fwrt->dump.active_trigs[id].conf->force_restart)) {
+		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
+		iwl_force_nmi(fwrt->trans);
+		return 0;
+	}
+
+	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
+	if (!desc)
+		return -ENOMEM;
+
+	occur--;
+	fwrt->dump.active_trigs[id].conf->occurrences = cpu_to_le32(occur);
+
+	desc->len = len;
+	desc->trig_desc.type = cpu_to_le32(id);
+	memcpy(desc->trig_desc.data, str, len);
+
+	return iwl_fw_dbg_collect_desc(fwrt, desc, true, delay);
+}
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
@@ -1395,8 +1436,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 		len = strlen(buf) + 1;
 	}
 
-	ret = iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
-				 trigger);
+	ret = _iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
+				  trigger);
 
 	if (ret)
 		return ret;
@@ -1667,6 +1708,12 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 		} else {
 			active->conf = trig;
 		}
+
+		/* Since zero means infinity - just set to -1 */
+		if (!le32_to_cpu(trig->occurrences))
+			trig->occurrences = cpu_to_le32(-1);
+		if (!le32_to_cpu(trig->ignore_consec))
+			trig->ignore_consec = cpu_to_le32(-1);
 
 		iter += sizeof(*trig) +
 			le32_to_cpu(trig->num_regions) * sizeof(__le32);
