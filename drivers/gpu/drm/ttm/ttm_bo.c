@@ -587,12 +587,18 @@ static void ttm_bo_release(struct kref *kref)
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 }
 
+void ttm_bo_put(struct ttm_buffer_object *bo)
+{
+	kref_put(&bo->kref, ttm_bo_release);
+}
+EXPORT_SYMBOL(ttm_bo_put);
+
 void ttm_bo_unref(struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo = *p_bo;
 
 	*p_bo = NULL;
-	kref_put(&bo->kref, ttm_bo_release);
+	ttm_bo_put(bo);
 }
 EXPORT_SYMBOL(ttm_bo_unref);
 

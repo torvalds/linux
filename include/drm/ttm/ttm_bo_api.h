@@ -284,17 +284,29 @@ struct ttm_operation_ctx {
 #define TTM_OPT_FLAG_FORCE_ALLOC		0x2
 
 /**
+ * ttm_bo_get - reference a struct ttm_buffer_object
+ *
+ * @bo: The buffer object.
+ */
+static inline void ttm_bo_get(struct ttm_buffer_object *bo)
+{
+	kref_get(&bo->kref);
+}
+
+/**
  * ttm_bo_reference - reference a struct ttm_buffer_object
  *
  * @bo: The buffer object.
  *
  * Returns a refcounted pointer to a buffer object.
+ *
+ * This function is deprecated. Use @ttm_bo_get instead.
  */
 
 static inline struct ttm_buffer_object *
 ttm_bo_reference(struct ttm_buffer_object *bo)
 {
-	kref_get(&bo->kref);
+	ttm_bo_get(bo);
 	return bo;
 }
 
@@ -346,11 +358,22 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 		    struct ttm_operation_ctx *ctx);
 
 /**
+ * ttm_bo_put
+ *
+ * @bo: The buffer object.
+ *
+ * Unreference a buffer object.
+ */
+void ttm_bo_put(struct ttm_buffer_object *bo);
+
+/**
  * ttm_bo_unref
  *
  * @bo: The buffer object.
  *
  * Unreference and clear a pointer to a buffer object.
+ *
+ * This function is deprecated. Use @ttm_bo_put instead.
  */
 void ttm_bo_unref(struct ttm_buffer_object **bo);
 
