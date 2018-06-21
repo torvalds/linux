@@ -110,19 +110,6 @@ static void ams_delta_serio_close(struct serio *serio)
 	regulator_disable(priv->vcc);
 }
 
-static const struct gpio ams_delta_gpios[] __initconst_or_module = {
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATA,
-		.flags	= GPIOF_DIR_IN,
-		.label	= "serio-data",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_CLK,
-		.flags	= GPIOF_DIR_IN,
-		.label	= "serio-clock",
-	},
-};
-
 static int ams_delta_serio_init(struct platform_device *pdev)
 {
 	struct ams_delta_serio *priv;
@@ -132,13 +119,6 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	err = gpio_request_array(ams_delta_gpios,
-				ARRAY_SIZE(ams_delta_gpios));
-	if (err) {
-		dev_err(&pdev->dev, "Couldn't request gpio pins\n");
-		goto serio;
-	}
 
 	priv->vcc = devm_regulator_get(&pdev->dev, "vcc");
 	if (IS_ERR(priv->vcc)) {
@@ -157,7 +137,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 		 */
 		if (err == -ENODEV)
 			err = -EPROBE_DEFER;
-		goto gpio;
+		return err;
 	}
 
 	err = request_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK),
@@ -165,7 +145,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 			DRIVER_NAME, priv);
 	if (err < 0) {
 		dev_err(&pdev->dev, "IRQ request failed (%d)\n", err);
-		goto gpio;
+		return err;
 	}
 	/*
 	 * Since GPIO register handling for keyboard clock pin is performed
@@ -201,10 +181,6 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 
 irq:
 	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), priv);
-gpio:
-	gpio_free_array(ams_delta_gpios,
-			ARRAY_SIZE(ams_delta_gpios));
-serio:
 	return err;
 }
 
@@ -214,8 +190,6 @@ static int ams_delta_serio_exit(struct platform_device *pdev)
 
 	serio_unregister_port(priv->serio);
 	free_irq(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK), 0);
-	gpio_free_array(ams_delta_gpios,
-			ARRAY_SIZE(ams_delta_gpios));
 
 	return 0;
 }
