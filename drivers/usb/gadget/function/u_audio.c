@@ -88,7 +88,7 @@ static const struct snd_pcm_hardware uac_pcm_hardware = {
 static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	unsigned pending;
-	unsigned long flags;
+	unsigned long flags, flags2;
 	unsigned int hw_ptr;
 	int status = req->status;
 	struct uac_req *ur = req->context;
@@ -115,7 +115,14 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	if (!substream)
 		goto exit;
 
+	snd_pcm_stream_lock_irqsave(substream, flags2);
+
 	runtime = substream->runtime;
+	if (!runtime || !snd_pcm_running(substream)) {
+		snd_pcm_stream_unlock_irqrestore(substream, flags2);
+		goto exit;
+	}
+
 	spin_lock_irqsave(&prm->lock, flags);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -174,6 +181,7 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	prm->hw_ptr = (hw_ptr + req->actual) % runtime->dma_bytes;
 	hw_ptr = prm->hw_ptr;
 	spin_unlock_irqrestore(&prm->lock, flags);
+	snd_pcm_stream_unlock_irqrestore(substream, flags2);
 
 	if ((hw_ptr % snd_pcm_lib_period_bytes(substream)) < req->actual)
 		snd_pcm_period_elapsed(substream);
