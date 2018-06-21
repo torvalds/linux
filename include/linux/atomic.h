@@ -354,12 +354,22 @@
 #endif
 #endif /* atomic_fetch_and_relaxed */
 
-#ifdef atomic_andnot
-/* atomic_fetch_andnot_relaxed */
+#ifndef atomic_andnot
+#define atomic_andnot(i, v)		atomic_and(~(int)(i), (v))
+#endif
+
 #ifndef atomic_fetch_andnot_relaxed
-#define atomic_fetch_andnot_relaxed	atomic_fetch_andnot
-#define atomic_fetch_andnot_acquire	atomic_fetch_andnot
-#define atomic_fetch_andnot_release	atomic_fetch_andnot
+
+#ifndef atomic_fetch_andnot
+#define atomic_fetch_andnot(i, v)		atomic_fetch_and(~(int)(i), (v))
+#define atomic_fetch_andnot_relaxed(i, v)	atomic_fetch_and_relaxed(~(int)(i), (v))
+#define atomic_fetch_andnot_acquire(i, v)	atomic_fetch_and_acquire(~(int)(i), (v))
+#define atomic_fetch_andnot_release(i, v)	atomic_fetch_and_release(~(int)(i), (v))
+#else /* atomic_fetch_andnot */
+#define atomic_fetch_andnot_relaxed		atomic_fetch_andnot
+#define atomic_fetch_andnot_acquire		atomic_fetch_andnot
+#define atomic_fetch_andnot_release		atomic_fetch_andnot
+#endif /* atomic_fetch_andnot */
 
 #else /* atomic_fetch_andnot_relaxed */
 
@@ -378,7 +388,6 @@
 	__atomic_op_fence(atomic_fetch_andnot, __VA_ARGS__)
 #endif
 #endif /* atomic_fetch_andnot_relaxed */
-#endif /* atomic_andnot */
 
 /* atomic_fetch_xor_relaxed */
 #ifndef atomic_fetch_xor_relaxed
@@ -652,33 +661,6 @@ static inline bool atomic_sub_and_test(int i, atomic_t *v)
 static inline bool atomic_add_negative(int i, atomic_t *v)
 {
 	return atomic_add_return(i, v) < 0;
-}
-#endif
-
-#ifndef atomic_andnot
-static inline void atomic_andnot(int i, atomic_t *v)
-{
-	atomic_and(~i, v);
-}
-
-static inline int atomic_fetch_andnot(int i, atomic_t *v)
-{
-	return atomic_fetch_and(~i, v);
-}
-
-static inline int atomic_fetch_andnot_relaxed(int i, atomic_t *v)
-{
-	return atomic_fetch_and_relaxed(~i, v);
-}
-
-static inline int atomic_fetch_andnot_acquire(int i, atomic_t *v)
-{
-	return atomic_fetch_and_acquire(~i, v);
-}
-
-static inline int atomic_fetch_andnot_release(int i, atomic_t *v)
-{
-	return atomic_fetch_and_release(~i, v);
 }
 #endif
 
@@ -1029,12 +1011,22 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 #endif
 #endif /* atomic64_fetch_and_relaxed */
 
-#ifdef atomic64_andnot
-/* atomic64_fetch_andnot_relaxed */
+#ifndef atomic64_andnot
+#define atomic64_andnot(i, v)		atomic64_and(~(long long)(i), (v))
+#endif
+
 #ifndef atomic64_fetch_andnot_relaxed
-#define atomic64_fetch_andnot_relaxed	atomic64_fetch_andnot
-#define atomic64_fetch_andnot_acquire	atomic64_fetch_andnot
-#define atomic64_fetch_andnot_release	atomic64_fetch_andnot
+
+#ifndef atomic64_fetch_andnot
+#define atomic64_fetch_andnot(i, v)		atomic64_fetch_and(~(long long)(i), (v))
+#define atomic64_fetch_andnot_relaxed(i, v)	atomic64_fetch_and_relaxed(~(long long)(i), (v))
+#define atomic64_fetch_andnot_acquire(i, v)	atomic64_fetch_and_acquire(~(long long)(i), (v))
+#define atomic64_fetch_andnot_release(i, v)	atomic64_fetch_and_release(~(long long)(i), (v))
+#else /* atomic64_fetch_andnot */
+#define atomic64_fetch_andnot_relaxed		atomic64_fetch_andnot
+#define atomic64_fetch_andnot_acquire		atomic64_fetch_andnot
+#define atomic64_fetch_andnot_release		atomic64_fetch_andnot
+#endif /* atomic64_fetch_andnot */
 
 #else /* atomic64_fetch_andnot_relaxed */
 
@@ -1053,7 +1045,6 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 	__atomic_op_fence(atomic64_fetch_andnot, __VA_ARGS__)
 #endif
 #endif /* atomic64_fetch_andnot_relaxed */
-#endif /* atomic64_andnot */
 
 /* atomic64_fetch_xor_relaxed */
 #ifndef atomic64_fetch_xor_relaxed
@@ -1259,33 +1250,6 @@ static inline bool atomic64_sub_and_test(long long i, atomic64_t *v)
 static inline bool atomic64_add_negative(long long i, atomic64_t *v)
 {
 	return atomic64_add_return(i, v) < 0;
-}
-#endif
-
-#ifndef atomic64_andnot
-static inline void atomic64_andnot(long long i, atomic64_t *v)
-{
-	atomic64_and(~i, v);
-}
-
-static inline long long atomic64_fetch_andnot(long long i, atomic64_t *v)
-{
-	return atomic64_fetch_and(~i, v);
-}
-
-static inline long long atomic64_fetch_andnot_relaxed(long long i, atomic64_t *v)
-{
-	return atomic64_fetch_and_relaxed(~i, v);
-}
-
-static inline long long atomic64_fetch_andnot_acquire(long long i, atomic64_t *v)
-{
-	return atomic64_fetch_and_acquire(~i, v);
-}
-
-static inline long long atomic64_fetch_andnot_release(long long i, atomic64_t *v)
-{
-	return atomic64_fetch_and_release(~i, v);
 }
 #endif
 
