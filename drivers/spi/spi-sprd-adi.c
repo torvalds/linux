@@ -459,7 +459,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	sadi->slave_pbase = res->start + ADI_SLAVE_OFFSET;
 	sadi->ctlr = ctlr;
 	sadi->dev = &pdev->dev;
-	ret = of_hwspin_lock_get_id(np, 0);
+	ret = of_hwspin_lock_get_id_byname(np, "adi");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not get the hardware spinlock\n");
 		goto put_ctlr;
