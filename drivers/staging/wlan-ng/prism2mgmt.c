@@ -85,10 +85,21 @@
 #include "prism2mgmt.h"
 
 /* Converts 802.11 format rate specifications to prism2 */
-#define p80211rate_to_p2bit(n)	((((n) & ~BIT(7)) == 2) ? BIT(0) :  \
-				 (((n) & ~BIT(7)) == 4) ? BIT(1) : \
-				 (((n) & ~BIT(7)) == 11) ? BIT(2) : \
-				 (((n) & ~BIT(7)) == 22) ? BIT(3) : 0)
+static inline u16 p80211rate_to_p2bit(u32 rate)
+{
+	switch (rate & ~BIT(7)) {
+	case 2:
+		return BIT(0);
+	case 4:
+		return BIT(1);
+	case 11:
+		return BIT(2);
+	case 22:
+		return BIT(3);
+	default:
+		return 0;
+	}
+}
 
 /*----------------------------------------------------------------
  * prism2mgmt_scan
