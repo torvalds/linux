@@ -210,7 +210,7 @@
 &reg_dldo3 {
 	regulator-min-microvolt = <1200000>;
 	regulator-max-microvolt = <1200000>;
-	regulator-name = "eDP12";
+	regulator-name = "vdd-edp";
 };
 
 &reg_dldo4 {
