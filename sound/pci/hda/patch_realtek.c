@@ -3973,14 +3973,10 @@ static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 
+	alc269_fixup_hp_mute_led_micx(codec, fix, action, 0x1a);
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
-		spec->mute_led_polarity = 0;
-		spec->mute_led_nid = 0x1a;
 		spec->cap_mute_led_nid = 0x18;
 		snd_hda_gen_add_micmute_led(codec, alc_cap_micmute_update);
-		spec->gen.vmaster_mute_enum = 1;
-		codec->power_filter = led_power_filter;
 	}
 }
 
