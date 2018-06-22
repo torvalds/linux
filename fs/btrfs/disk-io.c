@@ -615,8 +615,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
-		btrfs_err_rl(fs_info, "bad tree block start %llu %llu",
-			     found_start, eb->start);
+		btrfs_err_rl(fs_info, "bad tree block start, want %llu have %llu",
+			     eb->start, found_start);
 		ret = -EIO;
 		goto err;
 	}
@@ -628,8 +628,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	}
 	found_level = btrfs_header_level(eb);
 	if (found_level >= BTRFS_MAX_LEVEL) {
-		btrfs_err(fs_info, "bad tree block level %d",
-			  (int)btrfs_header_level(eb));
+		btrfs_err(fs_info, "bad tree block level %d on %llu",
+			  (int)btrfs_header_level(eb), eb->start);
 		ret = -EIO;
 		goto err;
 	}
