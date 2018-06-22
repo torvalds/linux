@@ -202,10 +202,13 @@ void core_scsi3_ua_release_all(
 	spin_unlock(&deve->ua_lock);
 }
 
-void core_scsi3_ua_for_check_condition(
-	struct se_cmd *cmd,
-	u8 *asc,
-	u8 *ascq)
+/*
+ * Dequeue a unit attention from the unit attention list. This function
+ * returns true if the dequeuing succeeded and if *@key, *@asc and *@ascq have
+ * been set.
+ */
+bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
+				       u8 *ascq)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *deve;
@@ -214,23 +217,23 @@ void core_scsi3_ua_for_check_condition(
 	struct se_ua *ua = NULL, *ua_p;
 	int head = 1;
 
-	if (!sess)
-		return;
+	if (WARN_ON_ONCE(!sess))
+		return false;
 
 	nacl = sess->se_node_acl;
-	if (!nacl)
-		return;
+	if (WARN_ON_ONCE(!nacl))
+		return false;
 
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, cmd->orig_fe_lun);
 	if (!deve) {
 		rcu_read_unlock();
-		return;
+		*key = ILLEGAL_REQUEST;
+		*asc = 0x25; /* LOGICAL UNIT NOT SUPPORTED */
+		*ascq = 0;
+		return true;
 	}
-	if (!atomic_read(&deve->ua_count)) {
-		rcu_read_unlock();
-		return;
-	}
+	*key = UNIT_ATTENTION;
 	/*
 	 * The highest priority Unit Attentions are placed at the head of the
 	 * struct se_dev_entry->ua_list, and will be returned in CHECK_CONDITION +
@@ -273,6 +276,8 @@ void core_scsi3_ua_for_check_condition(
 		(dev->dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
 		"Releasing", dev->dev_attrib.emulate_ua_intlck_ctrl,
 		cmd->orig_fe_lun, cmd->t_task_cdb[0], *asc, *ascq);
+
+	return head == 0;
 }
 
 int core_scsi3_ua_clear_for_request_sense(

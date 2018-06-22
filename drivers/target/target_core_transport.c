@@ -3170,12 +3170,23 @@ static const struct sense_info sense_info_table[] = {
 	},
 };
 
+/**
+ * translate_sense_reason - translate a sense reason into T10 key, asc and ascq
+ * @cmd: SCSI command in which the resulting sense buffer or SCSI status will
+ *   be stored.
+ * @reason: LIO sense reason code. If this argument has the value
+ *   TCM_CHECK_CONDITION_UNIT_ATTENTION, try to dequeue a unit attention. If
+ *   dequeuing a unit attention fails due to multiple commands being processed
+ *   concurrently, set the command status to BUSY.
+ *
+ * Return: 0 upon success or -EINVAL if the sense buffer is too small.
+ */
 static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 {
 	const struct sense_info *si;
 	u8 *buffer = cmd->sense_buffer;
 	int r = (__force int)reason;
-	u8 asc, ascq;
+	u8 key, asc, ascq;
 	bool desc_format = target_sense_desc_format(cmd->se_dev);
 
 	if (r < ARRAY_SIZE(sense_info_table) && sense_info_table[r].key)
@@ -3184,9 +3195,13 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 		si = &sense_info_table[(__force int)
 				       TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE];
 
+	key = si->key;
 	if (reason == TCM_CHECK_CONDITION_UNIT_ATTENTION) {
-		core_scsi3_ua_for_check_condition(cmd, &asc, &ascq);
-		WARN_ON_ONCE(asc == 0);
+		if (!core_scsi3_ua_for_check_condition(cmd, &key, &asc,
+						       &ascq)) {
+			cmd->scsi_status = SAM_STAT_BUSY;
+			return;
+		}
 	} else if (si->asc == 0) {
 		WARN_ON_ONCE(cmd->scsi_asc == 0);
 		asc = cmd->scsi_asc;
@@ -3199,7 +3214,7 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
 	cmd->se_cmd_flags |= SCF_EMULATED_TASK_SENSE;
 	cmd->scsi_status = SAM_STAT_CHECK_CONDITION;
 	cmd->scsi_sense_length  = TRANSPORT_SENSE_BUFFER;
-	scsi_build_sense_buffer(desc_format, buffer, si->key, asc, ascq);
+	scsi_build_sense_buffer(desc_format, buffer, key, asc, ascq);
 	if (si->add_sector_info)
 		WARN_ON_ONCE(scsi_set_sense_information(buffer,
 							cmd->scsi_sense_length,
