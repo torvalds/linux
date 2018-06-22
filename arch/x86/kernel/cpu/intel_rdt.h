@@ -209,6 +209,7 @@ extern struct list_head rdt_all_groups;
 extern int max_name_width, max_data_width;
 
 int __init rdtgroup_init(void);
+void __exit rdtgroup_exit(void);
 
 /**
  * struct rftype - describe each file in the resctrl file system
@@ -430,8 +431,6 @@ extern struct mutex rdtgroup_mutex;
 extern struct rdt_resource rdt_resources_all[];
 extern struct rdtgroup rdtgroup_default;
 DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
-
-int __init rdtgroup_init(void);
 
 enum {
 	RDT_RESOURCE_L3,
