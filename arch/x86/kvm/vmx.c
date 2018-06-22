@@ -198,8 +198,13 @@ struct kvm_vmx {
 
 #define NR_AUTOLOAD_MSRS 8
 
+struct vmcs_hdr {
+	u32 revision_id:31;
+	u32 shadow_vmcs:1;
+};
+
 struct vmcs {
-	u32 revision_id;
+	struct vmcs_hdr hdr;
 	u32 abort;
 	char data[0];
 };
@@ -253,7 +258,7 @@ struct __packed vmcs12 {
 	/* According to the Intel spec, a VMCS region must start with the
 	 * following two fields. Then follow implementation-specific data.
 	 */
-	u32 revision_id;
+	struct vmcs_hdr hdr;
 	u32 abort;
 
 	u32 launch_state; /* set to 0 by VMCLEAR, to 1 by VMLAUNCH */
@@ -421,7 +426,7 @@ struct __packed vmcs12 {
 		"Offset of " #field " in struct vmcs12 has changed.")
 
 static inline void vmx_check_vmcs12_offsets(void) {
-	CHECK_OFFSET(revision_id, 0);
+	CHECK_OFFSET(hdr, 0);
 	CHECK_OFFSET(abort, 4);
 	CHECK_OFFSET(launch_state, 8);
 	CHECK_OFFSET(io_bitmap_a, 40);
@@ -4399,9 +4404,9 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 
 	/* KVM supports Enlightened VMCS v1 only */
 	if (static_branch_unlikely(&enable_evmcs))
-		vmcs->revision_id = KVM_EVMCS_VERSION;
+		vmcs->hdr.revision_id = KVM_EVMCS_VERSION;
 	else
-		vmcs->revision_id = vmcs_config.revision_id;
+		vmcs->hdr.revision_id = vmcs_config.revision_id;
 
 	return vmcs;
 }
@@ -4581,7 +4586,7 @@ static __init int alloc_kvm_area(void)
 		 * physical CPU.
 		 */
 		if (static_branch_unlikely(&enable_evmcs))
-			vmcs->revision_id = vmcs_config.revision_id;
+			vmcs->hdr.revision_id = vmcs_config.revision_id;
 
 		per_cpu(vmxarea, cpu) = vmcs;
 	}
@@ -7889,7 +7894,7 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 		if (!shadow_vmcs)
 			goto out_shadow_vmcs;
 		/* mark vmcs as shadow */
-		shadow_vmcs->revision_id |= (1u << 31);
+		shadow_vmcs->hdr.shadow_vmcs = 1;
 		/* init shadow vmcs */
 		vmcs_clear(shadow_vmcs);
 		vmx->vmcs01.shadow_vmcs = shadow_vmcs;
@@ -8459,7 +8464,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 			return kvm_skip_emulated_instruction(vcpu);
 		}
 		new_vmcs12 = kmap(page);
-		if (new_vmcs12->revision_id != VMCS12_REVISION) {
+		if (new_vmcs12->hdr.revision_id != VMCS12_REVISION ||
+		    new_vmcs12->hdr.shadow_vmcs) {
 			kunmap(page);
 			kvm_release_page_clean(page);
 			nested_vmx_failValid(vcpu,
@@ -13161,7 +13167,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (copy_from_user(vmcs12, user_kvm_nested_state->data, sizeof(*vmcs12)))
 		return -EFAULT;
 
-	if (vmcs12->revision_id != VMCS12_REVISION)
+	if (vmcs12->hdr.revision_id != VMCS12_REVISION)
 		return -EINVAL;
 
 	if (!(kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
