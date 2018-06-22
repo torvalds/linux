@@ -1187,7 +1187,22 @@ xfs_free_file_space(
 		return 0;
 	if (offset + len > XFS_ISIZE(ip))
 		len = XFS_ISIZE(ip) - offset;
-	return iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	error = iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	if (error)
+		return error;
+
+	/*
+	 * If we zeroed right up to EOF and EOF straddles a page boundary we
+	 * must make sure that the post-EOF area is also zeroed because the
+	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
+	 * Writeback of the eof page will do this, albeit clumsily.
+	 */
+	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
+		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+				(offset + len) & ~PAGE_MASK, LLONG_MAX);
+	}
+
+	return error;
 }
 
 /*
