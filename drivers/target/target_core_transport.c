@@ -1309,7 +1309,7 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
 	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->t_transport_stop_comp);
-	init_completion(&cmd->cmd_wait_comp);
+	cmd->compl = NULL;
 	spin_lock_init(&cmd->t_state_lock);
 	INIT_WORK(&cmd->work, NULL);
 	kref_init(&cmd->cmd_kref);
@@ -2658,6 +2658,7 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
  */
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
+	DECLARE_COMPLETION_ONSTACK(compl);
 	int ret = 0;
 	bool aborted = false, tas = false;
 
@@ -2676,12 +2677,13 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
 	}
+	if (aborted)
+		cmd->compl = &compl;
 	if (!aborted || tas)
 		ret = target_put_sess_cmd(cmd);
 	if (aborted) {
 		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
-		wait_for_completion(&cmd->cmd_wait_comp);
-		cmd->se_tfo->release_cmd(cmd);
+		wait_for_completion(&compl);
 		ret = 1;
 	}
 	return ret;
@@ -2742,31 +2744,21 @@ static void target_release_cmd_kref(struct kref *kref)
 {
 	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
 	struct se_session *se_sess = se_cmd->se_sess;
+	struct completion *compl = se_cmd->compl;
 	unsigned long flags;
-	bool fabric_stop;
 
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 		list_del_init(&se_cmd->se_cmd_list);
 		if (list_empty(&se_sess->sess_cmd_list))
 			wake_up(&se_sess->cmd_list_wq);
-
-		spin_lock(&se_cmd->t_state_lock);
-		fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
-			      (se_cmd->transport_state & CMD_T_ABORTED);
-		spin_unlock(&se_cmd->t_state_lock);
-
-		if (fabric_stop) {
-			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-			target_free_cmd_mem(se_cmd);
-			complete(&se_cmd->cmd_wait_comp);
-			return;
-		}
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	}
 
 	target_free_cmd_mem(se_cmd);
 	se_cmd->se_tfo->release_cmd(se_cmd);
+	if (compl)
+		complete(compl);
 }
 
 /**
