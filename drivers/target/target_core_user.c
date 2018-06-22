@@ -1564,7 +1564,6 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 {
 	struct tcmu_nl_cmd *nl_cmd = &udev->curr_nl_cmd;
 	int ret;
-	DEFINE_WAIT(__wait);
 
 	if (!tcmu_kern_cmd_reply_supported)
 		return 0;
