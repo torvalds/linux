@@ -1529,6 +1529,8 @@ typedef struct xfs_bmdr_block {
 #define BMBT_STARTBLOCK_BITLEN	52
 #define BMBT_BLOCKCOUNT_BITLEN	21
 
+#define BMBT_STARTOFF_MASK	((1ULL << BMBT_STARTOFF_BITLEN) - 1)
+
 typedef struct xfs_bmbt_rec {
 	__be64			l0, l1;
 } xfs_bmbt_rec_t;

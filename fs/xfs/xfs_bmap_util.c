@@ -1383,6 +1383,10 @@ xfs_insert_file_space(
 
 	trace_xfs_insert_file_space(ip);
 
+	error = xfs_bmap_can_insert_extents(ip, stop_fsb, shift_fsb);
+	if (error)
+		return error;
+
 	error = xfs_prepare_shift(ip, offset);
 	if (error)
 		return error;
