@@ -263,8 +263,8 @@ static struct config_group *target_core_register_fabric(
 			&tf->tf_discovery_cit);
 	configfs_add_default_group(&tf->tf_disc_group, &tf->tf_group);
 
-	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
-			" %s\n", tf->tf_group.cg_item.ci_name);
+	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric: %s\n",
+		 config_item_name(&tf->tf_group.cg_item));
 	return &tf->tf_group;
 }
 
