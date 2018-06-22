@@ -133,7 +133,7 @@ void closid_free(int closid)
  * Return: true if @closid is currently associated with a resource group,
  * false if @closid is free
  */
-static bool __attribute__ ((unused)) closid_allocated(unsigned int closid)
+static bool closid_allocated(unsigned int closid)
 {
 	return (closid_free_map & (1 << closid)) == 0;
 }
@@ -1807,6 +1807,110 @@ out_destroy:
 	return ret;
 }
 
+/**
+ * cbm_ensure_valid - Enforce validity on provided CBM
+ * @_val:	Candidate CBM
+ * @r:		RDT resource to which the CBM belongs
+ *
+ * The provided CBM represents all cache portions available for use. This
+ * may be represented by a bitmap that does not consist of contiguous ones
+ * and thus be an invalid CBM.
+ * Here the provided CBM is forced to be a valid CBM by only considering
+ * the first set of contiguous bits as valid and clearing all bits.
+ * The intention here is to provide a valid default CBM with which a new
+ * resource group is initialized. The user can follow this with a
+ * modification to the CBM if the default does not satisfy the
+ * requirements.
+ */
+static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
+{
+	/*
+	 * Convert the u32 _val to an unsigned long required by all the bit
+	 * operations within this function. No more than 32 bits of this
+	 * converted value can be accessed because all bit operations are
+	 * additionally provided with cbm_len that is initialized during
+	 * hardware enumeration using five bits from the EAX register and
+	 * thus never can exceed 32 bits.
+	 */
+	unsigned long *val = (unsigned long *)_val;
+	unsigned int cbm_len = r->cache.cbm_len;
+	unsigned long first_bit, zero_bit;
+
+	if (*val == 0)
+		return;
+
+	first_bit = find_first_bit(val, cbm_len);
+	zero_bit = find_next_zero_bit(val, cbm_len, first_bit);
+
+	/* Clear any remaining bits to ensure contiguous region */
+	bitmap_clear(val, zero_bit, cbm_len - zero_bit);
+}
+
+/**
+ * rdtgroup_init_alloc - Initialize the new RDT group's allocations
+ *
+ * A new RDT group is being created on an allocation capable (CAT)
+ * supporting system. Set this group up to start off with all usable
+ * allocations. That is, all shareable and unused bits.
+ *
+ * All-zero CBM is invalid. If there are no more shareable bits available
+ * on any domain then the entire allocation will fail.
+ */
+static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
+{
+	u32 used_b = 0, unused_b = 0;
+	u32 closid = rdtgrp->closid;
+	struct rdt_resource *r;
+	enum rdtgrp_mode mode;
+	struct rdt_domain *d;
+	int i, ret;
+	u32 *ctrl;
+
+	for_each_alloc_enabled_rdt_resource(r) {
+		list_for_each_entry(d, &r->domains, list) {
+			d->have_new_ctrl = false;
+			d->new_ctrl = r->cache.shareable_bits;
+			used_b = r->cache.shareable_bits;
+			ctrl = d->ctrl_val;
+			for (i = 0; i < r->num_closid; i++, ctrl++) {
+				if (closid_allocated(i) && i != closid) {
+					mode = rdtgroup_mode_by_closid(i);
+					used_b |= *ctrl;
+					if (mode == RDT_MODE_SHAREABLE)
+						d->new_ctrl |= *ctrl;
+				}
+			}
+			unused_b = used_b ^ (BIT_MASK(r->cache.cbm_len) - 1);
+			unused_b &= BIT_MASK(r->cache.cbm_len) - 1;
+			d->new_ctrl |= unused_b;
+			/*
+			 * Force the initial CBM to be valid, user can
+			 * modify the CBM based on system availability.
+			 */
+			cbm_ensure_valid(&d->new_ctrl, r);
+			if (bitmap_weight((unsigned long *) &d->new_ctrl,
+					  r->cache.cbm_len) <
+					r->cache.min_cbm_bits) {
+				rdt_last_cmd_printf("no space on %s:%d\n",
+						    r->name, d->id);
+				return -ENOSPC;
+			}
+			d->have_new_ctrl = true;
+		}
+	}
+
+	for_each_alloc_enabled_rdt_resource(r) {
+		ret = update_domains(r, rdtgrp->closid);
+		if (ret < 0) {
+			rdt_last_cmd_puts("failed to initialize allocations\n");
+			return ret;
+		}
+		rdtgrp->mode = RDT_MODE_SHAREABLE;
+	}
+
+	return 0;
+}
+
 static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 			     struct kernfs_node *prgrp_kn,
 			     const char *name, umode_t mode,
@@ -1965,6 +2069,10 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 	ret = 0;
 
 	rdtgrp->closid = closid;
+	ret = rdtgroup_init_alloc(rdtgrp);
+	if (ret < 0)
+		goto out_id_free;
+
 	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
 
 	if (rdt_mon_capable) {
@@ -1975,15 +2083,16 @@ static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
 		ret = mongroup_create_dir(kn, NULL, "mon_groups", NULL);
 		if (ret) {
 			rdt_last_cmd_puts("kernfs subdir error\n");
-			goto out_id_free;
+			goto out_del_list;
 		}
 	}
 
 	goto out_unlock;
 
+out_del_list:
+	list_del(&rdtgrp->rdtgroup_list);
 out_id_free:
 	closid_free(closid);
-	list_del(&rdtgrp->rdtgroup_list);
 out_common_fail:
 	mkdir_rdt_prepare_clean(rdtgrp);
 out_unlock:
