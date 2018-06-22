@@ -1201,6 +1201,25 @@ static int pp_set_powergating_by_smu(void *handle,
 	return ret;
 }
 
+static int pp_notify_smu_enable_pwe(void *handle)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;;
+
+	if (hwmgr->hwmgr_func->smus_notify_pwe == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->smus_notify_pwe(hwmgr);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1244,4 +1263,5 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_watermarks_for_clocks_ranges = pp_set_watermarks_for_clocks_ranges,
 	.display_clock_voltage_request = pp_display_clock_voltage_request,
 	.get_display_mode_validation_clocks = pp_get_display_mode_validation_clocks,
+	.notify_smu_enable_pwe = pp_notify_smu_enable_pwe,
 };
