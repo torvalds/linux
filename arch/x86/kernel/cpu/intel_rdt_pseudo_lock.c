@@ -299,3 +299,77 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 	pseudo_lock_free(rdtgrp);
 	return 0;
 }
+
+/**
+ * rdtgroup_cbm_overlaps_pseudo_locked - Test if CBM or portion is pseudo-locked
+ * @d: RDT domain
+ * @_cbm: CBM to test
+ *
+ * @d represents a cache instance and @_cbm a capacity bitmask that is
+ * considered for it. Determine if @_cbm overlaps with any existing
+ * pseudo-locked region on @d.
+ *
+ * Return: true if @_cbm overlaps with pseudo-locked region on @d, false
+ * otherwise.
+ */
+bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, u32 _cbm)
+{
+	unsigned long *cbm = (unsigned long *)&_cbm;
+	unsigned long *cbm_b;
+	unsigned int cbm_len;
+
+	if (d->plr) {
+		cbm_len = d->plr->r->cache.cbm_len;
+		cbm_b = (unsigned long *)&d->plr->cbm;
+		if (bitmap_intersects(cbm, cbm_b, cbm_len))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * rdtgroup_pseudo_locked_in_hierarchy - Pseudo-locked region in cache hierarchy
+ * @d: RDT domain under test
+ *
+ * The setup of a pseudo-locked region affects all cache instances within
+ * the hierarchy of the region. It is thus essential to know if any
+ * pseudo-locked regions exist within a cache hierarchy to prevent any
+ * attempts to create new pseudo-locked regions in the same hierarchy.
+ *
+ * Return: true if a pseudo-locked region exists in the hierarchy of @d or
+ *         if it is not possible to test due to memory allocation issue,
+ *         false otherwise.
+ */
+bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_domain *d)
+{
+	cpumask_var_t cpu_with_psl;
+	struct rdt_resource *r;
+	struct rdt_domain *d_i;
+	bool ret = false;
+
+	if (!zalloc_cpumask_var(&cpu_with_psl, GFP_KERNEL))
+		return true;
+
+	/*
+	 * First determine which cpus have pseudo-locked regions
+	 * associated with them.
+	 */
+	for_each_alloc_enabled_rdt_resource(r) {
+		list_for_each_entry(d_i, &r->domains, list) {
+			if (d_i->plr)
+				cpumask_or(cpu_with_psl, cpu_with_psl,
+					   &d_i->cpu_mask);
+		}
+	}
+
+	/*
+	 * Next test if new pseudo-locked region would intersect with
+	 * existing region.
+	 */
+	if (cpumask_intersects(&d->cpu_mask, cpu_with_psl))
+		ret = true;
+
+	free_cpumask_var(cpu_with_psl);
+	return ret;
+}
