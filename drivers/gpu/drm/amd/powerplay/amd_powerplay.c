@@ -1096,17 +1096,17 @@ static int pp_get_clock_by_type_with_voltage(void *handle,
 }
 
 static int pp_set_watermarks_for_clocks_ranges(void *handle,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+		void *clock_ranges)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
 
-	if (!hwmgr || !hwmgr->pm_en ||!wm_with_clock_ranges)
+	if (!hwmgr || !hwmgr->pm_en || !clock_ranges)
 		return -EINVAL;
 
 	mutex_lock(&hwmgr->smu_lock);
 	ret = phm_set_watermarks_for_clocks_ranges(hwmgr,
-			wm_with_clock_ranges);
+			clock_ranges);
 	mutex_unlock(&hwmgr->smu_lock);
 
 	return ret;

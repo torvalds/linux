@@ -192,7 +192,6 @@ struct amd_pp_simple_clock_info;
 struct amd_pp_display_configuration;
 struct amd_pp_clock_info;
 struct pp_display_clock_request;
-struct pp_wm_sets_with_clock_ranges_soc15;
 struct pp_clock_levels_with_voltage;
 struct pp_clock_levels_with_latency;
 struct amd_pp_clocks;
@@ -261,7 +260,7 @@ struct amd_pm_funcs {
 		enum amd_pp_clock_type type,
 		struct pp_clock_levels_with_voltage *clocks);
 	int (*set_watermarks_for_clocks_ranges)(void *handle,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+						void *clock_ranges);
 	int (*display_clock_voltage_request)(void *handle,
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
