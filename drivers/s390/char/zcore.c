@@ -152,7 +152,7 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
 	char *buf;
 	int i = 0;
 
-	buf = kzalloc(memblock.memory.cnt * CHUNK_INFO_SIZE, GFP_KERNEL);
+	buf = kcalloc(memblock.memory.cnt, CHUNK_INFO_SIZE, GFP_KERNEL);
 	if (!buf) {
 		return -ENOMEM;
 	}

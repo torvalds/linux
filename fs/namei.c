@@ -537,12 +537,12 @@ static int __nd_alloc_stack(struct nameidata *nd)
 	struct saved *p;
 
 	if (nd->flags & LOOKUP_RCU) {
-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
 				  GFP_ATOMIC);
 		if (unlikely(!p))
 			return -ECHILD;
 	} else {
-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
 				  GFP_KERNEL);
 		if (unlikely(!p))
 			return -ENOMEM;
@@ -984,12 +984,14 @@ static bool safe_hardlink_source(struct inode *inode)
  */
 static int may_linkat(struct path *link)
 {
-	struct inode *inode;
+	struct inode *inode = link->dentry->d_inode;
+
+	/* Inode writeback is not safe when the uid or gid are invalid. */
+	if (!uid_valid(inode->i_uid) || !gid_valid(inode->i_gid))
+		return -EOVERFLOW;
 
 	if (!sysctl_protected_hardlinks)
 		return 0;
-
-	inode = link->dentry->d_inode;
 
 	/* Source inode owner (or CAP_FOWNER) can hardlink all they like,
 	 * otherwise, it must be a safe source.
@@ -1438,10 +1440,8 @@ static int path_parent_directory(struct path *path)
 static int follow_dotdot(struct nameidata *nd)
 {
 	while(1) {
-		if (nd->path.dentry == nd->root.dentry &&
-		    nd->path.mnt == nd->root.mnt) {
+		if (path_equal(&nd->path, &nd->root))
 			break;
-		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			int ret = path_parent_directory(&nd->path);
 			if (ret)
@@ -2464,6 +2464,35 @@ static int lookup_one_len_common(const char *name, struct dentry *base,
 }
 
 /**
+ * try_lookup_one_len - filesystem helper to lookup single pathname component
+ * @name:	pathname component to lookup
+ * @base:	base directory to lookup from
+ * @len:	maximum length @len should be interpreted to
+ *
+ * Look up a dentry by name in the dcache, returning NULL if it does not
+ * currently exist.  The function does not try to create a dentry.
+ *
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.
+ *
+ * The caller must hold base->i_mutex.
+ */
+struct dentry *try_lookup_one_len(const char *name, struct dentry *base, int len)
+{
+	struct qstr this;
+	int err;
+
+	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
+
+	err = lookup_one_len_common(name, base, len, &this);
+	if (err)
+		return ERR_PTR(err);
+
+	return lookup_dcache(&this, base, 0);
+}
+EXPORT_SYMBOL(try_lookup_one_len);
+
+/**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
@@ -2749,6 +2778,11 @@ static int may_delete(struct inode *dir, struct dentry *victim, bool isdir)
 	BUG_ON(!inode);
 
 	BUG_ON(victim->d_parent->d_inode != dir);
+
+	/* Inode writeback is not safe when the uid or gid are invalid. */
+	if (!uid_valid(inode->i_uid) || !gid_valid(inode->i_gid))
+		return -EOVERFLOW;
+
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
 
 	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
@@ -3677,7 +3711,8 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 	if (error)
 		return error;
 
-	if ((S_ISCHR(mode) || S_ISBLK(mode)) && !capable(CAP_MKNOD))
+	if ((S_ISCHR(mode) || S_ISBLK(mode)) &&
+	    !ns_capable(dentry->d_sb->s_user_ns, CAP_MKNOD))
 		return -EPERM;
 
 	if (!dir->i_op->mknod)
@@ -3852,11 +3887,11 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (error)
 		goto out;
 
-	shrink_dcache_parent(dentry);
 	error = dir->i_op->rmdir(dir, dentry);
 	if (error)
 		goto out;
 
+	shrink_dcache_parent(dentry);
 	dentry->d_inode->i_flags |= S_DEAD;
 	dont_mount(dentry);
 	detach_mounts(dentry);
@@ -4439,8 +4474,6 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		    old_dir->i_nlink >= max_links)
 			goto out;
 	}
-	if (is_dir && !(flags & RENAME_EXCHANGE) && target)
-		shrink_dcache_parent(new_dentry);
 	if (!is_dir) {
 		error = try_break_deleg(source, delegated_inode);
 		if (error)
@@ -4457,8 +4490,10 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 
 	if (!(flags & RENAME_EXCHANGE) && target) {
-		if (is_dir)
+		if (is_dir) {
+			shrink_dcache_parent(new_dentry);
 			target->i_flags |= S_DEAD;
+		}
 		dont_mount(new_dentry);
 		detach_mounts(new_dentry);
 	}

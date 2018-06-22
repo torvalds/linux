@@ -436,15 +436,15 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 
 	nr_preds += 2; /* For TRUE and FALSE */
 
-	op_stack = kmalloc(sizeof(*op_stack) * nr_parens, GFP_KERNEL);
+	op_stack = kmalloc_array(nr_parens, sizeof(*op_stack), GFP_KERNEL);
 	if (!op_stack)
 		return ERR_PTR(-ENOMEM);
-	prog_stack = kmalloc(sizeof(*prog_stack) * nr_preds, GFP_KERNEL);
+	prog_stack = kmalloc_array(nr_preds, sizeof(*prog_stack), GFP_KERNEL);
 	if (!prog_stack) {
 		parse_error(pe, -ENOMEM, 0);
 		goto out_free;
 	}
-	inverts = kmalloc(sizeof(*inverts) * nr_preds, GFP_KERNEL);
+	inverts = kmalloc_array(nr_preds, sizeof(*inverts), GFP_KERNEL);
 	if (!inverts) {
 		parse_error(pe, -ENOMEM, 0);
 		goto out_free;
@@ -750,31 +750,32 @@ static int filter_pred_none(struct filter_pred *pred, void *event)
  *
  * Note:
  * - @str might not be NULL-terminated if it's of type DYN_STRING
- *   or STATIC_STRING
+ *   or STATIC_STRING, unless @len is zero.
  */
 
 static int regex_match_full(char *str, struct regex *r, int len)
 {
-	if (strncmp(str, r->pattern, len) == 0)
-		return 1;
-	return 0;
+	/* len of zero means str is dynamic and ends with '\0' */
+	if (!len)
+		return strcmp(str, r->pattern) == 0;
+
+	return strncmp(str, r->pattern, len) == 0;
 }
 
 static int regex_match_front(char *str, struct regex *r, int len)
 {
-	if (len < r->len)
+	if (len && len < r->len)
 		return 0;
 
-	if (strncmp(str, r->pattern, r->len) == 0)
-		return 1;
-	return 0;
+	return strncmp(str, r->pattern, r->len) == 0;
 }
 
 static int regex_match_middle(char *str, struct regex *r, int len)
 {
-	if (strnstr(str, r->pattern, len))
-		return 1;
-	return 0;
+	if (!len)
+		return strstr(str, r->pattern) != NULL;
+
+	return strnstr(str, r->pattern, len) != NULL;
 }
 
 static int regex_match_end(char *str, struct regex *r, int len)

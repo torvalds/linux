@@ -419,6 +419,29 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	return 0;
 }
 
+/**
+ * vgic_v3_rdist_overlap - check if a region overlaps with any
+ * existing redistributor region
+ *
+ * @kvm: kvm handle
+ * @base: base of the region
+ * @size: size of region
+ *
+ * Return: true if there is an overlap
+ */
+bool vgic_v3_rdist_overlap(struct kvm *kvm, gpa_t base, size_t size)
+{
+	struct vgic_dist *d = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, &d->rd_regions, list) {
+		if ((base + size > rdreg->base) &&
+			(base < rdreg->base + vgic_v3_rd_region_size(kvm, rdreg)))
+			return true;
+	}
+	return false;
+}
+
 /*
  * Check for overlapping regions and for regions crossing the end of memory
  * for base addresses which have already been set.
@@ -426,41 +449,83 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 bool vgic_v3_check_base(struct kvm *kvm)
 {
 	struct vgic_dist *d = &kvm->arch.vgic;
-	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
-
-	redist_size *= atomic_read(&kvm->online_vcpus);
+	struct vgic_redist_region *rdreg;
 
 	if (!IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
 	    d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
 		return false;
 
-	if (!IS_VGIC_ADDR_UNDEF(d->vgic_redist_base) &&
-	    d->vgic_redist_base + redist_size < d->vgic_redist_base)
-		return false;
+	list_for_each_entry(rdreg, &d->rd_regions, list) {
+		if (rdreg->base + vgic_v3_rd_region_size(kvm, rdreg) <
+			rdreg->base)
+			return false;
+	}
 
-	/* Both base addresses must be set to check if they overlap */
-	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(d->vgic_redist_base))
+	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base))
 		return true;
 
-	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
-		return true;
-	if (d->vgic_redist_base + redist_size <= d->vgic_dist_base)
-		return true;
-
-	return false;
+	return !vgic_v3_rdist_overlap(kvm, d->vgic_dist_base,
+				      KVM_VGIC_V3_DIST_SIZE);
 }
+
+/**
+ * vgic_v3_rdist_free_slot - Look up registered rdist regions and identify one
+ * which has free space to put a new rdist region.
+ *
+ * @rd_regions: redistributor region list head
+ *
+ * A redistributor regions maps n redistributors, n = region size / (2 x 64kB).
+ * Stride between redistributors is 0 and regions are filled in the index order.
+ *
+ * Return: the redist region handle, if any, that has space to map a new rdist
+ * region.
+ */
+struct vgic_redist_region *vgic_v3_rdist_free_slot(struct list_head *rd_regions)
+{
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, rd_regions, list) {
+		if (!vgic_v3_redist_region_full(rdreg))
+			return rdreg;
+	}
+	return NULL;
+}
+
+struct vgic_redist_region *vgic_v3_rdist_region_from_index(struct kvm *kvm,
+							   u32 index)
+{
+	struct list_head *rd_regions = &kvm->arch.vgic.rd_regions;
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, rd_regions, list) {
+		if (rdreg->index == index)
+			return rdreg;
+	}
+	return NULL;
+}
+
 
 int vgic_v3_map_resources(struct kvm *kvm)
 {
-	int ret = 0;
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct kvm_vcpu *vcpu;
+	int ret = 0;
+	int c;
 
 	if (vgic_ready(kvm))
 		goto out;
 
-	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(dist->vgic_redist_base)) {
+	kvm_for_each_vcpu(c, vcpu, kvm) {
+		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
+			kvm_debug("vcpu %d redistributor base not set\n", c);
+			ret = -ENXIO;
+			goto out;
+		}
+	}
+
+	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base)) {
 		kvm_err("Need to set vgic distributor addresses first\n");
 		ret = -ENXIO;
 		goto out;

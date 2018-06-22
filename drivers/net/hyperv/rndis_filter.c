@@ -29,6 +29,7 @@
 #include <linux/nls.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/ucs2_string.h>
 
 #include "hyperv_net.h"
 #include "netvsc_trace.h"
@@ -751,7 +752,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 	rssp->indirect_tabsize = 4*ITAB_NUM;
 	rssp->indirect_taboffset = sizeof(struct ndis_recv_scale_param);
 	rssp->hashkey_size = NETVSC_HASH_KEYLEN;
-	rssp->kashkey_offset = rssp->indirect_taboffset +
+	rssp->hashkey_offset = rssp->indirect_taboffset +
 			       rssp->indirect_tabsize;
 
 	/* Set indirection table entries */
@@ -760,7 +761,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 		itab[i] = rdev->rx_table[i];
 
 	/* Set hask key values */
-	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
+	keyp = (u8 *)((unsigned long)rssp + rssp->hashkey_offset);
 	memcpy(keyp, rss_key, NETVSC_HASH_KEYLEN);
 
 	ret = rndis_filter_send_request(rdev, request);
@@ -1223,6 +1224,32 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	return ret;
 }
 
+static void rndis_get_friendly_name(struct net_device *net,
+				    struct rndis_device *rndis_device,
+				    struct netvsc_device *net_device)
+{
+	ucs2_char_t wname[256];
+	unsigned long len;
+	u8 ifalias[256];
+	u32 size;
+
+	size = sizeof(wname);
+	if (rndis_filter_query_device(rndis_device, net_device,
+				      RNDIS_OID_GEN_FRIENDLY_NAME,
+				      wname, &size) != 0)
+		return;	/* ignore if host does not support */
+
+	if (size == 0)
+		return;	/* name not set */
+
+	/* Convert Windows Unicode string to UTF-8 */
+	len = ucs2_as_utf8(ifalias, wname, sizeof(ifalias));
+
+	/* ignore the default value from host */
+	if (strcmp(ifalias, "Network Adapter") != 0)
+		dev_set_alias(net, ifalias, len);
+}
+
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 				      struct netvsc_device_info *device_info)
 {
@@ -1275,6 +1302,10 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		goto err_dev_remv;
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
+
+	/* Get friendly name as ifalias*/
+	if (!net->ifalias)
+		rndis_get_friendly_name(net, rndis_device, net_device);
 
 	/* Query and set hardware capabilities */
 	ret = rndis_netdev_set_hwcaps(rndis_device, net_device);

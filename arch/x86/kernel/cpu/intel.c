@@ -456,24 +456,6 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 #endif
 }
 
-/*
- * find out the number of processor cores on the die
- */
-static int intel_num_cpu_cores(struct cpuinfo_x86 *c)
-{
-	unsigned int eax, ebx, ecx, edx;
-
-	if (!IS_ENABLED(CONFIG_SMP) || c->cpuid_level < 4)
-		return 1;
-
-	/* Intel has a non-standard dependency on %ecx for this CPUID level. */
-	cpuid_count(4, 0, &eax, &ebx, &ecx, &edx);
-	if (eax & 0x1f)
-		return (eax >> 26) + 1;
-	else
-		return 1;
-}
-
 static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
 {
 	/* Intel VMX MSR indicated features */
@@ -656,8 +638,6 @@ static void init_intel_misc_features(struct cpuinfo_x86 *c)
 
 static void init_intel(struct cpuinfo_x86 *c)
 {
-	unsigned int l2 = 0;
-
 	early_init_intel(c);
 
 	intel_workarounds(c);
@@ -674,19 +654,13 @@ static void init_intel(struct cpuinfo_x86 *c)
 		 * let's use the legacy cpuid vector 0x1 and 0x4 for topology
 		 * detection.
 		 */
-		c->x86_max_cores = intel_num_cpu_cores(c);
+		detect_num_cpu_cores(c);
 #ifdef CONFIG_X86_32
 		detect_ht(c);
 #endif
 	}
 
-	l2 = init_intel_cacheinfo(c);
-
-	/* Detect legacy cache sizes if init_intel_cacheinfo did not */
-	if (l2 == 0) {
-		cpu_detect_cache_sizes(c);
-		l2 = c->x86_cache_size;
-	}
+	init_intel_cacheinfo(c);
 
 	if (c->cpuid_level > 9) {
 		unsigned eax = cpuid_eax(10);
@@ -699,7 +673,8 @@ static void init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 
 	if (boot_cpu_has(X86_FEATURE_DS)) {
-		unsigned int l1;
+		unsigned int l1, l2;
+
 		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
 		if (!(l1 & (1<<11)))
 			set_cpu_cap(c, X86_FEATURE_BTS);
@@ -727,6 +702,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 	 * Dixon is NOT a Celeron.
 	 */
 	if (c->x86 == 6) {
+		unsigned int l2 = c->x86_cache_size;
 		char *p = NULL;
 
 		switch (c->x86_model) {

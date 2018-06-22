@@ -823,35 +823,9 @@ static const struct seq_operations sched_debug_sops = {
 	.show		= sched_debug_show,
 };
 
-static int sched_debug_release(struct inode *inode, struct file *file)
-{
-	seq_release(inode, file);
-
-	return 0;
-}
-
-static int sched_debug_open(struct inode *inode, struct file *filp)
-{
-	int ret = 0;
-
-	ret = seq_open(filp, &sched_debug_sops);
-
-	return ret;
-}
-
-static const struct file_operations sched_debug_fops = {
-	.open		= sched_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= sched_debug_release,
-};
-
 static int __init init_sched_debug_procfs(void)
 {
-	struct proc_dir_entry *pe;
-
-	pe = proc_create("sched_debug", 0444, NULL, &sched_debug_fops);
-	if (!pe)
+	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
 		return -ENOMEM;
 	return 0;
 }

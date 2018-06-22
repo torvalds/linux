@@ -208,7 +208,7 @@ int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 	if (poll->wqh)
 		return 0;
 
-	mask = file->f_op->poll(file, &poll->table);
+	mask = vfs_poll(file, &poll->table);
 	if (mask)
 		vhost_poll_wakeup(&poll->wait, 0, 0, poll_to_key(mask));
 	if (mask & EPOLLERR) {
@@ -385,10 +385,13 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		vq = dev->vqs[i];
-		vq->indirect = kmalloc(sizeof *vq->indirect * UIO_MAXIOV,
-				       GFP_KERNEL);
-		vq->log = kmalloc(sizeof *vq->log * UIO_MAXIOV, GFP_KERNEL);
-		vq->heads = kmalloc(sizeof *vq->heads * UIO_MAXIOV, GFP_KERNEL);
+		vq->indirect = kmalloc_array(UIO_MAXIOV,
+					     sizeof(*vq->indirect),
+					     GFP_KERNEL);
+		vq->log = kmalloc_array(UIO_MAXIOV, sizeof(*vq->log),
+					GFP_KERNEL);
+		vq->heads = kmalloc_array(UIO_MAXIOV, sizeof(*vq->heads),
+					  GFP_KERNEL);
 		if (!vq->indirect || !vq->log || !vq->heads)
 			goto err_nomem;
 	}
@@ -1286,7 +1289,8 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EOPNOTSUPP;
 	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
-	newmem = kvzalloc(size + mem.nregions * sizeof(*m->regions), GFP_KERNEL);
+	newmem = kvzalloc(struct_size(newmem, regions, mem.nregions),
+			GFP_KERNEL);
 	if (!newmem)
 		return -ENOMEM;
 
@@ -2345,6 +2349,9 @@ struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type)
 	struct vhost_msg_node *node = kmalloc(sizeof *node, GFP_KERNEL);
 	if (!node)
 		return NULL;
+
+	/* Make sure all padding within the structure is initialized. */
+	memset(&node->msg, 0, sizeof node->msg);
 	node->vq = vq;
 	node->msg.type = type;
 	return node;

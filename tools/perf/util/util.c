@@ -38,10 +38,42 @@ void perf_set_multithreaded(void)
 }
 
 unsigned int page_size;
-int cacheline_size;
+
+#ifdef _SC_LEVEL1_DCACHE_LINESIZE
+#define cache_line_size(cacheline_sizep) *cacheline_sizep = sysconf(_SC_LEVEL1_DCACHE_LINESIZE)
+#else
+static void cache_line_size(int *cacheline_sizep)
+{
+	if (sysfs__read_int("devices/system/cpu/cpu0/cache/index0/coherency_line_size", cacheline_sizep))
+		pr_debug("cannot determine cache line size");
+}
+#endif
+
+int cacheline_size(void)
+{
+	static int size;
+
+	if (!size)
+		cache_line_size(&size);
+
+	return size;
+}
 
 int sysctl_perf_event_max_stack = PERF_MAX_STACK_DEPTH;
 int sysctl_perf_event_max_contexts_per_stack = PERF_MAX_CONTEXTS_PER_STACK;
+
+int sysctl__max_stack(void)
+{
+	int value;
+
+	if (sysctl__read_int("kernel/perf_event_max_stack", &value) == 0)
+		sysctl_perf_event_max_stack = value;
+
+	if (sysctl__read_int("kernel/perf_event_max_contexts_per_stack", &value) == 0)
+		sysctl_perf_event_max_contexts_per_stack = value;
+
+	return sysctl_perf_event_max_stack;
+}
 
 bool test_attr__enabled;
 

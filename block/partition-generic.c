@@ -179,18 +179,17 @@ ssize_t part_fail_store(struct device *dev,
 }
 #endif
 
-static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
-static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
-static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
-static DEVICE_ATTR(ro, S_IRUGO, part_ro_show, NULL);
-static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
-static DEVICE_ATTR(discard_alignment, S_IRUGO, part_discard_alignment_show,
-		   NULL);
-static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
-static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
+static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
+static DEVICE_ATTR(start, 0444, part_start_show, NULL);
+static DEVICE_ATTR(size, 0444, part_size_show, NULL);
+static DEVICE_ATTR(ro, 0444, part_ro_show, NULL);
+static DEVICE_ATTR(alignment_offset, 0444, part_alignment_offset_show, NULL);
+static DEVICE_ATTR(discard_alignment, 0444, part_discard_alignment_show, NULL);
+static DEVICE_ATTR(stat, 0444, part_stat_show, NULL);
+static DEVICE_ATTR(inflight, 0444, part_inflight_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
-	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
+	__ATTR(make-it-fail, 0644, part_fail_show, part_fail_store);
 #endif
 
 static struct attribute *part_attrs[] = {
@@ -291,8 +290,7 @@ static ssize_t whole_disk_show(struct device *dev,
 {
 	return 0;
 }
-static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
-		   whole_disk_show, NULL);
+static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
 
 /*
  * Must be called either with bd_mutex held, before a disk can be opened or
@@ -518,7 +516,7 @@ rescan:
 
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
-	check_disk_size_change(disk, bdev);
+	check_disk_size_change(disk, bdev, true);
 	bdev->bd_invalidated = 0;
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
@@ -643,7 +641,7 @@ int invalidate_partitions(struct gendisk *disk, struct block_device *bdev)
 		return res;
 
 	set_capacity(disk, 0);
-	check_disk_size_change(disk, bdev);
+	check_disk_size_change(disk, bdev, false);
 	bdev->bd_invalidated = 0;
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);

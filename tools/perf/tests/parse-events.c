@@ -499,7 +499,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlis
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
-	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
 
 	/* cpu/config=2,call-graph=no,time=0,period=2000/ */
@@ -512,7 +512,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlis
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
-	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
 
 	return 0;
@@ -1309,18 +1309,26 @@ static int test__checkevent_config_cache(struct perf_evlist *evlist)
 	return 0;
 }
 
+static int test__intel_pt(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong name setting", strcmp(evsel->name, "intel_pt//u") == 0);
+	return 0;
+}
+
 static int count_tracepoints(void)
 {
 	struct dirent *events_ent;
 	DIR *events_dir;
 	int cnt = 0;
 
-	events_dir = opendir(tracing_events_path);
+	events_dir = tracing_events__opendir();
 
 	TEST_ASSERT_VAL("Can't open events dir", events_dir);
 
 	while ((events_ent = readdir(events_dir))) {
-		char sys_path[PATH_MAX];
+		char *sys_path;
 		struct dirent *sys_ent;
 		DIR *sys_dir;
 
@@ -1331,8 +1339,8 @@ static int count_tracepoints(void)
 		    || !strcmp(events_ent->d_name, "header_page"))
 			continue;
 
-		scnprintf(sys_path, PATH_MAX, "%s/%s",
-			  tracing_events_path, events_ent->d_name);
+		sys_path = get_events_file(events_ent->d_name);
+		TEST_ASSERT_VAL("Can't get sys path", sys_path);
 
 		sys_dir = opendir(sys_path);
 		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);
@@ -1348,6 +1356,7 @@ static int count_tracepoints(void)
 		}
 
 		closedir(sys_dir);
+		put_events_file(sys_path);
 	}
 
 	closedir(events_dir);
@@ -1636,6 +1645,11 @@ static struct evlist_test test__events[] = {
 		.name  = "L1-dcache-misses/name=cachepmu/",
 		.check = test__checkevent_config_cache,
 		.id    = 51,
+	},
+	{
+		.name  = "intel_pt//u",
+		.check = test__intel_pt,
+		.id    = 52,
 	},
 };
 

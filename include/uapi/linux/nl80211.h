@@ -11,6 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -203,7 +204,8 @@
  * FILS shared key authentication offload should be able to construct the
  * authentication and association frames for FILS shared key authentication and
  * eventually do a key derivation as per IEEE 802.11ai. The below additional
- * parameters should be given to driver in %NL80211_CMD_CONNECT.
+ * parameters should be given to driver in %NL80211_CMD_CONNECT and/or in
+ * %NL80211_CMD_UPDATE_CONNECT_PARAMS.
  *	%NL80211_ATTR_FILS_ERP_USERNAME - used to construct keyname_nai
  *	%NL80211_ATTR_FILS_ERP_REALM - used to construct keyname_nai
  *	%NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM - used to construct erp message
@@ -214,7 +216,8 @@
  * as specified in IETF RFC 6696.
  *
  * When FILS shared key authentication is completed, driver needs to provide the
- * below additional parameters to userspace.
+ * below additional parameters to userspace, which can be either after setting
+ * up a connection or after roaming.
  *	%NL80211_ATTR_FILS_KEK - used for key renewal
  *	%NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM - used in further EAP-RP exchanges
  *	%NL80211_ATTR_PMKID - used to identify the PMKSA used/generated
@@ -978,18 +981,18 @@
  *	only the %NL80211_ATTR_IE data is used and updated with this command.
  *
  * @NL80211_CMD_SET_PMK: For offloaded 4-Way handshake, set the PMK or PMK-R0
- *	for the given authenticator address (specified with &NL80211_ATTR_MAC).
- *	When &NL80211_ATTR_PMKR0_NAME is set, &NL80211_ATTR_PMK specifies the
+ *	for the given authenticator address (specified with %NL80211_ATTR_MAC).
+ *	When %NL80211_ATTR_PMKR0_NAME is set, %NL80211_ATTR_PMK specifies the
  *	PMK-R0, otherwise it specifies the PMK.
  * @NL80211_CMD_DEL_PMK: For offloaded 4-Way handshake, delete the previously
  *	configured PMK for the authenticator address identified by
- *	&NL80211_ATTR_MAC.
+ *	%NL80211_ATTR_MAC.
  * @NL80211_CMD_PORT_AUTHORIZED: An event that indicates that the 4 way
  *	handshake was completed successfully by the driver. The BSSID is
- *	specified with &NL80211_ATTR_MAC. Drivers that support 4 way handshake
+ *	specified with %NL80211_ATTR_MAC. Drivers that support 4 way handshake
  *	offload should send this event after indicating 802.11 association with
- *	&NL80211_CMD_CONNECT or &NL80211_CMD_ROAM. If the 4 way handshake failed
- *	&NL80211_CMD_DISCONNECT should be indicated instead.
+ *	%NL80211_CMD_CONNECT or %NL80211_CMD_ROAM. If the 4 way handshake failed
+ *	%NL80211_CMD_DISCONNECT should be indicated instead.
  *
  * @NL80211_CMD_CONTROL_PORT_FRAME: Control Port (e.g. PAE) frame TX request
  *	and RX notification.  This command is used both as a request to transmit
@@ -1026,9 +1029,9 @@
  *	initiated the connection through the connect request.
  *
  * @NL80211_CMD_STA_OPMODE_CHANGED: An event that notify station's
- *	ht opmode or vht opmode changes using any of &NL80211_ATTR_SMPS_MODE,
- *	&NL80211_ATTR_CHANNEL_WIDTH,&NL80211_ATTR_NSS attributes with its
- *	address(specified in &NL80211_ATTR_MAC).
+ *	ht opmode or vht opmode changes using any of %NL80211_ATTR_SMPS_MODE,
+ *	%NL80211_ATTR_CHANNEL_WIDTH,%NL80211_ATTR_NSS attributes with its
+ *	address(specified in %NL80211_ATTR_MAC).
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -2215,7 +2218,7 @@ enum nl80211_commands {
  * @NL80211_ATTR_EXTERNAL_AUTH_ACTION: Identify the requested external
  *     authentication operation (u32 attribute with an
  *     &enum nl80211_external_auth_action value). This is used with the
- *     &NL80211_CMD_EXTERNAL_AUTH request event.
+ *     %NL80211_CMD_EXTERNAL_AUTH request event.
  * @NL80211_ATTR_EXTERNAL_AUTH_SUPPORT: Flag attribute indicating that the user
  *     space supports external authentication. This attribute shall be used
  *     only with %NL80211_CMD_CONNECT request. The driver may offload
@@ -2224,6 +2227,16 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_NSS: Station's New/updated  RX_NSS value notified using this
  *	u8 attribute. This is used with %NL80211_CMD_STA_OPMODE_CHANGED.
+ *
+ * @NL80211_ATTR_TXQ_STATS: TXQ statistics (nested attribute, see &enum
+ *      nl80211_txq_stats)
+ * @NL80211_ATTR_TXQ_LIMIT: Total packet limit for the TXQ queues for this phy.
+ *      The smaller of this and the memory limit is enforced.
+ * @NL80211_ATTR_TXQ_MEMORY_LIMIT: Total memory memory limit (in bytes) for the
+ *      TXQ queues for this phy. The smaller of this and the packet limit is
+ *      enforced.
+ * @NL80211_ATTR_TXQ_QUANTUM: TXQ scheduler quantum (bytes). Number of bytes
+ *      a flow is assigned on each round of the DRR scheduler.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2659,6 +2672,11 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_CONTROL_PORT_OVER_NL80211,
 
+	NL80211_ATTR_TXQ_STATS,
+	NL80211_ATTR_TXQ_LIMIT,
+	NL80211_ATTR_TXQ_MEMORY_LIMIT,
+	NL80211_ATTR_TXQ_QUANTUM,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -2982,6 +3000,8 @@ enum nl80211_sta_bss_param {
  *	received from the station (u64, usec)
  * @NL80211_STA_INFO_PAD: attribute used for padding for 64-bit alignment
  * @NL80211_STA_INFO_ACK_SIGNAL: signal strength of the last ACK frame(u8, dBm)
+ * @NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG: avg signal strength of (data)
+ *	ACK frame (s8, dBm)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -3021,6 +3041,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_RX_DURATION,
 	NL80211_STA_INFO_PAD,
 	NL80211_STA_INFO_ACK_SIGNAL,
+	NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -3038,6 +3059,7 @@ enum nl80211_sta_info {
  * @NL80211_TID_STATS_TX_MSDU_FAILED: number of failed transmitted
  *	MSDUs (u64)
  * @NL80211_TID_STATS_PAD: attribute used for padding for 64-bit alignment
+ * @NL80211_TID_STATS_TXQ_STATS: TXQ stats (nested attribute)
  * @NUM_NL80211_TID_STATS: number of attributes here
  * @NL80211_TID_STATS_MAX: highest numbered attribute here
  */
@@ -3048,10 +3070,49 @@ enum nl80211_tid_stats {
 	NL80211_TID_STATS_TX_MSDU_RETRIES,
 	NL80211_TID_STATS_TX_MSDU_FAILED,
 	NL80211_TID_STATS_PAD,
+	NL80211_TID_STATS_TXQ_STATS,
 
 	/* keep last */
 	NUM_NL80211_TID_STATS,
 	NL80211_TID_STATS_MAX = NUM_NL80211_TID_STATS - 1
+};
+
+/**
+ * enum nl80211_txq_stats - per TXQ statistics attributes
+ * @__NL80211_TXQ_STATS_INVALID: attribute number 0 is reserved
+ * @NUM_NL80211_TXQ_STATS: number of attributes here
+ * @NL80211_TXQ_STATS_BACKLOG_BYTES: number of bytes currently backlogged
+ * @NL80211_TXQ_STATS_BACKLOG_PACKETS: number of packets currently
+ *      backlogged
+ * @NL80211_TXQ_STATS_FLOWS: total number of new flows seen
+ * @NL80211_TXQ_STATS_DROPS: total number of packet drops
+ * @NL80211_TXQ_STATS_ECN_MARKS: total number of packet ECN marks
+ * @NL80211_TXQ_STATS_OVERLIMIT: number of drops due to queue space overflow
+ * @NL80211_TXQ_STATS_OVERMEMORY: number of drops due to memory limit overflow
+ *      (only for per-phy stats)
+ * @NL80211_TXQ_STATS_COLLISIONS: number of hash collisions
+ * @NL80211_TXQ_STATS_TX_BYTES: total number of bytes dequeued from TXQ
+ * @NL80211_TXQ_STATS_TX_PACKETS: total number of packets dequeued from TXQ
+ * @NL80211_TXQ_STATS_MAX_FLOWS: number of flow buckets for PHY
+ * @NL80211_TXQ_STATS_MAX: highest numbered attribute here
+ */
+enum nl80211_txq_stats {
+	__NL80211_TXQ_STATS_INVALID,
+	NL80211_TXQ_STATS_BACKLOG_BYTES,
+	NL80211_TXQ_STATS_BACKLOG_PACKETS,
+	NL80211_TXQ_STATS_FLOWS,
+	NL80211_TXQ_STATS_DROPS,
+	NL80211_TXQ_STATS_ECN_MARKS,
+	NL80211_TXQ_STATS_OVERLIMIT,
+	NL80211_TXQ_STATS_OVERMEMORY,
+	NL80211_TXQ_STATS_COLLISIONS,
+	NL80211_TXQ_STATS_TX_BYTES,
+	NL80211_TXQ_STATS_TX_PACKETS,
+	NL80211_TXQ_STATS_MAX_FLOWS,
+
+	/* keep last */
+	NUM_NL80211_TXQ_STATS,
+	NL80211_TXQ_STATS_MAX = NUM_NL80211_TXQ_STATS - 1
 };
 
 /**
@@ -3144,6 +3205,29 @@ enum nl80211_band_attr {
 #define NL80211_BAND_ATTR_HT_CAPA NL80211_BAND_ATTR_HT_CAPA
 
 /**
+ * enum nl80211_wmm_rule - regulatory wmm rule
+ *
+ * @__NL80211_WMMR_INVALID: attribute number 0 is reserved
+ * @NL80211_WMMR_CW_MIN: Minimum contention window slot.
+ * @NL80211_WMMR_CW_MAX: Maximum contention window slot.
+ * @NL80211_WMMR_AIFSN: Arbitration Inter Frame Space.
+ * @NL80211_WMMR_TXOP: Maximum allowed tx operation time.
+ * @nl80211_WMMR_MAX: highest possible wmm rule.
+ * @__NL80211_WMMR_LAST: Internal use.
+ */
+enum nl80211_wmm_rule {
+	__NL80211_WMMR_INVALID,
+	NL80211_WMMR_CW_MIN,
+	NL80211_WMMR_CW_MAX,
+	NL80211_WMMR_AIFSN,
+	NL80211_WMMR_TXOP,
+
+	/* keep last */
+	__NL80211_WMMR_LAST,
+	NL80211_WMMR_MAX = __NL80211_WMMR_LAST - 1
+};
+
+/**
  * enum nl80211_frequency_attr - frequency attributes
  * @__NL80211_FREQUENCY_ATTR_INVALID: attribute number 0 is reserved
  * @NL80211_FREQUENCY_ATTR_FREQ: Frequency in MHz
@@ -3192,6 +3276,9 @@ enum nl80211_band_attr {
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
  *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_WMM: this channel has wmm limitations.
+ *	This is a nested attribute that contains the wmm limitation per AC.
+ *	(see &enum nl80211_wmm_rule)
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -3220,6 +3307,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_20MHZ,
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
+	NL80211_FREQUENCY_ATTR_WMM,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -3403,7 +3491,7 @@ enum nl80211_sched_scan_match_attr {
  * @NL80211_RRF_AUTO_BW: maximum available bandwidth should be calculated
  *	base on contiguous rules and wider channels will be allowed to cross
  *	multiple contiguous/overlapping frequency ranges.
- * @NL80211_RRF_IR_CONCURRENT: See &NL80211_FREQUENCY_ATTR_IR_CONCURRENT
+ * @NL80211_RRF_IR_CONCURRENT: See %NL80211_FREQUENCY_ATTR_IR_CONCURRENT
  * @NL80211_RRF_NO_HT40MINUS: channels can't be used in HT40- operation
  * @NL80211_RRF_NO_HT40PLUS: channels can't be used in HT40+ operation
  * @NL80211_RRF_NO_80MHZ: 80MHz operation not allowed
@@ -5040,6 +5128,11 @@ enum nl80211_feature_flags {
  *	"radar detected" event.
  * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211: Driver supports sending and
  *	receiving control port frames over nl80211 instead of the netdevice.
+ * @NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT: This Driver support data ack
+ *	rssi if firmware support, this flag is to intimate about ack rssi
+ *	support to nl80211.
+ * @NL80211_EXT_FEATURE_TXQS: Driver supports FQ-CoDel-enabled intermediate
+ *      TXQs.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -5072,6 +5165,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN,
 	NL80211_EXT_FEATURE_DFS_OFFLOAD,
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211,
+	NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT,
+	NL80211_EXT_FEATURE_TXQS,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -5548,11 +5643,11 @@ enum nl80211_nan_func_attributes {
  * @NL80211_NAN_SRF_INCLUDE: present if the include bit of the SRF set.
  *	This is a flag.
  * @NL80211_NAN_SRF_BF: Bloom Filter. Present if and only if
- *	&NL80211_NAN_SRF_MAC_ADDRS isn't present. This attribute is binary.
+ *	%NL80211_NAN_SRF_MAC_ADDRS isn't present. This attribute is binary.
  * @NL80211_NAN_SRF_BF_IDX: index of the Bloom Filter. Mandatory if
- *	&NL80211_NAN_SRF_BF is present. This is a u8.
+ *	%NL80211_NAN_SRF_BF is present. This is a u8.
  * @NL80211_NAN_SRF_MAC_ADDRS: list of MAC addresses for the SRF. Present if
- *	and only if &NL80211_NAN_SRF_BF isn't present. This is a nested
+ *	and only if %NL80211_NAN_SRF_BF isn't present. This is a nested
  *	attribute. Each nested attribute is a MAC address.
  * @NUM_NL80211_NAN_SRF_ATTR: internal
  * @NL80211_NAN_SRF_ATTR_MAX: highest NAN SRF attribute

@@ -237,7 +237,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 
 	while (len) {
 		unsigned nr_bytes = min(len, cursg->length - cmd->cursg_ofs);
-		int page_is_high;
 
 		page = sg_page(cursg);
 		offset = cursg->offset + cmd->cursg_ofs;
@@ -247,10 +246,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 		offset %= PAGE_SIZE;
 
 		nr_bytes = min_t(unsigned, nr_bytes, (PAGE_SIZE - offset));
-
-		page_is_high = PageHighMem(page);
-		if (page_is_high)
-			local_irq_save(flags);
 
 		buf = kmap_atomic(page) + offset;
 
@@ -269,9 +264,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 			hwif->tp_ops->input_data(drive, cmd, buf, nr_bytes);
 
 		kunmap_atomic(buf);
-
-		if (page_is_high)
-			local_irq_restore(flags);
 
 		len -= nr_bytes;
 	}
@@ -413,7 +405,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 		return startstop;
 	}
 
-	if ((drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
+	if (!force_irqthreads && (drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
 		local_irq_disable();
 
 	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE);
@@ -431,7 +423,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 
 	rq = blk_get_request(drive->queue,
 		(cmd->tf_flags & IDE_TFLAG_WRITE) ?
-			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, __GFP_RECLAIM);
+			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	/*
@@ -442,7 +434,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	 */
 	if (nsect) {
 		error = blk_rq_map_kern(drive->queue, rq, buf,
-					nsect * SECTOR_SIZE, __GFP_RECLAIM);
+					nsect * SECTOR_SIZE, GFP_NOIO);
 		if (error)
 			goto put_req;
 	}

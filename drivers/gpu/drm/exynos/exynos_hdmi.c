@@ -1692,7 +1692,7 @@ static int hdmi_clk_init(struct hdmi_context *hdata)
 	if (!count)
 		return 0;
 
-	clks = devm_kzalloc(dev, sizeof(*clks) * count, GFP_KERNEL);
+	clks = devm_kcalloc(dev, count, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
 		return -ENOMEM;
 

@@ -175,6 +175,7 @@ struct mlx5_ib_flow_handler {
 	struct ib_flow			ibflow;
 	struct mlx5_ib_flow_prio	*prio;
 	struct mlx5_flow_handle		*rule;
+	struct ib_counters		*ibcounters;
 };
 
 struct mlx5_ib_flow_db {
@@ -812,6 +813,41 @@ struct mlx5_memic {
 	spinlock_t		memic_lock;
 	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
 };
+
+struct mlx5_read_counters_attr {
+	struct mlx5_fc *hw_cntrs_hndl;
+	u64 *out;
+	u32 flags;
+};
+
+enum mlx5_ib_counters_type {
+	MLX5_IB_COUNTERS_FLOW,
+};
+
+struct mlx5_ib_mcounters {
+	struct ib_counters ibcntrs;
+	enum mlx5_ib_counters_type type;
+	/* number of counters supported for this counters type */
+	u32 counters_num;
+	struct mlx5_fc *hw_cntrs_hndl;
+	/* read function for this counters type */
+	int (*read_counters)(struct ib_device *ibdev,
+			     struct mlx5_read_counters_attr *read_attr);
+	/* max index set as part of create_flow */
+	u32 cntrs_max_index;
+	/* number of counters data entries (<description,index> pair) */
+	u32 ncounters;
+	/* counters data array for descriptions and indexes */
+	struct mlx5_ib_flow_counters_desc *counters_data;
+	/* protects access to mcounters internal data */
+	struct mutex mcntrs_mutex;
+};
+
+static inline struct mlx5_ib_mcounters *
+to_mcounters(struct ib_counters *ibcntrs)
+{
+	return container_of(ibcntrs, struct mlx5_ib_mcounters, ibcntrs);
+}
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;

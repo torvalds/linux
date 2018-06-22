@@ -64,7 +64,7 @@ static int port_cost(struct net_device *dev)
 
 
 /* Check for port carrier transitions. */
-void br_port_carrier_check(struct net_bridge_port *p)
+void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 {
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
@@ -73,16 +73,21 @@ void br_port_carrier_check(struct net_bridge_port *p)
 	    netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
+	*notified = false;
 	if (!netif_running(br->dev))
 		return;
 
 	spin_lock_bh(&br->lock);
 	if (netif_running(dev) && netif_oper_up(dev)) {
-		if (p->state == BR_STATE_DISABLED)
+		if (p->state == BR_STATE_DISABLED) {
 			br_stp_enable_port(p);
+			*notified = true;
+		}
 	} else {
-		if (p->state != BR_STATE_DISABLED)
+		if (p->state != BR_STATE_DISABLED) {
 			br_stp_disable_port(p);
+			*notified = true;
+		}
 	}
 	spin_unlock_bh(&br->lock);
 }

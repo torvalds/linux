@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
 
 static void amdgpu_display_flip_callback(struct dma_fence *f,
@@ -151,8 +152,6 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_framebuffer *old_amdgpu_fb;
-	struct amdgpu_framebuffer *new_amdgpu_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_flip_work *work;
 	struct amdgpu_bo *new_abo;
@@ -174,15 +173,13 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 	work->async = (page_flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 	/* schedule unpin of the old buffer */
-	old_amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-	obj = old_amdgpu_fb->obj;
+	obj = crtc->primary->fb->obj[0];
 
 	/* take a reference to the old object */
 	work->old_abo = gem_to_amdgpu_bo(obj);
 	amdgpu_bo_ref(work->old_abo);
 
-	new_amdgpu_fb = to_amdgpu_framebuffer(fb);
-	obj = new_amdgpu_fb->obj;
+	obj = fb->obj[0];
 	new_abo = gem_to_amdgpu_bo(obj);
 
 	/* pin the new buffer */
@@ -192,7 +189,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin(new_abo, amdgpu_display_framebuffer_domains(adev), &base);
+	r = amdgpu_bo_pin(new_abo, amdgpu_display_supported_domains(adev), &base);
 	if (unlikely(r != 0)) {
 		DRM_ERROR("failed to pin new abo buffer before flip\n");
 		goto unreserve;
@@ -482,31 +479,12 @@ bool amdgpu_display_ddc_probe(struct amdgpu_connector *amdgpu_connector,
 	return true;
 }
 
-static void amdgpu_display_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct amdgpu_framebuffer *amdgpu_fb = to_amdgpu_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(amdgpu_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(amdgpu_fb);
-}
-
-static int amdgpu_display_user_framebuffer_create_handle(
-			struct drm_framebuffer *fb,
-			struct drm_file *file_priv,
-			unsigned int *handle)
-{
-	struct amdgpu_framebuffer *amdgpu_fb = to_amdgpu_framebuffer(fb);
-
-	return drm_gem_handle_create(file_priv, amdgpu_fb->obj, handle);
-}
-
 static const struct drm_framebuffer_funcs amdgpu_fb_funcs = {
-	.destroy = amdgpu_display_user_framebuffer_destroy,
-	.create_handle = amdgpu_display_user_framebuffer_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
-uint32_t amdgpu_display_framebuffer_domains(struct amdgpu_device *adev)
+uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev)
 {
 	uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
 
@@ -526,11 +504,11 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    struct drm_gem_object *obj)
 {
 	int ret;
-	rfb->obj = obj;
+	rfb->base.obj[0] = obj;
 	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
 	if (ret) {
-		rfb->obj = NULL;
+		rfb->base.obj[0] = NULL;
 		return ret;
 	}
 	return 0;

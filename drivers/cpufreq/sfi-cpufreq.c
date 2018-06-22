@@ -95,8 +95,8 @@ static int __init sfi_cpufreq_init(void)
 	if (ret)
 		return ret;
 
-	freq_table = kzalloc(sizeof(*freq_table) *
-			(num_freq_table_entries + 1), GFP_KERNEL);
+	freq_table = kcalloc(num_freq_table_entries + 1, sizeof(*freq_table),
+			     GFP_KERNEL);
 	if (!freq_table) {
 		ret = -ENOMEM;
 		goto err_free_array;

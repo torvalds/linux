@@ -326,3 +326,23 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 
 	return 0;
 }
+
+int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+{
+	int err;
+	u8 cmode;
+
+	if (port != 5)
+		return 0;
+
+	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
+	if (err)
+		return err;
+
+	if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+	    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
+	    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+		return mv88e6390_serdes_sgmii(chip, MV88E6341_ADDR_SERDES, on);
+
+	return 0;
+}

@@ -1852,20 +1852,6 @@ static const struct seq_operations dn_rt_cache_seq_ops = {
 	.stop	= dn_rt_cache_seq_stop,
 	.show	= dn_rt_cache_seq_show,
 };
-
-static int dn_rt_cache_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_private(file, &dn_rt_cache_seq_ops,
-			sizeof(struct dn_rt_cache_iter_state));
-}
-
-static const struct file_operations dn_rt_cache_seq_fops = {
-	.open	 = dn_rt_cache_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_private,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 void __init dn_route_init(void)
@@ -1918,8 +1904,9 @@ void __init dn_route_init(void)
 
 	dn_dst_ops.gc_thresh = (dn_rt_hash_mask + 1);
 
-	proc_create("decnet_cache", 0444, init_net.proc_net,
-		    &dn_rt_cache_seq_fops);
+	proc_create_seq_private("decnet_cache", 0444, init_net.proc_net,
+			&dn_rt_cache_seq_ops,
+			sizeof(struct dn_rt_cache_iter_state), NULL);
 
 #ifdef CONFIG_DECNET_ROUTER
 	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETROUTE,

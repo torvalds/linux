@@ -379,7 +379,7 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_max_bus_speed(struct slot *slot)
 {
-	int rc;
+	int rc = 0;
 	u8 mode = 0;
 	enum pci_bus_speed speed;
 	struct pci_bus *bus = slot->hotplug_slot->pci_slot->bus;

@@ -1586,7 +1586,7 @@ static uint32_t mga_vga_calculate_mode_bandwidth(struct drm_display_mode *mode,
 
 #define MODE_BANDWIDTH	MODE_BAD
 
-static int mga_vga_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;

@@ -147,7 +147,7 @@ void ddb_i2c_release(struct ddb *dev)
 	}
 }
 
-static void i2c_handler(unsigned long priv)
+static void i2c_handler(void *priv)
 {
 	struct ddb_i2c *i2c = (struct ddb_i2c *)priv;
 
@@ -210,8 +210,7 @@ int ddb_i2c_init(struct ddb *dev)
 			if (!(dev->link[l].info->i2c_mask & (1 << i)))
 				continue;
 			i2c = &dev->i2c[num];
-			dev->handler_data[l][i + base] = (unsigned long)i2c;
-			dev->handler[l][i + base] = i2c_handler;
+			ddb_irq_set(dev, l, i + base, i2c_handler, i2c);
 			stat = ddb_i2c_add(dev, i2c, regmap, l, i, num);
 			if (stat)
 				break;

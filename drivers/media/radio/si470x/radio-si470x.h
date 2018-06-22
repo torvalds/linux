@@ -161,6 +161,15 @@ struct si470x_device {
 	struct completion completion;
 	bool status_rssi_auto_update;	/* Does RSSI get updated automatic? */
 
+	/* si470x ops */
+
+	int (*get_register)(struct si470x_device *radio, int regnr);
+	int (*set_register)(struct si470x_device *radio, int regnr);
+	int (*fops_open)(struct file *file);
+	int (*fops_release)(struct file *file);
+	int (*vidioc_querycap)(struct file *file, void *priv,
+			       struct v4l2_capability *capability);
+
 #if IS_ENABLED(CONFIG_USB_SI470X)
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
@@ -213,13 +222,7 @@ struct si470x_device {
  **************************************************************************/
 extern const struct video_device si470x_viddev_template;
 extern const struct v4l2_ctrl_ops si470x_ctrl_ops;
-int si470x_get_register(struct si470x_device *radio, int regnr);
-int si470x_set_register(struct si470x_device *radio, int regnr);
 int si470x_disconnect_check(struct si470x_device *radio);
 int si470x_set_freq(struct si470x_device *radio, unsigned int freq);
 int si470x_start(struct si470x_device *radio);
 int si470x_stop(struct si470x_device *radio);
-int si470x_fops_open(struct file *file);
-int si470x_fops_release(struct file *file);
-int si470x_vidioc_querycap(struct file *file, void *priv,
-		struct v4l2_capability *capability);

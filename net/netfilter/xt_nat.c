@@ -37,11 +37,12 @@ static void xt_nat_destroy(const struct xt_tgdtor_param *par)
 	nf_ct_netns_put(par->net, par->family);
 }
 
-static void xt_nat_convert_range(struct nf_nat_range *dst,
+static void xt_nat_convert_range(struct nf_nat_range2 *dst,
 				 const struct nf_nat_ipv4_range *src)
 {
 	memset(&dst->min_addr, 0, sizeof(dst->min_addr));
 	memset(&dst->max_addr, 0, sizeof(dst->max_addr));
+	memset(&dst->base_proto, 0, sizeof(dst->base_proto));
 
 	dst->flags	 = src->flags;
 	dst->min_addr.ip = src->min_ip;
@@ -54,7 +55,7 @@ static unsigned int
 xt_snat_target_v0(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 
@@ -71,7 +72,7 @@ static unsigned int
 xt_dnat_target_v0(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 
@@ -86,7 +87,44 @@ xt_dnat_target_v0(struct sk_buff *skb, const struct xt_action_param *par)
 static unsigned int
 xt_snat_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct nf_nat_range *range = par->targinfo;
+	const struct nf_nat_range *range_v1 = par->targinfo;
+	struct nf_nat_range2 range;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	WARN_ON(!(ct != NULL &&
+		 (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||
+		  ctinfo == IP_CT_RELATED_REPLY)));
+
+	memcpy(&range, range_v1, sizeof(*range_v1));
+	memset(&range.base_proto, 0, sizeof(range.base_proto));
+
+	return nf_nat_setup_info(ct, &range, NF_NAT_MANIP_SRC);
+}
+
+static unsigned int
+xt_dnat_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
+{
+	const struct nf_nat_range *range_v1 = par->targinfo;
+	struct nf_nat_range2 range;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	WARN_ON(!(ct != NULL &&
+		 (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED)));
+
+	memcpy(&range, range_v1, sizeof(*range_v1));
+	memset(&range.base_proto, 0, sizeof(range.base_proto));
+
+	return nf_nat_setup_info(ct, &range, NF_NAT_MANIP_DST);
+}
+
+static unsigned int
+xt_snat_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
+{
+	const struct nf_nat_range2 *range = par->targinfo;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 
@@ -99,9 +137,9 @@ xt_snat_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
 }
 
 static unsigned int
-xt_dnat_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
+xt_dnat_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct nf_nat_range *range = par->targinfo;
+	const struct nf_nat_range2 *range = par->targinfo;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
 
@@ -158,6 +196,28 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.destroy	= xt_nat_destroy,
 		.target		= xt_dnat_target_v1,
 		.targetsize	= sizeof(struct nf_nat_range),
+		.table		= "nat",
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_OUT),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "SNAT",
+		.revision	= 2,
+		.checkentry	= xt_nat_checkentry,
+		.destroy	= xt_nat_destroy,
+		.target		= xt_snat_target_v2,
+		.targetsize	= sizeof(struct nf_nat_range2),
+		.table		= "nat",
+		.hooks		= (1 << NF_INET_POST_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "DNAT",
+		.revision	= 2,
+		.target		= xt_dnat_target_v2,
+		.targetsize	= sizeof(struct nf_nat_range2),
 		.table		= "nat",
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |
 				  (1 << NF_INET_LOCAL_OUT),

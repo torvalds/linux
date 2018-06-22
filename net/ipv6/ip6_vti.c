@@ -743,7 +743,7 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
 }
 
 /**
- * vti6_tnl_ioctl - configure vti6 tunnels from userspace
+ * vti6_ioctl - configure vti6 tunnels from userspace
  *   @dev: virtual device associated with tunnel
  *   @ifr: parameters passed from userspace
  *   @cmd: command to be performed

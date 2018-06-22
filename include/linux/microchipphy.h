@@ -70,6 +70,9 @@
 #define	LAN88XX_MMD3_CHIP_ID			(32877)
 #define	LAN88XX_MMD3_CHIP_REV			(32878)
 
+/* Registers specific to the LAN7800/LAN7850 embedded phy */
+#define LAN78XX_PHY_LED_MODE_SELECT		(0x1D)
+
 /* DSP registers */
 #define PHY_ARDENNES_MMD_DEV_3_PHY_CFG		(0x806A)
 #define PHY_ARDENNES_MMD_DEV_3_PHY_CFG_ZD_DLY_EN_	(0x2000)

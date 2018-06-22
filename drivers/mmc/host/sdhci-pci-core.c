@@ -453,6 +453,7 @@ static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
 enum {
 	INTEL_DSM_FNS		=  0,
 	INTEL_DSM_V18_SWITCH	=  3,
+	INTEL_DSM_V33_SWITCH	=  4,
 	INTEL_DSM_DRV_STRENGTH	=  9,
 	INTEL_DSM_D3_RETUNE	= 10,
 };
@@ -620,17 +621,37 @@ static void intel_hs400_enhanced_strobe(struct mmc_host *mmc,
 	sdhci_writel(host, val, INTEL_HS400_ES_REG);
 }
 
-static void sdhci_intel_voltage_switch(struct sdhci_host *host)
+static int intel_start_signal_voltage_switch(struct mmc_host *mmc,
+					     struct mmc_ios *ios)
 {
+	struct device *dev = mmc_dev(mmc);
+	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	struct intel_host *intel_host = sdhci_pci_priv(slot);
-	struct device *dev = &slot->chip->pdev->dev;
+	unsigned int fn;
 	u32 result = 0;
 	int err;
 
-	err = intel_dsm(intel_host, dev, INTEL_DSM_V18_SWITCH, &result);
-	pr_debug("%s: %s DSM error %d result %u\n",
-		 mmc_hostname(host->mmc), __func__, err, result);
+	err = sdhci_start_signal_voltage_switch(mmc, ios);
+	if (err)
+		return err;
+
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_330:
+		fn = INTEL_DSM_V33_SWITCH;
+		break;
+	case MMC_SIGNAL_VOLTAGE_180:
+		fn = INTEL_DSM_V18_SWITCH;
+		break;
+	default:
+		return 0;
+	}
+
+	err = intel_dsm(intel_host, dev, fn, &result);
+	pr_debug("%s: %s DSM fn %u error %d result %u\n",
+		 mmc_hostname(mmc), __func__, fn, err, result);
+
+	return 0;
 }
 
 static const struct sdhci_ops sdhci_intel_byt_ops = {
@@ -641,7 +662,6 @@ static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
-	.voltage_switch		= sdhci_intel_voltage_switch,
 };
 
 static const struct sdhci_ops sdhci_intel_glk_ops = {
@@ -652,7 +672,6 @@ static const struct sdhci_ops sdhci_intel_glk_ops = {
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
-	.voltage_switch		= sdhci_intel_voltage_switch,
 	.irq			= sdhci_cqhci_irq,
 };
 
@@ -691,6 +710,7 @@ static void byt_probe_slot(struct sdhci_pci_slot *slot)
 	byt_read_dsm(slot);
 
 	ops->execute_tuning = intel_execute_tuning;
+	ops->start_signal_voltage_switch = intel_start_signal_voltage_switch;
 }
 
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
@@ -831,6 +851,10 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_APL_SD ||
 	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_GLK_SD)
 		slot->host->mmc_host_ops.get_cd = bxt_get_cd;
+
+	if (slot->chip->pdev->subsystem_vendor == PCI_VENDOR_ID_NI &&
+	    slot->chip->pdev->subsystem_device == PCI_SUBDEVICE_ID_NI_78E3)
+		slot->host->mmc->caps2 |= MMC_CAP2_AVOID_3_3V;
 
 	return 0;
 }

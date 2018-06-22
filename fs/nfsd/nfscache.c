@@ -177,7 +177,8 @@ int nfsd_reply_cache_init(void)
 
 	drc_hashtbl = kcalloc(hashsize, sizeof(*drc_hashtbl), GFP_KERNEL);
 	if (!drc_hashtbl) {
-		drc_hashtbl = vzalloc(hashsize * sizeof(*drc_hashtbl));
+		drc_hashtbl = vzalloc(array_size(hashsize,
+						 sizeof(*drc_hashtbl)));
 		if (!drc_hashtbl)
 			goto out_nomem;
 	}
@@ -394,7 +395,6 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	__wsum			csum;
 	u32 hash = nfsd_cache_hash(xid);
 	struct nfsd_drc_bucket *b = &drc_hashtbl[hash];
-	unsigned long		age;
 	int type = rqstp->rq_cachetype;
 	int rtn = RC_DOIT;
 
@@ -461,12 +461,11 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 found_entry:
 	nfsdstats.rchits++;
 	/* We found a matching entry which is either in progress or done. */
-	age = jiffies - rp->c_timestamp;
 	lru_put_end(b, rp);
 
 	rtn = RC_DROPIT;
-	/* Request being processed or excessive rexmits */
-	if (rp->c_state == RC_INPROG || age < RC_DELAY)
+	/* Request being processed */
+	if (rp->c_state == RC_INPROG)
 		goto out;
 
 	/* From the hall of fame of impractical attacks:

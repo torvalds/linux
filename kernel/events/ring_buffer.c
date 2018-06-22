@@ -614,7 +614,8 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		}
 	}
 
-	rb->aux_pages = kzalloc_node(nr_pages * sizeof(void *), GFP_KERNEL, node);
+	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
+				     node);
 	if (!rb->aux_pages)
 		return -ENOMEM;
 

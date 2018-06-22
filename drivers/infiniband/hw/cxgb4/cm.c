@@ -3210,6 +3210,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	ep->com.cm_id = cm_id;
 	ref_cm_id(&ep->com);
+	cm_id->provider_data = ep;
 	ep->com.dev = dev;
 	ep->com.qp = get_qhp(dev, conn_param->qpn);
 	if (!ep->com.qp) {

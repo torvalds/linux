@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016-2017 Cavium Inc.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -44,20 +44,20 @@ module_param_named(debug, qedf_debug, uint, S_IRUGO);
 MODULE_PARM_DESC(debug, " Debug mask. Pass '1' to enable default debugging"
 	" mask");
 
-static uint qedf_fipvlan_retries = 30;
+static uint qedf_fipvlan_retries = 60;
 module_param_named(fipvlan_retries, qedf_fipvlan_retries, int, S_IRUGO);
 MODULE_PARM_DESC(fipvlan_retries, " Number of FIP VLAN requests to attempt "
-	"before giving up (default 30)");
+	"before giving up (default 60)");
 
 static uint qedf_fallback_vlan = QEDF_FALLBACK_VLAN;
 module_param_named(fallback_vlan, qedf_fallback_vlan, int, S_IRUGO);
 MODULE_PARM_DESC(fallback_vlan, " VLAN ID to try if fip vlan request fails "
 	"(default 1002).");
 
-static uint qedf_default_prio = QEDF_DEFAULT_PRIO;
+static int qedf_default_prio = -1;
 module_param_named(default_prio, qedf_default_prio, int, S_IRUGO);
-MODULE_PARM_DESC(default_prio, " Default 802.1q priority for FIP and FCoE"
-	" traffic (default 3).");
+MODULE_PARM_DESC(default_prio, " Override 802.1q priority for FIP and FCoE"
+	" traffic (value between 0 and 7, default 3).");
 
 uint qedf_dump_frames;
 module_param_named(dump_frames, qedf_dump_frames, int, S_IRUGO | S_IWUSR);
@@ -89,6 +89,11 @@ module_param_named(retry_delay, qedf_retry_delay, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(retry_delay, " Enable/disable handling of FCP_RSP IU retry "
 	"delay handling (default off).");
 
+static bool qedf_dcbx_no_wait;
+module_param_named(dcbx_no_wait, qedf_dcbx_no_wait, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dcbx_no_wait, " Do not wait for DCBX convergence to start "
+	"sending FIP VLAN requests on link up (Default: off).");
+
 static uint qedf_dp_module;
 module_param_named(dp_module, qedf_dp_module, uint, S_IRUGO);
 MODULE_PARM_DESC(dp_module, " bit flags control for verbose printk passed "
@@ -109,9 +114,9 @@ static struct kmem_cache *qedf_io_work_cache;
 void qedf_set_vlan_id(struct qedf_ctx *qedf, int vlan_id)
 {
 	qedf->vlan_id = vlan_id;
-	qedf->vlan_id |= qedf_default_prio << VLAN_PRIO_SHIFT;
+	qedf->vlan_id |= qedf->prio << VLAN_PRIO_SHIFT;
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Setting vlan_id=%04x "
-		   "prio=%d.\n", vlan_id, qedf_default_prio);
+		   "prio=%d.\n", vlan_id, qedf->prio);
 }
 
 /* Returns true if we have a valid vlan, false otherwise */
@@ -480,6 +485,11 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 	struct qedf_ctx *qedf = (struct qedf_ctx *)dev;
 
 	if (link->link_up) {
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
+			QEDF_INFO((&qedf->dbg_ctx), QEDF_LOG_DISC,
+			    "Ignoring link up event as link is already up.\n");
+			return;
+		}
 		QEDF_ERR(&(qedf->dbg_ctx), "LINK UP (%d GB/s).\n",
 		    link->speed / 1000);
 
@@ -489,7 +499,8 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 		atomic_set(&qedf->link_state, QEDF_LINK_UP);
 		qedf_update_link_speed(qedf, link);
 
-		if (atomic_read(&qedf->dcbx) == QEDF_DCBX_DONE) {
+		if (atomic_read(&qedf->dcbx) == QEDF_DCBX_DONE ||
+		    qedf_dcbx_no_wait) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			     "DCBx done.\n");
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
@@ -515,7 +526,7 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 			    "Starting link down tmo.\n");
 			atomic_set(&qedf->link_down_tmo_valid, 1);
 		}
-		qedf->vlan_id  = 0;
+		qedf->vlan_id = 0;
 		qedf_update_link_speed(qedf, link);
 		queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 		    qedf_link_down_tmo * HZ);
@@ -526,6 +537,7 @@ static void qedf_link_update(void *dev, struct qed_link_output *link)
 static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 {
 	struct qedf_ctx *qedf = (struct qedf_ctx *)dev;
+	u8 tmp_prio;
 
 	QEDF_ERR(&(qedf->dbg_ctx), "DCBx event valid=%d enabled=%d fcoe "
 	    "prio=%d.\n", get->operational.valid, get->operational.enabled,
@@ -541,7 +553,26 @@ static void qedf_dcbx_handler(void *dev, struct qed_dcbx_get *get, u32 mib_type)
 
 		atomic_set(&qedf->dcbx, QEDF_DCBX_DONE);
 
-		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
+		/*
+		 * Set the 8021q priority in the following manner:
+		 *
+		 * 1. If a modparam is set use that
+		 * 2. If the value is not between 0..7 use the default
+		 * 3. Use the priority we get from the DCBX app tag
+		 */
+		tmp_prio = get->operational.app_prio.fcoe;
+		if (qedf_default_prio > -1)
+			qedf->prio = qedf_default_prio;
+		else if (tmp_prio < 0 || tmp_prio > 7) {
+			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
+			    "FIP/FCoE prio %d out of range, setting to %d.\n",
+			    tmp_prio, QEDF_DEFAULT_PRIO);
+			qedf->prio = QEDF_DEFAULT_PRIO;
+		} else
+			qedf->prio = tmp_prio;
+
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_UP &&
+		    !qedf_dcbx_no_wait) {
 			if (atomic_read(&qedf->link_down_tmo_valid) > 0)
 				queue_delayed_work(qedf->link_update_wq,
 				    &qedf->link_recovery, 0);
@@ -566,6 +597,8 @@ static struct qed_fcoe_cb_ops qedf_cb_ops = {
 	{
 		.link_update = qedf_link_update,
 		.dcbx_aen = qedf_dcbx_handler,
+		.get_generic_tlv_data = qedf_get_generic_tlv_data,
+		.get_protocol_tlv_data = qedf_get_protocol_tlv_data,
 	}
 };
 
@@ -608,16 +641,6 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 	io_req = (struct qedf_ioreq *)sc_cmd->SCp.ptr;
 	if (!io_req) {
 		QEDF_ERR(&(qedf->dbg_ctx), "io_req is NULL.\n");
-		rc = SUCCESS;
-		goto out;
-	}
-
-	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
-	    test_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags) ||
-	    test_bit(QEDF_CMD_IN_ABORT, &io_req->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "io_req xid=0x%x already in "
-			  "cleanup or abort processing or already "
-			  "completed.\n", io_req->xid);
 		rc = SUCCESS;
 		goto out;
 	}
@@ -703,7 +726,6 @@ static void qedf_ctx_soft_reset(struct fc_lport *lport)
 
 	/* For host reset, essentially do a soft link up/down */
 	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
-	atomic_set(&qedf->dcbx, QEDF_DCBX_PENDING);
 	queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 	    0);
 	qedf_wait_for_upload(qedf);
@@ -718,6 +740,22 @@ static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
+	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
+	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct qedf_rport *fcport = (struct qedf_rport *)&rp[1];
+	int rval;
+
+	rval = fc_remote_port_chkready(rport);
+
+	if (rval) {
+		QEDF_ERR(NULL, "device_reset rport not ready\n");
+		return FAILED;
+	}
+
+	if (fcport == NULL) {
+		QEDF_ERR(NULL, "device_reset: rport is NULL\n");
+		return FAILED;
+	}
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = lport_priv(lport);
@@ -994,7 +1032,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	if (qedf_dump_frames)
 		print_hex_dump(KERN_WARNING, "fcoe: ", DUMP_PREFIX_OFFSET, 16,
 		    1, skb->data, skb->len, false);
-	qed_ops->ll2->start_xmit(qedf->cdev, skb);
+	qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
 
 	return 0;
 }
@@ -1107,7 +1145,7 @@ static int qedf_offload_connection(struct qedf_ctx *qedf,
 	conn_info.vlan_tag = qedf->vlan_id <<
 	    FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_SHIFT;
 	conn_info.vlan_tag |=
-	    qedf_default_prio << FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT;
+	    qedf->prio << FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT;
 	conn_info.flags |= (FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_MASK <<
 	    FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_SHIFT);
 
@@ -1647,6 +1685,15 @@ static int qedf_vport_destroy(struct fc_vport *vport)
 	struct Scsi_Host *shost = vport_to_shost(vport);
 	struct fc_lport *n_port = shost_priv(shost);
 	struct fc_lport *vn_port = vport->dd_data;
+	struct qedf_ctx *qedf = lport_priv(vn_port);
+
+	if (!qedf) {
+		QEDF_ERR(NULL, "qedf is NULL.\n");
+		goto out;
+	}
+
+	/* Set unloading bit on vport qedf_ctx to prevent more I/O */
+	set_bit(QEDF_UNLOADING, &qedf->flags);
 
 	mutex_lock(&n_port->lp_mutex);
 	list_del(&vn_port->list);
@@ -1673,6 +1720,7 @@ static int qedf_vport_destroy(struct fc_vport *vport)
 	if (vn_port->host)
 		scsi_host_put(vn_port->host);
 
+out:
 	return 0;
 }
 
@@ -1746,6 +1794,8 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 		goto out;
 	}
 
+	mutex_lock(&qedf->stats_mutex);
+
 	/* Query firmware for offload stats */
 	qed_ops->get_stats(qedf->cdev, fw_fcoe_stats);
 
@@ -1779,6 +1829,7 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 	qedf_stats->fcp_packet_aborts += qedf->packet_aborts;
 	qedf_stats->fcp_frame_alloc_failures += qedf->alloc_failures;
 
+	mutex_unlock(&qedf->stats_mutex);
 	kfree(fw_fcoe_stats);
 out:
 	return qedf_stats;
@@ -2104,7 +2155,8 @@ static int qedf_setup_int(struct qedf_ctx *qedf)
 	    QEDF_SIMD_HANDLER_NUM, qedf_simd_int_handler);
 	qedf->int_info.used_cnt = 1;
 
-	return 0;
+	QEDF_ERR(&qedf->dbg_ctx, "Only MSI-X supported. Failing probe.\n");
+	return -EINVAL;
 }
 
 /* Main function for libfc frame reception */
@@ -2190,6 +2242,7 @@ static void qedf_recv_frame(struct qedf_ctx *qedf,
 	if (ntoh24(&dest_mac[3]) != ntoh24(fh->fh_d_id)) {
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2,
 		    "FC frame d_id mismatch with MAC %pM.\n", dest_mac);
+		kfree_skb(skb);
 		return;
 	}
 
@@ -2948,6 +3001,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		qedf->stop_io_on_error = false;
 		pci_set_drvdata(pdev, qedf);
 		init_completion(&qedf->fipvlan_compl);
+		mutex_init(&qedf->stats_mutex);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
@@ -2977,8 +3031,17 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	qedf->link_update_wq = create_workqueue(host_buf);
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
-
+	INIT_DELAYED_WORK(&qedf->grcdump_work, qedf_wq_grcdump);
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
+	/* Set a default prio in case DCBX doesn't converge */
+	if (qedf_default_prio > -1) {
+		/*
+		 * This is the case where we pass a modparam in so we want to
+		 * honor it even if dcbx doesn't converge.
+		 */
+		qedf->prio = qedf_default_prio;
+	} else
+		qedf->prio = QEDF_DEFAULT_PRIO;
 
 	/*
 	 * Common probe. Takes care of basic hardware init and pci_*
@@ -3208,7 +3271,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	 * unload process.
 	 */
 	if (mode != QEDF_MODE_RECOVERY) {
-		qedf->grcdump_size = qed_ops->common->dbg_grc_size(qedf->cdev);
+		qedf->grcdump_size =
+		    qed_ops->common->dbg_all_data_size(qedf->cdev);
 		if (qedf->grcdump_size) {
 			rc = qedf_alloc_grc_dump_buf(&qedf->grcdump,
 			    qedf->grcdump_size);
@@ -3392,6 +3456,113 @@ static void qedf_remove(struct pci_dev *pdev)
 	__qedf_remove(pdev, QEDF_MODE_NORMAL);
 }
 
+void qedf_wq_grcdump(struct work_struct *work)
+{
+	struct qedf_ctx *qedf =
+	    container_of(work, struct qedf_ctx, grcdump_work.work);
+
+	QEDF_ERR(&(qedf->dbg_ctx), "Collecting GRC dump.\n");
+	qedf_capture_grc_dump(qedf);
+}
+
+/*
+ * Protocol TLV handler
+ */
+void qedf_get_protocol_tlv_data(void *dev, void *data)
+{
+	struct qedf_ctx *qedf = dev;
+	struct qed_mfw_tlv_fcoe *fcoe = data;
+	struct fc_lport *lport = qedf->lport;
+	struct Scsi_Host *host = lport->host;
+	struct fc_host_attrs *fc_host = shost_to_fc_host(host);
+	struct fc_host_statistics *hst;
+
+	/* Force a refresh of the fc_host stats including offload stats */
+	hst = qedf_fc_get_host_stats(host);
+
+	fcoe->qos_pri_set = true;
+	fcoe->qos_pri = 3; /* Hard coded to 3 in driver */
+
+	fcoe->ra_tov_set = true;
+	fcoe->ra_tov = lport->r_a_tov;
+
+	fcoe->ed_tov_set = true;
+	fcoe->ed_tov = lport->e_d_tov;
+
+	fcoe->npiv_state_set = true;
+	fcoe->npiv_state = 1; /* NPIV always enabled */
+
+	fcoe->num_npiv_ids_set = true;
+	fcoe->num_npiv_ids = fc_host->npiv_vports_inuse;
+
+	/* Certain attributes we only want to set if we've selected an FCF */
+	if (qedf->ctlr.sel_fcf) {
+		fcoe->switch_name_set = true;
+		u64_to_wwn(qedf->ctlr.sel_fcf->switch_name, fcoe->switch_name);
+	}
+
+	fcoe->port_state_set = true;
+	/* For qedf we're either link down or fabric attach */
+	if (lport->link_up)
+		fcoe->port_state = QED_MFW_TLV_PORT_STATE_FABRIC;
+	else
+		fcoe->port_state = QED_MFW_TLV_PORT_STATE_OFFLINE;
+
+	fcoe->link_failures_set = true;
+	fcoe->link_failures = (u16)hst->link_failure_count;
+
+	fcoe->fcoe_txq_depth_set = true;
+	fcoe->fcoe_rxq_depth_set = true;
+	fcoe->fcoe_rxq_depth = FCOE_PARAMS_NUM_TASKS;
+	fcoe->fcoe_txq_depth = FCOE_PARAMS_NUM_TASKS;
+
+	fcoe->fcoe_rx_frames_set = true;
+	fcoe->fcoe_rx_frames = hst->rx_frames;
+
+	fcoe->fcoe_tx_frames_set = true;
+	fcoe->fcoe_tx_frames = hst->tx_frames;
+
+	fcoe->fcoe_rx_bytes_set = true;
+	fcoe->fcoe_rx_bytes = hst->fcp_input_megabytes * 1000000;
+
+	fcoe->fcoe_tx_bytes_set = true;
+	fcoe->fcoe_tx_bytes = hst->fcp_output_megabytes * 1000000;
+
+	fcoe->crc_count_set = true;
+	fcoe->crc_count = hst->invalid_crc_count;
+
+	fcoe->tx_abts_set = true;
+	fcoe->tx_abts = hst->fcp_packet_aborts;
+
+	fcoe->tx_lun_rst_set = true;
+	fcoe->tx_lun_rst = qedf->lun_resets;
+
+	fcoe->abort_task_sets_set = true;
+	fcoe->abort_task_sets = qedf->packet_aborts;
+
+	fcoe->scsi_busy_set = true;
+	fcoe->scsi_busy = qedf->busy;
+
+	fcoe->scsi_tsk_full_set = true;
+	fcoe->scsi_tsk_full = qedf->task_set_fulls;
+}
+
+/* Generic TLV data callback */
+void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
+{
+	struct qedf_ctx *qedf;
+
+	if (!dev) {
+		QEDF_INFO(NULL, QEDF_LOG_EVT,
+			  "dev is NULL so ignoring get_generic_tlv_data request.\n");
+		return;
+	}
+	qedf = (struct qedf_ctx *)dev;
+
+	memset(data, 0, sizeof(struct qed_generic_tlvs));
+	ether_addr_copy(data->mac[0], qedf->mac);
+}
+
 /*
  * Module Init/Remove
  */
@@ -3403,6 +3574,17 @@ static int __init qedf_init(void)
 	/* If debug=1 passed, set the default log mask */
 	if (qedf_debug == QEDF_LOG_DEFAULT)
 		qedf_debug = QEDF_DEFAULT_LOG_MASK;
+
+	/*
+	 * Check that default prio for FIP/FCoE traffic is between 0..7 if a
+	 * value has been set
+	 */
+	if (qedf_default_prio > -1)
+		if (qedf_default_prio > 7) {
+			qedf_default_prio = QEDF_DEFAULT_PRIO;
+			QEDF_ERR(NULL, "FCoE/FIP priority out of range, resetting to %d.\n",
+			    QEDF_DEFAULT_PRIO);
+		}
 
 	/* Print driver banner */
 	QEDF_INFO(NULL, QEDF_LOG_INFO, "%s v%s.\n", QEDF_DESCR,

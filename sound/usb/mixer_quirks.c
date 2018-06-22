@@ -1172,7 +1172,7 @@ void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 	int unitid = 12; /* SamleRate ExtensionUnit ID */
 
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
-		cval = (struct usb_mixer_elem_info *)mixer->id_elems[unitid];
+		cval = mixer_elem_list_to_info(mixer->id_elems[unitid]);
 		if (cval) {
 			snd_usb_mixer_set_ctl_value(cval, UAC_SET_CUR,
 						    cval->control << 8,
@@ -1799,12 +1799,33 @@ static int snd_soundblaster_e1_switch_create(struct usb_mixer_interface *mixer)
 					  NULL);
 }
 
+static void dell_dock_init_vol(struct snd_usb_audio *chip, int ch, int id)
+{
+	u16 buf = 0;
+
+	snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0), UAC_SET_CUR,
+			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+			ch, snd_usb_ctrl_intf(chip) | (id << 8),
+			&buf, 2);
+}
+
+static int dell_dock_mixer_init(struct usb_mixer_interface *mixer)
+{
+	/* fix to 0dB playback volumes */
+	dell_dock_init_vol(mixer->chip, 1, 16);
+	dell_dock_init_vol(mixer->chip, 2, 16);
+	dell_dock_init_vol(mixer->chip, 1, 19);
+	dell_dock_init_vol(mixer->chip, 2, 19);
+	return 0;
+}
+
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 {
 	int err = 0;
 	struct snd_info_entry *entry;
 
-	if ((err = snd_usb_soundblaster_remote_init(mixer)) < 0)
+	err = snd_usb_soundblaster_remote_init(mixer);
+	if (err < 0)
 		return err;
 
 	switch (mixer->chip->usb_id) {
@@ -1828,8 +1849,6 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	/* EMU0204 */
 	case USB_ID(0x041e, 0x3f19):
 		err = snd_emu0204_controls_create(mixer);
-		if (err < 0)
-			break;
 		break;
 
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
@@ -1884,10 +1903,24 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	case USB_ID(0x041e, 0x323b): /* Creative Sound Blaster E1 */
 		err = snd_soundblaster_e1_switch_create(mixer);
 		break;
+	case USB_ID(0x0bda, 0x4014): /* Dell WD15 dock */
+		err = dell_dock_mixer_init(mixer);
+		break;
 	}
 
 	return err;
 }
+
+#ifdef CONFIG_PM
+void snd_usb_mixer_resume_quirk(struct usb_mixer_interface *mixer)
+{
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x0bda, 0x4014): /* Dell WD15 dock */
+		dell_dock_mixer_init(mixer);
+		break;
+	}
+}
+#endif
 
 void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 				    int unitid)

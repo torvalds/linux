@@ -69,7 +69,7 @@ char **argv_split(gfp_t gfp, const char *str, int *argcp)
 		return NULL;
 
 	argc = count_argc(argv_str);
-	argv = kmalloc(sizeof(*argv) * (argc + 2), gfp);
+	argv = kmalloc_array(argc + 2, sizeof(*argv), gfp);
 	if (!argv) {
 		kfree(argv_str);
 		return NULL;

@@ -1278,8 +1278,14 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			call = NULL;
 		}
 
-		if (call && sp->hdr.serviceId != call->service_id)
-			call->service_id = sp->hdr.serviceId;
+		if (call) {
+			if (sp->hdr.serviceId != call->service_id)
+				call->service_id = sp->hdr.serviceId;
+			if ((int)sp->hdr.serial - (int)call->rx_serial > 0)
+				call->rx_serial = sp->hdr.serial;
+			if (!test_bit(RXRPC_CALL_RX_HEARD, &call->flags))
+				set_bit(RXRPC_CALL_RX_HEARD, &call->flags);
+		}
 	} else {
 		skew = 0;
 		call = NULL;

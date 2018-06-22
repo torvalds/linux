@@ -481,9 +481,9 @@ void drbd_debugfs_resource_add(struct drbd_resource *resource)
 		goto fail;
 	resource->debugfs_res_connections = dentry;
 
-	dentry = debugfs_create_file("in_flight_summary", S_IRUSR|S_IRGRP,
-			resource->debugfs_res, resource,
-			&in_flight_summary_fops);
+	dentry = debugfs_create_file("in_flight_summary", 0440,
+				     resource->debugfs_res, resource,
+				     &in_flight_summary_fops);
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	resource->debugfs_res_in_flight_summary = dentry;
@@ -645,16 +645,16 @@ void drbd_debugfs_connection_add(struct drbd_connection *connection)
 		goto fail;
 	connection->debugfs_conn = dentry;
 
-	dentry = debugfs_create_file("callback_history", S_IRUSR|S_IRGRP,
-			connection->debugfs_conn, connection,
-			&connection_callback_history_fops);
+	dentry = debugfs_create_file("callback_history", 0440,
+				     connection->debugfs_conn, connection,
+				     &connection_callback_history_fops);
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	connection->debugfs_conn_callback_history = dentry;
 
-	dentry = debugfs_create_file("oldest_requests", S_IRUSR|S_IRGRP,
-			connection->debugfs_conn, connection,
-			&connection_oldest_requests_fops);
+	dentry = debugfs_create_file("oldest_requests", 0440,
+				     connection->debugfs_conn, connection,
+				     &connection_oldest_requests_fops);
 	if (IS_ERR_OR_NULL(dentry))
 		goto fail;
 	connection->debugfs_conn_oldest_requests = dentry;
@@ -824,7 +824,7 @@ void drbd_debugfs_device_add(struct drbd_device *device)
 	device->debugfs_minor = dentry;
 
 #define DCF(name)	do {					\
-	dentry = debugfs_create_file(#name, S_IRUSR|S_IRGRP,	\
+	dentry = debugfs_create_file(#name, 0440,	\
 			device->debugfs_vol, device,		\
 			&device_ ## name ## _fops);		\
 	if (IS_ERR_OR_NULL(dentry))				\

@@ -208,6 +208,7 @@ BTRFS_DEVICE_GETSET_FUNCS(bytes_used);
 
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
+	struct list_head fs_list;
 
 	u64 num_devices;
 	u64 open_devices;
@@ -229,7 +230,6 @@ struct btrfs_fs_devices {
 	struct list_head resized_devices;
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
-	struct list_head list;
 
 	struct btrfs_fs_devices *seed;
 	int seeding;
@@ -329,11 +329,12 @@ struct btrfs_raid_attr {
 	int tolerated_failures; /* max tolerated fail devs */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
+	int mindev_error;	/* error code if min devs requisite is unmet */
+	const char raid_name[8]; /* name of the raid */
+	u64 bg_flag;		/* block group flag of the raid */
 };
 
 extern const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES];
-extern const int btrfs_raid_mindev_error[BTRFS_NR_RAID_TYPES];
-extern const u64 btrfs_raid_group[BTRFS_NR_RAID_TYPES];
 
 struct map_lookup {
 	u64 type;
@@ -351,8 +352,6 @@ struct map_lookup {
 struct btrfs_balance_args;
 struct btrfs_balance_progress;
 struct btrfs_balance_control {
-	struct btrfs_fs_info *fs_info;
-
 	struct btrfs_balance_args data;
 	struct btrfs_balance_args meta;
 	struct btrfs_balance_args sys;
@@ -393,9 +392,8 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret);
-int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
-		     u64 chunk_start, u64 physical, u64 devid,
-		     u64 **logical, int *naddrs, int *stripe_len);
+int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
+		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
@@ -421,6 +419,7 @@ int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid,
 					const u8 *uuid);
+void btrfs_free_device(struct btrfs_device *device);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    const char *device_path, u64 devid);
 void __exit btrfs_cleanup_fs_uuids(void);
@@ -431,11 +430,8 @@ struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid);
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *path);
-int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
-				  const char *device_path,
-				  struct btrfs_device *srcdev,
-				  struct btrfs_device **device_out);
-int btrfs_balance(struct btrfs_balance_control *bctl,
+int btrfs_balance(struct btrfs_fs_info *fs_info,
+		  struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs);
 int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info);
 int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
@@ -552,6 +548,8 @@ static inline enum btrfs_raid_types btrfs_bg_flags_to_raid_index(u64 flags)
 
 	return BTRFS_RAID_SINGLE; /* BTRFS_BLOCK_GROUP_SINGLE */
 }
+
+const char *get_raid_name(enum btrfs_raid_types type);
 
 void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
 void btrfs_update_commit_device_bytes_used(struct btrfs_transaction *trans);

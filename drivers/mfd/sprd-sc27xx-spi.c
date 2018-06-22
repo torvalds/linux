@@ -111,6 +111,9 @@ static const struct mfd_cell sprd_pmic_devs[] = {
 	}, {
 		.name = "sc27xx-poweroff",
 		.of_compatible = "sprd,sc27xx-poweroff",
+	}, {
+		.name = "sc27xx-syscon",
+		.of_compatible = "sprd,sc27xx-syscon",
 	},
 };
 
@@ -196,8 +199,9 @@ static int sprd_pmic_probe(struct spi_device *spi)
 	ddata->irq_chip.num_irqs = pdata->num_irqs;
 	ddata->irq_chip.mask_invert = true;
 
-	ddata->irqs = devm_kzalloc(&spi->dev, sizeof(struct regmap_irq) *
-				   pdata->num_irqs, GFP_KERNEL);
+	ddata->irqs = devm_kcalloc(&spi->dev,
+				   pdata->num_irqs, sizeof(struct regmap_irq),
+				   GFP_KERNEL);
 	if (!ddata->irqs)
 		return -ENOMEM;
 

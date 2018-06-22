@@ -8,7 +8,7 @@ Required properties:
 	"intermediate"	- A parent of "cpu" clock which is used as "intermediate" clock
 			  source (usually MAINPLL) when the original CPU PLL is under
 			  transition and not stable yet.
-	Please refer to Documentation/devicetree/bindings/clk/clock-bindings.txt for
+	Please refer to Documentation/devicetree/bindings/clock/clock-bindings.txt for
 	generic clock consumer properties.
 - operating-points-v2: Please refer to Documentation/devicetree/bindings/opp/opp.txt
 	for detail.

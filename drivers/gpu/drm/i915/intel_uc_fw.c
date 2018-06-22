@@ -95,15 +95,6 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	uc_fw->ucode_offset = uc_fw->header_offset + uc_fw->header_size;
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
-	/* Header and uCode will be loaded to WOPCM */
-	size = uc_fw->header_size + uc_fw->ucode_size;
-	if (size > intel_guc_wopcm_size(dev_priv)) {
-		DRM_WARN("%s: Firmware is too large to fit in WOPCM\n",
-			 intel_uc_fw_type_repr(uc_fw->type));
-		err = -E2BIG;
-		goto fail;
-	}
-
 	/* now RSA */
 	if (css->key_size_dw != UOS_RSA_SCRATCH_COUNT) {
 		DRM_WARN("%s: Mismatched firmware RSA key size (%u)\n",
@@ -209,6 +200,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 				   struct i915_vma *vma))
 {
 	struct i915_vma *vma;
+	u32 ggtt_pin_bias;
 	int err;
 
 	DRM_DEBUG_DRIVER("%s fw load %s\n",
@@ -230,8 +222,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		goto fail;
 	}
 
+	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->guc.ggtt_pin_bias;
 	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
-				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+				       PIN_OFFSET_BIAS | ggtt_pin_bias);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		DRM_DEBUG_DRIVER("%s fw ggtt-pin err=%d\n",

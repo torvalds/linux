@@ -78,26 +78,13 @@ static int divadidd_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int divadidd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, divadidd_proc_show, NULL);
-}
-
-static const struct file_operations divadidd_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= divadidd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init create_proc(void)
 {
 	proc_net_eicon = proc_mkdir("eicon", init_net.proc_net);
 
 	if (proc_net_eicon) {
-		proc_didd = proc_create(DRIVERLNAME, S_IRUGO, proc_net_eicon,
-					&divadidd_proc_fops);
+		proc_didd = proc_create_single(DRIVERLNAME, S_IRUGO,
+				proc_net_eicon, divadidd_proc_show);
 		return (1);
 	}
 	return (0);

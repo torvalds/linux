@@ -2569,14 +2569,11 @@ EXPORT_SYMBOL(dasd_sleep_on_immediatly);
  * Cancellation of a request is an asynchronous operation! The calling
  * function has to wait until the request is properly returned via callback.
  */
-int dasd_cancel_req(struct dasd_ccw_req *cqr)
+static int __dasd_cancel_req(struct dasd_ccw_req *cqr)
 {
 	struct dasd_device *device = cqr->startdev;
-	unsigned long flags;
-	int rc;
+	int rc = 0;
 
-	rc = 0;
-	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	switch (cqr->status) {
 	case DASD_CQR_QUEUED:
 		/* request was not started - just set to cleared */
@@ -2596,11 +2593,21 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 	default: /* already finished or clear pending - do nothing */
 		break;
 	}
-	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	dasd_schedule_device_bh(device);
 	return rc;
 }
-EXPORT_SYMBOL(dasd_cancel_req);
+
+int dasd_cancel_req(struct dasd_ccw_req *cqr)
+{
+	struct dasd_device *device = cqr->startdev;
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+	rc = __dasd_cancel_req(cqr);
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+	return rc;
+}
 
 /*
  * SECTION: Operations of the dasd_block layer.
@@ -3054,7 +3061,7 @@ out:
  *
  * Return values:
  * BLK_EH_RESET_TIMER if the request should be left running
- * BLK_EH_NOT_HANDLED if the request is handled or terminated
+ * BLK_EH_DONE if the request is handled or terminated
  *		      by the driver.
  */
 enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
@@ -3067,7 +3074,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 
 	cqr = *((struct dasd_ccw_req **) blk_mq_rq_to_pdu(req));
 	if (!cqr)
-		return BLK_EH_NOT_HANDLED;
+		return BLK_EH_DONE;
 
 	spin_lock_irqsave(&cqr->dq->lock, flags);
 	device = cqr->startdev ? cqr->startdev : block->base;
@@ -3084,12 +3091,10 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 	cqr->retries = -1;
 	cqr->intrc = -ETIMEDOUT;
 	if (cqr->status >= DASD_CQR_QUEUED) {
-		spin_unlock(get_ccwdev_lock(device->cdev));
-		rc = dasd_cancel_req(cqr);
+		rc = __dasd_cancel_req(cqr);
 	} else if (cqr->status == DASD_CQR_FILLED ||
 		   cqr->status == DASD_CQR_NEED_ERP) {
 		cqr->status = DASD_CQR_TERMINATED;
-		spin_unlock(get_ccwdev_lock(device->cdev));
 	} else if (cqr->status == DASD_CQR_IN_ERP) {
 		struct dasd_ccw_req *searchcqr, *nextcqr, *tmpcqr;
 
@@ -3104,9 +3109,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 			searchcqr->retries = -1;
 			searchcqr->intrc = -ETIMEDOUT;
 			if (searchcqr->status >= DASD_CQR_QUEUED) {
-				spin_unlock(get_ccwdev_lock(device->cdev));
-				rc = dasd_cancel_req(searchcqr);
-				spin_lock(get_ccwdev_lock(device->cdev));
+				rc = __dasd_cancel_req(searchcqr);
 			} else if ((searchcqr->status == DASD_CQR_FILLED) ||
 				   (searchcqr->status == DASD_CQR_NEED_ERP)) {
 				searchcqr->status = DASD_CQR_TERMINATED;
@@ -3120,13 +3123,13 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 			}
 			break;
 		}
-		spin_unlock(get_ccwdev_lock(device->cdev));
 	}
+	spin_unlock(get_ccwdev_lock(device->cdev));
 	dasd_schedule_block_bh(block);
 	spin_unlock(&block->queue_lock);
 	spin_unlock_irqrestore(&cqr->dq->lock, flags);
 
-	return rc ? BLK_EH_RESET_TIMER : BLK_EH_NOT_HANDLED;
+	return rc ? BLK_EH_RESET_TIMER : BLK_EH_DONE;
 }
 
 static int dasd_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,

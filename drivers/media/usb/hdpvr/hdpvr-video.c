@@ -873,7 +873,7 @@ static int vidioc_g_audio(struct file *file, void *private_data,
 
 	audio->index = dev->options.audio_input;
 	audio->capability = V4L2_AUDCAP_STEREO;
-	strncpy(audio->name, audio_iname[audio->index], sizeof(audio->name));
+	strlcpy(audio->name, audio_iname[audio->index], sizeof(audio->name));
 	audio->name[sizeof(audio->name) - 1] = '\0';
 	return 0;
 }

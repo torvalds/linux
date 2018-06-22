@@ -18,7 +18,7 @@
  * as keys are inserted we only sort the pages that have not yet been written.
  * When garbage collection is run, we resort the entire node.
  *
- * All configuration is done via sysfs; see Documentation/bcache.txt.
+ * All configuration is done via sysfs; see Documentation/admin-guide/bcache.rst.
  */
 
 #include "bcache.h"

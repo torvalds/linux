@@ -149,21 +149,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int meminfo_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, meminfo_proc_show, NULL);
-}
-
-static const struct file_operations meminfo_proc_fops = {
-	.open		= meminfo_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_meminfo_init(void)
 {
-	proc_create("meminfo", 0, NULL, &meminfo_proc_fops);
+	proc_create_single("meminfo", 0, NULL, meminfo_proc_show);
 	return 0;
 }
 fs_initcall(proc_meminfo_init);

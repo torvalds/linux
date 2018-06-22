@@ -579,13 +579,8 @@ clk_stm32_register_gate_ops(struct device *dev,
 			    spinlock_t *lock)
 {
 	struct clk_init_data init = { NULL };
-	struct clk_gate *gate;
 	struct clk_hw *hw;
 	int ret;
-
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
-	if (!gate)
-		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
 	init.parent_names = &parent_name;
@@ -604,10 +599,8 @@ clk_stm32_register_gate_ops(struct device *dev,
 	hw->init = &init;
 
 	ret = clk_hw_register(dev, hw);
-	if (ret) {
-		kfree(gate);
+	if (ret)
 		hw = ERR_PTR(ret);
-	}
 
 	return hw;
 }
@@ -1988,7 +1981,8 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		  _DIV(RCC_MCO2CFGR, 4, 4, 0, NULL)),
 
 	/* Debug clocks */
-	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", 0, RCC_DBGCFGR, 8, 0),
+	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", CLK_IGNORE_UNUSED,
+	     RCC_DBGCFGR, 8, 0),
 
 	COMPOSITE(CK_TRACE, "ck_trace", ck_trace_src, CLK_OPS_PARENT_ENABLE,
 		  _GATE(RCC_DBGCFGR, 9, 0),
@@ -2060,9 +2054,8 @@ static int stm32_rcc_init(struct device_node *np,
 
 	max_binding =  data->maxbinding;
 
-	clk_data = kzalloc(sizeof(*clk_data) +
-				  sizeof(*clk_data->hws) * max_binding,
-				  GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, max_binding),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
 

@@ -186,7 +186,7 @@ unsigned int blk_plug_queued_count(struct request_queue *q);
 
 void blk_account_io_start(struct request *req, bool new_io);
 void blk_account_io_completion(struct request *req, unsigned int bytes);
-void blk_account_io_done(struct request *req);
+void blk_account_io_done(struct request *req, u64 now);
 
 /*
  * EH timer and IO completion will both attempt to 'grab' the request, make
@@ -231,6 +231,9 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
 
+int elevator_init(struct request_queue *);
+int elevator_init_mq(struct request_queue *q);
+void elevator_exit(struct request_queue *, struct elevator_queue *);
 int elv_register_queue(struct request_queue *q);
 void elv_unregister_queue(struct request_queue *q);
 

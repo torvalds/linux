@@ -332,6 +332,7 @@ static void dwc2_release_channel_ddma(struct dwc2_hsotg *hsotg,
  *
  * @hsotg: The HCD state structure for the DWC OTG controller
  * @qh:    The QH to init
+ * @mem_flags: Indicates the type of memory allocation
  *
  * Return: 0 if successful, negative error code otherwise
  *

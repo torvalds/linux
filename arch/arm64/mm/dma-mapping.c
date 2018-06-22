@@ -504,19 +504,14 @@ static int __init arm64_dma_init(void)
 	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
 		swiotlb = 1;
 
+	WARN_TAINT(ARCH_DMA_MINALIGN < cache_line_size(),
+		   TAINT_CPU_OUT_OF_SPEC,
+		   "ARCH_DMA_MINALIGN smaller than CTR_EL0.CWG (%d < %d)",
+		   ARCH_DMA_MINALIGN, cache_line_size());
+
 	return atomic_pool_init();
 }
 arch_initcall(arm64_dma_init);
-
-#define PREALLOC_DMA_DEBUG_ENTRIES	4096
-
-static int __init dma_debug_do_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-fs_initcall(dma_debug_do_init);
-
 
 #ifdef CONFIG_IOMMU_DMA
 #include <linux/dma-iommu.h>

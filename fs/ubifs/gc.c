@@ -49,7 +49,7 @@
  * maximum size. So dark watermark is the amount of free + dirty space in LEB
  * which are guaranteed to be reclaimable. If LEB has less space, the GC might
  * be unable to reclaim it. So, LEBs with free + dirty greater than dark
- * watermark are "good" LEBs from GC's point of few. The other LEBs are not so
+ * watermark are "good" LEBs from GC's point of view. The other LEBs are not so
  * good, and GC takes extra care when moving them.
  */
 

@@ -13,4 +13,4 @@ ab8500_chargalg {
 };
 
 For information on battery specific node, Ref:
-Documentation/devicetree/bindings/power_supply/ab8500/fg.txt
+Documentation/devicetree/bindings/power/supply/ab8500/fg.txt

@@ -1069,7 +1069,7 @@ int drm_mode_create_tv_properties(struct drm_device *dev,
 		goto nomem;
 
 	for (i = 0; i < num_modes; i++)
-		drm_property_add_enum(dev->mode_config.tv_mode_property, i,
+		drm_property_add_enum(dev->mode_config.tv_mode_property,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
@@ -1156,7 +1156,7 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_property *scaling_mode_property;
-	int i, j = 0;
+	int i;
 	const unsigned valid_scaling_mode_mask =
 		(1U << ARRAY_SIZE(drm_scaling_mode_enum_list)) - 1;
 
@@ -1177,7 +1177,7 @@ int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
 		if (!(BIT(i) & scaling_mode_mask))
 			continue;
 
-		ret = drm_property_add_enum(scaling_mode_property, j++,
+		ret = drm_property_add_enum(scaling_mode_property,
 					    drm_scaling_mode_enum_list[i].type,
 					    drm_scaling_mode_enum_list[i].name);
 
@@ -1531,8 +1531,10 @@ static struct drm_encoder *drm_connector_get_encoder(struct drm_connector *conne
 	return connector->encoder;
 }
 
-static bool drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
-					 const struct drm_file *file_priv)
+static bool
+drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
+			     const struct list_head *export_list,
+			     const struct drm_file *file_priv)
 {
 	/*
 	 * If user-space hasn't configured the driver to expose the stereo 3D
@@ -1540,6 +1542,23 @@ static bool drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
 	 */
 	if (!file_priv->stereo_allowed && drm_mode_is_stereo(mode))
 		return false;
+	/*
+	 * If user-space hasn't configured the driver to expose the modes
+	 * with aspect-ratio, don't expose them. However if such a mode
+	 * is unique, let it be exposed, but reset the aspect-ratio flags
+	 * while preparing the list of user-modes.
+	 */
+	if (!file_priv->aspect_ratio_allowed) {
+		struct drm_display_mode *mode_itr;
+
+		list_for_each_entry(mode_itr, export_list, export_head)
+			if (drm_mode_match(mode_itr, mode,
+					   DRM_MODE_MATCH_TIMINGS |
+					   DRM_MODE_MATCH_CLOCK |
+					   DRM_MODE_MATCH_FLAGS |
+					   DRM_MODE_MATCH_3D_FLAGS))
+				return false;
+	}
 
 	return true;
 }
@@ -1559,6 +1578,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	struct drm_mode_modeinfo u_mode;
 	struct drm_mode_modeinfo __user *mode_ptr;
 	uint32_t __user *encoder_ptr;
+	LIST_HEAD(export_list);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1607,21 +1627,31 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	/* delayed so we get modes regardless of pre-fill_modes state */
 	list_for_each_entry(mode, &connector->modes, head)
-		if (drm_mode_expose_to_userspace(mode, file_priv))
+		if (drm_mode_expose_to_userspace(mode, &export_list,
+						 file_priv)) {
+			list_add_tail(&mode->export_head, &export_list);
 			mode_count++;
+		}
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
 	 * needed, and the 2nd time to fill it.
+	 * The modes that need to be exposed to the user are maintained in the
+	 * 'export_list'. When the ioctl is called first time to determine the,
+	 * space, the export_list gets filled, to find the no.of modes. In the
+	 * 2nd time, the user modes are filled, one by one from the export_list.
 	 */
 	if ((out_resp->count_modes >= mode_count) && mode_count) {
 		copied = 0;
 		mode_ptr = (struct drm_mode_modeinfo __user *)(unsigned long)out_resp->modes_ptr;
-		list_for_each_entry(mode, &connector->modes, head) {
-			if (!drm_mode_expose_to_userspace(mode, file_priv))
-				continue;
-
+		list_for_each_entry(mode, &export_list, export_head) {
 			drm_mode_convert_to_umode(&u_mode, mode);
+			/*
+			 * Reset aspect ratio flags of user-mode, if modes with
+			 * aspect-ratio are not supported.
+			 */
+			if (!file_priv->aspect_ratio_allowed)
+				u_mode.flags &= ~DRM_MODE_FLAG_PIC_AR_MASK;
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {
 				ret = -EFAULT;

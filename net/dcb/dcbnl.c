@@ -176,6 +176,7 @@ static const struct nla_policy dcbnl_ieee_policy[DCB_ATTR_IEEE_MAX + 1] = {
 	[DCB_ATTR_IEEE_MAXRATE]   = {.len = sizeof(struct ieee_maxrate)},
 	[DCB_ATTR_IEEE_QCN]         = {.len = sizeof(struct ieee_qcn)},
 	[DCB_ATTR_IEEE_QCN_STATS]   = {.len = sizeof(struct ieee_qcn_stats)},
+	[DCB_ATTR_DCB_BUFFER]       = {.len = sizeof(struct dcbnl_buffer)},
 };
 
 /* DCB number of traffic classes nested attributes. */
@@ -983,7 +984,8 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
 	 */
 	err = ops->peer_getappinfo(netdev, &info, &app_count);
 	if (!err && app_count) {
-		table = kmalloc(sizeof(struct dcb_app) * app_count, GFP_KERNEL);
+		table = kmalloc_array(app_count, sizeof(struct dcb_app),
+				      GFP_KERNEL);
 		if (!table)
 			return -ENOMEM;
 
@@ -1091,6 +1093,16 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 		err = ops->ieee_getpfc(netdev, &pfc);
 		if (!err &&
 		    nla_put(skb, DCB_ATTR_IEEE_PFC, sizeof(pfc), &pfc))
+			return -EMSGSIZE;
+	}
+
+	if (ops->dcbnl_getbuffer) {
+		struct dcbnl_buffer buffer;
+
+		memset(&buffer, 0, sizeof(buffer));
+		err = ops->dcbnl_getbuffer(netdev, &buffer);
+		if (!err &&
+		    nla_put(skb, DCB_ATTR_DCB_BUFFER, sizeof(buffer), &buffer))
 			return -EMSGSIZE;
 	}
 
@@ -1449,6 +1461,15 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setpfc) {
 		struct ieee_pfc *pfc = nla_data(ieee[DCB_ATTR_IEEE_PFC]);
 		err = ops->ieee_setpfc(netdev, pfc);
+		if (err)
+			goto err;
+	}
+
+	if (ieee[DCB_ATTR_DCB_BUFFER] && ops->dcbnl_setbuffer) {
+		struct dcbnl_buffer *buffer =
+			nla_data(ieee[DCB_ATTR_DCB_BUFFER]);
+
+		err = ops->dcbnl_setbuffer(netdev, buffer);
 		if (err)
 			goto err;
 	}

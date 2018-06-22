@@ -106,20 +106,20 @@ enum copy_direction {
 	from_mem_obj,
 };
 
-int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_dma(struct rxe_pd *pd,
 		     int access, struct rxe_mem *mem);
 
-int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
+int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		      u64 length, u64 iova, int access, struct ib_udata *udata,
 		      struct rxe_mem *mr);
 
-int rxe_mem_init_fast(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_fast(struct rxe_pd *pd,
 		      int max_pages, struct rxe_mem *mem);
 
 int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr,
 		 int length, enum copy_direction dir, u32 *crcp);
 
-int copy_data(struct rxe_dev *rxe, struct rxe_pd *pd, int access,
+int copy_data(struct rxe_pd *pd, int access,
 	      struct rxe_dma_info *dma, void *addr, int length,
 	      enum copy_direction dir, u32 *crcp);
 
@@ -143,7 +143,7 @@ void rxe_mem_cleanup(struct rxe_pool_entry *arg);
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 
 /* rxe_net.c */
-int rxe_loopback(struct sk_buff *skb);
+void rxe_loopback(struct sk_buff *skb);
 int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
@@ -268,7 +268,8 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	if (pkt->mask & RXE_LOOPBACK_MASK) {
 		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
-		err = rxe_loopback(skb);
+		rxe_loopback(skb);
+		err = 0;
 	} else {
 		err = rxe_send(pkt, skb);
 	}

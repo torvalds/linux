@@ -7,16 +7,19 @@ config ARM64
 	select ACPI_REDUCED_HARDWARE_ONLY if ACPI
 	select ACPI_MCFG if ACPI
 	select ACPI_SPCR_TABLE if ACPI
+	select ACPI_PPTT if ACPI
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select ARCH_HAS_KCOV
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
@@ -43,6 +46,7 @@ config ARM64
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000 || CC_IS_CLANG
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	select ARCH_WANT_FRAME_POINTERS
@@ -99,13 +103,11 @@ config ARM64
 	select HAVE_ARM_SMCCC
 	select HAVE_EBPF_JIT
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -125,6 +127,7 @@ config ARM64
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RCU_TABLE_FREE
+	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -133,6 +136,8 @@ config ARM64
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA
 	select MULTI_IRQ_HANDLER
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
@@ -142,15 +147,13 @@ config ARM64
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
 	select SPARSE_IRQ
+	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
 config 64BIT
-	def_bool y
-
-config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
 config MMU
@@ -237,23 +240,8 @@ config ZONE_DMA32
 config HAVE_GENERIC_GUP
 	def_bool y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
 config SMP
 	def_bool y
-
-config SWIOTLB
-	def_bool y
-
-config IOMMU_HELPER
-	def_bool SWIOTLB
 
 config KERNEL_MODE_NEON
 	def_bool y
@@ -938,6 +926,15 @@ config HARDEN_EL2_VECTORS
 
 	  If unsure, say Y.
 
+config ARM64_SSBD
+	bool "Speculative Store Bypass Disable" if EXPERT
+	default y
+	help
+	  This enables mitigation of the bypassing of previous stores
+	  by speculative loads.
+
+	  If unsure, say Y.
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
@@ -1049,6 +1046,7 @@ config ARM64_PAN
 
 config ARM64_LSE_ATOMICS
 	bool "Atomic instructions"
+	default y
 	help
 	  As part of the Large System Extensions, ARMv8.1 introduces new
 	  atomic instructions that are designed specifically to scale in
@@ -1057,7 +1055,8 @@ config ARM64_LSE_ATOMICS
 	  Say Y here to make use of these instructions for the in-kernel
 	  atomic routines. This incurs a small overhead on CPUs that do
 	  not support these instructions and requires the kernel to be
-	  built with binutils >= 2.25.
+	  built with binutils >= 2.25 in order for the new instructions
+	  to be used.
 
 config ARM64_VHE
 	bool "Enable support for Virtualization Host Extensions (VHE)"
@@ -1130,6 +1129,7 @@ endmenu
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y
+	depends on !KVM || ARM64_VHE
 	help
 	  The Scalable Vector Extension (SVE) is an extension to the AArch64
 	  execution state which complements and extends the SIMD functionality
@@ -1154,6 +1154,12 @@ config ARM64_SVE
 	  fixed.  Otherwise, you may experience firmware panics or lockups when
 	  booting the kernel.  If unsure and you are not observing these
 	  symptoms, you should assume that it is safe to say Y.
+
+	  CPUs that support SVE are architecturally required to support the
+	  Virtualization Host Extensions (VHE), so the kernel makes no
+	  provision for supporting SVE alongside KVM without VHE enabled.
+	  Thus, you will need to enable CONFIG_ARM64_VHE if you want to support
+	  KVM in the same kernel image.
 
 config ARM64_MODULE_PLTS
 	bool

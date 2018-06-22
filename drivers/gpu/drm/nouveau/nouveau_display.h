@@ -2,6 +2,7 @@
 #ifndef __NOUVEAU_DISPLAY_H__
 #define __NOUVEAU_DISPLAY_H__
 #include "nouveau_drv.h"
+#include <nvif/disp.h>
 
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;
@@ -38,7 +39,7 @@ struct nouveau_display {
 	int  (*init)(struct drm_device *);
 	void (*fini)(struct drm_device *);
 
-	struct nvif_object disp;
+	struct nvif_disp disp;
 
 	struct drm_property *dithering_mode;
 	struct drm_property *dithering_depth;

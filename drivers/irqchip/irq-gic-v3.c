@@ -1099,6 +1099,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 
 	gic_data.domain = irq_domain_create_tree(handle, &gic_irq_domain_ops,
 						 &gic_data);
+	irq_domain_update_bus_token(gic_data.domain, DOMAIN_BUS_WIRED);
 	gic_data.rdists.rdist = alloc_percpu(typeof(*gic_data.rdists.rdist));
 	gic_data.rdists.has_vlpis = true;
 	gic_data.rdists.has_direct_lpi = true;
@@ -1111,6 +1112,12 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	gic_data.has_rss = !!(typer & GICD_TYPER_RSS);
 	pr_info("Distributor has %sRange Selector support\n",
 		gic_data.has_rss ? "" : "no ");
+
+	if (typer & GICD_TYPER_MBIS) {
+		err = mbi_init(handle, gic_data.domain);
+		if (err)
+			pr_err("Failed to initialize MBIs\n");
+	}
 
 	set_handle_irq(gic_handle_irq);
 
@@ -1160,7 +1167,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 	if (!nr_parts)
 		goto out_put_node;
 
-	parts = kzalloc(sizeof(*parts) * nr_parts, GFP_KERNEL);
+	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
 	if (WARN_ON(!parts))
 		goto out_put_node;
 
@@ -1282,7 +1289,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	if (of_property_read_u32(node, "#redistributor-regions", &nr_redist_regions))
 		nr_redist_regions = 1;
 
-	rdist_regs = kzalloc(sizeof(*rdist_regs) * nr_redist_regions, GFP_KERNEL);
+	rdist_regs = kcalloc(nr_redist_regions, sizeof(*rdist_regs),
+			     GFP_KERNEL);
 	if (!rdist_regs) {
 		err = -ENOMEM;
 		goto out_unmap_dist;

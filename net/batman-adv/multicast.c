@@ -815,9 +815,6 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 	if (!atomic_read(&bat_priv->multicast_mode))
 		return -EINVAL;
 
-	if (atomic_read(&bat_priv->mcast.num_disabled))
-		return -EINVAL;
-
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
 		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
@@ -1183,33 +1180,23 @@ static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
 {
 	bool orig_mcast_enabled = !(flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
 	u8 mcast_flags = BATADV_NO_FLAGS;
-	bool orig_initialized;
 
 	if (orig_mcast_enabled && tvlv_value &&
 	    tvlv_value_len >= sizeof(mcast_flags))
 		mcast_flags = *(u8 *)tvlv_value;
 
-	spin_lock_bh(&orig->mcast_handler_lock);
-	orig_initialized = test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-				    &orig->capa_initialized);
+	if (!orig_mcast_enabled) {
+		mcast_flags |= BATADV_MCAST_WANT_ALL_IPV4;
+		mcast_flags |= BATADV_MCAST_WANT_ALL_IPV6;
+	}
 
-	/* If mcast support is turned on decrease the disabled mcast node
-	 * counter only if we had increased it for this node before. If this
-	 * is a completely new orig_node no need to decrease the counter.
-	 */
+	spin_lock_bh(&orig->mcast_handler_lock);
+
 	if (orig_mcast_enabled &&
 	    !test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities)) {
-		if (orig_initialized)
-			atomic_dec(&bat_priv->mcast.num_disabled);
 		set_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities);
-	/* If mcast support is being switched off or if this is an initial
-	 * OGM without mcast support then increase the disabled mcast
-	 * node counter.
-	 */
 	} else if (!orig_mcast_enabled &&
-		   (test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities) ||
-		    !orig_initialized)) {
-		atomic_inc(&bat_priv->mcast.num_disabled);
+		   test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities)) {
 		clear_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities);
 	}
 
@@ -1594,10 +1581,6 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
 	struct batadv_priv *bat_priv = orig->bat_priv;
 
 	spin_lock_bh(&orig->mcast_handler_lock);
-
-	if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capabilities) &&
-	    test_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capa_initialized))
-		atomic_dec(&bat_priv->mcast.num_disabled);
 
 	batadv_mcast_want_unsnoop_update(bat_priv, orig, BATADV_NO_FLAGS);
 	batadv_mcast_want_ipv4_update(bat_priv, orig, BATADV_NO_FLAGS);

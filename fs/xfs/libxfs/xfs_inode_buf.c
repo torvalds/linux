@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -201,11 +189,6 @@ xfs_imap_to_bp(
 			ASSERT(buf_flags & XBF_TRYLOCK);
 			return error;
 		}
-
-		if (error == -EFSCORRUPTED &&
-		    (iget_flags & XFS_IGET_UNTRUSTED))
-			return -EINVAL;
-
 		xfs_warn(mp, "%s: xfs_trans_read_buf() returned error %d.",
 			__func__, error);
 		return error;
@@ -397,6 +380,7 @@ xfs_dinode_verify(
 	xfs_ino_t		ino,
 	struct xfs_dinode	*dip)
 {
+	xfs_failaddr_t		fa;
 	uint16_t		mode;
 	uint16_t		flags;
 	uint64_t		flags2;
@@ -513,6 +497,12 @@ xfs_dinode_verify(
 			return __this_address;
 	}
 
+	/* extent size hint validation */
+	fa = xfs_inode_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
+			mode, flags);
+	if (fa)
+		return fa;
+
 	/* only version 3 or greater inodes are extensively verified here */
 	if (dip->di_version < 3)
 		return NULL;
@@ -521,7 +511,7 @@ xfs_dinode_verify(
 
 	/* don't allow reflink/cowextsize if we don't have reflink */
 	if ((flags2 & (XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE)) &&
-            !xfs_sb_version_hasreflink(&mp->m_sb))
+	     !xfs_sb_version_hasreflink(&mp->m_sb))
 		return __this_address;
 
 	/* only regular files get reflink */
@@ -535,6 +525,12 @@ xfs_dinode_verify(
 	/* don't let reflink and dax mix */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) && (flags2 & XFS_DIFLAG2_DAX))
 		return __this_address;
+
+	/* COW extent size hint validation */
+	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
+			mode, flags, flags2);
+	if (fa)
+		return fa;
 
 	return NULL;
 }

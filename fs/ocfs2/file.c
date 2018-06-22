@@ -222,7 +222,7 @@ static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
 int ocfs2_should_update_atime(struct inode *inode,
 			      struct vfsmount *vfsmnt)
 {
-	struct timespec now;
+	struct timespec64 now;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
@@ -248,8 +248,8 @@ int ocfs2_should_update_atime(struct inode *inode,
 		return 0;
 
 	if (vfsmnt->mnt_flags & MNT_RELATIME) {
-		if ((timespec_compare(&inode->i_atime, &inode->i_mtime) <= 0) ||
-		    (timespec_compare(&inode->i_atime, &inode->i_ctime) <= 0))
+		if ((timespec64_compare(&inode->i_atime, &inode->i_mtime) <= 0) ||
+		    (timespec64_compare(&inode->i_atime, &inode->i_ctime) <= 0))
 			return 1;
 
 		return 0;
@@ -563,8 +563,8 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 	return ret;
 }
 
-static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
-				     u32 clusters_to_add, int mark_unwritten)
+static int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
+				   u32 clusters_to_add, int mark_unwritten)
 {
 	int status = 0;
 	int restart_func = 0;
@@ -1035,8 +1035,8 @@ int ocfs2_extend_no_holes(struct inode *inode, struct buffer_head *di_bh,
 		clusters_to_add -= oi->ip_clusters;
 
 	if (clusters_to_add) {
-		ret = __ocfs2_extend_allocation(inode, oi->ip_clusters,
-						clusters_to_add, 0);
+		ret = ocfs2_extend_allocation(inode, oi->ip_clusters,
+					      clusters_to_add, 0);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -1493,7 +1493,7 @@ static int ocfs2_allocate_unwritten_extents(struct inode *inode,
 			goto next;
 		}
 
-		ret = __ocfs2_extend_allocation(inode, cpos, alloc_size, 1);
+		ret = ocfs2_extend_allocation(inode, cpos, alloc_size, 1);
 		if (ret) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);

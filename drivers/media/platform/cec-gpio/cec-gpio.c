@@ -158,7 +158,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 
 	cec->dev = dev;
 
-	cec->cec_gpio = devm_gpiod_get(dev, "cec", GPIOD_IN);
+	cec->cec_gpio = devm_gpiod_get(dev, "cec", GPIOD_OUT_HIGH_OPEN_DRAIN);
 	if (IS_ERR(cec->cec_gpio))
 		return PTR_ERR(cec->cec_gpio);
 	cec->cec_irq = gpiod_to_irq(cec->cec_gpio);

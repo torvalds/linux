@@ -53,10 +53,10 @@
 		i2c2 = &i2c1;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
-		lcdif_23bit_pins_a = &pinctrl_disp0_1;
-		lcdif_24bit_pins_a = &pinctrl_disp0_2;
+		lcdif-23bit-pins-a = &pinctrl_disp0_1;
+		lcdif-24bit-pins-a = &pinctrl_disp0_2;
 		pwm0 = &pwm5;
-		reg_can_xcvr = &reg_can_xcvr;
+		reg-can-xcvr = &reg_can_xcvr;
 		serial2 = &uart5;
 		serial4 = &uart3;
 		spi0 = &ecspi2;

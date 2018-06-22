@@ -269,6 +269,8 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 			 mvmvif->id, mvmvif->color);
 	pos += scnprintf(buf+pos, bufsz-pos, "bssid: %pM\n",
 			 vif->bss_conf.bssid);
+	pos += scnprintf(buf+pos, bufsz-pos, "Load: %d\n",
+			 mvm->tcm.result.load[mvmvif->id]);
 	pos += scnprintf(buf+pos, bufsz-pos, "QoS:\n");
 	for (i = 0; i < ARRAY_SIZE(mvmvif->queue_params); i++)
 		pos += scnprintf(buf+pos, bufsz-pos,

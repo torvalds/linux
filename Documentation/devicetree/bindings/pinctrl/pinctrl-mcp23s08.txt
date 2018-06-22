@@ -18,7 +18,9 @@ Required properties:
     removed.
 - #gpio-cells : Should be two.
   - first cell is the pin number
-  - second cell is used to specify flags. Flags are currently unused.
+  - second cell is used to specify flags as described in
+    'Documentation/devicetree/bindings/gpio/gpio.txt'. Allowed values defined by
+    'include/dt-bindings/gpio/gpio.h' (e.g. GPIO_ACTIVE_LOW).
 - gpio-controller : Marks the device node as a GPIO controller.
 - reg : For an address on its bus. I2C uses this a the I2C address of the chip.
         SPI uses this to specify the chipselect line which the chip is
@@ -99,9 +101,9 @@ Optional Pinmux properties:
 --------------------------
 Following properties are required if default setting of pins are required
 at boot.
-- pinctrl-names: A pinctrl state named per <pinctrl-binding.txt>.
+- pinctrl-names: A pinctrl state named per <pinctrl-bindings.txt>.
 - pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
-		<pinctrl-binding.txt>.
+		<pinctrl-bindings.txt>.
 
 The pin configurations are defined as child of the pinctrl states node. Each
 sub-node have following properties:

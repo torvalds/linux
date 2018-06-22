@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -202,7 +203,10 @@ static struct resource latch2_resources[] = {
 	},
 };
 
+#define LATCH2_LABEL	"latch2"
+
 static struct bgpio_pdata latch2_pdata = {
+	.label	= LATCH2_LABEL,
 	.base	= AMS_DELTA_LATCH2_GPIO_BASE,
 	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
 };
@@ -216,6 +220,23 @@ static struct platform_device latch2_gpio_device = {
 		.platform_data	= &latch2_pdata,
 	},
 };
+
+#define LATCH2_PIN_LCD_VBLEN		0
+#define LATCH2_PIN_LCD_NDISP		1
+#define LATCH2_PIN_NAND_NCE		2
+#define LATCH2_PIN_NAND_NRE		3
+#define LATCH2_PIN_NAND_NWP		4
+#define LATCH2_PIN_NAND_NWE		5
+#define LATCH2_PIN_NAND_ALE		6
+#define LATCH2_PIN_NAND_CLE		7
+#define LATCH2_PIN_KEYBRD_PWR		8
+#define LATCH2_PIN_KEYBRD_DATAOUT	9
+#define LATCH2_PIN_SCARD_RSTIN		10
+#define LATCH2_PIN_SCARD_CMDVCC		11
+#define LATCH2_PIN_MODEM_NRESET		12
+#define LATCH2_PIN_MODEM_CODEC		13
+#define LATCH2_PIN_HOOKFLASH1		14
+#define LATCH2_PIN_HOOKFLASH2		15
 
 static const struct gpio latch_gpios[] __initconst = {
 	{
@@ -237,11 +258,6 @@ static const struct gpio latch_gpios[] __initconst = {
 		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_CMDVCC,
 		.flags	= GPIOF_OUT_INIT_LOW,
 		.label	= "scard_cmdvcc",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_MODEM_CODEC,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "modem_codec",
 	},
 	{
 		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 14,
@@ -323,6 +339,22 @@ static struct platform_device ams_delta_nand_device = {
 	.resource	= ams_delta_nand_resources,
 };
 
+#define OMAP_GPIO_LABEL	"gpio-0-15"
+
+static struct gpiod_lookup_table ams_delta_nand_gpio_table = {
+	.table = {
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_NAND_RB, "rdy",
+			    0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NCE, "nce", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NRE, "nre", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWP, "nwp", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_NWE, "nwe", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_ALE, "ale", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_NAND_CLE, "cle", 0),
+		{ },
+	},
+};
+
 static struct resource ams_delta_kp_resources[] = {
 	[0] = {
 		.start	= INT_KEYBOARD,
@@ -356,6 +388,14 @@ static struct platform_device ams_delta_kp_device = {
 static struct platform_device ams_delta_lcd_device = {
 	.name	= "lcd_ams_delta",
 	.id	= -1,
+};
+
+static struct gpiod_lookup_table ams_delta_lcd_gpio_table = {
+	.table = {
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_LCD_VBLEN, "vblen", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_LCD_NDISP, "ndisp", 0),
+		{ },
+	},
 };
 
 static const struct gpio_led gpio_leds[] __initconst = {
@@ -449,9 +489,33 @@ static struct platform_device ams_delta_audio_device = {
 	.id     = -1,
 };
 
+static struct gpiod_lookup_table ams_delta_audio_gpio_table = {
+	.table = {
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_HOOK_SWITCH,
+			    "hook_switch", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_MODEM_CODEC,
+			    "modem_codec", 0),
+		{ },
+	},
+};
+
 static struct platform_device cx20442_codec_device = {
 	.name   = "cx20442-codec",
 	.id     = -1,
+};
+
+static struct gpiod_lookup_table ams_delta_serio_gpio_table = {
+	.table = {
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_KEYBRD_DATA,
+			    "data", 0),
+		GPIO_LOOKUP(OMAP_GPIO_LABEL, AMS_DELTA_GPIO_PIN_KEYBRD_CLK,
+			    "clock", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_KEYBRD_PWR,
+			    "power", 0),
+		GPIO_LOOKUP(LATCH2_LABEL, LATCH2_PIN_KEYBRD_DATAOUT,
+			    "dataout", 0),
+		{ },
+	},
 };
 
 static struct platform_device *ams_delta_devices[] __initdata = {
@@ -466,6 +530,16 @@ static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&cx20442_codec_device,
+};
+
+static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
+	&ams_delta_audio_gpio_table,
+	&ams_delta_serio_gpio_table,
+};
+
+static struct gpiod_lookup_table *late_gpio_tables[] __initdata = {
+	&ams_delta_lcd_gpio_table,
+	&ams_delta_nand_gpio_table,
 };
 
 static void __init ams_delta_init(void)
@@ -499,6 +573,20 @@ static void __init ams_delta_init(void)
 #endif
 	gpio_led_register_device(-1, &leds_pdata);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
+
+	/*
+	 * As soon as devices have been registered, assign their dev_names
+	 * to respective GPIO lookup tables before they are added.
+	 */
+	ams_delta_audio_gpio_table.dev_id =
+			dev_name(&ams_delta_audio_device.dev);
+	/*
+	 * No device name is assigned to GPIO lookup table for serio device
+	 * as long as serio driver is not converted to platform device driver.
+	 */
+
+	gpiod_add_lookup_tables(ams_delta_gpio_tables,
+				ARRAY_SIZE(ams_delta_gpio_tables));
 
 	ams_delta_init_fiq();
 
@@ -569,6 +657,15 @@ static int __init late_init(void)
 	}
 
 	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
+
+	/*
+	 * As soon as devices have been registered, assign their dev_names
+	 * to respective GPIO lookup tables before they are added.
+	 */
+	ams_delta_lcd_gpio_table.dev_id = dev_name(&ams_delta_lcd_device.dev);
+	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
+
+	gpiod_add_lookup_tables(late_gpio_tables, ARRAY_SIZE(late_gpio_tables));
 
 	err = platform_device_register(&modem_nreset_device);
 	if (err) {

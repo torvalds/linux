@@ -1,9 +1,11 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+#
 # (c) 2001, Dave Jones. (the file handling bit)
 # (c) 2005, Joel Schopp <jschopp@austin.ibm.com> (the ugly bit)
 # (c) 2007,2008, Andy Whitcroft <apw@uk.ibm.com> (new conditions, test suite)
 # (c) 2008-2010 Andy Whitcroft <apw@canonical.com>
-# Licensed under the terms of the GNU GPL License version 2
+# (c) 2010-2018 Joe Perches <joe@perches.com>
 
 use strict;
 use warnings;
@@ -2374,6 +2376,14 @@ sub process {
 		$sline =~ s/$;/ /g;	#with comments as spaces
 
 		my $rawline = $rawlines[$linenr - 1];
+
+# check if it's a mode change, rename or start of a patch
+		if (!$in_commit_log &&
+		    ($line =~ /^ mode change [0-7]+ => [0-7]+ \S+\s*$/ ||
+		    ($line =~ /^rename (?:from|to) \S+\s*$/ ||
+		     $line =~ /^diff --git a\/[\w\/\.\_\-]+ b\/\S+\s*$/))) {
+			$is_patch = 1;
+		}
 
 #extract the line range in the file after the patch is applied
 		if (!$in_commit_log &&
@@ -5119,16 +5129,6 @@ sub process {
 				WARN("TRAILING_SEMICOLON",
 				     "macros should not use a trailing semicolon\n" . "$herectx");
 			}
-		}
-
-# make sure symbols are always wrapped with VMLINUX_SYMBOL() ...
-# all assignments may have only one of the following with an assignment:
-#	.
-#	ALIGN(...)
-#	VMLINUX_SYMBOL(...)
-		if ($realfile eq 'vmlinux.lds.h' && $line =~ /(?:(?:^|\s)$Ident\s*=|=\s*$Ident(?:\s|$))/) {
-			WARN("MISSING_VMLINUX_SYMBOL",
-			     "vmlinux.lds.h needs VMLINUX_SYMBOL() around C-visible symbols\n" . $herecurr);
 		}
 
 # check for redundant bracing round if etc

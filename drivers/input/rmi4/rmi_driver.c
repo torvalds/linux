@@ -636,9 +636,10 @@ int rmi_read_register_desc(struct rmi_device *d, u16 addr,
 	rdesc->num_registers = bitmap_weight(rdesc->presense_map,
 						RMI_REG_DESC_PRESENSE_BITS);
 
-	rdesc->registers = devm_kzalloc(&d->dev, rdesc->num_registers *
-				sizeof(struct rmi_register_desc_item),
-				GFP_KERNEL);
+	rdesc->registers = devm_kcalloc(&d->dev,
+					rdesc->num_registers,
+					sizeof(struct rmi_register_desc_item),
+					GFP_KERNEL);
 	if (!rdesc->registers)
 		return -ENOMEM;
 
@@ -1061,7 +1062,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	data->num_of_irq_regs = (data->irq_count + 7) / 8;
 
 	size = BITS_TO_LONGS(data->irq_count) * sizeof(unsigned long);
-	data->irq_memory = devm_kzalloc(dev, size * 4, GFP_KERNEL);
+	data->irq_memory = devm_kcalloc(dev, size, 4, GFP_KERNEL);
 	if (!data->irq_memory) {
 		dev_err(dev, "Failed to allocate memory for irq masks.\n");
 		return -ENOMEM;

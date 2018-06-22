@@ -78,8 +78,6 @@
 
 &ecspi1 {
 	lcd_panel: display@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "lg,lg4573";
 		spi-max-frequency = <10000000>;
 		reg = <0>;

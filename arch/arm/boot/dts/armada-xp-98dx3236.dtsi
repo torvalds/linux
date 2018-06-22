@@ -306,6 +306,19 @@
 &pinctrl {
 	compatible = "marvell,98dx3236-pinctrl";
 
+	nand_pins: nand-pins {
+		marvell,pins = "mpp20", "mpp21", "mpp22",
+			       "mpp23", "mpp24", "mpp25",
+			       "mpp26", "mpp27", "mpp28",
+			       "mpp29", "mpp30";
+		marvell,function = "dev";
+	};
+
+	nand_rb: nand-rb {
+		marvell,pins = "mpp19";
+		marvell,function = "nand";
+	};
+
 	spi0_pins: spi0-pins {
 		marvell,pins = "mpp0", "mpp1",
 			       "mpp2", "mpp3";

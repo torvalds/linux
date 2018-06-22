@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -236,7 +224,7 @@ xfs_attr_set(
 	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	args.total = xfs_attr_calc_size(&args, &local);
 
-	error = xfs_qm_dqattach(dp, 0);
+	error = xfs_qm_dqattach(dp);
 	if (error)
 		return error;
 
@@ -427,7 +415,7 @@ xfs_attr_remove(
 	 */
 	args.op_flags = XFS_DA_OP_OKNOENT;
 
-	error = xfs_qm_dqattach(dp, 0);
+	error = xfs_qm_dqattach(dp);
 	if (error)
 		return error;
 

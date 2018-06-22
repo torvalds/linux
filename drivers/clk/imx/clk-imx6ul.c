@@ -40,7 +40,7 @@ static const char *axi_alt_sels[] = { "pll2_pfd2_396m", "pll3_pfd1_540m", };
 static const char *axi_sels[] = {"periph", "axi_alt_sel", };
 static const char *periph_pre_sels[] = { "pll2_bus", "pll2_pfd2_396m", "pll2_pfd0_352m", "pll2_198m", };
 static const char *periph2_pre_sels[] = { "pll2_bus", "pll2_pfd2_396m", "pll2_pfd0_352m", "pll4_audio_div", };
-static const char *periph_clk2_sels[] = { "pll3_usb_otg", "osc", "osc", };
+static const char *periph_clk2_sels[] = { "pll3_usb_otg", "osc", "pll2_bypass_src", };
 static const char *periph2_clk2_sels[] = { "pll3_usb_otg", "osc", };
 static const char *periph_sels[] = { "periph_pre", "periph_clk2", };
 static const char *periph2_sels[] = { "periph2_pre", "periph2_clk2", };
@@ -68,6 +68,13 @@ static const char *sim_sels[] = { "sim_podf", "ipp_di0", "ipp_di1", "ldb_di0", "
 static const char *epdc_pre_sels[] = { "pll2_bus", "pll3_usb_otg", "pll5_video_div", "pll2_pfd0_352m", "pll2_pfd2_396m", "pll3_pfd2_508m", };
 static const char *esai_sels[] = { "pll4_audio_div", "pll3_pfd2_508m", "pll5_video_div", "pll3_usb_otg", };
 static const char *epdc_sels[] = { "epdc_podf", "ipp_di0", "ipp_di1", "ldb_di0", "ldb_di1", };
+static const char *cko1_sels[] = { "dummy", "dummy", "dummy", "dummy", "dummy", "axi", "enfc", "dummy", "dummy",
+				   "dummy", "lcdif_pix", "ahb", "ipg", "ipg_per", "ckil", "pll4_audio_div", };
+static const char *cko2_sels[] = { "dummy", "dummy", "dummy", "usdhc1", "dummy", "dummy", "ecspi_root", "dummy",
+				   "dummy", "dummy", "dummy", "dummy", "dummy", "dummy", "osc", "dummy",
+				   "dummy", "usdhc2", "sai1", "sai2", "sai3", "dummy", "dummy", "can_root",
+				   "dummy", "dummy", "dummy", "dummy", "uart_serial", "spdif", "dummy", "dummy", };
+static const char *cko_sels[] = { "cko1", "cko2", };
 
 static struct clk *clks[IMX6UL_CLK_END];
 static struct clk_onecell_data clk_data;
@@ -273,6 +280,10 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_LDB_DI0_DIV_SEL]  = imx_clk_mux("ldb_di0", base + 0x20, 10, 1, ldb_di0_div_sels, ARRAY_SIZE(ldb_di0_div_sels));
 	clks[IMX6UL_CLK_LDB_DI1_DIV_SEL]  = imx_clk_mux("ldb_di1", base + 0x20, 11, 1, ldb_di1_div_sels, ARRAY_SIZE(ldb_di1_div_sels));
 
+	clks[IMX6UL_CLK_CKO1_SEL]	  = imx_clk_mux("cko1_sel", base + 0x60, 0,  4, cko1_sels, ARRAY_SIZE(cko1_sels));
+	clks[IMX6UL_CLK_CKO2_SEL]	  = imx_clk_mux("cko2_sel", base + 0x60, 16, 5, cko2_sels, ARRAY_SIZE(cko2_sels));
+	clks[IMX6UL_CLK_CKO]		  = imx_clk_mux("cko", base + 0x60, 8, 1, cko_sels, ARRAY_SIZE(cko_sels));
+
 	clks[IMX6UL_CLK_LDB_DI0_DIV_3_5] = imx_clk_fixed_factor("ldb_di0_div_3_5", "ldb_di0_sel", 2, 7);
 	clks[IMX6UL_CLK_LDB_DI0_DIV_7]	 = imx_clk_fixed_factor("ldb_di0_div_7",   "ldb_di0_sel", 1, 7);
 	clks[IMX6UL_CLK_LDB_DI1_DIV_3_5] = imx_clk_fixed_factor("ldb_di1_div_3_5", "qspi1_sel", 2, 7);
@@ -315,6 +326,9 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_ECSPI_PODF]	= imx_clk_divider("ecspi_podf",	   "ecspi_sel",		base + 0x38, 19, 6);
 	clks[IMX6UL_CLK_LCDIF_PRED]	= imx_clk_divider("lcdif_pred",	   "lcdif_pre_sel",	base + 0x38, 12, 3);
 	clks[IMX6UL_CLK_CSI_PODF]       = imx_clk_divider("csi_podf",      "csi_sel",           base + 0x3c, 11, 3);
+
+	clks[IMX6UL_CLK_CKO1_PODF]	= imx_clk_divider("cko1_podf",     "cko1_sel",          base + 0x60, 4,  3);
+	clks[IMX6UL_CLK_CKO2_PODF]	= imx_clk_divider("cko2_podf",     "cko2_sel",          base + 0x60, 21, 3);
 
 	clks[IMX6UL_CLK_ARM]		= imx_clk_busy_divider("arm",	    "pll1_sw",	base +	0x10, 0,  3,  base + 0x48, 16);
 	clks[IMX6UL_CLK_MMDC_PODF]	= imx_clk_busy_divider("mmdc_podf", "periph2",	base +  0x14, 3,  3,  base + 0x48, 2);
@@ -444,6 +458,10 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	clks[IMX6UL_CLK_PWM5]		= imx_clk_gate2("pwm5",		"perclk",	 base + 0x80,	26);
 	clks[IMX6UL_CLK_PWM6]		= imx_clk_gate2("pwm6",		"perclk",	 base +	0x80,	28);
 	clks[IMX6UL_CLK_PWM7]		= imx_clk_gate2("pwm7",		"perclk",	 base + 0x80,	30);
+
+	/* CCOSR */
+	clks[IMX6UL_CLK_CKO1]		= imx_clk_gate("cko1",		"cko1_podf",	 base + 0x60,	7);
+	clks[IMX6UL_CLK_CKO2]		= imx_clk_gate("cko2",		"cko2_podf",	 base + 0x60,	24);
 
 	/* mask handshake of mmdc */
 	writel_relaxed(BM_CCM_CCDR_MMDC_CH0_MASK, base + CCDR);

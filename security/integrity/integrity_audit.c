@@ -38,7 +38,7 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 	if (!integrity_audit_info && audit_info == 1)	/* Skip info messages */
 		return;
 
-	ab = audit_log_start(current->audit_context, GFP_KERNEL, audit_msgno);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, audit_msgno);
 	audit_log_format(ab, "pid=%d uid=%u auid=%u ses=%u",
 			 task_pid_nr(current),
 			 from_kuid(&init_user_ns, current_cred()->uid),

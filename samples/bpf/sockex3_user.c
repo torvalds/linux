@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <linux/bpf.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include "sock_example.h"
 #include <unistd.h>

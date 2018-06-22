@@ -692,10 +692,9 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 }
 
 /**
- * tipc_poll - read and possibly block on pollmask
+ * tipc_poll - read pollmask
  * @file: file structure associated with the socket
  * @sock: socket for which to calculate the poll bits
- * @wait: ???
  *
  * Returns pollmask value
  *
@@ -709,14 +708,11 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
  * imply that the operation will succeed, merely that it should be performed
  * and will not block.
  */
-static __poll_t tipc_poll(struct file *file, struct socket *sock,
-			      poll_table *wait)
+static __poll_t tipc_poll_mask(struct socket *sock, __poll_t events)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	__poll_t revents = 0;
-
-	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		revents |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
@@ -2974,7 +2970,8 @@ static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 
 static int tipc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	struct sock *sk = sock->sk;
+	struct net *net = sock_net(sock->sk);
+	struct tipc_sioc_nodeid_req nr = {0};
 	struct tipc_sioc_ln_req lnr;
 	void __user *argp = (void __user *)arg;
 
@@ -2982,7 +2979,7 @@ static int tipc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCGETLINKNAME:
 		if (copy_from_user(&lnr, argp, sizeof(lnr)))
 			return -EFAULT;
-		if (!tipc_node_get_linkname(sock_net(sk),
+		if (!tipc_node_get_linkname(net,
 					    lnr.bearer_id & 0xffff, lnr.peer,
 					    lnr.linkname, TIPC_MAX_LINK_NAME)) {
 			if (copy_to_user(argp, &lnr, sizeof(lnr)))
@@ -2990,6 +2987,14 @@ static int tipc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			return 0;
 		}
 		return -EADDRNOTAVAIL;
+	case SIOCGETNODEID:
+		if (copy_from_user(&nr, argp, sizeof(nr)))
+			return -EFAULT;
+		if (!tipc_node_get_id(net, nr.peer, nr.node_id))
+			return -EADDRNOTAVAIL;
+		if (copy_to_user(argp, &nr, sizeof(nr)))
+			return -EFAULT;
+		return 0;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -3028,7 +3033,7 @@ static const struct proto_ops msg_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= tipc_getname,
-	.poll		= tipc_poll,
+	.poll_mask	= tipc_poll_mask,
 	.ioctl		= tipc_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= tipc_shutdown,
@@ -3049,7 +3054,7 @@ static const struct proto_ops packet_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
-	.poll		= tipc_poll,
+	.poll_mask	= tipc_poll_mask,
 	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,
@@ -3070,7 +3075,7 @@ static const struct proto_ops stream_ops = {
 	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
-	.poll		= tipc_poll,
+	.poll_mask	= tipc_poll_mask,
 	.ioctl		= tipc_ioctl,
 	.listen		= tipc_listen,
 	.shutdown	= tipc_shutdown,

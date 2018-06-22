@@ -25,6 +25,7 @@
 #include <linux/kvm_para.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/pagemap.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -672,14 +673,13 @@ static void kvm_use_magic_page(void)
 {
 	u32 *p;
 	u32 *start, *end;
-	u32 tmp;
 	u32 features;
 
 	/* Tell the host to map the magic page to -4096 on all CPUs */
 	on_each_cpu(kvm_map_magic_page, &features, 1);
 
 	/* Quick self-test to see if the mapping works */
-	if (__get_user(tmp, (u32*)KVM_MAGIC_PAGE)) {
+	if (!fault_in_pages_readable((const char *)KVM_MAGIC_PAGE, sizeof(u32))) {
 		kvm_patching_worked = false;
 		return;
 	}

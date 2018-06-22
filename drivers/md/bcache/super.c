@@ -37,24 +37,6 @@ static const char invalid_uuid[] = {
 	0xc8, 0x50, 0xfc, 0x5e, 0xcb, 0x16, 0xcd, 0x99
 };
 
-/* Default is -1; we skip past it for struct cached_dev's cache mode */
-const char * const bch_cache_modes[] = {
-	"default",
-	"writethrough",
-	"writeback",
-	"writearound",
-	"none",
-	NULL
-};
-
-/* Default is -1; we skip past it for stop_when_cache_set_failed */
-const char * const bch_stop_on_failure_modes[] = {
-	"default",
-	"auto",
-	"always",
-	NULL
-};
-
 static struct kobject *bcache_kobj;
 struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
@@ -654,6 +636,11 @@ static int ioctl_dev(struct block_device *b, fmode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct bcache_device *d = b->bd_disk->private_data;
+	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
+	if (dc->io_disable)
+		return -EIO;
+
 	return d->ioctl(d, mode, cmd, arg);
 }
 
@@ -766,8 +753,7 @@ static void bcache_device_free(struct bcache_device *d)
 		put_disk(d->disk);
 	}
 
-	if (d->bio_split)
-		bioset_free(d->bio_split);
+	bioset_exit(&d->bio_split);
 	kvfree(d->full_dirty_stripes);
 	kvfree(d->stripe_sectors_dirty);
 
@@ -809,9 +795,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (idx < 0)
 		return idx;
 
-	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio),
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER)) ||
+	if (bioset_init(&d->bio_split, 4, offsetof(struct bbio, bio),
+			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER) ||
 	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
 		ida_simple_remove(&bcache_device_idx, idx);
 		return -ENOMEM;
@@ -864,6 +849,44 @@ static void calc_cached_dev_sectors(struct cache_set *c)
 	c->cached_dev_sectors = sectors;
 }
 
+#define BACKING_DEV_OFFLINE_TIMEOUT 5
+static int cached_dev_status_update(void *arg)
+{
+	struct cached_dev *dc = arg;
+	struct request_queue *q;
+
+	/*
+	 * If this delayed worker is stopping outside, directly quit here.
+	 * dc->io_disable might be set via sysfs interface, so check it
+	 * here too.
+	 */
+	while (!kthread_should_stop() && !dc->io_disable) {
+		q = bdev_get_queue(dc->bdev);
+		if (blk_queue_dying(q))
+			dc->offline_seconds++;
+		else
+			dc->offline_seconds = 0;
+
+		if (dc->offline_seconds >= BACKING_DEV_OFFLINE_TIMEOUT) {
+			pr_err("%s: device offline for %d seconds",
+			       dc->backing_dev_name,
+			       BACKING_DEV_OFFLINE_TIMEOUT);
+			pr_err("%s: disable I/O request due to backing "
+			       "device offline", dc->disk.name);
+			dc->io_disable = true;
+			/* let others know earlier that io_disable is true */
+			smp_mb();
+			bcache_device_stop(&dc->disk);
+			break;
+		}
+		schedule_timeout_interruptible(HZ);
+	}
+
+	wait_for_kthread_stop();
+	return 0;
+}
+
+
 void bch_cached_dev_run(struct cached_dev *dc)
 {
 	struct bcache_device *d = &dc->disk;
@@ -906,6 +929,14 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	if (sysfs_create_link(&d->kobj, &disk_to_dev(d->disk)->kobj, "dev") ||
 	    sysfs_create_link(&disk_to_dev(d->disk)->kobj, &d->kobj, "bcache"))
 		pr_debug("error creating sysfs link");
+
+	dc->status_update_thread = kthread_run(cached_dev_status_update,
+					       dc, "bcache_status_update");
+	if (IS_ERR(dc->status_update_thread)) {
+		pr_warn("failed to create bcache_status_update kthread, "
+			"continue to run without monitoring backing "
+			"device status");
+	}
 }
 
 /*
@@ -1139,6 +1170,8 @@ static void cached_dev_free(struct closure *cl)
 		kthread_stop(dc->writeback_thread);
 	if (dc->writeback_write_wq)
 		destroy_workqueue(dc->writeback_write_wq);
+	if (!IS_ERR_OR_NULL(dc->status_update_thread))
+		kthread_stop(dc->status_update_thread);
 
 	if (atomic_read(&dc->running))
 		bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
@@ -1465,14 +1498,10 @@ static void cache_set_free(struct closure *cl)
 
 	if (c->moving_gc_wq)
 		destroy_workqueue(c->moving_gc_wq);
-	if (c->bio_split)
-		bioset_free(c->bio_split);
-	if (c->fill_iter)
-		mempool_destroy(c->fill_iter);
-	if (c->bio_meta)
-		mempool_destroy(c->bio_meta);
-	if (c->search)
-		mempool_destroy(c->search);
+	bioset_exit(&c->bio_split);
+	mempool_exit(&c->fill_iter);
+	mempool_exit(&c->bio_meta);
+	mempool_exit(&c->search);
 	kfree(c->devices);
 
 	mutex_lock(&bch_register_lock);
@@ -1683,21 +1712,17 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	INIT_LIST_HEAD(&c->btree_cache_freed);
 	INIT_LIST_HEAD(&c->data_buckets);
 
-	c->search = mempool_create_slab_pool(32, bch_search_cache);
-	if (!c->search)
-		goto err;
-
 	iter_size = (sb->bucket_size / sb->block_size + 1) *
 		sizeof(struct btree_iter_set);
 
-	if (!(c->devices = kzalloc(c->nr_uuids * sizeof(void *), GFP_KERNEL)) ||
-	    !(c->bio_meta = mempool_create_kmalloc_pool(2,
-				sizeof(struct bbio) + sizeof(struct bio_vec) *
-				bucket_pages(c))) ||
-	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
-	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio),
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER)) ||
+	if (!(c->devices = kcalloc(c->nr_uuids, sizeof(void *), GFP_KERNEL)) ||
+	    mempool_init_slab_pool(&c->search, 32, bch_search_cache) ||
+	    mempool_init_kmalloc_pool(&c->bio_meta, 2,
+				      sizeof(struct bbio) + sizeof(struct bio_vec) *
+				      bucket_pages(c)) ||
+	    mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size) ||
+	    bioset_init(&c->bio_split, 4, offsetof(struct bbio, bio),
+			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    !(c->moving_gc_wq = alloc_workqueue("bcache_gc",
 						WQ_MEM_RECLAIM, 0)) ||
@@ -2016,10 +2041,11 @@ static int cache_alloc(struct cache *ca)
 	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
 	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
 	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
-	    !(ca->buckets	= vzalloc(sizeof(struct bucket) *
-					  ca->sb.nbuckets)) ||
-	    !(ca->prio_buckets	= kzalloc(sizeof(uint64_t) * prio_buckets(ca) *
-					  2, GFP_KERNEL)) ||
+	    !(ca->buckets	= vzalloc(array_size(sizeof(struct bucket),
+						     ca->sb.nbuckets))) ||
+	    !(ca->prio_buckets	= kzalloc(array3_size(sizeof(uint64_t),
+						      prio_buckets(ca), 2),
+					  GFP_KERNEL)) ||
 	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)))
 		return -ENOMEM;
 

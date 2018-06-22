@@ -2581,7 +2581,9 @@ int btc_dpm_init(struct radeon_device *rdev)
 		return ret;
 
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
+		kcalloc(4,
+			sizeof(struct radeon_clock_voltage_dependency_entry),
+			GFP_KERNEL);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		r600_free_extended_power_table(rdev);
 		return -ENOMEM;

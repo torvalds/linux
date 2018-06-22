@@ -23,8 +23,6 @@
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
 
-#define INET_CSK_DEBUG 1
-
 /* Cancel timers, when they are not required. */
 #undef INET_CSK_CLEAR_TIMERS
 
@@ -77,6 +75,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_af_ops		   Operations which are AF_INET{4,6} specific
  * @icsk_ulp_ops	   Pluggable ULP control hook
  * @icsk_ulp_data	   ULP private data
+ * @icsk_clean_acked	   Clean acked data hook
  * @icsk_listen_portaddr_node	hash to the portaddr listener hashtable
  * @icsk_ca_state:	   Congestion control state
  * @icsk_retransmits:	   Number of unrecovered [RTO] timeouts
@@ -102,6 +101,7 @@ struct inet_connection_sock {
 	const struct inet_connection_sock_af_ops *icsk_af_ops;
 	const struct tcp_ulp_ops  *icsk_ulp_ops;
 	void			  *icsk_ulp_data;
+	void (*icsk_clean_acked)(struct sock *sk, u32 acked_seq);
 	struct hlist_node         icsk_listen_portaddr_node;
 	unsigned int		  (*icsk_sync_mss)(struct sock *sk, u32 pmtu);
 	__u8			  icsk_ca_state:6,
@@ -194,10 +194,6 @@ static inline void inet_csk_delack_init(struct sock *sk)
 void inet_csk_delete_keepalive_timer(struct sock *sk);
 void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long timeout);
 
-#ifdef INET_CSK_DEBUG
-extern const char inet_csk_timer_bug_msg[];
-#endif
-
 static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -212,12 +208,9 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 #ifdef INET_CSK_CLEAR_TIMERS
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
 #endif
+	} else {
+		pr_debug("inet_csk BUG: unknown timer value\n");
 	}
-#ifdef INET_CSK_DEBUG
-	else {
-		pr_debug("%s", inet_csk_timer_bug_msg);
-	}
-#endif
 }
 
 /*
@@ -230,10 +223,8 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (when > max_when) {
-#ifdef INET_CSK_DEBUG
 		pr_debug("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
 			 sk, what, when, current_text_addr());
-#endif
 		when = max_when;
 	}
 
@@ -247,12 +238,9 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		icsk->icsk_ack.pending |= ICSK_ACK_TIMER;
 		icsk->icsk_ack.timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
+	} else {
+		pr_debug("inet_csk BUG: unknown timer value\n");
 	}
-#ifdef INET_CSK_DEBUG
-	else {
-		pr_debug("%s", inet_csk_timer_bug_msg);
-	}
-#endif
 }
 
 static inline unsigned long

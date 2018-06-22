@@ -1,0 +1,10 @@
+config DRM_V3D
+	tristate "Broadcom V3D 3.x and newer"
+	depends on ARCH_BCM || ARCH_BCMSTB || COMPILE_TEST
+	depends on DRM
+	depends on COMMON_CLK
+	depends on MMU
+	select DRM_SCHED
+	help
+	  Choose this option if you have a system that has a Broadcom
+	  V3D 3.x or newer GPU, such as BCM7268.

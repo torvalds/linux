@@ -1049,7 +1049,9 @@ struct ice_aqc_set_event_mask {
  * NVM Update commands (indirect 0x0703)
  */
 struct ice_aqc_nvm {
-	u8	cmd_flags;
+	__le16 offset_low;
+	u8 offset_high;
+	u8 cmd_flags;
 #define ICE_AQC_NVM_LAST_CMD		BIT(0)
 #define ICE_AQC_NVM_PCIR_REQ		BIT(0)	/* Used by NVM Update reply */
 #define ICE_AQC_NVM_PRESERVATION_S	1
@@ -1058,12 +1060,11 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_PRESERVE_ALL	BIT(1)
 #define ICE_AQC_NVM_PRESERVE_SELECTED	(3 << CSR_AQ_NVM_PRESERVATION_S)
 #define ICE_AQC_NVM_FLASH_ONLY		BIT(7)
-	u8	module_typeid;
-	__le16	length;
+	__le16 module_typeid;
+	__le16 length;
 #define ICE_AQC_NVM_ERASE_LEN	0xFFFF
-	__le32	offset;
-	__le32	addr_high;
-	__le32	addr_low;
+	__le32 addr_high;
+	__le32 addr_low;
 };
 
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */

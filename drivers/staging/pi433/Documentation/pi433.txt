@@ -8,11 +8,11 @@ Introduction
 This driver is for controlling pi433, a radio module for the Raspberry Pi
 (www.pi433.de). It supports transmission and reception. It can be opened
 by multiple applications for transmission and reception. While transmit
-jobs were queued and process automatically in the background, the first
+jobs are queued and processed automatically in the background, the first
 application asking for reception will block out all other applications
 until something gets received terminates the read request.
 The driver supports on the fly reloading of the hardware fifo of the rf
-chip, thus enabling for much longer telegrams then hardware fifo size.
+chip, thus enabling for much longer telegrams than the hardware fifo size.
 
 Discription of driver operation
 ===============================
@@ -46,10 +46,10 @@ configuration set is written to the rf module and it gets set into receiving mod
 Now the driver is waiting, that a predefined RSSI level (signal strength at the
 receiver) is reached. Until this hasn't happened, the reception can be
 interrupted by the transmission thread at any time to insert a transmission cycle.
-As soon as the predefined RSSI level is meat, a receiving cycle starts. Similar
+As soon as the predefined RSSI level is met, a receiving cycle starts. Similar
 as described for the transmission cycle the read out of the hardware fifo is done
 dynamically. Upon each hardware fifo threshold interrupt, a portion of data gets
-read. So also for reception it is possible to receive more data then the hardware
+read. So also for reception it is possible to receive more data than the hardware
 fifo can hold.
 
 
@@ -225,7 +225,7 @@ rf params:
 			    isn't found, telegram will be internally discarded
 		optionOff - sync detection is disabled.
 	enable_length_byte
-		optionOn   - First byte of payload will be used as length byte,
+		optionOn   - First byte of payload will be used as a length byte,
 			     regardless of the amount of bytes that were requested
 			     by the read request.
 		optionOff  - Number of bytes to be read will be set according to

@@ -1617,7 +1617,7 @@ static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1
 	},
 };
 
-static void nf_conntrack_sip_fini(void)
+static void __exit nf_conntrack_sip_fini(void)
 {
 	nf_conntrack_helpers_unregister(sip, ports_c * 4);
 }

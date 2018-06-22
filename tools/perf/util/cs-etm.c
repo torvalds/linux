@@ -270,9 +270,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
 		thread = etmq->etm->unknown_thread;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, address, &al);
-
-	if (!al.map || !al.map->dso)
+	if (!thread__find_map(thread, cpumode, address, &al) || !al.map->dso)
 		return 0;
 
 	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&

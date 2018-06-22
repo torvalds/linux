@@ -1005,7 +1005,7 @@ static int cx24123_tune(struct dvb_frontend *fe,
 	return retval;
 }
 
-static int cx24123_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cx24123_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }

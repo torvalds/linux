@@ -2748,43 +2748,82 @@ out_put:
 struct ib_uflow_resources {
 	size_t			max;
 	size_t			num;
-	struct ib_flow_action	*collection[0];
+	size_t			collection_num;
+	size_t			counters_num;
+	struct ib_counters	**counters;
+	struct ib_flow_action	**collection;
 };
 
 static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
 {
 	struct ib_uflow_resources *resources;
 
-	resources =
-		kmalloc(sizeof(*resources) +
-			num_specs * sizeof(*resources->collection), GFP_KERNEL);
+	resources = kzalloc(sizeof(*resources), GFP_KERNEL);
 
 	if (!resources)
-		return NULL;
+		goto err_res;
 
-	resources->num = 0;
+	resources->counters =
+		kcalloc(num_specs, sizeof(*resources->counters), GFP_KERNEL);
+
+	if (!resources->counters)
+		goto err_cnt;
+
+	resources->collection =
+		kcalloc(num_specs, sizeof(*resources->collection), GFP_KERNEL);
+
+	if (!resources->collection)
+		goto err_collection;
+
 	resources->max = num_specs;
 
 	return resources;
+
+err_collection:
+	kfree(resources->counters);
+err_cnt:
+	kfree(resources);
+err_res:
+	return NULL;
 }
 
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
 {
 	unsigned int i;
 
-	for (i = 0; i < uflow_res->num; i++)
+	for (i = 0; i < uflow_res->collection_num; i++)
 		atomic_dec(&uflow_res->collection[i]->usecnt);
 
+	for (i = 0; i < uflow_res->counters_num; i++)
+		atomic_dec(&uflow_res->counters[i]->usecnt);
+
+	kfree(uflow_res->collection);
+	kfree(uflow_res->counters);
 	kfree(uflow_res);
 }
 
 static void flow_resources_add(struct ib_uflow_resources *uflow_res,
-			       struct ib_flow_action *action)
+			       enum ib_flow_spec_type type,
+			       void *ibobj)
 {
 	WARN_ON(uflow_res->num >= uflow_res->max);
 
-	atomic_inc(&action->usecnt);
-	uflow_res->collection[uflow_res->num++] = action;
+	switch (type) {
+	case IB_FLOW_SPEC_ACTION_HANDLE:
+		atomic_inc(&((struct ib_flow_action *)ibobj)->usecnt);
+		uflow_res->collection[uflow_res->collection_num++] =
+			(struct ib_flow_action *)ibobj;
+		break;
+	case IB_FLOW_SPEC_ACTION_COUNT:
+		atomic_inc(&((struct ib_counters *)ibobj)->usecnt);
+		uflow_res->counters[uflow_res->counters_num++] =
+			(struct ib_counters *)ibobj;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	uflow_res->num++;
 }
 
 static int kern_spec_to_ib_spec_action(struct ib_ucontext *ucontext,
@@ -2821,8 +2860,28 @@ static int kern_spec_to_ib_spec_action(struct ib_ucontext *ucontext,
 			return -EINVAL;
 		ib_spec->action.size =
 			sizeof(struct ib_flow_spec_action_handle);
-		flow_resources_add(uflow_res, ib_spec->action.act);
+		flow_resources_add(uflow_res,
+				   IB_FLOW_SPEC_ACTION_HANDLE,
+				   ib_spec->action.act);
 		uobj_put_obj_read(ib_spec->action.act);
+		break;
+	case IB_FLOW_SPEC_ACTION_COUNT:
+		if (kern_spec->flow_count.size !=
+			sizeof(struct ib_uverbs_flow_spec_action_count))
+			return -EINVAL;
+		ib_spec->flow_count.counters =
+			uobj_get_obj_read(counters,
+					  UVERBS_OBJECT_COUNTERS,
+					  kern_spec->flow_count.handle,
+					  ucontext);
+		if (!ib_spec->flow_count.counters)
+			return -EINVAL;
+		ib_spec->flow_count.size =
+				sizeof(struct ib_flow_spec_action_count);
+		flow_resources_add(uflow_res,
+				   IB_FLOW_SPEC_ACTION_COUNT,
+				   ib_spec->flow_count.counters);
+		uobj_put_obj_read(ib_spec->flow_count.counters);
 		break;
 	default:
 		return -EINVAL;
@@ -2947,6 +3006,28 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 		ib_spec->esp.size = sizeof(struct ib_flow_spec_esp);
 		memcpy(&ib_spec->esp.val, kern_spec_val, actual_filter_sz);
 		memcpy(&ib_spec->esp.mask, kern_spec_mask, actual_filter_sz);
+		break;
+	case IB_FLOW_SPEC_GRE:
+		ib_filter_sz = offsetof(struct ib_flow_gre_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->gre.size = sizeof(struct ib_flow_spec_gre);
+		memcpy(&ib_spec->gre.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->gre.mask, kern_spec_mask, actual_filter_sz);
+		break;
+	case IB_FLOW_SPEC_MPLS:
+		ib_filter_sz = offsetof(struct ib_flow_mpls_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->mpls.size = sizeof(struct ib_flow_spec_mpls);
+		memcpy(&ib_spec->mpls.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->mpls.mask, kern_spec_mask, actual_filter_sz);
 		break;
 	default:
 		return -EINVAL;
@@ -3478,8 +3559,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		goto err_uobj;
 	}
 
-	flow_attr = kzalloc(sizeof(*flow_attr) + cmd.flow_attr.num_of_specs *
-			    sizeof(union ib_flow_spec), GFP_KERNEL);
+	flow_attr = kzalloc(struct_size(flow_attr, flows,
+				cmd.flow_attr.num_of_specs), GFP_KERNEL);
 	if (!flow_attr) {
 		err = -ENOMEM;
 		goto err_put;
@@ -3507,6 +3588,7 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 					   uflow_res);
 		if (err)
 			goto err_free;
+
 		flow_attr->size +=
 			((union ib_flow_spec *) ib_spec)->size;
 		cmd.flow_attr.size -= ((struct ib_uverbs_flow_spec *)kern_spec)->size;
@@ -3519,11 +3601,16 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = -EINVAL;
 		goto err_free;
 	}
-	flow_id = ib_create_flow(qp, flow_attr, IB_FLOW_DOMAIN_USER);
+
+	flow_id = qp->device->create_flow(qp, flow_attr,
+					  IB_FLOW_DOMAIN_USER, uhw);
+
 	if (IS_ERR(flow_id)) {
 		err = PTR_ERR(flow_id);
 		goto err_free;
 	}
+	atomic_inc(&qp->usecnt);
+	flow_id->qp = qp;
 	flow_id->uobject = uobj;
 	uobj->object = flow_id;
 	uflow = container_of(uobj, typeof(*uflow), uobject);

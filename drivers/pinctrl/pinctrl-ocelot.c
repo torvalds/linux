@@ -330,7 +330,8 @@ static int ocelot_create_group_func_map(struct device *dev,
 		}
 
 		info->func[f].ngroups = npins;
-		info->func[f].groups = devm_kzalloc(dev, npins *
+		info->func[f].groups = devm_kcalloc(dev,
+							 npins,
 							 sizeof(char *),
 							 GFP_KERNEL);
 		if (!info->func[f].groups)

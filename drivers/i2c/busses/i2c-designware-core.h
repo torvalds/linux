@@ -297,8 +297,6 @@ u32 dw_readl(struct dw_i2c_dev *dev, int offset);
 void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
 u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset);
-void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable);
-void __i2c_dw_enable_and_wait(struct dw_i2c_dev *dev, bool enable);
 unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
@@ -308,6 +306,18 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
 void i2c_dw_disable(struct dw_i2c_dev *dev);
 void i2c_dw_disable_int(struct dw_i2c_dev *dev);
+
+static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
+{
+	dw_writel(dev, 1, DW_IC_ENABLE);
+}
+
+static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
+{
+	dw_writel(dev, 0, DW_IC_ENABLE);
+}
+
+void __i2c_dw_disable(struct dw_i2c_dev *dev);
 
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
 extern int i2c_dw_probe(struct dw_i2c_dev *dev);

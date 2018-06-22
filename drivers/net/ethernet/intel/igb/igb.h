@@ -1,26 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 /* Linux PRO/1000 Ethernet Driver main header file */
 
@@ -442,6 +421,8 @@ struct hwmon_buff {
 enum igb_filter_match_flags {
 	IGB_FILTER_FLAG_ETHER_TYPE = 0x1,
 	IGB_FILTER_FLAG_VLAN_TCI   = 0x2,
+	IGB_FILTER_FLAG_SRC_MAC_ADDR   = 0x4,
+	IGB_FILTER_FLAG_DST_MAC_ADDR   = 0x8,
 };
 
 #define IGB_MAX_RXNFC_FILTERS 16
@@ -456,11 +437,14 @@ struct igb_nfc_input {
 	u8 match_flags;
 	__be16 etype;
 	__be16 vlan_tci;
+	u8 src_addr[ETH_ALEN];
+	u8 dst_addr[ETH_ALEN];
 };
 
 struct igb_nfc_filter {
 	struct hlist_node nfc_node;
 	struct igb_nfc_input filter;
+	unsigned long cookie;
 	u16 etype_reg_index;
 	u16 sw_idx;
 	u16 action;
@@ -474,6 +458,8 @@ struct igb_mac_addr {
 
 #define IGB_MAC_STATE_DEFAULT	0x1
 #define IGB_MAC_STATE_IN_USE	0x2
+#define IGB_MAC_STATE_SRC_ADDR	0x4
+#define IGB_MAC_STATE_QUEUE_STEERING 0x8
 
 /* board specific private data structure */
 struct igb_adapter {
@@ -598,6 +584,7 @@ struct igb_adapter {
 
 	/* RX network flow classification support */
 	struct hlist_head nfc_filter_list;
+	struct hlist_head cls_flower_list;
 	unsigned int nfc_filter_count;
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
@@ -738,5 +725,10 @@ int igb_add_filter(struct igb_adapter *adapter,
 		   struct igb_nfc_filter *input);
 int igb_erase_filter(struct igb_adapter *adapter,
 		     struct igb_nfc_filter *input);
+
+int igb_add_mac_steering_filter(struct igb_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags);
+int igb_del_mac_steering_filter(struct igb_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags);
 
 #endif /* _IGB_H_ */

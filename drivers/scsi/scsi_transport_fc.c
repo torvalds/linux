@@ -2087,7 +2087,7 @@ fc_eh_timed_out(struct scsi_cmnd *scmd)
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
 		return BLK_EH_RESET_TIMER;
 
-	return BLK_EH_NOT_HANDLED;
+	return BLK_EH_DONE;
 }
 EXPORT_SYMBOL(fc_eh_timed_out);
 
@@ -3591,10 +3591,9 @@ fc_bsg_job_timeout(struct request *req)
 	}
 
 	/* the blk_end_sync_io() doesn't check the error */
-	if (!inflight)
-		return BLK_EH_NOT_HANDLED;
-	else
-		return BLK_EH_HANDLED;
+	if (inflight)
+		blk_mq_complete_request(req);
+	return BLK_EH_DONE;
 }
 
 /**
@@ -3781,8 +3780,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	snprintf(bsg_name, sizeof(bsg_name),
 		 "fc_host%d", shost->host_no);
 
-	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, i->f->dd_bsg_size,
-			NULL);
+	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev,
 			"fc_host%d: bsg interface failed to initialize - setup queue\n",
@@ -3827,8 +3825,8 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 	if (!i->f->bsg_request)
 		return -ENOTSUPP;
 
-	q = bsg_setup_queue(dev, NULL, fc_bsg_dispatch, i->f->dd_bsg_size,
-			NULL);
+	q = bsg_setup_queue(dev, dev_name(dev), fc_bsg_dispatch,
+			i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev, "failed to setup bsg queue\n");
 		return PTR_ERR(q);

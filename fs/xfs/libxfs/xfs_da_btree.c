@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -305,9 +293,11 @@ xfs_da3_node_read(
 			type = XFS_BLFT_DIR_LEAFN_BUF;
 			break;
 		default:
-			type = 0;
-			ASSERT(0);
-			break;
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+					tp->t_mountp, info, sizeof(*info));
+			xfs_trans_brelse(tp, *bpp);
+			*bpp = NULL;
+			return -EFSCORRUPTED;
 		}
 		xfs_trans_buf_set_type(tp, *bpp, type);
 	}
@@ -2091,7 +2081,7 @@ xfs_da_grow_inode_int(
 		 */
 		mapp = kmem_alloc(sizeof(*mapp) * count, KM_SLEEP);
 		for (b = *bno, mapi = 0; b < *bno + count; ) {
-			nmap = MIN(XFS_BMAP_MAX_NMAP, count);
+			nmap = min(XFS_BMAP_MAX_NMAP, count);
 			c = (int)(*bno + count - b);
 			error = xfs_bmapi_write(tp, dp, b, c,
 					xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,

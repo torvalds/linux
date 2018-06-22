@@ -968,7 +968,7 @@ sdev_show_wwid(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(wwid, S_IRUGO, sdev_show_wwid, NULL);
 
 #define BLIST_FLAG_NAME(name)					\
-	[ilog2((__force unsigned int)BLIST_##name)] = #name
+	[const_ilog2((__force __u64)BLIST_##name)] = #name
 static const char *const sdev_bflags_name[] = {
 #include "scsi_devinfo_tbl.c"
 };

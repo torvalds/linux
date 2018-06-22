@@ -11,7 +11,7 @@
 NM := $(NM) -B
 
 LDFLAGS_vmlinux	:= -static -N #-relax
-CHECKFLAGS	+= -D__alpha__ -m64
+CHECKFLAGS	+= -D__alpha__
 cflags-y	:= -pipe -mno-fp-regs -ffixed-8
 cflags-y	+= $(call cc-option, -fno-jump-tables)
 

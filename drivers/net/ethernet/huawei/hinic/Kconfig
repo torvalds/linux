@@ -4,7 +4,7 @@
 
 config HINIC
 	tristate "Huawei Intelligent PCIE Network Interface Card"
-	depends on (PCI_MSI && X86)
+	depends on (PCI_MSI && (X86 || ARM64))
 	---help---
 	  This driver supports HiNIC PCIE Ethernet cards.
 	  To compile this driver as part of the kernel, choose Y here.

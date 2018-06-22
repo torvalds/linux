@@ -35,6 +35,13 @@
 		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>; /* gpio_4 */
 		#phy-cells = <0>;
 	};
+
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
 };
 
 &gpmc {
@@ -79,6 +86,8 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {
@@ -98,6 +107,25 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 	clock-frequency = <400000>;
+
+	touchscreen: tsc2004@48 {
+		compatible = "ti,tsc2004";
+		reg = <0x48>;
+		vio-supply = <&vaux1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc2004_pins>;
+		interrupts-extended = <&gpio5 25 IRQ_TYPE_EDGE_RISING>; /* gpio 153 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
+	};
 };
 
 &mmc3 {
@@ -201,6 +229,12 @@
 			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT | MUX_MODE0)        /* i2c1_scl.i2c1_scl */
 			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT | MUX_MODE0)        /* i2c1_sda.i2c1_sda */
 			OMAP3_CORE1_IOPAD(0x20ba, PIN_OUTPUT | MUX_MODE4)        /* gpmc_ncs6.gpio_57 */
+		>;
+	};
+
+	tsc2004_pins: pinmux_tsc2004_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2186, PIN_INPUT | MUX_MODE4)	/* mcbsp4_dr.gpio_153 */
 		>;
 	};
 };

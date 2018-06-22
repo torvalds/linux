@@ -284,10 +284,8 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 	sdhci_bcm_kona_sd_init(host);
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(dev, "Failed sdhci_add_host\n");
+	if (ret)
 		goto err_reset;
-	}
 
 	/* if device is eMMC, emulate card insert right here */
 	if (!mmc_card_is_removable(host->mmc)) {

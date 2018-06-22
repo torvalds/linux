@@ -38,10 +38,9 @@
 #include <linux/mm.h>
 #include <linux/pagevec.h>
 
-#include "i915_gem_timeline.h"
-
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "i915_timeline.h"
 
 #define I915_GTT_PAGE_SIZE_4K BIT(12)
 #define I915_GTT_PAGE_SIZE_64K BIT(16)
@@ -257,7 +256,6 @@ struct i915_pml4 {
 
 struct i915_address_space {
 	struct drm_mm mm;
-	struct i915_gem_timeline timeline;
 	struct drm_i915_private *i915;
 	struct device *dma;
 	/* Every address space belongs to a struct file - except for the global
@@ -344,6 +342,7 @@ struct i915_address_space {
 	void (*clear_pages)(struct i915_vma *vma);
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
+	I915_SELFTEST_DECLARE(bool scrub_64K);
 };
 
 #define i915_is_ggtt(V) (!(V)->file)

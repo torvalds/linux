@@ -463,11 +463,12 @@ static int tm6000_alloc_urb_buffers(struct tm6000_core *dev)
 	if (dev->urb_buffer)
 		return 0;
 
-	dev->urb_buffer = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
+	dev->urb_buffer = kmalloc_array(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->urb_buffer)
 		return -ENOMEM;
 
-	dev->urb_dma = kmalloc(sizeof(dma_addr_t *)*num_bufs, GFP_KERNEL);
+	dev->urb_dma = kmalloc_array(num_bufs, sizeof(dma_addr_t *),
+				     GFP_KERNEL);
 	if (!dev->urb_dma)
 		return -ENOMEM;
 
@@ -583,12 +584,14 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 
 	dev->isoc_ctl.num_bufs = num_bufs;
 
-	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
+	dev->isoc_ctl.urb = kmalloc_array(num_bufs, sizeof(void *),
+					  GFP_KERNEL);
 	if (!dev->isoc_ctl.urb)
 		return -ENOMEM;
 
-	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
-				   GFP_KERNEL);
+	dev->isoc_ctl.transfer_buffer = kmalloc_array(num_bufs,
+						      sizeof(void *),
+						      GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;

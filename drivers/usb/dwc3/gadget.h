@@ -98,13 +98,12 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol);
  * Caller should take care of locking. Returns the transfer resource
  * index for a given endpoint.
  */
-static inline u32 dwc3_gadget_ep_get_transfer_index(struct dwc3_ep *dep)
+static inline void dwc3_gadget_ep_get_transfer_index(struct dwc3_ep *dep)
 {
 	u32			res_id;
 
 	res_id = dwc3_readl(dep->regs, DWC3_DEPCMD);
-
-	return DWC3_DEPCMD_GET_RSC_IDX(res_id);
+	dep->resource_index = DWC3_DEPCMD_GET_RSC_IDX(res_id);
 }
 
 #endif /* __DRIVERS_USB_DWC3_GADGET_H */

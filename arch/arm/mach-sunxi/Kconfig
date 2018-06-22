@@ -51,7 +51,7 @@ config MACH_SUN9I
 config ARCH_SUNXI_MC_SMP
 	bool
 	depends on SMP
-	default MACH_SUN9I
+	default MACH_SUN9I || MACH_SUN8I
 	select ARM_CCI400_PORT_CTRL
 	select ARM_CPU_SUSPEND
 

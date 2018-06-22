@@ -31,10 +31,15 @@ Required properties:
 	ti,tca9554
 	onnn,pca9654
 	exar,xra1202
+ - gpio-controller: if used as gpio expander.
+ - #gpio-cells: if used as gpio expander.
+ - interrupt-controller: if to be used as interrupt expander.
+ - #interrupt-cells: if to be used as interrupt expander.
 
 Optional properties:
  - reset-gpios: GPIO specification for the RESET input. This is an
 		active low signal to the PCA953x.
+ - vcc-supply:	power supply regulator.
 
 Example:
 
@@ -47,3 +52,32 @@ Example:
 		interrupt-parent = <&gpio3>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
 	};
+
+
+Example with Interrupts:
+
+
+	gpio99: gpio@22 {
+		compatible = "nxp,pcal6524";
+		reg = <0x22>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;	/* gpio6_161 */
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		vcc-supply = <&vdds_1v8_main>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names =
+			"hdmi-ct-hpd", "hdmi.ls-oe", "p02", "p03", "vibra", "fault2", "p06", "p07",
+			"en-usb", "en-host1", "en-host2", "chg-int", "p14", "p15", "mic-int", "en-modem",
+			"shdn-hs-amp", "chg-status+red", "green", "blue", "en-esata", "fault1", "p26", "p27";
+	};
+
+	ts3a227@3b {
+		compatible = "ti,ts3a227e";
+		reg = <0x3b>;
+		interrupt-parent = <&gpio99>;
+		interrupts = <14 IRQ_TYPE_EDGE_RISING>;
+		ti,micbias = <0>;	/* 2.1V */
+	};
+

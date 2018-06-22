@@ -644,6 +644,9 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 					 MWIFIEX_FUNC_SHUTDOWN);
 	}
 
+	if (adapter->workqueue)
+		flush_workqueue(adapter->workqueue);
+
 	mwifiex_usb_free(card);
 
 	mwifiex_dbg(adapter, FATAL,
@@ -651,6 +654,15 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	mwifiex_remove_card(adapter);
 
 	usb_put_dev(interface_to_usbdev(intf));
+}
+
+static void mwifiex_usb_coredump(struct device *dev)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_card_rec *card = usb_get_intfdata(intf);
+
+	mwifiex_fw_dump_event(mwifiex_get_priv(card->adapter,
+					       MWIFIEX_BSS_ROLE_ANY));
 }
 
 static struct usb_driver mwifiex_usb_driver = {
@@ -661,6 +673,9 @@ static struct usb_driver mwifiex_usb_driver = {
 	.suspend = mwifiex_usb_suspend,
 	.resume = mwifiex_usb_resume,
 	.soft_unbind = 1,
+	.drvwrap.driver = {
+		.coredump = mwifiex_usb_coredump,
+	},
 };
 
 static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,

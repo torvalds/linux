@@ -73,7 +73,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 static int msi_x = 1;
 module_param(msi_x, int, 0444);
-MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
+MODULE_PARM_DESC(msi_x, "0 - don't use MSI-X, 1 - use MSI-X, >1 - limit number of MSI-X irqs to msi_x");
 
 #else /* CONFIG_PCI_MSI */
 
@@ -2815,6 +2815,9 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 				dev->caps.num_eqs - dev->caps.reserved_eqs,
 				MAX_MSIX);
 
+		if (msi_x > 1)
+			nreq = min_t(int, nreq, msi_x);
+
 		entries = kcalloc(nreq, sizeof(*entries), GFP_KERNEL);
 		if (!entries)
 			goto no_msi;
@@ -2979,7 +2982,8 @@ static int mlx4_init_steering(struct mlx4_dev *dev)
 	int num_entries = dev->caps.num_ports;
 	int i, j;
 
-	priv->steer = kzalloc(sizeof(struct mlx4_steer) * num_entries, GFP_KERNEL);
+	priv->steer = kcalloc(num_entries, sizeof(struct mlx4_steer),
+			      GFP_KERNEL);
 	if (!priv->steer)
 		return -ENOMEM;
 
@@ -3100,7 +3104,7 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 		}
 	}
 
-	dev->dev_vfs = kzalloc(total_vfs * sizeof(*dev->dev_vfs), GFP_KERNEL);
+	dev->dev_vfs = kcalloc(total_vfs, sizeof(*dev->dev_vfs), GFP_KERNEL);
 	if (NULL == dev->dev_vfs) {
 		mlx4_err(dev, "Failed to allocate memory for VFs\n");
 		goto disable_sriov;
@@ -4127,17 +4131,68 @@ static const struct pci_error_handlers mlx4_err_handler = {
 	.resume		= mlx4_pci_resume,
 };
 
+static int mlx4_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+
+	mlx4_err(dev, "suspend was called\n");
+	mutex_lock(&persist->interface_state_mutex);
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+		mlx4_unload_one(pdev);
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return 0;
+}
+
+static int mlx4_resume(struct pci_dev *pdev)
+{
+	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
+	struct mlx4_dev	*dev = persist->dev;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int nvfs[MLX4_MAX_PORTS + 1] = {0, 0, 0};
+	int total_vfs;
+	int ret = 0;
+
+	mlx4_err(dev, "resume was called\n");
+	total_vfs = dev->persist->num_vfs;
+	memcpy(nvfs, dev->persist->nvfs, sizeof(dev->persist->nvfs));
+
+	mutex_lock(&persist->interface_state_mutex);
+	if (!(persist->interface_state & MLX4_INTERFACE_STATE_UP)) {
+		ret = mlx4_load_one(pdev, priv->pci_dev_data, total_vfs,
+				    nvfs, priv, 1);
+		if (!ret) {
+			ret = restore_current_port_types(dev,
+					dev->persist->curr_port_type,
+					dev->persist->curr_port_poss_type);
+			if (ret)
+				mlx4_err(dev, "resume: could not restore original port types (%d)\n", ret);
+		}
+	}
+	mutex_unlock(&persist->interface_state_mutex);
+
+	return ret;
+}
+
 static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
 	.shutdown	= mlx4_shutdown,
 	.remove		= mlx4_remove_one,
+	.suspend	= mlx4_suspend,
+	.resume		= mlx4_resume,
 	.err_handler    = &mlx4_err_handler,
 };
 
 static int __init mlx4_verify_params(void)
 {
+	if (msi_x < 0) {
+		pr_warn("mlx4_core: bad msi_x: %d\n", msi_x);
+		return -1;
+	}
+
 	if ((log_num_mac < 0) || (log_num_mac > 7)) {
 		pr_warn("mlx4_core: bad num_mac: %d\n", log_num_mac);
 		return -1;

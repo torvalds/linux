@@ -51,7 +51,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <bpf/bpf.h>
-#include "libbpf.h"
+#include "bpf_insn.h"
 
 #define PORT 8888
 

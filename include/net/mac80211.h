@@ -3378,6 +3378,8 @@ enum ieee80211_reconfig_type {
  *	frame in case that no beacon was heard from the AP/P2P GO.
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
+ *      If duration is greater than zero, mac80211 hints to the driver the
+ *      duration for which the operation is requested.
  *	The callback is optional and can (should!) sleep.
  *
  * @mgd_protect_tdls_discover: Protect a TDLS discovery session. After sending
@@ -3697,7 +3699,8 @@ struct ieee80211_ops {
 				  u32 sset, u8 *data);
 
 	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif);
+				  struct ieee80211_vif *vif,
+				  u16 duration);
 
 	void	(*mgd_protect_tdls_discover)(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif);
@@ -4448,6 +4451,19 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
  * Return: new csa counter value
  */
 u8 ieee80211_csa_update_counter(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_csa_set_counter - request mac80211 to set csa counter
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @counter: the new value for the counter
+ *
+ * The csa counter can be changed by the device, this API should be
+ * used by the device driver to update csa counter in mac80211.
+ *
+ * It should never be used together with ieee80211_csa_update_counter(),
+ * as it will cause a race condition around the counter value.
+ */
+void ieee80211_csa_set_counter(struct ieee80211_vif *vif, u8 counter);
 
 /**
  * ieee80211_csa_finish - notify mac80211 about channel switch

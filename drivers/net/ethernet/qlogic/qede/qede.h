@@ -75,6 +75,7 @@ struct qede_stats_common {
 	u64 rx_bcast_pkts;
 	u64 mftag_filter_discards;
 	u64 mac_filter_discards;
+	u64 gft_filter_drop;
 	u64 tx_ucast_bytes;
 	u64 tx_mcast_bytes;
 	u64 tx_bcast_bytes;
@@ -87,6 +88,7 @@ struct qede_stats_common {
 	u64 coalesced_aborts_num;
 	u64 non_coalesced_pkts;
 	u64 coalesced_bytes;
+	u64 link_change_count;
 
 	/* port */
 	u64 rx_64_byte_packets;
@@ -290,15 +292,12 @@ struct qede_agg_info {
 	 * aggregation.
 	 */
 	struct sw_rx_data buffer;
-	dma_addr_t buffer_mapping;
-
 	struct sk_buff *skb;
 
 	/* We need some structs from the start cookie until termination */
 	u16 vlan_tag;
-	u16 start_cqe_bd_len;
-	u8 start_cqe_placement_offset;
 
+	bool tpa_start_fail;
 	u8 state;
 	u8 frag_id;
 

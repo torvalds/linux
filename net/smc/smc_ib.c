@@ -143,17 +143,6 @@ out:
 	return rc;
 }
 
-static void smc_ib_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
-{
-	struct smc_link_group *lgr, *l;
-
-	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
-		if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
-		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
-			smc_lgr_terminate(lgr);
-	}
-}
-
 /* process context wrapper for might_sleep smc_ib_remember_port_attr */
 static void smc_ib_port_event_work(struct work_struct *work)
 {
@@ -165,7 +154,7 @@ static void smc_ib_port_event_work(struct work_struct *work)
 		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
 		clear_bit(port_idx, &smcibdev->port_event_mask);
 		if (!smc_ib_port_active(smcibdev, port_idx + 1))
-			smc_ib_port_terminate(smcibdev, port_idx + 1);
+			smc_port_terminate(smcibdev, port_idx + 1);
 	}
 }
 

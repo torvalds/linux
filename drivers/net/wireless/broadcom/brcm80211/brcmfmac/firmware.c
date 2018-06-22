@@ -634,7 +634,7 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 
 struct brcmf_fw_request *
 brcmf_fw_alloc_request(u32 chip, u32 chiprev,
-		       struct brcmf_firmware_mapping mapping_table[],
+		       const struct brcmf_firmware_mapping mapping_table[],
 		       u32 table_size, struct brcmf_fw_name *fwnames,
 		       u32 n_fwnames)
 {

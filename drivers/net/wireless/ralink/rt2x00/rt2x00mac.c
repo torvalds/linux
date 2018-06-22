@@ -739,8 +739,7 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return;
 
 	tx_queue_for_each(rt2x00dev, queue)
-		if (!rt2x00queue_empty(queue))
-			rt2x00queue_flush_queue(queue, drop);
+		rt2x00queue_flush_queue(queue, drop);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
 

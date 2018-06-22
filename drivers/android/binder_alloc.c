@@ -219,7 +219,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		mm = alloc->vma_vm_mm;
 
 	if (mm) {
-		down_write(&mm->mmap_sem);
+		down_read(&mm->mmap_sem);
 		vma = alloc->vma;
 	}
 
@@ -288,7 +288,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		/* vm_insert_page does not seem to increment the refcount */
 	}
 	if (mm) {
-		up_write(&mm->mmap_sem);
+		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
 	return 0;
@@ -321,7 +321,7 @@ err_page_ptr_cleared:
 	}
 err_no_vma:
 	if (mm) {
-		up_write(&mm->mmap_sem);
+		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
 	return vma ? -ENOMEM : -ESRCH;
@@ -692,8 +692,8 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 		}
 	}
 #endif
-	alloc->pages = kzalloc(sizeof(alloc->pages[0]) *
-				   ((vma->vm_end - vma->vm_start) / PAGE_SIZE),
+	alloc->pages = kcalloc((vma->vm_end - vma->vm_start) / PAGE_SIZE,
+			       sizeof(alloc->pages[0]),
 			       GFP_KERNEL);
 	if (alloc->pages == NULL) {
 		ret = -ENOMEM;

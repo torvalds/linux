@@ -431,14 +431,6 @@ void dce110_timing_generator_set_drr(
 			0,
 			CRTC_V_TOTAL_CONTROL,
 			CRTC_SET_V_TOTAL_MIN_MASK);
-		set_reg_field_value(v_total_min,
-				0,
-				CRTC_V_TOTAL_MIN,
-				CRTC_V_TOTAL_MIN);
-		set_reg_field_value(v_total_max,
-				0,
-				CRTC_V_TOTAL_MAX,
-				CRTC_V_TOTAL_MAX);
 		set_reg_field_value(v_total_cntl,
 				0,
 				CRTC_V_TOTAL_CONTROL,
@@ -447,6 +439,14 @@ void dce110_timing_generator_set_drr(
 				0,
 				CRTC_V_TOTAL_CONTROL,
 				CRTC_V_TOTAL_MAX_SEL);
+		set_reg_field_value(v_total_min,
+				0,
+				CRTC_V_TOTAL_MIN,
+				CRTC_V_TOTAL_MIN);
+		set_reg_field_value(v_total_max,
+				0,
+				CRTC_V_TOTAL_MAX,
+				CRTC_V_TOTAL_MAX);
 		set_reg_field_value(v_total_cntl,
 				0,
 				CRTC_V_TOTAL_CONTROL,

@@ -191,6 +191,12 @@ struct ebt_entry {
 	unsigned char elems[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
 };
 
+static __inline__ struct ebt_entry_target *
+ebt_get_target(struct ebt_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
 /* {g,s}etsockopt numbers */
 #define EBT_BASE_CTL            128
 

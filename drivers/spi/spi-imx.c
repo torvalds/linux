@@ -1,22 +1,6 @@
-/*
- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
- * Copyright (C) 2008 Juergen Beisert
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation
- * 51 Franklin Street, Fifth Floor
- * Boston, MA  02110-1301, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+// Copyright (C) 2008 Juergen Beisert
 
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -1527,8 +1511,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	if (mxc_platform_info) {
 		master->num_chipselect = mxc_platform_info->num_chipselect;
 		if (mxc_platform_info->chipselect) {
-			master->cs_gpios = devm_kzalloc(&master->dev,
-				sizeof(int) * master->num_chipselect, GFP_KERNEL);
+			master->cs_gpios = devm_kcalloc(&master->dev,
+				master->num_chipselect, sizeof(int),
+				GFP_KERNEL);
 			if (!master->cs_gpios)
 				return -ENOMEM;
 

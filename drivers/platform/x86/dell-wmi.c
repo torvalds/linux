@@ -233,7 +233,7 @@ static const u16 bios_to_linux_keycode[256] = {
 	[18]	= KEY_PROG1,
 	[19]	= KEY_BRIGHTNESSDOWN,
 	[20]	= KEY_BRIGHTNESSUP,
-	[21]	= KEY_UNKNOWN,
+	[21]	= KEY_BRIGHTNESS_AUTO,
 	[22]	= KEY_KBDILLUMTOGGLE,
 	[23]	= KEY_UNKNOWN,
 	[24]	= KEY_SWITCHVIDEOMODE,
@@ -261,6 +261,12 @@ static const u16 bios_to_linux_keycode[256] = {
  * override them.
  */
 static const struct key_entry dell_wmi_keymap_type_0010[] = {
+	/* Fn-lock switched to function keys */
+	{ KE_IGNORE, 0x0, { KEY_RESERVED } },
+
+	/* Fn-lock switched to multimedia keys */
+	{ KE_IGNORE, 0x1, { KEY_RESERVED } },
+
 	/* Mic mute */
 	{ KE_KEY, 0x150, { KEY_MICMUTE } },
 
@@ -296,6 +302,14 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
 	{ KE_KEY,    0x851, { KEY_PROG2 } },
 	{ KE_KEY,    0x852, { KEY_PROG3 } },
 
+	/*
+	 * Radio disable (notify only -- there is no model for which the
+	 * WMI event is supposed to trigger an action).
+	 */
+	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
+
+	/* Fn-lock */
+	{ KE_IGNORE, 0xe035, { KEY_RESERVED } },
 };
 
 /*

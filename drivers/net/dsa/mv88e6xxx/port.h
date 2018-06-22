@@ -29,6 +29,7 @@
 #define MV88E6XXX_PORT_STS_SPEED_10		0x0000
 #define MV88E6XXX_PORT_STS_SPEED_100		0x0100
 #define MV88E6XXX_PORT_STS_SPEED_1000		0x0200
+#define MV88E6XXX_PORT_STS_SPEED_10000		0x0300
 #define MV88E6352_PORT_STS_EEE			0x0040
 #define MV88E6165_PORT_STS_AM_DIS		0x0040
 #define MV88E6185_PORT_STS_MGMII		0x0040
@@ -295,6 +296,8 @@ int mv88e6390_port_pause_limit(struct mv88e6xxx_chip *chip, int port, u8 in,
 int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
 int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode);
+int mv88e6xxx_port_link_state(struct mv88e6xxx_chip *chip, int port,
+			      struct phylink_link_state *state);
 int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
 				     int upstream_port);

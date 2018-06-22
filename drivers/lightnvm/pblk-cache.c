@@ -44,13 +44,15 @@ retry:
 		goto out;
 	}
 
-	if (unlikely(!bio_has_data(bio)))
-		goto out;
-
 	pblk_ppa_set_empty(&w_ctx.ppa);
 	w_ctx.flags = flags;
-	if (bio->bi_opf & REQ_PREFLUSH)
+	if (bio->bi_opf & REQ_PREFLUSH) {
 		w_ctx.flags |= PBLK_FLUSH_ENTRY;
+		pblk_write_kick(pblk);
+	}
+
+	if (unlikely(!bio_has_data(bio)))
+		goto out;
 
 	for (i = 0; i < nr_entries; i++) {
 		void *data = bio_data(bio);

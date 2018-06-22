@@ -778,7 +778,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 	if (error) {
 		dev_err(ctrl->ctrl.device,
 			"prop_get NVME_REG_CAP failed\n");
-		goto out_cleanup_queue;
+		goto out_stop_queue;
 	}
 
 	ctrl->ctrl.sqsize =
@@ -786,23 +786,25 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 
 	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
 	if (error)
-		goto out_cleanup_queue;
+		goto out_stop_queue;
 
 	ctrl->ctrl.max_hw_sectors =
 		(ctrl->max_fr_pages - 1) << (ilog2(SZ_4K) - 9);
 
 	error = nvme_init_identify(&ctrl->ctrl);
 	if (error)
-		goto out_cleanup_queue;
+		goto out_stop_queue;
 
 	error = nvme_rdma_alloc_qe(ctrl->queues[0].device->dev,
 			&ctrl->async_event_sqe, sizeof(struct nvme_command),
 			DMA_TO_DEVICE);
 	if (error)
-		goto out_cleanup_queue;
+		goto out_stop_queue;
 
 	return 0;
 
+out_stop_queue:
+	nvme_rdma_stop_queue(&ctrl->queues[0]);
 out_cleanup_queue:
 	if (new)
 		blk_cleanup_queue(ctrl->ctrl.admin_q);
@@ -1187,21 +1189,38 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	count = ib_dma_map_sg(ibdev, req->sg_table.sgl, req->nents,
 		    rq_data_dir(rq) == WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (unlikely(count <= 0)) {
-		sg_free_table_chained(&req->sg_table, true);
-		return -EIO;
+		ret = -EIO;
+		goto out_free_table;
 	}
 
 	if (count == 1) {
 		if (rq_data_dir(rq) == WRITE && nvme_rdma_queue_idx(queue) &&
 		    blk_rq_payload_bytes(rq) <=
-				nvme_rdma_inline_data_size(queue))
-			return nvme_rdma_map_sg_inline(queue, req, c);
+				nvme_rdma_inline_data_size(queue)) {
+			ret = nvme_rdma_map_sg_inline(queue, req, c);
+			goto out;
+		}
 
-		if (dev->pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)
-			return nvme_rdma_map_sg_single(queue, req, c);
+		if (dev->pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY) {
+			ret = nvme_rdma_map_sg_single(queue, req, c);
+			goto out;
+		}
 	}
 
-	return nvme_rdma_map_sg_fr(queue, req, c, count);
+	ret = nvme_rdma_map_sg_fr(queue, req, c, count);
+out:
+	if (unlikely(ret))
+		goto out_unmap_sg;
+
+	return 0;
+
+out_unmap_sg:
+	ib_dma_unmap_sg(ibdev, req->sg_table.sgl,
+			req->nents, rq_data_dir(rq) ==
+			WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+out_free_table:
+	sg_free_table_chained(&req->sg_table, true);
+	return ret;
 }
 
 static void nvme_rdma_send_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -1598,7 +1617,7 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 	/* fail with DNR on cmd timeout */
 	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
 
-	return BLK_EH_HANDLED;
+	return BLK_EH_DONE;
 }
 
 static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1611,15 +1630,14 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_rdma_qe *sqe = &req->sqe;
 	struct nvme_command *c = sqe->data;
 	struct ib_device *dev;
+	bool queue_ready = test_bit(NVME_RDMA_Q_LIVE, &queue->flags);
 	blk_status_t ret;
 	int err;
 
 	WARN_ON_ONCE(rq->tag < 0);
 
-	ret = nvmf_check_if_ready(&queue->ctrl->ctrl, rq,
-		test_bit(NVME_RDMA_Q_LIVE, &queue->flags), true);
-	if (unlikely(ret))
-		return ret;
+	if (!nvmf_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
+		return nvmf_fail_nonready_command(rq);
 
 	dev = queue->device->dev;
 	ib_dma_sync_single_for_cpu(dev, sqe->dma,
@@ -1949,8 +1967,9 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 	}
 
 	/* sanity check keyed sgls */
-	if (!(ctrl->ctrl.sgls & (1 << 20))) {
-		dev_err(ctrl->ctrl.device, "Mandatory keyed sgls are not support\n");
+	if (!(ctrl->ctrl.sgls & (1 << 2))) {
+		dev_err(ctrl->ctrl.device,
+			"Mandatory keyed sgls are not supported!\n");
 		ret = -EINVAL;
 		goto out_remove_admin_queue;
 	}

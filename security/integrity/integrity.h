@@ -143,6 +143,8 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 #define INTEGRITY_KEYRING_MODULE	2
 #define INTEGRITY_KEYRING_MAX		3
 
+extern struct dentry *integrity_dir;
+
 #ifdef CONFIG_INTEGRITY_SIGNATURE
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,

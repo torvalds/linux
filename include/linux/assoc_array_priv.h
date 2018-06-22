@@ -1,6 +1,6 @@
 /* Private definitions for the generic associative array implementation.
  *
- * See Documentation/assoc_array.txt for information.
+ * See Documentation/core-api/assoc_array.rst for information.
  *
  * Copyright (C) 2013 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)

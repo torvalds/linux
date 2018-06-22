@@ -161,6 +161,7 @@ static const struct {
 	QEDE_STAT(no_buff_discards),
 	QEDE_PF_STAT(mftag_filter_discards),
 	QEDE_PF_STAT(mac_filter_discards),
+	QEDE_PF_STAT(gft_filter_drop),
 	QEDE_STAT(tx_err_drop_pkts),
 	QEDE_STAT(ttl0_discard),
 	QEDE_STAT(packet_too_big_discard),
@@ -170,6 +171,8 @@ static const struct {
 	QEDE_STAT(coalesced_aborts_num),
 	QEDE_STAT(non_coalesced_pkts),
 	QEDE_STAT(coalesced_bytes),
+
+	QEDE_STAT(link_change_count),
 };
 
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
@@ -1508,7 +1511,8 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 		len =  le16_to_cpu(fp_cqe->len_on_first_bd);
 		data_ptr = (u8 *)(page_address(sw_rx_data->data) +
 				  fp_cqe->placement_offset +
-				  sw_rx_data->page_offset);
+				  sw_rx_data->page_offset +
+				  rxq->rx_headroom);
 		if (ether_addr_equal(data_ptr,  edev->ndev->dev_addr) &&
 		    ether_addr_equal(data_ptr + ETH_ALEN,
 				     edev->ndev->dev_addr)) {

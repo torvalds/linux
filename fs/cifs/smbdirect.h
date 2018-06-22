@@ -321,7 +321,7 @@ struct smbd_mr {
 /* Interfaces to register and deregister MR for RDMA read/write */
 struct smbd_mr *smbd_register_mr(
 	struct smbd_connection *info, struct page *pages[], int num_pages,
-	int tailsz, bool writing, bool need_invalidate);
+	int offset, int tailsz, bool writing, bool need_invalidate);
 int smbd_deregister_mr(struct smbd_mr *mr);
 
 #else

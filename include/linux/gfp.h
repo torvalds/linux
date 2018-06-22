@@ -24,6 +24,7 @@ struct vm_area_struct;
 #define ___GFP_HIGH		0x20u
 #define ___GFP_IO		0x40u
 #define ___GFP_FS		0x80u
+#define ___GFP_WRITE		0x100u
 #define ___GFP_NOWARN		0x200u
 #define ___GFP_RETRY_MAYFAIL	0x400u
 #define ___GFP_NOFAIL		0x800u
@@ -36,11 +37,10 @@ struct vm_area_struct;
 #define ___GFP_THISNODE		0x40000u
 #define ___GFP_ATOMIC		0x80000u
 #define ___GFP_ACCOUNT		0x100000u
-#define ___GFP_DIRECT_RECLAIM	0x400000u
-#define ___GFP_WRITE		0x800000u
-#define ___GFP_KSWAPD_RECLAIM	0x1000000u
+#define ___GFP_DIRECT_RECLAIM	0x200000u
+#define ___GFP_KSWAPD_RECLAIM	0x400000u
 #ifdef CONFIG_LOCKDEP
-#define ___GFP_NOLOCKDEP	0x2000000u
+#define ___GFP_NOLOCKDEP	0x800000u
 #else
 #define ___GFP_NOLOCKDEP	0
 #endif
@@ -205,7 +205,7 @@ struct vm_area_struct;
 #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
 
 /* Room for N __GFP_FOO bits */
-#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
+#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 /*
@@ -343,7 +343,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  *       0x1    => DMA or NORMAL
  *       0x2    => HIGHMEM or NORMAL
  *       0x3    => BAD (DMA+HIGHMEM)
- *       0x4    => DMA32 or DMA or NORMAL
+ *       0x4    => DMA32 or NORMAL
  *       0x5    => BAD (DMA+DMA32)
  *       0x6    => BAD (HIGHMEM+DMA32)
  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
@@ -351,7 +351,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  *       0x9    => DMA or NORMAL (MOVABLE+DMA)
  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
- *       0xc    => DMA32 (MOVABLE+DMA32)
+ *       0xc    => DMA32 or NORMAL (MOVABLE+DMA32)
  *       0xd    => BAD (MOVABLE+DMA32+DMA)
  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)

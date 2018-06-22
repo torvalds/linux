@@ -831,7 +831,7 @@ static int __arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		 unsigned long attrs)
 {
 	int ret;
-	unsigned long nr_vma_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	unsigned long nr_vma_pages = vma_pages(vma);
 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long pfn = dma_to_pfn(dev, dma_addr);
 	unsigned long off = vma->vm_pgoff;
@@ -1150,15 +1150,6 @@ int arm_dma_supported(struct device *dev, u64 mask)
 {
 	return __dma_supported(dev, mask, false);
 }
-
-#define PREALLOC_DMA_DEBUG_ENTRIES	4096
-
-static int __init dma_debug_do_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-core_initcall(dma_debug_do_init);
 
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 
@@ -2171,8 +2162,8 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size)
 		goto err;
 
 	mapping->bitmap_size = bitmap_size;
-	mapping->bitmaps = kzalloc(extensions * sizeof(unsigned long *),
-				GFP_KERNEL);
+	mapping->bitmaps = kcalloc(extensions, sizeof(unsigned long *),
+				   GFP_KERNEL);
 	if (!mapping->bitmaps)
 		goto err2;
 

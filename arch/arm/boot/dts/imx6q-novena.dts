@@ -268,8 +268,6 @@
 	touch: stmpe811@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		irq-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;
 		id = <0>;
 		blocks = <0x5>;

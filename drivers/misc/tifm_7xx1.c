@@ -239,8 +239,12 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	unsigned long timeout;
 	unsigned int good_sockets = 0, bad_sockets = 0;
 	unsigned long flags;
-	unsigned char new_ids[fm->num_sockets];
+	/* Maximum number of entries is 4 */
+	unsigned char new_ids[4];
 	DECLARE_COMPLETION_ONSTACK(finish_resume);
+
+	if (WARN_ON(fm->num_sockets > ARRAY_SIZE(new_ids)))
+		return -ENXIO;
 
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);

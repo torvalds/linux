@@ -1637,7 +1637,7 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 		j++;
 	j++;
 
-	new = kmalloc(sizeof(struct attribute *) * j, GFP_KERNEL);
+	new = kmalloc_array(j, sizeof(struct attribute *), GFP_KERNEL);
 	if (!new)
 		return NULL;
 
@@ -2397,7 +2397,7 @@ static unsigned long get_segment_base(unsigned int segment)
 
 #ifdef CONFIG_IA32_EMULATION
 
-#include <asm/compat.h>
+#include <linux/compat.h>
 
 static inline int
 perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *entry)

@@ -214,7 +214,7 @@ int vpfe_video_is_pipe_ready(struct vpfe_pipeline *pipe)
 	return 1;
 }
 
-/**
+/*
  * Validate a pipeline by checking both ends of all links for format
  * discrepancies.
  *
@@ -1468,7 +1468,6 @@ static int vpfe_streamon(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 	struct vpfe_pipeline *pipe = &video->pipe;
 	struct vpfe_fh *fh = file->private_data;
-	struct vpfe_ext_subdev_info *sdinfo;
 	int ret = -EINVAL;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_streamon\n");
@@ -1483,7 +1482,6 @@ static int vpfe_streamon(struct file *file, void *priv,
 		v4l2_err(&vpfe_dev->v4l2_dev, "fh->io_allowed\n");
 		return -EACCES;
 	}
-	sdinfo = video->current_ext_subdev;
 	/* If buffer queue is empty, return error */
 	if (list_empty(&video->buffer_queue.queued_list)) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "buffer queue is empty\n");

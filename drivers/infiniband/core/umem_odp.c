@@ -285,13 +285,15 @@ struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
 	mutex_init(&odp_data->umem_mutex);
 	init_completion(&odp_data->notifier_completion);
 
-	odp_data->page_list = vzalloc(pages * sizeof(*odp_data->page_list));
+	odp_data->page_list =
+		vzalloc(array_size(pages, sizeof(*odp_data->page_list)));
 	if (!odp_data->page_list) {
 		ret = -ENOMEM;
 		goto out_odp_data;
 	}
 
-	odp_data->dma_list = vzalloc(pages * sizeof(*odp_data->dma_list));
+	odp_data->dma_list =
+		vzalloc(array_size(pages, sizeof(*odp_data->dma_list)));
 	if (!odp_data->dma_list) {
 		ret = -ENOMEM;
 		goto out_page_list;
@@ -371,15 +373,17 @@ int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem,
 	init_completion(&umem->odp_data->notifier_completion);
 
 	if (ib_umem_num_pages(umem)) {
-		umem->odp_data->page_list = vzalloc(ib_umem_num_pages(umem) *
-					    sizeof(*umem->odp_data->page_list));
+		umem->odp_data->page_list =
+			vzalloc(array_size(sizeof(*umem->odp_data->page_list),
+					   ib_umem_num_pages(umem)));
 		if (!umem->odp_data->page_list) {
 			ret_val = -ENOMEM;
 			goto out_odp_data;
 		}
 
-		umem->odp_data->dma_list = vzalloc(ib_umem_num_pages(umem) *
-					  sizeof(*umem->odp_data->dma_list));
+		umem->odp_data->dma_list =
+			vzalloc(array_size(sizeof(*umem->odp_data->dma_list),
+					   ib_umem_num_pages(umem)));
 		if (!umem->odp_data->dma_list) {
 			ret_val = -ENOMEM;
 			goto out_page_list;

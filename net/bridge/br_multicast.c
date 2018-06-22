@@ -333,7 +333,7 @@ static int br_mdb_rehash(struct net_bridge_mdb_htable __rcu **mdbp, int max,
 	mdb->max = max;
 	mdb->old = old;
 
-	mdb->mhash = kzalloc(max * sizeof(*mdb->mhash), GFP_ATOMIC);
+	mdb->mhash = kcalloc(max, sizeof(*mdb->mhash), GFP_ATOMIC);
 	if (!mdb->mhash) {
 		kfree(mdb);
 		return -ENOMEM;

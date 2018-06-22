@@ -561,20 +561,24 @@ static void print_lock(struct held_lock *hlock)
 	printk(KERN_CONT ", at: %pS\n", (void *)hlock->acquire_ip);
 }
 
-static void lockdep_print_held_locks(struct task_struct *curr)
+static void lockdep_print_held_locks(struct task_struct *p)
 {
-	int i, depth = curr->lockdep_depth;
+	int i, depth = READ_ONCE(p->lockdep_depth);
 
-	if (!depth) {
-		printk("no locks held by %s/%d.\n", curr->comm, task_pid_nr(curr));
+	if (!depth)
+		printk("no locks held by %s/%d.\n", p->comm, task_pid_nr(p));
+	else
+		printk("%d lock%s held by %s/%d:\n", depth,
+		       depth > 1 ? "s" : "", p->comm, task_pid_nr(p));
+	/*
+	 * It's not reliable to print a task's held locks if it's not sleeping
+	 * and it's not the current task.
+	 */
+	if (p->state == TASK_RUNNING && p != current)
 		return;
-	}
-	printk("%d lock%s held by %s/%d:\n",
-		depth, depth > 1 ? "s" : "", curr->comm, task_pid_nr(curr));
-
 	for (i = 0; i < depth; i++) {
 		printk(" #%d: ", i);
-		print_lock(curr->held_locks + i);
+		print_lock(p->held_locks + i);
 	}
 }
 
@@ -4451,8 +4455,6 @@ EXPORT_SYMBOL_GPL(debug_check_no_locks_held);
 void debug_show_all_locks(void)
 {
 	struct task_struct *g, *p;
-	int count = 10;
-	int unlock = 1;
 
 	if (unlikely(!debug_locks)) {
 		pr_warn("INFO: lockdep is turned off.\n");
@@ -4460,50 +4462,18 @@ void debug_show_all_locks(void)
 	}
 	pr_warn("\nShowing all locks held in the system:\n");
 
-	/*
-	 * Here we try to get the tasklist_lock as hard as possible,
-	 * if not successful after 2 seconds we ignore it (but keep
-	 * trying). This is to enable a debug printout even if a
-	 * tasklist_lock-holding task deadlocks or crashes.
-	 */
-retry:
-	if (!read_trylock(&tasklist_lock)) {
-		if (count == 10)
-			pr_warn("hm, tasklist_lock locked, retrying... ");
-		if (count) {
-			count--;
-			pr_cont(" #%d", 10-count);
-			mdelay(200);
-			goto retry;
-		}
-		pr_cont(" ignoring it.\n");
-		unlock = 0;
-	} else {
-		if (count != 10)
-			pr_cont(" locked it.\n");
-	}
-
-	do_each_thread(g, p) {
-		/*
-		 * It's not reliable to print a task's held locks
-		 * if it's not sleeping (or if it's not the current
-		 * task):
-		 */
-		if (p->state == TASK_RUNNING && p != current)
+	rcu_read_lock();
+	for_each_process_thread(g, p) {
+		if (!p->lockdep_depth)
 			continue;
-		if (p->lockdep_depth)
-			lockdep_print_held_locks(p);
-		if (!unlock)
-			if (read_trylock(&tasklist_lock))
-				unlock = 1;
+		lockdep_print_held_locks(p);
 		touch_nmi_watchdog();
-	} while_each_thread(g, p);
+		touch_all_softlockup_watchdogs();
+	}
+	rcu_read_unlock();
 
 	pr_warn("\n");
 	pr_warn("=============================================\n\n");
-
-	if (unlock)
-		read_unlock(&tasklist_lock);
 }
 EXPORT_SYMBOL_GPL(debug_show_all_locks);
 #endif

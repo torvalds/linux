@@ -338,8 +338,9 @@ static int __init i2c_stub_allocate_banks(int i)
 		chip->bank_mask >>= 1;
 	}
 
-	chip->bank_words = kzalloc(chip->bank_mask * chip->bank_size *
-				   sizeof(u16), GFP_KERNEL);
+	chip->bank_words = kcalloc(chip->bank_mask * chip->bank_size,
+				   sizeof(u16),
+				   GFP_KERNEL);
 	if (!chip->bank_words)
 		return -ENOMEM;
 

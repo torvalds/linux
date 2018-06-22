@@ -875,7 +875,7 @@ static int __init nubus_init(void)
 		return 0;
 
 	nubus_proc_init();
-	err = nubus_bus_register();
+	err = nubus_parent_device_register();
 	if (err)
 		return err;
 	nubus_scan_bus();

@@ -1882,8 +1882,8 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
 		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
 
-		trace_qgroup_update_counters(fs_info, qg->qgroupid,
-					     cur_old_count, cur_new_count);
+		trace_qgroup_update_counters(fs_info, qg, cur_old_count,
+					     cur_new_count);
 
 		/* Rfer update part */
 		if (cur_old_count == 0 && cur_new_count > 0) {
@@ -2014,8 +2014,8 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 
 	BUG_ON(!fs_info->quota_root);
 
-	trace_btrfs_qgroup_account_extent(fs_info, bytenr, num_bytes,
-					  nr_old_roots, nr_new_roots);
+	trace_btrfs_qgroup_account_extent(fs_info, trans->transid, bytenr,
+					num_bytes, nr_old_roots, nr_new_roots);
 
 	qgroups = ulist_alloc(GFP_NOFS);
 	if (!qgroups) {
@@ -2580,6 +2580,21 @@ out:
 }
 
 /*
+ * Check if the leaf is the last leaf. Which means all node pointers
+ * are at their last position.
+ */
+static bool is_last_leaf(struct btrfs_path *path)
+{
+	int i;
+
+	for (i = 1; i < BTRFS_MAX_LEVEL && path->nodes[i]; i++) {
+		if (path->slots[i] != btrfs_header_nritems(path->nodes[i]) - 1)
+			return false;
+	}
+	return true;
+}
+
+/*
  * returns < 0 on error, 0 when more leafs are to be scanned.
  * returns 1 when done.
  */
@@ -2590,8 +2605,8 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	struct btrfs_key found;
 	struct extent_buffer *scratch_leaf = NULL;
 	struct ulist *roots = NULL;
-	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	u64 num_bytes;
+	bool done;
 	int slot;
 	int ret;
 
@@ -2620,12 +2635,12 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		mutex_unlock(&fs_info->qgroup_rescan_lock);
 		return ret;
 	}
+	done = is_last_leaf(path);
 
 	btrfs_item_key_to_cpu(path->nodes[0], &found,
 			      btrfs_header_nritems(path->nodes[0]) - 1);
 	fs_info->qgroup_rescan_progress.objectid = found.objectid + 1;
 
-	btrfs_get_tree_mod_seq(fs_info, &tree_mod_seq_elem);
 	scratch_leaf = btrfs_clone_extent_buffer(path->nodes[0]);
 	if (!scratch_leaf) {
 		ret = -ENOMEM;
@@ -2664,8 +2679,9 @@ out:
 		btrfs_tree_read_unlock_blocking(scratch_leaf);
 		free_extent_buffer(scratch_leaf);
 	}
-	btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
 
+	if (done && !ret)
+		ret = 1;
 	return ret;
 }
 
@@ -2681,6 +2697,12 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	path = btrfs_alloc_path();
 	if (!path)
 		goto out;
+	/*
+	 * Rescan should only search for commit root, and any later difference
+	 * should be recorded by qgroup
+	 */
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
 
 	err = 0;
 	while (!err && !btrfs_fs_closing(fs_info)) {
@@ -2760,26 +2782,36 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 {
 	int ret = 0;
 
-	if (!init_flags &&
-	    (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) ||
-	     !(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON))) {
-		ret = -EINVAL;
-		goto err;
+	if (!init_flags) {
+		/* we're resuming qgroup rescan at mount time */
+		if (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN))
+			btrfs_warn(fs_info,
+			"qgroup rescan init failed, qgroup is not enabled");
+		else if (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON))
+			btrfs_warn(fs_info,
+			"qgroup rescan init failed, qgroup rescan is not queued");
+		return -EINVAL;
 	}
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	spin_lock(&fs_info->qgroup_lock);
 
 	if (init_flags) {
-		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN)
+		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
+			btrfs_warn(fs_info,
+				   "qgroup rescan is already in progress");
 			ret = -EINPROGRESS;
-		else if (!(fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_ON))
+		} else if (!(fs_info->qgroup_flags &
+			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
+			btrfs_warn(fs_info,
+			"qgroup rescan init failed, qgroup is not enabled");
 			ret = -EINVAL;
+		}
 
 		if (ret) {
 			spin_unlock(&fs_info->qgroup_lock);
 			mutex_unlock(&fs_info->qgroup_rescan_lock);
-			goto err;
+			return ret;
 		}
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 	}
@@ -2798,13 +2830,6 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 	btrfs_init_work(&fs_info->qgroup_rescan_work,
 			btrfs_qgroup_rescan_helper,
 			btrfs_qgroup_rescan_worker, NULL, NULL);
-
-	if (ret) {
-err:
-		btrfs_info(fs_info, "qgroup_rescan_init failed with %d", ret);
-		return ret;
-	}
-
 	return 0;
 }
 

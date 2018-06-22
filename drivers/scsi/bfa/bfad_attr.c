@@ -927,7 +927,7 @@ bfad_im_num_of_discovered_ports_show(struct device *dev,
 	struct bfa_rport_qualifier_s *rports = NULL;
 	unsigned long   flags;
 
-	rports = kzalloc(sizeof(struct bfa_rport_qualifier_s) * nrports,
+	rports = kcalloc(nrports, sizeof(struct bfa_rport_qualifier_s),
 			 GFP_ATOMIC);
 	if (rports == NULL)
 		return snprintf(buf, PAGE_SIZE, "Failed\n");
