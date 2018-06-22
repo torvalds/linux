@@ -587,7 +587,7 @@ static void kaweth_usb_receive(struct urb *urb)
 	struct kaweth_device *kaweth = urb->context;
 	struct net_device *net = kaweth->net;
 	int status = urb->status;
-
+	unsigned long flags;
 	int count = urb->actual_length;
 	int count2 = urb->transfer_buffer_length;
 
@@ -619,12 +619,12 @@ static void kaweth_usb_receive(struct urb *urb)
 		net->stats.rx_errors++;
 		dev_dbg(dev, "Status was -EOVERFLOW.\n");
 	}
-	spin_lock(&kaweth->device_lock);
+	spin_lock_irqsave(&kaweth->device_lock, flags);
 	if (IS_BLOCKED(kaweth->status)) {
-		spin_unlock(&kaweth->device_lock);
+		spin_unlock_irqrestore(&kaweth->device_lock, flags);
 		return;
 	}
-	spin_unlock(&kaweth->device_lock);
+	spin_unlock_irqrestore(&kaweth->device_lock, flags);
 
 	if(status && status != -EREMOTEIO && count != 1) {
 		dev_err(&kaweth->intf->dev,
