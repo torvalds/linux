@@ -8341,6 +8341,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
 	gva_t gva = 0;
+	struct vmcs12 *vmcs12;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -8348,10 +8349,24 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	if (!nested_vmx_check_vmcs12(vcpu))
 		return kvm_skip_emulated_instruction(vcpu);
 
+	if (!is_guest_mode(vcpu))
+		vmcs12 = get_vmcs12(vcpu);
+	else {
+		/*
+		 * When vmcs->vmcs_link_pointer is -1ull, any VMREAD
+		 * to shadowed-field sets the ALU flags for VMfailInvalid.
+		 */
+		if (get_vmcs12(vcpu)->vmcs_link_pointer == -1ull) {
+			nested_vmx_failInvalid(vcpu);
+			return kvm_skip_emulated_instruction(vcpu);
+		}
+		vmcs12 = get_shadow_vmcs12(vcpu);
+	}
+
 	/* Decode instruction info and find the field to read */
 	field = kvm_register_readl(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
 	/* Read the field, zero-extended to a u64 field_value */
-	if (vmcs12_read_any(get_vmcs12(vcpu), field, &field_value) < 0) {
+	if (vmcs12_read_any(vmcs12, field, &field_value) < 0) {
 		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
@@ -8393,6 +8408,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	 */
 	u64 field_value = 0;
 	struct x86_exception e;
+	struct vmcs12 *vmcs12;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -8427,23 +8443,44 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	if (vmcs12_write_any(get_vmcs12(vcpu), field, field_value) < 0) {
+	if (!is_guest_mode(vcpu))
+		vmcs12 = get_vmcs12(vcpu);
+	else {
+		/*
+		 * When vmcs->vmcs_link_pointer is -1ull, any VMWRITE
+		 * to shadowed-field sets the ALU flags for VMfailInvalid.
+		 */
+		if (get_vmcs12(vcpu)->vmcs_link_pointer == -1ull) {
+			nested_vmx_failInvalid(vcpu);
+			return kvm_skip_emulated_instruction(vcpu);
+		}
+		vmcs12 = get_shadow_vmcs12(vcpu);
+
+	}
+
+	if (vmcs12_write_any(vmcs12, field, field_value) < 0) {
 		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	switch (field) {
+	/*
+	 * Do not track vmcs12 dirty-state if in guest-mode
+	 * as we actually dirty shadow vmcs12 instead of vmcs12.
+	 */
+	if (!is_guest_mode(vcpu)) {
+		switch (field) {
 #define SHADOW_FIELD_RW(x) case x:
 #include "vmx_shadow_fields.h"
-		/*
-		 * The fields that can be updated by L1 without a vmexit are
-		 * always updated in the vmcs02, the others go down the slow
-		 * path of prepare_vmcs02.
-		 */
-		break;
-	default:
-		vmx->nested.dirty_vmcs12 = true;
-		break;
+			/*
+			 * The fields that can be updated by L1 without a vmexit are
+			 * always updated in the vmcs02, the others go down the slow
+			 * path of prepare_vmcs02.
+			 */
+			break;
+		default:
+			vmx->nested.dirty_vmcs12 = true;
+			break;
+		}
 	}
 
 	nested_vmx_succeed(vcpu);
