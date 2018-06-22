@@ -66,7 +66,7 @@ bool rtl_ps_disable_nic(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	/*<1> Stop all timer */
-	rtl_deinit_deferred_work(hw);
+	rtl_deinit_deferred_work(hw, true);
 
 	/*<2> Disable Interrupt */
 	rtlpriv->cfg->ops->disable_interrupt(hw);
@@ -287,7 +287,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	enum rf_pwrstate rtstate;
 
-	cancel_delayed_work(&rtlpriv->works.ips_nic_off_wq);
+	cancel_delayed_work_sync(&rtlpriv->works.ips_nic_off_wq);
 
 	spin_lock(&rtlpriv->locks.ips_lock);
 	if (ppsc->inactiveps) {
