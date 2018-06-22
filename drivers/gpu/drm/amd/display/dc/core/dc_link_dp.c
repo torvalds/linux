@@ -1028,6 +1028,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 			lt_settings.lane_settings[0].VOLTAGE_SWING,
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
+	if (status != LINK_TRAINING_SUCCESS)
+		link->ctx->dc->debug.debug_data.ltFailCount++;
+
 	return status;
 }
 

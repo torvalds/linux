@@ -259,6 +259,11 @@ struct dc_debug {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 
+	struct {
+		uint32_t ltFailCount;
+		uint32_t i2cErrorCount;
+		uint32_t auxErrorCount;
+	} debug_data;
 };
 struct dc_state;
 struct resource_pool;
