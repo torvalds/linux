@@ -239,10 +239,7 @@ out:
 	return ret;
 
 release:
-	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 0);
-	else
-		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
+	kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	goto out;
 }
 
