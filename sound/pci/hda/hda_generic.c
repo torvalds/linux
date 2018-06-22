@@ -3922,7 +3922,7 @@ static void call_micmute_led_update(struct hda_codec *codec)
 		val = 0;
 		break;
 	case MICMUTE_LED_FOLLOW_CAPTURE:
-		val = spec->micmute_led.capture;
+		val = !!spec->micmute_led.capture;
 		break;
 	case MICMUTE_LED_FOLLOW_MUTE:
 	default:
@@ -3942,17 +3942,21 @@ static void update_micmute_led(struct hda_codec *codec,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	unsigned int mask;
 
 	if (spec->micmute_led.old_hook)
 		spec->micmute_led.old_hook(codec, kcontrol, ucontrol);
 
 	if (!ucontrol)
 		return;
-	if (!strcmp("Capture Switch", ucontrol->id.name) &&
-	    !ucontrol->id.index) {
+	mask = 1U << snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	if (!strcmp("Capture Switch", ucontrol->id.name)) {
 		/* TODO: How do I verify if it's a mono or stereo here? */
-		spec->micmute_led.capture = (ucontrol->value.integer.value[0] ||
-					     ucontrol->value.integer.value[1]);
+		if (ucontrol->value.integer.value[0] ||
+		    ucontrol->value.integer.value[1])
+			spec->micmute_led.capture |= mask;
+		else
+			spec->micmute_led.capture &= ~mask;
 		call_micmute_led_update(codec);
 	}
 }
@@ -4008,24 +4012,16 @@ static const struct snd_kcontrol_new micmute_led_mode_ctl = {
  * @hook: the callback for updating LED
  *
  * Called from the codec drivers for offering the mic mute LED controls.
- * Only valid for a single ADC (or a single input).  When established, it
- * sets up cap_sync_hook and triggers the callback at each time when the
- * capture mixer switch changes.  The callback is supposed to update the LED
- * accordingly.
+ * When established, it sets up cap_sync_hook and triggers the callback at
+ * each time when the capture mixer switch changes.  The callback is supposed
+ * to update the LED accordingly.
  *
- * Returns 1 if the hook is established, 0 if skipped (no valid config), or
- * a negative error code.
+ * Returns 0 if the hook is established or a negative error code.
  */
 int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 				void (*hook)(struct hda_codec *))
 {
 	struct hda_gen_spec *spec = codec->spec;
-
-	if (spec->num_adc_nids > 1 && !spec->dyn_adc_switch) {
-		codec_dbg(codec,
-			  "Skipping micmute LED control due to several ADCs");
-		return 0;
-	}
 
 	spec->micmute_led.led_mode = MICMUTE_LED_FOLLOW_MUTE;
 	spec->micmute_led.capture = 0;
@@ -4035,7 +4031,7 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 	spec->cap_sync_hook = update_micmute_led;
 	if (!snd_hda_gen_add_kctl(spec, NULL, &micmute_led_mode_ctl))
 		return -ENOMEM;
-	return 1;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
 
