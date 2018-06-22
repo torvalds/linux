@@ -1049,10 +1049,8 @@ static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
 	NULL,
 };
 
-static struct se_portal_group *tcm_qla2xxx_make_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *tcm_qla2xxx_make_tpg(struct se_wwn *wwn,
+						    const char *name)
 {
 	struct tcm_qla2xxx_lport *lport = container_of(wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);
@@ -1171,10 +1169,8 @@ static struct configfs_attribute *tcm_qla2xxx_npiv_tpg_attrs[] = {
         NULL,
 };
 
-static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(struct se_wwn *wwn,
+							 const char *name)
 {
 	struct tcm_qla2xxx_lport *lport = container_of(wwn,
 			struct tcm_qla2xxx_lport, lport_wwn);

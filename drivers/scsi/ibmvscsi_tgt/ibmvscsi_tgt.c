@@ -3928,7 +3928,6 @@ static void ibmvscsis_drop_tport(struct se_wwn *wwn)
 }
 
 static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
-						  struct config_group *group,
 						  const char *name)
 {
 	struct ibmvscsis_tport *tport =

@@ -2006,10 +2006,8 @@ static void sbp_pre_unlink_lun(
 		pr_err("unlink LUN: failed to update unit directory\n");
 }
 
-static struct se_portal_group *sbp_make_tpg(
-		struct se_wwn *wwn,
-		struct config_group *group,
-		const char *name)
+static struct se_portal_group *sbp_make_tpg(struct se_wwn *wwn,
+					    const char *name)
 {
 	struct sbp_tport *tport =
 		container_of(wwn, struct sbp_tport, tport_wwn);

@@ -1090,10 +1090,8 @@ static struct configfs_attribute *lio_target_tpg_attrs[] = {
 
 /* Start items for lio_target_tiqn_cit */
 
-static struct se_portal_group *lio_target_tiqn_addtpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *lio_target_tiqn_addtpg(struct se_wwn *wwn,
+						      const char *name)
 {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tiqn *tiqn;

@@ -223,10 +223,7 @@ static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 /*
  * local_port port_group (tpg) ops.
  */
-static struct se_portal_group *ft_add_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *ft_add_tpg(struct se_wwn *wwn, const char *name)
 {
 	struct ft_lport_wwn *ft_wwn;
 	struct ft_tpg *tpg;

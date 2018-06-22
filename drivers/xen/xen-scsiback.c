@@ -1732,9 +1732,7 @@ static void scsiback_port_unlink(struct se_portal_group *se_tpg,
 }
 
 static struct se_portal_group *
-scsiback_make_tpg(struct se_wwn *wwn,
-		   struct config_group *group,
-		   const char *name)
+scsiback_make_tpg(struct se_wwn *wwn, const char *name)
 {
 	struct scsiback_tport *tport = container_of(wwn,
 			struct scsiback_tport, tport_wwn);
