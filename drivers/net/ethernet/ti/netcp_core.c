@@ -2052,7 +2052,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		if (is_valid_ether_addr(efuse_mac_addr))
 			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
 		else
-			random_ether_addr(ndev->dev_addr);
+			eth_random_addr(ndev->dev_addr);
 
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
@@ -2061,7 +2061,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		if (mac_addr)
 			ether_addr_copy(ndev->dev_addr, mac_addr);
 		else
-			random_ether_addr(ndev->dev_addr);
+			eth_random_addr(ndev->dev_addr);
 	}
 
 	ret = of_property_read_string(node_interface, "rx-channel",

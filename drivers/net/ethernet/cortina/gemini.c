@@ -2435,7 +2435,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 			port->mac_addr[0], port->mac_addr[1],
 			port->mac_addr[2]);
 		dev_info(dev, "using a random ethernet address\n");
-		random_ether_addr(netdev->dev_addr);
+		eth_random_addr(netdev->dev_addr);
 	}
 	gmac_write_mac_address(netdev);
 

@@ -3569,9 +3569,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		for (j = 0; j < octeon_dev->sriov_info.max_vfs; j++) {
 			u8 vfmac[ETH_ALEN];
 
-			random_ether_addr(&vfmac[0]);
-			if (__liquidio_set_vf_mac(netdev, j,
-						  &vfmac[0], false)) {
+			eth_random_addr(vfmac);
+			if (__liquidio_set_vf_mac(netdev, j, vfmac, false)) {
 				dev_err(&octeon_dev->pci_dev->dev,
 					"Error setting VF%d MAC address\n",
 					j);

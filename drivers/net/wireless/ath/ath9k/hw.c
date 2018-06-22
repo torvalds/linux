@@ -496,7 +496,7 @@ static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 	ath_err(common, "eeprom contains invalid mac address: %pM\n",
 		common->macaddr);
 
-	random_ether_addr(common->macaddr);
+	eth_random_addr(common->macaddr);
 	ath_err(common, "random mac address will be used: %pM\n",
 		common->macaddr);
 

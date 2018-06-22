@@ -199,7 +199,7 @@ static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
 		return -ENOMEM;
 
 	for (i = 0; i < efx->vf_count; i++) {
-		random_ether_addr(nic_data->vf[i].mac);
+		eth_random_addr(nic_data->vf[i].mac);
 		nic_data->vf[i].efx = NULL;
 		nic_data->vf[i].vlan = EFX_EF10_NO_VLAN;
 

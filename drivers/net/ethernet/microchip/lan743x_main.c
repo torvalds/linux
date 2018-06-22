@@ -828,7 +828,7 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 	}
 
 	if (!mac_address_valid)
-		random_ether_addr(adapter->mac_address);
+		eth_random_addr(adapter->mac_address);
 	lan743x_mac_set_address(adapter, adapter->mac_address);
 	ether_addr_copy(netdev->dev_addr, adapter->mac_address);
 	return 0;

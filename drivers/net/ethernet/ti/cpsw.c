@@ -2927,7 +2927,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 		dev_info(cpsw->dev, "cpsw: Detected MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	} else {
-		random_ether_addr(priv_sl2->mac_addr);
+		eth_random_addr(priv_sl2->mac_addr);
 		dev_info(cpsw->dev, "cpsw: Random MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	}

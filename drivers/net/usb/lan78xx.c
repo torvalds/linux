@@ -1720,7 +1720,7 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 				  "MAC address read from EEPROM");
 		} else {
 			/* generate random MAC */
-			random_ether_addr(addr);
+			eth_random_addr(addr);
 			netif_dbg(dev, ifup, dev->net,
 				  "MAC address set to random addr");
 		}
