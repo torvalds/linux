@@ -735,6 +735,116 @@ out:
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_free);
 
+static int devm_hwspin_lock_match(struct device *dev, void *res, void *data)
+{
+	struct hwspinlock **hwlock = res;
+
+	if (WARN_ON(!hwlock || !*hwlock))
+		return 0;
+
+	return *hwlock == data;
+}
+
+static void devm_hwspin_lock_release(struct device *dev, void *res)
+{
+	hwspin_lock_free(*(struct hwspinlock **)res);
+}
+
+/**
+ * devm_hwspin_lock_free() - free a specific hwspinlock for a managed device
+ * @dev: the device to free the specific hwspinlock
+ * @hwlock: the specific hwspinlock to free
+ *
+ * This function mark @hwlock as free again.
+ * Should only be called with an @hwlock that was retrieved from
+ * an earlier call to hwspin_lock_request{_specific}.
+ *
+ * Should be called from a process context (might sleep)
+ *
+ * Returns 0 on success, or an appropriate error code on failure
+ */
+int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_hwspin_lock_release,
+			     devm_hwspin_lock_match, hwlock);
+	WARN_ON(ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_hwspin_lock_free);
+
+/**
+ * devm_hwspin_lock_request() - request an hwspinlock for a managed device
+ * @dev: the device to request an hwspinlock
+ *
+ * This function should be called by users of the hwspinlock device,
+ * in order to dynamically assign them an unused hwspinlock.
+ * Usually the user of this lock will then have to communicate the lock's id
+ * to the remote core before it can be used for synchronization (to get the
+ * id of a given hwlock, use hwspin_lock_get_id()).
+ *
+ * Should be called from a process context (might sleep)
+ *
+ * Returns the address of the assigned hwspinlock, or NULL on error
+ */
+struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
+{
+	struct hwspinlock **ptr, *hwlock;
+
+	ptr = devres_alloc(devm_hwspin_lock_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	hwlock = hwspin_lock_request();
+	if (!IS_ERR(hwlock)) {
+		*ptr = hwlock;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return hwlock;
+}
+EXPORT_SYMBOL_GPL(devm_hwspin_lock_request);
+
+/**
+ * devm_hwspin_lock_request_specific() - request for a specific hwspinlock for
+ *					 a managed device
+ * @dev: the device to request the specific hwspinlock
+ * @id: index of the specific hwspinlock that is requested
+ *
+ * This function should be called by users of the hwspinlock module,
+ * in order to assign them a specific hwspinlock.
+ * Usually early board code will be calling this function in order to
+ * reserve specific hwspinlock ids for predefined purposes.
+ *
+ * Should be called from a process context (might sleep)
+ *
+ * Returns the address of the assigned hwspinlock, or NULL on error
+ */
+struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
+						     unsigned int id)
+{
+	struct hwspinlock **ptr, *hwlock;
+
+	ptr = devres_alloc(devm_hwspin_lock_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	hwlock = hwspin_lock_request_specific(id);
+	if (!IS_ERR(hwlock)) {
+		*ptr = hwlock;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return hwlock;
+}
+EXPORT_SYMBOL_GPL(devm_hwspin_lock_request_specific);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Hardware spinlock interface");
 MODULE_AUTHOR("Ohad Ben-Cohen <ohad@wizery.com>");
