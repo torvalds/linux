@@ -81,6 +81,22 @@ enum rdt_group_type {
 };
 
 /**
+ * enum rdtgrp_mode - Mode of a RDT resource group
+ * @RDT_MODE_SHAREABLE: This resource group allows sharing of its allocations
+ *
+ * The mode of a resource group enables control over the allowed overlap
+ * between allocations associated with different resource groups (classes
+ * of service). User is able to modify the mode of a resource group by
+ * writing to the "mode" resctrl file associated with the resource group.
+ */
+enum rdtgrp_mode {
+	RDT_MODE_SHAREABLE = 0,
+
+	/* Must be last */
+	RDT_NUM_MODES,
+};
+
+/**
  * struct mongroup - store mon group's data in resctrl fs.
  * @mon_data_kn		kernlfs node for the mon_data directory
  * @parent:			parent rdtgrp
