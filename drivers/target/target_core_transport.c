@@ -224,7 +224,11 @@ void transport_subsystem_check_init(void)
 	sub_api_initialized = 1;
 }
 
-struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
+/**
+ * transport_alloc_session - allocate a session object and initialize it
+ * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
+ */
+struct se_session *transport_alloc_session(enum target_prot_op sup_prot_ops)
 {
 	struct se_session *se_sess;
 
@@ -243,8 +247,15 @@ struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
 
 	return se_sess;
 }
-EXPORT_SYMBOL(transport_init_session);
+EXPORT_SYMBOL(transport_alloc_session);
 
+/**
+ * transport_alloc_session_tags - allocate target driver private data
+ * @se_sess:  Session pointer.
+ * @tag_num:  Maximum number of in-flight commands between initiator and target.
+ * @tag_size: Size in bytes of the private data a target driver associates with
+ *	      each command.
+ */
 int transport_alloc_session_tags(struct se_session *se_sess,
 			         unsigned int tag_num, unsigned int tag_size)
 {
@@ -274,6 +285,13 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 }
 EXPORT_SYMBOL(transport_alloc_session_tags);
 
+/**
+ * transport_init_session_tags - allocate a session and target driver private data
+ * @tag_num:  Maximum number of in-flight commands between initiator and target.
+ * @tag_size: Size in bytes of the private data a target driver associates with
+ *	      each command.
+ * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
+ */
 struct se_session *transport_init_session_tags(unsigned int tag_num,
 					       unsigned int tag_size,
 					       enum target_prot_op sup_prot_ops)
@@ -292,7 +310,7 @@ struct se_session *transport_init_session_tags(unsigned int tag_num,
 		return ERR_PTR(-EINVAL);
 	}
 
-	se_sess = transport_init_session(sup_prot_ops);
+	se_sess = transport_alloc_session(sup_prot_ops);
 	if (IS_ERR(se_sess))
 		return se_sess;
 
@@ -402,7 +420,7 @@ target_alloc_session(struct se_portal_group *tpg,
 	if (tag_num != 0)
 		sess = transport_init_session_tags(tag_num, tag_size, prot_op);
 	else
-		sess = transport_init_session(prot_op);
+		sess = transport_alloc_session(prot_op);
 
 	if (IS_ERR(sess))
 		return sess;
