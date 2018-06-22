@@ -1143,6 +1143,7 @@ static void __mc_scan_banks(struct mce *m, struct mce *final,
 		__clear_bit(i, toclear);
 		if (!test_bit(i, valid_banks))
 			continue;
+
 		if (!mce_banks[i].ctl)
 			continue;
 
@@ -1151,39 +1152,35 @@ static void __mc_scan_banks(struct mce *m, struct mce *final,
 		m->bank = i;
 
 		m->status = mce_rdmsrl(msr_ops.status(i));
-		if ((m->status & MCI_STATUS_VAL) == 0)
+		if (!(m->status & MCI_STATUS_VAL))
 			continue;
 
 		/*
-		 * Non uncorrected or non signaled errors are handled by
-		 * machine_check_poll. Leave them alone, unless this panics.
+		 * Corrected or non-signaled errors are handled by
+		 * machine_check_poll(). Leave them alone, unless this panics.
 		 */
 		if (!(m->status & (cfg->ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
 			!no_way_out)
 			continue;
 
-		/*
-		 * Set taint even when machine check was not enabled.
-		 */
+		/* Set taint even when machine check was not enabled. */
 		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 		severity = mce_severity(m, cfg->tolerant, NULL, true);
 
 		/*
 		 * When machine check was for corrected/deferred handler don't
-		 * touch, unless we're panicing.
+		 * touch, unless we're panicking.
 		 */
 		if ((severity == MCE_KEEP_SEVERITY ||
 		     severity == MCE_UCNA_SEVERITY) && !no_way_out)
 			continue;
+
 		__set_bit(i, toclear);
-		if (severity == MCE_NO_SEVERITY) {
-			/*
-			 * Machine check event was not enabled. Clear, but
-			 * ignore.
-			 */
+
+		/* Machine check event was not enabled. Clear, but ignore. */
+		if (severity == MCE_NO_SEVERITY)
 			continue;
-		}
 
 		mce_read_aux(m, i);
 
