@@ -23,6 +23,7 @@
 #include <asm/cacheflush.h>
 #include <asm/intel-family.h>
 #include <asm/intel_rdt_sched.h>
+#include <asm/perf_event.h>
 
 #include "intel_rdt.h"
 
@@ -63,6 +64,9 @@ static struct class *pseudo_lock_class;
  * hardware prefetch disable bits are included here as they are documented
  * in the SDM.
  *
+ * When adding a platform here also add support for its cache events to
+ * measure_cycles_perf_fn()
+ *
  * Return:
  * If platform is supported, the bits to disable hardware prefetchers, 0
  * if platform is not supported.
@@ -99,6 +103,16 @@ static u64 get_prefetch_disable_bits(void)
 	}
 
 	return 0;
+}
+
+/*
+ * Helper to write 64bit value to MSR without tracing. Used when
+ * use of the cache should be restricted and use of registers used
+ * for local variables avoided.
+ */
+static inline void pseudo_wrmsrl_notrace(unsigned int msr, u64 val)
+{
+	__wrmsr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /**
@@ -834,6 +848,107 @@ static int measure_cycles_lat_fn(void *_plr)
 	return 0;
 }
 
+static int measure_cycles_perf_fn(void *_plr)
+{
+	struct pseudo_lock_region *plr = _plr;
+	unsigned long long l2_hits, l2_miss;
+	u64 l2_hit_bits, l2_miss_bits;
+	unsigned long i;
+#ifdef CONFIG_KASAN
+	/*
+	 * The registers used for local register variables are also used
+	 * when KASAN is active. When KASAN is active we use regular variables
+	 * at the cost of including cache access latency to these variables
+	 * in the measurements.
+	 */
+	unsigned int line_size;
+	unsigned int size;
+	void *mem_r;
+#else
+	register unsigned int line_size asm("esi");
+	register unsigned int size asm("edi");
+#ifdef CONFIG_X86_64
+	register void *mem_r asm("rbx");
+#else
+	register void *mem_r asm("ebx");
+#endif /* CONFIG_X86_64 */
+#endif /* CONFIG_KASAN */
+
+	/*
+	 * Non-architectural event for the Goldmont Microarchitecture
+	 * from Intel x86 Architecture Software Developer Manual (SDM):
+	 * MEM_LOAD_UOPS_RETIRED D1H (event number)
+	 * Umask values:
+	 *     L1_HIT   01H
+	 *     L2_HIT   02H
+	 *     L1_MISS  08H
+	 *     L2_MISS  10H
+	 */
+
+	/*
+	 * Start by setting flags for IA32_PERFEVTSELx:
+	 *     OS  (Operating system mode)  0x2
+	 *     INT (APIC interrupt enable)  0x10
+	 *     EN  (Enable counter)         0x40
+	 *
+	 * Then add the Umask value and event number to select performance
+	 * event.
+	 */
+
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_ATOM_GOLDMONT:
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+		l2_hit_bits = (0x52ULL << 16) | (0x2 << 8) | 0xd1;
+		l2_miss_bits = (0x52ULL << 16) | (0x10 << 8) | 0xd1;
+		break;
+	default:
+		goto out;
+	}
+
+	local_irq_disable();
+	/*
+	 * Call wrmsr direcly to avoid the local register variables from
+	 * being overwritten due to reordering of their assignment with
+	 * the wrmsr calls.
+	 */
+	__wrmsr(MSR_MISC_FEATURE_CONTROL, prefetch_disable_bits, 0x0);
+	/* Disable events and reset counters */
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, 0x0);
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x0);
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0, 0x0);
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 1, 0x0);
+	/* Set and enable the L2 counters */
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, l2_hit_bits);
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, l2_miss_bits);
+	mem_r = plr->kmem;
+	size = plr->size;
+	line_size = plr->line_size;
+	for (i = 0; i < size; i += line_size) {
+		asm volatile("mov (%0,%1,1), %%eax\n\t"
+			     :
+			     : "r" (mem_r), "r" (i)
+			     : "%eax", "memory");
+	}
+	/*
+	 * Call wrmsr directly (no tracing) to not influence
+	 * the cache access counters as they are disabled.
+	 */
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0,
+			      l2_hit_bits & ~(0x40ULL << 16));
+	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1,
+			      l2_miss_bits & ~(0x40ULL << 16));
+	l2_hits = native_read_pmc(0);
+	l2_miss = native_read_pmc(1);
+	wrmsr(MSR_MISC_FEATURE_CONTROL, 0x0, 0x0);
+	local_irq_enable();
+	trace_pseudo_lock_l2(l2_hits, l2_miss);
+
+out:
+	plr->thread_done = 1;
+	wake_up_interruptible(&plr->lock_thread_wq);
+	return 0;
+}
+
 /**
  * pseudo_lock_measure_cycles - Trigger latency measure to pseudo-locked region
  *
@@ -844,12 +959,12 @@ static int measure_cycles_lat_fn(void *_plr)
  *
  * Return: 0 on success, <0 on failure
  */
-static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp)
+static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 {
 	struct pseudo_lock_region *plr = rdtgrp->plr;
 	struct task_struct *thread;
 	unsigned int cpu;
-	int ret;
+	int ret = -1;
 
 	cpus_read_lock();
 	mutex_lock(&rdtgroup_mutex);
@@ -866,9 +981,19 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp)
 		goto out;
 	}
 
-	thread = kthread_create_on_node(measure_cycles_lat_fn, plr,
-					cpu_to_node(cpu),
-					"pseudo_lock_measure/%u", cpu);
+	if (sel == 1)
+		thread = kthread_create_on_node(measure_cycles_lat_fn, plr,
+						cpu_to_node(cpu),
+						"pseudo_lock_measure/%u",
+						cpu);
+	else if (sel == 2)
+		thread = kthread_create_on_node(measure_cycles_perf_fn, plr,
+						cpu_to_node(cpu),
+						"pseudo_lock_measure/%u",
+						cpu);
+	else
+		goto out;
+
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
 		goto out;
@@ -897,19 +1022,21 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 	size_t buf_size;
 	char buf[32];
 	int ret;
-	bool bv;
+	int sel;
 
 	buf_size = min(count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 
 	buf[buf_size] = '\0';
-	ret = strtobool(buf, &bv);
-	if (ret == 0 && bv) {
+	ret = kstrtoint(buf, 10, &sel);
+	if (ret == 0) {
+		if (sel != 1 && sel != 2)
+			return -EINVAL;
 		ret = debugfs_file_get(file->f_path.dentry);
 		if (ret)
 			return ret;
-		ret = pseudo_lock_measure_cycles(rdtgrp);
+		ret = pseudo_lock_measure_cycles(rdtgrp, sel);
 		if (ret == 0)
 			ret = count;
 		debugfs_file_put(file->f_path.dentry);

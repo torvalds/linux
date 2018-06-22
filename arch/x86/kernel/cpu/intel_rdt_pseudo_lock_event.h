@@ -15,6 +15,16 @@ TRACE_EVENT(pseudo_lock_mem_latency,
 	    TP_printk("latency=%u", __entry->latency)
 	   );
 
+TRACE_EVENT(pseudo_lock_l2,
+	    TP_PROTO(u64 l2_hits, u64 l2_miss),
+	    TP_ARGS(l2_hits, l2_miss),
+	    TP_STRUCT__entry(__field(u64, l2_hits)
+			     __field(u64, l2_miss)),
+	    TP_fast_assign(__entry->l2_hits = l2_hits;
+			   __entry->l2_miss = l2_miss;),
+	    TP_printk("hits=%llu miss=%llu",
+		      __entry->l2_hits, __entry->l2_miss));
+
 #endif /* _TRACE_PSEUDO_LOCK_H */
 
 #undef TRACE_INCLUDE_PATH
