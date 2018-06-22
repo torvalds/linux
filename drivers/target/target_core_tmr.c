@@ -77,21 +77,12 @@ void core_tmr_release_req(struct se_tmr_req *tmr)
 
 static int core_tmr_handle_tas_abort(struct se_cmd *cmd, int tas)
 {
-	unsigned long flags;
-	bool remove = true, send_tas;
-	/*
-	 * TASK ABORTED status (TAS) bit support
-	 */
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	send_tas = (cmd->transport_state & CMD_T_TAS);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	bool send_tas = cmd->transport_state & CMD_T_TAS;
 
-	if (send_tas) {
-		remove = false;
+	if (send_tas)
 		transport_send_task_abort(cmd);
-	}
 
-	return transport_cmd_finish_abort(cmd, remove);
+	return transport_cmd_finish_abort(cmd, !send_tas);
 }
 
 static int target_check_cdb_and_preempt(struct list_head *list,
