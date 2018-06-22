@@ -3236,7 +3236,6 @@ xfs_iflush_cluster(
 	struct xfs_inode	*cip;
 	int			nr_found;
 	int			clcount = 0;
-	int			bufwasdelwri;
 	int			i;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
@@ -3360,37 +3359,22 @@ cluster_corrupt_out:
 	 * inode buffer and shut down the filesystem.
 	 */
 	rcu_read_unlock();
-	/*
-	 * Clean up the buffer.  If it was delwri, just release it --
-	 * brelse can handle it with no problems.  If not, shut down the
-	 * filesystem before releasing the buffer.
-	 */
-	bufwasdelwri = (bp->b_flags & _XBF_DELWRI_Q);
-	if (bufwasdelwri)
-		xfs_buf_relse(bp);
-
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
-	if (!bufwasdelwri) {
-		/*
-		 * Just like incore_relse: if we have b_iodone functions,
-		 * mark the buffer as an error and call them.  Otherwise
-		 * mark it as stale and brelse.
-		 */
-		if (bp->b_iodone) {
-			bp->b_flags &= ~XBF_DONE;
-			xfs_buf_stale(bp);
-			xfs_buf_ioerror(bp, -EIO);
-			xfs_buf_ioend(bp);
-		} else {
-			xfs_buf_stale(bp);
-			xfs_buf_relse(bp);
-		}
-	}
-
 	/*
-	 * Unlocks the flush lock
+	 * We'll always have an inode attached to the buffer for completion
+	 * process by the time we are called from xfs_iflush(). Hence we have
+	 * always need to do IO completion processing to abort the inodes
+	 * attached to the buffer.  handle them just like the shutdown case in
+	 * xfs_buf_submit().
 	 */
+	ASSERT(bp->b_iodone);
+	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_stale(bp);
+	xfs_buf_ioerror(bp, -EIO);
+	xfs_buf_ioend(bp);
+
+	/* abort the corrupt inode, as it was not attached to the buffer */
 	xfs_iflush_abort(cip, false);
 	kmem_free(cilist);
 	xfs_perag_put(pag);
@@ -3486,12 +3470,17 @@ xfs_iflush(
 		xfs_log_force(mp, 0);
 
 	/*
-	 * inode clustering:
-	 * see if other inodes can be gathered into this write
+	 * inode clustering: try to gather other inodes into this write
+	 *
+	 * Note: Any error during clustering will result in the filesystem
+	 * being shut down and completion callbacks run on the cluster buffer.
+	 * As we have already flushed and attached this inode to the buffer,
+	 * it has already been aborted and released by xfs_iflush_cluster() and
+	 * so we have no further error handling to do here.
 	 */
 	error = xfs_iflush_cluster(ip, bp);
 	if (error)
-		goto cluster_corrupt_out;
+		return error;
 
 	*bpp = bp;
 	return 0;
@@ -3500,12 +3489,8 @@ corrupt_out:
 	if (bp)
 		xfs_buf_relse(bp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-cluster_corrupt_out:
-	error = -EFSCORRUPTED;
 abort_out:
-	/*
-	 * Unlocks the flush lock
-	 */
+	/* abort the corrupt inode, as it was not attached to the buffer */
 	xfs_iflush_abort(ip, false);
 	return error;
 }
