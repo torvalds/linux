@@ -624,9 +624,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 	case CCID3_FBACK_PERIODIC:
 		delta = ktime_us_delta(now, hc->rx_tstamp_last_feedback);
 		if (delta <= 0)
-			DCCP_BUG("delta (%ld) <= 0", (long)delta);
-		else
-			hc->rx_x_recv = scaled_div32(hc->rx_bytes_recv, delta);
+			delta = 1;
+		hc->rx_x_recv = scaled_div32(hc->rx_bytes_recv, delta);
 		break;
 	default:
 		return;
