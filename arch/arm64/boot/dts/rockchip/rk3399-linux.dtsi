@@ -127,7 +127,7 @@
 			status = "disabled";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "fullscreen";
+			logo,mode = "center";
 			charge_logo,mode = "center";
 			connect = <&vopl_out_hdmi>;
 		};
@@ -136,7 +136,7 @@
 			status = "disabled";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "fullscreen";
+			logo,mode = "center";
 			charge_logo,mode = "center";
 			connect = <&vopb_out_dsi>;
 		};
@@ -145,7 +145,7 @@
 			status = "disabled";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "fullscreen";
+			logo,mode = "center";
 			charge_logo,mode = "center";
 			connect = <&vopb_out_edp>;
 		};
