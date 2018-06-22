@@ -123,13 +123,19 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 	return true;
 }
 
+struct rdt_cbm_parse_data {
+	struct rdtgroup		*rdtgrp;
+	char			*buf;
+};
+
 /*
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
 int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
 {
-	char *buf = _data;
+	struct rdt_cbm_parse_data *data = _data;
+	struct rdtgroup *rdtgrp = data->rdtgrp;
 	u32 cbm_val;
 
 	if (d->have_new_ctrl) {
@@ -137,8 +143,24 @@ int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
 		return -EINVAL;
 	}
 
-	if (!cbm_validate(buf, &cbm_val, r))
+	if (!cbm_validate(data->buf, &cbm_val, r))
 		return -EINVAL;
+
+	/*
+	 * The CBM may not overlap with the CBM of another closid if
+	 * either is exclusive.
+	 */
+	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, true)) {
+		rdt_last_cmd_printf("overlaps with exclusive group\n");
+		return -EINVAL;
+	}
+
+	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, false)) {
+		if (rdtgrp->mode == RDT_MODE_EXCLUSIVE) {
+			rdt_last_cmd_printf("overlaps with other group\n");
+			return -EINVAL;
+		}
+	}
 
 	d->new_ctrl = cbm_val;
 	d->have_new_ctrl = true;
@@ -152,8 +174,10 @@ int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
  * separated by ";". The "id" is in decimal, and must match one of
  * the "id"s for this resource.
  */
-static int parse_line(char *line, struct rdt_resource *r)
+static int parse_line(char *line, struct rdt_resource *r,
+		      struct rdtgroup *rdtgrp)
 {
+	struct rdt_cbm_parse_data data;
 	char *dom = NULL, *id;
 	struct rdt_domain *d;
 	unsigned long dom_id;
@@ -170,7 +194,9 @@ next:
 	dom = strim(dom);
 	list_for_each_entry(d, &r->domains, list) {
 		if (d->id == dom_id) {
-			if (r->parse_ctrlval(dom, r, d))
+			data.buf = dom;
+			data.rdtgrp = rdtgrp;
+			if (r->parse_ctrlval(&data, r, d))
 				return -EINVAL;
 			goto next;
 		}
@@ -223,13 +249,14 @@ done:
 	return 0;
 }
 
-static int rdtgroup_parse_resource(char *resname, char *tok, int closid)
+static int rdtgroup_parse_resource(char *resname, char *tok,
+				   struct rdtgroup *rdtgrp)
 {
 	struct rdt_resource *r;
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		if (!strcmp(resname, r->name) && closid < r->num_closid)
-			return parse_line(tok, r);
+		if (!strcmp(resname, r->name) && rdtgrp->closid < r->num_closid)
+			return parse_line(tok, r, rdtgrp);
 	}
 	rdt_last_cmd_printf("unknown/unsupported resource name '%s'\n", resname);
 	return -EINVAL;
@@ -242,7 +269,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	struct rdt_domain *dom;
 	struct rdt_resource *r;
 	char *tok, *resname;
-	int closid, ret = 0;
+	int ret = 0;
 
 	/* Valid input requires a trailing newline */
 	if (nbytes == 0 || buf[nbytes - 1] != '\n')
@@ -255,8 +282,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		return -ENOENT;
 	}
 	rdt_last_cmd_clear();
-
-	closid = rdtgrp->closid;
 
 	for_each_alloc_enabled_rdt_resource(r) {
 		list_for_each_entry(dom, &r->domains, list)
@@ -275,13 +300,13 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			ret = -EINVAL;
 			goto out;
 		}
-		ret = rdtgroup_parse_resource(resname, tok, closid);
+		ret = rdtgroup_parse_resource(resname, tok, rdtgrp);
 		if (ret)
 			goto out;
 	}
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		ret = update_domains(r, closid);
+		ret = update_domains(r, rdtgrp->closid);
 		if (ret)
 			goto out;
 	}

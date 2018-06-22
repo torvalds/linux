@@ -829,8 +829,8 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
  *
  * Return: false if CBM does not overlap, true if it does.
  */
-static bool rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
-				  u32 _cbm, int closid, bool exclusive)
+bool rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
+			   u32 _cbm, int closid, bool exclusive)
 {
 	unsigned long *cbm = (unsigned long *)&_cbm;
 	unsigned long *ctrl_b;
