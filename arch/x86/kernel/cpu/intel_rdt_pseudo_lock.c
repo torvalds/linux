@@ -850,6 +850,8 @@ static int measure_cycles_lat_fn(void *_plr)
 
 static int measure_cycles_perf_fn(void *_plr)
 {
+	unsigned long long l3_hits = 0, l3_miss = 0;
+	u64 l3_hit_bits = 0, l3_miss_bits = 0;
 	struct pseudo_lock_region *plr = _plr;
 	unsigned long long l2_hits, l2_miss;
 	u64 l2_hit_bits, l2_miss_bits;
@@ -883,6 +885,16 @@ static int measure_cycles_perf_fn(void *_plr)
 	 *     L2_HIT   02H
 	 *     L1_MISS  08H
 	 *     L2_MISS  10H
+	 *
+	 * On Broadwell Microarchitecture the MEM_LOAD_UOPS_RETIRED event
+	 * has two "no fix" errata associated with it: BDM35 and BDM100. On
+	 * this platform we use the following events instead:
+	 *  L2_RQSTS 24H (Documented in https://download.01.org/perfmon/BDW/)
+	 *       REFERENCES FFH
+	 *       MISS       3FH
+	 *  LONGEST_LAT_CACHE 2EH (Documented in SDM)
+	 *       REFERENCE 4FH
+	 *       MISS      41H
 	 */
 
 	/*
@@ -901,6 +913,14 @@ static int measure_cycles_perf_fn(void *_plr)
 		l2_hit_bits = (0x52ULL << 16) | (0x2 << 8) | 0xd1;
 		l2_miss_bits = (0x52ULL << 16) | (0x10 << 8) | 0xd1;
 		break;
+	case INTEL_FAM6_BROADWELL_X:
+		/* On BDW the l2_hit_bits count references, not hits */
+		l2_hit_bits = (0x52ULL << 16) | (0xff << 8) | 0x24;
+		l2_miss_bits = (0x52ULL << 16) | (0x3f << 8) | 0x24;
+		/* On BDW the l3_hit_bits count references, not hits */
+		l3_hit_bits = (0x52ULL << 16) | (0x4f << 8) | 0x2e;
+		l3_miss_bits = (0x52ULL << 16) | (0x41 << 8) | 0x2e;
+		break;
 	default:
 		goto out;
 	}
@@ -917,9 +937,21 @@ static int measure_cycles_perf_fn(void *_plr)
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x0);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0, 0x0);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 1, 0x0);
+	if (l3_hit_bits > 0) {
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2, 0x0);
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3, 0x0);
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 2, 0x0);
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_PERFCTR0 + 3, 0x0);
+	}
 	/* Set and enable the L2 counters */
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0, l2_hit_bits);
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1, l2_miss_bits);
+	if (l3_hit_bits > 0) {
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2,
+				      l3_hit_bits);
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3,
+				      l3_miss_bits);
+	}
 	mem_r = plr->kmem;
 	size = plr->size;
 	line_size = plr->line_size;
@@ -937,11 +969,35 @@ static int measure_cycles_perf_fn(void *_plr)
 			      l2_hit_bits & ~(0x40ULL << 16));
 	pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 1,
 			      l2_miss_bits & ~(0x40ULL << 16));
+	if (l3_hit_bits > 0) {
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 2,
+				      l3_hit_bits & ~(0x40ULL << 16));
+		pseudo_wrmsrl_notrace(MSR_ARCH_PERFMON_EVENTSEL0 + 3,
+				      l3_miss_bits & ~(0x40ULL << 16));
+	}
 	l2_hits = native_read_pmc(0);
 	l2_miss = native_read_pmc(1);
+	if (l3_hit_bits > 0) {
+		l3_hits = native_read_pmc(2);
+		l3_miss = native_read_pmc(3);
+	}
 	wrmsr(MSR_MISC_FEATURE_CONTROL, 0x0, 0x0);
 	local_irq_enable();
+	/*
+	 * On BDW we count references and misses, need to adjust. Sometimes
+	 * the "hits" counter is a bit more than the references, for
+	 * example, x references but x + 1 hits. To not report invalid
+	 * hit values in this case we treat that as misses eaqual to
+	 * references.
+	 */
+	if (boot_cpu_data.x86_model == INTEL_FAM6_BROADWELL_X)
+		l2_hits -= (l2_miss > l2_hits ? l2_hits : l2_miss);
 	trace_pseudo_lock_l2(l2_hits, l2_miss);
+	if (l3_hit_bits > 0) {
+		if (boot_cpu_data.x86_model == INTEL_FAM6_BROADWELL_X)
+			l3_hits -= (l3_miss > l3_hits ? l3_hits : l3_miss);
+		trace_pseudo_lock_l3(l3_hits, l3_miss);
+	}
 
 out:
 	plr->thread_done = 1;
