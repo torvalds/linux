@@ -150,6 +150,7 @@ static int denali_dt_probe(struct platform_device *pdev)
 		goto out_disable_clk_x;
 
 	if (dt->clk_x) {
+		denali->clk_rate = clk_get_rate(dt->clk);
 		denali->clk_x_rate = clk_get_rate(dt->clk_x);
 	} else {
 		/*
@@ -158,6 +159,7 @@ static int denali_dt_probe(struct platform_device *pdev)
 		 */
 		dev_notice(dev,
 			   "necessary clock is missing. default clock rates are used.\n");
+		denali->clk_rate = 50000000;
 		denali->clk_x_rate = 200000000;
 	}
 
