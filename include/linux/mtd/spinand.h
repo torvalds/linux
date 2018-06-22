@@ -193,6 +193,9 @@ struct spinand_manufacturer {
 	const struct spinand_manufacturer_ops *ops;
 };
 
+/* SPI NAND manufacturers */
+extern const struct spinand_manufacturer micron_spinand_manufacturer;
+
 /**
  * struct spinand_op_variants - SPI NAND operation variants
  * @ops: the list of variants for a given operation

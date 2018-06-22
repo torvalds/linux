@@ -763,8 +763,25 @@ static const struct nand_ops spinand_ops = {
 	.isbad = spinand_isbad,
 };
 
+static const struct spinand_manufacturer *spinand_manufacturers[] = {
+	&micron_spinand_manufacturer,
+};
+
 static int spinand_manufacturer_detect(struct spinand_device *spinand)
 {
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(spinand_manufacturers); i++) {
+		ret = spinand_manufacturers[i]->ops->detect(spinand);
+		if (ret > 0) {
+			spinand->manufacturer = spinand_manufacturers[i];
+			return 0;
+		} else if (ret < 0) {
+			return ret;
+		}
+	}
+
 	return -ENOTSUPP;
 }
 
