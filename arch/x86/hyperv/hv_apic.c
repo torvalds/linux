@@ -31,6 +31,8 @@
 #include <asm/mshyperv.h>
 #include <asm/apic.h>
 
+#include <asm/trace/hyperv.h>
+
 static struct apic orig_apic;
 
 static u64 hv_apic_icr_read(void)
@@ -133,6 +135,8 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	int cur_cpu, vcpu;
 	struct ipi_arg_non_ex ipi_arg;
 	int ret = 1;
+
+	trace_hyperv_send_ipi_mask(mask, vector);
 
 	if (cpumask_empty(mask))
 		return true;

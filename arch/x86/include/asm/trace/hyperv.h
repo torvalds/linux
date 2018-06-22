@@ -28,6 +28,21 @@ TRACE_EVENT(hyperv_mmu_flush_tlb_others,
 		      __entry->addr, __entry->end)
 	);
 
+TRACE_EVENT(hyperv_send_ipi_mask,
+	    TP_PROTO(const struct cpumask *cpus,
+		     int vector),
+	    TP_ARGS(cpus, vector),
+	    TP_STRUCT__entry(
+		    __field(unsigned int, ncpus)
+		    __field(int, vector)
+		    ),
+	    TP_fast_assign(__entry->ncpus = cpumask_weight(cpus);
+			   __entry->vector = vector;
+		    ),
+	    TP_printk("ncpus %d vector %x",
+		      __entry->ncpus, __entry->vector)
+	);
+
 #endif /* CONFIG_HYPERV */
 
 #undef TRACE_INCLUDE_PATH
