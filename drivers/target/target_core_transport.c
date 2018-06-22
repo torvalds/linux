@@ -2661,12 +2661,10 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 	int ret = 0;
 	bool aborted = false, tas = false;
 
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
-		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
-			target_wait_free_cmd(cmd, &aborted, &tas);
-	} else {
-		if (wait_for_tasks)
-			target_wait_free_cmd(cmd, &aborted, &tas);
+	if (wait_for_tasks)
+		target_wait_free_cmd(cmd, &aborted, &tas);
+
+	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD) {
 		/*
 		 * Handle WRITE failure case where transport_generic_new_cmd()
 		 * has already added se_cmd to state_list, but fabric has
