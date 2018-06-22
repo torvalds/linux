@@ -1132,6 +1132,76 @@ static bool __mc_check_crashing_cpu(int cpu)
 	return false;
 }
 
+static void __mc_scan_banks(struct mce *m, struct mce *final,
+			    unsigned long *toclear, unsigned long *valid_banks,
+			    int no_way_out, int *worst)
+{
+	struct mca_config *cfg = &mca_cfg;
+	int severity, i;
+
+	for (i = 0; i < cfg->banks; i++) {
+		__clear_bit(i, toclear);
+		if (!test_bit(i, valid_banks))
+			continue;
+		if (!mce_banks[i].ctl)
+			continue;
+
+		m->misc = 0;
+		m->addr = 0;
+		m->bank = i;
+
+		m->status = mce_rdmsrl(msr_ops.status(i));
+		if ((m->status & MCI_STATUS_VAL) == 0)
+			continue;
+
+		/*
+		 * Non uncorrected or non signaled errors are handled by
+		 * machine_check_poll. Leave them alone, unless this panics.
+		 */
+		if (!(m->status & (cfg->ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
+			!no_way_out)
+			continue;
+
+		/*
+		 * Set taint even when machine check was not enabled.
+		 */
+		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+
+		severity = mce_severity(m, cfg->tolerant, NULL, true);
+
+		/*
+		 * When machine check was for corrected/deferred handler don't
+		 * touch, unless we're panicing.
+		 */
+		if ((severity == MCE_KEEP_SEVERITY ||
+		     severity == MCE_UCNA_SEVERITY) && !no_way_out)
+			continue;
+		__set_bit(i, toclear);
+		if (severity == MCE_NO_SEVERITY) {
+			/*
+			 * Machine check event was not enabled. Clear, but
+			 * ignore.
+			 */
+			continue;
+		}
+
+		mce_read_aux(m, i);
+
+		/* assuming valid severity level != 0 */
+		m->severity = severity;
+
+		mce_log(m);
+
+		if (severity > *worst) {
+			*final = *m;
+			*worst = severity;
+		}
+	}
+
+	/* mce_clear_state will clear *final, save locally for use later */
+	*m = *final;
+}
+
 /*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
@@ -1153,8 +1223,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	char *msg = "Unknown";
 	struct mce m, *final;
 	int worst = 0;
-	int severity;
-	int i;
 
 	/*
 	 * Establish sequential order between the CPUs entering the machine
@@ -1227,67 +1295,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		order = mce_start(&no_way_out);
 	}
 
-	for (i = 0; i < cfg->banks; i++) {
-		__clear_bit(i, toclear);
-		if (!test_bit(i, valid_banks))
-			continue;
-		if (!mce_banks[i].ctl)
-			continue;
-
-		m.misc = 0;
-		m.addr = 0;
-		m.bank = i;
-
-		m.status = mce_rdmsrl(msr_ops.status(i));
-		if ((m.status & MCI_STATUS_VAL) == 0)
-			continue;
-
-		/*
-		 * Non uncorrected or non signaled errors are handled by
-		 * machine_check_poll. Leave them alone, unless this panics.
-		 */
-		if (!(m.status & (cfg->ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
-			!no_way_out)
-			continue;
-
-		/*
-		 * Set taint even when machine check was not enabled.
-		 */
-		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
-
-		severity = mce_severity(&m, cfg->tolerant, NULL, true);
-
-		/*
-		 * When machine check was for corrected/deferred handler don't
-		 * touch, unless we're panicing.
-		 */
-		if ((severity == MCE_KEEP_SEVERITY ||
-		     severity == MCE_UCNA_SEVERITY) && !no_way_out)
-			continue;
-		__set_bit(i, toclear);
-		if (severity == MCE_NO_SEVERITY) {
-			/*
-			 * Machine check event was not enabled. Clear, but
-			 * ignore.
-			 */
-			continue;
-		}
-
-		mce_read_aux(&m, i);
-
-		/* assuming valid severity level != 0 */
-		m.severity = severity;
-
-		mce_log(&m);
-
-		if (severity > worst) {
-			*final = m;
-			worst = severity;
-		}
-	}
-
-	/* mce_clear_state will clear *final, save locally for use later */
-	m = *final;
+	__mc_scan_banks(&m, final, toclear, valid_banks, no_way_out, &worst);
 
 	if (!no_way_out)
 		mce_clear_state(toclear);
