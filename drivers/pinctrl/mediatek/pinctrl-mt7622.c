@@ -1695,9 +1695,10 @@ static int mtk_pinctrl_probe(struct platform_device *pdev)
 	mtk_desc.custom_conf_items = mtk_conf_items;
 #endif
 
-	hw->pctrl = devm_pinctrl_register(&pdev->dev, &mtk_desc, hw);
-	if (IS_ERR(hw->pctrl))
-		return PTR_ERR(hw->pctrl);
+	err = devm_pinctrl_register_and_init(&pdev->dev, &mtk_desc, hw,
+					     &hw->pctrl);
+	if (err)
+		return err;
 
 	/* Setup groups descriptions per SoC types */
 	err = mtk_build_groups(hw);
@@ -1713,11 +1714,19 @@ static int mtk_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	/* For able to make pinctrl_claim_hogs, we must not enable pinctrl
+	 * until all groups and functions are being added one.
+	 */
+	err = pinctrl_enable(hw->pctrl);
+	if (err)
+		return err;
+
 	err = mtk_build_eint(hw, pdev);
 	if (err)
 		dev_warn(&pdev->dev,
 			 "Failed to add EINT, but pinctrl still can work\n");
 
+	/* Build gpiochip should be after pinctrl_enable is done */
 	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
