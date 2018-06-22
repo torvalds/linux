@@ -45,8 +45,8 @@ static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
-	/* Use cyclic increasing ID as direct hash key, see rht_bucket_index */
-	return key << RHT_HASH_RESERVED_SPACE;
+	/* Use cyclic increasing ID as direct hash key */
+	return key;
 }
 
 static int xdp_mem_id_cmp(struct rhashtable_compare_arg *arg,

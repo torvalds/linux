@@ -83,7 +83,7 @@ static u32 my_hashfn(const void *data, u32 len, u32 seed)
 {
 	const struct test_obj_rhl *obj = data;
 
-	return (obj->value.id % 10) << RHT_HASH_RESERVED_SPACE;
+	return (obj->value.id % 10);
 }
 
 static int my_cmpfn(struct rhashtable_compare_arg *arg, const void *obj)
@@ -99,7 +99,6 @@ static struct rhashtable_params test_rht_params = {
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
-	.nulls_base = (3U << RHT_BASE_SHIFT),
 };
 
 static struct rhashtable_params test_rht_params_dup = {
@@ -296,8 +295,6 @@ static int __init test_rhltable(unsigned int entries)
 	if (!obj_in_table)
 		goto out_free;
 
-	/* nulls_base not supported in rhlist interface */
-	test_rht_params.nulls_base = 0;
 	err = rhltable_init(&rhlt, &test_rht_params);
 	if (WARN_ON(err))
 		goto out_free;
@@ -501,6 +498,8 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 	unsigned int i, cnt = 0;
 
 	ht = &rhlt->ht;
+	/* Take the mutex to avoid RCU warning */
+	mutex_lock(&ht->mutex);
 	tbl = rht_dereference(ht->tbl, ht);
 	for (i = 0; i < tbl->size; i++) {
 		struct rhash_head *pos, *next;
@@ -534,6 +533,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 		}
 	}
 	printk(KERN_ERR "\n---- ht: ----%s\n-------------\n", buff);
+	mutex_unlock(&ht->mutex);
 
 	return cnt;
 }

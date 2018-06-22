@@ -2,7 +2,7 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 
 struct netns_frags {
 	/* sysctls */

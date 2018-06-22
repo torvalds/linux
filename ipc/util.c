@@ -63,6 +63,7 @@
 #include <linux/rwsem.h>
 #include <linux/memory.h>
 #include <linux/ipc_namespace.h>
+#include <linux/rhashtable.h>
 
 #include <asm/unistd.h>
 
