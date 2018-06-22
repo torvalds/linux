@@ -9107,6 +9107,30 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 	return false;
 }
 
+static bool nested_vmx_exit_handled_vmcs_access(struct kvm_vcpu *vcpu,
+	struct vmcs12 *vmcs12, gpa_t bitmap)
+{
+	u32 vmx_instruction_info;
+	unsigned long field;
+	u8 b;
+
+	if (!nested_cpu_has_shadow_vmcs(vmcs12))
+		return true;
+
+	/* Decode instruction info and find the field to access */
+	vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
+	field = kvm_register_read(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
+
+	/* Out-of-range fields always cause a VM exit from L2 to L1 */
+	if (field >> 15)
+		return true;
+
+	if (kvm_vcpu_read_guest(vcpu, bitmap + field/8, &b, 1))
+		return true;
+
+	return 1 & (b >> (field & 7));
+}
+
 /*
  * Return 1 if we should exit from L2 to L1 to handle an exit, or 0 if we
  * should handle it ourselves in L0 (and then continue L2). Only call this
@@ -9191,10 +9215,15 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDSEED_EXITING);
 	case EXIT_REASON_RDTSC: case EXIT_REASON_RDTSCP:
 		return nested_cpu_has(vmcs12, CPU_BASED_RDTSC_EXITING);
+	case EXIT_REASON_VMREAD:
+		return nested_vmx_exit_handled_vmcs_access(vcpu, vmcs12,
+			vmcs12->vmread_bitmap);
+	case EXIT_REASON_VMWRITE:
+		return nested_vmx_exit_handled_vmcs_access(vcpu, vmcs12,
+			vmcs12->vmwrite_bitmap);
 	case EXIT_REASON_VMCALL: case EXIT_REASON_VMCLEAR:
 	case EXIT_REASON_VMLAUNCH: case EXIT_REASON_VMPTRLD:
-	case EXIT_REASON_VMPTRST: case EXIT_REASON_VMREAD:
-	case EXIT_REASON_VMRESUME: case EXIT_REASON_VMWRITE:
+	case EXIT_REASON_VMPTRST: case EXIT_REASON_VMRESUME:
 	case EXIT_REASON_VMOFF: case EXIT_REASON_VMON:
 	case EXIT_REASON_INVEPT: case EXIT_REASON_INVVPID:
 		/*
