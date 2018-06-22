@@ -1703,7 +1703,7 @@ static int mtk_pinctrl_probe(struct platform_device *pdev)
 	err = mtk_build_groups(hw);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to build groups\n");
-		return 0;
+		return err;
 	}
 
 	/* Setup functions descriptions per SoC types */
