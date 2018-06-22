@@ -648,10 +648,17 @@ void __init imx6dl_pm_init(void)
 
 void __init imx6sl_pm_init(void)
 {
-	if (cpu_is_imx6sl())
+	struct regmap *gpr;
+
+	if (cpu_is_imx6sl()) {
 		imx6_pm_common_init(&imx6sl_pm_data);
-	else
+	} else {
 		imx6_pm_common_init(&imx6sll_pm_data);
+		gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+		if (!IS_ERR(gpr))
+			regmap_update_bits(gpr, IOMUXC_GPR5,
+				IMX6SLL_GPR5_AFCG_X_BYPASS_MASK, 0);
+	}
 }
 
 void __init imx6sx_pm_init(void)
