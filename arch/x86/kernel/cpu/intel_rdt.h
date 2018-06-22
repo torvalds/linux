@@ -138,6 +138,8 @@ struct mongroup {
  * @line_size:		size of the cache lines
  * @size:		size of pseudo-locked region in bytes
  * @kmem:		the kernel memory associated with pseudo-locked region
+ * @debugfs_dir:	pointer to this region's directory in the debugfs
+ *			filesystem
  */
 struct pseudo_lock_region {
 	struct rdt_resource	*r;
@@ -149,6 +151,7 @@ struct pseudo_lock_region {
 	unsigned int		line_size;
 	unsigned int		size;
 	void			*kmem;
+	struct dentry		*debugfs_dir;
 };
 
 /**
