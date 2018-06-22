@@ -65,6 +65,7 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
@@ -100,6 +101,7 @@
 			flash@0 {
 				reg = < 0 >;
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 		};
