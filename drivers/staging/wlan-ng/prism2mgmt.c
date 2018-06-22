@@ -439,7 +439,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 
 #define REQBASICRATE(N) \
 	do { \
-		if ((count >= N) && DOT11_RATE5_ISBASIC_GET( \
+		if ((count >= (N)) && DOT11_RATE5_ISBASIC_GET(	\
 			item->supprates[(N) - 1])) { \
 			req->basicrate ## N .data = item->supprates[(N) - 1]; \
 			req->basicrate ## N .status = \
@@ -458,7 +458,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 
 #define REQSUPPRATE(N) \
 	do { \
-		if (count >= N) { \
+		if (count >= (N)) {					\
 			req->supprate ## N .data = item->supprates[(N) - 1]; \
 			req->supprate ## N .status = \
 				P80211ENUM_msgitem_status_data_ok; \
