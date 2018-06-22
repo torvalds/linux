@@ -513,8 +513,8 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info)
 {
-	struct xfs_rtalloc_rec		alow;
-	struct xfs_rtalloc_rec		ahigh;
+	struct xfs_rtalloc_rec		alow = { 0 };
+	struct xfs_rtalloc_rec		ahigh = { 0 };
 	int				error;
 
 	xfs_ilock(tp->t_mountp->m_rbmip, XFS_ILOCK_SHARED);
