@@ -284,13 +284,35 @@ skl_update_plane(struct intel_plane *plane,
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
 		int scaler_id = plane_state->scaler_id;
-		const struct intel_scaler *scaler;
+		const struct intel_scaler *scaler =
+			&crtc_state->scaler_state.scalers[scaler_id];
+		u16 y_hphase, uv_rgb_hphase;
+		u16 y_vphase, uv_rgb_vphase;
 
-		scaler = &crtc_state->scaler_state.scalers[scaler_id];
+		/* TODO: handle sub-pixel coordinates */
+		if (fb->format->format == DRM_FORMAT_NV12) {
+			y_hphase = skl_scaler_calc_phase(1, false);
+			y_vphase = skl_scaler_calc_phase(1, false);
+
+			/* MPEG2 chroma siting convention */
+			uv_rgb_hphase = skl_scaler_calc_phase(2, true);
+			uv_rgb_vphase = skl_scaler_calc_phase(2, false);
+		} else {
+			/* not used */
+			y_hphase = 0;
+			y_vphase = 0;
+
+			uv_rgb_hphase = skl_scaler_calc_phase(1, false);
+			uv_rgb_vphase = skl_scaler_calc_phase(1, false);
+		}
 
 		I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id),
 			      PS_SCALER_EN | PS_PLANE_SEL(plane_id) | scaler->mode);
 		I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
+		I915_WRITE_FW(SKL_PS_VPHASE(pipe, scaler_id),
+			      PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
+		I915_WRITE_FW(SKL_PS_HPHASE(pipe, scaler_id),
+			      PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
 		I915_WRITE_FW(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
 		I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id),
 			      ((crtc_w + 1) << 16)|(crtc_h + 1));
@@ -327,19 +349,21 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 bool
-skl_plane_get_hw_state(struct intel_plane *plane)
+skl_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(PLANE_CTL(pipe, plane_id)) & PLANE_CTL_ENABLE;
+	ret = I915_READ(PLANE_CTL(plane->pipe, plane_id)) & PLANE_CTL_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -588,19 +612,21 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-vlv_plane_get_hw_state(struct intel_plane *plane)
+vlv_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(SPCNTR(pipe, plane_id)) & SP_ENABLE;
+	ret = I915_READ(SPCNTR(plane->pipe, plane_id)) & SP_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -754,18 +780,20 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-ivb_plane_get_hw_state(struct intel_plane *plane)
+ivb_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret =  I915_READ(SPRCTL(pipe)) & SPRITE_ENABLE;
+	ret =  I915_READ(SPRCTL(plane->pipe)) & SPRITE_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -910,18 +938,20 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-g4x_plane_get_hw_state(struct intel_plane *plane)
+g4x_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(DVSCNTR(pipe)) & DVS_ENABLE;
+	ret = I915_READ(DVSCNTR(plane->pipe)) & DVS_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -1303,8 +1333,8 @@ static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 }
 
 static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
-                                                    uint32_t format,
-                                                    uint64_t modifier)
+						    uint32_t format,
+						    uint64_t modifier)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 
@@ -1326,14 +1356,14 @@ static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs intel_sprite_plane_funcs = {
-        .update_plane = drm_atomic_helper_update_plane,
-        .disable_plane = drm_atomic_helper_disable_plane,
-        .destroy = intel_plane_destroy,
-        .atomic_get_property = intel_plane_atomic_get_property,
-        .atomic_set_property = intel_plane_atomic_set_property,
-        .atomic_duplicate_state = intel_plane_duplicate_state,
-        .atomic_destroy_state = intel_plane_destroy_state,
-        .format_mod_supported = intel_sprite_plane_format_mod_supported,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = intel_sprite_plane_format_mod_supported,
 };
 
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,

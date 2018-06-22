@@ -300,16 +300,16 @@ static int cursor_mode_to_drm(int mode)
 	int cursor_pixel_formats_index = 4;
 
 	switch (mode) {
-	case CURSOR_MODE_128_ARGB_AX:
+	case MCURSOR_MODE_128_ARGB_AX:
 		cursor_pixel_formats_index = 0;
 		break;
-	case CURSOR_MODE_256_ARGB_AX:
+	case MCURSOR_MODE_256_ARGB_AX:
 		cursor_pixel_formats_index = 1;
 		break;
-	case CURSOR_MODE_64_ARGB_AX:
+	case MCURSOR_MODE_64_ARGB_AX:
 		cursor_pixel_formats_index = 2;
 		break;
-	case CURSOR_MODE_64_32B_AX:
+	case MCURSOR_MODE_64_32B_AX:
 		cursor_pixel_formats_index = 3;
 		break;
 
@@ -342,8 +342,8 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return -ENODEV;
 
 	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
-	mode = val & CURSOR_MODE;
-	plane->enabled = (mode != CURSOR_MODE_DISABLE);
+	mode = val & MCURSOR_MODE;
+	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
 		return -ENODEV;
 

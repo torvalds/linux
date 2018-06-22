@@ -642,7 +642,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (ret)
 		goto err;
 
-	vma = i915_vma_instance(obj, &ggtt->base, NULL);
+	vma = i915_vma_instance(obj, &ggtt->vm, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_pages;
@@ -653,7 +653,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
-	ret = i915_gem_gtt_reserve(&ggtt->base, &vma->node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
@@ -666,7 +666,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	list_move_tail(&vma->vm_link, &ggtt->vm.inactive_list);
 
 	spin_lock(&dev_priv->mm.obj_lock);
 	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);

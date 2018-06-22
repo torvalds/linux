@@ -1243,35 +1243,6 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-/* Finds the only possible encoder associated with the given CRTC. */
-struct intel_encoder *
-intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct intel_encoder *ret = NULL;
-	struct drm_atomic_state *state;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	int num_encoders = 0;
-	int i;
-
-	state = crtc_state->base.state;
-
-	for_each_new_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != crtc_state->base.crtc)
-			continue;
-
-		ret = to_intel_encoder(connector_state->best_encoder);
-		num_encoders++;
-	}
-
-	WARN(num_encoders != 1, "%d encoders on crtc for pipe %c\n", num_encoders,
-	     pipe_name(crtc->pipe));
-
-	BUG_ON(ret == NULL);
-	return ret;
-}
-
 #define LC_FREQ 2700
 
 static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
@@ -1374,8 +1345,13 @@ static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	uint32_t cfgcr0, cfgcr1;
 	uint32_t p0, p1, p2, dco_freq, ref_clock;
 
-	cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
-	cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(pll_id));
+	if (INTEL_GEN(dev_priv) >= 11) {
+		cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(pll_id));
+		cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(pll_id));
+	} else {
+		cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
+		cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(pll_id));
+	}
 
 	p0 = cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
 	p2 = cfgcr1 & DPLL_CFGCR1_KDIV_MASK;
@@ -1449,6 +1425,30 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 		dotclock /= pipe_config->pixel_multiplier;
 
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+}
+
+static void icl_ddi_clock_get(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	int link_clock = 0;
+	uint32_t pll_id;
+
+	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
+	if (port == PORT_A || port == PORT_B) {
+		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
+			link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+		else
+			link_clock = icl_calc_dp_combo_pll_link(dev_priv,
+								pll_id);
+	} else {
+		/* FIXME - Add for MG PLL */
+		WARN(1, "MG PLL clock_get code not implemented yet\n");
+	}
+
+	pipe_config->port_clock = link_clock;
+	ddi_dotclock_get(pipe_config);
 }
 
 static void cnl_ddi_clock_get(struct intel_encoder *encoder,
@@ -1644,6 +1644,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 		bxt_ddi_clock_get(encoder, pipe_config);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_clock_get(encoder, pipe_config);
+	else if (IS_ICELAKE(dev_priv))
+		icl_ddi_clock_get(encoder, pipe_config);
 }
 
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
@@ -2113,6 +2115,26 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 
 	return index_to_dp_signal_levels[n_entries - 1] &
 		DP_TRAIN_VOLTAGE_SWING_MASK;
+}
+
+/*
+ * We assume that the full set of pre-emphasis values can be
+ * used on all DDI platforms. Should that change we need to
+ * rethink this code.
+ */
+u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder, u8 voltage_swing)
+{
+	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+		return DP_TRAIN_PRE_EMPH_LEVEL_3;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+		return DP_TRAIN_PRE_EMPH_LEVEL_2;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+		return DP_TRAIN_PRE_EMPH_LEVEL_1;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
+	default:
+		return DP_TRAIN_PRE_EMPH_LEVEL_0;
+	}
 }
 
 static void cnl_ddi_vswing_program(struct intel_encoder *encoder,

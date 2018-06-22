@@ -85,34 +85,35 @@ static struct intel_lvds_connector *to_lvds_connector(struct drm_connector *conn
 	return container_of(connector, struct intel_lvds_connector, base.base);
 }
 
+bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
+			     i915_reg_t lvds_reg, enum pipe *pipe)
+{
+	u32 val;
+
+	val = I915_READ(lvds_reg);
+
+	/* asserts want to know the pipe even if the port is disabled */
+	if (HAS_PCH_CPT(dev_priv))
+		*pipe = (val & LVDS_PIPE_SEL_MASK_CPT) >> LVDS_PIPE_SEL_SHIFT_CPT;
+	else
+		*pipe = (val & LVDS_PIPE_SEL_MASK) >> LVDS_PIPE_SEL_SHIFT;
+
+	return val & LVDS_PORT_EN;
+}
+
 static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
-	u32 tmp;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
 						encoder->power_domain))
 		return false;
 
-	ret = false;
+	ret = intel_lvds_port_enabled(dev_priv, lvds_encoder->reg, pipe);
 
-	tmp = I915_READ(lvds_encoder->reg);
-
-	if (!(tmp & LVDS_PORT_EN))
-		goto out;
-
-	if (HAS_PCH_CPT(dev_priv))
-		*pipe = PORT_TO_PIPE_CPT(tmp);
-	else
-		*pipe = PORT_TO_PIPE(tmp);
-
-	ret = true;
-
-out:
 	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
@@ -255,14 +256,11 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 
 	if (HAS_PCH_CPT(dev_priv)) {
-		temp &= ~PORT_TRANS_SEL_MASK;
-		temp |= PORT_TRANS_SEL_CPT(pipe);
+		temp &= ~LVDS_PIPE_SEL_MASK_CPT;
+		temp |= LVDS_PIPE_SEL_CPT(pipe);
 	} else {
-		if (pipe == 1) {
-			temp |= LVDS_PIPEB_SELECT;
-		} else {
-			temp &= ~LVDS_PIPEB_SELECT;
-		}
+		temp &= ~LVDS_PIPE_SEL_MASK;
+		temp |= LVDS_PIPE_SEL(pipe);
 	}
 
 	/* set the corresponsding LVDS_BORDER bit */
@@ -943,7 +941,11 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	 * register is uninitialized.
 	 */
 	val = I915_READ(lvds_encoder->reg);
-	if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
+	if (HAS_PCH_CPT(dev_priv))
+		val &= ~(LVDS_DETECTED | LVDS_PIPE_SEL_MASK_CPT);
+	else
+		val &= ~(LVDS_DETECTED | LVDS_PIPE_SEL_MASK);
+	if (val == 0)
 		val = dev_priv->vbt.bios_lvds_val;
 
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
@@ -998,8 +1000,16 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Skip init on machines we know falsely report LVDS */
-	if (dmi_check_system(intel_no_lvds))
+	if (dmi_check_system(intel_no_lvds)) {
+		WARN(!dev_priv->vbt.int_lvds_support,
+		     "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
+	}
+
+	if (!dev_priv->vbt.int_lvds_support) {
+		DRM_DEBUG_KMS("Internal LVDS support disabled by VBT\n");
+		return;
+	}
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		lvds_reg = PCH_LVDS;
@@ -1011,10 +1021,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		if ((lvds & LVDS_DETECTED) == 0)
 			return;
-		if (dev_priv->vbt.edp.support) {
-			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
-			return;
-		}
 	}
 
 	pin = GMBUS_PIN_PANEL;

@@ -63,33 +63,35 @@ static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
 	return intel_encoder_to_crt(intel_attached_encoder(connector));
 }
 
+bool intel_crt_port_enabled(struct drm_i915_private *dev_priv,
+			    i915_reg_t adpa_reg, enum pipe *pipe)
+{
+	u32 val;
+
+	val = I915_READ(adpa_reg);
+
+	/* asserts want to know the pipe even if the port is disabled */
+	if (HAS_PCH_CPT(dev_priv))
+		*pipe = (val & ADPA_PIPE_SEL_MASK_CPT) >> ADPA_PIPE_SEL_SHIFT_CPT;
+	else
+		*pipe = (val & ADPA_PIPE_SEL_MASK) >> ADPA_PIPE_SEL_SHIFT;
+
+	return val & ADPA_DAC_ENABLE;
+}
+
 static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-	u32 tmp;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
 						encoder->power_domain))
 		return false;
 
-	ret = false;
+	ret = intel_crt_port_enabled(dev_priv, crt->adpa_reg, pipe);
 
-	tmp = I915_READ(crt->adpa_reg);
-
-	if (!(tmp & ADPA_DAC_ENABLE))
-		goto out;
-
-	if (HAS_PCH_CPT(dev_priv))
-		*pipe = PORT_TO_PIPE_CPT(tmp);
-	else
-		*pipe = PORT_TO_PIPE(tmp);
-
-	ret = true;
-out:
 	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
@@ -168,11 +170,9 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 	if (HAS_PCH_LPT(dev_priv))
 		; /* Those bits don't exist here */
 	else if (HAS_PCH_CPT(dev_priv))
-		adpa |= PORT_TRANS_SEL_CPT(crtc->pipe);
-	else if (crtc->pipe == 0)
-		adpa |= ADPA_PIPE_A_SELECT;
+		adpa |= ADPA_PIPE_SEL_CPT(crtc->pipe);
 	else
-		adpa |= ADPA_PIPE_B_SELECT;
+		adpa |= ADPA_PIPE_SEL(crtc->pipe);
 
 	if (!HAS_PCH_SPLIT(dev_priv))
 		I915_WRITE(BCLRPAT(crtc->pipe), 0);

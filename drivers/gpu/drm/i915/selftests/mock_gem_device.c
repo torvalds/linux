@@ -136,8 +136,6 @@ static struct dev_pm_domain pm_domain = {
 struct drm_i915_private *mock_gem_device(void)
 {
 	struct drm_i915_private *i915;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	struct pci_dev *pdev;
 	int err;
 
@@ -233,13 +231,13 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_ggtt(i915);
 
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
-	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
-	if (!i915->engine[RCS])
-		goto err_unlock;
-
 	i915->kernel_context = mock_context(i915, NULL);
 	if (!i915->kernel_context)
-		goto err_engine;
+		goto err_unlock;
+
+	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
+	if (!i915->engine[RCS])
+		goto err_context;
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -247,9 +245,8 @@ struct drm_i915_private *mock_gem_device(void)
 
 	return i915;
 
-err_engine:
-	for_each_engine(engine, i915, id)
-		mock_engine_free(engine);
+err_context:
+	i915_gem_contexts_fini(i915);
 err_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	kmem_cache_destroy(i915->priorities);

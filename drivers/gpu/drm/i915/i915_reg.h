@@ -1990,6 +1990,11 @@ enum i915_power_well_id {
 						   _ICL_PORT_COMP_DW10_A, \
 						   _ICL_PORT_COMP_DW10_B)
 
+/* ICL PHY DFLEX registers */
+#define PORT_TX_DFLEXDPMLE1		_MMIO(0x1638C0)
+#define   DFLEXDPMLE1_DPMLETC_MASK(n)	(0xf << (4 * (n)))
+#define   DFLEXDPMLE1_DPMLETC(n, x)	((x) << (4 * (n)))
+
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
 #define _PORT_REF_DW3_BC		0x6C18C
@@ -2306,8 +2311,9 @@ enum i915_power_well_id {
 #define   GAMW_ECO_ENABLE_64K_IPS_FIELD 0xF
 
 #define GAMT_CHKN_BIT_REG	_MMIO(0x4ab8)
-#define   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING	(1<<28)
-#define   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT	(1<<24)
+#define   GAMT_CHKN_DISABLE_L3_COH_PIPE			(1 << 31)
+#define   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING	(1 << 28)
+#define   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT	(1 << 24)
 
 #if 0
 #define PRB0_TAIL	_MMIO(0x2030)
@@ -2663,6 +2669,9 @@ enum i915_power_well_id {
 #define   GEN8_4x4_STC_OPTIMIZATION_DISABLE	(1<<6)
 #define   GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE	(1<<1)
 
+#define GEN10_CACHE_MODE_SS			_MMIO(0xe420)
+#define   FLOAT_BLEND_OPTIMIZATION_ENABLE	(1 << 4)
+
 #define GEN6_BLITTER_ECOSKPD	_MMIO(0x221d0)
 #define   GEN6_BLITTER_LOCK_SHIFT			16
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
@@ -2708,6 +2717,10 @@ enum i915_power_well_id {
 #define   GEN10_F2_S_ENA_MASK		(0x3f << GEN10_F2_S_ENA_SHIFT)
 #define   GEN10_F2_SS_DIS_SHIFT		18
 #define   GEN10_F2_SS_DIS_MASK		(0xf << GEN10_F2_SS_DIS_SHIFT)
+
+#define	GEN10_MIRROR_FUSE3		_MMIO(0x9118)
+#define GEN10_L3BANK_PAIR_COUNT     4
+#define GEN10_L3BANK_MASK   0x0F
 
 #define GEN8_EU_DISABLE0		_MMIO(0x9134)
 #define   GEN8_EU_DIS0_S0_MASK		0xffffff
@@ -4088,10 +4101,10 @@ enum {
 #define   EDP_Y_COORDINATE_ENABLE	(1<<25) /* GLK and CNL+ */
 #define   EDP_MAX_SU_DISABLE_TIME(t)	((t)<<20)
 #define   EDP_MAX_SU_DISABLE_TIME_MASK	(0x1f<<20)
-#define   EDP_PSR2_TP2_TIME_500		(0<<8)
-#define   EDP_PSR2_TP2_TIME_100		(1<<8)
-#define   EDP_PSR2_TP2_TIME_2500	(2<<8)
-#define   EDP_PSR2_TP2_TIME_50		(3<<8)
+#define   EDP_PSR2_TP2_TIME_500us	(0<<8)
+#define   EDP_PSR2_TP2_TIME_100us	(1<<8)
+#define   EDP_PSR2_TP2_TIME_2500us	(2<<8)
+#define   EDP_PSR2_TP2_TIME_50us	(3<<8)
 #define   EDP_PSR2_TP2_TIME_MASK	(3<<8)
 #define   EDP_PSR2_FRAME_BEFORE_SU_SHIFT 4
 #define   EDP_PSR2_FRAME_BEFORE_SU_MASK	(0xf<<4)
@@ -4133,11 +4146,12 @@ enum {
 
 #define   ADPA_DAC_ENABLE	(1<<31)
 #define   ADPA_DAC_DISABLE	0
-#define   ADPA_PIPE_SELECT_MASK	(1<<30)
-#define   ADPA_PIPE_A_SELECT	0
-#define   ADPA_PIPE_B_SELECT	(1<<30)
-#define   ADPA_PIPE_SELECT(pipe) ((pipe) << 30)
-/* CPT uses bits 29:30 for pch transcoder select */
+#define   ADPA_PIPE_SEL_SHIFT		30
+#define   ADPA_PIPE_SEL_MASK		(1<<30)
+#define   ADPA_PIPE_SEL(pipe)		((pipe) << 30)
+#define   ADPA_PIPE_SEL_SHIFT_CPT	29
+#define   ADPA_PIPE_SEL_MASK_CPT	(3<<29)
+#define   ADPA_PIPE_SEL_CPT(pipe)	((pipe) << 29)
 #define   ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
 #define   ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
 #define   ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
@@ -4296,9 +4310,9 @@ enum {
 
 /* Gen 3 SDVO bits: */
 #define   SDVO_ENABLE				(1 << 31)
-#define   SDVO_PIPE_SEL(pipe)			((pipe) << 30)
+#define   SDVO_PIPE_SEL_SHIFT			30
 #define   SDVO_PIPE_SEL_MASK			(1 << 30)
-#define   SDVO_PIPE_B_SELECT			(1 << 30)
+#define   SDVO_PIPE_SEL(pipe)			((pipe) << 30)
 #define   SDVO_STALL_SELECT			(1 << 29)
 #define   SDVO_INTERRUPT_ENABLE			(1 << 26)
 /*
@@ -4338,12 +4352,14 @@ enum {
 #define   SDVOB_HOTPLUG_ENABLE			(1 << 23) /* SDVO only */
 
 /* Gen 6 (CPT) SDVO/HDMI bits: */
-#define   SDVO_PIPE_SEL_CPT(pipe)		((pipe) << 29)
+#define   SDVO_PIPE_SEL_SHIFT_CPT		29
 #define   SDVO_PIPE_SEL_MASK_CPT		(3 << 29)
+#define   SDVO_PIPE_SEL_CPT(pipe)		((pipe) << 29)
 
 /* CHV SDVO/HDMI bits: */
-#define   SDVO_PIPE_SEL_CHV(pipe)		((pipe) << 24)
+#define   SDVO_PIPE_SEL_SHIFT_CHV		24
 #define   SDVO_PIPE_SEL_MASK_CHV		(3 << 24)
+#define   SDVO_PIPE_SEL_CHV(pipe)		((pipe) << 24)
 
 
 /* DVO port control */
@@ -4354,7 +4370,9 @@ enum {
 #define _DVOC			0x61160
 #define DVOC			_MMIO(_DVOC)
 #define   DVO_ENABLE			(1 << 31)
-#define   DVO_PIPE_B_SELECT		(1 << 30)
+#define   DVO_PIPE_SEL_SHIFT		30
+#define   DVO_PIPE_SEL_MASK		(1 << 30)
+#define   DVO_PIPE_SEL(pipe)		((pipe) << 30)
 #define   DVO_PIPE_STALL_UNUSED		(0 << 28)
 #define   DVO_PIPE_STALL		(1 << 28)
 #define   DVO_PIPE_STALL_TV		(2 << 28)
@@ -4391,9 +4409,12 @@ enum {
  */
 #define   LVDS_PORT_EN			(1 << 31)
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
-#define   LVDS_PIPEB_SELECT		(1 << 30)
-#define   LVDS_PIPE_MASK		(1 << 30)
-#define   LVDS_PIPE(pipe)		((pipe) << 30)
+#define   LVDS_PIPE_SEL_SHIFT		30
+#define   LVDS_PIPE_SEL_MASK		(1 << 30)
+#define   LVDS_PIPE_SEL(pipe)		((pipe) << 30)
+#define   LVDS_PIPE_SEL_SHIFT_CPT	29
+#define   LVDS_PIPE_SEL_MASK_CPT	(3 << 29)
+#define   LVDS_PIPE_SEL_CPT(pipe)	((pipe) << 29)
 /* LVDS dithering flag on 965/g4x platform */
 #define   LVDS_ENABLE_DITHER		(1 << 25)
 /* LVDS sync polarity flags. Set to invert (i.e. negative) */
@@ -4690,7 +4711,9 @@ enum {
 /* Enables the TV encoder */
 # define TV_ENC_ENABLE			(1 << 31)
 /* Sources the TV encoder input from pipe B instead of A. */
-# define TV_ENC_PIPEB_SELECT		(1 << 30)
+# define TV_ENC_PIPE_SEL_SHIFT		30
+# define TV_ENC_PIPE_SEL_MASK		(1 << 30)
+# define TV_ENC_PIPE_SEL(pipe)		((pipe) << 30)
 /* Outputs composite video (DAC A only) */
 # define TV_ENC_OUTPUT_COMPOSITE	(0 << 28)
 /* Outputs SVideo video (DAC B/C) */
@@ -5172,10 +5195,15 @@ enum {
 #define CHV_DP_D		_MMIO(VLV_DISPLAY_BASE + 0x64300)
 
 #define   DP_PORT_EN			(1 << 31)
-#define   DP_PIPEB_SELECT		(1 << 30)
-#define   DP_PIPE_MASK			(1 << 30)
-#define   DP_PIPE_SELECT_CHV(pipe)	((pipe) << 16)
-#define   DP_PIPE_MASK_CHV		(3 << 16)
+#define   DP_PIPE_SEL_SHIFT		30
+#define   DP_PIPE_SEL_MASK		(1 << 30)
+#define   DP_PIPE_SEL(pipe)		((pipe) << 30)
+#define   DP_PIPE_SEL_SHIFT_IVB		29
+#define   DP_PIPE_SEL_MASK_IVB		(3 << 29)
+#define   DP_PIPE_SEL_IVB(pipe)		((pipe) << 29)
+#define   DP_PIPE_SEL_SHIFT_CHV		16
+#define   DP_PIPE_SEL_MASK_CHV		(3 << 16)
+#define   DP_PIPE_SEL_CHV(pipe)		((pipe) << 16)
 
 /* Link training mode - select a suitable mode for each stage */
 #define   DP_LINK_TRAIN_PAT_1		(0 << 28)
@@ -5896,7 +5924,6 @@ enum {
 #define   CURSOR_GAMMA_ENABLE	0x40000000
 #define   CURSOR_STRIDE_SHIFT	28
 #define   CURSOR_STRIDE(x)	((ffs(x)-9) << CURSOR_STRIDE_SHIFT) /* 256,512,1k,2k */
-#define   CURSOR_PIPE_CSC_ENABLE (1<<24)
 #define   CURSOR_FORMAT_SHIFT	24
 #define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)
 #define   CURSOR_FORMAT_2C	(0x00 << CURSOR_FORMAT_SHIFT)
@@ -5905,18 +5932,21 @@ enum {
 #define   CURSOR_FORMAT_ARGB	(0x04 << CURSOR_FORMAT_SHIFT)
 #define   CURSOR_FORMAT_XRGB	(0x05 << CURSOR_FORMAT_SHIFT)
 /* New style CUR*CNTR flags */
-#define   CURSOR_MODE		0x27
-#define   CURSOR_MODE_DISABLE   0x00
-#define   CURSOR_MODE_128_32B_AX 0x02
-#define   CURSOR_MODE_256_32B_AX 0x03
-#define   CURSOR_MODE_64_32B_AX 0x07
-#define   CURSOR_MODE_128_ARGB_AX ((1 << 5) | CURSOR_MODE_128_32B_AX)
-#define   CURSOR_MODE_256_ARGB_AX ((1 << 5) | CURSOR_MODE_256_32B_AX)
-#define   CURSOR_MODE_64_ARGB_AX ((1 << 5) | CURSOR_MODE_64_32B_AX)
+#define   MCURSOR_MODE		0x27
+#define   MCURSOR_MODE_DISABLE   0x00
+#define   MCURSOR_MODE_128_32B_AX 0x02
+#define   MCURSOR_MODE_256_32B_AX 0x03
+#define   MCURSOR_MODE_64_32B_AX 0x07
+#define   MCURSOR_MODE_128_ARGB_AX ((1 << 5) | MCURSOR_MODE_128_32B_AX)
+#define   MCURSOR_MODE_256_ARGB_AX ((1 << 5) | MCURSOR_MODE_256_32B_AX)
+#define   MCURSOR_MODE_64_ARGB_AX ((1 << 5) | MCURSOR_MODE_64_32B_AX)
+#define   MCURSOR_PIPE_SELECT_MASK	(0x3 << 28)
+#define   MCURSOR_PIPE_SELECT_SHIFT	28
 #define   MCURSOR_PIPE_SELECT(pipe)	((pipe) << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
-#define   CURSOR_ROTATE_180	(1<<15)
-#define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
+#define   MCURSOR_PIPE_CSC_ENABLE (1<<24)
+#define   MCURSOR_ROTATE_180	(1<<15)
+#define   MCURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		0x70084
 #define _CURAPOS		0x70088
 #define   CURSOR_POS_MASK       0x007FF
@@ -6764,6 +6794,10 @@ enum {
 #define _PS_VPHASE_1B       0x68988
 #define _PS_VPHASE_2B       0x68A88
 #define _PS_VPHASE_1C       0x69188
+#define  PS_Y_PHASE(x)		((x) << 16)
+#define  PS_UV_RGB_PHASE(x)	((x) << 0)
+#define   PS_PHASE_MASK	(0x7fff << 1) /* u2.13 */
+#define   PS_PHASE_TRIP	(1 << 0)
 
 #define _PS_HPHASE_1A       0x68194
 #define _PS_HPHASE_2A       0x68294
@@ -7192,13 +7226,17 @@ enum {
 
 /* GEN7 chicken */
 #define GEN7_COMMON_SLICE_CHICKEN1		_MMIO(0x7010)
-# define GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC	((1<<10) | (1<<26))
-# define GEN9_RHWO_OPTIMIZATION_DISABLE		(1<<14)
-#define COMMON_SLICE_CHICKEN2			_MMIO(0x7014)
-# define GEN9_PBE_COMPRESSED_HASH_SELECTION	(1<<13)
-# define GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE (1<<12)
-# define GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION (1<<8)
-# define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE	(1<<0)
+  #define GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC	((1 << 10) | (1 << 26))
+  #define GEN9_RHWO_OPTIMIZATION_DISABLE	(1 << 14)
+
+#define COMMON_SLICE_CHICKEN2					_MMIO(0x7014)
+  #define GEN9_PBE_COMPRESSED_HASH_SELECTION			(1 << 13)
+  #define GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE	(1 << 12)
+  #define GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION		(1 << 8)
+  #define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE			(1 << 0)
+
+#define GEN11_COMMON_SLICE_CHICKEN3		_MMIO(0x7304)
+  #define GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC	(1 << 11)
 
 #define HIZ_CHICKEN					_MMIO(0x7018)
 # define CHV_HZ_8X8_MODE_IN_1X				(1<<15)
@@ -7208,6 +7246,7 @@ enum {
 #define  DISABLE_PIXEL_MASK_CAMMING		(1<<14)
 
 #define GEN9_SLICE_COMMON_ECO_CHICKEN1		_MMIO(0x731c)
+#define   GEN11_STATE_CACHE_REDIRECT_TO_CS	(1 << 11)
 
 #define GEN7_L3SQCREG1				_MMIO(0xB010)
 #define  VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
@@ -7862,27 +7901,14 @@ enum {
 #define PCH_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 /* CPT */
-#define  PORT_TRANS_A_SEL_CPT	0
-#define  PORT_TRANS_B_SEL_CPT	(1<<29)
-#define  PORT_TRANS_C_SEL_CPT	(2<<29)
-#define  PORT_TRANS_SEL_MASK	(3<<29)
-#define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
-#define  PORT_TO_PIPE(val)	(((val) & (1<<30)) >> 30)
-#define  PORT_TO_PIPE_CPT(val)	(((val) & PORT_TRANS_SEL_MASK) >> 29)
-#define  SDVO_PORT_TO_PIPE_CHV(val)	(((val) & (3<<24)) >> 24)
-#define  DP_PORT_TO_PIPE_CHV(val)	(((val) & (3<<16)) >> 16)
-
 #define _TRANS_DP_CTL_A		0xe0300
 #define _TRANS_DP_CTL_B		0xe1300
 #define _TRANS_DP_CTL_C		0xe2300
 #define TRANS_DP_CTL(pipe)	_MMIO_PIPE(pipe, _TRANS_DP_CTL_A, _TRANS_DP_CTL_B)
 #define  TRANS_DP_OUTPUT_ENABLE	(1<<31)
-#define  TRANS_DP_PORT_SEL_B	(0<<29)
-#define  TRANS_DP_PORT_SEL_C	(1<<29)
-#define  TRANS_DP_PORT_SEL_D	(2<<29)
-#define  TRANS_DP_PORT_SEL_NONE	(3<<29)
-#define  TRANS_DP_PORT_SEL_MASK	(3<<29)
-#define  TRANS_DP_PIPE_TO_PORT(val)	((((val) & TRANS_DP_PORT_SEL_MASK) >> 29) + PORT_B)
+#define  TRANS_DP_PORT_SEL_MASK		(3 << 29)
+#define  TRANS_DP_PORT_SEL_NONE		(3 << 29)
+#define  TRANS_DP_PORT_SEL(port)	(((port) - PORT_B) << 29)
 #define  TRANS_DP_AUDIO_ONLY	(1<<26)
 #define  TRANS_DP_ENH_FRAMING	(1<<18)
 #define  TRANS_DP_8BPC		(0<<9)
@@ -8322,8 +8348,9 @@ enum {
 
 #define GEN7_ROW_CHICKEN2		_MMIO(0xe4f4)
 #define GEN7_ROW_CHICKEN2_GT2		_MMIO(0xf4f4)
-#define   DOP_CLOCK_GATING_DISABLE	(1<<0)
-#define   PUSH_CONSTANT_DEREF_DISABLE	(1<<8)
+#define   DOP_CLOCK_GATING_DISABLE	(1 << 0)
+#define   PUSH_CONSTANT_DEREF_DISABLE	(1 << 8)
+#define   GEN11_TDL_CLOCK_GATING_FIX_DISABLE	(1 << 1)
 
 #define HSW_ROW_CHICKEN3		_MMIO(0xe49c)
 #define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
@@ -9100,13 +9127,16 @@ enum skl_power_gate {
 #define  DPLL_CFGCR1_QDIV_RATIO_MASK	(0xff << 10)
 #define  DPLL_CFGCR1_QDIV_RATIO_SHIFT	(10)
 #define  DPLL_CFGCR1_QDIV_RATIO(x)	((x) << 10)
+#define  DPLL_CFGCR1_QDIV_MODE_SHIFT	(9)
 #define  DPLL_CFGCR1_QDIV_MODE(x)	((x) << 9)
 #define  DPLL_CFGCR1_KDIV_MASK		(7 << 6)
+#define  DPLL_CFGCR1_KDIV_SHIFT		(6)
 #define  DPLL_CFGCR1_KDIV(x)		((x) << 6)
 #define  DPLL_CFGCR1_KDIV_1		(1 << 6)
 #define  DPLL_CFGCR1_KDIV_2		(2 << 6)
 #define  DPLL_CFGCR1_KDIV_4		(4 << 6)
 #define  DPLL_CFGCR1_PDIV_MASK		(0xf << 2)
+#define  DPLL_CFGCR1_PDIV_SHIFT		(2)
 #define  DPLL_CFGCR1_PDIV(x)		((x) << 2)
 #define  DPLL_CFGCR1_PDIV_2		(1 << 2)
 #define  DPLL_CFGCR1_PDIV_3		(2 << 2)
