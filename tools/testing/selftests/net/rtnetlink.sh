@@ -525,8 +525,12 @@ kci_test_macsec()
 #-------------------------------------------------------------------
 kci_test_ipsec()
 {
-	srcip="14.0.0.52"
-	dstip="14.0.0.70"
+	# find an ip address on this machine and make up a destination
+	srcip=`ip -o addr | awk '/inet / { print $4; }' | grep -v "^127" | head -1 | cut -f1 -d/`
+	net=`echo $srcip | cut -f1-3 -d.`
+	base=`echo $srcip | cut -f4 -d.`
+	dstip="$net."`expr $base + 1`
+
 	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
 
 	# flush to be sure there's nothing configured
@@ -535,8 +539,7 @@ kci_test_ipsec()
 
 	# start the monitor in the background
 	tmpfile=`mktemp ipsectestXXX`
-	ip x m > $tmpfile &
-	mpid=$!
+	mpid=`(ip x m > $tmpfile & echo $!) 2>/dev/null`
 	sleep 0.2
 
 	ipsecid="proto esp src $srcip dst $dstip spi 0x07"
