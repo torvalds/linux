@@ -12,7 +12,72 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
+#include <asm/intel-family.h>
 #include "intel_rdt.h"
+
+/*
+ * MSR_MISC_FEATURE_CONTROL register enables the modification of hardware
+ * prefetcher state. Details about this register can be found in the MSR
+ * tables for specific platforms found in Intel's SDM.
+ */
+#define MSR_MISC_FEATURE_CONTROL	0x000001a4
+
+/*
+ * The bits needed to disable hardware prefetching varies based on the
+ * platform. During initialization we will discover which bits to use.
+ */
+static u64 prefetch_disable_bits;
+
+/**
+ * get_prefetch_disable_bits - prefetch disable bits of supported platforms
+ *
+ * Capture the list of platforms that have been validated to support
+ * pseudo-locking. This includes testing to ensure pseudo-locked regions
+ * with low cache miss rates can be created under variety of load conditions
+ * as well as that these pseudo-locked regions can maintain their low cache
+ * miss rates under variety of load conditions for significant lengths of time.
+ *
+ * After a platform has been validated to support pseudo-locking its
+ * hardware prefetch disable bits are included here as they are documented
+ * in the SDM.
+ *
+ * Return:
+ * If platform is supported, the bits to disable hardware prefetchers, 0
+ * if platform is not supported.
+ */
+static u64 get_prefetch_disable_bits(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
+	    boot_cpu_data.x86 != 6)
+		return 0;
+
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_BROADWELL_X:
+		/*
+		 * SDM defines bits of MSR_MISC_FEATURE_CONTROL register
+		 * as:
+		 * 0    L2 Hardware Prefetcher Disable (R/W)
+		 * 1    L2 Adjacent Cache Line Prefetcher Disable (R/W)
+		 * 2    DCU Hardware Prefetcher Disable (R/W)
+		 * 3    DCU IP Prefetcher Disable (R/W)
+		 * 63:4 Reserved
+		 */
+		return 0xF;
+	case INTEL_FAM6_ATOM_GOLDMONT:
+	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+		/*
+		 * SDM defines bits of MSR_MISC_FEATURE_CONTROL register
+		 * as:
+		 * 0     L2 Hardware Prefetcher Disable (R/W)
+		 * 1     Reserved
+		 * 2     DCU Hardware Prefetcher Disable (R/W)
+		 * 63:3  Reserved
+		 */
+		return 0x5;
+	}
+
+	return 0;
+}
 
 /**
  * pseudo_lock_init - Initialize a pseudo-lock region
@@ -222,6 +287,16 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled ||
 	    rdt_resources_all[RDT_RESOURCE_L2DATA].alloc_enabled) {
 		rdt_last_cmd_puts("CDP enabled\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Not knowing the bits to disable prefetching implies that this
+	 * platform does not support Cache Pseudo-Locking.
+	 */
+	prefetch_disable_bits = get_prefetch_disable_bits();
+	if (prefetch_disable_bits == 0) {
+		rdt_last_cmd_puts("pseudo-locking not supported\n");
 		return -EINVAL;
 	}
 
