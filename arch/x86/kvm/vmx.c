@@ -7905,10 +7905,35 @@ static int nested_vmx_get_vmptr(struct kvm_vcpu *vcpu, gpa_t *vmpointer)
 	return 0;
 }
 
+/*
+ * Allocate a shadow VMCS and associate it with the currently loaded
+ * VMCS, unless such a shadow VMCS already exists. The newly allocated
+ * VMCS is also VMCLEARed, so that it is ready for use.
+ */
+static struct vmcs *alloc_shadow_vmcs(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct loaded_vmcs *loaded_vmcs = vmx->loaded_vmcs;
+
+	/*
+	 * We should allocate a shadow vmcs for vmcs01 only when L1
+	 * executes VMXON and free it when L1 executes VMXOFF.
+	 * As it is invalid to execute VMXON twice, we shouldn't reach
+	 * here when vmcs01 already have an allocated shadow vmcs.
+	 */
+	WARN_ON(loaded_vmcs == &vmx->vmcs01 && loaded_vmcs->shadow_vmcs);
+
+	if (!loaded_vmcs->shadow_vmcs) {
+		loaded_vmcs->shadow_vmcs = alloc_vmcs(true);
+		if (loaded_vmcs->shadow_vmcs)
+			vmcs_clear(loaded_vmcs->shadow_vmcs);
+	}
+	return loaded_vmcs->shadow_vmcs;
+}
+
 static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct vmcs *shadow_vmcs;
 	int r;
 
 	r = alloc_loaded_vmcs(&vmx->nested.vmcs02);
@@ -7923,14 +7948,8 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.cached_shadow_vmcs12)
 		goto out_cached_shadow_vmcs12;
 
-	if (enable_shadow_vmcs) {
-		shadow_vmcs = alloc_vmcs(true);
-		if (!shadow_vmcs)
-			goto out_shadow_vmcs;
-		/* init shadow vmcs */
-		vmcs_clear(shadow_vmcs);
-		vmx->vmcs01.shadow_vmcs = shadow_vmcs;
-	}
+	if (enable_shadow_vmcs && !alloc_shadow_vmcs(vcpu))
+		goto out_shadow_vmcs;
 
 	hrtimer_init(&vmx->nested.preemption_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL_PINNED);
