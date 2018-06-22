@@ -4418,7 +4418,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	return 0;
 }
 
-static struct vmcs *alloc_vmcs_cpu(int cpu)
+static struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
 {
 	int node = cpu_to_node(cpu);
 	struct page *pages;
@@ -4436,6 +4436,8 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 	else
 		vmcs->hdr.revision_id = vmcs_config.revision_id;
 
+	if (shadow)
+		vmcs->hdr.shadow_vmcs = 1;
 	return vmcs;
 }
 
@@ -4459,14 +4461,14 @@ static void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	WARN_ON(loaded_vmcs->shadow_vmcs != NULL);
 }
 
-static struct vmcs *alloc_vmcs(void)
+static struct vmcs *alloc_vmcs(bool shadow)
 {
-	return alloc_vmcs_cpu(raw_smp_processor_id());
+	return alloc_vmcs_cpu(shadow, raw_smp_processor_id());
 }
 
 static int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 {
-	loaded_vmcs->vmcs = alloc_vmcs();
+	loaded_vmcs->vmcs = alloc_vmcs(false);
 	if (!loaded_vmcs->vmcs)
 		return -ENOMEM;
 
@@ -4597,7 +4599,7 @@ static __init int alloc_kvm_area(void)
 	for_each_possible_cpu(cpu) {
 		struct vmcs *vmcs;
 
-		vmcs = alloc_vmcs_cpu(cpu);
+		vmcs = alloc_vmcs_cpu(false, cpu);
 		if (!vmcs) {
 			free_kvm_area();
 			return -ENOMEM;
@@ -7922,11 +7924,9 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 		goto out_cached_shadow_vmcs12;
 
 	if (enable_shadow_vmcs) {
-		shadow_vmcs = alloc_vmcs();
+		shadow_vmcs = alloc_vmcs(true);
 		if (!shadow_vmcs)
 			goto out_shadow_vmcs;
-		/* mark vmcs as shadow */
-		shadow_vmcs->hdr.shadow_vmcs = 1;
 		/* init shadow vmcs */
 		vmcs_clear(shadow_vmcs);
 		vmx->vmcs01.shadow_vmcs = shadow_vmcs;
