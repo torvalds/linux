@@ -154,7 +154,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
-		bo = gem_to_virtio_gpu_obj(vgfb->obj);
+		bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 		handle = bo->hw_res_handle;
 		if (bo->dumb) {
 			virtio_gpu_cmd_transfer_to_host_2d
@@ -208,7 +208,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
-		bo = gem_to_virtio_gpu_obj(vgfb->obj);
+		bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
 		handle = bo->hw_res_handle;
 	} else {
 		handle = 0;

@@ -727,6 +727,11 @@ struct drm_mode_config {
 	 */
 	struct drm_property *aspect_ratio_property;
 	/**
+	 * @content_type_property: Optional connector property to control the
+	 * HDMI infoframe content type setting.
+	 */
+	struct drm_property *content_type_property;
+	/**
 	 * @degamma_lut_property: Optional CRTC property to set the LUT used to
 	 * convert the framebuffer's colors to linear gamma.
 	 */
@@ -778,6 +783,29 @@ struct drm_mode_config {
 	 * upside-down).
 	 */
 	struct drm_property *panel_orientation_property;
+
+	/**
+	 * @writeback_fb_id_property: Property for writeback connectors, storing
+	 * the ID of the output framebuffer.
+	 * See also: drm_writeback_connector_init()
+	 */
+	struct drm_property *writeback_fb_id_property;
+
+	/**
+	 * @writeback_pixel_formats_property: Property for writeback connectors,
+	 * storing an array of the supported pixel formats for the writeback
+	 * engine (read-only).
+	 * See also: drm_writeback_connector_init()
+	 */
+	struct drm_property *writeback_pixel_formats_property;
+	/**
+	 * @writeback_out_fence_ptr_property: Property for writeback connectors,
+	 * fd pointer representing the outgoing fences for a writeback
+	 * connector. Userspace should provide a pointer to a value of type s32,
+	 * and then cast that pointer to u64.
+	 * See also: drm_writeback_connector_init()
+	 */
+	struct drm_property *writeback_out_fence_ptr_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;

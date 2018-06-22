@@ -114,8 +114,8 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	v3d_invalidate_caches(v3d);
 
 	fence = v3d_fence_create(v3d, q);
-	if (!fence)
-		return fence;
+	if (IS_ERR(fence))
+		return NULL;
 
 	if (job->done_fence)
 		dma_fence_put(job->done_fence);

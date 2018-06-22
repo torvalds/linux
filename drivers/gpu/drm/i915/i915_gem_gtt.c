@@ -3945,7 +3945,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 
 	mode = DRM_MM_INSERT_BEST;
 	if (flags & PIN_HIGH)
-		mode = DRM_MM_INSERT_HIGH;
+		mode = DRM_MM_INSERT_HIGHEST;
 	if (flags & PIN_MAPPABLE)
 		mode = DRM_MM_INSERT_LOW;
 
@@ -3964,6 +3964,15 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
+
+	if (mode & DRM_MM_INSERT_ONCE) {
+		err = drm_mm_insert_node_in_range(&vm->mm, node,
+						  size, alignment, color,
+						  start, end,
+						  DRM_MM_INSERT_BEST);
+		if (err != -ENOSPC)
+			return err;
+	}
 
 	if (flags & PIN_NOEVICT)
 		return -ENOSPC;

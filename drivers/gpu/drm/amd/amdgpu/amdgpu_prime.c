@@ -133,7 +133,6 @@ error:
 }
 
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
-				 struct device *target_dev,
 				 struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
@@ -141,7 +140,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
-	r = drm_gem_map_attach(dma_buf, target_dev, attach);
+	r = drm_gem_map_attach(dma_buf, attach);
 	if (r)
 		return r;
 
@@ -245,9 +244,7 @@ static const struct dma_buf_ops amdgpu_dmabuf_ops = {
 	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = amdgpu_gem_begin_cpu_access,
 	.map = drm_gem_dmabuf_kmap,
-	.map_atomic = drm_gem_dmabuf_kmap_atomic,
 	.unmap = drm_gem_dmabuf_kunmap,
-	.unmap_atomic = drm_gem_dmabuf_kunmap_atomic,
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,

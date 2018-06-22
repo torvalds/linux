@@ -286,6 +286,10 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	if (WARN_ON(config->num_crtc >= 32))
 		return -EINVAL;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
+		(!funcs->atomic_destroy_state ||
+		 !funcs->atomic_duplicate_state));
+
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
@@ -469,23 +473,32 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
 	 * connectors from it), hence we need to refcount the fbs across all
 	 * crtcs. Atomic modeset will have saner semantics ...
 	 */
-	drm_for_each_crtc(tmp, crtc->dev)
-		tmp->primary->old_fb = tmp->primary->fb;
+	drm_for_each_crtc(tmp, crtc->dev) {
+		struct drm_plane *plane = tmp->primary;
+
+		plane->old_fb = plane->fb;
+	}
 
 	fb = set->fb;
 
 	ret = crtc->funcs->set_config(set, ctx);
 	if (ret == 0) {
-		crtc->primary->crtc = fb ? crtc : NULL;
-		crtc->primary->fb = fb;
+		struct drm_plane *plane = crtc->primary;
+
+		if (!plane->state) {
+			plane->crtc = fb ? crtc : NULL;
+			plane->fb = fb;
+		}
 	}
 
 	drm_for_each_crtc(tmp, crtc->dev) {
-		if (tmp->primary->fb)
-			drm_framebuffer_get(tmp->primary->fb);
-		if (tmp->primary->old_fb)
-			drm_framebuffer_put(tmp->primary->old_fb);
-		tmp->primary->old_fb = NULL;
+		struct drm_plane *plane = tmp->primary;
+
+		if (plane->fb)
+			drm_framebuffer_get(plane->fb);
+		if (plane->old_fb)
+			drm_framebuffer_put(plane->old_fb);
+		plane->old_fb = NULL;
 	}
 
 	return ret;
@@ -640,7 +653,9 @@ retry:
 
 		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
-			DRM_DEBUG_KMS("Invalid mode\n");
+			DRM_DEBUG_KMS("Invalid mode (ret=%d, status=%s)\n",
+				      ret, drm_get_mode_status_name(mode->status));
+			drm_mode_debug_printmodeline(mode);
 			goto out;
 		}
 

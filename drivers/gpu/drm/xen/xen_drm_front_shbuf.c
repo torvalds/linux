@@ -122,7 +122,7 @@ static void guest_calc_num_grefs(struct xen_drm_front_shbuf *buf)
 }
 
 #define xen_page_to_vaddr(page) \
-		((phys_addr_t)pfn_to_kaddr(page_to_xen_pfn(page)))
+		((uintptr_t)pfn_to_kaddr(page_to_xen_pfn(page)))
 
 static int backend_unmap(struct xen_drm_front_shbuf *buf)
 {

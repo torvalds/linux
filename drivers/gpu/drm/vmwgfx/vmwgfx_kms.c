@@ -1536,9 +1536,13 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 		unsigned long requested_bb_mem = 0;
 
 		if (dev_priv->active_display_unit == vmw_du_screen_target) {
-			if (crtc->primary->fb) {
-				int cpp = crtc->primary->fb->pitches[0] /
-					  crtc->primary->fb->width;
+			struct drm_plane *plane = crtc->primary;
+			struct drm_plane_state *plane_state;
+
+			plane_state = drm_atomic_get_new_plane_state(state, plane);
+
+			if (plane_state && plane_state->fb) {
+				int cpp = plane_state->fb->format->cpp[0];
 
 				requested_bb_mem += crtc->mode.hdisplay * cpp *
 						    crtc->mode.vdisplay;
@@ -2322,9 +2326,10 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 	} else {
 		list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
 				    head) {
-			if (crtc->primary->fb != &framebuffer->base)
-				continue;
-			units[num_units++] = vmw_crtc_to_du(crtc);
+			struct drm_plane *plane = crtc->primary;
+
+			if (plane->state->fb == &framebuffer->base)
+				units[num_units++] = vmw_crtc_to_du(crtc);
 		}
 	}
 
@@ -2806,6 +2811,7 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 				struct drm_crtc *crtc)
 {
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	struct drm_plane *plane = crtc->primary;
 	struct vmw_framebuffer *vfb;
 
 	mutex_lock(&dev_priv->global_kms_state_mutex);
@@ -2813,7 +2819,7 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 	if (!du->is_implicit)
 		goto out_unlock;
 
-	vfb = vmw_framebuffer_to_vfb(crtc->primary->fb);
+	vfb = vmw_framebuffer_to_vfb(plane->state->fb);
 	WARN_ON_ONCE(dev_priv->num_implicit != 1 &&
 		     dev_priv->implicit_fb != vfb);
 

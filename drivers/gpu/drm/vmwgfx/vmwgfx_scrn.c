@@ -527,8 +527,6 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 		 */
 		if (ret != 0)
 			DRM_ERROR("Failed to update screen.\n");
-
-		crtc->primary->fb = plane->state->fb;
 	} else {
 		/*
 		 * When disabling a plane, CRTC and FB should always be NULL

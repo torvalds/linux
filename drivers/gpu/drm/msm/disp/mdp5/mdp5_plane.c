@@ -512,7 +512,7 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 	if (plane_enabled(new_state)) {
 		struct mdp5_ctl *ctl;
 		struct mdp5_pipeline *pipeline =
-					mdp5_crtc_get_pipeline(plane->crtc);
+					mdp5_crtc_get_pipeline(new_state->crtc);
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane, new_state->crtc, new_state->fb,
@@ -1028,8 +1028,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     crtc_x + crtc_w, crtc_y, crtc_w, crtc_h,
 				     src_img_w, src_img_h,
 				     src_x + src_w, src_y, src_w, src_h);
-
-	plane->fb = fb;
 
 	return ret;
 }

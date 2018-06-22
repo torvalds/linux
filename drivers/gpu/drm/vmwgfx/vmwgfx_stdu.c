@@ -414,6 +414,7 @@ static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
 static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
+	struct drm_plane_state *plane_state = crtc->primary->state;
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
 	struct vmw_framebuffer *vfb;
@@ -422,7 +423,7 @@ static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	stdu     = vmw_crtc_to_stdu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
-	fb       = crtc->primary->fb;
+	fb       = plane_state->fb;
 
 	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
 
@@ -1285,8 +1286,6 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 							 1, 1, NULL, crtc);
 		if (ret)
 			DRM_ERROR("Failed to update STDU.\n");
-
-		crtc->primary->fb = plane->state->fb;
 	} else {
 		crtc = old_state->crtc;
 		stdu = vmw_crtc_to_stdu(crtc);

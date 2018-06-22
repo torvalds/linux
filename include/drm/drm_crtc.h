@@ -134,10 +134,13 @@ struct drm_crtc_state {
 	 *
 	 * Internal display timings which can be used by the driver to handle
 	 * differences between the mode requested by userspace in @mode and what
-	 * is actually programmed into the hardware. It is purely driver
-	 * implementation defined what exactly this adjusted mode means. Usually
-	 * it is used to store the hardware display timings used between the
-	 * CRTC and encoder blocks.
+	 * is actually programmed into the hardware.
+	 *
+	 * For drivers using drm_bridge, this stores hardware display timings
+	 * used between the CRTC and the first bridge. For other drivers, the
+	 * meaning of the adjusted_mode field is purely driver implementation
+	 * defined information, and will usually be used to store the hardware
+	 * display timings used between the CRTC and encoder blocks.
 	 */
 	struct drm_display_mode adjusted_mode;
 
@@ -503,6 +506,8 @@ struct drm_crtc_funcs {
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
 	 *
+	 * This callback is mandatory for atomic drivers.
+	 *
 	 * Atomic drivers which don't subclass &struct drm_crtc_state should use
 	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
@@ -529,6 +534,8 @@ struct drm_crtc_funcs {
 	 *
 	 * Destroy a state duplicated with @atomic_duplicate_state and release
 	 * or unreference all resources it references
+	 *
+	 * This callback is mandatory for atomic drivers.
 	 */
 	void (*atomic_destroy_state)(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state);

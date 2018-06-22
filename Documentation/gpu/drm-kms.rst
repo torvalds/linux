@@ -373,6 +373,15 @@ Connector Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :export:
 
+Writeback Connectors
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :export:
+
 Encoder Abstraction
 ===================
 
@@ -516,6 +525,12 @@ Standard Connector Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: standard connector properties
+
+HDMI Specific Connector Properties
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: HDMI connector properties
 
 Plane Composition Properties
 ----------------------------

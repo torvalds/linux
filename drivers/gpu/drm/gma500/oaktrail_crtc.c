@@ -600,7 +600,6 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -617,7 +616,7 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = psbfb->gtt->offset;
+	start = to_gtt_range(fb->obj[0])->offset;
 	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
 	REG_WRITE(map->stride, fb->pitches[0]);

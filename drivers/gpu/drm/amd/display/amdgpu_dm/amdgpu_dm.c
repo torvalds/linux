@@ -3914,8 +3914,6 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 
 	/* Flip */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	/* update crtc fb */
-	crtc->primary->fb = fb;
 
 	WARN_ON(acrtc->pflip_status != AMDGPU_FLIP_NONE);
 	WARN_ON(!acrtc_state->stream);

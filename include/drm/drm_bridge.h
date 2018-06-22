@@ -97,7 +97,7 @@ struct drm_bridge_funcs {
 	/**
 	 * @mode_fixup:
 	 *
-	 * This callback is used to validate and adjust a mode. The paramater
+	 * This callback is used to validate and adjust a mode. The parameter
 	 * mode is the display mode that should be fed to the next element in
 	 * the display chain, either the final &drm_connector or the next
 	 * &drm_bridge. The parameter adjusted_mode is the input mode the bridge
@@ -178,6 +178,22 @@ struct drm_bridge_funcs {
 	 * then this would be &drm_encoder_helper_funcs.mode_set. The display
 	 * pipe (i.e.  clocks and timing signals) is off when this function is
 	 * called.
+	 *
+	 * The adjusted_mode parameter is the mode output by the CRTC for the
+	 * first bridge in the chain. It can be different from the mode
+	 * parameter that contains the desired mode for the connector at the end
+	 * of the bridges chain, for instance when the first bridge in the chain
+	 * performs scaling. The adjusted mode is mostly useful for the first
+	 * bridge in the chain and is likely irrelevant for the other bridges.
+	 *
+	 * For atomic drivers the adjusted_mode is the mode stored in
+	 * &drm_crtc_state.adjusted_mode.
+	 *
+	 * NOTE:
+	 *
+	 * If a need arises to store and access modes adjusted for other
+	 * locations than the connection between the CRTC and the first bridge,
+	 * the DRM framework will have to be extended with DRM bridge states.
 	 */
 	void (*mode_set)(struct drm_bridge *bridge,
 			 struct drm_display_mode *mode,
@@ -285,15 +301,15 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
 enum drm_mode_status drm_bridge_mode_valid(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 void drm_bridge_disable(struct drm_bridge *bridge);
 void drm_bridge_post_disable(struct drm_bridge *bridge);
 void drm_bridge_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode);
 void drm_bridge_pre_enable(struct drm_bridge *bridge);
 void drm_bridge_enable(struct drm_bridge *bridge);
 

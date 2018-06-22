@@ -167,8 +167,6 @@ static void mdp4_plane_set_scanout(struct drm_plane *plane,
 			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP3_BASE(pipe),
 			msm_framebuffer_iova(fb, kms->aspace, 3));
-
-	plane->fb = fb;
 }
 
 static void mdp4_write_csc_config(struct mdp4_kms *mdp4_kms,

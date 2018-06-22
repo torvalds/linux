@@ -1040,7 +1040,7 @@ static int sun6i_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int sun6i_dsi_runtime_resume(struct device *dev)
+static int __maybe_unused sun6i_dsi_runtime_resume(struct device *dev)
 {
 	struct sun6i_dsi *dsi = dev_get_drvdata(dev);
 
@@ -1069,7 +1069,7 @@ static int sun6i_dsi_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int sun6i_dsi_runtime_suspend(struct device *dev)
+static int __maybe_unused sun6i_dsi_runtime_suspend(struct device *dev)
 {
 	struct sun6i_dsi *dsi = dev_get_drvdata(dev);
 

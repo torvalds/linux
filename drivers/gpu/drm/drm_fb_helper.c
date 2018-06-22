@@ -368,7 +368,6 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool activ
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
-	unsigned int plane_mask;
 	struct drm_modeset_acquire_ctx ctx;
 
 	drm_modeset_acquire_init(&ctx, 0);
@@ -381,7 +380,6 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool activ
 
 	state->acquire_ctx = &ctx;
 retry:
-	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
@@ -390,9 +388,6 @@ retry:
 		}
 
 		plane_state->rotation = DRM_MODE_ROTATE_0;
-
-		plane->old_fb = plane->fb;
-		plane_mask |= 1 << drm_plane_index(plane);
 
 		/* disable non-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
@@ -430,8 +425,6 @@ retry:
 	ret = drm_atomic_commit(state);
 
 out_state:
-	drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
 	if (ret == -EDEADLK)
 		goto backoff;
 
@@ -1164,7 +1157,7 @@ EXPORT_SYMBOL(drm_fb_helper_sys_imageblit);
  * @info: fbdev registered by the helper
  * @rect: info about rectangle to fill
  *
- * A wrapper around cfb_imageblit implemented by fbdev core
+ * A wrapper around cfb_fillrect implemented by fbdev core
  */
 void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)

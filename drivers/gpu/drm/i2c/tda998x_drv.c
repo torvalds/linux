@@ -589,12 +589,21 @@ out:
 	return ret;
 }
 
+#define MAX_WRITE_RANGE_BUF 32
+
 static void
 reg_write_range(struct tda998x_priv *priv, u16 reg, u8 *p, int cnt)
 {
 	struct i2c_client *client = priv->hdmi;
-	u8 buf[cnt+1];
+	/* This is the maximum size of the buffer passed in */
+	u8 buf[MAX_WRITE_RANGE_BUF + 1];
 	int ret;
+
+	if (cnt > MAX_WRITE_RANGE_BUF) {
+		dev_err(&client->dev, "Fixed write buffer too small (%d)\n",
+				MAX_WRITE_RANGE_BUF);
+		return;
+	}
 
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
@@ -805,7 +814,7 @@ static void
 tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
 		 union hdmi_infoframe *frame)
 {
-	u8 buf[32];
+	u8 buf[MAX_WRITE_RANGE_BUF];
 	ssize_t len;
 
 	len = hdmi_infoframe_pack(frame, buf, sizeof(buf));

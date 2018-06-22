@@ -120,12 +120,6 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		&crtc_state->base.adjusted_mode;
 	int ret;
 
-	/*
-	 * Both crtc and plane->crtc could be NULL if we're updating a
-	 * property while the plane is disabled.  We don't actually have
-	 * anything driver-specific we need to test in that case, so
-	 * just return success.
-	 */
 	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
@@ -209,12 +203,6 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	const struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
 
-	/*
-	 * Both crtc and plane->crtc could be NULL if we're updating a
-	 * property while the plane is disabled.  We don't actually have
-	 * anything driver-specific we need to test in that case, so
-	 * just return success.
-	 */
 	if (!crtc)
 		return 0;
 

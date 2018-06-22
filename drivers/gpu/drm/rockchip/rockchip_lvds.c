@@ -363,8 +363,10 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		of_property_read_u32(endpoint, "reg", &endpoint_id);
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
 						  &lvds->panel, &lvds->bridge);
-		if (!ret)
+		if (!ret) {
+			of_node_put(endpoint);
 			break;
+		}
 	}
 	if (!child_count) {
 		DRM_DEV_ERROR(dev, "lvds port does not have any children\n");
@@ -446,14 +448,12 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			goto err_free_connector;
 		}
 	} else {
-		lvds->bridge->encoder = encoder;
 		ret = drm_bridge_attach(encoder, lvds->bridge, NULL);
 		if (ret) {
 			DRM_DEV_ERROR(drm_dev->dev,
 				      "failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
-		encoder->bridge = lvds->bridge;
 	}
 
 	pm_runtime_enable(dev);

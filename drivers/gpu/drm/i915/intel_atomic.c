@@ -124,6 +124,7 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 	if (new_conn_state->force_audio != old_conn_state->force_audio ||
 	    new_conn_state->broadcast_rgb != old_conn_state->broadcast_rgb ||
 	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
+	    new_conn_state->base.content_type != old_conn_state->base.content_type ||
 	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode)
 		crtc_state->mode_changed = true;
 

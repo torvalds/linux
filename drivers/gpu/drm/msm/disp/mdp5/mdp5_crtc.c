@@ -1207,7 +1207,6 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 			"unref cursor", unref_cursor_worker);
 
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);
-	plane->crtc = crtc;
 
 	return crtc;
 }
