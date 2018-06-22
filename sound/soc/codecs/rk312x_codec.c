@@ -616,12 +616,12 @@ static const char *const rk312x_voice_call_path_mode[] = {
 		"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT"};
 
 
-static const SOC_ENUM_SINGLE_DECL(rk312x_playback_path_type, 0, 0,
-				  rk312x_playback_path_mode);
-static const SOC_ENUM_SINGLE_DECL(rk312x_capture_path_type, 0, 0,
-				  rk312x_capture_path_mode);
-static const SOC_ENUM_SINGLE_DECL(rk312x_voice_call_path_type, 0, 0,
-				  rk312x_voice_call_path_mode);
+static SOC_ENUM_SINGLE_DECL(rk312x_playback_path_type, 0, 0,
+			    rk312x_playback_path_mode);
+static SOC_ENUM_SINGLE_DECL(rk312x_capture_path_type, 0, 0,
+			    rk312x_capture_path_mode);
+static SOC_ENUM_SINGLE_DECL(rk312x_voice_call_path_type, 0, 0,
+			    rk312x_voice_call_path_mode);
 
 
 /* static int rk312x_codec_power_up(int type); */
