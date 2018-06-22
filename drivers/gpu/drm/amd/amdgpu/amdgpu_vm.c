@@ -1567,7 +1567,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		if (nodes) {
 			addr = nodes->start << PAGE_SHIFT;
 			max_entries = (nodes->size - pfn) *
-				(PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+				AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 		} else {
 			addr = 0;
 			max_entries = S64_MAX;
@@ -1578,7 +1578,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 
 			max_entries = min(max_entries, 16ull * 1024ull);
 			for (count = 1;
-			     count < max_entries / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+			     count < max_entries / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 			     ++count) {
 				uint64_t idx = pfn + count;
 
@@ -1592,7 +1592,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				dma_addr = pages_addr;
 			} else {
 				addr = pages_addr[pfn];
-				max_entries = count * (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+				max_entries = count * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 			}
 
 		} else if (flags & AMDGPU_PTE_VALID) {
@@ -1607,7 +1607,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		pfn += (last - start + 1) / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
+		pfn += (last - start + 1) / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 		if (nodes && nodes->size == pfn) {
 			pfn = 0;
 			++nodes;
