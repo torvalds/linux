@@ -772,10 +772,8 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 	__iscsit_free_cmd(cmd, shutdown);
 	if (se_cmd) {
 		rc = transport_generic_free_cmd(se_cmd, shutdown);
-		if (!rc && shutdown && se_cmd->se_sess) {
-			__iscsit_free_cmd(cmd, shutdown);
+		if (!rc && shutdown && se_cmd->se_sess)
 			target_put_sess_cmd(se_cmd);
-		}
 	} else {
 		iscsit_release_cmd(cmd);
 	}
