@@ -666,6 +666,7 @@ struct mlx5_ib_counters {
 	size_t *offsets;
 	u32 num_q_counters;
 	u32 num_cong_counters;
+	u32 num_ext_ppcnt_counters;
 	u16 set_id;
 	bool set_id_valid;
 };
