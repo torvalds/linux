@@ -2275,6 +2275,17 @@ he also kindly surprised me with
 <a href="https://lkml.kernel.org/g/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com">an algorithm</a>
 that meets this requirement.
 
+<p>
+Furthermore, NMI handlers can be interrupted by what appear to RCU
+to be normal interrupts.
+One way that this can happen is for code that directly invokes
+<tt>rcu_irq_enter()</tt> and </tt>rcu_irq_exit()</tt> to be called
+from an NMI handler.
+This astonishing fact of life prompted the current code structure,
+which has <tt>rcu_irq_enter()</tt> invoking <tt>rcu_nmi_enter()</tt>
+and <tt>rcu_irq_exit()</tt> invoking <tt>rcu_nmi_exit()</tt>.
+And yes, I also learned of this requirement the hard way.
+
 <h3><a name="Loadable Modules">Loadable Modules</a></h3>
 
 <p>
