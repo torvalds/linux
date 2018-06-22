@@ -12621,14 +12621,20 @@ S:	Maintained
 F:	drivers/scsi/sr*
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
-M:	Bart Van Assche <bart.vanassche@sandisk.com>
+M:	Bart Van Assche <bart.vanassche@wdc.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
-W:	http://www.openfabrics.org
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dad/srp-initiator.git
 F:	drivers/infiniband/ulp/srp/
 F:	include/scsi/srp.h
+
+SCSI RDMA PROTOCOL (SRP) TARGET
+M:	Bart Van Assche <bart.vanassche@wdc.com>
+L:	linux-rdma@vger.kernel.org
+L:	target-devel@vger.kernel.org
+S:	Supported
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
+F:	drivers/infiniband/ulp/srpt/
 
 SCSI SG DRIVER
 M:	Doug Gilbert <dgilbert@interlog.com>
