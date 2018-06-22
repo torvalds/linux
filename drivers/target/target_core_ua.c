@@ -55,7 +55,7 @@ target_scsi3_ua_check(struct se_cmd *cmd)
 		rcu_read_unlock();
 		return 0;
 	}
-	if (!atomic_read(&deve->ua_count)) {
+	if (list_empty_careful(&deve->ua_list)) {
 		rcu_read_unlock();
 		return 0;
 	}
@@ -154,7 +154,6 @@ int core_scsi3_ua_allocate(
 				&deve->ua_list);
 		spin_unlock(&deve->ua_lock);
 
-		atomic_inc_mb(&deve->ua_count);
 		return 0;
 	}
 	list_add_tail(&ua->ua_nacl_list, &deve->ua_list);
@@ -164,7 +163,6 @@ int core_scsi3_ua_allocate(
 		" 0x%02x, ASCQ: 0x%02x\n", deve->mapped_lun,
 		asc, ascq);
 
-	atomic_inc_mb(&deve->ua_count);
 	return 0;
 }
 
@@ -196,8 +194,6 @@ void core_scsi3_ua_release_all(
 	list_for_each_entry_safe(ua, ua_p, &deve->ua_list, ua_nacl_list) {
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
-
-		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 }
@@ -263,8 +259,6 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 		}
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
-
-		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 	rcu_read_unlock();
@@ -304,7 +298,7 @@ int core_scsi3_ua_clear_for_request_sense(
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	if (!atomic_read(&deve->ua_count)) {
+	if (list_empty_careful(&deve->ua_list)) {
 		rcu_read_unlock();
 		return -EPERM;
 	}
@@ -327,8 +321,6 @@ int core_scsi3_ua_clear_for_request_sense(
 		}
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
-
-		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 	rcu_read_unlock();

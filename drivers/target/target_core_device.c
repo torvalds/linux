@@ -336,7 +336,6 @@ int core_enable_device_list_for_node(
 		return -ENOMEM;
 	}
 
-	atomic_set(&new->ua_count, 0);
 	spin_lock_init(&new->ua_lock);
 	INIT_LIST_HEAD(&new->ua_list);
 	INIT_LIST_HEAD(&new->lun_link);

@@ -638,7 +638,6 @@ struct se_dev_entry {
 	atomic_long_t		total_cmds;
 	atomic_long_t		read_bytes;
 	atomic_long_t		write_bytes;
-	atomic_t		ua_count;
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
 	struct kref		pr_kref;
 	struct completion	pr_comp;
