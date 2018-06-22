@@ -767,7 +767,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request_specific);
  *
  * This function mark @hwlock as free again.
  * Should only be called with an @hwlock that was retrieved from
- * an earlier call to omap_hwspin_lock_request{_specific}.
+ * an earlier call to hwspin_lock_request{_specific}.
  *
  * Should be called from a process context (might sleep)
  *
