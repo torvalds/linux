@@ -235,8 +235,8 @@ void transport_init_session(struct se_session *se_sess)
 	INIT_LIST_HEAD(&se_sess->sess_list);
 	INIT_LIST_HEAD(&se_sess->sess_acl_list);
 	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
-	INIT_LIST_HEAD(&se_sess->sess_wait_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
+	init_waitqueue_head(&se_sess->cmd_list_wq);
 }
 EXPORT_SYMBOL(transport_init_session);
 
@@ -2728,13 +2728,15 @@ static void target_release_cmd_kref(struct kref *kref)
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 		list_del_init(&se_cmd->se_cmd_list);
+		if (list_empty(&se_sess->sess_cmd_list))
+			wake_up(&se_sess->cmd_list_wq);
 
 		spin_lock(&se_cmd->t_state_lock);
 		fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
 			      (se_cmd->transport_state & CMD_T_ABORTED);
 		spin_unlock(&se_cmd->t_state_lock);
 
-		if (se_cmd->cmd_wait_set || fabric_stop) {
+		if (fabric_stop) {
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 			target_free_cmd_mem(se_cmd);
 			complete(&se_cmd->cmd_wait_comp);
@@ -2863,78 +2865,41 @@ void target_show_cmd(const char *pfx, struct se_cmd *cmd)
 EXPORT_SYMBOL(target_show_cmd);
 
 /**
- * target_sess_cmd_list_set_waiting - Flag all commands in
- *         sess_cmd_list to complete cmd_wait_comp.  Set
- *         sess_tearing_down so no more commands are queued.
+ * target_sess_cmd_list_set_waiting - Set sess_tearing_down so no new commands are queued.
  * @se_sess:	session to flag
  */
 void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
 	unsigned long flags;
-	int rc;
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	if (se_sess->sess_tearing_down) {
-		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-		return;
-	}
 	se_sess->sess_tearing_down = 1;
-	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
-
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-				 &se_sess->sess_wait_list, se_cmd_list) {
-		rc = kref_get_unless_zero(&se_cmd->cmd_kref);
-		if (rc) {
-			se_cmd->cmd_wait_set = 1;
-			spin_lock(&se_cmd->t_state_lock);
-			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
-			spin_unlock(&se_cmd->t_state_lock);
-		} else
-			list_del_init(&se_cmd->se_cmd_list);
-	}
-
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 }
 EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
 
 /**
- * target_wait_for_sess_cmds - Wait for outstanding descriptors
+ * target_wait_for_sess_cmds - Wait for outstanding commands
  * @se_sess:    session to wait for active I/O
  */
 void target_wait_for_sess_cmds(struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd, *tmp_cmd;
-	unsigned long flags;
-	bool tas;
+	struct se_cmd *cmd;
+	int ret;
 
-	list_for_each_entry_safe(se_cmd, tmp_cmd,
-				&se_sess->sess_wait_list, se_cmd_list) {
-		pr_debug("Waiting for se_cmd: %p t_state: %d, fabric state:"
-			" %d\n", se_cmd, se_cmd->t_state,
-			se_cmd->se_tfo->get_cmd_state(se_cmd));
+	WARN_ON_ONCE(!se_sess->sess_tearing_down);
 
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		tas = (se_cmd->transport_state & CMD_T_TAS);
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-
-		if (!target_put_sess_cmd(se_cmd)) {
-			if (tas)
-				target_put_sess_cmd(se_cmd);
-		}
-
-		wait_for_completion(&se_cmd->cmd_wait_comp);
-		pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
-			" fabric state: %d\n", se_cmd, se_cmd->t_state,
-			se_cmd->se_tfo->get_cmd_state(se_cmd));
-
-		se_cmd->se_tfo->release_cmd(se_cmd);
-	}
-
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	WARN_ON(!list_empty(&se_sess->sess_cmd_list));
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-
+	spin_lock_irq(&se_sess->sess_cmd_lock);
+	do {
+		ret = wait_event_interruptible_lock_irq_timeout(
+				se_sess->cmd_list_wq,
+				list_empty(&se_sess->sess_cmd_list),
+				se_sess->sess_cmd_lock, 180 * HZ);
+		list_for_each_entry(cmd, &se_sess->sess_cmd_list, se_cmd_list)
+			target_show_cmd("session shutdown: still waiting for ",
+					cmd);
+	} while (ret <= 0);
+	spin_unlock_irq(&se_sess->sess_cmd_lock);
 }
 EXPORT_SYMBOL(target_wait_for_sess_cmds);
 

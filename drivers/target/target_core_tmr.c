@@ -142,7 +142,7 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 			return false;
 		}
 	}
-	if (sess->sess_tearing_down || se_cmd->cmd_wait_set) {
+	if (sess->sess_tearing_down) {
 		pr_debug("Attempted to abort io tag: %llu already shutdown,"
 			" skipping\n", se_cmd->tag);
 		spin_unlock(&se_cmd->t_state_lock);
@@ -187,7 +187,6 @@ void core_tmr_abort_task(
 		if (!__target_check_io_state(se_cmd, se_sess, 0))
 			continue;
 
-		list_del_init(&se_cmd->se_cmd_list);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 		cancel_work_sync(&se_cmd->work);
@@ -259,7 +258,7 @@ static void core_tmr_drain_tmr_list(
 			spin_unlock(&sess->sess_cmd_lock);
 			continue;
 		}
-		if (sess->sess_tearing_down || cmd->cmd_wait_set) {
+		if (sess->sess_tearing_down) {
 			spin_unlock(&cmd->t_state_lock);
 			spin_unlock(&sess->sess_cmd_lock);
 			continue;
