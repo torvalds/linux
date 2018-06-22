@@ -507,4 +507,8 @@ bool optc1_is_optc_underflow_occurred(struct timing_generator *optc);
 
 void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable);
 
+bool optc1_get_otg_active_size(struct timing_generator *optc,
+		uint32_t *otg_active_width,
+		uint32_t *otg_active_height);
+
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

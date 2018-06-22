@@ -156,6 +156,9 @@ struct timing_generator_funcs {
 		uint32_t *v_blank_end,
 		uint32_t *h_position,
 		uint32_t *v_position);
+	bool (*get_otg_active_size)(struct timing_generator *optc,
+			uint32_t *otg_active_width,
+			uint32_t *otg_active_height);
 	void (*set_early_control)(struct timing_generator *tg,
 							   uint32_t early_cntl);
 	void (*wait_for_state)(struct timing_generator *tg,

@@ -430,7 +430,7 @@ union test_request {
 	struct {
 	uint8_t LINK_TRAINING         :1;
 	uint8_t LINK_TEST_PATTRN      :1;
-	uint8_t EDID_REAT             :1;
+	uint8_t EDID_READ             :1;
 	uint8_t PHY_TEST_PATTERN      :1;
 	uint8_t AUDIO_TEST_PATTERN    :1;
 	uint8_t RESERVED              :1;
@@ -443,7 +443,8 @@ union test_response {
 	struct {
 		uint8_t ACK         :1;
 		uint8_t NO_ACK      :1;
-		uint8_t RESERVED    :6;
+		uint8_t EDID_CHECKSUM_WRITE:1;
+		uint8_t RESERVED    :5;
 	} bits;
 	uint8_t raw;
 };

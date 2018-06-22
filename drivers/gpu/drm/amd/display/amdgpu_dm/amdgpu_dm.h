@@ -72,13 +72,11 @@ struct irq_list_head {
 	struct work_struct work;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
 struct dm_comressor_info {
 	void *cpu_addr;
 	struct amdgpu_bo *bo_ptr;
 	uint64_t gpu_addr;
 };
-#endif
 
 
 struct amdgpu_display_manager {
@@ -129,9 +127,8 @@ struct amdgpu_display_manager {
 	 * Caches device atomic state for suspend/resume
 	 */
 	struct drm_atomic_state *cached_state;
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+
 	struct dm_comressor_info compressor;
-#endif
 };
 
 struct amdgpu_dm_connector {

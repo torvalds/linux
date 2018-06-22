@@ -92,13 +92,12 @@ struct dc_context {
 	bool created_bios;
 	struct gpio_service *gpio_service;
 	struct i2caux *i2caux;
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+	uint32_t dc_sink_id_count;
 	uint64_t fbc_gpu_addr;
-#endif
 };
 
 
-#define MAX_EDID_BUFFER_SIZE 512
+#define DC_MAX_EDID_BUFFER_SIZE 512
 #define EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
@@ -137,13 +136,13 @@ enum plane_stereo_format {
  */
 
 enum dc_edid_connector_type {
-	EDID_CONNECTOR_UNKNOWN = 0,
-	EDID_CONNECTOR_ANALOG = 1,
-	EDID_CONNECTOR_DIGITAL = 10,
-	EDID_CONNECTOR_DVI = 11,
-	EDID_CONNECTOR_HDMIA = 12,
-	EDID_CONNECTOR_MDDI = 14,
-	EDID_CONNECTOR_DISPLAYPORT = 15
+	DC_EDID_CONNECTOR_UNKNOWN = 0,
+	DC_EDID_CONNECTOR_ANALOG = 1,
+	DC_EDID_CONNECTOR_DIGITAL = 10,
+	DC_EDID_CONNECTOR_DVI = 11,
+	DC_EDID_CONNECTOR_HDMIA = 12,
+	DC_EDID_CONNECTOR_MDDI = 14,
+	DC_EDID_CONNECTOR_DISPLAYPORT = 15
 };
 
 enum dc_edid_status {
@@ -169,7 +168,7 @@ struct dc_cea_audio_mode {
 
 struct dc_edid {
 	uint32_t length;
-	uint8_t raw_edid[MAX_EDID_BUFFER_SIZE];
+	uint8_t raw_edid[DC_MAX_EDID_BUFFER_SIZE];
 };
 
 /* When speaker location data block is not available, DEFAULT_SPEAKER_LOCATION

@@ -35,14 +35,6 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 
-unsigned long long dm_get_timestamp(struct dc_context *ctx)
-{
-	struct timespec64 time;
-
-	getrawmonotonic64(&time);
-	return timespec64_to_ns(&time);
-}
-
 unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 		unsigned long long current_time_stamp,
 		unsigned long long last_time_stamp)

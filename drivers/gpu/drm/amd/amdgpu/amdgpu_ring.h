@@ -53,7 +53,8 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_KIQ,
 	AMDGPU_RING_TYPE_UVD_ENC,
 	AMDGPU_RING_TYPE_VCN_DEC,
-	AMDGPU_RING_TYPE_VCN_ENC
+	AMDGPU_RING_TYPE_VCN_ENC,
+	AMDGPU_RING_TYPE_VCN_JPEG
 };
 
 struct amdgpu_device;
@@ -112,6 +113,7 @@ struct amdgpu_ring_funcs {
 	u32			nop;
 	bool			support_64bit_ptrs;
 	unsigned		vmhub;
+	unsigned		extra_dw;
 
 	/* ring read/write ptr handling */
 	u64 (*get_rptr)(struct amdgpu_ring *ring);

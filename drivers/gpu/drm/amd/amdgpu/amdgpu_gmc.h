@@ -109,4 +109,19 @@ struct amdgpu_gmc {
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 };
 
+/**
+ * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns:
+ * True if full VRAM is visible through the BAR
+ */
+static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
+{
+	WARN_ON(gmc->real_vram_size < gmc->visible_vram_size);
+
+	return (gmc->real_vram_size == gmc->visible_vram_size);
+}
+
 #endif

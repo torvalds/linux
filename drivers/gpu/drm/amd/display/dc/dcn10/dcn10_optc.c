@@ -1257,6 +1257,37 @@ void optc1_read_otg_state(struct optc *optc1,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
+bool optc1_get_otg_active_size(struct timing_generator *optc,
+		uint32_t *otg_active_width,
+		uint32_t *otg_active_height)
+{
+	uint32_t otg_enabled;
+	uint32_t v_blank_start;
+	uint32_t v_blank_end;
+	uint32_t h_blank_start;
+	uint32_t h_blank_end;
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+
+	REG_GET(OTG_CONTROL,
+			OTG_MASTER_EN, &otg_enabled);
+
+	if (otg_enabled == 0)
+		return false;
+
+	REG_GET_2(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &v_blank_start,
+			OTG_V_BLANK_END, &v_blank_end);
+
+	REG_GET_2(OTG_H_BLANK_START_END,
+			OTG_H_BLANK_START, &h_blank_start,
+			OTG_H_BLANK_END, &h_blank_end);
+
+	*otg_active_width = v_blank_start - v_blank_end;
+	*otg_active_height = h_blank_start - h_blank_end;
+	return true;
+}
+
 void optc1_clear_optc_underflow(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -1305,6 +1336,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
 		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.wait_for_state = optc1_wait_for_state,

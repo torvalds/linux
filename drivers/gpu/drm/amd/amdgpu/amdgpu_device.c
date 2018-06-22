@@ -25,6 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/power_supply.h>
 #include <linux/kthread.h>
 #include <linux/console.h>
 #include <linux/slab.h>
@@ -675,17 +676,15 @@ void amdgpu_device_vram_location(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_device_gart_location - try to find GTT location
+ * amdgpu_device_gart_location - try to find GART location
  *
  * @adev: amdgpu device structure holding all necessary informations
  * @mc: memory controller structure holding memory informations
  *
- * Function will place try to place GTT before or after VRAM.
+ * Function will place try to place GART before or after VRAM.
  *
- * If GTT size is bigger than space left then we ajust GTT size.
+ * If GART size is bigger than space left then we ajust GART size.
  * Thus function will never fails.
- *
- * FIXME: when reducing GTT size align new size on power of 2.
  */
 void amdgpu_device_gart_location(struct amdgpu_device *adev,
 				 struct amdgpu_gmc *mc)
@@ -698,13 +697,13 @@ void amdgpu_device_gart_location(struct amdgpu_device *adev,
 	size_bf = mc->vram_start;
 	if (size_bf > size_af) {
 		if (mc->gart_size > size_bf) {
-			dev_warn(adev->dev, "limiting GTT\n");
+			dev_warn(adev->dev, "limiting GART\n");
 			mc->gart_size = size_bf;
 		}
 		mc->gart_start = 0;
 	} else {
 		if (mc->gart_size > size_af) {
-			dev_warn(adev->dev, "limiting GTT\n");
+			dev_warn(adev->dev, "limiting GART\n");
 			mc->gart_size = size_af;
 		}
 		/* VCE doesn't like it when BOs cross a 4GB segment, so align
@@ -713,7 +712,7 @@ void amdgpu_device_gart_location(struct amdgpu_device *adev,
 		mc->gart_start = ALIGN(mc->vram_end + 1, 0x100000000ULL);
 	}
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
-	dev_info(adev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
+	dev_info(adev->dev, "GART: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gart_size >> 20, mc->gart_start, mc->gart_end);
 }
 
@@ -1926,7 +1925,7 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
 		amdgpu_device_ip_set_powergating_state(adev,
 						       AMD_IP_BLOCK_TYPE_SMC,
-						       AMD_CG_STATE_UNGATE);
+						       AMD_PG_STATE_UNGATE);
 
 	/* ungate SMC block first */
 	r = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
@@ -2292,6 +2291,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	INIT_DELAYED_WORK(&adev->late_init_work,
 			  amdgpu_device_ip_late_init_func_handler);
+
+	adev->pm.ac_power = power_supply_is_system_supplied() > 0 ? true : false;
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */

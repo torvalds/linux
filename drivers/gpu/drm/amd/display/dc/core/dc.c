@@ -169,6 +169,22 @@ failed_alloc:
 	return false;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_stream_adjust_vmin_vmax
+ *
+ *  @brief
+ *     Looks up the pipe context of dc_stream_state and updates the
+ *     vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
+ *     Rate, which is a power-saving feature that targets reducing panel
+ *     refresh rate while the screen is static
+ *
+ *  @param [in] dc: dc reference
+ *  @param [in] stream: Initial dc stream state
+ *  @param [in] adjust: Updated parameters for vertical_total_min and
+ *  vertical_total_max
+ *****************************************************************************
+ */
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		int vmin, int vmax)
@@ -465,6 +481,7 @@ static bool construct(struct dc *dc,
 	dc_ctx->driver_context = init_params->driver;
 	dc_ctx->dc = dc;
 	dc_ctx->asic_id = init_params->asic_id;
+	dc_ctx->dc_sink_id_count = 0;
 	dc->ctx = dc_ctx;
 
 	dc->current_state = dc_create_state();
@@ -1548,7 +1565,7 @@ struct dc_sink *dc_link_add_remote_sink(
 	struct dc_sink *dc_sink;
 	enum dc_edid_status edid_status;
 
-	if (len > MAX_EDID_BUFFER_SIZE) {
+	if (len > DC_MAX_EDID_BUFFER_SIZE) {
 		dm_error("Max EDID buffer size breached!\n");
 		return NULL;
 	}

@@ -951,12 +951,12 @@ static void ci_apply_state_adjust_rules(struct amdgpu_device *adev,
 	else
 		pi->battery_state = false;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
 
-	if (adev->pm.dpm.ac_power == false) {
+	if (adev->pm.ac_power == false) {
 		for (i = 0; i < ps->performance_level_count; i++) {
 			if (ps->performance_levels[i].mclk > max_limits->mclk)
 				ps->performance_levels[i].mclk = max_limits->mclk;
@@ -4078,7 +4078,7 @@ static int ci_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4127,7 +4127,7 @@ static int ci_enable_vce_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4160,7 +4160,7 @@ static int ci_enable_samu_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -4191,7 +4191,7 @@ static int ci_enable_acp_dpm(struct amdgpu_device *adev, bool enable)
 	const struct amdgpu_clock_and_voltage_limits *max_limits;
 	int i;
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;

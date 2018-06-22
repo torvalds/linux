@@ -719,19 +719,7 @@ static void reset_back_end_for_pipe(
 		if (!pipe_ctx->stream->dpms_off)
 			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		else if (pipe_ctx->stream_res.audio) {
-			/*
-			 * if stream is already disabled outside of commit streams path,
-			 * audio disable was skipped. Need to do it here
-			 */
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-
-			if (dc->caps.dynamic_audio == true) {
-				/*we have to dynamic arbitrate the audio endpoints*/
-				pipe_ctx->stream_res.audio = NULL;
-				/*we free the resource, need reset is_audio_acquired*/
-				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
-			}
-
+			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		}
 
 	}
@@ -2063,12 +2051,13 @@ static void update_dchubp_dpp(
 
 static void dcn10_blank_pixel_data(
 		struct dc *dc,
-		struct stream_resource *stream_res,
-		struct dc_stream_state *stream,
+		struct pipe_ctx *pipe_ctx,
 		bool blank)
 {
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
+	struct stream_resource *stream_res = &pipe_ctx->stream_res;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	/* program otg blank color */
 	color_space = stream->output_color_space;
@@ -2127,8 +2116,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		dc->hwss.blank_pixel_data(dc, &pipe_ctx->stream_res,
-				pipe_ctx->stream, blank);
+		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -2247,7 +2235,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
-		dc->hwss.blank_pixel_data(dc, &top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
+		dc->hwss.blank_pixel_data(dc, top_pipe_to_program, true);
 	}
 
 	/* Disconnect unused mpcc */
@@ -2778,6 +2766,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
 	.blank_stream = dce110_blank_stream,
+	.enable_audio_stream = dce110_enable_audio_stream,
+	.disable_audio_stream = dce110_disable_audio_stream,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.disable_plane = dcn10_disable_plane,
 	.blank_pixel_data = dcn10_blank_pixel_data,

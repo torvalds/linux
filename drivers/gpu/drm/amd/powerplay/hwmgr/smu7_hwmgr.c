@@ -885,6 +885,60 @@ static void smu7_setup_voltage_range_from_vbios(struct pp_hwmgr *hwmgr)
 	data->odn_dpm_table.max_vddc = max_vddc;
 }
 
+static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	uint32_t i;
+
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
+
+	if (table_info == NULL)
+		return;
+
+	for (i = 0; i < data->dpm_table.sclk_table.count; i++) {
+		if (odn_table->odn_core_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.sclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			break;
+		}
+	}
+
+	for (i = 0; i < data->dpm_table.mclk_table.count; i++) {
+		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.mclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			break;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_mclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
+
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_sclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
+	for (i = 0; i < dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
+		}
+	}
+	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
+	}
+}
+
 static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -904,10 +958,13 @@ static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	/* initialize ODN table */
 	if (hwmgr->od_enabled) {
-		smu7_setup_voltage_range_from_vbios(hwmgr);
-		smu7_odn_initial_default_setting(hwmgr);
+		if (data->odn_dpm_table.max_vddc) {
+			smu7_check_dpm_table_updated(hwmgr);
+		} else {
+			smu7_setup_voltage_range_from_vbios(hwmgr);
+			smu7_odn_initial_default_setting(hwmgr);
+		}
 	}
-
 	return 0;
 }
 
@@ -2820,7 +2877,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state *request_ps,
 			const struct pp_power_state *current_ps)
 {
-
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct smu7_power_state *smu7_ps =
 				cast_phw_smu7_power_state(&request_ps->hardware);
 	uint32_t sclk;
@@ -2843,12 +2900,12 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				 "VI should always have 2 performance levels",
 				);
 
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
+	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
+	if (!adev->pm.ac_power) {
 		for (i = 0; i < smu7_ps->performance_level_count; i++) {
 			if (smu7_ps->performance_levels[i].memory_clock > max_limits->mclk)
 				smu7_ps->performance_levels[i].memory_clock = max_limits->mclk;
@@ -3717,8 +3774,9 @@ static int smu7_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dpm_table->count; i++) {
-		if ((dpm_table->dpm_levels[i].value < low_limit)
-		|| (dpm_table->dpm_levels[i].value > high_limit))
+	/*skip the trim if od is enabled*/
+		if (!hwmgr->od_enabled && (dpm_table->dpm_levels[i].value < low_limit
+			|| dpm_table->dpm_levels[i].value > high_limit))
 			dpm_table->dpm_levels[i].enabled = false;
 		else
 			dpm_table->dpm_levels[i].enabled = true;
@@ -3762,10 +3820,8 @@ static int smu7_generate_dpm_level_enable_mask(
 	const struct smu7_power_state *smu7_ps =
 			cast_const_phw_smu7_power_state(states->pnew_state);
 
-	/*skip the trim if od is enabled*/
-	if (!hwmgr->od_enabled)
-		result = smu7_trim_dpm_states(hwmgr, smu7_ps);
 
+	result = smu7_trim_dpm_states(hwmgr, smu7_ps);
 	if (result)
 		return result;
 
@@ -4244,7 +4300,6 @@ static int smu7_init_power_gate_state(struct pp_hwmgr *hwmgr)
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
-	data->samu_power_gated = false;
 
 	return 0;
 }
@@ -4737,60 +4792,6 @@ static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	}
 
 	return true;
-}
-
-static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	uint32_t i;
-
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
-	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
-
-	if (table_info == NULL)
-		return;
-
-	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
-		if (odn_table->odn_core_clock_dpm_levels.entries[i].clock !=
-					data->dpm_table.sclk_table.dpm_levels[i].value) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-			break;
-		}
-	}
-
-	for (i=0; i<data->dpm_table.mclk_table.count; i++) {
-		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
-					data->dpm_table.mclk_table.dpm_levels[i].value) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-			break;
-		}
-	}
-
-	dep_table = table_info->vdd_dep_on_mclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
-
-	for (i=0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
-			return;
-		}
-	}
-
-	dep_table = table_info->vdd_dep_on_sclk;
-	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
-	for (i=0; i < dep_table->count; i++) {
-		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
-			return;
-		}
-	}
-	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
-		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK | DPMTABLE_OD_UPDATE_MCLK;
-	}
 }
 
 static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,

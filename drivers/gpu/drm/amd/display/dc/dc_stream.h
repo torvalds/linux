@@ -59,6 +59,9 @@ struct dc_stream_state {
 	struct freesync_context freesync_ctx;
 
 	struct dc_info_packet hdr_static_metadata;
+	PHYSICAL_ADDRESS_LOC dmdata_address;
+	bool   use_dynamic_meta;
+
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct dc_csc_transform csc_color_matrix;
@@ -298,10 +301,5 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 int num_streams,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
-
-void dc_stream_set_static_screen_events(struct dc *dc,
-					struct dc_stream_state **stream,
-					int num_streams,
-					const struct dc_static_screen_events *events);
 
 #endif /* DC_STREAM_H_ */

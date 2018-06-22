@@ -402,7 +402,6 @@ struct amdgpu_dpm {
 	u32 tdp_adjustment;
 	u16 load_line_slope;
 	bool power_control;
-	bool ac_power;
 	/* special states active */
 	bool                    thermal_active;
 	bool                    uvd_active;
@@ -439,6 +438,7 @@ struct amdgpu_pm {
 	struct amd_pp_display_configuration pm_display_cfg;/* set by dc */
 	uint32_t                smu_prv_buffer_size;
 	struct amdgpu_bo        *smu_prv_buffer;
+	bool ac_power;
 };
 
 #define R600_SSTU_DFLT                               0

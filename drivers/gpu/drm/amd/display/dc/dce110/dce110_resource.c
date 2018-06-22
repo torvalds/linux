@@ -54,9 +54,8 @@
 
 #define DC_LOGGER \
 		dc->ctx->logger
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+
 #include "dce110/dce110_compressor.h"
-#endif
 
 #include "reg_helper.h"
 
@@ -1267,12 +1266,8 @@ static bool construct(
 		}
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->fbc_compressor = dce110_compressor_create(ctx);
 
-
-
-#endif
 	if (!underlay_create(ctx, &pool->base))
 		goto res_create_fail;
 
