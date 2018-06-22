@@ -11038,6 +11038,19 @@ static int nested_vmx_check_pml_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int nested_vmx_check_shadow_vmcs_controls(struct kvm_vcpu *vcpu,
+						 struct vmcs12 *vmcs12)
+{
+	if (!nested_cpu_has_shadow_vmcs(vmcs12))
+		return 0;
+
+	if (!page_address_valid(vcpu, vmcs12->vmread_bitmap) ||
+	    !page_address_valid(vcpu, vmcs12->vmwrite_bitmap))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int nested_vmx_msr_check_common(struct kvm_vcpu *vcpu,
 				       struct vmx_msr_entry *e)
 {
@@ -11637,6 +11650,9 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (nested_vmx_check_pml_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_vmx_check_shadow_vmcs_controls(vcpu, vmcs12))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
