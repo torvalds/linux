@@ -1719,7 +1719,7 @@ again:
 		iref = (struct btrfs_extent_inline_ref *)ptr;
 		type = btrfs_get_extent_inline_ref_type(leaf, iref, needed);
 		if (type == BTRFS_REF_TYPE_INVALID) {
-			err = -EINVAL;
+			err = -EUCLEAN;
 			goto out;
 		}
 
