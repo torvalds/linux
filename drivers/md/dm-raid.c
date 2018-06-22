@@ -588,7 +588,7 @@ static const char *raid10_md_layout_to_format(int layout)
 }
 
 /* Return md raid10 algorithm for @name */
-static const int raid10_name_to_format(const char *name)
+static int raid10_name_to_format(const char *name)
 {
 	if (!strcasecmp(name, "near"))
 		return ALGORITHM_RAID10_NEAR;
