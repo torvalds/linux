@@ -483,16 +483,22 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	char *wr_buf = NULL;
 	char *wr_buf_ptr = NULL;
 	uint32_t wr_buf_size = 100;
+	uint32_t wr_buf_count = 0;
 	int r;
 	int bytes_from_user;
-	char *sub_str;
+	char *sub_str = NULL;
 	uint8_t param_index = 0;
-	long param[11];
+	uint8_t param_nums = 0;
+	long param[11] = {0x0};
 	const char delimiter[3] = {' ', '\n', '\0'};
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	bool disable_hpd = false;
 	bool valid_test_pattern = false;
-	uint8_t custom_pattern[10] = {0};
+	/* init with defalut 80bit custom pattern */
+	uint8_t custom_pattern[10] = {
+			0x1f, 0x7c, 0xf0, 0xc1, 0x07,
+			0x1f, 0x7c, 0xf0, 0xc1, 0x07
+			};
 	struct dc_link_settings prefer_link_settings = {LANE_COUNT_UNKNOWN,
 			LINK_RATE_UNKNOWN, LINK_SPREAD_DISABLED};
 	struct dc_link_settings cur_link_settings = {LANE_COUNT_UNKNOWN,
@@ -519,25 +525,51 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	bytes_from_user = wr_buf_size - r;
 
-	while (isspace(*wr_buf_ptr))
-		wr_buf_ptr++;
+	/* check number of parameters. isspace could not differ space and \n */
+	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
+		/* skip space*/
+		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+			}
 
-	while ((*wr_buf_ptr != '\0') && (param_index < 1)) {
+		if (wr_buf_count == wr_buf_size)
+			break;
+
+		/* skip non-space*/
+		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+			}
+
+		param_nums++;
+
+		if (wr_buf_count == wr_buf_size)
+			break;
+	}
+
+	/* max 11 parameters */
+	if (param_nums > 11)
+		param_nums = 11;
+
+	wr_buf_ptr = wr_buf; /* reset buf pinter */
+	wr_buf_count = 0; /* number of char already checked */
+
+	while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+		wr_buf_ptr++;
+		wr_buf_count++;
+	}
+
+	while (param_index < param_nums) {
+		/* after strsep, wr_buf_ptr will be moved to after space */
 		sub_str = strsep(&wr_buf_ptr, delimiter);
+
 		r = kstrtol(sub_str, 16, &param[param_index]);
 
 		if (r)
 			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
 
 		param_index++;
-		while (isspace(*wr_buf_ptr))
-			wr_buf_ptr++;
-
-		/* DP_TEST_PATTERN_80BIT_CUSTOM need extra 80 bits
-		 * whci are 10 bytes separte by space
-		 */
-		if (param[0] != 0x4)
-			break;
 	}
 
 	test_pattern = param[0];
@@ -575,8 +607,16 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	}
 
 	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM) {
-		for (i = 0; i < 10; i++)
-			custom_pattern[i] = (uint8_t) param[i + 1];
+		for (i = 0; i < 10; i++) {
+			if ((uint8_t) param[i + 1] != 0x0)
+				break;
+		}
+
+		if (i < 10) {
+			/* not use default value */
+			for (i = 0; i < 10; i++)
+				custom_pattern[i] = (uint8_t) param[i + 1];
+		}
 	}
 
 	/* Usage: set DP physical test pattern using debugfs with normal DP
