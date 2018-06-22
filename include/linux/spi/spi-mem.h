@@ -3,7 +3,9 @@
  * Copyright (C) 2018 Exceet Electronics GmbH
  * Copyright (C) 2018 Bootlin
  *
- * Author: Boris Brezillon <boris.brezillon@bootlin.com>
+ * Author:
+ *	Peter Pan <peterpandong@micron.com>
+ *	Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
 #ifndef __LINUX_SPI_MEM_H
