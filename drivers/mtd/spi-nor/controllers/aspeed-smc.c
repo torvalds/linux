@@ -58,6 +58,7 @@ static const struct aspeed_smc_info fmc_2400_info = {
 	.ctl0 = 0x10,
 	.timing = 0x94,
 	.set_4b = aspeed_smc_chip_set_4b,
+	.optimize_read = aspeed_smc_optimize_read,
 };
 
 static const struct aspeed_smc_info spi_2400_info = {
@@ -79,6 +80,7 @@ static const struct aspeed_smc_info fmc_2500_info = {
 	.ctl0 = 0x10,
 	.timing = 0x94,
 	.set_4b = aspeed_smc_chip_set_4b,
+	.optimize_read = aspeed_smc_optimize_read,
 };
 
 static const struct aspeed_smc_info spi_2500_info = {
@@ -110,6 +112,7 @@ struct aspeed_smc_chip {
 	u32 ctl_val[smc_max];			/* control settings */
 	enum aspeed_smc_flash_type type;	/* what type of flash */
 	struct spi_nor nor;
+	u32 clk_rate;
 };
 
 struct aspeed_smc_controller {
@@ -125,6 +128,8 @@ struct aspeed_smc_controller {
 
 	struct aspeed_smc_chip *chips[];	/* pointers to attached chips */
 };
+
+#define ASPEED_SPI_DEFAULT_FREQ		50000000
 
 /*
  * SPI Flash Configuration Register (AST2500 SPI)
@@ -990,11 +995,8 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	dev_info(controller->dev, "read control register: %08x\n",
 		chip->ctl_val[smc_read]);
 
-	/*
-	 * TODO: get max freq from chip
-	 */
 	if (optimize_read && info->optimize_read)
-		info->optimize_read(chip, 104000000);
+		info->optimize_read(chip, chip->clk_rate);
 	return 0;
 }
 
@@ -1056,6 +1058,13 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 			ret = -ENOMEM;
 			break;
 		}
+
+		if (of_property_read_u32(child, "spi-max-frequency",
+					 &chip->clk_rate)) {
+			chip->clk_rate = ASPEED_SPI_DEFAULT_FREQ;
+		}
+		dev_info(dev, "Using %d MHz SPI frequency\n",
+			 chip->clk_rate / 1000000);
 
 		chip->controller = controller;
 		chip->ctl = controller->regs + info->ctl0 + cs * 4;
