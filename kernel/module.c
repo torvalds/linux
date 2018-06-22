@@ -309,6 +309,8 @@ EXPORT_SYMBOL(unregister_module_notifier);
 
 struct load_info {
 	const char *name;
+	/* pointer to module in temporary copy, freed at end of load_module() */
+	struct module *mod;
 	Elf_Ehdr *hdr;
 	unsigned long len;
 	Elf_Shdr *sechdrs;
@@ -2947,14 +2949,13 @@ static int rewrite_section_headers(struct load_info *info, int flags)
  * search for module section index etc), and do some basic section
  * verification.
  *
- * Return the temporary module pointer (we'll replace it with the final
- * one when we move the module sections around).
+ * Set info->mod to the temporary copy of the module in info->hdr. The final one
+ * will be allocated in move_module().
  */
-static struct module *setup_load_info(struct load_info *info, int flags)
+static int setup_load_info(struct load_info *info, int flags)
 {
 	unsigned int i;
 	int err;
-	struct module *mod;
 
 	/* Set up the convenience variables */
 	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
@@ -2963,7 +2964,7 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 
 	err = rewrite_section_headers(info, flags);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	/* Find internal symbols and strings. */
 	for (i = 1; i < info->hdr->e_shnum; i++) {
@@ -2980,30 +2981,30 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 	if (!info->index.mod) {
 		pr_warn("%s: No module found in object\n",
 			info->name ?: "(missing .modinfo name field)");
-		return ERR_PTR(-ENOEXEC);
+		return -ENOEXEC;
 	}
 	/* This is temporary: point mod into copy of data. */
-	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
+	info->mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 
 	/*
 	 * If we didn't load the .modinfo 'name' field, fall back to
 	 * on-disk struct mod 'name' field.
 	 */
 	if (!info->name)
-		info->name = mod->name;
+		info->name = info->mod->name;
 
 	if (info->index.sym == 0) {
 		pr_warn("%s: module has no symbols (stripped?)\n", info->name);
-		return ERR_PTR(-ENOEXEC);
+		return -ENOEXEC;
 	}
 
 	info->index.pcpu = find_pcpusec(info);
 
 	/* Check module struct version now, before we try to use module. */
-	if (!check_modstruct_version(info, mod))
-		return ERR_PTR(-ENOEXEC);
+	if (!check_modstruct_version(info, info->mod))
+		return -ENOEXEC;
 
-	return mod;
+	return 0;
 }
 
 static int check_modinfo(struct module *mod, struct load_info *info, int flags)
@@ -3298,25 +3299,24 @@ core_param(module_blacklist, module_blacklist, charp, 0400);
 
 static struct module *layout_and_allocate(struct load_info *info, int flags)
 {
-	/* Module within temporary copy. */
 	struct module *mod;
 	unsigned int ndx;
 	int err;
 
-	mod = setup_load_info(info, flags);
-	if (IS_ERR(mod))
-		return mod;
+	err = setup_load_info(info, flags);
+	if (err)
+		return ERR_PTR(err);
 
 	if (blacklisted(info->name))
 		return ERR_PTR(-EPERM);
 
-	err = check_modinfo(mod, info, flags);
+	err = check_modinfo(info->mod, info, flags);
 	if (err)
 		return ERR_PTR(err);
 
 	/* Allow arches to frob section contents and sizes.  */
 	err = module_frob_arch_sections(info->hdr, info->sechdrs,
-					info->secstrings, mod);
+					info->secstrings, info->mod);
 	if (err < 0)
 		return ERR_PTR(err);
 
@@ -3335,11 +3335,11 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	/* Determine total sizes, and put offsets in sh_entsize.  For now
 	   this is done generically; there doesn't appear to be any
 	   special cases for the architectures. */
-	layout_sections(mod, info);
-	layout_symtab(mod, info);
+	layout_sections(info->mod, info);
+	layout_symtab(info->mod, info);
 
 	/* Allocate and move to the final place */
-	err = move_module(mod, info);
+	err = move_module(info->mod, info);
 	if (err)
 		return ERR_PTR(err);
 
