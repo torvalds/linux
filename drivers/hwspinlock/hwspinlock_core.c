@@ -367,6 +367,35 @@ out:
 }
 EXPORT_SYMBOL_GPL(of_hwspin_lock_get_id);
 
+/**
+ * of_hwspin_lock_get_id_byname() - get lock id for an specified hwlock name
+ * @np: device node from which to request the specific hwlock
+ * @name: hwlock name
+ *
+ * This function provides a means for DT users of the hwspinlock module to
+ * get the global lock id of a specific hwspinlock using the specified name of
+ * the hwspinlock device, so that it can be requested using the normal
+ * hwspin_lock_request_specific() API.
+ *
+ * Returns the global lock id number on success, -EPROBE_DEFER if the hwspinlock
+ * device is not yet registered, -EINVAL on invalid args specifier value or an
+ * appropriate error as returned from the OF parsing of the DT client node.
+ */
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
+{
+	int index;
+
+	if (!name)
+		return -EINVAL;
+
+	index = of_property_match_string(np, "hwlock-names", name);
+	if (index < 0)
+		return index;
+
+	return of_hwspin_lock_get_id(np, index);
+}
+EXPORT_SYMBOL_GPL(of_hwspin_lock_get_id_byname);
+
 static int hwspin_lock_register_single(struct hwspinlock *hwlock, int id)
 {
 	struct hwspinlock *tmp;

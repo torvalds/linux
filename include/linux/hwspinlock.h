@@ -66,6 +66,7 @@ int __hwspin_lock_timeout(struct hwspinlock *, unsigned int, int,
 							unsigned long *);
 int __hwspin_trylock(struct hwspinlock *, int, unsigned long *);
 void __hwspin_unlock(struct hwspinlock *, int, unsigned long *);
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name);
 
 #else /* !CONFIG_HWSPINLOCK */
 
@@ -121,6 +122,12 @@ static inline int of_hwspin_lock_get_id(struct device_node *np, int index)
 }
 
 static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
+{
+	return 0;
+}
+
+static inline
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
 {
 	return 0;
 }
