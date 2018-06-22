@@ -645,6 +645,12 @@ struct nested_vmx {
 	 */
 	struct vmcs12 *cached_vmcs12;
 	/*
+	 * Cache of the guest's shadow VMCS, existing outside of guest
+	 * memory. Loaded from guest memory during VM entry. Flushed
+	 * to guest memory during VM exit.
+	 */
+	struct vmcs12 *cached_shadow_vmcs12;
+	/*
 	 * Indicates if the shadow vmcs must be updated with the
 	 * data hold by vmcs12
 	 */
@@ -1074,6 +1080,11 @@ static inline short vmcs_field_to_offset(unsigned long field)
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 {
 	return to_vmx(vcpu)->nested.cached_vmcs12;
+}
+
+static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.cached_shadow_vmcs12;
 }
 
 static bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu);
@@ -7900,6 +7911,10 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.cached_vmcs12)
 		goto out_cached_vmcs12;
 
+	vmx->nested.cached_shadow_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
+	if (!vmx->nested.cached_shadow_vmcs12)
+		goto out_cached_shadow_vmcs12;
+
 	if (enable_shadow_vmcs) {
 		shadow_vmcs = alloc_vmcs();
 		if (!shadow_vmcs)
@@ -7919,6 +7934,9 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	return 0;
 
 out_shadow_vmcs:
+	kfree(vmx->nested.cached_shadow_vmcs12);
+
+out_cached_shadow_vmcs12:
 	kfree(vmx->nested.cached_vmcs12);
 
 out_cached_vmcs12:
@@ -8085,6 +8103,7 @@ static void free_nested(struct vcpu_vmx *vmx)
 		vmx->vmcs01.shadow_vmcs = NULL;
 	}
 	kfree(vmx->nested.cached_vmcs12);
+	kfree(vmx->nested.cached_shadow_vmcs12);
 	/* Unpin physical memory we referred to in the vmcs02 */
 	if (vmx->nested.apic_access_page) {
 		kvm_release_page_dirty(vmx->nested.apic_access_page);
@@ -10926,6 +10945,38 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static void nested_cache_shadow_vmcs12(struct kvm_vcpu *vcpu,
+				       struct vmcs12 *vmcs12)
+{
+	struct vmcs12 *shadow;
+	struct page *page;
+
+	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
+	    vmcs12->vmcs_link_pointer == -1ull)
+		return;
+
+	shadow = get_shadow_vmcs12(vcpu);
+	page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->vmcs_link_pointer);
+
+	memcpy(shadow, kmap(page), VMCS12_SIZE);
+
+	kunmap(page);
+	kvm_release_page_clean(page);
+}
+
+static void nested_flush_cached_shadow_vmcs12(struct kvm_vcpu *vcpu,
+					      struct vmcs12 *vmcs12)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (!nested_cpu_has_shadow_vmcs(vmcs12) ||
+	    vmcs12->vmcs_link_pointer == -1ull)
+		return;
+
+	kvm_write_guest(vmx->vcpu.kvm, vmcs12->vmcs_link_pointer,
+			get_shadow_vmcs12(vcpu), VMCS12_SIZE);
+}
+
 static int nested_vmx_check_apic_access_controls(struct kvm_vcpu *vcpu,
 					  struct vmcs12 *vmcs12)
 {
@@ -11996,6 +12047,18 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	/*
+	 * Must happen outside of enter_vmx_non_root_mode() as it will
+	 * also be used as part of restoring nVMX state for
+	 * snapshot restore (migration).
+	 *
+	 * In this flow, it is assumed that vmcs12 cache was
+	 * trasferred as part of captured nVMX state and should
+	 * therefore not be read from guest memory (which may not
+	 * exist on destination host yet).
+	 */
+	nested_cache_shadow_vmcs12(vcpu, vmcs12);
+
+	/*
 	 * If we're entering a halted L2 vcpu and the L2 vcpu won't be woken
 	 * by event injection, halt vcpu.
 	 */
@@ -12503,6 +12566,17 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		else
 			prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 				       exit_qualification);
+
+		/*
+		 * Must happen outside of sync_vmcs12() as it will
+		 * also be used to capture vmcs12 cache as part of
+		 * capturing nVMX state for snapshot (migration).
+		 *
+		 * Otherwise, this flush will dirty guest memory at a
+		 * point it is already assumed by user-space to be
+		 * immutable.
+		 */
+		nested_flush_cached_shadow_vmcs12(vcpu, vmcs12);
 
 		if (nested_vmx_store_msr(vcpu, vmcs12->vm_exit_msr_store_addr,
 					 vmcs12->vm_exit_msr_store_count))
