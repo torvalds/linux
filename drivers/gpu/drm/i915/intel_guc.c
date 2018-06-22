@@ -206,7 +206,11 @@ void intel_guc_fini(struct intel_guc *guc)
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
-	u32 flags = 0;
+	u32 flags;
+	u32 ads;
+
+	ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
+	flags = ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
 
 	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
@@ -216,13 +220,6 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 	else
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
 			 GUC_LOG_VERBOSITY_SHIFT;
-
-	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
-		u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma)
-			>> PAGE_SHIFT;
-
-		flags |= ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
-	}
 
 	return flags;
 }
