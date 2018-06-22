@@ -43,6 +43,8 @@
 #include <asm/kdump.h>
 #include <asm/feature-fixups.h>
 
+#include "setup.h"
+
 #define DBG(fmt...)
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
