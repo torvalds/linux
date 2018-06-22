@@ -529,6 +529,88 @@ int hwspin_lock_unregister(struct hwspinlock_device *bank)
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_unregister);
 
+static void devm_hwspin_lock_unreg(struct device *dev, void *res)
+{
+	hwspin_lock_unregister(*(struct hwspinlock_device **)res);
+}
+
+static int devm_hwspin_lock_device_match(struct device *dev, void *res,
+					 void *data)
+{
+	struct hwspinlock_device **bank = res;
+
+	if (WARN_ON(!bank || !*bank))
+		return 0;
+
+	return *bank == data;
+}
+
+/**
+ * devm_hwspin_lock_unregister() - unregister an hw spinlock device for
+ *				   a managed device
+ * @dev: the backing device
+ * @bank: the hwspinlock device, which usually provides numerous hw locks
+ *
+ * This function should be called from the underlying platform-specific
+ * implementation, to unregister an existing (and unused) hwspinlock.
+ *
+ * Should be called from a process context (might sleep)
+ *
+ * Returns 0 on success, or an appropriate error code on failure
+ */
+int devm_hwspin_lock_unregister(struct device *dev,
+				struct hwspinlock_device *bank)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_hwspin_lock_unreg,
+			     devm_hwspin_lock_device_match, bank);
+	WARN_ON(ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_hwspin_lock_unregister);
+
+/**
+ * devm_hwspin_lock_register() - register a new hw spinlock device for
+ *				 a managed device
+ * @dev: the backing device
+ * @bank: the hwspinlock device, which usually provides numerous hw locks
+ * @ops: hwspinlock handlers for this device
+ * @base_id: id of the first hardware spinlock in this bank
+ * @num_locks: number of hwspinlocks provided by this device
+ *
+ * This function should be called from the underlying platform-specific
+ * implementation, to register a new hwspinlock device instance.
+ *
+ * Should be called from a process context (might sleep)
+ *
+ * Returns 0 on success, or an appropriate error code on failure
+ */
+int devm_hwspin_lock_register(struct device *dev,
+			      struct hwspinlock_device *bank,
+			      const struct hwspinlock_ops *ops,
+			      int base_id, int num_locks)
+{
+	struct hwspinlock_device **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_hwspin_lock_unreg, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = hwspin_lock_register(bank, dev, ops, base_id, num_locks);
+	if (!ret) {
+		*ptr = bank;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_hwspin_lock_register);
+
 /**
  * __hwspin_lock_request() - tag an hwspinlock as used and power it up
  *
