@@ -770,18 +770,16 @@ void rcu_user_enter(void)
 }
 #endif /* CONFIG_NO_HZ_FULL */
 
-/**
- * rcu_nmi_exit - inform RCU of exit from NMI context
- *
+/*
  * If we are returning from the outermost NMI handler that interrupted an
  * RCU-idle period, update rdtp->dynticks and rdtp->dynticks_nmi_nesting
  * to let the RCU grace-period handling know that the CPU is back to
  * being RCU-idle.
  *
- * If you add or remove a call to rcu_nmi_exit(), be sure to test
+ * If you add or remove a call to rcu_nmi_exit_common(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
  */
-void rcu_nmi_exit(void)
+static __always_inline void rcu_nmi_exit_common(bool irq)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
@@ -807,7 +805,26 @@ void rcu_nmi_exit(void)
 	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
 	trace_rcu_dyntick(TPS("Startirq"), rdtp->dynticks_nmi_nesting, 0, rdtp->dynticks);
 	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
+
+	if (irq)
+		rcu_prepare_for_idle();
+
 	rcu_dynticks_eqs_enter();
+
+	if (irq)
+		rcu_dynticks_task_enter();
+}
+
+/**
+ * rcu_nmi_exit - inform RCU of exit from NMI context
+ * @irq: Is this call from rcu_irq_exit?
+ *
+ * If you add or remove a call to rcu_nmi_exit(), be sure to test
+ * with CONFIG_RCU_EQS_DEBUG=y.
+ */
+void rcu_nmi_exit(void)
+{
+	rcu_nmi_exit_common(false);
 }
 
 /**
@@ -831,14 +848,8 @@ void rcu_nmi_exit(void)
  */
 void rcu_irq_exit(void)
 {
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
-
 	lockdep_assert_irqs_disabled();
-	if (rdtp->dynticks_nmi_nesting == 1)
-		rcu_prepare_for_idle();
-	rcu_nmi_exit();
-	if (rdtp->dynticks_nmi_nesting == 0)
-		rcu_dynticks_task_enter();
+	rcu_nmi_exit_common(true);
 }
 
 /*
@@ -921,7 +932,8 @@ void rcu_user_exit(void)
 #endif /* CONFIG_NO_HZ_FULL */
 
 /**
- * rcu_nmi_enter - inform RCU of entry to NMI context
+ * rcu_nmi_enter_common - inform RCU of entry to NMI context
+ * @irq: Is this call from rcu_irq_enter?
  *
  * If the CPU was idle from RCU's viewpoint, update rdtp->dynticks and
  * rdtp->dynticks_nmi_nesting to let the RCU grace-period handling know
@@ -929,10 +941,10 @@ void rcu_user_exit(void)
  * long as the nesting level does not overflow an int.  (You will probably
  * run out of stack space first.)
  *
- * If you add or remove a call to rcu_nmi_enter(), be sure to test
+ * If you add or remove a call to rcu_nmi_enter_common(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
  */
-void rcu_nmi_enter(void)
+static __always_inline void rcu_nmi_enter_common(bool irq)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	long incby = 2;
@@ -949,7 +961,15 @@ void rcu_nmi_enter(void)
 	 * period (observation due to Andy Lutomirski).
 	 */
 	if (rcu_dynticks_curr_cpu_in_eqs()) {
+
+		if (irq)
+			rcu_dynticks_task_exit();
+
 		rcu_dynticks_eqs_exit();
+
+		if (irq)
+			rcu_cleanup_after_idle();
+
 		incby = 1;
 	}
 	trace_rcu_dyntick(incby == 1 ? TPS("Endirq") : TPS("++="),
@@ -958,6 +978,14 @@ void rcu_nmi_enter(void)
 	WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* Prevent store tearing. */
 		   rdtp->dynticks_nmi_nesting + incby);
 	barrier();
+}
+
+/**
+ * rcu_nmi_enter - inform RCU of entry to NMI context
+ */
+void rcu_nmi_enter(void)
+{
+	rcu_nmi_enter_common(false);
 }
 
 /**
@@ -984,14 +1012,8 @@ void rcu_nmi_enter(void)
  */
 void rcu_irq_enter(void)
 {
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
-
 	lockdep_assert_irqs_disabled();
-	if (rdtp->dynticks_nmi_nesting == 0)
-		rcu_dynticks_task_exit();
-	rcu_nmi_enter();
-	if (rdtp->dynticks_nmi_nesting == 1)
-		rcu_cleanup_after_idle();
+	rcu_nmi_enter_common(true);
 }
 
 /*
