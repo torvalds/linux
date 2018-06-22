@@ -101,6 +101,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	const char *name = NULL;
 	char *value = NULL;
 	struct iattr newattrs;
+	struct timespec64 old_ctime = inode->i_ctime;
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 
 	switch (type) {
@@ -145,7 +146,7 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (new_mode != old_mode) {
 		newattrs.ia_ctime = current_time(inode);
 		newattrs.ia_mode = new_mode;
-		newattrs.ia_valid = ATTR_MODE;
+		newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 		ret = __ceph_setattr(inode, &newattrs);
 		if (ret)
 			goto out_free;
@@ -154,8 +155,9 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	ret = __ceph_setxattr(inode, name, value, size, 0);
 	if (ret) {
 		if (new_mode != old_mode) {
+			newattrs.ia_ctime = old_ctime;
 			newattrs.ia_mode = old_mode;
-			newattrs.ia_valid = ATTR_MODE;
+			newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 			__ceph_setattr(inode, &newattrs);
 		}
 		goto out_free;
