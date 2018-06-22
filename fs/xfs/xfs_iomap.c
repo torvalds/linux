@@ -963,12 +963,13 @@ xfs_ilock_for_iomap(
 	unsigned		*lockmode)
 {
 	unsigned		mode = XFS_ILOCK_SHARED;
+	bool			is_write = flags & (IOMAP_WRITE | IOMAP_ZERO);
 
 	/*
 	 * COW writes may allocate delalloc space or convert unwritten COW
 	 * extents, so we need to make sure to take the lock exclusively here.
 	 */
-	if (xfs_is_reflink_inode(ip) && (flags & (IOMAP_WRITE | IOMAP_ZERO))) {
+	if (xfs_is_reflink_inode(ip) && is_write) {
 		/*
 		 * FIXME: It could still overwrite on unshared extents and not
 		 * need allocation.
@@ -989,11 +990,23 @@ xfs_ilock_for_iomap(
 		mode = XFS_ILOCK_EXCL;
 	}
 
+relock:
 	if (flags & IOMAP_NOWAIT) {
 		if (!xfs_ilock_nowait(ip, mode))
 			return -EAGAIN;
 	} else {
 		xfs_ilock(ip, mode);
+	}
+
+	/*
+	 * The reflink iflag could have changed since the earlier unlocked
+	 * check, so if we got ILOCK_SHARED for a write and but we're now a
+	 * reflink inode we have to switch to ILOCK_EXCL and relock.
+	 */
+	if (mode == XFS_ILOCK_SHARED && is_write && xfs_is_reflink_inode(ip)) {
+		xfs_iunlock(ip, mode);
+		mode = XFS_ILOCK_EXCL;
+		goto relock;
 	}
 
 	*lockmode = mode;
