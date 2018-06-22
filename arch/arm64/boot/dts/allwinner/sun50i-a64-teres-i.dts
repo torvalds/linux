@@ -38,6 +38,7 @@
 			gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
+			wakeup-source;
 		};
 	};
 
