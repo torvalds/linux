@@ -128,10 +128,8 @@ ipi_mask_ex_done:
 static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 {
 	int cur_cpu, vcpu;
-	struct ipi_arg_non_ex **arg;
-	struct ipi_arg_non_ex *ipi_arg;
+	struct ipi_arg_non_ex ipi_arg;
 	int ret = 1;
-	unsigned long flags;
 
 	if (cpumask_empty(mask))
 		return true;
@@ -145,16 +143,8 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 	if ((ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED))
 		return __send_ipi_mask_ex(mask, vector);
 
-	local_irq_save(flags);
-	arg = (struct ipi_arg_non_ex **)this_cpu_ptr(hyperv_pcpu_input_arg);
-
-	ipi_arg = *arg;
-	if (unlikely(!ipi_arg))
-		goto ipi_mask_done;
-
-	ipi_arg->vector = vector;
-	ipi_arg->reserved = 0;
-	ipi_arg->cpu_mask = 0;
+	ipi_arg.vector = vector;
+	ipi_arg.cpu_mask = 0;
 
 	for_each_cpu(cur_cpu, mask) {
 		vcpu = hv_cpu_number_to_vp_number(cur_cpu);
@@ -165,13 +155,13 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector)
 		if (vcpu >= 64)
 			goto ipi_mask_done;
 
-		__set_bit(vcpu, (unsigned long *)&ipi_arg->cpu_mask);
+		__set_bit(vcpu, (unsigned long *)&ipi_arg.cpu_mask);
 	}
 
-	ret = hv_do_hypercall(HVCALL_SEND_IPI, ipi_arg, NULL);
+	ret = hv_do_fast_hypercall16(HVCALL_SEND_IPI, ipi_arg.vector,
+				     ipi_arg.cpu_mask);
 
 ipi_mask_done:
-	local_irq_restore(flags);
 	return ((ret == 0) ? true : false);
 }
 
