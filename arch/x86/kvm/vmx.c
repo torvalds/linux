@@ -8159,7 +8159,7 @@ static int handle_vmresume(struct kvm_vcpu *vcpu)
  * some of the bits we return here (e.g., on 32-bit guests, only 32 bits of
  * 64-bit fields are to be returned).
  */
-static inline int vmcs12_read_any(struct kvm_vcpu *vcpu,
+static inline int vmcs12_read_any(struct vmcs12 *vmcs12,
 				  unsigned long field, u64 *ret)
 {
 	short offset = vmcs_field_to_offset(field);
@@ -8168,7 +8168,7 @@ static inline int vmcs12_read_any(struct kvm_vcpu *vcpu,
 	if (offset < 0)
 		return offset;
 
-	p = ((char *)(get_vmcs12(vcpu))) + offset;
+	p = (char *)vmcs12 + offset;
 
 	switch (vmcs_field_width(field)) {
 	case VMCS_FIELD_WIDTH_NATURAL_WIDTH:
@@ -8190,10 +8190,10 @@ static inline int vmcs12_read_any(struct kvm_vcpu *vcpu,
 }
 
 
-static inline int vmcs12_write_any(struct kvm_vcpu *vcpu,
+static inline int vmcs12_write_any(struct vmcs12 *vmcs12,
 				   unsigned long field, u64 field_value){
 	short offset = vmcs_field_to_offset(field);
-	char *p = ((char *) get_vmcs12(vcpu)) + offset;
+	char *p = (char *)vmcs12 + offset;
 	if (offset < 0)
 		return offset;
 
@@ -8246,7 +8246,7 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 		for (i = 0; i < max_fields[q]; i++) {
 			field = fields[q][i];
 			field_value = __vmcs_readl(field);
-			vmcs12_write_any(&vmx->vcpu, field, field_value);
+			vmcs12_write_any(get_vmcs12(&vmx->vcpu), field, field_value);
 		}
 		/*
 		 * Skip the VM-exit information fields if they are read-only.
@@ -8281,7 +8281,7 @@ static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 	for (q = 0; q < ARRAY_SIZE(fields); q++) {
 		for (i = 0; i < max_fields[q]; i++) {
 			field = fields[q][i];
-			vmcs12_read_any(&vmx->vcpu, field, &field_value);
+			vmcs12_read_any(get_vmcs12(&vmx->vcpu), field, &field_value);
 			__vmcs_writel(field, field_value);
 		}
 	}
@@ -8321,7 +8321,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	/* Decode instruction info and find the field to read */
 	field = kvm_register_readl(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
 	/* Read the field, zero-extended to a u64 field_value */
-	if (vmcs12_read_any(vcpu, field, &field_value) < 0) {
+	if (vmcs12_read_any(get_vmcs12(vcpu), field, &field_value) < 0) {
 		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
@@ -8397,7 +8397,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	if (vmcs12_write_any(vcpu, field, field_value) < 0) {
+	if (vmcs12_write_any(get_vmcs12(vcpu), field, field_value) < 0) {
 		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
@@ -10971,11 +10971,12 @@ static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 				       unsigned long count_field,
 				       unsigned long addr_field)
 {
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	int maxphyaddr;
 	u64 count, addr;
 
-	if (vmcs12_read_any(vcpu, count_field, &count) ||
-	    vmcs12_read_any(vcpu, addr_field, &addr)) {
+	if (vmcs12_read_any(vmcs12, count_field, &count) ||
+	    vmcs12_read_any(vmcs12, addr_field, &addr)) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
