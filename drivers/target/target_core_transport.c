@@ -688,10 +688,14 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 		percpu_ref_put(&lun->lun_ref);
 }
 
-int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
+int transport_cmd_finish_abort(struct se_cmd *cmd)
 {
+	bool send_tas = cmd->transport_state & CMD_T_TAS;
 	bool ack_kref = (cmd->se_cmd_flags & SCF_ACK_KREF);
 	int ret = 0;
+
+	if (send_tas)
+		transport_send_task_abort(cmd);
 
 	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
 		transport_lun_remove_cmd(cmd);
@@ -699,12 +703,12 @@ int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	 * Allow the fabric driver to unmap any resources before
 	 * releasing the descriptor via TFO->release_cmd()
 	 */
-	if (remove)
+	if (!send_tas)
 		cmd->se_tfo->aborted_task(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return 1;
-	if (remove && ack_kref)
+	if (!send_tas && ack_kref)
 		ret = target_put_sess_cmd(cmd);
 
 	return ret;
