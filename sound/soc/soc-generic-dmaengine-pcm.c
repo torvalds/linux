@@ -278,7 +278,7 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		return 0;
 
 	dev = dmaengine_dma_dev(pcm, substream);
-	if (dev->of_node) {
+	if (dev && dev->of_node) {
 		ret = of_property_read_bool(dev->of_node,
 					    "rockchip,force-iram");
 		if (ret)
