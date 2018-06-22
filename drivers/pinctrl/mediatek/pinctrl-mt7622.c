@@ -1508,11 +1508,20 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	if (ret < 0)
 		return ret;
 
-	ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
-				     chip->ngpio);
-	if (ret < 0) {
-		gpiochip_remove(chip);
-		return ret;
+	/* Just for backward compatible for these old pinctrl nodes without
+	 * "gpio-ranges" property. Otherwise, called directly from a
+	 * DeviceTree-supported pinctrl driver is DEPRECATED.
+	 * Please see Section 2.1 of
+	 * Documentation/devicetree/bindings/gpio/gpio.txt on how to
+	 * bind pinctrl and gpio drivers via the "gpio-ranges" property.
+	 */
+	if (!of_find_property(np, "gpio-ranges", NULL)) {
+		ret = gpiochip_add_pin_range(chip, dev_name(hw->dev), 0, 0,
+					     chip->ngpio);
+		if (ret < 0) {
+			gpiochip_remove(chip);
+			return ret;
+		}
 	}
 
 	return 0;
