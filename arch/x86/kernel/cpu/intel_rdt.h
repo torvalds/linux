@@ -468,4 +468,13 @@ void cqm_handle_limbo(struct work_struct *work);
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d);
 void __check_limbo(struct rdt_domain *d, bool force_free);
 
+/*
+ * Define the hooks for Cache Pseudo-Locking to use within rdt_mount().
+ * These are no-ops provided for the new kernfs changes to use as a
+ * baseline in preparation for a conflict-free merge between it
+ * (kernfs changes) and the Cache Pseudo-Locking enabling.
+ */
+static inline int rdt_pseudo_lock_init(void) { return 0; }
+static inline void rdt_pseudo_lock_release(void) { }
+
 #endif /* _ASM_X86_INTEL_RDT_H */
