@@ -93,23 +93,6 @@ static int omap_gem_dmabuf_end_cpu_access(struct dma_buf *buffer,
 	return 0;
 }
 
-
-static void *omap_gem_dmabuf_kmap_atomic(struct dma_buf *buffer,
-		unsigned long page_num)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	struct page **pages;
-	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync_page(obj, page_num);
-	return kmap_atomic(pages[page_num]);
-}
-
-static void omap_gem_dmabuf_kunmap_atomic(struct dma_buf *buffer,
-		unsigned long page_num, void *addr)
-{
-	kunmap_atomic(addr);
-}
-
 static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
 		unsigned long page_num)
 {
