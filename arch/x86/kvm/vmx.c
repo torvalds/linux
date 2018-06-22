@@ -11876,6 +11876,17 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 
 	vmcs12 = get_vmcs12(vcpu);
 
+	/*
+	 * Can't VMLAUNCH or VMRESUME a shadow VMCS. Despite the fact
+	 * that there *is* a valid VMCS pointer, RFLAGS.CF is set
+	 * rather than RFLAGS.ZF, and no error number is stored to the
+	 * VM-instruction error field.
+	 */
+	if (vmcs12->hdr.shadow_vmcs) {
+		nested_vmx_failInvalid(vcpu);
+		goto out;
+	}
+
 	if (enable_shadow_vmcs)
 		copy_shadow_to_vmcs12(vmx);
 
