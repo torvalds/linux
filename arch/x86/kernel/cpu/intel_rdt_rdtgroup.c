@@ -1771,6 +1771,9 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
+		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP ||
+		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED)
+			rdtgroup_pseudo_lock_remove(rdtgrp);
 		kernfs_unbreak_active_protection(kn);
 		kernfs_put(rdtgrp->kn);
 		kfree(rdtgrp);
@@ -2001,6 +2004,10 @@ static void rmdir_all_sub(void)
 		/* Remove each rdtgroup other than root */
 		if (rdtgrp == &rdtgroup_default)
 			continue;
+
+		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP ||
+		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED)
+			rdtgroup_pseudo_lock_remove(rdtgrp);
 
 		/*
 		 * Give any CPUs back to the default group. We cannot copy
@@ -2313,6 +2320,8 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 						d->new_ctrl |= *ctrl;
 				}
 			}
+			if (d->plr && d->plr->cbm > 0)
+				used_b |= d->plr->cbm;
 			unused_b = used_b ^ (BIT_MASK(r->cache.cbm_len) - 1);
 			unused_b &= BIT_MASK(r->cache.cbm_len) - 1;
 			d->new_ctrl |= unused_b;
@@ -2696,13 +2705,19 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 	 * If the rdtgroup is a mon group and parent directory
 	 * is a valid "mon_groups" directory, remove the mon group.
 	 */
-	if (rdtgrp->type == RDTCTRL_GROUP && parent_kn == rdtgroup_default.kn)
-		ret = rdtgroup_rmdir_ctrl(kn, rdtgrp, tmpmask);
-	else if (rdtgrp->type == RDTMON_GROUP &&
-		 is_mon_groups(parent_kn, kn->name))
+	if (rdtgrp->type == RDTCTRL_GROUP && parent_kn == rdtgroup_default.kn) {
+		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP ||
+		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
+			ret = rdtgroup_ctrl_remove(kn, rdtgrp);
+		} else {
+			ret = rdtgroup_rmdir_ctrl(kn, rdtgrp, tmpmask);
+		}
+	} else if (rdtgrp->type == RDTMON_GROUP &&
+		 is_mon_groups(parent_kn, kn->name)) {
 		ret = rdtgroup_rmdir_mon(kn, rdtgrp, tmpmask);
-	else
+	} else {
 		ret = -EPERM;
+	}
 
 out:
 	rdtgroup_kn_unlock(kn);

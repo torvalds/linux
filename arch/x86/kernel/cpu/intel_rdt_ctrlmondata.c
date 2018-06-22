@@ -143,8 +143,25 @@ int parse_cbm(void *_data, struct rdt_resource *r, struct rdt_domain *d)
 		return -EINVAL;
 	}
 
+	/*
+	 * Cannot set up more than one pseudo-locked region in a cache
+	 * hierarchy.
+	 */
+	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
+	    rdtgroup_pseudo_locked_in_hierarchy(d)) {
+		rdt_last_cmd_printf("pseudo-locked region in hierarchy\n");
+		return -EINVAL;
+	}
+
 	if (!cbm_validate(data->buf, &cbm_val, r))
 		return -EINVAL;
+
+	if ((rdtgrp->mode == RDT_MODE_EXCLUSIVE ||
+	     rdtgrp->mode == RDT_MODE_SHAREABLE) &&
+	    rdtgroup_cbm_overlaps_pseudo_locked(d, cbm_val)) {
+		rdt_last_cmd_printf("CBM overlaps with pseudo-locked region\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * The CBM may not overlap with the CBM of another closid if
@@ -199,6 +216,21 @@ next:
 			data.rdtgrp = rdtgrp;
 			if (r->parse_ctrlval(&data, r, d))
 				return -EINVAL;
+			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
+				/*
+				 * In pseudo-locking setup mode and just
+				 * parsed a valid CBM that should be
+				 * pseudo-locked. Only one locked region per
+				 * resource group and domain so just do
+				 * the required initialization for single
+				 * region and return.
+				 */
+				rdtgrp->plr->r = r;
+				rdtgrp->plr->d = d;
+				rdtgrp->plr->cbm = d->new_ctrl;
+				d->plr = rdtgrp->plr;
+				return 0;
+			}
 			goto next;
 		}
 	}
@@ -320,6 +352,16 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		ret = update_domains(r, rdtgrp->closid);
 		if (ret)
 			goto out;
+	}
+
+	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
+		/*
+		 * If pseudo-locking fails we keep the resource group in
+		 * mode RDT_MODE_PSEUDO_LOCKSETUP with its class of service
+		 * active and updated for just the domain the pseudo-locked
+		 * region was requested for.
+		 */
+		ret = rdtgroup_pseudo_lock_create(rdtgrp);
 	}
 
 out:
