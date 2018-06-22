@@ -1806,6 +1806,11 @@ static inline bool nested_cpu_has_eptp_switching(struct vmcs12 *vmcs12)
 		 VMX_VMFUNC_EPTP_SWITCHING);
 }
 
+static inline bool nested_cpu_has_shadow_vmcs(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_SHADOW_VMCS);
+}
+
 static inline bool is_nmi(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -11745,7 +11750,7 @@ static int check_vmentry_postreqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	    !nested_guest_cr4_valid(vcpu, vmcs12->guest_cr4))
 		return 1;
 
-	if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_SHADOW_VMCS) &&
+	if (!nested_cpu_has_shadow_vmcs(vmcs12) &&
 	    vmcs12->vmcs_link_pointer != -1ull) {
 		*exit_qual = ENTRY_FAIL_VMCS_LINK_PTR;
 		return 1;
