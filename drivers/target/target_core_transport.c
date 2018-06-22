@@ -225,6 +225,22 @@ void transport_subsystem_check_init(void)
 }
 
 /**
+ * transport_init_session - initialize a session object
+ * @se_sess: Session object pointer.
+ *
+ * The caller must have zero-initialized @se_sess before calling this function.
+ */
+void transport_init_session(struct se_session *se_sess)
+{
+	INIT_LIST_HEAD(&se_sess->sess_list);
+	INIT_LIST_HEAD(&se_sess->sess_acl_list);
+	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
+	INIT_LIST_HEAD(&se_sess->sess_wait_list);
+	spin_lock_init(&se_sess->sess_cmd_lock);
+}
+EXPORT_SYMBOL(transport_init_session);
+
+/**
  * transport_alloc_session - allocate a session object and initialize it
  * @sup_prot_ops: bitmask that defines which T10-PI modes are supported.
  */
@@ -238,11 +254,7 @@ struct se_session *transport_alloc_session(enum target_prot_op sup_prot_ops)
 				" se_sess_cache\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	INIT_LIST_HEAD(&se_sess->sess_list);
-	INIT_LIST_HEAD(&se_sess->sess_acl_list);
-	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
-	INIT_LIST_HEAD(&se_sess->sess_wait_list);
-	spin_lock_init(&se_sess->sess_cmd_lock);
+	transport_init_session(se_sess);
 	se_sess->sup_prot_ops = sup_prot_ops;
 
 	return se_sess;
