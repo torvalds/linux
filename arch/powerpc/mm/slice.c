@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/export.h>
 #include <linux/hugetlb.h>
+#include <linux/sched/mm.h>
 #include <asm/mman.h>
 #include <asm/mmu.h>
 #include <asm/copro.h>
