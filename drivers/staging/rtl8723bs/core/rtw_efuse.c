@@ -13,18 +13,18 @@
 
 
 /*------------------------Define local variable------------------------------*/
-u8 fakeEfuseBank = 0;
-u32 fakeEfuseUsedBytes = 0;
+u8 fakeEfuseBank;
+u32 fakeEfuseUsedBytes;
 u8 fakeEfuseContent[EFUSE_MAX_HW_SIZE] = {0};
 u8 fakeEfuseInitMap[EFUSE_MAX_MAP_LEN] = {0};
 u8 fakeEfuseModifiedMap[EFUSE_MAX_MAP_LEN] = {0};
 
-u32 BTEfuseUsedBytes = 0;
+u32 BTEfuseUsedBytes;
 u8 BTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 u8 BTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 u8 BTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 
-u32 fakeBTEfuseUsedBytes = 0;
+u32 fakeBTEfuseUsedBytes;
 u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 u8 fakeBTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
