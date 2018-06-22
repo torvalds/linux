@@ -106,8 +106,6 @@ bool	target_lun_is_rdonly(struct se_cmd *);
 sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
 	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
-struct	se_device *target_find_device(int id, bool do_depend);
-
 bool target_sense_desc_format(struct se_device *dev);
 sector_t target_to_linux_sector(struct se_device *dev, sector_t lb);
 bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
