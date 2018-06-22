@@ -414,13 +414,12 @@ static int ovl_set_upper_acl(struct dentry *upperdentry, const char *name,
 	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL) || !acl)
 		return 0;
 
-	size = posix_acl_to_xattr(NULL, acl, NULL, 0);
+	size = posix_acl_xattr_size(acl->a_count);
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
-	size = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
-	err = size;
+	err = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	if (err < 0)
 		goto out_free;
 
