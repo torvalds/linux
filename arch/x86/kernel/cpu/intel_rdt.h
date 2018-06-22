@@ -138,6 +138,8 @@ struct mongroup {
  * @line_size:		size of the cache lines
  * @size:		size of pseudo-locked region in bytes
  * @kmem:		the kernel memory associated with pseudo-locked region
+ * @minor:		minor number of character device associated with this
+ *			region
  * @debugfs_dir:	pointer to this region's directory in the debugfs
  *			filesystem
  */
@@ -151,6 +153,7 @@ struct pseudo_lock_region {
 	unsigned int		line_size;
 	unsigned int		size;
 	void			*kmem;
+	unsigned int		minor;
 	struct dentry		*debugfs_dir;
 };
 
@@ -524,6 +527,8 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp);
 int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp);
 bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, u32 _cbm);
 bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_domain *d);
+int rdt_pseudo_lock_init(void);
+void rdt_pseudo_lock_release(void);
 int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp);
 void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp);
 struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r);
@@ -550,14 +555,5 @@ void cqm_setup_limbo_handler(struct rdt_domain *dom, unsigned long delay_ms);
 void cqm_handle_limbo(struct work_struct *work);
 bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d);
 void __check_limbo(struct rdt_domain *d, bool force_free);
-
-/*
- * Define the hooks for Cache Pseudo-Locking to use within rdt_mount().
- * These are no-ops provided for the new kernfs changes to use as a
- * baseline in preparation for a conflict-free merge between it
- * (kernfs changes) and the Cache Pseudo-Locking enabling.
- */
-static inline int rdt_pseudo_lock_init(void) { return 0; }
-static inline void rdt_pseudo_lock_release(void) { }
 
 #endif /* _ASM_X86_INTEL_RDT_H */
