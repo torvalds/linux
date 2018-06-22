@@ -1104,6 +1104,34 @@ static void mce_unmap_kpfn(unsigned long pfn)
 }
 #endif
 
+
+/*
+ * Cases where we avoid rendezvous handler timeout:
+ * 1) If this CPU is offline.
+ *
+ * 2) If crashing_cpu was set, e.g. we're entering kdump and we need to
+ *  skip those CPUs which remain looping in the 1st kernel - see
+ *  crash_nmi_callback().
+ *
+ * Note: there still is a small window between kexec-ing and the new,
+ * kdump kernel establishing a new #MC handler where a broadcasted MCE
+ * might not get handled properly.
+ */
+static bool __mc_check_crashing_cpu(int cpu)
+{
+	if (cpu_is_offline(cpu) ||
+	    (crashing_cpu != -1 && crashing_cpu != cpu)) {
+		u64 mcgstatus;
+
+		mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
+		if (mcgstatus & MCG_STATUS_RIPV) {
+			mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
+			return true;
+		}
+	}
+	return false;
+}
+
 /*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
@@ -1118,60 +1146,42 @@ static void mce_unmap_kpfn(unsigned long pfn)
  */
 void do_machine_check(struct pt_regs *regs, long error_code)
 {
+	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
+	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	struct mca_config *cfg = &mca_cfg;
+	int cpu = smp_processor_id();
+	char *msg = "Unknown";
 	struct mce m, *final;
-	int i;
 	int worst = 0;
 	int severity;
+	int i;
 
 	/*
 	 * Establish sequential order between the CPUs entering the machine
 	 * check handler.
 	 */
 	int order = -1;
+
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If mca_cfg.tolerant is cranked up, we'll try anyway.
 	 */
 	int no_way_out = 0;
+
 	/*
 	 * If kill_it gets set, there might be a way to recover from this
 	 * error.
 	 */
 	int kill_it = 0;
-	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
-	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
-	char *msg = "Unknown";
 
 	/*
 	 * MCEs are always local on AMD. Same is determined by MCG_STATUS_LMCES
 	 * on Intel.
 	 */
 	int lmce = 1;
-	int cpu = smp_processor_id();
 
-	/*
-	 * Cases where we avoid rendezvous handler timeout:
-	 * 1) If this CPU is offline.
-	 *
-	 * 2) If crashing_cpu was set, e.g. we're entering kdump and we need to
-	 *  skip those CPUs which remain looping in the 1st kernel - see
-	 *  crash_nmi_callback().
-	 *
-	 * Note: there still is a small window between kexec-ing and the new,
-	 * kdump kernel establishing a new #MC handler where a broadcasted MCE
-	 * might not get handled properly.
-	 */
-	if (cpu_is_offline(cpu) ||
-	    (crashing_cpu != -1 && crashing_cpu != cpu)) {
-		u64 mcgstatus;
-
-		mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
-		if (mcgstatus & MCG_STATUS_RIPV) {
-			mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
-			return;
-		}
-	}
+	if (__mc_check_crashing_cpu(cpu))
+		return;
 
 	ist_enter(regs);
 
