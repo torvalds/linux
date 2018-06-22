@@ -2697,6 +2697,7 @@ static void target_release_cmd_kref(struct kref *kref)
 
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+		list_del_init(&se_cmd->se_cmd_list);
 
 		spin_lock(&se_cmd->t_state_lock);
 		fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
@@ -2704,13 +2705,11 @@ static void target_release_cmd_kref(struct kref *kref)
 		spin_unlock(&se_cmd->t_state_lock);
 
 		if (se_cmd->cmd_wait_set || fabric_stop) {
-			list_del_init(&se_cmd->se_cmd_list);
 			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 			target_free_cmd_mem(se_cmd);
 			complete(&se_cmd->cmd_wait_comp);
 			return;
 		}
-		list_del_init(&se_cmd->se_cmd_list);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	}
 
