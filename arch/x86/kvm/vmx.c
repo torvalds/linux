@@ -3308,6 +3308,12 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING;
+	/*
+	 * We can emulate "VMCS shadowing," even if the hardware
+	 * doesn't support it.
+	 */
+	msrs->secondary_ctls_high |=
+		SECONDARY_EXEC_SHADOW_VMCS;
 
 	if (enable_ept) {
 		/* nested EPT: emulate EPT also to L1 */
@@ -11549,6 +11555,9 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				~SECONDARY_EXEC_ENABLE_PML;
 			exec_control |= vmcs12_exec_ctrl;
 		}
+
+		/* VMCS shadowing for L2 is emulated for now */
+		exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY)
 			vmcs_write16(GUEST_INTR_STATUS,
