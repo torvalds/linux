@@ -340,14 +340,15 @@ static void async_complete(struct urb *urb)
 {
 	struct urbtracker *urbtrack = urb->context;
 	int status = urb->status;
+	unsigned long flags;
 
 	if (unlikely(status))
 		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __func__, status);
 
 	/* remove the urbtracker from the active_urbs list */
-	spin_lock(&urbtrack->mos_parport->listlock);
+	spin_lock_irqsave(&urbtrack->mos_parport->listlock, flags);
 	list_del(&urbtrack->urblist_entry);
-	spin_unlock(&urbtrack->mos_parport->listlock);
+	spin_unlock_irqrestore(&urbtrack->mos_parport->listlock, flags);
 	kref_put(&urbtrack->ref_count, destroy_urbtracker);
 }
 
