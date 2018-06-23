@@ -18,7 +18,7 @@
  */
 
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
@@ -2037,12 +2037,8 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 	adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	hw->mac.max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	hw->mac.min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+	hw->phy.reset_delay_us = PCH_GBE_PHY_RESET_DELAY_US;
 
-	/* Initialize the hardware-specific values */
-	if (pch_gbe_hal_setup_init_funcs(hw)) {
-		netdev_err(netdev, "Hardware Initialization Failure\n");
-		return -EIO;
-	}
 	if (pch_gbe_alloc_queues(adapter)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;

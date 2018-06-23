@@ -17,7 +17,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 
 /**
  * pch_gbe_stats - Stats item information
