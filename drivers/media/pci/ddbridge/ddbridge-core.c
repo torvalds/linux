@@ -1893,12 +1893,12 @@ static void ddb_port_probe(struct ddb_port *port)
 	}
 
 	if (link->info->type == DDB_OCTOPUS_MCI) {
-		if (port->nr >= link->info->mci)
+		if (port->nr >= link->info->mci_ports)
 			return;
 		port->name = "DUAL MCI";
 		port->type_name = "MCI";
 		port->class = DDB_PORT_TUNER;
-		port->type = DDB_TUNER_MCI_SX8;
+		port->type = DDB_TUNER_MCI + link->info->mci_type;
 		return;
 	}
 

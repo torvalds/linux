@@ -120,20 +120,23 @@ struct ddb_info {
 #define DDB_OCTOPUS_MCI     9
 	char *name;
 	u32   i2c_mask;
+	u32   board_control;
+	u32   board_control_2;
+
 	u8    port_num;
 	u8    led_num;
 	u8    fan_num;
 	u8    temp_num;
 	u8    temp_bus;
-	u32   board_control;
-	u32   board_control_2;
 	u8    con_clock; /* use a continuous clock */
 	u8    ts_quirks;
 #define TS_QUIRK_SERIAL   1
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
+	u8    mci_ports;
+	u8    mci_type;
+
 	u32   tempmon_irq;
-	u8    mci;
 	const struct ddb_regmap *regmap;
 };
 
