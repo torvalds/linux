@@ -2,9 +2,9 @@
 /*
  * ddbridge-mci.c: Digital Devices microcode interface
  *
- * Copyright (C) 2017 Digital Devices GmbH
- *                    Ralph Metzler <rjkm@metzlerbros.de>
- *                    Marcus Metzler <mocm@metzlerbros.de>
+ * Copyright (C) 2017-2018 Digital Devices GmbH
+ *                         Ralph Metzler <rjkm@metzlerbros.de>
+ *                         Marcus Metzler <mocm@metzlerbros.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
