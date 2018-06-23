@@ -29,6 +29,18 @@ enum owl_pinconf_drv {
 	OWL_PINCONF_DRV_12MA,
 };
 
+/* GPIO CTRL Bit Definition */
+#define OWL_GPIO_CTLR_PENDING		0
+#define OWL_GPIO_CTLR_ENABLE		1
+#define OWL_GPIO_CTLR_SAMPLE_CLK_24M	2
+
+/* GPIO TYPE Bit Definition */
+#define OWL_GPIO_INT_LEVEL_HIGH		0
+#define OWL_GPIO_INT_LEVEL_LOW		1
+#define OWL_GPIO_INT_EDGE_RISING	2
+#define OWL_GPIO_INT_EDGE_FALLING	3
+#define OWL_GPIO_INT_MASK		3
+
 /**
  * struct owl_pullctl - Actions pad pull control register
  * @reg: offset to the pull control register
@@ -121,6 +133,10 @@ struct owl_pinmux_func {
  * @outen: offset of the output enable register.
  * @inen: offset of the input enable register.
  * @dat: offset of the data register.
+ * @intc_ctl: offset of the interrupt control register.
+ * @intc_pd: offset of the interrupt pending register.
+ * @intc_msk: offset of the interrupt mask register.
+ * @intc_type: offset of the interrupt type register.
  */
 struct owl_gpio_port {
 	unsigned int offset;
@@ -128,6 +144,10 @@ struct owl_gpio_port {
 	unsigned int outen;
 	unsigned int inen;
 	unsigned int dat;
+	unsigned int intc_ctl;
+	unsigned int intc_pd;
+	unsigned int intc_msk;
+	unsigned int intc_type;
 };
 
 /**
@@ -140,7 +160,7 @@ struct owl_gpio_port {
  * @ngroups: number of entries in @groups.
  * @padinfo: array describing the pad info of this SoC.
  * @ngpios: number of pingroups the driver should expose as GPIOs.
- * @port: array describing all GPIO ports of this SoC.
+ * @ports: array describing all GPIO ports of this SoC.
  * @nports: number of GPIO ports in this SoC.
  */
 struct owl_pinctrl_soc_data {

@@ -5,6 +5,7 @@ config PINCTRL_OWL
 	select PINCONF
 	select GENERIC_PINCONF
 	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to enable Actions Semi OWL pinctrl driver
 
