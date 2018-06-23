@@ -20,47 +20,6 @@
 #include "pch_gbe_phy.h"
 #include "pch_gbe_api.h"
 
-/* bus type values */
-#define pch_gbe_bus_type_unknown	0
-#define pch_gbe_bus_type_pci		1
-#define pch_gbe_bus_type_pcix		2
-#define pch_gbe_bus_type_pci_express	3
-#define pch_gbe_bus_type_reserved	4
-
-/* bus speed values */
-#define pch_gbe_bus_speed_unknown	0
-#define pch_gbe_bus_speed_33		1
-#define pch_gbe_bus_speed_66		2
-#define pch_gbe_bus_speed_100		3
-#define pch_gbe_bus_speed_120		4
-#define pch_gbe_bus_speed_133		5
-#define pch_gbe_bus_speed_2500		6
-#define pch_gbe_bus_speed_reserved	7
-
-/* bus width values */
-#define pch_gbe_bus_width_unknown	0
-#define pch_gbe_bus_width_pcie_x1	1
-#define pch_gbe_bus_width_pcie_x2	2
-#define pch_gbe_bus_width_pcie_x4	4
-#define pch_gbe_bus_width_32		5
-#define pch_gbe_bus_width_64		6
-#define pch_gbe_bus_width_reserved	7
-
-/**
- * pch_gbe_plat_get_bus_info - Obtain bus information for adapter
- * @hw:	Pointer to the HW structure
- */
-static void pch_gbe_plat_get_bus_info(struct pch_gbe_hw *hw)
-{
-	hw->bus.type  = pch_gbe_bus_type_pci_express;
-	hw->bus.speed = pch_gbe_bus_speed_2500;
-	hw->bus.width = pch_gbe_bus_width_pcie_x1;
-}
-
-static const struct pch_gbe_functions pch_gbe_ops = {
-	.get_bus_info      = pch_gbe_plat_get_bus_info,
-};
-
 /**
  * pch_gbe_plat_init_function_pointers - Init func ptrs
  * @hw:	Pointer to the HW structure
@@ -69,8 +28,6 @@ static void pch_gbe_plat_init_function_pointers(struct pch_gbe_hw *hw)
 {
 	/* Set PHY parameter */
 	hw->phy.reset_delay_us     = PCH_GBE_PHY_RESET_DELAY_US;
-	/* Set function pointers */
-	hw->func = &pch_gbe_ops;
 }
 
 /**
@@ -90,19 +47,4 @@ s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw)
 	}
 	pch_gbe_plat_init_function_pointers(hw);
 	return 0;
-}
-
-/**
- * pch_gbe_hal_get_bus_info - Obtain bus information for adapter
- * @hw:	Pointer to the HW structure
- */
-void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->get_bus_info) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return;
-	}
-	hw->func->get_bus_info(hw);
 }

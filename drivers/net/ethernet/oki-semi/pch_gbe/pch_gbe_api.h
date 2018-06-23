@@ -22,6 +22,5 @@
 #include "pch_gbe_phy.h"
 
 s32 pch_gbe_hal_setup_init_funcs(struct pch_gbe_hw *hw);
-void pch_gbe_hal_get_bus_info(struct pch_gbe_hw *hw);
 
 #endif

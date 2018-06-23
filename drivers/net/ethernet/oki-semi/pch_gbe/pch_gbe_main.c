@@ -2635,7 +2635,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "PHY initialize error\n");
 		goto err_free_adapter;
 	}
-	pch_gbe_hal_get_bus_info(&adapter->hw);
 
 	/* Read the MAC address. and store to the private data */
 	ret = pch_gbe_mac_read_mac_addr(&adapter->hw);

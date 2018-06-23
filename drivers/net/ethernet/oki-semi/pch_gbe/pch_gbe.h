@@ -326,16 +326,6 @@ struct pch_gbe_regs {
 #define PCH_GBE_FC_FULL			3
 #define PCH_GBE_FC_DEFAULT		PCH_GBE_FC_FULL
 
-
-struct pch_gbe_hw;
-/**
- * struct  pch_gbe_functions - HAL APi function pointer
- * @get_bus_info:	for pch_gbe_hal_get_bus_info
- */
-struct pch_gbe_functions {
-	void (*get_bus_info) (struct pch_gbe_hw *);
-};
-
 /**
  * struct pch_gbe_mac_info - MAC information
  * @addr[6]:		Store the MAC address
@@ -378,17 +368,6 @@ struct pch_gbe_phy_info {
 
 /*!
  * @ingroup Gigabit Ether driver Layer
- * @struct  pch_gbe_bus_info
- * @brief   Bus information
- */
-struct pch_gbe_bus_info {
-	u8 type;
-	u8 speed;
-	u8 width;
-};
-
-/*!
- * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_hw
  * @brief   Hardware information
  */
@@ -398,10 +377,8 @@ struct pch_gbe_hw {
 	struct pch_gbe_regs  __iomem *reg;
 	spinlock_t miim_lock;
 
-	const struct pch_gbe_functions *func;
 	struct pch_gbe_mac_info mac;
 	struct pch_gbe_phy_info phy;
-	struct pch_gbe_bus_info bus;
 };
 
 /**
