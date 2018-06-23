@@ -287,7 +287,7 @@ static inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
  * Returns:
  *	0:			Successful.
  */
-s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
+static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 {
 	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	u32  adr1a, adr1b;
@@ -2627,7 +2627,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	pch_gbe_hal_get_bus_info(&adapter->hw);
 
 	/* Read the MAC address. and store to the private data */
-	ret = pch_gbe_hal_read_mac_addr(&adapter->hw);
+	ret = pch_gbe_mac_read_mac_addr(&adapter->hw);
 	if (ret) {
 		dev_err(&pdev->dev, "MAC address Read Error\n");
 		goto err_free_adapter;

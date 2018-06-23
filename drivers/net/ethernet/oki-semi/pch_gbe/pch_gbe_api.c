@@ -90,7 +90,6 @@ static const struct pch_gbe_functions pch_gbe_ops = {
 	.write_phy_reg     = pch_gbe_phy_write_reg_miic,
 	.reset_phy         = pch_gbe_phy_hw_reset,
 	.sw_reset_phy      = pch_gbe_phy_sw_reset,
-	.read_mac_addr     = pch_gbe_mac_read_mac_addr
 };
 
 /**
@@ -219,22 +218,4 @@ void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw)
 		return;
 	}
 	hw->func->sw_reset_phy(hw);
-}
-
-/**
- * pch_gbe_hal_read_mac_addr - Reads MAC address
- * @hw:	Pointer to the HW structure
- * Returns:
- *	0:	Successfully
- *	ENOSYS:	Function is not registered
- */
-s32 pch_gbe_hal_read_mac_addr(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->read_mac_addr) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return -ENOSYS;
-	}
-	return hw->func->read_mac_addr(hw);
 }
