@@ -409,6 +409,18 @@ static inline void pgtable_free(void *table, int index)
 	case PUD_INDEX:
 		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), table);
 		break;
+#if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
+		/* 16M hugepd directory at pud level */
+	case HTLB_16M_INDEX:
+		BUILD_BUG_ON(H_16M_CACHE_INDEX <= 0);
+		kmem_cache_free(PGT_CACHE(H_16M_CACHE_INDEX), table);
+		break;
+		/* 16G hugepd directory at the pgd level */
+	case HTLB_16G_INDEX:
+		BUILD_BUG_ON(H_16G_CACHE_INDEX <= 0);
+		kmem_cache_free(PGT_CACHE(H_16G_CACHE_INDEX), table);
+		break;
+#endif
 		/* We don't free pgd table via RCU callback */
 	default:
 		BUG();
