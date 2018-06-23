@@ -27,6 +27,5 @@ s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw);
 s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset, u16 *data);
 s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset, u16 data);
 void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw);
-void pch_gbe_hal_phy_sw_reset(struct pch_gbe_hw *hw);
 
 #endif
