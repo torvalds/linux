@@ -682,8 +682,8 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator = 1 << ((state->berscale * 2) +
-						  10 + 3);
+		state->last_berdenominator = 1ULL << ((state->berscale * 2) +
+						     10 + 3);
 		state->last_bernumerator = ((u32)(regs[0] & 0x7F) << 16) |
 			((u32)regs[1] << 8) | regs[2];
 		if (state->last_bernumerator < 256 && state->berscale < 6) {
