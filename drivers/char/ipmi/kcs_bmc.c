@@ -210,34 +210,23 @@ static void kcs_bmc_handle_cmd(struct kcs_bmc *kcs_bmc)
 int kcs_bmc_handle_event(struct kcs_bmc *kcs_bmc)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret = -ENODATA;
 	u8 status;
 
 	spin_lock_irqsave(&kcs_bmc->lock, flags);
 
-	if (!kcs_bmc->running) {
-		kcs_force_abort(kcs_bmc);
-		ret = -ENODEV;
-		goto out_unlock;
+	status = read_status(kcs_bmc);
+	if (status & KCS_STATUS_IBF) {
+		if (!kcs_bmc->running)
+			kcs_force_abort(kcs_bmc);
+		else if (status & KCS_STATUS_CMD_DAT)
+			kcs_bmc_handle_cmd(kcs_bmc);
+		else
+			kcs_bmc_handle_data(kcs_bmc);
+
+		ret = 0;
 	}
 
-	status = read_status(kcs_bmc) & (KCS_STATUS_IBF | KCS_STATUS_CMD_DAT);
-
-	switch (status) {
-	case KCS_STATUS_IBF | KCS_STATUS_CMD_DAT:
-		kcs_bmc_handle_cmd(kcs_bmc);
-		break;
-
-	case KCS_STATUS_IBF:
-		kcs_bmc_handle_data(kcs_bmc);
-		break;
-
-	default:
-		ret = -ENODATA;
-		break;
-	}
-
-out_unlock:
 	spin_unlock_irqrestore(&kcs_bmc->lock, flags);
 
 	return ret;
