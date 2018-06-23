@@ -372,15 +372,31 @@ static int set_parameters(struct dvb_frontend *fe)
 	if (iq_mode)
 		ts_config = (SX8_TSCONFIG_TSHEADER | SX8_TSCONFIG_MODE_IQ);
 	if (iq_mode < 3) {
-		u32 flags = 3;
-		u32 mask = 0x7f;
+		u32 mask;
 
-		if (p->modulation == APSK_16 ||
-		    p->modulation == APSK_32) {
-			flags = 2;
+		switch (p->modulation) {
+		/* uncomment whenever these modulations hit the DVB API
+		 *	case APSK_256:
+		 *		mask = 0x7f;
+		 *		break;
+		 *	case APSK_128:
+		 *		mask = 0x3f;
+		 *		break;
+		 *	case APSK_64:
+		 *		mask = 0x1f;
+		 *		break;
+		 */
+		case APSK_32:
 			mask = 0x0f;
+			break;
+		case APSK_16:
+			mask = 0x07;
+			break;
+		default:
+			mask = 0x03;
+			break;
 		}
-		stat = start(fe, flags, mask, ts_config);
+		stat = start(fe, 3, mask, ts_config);
 	} else {
 		u32 flags = (iq_mode == 2) ? 1 : 0;
 
