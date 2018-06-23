@@ -437,9 +437,9 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 }
 
 static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
-					       struct inode *inode,
-					       struct vfsmount *mnt)
+					       unsigned int type)
 {
+	struct inode *inode = NULL;
 	struct fsnotify_mark_connector *conn;
 
 	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_KERNEL);
@@ -447,13 +447,11 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 		return -ENOMEM;
 	spin_lock_init(&conn->lock);
 	INIT_HLIST_HEAD(&conn->list);
-	if (inode) {
-		conn->type = FSNOTIFY_OBJ_TYPE_INODE;
-		conn->inode = igrab(inode);
-	} else {
-		conn->type = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
-		conn->mnt = mnt;
-	}
+	conn->type = type;
+	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
+		inode = conn->inode = igrab(fsnotify_obj_inode(connp));
+	else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+		conn->mnt = &fsnotify_obj_mount(connp)->mnt;
 	/*
 	 * cmpxchg() provides the barrier so that readers of *connp can see
 	 * only initialized structure
@@ -502,27 +500,22 @@ out:
  * priority, highest number first, and then by the group's location in memory.
  */
 static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
-				  struct inode *inode, struct vfsmount *mnt,
+				  fsnotify_connp_t *connp, unsigned int type,
 				  int allow_dups)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
-	fsnotify_connp_t *connp;
 	int cmp;
 	int err = 0;
 
-	if (WARN_ON(!inode && !mnt))
+	if (WARN_ON(!fsnotify_valid_obj_type(type)))
 		return -EINVAL;
-	if (inode)
-		connp = &inode->i_fsnotify_marks;
-	else
-		connp = &real_mount(mnt)->mnt_fsnotify_marks;
 restart:
 	spin_lock(&mark->lock);
 	conn = fsnotify_grab_connector(connp);
 	if (!conn) {
 		spin_unlock(&mark->lock);
-		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
+		err = fsnotify_attach_connector_to_object(connp, type);
 		if (err)
 			return err;
 		goto restart;
@@ -568,14 +561,13 @@ out_err:
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group.
  */
-int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct inode *inode,
-			     struct vfsmount *mnt, int allow_dups)
+int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
+			     fsnotify_connp_t *connp, unsigned int type,
+			     int allow_dups)
 {
 	struct fsnotify_group *group = mark->group;
 	int ret = 0;
 
-	BUG_ON(inode && mnt);
-	BUG_ON(!inode && !mnt);
 	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 
 	/*
@@ -592,7 +584,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct inode *inode,
 	fsnotify_get_mark(mark); /* for g_list */
 	spin_unlock(&mark->lock);
 
-	ret = fsnotify_add_mark_list(mark, inode, mnt, allow_dups);
+	ret = fsnotify_add_mark_list(mark, connp, type, allow_dups);
 	if (ret)
 		goto err;
 
@@ -612,14 +604,14 @@ err:
 	return ret;
 }
 
-int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
-		      struct vfsmount *mnt, int allow_dups)
+int fsnotify_add_mark(struct fsnotify_mark *mark, fsnotify_connp_t *connp,
+		      unsigned int type, int allow_dups)
 {
 	int ret;
 	struct fsnotify_group *group = mark->group;
 
 	mutex_lock(&group->mark_mutex);
-	ret = fsnotify_add_mark_locked(mark, inode, mnt, allow_dups);
+	ret = fsnotify_add_mark_locked(mark, connp, type, allow_dups);
 	mutex_unlock(&group->mark_mutex);
 	return ret;
 }
