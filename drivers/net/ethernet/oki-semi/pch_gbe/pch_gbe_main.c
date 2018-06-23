@@ -2110,28 +2110,27 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 
 	netdev_dbg(netdev, "netdev->flags : 0x%08x\n", netdev->flags);
 
-	/* Check for Promiscuous and All Multicast modes */
+	/* By default enable address & multicast filtering */
 	rctl = ioread32(&hw->reg->RX_MODE);
+	rctl |= PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN;
+
+	/* Promiscuous mode disables all hardware address filtering */
+	if (netdev->flags & IFF_PROMISC)
+		rctl &= ~(PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN);
+
+	/* If we want to monitor more multicast addresses than the hardware can
+	 * support then disable hardware multicast filtering.
+	 */
 	mc_count = netdev_mc_count(netdev);
-	if ((netdev->flags & IFF_PROMISC)) {
-		rctl &= ~PCH_GBE_ADD_FIL_EN;
+	if ((netdev->flags & IFF_ALLMULTI) || mc_count >= PCH_GBE_MAR_ENTRIES)
 		rctl &= ~PCH_GBE_MLT_FIL_EN;
-	} else if ((netdev->flags & IFF_ALLMULTI)) {
-		/* all the multicasting receive permissions */
-		rctl |= PCH_GBE_ADD_FIL_EN;
-		rctl &= ~PCH_GBE_MLT_FIL_EN;
-	} else {
-		if (mc_count >= PCH_GBE_MAR_ENTRIES) {
-			/* all the multicasting receive permissions */
-			rctl |= PCH_GBE_ADD_FIL_EN;
-			rctl &= ~PCH_GBE_MLT_FIL_EN;
-		} else {
-			rctl |= (PCH_GBE_ADD_FIL_EN | PCH_GBE_MLT_FIL_EN);
-		}
-	}
+
 	iowrite32(rctl, &hw->reg->RX_MODE);
 
-	if (mc_count >= PCH_GBE_MAR_ENTRIES)
+	/* If we're not using multicast filtering then there's no point
+	 * configuring the unused MAC address registers.
+	 */
+	if (!(rctl & PCH_GBE_MLT_FIL_EN))
 		return;
 
 	/* Load the first set of multicast addresses into MAC address registers
