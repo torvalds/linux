@@ -787,18 +787,19 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
  *		   be put back on the queue and retried using the same
  *		   command as before, possibly after a delay.
  *
- *		c) We can call scsi_end_request() with -EIO to fail
- *		   the remainder of the request.
+ *		c) We can call scsi_end_request() with blk_stat other than
+ *		   BLK_STS_OK, to fail the remainder of the request.
  */
 void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 {
 	int result = cmd->result;
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = cmd->request;
-	blk_status_t error = BLK_STS_OK;
+	blk_status_t blk_stat = BLK_STS_OK;
 	struct scsi_sense_hdr sshdr;
 	bool sense_valid = false;
-	int sense_deferred = 0, level = 0;
+	bool sense_current = true;	/* false implies "deferred sense" */
+	int level = 0;
 	enum {ACTION_FAIL, ACTION_REPREP, ACTION_RETRY,
 	      ACTION_DELAYED_RETRY} action;
 	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
@@ -806,7 +807,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	if (result) {
 		sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
 		if (sense_valid)
-			sense_deferred = scsi_sense_is_deferred(&sshdr);
+			sense_current = !scsi_sense_is_deferred(&sshdr);
 	}
 
 	if (blk_rq_is_passthrough(req)) {
@@ -819,8 +820,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					min(8 + cmd->sense_buffer[7],
 					    SCSI_SENSE_BUFFERSIZE);
 			}
-			if (!sense_deferred)
-				error = scsi_result_to_blk_status(cmd, result);
+			if (sense_current)
+				blk_stat = scsi_result_to_blk_status(cmd,
+								       result);
 		}
 		/*
 		 * scsi_result_to_blk_status may have reset the host_byte
@@ -839,13 +841,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				BUG();
 			return;
 		}
-	} else if (blk_rq_bytes(req) == 0 && result && !sense_deferred) {
+	} else if (blk_rq_bytes(req) == 0 && result && sense_current) {
 		/*
 		 * Flush commands do not transfers any data, and thus cannot use
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
-		 * This sets the error explicitly for the problem case.
+		 * This sets blk_stat explicitly for the problem case.
 		 */
-		error = scsi_result_to_blk_status(cmd, result);
+		blk_stat = scsi_result_to_blk_status(cmd, result);
 	}
 
 	/* no bidi support for !blk_rq_is_passthrough yet */
@@ -866,17 +868,22 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * is what gets returned to the user
 	 */
 	if (sense_valid && (sshdr.sense_key == RECOVERED_ERROR)) {
-		/* if ATA PASS-THROUGH INFORMATION AVAILABLE skip
+		bool do_print = true;
+
+		/*
+		 * If ATA PASS-THROUGH INFORMATION AVAILABLE skip
 		 * print since caller wants ATA registers. Only occurs on
 		 * SCSI ATA PASS_THROUGH commands when CK_COND=1
 		 */
 		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
-			;
-		else if (!(req->rq_flags & RQF_QUIET))
+			do_print = false;
+		else if (req->rq_flags & RQF_QUIET)
+			do_print = false;
+		if (do_print)
 			scsi_print_sense(cmd);
 		result = 0;
-		/* for passthrough error may be set */
-		error = BLK_STS_OK;
+		/* for passthrough, blk_stat may be set */
+		blk_stat = BLK_STS_OK;
 	}
 	/*
 	 * Another corner case: the SCSI status byte is non-zero but 'good'.
@@ -887,23 +894,22 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 */
 	if (status_byte(result) && scsi_status_is_good(result)) {
 		result = 0;
-		error = BLK_STS_OK;
+		blk_stat = BLK_STS_OK;
 	}
 
 	/*
-	 * special case: failed zero length commands always need to
-	 * drop down into the retry code. Otherwise, if we finished
-	 * all bytes in the request we are done now.
+	 * Next deal with any sectors which we were able to correctly
+	 * handle. Failed, zero length commands always need to drop down
+	 * to retry code. Fast path should return in this block.
 	 */
-	if (!(blk_rq_bytes(req) == 0 && error) &&
-	    !scsi_end_request(req, error, good_bytes, 0))
-		return;
+	if (blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK) {
+		if (!scsi_end_request(req, blk_stat, good_bytes, 0))
+			return; /* no bytes remaining */
+	}
 
-	/*
-	 * Kill remainder if no retrys.
-	 */
-	if (error && scsi_noretry_cmd(cmd)) {
-		if (scsi_end_request(req, error, blk_rq_bytes(req), 0))
+	 /* Kill remainder if no retries. */
+	if (blk_stat && scsi_noretry_cmd(cmd)) {
+		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req), 0))
 			BUG();
 		return;
 	}
@@ -915,7 +921,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	if (result == 0)
 		goto requeue;
 
-	error = scsi_result_to_blk_status(cmd, result);
+	blk_stat = scsi_result_to_blk_status(cmd, result);
 
 	if (host_byte(result) == DID_RESET) {
 		/* Third party bus reset or reset for error recovery
@@ -923,7 +929,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 * happens.
 		 */
 		action = ACTION_RETRY;
-	} else if (sense_valid && !sense_deferred) {
+	} else if (sense_valid && sense_current) {
 		switch (sshdr.sense_key) {
 		case UNIT_ATTENTION:
 			if (cmd->device->removable) {
@@ -959,18 +965,18 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				action = ACTION_REPREP;
 			} else if (sshdr.asc == 0x10) /* DIX */ {
 				action = ACTION_FAIL;
-				error = BLK_STS_PROTECTION;
+				blk_stat = BLK_STS_PROTECTION;
 			/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
 			} else if (sshdr.asc == 0x20 || sshdr.asc == 0x24) {
 				action = ACTION_FAIL;
-				error = BLK_STS_TARGET;
+				blk_stat = BLK_STS_TARGET;
 			} else
 				action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
 			action = ACTION_FAIL;
 			if (sshdr.asc == 0x10) /* DIF */
-				error = BLK_STS_PROTECTION;
+				blk_stat = BLK_STS_PROTECTION;
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming
@@ -1037,7 +1043,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				scsi_print_command(cmd);
 			}
 		}
-		if (!scsi_end_request(req, error, blk_rq_err_bytes(req), 0))
+		if (!scsi_end_request(req, blk_stat, blk_rq_err_bytes(req), 0))
 			return;
 		/*FALLTHRU*/
 	case ACTION_REPREP:
