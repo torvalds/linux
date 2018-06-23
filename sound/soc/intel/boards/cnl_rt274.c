@@ -157,7 +157,7 @@ static const struct snd_soc_dapm_route cnl_map[] = {
 static int cnl_rt274_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
-	struct snd_soc_component *component = runtime->codec_dai->component;;
+	struct snd_soc_component *component = runtime->codec_dai->component;
 	struct snd_soc_card *card = runtime->card;
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 
