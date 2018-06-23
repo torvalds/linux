@@ -268,6 +268,8 @@ struct fsnotify_mark_connector {
 	struct hlist_head list;
 };
 
+typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
+
 /*
  * A mark is simply an object attached to an in core inode which allows an
  * fsnotify listener to indicate they are either no longer interested in events
@@ -394,9 +396,8 @@ extern void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
 extern void fsnotify_init_mark(struct fsnotify_mark *mark,
 			       struct fsnotify_group *group);
 /* Find mark belonging to given group in the list of marks */
-extern struct fsnotify_mark *fsnotify_find_mark(
-				struct fsnotify_mark_connector __rcu **connp,
-				struct fsnotify_group *group);
+extern struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
+						struct fsnotify_group *group);
 /* attach the mark to the inode or vfsmount */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
 			     struct vfsmount *mnt, int allow_dups);
