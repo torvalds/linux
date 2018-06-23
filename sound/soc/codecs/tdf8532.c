@@ -260,10 +260,10 @@ static int tdf8532_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *dai)
 {
 	int ret = 0;
-	struct snd_soc_codec *codec = dai->codec;
-	struct tdf8532_priv *tdf8532 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct tdf8532_priv *tdf8532 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s: cmd = %d\n", __func__, cmd);
+	dev_dbg(component->dev, "%s: cmd = %d\n", __func__, cmd);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -283,10 +283,10 @@ static int tdf8532_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int tdf8532_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct tdf8532_priv *tdf8532 = snd_soc_codec_get_drvdata(dai->codec);
+	struct snd_soc_component *component = dai->component;
+	struct tdf8532_priv *tdf8532 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s\n", __func__);
+	dev_dbg(component->dev, "%s\n", __func__);
 
 	if (mute)
 		return tdf8532_amp_write(tdf8532, SET_CHNL_MUTE,
@@ -301,7 +301,7 @@ static const struct snd_soc_dai_ops tdf8532_dai_ops = {
 	.digital_mute = tdf8532_mute,
 };
 
-static struct snd_soc_codec_driver soc_codec_tdf8532;
+static struct snd_soc_component_driver  soc_component_tdf8532;
 
 static struct snd_soc_dai_driver tdf8532_dai[] = {
 	{
@@ -339,7 +339,7 @@ static int tdf8532_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, dev_data);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_tdf8532,
+	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_tdf8532,
 			tdf8532_dai, ARRAY_SIZE(tdf8532_dai));
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
@@ -352,8 +352,6 @@ out:
 
 static int tdf8532_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&i2c->dev);
-
 	return 0;
 }
 
