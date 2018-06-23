@@ -206,6 +206,42 @@ struct mci_result {
 	u32 version[4];
 };
 
+struct mci_base {
+	struct list_head     mci_list;
+	void                *key;
+	struct ddb_link     *link;
+	struct completion    completion;
+
+	struct device       *dev;
+	struct mutex         tuner_lock; /* concurrent tuner access lock */
+	u8                   adr;
+	struct mutex         mci_lock; /* concurrent MCI access lock */
+	int                  count;
+
+	u8                   tuner_use_count[MCI_TUNER_MAX];
+	u8                   assigned_demod[MCI_DEMOD_MAX];
+	u32                  used_ldpc_bitrate[MCI_DEMOD_MAX];
+	u8                   demod_in_use[MCI_DEMOD_MAX];
+	u32                  iq_mode;
+};
+
+struct mci {
+	struct mci_base     *base;
+	struct dvb_frontend  fe;
+	int                  nr;
+	int                  demod;
+	int                  tuner;
+	int                  first_time_lock;
+	int                  started;
+	struct mci_result    signal_info;
+
+	u32                  bb_mode;
+};
+
+int ddb_mci_cmd(struct mci *state, struct mci_command *command,
+		struct mci_result *result);
+int ddb_mci_config(struct mci *state, u32 config);
+
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input,
 		int mci_type, int nr,
