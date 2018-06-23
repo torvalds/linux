@@ -621,16 +621,17 @@ static void qt2_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port;
 	struct qt2_port_private *port_priv;
+	unsigned long flags;
 
 	port = urb->context;
 	port_priv = usb_get_serial_port_data(port);
 
-	spin_lock(&port_priv->urb_lock);
+	spin_lock_irqsave(&port_priv->urb_lock, flags);
 
 	port_priv->urb_in_use = false;
 	usb_serial_port_softint(port);
 
-	spin_unlock(&port_priv->urb_lock);
+	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
 }
 
