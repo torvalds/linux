@@ -411,44 +411,6 @@ static void pch_gbe_mac_init_rx_addrs(struct pch_gbe_hw *hw, u16 mar_count)
 	pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
 }
 
-
-/**
- * pch_gbe_mac_mc_addr_list_update - Update Multicast addresses
- * @hw:	            Pointer to the HW structure
- * @mc_addr_list:   Array of multicast addresses to program
- * @mc_addr_count:  Number of multicast addresses to program
- * @mar_used_count: The first MAC Address register free to program
- * @mar_total_num:  Total number of supported MAC Address Registers
- */
-static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
-					    u8 *mc_addr_list, u32 mc_addr_count,
-					    u32 mar_used_count, u32 mar_total_num)
-{
-	u32 i, adrmask;
-
-	/* Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = mar_used_count; i < mar_total_num; i++) {
-		if (mc_addr_count) {
-			pch_gbe_mac_mar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			/* Clear MAC address mask */
-			adrmask = ioread32(&hw->reg->ADDR_MASK);
-			iowrite32((adrmask | (0x0001 << i)),
-					&hw->reg->ADDR_MASK);
-			/* wait busy */
-			pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
-			/* Clear MAC address */
-			iowrite32(0, &hw->reg->mac_adr[i].high);
-			iowrite32(0, &hw->reg->mac_adr[i].low);
-		}
-	}
-}
-
 /**
  * pch_gbe_mac_force_mac_fc - Force the MAC's flow control settings
  * @hw:	            Pointer to the HW structure
@@ -2143,10 +2105,8 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
-	u8 *mta_list;
-	u32 rctl;
-	int i;
-	int mc_count;
+	u32 rctl, adrmask;
+	int mc_count, i;
 
 	netdev_dbg(netdev, "netdev->flags : 0x%08x\n", netdev->flags);
 
@@ -2173,20 +2133,25 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 
 	if (mc_count >= PCH_GBE_MAR_ENTRIES)
 		return;
-	mta_list = kmalloc_array(ETH_ALEN, mc_count, GFP_ATOMIC);
-	if (!mta_list)
-		return;
 
-	/* The shared function expects a packed array of only addresses. */
-	i = 0;
-	netdev_for_each_mc_addr(ha, netdev) {
-		if (i == mc_count)
-			break;
-		memcpy(mta_list + (i++ * ETH_ALEN), &ha->addr, ETH_ALEN);
+	/* Load the first set of multicast addresses into MAC address registers
+	 * for use by hardware filtering.
+	 */
+	i = 1;
+	netdev_for_each_mc_addr(ha, netdev)
+		pch_gbe_mac_mar_set(hw, ha->addr, i++);
+
+	/* If there are spare MAC registers, mask & clear them */
+	for (; i < PCH_GBE_MAR_ENTRIES; i++) {
+		/* Clear MAC address mask */
+		adrmask = ioread32(&hw->reg->ADDR_MASK);
+		iowrite32(adrmask | BIT(i), &hw->reg->ADDR_MASK);
+		/* wait busy */
+		pch_gbe_wait_clr_bit(&hw->reg->ADDR_MASK, PCH_GBE_BUSY);
+		/* Clear MAC address */
+		iowrite32(0, &hw->reg->mac_adr[i].high);
+		iowrite32(0, &hw->reg->mac_adr[i].low);
 	}
-	pch_gbe_mac_mc_addr_list_update(hw, mta_list, i, 1,
-					PCH_GBE_MAR_ENTRIES);
-	kfree(mta_list);
 
 	netdev_dbg(netdev,
 		 "RX_MODE reg(check bit31,30 ADD,MLT) : 0x%08x  netdev->mc_count : 0x%08x\n",
