@@ -74,9 +74,13 @@
 #define SX8_CMD_ENABLE_IQOUTPUT  (0x44)
 #define SX8_CMD_DISABLE_IQOUTPUT (0x45)
 
-#define MCI_ERROR_UNSUPPORTED    (0x80)
+#define MCI_STATUS_OK            (0x00)
+#define MCI_STATUS_UNSUPPORTED   (0x80)
+#define MCI_STATUS_RETRY         (0xFD)
+#define MCI_STATUS_NOT_READY     (0xFE)
+#define MCI_STATUS_ERROR         (0xFF)
 
-#define MCI_SUCCESS(status)      (status < MCI_ERROR_UNSUPPORTED)
+#define MCI_SUCCESS(status)      ((status & MCI_STATUS_UNSUPPORTED) == 0)
 
 #define SX8_CMD_DIAG_READ8       (0xE0)
 #define SX8_CMD_DIAG_READ32      (0xE1)
