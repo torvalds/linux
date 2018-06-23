@@ -437,6 +437,7 @@ ENTRY(crypto_morus640_sse2_enc_tail)
 	movdqu STATE4, (4 * 16)(%rdi)
 
 	FRAME_END
+	ret
 ENDPROC(crypto_morus640_sse2_enc_tail)
 
 /*
