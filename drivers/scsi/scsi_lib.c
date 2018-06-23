@@ -1042,17 +1042,17 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	struct request *req = cmd->request;
 	blk_status_t blk_stat = BLK_STS_OK;
 
-	if (result)	/* does not necessarily mean there is an error */
+	if (unlikely(result))	/* a nz result may or may not be an error */
 		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 
-	if (blk_rq_is_passthrough(req)) {
+	if (unlikely(blk_rq_is_passthrough(req))) {
 		/*
 		 * scsi_result_to_blk_status may have reset the host_byte
 		 */
 		scsi_req(req)->result = cmd->result;
 		scsi_req(req)->resid_len = scsi_get_resid(cmd);
 
-		if (scsi_bidi_cmnd(cmd)) {
+		if (unlikely(scsi_bidi_cmnd(cmd))) {
 			/*
 			 * Bidi commands Must be complete as a whole,
 			 * both sides at once.
@@ -1065,7 +1065,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		}
 	}
 
-	/* no bidi support for !blk_rq_is_passthrough yet */
+	/* no bidi support yet, other than in pass-through */
 	BUG_ON(blk_bidi_rq(req));
 
 	/*
@@ -1081,13 +1081,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * handle. Failed, zero length commands always need to drop down
 	 * to retry code. Fast path should return in this block.
 	 */
-	if (blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK) {
-		if (!scsi_end_request(req, blk_stat, good_bytes, 0))
+	if (likely(blk_rq_bytes(req) > 0 || blk_stat == BLK_STS_OK)) {
+		if (likely(!scsi_end_request(req, blk_stat, good_bytes, 0)))
 			return; /* no bytes remaining */
 	}
 
-	 /* Kill remainder if no retries. */
-	if (blk_stat && scsi_noretry_cmd(cmd)) {
+	/* Kill remainder if no retries. */
+	if (unlikely(blk_stat && scsi_noretry_cmd(cmd))) {
 		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req), 0))
 			BUG();
 		return;
@@ -1097,7 +1097,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * If there had been no error, but we have leftover bytes in the
 	 * requeues just queue the command up again.
 	 */
-	if (result == 0)
+	if (likely(result == 0))
 		scsi_io_completion_reprep(cmd, q);
 	else
 		scsi_io_completion_action(cmd, result);
