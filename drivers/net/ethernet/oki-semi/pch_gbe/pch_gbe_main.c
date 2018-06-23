@@ -2538,7 +2538,7 @@ static void pch_gbe_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->reset_task);
 	unregister_netdev(netdev);
 
-	pch_gbe_hal_phy_hw_reset(&adapter->hw);
+	pch_gbe_phy_hw_reset(&adapter->hw);
 
 	free_netdev(netdev);
 }
@@ -2674,7 +2674,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_free_adapter:
-	pch_gbe_hal_phy_hw_reset(&adapter->hw);
+	pch_gbe_phy_hw_reset(&adapter->hw);
 err_free_netdev:
 	free_netdev(netdev);
 	return ret;

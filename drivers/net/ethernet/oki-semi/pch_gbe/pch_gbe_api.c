@@ -88,7 +88,6 @@ static const struct pch_gbe_functions pch_gbe_ops = {
 	.init_hw           = pch_gbe_plat_init_hw,
 	.read_phy_reg      = pch_gbe_phy_read_reg_miic,
 	.write_phy_reg     = pch_gbe_phy_write_reg_miic,
-	.reset_phy         = pch_gbe_phy_hw_reset,
 };
 
 /**
@@ -187,19 +186,4 @@ s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset,
 	if (!hw->func->write_phy_reg)
 		return 0;
 	return hw->func->write_phy_reg(hw, offset, data);
-}
-
-/**
- * pch_gbe_hal_phy_hw_reset - Hard PHY reset
- * @hw:	    Pointer to the HW structure
- */
-void pch_gbe_hal_phy_hw_reset(struct pch_gbe_hw *hw)
-{
-	if (!hw->func->reset_phy) {
-		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
-
-		netdev_err(adapter->netdev, "ERROR: configuration\n");
-		return;
-	}
-	hw->func->reset_phy(hw);
 }
