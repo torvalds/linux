@@ -109,6 +109,23 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 	refcount_inc(&mark->refcnt);
 }
 
+static __u32 *fsnotify_conn_mask_p(struct fsnotify_mark_connector *conn)
+{
+	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
+		return &fsnotify_conn_inode(conn)->i_fsnotify_mask;
+	else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+		return &fsnotify_conn_mount(conn)->mnt_fsnotify_mask;
+	return NULL;
+}
+
+__u32 fsnotify_conn_mask(struct fsnotify_mark_connector *conn)
+{
+	if (WARN_ON(!fsnotify_valid_obj_type(conn->type)))
+		return 0;
+
+	return *fsnotify_conn_mask_p(conn);
+}
+
 static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
 	u32 new_mask = 0;
@@ -119,10 +136,10 @@ static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 		if (mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED)
 			new_mask |= mark->mask;
 	}
-	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
-		fsnotify_conn_inode(conn)->i_fsnotify_mask = new_mask;
-	else if (conn->type == FSNOTIFY_OBJ_TYPE_VFSMOUNT)
-		fsnotify_conn_mount(conn)->mnt_fsnotify_mask = new_mask;
+	if (WARN_ON(!fsnotify_valid_obj_type(conn->type)))
+		return;
+
+	*fsnotify_conn_mask_p(conn) = new_mask;
 }
 
 /*
