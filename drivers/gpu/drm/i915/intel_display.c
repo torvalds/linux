@@ -12555,6 +12555,19 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	finish_wait(&dev_priv->gpu_error.wait_queue, &wait_reset);
 }
 
+static void intel_atomic_cleanup_work(struct work_struct *work)
+{
+	struct drm_atomic_state *state =
+		container_of(work, struct drm_atomic_state, commit_work);
+	struct drm_i915_private *i915 = to_i915(state->dev);
+
+	drm_atomic_helper_cleanup_planes(&i915->drm, state);
+	drm_atomic_helper_commit_cleanup_done(state);
+	drm_atomic_state_put(state);
+
+	intel_atomic_helper_free_state(i915);
+}
+
 static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -12715,13 +12728,16 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
-	drm_atomic_helper_cleanup_planes(dev, state);
-
-	drm_atomic_helper_commit_cleanup_done(state);
-
-	drm_atomic_state_put(state);
-
-	intel_atomic_helper_free_state(dev_priv);
+	/*
+	 * Defer the cleanup of the old state to a separate worker to not
+	 * impede the current task (userspace for blocking modesets) that
+	 * are executed inline. For out-of-line asynchronous modesets/flips,
+	 * deferring to a new worker seems overkill, but we would place a
+	 * schedule point (cond_resched()) here anyway to keep latencies
+	 * down.
+	 */
+	INIT_WORK(&state->commit_work, intel_atomic_cleanup_work);
+	schedule_work(&state->commit_work);
 }
 
 static void intel_atomic_commit_work(struct work_struct *work)
