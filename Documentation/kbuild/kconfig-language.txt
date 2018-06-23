@@ -430,6 +430,12 @@ This sets the config program's title bar if the config program chooses
 to use it. It should be placed at the top of the configuration, before any
 other statement.
 
+'#' Kconfig source file comment:
+
+An unquoted '#' character anywhere in a source file line indicates
+the beginning of a source file comment.  The remainder of that line
+is a comment.
+
 
 Kconfig hints
 -------------
