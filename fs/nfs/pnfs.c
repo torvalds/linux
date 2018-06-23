@@ -1160,12 +1160,21 @@ static bool
 pnfs_layout_need_return(struct pnfs_layout_hdr *lo)
 {
 	struct pnfs_layout_segment *s;
+	enum pnfs_iomode iomode;
+	u32 seq;
 
 	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
 		return false;
 
-	/* Defer layoutreturn until all lsegs are done */
+	seq = lo->plh_return_seq;
+	iomode = lo->plh_return_iomode;
+
+	/* Defer layoutreturn until all recalled lsegs are done */
 	list_for_each_entry(s, &lo->plh_segs, pls_list) {
+		if (seq && pnfs_seqid_is_newer(s->pls_seq, seq))
+			continue;
+		if (iomode != IOMODE_ANY && s->pls_range.iomode != iomode)
+			continue;
 		if (test_bit(NFS_LSEG_LAYOUTRETURN, &s->pls_flags))
 			return false;
 	}
