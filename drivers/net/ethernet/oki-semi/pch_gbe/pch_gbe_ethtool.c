@@ -349,25 +349,12 @@ static int pch_gbe_set_ringparam(struct net_device *netdev,
 		err = pch_gbe_setup_tx_resources(adapter, adapter->tx_ring);
 		if (err)
 			goto err_setup_tx;
-		/* save the new, restore the old in order to free it,
-		 * then restore the new back again */
-#ifdef RINGFREE
-		adapter->rx_ring = rx_old;
-		adapter->tx_ring = tx_old;
-		pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
-		pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
-		kfree(tx_old);
-		kfree(rx_old);
-		adapter->rx_ring = rxdr;
-		adapter->tx_ring = txdr;
-#else
 		pch_gbe_free_rx_resources(adapter, rx_old);
 		pch_gbe_free_tx_resources(adapter, tx_old);
 		kfree(tx_old);
 		kfree(rx_old);
 		adapter->rx_ring = rxdr;
 		adapter->tx_ring = txdr;
-#endif
 		err = pch_gbe_up(adapter);
 	}
 	return err;
