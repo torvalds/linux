@@ -9,14 +9,16 @@
 
 #include "../mount.h"
 
-static inline struct inode *fsnotify_obj_inode(fsnotify_connp_t *connp)
+static inline struct inode *fsnotify_conn_inode(
+				struct fsnotify_mark_connector *conn)
 {
-	return container_of(connp, struct inode, i_fsnotify_marks);
+	return container_of(conn->obj, struct inode, i_fsnotify_marks);
 }
 
-static inline struct mount *fsnotify_obj_mount(fsnotify_connp_t *connp)
+static inline struct mount *fsnotify_conn_mount(
+				struct fsnotify_mark_connector *conn)
 {
-	return container_of(connp, struct mount, mnt_fsnotify_marks);
+	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
 }
 
 /* destroy all events sitting in this groups notification queue */

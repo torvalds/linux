@@ -256,6 +256,13 @@ FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 	for (type = 0; type < FSNOTIFY_OBJ_TYPE_COUNT; type++)
 
 /*
+ * fsnotify_connp_t is what we embed in objects which connector can be attached
+ * to. fsnotify_connp_t * is how we refer from connector back to object.
+ */
+struct fsnotify_mark_connector;
+typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
+
+/*
  * Inode / vfsmount point to this structure which tracks all marks attached to
  * the inode / vfsmount. The reference to inode / vfsmount is held by this
  * structure. We destroy this structure when there are no more marks attached
@@ -264,16 +271,14 @@ FSNOTIFY_ITER_FUNCS(vfsmount, VFSMOUNT)
 struct fsnotify_mark_connector {
 	spinlock_t lock;
 	unsigned int type;	/* Type of object [lock] */
-	union {	/* Object pointer [lock] */
-		struct inode *inode;
-		struct vfsmount *mnt;
+	union {
+		/* Object pointer [lock] */
+		fsnotify_connp_t *obj;
 		/* Used listing heads to free after srcu period expires */
 		struct fsnotify_mark_connector *destroy_next;
 	};
 	struct hlist_head list;
 };
-
-typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
 
 /*
  * A mark is simply an object attached to an in core inode which allows an
