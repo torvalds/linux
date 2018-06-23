@@ -59,6 +59,9 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
 static __read_mostly unsigned int xen_events_irq;
 
+uint32_t xen_start_flags;
+EXPORT_SYMBOL(xen_start_flags);
+
 int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
 			       xen_pfn_t *gfn, int nr,
@@ -293,9 +296,7 @@ void __init xen_early_init(void)
 	xen_setup_features();
 
 	if (xen_feature(XENFEAT_dom0))
-		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
-	else
-		xen_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED);
+		xen_start_flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 
 	if (!console_set_on_cmdline && !xen_initial_domain())
 		add_preferred_console("hvc", 0, NULL);
