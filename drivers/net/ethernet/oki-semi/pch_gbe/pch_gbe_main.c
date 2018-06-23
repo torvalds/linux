@@ -366,9 +366,7 @@ static void pch_gbe_mac_reset_hw(struct pch_gbe_hw *hw)
 	/* Read the MAC address. and store to the private data */
 	pch_gbe_mac_read_mac_addr(hw);
 	iowrite32(PCH_GBE_ALL_RST, &hw->reg->RESET);
-#ifdef PCH_GBE_MAC_IFOP_RGMII
 	iowrite32(PCH_GBE_MODE_GMII_ETHER, &hw->reg->MODE);
-#endif
 	pch_gbe_wait_clr_bit(&hw->reg->RESET, PCH_GBE_ALL_RST);
 	/* Setup the receive addresses */
 	pch_gbe_mac_mar_set(hw, hw->mac.addr, 0);
@@ -776,9 +774,7 @@ void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 	}
 	pch_gbe_phy_init_setting(hw);
 	/* Setup Mac interface option RGMII */
-#ifdef PCH_GBE_MAC_IFOP_RGMII
 	pch_gbe_phy_set_rgmii(hw);
-#endif
 }
 
 /**
@@ -1044,7 +1040,6 @@ static void pch_gbe_set_rgmii_ctrl(struct pch_gbe_adapter *adapter, u16 speed,
 	unsigned long rgmii = 0;
 
 	/* Set the RGMII control. */
-#ifdef PCH_GBE_MAC_IFOP_RGMII
 	switch (speed) {
 	case SPEED_10:
 		rgmii = (PCH_GBE_RGMII_RATE_2_5M |
@@ -1060,10 +1055,6 @@ static void pch_gbe_set_rgmii_ctrl(struct pch_gbe_adapter *adapter, u16 speed,
 		break;
 	}
 	iowrite32(rgmii, &hw->reg->RGMII_CTRL);
-#else	/* GMII */
-	rgmii = 0;
-	iowrite32(rgmii, &hw->reg->RGMII_CTRL);
-#endif
 }
 static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
 			      u16 duplex)

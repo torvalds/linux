@@ -21,7 +21,6 @@
 
 #define PCH_GBE_PHY_REGS_LEN		32
 #define	PCH_GBE_PHY_RESET_DELAY_US	10
-#define PCH_GBE_MAC_IFOP_RGMII
 
 s32 pch_gbe_phy_get_id(struct pch_gbe_hw *hw);
 s32 pch_gbe_phy_read_reg_miic(struct pch_gbe_hw *hw, u32 offset, u16 *data);
