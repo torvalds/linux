@@ -292,7 +292,7 @@ unlock:
 	cmd.dvbs2_search.frequency = p->frequency * 1000;
 	cmd.dvbs2_search.symbol_rate = p->symbol_rate;
 	cmd.dvbs2_search.scrambling_sequence_index =
-		p->scrambling_sequence_index;
+		p->scrambling_sequence_index | 0x80000000;
 	cmd.dvbs2_search.input_stream_id =
 		(p->stream_id != NO_STREAM_ID_FILTER) ? p->stream_id : 0;
 	cmd.tuner = state->mci.tuner;
