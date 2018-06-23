@@ -2770,24 +2770,7 @@ static struct pci_driver pch_gbe_driver = {
 	.shutdown = pch_gbe_shutdown,
 	.err_handler = &pch_gbe_err_handler
 };
-
-
-static int __init pch_gbe_init_module(void)
-{
-	int ret;
-
-	pr_info("EG20T PCH Gigabit Ethernet Driver - version %s\n",DRV_VERSION);
-	ret = pci_register_driver(&pch_gbe_driver);
-	return ret;
-}
-
-static void __exit pch_gbe_exit_module(void)
-{
-	pci_unregister_driver(&pch_gbe_driver);
-}
-
-module_init(pch_gbe_init_module);
-module_exit(pch_gbe_exit_module);
+module_pci_driver(pch_gbe_driver);
 
 MODULE_DESCRIPTION("EG20T PCH Gigabit ethernet Driver");
 MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
