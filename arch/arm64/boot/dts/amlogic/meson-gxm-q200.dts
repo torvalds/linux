@@ -71,3 +71,10 @@
 		interrupts = <25 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
+
+&sd_emmc_a {
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
+};
