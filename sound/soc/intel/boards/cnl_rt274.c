@@ -35,30 +35,19 @@
 
 #include "../../codecs/rt274.h"
 
-#define CNL_FREQ_OUT		19200000
+#define CNL_FREQ_OUT		24000000
 #define CNL_BE_FIXUP_RATE	48000
 #define RT274_CODEC_DAI		"rt274-aif1"
 
-static struct snd_soc_dai *cnl_get_codec_dai(struct snd_soc_card *card,
-						     const char *dai_name)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-		if (!strcmp(rtd->codec_dai->name, dai_name))
-			return rtd->codec_dai;
-	}
-
-	return NULL;
-}
-
 static int cnl_rt274_clock_control(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *k, int  event)
+				   struct snd_kcontrol *k, int  event)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
-	int ret = 0, ratio = 100;
-	struct snd_soc_dai *codec_dai = cnl_get_codec_dai(card,
+	int ret = 0;
+	int ratio = 100;
+
+	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card,
 							  RT274_CODEC_DAI);
 	if (!codec_dai)
 		return -EINVAL;
