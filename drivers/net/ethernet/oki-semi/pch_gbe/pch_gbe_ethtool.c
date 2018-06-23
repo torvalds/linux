@@ -125,7 +125,7 @@ static int pch_gbe_set_link_ksettings(struct net_device *netdev,
 	u32 advertising;
 	int ret;
 
-	pch_gbe_hal_write_phy_reg(hw, MII_BMCR, BMCR_RESET);
+	pch_gbe_phy_write_reg_miic(hw, MII_BMCR, BMCR_RESET);
 
 	memcpy(&copy_ecmd, ecmd, sizeof(*ecmd));
 
@@ -204,7 +204,7 @@ static void pch_gbe_get_regs(struct net_device *netdev,
 		*regs_buff++ = ioread32(&hw->reg->INT_ST + i);
 	/* PHY register */
 	for (i = 0; i < PCH_GBE_PHY_REGS_LEN; i++) {
-		pch_gbe_hal_read_phy_reg(&adapter->hw, i, &tmp);
+		pch_gbe_phy_read_reg_miic(&adapter->hw, i, &tmp);
 		*regs_buff++ = tmp;
 	}
 }

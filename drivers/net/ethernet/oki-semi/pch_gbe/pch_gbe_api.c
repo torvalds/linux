@@ -86,8 +86,6 @@ static s32 pch_gbe_plat_init_hw(struct pch_gbe_hw *hw)
 static const struct pch_gbe_functions pch_gbe_ops = {
 	.get_bus_info      = pch_gbe_plat_get_bus_info,
 	.init_hw           = pch_gbe_plat_init_hw,
-	.read_phy_reg      = pch_gbe_phy_read_reg_miic,
-	.write_phy_reg     = pch_gbe_phy_write_reg_miic,
 };
 
 /**
@@ -152,38 +150,4 @@ s32 pch_gbe_hal_init_hw(struct pch_gbe_hw *hw)
 		return -ENOSYS;
 	}
 	return hw->func->init_hw(hw);
-}
-
-/**
- * pch_gbe_hal_read_phy_reg - Reads PHY register
- * @hw:	    Pointer to the HW structure
- * @offset: The register to read
- * @data:   The buffer to store the 16-bit read.
- * Returns:
- *	0:	Successfully
- *	Negative value:	Failed
- */
-s32 pch_gbe_hal_read_phy_reg(struct pch_gbe_hw *hw, u32 offset,
-					u16 *data)
-{
-	if (!hw->func->read_phy_reg)
-		return 0;
-	return hw->func->read_phy_reg(hw, offset, data);
-}
-
-/**
- * pch_gbe_hal_write_phy_reg - Writes PHY register
- * @hw:	    Pointer to the HW structure
- * @offset: The register to read
- * @data:   The value to write.
- * Returns:
- *	0:	Successfully
- *	Negative value:	Failed
- */
-s32 pch_gbe_hal_write_phy_reg(struct pch_gbe_hw *hw, u32 offset,
-					u16 data)
-{
-	if (!hw->func->write_phy_reg)
-		return 0;
-	return hw->func->write_phy_reg(hw, offset, data);
 }

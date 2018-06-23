@@ -332,14 +332,10 @@ struct pch_gbe_hw;
  * struct  pch_gbe_functions - HAL APi function pointer
  * @get_bus_info:	for pch_gbe_hal_get_bus_info
  * @init_hw:		for pch_gbe_hal_init_hw
- * @read_phy_reg:	for pch_gbe_hal_read_phy_reg
- * @write_phy_reg:	for pch_gbe_hal_write_phy_reg
  */
 struct pch_gbe_functions {
 	void (*get_bus_info) (struct pch_gbe_hw *);
 	s32 (*init_hw) (struct pch_gbe_hw *);
-	s32 (*read_phy_reg) (struct pch_gbe_hw *, u32, u16 *);
-	s32 (*write_phy_reg) (struct pch_gbe_hw *, u32, u16);
 };
 
 /**
