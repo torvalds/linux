@@ -761,6 +761,20 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 	}
 }
 
+/* Helper for scsi_io_completion() when "reprep" action required. */
+static void scsi_io_completion_reprep(struct scsi_cmnd *cmd,
+				      struct request_queue *q)
+{
+	/* A new command will be prepared and issued. */
+	if (q->mq_ops) {
+		scsi_mq_requeue_cmd(cmd);
+	} else {
+		/* Unprep request and put it back at head of the queue. */
+		scsi_release_buffers(cmd);
+		scsi_requeue_command(q, cmd);
+	}
+}
+
 /* Helper for scsi_io_completion() when special action required. */
 static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 {
@@ -906,15 +920,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 			return;
 		/*FALLTHRU*/
 	case ACTION_REPREP:
-		/* Unprep the request and put it back at the head of the queue.
-		 * A new command will be prepared and issued.
-		 */
-		if (q->mq_ops) {
-			scsi_mq_requeue_cmd(cmd);
-		} else {
-			scsi_release_buffers(cmd);
-			scsi_requeue_command(q, cmd);
-		}
+		scsi_io_completion_reprep(cmd, q);
 		break;
 	case ACTION_RETRY:
 		/* Retry the same command immediately */
@@ -1091,20 +1097,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * If there had been no error, but we have leftover bytes in the
 	 * requeues just queue the command up again.
 	 */
-	if (result == 0) {
-		/*
-		 * Unprep the request and put it back at the head of the
-		 * queue. A new command will be prepared and issued.
-		 * This block is the same as case ACTION_REPREP in
-		 * scsi_io_completion_action() above.
-		 */
-		if (q->mq_ops) {
-			scsi_mq_requeue_cmd(cmd);
-		} else {
-			scsi_release_buffers(cmd);
-			scsi_requeue_command(q, cmd);
-		}
-	} else
+	if (result == 0)
+		scsi_io_completion_reprep(cmd, q);
+	else
 		scsi_io_completion_action(cmd, result);
 }
 
