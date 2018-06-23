@@ -762,6 +762,79 @@ static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 }
 
 /*
+ * Helper for scsi_io_completion() when cmd->result is non-zero. Returns a
+ * new result that may suppress further error checking. Also modifies
+ * *blk_statp in some cases.
+ */
+static int scsi_io_completion_nz_result(struct scsi_cmnd *cmd, int result,
+					blk_status_t *blk_statp)
+{
+	bool sense_valid;
+	bool sense_current = true;	/* false implies "deferred sense" */
+	struct request *req = cmd->request;
+	struct scsi_sense_hdr sshdr;
+
+	sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
+	if (sense_valid)
+		sense_current = !scsi_sense_is_deferred(&sshdr);
+
+	if (blk_rq_is_passthrough(req)) {
+		if (sense_valid) {
+			/*
+			 * SG_IO wants current and deferred errors
+			 */
+			scsi_req(req)->sense_len =
+				min(8 + cmd->sense_buffer[7],
+				    SCSI_SENSE_BUFFERSIZE);
+		}
+		if (sense_current)
+			*blk_statp = scsi_result_to_blk_status(cmd, result);
+	} else if (blk_rq_bytes(req) == 0 && sense_current) {
+		/*
+		 * Flush commands do not transfers any data, and thus cannot use
+		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
+		 * This sets *blk_statp explicitly for the problem case.
+		 */
+		*blk_statp = scsi_result_to_blk_status(cmd, result);
+	}
+	/*
+	 * Recovered errors need reporting, but they're always treated as
+	 * success, so fiddle the result code here.  For passthrough requests
+	 * we already took a copy of the original into sreq->result which
+	 * is what gets returned to the user
+	 */
+	if (sense_valid && (sshdr.sense_key == RECOVERED_ERROR)) {
+		bool do_print = true;
+		/*
+		 * if ATA PASS-THROUGH INFORMATION AVAILABLE [0x0, 0x1d]
+		 * skip print since caller wants ATA registers. Only occurs
+		 * on SCSI ATA PASS_THROUGH commands when CK_COND=1
+		 */
+		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
+			do_print = false;
+		else if (req->rq_flags & RQF_QUIET)
+			do_print = false;
+		if (do_print)
+			scsi_print_sense(cmd);
+		result = 0;
+		/* for passthrough, *blk_statp may be set */
+		*blk_statp = BLK_STS_OK;
+	}
+	/*
+	 * Another corner case: the SCSI status byte is non-zero but 'good'.
+	 * Example: PRE-FETCH command returns SAM_STAT_CONDITION_MET when
+	 * it is able to fit nominated LBs in its cache (and SAM_STAT_GOOD
+	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
+	 * intermediate statuses (both obsolete in SAM-4) as good.
+	 */
+	if (status_byte(result) && scsi_status_is_good(result)) {
+		result = 0;
+		*blk_statp = BLK_STS_OK;
+	}
+	return result;
+}
+
+/*
  * Function:    scsi_io_completion()
  *
  * Purpose:     Completion processing for block device I/O requests.
@@ -804,26 +877,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	      ACTION_DELAYED_RETRY} action;
 	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
 
-	if (result) {
+	if (result) {	/* does not necessarily mean there is an error */
 		sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
 		if (sense_valid)
 			sense_current = !scsi_sense_is_deferred(&sshdr);
+		result = scsi_io_completion_nz_result(cmd, result, &blk_stat);
 	}
 
 	if (blk_rq_is_passthrough(req)) {
-		if (result) {
-			if (sense_valid) {
-				/*
-				 * SG_IO wants current and deferred errors
-				 */
-				scsi_req(req)->sense_len =
-					min(8 + cmd->sense_buffer[7],
-					    SCSI_SENSE_BUFFERSIZE);
-			}
-			if (sense_current)
-				blk_stat = scsi_result_to_blk_status(cmd,
-								       result);
-		}
 		/*
 		 * scsi_result_to_blk_status may have reset the host_byte
 		 */
@@ -841,13 +902,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				BUG();
 			return;
 		}
-	} else if (blk_rq_bytes(req) == 0 && result && sense_current) {
-		/*
-		 * Flush commands do not transfers any data, and thus cannot use
-		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
-		 * This sets blk_stat explicitly for the problem case.
-		 */
-		blk_stat = scsi_result_to_blk_status(cmd, result);
 	}
 
 	/* no bidi support for !blk_rq_is_passthrough yet */
@@ -860,42 +914,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	SCSI_LOG_HLCOMPLETE(1, scmd_printk(KERN_INFO, cmd,
 		"%u sectors total, %d bytes done.\n",
 		blk_rq_sectors(req), good_bytes));
-
-	/*
-	 * Recovered errors need reporting, but they're always treated as
-	 * success, so fiddle the result code here.  For passthrough requests
-	 * we already took a copy of the original into sreq->result which
-	 * is what gets returned to the user
-	 */
-	if (sense_valid && (sshdr.sense_key == RECOVERED_ERROR)) {
-		bool do_print = true;
-
-		/*
-		 * If ATA PASS-THROUGH INFORMATION AVAILABLE skip
-		 * print since caller wants ATA registers. Only occurs on
-		 * SCSI ATA PASS_THROUGH commands when CK_COND=1
-		 */
-		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
-			do_print = false;
-		else if (req->rq_flags & RQF_QUIET)
-			do_print = false;
-		if (do_print)
-			scsi_print_sense(cmd);
-		result = 0;
-		/* for passthrough, blk_stat may be set */
-		blk_stat = BLK_STS_OK;
-	}
-	/*
-	 * Another corner case: the SCSI status byte is non-zero but 'good'.
-	 * Example: PRE-FETCH command returns SAM_STAT_CONDITION_MET when
-	 * it is able to fit nominated LBs in its cache (and SAM_STAT_GOOD
-	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
-	 * intermediate statuses (both obsolete in SAM-4) as good.
-	 */
-	if (status_byte(result) && scsi_status_is_good(result)) {
-		result = 0;
-		blk_stat = BLK_STS_OK;
-	}
 
 	/*
 	 * Next deal with any sectors which we were able to correctly
