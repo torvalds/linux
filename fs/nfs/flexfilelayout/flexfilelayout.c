@@ -1323,6 +1323,7 @@ static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count,
 			hdr->res.count);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &hdr->lseg->pls_flags);
 }
 
 static int ff_layout_read_prepare_common(struct rpc_task *task,
@@ -1507,6 +1508,7 @@ static void ff_layout_write_record_layoutstats_done(struct rpc_task *task,
 			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
 			hdr->args.count, hdr->res.count,
 			hdr->res.verf->committed);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &hdr->lseg->pls_flags);
 }
 
 static int ff_layout_write_prepare_common(struct rpc_task *task,
@@ -1615,6 +1617,7 @@ static void ff_layout_commit_record_layoutstats_done(struct rpc_task *task,
 	nfs4_ff_layout_stat_io_end_write(task,
 			FF_LAYOUT_COMP(cdata->lseg, cdata->ds_commit_index),
 			count, count, NFS_FILE_SYNC);
+	set_bit(NFS_LSEG_LAYOUTRETURN, &cdata->lseg->pls_flags);
 }
 
 static void ff_layout_commit_prepare_common(struct rpc_task *task,
