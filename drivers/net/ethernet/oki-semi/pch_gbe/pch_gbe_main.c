@@ -760,14 +760,25 @@ void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter)
 void pch_gbe_reset(struct pch_gbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct pch_gbe_hw *hw = &adapter->hw;
+	s32 ret_val;
 
-	pch_gbe_mac_reset_hw(&adapter->hw);
+	pch_gbe_mac_reset_hw(hw);
 	/* reprogram multicast address register after reset */
 	pch_gbe_set_multi(netdev);
 	/* Setup the receive address. */
-	pch_gbe_mac_init_rx_addrs(&adapter->hw, PCH_GBE_MAR_ENTRIES);
-	if (pch_gbe_hal_init_hw(&adapter->hw))
-		netdev_err(netdev, "Hardware Error\n");
+	pch_gbe_mac_init_rx_addrs(hw, PCH_GBE_MAR_ENTRIES);
+
+	ret_val = pch_gbe_phy_get_id(hw);
+	if (ret_val) {
+		netdev_err(adapter->netdev, "pch_gbe_phy_get_id error\n");
+		return;
+	}
+	pch_gbe_phy_init_setting(hw);
+	/* Setup Mac interface option RGMII */
+#ifdef PCH_GBE_MAC_IFOP_RGMII
+	pch_gbe_phy_set_rgmii(hw);
+#endif
 }
 
 /**
