@@ -211,18 +211,11 @@ struct mci_base {
 	void                *key;
 	struct ddb_link     *link;
 	struct completion    completion;
-
 	struct device       *dev;
 	struct mutex         tuner_lock; /* concurrent tuner access lock */
-	u8                   adr;
 	struct mutex         mci_lock; /* concurrent MCI access lock */
 	int                  count;
-
-	u8                   tuner_use_count[MCI_TUNER_MAX];
-	u8                   assigned_demod[MCI_DEMOD_MAX];
-	u32                  used_ldpc_bitrate[MCI_DEMOD_MAX];
-	u8                   demod_in_use[MCI_DEMOD_MAX];
-	u32                  iq_mode;
+	int                  type;
 };
 
 struct mci {
@@ -231,20 +224,27 @@ struct mci {
 	int                  nr;
 	int                  demod;
 	int                  tuner;
-	int                  first_time_lock;
-	int                  started;
-	struct mci_result    signal_info;
-
-	u32                  bb_mode;
 };
+
+struct mci_cfg {
+	int                  type;
+	struct dvb_frontend_ops *fe_ops;
+	u32                  base_size;
+	u32                  state_size;
+	int (*init)(struct mci *mci);
+	int (*base_init)(struct mci_base *mci_base);
+	int (*set_input)(struct dvb_frontend *fe, int input);
+};
+
+/* defined in ddbridge-sx8.c */
+extern const struct mci_cfg ddb_max_sx8_cfg;
 
 int ddb_mci_cmd(struct mci *state, struct mci_command *command,
 		struct mci_result *result);
 int ddb_mci_config(struct mci *state, u32 config);
 
 struct dvb_frontend
-*ddb_mci_attach(struct ddb_input *input,
-		int mci_type, int nr,
+*ddb_mci_attach(struct ddb_input *input, struct mci_cfg *cfg, int nr,
 		int (**fn_set_input)(struct dvb_frontend *fe, int input));
 
 #endif /* _DDBRIDGE_MCI_H_ */

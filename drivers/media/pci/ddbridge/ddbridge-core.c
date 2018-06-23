@@ -1593,7 +1593,7 @@ static int dvb_input_attach(struct ddb_input *input)
 			goto err_detach;
 		break;
 	case DDB_TUNER_MCI_SX8:
-		if (ddb_fe_attach_mci(input) < 0)
+		if (ddb_fe_attach_mci(input, port->type) < 0)
 			goto err_detach;
 		break;
 	default:
