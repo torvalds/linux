@@ -1341,14 +1341,12 @@ static inline int check_modstruct_version(const struct load_info *info,
 	 * locking is necessary -- use preempt_disable() to placate lockdep.
 	 */
 	preempt_disable();
-	if (!find_symbol(VMLINUX_SYMBOL_STR(module_layout), NULL,
-			 &crc, true, false)) {
+	if (!find_symbol("module_layout", NULL, &crc, true, false)) {
 		preempt_enable();
 		BUG();
 	}
 	preempt_enable();
-	return check_version(info, VMLINUX_SYMBOL_STR(module_layout),
-			     mod, crc);
+	return check_version(info, "module_layout", mod, crc);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
