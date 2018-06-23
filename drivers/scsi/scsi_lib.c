@@ -1060,13 +1060,21 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_req(req->next_rq)->resid_len = scsi_in(cmd)->resid;
 			if (scsi_end_request(req, BLK_STS_OK, blk_rq_bytes(req),
 					blk_rq_bytes(req->next_rq)))
-				BUG();
+				WARN_ONCE(true,
+					  "Bidi command with remaining bytes");
 			return;
 		}
 	}
 
 	/* no bidi support yet, other than in pass-through */
-	BUG_ON(blk_bidi_rq(req));
+	if (unlikely(blk_bidi_rq(req))) {
+		WARN_ONCE(true, "Only support bidi command in passthrough");
+		scmd_printk(KERN_ERR, cmd, "Killing bidi command\n");
+		if (scsi_end_request(req, BLK_STS_IOERR, blk_rq_bytes(req),
+				     blk_rq_bytes(req->next_rq)))
+			WARN_ONCE(true, "Bidi command with remaining bytes");
+		return;
+	}
 
 	/*
 	 * Next deal with any sectors which we were able to correctly
@@ -1089,7 +1097,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	/* Kill remainder if no retries. */
 	if (unlikely(blk_stat && scsi_noretry_cmd(cmd))) {
 		if (scsi_end_request(req, blk_stat, blk_rq_bytes(req), 0))
-			BUG();
+			WARN_ONCE(true,
+			    "Bytes remaining after failed, no-retry command");
 		return;
 	}
 
