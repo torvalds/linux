@@ -1191,6 +1191,13 @@ static const struct lnbh25_config lnbh25_cfg = {
 	.data2_config = LNBH25_TEN
 };
 
+static int has_lnbh25(struct i2c_adapter *i2c, u8 adr)
+{
+	u8 val;
+
+	return i2c_read_reg(i2c, adr, 0, &val) ? 0 : 1;
+}
+
 static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 {
 	struct i2c_adapter *i2c = &input->port->i2c->adap;
@@ -1224,14 +1231,15 @@ static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 	/* attach lnbh25 - leftshift by one as the lnbh25 driver expects 8bit
 	 * i2c addresses
 	 */
-	lnbcfg.i2c_address = (((input->nr & 1) ? 0x0d : 0x0c) << 1);
-	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
+	if (has_lnbh25(i2c, 0x0d))
+		lnbcfg.i2c_address = (((input->nr & 1) ? 0x0d : 0x0c) << 1);
+	else
 		lnbcfg.i2c_address = (((input->nr & 1) ? 0x09 : 0x08) << 1);
-		if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
-			dev_err(dev, "No LNBH25 found!\n");
-			dvb_frontend_detach(dvb->fe);
-			return -ENODEV;
-		}
+
+	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
+		dev_err(dev, "No LNBH25 found!\n");
+		dvb_frontend_detach(dvb->fe);
+		return -ENODEV;
 	}
 
 	return 0;
