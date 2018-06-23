@@ -2382,7 +2382,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	if (ieee->state == IEEE80211_NOLINK) {
 		printk("creating new IBSS cell\n");
 		if(!ieee->wap_set)
-			random_ether_addr(ieee->current_network.bssid);
+			eth_random_addr(ieee->current_network.bssid);
 
 		if(ieee->modulation & IEEE80211_CCK_MODULATION){
 
