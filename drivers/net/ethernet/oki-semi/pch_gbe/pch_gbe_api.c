@@ -90,8 +90,6 @@ static const struct pch_gbe_functions pch_gbe_ops = {
 	.write_phy_reg     = pch_gbe_phy_write_reg_miic,
 	.reset_phy         = pch_gbe_phy_hw_reset,
 	.sw_reset_phy      = pch_gbe_phy_sw_reset,
-	.power_up_phy      = pch_gbe_phy_power_up,
-	.power_down_phy    = pch_gbe_phy_power_down,
 	.read_mac_addr     = pch_gbe_mac_read_mac_addr
 };
 
@@ -239,24 +237,4 @@ s32 pch_gbe_hal_read_mac_addr(struct pch_gbe_hw *hw)
 		return -ENOSYS;
 	}
 	return hw->func->read_mac_addr(hw);
-}
-
-/**
- * pch_gbe_hal_power_up_phy - Power up PHY
- * @hw:	Pointer to the HW structure
- */
-void pch_gbe_hal_power_up_phy(struct pch_gbe_hw *hw)
-{
-	if (hw->func->power_up_phy)
-		hw->func->power_up_phy(hw);
-}
-
-/**
- * pch_gbe_hal_power_down_phy - Power down PHY
- * @hw:	Pointer to the HW structure
- */
-void pch_gbe_hal_power_down_phy(struct pch_gbe_hw *hw)
-{
-	if (hw->func->power_down_phy)
-		hw->func->power_down_phy(hw);
 }
