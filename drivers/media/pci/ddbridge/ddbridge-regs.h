@@ -34,14 +34,6 @@
 #define GPIO_DIRECTION   0x28
 
 /* ------------------------------------------------------------------------- */
-/* MDIO */
-
-#define MDIO_CTRL        0x20
-#define MDIO_ADR         0x24
-#define MDIO_REG         0x28
-#define MDIO_VAL         0x2C
-
-/* ------------------------------------------------------------------------- */
 
 #define BOARD_CONTROL    0x30
 

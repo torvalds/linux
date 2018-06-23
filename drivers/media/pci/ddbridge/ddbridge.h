@@ -127,7 +127,6 @@ struct ddb_info {
 	u8    temp_bus;
 	u32   board_control;
 	u32   board_control_2;
-	u8    mdio_num;
 	u8    con_clock; /* use a continuous clock */
 	u8    ts_quirks;
 #define TS_QUIRK_SERIAL   1
