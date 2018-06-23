@@ -254,7 +254,6 @@ struct ddb_port {
 #define DDB_CI_EXTERNAL_XO2_B    13
 #define DDB_TUNER_DVBS_STV0910_PR 14
 #define DDB_TUNER_DVBC2T2I_SONY_P 15
-#define DDB_TUNER_MCI            16
 
 #define DDB_TUNER_XO2            32
 #define DDB_TUNER_DVBS_STV0910   (DDB_TUNER_XO2 + 0)
@@ -263,6 +262,9 @@ struct ddb_port {
 #define DDB_TUNER_DVBC2T2_SONY   (DDB_TUNER_XO2 + 3)
 #define DDB_TUNER_ATSC_ST        (DDB_TUNER_XO2 + 4)
 #define DDB_TUNER_DVBC2T2I_SONY  (DDB_TUNER_XO2 + 5)
+
+#define DDB_TUNER_MCI            48
+#define DDB_TUNER_MCI_SX8        (DDB_TUNER_MCI + 0)
 
 	struct ddb_input      *input[2];
 	struct ddb_output     *output;

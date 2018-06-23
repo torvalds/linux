@@ -1592,7 +1592,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		if (demod_attach_dummy(input) < 0)
 			goto err_detach;
 		break;
-	case DDB_TUNER_MCI:
+	case DDB_TUNER_MCI_SX8:
 		if (ddb_fe_attach_mci(input) < 0)
 			goto err_detach;
 		break;
@@ -1898,7 +1898,7 @@ static void ddb_port_probe(struct ddb_port *port)
 		port->name = "DUAL MCI";
 		port->type_name = "MCI";
 		port->class = DDB_PORT_TUNER;
-		port->type = DDB_TUNER_MCI;
+		port->type = DDB_TUNER_MCI_SX8;
 		return;
 	}
 
