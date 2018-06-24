@@ -866,8 +866,6 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	key_put(key);
 	if (inode == ERR_PTR(-ENOENT)) {
 		inode = afs_try_auto_mntpt(dentry, dir);
-		if (inode == ERR_PTR(-ENOENT))
-			inode = NULL;
 	} else {
 		dentry->d_fsdata =
 			(void *)(unsigned long)dvnode->status.data_version;
