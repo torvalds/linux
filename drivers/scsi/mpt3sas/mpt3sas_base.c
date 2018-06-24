@@ -3250,7 +3250,7 @@ _base_recovery_check(struct MPT3SAS_ADAPTER *ioc)
 	 * See _wait_for_commands_to_complete() call with regards to this code.
 	 */
 	if (ioc->shost_recovery && ioc->pending_io_count) {
-		ioc->pending_io_count = atomic_read(&ioc->shost->host_busy);
+		ioc->pending_io_count = scsi_host_busy(ioc->shost);
 		if (ioc->pending_io_count == 0)
 			wake_up(&ioc->reset_wq);
 	}
@@ -6857,7 +6857,7 @@ mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
 		return;
 
 	/* pending command count */
-	ioc->pending_io_count = atomic_read(&ioc->shost->host_busy);
+	ioc->pending_io_count = scsi_host_busy(ioc->shost);
 
 	if (!ioc->pending_io_count)
 		return;

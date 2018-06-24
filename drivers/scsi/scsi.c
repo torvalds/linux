@@ -167,7 +167,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 			if (level > 3)
 				scmd_printk(KERN_INFO, cmd,
 					    "scsi host busy %d failed %d\n",
-					    atomic_read(&cmd->device->host->host_busy),
+					    scsi_host_busy(cmd->device->host),
 					    cmd->device->host->host_failed);
 		}
 	}
