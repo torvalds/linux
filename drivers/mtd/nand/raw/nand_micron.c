@@ -290,6 +290,19 @@ static int micron_nand_init(struct nand_chip *chip)
 	return 0;
 }
 
+static void micron_fixup_onfi_param_page(struct nand_chip *chip,
+					 struct nand_onfi_params *p)
+{
+	/*
+	 * MT29F1G08ABAFAWP-ITE:F and possibly others report 00 00 for the
+	 * revision number field of the ONFI parameter page. Assume ONFI
+	 * version 1.0 if the revision number is 00 00.
+	 */
+	if (le16_to_cpu(p->revision) == 0)
+		p->revision = cpu_to_le16(ONFI_VERSION_1_0);
+}
+
 const struct nand_manufacturer_ops micron_nand_manuf_ops = {
 	.init = micron_nand_init,
+	.fixup_onfi_param_page = micron_fixup_onfi_param_page,
 };
