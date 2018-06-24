@@ -4635,7 +4635,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 
 static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 {
-	if (!tp->saved_wolopts)
+	if (!netif_running(tp->dev) || !tp->saved_wolopts)
 		return false;
 
 	rtl_speed_down(tp);
