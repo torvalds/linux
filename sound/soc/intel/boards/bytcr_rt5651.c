@@ -90,9 +90,9 @@ struct byt_rt5651_private {
 	struct snd_soc_jack jack;
 };
 
-/* Default: jack-detect on JD1_1, internal mic on in2, headsetmic on in3 */
+/* Default: jack-detect on JD1_1, internal mic on in1, headsetmic on in3 */
 static unsigned long byt_rt5651_quirk = BYT_RT5651_DEFAULT_QUIRKS |
-					BYT_RT5651_IN2_HS_IN3_MAP;
+					BYT_RT5651_IN1_HS_IN3_MAP;
 
 static void log_quirks(struct device *dev)
 {
@@ -392,7 +392,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "D2D3_Vi8A1"),
 		},
 		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
-					BYT_RT5651_IN2_HS_IN3_MAP),
+					BYT_RT5651_IN1_HS_IN3_MAP),
 	},
 	{
 		/* VIOS LTH17 */
