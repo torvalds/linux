@@ -1025,10 +1025,7 @@ static int irq_thread(void *data)
 	 * This is the regular exit path. __free_irq() is stopping the
 	 * thread via kthread_stop() after calling
 	 * synchronize_irq(). So neither IRQTF_RUNTHREAD nor the
-	 * oneshot mask bit can be set. We cannot verify that as we
-	 * cannot touch the oneshot mask at this point anymore as
-	 * __setup_irq() might have given out currents thread_mask
-	 * again.
+	 * oneshot mask bit can be set.
 	 */
 	task_work_cancel(current, irq_thread_dtor);
 	return 0;
@@ -1245,7 +1242,9 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	/*
 	 * Protects against a concurrent __free_irq() call which might wait
 	 * for synchronize_irq() to complete without holding the optional
-	 * chip bus lock and desc->lock.
+	 * chip bus lock and desc->lock. Also protects against handing out
+	 * a recycled oneshot thread_mask bit while it's still in use by
+	 * its previous owner.
 	 */
 	mutex_lock(&desc->request_mutex);
 
