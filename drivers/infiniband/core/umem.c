@@ -206,7 +206,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 				  DMA_BIDIRECTIONAL,
 				  dma_attrs);
 
-	if (umem->nmap <= 0) {
+	if (!umem->nmap) {
 		ret = -ENOMEM;
 		goto out;
 	}
