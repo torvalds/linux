@@ -990,9 +990,6 @@ static void tls_queue(struct strparser *strp, struct sk_buff *skb)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(strp->sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
-	struct strp_msg *rxm;
-
-	rxm = strp_msg(skb);
 
 	ctx->decrypted = false;
 
