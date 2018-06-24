@@ -305,6 +305,7 @@ int __init netdev_boot_setup(char *str);
 /*
  * Structure for NAPI scheduling similar to tasklet but with weighting
  */
+#define GRO_HASH_BUCKETS	8
 struct napi_struct {
 	/* The poll_list must only be managed by the entity which
 	 * changes the state of the NAPI_STATE_SCHED bit.  This means
@@ -322,7 +323,7 @@ struct napi_struct {
 	int			poll_owner;
 #endif
 	struct net_device	*dev;
-	struct list_head	gro_list;
+	struct list_head	gro_hash[GRO_HASH_BUCKETS];
 	struct sk_buff		*skb;
 	struct hrtimer		timer;
 	struct list_head	dev_list;
