@@ -77,6 +77,11 @@ enum {
 #define BYT_RT5651_SSP0_AIF1		BIT(20)
 #define BYT_RT5651_SSP0_AIF2		BIT(21)
 
+#define BYT_RT5651_DEFAULT_QUIRKS	(BYT_RT5651_MCLK_EN | \
+					 BYT_RT5651_JD1_1   | \
+					 BYT_RT5651_OVCD_TH_2000UA | \
+					 BYT_RT5651_OVCD_SF_0P75)
+
 /* jack-detect-source + dmic-en + ovcd-th + -sf + terminating empty entry */
 #define MAX_NO_PROPS 5
 
@@ -86,10 +91,7 @@ struct byt_rt5651_private {
 };
 
 /* Default: jack-detect on JD1_1, internal mic on in2, headsetmic on in3 */
-static unsigned long byt_rt5651_quirk = BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_0P75 |
+static unsigned long byt_rt5651_quirk = BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_HS_IN3_MAP;
 
 static void log_quirks(struct device *dev)
@@ -379,10 +381,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
 		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_0P75 |
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN1_IN2_MAP),
 	},
 	{
@@ -392,10 +391,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "D2D3_Vi8A1"),
 		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_0P75 |
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_HS_IN3_MAP),
 	},
 	{
@@ -405,10 +401,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "VIOS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LTH17"),
 		},
-		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_JD1_1 |
-					BYT_RT5651_OVCD_TH_2000UA |
-					BYT_RT5651_OVCD_SF_1P0 |
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN1_IN2_MAP),
 	},
 	{}
