@@ -336,4 +336,6 @@ void dcn10_psr_program_secondary_packet(struct link_encoder *enc,
 
 bool dcn10_is_dig_enabled(struct link_encoder *enc);
 
+void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
+
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

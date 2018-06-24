@@ -65,11 +65,6 @@ enum {
 	DP_MST_UPDATE_MAX_RETRY = 50
 };
 
-
-
-static void aux_initialize(struct dcn10_link_encoder *enc10);
-
-
 static const struct link_encoder_funcs dcn10_lnk_enc_funcs = {
 	.validate_output_with_stream =
 		dcn10_link_encoder_validate_output_with_stream,
@@ -811,7 +806,7 @@ void dcn10_link_encoder_hw_init(
 		ASSERT(result == BP_RESULT_OK);
 
 	}
-	aux_initialize(enc10);
+	dcn10_aux_initialize(enc10);
 
 	/* reinitialize HPD.
 	 * hpd_initialize() will pass DIG_FE id to HW context.
@@ -1348,8 +1343,7 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 				FN(reg, f1), v1,\
 				FN(reg, f2), v2)
 
-static void aux_initialize(
-	struct dcn10_link_encoder *enc10)
+void dcn10_aux_initialize(struct dcn10_link_encoder *enc10)
 {
 	enum hpd_source_id hpd_source = enc10->base.hpd_source;
 
