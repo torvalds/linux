@@ -28,8 +28,8 @@
 #include <linux/spinlock.h>
 #include <net/udp.h>
 
-static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *esp4_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
 	int offset = skb_gro_offset(skb);
 	struct xfrm_offload *xo;
