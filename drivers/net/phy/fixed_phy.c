@@ -259,10 +259,8 @@ static int __init fixed_mdio_bus_init(void)
 	int ret;
 
 	pdev = platform_device_register_simple("Fixed MDIO bus", 0, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		goto err_pdev;
-	}
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	fmb->mii_bus = mdiobus_alloc();
 	if (fmb->mii_bus == NULL) {
@@ -287,7 +285,6 @@ err_mdiobus_alloc:
 	mdiobus_free(fmb->mii_bus);
 err_mdiobus_reg:
 	platform_device_unregister(pdev);
-err_pdev:
 	return ret;
 }
 module_init(fixed_mdio_bus_init);
