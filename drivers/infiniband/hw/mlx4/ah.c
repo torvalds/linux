@@ -96,19 +96,29 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 
 	memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
 	eth_zero_addr(ah->av.eth.s_mac);
+
+	/*
+	 * If sgid_attr is NULL we are being called by mlx4_ib_create_ah_slave
+	 * and we are directly creating an AV for a slave's gid_index.
+	 */
 	gid_attr = ah_attr->grh.sgid_attr;
-	if (is_vlan_dev(gid_attr->ndev))
-		vlan_tag = vlan_dev_vlan_id(gid_attr->ndev);
-	memcpy(ah->av.eth.s_mac, gid_attr->ndev->dev_addr, ETH_ALEN);
+	if (gid_attr) {
+		if (is_vlan_dev(gid_attr->ndev))
+			vlan_tag = vlan_dev_vlan_id(gid_attr->ndev);
+		memcpy(ah->av.eth.s_mac, gid_attr->ndev->dev_addr, ETH_ALEN);
+		ret = mlx4_ib_gid_index_to_real_index(ibdev, gid_attr);
+		if (ret < 0)
+			return ERR_PTR(ret);
+		ah->av.eth.gid_index = ret;
+	} else {
+		/* mlx4_ib_create_ah_slave fills in the s_mac and the vlan */
+		ah->av.eth.gid_index = ah_attr->grh.sgid_index;
+	}
 
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn |
 					 (rdma_ah_get_port_num(ah_attr) << 24));
-	ret = mlx4_ib_gid_index_to_real_index(ibdev, gid_attr);
-	if (ret < 0)
-		return ERR_PTR(ret);
-	ah->av.eth.gid_index = ret;
 	ah->av.eth.vlan = cpu_to_be16(vlan_tag);
 	ah->av.eth.hop_limit = grh->hop_limit;
 	if (rdma_ah_get_static_rate(ah_attr)) {
@@ -165,6 +175,40 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 		return ret;
 	} else
 		return create_ib_ah(pd, ah_attr, ah); /* never fails */
+}
+
+/* AH's created via this call must be free'd by mlx4_ib_destroy_ah. */
+struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
+				      struct rdma_ah_attr *ah_attr,
+				      int slave_sgid_index, u8 *s_mac,
+				      u16 vlan_tag)
+{
+	struct rdma_ah_attr slave_attr = *ah_attr;
+	struct mlx4_ib_ah *mah;
+	struct ib_ah *ah;
+
+	slave_attr.grh.sgid_attr = NULL;
+	slave_attr.grh.sgid_index = slave_sgid_index;
+	ah = mlx4_ib_create_ah(pd, &slave_attr, NULL);
+	if (IS_ERR(ah))
+		return ah;
+
+	ah->device = pd->device;
+	ah->pd = pd;
+	ah->type = ah_attr->type;
+	mah = to_mah(ah);
+
+	/* get rid of force-loopback bit */
+	mah->av.ib.port_pd &= cpu_to_be32(0x7FFFFFFF);
+
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE)
+		memcpy(mah->av.eth.s_mac, s_mac, 6);
+
+	if (vlan_tag < 0x1000)
+		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
+	mah->av.eth.vlan = cpu_to_be16(vlan_tag);
+
+	return ah;
 }
 
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)

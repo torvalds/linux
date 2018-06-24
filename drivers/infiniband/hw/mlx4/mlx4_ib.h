@@ -760,6 +760,10 @@ void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
 struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata);
+struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
+				      struct rdma_ah_attr *ah_attr,
+				      int slave_sgid_index, u8 *s_mac,
+				      u16 vlan_tag);
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int mlx4_ib_destroy_ah(struct ib_ah *ah);
 
