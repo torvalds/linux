@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
+ * Copyright (c) 2003-2018, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -812,11 +812,39 @@ static ssize_t tx_queue_limit_store(struct device *device,
 }
 static DEVICE_ATTR_RW(tx_queue_limit);
 
+/**
+ * fw_ver_show - display ME FW version
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t fw_ver_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	struct mei_fw_version *ver;
+	ssize_t cnt = 0;
+	int i;
+
+	ver = dev->fw_ver;
+
+	for (i = 0; i < MEI_MAX_FW_VER_BLOCKS; i++)
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "%u:%u.%u.%u.%u\n",
+				 ver[i].platform, ver[i].major, ver[i].minor,
+				 ver[i].hotfix, ver[i].buildno);
+	return cnt;
+}
+static DEVICE_ATTR_RO(fw_ver);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
 	&dev_attr_hbm_ver.attr,
 	&dev_attr_hbm_ver_drv.attr,
 	&dev_attr_tx_queue_limit.attr,
+	&dev_attr_fw_ver.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);

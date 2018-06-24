@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
+ * Copyright (c) 2003-2018, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -355,6 +355,25 @@ enum mei_pg_state {
 const char *mei_pg_state_str(enum mei_pg_state state);
 
 /**
+ * struct mei_fw_version - MEI FW version struct
+ *
+ * @platform: platform identifier
+ * @major: major version field
+ * @minor: minor version field
+ * @buildno: build number version field
+ * @hotfix: hotfix number version field
+ */
+struct mei_fw_version {
+	u8 platform;
+	u8 major;
+	u16 minor;
+	u16 buildno;
+	u16 hotfix;
+};
+
+#define MEI_MAX_FW_VER_BLOCKS 3
+
+/**
  * struct mei_device -  MEI private device struct
  *
  * @dev         : device on a bus
@@ -401,6 +420,8 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @hbm_f_fa_supported  : hbm feature fixed address client
  * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
  * @hbm_f_os_supported  : hbm feature support OS ver message
+ *
+ * @fw_ver : FW versions
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -477,6 +498,8 @@ struct mei_device {
 	unsigned int hbm_f_fa_supported:1;
 	unsigned int hbm_f_ie_supported:1;
 	unsigned int hbm_f_os_supported:1;
+
+	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
