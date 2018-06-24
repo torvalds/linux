@@ -3190,6 +3190,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	block->tag_set.nr_hw_queues = DASD_NR_HW_QUEUES;
 	block->tag_set.queue_depth = DASD_MAX_LCU_DEV * DASD_REQ_PER_DEV;
 	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	block->tag_set.numa_node = NUMA_NO_NODE;
 
 	rc = blk_mq_alloc_tag_set(&block->tag_set);
 	if (rc)
