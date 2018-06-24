@@ -750,6 +750,7 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 		}
 	} while (iomap->addr == IOMAP_NULL_ADDR);
 
+	iomap->type = IOMAP_MAPPED;
 	iomap->length = (u64)dblks << inode->i_blkbits;
 	ip->i_height = mp->mp_fheight;
 	gfs2_add_inode_blocks(&ip->i_inode, alloced);
@@ -757,17 +758,6 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 out:
 	up_write(&ip->i_rw_mutex);
 	return ret;
-}
-
-static void gfs2_stuffed_iomap(struct inode *inode, struct iomap *iomap)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-
-	iomap->addr = (ip->i_no_addr << inode->i_blkbits) +
-		      sizeof(struct gfs2_dinode);
-	iomap->offset = 0;
-	iomap->length = i_size_read(inode);
-	iomap->type = IOMAP_INLINE;
 }
 
 #define IOMAP_F_GFS2_BOUNDARY IOMAP_F_PRIVATE
@@ -789,37 +779,61 @@ static int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	loff_t size = i_size_read(inode);
 	__be64 *ptr;
 	sector_t lblock;
 	sector_t lblock_stop;
 	int ret;
 	int eob;
 	u64 len;
-	struct buffer_head *bh;
+	struct buffer_head *dibh = NULL, *bh;
 	u8 height;
 
 	if (!length)
 		return -EINVAL;
 
+	down_read(&ip->i_rw_mutex);
+
+	ret = gfs2_meta_inode_buffer(ip, &dibh);
+	if (ret)
+		goto unlock;
+
 	if (gfs2_is_stuffed(ip)) {
-		if (flags & IOMAP_REPORT) {
-			if (pos >= i_size_read(inode))
-				return -ENOENT;
-			gfs2_stuffed_iomap(inode, iomap);
-			return 0;
+		if (flags & IOMAP_WRITE) {
+			loff_t max_size = gfs2_max_stuffed_size(ip);
+
+			if (pos + length > max_size)
+				goto unstuff;
+			iomap->length = max_size;
+		} else {
+			if (pos >= size) {
+				if (flags & IOMAP_REPORT) {
+					ret = -ENOENT;
+					goto unlock;
+				} else {
+					/* report a hole */
+					iomap->offset = pos;
+					iomap->length = length;
+					goto do_alloc;
+				}
+			}
+			iomap->length = size;
 		}
-		BUG_ON(!(flags & IOMAP_WRITE));
+		iomap->addr = (ip->i_no_addr << inode->i_blkbits) +
+			      sizeof(struct gfs2_dinode);
+		iomap->type = IOMAP_INLINE;
+		goto out;
 	}
+
+unstuff:
 	lblock = pos >> inode->i_blkbits;
 	iomap->offset = lblock << inode->i_blkbits;
 	lblock_stop = (pos + length - 1) >> inode->i_blkbits;
 	len = lblock_stop - lblock + 1;
+	iomap->length = len << inode->i_blkbits;
 
-	down_read(&ip->i_rw_mutex);
-
-	ret = gfs2_meta_inode_buffer(ip, &mp->mp_bh[0]);
-	if (ret)
-		goto unlock;
+	get_bh(dibh);
+	mp->mp_bh[0] = dibh;
 
 	height = ip->i_height;
 	while ((lblock + 1) * sdp->sd_sb.sb_bsize > sdp->sd_heightsize[height])
@@ -853,21 +867,23 @@ out:
 	iomap->bdev = inode->i_sb->s_bdev;
 unlock:
 	up_read(&ip->i_rw_mutex);
+	if (dibh)
+		brelse(dibh);
 	return ret;
 
 do_alloc:
 	iomap->addr = IOMAP_NULL_ADDR;
-	iomap->length = len << inode->i_blkbits;
 	iomap->type = IOMAP_HOLE;
-	iomap->flags = 0;
 	if (flags & IOMAP_REPORT) {
-		loff_t size = i_size_read(inode);
 		if (pos >= size)
 			ret = -ENOENT;
 		else if (height == ip->i_height)
 			ret = gfs2_hole_size(inode, lblock, len, mp, iomap);
 		else
 			iomap->length = size - pos;
+	} else if (!(flags & IOMAP_WRITE)) {
+		if (pos < size && height == ip->i_height)
+			ret = gfs2_hole_size(inode, lblock, len, mp, iomap);
 	}
 	goto out;
 }
@@ -941,12 +957,6 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	} else {
 		ret = gfs2_iomap_get(inode, pos, length, 0, &iomap, &mp);
 		release_metapath(&mp);
-
-		/* Return unmapped buffer beyond the end of file. */
-		if (ret == -ENOENT) {
-			ret = 0;
-			goto out;
-		}
 	}
 	if (ret)
 		goto out;

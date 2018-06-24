@@ -754,7 +754,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 		if (error)
 			goto out;
 		offset = iomap.offset + iomap.length;
-		if (iomap.type != IOMAP_HOLE)
+		if (!(iomap.flags & IOMAP_F_NEW))
 			continue;
 		error = sb_issue_zeroout(sb, iomap.addr >> inode->i_blkbits,
 					 iomap.length >> inode->i_blkbits,
