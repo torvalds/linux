@@ -1154,6 +1154,7 @@ static int set_params(struct dvb_frontend *fe)
 		default:
 			return -EINVAL;
 		}
+		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000)
