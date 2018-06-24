@@ -3807,8 +3807,6 @@ struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller);
  */
 int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 
-int ib_destroy_flow(struct ib_flow *flow_id);
-
 static inline int ib_check_mr_access(int flags)
 {
 	/*

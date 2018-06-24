@@ -48,14 +48,17 @@ static int uverbs_free_ah(struct ib_uobject *uobject,
 static int uverbs_free_flow(struct ib_uobject *uobject,
 			    enum rdma_remove_reason why)
 {
-	int ret;
 	struct ib_flow *flow = (struct ib_flow *)uobject->object;
 	struct ib_uflow_object *uflow =
 		container_of(uobject, struct ib_uflow_object, uobject);
+	struct ib_qp *qp = flow->qp;
+	int ret;
 
-	ret = ib_destroy_flow(flow);
-	if (!ret)
+	ret = qp->device->destroy_flow(flow);
+	if (!ret) {
+		atomic_dec(&qp->usecnt);
 		ib_uverbs_flow_resources_free(uflow->resources);
+	}
 
 	return ret;
 }
