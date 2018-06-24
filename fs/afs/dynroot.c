@@ -143,7 +143,6 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 {
 	struct afs_vnode *vnode;
 	struct inode *inode;
-	int ret;
 
 	vnode = AFS_FS_I(dir);
 
@@ -161,21 +160,10 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 		return afs_lookup_atcell(dentry);
 
 	inode = afs_try_auto_mntpt(dentry, dir);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		if (ret == -ENOENT) {
-			d_add(dentry, NULL);
-			_leave(" = NULL [negative]");
-			return NULL;
-		}
-		_leave(" = %d [do]", ret);
-		return ERR_PTR(ret);
-	}
+	if (inode == ERR_PTR(-ENOENT))
+		inode = NULL;
 
-	d_add(dentry, inode);
-	_leave(" = 0 { ino=%lu v=%u }",
-	       d_inode(dentry)->i_ino, d_inode(dentry)->i_generation);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 const struct inode_operations afs_dynroot_inode_operations = {
