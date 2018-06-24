@@ -3349,14 +3349,26 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 #if IS_ENABLED(CONFIG_IWLMVM)
 	trans->hw_rf_id = iwl_read32(trans, CSR_HW_RF_ID);
-	if (trans->hw_rf_id == CSR_HW_RF_ID_TYPE_HR) {
+
+	if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
+	    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
 		u32 hw_status;
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
-		if (hw_status & UMAG_GEN_HW_IS_FPGA)
-			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_f0;
-		else
+		if (CSR_HW_RF_STEP(trans->hw_rf_id) == SILICON_B_STEP)
+			/*
+			* b step fw is the same for physical card and fpga
+			*/
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_b0;
+		else if ((hw_status & UMAG_GEN_HW_IS_FPGA) &&
+			 CSR_HW_RF_STEP(trans->hw_rf_id) == SILICON_A_STEP) {
+			trans->cfg = &iwl22000_2ax_cfg_qnj_hr_a0_f0;
+		} else {
+			/*
+			* a step no FPGA
+			*/
 			trans->cfg = &iwl22000_2ac_cfg_hr;
+		}
 	}
 #endif
 

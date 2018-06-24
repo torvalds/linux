@@ -339,6 +339,9 @@ enum {
 /* HW_RF CHIP ID  */
 #define CSR_HW_RF_ID_TYPE_CHIP_ID(_val) (((_val) >> 12) & 0xFFF)
 
+/* HW_RF CHIP STEP  */
+#define CSR_HW_RF_STEP(_val) (((_val) >> 8) & 0xF)
+
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
 #define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
