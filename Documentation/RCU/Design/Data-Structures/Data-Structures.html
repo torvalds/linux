@@ -1227,9 +1227,11 @@ to overflow the counter, this approach corrects the
 CPU enters the idle loop from process context.
 
 </p><p>The <tt>-&gt;dynticks</tt> field counts the corresponding
-CPU's transitions to and from dyntick-idle mode, so that this counter
-has an even value when the CPU is in dyntick-idle mode and an odd
-value otherwise.
+CPU's transitions to and from either dyntick-idle or user mode, so
+that this counter has an even value when the CPU is in dyntick-idle
+mode or user mode and an odd value otherwise. The transitions to/from
+user mode need to be counted for user mode adaptive-ticks support
+(see timers/NO_HZ.txt).
 
 </p><p>The <tt>-&gt;rcu_need_heavy_qs</tt> field is used
 to record the fact that the RCU core code would really like to
