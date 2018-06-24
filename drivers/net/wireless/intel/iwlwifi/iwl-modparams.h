@@ -144,6 +144,10 @@ struct iwl_mod_params {
 	bool lar_disable;
 	bool fw_monitor;
 	bool disable_11ac;
+	/**
+	 * @disable_11ax: disable HE capabilities, default = false
+	 */
+	bool disable_11ax;
 	bool remove_when_gone;
 };
 

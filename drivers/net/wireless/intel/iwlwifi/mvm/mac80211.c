@@ -2100,7 +2100,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	 * added.
 	 */
 	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc) {
-		if (vif->bss_conf.he_support)
+		if (vif->bss_conf.he_support &&
+		    !iwlwifi_mod_params.disable_11ax)
 			iwl_mvm_cfg_he_sta(mvm, vif, mvmvif->ap_sta_id);
 
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
