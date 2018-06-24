@@ -40,10 +40,8 @@
 enum {
 	BYT_RT5651_DMIC_MAP,
 	BYT_RT5651_IN1_MAP,
-	BYT_RT5651_IN2_MAP,
 	BYT_RT5651_IN1_IN2_MAP,
 	BYT_RT5651_IN1_HS_IN3_MAP,
-	BYT_RT5651_IN2_HS_IN3_MAP,
 };
 
 enum {
@@ -100,14 +98,10 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk DMIC_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_MAP)
 		dev_info(dev, "quirk IN1_MAP enabled");
-	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_MAP)
-		dev_info(dev, "quirk IN2_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_IN2_MAP)
 		dev_info(dev, "quirk IN1_IN2_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_HS_IN3_MAP)
 		dev_info(dev, "quirk IN1_HS_IN3_MAP enabled");
-	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_HS_IN3_MAP)
-		dev_info(dev, "quirk IN2_HS_IN3_MAP enabled");
 	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
 		dev_info(dev, "quirk realtek,jack-detect-source %ld\n",
 			 BYT_RT5651_JDSRC(byt_rt5651_quirk));
@@ -256,12 +250,6 @@ static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_map[] = {
 	{"IN2P", NULL, "Headset Mic"},
 };
 
-static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_map[] = {
-	{"Internal Mic", NULL, "micbias1"},
-	{"IN1P", NULL, "Headset Mic"},
-	{"IN2P", NULL, "Internal Mic"},
-};
-
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_in2_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
 	{"IN1P", NULL, "Internal Mic"},
@@ -272,12 +260,6 @@ static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_in2_map[] = {
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_hs_in3_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
 	{"IN1P", NULL, "Internal Mic"},
-	{"IN3P", NULL, "Headset Mic"},
-};
-
-static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_hs_in3_map[] = {
-	{"Internal Mic", NULL, "micbias1"},
-	{"IN2P", NULL, "Internal Mic"},
 	{"IN3P", NULL, "Headset Mic"},
 };
 
@@ -462,10 +444,6 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		custom_map = byt_rt5651_intmic_in1_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_map);
 		break;
-	case BYT_RT5651_IN2_MAP:
-		custom_map = byt_rt5651_intmic_in2_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in2_map);
-		break;
 	case BYT_RT5651_IN1_IN2_MAP:
 		custom_map = byt_rt5651_intmic_in1_in2_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_in2_map);
@@ -473,10 +451,6 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 	case BYT_RT5651_IN1_HS_IN3_MAP:
 		custom_map = byt_rt5651_intmic_in1_hs_in3_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_hs_in3_map);
-		break;
-	case BYT_RT5651_IN2_HS_IN3_MAP:
-		custom_map = byt_rt5651_intmic_in2_hs_in3_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in2_hs_in3_map);
 		break;
 	default:
 		custom_map = byt_rt5651_intmic_dmic_map;
@@ -723,9 +697,9 @@ struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 {
 	const char * const intmic_name[] =
-		{ "dmic", "in1", "in2", "in12", "in1", "in2" };
+		{ "dmic", "in1", "in12", "in1" };
 	const char * const hsmic_name[] =
-		{  "in2", "in2", "in1",  "in3", "in3", "in3" };
+		{  "in2", "in2", "in3", "in3" };
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *i2c_name = NULL;
