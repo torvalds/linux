@@ -22,6 +22,7 @@
 #include <linux/backing-dev.h>
 #include <linux/uio.h>
 #include <trace/events/writeback.h>
+#include <linux/sched/signal.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -36,10 +37,11 @@
 #include "super.h"
 #include "util.h"
 #include "glops.h"
+#include "aops.h"
 
 
-static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
-				   unsigned int from, unsigned int len)
+void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
+			    unsigned int from, unsigned int len)
 {
 	struct buffer_head *head = page_buffers(page);
 	unsigned int bsize = head->b_size;
@@ -462,7 +464,7 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
  * Returns: errno
  */
 
-static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
+int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 {
 	struct buffer_head *dibh;
 	u64 dsize = i_size_read(&ip->i_inode);
@@ -776,7 +778,7 @@ out_uninit:
  * adjust_fs_space - Adjusts the free space available due to gfs2_grow
  * @inode: the rindex inode
  */
-static void adjust_fs_space(struct inode *inode)
+void adjust_fs_space(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
@@ -822,11 +824,11 @@ out:
  * This copies the data from the page into the inode block after
  * the inode data structure itself.
  *
- * Returns: errno
+ * Returns: copied bytes or errno
  */
-static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
-				  loff_t pos, unsigned copied,
-				  struct page *page)
+int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
+			   loff_t pos, unsigned copied,
+			   struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	u64 to = pos + copied;
@@ -865,7 +867,7 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
  * The main write_end function for GFS2. We just put our locking around the VFS
  * provided functions.
  *
- * Returns: errno
+ * Returns: copied bytes or errno
  */
 
 static int gfs2_write_end(struct file *file, struct address_space *mapping,
