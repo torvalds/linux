@@ -2275,23 +2275,6 @@ int ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *rwq_ind_table)
 }
 EXPORT_SYMBOL(ib_destroy_rwq_ind_table);
 
-struct ib_flow *ib_create_flow(struct ib_qp *qp,
-			       struct ib_flow_attr *flow_attr,
-			       int domain)
-{
-	struct ib_flow *flow_id;
-	if (!qp->device->create_flow)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	flow_id = qp->device->create_flow(qp, flow_attr, domain, NULL);
-	if (!IS_ERR(flow_id)) {
-		atomic_inc(&qp->usecnt);
-		flow_id->qp = qp;
-	}
-	return flow_id;
-}
-EXPORT_SYMBOL(ib_create_flow);
-
 int ib_destroy_flow(struct ib_flow *flow_id)
 {
 	int err;
