@@ -732,7 +732,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
 	   section of code.
 	if(IS_UNDER_11N_AES_MODE(Adapter))
 	{
-		posRT2RTAgg->Octet[5] |=RT_HT_CAP_USE_AMPDU;
+		posRT2RTAgg->Octet[5] |= RT_HT_CAP_USE_AMPDU;
 	}else
 	{
 		posRT2RTAgg->Octet[5] &= 0xfb;
