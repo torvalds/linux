@@ -142,10 +142,12 @@ found:
 static void wdm_out_callback(struct urb *urb)
 {
 	struct wdm_device *desc;
+	unsigned long flags;
+
 	desc = urb->context;
-	spin_lock(&desc->iuspin);
+	spin_lock_irqsave(&desc->iuspin, flags);
 	desc->werr = urb->status;
-	spin_unlock(&desc->iuspin);
+	spin_unlock_irqrestore(&desc->iuspin, flags);
 	kfree(desc->outbuf);
 	desc->outbuf = NULL;
 	clear_bit(WDM_IN_USE, &desc->flags);
@@ -154,11 +156,12 @@ static void wdm_out_callback(struct urb *urb)
 
 static void wdm_in_callback(struct urb *urb)
 {
+	unsigned long flags;
 	struct wdm_device *desc = urb->context;
 	int status = urb->status;
 	int length = urb->actual_length;
 
-	spin_lock(&desc->iuspin);
+	spin_lock_irqsave(&desc->iuspin, flags);
 	clear_bit(WDM_RESPONDING, &desc->flags);
 
 	if (status) {
@@ -220,11 +223,12 @@ skip_error:
 		set_bit(WDM_READ, &desc->flags);
 		wake_up(&desc->wait);
 	}
-	spin_unlock(&desc->iuspin);
+	spin_unlock_irqrestore(&desc->iuspin, flags);
 }
 
 static void wdm_int_callback(struct urb *urb)
 {
+	unsigned long flags;
 	int rv = 0;
 	int responding;
 	int status = urb->status;
@@ -284,7 +288,7 @@ static void wdm_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	spin_lock(&desc->iuspin);
+	spin_lock_irqsave(&desc->iuspin, flags);
 	responding = test_and_set_bit(WDM_RESPONDING, &desc->flags);
 	if (!desc->resp_count++ && !responding
 		&& !test_bit(WDM_DISCONNECTING, &desc->flags)
@@ -292,7 +296,7 @@ static void wdm_int_callback(struct urb *urb)
 		rv = usb_submit_urb(desc->response, GFP_ATOMIC);
 		dev_dbg(&desc->intf->dev, "submit response URB %d\n", rv);
 	}
-	spin_unlock(&desc->iuspin);
+	spin_unlock_irqrestore(&desc->iuspin, flags);
 	if (rv < 0) {
 		clear_bit(WDM_RESPONDING, &desc->flags);
 		if (rv == -EPERM)
