@@ -869,7 +869,7 @@ static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
 	/*
 	 * TODO: fill suggested rate adaptive rate index and give firmware info
 	 * using Tx command packet we also shall suggested the first start rate
-	 * set according to our singal strength
+	 * set according to our signal strength
 	 */
 	HT_PickMCSRate(ieee, pOperateMCS);
 
