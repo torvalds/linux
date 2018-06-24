@@ -3040,9 +3040,6 @@ static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
 	void *kern_spec_mask;
 	void *kern_spec_val;
 
-	if (kern_spec->reserved)
-		return -EINVAL;
-
 	kern_filter_sz = kern_spec_filter_sz(&kern_spec->hdr);
 
 	kern_spec_val = (void *)kern_spec +
