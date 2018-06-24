@@ -2934,7 +2934,7 @@ static struct iwl_trans_dump_data
 	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
-	u32 len, num_rbs;
+	u32 len, num_rbs = 0;
 	u32 monitor_len;
 	int i, ptr;
 	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&

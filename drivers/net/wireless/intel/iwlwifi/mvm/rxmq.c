@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -857,6 +859,10 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
+	u32 he_type = 0xffffffff;
+	/* this is invalid e.g. because puncture type doesn't allow 0b11 */
+#define HE_PHY_DATA_INVAL ((u64)-1)
+	u64 he_phy_data = HE_PHY_DATA_INVAL;
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
@@ -881,6 +887,13 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
+
+	if (rate_n_flags & RATE_MCS_HE_MSK) {
+		if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
+			he_phy_data =
+				le64_to_cpu(desc->he_phy_data);
+		he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
+	}
 
 	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, phy_info, desc,
 			      le32_to_cpu(pkt->len_n_flags), queue,
@@ -907,7 +920,19 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
 		/* TSF as indicated by the firmware is at INA time */
 		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
+	} else if (he_type == RATE_MCS_HE_TYPE_SU) {
+		if (!queue && !(phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
+			rx_status->ampdu_reference = mvm->ampdu_ref;
+			mvm->ampdu_ref++;
+
+			rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
+			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+			if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF,
+				      le64_to_cpu(desc->he_phy_data)))
+				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
+		}
 	}
+
 	rx_status->device_timestamp = le32_to_cpu(desc->gp2_on_air_rise);
 	rx_status->band = desc->channel > 14 ? NL80211_BAND_5GHZ :
 					       NL80211_BAND_2GHZ;
@@ -925,6 +950,15 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		if (toggle_bit != mvm->ampdu_toggle) {
 			mvm->ampdu_ref++;
 			mvm->ampdu_toggle = toggle_bit;
+
+			if (he_phy_data != HE_PHY_DATA_INVAL &&
+			    he_type == RATE_MCS_HE_TYPE_MU) {
+				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+				if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF,
+					      le64_to_cpu(desc->he_phy_data)))
+					rx_status->flag |=
+						RX_FLAG_AMPDU_EOF_BIT;
+			}
 		}
 	}
 
@@ -1033,7 +1067,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		}
 	}
 
-	/* Set up the HT phy flags */
 	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
 	case RATE_MCS_CHAN_WIDTH_20:
 		break;
@@ -1046,6 +1079,59 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	case RATE_MCS_CHAN_WIDTH_160:
 		rx_status->bw = RATE_INFO_BW_160;
 		break;
+	}
+
+	if (he_type == RATE_MCS_HE_TYPE_EXT_SU &&
+	    rate_n_flags & RATE_MCS_HE_106T_MSK) {
+		rx_status->bw = RATE_INFO_BW_HE_RU;
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+	}
+
+	if (rate_n_flags & RATE_MCS_HE_MSK &&
+	    phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD &&
+	    he_type == RATE_MCS_HE_TYPE_MU) {
+		/*
+		 * Unfortunately, we have to leave the mac80211 data
+		 * incorrect for the case that we receive an HE-MU
+		 * transmission and *don't* have the he_mu pointer,
+		 * i.e. we don't have the phy data (due to the bits
+		 * being used for TSF). This shouldn't happen though
+		 * as management frames where we need the TSF/timers
+		 * are not be transmitted in HE-MU, I think.
+		 */
+		u8 ru = FIELD_GET(IWL_RX_HE_PHY_RU_ALLOC_MASK, he_phy_data);
+		u8 offs = 0;
+
+		rx_status->bw = RATE_INFO_BW_HE_RU;
+
+		switch (ru) {
+		case 0 ... 36:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_26;
+			offs = ru;
+			break;
+		case 37 ... 52:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_52;
+			offs = ru - 37;
+			break;
+		case 53 ... 60:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+			offs = ru - 53;
+			break;
+		case 61 ... 64:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_242;
+			offs = ru - 61;
+			break;
+		case 65 ... 66:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_484;
+			offs = ru - 65;
+			break;
+		case 67:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+			break;
+		case 68:
+			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
+			break;
+		}
 	}
 
 	if (!(rate_n_flags & RATE_MCS_CCK_MSK) &&
@@ -1072,6 +1158,39 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->enc_flags |= RX_ENC_FLAG_BF;
+	} else if (rate_n_flags & RATE_MCS_HE_MSK) {
+		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
+				RATE_MCS_STBC_POS;
+		rx_status->nss =
+			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
+						RATE_VHT_MCS_NSS_POS) + 1;
+		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
+		rx_status->encoding = RX_ENC_HE;
+		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
+		if (rate_n_flags & RATE_MCS_BF_MSK)
+			rx_status->enc_flags |= RX_ENC_FLAG_BF;
+
+		rx_status->he_dcm =
+			!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
+
+		switch ((rate_n_flags & RATE_MCS_HE_GI_LTF_MSK) >>
+			RATE_MCS_HE_GI_LTF_POS) {
+		case 0:
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+			break;
+		case 1:
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+			break;
+		case 2:
+			rx_status->he_gi = NL80211_RATE_INFO_HE_GI_1_6;
+			break;
+		case 3:
+			if (rate_n_flags & RATE_MCS_SGI_MSK)
+				rx_status->he_gi = NL80211_RATE_INFO_HE_GI_0_8;
+			else
+				rx_status->he_gi = NL80211_RATE_INFO_HE_GI_3_2;
+			break;
+		}
 	} else {
 		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
 							       rx_status->band);
@@ -1083,7 +1202,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			goto out;
 		}
 		rx_status->rate_idx = rate;
-
 	}
 
 	/* management stuff on default queue */
