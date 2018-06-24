@@ -218,6 +218,22 @@
 			GPIO_ACTIVE_HIGH>;
 	};
 
+	nand-controller@70008000 {
+		status = "okay";
+
+		nand@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			nand-bus-width = <8>;
+			nand-on-flash-bbt;
+			nand-ecc-algo = "bch";
+			nand-is-boot-medium;
+			nand-ecc-maximize;
+			wp-gpios = <&gpio TEGRA_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	/*
 	 * GEN1_I2C: I2C_SDA/SCL on SODIMM pin 194/196 (e.g. RTC on carrier
 	 * board)
