@@ -243,6 +243,38 @@
 			clocks = <&clks CLK_PWM1>;
 			status = "disabled";
 		};
+
+		ssp1: ssp@41000000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41000000 0x40>;
+			interrupts = <24>;
+			clocks = <&clks CLK_SSP1>;
+			status = "disabled";
+		};
+
+		ssp2: ssp@41700000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41700000 0x40>;
+			interrupts = <16>;
+			clocks = <&clks CLK_SSP2>;
+			status = "disabled";
+		};
+
+		ssp3: ssp@41900000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41900000 0x40>;
+			interrupts = <0>;
+			clocks = <&clks CLK_SSP3>;
+			status = "disabled";
+		};
+
+		ssp4: ssp@41a00000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41a00000 0x40>;
+			interrupts = <13>;
+			clocks = <&clks CLK_SSP4>;
+			status = "disabled";
+		};
 	};
 
 	clocks {

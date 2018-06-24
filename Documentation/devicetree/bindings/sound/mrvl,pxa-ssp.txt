@@ -9,20 +9,18 @@ Example:
 
 	/* upstream device */
 
-	ssp0: ssp@41000000 {
+	ssp1: ssp@41000000 {
 		compatible = "mrvl,pxa3xx-ssp";
 		reg = <0x41000000 0x40>;
 		interrupts = <24>;
 		clock-names = "pxa27x-ssp.0";
-		dmas = <&dma 13
-			&dma 14>;
-		dma-names = "rx", "tx";
 	};
 
 	/* DAI as user */
 
 	ssp_dai0: ssp_dai@0 {
 		compatible = "mrvl,pxa-ssp-dai";
-		port = <&ssp0>;
+		port = <&ssp1>;
+		#sound-dai-cells = <0>;
 	};
 
