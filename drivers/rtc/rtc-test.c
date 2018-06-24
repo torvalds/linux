@@ -22,7 +22,7 @@ struct rtc_test_data {
 	bool alarm_en;
 };
 
-struct platform_device *pdev[MAX_RTC_TEST];
+static struct platform_device *pdev[MAX_RTC_TEST];
 
 static int test_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
