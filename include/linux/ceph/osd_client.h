@@ -528,12 +528,12 @@ int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
 			 u64 notify_id,
 			 u64 cookie,
 			 void *payload,
-			 size_t payload_len);
+			 u32 payload_len);
 int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     struct ceph_object_id *oid,
 		     struct ceph_object_locator *oloc,
 		     void *payload,
-		     size_t payload_len,
+		     u32 payload_len,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len);

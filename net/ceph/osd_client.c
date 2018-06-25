@@ -4591,7 +4591,7 @@ EXPORT_SYMBOL(ceph_osdc_unwatch);
 
 static int osd_req_op_notify_ack_init(struct ceph_osd_request *req, int which,
 				      u64 notify_id, u64 cookie, void *payload,
-				      size_t payload_len)
+				      u32 payload_len)
 {
 	struct ceph_osd_req_op *op;
 	struct ceph_pagelist *pl;
@@ -4628,7 +4628,7 @@ int ceph_osdc_notify_ack(struct ceph_osd_client *osdc,
 			 u64 notify_id,
 			 u64 cookie,
 			 void *payload,
-			 size_t payload_len)
+			 u32 payload_len)
 {
 	struct ceph_osd_request *req;
 	int ret;
@@ -4661,7 +4661,7 @@ EXPORT_SYMBOL(ceph_osdc_notify_ack);
 
 static int osd_req_op_notify_init(struct ceph_osd_request *req, int which,
 				  u64 cookie, u32 prot_ver, u32 timeout,
-				  void *payload, size_t payload_len)
+				  void *payload, u32 payload_len)
 {
 	struct ceph_osd_req_op *op;
 	struct ceph_pagelist *pl;
@@ -4701,7 +4701,7 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     struct ceph_object_id *oid,
 		     struct ceph_object_locator *oloc,
 		     void *payload,
-		     size_t payload_len,
+		     u32 payload_len,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len)
