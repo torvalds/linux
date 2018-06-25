@@ -205,6 +205,16 @@ static bool sanity_check_inode(struct inode *inode)
 			__func__, inode->i_ino);
 		return false;
 	}
+
+	if (f2fs_has_extra_attr(inode) &&
+			!f2fs_sb_has_extra_attr(sbi->sb)) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: inode (ino=%lx) is with extra_attr, "
+			"but extra_attr feature is off",
+			__func__, inode->i_ino);
+		return false;
+	}
 	return true;
 }
 
@@ -256,6 +266,11 @@ static int do_read_inode(struct inode *inode)
 		set_page_dirty(node_page);
 
 	get_inline_info(inode, ri);
+
+	if (!sanity_check_inode(inode)) {
+		f2fs_put_page(node_page, 1);
+		return -EINVAL;
+	}
 
 	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
 					le16_to_cpu(ri->i_extra_isize) : 0;
@@ -338,10 +353,6 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
 	ret = do_read_inode(inode);
 	if (ret)
 		goto bad_inode;
-	if (!sanity_check_inode(inode)) {
-		ret = -EINVAL;
-		goto bad_inode;
-	}
 make_now:
 	if (ino == F2FS_NODE_INO(sbi)) {
 		inode->i_mapping->a_ops = &f2fs_node_aops;
