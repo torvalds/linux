@@ -322,8 +322,7 @@ int l2tp_session_register(struct l2tp_session *session,
 
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		pn = l2tp_pernet(tunnel->l2tp_net);
-		g_head = l2tp_session_id_hash_2(l2tp_pernet(tunnel->l2tp_net),
-						session->session_id);
+		g_head = l2tp_session_id_hash_2(pn, session->session_id);
 
 		spin_lock_bh(&pn->l2tp_session_hlist_lock);
 
