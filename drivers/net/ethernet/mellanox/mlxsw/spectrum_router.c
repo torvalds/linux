@@ -6870,7 +6870,20 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 			  struct netlink_ext_ack *extack)
 {
-	u16 vid = is_vlan_dev(rif->dev) ? vlan_dev_vlan_id(rif->dev) : 1;
+	u16 vid;
+	int err;
+
+	if (is_vlan_dev(rif->dev)) {
+		vid = vlan_dev_vlan_id(rif->dev);
+	} else {
+		err = br_vlan_get_pvid(rif->dev, &vid);
+		if (!vid)
+			err = -EINVAL;
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
+			return ERR_PTR(err);
+		}
+	}
 
 	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
 }
