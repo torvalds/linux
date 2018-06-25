@@ -394,6 +394,7 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	struct wacom_features *features = &wacom->wacom_wac.features;
 	bool finger = WACOM_FINGER_FIELD(field);
 	bool pen = WACOM_PEN_FIELD(field);
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
 	/*
 	* Requiring Stylus Usage will ignore boot mouse
@@ -409,7 +410,7 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 
 	wacom_hid_usage_quirk(hdev, field, usage);
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_X:
 		features->x_max = field->logical_maximum;
 		if (finger) {
