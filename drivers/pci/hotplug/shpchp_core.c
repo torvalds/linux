@@ -270,10 +270,29 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
+static bool shpc_capable(struct pci_dev *bridge)
+{
+	/*
+	 * It is assumed that AMD GOLAM chips support SHPC but they do not
+	 * have SHPC capability.
+	 */
+	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
+	    bridge->device == PCI_DEVICE_ID_AMD_GOLAM_7450)
+		return true;
+
+	if (pci_find_capability(bridge, PCI_CAP_ID_SHPC))
+		return true;
+
+	return false;
+}
+
 static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
 	struct controller *ctrl;
+
+	if (!shpc_capable(pdev))
+		return -ENODEV;
 
 	if (acpi_get_hp_hw_control_from_firmware(pdev))
 		return -ENODEV;
@@ -303,6 +322,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_cleanup_slots;
 
+	pdev->shpc_managed = 1;
 	return 0;
 
 err_cleanup_slots:
@@ -319,6 +339,7 @@ static void shpc_remove(struct pci_dev *dev)
 {
 	struct controller *ctrl = pci_get_drvdata(dev);
 
+	dev->shpc_managed = 0;
 	shpchp_remove_ctrl_files(ctrl);
 	ctrl->hpc_ops->release_ctlr(ctrl);
 	kfree(ctrl);
