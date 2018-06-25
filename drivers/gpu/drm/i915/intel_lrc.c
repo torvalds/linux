@@ -1344,7 +1344,9 @@ static void execlists_context_destroy(struct intel_context *ce)
 		return;
 
 	intel_ring_free(ce->ring);
-	__i915_gem_object_release_unless_active(ce->state->obj);
+
+	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
+	i915_gem_object_put(ce->state->obj);
 }
 
 static void execlists_context_unpin(struct intel_context *ce)
