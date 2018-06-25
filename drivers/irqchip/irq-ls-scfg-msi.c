@@ -93,8 +93,12 @@ static void ls_scfg_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
 	msg->address_lo = lower_32_bits(msi_data->msiir_addr);
 	msg->data = data->hwirq;
 
-	if (msi_affinity_flag)
-		msg->data |= cpumask_first(data->common->affinity);
+	if (msi_affinity_flag) {
+		const struct cpumask *mask;
+
+		mask = irq_data_get_effective_affinity_mask(data);
+		msg->data |= cpumask_first(mask);
+	}
 
 	iommu_dma_map_msi_msg(data->irq, msg);
 }
@@ -121,7 +125,7 @@ static int ls_scfg_msi_set_affinity(struct irq_data *irq_data,
 		return -EINVAL;
 	}
 
-	cpumask_copy(irq_data->common->affinity, mask);
+	irq_data_update_effective_affinity(irq_data, cpumask_of(cpu));
 
 	return IRQ_SET_MASK_OK;
 }

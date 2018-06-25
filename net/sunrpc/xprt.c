@@ -987,8 +987,6 @@ bool xprt_prepare_transmit(struct rpc_task *task)
 		task->tk_status = -EAGAIN;
 		goto out_unlock;
 	}
-	if (!bc_prealloc(req) && !req->rq_xmit_bytes_sent)
-		req->rq_xid = xprt_alloc_xid(xprt);
 	ret = true;
 out_unlock:
 	spin_unlock_bh(&xprt->transport_lock);
@@ -1298,7 +1296,12 @@ void xprt_retry_reserve(struct rpc_task *task)
 
 static inline __be32 xprt_alloc_xid(struct rpc_xprt *xprt)
 {
-	return (__force __be32)xprt->xid++;
+	__be32 xid;
+
+	spin_lock(&xprt->reserve_lock);
+	xid = (__force __be32)xprt->xid++;
+	spin_unlock(&xprt->reserve_lock);
+	return xid;
 }
 
 static inline void xprt_init_xid(struct rpc_xprt *xprt)
@@ -1316,6 +1319,7 @@ void xprt_request_init(struct rpc_task *task)
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
+	req->rq_xid	= xprt_alloc_xid(xprt);
 	req->rq_connect_cookie = xprt->connect_cookie - 1;
 	req->rq_bytes_sent = 0;
 	req->rq_snd_buf.len = 0;

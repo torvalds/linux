@@ -132,7 +132,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 
 	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
 	wndw->immd = func;
-	wndw->ctxdma.parent = &disp->core->chan.base.user;
+	wndw->ctxdma.parent = NULL;
 	return 0;
 }
 

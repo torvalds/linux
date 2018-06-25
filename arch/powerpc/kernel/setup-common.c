@@ -701,11 +701,18 @@ static int ppc_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
 {
 	/*
+	 * panic does a local_irq_disable, but we really
+	 * want interrupts to be hard disabled.
+	 */
+	hard_irq_disable();
+
+	/*
 	 * If firmware-assisted dump has been registered then trigger
 	 * firmware-assisted dump and let firmware handle everything else.
 	 */
 	crash_fadump(NULL, ptr);
-	ppc_md.panic(ptr);  /* May not return */
+	if (ppc_md.panic)
+		ppc_md.panic(ptr);  /* May not return */
 	return NOTIFY_DONE;
 }
 
@@ -716,7 +723,8 @@ static struct notifier_block ppc_panic_block = {
 
 void __init setup_panic(void)
 {
-	if (!ppc_md.panic)
+	/* PPC64 always does a hard irq disable in its panic handler */
+	if (!IS_ENABLED(CONFIG_PPC64) && !ppc_md.panic)
 		return;
 	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
 }

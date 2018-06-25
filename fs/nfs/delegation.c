@@ -883,8 +883,10 @@ struct inode *nfs_delegation_find_inode(struct nfs_client *clp,
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		res = nfs_delegation_find_inode_server(server, fhandle);
-		if (res != ERR_PTR(-ENOENT))
+		if (res != ERR_PTR(-ENOENT)) {
+			rcu_read_unlock();
 			return res;
+		}
 	}
 	rcu_read_unlock();
 	return ERR_PTR(-ENOENT);
