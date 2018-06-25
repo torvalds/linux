@@ -21,6 +21,7 @@ struct config {
 enum cfg_options_flags {
 	NO_TOUCH = 0x0U,
 	READ_MEM = 0x1U,
+	SWAP_MAC = 0x2U,
 };
 struct bpf_map_def SEC("maps") config_map = {
 	.type		= BPF_MAP_TYPE_ARRAY,
@@ -51,6 +52,23 @@ struct bpf_map_def SEC("maps") rx_queue_index_map = {
 	.value_size	= sizeof(struct datarec),
 	.max_entries	= MAX_RXQs + 1,
 };
+
+static __always_inline
+void swap_src_dst_mac(void *data)
+{
+	unsigned short *p = data;
+	unsigned short dst[3];
+
+	dst[0] = p[0];
+	dst[1] = p[1];
+	dst[2] = p[2];
+	p[0] = p[3];
+	p[1] = p[4];
+	p[2] = p[5];
+	p[3] = dst[0];
+	p[4] = dst[1];
+	p[5] = dst[2];
+}
 
 SEC("xdp_prog0")
 int  xdp_prognum0(struct xdp_md *ctx)
@@ -98,7 +116,7 @@ int  xdp_prognum0(struct xdp_md *ctx)
 		rxq_rec->issue++;
 
 	/* Default: Don't touch packet data, only count packets */
-	if (unlikely(config->options & READ_MEM)) {
+	if (unlikely(config->options & (READ_MEM|SWAP_MAC))) {
 		struct ethhdr *eth = data;
 
 		if (eth + 1 > data_end)
@@ -107,6 +125,12 @@ int  xdp_prognum0(struct xdp_md *ctx)
 		/* Avoid compiler removing this: Drop non 802.3 Ethertypes */
 		if (ntohs(eth->h_proto) < ETH_P_802_3_MIN)
 			return XDP_ABORTED;
+
+		/* XDP_TX requires changing MAC-addrs, else HW may drop.
+		 * Can also be enabled with --swapmac (for test purposes)
+		 */
+		if (unlikely(config->options & SWAP_MAC))
+			swap_src_dst_mac(data);
 	}
 
 	return config->action;

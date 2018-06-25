@@ -51,6 +51,7 @@ static const struct option long_options[] = {
 	{"no-separators", no_argument,		NULL, 'z' },
 	{"action",	required_argument,	NULL, 'a' },
 	{"readmem", 	no_argument,		NULL, 'r' },
+	{"swapmac", 	no_argument,		NULL, 'm' },
 	{0, 0, NULL,  0 }
 };
 
@@ -72,6 +73,7 @@ struct config {
 enum cfg_options_flags {
 	NO_TOUCH = 0x0U,
 	READ_MEM = 0x1U,
+	SWAP_MAC = 0x2U,
 };
 #define XDP_ACTION_MAX (XDP_TX + 1)
 #define XDP_ACTION_MAX_STRLEN 11
@@ -119,6 +121,8 @@ static char* options2str(enum cfg_options_flags flag)
 {
 	if (flag == NO_TOUCH)
 		return "no_touch";
+	if (flag & SWAP_MAC)
+		return "swapmac";
 	if (flag & READ_MEM)
 		return "read";
 	fprintf(stderr, "ERR: Unknown config option flags");
@@ -517,6 +521,9 @@ int main(int argc, char **argv)
 		case 'r':
 			cfg_options |= READ_MEM;
 			break;
+		case 'm':
+			cfg_options |= SWAP_MAC;
+			break;
 		case 'h':
 		error:
 		default:
@@ -543,6 +550,10 @@ int main(int argc, char **argv)
 		}
 	}
 	cfg.action = action;
+
+	/* XDP_TX requires changing MAC-addrs, else HW may drop */
+	if (action == XDP_TX)
+		cfg_options |= SWAP_MAC;
 	cfg.options = cfg_options;
 
 	/* Trick to pretty printf with thousands separators use %' */
