@@ -15,15 +15,15 @@ static void drm_release_of(struct device *dev, void *data)
 }
 
 /**
- * drm_crtc_port_mask - find the mask of a registered CRTC by port OF node
+ * drm_of_crtc_port_mask - find the mask of a registered CRTC by port OF node
  * @dev: DRM device
  * @port: port OF node
  *
  * Given a port OF node, return the possible mask of the corresponding
  * CRTC within a device's list of CRTCs.  Returns zero if not found.
  */
-static uint32_t drm_crtc_port_mask(struct drm_device *dev,
-				   struct device_node *port)
+uint32_t drm_of_crtc_port_mask(struct drm_device *dev,
+			    struct device_node *port)
 {
 	unsigned int index = 0;
 	struct drm_crtc *tmp;
@@ -37,6 +37,7 @@ static uint32_t drm_crtc_port_mask(struct drm_device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_of_crtc_port_mask);
 
 /**
  * drm_of_find_possible_crtcs - find the possible CRTCs for an encoder port
@@ -62,7 +63,7 @@ uint32_t drm_of_find_possible_crtcs(struct drm_device *dev,
 			return 0;
 		}
 
-		possible_crtcs |= drm_crtc_port_mask(dev, remote_port);
+		possible_crtcs |= drm_of_crtc_port_mask(dev, remote_port);
 
 		of_node_put(remote_port);
 	}
