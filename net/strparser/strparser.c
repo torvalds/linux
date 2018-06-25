@@ -392,7 +392,7 @@ static int strp_read_sock(struct strparser *strp)
 /* Lower sock lock held */
 void strp_data_ready(struct strparser *strp)
 {
-	if (unlikely(strp->stopped))
+	if (unlikely(strp->stopped) || strp->paused)
 		return;
 
 	/* This check is needed to synchronize with do_strp_work.
@@ -406,9 +406,6 @@ void strp_data_ready(struct strparser *strp)
 		queue_work(strp_wq, &strp->work);
 		return;
 	}
-
-	if (strp->paused)
-		return;
 
 	if (strp->need_bytes) {
 		if (strp_peek_len(strp) < strp->need_bytes)
