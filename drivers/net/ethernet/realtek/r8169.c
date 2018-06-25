@@ -1712,11 +1712,14 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct device *d = tp_to_dev(tp);
 
+	if (wol->wolopts & ~WAKE_ANY)
+		return -EINVAL;
+
 	pm_runtime_get_noresume(d);
 
 	rtl_lock_work(tp);
 
-	tp->saved_wolopts = wol->wolopts & WAKE_ANY;
+	tp->saved_wolopts = wol->wolopts;
 
 	if (pm_runtime_active(d))
 		__rtl8169_set_wol(tp, tp->saved_wolopts);
