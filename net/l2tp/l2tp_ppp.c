@@ -424,12 +424,6 @@ static void pppol2tp_put_sk(struct rcu_head *head)
 	sock_put(ps->__sk);
 }
 
-/* Called by l2tp_core when a session socket is being closed.
- */
-static void pppol2tp_session_close(struct l2tp_session *session)
-{
-}
-
 /* Really kill the session socket. (Called from sock_put() if
  * refcnt == 0.)
  */
@@ -573,7 +567,6 @@ static void pppol2tp_session_init(struct l2tp_session *session)
 	struct dst_entry *dst;
 
 	session->recv_skb = pppol2tp_recv;
-	session->session_close = pppol2tp_session_close;
 #if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 	session->show = pppol2tp_show;
 #endif
