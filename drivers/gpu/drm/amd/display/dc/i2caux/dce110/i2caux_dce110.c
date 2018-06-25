@@ -43,6 +43,9 @@
 #include "i2c_sw_engine_dce110.h"
 #include "i2c_hw_engine_dce110.h"
 #include "aux_engine_dce110.h"
+#include "../../dc.h"
+#include "dc_types.h"
+
 
 /*
  * Post-requisites: headers required by this unit
@@ -250,7 +253,20 @@ void dal_i2caux_dce110_construct(
 
 		base->i2c_hw_engines[line_id] =
 			dal_i2c_hw_engine_dce110_create(&hw_arg_dce110);
-
+		if (base->i2c_hw_engines[line_id] != NULL) {
+			switch (ctx->dce_version) {
+			case DCN_VERSION_1_0:
+				base->i2c_hw_engines[line_id]->setup_limit =
+					I2C_SETUP_TIME_LIMIT_DCN;
+				base->i2c_hw_engines[line_id]->send_reset_length  = 0;
+			break;
+			default:
+				base->i2c_hw_engines[line_id]->setup_limit =
+					I2C_SETUP_TIME_LIMIT_DCE;
+				base->i2c_hw_engines[line_id]->send_reset_length  = 0;
+				break;
+			}
+		}
 		++i;
 	} while (i < num_i2caux_inst);
 

@@ -250,6 +250,7 @@ struct dc_debug {
 	bool p010_mpo_support;
 	bool recovery_enabled;
 	bool avoid_vbios_exec_table;
+	bool scl_reset_length10;
 
 };
 struct dc_state;
