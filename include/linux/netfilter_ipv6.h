@@ -30,11 +30,6 @@ struct nf_ipv6_ops {
 	void (*route_input)(struct sk_buff *skb);
 	int (*fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
 			int (*output)(struct net *, struct sock *, struct sk_buff *));
-	__sum16 (*checksum)(struct sk_buff *skb, unsigned int hook,
-			    unsigned int dataoff, u_int8_t protocol);
-	__sum16 (*checksum_partial)(struct sk_buff *skb, unsigned int hook,
-				    unsigned int dataoff, unsigned int len,
-				    u_int8_t protocol);
 	int (*route)(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		     bool strict);
 	int (*reroute)(struct sk_buff *skb, const struct nf_queue_entry *entry);

@@ -4,6 +4,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_queue.h>
+#include <net/ip6_checksum.h>
 
 #ifdef CONFIG_INET
 __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
@@ -59,11 +60,69 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 	return csum;
 }
 
+__sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+			unsigned int dataoff, u8 protocol)
+{
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	__sum16 csum = 0;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_COMPLETE:
+		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
+			break;
+		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+				     skb->len - dataoff, protocol,
+				     csum_sub(skb->csum,
+					      skb_checksum(skb, 0,
+							   dataoff, 0)))) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			break;
+		}
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_unfold(
+				csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					     skb->len - dataoff,
+					     protocol,
+					     csum_sub(0,
+						      skb_checksum(skb, 0,
+								   dataoff, 0))));
+		csum = __skb_checksum_complete(skb);
+	}
+	return csum;
+}
+EXPORT_SYMBOL(nf_ip6_checksum);
+
+static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
+				       unsigned int dataoff, unsigned int len,
+				       u8 protocol)
+{
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	__wsum hsum;
+	__sum16 csum = 0;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_COMPLETE:
+		if (len == skb->len - dataoff)
+			return nf_ip6_checksum(skb, hook, dataoff, protocol);
+		/* fall through */
+	case CHECKSUM_NONE:
+		hsum = skb_checksum(skb, 0, dataoff, 0);
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&ip6h->saddr,
+							 &ip6h->daddr,
+							 skb->len - dataoff,
+							 protocol,
+							 csum_sub(0, hsum)));
+		skb->ip_summed = CHECKSUM_NONE;
+		return __skb_checksum_complete_head(skb, dataoff + len);
+	}
+	return csum;
+};
+
 __sum16 nf_checksum(struct sk_buff *skb, unsigned int hook,
-		    unsigned int dataoff, u_int8_t protocol,
+		    unsigned int dataoff, u8 protocol,
 		    unsigned short family)
 {
-	const struct nf_ipv6_ops *v6ops;
 	__sum16 csum = 0;
 
 	switch (family) {
@@ -71,9 +130,7 @@ __sum16 nf_checksum(struct sk_buff *skb, unsigned int hook,
 		csum = nf_ip_checksum(skb, hook, dataoff, protocol);
 		break;
 	case AF_INET6:
-		v6ops = rcu_dereference(nf_ipv6_ops);
-		if (v6ops)
-			csum = v6ops->checksum(skb, hook, dataoff, protocol);
+		csum = nf_ip6_checksum(skb, hook, dataoff, protocol);
 		break;
 	}
 
@@ -83,9 +140,8 @@ EXPORT_SYMBOL_GPL(nf_checksum);
 
 __sum16 nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
 			    unsigned int dataoff, unsigned int len,
-			    u_int8_t protocol, unsigned short family)
+			    u8 protocol, unsigned short family)
 {
-	const struct nf_ipv6_ops *v6ops;
 	__sum16 csum = 0;
 
 	switch (family) {
@@ -94,10 +150,8 @@ __sum16 nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
 					      protocol);
 		break;
 	case AF_INET6:
-		v6ops = rcu_dereference(nf_ipv6_ops);
-		if (v6ops)
-			csum = v6ops->checksum_partial(skb, hook, dataoff, len,
-						       protocol);
+		csum = nf_ip6_checksum_partial(skb, hook, dataoff, len,
+					       protocol);
 		break;
 	}
 
