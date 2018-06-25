@@ -1385,8 +1385,11 @@ asmlinkage __visible void __init xen_start_kernel(void)
 		xen_boot_params_init_edd();
 	}
 
-	add_preferred_console("tty", 0, NULL);
+	if (!boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 	add_preferred_console("hvc", 0, NULL);
+	if (boot_params.screen_info.orig_video_isVGA)
+		add_preferred_console("tty", 0, NULL);
 
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */
