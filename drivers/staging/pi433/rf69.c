@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * abstraction of the spi interface of HopeRf rf69 radio module
  *
