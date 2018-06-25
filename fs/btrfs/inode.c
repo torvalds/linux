@@ -9005,13 +9005,14 @@ again:
 
 	unlock_extent_cached(io_tree, page_start, page_end, &cached_state);
 
-out_unlock:
 	if (!ret2) {
 		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, true);
 		sb_end_pagefault(inode->i_sb);
 		extent_changeset_free(data_reserved);
 		return VM_FAULT_LOCKED;
 	}
+
+out_unlock:
 	unlock_page(page);
 out:
 	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE, (ret != 0));
