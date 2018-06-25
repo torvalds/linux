@@ -26,6 +26,7 @@
 #include "sun4i_frontend.h"
 #include "sun4i_framebuffer.h"
 #include "sun4i_tcon.h"
+#include "sun8i_tcon_top.h"
 
 DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
 
@@ -197,6 +198,11 @@ static bool sun4i_drv_node_is_tcon(struct device_node *node)
 	return !!of_match_node(sun4i_tcon_of_table, node);
 }
 
+static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
+{
+	return !!of_match_node(sun8i_tcon_top_of_table, node);
+}
+
 static int compare_of(struct device *dev, void *data)
 {
 	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
@@ -258,6 +264,18 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 		if (sun4i_drv_node_is_tcon(node)) {
 			struct of_endpoint endpoint;
 
+			/*
+			 * TCON TOP is always probed before TCON. However, TCON
+			 * points back to TCON TOP when it is source for HDMI.
+			 * We have to skip it here to prevent infinite looping
+			 * between TCON TOP and TCON.
+			 */
+			if (sun4i_drv_node_is_tcon_top(remote)) {
+				DRM_DEBUG_DRIVER("TCON output endpoint is TCON TOP... skipping\n");
+				of_node_put(remote);
+				continue;
+			}
+
 			if (of_graph_parse_endpoint(ep, &endpoint)) {
 				DRM_DEBUG_DRIVER("Couldn't parse endpoint\n");
 				of_node_put(remote);
@@ -317,6 +335,12 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 
 	/* each node has at least one output */
 	sun4i_drv_traverse_endpoints(list, node, 1);
+
+	/* TCON TOP has second and third output */
+	if (sun4i_drv_node_is_tcon_top(node)) {
+		sun4i_drv_traverse_endpoints(list, node, 3);
+		sun4i_drv_traverse_endpoints(list, node, 5);
+	}
 
 	return count;
 }
