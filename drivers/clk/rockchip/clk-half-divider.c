@@ -41,6 +41,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	unsigned int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
+	bool is_bestdiv = false;
 
 	if (!rate)
 		rate = 1;
@@ -80,13 +81,14 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 				       (i * 2 + 3));
 
 		if (_is_best_half_div(rate, now, best, flags)) {
+			is_bestdiv = true;
 			bestdiv = i;
 			best = now;
 			*best_parent_rate = parent_rate;
 		}
 	}
 
-	if (!bestdiv) {
+	if (!is_bestdiv) {
 		bestdiv = div_mask(width);
 		*best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}
