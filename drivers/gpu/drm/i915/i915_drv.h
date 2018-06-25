@@ -512,6 +512,7 @@ struct intel_fbc {
 
 	bool enabled;
 	bool active;
+	bool flip_pending;
 
 	bool underrun_detected;
 	struct work_struct underrun_work;

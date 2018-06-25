@@ -924,13 +924,6 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 						32 * fbc->threshold) * 8;
 }
 
-static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
-				       struct intel_fbc_reg_params *params2)
-{
-	/* We can use this since intel_fbc_get_reg_params() does a memset. */
-	return memcmp(params1, params2, sizeof(*params1)) == 0;
-}
-
 void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *plane_state)
@@ -953,6 +946,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 		goto unlock;
 
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
+	fbc->flip_pending = true;
 
 deactivate:
 	intel_fbc_deactivate(dev_priv, reason);
@@ -988,12 +982,14 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_fbc_reg_params old_params;
 
 	WARN_ON(!mutex_is_locked(&fbc->lock));
 
 	if (!fbc->enabled || fbc->crtc != crtc)
 		return;
+
+	fbc->flip_pending = false;
+	WARN_ON(fbc->active);
 
 	if (!i915_modparams.enable_fbc) {
 		intel_fbc_deactivate(dev_priv, "disabled at runtime per module param");
@@ -1002,25 +998,16 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 		return;
 	}
 
-	if (!intel_fbc_can_activate(crtc)) {
-		WARN_ON(fbc->active);
-		return;
-	}
-
-	old_params = fbc->params;
 	intel_fbc_get_reg_params(crtc, &fbc->params);
 
-	/* If the scanout has not changed, don't modify the FBC settings.
-	 * Note that we make the fundamental assumption that the fb->obj
-	 * cannot be unpinned (and have its GTT offset and fence revoked)
-	 * without first being decoupled from the scanout and FBC disabled.
-	 */
-	if (fbc->active &&
-	    intel_fbc_reg_params_equal(&old_params, &fbc->params))
+	if (!intel_fbc_can_activate(crtc))
 		return;
 
-	intel_fbc_deactivate(dev_priv, "FBC enabled (active or scheduled)");
-	intel_fbc_schedule_activation(crtc);
+	if (!fbc->busy_bits) {
+		intel_fbc_deactivate(dev_priv, "FBC enabled (active or scheduled)");
+		intel_fbc_schedule_activation(crtc);
+	} else
+		intel_fbc_deactivate(dev_priv, "frontbuffer write");
 }
 
 void intel_fbc_post_update(struct intel_crtc *crtc)
@@ -1085,7 +1072,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
 		if (fbc->active)
 			intel_fbc_recompress(dev_priv);
-		else
+		else if (!fbc->flip_pending)
 			__intel_fbc_post_update(fbc->crtc);
 	}
 
