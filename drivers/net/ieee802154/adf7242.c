@@ -719,7 +719,10 @@ static int adf7242_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	adf7242_write_reg(lp, REG_CH_FREQ1, freq >> 8);
 	adf7242_write_reg(lp, REG_CH_FREQ2, freq >> 16);
 
-	return adf7242_cmd(lp, CMD_RC_RX);
+	if (test_bit(FLAG_START, &lp->flags))
+		return adf7242_cmd_rx(lp);
+	else
+		return adf7242_cmd(lp, CMD_RC_PHY_RDY);
 }
 
 static int adf7242_set_hw_addr_filt(struct ieee802154_hw *hw,
