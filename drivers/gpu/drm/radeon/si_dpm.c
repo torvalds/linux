@@ -6899,8 +6899,9 @@ int si_dpm_init(struct radeon_device *rdev)
 	struct ni_power_info *ni_pi;
 	struct si_power_info *si_pi;
 	struct atom_clock_dividers dividers;
+	enum pci_bus_speed speed_cap;
+	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
-	u32 mask;
 
 	si_pi = kzalloc(sizeof(struct si_power_info), GFP_KERNEL);
 	if (si_pi == NULL)
@@ -6910,11 +6911,20 @@ int si_dpm_init(struct radeon_device *rdev)
 	eg_pi = &ni_pi->eg;
 	pi = &eg_pi->rv7xx;
 
-	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
-	if (ret)
+	speed_cap = pcie_get_speed_cap(root);
+	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		si_pi->sys_pcie_mask = 0;
-	else
-		si_pi->sys_pcie_mask = mask;
+	} else {
+		if (speed_cap == PCIE_SPEED_8_0GT)
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50 |
+				RADEON_PCIE_SPEED_80;
+		else if (speed_cap == PCIE_SPEED_5_0GT)
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50;
+		else
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
+	}
 	si_pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(rdev);
 
