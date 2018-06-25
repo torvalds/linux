@@ -1007,8 +1007,8 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
-			  struct flowi *fl, size_t data_len)
+static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
+			   struct flowi *fl, size_t data_len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int len = skb->len;
@@ -1050,8 +1050,6 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 		atomic_long_inc(&tunnel->stats.tx_errors);
 		atomic_long_inc(&session->stats.tx_errors);
 	}
-
-	return 0;
 }
 
 /* If caller requires the skb to have a ppp header, the header must be
