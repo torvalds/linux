@@ -60,7 +60,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
+	struct gtt_range *gtt;
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -75,6 +75,8 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		dev_err(dev->dev, "No FB bound\n");
 		goto gma_pipe_cleaner;
 	}
+
+	gtt = to_gtt_range(fb->obj[0]);
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
