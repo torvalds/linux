@@ -1096,25 +1096,6 @@ static int cs421x_init(struct hda_codec *codec)
 	return 0;
 }
 
-static int cs421x_build_controls(struct hda_codec *codec)
-{
-	struct cs_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_gen_build_controls(codec);
-	if (err < 0)
-		return err;
-
-	if (spec->gen.autocfg.speaker_outs &&
-	    spec->vendor_nid == CS4210_VENDOR_NID) {
-		err = snd_hda_ctl_add(codec, 0,
-			snd_ctl_new1(&cs421x_speaker_boost_ctl, codec));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 static void fix_volume_caps(struct hda_codec *codec, hda_nid_t dac)
 {
 	unsigned int caps;
@@ -1144,6 +1125,14 @@ static int cs421x_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	parse_cs421x_digital(codec);
+
+	if (spec->gen.autocfg.speaker_outs &&
+	    spec->vendor_nid == CS4210_VENDOR_NID) {
+		if (!snd_hda_gen_add_kctl(&spec->gen, NULL,
+					  &cs421x_speaker_boost_ctl))
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -1175,7 +1164,7 @@ static int cs421x_suspend(struct hda_codec *codec)
 #endif
 
 static const struct hda_codec_ops cs421x_patch_ops = {
-	.build_controls = cs421x_build_controls,
+	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cs421x_init,
 	.free = cs_free,
