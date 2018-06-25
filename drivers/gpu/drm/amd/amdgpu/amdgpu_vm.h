@@ -75,8 +75,8 @@ struct amdgpu_bo_list_entry;
 
 
 /* For GFX9 */
-#define AMDGPU_PTE_MTYPE(a)	((uint64_t)(a) << 57)
-#define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10(a)	((uint64_t)(a) << 57)
+#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10(3ULL)
 
 #define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
@@ -86,7 +86,7 @@ struct amdgpu_bo_list_entry;
                                 | AMDGPU_PTE_EXECUTABLE \
                                 | AMDGPU_PTE_READABLE   \
                                 | AMDGPU_PTE_WRITEABLE  \
-                                | AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_CC))
+                                | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
 /* NAVI10 only */
 #define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)

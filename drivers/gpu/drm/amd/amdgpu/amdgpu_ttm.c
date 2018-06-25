@@ -962,8 +962,8 @@ int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 			goto gart_bind_fail;
 
 		/* Patch mtype of the second part BO */
-		flags &=  ~AMDGPU_PTE_MTYPE_MASK;
-		flags |= AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_NC);
+		flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
+		flags |= AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
 
 		r = amdgpu_gart_bind(adev,
 				gtt->offset + (page_idx << PAGE_SHIFT),
