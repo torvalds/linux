@@ -10,6 +10,7 @@
 
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
 
+hostprogs-$(CONFIG_BUILD_BIN2C)  += bin2c
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
 hostprogs-$(CONFIG_LOGO)         += pnmtologo
 hostprogs-$(CONFIG_VT)           += conmakehash
