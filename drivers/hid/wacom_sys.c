@@ -362,16 +362,6 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		return;
 
 	/*
-	 * Bamboo models do not support HID_DG_CONTACTMAX.
-	 * And, Bamboo Pen only descriptor contains touch.
-	 */
-	if (features->type > BAMBOO_PT) {
-		/* ISDv4 touch devices at least supports one touch point */
-		if (finger && !features->touch_max)
-			features->touch_max = 1;
-	}
-
-	/*
 	 * ISDv4 devices which predate HID's adoption of the
 	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
 	 * position instead. We can accurately detect if a
