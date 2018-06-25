@@ -1338,8 +1338,10 @@ static void execlists_schedule(struct i915_request *request,
 
 static void execlists_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(!ce->state);
 	GEM_BUG_ON(ce->pin_count);
+
+	if (!ce->state)
+		return;
 
 	intel_ring_free(ce->ring);
 	__i915_gem_object_release_unless_active(ce->state->obj);
