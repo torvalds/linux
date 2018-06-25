@@ -202,6 +202,7 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 		if ((mid->mid == wire_mid) &&
 		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
 		    (mid->command == shdr->Command)) {
+			kref_get(&mid->refcount);
 			spin_unlock(&GlobalMid_Lock);
 			return mid;
 		}
