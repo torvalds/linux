@@ -58,6 +58,9 @@ static void __iomem *cdns_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 
 		return pcie->reg_base + (where & 0xfff);
 	}
+	/* Check that the link is up */
+	if (!(cdns_pcie_readl(pcie, CDNS_PCIE_LM_BASE) & 0x1))
+		return NULL;
 
 	/* Update Output registers for AXI region 0. */
 	addr0 = CDNS_PCIE_AT_OB_REGION_PCI_ADDR0_NBITS(12) |
@@ -239,6 +242,7 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 	struct cdns_pcie *pcie;
 	struct resource *res;
 	int ret;
+	int phy_count;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
 	if (!bridge)
@@ -290,6 +294,13 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 	}
 	pcie->mem_res = res;
 
+	ret = cdns_pcie_init_phy(dev, pcie);
+	if (ret) {
+		dev_err(dev, "failed to init phy\n");
+		return ret;
+	}
+	platform_set_drvdata(pdev, pcie);
+
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
@@ -322,6 +333,10 @@ static int cdns_pcie_host_probe(struct platform_device *pdev)
 
  err_get_sync:
 	pm_runtime_disable(dev);
+	cdns_pcie_disable_phy(pcie);
+	phy_count = pcie->phy_count;
+	while (phy_count--)
+		device_link_del(pcie->link[phy_count]);
 
 	return ret;
 }

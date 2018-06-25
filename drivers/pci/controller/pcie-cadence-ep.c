@@ -439,6 +439,7 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 	struct pci_epc *epc;
 	struct resource *res;
 	int ret;
+	int phy_count;
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 	if (!ep)
@@ -473,6 +474,12 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 	if (!ep->ob_addr)
 		return -ENOMEM;
 
+	ret = cdns_pcie_init_phy(dev, pcie);
+	if (ret) {
+		dev_err(dev, "failed to init phy\n");
+		return ret;
+	}
+	platform_set_drvdata(pdev, pcie);
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
@@ -521,6 +528,10 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 
  err_get_sync:
 	pm_runtime_disable(dev);
+	cdns_pcie_disable_phy(pcie);
+	phy_count = pcie->phy_count;
+	while (phy_count--)
+		device_link_del(pcie->link[phy_count]);
 
 	return ret;
 }
@@ -528,6 +539,7 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 static void cdns_pcie_ep_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct cdns_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_put_sync(dev);
@@ -536,7 +548,7 @@ static void cdns_pcie_ep_shutdown(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 
-	/* The PCIe controller can't be disabled. */
+	cdns_pcie_disable_phy(pcie);
 }
 
 static struct platform_driver cdns_pcie_ep_driver = {
