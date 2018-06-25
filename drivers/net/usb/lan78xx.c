@@ -2363,7 +2363,7 @@ static int lan78xx_set_features(struct net_device *netdev,
 		pdata->rfe_ctl &= ~(RFE_CTL_ICMP_COE_ | RFE_CTL_IGMP_COE_);
 	}
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		pdata->rfe_ctl |= RFE_CTL_VLAN_FILTER_;
 	else
 		pdata->rfe_ctl &= ~RFE_CTL_VLAN_FILTER_;
@@ -2975,6 +2975,9 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 
 	if (DEFAULT_TSO_CSUM_ENABLE)
 		dev->net->features |= NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_SG;
+
+	if (DEFAULT_VLAN_FILTER_ENABLE)
+		dev->net->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	dev->net->hw_features = dev->net->features;
 
