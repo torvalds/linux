@@ -783,7 +783,7 @@ EXPORT_SYMBOL(l2tp_recv_common);
 
 /* Drop skbs from the session's reorder_q
  */
-int l2tp_session_queue_purge(struct l2tp_session *session)
+static int l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 	BUG_ON(!session);
@@ -794,7 +794,6 @@ int l2tp_session_queue_purge(struct l2tp_session *session)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(l2tp_session_queue_purge);
 
 /* Internal UDP receive frame. Do the real work of receiving an L2TP data frame
  * here. The skb is not on a list when we get here.
