@@ -296,13 +296,12 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
 		u32 lowbit, highbit;
-		int me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-		lowbit = RREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR)) >> 2;
-		highbit = RREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR_HI)) >> 2;
+		lowbit = RREG32(sdma_v4_0_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR)) >> 2;
+		highbit = RREG32(sdma_v4_0_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR_HI)) >> 2;
 
 		DRM_DEBUG("wptr [%i]high== 0x%08x low==0x%08x\n",
-				me, highbit, lowbit);
+				ring->me, highbit, lowbit);
 		wptr = highbit;
 		wptr = wptr << 32;
 		wptr |= lowbit;
@@ -339,17 +338,15 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 				ring->doorbell_index, ring->wptr << 2);
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
-		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
-
 		DRM_DEBUG("Not using doorbell -- "
 				"mmSDMA%i_GFX_RB_WPTR == 0x%08x "
 				"mmSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
-				me,
+				ring->me,
 				lower_32_bits(ring->wptr << 2),
-				me,
+				ring->me,
 				upper_32_bits(ring->wptr << 2));
-		WREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR), lower_32_bits(ring->wptr << 2));
-		WREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR_HI), upper_32_bits(ring->wptr << 2));
+		WREG32(sdma_v4_0_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR), lower_32_bits(ring->wptr << 2));
+		WREG32(sdma_v4_0_get_reg_offset(adev, ring->me, mmSDMA0_GFX_RB_WPTR_HI), upper_32_bits(ring->wptr << 2));
 	}
 }
 
@@ -430,7 +427,7 @@ static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	u32 ref_and_mask = 0;
 	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio_funcs->hdp_flush_reg;
 
-	if (ring == &ring->adev->sdma.instance[0].ring)
+	if (ring->me == 0)
 		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0;
 	else
 		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma1;
@@ -1651,8 +1648,10 @@ static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->sdma.num_instances; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++) {
 		adev->sdma.instance[i].ring.funcs = &sdma_v4_0_ring_funcs;
+		adev->sdma.instance[i].ring.me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs sdma_v4_0_trap_irq_funcs = {

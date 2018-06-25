@@ -365,9 +365,7 @@ static uint64_t sdma_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 		/* XXX check if swapping is necessary on BE */
 		wptr = ring->adev->wb.wb[ring->wptr_offs] >> 2;
 	} else {
-		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
-
-		wptr = RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me]) >> 2;
+		wptr = RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me]) >> 2;
 	}
 
 	return wptr;
@@ -394,9 +392,7 @@ static void sdma_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 		WRITE_ONCE(*wb, (lower_32_bits(ring->wptr) << 2));
 	} else {
-		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
-
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], lower_32_bits(ring->wptr) << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me], lower_32_bits(ring->wptr) << 2);
 	}
 }
 
@@ -450,7 +446,7 @@ static void sdma_v3_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask = 0;
 
-	if (ring == &ring->adev->sdma.instance[0].ring)
+	if (ring->me == 0)
 		ref_and_mask = REG_SET_FIELD(ref_and_mask, GPU_HDP_FLUSH_DONE, SDMA0, 1);
 	else
 		ref_and_mask = REG_SET_FIELD(ref_and_mask, GPU_HDP_FLUSH_DONE, SDMA1, 1);
@@ -1655,8 +1651,10 @@ static void sdma_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->sdma.num_instances; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++) {
 		adev->sdma.instance[i].ring.funcs = &sdma_v3_0_ring_funcs;
+		adev->sdma.instance[i].ring.me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs sdma_v3_0_trap_irq_funcs = {

@@ -177,9 +177,8 @@ static uint64_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
 static uint64_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	return (RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me]) & 0x3fffc) >> 2;
+	return (RREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me]) & 0x3fffc) >> 2;
 }
 
 /**
@@ -192,9 +191,8 @@ static uint64_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
 static void cik_sdma_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me],
+	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me],
 		       	(lower_32_bits(ring->wptr) << 2) & 0x3fffc);
 }
 
@@ -248,7 +246,7 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
 	u32 ref_and_mask;
 
-	if (ring == &ring->adev->sdma.instance[0].ring)
+	if (ring->me == 0)
 		ref_and_mask = GPU_HDP_FLUSH_DONE__SDMA0_MASK;
 	else
 		ref_and_mask = GPU_HDP_FLUSH_DONE__SDMA1_MASK;
@@ -1290,8 +1288,10 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->sdma.num_instances; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++) {
 		adev->sdma.instance[i].ring.funcs = &cik_sdma_ring_funcs;
+		adev->sdma.instance[i].ring.me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs cik_sdma_trap_irq_funcs = {
