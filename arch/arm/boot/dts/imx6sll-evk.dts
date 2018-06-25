@@ -15,6 +15,10 @@
 	model = "Freescale i.MX6SLL EVK Board";
 	compatible = "fsl,imx6sll-evk", "fsl,imx6sll";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x80000000>;
 	};
