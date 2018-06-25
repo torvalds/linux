@@ -171,15 +171,20 @@ static void css_subchannel_release(struct device *dev)
 struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
 {
 	struct subchannel *sch;
+	struct schib schib;
 	int ret;
+
+	ret = cio_validate_subchannel(schid, &schib);
+	if (ret < 0)
+		return ERR_PTR(ret);
 
 	sch = kzalloc(sizeof(*sch), GFP_KERNEL | GFP_DMA);
 	if (!sch)
 		return ERR_PTR(-ENOMEM);
 
-	ret = cio_validate_subchannel(sch, schid);
-	if (ret < 0)
-		goto err;
+	sch->schid = schid;
+	sch->schib = schib;
+	sch->st = schib.pmcw.st;
 
 	ret = css_sch_create_locks(sch);
 	if (ret)

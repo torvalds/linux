@@ -526,34 +526,19 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-static int cio_check_devno_blacklisted(struct subchannel *sch)
-{
-	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
-		/*
-		 * This device must not be known to Linux. So we simply
-		 * say that there is no device and return ENODEV.
-		 */
-		CIO_MSG_EVENT(6, "Blacklisted device detected "
-			      "at devno %04X, subchannel set %x\n",
-			      sch->schib.pmcw.dev, sch->schid.ssid);
-		return -ENODEV;
-	}
-	return 0;
-}
-
 /**
  * cio_validate_subchannel - basic validation of subchannel
- * @sch: subchannel structure to be filled out
  * @schid: subchannel id
+ * @schib: subchannel information block to be filled out
  *
- * Find out subchannel type and initialize struct subchannel.
+ * Check if subchannel is valid and should be used.
  * Return codes:
  *   0 on success
  *   -ENXIO for non-defined subchannels
  *   -ENODEV for invalid subchannels or blacklisted devices
  *   -EIO for subchannels in an invalid subchannel set
  */
-int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
+int cio_validate_subchannel(struct subchannel_id schid, struct schib *schib)
 {
 	char dbf_txt[15];
 	int ccode;
@@ -568,21 +553,24 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	 * If stsch gets an exception, it means the current subchannel set
 	 * is not valid.
 	 */
-	ccode = stsch(schid, &sch->schib);
+	ccode = stsch(schid, schib);
 	if (ccode) {
 		err = (ccode == 3) ? -ENXIO : ccode;
 		goto out;
 	}
-	sch->st = sch->schib.pmcw.st;
-	sch->schid = schid;
 
-	switch (sch->st) {
+	switch (schib->pmcw.st) {
 	case SUBCHANNEL_TYPE_IO:
 	case SUBCHANNEL_TYPE_MSG:
-		if (!css_sch_is_valid(&sch->schib))
+		if (!css_sch_is_valid(schib))
 			err = -ENODEV;
-		else
-			err = cio_check_devno_blacklisted(sch);
+		else if (is_blacklisted(schid.ssid, schib->pmcw.dev)) {
+			CIO_MSG_EVENT(6, "Blacklisted device detected "
+				      "at devno %04X, subchannel set %x\n",
+				      schib->pmcw.dev, schid.ssid);
+			err = -ENODEV;
+		} else
+			err = 0;
 		break;
 	default:
 		err = 0;
@@ -591,7 +579,7 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 		goto out;
 
 	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
-		      sch->schid.ssid, sch->schid.sch_no, sch->st);
+		      schid.ssid, schid.sch_no, schib->pmcw.st);
 out:
 	return err;
 }
