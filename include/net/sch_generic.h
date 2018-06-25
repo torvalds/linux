@@ -336,6 +336,21 @@ static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
 	block->offloadcnt--;
 }
 
+static inline void
+tc_cls_offload_cnt_update(struct tcf_block *block, unsigned int *cnt,
+			  u32 *flags, bool add)
+{
+	if (add) {
+		if (!*cnt)
+			tcf_block_offload_inc(block, flags);
+		(*cnt)++;
+	} else {
+		(*cnt)--;
+		if (!*cnt)
+			tcf_block_offload_dec(block, flags);
+	}
+}
+
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 {
 	struct qdisc_skb_cb *qcb;
