@@ -288,7 +288,6 @@ static int mc_queue_handle(uint32_t flags)
 	int ret = 0;
 
 	mc_op.cmd = XEN_MC_fetch;
-	mc_op.interface_version = XEN_MCA_INTERFACE_VERSION;
 	set_xen_guest_handle(mc_op.u.mc_fetch.data, &g_mi);
 	do {
 		mc_op.u.mc_fetch.flags = flags;
@@ -358,7 +357,6 @@ static int bind_virq_for_mce(void)
 
 	/* Fetch physical CPU Numbers */
 	mc_op.cmd = XEN_MC_physcpuinfo;
-	mc_op.interface_version = XEN_MCA_INTERFACE_VERSION;
 	set_xen_guest_handle(mc_op.u.mc_physcpuinfo.info, g_physinfo);
 	ret = HYPERVISOR_mca(&mc_op);
 	if (ret) {
