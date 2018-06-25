@@ -32,6 +32,7 @@
 #define SIP_REMOTECTL_CFG		0x8200000b
 #define PSCI_SIP_VPU_RESET		0x8200000c
 #define RK_SIP_SOC_BUS_DIV		0x8200000d
+#define SIP_LAST_LOG			0x8200000e
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -120,6 +121,7 @@ struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2);
 struct arm_smccc_res sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2);
 struct arm_smccc_res sip_smc_get_suspend_info(u32 info);
+struct arm_smccc_res sip_smc_lastlog_request(void);
 
 int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2);
 int sip_smc_virtual_poweroff(void);
@@ -173,6 +175,12 @@ static inline struct arm_smccc_res sip_smc_mcu_el3fiq
 
 static inline struct arm_smccc_res
 sip_smc_vpu_reset(u32 arg0, u32 arg1, u32 arg2)
+{
+	struct arm_smccc_res tmp = {0};
+	return tmp;
+}
+
+struct arm_smccc_res sip_smc_lastlog_request(void)
 {
 	struct arm_smccc_res tmp = {0};
 	return tmp;

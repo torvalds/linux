@@ -152,6 +152,34 @@ struct arm_smccc_res sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2)
 	return res;
 }
 
+struct arm_smccc_res sip_smc_lastlog_request(void)
+{
+	struct arm_smccc_res res;
+	void __iomem *addr1, *addr2;
+
+	res = __invoke_sip_fn_smc(SIP_LAST_LOG, local_clock(), 0, 0);
+	if (IS_SIP_ERROR(res.a0))
+		return res;
+
+	addr1 = ioremap(res.a1, res.a3);
+	if (!addr1) {
+		pr_err("%s: share memory buffer0 ioremap failed\n", __func__);
+		res.a0 = SIP_RET_INVALID_ADDRESS;
+		return res;
+	}
+	addr2 = ioremap(res.a2, res.a3);
+	if (!addr2) {
+		pr_err("%s: share memory buffer1 ioremap failed\n", __func__);
+		res.a0 = SIP_RET_INVALID_ADDRESS;
+		return res;
+	}
+
+	res.a1 = (unsigned long)addr1;
+	res.a2 = (unsigned long)addr2;
+
+	return res;
+}
+
 /************************** fiq debugger **************************************/
 /*
  * AArch32 is not allowed to call SMC64(ATF framework does not support), so we
