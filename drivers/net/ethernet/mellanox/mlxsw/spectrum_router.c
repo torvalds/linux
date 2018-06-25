@@ -163,7 +163,8 @@ struct mlxsw_sp_rif_ops {
 		      const struct mlxsw_sp_rif_params *params);
 	int (*configure)(struct mlxsw_sp_rif *rif);
 	void (*deconfigure)(struct mlxsw_sp_rif *rif);
-	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif);
+	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif,
+					 struct netlink_ext_ack *extack);
 };
 
 static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree);
@@ -6162,7 +6163,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	rif->ops = ops;
 
 	if (ops->fid_get) {
-		fid = ops->fid_get(rif);
+		fid = ops->fid_get(rif, extack);
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
 			goto err_fid_get;
@@ -6267,7 +6268,7 @@ mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	}
 
 	/* FID was already created, just take a reference */
-	fid = rif->ops->fid_get(rif);
+	fid = rif->ops->fid_get(rif, extack);
 	err = mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port, vid);
 	if (err)
 		goto err_fid_port_vid_map;
@@ -6775,7 +6776,8 @@ static void mlxsw_sp_rif_subport_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_subport_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_subport_fid_get(struct mlxsw_sp_rif *rif,
+			     struct netlink_ext_ack *extack)
 {
 	return mlxsw_sp_fid_rfid_get(rif->mlxsw_sp, rif->rif_index);
 }
@@ -6865,7 +6867,8 @@ static void mlxsw_sp_rif_vlan_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
+			  struct netlink_ext_ack *extack)
 {
 	u16 vid = is_vlan_dev(rif->dev) ? vlan_dev_vlan_id(rif->dev) : 1;
 
@@ -6937,7 +6940,8 @@ static void mlxsw_sp_rif_fid_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
+			 struct netlink_ext_ack *extack)
 {
 	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
 }
