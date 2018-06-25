@@ -1019,6 +1019,36 @@ out:
 	return ret;
 }
 
+/* SP800-56A section 5.6.2.3.4 partial verification: ephemeral keys only */
+static int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
+				       struct ecc_point *pk)
+{
+	u64 yy[ECC_MAX_DIGITS], xxx[ECC_MAX_DIGITS], w[ECC_MAX_DIGITS];
+
+	/* Check 1: Verify key is not the zero point. */
+	if (ecc_point_is_zero(pk))
+		return -EINVAL;
+
+	/* Check 2: Verify key is in the range [1, p-1]. */
+	if (vli_cmp(curve->p, pk->x, pk->ndigits) != 1)
+		return -EINVAL;
+	if (vli_cmp(curve->p, pk->y, pk->ndigits) != 1)
+		return -EINVAL;
+
+	/* Check 3: Verify that y^2 == (x^3 + a·x + b) mod p */
+	vli_mod_square_fast(yy, pk->y, curve->p, pk->ndigits); /* y^2 */
+	vli_mod_square_fast(xxx, pk->x, curve->p, pk->ndigits); /* x^2 */
+	vli_mod_mult_fast(xxx, xxx, pk->x, curve->p, pk->ndigits); /* x^3 */
+	vli_mod_mult_fast(w, curve->a, pk->x, curve->p, pk->ndigits); /* a·x */
+	vli_mod_add(w, w, curve->b, curve->p, pk->ndigits); /* a·x + b */
+	vli_mod_add(w, w, xxx, curve->p, pk->ndigits); /* x^3 + a·x + b */
+	if (vli_cmp(yy, w, pk->ndigits) != 0) /* Equation */
+		return -EINVAL;
+
+	return 0;
+
+}
+
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 			      const u64 *private_key, const u64 *public_key,
 			      u64 *secret)
@@ -1046,15 +1076,19 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
+	ecc_swap_digits(public_key, pk->x, ndigits);
+	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
+	ret = ecc_is_pubkey_valid_partial(curve, pk);
+	if (ret)
+		goto err_alloc_product;
+
+	ecc_swap_digits(private_key, priv, ndigits);
+
 	product = ecc_alloc_point(ndigits);
 	if (!product) {
 		ret = -ENOMEM;
 		goto err_alloc_product;
 	}
-
-	ecc_swap_digits(public_key, pk->x, ndigits);
-	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
-	ecc_swap_digits(private_key, priv, ndigits);
 
 	ecc_point_mult(product, pk, priv, rand_z, curve->p, ndigits);
 
