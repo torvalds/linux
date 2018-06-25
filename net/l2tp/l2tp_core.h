@@ -180,9 +180,6 @@ struct l2tp_tunnel {
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
-#ifdef CONFIG_DEBUG_FS
-	void (*show)(struct seq_file *m, void *arg);
-#endif
 	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */

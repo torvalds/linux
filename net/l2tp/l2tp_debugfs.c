@@ -177,9 +177,6 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   atomic_long_read(&tunnel->stats.rx_packets),
 		   atomic_long_read(&tunnel->stats.rx_bytes),
 		   atomic_long_read(&tunnel->stats.rx_errors));
-
-	if (tunnel->show != NULL)
-		tunnel->show(m, tunnel);
 }
 
 static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
