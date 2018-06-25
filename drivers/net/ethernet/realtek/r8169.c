@@ -1587,6 +1587,12 @@ static void rtl8169_check_link_status(struct net_device *dev,
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
 
+/* Currently we only enable WoL if explicitly told by userspace to circumvent
+ * issues on certain platforms, see commit bde135a672bf ("r8169: only enable
+ * PCI wakeups when WOL is active"). Let's keep __rtl8169_get_wol() for the
+ * case that we want to respect BIOS settings again.
+ */
+#if 0
 static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 {
 	u8 options;
@@ -1621,25 +1627,16 @@ static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 
 	return wolopts;
 }
+#endif
 
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
-
-	pm_runtime_get_noresume(d);
 
 	rtl_lock_work(tp);
-
 	wol->supported = WAKE_ANY;
-	if (pm_runtime_active(d))
-		wol->wolopts = __rtl8169_get_wol(tp);
-	else
-		wol->wolopts = tp->saved_wolopts;
-
+	wol->wolopts = tp->saved_wolopts;
 	rtl_unlock_work(tp);
-
-	pm_runtime_put_noidle(d);
 }
 
 static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
@@ -1719,14 +1716,14 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	rtl_lock_work(tp);
 
+	tp->saved_wolopts = wol->wolopts & WAKE_ANY;
+
 	if (pm_runtime_active(d))
-		__rtl8169_set_wol(tp, wol->wolopts);
-	else
-		tp->saved_wolopts = wol->wolopts;
+		__rtl8169_set_wol(tp, tp->saved_wolopts);
 
 	rtl_unlock_work(tp);
 
-	device_set_wakeup_enable(d, wol->wolopts);
+	device_set_wakeup_enable(d, tp->saved_wolopts);
 
 	pm_runtime_put_noidle(d);
 
@@ -4638,7 +4635,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 
 static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 {
-	if (!(__rtl8169_get_wol(tp) & WAKE_ANY))
+	if (!netif_running(tp->dev) || !tp->saved_wolopts)
 		return false;
 
 	rtl_speed_down(tp);
@@ -7219,7 +7216,6 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_unlock_work(tp);
 
-	tp->saved_wolopts = 0;
 	pm_runtime_put_sync(&pdev->dev);
 
 	rtl8169_check_link_status(dev, tp);
@@ -7334,6 +7330,7 @@ static void __rtl8169_resume(struct net_device *dev)
 	netif_device_attach(dev);
 
 	rtl_pll_power_up(tp);
+	rtl8169_init_phy(dev, tp);
 
 	rtl_lock_work(tp);
 	napi_enable(&tp->napi);
@@ -7347,9 +7344,6 @@ static int rtl8169_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	rtl8169_init_phy(dev, tp);
 
 	if (netif_running(dev))
 		__rtl8169_resume(dev);
@@ -7369,7 +7363,6 @@ static int rtl8169_runtime_suspend(struct device *device)
 	}
 
 	rtl_lock_work(tp);
-	tp->saved_wolopts = __rtl8169_get_wol(tp);
 	__rtl8169_set_wol(tp, WAKE_ANY);
 	rtl_unlock_work(tp);
 
@@ -7394,10 +7387,7 @@ static int rtl8169_runtime_resume(struct device *device)
 
 	rtl_lock_work(tp);
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
-	tp->saved_wolopts = 0;
 	rtl_unlock_work(tp);
-
-	rtl8169_init_phy(dev, tp);
 
 	__rtl8169_resume(dev);
 
@@ -7466,7 +7456,7 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	rtl8169_hw_reset(tp);
 
 	if (system_state == SYSTEM_POWER_OFF) {
-		if (__rtl8169_get_wol(tp) & WAKE_ANY) {
+		if (tp->saved_wolopts) {
 			rtl_wol_suspend_quirk(tp);
 			rtl_wol_shutdown_quirk(tp);
 		}
