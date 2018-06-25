@@ -362,6 +362,12 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	default:
 		return AE_OK;
 	}
+	if (invalid_phys_cpuid(acpi_get_phys_id(handle,
+						acpi_type == ACPI_TYPE_DEVICE,
+						acpi_id))) {
+		pr_debug("CPU with ACPI ID %u is unavailable\n", acpi_id);
+		return AE_OK;
+	}
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
 	if (acpi_id >= nr_acpi_bits) {
