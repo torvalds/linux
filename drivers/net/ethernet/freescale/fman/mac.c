@@ -471,6 +471,7 @@ static void setup_dtsec(struct mac_device *mac_dev)
 	mac_dev->set_rx_pause		= dtsec_accept_rx_pause_frames;
 	mac_dev->set_exception		= dtsec_set_exception;
 	mac_dev->set_allmulti		= dtsec_set_allmulti;
+	mac_dev->set_tstamp		= dtsec_set_tstamp;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
@@ -490,6 +491,7 @@ static void setup_tgec(struct mac_device *mac_dev)
 	mac_dev->set_rx_pause		= tgec_accept_rx_pause_frames;
 	mac_dev->set_exception		= tgec_set_exception;
 	mac_dev->set_allmulti		= tgec_set_allmulti;
+	mac_dev->set_tstamp		= tgec_set_tstamp;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
@@ -509,6 +511,7 @@ static void setup_memac(struct mac_device *mac_dev)
 	mac_dev->set_rx_pause		= memac_accept_rx_pause_frames;
 	mac_dev->set_exception		= memac_set_exception;
 	mac_dev->set_allmulti		= memac_set_allmulti;
+	mac_dev->set_tstamp		= memac_set_tstamp;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
