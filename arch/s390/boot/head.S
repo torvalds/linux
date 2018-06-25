@@ -272,14 +272,14 @@ iplstart:
 	.org	0x10000
 ENTRY(startup)
 	j	.Lep_startup_normal
-	.org	0x10008
+	.org	EP_OFFSET
 #
 # This is a list of s390 kernel entry points. At address 0x1000f the number of
 # valid entry points is stored.
 #
 # IMPORTANT: Do not change this table, it is s390 kernel ABI!
 #
-	.ascii	"S390EP"
+	.ascii	EP_STRING
 	.byte	0x00,0x01
 #
 # kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
