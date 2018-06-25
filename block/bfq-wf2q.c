@@ -1545,12 +1545,6 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 		sd->in_service_entity = entity;
 
 		/*
-		 * Reset the accumulator of the amount of service that
-		 * the entity is about to receive.
-		 */
-		entity->service = 0;
-
-		/*
 		 * If entity is no longer a candidate for next
 		 * service, then it must be extracted from its active
 		 * tree, so as to make sure that it won't be
