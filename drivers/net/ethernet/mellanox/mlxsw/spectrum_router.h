@@ -66,6 +66,8 @@ struct mlxsw_sp_neigh_entry;
 struct mlxsw_sp_nexthop;
 struct mlxsw_sp_ipip_entry;
 
+struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
+					      const struct net_device *dev);
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);

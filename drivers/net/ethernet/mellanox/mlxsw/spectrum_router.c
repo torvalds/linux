@@ -343,10 +343,6 @@ static void mlxsw_sp_rif_counters_free(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
 }
 
-static struct mlxsw_sp_rif *
-mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
-			 const struct net_device *dev);
-
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE + 1)
 
 struct mlxsw_sp_prefix_usage {
@@ -5968,7 +5964,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct mlxsw_sp_rif *
+struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev)
 {
