@@ -555,6 +555,7 @@ static struct platform_driver cdns_pcie_ep_driver = {
 	.driver = {
 		.name = "cdns-pcie-ep",
 		.of_match_table = cdns_pcie_ep_of_match,
+		.pm	= &cdns_pcie_pm_ops,
 	},
 	.probe = cdns_pcie_ep_probe,
 	.shutdown = cdns_pcie_ep_shutdown,
