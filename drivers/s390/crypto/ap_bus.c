@@ -36,7 +36,6 @@
 #include <linux/debugfs.h>
 
 #include "ap_bus.h"
-#include "ap_asm.h"
 #include "ap_debug.h"
 
 /*
@@ -174,24 +173,6 @@ static inline int ap_qact_available(void)
 	return 0;
 }
 
-/**
- * ap_test_queue(): Test adjunct processor queue.
- * @qid: The AP queue number
- * @tbit: Test facilities bit
- * @info: Pointer to queue descriptor
- *
- * Returns AP queue status structure.
- */
-struct ap_queue_status ap_test_queue(ap_qid_t qid,
-				     int tbit,
-				     unsigned long *info)
-{
-	if (tbit)
-		qid |= 1UL << 23; /* set T bit*/
-	return ap_tapq(qid, info);
-}
-EXPORT_SYMBOL(ap_test_queue);
-
 /*
  * ap_query_configuration(): Fetch cryptographic config info
  *
@@ -200,7 +181,7 @@ EXPORT_SYMBOL(ap_test_queue);
  * is returned, e.g. if the PQAP(QCI) instruction is not
  * available, the return value will be -EOPNOTSUPP.
  */
-int ap_query_configuration(struct ap_config_info *info)
+static inline int ap_query_configuration(struct ap_config_info *info)
 {
 	if (!ap_configuration_available())
 		return -EOPNOTSUPP;
