@@ -487,7 +487,6 @@ struct sh_eth_cpu_data {
 	u32 ecsipr_value;
 	u32 fdr_value;
 	u32 fcftr_value;
-	u32 rpadir_value;
 
 	/* interrupt checking mask */
 	u32 tx_check;
