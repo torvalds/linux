@@ -607,23 +607,12 @@ static struct nf_conn *
 ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 		     u8 l3num, struct sk_buff *skb, bool natted)
 {
-	const struct nf_conntrack_l3proto *l3proto;
-	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
-	unsigned int dataoff;
-	u8 protonum;
 
-	l3proto = __nf_ct_l3proto_find(l3num);
-	if (l3proto->get_l4proto(skb, skb_network_offset(skb), &dataoff,
-				 &protonum) <= 0) {
-		pr_debug("ovs_ct_find_existing: Can't get protonum\n");
-		return NULL;
-	}
-	l4proto = __nf_ct_l4proto_find(l3num, protonum);
-	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
-			     protonum, net, &tuple, l3proto, l4proto)) {
+	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), l3num,
+			       net, &tuple)) {
 		pr_debug("ovs_ct_find_existing: Can't get tuple\n");
 		return NULL;
 	}
@@ -632,7 +621,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	if (natted) {
 		struct nf_conntrack_tuple inverse;
 
-		if (!nf_ct_invert_tuple(&inverse, &tuple, l3proto, l4proto)) {
+		if (!nf_ct_invert_tuplepr(&inverse, &tuple)) {
 			pr_debug("ovs_ct_find_existing: Inversion failed!\n");
 			return NULL;
 		}

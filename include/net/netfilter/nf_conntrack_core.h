@@ -40,13 +40,6 @@ void nf_conntrack_cleanup_start(void);
 void nf_conntrack_init_end(void);
 void nf_conntrack_cleanup_end(void);
 
-bool nf_ct_get_tuple(const struct sk_buff *skb, unsigned int nhoff,
-		     unsigned int dataoff, u_int16_t l3num, u_int8_t protonum,
-		     struct net *net,
-		     struct nf_conntrack_tuple *tuple,
-		     const struct nf_conntrack_l3proto *l3proto,
-		     const struct nf_conntrack_l4proto *l4proto);
-
 bool nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 			const struct nf_conntrack_tuple *orig,
 			const struct nf_conntrack_l3proto *l3proto,
