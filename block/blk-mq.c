@@ -998,7 +998,10 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 
 	hctx = container_of(wait, struct blk_mq_hw_ctx, dispatch_wait);
 
+	spin_lock(&hctx->dispatch_wait_lock);
 	list_del_init(&wait->entry);
+	spin_unlock(&hctx->dispatch_wait_lock);
+
 	blk_mq_run_hw_queue(hctx, true);
 	return 1;
 }
@@ -1012,7 +1015,7 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 				 struct request *rq)
 {
-	struct sbq_wait_state *ws;
+	struct wait_queue_head *wq;
 	wait_queue_entry_t *wait;
 	bool ret;
 
@@ -1035,14 +1038,18 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	if (!list_empty_careful(&wait->entry))
 		return false;
 
-	spin_lock(&hctx->lock);
+	wq = &bt_wait_ptr(&hctx->tags->bitmap_tags, hctx)->wait;
+
+	spin_lock_irq(&wq->lock);
+	spin_lock(&hctx->dispatch_wait_lock);
 	if (!list_empty(&wait->entry)) {
-		spin_unlock(&hctx->lock);
+		spin_unlock(&hctx->dispatch_wait_lock);
+		spin_unlock_irq(&wq->lock);
 		return false;
 	}
 
-	ws = bt_wait_ptr(&hctx->tags->bitmap_tags, hctx);
-	add_wait_queue(&ws->wait, wait);
+	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
+	__add_wait_queue(wq, wait);
 
 	/*
 	 * It's possible that a tag was freed in the window between the
@@ -1051,7 +1058,8 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	 */
 	ret = blk_mq_get_driver_tag(rq);
 	if (!ret) {
-		spin_unlock(&hctx->lock);
+		spin_unlock(&hctx->dispatch_wait_lock);
+		spin_unlock_irq(&wq->lock);
 		return false;
 	}
 
@@ -1059,10 +1067,9 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	 * We got a tag, remove ourselves from the wait queue to ensure
 	 * someone else gets the wakeup.
 	 */
-	spin_lock_irq(&ws->wait.lock);
 	list_del_init(&wait->entry);
-	spin_unlock_irq(&ws->wait.lock);
-	spin_unlock(&hctx->lock);
+	spin_unlock(&hctx->dispatch_wait_lock);
+	spin_unlock_irq(&wq->lock);
 
 	return true;
 }
@@ -2142,6 +2149,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
 
 	hctx->nr_ctx = 0;
 
+	spin_lock_init(&hctx->dispatch_wait_lock);
 	init_waitqueue_func_entry(&hctx->dispatch_wait, blk_mq_dispatch_wake);
 	INIT_LIST_HEAD(&hctx->dispatch_wait.entry);
 
