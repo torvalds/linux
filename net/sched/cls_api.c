@@ -751,19 +751,53 @@ unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb)
 }
 EXPORT_SYMBOL(tcf_block_cb_decref);
 
+static int
+tcf_block_playback_offloads(struct tcf_block *block, tc_setup_cb_t *cb,
+			    void *cb_priv, bool add, bool offload_in_use,
+			    struct netlink_ext_ack *extack)
+{
+	struct tcf_chain *chain;
+	struct tcf_proto *tp;
+	int err;
+
+	list_for_each_entry(chain, &block->chain_list, list) {
+		for (tp = rtnl_dereference(chain->filter_chain); tp;
+		     tp = rtnl_dereference(tp->next)) {
+			if (tp->ops->reoffload) {
+				err = tp->ops->reoffload(tp, add, cb, cb_priv,
+							 extack);
+				if (err && add)
+					goto err_playback_remove;
+			} else if (add && offload_in_use) {
+				err = -EOPNOTSUPP;
+				NL_SET_ERR_MSG(extack, "Filter HW offload failed - classifier without re-offloading support");
+				goto err_playback_remove;
+			}
+		}
+	}
+
+	return 0;
+
+err_playback_remove:
+	tcf_block_playback_offloads(block, cb, cb_priv, false, offload_in_use,
+				    extack);
+	return err;
+}
+
 struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 					     tc_setup_cb_t *cb, void *cb_ident,
 					     void *cb_priv,
 					     struct netlink_ext_ack *extack)
 {
 	struct tcf_block_cb *block_cb;
+	int err;
 
-	/* At this point, playback of previous block cb calls is not supported,
-	 * so forbid to register to block which already has some offloaded
-	 * filters present.
-	 */
-	if (tcf_block_offload_in_use(block))
-		return ERR_PTR(-EOPNOTSUPP);
+	/* Replay any already present rules */
+	err = tcf_block_playback_offloads(block, cb, cb_priv, true,
+					  tcf_block_offload_in_use(block),
+					  extack);
+	if (err)
+		return ERR_PTR(err);
 
 	block_cb = kzalloc(sizeof(*block_cb), GFP_KERNEL);
 	if (!block_cb)
@@ -788,8 +822,12 @@ int tcf_block_cb_register(struct tcf_block *block,
 }
 EXPORT_SYMBOL(tcf_block_cb_register);
 
-void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb)
+void __tcf_block_cb_unregister(struct tcf_block *block,
+			       struct tcf_block_cb *block_cb)
 {
+	tcf_block_playback_offloads(block, block_cb->cb, block_cb->cb_priv,
+				    false, tcf_block_offload_in_use(block),
+				    NULL);
 	list_del(&block_cb->list);
 	kfree(block_cb);
 }
@@ -803,7 +841,7 @@ void tcf_block_cb_unregister(struct tcf_block *block,
 	block_cb = tcf_block_cb_lookup(block, cb, cb_ident);
 	if (!block_cb)
 		return;
-	__tcf_block_cb_unregister(block_cb);
+	__tcf_block_cb_unregister(block, block_cb);
 }
 EXPORT_SYMBOL(tcf_block_cb_unregister);
 

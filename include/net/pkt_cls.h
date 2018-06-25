@@ -78,7 +78,8 @@ struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 int tcf_block_cb_register(struct tcf_block *block,
 			  tc_setup_cb_t *cb, void *cb_ident,
 			  void *cb_priv, struct netlink_ext_ack *extack);
-void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb);
+void __tcf_block_cb_unregister(struct tcf_block *block,
+			       struct tcf_block_cb *block_cb);
 void tcf_block_cb_unregister(struct tcf_block *block,
 			     tc_setup_cb_t *cb, void *cb_ident);
 
@@ -177,7 +178,8 @@ int tcf_block_cb_register(struct tcf_block *block,
 }
 
 static inline
-void __tcf_block_cb_unregister(struct tcf_block_cb *block_cb)
+void __tcf_block_cb_unregister(struct tcf_block *block,
+			       struct tcf_block_cb *block_cb)
 {
 }
 

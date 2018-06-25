@@ -1542,7 +1542,7 @@ mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 
 err_block_bind:
 	if (!tcf_block_cb_decref(block_cb)) {
-		__tcf_block_cb_unregister(block_cb);
+		__tcf_block_cb_unregister(block, block_cb);
 err_cb_register:
 		mlxsw_sp_acl_block_destroy(acl_block);
 	}
@@ -1572,7 +1572,7 @@ mlxsw_sp_setup_tc_block_flower_unbind(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_acl_block_unbind(mlxsw_sp, acl_block,
 					mlxsw_sp_port, ingress);
 	if (!err && !tcf_block_cb_decref(block_cb)) {
-		__tcf_block_cb_unregister(block_cb);
+		__tcf_block_cb_unregister(block, block_cb);
 		mlxsw_sp_acl_block_destroy(acl_block);
 	}
 }
