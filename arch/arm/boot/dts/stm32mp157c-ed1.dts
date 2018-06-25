@@ -57,6 +57,11 @@
 	status = "okay";
 };
 
+&iwdg2 {
+	timeout-sec = <32>;
+	status = "okay";
+};
+
 &rng1 {
 	status = "okay";
 };
