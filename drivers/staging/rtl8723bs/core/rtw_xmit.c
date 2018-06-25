@@ -845,8 +845,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 
 	/* pattrib->priority = 5; force to used VI queue, for testing */
 
-	rtw_set_tx_chksum_offload(pkt, pattrib);
-
 exit:
 	return res;
 }
