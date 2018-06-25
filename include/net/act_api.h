@@ -190,9 +190,6 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 #endif
 }
 
-typedef int tc_setup_cb_t(enum tc_setup_type type,
-			  void *type_data, void *cb_priv);
-
 #ifdef CONFIG_NET_CLS_ACT
 int tc_setup_cb_egdev_register(const struct net_device *dev,
 			       tc_setup_cb_t *cb, void *cb_priv);
