@@ -85,6 +85,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_COUNT] = "count",
 	[IIO_INDEX] = "index",
 	[IIO_GRAVITY]  = "gravity",
+	[IIO_POSITIONRELATIVE]  = "positionrelative",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -207,35 +208,27 @@ static int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
  */
 s64 iio_get_time_ns(const struct iio_dev *indio_dev)
 {
-	struct timespec tp;
+	struct timespec64 tp;
 
 	switch (iio_device_get_clock(indio_dev)) {
 	case CLOCK_REALTIME:
-		ktime_get_real_ts(&tp);
-		break;
+		return ktime_get_real_ns();
 	case CLOCK_MONOTONIC:
-		ktime_get_ts(&tp);
-		break;
+		return ktime_get_ns();
 	case CLOCK_MONOTONIC_RAW:
-		getrawmonotonic(&tp);
-		break;
+		return ktime_get_raw_ns();
 	case CLOCK_REALTIME_COARSE:
-		tp = current_kernel_time();
-		break;
+		return ktime_to_ns(ktime_get_coarse_real());
 	case CLOCK_MONOTONIC_COARSE:
-		tp = get_monotonic_coarse();
-		break;
+		ktime_get_coarse_ts64(&tp);
+		return timespec64_to_ns(&tp);
 	case CLOCK_BOOTTIME:
-		get_monotonic_boottime(&tp);
-		break;
+		return ktime_get_boot_ns();
 	case CLOCK_TAI:
-		timekeeping_clocktai(&tp);
-		break;
+		return ktime_get_tai_ns();
 	default:
 		BUG();
 	}
-
-	return timespec_to_ns(&tp);
 }
 EXPORT_SYMBOL(iio_get_time_ns);
 
