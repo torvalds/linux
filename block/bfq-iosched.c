@@ -634,7 +634,7 @@ static bool bfq_differentiated_weights(struct bfq_data *bfqd)
  * The following function returns true if every queue must receive the
  * same share of the throughput (this condition is used when deciding
  * whether idling may be disabled, see the comments in the function
- * bfq_bfqq_may_idle()).
+ * bfq_better_to_idle()).
  *
  * Such a scenario occurs when:
  * 1) all active queues have the same weight,
@@ -3355,7 +3355,7 @@ static bool bfq_may_expire_for_budg_timeout(struct bfq_queue *bfqq)
  * issues taken into account are not trivial. We discuss these issues
  * individually while introducing the variables.
  */
-static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
+static bool bfq_better_to_idle(struct bfq_queue *bfqq)
 {
 	struct bfq_data *bfqd = bfqq->bfqd;
 	bool rot_without_queueing =
@@ -3588,19 +3588,19 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 }
 
 /*
- * If the in-service queue is empty but the function bfq_bfqq_may_idle
+ * If the in-service queue is empty but the function bfq_better_to_idle
  * returns true, then:
  * 1) the queue must remain in service and cannot be expired, and
  * 2) the device must be idled to wait for the possible arrival of a new
  *    request for the queue.
- * See the comments on the function bfq_bfqq_may_idle for the reasons
+ * See the comments on the function bfq_better_to_idle for the reasons
  * why performing device idling is the best choice to boost the throughput
- * and preserve service guarantees when bfq_bfqq_may_idle itself
+ * and preserve service guarantees when bfq_better_to_idle itself
  * returns true.
  */
 static bool bfq_bfqq_must_idle(struct bfq_queue *bfqq)
 {
-	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_may_idle(bfqq);
+	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_better_to_idle(bfqq);
 }
 
 /*
@@ -3686,7 +3686,7 @@ check_queue:
 	 * may idle after their completion, then keep it anyway.
 	 */
 	if (bfq_bfqq_wait_request(bfqq) ||
-	    (bfqq->dispatched != 0 && bfq_bfqq_may_idle(bfqq))) {
+	    (bfqq->dispatched != 0 && bfq_better_to_idle(bfqq))) {
 		bfqq = NULL;
 		goto keep_queue;
 	}
@@ -4734,7 +4734,7 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 					BFQQE_BUDGET_TIMEOUT);
 		else if (RB_EMPTY_ROOT(&bfqq->sort_list) &&
 			 (bfqq->dispatched == 0 ||
-			  !bfq_bfqq_may_idle(bfqq)))
+			  !bfq_better_to_idle(bfqq)))
 			bfq_bfqq_expire(bfqd, bfqq, false,
 					BFQQE_NO_MORE_REQUESTS);
 	}
