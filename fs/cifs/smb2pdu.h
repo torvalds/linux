@@ -1223,6 +1223,7 @@ struct smb2_lease_ack {
 #define FS_DRIVER_PATH_INFORMATION	9 /* Local only */
 #define FS_VOLUME_FLAGS_INFORMATION	10 /* Local only */
 #define FS_SECTOR_SIZE_INFORMATION	11 /* SMB3 or later. Query */
+#define FS_POSIX_INFORMATION		100 /* SMB3.1.1 POSIX. Query */
 
 struct smb2_fs_full_size_info {
 	__le64 TotalAllocationUnits;

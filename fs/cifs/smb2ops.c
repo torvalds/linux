@@ -1533,6 +1533,39 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_SMB311
+static int
+smb311_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
+	     struct kstatfs *buf)
+{
+	int rc;
+	__le16 srch_path = 0; /* Null - open root of share */
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+
+	if (!tcon->posix_extensions)
+		return smb2_queryfs(xid, tcon, buf);
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL, NULL);
+	if (rc)
+		return rc;
+
+	rc = SMB311_posix_qfs_info(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid, buf);
+	buf->f_type = SMB2_MAGIC_NUMBER;
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	return rc;
+}
+#endif /* SMB311 */
+
 static bool
 smb2_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
 {
@@ -3338,7 +3371,7 @@ struct smb_version_operations smb311_operations = {
 	.is_status_pending = smb2_is_status_pending,
 	.is_session_expired = smb2_is_session_expired,
 	.oplock_response = smb2_oplock_response,
-	.queryfs = smb2_queryfs,
+	.queryfs = smb311_queryfs,
 	.mand_lock = smb2_mand_lock,
 	.mand_unlock_range = smb2_unlock_range,
 	.push_mand_locks = smb2_push_mandatory_locks,
