@@ -1025,10 +1025,12 @@ static inline int xfrm_nlmsg_multicast(struct net *net, struct sk_buff *skb,
 {
 	struct sock *nlsk = rcu_dereference(net->xfrm.nlsk);
 
-	if (nlsk)
-		return nlmsg_multicast(nlsk, skb, pid, group, GFP_ATOMIC);
-	else
-		return -1;
+	if (!nlsk) {
+		kfree_skb(skb);
+		return -EPIPE;
+	}
+
+	return nlmsg_multicast(nlsk, skb, pid, group, GFP_ATOMIC);
 }
 
 static inline unsigned int xfrm_spdinfo_msgsize(void)
