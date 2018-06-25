@@ -1192,7 +1192,7 @@ end:
 
 /* When the tunnel is closed, all the attached sessions need to go too.
  */
-void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
+static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 {
 	int hash;
 	struct hlist_node *walk;
@@ -1241,7 +1241,6 @@ again:
 	}
 	write_unlock_bh(&tunnel->hlist_lock);
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_closeall);
 
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
