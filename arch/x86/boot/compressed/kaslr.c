@@ -215,6 +215,35 @@ static void mem_avoid_memmap(char *str)
 		memmap_too_large = true;
 }
 
+/* Store the number of 1GB huge pages which users specified: */
+static unsigned long max_gb_huge_pages;
+
+static void parse_gb_huge_pages(char *param, char *val)
+{
+	static bool gbpage_sz;
+	char *p;
+
+	if (!strcmp(param, "hugepagesz")) {
+		p = val;
+		if (memparse(p, &p) != PUD_SIZE) {
+			gbpage_sz = false;
+			return;
+		}
+
+		if (gbpage_sz)
+			warn("Repeatedly set hugeTLB page size of 1G!\n");
+		gbpage_sz = true;
+		return;
+	}
+
+	if (!strcmp(param, "hugepages") && gbpage_sz) {
+		p = val;
+		max_gb_huge_pages = simple_strtoull(p, &p, 0);
+		return;
+	}
+}
+
+
 static int handle_mem_memmap(void)
 {
 	char *args = (char *)get_cmd_line_ptr();
@@ -463,6 +492,60 @@ static void store_slot_info(struct mem_vector *region, unsigned long image_size)
 	if (slot_area.num > 0) {
 		slot_areas[slot_area_index++] = slot_area;
 		slot_max += slot_area.num;
+	}
+}
+
+/*
+ * Skip as many 1GB huge pages as possible in the passed region
+ * according to the number which users specified:
+ */
+static void
+process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
+{
+	unsigned long addr, size = 0;
+	struct mem_vector tmp;
+	int i = 0;
+
+	if (!max_gb_huge_pages) {
+		store_slot_info(region, image_size);
+		return;
+	}
+
+	addr = ALIGN(region->start, PUD_SIZE);
+	/* Did we raise the address above the passed in memory entry? */
+	if (addr < region->start + region->size)
+		size = region->size - (addr - region->start);
+
+	/* Check how many 1GB huge pages can be filtered out: */
+	while (size > PUD_SIZE && max_gb_huge_pages) {
+		size -= PUD_SIZE;
+		max_gb_huge_pages--;
+		i++;
+	}
+
+	/* No good 1GB huge pages found: */
+	if (!i) {
+		store_slot_info(region, image_size);
+		return;
+	}
+
+	/*
+	 * Skip those 'i'*1GB good huge pages, and continue checking and
+	 * processing the remaining head or tail part of the passed region
+	 * if available.
+	 */
+
+	if (addr >= region->start + image_size) {
+		tmp.start = region->start;
+		tmp.size = addr - region->start;
+		store_slot_info(&tmp, image_size);
+	}
+
+	size  = region->size - (addr - region->start) - i * PUD_SIZE;
+	if (size >= image_size) {
+		tmp.start = addr + i * PUD_SIZE;
+		tmp.size = size;
+		store_slot_info(&tmp, image_size);
 	}
 }
 
