@@ -187,8 +187,6 @@ struct l2tp_tunnel {
 						 * was created by userspace */
 
 	struct work_struct	del_work;
-
-	uint8_t			priv[0];	/* private data */
 };
 
 struct l2tp_nl_cmd_ops {
@@ -197,11 +195,6 @@ struct l2tp_nl_cmd_ops {
 			      struct l2tp_session_cfg *cfg);
 	int (*session_delete)(struct l2tp_session *session);
 };
-
-static inline void *l2tp_tunnel_priv(struct l2tp_tunnel *tunnel)
-{
-	return &tunnel->priv[0];
-}
 
 static inline void *l2tp_session_priv(struct l2tp_session *session)
 {
