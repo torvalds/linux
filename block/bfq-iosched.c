@@ -3597,8 +3597,14 @@ static struct bfq_queue *bfq_select_queue(struct bfq_data *bfqd)
 
 	bfq_log_bfqq(bfqd, bfqq, "select_queue: already in-service queue");
 
+	/*
+	 * Do not expire bfqq for budget timeout if bfqq may be about
+	 * to enjoy device idling. The reason why, in this case, we
+	 * prevent bfqq from expiring is the same as in the comments
+	 * on the case where bfq_bfqq_must_idle() returns true, in
+	 * bfq_completed_request().
+	 */
 	if (bfq_may_expire_for_budg_timeout(bfqq) &&
-	    !bfq_bfqq_wait_request(bfqq) &&
 	    !bfq_bfqq_must_idle(bfqq))
 		goto expire;
 
@@ -4674,8 +4680,32 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 	 * or if we want to idle in case it has no pending requests.
 	 */
 	if (bfqd->in_service_queue == bfqq) {
-		if (bfqq->dispatched == 0 && bfq_bfqq_must_idle(bfqq)) {
-			bfq_arm_slice_timer(bfqd);
+		if (bfq_bfqq_must_idle(bfqq)) {
+			if (bfqq->dispatched == 0)
+				bfq_arm_slice_timer(bfqd);
+			/*
+			 * If we get here, we do not expire bfqq, even
+			 * if bfqq was in budget timeout or had no
+			 * more requests (as controlled in the next
+			 * conditional instructions). The reason for
+			 * not expiring bfqq is as follows.
+			 *
+			 * Here bfqq->dispatched > 0 holds, but
+			 * bfq_bfqq_must_idle() returned true. This
+			 * implies that, even if no request arrives
+			 * for bfqq before bfqq->dispatched reaches 0,
+			 * bfqq will, however, not be expired on the
+			 * completion event that causes bfqq->dispatch
+			 * to reach zero. In contrast, on this event,
+			 * bfqq will start enjoying device idling
+			 * (I/O-dispatch plugging).
+			 *
+			 * But, if we expired bfqq here, bfqq would
+			 * not have the chance to enjoy device idling
+			 * when bfqq->dispatched finally reaches
+			 * zero. This would expose bfqq to violation
+			 * of its reserved service guarantees.
+			 */
 			return;
 		} else if (bfq_may_expire_for_budg_timeout(bfqq))
 			bfq_bfqq_expire(bfqd, bfqq, false,
