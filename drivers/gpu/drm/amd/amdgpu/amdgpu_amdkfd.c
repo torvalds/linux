@@ -251,7 +251,6 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	struct amdgpu_bo *bo = NULL;
 	struct amdgpu_bo_param bp;
 	int r;
-	uint64_t gpu_addr_tmp = 0;
 	void *cpu_ptr_tmp = NULL;
 
 	memset(&bp, 0, sizeof(bp));
@@ -275,8 +274,7 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 		goto allocate_mem_reserve_bo_failed;
 	}
 
-	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT,
-				&gpu_addr_tmp);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to pin bo for amdkfd\n", r);
 		goto allocate_mem_pin_bo_failed;
@@ -290,7 +288,7 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	}
 
 	*mem_obj = bo;
-	*gpu_addr = gpu_addr_tmp;
+	*gpu_addr = amdgpu_bo_gpu_offset(bo);
 	*cpu_ptr = cpu_ptr_tmp;
 
 	amdgpu_bo_unreserve(bo);

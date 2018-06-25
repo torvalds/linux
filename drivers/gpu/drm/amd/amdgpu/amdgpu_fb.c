@@ -168,7 +168,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	}
 
 
-	ret = amdgpu_bo_pin(abo, domain, NULL);
+	ret = amdgpu_bo_pin(abo, domain);
 	if (ret) {
 		amdgpu_bo_unreserve(abo);
 		goto out_unref;

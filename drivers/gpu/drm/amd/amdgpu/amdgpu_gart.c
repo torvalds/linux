@@ -143,14 +143,12 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
  */
 int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 {
-	uint64_t gpu_addr;
 	int r;
 
 	r = amdgpu_bo_reserve(adev->gart.robj, false);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin(adev->gart.robj,
-				AMDGPU_GEM_DOMAIN_VRAM, &gpu_addr);
+	r = amdgpu_bo_pin(adev->gart.robj, AMDGPU_GEM_DOMAIN_VRAM);
 	if (r) {
 		amdgpu_bo_unreserve(adev->gart.robj);
 		return r;
@@ -159,7 +157,7 @@ int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev)
 	if (r)
 		amdgpu_bo_unpin(adev->gart.robj);
 	amdgpu_bo_unreserve(adev->gart.robj);
-	adev->gart.table_addr = gpu_addr;
+	adev->gart.table_addr = amdgpu_bo_gpu_offset(adev->gart.robj);
 	return r;
 }
 

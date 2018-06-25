@@ -2758,11 +2758,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
 			r = amdgpu_bo_reserve(aobj, true);
 			if (r == 0) {
-				r = amdgpu_bo_pin(aobj,
-						  AMDGPU_GEM_DOMAIN_VRAM,
-						  &amdgpu_crtc->cursor_addr);
+				r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
 				if (r != 0)
 					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+				amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
 				amdgpu_bo_unreserve(aobj);
 			}
 		}
