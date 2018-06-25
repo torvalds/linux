@@ -1580,14 +1580,6 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	const struct ib_gid_attr *old_sgid_attr_alt_av;
 	int ret;
 
-	/*
-	 * Today the core code can only handle alternate paths and APM for IB
-	 * ban them in roce mode.
-	 */
-	if (attr_mask & IB_QP_ALT_PATH &&
-	    !rdma_protocol_ib(qp->device, attr->alt_ah_attr.port_num))
-		return -EINVAL;
-
 	if (attr_mask & IB_QP_AV) {
 		ret = rdma_fill_sgid_attr(qp->device, &attr->ah_attr,
 					  &old_sgid_attr_av);
@@ -1606,6 +1598,17 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 					  &old_sgid_attr_alt_av);
 		if (ret)
 			goto out_av;
+
+		/*
+		 * Today the core code can only handle alternate paths and APM
+		 * for IB. Ban them in roce mode.
+		 */
+		if (!(rdma_protocol_ib(qp->device,
+				       attr->alt_ah_attr.port_num) &&
+		      rdma_protocol_ib(qp->device, port))) {
+			ret = EINVAL;
+			goto out;
+		}
 	}
 
 	/*
