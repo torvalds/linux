@@ -2884,7 +2884,7 @@ static int i40evf_setup_tc_cls_flower(struct i40evf_adapter *adapter,
 	case TC_CLSFLOWER_STATS:
 		return -EOPNOTSUPP;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 }
 
