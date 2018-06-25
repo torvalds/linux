@@ -13,6 +13,7 @@
 #include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -68,6 +69,27 @@ ac97_codec_find(struct ac97_controller *ac97_ctrl, unsigned int codec_num)
 	return ac97_ctrl->codecs[codec_num];
 }
 
+static struct device_node *
+ac97_of_get_child_device(struct ac97_controller *ac97_ctrl, int idx,
+			 unsigned int vendor_id)
+{
+	struct device_node *node;
+	u32 reg;
+	char compat[] = "ac97,0000,0000";
+
+	snprintf(compat, sizeof(compat), "ac97,%04x,%04x",
+		 vendor_id >> 16, vendor_id & 0xffff);
+
+	for_each_child_of_node(ac97_ctrl->parent->of_node, node) {
+		if ((idx != of_property_read_u32(node, "reg", &reg)) ||
+		    !of_device_is_compatible(node, compat))
+			continue;
+		return of_node_get(node);
+	}
+
+	return NULL;
+}
+
 static void ac97_codec_release(struct device *dev)
 {
 	struct ac97_codec_device *adev;
@@ -76,6 +98,7 @@ static void ac97_codec_release(struct device *dev)
 	adev = to_ac97_device(dev);
 	ac97_ctrl = adev->ac97_ctrl;
 	ac97_ctrl->codecs[adev->num] = NULL;
+	of_node_put(dev->of_node);
 	kfree(adev);
 }
 
@@ -98,6 +121,8 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 
 	device_initialize(&codec->dev);
 	dev_set_name(&codec->dev, "%s:%u", dev_name(ac97_ctrl->parent), idx);
+	codec->dev.of_node = ac97_of_get_child_device(ac97_ctrl, idx,
+						      vendor_id);
 
 	ret = device_add(&codec->dev);
 	if (ret)
@@ -105,6 +130,7 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 
 	return 0;
 err_free_codec:
+	of_node_put(codec->dev.of_node);
 	put_device(&codec->dev);
 	kfree(codec);
 	ac97_ctrl->codecs[idx] = NULL;
