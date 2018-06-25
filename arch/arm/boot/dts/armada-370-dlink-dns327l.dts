@@ -44,61 +44,6 @@
 			usb@50000 {
 				status = "okay";
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					/* 1.0 MiB */
-					reg = <0x0000000 0x100000>;
-					read-only;
-				};
-
-				partition@100000 {
-					label = "u-boot-env";
-					/* 128 KiB */
-					reg = <0x100000 0x20000>;
-					read-only;
-				};
-
-				partition@120000 {
-					label = "uImage";
-					/* 7 MiB */
-					reg = <0x120000 0x700000>;
-				};
-
-				partition@820000 {
-					label = "ubifs";
-					/* ~ 84 MiB */
-					reg = <0x820000 0x54e0000>;
-				};
-
-				/* Hardcoded into stock bootloader */
-				partition@5d00000 {
-					label = "failsafe-uImage";
-					/* 5 MiB */
-					reg = <0x5d00000 0x500000>;
-				};
-
-				partition@6200000 {
-					label = "failsafe-fs";
-					/* 29 MiB */
-					reg = <0x6200000 0x1d00000>;
-				};
-
-				partition@7f00000 {
-					label = "bbt";
-					/* 1 MiB for BBT */
-					reg = <0x7f00000 0x100000>;
-				};
-			};
 		};
 	};
 
@@ -318,4 +263,69 @@
 	compatible = "marvell,mv64xxx-i2c";
 	clock-frequency = <100000>;
 	status = "okay";
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				/* 1.0 MiB */
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "u-boot-env";
+				/* 128 KiB */
+				reg = <0x100000 0x20000>;
+				read-only;
+			};
+
+			partition@120000 {
+				label = "uImage";
+				/* 7 MiB */
+				reg = <0x120000 0x700000>;
+			};
+
+			partition@820000 {
+				label = "ubifs";
+				/* ~ 84 MiB */
+				reg = <0x820000 0x54e0000>;
+			};
+
+			/* Hardcoded into stock bootloader */
+			partition@5d00000 {
+				label = "failsafe-uImage";
+				/* 5 MiB */
+				reg = <0x5d00000 0x500000>;
+			};
+
+			partition@6200000 {
+				label = "failsafe-fs";
+				/* 29 MiB */
+				reg = <0x6200000 0x1d00000>;
+			};
+
+			partition@7f00000 {
+				label = "bbt";
+				/* 1 MiB for BBT */
+				reg = <0x7f00000 0x100000>;
+			};
+		};
+	};
 };

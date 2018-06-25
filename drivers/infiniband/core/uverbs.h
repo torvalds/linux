@@ -263,6 +263,7 @@ struct ib_uverbs_flow_spec {
 		struct ib_uverbs_flow_spec_action_tag	flow_tag;
 		struct ib_uverbs_flow_spec_action_drop	drop;
 		struct ib_uverbs_flow_spec_action_handle action;
+		struct ib_uverbs_flow_spec_action_count flow_count;
 	};
 };
 
@@ -287,6 +288,7 @@ extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DM);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS);
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\

@@ -1255,7 +1255,7 @@ static int icm_ar_get_boot_acl(struct tb *tb, uuid_t *uuids, size_t nuuids)
 			/* Map empty entries to null UUID */
 			uuid[0] = 0;
 			uuid[1] = 0;
-		} else {
+		} else if (uuid[0] != 0 || uuid[1] != 0) {
 			/* Upper two DWs are always one's */
 			uuid[2] = 0xffffffff;
 			uuid[3] = 0xffffffff;

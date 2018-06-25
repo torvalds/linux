@@ -401,49 +401,47 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
 	struct qedr_ucontext *ucontext = get_qedr_ucontext(context);
 	struct qedr_dev *dev = get_qedr_dev(context->device);
-	unsigned long vm_page = vma->vm_pgoff << PAGE_SHIFT;
-	u64 unmapped_db = dev->db_phys_addr;
+	unsigned long phys_addr = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long len = (vma->vm_end - vma->vm_start);
-	int rc = 0;
-	bool found;
+	unsigned long dpi_start;
+
+	dpi_start = dev->db_phys_addr + (ucontext->dpi * ucontext->dpi_size);
 
 	DP_DEBUG(dev, QEDR_MSG_INIT,
-		 "qedr_mmap called vm_page=0x%lx vm_pgoff=0x%lx unmapped_db=0x%llx db_size=%x, len=%lx\n",
-		 vm_page, vma->vm_pgoff, unmapped_db, dev->db_size, len);
-	if (vma->vm_start & (PAGE_SIZE - 1)) {
-		DP_ERR(dev, "Vma_start not page aligned = %ld\n",
-		       vma->vm_start);
+		 "mmap invoked with vm_start=0x%pK, vm_end=0x%pK,vm_pgoff=0x%pK; dpi_start=0x%pK dpi_size=0x%x\n",
+		 (void *)vma->vm_start, (void *)vma->vm_end,
+		 (void *)vma->vm_pgoff, (void *)dpi_start, ucontext->dpi_size);
+
+	if ((vma->vm_start & (PAGE_SIZE - 1)) || (len & (PAGE_SIZE - 1))) {
+		DP_ERR(dev,
+		       "failed mmap, addresses must be page aligned: start=0x%pK, end=0x%pK\n",
+		       (void *)vma->vm_start, (void *)vma->vm_end);
 		return -EINVAL;
 	}
 
-	found = qedr_search_mmap(ucontext, vm_page, len);
-	if (!found) {
-		DP_ERR(dev, "Vma_pgoff not found in mapped array = %ld\n",
+	if (!qedr_search_mmap(ucontext, phys_addr, len)) {
+		DP_ERR(dev, "failed mmap, vm_pgoff=0x%lx is not authorized\n",
 		       vma->vm_pgoff);
 		return -EINVAL;
 	}
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping doorbell bar\n");
-
-	if ((vm_page >= unmapped_db) && (vm_page <= (unmapped_db +
-						     dev->db_size))) {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping doorbell bar\n");
-		if (vma->vm_flags & VM_READ) {
-			DP_ERR(dev, "Trying to map doorbell bar for read\n");
-			return -EPERM;
-		}
-
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-		rc = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-					PAGE_SIZE, vma->vm_page_prot);
-	} else {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping chains\n");
-		rc = remap_pfn_range(vma, vma->vm_start,
-				     vma->vm_pgoff, len, vma->vm_page_prot);
+	if (phys_addr < dpi_start ||
+	    ((phys_addr + len) > (dpi_start + ucontext->dpi_size))) {
+		DP_ERR(dev,
+		       "failed mmap, pages are outside of dpi; page address=0x%pK, dpi_start=0x%pK, dpi_size=0x%x\n",
+		       (void *)phys_addr, (void *)dpi_start,
+		       ucontext->dpi_size);
+		return -EINVAL;
 	}
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr_mmap return code: %d\n", rc);
-	return rc;
+
+	if (vma->vm_flags & VM_READ) {
+		DP_ERR(dev, "failed mmap, cannot map doorbell bar for read\n");
+		return -EINVAL;
+	}
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff, len,
+				  vma->vm_page_prot);
 }
 
 struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
@@ -1616,7 +1614,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->sq.max_wr = min_t(u32, attrs->cap.max_send_wr * dev->wq_multiplier,
 			      dev->attr.max_sqe);
 
-	qp->wqe_wr_id = kzalloc(qp->sq.max_wr * sizeof(*qp->wqe_wr_id),
+	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->wqe_wr_id) {
 		DP_ERR(dev, "create qp: failed SQ shadow memory allocation\n");
@@ -1634,7 +1632,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
 
 	/* Allocate driver internal RQ array */
-	qp->rqe_wr_id = kzalloc(qp->rq.max_wr * sizeof(*qp->rqe_wr_id),
+	qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->rqe_wr_id) {
 		DP_ERR(dev,
@@ -1959,6 +1957,9 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	if (attr_mask & (IB_QP_AV | IB_QP_PATH_MTU)) {
+		if (rdma_protocol_iwarp(&dev->ibdev, 1))
+			return -EINVAL;
+
 		if (attr_mask & IB_QP_PATH_MTU) {
 			if (attr->path_mtu < IB_MTU_256 ||
 			    attr->path_mtu > IB_MTU_4096) {
@@ -2579,7 +2580,7 @@ static int qedr_set_page(struct ib_mr *ibmr, u64 addr)
 	u32 pbes_in_page;
 
 	if (unlikely(mr->npages == mr->info.pbl_info.num_pbes)) {
-		DP_ERR(mr->dev, "qedr_set_page failes when %d\n", mr->npages);
+		DP_ERR(mr->dev, "qedr_set_page fails when %d\n", mr->npages);
 		return -ENOMEM;
 	}
 
@@ -3278,7 +3279,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 				SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES,
 					  wr->num_sge);
 
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY,
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO,
 				  wr->sg_list[i].lkey);
 
 			RQ_SGE_SET(rqe, wr->sg_list[i].addr,
@@ -3297,7 +3298,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			/* First one must include the number
 			 * of SGE in the list
 			 */
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY, 0);
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO, 0);
 			SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES, 1);
 
 			RQ_SGE_SET(rqe, 0, 0, flags);

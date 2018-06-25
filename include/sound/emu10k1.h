@@ -1610,7 +1610,7 @@ struct snd_emu10k1_fx8010_pcm {
 	struct snd_pcm_indirect pcm_rec;
 	unsigned int tram_pos;
 	unsigned int tram_shift;
-	struct snd_emu10k1_fx8010_irq *irq;
+	struct snd_emu10k1_fx8010_irq irq;
 };
 
 struct snd_emu10k1_fx8010 {
@@ -1902,7 +1902,7 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq);
+					    struct snd_emu10k1_fx8010_irq *irq);
 int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 					      struct snd_emu10k1_fx8010_irq *irq);
 

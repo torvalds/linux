@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -41,14 +29,18 @@ xfs_calc_dquots_per_chunk(
 
 /*
  * Do some primitive error checking on ondisk dquot data structures.
+ *
+ * The xfs_dqblk structure /contains/ the xfs_disk_dquot structure;
+ * we verify them separately because at some points we have only the
+ * smaller xfs_disk_dquot structure available.
  */
+
 xfs_failaddr_t
 xfs_dquot_verify(
 	struct xfs_mount *mp,
 	xfs_disk_dquot_t *ddq,
 	xfs_dqid_t	 id,
-	uint		 type,	  /* used only when IO_dorepair is true */
-	uint		 flags)
+	uint		 type)	  /* used only during quotacheck */
 {
 	/*
 	 * We can encounter an uninitialized dquot buffer for 2 reasons:
@@ -70,6 +62,8 @@ xfs_dquot_verify(
 	if (ddq->d_version != XFS_DQUOT_VERSION)
 		return __this_address;
 
+	if (type && ddq->d_flags != type)
+		return __this_address;
 	if (ddq->d_flags != XFS_DQ_USER &&
 	    ddq->d_flags != XFS_DQ_PROJ &&
 	    ddq->d_flags != XFS_DQ_GROUP)
@@ -99,33 +93,44 @@ xfs_dquot_verify(
 	return NULL;
 }
 
+xfs_failaddr_t
+xfs_dqblk_verify(
+	struct xfs_mount	*mp,
+	struct xfs_dqblk	*dqb,
+	xfs_dqid_t	 	id,
+	uint		 	type)	/* used only during quotacheck */
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    !uuid_equal(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid))
+		return __this_address;
+
+	return xfs_dquot_verify(mp, &dqb->dd_diskdq, id, type);
+}
+
 /*
  * Do some primitive error checking on ondisk dquot data structures.
  */
 int
-xfs_dquot_repair(
+xfs_dqblk_repair(
 	struct xfs_mount	*mp,
-	struct xfs_disk_dquot	*ddq,
+	struct xfs_dqblk	*dqb,
 	xfs_dqid_t		id,
 	uint			type)
 {
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)ddq;
-
-
 	/*
 	 * Typically, a repair is only requested by quotacheck.
 	 */
 	ASSERT(id != -1);
-	memset(d, 0, sizeof(xfs_dqblk_t));
+	memset(dqb, 0, sizeof(xfs_dqblk_t));
 
-	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
-	d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
-	d->dd_diskdq.d_flags = type;
-	d->dd_diskdq.d_id = cpu_to_be32(id);
+	dqb->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
+	dqb->dd_diskdq.d_version = XFS_DQUOT_VERSION;
+	dqb->dd_diskdq.d_flags = type;
+	dqb->dd_diskdq.d_id = cpu_to_be32(id);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		uuid_copy(&d->dd_uuid, &mp->m_sb.sb_meta_uuid);
-		xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+		uuid_copy(&dqb->dd_uuid, &mp->m_sb.sb_meta_uuid);
+		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
 	}
 
@@ -135,7 +140,8 @@ xfs_dquot_repair(
 STATIC bool
 xfs_dquot_buf_verify_crc(
 	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
+	struct xfs_buf		*bp,
+	bool			readahead)
 {
 	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
 	int			ndquots;
@@ -156,10 +162,12 @@ xfs_dquot_buf_verify_crc(
 
 	for (i = 0; i < ndquots; i++, d++) {
 		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
-				 XFS_DQUOT_CRC_OFF))
+				 XFS_DQUOT_CRC_OFF)) {
+			if (!readahead)
+				xfs_buf_verifier_error(bp, -EFSBADCRC, __func__,
+					d, sizeof(*d), __this_address);
 			return false;
-		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+		}
 	}
 	return true;
 }
@@ -167,9 +175,10 @@ xfs_dquot_buf_verify_crc(
 STATIC xfs_failaddr_t
 xfs_dquot_buf_verify(
 	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
+	struct xfs_buf		*bp,
+	bool			readahead)
 {
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	struct xfs_dqblk	*dqb = bp->b_addr;
 	xfs_failaddr_t		fa;
 	xfs_dqid_t		id = 0;
 	int			ndquots;
@@ -195,14 +204,19 @@ xfs_dquot_buf_verify(
 	for (i = 0; i < ndquots; i++) {
 		struct xfs_disk_dquot	*ddq;
 
-		ddq = &d[i].dd_diskdq;
+		ddq = &dqb[i].dd_diskdq;
 
 		if (i == 0)
 			id = be32_to_cpu(ddq->d_id);
 
-		fa = xfs_dquot_verify(mp, ddq, id + i, 0, 0);
-		if (fa)
+		fa = xfs_dqblk_verify(mp, &dqb[i], id + i, 0);
+		if (fa) {
+			if (!readahead)
+				xfs_buf_verifier_error(bp, -EFSCORRUPTED,
+					__func__, &dqb[i],
+					sizeof(struct xfs_dqblk), fa);
 			return fa;
+		}
 	}
 
 	return NULL;
@@ -214,7 +228,7 @@ xfs_dquot_buf_verify_struct(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
-	return xfs_dquot_buf_verify(mp, bp);
+	return xfs_dquot_buf_verify(mp, bp, false);
 }
 
 static void
@@ -222,15 +236,10 @@ xfs_dquot_buf_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	xfs_failaddr_t		fa;
 
-	if (!xfs_dquot_buf_verify_crc(mp, bp))
-		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
-	else {
-		fa = xfs_dquot_buf_verify(mp, bp);
-		if (fa)
-			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
-	}
+	if (!xfs_dquot_buf_verify_crc(mp, bp, false))
+		return;
+	xfs_dquot_buf_verify(mp, bp, false);
 }
 
 /*
@@ -245,8 +254,8 @@ xfs_dquot_buf_readahead_verify(
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
-	if (!xfs_dquot_buf_verify_crc(mp, bp) ||
-	    xfs_dquot_buf_verify(mp, bp) != NULL) {
+	if (!xfs_dquot_buf_verify_crc(mp, bp, true) ||
+	    xfs_dquot_buf_verify(mp, bp, true) != NULL) {
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 	}
@@ -262,11 +271,8 @@ xfs_dquot_buf_write_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	xfs_failaddr_t		fa;
 
-	fa = xfs_dquot_buf_verify(mp, bp);
-	if (fa)
-		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
+	xfs_dquot_buf_verify(mp, bp, false);
 }
 
 const struct xfs_buf_ops xfs_dquot_buf_ops = {

@@ -217,8 +217,8 @@ static void goldfish_mmc_xfer_done(struct goldfish_mmc_host *host,
 			 * We don't really have DMA, so we need
 			 * to copy from our platform driver buffer
 			 */
-			uint8_t *dest = (uint8_t *)sg_virt(data->sg);
-			memcpy(dest, host->virt_base, data->sg->length);
+			sg_copy_to_buffer(data->sg, 1, host->virt_base,
+					data->sg->length);
 		}
 		host->data->bytes_xfered += data->sg->length;
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg, host->sg_len,
@@ -393,8 +393,8 @@ static void goldfish_mmc_prepare_data(struct goldfish_mmc_host *host,
 		 * We don't really have DMA, so we need to copy to our
 		 * platform driver buffer
 		 */
-		const uint8_t *src = (uint8_t *)sg_virt(data->sg);
-		memcpy(host->virt_base, src, data->sg->length);
+		sg_copy_from_buffer(data->sg, 1, host->virt_base,
+				data->sg->length);
 	}
 }
 

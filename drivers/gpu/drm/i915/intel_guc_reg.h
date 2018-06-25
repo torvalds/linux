@@ -66,22 +66,20 @@
 #define   UOS_MOVE			  (1<<4)
 #define   START_DMA			  (1<<0)
 #define DMA_GUC_WOPCM_OFFSET		_MMIO(0xc340)
+#define   GUC_WOPCM_OFFSET_VALID	  (1<<0)
 #define   HUC_LOADING_AGENT_VCR		  (0<<1)
 #define   HUC_LOADING_AGENT_GUC		  (1<<1)
-#define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
+#define   GUC_WOPCM_OFFSET_SHIFT	14
+#define   GUC_WOPCM_OFFSET_MASK		  (0x3ffff << GUC_WOPCM_OFFSET_SHIFT)
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
 
 #define HUC_STATUS2             _MMIO(0xD3B0)
 #define   HUC_FW_VERIFIED       (1<<7)
 
-/* Defines WOPCM space available to GuC firmware */
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
-/* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
-#define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
-#define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
-
-/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
-#define GUC_GGTT_TOP			0xFEE00000
+#define   GUC_WOPCM_SIZE_LOCKED		  (1<<0)
+#define   GUC_WOPCM_SIZE_SHIFT		12
+#define   GUC_WOPCM_SIZE_MASK		  (0xfffff << GUC_WOPCM_SIZE_SHIFT)
 
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)

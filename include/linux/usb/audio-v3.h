@@ -221,6 +221,12 @@ struct uac3_iso_endpoint_descriptor {
 	__le16 wLockDelay;
 } __attribute__((packed));
 
+/* 5.2.1.6.1 INSERTION CONTROL PARAMETER BLOCK */
+struct uac3_insertion_ctl_blk {
+	__u8 bSize;
+	__u8 bmConInserted;
+} __attribute__ ((packed));
+
 /* 6.1 INTERRUPT DATA MESSAGE */
 struct uac3_interrupt_data_msg {
 	__u8 bInfo;
@@ -391,5 +397,39 @@ struct uac3_interrupt_data_msg {
 #define UAC3_AC_CONTROL_UNDEFINED		0x00
 #define UAC3_AC_ACTIVE_INTERFACE_CONTROL	0x01
 #define UAC3_AC_POWER_DOMAIN_CONTROL		0x02
+
+/* A.23.5 TERMINAL CONTROL SELECTORS */
+#define UAC3_TE_UNDEFINED			0x00
+#define UAC3_TE_INSERTION			0x01
+#define UAC3_TE_OVERLOAD			0x02
+#define UAC3_TE_UNDERFLOW			0x03
+#define UAC3_TE_OVERFLOW			0x04
+#define UAC3_TE_LATENCY 			0x05
+
+/* BADD predefined Unit/Terminal values */
+#define UAC3_BADD_IT_ID1	1  /* Input Terminal ID1: bTerminalID = 1 */
+#define UAC3_BADD_FU_ID2	2  /* Feature Unit ID2: bUnitID = 2 */
+#define UAC3_BADD_OT_ID3	3  /* Output Terminal ID3: bTerminalID = 3 */
+#define UAC3_BADD_IT_ID4	4  /* Input Terminal ID4: bTerminalID = 4 */
+#define UAC3_BADD_FU_ID5	5  /* Feature Unit ID5: bUnitID = 5 */
+#define UAC3_BADD_OT_ID6	6  /* Output Terminal ID6: bTerminalID = 6 */
+#define UAC3_BADD_FU_ID7	7  /* Feature Unit ID7: bUnitID = 7 */
+#define UAC3_BADD_MU_ID8	8  /* Mixer Unit ID8: bUnitID = 8 */
+#define UAC3_BADD_CS_ID9	9  /* Clock Source Entity ID9: bClockID = 9 */
+#define UAC3_BADD_PD_ID10	10 /* Power Domain ID10: bPowerDomainID = 10 */
+#define UAC3_BADD_PD_ID11	11 /* Power Domain ID11: bPowerDomainID = 11 */
+
+/* BADD wMaxPacketSize of AS endpoints */
+#define UAC3_BADD_EP_MAXPSIZE_SYNC_MONO_16		0x0060
+#define UAC3_BADD_EP_MAXPSIZE_ASYNC_MONO_16		0x0062
+#define UAC3_BADD_EP_MAXPSIZE_SYNC_MONO_24		0x0090
+#define UAC3_BADD_EP_MAXPSIZE_ASYNC_MONO_24		0x0093
+#define UAC3_BADD_EP_MAXPSIZE_SYNC_STEREO_16		0x00C0
+#define UAC3_BADD_EP_MAXPSIZE_ASYNC_STEREO_16		0x00C4
+#define UAC3_BADD_EP_MAXPSIZE_SYNC_STEREO_24		0x0120
+#define UAC3_BADD_EP_MAXPSIZE_ASYNC_STEREO_24		0x0126
+
+/* BADD sample rate is always fixed to 48kHz */
+#define UAC3_BADD_SAMPLING_RATE				48000
 
 #endif /* __LINUX_USB_AUDIO_V3_H */

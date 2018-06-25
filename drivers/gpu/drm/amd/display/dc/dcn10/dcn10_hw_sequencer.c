@@ -45,8 +45,8 @@
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
 
-#define DC_LOGGER \
-	ctx->logger
+#define DC_LOGGER_INIT(logger)
+
 #define CTX \
 	hws->ctx
 #define REG(reg)\
@@ -56,16 +56,17 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
+/*print is 17 wide, first two characters are spaces*/
 #define DTN_INFO_MICRO_SEC(ref_cycle) \
 	print_microsec(dc_ctx, ref_cycle)
 
 void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
 {
-	static const uint32_t ref_clk_mhz = 48;
-	static const unsigned int frac = 10;
+	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
+	static const unsigned int frac = 1000;
 	uint32_t us_x10 = (ref_cycle * frac) / ref_clk_mhz;
 
-	DTN_INFO("%d.%d \t ",
+	DTN_INFO("  %11d.%03d",
 			us_x10 / frac,
 			us_x10 % frac);
 }
@@ -92,14 +93,14 @@ void dcn10_log_hubbub_state(struct dc *dc)
 
 	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
 
-	DTN_INFO("HUBBUB WM: \t data_urgent \t pte_meta_urgent \t "
-			"sr_enter \t sr_exit \t dram_clk_change \n");
+	DTN_INFO("HUBBUB WM:      data_urgent  pte_meta_urgent"
+			"         sr_enter          sr_exit  dram_clk_change\n");
 
 	for (i = 0; i < 4; i++) {
 		struct dcn_hubbub_wm_set *s;
 
 		s = &wm.sets[i];
-		DTN_INFO("WM_Set[%d]:\t ", s->wm_set);
+		DTN_INFO("WM_Set[%d]:", s->wm_set);
 		DTN_INFO_MICRO_SEC(s->data_urgent);
 		DTN_INFO_MICRO_SEC(s->pte_meta_urgent);
 		DTN_INFO_MICRO_SEC(s->sr_enter);
@@ -108,6 +109,121 @@ void dcn10_log_hubbub_state(struct dc *dc)
 		DTN_INFO("\n");
 	}
 
+	DTN_INFO("\n");
+}
+
+static void dcn10_log_hubp_states(struct dc *dc)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	DTN_INFO("HUBP:  format  addr_hi  width  height"
+			"  rot  mir  sw_mode  dcc_en  blank_en  ttu_dis  underflow"
+			"   min_ttu_vblank       qos_low_wm      qos_high_wm\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct hubp *hubp = pool->hubps[i];
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(hubp)->state);
+
+		hubp->funcs->hubp_read_state(hubp);
+
+		if (!s->blank_en) {
+			DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %2xh  %2xh  %6xh"
+					"  %6d  %8d  %7d  %8xh",
+					hubp->inst,
+					s->pixel_format,
+					s->inuse_addr_hi,
+					s->viewport_width,
+					s->viewport_height,
+					s->rotation_angle,
+					s->h_mirror_en,
+					s->sw_mode,
+					s->dcc_en,
+					s->blank_en,
+					s->ttu_disable,
+					s->underflow_status);
+			DTN_INFO_MICRO_SEC(s->min_ttu_vblank);
+			DTN_INFO_MICRO_SEC(s->qos_level_low_wm);
+			DTN_INFO_MICRO_SEC(s->qos_level_high_wm);
+			DTN_INFO("\n");
+		}
+	}
+
+	DTN_INFO("\n=========RQ========\n");
+	DTN_INFO("HUBP:  drq_exp_m  prq_exp_m  mrq_exp_m  crq_exp_m  plane1_ba  L:chunk_s  min_chu_s  meta_ch_s"
+		"  min_m_c_s  dpte_gr_s  mpte_gr_s  swath_hei  pte_row_h  C:chunk_s  min_chu_s  meta_ch_s"
+		"  min_m_c_s  dpte_gr_s  mpte_gr_s  swath_hei  pte_row_h\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
+		struct _vcs_dpi_display_rq_regs_st *rq_regs = &s->rq_regs;
+
+		if (!s->blank_en)
+			DTN_INFO("[%2d]:  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh\n",
+				pool->hubps[i]->inst, rq_regs->drq_expansion_mode, rq_regs->prq_expansion_mode, rq_regs->mrq_expansion_mode,
+				rq_regs->crq_expansion_mode, rq_regs->plane1_base_address, rq_regs->rq_regs_l.chunk_size,
+				rq_regs->rq_regs_l.min_chunk_size, rq_regs->rq_regs_l.meta_chunk_size,
+				rq_regs->rq_regs_l.min_meta_chunk_size, rq_regs->rq_regs_l.dpte_group_size,
+				rq_regs->rq_regs_l.mpte_group_size, rq_regs->rq_regs_l.swath_height,
+				rq_regs->rq_regs_l.pte_row_height_linear, rq_regs->rq_regs_c.chunk_size, rq_regs->rq_regs_c.min_chunk_size,
+				rq_regs->rq_regs_c.meta_chunk_size, rq_regs->rq_regs_c.min_meta_chunk_size,
+				rq_regs->rq_regs_c.dpte_group_size, rq_regs->rq_regs_c.mpte_group_size,
+				rq_regs->rq_regs_c.swath_height, rq_regs->rq_regs_c.pte_row_height_linear);
+	}
+
+	DTN_INFO("========DLG========\n");
+	DTN_INFO("HUBP:  rc_hbe     dlg_vbe    min_d_y_n  rc_per_ht  rc_x_a_s "
+			"  dst_y_a_s  dst_y_pf   dst_y_vvb  dst_y_rvb  dst_y_vfl  dst_y_rfl  rf_pix_fq"
+			"  vratio_pf  vrat_pf_c  rc_pg_vbl  rc_pg_vbc  rc_mc_vbl  rc_mc_vbc  rc_pg_fll"
+			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_nom_l   pr_nom_c   rc_pg_nl   rc_pg_nc "
+			"  mr_nom_l   mr_nom_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
+			"  rc_ld_c    cha_cur0   ofst_cur1  cha_cur1   vr_af_vc0  ddrq_limt  x_rt_dlay"
+			"  x_rp_dlay  x_rr_sfl\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
+		struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &s->dlg_attr;
+
+		if (!s->blank_en)
+			DTN_INFO("[%2d]:  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh"
+				"%  8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh"
+				"  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh\n",
+				pool->hubps[i]->inst, dlg_regs->refcyc_h_blank_end, dlg_regs->dlg_vblank_end, dlg_regs->min_dst_y_next_start,
+				dlg_regs->refcyc_per_htotal, dlg_regs->refcyc_x_after_scaler, dlg_regs->dst_y_after_scaler,
+				dlg_regs->dst_y_prefetch, dlg_regs->dst_y_per_vm_vblank, dlg_regs->dst_y_per_row_vblank,
+				dlg_regs->dst_y_per_vm_flip, dlg_regs->dst_y_per_row_flip, dlg_regs->ref_freq_to_pix_freq,
+				dlg_regs->vratio_prefetch, dlg_regs->vratio_prefetch_c, dlg_regs->refcyc_per_pte_group_vblank_l,
+				dlg_regs->refcyc_per_pte_group_vblank_c, dlg_regs->refcyc_per_meta_chunk_vblank_l,
+				dlg_regs->refcyc_per_meta_chunk_vblank_c, dlg_regs->refcyc_per_pte_group_flip_l,
+				dlg_regs->refcyc_per_pte_group_flip_c, dlg_regs->refcyc_per_meta_chunk_flip_l,
+				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_nom_l,
+				dlg_regs->dst_y_per_pte_row_nom_c, dlg_regs->refcyc_per_pte_group_nom_l,
+				dlg_regs->refcyc_per_pte_group_nom_c, dlg_regs->dst_y_per_meta_row_nom_l,
+				dlg_regs->dst_y_per_meta_row_nom_c, dlg_regs->refcyc_per_meta_chunk_nom_l,
+				dlg_regs->refcyc_per_meta_chunk_nom_c, dlg_regs->refcyc_per_line_delivery_pre_l,
+				dlg_regs->refcyc_per_line_delivery_pre_c, dlg_regs->refcyc_per_line_delivery_l,
+				dlg_regs->refcyc_per_line_delivery_c, dlg_regs->chunk_hdl_adjust_cur0, dlg_regs->dst_y_offset_cur1,
+				dlg_regs->chunk_hdl_adjust_cur1, dlg_regs->vready_after_vcount0, dlg_regs->dst_y_delta_drq_limit,
+				dlg_regs->xfc_reg_transfer_delay, dlg_regs->xfc_reg_precharge_delay,
+				dlg_regs->xfc_reg_remote_surface_flip_latency);
+	}
+
+	DTN_INFO("========TTU========\n");
+	DTN_INFO("HUBP:  qos_ll_wm  qos_lh_wm  mn_ttu_vb  qos_l_flp  rc_rd_p_l  rc_rd_l    rc_rd_p_c"
+			"  rc_rd_c    rc_rd_c0   rc_rd_pc0  rc_rd_c1   rc_rd_pc1  qos_lf_l   qos_rds_l"
+			"  qos_lf_c   qos_rds_c  qos_lf_c0  qos_rds_c0 qos_lf_c1  qos_rds_c1\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
+		struct _vcs_dpi_display_ttu_regs_st *ttu_regs = &s->ttu_attr;
+
+		if (!s->blank_en)
+			DTN_INFO("[%2d]:  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh  %8xh\n",
+				pool->hubps[i]->inst, ttu_regs->qos_level_low_wm, ttu_regs->qos_level_high_wm, ttu_regs->min_ttu_vblank,
+				ttu_regs->qos_level_flip, ttu_regs->refcyc_per_req_delivery_pre_l, ttu_regs->refcyc_per_req_delivery_l,
+				ttu_regs->refcyc_per_req_delivery_pre_c, ttu_regs->refcyc_per_req_delivery_c, ttu_regs->refcyc_per_req_delivery_cur0,
+				ttu_regs->refcyc_per_req_delivery_pre_cur0, ttu_regs->refcyc_per_req_delivery_cur1,
+				ttu_regs->refcyc_per_req_delivery_pre_cur1, ttu_regs->qos_level_fixed_l, ttu_regs->qos_ramp_disable_l,
+				ttu_regs->qos_level_fixed_c, ttu_regs->qos_ramp_disable_c, ttu_regs->qos_level_fixed_cur0,
+				ttu_regs->qos_ramp_disable_cur0, ttu_regs->qos_level_fixed_cur1, ttu_regs->qos_ramp_disable_cur1);
+	}
 	DTN_INFO("\n");
 }
 
@@ -121,41 +237,64 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	dcn10_log_hubbub_state(dc);
 
-	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t "
-			"rotation \t mirror \t  sw_mode \t "
-			"dcc_en \t blank_en \t ttu_dis \t underflow \t "
-			"min_ttu_vblank \t qos_low_wm \t qos_high_wm \n");
+	dcn10_log_hubp_states(dc);
 
+	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
+			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
+			"C31 C32   C33 C34\n");
 	for (i = 0; i < pool->pipe_count; i++) {
-		struct hubp *hubp = pool->hubps[i];
-		struct dcn_hubp_state s;
+		struct dpp *dpp = pool->dpps[i];
+		struct dcn_dpp_state s;
 
-		hubp1_read_state(TO_DCN10_HUBP(hubp), &s);
+		dpp->funcs->dpp_read_state(dpp, &s);
 
-		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t "
-				"%xh \t %xh \t %xh \t "
-				"%d \t %d \t %d \t %xh \t",
-				hubp->inst,
-				s.pixel_format,
-				s.inuse_addr_hi,
-				s.viewport_width,
-				s.viewport_height,
-				s.rotation_angle,
-				s.h_mirror_en,
-				s.sw_mode,
-				s.dcc_en,
-				s.blank_en,
-				s.ttu_disable,
-				s.underflow_status);
-		DTN_INFO_MICRO_SEC(s.min_ttu_vblank);
-		DTN_INFO_MICRO_SEC(s.qos_level_low_wm);
-		DTN_INFO_MICRO_SEC(s.qos_level_high_wm);
+		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
+				"%8x    %08xh %08xh %08xh %08xh %08xh %08xh",
+				dpp->inst,
+				s.igam_input_format,
+				(s.igam_lut_mode == 0) ? "BypassFixed" :
+					((s.igam_lut_mode == 1) ? "BypassFloat" :
+					((s.igam_lut_mode == 2) ? "RAM" :
+					((s.igam_lut_mode == 3) ? "RAM" :
+								 "Unknown"))),
+				(s.dgam_lut_mode == 0) ? "Bypass" :
+					((s.dgam_lut_mode == 1) ? "sRGB" :
+					((s.dgam_lut_mode == 2) ? "Ycc" :
+					((s.dgam_lut_mode == 3) ? "RAM" :
+					((s.dgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				(s.rgam_lut_mode == 0) ? "Bypass" :
+					((s.rgam_lut_mode == 1) ? "sRGB" :
+					((s.rgam_lut_mode == 2) ? "Ycc" :
+					((s.rgam_lut_mode == 3) ? "RAM" :
+					((s.rgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				s.gamut_remap_mode,
+				s.gamut_remap_c11_c12,
+				s.gamut_remap_c13_c14,
+				s.gamut_remap_c21_c22,
+				s.gamut_remap_c23_c24,
+				s.gamut_remap_c31_c32,
+				s.gamut_remap_c33_c34);
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
 
-	DTN_INFO("OTG:\t v_bs \t v_be \t v_ss \t v_se \t vpol \t vmax \t vmin \t "
-			"h_bs \t h_be \t h_ss \t h_se \t hpol \t htot \t vtot \t underflow\n");
+	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct mpcc_state s = {0};
+
+		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
+		if (s.opp_id != 0xf)
+			DTN_INFO("[%2d]:  %2xh  %2xh  %6xh  %4d  %10d  %7d  %12d  %4d\n",
+				i, s.opp_id, s.dpp_id, s.bot_mpcc_id,
+				s.mode, s.alpha_mode, s.pre_multiplied_alpha, s.overlap_only,
+				s.idle);
+	}
+	DTN_INFO("\n");
+
+	DTN_INFO("OTG:  v_bs  v_be  v_ss  v_se  vpol  vmax  vmin  vmax_sel  vmin_sel"
+			"  h_bs  h_be  h_ss  h_se  hpol  htot  vtot  underflow\n");
 
 	for (i = 0; i < pool->timing_generator_count; i++) {
 		struct timing_generator *tg = pool->timing_generators[i];
@@ -167,9 +306,8 @@ void dcn10_log_hw_state(struct dc *dc)
 		if ((s.otg_enabled & 1) == 0)
 			continue;
 
-		DTN_INFO("[%d]:\t %d \t %d \t %d \t %d \t "
-				"%d \t %d \t %d \t %d \t %d \t %d \t "
-				"%d \t %d \t %d \t %d \t %d \t ",
+		DTN_INFO("[%d]: %5d %5d %5d %5d %5d %5d %5d %9d %9d %5d %5d %5d"
+				" %5d %5d %5d %5d  %9d\n",
 				tg->inst,
 				s.v_blank_start,
 				s.v_blank_end,
@@ -178,6 +316,8 @@ void dcn10_log_hw_state(struct dc *dc)
 				s.v_sync_a_pol,
 				s.v_total_max,
 				s.v_total_min,
+				s.v_total_max_sel,
+				s.v_total_min_sel,
 				s.h_blank_start,
 				s.h_blank_end,
 				s.h_sync_a_start,
@@ -186,9 +326,24 @@ void dcn10_log_hw_state(struct dc *dc)
 				s.h_total,
 				s.v_total,
 				s.underflow_occurred_status);
-		DTN_INFO("\n");
+
+		// Clear underflow for debug purposes
+		// We want to keep underflow sticky bit on for the longevity tests outside of test environment.
+		// This function is called only from Windows or Diags test environment, hence it's safe to clear
+		// it from here without affecting the original intent.
+		tg->funcs->clear_optc_underflow(tg);
 	}
 	DTN_INFO("\n");
+
+	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
+		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
+			dc->current_state->bw.dcn.calc_clk.dcfclk_khz,
+			dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
+			dc->current_state->bw.dcn.calc_clk.dispclk_khz,
+			dc->current_state->bw.dcn.calc_clk.dppclk_khz,
+			dc->current_state->bw.dcn.calc_clk.max_supported_dppclk_khz,
+			dc->current_state->bw.dcn.calc_clk.fclk_khz,
+			dc->current_state->bw.dcn.calc_clk.socclk_khz);
 
 	log_mpc_crc(dc);
 
@@ -354,7 +509,7 @@ static void power_on_plane(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
-	struct dc_context *ctx = hws->ctx;
+	DC_LOGGER_INIT(hws->ctx->logger);
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
@@ -461,7 +616,7 @@ static void false_optc_underflow_wa(
 		tg->funcs->clear_optc_underflow(tg);
 }
 
-static enum dc_status dcn10_prog_pixclk_crtc_otg(
+static enum dc_status dcn10_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
 		struct dc *dc)
@@ -553,7 +708,7 @@ static void reset_back_end_for_pipe(
 		struct dc_state *context)
 {
 	int i;
-	struct dc_context *ctx = dc->ctx;
+	DC_LOGGER_INIT(dc->ctx->logger);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
 		return;
@@ -603,6 +758,90 @@ static void reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
+static bool dcn10_hw_wa_force_recovery(struct dc *dc)
+{
+	struct hubp *hubp ;
+	unsigned int i;
+	bool need_recover = true;
+
+	if (!dc->debug.recovery_enabled)
+		return false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			if (hubp != NULL) {
+				if (hubp->funcs->hubp_get_underflow_status(hubp) != 0) {
+					/* one pipe underflow, we will reset all the pipes*/
+					need_recover = true;
+				}
+			}
+		}
+	}
+	if (!need_recover)
+		return false;
+	/*
+	DCHUBP_CNTL:HUBP_BLANK_EN=1
+	DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=1
+	DCHUBP_CNTL:HUBP_DISABLE=1
+	DCHUBP_CNTL:HUBP_DISABLE=0
+	DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=0
+	DCSURF_PRIMARY_SURFACE_ADDRESS
+	DCHUBP_CNTL:HUBP_BLANK_EN=0
+	*/
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_BLANK_EN=1*/
+			if (hubp != NULL)
+				hubp->funcs->set_hubp_blank_en(hubp, true);
+		}
+	}
+	/*DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=1*/
+	hubbub1_soft_reset(dc->res_pool->hubbub, true);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_DISABLE=1*/
+			if (hubp != NULL)
+				hubp->funcs->hubp_disable_control(hubp, true);
+		}
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_DISABLE=0*/
+			if (hubp != NULL)
+				hubp->funcs->hubp_disable_control(hubp, true);
+		}
+	}
+	/*DCHUBBUB_SOFT_RESET:DCHUBBUB_GLOBAL_SOFT_RESET=0*/
+	hubbub1_soft_reset(dc->res_pool->hubbub, false);
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx != NULL) {
+			hubp = pipe_ctx->plane_res.hubp;
+			/*DCHUBP_CNTL:HUBP_BLANK_EN=0*/
+			if (hubp != NULL)
+				hubp->funcs->set_hubp_blank_en(hubp, true);
+		}
+	}
+	return true;
+
+}
+
+
 static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 {
 	static bool should_log_hw_state; /* prevent hw state log by default */
@@ -611,13 +850,17 @@ static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 		if (should_log_hw_state) {
 			dcn10_log_hw_state(dc);
 		}
-
 		BREAK_TO_DEBUGGER();
+		if (dcn10_hw_wa_force_recovery(dc)) {
+		/*check again*/
+			if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub))
+				BREAK_TO_DEBUGGER();
+		}
 	}
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	int dpp_id = pipe_ctx->plane_res.dpp->inst;
@@ -649,7 +892,7 @@ static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dc_context *ctx = dc->ctx;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
@@ -699,7 +942,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	struct dc_context *ctx = dc->ctx;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
@@ -800,7 +1043,7 @@ static void dcn10_init_hw(struct dc *dc)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		plane_atomic_disconnect(dc, pipe_ctx);
+		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -945,9 +1188,8 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction &&
-		plane_state->gamma_correction->is_identity)
-		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
-	else if (plane_state->gamma_correction && dce_use_lut(plane_state->format))
+		!plane_state->gamma_correction->is_identity
+			&& dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
 	if (tf == NULL)
@@ -1433,7 +1675,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-static void program_output_csc(struct dc *dc,
+static void dcn10_program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
 		uint16_t *matrix,
@@ -1542,22 +1784,22 @@ static uint16_t fixed_point_to_int_frac(
 
 	uint16_t result;
 
-	uint16_t d = (uint16_t)dal_fixed31_32_floor(
-		dal_fixed31_32_abs(
+	uint16_t d = (uint16_t)dc_fixpt_floor(
+		dc_fixpt_abs(
 			arg));
 
 	if (d <= (uint16_t)(1 << integer_bits) - (1 / (uint16_t)divisor))
-		numerator = (uint16_t)dal_fixed31_32_floor(
-			dal_fixed31_32_mul_int(
+		numerator = (uint16_t)dc_fixpt_floor(
+			dc_fixpt_mul_int(
 				arg,
 				divisor));
 	else {
-		numerator = dal_fixed31_32_floor(
-			dal_fixed31_32_sub(
-				dal_fixed31_32_from_int(
+		numerator = dc_fixpt_floor(
+			dc_fixpt_sub(
+				dc_fixpt_from_int(
 					1LL << integer_bits),
-				dal_fixed31_32_recip(
-					dal_fixed31_32_from_int(
+				dc_fixpt_recip(
+					dc_fixpt_from_int(
 						divisor))));
 	}
 
@@ -1567,8 +1809,8 @@ static uint16_t fixed_point_to_int_frac(
 		result = (uint16_t)(
 		(1 << (integer_bits + fractional_bits + 1)) + numerator);
 
-	if ((result != 0) && dal_fixed31_32_lt(
-		arg, dal_fixed31_32_zero))
+	if ((result != 0) && dc_fixpt_lt(
+		arg, dc_fixpt_zero))
 		result |= 1 << (integer_bits + fractional_bits);
 
 	return result;
@@ -1582,8 +1824,8 @@ void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
 			&& plane_state->input_csc_color_matrix.enable_adjustment
 			&& plane_state->coeff_reduction_factor.value != 0) {
 		bias_and_scale->scale_blue = fixed_point_to_int_frac(
-			dal_fixed31_32_mul(plane_state->coeff_reduction_factor,
-					dal_fixed31_32_from_fraction(256, 255)),
+			dc_fixpt_mul(plane_state->coeff_reduction_factor,
+					dc_fixpt_from_fraction(256, 255)),
 				2,
 				13);
 		bias_and_scale->scale_red = bias_and_scale->scale_blue;
@@ -1623,6 +1865,8 @@ static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
+
+
 	/* TODO: proper fix once fpga works */
 
 	if (dc->debug.surface_visual_confirm)
@@ -1649,6 +1893,7 @@ static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
 
+
 	/*
 	 * TODO: remove hack
 	 * Note: currently there is a bug in init_hw such that
@@ -1658,6 +1903,12 @@ static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * which causes a pstate hang for yet unknown reason.
 	 */
 	mpcc_id = hubp->inst;
+
+	/* If there is no full update, don't need to touch MPC tree*/
+	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
+		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
+		return;
+	}
 
 	/* check if this MPCC is already being used */
 	new_mpcc = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, mpcc_id);
@@ -1777,7 +2028,7 @@ static void update_dchubp_dpp(
 		/*gamut remap*/
 		program_gamut_remap(pipe_ctx);
 
-		program_output_csc(dc,
+		dc->hwss.program_output_csc(dc,
 				pipe_ctx,
 				pipe_ctx->stream->output_color_space,
 				pipe_ctx->stream->csc_color_matrix.matrix,
@@ -1810,9 +2061,9 @@ static void update_dchubp_dpp(
 		hubp->funcs->set_blank(hubp, false);
 }
 
-static void dcn10_otg_blank(
+static void dcn10_blank_pixel_data(
 		struct dc *dc,
-		struct stream_resource stream_res,
+		struct stream_resource *stream_res,
 		struct dc_stream_state *stream,
 		bool blank)
 {
@@ -1823,27 +2074,27 @@ static void dcn10_otg_blank(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
-	if (stream_res.tg->funcs->set_blank_color)
-		stream_res.tg->funcs->set_blank_color(
-				stream_res.tg,
+	if (stream_res->tg->funcs->set_blank_color)
+		stream_res->tg->funcs->set_blank_color(
+				stream_res->tg,
 				&black_color);
 
 	if (!blank) {
-		if (stream_res.tg->funcs->set_blank)
-			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
-		if (stream_res.abm)
-			stream_res.abm->funcs->set_abm_level(stream_res.abm, stream->abm_level);
+		if (stream_res->tg->funcs->set_blank)
+			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
+		if (stream_res->abm)
+			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 	} else if (blank) {
-		if (stream_res.abm)
-			stream_res.abm->funcs->set_abm_immediate_disable(stream_res.abm);
-		if (stream_res.tg->funcs->set_blank)
-			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
+		if (stream_res->abm)
+			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
+		if (stream_res->tg->funcs->set_blank)
+			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 	}
 }
 
 static void set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
 {
-	struct fixed31_32 multiplier = dal_fixed31_32_from_fraction(
+	struct fixed31_32 multiplier = dc_fixpt_from_fraction(
 			pipe_ctx->plane_state->sdr_white_level, 80);
 	uint32_t hw_mult = 0x1f000; // 1.0 default multiplier
 	struct custom_float_format fmt;
@@ -1876,7 +2127,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		dcn10_otg_blank(dc, pipe_ctx->stream_res,
+		dc->hwss.blank_pixel_data(dc, &pipe_ctx->stream_res,
 				pipe_ctx->stream, blank);
 	}
 
@@ -1983,9 +2234,9 @@ static void dcn10_apply_ctx_for_surface(
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 	bool program_water_mark = false;
-	struct dc_context *ctx = dc->ctx;
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!top_pipe_to_program)
 		return;
@@ -1996,7 +2247,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
-		dcn10_otg_blank(dc, top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
+		dc->hwss.blank_pixel_data(dc, &top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
 	}
 
 	/* Disconnect unused mpcc */
@@ -2027,7 +2278,7 @@ static void dcn10_apply_ctx_for_surface(
 			old_pipe_ctx->plane_state &&
 			old_pipe_ctx->stream_res.tg == tg) {
 
-			plane_atomic_disconnect(dc, old_pipe_ctx);
+			hwss1_plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
 
 			DC_LOG_DC(
@@ -2335,15 +2586,6 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
 }
 
-static void set_plane_config(
-	const struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
-	struct resource_context *res_ctx)
-{
-	/* TODO */
-	program_gamut_remap(pipe_ctx);
-}
-
 static void dcn10_config_stereo_parameters(
 		struct dc_stream_state *stream, struct crtc_stereo_flags *flags)
 {
@@ -2521,12 +2763,12 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.init_hw = dcn10_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
-	.set_plane_config = set_plane_config,
 	.update_plane_addr = dcn10_update_plane_addr,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,
+	.program_output_csc = dcn10_program_output_csc,
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,
@@ -2538,10 +2780,11 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.blank_stream = dce110_blank_stream,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.disable_plane = dcn10_disable_plane,
+	.blank_pixel_data = dcn10_blank_pixel_data,
 	.pipe_control_lock = dcn10_pipe_control_lock,
 	.set_bandwidth = dcn10_set_bandwidth,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
-	.prog_pixclk_crtc_otg = dcn10_prog_pixclk_crtc_otg,
+	.enable_stream_timing = dcn10_enable_stream_timing,
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,

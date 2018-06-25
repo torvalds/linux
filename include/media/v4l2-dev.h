@@ -30,6 +30,7 @@
  * @VFL_TYPE_SUBDEV:	for V4L2 subdevices
  * @VFL_TYPE_SDR:	for Software Defined Radio tuners
  * @VFL_TYPE_TOUCH:	for touch sensors
+ * @VFL_TYPE_MAX:	number of VFL types, must always be last in the enum
  */
 enum vfl_devnode_type {
 	VFL_TYPE_GRABBER	= 0,
@@ -237,7 +238,6 @@ struct v4l2_file_operations {
  * @ioctl_ops: pointer to &struct v4l2_ioctl_ops with ioctl callbacks
  *
  * @valid_ioctls: bitmap with the valid ioctls for this device
- * @disable_locking: bitmap with the ioctls that don't require locking
  * @lock: pointer to &struct mutex serialization lock
  *
  * .. note::
@@ -290,7 +290,6 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
-	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
@@ -435,28 +434,6 @@ void video_device_release(struct video_device *vdev);
  *	Having a static video_device is a dubious construction at best.
  */
 void video_device_release_empty(struct video_device *vdev);
-
-/**
- * v4l2_is_known_ioctl - Checks if a given cmd is a known V4L ioctl
- *
- * @cmd: ioctl command
- *
- * returns true if cmd is a known V4L2 ioctl
- */
-bool v4l2_is_known_ioctl(unsigned int cmd);
-
-/** v4l2_disable_ioctl_locking - mark that a given command
- *	shouldn't use core locking
- *
- * @vdev: pointer to &struct video_device
- * @cmd: ioctl command
- */
-static inline void v4l2_disable_ioctl_locking(struct video_device *vdev,
-					      unsigned int cmd)
-{
-	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
-		set_bit(_IOC_NR(cmd), vdev->disable_locking);
-}
 
 /**
  * v4l2_disable_ioctl- mark that a given command isn't implemented.

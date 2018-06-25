@@ -290,12 +290,11 @@ static int acp_hw_init(void *handle)
 	else if (r)
 		return r;
 
-	r = cgs_get_pci_resource(adev->acp.cgs_device, CGS_RESOURCE_TYPE_MMIO,
-			0x5289, 0, &acp_base);
-	if (r == -ENODEV)
-		return 0;
-	else if (r)
-		return r;
+	if (adev->rmmio_size == 0 || adev->rmmio_size < 0x5289)
+		return -EINVAL;
+
+	acp_base = adev->rmmio_base;
+
 	if (adev->asic_type != CHIP_STONEY) {
 		adev->acp.acp_genpd = kzalloc(sizeof(struct acp_pm_domain), GFP_KERNEL);
 		if (adev->acp.acp_genpd == NULL)
@@ -311,20 +310,20 @@ static int acp_hw_init(void *handle)
 		pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
 	}
 
-	adev->acp.acp_cell = kzalloc(sizeof(struct mfd_cell) * ACP_DEVS,
+	adev->acp.acp_cell = kcalloc(ACP_DEVS, sizeof(struct mfd_cell),
 							GFP_KERNEL);
 
 	if (adev->acp.acp_cell == NULL)
 		return -ENOMEM;
 
-	adev->acp.acp_res = kzalloc(sizeof(struct resource) * 4, GFP_KERNEL);
+	adev->acp.acp_res = kcalloc(4, sizeof(struct resource), GFP_KERNEL);
 
 	if (adev->acp.acp_res == NULL) {
 		kfree(adev->acp.acp_cell);
 		return -ENOMEM;
 	}
 
-	i2s_pdata = kzalloc(sizeof(struct i2s_platform_data) * 2, GFP_KERNEL);
+	i2s_pdata = kcalloc(2, sizeof(struct i2s_platform_data), GFP_KERNEL);
 	if (i2s_pdata == NULL) {
 		kfree(adev->acp.acp_res);
 		kfree(adev->acp.acp_cell);
@@ -513,7 +512,7 @@ static int acp_hw_fini(void *handle)
 	if (adev->acp.acp_genpd) {
 		for (i = 0; i < ACP_DEVS ; i++) {
 			dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
-			ret = pm_genpd_remove_device(&adev->acp.acp_genpd->gpd, dev);
+			ret = pm_genpd_remove_device(dev);
 			/* If removal fails, dont giveup and try rest */
 			if (ret)
 				dev_err(dev, "remove dev from genpd failed\n");

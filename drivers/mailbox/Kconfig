@@ -109,16 +109,20 @@ config TI_MESSAGE_MANAGER
 	  platform has support for the hardware block.
 
 config HI3660_MBOX
-	tristate "Hi3660 Mailbox"
-	depends on ARCH_HISI && OF
+	tristate "Hi3660 Mailbox" if EXPERT
+	depends on (ARCH_HISI || COMPILE_TEST)
+	depends on OF
+	default ARCH_HISI
 	help
 	  An implementation of the hi3660 mailbox. It is used to send message
 	  between application processors and other processors/MCU/DSP. Select
 	  Y here if you want to use Hi3660 mailbox controller.
 
 config HI6220_MBOX
-	tristate "Hi6220 Mailbox"
-	depends on ARCH_HISI
+	tristate "Hi6220 Mailbox" if EXPERT
+	depends on (ARCH_HISI || COMPILE_TEST)
+	depends on OF
+	default ARCH_HISI
 	help
 	  An implementation of the hi6220 mailbox. It is used to send message
 	  between application processors and MCU. Say Y here if you want to
@@ -162,7 +166,6 @@ config XGENE_SLIMPRO_MBOX
 config BCM_PDC_MBOX
 	tristate "Broadcom FlexSparx DMA Mailbox"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on HAS_DMA
 	help
 	  Mailbox implementation for the Broadcom FlexSparx DMA ring manager,
 	  which provides access to various offload engines on Broadcom
@@ -172,11 +175,18 @@ config BCM_FLEXRM_MBOX
 	tristate "Broadcom FlexRM Mailbox"
 	depends on ARM64
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
-	depends on HAS_DMA
 	select GENERIC_MSI_IRQ_DOMAIN
 	default m if ARCH_BCM_IPROC
 	help
 	  Mailbox implementation of the Broadcom FlexRM ring manager,
 	  which provides access to various offload engines on Broadcom
 	  SoCs. Say Y here if you want to use the Broadcom FlexRM.
+
+config STM32_IPCC
+	tristate "STM32 IPCC Mailbox"
+	depends on MACH_STM32MP157
+	help
+	  Mailbox implementation for STMicroelectonics STM32 family chips
+	  with hardware for Inter-Processor Communication Controller (IPCC)
+	  between processors. Say Y here if you want to have this support.
 endif

@@ -113,11 +113,11 @@
 };
 
 &sound {
-	simple-audio-card,name = "Odroid-U3";
-	simple-audio-card,widgets =
+	model = "Odroid-U3";
+	samsung,audio-widgets =
 		"Headphone", "Headphone Jack",
 		"Speakers", "Speakers";
-	simple-audio-card,routing =
+	samsung,audio-routing =
 		"Headphone Jack", "HPL",
 		"Headphone Jack", "HPR",
 		"Headphone Jack", "MICBIAS",

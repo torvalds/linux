@@ -23,6 +23,7 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/security_features.h>
 #include <asm/firmware.h>
 
 struct fixup_entry {
@@ -117,6 +118,120 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
+{
+	unsigned int instrs[3], *dest;
+	long *start, *end;
+	int i;
+
+	start = PTRRELOC(&__start___stf_entry_barrier_fixup),
+	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
+
+	instrs[0] = 0x60000000; /* nop */
+	instrs[1] = 0x60000000; /* nop */
+	instrs[2] = 0x60000000; /* nop */
+
+	i = 0;
+	if (types & STF_BARRIER_FALLBACK) {
+		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
+		instrs[i++] = 0x60000000; /* branch patched below */
+		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+	} else if (types & STF_BARRIER_EIEIO) {
+		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+	} else if (types & STF_BARRIER_SYNC_ORI) {
+		instrs[i++] = 0x7c0004ac; /* hwsync		*/
+		instrs[i++] = 0xe94d0000; /* ld r10,0(r13)	*/
+		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+	}
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		patch_instruction(dest, instrs[0]);
+
+		if (types & STF_BARRIER_FALLBACK)
+			patch_branch(dest + 1, (unsigned long)&stf_barrier_fallback,
+				     BRANCH_SET_LINK);
+		else
+			patch_instruction(dest + 1, instrs[1]);
+
+		patch_instruction(dest + 2, instrs[2]);
+	}
+
+	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
+		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
+		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
+		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
+		                                           : "unknown");
+}
+
+void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
+{
+	unsigned int instrs[6], *dest;
+	long *start, *end;
+	int i;
+
+	start = PTRRELOC(&__start___stf_exit_barrier_fixup),
+	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
+
+	instrs[0] = 0x60000000; /* nop */
+	instrs[1] = 0x60000000; /* nop */
+	instrs[2] = 0x60000000; /* nop */
+	instrs[3] = 0x60000000; /* nop */
+	instrs[4] = 0x60000000; /* nop */
+	instrs[5] = 0x60000000; /* nop */
+
+	i = 0;
+	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
+		if (cpu_has_feature(CPU_FTR_HVMODE)) {
+			instrs[i++] = 0x7db14ba6; /* mtspr 0x131, r13 (HSPRG1) */
+			instrs[i++] = 0x7db04aa6; /* mfspr r13, 0x130 (HSPRG0) */
+		} else {
+			instrs[i++] = 0x7db243a6; /* mtsprg 2,r13	*/
+			instrs[i++] = 0x7db142a6; /* mfsprg r13,1    */
+	        }
+		instrs[i++] = 0x7c0004ac; /* hwsync		*/
+		instrs[i++] = 0xe9ad0000; /* ld r13,0(r13)	*/
+		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		if (cpu_has_feature(CPU_FTR_HVMODE)) {
+			instrs[i++] = 0x7db14aa6; /* mfspr r13, 0x131 (HSPRG1) */
+		} else {
+			instrs[i++] = 0x7db242a6; /* mfsprg r13,2 */
+		}
+	} else if (types & STF_BARRIER_EIEIO) {
+		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+	}
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		patch_instruction(dest, instrs[0]);
+		patch_instruction(dest + 1, instrs[1]);
+		patch_instruction(dest + 2, instrs[2]);
+		patch_instruction(dest + 3, instrs[3]);
+		patch_instruction(dest + 4, instrs[4]);
+		patch_instruction(dest + 5, instrs[5]);
+	}
+	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
+		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
+		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
+		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
+		                                           : "unknown");
+}
+
+
+void do_stf_barrier_fixups(enum stf_barrier_type types)
+{
+	do_stf_entry_barrier_fixups(types);
+	do_stf_exit_barrier_fixups(types);
+}
+
 void do_rfi_flush_fixups(enum l1d_flush_type types)
 {
 	unsigned int instrs[3], *dest;
@@ -162,6 +277,43 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
 						: "unknown");
 }
+
+void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
+{
+	unsigned int instr, *dest;
+	long *start, *end;
+	int i;
+
+	start = fixup_start;
+	end = fixup_end;
+
+	instr = 0x60000000; /* nop */
+
+	if (enable) {
+		pr_info("barrier-nospec: using ORI speculation barrier\n");
+		instr = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+	}
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+		patch_instruction(dest, instr);
+	}
+
+	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+}
+
+void do_barrier_nospec_fixups(bool enable)
+{
+	void *start, *end;
+
+	start = PTRRELOC(&__start___barrier_nospec_fixup),
+	end = PTRRELOC(&__stop___barrier_nospec_fixup);
+
+	do_barrier_nospec_fixups_range(enable, start, end);
+}
+
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
@@ -285,7 +437,7 @@ static void test_basic_patching(void)
 	extern unsigned int end_ftr_fixup_test1[];
 	extern unsigned int ftr_fixup_test1_orig[];
 	extern unsigned int ftr_fixup_test1_expected[];
-	int size = end_ftr_fixup_test1 - ftr_fixup_test1;
+	int size = 4 * (end_ftr_fixup_test1 - ftr_fixup_test1);
 
 	fixup.value = fixup.mask = 8;
 	fixup.start_off = calc_offset(&fixup, ftr_fixup_test1 + 1);
@@ -317,7 +469,7 @@ static void test_alternative_patching(void)
 	extern unsigned int ftr_fixup_test2_orig[];
 	extern unsigned int ftr_fixup_test2_alt[];
 	extern unsigned int ftr_fixup_test2_expected[];
-	int size = end_ftr_fixup_test2 - ftr_fixup_test2;
+	int size = 4 * (end_ftr_fixup_test2 - ftr_fixup_test2);
 
 	fixup.value = fixup.mask = 0xF;
 	fixup.start_off = calc_offset(&fixup, ftr_fixup_test2 + 1);
@@ -349,7 +501,7 @@ static void test_alternative_case_too_big(void)
 	extern unsigned int end_ftr_fixup_test3[];
 	extern unsigned int ftr_fixup_test3_orig[];
 	extern unsigned int ftr_fixup_test3_alt[];
-	int size = end_ftr_fixup_test3 - ftr_fixup_test3;
+	int size = 4 * (end_ftr_fixup_test3 - ftr_fixup_test3);
 
 	fixup.value = fixup.mask = 0xC;
 	fixup.start_off = calc_offset(&fixup, ftr_fixup_test3 + 1);
@@ -376,7 +528,7 @@ static void test_alternative_case_too_small(void)
 	extern unsigned int ftr_fixup_test4_orig[];
 	extern unsigned int ftr_fixup_test4_alt[];
 	extern unsigned int ftr_fixup_test4_expected[];
-	int size = end_ftr_fixup_test4 - ftr_fixup_test4;
+	int size = 4 * (end_ftr_fixup_test4 - ftr_fixup_test4);
 	unsigned long flag;
 
 	/* Check a high-bit flag */
@@ -410,7 +562,7 @@ static void test_alternative_case_with_branch(void)
 	extern unsigned int ftr_fixup_test5[];
 	extern unsigned int end_ftr_fixup_test5[];
 	extern unsigned int ftr_fixup_test5_expected[];
-	int size = end_ftr_fixup_test5 - ftr_fixup_test5;
+	int size = 4 * (end_ftr_fixup_test5 - ftr_fixup_test5);
 
 	check(memcmp(ftr_fixup_test5, ftr_fixup_test5_expected, size) == 0);
 }
@@ -420,9 +572,19 @@ static void test_alternative_case_with_external_branch(void)
 	extern unsigned int ftr_fixup_test6[];
 	extern unsigned int end_ftr_fixup_test6[];
 	extern unsigned int ftr_fixup_test6_expected[];
-	int size = end_ftr_fixup_test6 - ftr_fixup_test6;
+	int size = 4 * (end_ftr_fixup_test6 - ftr_fixup_test6);
 
 	check(memcmp(ftr_fixup_test6, ftr_fixup_test6_expected, size) == 0);
+}
+
+static void test_alternative_case_with_branch_to_end(void)
+{
+	extern unsigned int ftr_fixup_test7[];
+	extern unsigned int end_ftr_fixup_test7[];
+	extern unsigned int ftr_fixup_test7_expected[];
+	int size = 4 * (end_ftr_fixup_test7 - ftr_fixup_test7);
+
+	check(memcmp(ftr_fixup_test7, ftr_fixup_test7_expected, size) == 0);
 }
 
 static void test_cpu_macros(void)
@@ -480,6 +642,7 @@ static int __init test_feature_fixups(void)
 	test_alternative_case_too_small();
 	test_alternative_case_with_branch();
 	test_alternative_case_with_external_branch();
+	test_alternative_case_with_branch_to_end();
 	test_cpu_macros();
 	test_fw_macros();
 	test_lwsync_macros();

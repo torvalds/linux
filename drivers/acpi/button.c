@@ -263,19 +263,6 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_button_state_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations acpi_button_state_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_button_state_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static int acpi_button_add_fs(struct acpi_device *device)
 {
 	struct acpi_button *button = acpi_driver_data(device);
@@ -311,9 +298,9 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	}
 
 	/* create /proc/acpi/button/lid/LID/state */
-	entry = proc_create_data(ACPI_BUTTON_FILE_STATE,
-				 S_IRUGO, acpi_device_dir(device),
-				 &acpi_button_state_fops, device);
+	entry = proc_create_single_data(ACPI_BUTTON_FILE_STATE, S_IRUGO,
+			acpi_device_dir(device), acpi_button_state_seq_show,
+			device);
 	if (!entry) {
 		ret = -ENODEV;
 		goto remove_dev_dir;

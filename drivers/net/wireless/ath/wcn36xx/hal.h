@@ -88,6 +88,12 @@
 /* version string max length (including NULL) */
 #define WCN36XX_HAL_VERSION_LENGTH  64
 
+/* How many frames until we start a-mpdu TX session */
+#define WCN36XX_AMPDU_START_THRESH	20
+
+#define WCN36XX_MAX_SCAN_SSIDS		9
+#define WCN36XX_MAX_SCAN_IE_LEN		500
+
 /* message types for messages exchanged between WDI and HAL */
 enum wcn36xx_hal_host_msg_type {
 	/* Init/De-Init */
@@ -1170,7 +1176,7 @@ struct wcn36xx_hal_start_scan_offload_req_msg {
 
 	/* IE field */
 	u16 ie_len;
-	u8 ie[0];
+	u8 ie[WCN36XX_MAX_SCAN_IE_LEN];
 } __packed;
 
 struct wcn36xx_hal_start_scan_offload_rsp_msg {
@@ -2228,6 +2234,22 @@ struct wcn36xx_hal_switch_channel_rsp_msg {
 	/* BSSID needed to identify session - same as in request */
 	u8 bssid[ETH_ALEN];
 
+} __packed;
+
+struct wcn36xx_hal_process_ptt_msg_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
+} __packed;
+
+struct wcn36xx_hal_process_ptt_msg_rsp_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* FTM Command response status */
+	u32 ptt_msg_resp_status;
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
 } __packed;
 
 struct update_edca_params_req_msg {

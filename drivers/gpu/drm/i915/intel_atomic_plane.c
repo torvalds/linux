@@ -183,10 +183,15 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	}
 
 	/* FIXME pre-g4x don't work like this */
-	if (intel_state->base.visible)
+	if (state->visible)
 		crtc_state->active_planes |= BIT(intel_plane->id);
 	else
 		crtc_state->active_planes &= ~BIT(intel_plane->id);
+
+	if (state->visible && state->fb->format->format == DRM_FORMAT_NV12)
+		crtc_state->nv12_planes |= BIT(intel_plane->id);
+	else
+		crtc_state->nv12_planes &= ~BIT(intel_plane->id);
 
 	return intel_plane_atomic_calc_changes(old_crtc_state,
 					       &crtc_state->base,

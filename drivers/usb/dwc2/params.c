@@ -70,6 +70,7 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->uframe_sched = false;
 	p->change_speed_quirk = true;
+	p->power_down = false;
 }
 
 static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
@@ -269,6 +270,9 @@ static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
 /**
  * dwc2_set_default_params() - Set all core parameters to their
  * auto-detected default values.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 {
@@ -298,6 +302,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->besl = true;
 	p->hird_threshold_en = true;
 	p->hird_threshold = 4;
+	p->ipg_isoc_en = false;
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
@@ -337,6 +342,8 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 
 /**
  * dwc2_get_device_properties() - Read in device properties.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
  *
  * Read in the device properties and adjust core parameters if needed.
  */
@@ -549,7 +556,7 @@ static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 }
 
 #define CHECK_RANGE(_param, _min, _max, _def) do {			\
-		if ((hsotg->params._param) < (_min) ||			\
+		if ((int)(hsotg->params._param) < (_min) ||		\
 		    (hsotg->params._param) > (_max)) {			\
 			dev_warn(hsotg->dev, "%s: Invalid parameter %s=%d\n", \
 				 __func__, #_param, hsotg->params._param); \
@@ -579,6 +586,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
+	CHECK_BOOL(ipg_isoc_en, hw->ipg_isoc_en);
 	CHECK_BOOL(acg_enable, hw->acg_enable);
 	CHECK_BOOL(reload_ctl, (hsotg->hw_params.snpsid > DWC2_CORE_REV_2_92a));
 	CHECK_BOOL(lpm, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_80a));
@@ -688,6 +696,9 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 /**
  * During device initialization, read various hardware configuration
  * registers and interpret the contents.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ *
  */
 int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 {
@@ -772,6 +783,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);
+	hw->ipg_isoc_en = !!(hwcfg4 & GHWCFG4_IPG_ISOC_SUPPORTED);
 
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>

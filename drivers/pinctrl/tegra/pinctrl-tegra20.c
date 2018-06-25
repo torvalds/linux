@@ -19,6 +19,7 @@
  * more details.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -2231,9 +2232,36 @@ static const struct tegra_pinctrl_soc_data tegra20_pinctrl = {
 	.drvtype_in_mux = false,
 };
 
+static const char *cdev1_parents[] = {
+	"dev1_osc_div", "pll_a_out0", "pll_m_out1", "audio",
+};
+
+static const char *cdev2_parents[] = {
+	"dev2_osc_div", "hclk", "pclk", "pll_p_out4",
+};
+
+static void tegra20_pinctrl_register_clock_muxes(struct platform_device *pdev)
+{
+	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
+
+	clk_register_mux(NULL, "cdev1_mux", cdev1_parents, 4, 0,
+			 pmx->regs[1] + 0x8, 2, 2, CLK_MUX_READ_ONLY, NULL);
+
+	clk_register_mux(NULL, "cdev2_mux", cdev2_parents, 4, 0,
+			 pmx->regs[1] + 0x8, 4, 2, CLK_MUX_READ_ONLY, NULL);
+}
+
 static int tegra20_pinctrl_probe(struct platform_device *pdev)
 {
-	return tegra_pinctrl_probe(pdev, &tegra20_pinctrl);
+	int err;
+
+	err = tegra_pinctrl_probe(pdev, &tegra20_pinctrl);
+	if (err)
+		return err;
+
+	tegra20_pinctrl_register_clock_muxes(pdev);
+
+	return 0;
 }
 
 static const struct of_device_id tegra20_pinctrl_of_match[] = {

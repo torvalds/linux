@@ -578,6 +578,8 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	int tunnel_hlen;
 	int version;
 	__be16 df;
+	int nhoff;
+	int thoff;
 
 	tun_info = skb_tunnel_info(skb);
 	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
@@ -604,6 +606,16 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		pskb_trim(skb, dev->mtu + dev->hard_header_len);
 		truncate = true;
 	}
+
+	nhoff = skb_network_header(skb) - skb_mac_header(skb);
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    (ntohs(ip_hdr(skb)->tot_len) > skb->len - nhoff))
+		truncate = true;
+
+	thoff = skb_transport_header(skb) - skb_mac_header(skb);
+	if (skb->protocol == htons(ETH_P_IPV6) &&
+	    (ntohs(ipv6_hdr(skb)->payload_len) > skb->len - thoff))
+		truncate = true;
 
 	if (version == 1) {
 		erspan_build_header(skb, ntohl(tunnel_id_to_key32(key->tun_id)),
@@ -722,10 +734,12 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 		erspan_build_header(skb, ntohl(tunnel->parms.o_key),
 				    tunnel->index,
 				    truncate, true);
-	else
+	else if (tunnel->erspan_ver == 2)
 		erspan_build_header_v2(skb, ntohl(tunnel->parms.o_key),
 				       tunnel->dir, tunnel->hwid,
 				       truncate, true);
+	else
+		goto free_skb;
 
 	tunnel->parms.o_flags &= ~TUNNEL_KEY;
 	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(ETH_P_ERSPAN));

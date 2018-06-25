@@ -429,30 +429,6 @@ See Documentation/ABI/testing/sysfs-kernel-livepatch for more details.
 
 The current Livepatch implementation has several limitations:
 
-
-  + The patch must not change the semantic of the patched functions.
-
-    The current implementation guarantees only that either the old
-    or the new function is called. The functions are patched one
-    by one. It means that the patch must _not_ change the semantic
-    of the function.
-
-
-  + Data structures can not be patched.
-
-    There is no support to version data structures or anyhow migrate
-    one structure into another. Also the simple consistency model does
-    not allow to switch more functions atomically.
-
-    Once there is more complex consistency mode, it will be possible to
-    use some workarounds. For example, it will be possible to use a hole
-    for a new member because the data structure is aligned. Or it will
-    be possible to use an existing member for something else.
-
-    There are no plans to add more generic support for modified structures
-    at the moment.
-
-
   + Only functions that can be traced could be patched.
 
     Livepatch is based on the dynamic ftrace. In particular, functions

@@ -19,7 +19,7 @@ static void emulate_tx_failure(struct kvm_vcpu *vcpu, u64 failure_cause)
 	u64 texasr, tfiar;
 	u64 msr = vcpu->arch.shregs.msr;
 
-	tfiar = vcpu->arch.pc & ~0x3ull;
+	tfiar = vcpu->arch.regs.nip & ~0x3ull;
 	texasr = (failure_cause << 56) | TEXASR_ABORT | TEXASR_FS | TEXASR_EXACT;
 	if (MSR_TM_SUSPENDED(vcpu->arch.shregs.msr))
 		texasr |= TEXASR_SUSP;
@@ -57,8 +57,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 			       (newmsr & MSR_TM)));
 		newmsr = sanitize_msr(newmsr);
 		vcpu->arch.shregs.msr = newmsr;
-		vcpu->arch.cfar = vcpu->arch.pc - 4;
-		vcpu->arch.pc = vcpu->arch.shregs.srr0;
+		vcpu->arch.cfar = vcpu->arch.regs.nip - 4;
+		vcpu->arch.regs.nip = vcpu->arch.shregs.srr0;
 		return RESUME_GUEST;
 
 	case PPC_INST_RFEBB:
@@ -90,8 +90,8 @@ int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu)
 		vcpu->arch.bescr = bescr;
 		msr = (msr & ~MSR_TS_MASK) | MSR_TS_T;
 		vcpu->arch.shregs.msr = msr;
-		vcpu->arch.cfar = vcpu->arch.pc - 4;
-		vcpu->arch.pc = vcpu->arch.ebbrr;
+		vcpu->arch.cfar = vcpu->arch.regs.nip - 4;
+		vcpu->arch.regs.nip = vcpu->arch.ebbrr;
 		return RESUME_GUEST;
 
 	case PPC_INST_MTMSRD:

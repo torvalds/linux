@@ -323,9 +323,9 @@ out:
 
 		pci_write_config_byte(dev, 0x53, tmpbyte);
 	}
+	local_irq_restore(flags);
 	pci_dev_put(north);
 	pci_dev_put(isa_dev);
-	local_irq_restore(flags);
 	return 0;
 }
 

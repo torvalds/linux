@@ -335,16 +335,33 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pdata->awcr = XGBE_DMA_PCI_AWCR;
 	pdata->awarcr = XGBE_DMA_PCI_AWARCR;
 
+	/* Read the port property registers */
+	pdata->pp0 = XP_IOREAD(pdata, XP_PROP_0);
+	pdata->pp1 = XP_IOREAD(pdata, XP_PROP_1);
+	pdata->pp2 = XP_IOREAD(pdata, XP_PROP_2);
+	pdata->pp3 = XP_IOREAD(pdata, XP_PROP_3);
+	pdata->pp4 = XP_IOREAD(pdata, XP_PROP_4);
+	if (netif_msg_probe(pdata)) {
+		dev_dbg(dev, "port property 0 = %#010x\n", pdata->pp0);
+		dev_dbg(dev, "port property 1 = %#010x\n", pdata->pp1);
+		dev_dbg(dev, "port property 2 = %#010x\n", pdata->pp2);
+		dev_dbg(dev, "port property 3 = %#010x\n", pdata->pp3);
+		dev_dbg(dev, "port property 4 = %#010x\n", pdata->pp4);
+	}
+
 	/* Set the maximum channels and queues */
-	reg = XP_IOREAD(pdata, XP_PROP_1);
-	pdata->tx_max_channel_count = XP_GET_BITS(reg, XP_PROP_1, MAX_TX_DMA);
-	pdata->rx_max_channel_count = XP_GET_BITS(reg, XP_PROP_1, MAX_RX_DMA);
-	pdata->tx_max_q_count = XP_GET_BITS(reg, XP_PROP_1, MAX_TX_QUEUES);
-	pdata->rx_max_q_count = XP_GET_BITS(reg, XP_PROP_1, MAX_RX_QUEUES);
+	pdata->tx_max_channel_count = XP_GET_BITS(pdata->pp1, XP_PROP_1,
+						  MAX_TX_DMA);
+	pdata->rx_max_channel_count = XP_GET_BITS(pdata->pp1, XP_PROP_1,
+						  MAX_RX_DMA);
+	pdata->tx_max_q_count = XP_GET_BITS(pdata->pp1, XP_PROP_1,
+					    MAX_TX_QUEUES);
+	pdata->rx_max_q_count = XP_GET_BITS(pdata->pp1, XP_PROP_1,
+					    MAX_RX_QUEUES);
 	if (netif_msg_probe(pdata)) {
 		dev_dbg(dev, "max tx/rx channel count = %u/%u\n",
 			pdata->tx_max_channel_count,
-			pdata->tx_max_channel_count);
+			pdata->rx_max_channel_count);
 		dev_dbg(dev, "max tx/rx hw queue count = %u/%u\n",
 			pdata->tx_max_q_count, pdata->rx_max_q_count);
 	}
@@ -353,12 +370,13 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	xgbe_set_counts(pdata);
 
 	/* Set the maximum fifo amounts */
-	reg = XP_IOREAD(pdata, XP_PROP_2);
-	pdata->tx_max_fifo_size = XP_GET_BITS(reg, XP_PROP_2, TX_FIFO_SIZE);
+	pdata->tx_max_fifo_size = XP_GET_BITS(pdata->pp2, XP_PROP_2,
+					      TX_FIFO_SIZE);
 	pdata->tx_max_fifo_size *= 16384;
 	pdata->tx_max_fifo_size = min(pdata->tx_max_fifo_size,
 				      pdata->vdata->tx_max_fifo_size);
-	pdata->rx_max_fifo_size = XP_GET_BITS(reg, XP_PROP_2, RX_FIFO_SIZE);
+	pdata->rx_max_fifo_size = XP_GET_BITS(pdata->pp2, XP_PROP_2,
+					      RX_FIFO_SIZE);
 	pdata->rx_max_fifo_size *= 16384;
 	pdata->rx_max_fifo_size = min(pdata->rx_max_fifo_size,
 				      pdata->vdata->rx_max_fifo_size);

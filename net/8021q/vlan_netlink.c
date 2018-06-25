@@ -47,14 +47,20 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[],
 	int err;
 
 	if (tb[IFLA_ADDRESS]) {
-		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid link address");
 			return -EINVAL;
-		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+		}
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS]))) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid link address");
 			return -EADDRNOTAVAIL;
+		}
 	}
 
-	if (!data)
+	if (!data) {
+		NL_SET_ERR_MSG_MOD(extack, "VLAN properties not specified");
 		return -EINVAL;
+	}
 
 	if (data[IFLA_VLAN_PROTOCOL]) {
 		switch (nla_get_be16(data[IFLA_VLAN_PROTOCOL])) {
@@ -62,29 +68,38 @@ static int vlan_validate(struct nlattr *tb[], struct nlattr *data[],
 		case htons(ETH_P_8021AD):
 			break;
 		default:
+			NL_SET_ERR_MSG_MOD(extack, "Invalid VLAN protocol");
 			return -EPROTONOSUPPORT;
 		}
 	}
 
 	if (data[IFLA_VLAN_ID]) {
 		id = nla_get_u16(data[IFLA_VLAN_ID]);
-		if (id >= VLAN_VID_MASK)
+		if (id >= VLAN_VID_MASK) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid VLAN id");
 			return -ERANGE;
+		}
 	}
 	if (data[IFLA_VLAN_FLAGS]) {
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
 		if ((flags->flags & flags->mask) &
 		    ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
-		      VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP))
+		      VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP)) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid VLAN flags");
 			return -EINVAL;
+		}
 	}
 
 	err = vlan_validate_qos_map(data[IFLA_VLAN_INGRESS_QOS]);
-	if (err < 0)
+	if (err < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid ingress QOS map");
 		return err;
+	}
 	err = vlan_validate_qos_map(data[IFLA_VLAN_EGRESS_QOS]);
-	if (err < 0)
+	if (err < 0) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid egress QOS map");
 		return err;
+	}
 	return 0;
 }
 
@@ -126,14 +141,21 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	__be16 proto;
 	int err;
 
-	if (!data[IFLA_VLAN_ID])
+	if (!data[IFLA_VLAN_ID]) {
+		NL_SET_ERR_MSG_MOD(extack, "VLAN id not specified");
 		return -EINVAL;
+	}
 
-	if (!tb[IFLA_LINK])
+	if (!tb[IFLA_LINK]) {
+		NL_SET_ERR_MSG_MOD(extack, "link not specified");
 		return -EINVAL;
+	}
+
 	real_dev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
-	if (!real_dev)
+	if (!real_dev) {
+		NL_SET_ERR_MSG_MOD(extack, "link does not exist");
 		return -ENODEV;
+	}
 
 	if (data[IFLA_VLAN_PROTOCOL])
 		proto = nla_get_be16(data[IFLA_VLAN_PROTOCOL]);
@@ -146,7 +168,8 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	dev->priv_flags |= (real_dev->priv_flags & IFF_XMIT_DST_RELEASE);
 	vlan->flags	 = VLAN_FLAG_REORDER_HDR;
 
-	err = vlan_check_real_dev(real_dev, vlan->vlan_proto, vlan->vlan_id);
+	err = vlan_check_real_dev(real_dev, vlan->vlan_proto, vlan->vlan_id,
+				  extack);
 	if (err < 0)
 		return err;
 

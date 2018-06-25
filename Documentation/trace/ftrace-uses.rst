@@ -12,7 +12,7 @@ Written for: 4.14
 Introduction
 ============
 
-The ftrace infrastructure was originially created to attach callbacks to the
+The ftrace infrastructure was originally created to attach callbacks to the
 beginning of functions in order to record and trace the flow of the kernel.
 But callbacks to the start of a function can have other use cases. Either
 for live kernel patching, or for security monitoring. This document describes
@@ -30,7 +30,7 @@ The ftrace context
   This requires extra care to what can be done inside a callback. A callback
   can be called outside the protective scope of RCU.
 
-The ftrace infrastructure has some protections agains recursions and RCU
+The ftrace infrastructure has some protections against recursions and RCU
 but one must still be very careful how they use the callbacks.
 
 
@@ -199,7 +199,7 @@ If @buf is NULL and reset is set, all functions will be enabled for tracing.
 The @buf can also be a glob expression to enable all functions that
 match a specific pattern.
 
-See Filter Commands in :file:`Documentation/trace/ftrace.txt`.
+See Filter Commands in :file:`Documentation/trace/ftrace.rst`.
 
 To just trace the schedule function:
 

@@ -26,6 +26,10 @@ struct tinydrm_device {
 	struct drm_simple_display_pipe pipe;
 	struct mutex dirty_lock;
 	const struct drm_framebuffer_funcs *fb_funcs;
+	int (*fb_dirty)(struct drm_framebuffer *framebuffer,
+			struct drm_file *file_priv, unsigned flags,
+			unsigned color, struct drm_clip_rect *clips,
+			unsigned num_clips);
 };
 
 static inline struct tinydrm_device *
@@ -41,7 +45,7 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
  * the &drm_driver structure.
  */
 #define TINYDRM_GEM_DRIVER_OPS \
-	.gem_free_object	= tinydrm_gem_cma_free_object, \
+	.gem_free_object_unlocked = tinydrm_gem_cma_free_object, \
 	.gem_print_info		= drm_gem_cma_print_info, \
 	.gem_vm_ops		= &drm_gem_cma_vm_ops, \
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
@@ -91,8 +95,6 @@ void tinydrm_shutdown(struct tinydrm_device *tdev);
 
 void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *old_state);
-int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state);
 int
 tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 			  const struct drm_simple_display_pipe_funcs *funcs,

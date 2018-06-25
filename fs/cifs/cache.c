@@ -128,8 +128,8 @@ fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
 
 	memset(&auxdata, 0, sizeof(auxdata));
 	auxdata.eof = cifsi->server_eof;
-	auxdata.last_write_time = cifsi->vfs_inode.i_mtime;
-	auxdata.last_change_time = cifsi->vfs_inode.i_ctime;
+	auxdata.last_write_time = timespec64_to_timespec(cifsi->vfs_inode.i_mtime);
+	auxdata.last_change_time = timespec64_to_timespec(cifsi->vfs_inode.i_ctime);
 
 	if (memcmp(data, &auxdata, datalen) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;

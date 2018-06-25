@@ -51,6 +51,7 @@ enum sensors {
 	POWER_SUPPLY,
 	POWER_INPUT,
 	CURRENT,
+	ENERGY,
 	MAX_SENSOR_TYPE,
 };
 
@@ -78,6 +79,7 @@ static struct sensor_group {
 	{ "in"    },
 	{ "power" },
 	{ "curr"  },
+	{ "energy" },
 };
 
 struct sensor_data {
@@ -101,9 +103,10 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 	struct sensor_data *sdata = container_of(devattr, struct sensor_data,
 						 dev_attr);
 	ssize_t ret;
-	u32 x;
+	u64 x;
 
-	ret = opal_get_sensor_data(sdata->id, &x);
+	ret =  opal_get_sensor_data_u64(sdata->id, &x);
+
 	if (ret)
 		return ret;
 
@@ -114,7 +117,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 	else if (sdata->type == POWER_INPUT)
 		x *= 1000000;
 
-	return sprintf(buf, "%u\n", x);
+	return sprintf(buf, "%llu\n", x);
 }
 
 static ssize_t show_label(struct device *dev, struct device_attribute *devattr,
@@ -323,9 +326,9 @@ static int populate_attr_groups(struct platform_device *pdev)
 	of_node_put(opal);
 
 	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
-		sensor_groups[type].group.attrs = devm_kzalloc(&pdev->dev,
-					sizeof(struct attribute *) *
-					(sensor_groups[type].attr_count + 1),
+		sensor_groups[type].group.attrs = devm_kcalloc(&pdev->dev,
+					sensor_groups[type].attr_count + 1,
+					sizeof(struct attribute *),
 					GFP_KERNEL);
 		if (!sensor_groups[type].group.attrs)
 			return -ENOMEM;
@@ -406,7 +409,8 @@ static int create_device_attrs(struct platform_device *pdev)
 	int err = 0;
 
 	opal = of_find_node_by_path("/ibm,opal/sensors");
-	sdata = devm_kzalloc(&pdev->dev, pdata->sensors_count * sizeof(*sdata),
+	sdata = devm_kcalloc(&pdev->dev,
+			     pdata->sensors_count, sizeof(*sdata),
 			     GFP_KERNEL);
 	if (!sdata) {
 		err = -ENOMEM;

@@ -74,7 +74,6 @@ struct zip_stats {
 	atomic64_t    comp_req_complete;
 	atomic64_t    decomp_req_submit;
 	atomic64_t    decomp_req_complete;
-	atomic64_t    pending_req;
 	atomic64_t    comp_in_bytes;
 	atomic64_t    comp_out_bytes;
 	atomic64_t    decomp_in_bytes;

@@ -662,7 +662,7 @@ static void wm_proc_init(struct snd_ice1712 *ice)
 	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(ice->card, "wm_codec", &entry)) {
 		snd_info_set_text_ops(entry, ice, wm_proc_regs_read);
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->c.text.write = wm_proc_regs_write;
 	}
 }

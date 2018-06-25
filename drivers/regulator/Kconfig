@@ -180,6 +180,17 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
+config REGULATOR_BD71837
+	tristate "ROHM BD71837 Power Regulator"
+	depends on MFD_BD71837
+	help
+	  This driver supports voltage regulators on ROHM BD71837 PMIC.
+	  This will enable support for the software controllable buck
+	  and LDO regulators.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd71837-regulator.
+
 config REGULATOR_BD9571MWV
 	tristate "ROHM BD9571MWV Regulators"
 	depends on MFD_BD9571MWV
@@ -800,6 +811,13 @@ config REGULATOR_STW481X_VMMC
 	help
 	  This driver supports the internal VMMC regulator in the STw481x
 	  PMIC chips.
+
+config REGULATOR_SY8106A
+	tristate "Silergy SY8106A regulator"
+	depends on I2C && (OF || COMPILE_TEST)
+	select REGMAP_I2C
+	help
+	  This driver supports SY8106A single output regulator.
 
 config REGULATOR_TPS51632
 	tristate "TI TPS51632 Power Regulator"

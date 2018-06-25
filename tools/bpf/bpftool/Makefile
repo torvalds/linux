@@ -39,7 +39,12 @@ CC = gcc
 
 CFLAGS += -O2
 CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wshadow -Wno-missing-field-initializers
-CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ -I$(srctree)/tools/include/uapi -I$(srctree)/tools/include -I$(srctree)/tools/lib/bpf -I$(srctree)/kernel/bpf/
+CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ \
+	-I$(srctree)/kernel/bpf/ \
+	-I$(srctree)/tools/include \
+	-I$(srctree)/tools/include/uapi \
+	-I$(srctree)/tools/lib/bpf \
+	-I$(srctree)/tools/perf
 CFLAGS += -DBPFTOOL_VERSION='"$(BPFTOOL_VERSION)"'
 LIBS = -lelf -lbfd -lopcodes $(LIBBPF)
 

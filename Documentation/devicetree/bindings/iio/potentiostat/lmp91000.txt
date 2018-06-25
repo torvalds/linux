@@ -1,10 +1,13 @@
-* Texas Instruments LMP91000 potentiostat
+* Texas Instruments LMP91000 series of potentiostats
 
-http://www.ti.com/lit/ds/symlink/lmp91000.pdf
+LMP91000: http://www.ti.com/lit/ds/symlink/lmp91000.pdf
+LMP91002: http://www.ti.com/lit/ds/symlink/lmp91002.pdf
 
 Required properties:
 
-  - compatible: should be "ti,lmp91000"
+  - compatible: should be one of the following:
+                 "ti,lmp91000"
+                 "ti,lmp91002"
   - reg: the I2C address of the device
   - io-channels: the phandle of the iio provider
 

@@ -769,7 +769,7 @@ int initialize_cx231xx(struct cx231xx *dev)
 			break;
 		default:
 			dev_err(dev->dev,
-				"bad senario!!!!!\nconfig_info=%x\n",
+				"bad scenario!!!!!\nconfig_info=%x\n",
 				config_info & SELFPOWER_MASK);
 			return -ENODEV;
 		}

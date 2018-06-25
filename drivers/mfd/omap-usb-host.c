@@ -153,27 +153,6 @@ static const char * const port_modes[] = {
 	[OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM]	= "ohci-tll-2pin-dpdm",
 };
 
-/**
- * omap_usbhs_get_dt_port_mode - Get the 'enum usbhs_omap_port_mode'
- * from the port mode string.
- * @mode: The port mode string, usually obtained from device tree.
- *
- * The function returns the 'enum usbhs_omap_port_mode' that matches the
- * provided port mode string as per the port_modes table.
- * If no match is found it returns -ENODEV
- */
-static int omap_usbhs_get_dt_port_mode(const char *mode)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(port_modes); i++) {
-		if (!strcmp(mode, port_modes[i]))
-			return i;
-	}
-
-	return -ENODEV;
-}
-
 static struct platform_device *omap_usbhs_alloc_child(const char *name,
 			struct resource	*res, int num_resources, void *pdata,
 			size_t pdata_size, struct device *dev)
@@ -529,7 +508,8 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 		if (ret < 0)
 			continue;
 
-		ret = omap_usbhs_get_dt_port_mode(mode);
+		/* get 'enum usbhs_omap_port_mode' from port mode string */
+		ret = match_string(port_modes, ARRAY_SIZE(port_modes), mode);
 		if (ret < 0) {
 			dev_warn(dev, "Invalid port%d-mode \"%s\" in device tree\n",
 					i, mode);

@@ -33,7 +33,7 @@ struct tcf_block_ext_info {
 };
 
 struct tcf_block_cb;
-bool tcf_queue_work(struct work_struct *work);
+bool tcf_queue_work(struct rcu_work *rwork, work_func_t func);
 
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
@@ -683,9 +683,11 @@ static inline bool tc_skip_sw(u32 flags)
 /* SKIP_HW and SKIP_SW are mutually exclusive flags. */
 static inline bool tc_flags_valid(u32 flags)
 {
-	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW))
+	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW |
+		      TCA_CLS_FLAGS_VERBOSE))
 		return false;
 
+	flags &= TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW;
 	if (!(flags ^ (TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)))
 		return false;
 
@@ -705,7 +707,7 @@ tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
-	if (tc_skip_sw(flags))
+	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }
 
@@ -774,6 +776,18 @@ struct tc_cookie {
 struct tc_qopt_offload_stats {
 	struct gnet_stats_basic_packed *bstats;
 	struct gnet_stats_queue *qstats;
+};
+
+enum tc_mq_command {
+	TC_MQ_CREATE,
+	TC_MQ_DESTROY,
+	TC_MQ_STATS,
+};
+
+struct tc_mq_qopt_offload {
+	enum tc_mq_command command;
+	u32 handle;
+	struct tc_qopt_offload_stats stats;
 };
 
 enum tc_red_command {

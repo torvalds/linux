@@ -53,6 +53,7 @@ struct mlx5_fpga_device {
 	} conn_res;
 
 	struct mlx5_fpga_ipsec *ipsec;
+	struct mlx5_fpga_tls *tls;
 };
 
 #define mlx5_fpga_dbg(__adev, format, ...) \

@@ -4779,8 +4779,8 @@ ahc_init_scbdata(struct ahc_softc *ahc)
 	SLIST_INIT(&scb_data->sg_maps);
 
 	/* Allocate SCB resources */
-	scb_data->scbarray = kzalloc(sizeof(struct scb) * AHC_SCB_MAX_ALLOC,
-				GFP_ATOMIC);
+	scb_data->scbarray = kcalloc(AHC_SCB_MAX_ALLOC, sizeof(struct scb),
+				     GFP_ATOMIC);
 	if (scb_data->scbarray == NULL)
 		return (ENOMEM);
 

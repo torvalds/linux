@@ -14,12 +14,16 @@ enum wbt_flags {
 	WBT_TRACKED		= 1,	/* write, tracked for throttling */
 	WBT_READ		= 2,	/* read */
 	WBT_KSWAPD		= 4,	/* write, from kswapd */
+	WBT_DISCARD		= 8,	/* discard */
 
-	WBT_NR_BITS		= 3,	/* number of bits */
+	WBT_NR_BITS		= 4,	/* number of bits */
 };
 
 enum {
-	WBT_NUM_RWQ		= 2,
+	WBT_RWQ_BG		= 0,
+	WBT_RWQ_KSWAPD,
+	WBT_RWQ_DISCARD,
+	WBT_NUM_RWQ,
 };
 
 /*
@@ -30,31 +34,6 @@ enum {
 	WBT_STATE_ON_DEFAULT	= 1,
 	WBT_STATE_ON_MANUAL	= 2,
 };
-
-static inline void wbt_clear_state(struct blk_issue_stat *stat)
-{
-	stat->stat &= ~BLK_STAT_RES_MASK;
-}
-
-static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
-{
-	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
-}
-
-static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags wb_acct)
-{
-	stat->stat |= ((u64) wb_acct) << BLK_STAT_RES_SHIFT;
-}
-
-static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
-{
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
-}
-
-static inline bool wbt_is_read(struct blk_issue_stat *stat)
-{
-	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
-}
 
 struct rq_wait {
 	wait_queue_head_t wait;
@@ -84,7 +63,7 @@ struct rq_wb {
 
 	struct blk_stat_callback *cb;
 
-	s64 sync_issue;
+	u64 sync_issue;
 	void *sync_cookie;
 
 	unsigned int wc;
@@ -109,14 +88,19 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 #ifdef CONFIG_BLK_WBT
 
+static inline void wbt_track(struct request *rq, enum wbt_flags flags)
+{
+	rq->wbt_flags |= flags;
+}
+
 void __wbt_done(struct rq_wb *, enum wbt_flags);
-void wbt_done(struct rq_wb *, struct blk_issue_stat *);
+void wbt_done(struct rq_wb *, struct request *);
 enum wbt_flags wbt_wait(struct rq_wb *, struct bio *, spinlock_t *);
 int wbt_init(struct request_queue *);
 void wbt_exit(struct request_queue *);
 void wbt_update_limits(struct rq_wb *);
-void wbt_requeue(struct rq_wb *, struct blk_issue_stat *);
-void wbt_issue(struct rq_wb *, struct blk_issue_stat *);
+void wbt_requeue(struct rq_wb *, struct request *);
+void wbt_issue(struct rq_wb *, struct request *);
 void wbt_disable_default(struct request_queue *);
 void wbt_enable_default(struct request_queue *);
 
@@ -127,10 +111,13 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
+static inline void wbt_track(struct request *rq, enum wbt_flags flags)
+{
+}
 static inline void __wbt_done(struct rq_wb *rwb, enum wbt_flags flags)
 {
 }
-static inline void wbt_done(struct rq_wb *rwb, struct blk_issue_stat *stat)
+static inline void wbt_done(struct rq_wb *rwb, struct request *rq)
 {
 }
 static inline enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio,
@@ -148,10 +135,10 @@ static inline void wbt_exit(struct request_queue *q)
 static inline void wbt_update_limits(struct rq_wb *rwb)
 {
 }
-static inline void wbt_requeue(struct rq_wb *rwb, struct blk_issue_stat *stat)
+static inline void wbt_requeue(struct rq_wb *rwb, struct request *rq)
 {
 }
-static inline void wbt_issue(struct rq_wb *rwb, struct blk_issue_stat *stat)
+static inline void wbt_issue(struct rq_wb *rwb, struct request *rq)
 {
 }
 static inline void wbt_disable_default(struct request_queue *q)

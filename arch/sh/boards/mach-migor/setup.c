@@ -359,7 +359,7 @@ static struct gpiod_lookup_table ov7725_gpios = {
 static struct gpiod_lookup_table tw9910_gpios = {
 	.dev_id		= "0-0045",
 	.table		= {
-		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT2, "pdn", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT2, "pdn", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("sh7722_pfc", GPIO_PTT3, "rstb", GPIO_ACTIVE_LOW),
 	},
 };

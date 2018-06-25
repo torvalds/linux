@@ -426,7 +426,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 			return -EINVAL;
 		break;
 	case AUDIT_EXE:
-		if (f->op != Audit_equal)
+		if (f->op != Audit_not_equal && f->op != Audit_equal)
 			return -EINVAL;
 		if (entry->rule.listnr != AUDIT_FILTER_EXIT)
 			return -EINVAL;
@@ -1089,8 +1089,6 @@ static void audit_list_rules(int seq, struct sk_buff_head *q)
 static void audit_log_rule_change(char *action, struct audit_krule *rule, int res)
 {
 	struct audit_buffer *ab;
-	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
-	unsigned int sessionid = audit_get_sessionid(current);
 
 	if (!audit_enabled)
 		return;
@@ -1098,7 +1096,7 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (!ab)
 		return;
-	audit_log_format(ab, "auid=%u ses=%u" ,loginuid, sessionid);
+	audit_log_session_info(ab);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " op=%s", action);
 	audit_log_key(ab, rule->filterkey);

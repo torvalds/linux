@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 BayLibre, SAS.
-// Author: Jerome Brunet <jbrunet@baylibre.com>
+/*
+ * Copyright (c) 2018 BayLibre, SAS.
+ * Author: Jerome Brunet <jbrunet@baylibre.com>
+ */
 
 #include "clk-regmap.h"
 
@@ -153,10 +155,19 @@ static int clk_regmap_mux_set_parent(struct clk_hw *hw, u8 index)
 				  val << mux->shift);
 }
 
+static int clk_regmap_mux_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_mux_data *mux = clk_get_regmap_mux_data(clk);
+
+	return clk_mux_determine_rate_flags(hw, req, mux->flags);
+}
+
 const struct clk_ops clk_regmap_mux_ops = {
 	.get_parent = clk_regmap_mux_get_parent,
 	.set_parent = clk_regmap_mux_set_parent,
-	.determine_rate = __clk_mux_determine_rate,
+	.determine_rate = clk_regmap_mux_determine_rate,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_mux_ops);
 

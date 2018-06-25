@@ -7,7 +7,7 @@
  * state machine code inspired by code from Tim Ruetz
  *
  * A generic driver for rotary encoders connected to GPIO lines.
- * See file:Documentation/input/rotary-encoder.txt for more information
+ * See file:Documentation/input/devices/rotary-encoder.rst for more information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -283,8 +283,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	}
 
 	encoder->irq =
-		devm_kzalloc(dev,
-			     sizeof(*encoder->irq) * encoder->gpios->ndescs,
+		devm_kcalloc(dev,
+			     encoder->gpios->ndescs, sizeof(*encoder->irq),
 			     GFP_KERNEL);
 	if (!encoder->irq)
 		return -ENOMEM;

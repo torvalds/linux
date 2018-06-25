@@ -24,7 +24,6 @@ libperf-y += libstring.o
 libperf-y += bitmap.o
 libperf-y += hweight.o
 libperf-y += smt.o
-libperf-y += quote.o
 libperf-y += strbuf.o
 libperf-y += string.o
 libperf-y += strlist.o
@@ -152,6 +151,8 @@ libperf-y += perf-hooks.o
 libperf-$(CONFIG_CXX) += c++/
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
+CFLAGS_llvm-utils.o += -DPERF_INCLUDE_DIR="BUILD_STR($(perf_include_dir_SQ))"
+
 # avoid compiler warnings in 32-bit mode
 CFLAGS_genelf_debug.o  += -Wno-packed
 

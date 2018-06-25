@@ -30,8 +30,11 @@
 #include <linux/cpu.h>
 #include <linux/average.h>
 #include <linux/filter.h>
+#include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <net/route.h>
 #include <net/xdp.h>
+#include <net/net_failover.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -210,6 +213,9 @@ struct virtnet_info {
 	u32 speed;
 
 	unsigned long guest_offloads;
+
+	/* failover when STANDBY feature enabled */
+	struct failover *failover;
 };
 
 struct padded_vnet_hdr {
@@ -407,58 +413,73 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	return skb;
 }
 
-static void virtnet_xdp_flush(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct send_queue *sq;
-	unsigned int qp;
-
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
-
-	virtqueue_kick(sq->vq);
-}
-
-static bool __virtnet_xdp_xmit(struct virtnet_info *vi,
-			       struct xdp_buff *xdp)
+static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
+				   struct send_queue *sq,
+				   struct xdp_frame *xdpf)
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
-	unsigned int len;
-	struct send_queue *sq;
-	unsigned int qp;
-	void *xdp_sent;
 	int err;
+
+	/* virtqueue want to use data area in-front of packet */
+	if (unlikely(xdpf->metasize > 0))
+		return -EOPNOTSUPP;
+
+	if (unlikely(xdpf->headroom < vi->hdr_len))
+		return -EOVERFLOW;
+
+	/* Make room for virtqueue hdr (also change xdpf->headroom?) */
+	xdpf->data -= vi->hdr_len;
+	/* Zero header and leave csum up to XDP layers */
+	hdr = xdpf->data;
+	memset(hdr, 0, vi->hdr_len);
+	xdpf->len   += vi->hdr_len;
+
+	sg_init_one(sq->sg, xdpf->data, xdpf->len);
+
+	err = virtqueue_add_outbuf(sq->vq, sq->sg, 1, xdpf, GFP_ATOMIC);
+	if (unlikely(err))
+		return -ENOSPC; /* Caller handle free/refcnt */
+
+	return 0;
+}
+
+static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
+				   struct xdp_frame *xdpf)
+{
+	struct xdp_frame *xdpf_sent;
+	struct send_queue *sq;
+	unsigned int len;
+	unsigned int qp;
 
 	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
 	sq = &vi->sq[qp];
 
 	/* Free up any pending old buffers before queueing new ones. */
-	while ((xdp_sent = virtqueue_get_buf(sq->vq, &len)) != NULL) {
-		struct page *sent_page = virt_to_head_page(xdp_sent);
+	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
+		xdp_return_frame(xdpf_sent);
 
-		put_page(sent_page);
-	}
-
-	xdp->data -= vi->hdr_len;
-	/* Zero header and leave csum up to XDP layers */
-	hdr = xdp->data;
-	memset(hdr, 0, vi->hdr_len);
-
-	sg_init_one(sq->sg, xdp->data, xdp->data_end - xdp->data);
-
-	err = virtqueue_add_outbuf(sq->vq, sq->sg, 1, xdp->data, GFP_ATOMIC);
-	if (unlikely(err))
-		return false; /* Caller handle free/refcnt */
-
-	return true;
+	return __virtnet_xdp_xmit_one(vi, sq, xdpf);
 }
 
-static int virtnet_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
+static int virtnet_xdp_xmit(struct net_device *dev,
+			    int n, struct xdp_frame **frames, u32 flags)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct receive_queue *rq = vi->rq;
+	struct xdp_frame *xdpf_sent;
 	struct bpf_prog *xdp_prog;
-	bool sent;
+	struct send_queue *sq;
+	unsigned int len;
+	unsigned int qp;
+	int drops = 0;
+	int err;
+	int i;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
+	sq = &vi->sq[qp];
 
 	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
 	 * indicate XDP resources have been successfully allocated.
@@ -467,10 +488,24 @@ static int virtnet_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 	if (!xdp_prog)
 		return -ENXIO;
 
-	sent = __virtnet_xdp_xmit(vi, xdp);
-	if (!sent)
-		return -ENOSPC;
-	return 0;
+	/* Free up any pending old buffers before queueing new ones. */
+	while ((xdpf_sent = virtqueue_get_buf(sq->vq, &len)) != NULL)
+		xdp_return_frame(xdpf_sent);
+
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+
+		err = __virtnet_xdp_xmit_one(vi, sq, xdpf);
+		if (err) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		virtqueue_kick(sq->vq);
+
+	return n - drops;
 }
 
 static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
@@ -559,7 +594,6 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	struct page *page = virt_to_head_page(buf);
 	unsigned int delta = 0;
 	struct page *xdp_page;
-	bool sent;
 	int err;
 
 	len -= vi->hdr_len;
@@ -568,6 +602,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (xdp_prog) {
 		struct virtio_net_hdr_mrg_rxbuf *hdr = buf + header_offset;
+		struct xdp_frame *xdpf;
 		struct xdp_buff xdp;
 		void *orig_data;
 		u32 act;
@@ -608,10 +643,14 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		case XDP_PASS:
 			/* Recalculate length in case bpf program changed it */
 			delta = orig_data - xdp.data;
+			len = xdp.data_end - xdp.data;
 			break;
 		case XDP_TX:
-			sent = __virtnet_xdp_xmit(vi, &xdp);
-			if (unlikely(!sent)) {
+			xdpf = convert_to_xdp_frame(&xdp);
+			if (unlikely(!xdpf))
+				goto err_xdp;
+			err = __virtnet_xdp_tx_xmit(vi, xdpf);
+			if (unlikely(err)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				goto err_xdp;
 			}
@@ -641,7 +680,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		goto err;
 	}
 	skb_reserve(skb, headroom - delta);
-	skb_put(skb, len + delta);
+	skb_put(skb, len);
 	if (!delta) {
 		buf += header_offset;
 		memcpy(skb_vnet_hdr(skb), buf, vi->hdr_len);
@@ -694,7 +733,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	unsigned int truesize;
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
-	bool sent;
 	int err;
 
 	head_skb = NULL;
@@ -702,10 +740,18 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (xdp_prog) {
+		struct xdp_frame *xdpf;
 		struct page *xdp_page;
 		struct xdp_buff xdp;
 		void *data;
 		u32 act;
+
+		/* Transient failure which in theory could occur if
+		 * in-flight packets from before XDP was enabled reach
+		 * the receive path after XDP is loaded.
+		 */
+		if (unlikely(hdr->hdr.gso_type))
+			goto err_xdp;
 
 		/* This happens when rx buffer size is underestimated
 		 * or headroom is not enough because of the buffer
@@ -726,14 +772,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		} else {
 			xdp_page = page;
 		}
-
-		/* Transient failure which in theory could occur if
-		 * in-flight packets from before XDP was enabled reach
-		 * the receive path after XDP is loaded. In practice I
-		 * was not able to create this condition.
-		 */
-		if (unlikely(hdr->hdr.gso_type))
-			goto err_xdp;
 
 		/* Allow consuming headroom but reserve enough space to push
 		 * the descriptor on if we get an XDP_TX return code.
@@ -756,6 +794,10 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			offset = xdp.data -
 					page_address(xdp_page) - vi->hdr_len;
 
+			/* recalculate len if xdp.data or xdp.data_end were
+			 * adjusted
+			 */
+			len = xdp.data_end - xdp.data + vi->hdr_len;
 			/* We can only create skb based on xdp_page. */
 			if (unlikely(xdp_page != page)) {
 				rcu_read_unlock();
@@ -766,8 +808,11 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
-			sent = __virtnet_xdp_xmit(vi, &xdp);
-			if (unlikely(!sent)) {
+			xdpf = convert_to_xdp_frame(&xdp);
+			if (unlikely(!xdpf))
+				goto err_xdp;
+			err = __virtnet_xdp_tx_xmit(vi, xdpf);
+			if (unlikely(err)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 				if (unlikely(xdp_page != page))
 					put_page(xdp_page);
@@ -775,7 +820,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			*xdp_xmit = true;
 			if (unlikely(xdp_page != page))
-				goto err_xdp;
+				put_page(page);
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
@@ -787,7 +832,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			*xdp_xmit = true;
 			if (unlikely(xdp_page != page))
-				goto err_xdp;
+				put_page(page);
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
@@ -875,7 +920,7 @@ err_xdp:
 	rcu_read_unlock();
 err_skb:
 	put_page(page);
-	while (--num_buf) {
+	while (num_buf-- > 1) {
 		buf = virtqueue_get_buf(rq->vq, &len);
 		if (unlikely(!buf)) {
 			pr_debug("%s: rx error: %d buffers missing\n",
@@ -1312,6 +1357,13 @@ static int virtnet_open(struct net_device *dev)
 		if (err < 0)
 			return err;
 
+		err = xdp_rxq_info_reg_mem_model(&vi->rq[i].xdp_rxq,
+						 MEM_TYPE_PAGE_SHARED, NULL);
+		if (err < 0) {
+			xdp_rxq_info_unreg(&vi->rq[i].xdp_rxq);
+			return err;
+		}
+
 		virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
 		virtnet_napi_tx_enable(vi, vi->sq[i].vq, &vi->sq[i].napi);
 	}
@@ -1359,7 +1411,8 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 		hdr = skb_vnet_hdr(skb);
 
 	if (virtio_net_hdr_from_skb(skb, &hdr->hdr,
-				    virtio_is_little_endian(vi->vdev), false))
+				    virtio_is_little_endian(vi->vdev), false,
+				    0))
 		BUG();
 
 	if (vi->mergeable_rx_bufs)
@@ -1502,6 +1555,9 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	int ret;
 	struct sockaddr *addr;
 	struct scatterlist sg;
+
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_STANDBY))
+		return -EOPNOTSUPP;
 
 	addr = kmemdup(p, sizeof(*addr), GFP_KERNEL);
 	if (!addr)
@@ -2286,6 +2342,22 @@ static int virtnet_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+static int virtnet_get_phys_port_name(struct net_device *dev, char *buf,
+				      size_t len)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	int ret;
+
+	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_STANDBY))
+		return -EOPNOTSUPP;
+
+	ret = snprintf(buf, len, "sby");
+	if (ret >= len)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static const struct net_device_ops virtnet_netdev = {
 	.ndo_open            = virtnet_open,
 	.ndo_stop   	     = virtnet_close,
@@ -2301,8 +2373,8 @@ static const struct net_device_ops virtnet_netdev = {
 #endif
 	.ndo_bpf		= virtnet_xdp,
 	.ndo_xdp_xmit		= virtnet_xdp_xmit,
-	.ndo_xdp_flush		= virtnet_xdp_flush,
 	.ndo_features_check	= passthru_features_check,
+	.ndo_get_phys_port_name	= virtnet_get_phys_port_name,
 };
 
 static void virtnet_config_changed_work(struct work_struct *work)
@@ -2480,17 +2552,17 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		    virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ);
 
 	/* Allocate space for find_vqs parameters */
-	vqs = kzalloc(total_vqs * sizeof(*vqs), GFP_KERNEL);
+	vqs = kcalloc(total_vqs, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs)
 		goto err_vq;
-	callbacks = kmalloc(total_vqs * sizeof(*callbacks), GFP_KERNEL);
+	callbacks = kmalloc_array(total_vqs, sizeof(*callbacks), GFP_KERNEL);
 	if (!callbacks)
 		goto err_callback;
-	names = kmalloc(total_vqs * sizeof(*names), GFP_KERNEL);
+	names = kmalloc_array(total_vqs, sizeof(*names), GFP_KERNEL);
 	if (!names)
 		goto err_names;
 	if (!vi->big_packets || vi->mergeable_rx_bufs) {
-		ctx = kzalloc(total_vqs * sizeof(*ctx), GFP_KERNEL);
+		ctx = kcalloc(total_vqs, sizeof(*ctx), GFP_KERNEL);
 		if (!ctx)
 			goto err_ctx;
 	} else {
@@ -2532,12 +2604,8 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		vi->sq[i].vq = vqs[txq2vq(i)];
 	}
 
-	kfree(names);
-	kfree(callbacks);
-	kfree(vqs);
-	kfree(ctx);
+	/* run here: ret == 0. */
 
-	return 0;
 
 err_find:
 	kfree(ctx);
@@ -2558,10 +2626,10 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 	vi->ctrl = kzalloc(sizeof(*vi->ctrl), GFP_KERNEL);
 	if (!vi->ctrl)
 		goto err_ctrl;
-	vi->sq = kzalloc(sizeof(*vi->sq) * vi->max_queue_pairs, GFP_KERNEL);
+	vi->sq = kcalloc(vi->max_queue_pairs, sizeof(*vi->sq), GFP_KERNEL);
 	if (!vi->sq)
 		goto err_sq;
-	vi->rq = kzalloc(sizeof(*vi->rq) * vi->max_queue_pairs, GFP_KERNEL);
+	vi->rq = kcalloc(vi->max_queue_pairs, sizeof(*vi->rq), GFP_KERNEL);
 	if (!vi->rq)
 		goto err_rq;
 
@@ -2856,10 +2924,18 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	virtnet_init_settings(dev);
 
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
+		vi->failover = net_failover_create(vi->dev);
+		if (IS_ERR(vi->failover)) {
+			err = PTR_ERR(vi->failover);
+			goto free_vqs;
+		}
+	}
+
 	err = register_netdev(dev);
 	if (err) {
 		pr_debug("virtio_net: registering device failed\n");
-		goto free_vqs;
+		goto free_failover;
 	}
 
 	virtio_device_ready(vdev);
@@ -2896,6 +2972,8 @@ free_unregister_netdev:
 	vi->vdev->config->reset(vdev);
 
 	unregister_netdev(dev);
+free_failover:
+	net_failover_destroy(vi->failover);
 free_vqs:
 	cancel_delayed_work_sync(&vi->refill);
 	free_receive_page_frags(vi);
@@ -2929,6 +3007,8 @@ static void virtnet_remove(struct virtio_device *vdev)
 	flush_work(&vi->config_work);
 
 	unregister_netdev(vi->dev);
+
+	net_failover_destroy(vi->failover);
 
 	remove_vq_common(vi);
 
@@ -2979,7 +3059,7 @@ static struct virtio_device_id id_table[] = {
 	VIRTIO_NET_F_GUEST_ANNOUNCE, VIRTIO_NET_F_MQ, \
 	VIRTIO_NET_F_CTRL_MAC_ADDR, \
 	VIRTIO_NET_F_MTU, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, \
-	VIRTIO_NET_F_SPEED_DUPLEX
+	VIRTIO_NET_F_SPEED_DUPLEX, VIRTIO_NET_F_STANDBY
 
 static unsigned int features[] = {
 	VIRTNET_FEATURES,

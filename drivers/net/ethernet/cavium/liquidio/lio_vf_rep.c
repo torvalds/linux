@@ -201,13 +201,14 @@ lio_vf_rep_get_stats64(struct net_device *dev,
 {
 	struct lio_vf_rep_desc *vf_rep = netdev_priv(dev);
 
-	stats64->tx_packets = vf_rep->stats.tx_packets;
-	stats64->tx_bytes   = vf_rep->stats.tx_bytes;
-	stats64->tx_dropped = vf_rep->stats.tx_dropped;
+	/* Swap tx and rx stats as VF rep is a switch port */
+	stats64->tx_packets = vf_rep->stats.rx_packets;
+	stats64->tx_bytes   = vf_rep->stats.rx_bytes;
+	stats64->tx_dropped = vf_rep->stats.rx_dropped;
 
-	stats64->rx_packets = vf_rep->stats.rx_packets;
-	stats64->rx_bytes   = vf_rep->stats.rx_bytes;
-	stats64->rx_dropped = vf_rep->stats.rx_dropped;
+	stats64->rx_packets = vf_rep->stats.tx_packets;
+	stats64->rx_bytes   = vf_rep->stats.tx_bytes;
+	stats64->rx_dropped = vf_rep->stats.tx_dropped;
 }
 
 static int

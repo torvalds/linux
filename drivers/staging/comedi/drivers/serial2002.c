@@ -113,7 +113,7 @@ static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 		long elapsed;
 		__poll_t mask;
 
-		mask = f->f_op->poll(f, &table.pt);
+		mask = vfs_poll(f, &table.pt);
 		if (mask & (EPOLLRDNORM | EPOLLRDBAND | EPOLLIN |
 			    EPOLLHUP | EPOLLERR)) {
 			break;
@@ -136,7 +136,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 
 	result = -1;
 	if (!IS_ERR(f)) {
-		if (f->f_op->poll) {
+		if (file_can_poll(f)) {
 			serial2002_tty_read_poll_wait(f, timeout);
 
 			if (kernel_read(f, &ch, 1, &pos) == 1)

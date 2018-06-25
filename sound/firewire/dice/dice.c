@@ -15,40 +15,15 @@ MODULE_LICENSE("GPL v2");
 #define OUI_LOUD		0x000ff2
 #define OUI_FOCUSRITE		0x00130e
 #define OUI_TCELECTRONIC	0x000166
+#define OUI_ALESIS		0x000595
+#define OUI_MAUDIO		0x000d6c
+#define OUI_MYTEK		0x001ee8
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
 
-/*
- * Some models support several isochronous channels, while these streams are not
- * always available. In this case, add the model name to this list.
- */
-static bool force_two_pcm_support(struct fw_unit *unit)
-{
-	static const char *const models[] = {
-		/* TC Electronic models. */
-		"StudioKonnekt48",
-		/* Focusrite models. */
-		"SAFFIRE_PRO_40",
-		"LIQUID_SAFFIRE_56",
-		"SAFFIRE_PRO_40_1",
-	};
-	char model[32];
-	unsigned int i;
-	int err;
-
-	err = fw_csr_string(unit->directory, CSR_MODEL, model, sizeof(model));
-	if (err < 0)
-		return false;
-
-	for (i = 0; i < ARRAY_SIZE(models); i++) {
-		if (strcmp(models[i], model) == 0)
-			break;
-	}
-
-	return i < ARRAY_SIZE(models);
-}
+#define MODEL_ALESIS_IO_BOTH	0x000001
 
 static int check_dice_category(struct fw_unit *unit)
 {
@@ -73,11 +48,6 @@ static int check_dice_category(struct fw_unit *unit)
 			model = val;
 			break;
 		}
-	}
-
-	if (vendor == OUI_FOCUSRITE || vendor == OUI_TCELECTRONIC) {
-		if (force_two_pcm_support(unit))
-			return 0;
 	}
 
 	if (vendor == OUI_WEISS)
@@ -186,9 +156,6 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		return;
 
-	if (force_two_pcm_support(dice->unit))
-		dice->force_two_pcms = true;
-
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
 		goto error;
@@ -198,6 +165,10 @@ static void do_registration(struct work_struct *work)
 		goto error;
 
 	dice_card_strings(dice);
+
+	err = dice->detect_formats(dice);
+	if (err < 0)
+		goto error;
 
 	err = snd_dice_stream_init_duplex(dice);
 	if (err < 0)
@@ -239,14 +210,17 @@ error:
 		 "Sound card registration failed: %d\n", err);
 }
 
-static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
+static int dice_probe(struct fw_unit *unit,
+		      const struct ieee1394_device_id *entry)
 {
 	struct snd_dice *dice;
 	int err;
 
-	err = check_dice_category(unit);
-	if (err < 0)
-		return -ENODEV;
+	if (!entry->driver_data) {
+		err = check_dice_category(unit);
+		if (err < 0)
+			return -ENODEV;
+	}
 
 	/* Allocate this independent of sound card instance. */
 	dice = kzalloc(sizeof(struct snd_dice), GFP_KERNEL);
@@ -255,6 +229,13 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	dice->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, dice);
+
+	if (!entry->driver_data) {
+		dice->detect_formats = snd_dice_stream_detect_current_formats;
+	} else {
+		dice->detect_formats =
+				(snd_dice_detect_formats_t)entry->driver_data;
+	}
 
 	spin_lock_init(&dice->lock);
 	mutex_init(&dice->mutex);
@@ -313,16 +294,97 @@ static void dice_bus_reset(struct fw_unit *unit)
 #define DICE_INTERFACE	0x000001
 
 static const struct ieee1394_device_id dice_id_table[] = {
+	/* M-Audio Profire 2626 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_MAUDIO,
+		.model_id	= 0x000010,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_extension_formats,
+	},
+	/* M-Audio Profire 610 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_MAUDIO,
+		.model_id	= 0x000011,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_extension_formats,
+	},
+	/* TC Electronic Konnekt 24D. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000020,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Konnekt 8. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000021,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Studio Konnekt 48. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000022,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Konnekt Live. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000023,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Desktop Konnekt 6. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000024,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Impact Twin. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000027,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* TC Electronic Digital Konnekt x32. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000030,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
+	/* Alesis iO14/iO26. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_ALESIS,
+		.model_id	= MODEL_ALESIS_IO_BOTH,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_formats,
+	},
+	/* Mytek Stereo 192 DSD-DAC. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_MYTEK,
+		.model_id	= 0x000002,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_mytek_formats,
+	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,
-	},
-	/* M-Audio Profire 610/2626 has a different value in version field. */
-	{
-		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
-				  IEEE1394_MATCH_SPECIFIER_ID,
-		.vendor_id	= 0x000d6c,
-		.specifier_id	= 0x000d6c,
 	},
 	{ }
 };

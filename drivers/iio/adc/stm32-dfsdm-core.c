@@ -25,6 +25,8 @@ struct stm32_dfsdm_dev_data {
 
 #define STM32H7_DFSDM_NUM_FILTERS	4
 #define STM32H7_DFSDM_NUM_CHANNELS	8
+#define STM32MP1_DFSDM_NUM_FILTERS	6
+#define STM32MP1_DFSDM_NUM_CHANNELS	8
 
 static bool stm32_dfsdm_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -59,6 +61,21 @@ static const struct stm32_dfsdm_dev_data stm32h7_dfsdm_data = {
 	.num_filters = STM32H7_DFSDM_NUM_FILTERS,
 	.num_channels = STM32H7_DFSDM_NUM_CHANNELS,
 	.regmap_cfg = &stm32h7_dfsdm_regmap_cfg,
+};
+
+static const struct regmap_config stm32mp1_dfsdm_regmap_cfg = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = sizeof(u32),
+	.max_register = 0x7fc,
+	.volatile_reg = stm32_dfsdm_volatile_reg,
+	.fast_io = true,
+};
+
+static const struct stm32_dfsdm_dev_data stm32mp1_dfsdm_data = {
+	.num_filters = STM32MP1_DFSDM_NUM_FILTERS,
+	.num_channels = STM32MP1_DFSDM_NUM_CHANNELS,
+	.regmap_cfg = &stm32mp1_dfsdm_regmap_cfg,
 };
 
 struct dfsdm_priv {
@@ -227,6 +244,11 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	}
 
 	priv->spi_clk_out_div = div_u64_rem(clk_freq, spi_freq, &rem) - 1;
+	if (!priv->spi_clk_out_div) {
+		/* spi_clk_out_div == 0 means ckout is OFF */
+		dev_err(&pdev->dev, "spi-max-frequency not achievable\n");
+		return -EINVAL;
+	}
 	priv->dfsdm.spi_master_freq = spi_freq;
 
 	if (rem) {
@@ -242,6 +264,10 @@ static const struct of_device_id stm32_dfsdm_of_match[] = {
 	{
 		.compatible = "st,stm32h7-dfsdm",
 		.data = &stm32h7_dfsdm_data,
+	},
+	{
+		.compatible = "st,stm32mp1-dfsdm",
+		.data = &stm32mp1_dfsdm_data,
 	},
 	{}
 };

@@ -56,7 +56,7 @@ command -v ${SIZE} >/dev/null 2>&1 || die "size isn't installed"
 command -v ${NM} >/dev/null 2>&1 || die "nm isn't installed"
 
 usage() {
-	echo "usage: faddr2line <object file> <func+offset> <func+offset>..." >&2
+	echo "usage: faddr2line [--list] <object file> <func+offset> <func+offset>..." >&2
 	exit 1
 }
 
@@ -166,12 +166,25 @@ __faddr2line() {
 		local file_lines=$(${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;")
 		[[ -z $file_lines ]] && return
 
+		if [[ $LIST = 0 ]]; then
+			echo "$file_lines" | while read -r line
+			do
+				echo $line
+			done
+			DONE=1;
+			return
+		fi
+
 		# show each line with context
 		echo "$file_lines" | while read -r line
 		do
+			echo
 			echo $line
-			eval $(echo $line | awk -F "[ :]" '{printf("n1=%d;n2=%d;f=%s",$NF-5, $NF+5, $(NF-1))}')
-			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") {printf("%d\t%s\n", NR, $0)}' $f
+			n=$(echo $line | sed 's/.*:\([0-9]\+\).*/\1/g')
+			n1=$[$n-5]
+			n2=$[$n+5]
+			f=$(echo $line | sed 's/.*at \(.\+\):.*/\1/g')
+			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") { if (NR=='$n') printf(">%d<", NR); else printf(" %d ", NR); printf("\t%s\n", $0)}' $f
 		done
 
 		DONE=1
@@ -182,6 +195,10 @@ __faddr2line() {
 [[ $# -lt 2 ]] && usage
 
 objfile=$1
+
+LIST=0
+[[ "$objfile" == "--list" ]] && LIST=1 && shift && objfile=$1
+
 [[ ! -f $objfile ]] && die "can't find objfile $objfile"
 shift
 

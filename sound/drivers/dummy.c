@@ -1042,7 +1042,7 @@ static void dummy_proc_init(struct snd_dummy *chip)
 	if (!snd_card_proc_new(chip->card, "dummy_pcm", &entry)) {
 		snd_info_set_text_ops(entry, chip, dummy_proc_read);
 		entry->c.text.write = dummy_proc_write;
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->private_data = chip;
 	}
 }

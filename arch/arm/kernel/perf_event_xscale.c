@@ -142,11 +142,10 @@ xscale1_pmnc_counter_has_overflowed(unsigned long pmnc,
 }
 
 static irqreturn_t
-xscale1pmu_handle_irq(int irq_num, void *dev)
+xscale1pmu_handle_irq(struct arm_pmu *cpu_pmu)
 {
 	unsigned long pmnc;
 	struct perf_sample_data data;
-	struct arm_pmu *cpu_pmu = (struct arm_pmu *)dev;
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 	struct pt_regs *regs;
 	int idx;
@@ -489,11 +488,10 @@ xscale2_pmnc_counter_has_overflowed(unsigned long of_flags,
 }
 
 static irqreturn_t
-xscale2pmu_handle_irq(int irq_num, void *dev)
+xscale2pmu_handle_irq(struct arm_pmu *cpu_pmu)
 {
 	unsigned long pmnc, of_flags;
 	struct perf_sample_data data;
-	struct arm_pmu *cpu_pmu = (struct arm_pmu *)dev;
 	struct pmu_hw_events *cpuc = this_cpu_ptr(cpu_pmu->hw_events);
 	struct pt_regs *regs;
 	int idx;

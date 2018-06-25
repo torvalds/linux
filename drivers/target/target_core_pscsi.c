@@ -689,8 +689,29 @@ after_mode_sense:
 	}
 after_mode_select:
 
-	if (scsi_status == SAM_STAT_CHECK_CONDITION)
+	if (scsi_status == SAM_STAT_CHECK_CONDITION) {
 		transport_copy_sense_to_cmd(cmd, req_sense);
+
+		/*
+		 * check for TAPE device reads with
+		 * FM/EOM/ILI set, so that we can get data
+		 * back despite framework assumption that a
+		 * check condition means there is no data
+		 */
+		if (sd->type == TYPE_TAPE &&
+		    cmd->data_direction == DMA_FROM_DEVICE) {
+			/*
+			 * is sense data valid, fixed format,
+			 * and have FM, EOM, or ILI set?
+			 */
+			if (req_sense[0] == 0xf0 &&	/* valid, fixed format */
+			    req_sense[2] & 0xe0 &&	/* FM, EOM, or ILI */
+			    (req_sense[2] & 0xf) == 0) { /* key==NO_SENSE */
+				pr_debug("Tape FM/EOM/ILI status detected. Treat as normal read.\n");
+				cmd->se_cmd_flags |= SCF_TREAT_READ_AS_NORMAL;
+			}
+		}
+	}
 }
 
 enum {
@@ -986,8 +1007,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	req = blk_get_request(pdv->pdv_sd->request_queue,
 			cmd->data_direction == DMA_TO_DEVICE ?
-			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
-			GFP_KERNEL);
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(req)) {
 		pr_err("PSCSI: blk_get_request() failed\n");
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1063,7 +1083,8 @@ static void pscsi_req_done(struct request *req, blk_status_t status)
 
 	switch (host_byte(result)) {
 	case DID_OK:
-		target_complete_cmd(cmd, scsi_status);
+		target_complete_cmd_with_length(cmd, scsi_status,
+			cmd->data_length - scsi_req(req)->resid_len);
 		break;
 	default:
 		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"

@@ -593,7 +593,12 @@ static void srcu_torture_init(void)
 
 static void srcu_torture_cleanup(void)
 {
-	cleanup_srcu_struct(&srcu_ctld);
+	static DEFINE_TORTURE_RANDOM(rand);
+
+	if (torture_random(&rand) & 0x800)
+		cleanup_srcu_struct(&srcu_ctld);
+	else
+		cleanup_srcu_struct_quiesced(&srcu_ctld);
 	srcu_ctlp = &srcu_ctl; /* In case of a later rcutorture run. */
 }
 
@@ -826,8 +831,9 @@ rcu_torture_cbflood(void *arg)
 	    cbflood_intra_holdoff > 0 &&
 	    cur_ops->call &&
 	    cur_ops->cb_barrier) {
-		rhp = vmalloc(sizeof(*rhp) *
-			      cbflood_n_burst * cbflood_n_per_burst);
+		rhp = vmalloc(array3_size(cbflood_n_burst,
+					  cbflood_n_per_burst,
+					  sizeof(*rhp)));
 		err = !rhp;
 	}
 	if (err) {
@@ -1609,6 +1615,9 @@ static enum cpuhp_state rcutor_hp;
 static void
 rcu_torture_cleanup(void)
 {
+	int flags = 0;
+	unsigned long gpnum = 0;
+	unsigned long completed = 0;
 	int i;
 
 	rcutorture_record_test_transition();
@@ -1639,6 +1648,11 @@ rcu_torture_cleanup(void)
 		fakewriter_tasks = NULL;
 	}
 
+	rcutorture_get_gp_data(cur_ops->ttype, &flags, &gpnum, &completed);
+	srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
+				&flags, &gpnum, &completed);
+	pr_alert("%s:  End-test grace-period state: g%lu c%lu f%#x\n",
+		 cur_ops->name, gpnum, completed, flags);
 	torture_stop_kthread(rcu_torture_stats, stats_task);
 	torture_stop_kthread(rcu_torture_fqs, fqs_task);
 	for (i = 0; i < ncbflooders; i++)

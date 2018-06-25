@@ -335,20 +335,7 @@ static inline void free_partition(struct mtd_part *p)
  */
 static int mtd_parse_part(struct mtd_part *slave, const char *const *types)
 {
-	struct mtd_partitions parsed;
-	int err;
-
-	err = parse_mtd_partitions(&slave->mtd, types, &parsed, NULL);
-	if (err)
-		return err;
-	else if (!parsed.nr_parts)
-		return -ENOENT;
-
-	err = add_mtd_partitions(&slave->mtd, parsed.parts, parsed.nr_parts);
-
-	mtd_part_parser_cleanup(&parsed);
-
-	return err;
+	return parse_mtd_partitions(&slave->mtd, types, NULL);
 }
 
 static struct mtd_part *allocate_partition(struct mtd_info *parent,
@@ -933,30 +920,27 @@ static int mtd_part_of_parse(struct mtd_info *master,
 }
 
 /**
- * parse_mtd_partitions - parse MTD partitions
+ * parse_mtd_partitions - parse and register MTD partitions
+ *
  * @master: the master partition (describes whole MTD device)
  * @types: names of partition parsers to try or %NULL
- * @pparts: info about partitions found is returned here
  * @data: MTD partition parser-specific data
  *
- * This function tries to find partition on MTD device @master. It uses MTD
- * partition parsers, specified in @types. However, if @types is %NULL, then
- * the default list of parsers is used. The default list contains only the
+ * This function tries to find & register partitions on MTD device @master. It
+ * uses MTD partition parsers, specified in @types. However, if @types is %NULL,
+ * then the default list of parsers is used. The default list contains only the
  * "cmdlinepart" and "ofpart" parsers ATM.
  * Note: If there are more then one parser in @types, the kernel only takes the
  * partitions parsed out by the first parser.
  *
  * This function may return:
  * o a negative error code in case of failure
- * o zero otherwise, and @pparts will describe the partitions, number of
- *   partitions, and the parser which parsed them. Caller must release
- *   resources with mtd_part_parser_cleanup() when finished with the returned
- *   data.
+ * o number of found partitions otherwise
  */
 int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
-			 struct mtd_partitions *pparts,
 			 struct mtd_part_parser_data *data)
 {
+	struct mtd_partitions pparts = { };
 	struct mtd_part_parser *parser;
 	int ret, err = 0;
 
@@ -970,7 +954,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		 * handled in a separated function.
 		 */
 		if (!strcmp(*types, "ofpart")) {
-			ret = mtd_part_of_parse(master, pparts);
+			ret = mtd_part_of_parse(master, &pparts);
 		} else {
 			pr_debug("%s: parsing partitions %s\n", master->name,
 				 *types);
@@ -981,13 +965,17 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 				parser ? parser->name : NULL);
 			if (!parser)
 				continue;
-			ret = mtd_part_do_parse(parser, master, pparts, data);
+			ret = mtd_part_do_parse(parser, master, &pparts, data);
 			if (ret <= 0)
 				mtd_part_parser_put(parser);
 		}
 		/* Found partitions! */
-		if (ret > 0)
-			return 0;
+		if (ret > 0) {
+			err = add_mtd_partitions(master, pparts.parts,
+						 pparts.nr_parts);
+			mtd_part_parser_cleanup(&pparts);
+			return err ? err : pparts.nr_parts;
+		}
 		/*
 		 * Stash the first error we see; only report it if no parser
 		 * succeeds

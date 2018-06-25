@@ -387,7 +387,7 @@ static __init int _init_events_attrs(void)
 	while (amd_iommu_v2_event_descs[i].attr.attr.name)
 		i++;
 
-	attrs = kzalloc(sizeof(struct attribute **) * (i + 1), GFP_KERNEL);
+	attrs = kcalloc(i + 1, sizeof(struct attribute **), GFP_KERNEL);
 	if (!attrs)
 		return -ENOMEM;
 

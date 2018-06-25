@@ -83,27 +83,14 @@ void fhci_dfs_create(struct fhci_hcd *fhci)
 	struct device *dev = fhci_to_hcd(fhci)->self.controller;
 
 	fhci->dfs_root = debugfs_create_dir(dev_name(dev), usb_debug_root);
-	if (!fhci->dfs_root) {
-		WARN_ON(1);
-		return;
-	}
 
-	fhci->dfs_regs = debugfs_create_file("regs", S_IFREG | S_IRUGO,
-		fhci->dfs_root, fhci, &fhci_dfs_regs_fops);
-
-	fhci->dfs_irq_stat = debugfs_create_file("irq_stat",
-		S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
-		&fhci_dfs_irq_stat_fops);
-
-	WARN_ON(!fhci->dfs_regs || !fhci->dfs_irq_stat);
+	debugfs_create_file("regs", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
+			    &fhci_dfs_regs_fops);
+	debugfs_create_file("irq_stat", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
+			    &fhci_dfs_irq_stat_fops);
 }
 
 void fhci_dfs_destroy(struct fhci_hcd *fhci)
 {
-	if (!fhci->dfs_root)
-		return;
-
-	debugfs_remove(fhci->dfs_irq_stat);
-	debugfs_remove(fhci->dfs_regs);
-	debugfs_remove(fhci->dfs_root);
+	debugfs_remove_recursive(fhci->dfs_root);
 }

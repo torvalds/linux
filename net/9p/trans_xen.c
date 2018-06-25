@@ -38,7 +38,6 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/rwlock.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -485,7 +484,7 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 
 static int xen_9pfs_front_resume(struct xenbus_device *dev)
 {
-	dev_warn(&dev->dev, "suspsend/resume unsupported\n");
+	dev_warn(&dev->dev, "suspend/resume unsupported\n");
 	return 0;
 }
 

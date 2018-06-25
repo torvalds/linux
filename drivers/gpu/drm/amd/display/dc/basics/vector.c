@@ -40,7 +40,7 @@ bool dal_vector_construct(
 		return false;
 	}
 
-	vector->container = kzalloc(struct_size * capacity, GFP_KERNEL);
+	vector->container = kcalloc(capacity, struct_size, GFP_KERNEL);
 	if (vector->container == NULL)
 		return false;
 	vector->capacity = capacity;
@@ -67,7 +67,7 @@ bool dal_vector_presized_costruct(
 		return false;
 	}
 
-	vector->container = kzalloc(struct_size * count, GFP_KERNEL);
+	vector->container = kcalloc(count, struct_size, GFP_KERNEL);
 
 	if (vector->container == NULL)
 		return false;

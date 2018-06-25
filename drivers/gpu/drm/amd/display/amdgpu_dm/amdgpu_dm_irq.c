@@ -555,6 +555,9 @@ static inline int dm_irq_state(struct amdgpu_device *adev,
 		return 0;
 	}
 
+	if (acrtc->otg_inst == -1)
+		return 0;
+
 	irq_source = dal_irq_type + acrtc->otg_inst;
 
 	st = (state == AMDGPU_IRQ_STATE_ENABLE);

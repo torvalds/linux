@@ -20,7 +20,7 @@ config ACPI_CPPC_CPUFREQ
 
 config ARM_ARMADA_37XX_CPUFREQ
 	tristate "Armada 37xx CPUFreq support"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU && CPUFREQ_DT
 	help
 	  This adds the CPUFreq driver support for Marvell Armada 37xx SoCs.
 	  The Armada 37xx PMU supports 4 frequency and VDD levels.
@@ -123,6 +123,17 @@ config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
 	depends on ARCH_OMAP2PLUS
 	default ARCH_OMAP2PLUS
+
+config ARM_QCOM_CPUFREQ_KRYO
+	tristate "Qualcomm Kryo based CPUFreq"
+	depends on ARM64
+	depends on QCOM_QFPROM
+	depends on QCOM_SMEM
+	select PM_OPP
+	help
+	  This adds the CPUFreq driver for Qualcomm Kryo SoC based boards.
+
+	  If in doubt, say N.
 
 config ARM_S3C_CPUFREQ
 	bool
@@ -264,7 +275,7 @@ config ARM_TANGO_CPUFREQ
 	default y
 
 config ARM_TEGRA20_CPUFREQ
-	bool "Tegra20 CPUFreq support"
+	tristate "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
 	default y
 	help

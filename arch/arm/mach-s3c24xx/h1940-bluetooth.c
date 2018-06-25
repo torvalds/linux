@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-1.0
+// SPDX-License-Identifier: GPL-1.0+
 //
 // Copyright (c) Arnaud Patard <arnaud.patard@rtp-net.org>
 //

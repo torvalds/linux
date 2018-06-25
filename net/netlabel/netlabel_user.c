@@ -104,7 +104,7 @@ struct audit_buffer *netlbl_audit_start_common(int type,
 	if (audit_enabled == 0)
 		return NULL;
 
-	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC, type);
+	audit_buf = audit_log_start(audit_context(), GFP_ATOMIC, type);
 	if (audit_buf == NULL)
 		return NULL;
 

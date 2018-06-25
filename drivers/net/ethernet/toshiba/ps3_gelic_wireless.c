@@ -2320,8 +2320,9 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 	pr_debug("%s: wl=%p port=%p\n", __func__, wl, port);
 
 	/* allocate scan list */
-	wl->networks = kzalloc(sizeof(struct gelic_wl_scan_info) *
-			       GELIC_WL_BSS_MAX_ENT, GFP_KERNEL);
+	wl->networks = kcalloc(GELIC_WL_BSS_MAX_ENT,
+			       sizeof(struct gelic_wl_scan_info),
+			       GFP_KERNEL);
 
 	if (!wl->networks)
 		goto fail_bss;

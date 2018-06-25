@@ -87,11 +87,12 @@ static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23,
+	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
 	.bus_shift	= 2,
 	.scc_offset	= 0x1000,
 	.taps		= rcar_gen3_scc_taps,
 	.taps_num	= ARRAY_SIZE(rcar_gen3_scc_taps),
-	/* Gen3 SDHI DMAC can handle 0xffffffff blk count, but seg = 1 */
+	/* DMAC can handle 0xffffffff blk count but only 1 segment */
 	.max_blk_count	= 0xffffffff,
 	.max_segs	= 1,
 };
@@ -157,30 +158,26 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 {
 	struct scatterlist *sg = host->sg_ptr;
 	u32 dtran_mode = DTRAN_MODE_BUS_WID_TH | DTRAN_MODE_ADDR_MODE;
-	enum dma_data_direction dir;
-	int ret;
 
-	/* This DMAC cannot handle if sg_len is not 1 */
-	WARN_ON(host->sg_len > 1);
+	if (!dma_map_sg(&host->pdev->dev, sg, host->sg_len,
+			mmc_get_dma_dir(data)))
+		goto force_pio;
 
 	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
-	if (!IS_ALIGNED(sg->offset, 8))
+	if (!IS_ALIGNED(sg_dma_address(sg), 8)) {
+		dma_unmap_sg(&host->pdev->dev, sg, host->sg_len,
+			     mmc_get_dma_dir(data));
 		goto force_pio;
+	}
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
-		dir = DMA_FROM_DEVICE;
 		if (test_bit(SDHI_INTERNAL_DMAC_ONE_RX_ONLY, &global_flags) &&
 		    test_and_set_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags))
 			goto force_pio;
 	} else {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH0;
-		dir = DMA_TO_DEVICE;
 	}
-
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, dir);
-	if (ret == 0)
-		goto force_pio;
 
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 
@@ -188,7 +185,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_DTRAN_MODE,
 					    dtran_mode);
 	renesas_sdhi_internal_dmac_dm_write(host, DM_DTRAN_ADDR,
-					    sg->dma_address);
+					    sg_dma_address(sg));
 
 	return;
 
@@ -272,12 +269,17 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
  * implementation as others may use a different implementation.
  */
 static const struct soc_device_attribute gen3_soc_whitelist[] = {
+	/* specific ones */
 	{ .soc_id = "r8a7795", .revision = "ES1.*",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ .soc_id = "r8a7795", .revision = "ES2.0" },
 	{ .soc_id = "r8a7796", .revision = "ES1.0",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	{ .soc_id = "r8a77995", .revision = "ES1.0" },
+	/* generic ones */
+	{ .soc_id = "r8a7795" },
+	{ .soc_id = "r8a7796" },
+	{ .soc_id = "r8a77965" },
+	{ .soc_id = "r8a77980" },
+	{ .soc_id = "r8a77995" },
 	{ /* sentinel */ }
 };
 

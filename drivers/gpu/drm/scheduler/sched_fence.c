@@ -87,7 +87,7 @@ static bool drm_sched_fence_enable_signaling(struct dma_fence *f)
 }
 
 /**
- * amd_sched_fence_free - free up the fence memory
+ * drm_sched_fence_free - free up the fence memory
  *
  * @rcu: RCU callback head
  *
@@ -98,12 +98,11 @@ static void drm_sched_fence_free(struct rcu_head *rcu)
 	struct dma_fence *f = container_of(rcu, struct dma_fence, rcu);
 	struct drm_sched_fence *fence = to_drm_sched_fence(f);
 
-	dma_fence_put(fence->parent);
 	kmem_cache_free(sched_fence_slab, fence);
 }
 
 /**
- * amd_sched_fence_release_scheduled - callback that fence can be freed
+ * drm_sched_fence_release_scheduled - callback that fence can be freed
  *
  * @fence: fence
  *
@@ -114,11 +113,12 @@ static void drm_sched_fence_release_scheduled(struct dma_fence *f)
 {
 	struct drm_sched_fence *fence = to_drm_sched_fence(f);
 
+	dma_fence_put(fence->parent);
 	call_rcu(&fence->finished.rcu, drm_sched_fence_free);
 }
 
 /**
- * amd_sched_fence_release_finished - drop extra reference
+ * drm_sched_fence_release_finished - drop extra reference
  *
  * @f: fence
  *

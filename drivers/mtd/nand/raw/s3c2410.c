@@ -1038,7 +1038,7 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
 	if (!pdata->nr_sets)
 		return 0;
 
-	sets = devm_kzalloc(&pdev->dev, sizeof(*sets) * pdata->nr_sets,
+	sets = devm_kcalloc(&pdev->dev, pdata->nr_sets, sizeof(*sets),
 			    GFP_KERNEL);
 	if (!sets)
 		return -ENOMEM;

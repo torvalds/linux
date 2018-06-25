@@ -9,16 +9,6 @@ int iommu_detected __read_mostly;
 const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	return 0;
-}
-fs_initcall(dma_init);
-
 const struct dma_map_ops *dma_get_ops(struct device *dev)
 {
 	return dma_ops;

@@ -23,7 +23,6 @@
 */
 
 #include "pvrusb2-cx2584x-v4l.h"
-#include "pvrusb2-video-v4l.h"
 
 
 #include "pvrusb2-hdw-internal.h"

@@ -948,7 +948,8 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	while (res->clock[ispif->nclocks])
 		ispif->nclocks++;
 
-	ispif->clock = devm_kzalloc(dev, ispif->nclocks * sizeof(*ispif->clock),
+	ispif->clock = devm_kcalloc(dev,
+				    ispif->nclocks, sizeof(*ispif->clock),
 				    GFP_KERNEL);
 	if (!ispif->clock)
 		return -ENOMEM;
@@ -968,8 +969,10 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	while (res->clock_for_reset[ispif->nclocks_for_reset])
 		ispif->nclocks_for_reset++;
 
-	ispif->clock_for_reset = devm_kzalloc(dev, ispif->nclocks_for_reset *
-			sizeof(*ispif->clock_for_reset), GFP_KERNEL);
+	ispif->clock_for_reset = devm_kcalloc(dev,
+					      ispif->nclocks_for_reset,
+					      sizeof(*ispif->clock_for_reset),
+					      GFP_KERNEL);
 	if (!ispif->clock_for_reset)
 		return -ENOMEM;
 

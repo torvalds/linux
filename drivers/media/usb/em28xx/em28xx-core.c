@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 //		      Markus Rechberger <mrechberger@gmail.com>
-//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 //
@@ -32,7 +32,7 @@
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
-		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
+		      "Mauro Carvalho Chehab <mchehab@kernel.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -1171,8 +1171,9 @@ int em28xx_resume_extension(struct em28xx *dev)
 	dev_info(&dev->intf->dev, "Resuming extensions\n");
 	mutex_lock(&em28xx_devlist_mutex);
 	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
-		if (ops->resume)
-			ops->resume(dev);
+		if (!ops->resume)
+			continue;
+		ops->resume(dev);
 		if (dev->dev_next)
 			ops->resume(dev->dev_next);
 	}

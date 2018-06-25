@@ -26,5 +26,6 @@ extern int b2c2_flexcop_debug;
 #define deb_ts(args...) dprintk(0x08, args)
 #define deb_sram(args...) dprintk(0x10, args)
 #define deb_rdump(args...) dprintk(0x20, args)
+#define deb_i2c_dump(args...) dprintk(0x40, args)
 
 #endif

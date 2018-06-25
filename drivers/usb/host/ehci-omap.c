@@ -157,10 +157,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		struct usb_phy *phy;
 
 		/* get the PHY device */
-		if (dev->of_node)
-			phy = devm_usb_get_phy_by_phandle(dev, "phys", i);
-		else
-			phy = devm_usb_get_phy_dev(dev, i);
+		phy = devm_usb_get_phy_by_phandle(dev, "phys", i);
 		if (IS_ERR(phy)) {
 			/* Don't bail out if PHY is not absolutely necessary */
 			if (pdata->port_mode[i] != OMAP_EHCI_PORT_MODE_PHY)

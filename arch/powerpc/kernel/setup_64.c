@@ -346,6 +346,13 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	cpu_ready_for_interrupts();
 
+	/*
+	 * We enable ftrace here, but since we only support DYNAMIC_FTRACE, it
+	 * will only actually get enabled on the boot cpu much later once
+	 * ftrace itself has been initialized.
+	 */
+	this_cpu_enable_ftrace();
+
 	DBG(" <- early_setup()\n");
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
@@ -379,6 +386,14 @@ void early_setup_secondary(void)
 }
 
 #endif /* CONFIG_SMP */
+
+void panic_smp_self_stop(void)
+{
+	hard_irq_disable();
+	spin_begin();
+	while (1)
+		spin_cpu_relax();
+}
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)

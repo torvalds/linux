@@ -25,6 +25,7 @@
 
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
+#include "dc.h"
 #include "modules/color/color_gamma.h"
 
 #define MAX_DRM_LUT_VALUE 0xFFFF
@@ -87,9 +88,9 @@ static void __drm_lut_to_dc_gamma(struct drm_color_lut *lut,
 			g = drm_color_lut_extract(lut[i].green, 16);
 			b = drm_color_lut_extract(lut[i].blue, 16);
 
-			gamma->entries.red[i] = dal_fixed31_32_from_int(r);
-			gamma->entries.green[i] = dal_fixed31_32_from_int(g);
-			gamma->entries.blue[i] = dal_fixed31_32_from_int(b);
+			gamma->entries.red[i] = dc_fixpt_from_int(r);
+			gamma->entries.green[i] = dc_fixpt_from_int(g);
+			gamma->entries.blue[i] = dc_fixpt_from_int(b);
 		}
 		return;
 	}
@@ -100,9 +101,9 @@ static void __drm_lut_to_dc_gamma(struct drm_color_lut *lut,
 		g = drm_color_lut_extract(lut[i].green, 16);
 		b = drm_color_lut_extract(lut[i].blue, 16);
 
-		gamma->entries.red[i] = dal_fixed31_32_from_fraction(r, MAX_DRM_LUT_VALUE);
-		gamma->entries.green[i] = dal_fixed31_32_from_fraction(g, MAX_DRM_LUT_VALUE);
-		gamma->entries.blue[i] = dal_fixed31_32_from_fraction(b, MAX_DRM_LUT_VALUE);
+		gamma->entries.red[i] = dc_fixpt_from_fraction(r, MAX_DRM_LUT_VALUE);
+		gamma->entries.green[i] = dc_fixpt_from_fraction(g, MAX_DRM_LUT_VALUE);
+		gamma->entries.blue[i] = dc_fixpt_from_fraction(b, MAX_DRM_LUT_VALUE);
 	}
 }
 
@@ -207,7 +208,7 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	for (i = 0; i < 12; i++) {
 		/* Skip 4th element */
 		if (i % 4 == 3) {
-			stream->gamut_remap_matrix.matrix[i] = dal_fixed31_32_zero;
+			stream->gamut_remap_matrix.matrix[i] = dc_fixpt_zero;
 			continue;
 		}
 

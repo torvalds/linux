@@ -38,9 +38,10 @@
 			compatible = "marvell,armada-7k-pp22";
 			reg = <0x0 0x100000>, <0x129000 0xb000>;
 			clocks = <&CP110_LABEL(clk) 1 3>, <&CP110_LABEL(clk) 1 9>,
-				 <&CP110_LABEL(clk) 1 5>, <&CP110_LABEL(clk) 1 18>;
+				 <&CP110_LABEL(clk) 1 5>, <&CP110_LABEL(clk) 1 6>,
+				 <&CP110_LABEL(clk) 1 18>;
 			clock-names = "pp_clk", "gop_clk",
-				      "mg_clk", "axi_clk";
+				      "mg_clk", "mg_core_clk", "axi_clk";
 			marvell,system-controller = <&CP110_LABEL(syscon0)>;
 			status = "disabled";
 			dma-coherent;
@@ -141,6 +142,8 @@
 			#size-cells = <0>;
 			compatible = "marvell,xmdio";
 			reg = <0x12a600 0x10>;
+			clocks = <&CP110_LABEL(clk) 1 5>,
+				 <&CP110_LABEL(clk) 1 6>, <&CP110_LABEL(clk) 1 18>;
 			status = "disabled";
 		};
 
@@ -233,6 +236,7 @@
 			compatible = "marvell,armada-8k-ahci",
 			"generic-ahci";
 			reg = <0x540000 0x30000>;
+			dma-coherent;
 			interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&CP110_LABEL(clk) 1 15>,
 				 <&CP110_LABEL(clk) 1 16>;

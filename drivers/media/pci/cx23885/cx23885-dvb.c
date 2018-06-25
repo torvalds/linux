@@ -252,7 +252,6 @@ static struct mt2131_config hauppauge_generic_tunerconfig = {
 };
 
 static struct lgdt330x_config fusionhdtv_5_express = {
-	.demod_address = 0x0e,
 	.demod_chip = LGDT3303,
 	.serial_mpeg = 0x40,
 };
@@ -1321,8 +1320,9 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
 		i2c_bus = &dev->i2c_bus[0];
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
-						&fusionhdtv_5_express,
-						&i2c_bus->i2c_adap);
+					       &fusionhdtv_5_express,
+					       0x0e,
+					       &i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend == NULL)
 			break;
 		dvb_attach(simple_tuner_attach, fe0->dvb.frontend,

@@ -161,11 +161,13 @@ static int ad8366_probe(struct spi_device *spi)
 	indio_dev->channels = ad8366_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad8366_channels);
 
+	ret = ad8366_write(indio_dev, 0 , 0);
+	if (ret < 0)
+		goto error_disable_reg;
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_disable_reg;
-
-	ad8366_write(indio_dev, 0, 0);
 
 	return 0;
 

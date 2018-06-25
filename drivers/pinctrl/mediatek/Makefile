@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Core
+obj-$(CONFIG_EINT_MTK)		+= mtk-eint.o
 obj-$(CONFIG_PINCTRL_MTK)	+= pinctrl-mtk-common.o
 
 # SoC Drivers

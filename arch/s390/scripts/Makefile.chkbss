@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+quiet_cmd_chkbss = CHKBSS  $<
+define cmd_chkbss
+	if ! $(OBJDUMP) -j .bss -w -h $< | awk 'END { if ($$3) exit 1 }'; then \
+		echo "error: $< .bss section is not empty" >&2; exit 1; \
+	fi; \
+	touch $@;
+endef
+
+$(obj)/built-in.a: $(patsubst %, $(obj)/%.chkbss, $(chkbss))
+
+%.o.chkbss: %.o
+	$(call cmd,chkbss)
