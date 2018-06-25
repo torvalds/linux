@@ -758,7 +758,7 @@ static void intel_psr_work(struct work_struct *work)
 	 * recheck. Since psr_flush first clears this and then reschedules we
 	 * won't ever miss a flush when bailing out here.
 	 */
-	if (dev_priv->psr.busy_frontbuffer_bits)
+	if (dev_priv->psr.busy_frontbuffer_bits || dev_priv->psr.active)
 		goto unlock;
 
 	intel_psr_activate(dev_priv->psr.enabled);
