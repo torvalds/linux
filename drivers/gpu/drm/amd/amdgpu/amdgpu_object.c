@@ -257,6 +257,13 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 		dev_err(adev->dev, "(%d) kernel bo pin failed\n", r);
 		goto error_unreserve;
 	}
+
+	r = amdgpu_ttm_alloc_gart(&(*bo_ptr)->tbo);
+	if (r) {
+		dev_err(adev->dev, "%p bind failed\n", *bo_ptr);
+		goto error_unpin;
+	}
+
 	if (gpu_addr)
 		*gpu_addr = amdgpu_bo_gpu_offset(*bo_ptr);
 
@@ -270,6 +277,8 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 
 	return 0;
 
+error_unpin:
+	amdgpu_bo_unpin(*bo_ptr);
 error_unreserve:
 	amdgpu_bo_unreserve(*bo_ptr);
 
@@ -900,12 +909,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (unlikely(r)) {
 		dev_err(adev->dev, "%p pin failed\n", bo);
-		goto error;
-	}
-
-	r = amdgpu_ttm_alloc_gart(&bo->tbo);
-	if (unlikely(r)) {
-		dev_err(adev->dev, "%p bind failed\n", bo);
 		goto error;
 	}
 

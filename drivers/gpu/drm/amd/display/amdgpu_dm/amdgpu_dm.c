@@ -3095,13 +3095,22 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 	r = amdgpu_bo_pin(rbo, domain);
-	amdgpu_bo_unreserve(rbo);
-
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
+		amdgpu_bo_unreserve(rbo);
 		return r;
 	}
+
+	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
+	if (unlikely(r != 0)) {
+		amdgpu_bo_unpin(rbo);
+		amdgpu_bo_unreserve(rbo);
+		DRM_ERROR("%p bind failed\n", rbo);
+		return r;
+	}
+	amdgpu_bo_unreserve(rbo);
+
 	afb->address = amdgpu_bo_gpu_offset(rbo);
 
 	amdgpu_bo_ref(rbo);

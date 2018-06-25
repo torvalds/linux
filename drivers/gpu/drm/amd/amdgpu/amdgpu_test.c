@@ -103,6 +103,11 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			DRM_ERROR("Failed to pin GTT object %d\n", i);
 			goto out_lclean_unres;
 		}
+		r = amdgpu_ttm_alloc_gart(&gtt_obj[i]->tbo);
+		if (r) {
+			DRM_ERROR("%p bind failed\n", gtt_obj[i]);
+			goto out_lclean_unpin;
+		}
 		gart_addr = amdgpu_bo_gpu_offset(gtt_obj[i]);
 
 		r = amdgpu_bo_kmap(gtt_obj[i], &gtt_map);

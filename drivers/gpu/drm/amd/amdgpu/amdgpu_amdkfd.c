@@ -280,6 +280,12 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 		goto allocate_mem_pin_bo_failed;
 	}
 
+	r = amdgpu_ttm_alloc_gart(&bo->tbo);
+	if (r) {
+		dev_err(adev->dev, "%p bind failed\n", bo);
+		goto allocate_mem_kmap_bo_failed;
+	}
+
 	r = amdgpu_bo_kmap(bo, &cpu_ptr_tmp);
 	if (r) {
 		dev_err(adev->dev,
