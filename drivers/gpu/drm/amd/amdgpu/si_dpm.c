@@ -7318,8 +7318,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	pi = &eg_pi->rv7xx;
 
 	si_pi->sys_pcie_mask =
-		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
-		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+		adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK;
 	si_pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(adev);
 
