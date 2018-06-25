@@ -671,13 +671,9 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			printk(smep_warning, from_kuid(&init_user_ns, current_uid()));
 	}
 
-	printk(KERN_ALERT "BUG: unable to handle kernel ");
-	if (address < PAGE_SIZE)
-		printk(KERN_CONT "NULL pointer dereference");
-	else
-		printk(KERN_CONT "paging request");
-
-	printk(KERN_CONT " at %px\n", (void *) address);
+	pr_alert("BUG: unable to handle kernel %s at %px\n",
+		 address < PAGE_SIZE ? "NULL pointer dereference" : "paging request",
+		 (void *)address);
 
 	dump_pagetable(address);
 }
