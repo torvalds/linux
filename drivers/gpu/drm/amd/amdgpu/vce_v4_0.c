@@ -60,9 +60,9 @@ static uint64_t vce_v4_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_RPTR));
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_RPTR2));
 	else
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_RPTR3));
@@ -82,9 +82,9 @@ static uint64_t vce_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 	if (ring->use_doorbell)
 		return adev->wb.wb[ring->wptr_offs];
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR));
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR2));
 	else
 		return RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR3));
@@ -108,10 +108,10 @@ static void vce_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 		return;
 	}
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR),
 			lower_32_bits(ring->wptr));
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_WPTR2),
 			lower_32_bits(ring->wptr));
 	else
@@ -1088,8 +1088,10 @@ static void vce_v4_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
+	for (i = 0; i < adev->vce.num_rings; i++) {
 		adev->vce.ring[i].funcs = &vce_v4_0_ring_vm_funcs;
+		adev->vce.ring[i].me = i;
+	}
 	DRM_INFO("VCE enabled in VM mode\n");
 }
 

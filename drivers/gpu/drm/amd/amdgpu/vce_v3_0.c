@@ -86,9 +86,9 @@ static uint64_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		v = RREG32(mmVCE_RB_RPTR);
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		v = RREG32(mmVCE_RB_RPTR2);
 	else
 		v = RREG32(mmVCE_RB_RPTR3);
@@ -118,9 +118,9 @@ static uint64_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		v = RREG32(mmVCE_RB_WPTR);
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		v = RREG32(mmVCE_RB_WPTR2);
 	else
 		v = RREG32(mmVCE_RB_WPTR3);
@@ -149,9 +149,9 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 	else if (adev->vce.harvest_config == AMDGPU_VCE_HARVEST_VCE0)
 		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
-	else if (ring == &adev->vce.ring[1])
+	else if (ring->me == 1)
 		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
 	else
 		WREG32(mmVCE_RB_WPTR3, lower_32_bits(ring->wptr));
@@ -942,12 +942,16 @@ static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 	int i;
 
 	if (adev->asic_type >= CHIP_STONEY) {
-		for (i = 0; i < adev->vce.num_rings; i++)
+		for (i = 0; i < adev->vce.num_rings; i++) {
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_vm_funcs;
+			adev->vce.ring[i].me = i;
+		}
 		DRM_INFO("VCE enabled in VM mode\n");
 	} else {
-		for (i = 0; i < adev->vce.num_rings; i++)
+		for (i = 0; i < adev->vce.num_rings; i++) {
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_phys_funcs;
+			adev->vce.ring[i].me = i;
+		}
 		DRM_INFO("VCE enabled in physical mode\n");
 	}
 }

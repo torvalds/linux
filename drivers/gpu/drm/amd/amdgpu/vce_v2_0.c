@@ -56,7 +56,7 @@ static uint64_t vce_v2_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(mmVCE_RB_RPTR);
 	else
 		return RREG32(mmVCE_RB_RPTR2);
@@ -73,7 +73,7 @@ static uint64_t vce_v2_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		return RREG32(mmVCE_RB_WPTR);
 	else
 		return RREG32(mmVCE_RB_WPTR2);
@@ -90,7 +90,7 @@ static void vce_v2_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (ring == &adev->vce.ring[0])
+	if (ring->me == 0)
 		WREG32(mmVCE_RB_WPTR, lower_32_bits(ring->wptr));
 	else
 		WREG32(mmVCE_RB_WPTR2, lower_32_bits(ring->wptr));
@@ -627,8 +627,10 @@ static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
+	for (i = 0; i < adev->vce.num_rings; i++) {
 		adev->vce.ring[i].funcs = &vce_v2_0_ring_funcs;
+		adev->vce.ring[i].me = i;
+	}
 }
 
 static const struct amdgpu_irq_src_funcs vce_v2_0_irq_funcs = {
