@@ -39,6 +39,12 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
+	# gt4's remote address is at $h3.555, not $h3. Thus the packets arriving
+	# directly to $h3 for test_gretap_untagged_egress() are rejected by
+	# rp_filter and the test spuriously fails.
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.$h3.rp_filter 0
+
 	vrf_prepare
 	mirror_gre_topo_create
 
@@ -65,6 +71,9 @@ cleanup()
 
 	mirror_gre_topo_destroy
 	vrf_cleanup
+
+	sysctl_restore net.ipv4.conf.$h3.rp_filter
+	sysctl_restore net.ipv4.conf.all.rp_filter
 }
 
 test_vlan_match()
