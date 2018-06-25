@@ -2335,15 +2335,10 @@ static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (shared) {
-			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-				atomic_inc(&q->shared_hctx_restart);
+		if (shared)
 			hctx->flags |= BLK_MQ_F_TAG_SHARED;
-		} else {
-			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-				atomic_dec(&q->shared_hctx_restart);
+		else
 			hctx->flags &= ~BLK_MQ_F_TAG_SHARED;
-		}
 	}
 }
 
@@ -2374,7 +2369,6 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 		blk_mq_update_tag_set_depth(set, false);
 	}
 	mutex_unlock(&set->tag_list_lock);
-	synchronize_rcu();
 	INIT_LIST_HEAD(&q->tag_set_list);
 }
 
