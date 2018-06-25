@@ -143,3 +143,4 @@ u-boot/
 uboot/
 cryptodev/*.md5
 tools/spi/include/
+scripts/kconfig/zconf.hash.c
