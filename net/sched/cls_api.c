@@ -277,18 +277,21 @@ static bool tcf_block_offload_in_use(struct tcf_block *block)
 static int tcf_block_offload_cmd(struct tcf_block *block,
 				 struct net_device *dev,
 				 struct tcf_block_ext_info *ei,
-				 enum tc_block_command command)
+				 enum tc_block_command command,
+				 struct netlink_ext_ack *extack)
 {
 	struct tc_block_offload bo = {};
 
 	bo.command = command;
 	bo.binder_type = ei->binder_type;
 	bo.block = block;
+	bo.extack = extack;
 	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 }
 
 static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
-				  struct tcf_block_ext_info *ei)
+				  struct tcf_block_ext_info *ei,
+				  struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = q->dev_queue->dev;
 	int err;
@@ -299,10 +302,12 @@ static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
 	/* If tc offload feature is disabled and the block we try to bind
 	 * to already has some offloaded filters, forbid to bind.
 	 */
-	if (!tc_can_offload(dev) && tcf_block_offload_in_use(block))
+	if (!tc_can_offload(dev) && tcf_block_offload_in_use(block)) {
+		NL_SET_ERR_MSG(extack, "Bind to offloaded block failed as dev has offload disabled");
 		return -EOPNOTSUPP;
+	}
 
-	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_BIND);
+	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_BIND, extack);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_inc;
 	return err;
@@ -322,7 +327,7 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 
 	if (!dev->netdev_ops->ndo_setup_tc)
 		goto no_offload_dev_dec;
-	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_UNBIND);
+	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_UNBIND, NULL);
 	if (err == -EOPNOTSUPP)
 		goto no_offload_dev_dec;
 	return;
@@ -612,7 +617,7 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	if (err)
 		goto err_chain_head_change_cb_add;
 
-	err = tcf_block_offload_bind(block, q, ei);
+	err = tcf_block_offload_bind(block, q, ei, extack);
 	if (err)
 		goto err_block_offload_bind;
 
@@ -748,7 +753,8 @@ EXPORT_SYMBOL(tcf_block_cb_decref);
 
 struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 					     tc_setup_cb_t *cb, void *cb_ident,
-					     void *cb_priv)
+					     void *cb_priv,
+					     struct netlink_ext_ack *extack)
 {
 	struct tcf_block_cb *block_cb;
 
@@ -772,11 +778,12 @@ EXPORT_SYMBOL(__tcf_block_cb_register);
 
 int tcf_block_cb_register(struct tcf_block *block,
 			  tc_setup_cb_t *cb, void *cb_ident,
-			  void *cb_priv)
+			  void *cb_priv, struct netlink_ext_ack *extack)
 {
 	struct tcf_block_cb *block_cb;
 
-	block_cb = __tcf_block_cb_register(block, cb, cb_ident, cb_priv);
+	block_cb = __tcf_block_cb_register(block, cb, cb_ident, cb_priv,
+					   extack);
 	return IS_ERR(block_cb) ? PTR_ERR(block_cb) : 0;
 }
 EXPORT_SYMBOL(tcf_block_cb_register);

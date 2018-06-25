@@ -206,7 +206,7 @@ static int nfp_bpf_setup_tc_block(struct net_device *netdev,
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
 					     nfp_bpf_setup_tc_block_cb,
-					     nn, nn);
+					     nn, nn, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					nfp_bpf_setup_tc_block_cb,
