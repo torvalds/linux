@@ -14,9 +14,9 @@ static bool _is_best_half_div(unsigned long rate, unsigned long now,
 			      unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) < abs(rate - best);
+		return abs(rate - now) <= abs(rate - best);
 
-	return now <= rate && now > best;
+	return now <= rate && now >= best;
 }
 
 static unsigned long clk_half_divider_recalc_rate(struct clk_hw *hw,
@@ -38,7 +38,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned int i, bestdiv = 0;
 	unsigned long parent_rate, best = 0, now, maxdiv;
-	unsigned long parent_rate_saved = *best_parent_rate;
+	bool is_bestdiv = false;
 
 	if (!rate)
 		rate = 1;
@@ -51,7 +51,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		if (bestdiv < 3)
 			bestdiv = 0;
 		else
-			bestdiv = (bestdiv - 3) / 2;
+			bestdiv = DIV_ROUND_UP(bestdiv - 3, 2);
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
 		return bestdiv;
 	}
@@ -63,28 +63,20 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	maxdiv = min(ULONG_MAX / rate, maxdiv);
 
 	for (i = 0; i <= maxdiv; i++) {
-		if (((u64)rate * (i * 2 + 3)) == ((u64)parent_rate_saved * 2)) {
-			/*
-			 * It's the most ideal case if the requested rate can be
-			 * divided from parent clock without needing to change
-			 * parent rate, so return the divider immediately.
-			 */
-			*best_parent_rate = parent_rate_saved;
-			return i;
-		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 						((u64)rate * (i * 2 + 3)) / 2);
 		now = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
 				       (i * 2 + 3));
 
 		if (_is_best_half_div(rate, now, best, flags)) {
+			is_bestdiv = true;
 			bestdiv = i;
 			best = now;
 			*best_parent_rate = parent_rate;
 		}
 	}
 
-	if (!bestdiv) {
+	if (!is_bestdiv) {
 		bestdiv = div_mask(width);
 		*best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}
@@ -114,7 +106,7 @@ static int clk_half_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 val;
 
 	value = DIV_ROUND_UP_ULL(((u64)parent_rate * 2), rate);
-	value = (value - 3) / 2;
+	value = DIV_ROUND_UP(value - 3, 2);
 	value =  min_t(unsigned int, value, div_mask(divider->width));
 
 	if (divider->lock)
