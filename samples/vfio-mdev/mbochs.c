@@ -811,11 +811,18 @@ static void *mbochs_kmap_dmabuf(struct dma_buf *buf, unsigned long page_num)
 	return kmap(page);
 }
 
+static void mbochs_kunmap_dmabuf(struct dma_buf *buf, unsigned long page_num,
+				 void *vaddr)
+{
+	kunmap(vaddr);
+}
+
 static struct dma_buf_ops mbochs_dmabuf_ops = {
 	.map_dma_buf	  = mbochs_map_dmabuf,
 	.unmap_dma_buf	  = mbochs_unmap_dmabuf,
 	.release	  = mbochs_release_dmabuf,
 	.map		  = mbochs_kmap_dmabuf,
+	.unmap		  = mbochs_kunmap_dmabuf,
 	.mmap		  = mbochs_mmap_dmabuf,
 };
 
