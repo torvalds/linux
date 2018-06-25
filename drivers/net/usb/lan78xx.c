@@ -3052,8 +3052,13 @@ static void lan78xx_rx_csum_offload(struct lan78xx_net *dev,
 				    struct sk_buff *skb,
 				    u32 rx_cmd_a, u32 rx_cmd_b)
 {
+	/* HW Checksum offload appears to be flawed if used when not stripping
+	 * VLAN headers. Drop back to S/W checksums under these conditions.
+	 */
 	if (!(dev->net->features & NETIF_F_RXCSUM) ||
-	    unlikely(rx_cmd_a & RX_CMD_A_ICSM_)) {
+	    unlikely(rx_cmd_a & RX_CMD_A_ICSM_) ||
+	    ((rx_cmd_a & RX_CMD_A_FVTG_) &&
+	     !(dev->net->features & NETIF_F_HW_VLAN_CTAG_RX))) {
 		skb->ip_summed = CHECKSUM_NONE;
 	} else {
 		skb->csum = ntohs((u16)(rx_cmd_b >> RX_CMD_B_CSUM_SHIFT_));
