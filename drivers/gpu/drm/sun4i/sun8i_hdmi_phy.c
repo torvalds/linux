@@ -491,7 +491,8 @@ int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 			}
 		}
 
-		ret = sun8i_phy_clk_create(phy, dev);
+		ret = sun8i_phy_clk_create(phy, dev,
+					   phy->variant->has_second_pll);
 		if (ret) {
 			dev_err(dev, "Couldn't create the PHY clock\n");
 			goto err_put_clk_pll1;
