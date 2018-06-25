@@ -134,10 +134,12 @@ pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
 
 #ifdef CONFIG_ACPI_NUMA
 int arm64_acpi_numa_init(void);
-int acpi_numa_get_nid(unsigned int cpu, u64 hwid);
+int acpi_numa_get_nid(unsigned int cpu);
+void acpi_map_cpus_to_nodes(void);
 #else
 static inline int arm64_acpi_numa_init(void) { return -ENOSYS; }
-static inline int acpi_numa_get_nid(unsigned int cpu, u64 hwid) { return NUMA_NO_NODE; }
+static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_NO_NODE; }
+static inline void acpi_map_cpus_to_nodes(void) { }
 #endif /* CONFIG_ACPI_NUMA */
 
 #define ACPI_TABLE_UPGRADE_MAX_PHYS MEMBLOCK_ALLOC_ACCESSIBLE
