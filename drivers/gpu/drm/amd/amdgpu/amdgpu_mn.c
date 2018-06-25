@@ -58,7 +58,8 @@
  *
  * @adev: amdgpu device pointer
  * @mm: process address space
- * @mn: MMU notifier structur
+ * @mn: MMU notifier structure
+ * @type: type of MMU notifier
  * @work: destruction work item
  * @node: hash table node to find structure by adev and mn
  * @lock: rw semaphore protecting the notifier nodes
@@ -266,7 +267,7 @@ static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
  * amdgpu_mn_invalidate_range_start_hsa - callback to notify about mm change
  *
  * @mn: our notifier
- * @mn: the mm this callback is about
+ * @mm: the mm this callback is about
  * @start: start of updated range
  * @end: end of updated range
  *
