@@ -1659,11 +1659,6 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	else
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 
-	if (fbc->work.scheduled)
-		seq_printf(m, "FBC worker scheduled on vblank %llu, now %llu\n",
-			   fbc->work.scheduled_vblank,
-			   drm_crtc_vblank_count(&fbc->crtc->base));
-
 	if (intel_fbc_is_active(dev_priv)) {
 		u32 mask;
 

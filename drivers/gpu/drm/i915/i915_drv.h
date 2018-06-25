@@ -580,12 +580,6 @@ struct intel_fbc {
 		unsigned int gen9_wa_cfb_stride;
 	} params;
 
-	struct intel_fbc_work {
-		bool scheduled;
-		u64 scheduled_vblank;
-		struct work_struct work;
-	} work;
-
 	const char *no_fbc_reason;
 };
 
