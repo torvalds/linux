@@ -525,6 +525,8 @@ kci_test_macsec()
 #-------------------------------------------------------------------
 kci_test_ipsec()
 {
+	ret=0
+
 	# find an ip address on this machine and make up a destination
 	srcip=`ip -o addr | awk '/inet / { print $4; }' | grep -v "^127" | head -1 | cut -f1 -d/`
 	net=`echo $srcip | cut -f1-3 -d.`
