@@ -402,6 +402,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 
 		/* Process FCP command */
 		if (rc == 0) {
+			ctxp->rqb_buffer = NULL;
 			atomic_inc(&tgtp->rcv_fcp_cmd_out);
 			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
 			return;
@@ -1116,8 +1117,17 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
 			 ctxp->oxid, ctxp->size, smp_processor_id());
 
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+				"6425 Defer rcv: no buffer xri x%x: "
+				"flg %x ste %x\n",
+				ctxp->oxid, ctxp->flag, ctxp->state);
+		return;
+	}
+
 	tgtp = phba->targetport->private;
-	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
+	if (tgtp)
+		atomic_inc(&tgtp->rcv_fcp_cmd_defer);
 
 	/* Free the nvmebuf since a new buffer already replaced it */
 	nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
