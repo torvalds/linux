@@ -509,7 +509,7 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 		return ERR_PTR(err);
 
 	tcpci->port = tcpm_register_port(tcpci->dev, &tcpci->tcpc);
-	if (PTR_ERR_OR_ZERO(tcpci->port))
+	if (IS_ERR(tcpci->port))
 		return ERR_CAST(tcpci->port);
 
 	return tcpci;
@@ -551,7 +551,7 @@ static int tcpci_probe(struct i2c_client *client,
 		return err;
 
 	chip->tcpci = tcpci_register_port(&client->dev, &chip->data);
-	if (PTR_ERR_OR_ZERO(chip->tcpci))
+	if (IS_ERR(chip->tcpci))
 		return PTR_ERR(chip->tcpci);
 
 	i2c_set_clientdata(client, chip);
