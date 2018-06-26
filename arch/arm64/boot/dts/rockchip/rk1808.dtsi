@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd.
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "rockchip,rk1808";
+
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial2 = &uart2;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a35", "arm,armv8";
+			reg = <0x0 0x0>;
+			clocks = <&cru ARMCLK>;
+		};
+	};
+
+	arm-pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH 0>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW 0>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW 0>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW 0>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW 0>;
+	};
+
+	gic: interrupt-controller@ff100000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <4>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+
+		reg = <0x0 0xff100000 0 0x10000>, /* GICD */
+		      <0x0 0xff140000 0 0xc0000>, /* GICR */
+		      <0x0 0xff300000 0 0x10000>, /* GICC */
+		      <0x0 0xff310000 0 0x10000>, /* GICH */
+		      <0x0 0xff320000 0 0x10000>; /* GICV */
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
+		its: interrupt-controller@ff120000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xff120000 0x0 0x20000>;
+		};
+		ppi-partitions {
+			ppi_cluster0: interrupt-partition-0 {
+				affinity = <&cpu0>;
+			};
+		};
+	};
+
+	cru: clock-controller@ff350000 {
+		compatible = "rockchip,rk1808-cru";
+		reg = <0x0 0xff350000 0x0 0x1000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+
+	grf: syscon@ff360000 {
+		compatible = "rockchip,rk1808-grf", "syscon", "simple-mfd";
+		reg = <0x0 0xff360000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	pmugrf: syscon@ff3f0000 {
+		compatible = "rockchip,rk1808-pmugrf", "syscon", "simple-mfd";
+		reg = <0x0 0xff3f0000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	pmucru: pmu-clock-controller@ff4d0000 {
+		compatible = "rockchip,rk1808-pmucru";
+		reg = <0x0 0xff4d0000 0x0 0x1000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+
+	amba {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dmac: dmac@ff4e0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x0 0xff4e0000 0x0 0x4000>;
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&cru ACLK_DMAC>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			peripherals-req-type-burst;
+		};
+	};
+
+	uart2: serial@ff550000 {
+		compatible = "rockchip,rk1808-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff550000 0x0 0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH 0>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "disabled";
+	};
+};
