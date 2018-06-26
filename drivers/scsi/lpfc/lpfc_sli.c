@@ -9117,8 +9117,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		}
 		/* Note, word 10 is already initialized to 0 */
 
-		/* Don't set PBDE for Perf hints, just fcp_embed_pbde */
-		if (phba->fcp_embed_pbde)
+		/* Don't set PBDE for Perf hints, just lpfc_enable_pbde */
+		if (phba->cfg_enable_pbde)
 			bf_set(wqe_pbde, &wqe->fcp_iwrite.wqe_com, 1);
 		else
 			bf_set(wqe_pbde, &wqe->fcp_iwrite.wqe_com, 0);
@@ -9181,8 +9181,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		}
 		/* Note, word 10 is already initialized to 0 */
 
-		/* Don't set PBDE for Perf hints, just fcp_embed_pbde */
-		if (phba->fcp_embed_pbde)
+		/* Don't set PBDE for Perf hints, just lpfc_enable_pbde */
+		if (phba->cfg_enable_pbde)
 			bf_set(wqe_pbde, &wqe->fcp_iread.wqe_com, 1);
 		else
 			bf_set(wqe_pbde, &wqe->fcp_iread.wqe_com, 0);

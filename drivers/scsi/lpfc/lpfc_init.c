@@ -10673,18 +10673,10 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
 	}
 
-	/* Only embed PBDE for if_type 6 */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
-	    LPFC_SLI_INTF_IF_TYPE_6) {
-		phba->fcp_embed_pbde = 1;
-		phba->nvme_embed_pbde = 1;
-	}
-
-	/* PBDE support requires xib be set */
-	if (!bf_get(cfg_xib, mbx_sli4_parameters)) {
-		phba->fcp_embed_pbde = 0;
-		phba->nvme_embed_pbde = 0;
-	}
+	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_6) || (!bf_get(cfg_xib, mbx_sli4_parameters)))
+		phba->cfg_enable_pbde = 0;
 
 	/*
 	 * To support Suppress Response feature we must satisfy 3 conditions.
@@ -10718,10 +10710,10 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcp_embed_io = 0;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
-			"6422 XIB %d: FCP %d %d NVME %d %d %d %d\n",
+			"6422 XIB %d PBDE %d: FCP %d NVME %d %d %d\n",
 			bf_get(cfg_xib, mbx_sli4_parameters),
-			phba->fcp_embed_pbde, phba->fcp_embed_io,
-			phba->nvme_support, phba->nvme_embed_pbde,
+			phba->cfg_enable_pbde,
+			phba->fcp_embed_io, phba->nvme_support,
 			phba->cfg_nvme_embed_cmd, phba->cfg_suppress_rsp);
 
 	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==

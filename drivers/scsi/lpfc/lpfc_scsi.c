@@ -3311,12 +3311,13 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		}
 		/*
 		 * Setup the first Payload BDE. For FCoE we just key off
-		 * Performance Hints, for FC we utilize fcp_embed_pbde.
+		 * Performance Hints, for FC we use lpfc_enable_pbde.
+		 * We populate words 13-15 of IOCB/WQE.
 		 */
 		if ((phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) ||
-		    phba->fcp_embed_pbde) {
+		    phba->cfg_enable_pbde) {
 			bde = (struct ulp_bde64 *)
-					&(iocb_cmd->unsli3.sli3Words[5]);
+				&(iocb_cmd->unsli3.sli3Words[5]);
 			bde->addrLow = first_data_sgl->addr_lo;
 			bde->addrHigh = first_data_sgl->addr_hi;
 			bde->tus.f.bdeSize =
@@ -3330,6 +3331,13 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		sgl->word2 = le32_to_cpu(sgl->word2);
 		bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
+
+		if ((phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) ||
+		    phba->cfg_enable_pbde) {
+			bde = (struct ulp_bde64 *)
+				&(iocb_cmd->unsli3.sli3Words[5]);
+			memset(bde, 0, (sizeof(uint32_t) * 3));
+		}
 	}
 
 	/*

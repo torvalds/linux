@@ -2493,7 +2493,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(wqe_xc, &wqe->fcp_treceive.wqe_com, 0);
 
 		/* Word 11 - set pbde later */
-		if (phba->nvme_embed_pbde) {
+		if (phba->cfg_enable_pbde) {
 			do_pbde = 1;
 		} else {
 			bf_set(wqe_pbde, &wqe->fcp_treceive.wqe_com, 0);
@@ -2608,16 +2608,19 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(cnt);
-		if (do_pbde && i == 0) {
+		if (i == 0) {
 			bde = (struct ulp_bde64 *)&wqe->words[13];
-			memset(bde, 0, sizeof(struct ulp_bde64));
-			/* Words 13-15  (PBDE)*/
-			bde->addrLow = sgl->addr_lo;
-			bde->addrHigh = sgl->addr_hi;
-			bde->tus.f.bdeSize =
-				le32_to_cpu(sgl->sge_len);
-			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
-			bde->tus.w = cpu_to_le32(bde->tus.w);
+			if (do_pbde) {
+				/* Words 13-15  (PBDE) */
+				bde->addrLow = sgl->addr_lo;
+				bde->addrHigh = sgl->addr_hi;
+				bde->tus.f.bdeSize =
+					le32_to_cpu(sgl->sge_len);
+				bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+				bde->tus.w = cpu_to_le32(bde->tus.w);
+			} else {
+				memset(bde, 0, sizeof(struct ulp_bde64));
+			}
 		}
 		sgl++;
 		ctxp->offset += cnt;

@@ -840,8 +840,7 @@ struct lpfc_hba {
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
-	uint32_t nvme_embed_pbde;
-	uint32_t fcp_embed_pbde;
+	uint32_t cfg_enable_pbde;
 	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
