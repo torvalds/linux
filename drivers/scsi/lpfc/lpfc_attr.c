@@ -64,6 +64,9 @@
 #define LPFC_MIN_MRQ_POST	512
 #define LPFC_MAX_MRQ_POST	2048
 
+#define LPFC_MAX_NVME_INFO_TMP_LEN	100
+#define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
+
 /*
  * Write key size should be multiple of 4. If write key is changed
  * make sure that library write key is also changed.
@@ -158,14 +161,15 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	char *statep;
 	int i;
 	int len = 0;
+	char tmp[LPFC_MAX_NVME_INFO_TMP_LEN] = {0};
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
-		len += snprintf(buf, PAGE_SIZE, "NVME Disabled\n");
+		len = scnprintf(buf, PAGE_SIZE, "NVME Disabled\n");
 		return len;
 	}
 	if (phba->nvmet_support) {
 		if (!phba->targetport) {
-			len = snprintf(buf, PAGE_SIZE,
+			len = scnprintf(buf, PAGE_SIZE,
 					"NVME Target: x%llx is not allocated\n",
 					wwn_to_u64(vport->fc_portname.u.wwn));
 			return len;
@@ -175,135 +179,169 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			statep = "REGISTERED";
 		else
 			statep = "INIT";
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"NVME Target Enabled  State %s\n",
-				statep);
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"%s%d WWPN x%llx WWNN x%llx DID x%06x\n",
-				"NVME Target: lpfc",
-				phba->brd_no,
-				wwn_to_u64(vport->fc_portname.u.wwn),
-				wwn_to_u64(vport->fc_nodename.u.wwn),
-				phba->targetport->port_id);
+		scnprintf(tmp, sizeof(tmp),
+			  "NVME Target Enabled  State %s\n",
+			  statep);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"\nNVME Target: Statistics\n");
+		scnprintf(tmp, sizeof(tmp),
+			  "%s%d WWPN x%llx WWNN x%llx DID x%06x\n",
+			  "NVME Target: lpfc",
+			  phba->brd_no,
+			  wwn_to_u64(vport->fc_portname.u.wwn),
+			  wwn_to_u64(vport->fc_nodename.u.wwn),
+			  phba->targetport->port_id);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+
+		if (strlcat(buf, "\nNVME Target: Statistics\n", PAGE_SIZE)
+		    >= PAGE_SIZE)
+			goto buffer_done;
+
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"LS: Rcv %08x Drop %08x Abort %08x\n",
-				atomic_read(&tgtp->rcv_ls_req_in),
-				atomic_read(&tgtp->rcv_ls_req_drop),
-				atomic_read(&tgtp->xmt_ls_abort));
+		scnprintf(tmp, sizeof(tmp),
+			  "LS: Rcv %08x Drop %08x Abort %08x\n",
+			  atomic_read(&tgtp->rcv_ls_req_in),
+			  atomic_read(&tgtp->rcv_ls_req_drop),
+			  atomic_read(&tgtp->xmt_ls_abort));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+
 		if (atomic_read(&tgtp->rcv_ls_req_in) !=
 		    atomic_read(&tgtp->rcv_ls_req_out)) {
-			len += snprintf(buf+len, PAGE_SIZE-len,
-					"Rcv LS: in %08x != out %08x\n",
-					atomic_read(&tgtp->rcv_ls_req_in),
-					atomic_read(&tgtp->rcv_ls_req_out));
+			scnprintf(tmp, sizeof(tmp),
+				  "Rcv LS: in %08x != out %08x\n",
+				  atomic_read(&tgtp->rcv_ls_req_in),
+				  atomic_read(&tgtp->rcv_ls_req_out));
+			if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
 		}
 
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"LS: Xmt %08x Drop %08x Cmpl %08x\n",
-				atomic_read(&tgtp->xmt_ls_rsp),
-				atomic_read(&tgtp->xmt_ls_drop),
-				atomic_read(&tgtp->xmt_ls_rsp_cmpl));
+		scnprintf(tmp, sizeof(tmp),
+			  "LS: Xmt %08x Drop %08x Cmpl %08x\n",
+			  atomic_read(&tgtp->xmt_ls_rsp),
+			  atomic_read(&tgtp->xmt_ls_drop),
+			  atomic_read(&tgtp->xmt_ls_rsp_cmpl));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"LS: RSP Abort %08x xb %08x Err %08x\n",
-				atomic_read(&tgtp->xmt_ls_rsp_aborted),
-				atomic_read(&tgtp->xmt_ls_rsp_xb_set),
-				atomic_read(&tgtp->xmt_ls_rsp_error));
+		scnprintf(tmp, sizeof(tmp),
+			  "LS: RSP Abort %08x xb %08x Err %08x\n",
+			  atomic_read(&tgtp->xmt_ls_rsp_aborted),
+			  atomic_read(&tgtp->xmt_ls_rsp_xb_set),
+			  atomic_read(&tgtp->xmt_ls_rsp_error));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP: Rcv %08x Defer %08x Release %08x "
-				"Drop %08x\n",
-				atomic_read(&tgtp->rcv_fcp_cmd_in),
-				atomic_read(&tgtp->rcv_fcp_cmd_defer),
-				atomic_read(&tgtp->xmt_fcp_release),
-				atomic_read(&tgtp->rcv_fcp_cmd_drop));
+		scnprintf(tmp, sizeof(tmp),
+			  "FCP: Rcv %08x Defer %08x Release %08x "
+			  "Drop %08x\n",
+			  atomic_read(&tgtp->rcv_fcp_cmd_in),
+			  atomic_read(&tgtp->rcv_fcp_cmd_defer),
+			  atomic_read(&tgtp->xmt_fcp_release),
+			  atomic_read(&tgtp->rcv_fcp_cmd_drop));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
 		if (atomic_read(&tgtp->rcv_fcp_cmd_in) !=
 		    atomic_read(&tgtp->rcv_fcp_cmd_out)) {
-			len += snprintf(buf+len, PAGE_SIZE-len,
-					"Rcv FCP: in %08x != out %08x\n",
-					atomic_read(&tgtp->rcv_fcp_cmd_in),
-					atomic_read(&tgtp->rcv_fcp_cmd_out));
+			scnprintf(tmp, sizeof(tmp),
+				  "Rcv FCP: in %08x != out %08x\n",
+				  atomic_read(&tgtp->rcv_fcp_cmd_in),
+				  atomic_read(&tgtp->rcv_fcp_cmd_out));
+			if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
 		}
 
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x "
-				"drop %08x\n",
-				atomic_read(&tgtp->xmt_fcp_read),
-				atomic_read(&tgtp->xmt_fcp_read_rsp),
-				atomic_read(&tgtp->xmt_fcp_write),
-				atomic_read(&tgtp->xmt_fcp_rsp),
-				atomic_read(&tgtp->xmt_fcp_drop));
+		scnprintf(tmp, sizeof(tmp),
+			  "FCP Rsp: RD %08x rsp %08x WR %08x rsp %08x "
+			  "drop %08x\n",
+			  atomic_read(&tgtp->xmt_fcp_read),
+			  atomic_read(&tgtp->xmt_fcp_read_rsp),
+			  atomic_read(&tgtp->xmt_fcp_write),
+			  atomic_read(&tgtp->xmt_fcp_rsp),
+			  atomic_read(&tgtp->xmt_fcp_drop));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp Cmpl: %08x err %08x drop %08x\n",
-				atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
-				atomic_read(&tgtp->xmt_fcp_rsp_error),
-				atomic_read(&tgtp->xmt_fcp_rsp_drop));
+		scnprintf(tmp, sizeof(tmp),
+			  "FCP Rsp Cmpl: %08x err %08x drop %08x\n",
+			  atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
+			  atomic_read(&tgtp->xmt_fcp_rsp_error),
+			  atomic_read(&tgtp->xmt_fcp_rsp_drop));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP Rsp Abort: %08x xb %08x xricqe  %08x\n",
-				atomic_read(&tgtp->xmt_fcp_rsp_aborted),
-				atomic_read(&tgtp->xmt_fcp_rsp_xb_set),
-				atomic_read(&tgtp->xmt_fcp_xri_abort_cqe));
+		scnprintf(tmp, sizeof(tmp),
+			  "FCP Rsp Abort: %08x xb %08x xricqe  %08x\n",
+			  atomic_read(&tgtp->xmt_fcp_rsp_aborted),
+			  atomic_read(&tgtp->xmt_fcp_rsp_xb_set),
+			  atomic_read(&tgtp->xmt_fcp_xri_abort_cqe));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"ABORT: Xmt %08x Cmpl %08x\n",
-				atomic_read(&tgtp->xmt_fcp_abort),
-				atomic_read(&tgtp->xmt_fcp_abort_cmpl));
+		scnprintf(tmp, sizeof(tmp),
+			  "ABORT: Xmt %08x Cmpl %08x\n",
+			  atomic_read(&tgtp->xmt_fcp_abort),
+			  atomic_read(&tgtp->xmt_fcp_abort_cmpl));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"ABORT: Sol %08x  Usol %08x Err %08x Cmpl %08x",
-				atomic_read(&tgtp->xmt_abort_sol),
-				atomic_read(&tgtp->xmt_abort_unsol),
-				atomic_read(&tgtp->xmt_abort_rsp),
-				atomic_read(&tgtp->xmt_abort_rsp_error));
+		scnprintf(tmp, sizeof(tmp),
+			  "ABORT: Sol %08x  Usol %08x Err %08x Cmpl %08x\n",
+			  atomic_read(&tgtp->xmt_abort_sol),
+			  atomic_read(&tgtp->xmt_abort_unsol),
+			  atomic_read(&tgtp->xmt_abort_rsp),
+			  atomic_read(&tgtp->xmt_abort_rsp_error));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"DELAY: ctx %08x  fod %08x wqfull %08x\n",
-				atomic_read(&tgtp->defer_ctx),
-				atomic_read(&tgtp->defer_fod),
-				atomic_read(&tgtp->defer_wqfull));
+		scnprintf(tmp, sizeof(tmp),
+			  "DELAY: ctx %08x  fod %08x wqfull %08x\n",
+			  atomic_read(&tgtp->defer_ctx),
+			  atomic_read(&tgtp->defer_fod),
+			  atomic_read(&tgtp->defer_wqfull));
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
 		/* Calculate outstanding IOs */
 		tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
 		tot += atomic_read(&tgtp->xmt_fcp_release);
 		tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"
-				"CTX Outstanding %08llx\n",
-				phba->sli4_hba.nvmet_xri_cnt,
-				phba->sli4_hba.nvmet_io_wait_cnt,
-				phba->sli4_hba.nvmet_io_wait_total,
-				tot);
-
-		len +=  snprintf(buf+len, PAGE_SIZE-len, "\n");
-		return len;
+		scnprintf(tmp, sizeof(tmp),
+			  "IO_CTX: %08x  WAIT: cur %08x tot %08x\n"
+			  "CTX Outstanding %08llx\n\n",
+			  phba->sli4_hba.nvmet_xri_cnt,
+			  phba->sli4_hba.nvmet_io_wait_cnt,
+			  phba->sli4_hba.nvmet_io_wait_total,
+			  tot);
+		strlcat(buf, tmp, PAGE_SIZE);
+		goto buffer_done;
 	}
 
 	localport = vport->localport;
 	if (!localport) {
-		len = snprintf(buf, PAGE_SIZE,
+		len = scnprintf(buf, PAGE_SIZE,
 				"NVME Initiator x%llx is not allocated\n",
 				wwn_to_u64(vport->fc_portname.u.wwn));
 		return len;
 	}
 	lport = (struct lpfc_nvme_lport *)localport->private;
-	len = snprintf(buf, PAGE_SIZE, "NVME Initiator Enabled\n");
+	if (strlcat(buf, "\nNVME Initiator Enabled\n", PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
-	spin_lock_irq(shost->host_lock);
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"XRI Dist lpfc%d Total %d NVME %d SCSI %d ELS %d\n",
-			phba->brd_no,
-			phba->sli4_hba.max_cfg_param.max_xri,
-			phba->sli4_hba.nvme_xri_max,
-			phba->sli4_hba.scsi_xri_max,
-			lpfc_sli4_get_els_iocb_cnt(phba));
+	rcu_read_lock();
+	scnprintf(tmp, sizeof(tmp),
+		  "XRI Dist lpfc%d Total %d NVME %d SCSI %d ELS %d\n",
+		  phba->brd_no,
+		  phba->sli4_hba.max_cfg_param.max_xri,
+		  phba->sli4_hba.nvme_xri_max,
+		  phba->sli4_hba.scsi_xri_max,
+		  lpfc_sli4_get_els_iocb_cnt(phba));
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
 	/* Port state is only one of two values for now. */
 	if (localport->port_id)
@@ -311,13 +349,15 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	else
 		statep = "UNKNOWN ";
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"%s%d WWPN x%llx WWNN x%llx DID x%06x %s\n",
-			"NVME LPORT lpfc",
-			phba->brd_no,
-			wwn_to_u64(vport->fc_portname.u.wwn),
-			wwn_to_u64(vport->fc_nodename.u.wwn),
-			localport->port_id, statep);
+	scnprintf(tmp, sizeof(tmp),
+		  "%s%d WWPN x%llx WWNN x%llx DID x%06x %s\n",
+		  "NVME LPORT lpfc",
+		  phba->brd_no,
+		  wwn_to_u64(vport->fc_portname.u.wwn),
+		  wwn_to_u64(vport->fc_nodename.u.wwn),
+		  localport->port_id, statep);
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		rport = lpfc_ndlp_get_nrport(ndlp);
@@ -343,56 +383,77 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		}
 
 		/* Tab in to show lport ownership. */
-		len += snprintf(buf + len, PAGE_SIZE - len,
-				"NVME RPORT       ");
-		if (phba->brd_no >= 10)
-			len += snprintf(buf + len, PAGE_SIZE - len, " ");
+		if (strlcat(buf, "NVME RPORT       ", PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+		if (phba->brd_no >= 10) {
+			if (strlcat(buf, " ", PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
+		}
 
-		len += snprintf(buf + len, PAGE_SIZE - len, "WWPN x%llx ",
-				nrport->port_name);
-		len += snprintf(buf + len, PAGE_SIZE - len, "WWNN x%llx ",
-				nrport->node_name);
-		len += snprintf(buf + len, PAGE_SIZE - len, "DID x%06x ",
-				nrport->port_id);
+		scnprintf(tmp, sizeof(tmp), "WWPN x%llx ",
+			  nrport->port_name);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+
+		scnprintf(tmp, sizeof(tmp), "WWNN x%llx ",
+			  nrport->node_name);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
+
+		scnprintf(tmp, sizeof(tmp), "DID x%06x ",
+			  nrport->port_id);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 
 		/* An NVME rport can have multiple roles. */
-		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR)
-			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "INITIATOR ");
-		if (nrport->port_role & FC_PORT_ROLE_NVME_TARGET)
-			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "TARGET ");
-		if (nrport->port_role & FC_PORT_ROLE_NVME_DISCOVERY)
-			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "DISCSRVC ");
+		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR) {
+			if (strlcat(buf, "INITIATOR ", PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
+		}
+		if (nrport->port_role & FC_PORT_ROLE_NVME_TARGET) {
+			if (strlcat(buf, "TARGET ", PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
+		}
+		if (nrport->port_role & FC_PORT_ROLE_NVME_DISCOVERY) {
+			if (strlcat(buf, "DISCSRVC ", PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
+		}
 		if (nrport->port_role & ~(FC_PORT_ROLE_NVME_INITIATOR |
 					  FC_PORT_ROLE_NVME_TARGET |
-					  FC_PORT_ROLE_NVME_DISCOVERY))
-			len +=  snprintf(buf + len, PAGE_SIZE - len,
-					 "UNKNOWN ROLE x%x",
-					 nrport->port_role);
+					  FC_PORT_ROLE_NVME_DISCOVERY)) {
+			scnprintf(tmp, sizeof(tmp), "UNKNOWN ROLE x%x",
+				  nrport->port_role);
+			if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+				goto buffer_done;
+		}
 
-		len +=  snprintf(buf + len, PAGE_SIZE - len, "%s  ", statep);
-		/* Terminate the string. */
-		len +=  snprintf(buf + len, PAGE_SIZE - len, "\n");
+		scnprintf(tmp, sizeof(tmp), "%s\n", statep);
+		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+			goto buffer_done;
 	}
-	spin_unlock_irq(shost->host_lock);
+	rcu_read_unlock();
 
 	if (!lport)
-		return len;
+		goto buffer_done;
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
-	len += snprintf(buf+len, PAGE_SIZE-len,
-			"LS: Xmt %010x Cmpl %010x Abort %08x\n",
-			atomic_read(&lport->fc4NvmeLsRequests),
-			atomic_read(&lport->fc4NvmeLsCmpls),
-			atomic_read(&lport->xmt_ls_abort));
+	if (strlcat(buf, "\nNVME Statistics\n", PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"LS XMIT: Err %08x  CMPL: xb %08x Err %08x\n",
-			atomic_read(&lport->xmt_ls_err),
-			atomic_read(&lport->cmpl_ls_xb),
-			atomic_read(&lport->cmpl_ls_err));
+	scnprintf(tmp, sizeof(tmp),
+		  "LS: Xmt %010x Cmpl %010x Abort %08x\n",
+		  atomic_read(&lport->fc4NvmeLsRequests),
+		  atomic_read(&lport->fc4NvmeLsCmpls),
+		  atomic_read(&lport->xmt_ls_abort));
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
+
+	scnprintf(tmp, sizeof(tmp),
+		  "LS XMIT: Err %08x  CMPL: xb %08x Err %08x\n",
+		  atomic_read(&lport->xmt_ls_err),
+		  atomic_read(&lport->cmpl_ls_xb),
+		  atomic_read(&lport->cmpl_ls_err));
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
 	totin = 0;
 	totout = 0;
@@ -405,25 +466,46 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		data3 = atomic_read(&cstat->fc4NvmeControlRequests);
 		totout += (data1 + data2 + data3);
 	}
-	len += snprintf(buf+len, PAGE_SIZE-len,
-			"Total FCP Cmpl %016llx Issue %016llx "
-			"OutIO %016llx\n",
-			totin, totout, totout - totin);
+	scnprintf(tmp, sizeof(tmp),
+		  "Total FCP Cmpl %016llx Issue %016llx "
+		  "OutIO %016llx\n",
+		  totin, totout, totout - totin);
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
-	len += snprintf(buf+len, PAGE_SIZE-len,
-			"      abort %08x noxri %08x nondlp %08x qdepth %08x "
-			"wqerr %08x err %08x\n",
-			atomic_read(&lport->xmt_fcp_abort),
-			atomic_read(&lport->xmt_fcp_noxri),
-			atomic_read(&lport->xmt_fcp_bad_ndlp),
-			atomic_read(&lport->xmt_fcp_qdepth),
-			atomic_read(&lport->xmt_fcp_err),
-			atomic_read(&lport->xmt_fcp_wqerr));
+	scnprintf(tmp, sizeof(tmp),
+		  "\tabort %08x noxri %08x nondlp %08x qdepth %08x "
+		  "wqerr %08x err %08x\n",
+		  atomic_read(&lport->xmt_fcp_abort),
+		  atomic_read(&lport->xmt_fcp_noxri),
+		  atomic_read(&lport->xmt_fcp_bad_ndlp),
+		  atomic_read(&lport->xmt_fcp_qdepth),
+		  atomic_read(&lport->xmt_fcp_err),
+		  atomic_read(&lport->xmt_fcp_wqerr));
+	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
+		goto buffer_done;
 
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"FCP CMPL: xb %08x Err %08x\n",
-			atomic_read(&lport->cmpl_fcp_xb),
-			atomic_read(&lport->cmpl_fcp_err));
+	scnprintf(tmp, sizeof(tmp),
+		  "FCP CMPL: xb %08x Err %08x\n",
+		  atomic_read(&lport->cmpl_fcp_xb),
+		  atomic_read(&lport->cmpl_fcp_err));
+	strlcat(buf, tmp, PAGE_SIZE);
+
+buffer_done:
+	len = strnlen(buf, PAGE_SIZE);
+
+	if (unlikely(len >= (PAGE_SIZE - 1))) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
+				"6314 Catching potential buffer "
+				"overflow > PAGE_SIZE = %lu bytes\n",
+				PAGE_SIZE);
+		strlcpy(buf + PAGE_SIZE - 1 -
+			strnlen(LPFC_NVME_INFO_MORE_STR, PAGE_SIZE - 1),
+			LPFC_NVME_INFO_MORE_STR,
+			strnlen(LPFC_NVME_INFO_MORE_STR, PAGE_SIZE - 1)
+			+ 1);
+	}
+
 	return len;
 }
 
