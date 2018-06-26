@@ -121,7 +121,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 			new_encoder = drm_atomic_helper_best_encoder(connector);
 
 		if (new_encoder) {
-			if (encoder_mask & (1 << drm_encoder_index(new_encoder))) {
+			if (encoder_mask & drm_encoder_mask(new_encoder)) {
 				DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] on [CONNECTOR:%d:%s] already assigned\n",
 					new_encoder->base.id, new_encoder->name,
 					connector->base.id, connector->name);
@@ -129,7 +129,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 				return -EINVAL;
 			}
 
-			encoder_mask |= 1 << drm_encoder_index(new_encoder);
+			encoder_mask |= drm_encoder_mask(new_encoder);
 		}
 	}
 
@@ -155,7 +155,7 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 			continue;
 
 		encoder = connector->state->best_encoder;
-		if (!encoder || !(encoder_mask & (1 << drm_encoder_index(encoder))))
+		if (!encoder || !(encoder_mask & drm_encoder_mask(encoder)))
 			continue;
 
 		if (!disable_conflicting_encoders) {
@@ -223,7 +223,7 @@ set_best_encoder(struct drm_atomic_state *state,
 			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 			crtc_state->encoder_mask &=
-				~(1 << drm_encoder_index(conn_state->best_encoder));
+				~drm_encoder_mask(conn_state->best_encoder);
 		}
 	}
 
@@ -234,7 +234,7 @@ set_best_encoder(struct drm_atomic_state *state,
 			crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 			crtc_state->encoder_mask |=
-				1 << drm_encoder_index(encoder);
+				drm_encoder_mask(encoder);
 		}
 	}
 
