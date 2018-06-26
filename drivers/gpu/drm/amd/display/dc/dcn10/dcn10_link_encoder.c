@@ -596,6 +596,9 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 	if (!enc10->base.features.flags.bits.HDMI_6GB_EN &&
 		adjusted_pix_clk_khz >= 300000)
 		return false;
+	if (enc10->base.ctx->dc->debug.hdmi20_disable &&
+		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		return false;
 	return true;
 }
 
@@ -727,6 +730,9 @@ void dcn10_link_encoder_construct(
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
 				result);
+	}
+	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
+		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
 }
 

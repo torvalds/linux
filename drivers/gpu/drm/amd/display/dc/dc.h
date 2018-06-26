@@ -251,6 +251,7 @@ struct dc_debug {
 	bool recovery_enabled;
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
+	bool hdmi20_disable;
 
 };
 struct dc_state;
