@@ -539,6 +539,9 @@ void t4_cleanup_sched(struct adapter *adap)
 		struct port_info *pi = netdev2pinfo(adap->port[j]);
 
 		s = pi->sched_tbl;
+		if (!s)
+			continue;
+
 		for (i = 0; i < s->sched_size; i++) {
 			struct sched_class *e;
 

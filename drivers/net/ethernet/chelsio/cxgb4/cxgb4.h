@@ -957,6 +957,7 @@ struct adapter {
 	struct chcr_stats_debug chcr_stats;
 
 	/* TC flower offload */
+	bool tc_flower_initialized;
 	struct rhashtable flower_tbl;
 	struct rhashtable_params flower_ht_params;
 	struct timer_list flower_stats_timer;
