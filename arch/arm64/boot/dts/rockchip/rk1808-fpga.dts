@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+
+/dts-v1/;
+#include "rk1808.dtsi"
+
+/ {
+	model = "Rockchip rk1808 fpga board";
+	compatible = "rockchip,fpga", "rockchip,rk1808";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff550000 console=ttyFIQ0 root=/dev/mmcblk1p8 rootfstype=ext4 rootwait clk_ignore_unused";
+	};
+
+	memory@200000 {
+		device_type = "memory";
+		reg = <0x0 0x00200000 0x0 0x0FE00000>;
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
+};
+
+&emmc {
+	max-frequency = <400000>;
+	clocks = <&xin24m>, <&xin24m>, <&xin24m>, <&xin24m>;
+	clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+	mmc-hs200-1_8v;
+	supports-emmc;
+	num-slots = <1>;
+	status = "okay";
+};
+
+&npu {
+	status = "okay";
+};
+
+&sdmmc {
+	max-frequency = <400000>;
+	clocks = <&xin24m>, <&xin24m>, <&xin24m>, <&xin24m>;
+	clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+	supports-sd;
+	status = "okay";
+};
+
+/* If fiq_debugger set okay, need to define uart2 and to be disabled */
+&uart2 {
+	status = "disabled";
+};
