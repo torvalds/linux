@@ -52,7 +52,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	u64 offset;
 	int ref_index = 0;
 
-	if (item_size < sizeof(*ei)) {
+	if (unlikely(item_size < sizeof(*ei))) {
 		btrfs_print_v0_err(eb->fs_info);
 		btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
 	}

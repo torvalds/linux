@@ -1304,7 +1304,7 @@ static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
 		ref2 = btrfs_item_ptr(leaf, path->slots[0],
 				      struct btrfs_shared_data_ref);
 		num_refs = btrfs_shared_data_ref_count(leaf, ref2);
-	} else if (key.type == BTRFS_EXTENT_REF_V0_KEY) {
+	} else if (unlikely(key.type == BTRFS_EXTENT_REF_V0_KEY)) {
 		btrfs_print_v0_err(trans->fs_info);
 		btrfs_abort_transaction(trans, -EINVAL);
 		return -EINVAL;
@@ -1555,7 +1555,7 @@ again:
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
-	if (item_size < sizeof(*ei)) {
+	if (unlikely(item_size < sizeof(*ei))) {
 		err = -EINVAL;
 		btrfs_print_v0_err(fs_info);
 		btrfs_abort_transaction(trans, err);
@@ -2285,7 +2285,7 @@ again:
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 
-	if (item_size < sizeof(*ei)) {
+	if (unlikely(item_size < sizeof(*ei))) {
 		err = -EINVAL;
 		btrfs_print_v0_err(fs_info);
 		btrfs_abort_transaction(trans, err);
@@ -6822,7 +6822,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size_nr(leaf, extent_slot);
-	if (item_size < sizeof(*ei)) {
+	if (unlikely(item_size < sizeof(*ei))) {
 		ret = -EINVAL;
 		btrfs_print_v0_err(info);
 		btrfs_abort_transaction(trans, ret);
