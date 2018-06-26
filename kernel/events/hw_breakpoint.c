@@ -345,13 +345,13 @@ void release_bp_slot(struct perf_event *bp)
 	mutex_unlock(&nr_bp_mutex);
 }
 
-static int __modify_bp_slot(struct perf_event *bp, u64 old_type)
+static int __modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 {
 	int err;
 
 	__release_bp_slot(bp, old_type);
 
-	err = __reserve_bp_slot(bp, bp->attr.bp_type);
+	err = __reserve_bp_slot(bp, new_type);
 	if (err) {
 		/*
 		 * Reserve the old_type slot back in case
@@ -367,12 +367,12 @@ static int __modify_bp_slot(struct perf_event *bp, u64 old_type)
 	return err;
 }
 
-static int modify_bp_slot(struct perf_event *bp, u64 old_type)
+static int modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 {
 	int ret;
 
 	mutex_lock(&nr_bp_mutex);
-	ret = __modify_bp_slot(bp, old_type);
+	ret = __modify_bp_slot(bp, old_type, new_type);
 	mutex_unlock(&nr_bp_mutex);
 	return ret;
 }
@@ -481,7 +481,7 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
 
 	err = hw_breakpoint_parse(bp, attr, &hw);
 	if (!err && modify)
-		err = modify_bp_slot(bp, old_type);
+		err = modify_bp_slot(bp, old_type, bp->attr.bp_type);
 
 	if (err) {
 		bp->attr.bp_addr = old_addr;
