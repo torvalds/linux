@@ -334,7 +334,7 @@ static int ili9881c_prepare(struct drm_panel *panel)
 	if (ret)
 		return ret;
 
-	mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
+	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
 	if (ret)
 		return ret;
 
