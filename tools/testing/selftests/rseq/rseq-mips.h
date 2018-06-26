@@ -1,15 +1,17 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * rseq-arm.h
+ * Author: Paul Burton <paul.burton@mips.com>
+ * (C) Copyright 2018 MIPS Tech LLC
  *
+ * Based on rseq-arm.h:
  * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  */
 
 #define RSEQ_SIG	0x53053053
 
-#define rseq_smp_mb()	__asm__ __volatile__ ("dmb" ::: "memory", "cc")
-#define rseq_smp_rmb()	__asm__ __volatile__ ("dmb" ::: "memory", "cc")
-#define rseq_smp_wmb()	__asm__ __volatile__ ("dmb" ::: "memory", "cc")
+#define rseq_smp_mb()	__asm__ __volatile__ ("sync" ::: "memory")
+#define rseq_smp_rmb()	rseq_smp_mb()
+#define rseq_smp_wmb()	rseq_smp_mb()
 
 #define rseq_smp_load_acquire(p)					\
 __extension__ ({							\
@@ -30,51 +32,76 @@ do {									\
 #include "rseq-skip.h"
 #else /* !RSEQ_SKIP_FASTPATH */
 
-#define __RSEQ_ASM_DEFINE_TABLE(version, flags,	start_ip,		\
-				post_commit_offset, abort_ip)		\
-		".pushsection __rseq_table, \"aw\"\n\t"			\
-		".balign 32\n\t"					\
+#if _MIPS_SZLONG == 64
+# define LONG			".dword"
+# define LONG_LA		"dla"
+# define LONG_L			"ld"
+# define LONG_S			"sd"
+# define LONG_ADDI		"daddiu"
+# define U32_U64_PAD(x)		x
+#elif _MIPS_SZLONG == 32
+# define LONG			".word"
+# define LONG_LA		"la"
+# define LONG_L			"lw"
+# define LONG_S			"sw"
+# define LONG_ADDI		"addiu"
+# ifdef __BIG_ENDIAN
+#  define U32_U64_PAD(x)	"0x0, " x
+# else
+#  define U32_U64_PAD(x)	x ", 0x0"
+# endif
+#else
+# error unsupported _MIPS_SZLONG
+#endif
+
+#define __RSEQ_ASM_DEFINE_TABLE(version, flags,	start_ip, \
+				post_commit_offset, abort_ip) \
+		".pushsection __rseq_table, \"aw\"\n\t" \
+		".balign 32\n\t" \
 		".word " __rseq_str(version) ", " __rseq_str(flags) "\n\t" \
-		".word " __rseq_str(start_ip) ", 0x0, " __rseq_str(post_commit_offset) ", 0x0, " __rseq_str(abort_ip) ", 0x0\n\t" \
+		LONG " " U32_U64_PAD(__rseq_str(start_ip)) "\n\t" \
+		LONG " " U32_U64_PAD(__rseq_str(post_commit_offset)) "\n\t" \
+		LONG " " U32_U64_PAD(__rseq_str(abort_ip)) "\n\t" \
 		".popsection\n\t"
 
-#define RSEQ_ASM_DEFINE_TABLE(start_ip, post_commit_ip, abort_ip)	\
-	__RSEQ_ASM_DEFINE_TABLE(0x0, 0x0, start_ip,			\
+#define RSEQ_ASM_DEFINE_TABLE(start_ip, post_commit_ip, abort_ip) \
+	__RSEQ_ASM_DEFINE_TABLE(0x0, 0x0, start_ip, \
 				(post_commit_ip - start_ip), abort_ip)
 
-#define RSEQ_ASM_STORE_RSEQ_CS(label, cs_label, rseq_cs)		\
-		RSEQ_INJECT_ASM(1)					\
-		"adr r0, " __rseq_str(cs_label) "\n\t"			\
-		"str r0, %[" __rseq_str(rseq_cs) "]\n\t"		\
+#define RSEQ_ASM_STORE_RSEQ_CS(label, cs_label, rseq_cs) \
+		RSEQ_INJECT_ASM(1) \
+		LONG_LA " $4, " __rseq_str(cs_label) "\n\t" \
+		LONG_S  " $4, %[" __rseq_str(rseq_cs) "]\n\t" \
 		__rseq_str(label) ":\n\t"
 
-#define RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, label)		\
-		RSEQ_INJECT_ASM(2)					\
-		"ldr r0, %[" __rseq_str(current_cpu_id) "]\n\t"	\
-		"cmp %[" __rseq_str(cpu_id) "], r0\n\t"		\
-		"bne " __rseq_str(label) "\n\t"
+#define RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, label) \
+		RSEQ_INJECT_ASM(2) \
+		"lw  $4, %[" __rseq_str(current_cpu_id) "]\n\t" \
+		"bne $4, %[" __rseq_str(cpu_id) "], " __rseq_str(label) "\n\t"
 
-#define __RSEQ_ASM_DEFINE_ABORT(table_label, label, teardown,		\
-				abort_label, version, flags,		\
-				start_ip, post_commit_offset, abort_ip)	\
-		".balign 32\n\t"					\
-		__rseq_str(table_label) ":\n\t"				\
+#define __RSEQ_ASM_DEFINE_ABORT(table_label, label, teardown, \
+				abort_label, version, flags, \
+				start_ip, post_commit_offset, abort_ip) \
+		".balign 32\n\t" \
+		__rseq_str(table_label) ":\n\t" \
 		".word " __rseq_str(version) ", " __rseq_str(flags) "\n\t" \
-		".word " __rseq_str(start_ip) ", 0x0, " __rseq_str(post_commit_offset) ", 0x0, " __rseq_str(abort_ip) ", 0x0\n\t" \
-		".word " __rseq_str(RSEQ_SIG) "\n\t"			\
-		__rseq_str(label) ":\n\t"				\
-		teardown						\
+		LONG " " U32_U64_PAD(__rseq_str(start_ip)) "\n\t" \
+		LONG " " U32_U64_PAD(__rseq_str(post_commit_offset)) "\n\t" \
+		LONG " " U32_U64_PAD(__rseq_str(abort_ip)) "\n\t" \
+		".word " __rseq_str(RSEQ_SIG) "\n\t" \
+		__rseq_str(label) ":\n\t" \
+		teardown \
 		"b %l[" __rseq_str(abort_label) "]\n\t"
 
 #define RSEQ_ASM_DEFINE_ABORT(table_label, label, teardown, abort_label, \
-			      start_ip, post_commit_ip, abort_ip)	\
-	__RSEQ_ASM_DEFINE_ABORT(table_label, label, teardown,		\
-				abort_label, 0x0, 0x0, start_ip,	\
+			      start_ip, post_commit_ip, abort_ip) \
+	__RSEQ_ASM_DEFINE_ABORT(table_label, label, teardown, \
+				abort_label, 0x0, 0x0, start_ip, \
 				(post_commit_ip - start_ip), abort_ip)
 
-#define RSEQ_ASM_DEFINE_CMPFAIL(label, teardown, cmpfail_label)		\
-		__rseq_str(label) ":\n\t"				\
-		teardown						\
+#define RSEQ_ASM_DEFINE_CMPFAIL(label, teardown, cmpfail_label) \
+		__rseq_str(label) ":\n\t" \
+		teardown \
 		"b %l[" __rseq_str(cmpfail_label) "]\n\t"
 
 #define rseq_workaround_gcc_asm_size_guess()	__asm__ __volatile__("")
@@ -91,18 +118,16 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[cmpfail]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[error2]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[error2]\n\t"
 #endif
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		"b 5f\n\t"
@@ -116,7 +141,7 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 		  [expect]		"r" (expect),
 		  [newv]		"r" (newv)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -153,21 +178,19 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expectnot], r0\n\t"
-		"beq %l[cmpfail]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"beq $4, %[expectnot], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		"ldr r0, %[v]\n\t"
-		"cmp %[expectnot], r0\n\t"
-		"beq %l[error2]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"beq $4, %[expectnot], %l[error2]\n\t"
 #endif
-		"str r0, %[load]\n\t"
-		"add r0, %[voffp]\n\t"
-		"ldr r0, [r0]\n\t"
+		LONG_S " $4, %[load]\n\t"
+		LONG_ADDI " $4, %[voffp]\n\t"
+		LONG_L " $4, 0($4)\n\t"
 		/* final store */
-		"str r0, %[v]\n\t"
+		LONG_S " $4, %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(5)
 		"b 5f\n\t"
@@ -183,7 +206,7 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		  [voffp]		"Ir" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -222,10 +245,10 @@ int rseq_addv(intptr_t *v, intptr_t count, int cpu)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
 #endif
-		"ldr r0, %[v]\n\t"
-		"add r0, %[count]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		LONG_ADDI " $4, %[count]\n\t"
 		/* final store */
-		"str r0, %[v]\n\t"
+		LONG_S " $4, %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(4)
 		"b 5f\n\t"
@@ -238,7 +261,7 @@ int rseq_addv(intptr_t *v, intptr_t count, int cpu)
 		  [v]			"m" (*v),
 		  [count]		"Ir" (count)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort
 #ifdef RSEQ_COMPARE_TWICE
@@ -271,21 +294,19 @@ int rseq_cmpeqv_trystorev_storev(intptr_t *v, intptr_t expect,
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[cmpfail]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[error2]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[error2]\n\t"
 #endif
 		/* try store */
-		"str %[newv2], %[v2]\n\t"
+		LONG_S " %[newv2], %[v2]\n\t"
 		RSEQ_INJECT_ASM(5)
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		"b 5f\n\t"
@@ -303,7 +324,7 @@ int rseq_cmpeqv_trystorev_storev(intptr_t *v, intptr_t expect,
 		  [expect]		"r" (expect),
 		  [newv]		"r" (newv)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -341,22 +362,20 @@ int rseq_cmpeqv_trystorev_storev_release(intptr_t *v, intptr_t expect,
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[cmpfail]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[error2]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[error2]\n\t"
 #endif
 		/* try store */
-		"str %[newv2], %[v2]\n\t"
+		LONG_S " %[newv2], %[v2]\n\t"
 		RSEQ_INJECT_ASM(5)
-		"dmb\n\t"	/* full mb provides store-release */
+		"sync\n\t"	/* full sync provides store-release */
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		"b 5f\n\t"
@@ -374,7 +393,7 @@ int rseq_cmpeqv_trystorev_storev_release(intptr_t *v, intptr_t expect,
 		  [expect]		"r" (expect),
 		  [newv]		"r" (newv)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -412,25 +431,21 @@ int rseq_cmpeqv_cmpeqv_storev(intptr_t *v, intptr_t expect,
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[cmpfail]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
-		"ldr r0, %[v2]\n\t"
-		"cmp %[expect2], r0\n\t"
-		"bne %l[cmpfail]\n\t"
+		LONG_L " $4, %[v2]\n\t"
+		"bne $4, %[expect2], %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(5)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne %l[error2]\n\t"
-		"ldr r0, %[v2]\n\t"
-		"cmp %[expect2], r0\n\t"
-		"bne %l[error3]\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], %l[error2]\n\t"
+		LONG_L " $4, %[v2]\n\t"
+		"bne $4, %[expect2], %l[error3]\n\t"
 #endif
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		"b 5f\n\t"
@@ -448,7 +463,7 @@ int rseq_cmpeqv_cmpeqv_storev(intptr_t *v, intptr_t expect,
 		  [expect]		"r" (expect),
 		  [newv]		"r" (newv)
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -479,75 +494,72 @@ int rseq_cmpeqv_trymemcpy_storev(intptr_t *v, intptr_t expect,
 				 void *dst, void *src, size_t len,
 				 intptr_t newv, int cpu)
 {
-	uint32_t rseq_scratch[3];
+	uintptr_t rseq_scratch[3];
 
 	RSEQ_INJECT_C(9)
 
 	rseq_workaround_gcc_asm_size_guess();
 	__asm__ __volatile__ goto (
 		RSEQ_ASM_DEFINE_TABLE(1f, 2f, 4f) /* start, commit, abort */
-		"str %[src], %[rseq_scratch0]\n\t"
-		"str %[dst], %[rseq_scratch1]\n\t"
-		"str %[len], %[rseq_scratch2]\n\t"
+		LONG_S " %[src], %[rseq_scratch0]\n\t"
+		LONG_S "  %[dst], %[rseq_scratch1]\n\t"
+		LONG_S " %[len], %[rseq_scratch2]\n\t"
 		/* Start rseq by storing table entry pointer into rseq_cs. */
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne 5f\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], 5f\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 6f)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne 7f\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], 7f\n\t"
 #endif
 		/* try memcpy */
-		"cmp %[len], #0\n\t" \
-		"beq 333f\n\t" \
+		"beqz %[len], 333f\n\t" \
 		"222:\n\t" \
-		"ldrb %%r0, [%[src]]\n\t" \
-		"strb %%r0, [%[dst]]\n\t" \
-		"adds %[src], #1\n\t" \
-		"adds %[dst], #1\n\t" \
-		"subs %[len], #1\n\t" \
-		"bne 222b\n\t" \
+		"lb   $4, 0(%[src])\n\t" \
+		"sb   $4, 0(%[dst])\n\t" \
+		LONG_ADDI " %[src], 1\n\t" \
+		LONG_ADDI " %[dst], 1\n\t" \
+		LONG_ADDI " %[len], -1\n\t" \
+		"bnez %[len], 222b\n\t" \
 		"333:\n\t" \
 		RSEQ_INJECT_ASM(5)
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		/* teardown */
-		"ldr %[len], %[rseq_scratch2]\n\t"
-		"ldr %[dst], %[rseq_scratch1]\n\t"
-		"ldr %[src], %[rseq_scratch0]\n\t"
+		LONG_L " %[len], %[rseq_scratch2]\n\t"
+		LONG_L " %[dst], %[rseq_scratch1]\n\t"
+		LONG_L " %[src], %[rseq_scratch0]\n\t"
 		"b 8f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4,
 				      /* teardown */
-				      "ldr %[len], %[rseq_scratch2]\n\t"
-				      "ldr %[dst], %[rseq_scratch1]\n\t"
-				      "ldr %[src], %[rseq_scratch0]\n\t",
+				      LONG_L " %[len], %[rseq_scratch2]\n\t"
+				      LONG_L " %[dst], %[rseq_scratch1]\n\t"
+				      LONG_L " %[src], %[rseq_scratch0]\n\t",
 				      abort, 1b, 2b, 4f)
 		RSEQ_ASM_DEFINE_CMPFAIL(5,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					cmpfail)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_DEFINE_CMPFAIL(6,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					error1)
 		RSEQ_ASM_DEFINE_CMPFAIL(7,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					error2)
 #endif
 		"8:\n\t"
@@ -567,7 +579,7 @@ int rseq_cmpeqv_trymemcpy_storev(intptr_t *v, intptr_t expect,
 		  [rseq_scratch1]	"m" (rseq_scratch[1]),
 		  [rseq_scratch2]	"m" (rseq_scratch[2])
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE
@@ -598,76 +610,73 @@ int rseq_cmpeqv_trymemcpy_storev_release(intptr_t *v, intptr_t expect,
 					 void *dst, void *src, size_t len,
 					 intptr_t newv, int cpu)
 {
-	uint32_t rseq_scratch[3];
+	uintptr_t rseq_scratch[3];
 
 	RSEQ_INJECT_C(9)
 
 	rseq_workaround_gcc_asm_size_guess();
 	__asm__ __volatile__ goto (
 		RSEQ_ASM_DEFINE_TABLE(1f, 2f, 4f) /* start, commit, abort */
-		"str %[src], %[rseq_scratch0]\n\t"
-		"str %[dst], %[rseq_scratch1]\n\t"
-		"str %[len], %[rseq_scratch2]\n\t"
+		LONG_S " %[src], %[rseq_scratch0]\n\t"
+		LONG_S " %[dst], %[rseq_scratch1]\n\t"
+		LONG_S " %[len], %[rseq_scratch2]\n\t"
 		/* Start rseq by storing table entry pointer into rseq_cs. */
 		RSEQ_ASM_STORE_RSEQ_CS(1, 3f, rseq_cs)
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne 5f\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], 5f\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 6f)
-		"ldr r0, %[v]\n\t"
-		"cmp %[expect], r0\n\t"
-		"bne 7f\n\t"
+		LONG_L " $4, %[v]\n\t"
+		"bne $4, %[expect], 7f\n\t"
 #endif
 		/* try memcpy */
-		"cmp %[len], #0\n\t" \
-		"beq 333f\n\t" \
+		"beqz %[len], 333f\n\t" \
 		"222:\n\t" \
-		"ldrb %%r0, [%[src]]\n\t" \
-		"strb %%r0, [%[dst]]\n\t" \
-		"adds %[src], #1\n\t" \
-		"adds %[dst], #1\n\t" \
-		"subs %[len], #1\n\t" \
-		"bne 222b\n\t" \
+		"lb   $4, 0(%[src])\n\t" \
+		"sb   $4, 0(%[dst])\n\t" \
+		LONG_ADDI " %[src], 1\n\t" \
+		LONG_ADDI " %[dst], 1\n\t" \
+		LONG_ADDI " %[len], -1\n\t" \
+		"bnez %[len], 222b\n\t" \
 		"333:\n\t" \
 		RSEQ_INJECT_ASM(5)
-		"dmb\n\t"	/* full mb provides store-release */
+		"sync\n\t"	/* full sync provides store-release */
 		/* final store */
-		"str %[newv], %[v]\n\t"
+		LONG_S " %[newv], %[v]\n\t"
 		"2:\n\t"
 		RSEQ_INJECT_ASM(6)
 		/* teardown */
-		"ldr %[len], %[rseq_scratch2]\n\t"
-		"ldr %[dst], %[rseq_scratch1]\n\t"
-		"ldr %[src], %[rseq_scratch0]\n\t"
+		LONG_L " %[len], %[rseq_scratch2]\n\t"
+		LONG_L " %[dst], %[rseq_scratch1]\n\t"
+		LONG_L " %[src], %[rseq_scratch0]\n\t"
 		"b 8f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4,
 				      /* teardown */
-				      "ldr %[len], %[rseq_scratch2]\n\t"
-				      "ldr %[dst], %[rseq_scratch1]\n\t"
-				      "ldr %[src], %[rseq_scratch0]\n\t",
+				      LONG_L " %[len], %[rseq_scratch2]\n\t"
+				      LONG_L " %[dst], %[rseq_scratch1]\n\t"
+				      LONG_L " %[src], %[rseq_scratch0]\n\t",
 				      abort, 1b, 2b, 4f)
 		RSEQ_ASM_DEFINE_CMPFAIL(5,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					cmpfail)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_DEFINE_CMPFAIL(6,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					error1)
 		RSEQ_ASM_DEFINE_CMPFAIL(7,
 					/* teardown */
-					"ldr %[len], %[rseq_scratch2]\n\t"
-					"ldr %[dst], %[rseq_scratch1]\n\t"
-					"ldr %[src], %[rseq_scratch0]\n\t",
+					LONG_L " %[len], %[rseq_scratch2]\n\t"
+					LONG_L " %[dst], %[rseq_scratch1]\n\t"
+					LONG_L " %[src], %[rseq_scratch0]\n\t",
 					error2)
 #endif
 		"8:\n\t"
@@ -687,7 +696,7 @@ int rseq_cmpeqv_trymemcpy_storev_release(intptr_t *v, intptr_t expect,
 		  [rseq_scratch1]	"m" (rseq_scratch[1]),
 		  [rseq_scratch2]	"m" (rseq_scratch[2])
 		  RSEQ_INJECT_INPUT
-		: "r0", "memory", "cc"
+		: "$4", "memory"
 		  RSEQ_INJECT_CLOBBER
 		: abort, cmpfail
 #ifdef RSEQ_COMPARE_TWICE

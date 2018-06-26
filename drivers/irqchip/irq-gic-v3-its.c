@@ -182,6 +182,22 @@ static struct its_collection *dev_event_to_col(struct its_device *its_dev,
 	return its->collections + its_dev->event_map.col_map[event];
 }
 
+static struct its_collection *valid_col(struct its_collection *col)
+{
+	if (WARN_ON_ONCE(col->target_address & GENMASK_ULL(0, 15)))
+		return NULL;
+
+	return col;
+}
+
+static struct its_vpe *valid_vpe(struct its_node *its, struct its_vpe *vpe)
+{
+	if (valid_col(its->collections + vpe->col_idx))
+		return vpe;
+
+	return NULL;
+}
+
 /*
  * ITS command descriptors - parameters to be encoded in a command
  * block.
@@ -439,7 +455,7 @@ static struct its_collection *its_build_mapti_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_movi_cmd(struct its_node *its,
@@ -458,7 +474,7 @@ static struct its_collection *its_build_movi_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_discard_cmd(struct its_node *its,
@@ -476,7 +492,7 @@ static struct its_collection *its_build_discard_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_inv_cmd(struct its_node *its,
@@ -494,7 +510,7 @@ static struct its_collection *its_build_inv_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_int_cmd(struct its_node *its,
@@ -512,7 +528,7 @@ static struct its_collection *its_build_int_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_clear_cmd(struct its_node *its,
@@ -530,7 +546,7 @@ static struct its_collection *its_build_clear_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return col;
+	return valid_col(col);
 }
 
 static struct its_collection *its_build_invall_cmd(struct its_node *its,
@@ -554,7 +570,7 @@ static struct its_vpe *its_build_vinvall_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return desc->its_vinvall_cmd.vpe;
+	return valid_vpe(its, desc->its_vinvall_cmd.vpe);
 }
 
 static struct its_vpe *its_build_vmapp_cmd(struct its_node *its,
@@ -576,7 +592,7 @@ static struct its_vpe *its_build_vmapp_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return desc->its_vmapp_cmd.vpe;
+	return valid_vpe(its, desc->its_vmapp_cmd.vpe);
 }
 
 static struct its_vpe *its_build_vmapti_cmd(struct its_node *its,
@@ -599,7 +615,7 @@ static struct its_vpe *its_build_vmapti_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return desc->its_vmapti_cmd.vpe;
+	return valid_vpe(its, desc->its_vmapti_cmd.vpe);
 }
 
 static struct its_vpe *its_build_vmovi_cmd(struct its_node *its,
@@ -622,7 +638,7 @@ static struct its_vpe *its_build_vmovi_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return desc->its_vmovi_cmd.vpe;
+	return valid_vpe(its, desc->its_vmovi_cmd.vpe);
 }
 
 static struct its_vpe *its_build_vmovp_cmd(struct its_node *its,
@@ -640,7 +656,7 @@ static struct its_vpe *its_build_vmovp_cmd(struct its_node *its,
 
 	its_fixup_cmd(cmd);
 
-	return desc->its_vmovp_cmd.vpe;
+	return valid_vpe(its, desc->its_vmovp_cmd.vpe);
 }
 
 static u64 its_cmd_ptr_to_offset(struct its_node *its,
@@ -1824,10 +1840,15 @@ static int its_alloc_tables(struct its_node *its)
 
 static int its_alloc_collections(struct its_node *its)
 {
+	int i;
+
 	its->collections = kcalloc(nr_cpu_ids, sizeof(*its->collections),
 				   GFP_KERNEL);
 	if (!its->collections)
 		return -ENOMEM;
+
+	for (i = 0; i < nr_cpu_ids; i++)
+		its->collections[i].target_address = ~0ULL;
 
 	return 0;
 }
@@ -2310,7 +2331,14 @@ static int its_irq_domain_activate(struct irq_domain *domain,
 		cpu_mask = cpumask_of_node(its_dev->its->numa_node);
 
 	/* Bind the LPI to the first possible CPU */
-	cpu = cpumask_first(cpu_mask);
+	cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
+	if (cpu >= nr_cpu_ids) {
+		if (its_dev->its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_23144)
+			return -EINVAL;
+
+		cpu = cpumask_first(cpu_online_mask);
+	}
+
 	its_dev->event_map.col_map[event] = cpu;
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
@@ -3398,6 +3426,16 @@ static int redist_disable_lpis(void)
 	void __iomem *rbase = gic_data_rdist_rd_base();
 	u64 timeout = USEC_PER_SEC;
 	u64 val;
+
+	/*
+	 * If coming via a CPU hotplug event, we don't need to disable
+	 * LPIs before trying to re-enable them. They are already
+	 * configured and all is well in the world. Detect this case
+	 * by checking the allocation of the pending table for the
+	 * current CPU.
+	 */
+	if (gic_data_rdist()->pend_page)
+		return 0;
 
 	if (!gic_rdists_supports_plpis()) {
 		pr_info("CPU%d: LPIs not supported\n", smp_processor_id());

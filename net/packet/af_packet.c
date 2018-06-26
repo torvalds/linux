@@ -2262,21 +2262,19 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		if (po->stats.stats1.tp_drops)
 			status |= TP_STATUS_LOSING;
 	}
+
+	if (do_vnet &&
+	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
+				    sizeof(struct virtio_net_hdr),
+				    vio_le(), true, 0))
+		goto drop_n_account;
+
 	po->stats.stats1.tp_packets++;
 	if (copy_skb) {
 		status |= TP_STATUS_COPY;
 		__skb_queue_tail(&sk->sk_receive_queue, copy_skb);
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
-
-	if (do_vnet) {
-		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
-					    sizeof(struct virtio_net_hdr),
-					    vio_le(), true, 0)) {
-			spin_lock(&sk->sk_receive_queue.lock);
-			goto drop_n_account;
-		}
-	}
 
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 

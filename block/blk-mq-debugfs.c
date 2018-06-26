@@ -356,7 +356,7 @@ static const char *const blk_mq_rq_state_name_array[] = {
 
 static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
 {
-	if (WARN_ON_ONCE((unsigned int)rq_state >
+	if (WARN_ON_ONCE((unsigned int)rq_state >=
 			 ARRAY_SIZE(blk_mq_rq_state_name_array)))
 		return "(?)";
 	return blk_mq_rq_state_name_array[rq_state];

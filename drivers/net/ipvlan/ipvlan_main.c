@@ -594,7 +594,8 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan->phy_dev = phy_dev;
 	ipvlan->dev = dev;
 	ipvlan->sfeatures = IPVLAN_FEATURES;
-	ipvlan_adjust_mtu(ipvlan, phy_dev);
+	if (!tb[IFLA_MTU])
+		ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 	spin_lock_init(&ipvlan->addrs_lock);
 

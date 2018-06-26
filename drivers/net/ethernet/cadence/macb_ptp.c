@@ -170,10 +170,7 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	if (delta > TSU_NSEC_MAX_VAL) {
 		gem_tsu_get_time(&bp->ptp_clock_info, &now);
-		if (sign)
-			now = timespec64_sub(now, then);
-		else
-			now = timespec64_add(now, then);
+		now = timespec64_add(now, then);
 
 		gem_tsu_set_time(&bp->ptp_clock_info,
 				 (const struct timespec64 *)&now);
