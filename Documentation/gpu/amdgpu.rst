@@ -5,6 +5,13 @@
 The drm/amdgpu driver supports all AMD Radeon GPUs based on the Graphics Core
 Next (GCN) architecture.
 
+Module Parameters
+=================
+
+The amdgpu driver supports the following module parameters:
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+
 Core Driver Infrastructure
 ==========================
 
