@@ -19,7 +19,7 @@
  */
 #include "dscr.h"
 
-static char prog[LEN_MAX];
+static char *prog;
 
 static void do_exec(unsigned long parent_dscr)
 {
@@ -104,6 +104,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	strncpy(prog, argv[0], strlen(argv[0]));
+	prog = argv[0];
 	return test_harness(dscr_inherit_exec, "dscr_inherit_exec_test");
 }
