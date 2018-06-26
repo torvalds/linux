@@ -399,8 +399,10 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	list_add_tail(&rvdev->node, &rproc->rvdevs);
 
-	rproc_add_subdev(rproc, &rvdev->subdev,
-			 rproc_vdev_do_probe, rproc_vdev_do_remove);
+	rvdev->subdev.start = rproc_vdev_do_probe;
+	rvdev->subdev.stop = rproc_vdev_do_remove;
+
+	rproc_add_subdev(rproc, &rvdev->subdev);
 
 	return 0;
 
@@ -1663,17 +1665,11 @@ EXPORT_SYMBOL(rproc_del);
  * rproc_add_subdev() - add a subdevice to a remoteproc
  * @rproc: rproc handle to add the subdevice to
  * @subdev: subdev handle to register
- * @start: function to call after the rproc is started
- * @stop: function to call before the rproc is stopped
+ *
+ * Caller is responsible for populating optional subdevice function pointers.
  */
-void rproc_add_subdev(struct rproc *rproc,
-		      struct rproc_subdev *subdev,
-		      int (*start)(struct rproc_subdev *subdev),
-		      void (*stop)(struct rproc_subdev *subdev, bool crashed))
+void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev)
 {
-	subdev->start = start;
-	subdev->stop = stop;
-
 	list_add_tail(&subdev->node, &rproc->subdevs);
 }
 EXPORT_SYMBOL(rproc_add_subdev);

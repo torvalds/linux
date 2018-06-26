@@ -64,7 +64,10 @@ void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink)
 		return;
 
 	glink->dev = dev;
-	rproc_add_subdev(rproc, &glink->subdev, glink_subdev_probe, glink_subdev_remove);
+	glink->subdev.start = glink_subdev_probe;
+	glink->subdev.stop = glink_subdev_remove;
+
+	rproc_add_subdev(rproc, &glink->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_glink_subdev);
 
@@ -157,7 +160,10 @@ void qcom_add_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 		return;
 
 	smd->dev = dev;
-	rproc_add_subdev(rproc, &smd->subdev, smd_subdev_probe, smd_subdev_remove);
+	smd->subdev.start = smd_subdev_probe;
+	smd->subdev.stop = smd_subdev_remove;
+
+	rproc_add_subdev(rproc, &smd->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_smd_subdev);
 
@@ -202,11 +208,6 @@ void qcom_unregister_ssr_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(qcom_unregister_ssr_notifier);
 
-static int ssr_notify_start(struct rproc_subdev *subdev)
-{
-	return  0;
-}
-
 static void ssr_notify_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
@@ -227,8 +228,9 @@ void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
 			 const char *ssr_name)
 {
 	ssr->name = ssr_name;
+	ssr->subdev.stop = ssr_notify_stop;
 
-	rproc_add_subdev(rproc, &ssr->subdev, ssr_notify_start, ssr_notify_stop);
+	rproc_add_subdev(rproc, &ssr->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_ssr_subdev);
 
