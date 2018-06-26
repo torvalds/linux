@@ -1290,9 +1290,16 @@ static int q6afe_dai_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id q6afe_dai_device_id[] = {
+	{ .compatible = "qcom,q6afe-dais" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, q6afe_dai_device_id);
+
 static struct platform_driver q6afe_dai_platform_driver = {
 	.driver = {
 		.name = "q6afe-dai",
+		.of_match_table = of_match_ptr(q6afe_dai_device_id),
 	},
 	.probe = q6afe_dai_dev_probe,
 	.remove = q6afe_dai_dev_remove,
