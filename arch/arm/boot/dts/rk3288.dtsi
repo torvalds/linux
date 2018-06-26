@@ -158,7 +158,7 @@
 		rockchip,pvtm-error = <1000>;
 		rockchip,pvtm-ref-temp = <35>;
 		rockchip,pvtm-temp-prop = <(-18) (-18)>;
-		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,thermal-zone = "soc-thermal";
 
 		opp-126000000 {
 			opp-hz = /bits/ 64 <126000000>;
