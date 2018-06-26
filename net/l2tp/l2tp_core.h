@@ -180,9 +180,6 @@ struct l2tp_tunnel {
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	refcount_t		ref_count;
-#ifdef CONFIG_DEBUG_FS
-	void (*show)(struct seq_file *m, void *arg);
-#endif
 	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */
@@ -190,8 +187,6 @@ struct l2tp_tunnel {
 						 * was created by userspace */
 
 	struct work_struct	del_work;
-
-	uint8_t			priv[0];	/* private data */
 };
 
 struct l2tp_nl_cmd_ops {
@@ -200,11 +195,6 @@ struct l2tp_nl_cmd_ops {
 			      struct l2tp_session_cfg *cfg);
 	int (*session_delete)(struct l2tp_session *session);
 };
-
-static inline void *l2tp_tunnel_priv(struct l2tp_tunnel *tunnel)
-{
-	return &tunnel->priv[0];
-}
 
 static inline void *l2tp_session_priv(struct l2tp_session *session)
 {
@@ -229,7 +219,6 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
 int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 			 struct l2tp_tunnel_cfg *cfg);
 
-void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
 void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
 struct l2tp_session *l2tp_session_create(int priv_size,
 					 struct l2tp_tunnel *tunnel,
@@ -244,7 +233,6 @@ void l2tp_session_free(struct l2tp_session *session);
 void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
 		      int length, int (*payload_hook)(struct sk_buff *skb));
-int l2tp_session_queue_purge(struct l2tp_session *session);
 int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 void l2tp_session_set_header_len(struct l2tp_session *session, int version);
 

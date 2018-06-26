@@ -322,8 +322,7 @@ int l2tp_session_register(struct l2tp_session *session,
 
 	if (tunnel->version == L2TP_HDR_VER_3) {
 		pn = l2tp_pernet(tunnel->l2tp_net);
-		g_head = l2tp_session_id_hash_2(l2tp_pernet(tunnel->l2tp_net),
-						session->session_id);
+		g_head = l2tp_session_id_hash_2(pn, session->session_id);
 
 		spin_lock_bh(&pn->l2tp_session_hlist_lock);
 
@@ -783,7 +782,7 @@ EXPORT_SYMBOL(l2tp_recv_common);
 
 /* Drop skbs from the session's reorder_q
  */
-int l2tp_session_queue_purge(struct l2tp_session *session)
+static int l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
 	BUG_ON(!session);
@@ -794,7 +793,6 @@ int l2tp_session_queue_purge(struct l2tp_session *session)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(l2tp_session_queue_purge);
 
 /* Internal UDP receive frame. Do the real work of receiving an L2TP data frame
  * here. The skb is not on a list when we get here.
@@ -1009,8 +1007,8 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
-			  struct flowi *fl, size_t data_len)
+static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
+			   struct flowi *fl, size_t data_len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int len = skb->len;
@@ -1052,8 +1050,6 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 		atomic_long_inc(&tunnel->stats.tx_errors);
 		atomic_long_inc(&session->stats.tx_errors);
 	}
-
-	return 0;
 }
 
 /* If caller requires the skb to have a ppp header, the header must be
@@ -1193,7 +1189,7 @@ end:
 
 /* When the tunnel is closed, all the attached sessions need to go too.
  */
-void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
+static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 {
 	int hash;
 	struct hlist_node *walk;
@@ -1242,7 +1238,6 @@ again:
 	}
 	write_unlock_bh(&tunnel->hlist_lock);
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_closeall);
 
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
