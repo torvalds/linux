@@ -55,6 +55,7 @@ all: $(TARGETS)
 bin/stat:
 ifeq ($(LKL_HOST_CONFIG_BSD),y)
 	$(Q)ln -sf `which gnustat` bin/stat
+	$(Q)ln -sf `which gsed` bin/sed
 else
 	$(Q)touch bin/stat
 endif
