@@ -888,6 +888,7 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 {
 	struct device_node *np;
 	struct resource r;
+	resource_size_t size;
 	int ret;
 
 	np = of_parse_phandle(dev->of_node, name, 0);
@@ -900,12 +901,13 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 	of_node_put(np);
 	if (ret)
 		return ret;
+	size = resource_size(&r);
 
-	smem->regions[i].aux_base = (u32)r.start;
-	smem->regions[i].size = resource_size(&r);
-	smem->regions[i].virt_base = devm_ioremap_wc(dev, r.start, resource_size(&r));
+	smem->regions[i].virt_base = devm_ioremap_wc(dev, r.start, size);
 	if (!smem->regions[i].virt_base)
 		return -ENOMEM;
+	smem->regions[i].aux_base = (u32)r.start;
+	smem->regions[i].size = size;
 
 	return 0;
 }
