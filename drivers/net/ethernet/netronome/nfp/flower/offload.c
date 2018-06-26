@@ -264,6 +264,14 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		case cpu_to_be16(ETH_P_ARP):
 			return -EOPNOTSUPP;
 
+		case cpu_to_be16(ETH_P_MPLS_UC):
+		case cpu_to_be16(ETH_P_MPLS_MC):
+			if (!(key_layer & NFP_FLOWER_LAYER_MAC)) {
+				key_layer |= NFP_FLOWER_LAYER_MAC;
+				key_size += sizeof(struct nfp_flower_mac_mpls);
+			}
+			break;
+
 		/* Will be included in layer 2. */
 		case cpu_to_be16(ETH_P_8021Q):
 			break;
