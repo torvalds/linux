@@ -1308,7 +1308,7 @@ static int vop_create_crtc(struct vop *vop)
 	for (i = 0; i < vop_data->win_size; i++) {
 		struct vop_win *vop_win = &vop->win[i];
 		const struct vop_win_data *win_data = vop_win->data;
-		unsigned long possible_crtcs = 1 << drm_crtc_index(crtc);
+		unsigned long possible_crtcs = drm_crtc_mask(crtc);
 
 		if (win_data->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
