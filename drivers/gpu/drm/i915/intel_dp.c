@@ -4491,6 +4491,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	if (intel_dp_needs_link_retrain(intel_dp))
 		return false;
 
+	intel_psr_short_pulse(intel_dp);
+
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
 		DRM_DEBUG_KMS("Link Training Compliance Test requested\n");
 		/* Send a Hotplug Uevent to userspace to start modeset */

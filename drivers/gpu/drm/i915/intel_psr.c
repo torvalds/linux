@@ -666,6 +666,25 @@ intel_psr_disable_source(struct intel_dp *intel_dp)
 	}
 }
 
+static void intel_psr_disable_locked(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	lockdep_assert_held(&dev_priv->psr.lock);
+
+	if (!dev_priv->psr.enabled)
+		return;
+
+	intel_psr_disable_source(intel_dp);
+
+	/* Disable PSR on Sink */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
+
+	dev_priv->psr.enabled = NULL;
+}
+
 /**
  * intel_psr_disable - Disable PSR
  * @intel_dp: Intel DP
@@ -687,17 +706,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
-	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
-		return;
-	}
-
-	intel_psr_disable_source(intel_dp);
-
-	/* Disable PSR on Sink */
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
-
-	dev_priv->psr.enabled = NULL;
+	intel_psr_disable_locked(intel_dp);
 	mutex_unlock(&dev_priv->psr.lock);
 	cancel_work_sync(&dev_priv->psr.work);
 }
@@ -931,4 +940,35 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
+}
+
+void intel_psr_short_pulse(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 val;
+
+	if (!CAN_PSR(dev_priv) || !intel_dp_is_edp(intel_dp))
+		return;
+
+	mutex_lock(&psr->lock);
+
+	if (psr->enabled != intel_dp)
+		goto exit;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) != 1) {
+		DRM_ERROR("PSR_STATUS dpcd read failed\n");
+		goto exit;
+	}
+
+	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
+		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+		intel_psr_disable_locked(intel_dp);
+	}
+
+	/* TODO: handle other PSR/PSR2 errors */
+exit:
+	mutex_unlock(&psr->lock);
 }
