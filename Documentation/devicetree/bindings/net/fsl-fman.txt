@@ -356,30 +356,7 @@ ethernet@e0000 {
 ============================================================================
 FMan IEEE 1588 Node
 
-DESCRIPTION
-
-The FMan interface to support IEEE 1588
-
-
-PROPERTIES
-
-- compatible
-		Usage: required
-		Value type: <stringlist>
-		Definition: A standard property.
-		Must include "fsl,fman-ptp-timer".
-
-- reg
-		Usage: required
-		Value type: <prop-encoded-array>
-		Definition: A standard property.
-
-EXAMPLE
-
-ptp-timer@fe000 {
-	compatible = "fsl,fman-ptp-timer";
-	reg = <0xfe000 0x1000>;
-};
+Refer to Documentation/devicetree/bindings/ptp/ptp-qoriq.txt
 
 =============================================================================
 FMan MDIO Node

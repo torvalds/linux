@@ -2,7 +2,8 @@
 
 General Properties:
 
-  - compatible   Should be "fsl,etsec-ptp"
+  - compatible   Should be "fsl,etsec-ptp" for eTSEC
+                 Should be "fsl,fman-ptp-timer" for DPAA FMan
   - reg          Offset and length of the register set for the device
   - interrupts   There should be at least two interrupts. Some devices
                  have as many as four PTP related interrupts.
@@ -43,14 +44,22 @@ Clock Properties:
   value, which will be directly written in those bits, that is why,
   according to reference manual, the next clock sources can be used:
 
+  For eTSEC,
   <0> - external high precision timer reference clock (TSEC_TMR_CLK
         input is used for this purpose);
   <1> - eTSEC system clock;
   <2> - eTSEC1 transmit clock;
   <3> - RTC clock input.
 
-  When this attribute is not used, eTSEC system clock will serve as
-  IEEE 1588 timer reference clock.
+  For DPAA FMan,
+  <0> - external high precision timer reference clock (TMR_1588_CLK)
+  <1> - MAC system clock (1/2 FMan clock)
+  <2> - reserved
+  <3> - RTC clock oscillator
+
+  When this attribute is not used, the IEEE 1588 timer reference clock
+  will use the eTSEC system clock (for Gianfar) or the MAC system
+  clock (for DPAA).
 
 Example:
 
