@@ -1551,8 +1551,6 @@ static void handle_key(struct work_struct *work)
 			memcpy(&key_buf[2], hif_key->attr.wep.key,
 			       hif_key->attr.wep.key_len);
 
-			kfree(hif_key->attr.wep.key);
-
 			wid_list[2].id = (u16)WID_WEP_KEY_VALUE;
 			wid_list[2].type = WID_STR;
 			wid_list[2].size = hif_key->attr.wep.key_len + 2;
@@ -1573,7 +1571,6 @@ static void handle_key(struct work_struct *work)
 			memcpy(key_buf + 1, &hif_key->attr.wep.key_len, 1);
 			memcpy(key_buf + 2, hif_key->attr.wep.key,
 			       hif_key->attr.wep.key_len);
-			kfree(hif_key->attr.wep.key);
 
 			wid.id = (u16)WID_ADD_WEP_KEY;
 			wid.type = WID_STR;
@@ -2629,8 +2626,6 @@ int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 		goto free_key;
 
 	wait_for_completion(&msg->work_comp);
-	kfree(msg);
-	return 0;
 
 free_key:
 	kfree(msg->body.key_info.attr.wep.key);
@@ -2674,8 +2669,6 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 		goto free_key;
 
 	wait_for_completion(&msg->work_comp);
-	kfree(msg);
-	return 0;
 
 free_key:
 	kfree(msg->body.key_info.attr.wep.key);
