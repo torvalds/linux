@@ -145,6 +145,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 	uint32_t idx;
 	uint32_t i = 0;
 	uint8_t *tmp;
+	u32 if_type;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
@@ -199,8 +200,14 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 			    q->queue_id);
 		} else {
 			bf_set(lpfc_wq_db_list_fm_num_posted, &doorbell, 1);
-			bf_set(lpfc_wq_db_list_fm_index, &doorbell, host_index);
 			bf_set(lpfc_wq_db_list_fm_id, &doorbell, q->queue_id);
+
+			/* Leave bits <23:16> clear for if_type 6 dpp */
+			if_type = bf_get(lpfc_sli_intf_if_type,
+					 &q->phba->sli4_hba.sli_intf);
+			if (if_type != LPFC_SLI_INTF_IF_TYPE_6)
+				bf_set(lpfc_wq_db_list_fm_index, &doorbell,
+				       host_index);
 		}
 	} else if (q->db_format == LPFC_DB_RING_FORMAT) {
 		bf_set(lpfc_wq_db_ring_fm_num_posted, &doorbell, 1);
