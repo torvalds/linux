@@ -625,8 +625,7 @@ unlock:
 }
 
 static void
-intel_psr_disable_source(struct intel_dp *intel_dp,
-			 const struct intel_crtc_state *old_crtc_state)
+intel_psr_disable_source(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -693,7 +692,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 		return;
 	}
 
-	intel_psr_disable_source(intel_dp, old_crtc_state);
+	intel_psr_disable_source(intel_dp);
 
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
