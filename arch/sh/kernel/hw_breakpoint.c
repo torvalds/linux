@@ -173,40 +173,40 @@ int arch_bp_generic_fields(int sh_len, int sh_type,
 	return 0;
 }
 
-static int arch_build_bp_info(struct perf_event *bp)
+static int arch_build_bp_info(struct perf_event *bp,
+			      const struct perf_event_attr *attr,
+			      struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	info->address = bp->attr.bp_addr;
+	hw->address = attr->bp_addr;
 
 	/* Len */
-	switch (bp->attr.bp_len) {
+	switch (attr->bp_len) {
 	case HW_BREAKPOINT_LEN_1:
-		info->len = SH_BREAKPOINT_LEN_1;
+		hw->len = SH_BREAKPOINT_LEN_1;
 		break;
 	case HW_BREAKPOINT_LEN_2:
-		info->len = SH_BREAKPOINT_LEN_2;
+		hw->len = SH_BREAKPOINT_LEN_2;
 		break;
 	case HW_BREAKPOINT_LEN_4:
-		info->len = SH_BREAKPOINT_LEN_4;
+		hw->len = SH_BREAKPOINT_LEN_4;
 		break;
 	case HW_BREAKPOINT_LEN_8:
-		info->len = SH_BREAKPOINT_LEN_8;
+		hw->len = SH_BREAKPOINT_LEN_8;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	/* Type */
-	switch (bp->attr.bp_type) {
+	switch (attr->bp_type) {
 	case HW_BREAKPOINT_R:
-		info->type = SH_BREAKPOINT_READ;
+		hw->type = SH_BREAKPOINT_READ;
 		break;
 	case HW_BREAKPOINT_W:
-		info->type = SH_BREAKPOINT_WRITE;
+		hw->type = SH_BREAKPOINT_WRITE;
 		break;
 	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
-		info->type = SH_BREAKPOINT_RW;
+		hw->type = SH_BREAKPOINT_RW;
 		break;
 	default:
 		return -EINVAL;
@@ -218,19 +218,20 @@ static int arch_build_bp_info(struct perf_event *bp)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp)
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	unsigned int align;
 	int ret;
 
-	ret = arch_build_bp_info(bp);
+	ret = arch_build_bp_info(bp, attr, hw);
 	if (ret)
 		return ret;
 
 	ret = -EINVAL;
 
-	switch (info->len) {
+	switch (hw->len) {
 	case SH_BREAKPOINT_LEN_1:
 		align = 0;
 		break;
@@ -251,7 +252,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * Check that the low-order bits of the address are appropriate
 	 * for the alignment implied by len.
 	 */
-	if (info->address & align)
+	if (hw->address & align)
 		return -EINVAL;
 
 	return 0;
