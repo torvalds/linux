@@ -524,4 +524,4 @@ The following commands are supported:
   totals derived from one or more trace event format fields and/or
   event counts (hitcount).
 
-  See Documentation/trace/histogram.txt for details and examples.
+  See Documentation/trace/histogram.rst for details and examples.

@@ -605,7 +605,7 @@ config HIST_TRIGGERS
 	  Inter-event tracing of quantities such as latencies is also
 	  supported using hist triggers under this option.
 
-	  See Documentation/trace/histogram.txt.
+	  See Documentation/trace/histogram.rst.
 	  If in doubt, say N.
 
 config MMIOTRACE_TEST
