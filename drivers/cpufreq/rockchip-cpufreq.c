@@ -54,6 +54,29 @@ struct cluster_info {
 };
 static LIST_HEAD(cluster_info_list);
 
+static int px30_get_soc_info(struct device *dev, struct device_node *np,
+			     int *bin, int *process)
+{
+	int ret = 0, value = -EINVAL;
+
+	if (!bin)
+		return 0;
+
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "performance") >= 0) {
+		ret = rockchip_get_efuse_value(np, "performance", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc performance value\n");
+			return ret;
+		}
+		*bin = value;
+	}
+	if (*bin >= 0)
+		dev_info(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
+
 static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
@@ -115,12 +138,20 @@ out:
 
 static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
+		.compatible = "rockchip,px30",
+		.data = (void *)&px30_get_soc_info,
+	},
+	{
 		.compatible = "rockchip,rk3288",
 		.data = (void *)&rk3288_get_soc_info,
 	},
 	{
 		.compatible = "rockchip,rk3288w",
 		.data = (void *)&rk3288_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rk3326",
+		.data = (void *)&px30_get_soc_info,
 	},
 	{},
 };
