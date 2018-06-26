@@ -899,6 +899,7 @@ static const char *const rk3308_critical_clocks[] __initconst = {
 	"pclk_peri",
 	"hclk_audio",
 	"pclk_audio",
+	"sclk_ddrc",
 };
 
 static void __iomem *rk3308_cru_base;
