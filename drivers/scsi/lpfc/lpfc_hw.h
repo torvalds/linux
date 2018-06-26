@@ -1065,14 +1065,17 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 struct fc_lcb_request_frame {
 	uint32_t      lcb_command;      /* ELS command opcode (0x81)     */
 	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
-#define LPFC_LCB_ON    0x1
-#define LPFC_LCB_OFF   0x2
-	uint8_t       reserved[3];
-
+#define LPFC_LCB_ON		0x1
+#define LPFC_LCB_OFF		0x2
+	uint8_t       reserved[2];
+	uint8_t	      capability;	/* LCB Payload Word 1, bit 0:7 */
 	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
-#define LPFC_LCB_GREEN 0x1
-#define LPFC_LCB_AMBER 0x2
+#define LPFC_LCB_GREEN		0x1
+#define LPFC_LCB_AMBER		0x2
 	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+#define LCB_CAPABILITY_DURATION	1
+#define BEACON_VERSION_V1	1
+#define BEACON_VERSION_V0	0
 	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
 };
 
@@ -1082,7 +1085,8 @@ struct fc_lcb_request_frame {
 struct fc_lcb_res_frame {
 	uint32_t      lcb_ls_acc;       /* Acceptance of LCB request (0x02) */
 	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
-	uint8_t       reserved[3];
+	uint8_t       reserved[2];
+	uint8_t	      capability;	/* LCB Payload Word 1, bit 0:7 */
 	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
 	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
 	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */

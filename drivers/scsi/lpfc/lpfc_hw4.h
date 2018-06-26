@@ -1790,9 +1790,12 @@ struct lpfc_mbx_set_beacon_config {
 #define lpfc_mbx_set_beacon_duration_SHIFT		16
 #define lpfc_mbx_set_beacon_duration_MASK		0x000000FF
 #define lpfc_mbx_set_beacon_duration_WORD		word4
-#define lpfc_mbx_set_beacon_status_duration_SHIFT	24
-#define lpfc_mbx_set_beacon_status_duration_MASK	0x000000FF
-#define lpfc_mbx_set_beacon_status_duration_WORD	word4
+
+/* COMMON_SET_BEACON_CONFIG_V1 */
+#define lpfc_mbx_set_beacon_duration_v1_SHIFT		16
+#define lpfc_mbx_set_beacon_duration_v1_MASK		0x0000FFFF
+#define lpfc_mbx_set_beacon_duration_v1_WORD		word4
+	uint32_t word5;  /* RESERVED  */
 };
 
 struct lpfc_id_range {
@@ -2243,6 +2246,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
  */
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
+#define ADD_STATUS_INVALID_REQUEST			0x4B
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;
@@ -3392,7 +3396,41 @@ struct lpfc_sli4_parameters {
 #define cfg_nosr_SHIFT				9
 #define cfg_nosr_MASK				0x00000001
 #define cfg_nosr_WORD				word19
-#define LPFC_NODELAY_MAX_IO		32
+
+#define cfg_bv1s_SHIFT                          10
+#define cfg_bv1s_MASK                           0x00000001
+#define cfg_bv1s_WORD                           word19
+
+	uint32_t word20;
+#define cfg_max_tow_xri_SHIFT			0
+#define cfg_max_tow_xri_MASK			0x0000ffff
+#define cfg_max_tow_xri_WORD			word20
+
+	uint32_t word21;                        /* RESERVED */
+	uint32_t word22;                        /* RESERVED */
+	uint32_t word23;                        /* RESERVED */
+
+	uint32_t word24;
+#define cfg_frag_field_offset_SHIFT		0
+#define cfg_frag_field_offset_MASK		0x0000ffff
+#define cfg_frag_field_offset_WORD		word24
+
+#define cfg_frag_field_size_SHIFT		16
+#define cfg_frag_field_size_MASK		0x0000ffff
+#define cfg_frag_field_size_WORD		word24
+
+	uint32_t word25;
+#define cfg_sgl_field_offset_SHIFT		0
+#define cfg_sgl_field_offset_MASK		0x0000ffff
+#define cfg_sgl_field_offset_WORD		word25
+
+#define cfg_sgl_field_size_SHIFT		16
+#define cfg_sgl_field_size_MASK			0x0000ffff
+#define cfg_sgl_field_size_WORD			word25
+
+	uint32_t word26;	/* Chain SGE initial value LOW  */
+	uint32_t word27;	/* Chain SGE initial value HIGH */
+#define LPFC_NODELAY_MAX_IO			32
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10

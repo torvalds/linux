@@ -10644,6 +10644,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->eqav = bf_get(cfg_eqav, mbx_sli4_parameters);
 	sli4_params->cqav = bf_get(cfg_cqav, mbx_sli4_parameters);
 	sli4_params->wqsize = bf_get(cfg_wqsize, mbx_sli4_parameters);
+	sli4_params->bv1s = bf_get(cfg_bv1s, mbx_sli4_parameters);
 	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
 					    mbx_sli4_parameters);
 	sli4_params->wqpcnt = bf_get(cfg_wqpcnt, mbx_sli4_parameters);

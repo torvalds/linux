@@ -490,6 +490,7 @@ struct lpfc_pc_sli4_params {
 	uint8_t eqav;
 	uint8_t cqav;
 	uint8_t wqsize;
+	uint8_t bv1s;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
 	uint8_t wqpcnt;
@@ -774,7 +775,9 @@ struct lpfc_rdp_context {
 struct lpfc_lcb_context {
 	uint8_t  sub_command;
 	uint8_t  type;
+	uint8_t  capability;
 	uint8_t  frequency;
+	uint16_t  duration;
 	uint16_t ox_id;
 	uint16_t rx_id;
 	struct lpfc_nodelist *ndlp;
