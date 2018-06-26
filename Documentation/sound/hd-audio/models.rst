@@ -87,8 +87,14 @@ alc700-ref
 
 ALC66x/67x/892
 ==============
+aspire
+    Subwoofer pin fixup for Aspire laptops
+ideapad
+    Subwoofer pin fixup for Ideapad laptops
 mario
     Chromebook mario model fixup
+hp-rp5800
+    Headphone pin fixup for HP RP5800
 asus-mode1
     ASUS
 asus-mode2
@@ -105,10 +111,40 @@ asus-mode7
     ASUS
 asus-mode8
     ASUS
+zotac-z68
+    Front HP fixup for Zotac Z68
 inv-dmic
     Inverted internal mic workaround
+alc662-headset-multi
+    Dell headset jack, which can also be used as mic-in (ALC662)
 dell-headset-multi
     Headset jack, which can also be used as mic-in
+alc662-headset
+    Headset mode support on ALC662
+alc668-headset
+    Headset mode support on ALC668
+bass16
+    Bass speaker fixup on pin 0x16
+bass1a
+    Bass speaker fixup on pin 0x1a
+automute
+    Auto-mute fixups for ALC668
+dell-xps13
+    Dell XPS13 fixups
+asus-nx50
+    ASUS Nx50 fixups
+asus-nx51
+    ASUS Nx51 fixups
+alc891-headset
+    Headset mode support on ALC891
+alc891-headset-multi
+    Dell headset jack, which can also be used as mic-in (ALC891)
+acer-veriton
+    Acer Veriton speaker pin fixup
+asrock-mobo
+    Fix invalid 0x15 / 0x16 pins
+usi-headset
+    Headset support on USI machines
 dual-codecs
     Lenovo laptops with dual codecs
 
