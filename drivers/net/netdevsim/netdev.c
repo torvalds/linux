@@ -260,7 +260,7 @@ nsim_setup_tc_block(struct net_device *dev, struct tc_block_offload *f)
 	switch (f->command) {
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block, nsim_setup_tc_block_cb,
-					     ns, ns);
+					     ns, ns, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block, nsim_setup_tc_block_cb, ns);
 		return 0;
