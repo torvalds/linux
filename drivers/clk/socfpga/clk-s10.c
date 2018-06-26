@@ -37,6 +37,11 @@ static const char * const s2f_usr0_mux[] = {"f2s_free_clk", "boot_clk"};
 static const char * const emac_mux[] = {"emaca_free_clk", "emacb_free_clk"};
 static const char * const noc_mux[] = {"noc_free_clk", "boot_clk"};
 
+static const char * const mpu_free_mux[] = {"main_mpu_base_clk",
+					    "peri_mpu_base_clk",
+					    "osc1", "cb_intosc_hs_div2_clk",
+					    "f2s_free_clk"};
+
 /* clocks in AO (always on) controller */
 static const struct stratix10_pll_clock s10_pll_clks[] = {
 	{ STRATIX10_BOOT_CLK, "boot_clk", boot_mux, ARRAY_SIZE(boot_mux), 0,
@@ -57,7 +62,7 @@ static const struct stratix10_perip_c_clock s10_main_perip_c_clks[] = {
 };
 
 static const struct stratix10_perip_cnt_clock s10_main_perip_cnt_clks[] = {
-	{ STRATIX10_MPU_FREE_CLK, "mpu_free_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
+	{ STRATIX10_MPU_FREE_CLK, "mpu_free_clk", NULL, mpu_free_mux, ARRAY_SIZE(mpu_free_mux),
 	   0, 0x48, 0, 0, 0},
 	{ STRATIX10_NOC_FREE_CLK, "noc_free_clk", NULL, noc_free_mux, ARRAY_SIZE(noc_free_mux),
 	  0, 0x4C, 0, 0, 0},
