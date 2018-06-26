@@ -461,37 +461,43 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
+static void hw_breakpoint_copy_attr(struct perf_event_attr *to,
+				    struct perf_event_attr *from)
+{
+	to->bp_addr = from->bp_addr;
+	to->bp_type = from->bp_type;
+	to->bp_len  = from->bp_len;
+	to->disabled = from->disabled;
+}
+
 int
 modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *attr,
 			        bool check)
 {
-	u64 old_addr = bp->attr.bp_addr;
-	u64 old_len  = bp->attr.bp_len;
-	int old_type = bp->attr.bp_type;
-	bool modify  = attr->bp_type != old_type;
 	struct arch_hw_breakpoint hw;
-	int err = 0;
-
-	bp->attr.bp_addr = attr->bp_addr;
-	bp->attr.bp_type = attr->bp_type;
-	bp->attr.bp_len  = attr->bp_len;
-
-	if (check && memcmp(&bp->attr, attr, sizeof(*attr)))
-		return -EINVAL;
+	int err;
 
 	err = hw_breakpoint_parse(bp, attr, &hw);
-	if (!err && modify)
-		err = modify_bp_slot(bp, old_type, bp->attr.bp_type);
-
-	if (err) {
-		bp->attr.bp_addr = old_addr;
-		bp->attr.bp_type = old_type;
-		bp->attr.bp_len  = old_len;
+	if (err)
 		return err;
+
+	if (check) {
+		struct perf_event_attr old_attr;
+
+		old_attr = bp->attr;
+		hw_breakpoint_copy_attr(&old_attr, attr);
+		if (memcmp(&old_attr, attr, sizeof(*attr)))
+			return -EINVAL;
 	}
 
+	if (bp->attr.bp_type != attr->bp_type) {
+		err = modify_bp_slot(bp, bp->attr.bp_type, attr->bp_type);
+		if (err)
+			return err;
+	}
+
+	hw_breakpoint_copy_attr(&bp->attr, attr);
 	bp->hw.info = hw;
-	bp->attr.disabled = attr->disabled;
 
 	return 0;
 }
