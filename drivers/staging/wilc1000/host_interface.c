@@ -1724,7 +1724,6 @@ out_wpa_rx_gtk:
 
 out_wpa_ptk:
 		complete(&msg->work_comp);
-		kfree(hif_key->attr.wpa.key);
 		break;
 
 	case PMKSA:
@@ -2735,8 +2734,6 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	}
 
 	wait_for_completion(&msg->work_comp);
-	kfree(msg);
-	return 0;
 
 free_key:
 	kfree(msg->body.key_info.attr.wpa.key);
