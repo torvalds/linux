@@ -287,6 +287,29 @@ __addr_add_del()
 	done
 }
 
+__simple_if_init()
+{
+	local if_name=$1; shift
+	local vrf_name=$1; shift
+	local addrs=("${@}")
+
+	ip link set dev $if_name master $vrf_name
+	ip link set dev $if_name up
+
+	__addr_add_del $if_name add "${addrs[@]}"
+}
+
+__simple_if_fini()
+{
+	local if_name=$1; shift
+	local addrs=("${@}")
+
+	__addr_add_del $if_name del "${addrs[@]}"
+
+	ip link set dev $if_name down
+	ip link set dev $if_name nomaster
+}
+
 simple_if_init()
 {
 	local if_name=$1
@@ -298,11 +321,8 @@ simple_if_init()
 	array=("${@}")
 
 	vrf_create $vrf_name
-	ip link set dev $if_name master $vrf_name
 	ip link set dev $vrf_name up
-	ip link set dev $if_name up
-
-	__addr_add_del $if_name add "${array[@]}"
+	__simple_if_init $if_name $vrf_name "${array[@]}"
 }
 
 simple_if_fini()
@@ -315,9 +335,7 @@ simple_if_fini()
 	vrf_name=v$if_name
 	array=("${@}")
 
-	__addr_add_del $if_name del "${array[@]}"
-
-	ip link set dev $if_name down
+	__simple_if_fini $if_name "${array[@]}"
 	vrf_destroy $vrf_name
 }
 
