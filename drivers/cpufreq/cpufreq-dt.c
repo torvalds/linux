@@ -32,8 +32,6 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #endif
 
-#define MAX_CLUSTERS		2
-
 struct private_data {
 	struct device *cpu_dev;
 	struct thermal_cooling_device *cdev;
@@ -161,7 +159,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	bool opp_v1 = false;
 	const char *name;
 	int ret, scale;
-	static int check_init;
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
@@ -312,10 +309,9 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->up_transition_delay_us = transition_latency / NSEC_PER_USEC;
 	policy->down_transition_delay_us = 50000; /* 50ms */
 
-	if (check_init < MAX_CLUSTERS) {
-		dev_pm_opp_check_rate_volt(cpu_dev, true);
-		check_init++;
-	}
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_check_rate_volt(cpu_dev);
+#endif
 
 	return 0;
 

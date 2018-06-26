@@ -48,6 +48,7 @@ struct cluster_info {
 	bool offline;
 	bool rebooting;
 	bool freq_limit;
+	bool is_check_init;
 };
 static LIST_HEAD(cluster_info_list);
 
@@ -171,6 +172,22 @@ int rockchip_cpufreq_set_scale_rate(struct device *dev, unsigned long rate)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rockchip_cpufreq_set_scale_rate);
+
+int rockchip_cpufreq_check_rate_volt(struct device *dev)
+{
+	struct cluster_info *cluster;
+
+	cluster = rockchip_cluster_lookup_by_dev(dev);
+	if (!cluster)
+		return -EINVAL;
+	if (cluster->is_check_init)
+		return 0;
+	dev_pm_opp_check_rate_volt(dev, true);
+	cluster->is_check_init = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_check_rate_volt);
 
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {

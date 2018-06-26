@@ -699,6 +699,7 @@ unsigned long cpufreq_scale_max_freq_capacity(int cpu);
 unsigned int rockchip_cpufreq_adjust_target(int cpu, unsigned int freq);
 int rockchip_cpufreq_get_scale(int cpu);
 int rockchip_cpufreq_set_scale_rate(struct device *dev, unsigned long rate);
+int rockchip_cpufreq_check_rate_volt(struct device *dev);
 #else
 static inline unsigned int rockchip_cpufreq_adjust_target(int cpu,
 							  unsigned int freq)
@@ -713,6 +714,11 @@ static inline int rockchip_cpufreq_get_scale(int cpu)
 
 static inline int rockchip_cpufreq_set_scale_rate(struct device *dev,
 						  unsigned long rate)
+{
+	return -EINVAL;
+}
+
+static inline int rockchip_cpufreq_check_rate_volt(struct device *dev)
 {
 	return -EINVAL;
 }
