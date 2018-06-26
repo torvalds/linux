@@ -10387,6 +10387,11 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 	while (!fcp_xri_cmpl || !els_xri_cmpl || !nvme_xri_cmpl ||
 	       !nvmet_xri_cmpl) {
 		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
+			if (!nvmet_xri_cmpl)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"6424 NVMET XRI exchange busy "
+						"wait time: %d seconds.\n",
+						wait_time/1000);
 			if (!nvme_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6100 NVME XRI exchange busy "
