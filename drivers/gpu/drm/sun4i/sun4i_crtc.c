@@ -242,7 +242,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 
 	/* Set possible_crtcs to this crtc for overlay planes */
 	for (i = 0; planes[i]; i++) {
-		uint32_t possible_crtcs = BIT(drm_crtc_index(&scrtc->crtc));
+		uint32_t possible_crtcs = drm_crtc_mask(&scrtc->crtc);
 		struct drm_plane *plane = planes[i];
 
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
