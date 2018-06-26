@@ -278,7 +278,7 @@ struct qcom_smem {
 	u32 item_count;
 
 	unsigned num_regions;
-	struct smem_region regions[0];
+	struct smem_region regions[];
 };
 
 static void *
@@ -490,7 +490,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 				  size_t *size)
 {
 	struct smem_header *header;
-	struct smem_region *area;
+	struct smem_region *region;
 	struct smem_global_entry *entry;
 	u32 aux_base;
 	unsigned i;
@@ -503,12 +503,12 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 	aux_base = le32_to_cpu(entry->aux_base) & AUX_BASE_MASK;
 
 	for (i = 0; i < smem->num_regions; i++) {
-		area = &smem->regions[i];
+		region = &smem->regions[i];
 
-		if (area->aux_base == aux_base || !aux_base) {
+		if (region->aux_base == aux_base || !aux_base) {
 			if (size != NULL)
 				*size = le32_to_cpu(entry->size);
-			return area->virt_base + le32_to_cpu(entry->offset);
+			return region->virt_base + le32_to_cpu(entry->offset);
 		}
 	}
 
