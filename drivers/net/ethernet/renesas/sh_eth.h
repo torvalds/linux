@@ -383,12 +383,12 @@ enum ECSIPR_STATUS_MASK_BIT {
 
 /* APR */
 enum APR_BIT {
-	APR_AP = 0x00000001,
+	APR_AP = 0x0000ffff,
 };
 
 /* MPR */
 enum MPR_BIT {
-	MPR_MP = 0x00000001,
+	MPR_MP = 0x0000ffff,
 };
 
 /* TRSCER */

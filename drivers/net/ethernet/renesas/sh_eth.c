@@ -1521,9 +1521,9 @@ static int sh_eth_dev_init(struct net_device *ndev)
 
 	/* mask reset */
 	if (mdp->cd->apr)
-		sh_eth_write(ndev, APR_AP, APR);
+		sh_eth_write(ndev, 1, APR);
 	if (mdp->cd->mpr)
-		sh_eth_write(ndev, MPR_MP, MPR);
+		sh_eth_write(ndev, 1, MPR);
 	if (mdp->cd->tpauser)
 		sh_eth_write(ndev, TPAUSER_UNLIMITED, TPAUSER);
 
