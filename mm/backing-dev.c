@@ -409,6 +409,7 @@ static void wb_exit(struct bdi_writeback *wb)
  * protected.
  */
 static DEFINE_SPINLOCK(cgwb_lock);
+static struct workqueue_struct *cgwb_release_wq;
 
 /**
  * wb_congested_get_create - get or create a wb_congested
@@ -519,7 +520,7 @@ static void cgwb_release(struct percpu_ref *refcnt)
 {
 	struct bdi_writeback *wb = container_of(refcnt, struct bdi_writeback,
 						refcnt);
-	schedule_work(&wb->release_work);
+	queue_work(cgwb_release_wq, &wb->release_work);
 }
 
 static void cgwb_kill(struct bdi_writeback *wb)
@@ -782,6 +783,21 @@ static void cgwb_bdi_register(struct backing_dev_info *bdi)
 	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
 	spin_unlock_irq(&cgwb_lock);
 }
+
+static int __init cgwb_init(void)
+{
+	/*
+	 * There can be many concurrent release work items overwhelming
+	 * system_wq.  Put them in a separate wq and limit concurrency.
+	 * There's no point in executing many of these in parallel.
+	 */
+	cgwb_release_wq = alloc_workqueue("cgwb_release", 0, 1);
+	if (!cgwb_release_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+subsys_initcall(cgwb_init);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 

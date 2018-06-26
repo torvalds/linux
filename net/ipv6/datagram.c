@@ -1026,8 +1026,8 @@ exit_f:
 }
 EXPORT_SYMBOL_GPL(ip6_datagram_send_ctl);
 
-void ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
-			     __u16 srcp, __u16 destp, int bucket)
+void __ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
+			       __u16 srcp, __u16 destp, int rqueue, int bucket)
 {
 	const struct in6_addr *dest, *src;
 
@@ -1043,7 +1043,7 @@ void ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
 		   sp->sk_state,
 		   sk_wmem_alloc_get(sp),
-		   sk_rmem_alloc_get(sp),
+		   rqueue,
 		   0, 0L, 0,
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		   0,

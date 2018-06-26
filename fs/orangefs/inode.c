@@ -269,6 +269,13 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 		else
 			stat->result_mask = STATX_BASIC_STATS &
 			    ~STATX_SIZE;
+
+		stat->attributes_mask = STATX_ATTR_IMMUTABLE |
+		    STATX_ATTR_APPEND;
+		if (inode->i_flags & S_IMMUTABLE)
+			stat->attributes |= STATX_ATTR_IMMUTABLE;
+		if (inode->i_flags & S_APPEND)
+			stat->attributes |= STATX_ATTR_APPEND;
 	}
 	return ret;
 }
