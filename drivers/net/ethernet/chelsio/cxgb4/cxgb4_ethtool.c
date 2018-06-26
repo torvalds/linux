@@ -177,6 +177,10 @@ static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
 	"bg3_frames_trunc       ",
 };
 
+static const char cxgb4_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	[PRIV_FLAG_PORT_TX_VM_BIT] = "port_tx_vm_wr",
+};
+
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
@@ -185,6 +189,8 @@ static int get_sset_count(struct net_device *dev, int sset)
 		       ARRAY_SIZE(adapter_stats_strings) +
 		       ARRAY_SIZE(channel_stats_strings) +
 		       ARRAY_SIZE(loopback_stats_strings);
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(cxgb4_priv_flags_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -235,6 +241,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 			 FW_HDR_FW_VER_MINOR_G(exprom_vers),
 			 FW_HDR_FW_VER_MICRO_G(exprom_vers),
 			 FW_HDR_FW_VER_BUILD_G(exprom_vers));
+	info->n_priv_flags = ARRAY_SIZE(cxgb4_priv_flags_strings);
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -250,6 +257,9 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		data += sizeof(channel_stats_strings);
 		memcpy(data, loopback_stats_strings,
 		       sizeof(loopback_stats_strings));
+	} else if (stringset == ETH_SS_PRIV_FLAGS) {
+		memcpy(data, cxgb4_priv_flags_strings,
+		       sizeof(cxgb4_priv_flags_strings));
 	}
 }
 
@@ -1499,6 +1509,36 @@ static int cxgb4_get_module_eeprom(struct net_device *dev,
 			 offset, len, &data[eprom->len - len]);
 }
 
+static u32 cxgb4_get_priv_flags(struct net_device *netdev)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+
+	return (adapter->eth_flags | pi->eth_flags);
+}
+
+/**
+ *	set_flags - set/unset specified flags if passed in new_flags
+ *	@cur_flags: pointer to current flags
+ *	@new_flags: new incoming flags
+ *	@flags: set of flags to set/unset
+ */
+static inline void set_flags(u32 *cur_flags, u32 new_flags, u32 flags)
+{
+	*cur_flags = (*cur_flags & ~flags) | (new_flags & flags);
+}
+
+static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+
+	set_flags(&adapter->eth_flags, flags, PRIV_FLAGS_ADAP);
+	set_flags(&pi->eth_flags, flags, PRIV_FLAGS_PORT);
+
+	return 0;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
@@ -1535,6 +1575,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_dump_data     = get_dump_data,
 	.get_module_info   = cxgb4_get_module_info,
 	.get_module_eeprom = cxgb4_get_module_eeprom,
+	.get_priv_flags    = cxgb4_get_priv_flags,
+	.set_priv_flags    = cxgb4_set_priv_flags,
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
