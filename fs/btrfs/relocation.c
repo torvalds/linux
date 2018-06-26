@@ -598,6 +598,11 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 
 	item_size = btrfs_item_size_nr(leaf, slot);
+	if (item_size < sizeof(*ei)) {
+		btrfs_print_v0_err(leaf->fs_info);
+		btrfs_handle_fs_error(leaf->fs_info, -EINVAL, NULL);
+		return 1;
+	}
 	ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
 	WARN_ON(!(btrfs_extent_flags(leaf, ei) &
 		  BTRFS_EXTENT_FLAG_TREE_BLOCK));
@@ -782,7 +787,6 @@ again:
 			goto next;
 		}
 
-		ASSERT(key.type != BTRFS_EXTENT_REF_V0_KEY);
 		if (key.type == BTRFS_SHARED_BLOCK_REF_KEY) {
 			if (key.objectid == key.offset) {
 				/*
@@ -826,6 +830,12 @@ again:
 			edge->node[UPPER] = upper;
 
 			goto next;
+		} else if (key.type == BTRFS_EXTENT_REF_V0_KEY) {
+			err = -EINVAL;
+			btrfs_print_v0_err(rc->extent_root->fs_info);
+			btrfs_handle_fs_error(rc->extent_root->fs_info, err,
+					      NULL);
+			goto out;
 		} else if (key.type != BTRFS_TREE_BLOCK_REF_KEY) {
 			goto next;
 		}
@@ -3315,6 +3325,10 @@ static int add_tree_block(struct reloc_control *rc,
 			level = (int)extent_key->offset;
 		}
 		generation = btrfs_extent_generation(eb, ei);
+	} else if (item_size == sizeof(struct btrfs_extent_item_v0)) {
+		btrfs_print_v0_err(eb->fs_info);
+		btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
+		return -EINVAL;
 	} else {
 		BUG();
 	}
@@ -3720,7 +3734,6 @@ int add_data_references(struct reloc_control *rc,
 		if (key.objectid != extent_key->objectid)
 			break;
 
-		BUG_ON(key.type == BTRFS_EXTENT_REF_V0_KEY);
 		if (key.type == BTRFS_SHARED_DATA_REF_KEY) {
 			ret = __add_tree_block(rc, key.offset, blocksize,
 					       blocks);
@@ -3729,6 +3742,10 @@ int add_data_references(struct reloc_control *rc,
 					      struct btrfs_extent_data_ref);
 			ret = find_data_references(rc, extent_key,
 						   eb, dref, blocks);
+		} else if (key.type == BTRFS_EXTENT_REF_V0_KEY) {
+			btrfs_print_v0_err(eb->fs_info);
+			btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
+			ret = -EINVAL;
 		} else {
 			ret = 0;
 		}
@@ -3967,7 +3984,11 @@ restart:
 			flags = btrfs_extent_flags(path->nodes[0], ei);
 			ret = check_extent_flags(flags);
 			BUG_ON(ret);
-
+		} else if (item_size == sizeof(struct btrfs_extent_item_v0)) {
+			err = -EINVAL;
+			btrfs_print_v0_err(trans->fs_info);
+			btrfs_abort_transaction(trans, err);
+			break;
 		} else {
 			BUG();
 		}

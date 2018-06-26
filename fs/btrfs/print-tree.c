@@ -52,8 +52,10 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	u64 offset;
 	int ref_index = 0;
 
-	if (item_size < sizeof(*ei))
-		BUG();
+	if (item_size < sizeof(*ei)) {
+		btrfs_print_v0_err(eb->fs_info);
+		btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
+	}
 
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
 	flags = btrfs_extent_flags(eb, ei);
@@ -256,7 +258,8 @@ void btrfs_print_leaf(struct extent_buffer *l)
 			       btrfs_file_extent_ram_bytes(l, fi));
 			break;
 		case BTRFS_EXTENT_REF_V0_KEY:
-			BUG();
+			btrfs_print_v0_err(fs_info);
+			btrfs_handle_fs_error(fs_info, -EINVAL, NULL);
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
