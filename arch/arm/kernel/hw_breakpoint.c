@@ -456,14 +456,13 @@ static int get_hbp_len(u8 hbp_len)
 /*
  * Check whether bp virtual address is in kernel space.
  */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
 	unsigned int len;
 	unsigned long va;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
-	va = info->address;
-	len = get_hbp_len(info->ctrl.len);
+	va = hw->address;
+	len = get_hbp_len(hw->ctrl.len);
 
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
@@ -576,7 +575,7 @@ static int arch_build_bp_info(struct perf_event *bp)
 
 	/* Privilege */
 	info->ctrl.privilege = ARM_BREAKPOINT_USER;
-	if (arch_check_bp_in_kernelspace(bp))
+	if (arch_check_bp_in_kernelspace(info))
 		info->ctrl.privilege |= ARM_BREAKPOINT_PRIV;
 
 	/* Enabled? */
@@ -640,7 +639,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 			return -EINVAL;
 
 		/* We don't allow mismatch breakpoints in kernel space. */
-		if (arch_check_bp_in_kernelspace(bp))
+		if (arch_check_bp_in_kernelspace(info))
 			return -EPERM;
 
 		/*

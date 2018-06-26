@@ -169,28 +169,29 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		set_dr_addr_mask(0, i);
 }
 
-/*
- * Check for virtual address in kernel space.
- */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+static int arch_bp_generic_len(int x86_len)
 {
-	unsigned int len;
-	unsigned long va;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	va = info->address;
-	len = bp->attr.bp_len;
-
-	/*
-	 * We don't need to worry about va + len - 1 overflowing:
-	 * we already require that va is aligned to a multiple of len.
-	 */
-	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
+	switch (x86_len) {
+	case X86_BREAKPOINT_LEN_1:
+		return HW_BREAKPOINT_LEN_1;
+	case X86_BREAKPOINT_LEN_2:
+		return HW_BREAKPOINT_LEN_2;
+	case X86_BREAKPOINT_LEN_4:
+		return HW_BREAKPOINT_LEN_4;
+#ifdef CONFIG_X86_64
+	case X86_BREAKPOINT_LEN_8:
+		return HW_BREAKPOINT_LEN_8;
+#endif
+	default:
+		return -EINVAL;
+	}
 }
 
 int arch_bp_generic_fields(int x86_len, int x86_type,
 			   int *gen_len, int *gen_type)
 {
+	int len;
+
 	/* Type */
 	switch (x86_type) {
 	case X86_BREAKPOINT_EXECUTE:
@@ -211,28 +212,32 @@ int arch_bp_generic_fields(int x86_len, int x86_type,
 	}
 
 	/* Len */
-	switch (x86_len) {
-	case X86_BREAKPOINT_LEN_1:
-		*gen_len = HW_BREAKPOINT_LEN_1;
-		break;
-	case X86_BREAKPOINT_LEN_2:
-		*gen_len = HW_BREAKPOINT_LEN_2;
-		break;
-	case X86_BREAKPOINT_LEN_4:
-		*gen_len = HW_BREAKPOINT_LEN_4;
-		break;
-#ifdef CONFIG_X86_64
-	case X86_BREAKPOINT_LEN_8:
-		*gen_len = HW_BREAKPOINT_LEN_8;
-		break;
-#endif
-	default:
+	len = arch_bp_generic_len(x86_len);
+	if (len < 0)
 		return -EINVAL;
-	}
+	*gen_len = len;
 
 	return 0;
 }
 
+/*
+ * Check for virtual address in kernel space.
+ */
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
+{
+	unsigned long va;
+	int len;
+
+	va = hw->address;
+	len = arch_bp_generic_len(hw->len);
+	WARN_ON_ONCE(len < 0);
+
+	/*
+	 * We don't need to worry about va + len - 1 overflowing:
+	 * we already require that va is aligned to a multiple of len.
+	 */
+	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
+}
 
 static int arch_build_bp_info(struct perf_event *bp)
 {

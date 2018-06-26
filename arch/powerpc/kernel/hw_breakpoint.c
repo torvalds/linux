@@ -119,11 +119,9 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 /*
  * Check for virtual address in kernel space.
  */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	return is_kernel_addr(info->address);
+	return is_kernel_addr(hw->address);
 }
 
 int arch_bp_generic_fields(int type, int *gen_bp_type)

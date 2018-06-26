@@ -427,7 +427,7 @@ static int hw_breakpoint_parse(struct perf_event *bp,
 	if (err)
 		return err;
 
-	if (arch_check_bp_in_kernelspace(bp)) {
+	if (arch_check_bp_in_kernelspace(hw)) {
 		if (attr->exclude_kernel)
 			return -EINVAL;
 		/*
