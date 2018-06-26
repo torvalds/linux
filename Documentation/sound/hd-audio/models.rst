@@ -326,20 +326,70 @@ ALC680
 ======
 N/A
 
-ALC88x/898/1150
-======================
+ALC88x/898/1150/1220
+====================
+abit-aw9d
+    Pin fixups for Abit AW9D-MAX
+lenovo-y530
+    Pin fixups for Lenovo Y530
+acer-aspire-7736
+    Fixup for Acer Aspire 7736
+asus-w90v
+    Pin fixup for ASUS W90V
+cd
+    Enable audio CD pin NID 0x1c
+no-front-hp
+    Disable front HP pin NID 0x1b
+vaio-tt
+    Pin fixup for VAIO TT
+eee1601
+    COEF setups for ASUS Eee 1601
+alc882-eapd
+    Change EAPD COEF mode on ALC882
+alc883-eapd
+    Change EAPD COEF mode on ALC883
+gpio1
+    Enable GPIO1
+gpio2
+    Enable GPIO2
+gpio3
+    Enable GPIO3
+alc889-coef
+    Setup ALC889 COEF
+asus-w2jc
+    Fixups for ASUS W2JC
 acer-aspire-4930g
     Acer Aspire 4930G/5930G/6530G/6930G/7730G
 acer-aspire-8930g
     Acer Aspire 8330G/6935G
 acer-aspire
     Acer Aspire others
+macpro-gpio
+    GPIO setup for Mac Pro
+dac-route
+    Workaround for DAC routing on Acer Aspire
+mbp-vref
+    Vref setup for Macbook Pro
+imac91-vref
+    Vref setup for iMac 9,1
+mba11-vref
+    Vref setup for MacBook Air 1,1
+mba21-vref
+    Vref setup for MacBook Air 2,1
+mp11-vref
+    Vref setup for Mac Pro 1,1
+mp41-vref
+    Vref setup for Mac Pro 4,1
 inv-dmic
     Inverted internal mic workaround
 no-primary-hp
     VAIO Z/VGC-LN51JGB workaround (for fixed speaker DAC)
+asus-bass
+    Bass speaker setup for ASUS ET2700
 dual-codecs
     ALC1220 dual codecs for Gaming mobos
+clevo-p950
+    Fixups for Clevo P950
 
 ALC861/660
 ==========
