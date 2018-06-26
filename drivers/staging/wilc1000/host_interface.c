@@ -110,6 +110,7 @@ struct set_ip_addr {
 };
 
 struct sta_inactive_t {
+	u32 inactive_time;
 	u8 mac[6];
 };
 
@@ -198,7 +199,6 @@ static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 static s8 rssi;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
-static u32 inactive_time;
 static u32 clients_count;
 
 static void *host_int_parse_join_bss_param(struct network_info *info);
@@ -1927,7 +1927,7 @@ static void handle_get_inactive_time(struct work_struct *work)
 
 	wid.id = (u16)WID_GET_INACTIVE_TIME;
 	wid.type = WID_INT;
-	wid.val = (s8 *)&inactive_time;
+	wid.val = (s8 *)&hif_sta_inactive->inactive_time;
 	wid.size = sizeof(u32);
 
 	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
@@ -3095,7 +3095,7 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	else
 		wait_for_completion(&msg->work_comp);
 
-	*out_val = inactive_time;
+	*out_val = msg->body.mac_info.inactive_time;
 	kfree(msg);
 
 	return result;
