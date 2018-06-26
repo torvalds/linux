@@ -823,6 +823,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 		return NULL;
 
 	mutex_init(&opp_table->lock);
+	mutex_init(&opp_table->genpd_virt_dev_lock);
 	INIT_LIST_HEAD(&opp_table->dev_list);
 
 	opp_dev = _add_opp_dev(dev, opp_table);
@@ -920,6 +921,7 @@ static void _opp_table_kref_release(struct kref *kref)
 		_remove_opp_dev(opp_dev, opp_table);
 	}
 
+	mutex_destroy(&opp_table->genpd_virt_dev_lock);
 	mutex_destroy(&opp_table->lock);
 	list_del(&opp_table->node);
 	kfree(opp_table);
@@ -1601,6 +1603,92 @@ void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
+
+/**
+ * dev_pm_opp_set_genpd_virt_dev - Set virtual genpd device for an index
+ * @dev: Consumer device for which the genpd device is getting set.
+ * @virt_dev: virtual genpd device.
+ * @index: index.
+ *
+ * Multiple generic power domains for a device are supported with the help of
+ * virtual genpd devices, which are created for each consumer device - genpd
+ * pair. These are the device structures which are attached to the power domain
+ * and are required by the OPP core to set the performance state of the genpd.
+ *
+ * This helper will normally be called by the consumer driver of the device
+ * "dev", as only that has details of the genpd devices.
+ *
+ * This helper needs to be called once for each of those virtual devices, but
+ * only if multiple domains are available for a device. Otherwise the original
+ * device structure will be used instead by the OPP core.
+ */
+struct opp_table *dev_pm_opp_set_genpd_virt_dev(struct device *dev,
+						struct device *virt_dev,
+						int index)
+{
+	struct opp_table *opp_table;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&opp_table->genpd_virt_dev_lock);
+
+	if (unlikely(!opp_table->genpd_virt_devs ||
+		     index >= opp_table->required_opp_count ||
+		     opp_table->genpd_virt_devs[index])) {
+
+		dev_err(dev, "Invalid request to set required device\n");
+		dev_pm_opp_put_opp_table(opp_table);
+		mutex_unlock(&opp_table->genpd_virt_dev_lock);
+
+		return ERR_PTR(-EINVAL);
+	}
+
+	opp_table->genpd_virt_devs[index] = virt_dev;
+	mutex_unlock(&opp_table->genpd_virt_dev_lock);
+
+	return opp_table;
+}
+
+/**
+ * dev_pm_opp_put_genpd_virt_dev() - Releases resources blocked for genpd device.
+ * @opp_table: OPP table returned by dev_pm_opp_set_genpd_virt_dev().
+ * @virt_dev: virtual genpd device.
+ *
+ * This releases the resource previously acquired with a call to
+ * dev_pm_opp_set_genpd_virt_dev(). The consumer driver shall call this helper
+ * if it doesn't want OPP core to update performance state of a power domain
+ * anymore.
+ */
+void dev_pm_opp_put_genpd_virt_dev(struct opp_table *opp_table,
+				   struct device *virt_dev)
+{
+	int i;
+
+	/*
+	 * Acquire genpd_virt_dev_lock to make sure virt_dev isn't getting
+	 * used in parallel.
+	 */
+	mutex_lock(&opp_table->genpd_virt_dev_lock);
+
+	for (i = 0; i < opp_table->required_opp_count; i++) {
+		if (opp_table->genpd_virt_devs[i] != virt_dev)
+			continue;
+
+		opp_table->genpd_virt_devs[i] = NULL;
+		dev_pm_opp_put_opp_table(opp_table);
+
+		/* Drop the vote */
+		dev_pm_genpd_set_performance_state(virt_dev, 0);
+		break;
+	}
+
+	mutex_unlock(&opp_table->genpd_virt_dev_lock);
+
+	if (unlikely(i == opp_table->required_opp_count))
+		dev_err(virt_dev, "Failed to find required device entry\n");
+}
 
 /**
  * dev_pm_opp_add()  - Add an OPP table from a table definitions

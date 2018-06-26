@@ -135,6 +135,8 @@ enum opp_table_access {
  * @parsed_static_opps: True if OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
+ * @genpd_virt_dev_lock: Mutex protecting the genpd virtual device pointers.
+ * @genpd_virt_devs: List of virtual devices for multiple genpd support.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
  *		this table.
  * @required_opp_count: Number of required devices.
@@ -177,6 +179,8 @@ struct opp_table {
 	enum opp_table_access shared_opp;
 	struct dev_pm_opp *suspend_opp;
 
+	struct mutex genpd_virt_dev_lock;
+	struct device **genpd_virt_devs;
 	struct opp_table **required_opp_tables;
 	unsigned int required_opp_count;
 
