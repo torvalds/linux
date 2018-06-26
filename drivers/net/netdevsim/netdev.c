@@ -171,6 +171,8 @@ static int nsim_init(struct net_device *dev)
 	if (err)
 		goto err_unreg_dev;
 
+	nsim_ipsec_init(ns);
+
 	return 0;
 
 err_unreg_dev:
@@ -186,6 +188,7 @@ static void nsim_uninit(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	nsim_ipsec_teardown(ns);
 	nsim_devlink_teardown(ns);
 	debugfs_remove_recursive(ns->ddir);
 	nsim_bpf_uninit(ns);
@@ -203,11 +206,15 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	if (!nsim_ipsec_tx(ns, skb))
+		goto out;
+
 	u64_stats_update_begin(&ns->syncp);
 	ns->tx_packets++;
 	ns->tx_bytes += skb->len;
 	u64_stats_update_end(&ns->syncp);
 
+out:
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
