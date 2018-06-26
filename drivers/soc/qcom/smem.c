@@ -733,6 +733,7 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 		struct smem_ptable_entry *entry)
 {
 	struct smem_partition_header *header;
+	u32 size;
 
 	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
 
@@ -740,6 +741,13 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 		dev_err(smem->dev, "bad partition magic %02x %02x %02x %02x\n",
 			header->magic[0], header->magic[1],
 			header->magic[2], header->magic[3]);
+		return NULL;
+	}
+
+	size = le32_to_cpu(header->size);
+	if (size != le32_to_cpu(entry->size)) {
+		dev_err(smem->dev, "bad partition size (%u != %u)\n",
+			size, le32_to_cpu(entry->size));
 		return NULL;
 	}
 
@@ -793,11 +801,6 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 
 	if (host0 != SMEM_GLOBAL_HOST || host1 != SMEM_GLOBAL_HOST) {
 		dev_err(smem->dev, "Global partition hosts are invalid\n");
-		return -EINVAL;
-	}
-
-	if (le32_to_cpu(header->size) != le32_to_cpu(entry->size)) {
-		dev_err(smem->dev, "Global partition has invalid size\n");
 		return -EINVAL;
 	}
 
@@ -868,12 +871,6 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 		if (host0 != host0 || host1 != host1) {
 			dev_err(smem->dev,
 				"Partition %d hosts don't match\n", i);
-			return -EINVAL;
-		}
-
-		if (le32_to_cpu(header->size) != le32_to_cpu(entry->size)) {
-			dev_err(smem->dev,
-				"Partition %d has invalid size\n", i);
 			return -EINVAL;
 		}
 
