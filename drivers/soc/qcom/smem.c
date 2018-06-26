@@ -751,6 +751,12 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 		return NULL;
 	}
 
+	if (le32_to_cpu(header->offset_free_uncached) > size) {
+		dev_err(smem->dev, "bad partition free uncached (%u > %u)\n",
+			le32_to_cpu(header->offset_free_uncached), size);
+		return NULL;
+	}
+
 	return header;
 }
 
@@ -759,7 +765,7 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 	struct smem_partition_header *header;
 	struct smem_ptable_entry *entry;
 	struct smem_ptable *ptable;
-	u32 host0, host1, size;
+	u32 host0, host1;
 	bool found = false;
 	int i;
 
@@ -801,13 +807,6 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 
 	if (host0 != SMEM_GLOBAL_HOST || host1 != SMEM_GLOBAL_HOST) {
 		dev_err(smem->dev, "Global partition hosts are invalid\n");
-		return -EINVAL;
-	}
-
-	size = le32_to_cpu(header->offset_free_uncached);
-	if (size > le32_to_cpu(header->size)) {
-		dev_err(smem->dev,
-			"Global partition has invalid free pointer\n");
 		return -EINVAL;
 	}
 
@@ -871,12 +870,6 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 		if (host0 != host0 || host1 != host1) {
 			dev_err(smem->dev,
 				"Partition %d hosts don't match\n", i);
-			return -EINVAL;
-		}
-
-		if (le32_to_cpu(header->offset_free_uncached) > le32_to_cpu(header->size)) {
-			dev_err(smem->dev,
-				"Partition %d has invalid free pointer\n", i);
 			return -EINVAL;
 		}
 
