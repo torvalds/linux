@@ -178,7 +178,6 @@ u8 *rtw_get_ie(u8 *pbuf, int index, uint *len, int limit)
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
-
 	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	switch (mode) {
@@ -326,7 +325,6 @@ check_next_ie:
 
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit)
 {
-
 	return rtw_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
 }
 

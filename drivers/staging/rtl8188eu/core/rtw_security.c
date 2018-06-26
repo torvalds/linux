@@ -185,7 +185,6 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 			}
 		}
 	}
-
 }
 
 int rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
@@ -1030,7 +1029,6 @@ static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists, int 
 		mic_header2[14] = mpdu[30] & 0x0f;
 		mic_header2[15] = mpdu[31] & 0x00;
 	}
-
 }
 
 /************************************************/

@@ -301,7 +301,6 @@ static s32 iol_read_efuse(struct adapter *padapter, u8 txpktbuf_bndy, u16 offset
 
 void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
-
 	if (rtw_IOL_applied(Adapter)) {
 		rtw_hal_power_on(Adapter);
 		iol_mode_enable(Adapter, 1);
@@ -476,7 +475,6 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 			efuse_addr = efuse_addr + (word_cnts*2)+1;
 			ReadState = PG_STATE_HEADER;
 		}
-
 	}
 
 	if ((data[0] == 0xff) && (data[1] == 0xff) && (data[2] == 0xff)  && (data[3] == 0xff) &&
