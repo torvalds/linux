@@ -743,9 +743,13 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 
 	for (i = 0; i < le32_to_cpu(ptable->num_entries); i++) {
 		entry = &ptable->entry[i];
+		if (!le32_to_cpu(entry->offset))
+			continue;
+		if (!le32_to_cpu(entry->size))
+			continue;
+
 		host0 = le16_to_cpu(entry->host0);
 		host1 = le16_to_cpu(entry->host1);
-
 		if (host0 == SMEM_GLOBAL_HOST && host0 == host1) {
 			found = true;
 			break;
@@ -754,11 +758,6 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 
 	if (!found) {
 		dev_err(smem->dev, "Missing entry for global partition\n");
-		return -EINVAL;
-	}
-
-	if (!le32_to_cpu(entry->offset) || !le32_to_cpu(entry->size)) {
-		dev_err(smem->dev, "Invalid entry for global partition\n");
 		return -EINVAL;
 	}
 
@@ -810,16 +809,14 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 
 	for (i = 0; i < le32_to_cpu(ptable->num_entries); i++) {
 		entry = &ptable->entry[i];
-		host0 = le16_to_cpu(entry->host0);
-		host1 = le16_to_cpu(entry->host1);
-
-		if (host0 != local_host && host1 != local_host)
-			continue;
-
 		if (!le32_to_cpu(entry->offset))
 			continue;
-
 		if (!le32_to_cpu(entry->size))
+			continue;
+
+		host0 = le16_to_cpu(entry->host0);
+		host1 = le16_to_cpu(entry->host1);
+		if (host0 != local_host && host1 != local_host)
 			continue;
 
 		if (host0 == local_host)
