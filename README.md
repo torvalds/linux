@@ -7,15 +7,15 @@ Need cross compile tools for the armhf architecture and additional bison and fle
 sudo apt-get install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc make gcc libc6-dev libncurses5-dev libssl-dev bison flex
 ```
 ## Issues
-currently gcc7 is not supported
+currently gcc7 is not supported (https://bugs.linaro.org/show_bug.cgi?id=3823)
 ```sh
-apt-get install gcc-5-arm-linux-gnueabihf
-update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-7  50
+sudo apt-get install gcc-5-arm-linux-gnueabihf
+sudo update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-7  50
 update-alternatives: using /usr/bin/arm-linux-gnueabihf-gcc-7 to provide /usr/bin/arm-linux-gnueabihf-gcc (arm-linux-gnueabihf-gcc) in auto mode
-update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-5  100
+sudo update-alternatives --install /usr/bin/arm-linux-gnueabihf-gcc arm-linux-gnueabihf-gcc /usr/bin/arm-linux-gnueabihf-gcc-5  100
 update-alternatives: using /usr/bin/arm-linux-gnueabihf-gcc-5 to provide /usr/bin/arm-linux-gnueabihf-gcc (arm-linux-gnueabihf-gcc) in auto mode
 
-update-alternatives --config arm-linux-gnueabihf-gcc
+sudo update-alternatives --config arm-linux-gnueabihf-gcc
 ```
 
 ## Usage
@@ -37,25 +37,25 @@ Kernel upstream + BPI-R2
 
 Kernel breakdown features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 |
-|----------| --- | --- | --- | --- | --- |
-| PCIe     |  Y  |  Y  |  Y  |  Y  |     |
-| SATA     |  Y  |  Y  |  Y  |  Y?  |     |
-| 2 GMAC   |  Y  |  Y  |  N  |  N  |     |
-| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |
-| USB      |  Y  |  Y  |  Y  |  Y?  |     |
-| VLAN     |     |     |  Y  |     |     |
-| HW NAT   |     |  Y  |  N |     |     |
-| HW QOS   |     |  Y  |  N |     |     |
-| Crypto   |  Y  |  Y  |  Y  |  Y?  |     |
-| WIFI     |     |     |  Y  |  Y |     |
-| BT       |     |     |     |     |     |
-| VIDEO    |  Y  |  N  |  Y  |  Y  |     |
-| AUDIO    |  Y  |  N  |  N  |  N  |     |
-||| other Options ||||
-| OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |
-| iptables |  ?  |  ?  |  Y  |  ?  |     |
-| LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |
+|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 |
+|----------| --- | --- | --- | --- | --- | --- |
+| PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |
+| SATA     |  Y  |  Y  |  Y  |  Y?  |     |  ?   |
+| 2 GMAC   |  Y  |  Y  |  N  |  N  |     |     |
+| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |   Y  |
+| USB      |  Y  |  Y  |  Y  |  Y?  |     |  ?   |
+| VLAN     |     |     |  Y  |     |     |  ?   |
+| HW NAT   |     |  Y  |  N |     |     |     |
+| HW QOS   |     |  Y  |  N |     |     |     |
+| Crypto   |  Y  |  Y  |  Y  |  Y?  |     |     |
+| WIFI     |     |     |  Y  |  Y |     |   Y  |
+| BT       |     |     |     |     |     |     |
+| VIDEO    |  Y  |  N  |  Y  |  Y  |     |     |
+| AUDIO    |  Y  |  N  |  N  |  N  |     |     |
+||| other Options ||||     |
+| OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |   ?  |
+| iptables |  ?  |  ?  |  Y  |  ?  |     |   ?  |
+| LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |  ?   |
 
 ? = unsure
 
