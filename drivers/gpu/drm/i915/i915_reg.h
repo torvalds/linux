@@ -1045,13 +1045,13 @@ enum i915_power_well_id {
 
 	/*
 	 * HSW/BDW
-	 *  - HSW_PWR_WELL_CTL_DRIVER(0) (status bit: id*2, req bit: id*2+1)
+	 *  - _HSW_PWR_WELL_CTL1-4 (status bit: id*2, req bit: id*2+1)
 	 */
 	HSW_DISP_PW_GLOBAL = 15,
 
 	/*
 	 * GEN9+
-	 *  - HSW_PWR_WELL_CTL_DRIVER(0) (status bit: id*2, req bit: id*2+1)
+	 *  - _HSW_PWR_WELL_CTL1-4 (status bit: id*2, req bit: id*2+1)
 	 */
 	SKL_DISP_PW_MISC_IO = 0,
 	SKL_DISP_PW_DDI_A_E,
@@ -1075,17 +1075,54 @@ enum i915_power_well_id {
 	SKL_DISP_PW_2,
 
 	/* - custom power wells */
-	SKL_DISP_PW_DC_OFF,
 	BXT_DPIO_CMN_A,
 	BXT_DPIO_CMN_BC,
-	GLK_DPIO_CMN_C,			/* 19 */
+	GLK_DPIO_CMN_C,			/* 18 */
+
+	/*
+	 * GEN11+
+	 *  - _HSW_PWR_WELL_CTL1-4
+	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
+	 */
+	ICL_DISP_PW_1 = 0,
+	ICL_DISP_PW_2,
+	ICL_DISP_PW_3,
+	ICL_DISP_PW_4,
+
+	/*
+	 *  - _HSW_PWR_WELL_CTL_AUX1/2/4
+	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
+	 */
+	ICL_DISP_PW_AUX_A = 16,
+	ICL_DISP_PW_AUX_B,
+	ICL_DISP_PW_AUX_C,
+	ICL_DISP_PW_AUX_D,
+	ICL_DISP_PW_AUX_E,
+	ICL_DISP_PW_AUX_F,
+
+	ICL_DISP_PW_AUX_TBT1 = 24,
+	ICL_DISP_PW_AUX_TBT2,
+	ICL_DISP_PW_AUX_TBT3,
+	ICL_DISP_PW_AUX_TBT4,
+
+	/*
+	 *  - _HSW_PWR_WELL_CTL_DDI1/2/4
+	 *    (status bit: (id&15)*2, req bit:(id&15)*2+1)
+	 */
+	ICL_DISP_PW_DDI_A = 32,
+	ICL_DISP_PW_DDI_B,
+	ICL_DISP_PW_DDI_C,
+	ICL_DISP_PW_DDI_D,
+	ICL_DISP_PW_DDI_E,
+	ICL_DISP_PW_DDI_F,                      /* 37 */
 
 	/*
 	 * Multiple platforms.
 	 * Must start following the highest ID of any platform.
 	 * - custom power wells
 	 */
-	I915_DISP_PW_ALWAYS_ON = 20,
+	SKL_DISP_PW_DC_OFF = 38,
+	I915_DISP_PW_ALWAYS_ON,
 };
 
 #define PUNIT_REG_PWRGT_CTRL			0x60
@@ -1678,6 +1715,13 @@ enum i915_power_well_id {
 #define   IREF1RC_OFFSET_SHIFT		8
 #define   IREF1RC_OFFSET_MASK		(0xFF << IREF1RC_OFFSET_SHIFT)
 #define BXT_PORT_CL1CM_DW10(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW10_BC)
+
+#define _ICL_PORT_CL_DW12_A		0x162030
+#define _ICL_PORT_CL_DW12_B		0x6C030
+#define   ICL_LANE_ENABLE_AUX		(1 << 0)
+#define ICL_PORT_CL_DW12(port)		_MMIO_PORT((port),		\
+						   _ICL_PORT_CL_DW12_A, \
+						   _ICL_PORT_CL_DW12_B)
 
 #define _PORT_CL1CM_DW28_A		0x162070
 #define _PORT_CL1CM_DW28_BC		0x6C070
@@ -8564,6 +8608,14 @@ enum {
 #define _HSW_PWR_WELL_CTL3			0x45408
 #define _HSW_PWR_WELL_CTL4			0x4540C
 
+#define _ICL_PWR_WELL_CTL_AUX1			0x45440
+#define _ICL_PWR_WELL_CTL_AUX2			0x45444
+#define _ICL_PWR_WELL_CTL_AUX4			0x4544C
+
+#define _ICL_PWR_WELL_CTL_DDI1			0x45450
+#define _ICL_PWR_WELL_CTL_DDI2			0x45454
+#define _ICL_PWR_WELL_CTL_DDI4			0x4545C
+
 /*
  * Each power well control register contains up to 16 (request, status) HW
  * flag tuples. The register index and HW flag shift is determined by the
@@ -8573,14 +8625,20 @@ enum {
  */
 #define _HSW_PW_REG_IDX(pw)			((pw) >> 4)
 #define _HSW_PW_SHIFT(pw)			(((pw) & 0xf) * 2)
-/* TODO: Add all PWR_WELL_CTL registers below for new platforms */
 #define HSW_PWR_WELL_CTL_BIOS(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL1))
+						    _HSW_PWR_WELL_CTL1,	       \
+						    _ICL_PWR_WELL_CTL_AUX1,    \
+						    _ICL_PWR_WELL_CTL_DDI1))
 #define HSW_PWR_WELL_CTL_DRIVER(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL2))
+						    _HSW_PWR_WELL_CTL2,	       \
+						    _ICL_PWR_WELL_CTL_AUX2,    \
+						    _ICL_PWR_WELL_CTL_DDI2))
+/* KVMR doesn't have a reg for AUX or DDI power well control */
 #define HSW_PWR_WELL_CTL_KVMR		_MMIO(_HSW_PWR_WELL_CTL3)
 #define HSW_PWR_WELL_CTL_DEBUG(pw)	_MMIO(_PICK(_HSW_PW_REG_IDX(pw),       \
-						    _HSW_PWR_WELL_CTL4))
+						    _HSW_PWR_WELL_CTL4,	       \
+						    _ICL_PWR_WELL_CTL_AUX4,    \
+						    _ICL_PWR_WELL_CTL_DDI4))
 
 #define   HSW_PWR_WELL_CTL_REQ(pw)		(1 << (_HSW_PW_SHIFT(pw) + 1))
 #define   HSW_PWR_WELL_CTL_STATE(pw)		(1 << _HSW_PW_SHIFT(pw))
@@ -8601,6 +8659,8 @@ enum skl_power_gate {
 #define  SKL_FUSE_DOWNLOAD_STATUS		(1 << 31)
 /* PG0 (HW control->no power well ID), PG1..PG2 (SKL_DISP_PW1..SKL_DISP_PW2) */
 #define  SKL_PW_TO_PG(pw)			((pw) - SKL_DISP_PW_1 + SKL_PG1)
+/* PG0 (HW control->no power well ID), PG1..PG4 (ICL_DISP_PW1..ICL_DISP_PW4) */
+#define  ICL_PW_TO_PG(pw)			((pw) - ICL_DISP_PW_1 + SKL_PG1)
 #define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
 #define _CNL_AUX_REG_IDX(pw)		((pw) - 9)
