@@ -74,7 +74,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
-	select SND_SOC_DIO2125
 	select SND_SOC_DMIC if GPIOLIB
 	select SND_SOC_ES8316 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
@@ -144,6 +143,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5682 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
+	select SND_SOC_SIMPLE_AMPLIFIER
 	select SND_SOC_SIRF_AUDIO_CODEC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2305
@@ -573,10 +573,6 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
-config SND_SOC_DIO2125
-	tristate "Dioo DIO2125 Amplifier"
-	select GPIOLIB
-
 config SND_SOC_DMIC
 	tristate
 
@@ -896,6 +892,10 @@ config SND_SOC_SIGMADSP_I2C
 config SND_SOC_SIGMADSP_REGMAP
 	tristate
 	select SND_SOC_SIGMADSP
+
+config SND_SOC_SIMPLE_AMPLIFIER
+	tristate "Simple Audio Amplifier"
+	select GPIOLIB
 
 config SND_SOC_SIRF_AUDIO_CODEC
 	tristate "SiRF SoC internal audio codec"
