@@ -1867,6 +1867,12 @@ static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false;
 static inline bool amdgpu_has_atpx(void) { return false; }
 #endif
 
+#if defined(CONFIG_VGA_SWITCHEROO) && defined(CONFIG_ACPI)
+void *amdgpu_atpx_get_dhandle(void);
+#else
+static inline void *amdgpu_atpx_get_dhandle(void) { return NULL; }
+#endif
+
 /*
  * KMS
  */
