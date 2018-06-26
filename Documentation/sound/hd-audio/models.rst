@@ -41,6 +41,8 @@ inv-dmic
     Inverted internal mic workaround
 hp-eapd
     Disable HP EAPD on NID 0x15
+spdif
+    Enable SPDIF output on NID 0x1e
 
 ALC22x/23x/25x/269/27x/28x/29x (and vendor-specific ALC3xxx models)
 ===================================================================

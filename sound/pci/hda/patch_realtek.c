@@ -2688,6 +2688,7 @@ static const struct hda_fixup alc268_fixups[] = {
 static const struct hda_model_fixup alc268_fixup_models[] = {
 	{.id = ALC268_FIXUP_INV_DMIC, .name = "inv-dmic"},
 	{.id = ALC268_FIXUP_HP_EAPD, .name = "hp-eapd"},
+	{.id = ALC268_FIXUP_SPDIF, .name = "spdif"},
 	{}
 };
 
