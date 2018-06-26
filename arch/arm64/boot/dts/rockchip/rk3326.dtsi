@@ -17,5 +17,7 @@
 		opp-microvolt = <1175000>;
 		opp-microvolt-L0 = <1175000>;
 		opp-microvolt-L1 = <1150000>;
+		opp-microvolt-L2 = <1100000>;
+		opp-microvolt-L3 = <1050000>;
 	};
 };

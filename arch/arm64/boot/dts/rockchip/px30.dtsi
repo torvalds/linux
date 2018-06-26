@@ -112,12 +112,18 @@
 		rockchip,avs-scale = <4>;
 		rockchip,max-volt = <1350000>;
 		rockchip,evb-irdrop = <25000>;
-		nvmem-cells = <&cpu_leakage>;
-		nvmem-cell-names = "cpu_leakage";
+		nvmem-cells = <&cpu_leakage>, <&performance>;
+		nvmem-cell-names = "cpu_leakage", "performance";
+		rockchip,bin-scaling-sel = <
+			0               13
+			1               15
+		>;
 
 		rockchip,pvtm-voltage-sel = <
 			0        50000   0
-			50001    99999   1
+			50001    54000   1
+			54001    60000   2
+			60001    99999   3
 		>;
 		rockchip,pvtm-freq = <408000>;
 		rockchip,pvtm-volt = <1000000>;
@@ -134,6 +140,8 @@
 			opp-microvolt = <950000 950000 1350000>;
 			opp-microvolt-L0 = <950000 950000 1350000>;
 			opp-microvolt-L1 = <950000 950000 1350000>;
+			opp-microvolt-L2 = <950000 950000 1350000>;
+			opp-microvolt-L3 = <950000 950000 1350000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
@@ -142,6 +150,8 @@
 			opp-microvolt = <950000 950000 1350000>;
 			opp-microvolt-L0 = <950000 950000 1350000>;
 			opp-microvolt-L1 = <950000 950000 1350000>;
+			opp-microvolt-L2 = <950000 950000 1350000>;
+			opp-microvolt-L3 = <950000 950000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
@@ -149,6 +159,8 @@
 			opp-microvolt = <1050000 1050000 1350000>;
 			opp-microvolt-L0 = <1050000 1050000 1350000>;
 			opp-microvolt-L1 = <1000000 1000000 1350000>;
+			opp-microvolt-L2 = <1000000 1000000 1350000>;
+			opp-microvolt-L3 = <950000  950000  1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
@@ -156,6 +168,8 @@
 			opp-microvolt = <1175000 1175000 1350000>;
 			opp-microvolt-L0 = <1175000 1175000 1350000>;
 			opp-microvolt-L1 = <1125000 1125000 1350000>;
+			opp-microvolt-L2 = <1125000 1125000 1350000>;
+			opp-microvolt-L3 = <1050000 1050000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
@@ -163,6 +177,8 @@
 			opp-microvolt = <1300000 1300000 1350000>;
 			opp-microvolt-L0 = <1300000 1300000 1350000>;
 			opp-microvolt-L1 = <1275000 1275000 1350000>;
+			opp-microvolt-L2 = <1250000 1250000 1350000>;
+			opp-microvolt-L3 = <1200000 1200000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1248000000 {
@@ -170,6 +186,8 @@
 			opp-microvolt = <1350000 1350000 1350000>;
 			opp-microvolt-L0 = <1350000 1350000 1350000>;
 			opp-microvolt-L1 = <1300000 1300000 1350000>;
+			opp-microvolt-L2 = <1275000 1275000 1350000>;
+			opp-microvolt-L3 = <1225000 1225000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
@@ -177,6 +195,8 @@
 			opp-microvolt = <1350000 1350000 1350000>;
 			opp-microvolt-L0 = <1350000 1350000 1350000>;
 			opp-microvolt-L1 = <1350000 1350000 1350000>;
+			opp-microvolt-L2 = <1300000 1300000 1350000>;
+			opp-microvolt-L3 = <1250000 1250000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
@@ -184,6 +204,8 @@
 			opp-microvolt = <1350000 1350000 1350000>;
 			opp-microvolt-L0 = <1350000 1350000 1350000>;
 			opp-microvolt-L1 = <1350000 1350000 1350000>;
+			opp-microvolt-L2 = <1300000 1300000 1350000>;
+			opp-microvolt-L3 = <1250000 1250000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1512000000 {
@@ -191,6 +213,8 @@
 			opp-microvolt = <1350000 1350000 1350000>;
 			opp-microvolt-L0 = <1350000 1350000 1350000>;
 			opp-microvolt-L1 = <1350000 1350000 1350000>;
+			opp-microvolt-L2 = <1300000 1300000 1350000>;
+			opp-microvolt-L3 = <1250000 1250000 1350000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -971,6 +995,10 @@
 		cpu_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
 		};
+		performance: performance@1e {
+			reg = <0x1e 0x1>;
+			bits = <4 3>;
+		};
 	};
 
 	cru: clock-controller@ff2b0000 {
@@ -1266,7 +1294,9 @@
 
 		rockchip,pvtm-voltage-sel = <
 			0        50000   0
-			50001    99999   1
+			50001    54000   1
+			54001    60000   2
+			60001    99999   3
 		>;
 		rockchip,pvtm-ch = <0 0>;
 
@@ -1275,24 +1305,32 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <975000>;
 			opp-microvolt-L0 = <975000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <1050000>;
 			opp-microvolt-L0 = <1050000>;
 			opp-microvolt-L1 = <1025000>;
+			opp-microvolt-L2 = <975000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-480000000 {
 			opp-hz = /bits/ 64 <480000000>;
 			opp-microvolt = <1125000>;
 			opp-microvolt-L0 = <1125000>;
 			opp-microvolt-L1 = <1100000>;
+			opp-microvolt-L2 = <1050000>;
+			opp-microvolt-L3 = <1000000>;
 		};
 	};
 
@@ -1743,7 +1781,9 @@
 
 		rockchip,pvtm-voltage-sel = <
 			0        50000   0
-			50001    99999   1
+			50001    54000   1
+			54001    60000   2
+			60001    99999   3
 		>;
 		rockchip,pvtm-ch = <0 0>;
 
@@ -1752,36 +1792,48 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-328000000 {
 			opp-hz = /bits/ 64 <328000000>;
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-450000000 {
 			opp-hz = /bits/ 64 <450000000>;
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <950000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-528000000 {
 			opp-hz = /bits/ 64 <528000000>;
 			opp-microvolt = <975000>;
 			opp-microvolt-L0 = <975000>;
 			opp-microvolt-L1 = <975000>;
+			opp-microvolt-L2 = <950000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
 			opp-microvolt-L0 = <1050000>;
 			opp-microvolt-L1 = <1000000>;
+			opp-microvolt-L2 = <975000>;
+			opp-microvolt-L3 = <950000>;
 		};
 		opp-786000000 {
 			opp-hz = /bits/ 64 <786000000>;
 			opp-microvolt = <1100000>;
 			opp-microvolt-L0 = <1100000>;
 			opp-microvolt-L1 = <1050000>;
+			opp-microvolt-L2 = <1025000>;
+			opp-microvolt-L3 = <1000000>;
 			status = "disabled";
 		};
 	};
