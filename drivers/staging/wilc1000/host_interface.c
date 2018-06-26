@@ -196,7 +196,6 @@ u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 static u8 rcv_assoc_resp[MAX_ASSOC_RESP_FRAME_SIZE];
 
-static s8 rssi;
 static u8 set_ip[2][4];
 static u8 get_ip[2][4];
 static u32 clients_count;
@@ -1829,7 +1828,7 @@ static void handle_get_rssi(struct work_struct *work)
 
 	wid.id = (u16)WID_RSSI;
 	wid.type = WID_CHAR;
-	wid.val = &rssi;
+	wid.val = msg->body.data;
 	wid.size = sizeof(char);
 
 	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
@@ -3115,14 +3114,21 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
+	msg->body.data = kzalloc(sizeof(s8), GFP_KERNEL);
+	if (!msg->body.data) {
+		kfree(msg);
+		return -ENOMEM;
+	}
+
 	result = wilc_enqueue_work(msg);
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send get host ch param\n");
 	} else {
 		wait_for_completion(&msg->work_comp);
-		*rssi_level = rssi;
+		*rssi_level = *msg->body.data;
 	}
 
+	kfree(msg->body.data);
 	kfree(msg);
 
 	return result;
