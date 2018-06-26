@@ -2970,7 +2970,7 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 	u32 i, wait_cnt = 0;
 
-	if (phba->sli_rev < LPFC_SLI_REV4)
+	if (phba->sli_rev < LPFC_SLI_REV4 || !phba->sli4_hba.nvme_wq)
 		return;
 
 	/* Cycle through all NVME rings and make sure all outstanding
@@ -2978,6 +2978,9 @@ lpfc_nvme_wait_for_io_drain(struct lpfc_hba *phba)
 	 */
 	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
 		pring = phba->sli4_hba.nvme_wq[i]->pring;
+
+		if (!pring)
+			continue;
 
 		/* Retrieve everything on the txcmplq */
 		while (!list_empty(&pring->txcmplq)) {
