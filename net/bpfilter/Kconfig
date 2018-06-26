@@ -1,6 +1,5 @@
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
-	default n
 	depends on NET && BPF && INET
 	help
 	  This builds experimental bpfilter framework that is aiming to
@@ -9,6 +8,7 @@ menuconfig BPFILTER
 if BPFILTER
 config BPFILTER_UMH
 	tristate "bpfilter kernel module with user mode helper"
+	depends on $(success,$(srctree)/scripts/cc-can-link.sh $(CC))
 	default m
 	help
 	  This builds bpfilter kernel module with embedded user mode helper
