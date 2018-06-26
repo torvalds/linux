@@ -848,15 +848,9 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 			return -EINVAL;
 		}
 
-		if (host0 != local_host && host1 != local_host) {
+		if (host0 != host0 || host1 != host1) {
 			dev_err(smem->dev,
-				"Partition %d hosts are invalid\n", i);
-			return -EINVAL;
-		}
-
-		if (host0 != remote_host && host1 != remote_host) {
-			dev_err(smem->dev,
-				"Partition %d hosts are invalid\n", i);
+				"Partition %d hosts don't match\n", i);
 			return -EINVAL;
 		}
 
