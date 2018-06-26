@@ -383,7 +383,7 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 	}
 
 	if (!udev) {
-		pr_err(KERN_ERR "tcmu nl cmd %u/%d completion could not find device with dev id %u.\n",
+		pr_err("tcmu nl cmd %u/%d completion could not find device with dev id %u.\n",
 		       completed_cmd, rc, dev_id);
 		ret = -ENODEV;
 		goto unlock;
