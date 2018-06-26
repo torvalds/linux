@@ -10,7 +10,6 @@
 #include <linux/types.h>
 
 struct arch_hw_breakpoint {
-	char		*name; /* Contains name of the symbol to set bkpt */
 	unsigned long	address;
 	u16		len;
 	u16		type;
