@@ -3217,7 +3217,7 @@ static netdev_features_t cxgb_fix_features(struct net_device *dev,
 static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_open             = cxgb_open,
 	.ndo_stop             = cxgb_close,
-	.ndo_start_xmit       = t4_eth_xmit,
+	.ndo_start_xmit       = t4_start_xmit,
 	.ndo_select_queue     =	cxgb_select_queue,
 	.ndo_get_stats64      = cxgb_get_stats,
 	.ndo_set_rx_mode      = cxgb_set_rxmode,

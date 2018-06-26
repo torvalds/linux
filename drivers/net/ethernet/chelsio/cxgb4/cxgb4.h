@@ -522,6 +522,15 @@ enum {
 	MAX_INGQ = MAX_ETH_QSETS + INGQ_EXTRAS,
 };
 
+enum {
+	PRIV_FLAG_PORT_TX_VM_BIT,
+};
+
+#define PRIV_FLAG_PORT_TX_VM		BIT(PRIV_FLAG_PORT_TX_VM_BIT)
+
+#define PRIV_FLAGS_ADAP			0
+#define PRIV_FLAGS_PORT			PRIV_FLAG_PORT_TX_VM
+
 struct adapter;
 struct sge_rspq;
 
@@ -558,6 +567,7 @@ struct port_info {
 	struct hwtstamp_config tstamp_config;
 	bool ptp_enable;
 	struct sched_table *sched_tbl;
+	u32 eth_flags;
 };
 
 struct dentry;
@@ -868,6 +878,7 @@ struct adapter {
 	unsigned int flags;
 	unsigned int adap_idx;
 	enum chip_type chip;
+	u32 eth_flags;
 
 	int msg_enable;
 	__be16 vxlan_port;
@@ -1335,7 +1346,7 @@ void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 void t4_free_sge_resources(struct adapter *adap);
 void t4_free_ofld_rxqs(struct adapter *adap, int n, struct sge_ofld_rxq *q);
 irq_handler_t t4_intr_handler(struct adapter *adap);
-netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t t4_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		     const struct pkt_gl *gl);
 int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
