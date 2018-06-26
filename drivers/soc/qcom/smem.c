@@ -816,13 +816,12 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 
 		host0 = le16_to_cpu(entry->host0);
 		host1 = le16_to_cpu(entry->host1);
-		if (host0 != local_host && host1 != local_host)
-			continue;
-
 		if (host0 == local_host)
 			remote_host = host1;
-		else
+		else if (host1 == local_host)
 			remote_host = host0;
+		else
+			continue;
 
 		if (remote_host >= SMEM_HOST_COUNT) {
 			dev_err(smem->dev,
