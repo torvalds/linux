@@ -619,7 +619,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			tmp = aa_compute_fperms(dfa, state, &cond);
 		}
 	} else if (profile->policy.dfa) {
-		if (!PROFILE_MEDIATES(profile, *match_str))
+		if (!PROFILE_MEDIATES_SAFE(profile, *match_str))
 			return;	/* no change to current perms */
 		dfa = profile->policy.dfa;
 		state = aa_dfa_match_len(dfa, profile->policy.start[0],
