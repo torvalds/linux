@@ -774,13 +774,13 @@ static int rproc_handle_resources(struct rproc *rproc,
 	return ret;
 }
 
-static int rproc_probe_subdevices(struct rproc *rproc)
+static int rproc_start_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
 	int ret;
 
 	list_for_each_entry(subdev, &rproc->subdevs, node) {
-		ret = subdev->probe(subdev);
+		ret = subdev->start(subdev);
 		if (ret)
 			goto unroll_registration;
 	}
@@ -789,17 +789,17 @@ static int rproc_probe_subdevices(struct rproc *rproc)
 
 unroll_registration:
 	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, node)
-		subdev->remove(subdev, true);
+		subdev->stop(subdev, true);
 
 	return ret;
 }
 
-static void rproc_remove_subdevices(struct rproc *rproc, bool crashed)
+static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 {
 	struct rproc_subdev *subdev;
 
 	list_for_each_entry_reverse(subdev, &rproc->subdevs, node)
-		subdev->remove(subdev, crashed);
+		subdev->stop(subdev, crashed);
 }
 
 /**
@@ -901,8 +901,8 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 		return ret;
 	}
 
-	/* probe any subdevices for the remote processor */
-	ret = rproc_probe_subdevices(rproc);
+	/* Start any subdevices for the remote processor */
+	ret = rproc_start_subdevices(rproc);
 	if (ret) {
 		dev_err(dev, "failed to probe subdevices for %s: %d\n",
 			rproc->name, ret);
@@ -1014,8 +1014,8 @@ static int rproc_stop(struct rproc *rproc, bool crashed)
 	struct device *dev = &rproc->dev;
 	int ret;
 
-	/* remove any subdevices for the remote processor */
-	rproc_remove_subdevices(rproc, crashed);
+	/* Stop any subdevices for the remote processor */
+	rproc_stop_subdevices(rproc, crashed);
 
 	/* the installed resource table is no longer accessible */
 	rproc->table_ptr = rproc->cached_table;
@@ -1657,16 +1657,16 @@ EXPORT_SYMBOL(rproc_del);
  * rproc_add_subdev() - add a subdevice to a remoteproc
  * @rproc: rproc handle to add the subdevice to
  * @subdev: subdev handle to register
- * @probe: function to call when the rproc boots
- * @remove: function to call when the rproc shuts down
+ * @start: function to call after the rproc is started
+ * @stop: function to call before the rproc is stopped
  */
 void rproc_add_subdev(struct rproc *rproc,
 		      struct rproc_subdev *subdev,
-		      int (*probe)(struct rproc_subdev *subdev),
-		      void (*remove)(struct rproc_subdev *subdev, bool crashed))
+		      int (*start)(struct rproc_subdev *subdev),
+		      void (*stop)(struct rproc_subdev *subdev, bool crashed))
 {
-	subdev->probe = probe;
-	subdev->remove = remove;
+	subdev->start = start;
+	subdev->stop = stop;
 
 	list_add_tail(&subdev->node, &rproc->subdevs);
 }
