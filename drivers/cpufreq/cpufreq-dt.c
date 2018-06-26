@@ -158,7 +158,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	struct cpumask cpus;
 #endif
 	unsigned int transition_latency;
-	unsigned long cur_freq;
 	bool opp_v1 = false;
 	const char *name;
 	int ret, scale;
@@ -314,9 +313,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->down_transition_delay_us = 50000; /* 50ms */
 
 	if (check_init < MAX_CLUSTERS) {
-		ret = dev_pm_opp_check_initial_rate(cpu_dev, &cur_freq);
-		if (!ret)
-			policy->cur = cur_freq / 1000;
+		dev_pm_opp_check_rate_volt(cpu_dev, true);
 		check_init++;
 	}
 
