@@ -526,21 +526,19 @@ kci_test_macsec()
 kci_test_ipsec()
 {
 	ret=0
-
-	# find an ip address on this machine and make up a destination
-	srcip=`ip -o addr | awk '/inet / { print $4; }' | grep -v "^127" | head -1 | cut -f1 -d/`
-	net=`echo $srcip | cut -f1-3 -d.`
-	base=`echo $srcip | cut -f4 -d.`
-	dstip="$net."`expr $base + 1`
-
 	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
+	srcip=192.168.123.1
+	dstip=192.168.123.2
+	spi=7
+
+	ip addr add $srcip dev $devdummy
 
 	# flush to be sure there's nothing configured
 	ip x s flush ; ip x p flush
 	check_err $?
 
 	# start the monitor in the background
-	tmpfile=`mktemp ipsectestXXX`
+	tmpfile=`mktemp /var/run/ipsectestXXX`
 	mpid=`(ip x m > $tmpfile & echo $!) 2>/dev/null`
 	sleep 0.2
 
@@ -604,6 +602,7 @@ kci_test_ipsec()
 	check_err $?
 	ip x p flush
 	check_err $?
+	ip addr del $srcip/32 dev $devdummy
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ipsec"
