@@ -163,8 +163,8 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
-	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
-	unsigned old_mask;
+	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
+	unsigned int old_mask;
 
 	if (WARN_ON(pll == NULL))
 		return;
@@ -207,7 +207,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
-	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
+	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
 
 	/* PCH only available on ILK+ */
 	if (INTEL_GEN(dev_priv) < 5)

@@ -2756,10 +2756,10 @@ intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 
 	/* FIXME pre-g4x don't work like this */
 	if (visible) {
-		crtc_state->base.plane_mask |= BIT(drm_plane_index(&plane->base));
+		crtc_state->base.plane_mask |= drm_plane_mask(&plane->base);
 		crtc_state->active_planes |= BIT(plane->id);
 	} else {
-		crtc_state->base.plane_mask &= ~BIT(drm_plane_index(&plane->base));
+		crtc_state->base.plane_mask &= ~drm_plane_mask(&plane->base);
 		crtc_state->active_planes &= ~BIT(plane->id);
 	}
 
@@ -11884,7 +11884,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 			 struct drm_crtc_state *new_state)
 {
 	struct intel_dpll_hw_state dpll_hw_state;
-	unsigned crtc_mask;
+	unsigned int crtc_mask;
 	bool active;
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
@@ -11911,7 +11911,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	crtc_mask = 1 << drm_crtc_index(crtc);
+	crtc_mask = drm_crtc_mask(crtc);
 
 	if (new_state->active)
 		I915_STATE_WARN(!(pll->active_mask & crtc_mask),
@@ -11946,7 +11946,7 @@ verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
 
 	if (old_state->shared_dpll &&
 	    old_state->shared_dpll != new_state->shared_dpll) {
-		unsigned crtc_mask = 1 << drm_crtc_index(crtc);
+		unsigned int crtc_mask = drm_crtc_mask(crtc);
 		struct intel_shared_dpll *pll = old_state->shared_dpll;
 
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
@@ -15608,9 +15608,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 				 * rely on the connector_mask being accurate.
 				 */
 				encoder->base.crtc->state->connector_mask |=
-					1 << drm_connector_index(&connector->base);
+					drm_connector_mask(&connector->base);
 				encoder->base.crtc->state->encoder_mask |=
-					1 << drm_encoder_index(&encoder->base);
+					drm_encoder_mask(&encoder->base);
 			}
 
 		} else {
