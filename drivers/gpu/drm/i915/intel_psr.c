@@ -323,6 +323,8 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 
 	if (dev_priv->psr.link_standby)
 		dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
+	if (!dev_priv->psr.psr2_enabled && INTEL_GEN(dev_priv) >= 8)
+		dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
@@ -377,6 +379,9 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 		val |= EDP_PSR_TP1_TP3_SEL;
 	else
 		val |= EDP_PSR_TP1_TP2_SEL;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		val |= EDP_PSR_CRC_ENABLE;
 
 	val |= I915_READ(EDP_PSR_CTL) & EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK;
 	I915_WRITE(EDP_PSR_CTL, val);
@@ -951,7 +956,8 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	struct i915_psr *psr = &dev_priv->psr;
 	u8 val;
 	const u8 errors = DP_PSR_RFB_STORAGE_ERROR |
-			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR;
+			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
+			  DP_PSR_LINK_CRC_ERROR;
 
 	if (!CAN_PSR(dev_priv) || !intel_dp_is_edp(intel_dp))
 		return;
@@ -980,6 +986,8 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
 	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
 		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
+	if (val & DP_PSR_LINK_CRC_ERROR)
+		DRM_ERROR("PSR Link CRC error, disabling PSR\n");
 
 	if (val & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",

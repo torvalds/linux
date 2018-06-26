@@ -4044,6 +4044,7 @@ enum {
 #define   EDP_PSR_SKIP_AUX_EXIT			(1 << 12)
 #define   EDP_PSR_TP1_TP2_SEL			(0 << 11)
 #define   EDP_PSR_TP1_TP3_SEL			(1 << 11)
+#define   EDP_PSR_CRC_ENABLE			(1 << 10) /* BDW+ */
 #define   EDP_PSR_TP2_TP3_TIME_500us		(0 << 8)
 #define   EDP_PSR_TP2_TP3_TIME_100us		(1 << 8)
 #define   EDP_PSR_TP2_TP3_TIME_2500us		(2 << 8)
