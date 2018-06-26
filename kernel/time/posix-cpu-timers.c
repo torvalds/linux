@@ -85,7 +85,7 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 			continue;
 
 		timer->it.cpu.expires += incr;
-		timer->it_overrun += 1 << i;
+		timer->it_overrun += 1LL << i;
 		delta -= incr;
 	}
 }
