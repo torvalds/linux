@@ -400,23 +400,6 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	return 0;
 }
 
-#ifndef hw_breakpoint_arch_parse
-int hw_breakpoint_arch_parse(struct perf_event *bp,
-			     const struct perf_event_attr *attr,
-			     struct arch_hw_breakpoint *hw)
-{
-	int err;
-
-	err = arch_validate_hwbkpt_settings(bp);
-	if (err)
-		return err;
-
-	*hw = bp->hw.info;
-
-	return 0;
-}
-#endif
-
 static int hw_breakpoint_parse(struct perf_event *bp,
 			       const struct perf_event_attr *attr,
 			       struct arch_hw_breakpoint *hw)
