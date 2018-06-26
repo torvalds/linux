@@ -49,17 +49,6 @@
 	};
 };
 
-&rng1 {
-	status = "okay";
-};
-
-&timers6 {
-	status = "okay";
-	timer@5 {
-		status = "okay";
-	};
-};
-
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins_a>;
@@ -68,8 +57,19 @@
 	status = "okay";
 };
 
+&rng1 {
+	status = "okay";
+};
+
 &rtc {
 	status = "okay";
+};
+
+&timers6 {
+	status = "okay";
+	timer@5 {
+		status = "okay";
+	};
 };
 
 &uart4 {
