@@ -5,7 +5,8 @@ menu "Qualcomm SoC drivers"
 
 config QCOM_COMMAND_DB
 	bool "Qualcomm Command DB"
-	depends on (ARCH_QCOM && OF) || COMPILE_TEST
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF_RESERVED_MEM
 	help
 	  Command DB queries shared memory by key string for shared system
 	  resources. Platform drivers that require to set state of a shared
