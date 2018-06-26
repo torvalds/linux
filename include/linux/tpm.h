@@ -63,6 +63,7 @@ extern int tpm_seal_trusted(struct tpm_chip *chip,
 extern int tpm_unseal_trusted(struct tpm_chip *chip,
 			      struct trusted_key_payload *payload,
 			      struct trusted_key_options *options);
+extern struct tpm_chip *tpm_default_chip(void);
 #else
 static inline int tpm_is_tpm2(struct tpm_chip *chip)
 {
@@ -97,6 +98,10 @@ static inline int tpm_unseal_trusted(struct tpm_chip *chip,
 				     struct trusted_key_options *options)
 {
 	return -ENODEV;
+}
+static inline struct tpm_chip *tpm_default_chip(void)
+{
+	return NULL;
 }
 #endif
 #endif
