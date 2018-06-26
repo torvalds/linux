@@ -535,9 +535,9 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 			     struct drm_crtc_state *new_state)
 {
 	struct vmw_display_unit *du = vmw_crtc_to_du(new_state->crtc);
-	int connector_mask = 1 << drm_connector_index(&du->connector);
+	int connector_mask = drm_connector_mask(&du->connector);
 	bool has_primary = new_state->plane_mask &
-			   BIT(drm_plane_index(crtc->primary));
+			   drm_plane_mask(crtc->primary);
 
 	/* We always want to have an active plane with an active CRTC */
 	if (has_primary != new_state->enable)
