@@ -526,64 +526,6 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-/**
- * cio_validate_subchannel - basic validation of subchannel
- * @schid: subchannel id
- * @schib: subchannel information block to be filled out
- *
- * Check if subchannel is valid and should be used.
- * Return codes:
- *   0 on success
- *   -ENXIO for non-defined subchannels
- *   -ENODEV for invalid subchannels or blacklisted devices
- *   -EIO for subchannels in an invalid subchannel set
- */
-int cio_validate_subchannel(struct subchannel_id schid, struct schib *schib)
-{
-	char dbf_txt[15];
-	int ccode;
-	int err;
-
-	sprintf(dbf_txt, "valsch%x", schid.sch_no);
-	CIO_TRACE_EVENT(4, dbf_txt);
-
-	/*
-	 * The first subchannel that is not-operational (ccode==3)
-	 * indicates that there aren't any more devices available.
-	 * If stsch gets an exception, it means the current subchannel set
-	 * is not valid.
-	 */
-	ccode = stsch(schid, schib);
-	if (ccode) {
-		err = (ccode == 3) ? -ENXIO : ccode;
-		goto out;
-	}
-
-	switch (schib->pmcw.st) {
-	case SUBCHANNEL_TYPE_IO:
-	case SUBCHANNEL_TYPE_MSG:
-		if (!css_sch_is_valid(schib))
-			err = -ENODEV;
-		else if (is_blacklisted(schid.ssid, schib->pmcw.dev)) {
-			CIO_MSG_EVENT(6, "Blacklisted device detected "
-				      "at devno %04X, subchannel set %x\n",
-				      schib->pmcw.dev, schid.ssid);
-			err = -ENODEV;
-		} else
-			err = 0;
-		break;
-	default:
-		err = 0;
-	}
-	if (err)
-		goto out;
-
-	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
-		      schid.ssid, schid.sch_no, schib->pmcw.st);
-out:
-	return err;
-}
-
 /*
  * do_cio_interrupt() handles all normal I/O device IRQ's
  */
@@ -707,6 +649,7 @@ struct subchannel *cio_probe_console(void)
 {
 	struct subchannel_id schid;
 	struct subchannel *sch;
+	struct schib schib;
 	int sch_no, ret;
 
 	sch_no = cio_get_console_sch_no();
@@ -716,7 +659,11 @@ struct subchannel *cio_probe_console(void)
 	}
 	init_subchannel_id(&schid);
 	schid.sch_no = sch_no;
-	sch = css_alloc_subchannel(schid);
+	ret = stsch(schid, &schib);
+	if (ret)
+		return ERR_PTR(-ENODEV);
+
+	sch = css_alloc_subchannel(schid, &schib);
 	if (IS_ERR(sch))
 		return sch;
 
