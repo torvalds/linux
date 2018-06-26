@@ -949,6 +949,8 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_psr *psr = &dev_priv->psr;
 	u8 val;
+	const u8 errors = DP_PSR_RFB_STORAGE_ERROR |
+			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR;
 
 	if (!CAN_PSR(dev_priv) || !intel_dp_is_edp(intel_dp))
 		return;
@@ -968,7 +970,25 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 		intel_psr_disable_locked(intel_dp);
 	}
 
-	/* TODO: handle other PSR/PSR2 errors */
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
+		DRM_ERROR("PSR_ERROR_STATUS dpcd read failed\n");
+		goto exit;
+	}
+
+	if (val & DP_PSR_RFB_STORAGE_ERROR)
+		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
+	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
+
+	if (val & ~errors)
+		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
+			  val & ~errors);
+	if (val & errors)
+		intel_psr_disable_locked(intel_dp);
+	/* clear status register */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
+
+	/* TODO: handle PSR2 errors */
 exit:
 	mutex_unlock(&psr->lock);
 }
