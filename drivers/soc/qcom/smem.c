@@ -723,6 +723,29 @@ static u32 qcom_smem_get_item_count(struct qcom_smem *smem)
 	return le16_to_cpu(info->num_items);
 }
 
+/*
+ * Validate the partition header for a partition whose partition
+ * table entry is supplied.  Returns a pointer to its header if
+ * valid, or a null pointer otherwise.
+ */
+static struct smem_partition_header *
+qcom_smem_partition_header(struct qcom_smem *smem,
+		struct smem_ptable_entry *entry)
+{
+	struct smem_partition_header *header;
+
+	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
+
+	if (memcmp(header->magic, SMEM_PART_MAGIC, sizeof(header->magic))) {
+		dev_err(smem->dev, "bad partition magic %02x %02x %02x %02x\n",
+			header->magic[0], header->magic[1],
+			header->magic[2], header->magic[3]);
+		return NULL;
+	}
+
+	return header;
+}
+
 static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 {
 	struct smem_partition_header *header;
@@ -761,14 +784,12 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 		return -EINVAL;
 	}
 
-	header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
+	header = qcom_smem_partition_header(smem, entry);
+	if (!header)
+		return -EINVAL;
+
 	host0 = le16_to_cpu(header->host0);
 	host1 = le16_to_cpu(header->host1);
-
-	if (memcmp(header->magic, SMEM_PART_MAGIC, sizeof(header->magic))) {
-		dev_err(smem->dev, "Global partition has invalid magic\n");
-		return -EINVAL;
-	}
 
 	if (host0 != SMEM_GLOBAL_HOST || host1 != SMEM_GLOBAL_HOST) {
 		dev_err(smem->dev, "Global partition hosts are invalid\n");
@@ -837,16 +858,12 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 			return -EINVAL;
 		}
 
-		header = smem->regions[0].virt_base + le32_to_cpu(entry->offset);
+		header = qcom_smem_partition_header(smem, entry);
+		if (!header)
+			return -EINVAL;
+
 		host0 = le16_to_cpu(header->host0);
 		host1 = le16_to_cpu(header->host1);
-
-		if (memcmp(header->magic, SMEM_PART_MAGIC,
-			    sizeof(header->magic))) {
-			dev_err(smem->dev,
-				"Partition %d has invalid magic\n", i);
-			return -EINVAL;
-		}
 
 		if (host0 != host0 || host1 != host1) {
 			dev_err(smem->dev,
