@@ -2597,105 +2597,112 @@ static int dpcm_run_old_update(struct snd_soc_pcm_runtime *fe, int stream)
 	return ret;
 }
 
+static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
+{
+	struct snd_soc_dapm_widget_list *list;
+	int count, paths;
+
+	if (!fe->dai_link->dynamic)
+		return 0;
+
+	/* only check active links */
+	if (!fe->cpu_dai->active)
+		return 0;
+
+	/* DAPM sync will call this to update DSP paths */
+	dev_dbg(fe->dev, "ASoC: DPCM %s runtime update for FE %s\n",
+		new ? "new" : "old", fe->dai_link->name);
+
+	/* skip if FE doesn't have playback capability */
+	if (!fe->cpu_dai->driver->playback.channels_min ||
+	    !fe->codec_dai->driver->playback.channels_min)
+		goto capture;
+
+	/* skip if FE isn't currently playing */
+	if (!fe->cpu_dai->playback_active || !fe->codec_dai->playback_active)
+		goto capture;
+
+	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
+	if (paths < 0) {
+		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
+			 fe->dai_link->name,  "playback");
+		return paths;
+	}
+
+	/* update any playback paths */
+	count = dpcm_process_paths(fe, SNDRV_PCM_STREAM_PLAYBACK, &list, new);
+	if (count) {
+		if (new)
+			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
+		else
+			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
+
+		dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_PLAYBACK);
+		dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
+	}
+
+	dpcm_path_put(&list);
+
+capture:
+	/* skip if FE doesn't have capture capability */
+	if (!fe->cpu_dai->driver->capture.channels_min ||
+	    !fe->codec_dai->driver->capture.channels_min)
+		return 0;
+
+	/* skip if FE isn't currently capturing */
+	if (!fe->cpu_dai->capture_active || !fe->codec_dai->capture_active)
+		return 0;
+
+	paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);
+	if (paths < 0) {
+		dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
+			 fe->dai_link->name,  "capture");
+		return paths;
+	}
+
+	/* update any old capture paths */
+	count = dpcm_process_paths(fe, SNDRV_PCM_STREAM_CAPTURE, &list, new);
+	if (count) {
+		if (new)
+			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_CAPTURE);
+		else
+			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_CAPTURE);
+
+		dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_CAPTURE);
+		dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_CAPTURE);
+	}
+
+	dpcm_path_put(&list);
+
+	return 0;
+}
+
 /* Called by DAPM mixer/mux changes to update audio routing between PCMs and
  * any DAI links.
  */
 int soc_dpcm_runtime_update(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *fe;
-	int old, new, paths;
+	int ret = 0;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
+	/* shutdown all old paths first */
 	list_for_each_entry(fe, &card->rtd_list, list) {
-		struct snd_soc_dapm_widget_list *list;
-
-		/* make sure link is FE */
-		if (!fe->dai_link->dynamic)
-			continue;
-
-		/* only check active links */
-		if (!fe->cpu_dai->active)
-			continue;
-
-		/* DAPM sync will call this to update DSP paths */
-		dev_dbg(fe->dev, "ASoC: DPCM runtime update for FE %s\n",
-			fe->dai_link->name);
-
-		/* skip if FE doesn't have playback capability */
-		if (!fe->cpu_dai->driver->playback.channels_min
-		    || !fe->codec_dai->driver->playback.channels_min)
-			goto capture;
-
-		/* skip if FE isn't currently playing */
-		if (!fe->cpu_dai->playback_active
-		    || !fe->codec_dai->playback_active)
-			goto capture;
-
-		paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
-		if (paths < 0) {
-			dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-					fe->dai_link->name,  "playback");
-			mutex_unlock(&card->mutex);
-			return paths;
-		}
-
-		/* update any new playback paths */
-		new = dpcm_process_paths(fe, SNDRV_PCM_STREAM_PLAYBACK, &list, 1);
-		if (new) {
-			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
-			dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_PLAYBACK);
-			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
-		}
-
-		/* update any old playback paths */
-		old = dpcm_process_paths(fe, SNDRV_PCM_STREAM_PLAYBACK, &list, 0);
-		if (old) {
-			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_PLAYBACK);
-			dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_PLAYBACK);
-			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
-		}
-
-		dpcm_path_put(&list);
-capture:
-		/* skip if FE doesn't have capture capability */
-		if (!fe->cpu_dai->driver->capture.channels_min
-		    || !fe->codec_dai->driver->capture.channels_min)
-			continue;
-
-		/* skip if FE isn't currently capturing */
-		if (!fe->cpu_dai->capture_active
-		    || !fe->codec_dai->capture_active)
-			continue;
-
-		paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);
-		if (paths < 0) {
-			dev_warn(fe->dev, "ASoC: %s no valid %s path\n",
-					fe->dai_link->name,  "capture");
-			mutex_unlock(&card->mutex);
-			return paths;
-		}
-
-		/* update any new capture paths */
-		new = dpcm_process_paths(fe, SNDRV_PCM_STREAM_CAPTURE, &list, 1);
-		if (new) {
-			dpcm_run_new_update(fe, SNDRV_PCM_STREAM_CAPTURE);
-			dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_CAPTURE);
-			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_CAPTURE);
-		}
-
-		/* update any old capture paths */
-		old = dpcm_process_paths(fe, SNDRV_PCM_STREAM_CAPTURE, &list, 0);
-		if (old) {
-			dpcm_run_old_update(fe, SNDRV_PCM_STREAM_CAPTURE);
-			dpcm_clear_pending_state(fe, SNDRV_PCM_STREAM_CAPTURE);
-			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_CAPTURE);
-		}
-
-		dpcm_path_put(&list);
+		ret = soc_dpcm_fe_runtime_update(fe, 0);
+		if (ret)
+			goto out;
 	}
 
+	/* bring new paths up */
+	list_for_each_entry(fe, &card->rtd_list, list) {
+		ret = soc_dpcm_fe_runtime_update(fe, 1);
+		if (ret)
+			goto out;
+	}
+
+out:
 	mutex_unlock(&card->mutex);
-	return 0;
+	return ret;
 }
 int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute)
 {
