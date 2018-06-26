@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,6 +281,10 @@ enum iwl_mac_filter_flags {
 	MAC_FILTER_OUT_BCAST		= BIT(8),
 	MAC_FILTER_IN_CRC32		= BIT(11),
 	MAC_FILTER_IN_PROBE_REQUEST	= BIT(12),
+	/**
+	 * @MAC_FILTER_IN_11AX: mark BSS as supporting 802.11ax
+	 */
+	MAC_FILTER_IN_11AX		= BIT(14),
 };
 
 /**
@@ -405,5 +411,171 @@ struct iwl_missed_beacons_notif {
 	__le32 num_expected_beacons;
 	__le32 num_recvd_beacons;
 } __packed; /* MISSED_BEACON_NTFY_API_S_VER_3 */
+
+/**
+ * struct iwl_he_backoff_conf - used for backoff configuration
+ * Per each trigger-based AC, (set by MU EDCA Parameter set info-element)
+ * used for backoff configuration of TXF5..TXF8 trigger based.
+ * The MU-TIMER is reloaded w/ MU_TIME each time a frame from the AC is sent via
+ * trigger-based TX.
+ * @cwmin: CW min
+ * @cwmax: CW max
+ * @aifsn: AIFSN
+ *	AIFSN=0, means that no backoff from the specified TRIG-BASED AC is
+ *	allowed till the MU-TIMER is 0
+ * @mu_time: MU time in 8TU units
+ */
+struct iwl_he_backoff_conf {
+	__le16 cwmin;
+	__le16 cwmax;
+	__le16 aifsn;
+	__le16 mu_time;
+} __packed; /* AC_QOS_DOT11AX_API_S */
+
+#define MAX_HE_SUPP_NSS	2
+#define MAX_HE_CHANNEL_BW_INDX	4
+
+/**
+ * struct iwl_he_pkt_ext - QAM thresholds
+ * The required PPE is set via HE Capabilities IE, per Nss x BW x MCS
+ * The IE is organized in the following way:
+ * Support for Nss x BW (or RU) matrix:
+ *	(0=SISO, 1=MIMO2) x (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz)
+ * Each entry contains 2 QAM thresholds for 8us and 16us:
+ *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6/7=RES
+ * i.e. QAM_th1 < QAM_th2 such if TX uses QAM_tx:
+ *	QAM_tx < QAM_th1            --> PPE=0us
+ *	QAM_th1 <= QAM_tx < QAM_th2 --> PPE=8us
+ *	QAM_th2 <= QAM_tx           --> PPE=16us
+ * @pkt_ext_qam_th: QAM thresholds
+ *	For each Nss/Bw define 2 QAM thrsholds (0..5)
+ *	For rates below the low_th, no need for PPE
+ *	For rates between low_th and high_th, need 8us PPE
+ *	For rates equal or higher then the high_th, need 16us PPE
+ *	Nss (0-siso, 1-mimo2) x BW (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz) x
+ *		(0-low_th, 1-high_th)
+ */
+struct iwl_he_pkt_ext {
+	u8 pkt_ext_qam_th[MAX_HE_SUPP_NSS][MAX_HE_CHANNEL_BW_INDX][2];
+} __packed; /* PKT_EXT_DOT11AX_API_S */
+
+/**
+ * enum iwl_he_sta_ctxt_flags - HE STA context flags
+ * @STA_CTXT_HE_REF_BSSID_VALID: ref bssid addr valid (for receiving specific
+ *	control frames such as TRIG, NDPA, BACK)
+ * @STA_CTXT_HE_BSS_COLOR_DIS: BSS color disable, don't use the BSS
+ *	color for RX filter but use MAC header
+ * @STA_CTXT_HE_PARTIAL_BSS_COLOR: partial BSS color allocation
+ * @STA_CTXT_HE_32BIT_BA_BITMAP: indicates the receiver supports BA bitmap
+ *	of 32-bits
+ * @STA_CTXT_HE_PACKET_EXT: indicates that the packet-extension info is valid
+ *	and should be used
+ * @STA_CTXT_HE_TRIG_RND_ALLOC: indicates that trigger based random allocation
+ *	is enabled according to UORA element existence
+ * @STA_CTXT_HE_CONST_TRIG_RND_ALLOC: used for AV testing
+ * @STA_CTXT_HE_ACK_ENABLED: indicates that the AP supports receiving ACK-
+ *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ * @STA_CTXT_HE_MU_EDCA_CW: indicates that there is an element of MU EDCA
+ *	parameter set, i.e. the backoff counters for trig-based ACs
+ */
+enum iwl_he_sta_ctxt_flags {
+	STA_CTXT_HE_REF_BSSID_VALID		= BIT(4),
+	STA_CTXT_HE_BSS_COLOR_DIS		= BIT(5),
+	STA_CTXT_HE_PARTIAL_BSS_COLOR		= BIT(6),
+	STA_CTXT_HE_32BIT_BA_BITMAP		= BIT(7),
+	STA_CTXT_HE_PACKET_EXT			= BIT(8),
+	STA_CTXT_HE_TRIG_RND_ALLOC		= BIT(9),
+	STA_CTXT_HE_CONST_TRIG_RND_ALLOC	= BIT(10),
+	STA_CTXT_HE_ACK_ENABLED			= BIT(11),
+	STA_CTXT_HE_MU_EDCA_CW			= BIT(12),
+};
+
+/**
+ * enum iwl_he_htc_flags - HE HTC support flags
+ * @IWL_HE_HTC_SUPPORT: HE-HTC support
+ * @IWL_HE_HTC_UL_MU_RESP_SCHED: HE UL MU response schedule
+ *	support via A-control field
+ * @IWL_HE_HTC_BSR_SUPP: BSR support in A-control field
+ * @IWL_HE_HTC_OMI_SUPP: A-OMI support in A-control field
+ * @IWL_HE_HTC_BQR_SUPP: A-BQR support in A-control field
+ */
+enum iwl_he_htc_flags {
+	IWL_HE_HTC_SUPPORT			= BIT(0),
+	IWL_HE_HTC_UL_MU_RESP_SCHED		= BIT(3),
+	IWL_HE_HTC_BSR_SUPP			= BIT(4),
+	IWL_HE_HTC_OMI_SUPP			= BIT(5),
+	IWL_HE_HTC_BQR_SUPP			= BIT(6),
+};
+
+/*
+ * @IWL_HE_HTC_LINK_ADAP_NO_FEEDBACK: the STA does not provide HE MFB
+ * @IWL_HE_HTC_LINK_ADAP_UNSOLICITED: the STA provides only unsolicited HE MFB
+ * @IWL_HE_HTC_LINK_ADAP_BOTH: the STA is capable of providing HE MFB in
+ *      response to HE MRQ and if the STA provides unsolicited HE MFB
+ */
+#define IWL_HE_HTC_LINK_ADAP_POS		(1)
+#define IWL_HE_HTC_LINK_ADAP_NO_FEEDBACK	(0)
+#define IWL_HE_HTC_LINK_ADAP_UNSOLICITED	(2 << IWL_HE_HTC_LINK_ADAP_POS)
+#define IWL_HE_HTC_LINK_ADAP_BOTH		(3 << IWL_HE_HTC_LINK_ADAP_POS)
+
+/**
+ * struct iwl_he_sta_context_cmd - configure FW to work with HE AP
+ * @sta_id: STA id
+ * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
+ *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ * @reserved1: reserved byte for future use
+ * @reserved2: reserved byte for future use
+ * @flags: see %iwl_11ax_sta_ctxt_flags
+ * @ref_bssid_addr: reference BSSID used by the AP
+ * @reserved0: reserved 2 bytes for aligning the ref_bssid_addr field to 8 bytes
+ * @htc_flags: which features are supported in HTC
+ * @frag_flags: frag support in A-MSDU
+ * @frag_level: frag support level
+ * @frag_max_num: max num of "open" MSDUs in the receiver (in power of 2)
+ * @frag_min_size: min frag size (except last frag)
+ * @pkt_ext: optional, exists according to PPE-present bit in the HE-PHY capa
+ * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
+ * @htc_trig_based_pkt_ext: default PE in 4us units
+ * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
+ * @rand_alloc_ecwmin: random CWmin = 2**ECWmin-1
+ * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
+ * @reserved3: reserved byte for future use
+ * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
+ */
+struct iwl_he_sta_context_cmd {
+	u8 sta_id;
+	u8 tid_limit;
+	u8 reserved1;
+	u8 reserved2;
+	__le32 flags;
+
+	/* The below fields are set via Multiple BSSID IE */
+	u8 ref_bssid_addr[6];
+	__le16 reserved0;
+
+	/* The below fields are set via HE-capabilities IE */
+	__le32 htc_flags;
+
+	u8 frag_flags;
+	u8 frag_level;
+	u8 frag_max_num;
+	u8 frag_min_size;
+
+	/* The below fields are set via PPE thresholds element */
+	struct iwl_he_pkt_ext pkt_ext;
+
+	/* The below fields are set via HE-Operation IE */
+	u8 bss_color;
+	u8 htc_trig_based_pkt_ext;
+	__le16 frame_time_rts_th;
+
+	/* Random access parameter set (i.e. RAPS) */
+	u8 rand_alloc_ecwmin;
+	u8 rand_alloc_ecwmax;
+	__le16 reserved3;
+
+	/* The below fields are set via MU EDCA parameter set element */
+	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
+} __packed; /* STA_CONTEXT_DOT11AX_API_S */
 
 #endif /* __iwl_fw_api_mac_h__ */

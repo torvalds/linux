@@ -195,7 +195,6 @@ struct iwl_nvm_get_info_general {
  * @NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED: true if 5.2 band enabled
  * @NVM_MAC_SKU_FLAGS_802_11N_ENABLED: true if 11n enabled
  * @NVM_MAC_SKU_FLAGS_802_11AC_ENABLED: true if 11ac enabled
- * @NVM_MAC_SKU_FLAGS_802_11AX_ENABLED: true if 11ax enabled
  * @NVM_MAC_SKU_FLAGS_MIMO_DISABLED: true if MIMO disabled
  * @NVM_MAC_SKU_FLAGS_WAPI_ENABLED: true if WAPI enabled
  * @NVM_MAC_SKU_FLAGS_REG_CHECK_ENABLED: true if regulatory checker enabled
@@ -206,6 +205,9 @@ enum iwl_nvm_mac_sku_flags {
 	NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED	= BIT(1),
 	NVM_MAC_SKU_FLAGS_802_11N_ENABLED	= BIT(2),
 	NVM_MAC_SKU_FLAGS_802_11AC_ENABLED	= BIT(3),
+	/**
+	 * @NVM_MAC_SKU_FLAGS_802_11AX_ENABLED: true if 11ax enabled
+	 */
 	NVM_MAC_SKU_FLAGS_802_11AX_ENABLED	= BIT(4),
 	NVM_MAC_SKU_FLAGS_MIMO_DISABLED		= BIT(5),
 	NVM_MAC_SKU_FLAGS_WAPI_ENABLED		= BIT(8),

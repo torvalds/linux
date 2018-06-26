@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -343,6 +345,37 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
+/*
+ * enum iwl_rx_he_phy - HE PHY data
+ */
+enum iwl_rx_he_phy {
+	IWL_RX_HE_PHY_BEAM_CHNG			= BIT(0),
+	IWL_RX_HE_PHY_UPLINK			= BIT(1),
+	IWL_RX_HE_PHY_BSS_COLOR_MASK		= 0xfc,
+	IWL_RX_HE_PHY_SPATIAL_REUSE_MASK	= 0xf00,
+	IWL_RX_HE_PHY_SU_EXT_BW10		= BIT(12),
+	IWL_RX_HE_PHY_TXOP_DUR_MASK		= 0xfe000,
+	IWL_RX_HE_PHY_LDPC_EXT_SYM		= BIT(20),
+	IWL_RX_HE_PHY_PRE_FEC_PAD_MASK		= 0x600000,
+	IWL_RX_HE_PHY_PE_DISAMBIG		= BIT(23),
+	IWL_RX_HE_PHY_DOPPLER			= BIT(24),
+	/* 6 bits reserved */
+	IWL_RX_HE_PHY_DELIM_EOF			= BIT(31),
+
+	/* second dword - MU data */
+	IWL_RX_HE_PHY_SIGB_COMPRESSION		= BIT_ULL(32 + 0),
+	IWL_RX_HE_PHY_SIBG_SYM_OR_USER_NUM_MASK	= 0x1e00000000ULL,
+	IWL_RX_HE_PHY_HE_LTF_NUM_MASK		= 0xe000000000ULL,
+	IWL_RX_HE_PHY_RU_ALLOC_SEC80		= BIT_ULL(32 + 8),
+	/* trigger encoded */
+	IWL_RX_HE_PHY_RU_ALLOC_MASK		= 0xfe0000000000ULL,
+	IWL_RX_HE_PHY_SIGB_MCS_MASK		= 0xf000000000000ULL,
+	/* 1 bit reserved */
+	IWL_RX_HE_PHY_SIGB_DCM			= BIT_ULL(32 + 21),
+	IWL_RX_HE_PHY_PREAMBLE_PUNC_TYPE_MASK	= 0xc0000000000000ULL,
+	/* 8 bits reserved */
+};
+
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
  */
@@ -438,12 +471,20 @@ struct iwl_rx_mpdu_desc {
 	 */
 	__le32 gp2_on_air_rise;
 	/* DW12 & DW13 */
-	/**
-	 * @tsf_on_air_rise:
-	 * TSF value on air rise (INA), only valid if
-	 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
-	 */
-	__le64 tsf_on_air_rise;
+	union {
+		/**
+		 * @tsf_on_air_rise:
+		 * TSF value on air rise (INA), only valid if
+		 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
+		 */
+		__le64 tsf_on_air_rise;
+		/**
+		 * @he_phy_data:
+		 * HE PHY data, see &enum iwl_rx_he_phy, valid
+		 * only if %IWL_RX_MPDU_PHY_TSF_OVERLOAD is set
+		 */
+		__le64 he_phy_data;
+	};
 } __packed;
 
 struct iwl_frame_release {
