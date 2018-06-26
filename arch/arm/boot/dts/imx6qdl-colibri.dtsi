@@ -480,8 +480,7 @@
 
 	pinctrl_gpio_keys: gpiokeys {
 		fsl,pins = <
-			/* Power button */
-			MX6QDL_PAD_EIM_A16__GPIO2_IO22		0x1b0b0
+			MX6QDL_PAD_EIM_A16__GPIO2_IO22		0x130b0
 		>;
 	};
 
