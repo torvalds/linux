@@ -56,7 +56,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	if (skb_is_gso(skb)) {
 		struct net_device *dev = skb->dev;
 
-		if (unlikely(!x->xso.offload_handle || (x->xso.dev != dev))) {
+		if (unlikely(x->xso.dev != dev)) {
 			struct sk_buff *segs;
 
 			/* Packet got rerouted, fixup features and segment it. */
@@ -211,8 +211,8 @@ bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 	if (!x->type_offload || x->encap)
 		return false;
 
-	if ((!dev || (x->xso.offload_handle && (dev == xfrm_dst_path(dst)->dev))) &&
-	     (!xdst->child->xfrm && x->type->get_mtu)) {
+	if ((!dev || (dev == xfrm_dst_path(dst)->dev)) &&
+	    (!xdst->child->xfrm && x->type->get_mtu)) {
 		mtu = x->type->get_mtu(x, xdst->child_mtu_cached);
 
 		if (skb->len <= mtu)
