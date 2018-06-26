@@ -271,7 +271,7 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 		r = amdgpu_bo_kmap(*bo_ptr, cpu_addr);
 		if (r) {
 			dev_err(adev->dev, "(%d) kernel bo map failed\n", r);
-			goto error_unreserve;
+			goto error_unpin;
 		}
 	}
 
