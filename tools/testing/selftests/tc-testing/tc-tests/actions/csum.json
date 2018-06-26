@@ -336,6 +336,30 @@
         ]
     },
     {
+        "id": "b10b",
+        "name": "Add all 7 csum actions",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action csum icmp ip4h sctp igmp udplite udp tcp index 7",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action csum index 7",
+        "matchPattern": "action order [0-9]*: csum \\(iph, icmp, igmp, tcp, udp, udplite, sctp\\).*index 7 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
         "id": "ce92",
         "name": "Add csum udp action with cookie",
         "category": [
