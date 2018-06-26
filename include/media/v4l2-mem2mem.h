@@ -450,6 +450,35 @@ static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 }
 
 /**
+ * v4l2_m2m_last_buf() - return last buffer from the list of ready buffers
+ *
+ * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
+ */
+void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+
+/**
+ * v4l2_m2m_last_src_buf() - return last destination buffer from the list of
+ * ready buffers
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return v4l2_m2m_last_buf(&m2m_ctx->out_q_ctx);
+}
+
+/**
+ * v4l2_m2m_last_dst_buf() - return last destination buffer from the list of
+ * ready buffers
+ *
+ * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
+ */
+static inline void *v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	return v4l2_m2m_last_buf(&m2m_ctx->cap_q_ctx);
+}
+
+/**
  * v4l2_m2m_for_each_dst_buf() - iterate over a list of destination ready
  * buffers
  *

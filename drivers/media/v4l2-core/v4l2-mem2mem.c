@@ -129,6 +129,24 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
 
+void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+{
+	struct v4l2_m2m_buffer *b;
+	unsigned long flags;
+
+	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
+
+	if (list_empty(&q_ctx->rdy_queue)) {
+		spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+		return NULL;
+	}
+
+	b = list_last_entry(&q_ctx->rdy_queue, struct v4l2_m2m_buffer, list);
+	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+	return &b->vb;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_last_buf);
+
 void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
 	struct v4l2_m2m_buffer *b;
