@@ -7462,7 +7462,7 @@ enum {
 #define SDE_TRANSA_FIFO_UNDER	(1 << 0)
 #define SDE_TRANS_MASK		(0x3f)
 
-/* south display engine interrupt: CPT/PPT */
+/* south display engine interrupt: CPT - CNP */
 #define SDE_AUDIO_POWER_D_CPT	(1 << 31)
 #define SDE_AUDIO_POWER_C_CPT	(1 << 30)
 #define SDE_AUDIO_POWER_B_CPT	(1 << 29)
@@ -7509,6 +7509,21 @@ enum {
 #define SDE_FDI_MASK_CPT	(SDE_FDI_RXC_CPT | \
 				 SDE_FDI_RXB_CPT | \
 				 SDE_FDI_RXA_CPT)
+
+/* south display engine interrupt: ICP */
+#define SDE_TC4_HOTPLUG_ICP		(1 << 27)
+#define SDE_TC3_HOTPLUG_ICP		(1 << 26)
+#define SDE_TC2_HOTPLUG_ICP		(1 << 25)
+#define SDE_TC1_HOTPLUG_ICP		(1 << 24)
+#define SDE_GMBUS_ICP			(1 << 23)
+#define SDE_DDIB_HOTPLUG_ICP		(1 << 17)
+#define SDE_DDIA_HOTPLUG_ICP		(1 << 16)
+#define SDE_DDI_MASK_ICP		(SDE_DDIB_HOTPLUG_ICP |	\
+					 SDE_DDIA_HOTPLUG_ICP)
+#define SDE_TC_MASK_ICP			(SDE_TC4_HOTPLUG_ICP |	\
+					 SDE_TC3_HOTPLUG_ICP |	\
+					 SDE_TC2_HOTPLUG_ICP |	\
+					 SDE_TC1_HOTPLUG_ICP)
 
 #define SDEISR  _MMIO(0xc4000)
 #define SDEIMR  _MMIO(0xc4004)
@@ -7569,6 +7584,30 @@ enum {
 #define  PORTE_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTE_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTE_HOTPLUG_LONG_DETECT	(2 << 0)
+
+/* This register is a reuse of PCH_PORT_HOTPLUG register. The
+ * functionality covered in PCH_PORT_HOTPLUG is split into
+ * SHOTPLUG_CTL_DDI and SHOTPLUG_CTL_TC.
+ */
+
+#define SHOTPLUG_CTL_DDI			_MMIO(0xc4030)
+#define   ICP_DDIB_HPD_ENABLE			(1 << 7)
+#define   ICP_DDIB_HPD_STATUS_MASK		(3 << 4)
+#define   ICP_DDIB_HPD_NO_DETECT		(0 << 4)
+#define   ICP_DDIB_HPD_SHORT_DETECT		(1 << 4)
+#define   ICP_DDIB_HPD_LONG_DETECT		(2 << 4)
+#define   ICP_DDIB_HPD_SHORT_LONG_DETECT	(3 << 4)
+#define   ICP_DDIA_HPD_ENABLE			(1 << 3)
+#define   ICP_DDIA_HPD_STATUS_MASK		(3 << 0)
+#define   ICP_DDIA_HPD_NO_DETECT		(0 << 0)
+#define   ICP_DDIA_HPD_SHORT_DETECT		(1 << 0)
+#define   ICP_DDIA_HPD_LONG_DETECT		(2 << 0)
+#define   ICP_DDIA_HPD_SHORT_LONG_DETECT	(3 << 0)
+
+#define SHOTPLUG_CTL_TC				_MMIO(0xc4034)
+#define   ICP_TC_HPD_ENABLE(tc_port)		(8 << (tc_port) * 4)
+#define   ICP_TC_HPD_LONG_DETECT(tc_port)	(2 << (tc_port) * 4)
+#define   ICP_TC_HPD_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
 
 #define PCH_GPIOA               _MMIO(0xc5010)
 #define PCH_GPIOB               _MMIO(0xc5014)
