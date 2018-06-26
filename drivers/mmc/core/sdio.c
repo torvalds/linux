@@ -1076,7 +1076,6 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.resume = mmc_sdio_resume,
 	.runtime_suspend = mmc_sdio_runtime_suspend,
 	.runtime_resume = mmc_sdio_runtime_resume,
-	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 	.hw_reset = mmc_sdio_hw_reset,
 	.sw_reset = mmc_sdio_sw_reset,
