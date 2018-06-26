@@ -329,9 +329,9 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->primary = primary;
 	crtc->cursor = cursor;
 	if (primary && !primary->possible_crtcs)
-		primary->possible_crtcs = 1 << drm_crtc_index(crtc);
+		primary->possible_crtcs = drm_crtc_mask(crtc);
 	if (cursor && !cursor->possible_crtcs)
-		cursor->possible_crtcs = 1 << drm_crtc_index(crtc);
+		cursor->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = drm_crtc_crc_init(crtc);
 	if (ret) {

@@ -281,7 +281,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	encoder->possible_crtcs = 1 << drm_crtc_index(crtc);
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 	ret = drm_encoder_init(dev, encoder, &drm_simple_kms_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret || !connector)
