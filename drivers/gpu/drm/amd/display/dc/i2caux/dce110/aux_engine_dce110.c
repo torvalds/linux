@@ -300,9 +300,10 @@ static int read_channel_reply(struct aux_engine *engine, uint32_t size,
 			  AUX_SW_DATA_RW, 1);
 
 	REG_GET(AUX_SW_DATA, AUX_SW_DATA, &reply_result_32);
+	reply_result_32 = reply_result_32 >> 4;
 	*reply_result = (uint8_t)reply_result_32;
 
-	if (reply_result_32 >> 4 == 0) { /* ACK */
+	if (reply_result_32 == 0) { /* ACK */
 		uint32_t i = 0;
 
 		/* First byte was already used to get the command status */
@@ -356,7 +357,6 @@ static void process_channel_reply(
 			return;
 		}
 	} else {
-		reply_result = reply_result >> 4;
 
 		switch (reply_result) {
 		case 0: /* ACK */
