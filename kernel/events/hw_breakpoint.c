@@ -400,16 +400,35 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	return 0;
 }
 
-static int validate_hw_breakpoint(struct perf_event *bp)
+#ifndef hw_breakpoint_arch_parse
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
-	int ret;
+	int err;
 
-	ret = arch_validate_hwbkpt_settings(bp);
-	if (ret)
-		return ret;
+	err = arch_validate_hwbkpt_settings(bp);
+	if (err)
+		return err;
+
+	*hw = bp->hw.info;
+
+	return 0;
+}
+#endif
+
+static int hw_breakpoint_parse(struct perf_event *bp,
+			       const struct perf_event_attr *attr,
+			       struct arch_hw_breakpoint *hw)
+{
+	int err;
+
+	err = hw_breakpoint_arch_parse(bp, attr, hw);
+	if (err)
+		return err;
 
 	if (arch_check_bp_in_kernelspace(bp)) {
-		if (bp->attr.exclude_kernel)
+		if (attr->exclude_kernel)
 			return -EINVAL;
 		/*
 		 * Don't let unprivileged users set a breakpoint in the trap
@@ -424,19 +443,22 @@ static int validate_hw_breakpoint(struct perf_event *bp)
 
 int register_perf_hw_breakpoint(struct perf_event *bp)
 {
-	int ret;
+	struct arch_hw_breakpoint hw;
+	int err;
 
-	ret = reserve_bp_slot(bp);
-	if (ret)
-		return ret;
+	err = reserve_bp_slot(bp);
+	if (err)
+		return err;
 
-	ret = validate_hw_breakpoint(bp);
-
-	/* if arch_validate_hwbkpt_settings() fails then release bp slot */
-	if (ret)
+	err = hw_breakpoint_parse(bp, &bp->attr, &hw);
+	if (err) {
 		release_bp_slot(bp);
+		return err;
+	}
 
-	return ret;
+	bp->hw.info = hw;
+
+	return 0;
 }
 
 /**
@@ -464,6 +486,7 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
 	u64 old_len  = bp->attr.bp_len;
 	int old_type = bp->attr.bp_type;
 	bool modify  = attr->bp_type != old_type;
+	struct arch_hw_breakpoint hw;
 	int err = 0;
 
 	bp->attr.bp_addr = attr->bp_addr;
@@ -473,7 +496,7 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
 	if (check && memcmp(&bp->attr, attr, sizeof(*attr)))
 		return -EINVAL;
 
-	err = validate_hw_breakpoint(bp);
+	err = hw_breakpoint_parse(bp, attr, &hw);
 	if (!err && modify)
 		err = modify_bp_slot(bp, old_type);
 
@@ -484,7 +507,9 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
 		return err;
 	}
 
+	bp->hw.info = hw;
 	bp->attr.disabled = attr->disabled;
+
 	return 0;
 }
 
