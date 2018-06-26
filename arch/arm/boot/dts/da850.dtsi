@@ -532,6 +532,7 @@
 			reg = <0x300000 0x2000>;
 			clocks = <&psc1 17>, <&ehrpwm_tbclk>;
 			clock-names = "fck", "tbclk";
+			power-domains = <&psc1 17>;
 			status = "disabled";
 		};
 		ehrpwm1: pwm@302000 {
@@ -541,6 +542,7 @@
 			reg = <0x302000 0x2000>;
 			clocks = <&psc1 17>, <&ehrpwm_tbclk>;
 			clock-names = "fck", "tbclk";
+			power-domains = <&psc1 17>;
 			status = "disabled";
 		};
 		ecap0: ecap@306000 {
@@ -550,6 +552,7 @@
 			reg = <0x306000 0x80>;
 			clocks = <&psc1 20>;
 			clock-names = "fck";
+			power-domains = <&psc1 20>;
 			status = "disabled";
 		};
 		ecap1: ecap@307000 {
@@ -559,6 +562,7 @@
 			reg = <0x307000 0x80>;
 			clocks = <&psc1 20>;
 			clock-names = "fck";
+			power-domains = <&psc1 20>;
 			status = "disabled";
 		};
 		ecap2: ecap@308000 {
@@ -568,6 +572,7 @@
 			reg = <0x308000 0x80>;
 			clocks = <&psc1 20>;
 			clock-names = "fck";
+			power-domains = <&psc1 20>;
 			status = "disabled";
 		};
 		spi0: spi@41000 {
