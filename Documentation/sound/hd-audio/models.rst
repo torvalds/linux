@@ -34,6 +34,22 @@ ALC262
 ======
 inv-dmic
     Inverted internal mic workaround
+fsc-h270
+    Fixups for Fujitsu-Siemens Celsius H270
+fsc-s7110
+    Fixups for Fujitsu-Siemens Lifebook S7110
+hp-z200
+    Fixups for HP Z200
+tyan
+    Fixups for Tyan Thunder n6650W
+lenovo-3000
+    Fixups for Lenovo 3000
+benq
+    Fixups for Benq ED8
+benq-t31
+    Fixups for Benq T31
+bayleybay
+    Fixups for Intel BayleyBay
 
 ALC267/268
 ==========

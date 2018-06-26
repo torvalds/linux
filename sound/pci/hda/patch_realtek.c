@@ -2557,6 +2557,14 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 
 static const struct hda_model_fixup alc262_fixup_models[] = {
 	{.id = ALC262_FIXUP_INV_DMIC, .name = "inv-dmic"},
+	{.id = ALC262_FIXUP_FSC_H270, .name = "fsc-h270"},
+	{.id = ALC262_FIXUP_FSC_S7110, .name = "fsc-s7110"},
+	{.id = ALC262_FIXUP_HP_Z200, .name = "hp-z200"},
+	{.id = ALC262_FIXUP_TYAN, .name = "tyan"},
+	{.id = ALC262_FIXUP_LENOVO_3000, .name = "lenovo-3000"},
+	{.id = ALC262_FIXUP_BENQ, .name = "benq"},
+	{.id = ALC262_FIXUP_BENQ_T31, .name = "benq-t31"},
+	{.id = ALC262_FIXUP_INTEL_BAYLEYBAY, .name = "bayleybay"},
 	{}
 };
 
