@@ -66,6 +66,8 @@ struct mlxsw_sp_neigh_entry;
 struct mlxsw_sp_nexthop;
 struct mlxsw_sp_ipip_entry;
 
+struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
+					      const struct net_device *dev);
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
@@ -75,6 +77,7 @@ u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
 u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
 const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
+struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif);
 int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,

@@ -163,7 +163,8 @@ struct mlxsw_sp_rif_ops {
 		      const struct mlxsw_sp_rif_params *params);
 	int (*configure)(struct mlxsw_sp_rif *rif);
 	void (*deconfigure)(struct mlxsw_sp_rif *rif);
-	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif);
+	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif,
+					 struct netlink_ext_ack *extack);
 };
 
 static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree);
@@ -341,10 +342,6 @@ static void mlxsw_sp_rif_counters_free(struct mlxsw_sp_rif *rif)
 
 	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
 }
-
-static struct mlxsw_sp_rif *
-mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
-			 const struct net_device *dev);
 
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE + 1)
 
@@ -5967,7 +5964,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct mlxsw_sp_rif *
+struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *dev)
 {
@@ -6125,6 +6122,11 @@ const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif)
 	return rif->dev;
 }
 
+struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif)
+{
+	return rif->fid;
+}
+
 static struct mlxsw_sp_rif *
 mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		    const struct mlxsw_sp_rif_params *params,
@@ -6162,7 +6164,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	rif->ops = ops;
 
 	if (ops->fid_get) {
-		fid = ops->fid_get(rif);
+		fid = ops->fid_get(rif, extack);
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
 			goto err_fid_get;
@@ -6267,7 +6269,7 @@ mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	}
 
 	/* FID was already created, just take a reference */
-	fid = rif->ops->fid_get(rif);
+	fid = rif->ops->fid_get(rif, extack);
 	err = mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port, vid);
 	if (err)
 		goto err_fid_port_vid_map;
@@ -6775,7 +6777,8 @@ static void mlxsw_sp_rif_subport_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_subport_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_subport_fid_get(struct mlxsw_sp_rif *rif,
+			     struct netlink_ext_ack *extack)
 {
 	return mlxsw_sp_fid_rfid_get(rif->mlxsw_sp, rif->rif_index);
 }
@@ -6865,9 +6868,23 @@ static void mlxsw_sp_rif_vlan_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
+			  struct netlink_ext_ack *extack)
 {
-	u16 vid = is_vlan_dev(rif->dev) ? vlan_dev_vlan_id(rif->dev) : 1;
+	u16 vid;
+	int err;
+
+	if (is_vlan_dev(rif->dev)) {
+		vid = vlan_dev_vlan_id(rif->dev);
+	} else {
+		err = br_vlan_get_pvid(rif->dev, &vid);
+		if (!vid)
+			err = -EINVAL;
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
+			return ERR_PTR(err);
+		}
+	}
 
 	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
 }
@@ -6937,7 +6954,8 @@ static void mlxsw_sp_rif_fid_deconfigure(struct mlxsw_sp_rif *rif)
 }
 
 static struct mlxsw_sp_fid *
-mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif)
+mlxsw_sp_rif_fid_fid_get(struct mlxsw_sp_rif *rif,
+			 struct netlink_ext_ack *extack)
 {
 	return mlxsw_sp_fid_8021d_get(rif->mlxsw_sp, rif->dev->ifindex);
 }
