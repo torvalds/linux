@@ -671,7 +671,7 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 	case AUX_CHANNEL_OPERATION_SUCCEEDED:
 		res = returned_bytes;
 
-		if (res <= size && res > 0)
+		if (res <= size && res >= 0)
 			res = engine->funcs->read_channel_reply(engine, size,
 								buffer, reply,
 								&status);
