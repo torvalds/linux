@@ -776,6 +776,30 @@ static int rproc_handle_resources(struct rproc *rproc,
 	return ret;
 }
 
+static int rproc_prepare_subdevices(struct rproc *rproc)
+{
+	struct rproc_subdev *subdev;
+	int ret;
+
+	list_for_each_entry(subdev, &rproc->subdevs, node) {
+		if (subdev->prepare) {
+			ret = subdev->prepare(subdev);
+			if (ret)
+				goto unroll_preparation;
+		}
+	}
+
+	return 0;
+
+unroll_preparation:
+	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, node) {
+		if (subdev->unprepare)
+			subdev->unprepare(subdev);
+	}
+
+	return ret;
+}
+
 static int rproc_start_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
@@ -807,6 +831,16 @@ static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 	list_for_each_entry_reverse(subdev, &rproc->subdevs, node) {
 		if (subdev->stop)
 			subdev->stop(subdev, crashed);
+	}
+}
+
+static void rproc_unprepare_subdevices(struct rproc *rproc)
+{
+	struct rproc_subdev *subdev;
+
+	list_for_each_entry_reverse(subdev, &rproc->subdevs, node) {
+		if (subdev->unprepare)
+			subdev->unprepare(subdev);
 	}
 }
 
@@ -902,11 +936,18 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 		rproc->table_ptr = loaded_table;
 	}
 
+	ret = rproc_prepare_subdevices(rproc);
+	if (ret) {
+		dev_err(dev, "failed to prepare subdevices for %s: %d\n",
+			rproc->name, ret);
+		return ret;
+	}
+
 	/* power up the remote processor */
 	ret = rproc->ops->start(rproc);
 	if (ret) {
 		dev_err(dev, "can't start rproc %s: %d\n", rproc->name, ret);
-		return ret;
+		goto unprepare_subdevices;
 	}
 
 	/* Start any subdevices for the remote processor */
@@ -914,8 +955,7 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 	if (ret) {
 		dev_err(dev, "failed to probe subdevices for %s: %d\n",
 			rproc->name, ret);
-		rproc->ops->stop(rproc);
-		return ret;
+		goto stop_rproc;
 	}
 
 	rproc->state = RPROC_RUNNING;
@@ -923,6 +963,14 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 	dev_info(dev, "remote processor %s is now up\n", rproc->name);
 
 	return 0;
+
+stop_rproc:
+	rproc->ops->stop(rproc);
+
+unprepare_subdevices:
+	rproc_unprepare_subdevices(rproc);
+
+	return ret;
 }
 
 /*
@@ -1034,6 +1082,8 @@ static int rproc_stop(struct rproc *rproc, bool crashed)
 		dev_err(dev, "can't stop rproc: %d\n", ret);
 		return ret;
 	}
+
+	rproc_unprepare_subdevices(rproc);
 
 	rproc->state = RPROC_OFFLINE;
 
