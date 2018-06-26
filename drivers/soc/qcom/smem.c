@@ -785,9 +785,10 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 		if (!le32_to_cpu(entry->size))
 			continue;
 
-		host0 = le16_to_cpu(entry->host0);
-		host1 = le16_to_cpu(entry->host1);
-		if (host0 == SMEM_GLOBAL_HOST && host0 == host1) {
+		if (le16_to_cpu(entry->host0) != SMEM_GLOBAL_HOST)
+			continue;
+
+		if (le16_to_cpu(entry->host1) == SMEM_GLOBAL_HOST) {
 			found = true;
 			break;
 		}
