@@ -267,4 +267,7 @@ int typec_set_orientation(struct typec_port *port,
 			  enum typec_orientation orientation);
 int typec_set_mode(struct typec_port *port, int mode);
 
+int typec_find_port_power_role(const char *name);
+int typec_find_power_role(const char *name);
+int typec_find_port_data_role(const char *name);
 #endif /* __LINUX_USB_TYPEC_H */
