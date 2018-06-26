@@ -2970,7 +2970,8 @@ static void srpt_add_one(struct ib_device *device)
 
 	pr_debug("device = %p\n", device);
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc(struct_size(sdev, port, device->phys_port_cnt),
+		       GFP_KERNEL);
 	if (!sdev)
 		goto err;
 
@@ -3023,8 +3024,6 @@ static void srpt_add_one(struct ib_device *device)
 	INIT_IB_EVENT_HANDLER(&sdev->event_handler, sdev->device,
 			      srpt_event_handler);
 	ib_register_event_handler(&sdev->event_handler);
-
-	WARN_ON(sdev->device->phys_port_cnt > ARRAY_SIZE(sdev->port));
 
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
