@@ -575,7 +575,7 @@ MODULE_DEVICE_TABLE(i2c, tcpci_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id tcpci_of_match[] = {
-	{ .compatible = "usb,tcpci", },
+	{ .compatible = "nxp,ptn5110", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tcpci_of_match);
