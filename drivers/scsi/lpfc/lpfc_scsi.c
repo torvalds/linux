@@ -4538,6 +4538,11 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	int err;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
+
+	/* sanity check on references */
+	if (unlikely(!rdata) || unlikely(!rport))
+		goto out_fail_command;
+
 	err = fc_remote_port_chkready(rport);
 	if (err) {
 		cmnd->result = err;
