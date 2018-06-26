@@ -1387,7 +1387,7 @@ static int digi_read_inb_callback(struct urb *urb)
 	int len;
 	int port_status;
 	unsigned char *data;
-	int flag, throttled;
+	int tty_flag, throttled;
 
 	/* short/multiple packet check */
 	if (urb->actual_length < 2) {
@@ -1423,7 +1423,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		data = &buf[3];
 
 		/* get flag from port_status */
-		flag = 0;
+		tty_flag = 0;
 
 		/* overrun is special, not associated with a char */
 		if (port_status & DIGI_OVERRUN_ERROR)
@@ -1432,17 +1432,17 @@ static int digi_read_inb_callback(struct urb *urb)
 		/* break takes precedence over parity, */
 		/* which takes precedence over framing errors */
 		if (port_status & DIGI_BREAK_ERROR)
-			flag = TTY_BREAK;
+			tty_flag = TTY_BREAK;
 		else if (port_status & DIGI_PARITY_ERROR)
-			flag = TTY_PARITY;
+			tty_flag = TTY_PARITY;
 		else if (port_status & DIGI_FRAMING_ERROR)
-			flag = TTY_FRAME;
+			tty_flag = TTY_FRAME;
 
 		/* data length is len-1 (one byte of len is port_status) */
 		--len;
 		if (len > 0) {
 			tty_insert_flip_string_fixed_flag(&port->port, data,
-					flag, len);
+					tty_flag, len);
 			tty_flip_buffer_push(&port->port);
 		}
 	}
