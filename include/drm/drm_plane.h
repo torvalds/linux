@@ -639,10 +639,20 @@ void drm_plane_cleanup(struct drm_plane *plane);
  * Given a registered plane, return the index of that plane within a DRM
  * device's list of planes.
  */
-static inline unsigned int drm_plane_index(struct drm_plane *plane)
+static inline unsigned int drm_plane_index(const struct drm_plane *plane)
 {
 	return plane->index;
 }
+
+/**
+ * drm_plane_mask - find the mask of a registered plane
+ * @plane: plane to find mask for
+ */
+static inline u32 drm_plane_mask(const struct drm_plane *plane)
+{
+	return 1 << drm_plane_index(plane);
+}
+
 struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 void drm_plane_force_disable(struct drm_plane *plane);
 
@@ -678,7 +688,7 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
  */
 #define drm_for_each_plane_mask(plane, dev, plane_mask) \
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
-		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
+		for_each_if ((plane_mask) & drm_plane_mask(plane))
 
 /**
  * drm_for_each_legacy_plane - iterate over all planes for legacy userspace

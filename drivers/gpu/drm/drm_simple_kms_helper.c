@@ -52,7 +52,7 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	bool has_primary = state->plane_mask &
-			   BIT(drm_plane_index(crtc->primary));
+			   drm_plane_mask(crtc->primary);
 
 	/* We always want to have an active plane with an active CRTC */
 	if (has_primary != state->enable)

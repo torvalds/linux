@@ -1581,7 +1581,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 		if (WARN_ON(IS_ERR(crtc_state)))
 			return PTR_ERR(crtc_state);
 
-		crtc_state->plane_mask &= ~(1 << drm_plane_index(plane));
+		crtc_state->plane_mask &= ~drm_plane_mask(plane);
 	}
 
 	plane_state->crtc = crtc;
@@ -1591,7 +1591,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 						       crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
-		crtc_state->plane_mask |= (1 << drm_plane_index(plane));
+		crtc_state->plane_mask |= drm_plane_mask(plane);
 	}
 
 	if (crtc)
