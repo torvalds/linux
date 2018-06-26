@@ -34,6 +34,43 @@
 #include "amd_acpi.h"
 #include "atom.h"
 
+struct amdgpu_atif_notification_cfg {
+	bool enabled;
+	int command_code;
+};
+
+struct amdgpu_atif_notifications {
+	bool display_switch;
+	bool expansion_mode_change;
+	bool thermal_state;
+	bool forced_power_state;
+	bool system_power_state;
+	bool display_conf_change;
+	bool px_gfx_switch;
+	bool brightness_change;
+	bool dgpu_display_event;
+};
+
+struct amdgpu_atif_functions {
+	bool system_params;
+	bool sbios_requests;
+	bool select_active_disp;
+	bool lid_state;
+	bool get_tv_standard;
+	bool set_tv_standard;
+	bool get_panel_expansion_mode;
+	bool set_panel_expansion_mode;
+	bool temperature_change;
+	bool graphics_device_types;
+};
+
+struct amdgpu_atif {
+	struct amdgpu_atif_notifications notifications;
+	struct amdgpu_atif_functions functions;
+	struct amdgpu_atif_notification_cfg notification_cfg;
+	struct amdgpu_encoder *encoder_for_bl;
+};
+
 /* Call the ATIF method
  */
 /**
@@ -292,7 +329,7 @@ out:
 static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			struct acpi_bus_event *event)
 {
-	struct amdgpu_atif *atif = &adev->atif;
+	struct amdgpu_atif *atif = adev->atif;
 	struct atif_sbios_requests req;
 	acpi_handle handle;
 	int count;
@@ -303,7 +340,8 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
 		return NOTIFY_DONE;
 
-	if (!atif->notification_cfg.enabled ||
+	if (!atif ||
+	    !atif->notification_cfg.enabled ||
 	    event->type != atif->notification_cfg.command_code)
 		/* Not our event */
 		return NOTIFY_DONE;
@@ -642,7 +680,7 @@ static int amdgpu_acpi_event(struct notifier_block *nb,
 int amdgpu_acpi_init(struct amdgpu_device *adev)
 {
 	acpi_handle handle;
-	struct amdgpu_atif *atif = &adev->atif;
+	struct amdgpu_atif *atif;
 	struct amdgpu_atcs *atcs = &adev->atcs;
 	int ret;
 
@@ -659,11 +697,19 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 
 	/* Call the ATIF method */
+	atif = kzalloc(sizeof(*atif), GFP_KERNEL);
+	if (!atif) {
+		DRM_WARN("Not enough memory to initialize ATIF\n");
+		goto out;
+	}
+
 	ret = amdgpu_atif_verify_interface(handle, atif);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
+		kfree(atif);
 		goto out;
 	}
+	adev->atif = atif;
 
 	if (atif->notifications.brightness_change) {
 		struct drm_encoder *tmp;
@@ -720,4 +766,6 @@ out:
 void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
 	unregister_acpi_notifier(&adev->acpi_nb);
+	if (adev->atif)
+		kfree(adev->atif);
 }
