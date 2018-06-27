@@ -23,10 +23,9 @@
 
 #define DRV_NAME			"gpio-sch311x"
 
-#define SCH311X_GPIO_CONF_OUT		0x00
-#define SCH311X_GPIO_CONF_IN		0x01
-#define SCH311X_GPIO_CONF_INVERT	0x02
-#define SCH311X_GPIO_CONF_OPEN_DRAIN	0x80
+#define SCH311X_GPIO_CONF_DIR		BIT(0)
+#define SCH311X_GPIO_CONF_INVERT	BIT(1)
+#define SCH311X_GPIO_CONF_OPEN_DRAIN	BIT(7)
 
 #define SIO_CONFIG_KEY_ENTER		0x55
 #define SIO_CONFIG_KEY_EXIT		0xaa
@@ -196,10 +195,12 @@ static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	unsigned char data;
 
 	spin_lock(&block->lock);
-	outb(SCH311X_GPIO_CONF_IN, block->runtime_reg +
-	     block->config_regs[offset]);
+	data = inb(block->runtime_reg + block->config_regs[offset]);
+	data |= SCH311X_GPIO_CONF_DIR;
+	outb(data, block->runtime_reg + block->config_regs[offset]);
 	spin_unlock(&block->lock);
 
 	return 0;
@@ -209,12 +210,13 @@ static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	unsigned char data;
 
 	spin_lock(&block->lock);
 
-	outb(SCH311X_GPIO_CONF_OUT, block->runtime_reg +
-	     block->config_regs[offset]);
-
+	data = inb(block->runtime_reg + block->config_regs[offset]);
+	data &= ~SCH311X_GPIO_CONF_DIR;
+	outb(data, block->runtime_reg + block->config_regs[offset]);
 	__sch311x_gpio_set(block, offset, value);
 
 	spin_unlock(&block->lock);
@@ -230,7 +232,7 @@ static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	data = inb(block->runtime_reg + block->config_regs[offset]);
 	spin_unlock(&block->lock);
 
-	return !!(data & SCH311X_GPIO_CONF_IN);
+	return !!(data & SCH311X_GPIO_CONF_DIR);
 }
 
 static int sch311x_gpio_probe(struct platform_device *pdev)
