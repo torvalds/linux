@@ -776,7 +776,7 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
  */
 int q6afe_get_port_id(int index)
 {
-	if (index < 0 || index > AFE_PORT_MAX)
+	if (index < 0 || index >= AFE_PORT_MAX)
 		return -EINVAL;
 
 	return port_maps[index].port_id;
@@ -1013,7 +1013,7 @@ int q6afe_port_stop(struct q6afe_port *port)
 
 	port_id = port->id;
 	index = port->token;
-	if (index < 0 || index > AFE_PORT_MAX) {
+	if (index < 0 || index >= AFE_PORT_MAX) {
 		dev_err(afe->dev, "AFE port index[%d] invalid!\n", index);
 		return -EINVAL;
 	}
@@ -1354,7 +1354,7 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	unsigned long flags;
 	int cfg_type;
 
-	if (id < 0 || id > AFE_PORT_MAX) {
+	if (id < 0 || id >= AFE_PORT_MAX) {
 		dev_err(dev, "AFE port token[%d] invalid!\n", id);
 		return ERR_PTR(-EINVAL);
 	}
