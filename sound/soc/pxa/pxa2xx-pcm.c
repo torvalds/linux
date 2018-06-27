@@ -20,8 +20,8 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_dmaengine_dai_dma_data *dma;
@@ -33,23 +33,16 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (!dma)
 		return 0;
 
-	return __pxa2xx_pcm_hw_params(substream, params);
-}
-
-static int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	__pxa2xx_pcm_hw_free(substream);
-
-	return 0;
+	return pxa2xx_pcm_hw_params(substream, params);
 }
 
 static const struct snd_pcm_ops pxa2xx_pcm_ops = {
-	.open		= __pxa2xx_pcm_open,
-	.close		= __pxa2xx_pcm_close,
+	.open		= pxa2xx_pcm_open,
+	.close		= pxa2xx_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pxa2xx_pcm_hw_params,
+	.hw_params	= __pxa2xx_pcm_hw_params,
 	.hw_free	= pxa2xx_pcm_hw_free,
-	.prepare	= __pxa2xx_pcm_prepare,
+	.prepare	= pxa2xx_pcm_prepare,
 	.trigger	= pxa2xx_pcm_trigger,
 	.pointer	= pxa2xx_pcm_pointer,
 	.mmap		= pxa2xx_pcm_mmap,

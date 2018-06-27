@@ -70,7 +70,7 @@ static int pxa2xx_ac97_pcm_open(struct snd_pcm_substream *substream)
 	pxa2xx_audio_ops_t *platform_ops;
 	int ret, i;
 
-	ret = __pxa2xx_pcm_open(substream);
+	ret = pxa2xx_pcm_open(substream);
 	if (ret)
 		return ret;
 
@@ -86,7 +86,7 @@ static int pxa2xx_ac97_pcm_open(struct snd_pcm_substream *substream)
 	if (platform_ops && platform_ops->startup) {
 		ret = platform_ops->startup(substream, platform_ops->priv);
 		if (ret < 0)
-			__pxa2xx_pcm_close(substream);
+			pxa2xx_pcm_close(substream);
 	}
 
 	return ret;
@@ -110,7 +110,7 @@ static int pxa2xx_ac97_pcm_prepare(struct snd_pcm_substream *substream)
 		  AC97_PCM_FRONT_DAC_RATE : AC97_PCM_LR_ADC_RATE;
 	int ret;
 
-	ret = __pxa2xx_pcm_prepare(substream);
+	ret = pxa2xx_pcm_prepare(substream);
 	if (ret < 0)
 		return ret;
 
@@ -178,8 +178,8 @@ static const struct snd_pcm_ops pxa2xx_pcm_ops = {
 	.open		= pxa2xx_ac97_pcm_open,
 	.close		= pxa2xx_ac97_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= __pxa2xx_pcm_hw_params,
-	.hw_free	= __pxa2xx_pcm_hw_free,
+	.hw_params	= pxa2xx_pcm_hw_params,
+	.hw_free	= pxa2xx_pcm_hw_free,
 	.prepare	= pxa2xx_ac97_pcm_prepare,
 	.trigger	= pxa2xx_pcm_trigger,
 	.pointer	= pxa2xx_pcm_pointer,

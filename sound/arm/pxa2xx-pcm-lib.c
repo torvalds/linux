@@ -33,8 +33,8 @@ static const struct snd_pcm_hardware pxa2xx_pcm_hardware = {
 	.fifo_size		= 32,
 };
 
-int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *params)
 {
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -62,14 +62,14 @@ int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_hw_params);
+EXPORT_SYMBOL(pxa2xx_pcm_hw_params);
 
-int __pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_hw_free);
+EXPORT_SYMBOL(pxa2xx_pcm_hw_free);
 
 int pxa2xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
@@ -84,13 +84,13 @@ pxa2xx_pcm_pointer(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(pxa2xx_pcm_pointer);
 
-int __pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_prepare);
+EXPORT_SYMBOL(pxa2xx_pcm_prepare);
 
-int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -127,13 +127,13 @@ int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 		substream, dma_request_slave_channel(rtd->cpu_dai->dev,
 						     dma_params->chan_name));
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_open);
+EXPORT_SYMBOL(pxa2xx_pcm_open);
 
-int __pxa2xx_pcm_close(struct snd_pcm_substream *substream)
+int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	return snd_dmaengine_pcm_close_release_chan(substream);
 }
-EXPORT_SYMBOL(__pxa2xx_pcm_close);
+EXPORT_SYMBOL(pxa2xx_pcm_close);
 
 int pxa2xx_pcm_mmap(struct snd_pcm_substream *substream,
 	struct vm_area_struct *vma)
