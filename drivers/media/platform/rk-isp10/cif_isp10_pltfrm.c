@@ -817,6 +817,7 @@ int cif_isp10_pltfrm_dev_init(
 	struct device_node *np;
 	struct device_node *of_node = pdev->dev.of_node;
 	const char *compatible;
+	const char *iommu_status;
 	int err = 0;
 #endif
 
@@ -905,6 +906,19 @@ int cif_isp10_pltfrm_dev_init(
 		pdata->irq_handlers[i].mis = -EINVAL;
 
 #ifdef CIF_ISP10_MODE_DMA_SG
+		np = of_parse_phandle(of_node, "iommus", 0);
+		WARN_ON(!np);
+		if (np) {
+			of_property_read_string(np, "status", &iommu_status);
+			if (strcmp(iommu_status, "okay") != 0) {
+				dev_warn(dev, "Please check isp_mmu node is okay! CIF_ISP10_MODE_DMA_SG is turn on in cif isp10 driver.\n");
+				WARN_ON(1);
+				of_node_put(np);
+				goto err;
+			}
+			of_node_put(np);
+		}
+
 		of_property_read_string(of_node, "compatible", &compatible);
 		if ((strcmp(compatible, "rockchip,rk3399-cif-isp") == 0) &&
 			(res->start == 0xFF920000)) {
