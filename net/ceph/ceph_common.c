@@ -379,7 +379,7 @@ ceph_parse_options(char *options, const char *dev_name,
 
 	/* parse mount options */
 	while ((c = strsep(&options, ",")) != NULL) {
-		int token, intval, ret;
+		int token, intval;
 		if (!*c)
 			continue;
 		err = -EINVAL;
@@ -394,11 +394,11 @@ ceph_parse_options(char *options, const char *dev_name,
 			continue;
 		}
 		if (token < Opt_last_int) {
-			ret = match_int(&argstr[0], &intval);
-			if (ret < 0) {
+			err = match_int(&argstr[0], &intval);
+			if (err < 0) {
 				pr_err("bad mount option arg (not int) "
 				       "at '%s'\n", c);
-				continue;
+				goto out;
 			}
 			dout("got int token %d val %d\n", token, intval);
 		} else if (token > Opt_last_int && token < Opt_last_string) {
