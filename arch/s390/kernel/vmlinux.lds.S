@@ -30,7 +30,7 @@ PHDRS {
 
 SECTIONS
 {
-	. = 0x00000000;
+	. = 0x100000;
 	.text : {
 		/* Text and read-only data */
 		HEAD_TEXT

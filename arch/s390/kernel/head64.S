@@ -16,7 +16,6 @@
 #include <asm/page.h>
 
 __HEAD
-	.org	0x100000
 ENTRY(startup_continue)
 	tm	__LC_STFLE_FAC_LIST+5,0x80	# LPP available ?
 	jz	0f
