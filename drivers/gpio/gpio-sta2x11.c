@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
@@ -63,11 +64,6 @@ static inline struct gsta_regs __iomem *__regs(struct gsta_gpio *chip, int nr)
 	return chip->regs[nr / GSTA_GPIO_PER_BLOCK];
 }
 
-static inline u32 __bit(int nr)
-{
-	return 1U << (nr % GSTA_GPIO_PER_BLOCK);
-}
-
 /*
  * gpio methods
  */
@@ -76,7 +72,7 @@ static void gsta_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	if (val)
 		writel(bit, &regs->dats);
@@ -88,7 +84,7 @@ static int gsta_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	return !!(readl(&regs->dat) & bit);
 }
@@ -98,7 +94,7 @@ static int gsta_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	writel(bit, &regs->dirs);
 	/* Data register after direction, otherwise pullup/down is selected */
@@ -113,7 +109,7 @@ static int gsta_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	writel(bit, &regs->dirc);
 	return 0;
@@ -167,7 +163,7 @@ static void gsta_set_config(struct gsta_gpio *chip, int nr, unsigned cfg)
 {
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
 	unsigned long flags;
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	int err = 0;
 
@@ -235,7 +231,7 @@ static void gsta_irq_disable(struct irq_data *data)
 	struct gsta_gpio *chip = gc->private;
 	int nr = data->irq - chip->irq_base;
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	unsigned long flags;
 
@@ -258,7 +254,7 @@ static void gsta_irq_enable(struct irq_data *data)
 	struct gsta_gpio *chip = gc->private;
 	int nr = data->irq - chip->irq_base;
 	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	int type;
 	unsigned long flags;
