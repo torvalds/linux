@@ -903,6 +903,11 @@ static int msm_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	/* TODO: Use atomic helper suspend/resume */
+	if (kms && kms->funcs && kms->funcs->pm_suspend)
+		return kms->funcs->pm_suspend(dev);
 
 	drm_kms_helper_poll_disable(ddev);
 
@@ -919,6 +924,11 @@ static int msm_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct msm_drm_private *priv = ddev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	/* TODO: Use atomic helper suspend/resume */
+	if (kms && kms->funcs && kms->funcs->pm_resume)
+		return kms->funcs->pm_resume(dev);
 
 	drm_atomic_helper_resume(ddev, priv->pm_state);
 	drm_kms_helper_poll_enable(ddev);
