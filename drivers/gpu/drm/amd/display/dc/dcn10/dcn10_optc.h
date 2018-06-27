@@ -554,4 +554,15 @@ bool optc1_get_otg_active_size(struct timing_generator *optc,
 		uint32_t *otg_active_width,
 		uint32_t *otg_active_height);
 
+void optc1_enable_crtc_reset(
+		struct timing_generator *optc,
+		int source_tg_inst,
+		struct crtc_trigger_info *crtc_tp);
+
+bool optc1_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params);
+
+bool optc1_get_crc(struct timing_generator *optc,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
+
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */
