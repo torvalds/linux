@@ -87,8 +87,6 @@ ENTRY(startup_continue)
 .Llinkage_stack:
 	.long	0,0,0x89000000,0,0,0,0x8a000000,0
 
-ENTRY(_ehead)
-
 #
 # startup-code, running in absolute addressing mode
 #
