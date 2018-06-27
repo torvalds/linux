@@ -770,7 +770,7 @@ int rockchip_init_opp_table(struct device *dev,
 	}
 	of_node_put(np);
 
-	rockchip_get_soc_info(dev, NULL, &bin, &process);
+	rockchip_get_soc_info(dev, matches, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, lkg_name, reg_name, bin, process,
 				    &scale, &volt_sel);
 	rockchip_set_opp_info(dev, process, volt_sel);
