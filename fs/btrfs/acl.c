@@ -33,7 +33,7 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = btrfs_getxattr(inode, name, "", 0);
+	size = btrfs_getxattr(inode, name, NULL, 0);
 	if (size > 0) {
 		value = kzalloc(size, GFP_KERNEL);
 		if (!value)
