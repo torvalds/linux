@@ -32,9 +32,20 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #endif
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static struct thermal_opp_device_data cpu_devdata = {
+	.type = THERMAL_OPP_TPYE_CPU,
+	.low_temp_adjust = rockchip_cpu_low_temp_adjust,
+	.high_temp_adjust = rockchip_cpu_high_temp_adjust,
+};
+#endif
+
 struct private_data {
 	struct device *cpu_dev;
 	struct thermal_cooling_device *cdev;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct thermal_opp_info *opp_info;
+#endif
 	const char *reg_name;
 };
 
@@ -310,6 +321,13 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->down_transition_delay_us = 50000; /* 50ms */
 
 #ifdef CONFIG_ARCH_ROCKCHIP
+	priv->opp_info = rockchip_register_thermal_notifier(cpu_dev,
+							    &cpu_devdata);
+	if (IS_ERR(priv->opp_info)) {
+		dev_dbg(priv->cpu_dev,
+			"running cpufreq without thermal notifier\n");
+		priv->opp_info = NULL;
+	}
 	rockchip_cpufreq_check_rate_volt(cpu_dev);
 #endif
 
@@ -334,13 +352,16 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 	struct cpumask cpus;
 	struct private_data *priv = policy->driver_data;
 
+	priv->cpu_dev = get_cpu_device(policy->cpu);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	cpumask_set_cpu(policy->cpu, policy->cpus);
 	if (cpufreq_generic_suspend(policy))
 		pr_err("%s: Failed to suspend driver: %p\n", __func__, policy);
 	cpumask_clear_cpu(policy->cpu, policy->cpus);
+	rockchip_cpufreq_set_scale_rate(priv->cpu_dev, 0);
+	rockchip_cpufreq_set_temp_limit_rate(priv->cpu_dev, 0);
+	rockchip_unregister_thermal_notifier(priv->opp_info);
 #endif
-	priv->cpu_dev = get_cpu_device(policy->cpu);
 	cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
 	cpumask_copy(&cpus, policy->related_cpus);
