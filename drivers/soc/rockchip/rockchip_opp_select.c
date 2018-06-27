@@ -590,7 +590,7 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 	count = dev_pm_opp_get_opp_count(dev);
 	if (count <= 0) {
 		ret = count ? count : -ENODATA;
-		goto out;
+		goto unlock;
 	}
 
 	for (i = 0, rate = 0; i < count; i++, rate++) {
@@ -598,7 +598,7 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
 		if (IS_ERR(opp)) {
 			ret = PTR_ERR(opp);
-			goto out;
+			goto unlock;
 		}
 		board_irdrop = rockchip_of_get_irdrop(np, opp->rate);
 		if (IS_ERR_VALUE(board_irdrop))
@@ -621,9 +621,18 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 		}
 	}
 
-	clk = of_clk_get_by_name(np, NULL);
-	if (IS_ERR(clk))
+unlock:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+	rcu_read_unlock();
+#endif
+	if (ret)
 		goto out;
+
+	clk = of_clk_get_by_name(np, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto out;
+	}
 	if (safe_opp && safe_opp != opp && irdrop_scale) {
 		*irdrop_scale = rockchip_pll_clk_rate_to_scale(clk,
 							       safe_opp->rate);
@@ -634,9 +643,6 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 	clk_put(clk);
 
 out:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_unlock();
-#endif
 	return ret;
 }
 
