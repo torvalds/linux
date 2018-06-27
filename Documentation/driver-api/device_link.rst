@@ -86,6 +86,10 @@ automatically purged when the consumer fails to probe or later unbinds.
 This obviates the need to explicitly delete the link in the ``->remove``
 callback or in the error path of the ``->probe`` callback.
 
+Similarly, when the device link is added from supplier's ``->probe`` callback,
+``DL_FLAG_AUTOREMOVE_SUPPLIER`` causes the device link to be automatically
+purged when the supplier fails to probe or later unbinds.
+
 Limitations
 ===========
 
