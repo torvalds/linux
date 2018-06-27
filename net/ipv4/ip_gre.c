@@ -587,6 +587,8 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto err_free_skb;
 
 	key = &tun_info->key;
+	if (!(tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT))
+		goto err_free_rt;
 	md = ip_tunnel_info_opts(tun_info);
 	if (!md)
 		goto err_free_rt;

@@ -3582,7 +3582,7 @@ BPF_CALL_3(bpf_skb_set_tunnel_opt, struct sk_buff *, skb,
 	if (unlikely(size > IP_TUNNEL_OPTS_MAX))
 		return -ENOMEM;
 
-	ip_tunnel_info_opts_set(info, from, size);
+	ip_tunnel_info_opts_set(info, from, size, TUNNEL_OPTIONS_PRESENT);
 
 	return 0;
 }
