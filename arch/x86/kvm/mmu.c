@@ -5187,6 +5187,24 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
 
+void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
+{
+	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+
+	if (pcid == kvm_get_active_pcid(vcpu)) {
+		mmu->invlpg(vcpu, gva);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	}
+
+	++vcpu->stat.invlpg;
+
+	/*
+	 * Mappings not reachable via the current cr3 will be synced when
+	 * switching to that cr3, so nothing needs to be done here for them.
+	 */
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);
+
 void kvm_enable_tdp(void)
 {
 	tdp_enabled = true;
