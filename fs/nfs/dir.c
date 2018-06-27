@@ -904,23 +904,29 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 	dfprintk(FILE, "NFS: llseek dir(%pD2, %lld, %d)\n",
 			filp, offset, whence);
 
-	inode_lock(inode);
 	switch (whence) {
-		case 1:
-			offset += filp->f_pos;
-		case 0:
-			if (offset >= 0)
-				break;
-		default:
-			offset = -EINVAL;
-			goto out;
+	default:
+		return -EINVAL;
+	case SEEK_SET:
+		if (offset < 0)
+			return -EINVAL;
+		inode_lock(inode);
+		break;
+	case SEEK_CUR:
+		if (offset == 0)
+			return filp->f_pos;
+		inode_lock(inode);
+		offset += filp->f_pos;
+		if (offset < 0) {
+			inode_unlock(inode);
+			return -EINVAL;
+		}
 	}
 	if (offset != filp->f_pos) {
 		filp->f_pos = offset;
 		dir_ctx->dir_cookie = 0;
 		dir_ctx->duped = 0;
 	}
-out:
 	inode_unlock(inode);
 	return offset;
 }
