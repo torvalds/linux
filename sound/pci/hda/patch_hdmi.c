@@ -2489,7 +2489,7 @@ static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
 	if (snd_power_get_state(codec->card) != SNDRV_CTL_POWER_D0)
 		return;
 	/* ditto during suspend/resume process itself */
-	if (atomic_read(&(codec)->core.in_pm))
+	if (snd_hdac_is_in_pm(&codec->core))
 		return;
 
 	snd_hdac_i915_set_bclk(&codec->bus->core);
