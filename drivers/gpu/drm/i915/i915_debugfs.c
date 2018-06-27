@@ -2592,27 +2592,55 @@ static const struct file_operations i915_guc_log_relay_fops = {
 	.release = i915_guc_log_relay_release,
 };
 
-static const char *psr2_live_status(u32 val)
+static void
+psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 {
-	static const char * const live_status[] = {
-		"IDLE",
-		"CAPTURE",
-		"CAPTURE_FS",
-		"SLEEP",
-		"BUFON_FW",
-		"ML_UP",
-		"SU_STANDBY",
-		"FAST_SLEEP",
-		"DEEP_SLEEP",
-		"BUF_ON",
-		"TG_ON"
-	};
+	u32 val, psr_status;
 
-	val = (val & EDP_PSR2_STATUS_STATE_MASK) >> EDP_PSR2_STATUS_STATE_SHIFT;
-	if (val < ARRAY_SIZE(live_status))
-		return live_status[val];
+	if (dev_priv->psr.psr2_enabled) {
+		static const char * const live_status[] = {
+			"IDLE",
+			"CAPTURE",
+			"CAPTURE_FS",
+			"SLEEP",
+			"BUFON_FW",
+			"ML_UP",
+			"SU_STANDBY",
+			"FAST_SLEEP",
+			"DEEP_SLEEP",
+			"BUF_ON",
+			"TG_ON"
+		};
+		psr_status = I915_READ(EDP_PSR2_STATUS);
+		val = (psr_status & EDP_PSR2_STATUS_STATE_MASK) >>
+			EDP_PSR2_STATUS_STATE_SHIFT;
+		if (val < ARRAY_SIZE(live_status)) {
+			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
+				   psr_status, live_status[val]);
+			return;
+		}
+	} else {
+		static const char * const live_status[] = {
+			"IDLE",
+			"SRDONACK",
+			"SRDENT",
+			"BUFOFF",
+			"BUFON",
+			"AUXACK",
+			"SRDOFFACK",
+			"SRDENT_ON",
+		};
+		psr_status = I915_READ(EDP_PSR_STATUS);
+		val = (psr_status & EDP_PSR_STATUS_STATE_MASK) >>
+			EDP_PSR_STATUS_STATE_SHIFT;
+		if (val < ARRAY_SIZE(live_status)) {
+			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
+				   psr_status, live_status[val]);
+			return;
+		}
+	}
 
-	return "unknown";
+	seq_printf(m, "Source PSR status: 0x%x [%s]\n", psr_status, "unknown");
 }
 
 static const char *psr_sink_status(u8 val)
@@ -2676,12 +2704,8 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
-	if (dev_priv->psr.psr2_enabled) {
-		u32 psr2 = I915_READ(EDP_PSR2_STATUS);
 
-		seq_printf(m, "EDP_PSR2_STATUS: %x [%s]\n",
-			   psr2, psr2_live_status(psr2));
-	}
+	psr_source_status(dev_priv, m);
 
 	if (dev_priv->psr.enabled) {
 		struct drm_dp_aux *aux = &dev_priv->psr.enabled->aux;

@@ -4133,6 +4133,7 @@ enum {
 
 #define EDP_PSR_STATUS				_MMIO(dev_priv->psr_mmio_base + 0x40)
 #define   EDP_PSR_STATUS_STATE_MASK		(7 << 29)
+#define   EDP_PSR_STATUS_STATE_SHIFT		29
 #define   EDP_PSR_STATUS_STATE_IDLE		(0 << 29)
 #define   EDP_PSR_STATUS_STATE_SRDONACK		(1 << 29)
 #define   EDP_PSR_STATUS_STATE_SRDENT		(2 << 29)
