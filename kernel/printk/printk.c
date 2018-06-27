@@ -1356,16 +1356,6 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	u64 seq;
 	u32 idx;
 
-	if (!buf) {
-		if (clear) {
-			logbuf_lock_irq();
-			clear_seq = log_next_seq;
-			clear_idx = log_next_idx;
-			logbuf_unlock_irq();
-		}
-		return 0;
-	}
-
 	text = kmalloc(LOG_LINE_MAX + PREFIX_MAX, GFP_KERNEL);
 	if (!text)
 		return -ENOMEM;
@@ -1437,6 +1427,14 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	return len;
 }
 
+static void syslog_clear(void)
+{
+	logbuf_lock_irq();
+	clear_seq = log_next_seq;
+	clear_idx = log_next_idx;
+	logbuf_unlock_irq();
+}
+
 int do_syslog(int type, char __user *buf, int len, int source)
 {
 	bool clear = false;
@@ -1481,7 +1479,7 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		break;
 	/* Clear ring buffer */
 	case SYSLOG_ACTION_CLEAR:
-		syslog_print_all(NULL, 0, true);
+		syslog_clear();
 		break;
 	/* Disable logging to console */
 	case SYSLOG_ACTION_CONSOLE_OFF:
