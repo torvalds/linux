@@ -30,7 +30,7 @@ static inline const u8 *dh_unpack_data(void *dst, const void *src, size_t size)
 
 static inline unsigned int dh_data_size(const struct dh *p)
 {
-	return p->key_size + p->p_size + p->g_size;
+	return p->key_size + p->p_size + p->q_size + p->g_size;
 }
 
 unsigned int crypto_dh_key_len(const struct dh *p)
@@ -56,9 +56,11 @@ int crypto_dh_encode_key(char *buf, unsigned int len, const struct dh *params)
 	ptr = dh_pack_data(ptr, &secret, sizeof(secret));
 	ptr = dh_pack_data(ptr, &params->key_size, sizeof(params->key_size));
 	ptr = dh_pack_data(ptr, &params->p_size, sizeof(params->p_size));
+	ptr = dh_pack_data(ptr, &params->q_size, sizeof(params->q_size));
 	ptr = dh_pack_data(ptr, &params->g_size, sizeof(params->g_size));
 	ptr = dh_pack_data(ptr, params->key, params->key_size);
 	ptr = dh_pack_data(ptr, params->p, params->p_size);
+	ptr = dh_pack_data(ptr, params->q, params->q_size);
 	dh_pack_data(ptr, params->g, params->g_size);
 
 	return 0;
@@ -79,6 +81,7 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 
 	ptr = dh_unpack_data(&params->key_size, ptr, sizeof(params->key_size));
 	ptr = dh_unpack_data(&params->p_size, ptr, sizeof(params->p_size));
+	ptr = dh_unpack_data(&params->q_size, ptr, sizeof(params->q_size));
 	ptr = dh_unpack_data(&params->g_size, ptr, sizeof(params->g_size));
 	if (secret.len != crypto_dh_key_len(params))
 		return -EINVAL;
@@ -88,7 +91,7 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	 * some drivers assume otherwise.
 	 */
 	if (params->key_size > params->p_size ||
-	    params->g_size > params->p_size)
+	    params->g_size > params->p_size || params->q_size > params->p_size)
 		return -EINVAL;
 
 	/* Don't allocate memory. Set pointers to data within
@@ -96,7 +99,9 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	 */
 	params->key = (void *)ptr;
 	params->p = (void *)(ptr + params->key_size);
-	params->g = (void *)(ptr + params->key_size + params->p_size);
+	params->q = (void *)(ptr + params->key_size + params->p_size);
+	params->g = (void *)(ptr + params->key_size + params->p_size +
+			     params->q_size);
 
 	/*
 	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
@@ -105,6 +110,10 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	 */
 	if (memchr_inv(params->p, 0, params->p_size) == NULL)
 		return -EINVAL;
+
+	/* It is permissible to not provide Q. */
+	if (params->q_size == 0)
+		params->q = NULL;
 
 	return 0;
 }
