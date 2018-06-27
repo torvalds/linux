@@ -178,6 +178,17 @@ struct kvm_shadow_walk_iterator {
 	unsigned index;
 };
 
+static const union kvm_mmu_page_role mmu_base_role_mask = {
+	.cr0_wp = 1,
+	.cr4_pae = 1,
+	.nxe = 1,
+	.smep_andnot_wp = 1,
+	.smap_andnot_wp = 1,
+	.smm = 1,
+	.guest_mode = 1,
+	.ad_disabled = 1,
+};
+
 #define for_each_shadow_entry(_vcpu, _addr, _walker)    \
 	for (shadow_walk_init(&(_walker), _vcpu, _addr);	\
 	     shadow_walk_okay(&(_walker));			\
@@ -222,6 +233,8 @@ static const u64 shadow_acc_track_saved_bits_mask = PT64_EPT_READABLE_MASK |
 static const u64 shadow_acc_track_saved_bits_shift = PT64_SECOND_AVAIL_BITS_SHIFT;
 
 static void mmu_spte_set(u64 *sptep, u64 spte);
+static union kvm_mmu_page_role
+kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value)
 {
@@ -4588,14 +4601,27 @@ static void paging32E_init_context(struct kvm_vcpu *vcpu,
 	paging64_init_context_common(vcpu, context, PT32E_ROOT_LEVEL);
 }
 
+static union kvm_mmu_page_role
+kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu)
+{
+	union kvm_mmu_page_role role = {0};
+
+	role.guest_mode = is_guest_mode(vcpu);
+	role.smm = is_smm(vcpu);
+	role.ad_disabled = (shadow_accessed_mask == 0);
+	role.level = kvm_x86_ops->get_tdp_level(vcpu);
+	role.direct = true;
+	role.access = ACC_ALL;
+
+	return role;
+}
+
 static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
-	context->base_role.word = 0;
-	context->base_role.guest_mode = is_guest_mode(vcpu);
-	context->base_role.smm = is_smm(vcpu);
-	context->base_role.ad_disabled = (shadow_accessed_mask == 0);
+	context->base_role.word = mmu_base_role_mask.word &
+				  kvm_calc_tdp_mmu_root_page_role(vcpu).word;
 	context->page_fault = tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
@@ -4637,10 +4663,35 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
-void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
+static union kvm_mmu_page_role
+kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu)
 {
+	union kvm_mmu_page_role role = {0};
 	bool smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	bool smap = kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
+
+	role.nxe = is_nx(vcpu);
+	role.cr4_pae = !!is_pae(vcpu);
+	role.cr0_wp  = is_write_protection(vcpu);
+	role.smep_andnot_wp = smep && !is_write_protection(vcpu);
+	role.smap_andnot_wp = smap && !is_write_protection(vcpu);
+	role.guest_mode = is_guest_mode(vcpu);
+	role.smm = is_smm(vcpu);
+	role.direct = !is_paging(vcpu);
+	role.access = ACC_ALL;
+
+	if (!is_long_mode(vcpu))
+		role.level = PT32E_ROOT_LEVEL;
+	else if (is_la57_mode(vcpu))
+		role.level = PT64_ROOT_5LEVEL;
+	else
+		role.level = PT64_ROOT_4LEVEL;
+
+	return role;
+}
+
+void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
+{
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
 	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
@@ -4654,23 +4705,32 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	else
 		paging32_init_context(vcpu, context);
 
-	context->base_role.nxe = is_nx(vcpu);
-	context->base_role.cr4_pae = !!is_pae(vcpu);
-	context->base_role.cr0_wp  = is_write_protection(vcpu);
-	context->base_role.smep_andnot_wp
-		= smep && !is_write_protection(vcpu);
-	context->base_role.smap_andnot_wp
-		= smap && !is_write_protection(vcpu);
-	context->base_role.guest_mode = is_guest_mode(vcpu);
-	context->base_role.smm = is_smm(vcpu);
+	context->base_role.word = mmu_base_role_mask.word &
+				  kvm_calc_shadow_mmu_root_page_role(vcpu).word;
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
+
+static union kvm_mmu_page_role
+kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty)
+{
+	union kvm_mmu_page_role role = vcpu->arch.mmu.base_role;
+
+	role.level = PT64_ROOT_4LEVEL;
+	role.direct = false;
+	role.ad_disabled = !accessed_dirty;
+	role.guest_mode = true;
+	role.access = ACC_ALL;
+
+	return role;
+}
 
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 			     bool accessed_dirty)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
+	union kvm_mmu_page_role root_page_role =
+		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty);
 
 	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
 
@@ -4687,8 +4747,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->root_hpa = INVALID_PAGE;
 	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
-	context->base_role.ad_disabled = !accessed_dirty;
-	context->base_role.guest_mode = 1;
+	context->base_role.word = root_page_role.word & mmu_base_role_mask.word;
 	update_permission_bitmask(vcpu, context, true);
 	update_pkru_bitmask(vcpu, context, true);
 	update_last_nonleaf_level(vcpu, context);
@@ -4759,6 +4818,15 @@ static void init_kvm_mmu(struct kvm_vcpu *vcpu)
 		init_kvm_tdp_mmu(vcpu);
 	else
 		init_kvm_softmmu(vcpu);
+}
+
+static union kvm_mmu_page_role
+kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
+{
+	if (tdp_enabled)
+		return kvm_calc_tdp_mmu_root_page_role(vcpu);
+	else
+		return kvm_calc_shadow_mmu_root_page_role(vcpu);
 }
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
@@ -4941,16 +5009,6 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	u64 entry, gentry, *spte;
 	int npte;
 	bool remote_flush, local_flush;
-	union kvm_mmu_page_role mask = { };
-
-	mask.cr0_wp = 1;
-	mask.cr4_pae = 1;
-	mask.nxe = 1;
-	mask.smep_andnot_wp = 1;
-	mask.smap_andnot_wp = 1;
-	mask.smm = 1;
-	mask.guest_mode = 1;
-	mask.ad_disabled = 1;
 
 	/*
 	 * If we don't have indirect shadow pages, it means no page is
@@ -4994,7 +5052,7 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			mmu_page_zap_pte(vcpu->kvm, sp, spte);
 			if (gentry &&
 			      !((sp->role.word ^ vcpu->arch.mmu.base_role.word)
-			      & mask.word) && rmap_can_add(vcpu))
+			      & mmu_base_role_mask.word) && rmap_can_add(vcpu))
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
 			if (need_remote_flush(entry, *spte))
 				remote_flush = true;
