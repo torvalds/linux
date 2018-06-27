@@ -167,6 +167,9 @@ static enum amd_pp_clock_type dc_to_pp_clock_type(
 		amd_pp_clk_type = amd_pp_f_clock;
 		break;
 	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
+		amd_pp_clk_type = amd_pp_phy_clock;
+		break;
+	case DM_PP_CLOCK_TYPE_DPPCLK:
 		amd_pp_clk_type = amd_pp_dpp_clock;
 		break;
 	default:
