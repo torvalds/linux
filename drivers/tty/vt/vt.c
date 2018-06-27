@@ -481,6 +481,67 @@ static void vc_uniscr_copy_area(struct uni_screen *dst,
 	}
 }
 
+/*
+ * Called from vcs_read() to make sure unicode screen retrieval is possible.
+ * This will initialize the unicode screen buffer if not already done.
+ * This returns 0 if OK, or a negative error code otherwise.
+ * In particular, -ENODATA is returned if the console is not in UTF-8 mode.
+ */
+int vc_uniscr_check(struct vc_data *vc)
+{
+	struct uni_screen *uniscr;
+	unsigned short *p;
+	int x, y, mask;
+
+	if (__is_defined(NO_VC_UNI_SCREEN))
+		return -EOPNOTSUPP;
+
+	WARN_CONSOLE_UNLOCKED();
+
+	if (!vc->vc_utf)
+		return -ENODATA;
+
+	if (vc->vc_uni_screen)
+		return 0;
+
+	uniscr = vc_uniscr_alloc(vc->vc_cols, vc->vc_rows);
+	if (!uniscr)
+		return -ENOMEM;
+
+	/*
+	 * Let's populate it initially with (imperfect) reverse translation.
+	 * This is the next best thing we can do short of having it enabled
+	 * from the start even when no users rely on this functionality. True
+	 * unicode content will be available after a complete screen refresh.
+	 */
+	p = (unsigned short *)vc->vc_origin;
+	mask = vc->vc_hi_font_mask | 0xff;
+	for (y = 0; y < vc->vc_rows; y++) {
+		char32_t *line = uniscr->lines[y];
+		for (x = 0; x < vc->vc_cols; x++) {
+			u16 glyph = scr_readw(p++) & mask;
+			line[x] = inverse_translate(vc, glyph, true);
+		}
+	}
+
+	vc->vc_uni_screen = uniscr;
+	return 0;
+}
+
+/*
+ * Called from vcs_read() to get the unicode data from the screen.
+ * This must be preceded by a successful call to vc_uniscr_check() once
+ * the console lock has been taken.
+ */
+void vc_uniscr_copy_line(struct vc_data *vc, void *dest,
+			 unsigned int row, unsigned int col, unsigned int nr)
+{
+	struct uni_screen *uniscr = get_vc_uniscr(vc);
+
+	BUG_ON(!uniscr);
+	memcpy(dest, &uniscr->lines[row][col], nr * sizeof(char32_t));
+}
+
 
 static void con_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 		enum con_scroll dir, unsigned int nr)
