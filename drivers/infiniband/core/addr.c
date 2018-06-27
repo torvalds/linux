@@ -315,19 +315,17 @@ static int dst_fetch_ha(const struct dst_entry *dst,
 	int ret = 0;
 
 	n = dst_neigh_lookup(dst, daddr);
+	if (!n)
+		return -ENODATA;
 
-	rcu_read_lock();
-	if (!n || !(n->nud_state & NUD_VALID)) {
-		if (n)
-			neigh_event_send(n, NULL);
+	if (!(n->nud_state & NUD_VALID)) {
+		neigh_event_send(n, NULL);
 		ret = -ENODATA;
 	} else {
 		rdma_copy_addr(dev_addr, dst->dev, n->ha);
 	}
-	rcu_read_unlock();
 
-	if (n)
-		neigh_release(n);
+	neigh_release(n);
 
 	return ret;
 }
