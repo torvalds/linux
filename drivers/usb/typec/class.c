@@ -1407,7 +1407,7 @@ struct typec_port *typec_register_port(struct device *parent,
 		goto err_switch;
 	}
 
-	port->mux = typec_mux_get(cap->fwnode ? &port->dev : parent);
+	port->mux = typec_mux_get(parent, "typec-mux");
 	if (IS_ERR(port->mux)) {
 		ret = PTR_ERR(port->mux);
 		goto err_mux;
