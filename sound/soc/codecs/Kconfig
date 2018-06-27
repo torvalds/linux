@@ -959,8 +959,11 @@ config SND_SOC_TAS5086
 	depends on I2C
 
 config SND_SOC_TAS571X
-	tristate "Texas Instruments TAS5711/TAS5717/TAS5719/TAS5721 power amplifiers"
+	tristate "Texas Instruments TAS571x power amplifiers"
 	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS5707, TAS5711, TAS5717,
+	  TAS5719 and TAS5721 power amplifiers
 
 config SND_SOC_TAS5720
 	tristate "Texas Instruments TAS5720 Mono Audio amplifier"
