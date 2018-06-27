@@ -1285,7 +1285,7 @@ long i915_request_wait(struct i915_request *rq,
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(errq, &reset);
 
-	intel_wait_init(&wait, rq);
+	intel_wait_init(&wait);
 
 restart:
 	do {

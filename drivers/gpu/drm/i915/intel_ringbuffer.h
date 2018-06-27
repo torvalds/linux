@@ -928,11 +928,10 @@ static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
-static inline void intel_wait_init(struct intel_wait *wait,
-				   struct i915_request *rq)
+static inline void intel_wait_init(struct intel_wait *wait)
 {
 	wait->tsk = current;
-	wait->request = rq;
+	wait->request = NULL;
 }
 
 static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)

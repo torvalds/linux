@@ -1182,7 +1182,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 		if (i915_seqno_passed(seqno, wait->seqno)) {
 			struct i915_request *waiter = wait->request;
 
-			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+			if (waiter &&
+			    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				      &waiter->fence.flags) &&
 			    intel_wait_check_request(wait, waiter))
 				rq = i915_request_get(waiter);
@@ -1205,8 +1206,11 @@ static void notify_ring(struct intel_engine_cs *engine)
 	spin_unlock(&engine->breadcrumbs.irq_lock);
 
 	if (rq) {
-		dma_fence_signal(&rq->fence);
+		spin_lock(&rq->lock);
+		dma_fence_signal_locked(&rq->fence);
 		GEM_BUG_ON(!i915_request_completed(rq));
+		spin_unlock(&rq->lock);
+
 		i915_request_put(rq);
 	}
 
