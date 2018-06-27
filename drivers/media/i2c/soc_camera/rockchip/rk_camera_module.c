@@ -40,6 +40,8 @@
 
 #define OF_OV_GPIO_PD "rockchip,pd-gpio"
 #define OF_OV_GPIO_PWR "rockchip,pwr-gpio"
+#define OF_OV_GPIO_PWR_2ND "rockchip,pwr-2nd-gpio"
+#define OF_OV_GPIO_PWR_3RD "rockchip,pwr-3rd-gpio"
 #define OF_OV_GPIO_FLASH "rockchip,flash-gpio"
 #define OF_OV_GPIO_TORCH "rockchip,torch-gpio"
 #define OF_OV_GPIO_RESET "rockchip,rst-gpio"
@@ -73,6 +75,8 @@
 
 const char *PLTFRM_CAMERA_MODULE_PIN_PD = OF_OV_GPIO_PD;
 const char *PLTFRM_CAMERA_MODULE_PIN_PWR = OF_OV_GPIO_PWR;
+const char *PLTFRM_CAMERA_MODULE_PIN_PWR_2ND = OF_OV_GPIO_PWR_2ND;
+const char *PLTFRM_CAMERA_MODULE_PIN_PWR_3RD = OF_OV_GPIO_PWR_3RD;
 const char *PLTFRM_CAMERA_MODULE_PIN_FLASH = OF_OV_GPIO_FLASH;
 const char *PLTFRM_CAMERA_MODULE_PIN_TORCH = OF_OV_GPIO_TORCH;
 const char *PLTFRM_CAMERA_MODULE_PIN_RESET = OF_OV_GPIO_RESET;
@@ -152,7 +156,7 @@ struct pltfrm_camera_module_itf {
 };
 
 struct pltfrm_camera_module_data {
-	struct pltfrm_camera_module_gpio gpios[6];
+	struct pltfrm_camera_module_gpio gpios[8];
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_sleep;
@@ -475,32 +479,46 @@ static struct pltfrm_camera_module_data *pltfrm_camera_module_get_data(
 		0,
 		&pdata->gpios[1].active_low);
 
-	pdata->gpios[2].label = PLTFRM_CAMERA_MODULE_PIN_FLASH;
+	pdata->gpios[2].label = PLTFRM_CAMERA_MODULE_PIN_PWR_2ND;
 	pdata->gpios[2].pltfrm_gpio = of_get_named_gpio_flags(
 		np,
 		pdata->gpios[2].label,
 		0,
 		&pdata->gpios[2].active_low);
 
-	/*set fl_ctrl  flash reference*/
-	pdata->fl_ctrl.fl_flash = &pdata->gpios[2];
-
-	pdata->gpios[3].label = PLTFRM_CAMERA_MODULE_PIN_TORCH;
+	pdata->gpios[3].label = PLTFRM_CAMERA_MODULE_PIN_PWR_3RD;
 	pdata->gpios[3].pltfrm_gpio = of_get_named_gpio_flags(
 		np,
 		pdata->gpios[3].label,
 		0,
 		&pdata->gpios[3].active_low);
 
-	/*set fl_ctrl torch reference*/
-	pdata->fl_ctrl.fl_torch = &pdata->gpios[3];
-
-	pdata->gpios[4].label = PLTFRM_CAMERA_MODULE_PIN_RESET;
+	pdata->gpios[4].label = PLTFRM_CAMERA_MODULE_PIN_FLASH;
 	pdata->gpios[4].pltfrm_gpio = of_get_named_gpio_flags(
 		np,
 		pdata->gpios[4].label,
 		0,
 		&pdata->gpios[4].active_low);
+
+	/*set fl_ctrl  flash reference*/
+	pdata->fl_ctrl.fl_flash = &pdata->gpios[4];
+
+	pdata->gpios[5].label = PLTFRM_CAMERA_MODULE_PIN_TORCH;
+	pdata->gpios[5].pltfrm_gpio = of_get_named_gpio_flags(
+		np,
+		pdata->gpios[5].label,
+		0,
+		&pdata->gpios[5].active_low);
+
+	/*set fl_ctrl torch reference*/
+	pdata->fl_ctrl.fl_torch = &pdata->gpios[5];
+
+	pdata->gpios[6].label = PLTFRM_CAMERA_MODULE_PIN_RESET;
+	pdata->gpios[6].pltfrm_gpio = of_get_named_gpio_flags(
+		np,
+		pdata->gpios[6].label,
+		0,
+		&pdata->gpios[6].active_low);
 
 	ret = of_property_read_string(np, OF_CAMERA_MODULE_NAME,
 			&pdata->info.module_name);
@@ -1426,6 +1444,16 @@ int pltfrm_camera_module_set_pm_state(
 
 		pltfrm_camera_module_set_pin_state(
 			sd,
+			PLTFRM_CAMERA_MODULE_PIN_PWR_2ND,
+			PLTFRM_CAMERA_MODULE_PIN_STATE_ACTIVE);
+
+		pltfrm_camera_module_set_pin_state(
+			sd,
+			PLTFRM_CAMERA_MODULE_PIN_PWR_3RD,
+			PLTFRM_CAMERA_MODULE_PIN_STATE_ACTIVE);
+
+		pltfrm_camera_module_set_pin_state(
+			sd,
 			PLTFRM_CAMERA_MODULE_PIN_RESET,
 			PLTFRM_CAMERA_MODULE_PIN_STATE_ACTIVE);
 		usleep_range(100, 300);
@@ -1455,6 +1483,16 @@ int pltfrm_camera_module_set_pm_state(
 		clk_prepare_enable(pdata->mclk);
 	} else {
 		clk_disable_unprepare(pdata->mclk);
+
+		pltfrm_camera_module_set_pin_state(
+			sd,
+			PLTFRM_CAMERA_MODULE_PIN_PWR_3RD,
+			PLTFRM_CAMERA_MODULE_PIN_STATE_INACTIVE);
+
+		pltfrm_camera_module_set_pin_state(
+			sd,
+			PLTFRM_CAMERA_MODULE_PIN_PWR_2ND,
+			PLTFRM_CAMERA_MODULE_PIN_STATE_INACTIVE);
 
 		pltfrm_camera_module_set_pin_state(
 			sd,
