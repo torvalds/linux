@@ -34,7 +34,6 @@
 #include <sound/pxa2xx-lib.h>
 #include <sound/dmaengine_pcm.h>
 
-#include "../../arm/pxa2xx-pcm.h"
 #include "pxa-ssp.h"
 
 /*
