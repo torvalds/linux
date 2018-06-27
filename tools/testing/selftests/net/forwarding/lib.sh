@@ -287,6 +287,29 @@ __addr_add_del()
 	done
 }
 
+__simple_if_init()
+{
+	local if_name=$1; shift
+	local vrf_name=$1; shift
+	local addrs=("${@}")
+
+	ip link set dev $if_name master $vrf_name
+	ip link set dev $if_name up
+
+	__addr_add_del $if_name add "${addrs[@]}"
+}
+
+__simple_if_fini()
+{
+	local if_name=$1; shift
+	local addrs=("${@}")
+
+	__addr_add_del $if_name del "${addrs[@]}"
+
+	ip link set dev $if_name down
+	ip link set dev $if_name nomaster
+}
+
 simple_if_init()
 {
 	local if_name=$1
@@ -298,11 +321,8 @@ simple_if_init()
 	array=("${@}")
 
 	vrf_create $vrf_name
-	ip link set dev $if_name master $vrf_name
 	ip link set dev $vrf_name up
-	ip link set dev $if_name up
-
-	__addr_add_del $if_name add "${array[@]}"
+	__simple_if_init $if_name $vrf_name "${array[@]}"
 }
 
 simple_if_fini()
@@ -315,9 +335,7 @@ simple_if_fini()
 	vrf_name=v$if_name
 	array=("${@}")
 
-	__addr_add_del $if_name del "${array[@]}"
-
-	ip link set dev $if_name down
+	__simple_if_fini $if_name "${array[@]}"
 	vrf_destroy $vrf_name
 }
 
@@ -383,9 +401,10 @@ tc_rule_stats_get()
 {
 	local dev=$1; shift
 	local pref=$1; shift
+	local dir=$1; shift
 
-	tc -j -s filter show dev $dev ingress pref $pref |
-	jq '.[1].options.actions[].stats.packets'
+	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
+	    | jq '.[1].options.actions[].stats.packets'
 }
 
 mac_get()
@@ -555,6 +574,49 @@ tests_run()
 	for current_test in ${TESTS:-$ALL_TESTS}; do
 		$current_test
 	done
+}
+
+multipath_eval()
+{
+	local desc="$1"
+	local weight_rp12=$2
+	local weight_rp13=$3
+	local packets_rp12=$4
+	local packets_rp13=$5
+	local weights_ratio packets_ratio diff
+
+	RET=0
+
+	if [[ "$weight_rp12" -gt "$weight_rp13" ]]; then
+		weights_ratio=$(echo "scale=2; $weight_rp12 / $weight_rp13" \
+				| bc -l)
+	else
+		weights_ratio=$(echo "scale=2; $weight_rp13 / $weight_rp12" \
+				| bc -l)
+	fi
+
+	if [[ "$packets_rp12" -eq "0" || "$packets_rp13" -eq "0" ]]; then
+	       check_err 1 "Packet difference is 0"
+	       log_test "Multipath"
+	       log_info "Expected ratio $weights_ratio"
+	       return
+	fi
+
+	if [[ "$weight_rp12" -gt "$weight_rp13" ]]; then
+		packets_ratio=$(echo "scale=2; $packets_rp12 / $packets_rp13" \
+				| bc -l)
+	else
+		packets_ratio=$(echo "scale=2; $packets_rp13 / $packets_rp12" \
+				| bc -l)
+	fi
+
+	diff=$(echo $weights_ratio - $packets_ratio | bc -l)
+	diff=${diff#-}
+
+	test "$(echo "$diff / $weights_ratio > 0.15" | bc -l)" -eq 0
+	check_err $? "Too large discrepancy between expected and measured ratios"
+	log_test "$desc"
+	log_info "Expected ratio $weights_ratio Measured ratio $packets_ratio"
 }
 
 ##############################################################################
