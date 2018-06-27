@@ -82,6 +82,15 @@ config RESET_PISTACHIO
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
+config RESET_QCOM_AOSS
+	bool "Qcom AOSS Reset Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  This enables the AOSS (always on subsystem) reset driver
+	  for Qualcomm SDM845 SoCs. Say Y if you want to control
+	  reset signals provided by AOSS for Modem, Venus, ADSP,
+	  GPU, Camera, Wireless, Display subsystem. Otherwise, say N.
+
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
 	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
