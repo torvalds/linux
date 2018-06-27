@@ -162,7 +162,7 @@ static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 static int sch311x_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
-	unsigned char data;
+	u8 data;
 
 	spin_lock(&block->lock);
 	data = inb(block->runtime_reg + block->data_reg);
@@ -174,7 +174,7 @@ static int sch311x_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void __sch311x_gpio_set(struct sch311x_gpio_block *block,
 			       unsigned offset, int value)
 {
-	unsigned char data = inb(block->runtime_reg + block->data_reg);
+	u8 data = inb(block->runtime_reg + block->data_reg);
 	if (value)
 		data |= BIT(offset);
 	else
@@ -195,7 +195,7 @@ static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 static int sch311x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
-	unsigned char data;
+	u8 data;
 
 	spin_lock(&block->lock);
 	data = inb(block->runtime_reg + block->config_regs[offset]);
@@ -210,7 +210,7 @@ static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
-	unsigned char data;
+	u8 data;
 
 	spin_lock(&block->lock);
 
@@ -226,7 +226,7 @@ static int sch311x_gpio_direction_out(struct gpio_chip *chip, unsigned offset,
 static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
-	unsigned char data;
+	u8 data;
 
 	spin_lock(&block->lock);
 	data = inb(block->runtime_reg + block->config_regs[offset]);
@@ -240,7 +240,7 @@ static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned char data;
+	u8 data;
 
 	switch (param) {
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
@@ -353,7 +353,7 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 {
 	int err = 0, reg;
 	unsigned short base_addr;
-	unsigned char dev_id;
+	u8 dev_id;
 
 	err = sch311x_sio_enter(sio_config_port);
 	if (err)
