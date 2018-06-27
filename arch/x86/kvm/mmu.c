@@ -189,7 +189,13 @@ static const union kvm_mmu_page_role mmu_base_role_mask = {
 	.ad_disabled = 1,
 };
 
-#define for_each_shadow_entry(_vcpu, _addr, _walker)    \
+#define for_each_shadow_entry_using_root(_vcpu, _root, _addr, _walker)     \
+	for (shadow_walk_init_using_root(&(_walker), (_vcpu),              \
+					 (_root), (_addr));                \
+	     shadow_walk_okay(&(_walker));			           \
+	     shadow_walk_next(&(_walker)))
+
+#define for_each_shadow_entry(_vcpu, _addr, _walker)            \
 	for (shadow_walk_init(&(_walker), _vcpu, _addr);	\
 	     shadow_walk_okay(&(_walker));			\
 	     shadow_walk_next(&(_walker)))
@@ -1999,7 +2005,7 @@ static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static void nonpaging_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
+static void nonpaging_invlpg(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root)
 {
 }
 
@@ -2405,11 +2411,12 @@ out:
 	return sp;
 }
 
-static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
-			     struct kvm_vcpu *vcpu, u64 addr)
+static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterator,
+					struct kvm_vcpu *vcpu, hpa_t root,
+					u64 addr)
 {
 	iterator->addr = addr;
-	iterator->shadow_addr = vcpu->arch.mmu.root_hpa;
+	iterator->shadow_addr = root;
 	iterator->level = vcpu->arch.mmu.shadow_root_level;
 
 	if (iterator->level == PT64_ROOT_4LEVEL &&
@@ -2418,6 +2425,12 @@ static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
 		--iterator->level;
 
 	if (iterator->level == PT32E_ROOT_LEVEL) {
+		/*
+		 * prev_root is currently only used for 64-bit hosts. So only
+		 * the active root_hpa is valid here.
+		 */
+		BUG_ON(root != vcpu->arch.mmu.root_hpa);
+
 		iterator->shadow_addr
 			= vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
 		iterator->shadow_addr &= PT64_BASE_ADDR_MASK;
@@ -2425,6 +2438,13 @@ static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
 		if (!iterator->shadow_addr)
 			iterator->level = 0;
 	}
+}
+
+static void shadow_walk_init(struct kvm_shadow_walk_iterator *iterator,
+			     struct kvm_vcpu *vcpu, u64 addr)
+{
+	shadow_walk_init_using_root(iterator, vcpu, vcpu->arch.mmu.root_hpa,
+				    addr);
 }
 
 static bool shadow_walk_okay(struct kvm_shadow_walk_iterator *iterator)
@@ -5186,7 +5206,9 @@ EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
-	vcpu->arch.mmu.invlpg(vcpu, gva);
+	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+
+	mmu->invlpg(vcpu, gva, mmu->root_hpa);
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	++vcpu->stat.invlpg;
 }
@@ -5197,7 +5219,7 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
 	if (pcid == kvm_get_active_pcid(vcpu)) {
-		mmu->invlpg(vcpu, gva);
+		mmu->invlpg(vcpu, gva, mmu->root_hpa);
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
