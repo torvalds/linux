@@ -345,7 +345,6 @@ struct intel_engine_cs {
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 
-	atomic_t irq_count;
 	unsigned long irq_posted;
 #define ENGINE_IRQ_BREADCRUMB 0
 #define ENGINE_IRQ_EXECLIST 1
@@ -380,6 +379,7 @@ struct intel_engine_cs {
 
 		unsigned int hangcheck_interrupts;
 		unsigned int irq_enabled;
+		unsigned int irq_count;
 
 		bool irq_armed : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);

@@ -1196,7 +1196,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 	 * takes to sleep on a request, on the order of a microsecond.
 	 */
 
-	irq = atomic_read(&engine->irq_count);
+	irq = READ_ONCE(engine->breadcrumbs.irq_count);
 	timeout_us += local_clock_us(&cpu);
 	do {
 		if (i915_seqno_passed(intel_engine_get_seqno(engine), seqno))
@@ -1208,7 +1208,7 @@ static bool __i915_spin_request(const struct i915_request *rq,
 		 * assume we won't see one in the near future but require
 		 * the engine->seqno_barrier() to fixup coherency.
 		 */
-		if (atomic_read(&engine->irq_count) != irq)
+		if (READ_ONCE(engine->breadcrumbs.irq_count) != irq)
 			break;
 
 		if (signal_pending_state(state, current))
