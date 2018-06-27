@@ -539,6 +539,7 @@ enum {
 	TCA_NETEM_LATENCY64,
 	TCA_NETEM_JITTER64,
 	TCA_NETEM_SLOT,
+	TCA_NETEM_SLOT_DIST,
 	__TCA_NETEM_MAX,
 };
 
@@ -581,6 +582,8 @@ struct tc_netem_slot {
 	__s64   max_delay;
 	__s32   max_packets;
 	__s32   max_bytes;
+	__s64	dist_delay; /* nsec */
+	__s64	dist_jitter; /* nsec */
 };
 
 enum {
