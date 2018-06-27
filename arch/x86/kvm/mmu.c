@@ -4038,7 +4038,8 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->nx = false;
 }
 
-static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3)
+static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+			    union kvm_mmu_page_role new_role)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
@@ -4057,7 +4058,10 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 		swap(mmu->root_hpa, mmu->prev_root.hpa);
 		mmu->prev_root.cr3 = kvm_read_cr3(vcpu);
 
-		if (new_cr3 == prev_cr3 && VALID_PAGE(mmu->root_hpa)) {
+		if (new_cr3 == prev_cr3 &&
+		    VALID_PAGE(mmu->root_hpa) &&
+		    page_header(mmu->root_hpa) != NULL &&
+		    new_role.word == page_header(mmu->root_hpa)->role.word) {
 			/*
 			 * It is possible that the cached previous root page is
 			 * obsolete because of a change in the MMU
@@ -4066,11 +4070,10 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 			 * have set here and allocate a new one.
 			 */
 
+			kvm_make_request(KVM_REQ_LOAD_CR3, vcpu);
 			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 			__clear_sp_write_flooding_count(
 				page_header(mmu->root_hpa));
-
-			mmu->set_cr3(vcpu, mmu->root_hpa);
 
 			return true;
 		}
@@ -4079,10 +4082,16 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 	return false;
 }
 
+static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+			      union kvm_mmu_page_role new_role)
+{
+	if (!fast_cr3_switch(vcpu, new_cr3, new_role))
+		kvm_mmu_free_roots(vcpu, false);
+}
+
 void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 {
-	if (!fast_cr3_switch(vcpu, new_cr3))
-		kvm_mmu_free_roots(vcpu, false);
+	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu));
 }
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
