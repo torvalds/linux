@@ -73,14 +73,10 @@ static int bd71837_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 static int bd71837_set_voltage_sel_restricted(struct regulator_dev *rdev,
 						    unsigned int sel)
 {
-	int ret;
+	if (regulator_is_enabled_regmap(rdev))
+		return -EBUSY;
 
-	ret = regulator_is_enabled_regmap(rdev);
-	if (!ret)
-		ret = regulator_set_voltage_sel_regmap(rdev, sel);
-	else if (ret == 1)
-		ret = -EBUSY;
-	return ret;
+	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static struct regulator_ops bd71837_ldo_regulator_ops = {
