@@ -4032,8 +4032,6 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->update_pte = nonpaging_update_pte;
 	context->root_level = 0;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
-	context->root_hpa = INVALID_PAGE;
-	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = true;
 	context->nx = false;
 }
@@ -4568,8 +4566,6 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->invlpg = paging64_invlpg;
 	context->update_pte = paging64_update_pte;
 	context->shadow_root_level = level;
-	context->root_hpa = INVALID_PAGE;
-	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 }
 
@@ -4599,8 +4595,6 @@ static void paging32_init_context(struct kvm_vcpu *vcpu,
 	context->invlpg = paging32_invlpg;
 	context->update_pte = paging32_update_pte;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
-	context->root_hpa = INVALID_PAGE;
-	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 }
 
@@ -4636,8 +4630,6 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->invlpg = nonpaging_invlpg;
 	context->update_pte = nonpaging_update_pte;
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level(vcpu);
-	context->root_hpa = INVALID_PAGE;
-	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = true;
 	context->set_cr3 = kvm_x86_ops->set_tdp_cr3;
 	context->get_cr3 = get_cr3;
@@ -4703,8 +4695,6 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
-	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
-
 	if (!is_paging(vcpu))
 		nonpaging_init_context(vcpu, context);
 	else if (is_long_mode(vcpu))
@@ -4741,8 +4731,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	union kvm_mmu_page_role root_page_role =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty);
 
-	MMU_WARN_ON(VALID_PAGE(context->root_hpa));
-
 	context->shadow_root_level = PT64_ROOT_4LEVEL;
 
 	context->nx = true;
@@ -4753,8 +4741,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->invlpg = ept_invlpg;
 	context->update_pte = ept_update_pte;
 	context->root_level = PT64_ROOT_4LEVEL;
-	context->root_hpa = INVALID_PAGE;
-	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 	context->base_role.word = root_page_role.word & mmu_base_role_mask.word;
 	update_permission_bitmask(vcpu, context, true);
@@ -4819,8 +4805,13 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	update_last_nonleaf_level(vcpu, g_context);
 }
 
-static void init_kvm_mmu(struct kvm_vcpu *vcpu)
+void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots)
 {
+	if (reset_roots) {
+		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
+		vcpu->arch.mmu.prev_root = KVM_MMU_ROOT_INFO_INVALID;
+	}
+
 	if (mmu_is_nested(vcpu))
 		init_kvm_nested_mmu(vcpu);
 	else if (tdp_enabled)
@@ -4828,6 +4819,7 @@ static void init_kvm_mmu(struct kvm_vcpu *vcpu)
 	else
 		init_kvm_softmmu(vcpu);
 }
+EXPORT_SYMBOL_GPL(kvm_init_mmu);
 
 static union kvm_mmu_page_role
 kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
@@ -4841,7 +4833,7 @@ kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 {
 	kvm_mmu_unload(vcpu);
-	init_kvm_mmu(vcpu);
+	kvm_init_mmu(vcpu, true);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
@@ -5245,7 +5237,7 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	init_kvm_mmu(vcpu);
+	kvm_init_mmu(vcpu, true);
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
