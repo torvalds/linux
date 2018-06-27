@@ -312,6 +312,8 @@ static int rockchip_i2s_pwm_dma_request(struct rockchip_i2s_pwm_chip *pc,
 	struct dma_slave_config dma_sconfig;
 	int ret;
 
+	memset(&dma_sconfig, 0, sizeof(dma_sconfig));
+
 	dma->chan_tx = dma_request_slave_channel(dev, "tx");
 	if (!dma->chan_tx) {
 		dev_err(dev, "can't request DMA tx channel\n");
