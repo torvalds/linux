@@ -770,6 +770,7 @@ struct rockchip_dmcfreq {
 	struct freq_map_table *vop_bw_tbl;
 	struct work_struct devfreq_update;
 	struct input_handler input_handler;
+	struct thermal_opp_info *opp_info;
 
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
@@ -808,6 +809,12 @@ struct rockchip_dmcfreq {
 	u64 touchboostpulse_endtime;
 
 	int (*set_auto_self_refresh)(u32 en);
+};
+
+static struct thermal_opp_device_data dmc_devdata = {
+	.type = THERMAL_OPP_TPYE_DEV,
+	.low_temp_adjust = rockchip_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_dev_high_temp_adjust,
 };
 
 static struct pm_qos_request pm_qos;
@@ -3109,6 +3116,14 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		ret = input_register_handler(&data->input_handler);
 		if (ret)
 			dev_err(dev, "failed to register input handler\n");
+	}
+
+	dmc_devdata.data = data->devfreq;
+	data->opp_info = rockchip_register_thermal_notifier(dev,
+							    &dmc_devdata);
+	if (IS_ERR(data->opp_info)) {
+		dev_dbg(dev, "without thermal notifier\n");
+		data->opp_info = NULL;
 	}
 
 	ret = ddr_power_model_simple_init(data);
