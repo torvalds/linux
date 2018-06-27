@@ -115,7 +115,6 @@ struct msm_drm_private {
 	struct list_head inactive_list;
 
 	struct workqueue_struct *wq;
-	struct workqueue_struct *atomic_wq;
 
 	unsigned int num_planes;
 	struct drm_plane *planes[16];
