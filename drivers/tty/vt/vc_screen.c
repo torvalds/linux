@@ -311,7 +311,8 @@ vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			do {
 				if (nr > this_round/4)
 					nr = this_round/4;
-				vc_uniscr_copy_line(vc, con_buf0, row, col, nr);
+				vc_uniscr_copy_line(vc, con_buf0, viewed,
+						    row, col, nr);
 				con_buf0 += nr * 4;
 				this_round -= nr * 4;
 				row++;

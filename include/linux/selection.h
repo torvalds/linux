@@ -43,7 +43,7 @@ extern void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org);
 extern void vcs_scr_updated(struct vc_data *vc);
 
 extern int vc_uniscr_check(struct vc_data *vc);
-extern void vc_uniscr_copy_line(struct vc_data *vc, void *dest,
+extern void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
 				unsigned int row, unsigned int col,
 				unsigned int nr);
 
