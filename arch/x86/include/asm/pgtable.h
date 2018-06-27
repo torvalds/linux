@@ -191,21 +191,21 @@ static inline u64 protnone_mask(u64 val);
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	unsigned long pfn = pte_val(pte);
+	phys_addr_t pfn = pte_val(pte);
 	pfn ^= protnone_mask(pfn);
 	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
-	unsigned long pfn = pmd_val(pmd);
+	phys_addr_t pfn = pmd_val(pmd);
 	pfn ^= protnone_mask(pfn);
 	return (pfn & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pud_pfn(pud_t pud)
 {
-	unsigned long pfn = pud_val(pud);
+	phys_addr_t pfn = pud_val(pud);
 	pfn ^= protnone_mask(pfn);
 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
 }
@@ -555,7 +555,7 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
-	phys_addr_t pfn = page_nr << PAGE_SHIFT;
+	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
 	pfn ^= protnone_mask(pgprot_val(pgprot));
 	pfn &= PTE_PFN_MASK;
 	return __pte(pfn | check_pgprot(pgprot));
@@ -563,7 +563,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
-	phys_addr_t pfn = page_nr << PAGE_SHIFT;
+	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
 	pfn ^= protnone_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PMD_PAGE_MASK;
 	return __pmd(pfn | check_pgprot(pgprot));
@@ -571,7 +571,7 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 
 static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 {
-	phys_addr_t pfn = page_nr << PAGE_SHIFT;
+	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
 	pfn ^= protnone_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PUD_PAGE_MASK;
 	return __pud(pfn | check_pgprot(pgprot));
