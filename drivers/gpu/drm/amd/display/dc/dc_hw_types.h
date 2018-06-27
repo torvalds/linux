@@ -500,6 +500,11 @@ struct dc_cursor_attributes {
 	union dc_cursor_attribute_flags attribute_flags;
 };
 
+struct dpp_cursor_attributes {
+	int bias;
+	int scale;
+};
+
 /* OPP */
 
 enum dc_color_space {

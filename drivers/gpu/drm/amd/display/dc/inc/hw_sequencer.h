@@ -223,6 +223,7 @@ struct hw_sequencer_funcs {
 
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
+	void (*set_cursor_sdr_white_level)(struct pipe_ctx *pipe);
 
 };
 

@@ -27,7 +27,6 @@
 #include "reg_helper.h"
 #include "basics/conversion.h"
 #include "dcn10_hubp.h"
-#include "custom_float.h"
 
 #define REG(reg)\
 	hubp1->hubp_regs->reg
@@ -1039,18 +1038,6 @@ void hubp1_cursor_set_attributes(
 	enum cursor_pitch hw_pitch = hubp1_get_cursor_pitch(attr->pitch);
 	enum cursor_lines_per_chunk lpc = hubp1_get_lines_per_chunk(
 			attr->width, attr->color_format);
-	struct fixed31_32 multiplier;
-	uint32_t hw_mult = 0x3c00; // 1.0 default multiplier
-	struct custom_float_format fmt;
-
-	fmt.exponenta_bits = 5;
-	fmt.mantissa_bits = 10;
-	fmt.sign = true;
-
-	if (attr->sdr_white_level > 80) {
-		multiplier = dc_fixpt_from_fraction(attr->sdr_white_level, 80);
-		convert_to_custom_float_format(multiplier, &fmt, &hw_mult);
-	}
 
 	hubp->curs_attr = *attr;
 
@@ -1073,8 +1060,6 @@ void hubp1_cursor_set_attributes(
 			CURSOR0_DST_Y_OFFSET, 0,
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
-
-	REG_UPDATE(CURSOR0_FP_SCALE_BIAS, CUR0_FP_SCALE, hw_mult);
 }
 
 void hubp1_cursor_set_position(

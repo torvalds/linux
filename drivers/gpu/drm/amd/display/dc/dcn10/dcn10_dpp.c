@@ -459,6 +459,18 @@ void dpp1_set_cursor_position(
 
 }
 
+void dpp1_cnv_set_optional_cursor_attributes(
+		struct dpp *dpp_base,
+		struct dpp_cursor_attributes *attr)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	if (attr) {
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_BIAS,  attr->bias);
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_SCALE, attr->scale);
+	}
+}
+
 void dpp1_dppclk_control(
 		struct dpp *dpp_base,
 		bool dppclk_div,
@@ -499,6 +511,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_full_bypass		= dpp1_full_bypass,
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
+		.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 		.dpp_dppclk_control = dpp1_dppclk_control,
 		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
 };

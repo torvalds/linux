@@ -214,6 +214,7 @@ bool dc_stream_set_cursor_attributes(
 		}
 
 		core_dc->hwss.set_cursor_attribute(pipe_ctx);
+		core_dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
 	if (pipe_to_program)

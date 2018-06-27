@@ -100,6 +100,7 @@ struct dc_stream_state {
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* from stream struct */
 	struct kref refcount;
@@ -254,6 +255,7 @@ bool dc_stream_set_cursor_attributes(
 bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position);
+
 
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 				struct dc_stream_state **stream,
