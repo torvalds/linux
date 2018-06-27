@@ -74,14 +74,14 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(gcr_regmap)) {
 		dev_err(&pdev->dev, "%s: failed to find nuvoton,npcm750-gcr\n",
 			__func__);
-		return IS_ERR(gcr_regmap);
+		return PTR_ERR(gcr_regmap);
 	}
 
 	rst_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm750-rst");
 	if (IS_ERR(rst_regmap)) {
 		dev_err(&pdev->dev, "%s: failed to find nuvoton,npcm750-rst\n",
 			__func__);
-		return IS_ERR(rst_regmap);
+		return PTR_ERR(rst_regmap);
 	}
 
 	/********* phy init  ******/
