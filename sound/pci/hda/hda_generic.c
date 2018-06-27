@@ -209,7 +209,7 @@ static void parse_user_hints(struct hda_codec *codec)
  */
 
 #define update_pin_ctl(codec, pin, val) \
-	snd_hda_codec_update_cache(codec, pin, 0, \
+	snd_hda_codec_write_cache(codec, pin, 0, \
 				   AC_VERB_SET_PIN_WIDGET_CONTROL, val)
 
 /* restore the pinctl based on the cached value */
@@ -898,7 +898,7 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		hda_nid_t nid = path->path[i];
 
 		if (enable && path->multi[i])
-			snd_hda_codec_update_cache(codec, nid, 0,
+			snd_hda_codec_write_cache(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
 					    path->idx[i]);
 		if (has_amp_in(codec, path, i))
@@ -930,7 +930,7 @@ static void set_pin_eapd(struct hda_codec *codec, hda_nid_t pin, bool enable)
 		return;
 	if (codec->inv_eapd)
 		enable = !enable;
-	snd_hda_codec_update_cache(codec, pin, 0,
+	snd_hda_codec_write_cache(codec, pin, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enable ? 0x02 : 0x00);
 }
@@ -5973,7 +5973,7 @@ static void clear_unsol_on_unused_pins(struct hda_codec *codec)
 		hda_nid_t nid = pin->nid;
 		if (is_jack_detectable(codec, nid) &&
 		    !snd_hda_jack_tbl_get(codec, nid))
-			snd_hda_codec_update_cache(codec, nid, 0,
+			snd_hda_codec_write_cache(codec, nid, 0,
 					AC_VERB_SET_UNSOLICITED_ENABLE, 0);
 	}
 }

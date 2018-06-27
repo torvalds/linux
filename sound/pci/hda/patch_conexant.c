@@ -341,7 +341,7 @@ static void cxt_fixup_headset_mic(struct hda_codec *codec,
  * control. */
 
 #define update_mic_pin(codec, nid, val)					\
-	snd_hda_codec_update_cache(codec, nid, 0,			\
+	snd_hda_codec_write_cache(codec, nid, 0,			\
 				   AC_VERB_SET_PIN_WIDGET_CONTROL, val)
 
 static const struct hda_input_mux olpc_xo_dc_bias = {
