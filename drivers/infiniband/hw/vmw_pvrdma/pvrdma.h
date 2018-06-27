@@ -378,11 +378,6 @@ static inline enum ib_port_speed pvrdma_port_speed_to_ib(
 	return (enum ib_port_speed)speed;
 }
 
-static inline int pvrdma_qp_attr_mask_to_ib(int attr_mask)
-{
-	return attr_mask;
-}
-
 static inline int ib_qp_attr_mask_to_pvrdma(int attr_mask)
 {
 	return attr_mask & PVRDMA_MASK(PVRDMA_QP_ATTR_MASK_MAX);
