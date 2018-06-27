@@ -86,16 +86,22 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	int ret = 0;
 	int err;
 
-	if (!nla)
+	if (!nla) {
+		NL_SET_ERR_MSG(extack, "Tunnel requires attributes to be passed");
 		return -EINVAL;
+	}
 
 	err = nla_parse_nested(tb, TCA_TUNNEL_KEY_MAX, nla, tunnel_key_policy,
-			       NULL);
-	if (err < 0)
+			       extack);
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Failed to parse nested tunnel key attributes");
 		return err;
+	}
 
-	if (!tb[TCA_TUNNEL_KEY_PARMS])
+	if (!tb[TCA_TUNNEL_KEY_PARMS]) {
+		NL_SET_ERR_MSG(extack, "Missing tunnel key parameters");
 		return -EINVAL;
+	}
 
 	parm = nla_data(tb[TCA_TUNNEL_KEY_PARMS]);
 	exists = tcf_idr_check(tn, parm->index, a, bind);
@@ -107,6 +113,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		break;
 	case TCA_TUNNEL_KEY_ACT_SET:
 		if (!tb[TCA_TUNNEL_KEY_ENC_KEY_ID]) {
+			NL_SET_ERR_MSG(extack, "Missing tunnel key id");
 			ret = -EINVAL;
 			goto err_out;
 		}
@@ -144,11 +151,13 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 						      0, flags,
 						      key_id, 0);
 		} else {
+			NL_SET_ERR_MSG(extack, "Missing either ipv4 or ipv6 src and dst");
 			ret = -EINVAL;
 			goto err_out;
 		}
 
 		if (!metadata) {
+			NL_SET_ERR_MSG(extack, "Cannot allocate tunnel metadata dst");
 			ret = -ENOMEM;
 			goto err_out;
 		}
@@ -156,6 +165,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
 		break;
 	default:
+		NL_SET_ERR_MSG(extack, "Unknown tunnel key action");
 		ret = -EINVAL;
 		goto err_out;
 	}
@@ -163,14 +173,18 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_tunnel_key_ops, bind, true);
-		if (ret)
+		if (ret) {
+			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
 			return ret;
+		}
 
 		ret = ACT_P_CREATED;
 	} else {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
+		if (!ovr) {
+			NL_SET_ERR_MSG(extack, "TC IDR already exists");
 			return -EEXIST;
+		}
 	}
 
 	t = to_tunnel_key(*a);
@@ -180,6 +194,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	if (unlikely(!params_new)) {
 		if (ret == ACT_P_CREATED)
 			tcf_idr_release(*a, bind);
+		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		return -ENOMEM;
 	}
 
