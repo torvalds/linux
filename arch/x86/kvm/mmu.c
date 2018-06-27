@@ -2702,6 +2702,45 @@ static bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 		kvm_unsync_page(vcpu, sp);
 	}
 
+	/*
+	 * We need to ensure that the marking of unsync pages is visible
+	 * before the SPTE is updated to allow writes because
+	 * kvm_mmu_sync_roots() checks the unsync flags without holding
+	 * the MMU lock and so can race with this. If the SPTE was updated
+	 * before the page had been marked as unsync-ed, something like the
+	 * following could happen:
+	 *
+	 * CPU 1                    CPU 2
+	 * ---------------------------------------------------------------------
+	 * 1.2 Host updates SPTE
+	 *     to be writable
+	 *                      2.1 Guest writes a GPTE for GVA X.
+	 *                          (GPTE being in the guest page table shadowed
+	 *                           by the SP from CPU 1.)
+	 *                          This reads SPTE during the page table walk.
+	 *                          Since SPTE.W is read as 1, there is no
+	 *                          fault.
+	 *
+	 *                      2.2 Guest issues TLB flush.
+	 *                          That causes a VM Exit.
+	 *
+	 *                      2.3 kvm_mmu_sync_pages() reads sp->unsync.
+	 *                          Since it is false, so it just returns.
+	 *
+	 *                      2.4 Guest accesses GVA X.
+	 *                          Since the mapping in the SP was not updated,
+	 *                          so the old mapping for GVA X incorrectly
+	 *                          gets used.
+	 * 1.1 Host marks SP
+	 *     as unsync
+	 *     (sp->unsync = true)
+	 *
+	 * The write barrier below ensures that 1.1 happens before 1.2 and thus
+	 * the situation in 2.4 does not arise. The implicit barrier in 2.2
+	 * pairs with this write barrier.
+	 */
+	smp_wmb();
+
 	return false;
 }
 
@@ -3554,7 +3593,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		return mmu_alloc_shadow_roots(vcpu);
 }
 
-static void mmu_sync_roots(struct kvm_vcpu *vcpu)
+void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
 	struct kvm_mmu_page *sp;
@@ -3566,14 +3605,39 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
-	kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
+
 	if (vcpu->arch.mmu.root_level >= PT64_ROOT_4LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
+
 		sp = page_header(root);
+
+		/*
+		 * Even if another CPU was marking the SP as unsync-ed
+		 * simultaneously, any guest page table changes are not
+		 * guaranteed to be visible anyway until this VCPU issues a TLB
+		 * flush strictly after those changes are made. We only need to
+		 * ensure that the other CPU sets these flags before any actual
+		 * changes to the page tables are made. The comments in
+		 * mmu_need_write_protect() describe what could go wrong if this
+		 * requirement isn't satisfied.
+		 */
+		if (!smp_load_acquire(&sp->unsync) &&
+		    !smp_load_acquire(&sp->unsync_children))
+			return;
+
+		spin_lock(&vcpu->kvm->mmu_lock);
+		kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
+
 		mmu_sync_children(vcpu, sp);
+
 		kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
+		spin_unlock(&vcpu->kvm->mmu_lock);
 		return;
 	}
+
+	spin_lock(&vcpu->kvm->mmu_lock);
+	kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
+
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -3583,13 +3647,8 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 			mmu_sync_children(vcpu, sp);
 		}
 	}
-	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
-}
 
-void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
-{
-	spin_lock(&vcpu->kvm->mmu_lock);
-	mmu_sync_roots(vcpu);
+	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_sync_roots);
