@@ -1330,6 +1330,18 @@ int typec_set_orientation(struct typec_port *port,
 EXPORT_SYMBOL_GPL(typec_set_orientation);
 
 /**
+ * typec_get_orientation - Get USB Type-C cable plug orientation
+ * @port: USB Type-C Port
+ *
+ * Get current cable plug orientation for @port.
+ */
+enum typec_orientation typec_get_orientation(struct typec_port *port)
+{
+	return port->orientation;
+}
+EXPORT_SYMBOL_GPL(typec_get_orientation);
+
+/**
  * typec_set_mode - Set mode of operation for USB Type-C connector
  * @port: USB Type-C port for the connector
  * @mode: Operation mode for the connector

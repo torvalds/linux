@@ -265,6 +265,7 @@ void typec_set_pwr_opmode(struct typec_port *port, enum typec_pwr_opmode mode);
 
 int typec_set_orientation(struct typec_port *port,
 			  enum typec_orientation orientation);
+enum typec_orientation typec_get_orientation(struct typec_port *port);
 int typec_set_mode(struct typec_port *port, int mode);
 
 int typec_find_port_power_role(const char *name);
