@@ -8821,7 +8821,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 
 		if (kvm_get_pcid(vcpu, vcpu->arch.mmu.prev_root.cr3)
 		    == operand.pcid)
-			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+			kvm_mmu_free_roots(vcpu, KVM_MMU_ROOT_PREVIOUS);
 
 		/*
 		 * If neither the current cr3 nor the prev_root.cr3 use the

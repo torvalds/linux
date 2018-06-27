@@ -4098,9 +4098,19 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			 */
 
 			kvm_make_request(KVM_REQ_LOAD_CR3, vcpu);
-			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
-			if (!skip_tlb_flush)
+			if (!skip_tlb_flush) {
+				kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 				kvm_x86_ops->tlb_flush(vcpu, true);
+			}
+
+			/*
+			 * The last MMIO access's GVA and GPA are cached in the
+			 * VCPU. When switching to a new CR3, that GVA->GPA
+			 * mapping may no longer be valid. So clear any cached
+			 * MMIO info even when we don't need to sync the shadow
+			 * page tables.
+			 */
+			vcpu_clear_mmio_info(vcpu, MMIO_GVA_ANY);
 
 			__clear_sp_write_flooding_count(
 				page_header(mmu->root_hpa));
@@ -5217,6 +5227,21 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
 	mmu->invlpg(vcpu, gva, mmu->root_hpa);
+
+	/*
+	 * INVLPG is required to invalidate any global mappings for the VA,
+	 * irrespective of PCID. Since it would take us roughly similar amount
+	 * of work to determine whether the prev_root mapping of the VA is
+	 * marked global, or to just sync it blindly, so we might as well just
+	 * always sync it.
+	 *
+	 * Mappings not reachable via the current cr3 or the prev_root.cr3 will
+	 * be synced when switching to that cr3, so nothing needs to be done
+	 * here for them.
+	 */
+	if (VALID_PAGE(mmu->prev_root.hpa))
+		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
+
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	++vcpu->stat.invlpg;
 }
@@ -5232,8 +5257,10 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	}
 
 	if (VALID_PAGE(mmu->prev_root.hpa) &&
-	    pcid == kvm_get_pcid(vcpu, mmu->prev_root.cr3))
+	    pcid == kvm_get_pcid(vcpu, mmu->prev_root.cr3)) {
+		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	}
 
 	++vcpu->stat.invlpg;
 
