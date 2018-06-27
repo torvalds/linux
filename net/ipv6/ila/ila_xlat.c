@@ -475,24 +475,31 @@ out_free:
 
 struct ila_dump_iter {
 	struct rhashtable_iter rhiter;
+	int skip;
 };
 
 static int ila_nl_dump_start(struct netlink_callback *cb)
 {
 	struct net *net = sock_net(cb->skb->sk);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
-	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
+	struct ila_dump_iter *iter;
+	int ret;
 
-	if (!iter) {
-		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
-		if (!iter)
-			return -ENOMEM;
+	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return -ENOMEM;
 
-		cb->args[0] = (long)iter;
+	ret = rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
+				   GFP_KERNEL);
+	if (ret) {
+		kfree(iter);
+		return ret;
 	}
 
-	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
-				    GFP_KERNEL);
+	iter->skip = 0;
+	cb->args[0] = (long)iter;
+
+	return ret;
 }
 
 static int ila_nl_dump_done(struct netlink_callback *cb)
@@ -510,20 +517,45 @@ static int ila_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
 	struct rhashtable_iter *rhiter = &iter->rhiter;
+	int skip = iter->skip;
 	struct ila_map *ila;
 	int ret;
 
 	rhashtable_walk_start(rhiter);
 
-	for (;;) {
-		ila = rhashtable_walk_next(rhiter);
+	/* Get first entry */
+	ila = rhashtable_walk_peek(rhiter);
 
+	if (ila && !IS_ERR(ila) && skip) {
+		/* Skip over visited entries */
+
+		while (ila && skip) {
+			/* Skip over any ila entries in this list that we
+			 * have already dumped.
+			 */
+			ila = rcu_access_pointer(ila->next);
+			skip--;
+		}
+	}
+
+	skip = 0;
+
+	for (;;) {
 		if (IS_ERR(ila)) {
-			if (PTR_ERR(ila) == -EAGAIN)
-				continue;
 			ret = PTR_ERR(ila);
-			goto done;
+			if (ret == -EAGAIN) {
+				/* Table has changed and iter has reset. Return
+				 * -EAGAIN to the application even if we have
+				 * written data to the skb. The application
+				 * needs to deal with this.
+				 */
+
+				goto out_ret;
+			} else {
+				break;
+			}
 		} else if (!ila) {
+			ret = 0;
 			break;
 		}
 
@@ -532,15 +564,21 @@ static int ila_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					     cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					     skb, ILA_CMD_GET);
 			if (ret)
-				goto done;
+				goto out;
 
+			skip++;
 			ila = rcu_access_pointer(ila->next);
 		}
+
+		skip = 0;
+		ila = rhashtable_walk_next(rhiter);
 	}
 
-	ret = skb->len;
+out:
+	iter->skip = skip;
+	ret = (skb->len ? : ret);
 
-done:
+out_ret:
 	rhashtable_walk_stop(rhiter);
 	return ret;
 }
