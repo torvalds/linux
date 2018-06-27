@@ -1559,25 +1559,17 @@ error:
 	return err;
 }
 
-static int deallocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *context)
+static void deallocate_uars(struct mlx5_ib_dev *dev,
+			    struct mlx5_ib_ucontext *context)
 {
 	struct mlx5_bfreg_info *bfregi;
-	int err;
 	int i;
 
 	bfregi = &context->bfregi;
-	for (i = 0; i < bfregi->num_sys_pages; i++) {
+	for (i = 0; i < bfregi->num_sys_pages; i++)
 		if (i < bfregi->num_static_sys_pages ||
-		    bfregi->sys_pages[i] != MLX5_IB_INVALID_UAR_INDEX) {
-			err = mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
-			if (err) {
-				mlx5_ib_warn(dev, "failed to free uar %d, err=%d\n", i, err);
-				return err;
-			}
-		}
-	}
-
-	return 0;
+		    bfregi->sys_pages[i] != MLX5_IB_INVALID_UAR_INDEX)
+			mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
 }
 
 static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn)
