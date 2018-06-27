@@ -104,4 +104,6 @@ config TYPEC_TPS6598X
 
 source "drivers/usb/typec/mux/Kconfig"
 
+source "drivers/usb/typec/altmodes/Kconfig"
+
 endif # TYPEC
