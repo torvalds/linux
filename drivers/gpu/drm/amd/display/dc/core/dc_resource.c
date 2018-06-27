@@ -1705,8 +1705,8 @@ enum dc_status dc_add_stream_to_ctx(
 	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
 
-	if (new_ctx->stream_count >= dc->res_pool->pipe_count) {
-		DC_ERROR("Max streams reached, can add stream %p !\n", stream);
+	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
+		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
