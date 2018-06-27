@@ -1216,6 +1216,12 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
+
+/*
+ * functions used by amdgpu_xgmi.c
+ */
+int amdgpu_xgmi_add_device(struct amdgpu_device *adev);
+
 /*
  * functions used by amdgpu_encoder.c
  */
