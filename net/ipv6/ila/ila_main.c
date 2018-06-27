@@ -27,6 +27,12 @@ static const struct genl_ops ila_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
+		.cmd = ILA_CMD_FLUSH,
+		.doit = ila_xlat_nl_cmd_flush,
+		.policy = ila_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
 		.cmd = ILA_CMD_GET,
 		.doit = ila_xlat_nl_cmd_get_mapping,
 		.start = ila_xlat_nl_dump_start,

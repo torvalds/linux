@@ -123,6 +123,7 @@ void ila_xlat_exit_net(struct net *net);
 int ila_xlat_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info);
 int ila_xlat_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info);
 int ila_xlat_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info);
+int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info);
 int ila_xlat_nl_dump_start(struct netlink_callback *cb);
 int ila_xlat_nl_dump_done(struct netlink_callback *cb);
 int ila_xlat_nl_dump(struct sk_buff *skb, struct netlink_callback *cb);

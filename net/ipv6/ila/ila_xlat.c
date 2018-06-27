@@ -164,9 +164,9 @@ static inline void ila_release(struct ila_map *ila)
 	kfree_rcu(ila, rcu);
 }
 
-static void ila_free_cb(void *ptr, void *arg)
+static void ila_free_node(struct ila_map *ila)
 {
-	struct ila_map *ila = (struct ila_map *)ptr, *next;
+	struct ila_map *next;
 
 	/* Assume rcu_readlock held */
 	while (ila) {
@@ -174,6 +174,11 @@ static void ila_free_cb(void *ptr, void *arg)
 		ila_release(ila);
 		ila = next;
 	}
+}
+
+static void ila_free_cb(void *ptr, void *arg)
+{
+	ila_free_node((struct ila_map *)ptr);
 }
 
 static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila);
@@ -363,6 +368,59 @@ int ila_xlat_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info)
 	ila_del_mapping(net, &xp);
 
 	return 0;
+}
+
+static inline spinlock_t *lock_from_ila_map(struct ila_net *ilan,
+					    struct ila_map *ila)
+{
+	return ila_get_lock(ilan, ila->xp.ip.locator_match);
+}
+
+int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct ila_net *ilan = net_generic(net, ila_net_id);
+	struct rhashtable_iter iter;
+	struct ila_map *ila;
+	spinlock_t *lock;
+	int ret;
+
+	ret = rhashtable_walk_init(&ilan->xlat.rhash_table, &iter, GFP_KERNEL);
+	if (ret)
+		goto done;
+
+	rhashtable_walk_start(&iter);
+
+	for (;;) {
+		ila = rhashtable_walk_next(&iter);
+
+		if (IS_ERR(ila)) {
+			if (PTR_ERR(ila) == -EAGAIN)
+				continue;
+			ret = PTR_ERR(ila);
+			goto done;
+		} else if (!ila) {
+			break;
+		}
+
+		lock = lock_from_ila_map(ilan, ila);
+
+		spin_lock(lock);
+
+		ret = rhashtable_remove_fast(&ilan->xlat.rhash_table,
+					     &ila->node, rht_params);
+		if (!ret)
+			ila_free_node(ila);
+
+		spin_unlock(lock);
+
+		if (ret)
+			break;
+	}
+
+done:
+	rhashtable_walk_stop(&iter);
+	return ret;
 }
 
 static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
