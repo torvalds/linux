@@ -1032,7 +1032,12 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 
 int security_kernel_module_request(char *kmod_name)
 {
-	return call_int_hook(kernel_module_request, 0, kmod_name);
+	int ret;
+
+	ret = call_int_hook(kernel_module_request, 0, kmod_name);
+	if (ret)
+		return ret;
+	return integrity_kernel_module_request(kmod_name);
 }
 
 int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
