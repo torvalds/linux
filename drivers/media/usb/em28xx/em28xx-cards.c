@@ -3376,7 +3376,9 @@ void em28xx_free_device(struct kref *ref)
 	if (!dev->disconnected)
 		em28xx_release_resources(dev);
 
-	kfree(dev->alt_max_pkt_size_isoc);
+	if (dev->ts == PRIMARY_TS)
+		kfree(dev->alt_max_pkt_size_isoc);
+
 	kfree(dev);
 }
 EXPORT_SYMBOL_GPL(em28xx_free_device);
