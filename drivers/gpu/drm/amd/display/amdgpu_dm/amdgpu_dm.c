@@ -1535,7 +1535,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		/*
 		 * Temporary disable until pplib/smu interaction is implemented
 		 */
-		dm->dc->debug.disable_stutter = true;
+		dm->dc->debug.disable_stutter = amdgpu_pp_feature_mask & PP_STUTTER_MODE ? false : true;
 		break;
 #endif
 	default:
