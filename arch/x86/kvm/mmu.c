@@ -4037,7 +4037,8 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 }
 
 static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
-			    union kvm_mmu_page_role new_role)
+			    union kvm_mmu_page_role new_role,
+			    bool skip_tlb_flush)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
@@ -4070,7 +4071,9 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 
 			kvm_make_request(KVM_REQ_LOAD_CR3, vcpu);
 			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
-			kvm_x86_ops->tlb_flush(vcpu, true);
+			if (!skip_tlb_flush)
+				kvm_x86_ops->tlb_flush(vcpu, true);
+
 			__clear_sp_write_flooding_count(
 				page_header(mmu->root_hpa));
 
@@ -4082,15 +4085,17 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 }
 
 static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
-			      union kvm_mmu_page_role new_role)
+			      union kvm_mmu_page_role new_role,
+			      bool skip_tlb_flush)
 {
-	if (!fast_cr3_switch(vcpu, new_cr3, new_role))
+	if (!fast_cr3_switch(vcpu, new_cr3, new_role, skip_tlb_flush))
 		kvm_mmu_free_roots(vcpu, false);
 }
 
-void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3)
+void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush)
 {
-	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu));
+	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu),
+			  skip_tlb_flush);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_new_cr3);
 
@@ -4733,7 +4738,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	union kvm_mmu_page_role root_page_role =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty);
 
-	__kvm_mmu_new_cr3(vcpu, new_eptp, root_page_role);
+	__kvm_mmu_new_cr3(vcpu, new_eptp, root_page_role, false);
 	context->shadow_root_level = PT64_ROOT_4LEVEL;
 
 	context->nx = true;
@@ -5196,11 +5201,16 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
+	if (VALID_PAGE(mmu->prev_root.hpa) &&
+	    pcid == kvm_get_pcid(vcpu, mmu->prev_root.cr3))
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+
 	++vcpu->stat.invlpg;
 
 	/*
-	 * Mappings not reachable via the current cr3 will be synced when
-	 * switching to that cr3, so nothing needs to be done here for them.
+	 * Mappings not reachable via the current cr3 or the prev_root.cr3 will
+	 * be synced when switching to that cr3, so nothing needs to be done
+	 * here for them.
 	 */
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);

@@ -8819,10 +8819,14 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		}
 
+		if (kvm_get_pcid(vcpu, vcpu->arch.mmu.prev_root.cr3)
+		    == operand.pcid)
+			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+
 		/*
-		 * If the current cr3 does not use the given PCID, then nothing
-		 * needs to be done here because a resync will happen anyway
-		 * before switching to any other CR3.
+		 * If neither the current cr3 nor the prev_root.cr3 use the
+		 * given PCID, then nothing needs to be done here because a
+		 * resync will happen anyway before switching to any other CR3.
 		 */
 
 		return kvm_skip_emulated_instruction(vcpu);
@@ -11434,7 +11438,7 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	}
 
 	if (!nested_ept)
-		kvm_mmu_new_cr3(vcpu, cr3);
+		kvm_mmu_new_cr3(vcpu, cr3, false);
 
 	vcpu->arch.cr3 = cr3;
 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
