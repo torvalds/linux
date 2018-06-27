@@ -34,7 +34,6 @@
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
 #include "../../powerplay/inc/hwmgr.h"
-#include "../../powerplay/hwmgr/smu10_hwmgr.h"
 
 
 bool dm_pp_apply_display_requirements(
