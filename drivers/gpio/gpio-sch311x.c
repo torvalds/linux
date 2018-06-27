@@ -235,6 +235,34 @@ static int sch311x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	return !!(data & SCH311X_GPIO_CONF_DIR);
 }
 
+static int sch311x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				   unsigned long config)
+{
+	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
+	enum pin_config_param param = pinconf_to_config_param(config);
+	unsigned char data;
+
+	switch (param) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		spin_lock(&block->lock);
+		data = inb(block->runtime_reg + block->config_regs[offset]);
+		data |= SCH311X_GPIO_CONF_OPEN_DRAIN;
+		outb(data, block->runtime_reg + block->config_regs[offset]);
+		spin_unlock(&block->lock);
+		return 0;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		spin_lock(&block->lock);
+		data = inb(block->runtime_reg + block->config_regs[offset]);
+		data &= ~SCH311X_GPIO_CONF_OPEN_DRAIN;
+		outb(data, block->runtime_reg + block->config_regs[offset]);
+		spin_unlock(&block->lock);
+		return 0;
+	default:
+		break;
+	}
+	return -ENOTSUPP;
+}
+
 static int sch311x_gpio_probe(struct platform_device *pdev)
 {
 	struct sch311x_pdev_data *pdata = dev_get_platdata(&pdev->dev);
@@ -268,6 +296,7 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		block->chip.direction_input = sch311x_gpio_direction_in;
 		block->chip.direction_output = sch311x_gpio_direction_out;
 		block->chip.get_direction = sch311x_gpio_get_direction;
+		block->chip.set_config = sch311x_gpio_set_config;
 		block->chip.get = sch311x_gpio_get;
 		block->chip.set = sch311x_gpio_set;
 		block->chip.ngpio = 8;
