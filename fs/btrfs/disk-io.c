@@ -4089,10 +4089,10 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	/*
 	 * This is a fast path so only do this check if we have sanity tests
-	 * enabled.  Normal people shouldn't be marking dummy buffers as dirty
+	 * enabled.  Normal people shouldn't be using umapped buffers as dirty
 	 * outside of the sanity tests.
 	 */
-	if (unlikely(test_bit(EXTENT_BUFFER_DUMMY, &buf->bflags)))
+	if (unlikely(test_bit(EXTENT_BUFFER_UNMAPPED, &buf->bflags)))
 		return;
 #endif
 	root = BTRFS_I(buf->pages[0]->mapping->host)->root;
