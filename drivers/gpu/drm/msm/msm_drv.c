@@ -267,6 +267,9 @@ static int msm_drm_uninit(struct device *dev)
 	return 0;
 }
 
+#define KMS_MDP4 4
+#define KMS_MDP5 5
+
 static int get_mdp_ver(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -411,11 +414,11 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	msm_gem_shrinker_init(ddev);
 
 	switch (get_mdp_ver(pdev)) {
-	case 4:
+	case KMS_MDP4:
 		kms = mdp4_kms_init(ddev);
 		priv->kms = kms;
 		break;
-	case 5:
+	case KMS_MDP5:
 		kms = mdp5_kms_init(ddev);
 		break;
 	default:
@@ -1162,8 +1165,8 @@ static int msm_pdev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp4", .data = (void *)4 },	/* MDP4 */
-	{ .compatible = "qcom,mdss", .data = (void *)5 },	/* MDP5 MDSS */
+	{ .compatible = "qcom,mdp4", .data = (void *)KMS_MDP4 },
+	{ .compatible = "qcom,mdss", .data = (void *)KMS_MDP5 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
