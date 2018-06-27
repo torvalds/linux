@@ -143,10 +143,13 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, dst_port,
 						      0, flags,
 						      key_id, 0);
+		} else {
+			ret = -EINVAL;
+			goto err_out;
 		}
 
 		if (!metadata) {
-			ret = -EINVAL;
+			ret = -ENOMEM;
 			goto err_out;
 		}
 
