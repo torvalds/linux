@@ -1177,24 +1177,13 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 		memcpy(mac, mac_addr, ETH_ALEN);
 	}
 
-	if (((mac[0] == 0xff) && (mac[1] == 0xff) && (mac[2] == 0xff) &&
-	     (mac[3] == 0xff) && (mac[4] == 0xff) && (mac[5] == 0xff)) ||
-	    ((mac[0] == 0x00) && (mac[1] == 0x00) && (mac[2] == 0x00) &&
-	     (mac[3] == 0x00) && (mac[4] == 0x00) && (mac[5] == 0x00))) {
-		if (np &&
-		    (addr = of_get_property(np, "local-mac-address", &len)) &&
+	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
+		if ((addr = of_get_property(np, "local-mac-address", &len)) &&
 		    len == ETH_ALEN) {
 			memcpy(mac_addr, addr, ETH_ALEN);
 		} else {
-			mac[0] = 0x00;
-			mac[1] = 0xe0;
-			mac[2] = 0x4c;
-			mac[3] = 0x87;
-			mac[4] = 0x00;
-			mac[5] = 0x00;
-			/*  use default mac addresss */
-			memcpy(mac_addr, mac, ETH_ALEN);
-			DBG_871X("MAC Address from efuse error, assign default one !!!\n");
+			eth_random_addr(mac_addr);
+			DBG_871X("MAC Address from efuse error, assign random one !!!\n");
 		}
 	}
 
