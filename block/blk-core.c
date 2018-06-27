@@ -3056,6 +3056,10 @@ EXPORT_SYMBOL_GPL(blk_steal_bios);
  *     Passing the result of blk_rq_bytes() as @nr_bytes guarantees
  *     %false return from this function.
  *
+ * Note:
+ *	The RQF_SPECIAL_PAYLOAD flag is ignored on purpose in both
+ *	blk_rq_bytes() and in blk_update_request().
+ *
  * Return:
  *     %false - this request doesn't have any more data
  *     %true  - this request has more data
