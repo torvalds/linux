@@ -31,6 +31,7 @@ PHDRS {
 SECTIONS
 {
 	. = 0x100000;
+	_stext = .;		/* Start of text section */
 	.text : {
 		/* Text and read-only data */
 		HEAD_TEXT
