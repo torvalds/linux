@@ -4847,8 +4847,7 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	kvm_mmu_sync_roots(vcpu);
 	if (r)
 		goto out;
-	/* set_cr3() should ensure TLB has been flushed */
-	vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
+	kvm_mmu_load_cr3(vcpu);
 out:
 	return r;
 }
