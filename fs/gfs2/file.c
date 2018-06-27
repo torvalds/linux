@@ -706,14 +706,8 @@ static ssize_t gfs2_file_direct_read(struct kiocb *iocb, struct iov_iter *to)
 	if (ret)
 		goto out_uninit;
 
-	/* fall back to buffered I/O for stuffed files */
-	ret = -ENOTBLK;
-	if (gfs2_is_stuffed(ip))
-		goto out;
-
 	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL);
 
-out:
 	gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
