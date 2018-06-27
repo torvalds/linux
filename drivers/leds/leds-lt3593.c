@@ -1,20 +1,5 @@
-/*
- * LEDs driver for LT3593 controllers
- *
- * See the datasheet at http://cds.linear.com/docs/Datasheet/3593f.pdf
- *
- * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
- *
- * Based on leds-gpio.c,
- *
- *   Copyright (C) 2007 8D Technologies inc.
- *   Raphael Assenat <raph@8d.com>
- *   Copyright (C) 2008 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2009,2018 Daniel Mack <daniel@zonque.org>
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -211,7 +196,7 @@ static struct platform_driver lt3593_led_driver = {
 
 module_platform_driver(lt3593_led_driver);
 
-MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
+MODULE_AUTHOR("Daniel Mack <daniel@zonque.org>");
 MODULE_DESCRIPTION("LED driver for LT3593 controllers");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:leds-lt3593");
