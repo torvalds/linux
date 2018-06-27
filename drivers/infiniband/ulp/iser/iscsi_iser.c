@@ -633,8 +633,8 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	 */
 	if (ep) {
 		iser_conn = ep->dd_data;
-		max_cmds = iser_conn->max_cmds;
 		shost->sg_tablesize = iser_conn->scsi_sg_tablesize;
+		shost->can_queue = min_t(u16, cmds_max, iser_conn->max_cmds);
 
 		mutex_lock(&iser_conn->state_mutex);
 		if (iser_conn->state != ISER_CONN_UP) {
@@ -660,6 +660,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		}
 		mutex_unlock(&iser_conn->state_mutex);
 	} else {
+		shost->can_queue = min_t(u16, cmds_max, ISER_DEF_XMIT_CMDS_MAX);
 		max_cmds = ISER_DEF_XMIT_CMDS_MAX;
 		if (iscsi_host_add(shost, NULL))
 			goto free_host;
@@ -676,21 +677,14 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		iser_warn("max_sectors was reduced from %u to %u\n",
 			  iser_max_sectors, shost->max_sectors);
 
-	if (cmds_max > max_cmds) {
-		iser_info("cmds_max changed from %u to %u\n",
-			  cmds_max, max_cmds);
-		cmds_max = max_cmds;
-	}
-
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,
-					  cmds_max, 0,
+					  shost->can_queue, 0,
 					  sizeof(struct iscsi_iser_task),
 					  initial_cmdsn, 0);
 	if (!cls_session)
 		goto remove_host;
 	session = cls_session->dd_data;
 
-	shost->can_queue = session->scsi_cmds_max;
 	return cls_session;
 
 remove_host:
