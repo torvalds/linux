@@ -311,7 +311,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			}
 
 			if (tkey->offmask) {
-				char *d, _d;
+				u8 *d, _d;
 
 				if (!offset_valid(skb, hoffset + tkey->at)) {
 					pr_info("tc action pedit 'at' offset %d out of bounds\n",
