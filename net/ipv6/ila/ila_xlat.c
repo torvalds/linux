@@ -22,21 +22,12 @@ struct ila_map {
 	struct rcu_head rcu;
 };
 
-static unsigned int ila_net_id;
-
-struct ila_net {
-	struct rhashtable rhash_table;
-	spinlock_t *locks; /* Bucket locks for entry manipulation */
-	unsigned int locks_mask;
-	bool hooks_registered;
-};
-
 #define MAX_LOCKS 1024
 #define	LOCKS_PER_CPU 10
 
 static int alloc_ila_locks(struct ila_net *ilan)
 {
-	return alloc_bucket_spinlocks(&ilan->locks, &ilan->locks_mask,
+	return alloc_bucket_spinlocks(&ilan->xlat.locks, &ilan->xlat.locks_mask,
 				      MAX_LOCKS, LOCKS_PER_CPU,
 				      GFP_KERNEL);
 }
@@ -58,7 +49,7 @@ static inline u32 ila_locator_hash(struct ila_locator loc)
 static inline spinlock_t *ila_get_lock(struct ila_net *ilan,
 				       struct ila_locator loc)
 {
-	return &ilan->locks[ila_locator_hash(loc) & ilan->locks_mask];
+	return &ilan->xlat.locks[ila_locator_hash(loc) & ilan->xlat.locks_mask];
 }
 
 static inline int ila_cmp_wildcards(struct ila_map *ila,
@@ -102,16 +93,6 @@ static const struct rhashtable_params rht_params = {
 	.obj_cmpfn = ila_cmpfn,
 };
 
-static struct genl_family ila_nl_family;
-
-static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
-	[ILA_ATTR_LOCATOR] = { .type = NLA_U64, },
-	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
-	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },
-	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
-	[ILA_ATTR_IDENT_TYPE] = { .type = NLA_U8, },
-};
-
 static int parse_nl_config(struct genl_info *info,
 			   struct ila_xlat_params *xp)
 {
@@ -149,7 +130,7 @@ static inline struct ila_map *ila_lookup_wildcards(struct ila_addr *iaddr,
 {
 	struct ila_map *ila;
 
-	ila = rhashtable_lookup_fast(&ilan->rhash_table, &iaddr->loc,
+	ila = rhashtable_lookup_fast(&ilan->xlat.rhash_table, &iaddr->loc,
 				     rht_params);
 	while (ila) {
 		if (!ila_cmp_wildcards(ila, iaddr, ifindex))
@@ -166,7 +147,7 @@ static inline struct ila_map *ila_lookup_by_params(struct ila_xlat_params *xp,
 {
 	struct ila_map *ila;
 
-	ila = rhashtable_lookup_fast(&ilan->rhash_table,
+	ila = rhashtable_lookup_fast(&ilan->xlat.rhash_table,
 				     &xp->ip.locator_match,
 				     rht_params);
 	while (ila) {
@@ -222,7 +203,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 	spinlock_t *lock = ila_get_lock(ilan, xp->ip.locator_match);
 	int err = 0, order;
 
-	if (!ilan->hooks_registered) {
+	if (!ilan->xlat.hooks_registered) {
 		/* We defer registering net hooks in the namespace until the
 		 * first mapping is added.
 		 */
@@ -231,7 +212,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 		if (err)
 			return err;
 
-		ilan->hooks_registered = true;
+		ilan->xlat.hooks_registered = true;
 	}
 
 	ila = kzalloc(sizeof(*ila), GFP_KERNEL);
@@ -246,12 +227,12 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 
 	spin_lock(lock);
 
-	head = rhashtable_lookup_fast(&ilan->rhash_table,
+	head = rhashtable_lookup_fast(&ilan->xlat.rhash_table,
 				      &xp->ip.locator_match,
 				      rht_params);
 	if (!head) {
 		/* New entry for the rhash_table */
-		err = rhashtable_lookup_insert_fast(&ilan->rhash_table,
+		err = rhashtable_lookup_insert_fast(&ilan->xlat.rhash_table,
 						    &ila->node, rht_params);
 	} else {
 		struct ila_map *tila = head, *prev = NULL;
@@ -277,7 +258,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 		} else {
 			/* Make this ila new head */
 			RCU_INIT_POINTER(ila->next, head);
-			err = rhashtable_replace_fast(&ilan->rhash_table,
+			err = rhashtable_replace_fast(&ilan->xlat.rhash_table,
 						      &head->node,
 						      &ila->node, rht_params);
 			if (err)
@@ -303,7 +284,7 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 
 	spin_lock(lock);
 
-	head = rhashtable_lookup_fast(&ilan->rhash_table,
+	head = rhashtable_lookup_fast(&ilan->xlat.rhash_table,
 				      &xp->ip.locator_match, rht_params);
 	ila = head;
 
@@ -333,15 +314,15 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 				 * table
 				 */
 				err = rhashtable_replace_fast(
-					&ilan->rhash_table, &ila->node,
+					&ilan->xlat.rhash_table, &ila->node,
 					&head->node, rht_params);
 				if (err)
 					goto out;
 			} else {
 				/* Entry no longer used */
-				err = rhashtable_remove_fast(&ilan->rhash_table,
-							     &ila->node,
-							     rht_params);
+				err = rhashtable_remove_fast(
+						&ilan->xlat.rhash_table,
+						&ila->node, rht_params);
 			}
 		}
 
@@ -356,7 +337,7 @@ out:
 	return err;
 }
 
-static int ila_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info)
+int ila_xlat_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
 	struct ila_xlat_params p;
@@ -369,7 +350,7 @@ static int ila_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info)
 	return ila_add_mapping(net, &p);
 }
 
-static int ila_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info)
+int ila_xlat_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
 	struct ila_xlat_params xp;
@@ -421,7 +402,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int ila_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info)
+int ila_xlat_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
@@ -465,7 +446,7 @@ struct ila_dump_iter {
 	int skip;
 };
 
-static int ila_nl_dump_start(struct netlink_callback *cb)
+int ila_xlat_nl_dump_start(struct netlink_callback *cb)
 {
 	struct net *net = sock_net(cb->skb->sk);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
@@ -476,7 +457,7 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 	if (!iter)
 		return -ENOMEM;
 
-	ret = rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
+	ret = rhashtable_walk_init(&ilan->xlat.rhash_table, &iter->rhiter,
 				   GFP_KERNEL);
 	if (ret) {
 		kfree(iter);
@@ -489,7 +470,7 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 	return ret;
 }
 
-static int ila_nl_dump_done(struct netlink_callback *cb)
+int ila_xlat_nl_dump_done(struct netlink_callback *cb)
 {
 	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
 
@@ -500,7 +481,7 @@ static int ila_nl_dump_done(struct netlink_callback *cb)
 	return 0;
 }
 
-static int ila_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
+int ila_xlat_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
 	struct rhashtable_iter *rhiter = &iter->rhiter;
@@ -570,76 +551,34 @@ out_ret:
 	return ret;
 }
 
-static const struct genl_ops ila_nl_ops[] = {
-	{
-		.cmd = ILA_CMD_ADD,
-		.doit = ila_nl_cmd_add_mapping,
-		.policy = ila_nl_policy,
-		.flags = GENL_ADMIN_PERM,
-	},
-	{
-		.cmd = ILA_CMD_DEL,
-		.doit = ila_nl_cmd_del_mapping,
-		.policy = ila_nl_policy,
-		.flags = GENL_ADMIN_PERM,
-	},
-	{
-		.cmd = ILA_CMD_GET,
-		.doit = ila_nl_cmd_get_mapping,
-		.start = ila_nl_dump_start,
-		.dumpit = ila_nl_dump,
-		.done = ila_nl_dump_done,
-		.policy = ila_nl_policy,
-	},
-};
-
-static struct genl_family ila_nl_family __ro_after_init = {
-	.hdrsize	= 0,
-	.name		= ILA_GENL_NAME,
-	.version	= ILA_GENL_VERSION,
-	.maxattr	= ILA_ATTR_MAX,
-	.netnsok	= true,
-	.parallel_ops	= true,
-	.module		= THIS_MODULE,
-	.ops		= ila_nl_ops,
-	.n_ops		= ARRAY_SIZE(ila_nl_ops),
-};
-
 #define ILA_HASH_TABLE_SIZE 1024
 
-static __net_init int ila_init_net(struct net *net)
+int ila_xlat_init_net(struct net *net)
 {
-	int err;
 	struct ila_net *ilan = net_generic(net, ila_net_id);
+	int err;
 
 	err = alloc_ila_locks(ilan);
 	if (err)
 		return err;
 
-	rhashtable_init(&ilan->rhash_table, &rht_params);
+	rhashtable_init(&ilan->xlat.rhash_table, &rht_params);
 
 	return 0;
 }
 
-static __net_exit void ila_exit_net(struct net *net)
+void ila_xlat_exit_net(struct net *net)
 {
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 
-	rhashtable_free_and_destroy(&ilan->rhash_table, ila_free_cb, NULL);
+	rhashtable_free_and_destroy(&ilan->xlat.rhash_table, ila_free_cb, NULL);
 
-	free_bucket_spinlocks(ilan->locks);
+	free_bucket_spinlocks(ilan->xlat.locks);
 
-	if (ilan->hooks_registered)
+	if (ilan->xlat.hooks_registered)
 		nf_unregister_net_hooks(net, ila_nf_hook_ops,
 					ARRAY_SIZE(ila_nf_hook_ops));
 }
-
-static struct pernet_operations ila_net_ops = {
-	.init = ila_init_net,
-	.exit = ila_exit_net,
-	.id   = &ila_net_id,
-	.size = sizeof(struct ila_net),
-};
 
 static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 {
@@ -667,28 +606,3 @@ static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 	return 0;
 }
 
-int __init ila_xlat_init(void)
-{
-	int ret;
-
-	ret = register_pernet_device(&ila_net_ops);
-	if (ret)
-		goto exit;
-
-	ret = genl_register_family(&ila_nl_family);
-	if (ret < 0)
-		goto unregister;
-
-	return 0;
-
-unregister:
-	unregister_pernet_device(&ila_net_ops);
-exit:
-	return ret;
-}
-
-void ila_xlat_fini(void)
-{
-	genl_unregister_family(&ila_nl_family);
-	unregister_pernet_device(&ila_net_ops);
-}
