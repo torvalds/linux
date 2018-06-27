@@ -2606,12 +2606,6 @@ sub process {
 			     "A patch subject line should describe the change not the tool that found it\n" . $herecurr);
 		}
 
-# Check for old stable address
-		if ($line =~ /^\s*cc:\s*.*<?\bstable\@kernel\.org\b>?.*$/i) {
-			ERROR("STABLE_ADDRESS",
-			      "The 'stable' address should be 'stable\@vger.kernel.org'\n" . $herecurr);
-		}
-
 # Check for unwanted Gerrit info
 		if ($in_commit_log && $line =~ /^\s*change-id:/i) {
 			ERROR("GERRIT_CHANGE_ID",
