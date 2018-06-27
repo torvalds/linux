@@ -871,9 +871,11 @@ void hwss_edp_power_control(
 			unsigned long long wait_time_ms = 0;
 
 			/* max 500ms from LCDVDD off to on */
-			unsigned long long edp_poweroff_time_ms =
-					500 + link->local_sink->edid_caps.panel_patch.extra_t12_ms;
+			unsigned long long edp_poweroff_time_ms = 500;
 
+			if (link->local_sink != NULL)
+				edp_poweroff_time_ms =
+						500 + link->local_sink->edid_caps.panel_patch.extra_t12_ms;
 			if (link->link_trace.time_stamp.edp_poweroff == 0)
 				wait_time_ms = edp_poweroff_time_ms;
 			else if (duration_in_ms < edp_poweroff_time_ms)
