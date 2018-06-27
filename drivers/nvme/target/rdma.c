@@ -546,7 +546,7 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		rsp->send_sge.addr, rsp->send_sge.length,
 		DMA_TO_DEVICE);
 
-	if (ib_post_send(cm_id->qp, first_wr, &bad_wr)) {
+	if (unlikely(ib_post_send(cm_id->qp, first_wr, &bad_wr))) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
 	}
