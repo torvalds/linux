@@ -26,8 +26,7 @@
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/pci_ids.h>
-
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #define GEN	0x00
 #define GIO	0x04
