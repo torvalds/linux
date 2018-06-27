@@ -28,9 +28,9 @@ int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 {
 	union iwreq_data wrqu;
-	struct iw_michaelmicfailure    ev;
-	struct mlme_priv *pmlmepriv  = &padapter->mlmepriv;
-	struct security_priv	*psecuritypriv = &padapter->securitypriv;
+	struct iw_michaelmicfailure ev;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	u32 cur_time = 0;
 
 	if (psecuritypriv->last_mic_err_time == 0) {
@@ -68,7 +68,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 	struct __queue *pfree_recv_queue;
 	struct sk_buff *skb;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
 
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
@@ -129,7 +128,6 @@ _recv_indicatepkt_end:
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
 		 ("\n rtw_recv_indicatepkt :after netif_rx!!!!\n"));
 
-
 	return _SUCCESS;
 
 _recv_indicatepkt_drop:
@@ -137,12 +135,11 @@ _recv_indicatepkt_drop:
 	 /* enqueue back to free_recv_queue */
 	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
-	 return _FAIL;
+	return _FAIL;
 }
 
 void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
 {
-
 	timer_setup(&preorder_ctrl->reordering_ctrl_timer,
 		    rtw_reordering_ctrl_timeout_handler, 0);
 }
