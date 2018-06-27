@@ -31,27 +31,14 @@ struct ila_net {
 	bool hooks_registered;
 };
 
+#define MAX_LOCKS 1024
 #define	LOCKS_PER_CPU 10
 
 static int alloc_ila_locks(struct ila_net *ilan)
 {
-	unsigned int i, size;
-	unsigned int nr_pcpus = num_possible_cpus();
-
-	nr_pcpus = min_t(unsigned int, nr_pcpus, 32UL);
-	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
-
-	if (sizeof(spinlock_t) != 0) {
-		ilan->locks = kvmalloc_array(size, sizeof(spinlock_t),
-					     GFP_KERNEL);
-		if (!ilan->locks)
-			return -ENOMEM;
-		for (i = 0; i < size; i++)
-			spin_lock_init(&ilan->locks[i]);
-	}
-	ilan->locks_mask = size - 1;
-
-	return 0;
+	return alloc_bucket_spinlocks(&ilan->locks, &ilan->locks_mask,
+				      MAX_LOCKS, LOCKS_PER_CPU,
+				      GFP_KERNEL);
 }
 
 static u32 hashrnd __read_mostly;
@@ -640,7 +627,7 @@ static __net_exit void ila_exit_net(struct net *net)
 
 	rhashtable_free_and_destroy(&ilan->rhash_table, ila_free_cb, NULL);
 
-	kvfree(ilan->locks);
+	free_bucket_spinlocks(ilan->locks);
 
 	if (ilan->hooks_registered)
 		nf_unregister_net_hooks(net, ila_nf_hook_ops,
