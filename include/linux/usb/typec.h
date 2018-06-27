@@ -5,21 +5,18 @@
 
 #include <linux/types.h>
 
-/* XXX: Once we have a header for USB Power Delivery, this belongs there */
-#define ALTMODE_MAX_MODES	6
-
 /* USB Type-C Specification releases */
 #define USB_TYPEC_REV_1_0	0x100 /* 1.0 */
 #define USB_TYPEC_REV_1_1	0x110 /* 1.1 */
 #define USB_TYPEC_REV_1_2	0x120 /* 1.2 */
 
-struct typec_altmode;
 struct typec_partner;
 struct typec_cable;
 struct typec_plug;
 struct typec_port;
 
 struct fwnode_handle;
+struct device;
 
 enum typec_port_type {
 	TYPEC_PORT_SRC,
@@ -107,7 +104,7 @@ struct typec_altmode_desc {
 	u8			mode;
 	u32			vdo;
 	/* Only used with ports */
-	enum typec_port_type	roles;
+	enum typec_port_data	roles;
 };
 
 struct typec_altmode
@@ -186,7 +183,6 @@ struct typec_partner_desc {
  * @dr_set: Set Data Role
  * @pr_set: Set Power Role
  * @vconn_set: Set VCONN Role
- * @activate_mode: Enter/exit given Alternate Mode
  * @port_type_set: Set port type
  *
  * Static capabilities of a single USB Type-C port.
@@ -212,12 +208,8 @@ struct typec_capability {
 				  enum typec_role);
 	int		(*vconn_set)(const struct typec_capability *,
 				     enum typec_role);
-
-	int		(*activate_mode)(const struct typec_capability *,
-					 int mode, int activate);
 	int		(*port_type_set)(const struct typec_capability *,
-					enum typec_port_type);
-
+					 enum typec_port_type);
 };
 
 /* Specific to try_role(). Indicates the user want's to clear the preference. */

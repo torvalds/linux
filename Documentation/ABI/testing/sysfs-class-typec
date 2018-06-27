@@ -222,70 +222,12 @@ Description:
 		available. The value can be polled.
 
 
-Alternate Mode devices.
+USB Type-C port alternate mode devices.
 
-The alternate modes will have Standard or Vendor ID (SVID) assigned by USB-IF.
-The ports, partners and cable plugs can have alternate modes. A supported SVID
-will consist of a set of modes. Every SVID a port/partner/plug supports will
-have a device created for it, and every supported mode for a supported SVID will
-have its own directory under that device. Below <dev> refers to the device for
-the alternate mode.
-
-What:		/sys/class/typec/<port|partner|cable>/<dev>/svid
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		The SVID (Standard or Vendor ID) assigned by USB-IF for this
-		alternate mode.
-
-What:		/sys/class/typec/<port|partner|cable>/<dev>/mode<index>/
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Every supported mode will have its own directory. The name of
-		a mode will be "mode<index>" (for example mode1), where <index>
-		is the actual index to the mode VDO returned by Discover Modes
-		USB power delivery command.
-
-What:		/sys/class/typec/<port|partner|cable>/<dev>/mode<index>/description
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Shows description of the mode. The description is optional for
-		the drivers, just like with the Billboard Devices.
-
-What:		/sys/class/typec/<port|partner|cable>/<dev>/mode<index>/vdo
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Shows the VDO in hexadecimal returned by Discover Modes command
-		for this mode.
-
-What:		/sys/class/typec/<port|partner|cable>/<dev>/mode<index>/active
-Date:		April 2017
-Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Shows if the mode is active or not. The attribute can be used
-		for entering/exiting the mode with partners and cable plugs, and
-		with the port alternate modes it can be used for disabling
-		support for specific alternate modes. Entering/exiting modes is
-		supported as synchronous operation so write(2) to the attribute
-		does not return until the enter/exit mode operation has
-		finished. The attribute is notified when the mode is
-		entered/exited so poll(2) on the attribute wakes up.
-		Entering/exiting a mode will also generate uevent KOBJ_CHANGE.
-
-		Valid values: yes, no
-
-What:		/sys/class/typec/<port>/<dev>/mode<index>/supported_roles
+What:		/sys/class/typec/<port>/<alt mode>/supported_roles
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Space separated list of the supported roles.
-
-		This attribute is available for the devices describing the
-		alternate modes a port supports, and it will not be exposed with
-		the devices presenting the alternate modes the partners or cable
-		plugs support.
 
 		Valid values: source, sink

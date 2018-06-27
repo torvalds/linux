@@ -1352,6 +1352,19 @@ static int do_tbsvc_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("tbsvc", tb_service_id, do_tbsvc_entry);
 
+/* Looks like: typec:idNmN */
+static int do_typec_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, typec_device_id, svid);
+	DEF_FIELD(symval, typec_device_id, mode);
+
+	sprintf(alias, "typec:id%04X", svid);
+	ADD(alias, "m", mode != TYPEC_ANY_MODE, mode);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("typec", typec_device_id, do_typec_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {
