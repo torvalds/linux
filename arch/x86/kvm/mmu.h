@@ -88,7 +88,6 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 
 static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
 {
-	/* set_cr3() should ensure TLB has been flushed */
 	if (VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
 }
