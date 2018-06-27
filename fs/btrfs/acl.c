@@ -45,7 +45,7 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	} else if (size == -ENODATA || size == 0) {
 		acl = NULL;
 	} else {
-		acl = ERR_PTR(-EIO);
+		acl = ERR_PTR(size);
 	}
 	kfree(value);
 
