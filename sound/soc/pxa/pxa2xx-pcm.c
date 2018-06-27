@@ -32,18 +32,9 @@ static int pxa2xx_soc_platform_probe(struct platform_device *pdev)
 					       NULL, 0);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id snd_soc_pxa_audio_match[] = {
-	{ .compatible   = "mrvl,pxa-pcm-audio" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, snd_soc_pxa_audio_match);
-#endif
-
 static struct platform_driver pxa_pcm_driver = {
 	.driver = {
 		.name = "pxa-pcm-audio",
-		.of_match_table = of_match_ptr(snd_soc_pxa_audio_match),
 	},
 
 	.probe = pxa2xx_soc_platform_probe,
