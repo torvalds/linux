@@ -2680,8 +2680,10 @@ out:
 		free_extent_buffer(scratch_leaf);
 	}
 
-	if (done && !ret)
+	if (done && !ret) {
 		ret = 1;
+		fs_info->qgroup_rescan_progress.objectid = (u64)-1;
+	}
 	return ret;
 }
 
