@@ -13,9 +13,8 @@
 #include <linux/types.h>
 #include <linux/of_platform.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
