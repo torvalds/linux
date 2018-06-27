@@ -335,6 +335,8 @@ struct kvm_mmu_root_info {
 #define KVM_MMU_ROOT_INFO_INVALID \
 	((struct kvm_mmu_root_info) { .cr3 = INVALID_PAGE, .hpa = INVALID_PAGE })
 
+#define KVM_MMU_NUM_PREV_ROOTS 3
+
 /*
  * x86 supports 4 paging modes (5-level 64-bit, 4-level 64-bit, 3-level 32-bit,
  * and 2-level 32-bit).  The kvm_mmu structure abstracts the details of the
@@ -363,7 +365,7 @@ struct kvm_mmu {
 	u8 shadow_root_level;
 	u8 ept_ad;
 	bool direct_map;
-	struct kvm_mmu_root_info prev_root;
+	struct kvm_mmu_root_info prev_roots[KVM_MMU_NUM_PREV_ROOTS];
 
 	/*
 	 * Bitmap; bit set = permission fault
@@ -1295,9 +1297,9 @@ static inline int __kvm_irq_line_state(unsigned long *irq_state,
 	return !!(*irq_state);
 }
 
-#define KVM_MMU_ROOT_CURRENT	BIT(0)
-#define KVM_MMU_ROOT_PREVIOUS	BIT(1)
-#define KVM_MMU_ROOTS_ALL	(~0UL)
+#define KVM_MMU_ROOT_CURRENT		BIT(0)
+#define KVM_MMU_ROOT_PREVIOUS(i)	BIT(1+i)
+#define KVM_MMU_ROOTS_ALL		(~0UL)
 
 int kvm_pic_set_irq(struct kvm_pic *pic, int irq, int irq_source_id, int level);
 void kvm_pic_clear_all(struct kvm_pic *pic, int irq_source_id);

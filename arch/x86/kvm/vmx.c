@@ -8788,6 +8788,8 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 	bool pcid_enabled;
 	gva_t gva;
 	struct x86_exception e;
+	unsigned i;
+	unsigned long roots_to_free = 0;
 	struct {
 		u64 pcid;
 		u64 gla;
@@ -8846,12 +8848,14 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		}
 
-		if (kvm_get_pcid(vcpu, vcpu->arch.mmu.prev_root.cr3)
-		    == operand.pcid)
-			kvm_mmu_free_roots(vcpu, KVM_MMU_ROOT_PREVIOUS);
+		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+			if (kvm_get_pcid(vcpu, vcpu->arch.mmu.prev_roots[i].cr3)
+			    == operand.pcid)
+				roots_to_free |= KVM_MMU_ROOT_PREVIOUS(i);
 
+		kvm_mmu_free_roots(vcpu, roots_to_free);
 		/*
-		 * If neither the current cr3 nor the prev_root.cr3 use the
+		 * If neither the current cr3 nor any of the prev_roots use the
 		 * given PCID, then nothing needs to be done here because a
 		 * resync will happen anyway before switching to any other CR3.
 		 */

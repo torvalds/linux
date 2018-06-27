@@ -3445,18 +3445,26 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, ulong roots_to_free)
 	LIST_HEAD(invalid_list);
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 	bool free_active_root = roots_to_free & KVM_MMU_ROOT_CURRENT;
-	bool free_prev_root = roots_to_free & KVM_MMU_ROOT_PREVIOUS;
+
+	BUILD_BUG_ON(KVM_MMU_NUM_PREV_ROOTS >= BITS_PER_LONG);
 
 	/* Before acquiring the MMU lock, see if we need to do any real work. */
-	if (!(free_active_root && VALID_PAGE(mmu->root_hpa)) &&
-	    !(free_prev_root && VALID_PAGE(mmu->prev_root.hpa)))
-		return;
+	if (!(free_active_root && VALID_PAGE(mmu->root_hpa))) {
+		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+			if ((roots_to_free & KVM_MMU_ROOT_PREVIOUS(i)) &&
+			    VALID_PAGE(mmu->prev_roots[i].hpa))
+				break;
+
+		if (i == KVM_MMU_NUM_PREV_ROOTS)
+			return;
+	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 
-	if (free_prev_root)
-		mmu_free_root_page(vcpu->kvm, &mmu->prev_root.hpa,
-				   &invalid_list);
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		if (roots_to_free & KVM_MMU_ROOT_PREVIOUS(i))
+			mmu_free_root_page(vcpu->kvm, &mmu->prev_roots[i].hpa,
+					   &invalid_list);
 
 	if (free_active_root) {
 		if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
@@ -4064,6 +4072,38 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->nx = false;
 }
 
+/*
+ * Find out if a previously cached root matching the new CR3/role is available.
+ * The current root is also inserted into the cache.
+ * If a matching root was found, it is assigned to kvm_mmu->root_hpa and true is
+ * returned.
+ * Otherwise, the LRU root from the cache is assigned to kvm_mmu->root_hpa and
+ * false is returned. This root should now be freed by the caller.
+ */
+static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
+				  union kvm_mmu_page_role new_role)
+{
+	uint i;
+	struct kvm_mmu_root_info root;
+	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+
+	root.cr3 = mmu->get_cr3(vcpu);
+	root.hpa = mmu->root_hpa;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		swap(root, mmu->prev_roots[i]);
+
+		if (new_cr3 == root.cr3 && VALID_PAGE(root.hpa) &&
+		    page_header(root.hpa) != NULL &&
+		    new_role.word == page_header(root.hpa)->role.word)
+			break;
+	}
+
+	mmu->root_hpa = root.hpa;
+
+	return i < KVM_MMU_NUM_PREV_ROOTS;
+}
+
 static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			    union kvm_mmu_page_role new_role,
 			    bool skip_tlb_flush)
@@ -4077,18 +4117,10 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	 */
 	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
 	    mmu->root_level >= PT64_ROOT_4LEVEL) {
-		gpa_t prev_cr3 = mmu->prev_root.cr3;
-
 		if (mmu_check_root(vcpu, new_cr3 >> PAGE_SHIFT))
 			return false;
 
-		swap(mmu->root_hpa, mmu->prev_root.hpa);
-		mmu->prev_root.cr3 = mmu->get_cr3(vcpu);
-
-		if (new_cr3 == prev_cr3 &&
-		    VALID_PAGE(mmu->root_hpa) &&
-		    page_header(mmu->root_hpa) != NULL &&
-		    new_role.word == page_header(mmu->root_hpa)->role.word) {
+		if (cached_root_available(vcpu, new_cr3, new_role)) {
 			/*
 			 * It is possible that the cached previous root page is
 			 * obsolete because of a change in the MMU
@@ -4854,8 +4886,12 @@ static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots)
 {
 	if (reset_roots) {
+		uint i;
+
 		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
-		vcpu->arch.mmu.prev_root = KVM_MMU_ROOT_INFO_INVALID;
+
+		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+			vcpu->arch.mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 	}
 
 	if (mmu_is_nested(vcpu))
@@ -5225,6 +5261,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+	int i;
 
 	/* INVLPG on a * non-canonical address is a NOP according to the SDM.  */
 	if (is_noncanonical_address(gva, vcpu))
@@ -5235,16 +5272,17 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 	/*
 	 * INVLPG is required to invalidate any global mappings for the VA,
 	 * irrespective of PCID. Since it would take us roughly similar amount
-	 * of work to determine whether the prev_root mapping of the VA is
-	 * marked global, or to just sync it blindly, so we might as well just
-	 * always sync it.
+	 * of work to determine whether any of the prev_root mappings of the VA
+	 * is marked global, or to just sync it blindly, so we might as well
+	 * just always sync it.
 	 *
-	 * Mappings not reachable via the current cr3 or the prev_root.cr3 will
-	 * be synced when switching to that cr3, so nothing needs to be done
-	 * here for them.
+	 * Mappings not reachable via the current cr3 or the prev_roots will be
+	 * synced when switching to that cr3, so nothing needs to be done here
+	 * for them.
 	 */
-	if (VALID_PAGE(mmu->prev_root.hpa))
-		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		if (VALID_PAGE(mmu->prev_roots[i].hpa))
+			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
 
 	kvm_x86_ops->tlb_flush_gva(vcpu, gva);
 	++vcpu->stat.invlpg;
@@ -5255,16 +5293,19 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 	bool tlb_flush = false;
+	uint i;
 
 	if (pcid == kvm_get_active_pcid(vcpu)) {
 		mmu->invlpg(vcpu, gva, mmu->root_hpa);
 		tlb_flush = true;
 	}
 
-	if (VALID_PAGE(mmu->prev_root.hpa) &&
-	    pcid == kvm_get_pcid(vcpu, mmu->prev_root.cr3)) {
-		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
-		tlb_flush = true;
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
+		if (VALID_PAGE(mmu->prev_roots[i].hpa) &&
+		    pcid == kvm_get_pcid(vcpu, mmu->prev_roots[i].cr3)) {
+			mmu->invlpg(vcpu, gva, mmu->prev_roots[i].hpa);
+			tlb_flush = true;
+		}
 	}
 
 	if (tlb_flush)
@@ -5273,9 +5314,9 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	++vcpu->stat.invlpg;
 
 	/*
-	 * Mappings not reachable via the current cr3 or the prev_root.cr3 will
-	 * be synced when switching to that cr3, so nothing needs to be done
-	 * here for them.
+	 * Mappings not reachable via the current cr3 or the prev_roots will be
+	 * synced when switching to that cr3, so nothing needs to be done here
+	 * for them.
 	 */
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);
@@ -5321,11 +5362,15 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu)
 
 int kvm_mmu_create(struct kvm_vcpu *vcpu)
 {
+	uint i;
+
 	vcpu->arch.walk_mmu = &vcpu->arch.mmu;
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
-	vcpu->arch.mmu.prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	vcpu->arch.mmu.translate_gpa = translate_gpa;
 	vcpu->arch.nested_mmu.translate_gpa = translate_nested_gpa;
+
+	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
+		vcpu->arch.mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 
 	return alloc_mmu_pages(vcpu);
 }
