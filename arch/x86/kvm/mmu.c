@@ -3405,16 +3405,21 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	*root_hpa = INVALID_PAGE;
 }
 
-void kvm_mmu_free_roots(struct kvm_vcpu *vcpu)
+void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, bool free_prev_root)
 {
 	int i;
 	LIST_HEAD(invalid_list);
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
-	if (!VALID_PAGE(mmu->root_hpa))
+	if (!VALID_PAGE(mmu->root_hpa) &&
+	    (!VALID_PAGE(mmu->prev_root.hpa) || !free_prev_root))
 		return;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
+
+	if (free_prev_root)
+		mmu_free_root_page(vcpu->kvm, &mmu->prev_root.hpa,
+				   &invalid_list);
 
 	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
 	    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
@@ -4015,13 +4020,56 @@ static void nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->root_level = 0;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
+	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = true;
 	context->nx = false;
 }
 
-void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu)
+static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 {
-	kvm_mmu_free_roots(vcpu);
+	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+
+	/*
+	 * For now, limit the fast switch to 64-bit hosts+VMs in order to avoid
+	 * having to deal with PDPTEs. We may add support for 32-bit hosts/VMs
+	 * later if necessary.
+	 */
+	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
+	    mmu->root_level >= PT64_ROOT_4LEVEL) {
+		gpa_t prev_cr3 = mmu->prev_root.cr3;
+
+		if (mmu_check_root(vcpu, new_cr3 >> PAGE_SHIFT))
+			return false;
+
+		swap(mmu->root_hpa, mmu->prev_root.hpa);
+		mmu->prev_root.cr3 = kvm_read_cr3(vcpu);
+
+		if (new_cr3 == prev_cr3 && VALID_PAGE(mmu->root_hpa)) {
+			/*
+			 * It is possible that the cached previous root page is
+			 * obsolete because of a change in the MMU
+			 * generation number. However, that is accompanied by
+			 * KVM_REQ_MMU_RELOAD, which will free the root that we
+			 * have set here and allocate a new one.
+			 */
+
+			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
+			__clear_sp_write_flooding_count(
+				page_header(mmu->root_hpa));
+
+			mmu->set_cr3(vcpu, mmu->root_hpa);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3)
+{
+	if (!fast_cr3_switch(vcpu, new_cr3))
+		kvm_mmu_free_roots(vcpu, false);
 }
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
@@ -4499,6 +4547,7 @@ static void paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->update_pte = paging64_update_pte;
 	context->shadow_root_level = level;
 	context->root_hpa = INVALID_PAGE;
+	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 }
 
@@ -4529,6 +4578,7 @@ static void paging32_init_context(struct kvm_vcpu *vcpu,
 	context->update_pte = paging32_update_pte;
 	context->shadow_root_level = PT32E_ROOT_LEVEL;
 	context->root_hpa = INVALID_PAGE;
+	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 }
 
@@ -4552,6 +4602,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->update_pte = nonpaging_update_pte;
 	context->shadow_root_level = kvm_x86_ops->get_tdp_level(vcpu);
 	context->root_hpa = INVALID_PAGE;
+	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = true;
 	context->set_cr3 = kvm_x86_ops->set_tdp_cr3;
 	context->get_cr3 = get_cr3;
@@ -4634,6 +4685,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->update_pte = ept_update_pte;
 	context->root_level = PT64_ROOT_4LEVEL;
 	context->root_hpa = INVALID_PAGE;
+	context->prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	context->direct_map = false;
 	context->base_role.ad_disabled = !accessed_dirty;
 	context->base_role.guest_mode = 1;
@@ -4736,7 +4788,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_load);
 
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
-	kvm_mmu_free_roots(vcpu);
+	kvm_mmu_free_roots(vcpu, true);
 	WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unload);
@@ -5116,6 +5168,7 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.walk_mmu = &vcpu->arch.mmu;
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
+	vcpu->arch.mmu.prev_root = KVM_MMU_ROOT_INFO_INVALID;
 	vcpu->arch.mmu.translate_gpa = translate_gpa;
 	vcpu->arch.nested_mmu.translate_gpa = translate_nested_gpa;
 
