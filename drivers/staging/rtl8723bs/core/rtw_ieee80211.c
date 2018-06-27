@@ -1137,25 +1137,6 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 
 }
 
-static u8 key_char2num(u8 ch);
-static u8 key_char2num(u8 ch)
-{
-		if ((ch >= '0') && (ch <= '9'))
-			return ch - '0';
-		else if ((ch >= 'a') && (ch <= 'f'))
-			return ch - 'a' + 10;
-		else if ((ch >= 'A') && (ch <= 'F'))
-			return ch - 'A' + 10;
-		else
-			return 0xff;
-}
-
-u8 key_2char2num(u8 hch, u8 lch);
-u8 key_2char2num(u8 hch, u8 lch)
-{
-		return ((key_char2num(hch) << 4) | key_char2num(lch));
-}
-
 void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
@@ -1166,14 +1147,11 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 	if (!mac_addr)
 		return;
 
-	if (rtw_initmac) {	/* 	Users specify the mac address */
-		int jj, kk;
-
-		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3) {
-			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
-		}
+	if (rtw_initmac && mac_pton(rtw_initmac, mac)) {
+		/* Users specify the mac address */
 		ether_addr_copy(mac_addr, mac);
-	} else{	/* 	Use the mac address stored in the Efuse */
+	} else {
+		/* Use the mac address stored in the Efuse */
 		ether_addr_copy(mac, mac_addr);
 	}
 
