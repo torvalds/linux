@@ -47,6 +47,7 @@ SECTIONS
 		KPROBES_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
+		*(.text.*_indirect_*)
 		*(.fixup)
 		*(.gnu.warning)
 	} :text = 0x0700
