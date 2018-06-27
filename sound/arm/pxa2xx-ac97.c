@@ -174,7 +174,7 @@ static int pxa2xx_ac97_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_resume);
 #endif
 
-static const struct snd_pcm_ops pxa2xx_pcm_ops = {
+static const struct snd_pcm_ops pxa2xx_ac97_pcm_ops = {
 	.open		= pxa2xx_ac97_pcm_open,
 	.close		= pxa2xx_ac97_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -203,13 +203,13 @@ static int pxa2xx_ac97_pcm_new(struct snd_card *card)
 		goto out;
 
 	stream = SNDRV_PCM_STREAM_PLAYBACK;
-	snd_pcm_set_ops(pcm, stream, &pxa2xx_pcm_ops);
+	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
 	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
 	if (ret)
 		goto out;
 
 	stream = SNDRV_PCM_STREAM_CAPTURE;
-	snd_pcm_set_ops(pcm, stream, &pxa2xx_pcm_ops);
+	snd_pcm_set_ops(pcm, stream, &pxa2xx_ac97_pcm_ops);
 	ret = pxa2xx_pcm_preallocate_dma_buffer(pcm, stream);
 	if (ret)
 		goto out;

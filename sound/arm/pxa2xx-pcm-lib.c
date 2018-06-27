@@ -179,6 +179,47 @@ void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 }
 EXPORT_SYMBOL(pxa2xx_pcm_free_dma_buffers);
 
+int pxa2xx_soc_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
+
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
+		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_PLAYBACK);
+		if (ret)
+			goto out;
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_CAPTURE);
+		if (ret)
+			goto out;
+	}
+ out:
+	return ret;
+}
+EXPORT_SYMBOL(pxa2xx_soc_pcm_new);
+
+const struct snd_pcm_ops pxa2xx_pcm_ops = {
+	.open		= pxa2xx_pcm_open,
+	.close		= pxa2xx_pcm_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= pxa2xx_pcm_hw_params,
+	.hw_free	= pxa2xx_pcm_hw_free,
+	.prepare	= pxa2xx_pcm_prepare,
+	.trigger	= pxa2xx_pcm_trigger,
+	.pointer	= pxa2xx_pcm_pointer,
+	.mmap		= pxa2xx_pcm_mmap,
+};
+EXPORT_SYMBOL(pxa2xx_pcm_ops);
+
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx sound library");
 MODULE_LICENSE("GPL");
