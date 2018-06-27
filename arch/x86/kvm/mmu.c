@@ -4054,7 +4054,7 @@ static bool fast_cr3_switch(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			return false;
 
 		swap(mmu->root_hpa, mmu->prev_root.hpa);
-		mmu->prev_root.cr3 = kvm_read_cr3(vcpu);
+		mmu->prev_root.cr3 = mmu->get_cr3(vcpu);
 
 		if (new_cr3 == prev_cr3 &&
 		    VALID_PAGE(mmu->root_hpa) &&
@@ -4091,6 +4091,7 @@ void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3)
 {
 	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu));
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_new_cr3);
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 {
@@ -4725,12 +4726,13 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty)
 }
 
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
-			     bool accessed_dirty)
+			     bool accessed_dirty, gpa_t new_eptp)
 {
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 	union kvm_mmu_page_role root_page_role =
 		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty);
 
+	__kvm_mmu_new_cr3(vcpu, new_eptp, root_page_role);
 	context->shadow_root_level = PT64_ROOT_4LEVEL;
 
 	context->nx = true;
