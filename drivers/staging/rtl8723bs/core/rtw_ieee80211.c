@@ -1172,15 +1172,15 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3) {
 			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
 		}
-		memcpy(mac_addr, mac, ETH_ALEN);
+		ether_addr_copy(mac_addr, mac);
 	} else{	/* 	Use the mac address stored in the Efuse */
-		memcpy(mac, mac_addr, ETH_ALEN);
+		ether_addr_copy(mac, mac_addr);
 	}
 
 	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
 		if ((addr = of_get_property(np, "local-mac-address", &len)) &&
 		    len == ETH_ALEN) {
-			memcpy(mac_addr, addr, ETH_ALEN);
+			ether_addr_copy(mac_addr, addr);
 		} else {
 			eth_random_addr(mac_addr);
 			DBG_871X("MAC Address from efuse error, assign random one !!!\n");
