@@ -717,7 +717,39 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
-static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
+int intel_psr_wait_for_idle(struct drm_i915_private *dev_priv)
+{
+	i915_reg_t reg;
+	u32 mask;
+
+	/*
+	 * The sole user right now is intel_pipe_update_start(),
+	 * which won't race with psr_enable/disable, which is
+	 * where psr2_enabled is written to. So, we don't need
+	 * to acquire the psr.lock. More importantly, we want the
+	 * latency inside intel_pipe_update_start() to be as low
+	 * as possible, so no need to acquire psr.lock when it is
+	 * not needed and will induce latencies in the atomic
+	 * update path.
+	 */
+	if (dev_priv->psr.psr2_enabled) {
+		reg = EDP_PSR2_STATUS;
+		mask = EDP_PSR2_STATUS_STATE_MASK;
+	} else {
+		reg = EDP_PSR_STATUS;
+		mask = EDP_PSR_STATUS_STATE_MASK;
+	}
+
+	/*
+	 * Max time for PSR to idle = Inverse of the refresh rate +
+	 * 6 ms of exit training time + 1.5 ms of aux channel
+	 * handshake. 50 msec is defesive enough to cover everything.
+	 */
+	return intel_wait_for_register(dev_priv, reg, mask,
+				       EDP_PSR_STATUS_STATE_IDLE, 50);
+}
+
+static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 {
 	struct intel_dp *intel_dp;
 	i915_reg_t reg;
@@ -763,7 +795,7 @@ static void intel_psr_work(struct work_struct *work)
 	 * PSR might take some time to get fully disabled
 	 * and be ready for re-enable.
 	 */
-	if (!psr_wait_for_idle(dev_priv))
+	if (!__psr_wait_for_idle_locked(dev_priv))
 		goto unlock;
 
 	/*
