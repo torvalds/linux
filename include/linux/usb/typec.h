@@ -93,39 +93,21 @@ int typec_partner_set_identity(struct typec_partner *partner);
 int typec_cable_set_identity(struct typec_cable *cable);
 
 /*
- * struct typec_mode_desc - Individual Mode of an Alternate Mode
- * @index: Index of the Mode within the SVID
- * @vdo: VDO returned by Discover Modes USB PD command
- * @desc: Optional human readable description of the mode
- * @roles: Only for ports. DRP if the mode is available in both roles
- *
- * Description of a mode of an Alternate Mode which a connector, cable plug or
- * partner supports. Every mode will have it's own sysfs group. The details are
- * the VDO returned by discover modes command, description for the mode and
- * active flag telling has the mode being entered or not.
- */
-struct typec_mode_desc {
-	int			index;
-	u32			vdo;
-	char			*desc;
-	/* Only used with ports */
-	enum typec_port_type	roles;
-};
-
-/*
  * struct typec_altmode_desc - USB Type-C Alternate Mode Descriptor
  * @svid: Standard or Vendor ID
- * @n_modes: Number of modes
- * @modes: Array of modes supported by the Alternate Mode
+ * @mode: Index of the Mode
+ * @vdo: VDO returned by Discover Modes USB PD command
+ * @roles: Only for ports. DRP if the mode is available in both roles
  *
- * Representation of an Alternate Mode that has SVID assigned by USB-IF. The
- * array of modes will list the modes of a particular SVID that are supported by
- * a connector, partner of a cable plug.
+ * Description of an Alternate Mode which a connector, cable plug or partner
+ * supports.
  */
 struct typec_altmode_desc {
 	u16			svid;
-	int			n_modes;
-	struct typec_mode_desc	modes[ALTMODE_MAX_MODES];
+	u8			mode;
+	u32			vdo;
+	/* Only used with ports */
+	enum typec_port_type	roles;
 };
 
 struct typec_altmode
@@ -141,8 +123,7 @@ void typec_unregister_altmode(struct typec_altmode *altmode);
 
 struct typec_port *typec_altmode2port(struct typec_altmode *alt);
 
-void typec_altmode_update_active(struct typec_altmode *alt, int mode,
-				 bool active);
+void typec_altmode_update_active(struct typec_altmode *alt, bool active);
 
 enum typec_plug_index {
 	TYPEC_PLUG_SOP_P,

@@ -13,31 +13,20 @@
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_mux.h>
 
-struct typec_mode {
-	int				index;
-	u32				vdo;
-	char				*desc;
-	enum typec_port_type		roles;
-
-	struct typec_altmode		*alt_mode;
-
-	unsigned int			active:1;
-
-	char				group_name[6];
-	struct attribute_group		group;
-	struct attribute		*attrs[5];
-	struct device_attribute		vdo_attr;
-	struct device_attribute		desc_attr;
-	struct device_attribute		active_attr;
-	struct device_attribute		roles_attr;
-};
-
 struct typec_altmode {
 	struct device			dev;
 	u16				svid;
-	int				n_modes;
-	struct typec_mode		modes[ALTMODE_MAX_MODES];
-	const struct attribute_group	*mode_groups[ALTMODE_MAX_MODES];
+	u8				mode;
+
+	u32				vdo;
+	char				*desc;
+	enum typec_port_type		roles;
+	unsigned int			active:1;
+
+	struct attribute		*attrs[5];
+	char				group_name[6];
+	struct attribute_group		group;
+	const struct attribute_group	*groups[2];
 };
 
 struct typec_plug {
@@ -177,23 +166,20 @@ static void typec_report_identity(struct device *dev)
 /**
  * typec_altmode_update_active - Report Enter/Exit mode
  * @alt: Handle to the alternate mode
- * @mode: Mode index
  * @active: True when the mode has been entered
  *
  * If a partner or cable plug executes Enter/Exit Mode command successfully, the
  * drivers use this routine to report the updated state of the mode.
  */
-void typec_altmode_update_active(struct typec_altmode *alt, int mode,
-				 bool active)
+void typec_altmode_update_active(struct typec_altmode *alt, bool active)
 {
-	struct typec_mode *m = &alt->modes[mode];
 	char dir[6];
 
-	if (m->active == active)
+	if (alt->active == active)
 		return;
 
-	m->active = active;
-	snprintf(dir, sizeof(dir), "mode%d", mode);
+	alt->active = active;
+	snprintf(dir, sizeof(dir), "mode%d", alt->mode);
 	sysfs_notify(&alt->dev.kobj, dir, "active");
 	kobject_uevent(&alt->dev.kobj, KOBJ_CHANGE);
 }
@@ -220,42 +206,36 @@ struct typec_port *typec_altmode2port(struct typec_altmode *alt)
 EXPORT_SYMBOL_GPL(typec_altmode2port);
 
 static ssize_t
-typec_altmode_vdo_show(struct device *dev, struct device_attribute *attr,
-		       char *buf)
+vdo_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct typec_mode *mode = container_of(attr, struct typec_mode,
-					       vdo_attr);
+	struct typec_altmode *alt = to_altmode(dev);
 
-	return sprintf(buf, "0x%08x\n", mode->vdo);
+	return sprintf(buf, "0x%08x\n", alt->vdo);
 }
+static DEVICE_ATTR_RO(vdo);
 
 static ssize_t
-typec_altmode_desc_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
+description_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct typec_mode *mode = container_of(attr, struct typec_mode,
-					       desc_attr);
+	struct typec_altmode *alt = to_altmode(dev);
 
-	return sprintf(buf, "%s\n", mode->desc ? mode->desc : "");
+	return sprintf(buf, "%s\n", alt->desc ? alt->desc : "");
 }
+static DEVICE_ATTR_RO(description);
 
 static ssize_t
-typec_altmode_active_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+active_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct typec_mode *mode = container_of(attr, struct typec_mode,
-					       active_attr);
+	struct typec_altmode *alt = to_altmode(dev);
 
-	return sprintf(buf, "%s\n", mode->active ? "yes" : "no");
+	return sprintf(buf, "%s\n", alt->active ? "yes" : "no");
 }
 
-static ssize_t
-typec_altmode_active_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t size)
+static ssize_t active_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
-	struct typec_mode *mode = container_of(attr, struct typec_mode,
-					       active_attr);
-	struct typec_port *port = typec_altmode2port(mode->alt_mode);
+	struct typec_altmode *alt = to_altmode(dev);
+	struct typec_port *port = typec_altmode2port(alt);
 	bool activate;
 	int ret;
 
@@ -266,22 +246,22 @@ typec_altmode_active_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	ret = port->cap->activate_mode(port->cap, mode->index, activate);
+	ret = port->cap->activate_mode(port->cap, alt->mode, activate);
 	if (ret)
 		return ret;
 
 	return size;
 }
+static DEVICE_ATTR_RW(active);
 
 static ssize_t
-typec_altmode_roles_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+supported_roles_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
-	struct typec_mode *mode = container_of(attr, struct typec_mode,
-					       roles_attr);
+	struct typec_altmode *alt = to_altmode(dev);
 	ssize_t ret;
 
-	switch (mode->roles) {
+	switch (alt->roles) {
 	case TYPEC_PORT_SRC:
 		ret = sprintf(buf, "source\n");
 		break;
@@ -295,61 +275,13 @@ typec_altmode_roles_show(struct device *dev, struct device_attribute *attr,
 	}
 	return ret;
 }
+static DEVICE_ATTR_RO(supported_roles);
 
-static void typec_init_modes(struct typec_altmode *alt,
-			     const struct typec_mode_desc *desc, bool is_port)
+static void typec_altmode_release(struct device *dev)
 {
-	int i;
+	struct typec_altmode *alt = to_altmode(dev);
 
-	for (i = 0; i < alt->n_modes; i++, desc++) {
-		struct typec_mode *mode = &alt->modes[i];
-
-		/* Not considering the human readable description critical */
-		mode->desc = kstrdup(desc->desc, GFP_KERNEL);
-		if (desc->desc && !mode->desc)
-			dev_err(&alt->dev, "failed to copy mode%d desc\n", i);
-
-		mode->alt_mode = alt;
-		mode->vdo = desc->vdo;
-		mode->roles = desc->roles;
-		mode->index = desc->index;
-		sprintf(mode->group_name, "mode%d", desc->index);
-
-		sysfs_attr_init(&mode->vdo_attr.attr);
-		mode->vdo_attr.attr.name = "vdo";
-		mode->vdo_attr.attr.mode = 0444;
-		mode->vdo_attr.show = typec_altmode_vdo_show;
-
-		sysfs_attr_init(&mode->desc_attr.attr);
-		mode->desc_attr.attr.name = "description";
-		mode->desc_attr.attr.mode = 0444;
-		mode->desc_attr.show = typec_altmode_desc_show;
-
-		sysfs_attr_init(&mode->active_attr.attr);
-		mode->active_attr.attr.name = "active";
-		mode->active_attr.attr.mode = 0644;
-		mode->active_attr.show = typec_altmode_active_show;
-		mode->active_attr.store = typec_altmode_active_store;
-
-		mode->attrs[0] = &mode->vdo_attr.attr;
-		mode->attrs[1] = &mode->desc_attr.attr;
-		mode->attrs[2] = &mode->active_attr.attr;
-
-		/* With ports, list the roles that the mode is supported with */
-		if (is_port) {
-			sysfs_attr_init(&mode->roles_attr.attr);
-			mode->roles_attr.attr.name = "supported_roles";
-			mode->roles_attr.attr.mode = 0444;
-			mode->roles_attr.show = typec_altmode_roles_show;
-
-			mode->attrs[3] = &mode->roles_attr.attr;
-		}
-
-		mode->group.attrs = mode->attrs;
-		mode->group.name = mode->group_name;
-
-		alt->mode_groups[i] = &mode->group;
-	}
+	kfree(alt);
 }
 
 static ssize_t svid_show(struct device *dev, struct device_attribute *attr,
@@ -366,16 +298,6 @@ static struct attribute *typec_altmode_attrs[] = {
 	NULL
 };
 ATTRIBUTE_GROUPS(typec_altmode);
-
-static void typec_altmode_release(struct device *dev)
-{
-	struct typec_altmode *alt = to_altmode(dev);
-	int i;
-
-	for (i = 0; i < alt->n_modes; i++)
-		kfree(alt->modes[i].desc);
-	kfree(alt);
-}
 
 static const struct device_type typec_altmode_dev_type = {
 	.name = "typec_alternate_mode",
@@ -395,13 +317,27 @@ typec_register_altmode(struct device *parent,
 		return ERR_PTR(-ENOMEM);
 
 	alt->svid = desc->svid;
-	alt->n_modes = desc->n_modes;
-	typec_init_modes(alt, desc->modes, is_typec_port(parent));
+	alt->mode = desc->mode;
+	alt->vdo = desc->vdo;
+	alt->roles = desc->roles;
+
+	alt->attrs[0] = &dev_attr_vdo.attr;
+	alt->attrs[1] = &dev_attr_description.attr;
+	alt->attrs[2] = &dev_attr_active.attr;
+
+	if (is_typec_port(parent))
+		alt->attrs[3] = &dev_attr_supported_roles.attr;
+
+	sprintf(alt->group_name, "mode%d", desc->mode);
+	alt->group.name = alt->group_name;
+	alt->group.attrs = alt->attrs;
+	alt->groups[0] = &alt->group;
 
 	alt->dev.parent = parent;
-	alt->dev.groups = alt->mode_groups;
+	alt->dev.groups = alt->groups;
 	alt->dev.type = &typec_altmode_dev_type;
-	dev_set_name(&alt->dev, "svid-%04x", alt->svid);
+	dev_set_name(&alt->dev, "%s-%04x:%u", dev_name(parent),
+		     alt->svid, alt->mode);
 
 	ret = device_register(&alt->dev);
 	if (ret) {

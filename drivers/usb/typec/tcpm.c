@@ -310,8 +310,8 @@ struct tcpm_port {
 
 	/* Alternate mode data */
 	struct pd_mode_data mode_data;
-	struct typec_altmode *partner_altmode[SVID_DISCOVERY_MAX];
-	struct typec_altmode *port_altmode[SVID_DISCOVERY_MAX];
+	struct typec_altmode *partner_altmode[SVID_DISCOVERY_MAX * 6];
+	struct typec_altmode *port_altmode[SVID_DISCOVERY_MAX * 6];
 
 	/* Deadline in jiffies to exit src_try_wait state */
 	unsigned long max_wait;
@@ -995,7 +995,6 @@ static void svdm_consume_modes(struct tcpm_port *port, const __le32 *payload,
 {
 	struct pd_mode_data *pmdata = &port->mode_data;
 	struct typec_altmode_desc *paltmode;
-	struct typec_mode_desc *pmode;
 	int i;
 
 	if (pmdata->altmodes >= ARRAY_SIZE(port->partner_altmode)) {
@@ -1003,32 +1002,28 @@ static void svdm_consume_modes(struct tcpm_port *port, const __le32 *payload,
 		return;
 	}
 
-	paltmode = &pmdata->altmode_desc[pmdata->altmodes];
-	memset(paltmode, 0, sizeof(*paltmode));
+	for (i = 1; i < cnt; i++) {
+		paltmode = &pmdata->altmode_desc[pmdata->altmodes];
+		memset(paltmode, 0, sizeof(*paltmode));
 
-	paltmode->svid = pmdata->svids[pmdata->svid_index];
+		paltmode->svid = pmdata->svids[pmdata->svid_index];
+		paltmode->mode = i;
+		paltmode->vdo = le32_to_cpu(payload[i]);
 
-	tcpm_log(port, " Alternate mode %d: SVID 0x%04x",
-		 pmdata->altmodes, paltmode->svid);
+		tcpm_log(port, " Alternate mode %d: SVID 0x%04x, VDO %d: 0x%08x",
+			 pmdata->altmodes, paltmode->svid,
+			 paltmode->mode, paltmode->vdo);
 
-	for (i = 1; i < cnt && paltmode->n_modes < ALTMODE_MAX_MODES; i++) {
-		pmode = &paltmode->modes[paltmode->n_modes];
-		memset(pmode, 0, sizeof(*pmode));
-		pmode->vdo = le32_to_cpu(payload[i]);
-		pmode->index = i - 1;
-		paltmode->n_modes++;
-		tcpm_log(port, "  VDO %d: 0x%08x",
-			 pmode->index, pmode->vdo);
+		port->partner_altmode[pmdata->altmodes] =
+			typec_partner_register_altmode(port->partner, paltmode);
+		if (!port->partner_altmode[pmdata->altmodes]) {
+			tcpm_log(port,
+				 "Failed to register modes for SVID 0x%04x",
+				 paltmode->svid);
+			return;
+		}
+		pmdata->altmodes++;
 	}
-	port->partner_altmode[pmdata->altmodes] =
-		typec_partner_register_altmode(port->partner, paltmode);
-	if (!port->partner_altmode[pmdata->altmodes]) {
-		tcpm_log(port,
-			 "Failed to register alternate modes for SVID 0x%04x",
-			 paltmode->svid);
-		return;
-	}
-	pmdata->altmodes++;
 }
 
 #define supports_modal(port)	PD_IDH_MODAL_SUPP((port)->partner_ident.id_header)
