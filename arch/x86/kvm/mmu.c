@@ -3438,14 +3438,18 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	*root_hpa = INVALID_PAGE;
 }
 
-void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, bool free_prev_root)
+/* roots_to_free must be some combination of the KVM_MMU_ROOT_* flags */
+void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, ulong roots_to_free)
 {
 	int i;
 	LIST_HEAD(invalid_list);
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+	bool free_active_root = roots_to_free & KVM_MMU_ROOT_CURRENT;
+	bool free_prev_root = roots_to_free & KVM_MMU_ROOT_PREVIOUS;
 
-	if (!VALID_PAGE(mmu->root_hpa) &&
-	    (!VALID_PAGE(mmu->prev_root.hpa) || !free_prev_root))
+	/* Before acquiring the MMU lock, see if we need to do any real work. */
+	if (!(free_active_root && VALID_PAGE(mmu->root_hpa)) &&
+	    !(free_prev_root && VALID_PAGE(mmu->prev_root.hpa)))
 		return;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
@@ -3454,15 +3458,19 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, bool free_prev_root)
 		mmu_free_root_page(vcpu->kvm, &mmu->prev_root.hpa,
 				   &invalid_list);
 
-	if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
-	    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
-		mmu_free_root_page(vcpu->kvm, &mmu->root_hpa, &invalid_list);
-	} else {
-		for (i = 0; i < 4; ++i)
-			if (mmu->pae_root[i] != 0)
-				mmu_free_root_page(vcpu->kvm, &mmu->pae_root[i],
-						   &invalid_list);
-		mmu->root_hpa = INVALID_PAGE;
+	if (free_active_root) {
+		if (mmu->shadow_root_level >= PT64_ROOT_4LEVEL &&
+		    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
+			mmu_free_root_page(vcpu->kvm, &mmu->root_hpa,
+					   &invalid_list);
+		} else {
+			for (i = 0; i < 4; ++i)
+				if (mmu->pae_root[i] != 0)
+					mmu_free_root_page(vcpu->kvm,
+							   &mmu->pae_root[i],
+							   &invalid_list);
+			mmu->root_hpa = INVALID_PAGE;
+		}
 	}
 
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
@@ -4109,7 +4117,7 @@ static void __kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 			      bool skip_tlb_flush)
 {
 	if (!fast_cr3_switch(vcpu, new_cr3, new_role, skip_tlb_flush))
-		kvm_mmu_free_roots(vcpu, false);
+		kvm_mmu_free_roots(vcpu, KVM_MMU_ROOT_CURRENT);
 }
 
 void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush)
@@ -4885,7 +4893,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_load);
 
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
-	kvm_mmu_free_roots(vcpu, true);
+	kvm_mmu_free_roots(vcpu, KVM_MMU_ROOTS_ALL);
 	WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unload);
