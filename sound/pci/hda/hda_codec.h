@@ -382,9 +382,6 @@ snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 	return snd_hdac_regmap_write(&codec->core, nid, verb, parm);
 }
 
-#define snd_hda_codec_update_cache(codec, nid, flags, verb, parm) \
-	snd_hda_codec_write_cache(codec, nid, flags, verb, parm)
-
 /* the struct for codec->pin_configs */
 struct hda_pincfg {
 	hda_nid_t nid;
