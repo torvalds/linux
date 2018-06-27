@@ -1154,21 +1154,23 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
+	const u32 seqno = intel_engine_get_seqno(engine);
 	struct i915_request *rq = NULL;
+	struct task_struct *tsk = NULL;
 	struct intel_wait *wait;
 
-	if (!engine->breadcrumbs.irq_armed)
+	if (unlikely(!engine->breadcrumbs.irq_armed))
 		return;
 
 	atomic_inc(&engine->irq_count);
-	set_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
+
+	rcu_read_lock();
 
 	spin_lock(&engine->breadcrumbs.irq_lock);
 	wait = engine->breadcrumbs.irq_wait;
 	if (wait) {
-		bool wakeup = engine->irq_seqno_barrier;
-
-		/* We use a callback from the dma-fence to submit
+		/*
+		 * We use a callback from the dma-fence to submit
 		 * requests after waiting on our own requests. To
 		 * ensure minimum delay in queuing the next request to
 		 * hardware, signal the fence now rather than wait for
@@ -1179,19 +1181,22 @@ static void notify_ring(struct intel_engine_cs *engine)
 		 * and to handle coalescing of multiple seqno updates
 		 * and many waiters.
 		 */
-		if (i915_seqno_passed(intel_engine_get_seqno(engine),
-				      wait->seqno)) {
+		if (i915_seqno_passed(seqno, wait->seqno)) {
 			struct i915_request *waiter = wait->request;
 
-			wakeup = true;
 			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				      &waiter->fence.flags) &&
 			    intel_wait_check_request(wait, waiter))
 				rq = i915_request_get(waiter);
-		}
 
-		if (wakeup)
-			wake_up_process(wait->tsk);
+			tsk = wait->tsk;
+		} else {
+			if (engine->irq_seqno_barrier) {
+				set_bit(ENGINE_IRQ_BREADCRUMB,
+					&engine->irq_posted);
+				tsk = wait->tsk;
+			}
+		}
 	} else {
 		if (engine->breadcrumbs.irq_armed)
 			__intel_engine_disarm_breadcrumbs(engine);
@@ -1203,6 +1208,11 @@ static void notify_ring(struct intel_engine_cs *engine)
 		GEM_BUG_ON(!i915_request_completed(rq));
 		i915_request_put(rq);
 	}
+
+	if (tsk && tsk->state & TASK_NORMAL)
+		wake_up_process(tsk);
+
+	rcu_read_unlock();
 
 	trace_intel_engine_notify(engine, wait);
 }
