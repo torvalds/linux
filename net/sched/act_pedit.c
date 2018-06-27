@@ -290,7 +290,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 		enum pedit_cmd cmd = TCA_PEDIT_KEY_EX_CMD_SET;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
-			u32 *ptr, _data;
+			u32 *ptr, hdata;
 			int offset = tkey->off;
 			int hoffset;
 			u32 val;
@@ -337,7 +337,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			}
 
 			ptr = skb_header_pointer(skb, hoffset + offset,
-						 4, &_data);
+						 4, &hdata);
 			if (!ptr)
 				goto bad;
 			/* just do it, baby */
@@ -355,7 +355,7 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			}
 
 			*ptr = ((*ptr & tkey->mask) ^ val);
-			if (ptr == &_data)
+			if (ptr == &hdata)
 				skb_store_bits(skb, hoffset + offset, ptr, 4);
 		}
 
