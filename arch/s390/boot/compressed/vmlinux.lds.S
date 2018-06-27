@@ -58,5 +58,6 @@ SECTIONS
 		*(.eh_frame)
 		*(__ex_table)
 		*(*__ksymtab*)
+		*(___kcrctab*)
 	}
 }
