@@ -214,8 +214,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 		break;
 	}
 
-	if (!valid_input || (param[0] > link->reported_link_cap.lane_count) ||
-			(param[1] > link->reported_link_cap.link_rate)) {
+	if (!valid_input) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
 		return bytes_from_user;
