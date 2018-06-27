@@ -219,8 +219,7 @@ static int parse_fsopt_token(char *c, void *private)
 	if (token < Opt_last_int) {
 		ret = match_int(&argstr[0], &intval);
 		if (ret < 0) {
-			pr_err("bad mount option arg (not int) "
-			       "at '%s'\n", c);
+			pr_err("bad option arg (not int) at '%s'\n", c);
 			return ret;
 		}
 		dout("got int token %d val %d\n", token, intval);

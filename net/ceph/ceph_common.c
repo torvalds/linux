@@ -396,8 +396,7 @@ ceph_parse_options(char *options, const char *dev_name,
 		if (token < Opt_last_int) {
 			err = match_int(&argstr[0], &intval);
 			if (err < 0) {
-				pr_err("bad mount option arg (not int) "
-				       "at '%s'\n", c);
+				pr_err("bad option arg (not int) at '%s'\n", c);
 				goto out;
 			}
 			dout("got int token %d val %d\n", token, intval);
