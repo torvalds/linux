@@ -40,13 +40,12 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 			return ERR_PTR(-ENOMEM);
 		size = btrfs_getxattr(inode, name, value, size);
 	}
-	if (size > 0) {
+	if (size > 0)
 		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-	} else if (size == -ENODATA || size == 0) {
+	else if (size == -ENODATA || size == 0)
 		acl = NULL;
-	} else {
+	else
 		acl = ERR_PTR(size);
-	}
 	kfree(value);
 
 	return acl;
