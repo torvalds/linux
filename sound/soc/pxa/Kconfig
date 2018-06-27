@@ -31,7 +31,7 @@ config SND_PXA2XX_SOC_I2S
 	tristate
 
 config SND_PXA_SOC_SSP
-	tristate
+	tristate "Soc Audio via PXA2xx/PXA3xx SSP ports"
 	select PXA_SSP
 
 config SND_MMP_SOC_SSPA
