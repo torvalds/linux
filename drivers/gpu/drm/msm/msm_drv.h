@@ -54,6 +54,12 @@ struct msm_fence_context;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 
+#define MAX_CRTCS      8
+#define MAX_PLANES     16
+#define MAX_ENCODERS   8
+#define MAX_BRIDGES    8
+#define MAX_CONNECTORS 8
+
 struct msm_file_private {
 	rwlock_t queuelock;
 	struct list_head submitqueues;
@@ -117,19 +123,19 @@ struct msm_drm_private {
 	struct workqueue_struct *wq;
 
 	unsigned int num_planes;
-	struct drm_plane *planes[16];
+	struct drm_plane *planes[MAX_PLANES];
 
 	unsigned int num_crtcs;
-	struct drm_crtc *crtcs[8];
+	struct drm_crtc *crtcs[MAX_CRTCS];
 
 	unsigned int num_encoders;
-	struct drm_encoder *encoders[8];
+	struct drm_encoder *encoders[MAX_ENCODERS];
 
 	unsigned int num_bridges;
-	struct drm_bridge *bridges[8];
+	struct drm_bridge *bridges[MAX_BRIDGES];
 
 	unsigned int num_connectors;
-	struct drm_connector *connectors[8];
+	struct drm_connector *connectors[MAX_CONNECTORS];
 
 	/* Properties */
 	struct drm_property *plane_property[PLANE_PROP_MAX_NUM];
