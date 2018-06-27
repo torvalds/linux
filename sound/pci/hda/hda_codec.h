@@ -84,6 +84,7 @@ struct hda_bus {
  */
 typedef int (*hda_codec_patch_t)(struct hda_codec *);
 	
+#define HDA_CODEC_ID_SKIP_PROBE		0x00000001
 #define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
 #define HDA_CODEC_ID_GENERIC		0x00000201
 

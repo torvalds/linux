@@ -2542,6 +2542,8 @@ static int alloc_intel_hdmi(struct hda_codec *codec)
 	/* requires i915 binding */
 	if (!codec->bus->core.audio_component) {
 		codec_info(codec, "No i915 binding for Intel HDMI/DP codec\n");
+		/* set probe_id here to prevent generic fallback binding */
+		codec->probe_id = HDA_CODEC_ID_SKIP_PROBE;
 		return -ENODEV;
 	}
 
