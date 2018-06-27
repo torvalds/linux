@@ -71,6 +71,11 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	if (kms->funcs->commit) {
+		DRM_DEBUG_ATOMIC("triggering commit\n");
+		kms->funcs->commit(kms, state);
+	}
+
 	msm_atomic_wait_for_commit_done(dev, state);
 
 	kms->funcs->complete_commit(kms, state);
