@@ -30,7 +30,7 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		return ERR_PTR(-EINVAL);
 	}
 
 	size = btrfs_getxattr(inode, name, "", 0);
