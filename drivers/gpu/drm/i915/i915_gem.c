@@ -3810,10 +3810,13 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 			if (err)
 				return err;
 		}
+
+		err = wait_for_engines(i915);
+		if (err)
+			return err;
+
 		i915_retire_requests(i915);
 		GEM_BUG_ON(i915->gt.active_requests);
-
-		return wait_for_engines(i915);
 	} else {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
@@ -3824,9 +3827,9 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 			if (err)
 				return err;
 		}
-
-		return 0;
 	}
+
+	return 0;
 }
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
