@@ -234,6 +234,7 @@ struct bpf_object {
 	size_t nr_maps;
 
 	bool loaded;
+	bool has_pseudo_calls;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -400,10 +401,6 @@ bpf_object__init_prog_names(struct bpf_object *obj)
 		const char *name = NULL;
 
 		prog = &obj->programs[pi];
-		if (prog->idx == obj->efile.text_shndx) {
-			name = ".text";
-			goto skip_search;
-		}
 
 		for (si = 0; si < symbols->d_size / sizeof(GElf_Sym) && !name;
 		     si++) {
@@ -426,12 +423,15 @@ bpf_object__init_prog_names(struct bpf_object *obj)
 			}
 		}
 
+		if (!name && prog->idx == obj->efile.text_shndx)
+			name = ".text";
+
 		if (!name) {
 			pr_warning("failed to find sym for prog %s\n",
 				   prog->section_name);
 			return -EINVAL;
 		}
-skip_search:
+
 		prog->name = strdup(name);
 		if (!prog->name) {
 			pr_warning("failed to allocate memory for prog sym %s\n",
@@ -981,6 +981,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			prog->reloc_desc[i].type = RELO_CALL;
 			prog->reloc_desc[i].insn_idx = insn_idx;
 			prog->reloc_desc[i].text_off = sym.st_value;
+			obj->has_pseudo_calls = true;
 			continue;
 		}
 
@@ -1426,6 +1427,12 @@ out:
 	return err;
 }
 
+static bool bpf_program__is_function_storage(struct bpf_program *prog,
+					     struct bpf_object *obj)
+{
+	return prog->idx == obj->efile.text_shndx && obj->has_pseudo_calls;
+}
+
 static int
 bpf_object__load_progs(struct bpf_object *obj)
 {
@@ -1433,7 +1440,7 @@ bpf_object__load_progs(struct bpf_object *obj)
 	int err;
 
 	for (i = 0; i < obj->nr_programs; i++) {
-		if (obj->programs[i].idx == obj->efile.text_shndx)
+		if (bpf_program__is_function_storage(&obj->programs[i], obj))
 			continue;
 		err = bpf_program__load(&obj->programs[i],
 					obj->license,
@@ -2247,7 +2254,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		bpf_program__set_expected_attach_type(prog,
 						      expected_attach_type);
 
-		if (prog->idx != obj->efile.text_shndx && !first_prog)
+		if (!bpf_program__is_function_storage(prog, obj) && !first_prog)
 			first_prog = prog;
 	}
 
