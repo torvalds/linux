@@ -3123,6 +3123,7 @@ enum i915_power_well_id {
 #define   GMBUS_RATE_400KHZ	(2 << 8) /* reserved on Pineview */
 #define   GMBUS_RATE_1MHZ	(3 << 8) /* reserved on Pineview */
 #define   GMBUS_HOLD_EXT	(1 << 7) /* 300ns hold time, rsvd on Pineview */
+#define   GMBUS_BYTE_CNT_OVERRIDE (1 << 6)
 #define   GMBUS_PIN_DISABLED	0
 #define   GMBUS_PIN_SSC		1
 #define   GMBUS_PIN_VGADDC	2
