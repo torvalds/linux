@@ -132,18 +132,24 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 {
 	const char *fw_name[] = {"ifpp.bin", "ipue.bin"};
 	const struct firmware *fw[FW_NB];
+	char fw_path[31];
 	int i, j, ret = 0;
 	u32 val;
 
 	for (i = 0; i < FW_NB; i++) {
-		ret = request_firmware(&fw[i], fw_name[i], priv->dev);
+		snprintf(fw_path, 31, "inside-secure/eip197b/%s", fw_name[i]);
+		ret = request_firmware(&fw[i], fw_path, priv->dev);
 		if (ret) {
-			dev_err(priv->dev,
-				"Failed to request firmware %s (%d)\n",
-				fw_name[i], ret);
-			goto release_fw;
+			/* Fallback to the old firmware location. */
+			ret = request_firmware(&fw[i], fw_name[i], priv->dev);
+			if (ret) {
+				dev_err(priv->dev,
+					"Failed to request firmware %s (%d)\n",
+					fw_name[i], ret);
+				goto release_fw;
+			}
 		}
-	 }
+	}
 
 	/* Clear the scratchpad memory */
 	val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
