@@ -647,7 +647,7 @@ static int mvpp2_prs_vlan_find(struct mvpp2 *priv, unsigned short tpid, int ai)
 			continue;
 
 		mvpp2_prs_init_from_hw(priv, &pe, tid);
-		match = mvpp2_prs_tcam_data_cmp(&pe, 0, swab16(tpid));
+		match = mvpp2_prs_tcam_data_cmp(&pe, 0, tpid);
 		if (!match)
 			continue;
 
@@ -775,8 +775,8 @@ static int mvpp2_prs_double_vlan_find(struct mvpp2 *priv, unsigned short tpid1,
 
 		mvpp2_prs_init_from_hw(priv, &pe, tid);
 
-		match = mvpp2_prs_tcam_data_cmp(&pe, 0, swab16(tpid1)) &&
-			mvpp2_prs_tcam_data_cmp(&pe, 4, swab16(tpid2));
+		match = mvpp2_prs_tcam_data_cmp(&pe, 0, tpid1) &&
+			mvpp2_prs_tcam_data_cmp(&pe, 4, tpid2);
 
 		if (!match)
 			continue;
