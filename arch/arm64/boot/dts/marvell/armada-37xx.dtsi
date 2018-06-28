@@ -308,7 +308,7 @@
 			};
 
 			crypto: crypto@90000 {
-				compatible = "inside-secure,safexcel-eip97";
+				compatible = "inside-secure,safexcel-eip97ies";
 				reg = <0x90000 0x20000>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
