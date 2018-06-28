@@ -51,6 +51,7 @@ obj-$(CONFIG_VIDEO_RENESAS_VSP1)	+= vsp1/
 obj-$(CONFIG_VIDEO_ROCKCHIP_RGA)	+= rockchip/rga/
 
 obj-y	+= omap/
+obj-$(CONFIG_VIDEO_ROCKCHIP_CIF)	+= rockchip/cif/
 obj-$(CONFIG_VIDEO_ROCKCHIP_ISP1)	+= rockchip/isp1/
 
 obj-$(CONFIG_VIDEO_AM437X_VPFE)		+= am437x/
