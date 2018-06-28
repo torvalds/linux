@@ -974,6 +974,11 @@ static void __init rcu_bootup_announce(void)
 	rcu_bootup_announce_oddness();
 }
 
+/* Because preemptible RCU does not exist, we can ignore its QSes. */
+static void rcu_preempt_qs(void)
+{
+}
+
 /*
  * Because preemptible RCU does not exist, we never have to check for
  * CPUs being in quiescent states.

@@ -255,6 +255,13 @@ void rcu_bh_qs(void)
 	}
 }
 
+void rcu_softirq_qs(void)
+{
+	rcu_sched_qs();
+	rcu_preempt_qs();
+	rcu_preempt_deferred_qs(current);
+}
+
 /*
  * Steal a bit from the bottom of ->dynticks for idle entry/exit
  * control.  Initially this is for TLB flushing.
