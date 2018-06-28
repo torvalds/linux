@@ -1271,20 +1271,11 @@ enum intel_pipe_crc_source {
 	INTEL_PIPE_CRC_SOURCE_MAX,
 };
 
-struct intel_pipe_crc_entry {
-	uint32_t frame;
-	uint32_t crc[5];
-};
-
 #define INTEL_PIPE_CRC_ENTRIES_NR	128
 struct intel_pipe_crc {
 	spinlock_t lock;
-	bool opened;		/* exclusive access to the result file */
-	struct intel_pipe_crc_entry *entries;
-	enum intel_pipe_crc_source source;
-	int head, tail;
-	wait_queue_head_t wq;
 	int skipped;
+	enum intel_pipe_crc_source source;
 };
 
 struct i915_frontbuffer_tracking {

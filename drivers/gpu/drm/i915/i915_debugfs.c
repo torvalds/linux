@@ -4818,7 +4818,6 @@ static const struct i915_debugfs_files {
 #endif
 	{"i915_fifo_underrun_reset", &i915_fifo_underrun_reset_ops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
-	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
 	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
 	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
@@ -4838,17 +4837,13 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_minor *minor = dev_priv->drm.primary;
 	struct dentry *ent;
-	int ret, i;
+	int i;
 
 	ent = debugfs_create_file("i915_forcewake_user", S_IRUSR,
 				  minor->debugfs_root, to_i915(minor->dev),
 				  &i915_forcewake_fops);
 	if (!ent)
 		return -ENOMEM;
-
-	ret = intel_pipe_crc_create(minor);
-	if (ret)
-		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		ent = debugfs_create_file(i915_debugfs_files[i].name,

@@ -2153,7 +2153,6 @@ void lspcon_resume(struct intel_lspcon *lspcon);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
 
 /* intel_pipe_crc.c */
-int intel_pipe_crc_create(struct drm_minor *minor);
 #ifdef CONFIG_DEBUG_FS
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 			      size_t *values_cnt);
@@ -2169,5 +2168,4 @@ static inline void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 {
 }
 #endif
-extern const struct file_operations i915_display_crc_ctl_fops;
 #endif /* __INTEL_DRV_H__ */
