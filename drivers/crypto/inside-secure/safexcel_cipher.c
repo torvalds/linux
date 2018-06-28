@@ -30,6 +30,7 @@ enum safexcel_cipher_direction {
 
 enum safexcel_cipher_alg {
 	SAFEXCEL_DES,
+	SAFEXCEL_3DES,
 	SAFEXCEL_AES,
 };
 
@@ -70,6 +71,12 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 			memcpy(cdesc->control_data.token, iv, DES_BLOCK_SIZE);
 			cdesc->control_data.options |= EIP197_OPTION_2_TOKEN_IV_CMD;
 			break;
+		case SAFEXCEL_3DES:
+			offset = DES3_EDE_BLOCK_SIZE / sizeof(u32);
+			memcpy(cdesc->control_data.token, iv, DES3_EDE_BLOCK_SIZE);
+			cdesc->control_data.options |= EIP197_OPTION_2_TOKEN_IV_CMD;
+			break;
+
 		case SAFEXCEL_AES:
 			offset = AES_BLOCK_SIZE / sizeof(u32);
 			memcpy(cdesc->control_data.token, iv, AES_BLOCK_SIZE);
@@ -287,6 +294,8 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 
 	if (ctx->alg == SAFEXCEL_DES) {
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_DES;
+	} else if (ctx->alg == SAFEXCEL_3DES) {
+		cdesc->control_data.control0 |= CONTEXT_CONTROL_CRYPTO_ALG_3DES;
 	} else if (ctx->alg == SAFEXCEL_AES) {
 		switch (ctx->key_len) {
 		case AES_KEYSIZE_128:
@@ -1030,6 +1039,111 @@ struct safexcel_alg_template safexcel_alg_ecb_des = {
 		},
 	},
 };
+
+static int safexcel_cbc_des3_ede_encrypt(struct skcipher_request *req)
+{
+	return safexcel_queue_req(&req->base, skcipher_request_ctx(req),
+			SAFEXCEL_ENCRYPT, CONTEXT_CONTROL_CRYPTO_MODE_CBC,
+			SAFEXCEL_3DES);
+}
+
+static int safexcel_cbc_des3_ede_decrypt(struct skcipher_request *req)
+{
+	return safexcel_queue_req(&req->base, skcipher_request_ctx(req),
+			SAFEXCEL_DECRYPT, CONTEXT_CONTROL_CRYPTO_MODE_CBC,
+			SAFEXCEL_3DES);
+}
+
+static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
+				   const u8 *key, unsigned int len)
+{
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	if (len != DES3_EDE_KEY_SIZE) {
+		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	/* if context exits and key changed, need to invalidate it */
+	if (ctx->base.ctxr_dma) {
+		if (memcmp(ctx->key, key, len))
+			ctx->base.needs_inv = true;
+	}
+
+	memcpy(ctx->key, key, len);
+
+	ctx->key_len = len;
+
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_cbc_des3_ede = {
+	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.engines = EIP97IES | EIP197B | EIP197D,
+	.alg.skcipher = {
+		.setkey = safexcel_des3_ede_setkey,
+		.encrypt = safexcel_cbc_des3_ede_encrypt,
+		.decrypt = safexcel_cbc_des3_ede_decrypt,
+		.min_keysize = DES3_EDE_KEY_SIZE,
+		.max_keysize = DES3_EDE_KEY_SIZE,
+		.ivsize = DES3_EDE_BLOCK_SIZE,
+		.base = {
+			.cra_name = "cbc(des3_ede)",
+			.cra_driver_name = "safexcel-cbc-des3_ede",
+			.cra_priority = 300,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER | CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_skcipher_cra_init,
+			.cra_exit = safexcel_skcipher_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
+static int safexcel_ecb_des3_ede_encrypt(struct skcipher_request *req)
+{
+	return safexcel_queue_req(&req->base, skcipher_request_ctx(req),
+			SAFEXCEL_ENCRYPT, CONTEXT_CONTROL_CRYPTO_MODE_ECB,
+			SAFEXCEL_3DES);
+}
+
+static int safexcel_ecb_des3_ede_decrypt(struct skcipher_request *req)
+{
+	return safexcel_queue_req(&req->base, skcipher_request_ctx(req),
+			SAFEXCEL_DECRYPT, CONTEXT_CONTROL_CRYPTO_MODE_ECB,
+			SAFEXCEL_3DES);
+}
+
+struct safexcel_alg_template safexcel_alg_ecb_des3_ede = {
+	.type = SAFEXCEL_ALG_TYPE_SKCIPHER,
+	.engines = EIP97IES | EIP197B | EIP197D,
+	.alg.skcipher = {
+		.setkey = safexcel_des3_ede_setkey,
+		.encrypt = safexcel_ecb_des3_ede_encrypt,
+		.decrypt = safexcel_ecb_des3_ede_decrypt,
+		.min_keysize = DES3_EDE_KEY_SIZE,
+		.max_keysize = DES3_EDE_KEY_SIZE,
+		.ivsize = DES3_EDE_BLOCK_SIZE,
+		.base = {
+			.cra_name = "ecb(des3_ede)",
+			.cra_driver_name = "safexcel-ecb-des3_ede",
+			.cra_priority = 300,
+			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER | CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_KERN_DRIVER_ONLY,
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
+			.cra_alignmask = 0,
+			.cra_init = safexcel_skcipher_cra_init,
+			.cra_exit = safexcel_skcipher_cra_exit,
+			.cra_module = THIS_MODULE,
+		},
+	},
+};
+
 static int safexcel_aead_encrypt(struct aead_request *req)
 {
 	struct safexcel_cipher_req *creq = aead_request_ctx(req);

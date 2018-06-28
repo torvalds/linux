@@ -312,6 +312,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_SIZE(n)			((n) << 8)
 #define CONTEXT_CONTROL_KEY_EN			BIT(16)
 #define CONTEXT_CONTROL_CRYPTO_ALG_DES		(0x0 << 17)
+#define CONTEXT_CONTROL_CRYPTO_ALG_3DES		(0x2 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES128	(0x5 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES192	(0x6 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES256	(0x7 << 17)
@@ -694,6 +695,8 @@ int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 /* available algorithms */
 extern struct safexcel_alg_template safexcel_alg_ecb_des;
 extern struct safexcel_alg_template safexcel_alg_cbc_des;
+extern struct safexcel_alg_template safexcel_alg_ecb_des3_ede;
+extern struct safexcel_alg_template safexcel_alg_cbc_des3_ede;
 extern struct safexcel_alg_template safexcel_alg_ecb_aes;
 extern struct safexcel_alg_template safexcel_alg_cbc_aes;
 extern struct safexcel_alg_template safexcel_alg_md5;
