@@ -153,6 +153,13 @@ _bpftool()
     local cur prev words objword
     _init_completion || return
 
+    # Deal with options
+    if [[ ${words[cword]} == -* ]]; then
+        local c='--version --json --pretty --bpffs'
+        COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
+        return 0
+    fi
+
     # Deal with simplest keywords
     case $prev in
         help|hex|opcodes|visual)
@@ -172,20 +179,23 @@ _bpftool()
             ;;
     esac
 
-    # Search for object and command
-    local object command cmdword
-    for (( cmdword=1; cmdword < ${#words[@]}-1; cmdword++ )); do
-        [[ -n $object ]] && command=${words[cmdword]} && break
-        [[ ${words[cmdword]} != -* ]] && object=${words[cmdword]}
+    # Remove all options so completions don't have to deal with them.
+    local i
+    for (( i=1; i < ${#words[@]}; )); do
+        if [[ ${words[i]::1} == - ]]; then
+            words=( "${words[@]:0:i}" "${words[@]:i+1}" )
+            [[ $i -le $cword ]] && cword=$(( cword - 1 ))
+        else
+            i=$(( ++i ))
+        fi
     done
+    cur=${words[cword]}
+    prev=${words[cword - 1]}
 
-    if [[ -z $object ]]; then
+    local object=${words[1]} command=${words[2]}
+
+    if [[ -z $object || $cword -eq 1 ]]; then
         case $cur in
-            -*)
-                local c='--version --json --pretty --bpffs'
-                COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
-                return 0
-                ;;
             *)
                 COMPREPLY=( $( compgen -W "$( bpftool help 2>&1 | \
                     command sed \
