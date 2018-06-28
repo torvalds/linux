@@ -821,6 +821,9 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 
 		if (status & TVP5150_INT_A_LOCK) {
 			decoder->lock = !!(status & TVP5150_INT_A_LOCK_STATUS);
+			dev_dbg_lvl(decoder->sd.dev, 1, debug,
+				    "sync lo%s signal\n",
+				    decoder->lock ? "ck" : "ss");
 			v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
 			regmap_update_bits(map, TVP5150_MISC_CTL, mask,
 					   decoder->lock ? decoder->oe : 0);
