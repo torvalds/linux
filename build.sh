@@ -27,6 +27,8 @@ function parse_argv {
         MEDUSA_ONLY=0
         DELETE=0
         INSTALL=1
+        USE_RSYNC=1
+        RSYNC_ONLY=0
 
         for arg in "$@"; do
                 if [[ "$arg" == '--delete' || "$arg" == '-delete' ]]; then
@@ -46,6 +48,10 @@ function parse_argv {
                         INSTALL=0
                         GRUB=0
                         REBOOT=0
+                elif [[ "$arg" == '--norsync' ]]; then
+                        USE_RSYNC=0
+                elif [[ "$arg" == '--rsync-only' ]]; then
+                        RSYNC_ONLY=0
                 elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
                         help
                 else
@@ -58,7 +64,8 @@ function parse_argv {
 }
 
 function help {
-        echo "$PROGNAME [--help] [--delete] [--clean] [--nogrub] [--noreboot] [--medusa-only] [--nogdb]";
+        echo "$PROGNAME [--help] [--delete] [--clean] [--nogrub] [--nogdb] [--noreboot]";
+        echo "    [--medusa-only] [--norsync] [--rsync-only]"
         echo "    --help           - Prints this help"
         echo "    --delete         - Deletes the medusa object files (handy when changing"
         echo "                       header files or makefiles)"
@@ -68,6 +75,9 @@ function help {
         echo "    --noreboot       - Does not reboot at the end"
         echo "    --medusa-only    - Rebuilds just medusa not the whole kernel"
         echo "    --build-only     - Just rebuid the kernel(modue) no reboot no installation"
+        echo "    --norsync        - Don't synchronize the sources on the debugging machine"
+        echo "    --rsync-only     - Synchronizes the sources on the debugging machine, doesn't"
+        echo "                       compile"
         exit 0
 }
 
@@ -135,6 +145,11 @@ function update_grub {
 
 parse_argv $@
 
+if [ $RSYNC_ONLY -eq 1 ]; then
+    rsync_repo
+    return 0
+fi
+
 [ -f vmlinux ] && sudo rm -f vmlinux 2> /dev/null
 
 [ $DELETE -eq 1 ] && delete_medusa
@@ -145,7 +160,7 @@ else
         create_package
 fi
 
-[ "$DEST" != "NONE" ] && rsync_repo
+[ $USE_RSYNC -eq 1 ] && [ "$DEST" != "NONE" ] && rsync_repo
 
 echo $(($major + 1)) > .major
 echo 0 > .minor
