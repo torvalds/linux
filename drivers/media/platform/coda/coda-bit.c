@@ -391,7 +391,7 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 {
 	struct coda_dev *dev = ctx->dev;
 	int width, height;
-	int ysize;
+	unsigned int ysize, ycbcr_size;
 	int ret;
 	int i;
 
@@ -407,15 +407,16 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	}
 	ysize = width * height;
 
+	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
+		ycbcr_size = round_up(ysize, 4096) + ysize / 2;
+	else
+		ycbcr_size = ysize + ysize / 2;
+
 	/* Allocate frame buffers */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
-		size_t size;
+		size_t size = ycbcr_size;
 		char *name;
 
-		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
-			size = round_up(ysize, 4096) + ysize / 2;
-		else
-			size = ysize + ysize / 2;
 		/* Add space for mvcol buffers */
 		if (dev->devtype->product != CODA_DX6 &&
 		    (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
