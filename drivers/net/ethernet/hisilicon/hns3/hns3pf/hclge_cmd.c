@@ -123,9 +123,9 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 
 	if (ring->flag == HCLGE_TYPE_CSQ) {
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG,
-				(u32)dma);
+				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,
-				(u32)((dma >> 31) >> 1));
+				upper_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG,
 				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
 				HCLGE_NIC_CMQ_ENABLE);
@@ -133,9 +133,9 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
 	} else {
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_L_REG,
-				(u32)dma);
+				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_H_REG,
-				(u32)((dma >> 31) >> 1));
+				upper_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CRQ_DEPTH_REG,
 				(ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S) |
 				HCLGE_NIC_CMQ_ENABLE);
