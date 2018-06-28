@@ -516,6 +516,8 @@ static int nfs_idmap_prepare_message(char *desc, struct idmap *idmap,
 	case Opt_find_group:
 		im->im_conv = IDMAP_CONV_IDTONAME;
 		ret = match_int(&substr, &im->im_id);
+		if (ret)
+			goto out;
 		break;
 
 	default:
