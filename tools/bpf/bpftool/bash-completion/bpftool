@@ -182,7 +182,7 @@ _bpftool()
     if [[ -z $object ]]; then
         case $cur in
             -*)
-                local c='--version --json --pretty'
+                local c='--version --json --pretty --bpffs'
                 COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
                 return 0
                 ;;
