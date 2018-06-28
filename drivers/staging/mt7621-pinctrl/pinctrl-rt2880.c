@@ -54,10 +54,7 @@ static const char *rt2880_get_group_name(struct pinctrl_dev *pctrldev,
 {
 	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
 
-	if (group >= p->group_count)
-		return NULL;
-
-	return p->group_names[group];
+	return (group >= p->group_count) ? NULL : p->group_names[group];
 }
 
 static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
