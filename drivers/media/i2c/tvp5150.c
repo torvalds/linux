@@ -60,6 +60,7 @@ struct tvp5150 {
 	struct regmap *regmap;
 
 	v4l2_std_id norm;	/* Current set standard */
+	v4l2_std_id detected_norm;
 	u32 input;
 	u32 output;
 	int enable;
@@ -1001,6 +1002,27 @@ static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
 /****************************************************************************
 			V4L2 subdev pad ops
  ****************************************************************************/
+static int tvp5150_init_cfg(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	v4l2_std_id std;
+
+	/*
+	 * Reset selection to maximum on subdev_open() if autodetection is on
+	 * and a standard change is detected.
+	 */
+	if (decoder->norm == V4L2_STD_ALL) {
+		std = tvp5150_read_std(sd);
+		if (std != decoder->detected_norm) {
+			decoder->detected_norm = std;
+			tvp5150_set_default(std, &decoder->rect);
+		}
+	}
+
+	return 0;
+}
+
 static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_mbus_code_enum *code)
@@ -1275,6 +1297,7 @@ static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
+	.init_cfg = tvp5150_init_cfg,
 	.enum_mbus_code = tvp5150_enum_mbus_code,
 	.enum_frame_size = tvp5150_enum_frame_size,
 	.set_fmt = tvp5150_fill_fmt,
@@ -1608,6 +1631,7 @@ static int tvp5150_probe(struct i2c_client *c,
 		return res;
 
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
+	core->detected_norm = V4L2_STD_UNKNOWN;
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = true;
 
