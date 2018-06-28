@@ -623,9 +623,6 @@ static int guest_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u
 {
 	pr_devel("in %s\n", __func__);
 
-	if (ctx->real_mode)
-		return -EPERM;
-
 	ctx->kernel = kernel;
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return attach_afu_directed(ctx, wed, amr);

@@ -174,14 +174,6 @@ int cxl_afu_reset(struct cxl_context *ctx);
 void cxl_set_master(struct cxl_context *ctx);
 
 /*
- * Sets the context to use real mode memory accesses to operate with
- * translation disabled. Note that this only makes sense for kernel contexts
- * under bare metal, and will not work with virtualisation. May only be
- * performed on stopped contexts.
- */
-int cxl_set_translation_mode(struct cxl_context *ctx, bool real_mode);
-
-/*
  * Map and unmap the AFU Problem Space area. The amount and location mapped
  * depends on if this context is a master or slave.
  */

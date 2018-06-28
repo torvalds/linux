@@ -324,7 +324,6 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	if (task) {
 		ctx->pid = get_task_pid(task, PIDTYPE_PID);
 		kernel = false;
-		ctx->real_mode = false;
 
 		/* acquire a reference to the task's mm */
 		ctx->mm = get_task_mm(current);
@@ -387,24 +386,6 @@ void cxl_set_master(struct cxl_context *ctx)
 	ctx->master = true;
 }
 EXPORT_SYMBOL_GPL(cxl_set_master);
-
-int cxl_set_translation_mode(struct cxl_context *ctx, bool real_mode)
-{
-	if (ctx->status == STARTED) {
-		/*
-		 * We could potentially update the PE and issue an update LLCMD
-		 * to support this, but it doesn't seem to have a good use case
-		 * since it's trivial to just create a second kernel context
-		 * with different translation modes, so until someone convinces
-		 * me otherwise:
-		 */
-		return -EBUSY;
-	}
-
-	ctx->real_mode = real_mode;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxl_set_translation_mode);
 
 /* wrappers around afu_* file ops which are EXPORTED */
 int cxl_fd_open(struct inode *inode, struct file *file)

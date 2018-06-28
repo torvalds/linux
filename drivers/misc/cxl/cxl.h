@@ -613,7 +613,6 @@ struct cxl_context {
 	bool pe_inserted;
 	bool master;
 	bool kernel;
-	bool real_mode;
 	bool pending_irq;
 	bool pending_fault;
 	bool pending_afu_err;
