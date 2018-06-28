@@ -92,7 +92,7 @@ static void rt2880_pinctrl_pin_dbg_show(struct pinctrl_dev *pctrldev,
 					struct seq_file *s,
 					unsigned int offset)
 {
-	seq_printf(s, "ralink pio");
+	seq_puts(s, "ralink pio");
 }
 
 static void rt2880_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctrldev,
