@@ -83,65 +83,37 @@ static void rt2880_pinctrl_pin_dbg_show(struct pinctrl_dev *pctrldev,
 	seq_puts(s, "ralink pio");
 }
 
-static void rt2880_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctrldev,
-					     struct device_node *np,
-					     struct pinctrl_map **map)
-{
-	const char *function;
-	int func = of_property_read_string(np, "ralink,function", &function);
-	int grps = of_property_count_strings(np, "ralink,group");
-	int i;
-
-	if (func || !grps)
-		return;
-
-	for (i = 0; i < grps; i++) {
-		const char *group;
-
-		of_property_read_string_index(np, "ralink,group", i, &group);
-
-		(*map)->type = PIN_MAP_TYPE_MUX_GROUP;
-		(*map)->name = function;
-		(*map)->data.mux.group = group;
-		(*map)->data.mux.function = function;
-		(*map)++;
-	}
-}
-
 static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 					 struct device_node *np_config,
 					 struct pinctrl_map **map,
 					 unsigned int *num_maps)
 {
 	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	struct property *prop;
+	const char *function_name, *group_name;
 	int ret;
-	int max_maps = 0;
+	int ngroups;
 	unsigned int reserved_maps = 0;
-	struct pinctrl_map *tmp;
-	struct device_node *np;
 
-	for_each_child_of_node(np_config, np) {
-		int ret = of_property_count_strings(np, "ralink,group");
-
-		if (ret >= 0)
-			max_maps += ret;
-	}
-
-	if (!max_maps)
-		return max_maps;
+	for_each_node_with_property(np_config, "group")
+		ngroups++;
 
 	ret = pinctrl_utils_reserve_map(pctrldev, map, &reserved_maps,
-					num_maps, max_maps);
+					num_maps, ngroups);
 	if (ret) {
 		dev_err(p->dev, "can't reserve map: %d\n", ret);
 		return ret;
 	}
 
-	tmp = *map;
-
-	for_each_child_of_node(np_config, np)
-		rt2880_pinctrl_dt_subnode_to_map(pctrldev, np, &tmp);
-	*num_maps = max_maps;
+	of_property_for_each_string(np_config, "group", prop, group_name) {
+		ret = pinctrl_utils_add_map_mux(pctrldev, map, &reserved_maps,
+						num_maps, group_name,
+						function_name);
+		if (ret) {
+			dev_err(p->dev, "can't add map: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
