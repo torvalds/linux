@@ -11481,6 +11481,15 @@ W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/intersil/prism54/
 
+PROC FILESYSTEM
+R:	Alexey Dobriyan <adobriyan@gmail.com>
+L:	linux-kernel@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	fs/proc/
+F:	include/linux/proc_fs.h
+F:	tools/testing/selftests/proc/
+
 PROC SYSCTL
 M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
 M:	Kees Cook <keescook@chromium.org>
