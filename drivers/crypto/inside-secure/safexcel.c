@@ -1125,6 +1125,24 @@ err_core_clk:
 	return ret;
 }
 
+static void safexcel_hw_reset_rings(struct safexcel_crypto_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->config.rings; i++) {
+		/* clear any pending interrupt */
+		writel(GENMASK(5, 0), EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_STAT);
+		writel(GENMASK(7, 0), EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_STAT);
+
+		/* Reset the CDR base address */
+		writel(0, EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_LO);
+		writel(0, EIP197_HIA_CDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
+
+		/* Reset the RDR base address */
+		writel(0, EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_LO);
+		writel(0, EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_BASE_ADDR_HI);
+	}
+}
 
 static int safexcel_remove(struct platform_device *pdev)
 {
@@ -1132,6 +1150,8 @@ static int safexcel_remove(struct platform_device *pdev)
 	int i;
 
 	safexcel_unregister_algorithms(priv);
+	safexcel_hw_reset_rings(priv);
+
 	clk_disable_unprepare(priv->clk);
 
 	for (i = 0; i < priv->config.rings; i++)
