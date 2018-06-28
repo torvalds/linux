@@ -1583,10 +1583,8 @@ static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 
 static bool coda_reorder_enable(struct coda_ctx *ctx)
 {
-	const char * const *profile_names;
-	const char * const *level_names;
 	struct coda_dev *dev = ctx->dev;
-	int profile, level;
+	int profile;
 
 	if (dev->devtype->product != CODA_HX4 &&
 	    dev->devtype->product != CODA_7541 &&
@@ -1600,24 +1598,9 @@ static bool coda_reorder_enable(struct coda_ctx *ctx)
 		return true;
 
 	profile = coda_h264_profile(ctx->params.h264_profile_idc);
-	if (profile < 0) {
-		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Profile: %d\n",
-			 ctx->params.h264_profile_idc);
-		return false;
-	}
-
-	level = coda_h264_level(ctx->params.h264_level_idc);
-	if (level < 0) {
-		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Level: %d\n",
-			 ctx->params.h264_level_idc);
-		return false;
-	}
-
-	profile_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_PROFILE);
-	level_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL);
-
-	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "H264 Profile/Level: %s L%s\n",
-		 profile_names[profile], level_names[level]);
+	if (profile < 0)
+		v4l2_warn(&dev->v4l2_dev, "Unknown H264 Profile: %u\n",
+			  ctx->params.h264_profile_idc);
 
 	/* Baseline profile does not support reordering */
 	return profile > V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
