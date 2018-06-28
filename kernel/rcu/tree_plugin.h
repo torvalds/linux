@@ -602,7 +602,7 @@ static bool rcu_preempt_need_deferred_qs(struct task_struct *t)
 {
 	return (this_cpu_ptr(&rcu_preempt_data)->deferred_qs ||
 		READ_ONCE(t->rcu_read_unlock_special.s)) &&
-	       !t->rcu_read_lock_nesting;
+	       t->rcu_read_lock_nesting <= 0;
 }
 
 /*
