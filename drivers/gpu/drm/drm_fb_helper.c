@@ -2326,17 +2326,10 @@ retry:
 static bool connector_has_possible_crtc(struct drm_connector *connector,
 					struct drm_crtc *crtc)
 {
+	struct drm_encoder *encoder;
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct drm_encoder *encoder;
-
-		if (connector->encoder_ids[i] == 0)
-			break;
-
-		encoder = drm_encoder_find(connector->dev, NULL,
-					   connector->encoder_ids[i]);
-
+	drm_connector_for_each_possible_encoder(connector, encoder, i) {
 		if (encoder->possible_crtcs & drm_crtc_mask(crtc))
 			return true;
 	}
