@@ -257,9 +257,7 @@ int intel_uc_init_misc(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return 0;
 
-	intel_guc_init_ggtt_pin_bias(guc);
-
-	ret = intel_guc_init_wq(guc);
+	ret = intel_guc_init_misc(guc);
 	if (ret)
 		return ret;
 
@@ -273,7 +271,7 @@ void intel_uc_fini_misc(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	intel_guc_fini_wq(guc);
+	intel_guc_fini_misc(guc);
 }
 
 int intel_uc_init(struct drm_i915_private *i915)

@@ -27,6 +27,8 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc);
+
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -73,7 +75,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
-int intel_guc_init_wq(struct intel_guc *guc)
+static int guc_init_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -124,7 +126,7 @@ int intel_guc_init_wq(struct intel_guc *guc)
 	return 0;
 }
 
-void intel_guc_fini_wq(struct intel_guc *guc)
+static void guc_fini_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -133,6 +135,24 @@ void intel_guc_fini_wq(struct intel_guc *guc)
 		destroy_workqueue(guc->preempt_wq);
 
 	destroy_workqueue(guc->log.relay.flush_wq);
+}
+
+int intel_guc_init_misc(struct intel_guc *guc)
+{
+	int ret;
+
+	guc_init_ggtt_pin_bias(guc);
+
+	ret = guc_init_wq(guc);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void intel_guc_fini_misc(struct intel_guc *guc)
+{
+	guc_fini_wq(guc);
 }
 
 static int guc_shared_data_create(struct intel_guc *guc)
@@ -582,13 +602,13 @@ int intel_guc_resume(struct intel_guc *guc)
  */
 
 /**
- * intel_guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
+ * guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
  * @guc: intel_guc structure.
  *
  * This function will calculate and initialize the ggtt_pin_bias value based on
  * overall WOPCM size and GuC WOPCM size.
  */
-void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc)
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
