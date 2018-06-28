@@ -715,16 +715,16 @@ int siox_master_register(struct siox_master *smaster)
 
 	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
 
+	mutex_init(&smaster->lock);
+	INIT_LIST_HEAD(&smaster->devices);
+
 	smaster->last_poll = jiffies;
-	smaster->poll_thread = kthread_create(siox_poll_thread, smaster,
-					      "siox-%d", smaster->busno);
+	smaster->poll_thread = kthread_run(siox_poll_thread, smaster,
+					   "siox-%d", smaster->busno);
 	if (IS_ERR(smaster->poll_thread)) {
 		smaster->active = 0;
 		return PTR_ERR(smaster->poll_thread);
 	}
-
-	mutex_init(&smaster->lock);
-	INIT_LIST_HEAD(&smaster->devices);
 
 	ret = device_add(&smaster->dev);
 	if (ret)
