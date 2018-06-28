@@ -14,6 +14,7 @@
 #include <drm/bridge/mhl.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -72,9 +73,7 @@ struct sii8620 {
 	struct regulator_bulk_data supplies[2];
 	struct mutex lock; /* context lock, protects fields below */
 	int error;
-	int pixel_clock;
 	unsigned int use_packed_pixel:1;
-	int video_code;
 	enum sii8620_mode mode;
 	enum sii8620_sink_type sink_type;
 	u8 cbus_status;
@@ -82,7 +81,6 @@ struct sii8620 {
 	u8 xstat[MHL_XDS_SIZE];
 	u8 devcap[MHL_DCAP_SIZE];
 	u8 xdevcap[MHL_XDC_SIZE];
-	u8 avif[HDMI_INFOFRAME_SIZE(AVI)];
 	bool feature_complete;
 	bool devcap_read;
 	bool sink_detected;
@@ -1082,18 +1080,28 @@ static ssize_t mhl3_infoframe_pack(struct mhl3_infoframe *frame,
 	return frm_len;
 }
 
-static void sii8620_set_infoframes(struct sii8620 *ctx)
+static void sii8620_set_infoframes(struct sii8620 *ctx,
+				   struct drm_display_mode *mode)
 {
 	struct mhl3_infoframe mhl_frm;
 	union hdmi_infoframe frm;
 	u8 buf[31];
 	int ret;
 
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
+						       mode,
+						       true);
+	if (ctx->use_packed_pixel)
+		frm.avi.colorspace = HDMI_COLORSPACE_YUV422;
+
+	if (!ret)
+		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, ARRAY_SIZE(buf));
+	if (ret > 0)
+		sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, buf + 3, ret - 3);
+
 	if (!sii8620_is_mhl3(ctx) || !ctx->use_packed_pixel) {
 		sii8620_write(ctx, REG_TPI_SC,
 			BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI);
-		sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, ctx->avif + 3,
-			ARRAY_SIZE(ctx->avif) - 3);
 		sii8620_write(ctx, REG_PKT_FILTER_0,
 			BIT_PKT_FILTER_0_DROP_CEA_GAMUT_PKT |
 			BIT_PKT_FILTER_0_DROP_MPEG_PKT |
@@ -1102,16 +1110,6 @@ static void sii8620_set_infoframes(struct sii8620 *ctx)
 		return;
 	}
 
-	ret = hdmi_avi_infoframe_init(&frm.avi);
-	frm.avi.colorspace = HDMI_COLORSPACE_YUV422;
-	frm.avi.active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
-	frm.avi.picture_aspect = HDMI_PICTURE_ASPECT_16_9;
-	frm.avi.colorimetry = HDMI_COLORIMETRY_ITU_709;
-	frm.avi.video_code = ctx->video_code;
-	if (!ret)
-		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, ARRAY_SIZE(buf));
-	if (ret > 0)
-		sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, buf + 3, ret - 3);
 	sii8620_write(ctx, REG_PKT_FILTER_0,
 		BIT_PKT_FILTER_0_DROP_CEA_GAMUT_PKT |
 		BIT_PKT_FILTER_0_DROP_MPEG_PKT |
@@ -1131,6 +1129,9 @@ static void sii8620_set_infoframes(struct sii8620 *ctx)
 
 static void sii8620_start_video(struct sii8620 *ctx)
 {
+	struct drm_display_mode *mode =
+		&ctx->bridge.encoder->crtc->state->adjusted_mode;
+
 	if (!sii8620_is_mhl3(ctx))
 		sii8620_stop_video(ctx);
 
@@ -1167,7 +1168,7 @@ static void sii8620_start_video(struct sii8620 *ctx)
 			  MHL_XDS_LINK_RATE_6_0_GBPS, 0x40 },
 		};
 		u8 p0_ctrl = BIT_M3_P0CTRL_MHL3_P0_PORT_EN;
-		int clk = ctx->pixel_clock * (ctx->use_packed_pixel ? 2 : 3);
+		int clk = mode->clock * (ctx->use_packed_pixel ? 2 : 3);
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(clk_spec) - 1; ++i)
@@ -1196,7 +1197,7 @@ static void sii8620_start_video(struct sii8620 *ctx)
 			clk_spec[i].link_rate);
 	}
 
-	sii8620_set_infoframes(ctx);
+	sii8620_set_infoframes(ctx, mode);
 }
 
 static void sii8620_disable_hpd(struct sii8620 *ctx)
@@ -2242,8 +2243,6 @@ static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 	mutex_lock(&ctx->lock);
 
 	ctx->use_packed_pixel = sii8620_is_packing_required(ctx, adjusted_mode);
-	ctx->video_code = drm_match_cea_mode(adjusted_mode);
-	ctx->pixel_clock = adjusted_mode->clock;
 
 	mutex_unlock(&ctx->lock);
 
