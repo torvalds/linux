@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <misc/cxl.h>
-#include <linux/msi.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/sched/mm.h>
@@ -595,73 +594,3 @@ int cxl_get_max_irqs_per_process(struct pci_dev *dev)
 	return afu->irqs_max;
 }
 EXPORT_SYMBOL_GPL(cxl_get_max_irqs_per_process);
-
-/*
- * This is a special interrupt allocation routine called from the PHB's MSI
- * setup function. When capi interrupts are allocated in this manner they must
- * still be associated with a running context, but since the MSI APIs have no
- * way to specify this we use the default context associated with the device.
- *
- * The Mellanox CX4 has a hardware limitation that restricts the maximum AFU
- * interrupt number, so in order to overcome this their driver informs us of
- * the restriction by setting the maximum interrupts per context, and we
- * allocate additional contexts as necessary so that we can keep the AFU
- * interrupt number within the supported range.
- */
-int _cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
-{
-	struct cxl_context *ctx, *new_ctx, *default_ctx;
-	int remaining;
-	int rc;
-
-	ctx = default_ctx = cxl_get_context(pdev);
-	if (WARN_ON(!default_ctx))
-		return -ENODEV;
-
-	remaining = nvec;
-	while (remaining > 0) {
-		rc = cxl_allocate_afu_irqs(ctx, min(remaining, ctx->afu->irqs_max));
-		if (rc) {
-			pr_warn("%s: Failed to find enough free MSIs\n", pci_name(pdev));
-			return rc;
-		}
-		remaining -= ctx->afu->irqs_max;
-
-		if (ctx != default_ctx && default_ctx->status == STARTED) {
-			WARN_ON(cxl_start_context(ctx,
-				be64_to_cpu(default_ctx->elem->common.wed),
-				NULL));
-		}
-
-		if (remaining > 0) {
-			new_ctx = cxl_dev_context_init(pdev);
-			if (IS_ERR(new_ctx)) {
-				pr_warn("%s: Failed to allocate enough contexts for MSIs\n", pci_name(pdev));
-				return -ENOSPC;
-			}
-			list_add(&new_ctx->extra_irq_contexts, &ctx->extra_irq_contexts);
-			ctx = new_ctx;
-		}
-	}
-
-	return 0;
-}
-/* Exported via cxl_base */
-
-void _cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev)
-{
-	struct cxl_context *ctx, *pos, *tmp;
-
-	ctx = cxl_get_context(pdev);
-	if (WARN_ON(!ctx))
-		return;
-
-	cxl_free_afu_irqs(ctx);
-	list_for_each_entry_safe(pos, tmp, &ctx->extra_irq_contexts, extra_irq_contexts) {
-		cxl_stop_context(pos);
-		cxl_free_afu_irqs(pos);
-		list_del(&pos->extra_irq_contexts);
-		cxl_release_context(pos);
-	}
-}
-/* Exported via cxl_base */

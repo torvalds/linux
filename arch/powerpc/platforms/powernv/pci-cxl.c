@@ -8,7 +8,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/msi.h>
 #include <asm/pci-bridge.h>
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
@@ -291,87 +290,4 @@ void pnv_cxl_disable_device(struct pci_dev *dev)
 
 	cxl_pci_disable_device(dev);
 	cxl_afu_put(afu);
-}
-
-/*
- * This is a special version of pnv_setup_msi_irqs for cards in cxl mode. This
- * function handles setting up the IVTE entries for the XSL to use.
- *
- * We are currently not filling out the MSIX table, since the only currently
- * supported adapter (CX4) uses a custom MSIX table format in cxl mode and it
- * is up to their driver to fill that out. In the future we may fill out the
- * MSIX table (and change the IVTE entries to be an index to the MSIX table)
- * for adapters implementing the Full MSI-X mode described in the CAIA.
- */
-int pnv_cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct msi_desc *entry;
-	struct cxl_context *ctx = NULL;
-	unsigned int virq;
-	int hwirq;
-	int afu_irq = 0;
-	int rc;
-
-	if (WARN_ON(!phb) || !phb->msi_bmp.bitmap)
-		return -ENODEV;
-
-	if (pdev->no_64bit_msi && !phb->msi32_support)
-		return -ENODEV;
-
-	rc = cxl_cx4_setup_msi_irqs(pdev, nvec, type);
-	if (rc)
-		return rc;
-
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->msi_attrib.is_64 && !phb->msi32_support) {
-			pr_warn("%s: Supports only 64-bit MSIs\n",
-				pci_name(pdev));
-			return -ENXIO;
-		}
-
-		hwirq = cxl_next_msi_hwirq(pdev, &ctx, &afu_irq);
-		if (WARN_ON(hwirq <= 0))
-			return (hwirq ? hwirq : -ENOMEM);
-
-		virq = irq_create_mapping(NULL, hwirq);
-		if (!virq) {
-			pr_warn("%s: Failed to map cxl mode MSI to linux irq\n",
-				pci_name(pdev));
-			return -ENOMEM;
-		}
-
-		rc = pnv_cxl_ioda_msi_setup(pdev, hwirq, virq);
-		if (rc) {
-			pr_warn("%s: Failed to setup cxl mode MSI\n", pci_name(pdev));
-			irq_dispose_mapping(virq);
-			return rc;
-		}
-
-		irq_set_msi_desc(virq, entry);
-	}
-
-	return 0;
-}
-
-void pnv_cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct msi_desc *entry;
-	irq_hw_number_t hwirq;
-
-	if (WARN_ON(!phb))
-		return;
-
-	for_each_pci_msi_entry(entry, pdev) {
-		if (!entry->irq)
-			continue;
-		hwirq = virq_to_hw(entry->irq);
-		irq_set_msi_desc(entry->irq, NULL);
-		irq_dispose_mapping(entry->irq);
-	}
-
-	cxl_cx4_teardown_msi_irqs(pdev);
 }
