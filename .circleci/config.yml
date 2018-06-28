@@ -6,7 +6,7 @@ do_steps: &do_steps
  steps:
   - run: echo "$CROSS_COMPILE" > ~/_cross_compile
   - restore_cache:
-      key: code-tree-shallow
+      key: code-tree-shallow-{{ .Environment.CACHE_VERSION }}
   - run:
       name: checkout build tree
       command: |
@@ -22,7 +22,7 @@ do_steps: &do_steps
         fi
         git reset --hard $CIRCLE_SHA1
   - save_cache:
-      key: code-tree-shallow-{{ epoch }}
+      key: code-tree-shallow-{{ .Environment.CACHE_VERSION }}-{{ epoch }}
       paths:
         - /home/ubuntu/project/.git
   - run:
@@ -33,7 +33,7 @@ do_steps: &do_steps
         rm -rf ~/junit
   - run: mkdir -p /home/ubuntu/.ccache
   - restore_cache:
-      key: compiler-cache-{{ checksum "~/_cross_compile" }}
+      key: compiler-cache-{{ checksum "~/_cross_compile" }}-{{ .Environment.CACHE_VERSION }}
   - run:
       name: build DPDK
       command: |
@@ -65,7 +65,7 @@ do_steps: &do_steps
   - save_cache:
      paths:
        - /home/ubuntu/.ccache
-     key: compiler-cache-{{ checksum "~/_cross_compile" }}-{{ epoch }}
+     key: compiler-cache-{{ checksum "~/_cross_compile" }}-{{ .Environment.CACHE_VERSION }}-{{ epoch }}
   - run:
       name: wait emulator to boot
       command: |
@@ -146,11 +146,11 @@ jobs:
    environment:
    steps:
      - restore_cache:
-        key: code-tree-full-history
+        key: code-tree-full-history-{{ .Environment.CACHE_VERSION }}
      - checkout
      - run: tools/lkl/scripts/checkpatch.sh
      - save_cache:
-        key: code-tree-full-history-{{ epoch }}
+        key: code-tree-full-history-{{ .Environment.CACHE_VERSION }}-{{ epoch }}
         paths:
           - /home/ubuntu/project/.git
         when: always
