@@ -1865,8 +1865,8 @@ void *bpf_object__priv(struct bpf_object *obj)
 	return obj ? obj->priv : ERR_PTR(-EINVAL);
 }
 
-struct bpf_program *
-bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+static struct bpf_program *
+__bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 {
 	size_t idx;
 
@@ -1885,6 +1885,18 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 	if (idx >= obj->nr_programs)
 		return NULL;
 	return &obj->programs[idx];
+}
+
+struct bpf_program *
+bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+{
+	struct bpf_program *prog = prev;
+
+	do {
+		prog = __bpf_program__next(prog, obj);
+	} while (prog && bpf_program__is_function_storage(prog, obj));
+
+	return prog;
 }
 
 int bpf_program__set_priv(struct bpf_program *prog, void *priv,
