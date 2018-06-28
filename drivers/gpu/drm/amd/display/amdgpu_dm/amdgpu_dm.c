@@ -4206,6 +4206,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_connector *connector;
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+	int crtc_disable_count = 0;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 
@@ -4410,6 +4411,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		bool modeset_needed;
 
+		if (old_crtc_state->active && !new_crtc_state->active)
+			crtc_disable_count++;
+
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 		modeset_needed = modeset_required(
@@ -4463,11 +4467,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 * so we can put the GPU into runtime suspend if we're not driving any
 	 * displays anymore
 	 */
+	for (i = 0; i < crtc_disable_count; i++)
+		pm_runtime_put_autosuspend(dev->dev);
 	pm_runtime_mark_last_busy(dev->dev);
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		if (old_crtc_state->active && !new_crtc_state->active)
-			pm_runtime_put_autosuspend(dev->dev);
-	}
 }
 
 
