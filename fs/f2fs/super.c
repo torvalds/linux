@@ -2971,7 +2971,8 @@ try_onemore:
 		err = PTR_ERR(root);
 		goto free_stats;
 	}
-	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
+	if (!S_ISDIR(root->i_mode) || !root->i_blocks ||
+			!root->i_size || !root->i_nlink) {
 		iput(root);
 		err = -EINVAL;
 		goto free_stats;
