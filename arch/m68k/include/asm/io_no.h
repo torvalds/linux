@@ -133,6 +133,5 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 
 #include <asm/kmap.h>
 #include <asm/virtconvert.h>
-#include <asm-generic/io.h>
 
 #endif /* _M68KNOMMU_IO_H */
