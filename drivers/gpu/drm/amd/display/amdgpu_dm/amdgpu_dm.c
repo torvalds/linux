@@ -3928,9 +3928,10 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	if (acrtc->base.state->event)
 		prepare_flip_isr(acrtc);
 
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 	surface_updates->surface = dc_stream_get_status(acrtc_state->stream)->plane_states[0];
 	surface_updates->flip_addr = &addr;
-
 
 	dc_commit_updates_for_stream(adev->dm.dc,
 					     surface_updates,
@@ -3944,9 +3945,6 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 			 __func__,
 			 addr.address.grph.addr.high_part,
 			 addr.address.grph.addr.low_part);
-
-
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
 /*
