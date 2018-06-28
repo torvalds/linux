@@ -358,9 +358,6 @@ static int smc_pnet_add(struct sk_buff *skb, struct genl_info *info)
 		kfree(pnetelem);
 		return rc;
 	}
-	rc = smc_ib_remember_port_attr(pnetelem->smcibdev, pnetelem->ib_port);
-	if (rc)
-		smc_pnet_remove_by_pnetid(pnetelem->pnet_name);
 	return rc;
 }
 
@@ -485,10 +482,10 @@ static int smc_pnet_netdev_event(struct notifier_block *this,
 	case NETDEV_REBOOT:
 	case NETDEV_UNREGISTER:
 		smc_pnet_remove_by_ndev(event_dev);
+		return NOTIFY_OK;
 	default:
-		break;
+		return NOTIFY_DONE;
 	}
-	return NOTIFY_DONE;
 }
 
 static struct notifier_block smc_netdev_notifier = {

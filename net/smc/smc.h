@@ -21,8 +21,6 @@
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
-#define SMC_MAX_PORTS		2	/* Max # of ports */
-
 extern struct proto smc_proto;
 extern struct proto smc_proto6;
 
