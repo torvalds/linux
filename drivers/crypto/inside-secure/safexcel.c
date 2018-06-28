@@ -927,6 +927,9 @@ static int safexcel_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->version = (enum safexcel_eip_version)of_device_get_match_data(dev);
 
+	if (priv->version == EIP197B)
+		priv->flags |= EIP197_TRC_CACHE;
+
 	safexcel_init_register_offsets(priv);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

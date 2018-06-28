@@ -546,6 +546,10 @@ struct safexcel_register_offsets {
 	u32 pe;
 };
 
+enum safexcel_flags {
+	EIP197_TRC_CACHE = BIT(0),
+};
+
 struct safexcel_crypto_priv {
 	void __iomem *base;
 	struct device *dev;
@@ -555,6 +559,7 @@ struct safexcel_crypto_priv {
 
 	enum safexcel_eip_version version;
 	struct safexcel_register_offsets offsets;
+	u32 flags;
 
 	/* context DMA pool */
 	struct dma_pool *context_pool;
