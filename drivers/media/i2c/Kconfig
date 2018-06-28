@@ -1033,6 +1033,7 @@ config VIDEO_I2C
 	tristate "I2C transport video support"
 	depends on VIDEO_V4L2 && I2C
 	select VIDEOBUF2_VMALLOC
+	imply HWMON
 	---help---
 	  Enable the I2C transport video support which supports the
 	  following:
