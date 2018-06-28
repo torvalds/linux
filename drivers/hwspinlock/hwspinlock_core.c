@@ -877,10 +877,10 @@ struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
 
 	ptr = devres_alloc(devm_hwspin_lock_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	hwlock = hwspin_lock_request();
-	if (!IS_ERR(hwlock)) {
+	if (hwlock) {
 		*ptr = hwlock;
 		devres_add(dev, ptr);
 	} else {
@@ -913,10 +913,10 @@ struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
 
 	ptr = devres_alloc(devm_hwspin_lock_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	hwlock = hwspin_lock_request_specific(id);
-	if (!IS_ERR(hwlock)) {
+	if (hwlock) {
 		*ptr = hwlock;
 		devres_add(dev, ptr);
 	} else {
