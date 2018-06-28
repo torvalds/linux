@@ -1886,9 +1886,6 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			dev_err(&dev->dev, "AFU %i failed to start: %i\n", slice, rc);
 	}
 
-	if (pnv_pci_on_cxl_phb(dev) && adapter->slices >= 1)
-		pnv_cxl_phb_set_peer_afu(dev, adapter->afu[0]);
-
 	return 0;
 }
 
