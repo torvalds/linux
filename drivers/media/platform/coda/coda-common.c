@@ -933,6 +933,40 @@ static int coda_g_selection(struct file *file, void *fh,
 	return 0;
 }
 
+static int coda_s_selection(struct file *file, void *fh,
+			    struct v4l2_selection *s)
+{
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+	struct coda_q_data *q_data;
+
+	if (ctx->inst_type == CODA_INST_ENCODER &&
+	    s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+	    s->target == V4L2_SEL_TGT_CROP) {
+		q_data = get_q_data(ctx, s->type);
+		if (!q_data)
+			return -EINVAL;
+
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = clamp(s->r.width, 2U, q_data->width);
+		s->r.height = clamp(s->r.height, 2U, q_data->height);
+
+		if (s->flags & V4L2_SEL_FLAG_LE) {
+			s->r.width = round_up(s->r.width, 2);
+			s->r.height = round_up(s->r.height, 2);
+		} else {
+			s->r.width = round_down(s->r.width, 2);
+			s->r.height = round_down(s->r.height, 2);
+		}
+
+		q_data->rect = s->r;
+
+		return 0;
+	}
+
+	return coda_g_selection(file, fh, s);
+}
+
 static int coda_try_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *ec)
 {
@@ -1146,6 +1180,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_streamoff	= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_selection	= coda_g_selection,
+	.vidioc_s_selection	= coda_s_selection,
 
 	.vidioc_try_encoder_cmd	= coda_try_encoder_cmd,
 	.vidioc_encoder_cmd	= coda_encoder_cmd,
@@ -1587,12 +1622,12 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		goto out;
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	if ((q_data_src->width != q_data_dst->width &&
-	     round_up(q_data_src->width, 16) != q_data_dst->width) ||
-	    (q_data_src->height != q_data_dst->height &&
-	     round_up(q_data_src->height, 16) != q_data_dst->height)) {
+	if ((q_data_src->rect.width != q_data_dst->width &&
+	     round_up(q_data_src->rect.width, 16) != q_data_dst->width) ||
+	    (q_data_src->rect.height != q_data_dst->height &&
+	     round_up(q_data_src->rect.height, 16) != q_data_dst->height)) {
 		v4l2_err(v4l2_dev, "can't convert %dx%d to %dx%d\n",
-			 q_data_src->width, q_data_src->height,
+			 q_data_src->rect.width, q_data_src->rect.height,
 			 q_data_dst->width, q_data_dst->height);
 		ret = -EINVAL;
 		goto err;

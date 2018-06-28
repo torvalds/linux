@@ -398,10 +398,10 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 ||
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4)
-		ysize = round_up(q_data->width, 16) *
-			round_up(q_data->height, 16);
+		ysize = round_up(q_data->rect.width, 16) *
+			round_up(q_data->rect.height, 16);
 	else
-		ysize = round_up(q_data->width, 8) * q_data->height;
+		ysize = round_up(q_data->rect.width, 8) * q_data->rect.height;
 
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
 		ycbcr_size = round_up(ysize, 4096) + ysize / 2;
@@ -497,8 +497,8 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 
 	if (!ctx->slicebuf.vaddr && q_data->fourcc == V4L2_PIX_FMT_H264) {
 		/* worst case slice size */
-		size = (DIV_ROUND_UP(q_data->width, 16) *
-			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
+		size = (DIV_ROUND_UP(q_data->rect.width, 16) *
+			DIV_ROUND_UP(q_data->rect.height, 16)) * 3200 / 8 + 512;
 		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size,
 					     "slicebuf");
 		if (ret < 0)
@@ -630,7 +630,7 @@ static void coda_setup_iram(struct coda_ctx *ctx)
 		struct coda_q_data *q_data_src;
 
 		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
-		mb_width = DIV_ROUND_UP(q_data_src->width, 16);
+		mb_width = DIV_ROUND_UP(q_data_src->rect.width, 16);
 		w128 = mb_width * 128;
 		w64 = mb_width * 64;
 
@@ -927,25 +927,25 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	value = 0;
 	switch (dev->devtype->product) {
 	case CODA_DX6:
-		value = (q_data_src->width & CODADX6_PICWIDTH_MASK)
+		value = (q_data_src->rect.width & CODADX6_PICWIDTH_MASK)
 			<< CODADX6_PICWIDTH_OFFSET;
-		value |= (q_data_src->height & CODADX6_PICHEIGHT_MASK)
+		value |= (q_data_src->rect.height & CODADX6_PICHEIGHT_MASK)
 			 << CODA_PICHEIGHT_OFFSET;
 		break;
 	case CODA_HX4:
 	case CODA_7541:
 		if (dst_fourcc == V4L2_PIX_FMT_H264) {
-			value = (round_up(q_data_src->width, 16) &
+			value = (round_up(q_data_src->rect.width, 16) &
 				 CODA7_PICWIDTH_MASK) << CODA7_PICWIDTH_OFFSET;
-			value |= (round_up(q_data_src->height, 16) &
+			value |= (round_up(q_data_src->rect.height, 16) &
 				 CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 			break;
 		}
 		/* fallthrough */
 	case CODA_960:
-		value = (q_data_src->width & CODA7_PICWIDTH_MASK)
+		value = (q_data_src->rect.width & CODA7_PICWIDTH_MASK)
 			<< CODA7_PICWIDTH_OFFSET;
-		value |= (q_data_src->height & CODA7_PICHEIGHT_MASK)
+		value |= (q_data_src->rect.height & CODA7_PICHEIGHT_MASK)
 			 << CODA_PICHEIGHT_OFFSET;
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_SRC_SIZE);
