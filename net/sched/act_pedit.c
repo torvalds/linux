@@ -136,15 +136,15 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
-	struct nlattr *pattr;
-	struct tc_pedit *parm;
-	int ret = 0, err;
-	struct tcf_pedit *p;
 	struct tc_pedit_key *keys = NULL;
 	struct tcf_pedit_key_ex *keys_ex;
+	struct tc_pedit *parm;
+	struct nlattr *pattr;
+	struct tcf_pedit *p;
+	int ret = 0, err;
 	int ksize;
 
-	if (nla == NULL)
+	if (!nla)
 		return -EINVAL;
 
 	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy, NULL);
@@ -175,7 +175,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			return ret;
 		p = to_pedit(*a);
 		keys = kmalloc(ksize, GFP_KERNEL);
-		if (keys == NULL) {
+		if (!keys) {
 			tcf_idr_release(*a, bind);
 			kfree(keys_ex);
 			return -ENOMEM;
@@ -220,6 +220,7 @@ static void tcf_pedit_cleanup(struct tc_action *a)
 {
 	struct tcf_pedit *p = to_pedit(a);
 	struct tc_pedit_key *keys = p->tcfp_keys;
+
 	kfree(keys);
 	kfree(p->tcfp_keys_ex);
 }
@@ -284,11 +285,12 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 	if (p->tcfp_nkeys > 0) {
 		struct tc_pedit_key *tkey = p->tcfp_keys;
 		struct tcf_pedit_key_ex *tkey_ex = p->tcfp_keys_ex;
-		enum pedit_header_type htype = TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK;
+		enum pedit_header_type htype =
+			TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK;
 		enum pedit_cmd cmd = TCA_PEDIT_KEY_EX_CMD_SET;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
-			u32 *ptr, _data;
+			u32 *ptr, hdata;
 			int offset = tkey->off;
 			int hoffset;
 			u32 val;
@@ -303,39 +305,39 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 
 			rc = pedit_skb_hdr_offset(skb, htype, &hoffset);
 			if (rc) {
-				pr_info("tc filter pedit bad header type specified (0x%x)\n",
+				pr_info("tc action pedit bad header type specified (0x%x)\n",
 					htype);
 				goto bad;
 			}
 
 			if (tkey->offmask) {
-				char *d, _d;
+				u8 *d, _d;
 
 				if (!offset_valid(skb, hoffset + tkey->at)) {
-					pr_info("tc filter pedit 'at' offset %d out of bounds\n",
+					pr_info("tc action pedit 'at' offset %d out of bounds\n",
 						hoffset + tkey->at);
 					goto bad;
 				}
-				d = skb_header_pointer(skb, hoffset + tkey->at, 1,
-						       &_d);
+				d = skb_header_pointer(skb, hoffset + tkey->at,
+						       sizeof(_d), &_d);
 				if (!d)
 					goto bad;
 				offset += (*d & tkey->offmask) >> tkey->shift;
 			}
 
 			if (offset % 4) {
-				pr_info("tc filter pedit"
-					" offset must be on 32 bit boundaries\n");
+				pr_info("tc action pedit offset must be on 32 bit boundaries\n");
 				goto bad;
 			}
 
 			if (!offset_valid(skb, hoffset + offset)) {
-				pr_info("tc filter pedit offset %d out of bounds\n",
+				pr_info("tc action pedit offset %d out of bounds\n",
 					hoffset + offset);
 				goto bad;
 			}
 
-			ptr = skb_header_pointer(skb, hoffset + offset, 4, &_data);
+			ptr = skb_header_pointer(skb, hoffset + offset,
+						 sizeof(hdata), &hdata);
 			if (!ptr)
 				goto bad;
 			/* just do it, baby */
@@ -347,19 +349,20 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 				val = (*ptr + tkey->val) & ~tkey->mask;
 				break;
 			default:
-				pr_info("tc filter pedit bad command (%d)\n",
+				pr_info("tc action pedit bad command (%d)\n",
 					cmd);
 				goto bad;
 			}
 
 			*ptr = ((*ptr & tkey->mask) ^ val);
-			if (ptr == &_data)
+			if (ptr == &hdata)
 				skb_store_bits(skb, hoffset + offset, ptr, 4);
 		}
 
 		goto done;
-	} else
+	} else {
 		WARN(1, "pedit BUG: index %d\n", p->tcf_index);
+	}
 
 bad:
 	p->tcf_qstats.overlimits++;
