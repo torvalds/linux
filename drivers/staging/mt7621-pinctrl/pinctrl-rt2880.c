@@ -99,7 +99,7 @@ static void rt2880_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctrldev,
 					     struct device_node *np,
 					     struct pinctrl_map **map)
 {
-        const char *function;
+	const char *function;
 	int func = of_property_read_string(np, "ralink,function", &function);
 	int grps = of_property_count_strings(np, "ralink,group");
 	int i;
@@ -108,7 +108,7 @@ static void rt2880_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctrldev,
 		return;
 
 	for (i = 0; i < grps; i++) {
-	        const char *group;
+		const char *group;
 
 		of_property_read_string_index(np, "ralink,group", i, &group);
 
@@ -197,7 +197,7 @@ static int rt2880_pmx_group_enable(struct pinctrl_dev *pctrldev,
 				   unsigned int func, unsigned int group)
 {
 	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
-        u32 mode = 0;
+	u32 mode = 0;
 	u32 reg = SYSC_REG_GPIO_MODE;
 	int i;
 	int shift;
