@@ -34,7 +34,6 @@
 
 #define RTL8169_VERSION "2.3LK-NAPI"
 #define MODULENAME "r8169"
-#define PFX MODULENAME ": "
 
 #define FIRMWARE_8168D_1	"rtl_nic/rtl8168d-1.fw"
 #define FIRMWARE_8168D_2	"rtl_nic/rtl8168d-2.fw"
@@ -55,19 +54,6 @@
 #define FIRMWARE_8168H_2	"rtl_nic/rtl8168h-2.fw"
 #define FIRMWARE_8107E_1	"rtl_nic/rtl8107e-1.fw"
 #define FIRMWARE_8107E_2	"rtl_nic/rtl8107e-2.fw"
-
-#ifdef RTL8169_DEBUG
-#define assert(expr) \
-	if (!(expr)) {					\
-		printk( "Assertion failed! %s,%s,%s,line=%d\n",	\
-		#expr,__FILE__,__func__,__LINE__);		\
-	}
-#define dprintk(fmt, args...) \
-	do { printk(KERN_DEBUG PFX fmt, ## args); } while (0)
-#else
-#define assert(expr) do {} while (0)
-#define dprintk(fmt, args...)	do {} while (0)
-#endif /* RTL8169_DEBUG */
 
 #define R8169_MSG_DEFAULT \
 	(NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
@@ -2552,7 +2538,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 
 static void rtl8169_print_mac_version(struct rtl8169_private *tp)
 {
-	dprintk("mac_version = 0x%02x\n", tp->mac_version);
+	netif_dbg(tp, drv, tp->dev, "mac_version = 0x%02x\n", tp->mac_version);
 }
 
 struct phy_reg {
@@ -4409,8 +4395,6 @@ static void rtl_phy_work(struct rtl8169_private *tp)
 	struct timer_list *timer = &tp->timer;
 	unsigned long timeout = RTL8169_PHY_TIMEOUT;
 
-	assert(tp->mac_version > RTL_GIGA_MAC_VER_01);
-
 	if (tp->phy_reset_pending(tp)) {
 		/*
 		 * A busy loop could burn quite a few cycles on nowadays CPU.
@@ -4467,7 +4451,8 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	rtl_hw_phy_config(dev);
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06) {
-		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+		netif_dbg(tp, drv, dev,
+			  "Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
 		RTL_W8(tp, 0x82, 0x01);
 	}
 
@@ -4477,9 +4462,11 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02) {
-		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
+		netif_dbg(tp, drv, dev,
+			  "Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
 		RTL_W8(tp, 0x82, 0x01);
-		dprintk("Set PHY Reg 0x0bh = 0x00h\n");
+		netif_dbg(tp, drv, dev,
+			  "Set PHY Reg 0x0bh = 0x00h\n");
 		rtl_writephy(tp, 0x0b, 0x0000); //w 0x0b 15 0 0
 	}
 
@@ -5171,8 +5158,8 @@ static void rtl_hw_start_8169(struct rtl8169_private *tp)
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_03) {
-		dprintk("Set MAC Reg C+CR Offset 0xe0. "
-			"Bit-3 and bit-14 MUST be 1\n");
+		netif_dbg(tp, drv, tp->dev,
+			  "Set MAC Reg C+CR Offset 0xe0. Bit 3 and Bit 14 MUST be 1\n");
 		tp->cp_cmd |= (1 << 14);
 	}
 
@@ -6017,8 +6004,9 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 		break;
 
 	default:
-		printk(KERN_ERR PFX "%s: unknown chipset (mac_version = %d).\n",
-		       tp->dev->name, tp->mac_version);
+		netif_err(tp, drv, tp->dev,
+			  "unknown chipset (mac_version = %d)\n",
+			  tp->mac_version);
 		break;
 	}
 }
