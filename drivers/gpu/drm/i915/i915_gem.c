@@ -5459,13 +5459,13 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	ret = intel_wopcm_init(&dev_priv->wopcm);
-	if (ret)
-		return ret;
-
 	ret = intel_uc_init_misc(dev_priv);
 	if (ret)
 		return ret;
+
+	ret = intel_wopcm_init(&dev_priv->wopcm);
+	if (ret)
+		goto err_uc_misc;
 
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -5563,6 +5563,7 @@ err_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+err_uc_misc:
 	intel_uc_fini_misc(dev_priv);
 
 	if (ret != -EIO)

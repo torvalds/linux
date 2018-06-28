@@ -139,6 +139,7 @@ static void guc_fini_wq(struct intel_guc *guc)
 
 int intel_guc_init_misc(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 	int ret;
 
 	guc_init_ggtt_pin_bias(guc);
@@ -147,11 +148,14 @@ int intel_guc_init_misc(struct intel_guc *guc)
 	if (ret)
 		return ret;
 
+	intel_uc_fw_fetch(i915, &guc->fw);
+
 	return 0;
 }
 
 void intel_guc_fini_misc(struct intel_guc *guc)
 {
+	intel_uc_fw_fini(&guc->fw);
 	guc_fini_wq(guc);
 }
 
@@ -189,7 +193,7 @@ int intel_guc_init(struct intel_guc *guc)
 
 	ret = guc_shared_data_create(guc);
 	if (ret)
-		return ret;
+		goto err_fetch;
 	GEM_BUG_ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(&guc->log);
@@ -210,6 +214,8 @@ err_log:
 	intel_guc_log_destroy(&guc->log);
 err_shared:
 	guc_shared_data_destroy(guc);
+err_fetch:
+	intel_uc_fw_fini(&guc->fw);
 	return ret;
 }
 
@@ -221,6 +227,7 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
+	intel_uc_fw_fini(&guc->fw);
 }
 
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
