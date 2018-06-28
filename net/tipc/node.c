@@ -551,21 +551,23 @@ static void tipc_node_timeout(struct timer_list *t)
 	struct tipc_node *n = from_timer(n, t, timer);
 	struct tipc_link_entry *le;
 	struct sk_buff_head xmitq;
+	int remains = n->link_cnt;
 	int bearer_id;
 	int rc = 0;
 
 	__skb_queue_head_init(&xmitq);
 
-	for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
+	for (bearer_id = 0; remains && (bearer_id < MAX_BEARERS); bearer_id++) {
 		tipc_node_read_lock(n);
 		le = &n->links[bearer_id];
-		spin_lock_bh(&le->lock);
 		if (le->link) {
+			spin_lock_bh(&le->lock);
 			/* Link tolerance may change asynchronously: */
 			tipc_node_calculate_timer(n, le->link);
 			rc = tipc_link_timeout(le->link, &xmitq);
+			spin_unlock_bh(&le->lock);
+			remains--;
 		}
-		spin_unlock_bh(&le->lock);
 		tipc_node_read_unlock(n);
 		tipc_bearer_xmit(n->net, bearer_id, &xmitq, &le->maddr);
 		if (rc & TIPC_LINK_DOWN_EVT)
