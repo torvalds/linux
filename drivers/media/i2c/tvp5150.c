@@ -801,6 +801,11 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	}
 }
 
+static const struct v4l2_event tvp5150_ev_fmt = {
+	.type = V4L2_EVENT_SOURCE_CHANGE,
+	.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+};
+
 static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 {
 	struct tvp5150 *decoder = dev_id;
@@ -816,6 +821,7 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 
 		if (status & TVP5150_INT_A_LOCK) {
 			decoder->lock = !!(status & TVP5150_INT_A_LOCK_STATUS);
+			v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
 			regmap_update_bits(map, TVP5150_MISC_CTL, mask,
 					   decoder->lock ? decoder->oe : 0);
 		}
@@ -1183,6 +1189,7 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 		/* Enable outputs if decoder is locked */
 		val = decoder->lock ? decoder->oe : 0;
 		int_val = TVP5150_INT_A_LOCK;
+		v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
 	}
 
 	regmap_update_bits(decoder->regmap, TVP5150_MISC_CTL, mask, val);
@@ -1398,7 +1405,6 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
 	.registered = tvp5150_registered,
 };
-
 
 /****************************************************************************
 			I2C Client & Driver
