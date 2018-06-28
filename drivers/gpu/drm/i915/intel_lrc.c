@@ -955,166 +955,162 @@ static void process_csb(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
 	struct drm_i915_private *i915 = engine->i915;
+
+	/* The HWSP contains a (cacheable) mirror of the CSB */
+	const u32 *buf =
+		&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+	unsigned int head, tail;
 	bool fw = false;
 
-	do {
-		/* The HWSP contains a (cacheable) mirror of the CSB */
-		const u32 *buf =
-			&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
-		unsigned int head, tail;
+	/* Clear before reading to catch new interrupts */
+	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+	smp_mb__after_atomic();
 
-		/* Clear before reading to catch new interrupts */
-		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		smp_mb__after_atomic();
+	if (unlikely(execlists->csb_use_mmio)) {
+		intel_uncore_forcewake_get(i915, execlists->fw_domains);
+		fw = true;
 
-		if (unlikely(execlists->csb_use_mmio)) {
-			if (!fw) {
-				intel_uncore_forcewake_get(i915, execlists->fw_domains);
-				fw = true;
-			}
+		buf = (u32 * __force)
+			(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
 
-			buf = (u32 * __force)
-				(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
+		head = readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
+		tail = GEN8_CSB_WRITE_PTR(head);
+		head = GEN8_CSB_READ_PTR(head);
+		execlists->csb_head = head;
+	} else {
+		const int write_idx =
+			intel_hws_csb_write_index(i915) -
+			I915_HWS_CSB_BUF0_INDEX;
 
-			head = readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
-			tail = GEN8_CSB_WRITE_PTR(head);
-			head = GEN8_CSB_READ_PTR(head);
-			execlists->csb_head = head;
-		} else {
-			const int write_idx =
-				intel_hws_csb_write_index(i915) -
-				I915_HWS_CSB_BUF0_INDEX;
+		head = execlists->csb_head;
+		tail = READ_ONCE(buf[write_idx]);
+		rmb(); /* Hopefully paired with a wmb() in HW */
+	}
+	GEM_TRACE("%s cs-irq head=%d [%d%s], tail=%d [%d%s]\n",
+		  engine->name,
+		  head, GEN8_CSB_READ_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?",
+		  tail, GEN8_CSB_WRITE_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?");
 
-			head = execlists->csb_head;
-			tail = READ_ONCE(buf[write_idx]);
-			rmb(); /* Hopefully paired with a wmb() in HW */
+	while (head != tail) {
+		struct i915_request *rq;
+		unsigned int status;
+		unsigned int count;
+
+		if (++head == GEN8_CSB_ENTRIES)
+			head = 0;
+
+		/*
+		 * We are flying near dragons again.
+		 *
+		 * We hold a reference to the request in execlist_port[]
+		 * but no more than that. We are operating in softirq
+		 * context and so cannot hold any mutex or sleep. That
+		 * prevents us stopping the requests we are processing
+		 * in port[] from being retired simultaneously (the
+		 * breadcrumb will be complete before we see the
+		 * context-switch). As we only hold the reference to the
+		 * request, any pointer chasing underneath the request
+		 * is subject to a potential use-after-free. Thus we
+		 * store all of the bookkeeping within port[] as
+		 * required, and avoid using unguarded pointers beneath
+		 * request itself. The same applies to the atomic
+		 * status notifier.
+		 */
+
+		status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
+		GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x, active=0x%x\n",
+			  engine->name, head,
+			  status, buf[2*head + 1],
+			  execlists->active);
+
+		if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
+			      GEN8_CTX_STATUS_PREEMPTED))
+			execlists_set_active(execlists,
+					     EXECLISTS_ACTIVE_HWACK);
+		if (status & GEN8_CTX_STATUS_ACTIVE_IDLE)
+			execlists_clear_active(execlists,
+					       EXECLISTS_ACTIVE_HWACK);
+
+		if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
+			continue;
+
+		/* We should never get a COMPLETED | IDLE_ACTIVE! */
+		GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
+
+		if (status & GEN8_CTX_STATUS_COMPLETE &&
+		    buf[2*head + 1] == execlists->preempt_complete_status) {
+			GEM_TRACE("%s preempt-idle\n", engine->name);
+			complete_preempt_context(execlists);
+			continue;
 		}
-		GEM_TRACE("%s cs-irq head=%d [%d%s], tail=%d [%d%s]\n",
+
+		if (status & GEN8_CTX_STATUS_PREEMPTED &&
+		    execlists_is_active(execlists,
+					EXECLISTS_ACTIVE_PREEMPT))
+			continue;
+
+		GEM_BUG_ON(!execlists_is_active(execlists,
+						EXECLISTS_ACTIVE_USER));
+
+		rq = port_unpack(port, &count);
+		GEM_TRACE("%s out[0]: ctx=%d.%d, global=%d (fence %llx:%d) (current %d), prio=%d\n",
 			  engine->name,
-			  head, GEN8_CSB_READ_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?",
-			  tail, GEN8_CSB_WRITE_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?");
+			  port->context_id, count,
+			  rq ? rq->global_seqno : 0,
+			  rq ? rq->fence.context : 0,
+			  rq ? rq->fence.seqno : 0,
+			  intel_engine_get_seqno(engine),
+			  rq ? rq_prio(rq) : 0);
 
-		while (head != tail) {
-			struct i915_request *rq;
-			unsigned int status;
-			unsigned int count;
+		/* Check the context/desc id for this event matches */
+		GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
 
-			if (++head == GEN8_CSB_ENTRIES)
-				head = 0;
+		GEM_BUG_ON(count == 0);
+		if (--count == 0) {
+			/*
+			 * On the final event corresponding to the
+			 * submission of this context, we expect either
+			 * an element-switch event or a completion
+			 * event (and on completion, the active-idle
+			 * marker). No more preemptions, lite-restore
+			 * or otherwise.
+			 */
+			GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
+			GEM_BUG_ON(port_isset(&port[1]) &&
+				   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
+			GEM_BUG_ON(!port_isset(&port[1]) &&
+				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
 
 			/*
-			 * We are flying near dragons again.
-			 *
-			 * We hold a reference to the request in execlist_port[]
-			 * but no more than that. We are operating in softirq
-			 * context and so cannot hold any mutex or sleep. That
-			 * prevents us stopping the requests we are processing
-			 * in port[] from being retired simultaneously (the
-			 * breadcrumb will be complete before we see the
-			 * context-switch). As we only hold the reference to the
-			 * request, any pointer chasing underneath the request
-			 * is subject to a potential use-after-free. Thus we
-			 * store all of the bookkeeping within port[] as
-			 * required, and avoid using unguarded pointers beneath
-			 * request itself. The same applies to the atomic
-			 * status notifier.
+			 * We rely on the hardware being strongly
+			 * ordered, that the breadcrumb write is
+			 * coherent (visible from the CPU) before the
+			 * user interrupt and CSB is processed.
 			 */
+			GEM_BUG_ON(!i915_request_completed(rq));
 
-			status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
-			GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x, active=0x%x\n",
-				  engine->name, head,
-				  status, buf[2*head + 1],
-				  execlists->active);
+			execlists_context_schedule_out(rq,
+						       INTEL_CONTEXT_SCHEDULE_OUT);
+			i915_request_put(rq);
 
-			if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
-				      GEN8_CTX_STATUS_PREEMPTED))
-				execlists_set_active(execlists,
-						     EXECLISTS_ACTIVE_HWACK);
-			if (status & GEN8_CTX_STATUS_ACTIVE_IDLE)
-				execlists_clear_active(execlists,
-						       EXECLISTS_ACTIVE_HWACK);
+			GEM_TRACE("%s completed ctx=%d\n",
+				  engine->name, port->context_id);
 
-			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
-				continue;
-
-			/* We should never get a COMPLETED | IDLE_ACTIVE! */
-			GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
-
-			if (status & GEN8_CTX_STATUS_COMPLETE &&
-			    buf[2*head + 1] == execlists->preempt_complete_status) {
-				GEM_TRACE("%s preempt-idle\n", engine->name);
-				complete_preempt_context(execlists);
-				continue;
-			}
-
-			if (status & GEN8_CTX_STATUS_PREEMPTED &&
-			    execlists_is_active(execlists,
-						EXECLISTS_ACTIVE_PREEMPT))
-				continue;
-
-			GEM_BUG_ON(!execlists_is_active(execlists,
-							EXECLISTS_ACTIVE_USER));
-
-			rq = port_unpack(port, &count);
-			GEM_TRACE("%s out[0]: ctx=%d.%d, global=%d (fence %llx:%d) (current %d), prio=%d\n",
-				  engine->name,
-				  port->context_id, count,
-				  rq ? rq->global_seqno : 0,
-				  rq ? rq->fence.context : 0,
-				  rq ? rq->fence.seqno : 0,
-				  intel_engine_get_seqno(engine),
-				  rq ? rq_prio(rq) : 0);
-
-			/* Check the context/desc id for this event matches */
-			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
-
-			GEM_BUG_ON(count == 0);
-			if (--count == 0) {
-				/*
-				 * On the final event corresponding to the
-				 * submission of this context, we expect either
-				 * an element-switch event or a completion
-				 * event (and on completion, the active-idle
-				 * marker). No more preemptions, lite-restore
-				 * or otherwise.
-				 */
-				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
-				GEM_BUG_ON(port_isset(&port[1]) &&
-					   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
-				GEM_BUG_ON(!port_isset(&port[1]) &&
-					   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
-
-				/*
-				 * We rely on the hardware being strongly
-				 * ordered, that the breadcrumb write is
-				 * coherent (visible from the CPU) before the
-				 * user interrupt and CSB is processed.
-				 */
-				GEM_BUG_ON(!i915_request_completed(rq));
-
-				execlists_context_schedule_out(rq,
-							       INTEL_CONTEXT_SCHEDULE_OUT);
-				i915_request_put(rq);
-
-				GEM_TRACE("%s completed ctx=%d\n",
-					  engine->name, port->context_id);
-
-				port = execlists_port_complete(execlists, port);
-				if (port_isset(port))
-					execlists_user_begin(execlists, port);
-				else
-					execlists_user_end(execlists);
-			} else {
-				port_set(port, port_pack(rq, count));
-			}
+			port = execlists_port_complete(execlists, port);
+			if (port_isset(port))
+				execlists_user_begin(execlists, port);
+			else
+				execlists_user_end(execlists);
+		} else {
+			port_set(port, port_pack(rq, count));
 		}
+	}
 
-		if (head != execlists->csb_head) {
-			execlists->csb_head = head;
-			writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
-			       i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
-		}
-	} while (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted));
+	if (head != execlists->csb_head) {
+		execlists->csb_head = head;
+		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
+		       i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
+	}
 
 	if (unlikely(fw))
 		intel_uncore_forcewake_put(i915, execlists->fw_domains);
