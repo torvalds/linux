@@ -204,83 +204,83 @@
 
 		i2c_pins: i2c {
 			i2c {
-				ralink,group = "i2c";
-				ralink,function = "i2c";
+				group = "i2c";
+				function = "i2c";
 			};
 		};
 
 		spi_pins: spi {
 			spi {
-				ralink,group = "spi";
-				ralink,function = "spi";
+				group = "spi";
+				function = "spi";
 			};
 		};
 
 		uart1_pins: uart1 {
 			uart1 {
-				ralink,group = "uart1";
-				ralink,function = "uart1";
+				group = "uart1";
+				function = "uart1";
 			};
 		};
 
 		uart2_pins: uart2 {
 			uart2 {
-				ralink,group = "uart2";
-				ralink,function = "uart2";
+				group = "uart2";
+				function = "uart2";
 			};
 		};
 
 		uart3_pins: uart3 {
 			uart3 {
-				ralink,group = "uart3";
-				ralink,function = "uart3";
+				group = "uart3";
+				function = "uart3";
 			};
 		};
 
 		rgmii1_pins: rgmii1 {
 			rgmii1 {
-				ralink,group = "rgmii1";
-				ralink,function = "rgmii1";
+				group = "rgmii1";
+				function = "rgmii1";
 			};
 		};
 
 		rgmii2_pins: rgmii2 {
 			rgmii2 {
-				ralink,group = "rgmii2";
-				ralink,function = "rgmii2";
+				group = "rgmii2";
+				function = "rgmii2";
 			};
 		};
 
 		mdio_pins: mdio {
 			mdio {
-				ralink,group = "mdio";
-				ralink,function = "mdio";
+				group = "mdio";
+				function = "mdio";
 			};
 		};
 
 		pcie_pins: pcie {
 			pcie {
-				ralink,group = "pcie";
-				ralink,function = "pcie rst";
+				group = "pcie";
+				function = "pcie rst";
 			};
 		};
 
 		nand_pins: nand {
 			spi-nand {
-				ralink,group = "spi";
-				ralink,function = "nand1";
+				group = "spi";
+				function = "nand1";
 			};
 
 			sdhci-nand {
-				ralink,group = "sdhci";
-				ralink,function = "nand2";
+				group = "sdhci";
+				function = "nand2";
 			};
 		};
 
 		sdhci_pins: sdhci {
 			sdhci {
-				ralink,group = "sdhci";
-				ralink,function = "sdhci";
+				group = "sdhci";
+				function = "sdhci";
 			};
 		};
 	};
