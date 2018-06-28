@@ -594,7 +594,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 	return &opp->base;
 }
 
-struct engine *dcn10_aux_engine_create(
+struct aux_engine *dcn10_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -608,7 +608,7 @@ struct engine *dcn10_aux_engine_create(
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
 				    &aux_engine_regs[inst]);
 
-	return &aux_engine->base.base;
+	return &aux_engine->base;
 }
 
 static struct mpc *dcn10_mpc_create(struct dc_context *ctx)

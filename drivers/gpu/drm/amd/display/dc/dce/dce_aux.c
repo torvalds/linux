@@ -28,12 +28,12 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #define CTX \
-	aux110->base.base.ctx
+	aux110->base.ctx
 #define REG(reg_name)\
 	(aux110->regs->reg_name)
 
 #define DC_LOGGER \
-	engine->base.ctx->logger
+	engine->ctx->logger
 
 #include "reg_helper.h"
 
@@ -51,9 +51,9 @@ enum {
 	AUX_DEFER_RETRY_COUNTER = 6
 };
 static void release_engine(
-	struct engine *engine)
+	struct aux_engine *engine)
 {
-	struct aux_engine_dce110 *aux110 = FROM_ENGINE(engine);
+	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
 
 	dal_ddc_close(engine->ddc);
 
@@ -827,22 +827,21 @@ static bool end_of_transaction_command(
 
 	/* according Syed, it does not need now DoDummyMOT */
 }
-bool submit_request(
-	struct engine *engine,
+static bool submit_request(
+	struct aux_engine *engine,
 	struct i2caux_transaction_request *request,
 	bool middle_of_transaction)
 {
-	struct aux_engine *aux_engine = FROM_AUX_ENGINE_ENGINE(engine);
 
 	bool result;
 	bool mot_used = true;
 
 	switch (request->operation) {
 	case I2CAUX_TRANSACTION_READ:
-		result = read_command(aux_engine, request, mot_used);
+		result = read_command(engine, request, mot_used);
 	break;
 	case I2CAUX_TRANSACTION_WRITE:
-		result = write_command(aux_engine, request, mot_used);
+		result = write_command(engine, request, mot_used);
 	break;
 	default:
 		result = false;
@@ -854,45 +853,45 @@ bool submit_request(
 	 */
 
 	if (!middle_of_transaction || !result)
-		end_of_transaction_command(aux_engine, request);
+		end_of_transaction_command(engine, request);
 
 	/* mask AUX interrupt */
 
 	return result;
 }
 enum i2caux_engine_type get_engine_type(
-		const struct engine *engine)
+		const struct aux_engine *engine)
 {
 	return I2CAUX_ENGINE_TYPE_AUX;
 }
 
-static struct aux_engine *acquire(
-	struct engine *engine,
+static bool acquire(
+	struct aux_engine *engine,
 	struct ddc *ddc)
 {
-	struct aux_engine *aux_engine = FROM_AUX_ENGINE_ENGINE(engine);
+
 	enum gpio_result result;
 
-	if (aux_engine->funcs->is_engine_available) {
+	if (engine->funcs->is_engine_available) {
 		/*check whether SW could use the engine*/
-		if (!aux_engine->funcs->is_engine_available(aux_engine))
-			return NULL;
+		if (!engine->funcs->is_engine_available(engine))
+			return false;
 	}
 
 	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
 		GPIO_DDC_CONFIG_TYPE_MODE_AUX);
 
 	if (result != GPIO_RESULT_OK)
-		return NULL;
+		return false;
 
-	if (!aux_engine->funcs->acquire_engine(aux_engine)) {
+	if (!engine->funcs->acquire_engine(engine)) {
 		dal_ddc_close(ddc);
-		return NULL;
+		return false;
 	}
 
 	engine->ddc = ddc;
 
-	return aux_engine;
+	return true;
 }
 
 static const struct aux_engine_funcs aux_engine_funcs = {
@@ -902,9 +901,6 @@ static const struct aux_engine_funcs aux_engine_funcs = {
 	.read_channel_reply = read_channel_reply,
 	.get_channel_status = get_channel_status,
 	.is_engine_available = is_engine_available,
-};
-
-static const struct engine_funcs engine_funcs = {
 	.release_engine = release_engine,
 	.destroy_engine = dce110_engine_destroy,
 	.submit_request = submit_request,
@@ -912,10 +908,10 @@ static const struct engine_funcs engine_funcs = {
 	.acquire = acquire,
 };
 
-void dce110_engine_destroy(struct engine **engine)
+void dce110_engine_destroy(struct aux_engine **engine)
 {
 
-	struct aux_engine_dce110 *engine110 = FROM_ENGINE(*engine);
+	struct aux_engine_dce110 *engine110 = FROM_AUX_ENGINE(*engine);
 
 	kfree(engine110);
 	*engine = NULL;
@@ -927,13 +923,12 @@ struct aux_engine *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_eng
 		uint32_t timeout_period,
 		const struct dce110_aux_registers *regs)
 {
-	aux_engine110->base.base.ddc = NULL;
-	aux_engine110->base.base.ctx = ctx;
+	aux_engine110->base.ddc = NULL;
+	aux_engine110->base.ctx = ctx;
 	aux_engine110->base.delay = 0;
 	aux_engine110->base.max_defer_write_retry = 0;
-	aux_engine110->base.base.funcs = &engine_funcs;
 	aux_engine110->base.funcs = &aux_engine_funcs;
-	aux_engine110->base.base.inst = inst;
+	aux_engine110->base.inst = inst;
 	aux_engine110->timeout_period = timeout_period;
 	aux_engine110->regs = regs;
 

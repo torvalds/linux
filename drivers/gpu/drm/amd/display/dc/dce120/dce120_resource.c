@@ -376,7 +376,7 @@ struct output_pixel_processor *dce120_opp_create(
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
-struct engine *dce120_aux_engine_create(
+struct aux_engine *dce120_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -390,7 +390,7 @@ struct engine *dce120_aux_engine_create(
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
 				    &aux_engine_regs[inst]);
 
-	return &aux_engine->base.base;
+	return &aux_engine->base;
 }
 
 static const struct bios_registers bios_regs = {
