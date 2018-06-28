@@ -2522,7 +2522,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 	if (!tr_hdr)
 		goto err_free_iov;
 
-	orig_len = smb2_rqst_len(old_rq, false);
+	orig_len = smb_rqst_len(server, old_rq);
 
 	/* fill the 2nd iov with a transform header */
 	fill_transform_hdr(tr_hdr, orig_len, old_rq);
