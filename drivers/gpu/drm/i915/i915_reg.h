@@ -3152,6 +3152,7 @@ enum i915_power_well_id {
 #define   GMBUS_CYCLE_STOP	(4 << 25)
 #define   GMBUS_BYTE_COUNT_SHIFT 16
 #define   GMBUS_BYTE_COUNT_MAX   256U
+#define   GEN9_GMBUS_BYTE_COUNT_MAX 511U
 #define   GMBUS_SLAVE_INDEX_SHIFT 8
 #define   GMBUS_SLAVE_ADDR_SHIFT 1
 #define   GMBUS_SLAVE_READ	(1 << 0)

@@ -361,6 +361,13 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static inline
+unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
+	       GMBUS_BYTE_COUNT_MAX;
+}
+
 static int
 gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 		      unsigned short addr, u8 *buf, unsigned int len,
@@ -400,7 +407,7 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	int ret;
 
 	do {
-		len = min(rx_size, GMBUS_BYTE_COUNT_MAX);
+		len = min(rx_size, gmbus_max_xfer_size(dev_priv));
 
 		ret = gmbus_xfer_read_chunk(dev_priv, msg->addr,
 					    buf, len, gmbus1_index);
@@ -462,7 +469,7 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	int ret;
 
 	do {
-		len = min(tx_size, GMBUS_BYTE_COUNT_MAX);
+		len = min(tx_size, gmbus_max_xfer_size(dev_priv));
 
 		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len,
 					     gmbus1_index);
