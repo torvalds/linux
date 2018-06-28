@@ -478,7 +478,7 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid)
 /* Determine vlan of internal TCP socket.
  * @vlan_id: address to store the determined vlan id into
  */
-static int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id)
+int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id)
 {
 	struct dst_entry *dst = sk_dst_get(clcsock->sk);
 	struct net_device *ndev;

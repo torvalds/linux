@@ -257,6 +257,7 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
+int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
