@@ -8,10 +8,8 @@
  */
 
 #include <linux/module.h>
-#include <asm/pci-bridge.h>
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
-#include <misc/cxl.h>
 
 #include "pci.h"
 
@@ -178,116 +176,3 @@ static inline int get_cxl_module(void)
 #else
 static inline int get_cxl_module(void) { return 0; }
 #endif
-
-/*
- * Sets flags and switches the controller ops to enable the cxl kernel api.
- * Originally the cxl kernel API operated on a virtual PHB, but certain cards
- * such as the Mellanox CX4 use a peer model instead and for these cards the
- * cxl kernel api will operate on the real PHB.
- */
-int pnv_cxl_enable_phb_kernel_api(struct pci_controller *hose, bool enable)
-{
-	struct pnv_phb *phb = hose->private_data;
-	int rc;
-
-	if (!enable) {
-		/*
-		 * Once cxl mode is enabled on the PHB, there is currently no
-		 * known safe method to disable it again, and trying risks a
-		 * checkstop. If we can find a way to safely disable cxl mode
-		 * in the future we can revisit this, but for now the only sane
-		 * thing to do is to refuse to disable cxl mode:
-		 */
-		return -EPERM;
-	}
-
-	/*
-	 * Hold a reference to the cxl module since several PHB operations now
-	 * depend on it, and it would be insane to allow it to be removed so
-	 * long as we are in this mode (and since we can't safely disable this
-	 * mode once enabled...).
-	 */
-	rc = get_cxl_module();
-	if (rc)
-		return rc;
-
-	phb->flags |= PNV_PHB_FLAG_CXL;
-	hose->controller_ops = pnv_cxl_cx4_ioda_controller_ops;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pnv_cxl_enable_phb_kernel_api);
-
-bool pnv_pci_on_cxl_phb(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
-
-	return !!(phb->flags & PNV_PHB_FLAG_CXL);
-}
-EXPORT_SYMBOL_GPL(pnv_pci_on_cxl_phb);
-
-struct cxl_afu *pnv_cxl_phb_to_afu(struct pci_controller *hose)
-{
-	struct pnv_phb *phb = hose->private_data;
-
-	return (struct cxl_afu *)phb->cxl_afu;
-}
-EXPORT_SYMBOL_GPL(pnv_cxl_phb_to_afu);
-
-void pnv_cxl_phb_set_peer_afu(struct pci_dev *dev, struct cxl_afu *afu)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
-
-	phb->cxl_afu = afu;
-}
-EXPORT_SYMBOL_GPL(pnv_cxl_phb_set_peer_afu);
-
-/*
- * In the peer cxl model, the XSL/PSL is physical function 0, and will be used
- * by other functions on the device for memory access and interrupts. When the
- * other functions are enabled we explicitly take a reference on the cxl
- * function since they will use it, and allocate a default context associated
- * with that function just like the vPHB model of the cxl kernel API.
- */
-bool pnv_cxl_enable_device_hook(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct cxl_afu *afu = phb->cxl_afu;
-
-	if (!pnv_pci_enable_device_hook(dev))
-		return false;
-
-
-	/* No special handling for the cxl function, which is always PF 0 */
-	if (PCI_FUNC(dev->devfn) == 0)
-		return true;
-
-	if (!afu) {
-		dev_WARN(&dev->dev, "Attempted to enable function > 0 on CXL PHB without a peer AFU\n");
-		return false;
-	}
-
-	dev_info(&dev->dev, "Enabling function on CXL enabled PHB with peer AFU\n");
-
-	/* Make sure the peer AFU can't go away while this device is active */
-	cxl_afu_get(afu);
-
-	return cxl_pci_associate_default_context(dev, afu);
-}
-
-void pnv_cxl_disable_device(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct cxl_afu *afu = phb->cxl_afu;
-
-	/* No special handling for cxl function: */
-	if (PCI_FUNC(dev->devfn) == 0)
-		return;
-
-	cxl_pci_disable_device(dev);
-	cxl_afu_put(afu);
-}
