@@ -326,6 +326,15 @@ struct intel_engine_execlists {
 	u32 preempt_complete_status;
 
 	/**
+	 * @csb_write_reset: reset value for CSB write pointer
+	 *
+	 * As the CSB write pointer maybe either in HWSP or as a field
+	 * inside an mmio register, we want to reprogram it slightly
+	 * differently to avoid later confusion.
+	 */
+	u32 csb_write_reset;
+
+	/**
 	 * @csb_head: context status buffer head
 	 */
 	u8 csb_head;
