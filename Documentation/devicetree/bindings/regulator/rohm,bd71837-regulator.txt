@@ -1,13 +1,5 @@
 ROHM BD71837 Power Management Integrated Circuit (PMIC) regulator bindings
 
-BD71837MWV is a programmable Power Management
-IC (PMIC) for powering single-core, dual-core, and
-quad-core SoC’s such as NXP-i.MX 8M. It is optimized
-for low BOM cost and compact solution footprint. It
-integrates 8 Buck regulators and 7 LDO’s to provide all
-the power rails required by the SoC and the commonly
-used peripherals.
-
 Required properties:
  - regulator-name: should be "buck1", ..., "buck8" and "ldo1", ..., "ldo7"
 
