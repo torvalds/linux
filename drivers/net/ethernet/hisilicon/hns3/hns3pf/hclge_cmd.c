@@ -152,7 +152,7 @@ static void hclge_cmd_init_regs(struct hclge_hw *hw)
 
 static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 {
-	struct hclge_dev *hdev = (struct hclge_dev *)hw->back;
+	struct hclge_dev *hdev = container_of(hw, struct hclge_dev, hw);
 	struct hclge_cmq_ring *csq = &hw->cmq.csq;
 	u16 ntc = csq->next_to_clean;
 	struct hclge_desc *desc;
@@ -216,7 +216,7 @@ static bool hclge_is_special_opcode(u16 opcode)
  **/
 int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 {
-	struct hclge_dev *hdev = (struct hclge_dev *)hw->back;
+	struct hclge_dev *hdev = container_of(hw, struct hclge_dev, hw);
 	struct hclge_desc *desc_to_use;
 	bool complete = false;
 	u32 timeout = 0;

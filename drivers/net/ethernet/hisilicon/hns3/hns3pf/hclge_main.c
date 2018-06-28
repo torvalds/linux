@@ -5537,7 +5537,6 @@ static int hclge_pci_init(struct hclge_dev *hdev)
 
 	pci_set_master(pdev);
 	hw = &hdev->hw;
-	hw->back = hdev;
 	hw->io_base = pcim_iomap(pdev, 2, 0);
 	if (!hw->io_base) {
 		dev_err(&pdev->dev, "Can't map configuration register space\n");
