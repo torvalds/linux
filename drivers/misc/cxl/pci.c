@@ -55,8 +55,6 @@
 	pci_read_config_byte(dev, vsec + 0xa, dest)
 #define CXL_WRITE_VSEC_MODE_CONTROL(dev, vsec, val) \
 	pci_write_config_byte(dev, vsec + 0xa, val)
-#define CXL_WRITE_VSEC_MODE_CONTROL_BUS(bus, devfn, vsec, val) \
-	pci_bus_write_config_byte(bus, devfn, vsec + 0xa, val)
 #define CXL_VSEC_PROTOCOL_MASK   0xe0
 #define CXL_VSEC_PROTOCOL_1024TB 0x80
 #define CXL_VSEC_PROTOCOL_512TB  0x40
@@ -800,234 +798,36 @@ static int setup_cxl_bars(struct pci_dev *dev)
 	return 0;
 }
 
-#ifdef CONFIG_CXL_BIMODAL
-
-struct cxl_switch_work {
-	struct pci_dev *dev;
-	struct work_struct work;
-	int vsec;
-	int mode;
-};
-
-static void switch_card_to_cxl(struct work_struct *work)
+/* pciex node: ibm,opal-m64-window = <0x3d058 0x0 0x3d058 0x0 0x8 0x0>; */
+static int switch_card_to_cxl(struct pci_dev *dev)
 {
-	struct cxl_switch_work *switch_work =
-		container_of(work, struct cxl_switch_work, work);
-	struct pci_dev *dev = switch_work->dev;
-	struct pci_bus *bus = dev->bus;
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pci_dev *bridge;
-	struct pnv_php_slot *php_slot;
-	unsigned int devfn;
+	int vsec;
 	u8 val;
 	int rc;
 
-	dev_info(&bus->dev, "cxl: Preparing for mode switch...\n");
-	bridge = list_first_entry_or_null(&hose->bus->devices, struct pci_dev,
-					  bus_list);
-	if (!bridge) {
-		dev_WARN(&bus->dev, "cxl: Couldn't find root port!\n");
-		goto err_dev_put;
+	dev_info(&dev->dev, "switch card to CXL\n");
+
+	if (!(vsec = find_cxl_vsec(dev))) {
+		dev_err(&dev->dev, "ABORTING: CXL VSEC not found!\n");
+		return -ENODEV;
 	}
 
-	php_slot = pnv_php_find_slot(pci_device_to_OF_node(bridge));
-	if (!php_slot) {
-		dev_err(&bus->dev, "cxl: Failed to find slot hotplug "
-			           "information. You may need to upgrade "
-			           "skiboot. Aborting.\n");
-		goto err_dev_put;
+	if ((rc = CXL_READ_VSEC_MODE_CONTROL(dev, vsec, &val))) {
+		dev_err(&dev->dev, "failed to read current mode control: %i", rc);
+		return rc;
 	}
-
-	rc = CXL_READ_VSEC_MODE_CONTROL(dev, switch_work->vsec, &val);
-	if (rc) {
-		dev_err(&bus->dev, "cxl: Failed to read CAPI mode control: %i\n", rc);
-		goto err_dev_put;
+	val &= ~CXL_VSEC_PROTOCOL_MASK;
+	val |= CXL_VSEC_PROTOCOL_256TB | CXL_VSEC_PROTOCOL_ENABLE;
+	if ((rc = CXL_WRITE_VSEC_MODE_CONTROL(dev, vsec, val))) {
+		dev_err(&dev->dev, "failed to enable CXL protocol: %i", rc);
+		return rc;
 	}
-	devfn = dev->devfn;
-
-	/* Release the reference obtained in cxl_check_and_switch_mode() */
-	pci_dev_put(dev);
-
-	dev_dbg(&bus->dev, "cxl: Removing PCI devices from kernel\n");
-	pci_lock_rescan_remove();
-	pci_hp_remove_devices(bridge->subordinate);
-	pci_unlock_rescan_remove();
-
-	/* Switch the CXL protocol on the card */
-	if (switch_work->mode == CXL_BIMODE_CXL) {
-		dev_info(&bus->dev, "cxl: Switching card to CXL mode\n");
-		val &= ~CXL_VSEC_PROTOCOL_MASK;
-		val |= CXL_VSEC_PROTOCOL_256TB | CXL_VSEC_PROTOCOL_ENABLE;
-		rc = pnv_cxl_enable_phb_kernel_api(hose, true);
-		if (rc) {
-			dev_err(&bus->dev, "cxl: Failed to enable kernel API"
-				           " on real PHB, aborting\n");
-			goto err_free_work;
-		}
-	} else {
-		dev_WARN(&bus->dev, "cxl: Switching card to PCI mode not supported!\n");
-		goto err_free_work;
-	}
-
-	rc = CXL_WRITE_VSEC_MODE_CONTROL_BUS(bus, devfn, switch_work->vsec, val);
-	if (rc) {
-		dev_err(&bus->dev, "cxl: Failed to configure CXL protocol: %i\n", rc);
-		goto err_free_work;
-	}
-
 	/*
-	 * The CAIA spec (v1.1, Section 10.6 Bi-modal Device Support) states
-	 * we must wait 100ms after this mode switch before touching PCIe config
-	 * space.
+	 * The CAIA spec (v0.12 11.6 Bi-modal Device Support) states
+	 * we must wait 100ms after this mode switch before touching
+	 * PCIe config space.
 	 */
 	msleep(100);
-
-	/*
-	 * Hot reset to cause the card to come back in cxl mode. A
-	 * OPAL_RESET_PCI_LINK would be sufficient, but currently lacks support
-	 * in skiboot, so we use a hot reset instead.
-	 *
-	 * We call pci_set_pcie_reset_state() on the bridge, as a CAPI card is
-	 * guaranteed to sit directly under the root port, and setting the reset
-	 * state on a device directly under the root port is equivalent to doing
-	 * it on the root port iself.
-	 */
-	dev_info(&bus->dev, "cxl: Configuration write complete, resetting card\n");
-	pci_set_pcie_reset_state(bridge, pcie_hot_reset);
-	pci_set_pcie_reset_state(bridge, pcie_deassert_reset);
-
-	dev_dbg(&bus->dev, "cxl: Offlining slot\n");
-	rc = pnv_php_set_slot_power_state(&php_slot->slot, OPAL_PCI_SLOT_OFFLINE);
-	if (rc) {
-		dev_err(&bus->dev, "cxl: OPAL offlining call failed: %i\n", rc);
-		goto err_free_work;
-	}
-
-	dev_dbg(&bus->dev, "cxl: Onlining and probing slot\n");
-	rc = pnv_php_set_slot_power_state(&php_slot->slot, OPAL_PCI_SLOT_ONLINE);
-	if (rc) {
-		dev_err(&bus->dev, "cxl: OPAL onlining call failed: %i\n", rc);
-		goto err_free_work;
-	}
-
-	pci_lock_rescan_remove();
-	pci_hp_add_devices(bridge->subordinate);
-	pci_unlock_rescan_remove();
-
-	dev_info(&bus->dev, "cxl: CAPI mode switch completed\n");
-	kfree(switch_work);
-	return;
-
-err_dev_put:
-	/* Release the reference obtained in cxl_check_and_switch_mode() */
-	pci_dev_put(dev);
-err_free_work:
-	kfree(switch_work);
-}
-
-int cxl_check_and_switch_mode(struct pci_dev *dev, int mode, int vsec)
-{
-	struct cxl_switch_work *work;
-	u8 val;
-	int rc;
-
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
-		return -ENODEV;
-
-	if (!vsec) {
-		vsec = find_cxl_vsec(dev);
-		if (!vsec) {
-			dev_info(&dev->dev, "CXL VSEC not found\n");
-			return -ENODEV;
-		}
-	}
-
-	rc = CXL_READ_VSEC_MODE_CONTROL(dev, vsec, &val);
-	if (rc) {
-		dev_err(&dev->dev, "Failed to read current mode control: %i", rc);
-		return rc;
-	}
-
-	if (mode == CXL_BIMODE_PCI) {
-		if (!(val & CXL_VSEC_PROTOCOL_ENABLE)) {
-			dev_info(&dev->dev, "Card is already in PCI mode\n");
-			return 0;
-		}
-		/*
-		 * TODO: Before it's safe to switch the card back to PCI mode
-		 * we need to disable the CAPP and make sure any cachelines the
-		 * card holds have been flushed out. Needs skiboot support.
-		 */
-		dev_WARN(&dev->dev, "CXL mode switch to PCI unsupported!\n");
-		return -EIO;
-	}
-
-	if (val & CXL_VSEC_PROTOCOL_ENABLE) {
-		dev_info(&dev->dev, "Card is already in CXL mode\n");
-		return 0;
-	}
-
-	dev_info(&dev->dev, "Card is in PCI mode, scheduling kernel thread "
-			    "to switch to CXL mode\n");
-
-	work = kmalloc(sizeof(struct cxl_switch_work), GFP_KERNEL);
-	if (!work)
-		return -ENOMEM;
-
-	pci_dev_get(dev);
-	work->dev = dev;
-	work->vsec = vsec;
-	work->mode = mode;
-	INIT_WORK(&work->work, switch_card_to_cxl);
-
-	schedule_work(&work->work);
-
-	/*
-	 * We return a failure now to abort the driver init. Once the
-	 * link has been cycled and the card is in cxl mode we will
-	 * come back (possibly using the generic cxl driver), but
-	 * return success as the card should then be in cxl mode.
-	 *
-	 * TODO: What if the card comes back in PCI mode even after
-	 *       the switch?  Don't want to spin endlessly.
-	 */
-	return -EBUSY;
-}
-EXPORT_SYMBOL_GPL(cxl_check_and_switch_mode);
-
-#endif /* CONFIG_CXL_BIMODAL */
-
-static int setup_cxl_protocol_area(struct pci_dev *dev)
-{
-	u8 val;
-	int rc;
-	int vsec = find_cxl_vsec(dev);
-
-	if (!vsec) {
-		dev_info(&dev->dev, "CXL VSEC not found\n");
-		return -ENODEV;
-	}
-
-	rc = CXL_READ_VSEC_MODE_CONTROL(dev, vsec, &val);
-	if (rc) {
-		dev_err(&dev->dev, "Failed to read current mode control: %i\n", rc);
-		return rc;
-	}
-
-	if (!(val & CXL_VSEC_PROTOCOL_ENABLE)) {
-		dev_err(&dev->dev, "Card not in CAPI mode!\n");
-		return -EIO;
-	}
-
-	if ((val & CXL_VSEC_PROTOCOL_MASK) != CXL_VSEC_PROTOCOL_256TB) {
-		val &= ~CXL_VSEC_PROTOCOL_MASK;
-		val |= CXL_VSEC_PROTOCOL_256TB;
-		rc = CXL_WRITE_VSEC_MODE_CONTROL(dev, vsec, val);
-		if (rc) {
-			dev_err(&dev->dev, "Failed to set CXL protocol area: %i\n", rc);
-			return rc;
-		}
-	}
 
 	return 0;
 }
@@ -1724,7 +1524,7 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	if ((rc = setup_cxl_bars(dev)))
 		return rc;
 
-	if ((rc = setup_cxl_protocol_area(dev)))
+	if ((rc = switch_card_to_cxl(dev)))
 		return rc;
 
 	if ((rc = cxl_update_image_control(adapter)))

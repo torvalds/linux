@@ -39,31 +39,6 @@
 bool cxl_slot_is_supported(struct pci_dev *dev, int flags);
 
 
-#define CXL_BIMODE_CXL 1
-#define CXL_BIMODE_PCI 2
-
-/*
- * Check the mode that the given bi-modal CXL adapter is currently in and
- * change it if necessary. This does not apply to AFU drivers.
- *
- * If the mode matches the requested mode this function will return 0 - if the
- * driver was expecting the generic CXL driver to have bound to the adapter and
- * it gets this return value it should fail the probe function to give the CXL
- * driver a chance to probe it.
- *
- * If the mode does not match it will start a background task to unplug the
- * device from Linux and switch its mode, and will return -EBUSY. At this
- * point the calling driver should make sure it has released the device and
- * fail its probe function.
- *
- * The offset of the CXL VSEC can be provided to this function. If 0 is passed,
- * this function will search for a CXL VSEC with ID 0x1280 and return -ENODEV
- * if it is not found.
- */
-#ifdef CONFIG_CXL_BIMODAL
-int cxl_check_and_switch_mode(struct pci_dev *dev, int mode, int vsec);
-#endif
-
 /* Get the AFU associated with a pci_dev */
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev);
 
