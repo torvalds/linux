@@ -109,6 +109,7 @@ int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 			  bpf_program_clear_priv_t clear_priv);
 
 void *bpf_program__priv(struct bpf_program *prog);
+void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex);
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
@@ -251,6 +252,7 @@ typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,
 		      bpf_map_clear_priv_t clear_priv);
 void *bpf_map__priv(struct bpf_map *map);
+void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 int bpf_map__pin(struct bpf_map *map, const char *path);
 
 long libbpf_get_error(const void *ptr);

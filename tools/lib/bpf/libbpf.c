@@ -1896,6 +1896,11 @@ void *bpf_program__priv(struct bpf_program *prog)
 	return prog ? prog->priv : ERR_PTR(-EINVAL);
 }
 
+void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex)
+{
+	prog->prog_ifindex = ifindex;
+}
+
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
 {
 	const char *title;
@@ -2120,6 +2125,11 @@ int bpf_map__set_priv(struct bpf_map *map, void *priv,
 void *bpf_map__priv(struct bpf_map *map)
 {
 	return map ? map->priv : ERR_PTR(-EINVAL);
+}
+
+void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
+{
+	map->map_ifindex = ifindex;
 }
 
 struct bpf_map *
