@@ -47,6 +47,8 @@ struct nf_conncount_tuple {
 	struct hlist_node		node;
 	struct nf_conntrack_tuple	tuple;
 	struct nf_conntrack_zone	zone;
+	int				cpu;
+	u32				jiffies32;
 };
 
 struct nf_conncount_rb {
@@ -91,10 +93,41 @@ bool nf_conncount_add(struct hlist_head *head,
 		return false;
 	conn->tuple = *tuple;
 	conn->zone = *zone;
+	conn->cpu = raw_smp_processor_id();
+	conn->jiffies32 = (u32)jiffies;
 	hlist_add_head(&conn->node, head);
 	return true;
 }
 EXPORT_SYMBOL_GPL(nf_conncount_add);
+
+static const struct nf_conntrack_tuple_hash *
+find_or_evict(struct net *net, struct nf_conncount_tuple *conn)
+{
+	const struct nf_conntrack_tuple_hash *found;
+	unsigned long a, b;
+	int cpu = raw_smp_processor_id();
+	__s32 age;
+
+	found = nf_conntrack_find_get(net, &conn->zone, &conn->tuple);
+	if (found)
+		return found;
+	b = conn->jiffies32;
+	a = (u32)jiffies;
+
+	/* conn might have been added just before by another cpu and
+	 * might still be unconfirmed.  In this case, nf_conntrack_find()
+	 * returns no result.  Thus only evict if this cpu added the
+	 * stale entry or if the entry is older than two jiffies.
+	 */
+	age = a - b;
+	if (conn->cpu == cpu || age >= 2) {
+		hlist_del(&conn->node);
+		kmem_cache_free(conncount_conn_cachep, conn);
+		return ERR_PTR(-ENOENT);
+	}
+
+	return ERR_PTR(-EAGAIN);
+}
 
 unsigned int nf_conncount_lookup(struct net *net, struct hlist_head *head,
 				 const struct nf_conntrack_tuple *tuple,
@@ -103,18 +136,27 @@ unsigned int nf_conncount_lookup(struct net *net, struct hlist_head *head,
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct nf_conncount_tuple *conn;
-	struct hlist_node *n;
 	struct nf_conn *found_ct;
+	struct hlist_node *n;
 	unsigned int length = 0;
 
 	*addit = tuple ? true : false;
 
 	/* check the saved connections */
 	hlist_for_each_entry_safe(conn, n, head, node) {
-		found = nf_conntrack_find_get(net, &conn->zone, &conn->tuple);
-		if (found == NULL) {
-			hlist_del(&conn->node);
-			kmem_cache_free(conncount_conn_cachep, conn);
+		found = find_or_evict(net, conn);
+		if (IS_ERR(found)) {
+			/* Not found, but might be about to be confirmed */
+			if (PTR_ERR(found) == -EAGAIN) {
+				length++;
+				if (!tuple)
+					continue;
+
+				if (nf_ct_tuple_equal(&conn->tuple, tuple) &&
+				    nf_ct_zone_id(&conn->zone, conn->zone.dir) ==
+				    nf_ct_zone_id(zone, zone->dir))
+					*addit = false;
+			}
 			continue;
 		}
 
