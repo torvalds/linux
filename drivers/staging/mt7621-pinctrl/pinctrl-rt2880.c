@@ -73,13 +73,6 @@ static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static void rt2880_pinctrl_pin_dbg_show(struct pinctrl_dev *pctrldev,
-					struct seq_file *s,
-					unsigned int offset)
-{
-	seq_puts(s, "ralink pio");
-}
-
 static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 					 struct device_node *np_config,
 					 struct pinctrl_map **map,
@@ -119,7 +112,6 @@ static const struct pinctrl_ops rt2880_pctrl_ops = {
 	.get_groups_count	= rt2880_get_group_count,
 	.get_group_name		= rt2880_get_group_name,
 	.get_group_pins		= rt2880_get_group_pins,
-	.pin_dbg_show		= rt2880_pinctrl_pin_dbg_show,
 	.dt_node_to_map		= rt2880_pinctrl_dt_node_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
