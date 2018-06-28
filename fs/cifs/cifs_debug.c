@@ -160,25 +160,41 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
 	seq_printf(m, "Features:");
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	seq_printf(m, " dfs");
+	seq_printf(m, " DFS");
 #endif
 #ifdef CONFIG_CIFS_FSCACHE
-	seq_printf(m, " fscache");
+	seq_printf(m, ",FSCACHE");
+#endif
+#ifdef CONFIG_CIFS_SMB_DIRECT
+	seq_printf(m, ",SMB_DIRECT");
+#endif
+#ifdef CONFIG_CIFS_STATS2
+	seq_printf(m, ",STATS2");
+#elif defined(CONFIG_CIFS_STATS)
+	seq_printf(m, ",STATS");
+#endif
+#ifdef CONFIG_CIFS_DEBUG2
+	seq_printf(m, ",DEBUG2");
+#elif defined(CONFIG_CIFS_DEBUG)
+	seq_printf(m, ",DEBUG");
+#endif
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
+	seq_printf(m, ",ALLOW_INSECURE_LEGACY");
 #endif
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-	seq_printf(m, " lanman");
+	seq_printf(m, ",WEAK_PW_HASH");
 #endif
 #ifdef CONFIG_CIFS_POSIX
-	seq_printf(m, " posix");
+	seq_printf(m, ",CIFS_POSIX");
 #endif
 #ifdef CONFIG_CIFS_UPCALL
-	seq_printf(m, " spnego");
+	seq_printf(m, ",UPCALL(SPNEGO)");
 #endif
 #ifdef CONFIG_CIFS_XATTR
-	seq_printf(m, " xattr");
+	seq_printf(m, ",XATTR");
 #endif
 #ifdef CONFIG_CIFS_ACL
-	seq_printf(m, " acl");
+	seq_printf(m, ",ACL");
 #endif
 	seq_putc(m, '\n');
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
