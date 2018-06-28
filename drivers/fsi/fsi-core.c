@@ -977,9 +977,6 @@ int fsi_master_register(struct fsi_master *master)
 	int rc;
 	struct device_node *np;
 
-	if (!master)
-		return -EINVAL;
-
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	dev_set_name(&master->dev, "fsi%d", master->idx);
 
@@ -991,14 +988,14 @@ int fsi_master_register(struct fsi_master *master)
 
 	rc = device_create_file(&master->dev, &dev_attr_rescan);
 	if (rc) {
-		device_unregister(&master->dev);
+		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
 
 	rc = device_create_file(&master->dev, &dev_attr_break);
 	if (rc) {
-		device_unregister(&master->dev);
+		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
