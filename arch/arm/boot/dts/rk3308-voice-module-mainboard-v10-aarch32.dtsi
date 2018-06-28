@@ -37,8 +37,8 @@
 &acodec {
 	status = "okay";
 
-	/* ADC5-8 for 4ch capture, loopback to ADC3-4 */
-	rockchip,adc-grps-route = <2 3 1 0>;
+	/* ADC3-6 for 4ch capture, loopback to ADC7 */
+	rockchip,adc-grps-route = <1 2 3 0>;
 };
 
 &i2c1 {
