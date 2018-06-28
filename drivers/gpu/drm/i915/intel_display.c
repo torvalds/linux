@@ -14478,11 +14478,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 		break;
 	case DRM_FORMAT_NV12:
-		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_Y_TILED_CCS ||
-		    mode_cmd->modifier[0] == I915_FORMAT_MOD_Yf_TILED_CCS) {
-			DRM_DEBUG_KMS("RC not to be enabled with NV12\n");
-			goto err;
-		}
 		if (INTEL_GEN(dev_priv) < 9 || IS_SKYLAKE(dev_priv) ||
 		    IS_BROXTON(dev_priv)) {
 			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
