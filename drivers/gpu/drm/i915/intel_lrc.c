@@ -567,7 +567,7 @@ static void complete_preempt_context(struct intel_engine_execlists *execlists)
 	execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
-static bool __execlists_dequeue(struct intel_engine_cs *engine)
+static void __execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
@@ -622,11 +622,11 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 		 * the HW to indicate that it has had a chance to respond.
 		 */
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
-			return false;
+			return;
 
 		if (need_preempt(engine, last, execlists->queue_priority)) {
 			inject_preempt_context(engine);
-			return false;
+			return;
 		}
 
 		/*
@@ -651,7 +651,7 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 		 * priorities of the ports haven't been switch.
 		 */
 		if (port_count(&port[1]))
-			return false;
+			return;
 
 		/*
 		 * WaIdleLiteRestore:bdw,skl
@@ -751,8 +751,10 @@ done:
 		port != execlists->port ? rq_prio(last) : INT_MIN;
 
 	execlists->first = rb;
-	if (submit)
+	if (submit) {
 		port_assign(port, last);
+		execlists_submit_ports(engine);
+	}
 
 	/* We must always keep the beast fed if we have work piled up */
 	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
@@ -761,24 +763,19 @@ done:
 	if (last)
 		execlists_user_begin(execlists, execlists->port);
 
-	return submit;
+	/* If the engine is now idle, so should be the flag; and vice versa. */
+	GEM_BUG_ON(execlists_is_active(&engine->execlists,
+				       EXECLISTS_ACTIVE_USER) ==
+		   !port_isset(engine->execlists.port));
 }
 
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
-	struct intel_engine_execlists * const execlists = &engine->execlists;
 	unsigned long flags;
-	bool submit;
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-	submit = __execlists_dequeue(engine);
+	__execlists_dequeue(engine);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
-
-	if (submit)
-		execlists_submit_ports(engine);
-
-	GEM_BUG_ON(port_isset(execlists->port) &&
-		   !execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 }
 
 void
@@ -1162,11 +1159,6 @@ static void execlists_submission_tasklet(unsigned long data)
 
 	if (!execlists_is_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT))
 		execlists_dequeue(engine);
-
-	/* If the engine is now idle, so should be the flag; and vice versa. */
-	GEM_BUG_ON(execlists_is_active(&engine->execlists,
-				       EXECLISTS_ACTIVE_USER) ==
-		   !port_isset(engine->execlists.port));
 }
 
 static void queue_request(struct intel_engine_cs *engine,
