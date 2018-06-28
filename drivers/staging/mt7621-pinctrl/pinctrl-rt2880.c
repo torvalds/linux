@@ -205,7 +205,8 @@ static int rt2880_pmx_group_enable(struct pinctrl_dev *pctrldev,
 
 	/* dont allow double use */
 	if (p->groups[group].enabled) {
-		dev_err(p->dev, "%s is already enabled\n", p->groups[group].name);
+		dev_err(p->dev, "%s is already enabled\n",
+			p->groups[group].name);
 		return -EBUSY;
 	}
 
@@ -283,8 +284,8 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	}
 
 	/* allocate the group names array needed by the gpio function */
-	p->group_names = devm_kcalloc(p->dev, p->group_count, sizeof(char *),
-				      GFP_KERNEL);
+	p->group_names = devm_kcalloc(p->dev, p->group_count,
+				      sizeof(char *), GFP_KERNEL);
 	if (!p->group_names)
 		return -1;
 
@@ -318,7 +319,8 @@ static int rt2880_pinmux_index(struct rt2880_priv *p)
 	for (i = 0; i < p->group_count; i++) {
 		for (j = 0; j < p->groups[i].func_count; j++) {
 			f[c] = &p->groups[i].func[j];
-			f[c]->groups = devm_kzalloc(p->dev, sizeof(int), GFP_KERNEL);
+			f[c]->groups = devm_kzalloc(p->dev, sizeof(int),
+						    GFP_KERNEL);
 			f[c]->groups[0] = i;
 			f[c]->group_count = 1;
 			c++;
@@ -331,7 +333,10 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 {
 	int i, j;
 
-	/* loop over the functions and initialize the pins array. also work out the highest pin used */
+	/*
+	 * loop over the functions and initialize the pins array.
+	 * also work out the highest pin used.
+	 */
 	for (i = 0; i < p->func_count; i++) {
 		int pin;
 
@@ -351,12 +356,11 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 	}
 
 	/* the buffer that tells us which pins are gpio */
-	p->gpio = devm_kcalloc(p->dev,p->max_pins, sizeof(uint8_t),
-			       GFP_KERNEL);
+	p->gpio = devm_kcalloc(p->dev, p->max_pins,
+			       sizeof(uint8_t), GFP_KERNEL);
 	/* the pads needed to tell pinctrl about our pins */
-	p->pads = devm_kcalloc(p->dev,
-		p->max_pins, sizeof(struct pinctrl_pin_desc),
-		GFP_KERNEL);
+	p->pads = devm_kcalloc(p->dev, p->max_pins,
+			       sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
 	if (!p->pads || !p->gpio) {
 		dev_err(p->dev, "Failed to allocate gpio data\n");
 		return -ENOMEM;
@@ -439,7 +443,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		range = devm_kzalloc(p->dev, sizeof(struct pinctrl_gpio_range) + 4, GFP_KERNEL);
+		range = devm_kzalloc(p->dev, sizeof(*range) + 4, GFP_KERNEL);
 		range->name = name = (char *) &range[1];
 		sprintf(name, "pio");
 		range->npins = __be32_to_cpu(*ngpio);
