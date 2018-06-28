@@ -1619,8 +1619,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
-	tasklet_disable(&execlists->tasklet);
-	write_seqlock_irqsave(&engine->stats.lock, flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+	write_seqlock(&engine->stats.lock);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
 		err = -EBUSY;
@@ -1644,8 +1644,8 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	}
 
 unlock:
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-	tasklet_enable(&execlists->tasklet);
+	write_sequnlock(&engine->stats.lock);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
 	return err;
 }
