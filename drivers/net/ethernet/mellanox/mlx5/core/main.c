@@ -66,6 +66,7 @@
 #include "lib/vxlan.h"
 #include "lib/geneve.h"
 #include "lib/devcom.h"
+#include "lib/pci_vsc.h"
 #include "diag/fw_tracer.h"
 #include "ecpf.h"
 
@@ -762,6 +763,8 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 		mlx5_core_err(dev, "Failed mapping initialization segment, aborting\n");
 		goto err_clr_master;
 	}
+
+	mlx5_pci_vsc_init(dev);
 
 	return 0;
 
