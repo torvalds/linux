@@ -2323,6 +2323,27 @@ retry:
 	return true;
 }
 
+static bool connector_has_possible_crtc(struct drm_connector *connector,
+					struct drm_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		struct drm_encoder *encoder;
+
+		if (connector->encoder_ids[i] == 0)
+			break;
+
+		encoder = drm_encoder_find(connector->dev, NULL,
+					   connector->encoder_ids[i]);
+
+		if (encoder->possible_crtcs & drm_crtc_mask(crtc))
+			return true;
+	}
+
+	return false;
+}
+
 static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 			  struct drm_fb_helper_crtc **best_crtcs,
 			  struct drm_display_mode **modes,
@@ -2331,7 +2352,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	int c, o;
 	struct drm_connector *connector;
 	const struct drm_connector_helper_funcs *connector_funcs;
-	struct drm_encoder *encoder;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -2363,27 +2383,14 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	connector_funcs = connector->helper_private;
 
 	/*
-	 * If the DRM device implements atomic hooks and ->best_encoder() is
-	 * NULL we fallback to the default drm_atomic_helper_best_encoder()
-	 * helper.
-	 */
-	if (drm_drv_uses_atomic_modeset(fb_helper->dev) &&
-	    !connector_funcs->best_encoder)
-		encoder = drm_atomic_helper_best_encoder(connector);
-	else
-		encoder = connector_funcs->best_encoder(connector);
-
-	if (!encoder)
-		goto out;
-
-	/*
 	 * select a crtc for this connector and then attempt to configure
 	 * remaining connectors
 	 */
 	for (c = 0; c < fb_helper->crtc_count; c++) {
 		crtc = &fb_helper->crtc_info[c];
 
-		if ((encoder->possible_crtcs & (1 << c)) == 0)
+		if (!connector_has_possible_crtc(connector,
+						 crtc->mode_set.crtc))
 			continue;
 
 		for (o = 0; o < n; o++)
@@ -2410,7 +2417,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 			       sizeof(struct drm_fb_helper_crtc *));
 		}
 	}
-out:
+
 	kfree(crtcs);
 	return best_score;
 }
