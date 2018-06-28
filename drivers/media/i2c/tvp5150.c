@@ -443,9 +443,7 @@ static const struct i2c_reg_value tvp5150_init_default[] = {
 
 /* Default values as sugested at TVP5150AM1 datasheet */
 static const struct i2c_reg_value tvp5150_init_enable[] = {
-	{
-		TVP5150_CONF_SHARED_PIN, 2
-	}, {	/* Automatic offset and AGC enabled */
+	{	/* Automatic offset and AGC enabled */
 		TVP5150_ANAL_CHL_CTL, 0x15
 	}, {	/* Activate YCrCb output 0x9 or 0xd ? */
 		TVP5150_MISC_CTL, TVP5150_MISC_CTL_GPCL |
@@ -802,9 +800,13 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct regmap *map = decoder->regmap;
 
 	/* Initializes TVP5150 to its default values */
 	tvp5150_write_inittab(sd, tvp5150_init_default);
+
+	/* Configure pins: FID, VSYNC, GPCL/VBLK, SCLK */
+	regmap_write(map, TVP5150_CONF_SHARED_PIN, 0x2);
 
 	/* Initializes VDP registers */
 	tvp5150_vdp_init(sd);
