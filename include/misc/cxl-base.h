@@ -10,8 +10,6 @@
 #ifndef _MISC_CXL_BASE_H
 #define _MISC_CXL_BASE_H
 
-#include <misc/cxl.h>
-
 #ifdef CONFIG_CXL_BASE
 
 #define CXL_IRQ_RANGES 4
@@ -41,8 +39,6 @@ static inline void cxl_ctx_put(void)
 struct cxl_afu *cxl_afu_get(struct cxl_afu *afu);
 void cxl_afu_put(struct cxl_afu *afu);
 void cxl_slbia(struct mm_struct *mm);
-bool cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu);
-void cxl_pci_disable_device(struct pci_dev *dev);
 
 #else /* CONFIG_CXL_BASE */
 
@@ -50,8 +46,6 @@ static inline bool cxl_ctx_in_use(void) { return false; }
 static inline struct cxl_afu *cxl_afu_get(struct cxl_afu *afu) { return NULL; }
 static inline void cxl_afu_put(struct cxl_afu *afu) {}
 static inline void cxl_slbia(struct mm_struct *mm) {}
-static inline bool cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu) { return false; }
-static inline void cxl_pci_disable_device(struct pci_dev *dev) {}
 
 #endif /* CONFIG_CXL_BASE */
 

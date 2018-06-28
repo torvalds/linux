@@ -106,41 +106,6 @@ int cxl_update_properties(struct device_node *dn,
 }
 EXPORT_SYMBOL_GPL(cxl_update_properties);
 
-/*
- * API calls into the driver that may be called from the PHB code and must be
- * built in.
- */
-bool cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu)
-{
-	bool ret;
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return false;
-
-	ret = calls->cxl_pci_associate_default_context(dev, afu);
-
-	cxl_calls_put(calls);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cxl_pci_associate_default_context);
-
-void cxl_pci_disable_device(struct pci_dev *dev)
-{
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return;
-
-	calls->cxl_pci_disable_device(dev);
-
-	cxl_calls_put(calls);
-}
-EXPORT_SYMBOL_GPL(cxl_pci_disable_device);
-
 static int __init cxl_base_init(void)
 {
 	struct device_node *np;
