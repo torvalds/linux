@@ -255,6 +255,7 @@ static const struct reg_field rk817_charge_reg_fields[] = {
 	[BAT_SYS_CMP_DLY] = REG_FIELD(0xEC, 4, 5),
 	[BAT_DIS_ILIM_EN] = REG_FIELD(0xEC, 3, 3),
 	[BAT_DISCHRG_ILIM] = REG_FIELD(0xEC, 0, 2),
+	[PLUG_IN_STS] = REG_FIELD(0xf0, 6, 6),
 	[CHRG_CLK_SEL] = REG_FIELD(0xF3, 6, 6),
 };
 
