@@ -37,7 +37,6 @@
 #include <crypto/aead.h>
 
 int __cifs_calc_signature(struct smb_rqst *rqst,
-			int start,
 			struct TCP_Server_Info *server, char *signature,
 			struct shash_desc *shash)
 {
@@ -45,16 +44,27 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 	int rc;
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
+	int is_smb2 = server->vals->header_preamble_size == 0;
 
-	for (i = start; i < n_vec; i++) {
+	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
+	if (is_smb2) {
+		if (iov[0].iov_len <= 4)
+			return -EIO;
+		i = 0;
+	} else {
+		if (n_vec < 2 || iov[0].iov_len != 4)
+			return -EIO;
+		i = 1; /* skip rfc1002 length */
+	}
+
+	for (; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
 			cifs_dbg(VFS, "null iovec entry\n");
 			return -EIO;
 		}
-		if (i == 1 && iov[1].iov_len <= 4)
-			break; /* nothing to sign or corrupt header */
+
 		rc = crypto_shash_update(shash,
 					 iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
@@ -118,7 +128,7 @@ static int cifs_calc_signature(struct smb_rqst *rqst,
 		return rc;
 	}
 
-	return __cifs_calc_signature(rqst, 1, server, signature,
+	return __cifs_calc_signature(rqst, server, signature,
 				     &server->secmech.sdescmd5->shash);
 }
 

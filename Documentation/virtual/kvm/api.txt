@@ -4610,7 +4610,7 @@ This capability indicates that kvm will implement the interfaces to handle
 reset, migration and nested KVM for branch prediction blocking. The stfle
 facility 82 should not be provided to the guest without this capability.
 
-8.14 KVM_CAP_HYPERV_TLBFLUSH
+8.18 KVM_CAP_HYPERV_TLBFLUSH
 
 Architectures: x86
 

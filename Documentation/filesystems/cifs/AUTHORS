@@ -42,9 +42,11 @@ Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
 Scott Lovenberg
 Pavel Shilovsky (for great work adding SMB2 support, and various SMB3 features)
 Aurelien Aptel (for DFS SMB3 work and some key bug fixes)
-Ronnie Sahlberg (for SMB3 xattr work and bug fixes)
+Ronnie Sahlberg (for SMB3 xattr work, bug fixes, and lots of great work on compounding)
 Shirish Pargaonkar (for many ACL patches over the years)
 Sachin Prabhu (many bug fixes, including for reconnect, copy offload and security)
+Paulo Alcantara
+Long Li (some great work on RDMA, SMB Direct)
 
 
 Test case and Bug Report contributors
@@ -58,5 +60,4 @@ mention to the Stanford Checker (SWAT) which pointed out many minor
 bugs in error paths.  Valuable suggestions also have come from Al Viro
 and Dave Miller.
 
-And thanks to the IBM LTC and Power test teams and SuSE testers for
-finding multiple bugs during excellent stress test runs.
+And thanks to the IBM LTC and Power test teams and SuSE and Citrix and RedHat testers for finding multiple bugs during excellent stress test runs.

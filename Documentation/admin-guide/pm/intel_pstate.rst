@@ -410,7 +410,7 @@ argument is passed to the kernel in the command line.
 	That only is supported in some configurations, though (for example, if
 	the `HWP feature is enabled in the processor <Active Mode With HWP_>`_,
 	the operation mode of the driver cannot be changed), and if it is not
-	supported in the current configuration, writes to this attribute with
+	supported in the current configuration, writes to this attribute will
 	fail with an appropriate error.
 
 Interpretation of Policy Attributes

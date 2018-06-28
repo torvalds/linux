@@ -294,6 +294,7 @@ struct pstate_funcs {
 static struct pstate_funcs pstate_funcs __read_mostly;
 
 static int hwp_active __read_mostly;
+static int hwp_mode_bdw __read_mostly;
 static bool per_cpu_limits __read_mostly;
 static bool hwp_boost __read_mostly;
 
@@ -1413,7 +1414,15 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
 	cpu->pstate.scaling = pstate_funcs.get_scaling();
 	cpu->pstate.max_freq = cpu->pstate.max_pstate * cpu->pstate.scaling;
-	cpu->pstate.turbo_freq = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
+
+	if (hwp_active && !hwp_mode_bdw) {
+		unsigned int phy_max, current_max;
+
+		intel_pstate_get_hwp_max(cpu->cpu, &phy_max, &current_max);
+		cpu->pstate.turbo_freq = phy_max * cpu->pstate.scaling;
+	} else {
+		cpu->pstate.turbo_freq = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
+	}
 
 	if (pstate_funcs.get_aperf_mperf_shift)
 		cpu->aperf_mperf_shift = pstate_funcs.get_aperf_mperf_shift();
@@ -2467,28 +2476,36 @@ static inline bool intel_pstate_has_acpi_ppc(void) { return false; }
 static inline void intel_pstate_request_control_from_smm(void) {}
 #endif /* CONFIG_ACPI */
 
+#define INTEL_PSTATE_HWP_BROADWELL	0x01
+
+#define ICPU_HWP(model, hwp_mode) \
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_HWP, hwp_mode }
+
 static const struct x86_cpu_id hwp_support_ids[] __initconst = {
-	{ X86_VENDOR_INTEL, 6, X86_MODEL_ANY, X86_FEATURE_HWP },
+	ICPU_HWP(INTEL_FAM6_BROADWELL_X, INTEL_PSTATE_HWP_BROADWELL),
+	ICPU_HWP(INTEL_FAM6_BROADWELL_XEON_D, INTEL_PSTATE_HWP_BROADWELL),
+	ICPU_HWP(X86_MODEL_ANY, 0),
 	{}
 };
 
 static int __init intel_pstate_init(void)
 {
+	const struct x86_cpu_id *id;
 	int rc;
 
 	if (no_load)
 		return -ENODEV;
 
-	if (x86_match_cpu(hwp_support_ids)) {
+	id = x86_match_cpu(hwp_support_ids);
+	if (id) {
 		copy_cpu_funcs(&core_funcs);
 		if (!no_hwp) {
 			hwp_active++;
+			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
 			goto hwp_cpu_matched;
 		}
 	} else {
-		const struct x86_cpu_id *id;
-
 		id = x86_match_cpu(intel_pstate_cpu_ids);
 		if (!id)
 			return -ENODEV;

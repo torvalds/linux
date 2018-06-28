@@ -4360,12 +4360,7 @@ L:	iommu@lists.linux-foundation.org
 T:	git git://git.infradead.org/users/hch/dma-mapping.git
 W:	http://git.infradead.org/users/hch/dma-mapping.git
 S:	Supported
-F:	lib/dma-debug.c
-F:	lib/dma-direct.c
-F:	lib/dma-noncoherent.c
-F:	lib/dma-virt.c
-F:	drivers/base/dma-mapping.c
-F:	drivers/base/dma-coherent.c
+F:	kernel/dma/
 F:	include/asm-generic/dma-mapping.h
 F:	include/linux/dma-direct.h
 F:	include/linux/dma-mapping.h
@@ -9756,6 +9751,11 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/NCR_D700.*
 
+NCSI LIBRARY:
+M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
+S:	Maintained
+F:	net/ncsi/
+
 NCT6775 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
@@ -13648,7 +13648,7 @@ M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/konrad/swiotlb.git
 S:	Supported
-F:	lib/swiotlb.c
+F:	kernel/dma/swiotlb.c
 F:	arch/*/kernel/pci-swiotlb.c
 F:	include/linux/swiotlb.h
 
@@ -15572,8 +15572,16 @@ M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core
 S:	Maintained
+F:	Documentation/devicetree/bindings/x86/
 F:	Documentation/x86/
 F:	arch/x86/
+
+X86 ENTRY CODE
+M:	Andy Lutomirski <luto@kernel.org>
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/asm
+S:	Maintained
+F:	arch/x86/entry/
 
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
@@ -15597,7 +15605,7 @@ F:	drivers/platform/x86/
 F:	drivers/platform/olpc/
 
 X86 VDSO
-M:	Andy Lutomirski <luto@amacapital.net>
+M:	Andy Lutomirski <luto@kernel.org>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/vdso
 S:	Maintained

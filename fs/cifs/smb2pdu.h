@@ -851,8 +851,11 @@ struct validate_negotiate_info_rsp {
 	__le16 Dialect; /* Dialect in use for the connection */
 } __packed;
 
-#define RSS_CAPABLE	0x00000001
-#define RDMA_CAPABLE	0x00000002
+#define RSS_CAPABLE	cpu_to_le32(0x00000001)
+#define RDMA_CAPABLE	cpu_to_le32(0x00000002)
+
+#define INTERNETWORK	cpu_to_le16(0x0002)
+#define INTERNETWORKV6	cpu_to_le16(0x0017)
 
 struct network_interface_info_ioctl_rsp {
 	__le32 Next; /* next interface. zero if this is last one */
@@ -860,7 +863,21 @@ struct network_interface_info_ioctl_rsp {
 	__le32 Capability; /* RSS or RDMA Capable */
 	__le32 Reserved;
 	__le64 LinkSpeed;
-	char	SockAddr_Storage[128];
+	__le16 Family;
+	__u8 Buffer[126];
+} __packed;
+
+struct iface_info_ipv4 {
+	__be16 Port;
+	__be32 IPv4Address;
+	__be64 Reserved;
+} __packed;
+
+struct iface_info_ipv6 {
+	__be16 Port;
+	__be32 FlowInfo;
+	__u8   IPv6Address[16];
+	__be32 ScopeId;
 } __packed;
 
 #define NO_FILE_ID 0xFFFFFFFFFFFFFFFFULL /* general ioctls to srv not to file */

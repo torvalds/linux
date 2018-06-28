@@ -152,7 +152,7 @@ static SHA3_INLINE void keccakf_round(u64 st[25])
 	st[24] ^= bc[ 4];
 }
 
-static void __optimize("O3") keccakf(u64 st[25])
+static void keccakf(u64 st[25])
 {
 	int round;
 

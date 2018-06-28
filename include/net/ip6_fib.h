@@ -170,6 +170,7 @@ struct fib6_info {
 					unused:3;
 
 	struct fib6_nh			fib6_nh;
+	struct rcu_head			rcu;
 };
 
 struct rt6_info {
@@ -273,7 +274,7 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 }
 
 struct fib6_info *fib6_info_alloc(gfp_t gfp_flags);
-void fib6_info_destroy(struct fib6_info *f6i);
+void fib6_info_destroy_rcu(struct rcu_head *head);
 
 static inline void fib6_info_hold(struct fib6_info *f6i)
 {
@@ -283,7 +284,7 @@ static inline void fib6_info_hold(struct fib6_info *f6i)
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && atomic_dec_and_test(&f6i->fib6_ref))
-		fib6_info_destroy(f6i);
+		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
 }
 
 enum fib6_walk_state {

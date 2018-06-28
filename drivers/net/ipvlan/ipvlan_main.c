@@ -693,6 +693,7 @@ void ipvlan_link_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
+	dev->max_mtu = ETH_MAX_MTU;
 	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_NO_QUEUE;
 	dev->netdev_ops = &ipvlan_netdev_ops;

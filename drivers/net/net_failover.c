@@ -527,7 +527,7 @@ static int net_failover_slave_register(struct net_device *slave_dev,
 
 	netif_addr_lock_bh(failover_dev);
 	dev_uc_sync_multiple(slave_dev, failover_dev);
-	dev_uc_sync_multiple(slave_dev, failover_dev);
+	dev_mc_sync_multiple(slave_dev, failover_dev);
 	netif_addr_unlock_bh(failover_dev);
 
 	err = vlan_vids_add_by_dev(slave_dev, failover_dev);
