@@ -134,6 +134,19 @@
 	status = "okay";
 	pinctrl-0 = <&i2c1_z_pins>;
 	pinctrl-names = "default";
+
+	speaker_amp1: audio-codec@1b {
+		compatible = "ti,tas5707";
+		reg = <0x1b>;
+		reset-gpios = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_LOW>;
+		#sound-dai-cells = <0>;
+		AVDD-supply = <&vcc_3v3>;
+		DVDD-supply = <&vcc_3v3>;
+		PVDD_A-supply = <&main_12v>;
+		PVDD_B-supply = <&main_12v>;
+		PVDD_C-supply = <&main_12v>;
+		PVDD_D-supply = <&main_12v>;
+	};
 };
 
 &i2c_AO {
