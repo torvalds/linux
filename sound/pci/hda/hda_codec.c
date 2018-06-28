@@ -37,15 +37,8 @@
 #include "hda_jack.h"
 #include <sound/hda_hwdep.h>
 
-#ifdef CONFIG_PM
-#define codec_in_pm(codec)	atomic_read(&(codec)->core.in_pm)
-#define hda_codec_is_power_on(codec) \
-	(!pm_runtime_suspended(hda_codec_dev(codec)))
-#else
-#define codec_in_pm(codec)	0
-#define hda_codec_is_power_on(codec)	1
-#endif
-
+#define codec_in_pm(codec)		snd_hdac_is_in_pm(&codec->core)
+#define hda_codec_is_power_on(codec)	snd_hdac_is_power_on(&codec->core)
 #define codec_has_epss(codec) \
 	((codec)->core.power_caps & AC_PWRST_EPSS)
 #define codec_has_clkstop(codec) \
@@ -2846,14 +2839,13 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 {
 	unsigned int state;
 
-	atomic_inc(&codec->core.in_pm);
-
+	snd_hdac_enter_pm(&codec->core);
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	state = hda_set_power_state(codec, AC_PWRST_D3);
 	update_power_acct(codec, true);
-	atomic_dec(&codec->core.in_pm);
+	snd_hdac_leave_pm(&codec->core);
 	return state;
 }
 
@@ -2862,8 +2854,7 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
  */
 static void hda_call_codec_resume(struct hda_codec *codec)
 {
-	atomic_inc(&codec->core.in_pm);
-
+	snd_hdac_enter_pm(&codec->core);
 	if (codec->core.regmap)
 		regcache_mark_dirty(codec->core.regmap);
 
@@ -2886,7 +2877,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 		hda_jackpoll_work(&codec->jackpoll_work.work);
 	else
 		snd_hda_jack_report_sync(codec);
-	atomic_dec(&codec->core.in_pm);
+	snd_hdac_leave_pm(&codec->core);
 }
 
 static int hda_codec_runtime_suspend(struct device *dev)

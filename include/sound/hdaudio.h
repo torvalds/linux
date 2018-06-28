@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/timecounter.h>
 #include <sound/core.h>
 #include <sound/memalloc.h>
@@ -171,12 +172,38 @@ int snd_hdac_power_down(struct hdac_device *codec);
 int snd_hdac_power_up_pm(struct hdac_device *codec);
 int snd_hdac_power_down_pm(struct hdac_device *codec);
 int snd_hdac_keep_power_up(struct hdac_device *codec);
+
+/* call this at entering into suspend/resume callbacks in codec driver */
+static inline void snd_hdac_enter_pm(struct hdac_device *codec)
+{
+	atomic_inc(&codec->in_pm);
+}
+
+/* call this at leaving from suspend/resume callbacks in codec driver */
+static inline void snd_hdac_leave_pm(struct hdac_device *codec)
+{
+	atomic_dec(&codec->in_pm);
+}
+
+static inline bool snd_hdac_is_in_pm(struct hdac_device *codec)
+{
+	return atomic_read(&codec->in_pm);
+}
+
+static inline bool snd_hdac_is_power_on(struct hdac_device *codec)
+{
+	return !pm_runtime_suspended(&codec->dev);
+}
 #else
 static inline int snd_hdac_power_up(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_up_pm(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down_pm(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_keep_power_up(struct hdac_device *codec) { return 0; }
+static inline void snd_hdac_enter_pm(struct hdac_device *codec) {}
+static inline void snd_hdac_leave_pm(struct hdac_device *codec) {}
+static inline bool snd_hdac_is_in_pm(struct hdac_device *codec) { return 0; }
+static inline bool snd_hdac_is_power_on(struct hdac_device *codec) { return 1; }
 #endif
 
 /*
