@@ -512,8 +512,7 @@ struct safexcel_desc_ring {
 	void *write;
 	void *read;
 
-	/* number of elements used in the ring */
-	unsigned nr;
+	/* descriptor element offset */
 	unsigned offset;
 };
 
@@ -521,11 +520,6 @@ enum safexcel_alg_type {
 	SAFEXCEL_ALG_TYPE_SKCIPHER,
 	SAFEXCEL_ALG_TYPE_AEAD,
 	SAFEXCEL_ALG_TYPE_AHASH,
-};
-
-struct safexcel_request {
-	struct list_head list;
-	struct crypto_async_request *req;
 };
 
 struct safexcel_config {
@@ -547,15 +541,16 @@ struct safexcel_work_data {
 
 struct safexcel_ring {
 	spinlock_t lock;
-	spinlock_t egress_lock;
 
-	struct list_head list;
 	struct workqueue_struct *workqueue;
 	struct safexcel_work_data work_data;
 
 	/* command/result rings */
 	struct safexcel_desc_ring cdr;
 	struct safexcel_desc_ring rdr;
+
+	/* result ring crypto API request */
+	struct crypto_async_request **rdr_req;
 
 	/* queue */
 	struct crypto_queue queue;
@@ -618,8 +613,7 @@ struct safexcel_crypto_priv {
 
 struct safexcel_context {
 	int (*send)(struct crypto_async_request *req, int ring,
-		    struct safexcel_request *request, int *commands,
-		    int *results);
+		    int *commands, int *results);
 	int (*handle_result)(struct safexcel_crypto_priv *priv, int ring,
 			     struct crypto_async_request *req, bool *complete,
 			     int *ret);
@@ -668,14 +662,14 @@ int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
-			      dma_addr_t ctxr_dma, int ring,
-			      struct safexcel_request *request);
+			      dma_addr_t ctxr_dma, int ring);
 int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 				   struct safexcel_desc_ring *cdr,
 				   struct safexcel_desc_ring *rdr);
 int safexcel_select_ring(struct safexcel_crypto_priv *priv);
 void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
 			      struct safexcel_desc_ring *ring);
+void *safexcel_ring_first_rptr(struct safexcel_crypto_priv *priv, int  ring);
 void safexcel_ring_rollback_wptr(struct safexcel_crypto_priv *priv,
 				 struct safexcel_desc_ring *ring);
 struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *priv,
@@ -688,6 +682,17 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 						 int ring_id,
 						bool first, bool last,
 						dma_addr_t data, u32 len);
+int safexcel_ring_first_rdr_index(struct safexcel_crypto_priv *priv,
+				  int ring);
+int safexcel_ring_rdr_rdesc_index(struct safexcel_crypto_priv *priv,
+				  int ring,
+				  struct safexcel_result_desc *rdesc);
+void safexcel_rdr_req_set(struct safexcel_crypto_priv *priv,
+			  int ring,
+			  struct safexcel_result_desc *rdesc,
+			  struct crypto_async_request *req);
+inline struct crypto_async_request *
+safexcel_rdr_req_get(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_inv_complete(struct crypto_async_request *req, int error);
 int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 			 void *istate, void *ostate);
