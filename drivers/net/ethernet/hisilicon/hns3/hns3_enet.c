@@ -2103,11 +2103,11 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		skb->csum_level = 1;
 	case HNS3_OL4_TYPE_NO_TUN:
 		/* Can checksum ipv4 or ipv6 + UDP/TCP/SCTP packets */
-		if (l3_type == HNS3_L3_TYPE_IPV4 ||
-		    (l3_type == HNS3_L3_TYPE_IPV6 &&
-		     (l4_type == HNS3_L4_TYPE_UDP ||
-		      l4_type == HNS3_L4_TYPE_TCP ||
-		      l4_type == HNS3_L4_TYPE_SCTP)))
+		if ((l3_type == HNS3_L3_TYPE_IPV4 ||
+		     l3_type == HNS3_L3_TYPE_IPV6) &&
+		    (l4_type == HNS3_L4_TYPE_UDP ||
+		     l4_type == HNS3_L4_TYPE_TCP ||
+		     l4_type == HNS3_L4_TYPE_SCTP))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		break;
 	}
