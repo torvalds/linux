@@ -32,11 +32,30 @@
 #define	BRCMF_BSS_INFO_VERSION	109 /* curr ver of brcmf_bss_info_le struct */
 #define BRCMF_BSS_RSSI_ON_CHANNEL	0x0002
 
-#define BRCMF_STA_WME              0x00000002      /* WMM association */
-#define BRCMF_STA_AUTHE            0x00000008      /* Authenticated */
-#define BRCMF_STA_ASSOC            0x00000010      /* Associated */
-#define BRCMF_STA_AUTHO            0x00000020      /* Authorized */
-#define BRCMF_STA_SCBSTATS         0x00004000      /* Per STA debug stats */
+#define BRCMF_STA_BRCM			0x00000001	/* Running a Broadcom driver */
+#define BRCMF_STA_WME			0x00000002	/* WMM association */
+#define BRCMF_STA_NONERP		0x00000004	/* No ERP */
+#define BRCMF_STA_AUTHE			0x00000008	/* Authenticated */
+#define BRCMF_STA_ASSOC			0x00000010	/* Associated */
+#define BRCMF_STA_AUTHO			0x00000020	/* Authorized */
+#define BRCMF_STA_WDS			0x00000040	/* Wireless Distribution System */
+#define BRCMF_STA_WDS_LINKUP		0x00000080	/* WDS traffic/probes flowing properly */
+#define BRCMF_STA_PS			0x00000100	/* STA is in power save mode from AP's viewpoint */
+#define BRCMF_STA_APSD_BE		0x00000200	/* APSD delv/trigger for AC_BE is default enabled */
+#define BRCMF_STA_APSD_BK		0x00000400	/* APSD delv/trigger for AC_BK is default enabled */
+#define BRCMF_STA_APSD_VI		0x00000800	/* APSD delv/trigger for AC_VI is default enabled */
+#define BRCMF_STA_APSD_VO		0x00001000	/* APSD delv/trigger for AC_VO is default enabled */
+#define BRCMF_STA_N_CAP			0x00002000	/* STA 802.11n capable */
+#define BRCMF_STA_SCBSTATS		0x00004000	/* Per STA debug stats */
+#define BRCMF_STA_AMPDU_CAP		0x00008000	/* STA AMPDU capable */
+#define BRCMF_STA_AMSDU_CAP		0x00010000	/* STA AMSDU capable */
+#define BRCMF_STA_MIMO_PS		0x00020000	/* mimo ps mode is enabled */
+#define BRCMF_STA_MIMO_RTS		0x00040000	/* send rts in mimo ps mode */
+#define BRCMF_STA_RIFS_CAP		0x00080000	/* rifs enabled */
+#define BRCMF_STA_VHT_CAP		0x00100000	/* STA VHT(11ac) capable */
+#define BRCMF_STA_WPS			0x00200000	/* WPS state */
+#define BRCMF_STA_DWDS_CAP		0x01000000	/* DWDS CAP */
+#define BRCMF_STA_DWDS			0x02000000	/* DWDS active */
 
 /* size of brcmf_scan_params not including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE	64
