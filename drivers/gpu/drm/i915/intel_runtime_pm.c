@@ -128,6 +128,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "AUX_C";
 	case POWER_DOMAIN_AUX_D:
 		return "AUX_D";
+	case POWER_DOMAIN_AUX_E:
+		return "AUX_E";
 	case POWER_DOMAIN_AUX_F:
 		return "AUX_F";
 	case POWER_DOMAIN_AUX_IO_A:

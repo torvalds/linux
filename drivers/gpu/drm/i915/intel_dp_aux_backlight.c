@@ -26,7 +26,7 @@
 
 static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 {
-	uint8_t reg_val = 0;
+	u8 reg_val = 0;
 
 	/* Early return when display use other mechanism to enable backlight. */
 	if (!(intel_dp->edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP))
@@ -54,11 +54,11 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
  * Read the current backlight value from DPCD register(s) based
  * on if 8-bit(MSB) or 16-bit(MSB and LSB) values are supported
  */
-static uint32_t intel_dp_aux_get_backlight(struct intel_connector *connector)
+static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
-	uint8_t read_val[2] = { 0x0 };
-	uint16_t level = 0;
+	u8 read_val[2] = { 0x0 };
+	u16 level = 0;
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
 			     &read_val, sizeof(read_val)) < 0) {
@@ -82,7 +82,7 @@ intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 lev
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
-	uint8_t vals[2] = { 0x0 };
+	u8 vals[2] = { 0x0 };
 
 	vals[0] = level;
 
@@ -178,7 +178,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&connector->encoder->base);
-	uint8_t dpcd_buf, new_dpcd_buf, edp_backlight_mode;
+	u8 dpcd_buf, new_dpcd_buf, edp_backlight_mode;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf) != 1) {

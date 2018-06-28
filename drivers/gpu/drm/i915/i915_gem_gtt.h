@@ -58,6 +58,7 @@
 
 struct drm_i915_file_private;
 struct drm_i915_fence_reg;
+struct i915_vma;
 
 typedef u32 gen6_pte_t;
 typedef u64 gen8_pte_t;
@@ -254,6 +255,21 @@ struct i915_pml4 {
 	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
 };
 
+struct i915_vma_ops {
+	/* Map an object into an address space with the given cache flags. */
+	int (*bind_vma)(struct i915_vma *vma,
+			enum i915_cache_level cache_level,
+			u32 flags);
+	/*
+	 * Unmap an object from an address space. This usually consists of
+	 * setting the valid PTE entries to a reserved scratch page.
+	 */
+	void (*unbind_vma)(struct i915_vma *vma);
+
+	int (*set_pages)(struct i915_vma *vma);
+	void (*clear_pages)(struct i915_vma *vma);
+};
+
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_i915_private *i915;
@@ -331,15 +347,8 @@ struct i915_address_space {
 			       enum i915_cache_level cache_level,
 			       u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
-	/** Unmap an object from an address space. This usually consists of
-	 * setting the valid PTE entries to a reserved scratch page. */
-	void (*unbind_vma)(struct i915_vma *vma);
-	/* Map an object into an address space with the given cache flags. */
-	int (*bind_vma)(struct i915_vma *vma,
-			enum i915_cache_level cache_level,
-			u32 flags);
-	int (*set_pages)(struct i915_vma *vma);
-	void (*clear_pages)(struct i915_vma *vma);
+
+	struct i915_vma_ops vma_ops;
 
 	I915_SELFTEST_DECLARE(struct fault_attr fault_attr);
 	I915_SELFTEST_DECLARE(bool scrub_64K);
@@ -387,7 +396,7 @@ struct i915_ggtt {
 struct i915_hw_ppgtt {
 	struct i915_address_space vm;
 	struct kref ref;
-	struct drm_mm_node node;
+
 	unsigned long pd_dirty_rings;
 	union {
 		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
@@ -395,12 +404,27 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
 
-	gen6_pte_t __iomem *pd_addr;
-
-	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct i915_request *rq);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
+
+struct gen6_hw_ppgtt {
+	struct i915_hw_ppgtt base;
+
+	struct i915_vma *vma;
+	gen6_pte_t __iomem *pd_addr;
+	gen6_pte_t scratch_pte;
+
+	unsigned int pin_count;
+	bool scan_for_unused_pt;
+};
+
+#define __to_gen6_ppgtt(base) container_of(base, struct gen6_hw_ppgtt, base)
+
+static inline struct gen6_hw_ppgtt *to_gen6_ppgtt(struct i915_hw_ppgtt *base)
+{
+	BUILD_BUG_ON(offsetof(struct gen6_hw_ppgtt, base));
+	return __to_gen6_ppgtt(base);
+}
 
 /*
  * gen6_for_each_pde() iterates over every pde from start until start+length.
@@ -440,8 +464,8 @@ static inline u32 i915_pte_count(u64 addr, u64 length, unsigned int pde_shift)
 	const u64 mask = ~((1ULL << pde_shift) - 1);
 	u64 end;
 
-	WARN_ON(length == 0);
-	WARN_ON(offset_in_page(addr|length));
+	GEM_BUG_ON(length == 0);
+	GEM_BUG_ON(offset_in_page(addr | length));
 
 	end = addr + length;
 
@@ -604,6 +628,9 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 	if (ppgtt)
 		kref_put(&ppgtt->ref, i915_ppgtt_release);
 }
+
+int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);
+void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base);
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);

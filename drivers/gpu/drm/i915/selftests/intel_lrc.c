@@ -155,7 +155,7 @@ spinner_create_request(struct spinner *spin,
 
 	err = emit_recurse_batch(spin, rq, arbitration_command);
 	if (err) {
-		__i915_request_add(rq, false);
+		i915_request_add(rq);
 		return ERR_PTR(err);
 	}
 

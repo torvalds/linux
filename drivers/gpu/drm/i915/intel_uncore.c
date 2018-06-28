@@ -2093,21 +2093,25 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 {
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
+	int ret;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		if (gen8_reset_engine_start(engine))
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		if (gen8_reset_engine_start(engine)) {
+			ret = -EIO;
 			goto not_ready;
+		}
+	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		return gen11_reset_engines(dev_priv, engine_mask);
+		ret = gen11_reset_engines(dev_priv, engine_mask);
 	else
-		return gen6_reset_engines(dev_priv, engine_mask);
+		ret = gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		gen8_reset_engine_cancel(engine);
 
-	return -EIO;
+	return ret;
 }
 
 typedef int (*reset_func)(struct drm_i915_private *, unsigned engine_mask);
@@ -2169,6 +2173,8 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		 * the reset is issued, regardless of READY_TO_RESET ack.
 		 * Thus assume it is best to stop engines on all gens
 		 * where we have a gpu reset.
+		 *
+		 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
 		 *
 		 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
 		 *

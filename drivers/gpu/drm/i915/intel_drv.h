@@ -158,12 +158,6 @@
 #define MAX_OUTPUTS 6
 /* maximum connectors per crtcs in the mode set */
 
-/* Maximum cursor sizes */
-#define GEN2_CURSOR_WIDTH 64
-#define GEN2_CURSOR_HEIGHT 64
-#define MAX_CURSOR_WIDTH 256
-#define MAX_CURSOR_HEIGHT 256
-
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
 
@@ -1716,6 +1710,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing);
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   uint8_t *link_bw, uint8_t *rate_select);
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
+bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp);
 bool
 intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE]);
 

@@ -817,6 +817,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	/* Keep a second pin for the dual retirement along engine and ring */
 	__intel_context_pin(ce);
 
+	rq->infix = rq->ring->emit; /* end of header; start of user payload */
+
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
 	return rq;
@@ -1016,14 +1018,13 @@ i915_request_await_object(struct i915_request *to,
  * request is not being tracked for completion but the work itself is
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
-void __i915_request_add(struct i915_request *request, bool flush_caches)
+void i915_request_add(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct i915_timeline *timeline = request->timeline;
 	struct intel_ring *ring = request->ring;
 	struct i915_request *prev;
 	u32 *cs;
-	int err;
 
 	GEM_TRACE("%s fence %llx:%d\n",
 		  engine->name, request->fence.context, request->fence.seqno);
@@ -1044,20 +1045,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	 * know that it is time to use that space up.
 	 */
 	request->reserved_space = 0;
-
-	/*
-	 * Emit any outstanding flushes - execbuf can fail to emit the flush
-	 * after having emitted the batchbuffer command. Hence we need to fix
-	 * things up similar to emitting the lazy request. The difference here
-	 * is that the flush _must_ happen before the next request, no matter
-	 * what.
-	 */
-	if (flush_caches) {
-		err = engine->emit_flush(request, EMIT_FLUSH);
-
-		/* Not allowed to fail! */
-		WARN(err, "engine->emit_flush() failed: %d!\n", err);
-	}
+	engine->emit_flush(request, EMIT_FLUSH);
 
 	/*
 	 * Record the position of the start of the breadcrumb so that

@@ -73,6 +73,12 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 	return false;
 }
+
+bool i915_error_injected(void)
+{
+	return i915_load_fail_count && !i915_modparams.inject_load_failure;
+}
+
 #endif
 
 #define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
@@ -114,20 +120,6 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 	va_end(args);
 }
-
-static bool i915_error_injected(struct drm_i915_private *dev_priv)
-{
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-	return i915_load_fail_count && !i915_modparams.inject_load_failure;
-#else
-	return false;
-#endif
-}
-
-#define i915_load_error(i915, fmt, ...)					 \
-	__i915_printk(i915,						 \
-		      i915_error_injected(i915) ? KERN_DEBUG : KERN_ERR, \
-		      fmt, ##__VA_ARGS__)
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
 static enum intel_pch
@@ -248,14 +240,6 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pch = NULL;
 
-	/* In all current cases, num_pipes is equivalent to the PCH_NOP setting
-	 * (which really amounts to a PCH but no South Display).
-	 */
-	if (INTEL_INFO(dev_priv)->num_pipes == 0) {
-		dev_priv->pch_type = PCH_NOP;
-		return;
-	}
-
 	/*
 	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
 	 * make graphics device passthrough work easy for VMM, that only
@@ -284,18 +268,28 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 		} else if (intel_is_virt_pch(id, pch->subsystem_vendor,
 					 pch->subsystem_device)) {
 			id = intel_virt_detect_pch(dev_priv);
-			if (id) {
-				pch_type = intel_pch_type(dev_priv, id);
-				if (WARN_ON(pch_type == PCH_NONE))
-					pch_type = PCH_NOP;
-			} else {
-				pch_type = PCH_NOP;
-			}
+			pch_type = intel_pch_type(dev_priv, id);
+
+			/* Sanity check virtual PCH id */
+			if (WARN_ON(id && pch_type == PCH_NONE))
+				id = 0;
+
 			dev_priv->pch_type = pch_type;
 			dev_priv->pch_id = id;
 			break;
 		}
 	}
+
+	/*
+	 * Use PCH_NOP (PCH but no South Display) for PCH platforms without
+	 * display.
+	 */
+	if (pch && INTEL_INFO(dev_priv)->num_pipes == 0) {
+		DRM_DEBUG_KMS("Display disabled, reverting to NOP PCH\n");
+		dev_priv->pch_type = PCH_NOP;
+		dev_priv->pch_id = 0;
+	}
+
 	if (!pch)
 		DRM_DEBUG_KMS("No PCH found.\n");
 
@@ -1704,6 +1698,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	disable_rpm_wakeref_asserts(dev_priv);
 	intel_sanitize_gt_powersave(dev_priv);
 
+	i915_gem_sanitize(dev_priv);
+
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
@@ -1845,7 +1841,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	else
 		intel_display_set_init_power(dev_priv, true);
 
-	i915_gem_sanitize(dev_priv);
+	intel_engines_sanitize(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 

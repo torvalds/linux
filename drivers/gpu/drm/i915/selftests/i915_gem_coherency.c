@@ -199,7 +199,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 
 	cs = intel_ring_begin(rq, 4);
 	if (IS_ERR(cs)) {
-		__i915_request_add(rq, false);
+		i915_request_add(rq);
 		i915_vma_unpin(vma);
 		return PTR_ERR(cs);
 	}
@@ -229,7 +229,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	reservation_object_add_excl_fence(obj->resv, &rq->fence);
 	reservation_object_unlock(obj->resv);
 
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 
 	return 0;
 }

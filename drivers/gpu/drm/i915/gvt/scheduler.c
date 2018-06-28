@@ -45,11 +45,10 @@ static void set_context_pdp_root_pointer(
 		struct execlist_ring_context *ring_context,
 		u32 pdp[8])
 {
-	struct execlist_mmio_pair *pdp_pair = &ring_context->pdp3_UDW;
 	int i;
 
 	for (i = 0; i < 8; i++)
-		pdp_pair[i].val = pdp[7 - i];
+		ring_context->pdps[i].val = pdp[7 - i];
 }
 
 static void update_shadow_pdps(struct intel_vgpu_workload *workload)
@@ -298,7 +297,8 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	void *shadow_ring_buffer_va;
 	u32 *cs;
 
-	if (IS_KABYLAKE(req->i915) && is_inhibit_context(req->hw_context))
+	if ((IS_KABYLAKE(req->i915) || IS_BROXTON(req->i915))
+		&& is_inhibit_context(req->hw_context))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/* allocate shadow ring buffer */
@@ -634,6 +634,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
 		ring_id, workload);
 
+	mutex_lock(&vgpu->vgpu_lock);
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	ret = intel_gvt_scan_and_shadow_workload(workload);
@@ -654,6 +655,7 @@ out:
 	}
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
 
@@ -663,7 +665,7 @@ static struct intel_vgpu_workload *pick_next_workload(
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&gvt->sched_lock);
 
 	/*
 	 * no current vgpu / will be scheduled out / no workload
@@ -709,7 +711,7 @@ static struct intel_vgpu_workload *pick_next_workload(
 
 	atomic_inc(&workload->vgpu->submission.running_workload_num);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&gvt->sched_lock);
 	return workload;
 }
 
@@ -807,7 +809,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	struct i915_request *rq = workload->req;
 	int event;
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
+	mutex_lock(&gvt->sched_lock);
 
 	/* For the workload w/ request, needs to wait for the context
 	 * switch to make sure request is completed.
@@ -883,7 +886,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	if (gvt->scheduler.need_reschedule)
 		intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
 
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&gvt->sched_lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 struct workload_thread_param {
@@ -901,7 +905,8 @@ static int workload_thread(void *priv)
 	struct intel_vgpu *vgpu = NULL;
 	int ret;
 	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv)
-			|| IS_KABYLAKE(gvt->dev_priv);
+			|| IS_KABYLAKE(gvt->dev_priv)
+			|| IS_BROXTON(gvt->dev_priv);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	kfree(p);
@@ -935,9 +940,7 @@ static int workload_thread(void *priv)
 			intel_uncore_forcewake_get(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		mutex_lock(&gvt->lock);
 		ret = dispatch_workload(workload);
-		mutex_unlock(&gvt->lock);
 
 		if (ret) {
 			vgpu = workload->vgpu;
@@ -1228,7 +1231,7 @@ static void read_guest_pdps(struct intel_vgpu *vgpu,
 	u64 gpa;
 	int i;
 
-	gpa = ring_context_gpa + RING_CTX_OFF(pdp3_UDW.val);
+	gpa = ring_context_gpa + RING_CTX_OFF(pdps[0].val);
 
 	for (i = 0; i < 8; i++)
 		intel_gvt_hypervisor_read_gpa(vgpu,

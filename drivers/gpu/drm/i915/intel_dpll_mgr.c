@@ -2857,10 +2857,17 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	case PORT_D:
 	case PORT_E:
 	case PORT_F:
-		min = icl_port_to_mg_pll_id(port);
-		max = min;
-		ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
-					    &pll_state);
+		if (0 /* TODO: TBT PLLs */) {
+			min = DPLL_ID_ICL_TBTPLL;
+			max = min;
+			ret = icl_calc_dpll_state(crtc_state, encoder, clock,
+						  &pll_state);
+		} else {
+			min = icl_port_to_mg_pll_id(port);
+			max = min;
+			ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
+						    &pll_state);
+		}
 		break;
 	default:
 		MISSING_CASE(port);
@@ -2893,6 +2900,8 @@ static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return CNL_DPLL_ENABLE(id);
+	case DPLL_ID_ICL_TBTPLL:
+		return TBT_PLL_ENABLE;
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:
 	case DPLL_ID_ICL_MGPLL3:
@@ -2920,6 +2929,7 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	switch (id) {
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
+	case DPLL_ID_ICL_TBTPLL:
 		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
 		break;
@@ -3006,6 +3016,7 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 	switch (id) {
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
+	case DPLL_ID_ICL_TBTPLL:
 		icl_dpll_write(dev_priv, pll);
 		break;
 	case DPLL_ID_ICL_MGPLL1:
@@ -3104,6 +3115,7 @@ static const struct intel_shared_dpll_funcs icl_pll_funcs = {
 static const struct dpll_info icl_plls[] = {
 	{ "DPLL 0",   &icl_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
 	{ "DPLL 1",   &icl_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
+	{ "TBT PLL",  &icl_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
 	{ "MG PLL 1", &icl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
 	{ "MG PLL 2", &icl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
 	{ "MG PLL 3", &icl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },

@@ -49,10 +49,12 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	const struct i915_vma_ops *ops;
 	struct drm_i915_fence_reg *fence;
 	struct reservation_object *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
+	void *private; /* owned by creator */
 	u64 size;
 	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
@@ -339,6 +341,12 @@ static inline void i915_vma_unpin(struct i915_vma *vma)
 	__i915_vma_unpin(vma);
 }
 
+static inline bool i915_vma_is_bound(const struct i915_vma *vma,
+				     unsigned int where)
+{
+	return vma->flags & where;
+}
+
 /**
  * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture
  * @vma: VMA to iomap
@@ -407,7 +415,7 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
+	/* lockdep_assert_held(&vma->vm->i915->drm.struct_mutex); */
 	if (vma->fence)
 		__i915_vma_unpin_fence(vma);
 }

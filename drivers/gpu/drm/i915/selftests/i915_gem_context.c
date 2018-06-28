@@ -182,12 +182,12 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	reservation_object_add_excl_fence(obj->resv, &rq->fence);
 	reservation_object_unlock(obj->resv);
 
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 
 	return 0;
 
 err_request:
-	__i915_request_add(rq, false);
+	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin(batch);
 err_vma:
@@ -519,8 +519,8 @@ static int igt_switch_to_kernel_context(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out_unlock;
+		mutex_unlock(&i915->drm.struct_mutex);
+		return PTR_ERR(ctx);
 	}
 
 	/* First check idling each individual engine */

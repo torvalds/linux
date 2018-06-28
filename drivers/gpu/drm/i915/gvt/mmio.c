@@ -67,7 +67,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 		return;
 
 	gvt = vgpu->gvt;
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 	if (reg_is_mmio(gvt, offset)) {
 		if (read)
@@ -85,7 +85,7 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 			memcpy(pt, p_data, bytes);
 
 	}
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 }
 
 /**
@@ -109,7 +109,7 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		failsafe_emulate_mmio_rw(vgpu, pa, p_data, bytes, true);
 		return 0;
 	}
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
@@ -156,7 +156,7 @@ err:
 	gvt_vgpu_err("fail to emulate MMIO read %08x len %d\n",
 			offset, bytes);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
 
@@ -182,7 +182,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 		return 0;
 	}
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&vgpu->vgpu_lock);
 
 	offset = intel_vgpu_gpa_to_mmio_offset(vgpu, pa);
 
@@ -220,7 +220,7 @@ err:
 	gvt_vgpu_err("fail to emulate MMIO write %08x len %d\n", offset,
 		     bytes);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
 

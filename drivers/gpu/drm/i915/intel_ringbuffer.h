@@ -122,7 +122,8 @@ struct intel_engine_hangcheck {
 	int deadlock;
 	struct intel_instdone instdone;
 	struct i915_request *active_request;
-	bool stalled;
+	bool stalled:1;
+	bool wedged:1;
 };
 
 struct intel_ring {
@@ -557,15 +558,6 @@ struct intel_engine_cs {
 	 */
 	struct intel_context *last_retired_context;
 
-	/* We track the current MI_SET_CONTEXT in order to eliminate
-	 * redudant context switches. This presumes that requests are not
-	 * reordered! Or when they are the tracking is updated along with
-	 * the emission of individual requests into the legacy command
-	 * stream (ring).
-	 */
-	struct i915_gem_context *legacy_active_context;
-	struct i915_hw_ppgtt *legacy_active_ppgtt;
-
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
 
@@ -814,6 +806,19 @@ static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)
 	return pos & (ring->size - 1);
 }
 
+static inline bool
+intel_ring_offset_valid(const struct intel_ring *ring,
+			unsigned int pos)
+{
+	if (pos & -ring->size) /* must be strictly within the ring */
+		return false;
+
+	if (!IS_ALIGNED(pos, 8)) /* must be qword aligned */
+		return false;
+
+	return true;
+}
+
 static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
@@ -825,12 +830,7 @@ static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 static inline void
 assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 {
-	/* We could combine these into a single tail operation, but keeping
-	 * them as seperate tests will help identify the cause should one
-	 * ever fire.
-	 */
-	GEM_BUG_ON(!IS_ALIGNED(tail, 8));
-	GEM_BUG_ON(tail >= ring->size);
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
 
 	/*
 	 * "Ring Buffer Use"
@@ -870,8 +870,11 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
-int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
+
+int intel_engine_create_scratch(struct intel_engine_cs *engine,
+				unsigned int size);
+void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
@@ -1048,6 +1051,8 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 
 	return cs;
 }
+
+void intel_engines_sanitize(struct drm_i915_private *i915);
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);

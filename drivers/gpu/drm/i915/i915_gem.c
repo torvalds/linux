@@ -1995,7 +1995,7 @@ compute_partial_view(struct drm_i915_gem_object *obj,
  * The current feature set supported by i915_gem_fault() and thus GTT mmaps
  * is exposed via I915_PARAM_MMAP_GTT_VERSION (see i915_gem_mmap_gtt_version).
  */
-int i915_gem_fault(struct vm_fault *vmf)
+vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 {
 #define MIN_CHUNK_PAGES (SZ_1M >> PAGE_SHIFT)
 	struct vm_area_struct *area = vmf->vma;
@@ -2112,10 +2112,8 @@ err:
 		 * fail). But any other -EIO isn't ours (e.g. swap in failure)
 		 * and so needs to be reported.
 		 */
-		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-			ret = VM_FAULT_SIGBUS;
-			break;
-		}
+		if (!i915_terminally_wedged(&dev_priv->gpu_error))
+			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
@@ -2130,21 +2128,16 @@ err:
 		 * EBUSY is ok: this just means that another thread
 		 * already did the job.
 		 */
-		ret = VM_FAULT_NOPAGE;
-		break;
+		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
-		ret = VM_FAULT_OOM;
-		break;
+		return VM_FAULT_OOM;
 	case -ENOSPC:
 	case -EFAULT:
-		ret = VM_FAULT_SIGBUS;
-		break;
+		return VM_FAULT_SIGBUS;
 	default:
 		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
-		ret = VM_FAULT_SIGBUS;
-		break;
+		return VM_FAULT_SIGBUS;
 	}
-	return ret;
 }
 
 static void __i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
@@ -2408,29 +2401,15 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	rcu_read_unlock();
 }
 
-void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				 enum i915_mm_subclass subclass)
+static struct sg_table *
+__i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *pages;
 
-	if (i915_gem_object_has_pinned_pages(obj))
-		return;
-
-	GEM_BUG_ON(obj->bind_count);
-	if (!i915_gem_object_has_pages(obj))
-		return;
-
-	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock_nested(&obj->mm.lock, subclass);
-	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
-		goto unlock;
-
-	/* ->put_pages might need to allocate memory for the bit17 swizzle
-	 * array, hence protect them from being reaped by removing them from gtt
-	 * lists early. */
 	pages = fetch_and_zero(&obj->mm.pages);
-	GEM_BUG_ON(!pages);
+	if (!pages)
+		return NULL;
 
 	spin_lock(&i915->mm.obj_lock);
 	list_del(&obj->mm.link);
@@ -2449,11 +2428,36 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	}
 
 	__i915_gem_object_reset_page_iter(obj);
+	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
 
+	return pages;
+}
+
+void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				 enum i915_mm_subclass subclass)
+{
+	struct sg_table *pages;
+
+	if (i915_gem_object_has_pinned_pages(obj))
+		return;
+
+	GEM_BUG_ON(obj->bind_count);
+	if (!i915_gem_object_has_pages(obj))
+		return;
+
+	/* May be called by shrinker from within get_pages() (on another bo) */
+	mutex_lock_nested(&obj->mm.lock, subclass);
+	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
+		goto unlock;
+
+	/*
+	 * ->put_pages might need to allocate memory for the bit17 swizzle
+	 * array, hence protect them from being reaped by removing them from gtt
+	 * lists early.
+	 */
+	pages = __i915_gem_object_unset_pages(obj);
 	if (!IS_ERR(pages))
 		obj->ops->put_pages(obj, pages);
-
-	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
 
 unlock:
 	mutex_unlock(&obj->mm.lock);
@@ -2937,32 +2941,54 @@ i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static void i915_gem_client_mark_guilty(struct drm_i915_file_private *file_priv,
+					const struct i915_gem_context *ctx)
+{
+	unsigned int score;
+	unsigned long prev_hang;
+
+	if (i915_gem_context_is_banned(ctx))
+		score = I915_CLIENT_SCORE_CONTEXT_BAN;
+	else
+		score = 0;
+
+	prev_hang = xchg(&file_priv->hang_timestamp, jiffies);
+	if (time_before(jiffies, prev_hang + I915_CLIENT_FAST_HANG_JIFFIES))
+		score += I915_CLIENT_SCORE_HANG_FAST;
+
+	if (score) {
+		atomic_add(score, &file_priv->ban_score);
+
+		DRM_DEBUG_DRIVER("client %s: gained %u ban score, now %u\n",
+				 ctx->name, score,
+				 atomic_read(&file_priv->ban_score));
+	}
+}
+
 static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 {
-	bool banned;
+	unsigned int score;
+	bool banned, bannable;
 
 	atomic_inc(&ctx->guilty_count);
 
-	banned = false;
-	if (i915_gem_context_is_bannable(ctx)) {
-		unsigned int score;
+	bannable = i915_gem_context_is_bannable(ctx);
+	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
+	banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
 
-		score = atomic_add_return(CONTEXT_SCORE_GUILTY,
-					  &ctx->ban_score);
-		banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
-
-		DRM_DEBUG_DRIVER("context %s marked guilty (score %d) banned? %s\n",
-				 ctx->name, score, yesno(banned));
-	}
-	if (!banned)
+	/* Cool contexts don't accumulate client ban score */
+	if (!bannable)
 		return;
 
-	i915_gem_context_set_banned(ctx);
-	if (!IS_ERR_OR_NULL(ctx->file_priv)) {
-		atomic_inc(&ctx->file_priv->context_bans);
-		DRM_DEBUG_DRIVER("client %s has had %d context banned\n",
-				 ctx->name, atomic_read(&ctx->file_priv->context_bans));
+	if (banned) {
+		DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, banned\n",
+				 ctx->name, atomic_read(&ctx->guilty_count),
+				 score);
+		i915_gem_context_set_banned(ctx);
 	}
+
+	if (!IS_ERR_OR_NULL(ctx->file_priv))
+		i915_gem_client_mark_guilty(ctx->file_priv, ctx);
 }
 
 static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
@@ -3140,15 +3166,17 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 		 */
 		request = i915_gem_find_active_request(engine);
 		if (request) {
+			unsigned long flags;
+
 			i915_gem_context_mark_innocent(request->gem_context);
 			dma_fence_set_error(&request->fence, -EAGAIN);
 
 			/* Rewind the engine to replay the incomplete rq */
-			spin_lock_irq(&engine->timeline.lock);
+			spin_lock_irqsave(&engine->timeline.lock, flags);
 			request = list_prev_entry(request, link);
 			if (&request->link == &engine->timeline.requests)
 				request = NULL;
-			spin_unlock_irq(&engine->timeline.lock);
+			spin_unlock_irqrestore(&engine->timeline.lock, flags);
 		}
 	}
 
@@ -3209,7 +3237,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 			rq = i915_request_alloc(engine,
 						dev_priv->kernel_context);
 			if (!IS_ERR(rq))
-				__i915_request_add(rq, false);
+				i915_request_add(rq);
 		}
 	}
 
@@ -4962,8 +4990,7 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	int err;
 
 	GEM_TRACE("\n");
 
@@ -4989,14 +5016,11 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * it may impact the display and we are uncertain about the stability
 	 * of the reset, so this could be applied to even earlier gen.
 	 */
+	err = -ENODEV;
 	if (INTEL_GEN(i915) >= 5 && intel_has_gpu_reset(i915))
-		WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
-
-	/* Reset the submission backend after resume as well as the GPU reset */
-	for_each_engine(engine, i915, id) {
-		if (engine->reset.reset)
-			engine->reset.reset(engine, NULL);
-	}
+		err = WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
+	if (!err)
+		intel_engines_sanitize(i915);
 
 	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915);
@@ -5328,7 +5352,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		if (engine->init_context)
 			err = engine->init_context(rq);
 
-		__i915_request_add(rq, true);
+		i915_request_add(rq);
 		if (err)
 			goto err_active;
 	}
@@ -5514,8 +5538,12 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * driver doesn't explode during runtime.
 	 */
 err_init_hw:
-	i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
-	i915_gem_contexts_lost(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	WARN_ON(i915_gem_suspend(dev_priv));
+	i915_gem_suspend_late(dev_priv);
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 err_uc_init:
 	intel_uc_fini(dev_priv);
@@ -5544,7 +5572,8 @@ err_unlock:
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-			DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
+			i915_load_error(dev_priv,
+					"Failed to initialize GPU, declaring it wedged!\n");
 			i915_gem_set_wedged(dev_priv);
 		}
 		ret = 0;
@@ -5811,6 +5840,7 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
 	file_priv->bsd_engine = -1;
+	file_priv->hang_timestamp = jiffies;
 
 	ret = i915_gem_context_open(i915, file);
 	if (ret)
@@ -6091,16 +6121,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 		goto err_unlock;
 	}
 
-	pages = fetch_and_zero(&obj->mm.pages);
-	if (pages) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-		__i915_gem_object_reset_page_iter(obj);
-
-		spin_lock(&i915->mm.obj_lock);
-		list_del(&obj->mm.link);
-		spin_unlock(&i915->mm.obj_lock);
-	}
+	pages = __i915_gem_object_unset_pages(obj);
 
 	obj->ops = &i915_gem_phys_ops;
 
@@ -6118,7 +6139,11 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 
 err_xfer:
 	obj->ops = &i915_gem_object_ops;
-	obj->mm.pages = pages;
+	if (!IS_ERR_OR_NULL(pages)) {
+		unsigned int sg_page_sizes = i915_sg_page_sizes(pages->sgl);
+
+		__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+	}
 err_unlock:
 	mutex_unlock(&obj->mm.lock);
 	return err;

@@ -84,12 +84,12 @@
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
 #define   GUC_LOG_ALLOC_IN_MEGABYTE	(1 << 3)
-#define   GUC_LOG_CRASH_PAGES		1
 #define   GUC_LOG_CRASH_SHIFT		4
-#define   GUC_LOG_DPC_PAGES		7
+#define   GUC_LOG_CRASH_MASK		(0x1 << GUC_LOG_CRASH_SHIFT)
 #define   GUC_LOG_DPC_SHIFT		6
-#define   GUC_LOG_ISR_PAGES		7
+#define   GUC_LOG_DPC_MASK	        (0x7 << GUC_LOG_DPC_SHIFT)
 #define   GUC_LOG_ISR_SHIFT		9
+#define   GUC_LOG_ISR_MASK	        (0x7 << GUC_LOG_ISR_SHIFT)
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
 #define GUC_CTL_PAGE_FAULT_CONTROL	5
@@ -532,20 +532,6 @@ enum guc_log_buffer_type {
 };
 
 /**
- * DOC: GuC Log buffer Layout
- *
- * Page0  +-------------------------------+
- *        |   ISR state header (32 bytes) |
- *        |      DPC state header         |
- *        |   Crash dump state header     |
- * Page1  +-------------------------------+
- *        |           ISR logs            |
- * Page9  +-------------------------------+
- *        |           DPC logs            |
- * Page17 +-------------------------------+
- *        |         Crash Dump logs       |
- *        +-------------------------------+
- *
  * Below state structure is used for coordination of retrieval of GuC firmware
  * logs. Separate state is maintained for each log buffer type.
  * read_ptr points to the location where i915 read last in log buffer and

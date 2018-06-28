@@ -652,7 +652,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	}
 
 	if (bdb->version >= 173) {
-		uint8_t vswing;
+		u8 vswing;
 
 		/* Don't read from VBT if module parameter has valid value*/
 		if (i915_modparams.edp_vswing) {
@@ -710,7 +710,9 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	 * New psr options 0=500us, 1=100us, 2=2500us, 3=0us
 	 * Old decimal value is wake up time in multiples of 100 us.
 	 */
-	if (bdb->version >= 209 && IS_GEN9_BC(dev_priv)) {
+	if (bdb->version >= 205 &&
+	    (IS_GEN9_BC(dev_priv) || IS_GEMINILAKE(dev_priv) ||
+	     INTEL_GEN(dev_priv) >= 10)) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			dev_priv->vbt.psr.tp1_wakeup_time_us = 500;
@@ -738,7 +740,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 100;
 			break;
 		case 3:
-			dev_priv->vbt.psr.tp1_wakeup_time_us = 0;
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 0;
 			break;
 		default:
 			DRM_DEBUG_KMS("VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
@@ -964,7 +966,7 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 	 * includes MIPI_SEQ_ELEM_END byte, excludes the final MIPI_SEQ_END
 	 * byte.
 	 */
-	size_of_sequence = *((const uint32_t *)(data + index));
+	size_of_sequence = *((const u32 *)(data + index));
 	index += 4;
 
 	seq_end = index + size_of_sequence;
@@ -1719,7 +1721,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
-	if (HAS_PCH_NOP(dev_priv)) {
+	if (INTEL_INFO(dev_priv)->num_pipes == 0) {
 		DRM_DEBUG_KMS("Skipping VBT init due to disabled display.\n");
 		return;
 	}

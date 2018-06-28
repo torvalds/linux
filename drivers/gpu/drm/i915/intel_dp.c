@@ -256,6 +256,17 @@ static int cnl_max_source_rate(struct intel_dp *intel_dp)
 	return 810000;
 }
 
+static int icl_max_source_rate(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum port port = dig_port->base.port;
+
+	if (port == PORT_B)
+		return 540000;
+
+	return 810000;
+}
+
 static void
 intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
@@ -285,10 +296,13 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	/* This should only be done once */
 	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 10) {
 		source_rates = cnl_rates;
 		size = ARRAY_SIZE(cnl_rates);
-		max_rate = cnl_max_source_rate(intel_dp);
+		if (INTEL_GEN(dev_priv) == 10)
+			max_rate = cnl_max_source_rate(intel_dp);
+		else
+			max_rate = icl_max_source_rate(intel_dp);
 	} else if (IS_GEN9_LP(dev_priv)) {
 		source_rates = bxt_rates;
 		size = ARRAY_SIZE(bxt_rates);
@@ -419,6 +433,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int max_dotclk;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
 
 	max_dotclk = intel_dp_downstream_max_dotclock(intel_dp);
 
@@ -1347,6 +1364,9 @@ static enum aux_ch intel_aux_ch(struct intel_dp *intel_dp)
 	case DP_AUX_D:
 		aux_ch = AUX_CH_D;
 		break;
+	case DP_AUX_E:
+		aux_ch = AUX_CH_E;
+		break;
 	case DP_AUX_F:
 		aux_ch = AUX_CH_F;
 		break;
@@ -1374,6 +1394,8 @@ intel_aux_power_domain(struct intel_dp *intel_dp)
 		return POWER_DOMAIN_AUX_C;
 	case AUX_CH_D:
 		return POWER_DOMAIN_AUX_D;
+	case AUX_CH_E:
+		return POWER_DOMAIN_AUX_E;
 	case AUX_CH_F:
 		return POWER_DOMAIN_AUX_F;
 	default:
@@ -1460,6 +1482,7 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_B:
 	case AUX_CH_C:
 	case AUX_CH_D:
+	case AUX_CH_E:
 	case AUX_CH_F:
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
@@ -1478,6 +1501,7 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_B:
 	case AUX_CH_C:
 	case AUX_CH_D:
+	case AUX_CH_E:
 	case AUX_CH_F:
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
@@ -1539,6 +1563,13 @@ bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
 
 	return max_rate >= 540000;
+}
+
+bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp)
+{
+	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
+
+	return max_rate >= 810000;
 }
 
 static void
@@ -1862,7 +1893,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 						conn_state->scaling_mode);
 	}
 
-	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
+	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
@@ -2798,16 +2832,6 @@ static void g4x_disable_dp(struct intel_encoder *encoder,
 			   const struct drm_connector_state *old_conn_state)
 {
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
-
-	/* disable the port before the pipe on g4x */
-	intel_dp_link_down(encoder, old_crtc_state);
-}
-
-static void ilk_disable_dp(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *old_crtc_state,
-			   const struct drm_connector_state *old_conn_state)
-{
-	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
 static void vlv_disable_dp(struct intel_encoder *encoder,
@@ -2821,13 +2845,19 @@ static void vlv_disable_dp(struct intel_encoder *encoder,
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
-static void ilk_post_disable_dp(struct intel_encoder *encoder,
+static void g4x_post_disable_dp(struct intel_encoder *encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = encoder->port;
 
+	/*
+	 * Bspec does not list a specific disable sequence for g4x DP.
+	 * Follow the ilk+ sequence (disable pipe before the port) for
+	 * g4x DP as it does not suffer from underruns like the normal
+	 * g4x modeset sequence (disable pipe after the port).
+	 */
 	intel_dp_link_down(encoder, old_crtc_state);
 
 	/* Only ilk+ has port A */
@@ -2866,10 +2896,11 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->base.port;
+	uint8_t train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
 
-	if (dp_train_pat & DP_TRAINING_PATTERN_MASK)
+	if (dp_train_pat & train_pat_mask)
 		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
-			      dp_train_pat & DP_TRAINING_PATTERN_MASK);
+			      dp_train_pat & train_pat_mask);
 
 	if (HAS_DDI(dev_priv)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
@@ -2880,7 +2911,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
 
 		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		switch (dp_train_pat & train_pat_mask) {
 		case DP_TRAINING_PATTERN_DISABLE:
 			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
 
@@ -2893,6 +2924,9 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			break;
 		case DP_TRAINING_PATTERN_3:
 			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
+			break;
+		case DP_TRAINING_PATTERN_4:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT4;
 			break;
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);
@@ -6344,7 +6378,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (!HAS_GMCH_DISPLAY(dev_priv))
 		connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
@@ -6387,7 +6421,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	 * 0xd.  Failure to do so will result in spurious interrupts being
 	 * generated on the port when a cable is not attached.
 	 */
-	if (IS_G4X(dev_priv) && !IS_GM45(dev_priv)) {
+	if (IS_G45(dev_priv)) {
 		u32 temp = I915_READ(PEG_BAND_GAP_DATA);
 		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
 	}
@@ -6443,15 +6477,11 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->enable = vlv_enable_dp;
 		intel_encoder->disable = vlv_disable_dp;
 		intel_encoder->post_disable = vlv_post_disable_dp;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
-		intel_encoder->pre_enable = g4x_pre_enable_dp;
-		intel_encoder->enable = g4x_enable_dp;
-		intel_encoder->disable = ilk_disable_dp;
-		intel_encoder->post_disable = ilk_post_disable_dp;
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
 		intel_encoder->disable = g4x_disable_dp;
+		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
 
 	intel_dig_port->dp.output_reg = output_reg;

@@ -342,9 +342,9 @@ static int live_nop_request(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 
 	for_each_engine(engine, i915, id) {
-		IGT_TIMEOUT(end_time);
-		struct i915_request *request;
+		struct i915_request *request = NULL;
 		unsigned long n, prime;
+		IGT_TIMEOUT(end_time);
 		ktime_t times[2] = {};
 
 		err = begin_live_test(&t, i915, __func__, engine->name);
@@ -466,7 +466,7 @@ empty_request(struct intel_engine_cs *engine,
 		goto out_request;
 
 out_request:
-	__i915_request_add(request, err == 0);
+	i915_request_add(request);
 	return err ? ERR_PTR(err) : request;
 }
 

@@ -1003,7 +1003,7 @@ static int gpu_write(struct i915_vma *vma,
 	reservation_object_unlock(vma->resv);
 
 err_request:
-	__i915_request_add(rq, err == 0);
+	i915_request_add(rq);
 
 	return err;
 }

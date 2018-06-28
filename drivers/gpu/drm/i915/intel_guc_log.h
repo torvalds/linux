@@ -30,15 +30,19 @@
 #include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"
+#include "i915_gem.h"
 
 struct intel_guc;
 
-/*
- * The first page is to save log buffer state. Allocate one
- * extra page for others in case for overlap
- */
-#define GUC_LOG_SIZE	((1 + GUC_LOG_DPC_PAGES + 1 + GUC_LOG_ISR_PAGES + \
-			  1 + GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT)
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+#define CRASH_BUFFER_SIZE	SZ_2M
+#define DPC_BUFFER_SIZE		SZ_8M
+#define ISR_BUFFER_SIZE		SZ_8M
+#else
+#define CRASH_BUFFER_SIZE	SZ_8K
+#define DPC_BUFFER_SIZE		SZ_32K
+#define ISR_BUFFER_SIZE		SZ_32K
+#endif
 
 /*
  * While we're using plain log level in i915, GuC controls are much more...
@@ -58,7 +62,7 @@ struct intel_guc;
 #define GUC_LOG_LEVEL_MAX GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX)
 
 struct intel_guc_log {
-	u32 flags;
+	u32 level;
 	struct i915_vma *vma;
 	struct {
 		void *buf_addr;
@@ -80,13 +84,17 @@ void intel_guc_log_init_early(struct intel_guc_log *log);
 int intel_guc_log_create(struct intel_guc_log *log);
 void intel_guc_log_destroy(struct intel_guc_log *log);
 
-int intel_guc_log_level_get(struct intel_guc_log *log);
-int intel_guc_log_level_set(struct intel_guc_log *log, u64 control_val);
+int intel_guc_log_set_level(struct intel_guc_log *log, u32 level);
 bool intel_guc_log_relay_enabled(const struct intel_guc_log *log);
 int intel_guc_log_relay_open(struct intel_guc_log *log);
 void intel_guc_log_relay_flush(struct intel_guc_log *log);
 void intel_guc_log_relay_close(struct intel_guc_log *log);
 
 void intel_guc_log_handle_flush_event(struct intel_guc_log *log);
+
+static inline u32 intel_guc_log_get_level(struct intel_guc_log *log)
+{
+	return log->level;
+}
 
 #endif

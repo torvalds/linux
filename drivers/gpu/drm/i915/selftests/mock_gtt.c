@@ -80,11 +80,12 @@ mock_ppgtt(struct drm_i915_private *i915,
 	ppgtt->vm.clear_range = nop_clear_range;
 	ppgtt->vm.insert_page = mock_insert_page;
 	ppgtt->vm.insert_entries = mock_insert_entries;
-	ppgtt->vm.bind_vma = mock_bind_ppgtt;
-	ppgtt->vm.unbind_vma = mock_unbind_ppgtt;
-	ppgtt->vm.set_pages = ppgtt_set_pages;
-	ppgtt->vm.clear_pages = clear_pages;
 	ppgtt->vm.cleanup = mock_cleanup;
+
+	ppgtt->vm.vma_ops.bind_vma    = mock_bind_ppgtt;
+	ppgtt->vm.vma_ops.unbind_vma  = mock_unbind_ppgtt;
+	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
+	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 
 	return ppgtt;
 }
@@ -116,11 +117,12 @@ void mock_init_ggtt(struct drm_i915_private *i915)
 	ggtt->vm.clear_range = nop_clear_range;
 	ggtt->vm.insert_page = mock_insert_page;
 	ggtt->vm.insert_entries = mock_insert_entries;
-	ggtt->vm.bind_vma = mock_bind_ggtt;
-	ggtt->vm.unbind_vma = mock_unbind_ggtt;
-	ggtt->vm.set_pages = ggtt_set_pages;
-	ggtt->vm.clear_pages = clear_pages;
 	ggtt->vm.cleanup = mock_cleanup;
+
+	ggtt->vm.vma_ops.bind_vma    = mock_bind_ggtt;
+	ggtt->vm.vma_ops.unbind_vma  = mock_unbind_ggtt;
+	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
+	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	i915_address_space_init(&ggtt->vm, i915, "global");
 }

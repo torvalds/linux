@@ -1973,7 +1973,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scratch_pt it self
 	 * is GTT_TYPE_PPGTT_PTE_PT, and full filled by scratch page mfn.
 	 */
-	if (type > GTT_TYPE_PPGTT_PTE_PT && type < GTT_TYPE_MAX) {
+	if (type > GTT_TYPE_PPGTT_PTE_PT) {
 		struct intel_gvt_gtt_entry se;
 
 		memset(&se, 0, sizeof(struct intel_gvt_gtt_entry));
@@ -2257,13 +2257,8 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init gtt\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
-		|| IS_KABYLAKE(gvt->dev_priv)) {
-		gvt->gtt.pte_ops = &gen8_gtt_pte_ops;
-		gvt->gtt.gma_ops = &gen8_gtt_gma_ops;
-	} else {
-		return -ENODEV;
-	}
+	gvt->gtt.pte_ops = &gen8_gtt_pte_ops;
+	gvt->gtt.gma_ops = &gen8_gtt_gma_ops;
 
 	page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!page) {

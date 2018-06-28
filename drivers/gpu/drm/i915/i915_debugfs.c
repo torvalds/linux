@@ -1359,11 +1359,12 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
 			   engine->hangcheck.seqno, seqno[id],
 			   intel_engine_last_submit(engine));
-		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s\n",
+		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s, wedged? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
 					  &dev_priv->gpu_error.missed_irq_rings)),
-			   yesno(engine->hangcheck.stalled));
+			   yesno(engine->hangcheck.stalled),
+			   yesno(engine->hangcheck.wedged));
 
 		spin_lock_irq(&b->rb_lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
@@ -2536,7 +2537,7 @@ static int i915_guc_log_level_get(void *data, u64 *val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	*val = intel_guc_log_level_get(&dev_priv->guc.log);
+	*val = intel_guc_log_get_level(&dev_priv->guc.log);
 
 	return 0;
 }
@@ -2548,7 +2549,7 @@ static int i915_guc_log_level_set(void *data, u64 val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	return intel_guc_log_level_set(&dev_priv->guc.log, val);
+	return intel_guc_log_set_level(&dev_priv->guc.log, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
@@ -2660,8 +2661,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
 		   dev_priv->psr.busy_frontbuffer_bits);
-	seq_printf(m, "Re-enable work scheduled: %s\n",
-		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	if (dev_priv->psr.psr2_enabled)
 		enabled = I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE;
@@ -3379,28 +3378,13 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct i915_workarounds *workarounds = &dev_priv->workarounds;
+	struct i915_workarounds *wa = &node_to_i915(m->private)->workarounds;
 	int i;
 
-	intel_runtime_pm_get(dev_priv);
-
-	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
-	for (i = 0; i < workarounds->count; ++i) {
-		i915_reg_t addr;
-		u32 mask, value, read;
-		bool ok;
-
-		addr = workarounds->reg[i].addr;
-		mask = workarounds->reg[i].mask;
-		value = workarounds->reg[i].value;
-		read = I915_READ(addr);
-		ok = (value & mask) == (read & mask);
-		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",
-			   i915_mmio_reg_offset(addr), value, mask, read, ok ? "OK" : "FAIL");
-	}
-
-	intel_runtime_pm_put(dev_priv);
+	seq_printf(m, "Workarounds applied: %d\n", wa->count);
+	for (i = 0; i < wa->count; ++i)
+		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
+			   wa->reg[i].addr, wa->reg[i].value, wa->reg[i].mask);
 
 	return 0;
 }

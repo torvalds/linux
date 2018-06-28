@@ -155,7 +155,7 @@ enum aux_ch {
 	AUX_CH_B,
 	AUX_CH_C,
 	AUX_CH_D,
-	_AUX_CH_E, /* does not exist */
+	AUX_CH_E, /* ICL+ */
 	AUX_CH_F,
 };
 
@@ -196,6 +196,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_B,
 	POWER_DOMAIN_AUX_C,
 	POWER_DOMAIN_AUX_D,
+	POWER_DOMAIN_AUX_E,
 	POWER_DOMAIN_AUX_F,
 	POWER_DOMAIN_AUX_IO_A,
 	POWER_DOMAIN_GMBUS,

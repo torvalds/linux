@@ -134,6 +134,9 @@ struct i915_request {
 	/** Position in the ring of the start of the request */
 	u32 head;
 
+	/** Position in the ring of the start of the user packets */
+	u32 infix;
+
 	/**
 	 * Position in the ring of the start of the postfix.
 	 * This is required to calculate the maximum available ring space
@@ -250,9 +253,7 @@ int i915_request_await_object(struct i915_request *to,
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
 
-void __i915_request_add(struct i915_request *rq, bool flush_caches);
-#define i915_request_add(rq) \
-	__i915_request_add(rq, false)
+void i915_request_add(struct i915_request *rq);
 
 void __i915_request_submit(struct i915_request *request);
 void i915_request_submit(struct i915_request *request);

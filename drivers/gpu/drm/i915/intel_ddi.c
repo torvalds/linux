@@ -915,7 +915,14 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		if (port == PORT_A || port == PORT_B)
+			icl_get_combo_buf_trans(dev_priv, port,
+						INTEL_OUTPUT_HDMI, &n_entries);
+		else
+			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
+		default_entry = n_entries - 1;
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		cnl_get_buf_trans_hdmi(dev_priv, &n_entries);
 		default_entry = n_entries - 1;
 	} else if (IS_GEN9_LP(dev_priv)) {
@@ -1055,6 +1062,8 @@ static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 				       const struct intel_shared_dpll *pll)
 {
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	int clock = crtc->config->port_clock;
 	const enum intel_dpll_id id = pll->info->id;
 
 	switch (id) {
@@ -1063,6 +1072,20 @@ static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return DDI_CLK_SEL_NONE;
+	case DPLL_ID_ICL_TBTPLL:
+		switch (clock) {
+		case 162000:
+			return DDI_CLK_SEL_TBT_162;
+		case 270000:
+			return DDI_CLK_SEL_TBT_270;
+		case 540000:
+			return DDI_CLK_SEL_TBT_540;
+		case 810000:
+			return DDI_CLK_SEL_TBT_810;
+		default:
+			MISSING_CASE(clock);
+			break;
+		}
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:
 	case DPLL_ID_ICL_MGPLL3:
@@ -2632,6 +2655,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
+
+	intel_ddi_enable_pipe_clock(crtc_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
@@ -2661,6 +2686,8 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
+
+	intel_ddi_enable_pipe_clock(crtc_state);
 
 	intel_dig_port->set_infoframes(&encoder->base,
 				       crtc_state->has_infoframe,
@@ -2731,6 +2758,8 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	bool is_mst = intel_crtc_has_type(old_crtc_state,
 					  INTEL_OUTPUT_DP_MST);
 
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
 	/*
 	 * Power down sink before disabling the port, otherwise we end
 	 * up getting interrupts from the sink on detecting link loss.
@@ -2756,10 +2785,12 @@ static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
 
-	intel_disable_ddi_buf(encoder);
-
 	dig_port->set_infoframes(&encoder->base, false,
 				 old_crtc_state, old_conn_state);
+
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
+	intel_disable_ddi_buf(encoder);
 
 	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
@@ -3047,6 +3078,8 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 {
 	if (IS_CANNONLAKE(dev_priv) && crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 2;
+	else if (IS_ICELAKE(dev_priv) && crtc_state->port_clock > 594000)
+		crtc_state->min_voltage_level = 1;
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,

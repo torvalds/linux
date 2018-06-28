@@ -1050,6 +1050,9 @@ static u32 capture_error_bo(struct drm_i915_error_buffer *err,
 	int i = 0;
 
 	list_for_each_entry(vma, head, vm_link) {
+		if (!vma->obj)
+			continue;
+
 		if (pinned_only && !i915_vma_is_pinned(vma))
 			continue;
 

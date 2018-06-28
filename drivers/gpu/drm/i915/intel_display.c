@@ -5646,9 +5646,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_enable_pipe_clock(pipe_config);
-
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
@@ -5813,7 +5810,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
 
@@ -5824,8 +5821,8 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_disable_pipe(old_crtc_state);
 
-	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
-		intel_ddi_set_vc_payload_alloc(intel_crtc->config, false);
+	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
+		intel_ddi_set_vc_payload_alloc(old_crtc_state, false);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
@@ -5834,9 +5831,6 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		skylake_scaler_disable(intel_crtc);
 	else
 		ironlake_pfit_disable(intel_crtc, false);
-
-	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_disable_pipe_clock(intel_crtc->config);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
@@ -9214,6 +9208,44 @@ static void cannonlake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
+static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
+				enum port port,
+				struct intel_crtc_state *pipe_config)
+{
+	enum intel_dpll_id id;
+	u32 temp;
+
+	/* TODO: TBT pll not implemented. */
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
+		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
+		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
+
+		if (WARN_ON(id != DPLL_ID_ICL_DPLL0 && id != DPLL_ID_ICL_DPLL1))
+			return;
+		break;
+	case PORT_C:
+		id = DPLL_ID_ICL_MGPLL1;
+		break;
+	case PORT_D:
+		id = DPLL_ID_ICL_MGPLL2;
+		break;
+	case PORT_E:
+		id = DPLL_ID_ICL_MGPLL3;
+		break;
+	case PORT_F:
+		id = DPLL_ID_ICL_MGPLL4;
+		break;
+	default:
+		MISSING_CASE(port);
+		return;
+	}
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+}
+
 static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
@@ -9401,7 +9433,9 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		icelake_get_ddi_pll(dev_priv, port, pipe_config);
+	else if (IS_CANNONLAKE(dev_priv))
 		cannonlake_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_GEN9_BC(dev_priv))
 		skylake_get_ddi_pll(dev_priv, port, pipe_config);
@@ -14054,7 +14088,14 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	if (intel_crt_present(dev_priv))
 		intel_crt_init(dev_priv);
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		intel_ddi_init(dev_priv, PORT_A);
+		intel_ddi_init(dev_priv, PORT_B);
+		intel_ddi_init(dev_priv, PORT_C);
+		intel_ddi_init(dev_priv, PORT_D);
+		intel_ddi_init(dev_priv, PORT_E);
+		intel_ddi_init(dev_priv, PORT_F);
+	} else if (IS_GEN9_LP(dev_priv)) {
 		/*
 		 * FIXME: Broxton doesn't support port detection via the
 		 * DDI_BUF_CTL_A or SFUSE_STRAP registers, find another way to
@@ -14572,11 +14613,25 @@ static enum drm_mode_status
 intel_mode_valid(struct drm_device *dev,
 		 const struct drm_display_mode *mode)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int hdisplay_max, htotal_max;
+	int vdisplay_max, vtotal_max;
+
+	/*
+	 * Can't reject DBLSCAN here because Xorg ddxen can add piles
+	 * of DBLSCAN modes to the output's mode list when they detect
+	 * the scaling mode property on the connector. And they don't
+	 * ask the kernel to validate those modes in any way until
+	 * modeset time at which point the client gets a protocol error.
+	 * So in order to not upset those clients we silently ignore the
+	 * DBLSCAN flag on such connectors. For other connectors we will
+	 * reject modes with the DBLSCAN flag in encoder->compute_config().
+	 * And we always reject DBLSCAN modes in connector->mode_valid()
+	 * as we never want such modes on the connector's mode list.
+	 */
+
 	if (mode->vscan > 1)
 		return MODE_NO_VSCAN;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
 
 	if (mode->flags & DRM_MODE_FLAG_HSKEW)
 		return MODE_H_ILLEGAL;
@@ -14590,6 +14645,36 @@ intel_mode_valid(struct drm_device *dev,
 			   DRM_MODE_FLAG_PIXMUX |
 			   DRM_MODE_FLAG_CLKDIV2))
 		return MODE_BAD;
+
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+		hdisplay_max = 8192; /* FDI max 4096 handled elsewhere */
+		vdisplay_max = 4096;
+		htotal_max = 8192;
+		vtotal_max = 8192;
+	} else if (INTEL_GEN(dev_priv) >= 3) {
+		hdisplay_max = 4096;
+		vdisplay_max = 4096;
+		htotal_max = 8192;
+		vtotal_max = 8192;
+	} else {
+		hdisplay_max = 2048;
+		vdisplay_max = 2048;
+		htotal_max = 4096;
+		vtotal_max = 4096;
+	}
+
+	if (mode->hdisplay > hdisplay_max ||
+	    mode->hsync_start > htotal_max ||
+	    mode->hsync_end > htotal_max ||
+	    mode->htotal > htotal_max)
+		return MODE_H_ILLEGAL;
+
+	if (mode->vdisplay > vdisplay_max ||
+	    mode->vsync_start > vtotal_max ||
+	    mode->vsync_end > vtotal_max ||
+	    mode->vtotal > vtotal_max)
+		return MODE_V_ILLEGAL;
 
 	return MODE_OK;
 }
@@ -15029,6 +15114,7 @@ int intel_modeset_init(struct drm_device *dev)
 		}
 	}
 
+	/* maximum framebuffer dimensions */
 	if (IS_GEN2(dev_priv)) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
@@ -15044,11 +15130,11 @@ int intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.cursor_width = IS_I845G(dev_priv) ? 64 : 512;
 		dev->mode_config.cursor_height = 1023;
 	} else if (IS_GEN2(dev_priv)) {
-		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
-		dev->mode_config.cursor_height = GEN2_CURSOR_HEIGHT;
+		dev->mode_config.cursor_width = 64;
+		dev->mode_config.cursor_height = 64;
 	} else {
-		dev->mode_config.cursor_width = MAX_CURSOR_WIDTH;
-		dev->mode_config.cursor_height = MAX_CURSOR_HEIGHT;
+		dev->mode_config.cursor_width = 256;
+		dev->mode_config.cursor_height = 256;
 	}
 
 	dev->mode_config.fb_base = ggtt->gmadr.start;

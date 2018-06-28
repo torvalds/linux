@@ -203,12 +203,10 @@ void intel_guc_fini(struct intel_guc *guc)
 	guc_shared_data_destroy(guc);
 }
 
-static u32 get_log_control_flags(void)
+static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
-	u32 level = i915_modparams.guc_log_level;
+	u32 level = intel_guc_log_get_level(&guc->log);
 	u32 flags = 0;
-
-	GEM_BUG_ON(level < 0);
 
 	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
@@ -218,6 +216,85 @@ static u32 get_log_control_flags(void)
 	else
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
 			 GUC_LOG_VERBOSITY_SHIFT;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+		u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma)
+			>> PAGE_SHIFT;
+
+		flags |= ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
+	}
+
+	return flags;
+}
+
+static u32 guc_ctl_feature_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	flags |=  GUC_CTL_VCS2_ENABLED;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc)))
+		flags |= GUC_CTL_KERNEL_SUBMISSIONS;
+	else
+		flags |= GUC_CTL_DISABLE_SCHEDULER;
+
+	return flags;
+}
+
+static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+		u32 ctxnum, base;
+
+		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
+		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16;
+
+		base >>= PAGE_SHIFT;
+		flags |= (base << GUC_CTL_BASE_ADDR_SHIFT) |
+			(ctxnum << GUC_CTL_CTXNUM_IN16_SHIFT);
+	}
+	return flags;
+}
+
+static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
+{
+	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
+	u32 flags;
+
+	#if (((CRASH_BUFFER_SIZE) % SZ_1M) == 0)
+	#define UNIT SZ_1M
+	#define FLAG GUC_LOG_ALLOC_IN_MEGABYTE
+	#else
+	#define UNIT SZ_4K
+	#define FLAG 0
+	#endif
+
+	BUILD_BUG_ON(!CRASH_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
+	BUILD_BUG_ON(!DPC_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(DPC_BUFFER_SIZE, UNIT));
+	BUILD_BUG_ON(!ISR_BUFFER_SIZE);
+	BUILD_BUG_ON(!IS_ALIGNED(ISR_BUFFER_SIZE, UNIT));
+
+	BUILD_BUG_ON((CRASH_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT));
+	BUILD_BUG_ON((DPC_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_DPC_MASK >> GUC_LOG_DPC_SHIFT));
+	BUILD_BUG_ON((ISR_BUFFER_SIZE / UNIT - 1) >
+			(GUC_LOG_ISR_MASK >> GUC_LOG_ISR_SHIFT));
+
+	flags = GUC_LOG_VALID |
+		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		FLAG |
+		((CRASH_BUFFER_SIZE / UNIT - 1) << GUC_LOG_CRASH_SHIFT) |
+		((DPC_BUFFER_SIZE / UNIT - 1) << GUC_LOG_DPC_SHIFT) |
+		((ISR_BUFFER_SIZE / UNIT - 1) << GUC_LOG_ISR_SHIFT) |
+		(offset << GUC_LOG_BUF_ADDR_SHIFT);
+
+	#undef UNIT
+	#undef FLAG
 
 	return flags;
 }
@@ -245,32 +322,10 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
 
-	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
-			GUC_CTL_VCS2_ENABLED;
-
-	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
-
-	params[GUC_CTL_DEBUG] = get_log_control_flags();
-
-	/* If GuC submission is enabled, set up additional parameters here */
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		u32 ads = intel_guc_ggtt_offset(guc,
-						guc->ads_vma) >> PAGE_SHIFT;
-		u32 pgs = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
-		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
-		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
-
-		pgs >>= PAGE_SHIFT;
-		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
-			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
-
-		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
-
-		/* Unmask this bit to enable the GuC's internal scheduler */
-		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
-	}
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
+	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
+	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and

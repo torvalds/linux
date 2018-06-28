@@ -36,6 +36,7 @@
 #include <uapi/drm/drm_fourcc.h>
 #include "i915_drv.h"
 #include "gvt.h"
+#include "i915_pvinfo.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
@@ -150,7 +151,9 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv)
+		|| IS_KABYLAKE(dev_priv)
+		|| IS_BROXTON(dev_priv)) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -214,7 +217,9 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv)
+		|| IS_KABYLAKE(dev_priv)
+		|| IS_BROXTON(dev_priv)) {
 		plane->tiled = (val & PLANE_CTL_TILED_MASK) >>
 		_PLANE_CTL_TILED_SHIFT;
 		fmt = skl_format_to_drm(
@@ -256,7 +261,9 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	}
 
 	plane->stride = intel_vgpu_get_stride(vgpu, pipe, (plane->tiled << 10),
-		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) ?
+		(IS_SKYLAKE(dev_priv)
+		|| IS_KABYLAKE(dev_priv)
+		|| IS_BROXTON(dev_priv)) ?
 			(_PRI_PLANE_STRIDE_MASK >> 6) :
 				_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
@@ -384,6 +391,8 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	plane->y_pos = (val & _CURSOR_POS_Y_MASK) >> _CURSOR_POS_Y_SHIFT;
 	plane->y_sign = (val & _CURSOR_SIGN_Y_MASK) >> _CURSOR_SIGN_Y_SHIFT;
 
+	plane->x_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_x_hot));
+	plane->y_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_y_hot));
 	return 0;
 }
 

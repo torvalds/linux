@@ -75,7 +75,7 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	i915_gem_object_get(result);
 	i915_gem_object_set_active_reference(result);
 
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 	i915_vma_unpin(vma);
 
 	return result;

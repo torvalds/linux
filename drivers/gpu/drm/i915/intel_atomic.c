@@ -59,7 +59,8 @@ int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
 	else if (property == dev_priv->broadcast_rgb_property)
 		*val = intel_conn_state->broadcast_rgb;
 	else {
-		DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+		DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+				 property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -95,7 +96,8 @@ int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
 		return 0;
 	}
 
-	DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+	DRM_DEBUG_ATOMIC("Unknown property [PROP:%d:%s]\n",
+			 property->base.id, property->name);
 	return -EINVAL;
 }
 

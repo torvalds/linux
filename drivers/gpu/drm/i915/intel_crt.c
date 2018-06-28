@@ -232,6 +232,8 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
 	pch_post_disable_crt(encoder, old_crtc_state, old_conn_state);
 
 	lpt_disable_pch_transcoder(dev_priv);
@@ -268,6 +270,8 @@ static void hsw_pre_enable_crt(struct intel_encoder *encoder,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	dev_priv->display.fdi_link_train(crtc, crtc_state);
+
+	intel_ddi_enable_pipe_clock(crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_encoder *encoder,
@@ -304,6 +308,9 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
@@ -330,6 +337,10 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
 		return MODE_CLOCK_HIGH;
 
+	/* HSW/BDW FDI limited to 4k */
+	if (mode->hdisplay > 4096)
+		return MODE_H_ILLEGAL;
+
 	return MODE_OK;
 }
 
@@ -337,6 +348,12 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	return true;
 }
 
@@ -344,6 +361,12 @@ static bool pch_crt_compute_config(struct intel_encoder *encoder,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	pipe_config->has_pch_encoder = true;
 
 	return true;
@@ -354,6 +377,16 @@ static bool hsw_crt_compute_config(struct intel_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
+	/* HSW/BDW FDI limited to 4k */
+	if (adjusted_mode->crtc_hdisplay > 4096 ||
+	    adjusted_mode->crtc_hblank_start > 4096)
+		return false;
 
 	pipe_config->has_pch_encoder = true;
 
@@ -493,7 +526,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	 * to get a reliable result.
 	 */
 
-	if (IS_G4X(dev_priv) && !IS_GM45(dev_priv))
+	if (IS_G45(dev_priv))
 		tries = 2;
 	else
 		tries = 1;
