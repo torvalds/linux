@@ -529,8 +529,8 @@ struct safexcel_work_data {
 };
 
 enum safexcel_eip_version {
-	EIP97,
-	EIP197,
+	EIP97IES,
+	EIP197B,
 };
 
 struct safexcel_register_offsets {

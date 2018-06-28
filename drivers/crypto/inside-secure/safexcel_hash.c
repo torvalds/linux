@@ -442,7 +442,7 @@ static int safexcel_handle_result(struct safexcel_crypto_priv *priv, int ring,
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	int err;
 
-	BUG_ON(priv->version == EIP97 && req->needs_inv);
+	BUG_ON(priv->version == EIP97IES && req->needs_inv);
 
 	if (req->needs_inv) {
 		req->needs_inv = false;
@@ -575,7 +575,7 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 	req->needs_inv = false;
 
 	if (ctx->base.ctxr) {
-		if (priv->version == EIP197 && !ctx->base.needs_inv &&
+		if (priv->version == EIP197B && !ctx->base.needs_inv &&
 		    (req->processed[0] || req->processed[1]) &&
 		    req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)
 			/* We're still setting needs_inv here, even though it is
@@ -784,7 +784,7 @@ static void safexcel_ahash_cra_exit(struct crypto_tfm *tfm)
 	if (!ctx->base.ctxr)
 		return;
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B) {
 		ret = safexcel_ahash_exit_inv(tfm);
 		if (ret)
 			dev_warn(priv->dev, "hash: invalidation error %d\n", ret);
@@ -1004,7 +1004,7 @@ static int safexcel_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (ret)
 		return ret;
 
-	if (priv->version == EIP197 && ctx->base.ctxr) {
+	if (priv->version == EIP197B && ctx->base.ctxr) {
 		for (i = 0; i < state_sz / sizeof(u32); i++) {
 			if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
 			    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {

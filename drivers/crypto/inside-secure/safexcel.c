@@ -294,7 +294,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	writel(EIP197_DxE_THR_CTRL_RESET_PE,
 	       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B) {
 		/* Reset HIA input interface arbiter */
 		writel(EIP197_HIA_RA_PE_CTRL_RESET,
 		       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL);
@@ -317,7 +317,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	writel(EIP197_PE_IN_xBUF_THRES_MIN(6) | EIP197_PE_IN_xBUF_THRES_MAX(7),
 	       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES);
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B) {
 		/* enable HIA input interface arbiter and rings */
 		writel(EIP197_HIA_RA_PE_CTRL_EN |
 		       GENMASK(priv->config.rings - 1, 0),
@@ -343,7 +343,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* FIXME: instability issues can occur for EIP97 but disabling it impact
 	 * performances.
 	 */
-	if (priv->version == EIP197)
+	if (priv->version == EIP197B)
 		val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
 	writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG);
 
@@ -425,7 +425,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B) {
 		eip197_trc_cache_init(priv);
 
 		ret = eip197_load_firmwares(priv);
@@ -879,7 +879,7 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 {
 	struct safexcel_register_offsets *offsets = &priv->offsets;
 
-	if (priv->version == EIP197) {
+	if (priv->version == EIP197B) {
 		offsets->hia_aic	= EIP197_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP197_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP197_HIA_AIC_R_BASE;
@@ -1063,12 +1063,22 @@ static int safexcel_remove(struct platform_device *pdev)
 
 static const struct of_device_id safexcel_of_match_table[] = {
 	{
-		.compatible = "inside-secure,safexcel-eip97",
-		.data = (void *)EIP97,
+		.compatible = "inside-secure,safexcel-eip97ies",
+		.data = (void *)EIP97IES,
 	},
 	{
+		.compatible = "inside-secure,safexcel-eip197b",
+		.data = (void *)EIP197B,
+	},
+	{
+		/* Deprecated. Kept for backward compatibility. */
+		.compatible = "inside-secure,safexcel-eip97",
+		.data = (void *)EIP97IES,
+	},
+	{
+		/* Deprecated. Kept for backward compatibility. */
 		.compatible = "inside-secure,safexcel-eip197",
-		.data = (void *)EIP197,
+		.data = (void *)EIP197B,
 	},
 	{},
 };
