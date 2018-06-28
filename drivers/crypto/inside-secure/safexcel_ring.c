@@ -14,8 +14,8 @@
 #include "safexcel.h"
 
 int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
-				   struct safexcel_ring *cdr,
-				   struct safexcel_ring *rdr)
+				   struct safexcel_desc_ring *cdr,
+				   struct safexcel_desc_ring *rdr)
 {
 	cdr->offset = sizeof(u32) * priv->config.cd_offset;
 	cdr->base = dmam_alloc_coherent(priv->dev,
@@ -46,7 +46,7 @@ inline int safexcel_select_ring(struct safexcel_crypto_priv *priv)
 }
 
 static void *safexcel_ring_next_wptr(struct safexcel_crypto_priv *priv,
-				     struct safexcel_ring *ring)
+				     struct safexcel_desc_ring *ring)
 {
 	void *ptr = ring->write;
 
@@ -62,7 +62,7 @@ static void *safexcel_ring_next_wptr(struct safexcel_crypto_priv *priv,
 }
 
 void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
-			      struct safexcel_ring *ring)
+			      struct safexcel_desc_ring *ring)
 {
 	void *ptr = ring->read;
 
@@ -78,7 +78,7 @@ void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
 }
 
 void safexcel_ring_rollback_wptr(struct safexcel_crypto_priv *priv,
-				 struct safexcel_ring *ring)
+				 struct safexcel_desc_ring *ring)
 {
 	if (!ring->nr)
 		return;
