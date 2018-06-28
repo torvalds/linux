@@ -24,21 +24,6 @@
  * generic PCI API. This API is agnostic to the actual AFU.
  */
 
-#define CXL_SLOT_FLAG_DMA 0x1
-
-/*
- * Checks if the given card is in a cxl capable slot. Pass CXL_SLOT_FLAG_DMA if
- * the card requires CAPP DMA mode to also check if the system supports it.
- * This is intended to be used by bi-modal devices to determine if they can use
- * cxl mode or if they should continue running in PCI mode.
- *
- * Note that this only checks if the slot is cxl capable - it does not
- * currently check if the CAPP is currently available for chips where it can be
- * assigned to different PHBs on a first come first serve basis (i.e. P8)
- */
-bool cxl_slot_is_supported(struct pci_dev *dev, int flags);
-
-
 /* Get the AFU associated with a pci_dev */
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev);
 

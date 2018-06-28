@@ -1808,43 +1808,6 @@ int cxl_slot_is_switched(struct pci_dev *dev)
 	return (depth > CXL_MAX_PCIEX_PARENT);
 }
 
-bool cxl_slot_is_supported(struct pci_dev *dev, int flags)
-{
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
-		return false;
-
-	if ((flags & CXL_SLOT_FLAG_DMA) && (!pvr_version_is(PVR_POWER8NVL))) {
-		/*
-		 * CAPP DMA mode is technically supported on regular P8, but
-		 * will EEH if the card attempts to access memory < 4GB, which
-		 * we cannot realistically avoid. We might be able to work
-		 * around the issue, but until then return unsupported:
-		 */
-		return false;
-	}
-
-	if (cxl_slot_is_switched(dev))
-		return false;
-
-	/*
-	 * XXX: This gets a little tricky on regular P8 (not POWER8NVL) since
-	 * the CAPP can be connected to PHB 0, 1 or 2 on a first come first
-	 * served basis, which is racy to check from here. If we need to
-	 * support this in future we might need to consider having this
-	 * function effectively reserve it ahead of time.
-	 *
-	 * Currently, the only user of this API is the Mellanox CX4, which is
-	 * only supported on P8NVL due to the above mentioned limitation of
-	 * CAPP DMA mode and therefore does not need to worry about this. If the
-	 * issue with CAPP DMA mode is later worked around on P8 we might need
-	 * to revisit this.
-	 */
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(cxl_slot_is_supported);
-
-
 static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct cxl *adapter;
