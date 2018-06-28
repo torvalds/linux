@@ -1586,9 +1586,10 @@ static void hclgevf_misc_irq_uninit(struct hclgevf_dev *hdev)
 	hclgevf_free_vector(hdev, 0);
 }
 
-static int hclgevf_init_instance(struct hclgevf_dev *hdev,
-				 struct hnae3_client *client)
+static int hclgevf_init_client_instance(struct hnae3_client *client,
+					struct hnae3_ae_dev *ae_dev)
 {
+	struct hclgevf_dev *hdev = ae_dev->priv;
 	int ret;
 
 	switch (client->type) {
@@ -1639,9 +1640,11 @@ static int hclgevf_init_instance(struct hclgevf_dev *hdev,
 	return 0;
 }
 
-static void hclgevf_uninit_instance(struct hclgevf_dev *hdev,
-				    struct hnae3_client *client)
+static void hclgevf_uninit_client_instance(struct hnae3_client *client,
+					   struct hnae3_ae_dev *ae_dev)
 {
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
 	/* un-init roce, if it exists */
 	if (hdev->roce_client)
 		hdev->roce_client->ops->uninit_instance(&hdev->roce, 0);
@@ -1650,22 +1653,6 @@ static void hclgevf_uninit_instance(struct hclgevf_dev *hdev,
 	if ((client->ops->uninit_instance) &&
 	    (client->type != HNAE3_CLIENT_ROCE))
 		client->ops->uninit_instance(&hdev->nic, 0);
-}
-
-static int hclgevf_register_client(struct hnae3_client *client,
-				   struct hnae3_ae_dev *ae_dev)
-{
-	struct hclgevf_dev *hdev = ae_dev->priv;
-
-	return hclgevf_init_instance(hdev, client);
-}
-
-static void hclgevf_unregister_client(struct hnae3_client *client,
-				      struct hnae3_ae_dev *ae_dev)
-{
-	struct hclgevf_dev *hdev = ae_dev->priv;
-
-	hclgevf_uninit_instance(hdev, client);
 }
 
 static int hclgevf_pci_init(struct hclgevf_dev *hdev)
@@ -1928,8 +1915,8 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
-	.init_client_instance = hclgevf_register_client,
-	.uninit_client_instance = hclgevf_unregister_client,
+	.init_client_instance = hclgevf_init_client_instance,
+	.uninit_client_instance = hclgevf_uninit_client_instance,
 	.start = hclgevf_ae_start,
 	.stop = hclgevf_ae_stop,
 	.map_ring_to_vector = hclgevf_map_ring_to_vector,
