@@ -1118,8 +1118,6 @@ static void process_csb(struct intel_engine_cs *engine)
 		}
 	} while (head != tail);
 
-	writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
-	       execlists->csb_read);
 	execlists->csb_head = head;
 }
 
