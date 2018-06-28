@@ -252,8 +252,8 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 {
 	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	unsigned int mask, val;
 	int input = 0;
-	int val;
 
 	/* Only tvp5150am1 and tvp5151 have signal generator support */
 	if ((decoder->dev_id == 0x5150 && decoder->rom_ver == 0x0400) ||
@@ -288,17 +288,12 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 	 * field indicator (FID) signal on FID/GLCO/VLK/HVLK and set
 	 * INTREQ/GPCL/VBLK to logic 1.
 	 */
-	val = tvp5150_read(sd, TVP5150_MISC_CTL);
-	if (val < 0) {
-		dev_err(sd->dev, "%s: failed with error = %d\n", __func__, val);
-		return;
-	}
-
+	mask = TVP5150_MISC_CTL_GPCL | TVP5150_MISC_CTL_HVLK;
 	if (decoder->input == TVP5150_SVIDEO)
-		val = (val & ~TVP5150_MISC_CTL_GPCL) | TVP5150_MISC_CTL_HVLK;
+		val = TVP5150_MISC_CTL_HVLK;
 	else
-		val = (val & ~TVP5150_MISC_CTL_HVLK) | TVP5150_MISC_CTL_GPCL;
-	regmap_write(decoder->regmap, TVP5150_MISC_CTL, val);
+		val = TVP5150_MISC_CTL_GPCL;
+	regmap_update_bits(decoder->regmap, TVP5150_MISC_CTL, mask, val);
 };
 
 struct i2c_reg_value {
@@ -801,7 +796,9 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 	tvp5150_set_std(sd, decoder->norm);
 
 	if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
-		regmap_write(decoder->regmap, TVP5150_DATA_RATE_SEL, 0x40);
+		/* 8-bit 4:2:2 YUV with discrete sync output */
+		regmap_update_bits(decoder->regmap, TVP5150_DATA_RATE_SEL,
+				   0x7, 0x0);
 
 	return 0;
 };
@@ -1059,27 +1056,22 @@ static const struct media_entity_operations tvp5150_sd_media_ops = {
 static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	int val;
+	unsigned int mask, val = 0;
 
-	/* Enable or disable the video output signals. */
-	val = tvp5150_read(sd, TVP5150_MISC_CTL);
-	if (val < 0)
-		return val;
-
-	val &= ~(TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE |
-		 TVP5150_MISC_CTL_CLOCK_OE);
+	mask = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE |
+	       TVP5150_MISC_CTL_CLOCK_OE;
 
 	if (enable) {
 		/*
 		 * Enable the YCbCr and clock outputs. In discrete sync mode
 		 * (non-BT.656) additionally enable the the sync outputs.
 		 */
-		val |= TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
+		val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
 		if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
 			val |= TVP5150_MISC_CTL_SYNC_OE;
 	}
 
-	regmap_write(decoder->regmap, TVP5150_MISC_CTL, val);
+	regmap_update_bits(decoder->regmap, TVP5150_MISC_CTL, mask, val);
 
 	return 0;
 }
