@@ -331,6 +331,29 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
 
+/**
+ * drm_connector_has_possible_encoder - check if the connector and encoder are assosicated with each other
+ * @connector: the connector
+ * @encoder: the encoder
+ *
+ * Returns:
+ * True if @encoder is one of the possible encoders for @connector.
+ */
+bool drm_connector_has_possible_encoder(struct drm_connector *connector,
+					struct drm_encoder *encoder)
+{
+	struct drm_encoder *enc;
+	int i;
+
+	drm_connector_for_each_possible_encoder(connector, enc, i) {
+		if (enc == encoder)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_connector_has_possible_encoder);
+
 static void drm_mode_remove(struct drm_connector *connector,
 			    struct drm_display_mode *mode)
 {
