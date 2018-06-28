@@ -872,7 +872,6 @@ static void reset_irq(struct intel_engine_cs *engine)
 {
 	/* Mark all CS interrupts as complete */
 	smp_store_mb(engine->execlists.active, 0);
-	synchronize_hardirq(engine->i915->drm.irq);
 
 	clear_gtiir(engine);
 
@@ -909,13 +908,11 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	 * submission's irq state, we also wish to remind ourselves that
 	 * it is irq state.)
 	 */
-	local_irq_save(flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
 	execlists_cancel_port_requests(execlists);
 	reset_irq(engine);
-
-	spin_lock(&engine->timeline.lock);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline.requests, link) {
@@ -950,9 +947,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	execlists->first = NULL;
 	GEM_BUG_ON(port_isset(execlists->port));
 
-	spin_unlock(&engine->timeline.lock);
-
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
 static void process_csb(struct intel_engine_cs *engine)
@@ -1970,8 +1965,7 @@ static void execlists_reset(struct intel_engine_cs *engine,
 		  engine->name, request ? request->global_seqno : 0,
 		  intel_engine_get_seqno(engine));
 
-	/* See execlists_cancel_requests() for the irq/spinlock split. */
-	local_irq_save(flags);
+	spin_lock_irqsave(&engine->timeline.lock, flags);
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -1986,14 +1980,12 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	reset_irq(engine);
 
 	/* Push back any incomplete requests for replay after the reset. */
-	spin_lock(&engine->timeline.lock);
 	__unwind_incomplete_requests(engine);
-	spin_unlock(&engine->timeline.lock);
 
 	/* Following the reset, we need to reload the CSB read/write pointers */
 	engine->execlists.csb_head = GEN8_CSB_ENTRIES - 1;
 
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
 	/*
 	 * If the request was innocent, we leave the request in the ELSP
