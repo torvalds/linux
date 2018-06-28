@@ -13,6 +13,7 @@
 #include "smc.h"
 #include "smc_core.h"
 #include "smc_ism.h"
+#include "smc_pnet.h"
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
@@ -227,6 +228,7 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	device_initialize(&smcd->dev);
 	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
+	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
 
 	spin_lock_init(&smcd->lock);
 	INIT_LIST_HEAD(&smcd->vlan);
