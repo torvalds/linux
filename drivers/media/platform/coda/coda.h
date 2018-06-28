@@ -214,6 +214,8 @@ struct coda_ctx {
 	enum v4l2_quantization		quantization;
 	struct coda_params		params;
 	struct v4l2_ctrl_handler	ctrls;
+	struct v4l2_ctrl		*h264_profile_ctrl;
+	struct v4l2_ctrl		*h264_level_ctrl;
 	struct v4l2_fh			fh;
 	int				gopcounter;
 	int				runcounter;
