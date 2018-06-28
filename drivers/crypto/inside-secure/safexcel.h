@@ -529,8 +529,8 @@ struct safexcel_work_data {
 };
 
 enum safexcel_eip_version {
-	EIP97IES,
-	EIP197B,
+	EIP97IES = BIT(0),
+	EIP197B  = BIT(1),
 };
 
 struct safexcel_register_offsets {
@@ -624,6 +624,7 @@ struct safexcel_ahash_export_state {
 struct safexcel_alg_template {
 	struct safexcel_crypto_priv *priv;
 	enum safexcel_alg_type type;
+	u32 engines;
 	union {
 		struct skcipher_alg skcipher;
 		struct aead_alg aead;
