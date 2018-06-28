@@ -20,6 +20,7 @@
 #include <asm/mach-ralink/mt7620.h>
 
 #include "core.h"
+#include "pinctrl-utils.h"
 
 #define SYSC_REG_GPIO_MODE	0x60
 #define SYSC_REG_GPIO_MODE2	0x64
@@ -73,19 +74,6 @@ static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
 	*num_pins = p->groups[group].func[0].pin_count;
 
 	return 0;
-}
-
-static void rt2880_pinctrl_dt_free_map(struct pinctrl_dev *pctrldev,
-				       struct pinctrl_map *map,
-				       unsigned int num_maps)
-{
-	int i;
-
-	for (i = 0; i < num_maps; i++)
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_PIN ||
-		    map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
-			kfree(map[i].data.configs.configs);
-	kfree(map);
 }
 
 static void rt2880_pinctrl_pin_dbg_show(struct pinctrl_dev *pctrldev,
@@ -158,7 +146,7 @@ static const struct pinctrl_ops rt2880_pctrl_ops = {
 	.get_group_pins		= rt2880_get_group_pins,
 	.pin_dbg_show		= rt2880_pinctrl_pin_dbg_show,
 	.dt_node_to_map		= rt2880_pinctrl_dt_node_to_map,
-	.dt_free_map		= rt2880_pinctrl_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int rt2880_pmx_func_count(struct pinctrl_dev *pctrldev)
