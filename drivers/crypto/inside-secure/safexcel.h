@@ -361,13 +361,19 @@ struct safexcel_context_record {
 #define EIP197_TRC_PARAMS2_RC_SZ_SMALL(n)	((n) << 18)
 
 /* Cache helpers */
-#define EIP197_CS_RC_MAX			52
+#define EIP197B_CS_RC_MAX			52
+#define EIP197D_CS_RC_MAX			96
 #define EIP197_CS_RC_SIZE			(4 * sizeof(u32))
 #define EIP197_CS_RC_NEXT(x)			(x)
 #define EIP197_CS_RC_PREV(x)			((x) << 10)
 #define EIP197_RC_NULL				0x3ff
-#define EIP197_CS_TRC_REC_WC			59
-#define EIP197_CS_TRC_LG_REC_WC			73
+#define EIP197B_CS_TRC_REC_WC			59
+#define EIP197D_CS_TRC_REC_WC			64
+#define EIP197B_CS_TRC_LG_REC_WC		73
+#define EIP197D_CS_TRC_LG_REC_WC		80
+#define EIP197B_CS_HT_WC			64
+#define EIP197D_CS_HT_WC			256
+
 
 /* Result data */
 struct result_data_desc {

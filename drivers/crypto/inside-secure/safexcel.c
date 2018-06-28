@@ -33,7 +33,19 @@ MODULE_PARM_DESC(max_rings, "Maximum number of rings to use.");
 static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 {
 	u32 val, htable_offset;
-	int i;
+	int i, cs_rc_max, cs_ht_wc, cs_trc_rec_wc, cs_trc_lg_rec_wc;
+
+	if (priv->version == EIP197B) {
+		cs_rc_max = EIP197B_CS_RC_MAX;
+		cs_ht_wc = EIP197B_CS_HT_WC;
+		cs_trc_rec_wc = EIP197B_CS_TRC_REC_WC;
+		cs_trc_lg_rec_wc = EIP197B_CS_TRC_LG_REC_WC;
+	} else {
+		cs_rc_max = EIP197D_CS_RC_MAX;
+		cs_ht_wc = EIP197D_CS_HT_WC;
+		cs_trc_rec_wc = EIP197D_CS_TRC_REC_WC;
+		cs_trc_lg_rec_wc = EIP197D_CS_TRC_LG_REC_WC;
+	}
 
 	/* Enable the record cache memory access */
 	val = readl(priv->base + EIP197_CS_RAM_CTRL);
@@ -54,7 +66,7 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 	writel(val, priv->base + EIP197_TRC_PARAMS);
 
 	/* Clear all records */
-	for (i = 0; i < EIP197_CS_RC_MAX; i++) {
+	for (i = 0; i < cs_rc_max; i++) {
 		u32 val, offset = EIP197_CLASSIFICATION_RAMS + i * EIP197_CS_RC_SIZE;
 
 		writel(EIP197_CS_RC_NEXT(EIP197_RC_NULL) |
@@ -64,14 +76,14 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 		val = EIP197_CS_RC_NEXT(i+1) | EIP197_CS_RC_PREV(i-1);
 		if (i == 0)
 			val |= EIP197_CS_RC_PREV(EIP197_RC_NULL);
-		else if (i == EIP197_CS_RC_MAX - 1)
+		else if (i == cs_rc_max - 1)
 			val |= EIP197_CS_RC_NEXT(EIP197_RC_NULL);
 		writel(val, priv->base + offset + sizeof(u32));
 	}
 
 	/* Clear the hash table entries */
-	htable_offset = EIP197_CS_RC_MAX * EIP197_CS_RC_SIZE;
-	for (i = 0; i < 64; i++)
+	htable_offset = cs_rc_max * EIP197_CS_RC_SIZE;
+	for (i = 0; i < cs_ht_wc; i++)
 		writel(GENMASK(29, 0),
 		       priv->base + EIP197_CLASSIFICATION_RAMS + htable_offset + i * sizeof(u32));
 
@@ -82,16 +94,16 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 
 	/* Write head and tail pointers of the record free chain */
 	val = EIP197_TRC_FREECHAIN_HEAD_PTR(0) |
-	      EIP197_TRC_FREECHAIN_TAIL_PTR(EIP197_CS_RC_MAX - 1);
+	      EIP197_TRC_FREECHAIN_TAIL_PTR(cs_rc_max - 1);
 	writel(val, priv->base + EIP197_TRC_FREECHAIN);
 
 	/* Configure the record cache #1 */
-	val = EIP197_TRC_PARAMS2_RC_SZ_SMALL(EIP197_CS_TRC_REC_WC) |
-	      EIP197_TRC_PARAMS2_HTABLE_PTR(EIP197_CS_RC_MAX);
+	val = EIP197_TRC_PARAMS2_RC_SZ_SMALL(cs_trc_rec_wc) |
+	      EIP197_TRC_PARAMS2_HTABLE_PTR(cs_rc_max);
 	writel(val, priv->base + EIP197_TRC_PARAMS2);
 
 	/* Configure the record cache #2 */
-	val = EIP197_TRC_PARAMS_RC_SZ_LARGE(EIP197_CS_TRC_LG_REC_WC) |
+	val = EIP197_TRC_PARAMS_RC_SZ_LARGE(cs_trc_lg_rec_wc) |
 	      EIP197_TRC_PARAMS_BLK_TIMER_SPEED(1) |
 	      EIP197_TRC_PARAMS_HTABLE_SZ(2);
 	writel(val, priv->base + EIP197_TRC_PARAMS);
