@@ -904,14 +904,20 @@ struct se_device *target_find_device(int id, bool do_depend)
 EXPORT_SYMBOL(target_find_device);
 
 struct devices_idr_iter {
+	struct config_item *prev_item;
 	int (*fn)(struct se_device *dev, void *data);
 	void *data;
 };
 
 static int target_devices_idr_iter(int id, void *p, void *data)
+	 __must_hold(&device_mutex)
 {
 	struct devices_idr_iter *iter = data;
 	struct se_device *dev = p;
+	int ret;
+
+	config_item_put(iter->prev_item);
+	iter->prev_item = NULL;
 
 	/*
 	 * We add the device early to the idr, so it can be used
@@ -922,7 +928,15 @@ static int target_devices_idr_iter(int id, void *p, void *data)
 	if (!(dev->dev_flags & DF_CONFIGURED))
 		return 0;
 
-	return iter->fn(dev, iter->data);
+	iter->prev_item = config_item_get_unless_zero(&dev->dev_group.cg_item);
+	if (!iter->prev_item)
+		return 0;
+	mutex_unlock(&device_mutex);
+
+	ret = iter->fn(dev, iter->data);
+
+	mutex_lock(&device_mutex);
+	return ret;
 }
 
 /**
@@ -936,15 +950,13 @@ static int target_devices_idr_iter(int id, void *p, void *data)
 int target_for_each_device(int (*fn)(struct se_device *dev, void *data),
 			   void *data)
 {
-	struct devices_idr_iter iter;
+	struct devices_idr_iter iter = { .fn = fn, .data = data };
 	int ret;
-
-	iter.fn = fn;
-	iter.data = data;
 
 	mutex_lock(&device_mutex);
 	ret = idr_for_each(&devices_idr, target_devices_idr_iter, &iter);
 	mutex_unlock(&device_mutex);
+	config_item_put(iter.prev_item);
 	return ret;
 }
 
