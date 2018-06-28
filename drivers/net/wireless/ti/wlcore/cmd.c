@@ -195,8 +195,7 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
 		pm_runtime_put_noidle(wl->dev);
-
-		return ret;
+		goto free_vector;
 	}
 
 	do {
@@ -232,6 +231,7 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 out:
 	pm_runtime_mark_last_busy(wl->dev);
 	pm_runtime_put_autosuspend(wl->dev);
+free_vector:
 	kfree(events_vector);
 	return ret;
 }
