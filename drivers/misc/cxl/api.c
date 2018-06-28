@@ -181,21 +181,6 @@ static irq_hw_number_t cxl_find_afu_irq(struct cxl_context *ctx, int num)
 	return 0;
 }
 
-int _cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq)
-{
-	if (*ctx == NULL || *afu_irq == 0) {
-		*afu_irq = 1;
-		*ctx = cxl_get_context(pdev);
-	} else {
-		(*afu_irq)++;
-		if (*afu_irq > cxl_get_max_irqs_per_process(pdev)) {
-			*ctx = list_next_entry(*ctx, extra_irq_contexts);
-			*afu_irq = 1;
-		}
-	}
-	return cxl_find_afu_irq(*ctx, *afu_irq);
-}
-/* Exported via cxl_base */
 
 int cxl_set_priv(struct cxl_context *ctx, void *priv)
 {

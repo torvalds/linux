@@ -141,23 +141,6 @@ void cxl_pci_disable_device(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(cxl_pci_disable_device);
 
-int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq)
-{
-	int ret;
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return -EBUSY;
-
-	ret = calls->cxl_next_msi_hwirq(pdev, ctx, afu_irq);
-
-	cxl_calls_put(calls);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cxl_next_msi_hwirq);
-
 static int __init cxl_base_init(void)
 {
 	struct device_node *np;

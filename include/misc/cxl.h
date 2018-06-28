@@ -184,26 +184,6 @@ void cxl_psa_unmap(void __iomem *addr);
 int cxl_process_element(struct cxl_context *ctx);
 
 /*
- * Limit the number of interrupts that a single context can allocate via
- * cxl_start_work. If using the api with a real phb, this may be used to
- * request that additional default contexts be created when allocating
- * interrupts via pci_enable_msix_range. These will be set to the same running
- * state as the default context, and if that is running it will reuse the
- * parameters previously passed to cxl_start_context for the default context.
- */
-int cxl_set_max_irqs_per_process(struct pci_dev *dev, int irqs);
-int cxl_get_max_irqs_per_process(struct pci_dev *dev);
-
-/*
- * Use to simultaneously iterate over hardware interrupt numbers, contexts and
- * afu interrupt numbers allocated for the device via pci_enable_msix_range and
- * is a useful convenience function when working with hardware that has
- * limitations on the number of interrupts per process. *ctx and *afu_irq
- * should be NULL and 0 to start the iteration.
- */
-int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
-
-/*
  * These calls allow drivers to create their own file descriptors and make them
  * identical to the cxl file descriptor user API. An example use case:
  *

@@ -74,7 +74,6 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	ctx->pending_afu_err = false;
 
 	INIT_LIST_HEAD(&ctx->irq_names);
-	INIT_LIST_HEAD(&ctx->extra_irq_contexts);
 
 	/*
 	 * When we have to destroy all contexts in cxl_context_detach_all() we
