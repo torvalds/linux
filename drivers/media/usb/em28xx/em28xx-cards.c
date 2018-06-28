@@ -3861,6 +3861,17 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		dev->has_video = false;
 	}
 
+	if (dev->board.has_dual_ts &&
+	    (dev->tuner_type != TUNER_ABSENT || INPUT(0)->type)) {
+		/*
+		 * The logic with sets alternate is not ready for dual-tuners
+		 * which analog modes.
+		 */
+		dev_err(&intf->dev,
+			"We currently don't support analog TV or stream capture on dual tuners.\n");
+		has_video = false;
+	}
+
 	/* Select USB transfer types to use */
 	if (has_video) {
 		if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
