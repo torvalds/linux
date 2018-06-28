@@ -552,30 +552,3 @@ ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count)
 	return cxl_ops->read_adapter_vpd(afu->adapter, buf, count);
 }
 EXPORT_SYMBOL_GPL(cxl_read_adapter_vpd);
-
-int cxl_set_max_irqs_per_process(struct pci_dev *dev, int irqs)
-{
-	struct cxl_afu *afu = cxl_pci_to_afu(dev);
-	if (IS_ERR(afu))
-		return -ENODEV;
-
-	if (irqs > afu->adapter->user_irqs)
-		return -EINVAL;
-
-	/* Limit user_irqs to prevent the user increasing this via sysfs */
-	afu->adapter->user_irqs = irqs;
-	afu->irqs_max = irqs;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cxl_set_max_irqs_per_process);
-
-int cxl_get_max_irqs_per_process(struct pci_dev *dev)
-{
-	struct cxl_afu *afu = cxl_pci_to_afu(dev);
-	if (IS_ERR(afu))
-		return -ENODEV;
-
-	return afu->irqs_max;
-}
-EXPORT_SYMBOL_GPL(cxl_get_max_irqs_per_process);
