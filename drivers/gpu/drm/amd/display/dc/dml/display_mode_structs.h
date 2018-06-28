@@ -111,6 +111,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double xfc_bus_transport_time_us;
 	double xfc_xbuf_latency_tolerance_us;
 	int use_urgent_burst_bw;
+	double max_hscl_ratio;
+	double max_vscl_ratio;
 	struct _vcs_dpi_voltage_scaling_st clock_limits[7];
 };
 
