@@ -98,7 +98,7 @@ static void eip197_trc_cache_init(struct safexcel_crypto_priv *priv)
 }
 
 static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
-				  const struct firmware *fw, u32 ctrl,
+				  const struct firmware *fw, int pe, u32 ctrl,
 				  u32 prog_en)
 {
 	const u32 *data = (const u32 *)fw->data;
@@ -112,7 +112,7 @@ static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
 	       EIP197_PE(priv) + ctrl);
 
 	/* Enable access to the program memory */
-	writel(prog_en, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL);
+	writel(prog_en, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
 	/* Write the firmware */
 	for (i = 0; i < fw->size / sizeof(u32); i++)
@@ -120,7 +120,7 @@ static void eip197_write_firmware(struct safexcel_crypto_priv *priv,
 		       priv->base + EIP197_CLASSIFICATION_RAMS + i * sizeof(u32));
 
 	/* Disable access to the program memory */
-	writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL);
+	writel(0, EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
 
 	/* Release engine from reset */
 	val = readl(EIP197_PE(priv) + ctrl);
@@ -133,7 +133,7 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 	const char *fw_name[] = {"ifpp.bin", "ipue.bin"};
 	const struct firmware *fw[FW_NB];
 	char fw_path[31];
-	int i, j, ret = 0;
+	int i, j, ret = 0, pe;
 	u32 val;
 
 	for (i = 0; i < FW_NB; i++) {
@@ -151,22 +151,26 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 		}
 	}
 
-	/* Clear the scratchpad memory */
-	val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
-	val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
-	       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
-	       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
-	       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
-	writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Clear the scratchpad memory */
+		val = readl(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
+		val |= EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_TIMER |
+		       EIP197_PE_ICE_SCRATCH_CTRL_TIMER_EN |
+		       EIP197_PE_ICE_SCRATCH_CTRL_SCRATCH_ACCESS |
+		       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
+		writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL(pe));
 
-	memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM, 0,
-		  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
+		memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM(pe), 0,
+			  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
 
-	eip197_write_firmware(priv, fw[FW_IFPP], EIP197_PE_ICE_FPP_CTRL,
-			      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
+		eip197_write_firmware(priv, fw[FW_IFPP], pe,
+				      EIP197_PE_ICE_FPP_CTRL(pe),
+				      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
 
-	eip197_write_firmware(priv, fw[FW_IPUE], EIP197_PE_ICE_PUE_CTRL,
-			      EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN);
+		eip197_write_firmware(priv, fw[FW_IPUE], pe,
+				      EIP197_PE_ICE_PUE_CTRL(pe),
+				      EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN);
+	}
 
 release_fw:
 	for (j = 0; j < i; j++)
@@ -262,7 +266,7 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 {
 	u32 version, val;
-	int i, ret;
+	int i, ret, pe;
 
 	/* Determine endianess and configure byte swap */
 	version = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_VERSION);
@@ -288,82 +292,91 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any pending interrupt */
 	writel(GENMASK(31, 0), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	/* Data Fetch Engine configuration */
-
-	/* Reset all DFE threads */
-	writel(EIP197_DxE_THR_CTRL_RESET_PE,
-	       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
-
-	if (priv->version == EIP197B) {
-		/* Reset HIA input interface arbiter */
-		writel(EIP197_HIA_RA_PE_CTRL_RESET,
-		       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL);
-	}
-
-	/* DMA transfer size to use */
-	val = EIP197_HIA_DFE_CFG_DIS_DEBUG;
-	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(6) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(9);
-	val |= EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(6) | EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(7);
-	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(RD_CACHE_3BITS);
-	val |= EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(RD_CACHE_3BITS);
-	writel(val, EIP197_HIA_DFE(priv) + EIP197_HIA_DFE_CFG);
-
-	/* Leave the DFE threads reset state */
-	writel(0, EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
-
-	/* Configure the procesing engine thresholds */
-	writel(EIP197_PE_IN_xBUF_THRES_MIN(6) | EIP197_PE_IN_xBUF_THRES_MAX(9),
-	       EIP197_PE(priv) + EIP197_PE_IN_DBUF_THRES);
-	writel(EIP197_PE_IN_xBUF_THRES_MIN(6) | EIP197_PE_IN_xBUF_THRES_MAX(7),
-	       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES);
-
-	if (priv->version == EIP197B) {
-		/* enable HIA input interface arbiter and rings */
-		writel(EIP197_HIA_RA_PE_CTRL_EN |
-		       GENMASK(priv->config.rings - 1, 0),
-		       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL);
-	}
-
-	/* Data Store Engine configuration */
-
-	/* Reset all DSE threads */
-	writel(EIP197_DxE_THR_CTRL_RESET_PE,
-	       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
-
-	/* Wait for all DSE threads to complete */
-	while ((readl(EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_STAT) &
-		GENMASK(15, 12)) != GENMASK(15, 12))
-		;
-
-	/* DMA transfer size to use */
-	val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
-	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
-	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
-	val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
-	/* FIXME: instability issues can occur for EIP97 but disabling it impact
-	 * performances.
-	 */
-	if (priv->version == EIP197B)
-		val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
-	writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG);
-
-	/* Leave the DSE threads reset state */
-	writel(0, EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
-
-	/* Configure the procesing engine thresholds */
-	writel(EIP197_PE_OUT_DBUF_THRES_MIN(7) | EIP197_PE_OUT_DBUF_THRES_MAX(8),
-	       EIP197_PE(priv) + EIP197_PE_OUT_DBUF_THRES);
-
 	/* Processing Engine configuration */
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Data Fetch Engine configuration */
 
-	/* H/W capabilities selection */
-	val = EIP197_FUNCTION_RSVD;
-	val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
-	val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
-	val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
-	val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
-	val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
-	writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN);
+		/* Reset all DFE threads */
+		writel(EIP197_DxE_THR_CTRL_RESET_PE,
+		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
+
+		if (priv->version == EIP197B) {
+			/* Reset HIA input interface arbiter */
+			writel(EIP197_HIA_RA_PE_CTRL_RESET,
+			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
+		}
+
+		/* DMA transfer size to use */
+		val = EIP197_HIA_DFE_CFG_DIS_DEBUG;
+		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(6) |
+		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(9);
+		val |= EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(6) |
+		       EIP197_HIA_DxE_CFG_MAX_CTRL_SIZE(7);
+		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(RD_CACHE_3BITS);
+		val |= EIP197_HIA_DxE_CFG_CTRL_CACHE_CTRL(RD_CACHE_3BITS);
+		writel(val, EIP197_HIA_DFE(priv) + EIP197_HIA_DFE_CFG(pe));
+
+		/* Leave the DFE threads reset state */
+		writel(0, EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
+
+		/* Configure the processing engine thresholds */
+		writel(EIP197_PE_IN_xBUF_THRES_MIN(6) |
+		       EIP197_PE_IN_xBUF_THRES_MAX(9),
+		       EIP197_PE(priv) + EIP197_PE_IN_DBUF_THRES(pe));
+		writel(EIP197_PE_IN_xBUF_THRES_MIN(6) |
+		       EIP197_PE_IN_xBUF_THRES_MAX(7),
+		       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES(pe));
+
+		if (priv->version == EIP197B) {
+			/* enable HIA input interface arbiter and rings */
+			writel(EIP197_HIA_RA_PE_CTRL_EN |
+			       GENMASK(priv->config.rings - 1, 0),
+			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
+		}
+
+		/* Data Store Engine configuration */
+
+		/* Reset all DSE threads */
+		writel(EIP197_DxE_THR_CTRL_RESET_PE,
+		       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+
+		/* Wait for all DSE threads to complete */
+		while ((readl(EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_STAT(pe)) &
+			GENMASK(15, 12)) != GENMASK(15, 12))
+			;
+
+		/* DMA transfer size to use */
+		val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
+		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) |
+		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
+		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
+		val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
+		/* FIXME: instability issues can occur for EIP97 but disabling it impact
+		 * performances.
+		 */
+		if (priv->version == EIP197B)
+			val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
+		writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG(pe));
+
+		/* Leave the DSE threads reset state */
+		writel(0, EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+
+		/* Configure the procesing engine thresholds */
+		writel(EIP197_PE_OUT_DBUF_THRES_MIN(7) |
+		       EIP197_PE_OUT_DBUF_THRES_MAX(8),
+		       EIP197_PE(priv) + EIP197_PE_OUT_DBUF_THRES(pe));
+
+		/* Processing Engine configuration */
+
+		/* H/W capabilities selection */
+		val = EIP197_FUNCTION_RSVD;
+		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
+		val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
+		val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
+		val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
+		val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
+		writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN(pe));
+	}
 
 	/* Command Descriptor Rings prepare */
 	for (i = 0; i < priv->config.rings; i++) {
@@ -414,13 +427,15 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_RING_SIZE);
 	}
 
-	/* Enable command descriptor rings */
-	writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
-	       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL);
+	for (pe = 0; pe < priv->config.pes; pe++) {
+		/* Enable command descriptor rings */
+		writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
+		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
 
-	/* Enable result descriptor rings */
-	writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
-	       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL);
+		/* Enable result descriptor rings */
+		writel(EIP197_DxE_THR_CTRL_EN | GENMASK(priv->config.rings - 1, 0),
+		       EIP197_HIA_DSE_THR(priv) + EIP197_HIA_DSE_THR_CTRL(pe));
+	}
 
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
@@ -868,9 +883,20 @@ static void safexcel_unregister_algorithms(struct safexcel_crypto_priv *priv)
 
 static void safexcel_configure(struct safexcel_crypto_priv *priv)
 {
-	u32 val, mask;
+	u32 val, mask = 0;
 
 	val = readl(EIP197_HIA_AIC_G(priv) + EIP197_HIA_OPTIONS);
+
+	/* Read number of PEs from the engine */
+	switch (priv->version) {
+	case EIP197B:
+		mask = EIP197_N_PES_MASK;
+		break;
+	default:
+		mask = EIP97_N_PES_MASK;
+	}
+	priv->config.pes = (val >> EIP197_N_PES_OFFSET) & mask;
+
 	val = (val & GENMASK(27, 25)) >> 25;
 	mask = BIT(val) - 1;
 
