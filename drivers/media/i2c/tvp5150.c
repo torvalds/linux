@@ -27,6 +27,9 @@
 #define TVP5150_MAX_CROP_LEFT	511
 #define TVP5150_MAX_CROP_TOP	127
 #define TVP5150_CROP_SHIFT	2
+#define TVP5150_MBUS_FMT	MEDIA_BUS_FMT_UYVY8_2X8
+#define TVP5150_FIELD		V4L2_FIELD_ALTERNATE
+#define TVP5150_COLORSPACE	V4L2_COLORSPACE_SMPTE170M
 
 MODULE_DESCRIPTION("Texas Instruments TVP5150A/TVP5150AM1/TVP5151 video decoder driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
@@ -852,9 +855,21 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	}
 }
 
+static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
+{
+	/* Default is no cropping */
+	crop->top = 0;
+	crop->left = 0;
+	crop->width = TVP5150_H_MAX;
+	if (std & V4L2_STD_525_60)
+		crop->height = TVP5150_V_MAX_525_60;
+	else
+		crop->height = TVP5150_V_MAX_OTHERS;
+}
+
 static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *format)
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *f;
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -867,12 +882,12 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	f->width = decoder->rect.width;
 	f->height = decoder->rect.height / 2;
 
-	f->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	f->field = V4L2_FIELD_ALTERNATE;
-	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	f->code = TVP5150_MBUS_FMT;
+	f->field = TVP5150_FIELD;
+	f->colorspace = TVP5150_COLORSPACE;
 
 	dev_dbg_lvl(sd->dev, 1, debug, "width = %d, height = %d\n", f->width,
-			f->height);
+		    f->height);
 	return 0;
 }
 
@@ -993,7 +1008,7 @@ static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad || code->index)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = TVP5150_MBUS_FMT;
 	return 0;
 }
 
@@ -1003,10 +1018,10 @@ static int tvp5150_enum_frame_size(struct v4l2_subdev *sd,
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	if (fse->index >= 8 || fse->code != MEDIA_BUS_FMT_UYVY8_2X8)
+	if (fse->index >= 8 || fse->code != TVP5150_MBUS_FMT)
 		return -EINVAL;
 
-	fse->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fse->code = TVP5150_MBUS_FMT;
 	fse->min_width = decoder->rect.width;
 	fse->max_width = decoder->rect.width;
 	fse->min_height = decoder->rect.height / 2;
@@ -1618,14 +1633,7 @@ static int tvp5150_probe(struct i2c_client *c,
 		goto err;
 	}
 
-	/* Default is no cropping */
-	core->rect.top = 0;
-	if (tvp5150_read_std(sd) & V4L2_STD_525_60)
-		core->rect.height = TVP5150_V_MAX_525_60;
-	else
-		core->rect.height = TVP5150_V_MAX_OTHERS;
-	core->rect.left = 0;
-	core->rect.width = TVP5150_H_MAX;
+	tvp5150_set_default(tvp5150_read_std(sd), &core->rect);
 
 	tvp5150_reset(sd, 0);	/* Calls v4l2_ctrl_handler_setup() */
 
