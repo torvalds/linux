@@ -594,6 +594,7 @@ struct rt_rq {
 	unsigned long		rt_nr_total;
 	int			overloaded;
 	struct plist_head	pushable_tasks;
+
 #endif /* CONFIG_SMP */
 	int			rt_queued;
 
@@ -854,6 +855,7 @@ struct rq {
 
 	u64			rt_avg;
 	u64			age_stamp;
+	struct sched_avg	avg_rt;
 	u64			idle_stamp;
 	u64			avg_idle;
 
@@ -2211,5 +2213,10 @@ static inline unsigned long cpu_util_cfs(struct rq *rq)
 	}
 
 	return util;
+}
+
+static inline unsigned long cpu_util_rt(struct rq *rq)
+{
+	return rq->avg_rt.util_avg;
 }
 #endif
