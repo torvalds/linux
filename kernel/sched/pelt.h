@@ -6,6 +6,16 @@ int __update_load_avg_cfs_rq(u64 now, int cpu, struct cfs_rq *cfs_rq);
 int update_rt_rq_load_avg(u64 now, struct rq *rq, int running);
 int update_dl_rq_load_avg(u64 now, struct rq *rq, int running);
 
+#if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
+int update_irq_load_avg(struct rq *rq, u64 running);
+#else
+static inline int
+update_irq_load_avg(struct rq *rq, u64 running)
+{
+	return 0;
+}
+#endif
+
 /*
  * When a task is dequeued, its estimated utilization should not be update if
  * its util_avg has not been updated at least once.
@@ -48,6 +58,12 @@ update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
 
 static inline int
 update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
+{
+	return 0;
+}
+
+static inline int
+update_irq_load_avg(struct rq *rq, u64 running)
 {
 	return 0;
 }
