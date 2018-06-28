@@ -810,6 +810,15 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	}
 }
 
+static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	*std_id = decoder->lock ? tvp5150_read_std(sd) : V4L2_STD_UNKNOWN;
+
+	return 0;
+}
+
 static const struct v4l2_event tvp5150_ev_fmt = {
 	.type = V4L2_EVENT_SOURCE_CHANGE,
 	.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
@@ -1385,6 +1394,7 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_std = tvp5150_s_std,
 	.g_std = tvp5150_g_std,
+	.querystd = tvp5150_querystd,
 	.s_stream = tvp5150_s_stream,
 	.s_routing = tvp5150_s_routing,
 	.g_mbus_config = tvp5150_g_mbus_config,
