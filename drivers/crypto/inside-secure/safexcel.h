@@ -566,6 +566,7 @@ struct safexcel_ring {
 enum safexcel_eip_version {
 	EIP97IES = BIT(0),
 	EIP197B  = BIT(1),
+	EIP197D  = BIT(2),
 };
 
 struct safexcel_register_offsets {

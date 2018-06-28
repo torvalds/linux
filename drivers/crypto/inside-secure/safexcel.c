@@ -132,15 +132,32 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 {
 	const char *fw_name[] = {"ifpp.bin", "ipue.bin"};
 	const struct firmware *fw[FW_NB];
-	char fw_path[31];
+	char fw_path[31], *dir = NULL;
 	int i, j, ret = 0, pe;
 	u32 val;
 
+	switch (priv->version) {
+	case EIP197B:
+		dir = "eip197b";
+		break;
+	case EIP197D:
+		dir = "eip197d";
+		break;
+	default:
+		/* No firmware is required */
+		return 0;
+	}
+
 	for (i = 0; i < FW_NB; i++) {
-		snprintf(fw_path, 31, "inside-secure/eip197b/%s", fw_name[i]);
+		snprintf(fw_path, 31, "inside-secure/%s/%s", dir, fw_name[i]);
 		ret = request_firmware(&fw[i], fw_path, priv->dev);
 		if (ret) {
-			/* Fallback to the old firmware location. */
+			if (priv->version != EIP197B)
+				goto release_fw;
+
+			/* Fallback to the old firmware location for the
+			 * EIP197b.
+			 */
 			ret = request_firmware(&fw[i], fw_name[i], priv->dev);
 			if (ret) {
 				dev_err(priv->dev,
@@ -300,7 +317,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		writel(EIP197_DxE_THR_CTRL_RESET_PE,
 		       EIP197_HIA_DFE_THR(priv) + EIP197_HIA_DFE_THR_CTRL(pe));
 
-		if (priv->version == EIP197B) {
+		if (priv->version == EIP197B || priv->version == EIP197D) {
 			/* Reset HIA input interface arbiter */
 			writel(EIP197_HIA_RA_PE_CTRL_RESET,
 			       EIP197_HIA_AIC(priv) + EIP197_HIA_RA_PE_CTRL(pe));
@@ -327,7 +344,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		       EIP197_PE_IN_xBUF_THRES_MAX(7),
 		       EIP197_PE(priv) + EIP197_PE_IN_TBUF_THRES(pe));
 
-		if (priv->version == EIP197B) {
+		if (priv->version == EIP197B || priv->version == EIP197D) {
 			/* enable HIA input interface arbiter and rings */
 			writel(EIP197_HIA_RA_PE_CTRL_EN |
 			       GENMASK(priv->config.rings - 1, 0),
@@ -354,7 +371,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		/* FIXME: instability issues can occur for EIP97 but disabling it impact
 		 * performances.
 		 */
-		if (priv->version == EIP197B)
+		if (priv->version == EIP197B || priv->version == EIP197D)
 			val |= EIP197_HIA_DSE_CFG_EN_SINGLE_WR;
 		writel(val, EIP197_HIA_DSE(priv) + EIP197_HIA_DSE_CFG(pe));
 
@@ -440,7 +457,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	/* Clear any HIA interrupt */
 	writel(GENMASK(30, 20), EIP197_HIA_AIC_G(priv) + EIP197_HIA_AIC_G_ACK);
 
-	if (priv->version == EIP197B) {
+	if (priv->version == EIP197B || priv->version == EIP197D) {
 		eip197_trc_cache_init(priv);
 
 		ret = eip197_load_firmwares(priv);
@@ -890,6 +907,7 @@ static void safexcel_configure(struct safexcel_crypto_priv *priv)
 	/* Read number of PEs from the engine */
 	switch (priv->version) {
 	case EIP197B:
+	case EIP197D:
 		mask = EIP197_N_PES_MASK;
 		break;
 	default:
@@ -914,7 +932,9 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 {
 	struct safexcel_register_offsets *offsets = &priv->offsets;
 
-	if (priv->version == EIP197B) {
+	switch (priv->version) {
+	case EIP197B:
+	case EIP197D:
 		offsets->hia_aic	= EIP197_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP197_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP197_HIA_AIC_R_BASE;
@@ -925,7 +945,8 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 		offsets->hia_dse_thr	= EIP197_HIA_DSE_THR_BASE;
 		offsets->hia_gen_cfg	= EIP197_HIA_GEN_CFG_BASE;
 		offsets->pe		= EIP197_PE_BASE;
-	} else {
+		break;
+	case EIP97IES:
 		offsets->hia_aic	= EIP97_HIA_AIC_BASE;
 		offsets->hia_aic_g	= EIP97_HIA_AIC_G_BASE;
 		offsets->hia_aic_r	= EIP97_HIA_AIC_R_BASE;
@@ -936,6 +957,7 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 		offsets->hia_dse_thr	= EIP97_HIA_DSE_THR_BASE;
 		offsets->hia_gen_cfg	= EIP97_HIA_GEN_CFG_BASE;
 		offsets->pe		= EIP97_PE_BASE;
+		break;
 	}
 }
 
@@ -953,7 +975,7 @@ static int safexcel_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->version = (enum safexcel_eip_version)of_device_get_match_data(dev);
 
-	if (priv->version == EIP197B)
+	if (priv->version == EIP197B || priv->version == EIP197D)
 		priv->flags |= EIP197_TRC_CACHE;
 
 	safexcel_init_register_offsets(priv);
@@ -1114,6 +1136,10 @@ static const struct of_device_id safexcel_of_match_table[] = {
 	{
 		.compatible = "inside-secure,safexcel-eip197b",
 		.data = (void *)EIP197B,
+	},
+	{
+		.compatible = "inside-secure,safexcel-eip197d",
+		.data = (void *)EIP197D,
 	},
 	{
 		/* Deprecated. Kept for backward compatibility. */
