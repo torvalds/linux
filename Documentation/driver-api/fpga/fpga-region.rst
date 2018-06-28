@@ -4,7 +4,7 @@ FPGA Region
 Overview
 --------
 
-This document is meant to be an brief overview of the FPGA region API usage.  A
+This document is meant to be a brief overview of the FPGA region API usage.  A
 more conceptual look at regions can be found in the Device Tree binding
 document [#f1]_.
 
@@ -31,11 +31,11 @@ fpga_image_info including:
  * pointers to the image as either a scatter-gather buffer, a contiguous
    buffer, or the name of firmware file
 
- * flags indicating specifics such as whether the image if for partial
+ * flags indicating specifics such as whether the image is for partial
    reconfiguration.
 
-How to program a FPGA using a region
-------------------------------------
+How to program an FPGA using a region
+-------------------------------------
 
 First, allocate the info struct::
 
@@ -77,8 +77,8 @@ An example of usage can be seen in the probe function of [#f2]_.
 .. [#f1] ../devicetree/bindings/fpga/fpga-region.txt
 .. [#f2] ../../drivers/fpga/of-fpga-region.c
 
-API to program a FGPA
----------------------
+API to program an FPGA
+----------------------
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
    :functions: fpga_region_program_fpga

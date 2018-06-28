@@ -83,7 +83,7 @@ The programming sequence is::
  3. .write_complete
 
 The .write_init function will prepare the FPGA to receive the image data.  The
-buffer passed into .write_init will be atmost .initial_header_size bytes long,
+buffer passed into .write_init will be at most .initial_header_size bytes long;
 if the whole bitstream is not immediately available then the core code will
 buffer up at least this much before starting.
 
@@ -98,9 +98,9 @@ scatter list. This interface is suitable for drivers which use DMA.
 The .write_complete function is called after all the image has been written
 to put the FPGA into operating mode.
 
-The ops include a .state function which will read the hardware FPGA manager and
-return a code of type enum fpga_mgr_states.  It doesn't result in a change in
-hardware state.
+The ops include a .state function which will determine the state the FPGA is in
+and return a code of type enum fpga_mgr_states.  It doesn't result in a change
+in state.
 
 How to write an image buffer to a supported FPGA
 ------------------------------------------------
@@ -181,8 +181,8 @@ API for implementing a new FPGA Manager driver
 .. kernel-doc:: drivers/fpga/fpga-mgr.c
    :functions: fpga_mgr_unregister
 
-API for programming a FPGA
---------------------------
+API for programming an FPGA
+---------------------------
 
 .. kernel-doc:: include/linux/fpga/fpga-mgr.h
    :functions: fpga_image_info
