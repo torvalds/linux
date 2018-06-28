@@ -254,6 +254,12 @@
 	cpu-supply = <&vdd_core>;
 };
 
+&cpu0_opp_table {
+	opp-1296000000 {
+		status = "okay";
+	};
+};
+
 &dmc {
 	center-supply = <&vdd_log>;
 	status = "okay";
