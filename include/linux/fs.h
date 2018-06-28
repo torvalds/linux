@@ -2016,6 +2016,8 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
  * I_OVL_INUSE		Used by overlayfs to get exclusive ownership on upper
  *			and work dirs among overlayfs mounts.
  *
+ * I_CREATING		New object's inode in the middle of setting up.
+ *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
  */
 #define I_DIRTY_SYNC		(1 << 0)
@@ -2036,7 +2038,8 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 #define __I_DIRTY_TIME_EXPIRED	12
 #define I_DIRTY_TIME_EXPIRED	(1 << __I_DIRTY_TIME_EXPIRED)
 #define I_WB_SWITCH		(1 << 13)
-#define I_OVL_INUSE			(1 << 14)
+#define I_OVL_INUSE		(1 << 14)
+#define I_CREATING		(1 << 15)
 
 #define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 #define I_DIRTY (I_DIRTY_INODE | I_DIRTY_PAGES)
@@ -2919,6 +2922,7 @@ extern void lockdep_annotate_inode_mutex_key(struct inode *inode);
 static inline void lockdep_annotate_inode_mutex_key(struct inode *inode) { };
 #endif
 extern void unlock_new_inode(struct inode *);
+extern void discard_new_inode(struct inode *);
 extern unsigned int get_next_ino(void);
 extern void evict_inodes(struct super_block *sb);
 
