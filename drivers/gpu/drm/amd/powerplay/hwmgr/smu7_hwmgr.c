@@ -3183,7 +3183,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenLow);
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
-			state_entry->ucPCIELaneHigh);
+			state_entry->ucPCIELaneLow);
 
 	performance_level = &(smu7_power_state->performance_levels
 			[smu7_power_state->performance_level_count++]);
