@@ -183,6 +183,11 @@ struct smc_connection {
 	spinlock_t		acurs_lock;	/* protect cursors */
 #endif
 	struct work_struct	close_work;	/* peer sent some closing */
+	struct tasklet_struct	rx_tsklet;	/* Receiver tasklet for SMC-D */
+	u8			rx_off;		/* receive offset:
+						 * 0 for SMC-R, 32 for SMC-D
+						 */
+	u64			peer_token;	/* SMC-D token of peer */
 };
 
 struct smc_sock {				/* smc sock container */

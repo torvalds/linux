@@ -50,6 +50,20 @@ struct smc_cdc_msg {
 	u8				reserved[18];
 } __packed;					/* format defined in RFC7609 */
 
+/* CDC message for SMC-D */
+struct smcd_cdc_msg {
+	struct smc_wr_rx_hdr common;	/* Type = 0xFE */
+	u8 res1[7];
+	u16 prod_wrap;
+	u32 prod_count;
+	u8 res2[2];
+	u16 cons_wrap;
+	u32 cons_count;
+	struct smc_cdc_producer_flags	prod_flags;
+	struct smc_cdc_conn_state_flags conn_state_flags;
+	u8 res3[8];
+} __packed;
+
 static inline bool smc_cdc_rxed_any_close(struct smc_connection *conn)
 {
 	return conn->local_rx_ctrl.conn_state_flags.peer_conn_abort ||
@@ -204,9 +218,9 @@ static inline void smc_cdc_cursor_to_host(union smc_host_cursor *local,
 	smc_curs_write(local, smc_curs_read(&temp, conn), conn);
 }
 
-static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
-				       struct smc_cdc_msg *peer,
-				       struct smc_connection *conn)
+static inline void smcr_cdc_msg_to_host(struct smc_host_cdc_msg *local,
+					struct smc_cdc_msg *peer,
+					struct smc_connection *conn)
 {
 	local->common.type = peer->common.type;
 	local->len = peer->len;
@@ -218,6 +232,27 @@ static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 	local->conn_state_flags = peer->conn_state_flags;
 }
 
+static inline void smcd_cdc_msg_to_host(struct smc_host_cdc_msg *local,
+					struct smcd_cdc_msg *peer)
+{
+	local->prod.wrap = peer->prod_wrap;
+	local->prod.count = peer->prod_count;
+	local->cons.wrap = peer->cons_wrap;
+	local->cons.count = peer->cons_count;
+	local->prod_flags = peer->prod_flags;
+	local->conn_state_flags = peer->conn_state_flags;
+}
+
+static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
+				       struct smc_cdc_msg *peer,
+				       struct smc_connection *conn)
+{
+	if (conn->lgr->is_smcd)
+		smcd_cdc_msg_to_host(local, (struct smcd_cdc_msg *)peer);
+	else
+		smcr_cdc_msg_to_host(local, peer, conn);
+}
+
 struct smc_cdc_tx_pend;
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
@@ -227,6 +262,8 @@ void smc_cdc_tx_dismiss_slots(struct smc_connection *conn);
 int smc_cdc_msg_send(struct smc_connection *conn, struct smc_wr_buf *wr_buf,
 		     struct smc_cdc_tx_pend *pend);
 int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn);
+int smcd_cdc_msg_send(struct smc_connection *conn);
 int smc_cdc_init(void) __init;
+void smcd_cdc_rx_init(struct smc_connection *conn);
 
 #endif /* SMC_CDC_H */

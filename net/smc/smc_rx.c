@@ -305,7 +305,7 @@ int smc_rx_recvmsg(struct smc_sock *smc, struct msghdr *msg,
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
 	/* we currently use 1 RMBE per RMB, so RMBE == RMB base addr */
-	rcvbuf_base = conn->rmb_desc->cpu_addr;
+	rcvbuf_base = conn->rx_off + conn->rmb_desc->cpu_addr;
 
 	do { /* while (read_remaining) */
 		if (read_done >= target || (pipe && read_done))

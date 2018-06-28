@@ -302,5 +302,13 @@ EXPORT_SYMBOL_GPL(smcd_handle_event);
  */
 void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
 {
+	struct smc_connection *conn = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&smcd->lock, flags);
+	conn = smcd->conn[dmbno];
+	if (conn)
+		tasklet_schedule(&conn->rx_tsklet);
+	spin_unlock_irqrestore(&smcd->lock, flags);
 }
 EXPORT_SYMBOL_GPL(smcd_handle_irq);
