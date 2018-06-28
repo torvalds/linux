@@ -65,6 +65,7 @@ struct tvp5150 {
 	v4l2_std_id detected_norm;
 	u32 input;
 	u32 output;
+	u32 oe;
 	int enable;
 	bool lock;
 
@@ -804,14 +805,20 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 {
 	struct tvp5150 *decoder = dev_id;
 	struct regmap *map = decoder->regmap;
-	unsigned int active = 0, status = 0;
+	unsigned int mask, active = 0, status = 0;
+
+	mask = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE |
+	       TVP5150_MISC_CTL_CLOCK_OE;
 
 	regmap_read(map, TVP5150_INT_STATUS_REG_A, &status);
 	if (status) {
 		regmap_write(map, TVP5150_INT_STATUS_REG_A, status);
 
-		if (status & TVP5150_INT_A_LOCK)
+		if (status & TVP5150_INT_A_LOCK) {
 			decoder->lock = !!(status & TVP5150_INT_A_LOCK_STATUS);
+			regmap_update_bits(map, TVP5150_MISC_CTL, mask,
+					   decoder->lock ? decoder->oe : 0);
+		}
 
 		return IRQ_HANDLED;
 	}
@@ -877,10 +884,26 @@ static int tvp5150_enable(struct v4l2_subdev *sd)
 	/* Disable autoswitch mode */
 	tvp5150_set_std(sd, std);
 
-	if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
+	/*
+	 * Enable the YCbCr and clock outputs. In discrete sync mode
+	 * (non-BT.656) additionally enable the the sync outputs.
+	 */
+	switch (decoder->mbus_type) {
+	case V4L2_MBUS_PARALLEL:
 		/* 8-bit 4:2:2 YUV with discrete sync output */
 		regmap_update_bits(decoder->regmap, TVP5150_DATA_RATE_SEL,
 				   0x7, 0x0);
+		decoder->oe = TVP5150_MISC_CTL_YCBCR_OE |
+			      TVP5150_MISC_CTL_CLOCK_OE |
+			      TVP5150_MISC_CTL_SYNC_OE;
+		break;
+	case V4L2_MBUS_BT656:
+		decoder->oe = TVP5150_MISC_CTL_YCBCR_OE |
+			      TVP5150_MISC_CTL_CLOCK_OE;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 };
@@ -1157,14 +1180,8 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		tvp5150_enable(sd);
 
-		/*
-		 * Enable the YCbCr and clock outputs. In discrete sync mode
-		 * (non-BT.656) additionally enable the the sync outputs.
-		 */
-		val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
-		if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
-			val |= TVP5150_MISC_CTL_SYNC_OE;
-
+		/* Enable outputs if decoder is locked */
+		val = decoder->lock ? decoder->oe : 0;
 		int_val = TVP5150_INT_A_LOCK;
 	}
 
