@@ -2,19 +2,18 @@
 // Copyright (C) 2018 ROHM Semiconductors
 // bd71837-regulator.c ROHM BD71837MWV regulator driver
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/mfd/bd71837.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/gpio.h>
-#include <linux/mfd/bd71837.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/slab.h>
 
 struct bd71837_pmic {
 	struct regulator_desc descs[BD71837_REGULATOR_CNT];
@@ -39,7 +38,7 @@ static int bd71837_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 	int id = rdev->desc->id;
 	unsigned int ramp_value = BUCK_RAMPRATE_10P00MV;
 
-	dev_dbg(&(pmic->pdev->dev), "Buck[%d] Set Ramp = %d\n", id + 1,
+	dev_dbg(&pmic->pdev->dev, "Buck[%d] Set Ramp = %d\n", id + 1,
 		ramp_delay);
 	switch (ramp_delay) {
 	case 1 ... 1250:
@@ -544,8 +543,7 @@ static int bd71837_probe(struct platform_device *pdev)
 
 	int i, err;
 
-	pmic = devm_kzalloc(&pdev->dev, sizeof(struct bd71837_pmic),
-			    GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -569,8 +567,8 @@ static int bd71837_probe(struct platform_device *pdev)
 		dev_err(&pmic->pdev->dev, "Failed to unlock PMIC (%d)\n", err);
 		goto err;
 	} else {
-		dev_dbg(&pmic->pdev->dev, "%s: Unlocked lock register 0x%x\n",
-			__func__, BD71837_REG_REGLOCK);
+		dev_dbg(&pmic->pdev->dev, "Unlocked lock register 0x%x\n",
+			BD71837_REG_REGLOCK);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pmic_regulator_inits); i++) {
@@ -615,8 +613,6 @@ static int bd71837_probe(struct platform_device *pdev)
 		pmic->rdev[i] = rdev;
 	}
 
-	return 0;
-
 err:
 	return err;
 }
@@ -624,7 +620,6 @@ err:
 static struct platform_driver bd71837_regulator = {
 	.driver = {
 		.name = "bd71837-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = bd71837_probe,
 };
