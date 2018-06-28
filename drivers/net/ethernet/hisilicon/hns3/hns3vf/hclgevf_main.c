@@ -330,6 +330,12 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 
 static void hclgevf_free_vector(struct hclgevf_dev *hdev, int vector_id)
 {
+	if (hdev->vector_status[vector_id] == HCLGEVF_INVALID_VPORT) {
+		dev_warn(&hdev->pdev->dev,
+			 "vector(vector_id %d) has been freed.\n", vector_id);
+		return;
+	}
+
 	hdev->vector_status[vector_id] = HCLGEVF_INVALID_VPORT;
 	hdev->num_msi_left += 1;
 	hdev->num_msi_used -= 1;
