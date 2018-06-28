@@ -93,11 +93,6 @@ static const cxl_p1_reg_t CXL_PSL_FIR_CNTL  = {0x0148};
 static const cxl_p1_reg_t CXL_PSL_DSNDCTL   = {0x0150};
 static const cxl_p1_reg_t CXL_PSL_SNWRALLOC = {0x0158};
 static const cxl_p1_reg_t CXL_PSL_TRACE     = {0x0170};
-/* XSL registers (Mellanox CX4) */
-static const cxl_p1_reg_t CXL_XSL_Timebase  = {0x0100};
-static const cxl_p1_reg_t CXL_XSL_TB_CTLSTAT = {0x0108};
-static const cxl_p1_reg_t CXL_XSL_FEC       = {0x0158};
-static const cxl_p1_reg_t CXL_XSL_DSNCTL    = {0x0168};
 /* PSL registers - CAIA 2 */
 static const cxl_p1_reg_t CXL_PSL9_CONTROL  = {0x0020};
 static const cxl_p1_reg_t CXL_XSL9_INV      = {0x0110};
@@ -695,7 +690,6 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
-	int min_pe;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;
@@ -934,7 +928,6 @@ int cxl_debugfs_afu_add(struct cxl_afu *afu);
 void cxl_debugfs_afu_remove(struct cxl_afu *afu);
 void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir);
 void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir);
 
@@ -973,11 +966,6 @@ static inline void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter,
 }
 
 static inline void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter,
-						    struct dentry *dir)
-{
-}
-
-static inline void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }

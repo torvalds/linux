@@ -593,27 +593,7 @@ static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci
 	return 0;
 }
 
-static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_dev *dev)
-{
-	u64 xsl_dsnctl;
-	u64 chipid;
-	u32 phb_index;
-	u64 capp_unit_id;
-	int rc;
-
-	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
-	if (rc)
-		return rc;
-
-	/* Tell XSL where to route data to */
-	xsl_dsnctl = 0x0000600000000000ULL | (chipid << (63-5));
-	xsl_dsnctl |= (capp_unit_id << (63-13));
-	cxl_p1_write(adapter, CXL_XSL_DSNCTL, xsl_dsnctl);
-
-	return 0;
-}
-
-/* PSL & XSL */
+/* PSL */
 #define TBSYNC_CAL(n) (((u64)n & 0x7) << (63-3))
 #define TBSYNC_CNT(n) (((u64)n & 0x7) << (63-6))
 /* For the PSL this is a multiple for 0 < n <= 7: */
@@ -625,21 +605,6 @@ static void write_timebase_ctrl_psl8(struct cxl *adapter)
 		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
 }
 
-/* XSL */
-#define TBSYNC_ENA (1ULL << 63)
-/* For the XSL this is 2**n * 2000 clocks for 0 < n <= 6: */
-#define XSL_2000_CLOCKS 1
-#define XSL_4000_CLOCKS 2
-#define XSL_8000_CLOCKS 3
-
-static void write_timebase_ctrl_xsl(struct cxl *adapter)
-{
-	cxl_p1_write(adapter, CXL_XSL_TB_CTLSTAT,
-		     TBSYNC_ENA |
-		     TBSYNC_CAL(3) |
-		     TBSYNC_CNT(XSL_4000_CLOCKS));
-}
-
 static u64 timebase_read_psl9(struct cxl *adapter)
 {
 	return cxl_p1_read(adapter, CXL_PSL9_Timebase);
@@ -648,11 +613,6 @@ static u64 timebase_read_psl9(struct cxl *adapter)
 static u64 timebase_read_psl8(struct cxl *adapter)
 {
 	return cxl_p1_read(adapter, CXL_PSL_Timebase);
-}
-
-static u64 timebase_read_xsl(struct cxl *adapter)
-{
-	return cxl_p1_read(adapter, CXL_XSL_Timebase);
 }
 
 static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
@@ -1671,37 +1631,14 @@ static const struct cxl_service_layer_ops psl8_ops = {
 	.needs_reset_before_disable = true,
 };
 
-static const struct cxl_service_layer_ops xsl_ops = {
-	.adapter_regs_init = init_implementation_adapter_regs_xsl,
-	.invalidate_all = cxl_invalidate_all_psl8,
-	.sanitise_afu_regs = sanitise_afu_regs_psl8,
-	.handle_interrupt = cxl_irq_psl8,
-	.fail_irq = cxl_fail_irq_psl,
-	.activate_dedicated_process = cxl_activate_dedicated_process_psl8,
-	.attach_afu_directed = cxl_attach_afu_directed_psl8,
-	.attach_dedicated_process = cxl_attach_dedicated_process_psl8,
-	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl8,
-	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_xsl,
-	.write_timebase_ctrl = write_timebase_ctrl_xsl,
-	.timebase_read = timebase_read_xsl,
-	.capi_mode = OPAL_PHB_CAPI_MODE_DMA,
-};
-
 static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 {
-	if (dev->vendor == PCI_VENDOR_ID_MELLANOX && dev->device == 0x1013) {
-		/* Mellanox CX-4 */
-		dev_info(&dev->dev, "Device uses an XSL\n");
-		adapter->native->sl_ops = &xsl_ops;
-		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
+	if (cxl_is_power8()) {
+		dev_info(&dev->dev, "Device uses a PSL8\n");
+		adapter->native->sl_ops = &psl8_ops;
 	} else {
-		if (cxl_is_power8()) {
-			dev_info(&dev->dev, "Device uses a PSL8\n");
-			adapter->native->sl_ops = &psl8_ops;
-		} else {
-			dev_info(&dev->dev, "Device uses a PSL9\n");
-			adapter->native->sl_ops = &psl9_ops;
-		}
+		dev_info(&dev->dev, "Device uses a PSL9\n");
+		adapter->native->sl_ops = &psl9_ops;
 	}
 }
 
