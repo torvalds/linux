@@ -3,11 +3,6 @@
  * Device Tree file for SolidRun Clearfog Base revision A1 rev 2.0 (88F6828)
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
  */
 
 /dts-v1/;
