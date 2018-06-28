@@ -802,7 +802,6 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std;
 
 	/* Initializes TVP5150 to its default values */
 	tvp5150_write_inittab(sd, tvp5150_init_default);
@@ -813,11 +812,19 @@ static int tvp5150_reset(struct v4l2_subdev *sd, u32 val)
 	/* Selects decoder input */
 	tvp5150_selmux(sd);
 
-	/* Initializes TVP5150 to stream enabled values */
-	tvp5150_write_inittab(sd, tvp5150_init_enable);
-
 	/* Initialize image preferences */
 	v4l2_ctrl_handler_setup(&decoder->hdl);
+
+	return 0;
+}
+
+static int tvp5150_enable(struct v4l2_subdev *sd)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	v4l2_std_id std;
+
+	/* Initializes TVP5150 to stream enabled values */
+	tvp5150_write_inittab(sd, tvp5150_init_enable);
 
 	if (decoder->norm == V4L2_STD_ALL)
 		std = tvp5150_read_std(sd);
@@ -1105,6 +1112,8 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 	       TVP5150_MISC_CTL_CLOCK_OE;
 
 	if (enable) {
+		tvp5150_enable(sd);
+
 		/*
 		 * Enable the YCbCr and clock outputs. In discrete sync mode
 		 * (non-BT.656) additionally enable the the sync outputs.
