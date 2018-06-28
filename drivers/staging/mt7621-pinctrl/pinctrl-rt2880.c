@@ -113,7 +113,10 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 					 struct pinctrl_map **map,
 					 unsigned int *num_maps)
 {
+	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
+	int ret;
 	int max_maps = 0;
+	unsigned int reserved_maps = 0;
 	struct pinctrl_map *tmp;
 	struct device_node *np;
 
@@ -127,9 +130,12 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 	if (!max_maps)
 		return max_maps;
 
-	*map = kcalloc(max_maps, sizeof(struct pinctrl_map), GFP_KERNEL);
-	if (!*map)
-		return -ENOMEM;
+	ret = pinctrl_utils_reserve_map(pctrldev, map, &reserved_maps,
+					num_maps, max_maps);
+	if (ret) {
+		dev_err(p->dev, "can't reserve map: %d\n", ret);
+		return ret;
+	}
 
 	tmp = *map;
 
