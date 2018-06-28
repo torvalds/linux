@@ -699,7 +699,7 @@ static int query_crypto_facility(u16 cardnr, u16 domain,
 	/* fill request cprb param block with FQ request */
 	preqparm = (struct fqreqparm *) preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "FQ", 2);
-	strncpy(preqparm->rule_array, keyword, sizeof(preqparm->rule_array));
+	memcpy(preqparm->rule_array, keyword, sizeof(preqparm->rule_array));
 	preqparm->rule_array_len =
 		sizeof(preqparm->rule_array_len) + sizeof(preqparm->rule_array);
 	preqparm->lv1.len = sizeof(preqparm->lv1);
