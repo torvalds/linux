@@ -305,6 +305,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned char otg_inst;
 	unsigned char odm_split_cnt;
 	unsigned char odm_combine;
+	unsigned char use_maximum_vstartup;
 };
 
 struct _vcs_dpi_display_pipe_params_st {
