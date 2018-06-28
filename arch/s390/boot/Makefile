@@ -40,7 +40,7 @@ $(obj)/compressed/vmlinux: $(obj)/startup.a FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
 quiet_cmd_ar = AR      $@
-      cmd_ar = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(filter-out FORCE, $^)
+      cmd_ar = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(filter $(OBJECTS), $^)
 
 $(obj)/startup.a: $(OBJECTS) FORCE
 	$(call if_changed,ar)
