@@ -97,6 +97,16 @@ struct pci_controller;
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
+#define DRM_SWITCH_POWER_ON 0
+#define DRM_SWITCH_POWER_OFF 1
+#define DRM_SWITCH_POWER_CHANGING 2
+#define DRM_SWITCH_POWER_DYNAMIC_OFF 3
+
+static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
+{
+	return dev->driver->driver_features & feature;
+}
+
 /**
  * drm_drv_uses_atomic_modeset - check if the driver implements
  * atomic_commit()
@@ -107,17 +117,8 @@ struct pci_controller;
  */
 static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 {
-	return dev->mode_config.funcs->atomic_commit != NULL;
-}
-
-#define DRM_SWITCH_POWER_ON 0
-#define DRM_SWITCH_POWER_OFF 1
-#define DRM_SWITCH_POWER_CHANGING 2
-#define DRM_SWITCH_POWER_DYNAMIC_OFF 3
-
-static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
-{
-	return dev->driver->driver_features & feature;
+	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
+		dev->mode_config.funcs->atomic_commit != NULL;
 }
 
 /* returns true if currently okay to sleep */

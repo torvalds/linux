@@ -60,7 +60,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
+	struct gtt_range *gtt;
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -75,6 +75,8 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		dev_err(dev->dev, "No FB bound\n");
 		goto gma_pipe_cleaner;
 	}
+
+	gtt = to_gtt_range(fb->obj[0]);
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
@@ -353,7 +355,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			gt = container_of(gma_crtc->cursor_obj,
 					  struct gtt_range, gem);
 			psb_gtt_unpin(gt);
-			drm_gem_object_unreference_unlocked(gma_crtc->cursor_obj);
+			drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
 		return 0;
@@ -429,7 +431,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	if (gma_crtc->cursor_obj) {
 		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
 		psb_gtt_unpin(gt);
-		drm_gem_object_unreference_unlocked(gma_crtc->cursor_obj);
+		drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
 	}
 
 	gma_crtc->cursor_obj = obj;
@@ -437,7 +439,7 @@ unlock:
 	return ret;
 
 unref_cursor:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 

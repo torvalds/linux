@@ -12,6 +12,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sun8i_dw_hdmi.h"
+#include "sun8i_tcon_top.h"
 
 static void sun8i_dw_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 					   struct drm_display_mode *mode,
@@ -41,6 +42,48 @@ sun8i_dw_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static bool sun8i_dw_hdmi_node_is_tcon_top(struct device_node *node)
+{
+	return !!of_match_node(sun8i_tcon_top_of_table, node);
+}
+
+static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
+					     struct device_node *node)
+{
+	struct device_node *port, *ep, *remote, *remote_port;
+	u32 crtcs = 0;
+
+	port = of_graph_get_port_by_id(node, 0);
+	if (!port)
+		return 0;
+
+	ep = of_get_next_available_child(port, NULL);
+	if (!ep)
+		return 0;
+
+	remote = of_graph_get_remote_port_parent(ep);
+	if (!remote)
+		return 0;
+
+	if (sun8i_dw_hdmi_node_is_tcon_top(remote)) {
+		port = of_graph_get_port_by_id(remote, 4);
+		if (!port)
+			return 0;
+
+		for_each_child_of_node(port, ep) {
+			remote_port = of_graph_get_remote_port(ep);
+			if (remote_port) {
+				crtcs |= drm_of_crtc_port_mask(drm, remote_port);
+				of_node_put(remote_port);
+			}
+		}
+	} else {
+		crtcs = drm_of_find_possible_crtcs(drm, node);
+	}
+
+	return crtcs;
+}
+
 static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 			      void *data)
 {
@@ -63,7 +106,8 @@ static int sun8i_dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs =
+		sun8i_dw_hdmi_find_possible_crtcs(drm, dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has

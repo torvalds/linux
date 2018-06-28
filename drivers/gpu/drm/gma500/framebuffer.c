@@ -517,7 +517,7 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	drm_framebuffer_cleanup(&psbfb->base);
 
 	if (psbfb->base.obj[0])
-		drm_gem_object_unreference_unlocked(psbfb->base.obj[0]);
+		drm_gem_object_put_unlocked(psbfb->base.obj[0]);
 	return 0;
 }
 

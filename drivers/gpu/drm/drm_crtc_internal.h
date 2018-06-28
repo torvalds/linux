@@ -65,6 +65,12 @@ int drm_mode_getresources(struct drm_device *dev,
 
 
 /* drm_dumb_buffers.c */
+int drm_mode_create_dumb(struct drm_device *dev,
+			 struct drm_mode_create_dumb *args,
+			 struct drm_file *file_priv);
+int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
+			  struct drm_file *file_priv);
+
 /* IOCTLs */
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
@@ -166,14 +172,19 @@ int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 				     const struct drm_framebuffer *fb);
 void drm_fb_release(struct drm_file *file_priv);
 
+int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
+		   struct drm_file *file_priv);
+int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
+		  struct drm_file *file_priv);
+
 
 /* IOCTL */
-int drm_mode_addfb(struct drm_device *dev,
-		   void *data, struct drm_file *file_priv);
+int drm_mode_addfb_ioctl(struct drm_device *dev,
+			 void *data, struct drm_file *file_priv);
 int drm_mode_addfb2(struct drm_device *dev,
 		    void *data, struct drm_file *file_priv);
-int drm_mode_rmfb(struct drm_device *dev,
-		  void *data, struct drm_file *file_priv);
+int drm_mode_rmfb_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
 int drm_mode_getfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv);
 int drm_mode_dirtyfb_ioctl(struct drm_device *dev,

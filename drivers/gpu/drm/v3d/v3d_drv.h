@@ -25,7 +25,6 @@ struct v3d_queue_state {
 
 	u64 fence_context;
 	u64 emit_seqno;
-	u64 finished_seqno;
 };
 
 struct v3d_dev {
@@ -84,6 +83,11 @@ struct v3d_dev {
 	 * reset at once.
 	 */
 	struct mutex reset_lock;
+
+	/* Lock taken when creating and pushing the GPU scheduler
+	 * jobs, to keep the sched-fence seqnos in order.
+	 */
+	struct mutex sched_lock;
 
 	struct {
 		u32 num_allocated;

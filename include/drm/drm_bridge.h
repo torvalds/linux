@@ -270,27 +270,29 @@ struct drm_bridge_timings {
 
 /**
  * struct drm_bridge - central DRM bridge control structure
- * @dev: DRM device this bridge belongs to
- * @encoder: encoder to which this bridge is connected
- * @next: the next bridge in the encoder chain
- * @of_node: device node pointer to the bridge
- * @list: to keep track of all added bridges
- * @timings: the timing specification for the bridge, if any (may
- * be NULL)
- * @funcs: control functions
- * @driver_private: pointer to the bridge driver's internal context
  */
 struct drm_bridge {
+	/** @dev: DRM device this bridge belongs to */
 	struct drm_device *dev;
+	/** @encoder: encoder to which this bridge is connected */
 	struct drm_encoder *encoder;
+	/** @next: the next bridge in the encoder chain */
 	struct drm_bridge *next;
 #ifdef CONFIG_OF
+	/** @of_node: device node pointer to the bridge */
 	struct device_node *of_node;
 #endif
+	/** @list: to keep track of all added bridges */
 	struct list_head list;
+	/**
+	 * @timings:
+	 *
+	 * the timing specification for the bridge, if any (may be NULL)
+	 */
 	const struct drm_bridge_timings *timings;
-
+	/** @funcs: control functions */
 	const struct drm_bridge_funcs *funcs;
+	/** @driver_private: pointer to the bridge driver's internal context */
 	void *driver_private;
 };
 
