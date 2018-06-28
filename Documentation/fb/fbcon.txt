@@ -155,6 +155,13 @@ C. Boot options
 	used by text. By default, this area will be black. The 'color' value
 	is an integer number that depends on the framebuffer driver being used.
 
+6. fbcon=nodefer
+
+	If the kernel is compiled with deferred fbcon takeover support, normally
+	the framebuffer contents, left in place by the firmware/bootloader, will
+	be preserved until there actually is some text is output to the console.
+	This option causes fbcon to bind immediately to the fbdev device.
+
 C. Attaching, Detaching and Unloading
 
 Before going on how to attach, detach and unload the framebuffer console, an
