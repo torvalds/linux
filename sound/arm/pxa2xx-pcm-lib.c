@@ -125,9 +125,9 @@ int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	return snd_dmaengine_pcm_open_request_chan(substream,
-					pxad_filter_fn,
-					dma_params->filter_data);
+	return snd_dmaengine_pcm_open(
+		substream, dma_request_slave_channel(rtd->cpu_dai->dev,
+						     dma_params->chan_name));
 }
 EXPORT_SYMBOL(__pxa2xx_pcm_open);
 
