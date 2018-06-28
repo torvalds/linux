@@ -3217,7 +3217,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		/* Find the lowest MCLK frequency that is within
 		 * the tolerable latency defined in DAL
 		 */
-		latency = 0;
+		latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 		for (i = 0; i < data->mclk_latency_table.count; i++) {
 			if ((data->mclk_latency_table.entries[i].latency <= latency) &&
 				(data->mclk_latency_table.entries[i].frequency >=
