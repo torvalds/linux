@@ -1917,7 +1917,7 @@ bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget)
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
 		return true; /* no data to poll */
 
-	if (!is_valid_clean_head(ring, head)) {
+	if (unlikely(!is_valid_clean_head(ring, head))) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
 			   ring->next_to_use, ring->next_to_clean);
 
@@ -2174,7 +2174,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
 
 	/* Check valid BD */
-	if (!hnae_get_bit(bd_base_info, HNS3_RXD_VLD_B))
+	if (unlikely(!hnae_get_bit(bd_base_info, HNS3_RXD_VLD_B)))
 		return -EFAULT;
 
 	va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
