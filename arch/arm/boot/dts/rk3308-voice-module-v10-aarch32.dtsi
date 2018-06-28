@@ -21,9 +21,33 @@
 		poll-interval = <100>;
 		keyup-threshold-microvolt = <1800000>;
 
-		recovery-key {
-			linux,code = <KEY_FN>;
-			label = "recovery";
+		esc-key {
+			linux,code = <KEY_MICMUTE>;
+			label = "micmute";
+			press-threshold-microvolt = <1130000>;
+		};
+
+		home-key {
+			linux,code = <KEY_MODE>;
+			label = "mode";
+			press-threshold-microvolt = <901000>;
+		};
+
+		menu-key {
+			linux,code = <KEY_PLAY>;
+			label = "play";
+			press-threshold-microvolt = <624000>;
+		};
+
+		vol-down-key {
+			linux,code = <KEY_VOLUMEDOWN>;
+			label = "volume down";
+			press-threshold-microvolt = <300000>;
+		};
+
+		vol-up-key {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "volume up";
 			press-threshold-microvolt = <18000>;
 		};
 	};
