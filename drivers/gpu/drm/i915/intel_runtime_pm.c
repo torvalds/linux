@@ -3212,6 +3212,7 @@ static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
 	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
 	default:
 		MISSING_CASE(val);
+		/* fall through */
 	case VOLTAGE_INFO_0_85V | PROCESS_INFO_DOT_0:
 		procmon = &cnl_procmon_values[PROCMON_0_85V_DOT_0];
 		break;

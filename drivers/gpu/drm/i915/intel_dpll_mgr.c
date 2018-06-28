@@ -2566,6 +2566,7 @@ int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
 	switch (index) {
 	default:
 		MISSING_CASE(index);
+		/* fall through */
 	case 0:
 		link_clock = 540000;
 		break;
@@ -2639,6 +2640,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			switch (div1) {
 			default:
 				MISSING_CASE(div1);
+				/* fall through */
 			case 2:
 				hsdiv = 0;
 				break;
@@ -2903,6 +2905,7 @@ static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 	switch (id) {
 	default:
 		MISSING_CASE(id);
+		/* fall through */
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return CNL_DPLL_ENABLE(id);

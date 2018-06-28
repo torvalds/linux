@@ -254,6 +254,7 @@ static void vlv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
 	default:
 		MISSING_CASE(reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK);
+		/* fall through */
 	case GEN7_STOLEN_RESERVED_1M:
 		*size = 1024 * 1024;
 		break;

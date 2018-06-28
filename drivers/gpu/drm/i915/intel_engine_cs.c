@@ -229,6 +229,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		break;
 	default:
 		MISSING_CASE(class);
+		/* fall through */
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:
