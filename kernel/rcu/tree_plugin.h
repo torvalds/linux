@@ -284,13 +284,10 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 	 * no need to check for a subsequent expedited GP.  (Though we are
 	 * still in a quiescent state in any case.)
 	 */
-	if (blkd_state & RCU_EXP_BLKD &&
-	    t->rcu_read_unlock_special.b.exp_need_qs) {
-		t->rcu_read_unlock_special.b.exp_need_qs = false;
+	if (blkd_state & RCU_EXP_BLKD && rdp->deferred_qs)
 		rcu_report_exp_rdp(rdp->rsp, rdp, true);
-	} else {
-		WARN_ON_ONCE(t->rcu_read_unlock_special.b.exp_need_qs);
-	}
+	else
+		WARN_ON_ONCE(rdp->deferred_qs);
 }
 
 /*
@@ -509,9 +506,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	 * tasks are handled when removing the task from the
 	 * blocked-tasks list below.
 	 */
-	if (special.b.exp_need_qs || rdp->deferred_qs) {
-		t->rcu_read_unlock_special.b.exp_need_qs = false;
-		rdp->deferred_qs = false;
+	if (rdp->deferred_qs) {
 		rcu_report_exp_rdp(rcu_state_p, rdp, true);
 		if (!t->rcu_read_unlock_special.s) {
 			local_irq_restore(flags);
