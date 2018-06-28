@@ -390,7 +390,6 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 				   struct coda_q_data *q_data, u32 fourcc)
 {
 	struct coda_dev *dev = ctx->dev;
-	int width, height;
 	unsigned int ysize, ycbcr_size;
 	int ret;
 	int i;
@@ -398,14 +397,11 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 ||
 	    ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 ||
-	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4) {
-		width = round_up(q_data->width, 16);
-		height = round_up(q_data->height, 16);
-	} else {
-		width = round_up(q_data->width, 8);
-		height = q_data->height;
-	}
-	ysize = width * height;
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_MPEG4)
+		ysize = round_up(q_data->width, 16) *
+			round_up(q_data->height, 16);
+	else
+		ysize = round_up(q_data->width, 8) * q_data->height;
 
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
 		ycbcr_size = round_up(ysize, 4096) + ysize / 2;
