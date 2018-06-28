@@ -327,6 +327,10 @@
 			compatible = "zii,rave-sp-watchdog";
 		};
 
+		backlight {
+			compatible = "zii,rave-sp-backlight";
+		};
+
 		eeprom@a3 {
 			compatible = "zii,rave-sp-eeprom";
 			reg = <0xa3 0x4000>;
