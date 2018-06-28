@@ -91,6 +91,20 @@ struct xway_stp {
 };
 
 /**
+ * xway_stp_get() - gpio_chip->get - get gpios.
+ * @gc:     Pointer to gpio_chip device structure.
+ * @gpio:   GPIO signal number.
+ *
+ * Gets the shadow value.
+ */
+static int xway_stp_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct xway_stp *chip = gpiochip_get_data(gc);
+
+	return (xway_stp_r32(chip->virt, XWAY_STP_CPU0) & BIT(gpio));
+}
+
+/**
  * xway_stp_set() - gpio_chip->set - set gpios.
  * @gc:     Pointer to gpio_chip device structure.
  * @gpio:   GPIO signal number.
@@ -215,6 +229,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
+	chip->gc.get = xway_stp_get;
 	chip->gc.set = xway_stp_set;
 	chip->gc.request = xway_stp_request;
 	chip->gc.base = -1;
