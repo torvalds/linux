@@ -1578,7 +1578,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_up_hyst = 0;
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
-	data->current_profile_setting.bupdate_sclk = 1;
+	data->current_profile_setting.bupdate_mclk = 1;
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
