@@ -265,6 +265,26 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 			return false;
 		}
 	}
+
+	if (f2fs_has_inline_data(inode) &&
+			(!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode))) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: inode (ino=%lx, mode=%u) should not have "
+			"inline_data, run fsck to fix",
+			__func__, inode->i_ino, inode->i_mode);
+		return false;
+	}
+
+	if (f2fs_has_inline_dentry(inode) && !S_ISDIR(inode->i_mode)) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: inode (ino=%lx, mode=%u) should not have "
+			"inline_dentry, run fsck to fix",
+			__func__, inode->i_ino, inode->i_mode);
+		return false;
+	}
+
 	return true;
 }
 
