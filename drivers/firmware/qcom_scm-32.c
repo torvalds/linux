@@ -147,7 +147,7 @@ static u32 smc(u32 cmd_addr)
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0)
 			: "r" (r0), "r" (r1), "r" (r2)
-			: "r3");
+			: "r3", "r12");
 	} while (r0 == QCOM_SCM_INTERRUPTED);
 
 	return r0;
@@ -263,7 +263,7 @@ static s32 qcom_scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
 			"smc    #0      @ switch to secure world\n"
 			: "=r" (r0)
 			: "r" (r0), "r" (r1), "r" (r2)
-			: "r3");
+			: "r3", "r12");
 	return r0;
 }
 
@@ -298,7 +298,7 @@ static s32 qcom_scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
 			"smc    #0      @ switch to secure world\n"
 			: "=r" (r0)
 			: "r" (r0), "r" (r1), "r" (r2), "r" (r3)
-			);
+			: "r12");
 	return r0;
 }
 
@@ -328,7 +328,7 @@ u32 qcom_scm_get_version(void)
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0), "=r" (r1)
 			: "r" (r0), "r" (r1)
-			: "r2", "r3");
+			: "r2", "r3", "r12");
 	} while (r0 == QCOM_SCM_INTERRUPTED);
 
 	version = r1;

@@ -58,7 +58,7 @@ MODULE_PARM_DESC(id, "ID string for the CS46xx soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable CS46xx soundcard.");
 module_param_array(external_amp, bool, NULL, 0444);
-MODULE_PARM_DESC(external_amp, "Force to enable external amplifer.");
+MODULE_PARM_DESC(external_amp, "Force to enable external amplifier.");
 module_param_array(thinkpad, bool, NULL, 0444);
 MODULE_PARM_DESC(thinkpad, "Force to enable Thinkpad's CLKRUN control.");
 module_param_array(mmap_valid, bool, NULL, 0444);

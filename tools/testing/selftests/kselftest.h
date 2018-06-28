@@ -20,7 +20,7 @@
 #define KSFT_XFAIL 2
 #define KSFT_XPASS 3
 /* Treat skip as pass */
-#define KSFT_SKIP  KSFT_PASS
+#define KSFT_SKIP  4
 
 /* counters */
 struct ksft_count {

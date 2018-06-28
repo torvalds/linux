@@ -884,8 +884,7 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 
 	pt->_key = epi->event.events;
 	if (!is_file_epoll(epi->ffd.file))
-		return epi->ffd.file->f_op->poll(epi->ffd.file, pt) &
-		       epi->event.events;
+		return vfs_poll(epi->ffd.file, pt) & epi->event.events;
 
 	ep = epi->ffd.file->private_data;
 	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
@@ -923,13 +922,17 @@ static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head
 	return 0;
 }
 
-static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
+static struct wait_queue_head *ep_eventpoll_get_poll_head(struct file *file,
+		__poll_t eventmask)
+{
+	struct eventpoll *ep = file->private_data;
+	return &ep->poll_wait;
+}
+
+static __poll_t ep_eventpoll_poll_mask(struct file *file, __poll_t eventmask)
 {
 	struct eventpoll *ep = file->private_data;
 	int depth = 0;
-
-	/* Insert inside our poll wait queue */
-	poll_wait(file, &ep->poll_wait, wait);
 
 	/*
 	 * Proceed to find out if wanted events are really available inside
@@ -969,7 +972,8 @@ static const struct file_operations eventpoll_fops = {
 	.show_fdinfo	= ep_show_fdinfo,
 #endif
 	.release	= ep_eventpoll_release,
-	.poll		= ep_eventpoll_poll,
+	.get_poll_head	= ep_eventpoll_get_poll_head,
+	.poll_mask	= ep_eventpoll_poll_mask,
 	.llseek		= noop_llseek,
 };
 
@@ -2025,7 +2029,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 	/* The target file descriptor must support poll */
 	error = -EPERM;
-	if (!tf.file->f_op->poll)
+	if (!file_can_poll(tf.file))
 		goto error_tgt_fput;
 
 	/* Check if EPOLLWAKEUP is allowed */

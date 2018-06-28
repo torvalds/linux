@@ -192,15 +192,16 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				char type, char *digest)
 {
 	struct inode *inode = d_backing_inode(dentry);
+	struct xattr_list *xattr;
 	struct shash_desc *desc;
-	char **xattrname;
 	size_t xattr_size = 0;
 	char *xattr_value = NULL;
 	int error;
 	int size;
 	bool ima_present = false;
 
-	if (!(inode->i_opflags & IOP_XATTR))
+	if (!(inode->i_opflags & IOP_XATTR) ||
+	    inode->i_sb->s_user_ns != &init_user_ns)
 		return -EOPNOTSUPP;
 
 	desc = init_desc(type);
@@ -208,14 +209,14 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 		return PTR_ERR(desc);
 
 	error = -ENODATA;
-	for (xattrname = evm_config_xattrnames; *xattrname != NULL; xattrname++) {
+	list_for_each_entry_rcu(xattr, &evm_config_xattrnames, list) {
 		bool is_ima = false;
 
-		if (strcmp(*xattrname, XATTR_NAME_IMA) == 0)
+		if (strcmp(xattr->name, XATTR_NAME_IMA) == 0)
 			is_ima = true;
 
 		if ((req_xattr_name && req_xattr_value)
-		    && !strcmp(*xattrname, req_xattr_name)) {
+		    && !strcmp(xattr->name, req_xattr_name)) {
 			error = 0;
 			crypto_shash_update(desc, (const u8 *)req_xattr_value,
 					     req_xattr_value_len);
@@ -223,7 +224,7 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 				ima_present = true;
 			continue;
 		}
-		size = vfs_getxattr_alloc(dentry, *xattrname,
+		size = vfs_getxattr_alloc(dentry, xattr->name,
 					  &xattr_value, xattr_size, GFP_NOFS);
 		if (size == -ENOMEM) {
 			error = -ENOMEM;

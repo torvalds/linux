@@ -285,12 +285,14 @@ static int __init test_rhltable(unsigned int entries)
 	if (entries == 0)
 		entries = 1;
 
-	rhl_test_objects = vzalloc(sizeof(*rhl_test_objects) * entries);
+	rhl_test_objects = vzalloc(array_size(entries,
+					      sizeof(*rhl_test_objects)));
 	if (!rhl_test_objects)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	obj_in_table = vzalloc(BITS_TO_LONGS(entries) * sizeof(unsigned long));
+	obj_in_table = vzalloc(array_size(sizeof(unsigned long),
+					  BITS_TO_LONGS(entries)));
 	if (!obj_in_table)
 		goto out_free;
 
@@ -706,7 +708,8 @@ static int __init test_rht_init(void)
 	test_rht_params.max_size = max_size ? : roundup_pow_of_two(entries);
 	test_rht_params.nelem_hint = size;
 
-	objs = vzalloc((test_rht_params.max_size + 1) * sizeof(struct test_obj));
+	objs = vzalloc(array_size(sizeof(struct test_obj),
+				  test_rht_params.max_size + 1));
 	if (!objs)
 		return -ENOMEM;
 
@@ -753,10 +756,10 @@ static int __init test_rht_init(void)
 	pr_info("Testing concurrent rhashtable access from %d threads\n",
 	        tcount);
 	sema_init(&prestart_sem, 1 - tcount);
-	tdata = vzalloc(tcount * sizeof(struct thread_data));
+	tdata = vzalloc(array_size(tcount, sizeof(struct thread_data)));
 	if (!tdata)
 		return -ENOMEM;
-	objs  = vzalloc(tcount * entries * sizeof(struct test_obj));
+	objs  = vzalloc(array3_size(sizeof(struct test_obj), tcount, entries));
 	if (!objs) {
 		vfree(tdata);
 		return -ENOMEM;

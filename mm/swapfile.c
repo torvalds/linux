@@ -100,7 +100,7 @@ atomic_t nr_rotate_swap = ATOMIC_INIT(0);
 
 static inline unsigned char swap_count(unsigned char ent)
 {
-	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
+	return ent & ~SWAP_HAS_CACHE;	/* may include COUNT_CONTINUED flag */
 }
 
 /* returns 1 if swap entry is freed */
@@ -3112,6 +3112,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	unsigned long *frontswap_map = NULL;
 	struct page *page = NULL;
 	struct inode *inode = NULL;
+	bool inced_nr_rotate_swap = false;
 
 	if (swap_flags & ~SWAP_FLAGS_VALID)
 		return -EINVAL;
@@ -3195,7 +3196,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
 
-		cluster_info = kvzalloc(nr_cluster * sizeof(*cluster_info),
+		cluster_info = kvcalloc(nr_cluster, sizeof(*cluster_info),
 					GFP_KERNEL);
 		if (!cluster_info) {
 			error = -ENOMEM;
@@ -3215,8 +3216,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
 			cluster_set_null(&cluster->index);
 		}
-	} else
+	} else {
 		atomic_inc(&nr_rotate_swap);
+		inced_nr_rotate_swap = true;
+	}
 
 	error = swap_cgroup_swapon(p->type, maxpages);
 	if (error)
@@ -3230,7 +3233,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	}
 	/* frontswap enabled? set up bit-per-page map for frontswap */
 	if (IS_ENABLED(CONFIG_FRONTSWAP))
-		frontswap_map = kvzalloc(BITS_TO_LONGS(maxpages) * sizeof(long),
+		frontswap_map = kvcalloc(BITS_TO_LONGS(maxpages),
+					 sizeof(long),
 					 GFP_KERNEL);
 
 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
@@ -3307,6 +3311,8 @@ bad_swap:
 	vfree(swap_map);
 	kvfree(cluster_info);
 	kvfree(frontswap_map);
+	if (inced_nr_rotate_swap)
+		atomic_dec(&nr_rotate_swap);
 	if (swap_file) {
 		if (inode && S_ISREG(inode->i_mode)) {
 			inode_unlock(inode);

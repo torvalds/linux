@@ -466,6 +466,8 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter *adapter, u16 addr,
 	status = i2c_transfer(adapter, msg, num);
 	if (status < 0)
 		return status;
+	if (status != num)
+		return -EIO;
 
 	/* Check PEC if last message is a read */
 	if (i && (msg[num-1].flags & I2C_M_RD)) {

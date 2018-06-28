@@ -1,6 +1,6 @@
 Family-model,Version,Filename,EventType
-209[78],1,cf_z10,core
-281[78],1,cf_z196,core
-282[78],1,cf_zec12,core
-296[45],1,cf_z13,core
-3906,3,cf_z14,core
+^IBM.209[78].*[13]\.[1-5].[[:xdigit:]]+$,1,cf_z10,core
+^IBM.281[78].*[13]\.[1-5].[[:xdigit:]]+$,1,cf_z196,core
+^IBM.282[78].*[13]\.[1-5].[[:xdigit:]]+$,1,cf_zec12,core
+^IBM.296[45].*[13]\.[1-5].[[:xdigit:]]+$,1,cf_z13,core
+^IBM.390[67].*[13]\.[1-5].[[:xdigit:]]+$,3,cf_z14,core

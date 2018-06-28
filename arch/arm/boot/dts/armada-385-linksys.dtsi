@@ -138,13 +138,19 @@
 	};
 };
 
-&nand {
+&nand_controller {
 	/* 128MiB or 256MiB */
 	status = "okay";
-	num-cs = <1>;
-	marvell,nand-keep-config;
-	marvell,nand-enable-arbiter;
-	nand-on-flash-bbt;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand: nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+	};
 };
 
 &mdio {

@@ -839,7 +839,7 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 						   cond, unsafe));
 
 	} else {
-		/* TODO: determine how much we want to losen this */
+		/* TODO: determine how much we want to loosen this */
 		error = fn_for_each_in_ns(label, profile,
 				profile_onexec(profile, onexec, stack, bprm,
 					       buffer, cond, unsafe));

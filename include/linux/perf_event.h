@@ -467,7 +467,7 @@ enum perf_addr_filter_action_t {
  */
 struct perf_addr_filter {
 	struct list_head	entry;
-	struct inode		*inode;
+	struct path		path;
 	unsigned long		offset;
 	unsigned long		size;
 	enum perf_addr_filter_action_t	action;
@@ -868,6 +868,7 @@ extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
 extern void perf_event_delayed_put(struct task_struct *task);
 extern struct file *perf_event_get(unsigned int fd);
+extern const struct perf_event *perf_get_event(struct file *file);
 extern const struct perf_event_attr *perf_event_attrs(struct perf_event *event);
 extern void perf_event_print_debug(void);
 extern void perf_pmu_disable(struct pmu *pmu);
@@ -1014,6 +1015,14 @@ static inline bool is_sampling_event(struct perf_event *event)
 static inline int is_software_event(struct perf_event *event)
 {
 	return event->event_caps & PERF_EV_CAP_SOFTWARE;
+}
+
+/*
+ * Return 1 for event in sw context, 0 for event in hw context
+ */
+static inline int in_software_context(struct perf_event *event)
+{
+	return event->ctx->pmu->task_ctx_nr == perf_sw_context;
 }
 
 extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
@@ -1289,6 +1298,10 @@ static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
 static inline void perf_event_delayed_put(struct task_struct *task)	{ }
 static inline struct file *perf_event_get(unsigned int fd)	{ return ERR_PTR(-EINVAL); }
+static inline const struct perf_event *perf_get_event(struct file *file)
+{
+	return ERR_PTR(-EINVAL);
+}
 static inline const struct perf_event_attr *perf_event_attrs(struct perf_event *event)
 {
 	return ERR_PTR(-EINVAL);

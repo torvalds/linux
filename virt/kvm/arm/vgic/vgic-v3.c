@@ -27,13 +27,6 @@ static bool group1_trap;
 static bool common_trap;
 static bool gicv4_enable;
 
-void vgic_v3_set_npie(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
-
-	cpuif->vgic_hcr |= ICH_HCR_NPIE;
-}
-
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -55,17 +48,23 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	int lr;
 	unsigned long flags;
 
-	cpuif->vgic_hcr &= ~(ICH_HCR_UIE | ICH_HCR_NPIE);
+	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
 	for (lr = 0; lr < vgic_cpu->used_lrs; lr++) {
 		u64 val = cpuif->vgic_lr[lr];
-		u32 intid;
+		u32 intid, cpuid;
 		struct vgic_irq *irq;
+		bool is_v2_sgi = false;
 
-		if (model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		cpuid = val & GICH_LR_PHYSID_CPUID;
+		cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
+
+		if (model == KVM_DEV_TYPE_ARM_VGIC_V3) {
 			intid = val & ICH_LR_VIRTUAL_ID_MASK;
-		else
+		} else {
 			intid = val & GICH_LR_VIRTUALID;
+			is_v2_sgi = vgic_irq_is_sgi(intid);
+		}
 
 		/* Notify fds when the guest EOI'ed a level-triggered IRQ */
 		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
@@ -81,18 +80,16 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		/* Always preserve the active bit */
 		irq->active = !!(val & ICH_LR_ACTIVE_BIT);
 
+		if (irq->active && is_v2_sgi)
+			irq->active_source = cpuid;
+
 		/* Edge is the only case where we preserve the pending bit */
 		if (irq->config == VGIC_CONFIG_EDGE &&
 		    (val & ICH_LR_PENDING_BIT)) {
 			irq->pending_latch = true;
 
-			if (vgic_irq_is_sgi(intid) &&
-			    model == KVM_DEV_TYPE_ARM_VGIC_V2) {
-				u32 cpuid = val & GICH_LR_PHYSID_CPUID;
-
-				cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
+			if (is_v2_sgi)
 				irq->source |= (1 << cpuid);
-			}
 		}
 
 		/*
@@ -133,10 +130,20 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 {
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u64 val = irq->intid;
-	bool allow_pending = true;
+	bool allow_pending = true, is_v2_sgi;
 
-	if (irq->active)
+	is_v2_sgi = (vgic_irq_is_sgi(irq->intid) &&
+		     model == KVM_DEV_TYPE_ARM_VGIC_V2);
+
+	if (irq->active) {
 		val |= ICH_LR_ACTIVE_BIT;
+		if (is_v2_sgi)
+			val |= irq->active_source << GICH_LR_PHYSID_CPUID_SHIFT;
+		if (vgic_irq_is_multi_sgi(irq)) {
+			allow_pending = false;
+			val |= ICH_LR_EOI;
+		}
+	}
 
 	if (irq->hw) {
 		val |= ICH_LR_HW;
@@ -174,8 +181,10 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 			BUG_ON(!src);
 			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
 			irq->source &= ~(1 << (src - 1));
-			if (irq->source)
+			if (irq->source) {
 				irq->pending_latch = true;
+				val |= ICH_LR_EOI;
+			}
 		}
 	}
 
@@ -335,7 +344,7 @@ retry:
 	bit_nr = irq->intid % BITS_PER_BYTE;
 	ptr = pendbase + byte_offset;
 
-	ret = kvm_read_guest(kvm, ptr, &val, 1);
+	ret = kvm_read_guest_lock(kvm, ptr, &val, 1);
 	if (ret)
 		return ret;
 
@@ -388,7 +397,7 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 		ptr = pendbase + byte_offset;
 
 		if (byte_offset != last_byte_offset) {
-			ret = kvm_read_guest(kvm, ptr, &val, 1);
+			ret = kvm_read_guest_lock(kvm, ptr, &val, 1);
 			if (ret)
 				return ret;
 			last_byte_offset = byte_offset;
@@ -410,6 +419,29 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	return 0;
 }
 
+/**
+ * vgic_v3_rdist_overlap - check if a region overlaps with any
+ * existing redistributor region
+ *
+ * @kvm: kvm handle
+ * @base: base of the region
+ * @size: size of region
+ *
+ * Return: true if there is an overlap
+ */
+bool vgic_v3_rdist_overlap(struct kvm *kvm, gpa_t base, size_t size)
+{
+	struct vgic_dist *d = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, &d->rd_regions, list) {
+		if ((base + size > rdreg->base) &&
+			(base < rdreg->base + vgic_v3_rd_region_size(kvm, rdreg)))
+			return true;
+	}
+	return false;
+}
+
 /*
  * Check for overlapping regions and for regions crossing the end of memory
  * for base addresses which have already been set.
@@ -417,41 +449,83 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 bool vgic_v3_check_base(struct kvm *kvm)
 {
 	struct vgic_dist *d = &kvm->arch.vgic;
-	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
-
-	redist_size *= atomic_read(&kvm->online_vcpus);
+	struct vgic_redist_region *rdreg;
 
 	if (!IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
 	    d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
 		return false;
 
-	if (!IS_VGIC_ADDR_UNDEF(d->vgic_redist_base) &&
-	    d->vgic_redist_base + redist_size < d->vgic_redist_base)
-		return false;
+	list_for_each_entry(rdreg, &d->rd_regions, list) {
+		if (rdreg->base + vgic_v3_rd_region_size(kvm, rdreg) <
+			rdreg->base)
+			return false;
+	}
 
-	/* Both base addresses must be set to check if they overlap */
-	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(d->vgic_redist_base))
+	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base))
 		return true;
 
-	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
-		return true;
-	if (d->vgic_redist_base + redist_size <= d->vgic_dist_base)
-		return true;
-
-	return false;
+	return !vgic_v3_rdist_overlap(kvm, d->vgic_dist_base,
+				      KVM_VGIC_V3_DIST_SIZE);
 }
+
+/**
+ * vgic_v3_rdist_free_slot - Look up registered rdist regions and identify one
+ * which has free space to put a new rdist region.
+ *
+ * @rd_regions: redistributor region list head
+ *
+ * A redistributor regions maps n redistributors, n = region size / (2 x 64kB).
+ * Stride between redistributors is 0 and regions are filled in the index order.
+ *
+ * Return: the redist region handle, if any, that has space to map a new rdist
+ * region.
+ */
+struct vgic_redist_region *vgic_v3_rdist_free_slot(struct list_head *rd_regions)
+{
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, rd_regions, list) {
+		if (!vgic_v3_redist_region_full(rdreg))
+			return rdreg;
+	}
+	return NULL;
+}
+
+struct vgic_redist_region *vgic_v3_rdist_region_from_index(struct kvm *kvm,
+							   u32 index)
+{
+	struct list_head *rd_regions = &kvm->arch.vgic.rd_regions;
+	struct vgic_redist_region *rdreg;
+
+	list_for_each_entry(rdreg, rd_regions, list) {
+		if (rdreg->index == index)
+			return rdreg;
+	}
+	return NULL;
+}
+
 
 int vgic_v3_map_resources(struct kvm *kvm)
 {
-	int ret = 0;
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct kvm_vcpu *vcpu;
+	int ret = 0;
+	int c;
 
 	if (vgic_ready(kvm))
 		goto out;
 
-	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(dist->vgic_redist_base)) {
+	kvm_for_each_vcpu(c, vcpu, kvm) {
+		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
+			kvm_debug("vcpu %d redistributor base not set\n", c);
+			ret = -ENXIO;
+			goto out;
+		}
+	}
+
+	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base)) {
 		kvm_err("Need to set vgic distributor addresses first\n");
 		ret = -ENXIO;
 		goto out;
@@ -542,11 +616,6 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	} else if (!PAGE_ALIGNED(info->vcpu.start)) {
 		pr_warn("GICV physical address 0x%llx not page aligned\n",
 			(unsigned long long)info->vcpu.start);
-		kvm_vgic_global_state.vcpu_base = 0;
-	} else if (!PAGE_ALIGNED(resource_size(&info->vcpu))) {
-		pr_warn("GICV size 0x%llx not a multiple of page size 0x%lx\n",
-			(unsigned long long)resource_size(&info->vcpu),
-			PAGE_SIZE);
 		kvm_vgic_global_state.vcpu_base = 0;
 	} else {
 		kvm_vgic_global_state.vcpu_base = info->vcpu.start;

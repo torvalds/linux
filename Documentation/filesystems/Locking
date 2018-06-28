@@ -69,31 +69,31 @@ prototypes:
 
 locking rules:
 	all may block
-		i_mutex(inode)
-lookup:		yes
-create:		yes
-link:		yes (both)
-mknod:		yes
-symlink:	yes
-mkdir:		yes
-unlink:		yes (both)
-rmdir:		yes (both)	(see below)
-rename:	yes (all)	(see below)
+		i_rwsem(inode)
+lookup:		shared
+create:		exclusive
+link:		exclusive (both)
+mknod:		exclusive
+symlink:	exclusive
+mkdir:		exclusive
+unlink:		exclusive (both)
+rmdir:		exclusive (both)(see below)
+rename:		exclusive (all)	(see below)
 readlink:	no
 get_link:	no
-setattr:	yes
+setattr:	exclusive
 permission:	no (may not block if called in rcu-walk mode)
 get_acl:	no
 getattr:	no
 listxattr:	no
 fiemap:		no
 update_time:	no
-atomic_open:	yes
+atomic_open:	exclusive
 tmpfile:	no
 
 
-	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
-victim.
+	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_rwsem
+	exclusive on victim.
 	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 
 See Documentation/filesystems/directory-locking for more detailed discussion
@@ -111,10 +111,10 @@ prototypes:
 
 locking rules:
 	all may block
-		i_mutex(inode)
+		i_rwsem(inode)
 list:		no
 get:		no
-set:		yes
+set:		exclusive
 
 --------------------------- super_operations ---------------------------
 prototypes:
@@ -217,14 +217,14 @@ prototypes:
 locking rules:
 	All except set_page_dirty and freepage may block
 
-			PageLocked(page)	i_mutex
+			PageLocked(page)	i_rwsem
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks
 writepages:
 set_page_dirty		no
 readpages:
-write_begin:		locks the page		yes
-write_end:		yes, unlocks		yes
+write_begin:		locks the page		exclusive
+write_end:		yes, unlocks		exclusive
 bmap:
 invalidatepage:		yes
 releasepage:		yes
@@ -439,7 +439,10 @@ prototypes:
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
-	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	int (*iterate_shared) (struct file *, struct dir_context *);
+	__poll_t (*poll) (struct file *, struct poll_table_struct *);
+	struct wait_queue_head * (*get_poll_head)(struct file *, __poll_t);
+	__poll_t (*poll_mask) (struct file *, __poll_t);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
@@ -470,7 +473,7 @@ prototypes:
 };
 
 locking rules:
-	All may block.
+	All except for ->poll_mask may block.
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you
@@ -479,6 +482,10 @@ For many filesystems, it is probably safe to acquire the inode
 mutex or just to use i_size_read() instead.
 Note: this does not protect the file->f_pos against concurrent modifications
 since this is something the userspace has to take care about.
+
+->iterate() is called with i_rwsem exclusive.
+
+->iterate_shared() is called with i_rwsem at least shared.
 
 ->fasync() is responsible for maintaining the FASYNC bit in filp->f_flags.
 Most instances call fasync_helper(), which does that maintenance, so it's
@@ -497,6 +504,9 @@ in sys_read() and friends.
 ->setlease operations should call generic_setlease() before or after setting
 the lease within the individual filesystem to record the result of the
 operation
+
+->poll_mask can be called with or without the waitqueue lock for the waitqueue
+returned from ->get_poll_head.
 
 --------------------------- dquot_operations -------------------------------
 prototypes:

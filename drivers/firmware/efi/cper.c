@@ -37,8 +37,6 @@
 #include <acpi/ghes.h>
 #include <ras/ras_event.h>
 
-#define INDENT_SP	" "
-
 static char rcd_decode_str[CPER_REC_LEN];
 
 /*
@@ -433,7 +431,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_TEXT)
 		printk("%s""fru_text: %.20s\n", pfx, gdata->fru_text);
 
-	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
+	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 	if (guid_equal(sec_type, &CPER_SEC_PROC_GENERIC)) {
 		struct cper_sec_proc_generic *proc_err = acpi_hest_get_payload(gdata);
 
@@ -470,6 +468,16 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		else
 			goto err_section_too_small;
 #endif
+#if defined(CONFIG_UEFI_CPER_X86)
+	} else if (guid_equal(sec_type, &CPER_SEC_PROC_IA)) {
+		struct cper_sec_proc_ia *ia_err = acpi_hest_get_payload(gdata);
+
+		printk("%ssection_type: IA32/X64 processor error\n", newpfx);
+		if (gdata->error_data_length >= sizeof(*ia_err))
+			cper_print_proc_ia(newpfx, ia_err);
+		else
+			goto err_section_too_small;
+#endif
 	} else {
 		const void *err = acpi_hest_get_payload(gdata);
 
@@ -500,7 +508,7 @@ void cper_estatus_print(const char *pfx,
 		       "It has been corrected by h/w "
 		       "and requires no further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
-	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
+	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 
 	apei_estatus_for_each_section(estatus, gdata) {
 		cper_estatus_print_section(newpfx, gdata, sec_no);

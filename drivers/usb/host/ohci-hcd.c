@@ -1258,10 +1258,6 @@ static int __init ohci_hcd_mod_init(void)
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
 	ohci_debug_root = debugfs_create_dir("ohci", usb_debug_root);
-	if (!ohci_debug_root) {
-		retval = -ENOENT;
-		goto error_debug;
-	}
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
@@ -1318,7 +1314,6 @@ static int __init ohci_hcd_mod_init(void)
 #endif
 	debugfs_remove(ohci_debug_root);
 	ohci_debug_root = NULL;
- error_debug:
 
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;

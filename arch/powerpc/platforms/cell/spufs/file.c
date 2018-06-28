@@ -232,12 +232,13 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 	return size;
 }
 
-static int
+static vm_fault_t
 spufs_mem_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct spu_context *ctx	= vma->vm_file->private_data;
 	unsigned long pfn, offset;
+	vm_fault_t ret;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset >= LS_SIZE)
@@ -256,11 +257,11 @@ spufs_mem_mmap_fault(struct vm_fault *vmf)
 		vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
 		pfn = (ctx->spu->local_store_phys + offset) >> PAGE_SHIFT;
 	}
-	vm_insert_pfn(vma, vmf->address, pfn);
+	ret = vmf_insert_pfn(vma, vmf->address, pfn);
 
 	spu_release(ctx);
 
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
 static int spufs_mem_mmap_access(struct vm_area_struct *vma,
@@ -312,13 +313,14 @@ static const struct file_operations spufs_mem_fops = {
 	.mmap			= spufs_mem_mmap,
 };
 
-static int spufs_ps_fault(struct vm_fault *vmf,
+static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 				    unsigned long ps_offs,
 				    unsigned long ps_size)
 {
 	struct spu_context *ctx = vmf->vma->vm_file->private_data;
 	unsigned long area, offset = vmf->pgoff << PAGE_SHIFT;
-	int ret = 0;
+	int err = 0;
+	vm_fault_t ret = VM_FAULT_NOPAGE;
 
 	spu_context_nospu_trace(spufs_ps_fault__enter, ctx);
 
@@ -349,25 +351,26 @@ static int spufs_ps_fault(struct vm_fault *vmf,
 	if (ctx->state == SPU_STATE_SAVED) {
 		up_read(&current->mm->mmap_sem);
 		spu_context_nospu_trace(spufs_ps_fault__sleep, ctx);
-		ret = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		err = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
 		spu_context_trace(spufs_ps_fault__wake, ctx, ctx->spu);
 		down_read(&current->mm->mmap_sem);
 	} else {
 		area = ctx->spu->problem_phys + ps_offs;
-		vm_insert_pfn(vmf->vma, vmf->address, (area + offset) >> PAGE_SHIFT);
+		ret = vmf_insert_pfn(vmf->vma, vmf->address,
+				(area + offset) >> PAGE_SHIFT);
 		spu_context_trace(spufs_ps_fault__insert, ctx, ctx->spu);
 	}
 
-	if (!ret)
+	if (!err)
 		spu_release(ctx);
 
 refault:
 	put_spu_context(ctx);
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
 #if SPUFS_MMAP_4K
-static int spufs_cntl_mmap_fault(struct vm_fault *vmf)
+static vm_fault_t spufs_cntl_mmap_fault(struct vm_fault *vmf)
 {
 	return spufs_ps_fault(vmf, 0x4000, SPUFS_CNTL_MAP_SIZE);
 }
@@ -1040,7 +1043,7 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
-static int
+static vm_fault_t
 spufs_signal1_mmap_fault(struct vm_fault *vmf)
 {
 #if SPUFS_SIGNAL_MAP_SIZE == 0x1000
@@ -1178,7 +1181,7 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 }
 
 #if SPUFS_MMAP_4K
-static int
+static vm_fault_t
 spufs_signal2_mmap_fault(struct vm_fault *vmf)
 {
 #if SPUFS_SIGNAL_MAP_SIZE == 0x1000
@@ -1307,7 +1310,7 @@ DEFINE_SPUFS_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 		       spufs_signal2_type_set, "%llu\n", SPU_ATTR_ACQUIRE);
 
 #if SPUFS_MMAP_4K
-static int
+static vm_fault_t
 spufs_mss_mmap_fault(struct vm_fault *vmf)
 {
 	return spufs_ps_fault(vmf, 0x0000, SPUFS_MSS_MAP_SIZE);
@@ -1369,7 +1372,7 @@ static const struct file_operations spufs_mss_fops = {
 	.llseek  = no_llseek,
 };
 
-static int
+static vm_fault_t
 spufs_psmap_mmap_fault(struct vm_fault *vmf)
 {
 	return spufs_ps_fault(vmf, 0x0000, SPUFS_PS_MAP_SIZE);
@@ -1429,7 +1432,7 @@ static const struct file_operations spufs_psmap_fops = {
 
 
 #if SPUFS_MMAP_4K
-static int
+static vm_fault_t
 spufs_mfc_mmap_fault(struct vm_fault *vmf)
 {
 	return spufs_ps_fault(vmf, 0x3000, SPUFS_MFC_MAP_SIZE);

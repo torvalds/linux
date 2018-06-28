@@ -246,7 +246,10 @@ CEC_TX_STATUS_LOW_DRIVE:
 CEC_TX_STATUS_ERROR:
 	some unspecified error occurred: this can be one of ARB_LOST
 	or LOW_DRIVE if the hardware cannot differentiate or something
-	else entirely.
+	else entirely. Some hardware only supports OK and FAIL as the
+	result of a transmit, i.e. there is no way to differentiate
+	between the different possible errors. In that case map FAIL
+	to CEC_TX_STATUS_NACK and not to CEC_TX_STATUS_ERROR.
 
 CEC_TX_STATUS_MAX_RETRIES:
 	could not transmit the message after trying multiple times.

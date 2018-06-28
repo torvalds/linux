@@ -124,6 +124,9 @@ struct nvmf_ctrl_options {
  *	1. At minimum, 'required_opts' and 'allowed_opts' should
  *	   be set to the same enum parsing options defined earlier.
  *	2. create_ctrl() must be defined (even if it does nothing)
+ *	3. struct nvmf_transport_ops must be statically allocated in the
+ *	   modules .bss section so that a pure module_get on @module
+ *	   prevents the memory from beeing freed.
  */
 struct nvmf_transport_ops {
 	struct list_head	entry;
@@ -139,7 +142,9 @@ static inline bool
 nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 			struct nvmf_ctrl_options *opts)
 {
-	if (strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
+	if (ctrl->state == NVME_CTRL_DELETING ||
+	    ctrl->state == NVME_CTRL_DEAD ||
+	    strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
 	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
 	    memcmp(&opts->host->id, &ctrl->opts->host->id, sizeof(uuid_t)))
 		return false;
@@ -157,7 +162,17 @@ void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
 bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
-blk_status_t nvmf_check_if_ready(struct nvme_ctrl *ctrl,
-	struct request *rq, bool queue_live, bool is_connected);
+blk_status_t nvmf_fail_nonready_command(struct request *rq);
+bool __nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
+		bool queue_live);
+
+static inline bool nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
+		bool queue_live)
+{
+	if (likely(ctrl->state == NVME_CTRL_LIVE ||
+		   ctrl->state == NVME_CTRL_ADMIN_ONLY))
+		return true;
+	return __nvmf_check_ready(ctrl, rq, queue_live);
+}
 
 #endif /* _NVME_FABRICS_H */

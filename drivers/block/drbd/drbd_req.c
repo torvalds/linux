@@ -55,7 +55,7 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 {
 	struct drbd_request *req;
 
-	req = mempool_alloc(drbd_request_mempool, GFP_NOIO);
+	req = mempool_alloc(&drbd_request_mempool, GFP_NOIO);
 	if (!req)
 		return NULL;
 	memset(req, 0, sizeof(*req));
@@ -184,7 +184,7 @@ void drbd_req_destroy(struct kref *kref)
 		}
 	}
 
-	mempool_free(req, drbd_request_mempool);
+	mempool_free(req, &drbd_request_mempool);
 }
 
 static void wake_all_senders(struct drbd_connection *connection)

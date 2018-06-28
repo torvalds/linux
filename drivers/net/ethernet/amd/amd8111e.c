@@ -1074,16 +1074,12 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 				amd8111e_set_coalesce(dev,TX_INTR_COAL);
 				coal_conf->tx_coal_type = MEDIUM_COALESCE;
 			}
-
-		}
-		else if(tx_pkt_size >= 1024){
-			if (tx_pkt_size >= 1024){
-				if(coal_conf->tx_coal_type !=  HIGH_COALESCE){
-					coal_conf->tx_timeout = 4;
-					coal_conf->tx_event_count = 8;
-					amd8111e_set_coalesce(dev,TX_INTR_COAL);
-					coal_conf->tx_coal_type = HIGH_COALESCE;
-				}
+		} else if (tx_pkt_size >= 1024) {
+			if (coal_conf->tx_coal_type != HIGH_COALESCE) {
+				coal_conf->tx_timeout = 4;
+				coal_conf->tx_event_count = 8;
+				amd8111e_set_coalesce(dev, TX_INTR_COAL);
+				coal_conf->tx_coal_type = HIGH_COALESCE;
 			}
 		}
 	}

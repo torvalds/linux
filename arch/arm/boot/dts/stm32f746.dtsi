@@ -345,6 +345,42 @@
 			status = "disabled";
 		};
 
+		i2c2: i2c@40005800 {
+			compatible = "st,stm32f7-i2c";
+			reg = <0x40005800 0x400>;
+			interrupts = <33>,
+				     <34>;
+			resets = <&rcc STM32F7_APB1_RESET(I2C2)>;
+			clocks = <&rcc 1 CLK_I2C2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@40005C00 {
+			compatible = "st,stm32f7-i2c";
+			reg = <0x40005C00 0x400>;
+			interrupts = <72>,
+				     <73>;
+			resets = <&rcc STM32F7_APB1_RESET(I2C3)>;
+			clocks = <&rcc 1 CLK_I2C3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@40006000 {
+			compatible = "st,stm32f7-i2c";
+			reg = <0x40006000 0x400>;
+			interrupts = <95>,
+				     <96>;
+			resets = <&rcc STM32F7_APB1_RESET(I2C4)>;
+			clocks = <&rcc 1 CLK_I2C4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		cec: cec@40006c00 {
 			compatible = "st,stm32-cec";
 			reg = <0x40006C00 0x400>;

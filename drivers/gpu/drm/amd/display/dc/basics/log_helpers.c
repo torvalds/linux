@@ -94,7 +94,6 @@ void dc_conn_log(struct dc_context *ctx,
 			dm_logger_append(&entry, "%2.2X ", hex_data[i]);
 
 	dm_logger_append(&entry, "^\n");
-	dm_helpers_dc_conn_log(ctx, &entry, event);
 
 fail:
 	dm_logger_close(&entry);

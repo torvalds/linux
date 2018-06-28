@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright (c) 1995-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_FS_H__
 #define __XFS_FS_H__
@@ -542,13 +530,20 @@ struct xfs_scrub_metadata {
 /* o: Metadata object looked funny but isn't corrupt. */
 #define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
 
+/*
+ * o: IFLAG_REPAIR was set but metadata object did not need fixing or
+ *    optimization and has therefore not been altered.
+ */
+#define XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED (1 << 7)
+
 #define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
 #define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
 				 XFS_SCRUB_OFLAG_PREEN | \
 				 XFS_SCRUB_OFLAG_XFAIL | \
 				 XFS_SCRUB_OFLAG_XCORRUPT | \
 				 XFS_SCRUB_OFLAG_INCOMPLETE | \
-				 XFS_SCRUB_OFLAG_WARNING)
+				 XFS_SCRUB_OFLAG_WARNING | \
+				 XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED)
 #define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
 
 /*

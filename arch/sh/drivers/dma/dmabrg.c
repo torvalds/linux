@@ -154,7 +154,7 @@ static int __init dmabrg_init(void)
 	unsigned long or;
 	int ret;
 
-	dmabrg_handlers = kzalloc(10 * sizeof(struct dmabrg_handler),
+	dmabrg_handlers = kcalloc(10, sizeof(struct dmabrg_handler),
 				  GFP_KERNEL);
 	if (!dmabrg_handlers)
 		return -ENOMEM;

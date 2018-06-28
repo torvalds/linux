@@ -201,6 +201,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.century_reg	= DS1307_REG_HOUR,
 		.century_enable_bit = DS1340_BIT_CENTURY_EN,
 		.century_bit	= DS1340_BIT_CENTURY,
+		.do_trickle_setup = &do_trickle_setup_ds1339,
 		.trickle_charger_reg = 0x08,
 	},
 	[ds_1341] = {
@@ -1371,6 +1372,7 @@ static void ds1307_clks_register(struct ds1307 *ds1307)
 static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0x9,
 };
 
 static int ds1307_probe(struct i2c_client *client,

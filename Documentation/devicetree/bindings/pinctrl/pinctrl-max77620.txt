@@ -11,9 +11,9 @@ Optional Pinmux properties:
 --------------------------
 Following properties are required if default setting of pins are required
 at boot.
-- pinctrl-names: A pinctrl state named per <pinctrl-binding.txt>.
+- pinctrl-names: A pinctrl state named per <pinctrl-bindings.txt>.
 - pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
-		<pinctrl-binding.txt>.
+		<pinctrl-bindings.txt>.
 
 The pin configurations are defined as child of the pinctrl states node. Each
 sub-node have following properties:

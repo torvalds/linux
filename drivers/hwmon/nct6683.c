@@ -426,12 +426,12 @@ nct6683_create_attr_group(struct device *dev,
 	if (group == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	attrs = devm_kzalloc(dev, sizeof(*attrs) * (repeat * count + 1),
+	attrs = devm_kcalloc(dev, repeat * count + 1, sizeof(*attrs),
 			     GFP_KERNEL);
 	if (attrs == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	su = devm_kzalloc(dev, sizeof(*su) * repeat * count,
+	su = devm_kzalloc(dev, array3_size(repeat, count, sizeof(*su)),
 			  GFP_KERNEL);
 	if (su == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -1380,8 +1380,8 @@ static int __init nct6683_find(int sioaddr, struct nct6683_sio_data *sio_data)
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
 	if (!(val & 0x01)) {
-		pr_err("EC is disabled\n");
-		goto fail;
+		pr_warn("Forcibly enabling EC access. Data may be unusable.\n");
+		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
 	superio_exit(sioaddr);

@@ -1304,21 +1304,10 @@ static const struct seq_operations raw6_seq_ops = {
 	.show =		raw6_seq_show,
 };
 
-static int raw6_seq_open(struct inode *inode, struct file *file)
-{
-	return raw_seq_open(inode, file, &raw_v6_hashinfo, &raw6_seq_ops);
-}
-
-static const struct file_operations raw6_seq_fops = {
-	.open =		raw6_seq_open,
-	.read =		seq_read,
-	.llseek =	seq_lseek,
-	.release =	seq_release_net,
-};
-
 static int __net_init raw6_init_net(struct net *net)
 {
-	if (!proc_create("raw6", 0444, net->proc_net, &raw6_seq_fops))
+	if (!proc_create_net_data("raw6", 0444, net->proc_net, &raw6_seq_ops,
+			sizeof(struct raw_iter_state), &raw_v6_hashinfo))
 		return -ENOMEM;
 
 	return 0;
@@ -1345,7 +1334,7 @@ void raw6_proc_exit(void)
 }
 #endif	/* CONFIG_PROC_FS */
 
-/* Same as inet6_dgram_ops, sans udp_poll.  */
+/* Same as inet6_dgram_ops, sans udp_poll_mask.  */
 const struct proto_ops inet6_sockraw_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
@@ -1355,7 +1344,7 @@ const struct proto_ops inet6_sockraw_ops = {
 	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
 	.accept		   = sock_no_accept,		/* a do nothing	*/
 	.getname	   = inet6_getname,
-	.poll		   = datagram_poll,		/* ok		*/
+	.poll_mask	   = datagram_poll_mask,	/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
 	.listen		   = sock_no_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/

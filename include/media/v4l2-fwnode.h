@@ -99,7 +99,7 @@ struct v4l2_fwnode_endpoint {
 	struct fwnode_endpoint base;
 	/*
 	 * Fields below this line will be zeroed by
-	 * v4l2_fwnode_parse_endpoint()
+	 * v4l2_fwnode_endpoint_parse()
 	 */
 	enum v4l2_mbus_type bus_type;
 	union {

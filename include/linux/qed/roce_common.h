@@ -43,6 +43,7 @@
 #define ROCE_MAX_QPS			(32 * 1024)
 #define ROCE_DCQCN_NP_MAX_QPS		(64)
 #define ROCE_DCQCN_RP_MAX_QPS		(64)
+#define ROCE_LKEY_MW_DIF_EN_BIT		(28)
 
 /* Affiliated asynchronous events / errors enumeration */
 enum roce_async_events_type {

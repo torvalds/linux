@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <sys/resource.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 /* This program verifies bpf attachment to tracepoint sys_enter_* and sys_exit_*.

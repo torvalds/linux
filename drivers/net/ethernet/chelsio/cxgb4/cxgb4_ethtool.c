@@ -800,24 +800,20 @@ static int set_link_ksettings(struct net_device *dev,
 	if (base->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
-	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
-		/* PHY offers a single speed.  See if that's what's
-		 * being requested.
-		 */
-		if (base->autoneg == AUTONEG_DISABLE &&
-		    (lc->pcaps & speed_to_fw_caps(base->speed)))
-			return 0;
-		return -EINVAL;
-	}
-
 	old_lc = *lc;
-	if (base->autoneg == AUTONEG_DISABLE) {
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG) ||
+	    base->autoneg == AUTONEG_DISABLE) {
 		fw_caps = speed_to_fw_caps(base->speed);
 
-		if (!(lc->pcaps & fw_caps))
+		/* Must only specify a single speed which must be supported
+		 * as part of the Physical Port Capabilities.
+		 */
+		if ((fw_caps & (fw_caps - 1)) != 0 ||
+		    !(lc->pcaps & fw_caps))
 			return -EINVAL;
+
 		lc->speed_caps = fw_caps;
-		lc->acaps = 0;
+		lc->acaps = fw_caps;
 	} else {
 		fw_caps =
 			 lmm_to_fw_caps(link_ksettings->link_modes.advertising);

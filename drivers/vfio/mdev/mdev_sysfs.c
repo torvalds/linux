@@ -257,24 +257,24 @@ int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type)
 {
 	int ret;
 
-	ret = sysfs_create_files(&dev->kobj, mdev_device_attrs);
-	if (ret)
-		return ret;
-
 	ret = sysfs_create_link(type->devices_kobj, &dev->kobj, dev_name(dev));
 	if (ret)
-		goto device_link_failed;
+		return ret;
 
 	ret = sysfs_create_link(&dev->kobj, &type->kobj, "mdev_type");
 	if (ret)
 		goto type_link_failed;
 
+	ret = sysfs_create_files(&dev->kobj, mdev_device_attrs);
+	if (ret)
+		goto create_files_failed;
+
 	return ret;
 
+create_files_failed:
+	sysfs_remove_link(&dev->kobj, "mdev_type");
 type_link_failed:
 	sysfs_remove_link(type->devices_kobj, dev_name(dev));
-device_link_failed:
-	sysfs_remove_files(&dev->kobj, mdev_device_attrs);
 	return ret;
 }
 

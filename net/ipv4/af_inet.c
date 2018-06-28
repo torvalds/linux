@@ -986,7 +986,7 @@ const struct proto_ops inet_stream_ops = {
 	.socketpair	   = sock_no_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,
-	.poll		   = tcp_poll,
+	.poll_mask	   = tcp_poll_mask,
 	.ioctl		   = inet_ioctl,
 	.listen		   = inet_listen,
 	.shutdown	   = inet_shutdown,
@@ -994,7 +994,9 @@ const struct proto_ops inet_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = inet_recvmsg,
-	.mmap		   = sock_no_mmap,
+#ifdef CONFIG_MMU
+	.mmap		   = tcp_mmap,
+#endif
 	.sendpage	   = inet_sendpage,
 	.splice_read	   = tcp_splice_read,
 	.read_sock	   = tcp_read_sock,
@@ -1006,6 +1008,7 @@ const struct proto_ops inet_stream_ops = {
 	.compat_getsockopt = compat_sock_common_getsockopt,
 	.compat_ioctl	   = inet_compat_ioctl,
 #endif
+	.set_rcvlowat	   = tcp_set_rcvlowat,
 };
 EXPORT_SYMBOL(inet_stream_ops);
 
@@ -1018,7 +1021,7 @@ const struct proto_ops inet_dgram_ops = {
 	.socketpair	   = sock_no_socketpair,
 	.accept		   = sock_no_accept,
 	.getname	   = inet_getname,
-	.poll		   = udp_poll,
+	.poll_mask	   = udp_poll_mask,
 	.ioctl		   = inet_ioctl,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,
@@ -1039,7 +1042,7 @@ EXPORT_SYMBOL(inet_dgram_ops);
 
 /*
  * For SOCK_RAW sockets; should be the same as inet_dgram_ops but without
- * udp_poll
+ * udp_poll_mask
  */
 static const struct proto_ops inet_sockraw_ops = {
 	.family		   = PF_INET,
@@ -1050,7 +1053,7 @@ static const struct proto_ops inet_sockraw_ops = {
 	.socketpair	   = sock_no_socketpair,
 	.accept		   = sock_no_accept,
 	.getname	   = inet_getname,
-	.poll		   = datagram_poll,
+	.poll_mask	   = datagram_poll_mask,
 	.ioctl		   = inet_ioctl,
 	.listen		   = sock_no_listen,
 	.shutdown	   = inet_shutdown,

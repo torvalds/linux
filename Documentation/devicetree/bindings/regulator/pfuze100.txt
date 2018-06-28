@@ -21,7 +21,7 @@ Each regulator is defined using the standard binding for regulators.
 
 Example 1: PFUZE100
 
-	pmic: pfuze100@8 {
+	pfuze100: pmic@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 
@@ -122,7 +122,7 @@ Example 1: PFUZE100
 
 Example 2: PFUZE200
 
-	pmic: pfuze200@8 {
+	pfuze200: pmic@8 {
 		compatible = "fsl,pfuze200";
 		reg = <0x08>;
 
@@ -216,7 +216,7 @@ Example 2: PFUZE200
 
 Example 3: PFUZE3000
 
-	pmic: pfuze3000@8 {
+	pfuze3000: pmic@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 

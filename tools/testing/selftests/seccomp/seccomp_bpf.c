@@ -134,11 +134,15 @@ struct seccomp_data {
 #endif
 
 #ifndef SECCOMP_FILTER_FLAG_TSYNC
-#define SECCOMP_FILTER_FLAG_TSYNC 1
+#define SECCOMP_FILTER_FLAG_TSYNC (1UL << 0)
 #endif
 
 #ifndef SECCOMP_FILTER_FLAG_LOG
-#define SECCOMP_FILTER_FLAG_LOG 2
+#define SECCOMP_FILTER_FLAG_LOG (1UL << 1)
+#endif
+
+#ifndef SECCOMP_FILTER_FLAG_SPEC_ALLOW
+#define SECCOMP_FILTER_FLAG_SPEC_ALLOW (1UL << 2)
 #endif
 
 #ifndef PTRACE_SECCOMP_GET_METADATA
@@ -2072,14 +2076,26 @@ TEST(seccomp_syscall_mode_lock)
 TEST(detect_seccomp_filter_flags)
 {
 	unsigned int flags[] = { SECCOMP_FILTER_FLAG_TSYNC,
-				 SECCOMP_FILTER_FLAG_LOG };
+				 SECCOMP_FILTER_FLAG_LOG,
+				 SECCOMP_FILTER_FLAG_SPEC_ALLOW };
 	unsigned int flag, all_flags;
 	int i;
 	long ret;
 
 	/* Test detection of known-good filter flags */
 	for (i = 0, all_flags = 0; i < ARRAY_SIZE(flags); i++) {
+		int bits = 0;
+
 		flag = flags[i];
+		/* Make sure the flag is a single bit! */
+		while (flag) {
+			if (flag & 0x1)
+				bits ++;
+			flag >>= 1;
+		}
+		ASSERT_EQ(1, bits);
+		flag = flags[i];
+
 		ret = seccomp(SECCOMP_SET_MODE_FILTER, flag, NULL);
 		ASSERT_NE(ENOSYS, errno) {
 			TH_LOG("Kernel does not support seccomp syscall!");

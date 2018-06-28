@@ -455,7 +455,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	mdev = siano_media_device_register(dev, board_id);
 
 	/* register in smscore */
-	rc = smscore_register_device(&params, &dev->coredev, mdev);
+	rc = smscore_register_device(&params, &dev->coredev, 0, mdev);
 	if (rc < 0) {
 		pr_err("smscore_register_device(...) failed, rc %d\n", rc);
 		smsusb_term_device(intf);

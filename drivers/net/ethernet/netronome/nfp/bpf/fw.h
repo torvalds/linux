@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -37,11 +37,20 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+/* Kernel's enum bpf_reg_type is not uABI so people may change it breaking
+ * our FW ABI.  In that case we will do translation in the driver.
+ */
+#define NFP_BPF_SCALAR_VALUE		1
+#define NFP_BPF_MAP_VALUE		4
+#define NFP_BPF_STACK			6
+#define NFP_BPF_PACKET_DATA		8
+
 enum bpf_cap_tlv_type {
 	NFP_BPF_CAP_TYPE_FUNC		= 1,
 	NFP_BPF_CAP_TYPE_ADJUST_HEAD	= 2,
 	NFP_BPF_CAP_TYPE_MAPS		= 3,
 	NFP_BPF_CAP_TYPE_RANDOM		= 4,
+	NFP_BPF_CAP_TYPE_QUEUE_SELECT	= 5,
 };
 
 struct nfp_bpf_cap_tlv_func {
@@ -81,6 +90,7 @@ enum nfp_bpf_cmsg_type {
 	CMSG_TYPE_MAP_DELETE	= 5,
 	CMSG_TYPE_MAP_GETNEXT	= 6,
 	CMSG_TYPE_MAP_GETFIRST	= 7,
+	CMSG_TYPE_BPF_EVENT	= 8,
 	__CMSG_TYPE_MAP_MAX,
 };
 
@@ -154,5 +164,14 @@ struct cmsg_reply_map_op {
 	__be32 count;
 	__be32 resv;
 	struct cmsg_key_value_pair elem[0];
+};
+
+struct cmsg_bpf_event {
+	struct cmsg_hdr hdr;
+	__be32 cpu_id;
+	__be64 map_ptr;
+	__be32 data_size;
+	__be32 pkt_size;
+	u8 data[0];
 };
 #endif

@@ -1,3 +1,5 @@
+What is RCU?  --  "Read, Copy, Update"
+
 Please note that the "What is RCU?" LWN series is an excellent place
 to start learning about RCU:
 

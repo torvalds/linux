@@ -198,7 +198,7 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
  * omap_vout_get_userptr: Convert user space virtual address to physical
  * address.
  */
-static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
+static int omap_vout_get_userptr(struct videobuf_buffer *vb, long virtp,
 				 u32 *physp)
 {
 	struct frame_vector *vec;
@@ -702,19 +702,18 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		virt_addr = omap_vout_alloc_buffer(vout->buffer_size,
 				&phy_addr);
 		if (!virt_addr) {
-			if (ovid->rotation_type == VOUT_ROT_NONE) {
+			if (ovid->rotation_type == VOUT_ROT_NONE)
 				break;
-			} else {
-				if (!is_rotation_enabled(vout))
-					break;
+
+			if (!is_rotation_enabled(vout))
+				break;
+
 			/* Free the VRFB buffers if no space for V4L2 buffers */
 			for (j = i; j < *count; j++) {
-				omap_vout_free_buffer(
-						vout->smsshado_virt_addr[j],
-						vout->smsshado_size);
+				omap_vout_free_buffer(vout->smsshado_virt_addr[j],
+						      vout->smsshado_size);
 				vout->smsshado_virt_addr[j] = 0;
 				vout->smsshado_phy_addr[j] = 0;
-				}
 			}
 		}
 		vout->buf_virt_addr[i] = virt_addr;

@@ -303,11 +303,9 @@ static void bsg_exit_rq(struct request_queue *q, struct request *req)
  * @name: device to give bsg device
  * @job_fn: bsg job handler
  * @dd_job_size: size of LLD data needed for each job
- * @release: @dev release function
  */
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
-		bsg_job_fn *job_fn, int dd_job_size,
-		void (*release)(struct device *))
+		bsg_job_fn *job_fn, int dd_job_size)
 {
 	struct request_queue *q;
 	int ret;
@@ -331,7 +329,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
-	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops, release);
+	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
 	if (ret) {
 		printk(KERN_ERR "%s: bsg interface failed to "
 		       "initialize - register queue\n", dev->kobj.name);

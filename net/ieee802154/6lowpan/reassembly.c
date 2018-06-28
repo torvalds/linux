@@ -75,13 +75,13 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 {
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
-	struct frag_lowpan_compare_key key = {
-		.tag = cb->d_tag,
-		.d_size = cb->d_size,
-		.src = *src,
-		.dst = *dst,
-	};
+	struct frag_lowpan_compare_key key = {};
 	struct inet_frag_queue *q;
+
+	key.tag = cb->d_tag;
+	key.d_size = cb->d_size;
+	key.src = *src;
+	key.dst = *dst;
 
 	q = inet_frag_find(&ieee802154_lowpan->frags, &key);
 	if (!q)
@@ -372,7 +372,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, u8 frag_type)
 	struct lowpan_frag_queue *fq;
 	struct net *net = dev_net(skb->dev);
 	struct lowpan_802154_cb *cb = lowpan_802154_cb(skb);
-	struct ieee802154_hdr hdr;
+	struct ieee802154_hdr hdr = {};
 	int err;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0)

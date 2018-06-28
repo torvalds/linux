@@ -9,6 +9,16 @@ Required properties for the root node:
  - #gpio-cells: Should be two. The first cell is the pin number and the
    second is the GPIO flags.
 
+Optional properties:
+- interrupt-controller  : Marks the device node as an interrupt controller
+
+If the property interrupt-controller is defined, following property is required
+- reg-names: A string describing the "reg" entries. Must contain "eint".
+- interrupts : The interrupt output from the controller.
+- #interrupt-cells: Should be two.
+- interrupt-parent: Phandle of the interrupt parent to which the external
+  GPIO interrupts are forwarded to.
+
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
 phrase "pin configuration node".

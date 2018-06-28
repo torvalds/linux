@@ -32,6 +32,26 @@ config SND_SOC_MT2701_WM8960
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT6797
+	tristate "ASoC support for Mediatek MT6797 chip"
+	depends on ARCH_MEDIATEK
+	select SND_SOC_MEDIATEK
+	help
+	  This adds ASoC driver for Mediatek MT6797 boards
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT6797_MT6351
+	tristate "ASoc Audio driver for MT6797 with MT6351 codec"
+	depends on SND_SOC_MT6797 && MTK_PMIC_WRAP
+	select SND_SOC_MT6351
+	help
+	  This adds ASoC driver for Mediatek MT6797 boards
+	  with the MT6351 codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MT8173
 	tristate "ASoC support for Mediatek MT8173 chip"
 	depends on ARCH_MEDIATEK

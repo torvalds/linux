@@ -3721,8 +3721,10 @@ static int onenand_probe(struct mtd_info *mtd)
 		this->dies = ONENAND_IS_DDP(this) ? 2 : 1;
 		/* Maximum possible erase regions */
 		mtd->numeraseregions = this->dies << 1;
-		mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
-					* (this->dies << 1), GFP_KERNEL);
+		mtd->eraseregions =
+			kcalloc(this->dies << 1,
+				sizeof(struct mtd_erase_region_info),
+				GFP_KERNEL);
 		if (!mtd->eraseregions)
 			return -ENOMEM;
 	}

@@ -63,7 +63,7 @@
 #include <media/dvb_ca_en50221.h>
 #include <media/dvb_net.h>
 
-#define DDBRIDGE_VERSION "0.9.32-integrated"
+#define DDBRIDGE_VERSION "0.9.33-integrated"
 
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
@@ -112,11 +112,12 @@ struct ddb_ids {
 
 struct ddb_info {
 	int   type;
-#define DDB_NONE         0
-#define DDB_OCTOPUS      1
-#define DDB_OCTOPUS_CI   2
-#define DDB_OCTOPUS_MAX  5
+#define DDB_NONE            0
+#define DDB_OCTOPUS         1
+#define DDB_OCTOPUS_CI      2
+#define DDB_OCTOPUS_MAX     5
 #define DDB_OCTOPUS_MAX_CT  6
+#define DDB_OCTOPUS_MCI     9
 	char *name;
 	u32   i2c_mask;
 	u8    port_num;
@@ -133,22 +134,11 @@ struct ddb_info {
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
 	u32   tempmon_irq;
+	u8    mci;
 	const struct ddb_regmap *regmap;
 };
 
-/* DMA_SIZE MUST be smaller than 256k and
- * MUST be divisible by 188 and 128 !!!
- */
-
 #define DMA_MAX_BUFS 32      /* hardware table limit */
-
-#define INPUT_DMA_BUFS 8
-#define INPUT_DMA_SIZE (128 * 47 * 21)
-#define INPUT_DMA_IRQ_DIV 1
-
-#define OUTPUT_DMA_BUFS 8
-#define OUTPUT_DMA_SIZE (128 * 47 * 21)
-#define OUTPUT_DMA_IRQ_DIV 1
 
 struct ddb;
 struct ddb_port;
@@ -248,6 +238,7 @@ struct ddb_port {
 	char                   *name;
 	char                   *type_name;
 	u32                     type;
+#define DDB_TUNER_DUMMY          0xffffffff
 #define DDB_TUNER_NONE           0
 #define DDB_TUNER_DVBS_ST        1
 #define DDB_TUNER_DVBS_ST_AA     2
@@ -264,6 +255,7 @@ struct ddb_port {
 #define DDB_CI_EXTERNAL_XO2_B    13
 #define DDB_TUNER_DVBS_STV0910_PR 14
 #define DDB_TUNER_DVBC2T2I_SONY_P 15
+#define DDB_TUNER_MCI            16
 
 #define DDB_TUNER_XO2            32
 #define DDB_TUNER_DVBS_STV0910   (DDB_TUNER_XO2 + 0)
@@ -305,6 +297,11 @@ struct ddb_lnb {
 	u32                    fmode;
 };
 
+struct ddb_irq {
+	void                   (*handler)(void *);
+	void                  *data;
+};
+
 struct ddb_link {
 	struct ddb            *dev;
 	const struct ddb_info *info;
@@ -319,6 +316,7 @@ struct ddb_link {
 	spinlock_t             temp_lock; /* lock temp chip access */
 	int                    overtemperature_error;
 	u8                     temp_tab[11];
+	struct ddb_irq         irq[256];
 };
 
 struct ddb {
@@ -343,9 +341,6 @@ struct ddb {
 	struct ddb_dma           idma[DDB_MAX_INPUT];
 	struct ddb_dma           odma[DDB_MAX_OUTPUT];
 
-	void                     (*handler[4][256])(unsigned long);
-	unsigned long            handler_data[4][256];
-
 	struct device           *ddb_dev;
 	u32                      ddb_dev_users;
 	u32                      nr;
@@ -368,16 +363,9 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 
 /****************************************************************************/
 
-/* ddbridge-main.c (modparams) */
-extern int ci_bitrate;
-extern int ts_loop;
-extern int xo2_speed;
-extern int alt_dma;
-extern int no_init;
-extern int stv0910_single;
-extern struct workqueue_struct *ddb_wq;
-
 /* ddbridge-core.c */
+struct ddb_irq *ddb_irq_set(struct ddb *dev, u32 link, u32 nr,
+			    void (*handler)(void *), void *data);
 void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);
@@ -389,9 +377,9 @@ void ddb_ports_init(struct ddb *dev);
 int ddb_buffers_alloc(struct ddb *dev);
 int ddb_ports_attach(struct ddb *dev);
 int ddb_device_create(struct ddb *dev);
-int ddb_class_create(void);
-void ddb_class_destroy(void);
 int ddb_init(struct ddb *dev);
 void ddb_unmap(struct ddb *dev);
+int ddb_exit_ddbridge(int stage, int error);
+int ddb_init_ddbridge(void);
 
 #endif /* DDBRIDGE_H */

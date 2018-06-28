@@ -274,11 +274,10 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
  * Try reloading inode security labels that have been marked as invalid.  The
  * @may_sleep parameter indicates when sleeping and thus reloading labels is
  * allowed; when set to false, returns -ECHILD when the label is
- * invalid.  The @opt_dentry parameter should be set to a dentry of the inode;
- * when no dentry is available, set it to NULL instead.
+ * invalid.  The @dentry parameter should be set to a dentry of the inode.
  */
 static int __inode_security_revalidate(struct inode *inode,
-				       struct dentry *opt_dentry,
+				       struct dentry *dentry,
 				       bool may_sleep)
 {
 	struct inode_security_struct *isec = inode->i_security;
@@ -295,7 +294,7 @@ static int __inode_security_revalidate(struct inode *inode,
 		 * @opt_dentry is NULL and no dentry for this inode can be
 		 * found; in that case, continue using the old label.
 		 */
-		inode_doinit_with_dentry(inode, opt_dentry);
+		inode_doinit_with_dentry(inode, dentry);
 	}
 	return 0;
 }
@@ -1471,7 +1470,9 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_QIPCRTR_SOCKET;
 		case PF_SMC:
 			return SECCLASS_SMC_SOCKET;
-#if PF_MAX > 44
+		case PF_XDP:
+			return SECCLASS_XDP_SOCKET;
+#if PF_MAX > 45
 #error New address family defined, please update this function.
 #endif
 		}
@@ -1568,8 +1569,15 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			/* Called from d_instantiate or d_splice_alias. */
 			dentry = dget(opt_dentry);
 		} else {
-			/* Called from selinux_complete_init, try to find a dentry. */
+			/*
+			 * Called from selinux_complete_init, try to find a dentry.
+			 * Some filesystems really want a connected one, so try
+			 * that first.  We could split SECURITY_FS_USE_XATTR in
+			 * two, depending upon that...
+			 */
 			dentry = d_find_alias(inode);
+			if (!dentry)
+				dentry = d_find_any_alias(inode);
 		}
 		if (!dentry) {
 			/*
@@ -1674,14 +1682,19 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		if ((sbsec->flags & SE_SBGENFS) && !S_ISLNK(inode->i_mode)) {
 			/* We must have a dentry to determine the label on
 			 * procfs inodes */
-			if (opt_dentry)
+			if (opt_dentry) {
 				/* Called from d_instantiate or
 				 * d_splice_alias. */
 				dentry = dget(opt_dentry);
-			else
+			} else {
 				/* Called from selinux_complete_init, try to
-				 * find a dentry. */
+				 * find a dentry.  Some filesystems really want
+				 * a connected one, so try that first.
+				 */
 				dentry = d_find_alias(inode);
+				if (!dentry)
+					dentry = d_find_any_alias(inode);
+			}
 			/*
 			 * This can be hit on boot when a file is accessed
 			 * before the policy is loaded.  When we load policy we
@@ -3294,7 +3307,8 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 			} else {
 				audit_size = 0;
 			}
-			ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR);
+			ab = audit_log_start(audit_context(),
+					     GFP_ATOMIC, AUDIT_SELINUX_ERR);
 			audit_log_format(ab, "op=setxattr invalid_context=");
 			audit_log_n_untrustedstring(ab, value, audit_size);
 			audit_log_end(ab);
@@ -4569,6 +4583,18 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 	return err;
 }
 
+static int selinux_socket_socketpair(struct socket *socka,
+				     struct socket *sockb)
+{
+	struct sk_security_struct *sksec_a = socka->sk->sk_security;
+	struct sk_security_struct *sksec_b = sockb->sk->sk_security;
+
+	sksec_a->peer_sid = sksec_b->sid;
+	sksec_b->peer_sid = sksec_a->sid;
+
+	return 0;
+}
+
 /* Range of port numbers used to automatically bind.
    Need to determine whether we should perform a name_bind
    permission check between the socket and the port number. */
@@ -4576,6 +4602,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	struct sock *sk = sock->sk;
+	struct sk_security_struct *sksec = sk->sk_security;
 	u16 family;
 	int err;
 
@@ -4587,11 +4614,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 	family = sk->sk_family;
 	if (family == PF_INET || family == PF_INET6) {
 		char *addrp;
-		struct sk_security_struct *sksec = sk->sk_security;
 		struct common_audit_data ad;
 		struct lsm_network_audit net = {0,};
 		struct sockaddr_in *addr4 = NULL;
 		struct sockaddr_in6 *addr6 = NULL;
+		u16 family_sa = address->sa_family;
 		unsigned short snum;
 		u32 sid, node_perm;
 
@@ -4601,11 +4628,20 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		 * need to check address->sa_family as it is possible to have
 		 * sk->sk_family = PF_INET6 with addr->sa_family = AF_INET.
 		 */
-		switch (address->sa_family) {
+		switch (family_sa) {
+		case AF_UNSPEC:
 		case AF_INET:
 			if (addrlen < sizeof(struct sockaddr_in))
 				return -EINVAL;
 			addr4 = (struct sockaddr_in *)address;
+			if (family_sa == AF_UNSPEC) {
+				/* see __inet_bind(), we only want to allow
+				 * AF_UNSPEC if the address is INADDR_ANY
+				 */
+				if (addr4->sin_addr.s_addr != htonl(INADDR_ANY))
+					goto err_af;
+				family_sa = AF_INET;
+			}
 			snum = ntohs(addr4->sin_port);
 			addrp = (char *)&addr4->sin_addr.s_addr;
 			break;
@@ -4617,14 +4653,13 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
 			break;
 		default:
-			/* Note that SCTP services expect -EINVAL, whereas
-			 * others expect -EAFNOSUPPORT.
-			 */
-			if (sksec->sclass == SECCLASS_SCTP_SOCKET)
-				return -EINVAL;
-			else
-				return -EAFNOSUPPORT;
+			goto err_af;
 		}
+
+		ad.type = LSM_AUDIT_DATA_NET;
+		ad.u.net = &net;
+		ad.u.net->sport = htons(snum);
+		ad.u.net->family = family_sa;
 
 		if (snum) {
 			int low, high;
@@ -4637,10 +4672,6 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 						      snum, &sid);
 				if (err)
 					goto out;
-				ad.type = LSM_AUDIT_DATA_NET;
-				ad.u.net = &net;
-				ad.u.net->sport = htons(snum);
-				ad.u.net->family = family;
 				err = avc_has_perm(&selinux_state,
 						   sksec->sid, sid,
 						   sksec->sclass,
@@ -4672,16 +4703,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			break;
 		}
 
-		err = sel_netnode_sid(addrp, family, &sid);
+		err = sel_netnode_sid(addrp, family_sa, &sid);
 		if (err)
 			goto out;
 
-		ad.type = LSM_AUDIT_DATA_NET;
-		ad.u.net = &net;
-		ad.u.net->sport = htons(snum);
-		ad.u.net->family = family;
-
-		if (address->sa_family == AF_INET)
+		if (family_sa == AF_INET)
 			ad.u.net->v4info.saddr = addr4->sin_addr.s_addr;
 		else
 			ad.u.net->v6info.saddr = addr6->sin6_addr;
@@ -4694,10 +4720,15 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 	}
 out:
 	return err;
+err_af:
+	/* Note that SCTP services expect -EINVAL, others -EAFNOSUPPORT. */
+	if (sksec->sclass == SECCLASS_SCTP_SOCKET)
+		return -EINVAL;
+	return -EAFNOSUPPORT;
 }
 
 /* This supports connect(2) and SCTP connect services such as sctp_connectx(3)
- * and sctp_sendmsg(3) as described in Documentation/security/LSM-sctp.txt
+ * and sctp_sendmsg(3) as described in Documentation/security/LSM-sctp.rst
  */
 static int selinux_socket_connect_helper(struct socket *sock,
 					 struct sockaddr *address, int addrlen)
@@ -4771,7 +4802,7 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		ad.type = LSM_AUDIT_DATA_NET;
 		ad.u.net = &net;
 		ad.u.net->dport = htons(snum);
-		ad.u.net->family = sk->sk_family;
+		ad.u.net->family = address->sa_family;
 		err = avc_has_perm(&selinux_state,
 				   sksec->sid, sid, sksec->sclass, perm, &ad);
 		if (err)
@@ -5272,6 +5303,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 	while (walk_size < addrlen) {
 		addr = addr_buf;
 		switch (addr->sa_family) {
+		case AF_UNSPEC:
 		case AF_INET:
 			len = sizeof(struct sockaddr_in);
 			break;
@@ -5279,7 +5311,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 			len = sizeof(struct sockaddr_in6);
 			break;
 		default:
-			return -EAFNOSUPPORT;
+			return -EINVAL;
 		}
 
 		err = -EINVAL;
@@ -6431,7 +6463,9 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
 					audit_size = size - 1;
 				else
 					audit_size = size;
-				ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR);
+				ab = audit_log_start(audit_context(),
+						     GFP_ATOMIC,
+						     AUDIT_SELINUX_ERR);
 				audit_log_format(ab, "op=fscreate invalid_context=");
 				audit_log_n_untrustedstring(ab, value, audit_size);
 				audit_log_end(ab);
@@ -6999,6 +7033,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(socket_create, selinux_socket_create),
 	LSM_HOOK_INIT(socket_post_create, selinux_socket_post_create),
+	LSM_HOOK_INIT(socket_socketpair, selinux_socket_socketpair),
 	LSM_HOOK_INIT(socket_bind, selinux_socket_bind),
 	LSM_HOOK_INIT(socket_connect, selinux_socket_connect),
 	LSM_HOOK_INIT(socket_listen, selinux_socket_listen),

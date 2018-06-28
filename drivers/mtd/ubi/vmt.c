@@ -139,6 +139,7 @@ static void vol_release(struct device *dev)
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
 	ubi_eba_replace_table(vol, NULL);
+	ubi_fastmap_destroy_checkmap(vol);
 	kfree(vol);
 }
 

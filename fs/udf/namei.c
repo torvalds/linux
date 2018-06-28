@@ -351,8 +351,6 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	loff_t f_pos;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;
 	int nfidlen;
-	uint8_t lfi;
-	uint16_t liu;
 	udf_pblk_t block;
 	struct kernel_lb_addr eloc;
 	uint32_t elen = 0;
@@ -383,7 +381,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 		namelen = 0;
 	}
 
-	nfidlen = (sizeof(struct fileIdentDesc) + namelen + 3) & ~3;
+	nfidlen = ALIGN(sizeof(struct fileIdentDesc) + namelen, UDF_NAME_PAD);
 
 	f_pos = udf_ext0_offset(dir);
 
@@ -424,12 +422,8 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 			goto out_err;
 		}
 
-		liu = le16_to_cpu(cfi->lengthOfImpUse);
-		lfi = cfi->lengthFileIdent;
-
 		if ((cfi->fileCharacteristics & FID_FILE_CHAR_DELETED) != 0) {
-			if (((sizeof(struct fileIdentDesc) +
-					liu + lfi + 3) & ~3) == nfidlen) {
+			if (udf_dir_entry_len(cfi) == nfidlen) {
 				cfi->descTag.tagSerialNum = cpu_to_le16(1);
 				cfi->fileVersionNum = cpu_to_le16(1);
 				cfi->fileCharacteristics = 0;
@@ -622,8 +616,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 
 	return 0;
 }
@@ -733,8 +726,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	inc_nlink(dir);
 	dir->i_ctime = dir->i_mtime = current_time(dir);
 	mark_inode_dirty(dir);
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);
@@ -1203,9 +1195,7 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (dir_fi) {
 		dir_fi->icb.extLocation = cpu_to_lelb(UDF_I(new_dir)->i_location);
-		udf_update_tag((char *)dir_fi,
-				(sizeof(struct fileIdentDesc) +
-				le16_to_cpu(dir_fi->lengthOfImpUse) + 3) & ~3);
+		udf_update_tag((char *)dir_fi, udf_dir_entry_len(dir_fi));
 		if (old_iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 			mark_inode_dirty(old_inode);
 		else

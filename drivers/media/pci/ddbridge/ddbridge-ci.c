@@ -164,7 +164,7 @@ static struct dvb_ca_en50221 en_templ = {
 
 static void ci_attach(struct ddb_port *port)
 {
-	struct ddb_ci *ci = NULL;
+	struct ddb_ci *ci;
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)

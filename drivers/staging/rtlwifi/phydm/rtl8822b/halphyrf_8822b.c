@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2016  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
@@ -29,7 +18,7 @@
 static bool
 get_mix_mode_tx_agc_bb_swing_offset_8822b(void *dm_void,
 					  enum pwrtrack_method method,
-					  u8 rf_path, u8 tx_power_index_offest)
+					  u8 rf_path, u8 tx_power_index_offset)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
 	struct dm_rf_calibration_struct *cali_info = &dm->rf_calibrate_info;
@@ -42,24 +31,24 @@ get_mix_mode_tx_agc_bb_swing_offset_8822b(void *dm_void,
 
 	ODM_RT_TRACE(
 		dm, ODM_COMP_TX_PWR_TRACK,
-		"Path_%d cali_info->absolute_ofdm_swing_idx[rf_path]=%d, tx_power_index_offest=%d\n",
+		"Path_%d cali_info->absolute_ofdm_swing_idx[rf_path]=%d, tx_power_index_offset=%d\n",
 		rf_path, cali_info->absolute_ofdm_swing_idx[rf_path],
-		tx_power_index_offest);
+		tx_power_index_offset);
 
-	if (tx_power_index_offest > 0XF)
-		tx_power_index_offest = 0XF;
+	if (tx_power_index_offset > 0XF)
+		tx_power_index_offset = 0XF;
 
 	if (cali_info->absolute_ofdm_swing_idx[rf_path] >= 0 &&
 	    cali_info->absolute_ofdm_swing_idx[rf_path] <=
-		    tx_power_index_offest) {
+		    tx_power_index_offset) {
 		tx_agc_index = cali_info->absolute_ofdm_swing_idx[rf_path];
 		tx_bb_swing_index = cali_info->default_ofdm_index;
 	} else if (cali_info->absolute_ofdm_swing_idx[rf_path] >
-		   tx_power_index_offest) {
-		tx_agc_index = tx_power_index_offest;
+		   tx_power_index_offset) {
+		tx_agc_index = tx_power_index_offset;
 		cali_info->remnant_ofdm_swing_idx[rf_path] =
 			cali_info->absolute_ofdm_swing_idx[rf_path] -
-			tx_power_index_offest;
+			tx_power_index_offset;
 		tx_bb_swing_index = cali_info->default_ofdm_index +
 				    cali_info->remnant_ofdm_swing_idx[rf_path];
 
@@ -85,9 +74,9 @@ get_mix_mode_tx_agc_bb_swing_offset_8822b(void *dm_void,
 
 	ODM_RT_TRACE(
 		dm, ODM_COMP_TX_PWR_TRACK,
-		"MixMode Offset Path_%d   cali_info->absolute_ofdm_swing_idx[rf_path]=%d   cali_info->bb_swing_idx_ofdm[rf_path]=%d   tx_power_index_offest=%d\n",
+		"MixMode Offset Path_%d   cali_info->absolute_ofdm_swing_idx[rf_path]=%d   cali_info->bb_swing_idx_ofdm[rf_path]=%d   tx_power_index_offset=%d\n",
 		rf_path, cali_info->absolute_ofdm_swing_idx[rf_path],
-		cali_info->bb_swing_idx_ofdm[rf_path], tx_power_index_offest);
+		cali_info->bb_swing_idx_ofdm[rf_path], tx_power_index_offset);
 
 	return true;
 }
@@ -97,7 +86,7 @@ void odm_tx_pwr_track_set_pwr8822b(void *dm_void, enum pwrtrack_method method,
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
 	struct dm_rf_calibration_struct *cali_info = &dm->rf_calibrate_info;
-	u8 tx_power_index_offest = 0;
+	u8 tx_power_index_offset = 0;
 	u8 tx_power_index = 0;
 
 	struct rtl_priv *rtlpriv = (struct rtl_priv *)dm->adapter;
@@ -139,11 +128,11 @@ void odm_tx_pwr_track_set_pwr8822b(void *dm_void, enum pwrtrack_method method,
 	if (tx_power_index >= 63)
 		tx_power_index = 63;
 
-	tx_power_index_offest = 63 - tx_power_index;
+	tx_power_index_offset = 63 - tx_power_index;
 
 	ODM_RT_TRACE(dm, ODM_COMP_TX_PWR_TRACK,
-		     "tx_power_index=%d tx_power_index_offest=%d rf_path=%d\n",
-		     tx_power_index, tx_power_index_offest, rf_path);
+		     "tx_power_index=%d tx_power_index_offset=%d rf_path=%d\n",
+		     tx_power_index, tx_power_index_offset, rf_path);
 
 	if (method ==
 	    BBSWING) { /*use for mp driver clean power tracking status*/
@@ -178,7 +167,7 @@ void odm_tx_pwr_track_set_pwr8822b(void *dm_void, enum pwrtrack_method method,
 		switch (rf_path) {
 		case ODM_RF_PATH_A:
 			get_mix_mode_tx_agc_bb_swing_offset_8822b(
-				dm, method, rf_path, tx_power_index_offest);
+				dm, method, rf_path, tx_power_index_offset);
 			odm_set_bb_reg(
 				dm, 0xC94, (BIT(29) | BIT(28) | BIT(27) |
 					    BIT(26) | BIT(25)),
@@ -201,7 +190,7 @@ void odm_tx_pwr_track_set_pwr8822b(void *dm_void, enum pwrtrack_method method,
 
 		case ODM_RF_PATH_B:
 			get_mix_mode_tx_agc_bb_swing_offset_8822b(
-				dm, method, rf_path, tx_power_index_offest);
+				dm, method, rf_path, tx_power_index_offset);
 			odm_set_bb_reg(
 				dm, 0xE94, (BIT(29) | BIT(28) | BIT(27) |
 					    BIT(26) | BIT(25)),

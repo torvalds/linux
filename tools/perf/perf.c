@@ -12,7 +12,6 @@
 #include "util/env.h"
 #include <subcmd/exec-cmd.h>
 #include "util/config.h"
-#include "util/quote.h"
 #include <subcmd/run-command.h>
 #include "util/parse-events.h"
 #include <subcmd/parse-options.h>
@@ -238,7 +237,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argc)--;
 		} else if (strstarts(cmd, CMD_DEBUGFS_DIR)) {
 			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
-			fprintf(stderr, "dir: %s\n", tracing_path);
+			fprintf(stderr, "dir: %s\n", tracing_path_mount());
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--list-cmds")) {
@@ -421,22 +420,11 @@ void pthread__unblock_sigwinch(void)
 	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
-#ifdef _SC_LEVEL1_DCACHE_LINESIZE
-#define cache_line_size(cacheline_sizep) *cacheline_sizep = sysconf(_SC_LEVEL1_DCACHE_LINESIZE)
-#else
-static void cache_line_size(int *cacheline_sizep)
-{
-	if (sysfs__read_int("devices/system/cpu/cpu0/cache/index0/coherency_line_size", cacheline_sizep))
-		pr_debug("cannot determine cache line size");
-}
-#endif
-
 int main(int argc, const char **argv)
 {
 	int err;
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
-	int value;
 
 	/* libsubcmd init */
 	exec_cmd_init("perf", PREFIX, PERF_EXEC_PATH, EXEC_PATH_ENVIRONMENT);
@@ -444,13 +432,6 @@ int main(int argc, const char **argv)
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
-	cache_line_size(&cacheline_size);
-
-	if (sysctl__read_int("kernel/perf_event_max_stack", &value) == 0)
-		sysctl_perf_event_max_stack = value;
-
-	if (sysctl__read_int("kernel/perf_event_max_contexts_per_stack", &value) == 0)
-		sysctl_perf_event_max_contexts_per_stack = value;
 
 	cmd = extract_argv0_path(argv[0]);
 	if (!cmd)
@@ -458,14 +439,10 @@ int main(int argc, const char **argv)
 
 	srandom(time(NULL));
 
-	perf_config__init();
 	err = perf_config(perf_default_config, NULL);
 	if (err)
 		return err;
 	set_buildid_dir(NULL);
-
-	/* get debugfs/tracefs mount point from /proc/mounts */
-	tracing_path_mount();
 
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:

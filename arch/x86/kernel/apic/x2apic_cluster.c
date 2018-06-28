@@ -116,6 +116,7 @@ static void init_x2apic_ldr(void)
 			goto update;
 	}
 	cmsk = cluster_hotplug_mask;
+	cmsk->clusterid = cluster;
 	cluster_hotplug_mask = NULL;
 update:
 	this_cpu_write(cluster_masks, cmsk);

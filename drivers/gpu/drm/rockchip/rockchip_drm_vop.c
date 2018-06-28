@@ -76,6 +76,9 @@
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
 
+#define VOP_WIN_TO_INDEX(vop_win) \
+	((vop_win) - (vop_win)->vop->win)
+
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
 
@@ -708,6 +711,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t dma_addr;
 	uint32_t val;
 	bool rb_swap;
+	int win_index = VOP_WIN_TO_INDEX(vop_win);
 	int format;
 
 	/*
@@ -777,7 +781,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	rb_swap = has_rb_swapped(fb->format->format);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
-	if (fb->format->has_alpha) {
+	/*
+	 * Blending win0 with the background color doesn't seem to work
+	 * correctly. We only get the background color, no matter the contents
+	 * of the win0 framebuffer.  However, blending pre-multiplied color
+	 * with the default opaque black default background color is a no-op,
+	 * so we can just disable blending to get the correct result.
+	 */
+	if (fb->format->has_alpha && win_index > 0) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
@@ -925,6 +936,12 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA && s->output_bpc == 8)
+		VOP_REG_SET(vop, common, pre_dither_down, 1);
+	else
+		VOP_REG_SET(vop, common, pre_dither_down, 0);
+
 	VOP_REG_SET(vop, common, out_mode, s->output_mode);
 
 	VOP_REG_SET(vop, modeset, htotal_pw, (htotal << 16) | hsync_len);
@@ -1017,22 +1034,15 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 			continue;
 
 		drm_framebuffer_get(old_plane_state->fb);
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 		drm_flip_work_queue(&vop->fb_unref_work, old_plane_state->fb);
 		set_bit(VOP_PENDING_FB_UNREF, &vop->pending);
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 	}
-}
-
-static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
-{
-	rockchip_drm_psr_flush(crtc);
 }
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
 	.mode_fixup = vop_crtc_mode_fixup,
 	.atomic_flush = vop_crtc_atomic_flush,
-	.atomic_begin = vop_crtc_atomic_begin,
 	.atomic_enable = vop_crtc_atomic_enable,
 	.atomic_disable = vop_crtc_atomic_disable,
 };

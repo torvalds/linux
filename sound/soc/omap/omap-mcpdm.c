@@ -40,9 +40,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include <sound/omap-pcm.h>
 
 #include "omap-mcpdm.h"
+#include "sdma-pcm.h"
 
 struct mcpdm_link_config {
 	u32 link_mask; /* channel mask for the direction */
@@ -548,7 +548,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return omap_pcm_platform_register(&pdev->dev);
+	return sdma_pcm_platform_register(&pdev->dev, "dn_link", "up_link");
 }
 
 static const struct of_device_id omap_mcpdm_of_match[] = {

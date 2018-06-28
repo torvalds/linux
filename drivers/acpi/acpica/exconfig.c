@@ -174,6 +174,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Complete the initialization/resolution of package objects */
+
+	status = acpi_ns_walk_namespace(ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+					ACPI_UINT32_MAX, 0,
+					acpi_ns_init_one_package, NULL, NULL,
+					NULL);
+
 	/* Parameter Data (optional) */
 
 	if (parameter_node) {
@@ -430,6 +437,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Complete the initialization/resolution of package objects */
+
+	status = acpi_ns_walk_namespace(ACPI_TYPE_PACKAGE, ACPI_ROOT_OBJECT,
+					ACPI_UINT32_MAX, 0,
+					acpi_ns_init_one_package, NULL, NULL,
+					NULL);
+
 	/* Store the ddb_handle into the Target operand */
 
 	status = acpi_ex_store(ddb_handle, target, walk_state);
@@ -474,6 +488,17 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * extremely rare if not completely unused.
 	 */
 	ACPI_WARNING((AE_INFO, "Received request to unload an ACPI table"));
+
+	/*
+	 * May 2018: Unload is no longer supported for the following reasons:
+	 * 1) A correct implementation on some hosts may not be possible.
+	 * 2) Other ACPI implementations do not correctly/fully support it.
+	 * 3) It requires host device driver support which does not exist.
+	 *    (To properly support namespace unload out from underneath.)
+	 * 4) This AML operator has never been seen in the field.
+	 */
+	ACPI_EXCEPTION((AE_INFO, AE_NOT_IMPLEMENTED,
+			"AML Unload operator is not supported"));
 
 	/*
 	 * Validate the handle

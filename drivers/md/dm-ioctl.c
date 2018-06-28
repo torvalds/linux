@@ -1344,7 +1344,8 @@ static int table_load(struct file *filp, struct dm_ioctl *param, size_t param_si
 			goto err_unlock_md_type;
 		}
 	} else if (!is_valid_type(dm_get_md_type(md), dm_table_get_type(t))) {
-		DMWARN("can't change device type after initial table load.");
+		DMWARN("can't change device type (old=%u vs new=%u) after initial table load.",
+		       dm_get_md_type(md), dm_table_get_type(t));
 		r = -EINVAL;
 		goto err_unlock_md_type;
 	}

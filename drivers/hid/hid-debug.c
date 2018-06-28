@@ -457,7 +457,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	char *buf = NULL;
 
 	if (!f) {
-		buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+		buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 		if (!buf)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -685,7 +685,7 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 	char *buf;
 	unsigned int i;
 
-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+	buf = kmalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf)
 		return;
@@ -1088,7 +1088,7 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (!(list->hid_debug_buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
+	if (!(list->hid_debug_buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
 		err = -ENOMEM;
 		kfree(list);
 		goto out;

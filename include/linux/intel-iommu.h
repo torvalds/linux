@@ -121,7 +121,6 @@
 #define ecap_srs(e)		((e >> 31) & 0x1)
 #define ecap_ers(e)		((e >> 30) & 0x1)
 #define ecap_prs(e)		((e >> 29) & 0x1)
-#define ecap_broken_pasid(e)	((e >> 28) & 0x1)
 #define ecap_dis(e)		((e >> 27) & 0x1)
 #define ecap_nest(e)		((e >> 26) & 0x1)
 #define ecap_mts(e)		((e >> 25) & 0x1)

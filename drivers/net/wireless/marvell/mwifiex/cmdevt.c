@@ -25,7 +25,6 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
-#include "11ac.h"
 
 static void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 

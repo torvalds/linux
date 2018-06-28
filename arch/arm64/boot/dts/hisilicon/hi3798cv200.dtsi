@@ -8,7 +8,9 @@
  */
 
 #include <dt-bindings/clock/histb-clock.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset/ti-syscon.h>
 
 / {
@@ -104,6 +106,113 @@
 			reg = <0x8000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <2>;
+		};
+
+		perictrl: peripheral-controller@8a20000 {
+			compatible = "hisilicon,hi3798cv200-perictrl", "syscon",
+				     "simple-mfd";
+			reg = <0x8a20000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x8a20000 0x1000>;
+
+			usb2_phy1: usb2-phy@120 {
+				compatible = "hisilicon,hi3798cv200-usb2-phy";
+				reg = <0x120 0x4>;
+				clocks = <&crg HISTB_USB2_PHY1_REF_CLK>;
+				resets = <&crg 0xbc 4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb2_phy1_port0: phy@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+					resets = <&crg 0xbc 8>;
+				};
+
+				usb2_phy1_port1: phy@1 {
+					reg = <1>;
+					#phy-cells = <0>;
+					resets = <&crg 0xbc 9>;
+				};
+			};
+
+			usb2_phy2: usb2-phy@124 {
+				compatible = "hisilicon,hi3798cv200-usb2-phy";
+				reg = <0x124 0x4>;
+				clocks = <&crg HISTB_USB2_PHY2_REF_CLK>;
+				resets = <&crg 0xbc 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				usb2_phy2_port0: phy@0 {
+					reg = <0>;
+					#phy-cells = <0>;
+					resets = <&crg 0xbc 10>;
+				};
+			};
+
+			combphy0: phy@850 {
+				compatible = "hisilicon,hi3798cv200-combphy";
+				reg = <0x850 0x8>;
+				#phy-cells = <1>;
+				clocks = <&crg HISTB_COMBPHY0_CLK>;
+				resets = <&crg 0x188 4>;
+				assigned-clocks = <&crg HISTB_COMBPHY0_CLK>;
+				assigned-clock-rates = <100000000>;
+				hisilicon,fixed-mode = <PHY_TYPE_USB3>;
+			};
+
+			combphy1: phy@858 {
+				compatible = "hisilicon,hi3798cv200-combphy";
+				reg = <0x858 0x8>;
+				#phy-cells = <1>;
+				clocks = <&crg HISTB_COMBPHY1_CLK>;
+				resets = <&crg 0x188 12>;
+				assigned-clocks = <&crg HISTB_COMBPHY1_CLK>;
+				assigned-clock-rates = <100000000>;
+				hisilicon,mode-select-bits = <0x0008 11 (0x3 << 11)>;
+			};
+		};
+
+		pmx0: pinconf@8a21000 {
+			compatible = "pinconf-single";
+			reg = <0x8a21000 0x180>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <7>;
+			pinctrl-single,gpio-range = <
+				&range 0  8 2  /* GPIO 0 */
+				&range 8  1 0  /* GPIO 1 */
+				&range 9  4 2
+				&range 13 1 0
+				&range 14 1 1
+				&range 15 1 0
+				&range 16 5 0  /* GPIO 2 */
+				&range 21 3 1
+				&range 24 4 1  /* GPIO 3 */
+				&range 28 2 2
+				&range 86 1 1
+				&range 87 1 0
+				&range 30 4 2  /* GPIO 4 */
+				&range 34 3 0
+				&range 37 1 2
+				&range 38 3 2  /* GPIO 6 */
+				&range 41 5 0
+				&range 46 8 1  /* GPIO 7 */
+				&range 54 8 1  /* GPIO 8 */
+				&range 64 7 1  /* GPIO 9 */
+				&range 71 1 0
+				&range 72 6 1  /* GPIO 10 */
+				&range 78 1 0
+				&range 79 1 1
+				&range 80 6 1  /* GPIO 11 */
+				&range 70 2 1
+				&range 88 8 0  /* GPIO 12 */
+			>;
+
+			range: gpio-range {
+				#pinctrl-single,gpio-range-cells = <3>;
+			};
 		};
 
 		uart0: serial@8b00000 {
@@ -205,12 +314,17 @@
 		};
 
 		emmc: mmc@9830000 {
-			compatible = "snps,dw-mshc";
+			compatible = "hisilicon,hi3798cv200-dw-mshc";
 			reg = <0x9830000 0x10000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg HISTB_MMC_CIU_CLK>,
-				 <&crg HISTB_MMC_BIU_CLK>;
-			clock-names = "ciu", "biu";
+				 <&crg HISTB_MMC_BIU_CLK>,
+				 <&crg HISTB_MMC_SAMPLE_CLK>,
+				 <&crg HISTB_MMC_DRV_CLK>;
+			clock-names = "ciu", "biu", "ciu-sample", "ciu-drive";
+			resets = <&crg 0xa0 4>;
+			reset-names = "reset";
+			status = "disabled";
 		};
 
 		gpio0: gpio@8b20000 {
@@ -221,6 +335,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 0 8>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -234,6 +349,13 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <
+				&pmx0 0 8 1
+				&pmx0 1 9 4
+				&pmx0 5 13 1
+				&pmx0 6 14 1
+				&pmx0 7 15 1
+			>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -247,6 +369,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 16 5 &pmx0 5 21 3>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -260,6 +383,12 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <
+				&pmx0 0 24 4
+				&pmx0 4 28 2
+				&pmx0 6 86 1
+				&pmx0 7 87 1
+			>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -273,6 +402,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 30 4 &pmx0 4 34 3 &pmx0 7 37 1>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -299,6 +429,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 38 3 &pmx0 0 41 5>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -312,6 +443,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 46 8>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -325,6 +457,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 54 8>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -338,6 +471,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 64 7 &pmx0 71 1>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -351,6 +485,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 72 6 &pmx0 6 78 1 &pmx0 7 79 1>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -364,6 +499,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 80 6 &pmx0 6 70 2>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -377,6 +513,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-ranges = <&pmx0 0 88 8>;
 			clocks = <&crg HISTB_APB_CLK>;
 			clock-names = "apb_pclk";
 			status = "disabled";
@@ -417,6 +554,68 @@
 			reg = <0x8001000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&sysctrl HISTB_IR_CLK>;
+			status = "disabled";
+		};
+
+		pcie: pcie@9860000 {
+			compatible = "hisilicon,hi3798cv200-pcie";
+			reg = <0x9860000 0x1000>,
+			      <0x0 0x2000>,
+			      <0x2000000 0x01000000>;
+			reg-names = "control", "rc-dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			bus-range = <0 15>;
+			num-lanes = <1>;
+			ranges = <0x81000000 0x0 0x00000000 0x4f00000 0x0 0x100000
+				  0x82000000 0x0 0x3000000 0x3000000 0x0 0x01f00000>;
+			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0 0 0 0 &gic 0 131 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg HISTB_PCIE_AUX_CLK>,
+				 <&crg HISTB_PCIE_PIPE_CLK>,
+				 <&crg HISTB_PCIE_SYS_CLK>,
+				 <&crg HISTB_PCIE_BUS_CLK>;
+			clock-names = "aux", "pipe", "sys", "bus";
+			resets = <&crg 0x18c 6>, <&crg 0x18c 5>, <&crg 0x18c 4>;
+			reset-names = "soft", "sys", "bus";
+			phys = <&combphy1 PHY_TYPE_PCIE>;
+			phy-names = "phy";
+			status = "disabled";
+		};
+
+		ohci: ohci@9880000 {
+			compatible = "generic-ohci";
+			reg = <0x9880000 0x10000>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg HISTB_USB2_BUS_CLK>,
+				 <&crg HISTB_USB2_12M_CLK>,
+				 <&crg HISTB_USB2_48M_CLK>;
+			clock-names = "bus", "clk12", "clk48";
+			resets = <&crg 0xb8 12>;
+			reset-names = "bus";
+			phys = <&usb2_phy1_port0>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
+		ehci: ehci@9890000 {
+			compatible = "generic-ehci";
+			reg = <0x9890000 0x10000>;
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg HISTB_USB2_BUS_CLK>,
+				 <&crg HISTB_USB2_PHY_CLK>,
+				 <&crg HISTB_USB2_UTMI_CLK>;
+			clock-names = "bus", "phy", "utmi";
+			resets = <&crg 0xb8 12>,
+				 <&crg 0xb8 16>,
+				 <&crg 0xb8 13>;
+			reset-names = "bus", "phy", "utmi";
+			phys = <&usb2_phy1_port0>;
+			phy-names = "usb";
 			status = "disabled";
 		};
 	};

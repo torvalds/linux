@@ -92,7 +92,7 @@ MODULE_PARM_DESC(resetwaittime, "Wait time in seconds after I/O timeout "
 
 int smp_affinity_enable = 1;
 module_param(smp_affinity_enable, int, S_IRUGO);
-MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disbale Default: enable(1)");
+MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disable Default: enable(1)");
 
 int rdpq_enable = 1;
 module_param(rdpq_enable, int, S_IRUGO);
@@ -2224,9 +2224,9 @@ static int megasas_get_ld_vf_affiliation_111(struct megasas_instance *instance,
 			       sizeof(struct MR_LD_VF_AFFILIATION_111));
 	else {
 		new_affiliation_111 =
-			pci_alloc_consistent(instance->pdev,
-					     sizeof(struct MR_LD_VF_AFFILIATION_111),
-					     &new_affiliation_111_h);
+			pci_zalloc_consistent(instance->pdev,
+					      sizeof(struct MR_LD_VF_AFFILIATION_111),
+					      &new_affiliation_111_h);
 		if (!new_affiliation_111) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "SR-IOV: Couldn't allocate "
 			       "memory for new affiliation for scsi%d\n",
@@ -2234,8 +2234,6 @@ static int megasas_get_ld_vf_affiliation_111(struct megasas_instance *instance,
 			megasas_return_cmd(instance, cmd);
 			return -ENOMEM;
 		}
-		memset(new_affiliation_111, 0,
-		       sizeof(struct MR_LD_VF_AFFILIATION_111));
 	}
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
@@ -2333,10 +2331,10 @@ static int megasas_get_ld_vf_affiliation_12(struct megasas_instance *instance,
 		       sizeof(struct MR_LD_VF_AFFILIATION));
 	else {
 		new_affiliation =
-			pci_alloc_consistent(instance->pdev,
-					     (MAX_LOGICAL_DRIVES + 1) *
-					     sizeof(struct MR_LD_VF_AFFILIATION),
-					     &new_affiliation_h);
+			pci_zalloc_consistent(instance->pdev,
+					      (MAX_LOGICAL_DRIVES + 1) *
+					      sizeof(struct MR_LD_VF_AFFILIATION),
+					      &new_affiliation_h);
 		if (!new_affiliation) {
 			dev_printk(KERN_DEBUG, &instance->pdev->dev, "SR-IOV: Couldn't allocate "
 			       "memory for new affiliation for scsi%d\n",
@@ -2344,8 +2342,6 @@ static int megasas_get_ld_vf_affiliation_12(struct megasas_instance *instance,
 			megasas_return_cmd(instance, cmd);
 			return -ENOMEM;
 		}
-		memset(new_affiliation, 0, (MAX_LOGICAL_DRIVES + 1) *
-		       sizeof(struct MR_LD_VF_AFFILIATION));
 	}
 
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
@@ -2772,7 +2768,7 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 
 	if (time_after(jiffies, scmd->jiffies_at_alloc +
 				(scmd_timeout * 2) * HZ)) {
-		return BLK_EH_NOT_HANDLED;
+		return BLK_EH_DONE;
 	}
 
 	instance = (struct megasas_instance *)scmd->device->host->hostdata;
@@ -5423,9 +5419,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	/* stream detection initialization */
 	if (instance->adapter_type == VENTURA_SERIES) {
 		fusion->stream_detect_by_ld =
-			kzalloc(sizeof(struct LD_STREAM_DETECT *)
-			* MAX_LOGICAL_DRIVES_EXT,
-			GFP_KERNEL);
+			kcalloc(MAX_LOGICAL_DRIVES_EXT,
+				sizeof(struct LD_STREAM_DETECT *),
+				GFP_KERNEL);
 		if (!fusion->stream_detect_by_ld) {
 			dev_err(&instance->pdev->dev,
 				"unable to allocate stream detection for pool of LDs\n");
@@ -5636,16 +5632,15 @@ megasas_get_seq_num(struct megasas_instance *instance,
 	}
 
 	dcmd = &cmd->frame->dcmd;
-	el_info = pci_alloc_consistent(instance->pdev,
-				       sizeof(struct megasas_evt_log_info),
-				       &el_info_h);
+	el_info = pci_zalloc_consistent(instance->pdev,
+					sizeof(struct megasas_evt_log_info),
+					&el_info_h);
 
 	if (!el_info) {
 		megasas_return_cmd(instance, cmd);
 		return -ENOMEM;
 	}
 
-	memset(el_info, 0, sizeof(*el_info));
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
 	dcmd->cmd = MFI_CMD_DCMD;
@@ -6144,7 +6139,7 @@ static inline int megasas_alloc_mfi_ctrl_mem(struct megasas_instance *instance)
  */
 static int megasas_alloc_ctrl_mem(struct megasas_instance *instance)
 {
-	instance->reply_map = kzalloc(sizeof(unsigned int) * nr_cpu_ids,
+	instance->reply_map = kcalloc(nr_cpu_ids, sizeof(unsigned int),
 				      GFP_KERNEL);
 	if (!instance->reply_map)
 		return -ENOMEM;

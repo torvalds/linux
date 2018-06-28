@@ -175,4 +175,10 @@ config NVMEM_SNVS_LPGPR
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-snvs-lpgpr.
 
+config RAVE_SP_EEPROM
+	tristate "Rave SP EEPROM Support"
+	depends on RAVE_SP_CORE
+	help
+	  Say y here to enable Rave SP EEPROM support.
+
 endif

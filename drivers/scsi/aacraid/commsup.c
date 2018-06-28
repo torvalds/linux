@@ -724,6 +724,8 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 	int wait;
 	unsigned long flags = 0;
 	unsigned long mflags = 0;
+	struct aac_hba_cmd_req *hbacmd = (struct aac_hba_cmd_req *)
+			fibptr->hw_fib_va;
 
 	fibptr->flags = (FIB_CONTEXT_FLAG | FIB_CONTEXT_FLAG_NATIVE_HBA);
 	if (callback) {
@@ -734,11 +736,9 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		wait = 1;
 
 
-	if (command == HBA_IU_TYPE_SCSI_CMD_REQ) {
-		struct aac_hba_cmd_req *hbacmd =
-			(struct aac_hba_cmd_req *)fibptr->hw_fib_va;
+	hbacmd->iu_type = command;
 
-		hbacmd->iu_type = command;
+	if (command == HBA_IU_TYPE_SCSI_CMD_REQ) {
 		/* bit1 of request_id must be 0 */
 		hbacmd->request_id =
 			cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);

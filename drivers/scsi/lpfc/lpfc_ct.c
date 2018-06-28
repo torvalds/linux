@@ -471,6 +471,11 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
 				Did, ndlp->nlp_flag, vport->fc_flag);
 
+			/* Don't assume the rport is always the previous
+			 * FC4 type.
+			 */
+			ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
+
 			/* By default, the driver expects to support FCP FC4 */
 			if (fc4_type == FC_TYPE_FCP)
 				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
@@ -690,6 +695,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (vport->fc_flag & FC_RSCN_DEFERRED) {
 		vport->fc_flag &= ~FC_RSCN_DEFERRED;
 		spin_unlock_irq(shost->host_lock);
+
+		/* This is a GID_FT completing so the gidft_inp counter was
+		 * incremented before the GID_FT was issued to the wire.
+		 */
+		vport->gidft_inp--;
 
 		/*
 		 * Skip processing the NS response

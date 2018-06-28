@@ -22,13 +22,13 @@ KBUILD_IMAGE := vmlinuz
 KBUILD_DEFCONFIG := default_defconfig
 
 NM		= sh $(srctree)/arch/parisc/nm
-CHECKFLAGS	+= -D__hppa__=1 -mbig-endian
+CHECKFLAGS	+= -D__hppa__=1
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 export LIBGCC
 
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
-CHECKFLAGS	+= -D__LP64__=1 -m64
+CHECKFLAGS	+= -D__LP64__=1
 CC_ARCHES	= hppa64
 LD_BFD		:= elf64-hppa-linux
 else # 32-bit
@@ -122,6 +122,9 @@ BOOT_TARGETS    = zImage Image palo lifimage
 INSTALL_TARGETS = zinstall install
 
 PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
+
+# Default kernel to build
+all: bzImage
 
 zImage: vmlinuz
 Image: vmlinux

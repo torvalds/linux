@@ -49,22 +49,6 @@
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
 
-struct rdma_addr_client {
-	atomic_t refcount;
-	struct completion comp;
-};
-
-/**
- * rdma_addr_register_client - Register an address client.
- */
-void rdma_addr_register_client(struct rdma_addr_client *client);
-
-/**
- * rdma_addr_unregister_client - Deregister an address client.
- * @client: Client object to deregister.
- */
-void rdma_addr_unregister_client(struct rdma_addr_client *client);
-
 /**
  * struct rdma_dev_addr - Contains resolved RDMA hardware addresses
  * @src_dev_addr:	Source MAC address.
@@ -99,7 +83,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
  *   RDMA hardware addresses.
- * @client: Address client associated with request.
  * @src_addr: An optional source address to use in the resolution.  If a
  *   source address is not provided, a usable address will be returned via
  *   the callback.
@@ -112,8 +95,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
  *   or been canceled.  A status of 0 indicates success.
  * @context: User-specified context associated with the call.
  */
-int rdma_resolve_ip(struct rdma_addr_client *client,
-		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),

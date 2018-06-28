@@ -334,6 +334,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x9c07), board_ahci_mobile }, /* Lynx LP RAID */
 	{ PCI_VDEVICE(INTEL, 0x9c0e), board_ahci_mobile }, /* Lynx LP RAID */
 	{ PCI_VDEVICE(INTEL, 0x9c0f), board_ahci_mobile }, /* Lynx LP RAID */
+	{ PCI_VDEVICE(INTEL, 0x9dd3), board_ahci_mobile }, /* Cannon Lake PCH-LP AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f22), board_ahci }, /* Avoton AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f23), board_ahci }, /* Avoton AHCI */
 	{ PCI_VDEVICE(INTEL, 0x1f24), board_ahci }, /* Avoton RAID */
@@ -698,7 +699,7 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	ahci_stop_engine(ap);
+	hpriv->stop_engine(ap);
 
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
 				 deadline, &online, NULL);
@@ -724,7 +725,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	bool online;
 	int rc;
 
-	ahci_stop_engine(ap);
+	hpriv->stop_engine(ap);
 
 	/* clear D2H reception area to properly wait for D2H FIS */
 	ata_tf_init(link->device, &tf);
@@ -788,7 +789,7 @@ static int ahci_avn_hardreset(struct ata_link *link, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	ahci_stop_engine(ap);
+	hpriv->stop_engine(ap);
 
 	for (i = 0; i < 2; i++) {
 		u16 val;

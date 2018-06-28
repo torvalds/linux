@@ -103,6 +103,7 @@ static struct symbol *new_inline_sym(struct dso *dso,
 		inline_sym = symbol__new(base_sym ? base_sym->start : 0,
 					 base_sym ? base_sym->end : 0,
 					 base_sym ? base_sym->binding : 0,
+					 base_sym ? base_sym->type : 0,
 					 funcname);
 		if (inline_sym)
 			inline_sym->inlined = 1;

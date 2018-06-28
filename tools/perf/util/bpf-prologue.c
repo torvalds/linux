@@ -61,7 +61,7 @@ check_pos(struct bpf_insn_pos *pos)
 
 /*
  * Convert type string (u8/u16/u32/u64/s8/s16/s32/s64 ..., see
- * Documentation/trace/kprobetrace.txt) to size field of BPF_LDX_MEM
+ * Documentation/trace/kprobetrace.rst) to size field of BPF_LDX_MEM
  * instruction (BPF_{B,H,W,DW}).
  */
 static int

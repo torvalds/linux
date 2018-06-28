@@ -1030,7 +1030,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 		return -ENOSPC;
 	
 	/* Create our OS partition */
-	new_part = kmalloc(sizeof(*new_part), GFP_KERNEL);
+	new_part = kzalloc(sizeof(*new_part), GFP_KERNEL);
 	if (!new_part) {
 		pr_err("%s: kmalloc failed\n", __func__);
 		return -ENOMEM;
@@ -1039,7 +1039,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	new_part->index = free_part->index;
 	new_part->header.signature = sig;
 	new_part->header.length = size;
-	strncpy(new_part->header.name, name, 12);
+	memcpy(new_part->header.name, name, strnlen(name, sizeof(new_part->header.name)));
 	new_part->header.checksum = nvram_checksum(&new_part->header);
 
 	rc = nvram_write_header(new_part);

@@ -1137,7 +1137,6 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 	struct gb_svc *svc = gb_connection_get_data(op->connection);
 	struct gb_message *request = op->request;
 	struct gb_svc_intf_reset_request *reset;
-	u8 intf_id;
 
 	if (request->payload_size < sizeof(*reset)) {
 		dev_warn(&svc->dev, "short reset request received (%zu < %zu)\n",
@@ -1145,8 +1144,6 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 		return -EINVAL;
 	}
 	reset = request->payload;
-
-	intf_id = reset->intf_id;
 
 	/* FIXME Reset the interface here */
 

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -313,8 +301,12 @@ xfs_rtallocate_extent_block(
 		/*
 		 * If size should be a multiple of prod, make that so.
 		 */
-		if (prod > 1 && (p = do_mod(bestlen, prod)))
-			bestlen -= p;
+		if (prod > 1) {
+			div_u64_rem(bestlen, prod, &p);
+			if (p)
+				bestlen -= p;
+		}
+
 		/*
 		 * Allocate besti for bestlen & return that.
 		 */
@@ -1275,7 +1267,7 @@ xfs_rtpick_extent(
 		b = (mp->m_sb.sb_rextents * ((resid << 1) + 1ULL)) >>
 		    (log2 + 1);
 		if (b >= mp->m_sb.sb_rextents)
-			b = do_mod(b, mp->m_sb.sb_rextents);
+			div64_u64_rem(b, mp->m_sb.sb_rextents, &b);
 		if (b + len > mp->m_sb.sb_rextents)
 			b = mp->m_sb.sb_rextents - len;
 	}

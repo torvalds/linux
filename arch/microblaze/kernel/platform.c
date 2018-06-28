@@ -12,7 +12,6 @@
 
 #include <linux/init.h>
 #include <linux/of_platform.h>
-#include <asm/prom.h>
 #include <asm/setup.h>
 
 static struct of_device_id xilinx_of_bus_ids[] __initdata = {

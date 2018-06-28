@@ -39,7 +39,7 @@ struct mod_arch_specific {
 u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 			  Elf64_Sym *sym);
 
-u64 module_emit_adrp_veneer(struct module *mod, void *loc, u64 val);
+u64 module_emit_veneer_for_adrp(struct module *mod, void *loc, u64 val);
 
 #ifdef CONFIG_RANDOMIZE_BASE
 extern u64 module_alloc_base;

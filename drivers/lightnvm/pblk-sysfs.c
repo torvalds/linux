@@ -173,6 +173,8 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	int free_line_cnt = 0, closed_line_cnt = 0, emeta_line_cnt = 0;
 	int d_line_cnt = 0, l_line_cnt = 0;
 	int gc_full = 0, gc_high = 0, gc_mid = 0, gc_low = 0, gc_empty = 0;
+	int gc_werr = 0;
+
 	int bad = 0, cor = 0;
 	int msecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
 	int map_weight = 0, meta_weight = 0;
@@ -237,6 +239,15 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		gc_empty++;
 	}
 
+	list_for_each_entry(line, &l_mg->gc_werr_list, list) {
+		if (line->type == PBLK_LINETYPE_DATA)
+			d_line_cnt++;
+		else if (line->type == PBLK_LINETYPE_LOG)
+			l_line_cnt++;
+		closed_line_cnt++;
+		gc_werr++;
+	}
+
 	list_for_each_entry(line, &l_mg->bad_list, list)
 		bad++;
 	list_for_each_entry(line, &l_mg->corrupt_list, list)
@@ -275,8 +286,8 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 					l_mg->nr_lines);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"GC: full:%d, high:%d, mid:%d, low:%d, empty:%d, queue:%d\n",
-			gc_full, gc_high, gc_mid, gc_low, gc_empty,
+		"GC: full:%d, high:%d, mid:%d, low:%d, empty:%d, werr: %d, queue:%d\n",
+			gc_full, gc_high, gc_mid, gc_low, gc_empty, gc_werr,
 			atomic_read(&pblk->gc.read_inflight_gc));
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,

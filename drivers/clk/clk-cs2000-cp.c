@@ -541,7 +541,7 @@ probe_err:
 	return ret;
 }
 
-static int cs2000_resume(struct device *dev)
+static int __maybe_unused cs2000_resume(struct device *dev)
 {
 	struct cs2000_priv *priv = dev_get_drvdata(dev);
 

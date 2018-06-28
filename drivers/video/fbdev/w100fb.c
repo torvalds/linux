@@ -693,7 +693,8 @@ int w100fb_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	info->pseudo_palette = kmalloc(sizeof (u32) * MAX_PALETTES, GFP_KERNEL);
+	info->pseudo_palette = kmalloc_array(MAX_PALETTES, sizeof(u32),
+					     GFP_KERNEL);
 	if (!info->pseudo_palette) {
 		err = -ENOMEM;
 		goto out;

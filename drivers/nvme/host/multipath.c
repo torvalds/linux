@@ -12,12 +12,35 @@
  */
 
 #include <linux/moduleparam.h>
+#include <trace/events/block.h>
 #include "nvme.h"
 
 static bool multipath = true;
-module_param(multipath, bool, 0644);
+module_param(multipath, bool, 0444);
 MODULE_PARM_DESC(multipath,
 	"turn on native support for multiple controllers per subsystem");
+
+/*
+ * If multipathing is enabled we need to always use the subsystem instance
+ * number for numbering our devices to avoid conflicts between subsystems that
+ * have multiple controllers and thus use the multipath-aware subsystem node
+ * and those that have a single controller and use the controller node
+ * directly.
+ */
+void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
+			struct nvme_ctrl *ctrl, int *flags)
+{
+	if (!multipath) {
+		sprintf(disk_name, "nvme%dn%d", ctrl->instance, ns->head->instance);
+	} else if (ns->head->disk) {
+		sprintf(disk_name, "nvme%dc%dn%d", ctrl->subsys->instance,
+				ctrl->cntlid, ns->head->instance);
+		*flags = GENHD_FL_HIDDEN;
+	} else {
+		sprintf(disk_name, "nvme%dn%d", ctrl->subsys->instance,
+				ns->head->instance);
+	}
+}
 
 void nvme_failover_req(struct request *req)
 {
@@ -89,6 +112,9 @@ static blk_qc_t nvme_ns_head_make_request(struct request_queue *q,
 	if (likely(ns)) {
 		bio->bi_disk = ns->disk;
 		bio->bi_opf |= REQ_NVME_MPATH;
+		trace_block_bio_remap(bio->bi_disk->queue, bio,
+				      disk_devt(ns->head->disk),
+				      bio->bi_iter.bi_sector);
 		ret = direct_make_request(bio);
 	} else if (!list_empty_careful(&head->list)) {
 		dev_warn_ratelimited(dev, "no path available - requeuing I/O\n");

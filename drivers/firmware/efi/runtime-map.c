@@ -166,7 +166,7 @@ int __init efi_runtime_map_init(struct kobject *efi_kobj)
 	if (!efi_enabled(EFI_MEMMAP))
 		return 0;
 
-	map_entries = kzalloc(efi.memmap.nr_map * sizeof(entry), GFP_KERNEL);
+	map_entries = kcalloc(efi.memmap.nr_map, sizeof(entry), GFP_KERNEL);
 	if (!map_entries) {
 		ret = -ENOMEM;
 		goto out;

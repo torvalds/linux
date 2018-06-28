@@ -408,7 +408,7 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * @request: requested perms
  * @deny: Returns: explicit deny set
  * @sa: initialized audit structure (MAY BE NULL if not auditing)
- * @cb: callback fn for tpye specific fields (MAY BE NULL)
+ * @cb: callback fn for type specific fields (MAY BE NULL)
  *
  * Returns: 0 if permission else error code
  *

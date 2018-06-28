@@ -469,6 +469,7 @@ found:
 	iov->nres = nres;
 	iov->ctrl = ctrl;
 	iov->total_VFs = total;
+	iov->driver_max_VFs = total;
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_DID, &iov->vf_device);
 	iov->pgsz = pgsz;
 	iov->self = dev;
@@ -827,9 +828,42 @@ int pci_sriov_get_totalvfs(struct pci_dev *dev)
 	if (!dev->is_physfn)
 		return 0;
 
-	if (dev->sriov->driver_max_VFs)
-		return dev->sriov->driver_max_VFs;
-
-	return dev->sriov->total_VFs;
+	return dev->sriov->driver_max_VFs;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_get_totalvfs);
+
+/**
+ * pci_sriov_configure_simple - helper to configure SR-IOV
+ * @dev: the PCI device
+ * @nr_virtfn: number of virtual functions to enable, 0 to disable
+ *
+ * Enable or disable SR-IOV for devices that don't require any PF setup
+ * before enabling SR-IOV.  Return value is negative on error, or number of
+ * VFs allocated on success.
+ */
+int pci_sriov_configure_simple(struct pci_dev *dev, int nr_virtfn)
+{
+	int rc;
+
+	might_sleep();
+
+	if (!dev->is_physfn)
+		return -ENODEV;
+
+	if (pci_vfs_assigned(dev)) {
+		pci_warn(dev, "Cannot modify SR-IOV while VFs are assigned\n");
+		return -EPERM;
+	}
+
+	if (nr_virtfn == 0) {
+		sriov_disable(dev);
+		return 0;
+	}
+
+	rc = sriov_enable(dev, nr_virtfn);
+	if (rc < 0)
+		return rc;
+
+	return nr_virtfn;
+}
+EXPORT_SYMBOL_GPL(pci_sriov_configure_simple);

@@ -35,8 +35,8 @@ static void atm_pop_raw(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct sock *sk = sk_atm(vcc);
 
 	pr_debug("(%d) %d -= %d\n",
-		 vcc->vci, sk_wmem_alloc_get(sk), skb->truesize);
-	WARN_ON(refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc));
+		 vcc->vci, sk_wmem_alloc_get(sk), ATM_SKB(skb)->acct_truesize);
+	WARN_ON(refcount_sub_and_test(ATM_SKB(skb)->acct_truesize, &sk->sk_wmem_alloc));
 	dev_kfree_skb_any(skb);
 	sk->sk_write_space(sk);
 }

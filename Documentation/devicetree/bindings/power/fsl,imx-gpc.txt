@@ -14,7 +14,7 @@ Required properties:
   datasheet
 - interrupts: Should contain one interrupt specifier for the GPC interrupt
 - clocks: Must contain an entry for each entry in clock-names.
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+  See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
   - ipg
 

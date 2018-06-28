@@ -43,7 +43,11 @@ void __ref cpu_probe(void)
 #endif
 
 #if defined(CONFIG_CPU_J2)
+#if defined(CONFIG_SMP)
 	unsigned cpu = hard_smp_processor_id();
+#else
+	unsigned cpu = 0;
+#endif
 	if (cpu == 0) of_scan_flat_dt(scan_cache, NULL);
 	if (j2_ccr_base) __raw_writel(0x80000303, j2_ccr_base + 4*cpu);
 	if (cpu != 0) return;

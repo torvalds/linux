@@ -77,6 +77,9 @@ struct nvmem_device *devm_nvmem_register(struct device *dev,
 
 int devm_nvmem_unregister(struct device *dev, struct nvmem_device *nvmem);
 
+int nvmem_add_cells(struct nvmem_device *nvmem,
+		    const struct nvmem_cell_info *info,
+		    int ncells);
 #else
 
 static inline struct nvmem_device *nvmem_register(const struct nvmem_config *c)
@@ -99,6 +102,14 @@ static inline int
 devm_nvmem_unregister(struct device *dev, struct nvmem_device *nvmem)
 {
 	return nvmem_unregister(nvmem);
+
+}
+
+static inline int nvmem_add_cells(struct nvmem_device *nvmem,
+				  const struct nvmem_cell_info *info,
+				  int ncells)
+{
+	return -ENOSYS;
 }
 
 #endif /* CONFIG_NVMEM */

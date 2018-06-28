@@ -87,6 +87,11 @@
 	};
 };
 
+&ehci1 {
+	/* Terminus Tech FE 1.1s 4-port USB 2.0 hub here */
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -168,5 +173,10 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pb_pins>;
+	status = "okay";
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";
 };

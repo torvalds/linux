@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2007-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -544,7 +544,7 @@ static int
 lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int len = 0;
-	int cnt;
+	int i, iocnt, outio, cnt;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *ndlp;
@@ -552,12 +552,15 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_remote_port *nrport;
+	struct lpfc_nvme_rport *rport;
 
 	cnt = (LPFC_NODELIST_SIZE / LPFC_NODELIST_ENTRY_SIZE);
+	outio = 0;
 
 	len += snprintf(buf+len, size-len, "\nFCP Nodelist Entries ...\n");
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		iocnt = 0;
 		if (!cnt) {
 			len +=  snprintf(buf+len, size-len,
 				"Missing Nodelist Entries\n");
@@ -585,9 +588,11 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			break;
 		case NLP_STE_UNMAPPED_NODE:
 			statep = "UNMAP ";
+			iocnt = 1;
 			break;
 		case NLP_STE_MAPPED_NODE:
 			statep = "MAPPED";
+			iocnt = 1;
 			break;
 		case NLP_STE_NPR_NODE:
 			statep = "NPR   ";
@@ -614,8 +619,10 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			len += snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
 			len += snprintf(buf+len, size-len, "FC_NODE ");
-		if (ndlp->nlp_type & NLP_FABRIC)
+		if (ndlp->nlp_type & NLP_FABRIC) {
 			len += snprintf(buf+len, size-len, "FABRIC ");
+			iocnt = 0;
+		}
 		if (ndlp->nlp_type & NLP_FCP_TARGET)
 			len += snprintf(buf+len, size-len, "FCP_TGT sid:%d ",
 				ndlp->nlp_sid);
@@ -632,9 +639,19 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			ndlp->nlp_usg_map);
 		len += snprintf(buf+len, size-len, "refcnt:%x",
 			kref_read(&ndlp->kref));
+		if (iocnt) {
+			i = atomic_read(&ndlp->cmd_pending);
+			len += snprintf(buf + len, size - len,
+					" OutIO:x%x Qdepth x%x",
+					i, ndlp->cmd_qdepth);
+			outio += i;
+		}
 		len +=  snprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
+
+	len += snprintf(buf + len, size - len,
+			"\nOutstanding IO x%x\n",  outio);
 
 	if (phba->nvmet_support && phba->targetport && (vport == phba->pport)) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
@@ -679,10 +696,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	len += snprintf(buf + len, size - len, "\tRport List:\n");
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		/* local short-hand pointer. */
-		if (!ndlp->nrport)
+		rport = lpfc_ndlp_get_nrport(ndlp);
+		if (!rport)
 			continue;
 
-		nrport = ndlp->nrport->remoteport;
+		nrport = rport->remoteport;
+		if (!nrport)
+			continue;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {
@@ -751,10 +771,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	struct lpfc_nvme_lport *lport;
-	uint64_t tot, data1, data2, data3;
+	uint64_t data1, data2, data3;
+	uint64_t tot, totin, totout;
+	int cnt, i, maxch;
 	int len = 0;
-	int cnt;
 
 	if (phba->nvmet_support) {
 		if (!phba->targetport)
@@ -880,33 +902,52 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
 
-		len += snprintf(buf + len, size - len,
-				"\nNVME Lport Statistics\n");
-
-		len += snprintf(buf + len, size - len,
-				"LS: Xmt %016x Cmpl %016x\n",
-				atomic_read(&phba->fc4NvmeLsRequests),
-				atomic_read(&phba->fc4NvmeLsCmpls));
-
-		tot = atomic_read(&phba->fc4NvmeIoCmpls);
-		data1 = atomic_read(&phba->fc4NvmeInputRequests);
-		data2 = atomic_read(&phba->fc4NvmeOutputRequests);
-		data3 = atomic_read(&phba->fc4NvmeControlRequests);
-
-		len += snprintf(buf + len, size - len,
-				"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-				data1, data2, data3);
-
-		len += snprintf(buf + len, size - len,
-				"   Cmpl %016llx Outstanding %016llx\n",
-				tot, (data1 + data2 + data3) - tot);
-
 		localport = vport->localport;
 		if (!localport)
 			return len;
 		lport = (struct lpfc_nvme_lport *)localport->private;
 		if (!lport)
 			return len;
+
+		len += snprintf(buf + len, size - len,
+				"\nNVME Lport Statistics\n");
+
+		len += snprintf(buf + len, size - len,
+				"LS: Xmt %016x Cmpl %016x\n",
+				atomic_read(&lport->fc4NvmeLsRequests),
+				atomic_read(&lport->fc4NvmeLsCmpls));
+
+		if (phba->cfg_nvme_io_channel < 32)
+			maxch = phba->cfg_nvme_io_channel;
+		else
+			maxch = 32;
+		totin = 0;
+		totout = 0;
+		for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+			cstat = &lport->cstat[i];
+			tot = atomic_read(&cstat->fc4NvmeIoCmpls);
+			totin += tot;
+			data1 = atomic_read(&cstat->fc4NvmeInputRequests);
+			data2 = atomic_read(&cstat->fc4NvmeOutputRequests);
+			data3 = atomic_read(&cstat->fc4NvmeControlRequests);
+			totout += (data1 + data2 + data3);
+
+			/* Limit to 32, debugfs display buffer limitation */
+			if (i >= 32)
+				continue;
+
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"FCP (%d): Rd %016llx Wr %016llx "
+					"IO %016llx ",
+					i, data1, data2, data3);
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"Cmpl %016llx OutIO %016llx\n",
+					tot, ((data1 + data2 + data3) - tot));
+		}
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"Total FCP Cmpl %016llx Issue %016llx "
+				"OutIO %016llx\n",
+				totin, totout, totout - totin);
 
 		len += snprintf(buf + len, size - len,
 				"LS Xmt Err: Abrt %08x Err %08x  "
@@ -918,11 +959,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 
 		len += snprintf(buf + len, size - len,
 				"FCP Xmt Err: noxri %06x nondlp %06x "
-				"qdepth %06x wqerr %06x Abrt %06x\n",
+				"qdepth %06x wqerr %06x err %06x Abrt %06x\n",
 				atomic_read(&lport->xmt_fcp_noxri),
 				atomic_read(&lport->xmt_fcp_bad_ndlp),
 				atomic_read(&lport->xmt_fcp_qdepth),
 				atomic_read(&lport->xmt_fcp_wqerr),
+				atomic_read(&lport->xmt_fcp_err),
 				atomic_read(&lport->xmt_fcp_abort));
 
 		len += snprintf(buf + len, size - len,

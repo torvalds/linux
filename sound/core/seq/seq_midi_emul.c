@@ -657,7 +657,7 @@ static struct snd_midi_channel *snd_midi_channel_init_set(int n)
 	struct snd_midi_channel *chan;
 	int  i;
 
-	chan = kmalloc(n * sizeof(struct snd_midi_channel), GFP_KERNEL);
+	chan = kmalloc_array(n, sizeof(struct snd_midi_channel), GFP_KERNEL);
 	if (chan) {
 		for (i = 0; i < n; i++)
 			snd_midi_channel_init(chan+i, i);

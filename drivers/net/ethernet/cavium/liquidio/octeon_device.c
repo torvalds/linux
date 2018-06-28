@@ -824,23 +824,18 @@ int octeon_deregister_device(struct octeon_device *oct)
 }
 
 int
-octeon_allocate_ioq_vector(struct octeon_device  *oct)
+octeon_allocate_ioq_vector(struct octeon_device *oct, u32 num_ioqs)
 {
-	int i, num_ioqs = 0;
 	struct octeon_ioq_vector *ioq_vector;
 	int cpu_num;
 	int size;
-
-	if (OCTEON_CN23XX_PF(oct))
-		num_ioqs = oct->sriov_info.num_pf_rings;
-	else if (OCTEON_CN23XX_VF(oct))
-		num_ioqs = oct->sriov_info.rings_per_vf;
+	int i;
 
 	size = sizeof(struct octeon_ioq_vector) * num_ioqs;
 
 	oct->ioq_vector = vzalloc(size);
 	if (!oct->ioq_vector)
-		return 1;
+		return -1;
 	for (i = 0; i < num_ioqs; i++) {
 		ioq_vector		= &oct->ioq_vector[i];
 		ioq_vector->oct_dev	= oct;
@@ -856,6 +851,7 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 		else
 			ioq_vector->ioq_num	= i;
 	}
+
 	return 0;
 }
 

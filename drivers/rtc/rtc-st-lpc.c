@@ -212,6 +212,10 @@ static int st_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
+
 	spin_lock_init(&rtc->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -253,22 +257,15 @@ static int st_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	rtc->rtc_dev = rtc_device_register("st-lpc-rtc", &pdev->dev,
-					   &st_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev)) {
+	rtc->rtc_dev->ops = &st_rtc_ops;
+	rtc->rtc_dev->range_max = U64_MAX;
+	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
+
+	ret = rtc_register_device(rtc->rtc_dev);
+	if (ret) {
 		clk_disable_unprepare(rtc->clk);
-		return PTR_ERR(rtc->rtc_dev);
+		return ret;
 	}
-
-	return 0;
-}
-
-static int st_rtc_remove(struct platform_device *pdev)
-{
-	struct st_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (likely(rtc->rtc_dev))
-		rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
 }
@@ -325,7 +322,6 @@ static struct platform_driver st_rtc_platform_driver = {
 		.of_match_table = st_rtc_match,
 	},
 	.probe = st_rtc_probe,
-	.remove = st_rtc_remove,
 };
 
 module_platform_driver(st_rtc_platform_driver);

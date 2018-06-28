@@ -1228,7 +1228,8 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		vc->vidq.min_buffers_needed = 2;
 		vc->vidq.lock = &vc->vb_mutex;
-		vc->vidq.gfp_flags = GFP_DMA32;
+		vc->vidq.gfp_flags = dev->dma_mode != TW686X_DMA_MODE_MEMCPY ?
+				     GFP_DMA32 : 0;
 		vc->vidq.dev = &dev->pci_dev->dev;
 
 		err = vb2_queue_init(&vc->vidq);

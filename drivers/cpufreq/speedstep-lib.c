@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(speedstep_get_frequency);
  *********************************************************************/
 
 /* Keep in sync with the x86_cpu_id tables in the different modules */
-unsigned int speedstep_detect_processor(void)
+enum speedstep_processor speedstep_detect_processor(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 ebx, msr_lo, msr_hi;

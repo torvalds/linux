@@ -273,6 +273,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	bool bcast = is_broadcast_ether_addr(hdr->addr1) ||
 		is_multicast_ether_addr(hdr->addr1);
 	struct wcn36xx_tx_bd bd;
+	int ret;
 
 	memset(&bd, 0, sizeof(bd));
 
@@ -317,5 +318,17 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	buff_to_be((u32 *)&bd, sizeof(bd)/sizeof(u32));
 	bd.tx_bd_sign = 0xbdbdbdbd;
 
-	return wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
+	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
+	if (ret && bd.tx_comp) {
+		/* If the skb has not been transmitted,
+		 * don't keep a reference to it.
+		 */
+		spin_lock_irqsave(&wcn->dxe_lock, flags);
+		wcn->tx_ack_skb = NULL;
+		spin_unlock_irqrestore(&wcn->dxe_lock, flags);
+
+		ieee80211_wake_queues(wcn->hw);
+	}
+
+	return ret;
 }

@@ -215,7 +215,6 @@ static int rsa_verify(struct akcipher_request *req)
 		goto err_free_m;
 	}
 
-	ret = -ENOMEM;
 	s = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!s) {
 		ret = -ENOMEM;

@@ -494,7 +494,7 @@ static int add_res_tree(struct mlx5_core_dev *dev, enum dbg_rsc_type type,
 	int err;
 	int i;
 
-	d = kzalloc(sizeof(*d) + nfile * sizeof(d->fields[0]), GFP_KERNEL);
+	d = kzalloc(struct_size(d, fields, nfile), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 

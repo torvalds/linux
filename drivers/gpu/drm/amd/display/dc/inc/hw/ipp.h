@@ -87,7 +87,7 @@ struct ipp_funcs {
 		struct input_pixel_processor *ipp,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
-		struct csc_transform input_csc_color_matrix,
+		struct dc_csc_transform input_csc_color_matrix,
 		enum dc_color_space input_color_space);
 
 	/* DCE function to setup IPP.  TODO: see if we can consolidate to setup */

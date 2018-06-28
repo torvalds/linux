@@ -96,16 +96,6 @@ static int syncpt_cpu_incr(struct host1x_syncpt *sp)
 	return 0;
 }
 
-/* remove a wait pointed to by patch_addr */
-static int syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
-{
-	u32 override = host1x_class_host_wait_syncpt(HOST1X_SYNCPT_RESERVED, 0);
-
-	*((u32 *)patch_addr) = override;
-
-	return 0;
-}
-
 /**
  * syncpt_assign_to_channel() - Assign syncpoint to channel
  * @sp: syncpoint
@@ -156,7 +146,6 @@ static const struct host1x_syncpt_ops host1x_syncpt_ops = {
 	.load_wait_base = syncpt_read_wait_base,
 	.load = syncpt_load,
 	.cpu_incr = syncpt_cpu_incr,
-	.patch_wait = syncpt_patch_wait,
 	.assign_to_channel = syncpt_assign_to_channel,
 	.enable_protection = syncpt_enable_protection,
 };

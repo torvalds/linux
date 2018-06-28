@@ -47,14 +47,6 @@ enum version_8192e {
 	VERSION_UNKNOWN = 0xFF,
 };
 
-enum rx_packet_type {
-	NORMAL_RX,
-	TX_REPORT1,
-	TX_REPORT2,
-	HIS_REPORT,
-	C2H_PACKET,
-};
-
 enum rtl_desc_qsel {
 	QSLT_BK = 0x2,
 	QSLT_BE = 0x0,

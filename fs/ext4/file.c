@@ -277,10 +277,11 @@ out:
 }
 
 #ifdef CONFIG_FS_DAX
-static int ext4_dax_huge_fault(struct vm_fault *vmf,
+static vm_fault_t ext4_dax_huge_fault(struct vm_fault *vmf,
 		enum page_entry_size pe_size)
 {
-	int result, error = 0;
+	int error = 0;
+	vm_fault_t result;
 	int retries = 0;
 	handle_t *handle = NULL;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -335,7 +336,7 @@ retry:
 	return result;
 }
 
-static int ext4_dax_fault(struct vm_fault *vmf)
+static vm_fault_t ext4_dax_fault(struct vm_fault *vmf)
 {
 	return ext4_dax_huge_fault(vmf, PE_SIZE_PTE);
 }
@@ -380,50 +381,64 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int ext4_file_open(struct inode * inode, struct file * filp)
+static int ext4_sample_last_mounted(struct super_block *sb,
+				    struct vfsmount *mnt)
 {
-	struct super_block *sb = inode->i_sb;
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	struct vfsmount *mnt = filp->f_path.mnt;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct path path;
 	char buf[64], *cp;
+	handle_t *handle;
+	int err;
+
+	if (likely(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED))
+		return 0;
+
+	if (sb_rdonly(sb) || !sb_start_intwrite_trylock(sb))
+		return 0;
+
+	sbi->s_mount_flags |= EXT4_MF_MNTDIR_SAMPLED;
+	/*
+	 * Sample where the filesystem has been mounted and
+	 * store it in the superblock for sysadmin convenience
+	 * when trying to sort through large numbers of block
+	 * devices or filesystem images.
+	 */
+	memset(buf, 0, sizeof(buf));
+	path.mnt = mnt;
+	path.dentry = mnt->mnt_root;
+	cp = d_path(&path, buf, sizeof(buf));
+	err = 0;
+	if (IS_ERR(cp))
+		goto out;
+
+	handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
+	err = PTR_ERR(handle);
+	if (IS_ERR(handle))
+		goto out;
+	BUFFER_TRACE(sbi->s_sbh, "get_write_access");
+	err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+	if (err)
+		goto out_journal;
+	strlcpy(sbi->s_es->s_last_mounted, cp,
+		sizeof(sbi->s_es->s_last_mounted));
+	ext4_handle_dirty_super(handle, sb);
+out_journal:
+	ext4_journal_stop(handle);
+out:
+	sb_end_intwrite(sb);
+	return err;
+}
+
+static int ext4_file_open(struct inode * inode, struct file * filp)
+{
 	int ret;
 
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return -EIO;
 
-	if (unlikely(!(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED) &&
-		     !sb_rdonly(sb))) {
-		sbi->s_mount_flags |= EXT4_MF_MNTDIR_SAMPLED;
-		/*
-		 * Sample where the filesystem has been mounted and
-		 * store it in the superblock for sysadmin convenience
-		 * when trying to sort through large numbers of block
-		 * devices or filesystem images.
-		 */
-		memset(buf, 0, sizeof(buf));
-		path.mnt = mnt;
-		path.dentry = mnt->mnt_root;
-		cp = d_path(&path, buf, sizeof(buf));
-		if (!IS_ERR(cp)) {
-			handle_t *handle;
-			int err;
-
-			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
-			if (IS_ERR(handle))
-				return PTR_ERR(handle);
-			BUFFER_TRACE(sbi->s_sbh, "get_write_access");
-			err = ext4_journal_get_write_access(handle, sbi->s_sbh);
-			if (err) {
-				ext4_journal_stop(handle);
-				return err;
-			}
-			strlcpy(sbi->s_es->s_last_mounted, cp,
-				sizeof(sbi->s_es->s_last_mounted));
-			ext4_handle_dirty_super(handle, sb);
-			ext4_journal_stop(handle);
-		}
-	}
+	ret = ext4_sample_last_mounted(inode->i_sb, filp->f_path.mnt);
+	if (ret)
+		return ret;
 
 	ret = fscrypt_file_open(inode, filp);
 	if (ret)

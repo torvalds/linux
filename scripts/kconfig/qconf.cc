@@ -34,10 +34,6 @@
 #include "qconf.moc"
 #include "images.c"
 
-#ifdef _
-# undef _
-# define _ qgettext
-#endif
 
 static QApplication *configApp;
 static ConfigSettings *configSettings;
@@ -46,12 +42,7 @@ QAction *ConfigMainWindow::saveAction;
 
 static inline QString qgettext(const char* str)
 {
-	return QString::fromLocal8Bit(gettext(str));
-}
-
-static inline QString qgettext(const QString& str)
-{
-	return QString::fromLocal8Bit(gettext(str.toLatin1()));
+	return QString::fromLocal8Bit(str);
 }
 
 ConfigSettings::ConfigSettings()
@@ -127,7 +118,7 @@ void ConfigItem::updateMenu(void)
 
 	sym = menu->sym;
 	prop = menu->prompt;
-	prompt = _(menu_get_prompt(menu));
+	prompt = qgettext(menu_get_prompt(menu));
 
 	if (prop) switch (prop->type) {
 	case P_MENU:
@@ -216,7 +207,7 @@ void ConfigItem::updateMenu(void)
 		break;
 	}
 	if (!sym_has_value(sym) && visible)
-		prompt += _(" (NEW)");
+		prompt += " (NEW)";
 set_prompt:
 	setText(promptColIdx, prompt);
 }
@@ -327,7 +318,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setVerticalScrollMode(ScrollPerPixel);
 	setHorizontalScrollMode(ScrollPerPixel);
 
-	setHeaderLabels(QStringList() << _("Option") << _("Name") << "N" << "M" << "Y" << _("Value"));
+	setHeaderLabels(QStringList() << "Option" << "Name" << "N" << "M" << "Y" << "Value");
 
 	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
@@ -883,7 +874,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 			QAction *action;
 
 			headerPopup = new QMenu(this);
-			action = new QAction(_("Show Name"), this);
+			action = new QAction("Show Name", this);
 			  action->setCheckable(true);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowName(bool)));
@@ -891,7 +882,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setChecked(showName);
 			  headerPopup->addAction(action);
-			action = new QAction(_("Show Range"), this);
+			action = new QAction("Show Range", this);
 			  action->setCheckable(true);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowRange(bool)));
@@ -899,7 +890,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 				  action, SLOT(setOn(bool)));
 			  action->setChecked(showRange);
 			  headerPopup->addAction(action);
-			action = new QAction(_("Show Data"), this);
+			action = new QAction("Show Data", this);
 			  action->setCheckable(true);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowData(bool)));
@@ -1086,7 +1077,7 @@ void ConfigInfoView::menuInfo(void)
 	if (sym) {
 		if (_menu->prompt) {
 			head += "<big><b>";
-			head += print_filter(_(_menu->prompt->text));
+			head += print_filter(_menu->prompt->text);
 			head += "</b></big>";
 			if (sym->name) {
 				head += " (";
@@ -1117,7 +1108,7 @@ void ConfigInfoView::menuInfo(void)
 		str_free(&help_gstr);
 	} else if (_menu->prompt) {
 		head += "<big><b>";
-		head += print_filter(_(_menu->prompt->text));
+		head += print_filter(_menu->prompt->text);
 		head += "</b></big><br><br>";
 		if (showDebug()) {
 			if (_menu->prompt->visible.expr) {
@@ -1152,7 +1143,7 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		case P_PROMPT:
 		case P_MENU:
 			debug += QString().sprintf("prompt: <a href=\"m%p\">", prop->menu);
-			debug += print_filter(_(prop->text));
+			debug += print_filter(prop->text);
 			debug += "</a><br>";
 			break;
 		case P_DEFAULT:
@@ -1234,7 +1225,7 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
 {
 	QMenu* popup = Parent::createStandardContextMenu(pos);
-	QAction* action = new QAction(_("Show Debug Info"), popup);
+	QAction* action = new QAction("Show Debug Info", popup);
 	  action->setCheckable(true);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
@@ -1261,11 +1252,11 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *nam
 	QHBoxLayout* layout2 = new QHBoxLayout(0);
 	layout2->setContentsMargins(0, 0, 0, 0);
 	layout2->setSpacing(6);
-	layout2->addWidget(new QLabel(_("Find:"), this));
+	layout2->addWidget(new QLabel("Find:", this));
 	editField = new QLineEdit(this);
 	connect(editField, SIGNAL(returnPressed()), SLOT(search()));
 	layout2->addWidget(editField);
-	searchButton = new QPushButton(_("Search"), this);
+	searchButton = new QPushButton("Search", this);
 	searchButton->setAutoDefault(false);
 	connect(searchButton, SIGNAL(clicked()), SLOT(search()));
 	layout2->addWidget(searchButton);
@@ -1387,44 +1378,44 @@ ConfigMainWindow::ConfigMainWindow(void)
 	toolBar = new QToolBar("Tools", this);
 	addToolBar(toolBar);
 
-	backAction = new QAction(QPixmap(xpm_back), _("Back"), this);
+	backAction = new QAction(QPixmap(xpm_back), "Back", this);
 	  connect(backAction, SIGNAL(triggered(bool)), SLOT(goBack()));
 	  backAction->setEnabled(false);
-	QAction *quitAction = new QAction(_("&Quit"), this);
+	QAction *quitAction = new QAction("&Quit", this);
 	quitAction->setShortcut(Qt::CTRL + Qt::Key_Q);
 	  connect(quitAction, SIGNAL(triggered(bool)), SLOT(close()));
-	QAction *loadAction = new QAction(QPixmap(xpm_load), _("&Load"), this);
+	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Load", this);
 	loadAction->setShortcut(Qt::CTRL + Qt::Key_L);
 	  connect(loadAction, SIGNAL(triggered(bool)), SLOT(loadConfig()));
-	saveAction = new QAction(QPixmap(xpm_save), _("&Save"), this);
+	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
 	saveAction->setShortcut(Qt::CTRL + Qt::Key_S);
 	  connect(saveAction, SIGNAL(triggered(bool)), SLOT(saveConfig()));
 	conf_set_changed_callback(conf_changed);
 	// Set saveAction's initial state
 	conf_changed();
-	QAction *saveAsAction = new QAction(_("Save &As..."), this);
+	QAction *saveAsAction = new QAction("Save &As...", this);
 	  connect(saveAsAction, SIGNAL(triggered(bool)), SLOT(saveConfigAs()));
-	QAction *searchAction = new QAction(_("&Find"), this);
+	QAction *searchAction = new QAction("&Find", this);
 	searchAction->setShortcut(Qt::CTRL + Qt::Key_F);
 	  connect(searchAction, SIGNAL(triggered(bool)), SLOT(searchConfig()));
-	singleViewAction = new QAction(QPixmap(xpm_single_view), _("Single View"), this);
+	singleViewAction = new QAction(QPixmap(xpm_single_view), "Single View", this);
 	singleViewAction->setCheckable(true);
 	  connect(singleViewAction, SIGNAL(triggered(bool)), SLOT(showSingleView()));
-	splitViewAction = new QAction(QPixmap(xpm_split_view), _("Split View"), this);
+	splitViewAction = new QAction(QPixmap(xpm_split_view), "Split View", this);
 	splitViewAction->setCheckable(true);
 	  connect(splitViewAction, SIGNAL(triggered(bool)), SLOT(showSplitView()));
-	fullViewAction = new QAction(QPixmap(xpm_tree_view), _("Full View"), this);
+	fullViewAction = new QAction(QPixmap(xpm_tree_view), "Full View", this);
 	fullViewAction->setCheckable(true);
 	  connect(fullViewAction, SIGNAL(triggered(bool)), SLOT(showFullView()));
 
-	QAction *showNameAction = new QAction(_("Show Name"), this);
+	QAction *showNameAction = new QAction("Show Name", this);
 	  showNameAction->setCheckable(true);
 	  connect(showNameAction, SIGNAL(toggled(bool)), configView, SLOT(setShowName(bool)));
 	  showNameAction->setChecked(configView->showName());
-	QAction *showRangeAction = new QAction(_("Show Range"), this);
+	QAction *showRangeAction = new QAction("Show Range", this);
 	  showRangeAction->setCheckable(true);
 	  connect(showRangeAction, SIGNAL(toggled(bool)), configView, SLOT(setShowRange(bool)));
-	QAction *showDataAction = new QAction(_("Show Data"), this);
+	QAction *showDataAction = new QAction("Show Data", this);
 	  showDataAction->setCheckable(true);
 	  connect(showDataAction, SIGNAL(toggled(bool)), configView, SLOT(setShowData(bool)));
 
@@ -1435,21 +1426,21 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(optGroup, SIGNAL(triggered(QAction *)), menuView,
 		SLOT(setOptionMode(QAction *)));
 
-	configView->showNormalAction = new QAction(_("Show Normal Options"), optGroup);
-	configView->showAllAction = new QAction(_("Show All Options"), optGroup);
-	configView->showPromptAction = new QAction(_("Show Prompt Options"), optGroup);
+	configView->showNormalAction = new QAction("Show Normal Options", optGroup);
+	configView->showAllAction = new QAction("Show All Options", optGroup);
+	configView->showPromptAction = new QAction("Show Prompt Options", optGroup);
 	configView->showNormalAction->setCheckable(true);
 	configView->showAllAction->setCheckable(true);
 	configView->showPromptAction->setCheckable(true);
 
-	QAction *showDebugAction = new QAction( _("Show Debug Info"), this);
+	QAction *showDebugAction = new QAction("Show Debug Info", this);
 	  showDebugAction->setCheckable(true);
 	  connect(showDebugAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDebug(bool)));
 	  showDebugAction->setChecked(helpText->showDebug());
 
-	QAction *showIntroAction = new QAction( _("Introduction"), this);
+	QAction *showIntroAction = new QAction("Introduction", this);
 	  connect(showIntroAction, SIGNAL(triggered(bool)), SLOT(showIntro()));
-	QAction *showAboutAction = new QAction( _("About"), this);
+	QAction *showAboutAction = new QAction("About", this);
 	  connect(showAboutAction, SIGNAL(triggered(bool)), SLOT(showAbout()));
 
 	// init tool bar
@@ -1463,7 +1454,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	toolBar->addAction(fullViewAction);
 
 	// create config menu
-	QMenu* config = menu->addMenu(_("&File"));
+	QMenu* config = menu->addMenu("&File");
 	config->addAction(loadAction);
 	config->addAction(saveAction);
 	config->addAction(saveAsAction);
@@ -1471,11 +1462,11 @@ ConfigMainWindow::ConfigMainWindow(void)
 	config->addAction(quitAction);
 
 	// create edit menu
-	QMenu* editMenu = menu->addMenu(_("&Edit"));
+	QMenu* editMenu = menu->addMenu("&Edit");
 	editMenu->addAction(searchAction);
 
 	// create options menu
-	QMenu* optionMenu = menu->addMenu(_("&Option"));
+	QMenu* optionMenu = menu->addMenu("&Option");
 	optionMenu->addAction(showNameAction);
 	optionMenu->addAction(showRangeAction);
 	optionMenu->addAction(showDataAction);
@@ -1486,7 +1477,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	// create help menu
 	menu->addSeparator();
-	QMenu* helpMenu = menu->addMenu(_("&Help"));
+	QMenu* helpMenu = menu->addMenu("&Help");
 	helpMenu->addAction(showIntroAction);
 	helpMenu->addAction(showAboutAction);
 
@@ -1534,14 +1525,14 @@ void ConfigMainWindow::loadConfig(void)
 	if (s.isNull())
 		return;
 	if (conf_read(QFile::encodeName(s)))
-		QMessageBox::information(this, "qconf", _("Unable to load configuration!"));
+		QMessageBox::information(this, "qconf", "Unable to load configuration!");
 	ConfigView::updateListAll();
 }
 
 bool ConfigMainWindow::saveConfig(void)
 {
 	if (conf_write(NULL)) {
-		QMessageBox::information(this, "qconf", _("Unable to save configuration!"));
+		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 		return false;
 	}
 	return true;
@@ -1723,11 +1714,11 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 		e->accept();
 		return;
 	}
-	QMessageBox mb("qconf", _("Save configuration?"), QMessageBox::Warning,
+	QMessageBox mb("qconf", "Save configuration?", QMessageBox::Warning,
 			QMessageBox::Yes | QMessageBox::Default, QMessageBox::No, QMessageBox::Cancel | QMessageBox::Escape);
-	mb.setButtonText(QMessageBox::Yes, _("&Save Changes"));
-	mb.setButtonText(QMessageBox::No, _("&Discard Changes"));
-	mb.setButtonText(QMessageBox::Cancel, _("Cancel Exit"));
+	mb.setButtonText(QMessageBox::Yes, "&Save Changes");
+	mb.setButtonText(QMessageBox::No, "&Discard Changes");
+	mb.setButtonText(QMessageBox::Cancel, "Cancel Exit");
 	switch (mb.exec()) {
 	case QMessageBox::Yes:
 		if (saveConfig())
@@ -1746,7 +1737,7 @@ void ConfigMainWindow::closeEvent(QCloseEvent* e)
 
 void ConfigMainWindow::showIntro(void)
 {
-	static const QString str = _("Welcome to the qconf graphical configuration tool.\n\n"
+	static const QString str = "Welcome to the qconf graphical configuration tool.\n\n"
 		"For each option, a blank box indicates the feature is disabled, a check\n"
 		"indicates it is enabled, and a dot indicates that it is to be compiled\n"
 		"as a module.  Clicking on the box will cycle through the three states.\n\n"
@@ -1756,16 +1747,16 @@ void ConfigMainWindow::showIntro(void)
 		"options must be enabled to support the option you are interested in, you can\n"
 		"still view the help of a grayed-out option.\n\n"
 		"Toggling Show Debug Info under the Options menu will show the dependencies,\n"
-		"which you can then match by examining other options.\n\n");
+		"which you can then match by examining other options.\n\n";
 
 	QMessageBox::information(this, "qconf", str);
 }
 
 void ConfigMainWindow::showAbout(void)
 {
-	static const QString str = _("qconf is Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>.\n"
+	static const QString str = "qconf is Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>.\n"
 		"Copyright (C) 2015 Boris Barbulovski <bbarbulovski@gmail.com>.\n\n"
-		"Bug reports and feature request can also be entered at http://bugzilla.kernel.org/\n");
+		"Bug reports and feature request can also be entered at http://bugzilla.kernel.org/\n";
 
 	QMessageBox::information(this, "qconf", str);
 }
@@ -1826,7 +1817,7 @@ static const char *progname;
 
 static void usage(void)
 {
-	printf(_("%s [-s] <config>\n").toLatin1().constData(), progname);
+	printf("%s [-s] <config>\n", progname);
 	exit(0);
 }
 
@@ -1834,9 +1825,6 @@ int main(int ac, char** av)
 {
 	ConfigMainWindow* v;
 	const char *name;
-
-	bindtextdomain(PACKAGE, LOCALEDIR);
-	textdomain(PACKAGE);
 
 	progname = av[0];
 	configApp = new QApplication(ac, av);

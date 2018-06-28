@@ -41,7 +41,7 @@
 #define DC_LOGGER \
 	xfm_dce->base.ctx->logger
 
-#define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
+#define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 #define GAMUT_MATRIX_SIZE 12
 #define SCL_PHASES 16
 
@@ -256,27 +256,27 @@ static void calculate_inits(
 	struct fixed31_32 v_init;
 
 	inits->h_int_scale_ratio =
-		dal_fixed31_32_u2d19(data->ratios.horz) << 5;
+		dc_fixpt_u2d19(data->ratios.horz) << 5;
 	inits->v_int_scale_ratio =
-		dal_fixed31_32_u2d19(data->ratios.vert) << 5;
+		dc_fixpt_u2d19(data->ratios.vert) << 5;
 
 	h_init =
-		dal_fixed31_32_div_int(
-			dal_fixed31_32_add(
+		dc_fixpt_div_int(
+			dc_fixpt_add(
 				data->ratios.horz,
-				dal_fixed31_32_from_int(data->taps.h_taps + 1)),
+				dc_fixpt_from_int(data->taps.h_taps + 1)),
 				2);
-	inits->h_init.integer = dal_fixed31_32_floor(h_init);
-	inits->h_init.fraction = dal_fixed31_32_u0d19(h_init) << 5;
+	inits->h_init.integer = dc_fixpt_floor(h_init);
+	inits->h_init.fraction = dc_fixpt_u0d19(h_init) << 5;
 
 	v_init =
-		dal_fixed31_32_div_int(
-			dal_fixed31_32_add(
+		dc_fixpt_div_int(
+			dc_fixpt_add(
 				data->ratios.vert,
-				dal_fixed31_32_from_int(data->taps.v_taps + 1)),
+				dc_fixpt_from_int(data->taps.v_taps + 1)),
 				2);
-	inits->v_init.integer = dal_fixed31_32_floor(v_init);
-	inits->v_init.fraction = dal_fixed31_32_u0d19(v_init) << 5;
+	inits->v_init.integer = dc_fixpt_floor(v_init);
+	inits->v_init.fraction = dc_fixpt_u0d19(v_init) << 5;
 }
 
 static void program_scl_ratios_inits(

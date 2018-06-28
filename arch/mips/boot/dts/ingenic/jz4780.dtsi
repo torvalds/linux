@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/jz4780-cgu.h>
+#include <dt-bindings/dma/jz4780-dma.h>
 
 / {
 	#address-cells = <1>;
@@ -221,7 +222,10 @@
 
 	watchdog: watchdog@10002000 {
 		compatible = "ingenic,jz4780-watchdog";
-		reg = <0x10002000 0x100>;
+		reg = <0x10002000 0x10>;
+
+		clocks = <&cgu JZ4780_CLK_RTCLK>;
+		clock-names = "rtc";
 	};
 
 	nemc: nemc@13410000 {
@@ -237,6 +241,57 @@
 			  6 0 0x16000000 0x1000000>;
 
 		clocks = <&cgu JZ4780_CLK_NEMC>;
+
+		status = "disabled";
+	};
+
+	dma: dma@13420000 {
+		compatible = "ingenic,jz4780-dma";
+		reg = <0x13420000 0x10000>;
+		#dma-cells = <2>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <10>;
+
+		clocks = <&cgu JZ4780_CLK_PDMA>;
+	};
+
+	mmc0: mmc@13450000 {
+		compatible = "ingenic,jz4780-mmc";
+		reg = <0x13450000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <37>;
+
+		clocks = <&cgu JZ4780_CLK_MSC0>;
+		clock-names = "mmc";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+		dmas = <&dma JZ4780_DMA_MSC0_RX 0xffffffff>,
+		       <&dma JZ4780_DMA_MSC0_TX 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		status = "disabled";
+	};
+
+	mmc1: mmc@13460000 {
+		compatible = "ingenic,jz4780-mmc";
+		reg = <0x13460000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <36>;
+
+		clocks = <&cgu JZ4780_CLK_MSC1>;
+		clock-names = "mmc";
+
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		cap-sdio-irq;
+		dmas = <&dma JZ4780_DMA_MSC1_RX 0xffffffff>,
+		       <&dma JZ4780_DMA_MSC1_TX 0xffffffff>;
+		dma-names = "rx", "tx";
 
 		status = "disabled";
 	};

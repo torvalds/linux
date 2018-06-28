@@ -48,7 +48,7 @@ static struct dentry *dfs_inj;
 
 static u8 n_banks;
 
-#define MAX_FLAG_OPT_SIZE	3
+#define MAX_FLAG_OPT_SIZE	4
 #define NBCFG			0x44
 
 enum injection_type {

@@ -105,16 +105,16 @@ static void qxl_ttm_global_fini(struct qxl_device *qdev)
 static struct vm_operations_struct qxl_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops;
 
-static int qxl_ttm_fault(struct vm_fault *vmf)
+static vm_fault_t qxl_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
-	int r;
+	vm_fault_t ret;
 
 	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
 	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
-	r = ttm_vm_ops->fault(vmf);
-	return r;
+	ret = ttm_vm_ops->fault(vmf);
+	return ret;
 }
 
 int qxl_mmap(struct file *filp, struct vm_area_struct *vma)

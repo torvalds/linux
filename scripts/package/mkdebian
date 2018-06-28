@@ -71,22 +71,21 @@ if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
 fi
 
-# Try to determine maintainer and email values
-if [ -n "$DEBEMAIL" ]; then
-       email=$DEBEMAIL
-elif [ -n "$EMAIL" ]; then
-       email=$EMAIL
+email=${DEBEMAIL-$EMAIL}
+
+# use email string directly if it contains <email>
+if echo $email | grep -q '<.*>'; then
+	maintainer=$email
 else
-       email=$(id -nu)@$(hostname -f 2>/dev/null || hostname)
+	# or construct the maintainer string
+	user=${KBUILD_BUILD_USER-$(id -nu)}
+	name=${DEBFULLNAME-$user}
+	if [ -z "$email" ]; then
+		buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
+		email="$user@$buildhost"
+	fi
+	maintainer="$name <$email>"
 fi
-if [ -n "$DEBFULLNAME" ]; then
-       name=$DEBFULLNAME
-elif [ -n "$NAME" ]; then
-       name=$NAME
-else
-       name="Anonymous"
-fi
-maintainer="$name <$email>"
 
 # Try to determine distribution
 if [ -n "$KDEB_CHANGELOG_DIST" ]; then

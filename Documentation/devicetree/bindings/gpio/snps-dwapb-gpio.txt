@@ -26,8 +26,13 @@ controller.
   the second encodes the triger flags encoded as described in
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - interrupt-parent : The parent interrupt controller.
-- interrupts : The interrupt to the parent controller raised when GPIOs
-  generate the interrupts.
+- interrupts : The interrupts to the parent controller raised when GPIOs
+  generate the interrupts. If the controller provides one combined interrupt
+  for all GPIOs, specify a single interrupt. If the controller provides one
+  interrupt for each GPIO, provide a list of interrupts that correspond to each
+  of the GPIO pins. When specifying multiple interrupts, if any are unconnected,
+  use the interrupts-extended property to specify the interrupts and set the
+  interrupt controller handle for unused interrupts to 0.
 - snps,nr-gpios : The number of pins in the port, a single cell.
 - resets : Reset line for the controller.
 

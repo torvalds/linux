@@ -39,9 +39,9 @@ static int ifnum_to_use = -1;
 
 /* Our local state. */
 static int ready;
-static ipmi_user_t ipmi_user;
+static struct ipmi_user *ipmi_user;
 static int ipmi_ifnum;
-static void (*specific_poweroff_func)(ipmi_user_t user);
+static void (*specific_poweroff_func)(struct ipmi_user *user);
 
 /* Holds the old poweroff function so we can restore it on removal. */
 static void (*old_poweroff_func)(void);
@@ -118,7 +118,7 @@ static const struct ipmi_user_hndl ipmi_poweroff_handler = {
 };
 
 
-static int ipmi_request_wait_for_response(ipmi_user_t            user,
+static int ipmi_request_wait_for_response(struct ipmi_user       *user,
 					  struct ipmi_addr       *addr,
 					  struct kernel_ipmi_msg *send_msg)
 {
@@ -138,7 +138,7 @@ static int ipmi_request_wait_for_response(ipmi_user_t            user,
 }
 
 /* Wait for message to complete, spinning. */
-static int ipmi_request_in_rc_mode(ipmi_user_t            user,
+static int ipmi_request_in_rc_mode(struct ipmi_user       *user,
 				   struct ipmi_addr       *addr,
 				   struct kernel_ipmi_msg *send_msg)
 {
@@ -178,9 +178,9 @@ static int ipmi_request_in_rc_mode(ipmi_user_t            user,
 #define IPMI_MOTOROLA_MANUFACTURER_ID		0x0000A1
 #define IPMI_MOTOROLA_PPS_IPMC_PRODUCT_ID	0x0051
 
-static void (*atca_oem_poweroff_hook)(ipmi_user_t user);
+static void (*atca_oem_poweroff_hook)(struct ipmi_user *user);
 
-static void pps_poweroff_atca(ipmi_user_t user)
+static void pps_poweroff_atca(struct ipmi_user *user)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct kernel_ipmi_msg            send_msg;
@@ -208,7 +208,7 @@ static void pps_poweroff_atca(ipmi_user_t user)
 	return;
 }
 
-static int ipmi_atca_detect(ipmi_user_t user)
+static int ipmi_atca_detect(struct ipmi_user *user)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct kernel_ipmi_msg            send_msg;
@@ -245,7 +245,7 @@ static int ipmi_atca_detect(ipmi_user_t user)
 	return !rv;
 }
 
-static void ipmi_poweroff_atca(ipmi_user_t user)
+static void ipmi_poweroff_atca(struct ipmi_user *user)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct kernel_ipmi_msg            send_msg;
@@ -309,13 +309,13 @@ static void ipmi_poweroff_atca(ipmi_user_t user)
 #define IPMI_CPI1_PRODUCT_ID		0x000157
 #define IPMI_CPI1_MANUFACTURER_ID	0x0108
 
-static int ipmi_cpi1_detect(ipmi_user_t user)
+static int ipmi_cpi1_detect(struct ipmi_user *user)
 {
 	return ((mfg_id == IPMI_CPI1_MANUFACTURER_ID)
 		&& (prod_id == IPMI_CPI1_PRODUCT_ID));
 }
 
-static void ipmi_poweroff_cpi1(ipmi_user_t user)
+static void ipmi_poweroff_cpi1(struct ipmi_user *user)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct ipmi_ipmb_addr             ipmb_addr;
@@ -424,7 +424,7 @@ static void ipmi_poweroff_cpi1(ipmi_user_t user)
  */
 
 #define DELL_IANA_MFR_ID {0xA2, 0x02, 0x00}
-static int ipmi_dell_chassis_detect(ipmi_user_t user)
+static int ipmi_dell_chassis_detect(struct ipmi_user *user)
 {
 	const char ipmi_version_major = ipmi_version & 0xF;
 	const char ipmi_version_minor = (ipmi_version >> 4) & 0xF;
@@ -445,7 +445,7 @@ static int ipmi_dell_chassis_detect(ipmi_user_t user)
 
 #define HP_IANA_MFR_ID 0x0b
 #define HP_BMC_PROD_ID 0x8201
-static int ipmi_hp_chassis_detect(ipmi_user_t user)
+static int ipmi_hp_chassis_detect(struct ipmi_user *user)
 {
 	if (mfg_id == HP_IANA_MFR_ID
 		&& prod_id == HP_BMC_PROD_ID
@@ -461,13 +461,13 @@ static int ipmi_hp_chassis_detect(ipmi_user_t user)
 #define IPMI_NETFN_CHASSIS_REQUEST	0
 #define IPMI_CHASSIS_CONTROL_CMD	0x02
 
-static int ipmi_chassis_detect(ipmi_user_t user)
+static int ipmi_chassis_detect(struct ipmi_user *user)
 {
 	/* Chassis support, use it. */
 	return (capabilities & 0x80);
 }
 
-static void ipmi_poweroff_chassis(ipmi_user_t user)
+static void ipmi_poweroff_chassis(struct ipmi_user *user)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct kernel_ipmi_msg            send_msg;
@@ -517,8 +517,8 @@ static void ipmi_poweroff_chassis(ipmi_user_t user)
 /* Table of possible power off functions. */
 struct poweroff_function {
 	char *platform_type;
-	int  (*detect)(ipmi_user_t user);
-	void (*poweroff_func)(ipmi_user_t user);
+	int  (*detect)(struct ipmi_user *user);
+	void (*poweroff_func)(struct ipmi_user *user);
 };
 
 static struct poweroff_function poweroff_functions[] = {

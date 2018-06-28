@@ -242,7 +242,7 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	.gem_free_object = vbox_gem_free_object,
+	.gem_free_object_unlocked = vbox_gem_free_object,
 	.dumb_create = vbox_dumb_create,
 	.dumb_map_offset = vbox_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,

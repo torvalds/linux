@@ -29,7 +29,7 @@
 #include <drm/drm_print.h>
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		18
+#define AMDGPU_MAX_RINGS		21
 #define AMDGPU_MAX_GFX_RINGS		1
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
@@ -42,6 +42,7 @@
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
+#define AMDGPU_FENCE_FLAG_TC_WB_ONLY    (1 << 2)
 
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX,
@@ -90,7 +91,8 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
+		      unsigned flags);
 int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
@@ -154,6 +156,9 @@ struct amdgpu_ring_funcs {
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
 	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
 			      uint32_t val, uint32_t mask);
+	void (*emit_reg_write_reg_wait)(struct amdgpu_ring *ring,
+					uint32_t reg0, uint32_t reg1,
+					uint32_t ref, uint32_t mask);
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
@@ -228,6 +233,10 @@ int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
 			int *blacklist, int num_blacklist,
 			bool lru_pipe_order, struct amdgpu_ring **ring);
 void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring);
+void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
+						uint32_t reg0, uint32_t val0,
+						uint32_t reg1, uint32_t val1);
+
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;

@@ -2084,21 +2084,6 @@ static const struct seq_operations scc_net_seq_ops = {
 	.stop   = scc_net_seq_stop,
 	.show   = scc_net_seq_show,
 };
-
-
-static int scc_net_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &scc_net_seq_ops);
-}
-
-static const struct file_operations scc_net_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open	 = scc_net_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_private,
-};
-
 #endif /* CONFIG_PROC_FS */
 
  
@@ -2122,7 +2107,7 @@ static int __init scc_init_driver (void)
 	}
 	rtnl_unlock();
 
-	proc_create("z8530drv", 0, init_net.proc_net, &scc_net_seq_fops);
+	proc_create_seq("z8530drv", 0, init_net.proc_net, &scc_net_seq_ops);
 
 	return 0;
 }

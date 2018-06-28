@@ -656,7 +656,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rstc = devm_reset_control_get(dev, NULL);
+	rstc = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(rstc)) {
 		reset_control_assert(rstc);
 		udelay(2);

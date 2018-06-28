@@ -1621,8 +1621,8 @@ static int fill_files_note(struct memelfnote *note)
 	if (size >= MAX_FILE_NOTE_SIZE) /* paranoia check */
 		return -EINVAL;
 	size = round_up(size, PAGE_SIZE);
-	data = vmalloc(size);
-	if (!data)
+	data = kvmalloc(size, GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(data))
 		return -ENOMEM;
 
 	start_end_ofs = data + 2;
@@ -1639,7 +1639,7 @@ static int fill_files_note(struct memelfnote *note)
 		filename = file_path(file, name_curpos, remaining);
 		if (IS_ERR(filename)) {
 			if (PTR_ERR(filename) == -ENAMETOOLONG) {
-				vfree(data);
+				kvfree(data);
 				size = size * 5 / 4;
 				goto alloc;
 			}
@@ -1932,7 +1932,7 @@ static void free_note_info(struct elf_note_info *info)
 		kfree(t);
 	}
 	kfree(info->psinfo.data);
-	vfree(info->files.data);
+	kvfree(info->files.data);
 }
 
 #else
@@ -2010,7 +2010,7 @@ static int elf_note_info_init(struct elf_note_info *info)
 	INIT_LIST_HEAD(&info->thread_list);
 
 	/* Allocate space for ELF notes */
-	info->notes = kmalloc(8 * sizeof(struct memelfnote), GFP_KERNEL);
+	info->notes = kmalloc_array(8, sizeof(struct memelfnote), GFP_KERNEL);
 	if (!info->notes)
 		return 0;
 	info->psinfo = kmalloc(sizeof(*info->psinfo), GFP_KERNEL);
@@ -2148,7 +2148,7 @@ static void free_note_info(struct elf_note_info *info)
 
 	/* Free data possibly allocated by fill_files_note(): */
 	if (info->notes_files)
-		vfree(info->notes_files->data);
+		kvfree(info->notes_files->data);
 
 	kfree(info->prstatus);
 	kfree(info->psinfo);
@@ -2294,8 +2294,9 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	if (segs - 1 > ULONG_MAX / sizeof(*vma_filesz))
 		goto end_coredump;
-	vma_filesz = vmalloc((segs - 1) * sizeof(*vma_filesz));
-	if (!vma_filesz)
+	vma_filesz = kvmalloc(array_size(sizeof(*vma_filesz), (segs - 1)),
+			      GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(vma_filesz))
 		goto end_coredump;
 
 	for (i = 0, vma = first_vma(current, gate_vma); vma != NULL;
@@ -2402,7 +2403,7 @@ end_coredump:
 cleanup:
 	free_note_info(&info);
 	kfree(shdr4extnum);
-	vfree(vma_filesz);
+	kvfree(vma_filesz);
 	kfree(phdr4note);
 	kfree(elf);
 out:

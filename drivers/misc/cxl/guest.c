@@ -89,7 +89,7 @@ static ssize_t guest_collect_vpd(struct cxl *adapter, struct cxl_afu *afu,
 		mod = 0;
 	}
 
-	vpd_buf = kzalloc(entries * sizeof(unsigned long *), GFP_KERNEL);
+	vpd_buf = kcalloc(entries, sizeof(unsigned long *), GFP_KERNEL);
 	if (!vpd_buf)
 		return -ENOMEM;
 

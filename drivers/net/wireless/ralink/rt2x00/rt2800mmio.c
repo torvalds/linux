@@ -600,6 +600,7 @@ void rt2800mmio_kick_queue(struct data_queue *queue)
 	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
+		WARN_ON_ONCE(rt2x00queue_empty(queue));
 		entry = rt2x00queue_get_entry(queue, Q_INDEX);
 		rt2x00mmio_register_write(rt2x00dev, TX_CTX_IDX(queue->qid),
 					  entry->entry_idx);

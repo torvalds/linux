@@ -301,7 +301,13 @@ static inline struct irq_domain *irq_find_matching_host(struct device_node *node
 
 static inline struct irq_domain *irq_find_host(struct device_node *node)
 {
-	return irq_find_matching_host(node, DOMAIN_BUS_ANY);
+	struct irq_domain *d;
+
+	d = irq_find_matching_host(node, DOMAIN_BUS_WIRED);
+	if (!d)
+		d = irq_find_matching_host(node, DOMAIN_BUS_ANY);
+
+	return d;
 }
 
 /**

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 SYSFS=
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 prerequisite()
 {
@@ -9,7 +11,7 @@ prerequisite()
 
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	taskset -p 01 $$
@@ -18,12 +20,12 @@ prerequisite()
 
 	if [ ! -d "$SYSFS" ]; then
 		echo $msg sysfs is not mounted >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
 		echo $msg cpu hotplug is not supported >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	echo "CPU online/offline summary:"
@@ -32,7 +34,7 @@ prerequisite()
 
 	if [[ "$online_cpus" = "$online_max" ]]; then
 		echo "$msg: since there is only one cpu: $online_cpus"
-		exit 0
+		exit $ksft_skip
 	fi
 
 	echo -e "\t Cpus in online state: $online_cpus"
@@ -237,12 +239,12 @@ prerequisite_extra()
 
 	if [ ! -d "$DEBUGFS" ]; then
 		echo $msg debugfs is not mounted >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
 		echo $msg cpu-notifier-error-inject module is not available >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 

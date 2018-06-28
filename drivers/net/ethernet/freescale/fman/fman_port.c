@@ -1391,12 +1391,10 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 		/* FM_WRONG_RESET_VALUES_ERRATA_FMAN_A005127 Errata
 		 * workaround
 		 */
-		if (port->rev_info.major >= 6) {
-			u32 reg;
+		u32 reg;
 
-			reg = 0x00001013;
-			iowrite32be(reg, &port->bmi_regs->tx.fmbm_tfp);
-		}
+		reg = 0x00001013;
+		iowrite32be(reg, &port->bmi_regs->tx.fmbm_tfp);
 	}
 
 	return 0;

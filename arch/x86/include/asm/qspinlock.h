@@ -7,6 +7,14 @@
 #include <asm-generic/qspinlock_types.h>
 #include <asm/paravirt.h>
 
+#define _Q_PENDING_LOOPS	(1 << 9)
+
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+extern void native_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
+extern void __pv_init_lock_hash(void);
+extern void __pv_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
+extern void __raw_callee_save___pv_queued_spin_unlock(struct qspinlock *lock);
+
 #define	queued_spin_unlock queued_spin_unlock
 /**
  * queued_spin_unlock - release a queued spinlock
@@ -16,14 +24,8 @@
  */
 static inline void native_queued_spin_unlock(struct qspinlock *lock)
 {
-	smp_store_release((u8 *)lock, 0);
+	smp_store_release(&lock->locked, 0);
 }
-
-#ifdef CONFIG_PARAVIRT_SPINLOCKS
-extern void native_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
-extern void __pv_init_lock_hash(void);
-extern void __pv_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
-extern void __raw_callee_save___pv_queued_spin_unlock(struct qspinlock *lock);
 
 static inline void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 {
@@ -39,11 +41,6 @@ static inline void queued_spin_unlock(struct qspinlock *lock)
 static inline bool vcpu_is_preempted(long cpu)
 {
 	return pv_vcpu_is_preempted(cpu);
-}
-#else
-static inline void queued_spin_unlock(struct qspinlock *lock)
-{
-	native_queued_spin_unlock(lock);
 }
 #endif
 

@@ -168,6 +168,7 @@ static VCHIQ_STATE_T g_state;
 static struct class  *vchiq_class;
 static struct device *vchiq_dev;
 static DEFINE_SPINLOCK(msg_queue_spinlock);
+static struct platform_device *bcm2835_camera;
 
 static const char *const ioctl_names[] = {
 	"CONNECT",
@@ -215,7 +216,7 @@ VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 		state = vchiq_get_state();
 		if (state)
 			break;
-		udelay(500);
+		usleep_range(500, 600);
 	}
 	if (i == VCHIQ_INIT_RETRIES) {
 		vchiq_log_error(vchiq_core_log_level,
@@ -563,7 +564,7 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 		/* Out of space - wait for the client */
 		DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 		vchiq_log_trace(vchiq_arm_log_level,
-			"add_completion - completion queue full");
+			"%s - completion queue full", __func__);
 		DEBUG_COUNT(COMPLETION_QUEUE_FULL_COUNT);
 		if (down_interruptible(&instance->remove_event) != 0) {
 			vchiq_log_info(vchiq_arm_log_level,
@@ -641,9 +642,9 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 		return VCHIQ_SUCCESS;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"service_callback - service %lx(%d,%p), reason %d, header %lx, "
+		"%s - service %lx(%d,%p), reason %d, header %lx, "
 		"instance %lx, bulk_userdata %lx",
-		(unsigned long)user_service,
+		__func__, (unsigned long)user_service,
 		service->localport, user_service->userdata,
 		reason, (unsigned long)header,
 		(unsigned long)instance, (unsigned long)bulk_userdata);
@@ -679,12 +680,12 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 			if (down_interruptible(&user_service->remove_event)
 				!= 0) {
 				vchiq_log_info(vchiq_arm_log_level,
-					"service_callback interrupted");
+					"%s interrupted", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				return VCHIQ_RETRY;
 			} else if (instance->closing) {
 				vchiq_log_info(vchiq_arm_log_level,
-					"service_callback closing");
+					"%s closing", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				return VCHIQ_ERROR;
 			}
@@ -740,8 +741,8 @@ user_service_free(void *userdata)
 static void close_delivered(USER_SERVICE_T *user_service)
 {
 	vchiq_log_info(vchiq_arm_log_level,
-		"close_delivered(handle=%x)",
-		user_service->service->handle);
+		"%s(handle=%x)",
+		__func__, user_service->service->handle);
 
 	if (user_service->close_pending) {
 		/* Allow the underlying service to be culled */
@@ -872,8 +873,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	DEBUG_INITIALISE(g_state.local)
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"vchiq_ioctl - instance %pK, cmd %s, arg %lx",
-		instance,
+		"%s - instance %pK, cmd %s, arg %lx",
+		__func__, instance,
 		((_IOC_TYPE(cmd) == VCHIQ_IOC_MAGIC) &&
 		(_IOC_NR(cmd) <= VCHIQ_IOC_MAX)) ?
 		ioctl_names[_IOC_NR(cmd)] : "<invalid>", arg);
@@ -2017,7 +2018,6 @@ vchiq_open(struct inode *inode, struct file *file)
 	vchiq_log_info(vchiq_arm_log_level, "vchiq_open");
 	switch (dev) {
 	case VCHIQ_MINOR: {
-		int ret;
 		VCHIQ_STATE_T *state = vchiq_get_state();
 		VCHIQ_INSTANCE_T instance;
 
@@ -2034,11 +2034,7 @@ vchiq_open(struct inode *inode, struct file *file)
 		instance->state = state;
 		instance->pid = current->tgid;
 
-		ret = vchiq_debugfs_add_instance(instance);
-		if (ret != 0) {
-			kfree(instance);
-			return ret;
-		}
+		vchiq_debugfs_add_instance(instance);
 
 		sema_init(&instance->insert_event, 0);
 		sema_init(&instance->remove_event, 0);
@@ -2078,8 +2074,8 @@ vchiq_release(struct inode *inode, struct file *file)
 		int i;
 
 		vchiq_log_info(vchiq_arm_log_level,
-			"vchiq_release: instance=%lx",
-			(unsigned long)instance);
+			"%s: instance=%lx",
+			__func__, (unsigned long)instance);
 
 		if (!state) {
 			ret = -EPERM;
@@ -2128,9 +2124,11 @@ vchiq_release(struct inode *inode, struct file *file)
 
 			while (user_service->msg_remove !=
 				user_service->msg_insert) {
-				VCHIQ_HEADER_T *header = user_service->
-					msg_queue[user_service->msg_remove &
-						(MSG_QUEUE_SIZE - 1)];
+				VCHIQ_HEADER_T *header;
+				int m = user_service->msg_remove &
+					(MSG_QUEUE_SIZE - 1);
+
+				header = user_service->msg_queue[m];
 				user_service->msg_remove++;
 				spin_unlock(&msg_queue_spinlock);
 
@@ -2666,8 +2664,7 @@ start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state)
 {
 	del_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer.expires = jiffies +
-		msecs_to_jiffies(arm_state->
-			suspend_timer_timeout);
+		msecs_to_jiffies(arm_state->suspend_timer_timeout);
 	add_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer_running = 1;
 }
@@ -3019,7 +3016,6 @@ vchiq_check_suspend(VCHIQ_STATE_T *state)
 
 out:
 	vchiq_log_trace(vchiq_susp_log_level, "%s exit", __func__);
-	return;
 }
 
 int
@@ -3414,13 +3410,18 @@ vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle)
 	return ret;
 }
 
+struct service_data_struct {
+	int fourcc;
+	int clientid;
+	int use_count;
+};
+
 void
 vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
-	int i, j = 0;
-	/* Only dump 64 services */
-	static const int local_max_services = 64;
+	struct service_data_struct *service_data;
+	int i, found = 0;
 	/* If there's more than 64 services, only dump ones with
 	 * non-zero counts */
 	int only_nonzero = 0;
@@ -3431,13 +3432,13 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	int peer_count;
 	int vc_use_count;
 	int active_services;
-	struct service_data_struct {
-		int fourcc;
-		int clientid;
-		int use_count;
-	} service_data[local_max_services];
 
 	if (!arm_state)
+		return;
+
+	service_data = kmalloc_array(MAX_SERVICES, sizeof(*service_data),
+				     GFP_KERNEL);
+	if (!service_data)
 		return;
 
 	read_lock_bh(&arm_state->susp_res_lock);
@@ -3446,10 +3447,10 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	peer_count = arm_state->peer_use_count;
 	vc_use_count = arm_state->videocore_use_count;
 	active_services = state->unused_service;
-	if (active_services > local_max_services)
+	if (active_services > MAX_SERVICES)
 		only_nonzero = 1;
 
-	for (i = 0; (i < active_services) && (j < local_max_services); i++) {
+	for (i = 0; i < active_services; i++) {
 		VCHIQ_SERVICE_T *service_ptr = state->services[i];
 
 		if (!service_ptr)
@@ -3461,9 +3462,12 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		if (service_ptr->srvstate == VCHIQ_SRVSTATE_FREE)
 			continue;
 
-		service_data[j].fourcc = service_ptr->base.fourcc;
-		service_data[j].clientid = service_ptr->client_id;
-		service_data[j++].use_count = service_ptr->service_use_count;
+		service_data[found].fourcc = service_ptr->base.fourcc;
+		service_data[found].clientid = service_ptr->client_id;
+		service_data[found].use_count = service_ptr->service_use_count;
+		found++;
+		if (found >= MAX_SERVICES)
+			break;
 	}
 
 	read_unlock_bh(&arm_state->susp_res_lock);
@@ -3478,10 +3482,9 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 	if (only_nonzero)
 		vchiq_log_warning(vchiq_susp_log_level, "Too many active "
 			"services (%d).  Only dumping up to first %d services "
-			"with non-zero use-count", active_services,
-			local_max_services);
+			"with non-zero use-count", active_services, found);
 
-	for (i = 0; i < j; i++) {
+	for (i = 0; i < found; i++) {
 		vchiq_log_warning(vchiq_susp_log_level,
 			"----- %c%c%c%c:%d service count %d %s",
 			VCHIQ_FOURCC_AS_4CHARS(service_data[i].fourcc),
@@ -3493,6 +3496,8 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		"----- VCHIQ use count count %d", peer_count);
 	vchiq_log_warning(vchiq_susp_log_level,
 		"--- Overall vchiq instance use count %d", vc_use_count);
+
+	kfree(service_data);
 
 	vchiq_dump_platform_use_state(state);
 }
@@ -3620,19 +3625,19 @@ static int vchiq_probe(struct platform_device *pdev)
 		goto failed_device_create;
 
 	/* create debugfs entries */
-	err = vchiq_debugfs_init();
-	if (err != 0)
-		goto failed_debugfs_init;
+	vchiq_debugfs_init();
 
 	vchiq_log_info(vchiq_arm_log_level,
 		"vchiq: initialised - version %d (min %d), device %d.%d",
 		VCHIQ_VERSION, VCHIQ_VERSION_MIN,
 		MAJOR(vchiq_devid), MINOR(vchiq_devid));
 
+	bcm2835_camera = platform_device_register_data(&pdev->dev,
+						       "bcm2835-camera", -1,
+						       NULL, 0);
+
 	return 0;
 
-failed_debugfs_init:
-	device_destroy(vchiq_class, vchiq_devid);
 failed_device_create:
 	class_destroy(vchiq_class);
 failed_class_create:
@@ -3646,6 +3651,7 @@ failed_platform_init:
 
 static int vchiq_remove(struct platform_device *pdev)
 {
+	platform_device_unregister(bcm2835_camera);
 	vchiq_debugfs_deinit();
 	device_destroy(vchiq_class, vchiq_devid);
 	class_destroy(vchiq_class);

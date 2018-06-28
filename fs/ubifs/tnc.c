@@ -1104,8 +1104,9 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
 	ubifs_assert(znode);
 	if (c->zroot.znode->level > BOTTOM_UP_HEIGHT) {
 		kfree(c->bottom_up_buf);
-		c->bottom_up_buf = kmalloc(c->zroot.znode->level * sizeof(int),
-					   GFP_NOFS);
+		c->bottom_up_buf = kmalloc_array(c->zroot.znode->level,
+						 sizeof(int),
+						 GFP_NOFS);
 		if (!c->bottom_up_buf)
 			return ERR_PTR(-ENOMEM);
 		path = c->bottom_up_buf;

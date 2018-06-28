@@ -289,6 +289,107 @@ config CRYPTO_CHACHA20POLY1305
 	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
 	  IETF protocols.
 
+config CRYPTO_AEGIS128
+	tristate "AEGIS-128 AEAD algorithm"
+	select CRYPTO_AEAD
+	select CRYPTO_AES  # for AES S-box tables
+	help
+	 Support for the AEGIS-128 dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS128L
+	tristate "AEGIS-128L AEAD algorithm"
+	select CRYPTO_AEAD
+	select CRYPTO_AES  # for AES S-box tables
+	help
+	 Support for the AEGIS-128L dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS256
+	tristate "AEGIS-256 AEAD algorithm"
+	select CRYPTO_AEAD
+	select CRYPTO_AES  # for AES S-box tables
+	help
+	 Support for the AEGIS-256 dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS128_AESNI_SSE2
+	tristate "AEGIS-128 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-128 dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS128L_AESNI_SSE2
+	tristate "AEGIS-128L AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-128L dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS256_AESNI_SSE2
+	tristate "AEGIS-256 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	 AESNI+SSE2 implementation of the AEGSI-256 dedicated AEAD algorithm.
+
+config CRYPTO_MORUS640
+	tristate "MORUS-640 AEAD algorithm"
+	select CRYPTO_AEAD
+	help
+	  Support for the MORUS-640 dedicated AEAD algorithm.
+
+config CRYPTO_MORUS640_GLUE
+	tristate
+	depends on X86
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	  Common glue for SIMD optimizations of the MORUS-640 dedicated AEAD
+	  algorithm.
+
+config CRYPTO_MORUS640_SSE2
+	tristate "MORUS-640 AEAD algorithm (x86_64 SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_MORUS640_GLUE
+	help
+	  SSE2 implementation of the MORUS-640 dedicated AEAD algorithm.
+
+config CRYPTO_MORUS1280
+	tristate "MORUS-1280 AEAD algorithm"
+	select CRYPTO_AEAD
+	help
+	  Support for the MORUS-1280 dedicated AEAD algorithm.
+
+config CRYPTO_MORUS1280_GLUE
+	tristate
+	depends on X86
+	select CRYPTO_AEAD
+	select CRYPTO_CRYPTD
+	help
+	  Common glue for SIMD optimizations of the MORUS-1280 dedicated AEAD
+	  algorithm.
+
+config CRYPTO_MORUS1280_SSE2
+	tristate "MORUS-1280 AEAD algorithm (x86_64 SSE2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_MORUS1280_GLUE
+	help
+	  SSE2 optimizedimplementation of the MORUS-1280 dedicated AEAD
+	  algorithm.
+
+config CRYPTO_MORUS1280_AVX2
+	tristate "MORUS-1280 AEAD algorithm (x86_64 AVX2 implementation)"
+	depends on X86 && 64BIT
+	select CRYPTO_AEAD
+	select CRYPTO_MORUS1280_GLUE
+	help
+	  AVX2 optimized implementation of the MORUS-1280 dedicated AEAD
+	  algorithm.
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
@@ -1335,34 +1436,6 @@ config CRYPTO_SALSA20
 	  The Salsa20 stream cipher algorithm is designed by Daniel J.
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
-config CRYPTO_SALSA20_586
-	tristate "Salsa20 stream cipher algorithm (i586)"
-	depends on (X86 || UML_X86) && !64BIT
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_SALSA20
-	help
-	  Salsa20 stream cipher algorithm.
-
-	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
-
-	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
-
-config CRYPTO_SALSA20_X86_64
-	tristate "Salsa20 stream cipher algorithm (x86_64)"
-	depends on (X86 || UML_X86) && 64BIT
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_SALSA20
-	help
-	  Salsa20 stream cipher algorithm.
-
-	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
-
-	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
-
 config CRYPTO_CHACHA20
 	tristate "ChaCha20 cipher algorithm"
 	select CRYPTO_BLKCIPHER
@@ -1694,6 +1767,15 @@ config CRYPTO_LZ4HC
 	select LZ4_DECOMPRESS
 	help
 	  This is the LZ4 high compression mode algorithm.
+
+config CRYPTO_ZSTD
+	tristate "Zstd compression algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_ACOMP2
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
+	help
+	  This is the zstd algorithm.
 
 comment "Random Number Generation"
 

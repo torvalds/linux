@@ -34,19 +34,19 @@
 
 static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.shared->srr0;
+	vcpu->arch.regs.nip = vcpu->arch.shared->srr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
 }
 
 static void kvmppc_emul_rfdi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.dsrr0;
+	vcpu->arch.regs.nip = vcpu->arch.dsrr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.dsrr1);
 }
 
 static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.csrr0;
+	vcpu->arch.regs.nip = vcpu->arch.csrr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.csrr1);
 }
 

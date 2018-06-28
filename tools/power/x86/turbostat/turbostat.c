@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -47,9 +48,13 @@
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
+struct timeval interval_tv = {5, 0};
 struct timespec interval_ts = {5, 0};
+struct timespec one_msec = {0, 1000000};
+unsigned int num_iterations;
 unsigned int debug;
 unsigned int quiet;
+unsigned int shown;
 unsigned int sums_need_wide_columns;
 unsigned int rapl_joules;
 unsigned int summary_only;
@@ -58,6 +63,7 @@ unsigned int dump_only;
 unsigned int do_snb_cstates;
 unsigned int do_knl_cstates;
 unsigned int do_slm_cstates;
+unsigned int do_cnl_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
@@ -80,6 +86,8 @@ unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
 unsigned long long  gfx_cur_rc6_ms;
+unsigned long long cpuidle_cur_cpu_lpi_us;
+unsigned long long cpuidle_cur_sys_lpi_us;
 unsigned int gfx_cur_mhz;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
@@ -87,6 +95,7 @@ double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
 unsigned int do_core_perf_limit_reasons;
+unsigned int has_automatic_cstate_conversion;
 unsigned int do_gfx_perf_limit_reasons;
 unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
@@ -100,6 +109,7 @@ unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;		/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 unsigned int has_misc_feature_control;
+unsigned int first_counter_read = 1;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -147,7 +157,9 @@ char *progname;
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
 cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_subset;
 size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
-#define MAX_ADDED_COUNTERS 16
+#define MAX_ADDED_COUNTERS 8
+#define MAX_ADDED_THREAD_COUNTERS 24
+#define BITMASK_SIZE 32
 
 struct thread_data {
 	struct timeval tv_begin;
@@ -159,10 +171,12 @@ struct thread_data {
 	unsigned long long  irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
+	unsigned int apic_id;
+	unsigned int x2apic_id;
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_THREAD_COUNTERS];
 } *thread_even, *thread_odd;
 
 struct core_data {
@@ -183,6 +197,8 @@ struct pkg_data {
 	unsigned long long pc8;
 	unsigned long long pc9;
 	unsigned long long pc10;
+	unsigned long long cpu_lpi;
+	unsigned long long sys_lpi;
 	unsigned long long pkg_wtd_core_c0;
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
@@ -203,12 +219,21 @@ struct pkg_data {
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
 #define EVEN_COUNTERS thread_even, core_even, package_even
 
-#define GET_THREAD(thread_base, thread_no, core_no, pkg_no) \
-	(thread_base + (pkg_no) * topo.num_cores_per_pkg * \
-		topo.num_threads_per_core + \
-		(core_no) * topo.num_threads_per_core + (thread_no))
-#define GET_CORE(core_base, core_no, pkg_no) \
-	(core_base + (pkg_no) * topo.num_cores_per_pkg + (core_no))
+#define GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no)	      \
+	((thread_base) +						      \
+	 ((pkg_no) *							      \
+	  topo.nodes_per_pkg * topo.cores_per_node * topo.threads_per_core) + \
+	 ((node_no) * topo.cores_per_node * topo.threads_per_core) +	      \
+	 ((core_no) * topo.threads_per_core) +				      \
+	 (thread_no))
+
+#define GET_CORE(core_base, core_no, node_no, pkg_no)			\
+	((core_base) +							\
+	 ((pkg_no) *  topo.nodes_per_pkg * topo.cores_per_node) +	\
+	 ((node_no) * topo.cores_per_node) +				\
+	 (core_no))
+
+
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
 
 enum counter_scope {SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE};
@@ -244,14 +269,25 @@ struct system_summary {
 	struct pkg_data packages;
 } average;
 
+struct cpu_topology {
+	int physical_package_id;
+	int logical_cpu_id;
+	int physical_node_id;
+	int logical_node_id;	/* 0-based count within the package */
+	int physical_core_id;
+	int thread_id;
+	cpu_set_t *put_ids; /* Processing Unit/Thread IDs */
+} *cpus;
 
 struct topo_params {
 	int num_packages;
 	int num_cpus;
 	int num_cores;
 	int max_cpu_num;
-	int num_cores_per_pkg;
-	int num_threads_per_core;
+	int max_node_num;
+	int nodes_per_pkg;
+	int cores_per_node;
+	int threads_per_core;
 } topo;
 
 struct timeval tv_even, tv_odd, tv_delta;
@@ -273,27 +309,33 @@ int cpu_is_not_present(int cpu)
 int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg_data *),
 	struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
-	int retval, pkg_no, core_no, thread_no;
+	int retval, pkg_no, core_no, thread_no, node_no;
 
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
-				struct thread_data *t;
-				struct core_data *c;
-				struct pkg_data *p;
+		for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
+			for (node_no = 0; node_no < topo.nodes_per_pkg;
+			     node_no++) {
+				for (thread_no = 0; thread_no <
+					topo.threads_per_core; ++thread_no) {
+					struct thread_data *t;
+					struct core_data *c;
+					struct pkg_data *p;
 
-				t = GET_THREAD(thread_base, thread_no, core_no, pkg_no);
+					t = GET_THREAD(thread_base, thread_no,
+						       core_no, node_no,
+						       pkg_no);
 
-				if (cpu_is_not_present(t->cpu_id))
-					continue;
+					if (cpu_is_not_present(t->cpu_id))
+						continue;
 
-				c = GET_CORE(core_base, core_no, pkg_no);
-				p = GET_PKG(pkg_base, pkg_no);
+					c = GET_CORE(core_base, core_no,
+						     node_no, pkg_no);
+					p = GET_PKG(pkg_base, pkg_no);
 
-				retval = func(t, c, p);
-				if (retval)
-					return retval;
+					retval = func(t, c, p);
+					if (retval)
+						return retval;
+				}
 			}
 		}
 	}
@@ -342,17 +384,23 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 }
 
 /*
- * Each string in this array is compared in --show and --hide cmdline.
- * Thus, strings that are proper sub-sets must follow their more specific peers.
+ * This list matches the column headers, except
+ * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 2. Core and CPU are moved to the end, we can't have strings that contain them
+ *    matching on them for --show and --hide.
  */
 struct msr_counter bic[] = {
+	{ 0x0, "usec" },
+	{ 0x0, "Time_Of_Day_Seconds" },
 	{ 0x0, "Package" },
+	{ 0x0, "Node" },
 	{ 0x0, "Avg_MHz" },
+	{ 0x0, "Busy%" },
 	{ 0x0, "Bzy_MHz" },
 	{ 0x0, "TSC_MHz" },
 	{ 0x0, "IRQ" },
 	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL},
-	{ 0x0, "Busy%" },
+	{ 0x0, "sysfs" },
 	{ 0x0, "CPU%c1" },
 	{ 0x0, "CPU%c3" },
 	{ 0x0, "CPU%c6" },
@@ -369,7 +417,9 @@ struct msr_counter bic[] = {
 	{ 0x0, "Pkg%pc7" },
 	{ 0x0, "Pkg%pc8" },
 	{ 0x0, "Pkg%pc9" },
-	{ 0x0, "Pkg%pc10" },
+	{ 0x0, "Pk%pc10" },
+	{ 0x0, "CPU%LPI" },
+	{ 0x0, "SYS%LPI" },
 	{ 0x0, "PkgWatt" },
 	{ 0x0, "CorWatt" },
 	{ 0x0, "GFXWatt" },
@@ -381,69 +431,79 @@ struct msr_counter bic[] = {
 	{ 0x0, "Cor_J" },
 	{ 0x0, "GFX_J" },
 	{ 0x0, "RAM_J" },
-	{ 0x0, "Core" },
-	{ 0x0, "CPU" },
 	{ 0x0, "Mod%c6" },
-	{ 0x0, "sysfs" },
 	{ 0x0, "Totl%C0" },
 	{ 0x0, "Any%C0" },
 	{ 0x0, "GFX%C0" },
 	{ 0x0, "CPUGFX%" },
+	{ 0x0, "Core" },
+	{ 0x0, "CPU" },
+	{ 0x0, "APIC" },
+	{ 0x0, "X2APIC" },
 };
 
-
-
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
-#define	BIC_Package	(1ULL << 0)
-#define	BIC_Avg_MHz	(1ULL << 1)
-#define	BIC_Bzy_MHz	(1ULL << 2)
-#define	BIC_TSC_MHz	(1ULL << 3)
-#define	BIC_IRQ		(1ULL << 4)
-#define	BIC_SMI		(1ULL << 5)
-#define	BIC_Busy	(1ULL << 6)
-#define	BIC_CPU_c1	(1ULL << 7)
-#define	BIC_CPU_c3	(1ULL << 8)
-#define	BIC_CPU_c6	(1ULL << 9)
-#define	BIC_CPU_c7	(1ULL << 10)
-#define	BIC_ThreadC	(1ULL << 11)
-#define	BIC_CoreTmp	(1ULL << 12)
-#define	BIC_CoreCnt	(1ULL << 13)
-#define	BIC_PkgTmp	(1ULL << 14)
-#define	BIC_GFX_rc6	(1ULL << 15)
-#define	BIC_GFXMHz	(1ULL << 16)
-#define	BIC_Pkgpc2	(1ULL << 17)
-#define	BIC_Pkgpc3	(1ULL << 18)
-#define	BIC_Pkgpc6	(1ULL << 19)
-#define	BIC_Pkgpc7	(1ULL << 20)
-#define	BIC_Pkgpc8	(1ULL << 21)
-#define	BIC_Pkgpc9	(1ULL << 22)
-#define	BIC_Pkgpc10	(1ULL << 23)
-#define	BIC_PkgWatt	(1ULL << 24)
-#define	BIC_CorWatt	(1ULL << 25)
-#define	BIC_GFXWatt	(1ULL << 26)
-#define	BIC_PkgCnt	(1ULL << 27)
-#define	BIC_RAMWatt	(1ULL << 28)
-#define	BIC_PKG__	(1ULL << 29)
-#define	BIC_RAM__	(1ULL << 30)
-#define	BIC_Pkg_J	(1ULL << 31)
-#define	BIC_Cor_J	(1ULL << 32)
-#define	BIC_GFX_J	(1ULL << 33)
-#define	BIC_RAM_J	(1ULL << 34)
-#define	BIC_Core	(1ULL << 35)
-#define	BIC_CPU		(1ULL << 36)
-#define	BIC_Mod_c6	(1ULL << 37)
-#define	BIC_sysfs	(1ULL << 38)
-#define	BIC_Totl_c0	(1ULL << 39)
-#define	BIC_Any_c0	(1ULL << 40)
-#define	BIC_GFX_c0	(1ULL << 41)
-#define	BIC_CPUGFX	(1ULL << 42)
+#define	BIC_USEC	(1ULL << 0)
+#define	BIC_TOD		(1ULL << 1)
+#define	BIC_Package	(1ULL << 2)
+#define	BIC_Node	(1ULL << 3)
+#define	BIC_Avg_MHz	(1ULL << 4)
+#define	BIC_Busy	(1ULL << 5)
+#define	BIC_Bzy_MHz	(1ULL << 6)
+#define	BIC_TSC_MHz	(1ULL << 7)
+#define	BIC_IRQ		(1ULL << 8)
+#define	BIC_SMI		(1ULL << 9)
+#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_CPU_c1	(1ULL << 11)
+#define	BIC_CPU_c3	(1ULL << 12)
+#define	BIC_CPU_c6	(1ULL << 13)
+#define	BIC_CPU_c7	(1ULL << 14)
+#define	BIC_ThreadC	(1ULL << 15)
+#define	BIC_CoreTmp	(1ULL << 16)
+#define	BIC_CoreCnt	(1ULL << 17)
+#define	BIC_PkgTmp	(1ULL << 18)
+#define	BIC_GFX_rc6	(1ULL << 19)
+#define	BIC_GFXMHz	(1ULL << 20)
+#define	BIC_Pkgpc2	(1ULL << 21)
+#define	BIC_Pkgpc3	(1ULL << 22)
+#define	BIC_Pkgpc6	(1ULL << 23)
+#define	BIC_Pkgpc7	(1ULL << 24)
+#define	BIC_Pkgpc8	(1ULL << 25)
+#define	BIC_Pkgpc9	(1ULL << 26)
+#define	BIC_Pkgpc10	(1ULL << 27)
+#define BIC_CPU_LPI	(1ULL << 28)
+#define BIC_SYS_LPI	(1ULL << 29)
+#define	BIC_PkgWatt	(1ULL << 30)
+#define	BIC_CorWatt	(1ULL << 31)
+#define	BIC_GFXWatt	(1ULL << 32)
+#define	BIC_PkgCnt	(1ULL << 33)
+#define	BIC_RAMWatt	(1ULL << 34)
+#define	BIC_PKG__	(1ULL << 35)
+#define	BIC_RAM__	(1ULL << 36)
+#define	BIC_Pkg_J	(1ULL << 37)
+#define	BIC_Cor_J	(1ULL << 38)
+#define	BIC_GFX_J	(1ULL << 39)
+#define	BIC_RAM_J	(1ULL << 40)
+#define	BIC_Mod_c6	(1ULL << 41)
+#define	BIC_Totl_c0	(1ULL << 42)
+#define	BIC_Any_c0	(1ULL << 43)
+#define	BIC_GFX_c0	(1ULL << 44)
+#define	BIC_CPUGFX	(1ULL << 45)
+#define	BIC_Core	(1ULL << 46)
+#define	BIC_CPU		(1ULL << 47)
+#define	BIC_APIC	(1ULL << 48)
+#define	BIC_X2APIC	(1ULL << 49)
 
-unsigned long long bic_enabled = 0xFFFFFFFFFFFFFFFFULL;
-unsigned long long bic_present = BIC_sysfs;
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
+
+unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
+#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
 #define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
+
 
 #define MAX_DEFERRED 16
 char *deferred_skip_names[MAX_DEFERRED];
@@ -464,16 +524,34 @@ void help(void)
 	"when COMMAND completes.\n"
 	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
 	"to print statistics, until interrupted.\n"
-	"--add		add a counter\n"
-	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
-	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
-	"		{core | package | j,k,l..m,n-p }\n"
-	"--quiet	skip decoding system configuration header\n"
-	"--interval sec	Override default 5-second measurement interval\n"
-	"--help		print this help message\n"
-	"--list		list column headers only\n"
-	"--out file	create or truncate \"file\" for all output\n"
-	"--version	print version information\n"
+	"  -a, --add	add a counter\n"
+	"		  eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
+	"  -c, --cpu	cpu-set	limit output to summary plus cpu-set:\n"
+	"		  {core | package | j,k,l..m,n-p }\n"
+	"  -d, --debug	displays usec, Time_Of_Day_Seconds and more debugging\n"
+	"  -D, --Dump	displays the raw counter values\n"
+	"  -e, --enable	[all | column]\n"
+	"		shows all or the specified disabled column\n"
+	"  -H, --hide [column|column,column,...]\n"
+	"		hide the specified column(s)\n"
+	"  -i, --interval sec.subsec\n"
+	"		Override default 5-second measurement interval\n"
+	"  -J, --Joules	displays energy in Joules instead of Watts\n"
+	"  -l, --list	list column headers only\n"
+	"  -n, --num_iterations num\n"
+	"		number of the measurement iterations\n"
+	"  -o, --out file\n"
+	"		create or truncate \"file\" for all output\n"
+	"  -q, --quiet	skip decoding system configuration header\n"
+	"  -s, --show [column|column,column,...]\n"
+	"		show only the specified column(s)\n"
+	"  -S, --Summary\n"
+	"		limits output to 1-line system summary per interval\n"
+	"  -T, --TCC temperature\n"
+	"		sets the Thermal Control Circuit temperature in\n"
+	"		  degrees Celsius\n"
+	"  -h, --help	print this help message\n"
+	"  -v, --version	print version information\n"
 	"\n"
 	"For more help, run \"man turbostat\"\n");
 }
@@ -495,6 +573,9 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 
 		if (comma)
 			*comma = '\0';
+
+		if (!strcmp(name_list, "all"))
+			return ~0;
 
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
@@ -532,14 +613,22 @@ void print_header(char *delim)
 	struct msr_counter *mp;
 	int printed = 0;
 
-	if (debug)
-		outp += sprintf(outp, "usec %s", delim);
+	if (DO_BIC(BIC_USEC))
+		outp += sprintf(outp, "%susec", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_TOD))
+		outp += sprintf(outp, "%sTime_Of_Day_Seconds", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Node))
+		outp += sprintf(outp, "%sNode", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
 		outp += sprintf(outp, "%sCore", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU))
 		outp += sprintf(outp, "%sCPU", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_APIC))
+		outp += sprintf(outp, "%sAPIC", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_X2APIC))
+		outp += sprintf(outp, "%sX2APIC", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Avg_MHz))
 		outp += sprintf(outp, "%sAvg_MHz", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Busy))
@@ -576,7 +665,7 @@ void print_header(char *delim)
 
 	if (DO_BIC(BIC_CPU_c1))
 		outp += sprintf(outp, "%sCPU%%c1", (printed++ ? delim : ""));
-	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates)
+	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates && !do_cnl_cstates)
 		outp += sprintf(outp, "%sCPU%%c3", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU_c6))
 		outp += sprintf(outp, "%sCPU%%c6", (printed++ ? delim : ""));
@@ -635,6 +724,10 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sPkg%%pc9", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%sPk%%pc10", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_CPU_LPI))
+		outp += sprintf(outp, "%sCPU%%LPI", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_SYS_LPI))
+		outp += sprintf(outp, "%sSYS%%LPI", (printed++ ? delim : ""));
 
 	if (do_rapl && !rapl_joules) {
 		if (DO_BIC(BIC_PkgWatt))
@@ -739,6 +832,9 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "pc8: %016llX\n", p->pc8);
 		outp += sprintf(outp, "pc9: %016llX\n", p->pc9);
 		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
+		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
+		outp += sprintf(outp, "cpu_lpi: %016llX\n", p->cpu_lpi);
+		outp += sprintf(outp, "sys_lpi: %016llX\n", p->sys_lpi);
 		outp += sprintf(outp, "Joules PKG: %0X\n", p->energy_pkg);
 		outp += sprintf(outp, "Joules COR: %0X\n", p->energy_cores);
 		outp += sprintf(outp, "Joules GFX: %0X\n", p->energy_gfx);
@@ -786,13 +882,17 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
 
-	if (debug) {
+	if (DO_BIC(BIC_USEC)) {
 		/* on each row, print how many usec each timestamp took to gather */
 		struct timeval tv;
 
 		timersub(&t->tv_end, &t->tv_begin, &tv);
 		outp += sprintf(outp, "%5ld\t", tv.tv_sec * 1000000 + tv.tv_usec);
 	}
+
+	/* Time_Of_Day_Seconds: on each row, print sec.usec last timestamp taken */
+	if (DO_BIC(BIC_TOD))
+		outp += sprintf(outp, "%10ld.%06ld\t", t->tv_end.tv_sec, t->tv_end.tv_usec);
 
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
@@ -802,9 +902,15 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (t == &average.threads) {
 		if (DO_BIC(BIC_Package))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_Node))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Core))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_CPU))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_X2APIC))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 	} else {
 		if (DO_BIC(BIC_Package)) {
@@ -812,6 +918,15 @@ int format_counters(struct thread_data *t, struct core_data *c,
 				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->package_id);
 			else
 				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		}
+		if (DO_BIC(BIC_Node)) {
+			if (t)
+				outp += sprintf(outp, "%s%d",
+						(printed++ ? delim : ""),
+					      cpus[t->cpu_id].physical_node_id);
+			else
+				outp += sprintf(outp, "%s-",
+						(printed++ ? delim : ""));
 		}
 		if (DO_BIC(BIC_Core)) {
 			if (c)
@@ -821,6 +936,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		}
 		if (DO_BIC(BIC_CPU))
 			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->cpu_id);
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->apic_id);
+		if (DO_BIC(BIC_X2APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->x2apic_id);
 	}
 
 	if (DO_BIC(BIC_Avg_MHz))
@@ -882,7 +1001,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates)
+	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates && !do_cnl_cstates)
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * c->c3/tsc);
 	if (DO_BIC(BIC_CPU_c6))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * c->c6/tsc);
@@ -959,6 +1078,11 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc10/tsc);
 
+	if (DO_BIC(BIC_CPU_LPI))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->cpu_lpi / 1000000.0 / interval_float);
+	if (DO_BIC(BIC_SYS_LPI))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->sys_lpi / 1000000.0 / interval_float);
+
 	/*
  	 * If measurement interval exceeds minimum RAPL Joule Counter range,
  	 * indicate that results are suspect by printing "**" in fraction place.
@@ -1006,7 +1130,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	}
 
 done:
-	outp += sprintf(outp, "\n");
+	if (*(outp - 1) != '\n')
+		outp += sprintf(outp, "\n");
 
 	return 0;
 }
@@ -1083,6 +1208,8 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc8 = new->pc8 - old->pc8;
 	old->pc9 = new->pc9 - old->pc9;
 	old->pc10 = new->pc10 - old->pc10;
+	old->cpu_lpi = new->cpu_lpi - old->cpu_lpi;
+	old->sys_lpi = new->sys_lpi - old->sys_lpi;
 	old->pkg_temp_c = new->pkg_temp_c;
 
 	/* flag an error when rc6 counter resets/wraps */
@@ -1139,6 +1266,21 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 {
 	int i;
 	struct msr_counter *mp;
+
+	/* we run cpuid just the 1st time, copy the results */
+	if (DO_BIC(BIC_APIC))
+		new->apic_id = old->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		new->x2apic_id = old->x2apic_id;
+
+	/*
+	 * the timestamps from start of measurement interval are in "old"
+	 * the timestamp from end of measurement interval are in "new"
+	 * over-write old w/ new so we can print end of interval values
+	 */
+
+	old->tv_begin = new->tv_begin;
+	old->tv_end = new->tv_end;
 
 	old->tsc = new->tsc - old->tsc;
 
@@ -1228,6 +1370,11 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	int i;
 	struct msr_counter  *mp;
 
+	t->tv_begin.tv_sec = 0;
+	t->tv_begin.tv_usec = 0;
+	t->tv_end.tv_sec = 0;
+	t->tv_end.tv_usec = 0;
+
 	t->tsc = 0;
 	t->aperf = 0;
 	t->mperf = 0;
@@ -1260,6 +1407,8 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pc8 = 0;
 	p->pc9 = 0;
 	p->pc10 = 0;
+	p->cpu_lpi = 0;
+	p->sys_lpi = 0;
 
 	p->energy_pkg = 0;
 	p->energy_dram = 0;
@@ -1285,6 +1434,19 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 {
 	int i;
 	struct msr_counter *mp;
+
+	/* copy un-changing apic_id's */
+	if (DO_BIC(BIC_APIC))
+		average.threads.apic_id = t->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		average.threads.x2apic_id = t->x2apic_id;
+
+	/* remember first tv_begin */
+	if (average.threads.tv_begin.tv_sec == 0)
+		average.threads.tv_begin = t->tv_begin;
+
+	/* remember last tv_end */
+	average.threads.tv_end = t->tv_end;
 
 	average.threads.tsc += t->tsc;
 	average.threads.aperf += t->aperf;
@@ -1340,6 +1502,9 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.packages.pc8 += p->pc8;
 	average.packages.pc9 += p->pc9;
 	average.packages.pc10 += p->pc10;
+
+	average.packages.cpu_lpi = p->cpu_lpi;
+	average.packages.sys_lpi = p->sys_lpi;
 
 	average.packages.energy_pkg += p->energy_pkg;
 	average.packages.energy_dram += p->energy_dram;
@@ -1487,7 +1652,7 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 		if (get_msr(cpu, mp->msr_num, counterp))
 			return -1;
 	} else {
-		char path[128];
+		char path[128 + PATH_BYTES];
 
 		if (mp->flags & SYSFS_PERCPU) {
 			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s",
@@ -1500,6 +1665,34 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 	}
 
 	return 0;
+}
+
+void get_apic_id(struct thread_data *t)
+{
+	unsigned int eax, ebx, ecx, edx, max_level;
+
+	eax = ebx = ecx = edx = 0;
+
+	if (!genuine_intel)
+		return;
+
+	__cpuid(0, max_level, ebx, ecx, edx);
+
+	__cpuid(1, eax, ebx, ecx, edx);
+	t->apic_id = (ebx >> 24) & 0xf;
+
+	if (max_level < 0xb)
+		return;
+
+	if (!DO_BIC(BIC_X2APIC))
+		return;
+
+	ecx = 0;
+	__cpuid(0xb, eax, ebx, ecx, edx);
+	t->x2apic_id = edx;
+
+	if (debug && (t->apic_id != t->x2apic_id))
+		fprintf(stderr, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
 /*
@@ -1515,7 +1708,6 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
-
 	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
 
 	if (cpu_migrate(cpu)) {
@@ -1523,6 +1715,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return -1;
 	}
 
+	if (first_counter_read)
+		get_apic_id(t);
 retry:
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
@@ -1603,7 +1797,7 @@ retry:
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		goto done;
 
-	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates) {
+	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates && !do_cnl_cstates) {
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
 			return -6;
 	}
@@ -1683,6 +1877,11 @@ retry:
 	if (DO_BIC(BIC_Pkgpc10))
 		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
 			return -13;
+
+	if (DO_BIC(BIC_CPU_LPI))
+		p->cpu_lpi = cpuidle_cur_cpu_lpi_us;
+	if (DO_BIC(BIC_SYS_LPI))
+		p->sys_lpi = cpuidle_cur_sys_lpi_us;
 
 	if (do_rapl & RAPL_PKG) {
 		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
@@ -1769,7 +1968,7 @@ int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV,
 int amt_pkg_cstate_limits[16] = {PCLUNL, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int bxt_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
-int skx_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+int skx_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 
 
 static void
@@ -2071,12 +2270,9 @@ dump_nhm_cst_cfg(void)
 
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
 
-#define SNB_C1_AUTO_UNDEMOTE              (1UL << 27)
-#define SNB_C3_AUTO_UNDEMOTE              (1UL << 28)
-
 	fprintf(outf, "cpu%d: MSR_PKG_CST_CONFIG_CONTROL: 0x%08llx", base_cpu, msr);
 
-	fprintf(outf, " (%s%s%s%s%slocked: pkg-cstate-limit=%d: %s)\n",
+	fprintf(outf, " (%s%s%s%s%slocked, pkg-cstate-limit=%d (%s)",
 		(msr & SNB_C3_AUTO_UNDEMOTE) ? "UNdemote-C3, " : "",
 		(msr & SNB_C1_AUTO_UNDEMOTE) ? "UNdemote-C1, " : "",
 		(msr & NHM_C3_AUTO_DEMOTE) ? "demote-C3, " : "",
@@ -2084,6 +2280,15 @@ dump_nhm_cst_cfg(void)
 		(msr & (1 << 15)) ? "" : "UN",
 		(unsigned int)msr & 0xF,
 		pkg_cstate_limit_strings[pkg_cstate_limit]);
+
+#define AUTOMATIC_CSTATE_CONVERSION		(1UL << 16)
+	if (has_automatic_cstate_conversion) {
+		fprintf(outf, ", automatic c-state conversion=%s",
+			(msr & AUTOMATIC_CSTATE_CONVERSION) ? "on" : "off");
+	}
+
+	fprintf(outf, ")\n");
+
 	return;
 }
 
@@ -2184,6 +2389,8 @@ void free_fd_percpu(void)
 
 void free_all_buffers(void)
 {
+	int i;
+
 	CPU_FREE(cpu_present_set);
 	cpu_present_set = NULL;
 	cpu_present_setsize = 0;
@@ -2216,6 +2423,12 @@ void free_all_buffers(void)
 
 	free(irq_column_2_cpu);
 	free(irqs_per_cpu);
+
+	for (i = 0; i <= topo.max_cpu_num; ++i) {
+		if (cpus[i].put_ids)
+			CPU_FREE(cpus[i].put_ids);
+	}
+	free(cpus);
 }
 
 
@@ -2240,44 +2453,6 @@ int parse_int_file(const char *fmt, ...)
 }
 
 /*
- * get_cpu_position_in_core(cpu)
- * return the position of the CPU among its HT siblings in the core
- * return -1 if the sibling is not in list
- */
-int get_cpu_position_in_core(int cpu)
-{
-	char path[64];
-	FILE *filep;
-	int this_cpu;
-	char character;
-	int i;
-
-	sprintf(path,
-		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",
-		cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
-
-	for (i = 0; i < topo.num_threads_per_core; i++) {
-		fscanf(filep, "%d", &this_cpu);
-		if (this_cpu == cpu) {
-			fclose(filep);
-			return i;
-		}
-
-		/* Account for no separator after last thread*/
-		if (i != (topo.num_threads_per_core - 1))
-			fscanf(filep, "%c", &character);
-	}
-
-	fclose(filep);
-	return -1;
-}
-
-/*
  * cpu_is_first_core_in_package(cpu)
  * return 1 if given CPU is 1st core in package
  */
@@ -2296,35 +2471,121 @@ int get_core_id(int cpu)
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
-int get_num_ht_siblings(int cpu)
+void set_node_data(void)
 {
 	char path[80];
 	FILE *filep;
-	int sib1;
-	int matches = 0;
-	char character;
-	char str[100];
-	char *ch;
+	int pkg, node, cpu;
 
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
-	filep = fopen_or_die(path, "r");
+	struct pkg_node_info {
+		int count;
+		int min;
+	} *pni;
 
-	/*
-	 * file format:
-	 * A ',' separated or '-' separated set of numbers
-	 * (eg 1-2 or 1,3,4,5)
-	 */
-	fscanf(filep, "%d%c\n", &sib1, &character);
-	fseek(filep, 0, SEEK_SET);
-	fgets(str, 100, filep);
-	ch = strchr(str, character);
-	while (ch != NULL) {
-		matches++;
-		ch = strchr(ch+1, character);
+	pni = calloc(topo.num_packages, sizeof(struct pkg_node_info));
+	if (!pni)
+		err(1, "calloc pkg_node_count");
+
+	for (pkg = 0; pkg < topo.num_packages; pkg++)
+		pni[pkg].min = topo.num_cpus;
+
+	for (node = 0; node <= topo.max_node_num; node++) {
+		/* find the "first" cpu in the node */
+		sprintf(path, "/sys/bus/node/devices/node%d/cpulist", node);
+		filep = fopen(path, "r");
+		if (!filep)
+			continue;
+		fscanf(filep, "%d", &cpu);
+		fclose(filep);
+
+		pkg = cpus[cpu].physical_package_id;
+		pni[pkg].count++;
+
+		if (node < pni[pkg].min)
+			pni[pkg].min = node;
 	}
 
+	for (pkg = 0; pkg < topo.num_packages; pkg++)
+		if (pni[pkg].count > topo.nodes_per_pkg)
+			topo.nodes_per_pkg = pni[0].count;
+
+	/* Fake 1 node per pkg for machines that don't
+	 * expose nodes and thus avoid -nan results
+	 */
+	if (topo.nodes_per_pkg == 0)
+		topo.nodes_per_pkg = 1;
+
+	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
+		pkg = cpus[cpu].physical_package_id;
+		node = cpus[cpu].physical_node_id;
+		cpus[cpu].logical_node_id = node - pni[pkg].min;
+	}
+	free(pni);
+
+}
+
+int get_physical_node_id(struct cpu_topology *thiscpu)
+{
+	char path[80];
+	FILE *filep;
+	int i;
+	int cpu = thiscpu->logical_cpu_id;
+
+	for (i = 0; i <= topo.max_cpu_num; i++) {
+		sprintf(path, "/sys/devices/system/cpu/cpu%d/node%i/cpulist",
+			cpu, i);
+		filep = fopen(path, "r");
+		if (!filep)
+			continue;
+		fclose(filep);
+		return i;
+	}
+	return -1;
+}
+
+int get_thread_siblings(struct cpu_topology *thiscpu)
+{
+	char path[80], character;
+	FILE *filep;
+	unsigned long map;
+	int so, shift, sib_core;
+	int cpu = thiscpu->logical_cpu_id;
+	int offset = topo.max_cpu_num + 1;
+	size_t size;
+	int thread_id = 0;
+
+	thiscpu->put_ids = CPU_ALLOC((topo.max_cpu_num + 1));
+	if (thiscpu->thread_id < 0)
+		thiscpu->thread_id = thread_id++;
+	if (!thiscpu->put_ids)
+		return -1;
+
+	size = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
+	CPU_ZERO_S(size, thiscpu->put_ids);
+
+	sprintf(path,
+		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpu);
+	filep = fopen_or_die(path, "r");
+	do {
+		offset -= BITMASK_SIZE;
+		fscanf(filep, "%lx%c", &map, &character);
+		for (shift = 0; shift < BITMASK_SIZE; shift++) {
+			if ((map >> shift) & 0x1) {
+				so = shift + offset;
+				sib_core = get_core_id(so);
+				if (sib_core == thiscpu->physical_core_id) {
+					CPU_SET_S(so, size, thiscpu->put_ids);
+					if ((so != cpu) &&
+					    (cpus[so].thread_id < 0))
+						cpus[so].thread_id =
+								    thread_id++;
+				}
+			}
+		}
+	} while (!strncmp(&character, ",", 1));
 	fclose(filep);
-	return matches+1;
+
+	return CPU_COUNT_S(size, thiscpu->put_ids);
 }
 
 /*
@@ -2339,32 +2600,42 @@ int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
 	struct thread_data *thread_base2, struct core_data *core_base2,
 	struct pkg_data *pkg_base2)
 {
-	int retval, pkg_no, core_no, thread_no;
+	int retval, pkg_no, node_no, core_no, thread_no;
 
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_pkg; ++core_no) {
-			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
-				struct thread_data *t, *t2;
-				struct core_data *c, *c2;
-				struct pkg_data *p, *p2;
+		for (node_no = 0; node_no < topo.nodes_per_pkg; ++node_no) {
+			for (core_no = 0; core_no < topo.cores_per_node;
+			     ++core_no) {
+				for (thread_no = 0; thread_no <
+					topo.threads_per_core; ++thread_no) {
+					struct thread_data *t, *t2;
+					struct core_data *c, *c2;
+					struct pkg_data *p, *p2;
 
-				t = GET_THREAD(thread_base, thread_no, core_no, pkg_no);
+					t = GET_THREAD(thread_base, thread_no,
+						       core_no, node_no,
+						       pkg_no);
 
-				if (cpu_is_not_present(t->cpu_id))
-					continue;
+					if (cpu_is_not_present(t->cpu_id))
+						continue;
 
-				t2 = GET_THREAD(thread_base2, thread_no, core_no, pkg_no);
+					t2 = GET_THREAD(thread_base2, thread_no,
+							core_no, node_no,
+							pkg_no);
 
-				c = GET_CORE(core_base, core_no, pkg_no);
-				c2 = GET_CORE(core_base2, core_no, pkg_no);
+					c = GET_CORE(core_base, core_no,
+						     node_no, pkg_no);
+					c2 = GET_CORE(core_base2, core_no,
+						      node_no,
+						      pkg_no);
 
-				p = GET_PKG(pkg_base, pkg_no);
-				p2 = GET_PKG(pkg_base2, pkg_no);
+					p = GET_PKG(pkg_base, pkg_no);
+					p2 = GET_PKG(pkg_base2, pkg_no);
 
-				retval = func(t, c, p, t2, c2, p2);
-				if (retval)
-					return retval;
+					retval = func(t, c, p, t2, c2, p2);
+					if (retval)
+						return retval;
+				}
 			}
 		}
 	}
@@ -2409,6 +2680,20 @@ void re_initialize(void)
 	printf("turbostat: re-initialized with num_cpus %d\n", topo.num_cpus);
 }
 
+void set_max_cpu_num(void)
+{
+	FILE *filep;
+	unsigned long dummy;
+
+	topo.max_cpu_num = 0;
+	filep = fopen_or_die(
+			"/sys/devices/system/cpu/cpu0/topology/thread_siblings",
+			"r");
+	while (fscanf(filep, "%lx,", &dummy) == 1)
+		topo.max_cpu_num += BITMASK_SIZE;
+	fclose(filep);
+	topo.max_cpu_num--; /* 0 based */
+}
 
 /*
  * count_cpus()
@@ -2416,15 +2701,18 @@ void re_initialize(void)
  */
 int count_cpus(int cpu)
 {
-	if (topo.max_cpu_num < cpu)
-		topo.max_cpu_num = cpu;
-
-	topo.num_cpus += 1;
+	topo.num_cpus++;
 	return 0;
 }
 int mark_cpu_present(int cpu)
 {
 	CPU_SET_S(cpu, cpu_present_setsize, cpu_present_set);
+	return 0;
+}
+
+int init_thread_id(int cpu)
+{
+	cpus[cpu].thread_id = -1;
 	return 0;
 }
 
@@ -2542,6 +2830,52 @@ int snapshot_gfx_mhz(void)
 }
 
 /*
+ * snapshot_cpu_lpi()
+ *
+ * record snapshot of
+ * /sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_cpu_lpi_us(void)
+{
+	FILE *fp;
+	int retval;
+
+	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", "r");
+
+	retval = fscanf(fp, "%lld", &cpuidle_cur_cpu_lpi_us);
+	if (retval != 1)
+		err(1, "CPU LPI");
+
+	fclose(fp);
+
+	return 0;
+}
+/*
+ * snapshot_sys_lpi()
+ *
+ * record snapshot of
+ * /sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_sys_lpi_us(void)
+{
+	FILE *fp;
+	int retval;
+
+	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", "r");
+
+	retval = fscanf(fp, "%lld", &cpuidle_cur_sys_lpi_us);
+	if (retval != 1)
+		err(1, "SYS LPI");
+
+	fclose(fp);
+
+	return 0;
+}
+/*
  * snapshot /proc and /sys files
  *
  * return 1 if configuration restart needed, else return 0
@@ -2558,19 +2892,91 @@ int snapshot_proc_sysfs_files(void)
 	if (DO_BIC(BIC_GFXMHz))
 		snapshot_gfx_mhz();
 
+	if (DO_BIC(BIC_CPU_LPI))
+		snapshot_cpu_lpi_us();
+
+	if (DO_BIC(BIC_SYS_LPI))
+		snapshot_sys_lpi_us();
+
 	return 0;
 }
+
+int exit_requested;
+
+static void signal_handler (int signal)
+{
+	switch (signal) {
+	case SIGINT:
+		exit_requested = 1;
+		if (debug)
+			fprintf(stderr, " SIGINT\n");
+		break;
+	case SIGUSR1:
+		if (debug > 1)
+			fprintf(stderr, "SIGUSR1\n");
+		break;
+	}
+	/* make sure this manually-invoked interval is at least 1ms long */
+	nanosleep(&one_msec, NULL);
+}
+
+void setup_signal_handler(void)
+{
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(sa));
+
+	sa.sa_handler = &signal_handler;
+
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		err(1, "sigaction SIGINT");
+	if (sigaction(SIGUSR1, &sa, NULL) < 0)
+		err(1, "sigaction SIGUSR1");
+}
+
+void do_sleep(void)
+{
+	struct timeval select_timeout;
+	fd_set readfds;
+	int retval;
+
+	FD_ZERO(&readfds);
+	FD_SET(0, &readfds);
+
+	if (!isatty(fileno(stdin))) {
+		nanosleep(&interval_ts, NULL);
+		return;
+	}
+
+	select_timeout = interval_tv;
+	retval = select(1, &readfds, NULL, NULL, &select_timeout);
+
+	if (retval == 1) {
+		switch (getc(stdin)) {
+		case 'q':
+			exit_requested = 1;
+			break;
+		}
+		/* make sure this manually-invoked interval is at least 1ms long */
+		nanosleep(&one_msec, NULL);
+	}
+}
+
 
 void turbostat_loop()
 {
 	int retval;
 	int restarted = 0;
+	int done_iters = 0;
+
+	setup_signal_handler();
 
 restart:
 	restarted++;
 
 	snapshot_proc_sysfs_files();
 	retval = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (retval < -1) {
 		exit(retval);
 	} else if (retval == -1) {
@@ -2581,6 +2987,7 @@ restart:
 		goto restart;
 	}
 	restarted = 0;
+	done_iters = 0;
 	gettimeofday(&tv_even, (struct timezone *)NULL);
 
 	while (1) {
@@ -2588,7 +2995,7 @@ restart:
 			re_initialize();
 			goto restart;
 		}
-		nanosleep(&interval_ts, NULL);
+		do_sleep();
 		if (snapshot_proc_sysfs_files())
 			goto restart;
 		retval = for_all_cpus(get_counters, ODD_COUNTERS);
@@ -2607,7 +3014,11 @@ restart:
 		compute_average(EVEN_COUNTERS);
 		format_all_counters(EVEN_COUNTERS);
 		flush_output_stdout();
-		nanosleep(&interval_ts, NULL);
+		if (exit_requested)
+			break;
+		if (num_iterations && ++done_iters >= num_iterations)
+			break;
+		do_sleep();
 		if (snapshot_proc_sysfs_files())
 			goto restart;
 		retval = for_all_cpus(get_counters, EVEN_COUNTERS);
@@ -2626,6 +3037,10 @@ restart:
 		compute_average(ODD_COUNTERS);
 		format_all_counters(ODD_COUNTERS);
 		flush_output_stdout();
+		if (exit_requested)
+			break;
+		if (num_iterations && ++done_iters >= num_iterations)
+			break;
 	}
 }
 
@@ -2740,6 +3155,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
@@ -2945,6 +3361,7 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 
 	case INTEL_FAM6_XEON_PHI_KNL:	/* Knights Landing */
@@ -3399,6 +3816,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
@@ -3521,6 +3939,12 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 	default:
 		return;
 	}
+}
+
+void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
+{
+	if (is_skx(family, model) || is_bdx(family, model))
+		has_automatic_cstate_conversion = 1;
 }
 
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -3728,6 +4152,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GEMINI_LAKE:
@@ -3761,6 +4186,7 @@ int has_hsw_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GEMINI_LAKE:
 		return 1;
@@ -3786,6 +4212,7 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
+	case INTEL_FAM6_CANNONLAKE_MOBILE:	/* CNL */
 		return 1;
 	}
 	return 0;
@@ -3812,6 +4239,19 @@ int is_knl(unsigned int family, unsigned int model)
 	case INTEL_FAM6_XEON_PHI_KNM:
 		return 1;
 	}
+	return 0;
+}
+
+int is_cnl(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_CANNONLAKE_MOBILE: /* CNL */
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -3947,7 +4387,7 @@ void decode_misc_enable_msr(void)
 			base_cpu, msr,
 			msr & MSR_IA32_MISC_ENABLE_TM1 ? "" : "No-",
 			msr & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP ? "" : "No-",
-			msr & MSR_IA32_MISC_ENABLE_MWAIT ? "No-" : "",
+			msr & MSR_IA32_MISC_ENABLE_MWAIT ? "" : "No-",
 			msr & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE ? "No-" : "",
 			msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
 }
@@ -4037,7 +4477,7 @@ void process_cpuid()
 	if (!quiet) {
 		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s\n",
+		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
 			ecx & (1 << 0) ? "SSE3" : "-",
 			ecx & (1 << 3) ? "MONITOR" : "-",
 			ecx & (1 << 6) ? "SMX" : "-",
@@ -4046,6 +4486,7 @@ void process_cpuid()
 			edx & (1 << 4) ? "TSC" : "-",
 			edx & (1 << 5) ? "MSR" : "-",
 			edx & (1 << 22) ? "ACPI-TM" : "-",
+			edx & (1 << 28) ? "HT" : "-",
 			edx & (1 << 29) ? "TM" : "-");
 	}
 
@@ -4152,7 +4593,6 @@ void process_cpuid()
 				case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
 					crystal_hz = 24000000;	/* 24.0 MHz */
 					break;
-				case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 				case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 					crystal_hz = 25000000;	/* 25.0 MHz */
 					break;
@@ -4253,6 +4693,7 @@ void process_cpuid()
 	}
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
+	do_cnl_cstates = is_cnl(family, model);
 
 	if (!quiet)
 		decode_misc_pwr_mgmt_msr();
@@ -4262,6 +4703,7 @@ void process_cpuid()
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
+	automatic_cstate_conversion_probe(family, model);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
@@ -4280,12 +4722,21 @@ void process_cpuid()
 	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
 		BIC_PRESENT(BIC_GFXMHz);
 
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
+		BIC_PRESENT(BIC_CPU_LPI);
+	else
+		BIC_NOT_PRESENT(BIC_CPU_LPI);
+
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", R_OK))
+		BIC_PRESENT(BIC_SYS_LPI);
+	else
+		BIC_NOT_PRESENT(BIC_SYS_LPI);
+
 	if (!quiet)
 		decode_misc_feature_control();
 
 	return;
 }
-
 
 /*
  * in /dev/cpu/ return success for names that are numbers
@@ -4310,14 +4761,10 @@ void topology_probe()
 	int max_core_id = 0;
 	int max_package_id = 0;
 	int max_siblings = 0;
-	struct cpu_topology {
-		int core_id;
-		int physical_package_id;
-	} *cpus;
 
 	/* Initialize num_cpus, max_cpu_num */
+	set_max_cpu_num();
 	topo.num_cpus = 0;
-	topo.max_cpu_num = 0;
 	for_all_proc_cpus(count_cpus);
 	if (!summary_only && topo.num_cpus > 1)
 		BIC_PRESENT(BIC_CPU);
@@ -4357,6 +4804,7 @@ void topology_probe()
 	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 
+	for_all_proc_cpus(init_thread_id);
 
 	/*
 	 * For online cpus
@@ -4370,26 +4818,45 @@ void topology_probe()
 				fprintf(outf, "cpu%d NOT PRESENT\n", i);
 			continue;
 		}
-		cpus[i].core_id = get_core_id(i);
-		if (cpus[i].core_id > max_core_id)
-			max_core_id = cpus[i].core_id;
 
+		cpus[i].logical_cpu_id = i;
+
+		/* get package information */
 		cpus[i].physical_package_id = get_physical_package_id(i);
 		if (cpus[i].physical_package_id > max_package_id)
 			max_package_id = cpus[i].physical_package_id;
 
-		siblings = get_num_ht_siblings(i);
+		/* get numa node information */
+		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
+		if (cpus[i].physical_node_id > topo.max_node_num)
+			topo.max_node_num = cpus[i].physical_node_id;
+
+		/* get core information */
+		cpus[i].physical_core_id = get_core_id(i);
+		if (cpus[i].physical_core_id > max_core_id)
+			max_core_id = cpus[i].physical_core_id;
+
+		/* get thread information */
+		siblings = get_thread_siblings(&cpus[i]);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
+		if (cpus[i].thread_id != -1)
+			topo.num_cores++;
+
 		if (debug > 1)
-			fprintf(outf, "cpu %d pkg %d core %d\n",
-				i, cpus[i].physical_package_id, cpus[i].core_id);
+			fprintf(outf,
+				"cpu %d pkg %d node %d core %d thread %d\n",
+				i, cpus[i].physical_package_id,
+				cpus[i].physical_node_id,
+				cpus[i].physical_core_id,
+				cpus[i].thread_id);
 	}
-	topo.num_cores_per_pkg = max_core_id + 1;
+
+	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
-			max_core_id, topo.num_cores_per_pkg);
-	if (!summary_only && topo.num_cores_per_pkg > 1)
+			max_core_id, topo.cores_per_node);
+	if (!summary_only && topo.cores_per_node > 1)
 		BIC_PRESENT(BIC_Core);
 
 	topo.num_packages = max_package_id + 1;
@@ -4399,33 +4866,38 @@ void topology_probe()
 	if (!summary_only && topo.num_packages > 1)
 		BIC_PRESENT(BIC_Package);
 
-	topo.num_threads_per_core = max_siblings;
+	set_node_data();
+	if (debug > 1)
+		fprintf(outf, "nodes_per_pkg %d\n", topo.nodes_per_pkg);
+	if (!summary_only && topo.nodes_per_pkg > 1)
+		BIC_PRESENT(BIC_Node);
+
+	topo.threads_per_core = max_siblings;
 	if (debug > 1)
 		fprintf(outf, "max_siblings %d\n", max_siblings);
-
-	free(cpus);
 }
 
 void
-allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data **p)
+allocate_counters(struct thread_data **t, struct core_data **c,
+		  struct pkg_data **p)
 {
 	int i;
+	int num_cores = topo.cores_per_node * topo.nodes_per_pkg *
+			topo.num_packages;
+	int num_threads = topo.threads_per_core * num_cores;
 
-	*t = calloc(topo.num_threads_per_core * topo.num_cores_per_pkg *
-		topo.num_packages, sizeof(struct thread_data));
+	*t = calloc(num_threads, sizeof(struct thread_data));
 	if (*t == NULL)
 		goto error;
 
-	for (i = 0; i < topo.num_threads_per_core *
-		topo.num_cores_per_pkg * topo.num_packages; i++)
+	for (i = 0; i < num_threads; i++)
 		(*t)[i].cpu_id = -1;
 
-	*c = calloc(topo.num_cores_per_pkg * topo.num_packages,
-		sizeof(struct core_data));
+	*c = calloc(num_cores, sizeof(struct core_data));
 	if (*c == NULL)
 		goto error;
 
-	for (i = 0; i < topo.num_cores_per_pkg * topo.num_packages; i++)
+	for (i = 0; i < num_cores; i++)
 		(*c)[i].core_id = -1;
 
 	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
@@ -4442,47 +4914,46 @@ error:
 /*
  * init_counter()
  *
- * set cpu_id, core_num, pkg_num
  * set FIRST_THREAD_IN_CORE and FIRST_CORE_IN_PACKAGE
- *
- * increment topo.num_cores when 1st core in pkg seen
  */
 void init_counter(struct thread_data *thread_base, struct core_data *core_base,
-	struct pkg_data *pkg_base, int thread_num, int core_num,
-	int pkg_num, int cpu_id)
+	struct pkg_data *pkg_base, int cpu_id)
 {
+	int pkg_id = cpus[cpu_id].physical_package_id;
+	int node_id = cpus[cpu_id].logical_node_id;
+	int core_id = cpus[cpu_id].physical_core_id;
+	int thread_id = cpus[cpu_id].thread_id;
 	struct thread_data *t;
 	struct core_data *c;
 	struct pkg_data *p;
 
-	t = GET_THREAD(thread_base, thread_num, core_num, pkg_num);
-	c = GET_CORE(core_base, core_num, pkg_num);
-	p = GET_PKG(pkg_base, pkg_num);
+
+	/* Workaround for systems where physical_node_id==-1
+	 * and logical_node_id==(-1 - topo.num_cpus)
+	 */
+	if (node_id < 0)
+		node_id = 0;
+
+	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
+	c = GET_CORE(core_base, core_id, node_id, pkg_id);
+	p = GET_PKG(pkg_base, pkg_id);
 
 	t->cpu_id = cpu_id;
-	if (thread_num == 0) {
+	if (thread_id == 0) {
 		t->flags |= CPU_IS_FIRST_THREAD_IN_CORE;
 		if (cpu_is_first_core_in_package(cpu_id))
 			t->flags |= CPU_IS_FIRST_CORE_IN_PACKAGE;
 	}
 
-	c->core_id = core_num;
-	p->package_id = pkg_num;
+	c->core_id = core_id;
+	p->package_id = pkg_id;
 }
 
 
 int initialize_counters(int cpu_id)
 {
-	int my_thread_id, my_core_id, my_package_id;
-
-	my_package_id = get_physical_package_id(cpu_id);
-	my_core_id = get_core_id(cpu_id);
-	my_thread_id = get_cpu_position_in_core(cpu_id);
-	if (!my_thread_id)
-		topo.num_cores++;
-
-	init_counter(EVEN_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
-	init_counter(ODD_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
+	init_counter(EVEN_COUNTERS, cpu_id);
+	init_counter(ODD_COUNTERS, cpu_id);
 	return 0;
 }
 
@@ -4567,6 +5038,7 @@ int fork_it(char **argv)
 
 	snapshot_proc_sysfs_files();
 	status = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (status)
 		exit(status);
 	/* clear affinity side-effect of get_counters() */
@@ -4630,7 +5102,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 17.06.23"
+	fprintf(outf, "turbostat version 18.06.20"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
@@ -4661,7 +5133,7 @@ int add_counter(unsigned int msr_num, char *path, char *name,
 		msrp->next = sys.tp;
 		sys.tp = msrp;
 		sys.added_thread_counters++;
-		if (sys.added_thread_counters > MAX_ADDED_COUNTERS) {
+		if (sys.added_thread_counters > MAX_ADDED_THREAD_COUNTERS) {
 			fprintf(stderr, "exceeded max %d added thread counters\n",
 				MAX_ADDED_COUNTERS);
 			exit(-1);
@@ -4820,7 +5292,7 @@ void probe_sysfs(void)
 	if (!DO_BIC(BIC_sysfs))
 		return;
 
-	for (state = 10; state > 0; --state) {
+	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name",
 			base_cpu, state);
@@ -4847,7 +5319,7 @@ void probe_sysfs(void)
 				FORMAT_PERCENT, SYSFS_PERCPU);
 	}
 
-	for (state = 10; state > 0; --state) {
+	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name",
 			base_cpu, state);
@@ -4960,34 +5432,6 @@ error:
 	exit(-1);
 }
 
-int shown;
-/*
- * parse_show_hide() - process cmdline to set default counter action
- */
-void parse_show_hide(char *optarg, enum show_hide_mode new_mode)
-{
-	/*
-	 * --show: show only those specified
-	 *  The 1st invocation will clear and replace the enabled mask
-	 *  subsequent invocations can add to it.
-	 */
-	if (new_mode == SHOW_LIST) {
-		if (shown == 0)
-			bic_enabled = bic_lookup(optarg, new_mode);
-		else
-			bic_enabled |= bic_lookup(optarg, new_mode);
-		shown = 1;
-
-		return;
-	}
-
-	/*
-	 * --hide: do not show those specified
-	 *  multiple invocations simply clear more bits in enabled mask
-	 */
-	bic_enabled &= ~bic_lookup(optarg, new_mode);
-
-}
 
 void cmdline(int argc, char **argv)
 {
@@ -4998,7 +5442,9 @@ void cmdline(int argc, char **argv)
 		{"cpu",		required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
 		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
+		{"enable",	required_argument,	0, 'e'},
 		{"interval",	required_argument,	0, 'i'},
+		{"num_iterations",	required_argument,	0, 'n'},
 		{"help",	no_argument,		0, 'h'},
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
 		{"Joules",	no_argument,		0, 'J'},
@@ -5014,7 +5460,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:qST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jn:o:qST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -5026,11 +5472,20 @@ void cmdline(int argc, char **argv)
 		case 'D':
 			dump_only++;
 			break;
+		case 'e':
+			/* --enable specified counter */
+			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
+			break;
 		case 'd':
 			debug++;
+			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
 			break;
 		case 'H':
-			parse_show_hide(optarg, HIDE_LIST);
+			/*
+			 * --hide: do not show those specified
+			 *  multiple invocations simply clear more bits in enabled mask
+			 */
+			bic_enabled &= ~bic_lookup(optarg, HIDE_LIST);
 			break;
 		case 'h':
 		default:
@@ -5046,7 +5501,8 @@ void cmdline(int argc, char **argv)
 					exit(2);
 				}
 
-				interval_ts.tv_sec = interval;
+				interval_tv.tv_sec = interval_ts.tv_sec = interval;
+				interval_tv.tv_usec = (interval - interval_tv.tv_sec) * 1000000;
 				interval_ts.tv_nsec = (interval - interval_ts.tv_sec) * 1000000000;
 			}
 			break;
@@ -5054,6 +5510,7 @@ void cmdline(int argc, char **argv)
 			rapl_joules++;
 			break;
 		case 'l':
+			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
 			list_header_only++;
 			quiet++;
 			break;
@@ -5063,8 +5520,26 @@ void cmdline(int argc, char **argv)
 		case 'q':
 			quiet = 1;
 			break;
+		case 'n':
+			num_iterations = strtod(optarg, NULL);
+
+			if (num_iterations <= 0) {
+				fprintf(outf, "iterations %d should be positive number\n",
+					num_iterations);
+				exit(2);
+			}
+			break;
 		case 's':
-			parse_show_hide(optarg, SHOW_LIST);
+			/*
+			 * --show: show only those specified
+			 *  The 1st invocation will clear and replace the enabled mask
+			 *  subsequent invocations can add to it.
+			 */
+			if (shown == 0)
+				bic_enabled = bic_lookup(optarg, SHOW_LIST);
+			else
+				bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+			shown = 1;
 			break;
 		case 'S':
 			summary_only++;
@@ -5083,7 +5558,6 @@ void cmdline(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	outf = stderr;
-
 	cmdline(argc, argv);
 
 	if (!quiet)

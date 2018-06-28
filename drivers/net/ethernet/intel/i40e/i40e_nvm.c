@@ -1,29 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e_prototype.h"
 
@@ -1173,6 +1149,7 @@ void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw)
  * i40e_nvmupd_check_wait_event - handle NVM update operation events
  * @hw: pointer to the hardware structure
  * @opcode: the event that just happened
+ * @desc: AdminQ descriptor
  **/
 void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
 				  struct i40e_aq_desc *desc)

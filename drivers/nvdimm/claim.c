@@ -276,7 +276,8 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	if (rw == READ) {
 		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align)))
 			return -EIO;
-		return memcpy_mcsafe(buf, nsio->addr + offset, size);
+		if (memcpy_mcsafe(buf, nsio->addr + offset, size) != 0)
+			return -EIO;
 	}
 
 	if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {

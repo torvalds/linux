@@ -505,7 +505,7 @@ static void cdv_intel_edp_backlight_off (struct gma_encoder *intel_encoder)
 	msleep(intel_dp->backlight_off_delay);
 }
 
-static int
+static enum drm_mode_status
 cdv_intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {

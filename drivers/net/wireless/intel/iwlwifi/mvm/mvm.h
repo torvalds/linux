@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +92,9 @@
 #include "fw/runtime.h"
 #include "fw/dbg.h"
 #include "fw/acpi.h"
-#include "fw/debugfs.h"
+#include "iwl-nvm-parse.h"
+
+#include <linux/average.h>
 
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
@@ -444,6 +448,8 @@ struct iwl_mvm_vif {
 	/* FW identified misbehaving AP */
 	u8 uapsd_misbehaving_bssid[ETH_ALEN];
 
+	struct delayed_work uapsd_nonagg_detected_wk;
+
 	/* Indicates that CSA countdown may be started */
 	bool csa_countdown;
 	bool csa_failed;
@@ -500,18 +506,6 @@ enum iwl_mvm_sched_scan_pass_all_states {
 	SCHED_SCAN_PASS_ALL_DISABLED,
 	SCHED_SCAN_PASS_ALL_ENABLED,
 	SCHED_SCAN_PASS_ALL_FOUND,
-};
-
-/**
- * struct iwl_nvm_section - describes an NVM section in memory.
- *
- * This struct holds an NVM section read from the NIC using NVM_ACCESS_CMD,
- * and saved for later use by the driver. Not all NVM sections are saved
- * this way, only the needed ones.
- */
-struct iwl_nvm_section {
-	u16 length;
-	const u8 *data;
 };
 
 /**
@@ -593,6 +587,53 @@ enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_RESP_RCVD,
 	IWL_MVM_TDLS_SW_REQ_RCVD,
 	IWL_MVM_TDLS_SW_ACTIVE,
+};
+
+enum iwl_mvm_traffic_load {
+	IWL_MVM_TRAFFIC_LOW,
+	IWL_MVM_TRAFFIC_MEDIUM,
+	IWL_MVM_TRAFFIC_HIGH,
+};
+
+DECLARE_EWMA(rate, 16, 16)
+
+struct iwl_mvm_tcm_mac {
+	struct {
+		u32 pkts[IEEE80211_NUM_ACS];
+		u32 airtime;
+	} tx;
+	struct {
+		u32 pkts[IEEE80211_NUM_ACS];
+		u32 airtime;
+		u32 last_ampdu_ref;
+	} rx;
+	struct {
+		/* track AP's transfer in client mode */
+		u64 rx_bytes;
+		struct ewma_rate rate;
+		bool detected;
+	} uapsd_nonagg_detect;
+	bool opened_rx_ba_sessions;
+};
+
+struct iwl_mvm_tcm {
+	struct delayed_work work;
+	spinlock_t lock; /* used when time elapsed */
+	unsigned long ts; /* timestamp when period ends */
+	unsigned long ll_ts;
+	unsigned long uapsd_nonagg_ts;
+	bool paused;
+	struct iwl_mvm_tcm_mac data[NUM_MAC_INDEX_DRIVER];
+	struct {
+		u32 elapsed; /* milliseconds for this TCM period */
+		u32 airtime[NUM_MAC_INDEX_DRIVER];
+		enum iwl_mvm_traffic_load load[NUM_MAC_INDEX_DRIVER];
+		enum iwl_mvm_traffic_load band_load[NUM_NL80211_BANDS];
+		enum iwl_mvm_traffic_load global_load;
+		bool low_latency[NUM_MAC_INDEX_DRIVER];
+		bool change[NUM_MAC_INDEX_DRIVER];
+		bool global_change;
+	} result;
 };
 
 /**
@@ -829,7 +870,10 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
+	/* For CDB this is low band scan type, for non-CDB - type. */
 	enum iwl_mvm_scan_type scan_type;
+	enum iwl_mvm_scan_type hb_scan_type;
+
 	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
 	struct delayed_work scan_timeout_dwork;
 
@@ -977,6 +1021,13 @@ struct iwl_mvm {
 	 * real temperature that is received from the fw
 	 */
 	bool temperature_test;  /* Debug test temperature is enabled */
+
+	unsigned long bt_coex_last_tcm_ts;
+	struct iwl_mvm_tcm tcm;
+
+	u8 uapsd_noagg_bssid_write_idx;
+	struct mac_address uapsd_noagg_bssids[IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM]
+		__aligned(2);
 
 	struct iwl_time_quota_cmd last_quota_cmd;
 
@@ -1293,6 +1344,16 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
+static inline bool iwl_mvm_cdb_scan_api(struct iwl_mvm *mvm)
+{
+	/*
+	 * TODO: should this be the same as iwl_mvm_is_cdb_supported()?
+	 * but then there's a little bit of code in scan that won't make
+	 * any sense...
+	 */
+	return mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+}
+
 static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
@@ -1438,7 +1499,6 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
-int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
 static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 {
@@ -1771,6 +1831,8 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      enum iwl_mvm_low_latency_cause cause);
 /* get SystemLowLatencyMode - only needed for beacon threshold? */
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
+bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band);
+
 /* get VMACLowLatencyMode */
 static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 {
@@ -1905,6 +1967,17 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
+
+#define MVM_TCM_PERIOD_MSEC 500
+#define MVM_TCM_PERIOD (HZ * MVM_TCM_PERIOD_MSEC / 1000)
+#define MVM_LL_PERIOD (10 * HZ)
+void iwl_mvm_tcm_work(struct work_struct *work);
+void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm);
+void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel);
+void iwl_mvm_resume_tcm(struct iwl_mvm *mvm);
+void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,

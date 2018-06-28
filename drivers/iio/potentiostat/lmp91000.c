@@ -411,12 +411,14 @@ static int lmp91000_remove(struct i2c_client *client)
 
 static const struct of_device_id lmp91000_of_match[] = {
 	{ .compatible = "ti,lmp91000", },
+	{ .compatible = "ti,lmp91002", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, lmp91000_of_match);
 
 static const struct i2c_device_id lmp91000_id[] = {
 	{ "lmp91000", 0 },
+	{ "lmp91002", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lmp91000_id);

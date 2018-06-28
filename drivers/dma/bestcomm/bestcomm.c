@@ -87,7 +87,8 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 
 	/* Init the BDs, if needed */
 	if (bd_count) {
-		tsk->cookie = kmalloc(sizeof(void*) * bd_count, GFP_KERNEL);
+		tsk->cookie = kmalloc_array(bd_count, sizeof(void *),
+					    GFP_KERNEL);
 		if (!tsk->cookie)
 			goto error;
 

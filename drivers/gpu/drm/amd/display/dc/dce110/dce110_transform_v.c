@@ -373,13 +373,13 @@ static void calculate_inits(
 	struct rect *chroma_viewport)
 {
 	inits->h_int_scale_ratio_luma =
-		dal_fixed31_32_u2d19(data->ratios.horz) << 5;
+		dc_fixpt_u2d19(data->ratios.horz) << 5;
 	inits->v_int_scale_ratio_luma =
-		dal_fixed31_32_u2d19(data->ratios.vert) << 5;
+		dc_fixpt_u2d19(data->ratios.vert) << 5;
 	inits->h_int_scale_ratio_chroma =
-		dal_fixed31_32_u2d19(data->ratios.horz_c) << 5;
+		dc_fixpt_u2d19(data->ratios.horz_c) << 5;
 	inits->v_int_scale_ratio_chroma =
-		dal_fixed31_32_u2d19(data->ratios.vert_c) << 5;
+		dc_fixpt_u2d19(data->ratios.vert_c) << 5;
 
 	inits->h_init_luma.integer = 1;
 	inits->v_init_luma.integer = 1;

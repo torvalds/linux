@@ -74,7 +74,7 @@ load_fw_custom()
 {
 	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
 		echo "$0: custom fallback trigger not present, ignoring test" >&2
-		return 1
+		exit $ksft_skip
 	fi
 
 	local name="$1"
@@ -107,7 +107,7 @@ load_fw_custom_cancel()
 {
 	if [ ! -e "$DIR"/trigger_custom_fallback ]; then
 		echo "$0: canceling custom fallback trigger not present, ignoring test" >&2
-		return 1
+		exit $ksft_skip
 	fi
 
 	local name="$1"

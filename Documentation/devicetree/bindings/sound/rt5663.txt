@@ -47,7 +47,7 @@ Pins on the device (for linking into audio routes) for RT5663:
 
 Example:
 
-codec: rt5663@12 {
+rt5663: codec@12 {
 	compatible = "realtek,rt5663";
 	reg = <0x12>;
 	interrupts = <7 IRQ_TYPE_EDGE_FALLING>;

@@ -478,6 +478,12 @@ static u32 dwc2_get_actual_xfer_length(struct dwc2_hsotg *hsotg,
  * of the URB based on the number of bytes transferred via the host channel.
  * Sets the URB status if the data transfer is finished.
  *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @chan: Programming view of host channel
+ * @chnum: Channel number
+ * @urb: Processing URB
+ * @qtd: Queue transfer descriptor
+ *
  * Return: 1 if the data transfer specified by the URB is completely finished,
  * 0 otherwise
  */
@@ -565,6 +571,12 @@ void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
  * the frame descriptor array are set based on the transfer state and the input
  * halt_status. Completes the Isochronous URB if all the URB frames have been
  * completed.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @chan: Programming view of host channel
+ * @chnum: Channel number
+ * @halt_status: Reason for halting a host channel
+ * @qtd: Queue transfer descriptor
  *
  * Return: DWC2_HC_XFER_COMPLETE if there are more frames remaining to be
  * transferred in the URB. Otherwise return DWC2_HC_XFER_URB_COMPLETE.

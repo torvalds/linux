@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/rcupdate.h>
+#include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/dst.h>
 
 struct nf_flowtable;
@@ -13,25 +14,24 @@ struct nf_flowtable;
 struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;
-	void				(*gc)(struct work_struct *work);
+	int				(*init)(struct nf_flowtable *ft);
 	void				(*free)(struct nf_flowtable *ft);
-	const struct rhashtable_params	*params;
 	nf_hookfn			*hook;
 	struct module			*owner;
 };
 
 struct nf_flowtable {
+	struct list_head		list;
 	struct rhashtable		rhashtable;
 	const struct nf_flowtable_type	*type;
 	struct delayed_work		gc_work;
 };
 
 enum flow_offload_tuple_dir {
-	FLOW_OFFLOAD_DIR_ORIGINAL,
-	FLOW_OFFLOAD_DIR_REPLY,
-	__FLOW_OFFLOAD_DIR_MAX		= FLOW_OFFLOAD_DIR_REPLY,
+	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
+	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
+	FLOW_OFFLOAD_DIR_MAX = IP_CT_DIR_MAX
 };
-#define FLOW_OFFLOAD_DIR_MAX	(__FLOW_OFFLOAD_DIR_MAX + 1)
 
 struct flow_offload_tuple {
 	union {
@@ -55,6 +55,8 @@ struct flow_offload_tuple {
 
 	int				oifidx;
 
+	u16				mtu;
+
 	struct dst_entry		*dst_cache;
 };
 
@@ -66,6 +68,7 @@ struct flow_offload_tuple_rhash {
 #define FLOW_OFFLOAD_SNAT	0x1
 #define FLOW_OFFLOAD_DNAT	0x2
 #define FLOW_OFFLOAD_DYING	0x4
+#define FLOW_OFFLOAD_TEARDOWN	0x8
 
 struct flow_offload {
 	struct flow_offload_tuple_rhash		tuplehash[FLOW_OFFLOAD_DIR_MAX];
@@ -98,11 +101,14 @@ int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 
 void nf_flow_table_cleanup(struct net *net, struct net_device *dev);
 
+int nf_flow_table_init(struct nf_flowtable *flow_table);
 void nf_flow_table_free(struct nf_flowtable *flow_table);
-void nf_flow_offload_work_gc(struct work_struct *work);
-extern const struct rhashtable_params nf_flow_offload_rhash_params;
 
-void flow_offload_dead(struct flow_offload *flow);
+void flow_offload_teardown(struct flow_offload *flow);
+static inline void flow_offload_dead(struct flow_offload *flow)
+{
+	flow->flags |= FLOW_OFFLOAD_DYING;
+}
 
 int nf_flow_snat_port(const struct flow_offload *flow,
 		      struct sk_buff *skb, unsigned int thoff,

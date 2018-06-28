@@ -1385,15 +1385,15 @@ fail_unmap_queues:
 			  qpti->req_cpu, qpti->req_dvma);
 #undef QSIZE
 
+fail_free_irq:
+	free_irq(qpti->irq, qpti);
+
 fail_unmap_regs:
 	of_iounmap(&op->resource[0], qpti->qregs,
 		   resource_size(&op->resource[0]));
 	if (qpti->is_pti)
 		of_iounmap(&op->resource[0], qpti->sreg,
 			   sizeof(unsigned char));
-
-fail_free_irq:
-	free_irq(qpti->irq, qpti);
 
 fail_unlink:
 	scsi_host_put(host);

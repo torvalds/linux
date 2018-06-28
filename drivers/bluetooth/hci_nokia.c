@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/unaligned/le_struct.h>
+#include <asm/unaligned.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -477,8 +477,6 @@ static int nokia_open(struct hci_uart *hu)
 
 	dev_dbg(dev, "protocol open");
 
-	serdev_device_open(hu->serdev);
-
 	pm_runtime_enable(dev);
 
 	return 0;
@@ -513,7 +511,6 @@ static int nokia_close(struct hci_uart *hu)
 	gpiod_set_value(btdev->wakeup_bt, 0);
 
 	pm_runtime_disable(&btdev->serdev->dev);
-	serdev_device_close(btdev->serdev);
 
 	return 0;
 }

@@ -68,4 +68,6 @@ int gf100_fb_oneinit(struct nvkm_fb *);
 int gf100_fb_init_page(struct nvkm_fb *);
 
 int gm200_fb_init_page(struct nvkm_fb *);
+
+void gp100_fb_init_unkn(struct nvkm_fb *);
 #endif

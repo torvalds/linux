@@ -12,7 +12,8 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_address.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 #include "ccu_common.h"
 #include "ccu_reset.h"
@@ -1250,17 +1251,45 @@ static struct ccu_mux_nb sun8i_r40_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init sun8i_r40_ccu_setup(struct device_node *node)
+/*
+ * Add a regmap for the GMAC driver (dwmac-sun8i) to access the
+ * GMAC configuration register.
+ * Only this register is allowed to be written, in order to
+ * prevent overriding critical clock configuration.
+ */
+
+#define SUN8I_R40_GMAC_CFG_REG 0x164
+static bool sun8i_r40_ccu_regmap_accessible_reg(struct device *dev,
+						unsigned int reg)
 {
+	if (reg == SUN8I_R40_GMAC_CFG_REG)
+		return true;
+	return false;
+}
+
+static struct regmap_config sun8i_r40_ccu_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.max_register	= 0x320, /* PLL_LOCK_CTRL_REG */
+
+	/* other devices have no business accessing other registers */
+	.readable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
+	.writeable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
+};
+
+static int sun8i_r40_ccu_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	struct regmap *regmap;
 	void __iomem *reg;
 	u32 val;
+	int ret;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n",
-		       of_node_full_name(node));
-		return;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	/* Force the PLL-Audio-1x divider to 4 */
 	val = readl(reg + SUN8I_R40_PLL_AUDIO_REG);
@@ -1277,7 +1306,14 @@ static void __init sun8i_r40_ccu_setup(struct device_node *node)
 	val &= ~GENMASK(25, 20);
 	writel(val, reg + SUN8I_R40_USB_CLK_REG);
 
-	sunxi_ccu_probe(node, reg, &sun8i_r40_ccu_desc);
+	regmap = devm_regmap_init_mmio(&pdev->dev, reg,
+				       &sun8i_r40_ccu_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	ret = sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_r40_ccu_desc);
+	if (ret)
+		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&sun8i_r40_pll_cpu_nb);
@@ -1285,6 +1321,20 @@ static void __init sun8i_r40_ccu_setup(struct device_node *node)
 	/* Reparent CPU during PLL CPU rate changes */
 	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
 				  &sun8i_r40_cpu_nb);
+
+	return 0;
 }
-CLK_OF_DECLARE(sun8i_r40_ccu, "allwinner,sun8i-r40-ccu",
-	       sun8i_r40_ccu_setup);
+
+static const struct of_device_id sun8i_r40_ccu_ids[] = {
+	{ .compatible = "allwinner,sun8i-r40-ccu" },
+	{ }
+};
+
+static struct platform_driver sun8i_r40_ccu_driver = {
+	.probe	= sun8i_r40_ccu_probe,
+	.driver	= {
+		.name	= "sun8i-r40-ccu",
+		.of_match_table	= sun8i_r40_ccu_ids,
+	},
+};
+builtin_platform_driver(sun8i_r40_ccu_driver);

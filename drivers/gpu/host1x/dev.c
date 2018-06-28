@@ -223,10 +223,14 @@ static int host1x_probe(struct platform_device *pdev)
 		struct iommu_domain_geometry *geometry;
 		unsigned long order;
 
+		err = iova_cache_get();
+		if (err < 0)
+			goto put_group;
+
 		host->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!host->domain) {
 			err = -ENOMEM;
-			goto put_group;
+			goto put_cache;
 		}
 
 		err = iommu_attach_group(host->domain, host->group);
@@ -234,6 +238,7 @@ static int host1x_probe(struct platform_device *pdev)
 			if (err == -ENODEV) {
 				iommu_domain_free(host->domain);
 				host->domain = NULL;
+				iova_cache_put();
 				iommu_group_put(host->group);
 				host->group = NULL;
 				goto skip_iommu;
@@ -308,6 +313,9 @@ fail_detach_device:
 fail_free_domain:
 	if (host->domain)
 		iommu_domain_free(host->domain);
+put_cache:
+	if (host->group)
+		iova_cache_put();
 put_group:
 	iommu_group_put(host->group);
 
@@ -328,6 +336,7 @@ static int host1x_remove(struct platform_device *pdev)
 		put_iova_domain(&host->iova);
 		iommu_detach_group(host->domain, host->group);
 		iommu_domain_free(host->domain);
+		iova_cache_put();
 		iommu_group_put(host->group);
 	}
 

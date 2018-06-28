@@ -20,7 +20,7 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
 	int got = 0;
 	int rc = 0;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, GFP_NOFS);
+	pages = kmalloc_array(num_pages, sizeof(*pages), GFP_NOFS);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
@@ -74,7 +74,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
 	struct page **pages;
 	int i;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, flags);
+	pages = kmalloc_array(num_pages, sizeof(*pages), flags);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < num_pages; i++) {

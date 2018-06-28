@@ -9,7 +9,8 @@ config OPENVSWITCH
 		   (NF_CONNTRACK && ((!NF_DEFRAG_IPV6 || NF_DEFRAG_IPV6) && \
 				     (!NF_NAT || NF_NAT) && \
 				     (!NF_NAT_IPV4 || NF_NAT_IPV4) && \
-				     (!NF_NAT_IPV6 || NF_NAT_IPV6)))
+				     (!NF_NAT_IPV6 || NF_NAT_IPV6) && \
+				     (!NETFILTER_CONNCOUNT || NETFILTER_CONNCOUNT)))
 	select LIBCRC32C
 	select MPLS
 	select NET_MPLS_GSO

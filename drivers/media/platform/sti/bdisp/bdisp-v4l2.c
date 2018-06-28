@@ -1297,6 +1297,10 @@ static int bdisp_probe(struct platform_device *pdev)
 	if (!bdisp)
 		return -ENOMEM;
 
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
 	bdisp->pdev = pdev;
 	bdisp->dev = dev;
 	platform_set_drvdata(pdev, bdisp);

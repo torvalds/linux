@@ -856,7 +856,17 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "ETPS/2",
 		.alias		= "elantech",
 		.detect		= elantech_detect,
-		.init		= elantech_init,
+		.init		= elantech_init_ps2,
+	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_ELANTECH_SMBUS
+	{
+		.type		= PSMOUSE_ELANTECH_SMBUS,
+		.name		= "ETSMBus",
+		.alias		= "elantech-smbus",
+		.detect		= elantech_detect,
+		.init		= elantech_init_smbus,
+		.smbus_companion = true,
 	},
 #endif
 #ifdef CONFIG_MOUSE_PS2_SENTELIC
@@ -1158,8 +1168,13 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	/* Try Elantech touchpad */
 	if (max_proto > PSMOUSE_IMEX &&
 	    psmouse_try_protocol(psmouse, PSMOUSE_ELANTECH,
-				 &max_proto, set_properties, true)) {
-		return PSMOUSE_ELANTECH;
+				 &max_proto, set_properties, false)) {
+		if (!set_properties)
+			return PSMOUSE_ELANTECH;
+
+		ret = elantech_init(psmouse);
+		if (ret >= 0)
+			return ret;
 	}
 
 	if (max_proto > PSMOUSE_IMEX) {

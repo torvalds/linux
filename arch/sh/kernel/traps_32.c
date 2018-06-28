@@ -477,7 +477,6 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 {
 	unsigned long error_code = 0;
 	mm_segment_t oldfs;
-	siginfo_t info;
 	insn_size_t instruction;
 	int tmp;
 
@@ -537,11 +536,7 @@ uspace_segv:
 		       "access (PC %lx PR %lx)\n", current->comm, regs->pc,
 		       regs->pr);
 
-		info.si_signo = SIGBUS;
-		info.si_errno = 0;
-		info.si_code = si_code;
-		info.si_addr = (void __user *)address;
-		force_sig_info(SIGBUS, &info, current);
+		force_sig_fault(SIGBUS, si_code, (void __user *)address, current);
 	} else {
 		inc_unaligned_kernel_access();
 
@@ -598,19 +593,20 @@ int is_dsp_inst(struct pt_regs *regs)
 #ifdef CONFIG_CPU_SH2A
 asmlinkage void do_divide_error(unsigned long r4)
 {
-	siginfo_t info;
+	int code;
 
 	switch (r4) {
 	case TRAP_DIVZERO_ERROR:
-		info.si_code = FPE_INTDIV;
+		code = FPE_INTDIV;
 		break;
 	case TRAP_DIVOVF_ERROR:
-		info.si_code = FPE_INTOVF;
+		code = FPE_INTOVF;
 		break;
+	default:
+		/* Let gcc know unhandled cases don't make it past here */
+		return;
 	}
-
-	info.si_signo = SIGFPE;
-	force_sig_info(info.si_signo, &info, current);
+	force_sig_fault(SIGFPE, code, NULL, current);
 }
 #endif
 

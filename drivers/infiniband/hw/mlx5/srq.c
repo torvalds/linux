@@ -127,7 +127,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_umem;
 	}
 
-	in->pas = kvzalloc(sizeof(*in->pas) * ncont, GFP_KERNEL);
+	in->pas = kvcalloc(ncont, sizeof(*in->pas), GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_umem;
@@ -189,7 +189,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 
 	mlx5_ib_dbg(dev, "srq->buf.page_shift = %d\n", srq->buf.page_shift);
-	in->pas = kvzalloc(sizeof(*in->pas) * srq->buf.npages, GFP_KERNEL);
+	in->pas = kvcalloc(srq->buf.npages, sizeof(*in->pas), GFP_KERNEL);
 	if (!in->pas) {
 		err = -ENOMEM;
 		goto err_buf;

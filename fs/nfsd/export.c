@@ -404,8 +404,9 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 	if (fsloc->locations_count == 0)
 		return 0;
 
-	fsloc->locations = kzalloc(fsloc->locations_count
-			* sizeof(struct nfsd4_fs_location), GFP_KERNEL);
+	fsloc->locations = kcalloc(fsloc->locations_count,
+				   sizeof(struct nfsd4_fs_location),
+				   GFP_KERNEL);
 	if (!fsloc->locations)
 		return -ENOMEM;
 	for (i=0; i < fsloc->locations_count; i++) {

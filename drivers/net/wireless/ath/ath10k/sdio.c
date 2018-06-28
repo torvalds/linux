@@ -1957,25 +1957,25 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ar_sdio = ath10k_sdio_priv(ar);
 
 	ar_sdio->irq_data.irq_proc_reg =
-		kzalloc(sizeof(struct ath10k_sdio_irq_proc_regs),
-			GFP_KERNEL);
+		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_proc_regs),
+			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_proc_reg) {
 		ret = -ENOMEM;
 		goto err_core_destroy;
 	}
 
 	ar_sdio->irq_data.irq_en_reg =
-		kzalloc(sizeof(struct ath10k_sdio_irq_enable_regs),
-			GFP_KERNEL);
+		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_enable_regs),
+			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_en_reg) {
 		ret = -ENOMEM;
-		goto err_free_proc_reg;
+		goto err_core_destroy;
 	}
 
-	ar_sdio->bmi_buf = kzalloc(BMI_MAX_CMDBUF_SIZE, GFP_KERNEL);
+	ar_sdio->bmi_buf = devm_kzalloc(ar->dev, BMI_MAX_CMDBUF_SIZE, GFP_KERNEL);
 	if (!ar_sdio->bmi_buf) {
 		ret = -ENOMEM;
-		goto err_free_en_reg;
+		goto err_core_destroy;
 	}
 
 	ar_sdio->func = func;
@@ -1995,7 +1995,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ar_sdio->workqueue = create_singlethread_workqueue("ath10k_sdio_wq");
 	if (!ar_sdio->workqueue) {
 		ret = -ENOMEM;
-		goto err_free_bmi_buf;
+		goto err_core_destroy;
 	}
 
 	for (i = 0; i < ATH10K_SDIO_BUS_REQUEST_MAX_NUM; i++)
@@ -2011,7 +2011,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		ath10k_err(ar, "unsupported device id %u (0x%x)\n",
 			   dev_id_base, id->device);
-		goto err_free_bmi_buf;
+		goto err_free_wq;
 	}
 
 	ar->id.vendor = id->vendor;
@@ -2040,12 +2040,6 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 
 err_free_wq:
 	destroy_workqueue(ar_sdio->workqueue);
-err_free_bmi_buf:
-	kfree(ar_sdio->bmi_buf);
-err_free_en_reg:
-	kfree(ar_sdio->irq_data.irq_en_reg);
-err_free_proc_reg:
-	kfree(ar_sdio->irq_data.irq_proc_reg);
 err_core_destroy:
 	ath10k_core_destroy(ar);
 

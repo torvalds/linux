@@ -600,7 +600,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	 * completion.
 	 */
 	while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (netif_running(netdev)) {
 		vmxnet3_quiesce_dev(adapter);

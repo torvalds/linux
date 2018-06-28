@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/circ_buf.h>
 #include <linux/poll.h>
+#include <linux/nospec.h>
 
 #include "internal.h"
 
@@ -102,7 +103,7 @@ out:
 	preempt_enable();
 }
 
-static bool __always_inline
+static __always_inline bool
 ring_buffer_has_space(unsigned long head, unsigned long tail,
 		      unsigned long data_size, unsigned int size,
 		      bool backward)
@@ -113,7 +114,7 @@ ring_buffer_has_space(unsigned long head, unsigned long tail,
 		return CIRC_SPACE(tail, head, data_size) >= size;
 }
 
-static int __always_inline
+static __always_inline int
 __perf_output_begin(struct perf_output_handle *handle,
 		    struct perf_event *event, unsigned int size,
 		    bool backward)
@@ -413,7 +414,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(perf_aux_output_begin);
 
-static bool __always_inline rb_need_aux_wakeup(struct ring_buffer *rb)
+static __always_inline bool rb_need_aux_wakeup(struct ring_buffer *rb)
 {
 	if (rb->aux_overwrite)
 		return false;
@@ -613,7 +614,8 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		}
 	}
 
-	rb->aux_pages = kzalloc_node(nr_pages * sizeof(void *), GFP_KERNEL, node);
+	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
+				     node);
 	if (!rb->aux_pages)
 		return -ENOMEM;
 
@@ -867,8 +869,10 @@ perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 			return NULL;
 
 		/* AUX space */
-		if (pgoff >= rb->aux_pgoff)
-			return virt_to_page(rb->aux_pages[pgoff - rb->aux_pgoff]);
+		if (pgoff >= rb->aux_pgoff) {
+			int aux_pgoff = array_index_nospec(pgoff - rb->aux_pgoff, rb->aux_nr_pages);
+			return virt_to_page(rb->aux_pages[aux_pgoff]);
+		}
 	}
 
 	return __perf_mmap_to_page(rb, pgoff);

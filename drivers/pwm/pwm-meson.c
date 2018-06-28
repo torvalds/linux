@@ -541,8 +541,8 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->data = of_device_get_match_data(&pdev->dev);
 	meson->inverter_mask = BIT(meson->chip.npwm) - 1;
 
-	channels = devm_kcalloc(&pdev->dev, meson->chip.npwm, sizeof(*meson),
-				GFP_KERNEL);
+	channels = devm_kcalloc(&pdev->dev, meson->chip.npwm,
+				sizeof(*channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 

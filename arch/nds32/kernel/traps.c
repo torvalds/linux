@@ -222,19 +222,13 @@ void die_if_kernel(const char *str, struct pt_regs *regs, int err)
 
 int bad_syscall(int n, struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	if (current->personality != PER_LINUX) {
 		send_sig(SIGSEGV, current, 1);
 		return regs->uregs[0];
 	}
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code = ILL_ILLTRP;
-	info.si_addr = (void __user *)instruction_pointer(regs) - 4;
-
-	force_sig_info(SIGILL, &info, current);
+	force_sig_fault(SIGILL, ILL_ILLTRP,
+			(void __user *)instruction_pointer(regs) - 4, current);
 	die_if_kernel("Oops - bad syscall", regs, n);
 	return regs->uregs[0];
 }
@@ -287,16 +281,11 @@ void __init early_trap_init(void)
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 		  int error_code, int si_code)
 {
-	struct siginfo info;
-
 	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
 	tsk->thread.error_code = error_code;
 
-	memset(&info, 0, sizeof(info));
-	info.si_signo = SIGTRAP;
-	info.si_code = si_code;
-	info.si_addr = (void __user *)instruction_pointer(regs);
-	force_sig_info(SIGTRAP, &info, tsk);
+	force_sig_fault(SIGTRAP, si_code,
+			(void __user *)instruction_pointer(regs), tsk);
 }
 
 void do_debug_trap(unsigned long entry, unsigned long addr,
@@ -318,29 +307,22 @@ void do_debug_trap(unsigned long entry, unsigned long addr,
 
 void unhandled_interruption(struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("unhandled_interruption\n");
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	si.si_signo = SIGKILL;
-	si.si_errno = 0;
-	force_sig_info(SIGKILL, &si, current);
+	force_sig(SIGKILL, current);
 }
 
 void unhandled_exceptions(unsigned long entry, unsigned long addr,
 			  unsigned long type, struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("Unhandled Exception: entry: %lx addr:%lx itype:%lx\n", entry,
 		 addr, type);
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	si.si_signo = SIGKILL;
-	si.si_errno = 0;
-	si.si_addr = (void *)addr;
-	force_sig_info(SIGKILL, &si, current);
+	force_sig(SIGKILL, current);
 }
 
 extern int do_page_fault(unsigned long entry, unsigned long addr,
@@ -363,14 +345,11 @@ void do_dispatch_tlb_misc(unsigned long entry, unsigned long addr,
 
 void do_revinsn(struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("Reserved Instruction\n");
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGILL);
-	si.si_signo = SIGILL;
-	si.si_errno = 0;
-	force_sig_info(SIGILL, &si, current);
+	force_sig(SIGILL, current);
 }
 
 #ifdef CONFIG_ALIGNMENT_TRAP

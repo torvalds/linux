@@ -2829,19 +2829,6 @@ static const struct seq_operations igmp_mc_seq_ops = {
 	.show	=	igmp_mc_seq_show,
 };
 
-static int igmp_mc_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &igmp_mc_seq_ops,
-			sizeof(struct igmp_mc_iter_state));
-}
-
-static const struct file_operations igmp_mc_seq_fops = {
-	.open		=	igmp_mc_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 struct igmp_mcf_iter_state {
 	struct seq_net_private p;
 	struct net_device *dev;
@@ -2975,29 +2962,17 @@ static const struct seq_operations igmp_mcf_seq_ops = {
 	.show	=	igmp_mcf_seq_show,
 };
 
-static int igmp_mcf_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &igmp_mcf_seq_ops,
-			sizeof(struct igmp_mcf_iter_state));
-}
-
-static const struct file_operations igmp_mcf_seq_fops = {
-	.open		=	igmp_mcf_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 static int __net_init igmp_net_init(struct net *net)
 {
 	struct proc_dir_entry *pde;
 	int err;
 
-	pde = proc_create("igmp", 0444, net->proc_net, &igmp_mc_seq_fops);
+	pde = proc_create_net("igmp", 0444, net->proc_net, &igmp_mc_seq_ops,
+			sizeof(struct igmp_mc_iter_state));
 	if (!pde)
 		goto out_igmp;
-	pde = proc_create("mcfilter", 0444, net->proc_net,
-			  &igmp_mcf_seq_fops);
+	pde = proc_create_net("mcfilter", 0444, net->proc_net,
+			&igmp_mcf_seq_ops, sizeof(struct igmp_mcf_iter_state));
 	if (!pde)
 		goto out_mcfilter;
 	err = inet_ctl_sock_create(&net->ipv4.mc_autojoin_sk, AF_INET,

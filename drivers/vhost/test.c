@@ -107,7 +107,7 @@ static int vhost_test_open(struct inode *inode, struct file *f)
 
 	if (!n)
 		return -ENOMEM;
-	vqs = kmalloc(VHOST_TEST_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
+	vqs = kmalloc_array(VHOST_TEST_VQ_MAX, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
 		kfree(n);
 		return -ENOMEM;

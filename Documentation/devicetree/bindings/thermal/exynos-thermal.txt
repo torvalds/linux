@@ -12,7 +12,6 @@
 	       "samsung,exynos5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
 			Exynos5420 (Must pass triminfo base and triminfo clock)
                "samsung,exynos5433-tmu"
-	       "samsung,exynos5440-tmu"
 	       "samsung,exynos7-tmu"
 - interrupt-parent : The phandle for the interrupt controller
 - reg : Address range of the thermal registers. For soc's which has multiple
@@ -68,18 +67,7 @@ Example 1):
 		#thermal-sensor-cells = <0>;
 	};
 
-Example 2):
-
-	tmuctrl_0: tmuctrl@160118 {
-		compatible = "samsung,exynos5440-tmu";
-		reg = <0x160118 0x230>, <0x160368 0x10>;
-		interrupts = <0 58 0>;
-		clocks = <&clock 21>;
-		clock-names = "tmu_apbif";
-		#thermal-sensor-cells = <0>;
-	};
-
-Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
+Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
 	tmu_cpu2: tmu@10068000 {
 		compatible = "samsung,exynos5420-tmu-ext-triminfo";
 		reg = <0x10068000 0x100>, <0x1006c000 0x4>;

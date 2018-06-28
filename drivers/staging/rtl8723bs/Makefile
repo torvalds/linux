@@ -23,7 +23,7 @@ r8723bs-y = \
 		hal/hal_com_phycfg.o \
 		hal/hal_btcoex.o \
 		hal/hal_sdio.o \
-		hal/Hal8723BPwrSeq.o \
+		hal/hal_pwr_seq.o \
 		hal/HalPhyRf.o \
 		hal/HalPwrSeqCmd.o \
 		hal/odm.o \

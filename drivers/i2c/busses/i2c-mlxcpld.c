@@ -45,13 +45,16 @@
 #define MLXCPLD_I2C_VALID_FLAG		(I2C_M_RECV_LEN | I2C_M_RD)
 #define MLXCPLD_I2C_BUS_NUM		1
 #define MLXCPLD_I2C_DATA_REG_SZ		36
+#define MLXCPLD_I2C_DATA_SZ_BIT		BIT(5)
+#define MLXCPLD_I2C_DATA_SZ_MASK	GENMASK(6, 5)
+#define MLXCPLD_I2C_SMBUS_BLK_BIT	BIT(7)
 #define MLXCPLD_I2C_MAX_ADDR_LEN	4
 #define MLXCPLD_I2C_RETR_NUM		2
 #define MLXCPLD_I2C_XFER_TO		500000 /* usec */
 #define MLXCPLD_I2C_POLL_TIME		2000   /* usec */
 
 /* LPC I2C registers */
-#define MLXCPLD_LPCI2C_LPF_REG		0x0
+#define MLXCPLD_LPCI2C_CPBLTY_REG	0x0
 #define MLXCPLD_LPCI2C_CTRL_REG		0x1
 #define MLXCPLD_LPCI2C_HALF_CYC_REG	0x4
 #define MLXCPLD_LPCI2C_I2C_HOLD_REG	0x5
@@ -83,6 +86,7 @@ struct mlxcpld_i2c_priv {
 	struct mutex lock;
 	struct  mlxcpld_i2c_curr_xfer xfer;
 	struct device *dev;
+	bool smbus_block;
 };
 
 static void mlxcpld_i2c_lpc_write_buf(u8 *data, u8 len, u32 addr)
@@ -230,7 +234,7 @@ static void mlxcpld_i2c_set_transf_data(struct mlxcpld_i2c_priv *priv,
 	 * All upper layers currently are never use transfer with more than
 	 * 2 messages. Actually, it's also not so relevant in Mellanox systems
 	 * because of HW limitation. Max size of transfer is not more than 32
-	 * bytes in the current x86 LPCI2C bridge.
+	 * or 68 bytes in the current x86 LPCI2C bridge.
 	 */
 	priv->xfer.cmd = msgs[num - 1].flags & I2C_M_RD;
 
@@ -295,7 +299,7 @@ static int mlxcpld_i2c_wait_for_free(struct mlxcpld_i2c_priv *priv)
 static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 {
 	int status, i, timeout = 0;
-	u8 datalen;
+	u8 datalen, val;
 
 	do {
 		usleep_range(MLXCPLD_I2C_POLL_TIME / 2, MLXCPLD_I2C_POLL_TIME);
@@ -324,9 +328,22 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 		 * Actual read data len will be always the same as
 		 * requested len. 0xff (line pull-up) will be returned
 		 * if slave has no data to return. Thus don't read
-		 * MLXCPLD_LPCI2C_NUM_DAT_REG reg from CPLD.
+		 * MLXCPLD_LPCI2C_NUM_DAT_REG reg from CPLD.  Only in case of
+		 * SMBus block read transaction data len can be different,
+		 * check this case.
 		 */
-		datalen = priv->xfer.data_len;
+		mlxcpld_i2c_read_comm(priv, MLXCPLD_LPCI2C_NUM_ADDR_REG, &val,
+				      1);
+		if (priv->smbus_block && (val & MLXCPLD_I2C_SMBUS_BLK_BIT)) {
+			mlxcpld_i2c_read_comm(priv, MLXCPLD_LPCI2C_NUM_DAT_REG,
+					      &datalen, 1);
+			if (unlikely(datalen > (I2C_SMBUS_BLOCK_MAX + 1))) {
+				dev_err(priv->dev, "Incorrect smbus block read message len\n");
+				return -E2BIG;
+			}
+		} else {
+			datalen = priv->xfer.data_len;
+		}
 
 		mlxcpld_i2c_read_comm(priv, MLXCPLD_LPCI2C_DATA_REG,
 				      priv->xfer.msg[i].buf, datalen);
@@ -344,12 +361,20 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 static void mlxcpld_i2c_xfer_msg(struct mlxcpld_i2c_priv *priv)
 {
 	int i, len = 0;
-	u8 cmd;
+	u8 cmd, val;
 
 	mlxcpld_i2c_write_comm(priv, MLXCPLD_LPCI2C_NUM_DAT_REG,
 			       &priv->xfer.data_len, 1);
-	mlxcpld_i2c_write_comm(priv, MLXCPLD_LPCI2C_NUM_ADDR_REG,
-			       &priv->xfer.addr_width, 1);
+
+	val = priv->xfer.addr_width;
+	/* Notify HW about SMBus block read transaction */
+	if (priv->smbus_block && priv->xfer.msg_num >= 2 &&
+	    priv->xfer.msg[1].len == 1 &&
+	    (priv->xfer.msg[1].flags & I2C_M_RECV_LEN) &&
+	    (priv->xfer.msg[1].flags & I2C_M_RD))
+		val |= MLXCPLD_I2C_SMBUS_BLK_BIT;
+
+	mlxcpld_i2c_write_comm(priv, MLXCPLD_LPCI2C_NUM_ADDR_REG, &val, 1);
 
 	for (i = 0; i < priv->xfer.msg_num; i++) {
 		if ((priv->xfer.msg[i].flags & I2C_M_RD) != I2C_M_RD) {
@@ -425,7 +450,14 @@ static int mlxcpld_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 static u32 mlxcpld_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_BLOCK_DATA;
+	struct mlxcpld_i2c_priv *priv = i2c_get_adapdata(adap);
+
+	if (priv->smbus_block)
+		return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+			I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_BLOCK_DATA;
+	else
+		return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+			I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
 static const struct i2c_algorithm mlxcpld_i2c_algo = {
@@ -437,6 +469,13 @@ static const struct i2c_adapter_quirks mlxcpld_i2c_quirks = {
 	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
 	.max_read_len = MLXCPLD_I2C_DATA_REG_SZ - MLXCPLD_I2C_MAX_ADDR_LEN,
 	.max_write_len = MLXCPLD_I2C_DATA_REG_SZ,
+	.max_comb_1st_msg_len = 4,
+};
+
+static const struct i2c_adapter_quirks mlxcpld_i2c_quirks_ext = {
+	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
+	.max_read_len = MLXCPLD_I2C_DATA_REG_SZ * 2 - MLXCPLD_I2C_MAX_ADDR_LEN,
+	.max_write_len = MLXCPLD_I2C_DATA_REG_SZ * 2,
 	.max_comb_1st_msg_len = 4,
 };
 
@@ -454,6 +493,7 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 {
 	struct mlxcpld_i2c_priv *priv;
 	int err;
+	u8 val;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -466,6 +506,16 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 
 	/* Register with i2c layer */
 	mlxcpld_i2c_adapter.timeout = usecs_to_jiffies(MLXCPLD_I2C_XFER_TO);
+	/* Read capability register */
+	mlxcpld_i2c_read_comm(priv, MLXCPLD_LPCI2C_CPBLTY_REG, &val, 1);
+	/* Check support for extended transaction length */
+	if ((val & MLXCPLD_I2C_DATA_SZ_MASK) == MLXCPLD_I2C_DATA_SZ_BIT)
+		mlxcpld_i2c_adapter.quirks = &mlxcpld_i2c_quirks_ext;
+	/* Check support for smbus block transaction */
+	if (val & MLXCPLD_I2C_SMBUS_BLK_BIT)
+		priv->smbus_block = true;
+	if (pdev->id >= -1)
+		mlxcpld_i2c_adapter.nr = pdev->id;
 	priv->adap = mlxcpld_i2c_adapter;
 	priv->adap.dev.parent = &pdev->dev;
 	priv->base_addr = MLXPLAT_CPLD_LPC_I2C_BASE_ADDR;

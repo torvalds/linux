@@ -310,6 +310,12 @@ static struct ath10k_hw_ce_dst_src_wm_regs wcn3990_wm_dst_ring = {
 	.wm_high	= &wcn3990_dst_wm_high,
 };
 
+static struct ath10k_hw_ce_ctrl1_upd wcn3990_ctrl1_upd = {
+	.shift = 19,
+	.mask = 0x00080000,
+	.enable = 0x00000000,
+};
+
 const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
 	.sr_base_addr		= 0x00000000,
 	.sr_size_addr		= 0x00000008,
@@ -320,8 +326,6 @@ const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
 	.dst_wr_index_addr	= 0x00000040,
 	.current_srri_addr	= 0x00000044,
 	.current_drri_addr	= 0x00000048,
-	.ddr_addr_for_rri_low	= 0x00000004,
-	.ddr_addr_for_rri_high	= 0x00000008,
 	.ce_rri_low		= 0x0024C004,
 	.ce_rri_high		= 0x0024C008,
 	.host_ie_addr		= 0x0000002c,
@@ -331,6 +335,7 @@ const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
 	.misc_regs		= &wcn3990_misc_reg,
 	.wm_srcr		= &wcn3990_wm_src_ring,
 	.wm_dstr		= &wcn3990_wm_dst_ring,
+	.upd			= &wcn3990_ctrl1_upd,
 };
 
 const struct ath10k_hw_values wcn3990_values = {

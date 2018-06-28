@@ -976,6 +976,7 @@ static int sfp_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
 		const struct of_device_id *id;
+		struct i2c_adapter *i2c;
 		struct device_node *np;
 
 		id = of_match_node(sfp_of_match, node);
@@ -985,19 +986,20 @@ static int sfp_probe(struct platform_device *pdev)
 		sff = sfp->type = id->data;
 
 		np = of_parse_phandle(node, "i2c-bus", 0);
-		if (np) {
-			struct i2c_adapter *i2c;
+		if (!np) {
+			dev_err(sfp->dev, "missing 'i2c-bus' property\n");
+			return -ENODEV;
+		}
 
-			i2c = of_find_i2c_adapter_by_node(np);
-			of_node_put(np);
-			if (!i2c)
-				return -EPROBE_DEFER;
+		i2c = of_find_i2c_adapter_by_node(np);
+		of_node_put(np);
+		if (!i2c)
+			return -EPROBE_DEFER;
 
-			err = sfp_i2c_configure(sfp, i2c);
-			if (err < 0) {
-				i2c_put_adapter(i2c);
-				return err;
-			}
+		err = sfp_i2c_configure(sfp, i2c);
+		if (err < 0) {
+			i2c_put_adapter(i2c);
+			return err;
 		}
 	}
 
@@ -1064,6 +1066,15 @@ static int sfp_probe(struct platform_device *pdev)
 
 	if (poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+
+	/* We could have an issue in cases no Tx disable pin is available or
+	 * wired as modules using a laser as their light source will continue to
+	 * be active when the fiber is removed. This could be a safety issue and
+	 * we should at least warn the user about that.
+	 */
+	if (!sfp->gpio[GPIO_TX_DISABLE])
+		dev_warn(sfp->dev,
+			 "No tx_disable pin: SFP modules will always be emitting.\n");
 
 	return 0;
 }

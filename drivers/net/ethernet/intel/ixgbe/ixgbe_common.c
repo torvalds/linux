@@ -1,31 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2016 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -3652,7 +3626,7 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 	 */
 	for (i = 0; i < dword_len; i++)
 		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
-				      i, cpu_to_le32(buffer[i]));
+				      i, (__force u32)cpu_to_le32(buffer[i]));
 
 	/* Setting this bit tells the ARC that a new command is pending. */
 	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);

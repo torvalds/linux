@@ -425,8 +425,8 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (priv->sspa == NULL)
 		return -ENOMEM;
 
-	priv->dma_params = devm_kzalloc(&pdev->dev,
-			2 * sizeof(struct snd_dmaengine_dai_dma_data),
+	priv->dma_params = devm_kcalloc(&pdev->dev,
+			2, sizeof(struct snd_dmaengine_dai_dma_data),
 			GFP_KERNEL);
 	if (priv->dma_params == NULL)
 		return -ENOMEM;

@@ -300,8 +300,8 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	if (!count || count > chip->n_leds)
 		return ERR_PTR(-ENODEV);
 
-	pca963x_leds = devm_kzalloc(&client->dev,
-			sizeof(struct led_info) * chip->n_leds, GFP_KERNEL);
+	pca963x_leds = devm_kcalloc(&client->dev,
+			chip->n_leds, sizeof(struct led_info), GFP_KERNEL);
 	if (!pca963x_leds)
 		return ERR_PTR(-ENOMEM);
 
@@ -407,7 +407,7 @@ static int pca963x_probe(struct i2c_client *client,
 								GFP_KERNEL);
 	if (!pca963x_chip)
 		return -ENOMEM;
-	pca963x = devm_kzalloc(&client->dev, chip->n_leds * sizeof(*pca963x),
+	pca963x = devm_kcalloc(&client->dev, chip->n_leds, sizeof(*pca963x),
 								GFP_KERNEL);
 	if (!pca963x)
 		return -ENOMEM;

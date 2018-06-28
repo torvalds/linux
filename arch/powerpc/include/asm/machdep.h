@@ -83,7 +83,7 @@ struct machdep_calls {
 
 	int		(*set_rtc_time)(struct rtc_time *);
 	void		(*get_rtc_time)(struct rtc_time *);
-	unsigned long	(*get_boot_time)(void);
+	time64_t	(*get_boot_time)(void);
 	unsigned char 	(*rtc_read_val)(int addr);
 	void		(*rtc_write_val)(int addr, unsigned char val);
 

@@ -53,6 +53,8 @@ extern ssize_t cpu_show_spectre_v1(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 extern ssize_t cpu_show_spectre_v2(struct device *dev,
 				   struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_spec_store_bypass(struct device *dev,
+					  struct device_attribute *attr, char *buf);
 
 extern __printf(4, 5)
 struct device *cpu_device_create(struct device *parent, void *drvdata,

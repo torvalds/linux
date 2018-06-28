@@ -54,6 +54,8 @@ static int bcm54210e_config_init(struct phy_device *phydev)
 
 static int bcm54612e_config_init(struct phy_device *phydev)
 {
+	int reg;
+
 	/* Clear TX internal delay unless requested. */
 	if ((phydev->interface != PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface != PHY_INTERFACE_MODE_RGMII_TXID)) {
@@ -65,8 +67,6 @@ static int bcm54612e_config_init(struct phy_device *phydev)
 	/* Clear RX internal delay unless requested. */
 	if ((phydev->interface != PHY_INTERFACE_MODE_RGMII_ID) &&
 	    (phydev->interface != PHY_INTERFACE_MODE_RGMII_RXID)) {
-		u16 reg;
-
 		reg = bcm54xx_auxctl_read(phydev,
 					  MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
 		/* Disable RXD to RXC delay (default set) */
@@ -75,6 +75,18 @@ static int bcm54612e_config_init(struct phy_device *phydev)
 		reg &= ~MII_BCM54XX_AUXCTL_SHDWSEL_MASK;
 		bcm54xx_auxctl_write(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
 				     MII_BCM54XX_AUXCTL_MISC_WREN | reg);
+	}
+
+	/* Enable CLK125 MUX on LED4 if ref clock is enabled. */
+	if (!(phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED)) {
+		int err;
+
+		reg = bcm_phy_read_exp(phydev, BCM54612E_EXP_SPARE0);
+		err = bcm_phy_write_exp(phydev, BCM54612E_EXP_SPARE0,
+					BCM54612E_LED4_CLK125OUT_EN | reg);
+
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -720,6 +732,15 @@ static struct phy_driver broadcom_drivers[] = {
 	.get_strings	= bcm_phy_get_strings,
 	.get_stats	= bcm53xx_phy_get_stats,
 	.probe		= bcm53xx_phy_probe,
+}, {
+	.phy_id         = PHY_ID_BCM89610,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM89610",
+	.features       = PHY_GBIT_FEATURES,
+	.flags          = PHY_HAS_INTERRUPT,
+	.config_init    = bcm54xx_config_init,
+	.ack_interrupt  = bcm_phy_ack_intr,
+	.config_intr    = bcm_phy_config_intr,
 } };
 
 module_phy_driver(broadcom_drivers);
@@ -741,6 +762,7 @@ static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCMAC131, 0xfffffff0 },
 	{ PHY_ID_BCM5241, 0xfffffff0 },
 	{ PHY_ID_BCM5395, 0xfffffff0 },
+	{ PHY_ID_BCM89610, 0xfffffff0 },
 	{ }
 };
 

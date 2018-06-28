@@ -1256,26 +1256,26 @@ static int __init zswap_debugfs_init(void)
 	if (!zswap_debugfs_root)
 		return -ENOMEM;
 
-	debugfs_create_u64("pool_limit_hit", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_limit_hit);
-	debugfs_create_u64("reject_reclaim_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_reclaim_fail);
-	debugfs_create_u64("reject_alloc_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_alloc_fail);
-	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
-	debugfs_create_u64("reject_compress_poor", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_compress_poor);
-	debugfs_create_u64("written_back_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_written_back_pages);
-	debugfs_create_u64("duplicate_entry", S_IRUGO,
-			zswap_debugfs_root, &zswap_duplicate_entry);
-	debugfs_create_u64("pool_total_size", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_total_size);
-	debugfs_create_atomic_t("stored_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_stored_pages);
+	debugfs_create_u64("pool_limit_hit", 0444,
+			   zswap_debugfs_root, &zswap_pool_limit_hit);
+	debugfs_create_u64("reject_reclaim_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_reclaim_fail);
+	debugfs_create_u64("reject_alloc_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_alloc_fail);
+	debugfs_create_u64("reject_kmemcache_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+	debugfs_create_u64("reject_compress_poor", 0444,
+			   zswap_debugfs_root, &zswap_reject_compress_poor);
+	debugfs_create_u64("written_back_pages", 0444,
+			   zswap_debugfs_root, &zswap_written_back_pages);
+	debugfs_create_u64("duplicate_entry", 0444,
+			   zswap_debugfs_root, &zswap_duplicate_entry);
+	debugfs_create_u64("pool_total_size", 0444,
+			   zswap_debugfs_root, &zswap_pool_total_size);
+	debugfs_create_atomic_t("stored_pages", 0444,
+				zswap_debugfs_root, &zswap_stored_pages);
 	debugfs_create_atomic_t("same_filled_pages", 0444,
-			zswap_debugfs_root, &zswap_same_filled_pages);
+				zswap_debugfs_root, &zswap_same_filled_pages);
 
 	return 0;
 }

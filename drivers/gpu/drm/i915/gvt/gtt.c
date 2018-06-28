@@ -1585,8 +1585,9 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 	mm->type = INTEL_GVT_MM_GGTT;
 
 	nr_entries = gvt_ggtt_gm_sz(vgpu->gvt) >> I915_GTT_PAGE_SHIFT;
-	mm->ggtt_mm.virtual_ggtt = vzalloc(nr_entries *
-					vgpu->gvt->device_info.gtt_entry_size);
+	mm->ggtt_mm.virtual_ggtt =
+		vzalloc(array_size(nr_entries,
+				   vgpu->gvt->device_info.gtt_entry_size));
 	if (!mm->ggtt_mm.virtual_ggtt) {
 		vgpu_free_mm(mm);
 		return ERR_PTR(-ENOMEM);

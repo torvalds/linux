@@ -455,7 +455,7 @@ int bdisp_hw_alloc_nodes(struct bdisp_ctx *ctx)
 
 	/* Allocate all the nodes within a single memory page */
 	base = dma_alloc_attrs(dev, node_size * MAX_NB_NODE, &paddr,
-			       GFP_KERNEL | GFP_DMA, DMA_ATTR_WRITE_COMBINE);
+			       GFP_KERNEL, DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
 		dev_err(dev, "%s no mem\n", __func__);
 		return -ENOMEM;

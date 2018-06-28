@@ -515,7 +515,8 @@ guarantees:
 
 The /proc/PID/clear_refs is used to reset the PG_Referenced and ACCESSED/YOUNG
 bits on both physical and virtual pages associated with a process, and the
-soft-dirty bit on pte (see Documentation/vm/soft-dirty.txt for details).
+soft-dirty bit on pte (see Documentation/admin-guide/mm/soft-dirty.rst
+for details).
 To clear the bits for all the pages associated with the process
     > echo 1 > /proc/PID/clear_refs
 
@@ -536,7 +537,8 @@ Any other value written to /proc/PID/clear_refs will have no effect.
 
 The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
 using /proc/kpageflags and number of times a page is mapped using
-/proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
+/proc/kpagecount. For detailed explanation, see
+Documentation/admin-guide/mm/pagemap.rst.
 
 The /proc/pid/numa_maps is an extension based on maps, showing the memory
 locality and binding policy, as well as the memory usage (in pages) of
@@ -564,7 +566,7 @@ address   policy    mapping details
 
 Where:
 "address" is the starting address for the mapping;
-"policy" reports the NUMA memory policy set for the mapping (see vm/numa_memory_policy.txt);
+"policy" reports the NUMA memory policy set for the mapping (see Documentation/admin-guide/mm/numa_memory_policy.rst);
 "mapping details" summarizes mapping data such as mapping type, page usage counters,
 node locality page counters (N0 == node0, N1 == node1, ...) and the kernel page
 size, in KB, that is backing the mapping up.

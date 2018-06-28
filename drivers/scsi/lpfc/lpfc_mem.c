@@ -120,8 +120,9 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	if (!phba->lpfc_mbuf_pool)
 		goto fail_free_dma_buf_pool;
 
-	pool->elements = kmalloc(sizeof(struct lpfc_dmabuf) *
-					 LPFC_MBUF_POOL_SIZE, GFP_KERNEL);
+	pool->elements = kmalloc_array(LPFC_MBUF_POOL_SIZE,
+				       sizeof(struct lpfc_dmabuf),
+				       GFP_KERNEL);
 	if (!pool->elements)
 		goto fail_free_lpfc_mbuf_pool;
 

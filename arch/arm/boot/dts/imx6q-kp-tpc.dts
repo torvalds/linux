@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2018
+ * Lukasz Majewski, DENX Software Engineering, lukma@denx.de
+ */
+
+/dts-v1/;
+
+#include "imx6q-kp.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Qwuad K+P TPC Board";
+	compatible = "kiebackpeter,imx6q-tpc", "fsl,imx6q";
+
+	memory@10000000 {
+		reg = <0x10000000 0x40000000>;
+	};
+};
+
+&ipu1_di0_disp0 {
+	remote-endpoint = <&lcd_display_in>;
+};

@@ -101,6 +101,10 @@ struct dcbnl_rtnl_ops {
 	/* CEE peer */
 	int (*cee_peer_getpg) (struct net_device *, struct cee_pg *);
 	int (*cee_peer_getpfc) (struct net_device *, struct cee_pfc *);
+
+	/* buffer settings */
+	int (*dcbnl_getbuffer)(struct net_device *, struct dcbnl_buffer *);
+	int (*dcbnl_setbuffer)(struct net_device *, struct dcbnl_buffer *);
 };
 
 #endif /* __NET_DCBNL_H__ */

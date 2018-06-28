@@ -18,6 +18,7 @@ struct nvkm_engine_func {
 	void *(*dtor)(struct nvkm_engine *);
 	void (*preinit)(struct nvkm_engine *);
 	int (*oneinit)(struct nvkm_engine *);
+	int (*info)(struct nvkm_engine *, u64 mthd, u64 *data);
 	int (*init)(struct nvkm_engine *);
 	int (*fini)(struct nvkm_engine *, bool suspend);
 	void (*intr)(struct nvkm_engine *);

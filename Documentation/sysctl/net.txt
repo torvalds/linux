@@ -45,6 +45,7 @@ through bpf(2) and passing a verifier in the kernel, a JIT will then
 translate these BPF proglets into native CPU instructions. There are
 two flavors of JITs, the newer eBPF JIT currently supported on:
   - x86_64
+  - x86_32
   - arm64
   - arm32
   - ppc64

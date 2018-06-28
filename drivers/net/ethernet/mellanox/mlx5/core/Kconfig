@@ -30,6 +30,7 @@ config MLX5_CORE_EN
 	bool "Mellanox Technologies ConnectX-4 Ethernet support"
 	depends on NETDEVICES && ETHERNET && INET && PCI && MLX5_CORE
 	depends on IPV6=y || IPV6=n || MLX5_CORE=m
+	select PAGE_POOL
 	default n
 	---help---
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
@@ -83,5 +84,17 @@ config MLX5_EN_IPSEC
 	default n
 	---help---
 	  Build support for IPsec cryptography-offload accelaration in the NIC.
+	  Note: Support for hardware with this capability needs to be selected
+	  for this option to become available.
+
+config MLX5_EN_TLS
+	bool "TLS cryptography-offload accelaration"
+	depends on MLX5_CORE_EN
+	depends on TLS_DEVICE
+	depends on TLS=y || MLX5_CORE=m
+	depends on MLX5_ACCEL
+	default n
+	---help---
+	  Build support for TLS cryptography-offload accelaration in the NIC.
 	  Note: Support for hardware with this capability needs to be selected
 	  for this option to become available.

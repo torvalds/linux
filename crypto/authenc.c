@@ -108,6 +108,7 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 				       CRYPTO_TFM_RES_MASK);
 
 out:
+	memzero_explicit(&keys, sizeof(keys));
 	return err;
 
 badkey:

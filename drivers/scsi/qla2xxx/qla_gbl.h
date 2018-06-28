@@ -116,7 +116,8 @@ extern int qla2x00_post_async_prlo_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_prlo_done_work(struct scsi_qla_host *,
     fc_port_t *, uint16_t *);
-
+int qla_post_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
+void qla_do_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 /*
  * Global Data in qla_os.c source file.
  */

@@ -331,7 +331,7 @@ static int l2cap_seq_list_init(struct l2cap_seq_list *seq_list, u16 size)
 	 */
 	alloc_size = roundup_pow_of_two(size);
 
-	seq_list->list = kmalloc(sizeof(u16) * alloc_size, GFP_KERNEL);
+	seq_list->list = kmalloc_array(alloc_size, sizeof(u16), GFP_KERNEL);
 	if (!seq_list->list)
 		return -ENOMEM;
 

@@ -11,6 +11,7 @@ Required properties on all platforms:
 			- "amlogic,meson8b-dwmac"
 			- "amlogic,meson8m2-dwmac"
 			- "amlogic,meson-gxbb-dwmac"
+			- "amlogic,meson-axg-dwmac"
 		Additionally "snps,dwmac" and any applicable more
 		detailed version number described in net/stmmac.txt
 		should be used.

@@ -10,6 +10,8 @@ platforms.
 	Definition: must be one of:
 		    "qcom,msm8916-apcs-kpss-global",
 		    "qcom,msm8996-apcs-hmss-global"
+		    "qcom,msm8998-apcs-hmss-global"
+		    "qcom,sdm845-apss-shared"
 
 - reg:
 	Usage: required

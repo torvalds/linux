@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
 #include <linux/mm.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/io.h>
@@ -108,6 +109,51 @@ static void xive_irq_bitmap_free(int irq)
 	}
 }
 
+
+/* Based on the similar routines in RTAS */
+static unsigned int plpar_busy_delay_time(long rc)
+{
+	unsigned int ms = 0;
+
+	if (H_IS_LONG_BUSY(rc)) {
+		ms = get_longbusy_msecs(rc);
+	} else if (rc == H_BUSY) {
+		ms = 10; /* seems appropriate for XIVE hcalls */
+	}
+
+	return ms;
+}
+
+static unsigned int plpar_busy_delay(int rc)
+{
+	unsigned int ms;
+
+	ms = plpar_busy_delay_time(rc);
+	if (ms)
+		mdelay(ms);
+
+	return ms;
+}
+
+/*
+ * Note: this call has a partition wide scope and can take a while to
+ * complete. If it returns H_LONG_BUSY_* it should be retried
+ * periodically.
+ */
+static long plpar_int_reset(unsigned long flags)
+{
+	long rc;
+
+	do {
+		rc = plpar_hcall_norets(H_INT_RESET, flags);
+	} while (plpar_busy_delay(rc));
+
+	if (rc)
+		pr_err("H_INT_RESET failed %ld\n", rc);
+
+	return rc;
+}
+
 static long plpar_int_get_source_info(unsigned long flags,
 				      unsigned long lisn,
 				      unsigned long *src_flags,
@@ -118,7 +164,10 @@ static long plpar_int_get_source_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	do {
+		rc = plpar_hcall(H_INT_GET_SOURCE_INFO, retbuf, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_SOURCE_INFO lisn=%ld failed %ld\n", lisn, rc);
 		return rc;
@@ -151,8 +200,11 @@ static long plpar_int_set_source_config(unsigned long flags,
 		flags, lisn, target, prio, sw_irq);
 
 
-	rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
-				target, prio, sw_irq);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
+					target, prio, sw_irq);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_SOURCE_CONFIG lisn=%ld target=%lx prio=%lx failed %ld\n",
 		       lisn, target, prio, rc);
@@ -171,7 +223,11 @@ static long plpar_int_get_queue_info(unsigned long flags,
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
 
-	rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target, priority);
+	do {
+		rc = plpar_hcall(H_INT_GET_QUEUE_INFO, retbuf, flags, target,
+				 priority);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_GET_QUEUE_INFO cpu=%ld prio=%ld failed %ld\n",
 		       target, priority, rc);
@@ -200,8 +256,11 @@ static long plpar_int_set_queue_config(unsigned long flags,
 	pr_devel("H_INT_SET_QUEUE_CONFIG flags=%lx target=%lx priority=%lx qpage=%lx qsize=%lx\n",
 		flags,  target, priority, qpage, qsize);
 
-	rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
-				priority, qpage, qsize);
+	do {
+		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
+					priority, qpage, qsize);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SET_QUEUE_CONFIG cpu=%ld prio=%ld qpage=%lx returned %ld\n",
 		       target, priority, qpage, rc);
@@ -215,7 +274,10 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 {
 	long rc;
 
-	rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	do {
+		rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_SYNC lisn=%ld returned %ld\n", lisn, rc);
 		return  rc;
@@ -238,7 +300,11 @@ static long plpar_int_esb(unsigned long flags,
 	pr_devel("H_INT_ESB flags=%lx lisn=%lx offset=%lx in=%lx\n",
 		flags,  lisn, offset, in_data);
 
-	rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset, in_data);
+	do {
+		rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset,
+				 in_data);
+	} while (plpar_busy_delay(rc));
+
 	if (rc) {
 		pr_err("H_INT_ESB lisn=%ld offset=%ld returned %ld\n",
 		       lisn, offset, rc);
@@ -445,11 +511,7 @@ static void xive_spapr_put_ipi(unsigned int cpu, struct xive_cpu *xc)
 
 static void xive_spapr_shutdown(void)
 {
-	long rc;
-
-	rc = plpar_hcall_norets(H_INT_RESET, 0);
-	if (rc)
-		pr_err("H_INT_RESET failed %ld\n", rc);
+	plpar_int_reset(0);
 }
 
 /*

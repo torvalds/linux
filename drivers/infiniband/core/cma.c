@@ -146,6 +146,34 @@ const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
 }
 EXPORT_SYMBOL(rdma_consumer_reject_data);
 
+/**
+ * rdma_iw_cm_id() - return the iw_cm_id pointer for this cm_id.
+ * @id: Communication Identifier
+ */
+struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *id)
+{
+	struct rdma_id_private *id_priv;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	if (id->device->node_type == RDMA_NODE_RNIC)
+		return id_priv->cm_id.iw;
+	return NULL;
+}
+EXPORT_SYMBOL(rdma_iw_cm_id);
+
+/**
+ * rdma_res_to_id() - return the rdma_cm_id pointer for this restrack.
+ * @res: rdma resource tracking entry pointer
+ */
+struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
+{
+	struct rdma_id_private *id_priv =
+		container_of(res, struct rdma_id_private, res);
+
+	return &id_priv->id;
+}
+EXPORT_SYMBOL(rdma_res_to_id);
+
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
@@ -156,7 +184,6 @@ static struct ib_client cma_client = {
 };
 
 static struct ib_sa_client sa_client;
-static struct rdma_addr_client addr_client;
 static LIST_HEAD(dev_list);
 static LIST_HEAD(listen_any_list);
 static DEFINE_MUTEX(lock);
@@ -382,6 +409,8 @@ struct cma_hdr {
 #define CMA_VERSION 0x00
 
 struct cma_req_info {
+	struct sockaddr_storage listen_addr_storage;
+	struct sockaddr_storage src_addr_storage;
 	struct ib_device *device;
 	int port;
 	union ib_gid local_gid;
@@ -866,7 +895,6 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 {
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
-	union ib_gid sgid;
 
 	mutex_lock(&id_priv->qp_mutex);
 	if (!id_priv->id.qp) {
@@ -886,12 +914,6 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 
 	qp_attr.qp_state = IB_QPS_RTR;
 	ret = rdma_init_qp_attr(&id_priv->id, &qp_attr, &qp_attr_mask);
-	if (ret)
-		goto out;
-
-	ret = ib_query_gid(id_priv->id.device, id_priv->id.port_num,
-			   rdma_ah_read_grh(&qp_attr.ah_attr)->sgid_index,
-			   &sgid, NULL);
 	if (ret)
 		goto out;
 
@@ -1340,11 +1362,11 @@ static bool validate_net_dev(struct net_device *net_dev,
 }
 
 static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
-					  const struct cma_req_info *req)
+					  struct cma_req_info *req)
 {
-	struct sockaddr_storage listen_addr_storage, src_addr_storage;
-	struct sockaddr *listen_addr = (struct sockaddr *)&listen_addr_storage,
-			*src_addr = (struct sockaddr *)&src_addr_storage;
+	struct sockaddr *listen_addr =
+			(struct sockaddr *)&req->listen_addr_storage;
+	struct sockaddr *src_addr = (struct sockaddr *)&req->src_addr_storage;
 	struct net_device *net_dev;
 	const union ib_gid *gid = req->has_gid ? &req->local_gid : NULL;
 	int err;
@@ -1358,11 +1380,6 @@ static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 					   gid, listen_addr);
 	if (!net_dev)
 		return ERR_PTR(-ENODEV);
-
-	if (!validate_net_dev(net_dev, listen_addr, src_addr)) {
-		dev_put(net_dev);
-		return ERR_PTR(-EHOSTUNREACH);
-	}
 
 	return net_dev;
 }
@@ -1490,15 +1507,51 @@ static struct rdma_id_private *cma_id_from_event(struct ib_cm_id *cm_id,
 		}
 	}
 
+	/*
+	 * Net namespace might be getting deleted while route lookup,
+	 * cm_id lookup is in progress. Therefore, perform netdevice
+	 * validation, cm_id lookup under rcu lock.
+	 * RCU lock along with netdevice state check, synchronizes with
+	 * netdevice migrating to different net namespace and also avoids
+	 * case where net namespace doesn't get deleted while lookup is in
+	 * progress.
+	 * If the device state is not IFF_UP, its properties such as ifindex
+	 * and nd_net cannot be trusted to remain valid without rcu lock.
+	 * net/core/dev.c change_net_namespace() ensures to synchronize with
+	 * ongoing operations on net device after device is closed using
+	 * synchronize_net().
+	 */
+	rcu_read_lock();
+	if (*net_dev) {
+		/*
+		 * If netdevice is down, it is likely that it is administratively
+		 * down or it might be migrating to different namespace.
+		 * In that case avoid further processing, as the net namespace
+		 * or ifindex may change.
+		 */
+		if (((*net_dev)->flags & IFF_UP) == 0) {
+			id_priv = ERR_PTR(-EHOSTUNREACH);
+			goto err;
+		}
+
+		if (!validate_net_dev(*net_dev,
+				 (struct sockaddr *)&req.listen_addr_storage,
+				 (struct sockaddr *)&req.src_addr_storage)) {
+			id_priv = ERR_PTR(-EHOSTUNREACH);
+			goto err;
+		}
+	}
+
 	bind_list = cma_ps_find(*net_dev ? dev_net(*net_dev) : &init_net,
 				rdma_ps_from_service_id(req.service_id),
 				cma_port_from_service_id(req.service_id));
 	id_priv = cma_find_listener(bind_list, cm_id, ib_event, &req, *net_dev);
+err:
+	rcu_read_unlock();
 	if (IS_ERR(id_priv) && *net_dev) {
 		dev_put(*net_dev);
 		*net_dev = NULL;
 	}
-
 	return id_priv;
 }
 
@@ -1802,8 +1855,8 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 
 	rt = &id->route;
 	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths,
-			       GFP_KERNEL);
+	rt->path_rec = kmalloc_array(rt->num_paths, sizeof(*rt->path_rec),
+				     GFP_KERNEL);
 	if (!rt->path_rec)
 		goto err;
 
@@ -2077,7 +2130,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		event.param.conn.responder_resources = iw_event->ord;
 		break;
 	default:
-		BUG_ON(1);
+		goto out;
 	}
 
 	event.status = iw_event->status;
@@ -2910,7 +2963,7 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 		if (dst_addr->sa_family == AF_IB) {
 			ret = cma_resolve_ib_addr(id_priv);
 		} else {
-			ret = rdma_resolve_ip(&addr_client, cma_src_addr(id_priv),
+			ret = rdma_resolve_ip(cma_src_addr(id_priv),
 					      dst_addr, &id->route.addr.dev_addr,
 					      timeout_ms, addr_handler, id_priv);
 		}
@@ -4547,7 +4600,6 @@ static int __init cma_init(void)
 		goto err_wq;
 
 	ib_sa_register_client(&sa_client);
-	rdma_addr_register_client(&addr_client);
 	register_netdevice_notifier(&cma_nb);
 
 	ret = ib_register_client(&cma_client);
@@ -4561,7 +4613,6 @@ static int __init cma_init(void)
 
 err:
 	unregister_netdevice_notifier(&cma_nb);
-	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 err_wq:
 	destroy_workqueue(cma_wq);
@@ -4574,7 +4625,6 @@ static void __exit cma_cleanup(void)
 	rdma_nl_unregister(RDMA_NL_RDMA_CM);
 	ib_unregister_client(&cma_client);
 	unregister_netdevice_notifier(&cma_nb);
-	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	unregister_pernet_subsys(&cma_pernet_operations);
 	destroy_workqueue(cma_wq);

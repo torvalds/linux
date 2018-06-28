@@ -168,7 +168,7 @@ update on the CPUs, as discussed below:
 
 [Please bear in mind that the kernel requests the microcode images from
 userspace, using the request_firmware() function defined in
-drivers/base/firmware_class.c]
+drivers/base/firmware_loader/main.c]
 
 
 a. When all the CPUs are identical:

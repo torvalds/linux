@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) "UDPLite: " fmt
 
 #include <linux/export.h>
+#include <linux/proc_fs.h>
 #include "udp_impl.h"
 
 struct udp_table 	udplite_table __read_mostly;
@@ -73,32 +74,22 @@ static struct inet_protosw udplite4_protosw = {
 };
 
 #ifdef CONFIG_PROC_FS
-
-static const struct file_operations udplite_afinfo_seq_fops = {
-	.open     = udp_seq_open,
-	.read     = seq_read,
-	.llseek   = seq_lseek,
-	.release  = seq_release_net
-};
-
 static struct udp_seq_afinfo udplite4_seq_afinfo = {
-	.name		= "udplite",
 	.family		= AF_INET,
 	.udp_table 	= &udplite_table,
-	.seq_fops	= &udplite_afinfo_seq_fops,
-	.seq_ops	= {
-		.show		= udp4_seq_show,
-	},
 };
 
 static int __net_init udplite4_proc_init_net(struct net *net)
 {
-	return udp_proc_register(net, &udplite4_seq_afinfo);
+	if (!proc_create_net_data("udplite", 0444, net->proc_net, &udp_seq_ops,
+			sizeof(struct udp_iter_state), &udplite4_seq_afinfo))
+		return -ENOMEM;
+	return 0;
 }
 
 static void __net_exit udplite4_proc_exit_net(struct net *net)
 {
-	udp_proc_unregister(net, &udplite4_seq_afinfo);
+	remove_proc_entry("udplite", net->proc_net);
 }
 
 static struct pernet_operations udplite4_net_ops = {

@@ -52,7 +52,7 @@
 static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 {
 #ifdef DEBUG_MMU_PTE_IP
-	return vcpu->arch.pc == DEBUG_MMU_PTE_IP;
+	return vcpu->arch.regs.nip == DEBUG_MMU_PTE_IP;
 #else
 	return true;
 #endif

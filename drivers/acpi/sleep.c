@@ -364,6 +364,19 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9360"),
 		},
 	},
+	/*
+	 * ThinkPad X1 Tablet(2016) cannot do suspend-to-idle using
+	 * the Low Power S0 Idle firmware interface (see
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=199057).
+	 */
+	{
+	.callback = init_no_lps0,
+	.ident = "ThinkPad X1 Tablet(2016)",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "20GGA00L00"),
+		},
+	},
 	{},
 };
 
@@ -976,6 +989,13 @@ static void acpi_s2idle_wake(void)
 	    !irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
 		pm_system_cancel_wakeup();
 		s2idle_wakeup = true;
+		/*
+		 * On some platforms with the LPS0 _DSM device noirq resume
+		 * takes too much time for EC wakeup events to survive, so look
+		 * for them now.
+		 */
+		if (lps0_device_handle)
+			acpi_ec_dispatch_gpe();
 	}
 }
 

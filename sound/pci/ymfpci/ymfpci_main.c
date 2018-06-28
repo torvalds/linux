@@ -2435,8 +2435,8 @@ int snd_ymfpci_create(struct snd_card *card,
 		goto free_chip;
 
 #ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = kmalloc(YDSXGR_NUM_SAVED_REGS * sizeof(u32),
-				   GFP_KERNEL);
+	chip->saved_regs = kmalloc_array(YDSXGR_NUM_SAVED_REGS, sizeof(u32),
+					 GFP_KERNEL);
 	if (chip->saved_regs == NULL) {
 		err = -ENOMEM;
 		goto free_chip;

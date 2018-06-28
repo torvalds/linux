@@ -105,29 +105,14 @@ static const struct seq_operations tape_proc_seq = {
 	.show		= tape_proc_show,
 };
 
-static int tape_proc_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &tape_proc_seq);
-}
-
-static const struct file_operations tape_proc_ops =
-{
-	.owner		= THIS_MODULE,
-	.open		= tape_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
  * Initialize procfs stuff on startup
  */
 void
 tape_proc_init(void)
 {
-	tape_proc_devices =
-		proc_create("tapedevices", S_IFREG | S_IRUGO | S_IWUSR, NULL,
-			    &tape_proc_ops);
+	tape_proc_devices = proc_create_seq("tapedevices",
+			S_IFREG | S_IRUGO | S_IWUSR, NULL,  &tape_proc_seq);
 	if (tape_proc_devices == NULL) {
 		return;
 	}

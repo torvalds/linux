@@ -8,10 +8,16 @@ Required properties:
  		"invensense,mpu6500"
 		"invensense,mpu9150"
 		"invensense,mpu9250"
+		"invensense,mpu9255"
 		"invensense,icm20608"
  - reg : the I2C address of the sensor
  - interrupt-parent : should be the phandle for the interrupt controller
- - interrupts : interrupt mapping for GPIO IRQ
+ - interrupts: interrupt mapping for IRQ. It should be configured with flags
+   IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
+   IRQ_TYPE_EDGE_FALLING.
+
+  Refer to interrupt-controller/interrupts.txt for generic interrupt client node
+  bindings.
 
 Optional properties:
  - mount-matrix: an optional 3x3 mounting rotation matrix
@@ -24,7 +30,7 @@ Example:
 		compatible = "invensense,mpu6050";
 		reg = <0x68>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <18 1>;
+		interrupts = <18 IRQ_TYPE_EDGE_RISING>;
 		mount-matrix = "-0.984807753012208",  /* x0 */
 		               "0",                   /* y0 */
 		               "-0.173648177666930",  /* z0 */
@@ -41,7 +47,7 @@ Example:
 		compatible = "invensense,mpu9250";
 		reg = <0x68>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <21 1>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
 		i2c-gate {
 			#address-cells = <1>;
 			#size-cells = <0>;

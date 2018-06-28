@@ -1021,30 +1021,11 @@ void __qla24xx_handle_gpdb_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		vha->fcport_count++;
 		ea->fcport->login_succ = 1;
 
-		if (!IS_IIDMA_CAPABLE(vha->hw) ||
-		    !vha->hw->flags.gpsc_supported) {
-			ql_dbg(ql_dbg_disc, vha, 0x20d6,
-			    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
-			    __func__, __LINE__,  ea->fcport->port_name,
-			    vha->fcport_count);
-
-			qla24xx_post_upd_fcport_work(vha, ea->fcport);
-		} else {
-			if (ea->fcport->id_changed) {
-				ea->fcport->id_changed = 0;
-				ql_dbg(ql_dbg_disc, vha, 0x20d7,
-				    "%s %d %8phC post gfpnid fcp_cnt %d\n",
-				    __func__, __LINE__, ea->fcport->port_name,
-				    vha->fcport_count);
-				qla24xx_post_gfpnid_work(vha, ea->fcport);
-			} else {
-				ql_dbg(ql_dbg_disc, vha, 0x20d7,
-				    "%s %d %8phC post gpsc fcp_cnt %d\n",
-				    __func__, __LINE__, ea->fcport->port_name,
-				    vha->fcport_count);
-				qla24xx_post_gpsc_work(vha, ea->fcport);
-			}
-		}
+		ql_dbg(ql_dbg_disc, vha, 0x20d6,
+		    "%s %d %8phC post upd_fcport fcp_cnt %d\n",
+		    __func__, __LINE__,  ea->fcport->port_name,
+		    vha->fcport_count);
+		qla24xx_post_upd_fcport_work(vha, ea->fcport);
 	} else if (ea->fcport->login_succ) {
 		/*
 		 * We have an existing session. A late RSCN delivery
@@ -1167,9 +1148,6 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	    fcport->login_gen, fcport->login_retry,
 	    fcport->loop_id, fcport->scan_state);
 
-	if (fcport->login_retry == 0)
-		return 0;
-
 	if (fcport->scan_state != QLA_FCPORT_FOUND)
 		return 0;
 
@@ -1194,7 +1172,8 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		return 0;
 	}
 
-	fcport->login_retry--;
+	if (fcport->login_retry > 0)
+		fcport->login_retry--;
 
 	switch (fcport->disc_state) {
 	case DSC_DELETED:
@@ -1350,20 +1329,7 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	fc_port_t *f, *tf;
 	uint32_t id = 0, mask, rid;
 	unsigned long flags;
-
-	switch (ea->event) {
-	case FCME_RSCN:
-	case FCME_GIDPN_DONE:
-	case FCME_GPSC_DONE:
-	case FCME_GPNID_DONE:
-	case FCME_GNNID_DONE:
-		if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) ||
-		    test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags))
-			return;
-		break;
-	default:
-		break;
-	}
+	fc_port_t *fcport;
 
 	switch (ea->event) {
 	case FCME_RELOGIN:
@@ -1377,6 +1343,11 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 			return;
 		switch (ea->id.b.rsvd_1) {
 		case RSCN_PORT_ADDR:
+			fcport = qla2x00_find_fcport_by_nportid
+				(vha, &ea->id, 1);
+			if (fcport)
+				fcport->rscn_rcvd = 1;
+
 			spin_lock_irqsave(&vha->work_lock, flags);
 			if (vha->scan.scan_flags == 0) {
 				ql_dbg(ql_dbg_disc, vha, 0xffff,
@@ -3118,8 +3089,9 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 			req->num_outstanding_cmds = ha->cur_fw_iocb_count;
 	}
 
-	req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
-	    req->num_outstanding_cmds, GFP_KERNEL);
+	req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
+					sizeof(srb_t *),
+					GFP_KERNEL);
 
 	if (!req->outstanding_cmds) {
 		/*
@@ -3127,8 +3099,9 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 		 * initialization.
 		 */
 		req->num_outstanding_cmds = MIN_OUTSTANDING_COMMANDS;
-		req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
-		    req->num_outstanding_cmds, GFP_KERNEL);
+		req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
+						sizeof(srb_t *),
+						GFP_KERNEL);
 
 		if (!req->outstanding_cmds) {
 			ql_log(ql_log_fatal, NULL, 0x0126,
@@ -4532,7 +4505,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
 	fcport->deleted = QLA_SESS_DELETED;
 	fcport->login_retry = vha->hw->login_retry_count;
-	fcport->login_retry = 5;
 	fcport->logout_on_delete = 1;
 
 	if (!fcport->ct_desc.ct_sns) {
@@ -5037,7 +5009,8 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return;
 
 	if (fcport->fp_speed == PORT_SPEED_UNKNOWN ||
-	    fcport->fp_speed > ha->link_data_rate)
+	    fcport->fp_speed > ha->link_data_rate ||
+	    !ha->flags.gpsc_supported)
 		return;
 
 	rval = qla2x00_set_idma_speed(vha, fcport->loop_id, fcport->fp_speed,
@@ -5052,6 +5025,24 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    qla2x00_get_link_speed_str(ha, fcport->fp_speed),
 		    fcport->fp_speed, fcport->port_name);
 	}
+}
+
+void qla_do_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport)
+{
+	qla2x00_iidma_fcport(vha, fcport);
+	qla24xx_update_fcport_fcp_prio(vha, fcport);
+}
+
+int qla_post_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(vha, QLA_EVT_IIDMA);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.fcport.fcport = fcport;
+	return qla2x00_post_work(vha, e);
 }
 
 /* qla2x00_reg_remote_port is reserved for Initiator Mode only.*/
@@ -5122,13 +5113,14 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	if (IS_QLAFX00(vha->hw)) {
 		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
-		goto reg_port;
+	} else {
+		fcport->login_retry = 0;
+		fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
+		fcport->disc_state = DSC_LOGIN_COMPLETE;
+		fcport->deleted = 0;
+		fcport->logout_on_delete = 1;
+		qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	}
-	fcport->login_retry = 0;
-	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
-	fcport->disc_state = DSC_LOGIN_COMPLETE;
-	fcport->deleted = 0;
-	fcport->logout_on_delete = 1;
 
 	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
 	qla2x00_iidma_fcport(vha, fcport);
@@ -5140,7 +5132,6 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
 
-reg_port:
 	switch (vha->host->active_mode) {
 	case MODE_INITIATOR:
 		qla2x00_reg_remote_port(vha, fcport);
@@ -5158,6 +5149,23 @@ reg_port:
 		break;
 	default:
 		break;
+	}
+
+	if (IS_IIDMA_CAPABLE(vha->hw) && vha->hw->flags.gpsc_supported) {
+		if (fcport->id_changed) {
+			fcport->id_changed = 0;
+			ql_dbg(ql_dbg_disc, vha, 0x20d7,
+			    "%s %d %8phC post gfpnid fcp_cnt %d\n",
+			    __func__, __LINE__, fcport->port_name,
+			    vha->fcport_count);
+			qla24xx_post_gfpnid_work(vha, fcport);
+		} else {
+			ql_dbg(ql_dbg_disc, vha, 0x20d7,
+			    "%s %d %8phC post gpsc fcp_cnt %d\n",
+			    __func__, __LINE__, fcport->port_name,
+			    vha->fcport_count);
+			qla24xx_post_gpsc_work(vha, fcport);
+		}
 	}
 }
 

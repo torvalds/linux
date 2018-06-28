@@ -115,7 +115,6 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 on-chip serial port support"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -500,7 +499,6 @@ config SERIAL_SA1100_CONSOLE
 
 config SERIAL_IMX
 	tristate "IMX serial port support"
-	depends on HAS_DMA
 	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
@@ -676,6 +674,8 @@ config SERIAL_SH_SCI
 
 config SERIAL_SH_SCI_NR_UARTS
 	int "Maximum number of SCI(F) serial ports" if EXPERT
+	range 1 64 if 64BIT
+	range 1 32 if !64BIT
 	depends on SERIAL_SH_SCI
 	default "3" if H8300
 	default "10" if SUPERH
@@ -1262,7 +1262,6 @@ config SERIAL_PCH_UART_CONSOLE
 
 config SERIAL_MXS_AUART
 	tristate "MXS AUART support"
-	depends on HAS_DMA
 	depends on ARCH_MXS || MACH_ASM9260 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -1295,7 +1294,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
-	depends on HAVE_CLK && SOC_AR933X
+	depends on HAVE_CLK && ATH79
 	select SERIAL_CORE
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
@@ -1473,7 +1472,6 @@ config SERIAL_SPRD_CONSOLE
 config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
-	depends on HAS_DMA
 	depends on ARCH_STM32 || COMPILE_TEST
 	help
 	  This driver is for the on-chip Serial Controller on

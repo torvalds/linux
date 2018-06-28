@@ -17,6 +17,7 @@
 #define __TEGRA_USB_PHY_H
 
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/usb/otg.h>
 
 /*
@@ -76,6 +77,7 @@ struct tegra_usb_phy {
 	bool is_legacy_phy;
 	bool is_ulpi_phy;
 	int reset_gpio;
+	struct reset_control *pad_rst;
 };
 
 void tegra_usb_phy_preresume(struct usb_phy *phy);

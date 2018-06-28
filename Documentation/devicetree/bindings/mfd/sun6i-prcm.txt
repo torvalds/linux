@@ -8,8 +8,8 @@ Required properties:
  - reg: The PRCM registers range
 
 The prcm node may contain several subdevices definitions:
- - see Documentation/devicetree/clk/sunxi.txt for clock devices
- - see Documentation/devicetree/reset/allwinner,sunxi-clock-reset.txt for reset
+ - see Documentation/devicetree/bindings/clock/sunxi.txt for clock devices
+ - see Documentation/devicetree/bindings/reset/allwinner,sunxi-clock-reset.txt for reset
    controller devices
 
 

@@ -359,7 +359,7 @@ void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
 					scmd->device->host->hostdata[0];
 
 	if (debug_level_enabled(adapter->dbf->scsi, level))
-		zfcp_dbf_scsi(tag, level, scmd, req);
+		zfcp_dbf_scsi_common(tag, level, scmd->device, scmd, req);
 }
 
 /**
@@ -402,16 +402,23 @@ void zfcp_dbf_scsi_abort(char *tag, struct scsi_cmnd *scmd,
 }
 
 /**
- * zfcp_dbf_scsi_devreset - trace event for Logical Unit or Target Reset
- * @tag: tag indicating success or failure of reset operation
- * @scmnd: SCSI command which caused this error recovery
- * @flag: indicates type of reset (Target Reset, Logical Unit Reset)
+ * zfcp_dbf_scsi_devreset() - Trace event for Logical Unit or Target Reset.
+ * @tag: Tag indicating success or failure of reset operation.
+ * @sdev: Pointer to SCSI device as context for this event.
+ * @flag: Indicates type of reset (Target Reset, Logical Unit Reset).
+ * @fsf_req: Pointer to FSF request representing the TMF, or NULL.
  */
 static inline
-void zfcp_dbf_scsi_devreset(char *tag, struct scsi_cmnd *scmnd, u8 flag,
+void zfcp_dbf_scsi_devreset(char *tag, struct scsi_device *sdev, u8 flag,
 			    struct zfcp_fsf_req *fsf_req)
 {
+	struct zfcp_adapter *adapter = (struct zfcp_adapter *)
+					sdev->host->hostdata[0];
 	char tmp_tag[ZFCP_DBF_TAG_LEN];
+	static int const level = 1;
+
+	if (unlikely(!debug_level_enabled(adapter->dbf->scsi, level)))
+		return;
 
 	if (flag == FCP_TMF_TGT_RESET)
 		memcpy(tmp_tag, "tr_", 3);
@@ -419,7 +426,7 @@ void zfcp_dbf_scsi_devreset(char *tag, struct scsi_cmnd *scmnd, u8 flag,
 		memcpy(tmp_tag, "lr_", 3);
 
 	memcpy(&tmp_tag[3], tag, 4);
-	_zfcp_dbf_scsi(tmp_tag, 1, scmnd, fsf_req);
+	zfcp_dbf_scsi_common(tmp_tag, level, sdev, NULL, fsf_req);
 }
 
 /**

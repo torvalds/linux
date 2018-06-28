@@ -13,7 +13,7 @@
  *  No volume control - only mute/unmute - you have to use line volume
  *  control on SB-part of SF16-FMI/SF16-FMP/SF16-FMD
  *
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <linux/kernel.h>	/* __setup			*/

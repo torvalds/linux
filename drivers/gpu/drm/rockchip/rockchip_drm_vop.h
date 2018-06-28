@@ -67,6 +67,7 @@ struct vop_common {
 	struct vop_reg cfg_done;
 	struct vop_reg dsp_blank;
 	struct vop_reg data_blank;
+	struct vop_reg pre_dither_down;
 	struct vop_reg dither_down;
 	struct vop_reg dither_up;
 	struct vop_reg gate_en;

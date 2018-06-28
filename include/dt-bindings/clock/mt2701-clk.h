@@ -171,13 +171,12 @@
 #define CLK_TOP_8BDAC				151
 #define CLK_TOP_WBG_DIG_416M			152
 #define CLK_TOP_DPI				153
-#define CLK_TOP_HDMITX_CLKDIG_CTS		154
-#define CLK_TOP_DSI0_LNTC_DSI			155
-#define CLK_TOP_AUD_EXT1			156
-#define CLK_TOP_AUD_EXT2			157
-#define CLK_TOP_NFI1X_PAD			158
-#define CLK_TOP_AXISEL_D4			159
-#define CLK_TOP_NR				160
+#define CLK_TOP_DSI0_LNTC_DSI			154
+#define CLK_TOP_AUD_EXT1			155
+#define CLK_TOP_AUD_EXT2			156
+#define CLK_TOP_NFI1X_PAD			157
+#define CLK_TOP_AXISEL_D4			158
+#define CLK_TOP_NR				159
 
 /* APMIXEDSYS */
 
@@ -194,7 +193,8 @@
 #define CLK_APMIXED_HADDS2PLL			11
 #define CLK_APMIXED_AUD2PLL			12
 #define CLK_APMIXED_TVD2PLL			13
-#define CLK_APMIXED_NR				14
+#define CLK_APMIXED_HDMI_REF			14
+#define CLK_APMIXED_NR				15
 
 /* DDRPHY */
 
@@ -430,6 +430,10 @@
 #define CLK_ETHSYS_I2S				7
 #define CLK_ETHSYS_CRYPTO			8
 #define CLK_ETHSYS_NR				9
+
+/* G3DSYS */
+#define CLK_G3DSYS_CORE				1
+#define CLK_G3DSYS_NR				2
 
 /* BDP */
 

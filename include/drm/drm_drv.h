@@ -624,6 +624,8 @@ void drm_dev_get(struct drm_device *dev);
 void drm_dev_put(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
+bool drm_dev_enter(struct drm_device *dev, int *idx);
+void drm_dev_exit(int idx);
 void drm_dev_unplug(struct drm_device *dev);
 
 /**
@@ -635,11 +637,16 @@ void drm_dev_unplug(struct drm_device *dev);
  * unplugged, these two functions guarantee that any store before calling
  * drm_dev_unplug() is visible to callers of this function after it completes
  */
-static inline int drm_dev_is_unplugged(struct drm_device *dev)
+static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 {
-	int ret = atomic_read(&dev->unplugged);
-	smp_rmb();
-	return ret;
+	int idx;
+
+	if (drm_dev_enter(dev, &idx)) {
+		drm_dev_exit(idx);
+		return false;
+	}
+
+	return true;
 }
 
 

@@ -37,7 +37,7 @@ enum mmal_port_type {
  *
  * most elements are informational only, the pointer values for
  * interogation messages are generally provided as additional
- * strucures within the message. When used to set values only teh
+ * structures within the message. When used to set values only the
  * buffer_num, buffer_size and userdata parameters are writable.
  */
 struct mmal_port {

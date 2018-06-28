@@ -42,14 +42,7 @@ static void
 force_sig_info_fault(int si_signo, int si_code, unsigned long address,
 		     struct task_struct *tsk)
 {
-	siginfo_t info;
-
-	info.si_signo	= si_signo;
-	info.si_errno	= 0;
-	info.si_code	= si_code;
-	info.si_addr	= (void __user *)address;
-
-	force_sig_info(si_signo, &info, tsk);
+	force_sig_fault(si_signo, si_code, (void __user *)address, tsk);
 }
 
 /*

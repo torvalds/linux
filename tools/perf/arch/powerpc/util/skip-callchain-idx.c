@@ -248,8 +248,7 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 
 	ip = chain->ips[2];
 
-	thread__find_addr_location(thread, PERF_RECORD_MISC_USER,
-			MAP__FUNCTION, ip, &al);
+	thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
 
 	if (al.map)
 		dso = al.map->dso;

@@ -58,11 +58,6 @@
 
 #include "nf_internals.h"
 
-int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
-				      enum nf_nat_manip_type manip,
-				      const struct nlattr *attr) __read_mostly;
-EXPORT_SYMBOL_GPL(nfnetlink_parse_nat_setup_hook);
-
 __cacheline_aligned_in_smp spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 EXPORT_SYMBOL_GPL(nf_conntrack_locks);
 
@@ -186,6 +181,7 @@ unsigned int nf_conntrack_htable_size __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 
 unsigned int nf_conntrack_max __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_max);
 seqcount_t nf_conntrack_generation __read_mostly;
 static unsigned int nf_conntrack_hash_rnd __read_mostly;
 
@@ -1611,6 +1607,82 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 	nf_conntrack_get(skb_nfct(nskb));
 }
 
+static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
+{
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
+	struct nf_conntrack_tuple_hash *h;
+	struct nf_conntrack_tuple tuple;
+	enum ip_conntrack_info ctinfo;
+	struct nf_nat_hook *nat_hook;
+	unsigned int dataoff, status;
+	struct nf_conn *ct;
+	u16 l3num;
+	u8 l4num;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct || nf_ct_is_confirmed(ct))
+		return 0;
+
+	l3num = nf_ct_l3num(ct);
+	l3proto = nf_ct_l3proto_find_get(l3num);
+
+	if (l3proto->get_l4proto(skb, skb_network_offset(skb), &dataoff,
+				 &l4num) <= 0)
+		return -1;
+
+	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+
+	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
+			     l4num, net, &tuple, l3proto, l4proto))
+		return -1;
+
+	if (ct->status & IPS_SRC_NAT) {
+		memcpy(tuple.src.u3.all,
+		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.all,
+		       sizeof(tuple.src.u3.all));
+		tuple.src.u.all =
+			ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.all;
+	}
+
+	if (ct->status & IPS_DST_NAT) {
+		memcpy(tuple.dst.u3.all,
+		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.all,
+		       sizeof(tuple.dst.u3.all));
+		tuple.dst.u.all =
+			ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.all;
+	}
+
+	h = nf_conntrack_find_get(net, nf_ct_zone(ct), &tuple);
+	if (!h)
+		return 0;
+
+	/* Store status bits of the conntrack that is clashing to re-do NAT
+	 * mangling according to what it has been done already to this packet.
+	 */
+	status = ct->status;
+
+	nf_ct_put(ct);
+	ct = nf_ct_tuplehash_to_ctrack(h);
+	nf_ct_set(skb, ct, ctinfo);
+
+	nat_hook = rcu_dereference(nf_nat_hook);
+	if (!nat_hook)
+		return 0;
+
+	if (status & IPS_SRC_NAT &&
+	    nat_hook->manip_pkt(skb, ct, NF_NAT_MANIP_SRC,
+				IP_CT_DIR_ORIGINAL) == NF_DROP)
+		return -1;
+
+	if (status & IPS_DST_NAT &&
+	    nat_hook->manip_pkt(skb, ct, NF_NAT_MANIP_DST,
+				IP_CT_DIR_ORIGINAL) == NF_DROP)
+		return -1;
+
+	return 0;
+}
+
 /* Bring out ya dead! */
 static struct nf_conn *
 get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
@@ -1812,8 +1884,7 @@ void nf_conntrack_cleanup_start(void)
 
 void nf_conntrack_cleanup_end(void)
 {
-	RCU_INIT_POINTER(nf_ct_destroy, NULL);
-
+	RCU_INIT_POINTER(nf_ct_hook, NULL);
 	cancel_delayed_work_sync(&conntrack_gc_work.dwork);
 	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_htable_size);
 
@@ -2130,11 +2201,16 @@ err_cachep:
 	return ret;
 }
 
+static struct nf_ct_hook nf_conntrack_hook = {
+	.update		= nf_conntrack_update,
+	.destroy	= destroy_conntrack,
+};
+
 void nf_conntrack_init_end(void)
 {
 	/* For use by REJECT target */
 	RCU_INIT_POINTER(ip_ct_attach, nf_conntrack_attach);
-	RCU_INIT_POINTER(nf_ct_destroy, destroy_conntrack);
+	RCU_INIT_POINTER(nf_ct_hook, &nf_conntrack_hook);
 }
 
 /*

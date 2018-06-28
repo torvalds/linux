@@ -306,7 +306,7 @@ qed_tunn_set_pf_start_params(struct qed_hwfn *p_hwfn,
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_tunnel_info *p_tunn,
-		    enum qed_mf_mode mode, bool allow_npar_tx_switch)
+		    bool allow_npar_tx_switch)
 {
 	struct pf_start_ramrod_data *p_ramrod = NULL;
 	u16 sb = qed_int_get_sp_sb_id(p_hwfn);
@@ -314,7 +314,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
-	u8 page_cnt;
+	u8 page_cnt, i;
 
 	/* update initial eq producer */
 	qed_eq_prod_update(p_hwfn,
@@ -339,21 +339,36 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->dont_log_ramrods	= 0;
 	p_ramrod->log_type_mask		= cpu_to_le16(0xf);
 
-	switch (mode) {
-	case QED_MF_DEFAULT:
-	case QED_MF_NPAR:
-		p_ramrod->mf_mode = MF_NPAR;
-		break;
-	case QED_MF_OVLAN:
+	if (test_bit(QED_MF_OVLAN_CLSS, &p_hwfn->cdev->mf_bits))
 		p_ramrod->mf_mode = MF_OVLAN;
-		break;
-	default:
-		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
+	else
 		p_ramrod->mf_mode = MF_NPAR;
-	}
 
 	p_ramrod->outer_tag_config.outer_tag.tci =
-		cpu_to_le16(p_hwfn->hw_info.ovlan);
+				cpu_to_le16(p_hwfn->hw_info.ovlan);
+	if (test_bit(QED_MF_8021Q_TAGGING, &p_hwfn->cdev->mf_bits)) {
+		p_ramrod->outer_tag_config.outer_tag.tpid = ETH_P_8021Q;
+	} else if (test_bit(QED_MF_8021AD_TAGGING, &p_hwfn->cdev->mf_bits)) {
+		p_ramrod->outer_tag_config.outer_tag.tpid = ETH_P_8021AD;
+		p_ramrod->outer_tag_config.enable_stag_pri_change = 1;
+	}
+
+	p_ramrod->outer_tag_config.pri_map_valid = 1;
+	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
+		p_ramrod->outer_tag_config.inner_to_outer_pri_map[i] = i;
+
+	/* enable_stag_pri_change should be set if port is in BD mode or,
+	 * UFP with Host Control mode.
+	 */
+	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits)) {
+		if (p_hwfn->ufp_info.pri_type == QED_UFP_PRI_OS)
+			p_ramrod->outer_tag_config.enable_stag_pri_change = 1;
+		else
+			p_ramrod->outer_tag_config.enable_stag_pri_change = 0;
+
+		p_ramrod->outer_tag_config.outer_tag.tci |=
+		    cpu_to_le16(((u16)p_hwfn->ufp_info.tc << 13));
+	}
 
 	/* Place EQ address in RAMROD */
 	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,
@@ -365,7 +380,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn, &p_ramrod->tunnel_config);
 
-	if (IS_MF_SI(p_hwfn))
+	if (test_bit(QED_MF_INTER_PF_SWITCH, &p_hwfn->cdev->mf_bits))
 		p_ramrod->allow_npar_tx_switching = allow_npar_tx_switch;
 
 	switch (p_hwfn->hw_info.personality) {
@@ -430,6 +445,39 @@ int qed_sp_pf_update(struct qed_hwfn *p_hwfn)
 
 	qed_dcbx_set_pf_update_params(&p_hwfn->p_dcbx_info->results,
 				      &p_ent->ramrod.pf_update);
+
+	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
+
+int qed_sp_pf_update_ufp(struct qed_hwfn *p_hwfn)
+{
+	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
+	int rc = -EOPNOTSUPP;
+
+	if (p_hwfn->ufp_info.pri_type == QED_UFP_PRI_UNKNOWN) {
+		DP_INFO(p_hwfn, "Invalid priority type %d\n",
+			p_hwfn->ufp_info.pri_type);
+		return -EINVAL;
+	}
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+	init_data.comp_mode = QED_SPQ_MODE_CB;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 COMMON_RAMROD_PF_UPDATE, PROTOCOLID_COMMON,
+				 &init_data);
+	if (rc)
+		return rc;
+
+	p_ent->ramrod.pf_update.update_enable_stag_pri_change = true;
+	if (p_hwfn->ufp_info.pri_type == QED_UFP_PRI_OS)
+		p_ent->ramrod.pf_update.enable_stag_pri_change = 1;
+	else
+		p_ent->ramrod.pf_update.enable_stag_pri_change = 0;
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }

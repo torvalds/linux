@@ -30,10 +30,7 @@ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
 	}
 
 	if (sizeof(spinlock_t) != 0) {
-		if (gfpflags_allow_blocking(gfp))
-			tlocks = kvmalloc(size * sizeof(spinlock_t), gfp);
-		else
-			tlocks = kmalloc_array(size, sizeof(spinlock_t), gfp);
+		tlocks = kvmalloc_array(size, sizeof(spinlock_t), gfp);
 		if (!tlocks)
 			return -ENOMEM;
 		for (i = 0; i < size; i++)

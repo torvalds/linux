@@ -652,32 +652,19 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	 */
 	peer->param_flags = asoc->param_flags;
 
-	sctp_transport_route(peer, NULL, sp);
-
 	/* Initialize the pmtu of the transport. */
-	if (peer->param_flags & SPP_PMTUD_DISABLE) {
-		if (asoc->pathmtu)
-			peer->pathmtu = asoc->pathmtu;
-		else
-			peer->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
-	}
+	sctp_transport_route(peer, NULL, sp);
 
 	/* If this is the first transport addr on this association,
 	 * initialize the association PMTU to the peer's PMTU.
 	 * If not and the current association PMTU is higher than the new
 	 * peer's PMTU, reset the association PMTU to the new peer's PMTU.
 	 */
-	if (asoc->pathmtu)
-		asoc->pathmtu = min_t(int, peer->pathmtu, asoc->pathmtu);
-	else
-		asoc->pathmtu = peer->pathmtu;
-
-	pr_debug("%s: association:%p PMTU set to %d\n", __func__, asoc,
-		 asoc->pathmtu);
+	sctp_assoc_set_pmtu(asoc, asoc->pathmtu ?
+				  min_t(int, peer->pathmtu, asoc->pathmtu) :
+				  peer->pathmtu);
 
 	peer->pmtu_pending = 0;
-
-	asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
 
 	/* The asoc->peer.port might not be meaningful yet, but
 	 * initialize the packet structure anyway.
@@ -988,31 +975,6 @@ out:
 	return match;
 }
 
-/* Is this the association we are looking for? */
-struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
-					   struct net *net,
-					   const union sctp_addr *laddr,
-					   const union sctp_addr *paddr)
-{
-	struct sctp_transport *transport;
-
-	if ((htons(asoc->base.bind_addr.port) == laddr->v4.sin_port) &&
-	    (htons(asoc->peer.port) == paddr->v4.sin_port) &&
-	    net_eq(sock_net(asoc->base.sk), net)) {
-		transport = sctp_assoc_lookup_paddr(asoc, paddr);
-		if (!transport)
-			goto out;
-
-		if (sctp_bind_addr_match(&asoc->base.bind_addr, laddr,
-					 sctp_sk(asoc->base.sk)))
-			goto out;
-	}
-	transport = NULL;
-
-out:
-	return transport;
-}
-
 /* Do delayed input processing.  This is scheduled by sctp_rcv(). */
 static void sctp_assoc_bh_rcv(struct work_struct *work)
 {
@@ -1024,8 +986,9 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
-	int state;
+	int first_time = 1;	/* is this the first time through the loop */
 	int error = 0;
+	int state;
 
 	/* The association should be held so we should be safe. */
 	ep = asoc->ep;
@@ -1036,6 +999,30 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		state = asoc->state;
 		subtype = SCTP_ST_CHUNK(chunk->chunk_hdr->type);
 
+		/* If the first chunk in the packet is AUTH, do special
+		 * processing specified in Section 6.3 of SCTP-AUTH spec
+		 */
+		if (first_time && subtype.chunk == SCTP_CID_AUTH) {
+			struct sctp_chunkhdr *next_hdr;
+
+			next_hdr = sctp_inq_peek(inqueue);
+			if (!next_hdr)
+				goto normal;
+
+			/* If the next chunk is COOKIE-ECHO, skip the AUTH
+			 * chunk while saving a pointer to it so we can do
+			 * Authentication later (during cookie-echo
+			 * processing).
+			 */
+			if (next_hdr->type == SCTP_CID_COOKIE_ECHO) {
+				chunk->auth_chunk = skb_clone(chunk->skb,
+							      GFP_ATOMIC);
+				chunk->auth = 1;
+				continue;
+			}
+		}
+
+normal:
 		/* SCTP-AUTH, Section 6.3:
 		 *    The receiver has a list of chunk types which it expects
 		 *    to be received only after an AUTH-chunk.  This list has
@@ -1074,6 +1061,9 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		/* If there is an error on chunk, discard this packet. */
 		if (error && chunk)
 			chunk->pdiscard = 1;
+
+		if (first_time)
+			first_time = 0;
 	}
 	sctp_association_put(asoc);
 }
@@ -1406,6 +1396,31 @@ sctp_assoc_choose_alter_transport(struct sctp_association *asoc,
 	}
 }
 
+void sctp_assoc_update_frag_point(struct sctp_association *asoc)
+{
+	int frag = sctp_mtu_payload(sctp_sk(asoc->base.sk), asoc->pathmtu,
+				    sctp_datachk_len(&asoc->stream));
+
+	if (asoc->user_frag)
+		frag = min_t(int, frag, asoc->user_frag);
+
+	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN -
+				sctp_datachk_len(&asoc->stream));
+
+	asoc->frag_point = SCTP_TRUNC4(frag);
+}
+
+void sctp_assoc_set_pmtu(struct sctp_association *asoc, __u32 pmtu)
+{
+	if (asoc->pathmtu != pmtu) {
+		asoc->pathmtu = pmtu;
+		sctp_assoc_update_frag_point(asoc);
+	}
+
+	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
+		 asoc->pathmtu, asoc->frag_point);
+}
+
 /* Update the association's pmtu and frag_point by going through all the
  * transports. This routine is called when a transport's PMTU has changed.
  */
@@ -1418,24 +1433,16 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 		return;
 
 	/* Get the lowest pmtu of all the transports. */
-	list_for_each_entry(t, &asoc->peer.transport_addr_list,
-				transports) {
+	list_for_each_entry(t, &asoc->peer.transport_addr_list, transports) {
 		if (t->pmtu_pending && t->dst) {
-			sctp_transport_update_pmtu(
-					t, SCTP_TRUNC4(dst_mtu(t->dst)));
+			sctp_transport_update_pmtu(t, sctp_dst_mtu(t->dst));
 			t->pmtu_pending = 0;
 		}
 		if (!pmtu || (t->pathmtu < pmtu))
 			pmtu = t->pathmtu;
 	}
 
-	if (pmtu) {
-		asoc->pathmtu = pmtu;
-		asoc->frag_point = sctp_frag_point(asoc, pmtu);
-	}
-
-	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
-		 asoc->pathmtu, asoc->frag_point);
+	sctp_assoc_set_pmtu(asoc, pmtu);
 }
 
 /* Should we send a SACK to update our peer? */

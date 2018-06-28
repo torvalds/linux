@@ -5,10 +5,23 @@
 #include <linux/list.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
 #include <asm/current.h>
 
 /*
- * Simple wait queues
+ * BROKEN wait-queues.
+ *
+ * These "simple" wait-queues are broken garbage, and should never be
+ * used. The comments below claim that they are "similar" to regular
+ * wait-queues, but the semantics are actually completely different, and
+ * every single user we have ever had has been buggy (or pointless).
+ *
+ * A "swake_up()" only wakes up _one_ waiter, which is not at all what
+ * "wake_up()" does, and has led to problems. In other cases, it has
+ * been fine, because there's only ever one waiter (kvm), but in that
+ * case gthe whole "simple" wait-queue is just pointless to begin with,
+ * since there is no "queue". Use "wake_up_process()" with a direct
+ * pointer instead.
  *
  * While these are very similar to regular wait queues (wait.h) the most
  * important difference is that the simple waitqueue allows for deterministic

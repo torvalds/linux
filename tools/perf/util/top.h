@@ -3,6 +3,7 @@
 #define __PERF_TOP_H 1
 
 #include "tool.h"
+#include "annotate.h"
 #include <linux/types.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -16,6 +17,7 @@ struct perf_top {
 	struct perf_tool   tool;
 	struct perf_evlist *evlist;
 	struct record_opts record_opts;
+	struct annotation_options annotation_opts;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will
 	 * get out after decayed.
@@ -35,7 +37,6 @@ struct perf_top {
 	struct perf_session *session;
 	struct winsize	   winsize;
 	int		   realtime_prio;
-	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
 	float		   min_percent;
 	unsigned int	   nr_threads_synthesize;

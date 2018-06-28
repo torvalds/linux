@@ -859,8 +859,9 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
 
 	if (c4iw_wr_log) {
-		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
-				       sizeof(*rdev->wr_log), GFP_KERNEL);
+		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,
+				       sizeof(*rdev->wr_log),
+				       GFP_KERNEL);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);
@@ -874,6 +875,11 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	}
 
 	rdev->status_page->db_off = 0;
+
+	init_completion(&rdev->rqt_compl);
+	init_completion(&rdev->pbl_compl);
+	kref_init(&rdev->rqt_kref);
+	kref_init(&rdev->pbl_kref);
 
 	return 0;
 err_free_status_page_and_wr_log:
@@ -893,13 +899,15 @@ destroy_resource:
 
 static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 {
-	destroy_workqueue(rdev->free_workq);
 	kfree(rdev->wr_log);
 	c4iw_release_dev_ucontext(rdev, &rdev->uctx);
 	free_page((unsigned long)rdev->status_page);
 	c4iw_pblpool_destroy(rdev);
 	c4iw_rqtpool_destroy(rdev);
+	wait_for_completion(&rdev->pbl_compl);
+	wait_for_completion(&rdev->rqt_compl);
 	c4iw_ocqp_pool_destroy(rdev);
+	destroy_workqueue(rdev->free_workq);
 	c4iw_destroy_resource(&rdev->resource);
 }
 
@@ -1438,7 +1446,7 @@ static void recover_queues(struct uld_ctx *ctx)
 	ctx->dev->db_state = RECOVERY;
 	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
 
-	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
 	if (!qp_list.qps) {
 		spin_unlock_irq(&ctx->dev->lock);
 		return;

@@ -105,9 +105,9 @@ struct ppl_conf {
 	atomic64_t seq;		/* current log write sequence number */
 
 	struct kmem_cache *io_kc;
-	mempool_t *io_pool;
-	struct bio_set *bs;
-	struct bio_set *flush_bs;
+	mempool_t io_pool;
+	struct bio_set bs;
+	struct bio_set flush_bs;
 
 	/* used only for recovery */
 	int recovered_entries;
@@ -244,7 +244,7 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	struct ppl_header *pplhdr;
 	struct page *header_page;
 
-	io = mempool_alloc(ppl_conf->io_pool, GFP_NOWAIT);
+	io = mempool_alloc(&ppl_conf->io_pool, GFP_NOWAIT);
 	if (!io)
 		return NULL;
 
@@ -503,7 +503,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			struct bio *prev = bio;
 
 			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES,
-					       ppl_conf->bs);
+					       &ppl_conf->bs);
 			bio->bi_opf = prev->bi_opf;
 			bio_copy_dev(bio, prev);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
@@ -570,7 +570,7 @@ static void ppl_io_unit_finished(struct ppl_io_unit *io)
 	list_del(&io->log_sibling);
 	spin_unlock(&log->io_list_lock);
 
-	mempool_free(io, ppl_conf->io_pool);
+	mempool_free(io, &ppl_conf->io_pool);
 
 	spin_lock(&ppl_conf->no_mem_stripes_lock);
 	if (!list_empty(&ppl_conf->no_mem_stripes)) {
@@ -642,7 +642,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 			struct bio *bio;
 			char b[BDEVNAME_SIZE];
 
-			bio = bio_alloc_bioset(GFP_NOIO, 0, ppl_conf->flush_bs);
+			bio = bio_alloc_bioset(GFP_NOIO, 0, &ppl_conf->flush_bs);
 			bio_set_dev(bio, bdev);
 			bio->bi_private = io;
 			bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
@@ -1246,11 +1246,9 @@ static void __ppl_exit_log(struct ppl_conf *ppl_conf)
 
 	kfree(ppl_conf->child_logs);
 
-	if (ppl_conf->bs)
-		bioset_free(ppl_conf->bs);
-	if (ppl_conf->flush_bs)
-		bioset_free(ppl_conf->flush_bs);
-	mempool_destroy(ppl_conf->io_pool);
+	bioset_exit(&ppl_conf->bs);
+	bioset_exit(&ppl_conf->flush_bs);
+	mempool_exit(&ppl_conf->io_pool);
 	kmem_cache_destroy(ppl_conf->io_kc);
 
 	kfree(ppl_conf);
@@ -1387,24 +1385,18 @@ int ppl_init_log(struct r5conf *conf)
 		goto err;
 	}
 
-	ppl_conf->io_pool = mempool_create(conf->raid_disks, ppl_io_pool_alloc,
-					   ppl_io_pool_free, ppl_conf->io_kc);
-	if (!ppl_conf->io_pool) {
-		ret = -ENOMEM;
+	ret = mempool_init(&ppl_conf->io_pool, conf->raid_disks, ppl_io_pool_alloc,
+			   ppl_io_pool_free, ppl_conf->io_kc);
+	if (ret)
 		goto err;
-	}
 
-	ppl_conf->bs = bioset_create(conf->raid_disks, 0, BIOSET_NEED_BVECS);
-	if (!ppl_conf->bs) {
-		ret = -ENOMEM;
+	ret = bioset_init(&ppl_conf->bs, conf->raid_disks, 0, BIOSET_NEED_BVECS);
+	if (ret)
 		goto err;
-	}
 
-	ppl_conf->flush_bs = bioset_create(conf->raid_disks, 0, 0);
-	if (!ppl_conf->flush_bs) {
-		ret = -ENOMEM;
+	ret = bioset_init(&ppl_conf->flush_bs, conf->raid_disks, 0, 0);
+	if (ret)
 		goto err;
-	}
 
 	ppl_conf->count = conf->raid_disks;
 	ppl_conf->child_logs = kcalloc(ppl_conf->count, sizeof(struct ppl_log),

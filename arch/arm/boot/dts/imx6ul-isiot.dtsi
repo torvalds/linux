@@ -153,8 +153,6 @@
 	stmpe811: gpio-expander@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_stmpe>;
 		interrupt-parent = <&gpio1>;

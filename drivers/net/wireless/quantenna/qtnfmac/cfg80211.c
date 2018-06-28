@@ -177,8 +177,6 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	vif->netdev->ieee80211_ptr = NULL;
 	vif->netdev = NULL;
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-	eth_zero_addr(vif->mac_addr);
-	eth_zero_addr(vif->bssid);
 
 	return 0;
 }
@@ -216,10 +214,12 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		}
 
 		eth_zero_addr(vif->mac_addr);
+		eth_zero_addr(vif->bssid);
 		vif->bss_priority = QTNF_DEF_BSS_PRIORITY;
+		vif->sta_state = QTNF_STA_DISCONNECTED;
+		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.wiphy = wiphy;
 		vif->wdev.iftype = type;
-		vif->sta_state = QTNF_STA_DISCONNECTED;
 		break;
 	default:
 		pr_err("MAC%u: unsupported IF type %d\n", mac->macid, type);
@@ -255,8 +255,6 @@ err_mac:
 	qtnf_cmd_send_del_intf(vif);
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-	eth_zero_addr(vif->mac_addr);
-	eth_zero_addr(vif->bssid);
 
 	return ERR_PTR(-EFAULT);
 }
@@ -651,28 +649,37 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_vif *vif;
-	int ret;
+	int ret = 0;
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
 		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto out;
 	}
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	qtnf_scan_done(mac, true);
 
 	if (vif->sta_state == QTNF_STA_DISCONNECTED)
-		return 0;
+		goto out;
 
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
 		       vif->vifid);
-		return ret;
+		goto out;
 	}
 
-	return 0;
+out:
+	if (vif->sta_state == QTNF_STA_CONNECTING)
+		vif->sta_state = QTNF_STA_DISCONNECTED;
+
+	return ret;
 }
 
 static int
@@ -813,6 +820,9 @@ static int qtnf_start_radar_detection(struct wiphy *wiphy,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	int ret;
 
+	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD))
+		return -ENOTSUPP;
+
 	ret = qtnf_cmd_start_cac(vif, chandef, cac_time_ms);
 	if (ret)
 		pr_err("%s: failed to start CAC ret=%d\n", ndev->name, ret);
@@ -909,6 +919,9 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 {
 	struct wiphy *wiphy;
 
+	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		qtn_cfg80211_ops.start_radar_detection = NULL;
+
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
 	if (!wiphy)
 		return NULL;
@@ -949,6 +962,7 @@ qtnf_wiphy_setup_if_comb(struct wiphy *wiphy, struct qtnf_mac_info *mac_info)
 int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
+	struct qtnf_mac_info *macinfo = &mac->macinfo;
 	int ret;
 
 	if (!wiphy) {
@@ -956,20 +970,20 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		return -EFAULT;
 	}
 
-	wiphy->frag_threshold = mac->macinfo.frag_thr;
-	wiphy->rts_threshold = mac->macinfo.rts_thr;
-	wiphy->retry_short = mac->macinfo.sretry_limit;
-	wiphy->retry_long = mac->macinfo.lretry_limit;
-	wiphy->coverage_class = mac->macinfo.coverage_class;
+	wiphy->frag_threshold = macinfo->frag_thr;
+	wiphy->rts_threshold = macinfo->rts_thr;
+	wiphy->retry_short = macinfo->sretry_limit;
+	wiphy->retry_long = macinfo->lretry_limit;
+	wiphy->coverage_class = macinfo->coverage_class;
 
 	wiphy->max_scan_ssids = QTNF_MAX_SSID_LIST_LENGTH;
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
-	wiphy->max_acl_mac_addrs = mac->macinfo.max_acl_mac_addrs;
+	wiphy->max_acl_mac_addrs = macinfo->max_acl_mac_addrs;
 	wiphy->max_num_csa_counters = 2;
 
-	ret = qtnf_wiphy_setup_if_comb(wiphy, &mac->macinfo);
+	ret = qtnf_wiphy_setup_if_comb(wiphy, macinfo);
 	if (ret)
 		goto out;
 
@@ -982,15 +996,18 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
+
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;
 
-	wiphy->available_antennas_tx = mac->macinfo.num_tx_chain;
-	wiphy->available_antennas_rx = mac->macinfo.num_rx_chain;
+	wiphy->available_antennas_tx = macinfo->num_tx_chain;
+	wiphy->available_antennas_rx = macinfo->num_rx_chain;
 
-	wiphy->max_ap_assoc_sta = mac->macinfo.max_ap_assoc_sta;
-	wiphy->ht_capa_mod_mask = &mac->macinfo.ht_cap_mod_mask;
-	wiphy->vht_capa_mod_mask = &mac->macinfo.vht_cap_mod_mask;
+	wiphy->max_ap_assoc_sta = macinfo->max_ap_assoc_sta;
+	wiphy->ht_capa_mod_mask = &macinfo->ht_cap_mod_mask;
+	wiphy->vht_capa_mod_mask = &macinfo->vht_cap_mod_mask;
 
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 

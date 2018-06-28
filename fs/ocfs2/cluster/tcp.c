@@ -1078,7 +1078,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	o2net_set_nst_sock_container(&nst, sc);
 
 	veclen = caller_veclen + 1;
-	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
+	vec = kmalloc_array(veclen, sizeof(struct kvec), GFP_ATOMIC);
 	if (vec == NULL) {
 		mlog(0, "failed to %zu element kvec!\n", veclen);
 		ret = -ENOMEM;

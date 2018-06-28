@@ -556,15 +556,7 @@ static struct pci_driver am53c974_driver = {
 	.remove         = pci_esp_remove_one,
 };
 
-static int __init am53c974_module_init(void)
-{
-	return pci_register_driver(&am53c974_driver);
-}
-
-static void __exit am53c974_module_exit(void)
-{
-	pci_unregister_driver(&am53c974_driver);
-}
+module_pci_driver(am53c974_driver);
 
 MODULE_DESCRIPTION("AM53C974 SCSI driver");
 MODULE_AUTHOR("Hannes Reinecke <hare@suse.de>");
@@ -577,6 +569,3 @@ MODULE_PARM_DESC(am53c974_debug, "Enable debugging");
 
 module_param(am53c974_fenab, bool, 0444);
 MODULE_PARM_DESC(am53c974_fenab, "Enable 24-bit DMA transfer sizes");
-
-module_init(am53c974_module_init);
-module_exit(am53c974_module_exit);

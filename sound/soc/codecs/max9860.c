@@ -1,23 +1,14 @@
-/*
- * Driver for the MAX9860 Mono Audio Voice Codec
- *
- * https://datasheets.maximintegrated.com/en/ds/MAX9860.pdf
- *
- * The driver does not support sidetone since the DVST register field is
- * backwards with the mute near the maximum level instead of the minimum.
- *
- * Author: Peter Rosin <peda@axentia.s>
- *         Copyright 2016 Axentia Technologies
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Driver for the MAX9860 Mono Audio Voice Codec
+//
+// https://datasheets.maximintegrated.com/en/ds/MAX9860.pdf
+//
+// The driver does not support sidetone since the DVST register field is
+// backwards with the mute near the maximum level instead of the minimum.
+//
+// Author: Peter Rosin <peda@axentia.s>
+//         Copyright 2016 Axentia Technologies
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -443,7 +434,8 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 		ret = regmap_update_bits(max9860->regmap, MAX9860_AUDIOCLKHIGH,
 					 MAX9860_PLL, MAX9860_PLL);
 		if (ret) {
-			dev_err(component->dev, "Failed to enable PLL: %d\n", ret);
+			dev_err(component->dev, "Failed to enable PLL: %d\n",
+				ret);
 			return ret;
 		}
 	}
@@ -515,7 +507,8 @@ static int max9860_set_bias_level(struct snd_soc_component *component,
 		ret = regmap_update_bits(max9860->regmap, MAX9860_PWRMAN,
 					 MAX9860_SHDN, MAX9860_SHDN);
 		if (ret) {
-			dev_err(component->dev, "Failed to remove SHDN: %d\n", ret);
+			dev_err(component->dev, "Failed to remove SHDN: %d\n",
+				ret);
 			return ret;
 		}
 		break;
@@ -598,8 +591,7 @@ static const struct dev_pm_ops max9860_pm_ops = {
 	SET_RUNTIME_PM_OPS(max9860_suspend, max9860_resume, NULL)
 };
 
-static int max9860_probe(struct i2c_client *i2c,
-			 const struct i2c_device_id *id)
+static int max9860_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct max9860_priv *max9860;
@@ -698,7 +690,7 @@ static int max9860_probe(struct i2c_client *i2c,
 	pm_runtime_idle(dev);
 
 	ret = devm_snd_soc_register_component(dev, &max9860_component_driver,
-				     &max9860_dai, 1);
+					      &max9860_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register CODEC: %d\n", ret);
 		goto err_pm;
@@ -736,7 +728,7 @@ static const struct of_device_id max9860_of_match[] = {
 MODULE_DEVICE_TABLE(of, max9860_of_match);
 
 static struct i2c_driver max9860_i2c_driver = {
-	.probe	        = max9860_probe,
+	.probe_new      = max9860_probe,
 	.remove         = max9860_remove,
 	.id_table       = max9860_i2c_id,
 	.driver         = {

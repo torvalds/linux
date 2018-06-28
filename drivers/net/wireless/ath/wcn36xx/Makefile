@@ -6,3 +6,5 @@ wcn36xx-y +=   main.o \
                smd.o \
                pmc.o \
                debug.o
+
+wcn36xx-$(CONFIG_NL80211_TESTMODE) += testmode.o

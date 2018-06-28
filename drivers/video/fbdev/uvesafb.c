@@ -486,8 +486,9 @@ static int uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
 		mode++;
 	}
 
-	par->vbe_modes = kzalloc(sizeof(struct vbe_mode_ib) *
-				par->vbe_modes_cnt, GFP_KERNEL);
+	par->vbe_modes = kcalloc(par->vbe_modes_cnt,
+				 sizeof(struct vbe_mode_ib),
+				 GFP_KERNEL);
 	if (!par->vbe_modes)
 		return -ENOMEM;
 
@@ -858,7 +859,7 @@ static int uvesafb_vbe_init_mode(struct fb_info *info)
 	 * Convert the modelist into a modedb so that we can use it with
 	 * fb_find_mode().
 	 */
-	mode = kzalloc(i * sizeof(*mode), GFP_KERNEL);
+	mode = kcalloc(i, sizeof(*mode), GFP_KERNEL);
 	if (mode) {
 		i = 0;
 		list_for_each(pos, &info->modelist) {
@@ -1044,7 +1045,8 @@ static int uvesafb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		    info->cmap.len || cmap->start < info->cmap.start)
 			return -EINVAL;
 
-		entries = kmalloc(sizeof(*entries) * cmap->len, GFP_KERNEL);
+		entries = kmalloc_array(cmap->len, sizeof(*entries),
+					GFP_KERNEL);
 		if (!entries)
 			return -ENOMEM;
 

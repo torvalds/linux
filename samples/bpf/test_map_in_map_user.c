@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #define PORT_A		(map_fd[0])

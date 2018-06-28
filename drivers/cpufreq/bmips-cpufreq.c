@@ -71,7 +71,7 @@ bmips_cpufreq_get_freq_table(const struct cpufreq_policy *policy)
 
 	cpu_freq = htp_freq_to_cpu_freq(priv->clk_mult);
 
-	table = kmalloc((priv->max_freqs + 1) * sizeof(*table), GFP_KERNEL);
+	table = kmalloc_array(priv->max_freqs + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return ERR_PTR(-ENOMEM);
 

@@ -126,7 +126,8 @@ void nsim_devlink_exit(void);
 int nsim_fib_init(void);
 void nsim_fib_exit(void);
 u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val);
+int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
+		     struct netlink_ext_ack *extack);
 #else
 static inline int nsim_devlink_setup(struct netdevsim *ns)
 {

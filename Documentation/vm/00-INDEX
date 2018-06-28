@@ -1,62 +1,50 @@
 00-INDEX
 	- this file.
-active_mm.txt
+active_mm.rst
 	- An explanation from Linus about tsk->active_mm vs tsk->mm.
-balance
+balance.rst
 	- various information on memory balancing.
-cleancache.txt
+cleancache.rst
 	- Intro to cleancache and page-granularity victim cache.
-frontswap.txt
+frontswap.rst
 	- Outline frontswap, part of the transcendent memory frontend.
-highmem.txt
+highmem.rst
 	- Outline of highmem and common issues.
-hmm.txt
+hmm.rst
 	- Documentation of heterogeneous memory management
-hugetlbpage.txt
-	- a brief summary of hugetlbpage support in the Linux kernel.
-hugetlbfs_reserv.txt
+hugetlbfs_reserv.rst
 	- A brief overview of hugetlbfs reservation design/implementation.
-hwpoison.txt
+hwpoison.rst
 	- explains what hwpoison is
-idle_page_tracking.txt
-	- description of the idle page tracking feature.
-ksm.txt
+ksm.rst
 	- how to use the Kernel Samepage Merging feature.
-mmu_notifier.txt
+mmu_notifier.rst
 	- a note about clearing pte/pmd and mmu notifications
-numa
+numa.rst
 	- information about NUMA specific code in the Linux vm.
-numa_memory_policy.txt
-	- documentation of concepts and APIs of the 2.6 memory policy support.
-overcommit-accounting
+overcommit-accounting.rst
 	- description of the Linux kernels overcommit handling modes.
-page_frags
+page_frags.rst
 	- description of page fragments allocator
-page_migration
+page_migration.rst
 	- description of page migration in NUMA systems.
-pagemap.txt
-	- pagemap, from the userspace perspective
-page_owner.txt
+page_owner.rst
 	- tracking about who allocated each page
-remap_file_pages.txt
+remap_file_pages.rst
 	- a note about remap_file_pages() system call
-slub.txt
+slub.rst
 	- a short users guide for SLUB.
-soft-dirty.txt
-	- short explanation for soft-dirty PTEs
-split_page_table_lock
+split_page_table_lock.rst
 	- Separate per-table lock to improve scalability of the old page_table_lock.
-swap_numa.txt
+swap_numa.rst
 	- automatic binding of swap device to numa node
-transhuge.txt
+transhuge.rst
 	- Transparent Hugepage Support, alternative way of using hugepages.
-unevictable-lru.txt
+unevictable-lru.rst
 	- Unevictable LRU infrastructure
-userfaultfd.txt
-	- description of userfaultfd system call
 z3fold.txt
 	- outline of z3fold allocator for storing compressed pages
-zsmalloc.txt
+zsmalloc.rst
 	- outline of zsmalloc allocator for storing compressed pages
-zswap.txt
+zswap.rst
 	- Intro to compressed cache for swap pages

@@ -44,7 +44,7 @@
 	} ;
 	chosen {
 		bootargs = "console=ttyUL0,115200 highres=on";
-		linux,stdout-path = "/plb@0/serial@84000000";
+		stdout-path = "/plb@0/serial@84000000";
 	} ;
 	cpus {
 		#address-cells = <1>;

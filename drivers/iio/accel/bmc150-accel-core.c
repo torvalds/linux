@@ -837,29 +837,12 @@ static int bmc150_accel_fifo_transfer(struct bmc150_accel_data *data,
 	int sample_length = 3 * 2;
 	int ret;
 	int total_length = samples * sample_length;
-	int i;
-	size_t step = regmap_get_raw_read_max(data->regmap);
 
-	if (!step || step > total_length)
-		step = total_length;
-	else if (step < total_length)
-		step = sample_length;
-
-	/*
-	 * Seems we have a bus with size limitation so we have to execute
-	 * multiple reads
-	 */
-	for (i = 0; i < total_length; i += step) {
-		ret = regmap_raw_read(data->regmap, BMC150_ACCEL_REG_FIFO_DATA,
-				      &buffer[i], step);
-		if (ret)
-			break;
-	}
-
+	ret = regmap_raw_read(data->regmap, BMC150_ACCEL_REG_FIFO_DATA,
+			      buffer, total_length);
 	if (ret)
 		dev_err(dev,
-			"Error transferring data from fifo in single steps of %zu\n",
-			step);
+			"Error transferring data from fifo: %d\n", ret);
 
 	return ret;
 }

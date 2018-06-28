@@ -328,7 +328,7 @@ void pstore_record_init(struct pstore_record *record,
 	record->psi = psinfo;
 
 	/* Report zeroed timestamp if called before timekeeping has resumed. */
-	record->time = ns_to_timespec(ktime_get_real_fast_ns());
+	record->time = ns_to_timespec64(ktime_get_real_fast_ns());
 }
 
 /*

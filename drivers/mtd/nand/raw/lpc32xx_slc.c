@@ -831,11 +831,11 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "Clock failure\n");
 		res = -ENOENT;
-		goto err_exit1;
+		goto enable_wp;
 	}
 	res = clk_prepare_enable(host->clk);
 	if (res)
-		goto err_exit1;
+		goto enable_wp;
 
 	/* Set NAND IO addresses and command/ready functions */
 	chip->IO_ADDR_R = SLC_DATA(host->io_base);
@@ -874,19 +874,19 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 				      GFP_KERNEL);
 	if (host->data_buf == NULL) {
 		res = -ENOMEM;
-		goto err_exit2;
+		goto unprepare_clk;
 	}
 
 	res = lpc32xx_nand_dma_setup(host);
 	if (res) {
 		res = -EIO;
-		goto err_exit2;
+		goto unprepare_clk;
 	}
 
 	/* Find NAND device */
 	res = nand_scan_ident(mtd, 1, NULL);
 	if (res)
-		goto err_exit3;
+		goto release_dma;
 
 	/* OOB and ECC CPU and DMA work areas */
 	host->ecc_buf = (uint32_t *)(host->data_buf + LPC32XX_DMA_DATA_SIZE);
@@ -920,21 +920,23 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 */
 	res = nand_scan_tail(mtd);
 	if (res)
-		goto err_exit3;
+		goto release_dma;
 
 	mtd->name = "nxp_lpc3220_slc";
 	res = mtd_device_register(mtd, host->ncfg->parts,
 				  host->ncfg->num_parts);
-	if (!res)
-		return res;
+	if (res)
+		goto cleanup_nand;
 
-	nand_release(mtd);
+	return 0;
 
-err_exit3:
+cleanup_nand:
+	nand_cleanup(chip);
+release_dma:
 	dma_release_channel(host->dma_chan);
-err_exit2:
+unprepare_clk:
 	clk_disable_unprepare(host->clk);
-err_exit1:
+enable_wp:
 	lpc32xx_wp_enable(host);
 
 	return res;

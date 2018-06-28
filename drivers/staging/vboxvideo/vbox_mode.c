@@ -573,7 +573,7 @@ static int vbox_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
-static int vbox_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status vbox_mode_valid(struct drm_connector *connector,
 			   struct drm_display_mode *mode)
 {
 	return MODE_OK;

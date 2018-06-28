@@ -69,10 +69,11 @@ static struct inode **get_local_system_inode(struct ocfs2_super *osb,
 	spin_unlock(&osb->osb_lock);
 
 	if (unlikely(!local_system_inodes)) {
-		local_system_inodes = kzalloc(sizeof(struct inode *) *
-					      NUM_LOCAL_SYSTEM_INODES *
-					      osb->max_slots,
-					      GFP_NOFS);
+		local_system_inodes =
+			kzalloc(array3_size(sizeof(struct inode *),
+					    NUM_LOCAL_SYSTEM_INODES,
+					    osb->max_slots),
+				GFP_NOFS);
 		if (!local_system_inodes) {
 			mlog_errno(-ENOMEM);
 			/*

@@ -35,8 +35,10 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 	bool resp_not_handled = true;
 	struct sk_buff *resp_skb = NULL;
 
-	if (unlikely(!response_skb))
+	if (unlikely(!response_skb)) {
+		dev_kfree_skb(cmd_skb);
 		return -EFAULT;
+	}
 
 	spin_lock(&ctl_node->resp_lock);
 	ctl_node->seq_num++;

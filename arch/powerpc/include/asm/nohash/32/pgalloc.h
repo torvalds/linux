@@ -100,6 +100,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 static inline void pgtable_free(void *table, unsigned index_size)
 {
 	if (!index_size) {
+		pgtable_page_dtor(virt_to_page(table));
 		free_page((unsigned long)table);
 	} else {
 		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
@@ -108,6 +109,7 @@ static inline void pgtable_free(void *table, unsigned index_size)
 }
 
 #define check_pgt_cache()	do { } while (0)
+#define get_hugepd_cache_index(x)	(x)
 
 #ifdef CONFIG_SMP
 static inline void pgtable_free_tlb(struct mmu_gather *tlb,

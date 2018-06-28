@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <linux/bpf.h>
 #include <unistd.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include <sys/socket.h>
 #include <string.h>

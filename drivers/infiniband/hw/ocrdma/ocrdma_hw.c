@@ -3096,7 +3096,7 @@ static int ocrdma_create_eqs(struct ocrdma_dev *dev)
 	if (!num_eq)
 		return -EINVAL;
 
-	dev->eq_tbl = kzalloc(sizeof(struct ocrdma_eq) * num_eq, GFP_KERNEL);
+	dev->eq_tbl = kcalloc(num_eq, sizeof(struct ocrdma_eq), GFP_KERNEL);
 	if (!dev->eq_tbl)
 		return -ENOMEM;
 

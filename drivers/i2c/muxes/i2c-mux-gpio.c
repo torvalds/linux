@@ -10,7 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/i2c-mux-gpio.h>
+#include <linux/platform_data/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -88,8 +88,8 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 
 	mux->data.n_values = of_get_child_count(np);
 
-	values = devm_kzalloc(&pdev->dev,
-			      sizeof(*mux->data.values) * mux->data.n_values,
+	values = devm_kcalloc(&pdev->dev,
+			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
 		dev_err(&pdev->dev, "Cannot allocate values array");
@@ -111,8 +111,9 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 		return -EINVAL;
 	}
 
-	gpios = devm_kzalloc(&pdev->dev,
-			     sizeof(*mux->data.gpios) * mux->data.n_gpios, GFP_KERNEL);
+	gpios = devm_kcalloc(&pdev->dev,
+			     mux->data.n_gpios, sizeof(*mux->data.gpios),
+			     GFP_KERNEL);
 	if (!gpios) {
 		dev_err(&pdev->dev, "Cannot allocate gpios array");
 		return -ENOMEM;

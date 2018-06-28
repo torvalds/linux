@@ -403,7 +403,7 @@ error:
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
 
-static int cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_CUSTOM;
 }

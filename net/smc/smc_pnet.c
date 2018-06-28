@@ -245,40 +245,45 @@ out:
 static int smc_pnet_fill_entry(struct net *net, struct smc_pnetentry *pnetelem,
 			       struct nlattr *tb[])
 {
-	char *string, *ibname = NULL;
-	int rc = 0;
+	char *string, *ibname;
+	int rc;
 
 	memset(pnetelem, 0, sizeof(*pnetelem));
 	INIT_LIST_HEAD(&pnetelem->list);
-	if (tb[SMC_PNETID_NAME]) {
-		string = (char *)nla_data(tb[SMC_PNETID_NAME]);
-		if (!smc_pnetid_valid(string, pnetelem->pnet_name)) {
-			rc = -EINVAL;
-			goto error;
-		}
-	}
-	if (tb[SMC_PNETID_ETHNAME]) {
-		string = (char *)nla_data(tb[SMC_PNETID_ETHNAME]);
-		pnetelem->ndev = dev_get_by_name(net, string);
-		if (!pnetelem->ndev)
-			return -ENOENT;
-	}
-	if (tb[SMC_PNETID_IBNAME]) {
-		ibname = (char *)nla_data(tb[SMC_PNETID_IBNAME]);
-		ibname = strim(ibname);
-		pnetelem->smcibdev = smc_pnet_find_ib(ibname);
-		if (!pnetelem->smcibdev) {
-			rc = -ENOENT;
-			goto error;
-		}
-	}
-	if (tb[SMC_PNETID_IBPORT]) {
-		pnetelem->ib_port = nla_get_u8(tb[SMC_PNETID_IBPORT]);
-		if (pnetelem->ib_port > SMC_MAX_PORTS) {
-			rc = -EINVAL;
-			goto error;
-		}
-	}
+
+	rc = -EINVAL;
+	if (!tb[SMC_PNETID_NAME])
+		goto error;
+	string = (char *)nla_data(tb[SMC_PNETID_NAME]);
+	if (!smc_pnetid_valid(string, pnetelem->pnet_name))
+		goto error;
+
+	rc = -EINVAL;
+	if (!tb[SMC_PNETID_ETHNAME])
+		goto error;
+	rc = -ENOENT;
+	string = (char *)nla_data(tb[SMC_PNETID_ETHNAME]);
+	pnetelem->ndev = dev_get_by_name(net, string);
+	if (!pnetelem->ndev)
+		goto error;
+
+	rc = -EINVAL;
+	if (!tb[SMC_PNETID_IBNAME])
+		goto error;
+	rc = -ENOENT;
+	ibname = (char *)nla_data(tb[SMC_PNETID_IBNAME]);
+	ibname = strim(ibname);
+	pnetelem->smcibdev = smc_pnet_find_ib(ibname);
+	if (!pnetelem->smcibdev)
+		goto error;
+
+	rc = -EINVAL;
+	if (!tb[SMC_PNETID_IBPORT])
+		goto error;
+	pnetelem->ib_port = nla_get_u8(tb[SMC_PNETID_IBPORT]);
+	if (pnetelem->ib_port < 1 || pnetelem->ib_port > SMC_MAX_PORTS)
+		goto error;
+
 	return 0;
 
 error:
@@ -307,6 +312,8 @@ static int smc_pnet_get(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	int rc;
 
+	if (!info->attrs[SMC_PNETID_NAME])
+		return -EINVAL;
 	pnetelem = smc_pnet_find_pnetid(
 				(char *)nla_data(info->attrs[SMC_PNETID_NAME]));
 	if (!pnetelem)
@@ -359,6 +366,8 @@ static int smc_pnet_add(struct sk_buff *skb, struct genl_info *info)
 
 static int smc_pnet_del(struct sk_buff *skb, struct genl_info *info)
 {
+	if (!info->attrs[SMC_PNETID_NAME])
+		return -EINVAL;
 	return smc_pnet_remove_by_pnetid(
 				(char *)nla_data(info->attrs[SMC_PNETID_NAME]));
 }

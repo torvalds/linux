@@ -1022,12 +1022,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		host->read_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->read_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get read dma channel\n");
-			goto err_req_read_chnl;
+			goto disable_clk;
 		}
 		host->write_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->write_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get write dma channel\n");
-			goto err_req_write_chnl;
+			goto release_dma_read_chan;
 		}
 	}
 
@@ -1050,7 +1050,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "No NAND Device found!\n");
-		goto err_scan_ident;
+		goto release_dma_write_chan;
 	}
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
@@ -1065,7 +1065,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
 				 mtd->oobsize);
 			ret = -EINVAL;
-			goto err_probe;
+			goto release_dma_write_chan;
 		}
 
 		mtd_set_ooblayout(mtd, &fsmc_ecc4_ooblayout_ops);
@@ -1090,7 +1090,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 		default:
 			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
-			goto err_probe;
+			goto release_dma_write_chan;
 		}
 
 		/*
@@ -1110,7 +1110,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 					 "No oob scheme defined for oobsize %d\n",
 					 mtd->oobsize);
 				ret = -EINVAL;
-				goto err_probe;
+				goto release_dma_write_chan;
 			}
 		}
 	}
@@ -1118,26 +1118,29 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	/* Second stage of scan to fill MTD data-structures */
 	ret = nand_scan_tail(mtd);
 	if (ret)
-		goto err_probe;
+		goto release_dma_write_chan;
 
 	mtd->name = "nand";
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret)
-		goto err_probe;
+		goto cleanup_nand;
 
 	platform_set_drvdata(pdev, host);
 	dev_info(&pdev->dev, "FSMC NAND driver registration successful\n");
+
 	return 0;
 
-err_probe:
-err_scan_ident:
+cleanup_nand:
+	nand_cleanup(nand);
+release_dma_write_chan:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->write_dma_chan);
-err_req_write_chnl:
+release_dma_read_chan:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
-err_req_read_chnl:
+disable_clk:
 	clk_disable_unprepare(host->clk);
+
 	return ret;
 }
 

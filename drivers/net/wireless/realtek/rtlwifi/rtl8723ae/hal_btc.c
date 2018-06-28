@@ -1749,13 +1749,13 @@ void rtl_8723e_c2h_command_handle(struct ieee80211_hw *hw)
 
 
 	switch (c2h_event.cmd_id) {
-	case C2H_BT_RSSI:
+	case C2H_V0_BT_RSSI:
 			break;
 
-	case C2H_BT_OP_MODE:
+	case C2H_V0_BT_OP_MODE:
 			break;
 
-	case BT_INFO:
+	case C2H_V0_BT_INFO:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			"BT info Byte[0] (ID) is 0x%x\n",
 			c2h_event.cmd_id);

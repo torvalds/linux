@@ -146,7 +146,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	if (info->min_voltage >= 0)
 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
 
-	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
+	prop = kcalloc(props, sizeof(*prop), GFP_KERNEL);
 	if (!prop)
 		return -ENOMEM;
 

@@ -32,8 +32,10 @@ mISDN_FsmNew(struct Fsm *fsm,
 {
 	int i;
 
-	fsm->jumpmatrix = kzalloc(sizeof(FSMFNPTR) * fsm->state_count *
-				  fsm->event_count, GFP_KERNEL);
+	fsm->jumpmatrix =
+		kzalloc(array3_size(sizeof(FSMFNPTR), fsm->state_count,
+				    fsm->event_count),
+			GFP_KERNEL);
 	if (fsm->jumpmatrix == NULL)
 		return -ENOMEM;
 

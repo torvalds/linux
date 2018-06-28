@@ -177,3 +177,19 @@ mapping and is thus transparent to GPIO consumers.
 
 A set of functions such as gpiod_set_value() is available to work with
 the new descriptor-oriented interface.
+
+Boards using platform data can also hog GPIO lines by defining GPIO hog tables.
+
+.. code-block:: c
+
+        struct gpiod_hog gpio_hog_table[] = {
+                GPIO_HOG("gpio.0", 10, "foo", GPIO_ACTIVE_LOW, GPIOD_OUT_HIGH),
+                { }
+        };
+
+And the table can be added to the board code as follows::
+
+        gpiod_add_hogs(gpio_hog_table);
+
+The line will be hogged as soon as the gpiochip is created or - in case the
+chip was created earlier - when the hog table is registered.

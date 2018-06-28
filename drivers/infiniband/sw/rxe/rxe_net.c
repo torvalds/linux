@@ -276,9 +276,12 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	pkt->mask = RXE_GRH_MASK;
 	pkt->paylen = be16_to_cpu(udph->len) - sizeof(*udph);
 
-	return rxe_rcv(skb);
+	rxe_rcv(skb);
+
+	return 0;
 drop:
 	kfree_skb(skb);
+
 	return 0;
 }
 
@@ -315,7 +318,7 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 	return sock;
 }
 
-void rxe_release_udp_tunnel(struct socket *sk)
+static void rxe_release_udp_tunnel(struct socket *sk)
 {
 	if (sk)
 		udp_tunnel_sock_release(sk);
@@ -517,9 +520,9 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	return 0;
 }
 
-int rxe_loopback(struct sk_buff *skb)
+void rxe_loopback(struct sk_buff *skb)
 {
-	return rxe_rcv(skb);
+	rxe_rcv(skb);
 }
 
 static inline int addr_same(struct rxe_dev *rxe, struct rxe_av *av)
@@ -562,10 +565,8 @@ struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 
 	pkt->rxe	= rxe;
 	pkt->port_num	= port_num;
-	pkt->hdr	= skb_put(skb, paylen);
+	pkt->hdr	= skb_put_zero(skb, paylen);
 	pkt->mask	|= RXE_GRH_MASK;
-
-	memset(pkt->hdr, 0, paylen);
 
 	dev_put(ndev);
 	return skb;
@@ -622,7 +623,6 @@ void rxe_remove_all(void)
 	}
 	spin_unlock_bh(&dev_list_lock);
 }
-EXPORT_SYMBOL(rxe_remove_all);
 
 static void rxe_port_event(struct rxe_dev *rxe,
 			   enum ib_event_type event)
@@ -707,7 +707,7 @@ out:
 	return NOTIFY_OK;
 }
 
-struct notifier_block rxe_net_notifier = {
+static struct notifier_block rxe_net_notifier = {
 	.notifier_call = rxe_notify,
 };
 

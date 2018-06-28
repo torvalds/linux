@@ -1681,8 +1681,9 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 	if (block_size <= KMALLOC_MAX_SIZE &&
 	    (block_size < PAGE_SIZE || !is_power_of_2(block_size))) {
-		snprintf(slab_name, sizeof slab_name, "dm_bufio_cache-%u", c->block_size);
-		c->slab_cache = kmem_cache_create(slab_name, c->block_size, ARCH_KMALLOC_MINALIGN,
+		unsigned align = min(1U << __ffs(block_size), (unsigned)PAGE_SIZE);
+		snprintf(slab_name, sizeof slab_name, "dm_bufio_cache-%u", block_size);
+		c->slab_cache = kmem_cache_create(slab_name, block_size, align,
 						  SLAB_RECLAIM_ACCOUNT, NULL);
 		if (!c->slab_cache) {
 			r = -ENOMEM;

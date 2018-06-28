@@ -2178,7 +2178,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 
 	if (mc_count >= PCH_GBE_MAR_ENTRIES)
 		return;
-	mta_list = kmalloc(mc_count * ETH_ALEN, GFP_ATOMIC);
+	mta_list = kmalloc_array(ETH_ALEN, mc_count, GFP_ATOMIC);
 	if (!mta_list)
 		return;
 

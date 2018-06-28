@@ -471,6 +471,17 @@ struct slim_device_id {
 	kernel_ulong_t driver_data;
 };
 
+#define APR_NAME_SIZE	32
+#define APR_MODULE_PREFIX "apr:"
+
+struct apr_device_id {
+	char name[APR_NAME_SIZE];
+	__u32 domain_id;
+	__u32 svc_id;
+	__u32 svc_version;
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
 #define SPMI_NAME_SIZE	32
 #define SPMI_MODULE_PREFIX "spmi:"
 
@@ -490,6 +501,7 @@ enum dmi_field {
 	DMI_PRODUCT_VERSION,
 	DMI_PRODUCT_SERIAL,
 	DMI_PRODUCT_UUID,
+	DMI_PRODUCT_SKU,
 	DMI_PRODUCT_FAMILY,
 	DMI_BOARD_VENDOR,
 	DMI_BOARD_NAME,

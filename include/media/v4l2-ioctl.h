@@ -658,18 +658,6 @@ void v4l_printk_ioctl(const char *prefix, unsigned int cmd);
 
 struct video_device;
 
-
-/**
- * v4l2_ioctl_get_lock - get the mutex (if any) that it is need to lock for
- *	a given command.
- *
- * @vdev: Pointer to struct &video_device.
- * @cmd: Ioctl name.
- *
- * .. note:: Internal use only. Should not be used outside V4L2 core.
- */
-struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev, unsigned int cmd);
-
 /* names for fancy debug output */
 extern const char *v4l2_field_names[];
 extern const char *v4l2_type_names[];

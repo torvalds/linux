@@ -168,7 +168,7 @@ config BINFMT_MISC
 	  will automatically feed it to the correct interpreter.
 
 	  You can do other nice things, too. Read the file
-	  <file:Documentation/binfmt_misc.txt> to learn how to use this
+	  <file:Documentation/admin-guide/binfmt-misc.rst> to learn how to use this
 	  feature, <file:Documentation/admin-guide/java.rst> for information about how
 	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.

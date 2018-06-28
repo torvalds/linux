@@ -18,6 +18,7 @@
 #include <linux/ethtool.h>
 #include <linux/io.h>
 #include <net/dsa.h>
+#include "stmmac.h"
 #include "stmmac_pcs.h"
 #include "dwmac4.h"
 #include "dwmac5.h"
@@ -700,7 +701,7 @@ static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 		x->mac_gmii_rx_proto_engine++;
 }
 
-static const struct stmmac_ops dwmac4_ops = {
+const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.set_mac = stmmac_set_mac,
 	.rx_ipc = dwmac4_rx_ipc_enable,
@@ -731,7 +732,7 @@ static const struct stmmac_ops dwmac4_ops = {
 	.set_filter = dwmac4_set_filter,
 };
 
-static const struct stmmac_ops dwmac410_ops = {
+const struct stmmac_ops dwmac410_ops = {
 	.core_init = dwmac4_core_init,
 	.set_mac = stmmac_dwmac4_set_mac,
 	.rx_ipc = dwmac4_rx_ipc_enable,
@@ -762,7 +763,7 @@ static const struct stmmac_ops dwmac410_ops = {
 	.set_filter = dwmac4_set_filter,
 };
 
-static const struct stmmac_ops dwmac510_ops = {
+const struct stmmac_ops dwmac510_ops = {
 	.core_init = dwmac4_core_init,
 	.set_mac = stmmac_dwmac4_set_mac,
 	.rx_ipc = dwmac4_rx_ipc_enable,
@@ -794,21 +795,20 @@ static const struct stmmac_ops dwmac510_ops = {
 	.safety_feat_config = dwmac5_safety_feat_config,
 	.safety_feat_irq_status = dwmac5_safety_feat_irq_status,
 	.safety_feat_dump = dwmac5_safety_feat_dump,
+	.rxp_config = dwmac5_rxp_config,
+	.flex_pps_config = dwmac5_flex_pps_config,
 };
 
-struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
-				     int perfect_uc_entries, int *synopsys_id)
+int dwmac4_setup(struct stmmac_priv *priv)
 {
-	struct mac_device_info *mac;
-	u32 hwid = readl(ioaddr + GMAC_VERSION);
+	struct mac_device_info *mac = priv->hw;
 
-	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
-	if (!mac)
-		return NULL;
+	dev_info(priv->device, "\tDWMAC4/5\n");
 
-	mac->pcsr = ioaddr;
-	mac->multicast_filter_bins = mcbins;
-	mac->unicast_filter_entries = perfect_uc_entries;
+	priv->dev->priv_flags |= IFF_UNICAST_FLT;
+	mac->pcsr = priv->ioaddr;
+	mac->multicast_filter_bins = priv->plat->multicast_filter_bins;
+	mac->unicast_filter_entries = priv->plat->unicast_filter_entries;
 	mac->mcast_bits_log2 = 0;
 
 	if (mac->multicast_filter_bins)
@@ -828,20 +828,5 @@ struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
 	mac->mii.clk_csr_shift = 8;
 	mac->mii.clk_csr_mask = GENMASK(11, 8);
 
-	/* Get and dump the chip ID */
-	*synopsys_id = stmmac_get_synopsys_id(hwid);
-
-	if (*synopsys_id > DWMAC_CORE_4_00)
-		mac->dma = &dwmac410_dma_ops;
-	else
-		mac->dma = &dwmac4_dma_ops;
-
-	if (*synopsys_id >= DWMAC_CORE_5_10)
-		mac->mac = &dwmac510_ops;
-	else if (*synopsys_id >= DWMAC_CORE_4_00)
-		mac->mac = &dwmac410_ops;
-	else
-		mac->mac = &dwmac4_ops;
-
-	return mac;
+	return 0;
 }

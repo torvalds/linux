@@ -78,13 +78,13 @@ config MEDIA_SDR_SUPPORT
 	  Say Y when you have a software defined radio device.
 
 config MEDIA_CEC_SUPPORT
-       bool "HDMI CEC support"
-       ---help---
-	 Enable support for HDMI CEC (Consumer Electronics Control),
-	 which is an optional HDMI feature.
+	bool "HDMI CEC support"
+	---help---
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
 
-	 Say Y when you have an HDMI receiver, transmitter or a USB CEC
-	 adapter that supports HDMI CEC.
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
 
 source "drivers/media/cec/Kconfig"
 

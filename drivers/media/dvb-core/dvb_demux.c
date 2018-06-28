@@ -1247,12 +1247,14 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 
 	dvbdemux->cnt_storage = NULL;
 	dvbdemux->users = 0;
-	dvbdemux->filter = vmalloc(dvbdemux->filternum * sizeof(struct dvb_demux_filter));
+	dvbdemux->filter = vmalloc(array_size(sizeof(struct dvb_demux_filter),
+					      dvbdemux->filternum));
 
 	if (!dvbdemux->filter)
 		return -ENOMEM;
 
-	dvbdemux->feed = vmalloc(dvbdemux->feednum * sizeof(struct dvb_demux_feed));
+	dvbdemux->feed = vmalloc(array_size(sizeof(struct dvb_demux_feed),
+					    dvbdemux->feednum));
 	if (!dvbdemux->feed) {
 		vfree(dvbdemux->filter);
 		dvbdemux->filter = NULL;

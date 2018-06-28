@@ -8,15 +8,6 @@
 
 #include "expr.h"
 
-#ifndef KBUILD_NO_NLS
-# include <libintl.h>
-#else
-static inline const char *gettext(const char *txt) { return txt; }
-static inline void textdomain(const char *domainname) {}
-static inline void bindtextdomain(const char *name, const char *dir) {}
-static inline char *bind_textdomain_codeset(const char *dn, char *c) { return c; }
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,11 +19,6 @@ extern "C" {
 #ifndef PACKAGE
 #define PACKAGE "linux"
 #endif
-
-#define LOCALEDIR "/usr/share/locale"
-
-#define _(text) gettext(text)
-#define N_(text) (text)
 
 #ifndef CONFIG_
 #define CONFIG_ "CONFIG_"
@@ -58,7 +44,6 @@ enum conf_def_mode {
 
 #define T_OPT_MODULES		1
 #define T_OPT_DEFCONFIG_LIST	2
-#define T_OPT_ENV		3
 #define T_OPT_ALLNOCONFIG_Y	4
 
 struct kconf_id {
@@ -117,6 +102,7 @@ void *xmalloc(size_t size);
 void *xcalloc(size_t nmemb, size_t size);
 void *xrealloc(void *p, size_t size);
 char *xstrdup(const char *s);
+char *xstrndup(const char *s, size_t n);
 
 struct gstr {
 	size_t len;
@@ -134,9 +120,6 @@ void str_printf(struct gstr *gs, const char *fmt, ...);
 const char *str_get(struct gstr *gs);
 
 /* symbol.c */
-extern struct expr *sym_env_list;
-
-void sym_init(void);
 void sym_clear_all_valid(void);
 struct symbol *sym_choice_default(struct symbol *sym);
 const char *sym_get_string_default(struct symbol *sym);

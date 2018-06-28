@@ -13,7 +13,7 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/omap-dma.h>
 

@@ -66,6 +66,8 @@ static int amdgpu_identity_map(struct amdgpu_device *adev,
 			       u32 ring,
 			       struct amdgpu_ring **out_ring)
 {
+	u32 instance;
+
 	switch (mapper->hw_ip) {
 	case AMDGPU_HW_IP_GFX:
 		*out_ring = &adev->gfx.gfx_ring[ring];
@@ -77,13 +79,16 @@ static int amdgpu_identity_map(struct amdgpu_device *adev,
 		*out_ring = &adev->sdma.instance[ring].ring;
 		break;
 	case AMDGPU_HW_IP_UVD:
-		*out_ring = &adev->uvd.ring;
+		instance = ring;
+		*out_ring = &adev->uvd.inst[instance].ring;
 		break;
 	case AMDGPU_HW_IP_VCE:
 		*out_ring = &adev->vce.ring[ring];
 		break;
 	case AMDGPU_HW_IP_UVD_ENC:
-		*out_ring = &adev->uvd.ring_enc[ring];
+		instance = ring / adev->uvd.num_enc_rings;
+		*out_ring =
+		&adev->uvd.inst[instance].ring_enc[ring%adev->uvd.num_enc_rings];
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		*out_ring = &adev->vcn.ring_dec;
@@ -240,13 +245,14 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 		ip_num_rings = adev->sdma.num_instances;
 		break;
 	case AMDGPU_HW_IP_UVD:
-		ip_num_rings = 1;
+		ip_num_rings = adev->uvd.num_uvd_inst;
 		break;
 	case AMDGPU_HW_IP_VCE:
 		ip_num_rings = adev->vce.num_rings;
 		break;
 	case AMDGPU_HW_IP_UVD_ENC:
-		ip_num_rings = adev->uvd.num_enc_rings;
+		ip_num_rings =
+			adev->uvd.num_enc_rings * adev->uvd.num_uvd_inst;
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		ip_num_rings = 1;

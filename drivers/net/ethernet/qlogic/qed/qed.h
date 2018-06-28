@@ -92,6 +92,8 @@ struct qed_eth_cb_ops;
 struct qed_dev_info;
 union qed_mcp_protocol_stats;
 enum qed_mcp_protocol_type;
+enum qed_mfw_tlv_type;
+union qed_mfw_tlv_data;
 
 /* helpers */
 #define QED_MFW_GET_FIELD(name, field) \
@@ -439,6 +441,59 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum qed_mf_mode_bit {
+	/* Supports PF-classification based on tag */
+	QED_MF_OVLAN_CLSS,
+
+	/* Supports PF-classification based on MAC */
+	QED_MF_LLH_MAC_CLSS,
+
+	/* Supports PF-classification based on protocol type */
+	QED_MF_LLH_PROTO_CLSS,
+
+	/* Requires a default PF to be set */
+	QED_MF_NEED_DEF_PF,
+
+	/* Allow LL2 to multicast/broadcast */
+	QED_MF_LL2_NON_UNICAST,
+
+	/* Allow Cross-PF [& child VFs] Tx-switching */
+	QED_MF_INTER_PF_SWITCH,
+
+	/* Unified Fabtic Port support enabled */
+	QED_MF_UFP_SPECIFIC,
+
+	/* Disable Accelerated Receive Flow Steering (aRFS) */
+	QED_MF_DISABLE_ARFS,
+
+	/* Use vlan for steering */
+	QED_MF_8021Q_TAGGING,
+
+	/* Use stag for steering */
+	QED_MF_8021AD_TAGGING,
+
+	/* Allow DSCP to TC mapping */
+	QED_MF_DSCP_TO_TC_MAP,
+};
+
+enum qed_ufp_mode {
+	QED_UFP_MODE_ETS,
+	QED_UFP_MODE_VNIC_BW,
+	QED_UFP_MODE_UNKNOWN
+};
+
+enum qed_ufp_pri_type {
+	QED_UFP_PRI_OS,
+	QED_UFP_PRI_VNIC,
+	QED_UFP_PRI_UNKNOWN
+};
+
+struct qed_ufp_info {
+	enum qed_ufp_pri_type pri_type;
+	enum qed_ufp_mode mode;
+	u8 tc;
+};
+
 enum BAR_ID {
 	BAR_ID_0,		/* used for GRC */
 	BAR_ID_1		/* Used for doorbells */
@@ -458,6 +513,10 @@ struct qed_nvm_image_info {
 struct qed_simd_fp_handler {
 	void	*token;
 	void	(*func)(void *);
+};
+
+enum qed_slowpath_wq_flag {
+	QED_SLOWPATH_MFW_TLV_REQ,
 };
 
 struct qed_hwfn {
@@ -547,6 +606,8 @@ struct qed_hwfn {
 
 	struct qed_dcbx_info		*p_dcbx_info;
 
+	struct qed_ufp_info		ufp_info;
+
 	struct qed_dmae_info		dmae_info;
 
 	/* QM init */
@@ -587,6 +648,9 @@ struct qed_hwfn {
 #endif
 
 	struct z_stream_s		*stream;
+	struct workqueue_struct *slowpath_wq;
+	struct delayed_work slowpath_task;
+	unsigned long slowpath_task_flags;
 };
 
 struct pci_params {
@@ -669,10 +733,8 @@ struct qed_dev {
 	u8				num_funcs_in_port;
 
 	u8				path_id;
-	enum qed_mf_mode		mf_mode;
-#define IS_MF_DEFAULT(_p_hwfn)  (((_p_hwfn)->cdev)->mf_mode == QED_MF_DEFAULT)
-#define IS_MF_SI(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_NPAR)
-#define IS_MF_SD(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_OVLAN)
+
+	unsigned long			mf_bits;
 
 	int				pcie_width;
 	int				pcie_speed;
@@ -853,5 +915,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 			    union qed_mcp_protocol_stats *stats);
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn);
+int qed_mfw_tlv_req(struct qed_hwfn *hwfn);
 
+int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn,
+			  enum qed_mfw_tlv_type type,
+			  union qed_mfw_tlv_data *tlv_data);
 #endif /* _QED_H */

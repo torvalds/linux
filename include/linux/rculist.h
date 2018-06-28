@@ -404,6 +404,19 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
 	     pos = list_entry_rcu(pos->member.next, typeof(*pos), member))
 
 /**
+ * list_for_each_entry_from_rcu - iterate over a list from current point
+ * @pos:	the type * to use as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_node within the struct.
+ *
+ * Iterate over the tail of a list starting from a given position,
+ * which must have been in the list when the RCU read lock was taken.
+ */
+#define list_for_each_entry_from_rcu(pos, head, member)			\
+	for (; &(pos)->member != (head);					\
+		pos = list_entry_rcu(pos->member.next, typeof(*(pos)), member))
+
+/**
  * hlist_del_rcu - deletes entry from hash list without re-initialization
  * @n: the element to delete from the hash list.
  *

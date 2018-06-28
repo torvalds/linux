@@ -1,6 +1,6 @@
 /*
  * Abilis Systems Single DVB-T Receiver
- * Copyright (C) 2014 Mauro Carvalho Chehab <m.chehab@samsung.com>
+ * Copyright (C) 2014 Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

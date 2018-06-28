@@ -40,8 +40,8 @@
 #undef WARN_ON_ONCE
 #define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
 
-#define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
-			     (long)(x), __func__)
+#define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
+			     __stringify(x), (long)(x))
 
 #if GCC_VERSION >= 70000
 #define add_overflows(A, B) \
@@ -119,6 +119,12 @@ static inline u64 ptr_to_u64(const void *ptr)
 })
 
 #include <linux/list.h>
+
+static inline int list_is_first(const struct list_head *list,
+				const struct list_head *head)
+{
+	return head->next == list;
+}
 
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)

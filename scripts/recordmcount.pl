@@ -266,13 +266,29 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf32-sh-linux";
 
 } elsif ($arch eq "powerpc") {
+    my $ldemulation;
+
     $local_regex = "^[0-9a-fA-F]+\\s+t\\s+(\\.?\\S+)";
     # See comment in the sparc64 section for why we use '\w'.
     $function_regex = "^([0-9a-fA-F]+)\\s+<(\\.?\\w*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s\\.?_mcount\$";
 
+    if ($endian eq "big") {
+	    $cc .= " -mbig-endian ";
+	    $ld .= " -EB ";
+	    $ldemulation = "ppc"
+    } else {
+	    $cc .= " -mlittle-endian ";
+	    $ld .= " -EL ";
+	    $ldemulation = "lppc"
+    }
     if ($bits == 64) {
-	$type = ".quad";
+        $type = ".quad";
+        $cc .= " -m64 ";
+        $ld .= " -m elf64".$ldemulation." ";
+    } else {
+        $cc .= " -m32 ";
+        $ld .= " -m elf32".$ldemulation." ";
     }
 
 } elsif ($arch eq "arm") {

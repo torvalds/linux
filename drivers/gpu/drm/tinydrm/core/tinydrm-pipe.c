@@ -125,9 +125,8 @@ void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &tdev->pipe.crtc;
 
 	if (fb && (fb != old_state->fb)) {
-		pipe->plane.fb = fb;
-		if (fb->funcs->dirty)
-			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+		if (tdev->fb_dirty)
+			tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
 	}
 
 	if (crtc->state->event) {
@@ -138,23 +137,6 @@ void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_update);
-
-/**
- * tinydrm_display_pipe_prepare_fb - Display pipe prepare_fb helper
- * @pipe: Simple display pipe
- * @plane_state: Plane state
- *
- * This function uses drm_gem_fb_prepare_fb() to check if the plane FB has an
- * dma-buf attached, extracts the exclusive fence and attaches it to plane
- * state for the atomic helper to wait on. Drivers can use this as their
- * &drm_simple_display_pipe_funcs->prepare_fb callback.
- */
-int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
-}
-EXPORT_SYMBOL(tinydrm_display_pipe_prepare_fb);
 
 static int tinydrm_rotate_mode(struct drm_display_mode *mode,
 			       unsigned int rotation)

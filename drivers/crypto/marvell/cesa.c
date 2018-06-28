@@ -471,7 +471,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		sram_size = CESA_SA_MIN_SRAM_SIZE;
 
 	cesa->sram_size = sram_size;
-	cesa->engines = devm_kzalloc(dev, caps->nengines * sizeof(*engines),
+	cesa->engines = devm_kcalloc(dev, caps->nengines, sizeof(*engines),
 				     GFP_KERNEL);
 	if (!cesa->engines)
 		return -ENOMEM;

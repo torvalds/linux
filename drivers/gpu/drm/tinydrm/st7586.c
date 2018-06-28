@@ -120,14 +120,8 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 	int start, end;
 	int ret = 0;
 
-	mutex_lock(&tdev->dirty_lock);
-
 	if (!mipi->enabled)
-		goto out_unlock;
-
-	/* fbdev can flush even when we're not interested */
-	if (tdev->pipe.plane.fb != fb)
-		goto out_unlock;
+		return 0;
 
 	tinydrm_merge_clips(&clip, clips, num_clips, flags, fb->width,
 			    fb->height);
@@ -141,7 +135,7 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 
 	ret = st7586_buf_copy(mipi->tx_buf, fb, &clip);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	/* Pixels are packed 3 per byte */
 	start = clip.x1 / 3;
@@ -158,24 +152,18 @@ static int st7586_fb_dirty(struct drm_framebuffer *fb,
 				   (u8 *)mipi->tx_buf,
 				   (end - start) * (clip.y2 - clip.y1));
 
-out_unlock:
-	mutex_unlock(&tdev->dirty_lock);
-
-	if (ret)
-		dev_err_once(fb->dev->dev, "Failed to update display %d\n",
-			     ret);
-
 	return ret;
 }
 
 static const struct drm_framebuffer_funcs st7586_fb_funcs = {
 	.destroy	= drm_gem_fb_destroy,
 	.create_handle	= drm_gem_fb_create_handle,
-	.dirty		= st7586_fb_dirty,
+	.dirty		= tinydrm_fb_dirty,
 };
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state)
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
@@ -237,7 +225,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
 
-	mipi_dbi_enable_flush(mipi);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -277,6 +265,8 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
+	tdev->fb_dirty = st7586_fb_dirty;
+
 	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					st7586_formats,
@@ -300,7 +290,7 @@ static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
 	.enable		= st7586_pipe_enable,
 	.disable	= st7586_pipe_disable,
 	.update		= tinydrm_display_pipe_update,
-	.prepare_fb	= tinydrm_display_pipe_prepare_fb,
+	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static const struct drm_display_mode st7586_mode = {

@@ -40,9 +40,18 @@ enum psp_gfx_crtl_cmd_id
     GFX_CTRL_CMD_ID_INIT_GPCOM_RING = 0x00020000,   /* initialize GPCOM ring */
     GFX_CTRL_CMD_ID_DESTROY_RINGS   = 0x00030000,   /* destroy rings */
     GFX_CTRL_CMD_ID_CAN_INIT_RINGS  = 0x00040000,   /* is it allowed to initialized the rings */
+    GFX_CTRL_CMD_ID_ENABLE_INT      = 0x00050000,   /* enable PSP-to-Gfx interrupt */
+    GFX_CTRL_CMD_ID_DISABLE_INT     = 0x00060000,   /* disable PSP-to-Gfx interrupt */
+    GFX_CTRL_CMD_ID_MODE1_RST       = 0x00070000,   /* trigger the Mode 1 reset */
 
     GFX_CTRL_CMD_ID_MAX             = 0x000F0000,   /* max command ID */
 };
+
+
+/*-----------------------------------------------------------------------------
+    NOTE:   All physical addresses used in this interface are actually
+            GPU Virtual Addresses.
+*/
 
 
 /* Control registers of the TEE Gfx interface. These are located in
@@ -55,8 +64,8 @@ struct psp_gfx_ctrl
     volatile uint32_t   rbi_rptr;         /* +8   Read pointer (index) of RBI ring */
     volatile uint32_t   gpcom_wptr;       /* +12  Write pointer (index) of GPCOM ring */
     volatile uint32_t   gpcom_rptr;       /* +16  Read pointer (index) of GPCOM ring */
-    volatile uint32_t   ring_addr_lo;     /* +20  bits [31:0] of physical address of ring buffer */
-    volatile uint32_t   ring_addr_hi;     /* +24  bits [63:32] of physical address of ring buffer */
+    volatile uint32_t   ring_addr_lo;     /* +20  bits [31:0] of GPU Virtual of ring buffer (VMID=0)*/
+    volatile uint32_t   ring_addr_hi;     /* +24  bits [63:32] of GPU Virtual of ring buffer (VMID=0) */
     volatile uint32_t   ring_buf_size;    /* +28  Ring buffer size (in bytes) */
 
 };
@@ -78,6 +87,8 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_LOAD_ASD     = 0x00000004,   /* load ASD Driver */
     GFX_CMD_ID_SETUP_TMR    = 0x00000005,   /* setup TMR region */
     GFX_CMD_ID_LOAD_IP_FW   = 0x00000006,   /* load HW IP FW */
+    GFX_CMD_ID_DESTROY_TMR  = 0x00000007,   /* destroy TMR region */
+    GFX_CMD_ID_SAVE_RESTORE = 0x00000008,   /* save/restore HW IP FW */
 
 };
 
@@ -85,11 +96,11 @@ enum psp_gfx_cmd_id
 /* Command to load Trusted Application binary into PSP OS. */
 struct psp_gfx_cmd_load_ta
 {
-    uint32_t        app_phy_addr_lo;        /* bits [31:0] of the physical address of the TA binary (must be 4 KB aligned) */
-    uint32_t        app_phy_addr_hi;        /* bits [63:32] of the physical address of the TA binary */
+    uint32_t        app_phy_addr_lo;        /* bits [31:0] of the GPU Virtual address of the TA binary (must be 4 KB aligned) */
+    uint32_t        app_phy_addr_hi;        /* bits [63:32] of the GPU Virtual address of the TA binary */
     uint32_t        app_len;                /* length of the TA binary in bytes */
-    uint32_t        cmd_buf_phy_addr_lo;    /* bits [31:0] of the physical address of CMD buffer (must be 4 KB aligned) */
-    uint32_t        cmd_buf_phy_addr_hi;    /* bits [63:32] of the physical address of CMD buffer */
+    uint32_t        cmd_buf_phy_addr_lo;    /* bits [31:0] of the GPU Virtual address of CMD buffer (must be 4 KB aligned) */
+    uint32_t        cmd_buf_phy_addr_hi;    /* bits [63:32] of the GPU Virtual address of CMD buffer */
     uint32_t        cmd_buf_len;            /* length of the CMD buffer in bytes; must be multiple of 4 KB */
 
     /* Note: CmdBufLen can be set to 0. In this case no persistent CMD buffer is provided
@@ -111,8 +122,8 @@ struct psp_gfx_cmd_unload_ta
 */
 struct psp_gfx_buf_desc
 {
-    uint32_t        buf_phy_addr_lo;       /* bits [31:0] of physical address of the buffer (must be 4 KB aligned) */
-    uint32_t        buf_phy_addr_hi;       /* bits [63:32] of physical address of the buffer */
+    uint32_t        buf_phy_addr_lo;       /* bits [31:0] of GPU Virtual address of the buffer (must be 4 KB aligned) */
+    uint32_t        buf_phy_addr_hi;       /* bits [63:32] of GPU Virtual address of the buffer */
     uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB and no bigger than 64 MB) */
 
 };
@@ -145,8 +156,8 @@ struct psp_gfx_cmd_invoke_cmd
 /* Command to setup TMR region. */
 struct psp_gfx_cmd_setup_tmr
 {
-    uint32_t        buf_phy_addr_lo;       /* bits [31:0] of physical address of TMR buffer (must be 4 KB aligned) */
-    uint32_t        buf_phy_addr_hi;       /* bits [63:32] of physical address of TMR buffer */
+    uint32_t        buf_phy_addr_lo;       /* bits [31:0] of GPU Virtual address of TMR buffer (must be 4 KB aligned) */
+    uint32_t        buf_phy_addr_hi;       /* bits [63:32] of GPU Virtual address of TMR buffer */
     uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB) */
 
 };
@@ -174,18 +185,32 @@ enum psp_gfx_fw_type
     GFX_FW_TYPE_ISP         = 16,
     GFX_FW_TYPE_ACP         = 17,
     GFX_FW_TYPE_SMU         = 18,
+    GFX_FW_TYPE_MMSCH       = 19,
+    GFX_FW_TYPE_RLC_RESTORE_LIST_GPM_MEM        = 20,
+    GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM        = 21,
+    GFX_FW_TYPE_RLC_RESTORE_LIST_CNTL           = 22,
+    GFX_FW_TYPE_MAX         = 23
 };
 
 /* Command to load HW IP FW. */
 struct psp_gfx_cmd_load_ip_fw
 {
-    uint32_t                fw_phy_addr_lo;    /* bits [31:0] of physical address of FW location (must be 4 KB aligned) */
-    uint32_t                fw_phy_addr_hi;    /* bits [63:32] of physical address of FW location */
+    uint32_t                fw_phy_addr_lo;    /* bits [31:0] of GPU Virtual address of FW location (must be 4 KB aligned) */
+    uint32_t                fw_phy_addr_hi;    /* bits [63:32] of GPU Virtual address of FW location */
     uint32_t                fw_size;           /* FW buffer size in bytes */
     enum psp_gfx_fw_type    fw_type;           /* FW type */
 
 };
 
+/* Command to save/restore HW IP FW. */
+struct psp_gfx_cmd_save_restore_ip_fw
+{
+    uint32_t                save_fw;              /* if set, command is used for saving fw otherwise for resetoring*/
+    uint32_t                save_restore_addr_lo; /* bits [31:0] of FB address of GART memory used as save/restore buffer (must be 4 KB aligned) */
+    uint32_t                save_restore_addr_hi; /* bits [63:32] of FB address of GART memory used as save/restore buffer */
+    uint32_t                buf_size;             /* Size of the save/restore buffer in bytes */
+    enum psp_gfx_fw_type    fw_type;              /* FW type */
+};
 
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
@@ -195,7 +220,7 @@ union psp_gfx_commands
     struct psp_gfx_cmd_invoke_cmd       cmd_invoke_cmd;
     struct psp_gfx_cmd_setup_tmr        cmd_setup_tmr;
     struct psp_gfx_cmd_load_ip_fw       cmd_load_ip_fw;
-
+    struct psp_gfx_cmd_save_restore_ip_fw cmd_save_restore_ip_fw;
 };
 
 
@@ -226,8 +251,8 @@ struct psp_gfx_cmd_resp
 
     /* These fields are used for RBI only. They are all 0 in GPCOM commands
     */
-    uint32_t        resp_buf_addr_lo;   /* +12 bits [31:0] of physical address of response buffer (must be 4 KB aligned) */
-    uint32_t        resp_buf_addr_hi;   /* +16 bits [63:32] of physical address of response buffer */
+    uint32_t        resp_buf_addr_lo;   /* +12 bits [31:0] of GPU Virtual address of response buffer (must be 4 KB aligned) */
+    uint32_t        resp_buf_addr_hi;   /* +16 bits [63:32] of GPU Virtual address of response buffer */
     uint32_t        resp_offset;        /* +20 offset within response buffer */
     uint32_t        resp_buf_size;      /* +24 total size of the response buffer in bytes */
 
@@ -251,19 +276,19 @@ struct psp_gfx_cmd_resp
 /* Structure of the Ring Buffer Frame */
 struct psp_gfx_rb_frame
 {
-    uint32_t    cmd_buf_addr_lo;    /* +0  bits [31:0] of physical address of command buffer (must be 4 KB aligned) */
-    uint32_t    cmd_buf_addr_hi;    /* +4  bits [63:32] of physical address of command buffer */
+    uint32_t    cmd_buf_addr_lo;    /* +0  bits [31:0] of GPU Virtual address of command buffer (must be 4 KB aligned) */
+    uint32_t    cmd_buf_addr_hi;    /* +4  bits [63:32] of GPU Virtual address of command buffer */
     uint32_t    cmd_buf_size;       /* +8  command buffer size in bytes */
-    uint32_t    fence_addr_lo;      /* +12 bits [31:0] of physical address of Fence for this frame */
-    uint32_t    fence_addr_hi;      /* +16 bits [63:32] of physical address of Fence for this frame */
+    uint32_t    fence_addr_lo;      /* +12 bits [31:0] of GPU Virtual address of Fence for this frame */
+    uint32_t    fence_addr_hi;      /* +16 bits [63:32] of GPU Virtual address of Fence for this frame */
     uint32_t    fence_value;        /* +20 Fence value */
     uint32_t    sid_lo;             /* +24 bits [31:0] of SID value (used only for RBI frames) */
     uint32_t    sid_hi;             /* +28 bits [63:32] of SID value (used only for RBI frames) */
     uint8_t     vmid;               /* +32 VMID value used for mapping of all addresses for this frame */
     uint8_t     frame_type;         /* +33 1: destory context frame, 0: all other frames; used only for RBI frames */
     uint8_t     reserved1[2];       /* +34 reserved, must be 0 */
-    uint32_t    reserved2[7];       /* +40 reserved, must be 0 */
-    /* total 64 bytes */
+    uint32_t    reserved2[7];       /* +36 reserved, must be 0 */
+                /* total 64 bytes */
 };
 
 #endif /* _PSP_TEE_GFX_IF_H_ */

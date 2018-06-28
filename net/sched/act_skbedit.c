@@ -121,7 +121,8 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!flags) {
-		tcf_idr_release(*a, bind);
+		if (exists)
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 

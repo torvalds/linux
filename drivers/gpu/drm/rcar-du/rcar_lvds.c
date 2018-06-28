@@ -88,6 +88,9 @@ static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
 	const struct drm_display_mode *panel_mode;
 	struct drm_crtc_state *crtc_state;
 
+	if (!state->crtc)
+		return 0;
+
 	if (list_empty(&connector->modes)) {
 		dev_dbg(lvds->dev, "connector: empty modes list\n");
 		return -EINVAL;

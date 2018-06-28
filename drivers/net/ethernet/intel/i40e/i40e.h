@@ -1,29 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_H_
 #define _I40E_H_
@@ -334,10 +310,12 @@ struct i40e_tc_configuration {
 	struct i40e_tc_info tc_info[I40E_MAX_TRAFFIC_CLASS];
 };
 
+#define I40E_UDP_PORT_INDEX_UNUSED	255
 struct i40e_udp_port_config {
 	/* AdminQ command interface expects port number in Host byte order */
 	u16 port;
 	u8 type;
+	u8 filter_index;
 };
 
 /* macros related to FLX_PIT */
@@ -608,7 +586,7 @@ struct i40e_pf {
 	unsigned long ptp_tx_start;
 	struct hwtstamp_config tstamp_config;
 	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
-	u64 ptp_base_adj;
+	u32 ptp_adj_mult;
 	u32 tx_hwtstamp_timeouts;
 	u32 tx_hwtstamp_skipped;
 	u32 rx_hwtstamp_cleared;
@@ -1009,6 +987,9 @@ void i40e_service_event_schedule(struct i40e_pf *pf);
 void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 				  u8 *msg, u16 len);
 
+int i40e_control_wait_tx_q(int seid, struct i40e_pf *pf, int pf_q, bool is_xdp,
+			   bool enable);
+int i40e_control_wait_rx_q(struct i40e_pf *pf, int pf_q, bool enable);
 int i40e_vsi_start_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings_no_wait(struct  i40e_vsi *vsi);

@@ -1382,15 +1382,12 @@ static const char *eq_mode_name[] = {"EQ1 Mode", "EQ2 Mode"};
 
 static int max98088_get_channel(struct snd_soc_component *component, const char *name)
 {
-	int i;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(eq_mode_name); i++)
-		if (strcmp(name, eq_mode_name[i]) == 0)
-			return i;
-
-	/* Shouldn't happen */
-	dev_err(component->dev, "Bad EQ channel name '%s'\n", name);
-	return -EINVAL;
+	ret = match_string(eq_mode_name, ARRAY_SIZE(eq_mode_name), name);
+	if (ret < 0)
+		dev_err(component->dev, "Bad EQ channel name '%s'\n", name);
+	return ret;
 }
 
 static void max98088_setup_eq1(struct snd_soc_component *component)

@@ -152,6 +152,13 @@ static struct ctl_table ipv6_table_template[] = {
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
+	{
+		.procname	= "seg6_flowlabel",
+		.data		= &init_net.ipv6.sysctl.seg6_flowlabel,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
 	{ }
 };
 
@@ -217,6 +224,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[12].data = &net->ipv6.sysctl.max_dst_opts_len;
 	ipv6_table[13].data = &net->ipv6.sysctl.max_hbh_opts_len;
 	ipv6_table[14].data = &net->ipv6.sysctl.multipath_hash_policy,
+	ipv6_table[15].data = &net->ipv6.sysctl.seg6_flowlabel;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

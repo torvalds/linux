@@ -66,6 +66,7 @@ enum qed_filter_config_mode {
 	QED_FILTER_CONFIG_MODE_5_TUPLE,
 	QED_FILTER_CONFIG_MODE_L4_PORT,
 	QED_FILTER_CONFIG_MODE_IP_DEST,
+	QED_FILTER_CONFIG_MODE_IP_SRC,
 };
 
 struct qed_ntuple_filter_params {
@@ -88,6 +89,9 @@ struct qed_ntuple_filter_params {
 
 	/* true iff this filter is to be added. Else to be removed */
 	bool b_is_add;
+
+	/* If flow needs to be dropped */
+	bool b_is_drop;
 };
 
 struct qed_dev_eth_info {
@@ -352,6 +356,7 @@ struct qed_eth_ops {
 	int (*configure_arfs_searcher)(struct qed_dev *cdev,
 				       enum qed_filter_config_mode mode);
 	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
+	int (*req_bulletin_update_mac)(struct qed_dev *cdev, u8 *mac);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

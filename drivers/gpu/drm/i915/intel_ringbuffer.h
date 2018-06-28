@@ -3,15 +3,19 @@
 #define _INTEL_RINGBUFFER_H_
 
 #include <linux/hashtable.h>
+#include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
-#include "i915_gem_timeline.h"
 
+#include "i915_reg.h"
 #include "i915_pmu.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "i915_timeline.h"
+#include "intel_gpu_commands.h"
 
 struct drm_printer;
+struct i915_sched_attr;
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -84,7 +88,7 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 }
 
 #define I915_MAX_SLICES	3
-#define I915_MAX_SUBSLICES 3
+#define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
 	(INTEL_GEN(dev_priv__) == 7 ? \
@@ -125,7 +129,9 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
+	struct i915_timeline *timeline;
 	struct list_head request_list;
+	struct list_head active_link;
 
 	u32 head;
 	u32 tail;
@@ -330,10 +336,10 @@ struct intel_engine_cs {
 	u8 instance;
 	u32 context_size;
 	u32 mmio_base;
-	unsigned int irq_shift;
 
 	struct intel_ring *buffer;
-	struct intel_timeline *timeline;
+
+	struct i915_timeline timeline;
 
 	struct drm_i915_gem_object *default_state;
 
@@ -459,7 +465,8 @@ struct intel_engine_cs {
 	 *
 	 * Called under the struct_mutex.
 	 */
-	void		(*schedule)(struct i915_request *request, int priority);
+	void		(*schedule)(struct i915_request *request,
+				    const struct i915_sched_attr *attr);
 
 	/*
 	 * Cancel all requests on the hardware, or queued for execution.
@@ -561,6 +568,7 @@ struct intel_engine_cs {
 
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 	unsigned int flags;
 
 	/*
@@ -591,7 +599,7 @@ struct intel_engine_cs {
 		/**
 		 * @lock: Lock protecting the below fields.
 		 */
-		spinlock_t lock;
+		seqlock_t lock;
 		/**
 		 * @enabled: Reference count indicating number of listeners.
 		 */
@@ -620,14 +628,27 @@ struct intel_engine_cs {
 	} stats;
 };
 
-static inline bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_needs_cmd_parser(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_NEEDS_CMD_PARSER;
 }
 
-static inline bool intel_engine_supports_stats(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_supports_stats(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_SUPPORTS_STATS;
+}
+
+static inline bool
+intel_engine_has_preemption(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_HAS_PREEMPTION;
+}
+
+static inline bool __execlists_need_preempt(int prio, int last)
+{
+	return prio > max(0, last);
 }
 
 static inline void
@@ -635,6 +656,13 @@ execlists_set_active(struct intel_engine_execlists *execlists,
 		     unsigned int bit)
 {
 	__set_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline bool
+execlists_set_active_once(struct intel_engine_execlists *execlists,
+			  unsigned int bit)
+{
+	return !__test_and_set_bit(bit, (unsigned long *)&execlists->active);
 }
 
 static inline void
@@ -651,6 +679,10 @@ execlists_is_active(const struct intel_engine_execlists *execlists,
 	return test_bit(bit, (unsigned long *)&execlists->active);
 }
 
+void execlists_user_begin(struct intel_engine_execlists *execlists,
+			  const struct execlist_port *port);
+void execlists_user_end(struct intel_engine_execlists *execlists);
+
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
 
@@ -663,7 +695,7 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 	return execlists->port_mask + 1;
 }
 
-static inline void
+static inline struct execlist_port *
 execlists_port_complete(struct intel_engine_execlists * const execlists,
 			struct execlist_port * const port)
 {
@@ -674,6 +706,8 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 
 	memmove(port, port + 1, m * sizeof(struct execlist_port));
 	memset(port + m, 0, sizeof(struct execlist_port));
+
+	return port;
 }
 
 static inline unsigned int
@@ -736,7 +770,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine, int size);
+intel_engine_create_ring(struct intel_engine_cs *engine,
+			 struct i915_timeline *timeline,
+			 int size);
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
 		   unsigned int offset_bias);
@@ -854,11 +890,8 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	 * wtih serialising this hint with anything, so document it as
 	 * a hint and nothing more.
 	 */
-	return READ_ONCE(engine->timeline->seqno);
+	return READ_ONCE(engine->timeline.seqno);
 }
-
-int init_workarounds_ring(struct intel_engine_cs *engine);
-int intel_ring_workarounds_emit(struct i915_request *rq);
 
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
@@ -939,7 +972,7 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait);
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
-void intel_engine_enable_signaling(struct i915_request *request, bool wakeup);
+bool intel_engine_enable_signaling(struct i915_request *request, bool wakeup);
 void intel_engine_cancel_signaling(struct i915_request *request);
 
 static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
@@ -1037,7 +1070,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		if (engine->stats.active++ == 0)
@@ -1045,7 +1078,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 		GEM_BUG_ON(engine->stats.active == 0);
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static inline void intel_engine_context_out(struct intel_engine_cs *engine)
@@ -1055,7 +1088,7 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 	if (READ_ONCE(engine->stats.enabled) == 0)
 		return;
 
-	spin_lock_irqsave(&engine->stats.lock, flags);
+	write_seqlock_irqsave(&engine->stats.lock, flags);
 
 	if (engine->stats.enabled > 0) {
 		ktime_t last;
@@ -1082,7 +1115,7 @@ static inline void intel_engine_context_out(struct intel_engine_cs *engine)
 		}
 	}
 
-	spin_unlock_irqrestore(&engine->stats.lock, flags);
+	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 int intel_enable_engine_stats(struct intel_engine_cs *engine);

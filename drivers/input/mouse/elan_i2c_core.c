@@ -36,6 +36,7 @@
 #include <linux/jiffies.h>
 #include <linux/completion.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <asm/unaligned.h>
 
@@ -51,6 +52,7 @@
 #define ETP_MAX_FINGERS		5
 #define ETP_FINGER_DATA_LEN	5
 #define ETP_REPORT_ID		0x5D
+#define ETP_TP_REPORT_ID	0x5E
 #define ETP_REPORT_ID_OFFSET	2
 #define ETP_TOUCH_INFO_OFFSET	3
 #define ETP_FINGER_DATA_OFFSET	4
@@ -61,6 +63,7 @@
 struct elan_tp_data {
 	struct i2c_client	*client;
 	struct input_dev	*input;
+	struct input_dev	*tp_input; /* trackpoint input node */
 	struct regulator	*vcc;
 
 	const struct elan_transport_ops *ops;
@@ -930,6 +933,33 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	input_sync(input);
 }
 
+static void elan_report_trackpoint(struct elan_tp_data *data, u8 *report)
+{
+	struct input_dev *input = data->tp_input;
+	u8 *packet = &report[ETP_REPORT_ID_OFFSET + 1];
+	int x, y;
+
+	if (!data->tp_input) {
+		dev_warn_once(&data->client->dev,
+			      "received a trackpoint report while no trackpoint device has been created. Please report upstream.\n");
+		return;
+	}
+
+	input_report_key(input, BTN_LEFT, packet[0] & 0x01);
+	input_report_key(input, BTN_RIGHT, packet[0] & 0x02);
+	input_report_key(input, BTN_MIDDLE, packet[0] & 0x04);
+
+	if ((packet[3] & 0x0F) == 0x06) {
+		x = packet[4] - (int)((packet[1] ^ 0x80) << 1);
+		y = (int)((packet[2] ^ 0x80) << 1) - packet[5];
+
+		input_report_rel(input, REL_X, x);
+		input_report_rel(input, REL_Y, y);
+	}
+
+	input_sync(input);
+}
+
 static irqreturn_t elan_isr(int irq, void *dev_id)
 {
 	struct elan_tp_data *data = dev_id;
@@ -951,11 +981,17 @@ static irqreturn_t elan_isr(int irq, void *dev_id)
 	if (error)
 		goto out;
 
-	if (report[ETP_REPORT_ID_OFFSET] != ETP_REPORT_ID)
+	switch (report[ETP_REPORT_ID_OFFSET]) {
+	case ETP_REPORT_ID:
+		elan_report_absolute(data, report);
+		break;
+	case ETP_TP_REPORT_ID:
+		elan_report_trackpoint(data, report);
+		break;
+	default:
 		dev_err(dev, "invalid report id data (%x)\n",
 			report[ETP_REPORT_ID_OFFSET]);
-	else
-		elan_report_absolute(data, report);
+	}
 
 out:
 	return IRQ_HANDLED;
@@ -966,6 +1002,36 @@ out:
  * Elan initialization functions
  ******************************************************************
  */
+
+static int elan_setup_trackpoint_input_device(struct elan_tp_data *data)
+{
+	struct device *dev = &data->client->dev;
+	struct input_dev *input;
+
+	input = devm_input_allocate_device(dev);
+	if (!input)
+		return -ENOMEM;
+
+	input->name = "Elan TrackPoint";
+	input->id.bustype = BUS_I2C;
+	input->id.vendor = ELAN_VENDOR_ID;
+	input->id.product = data->product_id;
+	input_set_drvdata(input, data);
+
+	input_set_capability(input, EV_REL, REL_X);
+	input_set_capability(input, EV_REL, REL_Y);
+	input_set_capability(input, EV_KEY, BTN_LEFT);
+	input_set_capability(input, EV_KEY, BTN_RIGHT);
+	input_set_capability(input, EV_KEY, BTN_MIDDLE);
+
+	__set_bit(INPUT_PROP_POINTER, input->propbit);
+	__set_bit(INPUT_PROP_POINTING_STICK, input->propbit);
+
+	data->tp_input = input;
+
+	return 0;
+}
+
 static int elan_setup_input_device(struct elan_tp_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -1140,6 +1206,12 @@ static int elan_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
+	if (device_property_read_bool(&client->dev, "elan,trackpoint")) {
+		error = elan_setup_trackpoint_input_device(data);
+		if (error)
+			return error;
+	}
+
 	/*
 	 * Platform code (ACPI, DTS) should normally set up interrupt
 	 * for us, but in case it did not let's fall back to using falling
@@ -1175,6 +1247,16 @@ static int elan_probe(struct i2c_client *client,
 	if (error) {
 		dev_err(dev, "failed to register input device: %d\n", error);
 		return error;
+	}
+
+	if (data->tp_input) {
+		error = input_register_device(data->tp_input);
+		if (error) {
+			dev_err(&client->dev,
+				"failed to register TrackPoint input device: %d\n",
+				error);
+			return error;
+		}
 	}
 
 	/*
@@ -1262,6 +1344,7 @@ static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN060B", 0 },
 	{ "ELAN060C", 0 },
 	{ "ELAN0611", 0 },
+	{ "ELAN0612", 0 },
 	{ "ELAN1000", 0 },
 	{ }
 };

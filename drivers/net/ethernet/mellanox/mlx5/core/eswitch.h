@@ -55,6 +55,9 @@
 #define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
 	min_t(u32, max_t(u32, (rate) / (divider), MLX5_MIN_BW_SHARE), limit)
 
+#define mlx5_esw_has_fwd_fdb(dev) \
+	MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_to_table)
+
 struct vport_ingress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *allow_untagged_spoofchk_grp;
@@ -117,16 +120,18 @@ struct mlx5_vport {
 };
 
 struct mlx5_eswitch_fdb {
-	void *fdb;
 	union {
 		struct legacy_fdb {
+			struct mlx5_flow_table *fdb;
 			struct mlx5_flow_group *addr_grp;
 			struct mlx5_flow_group *allmulti_grp;
 			struct mlx5_flow_group *promisc_grp;
 		} legacy;
 
 		struct offloads_fdb {
-			struct mlx5_flow_table *fdb;
+			struct mlx5_flow_table *fast_fdb;
+			struct mlx5_flow_table *fwd_fdb;
+			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_handle *miss_rule_uni;
@@ -214,6 +219,10 @@ struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				struct mlx5_esw_flow_attr *attr);
+struct mlx5_flow_handle *
+mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
+			  struct mlx5_flow_spec *spec,
+			  struct mlx5_esw_flow_attr *attr);
 void
 mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_handle *rule,
@@ -227,9 +236,24 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
+enum mlx5_flow_match_level {
+	MLX5_MATCH_NONE	= MLX5_INLINE_MODE_NONE,
+	MLX5_MATCH_L2	= MLX5_INLINE_MODE_L2,
+	MLX5_MATCH_L3	= MLX5_INLINE_MODE_IP,
+	MLX5_MATCH_L4	= MLX5_INLINE_MODE_TCP_UDP,
+};
+
+/* current maximum for flow based vport multicasting */
+#define MLX5_MAX_FLOW_FWD_VPORTS 2
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
-	struct mlx5_eswitch_rep *out_rep;
+	struct mlx5_eswitch_rep *out_rep[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5_core_dev	*out_mdev[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5_core_dev	*in_mdev;
+
+	int mirror_count;
+	int out_count;
 
 	int	action;
 	__be16	vlan_proto;
@@ -238,6 +262,7 @@ struct mlx5_esw_flow_attr {
 	bool	vlan_handled;
 	u32	encap_id;
 	u32	mod_hdr_id;
+	u8	match_level;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 

@@ -277,7 +277,8 @@ static bool tick_check_preferred(struct clock_event_device *curdev,
 	 */
 	return !curdev ||
 		newdev->rating > curdev->rating ||
-	       !cpumask_equal(curdev->cpumask, newdev->cpumask);
+	       (!cpumask_equal(curdev->cpumask, newdev->cpumask) &&
+	        !tick_check_percpu(curdev, newdev, smp_processor_id()));
 }
 
 /*
@@ -419,19 +420,6 @@ void tick_suspend_local(void)
 	clockevents_shutdown(td->evtdev);
 }
 
-static void tick_forward_next_period(void)
-{
-	ktime_t delta, now = ktime_get();
-	u64 n;
-
-	delta = ktime_sub(now, tick_next_period);
-	n = ktime_divns(delta, tick_period);
-	tick_next_period += n * tick_period;
-	if (tick_next_period < now)
-		tick_next_period += tick_period;
-	tick_sched_forward_next_period();
-}
-
 /**
  * tick_resume_local - Resume the local tick device
  *
@@ -443,8 +431,6 @@ void tick_resume_local(void)
 {
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 	bool broadcast = tick_resume_check_broadcast();
-
-	tick_forward_next_period();
 
 	clockevents_tick_resume(td->evtdev);
 	if (!broadcast) {
@@ -505,6 +491,7 @@ void tick_freeze(void)
 	if (tick_freeze_depth == num_online_cpus()) {
 		trace_suspend_resume(TPS("timekeeping_freeze"),
 				     smp_processor_id(), true);
+		system_state = SYSTEM_SUSPEND;
 		timekeeping_suspend();
 	} else {
 		tick_suspend_local();
@@ -528,6 +515,7 @@ void tick_unfreeze(void)
 
 	if (tick_freeze_depth == num_online_cpus()) {
 		timekeeping_resume();
+		system_state = SYSTEM_RUNNING;
 		trace_suspend_resume(TPS("timekeeping_freeze"),
 				     smp_processor_id(), false);
 	} else {

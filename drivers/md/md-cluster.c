@@ -1380,9 +1380,9 @@ static int lock_all_bitmaps(struct mddev *mddev)
 	char str[64];
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
-	cinfo->other_bitmap_lockres = kzalloc((mddev->bitmap_info.nodes - 1) *
-					     sizeof(struct dlm_lock_resource *),
-					     GFP_KERNEL);
+	cinfo->other_bitmap_lockres =
+		kcalloc(mddev->bitmap_info.nodes - 1,
+			sizeof(struct dlm_lock_resource *), GFP_KERNEL);
 	if (!cinfo->other_bitmap_lockres) {
 		pr_err("md: can't alloc mem for other bitmap locks\n");
 		return 0;

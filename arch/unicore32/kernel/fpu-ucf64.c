@@ -52,14 +52,14 @@
  * Raise a SIGFPE for the current process.
  * sicode describes the signal being raised.
  */
-void ucf64_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
+void ucf64_raise_sigfpe(struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 
 	info.si_signo = SIGFPE;
-	info.si_code = sicode;
+	info.si_code = FPE_FLTUNK;
 	info.si_addr = (void __user *)(instruction_pointer(regs) - 4);
 
 	/*
@@ -94,7 +94,7 @@ void ucf64_exchandler(u32 inst, u32 fpexc, struct pt_regs *regs)
 		pr_debug("UniCore-F64 FPSCR 0x%08x INST 0x%08x\n",
 				cff(FPSCR), inst);
 
-		ucf64_raise_sigfpe(0, regs);
+		ucf64_raise_sigfpe(regs);
 		return;
 	}
 

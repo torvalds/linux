@@ -77,7 +77,10 @@ struct ceph_osd_data {
 			u32			bio_length;
 		};
 #endif /* CONFIG_BLOCK */
-		struct ceph_bvec_iter	bvec_pos;
+		struct {
+			struct ceph_bvec_iter	bvec_pos;
+			u32			num_bvecs;
+		};
 	};
 };
 
@@ -167,6 +170,7 @@ struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
 	struct rb_node  r_node;
 	struct rb_node  r_mc_node;          /* map check */
+	struct work_struct r_complete_work;
 	struct ceph_osd *r_osd;
 
 	struct ceph_osd_request_target r_t;
@@ -198,7 +202,6 @@ struct ceph_osd_request {
 	struct timespec r_mtime;              /* ditto */
 	u64 r_data_offset;                    /* ditto */
 	bool r_linger;                        /* don't resend on failure */
-	bool r_abort_on_full;		      /* return ENOSPC when full */
 
 	/* internal */
 	unsigned long r_stamp;                /* jiffies, send or check time */
@@ -344,6 +347,8 @@ struct ceph_osd_client {
 	struct rb_root         linger_map_checks;
 	atomic_t               num_requests;
 	atomic_t               num_homeless;
+	bool                   abort_on_full; /* abort w/ ENOSPC when full */
+	int                    abort_err;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
 #ifdef CONFIG_DEBUG_FS
@@ -356,6 +361,7 @@ struct ceph_osd_client {
 	struct ceph_msgpool	msgpool_op_reply;
 
 	struct workqueue_struct	*notify_wq;
+	struct workqueue_struct	*completion_wq;
 };
 
 static inline bool ceph_osdmap_flag(struct ceph_osd_client *osdc, int flag)
@@ -375,6 +381,7 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 void ceph_osdc_update_epoch_barrier(struct ceph_osd_client *osdc, u32 eb);
+void ceph_osdc_abort_requests(struct ceph_osd_client *osdc, int err);
 
 extern void osd_req_op_init(struct ceph_osd_request *osd_req,
 			    unsigned int which, u16 opcode, u32 flags);
@@ -412,6 +419,10 @@ void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
 				    struct ceph_bio_iter *bio_pos,
 				    u32 bio_length);
 #endif /* CONFIG_BLOCK */
+void osd_req_op_extent_osd_data_bvecs(struct ceph_osd_request *osd_req,
+				      unsigned int which,
+				      struct bio_vec *bvecs, u32 num_bvecs,
+				      u32 bytes);
 void osd_req_op_extent_osd_data_bvec_pos(struct ceph_osd_request *osd_req,
 					 unsigned int which,
 					 struct ceph_bvec_iter *bvec_pos);
@@ -426,13 +437,14 @@ extern void osd_req_op_cls_request_data_pages(struct ceph_osd_request *,
 					bool own_pages);
 void osd_req_op_cls_request_data_bvecs(struct ceph_osd_request *osd_req,
 				       unsigned int which,
-				       struct bio_vec *bvecs, u32 bytes);
+				       struct bio_vec *bvecs, u32 num_bvecs,
+				       u32 bytes);
 extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 					unsigned int which,
 					struct page **pages, u64 length,
 					u32 alignment, bool pages_from_pool,
 					bool own_pages);
-extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
+extern int osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					const char *class, const char *method);
 extern int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,

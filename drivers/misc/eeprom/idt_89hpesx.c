@@ -964,7 +964,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	if (colon_ch != NULL) {
 		csraddr_len = colon_ch - buf;
 		csraddr_str =
-			kmalloc(sizeof(char)*(csraddr_len + 1), GFP_KERNEL);
+			kmalloc(csraddr_len + 1, GFP_KERNEL);
 		if (csraddr_str == NULL) {
 			ret = -ENOMEM;
 			goto free_buf;

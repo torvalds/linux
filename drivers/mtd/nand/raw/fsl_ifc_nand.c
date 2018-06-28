@@ -342,9 +342,16 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 
 	case NAND_CMD_READID:
 	case NAND_CMD_PARAM: {
+		/*
+		 * For READID, read 8 bytes that are currently used.
+		 * For PARAM, read all 3 copies of 256-bytes pages.
+		 */
+		int len = 8;
 		int timing = IFC_FIR_OP_RB;
-		if (command == NAND_CMD_PARAM)
+		if (command == NAND_CMD_PARAM) {
 			timing = IFC_FIR_OP_RBCD;
+			len = 256 * 3;
+		}
 
 		ifc_out32((IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
 			  (IFC_FIR_OP_UA  << IFC_NAND_FIR0_OP1_SHIFT) |
@@ -354,12 +361,8 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			  &ifc->ifc_nand.nand_fcr0);
 		ifc_out32(column, &ifc->ifc_nand.row3);
 
-		/*
-		 * although currently it's 8 bytes for READID, we always read
-		 * the maximum 256 bytes(for PARAM)
-		 */
-		ifc_out32(256, &ifc->ifc_nand.nand_fbcr);
-		ifc_nand_ctrl->read_bytes = 256;
+		ifc_out32(len, &ifc->ifc_nand.nand_fbcr);
+		ifc_nand_ctrl->read_bytes = len;
 
 		set_addr(mtd, 0, 0, 0);
 		fsl_ifc_run_command(mtd);
@@ -924,8 +927,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 {
 	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
-	nand_release(mtd);
-
 	kfree(mtd->name);
 
 	if (priv->vbase)
@@ -1059,21 +1060,29 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 
 	/* First look for RedBoot table or partitions on the command
 	 * line, these take precedence over device tree information */
-	mtd_device_parse_register(mtd, part_probe_types, NULL, NULL, 0);
+	ret = mtd_device_parse_register(mtd, part_probe_types, NULL, NULL, 0);
+	if (ret)
+		goto cleanup_nand;
 
 	dev_info(priv->dev, "IFC NAND device at 0x%llx, bank %d\n",
 		 (unsigned long long)res.start, priv->bank);
+
 	return 0;
 
+cleanup_nand:
+	nand_cleanup(&priv->chip);
 err:
 	fsl_ifc_chip_remove(priv);
+
 	return ret;
 }
 
 static int fsl_ifc_nand_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_mtd *priv = dev_get_drvdata(&dev->dev);
+	struct mtd_info *mtd = nand_to_mtd(&priv->chip);
 
+	nand_release(mtd);
 	fsl_ifc_chip_remove(priv);
 
 	mutex_lock(&fsl_ifc_nand_mutex);

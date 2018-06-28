@@ -142,10 +142,11 @@ struct bpf_verifier_state_list {
 struct bpf_insn_aux_data {
 	union {
 		enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
-		struct bpf_map *map_ptr;	/* pointer for call insn into lookup_elem */
+		unsigned long map_state;	/* pointer/poison value for maps */
 		s32 call_imm;			/* saved imm field of call insn */
 	};
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
+	int sanitize_stack_off; /* stack slot to be cleared */
 	bool seen; /* this insn was processed by the verifier */
 };
 
@@ -173,6 +174,11 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 
 #define BPF_MAX_SUBPROGS 256
 
+struct bpf_subprog_info {
+	u32 start; /* insn idx of function entry point */
+	u16 stack_depth; /* max. stack depth used by this function */
+};
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -191,14 +197,12 @@ struct bpf_verifier_env {
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	struct bpf_verifier_log log;
-	u32 subprog_starts[BPF_MAX_SUBPROGS];
-	/* computes the stack depth of each bpf function */
-	u16 subprog_stack_depth[BPF_MAX_SUBPROGS + 1];
+	struct bpf_subprog_info subprog_info[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
 };
 
-void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
-		       va_list args);
+__printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
+				      const char *fmt, va_list args);
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 

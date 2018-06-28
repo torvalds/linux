@@ -1198,7 +1198,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
-	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
+	ipad = kcalloc(2, blocksize, GFP_KERNEL);
 	if (!ipad) {
 		ret = -ENOMEM;
 		goto free_req;

@@ -204,7 +204,7 @@ test_string(void)
 #if BITS_PER_LONG == 64
 
 #define PTR_WIDTH 16
-#define PTR ((void *)0xffff0123456789ab)
+#define PTR ((void *)0xffff0123456789abUL)
 #define PTR_STR "ffff0123456789ab"
 #define ZEROS "00000000"	/* hex 32 zero bits */
 
@@ -259,6 +259,13 @@ static void __init
 plain(void)
 {
 	int err;
+
+	/*
+	 * Make sure crng is ready. Otherwise we get "(ptrval)" instead
+	 * of a hashed address when printing '%p' in plain_hash() and
+	 * plain_format().
+	 */
+	wait_for_random_bytes();
 
 	err = plain_hash();
 	if (err) {

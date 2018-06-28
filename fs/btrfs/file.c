@@ -1842,16 +1842,16 @@ out:
 
 static void update_time_for_write(struct inode *inode)
 {
-	struct timespec now;
+	struct timespec64 now;
 
 	if (IS_NOCMTIME(inode))
 		return;
 
 	now = current_time(inode);
-	if (!timespec_equal(&inode->i_mtime, &now))
+	if (!timespec64_equal(&inode->i_mtime, &now))
 		inode->i_mtime = now;
 
-	if (!timespec_equal(&inode->i_ctime, &now))
+	if (!timespec64_equal(&inode->i_ctime, &now))
 		inode->i_ctime = now;
 
 	if (IS_I_VERSION(inode))

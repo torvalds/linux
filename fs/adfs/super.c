@@ -313,7 +313,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 
 	asb->s_ids_per_zone = zone_size / (asb->s_idlen + 1);
 
-	dm = kmalloc(nzones * sizeof(*dm), GFP_KERNEL);
+	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
 		adfs_error(sb, "not enough memory");
 		return ERR_PTR(-ENOMEM);

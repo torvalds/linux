@@ -2880,13 +2880,13 @@ out:
 }
 
 static struct cifs_readdata *
-cifs_readdata_alloc(unsigned int nr_pages, work_func_t complete)
+cifs_readdata_direct_alloc(struct page **pages, work_func_t complete)
 {
 	struct cifs_readdata *rdata;
 
-	rdata = kzalloc(sizeof(*rdata) + (sizeof(struct page *) * nr_pages),
-			GFP_KERNEL);
+	rdata = kzalloc(sizeof(*rdata), GFP_KERNEL);
 	if (rdata != NULL) {
+		rdata->pages = pages;
 		kref_init(&rdata->refcount);
 		INIT_LIST_HEAD(&rdata->list);
 		init_completion(&rdata->done);
@@ -2894,6 +2894,22 @@ cifs_readdata_alloc(unsigned int nr_pages, work_func_t complete)
 	}
 
 	return rdata;
+}
+
+static struct cifs_readdata *
+cifs_readdata_alloc(unsigned int nr_pages, work_func_t complete)
+{
+	struct page **pages =
+		kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	struct cifs_readdata *ret = NULL;
+
+	if (pages) {
+		ret = cifs_readdata_direct_alloc(pages, complete);
+		if (!ret)
+			kfree(pages);
+	}
+
+	return ret;
 }
 
 void
@@ -2910,6 +2926,7 @@ cifs_readdata_release(struct kref *refcount)
 	if (rdata->cfile)
 		cifsFileInfo_put(rdata->cfile);
 
+	kvfree(rdata->pages);
 	kfree(rdata);
 }
 
@@ -3009,12 +3026,20 @@ uncached_fill_pages(struct TCP_Server_Info *server,
 	int result = 0;
 	unsigned int i;
 	unsigned int nr_pages = rdata->nr_pages;
+	unsigned int page_offset = rdata->page_offset;
 
 	rdata->got_bytes = 0;
 	rdata->tailsz = PAGE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
 		size_t n;
+		unsigned int segment_size = rdata->pagesz;
+
+		if (i == 0)
+			segment_size -= page_offset;
+		else
+			page_offset = 0;
+
 
 		if (len <= 0) {
 			/* no need to hold page hostage */
@@ -3023,24 +3048,25 @@ uncached_fill_pages(struct TCP_Server_Info *server,
 			put_page(page);
 			continue;
 		}
+
 		n = len;
-		if (len >= PAGE_SIZE) {
+		if (len >= segment_size)
 			/* enough data to fill the page */
-			n = PAGE_SIZE;
-			len -= n;
-		} else {
-			zero_user(page, len, PAGE_SIZE - len);
+			n = segment_size;
+		else
 			rdata->tailsz = len;
-			len = 0;
-		}
+		len -= n;
+
 		if (iter)
-			result = copy_page_from_iter(page, 0, n, iter);
+			result = copy_page_from_iter(
+					page, page_offset, n, iter);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 		else if (rdata->mr)
 			result = n;
 #endif
 		else
-			result = cifs_read_page_from_socket(server, page, n);
+			result = cifs_read_page_from_socket(
+					server, page, page_offset, n);
 		if (result < 0)
 			break;
 
@@ -3113,6 +3139,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		rdata->bytes = cur_len;
 		rdata->pid = pid;
 		rdata->pagesz = PAGE_SIZE;
+		rdata->tailsz = PAGE_SIZE;
 		rdata->read_into_pages = cifs_uncached_read_into_pages;
 		rdata->copy_into_pages = cifs_uncached_copy_into_pages;
 		rdata->credits = credits;
@@ -3557,6 +3584,7 @@ readpages_fill_pages(struct TCP_Server_Info *server,
 	u64 eof;
 	pgoff_t eof_index;
 	unsigned int nr_pages = rdata->nr_pages;
+	unsigned int page_offset = rdata->page_offset;
 
 	/* determine the eof that the server (probably) has */
 	eof = CIFS_I(rdata->mapping->host)->server_eof;
@@ -3567,13 +3595,21 @@ readpages_fill_pages(struct TCP_Server_Info *server,
 	rdata->tailsz = PAGE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
-		size_t n = PAGE_SIZE;
+		unsigned int to_read = rdata->pagesz;
+		size_t n;
 
-		if (len >= PAGE_SIZE) {
-			len -= PAGE_SIZE;
+		if (i == 0)
+			to_read -= page_offset;
+		else
+			page_offset = 0;
+
+		n = to_read;
+
+		if (len >= to_read) {
+			len -= to_read;
 		} else if (len > 0) {
 			/* enough for partial page, fill and zero the rest */
-			zero_user(page, len, PAGE_SIZE - len);
+			zero_user(page, len + page_offset, to_read - len);
 			n = rdata->tailsz = len;
 			len = 0;
 		} else if (page->index > eof_index) {
@@ -3605,13 +3641,15 @@ readpages_fill_pages(struct TCP_Server_Info *server,
 		}
 
 		if (iter)
-			result = copy_page_from_iter(page, 0, n, iter);
+			result = copy_page_from_iter(
+					page, page_offset, n, iter);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 		else if (rdata->mr)
 			result = n;
 #endif
 		else
-			result = cifs_read_page_from_socket(server, page, n);
+			result = cifs_read_page_from_socket(
+					server, page, page_offset, n);
 		if (result < 0)
 			break;
 
@@ -3790,6 +3828,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		rdata->bytes = bytes;
 		rdata->pid = pid;
 		rdata->pagesz = PAGE_SIZE;
+		rdata->tailsz = PAGE_SIZE;
 		rdata->read_into_pages = cifs_readpages_read_into_pages;
 		rdata->copy_into_pages = cifs_readpages_copy_into_pages;
 		rdata->credits = credits;

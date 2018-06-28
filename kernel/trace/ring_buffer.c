@@ -809,7 +809,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
  *
  *  You can see, it is legitimate for the previous pointer of
  *  the head (or any page) not to point back to itself. But only
- *  temporarially.
+ *  temporarily.
  */
 
 #define RB_PAGE_NORMAL		0UL
@@ -906,7 +906,7 @@ static void rb_list_head_clear(struct list_head *list)
 }
 
 /*
- * rb_head_page_dactivate - clears head page ptr (for free list)
+ * rb_head_page_deactivate - clears head page ptr (for free list)
  */
 static void
 rb_head_page_deactivate(struct ring_buffer_per_cpu *cpu_buffer)
@@ -1780,7 +1780,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size,
 
 		put_online_cpus();
 	} else {
-		/* Make sure this CPU has been intitialized */
+		/* Make sure this CPU has been initialized */
 		if (!cpumask_test_cpu(cpu_id, buffer->cpumask))
 			goto out;
 
@@ -2325,7 +2325,7 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 
 	/*
 	 * If we need to add a timestamp, then we
-	 * add it to the start of the resevered space.
+	 * add it to the start of the reserved space.
 	 */
 	if (unlikely(info->add_timestamp)) {
 		bool abs = ring_buffer_time_stamp_abs(cpu_buffer->buffer);
@@ -2681,7 +2681,7 @@ trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
  * ring_buffer_nest_start - Allow to trace while nested
  * @buffer: The ring buffer to modify
  *
- * The ring buffer has a safty mechanism to prevent recursion.
+ * The ring buffer has a safety mechanism to prevent recursion.
  * But there may be a case where a trace needs to be done while
  * tracing something else. In this case, calling this function
  * will allow this function to nest within a currently active
@@ -2699,7 +2699,7 @@ void ring_buffer_nest_start(struct ring_buffer *buffer)
 	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	cpu_buffer = buffer->buffers[cpu];
-	/* This is the shift value for the above recusive locking */
+	/* This is the shift value for the above recursive locking */
 	cpu_buffer->nest += NESTED_BITS;
 }
 
@@ -2718,7 +2718,7 @@ void ring_buffer_nest_end(struct ring_buffer *buffer)
 	/* disabled by ring_buffer_nest_start() */
 	cpu = raw_smp_processor_id();
 	cpu_buffer = buffer->buffers[cpu];
-	/* This is the shift value for the above recusive locking */
+	/* This is the shift value for the above recursive locking */
 	cpu_buffer->nest -= NESTED_BITS;
 	preempt_enable_notrace();
 }
@@ -2907,7 +2907,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
  * @buffer: the ring buffer to reserve from
  * @length: the length of the data to reserve (excluding event header)
  *
- * Returns a reseverd event on the ring buffer to copy directly to.
+ * Returns a reserved event on the ring buffer to copy directly to.
  * The user of this interface will need to get the body to write into
  * and can use the ring_buffer_event_data() interface.
  *
@@ -3009,7 +3009,7 @@ rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
  * This function lets the user discard an event in the ring buffer
  * and then that event will not be read later.
  *
- * This function only works if it is called before the the item has been
+ * This function only works if it is called before the item has been
  * committed. It will try to free the event from the ring buffer
  * if another event has not been added behind it.
  *
@@ -4127,7 +4127,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_consume);
  * through the buffer.  Memory is allocated, buffer recording
  * is disabled, and the iterator pointer is returned to the caller.
  *
- * Disabling buffer recordng prevents the reading from being
+ * Disabling buffer recording prevents the reading from being
  * corrupted. This is not a consuming read, so a producer is not
  * expected.
  *

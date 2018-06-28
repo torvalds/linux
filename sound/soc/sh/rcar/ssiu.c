@@ -258,7 +258,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	/* same number to SSI */
 	nr	= priv->ssi_nr;
-	ssiu	= devm_kzalloc(dev, sizeof(*ssiu) * nr, GFP_KERNEL);
+	ssiu	= devm_kcalloc(dev, nr, sizeof(*ssiu), GFP_KERNEL);
 	if (!ssiu)
 		return -ENOMEM;
 

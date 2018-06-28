@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 #exit status
-#1: run as non-root user
+#1: Internal error
 #2: sysfs/debugfs not mount
 #3: insert module fail when gpio-mockup is a module.
-#4: other reason.
+#4: Skip test including run as non-root user.
+#5: other reason.
 
 SYSFS=
 GPIO_SYSFS=
@@ -14,6 +15,9 @@ DEBUGFS=
 GPIO_DEBUGFS=
 dev_type=
 module=
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 usage()
 {
@@ -34,7 +38,7 @@ prerequisite()
 	msg="skip all tests:"
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 1
+		exit $ksft_skip
 	fi
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 	if [ ! -d "$SYSFS" ]; then
@@ -73,7 +77,7 @@ remove_module()
 die()
 {
 	remove_module
-	exit 4
+	exit 5
 }
 
 test_chips()

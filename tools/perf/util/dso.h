@@ -140,14 +140,14 @@ struct dso {
 	struct list_head node;
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
-	struct rb_root	 symbols[MAP__NR_TYPES];
-	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct rb_root	 symbols;
+	struct rb_root	 symbol_names;
 	struct rb_root	 inlined_nodes;
 	struct rb_root	 srclines;
 	struct {
 		u64		addr;
 		struct symbol	*symbol;
-	} last_find_result[MAP__NR_TYPES];
+	} last_find_result;
 	void		 *a2l;
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
@@ -164,8 +164,8 @@ struct dso {
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
-	u8		 sorted_by_name;
-	u8		 loaded;
+	bool		 sorted_by_name;
+	bool		 loaded;
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
 	u64		 text_offset;
@@ -202,14 +202,13 @@ struct dso {
  * @dso: the 'struct dso *' in which symbols itereated
  * @pos: the 'struct symbol *' to use as a loop cursor
  * @n: the 'struct rb_node *' to use as a temporary storage
- * @type: the 'enum map_type' type of symbols
  */
-#define dso__for_each_symbol(dso, pos, n, type)	\
-	symbols__for_each_entry(&(dso)->symbols[(type)], pos, n)
+#define dso__for_each_symbol(dso, pos, n)	\
+	symbols__for_each_entry(&(dso)->symbols, pos, n)
 
-static inline void dso__set_loaded(struct dso *dso, enum map_type type)
+static inline void dso__set_loaded(struct dso *dso)
 {
-	dso->loaded |= (1 << type);
+	dso->loaded = true;
 }
 
 struct dso *dso__new(const char *name);
@@ -231,11 +230,16 @@ static inline void __dso__zput(struct dso **dso)
 
 #define dso__zput(dso) __dso__zput(&dso)
 
-bool dso__loaded(const struct dso *dso, enum map_type type);
+bool dso__loaded(const struct dso *dso);
 
-bool dso__sorted_by_name(const struct dso *dso, enum map_type type);
-void dso__set_sorted_by_name(struct dso *dso, enum map_type type);
-void dso__sort_by_name(struct dso *dso, enum map_type type);
+static inline bool dso__has_symbols(const struct dso *dso)
+{
+	return !RB_EMPTY_ROOT(&dso->symbols);
+}
+
+bool dso__sorted_by_name(const struct dso *dso);
+void dso__set_sorted_by_name(struct dso *dso);
+void dso__sort_by_name(struct dso *dso);
 
 void dso__set_build_id(struct dso *dso, void *build_id);
 bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
@@ -349,9 +353,8 @@ size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 size_t __dsos__fprintf(struct list_head *head, FILE *fp);
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);
-size_t dso__fprintf_symbols_by_name(struct dso *dso,
-				    enum map_type type, FILE *fp);
-size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
+size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
+size_t dso__fprintf(struct dso *dso, FILE *fp);
 
 static inline bool dso__is_vmlinux(struct dso *dso)
 {

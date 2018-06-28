@@ -956,7 +956,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 	int err, i, j;
 
 	net->ipv6.icmp_sk =
-		kzalloc(nr_cpu_ids * sizeof(struct sock *), GFP_KERNEL);
+		kcalloc(nr_cpu_ids, sizeof(struct sock *), GFP_KERNEL);
 	if (!net->ipv6.icmp_sk)
 		return -ENOMEM;
 

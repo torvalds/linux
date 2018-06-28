@@ -110,7 +110,7 @@ static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, unsigned long arg);
 static int ctxt_reset(struct hfi1_ctxtdata *uctxt);
 static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 		       unsigned long arg);
-static int vma_fault(struct vm_fault *vmf);
+static vm_fault_t vma_fault(struct vm_fault *vmf);
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			    unsigned long arg);
 
@@ -505,7 +505,7 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			ret = -EINVAL;
 			goto done;
 		}
-		if (flags & VM_WRITE) {
+		if ((flags & VM_WRITE) || !uctxt->rcvhdrtail_kvaddr) {
 			ret = -EPERM;
 			goto done;
 		}
@@ -591,7 +591,7 @@ done:
  * Local (non-chip) user memory is not mapped right away but as it is
  * accessed by the user-level code.
  */
-static int vma_fault(struct vm_fault *vmf)
+static vm_fault_t vma_fault(struct vm_fault *vmf)
 {
 	struct page *page;
 
@@ -689,8 +689,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	 * checks to default and disable the send context.
 	 */
 	if (uctxt->sc) {
-		set_pio_integrity(uctxt->sc);
 		sc_disable(uctxt->sc);
+		set_pio_integrity(uctxt->sc);
 	}
 
 	hfi1_free_ctxt_rcv_groups(uctxt);

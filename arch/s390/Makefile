@@ -18,7 +18,7 @@ KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
-CHECKFLAGS	+= -D__s390__ -D__s390x__ -mbig-endian
+CHECKFLAGS	+= -D__s390__ -D__s390x__
 
 export LD_BFD
 

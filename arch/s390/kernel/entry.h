@@ -58,6 +58,7 @@ void do_notify_resume(struct pt_regs *regs);
 void __init init_IRQ(void);
 void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
+void __init startup_init_nobss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);

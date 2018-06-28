@@ -1214,9 +1214,6 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	cpumask_var_t mask;
 	unsigned long index;
 
-	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
-
 	index = get_netdev_queue_index(queue);
 
 	if (dev->num_tc) {
@@ -1225,6 +1222,9 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 		if (tc < 0)
 			return -EINVAL;
 	}
+
+	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
 
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps);

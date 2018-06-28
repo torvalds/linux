@@ -291,10 +291,11 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pmap->regs))
 		return PTR_ERR(pmap->regs);
 
-	pins = devm_kzalloc(&pdev->dev, sizeof(*pins)*PINS_COUNT, GFP_KERNEL);
+	pins = devm_kcalloc(&pdev->dev, PINS_COUNT, sizeof(*pins),
+			    GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
-	pin_names = devm_kzalloc(&pdev->dev, name_len * PINS_COUNT,
+	pin_names = devm_kcalloc(&pdev->dev, PINS_COUNT, name_len,
 				 GFP_KERNEL);
 	if (!pin_names)
 		return -ENOMEM;

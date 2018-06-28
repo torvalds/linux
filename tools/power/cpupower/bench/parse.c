@@ -104,7 +104,7 @@ FILE *prepare_output(const char *dirname)
 			dirname, time(NULL));
 	}
 
-	dprintf("logilename: %s\n", filename);
+	dprintf("logfilename: %s\n", filename);
 
 	output = fopen(filename, "w+");
 	if (output == NULL) {

@@ -16,9 +16,9 @@
 #include <libgen.h>
 #include <sys/resource.h>
 
-#include "bpf_load.h"
 #include "bpf_util.h"
-#include "libbpf.h"
+#include "bpf/bpf.h"
+#include "bpf/libbpf.h"
 
 static int ifindex;
 static __u32 xdp_flags;
@@ -31,7 +31,7 @@ static void int_exit(int sig)
 
 /* simple per-protocol drop counter
  */
-static void poll_stats(int interval)
+static void poll_stats(int map_fd, int interval)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	const unsigned int nr_keys = 256;
@@ -47,7 +47,7 @@ static void poll_stats(int interval)
 		for (key = 0; key < nr_keys; key++) {
 			__u64 sum = 0;
 
-			assert(bpf_map_lookup_elem(map_fd[0], &key, values) == 0);
+			assert(bpf_map_lookup_elem(map_fd, &key, values) == 0);
 			for (i = 0; i < nr_cpus; i++)
 				sum += (values[i] - prev[key][i]);
 			if (sum)
@@ -71,9 +71,14 @@ static void usage(const char *prog)
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type	= BPF_PROG_TYPE_XDP,
+	};
 	const char *optstr = "SN";
+	int prog_fd, map_fd, opt;
+	struct bpf_object *obj;
+	struct bpf_map *map;
 	char filename[256];
-	int opt;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
@@ -102,13 +107,19 @@ int main(int argc, char **argv)
 	ifindex = strtoul(argv[optind], NULL, 0);
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	prog_load_attr.file = filename;
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		return 1;
+
+	map = bpf_map__next(NULL, obj);
+	if (!map) {
+		printf("finding a map in obj file failed\n");
 		return 1;
 	}
+	map_fd = bpf_map__fd(map);
 
-	if (!prog_fd[0]) {
+	if (!prog_fd) {
 		printf("load_bpf_file: %s\n", strerror(errno));
 		return 1;
 	}
@@ -116,12 +127,12 @@ int main(int argc, char **argv)
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
 
-	poll_stats(2);
+	poll_stats(map_fd, 2);
 
 	return 0;
 }

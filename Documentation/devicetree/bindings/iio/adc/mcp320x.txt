@@ -49,7 +49,7 @@ Required properties:
 Examples:
 spi_controller {
 	mcp3x0x@0 {
-		compatible = "mcp3002";
+		compatible = "microchip,mcp3002";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		vref-supply = <&vref_reg>;

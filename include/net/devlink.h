@@ -35,6 +35,14 @@ struct devlink {
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
+struct devlink_port_attrs {
+	bool set;
+	enum devlink_port_flavour flavour;
+	u32 port_number; /* same value as "split group" */
+	bool split;
+	u32 split_subport_number;
+};
+
 struct devlink_port {
 	struct list_head list;
 	struct devlink *devlink;
@@ -43,8 +51,7 @@ struct devlink_port {
 	enum devlink_port_type type;
 	enum devlink_port_type desired_type;
 	void *type_dev;
-	bool split;
-	u32 split_group;
+	struct devlink_port_attrs attrs;
 };
 
 struct devlink_sb_pool_info {
@@ -289,12 +296,13 @@ struct devlink_resource {
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
 struct devlink_ops {
-	int (*reload)(struct devlink *devlink);
+	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
-			  unsigned int count);
-	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index);
+			  unsigned int count, struct netlink_ext_ack *extack);
+	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index,
+			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);
@@ -367,8 +375,12 @@ void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 			      struct ib_device *ibdev);
 void devlink_port_type_clear(struct devlink_port *devlink_port);
-void devlink_port_split_set(struct devlink_port *devlink_port,
-			    u32 split_group);
+void devlink_port_attrs_set(struct devlink_port *devlink_port,
+			    enum devlink_port_flavour flavour,
+			    u32 port_number, bool split,
+			    u32 split_subport_number);
+int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				    char *name, size_t len);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -466,9 +478,18 @@ static inline void devlink_port_type_clear(struct devlink_port *devlink_port)
 {
 }
 
-static inline void devlink_port_split_set(struct devlink_port *devlink_port,
-					  u32 split_group)
+static inline void devlink_port_attrs_set(struct devlink_port *devlink_port,
+					  enum devlink_port_flavour flavour,
+					  u32 port_number, bool split,
+					  u32 split_subport_number)
 {
+}
+
+static inline int
+devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				char *name, size_t len)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int devlink_sb_register(struct devlink *devlink,

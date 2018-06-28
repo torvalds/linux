@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Jailhouse paravirt_ops implementation
  *
@@ -37,7 +37,7 @@ static uint32_t __init jailhouse_detect(void)
 	return jailhouse_cpuid_base();
 }
 
-static void jailhouse_get_wallclock(struct timespec *now)
+static void jailhouse_get_wallclock(struct timespec64 *now)
 {
 	memset(now, 0, sizeof(*now));
 }

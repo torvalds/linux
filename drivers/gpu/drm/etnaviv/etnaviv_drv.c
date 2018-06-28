@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #include <linux/component.h>
@@ -24,57 +13,6 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
-
-#ifdef CONFIG_DRM_ETNAVIV_REGISTER_LOGGING
-static bool reglog;
-MODULE_PARM_DESC(reglog, "Enable register read/write logging");
-module_param(reglog, bool, 0600);
-#else
-#define reglog 0
-#endif
-
-void __iomem *etnaviv_ioremap(struct platform_device *pdev, const char *name,
-		const char *dbgname)
-{
-	struct resource *res;
-	void __iomem *ptr;
-
-	if (name)
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	else
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	ptr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ptr)) {
-		dev_err(&pdev->dev, "failed to ioremap %s: %ld\n", name,
-			PTR_ERR(ptr));
-		return ptr;
-	}
-
-	if (reglog)
-		dev_printk(KERN_DEBUG, &pdev->dev, "IO:region %s 0x%p %08zx\n",
-			   dbgname, ptr, (size_t)resource_size(res));
-
-	return ptr;
-}
-
-void etnaviv_writel(u32 data, void __iomem *addr)
-{
-	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
-
-	writel(data, addr);
-}
-
-u32 etnaviv_readl(const void __iomem *addr)
-{
-	u32 val = readl(addr);
-
-	if (reglog)
-		printk(KERN_DEBUG "IO:R %p %08x\n", addr, val);
-
-	return val;
-}
 
 /*
  * DRM operations:
@@ -116,7 +54,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 			drm_sched_entity_init(&gpu->sched,
 				&ctx->sched_entity[i],
 				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				32, NULL);
+				NULL);
 			}
 	}
 

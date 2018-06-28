@@ -185,7 +185,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
-	randomness = kzalloc(sizeof(u8) * (size), GFP_KERNEL);
+	randomness = kzalloc(size, GFP_KERNEL);
 	if (!randomness) {
 		ret = -EINVAL;
 		goto err_unreg_nvmem;

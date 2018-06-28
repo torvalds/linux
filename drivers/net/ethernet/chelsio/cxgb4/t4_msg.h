@@ -1233,6 +1233,11 @@ struct cpl_rx_pkt {
 #define T6_COMPR_RXERR_SUM_V(x) ((x) << T6_COMPR_RXERR_SUM_S)
 #define T6_COMPR_RXERR_SUM_F    T6_COMPR_RXERR_SUM_V(1U)
 
+#define T6_RX_TNLHDR_LEN_S    8
+#define T6_RX_TNLHDR_LEN_M    0xFF
+#define T6_RX_TNLHDR_LEN_V(x) ((x) << T6_RX_TNLHDR_LEN_S)
+#define T6_RX_TNLHDR_LEN_G(x) (((x) >> T6_RX_TNLHDR_LEN_S) & T6_RX_TNLHDR_LEN_M)
+
 struct cpl_trace_pkt {
 	u8 opcode;
 	u8 intf;

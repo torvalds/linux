@@ -14,11 +14,12 @@
 #include "config.h"
 #include "util.h"
 #include <sys/wait.h>
+#include <subcmd/exec-cmd.h>
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
 		"-DLINUX_VERSION_CODE=$LINUX_VERSION_CODE "	\
-		"$CLANG_OPTIONS $KERNEL_INC_OPTIONS "		\
+		"$CLANG_OPTIONS $KERNEL_INC_OPTIONS $PERF_BPF_INC_OPTIONS " \
 		"-Wno-unused-value -Wno-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
 		"-c \"$CLANG_SOURCE\" -target bpf -O2 -o -"
@@ -212,7 +213,7 @@ version_notice(void)
 "     \t\thttp://llvm.org/apt\n\n"
 "     \tIf you are using old version of clang, change 'clang-bpf-cmd-template'\n"
 "     \toption in [llvm] section of ~/.perfconfig to:\n\n"
-"     \t  \"$CLANG_EXEC $CLANG_OPTIONS $KERNEL_INC_OPTIONS \\\n"
+"     \t  \"$CLANG_EXEC $CLANG_OPTIONS $KERNEL_INC_OPTIONS $PERF_BPF_INC_OPTIONS \\\n"
 "     \t     -working-directory $WORKING_DIR -c $CLANG_SOURCE \\\n"
 "     \t     -emit-llvm -o - | /path/to/llc -march=bpf -filetype=obj -o -\"\n"
 "     \t(Replace /path/to/llc with path to your llc)\n\n"
@@ -431,9 +432,11 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	const char *clang_opt = llvm_param.clang_opt;
 	char clang_path[PATH_MAX], abspath[PATH_MAX], nr_cpus_avail_str[64];
 	char serr[STRERR_BUFSIZE];
-	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
+	char *kbuild_dir = NULL, *kbuild_include_opts = NULL,
+	     *perf_bpf_include_opts = NULL;
 	const char *template = llvm_param.clang_bpf_cmd_template;
-	char *command_echo, *command_out;
+	char *command_echo = NULL, *command_out;
+	char *perf_include_dir = system_path(PERF_INCLUDE_DIR);
 
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
 		err = errno;
@@ -471,12 +474,14 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	snprintf(linux_version_code_str, sizeof(linux_version_code_str),
 		 "0x%x", kernel_version);
-
+	if (asprintf(&perf_bpf_include_opts, "-I%s/bpf", perf_include_dir) < 0)
+		goto errout;
 	force_set_env("NR_CPUS", nr_cpus_avail_str);
 	force_set_env("LINUX_VERSION_CODE", linux_version_code_str);
 	force_set_env("CLANG_EXEC", clang_path);
 	force_set_env("CLANG_OPTIONS", clang_opt);
 	force_set_env("KERNEL_INC_OPTIONS", kbuild_include_opts);
+	force_set_env("PERF_BPF_INC_OPTIONS", perf_bpf_include_opts);
 	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
 
 	/*
@@ -512,6 +517,8 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	free(command_out);
 	free(kbuild_dir);
 	free(kbuild_include_opts);
+	free(perf_bpf_include_opts);
+	free(perf_include_dir);
 
 	if (!p_obj_buf)
 		free(obj_buf);
@@ -526,6 +533,8 @@ errout:
 	free(kbuild_dir);
 	free(kbuild_include_opts);
 	free(obj_buf);
+	free(perf_bpf_include_opts);
+	free(perf_include_dir);
 	if (p_obj_buf)
 		*p_obj_buf = NULL;
 	if (p_obj_buf_sz)

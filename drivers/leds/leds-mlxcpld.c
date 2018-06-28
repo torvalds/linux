@@ -329,8 +329,10 @@ static int mlxcpld_led_config(struct device *dev,
 	int i;
 	int err;
 
-	cpld->pled = devm_kzalloc(dev, sizeof(struct mlxcpld_led_priv) *
-				  cpld->num_led_instances, GFP_KERNEL);
+	cpld->pled = devm_kcalloc(dev,
+				  cpld->num_led_instances,
+				  sizeof(struct mlxcpld_led_priv),
+				  GFP_KERNEL);
 	if (!cpld->pled)
 		return -ENOMEM;
 

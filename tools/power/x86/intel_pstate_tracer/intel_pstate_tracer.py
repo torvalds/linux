@@ -28,6 +28,7 @@ import subprocess
 import os
 import time
 import re
+import signal
 import sys
 import getopt
 import Gnuplot
@@ -78,11 +79,12 @@ def print_help():
     print('    Or')
     print('      ./intel_pstate_tracer.py [--cpu cpus] ---trace_file <trace_file> --name <test_name>')
     print('    To generate trace file, parse and plot, use (sudo required):')
-    print('      sudo ./intel_pstate_tracer.py [-c cpus] -i <interval> -n <test_name>')
+    print('      sudo ./intel_pstate_tracer.py [-c cpus] -i <interval> -n <test_name> -m <kbytes>')
     print('    Or')
-    print('      sudo ./intel_pstate_tracer.py [--cpu cpus] --interval <interval> --name <test_name>')
+    print('      sudo ./intel_pstate_tracer.py [--cpu cpus] --interval <interval> --name <test_name> --memory <kbytes>')
     print('    Optional argument:')
-    print('      cpus:  comma separated list of CPUs')
+    print('      cpus:   comma separated list of CPUs')
+    print('      kbytes: Kilo bytes of memory per CPU to allocate to the trace buffer. Default: 10240')
     print('  Output:')
     print('    If not already present, creates a "results/test_name" folder in the current working directory with:')
     print('      cpu.csv - comma seperated values file with trace contents and some additional calculations.')
@@ -379,7 +381,7 @@ def clear_trace_file():
         f_handle.close()
     except:
         print('IO error clearing trace file ')
-        quit()
+        sys.exit(2)
 
 def enable_trace():
     """ Enable trace """
@@ -389,7 +391,7 @@ def enable_trace():
                  , 'w').write("1")
     except:
         print('IO error enabling trace ')
-        quit()
+        sys.exit(2)
 
 def disable_trace():
     """ Disable trace """
@@ -399,17 +401,17 @@ def disable_trace():
                  , 'w').write("0")
     except:
         print('IO error disabling trace ')
-        quit()
+        sys.exit(2)
 
 def set_trace_buffer_size():
     """ Set trace buffer size """
 
     try:
-       open('/sys/kernel/debug/tracing/buffer_size_kb'
-                 , 'w').write("10240")
+       with open('/sys/kernel/debug/tracing/buffer_size_kb', 'w') as fp:
+          fp.write(memory)
     except:
-        print('IO error setting trace buffer size ')
-        quit()
+       print('IO error setting trace buffer size ')
+       sys.exit(2)
 
 def free_trace_buffer():
     """ Free the trace buffer memory """
@@ -418,8 +420,8 @@ def free_trace_buffer():
        open('/sys/kernel/debug/tracing/buffer_size_kb'
                  , 'w').write("1")
     except:
-        print('IO error setting trace buffer size ')
-        quit()
+        print('IO error freeing trace buffer ')
+        sys.exit(2)
 
 def read_trace_data(filename):
     """ Read and parse trace data """
@@ -431,7 +433,7 @@ def read_trace_data(filename):
         data = open(filename, 'r').read()
     except:
         print('Error opening ', filename)
-        quit()
+        sys.exit(2)
 
     for line in data.splitlines():
         search_obj = \
@@ -489,10 +491,22 @@ def read_trace_data(filename):
 # Now seperate the main overall csv file into per CPU csv files.
     split_csv()
 
+def signal_handler(signal, frame):
+    print(' SIGINT: Forcing cleanup before exit.')
+    if interval:
+        disable_trace()
+        clear_trace_file()
+        # Free the memory
+        free_trace_buffer()
+        sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 interval = ""
 filename = ""
 cpu_list = ""
 testname = ""
+memory = "10240"
 graph_data_present = False;
 
 valid1 = False
@@ -501,7 +515,7 @@ valid2 = False
 cpu_mask = zeros((MAX_CPUS,), dtype=int)
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:",["help","trace_file=","interval=","cpu=","name="])
+    opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:m:",["help","trace_file=","interval=","cpu=","name=","memory="])
 except getopt.GetoptError:
     print_help()
     sys.exit(2)
@@ -521,6 +535,8 @@ for opt, arg in opts:
     elif opt in ("-n", "--name"):
         valid2 = True
         testname = arg
+    elif opt in ("-m", "--memory"):
+        memory = arg
 
 if not (valid1 and valid2):
     print_help()
@@ -569,6 +585,11 @@ current_max_cpu = 0
 
 read_trace_data(filename)
 
+clear_trace_file()
+# Free the memory
+if interval:
+    free_trace_buffer()
+
 if graph_data_present == False:
     print('No valid data to plot')
     sys.exit(2)
@@ -592,10 +613,5 @@ plot_ghz_cpu()
 for root, dirs, files in os.walk('.'):
     for f in files:
         fix_ownership(f)
-
-clear_trace_file()
-# Free the memory
-if interval:
-    free_trace_buffer()
 
 os.chdir('../../')

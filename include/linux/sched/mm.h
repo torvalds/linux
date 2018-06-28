@@ -28,7 +28,7 @@ extern struct mm_struct *mm_alloc(void);
  *
  * Use mmdrop() to release the reference acquired by mmgrab().
  *
- * See also <Documentation/vm/active_mm.txt> for an in-depth explanation
+ * See also <Documentation/vm/active_mm.rst> for an in-depth explanation
  * of &mm_struct.mm_count vs &mm_struct.mm_users.
  */
 static inline void mmgrab(struct mm_struct *mm)
@@ -62,7 +62,7 @@ static inline void mmdrop(struct mm_struct *mm)
  *
  * Use mmput() to release the reference acquired by mmget().
  *
- * See also <Documentation/vm/active_mm.txt> for an in-depth explanation
+ * See also <Documentation/vm/active_mm.rst> for an in-depth explanation
  * of &mm_struct.mm_count vs &mm_struct.mm_users.
  */
 static inline void mmget(struct mm_struct *mm)
@@ -163,13 +163,28 @@ static inline gfp_t current_gfp_context(gfp_t flags)
 }
 
 #ifdef CONFIG_LOCKDEP
+extern void __fs_reclaim_acquire(void);
+extern void __fs_reclaim_release(void);
 extern void fs_reclaim_acquire(gfp_t gfp_mask);
 extern void fs_reclaim_release(gfp_t gfp_mask);
 #else
+static inline void __fs_reclaim_acquire(void) { }
+static inline void __fs_reclaim_release(void) { }
 static inline void fs_reclaim_acquire(gfp_t gfp_mask) { }
 static inline void fs_reclaim_release(gfp_t gfp_mask) { }
 #endif
 
+/**
+ * memalloc_noio_save - Marks implicit GFP_NOIO allocation scope.
+ *
+ * This functions marks the beginning of the GFP_NOIO allocation scope.
+ * All further allocations will implicitly drop __GFP_IO flag and so
+ * they are safe for the IO critical section from the allocation recursion
+ * point of view. Use memalloc_noio_restore to end the scope with flags
+ * returned by this function.
+ *
+ * This function is safe to be used from any context.
+ */
 static inline unsigned int memalloc_noio_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC_NOIO;
@@ -177,11 +192,30 @@ static inline unsigned int memalloc_noio_save(void)
 	return flags;
 }
 
+/**
+ * memalloc_noio_restore - Ends the implicit GFP_NOIO scope.
+ * @flags: Flags to restore.
+ *
+ * Ends the implicit GFP_NOIO scope started by memalloc_noio_save function.
+ * Always make sure that that the given flags is the return value from the
+ * pairing memalloc_noio_save call.
+ */
 static inline void memalloc_noio_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
 }
 
+/**
+ * memalloc_nofs_save - Marks implicit GFP_NOFS allocation scope.
+ *
+ * This functions marks the beginning of the GFP_NOFS allocation scope.
+ * All further allocations will implicitly drop __GFP_FS flag and so
+ * they are safe for the FS critical section from the allocation recursion
+ * point of view. Use memalloc_nofs_restore to end the scope with flags
+ * returned by this function.
+ *
+ * This function is safe to be used from any context.
+ */
 static inline unsigned int memalloc_nofs_save(void)
 {
 	unsigned int flags = current->flags & PF_MEMALLOC_NOFS;
@@ -189,6 +223,14 @@ static inline unsigned int memalloc_nofs_save(void)
 	return flags;
 }
 
+/**
+ * memalloc_nofs_restore - Ends the implicit GFP_NOFS scope.
+ * @flags: Flags to restore.
+ *
+ * Ends the implicit GFP_NOFS scope started by memalloc_nofs_save function.
+ * Always make sure that that the given flags is the return value from the
+ * pairing memalloc_nofs_save call.
+ */
 static inline void memalloc_nofs_restore(unsigned int flags)
 {
 	current->flags = (current->flags & ~PF_MEMALLOC_NOFS) | flags;

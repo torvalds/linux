@@ -54,10 +54,6 @@ config HZ
 	int
 	default 100
 
-config SUBARCH
-	string
-	option env="SUBARCH"
-
 config NR_CPUS
 	int
 	range 1 1

@@ -282,15 +282,21 @@ struct vega10_registry_data {
 
 struct vega10_odn_clock_voltage_dependency_table {
 	uint32_t count;
-	struct phm_ppt_v1_clock_voltage_dependency_record
-		entries[MAX_REGULAR_DPM_NUMBER];
+	struct phm_ppt_v1_clock_voltage_dependency_record entries[MAX_REGULAR_DPM_NUMBER];
+};
+
+struct vega10_odn_vddc_lookup_table {
+	uint32_t count;
+	struct phm_ppt_v1_voltage_lookup_record entries[MAX_REGULAR_DPM_NUMBER];
 };
 
 struct vega10_odn_dpm_table {
-	struct phm_odn_clock_levels		odn_core_clock_dpm_levels;
-	struct phm_odn_clock_levels		odn_memory_clock_dpm_levels;
-	struct vega10_odn_clock_voltage_dependency_table		vdd_dependency_on_sclk;
-	struct vega10_odn_clock_voltage_dependency_table		vdd_dependency_on_mclk;
+	struct vega10_odn_clock_voltage_dependency_table vdd_dep_on_sclk;
+	struct vega10_odn_clock_voltage_dependency_table vdd_dep_on_mclk;
+	struct vega10_odn_clock_voltage_dependency_table vdd_dep_on_socclk;
+	struct vega10_odn_vddc_lookup_table vddc_lookup_table;
+	uint32_t max_vddc;
+	uint32_t min_vddc;
 };
 
 struct vega10_odn_fan_table {
@@ -301,8 +307,8 @@ struct vega10_odn_fan_table {
 };
 
 struct vega10_hwmgr {
-	struct vega10_dpm_table			dpm_table;
-	struct vega10_dpm_table			golden_dpm_table;
+	struct vega10_dpm_table          dpm_table;
+	struct vega10_dpm_table          golden_dpm_table;
 	struct vega10_registry_data      registry_data;
 	struct vega10_vbios_boot_state   vbios_boot_state;
 	struct vega10_mclk_latency_table mclk_latency_table;
@@ -368,11 +374,7 @@ struct vega10_hwmgr {
 	bool                           need_long_memory_training;
 
 	/* Internal settings to apply the application power optimization parameters */
-	bool                           apply_optimized_settings;
 	uint32_t                       disable_dpm_mask;
-
-	/* ---- Overdrive next setting ---- */
-	uint32_t                       apply_overdrive_next_settings_mask;
 
 	/* ---- SMU9 ---- */
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];

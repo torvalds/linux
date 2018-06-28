@@ -954,8 +954,6 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	if (hdata->bridge) {
-		encoder->bridge = hdata->bridge;
-		hdata->bridge->encoder = encoder;
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
 		if (ret)
 			DRM_ERROR("Failed to attach bridge\n");
@@ -1694,7 +1692,7 @@ static int hdmi_clk_init(struct hdmi_context *hdata)
 	if (!count)
 		return 0;
 
-	clks = devm_kzalloc(dev, sizeof(*clks) * count, GFP_KERNEL);
+	clks = devm_kcalloc(dev, count, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
 		return -ENOMEM;
 

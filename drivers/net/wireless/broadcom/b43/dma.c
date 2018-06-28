@@ -1484,7 +1484,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	int slot, firstused;
 	bool frame_succeed;
 	int skip;
-	static u8 err_out1, err_out2;
+	static u8 err_out1;
 
 	ring = parse_cookie(dev, status->cookie, &slot);
 	if (unlikely(!ring))
@@ -1518,13 +1518,13 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			}
 		} else {
 			/* More than a single header/data pair were missed.
-			 * Report this error once.
+			 * Report this error, and reset the controller to
+			 * revive operation.
 			 */
-			if (!err_out2)
-				b43dbg(dev->wl,
-				       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
-				       ring->index, firstused, slot);
-			err_out2 = 1;
+			b43dbg(dev->wl,
+			       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
+			       ring->index, firstused, slot);
+			b43_controller_restart(dev, "Out of order TX");
 			return;
 		}
 	}

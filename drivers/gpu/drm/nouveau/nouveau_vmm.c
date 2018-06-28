@@ -92,6 +92,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 	vma->refs = 1;
 	vma->addr = ~0ULL;
 	vma->mem = NULL;
+	vma->fence = NULL;
 	list_add_tail(&vma->head, &nvbo->vma_list);
 
 	if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&

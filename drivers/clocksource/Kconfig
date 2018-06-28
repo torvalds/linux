@@ -450,8 +450,10 @@ config MTK_TIMER
 	  Support for Mediatek timer driver.
 
 config SPRD_TIMER
-	bool "Spreadtrum timer driver" if COMPILE_TEST
+	bool "Spreadtrum timer driver" if EXPERT
 	depends on HAS_IOMEM
+	depends on (ARCH_SPRD || COMPILE_TEST)
+	default ARCH_SPRD
 	select TIMER_OF
 	help
 	  Enables support for the Spreadtrum timer driver.

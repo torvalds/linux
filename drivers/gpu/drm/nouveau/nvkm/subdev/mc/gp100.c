@@ -75,10 +75,28 @@ gp100_mc_intr_mask(struct nvkm_mc *base, u32 mask, u32 intr)
 	spin_unlock_irqrestore(&mc->lock, flags);
 }
 
+const struct nvkm_mc_map
+gp100_mc_intr[] = {
+	{ 0x04000000, NVKM_ENGINE_DISP },
+	{ 0x00000100, NVKM_ENGINE_FIFO },
+	{ 0x00000200, NVKM_SUBDEV_FAULT },
+	{ 0x40000000, NVKM_SUBDEV_IBUS },
+	{ 0x10000000, NVKM_SUBDEV_BUS },
+	{ 0x08000000, NVKM_SUBDEV_FB },
+	{ 0x02000000, NVKM_SUBDEV_LTC },
+	{ 0x01000000, NVKM_SUBDEV_PMU },
+	{ 0x00200000, NVKM_SUBDEV_GPIO },
+	{ 0x00200000, NVKM_SUBDEV_I2C },
+	{ 0x00100000, NVKM_SUBDEV_TIMER },
+	{ 0x00040000, NVKM_SUBDEV_THERM },
+	{ 0x00002000, NVKM_SUBDEV_FB },
+	{},
+};
+
 static const struct nvkm_mc_func
 gp100_mc = {
 	.init = nv50_mc_init,
-	.intr = gk104_mc_intr,
+	.intr = gp100_mc_intr,
 	.intr_unarm = gp100_mc_intr_unarm,
 	.intr_rearm = gp100_mc_intr_rearm,
 	.intr_mask = gp100_mc_intr_mask,

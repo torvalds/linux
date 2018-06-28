@@ -11,7 +11,7 @@ pool management for network interfaces.
 This document provides an overview the Linux DPIO driver, its
 subcomponents, and its APIs.
 
-See Documentation/dpaa2/overview.txt for a general overview of DPAA2
+See Documentation/networking/dpaa2/overview.rst for a general overview of DPAA2
 and the general DPAA2 driver architecture in Linux.
 
 Driver Overview

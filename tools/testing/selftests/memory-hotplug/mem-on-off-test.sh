@@ -3,30 +3,33 @@
 
 SYSFS=
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 prerequisite()
 {
 	msg="skip all tests:"
 
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
 		echo $msg sysfs is not mounted >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/memory/memory* > /dev/null 2>&1; then
 		echo $msg memory hotplug is not supported >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! grep -q 1 $SYSFS/devices/system/memory/memory*/removable; then
 		echo $msg no hot-pluggable memory >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 
@@ -133,7 +136,8 @@ offline_memory_expect_fail()
 
 error=-12
 priority=0
-ratio=10
+# Run with default of ratio=2 for Kselftest run
+ratio=2
 retval=0
 
 while getopts e:hp:r: opt; do

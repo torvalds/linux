@@ -111,8 +111,8 @@ Example 3:
 ==PM domain consumers==
 
 Required properties:
- - power-domains : A phandle and PM domain specifier as defined by bindings of
-                   the power controller specified by phandle.
+ - power-domains : A list of PM domain specifiers, as defined by bindings of
+		the power controller that is the PM domain provider.
 
 Example:
 
@@ -122,12 +122,21 @@ Example:
 		power-domains = <&power 0>;
 	};
 
-The node above defines a typical PM domain consumer device, which is located
-inside a PM domain with index 0 of a power controller represented by a node
-with the label "power".
+	leaky-device@12351000 {
+		compatible = "foo,i-leak-current";
+		reg = <0x12351000 0x1000>;
+		power-domains = <&power 0>, <&power 1> ;
+	};
+
+The first example above defines a typical PM domain consumer device, which is
+located inside a PM domain with index 0 of a power controller represented by a
+node with the label "power".
+In the second example the consumer device are partitioned across two PM domains,
+the first with index 0 and the second with index 1, of a power controller that
+is represented by a node with the label "power.
 
 Optional properties:
-- required-opp: This contains phandle to an OPP node in another device's OPP
+- required-opps: This contains phandle to an OPP node in another device's OPP
   table. It may contain an array of phandles, where each phandle points to an
   OPP of a different device. It should not contain multiple phandles to the OPP
   nodes in the same OPP table. This specifies the minimum required OPP of the
@@ -175,14 +184,14 @@ Example:
 		compatible = "foo,i-leak-current";
 		reg = <0x12350000 0x1000>;
 		power-domains = <&power 0>;
-		required-opp = <&domain0_opp_0>;
+		required-opps = <&domain0_opp_0>;
 	};
 
 	leaky-device1@12350000 {
 		compatible = "foo,i-leak-current";
 		reg = <0x12350000 0x1000>;
 		power-domains = <&power 1>;
-		required-opp = <&domain1_opp_1>;
+		required-opps = <&domain1_opp_1>;
 	};
 
 [1]. Documentation/devicetree/bindings/power/domain-idle-state.txt

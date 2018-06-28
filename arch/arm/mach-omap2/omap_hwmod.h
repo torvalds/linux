@@ -317,9 +317,9 @@ struct omap_hwmod_ocp_if {
  * then this field has to be populated with the correct offset structure.
  */
 struct omap_hwmod_class_sysconfig {
-	u32 rev_offs;
-	u32 sysc_offs;
-	u32 syss_offs;
+	s32 rev_offs;
+	s32 sysc_offs;
+	s32 syss_offs;
 	u16 sysc_flags;
 	struct sysc_regbits *sysc_fields;
 	u8 srst_udelay;

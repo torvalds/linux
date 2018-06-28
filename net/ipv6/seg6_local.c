@@ -1,8 +1,9 @@
 /*
  *  SR-IPv6 implementation
  *
- *  Author:
+ *  Authors:
  *  David Lebrun <david.lebrun@uclouvain.be>
+ *  eBPF support: Mathieu Xhonneux <m.xhonneux@gmail.com>
  *
  *
  *  This program is free software; you can redistribute it and/or
@@ -30,7 +31,9 @@
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
+#include <net/seg6_local.h>
 #include <linux/etherdevice.h>
+#include <linux/bpf.h>
 
 struct seg6_local_lwt;
 
@@ -41,6 +44,11 @@ struct seg6_action_desc {
 	int static_headroom;
 };
 
+struct bpf_lwt_prog {
+	struct bpf_prog *prog;
+	char *name;
+};
+
 struct seg6_local_lwt {
 	int action;
 	struct ipv6_sr_hdr *srh;
@@ -49,6 +57,7 @@ struct seg6_local_lwt {
 	struct in6_addr nh6;
 	int iif;
 	int oif;
+	struct bpf_lwt_prog bpf;
 
 	int headroom;
 	struct seg6_action_desc *desc;
@@ -140,8 +149,8 @@ static void advance_nextseg(struct ipv6_sr_hdr *srh, struct in6_addr *daddr)
 	*daddr = *addr;
 }
 
-static void lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
-			   u32 tbl_id)
+int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
+			u32 tbl_id)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -187,6 +196,7 @@ out:
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
+	return dst->error;
 }
 
 /* regular endpoint function */
@@ -200,7 +210,7 @@ static int input_action_end(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
@@ -220,7 +230,7 @@ static int input_action_end_x(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, &slwt->nh6, 0);
+	seg6_lookup_nexthop(skb, &slwt->nh6, 0);
 
 	return dst_input(skb);
 
@@ -239,7 +249,7 @@ static int input_action_end_t(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, NULL, slwt->table);
+	seg6_lookup_nexthop(skb, NULL, slwt->table);
 
 	return dst_input(skb);
 
@@ -331,7 +341,7 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	if (!ipv6_addr_any(&slwt->nh6))
 		nhaddr = &slwt->nh6;
 
-	lookup_nexthop(skb, nhaddr, 0);
+	seg6_lookup_nexthop(skb, nhaddr, 0);
 
 	return dst_input(skb);
 drop:
@@ -380,7 +390,7 @@ static int input_action_end_dt6(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	lookup_nexthop(skb, NULL, slwt->table);
+	seg6_lookup_nexthop(skb, NULL, slwt->table);
 
 	return dst_input(skb);
 
@@ -406,7 +416,7 @@ static int input_action_end_b6(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
@@ -438,13 +448,78 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
 drop:
 	kfree_skb(skb);
 	return err;
+}
+
+DEFINE_PER_CPU(struct seg6_bpf_srh_state, seg6_bpf_srh_states);
+
+static int input_action_end_bpf(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	struct seg6_bpf_srh_state *srh_state =
+		this_cpu_ptr(&seg6_bpf_srh_states);
+	struct seg6_bpf_srh_state local_srh_state;
+	struct ipv6_sr_hdr *srh;
+	int srhoff = 0;
+	int ret;
+
+	srh = get_and_validate_srh(skb);
+	if (!srh)
+		goto drop;
+	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+
+	/* preempt_disable is needed to protect the per-CPU buffer srh_state,
+	 * which is also accessed by the bpf_lwt_seg6_* helpers
+	 */
+	preempt_disable();
+	srh_state->hdrlen = srh->hdrlen << 3;
+	srh_state->valid = 1;
+
+	rcu_read_lock();
+	bpf_compute_data_pointers(skb);
+	ret = bpf_prog_run_save_cb(slwt->bpf.prog, skb);
+	rcu_read_unlock();
+
+	local_srh_state = *srh_state;
+	preempt_enable();
+
+	switch (ret) {
+	case BPF_OK:
+	case BPF_REDIRECT:
+		break;
+	case BPF_DROP:
+		goto drop;
+	default:
+		pr_warn_once("bpf-seg6local: Illegal return value %u\n", ret);
+		goto drop;
+	}
+
+	if (unlikely((local_srh_state.hdrlen & 7) != 0))
+		goto drop;
+
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		goto drop;
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+	srh->hdrlen = (u8)(local_srh_state.hdrlen >> 3);
+
+	if (!local_srh_state.valid &&
+	    unlikely(!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3)))
+		goto drop;
+
+	if (ret != BPF_REDIRECT)
+		seg6_lookup_nexthop(skb, NULL, 0);
+
+	return dst_input(skb);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
 }
 
 static struct seg6_action_desc seg6_action_table[] = {
@@ -493,7 +568,13 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.attrs		= (1 << SEG6_LOCAL_SRH),
 		.input		= input_action_end_b6_encap,
 		.static_headroom	= sizeof(struct ipv6hdr),
-	}
+	},
+	{
+		.action		= SEG6_LOCAL_ACTION_END_BPF,
+		.attrs		= (1 << SEG6_LOCAL_BPF),
+		.input		= input_action_end_bpf,
+	},
+
 };
 
 static struct seg6_action_desc *__get_action_desc(int action)
@@ -538,6 +619,7 @@ static const struct nla_policy seg6_local_policy[SEG6_LOCAL_MAX + 1] = {
 				    .len = sizeof(struct in6_addr) },
 	[SEG6_LOCAL_IIF]	= { .type = NLA_U32 },
 	[SEG6_LOCAL_OIF]	= { .type = NLA_U32 },
+	[SEG6_LOCAL_BPF]	= { .type = NLA_NESTED },
 };
 
 static int parse_nla_srh(struct nlattr **attrs, struct seg6_local_lwt *slwt)
@@ -715,6 +797,75 @@ static int cmp_nla_oif(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return 0;
 }
 
+#define MAX_PROG_NAME 256
+static const struct nla_policy bpf_prog_policy[SEG6_LOCAL_BPF_PROG_MAX + 1] = {
+	[SEG6_LOCAL_BPF_PROG]	   = { .type = NLA_U32, },
+	[SEG6_LOCAL_BPF_PROG_NAME] = { .type = NLA_NUL_STRING,
+				       .len = MAX_PROG_NAME },
+};
+
+static int parse_nla_bpf(struct nlattr **attrs, struct seg6_local_lwt *slwt)
+{
+	struct nlattr *tb[SEG6_LOCAL_BPF_PROG_MAX + 1];
+	struct bpf_prog *p;
+	int ret;
+	u32 fd;
+
+	ret = nla_parse_nested(tb, SEG6_LOCAL_BPF_PROG_MAX,
+			       attrs[SEG6_LOCAL_BPF], bpf_prog_policy, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (!tb[SEG6_LOCAL_BPF_PROG] || !tb[SEG6_LOCAL_BPF_PROG_NAME])
+		return -EINVAL;
+
+	slwt->bpf.name = nla_memdup(tb[SEG6_LOCAL_BPF_PROG_NAME], GFP_KERNEL);
+	if (!slwt->bpf.name)
+		return -ENOMEM;
+
+	fd = nla_get_u32(tb[SEG6_LOCAL_BPF_PROG]);
+	p = bpf_prog_get_type(fd, BPF_PROG_TYPE_LWT_SEG6LOCAL);
+	if (IS_ERR(p)) {
+		kfree(slwt->bpf.name);
+		return PTR_ERR(p);
+	}
+
+	slwt->bpf.prog = p;
+	return 0;
+}
+
+static int put_nla_bpf(struct sk_buff *skb, struct seg6_local_lwt *slwt)
+{
+	struct nlattr *nest;
+
+	if (!slwt->bpf.prog)
+		return 0;
+
+	nest = nla_nest_start(skb, SEG6_LOCAL_BPF);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, SEG6_LOCAL_BPF_PROG, slwt->bpf.prog->aux->id))
+		return -EMSGSIZE;
+
+	if (slwt->bpf.name &&
+	    nla_put_string(skb, SEG6_LOCAL_BPF_PROG_NAME, slwt->bpf.name))
+		return -EMSGSIZE;
+
+	return nla_nest_end(skb, nest);
+}
+
+static int cmp_nla_bpf(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
+{
+	if (!a->bpf.name && !b->bpf.name)
+		return 0;
+
+	if (!a->bpf.name || !b->bpf.name)
+		return 1;
+
+	return strcmp(a->bpf.name, b->bpf.name);
+}
+
 struct seg6_action_param {
 	int (*parse)(struct nlattr **attrs, struct seg6_local_lwt *slwt);
 	int (*put)(struct sk_buff *skb, struct seg6_local_lwt *slwt);
@@ -745,6 +896,11 @@ static struct seg6_action_param seg6_action_params[SEG6_LOCAL_MAX + 1] = {
 	[SEG6_LOCAL_OIF]	= { .parse = parse_nla_oif,
 				    .put = put_nla_oif,
 				    .cmp = cmp_nla_oif },
+
+	[SEG6_LOCAL_BPF]	= { .parse = parse_nla_bpf,
+				    .put = put_nla_bpf,
+				    .cmp = cmp_nla_bpf },
+
 };
 
 static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
@@ -830,6 +986,13 @@ static void seg6_local_destroy_state(struct lwtunnel_state *lwt)
 	struct seg6_local_lwt *slwt = seg6_local_lwtunnel(lwt);
 
 	kfree(slwt->srh);
+
+	if (slwt->desc->attrs & (1 << SEG6_LOCAL_BPF)) {
+		kfree(slwt->bpf.name);
+		bpf_prog_put(slwt->bpf.prog);
+	}
+
+	return;
 }
 
 static int seg6_local_fill_encap(struct sk_buff *skb,
@@ -881,6 +1044,11 @@ static int seg6_local_get_encap_size(struct lwtunnel_state *lwt)
 
 	if (attrs & (1 << SEG6_LOCAL_OIF))
 		nlsize += nla_total_size(4);
+
+	if (attrs & (1 << SEG6_LOCAL_BPF))
+		nlsize += nla_total_size(sizeof(struct nlattr)) +
+		       nla_total_size(MAX_PROG_NAME) +
+		       nla_total_size(4);
 
 	return nlsize;
 }

@@ -119,7 +119,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
 	slot = kcalloc(e_count, sizeof(struct hlist_head), GFP_KERNEL);
 	if (!slot)
 		goto out_fail;
-	element = kzalloc(e_count * sizeof(struct lc_element *), GFP_KERNEL);
+	element = kcalloc(e_count, sizeof(struct lc_element *), GFP_KERNEL);
 	if (!element)
 		goto out_fail;
 

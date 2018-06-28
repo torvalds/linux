@@ -566,7 +566,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (!bpf_jit_enable)
 		return;
 
-	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
+	addrs = kcalloc(flen + 1, sizeof(*addrs), GFP_KERNEL);
 	if (addrs == NULL)
 		return;
 

@@ -230,7 +230,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	}
 }
 
-extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
+extern void __sync_icache_dcache(pte_t pteval);
 
 /*
  * PTE bits configuration in the presence of hardware Dirty Bit Management
@@ -253,7 +253,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pte_t old_pte;
 
 	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
-		__sync_icache_dcache(pte, addr);
+		__sync_icache_dcache(pte);
 
 	/*
 	 * If the existing pte is valid, check for potential race with
@@ -305,8 +305,6 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 #define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-
-#define __HAVE_ARCH_PTE_SPECIAL
 
 static inline pte_t pgd_pte(pgd_t pgd)
 {

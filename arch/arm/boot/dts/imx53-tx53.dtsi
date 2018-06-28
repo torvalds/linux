@@ -58,7 +58,7 @@
 		can0 = &can2; /* Make the can interface indices consistent with TX28/TX48 modules */
 		can1 = &can1;
 		ipu = &ipu;
-		reg_can_xcvr = &reg_can_xcvr;
+		reg-can-xcvr = &reg_can_xcvr;
 		usbh1 = &usbh1;
 		usbotg = &usbotg;
 	};
@@ -67,13 +67,12 @@
 		ckih1 {
 			clock-frequency = <0>;
 		};
+	};
 
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-		};
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
 	};
 
 	gpio-keys {
@@ -550,7 +549,6 @@
 };
 
 &ssi1 {
-	codec-handle = <&sgtl5000>;
 	status = "okay";
 };
 

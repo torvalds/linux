@@ -70,8 +70,6 @@
 				compatible = "marvell,mv88e6085";
 				pinctrl-0 = <&pinctrl_gpio_switch0>;
 				pinctrl-names = "default";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
 				interrupt-parent = <&gpio0>;
@@ -156,8 +154,6 @@
 				compatible = "marvell,mv88e6085";
 				pinctrl-0 = <&pinctrl_gpio_switch1>;
 				pinctrl-names = "default";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
 				interrupt-parent = <&gpio0>;
@@ -243,8 +239,6 @@
 
 			switch2: switch@0 {
 				compatible = "marvell,mv88e6085";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 2>;
 

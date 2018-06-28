@@ -118,7 +118,7 @@ common_exception_handler:
 	/* interrupt */
 2:
 #ifdef CONFIG_TRACE_IRQFLAGS
-	jal     arch_trace_hardirqs_off
+	jal     trace_hardirqs_off
 #endif
 	move	$r0, $sp
 	sethi	$lp, hi20(ret_from_intr)

@@ -819,17 +819,25 @@ static int v4l2_fwnode_reference_parse_int_props(
 	unsigned int index;
 	int ret;
 
-	for (index = 0; !IS_ERR((fwnode = v4l2_fwnode_reference_get_int_prop(
-					 dev_fwnode(dev), prop, index, props,
-					 nprops))); index++)
+	index = 0;
+	do {
+		fwnode = v4l2_fwnode_reference_get_int_prop(dev_fwnode(dev),
+							    prop, index,
+							    props, nprops);
+		if (IS_ERR(fwnode)) {
+			/*
+			 * Note that right now both -ENODATA and -ENOENT may
+			 * signal out-of-bounds access. Return the error in
+			 * cases other than that.
+			 */
+			if (PTR_ERR(fwnode) != -ENOENT &&
+			    PTR_ERR(fwnode) != -ENODATA)
+				return PTR_ERR(fwnode);
+			break;
+		}
 		fwnode_handle_put(fwnode);
-
-	/*
-	 * Note that right now both -ENODATA and -ENOENT may signal
-	 * out-of-bounds access. Return the error in cases other than that.
-	 */
-	if (PTR_ERR(fwnode) != -ENOENT && PTR_ERR(fwnode) != -ENODATA)
-		return PTR_ERR(fwnode);
+		index++;
+	} while (1);
 
 	ret = v4l2_async_notifier_realloc(notifier,
 					  notifier->num_subdevs + index);

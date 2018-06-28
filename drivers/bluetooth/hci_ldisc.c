@@ -195,7 +195,7 @@ restart:
 	clear_bit(HCI_UART_SENDING, &hu->tx_state);
 }
 
-static void hci_uart_init_work(struct work_struct *work)
+void hci_uart_init_work(struct work_struct *work)
 {
 	struct hci_uart *hu = container_of(work, struct hci_uart, init_ready);
 	int err;
@@ -229,15 +229,6 @@ int hci_uart_init_ready(struct hci_uart *hu)
 }
 
 /* ------- Interface to HCI layer ------ */
-/* Initialize device */
-static int hci_uart_open(struct hci_dev *hdev)
-{
-	BT_DBG("%s %p", hdev->name, hdev);
-
-	/* Nothing to do for UART driver */
-	return 0;
-}
-
 /* Reset device */
 static int hci_uart_flush(struct hci_dev *hdev)
 {
@@ -260,6 +251,17 @@ static int hci_uart_flush(struct hci_dev *hdev)
 		hu->proto->flush(hu);
 
 	percpu_up_read(&hu->proto_lock);
+
+	return 0;
+}
+
+/* Initialize device */
+static int hci_uart_open(struct hci_dev *hdev)
+{
+	BT_DBG("%s %p", hdev->name, hdev);
+
+	/* Undo clearing this from hci_uart_close() */
+	hdev->flush = hci_uart_flush;
 
 	return 0;
 }
@@ -447,6 +449,8 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		btbcm_check_bdaddr(hdev);
 		break;
 #endif
+	default:
+		break;
 	}
 
 done:

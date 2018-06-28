@@ -331,6 +331,9 @@ EXPORT_SYMBOL(drm_gem_map_dma_buf);
 
 /**
  * drm_gem_unmap_dma_buf - unmap_dma_buf implementation for GEM
+ * @attach: attachment to unmap buffer from
+ * @sgt: scatterlist info of the buffer to unmap
+ * @dir: direction of DMA transfer
  *
  * Not implemented. The unmap is done at drm_gem_map_detach().  This can be
  * used as the &dma_buf_ops.unmap_dma_buf callback.
@@ -406,7 +409,10 @@ void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
-	return dev->driver->gem_prime_vmap(obj);
+	if (dev->driver->gem_prime_vmap)
+		return dev->driver->gem_prime_vmap(obj);
+	else
+		return NULL;
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 
@@ -423,12 +429,15 @@ void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
-	dev->driver->gem_prime_vunmap(obj, vaddr);
+	if (dev->driver->gem_prime_vunmap)
+		dev->driver->gem_prime_vunmap(obj, vaddr);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
 
 /**
  * drm_gem_dmabuf_kmap_atomic - map_atomic implementation for GEM
+ * @dma_buf: buffer to be mapped
+ * @page_num: page number within the buffer
  *
  * Not implemented. This can be used as the &dma_buf_ops.map_atomic callback.
  */
@@ -441,6 +450,9 @@ EXPORT_SYMBOL(drm_gem_dmabuf_kmap_atomic);
 
 /**
  * drm_gem_dmabuf_kunmap_atomic - unmap_atomic implementation for GEM
+ * @dma_buf: buffer to be unmapped
+ * @page_num: page number within the buffer
+ * @addr: virtual address of the buffer
  *
  * Not implemented. This can be used as the &dma_buf_ops.unmap_atomic callback.
  */
@@ -453,6 +465,8 @@ EXPORT_SYMBOL(drm_gem_dmabuf_kunmap_atomic);
 
 /**
  * drm_gem_dmabuf_kmap - map implementation for GEM
+ * @dma_buf: buffer to be mapped
+ * @page_num: page number within the buffer
  *
  * Not implemented. This can be used as the &dma_buf_ops.map callback.
  */
@@ -464,6 +478,9 @@ EXPORT_SYMBOL(drm_gem_dmabuf_kmap);
 
 /**
  * drm_gem_dmabuf_kunmap - unmap implementation for GEM
+ * @dma_buf: buffer to be unmapped
+ * @page_num: page number within the buffer
+ * @addr: virtual address of the buffer
  *
  * Not implemented. This can be used as the &dma_buf_ops.unmap callback.
  */

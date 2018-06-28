@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include <linux/stddef.h>
@@ -33,7 +21,6 @@
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
-#include <linux/sched/mm.h>
 
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -549,23 +536,39 @@ xfs_buf_hash_destroy(
 }
 
 /*
- *	Look up, and creates if absent, a lockable buffer for
- *	a given range of an inode.  The buffer is returned
- *	locked.	No I/O is implied by this call.
+ * Look up a buffer in the buffer cache and return it referenced and locked
+ * in @found_bp.
+ *
+ * If @new_bp is supplied and we have a lookup miss, insert @new_bp into the
+ * cache.
+ *
+ * If XBF_TRYLOCK is set in @flags, only try to lock the buffer and return
+ * -EAGAIN if we fail to lock it.
+ *
+ * Return values are:
+ *	-EFSCORRUPTED if have been supplied with an invalid address
+ *	-EAGAIN on trylock failure
+ *	-ENOENT if we fail to find a match and @new_bp was NULL
+ *	0, with @found_bp:
+ *		- @new_bp if we inserted it into the cache
+ *		- the buffer we found and locked.
  */
-xfs_buf_t *
-_xfs_buf_find(
+static int
+xfs_buf_find(
 	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map,
 	int			nmaps,
 	xfs_buf_flags_t		flags,
-	xfs_buf_t		*new_bp)
+	struct xfs_buf		*new_bp,
+	struct xfs_buf		**found_bp)
 {
 	struct xfs_perag	*pag;
 	xfs_buf_t		*bp;
 	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
 	xfs_daddr_t		eofs;
 	int			i;
+
+	*found_bp = NULL;
 
 	for (i = 0; i < nmaps; i++)
 		cmap.bm_len += map[i].bm_len;
@@ -580,16 +583,11 @@ _xfs_buf_find(
 	 */
 	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
 	if (cmap.bm_bn < 0 || cmap.bm_bn >= eofs) {
-		/*
-		 * XXX (dgc): we should really be returning -EFSCORRUPTED here,
-		 * but none of the higher level infrastructure supports
-		 * returning a specific error on buffer lookup failures.
-		 */
 		xfs_alert(btp->bt_mount,
 			  "%s: daddr 0x%llx out of range, EOFS 0x%llx",
 			  __func__, cmap.bm_bn, eofs);
 		WARN_ON(1);
-		return NULL;
+		return -EFSCORRUPTED;
 	}
 
 	pag = xfs_perag_get(btp->bt_mount,
@@ -604,19 +602,20 @@ _xfs_buf_find(
 	}
 
 	/* No match found */
-	if (new_bp) {
-		/* the buffer keeps the perag reference until it is freed */
-		new_bp->b_pag = pag;
-		rhashtable_insert_fast(&pag->pag_buf_hash,
-				       &new_bp->b_rhash_head,
-				       xfs_buf_hash_params);
-		spin_unlock(&pag->pag_buf_lock);
-	} else {
+	if (!new_bp) {
 		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
 		spin_unlock(&pag->pag_buf_lock);
 		xfs_perag_put(pag);
+		return -ENOENT;
 	}
-	return new_bp;
+
+	/* the buffer keeps the perag reference until it is freed */
+	new_bp->b_pag = pag;
+	rhashtable_insert_fast(&pag->pag_buf_hash, &new_bp->b_rhash_head,
+			       xfs_buf_hash_params);
+	spin_unlock(&pag->pag_buf_lock);
+	*found_bp = new_bp;
+	return 0;
 
 found:
 	spin_unlock(&pag->pag_buf_lock);
@@ -626,7 +625,7 @@ found:
 		if (flags & XBF_TRYLOCK) {
 			xfs_buf_rele(bp);
 			XFS_STATS_INC(btp->bt_mount, xb_busy_locked);
-			return NULL;
+			return -EAGAIN;
 		}
 		xfs_buf_lock(bp);
 		XFS_STATS_INC(btp->bt_mount, xb_get_locked_waited);
@@ -646,6 +645,24 @@ found:
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
 	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
+	*found_bp = bp;
+	return 0;
+}
+
+struct xfs_buf *
+xfs_buf_incore(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags)
+{
+	struct xfs_buf		*bp;
+	int			error;
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+
+	error = xfs_buf_find(target, &map, 1, flags, NULL, &bp);
+	if (error)
+		return NULL;
 	return bp;
 }
 
@@ -665,9 +682,27 @@ xfs_buf_get_map(
 	struct xfs_buf		*new_bp;
 	int			error = 0;
 
-	bp = _xfs_buf_find(target, map, nmaps, flags, NULL);
-	if (likely(bp))
+	error = xfs_buf_find(target, map, nmaps, flags, NULL, &bp);
+
+	switch (error) {
+	case 0:
+		/* cache hit */
 		goto found;
+	case -EAGAIN:
+		/* cache hit, trylock failure, caller handles failure */
+		ASSERT(flags & XBF_TRYLOCK);
+		return NULL;
+	case -ENOENT:
+		/* cache miss, go for insert */
+		break;
+	case -EFSCORRUPTED:
+	default:
+		/*
+		 * None of the higher layers understand failure types
+		 * yet, so return NULL to signal a fatal lookup error.
+		 */
+		return NULL;
+	}
 
 	new_bp = _xfs_buf_alloc(target, map, nmaps, flags);
 	if (unlikely(!new_bp))
@@ -679,8 +714,8 @@ xfs_buf_get_map(
 		return NULL;
 	}
 
-	bp = _xfs_buf_find(target, map, nmaps, flags, new_bp);
-	if (!bp) {
+	error = xfs_buf_find(target, map, nmaps, flags, new_bp, &bp);
+	if (error) {
 		xfs_buf_free(new_bp);
 		return NULL;
 	}

@@ -178,7 +178,7 @@ EXPORT_SYMBOL_GPL(typec_mux_register);
 
 /**
  * typec_mux_unregister - Unregister Multiplexer Switch
- * @sw: USB Type-C Connector Multiplexer/DeMultiplexer
+ * @mux: USB Type-C Connector Multiplexer/DeMultiplexer
  *
  * Unregister mux that was registered with typec_mux_register().
  */

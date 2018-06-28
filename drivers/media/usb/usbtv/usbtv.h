@@ -68,7 +68,7 @@
 #define USBTV_ODD(chunk)	((be32_to_cpu(chunk[0]) & 0x0000f000) >> 15)
 #define USBTV_CHUNK_NO(chunk)	(be32_to_cpu(chunk[0]) & 0x00000fff)
 
-#define USBTV_TV_STD  (V4L2_STD_525_60 | V4L2_STD_PAL)
+#define USBTV_TV_STD  (V4L2_STD_525_60 | V4L2_STD_PAL | V4L2_STD_SECAM)
 
 /* parameters for supported TV norms */
 struct usbtv_norm_params {

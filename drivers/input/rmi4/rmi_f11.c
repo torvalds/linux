@@ -1190,14 +1190,15 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 		f11->sensor.attn_size += f11->sensor.nbr_fingers * 2;
 
 	/* allocate the in-kernel tracking buffers */
-	sensor->tracking_pos = devm_kzalloc(&fn->dev,
-			sizeof(struct input_mt_pos) * sensor->nbr_fingers,
+	sensor->tracking_pos = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(struct input_mt_pos),
 			GFP_KERNEL);
-	sensor->tracking_slots = devm_kzalloc(&fn->dev,
-			sizeof(int) * sensor->nbr_fingers, GFP_KERNEL);
-	sensor->objs = devm_kzalloc(&fn->dev,
-			sizeof(struct rmi_2d_sensor_abs_object)
-			* sensor->nbr_fingers, GFP_KERNEL);
+	sensor->tracking_slots = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(int), GFP_KERNEL);
+	sensor->objs = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers,
+			sizeof(struct rmi_2d_sensor_abs_object),
+			GFP_KERNEL);
 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
 		return -ENOMEM;
 

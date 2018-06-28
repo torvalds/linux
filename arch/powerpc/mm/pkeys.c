@@ -383,9 +383,9 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
 {
 	/*
 	 * If the currently associated pkey is execute-only, but the requested
-	 * protection requires read or write, move it back to the default pkey.
+	 * protection is not execute-only, move it back to the default pkey.
 	 */
-	if (vma_is_pkey_exec_only(vma) && (prot & (PROT_READ | PROT_WRITE)))
+	if (vma_is_pkey_exec_only(vma) && (prot != PROT_EXEC))
 		return 0;
 
 	/*

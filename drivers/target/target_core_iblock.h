@@ -22,7 +22,7 @@ struct iblock_dev {
 	struct se_device dev;
 	unsigned char ibd_udev_path[SE_UDEV_PATH_LEN];
 	u32	ibd_flags;
-	struct bio_set	*ibd_bio_set;
+	struct bio_set	ibd_bio_set;
 	struct block_device *ibd_bd;
 	bool ibd_readonly;
 } ____cacheline_aligned;

@@ -256,8 +256,7 @@ found:
 		break;
 	}
 
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int openpromfs_readdir(struct file *file, struct dir_context *ctx)

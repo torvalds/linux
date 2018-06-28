@@ -201,12 +201,20 @@
 #define OPAL_SET_POWER_SHIFT_RATIO		155
 #define OPAL_SENSOR_GROUP_CLEAR			156
 #define OPAL_PCI_SET_P2P			157
+#define OPAL_QUIESCE				158
 #define OPAL_NPU_SPA_SETUP			159
 #define OPAL_NPU_SPA_CLEAR_CACHE		160
 #define OPAL_NPU_TL_SET				161
+#define OPAL_SENSOR_READ_U64			162
 #define OPAL_PCI_GET_PBCQ_TUNNEL_BAR		164
 #define OPAL_PCI_SET_PBCQ_TUNNEL_BAR		165
 #define OPAL_LAST				165
+
+#define QUIESCE_HOLD			1 /* Spin all calls at entry */
+#define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
+#define QUIESCE_LOCK_BREAK		3 /* Set to ignore locks. */
+#define QUIESCE_RESUME			4 /* Un-quiesce */
+#define QUIESCE_RESUME_FAST_REBOOT	5 /* Un-quiesce, fast reboot */
 
 /* Device tree flags */
 

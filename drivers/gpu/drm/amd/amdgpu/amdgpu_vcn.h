@@ -45,6 +45,17 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
+enum engine_status_constants {
+	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON = 0x2AAAA0,
+	UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON = 0x00000002,
+	UVD_STATUS__UVD_BUSY = 0x00000004,
+	GB_ADDR_CONFIG_DEFAULT = 0x26010011,
+	UVD_STATUS__IDLE = 0x2,
+	UVD_STATUS__BUSY = 0x5,
+	UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF = 0x1,
+	UVD_STATUS__RBC_BUSY = 0x1,
+};
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -56,8 +67,6 @@ struct amdgpu_vcn {
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
-	struct drm_sched_entity entity_dec;
-	struct drm_sched_entity entity_enc;
 	unsigned		num_enc_rings;
 };
 

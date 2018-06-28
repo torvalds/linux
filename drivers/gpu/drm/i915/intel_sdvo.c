@@ -1160,6 +1160,9 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 	}
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	/*
 	 * Make the CRTC code factor in the SDVO pixel multiplier.  The
 	 * SDVO device will factor out the multiplier during mode_set.
@@ -1620,6 +1623,9 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
 
 	if (intel_sdvo->pixel_clock_min > mode->clock)
 		return MODE_CLOCK_LOW;
@@ -2779,9 +2785,8 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 		return false;
 
 	for (i = 0; i < intel_sdvo_connector->format_supported_num; i++)
-		drm_property_add_enum(
-				intel_sdvo_connector->tv_format, i,
-				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
+		drm_property_add_enum(intel_sdvo_connector->tv_format, i,
+				      tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
 	intel_sdvo_connector->base.base.state->tv.mode = intel_sdvo_connector->tv_format_supported[0];
 	drm_object_attach_property(&intel_sdvo_connector->base.base.base,

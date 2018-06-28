@@ -24,15 +24,6 @@
 
 #include "common.h"
 
-static struct map_desc exynos4_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_COREPERI_BASE,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_COREPERI),
-		.length		= SZ_8K,
-		.type		= MT_DEVICE,
-	},
-};
-
 static struct platform_device exynos_cpuidle = {
 	.name              = "exynos_cpuidle",
 #ifdef CONFIG_ARM_EXYNOS_CPUIDLE
@@ -63,15 +54,6 @@ void __init exynos_sysram_init(void)
 	}
 }
 
-static void __init exynos_init_late(void)
-{
-	if (of_machine_is_compatible("samsung,exynos5440"))
-		/* to be supported later */
-		return;
-
-	exynos_pm_init();
-}
-
 static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 					int depth, void *data)
 {
@@ -79,8 +61,7 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 	const __be32 *reg;
 	int len;
 
-	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid") &&
-		!of_flat_dt_is_compatible(node, "samsung,exynos5440-clock"))
+	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid"))
 		return 0;
 
 	reg = of_get_flat_dt_prop(node, "reg", &len);
@@ -95,17 +76,6 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 	return 1;
 }
 
-/*
- * exynos_map_io
- *
- * register the standard cpu IO areas
- */
-static void __init exynos_map_io(void)
-{
-	if (soc_is_exynos4())
-		iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
-}
-
 static void __init exynos_init_io(void)
 {
 	debug_ll_io_init();
@@ -114,8 +84,6 @@ static void __init exynos_init_io(void)
 
 	/* detect cpu id and rev. */
 	s5p_init_cpu(S5P_VA_CHIPID);
-
-	exynos_map_io();
 }
 
 /*
@@ -209,7 +177,6 @@ static char const *const exynos_dt_compat[] __initconst = {
 	"samsung,exynos5250",
 	"samsung,exynos5260",
 	"samsung,exynos5420",
-	"samsung,exynos5440",
 	NULL
 };
 
@@ -232,7 +199,7 @@ DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	.init_early	= exynos_firmware_init,
 	.init_irq	= exynos_init_irq,
 	.init_machine	= exynos_dt_machine_init,
-	.init_late	= exynos_init_late,
+	.init_late	= exynos_pm_init,
 	.dt_compat	= exynos_dt_compat,
 	.dt_fixup	= exynos_dt_fixup,
 MACHINE_END

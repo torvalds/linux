@@ -183,6 +183,7 @@ struct qed_filter_accept_flags {
 #define QED_ACCEPT_MCAST_MATCHED        0x08
 #define QED_ACCEPT_MCAST_UNMATCHED      0x10
 #define QED_ACCEPT_BCAST                0x20
+#define QED_ACCEPT_ANY_VNI              0x40
 };
 
 struct qed_arfs_config_params {

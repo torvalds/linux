@@ -26,6 +26,8 @@
 #ifndef DC_DP_TYPES_H
 #define DC_DP_TYPES_H
 
+#include "os_types.h"
+
 enum dc_lane_count {
 	LANE_COUNT_UNKNOWN = 0,
 	LANE_COUNT_ONE = 1,

@@ -25,11 +25,12 @@
 #ifndef _INTEL_GUC_LOG_H_
 #define _INTEL_GUC_LOG_H_
 
+#include <linux/mutex.h>
+#include <linux/relay.h>
 #include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"
 
-struct drm_i915_private;
 struct intel_guc;
 
 /*
@@ -39,33 +40,53 @@ struct intel_guc;
 #define GUC_LOG_SIZE	((1 + GUC_LOG_DPC_PAGES + 1 + GUC_LOG_ISR_PAGES + \
 			  1 + GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT)
 
+/*
+ * While we're using plain log level in i915, GuC controls are much more...
+ * "elaborate"? We have a couple of bits for verbosity, separate bit for actual
+ * log enabling, and separate bit for default logging - which "conveniently"
+ * ignores the enable bit.
+ */
+#define GUC_LOG_LEVEL_DISABLED		0
+#define GUC_LOG_LEVEL_NON_VERBOSE	1
+#define GUC_LOG_LEVEL_IS_ENABLED(x)	((x) > GUC_LOG_LEVEL_DISABLED)
+#define GUC_LOG_LEVEL_IS_VERBOSE(x)	((x) > GUC_LOG_LEVEL_NON_VERBOSE)
+#define GUC_LOG_LEVEL_TO_VERBOSITY(x) ({		\
+	typeof(x) _x = (x);				\
+	GUC_LOG_LEVEL_IS_VERBOSE(_x) ? _x - 2 : 0;	\
+})
+#define GUC_VERBOSITY_TO_LOG_LEVEL(x)	((x) + 2)
+#define GUC_LOG_LEVEL_MAX GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX)
+
 struct intel_guc_log {
 	u32 flags;
 	struct i915_vma *vma;
-	/* The runtime stuff gets created only when GuC logging gets enabled */
 	struct {
 		void *buf_addr;
 		struct workqueue_struct *flush_wq;
 		struct work_struct flush_work;
-		struct rchan *relay_chan;
-		/* To serialize the access to relay_chan */
-		struct mutex relay_lock;
-	} runtime;
+		struct rchan *channel;
+		struct mutex lock;
+		u32 full_count;
+	} relay;
 	/* logging related stats */
-	u32 capture_miss_count;
-	u32 flush_interrupt_count;
-	u32 prev_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 total_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 flush_count[GUC_MAX_LOG_BUFFER];
+	struct {
+		u32 sampled_overflow;
+		u32 overflow;
+		u32 flush;
+	} stats[GUC_MAX_LOG_BUFFER];
 };
 
-int intel_guc_log_create(struct intel_guc *guc);
-void intel_guc_log_destroy(struct intel_guc *guc);
-void intel_guc_log_init_early(struct intel_guc *guc);
-int intel_guc_log_relay_create(struct intel_guc *guc);
-void intel_guc_log_relay_destroy(struct intel_guc *guc);
-int intel_guc_log_control(struct intel_guc *guc, u64 control_val);
-void i915_guc_log_register(struct drm_i915_private *dev_priv);
-void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
+void intel_guc_log_init_early(struct intel_guc_log *log);
+int intel_guc_log_create(struct intel_guc_log *log);
+void intel_guc_log_destroy(struct intel_guc_log *log);
+
+int intel_guc_log_level_get(struct intel_guc_log *log);
+int intel_guc_log_level_set(struct intel_guc_log *log, u64 control_val);
+bool intel_guc_log_relay_enabled(const struct intel_guc_log *log);
+int intel_guc_log_relay_open(struct intel_guc_log *log);
+void intel_guc_log_relay_flush(struct intel_guc_log *log);
+void intel_guc_log_relay_close(struct intel_guc_log *log);
+
+void intel_guc_log_handle_flush_event(struct intel_guc_log *log);
 
 #endif

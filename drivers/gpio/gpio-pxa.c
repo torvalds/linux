@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -579,15 +579,9 @@ static int pxa_gpio_probe_dt(struct platform_device *pdev,
 			     struct pxa_gpio_chip *pchip)
 {
 	int nr_gpios;
-	const struct of_device_id *of_id =
-				of_match_device(pxa_gpio_dt_ids, &pdev->dev);
 	const struct pxa_gpio_id *gpio_id;
 
-	if (!of_id || !of_id->data) {
-		dev_err(&pdev->dev, "Failed to find gpio controller\n");
-		return -EFAULT;
-	}
-	gpio_id = of_id->data;
+	gpio_id = of_device_get_match_data(&pdev->dev);
 	gpio_type = gpio_id->type;
 
 	nr_gpios = gpio_id->gpio_nums;

@@ -70,60 +70,110 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	return 0;
 }
 
-struct mdp5_state *mdp5_get_state(struct drm_atomic_state *s)
+/* Global/shared object state funcs */
+
+/*
+ * This is a helper that returns the private state currently in operation.
+ * Note that this would return the "old_state" if called in the atomic check
+ * path, and the "new_state" after the atomic swap has been done.
+ */
+struct mdp5_global_state *
+mdp5_get_existing_global_state(struct mdp5_kms *mdp5_kms)
+{
+	return to_mdp5_global_state(mdp5_kms->glob_state.state);
+}
+
+/*
+ * This acquires the modeset lock set aside for global state, creates
+ * a new duplicated private object state.
+ */
+struct mdp5_global_state *mdp5_get_global_state(struct drm_atomic_state *s)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
-	struct msm_kms_state *state = to_kms_state(s);
-	struct mdp5_state *new_state;
+	struct drm_private_state *priv_state;
 	int ret;
 
-	if (state->state)
-		return state->state;
-
-	ret = drm_modeset_lock(&mdp5_kms->state_lock, s->acquire_ctx);
+	ret = drm_modeset_lock(&mdp5_kms->glob_state_lock, s->acquire_ctx);
 	if (ret)
 		return ERR_PTR(ret);
 
-	new_state = kmalloc(sizeof(*mdp5_kms->state), GFP_KERNEL);
-	if (!new_state)
-		return ERR_PTR(-ENOMEM);
+	priv_state = drm_atomic_get_private_obj_state(s, &mdp5_kms->glob_state);
+	if (IS_ERR(priv_state))
+		return ERR_CAST(priv_state);
 
-	/* Copy state: */
-	new_state->hwpipe = mdp5_kms->state->hwpipe;
-	new_state->hwmixer = mdp5_kms->state->hwmixer;
-	if (mdp5_kms->smp)
-		new_state->smp = mdp5_kms->state->smp;
-
-	state->state = new_state;
-
-	return new_state;
+	return to_mdp5_global_state(priv_state);
 }
 
-static void mdp5_swap_state(struct msm_kms *kms, struct drm_atomic_state *state)
+static struct drm_private_state *
+mdp5_global_duplicate_state(struct drm_private_obj *obj)
 {
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	swap(to_kms_state(state)->state, mdp5_kms->state);
+	struct mdp5_global_state *state;
+
+	state = kmemdup(obj->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
+}
+
+static void mdp5_global_destroy_state(struct drm_private_obj *obj,
+				      struct drm_private_state *state)
+{
+	struct mdp5_global_state *mdp5_state = to_mdp5_global_state(state);
+
+	kfree(mdp5_state);
+}
+
+static const struct drm_private_state_funcs mdp5_global_state_funcs = {
+	.atomic_duplicate_state = mdp5_global_duplicate_state,
+	.atomic_destroy_state = mdp5_global_destroy_state,
+};
+
+static int mdp5_global_obj_init(struct mdp5_kms *mdp5_kms)
+{
+	struct mdp5_global_state *state;
+
+	drm_modeset_lock_init(&mdp5_kms->glob_state_lock);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	state->mdp5_kms = mdp5_kms;
+
+	drm_atomic_private_obj_init(&mdp5_kms->glob_state,
+				    &state->base,
+				    &mdp5_global_state_funcs);
+	return 0;
 }
 
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct device *dev = &mdp5_kms->pdev->dev;
+	struct mdp5_global_state *global_state;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	pm_runtime_get_sync(dev);
 
 	if (mdp5_kms->smp)
-		mdp5_smp_prepare_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
+		mdp5_smp_prepare_commit(mdp5_kms->smp, &global_state->smp);
 }
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct device *dev = &mdp5_kms->pdev->dev;
+	struct mdp5_global_state *global_state;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	if (mdp5_kms->smp)
-		mdp5_smp_complete_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
+		mdp5_smp_complete_commit(mdp5_kms->smp, &global_state->smp);
 
 	pm_runtime_put_sync(dev);
 }
@@ -229,7 +279,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp5_irq,
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
-		.swap_state      = mdp5_swap_state,
 		.prepare_commit  = mdp5_prepare_commit,
 		.complete_commit = mdp5_complete_commit,
 		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
@@ -727,7 +776,8 @@ static void mdp5_destroy(struct platform_device *pdev)
 	if (mdp5_kms->rpm_enabled)
 		pm_runtime_disable(&pdev->dev);
 
-	kfree(mdp5_kms->state);
+	drm_atomic_private_obj_fini(&mdp5_kms->glob_state);
+	drm_modeset_lock_fini(&mdp5_kms->glob_state_lock);
 }
 
 static int construct_pipes(struct mdp5_kms *mdp5_kms, int cnt,
@@ -880,12 +930,9 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	mdp5_kms->dev = dev;
 	mdp5_kms->pdev = pdev;
 
-	drm_modeset_lock_init(&mdp5_kms->state_lock);
-	mdp5_kms->state = kzalloc(sizeof(*mdp5_kms->state), GFP_KERNEL);
-	if (!mdp5_kms->state) {
-		ret = -ENOMEM;
+	ret = mdp5_global_obj_init(mdp5_kms);
+	if (ret)
 		goto fail;
-	}
 
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {

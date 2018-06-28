@@ -852,7 +852,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		ret = request_firmware(&fw, fw_file, &client->dev);
 		if (ret) {
 			dev_err(&client->dev,
-				"did not find the firmware file. (%s) Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)\n",
+				"did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				fw_file, ret);
 			goto error;
 		}

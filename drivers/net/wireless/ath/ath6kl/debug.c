@@ -645,7 +645,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 	len += scnprintf(buf + len, buf_len - len, "%20s %10llu\n",
 			 "CRC Err", tgt_stats->rx_crc_err);
 	len += scnprintf(buf + len, buf_len - len, "%20s %10llu\n",
-			 "Key chache miss", tgt_stats->rx_key_cache_miss);
+			 "Key cache miss", tgt_stats->rx_key_cache_miss);
 	len += scnprintf(buf + len, buf_len - len, "%20s %10llu\n",
 			 "Decrypt Err", tgt_stats->rx_decrypt_err);
 	len += scnprintf(buf + len, buf_len - len, "%20s %10llu\n",

@@ -163,10 +163,10 @@
 
 			cm2: cm2@8000 {
 				compatible = "ti,omap4-cm2", "simple-bus";
-				reg = <0x8000 0x3000>;
+				reg = <0x8000 0x2000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 0x8000 0x3000>;
+				ranges = <0 0x8000 0x2000>;
 
 				cm2_clocks: clocks {
 					#address-cells = <1>;
@@ -250,11 +250,11 @@
 
 				prm: prm@6000 {
 					compatible = "ti,omap4-prm";
-					reg = <0x6000 0x3000>;
+					reg = <0x6000 0x2000>;
 					interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 					#address-cells = <1>;
 					#size-cells = <1>;
-					ranges = <0 0x6000 0x3000>;
+					ranges = <0 0x6000 0x2000>;
 
 					prm_clocks: clocks {
 						#address-cells = <1>;

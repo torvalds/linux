@@ -668,15 +668,6 @@ void zpci_dma_exit(void)
 	kmem_cache_destroy(dma_region_table_cache);
 }
 
-#define PREALLOC_DMA_DEBUG_ENTRIES	(1 << 16)
-
-static int __init dma_debug_do_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-fs_initcall(dma_debug_do_init);
-
 const struct dma_map_ops s390_pci_dma_ops = {
 	.alloc		= s390_dma_alloc,
 	.free		= s390_dma_free,
@@ -685,8 +676,6 @@ const struct dma_map_ops s390_pci_dma_ops = {
 	.map_page	= s390_dma_map_pages,
 	.unmap_page	= s390_dma_unmap_pages,
 	.mapping_error	= s390_mapping_error,
-	/* if we support direct DMA this must be conditional */
-	.is_phys	= 0,
 	/* dma_supported is unconditionally true without a callback */
 };
 EXPORT_SYMBOL_GPL(s390_pci_dma_ops);

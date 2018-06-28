@@ -5,21 +5,9 @@
  * Module Name:  wilc_spi.c
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/cdev.h>
-#include <linux/uaccess.h>
-#include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/of_gpio.h>
 
-#include <linux/string.h>
-#include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
 #include "wilc_wfi_netdevice.h"
 
 struct wilc_spi {
@@ -30,9 +18,6 @@ struct wilc_spi {
 
 static struct wilc_spi g_spi;
 static const struct wilc_hif_func wilc_hif_spi;
-
-static int wilc_spi_read(struct wilc *wilc, u32, u8 *, u32);
-static int wilc_spi_write(struct wilc *wilc, u32, u8 *, u32);
 
 /********************************************
  *
@@ -95,29 +80,29 @@ static u8 crc7(u8 crc, const u8 *buffer, u32 len)
 
 #define CMD_DMA_WRITE				0xc1
 #define CMD_DMA_READ				0xc2
-#define CMD_INTERNAL_WRITE		0xc3
-#define CMD_INTERNAL_READ		0xc4
+#define CMD_INTERNAL_WRITE			0xc3
+#define CMD_INTERNAL_READ			0xc4
 #define CMD_TERMINATE				0xc5
-#define CMD_REPEAT					0xc6
-#define CMD_DMA_EXT_WRITE		0xc7
-#define CMD_DMA_EXT_READ		0xc8
+#define CMD_REPEAT				0xc6
+#define CMD_DMA_EXT_WRITE			0xc7
+#define CMD_DMA_EXT_READ			0xc8
 #define CMD_SINGLE_WRITE			0xc9
-#define CMD_SINGLE_READ			0xca
-#define CMD_RESET						0xcf
+#define CMD_SINGLE_READ				0xca
+#define CMD_RESET				0xcf
 
-#define N_OK								1
-#define N_FAIL								0
-#define N_RESET							-1
-#define N_RETRY							-2
+#define N_OK					1
+#define N_FAIL					0
+#define N_RESET					-1
+#define N_RETRY					-2
 
 #define DATA_PKT_SZ_256				256
-#define DATA_PKT_SZ_512			512
+#define DATA_PKT_SZ_512				512
 #define DATA_PKT_SZ_1K				1024
 #define DATA_PKT_SZ_4K				(4 * 1024)
 #define DATA_PKT_SZ_8K				(8 * 1024)
-#define DATA_PKT_SZ					DATA_PKT_SZ_8K
+#define DATA_PKT_SZ				DATA_PKT_SZ_8K
 
-#define USE_SPI_DMA     0
+#define USE_SPI_DMA				0
 
 static int wilc_bus_probe(struct spi_device *spi)
 {
@@ -527,8 +512,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			if (wilc_spi_rx(wilc, &b[ix], nbytes)) {
 				dev_err(&spi->dev,
 					"Failed block read, bus err\n");
-				result = N_FAIL;
-				goto _error_;
+				return N_FAIL;
 			}
 
 			/*
@@ -537,8 +521,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			if (!g_spi.crc_off && wilc_spi_rx(wilc, crc, 2)) {
 				dev_err(&spi->dev,
 					"Failed block crc read, bus err\n");
-				result = N_FAIL;
-				goto _error_;
+				return N_FAIL;
 			}
 
 			ix += nbytes;
@@ -604,7 +587,6 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			sz -= nbytes;
 		}
 	}
-_error_:
 	return result;
 }
 
@@ -620,28 +602,23 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
 	 */
 	ix = 0;
 	do {
-		if (sz <= DATA_PKT_SZ)
+		if (sz <= DATA_PKT_SZ) {
 			nbytes = sz;
-		else
+			order = 0x3;
+		} else {
 			nbytes = DATA_PKT_SZ;
+			if (ix == 0)
+				order = 0x1;
+			else
+				order = 0x02;
+		}
 
 		/*
 		 * Write command
 		 */
 		cmd = 0xf0;
-		if (ix == 0) {
-			if (sz <= DATA_PKT_SZ)
-
-				order = 0x3;
-			else
-				order = 0x1;
-		} else {
-			if (sz <= DATA_PKT_SZ)
-				order = 0x3;
-			else
-				order = 0x2;
-		}
 		cmd |= order;
+
 		if (wilc_spi_tx(wilc, &cmd, 1)) {
 			dev_err(&spi->dev,
 				"Failed data block cmd write, bus error...\n");
@@ -748,7 +725,6 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
 	int result;
-	u8 cmd = CMD_DMA_EXT_WRITE;
 
 	/*
 	 * has to be greated than 4
@@ -756,7 +732,7 @@ static int wilc_spi_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	if (size <= 4)
 		return 0;
 
-	result = spi_cmd_complete(wilc, cmd, addr, NULL, size, 0);
+	result = spi_cmd_complete(wilc, CMD_DMA_EXT_WRITE, addr, NULL, size, 0);
 	if (result != N_OK) {
 		dev_err(&spi->dev,
 			"Failed cmd, write block (%08x)...\n", addr);
@@ -801,13 +777,12 @@ static int wilc_spi_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 static int wilc_spi_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct spi_device *spi = to_spi_device(wilc->dev);
-	u8 cmd = CMD_DMA_EXT_READ;
 	int result;
 
 	if (size <= 4)
 		return 0;
 
-	result = spi_cmd_complete(wilc, cmd, addr, buf, size, 0);
+	result = spi_cmd_complete(wilc, CMD_DMA_EXT_READ, addr, buf, size, 0);
 	if (result != N_OK) {
 		dev_err(&spi->dev, "Failed cmd, read block (%08x)...\n", addr);
 		return 0;
@@ -920,13 +895,12 @@ static int wilc_spi_read_size(struct wilc *wilc, u32 *size)
 		if (!ret) {
 			dev_err(&spi->dev,
 				"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
-			goto _fail_;
+			return ret;
 		}
 		tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
 		*size = tmp;
 	}
 
-_fail_:
 	return ret;
 }
 
@@ -950,7 +924,7 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 	if (!ret) {
 		dev_err(&spi->dev,
 			"Failed read WILC_VMM_TO_HOST_SIZE ...\n");
-		goto _fail_;
+		return ret;
 	}
 	tmp = (byte_cnt >> 2) & IRQ_DMA_WD_CNT_MASK;
 
@@ -980,7 +954,6 @@ static int wilc_spi_read_int(struct wilc *wilc, u32 *int_status)
 
 	*int_status = tmp;
 
-_fail_:
 	return ret;
 }
 
@@ -1018,7 +991,7 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 			dev_err(&spi->dev,
 				"Failed wilc_spi_write_reg, set reg %x ...\n",
 				0x10c8 + i * 4);
-			goto _fail_;
+			return ret;
 		}
 		for (i = g_spi.nint; i < MAX_NUM_INT; i++) {
 			if (flags & 1)
@@ -1031,29 +1004,29 @@ static int wilc_spi_clear_int_ext(struct wilc *wilc, u32 val)
 
 	tbl_ctl = 0;
 	/* select VMM table 0 */
-	if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
+	if (val & SEL_VMM_TBL0)
 		tbl_ctl |= BIT(0);
 	/* select VMM table 1 */
-	if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
+	if (val & SEL_VMM_TBL1)
 		tbl_ctl |= BIT(1);
 
 	ret = wilc_spi_write_reg(wilc, WILC_VMM_TBL_CTL, tbl_ctl);
 	if (!ret) {
 		dev_err(&spi->dev, "fail write reg vmm_tbl_ctl...\n");
-		goto _fail_;
+		return ret;
 	}
 
-	if ((val & EN_VMM) == EN_VMM) {
+	if (val & EN_VMM) {
 		/*
 		 * enable vmm transfer.
 		 */
 		ret = wilc_spi_write_reg(wilc, WILC_VMM_CORE_CTL, 1);
 		if (!ret) {
 			dev_err(&spi->dev, "fail write reg vmm_core_ctl...\n");
-			goto _fail_;
+			return ret;
 		}
 	}
-_fail_:
+
 	return ret;
 }
 

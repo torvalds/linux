@@ -1,30 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   Driver for KeyStream wireless LAN
  *
  *   Copyright (C) 2005-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License version 2 as
- *   published by the Free Software Foundation.
  */
 
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/bitops.h>
 #include <asm/unaligned.h>
+#include <linux/bitops.h>
+#include <linux/string.h>
 #include "michael_mic.h"
 
 
 // Reset the state to the empty message.
-static inline void michael_clear(struct michael_mic_t *mic)
+static inline void michael_clear(struct michael_mic *mic)
 {
 	mic->l = mic->k0;
 	mic->r = mic->k1;
 	mic->m_bytes = 0;
 }
 
-static void michael_init(struct michael_mic_t *mic, u8 *key)
+static void michael_init(struct michael_mic *mic, u8 *key)
 {
 	// Set the key
 	mic->k0 = get_unaligned_le32(key);
@@ -34,20 +30,20 @@ static void michael_init(struct michael_mic_t *mic, u8 *key)
 	michael_clear(mic);
 }
 
-static inline void michael_block(struct michael_mic_t *mic)
+static inline void michael_block(struct michael_mic *mic)
 {
 	mic->r ^= rol32(mic->l, 17);
 	mic->l += mic->r;
 	mic->r ^= ((mic->l & 0xff00ff00) >> 8) |
 		  ((mic->l & 0x00ff00ff) << 8);
 	mic->l += mic->r;
-	mic->r ^= rol32(mic->l, 3);					\
+	mic->r ^= rol32(mic->l, 3);
 	mic->l += mic->r;
-	mic->r ^= ror32(mic->l, 2);					\
+	mic->r ^= ror32(mic->l, 2);
 	mic->l += mic->r;
 }
 
-static void michael_append(struct michael_mic_t *mic, u8 *src, int bytes)
+static void michael_append(struct michael_mic *mic, u8 *src, int bytes)
 {
 	int addlen;
 
@@ -81,7 +77,7 @@ static void michael_append(struct michael_mic_t *mic, u8 *src, int bytes)
 	}
 }
 
-static void michael_get_mic(struct michael_mic_t *mic, u8 *dst)
+static void michael_get_mic(struct michael_mic *mic, u8 *dst)
 {
 	u8 *data = mic->m;
 
@@ -110,8 +106,8 @@ static void michael_get_mic(struct michael_mic_t *mic, u8 *dst)
 	michael_clear(mic);
 }
 
-void michael_mic_function(struct michael_mic_t *mic, u8 *key,
-			  u8 *data, int len, u8 priority, u8 *result)
+void michael_mic_function(struct michael_mic *mic, u8 *key,
+			  u8 *data, unsigned int len, u8 priority, u8 *result)
 {
 	u8 pad_data[4] = { priority, 0, 0, 0 };
 	// Compute the MIC value

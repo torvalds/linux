@@ -89,7 +89,7 @@ atomic_t ppc_n_lost_interrupts;
 
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
-extern int tau_interrupts(int);
+u32 tau_interrupts(unsigned long cpu);
 #endif
 #endif /* CONFIG_PPC32 */
 
@@ -508,6 +508,11 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_event);
         seq_printf(p, "  Local timer interrupts for timer event device\n");
 
+	seq_printf(p, "%*s: ", prec, "BCT");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).broadcast_irqs_event);
+	seq_printf(p, "  Broadcast timer interrupts for timer event device\n");
+
 	seq_printf(p, "%*s: ", prec, "LOC");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_others);
@@ -567,6 +572,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 {
 	u64 sum = per_cpu(irq_stat, cpu).timer_irqs_event;
 
+	sum += per_cpu(irq_stat, cpu).broadcast_irqs_event;
 	sum += per_cpu(irq_stat, cpu).pmu_irqs;
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;

@@ -183,4 +183,9 @@ struct mpcc *mpc1_get_mpcc_for_dpp(
 	struct mpc_tree *tree,
 	int dpp_id);
 
+void mpc1_read_mpcc_state(
+		struct mpc *mpc,
+		int mpcc_inst,
+		struct mpcc_state *s);
+
 #endif

@@ -353,8 +353,9 @@ struct mb_cache *mb_cache_create(int bucket_bits)
 	cache->c_max_entries = bucket_count << 4;
 	INIT_LIST_HEAD(&cache->c_list);
 	spin_lock_init(&cache->c_list_lock);
-	cache->c_hash = kmalloc(bucket_count * sizeof(struct hlist_bl_head),
-				GFP_KERNEL);
+	cache->c_hash = kmalloc_array(bucket_count,
+				      sizeof(struct hlist_bl_head),
+				      GFP_KERNEL);
 	if (!cache->c_hash) {
 		kfree(cache);
 		goto err_out;

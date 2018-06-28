@@ -1093,7 +1093,7 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF | MOVE_DEST_MATH3 |
 				    (0x6 << MOVE_LEN_SHIFT));
 	write_move_cmd = append_move(desc, MOVE_SRC_MATH3 | MOVE_DEST_DESCBUF |
-				     (0x8 << MOVE_LEN_SHIFT));
+				     (0x8 << MOVE_LEN_SHIFT) | MOVE_WAITCOMP);
 
 	/* Will read assoclen + cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
@@ -1178,7 +1178,7 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF | MOVE_DEST_MATH3 |
 				    (0x6 << MOVE_LEN_SHIFT));
 	write_move_cmd = append_move(desc, MOVE_SRC_MATH3 | MOVE_DEST_DESCBUF |
-				     (0x8 << MOVE_LEN_SHIFT));
+				     (0x8 << MOVE_LEN_SHIFT) | MOVE_WAITCOMP);
 
 	/* Will read assoclen + cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);

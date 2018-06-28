@@ -1,3 +1,6 @@
+/fd-001-lookup
+/fd-002-posix-eq
+/fd-003-kthread
 /proc-loadavg-001
 /proc-self-map-files-001
 /proc-self-map-files-002

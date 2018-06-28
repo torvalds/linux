@@ -124,6 +124,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 {
 	if (step) {
 		siginfo_t info;
+		clear_siginfo(&info);
 		user_single_step_siginfo(current, regs, &info);
 		force_sig_info(SIGTRAP, &info, current);
 		return;

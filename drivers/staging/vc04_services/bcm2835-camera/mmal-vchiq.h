@@ -32,14 +32,6 @@ enum vchiq_mmal_es_type {
 	MMAL_ES_TYPE_SUBPICTURE   /**< Sub-picture elementary stream */
 };
 
-/* rectangle, used lots so it gets its own struct */
-struct vchiq_mmal_rect {
-	s32 x;
-	s32 y;
-	s32 width;
-	s32 height;
-};
-
 struct vchiq_mmal_port_buffer {
 	unsigned int num; /* number of buffers */
 	u32 size; /* size of buffers */
@@ -79,10 +71,6 @@ struct vchiq_mmal_port {
 	struct list_head buffers;
 	/* lock to serialise adding and removing buffers from list */
 	spinlock_t slock;
-	/* count of how many buffer header refils have failed because
-	 * there was no buffer to satisfy them
-	 */
-	int buffer_underflow;
 	/* callback on buffer completion */
 	vchiq_mmal_buffer_cb buffer_cb;
 	/* callback context */
@@ -168,4 +156,7 @@ int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 			     struct vchiq_mmal_port *port,
 			     struct mmal_buffer *buf);
 
+int mmal_vchi_buffer_init(struct vchiq_mmal_instance *instance,
+			  struct mmal_buffer *buf);
+int mmal_vchi_buffer_cleanup(struct mmal_buffer *buf);
 #endif /* MMAL_VCHIQ_H */

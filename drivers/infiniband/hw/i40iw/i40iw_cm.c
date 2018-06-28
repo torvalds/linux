@@ -1519,17 +1519,12 @@ static void i40iw_add_hte_node(struct i40iw_cm_core *cm_core,
 
 /**
  * i40iw_find_port - find port that matches reference port
- * @port: port number
+ * @hte: ptr to accelerated or non-accelerated list
  * @accelerated_list: flag for accelerated vs non-accelerated list
  */
-static bool i40iw_find_port(struct i40iw_cm_core *cm_core, u16 port,
-			    bool accelerated_list)
+static bool i40iw_find_port(struct list_head *hte, u16 port)
 {
-	struct list_head *hte;
 	struct i40iw_cm_node *cm_node;
-
-	hte = accelerated_list ?
-	      &cm_core->accelerated_list : &cm_core->non_accelerated_list;
 
 	list_for_each_entry(cm_node, hte, list) {
 		if (cm_node->loc_port == port)
@@ -1540,35 +1535,32 @@ static bool i40iw_find_port(struct i40iw_cm_core *cm_core, u16 port,
 
 /**
  * i40iw_port_in_use - determine if port is in use
+ * @cm_core: cm's core
  * @port: port number
- * @active_side: flag for listener side vs active side
  */
-static bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port, bool active_side)
+bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port)
 {
 	struct i40iw_cm_listener *listen_node;
 	unsigned long flags;
-	bool ret = false;
 
-	if (active_side) {
-		spin_lock_irqsave(&cm_core->ht_lock, flags);
-		ret = i40iw_find_port(cm_core, port, true);
-		if (!ret)
-			ret = i40iw_find_port(cm_core, port, false);
-		if (!ret)
-			clear_bit(port, cm_core->active_side_ports);
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	if (i40iw_find_port(&cm_core->accelerated_list, port) ||
+	    i40iw_find_port(&cm_core->non_accelerated_list, port)) {
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
-	} else {
-		spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-		list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-			if (listen_node->loc_port == port) {
-				ret = true;
-				break;
-			}
-		}
-		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
+		return true;
 	}
+	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	return ret;
+	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
+	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
+		if (listen_node->loc_port == port) {
+			spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
+			return true;
+		}
+	}
+	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
+
+	return false;
 }
 
 /**
@@ -1788,7 +1780,7 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 					    &ifa->ifa_address,
 					    rdma_vlan_dev_vlan_id(dev),
 					    dev->dev_addr);
-				child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_ATOMIC);
+				child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
 				cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
@@ -1917,7 +1909,7 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
 		if (listener->iwdev) {
-			if (apbvt_del && !i40iw_port_in_use(cm_core, listener->loc_port, false))
+			if (apbvt_del)
 				i40iw_manage_apbvt(listener->iwdev,
 						   listener->loc_port,
 						   I40IW_MANAGE_APBVT_DEL);
@@ -2093,7 +2085,7 @@ static int i40iw_addr_resolve_neigh_ipv6(struct i40iw_device *iwdev,
 	if (netif_is_bond_slave(netdev))
 		netdev = netdev_master_upper_dev_get(netdev);
 
-	neigh = dst_neigh_lookup(dst, &dst_addr);
+	neigh = dst_neigh_lookup(dst, dst_addr.sin6_addr.in6_u.u6_addr32);
 
 	rcu_read_lock();
 	if (neigh) {
@@ -2298,7 +2290,7 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 	if (cm_node->listener) {
 		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
 	} else {
-		if (!i40iw_port_in_use(cm_core, cm_node->loc_port, true) && cm_node->apbvt_set) {
+		if (cm_node->apbvt_set) {
 			i40iw_manage_apbvt(cm_node->iwdev,
 					   cm_node->loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
@@ -2872,7 +2864,7 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 
 	if (!listener) {
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
-		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
+		listener = kzalloc(sizeof(*listener), GFP_KERNEL);
 		if (!listener)
 			return NULL;
 		cm_core->stats_listen_nodes_created++;
@@ -3244,6 +3236,7 @@ void i40iw_setup_cm_core(struct i40iw_device *iwdev)
 
 	spin_lock_init(&cm_core->ht_lock);
 	spin_lock_init(&cm_core->listen_list_lock);
+	spin_lock_init(&cm_core->apbvt_lock);
 
 	cm_core->event_wq = alloc_ordered_workqueue("iwewq",
 						    WQ_MEM_RECLAIM);
@@ -3811,7 +3804,6 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct sockaddr_in6 *laddr6;
 	struct sockaddr_in6 *raddr6;
 	int ret = 0;
-	unsigned long flags;
 
 	ibqp = i40iw_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -3882,15 +3874,10 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->qhash_set = true;
 	}
 
-	spin_lock_irqsave(&iwdev->cm_core.ht_lock, flags);
-	if (!test_and_set_bit(cm_info.loc_port, iwdev->cm_core.active_side_ports)) {
-		spin_unlock_irqrestore(&iwdev->cm_core.ht_lock, flags);
-		if (i40iw_manage_apbvt(iwdev, cm_info.loc_port, I40IW_MANAGE_APBVT_ADD)) {
-			ret =  -EINVAL;
-			goto err;
-		}
-	} else {
-		spin_unlock_irqrestore(&iwdev->cm_core.ht_lock, flags);
+	if (i40iw_manage_apbvt(iwdev, cm_info.loc_port,
+			       I40IW_MANAGE_APBVT_ADD)) {
+		ret =  -EINVAL;
+		goto err;
 	}
 
 	cm_node->apbvt_set = true;

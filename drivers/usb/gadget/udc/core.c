@@ -244,6 +244,12 @@ EXPORT_SYMBOL_GPL(usb_ep_free_request);
  * Returns zero, or a negative error code.  Endpoints that are not enabled
  * report errors; errors will also be
  * reported when the usb peripheral is disconnected.
+ *
+ * If and only if @req is successfully queued (the return value is zero),
+ * @req->complete() will be called exactly once, when the Gadget core and
+ * UDC are finished with the request.  When the completion function is called,
+ * control of the request is returned to the device driver which submitted it.
+ * The completion handler may then immediately free or reuse @req.
  */
 int usb_ep_queue(struct usb_ep *ep,
 			       struct usb_request *req, gfp_t gfp_flags)

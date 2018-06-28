@@ -405,7 +405,7 @@ config ASSOCIATIVE_ARRAY
 
 	  See:
 
-		Documentation/assoc_array.txt
+		Documentation/core-api/assoc_array.rst
 
 	  for more information.
 
@@ -420,24 +420,14 @@ config HAS_IOPORT_MAP
 	depends on HAS_IOMEM && !NO_IOPORT_MAP
 	default y
 
-config HAS_DMA
-	bool
-	depends on !NO_DMA
-	default y
+source "kernel/dma/Kconfig"
 
 config SGL_ALLOC
 	bool
 	default n
 
-config DMA_DIRECT_OPS
+config IOMMU_HELPER
 	bool
-	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
-	default n
-
-config DMA_VIRT_OPS
-	bool
-	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
-	default n
 
 config CHECK_SIGNATURE
 	bool
@@ -586,6 +576,9 @@ config ARCH_HAS_PMEM_API
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
+config ARCH_HAS_UACCESS_MCSAFE
+	bool
+
 config STACKDEPOT
 	bool
 	select STACKTRACE
@@ -604,20 +597,20 @@ config STRING_SELFTEST
 
 endmenu
 
-config GENERIC_ASHLDI3
+config GENERIC_LIB_ASHLDI3
 	bool
 
-config GENERIC_ASHRDI3
+config GENERIC_LIB_ASHRDI3
 	bool
 
-config GENERIC_LSHRDI3
+config GENERIC_LIB_LSHRDI3
 	bool
 
-config GENERIC_MULDI3
+config GENERIC_LIB_MULDI3
 	bool
 
-config GENERIC_CMPDI2
+config GENERIC_LIB_CMPDI2
 	bool
 
-config GENERIC_UCMPDI2
+config GENERIC_LIB_UCMPDI2
 	bool

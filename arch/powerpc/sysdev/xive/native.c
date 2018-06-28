@@ -341,7 +341,7 @@ static void xive_native_update_pending(struct xive_cpu *xc)
 	 * of the hypervisor interrupt (if any)
 	 */
 	cppr = ack & 0xff;
-	he = GETFIELD(TM_QW3_NSR_HE, (ack >> 8));
+	he = (ack >> 8) >> 6;
 	switch(he) {
 	case TM_QW3_NSR_HE_NONE: /* Nothing to see here */
 		break;
@@ -489,7 +489,7 @@ static bool xive_parse_provisioning(struct device_node *np)
 	if (rc == 0)
 		return true;
 
-	xive_provision_chips = kzalloc(4 * xive_provision_chip_count,
+	xive_provision_chips = kcalloc(4, xive_provision_chip_count,
 				       GFP_KERNEL);
 	if (WARN_ON(!xive_provision_chips))
 		return false;

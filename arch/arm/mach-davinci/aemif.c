@@ -189,7 +189,7 @@ int davinci_aemif_setup(struct platform_device *pdev)
 	 * Setup Async configuration register in case we did not boot
 	 * from NAND and so bootloader did not bother to set it up.
 	 */
-	val = davinci_aemif_readl(base, A1CR_OFFSET + pdev->id * 4);
+	val = davinci_aemif_readl(base, A1CR_OFFSET + pdata->core_chipsel * 4);
 	/*
 	 * Extended Wait is not valid and Select Strobe mode is not
 	 * used
@@ -198,13 +198,13 @@ int davinci_aemif_setup(struct platform_device *pdev)
 	if (pdata->options & NAND_BUSWIDTH_16)
 		val |= 0x1;
 
-	davinci_aemif_writel(base, A1CR_OFFSET + pdev->id * 4, val);
+	davinci_aemif_writel(base, A1CR_OFFSET + pdata->core_chipsel * 4, val);
 
 	clkrate = clk_get_rate(clk);
 
 	if (pdata->timing)
-		ret = davinci_aemif_setup_timing(pdata->timing, base, pdev->id,
-						 clkrate);
+		ret = davinci_aemif_setup_timing(pdata->timing, base,
+						 pdata->core_chipsel, clkrate);
 
 	if (ret < 0)
 		dev_dbg(&pdev->dev, "NAND timing values setup fail\n");

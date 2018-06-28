@@ -31,18 +31,19 @@
 #include <linux/percpu.h>
 #include <linux/prctl.h>
 #include <linux/preempt.h>
-#include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
+#include <linux/stddef.h>
 #include <linux/sysctl.h>
 
 #include <asm/esr.h>
 #include <asm/fpsimd.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
+#include <asm/processor.h>
 #include <asm/simd.h>
 #include <asm/sigcontext.h>
 #include <asm/sysreg.h>
@@ -118,7 +119,6 @@
  */
 struct fpsimd_last_state_struct {
 	struct user_fpsimd_state *st;
-	bool sve_in_use;
 };
 
 static DEFINE_PER_CPU(struct fpsimd_last_state_struct, fpsimd_last_state);
@@ -129,7 +129,7 @@ static int sve_default_vl = -1;
 #ifdef CONFIG_ARM64_SVE
 
 /* Maximum supported vector length across all CPUs (initially poisoned) */
-int __ro_after_init sve_max_vl = -1;
+int __ro_after_init sve_max_vl = SVE_VL_MIN;
 /* Set of available vector lengths, as vq_to_bit(vq): */
 static __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 static void __percpu *efi_sve_state;
@@ -157,19 +157,6 @@ static void sve_free(struct task_struct *task)
 	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
 
 	__sve_free(task);
-}
-
-
-/* Offset of FFR in the SVE register dump */
-static size_t sve_ffr_offset(int vl)
-{
-	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
-}
-
-static void *sve_pffr(struct task_struct *task)
-{
-	return (char *)task->thread.sve_state +
-		sve_ffr_offset(task->thread.sve_vl);
 }
 
 static void change_cpacr(u64 val, u64 mask)
@@ -252,31 +239,24 @@ static void task_fpsimd_load(void)
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
 	if (system_supports_sve() && test_thread_flag(TIF_SVE))
-		sve_load_state(sve_pffr(current),
+		sve_load_state(sve_pffr(&current->thread),
 			       &current->thread.uw.fpsimd_state.fpsr,
 			       sve_vq_from_vl(current->thread.sve_vl) - 1);
 	else
 		fpsimd_load_state(&current->thread.uw.fpsimd_state);
-
-	if (system_supports_sve()) {
-		/* Toggle SVE trapping for userspace if needed */
-		if (test_thread_flag(TIF_SVE))
-			sve_user_enable();
-		else
-			sve_user_disable();
-
-		/* Serialised by exception return to user */
-	}
 }
 
 /*
- * Ensure current's FPSIMD/SVE storage in thread_struct is up to date
- * with respect to the CPU registers.
+ * Ensure FPSIMD/SVE storage in memory for the loaded context is up to
+ * date with respect to the CPU registers.
  *
  * Softirqs (and preemption) must be disabled.
  */
-static void task_fpsimd_save(void)
+void fpsimd_save(void)
 {
+	struct user_fpsimd_state *st = __this_cpu_read(fpsimd_last_state.st);
+	/* set by fpsimd_bind_task_to_cpu() or fpsimd_bind_state_to_cpu() */
+
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
@@ -291,10 +271,9 @@ static void task_fpsimd_save(void)
 				return;
 			}
 
-			sve_save_state(sve_pffr(current),
-				       &current->thread.uw.fpsimd_state.fpsr);
+			sve_save_state(sve_pffr(&current->thread), &st->fpsr);
 		} else
-			fpsimd_save_state(&current->thread.uw.fpsimd_state);
+			fpsimd_save_state(st);
 	}
 }
 
@@ -360,22 +339,13 @@ static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 		return ret;
 
 	/* Writing -1 has the special meaning "set to max": */
-	if (vl == -1) {
-		/* Fail safe if sve_max_vl wasn't initialised */
-		if (WARN_ON(!sve_vl_valid(sve_max_vl)))
-			vl = SVE_VL_MIN;
-		else
-			vl = sve_max_vl;
-
-		goto chosen;
-	}
+	if (vl == -1)
+		vl = sve_max_vl;
 
 	if (!sve_vl_valid(vl))
 		return -EINVAL;
 
-	vl = find_supported_vector_length(vl);
-chosen:
-	sve_default_vl = vl;
+	sve_default_vl = find_supported_vector_length(vl);
 	return 0;
 }
 
@@ -598,7 +568,7 @@ int sve_set_vector_length(struct task_struct *task,
 	if (task == current) {
 		local_bh_disable();
 
-		task_fpsimd_save();
+		fpsimd_save();
 		set_thread_flag(TIF_FOREIGN_FPSTATE);
 	}
 
@@ -618,10 +588,8 @@ int sve_set_vector_length(struct task_struct *task,
 	task->thread.sve_vl = vl;
 
 out:
-	if (flags & PR_SVE_VL_INHERIT)
-		set_tsk_thread_flag(task, TIF_SVE_VL_INHERIT);
-	else
-		clear_tsk_thread_flag(task, TIF_SVE_VL_INHERIT);
+	update_tsk_thread_flag(task, TIF_SVE_VL_INHERIT,
+			       flags & PR_SVE_VL_INHERIT);
 
 	return 0;
 }
@@ -765,6 +733,33 @@ void sve_kernel_enable(const struct arm64_cpu_capabilities *__always_unused p)
 	isb();
 }
 
+/*
+ * Read the pseudo-ZCR used by cpufeatures to identify the supported SVE
+ * vector length.
+ *
+ * Use only if SVE is present.
+ * This function clobbers the SVE vector length.
+ */
+u64 read_zcr_features(void)
+{
+	u64 zcr;
+	unsigned int vq_max;
+
+	/*
+	 * Set the maximum possible VL, and write zeroes to all other
+	 * bits to see if they stick.
+	 */
+	sve_kernel_enable(NULL);
+	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL1);
+
+	zcr = read_sysreg_s(SYS_ZCR_EL1);
+	zcr &= ~(u64)ZCR_ELx_LEN_MASK; /* find sticky 1s outside LEN field */
+	vq_max = sve_vq_from_vl(sve_get_vl());
+	zcr |= vq_max - 1; /* set LEN field to maximum effective value */
+
+	return zcr;
+}
+
 void __init sve_setup(void)
 {
 	u64 zcr;
@@ -839,7 +834,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 
 	local_bh_disable();
 
-	task_fpsimd_save();
+	fpsimd_save();
 	fpsimd_to_sve(current);
 
 	/* Force ret_to_user to reload the registers: */
@@ -882,7 +877,7 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 			si_code = FPE_FLTRES;
 	}
 
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_code = si_code;
 	info.si_addr = (void __user *)instruction_pointer(regs);
@@ -892,31 +887,25 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 
 void fpsimd_thread_switch(struct task_struct *next)
 {
+	bool wrong_task, wrong_cpu;
+
 	if (!system_supports_fpsimd())
 		return;
-	/*
-	 * Save the current FPSIMD state to memory, but only if whatever is in
-	 * the registers is in fact the most recent userland FPSIMD state of
-	 * 'current'.
-	 */
-	if (current->mm)
-		task_fpsimd_save();
 
-	if (next->mm) {
-		/*
-		 * If we are switching to a task whose most recent userland
-		 * FPSIMD state is already in the registers of *this* cpu,
-		 * we can skip loading the state from memory. Otherwise, set
-		 * the TIF_FOREIGN_FPSTATE flag so the state will be loaded
-		 * upon the next return to userland.
-		 */
-		if (__this_cpu_read(fpsimd_last_state.st) ==
-			&next->thread.uw.fpsimd_state
-		    && next->thread.fpsimd_cpu == smp_processor_id())
-			clear_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE);
-		else
-			set_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE);
-	}
+	/* Save unsaved fpsimd state, if any: */
+	fpsimd_save();
+
+	/*
+	 * Fix up TIF_FOREIGN_FPSTATE to correctly describe next's
+	 * state.  For kernel threads, FPSIMD registers are never loaded
+	 * and wrong_task and wrong_cpu will always be true.
+	 */
+	wrong_task = __this_cpu_read(fpsimd_last_state.st) !=
+					&next->thread.uw.fpsimd_state;
+	wrong_cpu = next->thread.fpsimd_cpu != smp_processor_id();
+
+	update_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE,
+			       wrong_task || wrong_cpu);
 }
 
 void fpsimd_flush_thread(void)
@@ -982,7 +971,7 @@ void fpsimd_preserve_current_state(void)
 		return;
 
 	local_bh_disable();
-	task_fpsimd_save();
+	fpsimd_save();
 	local_bh_enable();
 }
 
@@ -1002,14 +991,33 @@ void fpsimd_signal_preserve_current_state(void)
  * Associate current's FPSIMD context with this cpu
  * Preemption must be disabled when calling this function.
  */
-static void fpsimd_bind_to_cpu(void)
+void fpsimd_bind_task_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);
 
 	last->st = &current->thread.uw.fpsimd_state;
-	last->sve_in_use = test_thread_flag(TIF_SVE);
 	current->thread.fpsimd_cpu = smp_processor_id();
+
+	if (system_supports_sve()) {
+		/* Toggle SVE trapping for userspace if needed */
+		if (test_thread_flag(TIF_SVE))
+			sve_user_enable();
+		else
+			sve_user_disable();
+
+		/* Serialised by exception return to user */
+	}
+}
+
+void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st)
+{
+	struct fpsimd_last_state_struct *last =
+		this_cpu_ptr(&fpsimd_last_state);
+
+	WARN_ON(!in_softirq() && !irqs_disabled());
+
+	last->st = st;
 }
 
 /*
@@ -1026,7 +1034,7 @@ void fpsimd_restore_current_state(void)
 
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		task_fpsimd_load();
-		fpsimd_bind_to_cpu();
+		fpsimd_bind_task_to_cpu();
 	}
 
 	local_bh_enable();
@@ -1049,9 +1057,9 @@ void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 		fpsimd_to_sve(current);
 
 	task_fpsimd_load();
+	fpsimd_bind_task_to_cpu();
 
-	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE))
-		fpsimd_bind_to_cpu();
+	clear_thread_flag(TIF_FOREIGN_FPSTATE);
 
 	local_bh_enable();
 }
@@ -1064,28 +1072,11 @@ void fpsimd_flush_task_state(struct task_struct *t)
 	t->thread.fpsimd_cpu = NR_CPUS;
 }
 
-static inline void fpsimd_flush_cpu_state(void)
+void fpsimd_flush_cpu_state(void)
 {
 	__this_cpu_write(fpsimd_last_state.st, NULL);
+	set_thread_flag(TIF_FOREIGN_FPSTATE);
 }
-
-/*
- * Invalidate any task SVE state currently held in this CPU's regs.
- *
- * This is used to prevent the kernel from trying to reuse SVE register data
- * that is detroyed by KVM guest enter/exit.  This function should go away when
- * KVM SVE support is implemented.  Don't use it for anything else.
- */
-#ifdef CONFIG_ARM64_SVE
-void sve_flush_cpu_state(void)
-{
-	struct fpsimd_last_state_struct const *last =
-		this_cpu_ptr(&fpsimd_last_state);
-
-	if (last->st && last->sve_in_use)
-		fpsimd_flush_cpu_state();
-}
-#endif /* CONFIG_ARM64_SVE */
 
 #ifdef CONFIG_KERNEL_MODE_NEON
 
@@ -1120,11 +1111,8 @@ void kernel_neon_begin(void)
 
 	__this_cpu_write(kernel_neon_busy, true);
 
-	/* Save unsaved task fpsimd state, if any: */
-	if (current->mm) {
-		task_fpsimd_save();
-		set_thread_flag(TIF_FOREIGN_FPSTATE);
-	}
+	/* Save unsaved fpsimd state, if any: */
+	fpsimd_save();
 
 	/* Invalidate any task state remaining in the fpsimd regs: */
 	fpsimd_flush_cpu_state();
@@ -1246,13 +1234,10 @@ static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
 {
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		if (current->mm)
-			task_fpsimd_save();
+		fpsimd_save();
 		fpsimd_flush_cpu_state();
 		break;
 	case CPU_PM_EXIT:
-		if (current->mm)
-			set_thread_flag(TIF_FOREIGN_FPSTATE);
 		break;
 	case CPU_PM_ENTER_FAILED:
 	default:

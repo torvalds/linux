@@ -1383,8 +1383,8 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 
 	for (i = 0; i < n_items - 1; i++) {
 		ath10k_dbg(ar, ATH10K_DBG_PCI,
-			   "pci tx item %d paddr 0x%08x len %d n_items %d\n",
-			   i, items[i].paddr, items[i].len, n_items);
+			   "pci tx item %d paddr %pad len %d n_items %d\n",
+			   i, &items[i].paddr, items[i].len, n_items);
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci tx data: ",
 				items[i].vaddr, items[i].len);
 
@@ -1401,8 +1401,8 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 	/* `i` is equal to `n_items -1` after for() */
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI,
-		   "pci tx item %d paddr 0x%08x len %d n_items %d\n",
-		   i, items[i].paddr, items[i].len, n_items);
+		   "pci tx item %d paddr %pad len %d n_items %d\n",
+		   i, &items[i].paddr, items[i].len, n_items);
 	ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci tx data: ",
 			items[i].vaddr, items[i].len);
 

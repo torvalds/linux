@@ -14,11 +14,16 @@ Optional properties:
 - clocks : phandle to clock-controller plus clock-specifier pair
 - clock-names : "ipsec" as a clock name
 
+Optional properties:
+
+- interrupts: specify the interrupt for the RNG block
+
 Example:
 
 rng {
-        compatible = "brcm,bcm2835-rng";
-        reg = <0x7e104000 0x10>;
+	compatible = "brcm,bcm2835-rng";
+	reg = <0x7e104000 0x10>;
+	interrupts = <2 29>;
 };
 
 rng@18033000 {

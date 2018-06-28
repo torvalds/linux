@@ -98,7 +98,7 @@ MODULE_PARM_DESC(max_queues,
  * backend, 4KB page granularity is used.
  */
 unsigned int xen_blkif_max_ring_order = XENBUS_MAX_RING_GRANT_ORDER;
-module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
+module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, 0444);
 MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
 /*
  * The LRU mechanism to clean the lists of persistent grants needs to

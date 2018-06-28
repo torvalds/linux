@@ -87,7 +87,7 @@
 #define IMX274_SHR_LIMIT_CONST			(4)
 
 /*
- * Constants for sensor reset delay
+ * Min and max sensor reset delay (microseconds)
  */
 #define IMX274_RESET_DELAY1			(2000)
 #define IMX274_RESET_DELAY2			(2200)
@@ -107,15 +107,15 @@
 /*
  * IMX274 register definitions
  */
-#define IMX274_FRAME_LENGTH_ADDR_1		0x30FA /* VMAX, MSB */
-#define IMX274_FRAME_LENGTH_ADDR_2		0x30F9 /* VMAX */
-#define IMX274_FRAME_LENGTH_ADDR_3		0x30F8 /* VMAX, LSB */
+#define IMX274_SHR_REG_MSB			0x300D /* SHR */
+#define IMX274_SHR_REG_LSB			0x300C /* SHR */
 #define IMX274_SVR_REG_MSB			0x300F /* SVR */
 #define IMX274_SVR_REG_LSB			0x300E /* SVR */
+#define IMX274_VMAX_REG_1			0x30FA /* VMAX, MSB */
+#define IMX274_VMAX_REG_2			0x30F9 /* VMAX */
+#define IMX274_VMAX_REG_3			0x30F8 /* VMAX, LSB */
 #define IMX274_HMAX_REG_MSB			0x30F7 /* HMAX */
 #define IMX274_HMAX_REG_LSB			0x30F6 /* HMAX */
-#define IMX274_COARSE_TIME_ADDR_MSB		0x300D /* SHR */
-#define IMX274_COARSE_TIME_ADDR_LSB		0x300C /* SHR */
 #define IMX274_ANALOG_GAIN_ADDR_LSB		0x300A /* ANALOG GAIN LSB */
 #define IMX274_ANALOG_GAIN_ADDR_MSB		0x300B /* ANALOG GAIN MSB */
 #define IMX274_DIGITAL_GAIN_REG			0x3012 /* Digital Gain */
@@ -144,22 +144,13 @@ enum imx274_mode {
 	IMX274_MODE_3840X2160,
 	IMX274_MODE_1920X1080,
 	IMX274_MODE_1280X720,
-
-	IMX274_MODE_START_STREAM_1,
-	IMX274_MODE_START_STREAM_2,
-	IMX274_MODE_START_STREAM_3,
-	IMX274_MODE_START_STREAM_4,
-	IMX274_MODE_STOP_STREAM
 };
 
 /*
  * imx274 format related structure
  */
 struct imx274_frmfmt {
-	u32 mbus_code;
-	enum v4l2_colorspace colorspace;
 	struct v4l2_frmsize_discrete size;
-	enum imx274_mode mode;
 };
 
 /*
@@ -489,24 +480,15 @@ static const struct reg_8 *mode_table[] = {
 	[IMX274_MODE_3840X2160]		= imx274_mode1_3840x2160_raw10,
 	[IMX274_MODE_1920X1080]		= imx274_mode3_1920x1080_raw10,
 	[IMX274_MODE_1280X720]		= imx274_mode5_1280x720_raw10,
-
-	[IMX274_MODE_START_STREAM_1]	= imx274_start_1,
-	[IMX274_MODE_START_STREAM_2]	= imx274_start_2,
-	[IMX274_MODE_START_STREAM_3]	= imx274_start_3,
-	[IMX274_MODE_START_STREAM_4]	= imx274_start_4,
-	[IMX274_MODE_STOP_STREAM]	= imx274_stop,
 };
 
 /*
  * imx274 format related structure
  */
 static const struct imx274_frmfmt imx274_formats[] = {
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {3840, 2160},
-		IMX274_MODE_3840X2160},
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {1920, 1080},
-		IMX274_MODE_1920X1080},
-	{MEDIA_BUS_FMT_SRGGB10_1X10, V4L2_COLORSPACE_SRGB, {1280, 720},
-		IMX274_MODE_1280X720},
+	{ {3840, 2160} },
+	{ {1920, 1080} },
+	{ {1280,  720} },
 };
 
 /*
@@ -737,11 +719,11 @@ static int imx274_mode_regs(struct stimx274 *priv, int mode)
 {
 	int err = 0;
 
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_1]);
+	err = imx274_write_table(priv, imx274_start_1);
 	if (err)
 		return err;
 
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_2]);
+	err = imx274_write_table(priv, imx274_start_2);
 	if (err)
 		return err;
 
@@ -766,7 +748,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(11);
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_3]);
+	err = imx274_write_table(priv, imx274_start_3);
 	if (err)
 		return err;
 
@@ -776,7 +758,7 @@ static int imx274_start_stream(struct stimx274 *priv)
 	 * give it 1 extra ms for margin
 	 */
 	msleep_range(8);
-	err = imx274_write_table(priv, mode_table[IMX274_MODE_START_STREAM_4]);
+	err = imx274_write_table(priv, imx274_start_4);
 	if (err)
 		return err;
 
@@ -890,9 +872,8 @@ static int imx274_set_fmt(struct v4l2_subdev *sd,
 	int index;
 
 	dev_dbg(&client->dev,
-		"%s: width = %d height = %d code = %d mbus_code = %d\n",
-		__func__, fmt->width, fmt->height, fmt->code,
-		imx274_formats[imx274->mode_index].mbus_code);
+		"%s: width = %d height = %d code = %d\n",
+		__func__, fmt->width, fmt->height, fmt->code);
 
 	mutex_lock(&imx274->lock);
 
@@ -971,7 +952,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 	if (!ret) {
 		/*
 		 * exposure time range is decided by frame interval
-		 * need to update it after frame interal changes
+		 * need to update it after frame interval changes
 		 */
 		min = IMX274_MIN_EXPOSURE_TIME;
 		max = fi->interval.numerator * 1000000
@@ -984,7 +965,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 		}
 
 		/* update exposure time accordingly */
-		imx274_set_exposure(imx274, imx274->ctrls.exposure->val);
+		imx274_set_exposure(imx274, ctrl->val);
 
 		dev_dbg(&imx274->client->dev, "set frame interval to %uus\n",
 			fi->interval.numerator * 1000000
@@ -1088,8 +1069,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 			goto fail;
 	} else {
 		/* stop stream */
-		ret = imx274_write_table(imx274,
-					 mode_table[IMX274_MODE_STOP_STREAM]);
+		ret = imx274_write_table(imx274, imx274_stop);
 		if (ret)
 			goto fail;
 	}
@@ -1133,15 +1113,15 @@ static int imx274_get_frame_length(struct stimx274 *priv, u32 *val)
 	svr = (reg_val[1] << IMX274_SHIFT_8_BITS) + reg_val[0];
 
 	/* vmax */
-	err = imx274_read_reg(priv, IMX274_FRAME_LENGTH_ADDR_3, &reg_val[0]);
+	err = imx274_read_reg(priv, IMX274_VMAX_REG_3, &reg_val[0]);
 	if (err)
 		goto fail;
 
-	err = imx274_read_reg(priv, IMX274_FRAME_LENGTH_ADDR_2, &reg_val[1]);
+	err = imx274_read_reg(priv, IMX274_VMAX_REG_2, &reg_val[1]);
 	if (err)
 		goto fail;
 
-	err = imx274_read_reg(priv, IMX274_FRAME_LENGTH_ADDR_1, &reg_val[2]);
+	err = imx274_read_reg(priv, IMX274_VMAX_REG_1, &reg_val[2]);
 	if (err)
 		goto fail;
 
@@ -1300,10 +1280,10 @@ fail:
 static inline void imx274_calculate_coarse_time_regs(struct reg_8 regs[2],
 						     u32 coarse_time)
 {
-	regs->addr = IMX274_COARSE_TIME_ADDR_MSB;
+	regs->addr = IMX274_SHR_REG_MSB;
 	regs->val = (coarse_time >> IMX274_SHIFT_8_BITS)
 			& IMX274_MASK_LSB_8_BITS;
-	(regs + 1)->addr = IMX274_COARSE_TIME_ADDR_LSB;
+	(regs + 1)->addr = IMX274_SHR_REG_LSB;
 	(regs + 1)->val = (coarse_time) & IMX274_MASK_LSB_8_BITS;
 }
 
@@ -1471,13 +1451,13 @@ static int imx274_set_test_pattern(struct stimx274 *priv, int val)
 static inline void imx274_calculate_frame_length_regs(struct reg_8 regs[3],
 						      u32 frame_length)
 {
-	regs->addr = IMX274_FRAME_LENGTH_ADDR_1;
+	regs->addr = IMX274_VMAX_REG_1;
 	regs->val = (frame_length >> IMX274_SHIFT_16_BITS)
 			& IMX274_MASK_LSB_4_BITS;
-	(regs + 1)->addr = IMX274_FRAME_LENGTH_ADDR_2;
+	(regs + 1)->addr = IMX274_VMAX_REG_2;
 	(regs + 1)->val = (frame_length >> IMX274_SHIFT_8_BITS)
 			& IMX274_MASK_LSB_8_BITS;
-	(regs + 2)->addr = IMX274_FRAME_LENGTH_ADDR_3;
+	(regs + 2)->addr = IMX274_VMAX_REG_3;
 	(regs + 2)->val = (frame_length) & IMX274_MASK_LSB_8_BITS;
 }
 
@@ -1786,7 +1766,7 @@ static int imx274_remove(struct i2c_client *client)
 	struct stimx274 *imx274 = to_imx274(sd);
 
 	/* stop stream */
-	imx274_write_table(imx274, mode_table[IMX274_MODE_STOP_STREAM]);
+	imx274_write_table(imx274, imx274_stop);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&imx274->ctrls.handler);

@@ -94,8 +94,8 @@ static int iblock_configure_device(struct se_device *dev)
 		return -EINVAL;
 	}
 
-	ib_dev->ibd_bio_set = bioset_create(IBLOCK_BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
-	if (!ib_dev->ibd_bio_set) {
+	ret = bioset_init(&ib_dev->ibd_bio_set, IBLOCK_BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+	if (ret) {
 		pr_err("IBLOCK: Unable to create bioset\n");
 		goto out;
 	}
@@ -141,7 +141,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 	bi = bdev_get_integrity(bd);
 	if (bi) {
-		struct bio_set *bs = ib_dev->ibd_bio_set;
+		struct bio_set *bs = &ib_dev->ibd_bio_set;
 
 		if (!strcmp(bi->profile->name, "T10-DIF-TYPE3-IP") ||
 		    !strcmp(bi->profile->name, "T10-DIF-TYPE1-IP")) {
@@ -164,7 +164,7 @@ static int iblock_configure_device(struct se_device *dev)
 				goto out_blkdev_put;
 			}
 			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
-				 bs->bio_integrity_pool);
+				 &bs->bio_integrity_pool);
 		}
 		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
 	}
@@ -174,8 +174,7 @@ static int iblock_configure_device(struct se_device *dev)
 out_blkdev_put:
 	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 out_free_bioset:
-	bioset_free(ib_dev->ibd_bio_set);
-	ib_dev->ibd_bio_set = NULL;
+	bioset_exit(&ib_dev->ibd_bio_set);
 out:
 	return ret;
 }
@@ -199,8 +198,7 @@ static void iblock_destroy_device(struct se_device *dev)
 
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
-	if (ib_dev->ibd_bio_set != NULL)
-		bioset_free(ib_dev->ibd_bio_set);
+	bioset_exit(&ib_dev->ibd_bio_set);
 }
 
 static unsigned long long iblock_emulate_read_cap_with_block_size(
@@ -332,7 +330,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num, int op,
 	if (sg_num > BIO_MAX_PAGES)
 		sg_num = BIO_MAX_PAGES;
 
-	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
+	bio = bio_alloc_bioset(GFP_NOIO, sg_num, &ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
 		return NULL;
@@ -427,8 +425,8 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *sg = &cmd->t_data_sg[0];
-	unsigned char *buf, zero = 0x00, *p = &zero;
-	int rc, ret;
+	unsigned char *buf, *not_zero;
+	int ret;
 
 	buf = kmap(sg_page(sg)) + sg->offset;
 	if (!buf)
@@ -437,10 +435,10 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 	 * Fall back to block_execute_write_same() slow-path if
 	 * incoming WRITE_SAME payload does not contain zeros.
 	 */
-	rc = memcmp(buf, p, cmd->data_length);
+	not_zero = memchr_inv(buf, 0x00, cmd->data_length);
 	kunmap(sg_page(sg));
 
-	if (rc)
+	if (not_zero)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	ret = blkdev_issue_zeroout(bdev,

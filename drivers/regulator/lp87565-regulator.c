@@ -95,6 +95,10 @@ static int lp87565_buck_set_ramp_delay(struct regulator_dev *rdev,
 
 	rdev->constraints->ramp_delay = lp87565_buck_ramp_delay[reg];
 
+	/* Conservatively give a 15% margin */
+	rdev->constraints->ramp_delay =
+				rdev->constraints->ramp_delay * 85 / 100;
+
 	return 0;
 }
 
@@ -154,32 +158,33 @@ static const struct lp87565_regulator regulators[] = {
 	LP87565_REGULATOR("BUCK0", LP87565_BUCK_0, "buck0", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK0_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK0_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
 	LP87565_REGULATOR("BUCK1", LP87565_BUCK_1, "buck1", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK1_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK1_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK1_CTRL_2),
 	LP87565_REGULATOR("BUCK2", LP87565_BUCK_2, "buck2", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK2_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK2_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK2_CTRL_2),
 	LP87565_REGULATOR("BUCK3", LP87565_BUCK_3, "buck3", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK3_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK3_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK3_CTRL_2),
 	LP87565_REGULATOR("BUCK10", LP87565_BUCK_10, "buck10", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK0_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK0_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN |
+			  LP87565_BUCK_CTRL_1_FPWM_MP_0_2, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK0_CTRL_2),
 	LP87565_REGULATOR("BUCK23", LP87565_BUCK_23, "buck23", lp87565_buck_ops,
 			  256, LP87565_REG_BUCK2_VOUT, LP87565_BUCK_VSET,
 			  LP87565_REG_BUCK2_CTRL_1,
-			  LP87565_BUCK_CTRL_1_EN, 3800,
+			  LP87565_BUCK_CTRL_1_EN, 3230,
 			  buck0_1_2_3_ranges, LP87565_REG_BUCK2_CTRL_2),
 };
 

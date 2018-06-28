@@ -52,15 +52,6 @@ struct tick_sched *tick_get_tick_sched(int cpu)
 static ktime_t last_jiffies_update;
 
 /*
- * Called after resume. Make sure that jiffies are not fast forwarded due to
- * clock monotonic being forwarded by the suspended time.
- */
-void tick_sched_forward_next_period(void)
-{
-	last_jiffies_update = tick_next_period;
-}
-
-/*
  * Must be called with interrupts disabled !
  */
 static void tick_do_update_jiffies64(ktime_t now)
@@ -804,12 +795,12 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 		return;
 	}
 
-	hrtimer_set_expires(&ts->sched_timer, tick);
-
-	if (ts->nohz_mode == NOHZ_MODE_HIGHRES)
-		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
-	else
+	if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
+		hrtimer_start(&ts->sched_timer, tick, HRTIMER_MODE_ABS_PINNED);
+	} else {
+		hrtimer_set_expires(&ts->sched_timer, tick);
 		tick_program_event(tick, 1);
+	}
 }
 
 static void tick_nohz_retain_tick(struct tick_sched *ts)

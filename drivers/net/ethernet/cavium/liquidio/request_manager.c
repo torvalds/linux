@@ -98,8 +98,9 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	iq->request_list = vmalloc_node((sizeof(*iq->request_list) * num_descs),
 					       numa_node);
 	if (!iq->request_list)
-		iq->request_list = vmalloc(sizeof(*iq->request_list) *
-						  num_descs);
+		iq->request_list =
+			vmalloc(array_size(num_descs,
+					   sizeof(*iq->request_list)));
 	if (!iq->request_list) {
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "Alloc failed for IQ[%d] nr free list\n",

@@ -14,6 +14,7 @@
  */
 #undef DEBUG
 
+#include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -38,6 +39,9 @@
 #include "pm.h"
 
 #define PWRDM_TRACE_STATES_FLAG	(1<<31)
+
+void pwrdms_save_context(void);
+void pwrdms_restore_context(void);
 
 enum {
 	PWRDM_STATE_NOW = 0,
@@ -188,7 +192,7 @@ static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 				       ((prev & OMAP_POWERSTATE_MASK) << 0));
 			trace_power_domain_target_rcuidle(pwrdm->name,
 							  trace_state,
-							  smp_processor_id());
+							  raw_smp_processor_id());
 		}
 		break;
 	default:
@@ -333,6 +337,22 @@ int pwrdm_register_pwrdms(struct powerdomain **ps)
 	return 0;
 }
 
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (enable_off_mode)
+			pwrdms_save_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (enable_off_mode)
+			pwrdms_restore_context();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 /**
  * pwrdm_complete_init - set up the powerdomain layer
  *
@@ -347,12 +367,19 @@ int pwrdm_register_pwrdms(struct powerdomain **ps)
 int pwrdm_complete_init(void)
 {
 	struct powerdomain *temp_p;
+	static struct notifier_block nb;
 
 	if (list_empty(&pwrdm_list))
 		return -EACCES;
 
 	list_for_each_entry(temp_p, &pwrdm_list, node)
 		pwrdm_set_next_pwrst(temp_p, PWRDM_POWER_ON);
+
+	/* Only AM43XX can lose pwrdm context during rtc-ddr suspend */
+	if (soc_is_am43xx()) {
+		nb.notifier_call = cpu_notifier;
+		cpu_pm_register_notifier(&nb);
+	}
 
 	return 0;
 }
@@ -518,7 +545,7 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst) {
 		/* Trace the pwrdm desired target state */
 		trace_power_domain_target_rcuidle(pwrdm->name, pwrst,
-						  smp_processor_id());
+						  raw_smp_processor_id());
 		/* Program the pwrdm desired target state */
 		ret = arch_pwrdm->pwrdm_set_next_pwrst(pwrdm, pwrst);
 	}
@@ -1198,4 +1225,64 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 			return 1;
 
 	return 0;
+}
+
+/**
+ * pwrdm_save_context - save powerdomain registers
+ *
+ * Register state is going to be lost due to a suspend or hibernate
+ * event. Save the powerdomain registers.
+ */
+static int pwrdm_save_context(struct powerdomain *pwrdm, void *unused)
+{
+	if (arch_pwrdm && arch_pwrdm->pwrdm_save_context)
+		arch_pwrdm->pwrdm_save_context(pwrdm);
+	return 0;
+}
+
+/**
+ * pwrdm_save_context - restore powerdomain registers
+ *
+ * Restore powerdomain control registers after a suspend or resume
+ * event.
+ */
+static int pwrdm_restore_context(struct powerdomain *pwrdm, void *unused)
+{
+	if (arch_pwrdm && arch_pwrdm->pwrdm_restore_context)
+		arch_pwrdm->pwrdm_restore_context(pwrdm);
+	return 0;
+}
+
+static int pwrdm_lost_power(struct powerdomain *pwrdm, void *unused)
+{
+	int state;
+
+	/*
+	 * Power has been lost across all powerdomains, increment the
+	 * counter.
+	 */
+
+	state = pwrdm_read_pwrst(pwrdm);
+	if (state != PWRDM_POWER_OFF) {
+		pwrdm->state_counter[state]++;
+		pwrdm->state_counter[PWRDM_POWER_OFF]++;
+	}
+	pwrdm->state = state;
+
+	return 0;
+}
+
+void pwrdms_save_context(void)
+{
+	pwrdm_for_each(pwrdm_save_context, NULL);
+}
+
+void pwrdms_restore_context(void)
+{
+	pwrdm_for_each(pwrdm_restore_context, NULL);
+}
+
+void pwrdms_lost_power(void)
+{
+	pwrdm_for_each(pwrdm_lost_power, NULL);
 }

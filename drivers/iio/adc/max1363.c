@@ -1453,8 +1453,10 @@ static int max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 	int i;
 
 	masks = devm_kzalloc(&indio_dev->dev,
-			BITS_TO_LONGS(MAX1363_MAX_CHANNELS) * sizeof(long) *
-			(st->chip_info->num_modes + 1), GFP_KERNEL);
+			array3_size(BITS_TO_LONGS(MAX1363_MAX_CHANNELS),
+				    sizeof(long),
+				    st->chip_info->num_modes + 1),
+			GFP_KERNEL);
 	if (!masks)
 		return -ENOMEM;
 

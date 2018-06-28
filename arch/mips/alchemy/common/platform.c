@@ -115,7 +115,7 @@ static void __init alchemy_setup_uarts(int ctype)
 	uartclk = clk_get_rate(clk);
 	clk_put(clk);
 
-	ports = kzalloc(s * (c + 1), GFP_KERNEL);
+	ports = kcalloc(s, (c + 1), GFP_KERNEL);
 	if (!ports) {
 		printk(KERN_INFO "Alchemy: no memory for UART data\n");
 		return;
@@ -198,7 +198,7 @@ static unsigned long alchemy_ehci_data[][2] __initdata = {
 
 static int __init _new_usbres(struct resource **r, struct platform_device **d)
 {
-	*r = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	*r = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
 	if (!*r)
 		return -ENOMEM;
 	*d = kzalloc(sizeof(struct platform_device), GFP_KERNEL);

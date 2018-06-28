@@ -71,8 +71,10 @@
  */
 
 #include <linux/sunrpc/rpc_rdma.h>
+#include <linux/sunrpc/svc_rdma.h>
 
 #include "xprt_rdma.h"
+#include <trace/events/rpcrdma.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
@@ -110,6 +112,7 @@ frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	if (!mr->mr_sg)
 		goto out_list_err;
 
+	INIT_LIST_HEAD(&mr->mr_list);
 	sg_init_table(mr->mr_sg, depth);
 	init_completion(&frwr->fr_linv_done);
 	return 0;
@@ -132,10 +135,6 @@ static void
 frwr_op_release_mr(struct rpcrdma_mr *mr)
 {
 	int rc;
-
-	/* Ensure MR is not on any rl_registered list */
-	if (!list_empty(&mr->mr_list))
-		list_del(&mr->mr_list);
 
 	rc = ib_dereg_mr(mr->frwr.fr_mr);
 	if (rc)
@@ -195,7 +194,7 @@ frwr_op_recover_mr(struct rpcrdma_mr *mr)
 	return;
 
 out_release:
-	pr_err("rpcrdma: FRWR reset failed %d, %p release\n", rc, mr);
+	pr_err("rpcrdma: FRWR reset failed %d, %p released\n", rc, mr);
 	r_xprt->rx_stats.mrs_orphaned++;
 
 	spin_lock(&r_xprt->rx_buf.rb_mrlock);
@@ -205,12 +204,22 @@ out_release:
 	frwr_op_release_mr(mr);
 }
 
+/* On success, sets:
+ *	ep->rep_attr.cap.max_send_wr
+ *	ep->rep_attr.cap.max_recv_wr
+ *	cdata->max_requests
+ *	ia->ri_max_segs
+ *
+ * And these FRWR-related fields:
+ *	ia->ri_max_frwr_depth
+ *	ia->ri_mrtype
+ */
 static int
 frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	     struct rpcrdma_create_data_internal *cdata)
 {
 	struct ib_device_attr *attrs = &ia->ri_device->attrs;
-	int depth, delta;
+	int max_qp_wr, depth, delta;
 
 	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
 	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
@@ -244,14 +253,26 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		} while (delta > 0);
 	}
 
-	ep->rep_attr.cap.max_send_wr *= depth;
-	if (ep->rep_attr.cap.max_send_wr > attrs->max_qp_wr) {
-		cdata->max_requests = attrs->max_qp_wr / depth;
+	max_qp_wr = ia->ri_device->attrs.max_qp_wr;
+	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
+	max_qp_wr -= 1;
+	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
+		return -ENOMEM;
+	if (cdata->max_requests > max_qp_wr)
+		cdata->max_requests = max_qp_wr;
+	ep->rep_attr.cap.max_send_wr = cdata->max_requests * depth;
+	if (ep->rep_attr.cap.max_send_wr > max_qp_wr) {
+		cdata->max_requests = max_qp_wr / depth;
 		if (!cdata->max_requests)
 			return -EINVAL;
 		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
 					       depth;
 	}
+	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_send_wr += 1; /* for ib_drain_sq */
+	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
+	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
 
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				ia->ri_max_frwr_depth);
@@ -396,6 +417,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mr->mr_nents = ib_dma_map_sg(ia->ri_device, mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
+	trace_xprtrdma_dma_map(mr);
 
 	ibmr = frwr->fr_mr;
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, mr->mr_nents, NULL, PAGE_SIZE);
@@ -476,7 +498,7 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
-			list_del(&mr->mr_list);
+			list_del_init(&mr->mr_list);
 			trace_xprtrdma_remoteinv(mr);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
 			rpcrdma_mr_unmap_and_put(mr);

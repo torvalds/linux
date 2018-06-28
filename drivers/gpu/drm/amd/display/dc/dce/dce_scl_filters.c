@@ -1014,11 +1014,11 @@ static const uint16_t filter_8tap_64p_183[264] = {
 
 const uint16_t *get_filter_3tap_16p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_3tap_16p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_3tap_16p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_3tap_16p_150;
 	else
 		return filter_3tap_16p_183;
@@ -1026,11 +1026,11 @@ const uint16_t *get_filter_3tap_16p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_3tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_3tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_3tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_3tap_64p_150;
 	else
 		return filter_3tap_64p_183;
@@ -1038,11 +1038,11 @@ const uint16_t *get_filter_3tap_64p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_4tap_16p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_4tap_16p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_4tap_16p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_4tap_16p_150;
 	else
 		return filter_4tap_16p_183;
@@ -1050,11 +1050,11 @@ const uint16_t *get_filter_4tap_16p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_4tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_4tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_4tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_4tap_64p_150;
 	else
 		return filter_4tap_64p_183;
@@ -1062,11 +1062,11 @@ const uint16_t *get_filter_4tap_64p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_5tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_5tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_5tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_5tap_64p_150;
 	else
 		return filter_5tap_64p_183;
@@ -1074,11 +1074,11 @@ const uint16_t *get_filter_5tap_64p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_6tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_6tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_6tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_6tap_64p_150;
 	else
 		return filter_6tap_64p_183;
@@ -1086,11 +1086,11 @@ const uint16_t *get_filter_6tap_64p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_7tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_7tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_7tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_7tap_64p_150;
 	else
 		return filter_7tap_64p_183;
@@ -1098,11 +1098,11 @@ const uint16_t *get_filter_7tap_64p(struct fixed31_32 ratio)
 
 const uint16_t *get_filter_8tap_64p(struct fixed31_32 ratio)
 {
-	if (ratio.value < dal_fixed31_32_one.value)
+	if (ratio.value < dc_fixpt_one.value)
 		return filter_8tap_64p_upscale;
-	else if (ratio.value < dal_fixed31_32_from_fraction(4, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
 		return filter_8tap_64p_117;
-	else if (ratio.value < dal_fixed31_32_from_fraction(5, 3).value)
+	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
 		return filter_8tap_64p_150;
 	else
 		return filter_8tap_64p_183;

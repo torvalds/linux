@@ -88,6 +88,8 @@
 #define CHRG_VBUS_ILIM_2000MA		0x4	/* 2000mA */
 #define CHRG_VBUS_ILIM_2500MA		0x5	/* 2500mA */
 #define CHRG_VBUS_ILIM_3000MA		0x6	/* 3000mA */
+#define CHRG_VBUS_ILIM_3500MA		0x7	/* 3500mA */
+#define CHRG_VBUS_ILIM_4000MA		0x8	/* 4000mA */
 
 #define CHRG_VLTFC_0C			0xA5	/* 0 DegC */
 #define CHRG_VHTFC_45C			0x1F	/* 45 DegC */
@@ -223,9 +225,11 @@ static int axp288_charger_get_vbus_inlmt(struct axp288_chrg_info *info)
 		return 2500000;
 	case CHRG_VBUS_ILIM_3000MA:
 		return 3000000;
+	case CHRG_VBUS_ILIM_3500MA:
+		return 3500000;
 	default:
-		dev_warn(&info->pdev->dev, "Unknown ilim reg val: %d\n", val);
-		return 0;
+		/* All b1xxx values map to 4000 mA */
+		return 4000000;
 	}
 }
 
@@ -235,7 +239,11 @@ static inline int axp288_charger_set_vbus_inlmt(struct axp288_chrg_info *info,
 	int ret;
 	u8 reg_val;
 
-	if (inlmt >= 3000000)
+	if (inlmt >= 4000000)
+		reg_val = CHRG_VBUS_ILIM_4000MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 3500000)
+		reg_val = CHRG_VBUS_ILIM_3500MA << CHRG_VBUS_ILIM_BIT_POS;
+	else if (inlmt >= 3000000)
 		reg_val = CHRG_VBUS_ILIM_3000MA << CHRG_VBUS_ILIM_BIT_POS;
 	else if (inlmt >= 2500000)
 		reg_val = CHRG_VBUS_ILIM_2500MA << CHRG_VBUS_ILIM_BIT_POS;
@@ -739,6 +747,18 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config charger_cfg = {};
+	unsigned int val;
+
+	/*
+	 * On some devices the fuelgauge and charger parts of the axp288 are
+	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 */
+	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
+	if (ret < 0)
+		return ret;
+	if (val == 0)
+		return -ENODEV;
+
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;

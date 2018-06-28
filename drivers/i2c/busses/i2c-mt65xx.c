@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
@@ -734,7 +735,6 @@ static int mtk_i2c_parse_dt(struct device_node *np, struct mtk_i2c *i2c)
 
 static int mtk_i2c_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	int ret = 0;
 	struct mtk_i2c *i2c;
 	struct clk *clk;
@@ -761,11 +761,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&i2c->msg_complete);
 
-	of_id = of_match_node(mtk_i2c_of_match, pdev->dev.of_node);
-	if (!of_id)
-		return -EINVAL;
-
-	i2c->dev_comp = of_id->data;
+	i2c->dev_comp = of_device_get_match_data(&pdev->dev);
 	i2c->adap.dev.of_node = pdev->dev.of_node;
 	i2c->dev = &pdev->dev;
 	i2c->adap.dev.parent = &pdev->dev;

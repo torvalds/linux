@@ -1625,7 +1625,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	ret = -ENOMEM;
 	meye.mchip_dev = pcidev;
 
-	meye.grab_temp = vmalloc(MCHIP_NB_PAGES_MJPEG * PAGE_SIZE);
+	meye.grab_temp = vmalloc(array_size(PAGE_SIZE, MCHIP_NB_PAGES_MJPEG));
 	if (!meye.grab_temp)
 		goto outvmalloc;
 

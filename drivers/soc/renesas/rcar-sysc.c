@@ -261,6 +261,9 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #ifdef CONFIG_SYSC_R8A7745
 	{ .compatible = "renesas,r8a7745-sysc", .data = &r8a7745_sysc_info },
 #endif
+#ifdef CONFIG_SYSC_R8A77470
+	{ .compatible = "renesas,r8a77470-sysc", .data = &r8a77470_sysc_info },
+#endif
 #ifdef CONFIG_SYSC_R8A7779
 	{ .compatible = "renesas,r8a7779-sysc", .data = &r8a7779_sysc_info },
 #endif
@@ -292,6 +295,9 @@ static const struct of_device_id rcar_sysc_matches[] __initconst = {
 #endif
 #ifdef CONFIG_SYSC_R8A77980
 	{ .compatible = "renesas,r8a77980-sysc", .data = &r8a77980_sysc_info },
+#endif
+#ifdef CONFIG_SYSC_R8A77990
+	{ .compatible = "renesas,r8a77990-sysc", .data = &r8a77990_sysc_info },
 #endif
 #ifdef CONFIG_SYSC_R8A77995
 	{ .compatible = "renesas,r8a77995-sysc", .data = &r8a77995_sysc_info },

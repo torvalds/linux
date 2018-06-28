@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016-2017 Cavium Inc.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -14,8 +14,8 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	void (*cb_func)(struct qedf_els_cb_arg *cb_arg),
 	struct qedf_els_cb_arg *cb_arg, uint32_t timer_msec)
 {
-	struct qedf_ctx *qedf = fcport->qedf;
-	struct fc_lport *lport = qedf->lport;
+	struct qedf_ctx *qedf;
+	struct fc_lport *lport;
 	struct qedf_ioreq *els_req;
 	struct qedf_mp_req *mp_req;
 	struct fc_frame_header *fc_hdr;
@@ -28,6 +28,15 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	struct fcoe_wqe *sqe;
 	unsigned long flags;
 	u16 sqe_idx;
+
+	if (!fcport) {
+		QEDF_ERR(NULL, "fcport is NULL");
+		rc = -EINVAL;
+		goto els_err;
+	}
+
+	qedf = fcport->qedf;
+	lport = qedf->lport;
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_ELS, "Sending ELS\n");
 
@@ -201,6 +210,14 @@ static void qedf_rrq_compl(struct qedf_els_cb_arg *cb_arg)
 		kref_put(&orig_io_req->refcount, qedf_release_cmd);
 
 out_free:
+	/*
+	 * Release a reference to the rrq request if we timed out as the
+	 * rrq completion handler is called directly from the timeout handler
+	 * and not from els_compl where the reference would have normally been
+	 * released.
+	 */
+	if (rrq_req->event == QEDF_IOREQ_EV_ELS_TMO)
+		kref_put(&rrq_req->refcount, qedf_release_cmd);
 	kfree(cb_arg);
 }
 
@@ -322,6 +339,17 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 	if (!fcport)
 		return;
 
+	if (test_bit(QEDF_RPORT_IN_RESET, &fcport->flags) ||
+	    !test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) ||
+	    test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&(fcport->qedf->dbg_ctx), "fcport %p already in reset or not offloaded.\n",
+		    fcport);
+		return;
+	}
+
+	/* Set that we are now in reset */
+	set_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
+
 	rdata = fcport->rdata;
 	if (rdata) {
 		lport = fcport->qedf->lport;
@@ -334,6 +362,7 @@ void qedf_restart_rport(struct qedf_rport *fcport)
 		if (rdata)
 			fc_rport_login(rdata);
 	}
+	clear_bit(QEDF_RPORT_IN_RESET, &fcport->flags);
 }
 
 static void qedf_l2_els_compl(struct qedf_els_cb_arg *cb_arg)

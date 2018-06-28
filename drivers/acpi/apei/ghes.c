@@ -481,7 +481,7 @@ static void ghes_do_proc(struct ghes *ghes,
 		if (guid_equal(sec_type, &CPER_SEC_PLATFORM_MEM)) {
 			struct cper_sec_mem_err *mem_err = acpi_hest_get_payload(gdata);
 
-			ghes_edac_report_mem_error(ghes, sev, mem_err);
+			ghes_edac_report_mem_error(sev, mem_err);
 
 			arch_apei_report_mem_error(sev, mem_err);
 			ghes_handle_memory_failure(gdata, sev);
@@ -1087,10 +1087,6 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		goto err;
 	}
 
-	rc = ghes_edac_register(ghes, &ghes_dev->dev);
-	if (rc < 0)
-		goto err;
-
 	switch (generic->notify.type) {
 	case ACPI_HEST_NOTIFY_POLLED:
 		timer_setup(&ghes->timer, ghes_poll_func, TIMER_DEFERRABLE);
@@ -1102,14 +1098,14 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		if (rc) {
 			pr_err(GHES_PFX "Failed to map GSI to IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
-			goto err_edac_unreg;
+			goto err;
 		}
 		rc = request_irq(ghes->irq, ghes_irq_func, IRQF_SHARED,
 				 "GHES IRQ", ghes);
 		if (rc) {
 			pr_err(GHES_PFX "Failed to register IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
-			goto err_edac_unreg;
+			goto err;
 		}
 		break;
 
@@ -1132,14 +1128,16 @@ static int ghes_probe(struct platform_device *ghes_dev)
 	default:
 		BUG();
 	}
+
 	platform_set_drvdata(ghes_dev, ghes);
+
+	ghes_edac_register(ghes, &ghes_dev->dev);
 
 	/* Handle any pending errors right away */
 	ghes_proc(ghes);
 
 	return 0;
-err_edac_unreg:
-	ghes_edac_unregister(ghes);
+
 err:
 	if (ghes) {
 		ghes_fini(ghes);

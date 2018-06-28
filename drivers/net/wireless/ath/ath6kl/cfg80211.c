@@ -1041,7 +1041,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 
 		n_channels = request->n_channels;
 
-		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
+		channels = kcalloc(n_channels, sizeof(u16), GFP_KERNEL);
 		if (channels == NULL) {
 			ath6kl_warn("failed to set scan channels, scan all channels");
 			n_channels = 0;

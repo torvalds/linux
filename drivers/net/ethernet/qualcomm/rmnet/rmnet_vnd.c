@@ -152,6 +152,56 @@ static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_get_stats64 = rmnet_get_stats64,
 };
 
+static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
+	"Checksum ok",
+	"Checksum valid bit not set",
+	"Checksum validation failed",
+	"Checksum error bad buffer",
+	"Checksum error bad ip version",
+	"Checksum error bad transport",
+	"Checksum skipped on ip fragment",
+	"Checksum skipped",
+	"Checksum computed in software",
+};
+
+static void rmnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
+{
+	switch (stringset) {
+	case ETH_SS_STATS:
+		memcpy(buf, &rmnet_gstrings_stats,
+		       sizeof(rmnet_gstrings_stats));
+		break;
+	}
+}
+
+static int rmnet_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(rmnet_gstrings_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void rmnet_get_ethtool_stats(struct net_device *dev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct rmnet_priv_stats *st = &priv->stats;
+
+	if (!data)
+		return;
+
+	memcpy(data, st, ARRAY_SIZE(rmnet_gstrings_stats) * sizeof(u64));
+}
+
+static const struct ethtool_ops rmnet_ethtool_ops = {
+	.get_ethtool_stats = rmnet_get_ethtool_stats,
+	.get_strings = rmnet_get_strings,
+	.get_sset_count = rmnet_get_sset_count,
+};
+
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
  * flags, ARP type, needed headroom, etc...
  */
@@ -170,6 +220,11 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 	rmnet_dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 
 	rmnet_dev->needs_free_netdev = true;
+	rmnet_dev->ethtool_ops = &rmnet_ethtool_ops;
+
+	/* This perm addr will be used as interface identifier by IPv6 */
+	rmnet_dev->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(rmnet_dev->perm_addr);
 }
 
 /* Exposed API */

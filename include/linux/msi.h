@@ -289,6 +289,8 @@ enum {
 	 * MSI_FLAG_ACTIVATE_EARLY has been set.
 	 */
 	MSI_FLAG_MUST_REACTIVATE	= (1 << 5),
+	/* Is level-triggered capable, using two messages */
+	MSI_FLAG_LEVEL_CAPABLE		= (1 << 6),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,

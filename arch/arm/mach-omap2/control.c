@@ -17,6 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/cpu_pm.h>
 
 #include "soc.h"
 #include "iomap.h"
@@ -621,6 +622,110 @@ void __init omap3_ctrl_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
 
+static unsigned long am43xx_control_reg_offsets[] = {
+	AM33XX_CONTROL_SYSCONFIG_OFFSET,
+	AM33XX_CONTROL_STATUS_OFFSET,
+	AM43XX_CONTROL_MPU_L2_CTRL_OFFSET,
+	AM33XX_CONTROL_CORE_SLDO_CTRL_OFFSET,
+	AM33XX_CONTROL_MPU_SLDO_CTRL_OFFSET,
+	AM33XX_CONTROL_CLK32KDIVRATIO_CTRL_OFFSET,
+	AM33XX_CONTROL_BANDGAP_CTRL_OFFSET,
+	AM33XX_CONTROL_BANDGAP_TRIM_OFFSET,
+	AM33XX_CONTROL_PLL_CLKINPULOW_CTRL_OFFSET,
+	AM33XX_CONTROL_MOSC_CTRL_OFFSET,
+	AM33XX_CONTROL_DEEPSLEEP_CTRL_OFFSET,
+	AM43XX_CONTROL_DISPLAY_PLL_SEL_OFFSET,
+	AM33XX_CONTROL_INIT_PRIORITY_0_OFFSET,
+	AM33XX_CONTROL_INIT_PRIORITY_1_OFFSET,
+	AM33XX_CONTROL_TPTC_CFG_OFFSET,
+	AM33XX_CONTROL_USB_CTRL0_OFFSET,
+	AM33XX_CONTROL_USB_CTRL1_OFFSET,
+	AM43XX_CONTROL_USB_CTRL2_OFFSET,
+	AM43XX_CONTROL_GMII_SEL_OFFSET,
+	AM43XX_CONTROL_MPUSS_CTRL_OFFSET,
+	AM43XX_CONTROL_TIMER_CASCADE_CTRL_OFFSET,
+	AM43XX_CONTROL_PWMSS_CTRL_OFFSET,
+	AM33XX_CONTROL_MREQPRIO_0_OFFSET,
+	AM33XX_CONTROL_MREQPRIO_1_OFFSET,
+	AM33XX_CONTROL_HW_EVENT_SEL_GRP1_OFFSET,
+	AM33XX_CONTROL_HW_EVENT_SEL_GRP2_OFFSET,
+	AM33XX_CONTROL_HW_EVENT_SEL_GRP3_OFFSET,
+	AM33XX_CONTROL_HW_EVENT_SEL_GRP4_OFFSET,
+	AM33XX_CONTROL_SMRT_CTRL_OFFSET,
+	AM33XX_CONTROL_MPUSS_HW_DEBUG_SEL_OFFSET,
+	AM43XX_CONTROL_CQDETECT_STS_OFFSET,
+	AM43XX_CONTROL_CQDETECT_STS2_OFFSET,
+	AM43XX_CONTROL_VTP_CTRL_OFFSET,
+	AM33XX_CONTROL_VREF_CTRL_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_0_3_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_4_7_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_8_11_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_12_15_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_16_19_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_20_23_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_24_27_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_28_31_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_32_35_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_36_39_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_40_43_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_44_47_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_48_51_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_52_55_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_56_59_OFFSET,
+	AM33XX_CONTROL_TPCC_EVT_MUX_60_63_OFFSET,
+	AM33XX_CONTROL_TIMER_EVT_CAPT_OFFSET,
+	AM33XX_CONTROL_ECAP_EVT_CAPT_OFFSET,
+	AM33XX_CONTROL_ADC_EVT_CAPT_OFFSET,
+	AM43XX_CONTROL_ADC1_EVT_CAPT_OFFSET,
+	AM33XX_CONTROL_RESET_ISO_OFFSET,
+};
+
+static u32 am33xx_control_vals[ARRAY_SIZE(am43xx_control_reg_offsets)];
+
+/**
+ * am43xx_control_save_context - Save the wakeup domain registers
+ *
+ * Save the wkup domain registers
+ */
+void am43xx_control_save_context(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(am43xx_control_reg_offsets); i++)
+		am33xx_control_vals[i] =
+				omap_ctrl_readl(am43xx_control_reg_offsets[i]);
+}
+
+/**
+ * am43xx_control_restore_context - Restore the wakeup domain registers
+ *
+ * Restore the wkup domain registers
+ */
+void am43xx_control_restore_context(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(am43xx_control_reg_offsets); i++)
+		omap_ctrl_writel(am33xx_control_vals[i],
+				 am43xx_control_reg_offsets[i]);
+}
+
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (enable_off_mode)
+			am43xx_control_save_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (enable_off_mode)
+			am43xx_control_restore_context();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 struct control_init_data {
 	int index;
 	void __iomem *mem;
@@ -699,6 +804,7 @@ int __init omap_control_init(void)
 	const struct omap_prcm_init_data *data;
 	int ret;
 	struct regmap *syscon;
+	static struct notifier_block nb;
 
 	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
 		data = match->data;
@@ -729,6 +835,12 @@ int __init omap_control_init(void)
 			if (ret)
 				return ret;
 		}
+	}
+
+	/* Only AM43XX can lose ctrl registers context during rtc-ddr suspend */
+	if (soc_is_am43xx()) {
+		nb.notifier_call = cpu_notifier;
+		cpu_pm_register_notifier(&nb);
 	}
 
 	return 0;

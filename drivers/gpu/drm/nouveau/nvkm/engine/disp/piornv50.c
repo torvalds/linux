@@ -127,8 +127,13 @@ nv50_pior = {
 int
 nv50_pior_new(struct nvkm_disp *disp, int id)
 {
-	struct nvkm_device *device = disp->engine.subdev.device;
-	if (!(nvkm_rd32(device, 0x610184) & (0x10000000 << id)))
-		return 0;
 	return nvkm_ior_new_(&nv50_pior, disp, PIOR, id);
+}
+
+int
+nv50_pior_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	*pmask = (nvkm_rd32(device, 0x610184) & 0x70000000) >> 28;
+	return 3;
 }

@@ -12,7 +12,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -25,29 +25,44 @@
 
 #include <asm/unaligned.h>
 
-#define PCA953X_INPUT		0
-#define PCA953X_OUTPUT		1
-#define PCA953X_INVERT		2
-#define PCA953X_DIRECTION	3
+#define PCA953X_INPUT		0x00
+#define PCA953X_OUTPUT		0x01
+#define PCA953X_INVERT		0x02
+#define PCA953X_DIRECTION	0x03
 
 #define REG_ADDR_AI		0x80
 
-#define PCA957X_IN		0
-#define PCA957X_INVRT		1
-#define PCA957X_BKEN		2
-#define PCA957X_PUPD		3
-#define PCA957X_CFG		4
-#define PCA957X_OUT		5
-#define PCA957X_MSK		6
-#define PCA957X_INTS		7
+#define PCA957X_IN		0x00
+#define PCA957X_INVRT		0x01
+#define PCA957X_BKEN		0x02
+#define PCA957X_PUPD		0x03
+#define PCA957X_CFG		0x04
+#define PCA957X_OUT		0x05
+#define PCA957X_MSK		0x06
+#define PCA957X_INTS		0x07
 
-#define PCAL953X_IN_LATCH	34
-#define PCAL953X_INT_MASK	37
-#define PCAL953X_INT_STAT	38
+#define PCAL953X_OUT_STRENGTH	0x20
+#define PCAL953X_IN_LATCH	0x22
+#define PCAL953X_PULL_EN	0x23
+#define PCAL953X_PULL_SEL	0x24
+#define PCAL953X_INT_MASK	0x25
+#define PCAL953X_INT_STAT	0x26
+#define PCAL953X_OUT_CONF	0x27
+
+#define PCAL6524_INT_EDGE	0x28
+#define PCAL6524_INT_CLR	0x2a
+#define PCAL6524_IN_STATUS	0x2b
+#define PCAL6524_OUT_INDCONF	0x2c
+#define PCAL6524_DEBOUNCE	0x2d
 
 #define PCA_GPIO_MASK		0x00FF
+
+#define PCAL_GPIO_MASK		0x1f
+#define PCAL_PINCTRL_MASK	0xe0
+
 #define PCA_INT			0x0100
 #define PCA_PCAL		0x0200
+#define PCA_LATCH_INT (PCA_PCAL | PCA_INT)
 #define PCA953X_TYPE		0x1000
 #define PCA957X_TYPE		0x2000
 #define PCA_TYPE_MASK		0xF000
@@ -207,9 +222,11 @@ static int pca957x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 static int pca953x_write_regs_24(struct pca953x_chip *chip, int reg, u8 *val)
 {
 	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
+	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
 
 	return i2c_smbus_write_i2c_block_data(chip->client,
-					      (reg << bank_shift) | REG_ADDR_AI,
+					      pinctrl | addr | REG_ADDR_AI,
 					      NBANK(chip), val);
 }
 
@@ -249,9 +266,11 @@ static int pca953x_read_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 static int pca953x_read_regs_24(struct pca953x_chip *chip, int reg, u8 *val)
 {
 	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
+	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
 
 	return i2c_smbus_read_i2c_block_data(chip->client,
-					     (reg << bank_shift) | REG_ADDR_AI,
+					     pinctrl | addr | REG_ADDR_AI,
 					     NBANK(chip), val);
 }
 
@@ -522,6 +541,15 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static void pca953x_irq_shutdown(struct irq_data *d)
+{
+	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
+	u8 mask = 1 << (d->hwirq % BANK_SZ);
+
+	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
+	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
+}
+
 static struct irq_chip pca953x_irq_chip = {
 	.name			= "pca953x",
 	.irq_mask		= pca953x_irq_mask,
@@ -529,6 +557,7 @@ static struct irq_chip pca953x_irq_chip = {
 	.irq_bus_lock		= pca953x_irq_bus_lock,
 	.irq_bus_sync_unlock	= pca953x_irq_bus_sync_unlock,
 	.irq_set_type		= pca953x_irq_set_type,
+	.irq_shutdown		= pca953x_irq_shutdown,
 };
 
 static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
@@ -810,13 +839,11 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->driver_data = i2c_id->driver_data;
 	} else {
 		const struct acpi_device_id *acpi_id;
-		const struct of_device_id *match;
+		struct device *dev = &client->dev;
 
-		match = of_match_device(pca953x_dt_ids, &client->dev);
-		if (match) {
-			chip->driver_data = (int)(uintptr_t)match->data;
-		} else {
-			acpi_id = acpi_match_device(pca953x_acpi_ids, &client->dev);
+		chip->driver_data = (uintptr_t)of_device_get_match_data(dev);
+		if (!chip->driver_data) {
+			acpi_id = acpi_match_device(pca953x_acpi_ids, dev);
 			if (!acpi_id) {
 				ret = -ENODEV;
 				goto err_exit;
@@ -936,8 +963,8 @@ static const struct of_device_id pca953x_dt_ids[] = {
 	{ .compatible = "nxp,pca9575", .data = OF_957X(16, PCA_INT), },
 	{ .compatible = "nxp,pca9698", .data = OF_953X(40, 0), },
 
-	{ .compatible = "nxp,pcal6524", .data = OF_953X(24, PCA_INT), },
-	{ .compatible = "nxp,pcal9555a", .data = OF_953X(16, PCA_INT), },
+	{ .compatible = "nxp,pcal6524", .data = OF_953X(24, PCA_LATCH_INT), },
+	{ .compatible = "nxp,pcal9555a", .data = OF_953X(16, PCA_LATCH_INT), },
 
 	{ .compatible = "maxim,max7310", .data = OF_953X( 8, 0), },
 	{ .compatible = "maxim,max7312", .data = OF_953X(16, PCA_INT), },

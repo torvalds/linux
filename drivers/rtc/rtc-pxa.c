@@ -363,7 +363,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 	sa1100_rtc->rtar = pxa_rtc->base + 0x4;
 	sa1100_rtc->rttr = pxa_rtc->base + 0xc;
 	ret = sa1100_rtc_init(pdev, sa1100_rtc);
-	if (!ret) {
+	if (ret) {
 		dev_err(dev, "Unable to init SA1100 RTC sub-device\n");
 		return ret;
 	}

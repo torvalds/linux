@@ -103,6 +103,11 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 		rds_stats_add(s_recv_bytes_added_to_socket, delta);
 	else
 		rds_stats_add(s_recv_bytes_removed_from_socket, -delta);
+
+	/* loop transport doesn't send/recv congestion updates */
+	if (rs->rs_transport->t_type == RDS_TRANS_LOOP)
+		return;
+
 	now_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
 
 	rdsdebug("rs %p (%pI4:%u) recv bytes %d buf %d "
@@ -558,6 +563,7 @@ static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg,
 		struct rds_cmsg_rx_trace t;
 		int i, j;
 
+		memset(&t, 0, sizeof(t));
 		inc->i_rx_lat_trace[RDS_MSG_RX_CMSG] = local_clock();
 		t.rx_traces =  rs->rs_rx_traces;
 		for (i = 0; i < rs->rs_rx_traces; i++) {

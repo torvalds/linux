@@ -664,7 +664,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
 	struct dpaa_fq *dpaa_fq;
 	int i;
 
-	dpaa_fq = devm_kzalloc(dev, sizeof(*dpaa_fq) * count,
+	dpaa_fq = devm_kcalloc(dev, count, sizeof(*dpaa_fq),
 			       GFP_KERNEL);
 	if (!dpaa_fq)
 		return NULL;

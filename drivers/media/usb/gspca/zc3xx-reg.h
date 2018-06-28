@@ -1,7 +1,7 @@
 /*
  * zc030x registers
  *
- * Copyright (c) 2008 Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Copyright (c) 2008 Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * The register aliases used here came from this driver:
  *	http://zc0302.sourceforge.net/zc0302.php

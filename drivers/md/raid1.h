@@ -118,10 +118,10 @@ struct r1conf {
 	 * mempools - it changes when the array grows or shrinks
 	 */
 	struct pool_info	*poolinfo;
-	mempool_t		*r1bio_pool;
-	mempool_t		*r1buf_pool;
+	mempool_t		r1bio_pool;
+	mempool_t		r1buf_pool;
 
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	/* temporary buffer to synchronous IO when attempting to repair
 	 * a read error.

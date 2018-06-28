@@ -112,6 +112,7 @@ long compat_arm_syscall(struct pt_regs *regs)
 		break;
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code  = ILL_ILLTRP;

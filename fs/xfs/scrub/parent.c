@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -147,6 +133,9 @@ xfs_scrub_parent_validate(
 
 	*try_again = false;
 
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		goto out;
+
 	/* '..' must not point to ourselves. */
 	if (sc->ip->i_ino == dnum) {
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
@@ -211,7 +200,9 @@ xfs_scrub_parent_validate(
 	 */
 	xfs_iunlock(sc->ip, sc->ilock_flags);
 	sc->ilock_flags = 0;
-	xfs_ilock(dp, XFS_IOLOCK_SHARED);
+	error = xfs_scrub_ilock_inverted(dp, XFS_IOLOCK_SHARED);
+	if (error)
+		goto out_rele;
 
 	/* Go looking for our dentry. */
 	error = xfs_scrub_parent_count_parent_dentries(sc, dp, &nlink);
@@ -220,8 +211,10 @@ xfs_scrub_parent_validate(
 
 	/* Drop the parent lock, relock this inode. */
 	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
+	error = xfs_scrub_ilock_inverted(sc->ip, XFS_IOLOCK_EXCL);
+	if (error)
+		goto out_rele;
 	sc->ilock_flags = XFS_IOLOCK_EXCL;
-	xfs_ilock(sc->ip, sc->ilock_flags);
 
 	/*
 	 * If we're an unlinked directory, the parent /won't/ have a link
@@ -323,5 +316,13 @@ xfs_scrub_parent(
 	if (try_again && tries == 20)
 		xfs_scrub_set_incomplete(sc);
 out:
+	/*
+	 * If we failed to lock the parent inode even after a retry, just mark
+	 * this scrub incomplete and return.
+	 */
+	if (sc->try_harder && error == -EDEADLOCK) {
+		error = 0;
+		xfs_scrub_set_incomplete(sc);
+	}
 	return error;
 }

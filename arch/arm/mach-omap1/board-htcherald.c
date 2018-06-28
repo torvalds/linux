@@ -31,7 +31,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/htcpld.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>

@@ -1012,11 +1012,11 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.owner		   = THIS_MODULE,
 	.release	   = inet_release,	/* Needs to be wrapped... */
 	.bind		   = inet_bind,
-	.connect	   = inet_dgram_connect,
+	.connect	   = sctp_inet_connect,
 	.socketpair	   = sock_no_socketpair,
 	.accept		   = inet_accept,
 	.getname	   = inet_getname,	/* Semantics are different.  */
-	.poll		   = sctp_poll,
+	.poll_mask	   = sctp_poll_mask,
 	.ioctl		   = inet_ioctl,
 	.listen		   = sctp_inet_listen,
 	.shutdown	   = inet_shutdown,	/* Looks harmless.  */
@@ -1438,7 +1438,7 @@ static __init int sctp_init(void)
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
 	sctp_ep_hashtable =
-		kmalloc(64 * sizeof(struct sctp_hashbucket), GFP_KERNEL);
+		kmalloc_array(64, sizeof(struct sctp_hashbucket), GFP_KERNEL);
 	if (!sctp_ep_hashtable) {
 		pr_err("Failed endpoint_hash alloc\n");
 		status = -ENOMEM;

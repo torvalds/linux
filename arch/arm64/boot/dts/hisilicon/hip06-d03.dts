@@ -25,6 +25,14 @@
 	chosen { };
 };
 
+&ipmi0 {
+	status = "ok";
+};
+
+&uart0 {
+	status = "ok";
+};
+
 &eth0 {
 	status = "ok";
 };

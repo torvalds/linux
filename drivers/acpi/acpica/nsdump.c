@@ -170,6 +170,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	}
 
 	type = this_node->type;
+	info->count++;
 
 	/* Check if the owner matches */
 
@@ -639,6 +640,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 		return;
 	}
 
+	info.count = 0;
 	info.debug_level = ACPI_LV_TABLES;
 	info.owner_id = owner_id;
 	info.display_type = display_type;
@@ -649,6 +651,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 				     acpi_ns_dump_one_object, NULL,
 				     (void *)&info, NULL);
 
+	acpi_os_printf("\nNamespace node count: %u\n\n", info.count);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 }
 

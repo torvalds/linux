@@ -2197,7 +2197,8 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 		return -EINVAL;
 	}
 
-	priv->ring_data = kzalloc(h->q_num * sizeof(*priv->ring_data) * 2,
+	priv->ring_data = kzalloc(array3_size(h->q_num,
+					      sizeof(*priv->ring_data), 2),
 				  GFP_KERNEL);
 	if (!priv->ring_data)
 		return -ENOMEM;

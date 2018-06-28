@@ -443,17 +443,25 @@ static int imx_gpc_probe(struct platform_device *pdev)
 			if (domain_index >= of_id_data->num_domains)
 				continue;
 
-			domain = &imx_gpc_domains[domain_index];
-			domain->regmap = regmap;
-			domain->ipg_rate_mhz = ipg_rate_mhz;
-
 			pd_pdev = platform_device_alloc("imx-pgc-power-domain",
 							domain_index);
 			if (!pd_pdev) {
 				of_node_put(np);
 				return -ENOMEM;
 			}
-			pd_pdev->dev.platform_data = domain;
+
+			ret = platform_device_add_data(pd_pdev,
+						       &imx_gpc_domains[domain_index],
+						       sizeof(imx_gpc_domains[domain_index]));
+			if (ret) {
+				platform_device_put(pd_pdev);
+				of_node_put(np);
+				return ret;
+			}
+			domain = pd_pdev->dev.platform_data;
+			domain->regmap = regmap;
+			domain->ipg_rate_mhz = ipg_rate_mhz;
+
 			pd_pdev->dev.parent = &pdev->dev;
 			pd_pdev->dev.of_node = np;
 

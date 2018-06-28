@@ -243,6 +243,7 @@ err_out:
 
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL(mlx5_fc_create);
 
 void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 {
@@ -260,6 +261,7 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 	mlx5_cmd_fc_free(dev, counter->id);
 	kfree(counter);
 }
+EXPORT_SYMBOL(mlx5_fc_destroy);
 
 int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 {
@@ -312,11 +314,12 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	}
 }
 
-int mlx5_fc_query(struct mlx5_core_dev *dev, u16 id,
+int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
 		  u64 *packets, u64 *bytes)
 {
-	return mlx5_cmd_fc_query(dev, id, packets, bytes);
+	return mlx5_cmd_fc_query(dev, counter->id, packets, bytes);
 }
+EXPORT_SYMBOL(mlx5_fc_query);
 
 void mlx5_fc_query_cached(struct mlx5_fc *counter,
 			  u64 *bytes, u64 *packets, u64 *lastuse)

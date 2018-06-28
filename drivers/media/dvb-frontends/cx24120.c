@@ -1491,7 +1491,7 @@ static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
 	return cx24120_read_status(fe, status);
 }
 
-static int cx24120_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cx24120_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }

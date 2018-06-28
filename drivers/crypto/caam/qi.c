@@ -657,9 +657,8 @@ static int init_cgr(struct device *qidev)
 {
 	int ret;
 	struct qm_mcc_initcgr opts;
-	const u64 cpus = *(u64 *)qman_affine_cpus();
-	const int num_cpus = hweight64(cpus);
-	const u64 val = num_cpus * MAX_RSP_FQ_BACKLOG_PER_CPU;
+	const u64 val = (u64)cpumask_weight(qman_affine_cpus()) *
+			MAX_RSP_FQ_BACKLOG_PER_CPU;
 
 	ret = qman_alloc_cgrid(&qipriv.cgr.cgrid);
 	if (ret) {

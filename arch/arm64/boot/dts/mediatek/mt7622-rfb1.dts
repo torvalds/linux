@@ -18,7 +18,7 @@
 	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
 
 	chosen {
-		bootargs = "console=ttyS0,115200n1";
+		bootargs = "console=ttyS0,115200n1 swiotlb=512";
 	};
 
 	cpus {
@@ -163,9 +163,16 @@
 	i2s1_pins: i2s1-pins {
 		mux {
 			function = "i2s";
-			groups =  "i2s_out_bclk_ws_mclk",
+			groups =  "i2s_out_mclk_bclk_ws",
 				  "i2s1_in_data",
 				  "i2s1_out_data";
+		};
+
+		conf {
+			pins = "I2S1_IN", "I2S1_OUT", "I2S_BCLK",
+			       "I2S_WS", "I2S_MCLK";
+			drive-strength = <12>;
+			bias-pull-down;
 		};
 	};
 

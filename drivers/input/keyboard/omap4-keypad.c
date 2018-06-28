@@ -337,7 +337,8 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	keypad_data->row_shift = get_count_order(keypad_data->cols);
 	max_keys = keypad_data->rows << keypad_data->row_shift;
-	keypad_data->keymap = kzalloc(max_keys * sizeof(keypad_data->keymap[0]),
+	keypad_data->keymap = kcalloc(max_keys,
+				      sizeof(keypad_data->keymap[0]),
 				      GFP_KERNEL);
 	if (!keypad_data->keymap) {
 		dev_err(&pdev->dev, "Not enough memory for keymap\n");

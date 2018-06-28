@@ -389,7 +389,8 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
 
-	cellptr = vmalloc(sizeof(struct snd_seq_event_cell) * pool->size);
+	cellptr = vmalloc(array_size(sizeof(struct snd_seq_event_cell),
+				     pool->size));
 	if (!cellptr)
 		return -ENOMEM;
 

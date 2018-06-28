@@ -163,6 +163,21 @@ static void ax_reset_8390(struct net_device *dev)
 	ei_outb(ENISR_RESET, addr + EN0_ISR);	/* Ack intr. */
 }
 
+/* Wrapper for __ei_interrupt for platforms that have a platform-specific
+ * way to find out whether the interrupt request might be caused by
+ * the ax88796 chip.
+ */
+static irqreturn_t ax_ei_interrupt_filtered(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct ax_device *ax = to_ax_dev(dev);
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+
+	if (!ax->plat->check_irq(pdev))
+		return IRQ_NONE;
+
+	return ax_ei_interrupt(irq, dev_id);
+}
 
 static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 			    int ring_page)
@@ -387,6 +402,90 @@ static void ax_phy_switch(struct net_device *dev, int on)
 	ei_outb(reg_gpoc, ei_local->mem + EI_SHIFT(0x17));
 }
 
+static void ax_bb_mdc(struct mdiobb_ctrl *ctrl, int level)
+{
+	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
+
+	if (level)
+		ax->reg_memr |= AX_MEMR_MDC;
+	else
+		ax->reg_memr &= ~AX_MEMR_MDC;
+
+	ei_outb(ax->reg_memr, ax->addr_memr);
+}
+
+static void ax_bb_dir(struct mdiobb_ctrl *ctrl, int output)
+{
+	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
+
+	if (output)
+		ax->reg_memr &= ~AX_MEMR_MDIR;
+	else
+		ax->reg_memr |= AX_MEMR_MDIR;
+
+	ei_outb(ax->reg_memr, ax->addr_memr);
+}
+
+static void ax_bb_set_data(struct mdiobb_ctrl *ctrl, int value)
+{
+	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
+
+	if (value)
+		ax->reg_memr |= AX_MEMR_MDO;
+	else
+		ax->reg_memr &= ~AX_MEMR_MDO;
+
+	ei_outb(ax->reg_memr, ax->addr_memr);
+}
+
+static int ax_bb_get_data(struct mdiobb_ctrl *ctrl)
+{
+	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
+	int reg_memr = ei_inb(ax->addr_memr);
+
+	return reg_memr & AX_MEMR_MDI ? 1 : 0;
+}
+
+static const struct mdiobb_ops bb_ops = {
+	.owner = THIS_MODULE,
+	.set_mdc = ax_bb_mdc,
+	.set_mdio_dir = ax_bb_dir,
+	.set_mdio_data = ax_bb_set_data,
+	.get_mdio_data = ax_bb_get_data,
+};
+
+static int ax_mii_init(struct net_device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev->dev.parent);
+	struct ei_device *ei_local = netdev_priv(dev);
+	struct ax_device *ax = to_ax_dev(dev);
+	int err;
+
+	ax->bb_ctrl.ops = &bb_ops;
+	ax->addr_memr = ei_local->mem + AX_MEMR;
+	ax->mii_bus = alloc_mdio_bitbang(&ax->bb_ctrl);
+	if (!ax->mii_bus) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	ax->mii_bus->name = "ax88796_mii_bus";
+	ax->mii_bus->parent = dev->dev.parent;
+	snprintf(ax->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		 pdev->name, pdev->id);
+
+	err = mdiobus_register(ax->mii_bus);
+	if (err)
+		goto out_free_mdio_bitbang;
+
+	return 0;
+
+ out_free_mdio_bitbang:
+	free_mdio_bitbang(ax->mii_bus);
+ out:
+	return err;
+}
+
 static int ax_open(struct net_device *dev)
 {
 	struct ax_device *ax = to_ax_dev(dev);
@@ -394,8 +493,16 @@ static int ax_open(struct net_device *dev)
 
 	netdev_dbg(dev, "open\n");
 
-	ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
-			  dev->name, dev);
+	ret = ax_mii_init(dev);
+	if (ret)
+		goto failed_mii;
+
+	if (ax->plat->check_irq)
+		ret = request_irq(dev->irq, ax_ei_interrupt_filtered,
+				  ax->irqflags, dev->name, dev);
+	else
+		ret = request_irq(dev->irq, ax_ei_interrupt, ax->irqflags,
+				  dev->name, dev);
 	if (ret)
 		goto failed_request_irq;
 
@@ -421,6 +528,10 @@ static int ax_open(struct net_device *dev)
 	ax_phy_switch(dev, 0);
 	free_irq(dev->irq, dev);
  failed_request_irq:
+	/* unregister mdiobus */
+	mdiobus_unregister(ax->mii_bus);
+	free_mdio_bitbang(ax->mii_bus);
+ failed_mii:
 	return ret;
 }
 
@@ -440,6 +551,9 @@ static int ax_close(struct net_device *dev)
 	phy_disconnect(dev->phydev);
 
 	free_irq(dev->irq, dev);
+
+	mdiobus_unregister(ax->mii_bus);
+	free_mdio_bitbang(ax->mii_bus);
 	return 0;
 }
 
@@ -539,91 +653,7 @@ static const struct net_device_ops ax_netdev_ops = {
 #endif
 };
 
-static void ax_bb_mdc(struct mdiobb_ctrl *ctrl, int level)
-{
-	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
-
-	if (level)
-		ax->reg_memr |= AX_MEMR_MDC;
-	else
-		ax->reg_memr &= ~AX_MEMR_MDC;
-
-	ei_outb(ax->reg_memr, ax->addr_memr);
-}
-
-static void ax_bb_dir(struct mdiobb_ctrl *ctrl, int output)
-{
-	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
-
-	if (output)
-		ax->reg_memr &= ~AX_MEMR_MDIR;
-	else
-		ax->reg_memr |= AX_MEMR_MDIR;
-
-	ei_outb(ax->reg_memr, ax->addr_memr);
-}
-
-static void ax_bb_set_data(struct mdiobb_ctrl *ctrl, int value)
-{
-	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
-
-	if (value)
-		ax->reg_memr |= AX_MEMR_MDO;
-	else
-		ax->reg_memr &= ~AX_MEMR_MDO;
-
-	ei_outb(ax->reg_memr, ax->addr_memr);
-}
-
-static int ax_bb_get_data(struct mdiobb_ctrl *ctrl)
-{
-	struct ax_device *ax = container_of(ctrl, struct ax_device, bb_ctrl);
-	int reg_memr = ei_inb(ax->addr_memr);
-
-	return reg_memr & AX_MEMR_MDI ? 1 : 0;
-}
-
-static const struct mdiobb_ops bb_ops = {
-	.owner = THIS_MODULE,
-	.set_mdc = ax_bb_mdc,
-	.set_mdio_dir = ax_bb_dir,
-	.set_mdio_data = ax_bb_set_data,
-	.get_mdio_data = ax_bb_get_data,
-};
-
 /* setup code */
-
-static int ax_mii_init(struct net_device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev->dev.parent);
-	struct ei_device *ei_local = netdev_priv(dev);
-	struct ax_device *ax = to_ax_dev(dev);
-	int err;
-
-	ax->bb_ctrl.ops = &bb_ops;
-	ax->addr_memr = ei_local->mem + AX_MEMR;
-	ax->mii_bus = alloc_mdio_bitbang(&ax->bb_ctrl);
-	if (!ax->mii_bus) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	ax->mii_bus->name = "ax88796_mii_bus";
-	ax->mii_bus->parent = dev->dev.parent;
-	snprintf(ax->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
-		pdev->name, pdev->id);
-
-	err = mdiobus_register(ax->mii_bus);
-	if (err)
-		goto out_free_mdio_bitbang;
-
-	return 0;
-
- out_free_mdio_bitbang:
-	free_mdio_bitbang(ax->mii_bus);
- out:
-	return err;
-}
 
 static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
 {
@@ -669,10 +699,16 @@ static int ax_init_dev(struct net_device *dev)
 	if (ax->plat->flags & AXFLG_HAS_EEPROM) {
 		unsigned char SA_prom[32];
 
+		ei_outb(6, ioaddr + EN0_RCNTLO);
+		ei_outb(0, ioaddr + EN0_RCNTHI);
+		ei_outb(0, ioaddr + EN0_RSARLO);
+		ei_outb(0, ioaddr + EN0_RSARHI);
+		ei_outb(E8390_RREAD + E8390_START, ioaddr + NE_CMD);
 		for (i = 0; i < sizeof(SA_prom); i += 2) {
 			SA_prom[i] = ei_inb(ioaddr + NE_DATAPORT);
 			SA_prom[i + 1] = ei_inb(ioaddr + NE_DATAPORT);
 		}
+		ei_outb(ENISR_RDC, ioaddr + EN0_ISR);	/* Ack intr. */
 
 		if (ax->plat->wordlength == 2)
 			for (i = 0; i < 16; i++)
@@ -741,17 +777,19 @@ static int ax_init_dev(struct net_device *dev)
 #endif
 
 	ei_local->reset_8390 = &ax_reset_8390;
-	ei_local->block_input = &ax_block_input;
-	ei_local->block_output = &ax_block_output;
+	if (ax->plat->block_input)
+		ei_local->block_input = ax->plat->block_input;
+	else
+		ei_local->block_input = &ax_block_input;
+	if (ax->plat->block_output)
+		ei_local->block_output = ax->plat->block_output;
+	else
+		ei_local->block_output = &ax_block_output;
 	ei_local->get_8390_hdr = &ax_get_8390_hdr;
 	ei_local->priv = 0;
 
 	dev->netdev_ops = &ax_netdev_ops;
 	dev->ethtool_ops = &ax_ethtool_ops;
-
-	ret = ax_mii_init(dev);
-	if (ret)
-		goto err_out;
 
 	ax_NS8390_init(dev, 0);
 
@@ -777,7 +815,6 @@ static int ax_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	unregister_netdev(dev);
-	free_irq(dev->irq, dev);
 
 	iounmap(ei_local->mem);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -789,6 +826,7 @@ static int ax_remove(struct platform_device *pdev)
 		release_mem_region(mem->start, resource_size(mem));
 	}
 
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return 0;
@@ -834,6 +872,9 @@ static int ax_probe(struct platform_device *pdev)
 
 	dev->irq = irq->start;
 	ax->irqflags = irq->flags & IRQF_TRIGGER_MASK;
+
+	if (irq->flags &  IORESOURCE_IRQ_SHAREABLE)
+		ax->irqflags |= IRQF_SHARED;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -919,6 +960,7 @@ static int ax_probe(struct platform_device *pdev)
 	release_mem_region(mem->start, mem_size);
 
  exit_mem:
+	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	return ret;

@@ -112,7 +112,7 @@ static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -1;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		tid = ieee80211_get_tid(hdr);
 	else
 		tid = 0;
 
@@ -151,17 +151,9 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
 	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
+		len -= 2;
 		pad_len = 2;
-
-		/*
-		 * If the device inserted padding it means that (it thought)
-		 * the 802.11 header wasn't a multiple of 4 bytes long. In
-		 * this case, reserve two bytes at the start of the SKB to
-		 * align the payload properly in case we end up copying it.
-		 */
-		skb_reserve(skb, pad_len);
 	}
-	len -= pad_len;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
 	 * If not, only pull ieee80211_hdr (including crypto if present, and
@@ -235,11 +227,23 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
-			     struct ieee80211_rx_status *stats,
-			     struct iwl_rx_mpdu_desc *desc, u32 pkt_flags,
-			     int queue, u8 *crypt_len)
+			     struct ieee80211_rx_status *stats, u16 phy_info,
+			     struct iwl_rx_mpdu_desc *desc,
+			     u32 pkt_flags, int queue, u8 *crypt_len)
 {
 	u16 status = le16_to_cpu(desc->status);
+
+	/*
+	 * Drop UNKNOWN frames in aggregation, unless in monitor mode
+	 * (where we don't have the keys).
+	 * We limit this to aggregation because in TKIP this is a valid
+	 * scenario, since we may not have the (correct) TTAK (phase 1
+	 * key) in the firmware.
+	 */
+	if (phy_info & IWL_RX_MPDU_PHY_AMPDU &&
+	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
+	    IWL_RX_MPDU_STATUS_SEC_UNKNOWN && !mvm->monitor_on)
+		return -1;
 
 	if (!ieee80211_has_protected(hdr->frame_control) ||
 	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
@@ -347,8 +351,7 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		/* frame has qos control */
-		tid = *ieee80211_get_qos_ctl(hdr) &
-			IEEE80211_QOS_CTL_TID_MASK;
+		tid = ieee80211_get_tid(hdr);
 	else
 		tid = IWL_MAX_TID_COUNT;
 
@@ -587,14 +590,10 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	notif = (void *)pkt->data;
 	internal_notif = (void *)notif->payload;
 
-	if (internal_notif->sync) {
-		if (mvm->queue_sync_cookie != internal_notif->cookie) {
-			WARN_ONCE(1,
-				  "Received expired RX queue sync message\n");
-			return;
-		}
-		if (!atomic_dec_return(&mvm->queue_sync_counter))
-			wake_up(&mvm->rx_sync_waitq);
+	if (internal_notif->sync &&
+	    mvm->queue_sync_cookie != internal_notif->cookie) {
+		WARN_ONCE(1, "Received expired RX queue sync message\n");
+		return;
 	}
 
 	switch (internal_notif->type) {
@@ -606,6 +605,10 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	default:
 		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
 	}
+
+	if (internal_notif->sync &&
+	    !atomic_dec_return(&mvm->queue_sync_counter))
+		wake_up(&mvm->rx_sync_waitq);
 }
 
 /*
@@ -628,7 +631,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	bool amsdu = desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU;
 	bool last_subframe =
 		desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME;
-	u8 tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	u8 tid = ieee80211_get_tid(hdr);
 	u8 sub_frame_idx = desc->amsdu_info &
 			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 	struct iwl_mvm_reorder_buf_entry *entries;
@@ -867,9 +870,19 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		return;
 	}
 
+	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
+		/*
+		 * If the device inserted padding it means that (it thought)
+		 * the 802.11 header wasn't a multiple of 4 bytes long. In
+		 * this case, reserve two bytes at the start of the SKB to
+		 * align the payload properly in case we end up copying it.
+		 */
+		skb_reserve(skb, 2);
+	}
+
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
-	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, desc,
+	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, phy_info, desc,
 			      le32_to_cpu(pkt->len_n_flags), queue,
 			      &crypt_len)) {
 		kfree_skb(skb);
@@ -940,6 +953,12 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		u8 baid = (u8)((le32_to_cpu(desc->reorder_data) &
 			       IWL_RX_MPDU_REORDER_BAID_MASK) >>
 			       IWL_RX_MPDU_REORDER_BAID_SHIFT);
+
+		if (!mvm->tcm.paused && len >= sizeof(*hdr) &&
+		    !is_multicast_ether_addr(hdr->addr1) &&
+		    ieee80211_is_data(hdr->frame_control) &&
+		    time_after(jiffies, mvm->tcm.ts + MVM_TCM_PERIOD))
+			schedule_delayed_work(&mvm->tcm.work, 0);
 
 		/*
 		 * We have tx blocked stations (with CS bit). If we heard

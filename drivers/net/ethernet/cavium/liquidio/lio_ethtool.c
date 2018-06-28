@@ -32,7 +32,6 @@
 #include "cn23xx_vf_device.h"
 
 static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs);
-static int octnet_get_link_stats(struct net_device *netdev);
 
 struct oct_intrmod_context {
 	int octeon_id;
@@ -96,11 +95,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_packets",
 	"rx_bytes",
 	"tx_bytes",
-	"rx_errors",	/*jabber_err+l2_err+frame_err */
-	"tx_errors",	/*fw_err_pko+fw_err_link+fw_err_drop */
-	"rx_dropped",   /*st->fromwire.total_rcvd - st->fromwire.fw_total_rcvd +
-			 *st->fromwire.dmac_drop + st->fromwire.fw_err_drop
-			 */
+	"rx_errors",
+	"tx_errors",
+	"rx_dropped",
 	"tx_dropped",
 
 	"tx_total_sent",
@@ -115,14 +112,17 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tso_err",
 	"tx_vxlan",
 
+	"tx_mcast",
+	"tx_bcast",
+
 	"mac_tx_total_pkts",
 	"mac_tx_total_bytes",
 	"mac_tx_mcast_pkts",
 	"mac_tx_bcast_pkts",
-	"mac_tx_ctl_packets",	/*oct->link_stats.fromhost.ctl_sent */
+	"mac_tx_ctl_packets",
 	"mac_tx_total_collisions",
 	"mac_tx_one_collision",
-	"mac_tx_multi_collison",
+	"mac_tx_multi_collision",
 	"mac_tx_max_collision_fail",
 	"mac_tx_max_deferal_fail",
 	"mac_tx_fifo_err",
@@ -130,6 +130,8 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 
 	"rx_total_rcvd",
 	"rx_total_fwd",
+	"rx_mcast",
+	"rx_bcast",
 	"rx_jabber_err",
 	"rx_l2_err",
 	"rx_frame_err",
@@ -170,17 +172,21 @@ static const char oct_vf_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_packets",
 	"rx_bytes",
 	"tx_bytes",
-	"rx_errors", /* jabber_err + l2_err+frame_err */
-	"tx_errors", /* fw_err_pko + fw_err_link+fw_err_drop */
-	"rx_dropped", /* total_rcvd - fw_total_rcvd + dmac_drop + fw_err_drop */
+	"rx_errors",
+	"tx_errors",
+	"rx_dropped",
 	"tx_dropped",
+	"rx_mcast",
+	"tx_mcast",
+	"rx_bcast",
+	"tx_bcast",
 	"link_state_changes",
 };
 
 /* statistics of host tx queue */
 static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",		/*oct->instr_queue[iq_no]->stats.tx_done*/
-	"bytes",		/*oct->instr_queue[iq_no]->stats.tx_tot_bytes*/
+	"packets",
+	"bytes",
 	"dropped",
 	"iq_busy",
 	"sgentry_sent",
@@ -197,13 +203,9 @@ static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
 
 /* statistics of host rx queue */
 static const char oct_droq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",		/*oct->droq[oq_no]->stats.rx_pkts_received */
-	"bytes",		/*oct->droq[oq_no]->stats.rx_bytes_received */
-	"dropped",		/*oct->droq[oq_no]->stats.rx_dropped+
-				 *oct->droq[oq_no]->stats.dropped_nodispatch+
-				 *oct->droq[oq_no]->stats.dropped_toomany+
-				 *oct->droq[oq_no]->stats.dropped_nomem
-				 */
+	"packets",
+	"bytes",
+	"dropped",
 	"dropped_nomem",
 	"dropped_toomany",
 	"fw_dropped",
@@ -228,44 +230,145 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct oct_link_info *linfo;
-	u32 supported = 0, advertising = 0;
 
 	linfo = &lio->linfo;
+
+	ethtool_link_ksettings_zero_link_mode(ecmd, supported);
+	ethtool_link_ksettings_zero_link_mode(ecmd, advertising);
 
 	switch (linfo->link.s.phy_type) {
 	case LIO_PHY_PORT_TP:
 		ecmd->base.port = PORT_TP;
-		supported = (SUPPORTED_10000baseT_Full |
-			     SUPPORTED_TP | SUPPORTED_Pause);
-		advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Pause);
 		ecmd->base.autoneg = AUTONEG_DISABLE;
+		ethtool_link_ksettings_add_link_mode(ecmd, supported, TP);
+		ethtool_link_ksettings_add_link_mode(ecmd, supported, Pause);
+		ethtool_link_ksettings_add_link_mode(ecmd, supported,
+						     10000baseT_Full);
+
+		ethtool_link_ksettings_add_link_mode(ecmd, advertising, Pause);
+		ethtool_link_ksettings_add_link_mode(ecmd, advertising,
+						     10000baseT_Full);
+
 		break;
 
 	case LIO_PHY_PORT_FIBRE:
-		ecmd->base.port = PORT_FIBRE;
-
-		if (linfo->link.s.speed == SPEED_10000) {
-			supported = SUPPORTED_10000baseT_Full;
-			advertising = ADVERTISED_10000baseT_Full;
+		if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
+		    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+		    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
+		    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
+			dev_dbg(&oct->pci_dev->dev, "ecmd->base.transceiver is XCVR_EXTERNAL\n");
+		} else {
+			dev_err(&oct->pci_dev->dev, "Unknown link interface mode: %d\n",
+				linfo->link.s.if_mode);
 		}
 
-		supported |= SUPPORTED_FIBRE | SUPPORTED_Pause;
-		advertising |= ADVERTISED_Pause;
+		ecmd->base.port = PORT_FIBRE;
 		ecmd->base.autoneg = AUTONEG_DISABLE;
-		break;
-	}
+		ethtool_link_ksettings_add_link_mode(ecmd, supported, FIBRE);
 
-	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
-	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
-		ethtool_convert_legacy_u32_to_link_mode(
-			ecmd->link_modes.supported, supported);
-		ethtool_convert_legacy_u32_to_link_mode(
-			ecmd->link_modes.advertising, advertising);
-	} else {
-		dev_err(&oct->pci_dev->dev, "Unknown link interface reported %d\n",
-			linfo->link.s.if_mode);
+		ethtool_link_ksettings_add_link_mode(ecmd, supported, Pause);
+		ethtool_link_ksettings_add_link_mode(ecmd, advertising, Pause);
+		if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+		    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
+			if (OCTEON_CN23XX_PF(oct)) {
+				ethtool_link_ksettings_add_link_mode
+					(ecmd, supported, 25000baseSR_Full);
+				ethtool_link_ksettings_add_link_mode
+					(ecmd, supported, 25000baseKR_Full);
+				ethtool_link_ksettings_add_link_mode
+					(ecmd, supported, 25000baseCR_Full);
+
+				if (oct->no_speed_setting == 0)  {
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseCR_Full);
+				}
+
+				if (oct->no_speed_setting == 0)
+					liquidio_get_speed(lio);
+				else
+					oct->speed_setting = 25;
+
+				if (oct->speed_setting == 10) {
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseCR_Full);
+				}
+				if (oct->speed_setting == 25) {
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseCR_Full);
+				}
+			} else { /* VF */
+				if (linfo->link.s.speed == 10000) {
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 10000baseCR_Full);
+
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 10000baseCR_Full);
+				}
+
+				if (linfo->link.s.speed == 25000) {
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 25000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 25000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, supported,
+						 25000baseCR_Full);
+
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseSR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseKR_Full);
+					ethtool_link_ksettings_add_link_mode
+						(ecmd, advertising,
+						 25000baseCR_Full);
+				}
+			}
+		} else {
+			ethtool_link_ksettings_add_link_mode(ecmd, supported,
+							     10000baseT_Full);
+			ethtool_link_ksettings_add_link_mode(ecmd, advertising,
+							     10000baseT_Full);
+		}
+		break;
 	}
 
 	if (linfo->link.s.link_up) {
@@ -275,6 +378,51 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 		ecmd->base.speed = SPEED_UNKNOWN;
 		ecmd->base.duplex = DUPLEX_UNKNOWN;
 	}
+
+	return 0;
+}
+
+static int lio_set_link_ksettings(struct net_device *netdev,
+				  const struct ethtool_link_ksettings *ecmd)
+{
+	const int speed = ecmd->base.speed;
+	struct lio *lio = GET_LIO(netdev);
+	struct oct_link_info *linfo;
+	struct octeon_device *oct;
+	u32 is25G = 0;
+
+	oct = lio->oct_dev;
+
+	linfo = &lio->linfo;
+
+	if (oct->subsystem_id == OCTEON_CN2350_25GB_SUBSYS_ID ||
+	    oct->subsystem_id == OCTEON_CN2360_25GB_SUBSYS_ID) {
+		is25G = 1;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	if (oct->no_speed_setting) {
+		dev_err(&oct->pci_dev->dev, "%s: Changing speed is not supported\n",
+			__func__);
+		return -EOPNOTSUPP;
+	}
+
+	if ((ecmd->base.duplex != DUPLEX_UNKNOWN &&
+	     ecmd->base.duplex != linfo->link.s.duplex) ||
+	     ecmd->base.autoneg != AUTONEG_DISABLE ||
+	    (ecmd->base.speed != 10000 && ecmd->base.speed != 25000 &&
+	     ecmd->base.speed != SPEED_UNKNOWN))
+		return -EOPNOTSUPP;
+
+	if ((oct->speed_boot == speed / 1000) &&
+	    oct->speed_boot == oct->speed_setting)
+		return 0;
+
+	liquidio_set_speed(lio, speed / 1000);
+
+	dev_dbg(&oct->pci_dev->dev, "Port speed is set to %dG\n",
+		oct->speed_setting);
 
 	return 0;
 }
@@ -359,7 +507,14 @@ lio_ethtool_get_channels(struct net_device *dev,
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		max_combined = lio->linfo.num_txpciq;
+		if (oct->sriov_info.sriov_enabled) {
+			max_combined = lio->linfo.num_txpciq;
+		} else {
+			struct octeon_config *conf23_pf =
+				CHIP_CONF(oct, cn23xx_pf);
+
+			max_combined = CFG_GET_IQ_MAX_Q(conf23_pf);
+		}
 		combined_count = oct->num_iqs;
 	} else if (OCTEON_CN23XX_VF(oct)) {
 		u64 reg_val = 0ULL;
@@ -423,9 +578,15 @@ lio_irq_reallocate_irqs(struct octeon_device *oct, uint32_t num_ioqs)
 
 	kfree(oct->irq_name_storage);
 	oct->irq_name_storage = NULL;
+
+	if (octeon_allocate_ioq_vector(oct, num_ioqs)) {
+		dev_err(&oct->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
+		return -1;
+	}
+
 	if (octeon_setup_interrupt(oct, num_ioqs)) {
 		dev_info(&oct->pci_dev->dev, "Setup interrupt failed\n");
-		return 1;
+		return -1;
 	}
 
 	/* Enable Octeon device interrupts */
@@ -455,7 +616,16 @@ lio_ethtool_set_channels(struct net_device *dev,
 	combined_count = channel->combined_count;
 
 	if (OCTEON_CN23XX_PF(oct)) {
-		max_combined = channel->max_combined;
+		if (oct->sriov_info.sriov_enabled) {
+			max_combined = lio->linfo.num_txpciq;
+		} else {
+			struct octeon_config *conf23_pf =
+				CHIP_CONF(oct,
+					  cn23xx_pf);
+
+			max_combined =
+				CFG_GET_IQ_MAX_Q(conf23_pf);
+		}
 	} else if (OCTEON_CN23XX_VF(oct)) {
 		u64 reg_val = 0ULL;
 		u64 ctrl = CN23XX_VF_SLI_IQ_PKT_CONTROL64(0);
@@ -483,7 +653,6 @@ lio_ethtool_set_channels(struct net_device *dev,
 	if (lio_reset_queues(dev, combined_count))
 		return -EINVAL;
 
-	lio_irq_reallocate_irqs(oct, combined_count);
 	if (stopped)
 		dev->netdev_ops->ndo_open(dev);
 
@@ -822,12 +991,120 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_jumbo_max_pending = 0;
 }
 
+static int lio_23xx_reconfigure_queue_count(struct lio *lio)
+{
+	struct octeon_device *oct = lio->oct_dev;
+	struct liquidio_if_cfg_context *ctx;
+	u32 resp_size, ctx_size, data_size;
+	struct liquidio_if_cfg_resp *resp;
+	struct octeon_soft_command *sc;
+	union oct_nic_if_cfg if_cfg;
+	struct lio_version *vdata;
+	u32 ifidx_or_pfnum;
+	int retval;
+	int j;
+
+	resp_size = sizeof(struct liquidio_if_cfg_resp);
+	ctx_size = sizeof(struct liquidio_if_cfg_context);
+	data_size = sizeof(struct lio_version);
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct, data_size,
+					  resp_size, ctx_size);
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev, "%s: Failed to allocate soft command\n",
+			__func__);
+		return -1;
+	}
+
+	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
+	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
+	vdata = (struct lio_version *)sc->virtdptr;
+
+	vdata->major = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MAJOR_VERSION);
+	vdata->minor = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MINOR_VERSION);
+	vdata->micro = (__force u16)cpu_to_be16(LIQUIDIO_BASE_MICRO_VERSION);
+
+	ifidx_or_pfnum = oct->pf_num;
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct);
+	init_waitqueue_head(&ctx->wc);
+
+	if_cfg.u64 = 0;
+	if_cfg.s.num_iqueues = oct->sriov_info.num_pf_rings;
+	if_cfg.s.num_oqueues = oct->sriov_info.num_pf_rings;
+	if_cfg.s.base_queue = oct->sriov_info.pf_srn;
+	if_cfg.s.gmx_port_id = oct->pf_num;
+
+	sc->iq_no = 0;
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_QCOUNT_UPDATE, 0,
+				    if_cfg.u64, 0);
+	sc->callback = lio_if_cfg_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = LIO_IFCFG_WAIT_TIME;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_err(&oct->pci_dev->dev,
+			"iq/oq config failed status: %x\n",
+			retval);
+		goto qcount_update_fail;
+	}
+
+	if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
+		dev_err(&oct->pci_dev->dev, "Wait interrupted\n");
+		return -1;
+	}
+
+	retval = resp->status;
+	if (retval) {
+		dev_err(&oct->pci_dev->dev, "iq/oq config failed\n");
+		goto qcount_update_fail;
+	}
+
+	octeon_swap_8B_data((u64 *)(&resp->cfg_info),
+			    (sizeof(struct liquidio_if_cfg_info)) >> 3);
+
+	lio->ifidx = ifidx_or_pfnum;
+	lio->linfo.num_rxpciq = hweight64(resp->cfg_info.iqmask);
+	lio->linfo.num_txpciq = hweight64(resp->cfg_info.iqmask);
+	for (j = 0; j < lio->linfo.num_rxpciq; j++) {
+		lio->linfo.rxpciq[j].u64 =
+			resp->cfg_info.linfo.rxpciq[j].u64;
+	}
+
+	for (j = 0; j < lio->linfo.num_txpciq; j++) {
+		lio->linfo.txpciq[j].u64 =
+			resp->cfg_info.linfo.txpciq[j].u64;
+	}
+
+	lio->linfo.hw_addr = resp->cfg_info.linfo.hw_addr;
+	lio->linfo.gmxport = resp->cfg_info.linfo.gmxport;
+	lio->linfo.link.u64 = resp->cfg_info.linfo.link.u64;
+	lio->txq = lio->linfo.txpciq[0].s.q_no;
+	lio->rxq = lio->linfo.rxpciq[0].s.q_no;
+
+	octeon_free_soft_command(oct, sc);
+	dev_info(&oct->pci_dev->dev, "Queue count updated to %d\n",
+		 lio->linfo.num_rxpciq);
+
+	return 0;
+
+qcount_update_fail:
+	octeon_free_soft_command(oct, sc);
+
+	return -1;
+}
+
 static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	int i, queue_count_update = 0;
 	struct napi_struct *napi, *n;
-	int i, update = 0;
+	int ret;
+
+	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 
 	if (wait_for_pending_requests(oct))
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
@@ -836,7 +1113,7 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
 
 	if (octeon_set_io_queues_off(oct)) {
-		dev_err(&oct->pci_dev->dev, "setting io queues off failed\n");
+		dev_err(&oct->pci_dev->dev, "Setting io queues off failed\n");
 		return -1;
 	}
 
@@ -849,9 +1126,40 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		netif_napi_del(napi);
 
 	if (num_qs != oct->num_iqs) {
-		netif_set_real_num_rx_queues(netdev, num_qs);
-		netif_set_real_num_tx_queues(netdev, num_qs);
-		update = 1;
+		ret = netif_set_real_num_rx_queues(netdev, num_qs);
+		if (ret) {
+			dev_err(&oct->pci_dev->dev,
+				"Setting real number rx failed\n");
+			return ret;
+		}
+
+		ret = netif_set_real_num_tx_queues(netdev, num_qs);
+		if (ret) {
+			dev_err(&oct->pci_dev->dev,
+				"Setting real number tx failed\n");
+			return ret;
+		}
+
+		/* The value of queue_count_update decides whether it is the
+		 * queue count or the descriptor count that is being
+		 * re-configured.
+		 */
+		queue_count_update = 1;
+	}
+
+	/* Re-configuration of queues can happen in two scenarios, SRIOV enabled
+	 * and SRIOV disabled. Few things like recreating queue zero, resetting
+	 * glists and IRQs are required for both. For the latter, some more
+	 * steps like updating sriov_info for the octeon device need to be done.
+	 */
+	if (queue_count_update) {
+		lio_delete_glists(lio);
+
+		/* Delete mbox for PF which is SRIOV disabled because sriov_info
+		 * will be now changed.
+		 */
+		if ((OCTEON_CN23XX_PF(oct)) && !oct->sriov_info.sriov_enabled)
+			oct->fn_list.free_mbox(oct);
 	}
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
@@ -866,24 +1174,91 @@ static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 		octeon_delete_instr_queue(oct, i);
 	}
 
+	if (queue_count_update) {
+		/* For PF re-configure sriov related information */
+		if ((OCTEON_CN23XX_PF(oct)) &&
+		    !oct->sriov_info.sriov_enabled) {
+			oct->sriov_info.num_pf_rings = num_qs;
+			if (cn23xx_sriov_config(oct)) {
+				dev_err(&oct->pci_dev->dev,
+					"Queue reset aborted: SRIOV config failed\n");
+				return -1;
+			}
+
+			num_qs = oct->sriov_info.num_pf_rings;
+		}
+	}
+
 	if (oct->fn_list.setup_device_regs(oct)) {
 		dev_err(&oct->pci_dev->dev, "Failed to configure device registers\n");
 		return -1;
 	}
 
+	/* The following are needed in case of queue count re-configuration and
+	 * not for descriptor count re-configuration.
+	 */
+	if (queue_count_update) {
+		if (octeon_setup_instr_queues(oct))
+			return -1;
+
+		if (octeon_setup_output_queues(oct))
+			return -1;
+
+		/* Recreating mbox for PF that is SRIOV disabled */
+		if (OCTEON_CN23XX_PF(oct) && !oct->sriov_info.sriov_enabled) {
+			if (oct->fn_list.setup_mbox(oct)) {
+				dev_err(&oct->pci_dev->dev, "Mailbox setup failed\n");
+				return -1;
+			}
+		}
+
+		/* Deleting and recreating IRQs whether the interface is SRIOV
+		 * enabled or disabled.
+		 */
+		if (lio_irq_reallocate_irqs(oct, num_qs)) {
+			dev_err(&oct->pci_dev->dev, "IRQs could not be allocated\n");
+			return -1;
+		}
+
+		/* Enable the input and output queues for this Octeon device */
+		if (oct->fn_list.enable_io_queues(oct)) {
+			dev_err(&oct->pci_dev->dev, "Failed to enable input/output queues\n");
+			return -1;
+		}
+
+		for (i = 0; i < oct->num_oqs; i++)
+			writel(oct->droq[i]->max_count,
+			       oct->droq[i]->pkts_credit_reg);
+
+		/* Informing firmware about the new queue count. It is required
+		 * for firmware to allocate more number of queues than those at
+		 * load time.
+		 */
+		if (OCTEON_CN23XX_PF(oct) && !oct->sriov_info.sriov_enabled) {
+			if (lio_23xx_reconfigure_queue_count(lio))
+				return -1;
+		}
+	}
+
+	/* Once firmware is aware of the new value, queues can be recreated */
 	if (liquidio_setup_io_queues(oct, 0, num_qs, num_qs)) {
-		dev_err(&oct->pci_dev->dev, "IO queues initialization failed\n");
+		dev_err(&oct->pci_dev->dev, "I/O queues creation failed\n");
 		return -1;
 	}
 
-	/* Enable the input and output queues for this Octeon device */
-	if (oct->fn_list.enable_io_queues(oct)) {
-		dev_err(&oct->pci_dev->dev, "Failed to enable input/output queues");
-		return -1;
-	}
+	if (queue_count_update) {
+		if (lio_setup_glists(oct, lio, num_qs)) {
+			dev_err(&oct->pci_dev->dev, "Gather list allocation failed\n");
+			return -1;
+		}
 
-	if (update && lio_send_queue_count_update(netdev, num_qs))
-		return -1;
+		/* Send firmware the information about new number of queues
+		 * if the interface is a VF or a PF that is SRIOV enabled.
+		 */
+		if (oct->sriov_info.sriov_enabled || OCTEON_CN23XX_VF(oct))
+			if (lio_send_queue_count_update(netdev, num_qs))
+				return -1;
+	}
 
 	return 0;
 }
@@ -928,7 +1303,7 @@ static int lio_ethtool_set_ringparam(struct net_device *netdev,
 		CFG_SET_NUM_RX_DESCS_NIC_IF(octeon_get_conf(oct), lio->ifidx,
 					    rx_count);
 
-	if (lio_reset_queues(netdev, lio->linfo.num_txpciq))
+	if (lio_reset_queues(netdev, oct->num_iqs))
 		goto err_lio_reset_queues;
 
 	if (stopped)
@@ -1063,33 +1438,48 @@ lio_get_ethtool_stats(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	int i = 0, j;
 
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
-	octnet_get_link_stats(netdev);
-
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/*sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/*sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors +
+			oct_dev->link_stats.fromwire.fcs_err +
+			oct_dev->link_stats.fromwire.jabber_err +
+			oct_dev->link_stats.fromwire.l2_err +
+			oct_dev->link_stats.fromwire.frame_err;
+	data[i++] = lstats.tx_errors;
 	/*sum of oct->droq[oq_no]->stats->rx_dropped +
 	 *oct->droq[oq_no]->stats->dropped_nodispatch +
 	 *oct->droq[oq_no]->stats->dropped_toomany +
 	 *oct->droq[oq_no]->stats->dropped_nomem
 	 */
-	data[i++] = CVM_CAST64(netstats->rx_dropped);
+	data[i++] = lstats.rx_dropped +
+			oct_dev->link_stats.fromwire.fifo_err +
+			oct_dev->link_stats.fromwire.dmac_drop +
+			oct_dev->link_stats.fromwire.red_drops +
+			oct_dev->link_stats.fromwire.fw_err_pko +
+			oct_dev->link_stats.fromwire.fw_err_link +
+			oct_dev->link_stats.fromwire.fw_err_drop;
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped);
+	data[i++] = lstats.tx_dropped +
+			oct_dev->link_stats.fromhost.max_collision_fail +
+			oct_dev->link_stats.fromhost.max_deferral_fail +
+			oct_dev->link_stats.fromhost.total_collisions +
+			oct_dev->link_stats.fromhost.fw_err_pko +
+			oct_dev->link_stats.fromhost.fw_err_link +
+			oct_dev->link_stats.fromhost.fw_err_drop +
+			oct_dev->link_stats.fromhost.fw_err_pki;
 
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
@@ -1123,6 +1513,10 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_tx_vxlan
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_tx_vxlan);
+
+	/* Multicast packets sent by this port */
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
 
 	/* mac tx statistics */
 	/*CVMX_BGXX_CMRX_TX_STAT5 */
@@ -1160,6 +1554,9 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	 *fw_total_fwd
 	 */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.fw_total_fwd);
+	/* Multicast packets received on this port */
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.jabber_err */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromwire.jabber_err);
 	/*per_core_stats[core_id].link_stats[ifidx].fromwire.l2_err */
@@ -1328,7 +1725,7 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 				     __attribute__((unused)),
 				     u64 *data)
 {
-	struct net_device_stats *netstats = &netdev->stats;
+	struct rtnl_link_stats64 lstats;
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
 	int i = 0, j, vj;
@@ -1336,25 +1733,31 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return;
 
-	netdev->netdev_ops->ndo_get_stats(netdev);
+	netdev->netdev_ops->ndo_get_stats64(netdev, &lstats);
 	/* sum of oct->droq[oq_no]->stats->rx_pkts_received */
-	data[i++] = CVM_CAST64(netstats->rx_packets);
+	data[i++] = lstats.rx_packets;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_done */
-	data[i++] = CVM_CAST64(netstats->tx_packets);
+	data[i++] = lstats.tx_packets;
 	/* sum of oct->droq[oq_no]->stats->rx_bytes_received */
-	data[i++] = CVM_CAST64(netstats->rx_bytes);
+	data[i++] = lstats.rx_bytes;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
-	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors);
-	data[i++] = CVM_CAST64(netstats->tx_errors);
+	data[i++] = lstats.tx_bytes;
+	data[i++] = lstats.rx_errors;
+	data[i++] = lstats.tx_errors;
 	 /* sum of oct->droq[oq_no]->stats->rx_dropped +
 	  * oct->droq[oq_no]->stats->dropped_nodispatch +
 	  * oct->droq[oq_no]->stats->dropped_toomany +
 	  * oct->droq[oq_no]->stats->dropped_nomem
 	  */
-	data[i++] = CVM_CAST64(netstats->rx_dropped);
+	data[i++] = lstats.rx_dropped;
 	/* sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped);
+	data[i++] = lstats.tx_dropped;
+
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_mcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_mcast_sent;
+	data[i++] = oct_dev->link_stats.fromwire.fw_total_bcast;
+	data[i++] = oct_dev->link_stats.fromhost.fw_total_bcast_sent;
+
 	/* lio->link_changes */
 	data[i++] = CVM_CAST64(lio->link_changes);
 
@@ -1763,161 +2166,6 @@ static int octnet_set_intrmod_cfg(struct lio *lio,
 	dev_err(&oct_dev->pci_dev->dev, "iq/oq config failed\n");
 
 	return -EINTR;
-}
-
-static void
-octnet_nic_stats_callback(struct octeon_device *oct_dev,
-			  u32 status, void *ptr)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
-	struct oct_nic_stats_resp *resp =
-	    (struct oct_nic_stats_resp *)sc->virtrptr;
-	struct oct_nic_stats_ctrl *ctrl =
-	    (struct oct_nic_stats_ctrl *)sc->ctxptr;
-	struct nic_rx_stats *rsp_rstats = &resp->stats.fromwire;
-	struct nic_tx_stats *rsp_tstats = &resp->stats.fromhost;
-
-	struct nic_rx_stats *rstats = &oct_dev->link_stats.fromwire;
-	struct nic_tx_stats *tstats = &oct_dev->link_stats.fromhost;
-
-	if ((status != OCTEON_REQUEST_TIMEOUT) && !resp->status) {
-		octeon_swap_8B_data((u64 *)&resp->stats,
-				    (sizeof(struct oct_link_stats)) >> 3);
-
-		/* RX link-level stats */
-		rstats->total_rcvd = rsp_rstats->total_rcvd;
-		rstats->bytes_rcvd = rsp_rstats->bytes_rcvd;
-		rstats->total_bcst = rsp_rstats->total_bcst;
-		rstats->total_mcst = rsp_rstats->total_mcst;
-		rstats->runts      = rsp_rstats->runts;
-		rstats->ctl_rcvd   = rsp_rstats->ctl_rcvd;
-		/* Accounts for over/under-run of buffers */
-		rstats->fifo_err  = rsp_rstats->fifo_err;
-		rstats->dmac_drop = rsp_rstats->dmac_drop;
-		rstats->fcs_err   = rsp_rstats->fcs_err;
-		rstats->jabber_err = rsp_rstats->jabber_err;
-		rstats->l2_err    = rsp_rstats->l2_err;
-		rstats->frame_err = rsp_rstats->frame_err;
-
-		/* RX firmware stats */
-		rstats->fw_total_rcvd = rsp_rstats->fw_total_rcvd;
-		rstats->fw_total_fwd = rsp_rstats->fw_total_fwd;
-		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
-		rstats->fw_err_link = rsp_rstats->fw_err_link;
-		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
-		rstats->fw_rx_vxlan = rsp_rstats->fw_rx_vxlan;
-		rstats->fw_rx_vxlan_err = rsp_rstats->fw_rx_vxlan_err;
-
-		/* Number of packets that are LROed      */
-		rstats->fw_lro_pkts = rsp_rstats->fw_lro_pkts;
-		/* Number of octets that are LROed       */
-		rstats->fw_lro_octs = rsp_rstats->fw_lro_octs;
-		/* Number of LRO packets formed          */
-		rstats->fw_total_lro = rsp_rstats->fw_total_lro;
-		/* Number of times lRO of packet aborted */
-		rstats->fw_lro_aborts = rsp_rstats->fw_lro_aborts;
-		rstats->fw_lro_aborts_port = rsp_rstats->fw_lro_aborts_port;
-		rstats->fw_lro_aborts_seq = rsp_rstats->fw_lro_aborts_seq;
-		rstats->fw_lro_aborts_tsval = rsp_rstats->fw_lro_aborts_tsval;
-		rstats->fw_lro_aborts_timer = rsp_rstats->fw_lro_aborts_timer;
-		/* intrmod: packet forward rate */
-		rstats->fwd_rate = rsp_rstats->fwd_rate;
-
-		/* TX link-level stats */
-		tstats->total_pkts_sent = rsp_tstats->total_pkts_sent;
-		tstats->total_bytes_sent = rsp_tstats->total_bytes_sent;
-		tstats->mcast_pkts_sent = rsp_tstats->mcast_pkts_sent;
-		tstats->bcast_pkts_sent = rsp_tstats->bcast_pkts_sent;
-		tstats->ctl_sent = rsp_tstats->ctl_sent;
-		/* Packets sent after one collision*/
-		tstats->one_collision_sent = rsp_tstats->one_collision_sent;
-		/* Packets sent after multiple collision*/
-		tstats->multi_collision_sent = rsp_tstats->multi_collision_sent;
-		/* Packets not sent due to max collisions */
-		tstats->max_collision_fail = rsp_tstats->max_collision_fail;
-		/* Packets not sent due to max deferrals */
-		tstats->max_deferral_fail = rsp_tstats->max_deferral_fail;
-		/* Accounts for over/under-run of buffers */
-		tstats->fifo_err = rsp_tstats->fifo_err;
-		tstats->runts = rsp_tstats->runts;
-		/* Total number of collisions detected */
-		tstats->total_collisions = rsp_tstats->total_collisions;
-
-		/* firmware stats */
-		tstats->fw_total_sent = rsp_tstats->fw_total_sent;
-		tstats->fw_total_fwd = rsp_tstats->fw_total_fwd;
-		tstats->fw_err_pko = rsp_tstats->fw_err_pko;
-		tstats->fw_err_pki = rsp_tstats->fw_err_pki;
-		tstats->fw_err_link = rsp_tstats->fw_err_link;
-		tstats->fw_err_drop = rsp_tstats->fw_err_drop;
-		tstats->fw_tso = rsp_tstats->fw_tso;
-		tstats->fw_tso_fwd = rsp_tstats->fw_tso_fwd;
-		tstats->fw_err_tso = rsp_tstats->fw_err_tso;
-		tstats->fw_tx_vxlan = rsp_tstats->fw_tx_vxlan;
-
-		resp->status = 1;
-	} else {
-		resp->status = -1;
-	}
-	complete(&ctrl->complete);
-}
-
-/*  Configure interrupt moderation parameters */
-static int octnet_get_link_stats(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct_dev = lio->oct_dev;
-
-	struct octeon_soft_command *sc;
-	struct oct_nic_stats_ctrl *ctrl;
-	struct oct_nic_stats_resp *resp;
-
-	int retval;
-
-	/* Alloc soft command */
-	sc = (struct octeon_soft_command *)
-		octeon_alloc_soft_command(oct_dev,
-					  0,
-					  sizeof(struct oct_nic_stats_resp),
-					  sizeof(struct octnic_ctrl_pkt));
-
-	if (!sc)
-		return -ENOMEM;
-
-	resp = (struct oct_nic_stats_resp *)sc->virtrptr;
-	memset(resp, 0, sizeof(struct oct_nic_stats_resp));
-
-	ctrl = (struct oct_nic_stats_ctrl *)sc->ctxptr;
-	memset(ctrl, 0, sizeof(struct oct_nic_stats_ctrl));
-	ctrl->netdev = netdev;
-	init_completion(&ctrl->complete);
-
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
-
-	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
-				    OPCODE_NIC_PORT_STATS, 0, 0, 0);
-
-	sc->callback = octnet_nic_stats_callback;
-	sc->callback_arg = sc;
-	sc->wait_time = 500;	/*in milli seconds*/
-
-	retval = octeon_send_soft_command(oct_dev, sc);
-	if (retval == IQ_SEND_FAILED) {
-		octeon_free_soft_command(oct_dev, sc);
-		return -EINVAL;
-	}
-
-	wait_for_completion_timeout(&ctrl->complete, msecs_to_jiffies(1000));
-
-	if (resp->status != 1) {
-		octeon_free_soft_command(oct_dev, sc);
-
-		return -EINVAL;
-	}
-
-	octeon_free_soft_command(oct_dev, sc);
-
-	return 0;
 }
 
 static int lio_get_intr_coalesce(struct net_device *netdev,
@@ -2864,6 +3112,7 @@ static int lio_set_priv_flags(struct net_device *netdev, u32 flags)
 
 static const struct ethtool_ops lio_ethtool_ops = {
 	.get_link_ksettings	= lio_get_link_ksettings,
+	.set_link_ksettings	= lio_set_link_ksettings,
 	.get_link		= ethtool_op_get_link,
 	.get_drvinfo		= lio_get_drvinfo,
 	.get_ringparam		= lio_ethtool_get_ringparam,

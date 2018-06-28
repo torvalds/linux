@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
+#include <linux/syscalls.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -1050,7 +1051,10 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 }
 
 /* We assume to be passed big endian arguments */
-asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wattribute-alias"
+SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
 	struct rtas_args args;
 	unsigned long flags;
@@ -1136,6 +1140,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 
 	return 0;
 }
+#pragma GCC diagnostic pop
 
 /*
  * Call early during boot, before mem init, to retrieve the RTAS

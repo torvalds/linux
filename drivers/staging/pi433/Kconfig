@@ -1,7 +1,7 @@
 config PI433
         tristate "Pi433 - a 433MHz radio module for Raspberry Pi"
         depends on SPI
-        ---help---
+        help
           This option allows you to enable support for the radio module Pi433.
 
           Pi433 is a shield that fits onto the GPIO header of a Raspberry Pi

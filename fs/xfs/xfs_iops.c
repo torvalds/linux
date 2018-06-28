@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -37,7 +25,6 @@
 #include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
-#include "xfs_pnfs.h"
 #include "xfs_iomap.h"
 
 #include <linux/capability.h>
@@ -260,6 +247,7 @@ xfs_vn_lookup(
 	struct dentry	*dentry,
 	unsigned int flags)
 {
+	struct inode *inode;
 	struct xfs_inode *cip;
 	struct xfs_name	name;
 	int		error;
@@ -269,14 +257,13 @@ xfs_vn_lookup(
 
 	xfs_dentry_to_name(&name, dentry);
 	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
-	if (unlikely(error)) {
-		if (unlikely(error != -ENOENT))
-			return ERR_PTR(error);
-		d_add(dentry, NULL);
-		return NULL;
-	}
-
-	return d_splice_alias(VFS_I(cip), dentry);
+	if (likely(!error))
+		inode = VFS_I(cip);
+	else if (likely(error == -ENOENT))
+		inode = NULL;
+	else
+		inode = ERR_PTR(error);
+	return d_splice_alias(inode, dentry);
 }
 
 STATIC struct dentry *
@@ -855,7 +842,7 @@ xfs_setattr_size(
 	/*
 	 * Make sure that the dquots are attached to the inode.
 	 */
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -1030,14 +1017,19 @@ xfs_vn_setattr(
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-		uint			iolock = XFS_IOLOCK_EXCL;
-
-		error = xfs_break_layouts(d_inode(dentry), &iolock);
-		if (error)
-			return error;
+		struct inode		*inode = d_inode(dentry);
+		struct xfs_inode	*ip = XFS_I(inode);
+		uint			iolock;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+
+		error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+		if (error) {
+			xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+			return error;
+		}
+
 		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
@@ -1050,7 +1042,7 @@ xfs_vn_setattr(
 STATIC int
 xfs_vn_update_time(
 	struct inode		*inode,
-	struct timespec		*now,
+	struct timespec64	*now,
 	int			flags)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
@@ -1195,6 +1187,30 @@ static const struct inode_operations xfs_inline_symlink_inode_operations = {
 	.update_time		= xfs_vn_update_time,
 };
 
+/* Figure out if this file actually supports DAX. */
+static bool
+xfs_inode_supports_dax(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/* Only supported on non-reflinked files. */
+	if (!S_ISREG(VFS_I(ip)->i_mode) || xfs_is_reflink_inode(ip))
+		return false;
+
+	/* DAX mount option or DAX iflag must be set. */
+	if (!(mp->m_flags & XFS_MOUNT_DAX) &&
+	    !(ip->i_d.di_flags2 & XFS_DIFLAG2_DAX))
+		return false;
+
+	/* Block size must match page size */
+	if (mp->m_sb.sb_blocksize != PAGE_SIZE)
+		return false;
+
+	/* Device has to support DAX too. */
+	return xfs_find_daxdev_for_inode(VFS_I(ip)) != NULL;
+}
+
 STATIC void
 xfs_diflags_to_iflags(
 	struct inode		*inode,
@@ -1213,11 +1229,7 @@ xfs_diflags_to_iflags(
 		inode->i_flags |= S_SYNC;
 	if (flags & XFS_DIFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
-	if (S_ISREG(inode->i_mode) &&
-	    ip->i_mount->m_sb.sb_blocksize == PAGE_SIZE &&
-	    !xfs_is_reflink_inode(ip) &&
-	    (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
-	     ip->i_d.di_flags2 & XFS_DIFLAG2_DAX))
+	if (xfs_inode_supports_dax(ip))
 		inode->i_flags |= S_DAX;
 }
 
@@ -1250,6 +1262,14 @@ xfs_setup_inode(
 	xfs_diflags_to_iflags(inode, ip);
 
 	if (S_ISDIR(inode->i_mode)) {
+		/*
+		 * We set the i_rwsem class here to avoid potential races with
+		 * lockdep_annotate_inode_mutex_key() reinitialising the lock
+		 * after a filehandle lookup has already found the inode in
+		 * cache before it has been unlocked via unlock_new_inode().
+		 */
+		lockdep_set_class(&inode->i_rwsem,
+				  &inode->i_sb->s_type->i_mutex_dir_key);
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_dir_ilock_class);
 		ip->d_ops = ip->i_mount->m_dir_inode_ops;
 	} else {

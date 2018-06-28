@@ -103,7 +103,7 @@ static void show_syncpts(struct host1x *m, struct output *o)
 
 static void show_all(struct host1x *m, struct output *o, bool show_fifo)
 {
-	int i;
+	unsigned int i;
 
 	host1x_hw_show_mlocks(m, o);
 	show_syncpts(m, o);

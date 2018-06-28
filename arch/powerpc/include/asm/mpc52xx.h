@@ -350,14 +350,14 @@ extern struct mpc52xx_suspend mpc52xx_suspend;
 extern int __init mpc52xx_pm_init(void);
 extern int mpc52xx_set_wakeup_gpio(u8 pin, u8 level);
 
-#ifdef CONFIG_PPC_LITE5200
-extern int __init lite5200_pm_init(void);
-
 /* lite5200 calls mpc5200 suspend functions, so here they are */
 extern int mpc52xx_pm_prepare(void);
 extern int mpc52xx_pm_enter(suspend_state_t);
 extern void mpc52xx_pm_finish(void);
 extern char saved_sram[0x4000]; /* reuse buffer from mpc52xx suspend */
+
+#ifdef CONFIG_PPC_LITE5200
+int __init lite5200_pm_init(void);
 #endif
 #endif /* CONFIG_PM */
 

@@ -326,19 +326,6 @@ static int proc_toshiba_show(struct seq_file *m, void *v)
 		key);
 	return 0;
 }
-
-static int proc_toshiba_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_toshiba_show, NULL);
-}
-
-static const struct file_operations proc_toshiba_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_toshiba_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif
 
 
@@ -524,7 +511,7 @@ static int __init toshiba_init(void)
 	{
 		struct proc_dir_entry *pde;
 
-		pde = proc_create("toshiba", 0, NULL, &proc_toshiba_fops);
+		pde = proc_create_single("toshiba", 0, NULL, proc_toshiba_show);
 		if (!pde) {
 			misc_deregister(&tosh_device);
 			return -ENOMEM;

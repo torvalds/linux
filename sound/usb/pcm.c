@@ -76,10 +76,9 @@ snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
  */
 static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	struct snd_usb_substream *subs;
+	struct snd_usb_substream *subs = substream->runtime->private_data;
 	unsigned int hwptr_done;
 
-	subs = (struct snd_usb_substream *)substream->runtime->private_data;
 	if (atomic_read(&subs->stream->chip->shutdown))
 		return SNDRV_PCM_POS_XRUN;
 	spin_lock(&subs->lock);
@@ -164,10 +163,11 @@ static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	data[0] = 1;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
-				   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
-				   UAC_EP_CS_ATTR_PITCH_CONTROL << 8, ep,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			      USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
+			      UAC_EP_CS_ATTR_PITCH_CONTROL << 8, ep,
+			      data, sizeof(data));
+	if (err < 0) {
 		usb_audio_err(chip, "%d:%d: cannot set enable PITCH\n",
 			      iface, ep);
 		return err;
@@ -185,10 +185,11 @@ static int init_pitch_v2(struct snd_usb_audio *chip, int iface,
 	int err;
 
 	data[0] = 1;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-				   UAC2_EP_CS_PITCH << 8, 0,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+			      UAC2_EP_CS_PITCH << 8, 0,
+			      data, sizeof(data));
+	if (err < 0) {
 		usb_audio_err(chip, "%d:%d: cannot set enable PITCH (v2)\n",
 			      iface, fmt->altsetting);
 		return err;
@@ -321,6 +322,7 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	struct usb_host_interface *alts;
 	struct usb_interface *iface;
 	unsigned int ep;
+	unsigned int ifnum;
 
 	/* Implicit feedback sync EPs consumers are always playback EPs */
 	if (subs->direction != SNDRV_PCM_STREAM_PLAYBACK)
@@ -330,44 +332,27 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
 	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
 		ep = 0x81;
-		iface = usb_ifnum_to_if(dev, 3);
-
-		if (!iface || iface->num_altsetting == 0)
-			return -EINVAL;
-
-		alts = &iface->altsetting[1];
-		goto add_sync_ep;
-		break;
+		ifnum = 3;
+		goto add_sync_ep_from_ifnum;
 	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
 	case USB_ID(0x0763, 0x2081):
 		ep = 0x81;
-		iface = usb_ifnum_to_if(dev, 2);
-
-		if (!iface || iface->num_altsetting == 0)
-			return -EINVAL;
-
-		alts = &iface->altsetting[1];
-		goto add_sync_ep;
-	case USB_ID(0x2466, 0x8003):
+		ifnum = 2;
+		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x2466, 0x8003): /* Fractal Audio Axe-Fx II */
 		ep = 0x86;
-		iface = usb_ifnum_to_if(dev, 2);
-
-		if (!iface || iface->num_altsetting == 0)
-			return -EINVAL;
-
-		alts = &iface->altsetting[1];
-		goto add_sync_ep;
-	case USB_ID(0x1397, 0x0002):
+		ifnum = 2;
+		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x2466, 0x8010): /* Fractal Audio Axe-Fx III */
 		ep = 0x81;
-		iface = usb_ifnum_to_if(dev, 1);
-
-		if (!iface || iface->num_altsetting == 0)
-			return -EINVAL;
-
-		alts = &iface->altsetting[1];
-		goto add_sync_ep;
-
+		ifnum = 2;
+		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x1397, 0x0002): /* Behringer UFX1204 */
+		ep = 0x81;
+		ifnum = 1;
+		goto add_sync_ep_from_ifnum;
 	}
+
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
 	    altsd->bInterfaceProtocol == 2 &&
@@ -381,6 +366,14 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 
 	/* No quirk */
 	return 0;
+
+add_sync_ep_from_ifnum:
+	iface = usb_ifnum_to_if(dev, ifnum);
+
+	if (!iface || iface->num_altsetting == 0)
+		return -EINVAL;
+
+	alts = &iface->altsetting[1];
 
 add_sync_ep:
 	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
@@ -507,7 +500,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	iface = usb_ifnum_to_if(dev, fmt->iface);
 	if (WARN_ON(!iface))
 		return -EINVAL;
-	alts = &iface->altsetting[fmt->altset_idx];
+	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
 	altsd = get_iface_desc(alts);
 	if (WARN_ON(altsd->bAlternateSetting != fmt->altsetting))
 		return -EINVAL;
@@ -517,21 +510,21 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 
 	/* close the old interface */
 	if (subs->interface >= 0 && subs->interface != fmt->iface) {
-		err = usb_set_interface(subs->dev, subs->interface, 0);
-		if (err < 0) {
-			dev_err(&dev->dev,
-				"%d:%d: return to setting 0 failed (%d)\n",
-				fmt->iface, fmt->altsetting, err);
-			return -EIO;
+		if (!subs->stream->chip->keep_iface) {
+			err = usb_set_interface(subs->dev, subs->interface, 0);
+			if (err < 0) {
+				dev_err(&dev->dev,
+					"%d:%d: return to setting 0 failed (%d)\n",
+					fmt->iface, fmt->altsetting, err);
+				return -EIO;
+			}
 		}
 		subs->interface = -1;
 		subs->altset_idx = 0;
 	}
 
 	/* set interface */
-	if (subs->interface != fmt->iface ||
-	    subs->altset_idx != fmt->altset_idx) {
-
+	if (iface->cur_altsetting != alts) {
 		err = snd_usb_select_mode_quirk(subs, fmt);
 		if (err < 0)
 			return -EIO;
@@ -545,12 +538,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		}
 		dev_dbg(&dev->dev, "setting usb interface %d:%d\n",
 			fmt->iface, fmt->altsetting);
-		subs->interface = fmt->iface;
-		subs->altset_idx = fmt->altset_idx;
-
 		snd_usb_set_interface_quirk(dev);
 	}
 
+	subs->interface = fmt->iface;
+	subs->altset_idx = fmt->altset_idx;
 	subs->data_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 						   alts, fmt->endpoint, subs->direction,
 						   SND_USB_ENDPOINT_TYPE_DATA);
@@ -736,7 +728,11 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	struct audioformat *fmt;
 	int ret;
 
-	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
+	if (snd_usb_use_vmalloc)
+		ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
+						       params_buffer_bytes(hw_params));
+	else
+		ret = snd_pcm_lib_malloc_pages(substream,
 					       params_buffer_bytes(hw_params));
 	if (ret < 0)
 		return ret;
@@ -789,7 +785,11 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 		snd_usb_endpoint_deactivate(subs->data_endpoint);
 		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
+
+	if (snd_usb_use_vmalloc)
+		return snd_pcm_lib_free_vmalloc_buffer(substream);
+	else
+		return snd_pcm_lib_free_pages(substream);
 }
 
 /*
@@ -1123,7 +1123,7 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 		return 0;
 
 	subs->rate_list.list = rate_list =
-		kmalloc(sizeof(int) * count, GFP_KERNEL);
+		kmalloc_array(count, sizeof(int), GFP_KERNEL);
 	if (!subs->rate_list.list)
 		return -ENOMEM;
 	subs->rate_list.count = count;
@@ -1181,9 +1181,6 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		pt = 125 * (1 << fp->datainterval);
 		ptmin = min(ptmin, pt);
 	}
-	err = snd_usb_autoresume(subs->stream->chip);
-	if (err < 0)
-		return err;
 
 	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
 	if (subs->speed == USB_SPEED_FULL)
@@ -1192,30 +1189,37 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	if (ptmin == 1000)
 		/* if period time doesn't go below 1 ms, no rules needed */
 		param_period_time_if_needed = -1;
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-				     ptmin, UINT_MAX);
 
-	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				       hw_rule_rate, subs,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       param_period_time_if_needed,
-				       -1)) < 0)
-		goto rep_err;
-	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				       hw_rule_channels, subs,
-				       SNDRV_PCM_HW_PARAM_FORMAT,
-				       SNDRV_PCM_HW_PARAM_RATE,
-				       param_period_time_if_needed,
-				       -1)) < 0)
-		goto rep_err;
-	if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-				       hw_rule_format, subs,
-				       SNDRV_PCM_HW_PARAM_RATE,
-				       SNDRV_PCM_HW_PARAM_CHANNELS,
-				       param_period_time_if_needed,
-				       -1)) < 0)
-		goto rep_err;
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					   ptmin, UINT_MAX);
+	if (err < 0)
+		return err;
+
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				  hw_rule_rate, subs,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  param_period_time_if_needed,
+				  -1);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_channels, subs,
+				  SNDRV_PCM_HW_PARAM_FORMAT,
+				  SNDRV_PCM_HW_PARAM_RATE,
+				  param_period_time_if_needed,
+				  -1);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
+				  hw_rule_format, subs,
+				  SNDRV_PCM_HW_PARAM_RATE,
+				  SNDRV_PCM_HW_PARAM_CHANNELS,
+				  param_period_time_if_needed,
+				  -1);
+	if (err < 0)
+		return err;
 	if (param_period_time_if_needed >= 0) {
 		err = snd_pcm_hw_rule_add(runtime, 0,
 					  SNDRV_PCM_HW_PARAM_PERIOD_TIME,
@@ -1225,19 +1229,18 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  -1);
 		if (err < 0)
-			goto rep_err;
+			return err;
 	}
-	if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
-		goto rep_err;
-	return 0;
+	err = snd_usb_pcm_check_knot(runtime, subs);
+	if (err < 0)
+		return err;
 
-rep_err:
-	snd_usb_autosuspend(subs->stream->chip);
-	return err;
+	return snd_usb_autoresume(subs->stream->chip);
 }
 
-static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
+static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 {
+	int direction = substream->stream;
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_usb_substream *subs = &as->substream[direction];
@@ -1257,14 +1260,16 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
 	return setup_hw_info(runtime, subs);
 }
 
-static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
+static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 {
+	int direction = substream->stream;
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_usb_substream *subs = &as->substream[direction];
 
 	stop_endpoints(subs, true);
 
-	if (subs->interface >= 0 &&
+	if (!as->chip->keep_iface &&
+	    subs->interface >= 0 &&
 	    !snd_usb_lock_shutdown(subs->stream->chip)) {
 		usb_set_interface(subs->dev, subs->interface, 0);
 		subs->interface = -1;
@@ -1311,7 +1316,7 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 		if (bytes % (runtime->sample_bits >> 3) != 0) {
 			int oldbytes = bytes;
 			bytes = frames * stride;
-			dev_warn(&subs->dev->dev,
+			dev_warn_ratelimited(&subs->dev->dev,
 				 "Corrected urb data len. %d->%d\n",
 							oldbytes, bytes);
 		}
@@ -1619,26 +1624,6 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	spin_unlock_irqrestore(&subs->lock, flags);
 }
 
-static int snd_usb_playback_open(struct snd_pcm_substream *substream)
-{
-	return snd_usb_pcm_open(substream, SNDRV_PCM_STREAM_PLAYBACK);
-}
-
-static int snd_usb_playback_close(struct snd_pcm_substream *substream)
-{
-	return snd_usb_pcm_close(substream, SNDRV_PCM_STREAM_PLAYBACK);
-}
-
-static int snd_usb_capture_open(struct snd_pcm_substream *substream)
-{
-	return snd_usb_pcm_open(substream, SNDRV_PCM_STREAM_CAPTURE);
-}
-
-static int snd_usb_capture_close(struct snd_pcm_substream *substream)
-{
-	return snd_usb_pcm_close(substream, SNDRV_PCM_STREAM_CAPTURE);
-}
-
 static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substream,
 					      int cmd)
 {
@@ -1700,8 +1685,8 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 }
 
 static const struct snd_pcm_ops snd_usb_playback_ops = {
-	.open =		snd_usb_playback_open,
-	.close =	snd_usb_playback_close,
+	.open =		snd_usb_pcm_open,
+	.close =	snd_usb_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
@@ -1713,8 +1698,8 @@ static const struct snd_pcm_ops snd_usb_playback_ops = {
 };
 
 static const struct snd_pcm_ops snd_usb_capture_ops = {
-	.open =		snd_usb_capture_open,
-	.close =	snd_usb_capture_close,
+	.open =		snd_usb_pcm_open,
+	.close =	snd_usb_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
@@ -1725,9 +1710,50 @@ static const struct snd_pcm_ops snd_usb_capture_ops = {
 	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
+static const struct snd_pcm_ops snd_usb_playback_dev_ops = {
+	.open =		snd_usb_pcm_open,
+	.close =	snd_usb_pcm_close,
+	.ioctl =	snd_pcm_lib_ioctl,
+	.hw_params =	snd_usb_hw_params,
+	.hw_free =	snd_usb_hw_free,
+	.prepare =	snd_usb_pcm_prepare,
+	.trigger =	snd_usb_substream_playback_trigger,
+	.pointer =	snd_usb_pcm_pointer,
+	.page =		snd_pcm_sgbuf_ops_page,
+};
+
+static const struct snd_pcm_ops snd_usb_capture_dev_ops = {
+	.open =		snd_usb_pcm_open,
+	.close =	snd_usb_pcm_close,
+	.ioctl =	snd_pcm_lib_ioctl,
+	.hw_params =	snd_usb_hw_params,
+	.hw_free =	snd_usb_hw_free,
+	.prepare =	snd_usb_pcm_prepare,
+	.trigger =	snd_usb_substream_capture_trigger,
+	.pointer =	snd_usb_pcm_pointer,
+	.page =		snd_pcm_sgbuf_ops_page,
+};
+
 void snd_usb_set_pcm_ops(struct snd_pcm *pcm, int stream)
 {
-	snd_pcm_set_ops(pcm, stream,
-			stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			&snd_usb_playback_ops : &snd_usb_capture_ops);
+	const struct snd_pcm_ops *ops;
+
+	if (snd_usb_use_vmalloc)
+		ops = stream == SNDRV_PCM_STREAM_PLAYBACK ?
+			&snd_usb_playback_ops : &snd_usb_capture_ops;
+	else
+		ops = stream == SNDRV_PCM_STREAM_PLAYBACK ?
+			&snd_usb_playback_dev_ops : &snd_usb_capture_dev_ops;
+	snd_pcm_set_ops(pcm, stream, ops);
+}
+
+void snd_usb_preallocate_buffer(struct snd_usb_substream *subs)
+{
+	struct snd_pcm *pcm = subs->stream->pcm;
+	struct snd_pcm_substream *s = pcm->streams[subs->direction].substream;
+	struct device *dev = subs->dev->bus->controller;
+
+	if (!snd_usb_use_vmalloc)
+		snd_pcm_lib_preallocate_pages(s, SNDRV_DMA_TYPE_DEV_SG,
+					      dev, 64*1024, 512*1024);
 }

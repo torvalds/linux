@@ -376,6 +376,7 @@ static inline void smc_wr_rx_process_cqes(struct ib_wc wc[], int num)
 	for (i = 0; i < num; i++) {
 		link = wc[i].qp->qp_context;
 		if (wc[i].status == IB_WC_SUCCESS) {
+			link->wr_rx_tstamp = jiffies;
 			smc_wr_rx_demultiplex(&wc[i]);
 			smc_wr_rx_post(link); /* refill WR RX */
 		} else {
@@ -583,9 +584,9 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				   GFP_KERNEL);
 	if (!link->wr_rx_sges)
 		goto no_mem_wr_tx_sges;
-	link->wr_tx_mask = kzalloc(
-		BITS_TO_LONGS(SMC_WR_BUF_CNT) * sizeof(*link->wr_tx_mask),
-		GFP_KERNEL);
+	link->wr_tx_mask = kcalloc(BITS_TO_LONGS(SMC_WR_BUF_CNT),
+				   sizeof(*link->wr_tx_mask),
+				   GFP_KERNEL);
 	if (!link->wr_tx_mask)
 		goto no_mem_wr_rx_sges;
 	link->wr_tx_pends = kcalloc(SMC_WR_BUF_CNT,

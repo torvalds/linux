@@ -761,7 +761,7 @@ static void sata_dwc_dma_xfer_complete(struct ata_port *ap, u32 check_status)
 	if (tag > 0) {
 		dev_info(ap->dev,
 			 "%s tag=%u cmd=0x%02x dma dir=%s proto=%s dmacr=0x%08x\n",
-			 __func__, qc->tag, qc->tf.command,
+			 __func__, qc->hw_tag, qc->tf.command,
 			 get_dma_dir_descript(qc->dma_dir),
 			 get_prot_descript(qc->tf.protocol),
 			 sata_dwc_readl(&hsdev->sata_dwc_regs->dmacr));
@@ -789,7 +789,7 @@ static int sata_dwc_qc_complete(struct ata_port *ap, struct ata_queued_cmd *qc,
 {
 	u8 status = 0;
 	u32 mask = 0x0;
-	u8 tag = qc->tag;
+	u8 tag = qc->hw_tag;
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 	hsdev->sactive_queued = 0;
@@ -997,7 +997,7 @@ static void sata_dwc_bmdma_setup_by_tag(struct ata_queued_cmd *qc, u8 tag)
 
 static void sata_dwc_bmdma_setup(struct ata_queued_cmd *qc)
 {
-	u8 tag = qc->tag;
+	u8 tag = qc->hw_tag;
 
 	if (ata_is_ncq(qc->tf.protocol)) {
 		dev_dbg(qc->ap->dev, "%s: ap->link.sactive=0x%08x tag=%d\n",
@@ -1059,7 +1059,7 @@ static void sata_dwc_bmdma_start_by_tag(struct ata_queued_cmd *qc, u8 tag)
 
 static void sata_dwc_bmdma_start(struct ata_queued_cmd *qc)
 {
-	u8 tag = qc->tag;
+	u8 tag = qc->hw_tag;
 
 	if (ata_is_ncq(qc->tf.protocol)) {
 		dev_dbg(qc->ap->dev, "%s: ap->link.sactive=0x%08x tag=%d\n",
@@ -1074,17 +1074,17 @@ static void sata_dwc_bmdma_start(struct ata_queued_cmd *qc)
 static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 {
 	u32 sactive;
-	u8 tag = qc->tag;
+	u8 tag = qc->hw_tag;
 	struct ata_port *ap = qc->ap;
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 
 #ifdef DEBUG_NCQ
-	if (qc->tag > 0 || ap->link.sactive > 1)
+	if (qc->hw_tag > 0 || ap->link.sactive > 1)
 		dev_info(ap->dev,
 			 "%s ap id=%d cmd(0x%02x)=%s qc tag=%d prot=%s ap active_tag=0x%08x ap sactive=0x%08x\n",
 			 __func__, ap->print_id, qc->tf.command,
 			 ata_get_cmd_descript(qc->tf.command),
-			 qc->tag, get_prot_descript(qc->tf.protocol),
+			 qc->hw_tag, get_prot_descript(qc->tf.protocol),
 			 ap->link.active_tag, ap->link.sactive);
 #endif
 

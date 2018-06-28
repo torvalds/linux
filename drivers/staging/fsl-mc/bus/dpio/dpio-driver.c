@@ -13,6 +13,7 @@
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <linux/fsl/mc.h>
 #include "../../include/dpaa2-io.h"
@@ -100,7 +101,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	if (err) {
 		dev_dbg(dev, "MC portal allocation failed\n");
 		err = -EPROBE_DEFER;
-		goto err_mcportal;
+		goto err_priv_alloc;
 	}
 
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,
@@ -146,10 +147,22 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	 * Set the CENA regs to be the cache inhibited area of the portal to
 	 * avoid coherency issues if a user migrates to another core.
 	 */
-	desc.regs_cena = ioremap_wc(dpio_dev->regions[1].start,
-		resource_size(&dpio_dev->regions[1]));
-	desc.regs_cinh = ioremap(dpio_dev->regions[1].start,
-		resource_size(&dpio_dev->regions[1]));
+	desc.regs_cena = devm_memremap(dev, dpio_dev->regions[1].start,
+				       resource_size(&dpio_dev->regions[1]),
+				       MEMREMAP_WC);
+	if (IS_ERR(desc.regs_cena)) {
+		dev_err(dev, "devm_memremap failed\n");
+		err = PTR_ERR(desc.regs_cena);
+		goto err_allocate_irqs;
+	}
+
+	desc.regs_cinh = devm_ioremap(dev, dpio_dev->regions[1].start,
+				      resource_size(&dpio_dev->regions[1]));
+	if (!desc.regs_cinh) {
+		err = -ENOMEM;
+		dev_err(dev, "devm_ioremap failed\n");
+		goto err_allocate_irqs;
+	}
 
 	err = fsl_mc_allocate_irqs(dpio_dev);
 	if (err) {
@@ -164,6 +177,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	priv->io = dpaa2_io_create(&desc);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
+		err = -ENOMEM;
 		goto err_dpaa2_io_create;
 	}
 
@@ -185,8 +199,6 @@ err_get_attr:
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
-err_mcportal:
-	dev_set_drvdata(dev, NULL);
 err_priv_alloc:
 	return err;
 }
@@ -229,8 +241,6 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 
 	fsl_mc_portal_free(dpio_dev->mc_io);
-
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 

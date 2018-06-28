@@ -491,8 +491,9 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			continue;
 		}
 
-		weint_data = devm_kzalloc(dev, bank->nr_pins
-					* sizeof(*weint_data), GFP_KERNEL);
+		weint_data = devm_kcalloc(dev,
+					  bank->nr_pins, sizeof(*weint_data),
+					  GFP_KERNEL);
 		if (!weint_data)
 			return -ENOMEM;
 

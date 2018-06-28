@@ -98,6 +98,14 @@ Finally, if you need to remove all overlays in one-go, just call
 of_overlay_remove_all() which will remove every single one in the correct
 order.
 
+In addition, there is the option to register notifiers that get called on
+overlay operations. See of_overlay_notifier_register/unregister and
+enum of_overlay_notify_action for details.
+
+Note that a notifier callback is not supposed to store pointers to a device
+tree node or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
+respective node it received.
+
 Overlay DTS Format
 ------------------
 

@@ -929,7 +929,7 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 	adapter->rx_locked = false;
 	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
-	mwifiex_set_mac_address(priv, dev);
+	mwifiex_set_mac_address(priv, dev, false, NULL);
 
 	return 0;
 }
@@ -1158,6 +1158,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_UNSPECIFIED:
 			mwifiex_dbg(priv->adapter, INFO,
 				    "%s: kept type as IBSS\n", dev->name);
+			/* fall through */
 		case NL80211_IFTYPE_ADHOC:	/* This shouldn't happen */
 			return 0;
 		default:
@@ -1188,6 +1189,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_UNSPECIFIED:
 			mwifiex_dbg(priv->adapter, INFO,
 				    "%s: kept type as STA\n", dev->name);
+			/* fall through */
 		case NL80211_IFTYPE_STATION:	/* This shouldn't happen */
 			return 0;
 		default:
@@ -1210,6 +1212,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_UNSPECIFIED:
 			mwifiex_dbg(priv->adapter, INFO,
 				    "%s: kept type as AP\n", dev->name);
+			/* fall through */
 		case NL80211_IFTYPE_AP:		/* This shouldn't happen */
 			return 0;
 		default:
@@ -1249,6 +1252,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_UNSPECIFIED:
 			mwifiex_dbg(priv->adapter, INFO,
 				    "%s: kept type as P2P\n", dev->name);
+			/* fall through */
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_P2P_GO:
 			return 0;
@@ -1979,7 +1983,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		bss_cfg->bcast_ssid_ctl = 0;
 		break;
 	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
-		/* firmware doesn't support this type of hidden SSID */
+		bss_cfg->bcast_ssid_ctl = 2;
+		break;
 	default:
 		kfree(bss_cfg);
 		return -EINVAL;
@@ -2257,7 +2262,7 @@ done:
 
 		if (!bss) {
 			if (is_scanning_required) {
-				mwifiex_dbg(priv->adapter, WARN,
+				mwifiex_dbg(priv->adapter, MSG,
 					    "assoc: requested bss not found in scan results\n");
 				break;
 			}
@@ -2978,7 +2983,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	priv->netdev = dev;
 
 	if (!adapter->mfg_mode) {
-		mwifiex_set_mac_address(priv, dev);
+		mwifiex_set_mac_address(priv, dev, false, NULL);
 
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 				       HostCmd_ACT_GEN_SET, 0, NULL, true);
@@ -3553,6 +3558,9 @@ static int mwifiex_set_rekey_data(struct wiphy *wiphy, struct net_device *dev,
 				  struct cfg80211_gtk_rekey_data *data)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return -EOPNOTSUPP;
 
 	return mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 				HostCmd_ACT_GEN_SET, 0, data, true);
@@ -4189,6 +4197,16 @@ static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
 	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
 	.max_nd_match_sets = MWIFIEX_MAX_ND_MATCH_SETS,
 };
+
+static const struct wiphy_wowlan_support mwifiex_wowlan_support_no_gtk = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_NET_DETECT,
+	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+	.max_nd_match_sets = MWIFIEX_MAX_ND_MATCH_SETS,
+};
 #endif
 
 static bool mwifiex_is_valid_alpha2(const char *alpha2)
@@ -4224,8 +4242,8 @@ int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter)
 	 * additional active scan request for hidden SSIDs on passive channels.
 	 */
 	adapter->num_in_chan_stats = 2 * (n_channels_bg + n_channels_a);
-	adapter->chan_stats = vmalloc(sizeof(*adapter->chan_stats) *
-				      adapter->num_in_chan_stats);
+	adapter->chan_stats = vmalloc(array_size(sizeof(*adapter->chan_stats),
+						 adapter->num_in_chan_stats));
 
 	if (!adapter->chan_stats)
 		return -ENOMEM;
@@ -4307,7 +4325,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 				WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 
 #ifdef CONFIG_PM
-	wiphy->wowlan = &mwifiex_wowlan_support;
+	if (ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		wiphy->wowlan = &mwifiex_wowlan_support;
+	else
+		wiphy->wowlan = &mwifiex_wowlan_support_no_gtk;
 #endif
 
 	wiphy->coalesce = &mwifiex_coalesce_support;

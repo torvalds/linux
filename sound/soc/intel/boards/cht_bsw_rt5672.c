@@ -189,13 +189,6 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	if (devm_acpi_dev_add_driver_gpios(component->dev, cht_rt5672_gpios))
 		dev_warn(runtime->dev, "Unable to add GPIO mapping table\n");
 
-	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
-	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xF, 0xF, 4, 24);
-	if (ret < 0) {
-		dev_err(runtime->dev, "can't set codec TDM slot %d\n", ret);
-		return ret;
-	}
-
 	/* Select codec ASRC clock source to track I2S1 clock, because codec
 	 * is in slave mode and 100fs I2S format (BCLK = 100 * LRCLK) cannot
 	 * be supported by RT5672. Otherwise, ASRC will be disabled and cause
@@ -252,6 +245,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 			SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
+	int ret;
 
 	/* The DSP will covert the FE rate to 48k, stereo, 24bits */
 	rate->min = rate->max = 48000;
@@ -259,6 +253,26 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	/* set SSP2 to 24-bit */
 	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+
+	/*
+	 * Default mode for SSP configuration is TDM 4 slot
+	 */
+	ret = snd_soc_dai_set_fmt(rtd->codec_dai,
+				  SND_SOC_DAIFMT_DSP_B |
+				  SND_SOC_DAIFMT_IB_NF |
+				  SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set format to TDM %d\n", ret);
+		return ret;
+	}
+
+	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
+	ret = snd_soc_dai_set_tdm_slot(rtd->codec_dai, 0xF, 0xF, 4, 24);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set codec TDM slot %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -315,8 +329,6 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.nonatomic = true,
 		.codec_dai_name = "rt5670-aif1",
 		.codec_name = "i2c-10EC5670:00",
-		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF
-					| SND_SOC_DAIFMT_CBS_CFS,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,

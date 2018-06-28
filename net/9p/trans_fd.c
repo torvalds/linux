@@ -231,7 +231,7 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 static __poll_t
 p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt, int *err)
 {
-	__poll_t ret, n;
+	__poll_t ret;
 	struct p9_trans_fd *ts = NULL;
 
 	if (client && client->status == Connected)
@@ -243,19 +243,9 @@ p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt, int *err)
 		return EPOLLERR;
 	}
 
-	if (!ts->rd->f_op->poll)
-		ret = DEFAULT_POLLMASK;
-	else
-		ret = ts->rd->f_op->poll(ts->rd, pt);
-
-	if (ts->rd != ts->wr) {
-		if (!ts->wr->f_op->poll)
-			n = DEFAULT_POLLMASK;
-		else
-			n = ts->wr->f_op->poll(ts->wr, pt);
-		ret = (ret & ~EPOLLOUT) | (n & ~EPOLLIN);
-	}
-
+	ret = vfs_poll(ts->rd, pt);
+	if (ts->rd != ts->wr)
+		ret = (ret & ~EPOLLOUT) | (vfs_poll(ts->wr, pt) & ~EPOLLIN);
 	return ret;
 }
 
@@ -1092,8 +1082,8 @@ static struct p9_trans_module p9_fd_trans = {
 };
 
 /**
- * p9_poll_proc - poll worker thread
- * @a: thread state and arguments
+ * p9_poll_workfn - poll worker thread
+ * @work: work queue
  *
  * polls all v9fs transports for new events and queues the appropriate
  * work to the work queue

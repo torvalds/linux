@@ -289,10 +289,16 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	       irq->vcpu->cpu != -1) /* VCPU thread is running */
 		cond_resched_lock(&irq->irq_lock);
 
-	if (irq->hw)
+	if (irq->hw) {
 		vgic_hw_irq_change_active(vcpu, irq, active, !requester_vcpu);
-	else
+	} else {
+		u32 model = vcpu->kvm->arch.vgic.vgic_model;
+
 		irq->active = active;
+		if (model == KVM_DEV_TYPE_ARM_VGIC_V2 &&
+		    active && vgic_irq_is_sgi(irq->intid))
+			irq->active_source = requester_vcpu->vcpu_id;
+	}
 
 	if (irq->active)
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);

@@ -515,7 +515,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		get_output_lock();
 		excprint(regs);
 		if (bp) {
-			printf("cpu 0x%x stopped at breakpoint 0x%lx (",
+			printf("cpu 0x%x stopped at breakpoint 0x%tx (",
 			       cpu, BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
@@ -622,7 +622,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		excprint(regs);
 		bp = at_breakpoint(regs->nip);
 		if (bp) {
-			printf("Stopped at breakpoint %lx (", BP_NUM(bp));
+			printf("Stopped at breakpoint %tx (", BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
 		if (unrecoverable_excp(regs))
@@ -776,6 +776,16 @@ static int xmon_fault_handler(struct pt_regs *regs)
 	}
 
 	return 0;
+}
+
+/* Force enable xmon if not already enabled */
+static inline void force_enable_xmon(void)
+{
+	/* Enable xmon hooks if needed */
+	if (!xmon_on) {
+		printf("xmon: Enabling debugger hooks\n");
+		xmon_on = 1;
+	}
 }
 
 static struct bpt *at_breakpoint(unsigned long pc)
@@ -1094,6 +1104,7 @@ static int do_step(struct pt_regs *regs)
 	unsigned int instr;
 	int stepped;
 
+	force_enable_xmon();
 	/* check we are in 64-bit kernel mode, translation enabled */
 	if ((regs->msr & (MSR_64BIT|MSR_PR|MSR_IR)) == (MSR_64BIT|MSR_IR)) {
 		if (mread(regs->nip, &instr, 4) == 4) {
@@ -1160,7 +1171,11 @@ static int cpu_cmd(void)
 	}
 	/* try to switch to cpu specified */
 	if (!cpumask_test_cpu(cpu, &cpus_in_xmon)) {
-		printf("cpu 0x%x isn't in xmon\n", cpu);
+		printf("cpu 0x%lx isn't in xmon\n", cpu);
+#ifdef CONFIG_PPC64
+		printf("backtrace of paca[0x%lx].saved_r1 (possibly stale):\n", cpu);
+		xmon_show_stack(paca_ptrs[cpu]->saved_r1, 0, 0);
+#endif
 		return 0;
 	}
 	xmon_taken = 0;
@@ -1174,7 +1189,7 @@ static int cpu_cmd(void)
 			/* take control back */
 			mb();
 			xmon_owner = smp_processor_id();
-			printf("cpu 0x%x didn't take control\n", cpu);
+			printf("cpu 0x%lx didn't take control\n", cpu);
 			return 0;
 		}
 		barrier();
@@ -1266,16 +1281,6 @@ static long check_bp_loc(unsigned long addr)
 		return 0;
 	}
 	return 1;
-}
-
-/* Force enable xmon if not already enabled */
-static inline void force_enable_xmon(void)
-{
-	/* Enable xmon hooks if needed */
-	if (!xmon_on) {
-		printf("xmon: Enabling debugger hooks\n");
-		xmon_on = 1;
-	}
 }
 
 static char *breakpoint_help_string =
@@ -1374,7 +1379,7 @@ bpt_cmds(void)
 			}
 		}
 
-		printf("Cleared breakpoint %lx (", BP_NUM(bp));
+		printf("Cleared breakpoint %tx (", BP_NUM(bp));
 		xmon_print_symbol(bp->address, " ", ")\n");
 		bp->enabled = 0;
 		break;
@@ -1401,7 +1406,7 @@ bpt_cmds(void)
 			for (bp = bpts; bp < &bpts[NBPTS]; ++bp) {
 				if (!bp->enabled)
 					continue;
-				printf("%2x %s   ", BP_NUM(bp),
+				printf("%tx %s   ", BP_NUM(bp),
 				    (bp->enabled & BP_CIABR) ? "inst": "trap");
 				xmon_print_symbol(bp->address, "  ", "\n");
 			}
@@ -1618,11 +1623,11 @@ static void excprint(struct pt_regs *fp)
 #endif /* CONFIG_SMP */
 
 	trap = TRAP(fp);
-	printf("Vector: %lx %s at [%lx]\n", fp->trap, getvecname(trap), fp);
+	printf("Vector: %lx %s at [%px]\n", fp->trap, getvecname(trap), fp);
 	printf("    pc: ");
 	xmon_print_symbol(fp->nip, ": ", "\n");
 
-	printf("    lr: ", fp->link);
+	printf("    lr: ");
 	xmon_print_symbol(fp->link, ": ", "\n");
 
 	printf("    sp: %lx\n", fp->gpr[1]);
@@ -1634,13 +1639,13 @@ static void excprint(struct pt_regs *fp)
 			printf(" dsisr: %lx\n", fp->dsisr);
 	}
 
-	printf("  current = 0x%lx\n", current);
+	printf("  current = 0x%px\n", current);
 #ifdef CONFIG_PPC64
-	printf("  paca    = 0x%lx\t softe: %d\t irq_happened: 0x%02x\n",
+	printf("  paca    = 0x%px\t irqmask: 0x%02x\t irq_happened: 0x%02x\n",
 	       local_paca, local_paca->irq_soft_mask, local_paca->irq_happened);
 #endif
 	if (current) {
-		printf("    pid   = %ld, comm = %s\n",
+		printf("    pid   = %d, comm = %s\n",
 		       current->pid, current->comm);
 	}
 
@@ -1676,16 +1681,16 @@ static void prregs(struct pt_regs *fp)
 #ifdef CONFIG_PPC64
 	if (FULL_REGS(fp)) {
 		for (n = 0; n < 16; ++n)
-			printf("R%.2ld = "REG"   R%.2ld = "REG"\n",
+			printf("R%.2d = "REG"   R%.2d = "REG"\n",
 			       n, fp->gpr[n], n+16, fp->gpr[n+16]);
 	} else {
 		for (n = 0; n < 7; ++n)
-			printf("R%.2ld = "REG"   R%.2ld = "REG"\n",
+			printf("R%.2d = "REG"   R%.2d = "REG"\n",
 			       n, fp->gpr[n], n+7, fp->gpr[n+7]);
 	}
 #else
 	for (n = 0; n < 32; ++n) {
-		printf("R%.2d = %.8x%s", n, fp->gpr[n],
+		printf("R%.2d = %.8lx%s", n, fp->gpr[n],
 		       (n & 3) == 3? "\n": "   ");
 		if (n == 12 && !FULL_REGS(fp)) {
 			printf("\n");
@@ -1789,9 +1794,9 @@ static void dump_206_sprs(void)
 
 	/* Actually some of these pre-date 2.06, but whatevs */
 
-	printf("srr0   = %.16lx  srr1  = %.16lx dsisr  = %.8x\n",
+	printf("srr0   = %.16lx  srr1  = %.16lx dsisr  = %.8lx\n",
 		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
-	printf("dscr   = %.16lx  ppr   = %.16lx pir    = %.8x\n",
+	printf("dscr   = %.16lx  ppr   = %.16lx pir    = %.8lx\n",
 		mfspr(SPRN_DSCR), mfspr(SPRN_PPR), mfspr(SPRN_PIR));
 	printf("amr    = %.16lx  uamor = %.16lx\n",
 		mfspr(SPRN_AMR), mfspr(SPRN_UAMOR));
@@ -1799,11 +1804,11 @@ static void dump_206_sprs(void)
 	if (!(mfmsr() & MSR_HV))
 		return;
 
-	printf("sdr1   = %.16lx  hdar  = %.16lx hdsisr = %.8x\n",
+	printf("sdr1   = %.16lx  hdar  = %.16lx hdsisr = %.8lx\n",
 		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
 	printf("hsrr0  = %.16lx hsrr1  = %.16lx hdec   = %.16lx\n",
 		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
-	printf("lpcr   = %.16lx  pcr   = %.16lx lpidr  = %.8x\n",
+	printf("lpcr   = %.16lx  pcr   = %.16lx lpidr  = %.8lx\n",
 		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
 	printf("hsprg0 = %.16lx hsprg1 = %.16lx amor   = %.16lx\n",
 		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1), mfspr(SPRN_AMOR));
@@ -1820,10 +1825,10 @@ static void dump_207_sprs(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return;
 
-	printf("dpdes  = %.16lx  tir   = %.16lx cir    = %.8x\n",
+	printf("dpdes  = %.16lx  tir   = %.16lx cir    = %.8lx\n",
 		mfspr(SPRN_DPDES), mfspr(SPRN_TIR), mfspr(SPRN_CIR));
 
-	printf("fscr   = %.16lx  tar   = %.16lx pspb   = %.8x\n",
+	printf("fscr   = %.16lx  tar   = %.16lx pspb   = %.8lx\n",
 		mfspr(SPRN_FSCR), mfspr(SPRN_TAR), mfspr(SPRN_PSPB));
 
 	msr = mfmsr();
@@ -1836,12 +1841,12 @@ static void dump_207_sprs(void)
 
 	printf("mmcr0  = %.16lx  mmcr1 = %.16lx mmcr2  = %.16lx\n",
 		mfspr(SPRN_MMCR0), mfspr(SPRN_MMCR1), mfspr(SPRN_MMCR2));
-	printf("pmc1   = %.8x pmc2 = %.8x  pmc3 = %.8x  pmc4   = %.8x\n",
+	printf("pmc1   = %.8lx pmc2 = %.8lx  pmc3 = %.8lx  pmc4   = %.8lx\n",
 		mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
 		mfspr(SPRN_PMC3), mfspr(SPRN_PMC4));
-	printf("mmcra  = %.16lx   siar = %.16lx pmc5   = %.8x\n",
+	printf("mmcra  = %.16lx   siar = %.16lx pmc5   = %.8lx\n",
 		mfspr(SPRN_MMCRA), mfspr(SPRN_SIAR), mfspr(SPRN_PMC5));
-	printf("sdar   = %.16lx   sier = %.16lx pmc6   = %.8x\n",
+	printf("sdar   = %.16lx   sier = %.16lx pmc6   = %.8lx\n",
 		mfspr(SPRN_SDAR), mfspr(SPRN_SIER), mfspr(SPRN_PMC6));
 	printf("ebbhr  = %.16lx  ebbrr = %.16lx bescr  = %.16lx\n",
 		mfspr(SPRN_EBBHR), mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
@@ -2345,31 +2350,31 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 20, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 20, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 20, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "online", cpu_online(cpu) ? "yes" : "no");
 
-#define DUMP(paca, name, format) \
-	printf(" %-*s = %#-*"format"\t(0x%lx)\n", 20, #name, 18, paca->name, \
+#define DUMP(paca, name, format)				\
+	printf(" %-*s = "format"\t(0x%lx)\n", 25, #name, 18, paca->name, \
 		offsetof(struct paca_struct, name));
 
-	DUMP(p, lock_token, "x");
-	DUMP(p, paca_index, "x");
-	DUMP(p, kernel_toc, "lx");
-	DUMP(p, kernelbase, "lx");
-	DUMP(p, kernel_msr, "lx");
-	DUMP(p, emergency_sp, "px");
+	DUMP(p, lock_token, "%#-*x");
+	DUMP(p, paca_index, "%#-*x");
+	DUMP(p, kernel_toc, "%#-*llx");
+	DUMP(p, kernelbase, "%#-*llx");
+	DUMP(p, kernel_msr, "%#-*llx");
+	DUMP(p, emergency_sp, "%-*px");
 #ifdef CONFIG_PPC_BOOK3S_64
-	DUMP(p, nmi_emergency_sp, "px");
-	DUMP(p, mc_emergency_sp, "px");
-	DUMP(p, in_nmi, "x");
-	DUMP(p, in_mce, "x");
-	DUMP(p, hmi_event_available, "x");
+	DUMP(p, nmi_emergency_sp, "%-*px");
+	DUMP(p, mc_emergency_sp, "%-*px");
+	DUMP(p, in_nmi, "%#-*x");
+	DUMP(p, in_mce, "%#-*x");
+	DUMP(p, hmi_event_available, "%#-*x");
 #endif
-	DUMP(p, data_offset, "lx");
-	DUMP(p, hw_cpu_id, "x");
-	DUMP(p, cpu_start, "x");
-	DUMP(p, kexec_state, "x");
+	DUMP(p, data_offset, "%#-*llx");
+	DUMP(p, hw_cpu_id, "%#-*x");
+	DUMP(p, cpu_start, "%#-*x");
+	DUMP(p, kexec_state, "%#-*x");
 #ifdef CONFIG_PPC_BOOK3S_64
 	for (i = 0; i < SLB_NUM_BOLTED; i++) {
 		u64 esid, vsid;
@@ -2381,58 +2386,69 @@ static void dump_one_paca(int cpu)
 		vsid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].vsid);
 
 		if (esid || vsid) {
-			printf(" slb_shadow[%d]:       = 0x%016lx 0x%016lx\n",
-				i, esid, vsid);
+			printf(" %-*s[%d] = 0x%016llx 0x%016llx\n",
+			       22, "slb_shadow", i, esid, vsid);
 		}
 	}
-	DUMP(p, vmalloc_sllp, "x");
-	DUMP(p, slb_cache_ptr, "x");
+	DUMP(p, vmalloc_sllp, "%#-*x");
+	DUMP(p, slb_cache_ptr, "%#-*x");
 	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
-		printf(" slb_cache[%d]:        = 0x%016lx\n", i, p->slb_cache[i]);
+		printf(" %-*s[%d] = 0x%016x\n",
+		       22, "slb_cache", i, p->slb_cache[i]);
 
-	DUMP(p, rfi_flush_fallback_area, "px");
+	DUMP(p, rfi_flush_fallback_area, "%-*px");
 #endif
-	DUMP(p, dscr_default, "llx");
+	DUMP(p, dscr_default, "%#-*llx");
 #ifdef CONFIG_PPC_BOOK3E
-	DUMP(p, pgd, "px");
-	DUMP(p, kernel_pgd, "px");
-	DUMP(p, tcd_ptr, "px");
-	DUMP(p, mc_kstack, "px");
-	DUMP(p, crit_kstack, "px");
-	DUMP(p, dbg_kstack, "px");
+	DUMP(p, pgd, "%-*px");
+	DUMP(p, kernel_pgd, "%-*px");
+	DUMP(p, tcd_ptr, "%-*px");
+	DUMP(p, mc_kstack, "%-*px");
+	DUMP(p, crit_kstack, "%-*px");
+	DUMP(p, dbg_kstack, "%-*px");
 #endif
-	DUMP(p, __current, "px");
-	DUMP(p, kstack, "lx");
-	printf(" kstack_base          = 0x%016lx\n", p->kstack & ~(THREAD_SIZE - 1));
-	DUMP(p, stab_rr, "lx");
-	DUMP(p, saved_r1, "lx");
-	DUMP(p, trap_save, "x");
-	DUMP(p, irq_soft_mask, "x");
-	DUMP(p, irq_happened, "x");
-	DUMP(p, io_sync, "x");
-	DUMP(p, irq_work_pending, "x");
-	DUMP(p, nap_state_lost, "x");
-	DUMP(p, sprg_vdso, "llx");
+	DUMP(p, __current, "%-*px");
+	DUMP(p, kstack, "%#-*llx");
+	printf(" %-*s = 0x%016llx\n", 25, "kstack_base", p->kstack & ~(THREAD_SIZE - 1));
+	DUMP(p, stab_rr, "%#-*llx");
+	DUMP(p, saved_r1, "%#-*llx");
+	DUMP(p, trap_save, "%#-*x");
+	DUMP(p, irq_soft_mask, "%#-*x");
+	DUMP(p, irq_happened, "%#-*x");
+	DUMP(p, io_sync, "%#-*x");
+	DUMP(p, irq_work_pending, "%#-*x");
+	DUMP(p, nap_state_lost, "%#-*x");
+	DUMP(p, sprg_vdso, "%#-*llx");
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	DUMP(p, tm_scratch, "llx");
+	DUMP(p, tm_scratch, "%#-*llx");
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	DUMP(p, core_idle_state_ptr, "px");
-	DUMP(p, thread_idle_state, "x");
-	DUMP(p, thread_mask, "x");
-	DUMP(p, subcore_sibling_mask, "x");
+	DUMP(p, core_idle_state_ptr, "%-*px");
+	DUMP(p, thread_idle_state, "%#-*x");
+	DUMP(p, thread_mask, "%#-*x");
+	DUMP(p, subcore_sibling_mask, "%#-*x");
+	DUMP(p, thread_sibling_pacas, "%-*px");
+	DUMP(p, requested_psscr, "%#-*llx");
+	DUMP(p, stop_sprs.pid, "%#-*llx");
+	DUMP(p, stop_sprs.ldbar, "%#-*llx");
+	DUMP(p, stop_sprs.fscr, "%#-*llx");
+	DUMP(p, stop_sprs.hfscr, "%#-*llx");
+	DUMP(p, stop_sprs.mmcr1, "%#-*llx");
+	DUMP(p, stop_sprs.mmcr2, "%#-*llx");
+	DUMP(p, stop_sprs.mmcra, "%#-*llx");
+	DUMP(p, dont_stop.counter, "%#-*x");
 #endif
 
-	DUMP(p, accounting.utime, "llx");
-	DUMP(p, accounting.stime, "llx");
-	DUMP(p, accounting.utime_scaled, "llx");
-	DUMP(p, accounting.starttime, "llx");
-	DUMP(p, accounting.starttime_user, "llx");
-	DUMP(p, accounting.startspurr, "llx");
-	DUMP(p, accounting.utime_sspurr, "llx");
-	DUMP(p, accounting.steal_time, "llx");
+	DUMP(p, accounting.utime, "%#-*lx");
+	DUMP(p, accounting.stime, "%#-*lx");
+	DUMP(p, accounting.utime_scaled, "%#-*lx");
+	DUMP(p, accounting.starttime, "%#-*lx");
+	DUMP(p, accounting.starttime_user, "%#-*lx");
+	DUMP(p, accounting.startspurr, "%#-*lx");
+	DUMP(p, accounting.utime_sspurr, "%#-*lx");
+	DUMP(p, accounting.steal_time, "%#-*lx");
 #undef DUMP
 
 	catch_memory_errors = 0;
@@ -2578,7 +2594,7 @@ static void dump_by_size(unsigned long addr, long count, int size)
 			default: val = 0;
 			}
 
-			printf("%0*lx", size * 2, val);
+			printf("%0*llx", size * 2, val);
 		}
 		printf("\n");
 	}
@@ -2742,7 +2758,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf(REG"  %.8x", adr, inst);
+			printf(REG"  %.8lx", adr, inst);
 		printf("\t");
 		dump_func(inst, adr);
 		printf("\n");
@@ -2874,7 +2890,7 @@ memdiffs(unsigned char *p1, unsigned char *p2, unsigned nb, unsigned maxpr)
 	for( n = nb; n > 0; --n )
 		if( *p1++ != *p2++ )
 			if( ++prt <= maxpr )
-				printf("%.16x %.2x # %.16x %.2x\n", p1 - 1,
+				printf("%px %.2x # %px %.2x\n", p1 - 1,
 					p1[-1], p2 - 1, p2[-1]);
 	if( prt > maxpr )
 		printf("Total of %d differences\n", prt);
@@ -2934,13 +2950,13 @@ memzcan(void)
 		if (ok && !ook) {
 			printf("%.8x .. ", a);
 		} else if (!ok && ook)
-			printf("%.8x\n", a - mskip);
+			printf("%.8lx\n", a - mskip);
 		ook = ok;
 		if (a + mskip < a)
 			break;
 	}
 	if (ook)
-		printf("%.8x\n", a - mskip);
+		printf("%.8lx\n", a - mskip);
 }
 
 static void show_task(struct task_struct *tsk)
@@ -3024,13 +3040,13 @@ static void show_pte(unsigned long addr)
 		return;
 	}
 
-	printf("pgd  @ 0x%016lx\n", pgdir);
+	printf("pgd  @ 0x%px\n", pgdir);
 
 	if (pgd_huge(*pgdp)) {
 		format_pte(pgdp, pgd_val(*pgdp));
 		return;
 	}
-	printf("pgdp @ 0x%016lx = 0x%016lx\n", pgdp, pgd_val(*pgdp));
+	printf("pgdp @ 0x%px = 0x%016lx\n", pgdp, pgd_val(*pgdp));
 
 	pudp = pud_offset(pgdp, addr);
 
@@ -3044,7 +3060,7 @@ static void show_pte(unsigned long addr)
 		return;
 	}
 
-	printf("pudp @ 0x%016lx = 0x%016lx\n", pudp, pud_val(*pudp));
+	printf("pudp @ 0x%px = 0x%016lx\n", pudp, pud_val(*pudp));
 
 	pmdp = pmd_offset(pudp, addr);
 
@@ -3057,7 +3073,7 @@ static void show_pte(unsigned long addr)
 		format_pte(pmdp, pmd_val(*pmdp));
 		return;
 	}
-	printf("pmdp @ 0x%016lx = 0x%016lx\n", pmdp, pmd_val(*pmdp));
+	printf("pmdp @ 0x%px = 0x%016lx\n", pmdp, pmd_val(*pmdp));
 
 	ptep = pte_offset_map(pmdp, addr);
 	if (pte_none(*ptep)) {
@@ -3161,7 +3177,7 @@ skipbl(void)
 }
 
 #define N_PTREGS	44
-static char *regnames[N_PTREGS] = {
+static const char *regnames[N_PTREGS] = {
 	"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
 	"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
@@ -3196,18 +3212,17 @@ scanhex(unsigned long *vp)
 			regname[i] = c;
 		}
 		regname[i] = 0;
-		for (i = 0; i < N_PTREGS; ++i) {
-			if (strcmp(regnames[i], regname) == 0) {
-				if (xmon_regs == NULL) {
-					printf("regs not available\n");
-					return 0;
-				}
-				*vp = ((unsigned long *)xmon_regs)[i];
-				return 1;
-			}
+		i = match_string(regnames, N_PTREGS, regname);
+		if (i < 0) {
+			printf("invalid register name '%%%s'\n", regname);
+			return 0;
 		}
-		printf("invalid register name '%%%s'\n", regname);
-		return 0;
+		if (xmon_regs == NULL) {
+			printf("regs not available\n");
+			return 0;
+		}
+		*vp = ((unsigned long *)xmon_regs)[i];
+		return 1;
 	}
 
 	/* skip leading "0x" if any */
@@ -3456,9 +3471,9 @@ static void dump_tlb_44x(void)
 		asm volatile("tlbre  %0,%1,0" : "=r" (w0) : "r" (i));
 		asm volatile("tlbre  %0,%1,1" : "=r" (w1) : "r" (i));
 		asm volatile("tlbre  %0,%1,2" : "=r" (w2) : "r" (i));
-		printf("[%02x] %08x %08x %08x ", i, w0, w1, w2);
+		printf("[%02x] %08lx %08lx %08lx ", i, w0, w1, w2);
 		if (w0 & PPC44x_TLB_VALID) {
-			printf("V %08x -> %01x%08x %c%c%c%c%c",
+			printf("V %08lx -> %01lx%08lx %c%c%c%c%c",
 			       w0 & PPC44x_TLB_EPN_MASK,
 			       w1 & PPC44x_TLB_ERPN_MASK,
 			       w1 & PPC44x_TLB_RPN_MASK,
@@ -3882,19 +3897,19 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%lx", ls_size);
 	DUMP_FIELD(spu, "0x%x", node);
 	DUMP_FIELD(spu, "0x%lx", flags);
-	DUMP_FIELD(spu, "%d", class_0_pending);
-	DUMP_FIELD(spu, "0x%lx", class_0_dar);
-	DUMP_FIELD(spu, "0x%lx", class_1_dar);
-	DUMP_FIELD(spu, "0x%lx", class_1_dsisr);
-	DUMP_FIELD(spu, "0x%lx", irqs[0]);
-	DUMP_FIELD(spu, "0x%lx", irqs[1]);
-	DUMP_FIELD(spu, "0x%lx", irqs[2]);
+	DUMP_FIELD(spu, "%llu", class_0_pending);
+	DUMP_FIELD(spu, "0x%llx", class_0_dar);
+	DUMP_FIELD(spu, "0x%llx", class_1_dar);
+	DUMP_FIELD(spu, "0x%llx", class_1_dsisr);
+	DUMP_FIELD(spu, "0x%x", irqs[0]);
+	DUMP_FIELD(spu, "0x%x", irqs[1]);
+	DUMP_FIELD(spu, "0x%x", irqs[2]);
 	DUMP_FIELD(spu, "0x%x", slb_replace);
 	DUMP_FIELD(spu, "%d", pid);
 	DUMP_FIELD(spu, "0x%p", mm);
 	DUMP_FIELD(spu, "0x%p", ctx);
 	DUMP_FIELD(spu, "0x%p", rq);
-	DUMP_FIELD(spu, "0x%p", timestamp);
+	DUMP_FIELD(spu, "0x%llx", timestamp);
 	DUMP_FIELD(spu, "0x%lx", problem_phys);
 	DUMP_FIELD(spu, "0x%p", problem);
 	DUMP_VALUE("0x%x", problem->spu_runcntl_RW,
@@ -3925,7 +3940,7 @@ static void dump_spu_ls(unsigned long num, int subcmd)
 		__delay(200);
 	} else {
 		catch_memory_errors = 0;
-		printf("*** Error: accessing spu info for spu %d\n", num);
+		printf("*** Error: accessing spu info for spu %ld\n", num);
 		return;
 	}
 	catch_memory_errors = 0;

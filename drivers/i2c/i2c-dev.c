@@ -244,7 +244,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 	u8 __user **data_ptrs;
 	int i, res;
 
-	data_ptrs = kmalloc(nmsgs * sizeof(u8 __user *), GFP_KERNEL);
+	data_ptrs = kmalloc_array(nmsgs, sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
 		kfree(msgs);
 		return -ENOMEM;
@@ -280,7 +280,7 @@ static noinline int i2cdev_ioctl_rdwr(struct i2c_client *client,
 		 */
 		if (msgs[i].flags & I2C_M_RECV_LEN) {
 			if (!(msgs[i].flags & I2C_M_RD) ||
-			    msgs[i].buf[0] < 1 ||
+			    msgs[i].len < 1 || msgs[i].buf[0] < 1 ||
 			    msgs[i].len < msgs[i].buf[0] +
 					     I2C_SMBUS_BLOCK_MAX) {
 				res = -EINVAL;

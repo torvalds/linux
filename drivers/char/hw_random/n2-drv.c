@@ -435,7 +435,7 @@ static int n2rng_data_read(struct hwrng *rng, u32 *data)
 			*data = np->test_data & 0xffffffff;
 			len = 4;
 		} else {
-			dev_err(&np->op->dev, "RNG error, restesting\n");
+			dev_err(&np->op->dev, "RNG error, retesting\n");
 			np->flags &= ~N2RNG_FLAG_READY;
 			if (!(np->flags & N2RNG_FLAG_SHUTDOWN))
 				schedule_delayed_work(&np->work, 0);

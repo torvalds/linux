@@ -65,7 +65,6 @@
 #define _PAGE_PKEY_BIT2	(_AT(pteval_t, 0))
 #define _PAGE_PKEY_BIT3	(_AT(pteval_t, 0))
 #endif
-#define __HAVE_ARCH_PTE_SPECIAL
 
 #define _PAGE_PKEY_MASK (_PAGE_PKEY_BIT0 | \
 			 _PAGE_PKEY_BIT1 | \

@@ -20,8 +20,8 @@ static int read_one_page(struct page *page)
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const __u32 blocksize = PAGE_SIZE;	/* inode->i_blksize */
-	const __u32 blockbits = PAGE_SHIFT;	/* inode->i_blkbits */
+	const __u32 blocksize = PAGE_SIZE;
+	const __u32 blockbits = PAGE_SHIFT;
 	struct iov_iter to;
 	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
 
@@ -181,16 +181,15 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	new_op->upcall.req.truncate.refn = orangefs_inode->refn;
 	new_op->upcall.req.truncate.size = (__s64) iattr->ia_size;
 
-	ret = service_operation(new_op, __func__,
-				get_interruptible_flag(inode));
+	ret = service_operation(new_op,
+		__func__,
+		get_interruptible_flag(inode));
 
 	/*
 	 * the truncate has no downcall members to retrieve, but
 	 * the status value tells us if it went through ok or not
 	 */
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs: orangefs_truncate got return value of %d\n",
-		     ret);
+	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
 
 	op_release(new_op);
 
@@ -212,8 +211,9 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct inode *inode = dentry->d_inode;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_setattr: called on %pd\n",
-		     dentry);
+		"%s: called on %pd\n",
+		__func__,
+		dentry);
 
 	ret = setattr_prepare(dentry, iattr);
 	if (ret)
@@ -230,15 +230,16 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	ret = orangefs_inode_setattr(inode, iattr);
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_setattr: inode_setattr returned %d\n",
-		     ret);
+		"%s: orangefs_inode_setattr returned %d\n",
+		__func__,
+		ret);
 
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
 		/* change mod on a file that has ACLs */
 		ret = posix_acl_chmod(inode, inode->i_mode);
 
 out:
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n", ret);
+	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
 	return ret;
 }
 
@@ -262,13 +263,19 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 		/* override block size reported to stat */
 		orangefs_inode = ORANGEFS_I(inode);
-		stat->blksize = orangefs_inode->blksize;
 
 		if (request_mask & STATX_SIZE)
 			stat->result_mask = STATX_BASIC_STATS;
 		else
 			stat->result_mask = STATX_BASIC_STATS &
 			    ~STATX_SIZE;
+
+		stat->attributes_mask = STATX_ATTR_IMMUTABLE |
+		    STATX_ATTR_APPEND;
+		if (inode->i_flags & S_IMMUTABLE)
+			stat->attributes |= STATX_ATTR_IMMUTABLE;
+		if (inode->i_flags & S_APPEND)
+			stat->attributes |= STATX_ATTR_APPEND;
 	}
 	return ret;
 }
@@ -290,7 +297,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask);
 }
 
-int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
+int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
 {
 	struct iattr iattr;
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
@@ -306,7 +313,7 @@ int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
 	return orangefs_inode_setattr(inode, &iattr);
 }
 
-/* ORANGEDS2 implementation of VFS inode operations for files */
+/* ORANGEFS2 implementation of VFS inode operations for files */
 static const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
@@ -325,7 +332,6 @@ static int orangefs_init_iops(struct inode *inode)
 	case S_IFREG:
 		inode->i_op = &orangefs_file_inode_operations;
 		inode->i_fop = &orangefs_file_operations;
-		inode->i_blkbits = PAGE_SHIFT;
 		break;
 	case S_IFLNK:
 		inode->i_op = &orangefs_symlink_inode_operations;
@@ -345,8 +351,8 @@ static int orangefs_init_iops(struct inode *inode)
 }
 
 /*
- * Given a ORANGEFS object identifier (fsid, handle), convert it into a ino_t type
- * that will be used as a hash-index from where the handle will
+ * Given an ORANGEFS object identifier (fsid, handle), convert it into
+ * a ino_t type that will be used as a hash-index from where the handle will
  * be searched for in the VFS hash table of inodes.
  */
 static inline ino_t orangefs_handle_hash(struct orangefs_object_kref *ref)
@@ -376,8 +382,10 @@ static int orangefs_test_inode(struct inode *inode, void *data)
 	struct orangefs_inode_s *orangefs_inode = NULL;
 
 	orangefs_inode = ORANGEFS_I(inode);
-	return (!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle), &(ref->khandle))
-		&& orangefs_inode->refn.fs_id == ref->fs_id);
+	/* test handles and fs_ids... */
+	return (!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle),
+				&(ref->khandle)) &&
+			orangefs_inode->refn.fs_id == ref->fs_id);
 }
 
 /*
@@ -385,16 +393,21 @@ static int orangefs_test_inode(struct inode *inode, void *data)
  * file handle.
  *
  * @sb: the file system super block instance.
- * @ref: The ORANGEFS object for which we are trying to locate an inode structure.
+ * @ref: The ORANGEFS object for which we are trying to locate an inode.
  */
-struct inode *orangefs_iget(struct super_block *sb, struct orangefs_object_kref *ref)
+struct inode *orangefs_iget(struct super_block *sb,
+		struct orangefs_object_kref *ref)
 {
 	struct inode *inode = NULL;
 	unsigned long hash;
 	int error;
 
 	hash = orangefs_handle_hash(ref);
-	inode = iget5_locked(sb, hash, orangefs_test_inode, orangefs_set_inode, ref);
+	inode = iget5_locked(sb,
+			hash,
+			orangefs_test_inode,
+			orangefs_set_inode,
+			ref);
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
 

@@ -1048,15 +1048,16 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 			"[%s] **err: could not allocate DDCB **\n", __func__);
 		return -ENOMEM;
 	}
-	queue->ddcb_req = kzalloc(sizeof(struct ddcb_requ *) *
-				  queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_req = kcalloc(queue->ddcb_max, sizeof(struct ddcb_requ *),
+				  GFP_KERNEL);
 	if (!queue->ddcb_req) {
 		rc = -ENOMEM;
 		goto free_ddcbs;
 	}
 
-	queue->ddcb_waitqs = kzalloc(sizeof(wait_queue_head_t) *
-				     queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_waitqs = kcalloc(queue->ddcb_max,
+				     sizeof(wait_queue_head_t),
+				     GFP_KERNEL);
 	if (!queue->ddcb_waitqs) {
 		rc = -ENOMEM;
 		goto free_requs;

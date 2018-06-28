@@ -111,6 +111,7 @@ config USB_LAN78XX
 	select MII
 	select PHYLIB
 	select MICROCHIP_PHY
+	select FIXED_PHY
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
 	  & USB 3 10/100/1000 Ethernet adapters.

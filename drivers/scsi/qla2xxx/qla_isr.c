@@ -2494,8 +2494,12 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		ox_id = le16_to_cpu(sts24->ox_id);
 		par_sense_len = sizeof(sts24->data);
 		/* Valid values of the retry delay timer are 0x1-0xffef */
-		if (sts24->retry_delay > 0 && sts24->retry_delay < 0xfff1)
-			retry_delay = sts24->retry_delay;
+		if (sts24->retry_delay > 0 && sts24->retry_delay < 0xfff1) {
+			retry_delay = sts24->retry_delay & 0x3fff;
+			ql_dbg(ql_dbg_io, sp->vha, 0x3033,
+			    "%s: scope=%#x retry_delay=%#x\n", __func__,
+			    sts24->retry_delay >> 14, retry_delay);
+		}
 	} else {
 		if (scsi_status & SS_SENSE_LEN_VALID)
 			sense_len = le16_to_cpu(sts->req_sense_length);
@@ -3434,8 +3438,9 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 			    "Adjusted Max no of queues pairs: %d.\n", ha->max_qpairs);
 		}
 	}
-	ha->msix_entries = kzalloc(sizeof(struct qla_msix_entry) *
-				ha->msix_count, GFP_KERNEL);
+	ha->msix_entries = kcalloc(ha->msix_count,
+				   sizeof(struct qla_msix_entry),
+				   GFP_KERNEL);
 	if (!ha->msix_entries) {
 		ql_log(ql_log_fatal, vha, 0x00c8,
 		    "Failed to allocate memory for ha->msix_entries.\n");

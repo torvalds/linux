@@ -389,7 +389,7 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 {
 	int i;
 
-	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
+	omap_mcbsp_devices = kcalloc(size, sizeof(struct platform_device *),
 				     GFP_KERNEL);
 	if (!omap_mcbsp_devices) {
 		printk(KERN_ERR "Could not register McBSP devices\n");

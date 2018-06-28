@@ -75,15 +75,6 @@ struct dsa_slave_priv {
 	/* DSA port data, such as switch, port index, etc. */
 	struct dsa_port		*dp;
 
-	/*
-	 * The phylib phy_device pointer for the PHY connected
-	 * to this port.
-	 */
-	phy_interface_t		phy_interface;
-	int			old_link;
-	int			old_pause;
-	int			old_duplex;
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif

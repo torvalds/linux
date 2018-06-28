@@ -294,7 +294,8 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 		delay = CPTS_SKB_TX_WORK_TIMEOUT;
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	pr_debug("cpts overflow check at %lld.%09ld\n",
+		 (long long)ts.tv_sec, ts.tv_nsec);
 	return (long)delay;
 }
 
@@ -564,7 +565,7 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
 		dev_err(dev, "Failed to get cpts refclk\n");
-		return ERR_PTR(PTR_ERR(cpts->refclk));
+		return ERR_CAST(cpts->refclk);
 	}
 
 	clk_prepare(cpts->refclk);

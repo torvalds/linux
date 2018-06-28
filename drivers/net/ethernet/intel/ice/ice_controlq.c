@@ -1014,10 +1014,10 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
 	desc_idx = ntc;
 
+	cq->rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & ICE_AQ_FLAG_ERR) {
 		ret_code = ICE_ERR_AQ_ERROR;
-		cq->rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
 		ice_debug(hw, ICE_DBG_AQ_MSG,
 			  "Control Receive Queue Event received with error 0x%x\n",
 			  cq->rq_last_status);

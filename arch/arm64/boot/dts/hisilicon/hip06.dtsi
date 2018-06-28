@@ -350,6 +350,27 @@
 		#size-cells = <2>;
 		ranges;
 
+		isa@a01b0000 {
+			compatible = "hisilicon,hip06-lpc";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			reg = <0x0 0xa01b0000 0x0 0x1000>;
+
+			ipmi0: bt@e4 {
+				compatible = "ipmi-bt";
+				device_type = "ipmi";
+				reg = <0x01 0xe4 0x04>;
+				status = "disabled";
+			};
+
+			uart0: lpc-uart@2f8 {
+				compatible = "ns16550a";
+				clock-frequency = <1843200>;
+				reg = <0x01 0x2f8 0x08>;
+				status = "disabled";
+			};
+		};
+
 		refclk: refclk {
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;

@@ -877,12 +877,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	atomic_dec(&cur_trans->num_writers);
 	extwriter_counter_dec(cur_trans, trans->type);
 
-	/*
-	 * Make sure counter is updated before we wake up waiters.
-	 */
-	smp_mb();
-	if (waitqueue_active(&cur_trans->writer_wait))
-		wake_up(&cur_trans->writer_wait);
+	cond_wake_up(&cur_trans->writer_wait);
 	btrfs_put_transaction(cur_trans);
 
 	if (current->journal_info == trans)
@@ -1250,7 +1245,6 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
-			btrfs_orphan_commit_root(trans, root);
 
 			btrfs_save_ino_cache(root, trans);
 
@@ -1428,7 +1422,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
-	struct timespec cur_time;
+	struct timespec64 cur_time;
 	int ret = 0;
 	u64 to_reserve = 0;
 	u64 index = 0;
@@ -1640,15 +1634,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
-	ret = btrfs_uuid_tree_add(trans, fs_info, new_uuid.b,
-				  BTRFS_UUID_KEY_SUBVOL, objectid);
+	ret = btrfs_uuid_tree_add(trans, new_uuid.b, BTRFS_UUID_KEY_SUBVOL,
+				  objectid);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 	if (!btrfs_is_empty_uuid(new_root_item->received_uuid)) {
-		ret = btrfs_uuid_tree_add(trans, fs_info,
-					  new_root_item->received_uuid,
+		ret = btrfs_uuid_tree_add(trans, new_root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  objectid);
 		if (ret && ret != -EEXIST) {

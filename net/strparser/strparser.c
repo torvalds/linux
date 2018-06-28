@@ -67,7 +67,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 
 static void strp_start_timer(struct strparser *strp, long timeo)
 {
-	if (timeo)
+	if (timeo && timeo != LONG_MAX)
 		mod_delayed_work(strp_wq, &strp->msg_timer_work, timeo);
 }
 
@@ -511,6 +511,19 @@ int strp_init(struct strparser *strp, struct sock *sk,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(strp_init);
+
+/* Sock process lock held (lock_sock) */
+void __strp_unpause(struct strparser *strp)
+{
+	strp->paused = 0;
+
+	if (strp->need_bytes) {
+		if (strp_peek_len(strp) < strp->need_bytes)
+			return;
+	}
+	strp_read_sock(strp);
+}
+EXPORT_SYMBOL_GPL(__strp_unpause);
 
 void strp_unpause(struct strparser *strp)
 {

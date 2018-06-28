@@ -373,9 +373,11 @@ static const struct snd_kcontrol_new nau8810_mono_mixer_controls[] = {
 };
 
 /* PGA Mute */
-static const struct snd_kcontrol_new nau8810_inpga_mute[] = {
+static const struct snd_kcontrol_new nau8810_pgaboost_mixer_controls[] = {
 	SOC_DAPM_SINGLE("PGA Mute Switch", NAU8810_REG_PGAGAIN,
-		NAU8810_PGAMT_SFT, 1, 0),
+		NAU8810_PGAMT_SFT, 1, 1),
+	SOC_DAPM_SINGLE("PMIC PGA Switch", NAU8810_REG_ADCBOOST,
+		NAU8810_PMICBSTGAIN_SFT, 0x7, 0),
 };
 
 /* Input PGA */
@@ -385,11 +387,6 @@ static const struct snd_kcontrol_new nau8810_inpga[] = {
 	SOC_DAPM_SINGLE("MicP Switch", NAU8810_REG_INPUT_SIGNAL,
 		NAU8810_PMICPGA_SFT, 1, 0),
 };
-
-/* Mic Input boost vol */
-static const struct snd_kcontrol_new nau8810_mic_boost_controls =
-	SOC_DAPM_SINGLE("Mic Volume", NAU8810_REG_ADCBOOST,
-		NAU8810_PMICBSTGAIN_SFT, 0x7, 0);
 
 /* Loopback Switch */
 static const struct snd_kcontrol_new nau8810_loopback =
@@ -429,8 +426,8 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 		NAU8810_PGA_EN_SFT, 0, nau8810_inpga,
 		ARRAY_SIZE(nau8810_inpga)),
 	SND_SOC_DAPM_MIXER("Input Boost Stage", NAU8810_REG_POWER2,
-		NAU8810_BST_EN_SFT, 0, nau8810_inpga_mute,
-		ARRAY_SIZE(nau8810_inpga_mute)),
+		NAU8810_BST_EN_SFT, 0, nau8810_pgaboost_mixer_controls,
+		ARRAY_SIZE(nau8810_pgaboost_mixer_controls)),
 
 	SND_SOC_DAPM_SUPPLY("Mic Bias", NAU8810_REG_POWER1,
 		NAU8810_MICBIAS_EN_SFT, 0, NULL, 0),
@@ -469,8 +466,8 @@ static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	/* Input Boost Stage */
 	{"ADC", NULL, "Input Boost Stage"},
 	{"ADC", NULL, "PLL", check_mclk_select_pll},
-	{"Input Boost Stage", NULL, "Input PGA"},
-	{"Input Boost Stage", NULL, "MICP"},
+	{"Input Boost Stage", "PGA Mute Switch", "Input PGA"},
+	{"Input Boost Stage", "PMIC PGA Switch", "MICP"},
 
 	/* Input PGA */
 	{"Input PGA", NULL, "Mic Bias"},

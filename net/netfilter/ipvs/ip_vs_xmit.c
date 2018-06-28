@@ -168,7 +168,7 @@ static inline bool crosses_local_route_boundary(int skb_af, struct sk_buff *skb,
 						bool new_rt_is_local)
 {
 	bool rt_mode_allow_local = !!(rt_mode & IP_VS_RT_MODE_LOCAL);
-	bool rt_mode_allow_non_local = !!(rt_mode & IP_VS_RT_MODE_LOCAL);
+	bool rt_mode_allow_non_local = !!(rt_mode & IP_VS_RT_MODE_NON_LOCAL);
 	bool rt_mode_allow_redirect = !!(rt_mode & IP_VS_RT_MODE_RDR);
 	bool source_is_loopback;
 	bool old_rt_is_local;
@@ -266,12 +266,13 @@ static inline bool decrement_ttl(struct netns_ipvs *ipvs,
 
 		/* check and decrement ttl */
 		if (ipv6_hdr(skb)->hop_limit <= 1) {
+			struct inet6_dev *idev = __in6_dev_get_safely(skb->dev);
+
 			/* Force OUTPUT device used as source address */
 			skb->dev = dst->dev;
 			icmpv6_send(skb, ICMPV6_TIME_EXCEED,
 				    ICMPV6_EXC_HOPLIMIT, 0);
-			__IP6_INC_STATS(net, ip6_dst_idev(dst),
-					IPSTATS_MIB_INHDRERRORS);
+			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 
 			return false;
 		}

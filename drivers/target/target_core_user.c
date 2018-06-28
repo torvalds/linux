@@ -42,7 +42,11 @@
 
 #include <linux/target_core_user.h>
 
-/*
+/**
+ * DOC: Userspace I/O
+ * Userspace I/O
+ * -------------
+ *
  * Define a shared-memory interface for LIO to pass SCSI commands and
  * data to userspace for processing. This is to allow backends that
  * are too complex for in-kernel support to be possible.
@@ -53,7 +57,7 @@
  * See the .h file for how the ring is laid out. Note that while the
  * command ring is defined, the particulars of the data area are
  * not. Offset values in the command entry point to other locations
- * internal to the mmap()ed area. There is separate space outside the
+ * internal to the mmap-ed area. There is separate space outside the
  * command ring for data buffers. This leaves maximum flexibility for
  * moving buffer allocations, or even page flipping or other
  * allocation techniques, without altering the command ring layout.
@@ -1382,7 +1386,7 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	return page;
 }
 
-static int tcmu_vma_fault(struct vm_fault *vmf)
+static vm_fault_t tcmu_vma_fault(struct vm_fault *vmf)
 {
 	struct tcmu_dev *udev = vmf->vma->vm_private_data;
 	struct uio_info *info = &udev->uio_info;
@@ -1586,8 +1590,9 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 	return ret;
 }
 
-static int tcmu_netlink_event(struct tcmu_dev *udev, enum tcmu_genl_cmd cmd,
-			      int reconfig_attr, const void *reconfig_data)
+static int tcmu_netlink_event_init(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
 {
 	struct sk_buff *skb;
 	void *msg_header;
@@ -1613,44 +1618,64 @@ static int tcmu_netlink_event(struct tcmu_dev *udev, enum tcmu_genl_cmd cmd,
 	if (ret < 0)
 		goto free_skb;
 
-	if (cmd == TCMU_CMD_RECONFIG_DEVICE) {
-		switch (reconfig_attr) {
-		case TCMU_ATTR_DEV_CFG:
-			ret = nla_put_string(skb, reconfig_attr, reconfig_data);
-			break;
-		case TCMU_ATTR_DEV_SIZE:
-			ret = nla_put_u64_64bit(skb, reconfig_attr,
-						*((u64 *)reconfig_data),
-						TCMU_ATTR_PAD);
-			break;
-		case TCMU_ATTR_WRITECACHE:
-			ret = nla_put_u8(skb, reconfig_attr,
-					  *((u8 *)reconfig_data));
-			break;
-		default:
-			BUG();
-		}
+	*buf = skb;
+	*hdr = msg_header;
+	return ret;
 
-		if (ret < 0)
-			goto free_skb;
-	}
+free_skb:
+	nlmsg_free(skb);
+	return ret;
+}
+
+static int tcmu_netlink_event_send(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
+{
+	int ret = 0;
+	struct sk_buff *skb = *buf;
+	void *msg_header = *hdr;
 
 	genlmsg_end(skb, msg_header);
 
 	tcmu_init_genl_cmd_reply(udev, cmd);
 
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
-				TCMU_MCGRP_CONFIG, GFP_KERNEL);
-	/* We don't care if no one is listening */
+				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
+       /* We don't care if no one is listening */
 	if (ret == -ESRCH)
 		ret = 0;
 	if (!ret)
 		ret = tcmu_wait_genl_cmd_reply(udev);
+	return ret;
+}
 
-	return ret;
-free_skb:
-	nlmsg_free(skb);
-	return ret;
+static int tcmu_send_dev_add_event(struct tcmu_dev *udev)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_ADDED_DEVICE, &skb,
+				      &msg_header);
+	if (ret < 0)
+		return ret;
+	return tcmu_netlink_event_send(udev, TCMU_CMD_ADDED_DEVICE, &skb,
+				       &msg_header);
+
+}
+
+static int tcmu_send_dev_remove_event(struct tcmu_dev *udev)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_REMOVED_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	return tcmu_netlink_event_send(udev, TCMU_CMD_REMOVED_DEVICE,
+				       &skb, &msg_header);
 }
 
 static int tcmu_update_uio_info(struct tcmu_dev *udev)
@@ -1692,8 +1717,9 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	info = &udev->uio_info;
 
-	udev->data_bitmap = kzalloc(BITS_TO_LONGS(udev->max_blocks) *
-				    sizeof(unsigned long), GFP_KERNEL);
+	udev->data_bitmap = kcalloc(BITS_TO_LONGS(udev->max_blocks),
+				    sizeof(unsigned long),
+				    GFP_KERNEL);
 	if (!udev->data_bitmap) {
 		ret = -ENOMEM;
 		goto err_bitmap_alloc;
@@ -1762,7 +1788,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	 */
 	kref_get(&udev->kref);
 
-	ret = tcmu_netlink_event(udev, TCMU_CMD_ADDED_DEVICE, 0, NULL);
+	ret = tcmu_send_dev_add_event(udev);
 	if (ret)
 		goto err_netlink;
 
@@ -1812,7 +1838,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 	list_del(&udev->node);
 	mutex_unlock(&root_udev_mutex);
 
-	tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
+	tcmu_send_dev_remove_event(udev);
 
 	uio_unregister_device(&udev->uio_info);
 
@@ -2121,6 +2147,8 @@ static ssize_t tcmu_qfull_time_out_store(struct config_item *item,
 
 	if (val >= 0) {
 		udev->qfull_time_out = val * MSEC_PER_SEC;
+	} else if (val == -1) {
+		udev->qfull_time_out = val;
 	} else {
 		printk(KERN_ERR "Invalid qfull timeout value %d\n", val);
 		return -EINVAL;
@@ -2149,6 +2177,27 @@ static ssize_t tcmu_dev_config_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%s\n", udev->dev_config);
 }
 
+static int tcmu_send_dev_config_event(struct tcmu_dev *udev,
+				      const char *reconfig_data)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_string(skb, TCMU_ATTR_DEV_CFG, reconfig_data);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
+
 static ssize_t tcmu_dev_config_store(struct config_item *item, const char *page,
 				     size_t count)
 {
@@ -2163,8 +2212,7 @@ static ssize_t tcmu_dev_config_store(struct config_item *item, const char *page,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_DEV_CFG, page);
+		ret = tcmu_send_dev_config_event(udev, page);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -2191,6 +2239,26 @@ static ssize_t tcmu_dev_size_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%zu\n", udev->dev_size);
 }
 
+static int tcmu_send_dev_size_event(struct tcmu_dev *udev, u64 size)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_u64_64bit(skb, TCMU_ATTR_DEV_SIZE,
+				size, TCMU_ATTR_PAD);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
 static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 				   size_t count)
 {
@@ -2206,8 +2274,7 @@ static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_DEV_SIZE, &val);
+		ret = tcmu_send_dev_size_event(udev, val);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -2255,6 +2322,25 @@ static ssize_t tcmu_emulate_write_cache_show(struct config_item *item,
 	return snprintf(page, PAGE_SIZE, "%i\n", da->emulate_write_cache);
 }
 
+static int tcmu_send_emulate_write_cache(struct tcmu_dev *udev, u8 val)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_u8(skb, TCMU_ATTR_WRITECACHE, val);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
 static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 					      const char *page, size_t count)
 {
@@ -2270,8 +2356,7 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_WRITECACHE, &val);
+		ret = tcmu_send_emulate_write_cache(udev, val);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;

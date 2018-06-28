@@ -187,6 +187,7 @@ struct hv_input_post_message {
 
 enum {
 	VMBUS_MESSAGE_CONNECTION_ID	= 1,
+	VMBUS_MESSAGE_CONNECTION_ID_4	= 4,
 	VMBUS_MESSAGE_PORT_ID		= 1,
 	VMBUS_EVENT_CONNECTION_ID	= 2,
 	VMBUS_EVENT_PORT_ID		= 2,
@@ -301,6 +302,8 @@ struct vmbus_connection {
 	 * CPU on which the initial host contact was made.
 	 */
 	int connect_cpu;
+
+	u32 msg_conn_id;
 
 	atomic_t offer_in_progress;
 

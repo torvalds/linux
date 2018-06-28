@@ -1077,7 +1077,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 
 	/* Allocate the pseudo palette */
 	oi->ivtvfb_info.pseudo_palette =
-		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
+		kmalloc_array(16, sizeof(u32), GFP_KERNEL|__GFP_NOWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
 		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");

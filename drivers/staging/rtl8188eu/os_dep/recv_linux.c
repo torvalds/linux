@@ -121,10 +121,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 		}
 	}
 
-	rcu_read_lock();
-	rcu_dereference(padapter->pnetdev->rx_handler_data);
-	rcu_read_unlock();
-
 	skb->ip_summed = CHECKSUM_NONE;
 	skb->dev = padapter->pnetdev;
 	skb->protocol = eth_type_trans(skb, padapter->pnetdev);

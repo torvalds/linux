@@ -1919,12 +1919,12 @@ static int grab_global_resources(void)
 		goto out_hvapi_release;
 
 	err = -ENOMEM;
-	cpu_to_cwq = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_cwq = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_cwq)
 		goto out_queue_cache_destroy;
 
-	cpu_to_mau = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_mau = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_mau)
 		goto out_free_cwq_table;

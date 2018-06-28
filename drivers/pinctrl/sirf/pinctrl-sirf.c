@@ -108,7 +108,7 @@ static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENODEV;
 	}
 
-	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
+	*map = kcalloc(count, sizeof(**map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 

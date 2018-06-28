@@ -116,7 +116,7 @@ static int gfrm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * those reports reach gfrm_raw_event() from hid_input_report().
 		 */
 		if (!hid_register_report(hdev, HID_INPUT_REPORT,
-					 GFRM100_SEARCH_KEY_REPORT_ID)) {
+					 GFRM100_SEARCH_KEY_REPORT_ID, 0)) {
 			ret = -ENOMEM;
 			goto done;
 		}

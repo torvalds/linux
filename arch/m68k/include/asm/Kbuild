@@ -1,4 +1,5 @@
 generic-y += barrier.h
+generic-y += compat.h
 generic-y += device.h
 generic-y += emergency-restart.h
 generic-y += exec.h

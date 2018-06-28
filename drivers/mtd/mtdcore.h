@@ -15,7 +15,6 @@ int del_mtd_partitions(struct mtd_info *);
 struct mtd_partitions;
 
 int parse_mtd_partitions(struct mtd_info *master, const char * const *types,
-			 struct mtd_partitions *pparts,
 			 struct mtd_part_parser_data *data);
 
 void mtd_part_parser_cleanup(struct mtd_partitions *parts);

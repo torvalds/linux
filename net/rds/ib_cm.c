@@ -526,7 +526,8 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto recv_hdrs_dma_out;
 	}
 
-	ic->i_sends = vzalloc_node(ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work),
+	ic->i_sends = vzalloc_node(array_size(sizeof(struct rds_ib_send_work),
+					      ic->i_send_ring.w_nr),
 				   ibdev_to_node(dev));
 	if (!ic->i_sends) {
 		ret = -ENOMEM;
@@ -534,7 +535,8 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto ack_dma_out;
 	}
 
-	ic->i_recvs = vzalloc_node(ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work),
+	ic->i_recvs = vzalloc_node(array_size(sizeof(struct rds_ib_recv_work),
+					      ic->i_recv_ring.w_nr),
 				   ibdev_to_node(dev));
 	if (!ic->i_recvs) {
 		ret = -ENOMEM;
@@ -547,7 +549,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	rdsdebug("conn %p pd %p cq %p %p\n", conn, ic->i_pd,
 		 ic->i_send_cq, ic->i_recv_cq);
 
-	return ret;
+	goto out;
 
 sends_out:
 	vfree(ic->i_sends);
@@ -572,6 +574,7 @@ send_cq_out:
 		ic->i_send_cq = NULL;
 rds_ibdev_out:
 	rds_ib_remove_conn(rds_ibdev, conn);
+out:
 	rds_ib_dev_put(rds_ibdev);
 
 	return ret;

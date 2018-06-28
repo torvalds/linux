@@ -862,7 +862,7 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_N64:
 		for (i = 0; i < 10; i++)
-			__set_bit(gc_n64_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_n64_btn[i]);
 
 		for (i = 0; i < 2; i++) {
 			input_set_abs_params(input_dev, ABS_X + i, -127, 126, 0, 2);
@@ -879,26 +879,27 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 		break;
 
 	case GC_SNESMOUSE:
-		__set_bit(BTN_LEFT, input_dev->keybit);
-		__set_bit(BTN_RIGHT, input_dev->keybit);
-		__set_bit(REL_X, input_dev->relbit);
-		__set_bit(REL_Y, input_dev->relbit);
+		input_set_capability(input_dev, EV_KEY, BTN_LEFT);
+		input_set_capability(input_dev, EV_KEY, BTN_RIGHT);
+		input_set_capability(input_dev, EV_REL, REL_X);
+		input_set_capability(input_dev, EV_REL, REL_Y);
 		break;
 
 	case GC_SNES:
 		for (i = 4; i < 8; i++)
-			__set_bit(gc_snes_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
 		/* fall through */
 	case GC_NES:
 		for (i = 0; i < 4; i++)
-			__set_bit(gc_snes_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_snes_btn[i]);
 		break;
 
 	case GC_MULTI2:
-		__set_bit(BTN_THUMB, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY, BTN_THUMB);
 		/* fall through */
 	case GC_MULTI:
-		__set_bit(BTN_TRIGGER, input_dev->keybit);
+		input_set_capability(input_dev, EV_KEY, BTN_TRIGGER);
+		/* fall through */
 		break;
 
 	case GC_PSX:
@@ -906,15 +907,17 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 			input_set_abs_params(input_dev,
 					     gc_psx_abs[i], 4, 252, 0, 2);
 		for (i = 0; i < 12; i++)
-			__set_bit(gc_psx_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_psx_btn[i]);
+		break;
 
 		break;
 
 	case GC_DDR:
 		for (i = 0; i < 4; i++)
-			__set_bit(gc_psx_ddr_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY,
+					     gc_psx_ddr_btn[i]);
 		for (i = 0; i < 12; i++)
-			__set_bit(gc_psx_btn[i], input_dev->keybit);
+			input_set_capability(input_dev, EV_KEY, gc_psx_btn[i]);
 
 		break;
 	}

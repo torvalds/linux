@@ -181,25 +181,12 @@ static int ax25_uid_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations ax25_uid_seqops = {
+const struct seq_operations ax25_uid_seqops = {
 	.start = ax25_uid_seq_start,
 	.next = ax25_uid_seq_next,
 	.stop = ax25_uid_seq_stop,
 	.show = ax25_uid_seq_show,
 };
-
-static int ax25_uid_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ax25_uid_seqops);
-}
-
-const struct file_operations ax25_uid_fops = {
-	.open = ax25_uid_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 #endif
 
 /*

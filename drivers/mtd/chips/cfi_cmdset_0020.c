@@ -184,8 +184,9 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info)
-			* mtd->numeraseregions, GFP_KERNEL);
+	mtd->eraseregions = kmalloc_array(mtd->numeraseregions,
+					  sizeof(struct mtd_erase_region_info),
+					  GFP_KERNEL);
 	if (!mtd->eraseregions) {
 		kfree(cfi->cmdset_priv);
 		kfree(mtd);

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #include "common.xml.h"
@@ -162,21 +151,9 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		bool found;
 
 		ret = drm_mm_insert_node_in_range(&mmu->mm, node,
-						  size, 0, 0,
-						  mmu->last_iova, U64_MAX,
-						  mode);
+						  size, 0, 0, 0, U64_MAX, mode);
 		if (ret != -ENOSPC)
 			break;
-
-		/*
-		 * If we did not search from the start of the MMU region,
-		 * try again in case there are free slots.
-		 */
-		if (mmu->last_iova) {
-			mmu->last_iova = 0;
-			mmu->need_flush = true;
-			continue;
-		}
 
 		/* Try to retire some entries */
 		drm_mm_scan_init(&scan, &mmu->mm, size, 0, 0, mode);
@@ -274,7 +251,6 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	if (ret < 0)
 		goto unlock;
 
-	mmu->last_iova = node->start + etnaviv_obj->base.size;
 	mapping->iova = node->start;
 	ret = etnaviv_iommu_map(mmu, node->start, sgt, etnaviv_obj->base.size,
 				ETNAVIV_PROT_READ | ETNAVIV_PROT_WRITE);
@@ -381,7 +357,6 @@ int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
 			mutex_unlock(&mmu->lock);
 			return ret;
 		}
-		mmu->last_iova = vram_node->start + size;
 		gpu->mmu->need_flush = true;
 		mutex_unlock(&mmu->lock);
 

@@ -72,6 +72,7 @@ bool dal_hw_translate_init(
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 	case DCE_VERSION_11_2:
+	case DCE_VERSION_11_22:
 		dal_hw_translate_dce110_init(translate);
 		return true;
 	case DCE_VERSION_12_0:

@@ -105,26 +105,21 @@ static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct mmio_74xx_gpio_priv *priv;
 	struct resource *res;
 	void __iomem *dat;
 	int err;
 
-	of_id = of_match_device(mmio_74xx_gpio_ids, &pdev->dev);
-	if (!of_id)
-		return -ENODEV;
-
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->flags = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dat = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dat))
 		return PTR_ERR(dat);
-
-	priv->flags = (uintptr_t) of_id->data;
 
 	err = bgpio_init(&priv->gc, &pdev->dev,
 			 DIV_ROUND_UP(MMIO_74XX_BIT_CNT(priv->flags), 8),

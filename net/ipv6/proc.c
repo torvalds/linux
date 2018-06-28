@@ -53,18 +53,6 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int sockstat6_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, sockstat6_seq_show);
-}
-
-static const struct file_operations sockstat6_seq_fops = {
-	.open	 = sockstat6_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
-
 static const struct snmp_mib snmp6_ipstats_list[] = {
 /* ipv6 mib according to RFC 2465 */
 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INPKTS),
@@ -242,18 +230,6 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int snmp6_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, snmp6_seq_show);
-}
-
-static const struct file_operations snmp6_seq_fops = {
-	.open	 = snmp6_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
-
 static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 {
 	struct inet6_dev *idev = (struct inet6_dev *)seq->private;
@@ -267,18 +243,6 @@ static int snmp6_dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int snmp6_dev_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, snmp6_dev_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations snmp6_dev_seq_fops = {
-	.open	 = snmp6_dev_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release,
-};
-
 int snmp6_register_dev(struct inet6_dev *idev)
 {
 	struct proc_dir_entry *p;
@@ -291,9 +255,8 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!net->mib.proc_net_devsnmp6)
 		return -ENOENT;
 
-	p = proc_create_data(idev->dev->name, 0444,
-			     net->mib.proc_net_devsnmp6,
-			     &snmp6_dev_seq_fops, idev);
+	p = proc_create_single_data(idev->dev->name, 0444,
+			net->mib.proc_net_devsnmp6, snmp6_dev_seq_show, idev);
 	if (!p)
 		return -ENOMEM;
 
@@ -315,11 +278,12 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 
 static int __net_init ipv6_proc_init_net(struct net *net)
 {
-	if (!proc_create("sockstat6", 0444, net->proc_net,
-			 &sockstat6_seq_fops))
+	if (!proc_create_net_single("sockstat6", 0444, net->proc_net,
+			sockstat6_seq_show, NULL))
 		return -ENOMEM;
 
-	if (!proc_create("snmp6", 0444, net->proc_net, &snmp6_seq_fops))
+	if (!proc_create_net_single("snmp6", 0444, net->proc_net,
+			snmp6_seq_show, NULL))
 		goto proc_snmp6_fail;
 
 	net->mib.proc_net_devsnmp6 = proc_mkdir("dev_snmp6", net->proc_net);

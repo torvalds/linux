@@ -410,4 +410,17 @@ static inline int kvm_s390_use_sca_entries(void)
 }
 void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 				     struct mcck_volatile_info *mcck_info);
+
+/**
+ * kvm_s390_vcpu_crypto_reset_all
+ *
+ * Reset the crypto attributes for each vcpu. This can be done while the vcpus
+ * are running as each vcpu will be removed from SIE before resetting the crypt
+ * attributes and restored to SIE afterward.
+ *
+ * Note: The kvm->lock must be held while calling this function
+ *
+ * @kvm: the KVM guest
+ */
+void kvm_s390_vcpu_crypto_reset_all(struct kvm *kvm);
 #endif

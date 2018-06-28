@@ -94,7 +94,7 @@ static int __init bmips_init_dma_ranges(void)
 		goto out_bad;
 
 	/* add a dummy (zero) entry at the end as a sentinel */
-	bmips_dma_ranges = kzalloc(sizeof(struct bmips_dma_range) * (len + 1),
+	bmips_dma_ranges = kcalloc(len + 1, sizeof(struct bmips_dma_range),
 				   GFP_KERNEL);
 	if (!bmips_dma_ranges)
 		goto out_bad;

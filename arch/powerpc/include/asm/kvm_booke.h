@@ -36,12 +36,12 @@
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
-	vcpu->arch.gpr[num] = val;
+	vcpu->arch.regs.gpr[num] = val;
 }
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
-	return vcpu->arch.gpr[num];
+	return vcpu->arch.regs.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
@@ -56,12 +56,12 @@ static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.xer = val;
+	vcpu->arch.regs.xer = val;
 }
 
 static inline ulong kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.xer;
+	return vcpu->arch.regs.xer;
 }
 
 static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
@@ -72,32 +72,32 @@ static inline bool kvmppc_need_byteswap(struct kvm_vcpu *vcpu)
 
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.ctr = val;
+	vcpu->arch.regs.ctr = val;
 }
 
 static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.ctr;
+	return vcpu->arch.regs.ctr;
 }
 
 static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.lr = val;
+	vcpu->arch.regs.link = val;
 }
 
 static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.lr;
+	return vcpu->arch.regs.link;
 }
 
 static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.pc = val;
+	vcpu->arch.regs.nip = val;
 }
 
 static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.pc;
+	return vcpu->arch.regs.nip;
 }
 
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)

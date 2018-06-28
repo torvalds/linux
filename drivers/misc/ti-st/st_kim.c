@@ -735,7 +735,7 @@ static int kim_probe(struct platform_device *pdev)
 		st_kim_devices[0] = pdev;
 	}
 
-	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_ATOMIC);
+	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_KERNEL);
 	if (!kim_gdata) {
 		pr_err("no mem to allocate");
 		return -ENOMEM;

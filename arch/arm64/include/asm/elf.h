@@ -121,6 +121,9 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/bug.h>
+#include <asm/processor.h> /* for signal_minsigstksz, used by ARCH_DLINFO */
+
 typedef unsigned long elf_greg_t;
 
 #define ELF_NGREG (sizeof(struct user_pt_regs) / sizeof(elf_greg_t))
@@ -148,6 +151,16 @@ typedef struct user_fpsimd_state elf_fpregset_t;
 do {									\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,					\
 		    (elf_addr_t)current->mm->context.vdso);		\
+									\
+	/*								\
+	 * Should always be nonzero unless there's a kernel bug.	\
+	 * If we haven't determined a sensible value to give to		\
+	 * userspace, omit the entry:					\
+	 */								\
+	if (likely(signal_minsigstksz))					\
+		NEW_AUX_ENT(AT_MINSIGSTKSZ, signal_minsigstksz);	\
+	else								\
+		NEW_AUX_ENT(AT_IGNORE, 0);				\
 } while (0)
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES

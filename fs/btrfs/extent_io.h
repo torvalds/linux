@@ -79,14 +79,6 @@
 #define BITMAP_LAST_BYTE_MASK(nbits) \
 	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
 
-static inline int le_test_bit(int nr, const u8 *addr)
-{
-	return 1U & (addr[BIT_BYTE(nr)] >> (nr & (BITS_PER_BYTE-1)));
-}
-
-void le_bitmap_set(u8 *map, unsigned int start, int len);
-void le_bitmap_clear(u8 *map, unsigned int start, int len);
-
 struct extent_state;
 struct btrfs_root;
 struct btrfs_inode;
@@ -278,9 +270,7 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 					  int create);
 
 void extent_io_tree_init(struct extent_io_tree *tree, void *private_data);
-int try_release_extent_mapping(struct extent_map_tree *map,
-			       struct extent_io_tree *tree, struct page *page,
-			       gfp_t mask);
+int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		     struct extent_state **cached);
@@ -421,14 +411,12 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			      int mode);
-int extent_writepages(struct extent_io_tree *tree,
-		      struct address_space *mapping,
+int extent_writepages(struct address_space *mapping,
 		      struct writeback_control *wbc);
 int btree_write_cache_pages(struct address_space *mapping,
 			    struct writeback_control *wbc);
-int extent_readpages(struct extent_io_tree *tree,
-		     struct address_space *mapping,
-		     struct list_head *pages, unsigned nr_pages);
+int extent_readpages(struct address_space *mapping, struct list_head *pages,
+		     unsigned nr_pages);
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len);
 void set_page_extent_mapped(struct page *page);

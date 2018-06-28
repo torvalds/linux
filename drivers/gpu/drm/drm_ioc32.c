@@ -105,7 +105,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 		.desc = compat_ptr(v32.desc),
 	};
 	err = drm_ioctl_kernel(file, drm_version, &v,
-			DRM_UNLOCKED|DRM_RENDER_ALLOW|DRM_CONTROL_ALLOW);
+			       DRM_UNLOCKED|DRM_RENDER_ALLOW);
 	if (err)
 		return err;
 
@@ -885,7 +885,7 @@ static int compat_drm_mode_addfb2(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl_kernel(file, drm_mode_addfb2, &req64,
-				DRM_CONTROL_ALLOW|DRM_UNLOCKED);
+			       DRM_UNLOCKED);
 	if (err)
 		return err;
 

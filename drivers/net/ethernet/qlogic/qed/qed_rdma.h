@@ -96,6 +96,8 @@ struct qed_rdma_info {
 	u8 num_cnqs;
 	u32 num_qps;
 	u32 num_mrs;
+	u32 num_srqs;
+	u16 srq_id_offset;
 	u16 queue_zone_base;
 	u16 max_queue_zones;
 	enum protocol_type proto;

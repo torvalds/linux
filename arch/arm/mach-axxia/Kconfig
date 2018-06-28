@@ -2,7 +2,6 @@
 config ARCH_AXXIA
 	bool "LSI Axxia platforms"
 	depends on ARCH_MULTI_V7 && ARM_LPAE
-	select ARCH_DMA_ADDR_T_64BIT
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804

@@ -155,7 +155,7 @@ ath10k_wmi_tlv_parse_alloc(struct ath10k *ar, const void *ptr,
 	const void **tb;
 	int ret;
 
-	tb = kzalloc(sizeof(*tb) * WMI_TLV_TAG_MAX, gfp);
+	tb = kcalloc(WMI_TLV_TAG_MAX, sizeof(*tb), gfp);
 	if (!tb)
 		return ERR_PTR(-ENOMEM);
 
@@ -593,6 +593,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	case WMI_TLV_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		break;
+	case WMI_TLV_SERVICE_AVAILABLE_EVENTID:
+		ath10k_wmi_event_service_available(ar, skb);
 		break;
 	case WMI_TLV_OFFLOAD_BCN_TX_STATUS_EVENTID:
 		ath10k_wmi_tlv_event_bcn_tx_status(ar, skb);
@@ -1117,6 +1120,39 @@ static int ath10k_wmi_tlv_op_pull_rdy_ev(struct ath10k *ar,
 	return 0;
 }
 
+static int ath10k_wmi_tlv_svc_avail_parse(struct ath10k *ar, u16 tag, u16 len,
+					  const void *ptr, void *data)
+{
+	struct wmi_svc_avail_ev_arg *arg = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_SERVICE_AVAILABLE_EVENT:
+		arg->service_map_ext_len = *(__le32 *)ptr;
+		arg->service_map_ext = ptr + sizeof(__le32);
+		return 0;
+	default:
+		break;
+	}
+	return -EPROTO;
+}
+
+static int ath10k_wmi_tlv_op_pull_svc_avail(struct ath10k *ar,
+					    struct sk_buff *skb,
+					    struct wmi_svc_avail_ev_arg *arg)
+{
+	int ret;
+
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_svc_avail_parse, arg);
+
+	if (ret) {
+		ath10k_warn(ar, "failed to parse svc_avail tlv: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath10k_wmi_tlv_pull_vdev_stats(const struct wmi_tlv_vdev_stats *src,
 					   struct ath10k_fw_stats_vdev *dst)
 {
@@ -1600,6 +1636,8 @@ ath10k_wmi_tlv_op_gen_start_scan(struct ath10k *ar,
 	cmd->num_bssids = __cpu_to_le32(arg->n_bssids);
 	cmd->ie_len = __cpu_to_le32(arg->ie_len);
 	cmd->num_probes = __cpu_to_le32(3);
+	ether_addr_copy(cmd->mac_addr.addr, arg->mac_addr.addr);
+	ether_addr_copy(cmd->mac_mask.addr, arg->mac_mask.addr);
 
 	/* FIXME: There are some scan flag inconsistencies across firmwares,
 	 * e.g. WMI-TLV inverts the logic behind the following flag.
@@ -2447,6 +2485,27 @@ ath10k_wmi_tlv_op_gen_scan_chan_list(struct ath10k *ar,
 }
 
 static struct sk_buff *
+ath10k_wmi_tlv_op_gen_scan_prob_req_oui(struct ath10k *ar, u32 prob_req_oui)
+{
+	struct wmi_scan_prob_req_oui_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	tlv = (void *)skb->data;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_SCAN_PROB_REQ_OUI_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->prob_req_oui = __cpu_to_le32(prob_req_oui);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv scan prob req oui\n");
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_tlv_op_gen_beacon_dma(struct ath10k *ar, u32 vdev_id,
 				 const void *bcn, size_t bcn_len,
 				 u32 bcn_paddr, bool dtim_zero,
@@ -3077,6 +3136,37 @@ ath10k_wmi_tlv_op_gen_tdls_peer_update(struct ath10k *ar,
 }
 
 static struct sk_buff *
+ath10k_wmi_tlv_op_gen_pdev_set_quiet_mode(struct ath10k *ar, u32 period,
+					  u32 duration, u32 next_offset,
+					  u32 enabled)
+{
+	struct wmi_tlv_set_quiet_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	tlv = (void *)skb->data;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_PDEV_SET_QUIET_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+
+	/* vdev_id is not in use, set to 0 */
+	cmd->vdev_id = __cpu_to_le32(0);
+	cmd->period = __cpu_to_le32(period);
+	cmd->duration = __cpu_to_le32(duration);
+	cmd->next_start = __cpu_to_le32(next_offset);
+	cmd->enabled = __cpu_to_le32(enabled);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tlv quiet param: period %u duration %u enabled %d\n",
+		   period, duration, enabled);
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_tlv_op_gen_wow_enable(struct ath10k *ar)
 {
 	struct wmi_tlv_wow_enable_cmd *cmd;
@@ -3416,6 +3506,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.stop_scan_cmdid = WMI_TLV_STOP_SCAN_CMDID,
 	.scan_chan_list_cmdid = WMI_TLV_SCAN_CHAN_LIST_CMDID,
 	.scan_sch_prio_tbl_cmdid = WMI_TLV_SCAN_SCH_PRIO_TBL_CMDID,
+	.scan_prob_req_oui_cmdid = WMI_TLV_SCAN_PROB_REQ_OUI_CMDID,
 	.pdev_set_regdomain_cmdid = WMI_TLV_PDEV_SET_REGDOMAIN_CMDID,
 	.pdev_set_channel_cmdid = WMI_TLV_PDEV_SET_CHANNEL_CMDID,
 	.pdev_set_param_cmdid = WMI_TLV_PDEV_SET_PARAM_CMDID,
@@ -3740,6 +3831,7 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 static const struct wmi_ops wmi_tlv_ops = {
 	.rx = ath10k_wmi_tlv_op_rx,
 	.map_svc = wmi_tlv_svc_map,
+	.map_svc_ext = wmi_tlv_svc_map_ext,
 
 	.pull_scan = ath10k_wmi_tlv_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_tlv_op_pull_mgmt_rx_ev,
@@ -3751,6 +3843,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_tlv_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_tlv_op_pull_rdy_ev,
+	.pull_svc_avail = ath10k_wmi_tlv_op_pull_svc_avail,
 	.pull_fw_stats = ath10k_wmi_tlv_op_pull_fw_stats,
 	.pull_roam_ev = ath10k_wmi_tlv_op_pull_roam_ev,
 	.pull_wow_event = ath10k_wmi_tlv_op_pull_wow_ev,
@@ -3782,6 +3875,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_set_sta_ps = ath10k_wmi_tlv_op_gen_set_sta_ps,
 	.gen_set_ap_ps = ath10k_wmi_tlv_op_gen_set_ap_ps,
 	.gen_scan_chan_list = ath10k_wmi_tlv_op_gen_scan_chan_list,
+	.gen_scan_prob_req_oui = ath10k_wmi_tlv_op_gen_scan_prob_req_oui,
 	.gen_beacon_dma = ath10k_wmi_tlv_op_gen_beacon_dma,
 	.gen_pdev_set_wmm = ath10k_wmi_tlv_op_gen_pdev_set_wmm,
 	.gen_request_stats = ath10k_wmi_tlv_op_gen_request_stats,
@@ -3791,7 +3885,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_dbglog_cfg = ath10k_wmi_tlv_op_gen_dbglog_cfg,
 	.gen_pktlog_enable = ath10k_wmi_tlv_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_tlv_op_gen_pktlog_disable,
-	/* .gen_pdev_set_quiet_mode not implemented */
+	.gen_pdev_set_quiet_mode = ath10k_wmi_tlv_op_gen_pdev_set_quiet_mode,
 	.gen_pdev_get_temperature = ath10k_wmi_tlv_op_gen_pdev_get_temperature,
 	/* .gen_addba_clear_resp not implemented */
 	/* .gen_addba_send not implemented */

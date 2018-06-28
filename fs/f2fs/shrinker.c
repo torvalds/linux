@@ -109,11 +109,11 @@ unsigned long f2fs_shrink_scan(struct shrinker *shrink,
 
 		/* shrink clean nat cache entries */
 		if (freed < nr)
-			freed += try_to_free_nats(sbi, nr - freed);
+			freed += f2fs_try_to_free_nats(sbi, nr - freed);
 
 		/* shrink free nids cache entries */
 		if (freed < nr)
-			freed += try_to_free_nids(sbi, nr - freed);
+			freed += f2fs_try_to_free_nids(sbi, nr - freed);
 
 		spin_lock(&f2fs_list_lock);
 		p = p->next;

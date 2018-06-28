@@ -88,9 +88,6 @@ again:
 		return 0;
 
 	case STATE_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == CHECK_RC5X_NBITS)
 			data->state = STATE_CHECK_RC5X;
 		else
@@ -274,6 +271,7 @@ static struct ir_raw_handler rc5_handler = {
 	.decode		= ir_rc5_decode,
 	.encode		= ir_rc5_encode,
 	.carrier	= 36000,
+	.min_timeout	= RC5_TRAILER,
 };
 
 static int __init ir_rc5_decode_init(void)

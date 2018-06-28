@@ -724,6 +724,16 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	return ksys_fchown(fd, user, group);
 }
 
+int open_check_o_direct(struct file *f)
+{
+	/* NB: we're sure to have correct a_ops only after f_op->open */
+	if (f->f_flags & O_DIRECT) {
+		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static int do_dentry_open(struct file *f,
 			  struct inode *inode,
 			  int (*open)(struct inode *, struct file *),
@@ -745,7 +755,7 @@ static int do_dentry_open(struct file *f,
 	if (unlikely(f->f_flags & O_PATH)) {
 		f->f_mode = FMODE_PATH;
 		f->f_op = &empty_fops;
-		goto done;
+		return 0;
 	}
 
 	if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
@@ -798,12 +808,7 @@ static int do_dentry_open(struct file *f,
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
-done:
-	/* NB: we're sure to have correct a_ops only after f_op->open */
-	error = -EINVAL;
-	if ((f->f_flags & O_DIRECT) &&
-	    (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO))
-	    	goto out_fput;
+
 	return 0;
 
 cleanup_all:
@@ -817,9 +822,6 @@ cleanup_file:
 	f->f_path.mnt = NULL;
 	f->f_path.dentry = NULL;
 	f->f_inode = NULL;
-	return error;
-out_fput:
-    	fput(f);
 	return error;
 }
 
@@ -918,14 +920,20 @@ struct file *dentry_open(const struct path *path, int flags,
 	BUG_ON(!path->mnt);
 
 	f = get_empty_filp();
-	if (IS_ERR(f))
-		return f;
-
-	f->f_flags = flags;
-	error = vfs_open(path, f, cred);
-	if (error) {
-		put_filp(f);
-		return ERR_PTR(error);
+	if (!IS_ERR(f)) {
+		f->f_flags = flags;
+		error = vfs_open(path, f, cred);
+		if (!error) {
+			/* from now on we need fput() to dispose of f */
+			error = open_check_o_direct(f);
+			if (error) {
+				fput(f);
+				f = ERR_PTR(error);
+			}
+		} else { 
+			put_filp(f);
+			f = ERR_PTR(error);
+		}
 	}
 	return f;
 }

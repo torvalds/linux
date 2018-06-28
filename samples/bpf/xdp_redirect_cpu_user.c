@@ -28,7 +28,7 @@ static const char *__doc__ =
  * use bpf/libbpf.h), but cannot as (currently) needed for XDP
  * attaching to a device via bpf_set_link_xdp_fd()
  */
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #include "bpf_util.h"

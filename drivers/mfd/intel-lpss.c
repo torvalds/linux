@@ -40,8 +40,8 @@
 
 /* Offsets from lpss->priv */
 #define LPSS_PRIV_RESETS		0x04
-#define LPSS_PRIV_RESETS_FUNC		BIT(2)
-#define LPSS_PRIV_RESETS_IDMA		0x3
+#define LPSS_PRIV_RESETS_IDMA		BIT(2)
+#define LPSS_PRIV_RESETS_FUNC		0x3
 
 #define LPSS_PRIV_ACTIVELTR		0x10
 #define LPSS_PRIV_IDLELTR		0x14
@@ -275,10 +275,10 @@ static void intel_lpss_init_dev(const struct intel_lpss *lpss)
 
 	intel_lpss_deassert_reset(lpss);
 
+	intel_lpss_set_remap_addr(lpss);
+
 	if (!intel_lpss_has_idma(lpss))
 		return;
-
-	intel_lpss_set_remap_addr(lpss);
 
 	/* Make sure that SPI multiblock DMA transfers are re-enabled */
 	if (lpss->type == LPSS_DEV_SPI)

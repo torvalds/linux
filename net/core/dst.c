@@ -58,6 +58,7 @@ const struct dst_metrics dst_default_metrics = {
 	 */
 	.refcnt = REFCOUNT_INIT(1),
 };
+EXPORT_SYMBOL(dst_default_metrics);
 
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      struct net_device *dev, int initial_ref, int initial_obsolete,

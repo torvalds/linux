@@ -17,7 +17,7 @@
  *  Volume Control is done digitally
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <linux/module.h>	/* Modules			*/

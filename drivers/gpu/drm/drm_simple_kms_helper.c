@@ -64,13 +64,15 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
+	struct drm_plane *plane;
 	struct drm_simple_display_pipe *pipe;
 
 	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
 	if (!pipe->funcs || !pipe->funcs->enable)
 		return;
 
-	pipe->funcs->enable(pipe, crtc->state);
+	plane = &pipe->plane;
+	pipe->funcs->enable(pipe, crtc->state, plane->state);
 }
 
 static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,

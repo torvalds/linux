@@ -66,6 +66,7 @@ struct doc_priv {
 	int curchip;
 	int mh0_page;
 	int mh1_page;
+	struct rs_control *rs_decoder;
 	struct mtd_info *nextdoc;
 
 	/* Handle the last stage of initialization (BBT scan, partitioning) */
@@ -123,9 +124,6 @@ MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe
 /* Number of symbols */
 #define NN 1023
 
-/* the Reed Solomon control structure */
-static struct rs_control *rs_decoder;
-
 /*
  * The HW decoder in the DoC ASIC's provides us a error syndrome,
  * which we must convert to a standard syndrome usable by the generic
@@ -140,6 +138,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 	int i, j, nerr, errpos[8];
 	uint8_t parity;
 	uint16_t ds[4], s[5], tmp, errval[8], syn[4];
+	struct rs_codec *cd = rs->codec;
 
 	memset(syn, 0, sizeof(syn));
 	/* Convert the ecc bytes into words */
@@ -160,15 +159,15 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 	for (j = 1; j < NROOTS; j++) {
 		if (ds[j] == 0)
 			continue;
-		tmp = rs->index_of[ds[j]];
+		tmp = cd->index_of[ds[j]];
 		for (i = 0; i < NROOTS; i++)
-			s[i] ^= rs->alpha_to[rs_modnn(rs, tmp + (FCR + i) * j)];
+			s[i] ^= cd->alpha_to[rs_modnn(cd, tmp + (FCR + i) * j)];
 	}
 
 	/* Calc syn[i] = s[i] / alpha^(v + i) */
 	for (i = 0; i < NROOTS; i++) {
 		if (s[i])
-			syn[i] = rs_modnn(rs, rs->index_of[s[i]] + (NN - FCR - i));
+			syn[i] = rs_modnn(cd, cd->index_of[s[i]] + (NN - FCR - i));
 	}
 	/* Call the decoder library */
 	nerr = decode_rs16(rs, NULL, NULL, 1019, syn, 0, errpos, 0, errval);
@@ -930,7 +929,7 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 				calc_ecc[i] = ReadDOC_(docptr, DoC_ECCSyndrome0 + i);
 		}
 
-		ret = doc_ecc_decode(rs_decoder, dat, calc_ecc);
+		ret = doc_ecc_decode(doc->rs_decoder, dat, calc_ecc);
 		if (ret > 0)
 			pr_err("doc200x_correct_data corrected %d errors\n",
 			       ret);
@@ -1421,10 +1420,10 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 
 static int __init doc_probe(unsigned long physadr)
 {
+	struct nand_chip *nand = NULL;
+	struct doc_priv *doc = NULL;
 	unsigned char ChipID;
 	struct mtd_info *mtd;
-	struct nand_chip *nand;
-	struct doc_priv *doc;
 	void __iomem *virtadr;
 	unsigned char save_control;
 	unsigned char tmp, tmpb, tmpc;
@@ -1481,12 +1480,12 @@ static int __init doc_probe(unsigned long physadr)
 		WriteDOC(tmp, virtadr, Mplus_DOCControl);
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
 
-		mdelay(1);
+		usleep_range(1000, 2000);
 		/* Enable the Millennium Plus ASIC */
 		tmp = DOC_MODE_NORMAL | DOC_MODE_MDWREN | DOC_MODE_RST_LAT | DOC_MODE_BDECT;
 		WriteDOC(tmp, virtadr, Mplus_DOCControl);
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
-		mdelay(1);
+		usleep_range(1000, 2000);
 
 		ChipID = ReadDOC(virtadr, ChipID);
 
@@ -1561,8 +1560,25 @@ static int __init doc_probe(unsigned long physadr)
 		goto fail;
 	}
 
+
+	/*
+	 * Allocate a RS codec instance
+	 *
+	 * Symbolsize is 10 (bits)
+	 * Primitve polynomial is x^10+x^3+1
+	 * First consecutive root is 510
+	 * Primitve element to generate roots = 1
+	 * Generator polinomial degree = 4
+	 */
+	doc = (struct doc_priv *) (nand + 1);
+	doc->rs_decoder = init_rs(10, 0x409, FCR, 1, NROOTS);
+	if (!doc->rs_decoder) {
+		pr_err("DiskOnChip: Could not create a RS codec\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
 	mtd			= nand_to_mtd(nand);
-	doc			= (struct doc_priv *) (nand + 1);
 	nand->bbt_td		= (struct nand_bbt_descr *) (doc + 1);
 	nand->bbt_md		= nand->bbt_td + 1;
 
@@ -1612,7 +1628,6 @@ static int __init doc_probe(unsigned long physadr)
 		   haven't yet added it.  This is handled without incident by
 		   mtd_device_unregister, as far as I can tell. */
 		nand_release(mtd);
-		kfree(nand);
 		goto fail;
 	}
 
@@ -1625,6 +1640,9 @@ static int __init doc_probe(unsigned long physadr)
 	   actually a DiskOnChip.  */
 	WriteDOC(save_control, virtadr, DOCControl);
  fail:
+	if (doc)
+		free_rs(doc->rs_decoder);
+	kfree(nand);
 	iounmap(virtadr);
 
 error_ioremap:
@@ -1647,6 +1665,7 @@ static void release_nanddoc(void)
 		nand_release(mtd);
 		iounmap(doc->virtadr);
 		release_mem_region(doc->physadr, DOC_IOREMAP_LEN);
+		free_rs(doc->rs_decoder);
 		kfree(nand);
 	}
 }
@@ -1655,27 +1674,12 @@ static int __init init_nanddoc(void)
 {
 	int i, ret = 0;
 
-	/* We could create the decoder on demand, if memory is a concern.
-	 * This way we have it handy, if an error happens
-	 *
-	 * Symbolsize is 10 (bits)
-	 * Primitve polynomial is x^10+x^3+1
-	 * first consecutive root is 510
-	 * primitve element to generate roots = 1
-	 * generator polinomial degree = 4
-	 */
-	rs_decoder = init_rs(10, 0x409, FCR, 1, NROOTS);
-	if (!rs_decoder) {
-		pr_err("DiskOnChip: Could not create a RS decoder\n");
-		return -ENOMEM;
-	}
-
 	if (doc_config_location) {
 		pr_info("Using configured DiskOnChip probe address 0x%lx\n",
 			doc_config_location);
 		ret = doc_probe(doc_config_location);
 		if (ret < 0)
-			goto outerr;
+			return ret;
 	} else {
 		for (i = 0; (doc_locations[i] != 0xffffffff); i++) {
 			doc_probe(doc_locations[i]);
@@ -1686,11 +1690,7 @@ static int __init init_nanddoc(void)
 	if (!doclist) {
 		pr_info("No valid DiskOnChip devices found\n");
 		ret = -ENODEV;
-		goto outerr;
 	}
-	return 0;
- outerr:
-	free_rs(rs_decoder);
 	return ret;
 }
 
@@ -1698,11 +1698,6 @@ static void __exit cleanup_nanddoc(void)
 {
 	/* Cleanup the nand/DoC resources */
 	release_nanddoc();
-
-	/* Free the reed solomon resources */
-	if (rs_decoder) {
-		free_rs(rs_decoder);
-	}
 }
 
 module_init(init_nanddoc);

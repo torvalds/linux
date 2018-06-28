@@ -724,8 +724,8 @@ migrate your tool to one of the following options:
 
   See following documents:
 
-  - Documentation/trace/kprobetrace.txt
-  - Documentation/trace/events.txt
+  - Documentation/trace/kprobetrace.rst
+  - Documentation/trace/events.rst
   - tools/perf/Documentation/perf-probe.txt
 
 

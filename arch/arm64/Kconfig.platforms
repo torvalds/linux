@@ -208,6 +208,12 @@ config ARCH_R8A77980
 	help
 	  This enables support for the Renesas R-Car V3H SoC.
 
+config ARCH_R8A77990
+	bool "Renesas R-Car E3 SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas R-Car E3 SoC.
+
 config ARCH_R8A77995
 	bool "Renesas R-Car D3 SoC Platform"
 	depends on ARCH_RENESAS

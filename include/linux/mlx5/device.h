@@ -314,6 +314,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_PORT_CHANGE	   = 0x09,
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
 	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
+	MLX5_EVENT_TYPE_TEMP_WARN_EVENT    = 0x17,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
 	MLX5_EVENT_TYPE_GENERAL_EVENT	   = 0x22,
 	MLX5_EVENT_TYPE_PPS_EVENT          = 0x25,
@@ -330,6 +331,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_DCT_DRAINED        = 0x1c,
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
+	MLX5_EVENT_TYPE_FPGA_QP_ERROR      = 0x21,
 };
 
 enum {
@@ -626,6 +628,11 @@ struct mlx5_eqe_dct {
 	__be32  dctn;
 };
 
+struct mlx5_eqe_temp_warning {
+	__be64 sensor_warning_msb;
+	__be64 sensor_warning_lsb;
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -642,6 +649,7 @@ union ev_data {
 	struct mlx5_eqe_port_module	port_module;
 	struct mlx5_eqe_pps		pps;
 	struct mlx5_eqe_dct             dct;
+	struct mlx5_eqe_temp_warning	temp_warning;
 } __packed;
 
 struct mlx5_eqe {
@@ -994,6 +1002,18 @@ enum mlx5_wol_mode {
 	MLX5_WOL_PHY_ACTIVITY   = 1 << 7,
 };
 
+enum mlx5_mpls_supported_fields {
+	MLX5_FIELD_SUPPORT_MPLS_LABEL = 1 << 0,
+	MLX5_FIELD_SUPPORT_MPLS_EXP   = 1 << 1,
+	MLX5_FIELD_SUPPORT_MPLS_S_BOS = 1 << 2,
+	MLX5_FIELD_SUPPORT_MPLS_TTL   = 1 << 3
+};
+
+enum mlx5_flex_parser_protos {
+	MLX5_FLEX_PROTO_CW_MPLS_GRE   = 1 << 4,
+	MLX5_FLEX_PROTO_CW_MPLS_UDP   = 1 << 5,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */
@@ -1151,6 +1171,9 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_PCAM_FEATURE(mdev, fld) \
 	MLX5_GET(pcam_reg, (mdev)->caps.pcam, feature_cap_mask.enhanced_features.fld)
+
+#define MLX5_CAP_PCAM_REG(mdev, reg) \
+	MLX5_GET(pcam_reg, (mdev)->caps.pcam, port_access_reg_cap_mask.regs_5000_to_507f.reg)
 
 #define MLX5_CAP_MCAM_REG(mdev, reg) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam, mng_access_reg_cap_mask.access_regs.reg)

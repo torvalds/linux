@@ -573,8 +573,8 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 	int i;
 
 	qp->sqp_proxy_rcv =
-		kmalloc(sizeof (struct mlx4_ib_buf) * qp->rq.wqe_cnt,
-			GFP_KERNEL);
+		kmalloc_array(qp->rq.wqe_cnt, sizeof(struct mlx4_ib_buf),
+			      GFP_KERNEL);
 	if (!qp->sqp_proxy_rcv)
 		return -ENOMEM;
 	for (i = 0; i < qp->rq.wqe_cnt; i++) {
@@ -673,7 +673,8 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 					  MLX4_IB_RX_HASH_SRC_PORT_TCP	|
 					  MLX4_IB_RX_HASH_DST_PORT_TCP	|
 					  MLX4_IB_RX_HASH_SRC_PORT_UDP	|
-					  MLX4_IB_RX_HASH_DST_PORT_UDP)) {
+					  MLX4_IB_RX_HASH_DST_PORT_UDP  |
+					  MLX4_IB_RX_HASH_INNER)) {
 		pr_debug("RX Hash fields_mask has unsupported mask (0x%llx)\n",
 			 ucmd->rx_hash_fields_mask);
 		return (-EOPNOTSUPP);
@@ -3077,7 +3078,7 @@ static int fill_gid_by_hw_index(struct mlx4_ib_dev *ibdev, u8 port_num,
 	memcpy(gid, &port_gid_table->gids[index].gid, sizeof(*gid));
 	*gid_type = port_gid_table->gids[index].gid_type;
 	spin_unlock_irqrestore(&iboe->lock, flags);
-	if (!memcmp(gid, &zgid, sizeof(*gid)))
+	if (rdma_is_zero_gid(gid))
 		return -ENOENT;
 
 	return 0;

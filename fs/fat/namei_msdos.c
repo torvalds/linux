@@ -250,7 +250,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	if (err)
 		return err;
 
-	dir->i_ctime = dir->i_mtime = *ts;
+	dir->i_ctime = dir->i_mtime = timespec_to_timespec64(*ts);
 	if (IS_DIRSYNC(dir))
 		(void)fat_sync_inode(dir);
 	else
@@ -266,7 +266,8 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = NULL;
 	struct fat_slot_info sinfo;
-	struct timespec ts;
+	struct timespec64 ts;
+	struct timespec t;
 	unsigned char msdos_name[MSDOS_NAME];
 	int err, is_hid;
 
@@ -285,7 +286,8 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	}
 
 	ts = current_time(dir);
-	err = msdos_add_entry(dir, msdos_name, 0, is_hid, 0, &ts, &sinfo);
+	t = timespec64_to_timespec(ts);
+	err = msdos_add_entry(dir, msdos_name, 0, is_hid, 0, &t, &sinfo);
 	if (err)
 		goto out;
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
@@ -314,10 +316,6 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
-	/*
-	 * Check whether the directory is not in use, then check
-	 * whether it is empty.
-	 */
 	err = fat_dir_empty(inode);
 	if (err)
 		goto out;
@@ -348,7 +346,8 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct fat_slot_info sinfo;
 	struct inode *inode;
 	unsigned char msdos_name[MSDOS_NAME];
-	struct timespec ts;
+	struct timespec64 ts;
+	struct timespec t;
 	int err, is_hid, cluster;
 
 	mutex_lock(&MSDOS_SB(sb)->s_lock);
@@ -366,12 +365,13 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	}
 
 	ts = current_time(dir);
-	cluster = fat_alloc_new_dir(dir, &ts);
+	t = timespec64_to_timespec(ts);
+	cluster = fat_alloc_new_dir(dir, &t);
 	if (cluster < 0) {
 		err = cluster;
 		goto out;
 	}
-	err = msdos_add_entry(dir, msdos_name, 1, is_hid, cluster, &ts, &sinfo);
+	err = msdos_add_entry(dir, msdos_name, 1, is_hid, cluster, &t, &sinfo);
 	if (err)
 		goto out_free;
 	inc_nlink(dir);
@@ -436,7 +436,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	struct msdos_dir_entry *dotdot_de;
 	struct inode *old_inode, *new_inode;
 	struct fat_slot_info old_sinfo, sinfo;
-	struct timespec ts;
+	struct timespec64 ts;
 	loff_t new_i_pos;
 	int err, old_attrs, is_dir, update_dotdot, corrupt = 0;
 
@@ -503,8 +503,9 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 		new_i_pos = MSDOS_I(new_inode)->i_pos;
 		fat_detach(new_inode);
 	} else {
+		struct timespec t = timespec64_to_timespec(ts);
 		err = msdos_add_entry(new_dir, new_name, is_dir, is_hid, 0,
-				      &ts, &sinfo);
+				      &t, &sinfo);
 		if (err)
 			goto out;
 		new_i_pos = sinfo.i_pos;

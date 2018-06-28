@@ -65,22 +65,10 @@ static int xfrm_statistics_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xfrm_statistics_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, xfrm_statistics_seq_show);
-}
-
-static const struct file_operations xfrm_statistics_seq_fops = {
-	.open	 = xfrm_statistics_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
-
 int __net_init xfrm_proc_init(struct net *net)
 {
-	if (!proc_create("xfrm_stat", 0444, net->proc_net,
-			 &xfrm_statistics_seq_fops))
+	if (!proc_create_net_single("xfrm_stat", 0444, net->proc_net,
+			 xfrm_statistics_seq_show, NULL))
 		return -ENOMEM;
 	return 0;
 }

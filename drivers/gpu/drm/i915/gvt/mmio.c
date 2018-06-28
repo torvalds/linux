@@ -244,8 +244,6 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 
 		/* set the bit 0:2(Core C-State ) to C0 */
 		vgpu_vreg_t(vgpu, GEN6_GT_CORE_STATUS) = 0;
-
-		vgpu->mmio.disable_warn_untrack = false;
 	} else {
 #define GVT_GEN8_MMIO_RESET_OFFSET		(0x44200)
 		/* only reset the engine related, so starting with 0x44200
@@ -269,7 +267,7 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+	vgpu->mmio.vreg = vzalloc(array_size(info->mmio_size, 2));
 	if (!vgpu->mmio.vreg)
 		return -ENOMEM;
 

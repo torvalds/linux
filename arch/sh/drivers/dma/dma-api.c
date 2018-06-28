@@ -339,18 +339,6 @@ static int dma_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int dma_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dma_proc_show, NULL);
-}
-
-static const struct file_operations dma_proc_fops = {
-	.open		= dma_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 int register_dmac(struct dma_info *info)
 {
 	unsigned int total_channels, i;
@@ -423,7 +411,7 @@ EXPORT_SYMBOL(unregister_dmac);
 static int __init dma_api_init(void)
 {
 	printk(KERN_NOTICE "DMA: Registering DMA API.\n");
-	return proc_create("dma", 0, NULL, &dma_proc_fops) ? 0 : -ENOMEM;
+	return proc_create_single("dma", 0, NULL, dma_proc_show) ? 0 : -ENOMEM;
 }
 subsys_initcall(dma_api_init);
 

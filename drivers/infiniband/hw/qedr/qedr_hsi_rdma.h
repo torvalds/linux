@@ -116,6 +116,7 @@ enum rdma_cqe_requester_status_enum {
 	RDMA_CQE_REQ_STS_TRANSPORT_RETRY_CNT_ERR,
 	RDMA_CQE_REQ_STS_WORK_REQUEST_FLUSHED_ERR,
 	RDMA_CQE_REQ_STS_XRC_VOILATION_ERR,
+	RDMA_CQE_REQ_STS_SIG_ERR,
 	MAX_RDMA_CQE_REQUESTER_STATUS_ENUM
 };
 
@@ -152,12 +153,12 @@ struct rdma_rq_sge {
 	struct regpair addr;
 	__le32 length;
 	__le32 flags;
-#define RDMA_RQ_SGE_L_KEY_MASK      0x3FFFFFF
-#define RDMA_RQ_SGE_L_KEY_SHIFT     0
+#define RDMA_RQ_SGE_L_KEY_LO_MASK   0x3FFFFFF
+#define RDMA_RQ_SGE_L_KEY_LO_SHIFT  0
 #define RDMA_RQ_SGE_NUM_SGES_MASK   0x7
 #define RDMA_RQ_SGE_NUM_SGES_SHIFT  26
-#define RDMA_RQ_SGE_RESERVED0_MASK  0x7
-#define RDMA_RQ_SGE_RESERVED0_SHIFT 29
+#define RDMA_RQ_SGE_L_KEY_HI_MASK   0x7
+#define RDMA_RQ_SGE_L_KEY_HI_SHIFT  29
 };
 
 struct rdma_srq_sge {
@@ -241,18 +242,39 @@ enum rdma_dif_io_direction_flg {
 	MAX_RDMA_DIF_IO_DIRECTION_FLG
 };
 
-/* RDMA DIF Runt Result Structure */
-struct rdma_dif_runt_result {
-	__le16 guard_tag;
-	__le16 reserved[3];
+struct rdma_dif_params {
+	__le32 base_ref_tag;
+	__le16 app_tag;
+	__le16 app_tag_mask;
+	__le16 runt_crc_value;
+	__le16 flags;
+#define RDMA_DIF_PARAMS_IO_DIRECTION_FLG_MASK    0x1
+#define RDMA_DIF_PARAMS_IO_DIRECTION_FLG_SHIFT   0
+#define RDMA_DIF_PARAMS_BLOCK_SIZE_MASK          0x1
+#define RDMA_DIF_PARAMS_BLOCK_SIZE_SHIFT         1
+#define RDMA_DIF_PARAMS_RUNT_VALID_FLG_MASK      0x1
+#define RDMA_DIF_PARAMS_RUNT_VALID_FLG_SHIFT     2
+#define RDMA_DIF_PARAMS_VALIDATE_CRC_GUARD_MASK  0x1
+#define RDMA_DIF_PARAMS_VALIDATE_CRC_GUARD_SHIFT 3
+#define RDMA_DIF_PARAMS_VALIDATE_REF_TAG_MASK    0x1
+#define RDMA_DIF_PARAMS_VALIDATE_REF_TAG_SHIFT   4
+#define RDMA_DIF_PARAMS_VALIDATE_APP_TAG_MASK    0x1
+#define RDMA_DIF_PARAMS_VALIDATE_APP_TAG_SHIFT   5
+#define RDMA_DIF_PARAMS_CRC_SEED_MASK            0x1
+#define RDMA_DIF_PARAMS_CRC_SEED_SHIFT           6
+#define RDMA_DIF_PARAMS_RX_REF_TAG_CONST_MASK    0x1
+#define RDMA_DIF_PARAMS_RX_REF_TAG_CONST_SHIFT   7
+#define RDMA_DIF_PARAMS_BLOCK_GUARD_TYPE_MASK    0x1
+#define RDMA_DIF_PARAMS_BLOCK_GUARD_TYPE_SHIFT   8
+#define RDMA_DIF_PARAMS_APP_ESCAPE_MASK          0x1
+#define RDMA_DIF_PARAMS_APP_ESCAPE_SHIFT         9
+#define RDMA_DIF_PARAMS_REF_ESCAPE_MASK          0x1
+#define RDMA_DIF_PARAMS_REF_ESCAPE_SHIFT         10
+#define RDMA_DIF_PARAMS_RESERVED4_MASK           0x1F
+#define RDMA_DIF_PARAMS_RESERVED4_SHIFT          11
+	__le32 reserved5;
 };
 
-/* Memory window type enumeration */
-enum rdma_mw_type {
-	RDMA_MW_TYPE_1,
-	RDMA_MW_TYPE_2A,
-	MAX_RDMA_MW_TYPE
-};
 
 struct rdma_sq_atomic_wqe {
 	__le32 reserved1;
@@ -334,17 +356,17 @@ struct rdma_sq_bind_wqe {
 #define RDMA_SQ_BIND_WQE_SE_FLG_SHIFT        3
 #define RDMA_SQ_BIND_WQE_INLINE_FLG_MASK     0x1
 #define RDMA_SQ_BIND_WQE_INLINE_FLG_SHIFT    4
-#define RDMA_SQ_BIND_WQE_RESERVED0_MASK      0x7
-#define RDMA_SQ_BIND_WQE_RESERVED0_SHIFT     5
+#define RDMA_SQ_BIND_WQE_DIF_ON_HOST_FLG_MASK  0x1
+#define RDMA_SQ_BIND_WQE_DIF_ON_HOST_FLG_SHIFT 5
+#define RDMA_SQ_BIND_WQE_RESERVED0_MASK      0x3
+#define RDMA_SQ_BIND_WQE_RESERVED0_SHIFT     6
 	u8 wqe_size;
 	u8 prev_wqe_size;
 	u8 bind_ctrl;
 #define RDMA_SQ_BIND_WQE_ZERO_BASED_MASK     0x1
 #define RDMA_SQ_BIND_WQE_ZERO_BASED_SHIFT    0
-#define RDMA_SQ_BIND_WQE_MW_TYPE_MASK        0x1
-#define RDMA_SQ_BIND_WQE_MW_TYPE_SHIFT       1
-#define RDMA_SQ_BIND_WQE_RESERVED1_MASK      0x3F
-#define RDMA_SQ_BIND_WQE_RESERVED1_SHIFT     2
+#define RDMA_SQ_BIND_WQE_RESERVED1_MASK        0x7F
+#define RDMA_SQ_BIND_WQE_RESERVED1_SHIFT       1
 	u8 access_ctrl;
 #define RDMA_SQ_BIND_WQE_REMOTE_READ_MASK    0x1
 #define RDMA_SQ_BIND_WQE_REMOTE_READ_SHIFT   0
@@ -363,6 +385,7 @@ struct rdma_sq_bind_wqe {
 	__le32 length_lo;
 	__le32 parent_l_key;
 	__le32 reserved4;
+	struct rdma_dif_params dif_params;
 };
 
 /* First element (16 bytes) of bind wqe */
@@ -392,10 +415,8 @@ struct rdma_sq_bind_wqe_2nd {
 	u8 bind_ctrl;
 #define RDMA_SQ_BIND_WQE_2ND_ZERO_BASED_MASK     0x1
 #define RDMA_SQ_BIND_WQE_2ND_ZERO_BASED_SHIFT    0
-#define RDMA_SQ_BIND_WQE_2ND_MW_TYPE_MASK        0x1
-#define RDMA_SQ_BIND_WQE_2ND_MW_TYPE_SHIFT       1
-#define RDMA_SQ_BIND_WQE_2ND_RESERVED1_MASK      0x3F
-#define RDMA_SQ_BIND_WQE_2ND_RESERVED1_SHIFT     2
+#define RDMA_SQ_BIND_WQE_2ND_RESERVED1_MASK      0x7F
+#define RDMA_SQ_BIND_WQE_2ND_RESERVED1_SHIFT     1
 	u8 access_ctrl;
 #define RDMA_SQ_BIND_WQE_2ND_REMOTE_READ_MASK    0x1
 #define RDMA_SQ_BIND_WQE_2ND_REMOTE_READ_SHIFT   0
@@ -414,6 +435,11 @@ struct rdma_sq_bind_wqe_2nd {
 	__le32 length_lo;
 	__le32 parent_l_key;
 	__le32 reserved4;
+};
+
+/* Third element (16 bytes) of bind wqe */
+struct rdma_sq_bind_wqe_3rd {
+	struct rdma_dif_params dif_params;
 };
 
 /* Structure with only the SQ WQE common
@@ -486,30 +512,6 @@ struct rdma_sq_fmr_wqe {
 	u8 length_hi;
 	__le32 length_lo;
 	struct regpair pbl_addr;
-	__le32 dif_base_ref_tag;
-	__le16 dif_app_tag;
-	__le16 dif_app_tag_mask;
-	__le16 dif_runt_crc_value;
-	__le16 dif_flags;
-#define RDMA_SQ_FMR_WQE_DIF_IO_DIRECTION_FLG_MASK	0x1
-#define RDMA_SQ_FMR_WQE_DIF_IO_DIRECTION_FLG_SHIFT	0
-#define RDMA_SQ_FMR_WQE_DIF_BLOCK_SIZE_MASK		0x1
-#define RDMA_SQ_FMR_WQE_DIF_BLOCK_SIZE_SHIFT		1
-#define RDMA_SQ_FMR_WQE_DIF_RUNT_VALID_FLG_MASK		0x1
-#define RDMA_SQ_FMR_WQE_DIF_RUNT_VALID_FLG_SHIFT	2
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_CRC_GUARD_MASK	0x1
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_CRC_GUARD_SHIFT	3
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_REF_TAG_MASK	0x1
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_REF_TAG_SHIFT	4
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_APP_TAG_MASK	0x1
-#define RDMA_SQ_FMR_WQE_DIF_VALIDATE_APP_TAG_SHIFT	5
-#define RDMA_SQ_FMR_WQE_DIF_CRC_SEED_MASK		0x1
-#define RDMA_SQ_FMR_WQE_DIF_CRC_SEED_SHIFT		6
-#define RDMA_SQ_FMR_WQE_DIF_RX_REF_TAG_CONST_MASK	0x1
-#define RDMA_SQ_FMR_WQE_DIF_RX_REF_TAG_CONST_SHIFT	7
-#define RDMA_SQ_FMR_WQE_RESERVED4_MASK			0xFF
-#define RDMA_SQ_FMR_WQE_RESERVED4_SHIFT			8
-	__le32 reserved5;
 };
 
 /* First element (16 bytes) of fmr wqe */
@@ -566,33 +568,6 @@ struct rdma_sq_fmr_wqe_2nd {
 	struct regpair pbl_addr;
 };
 
-/* Third element (16 bytes) of fmr wqe */
-struct rdma_sq_fmr_wqe_3rd {
-	__le32 dif_base_ref_tag;
-	__le16 dif_app_tag;
-	__le16 dif_app_tag_mask;
-	__le16 dif_runt_crc_value;
-	__le16 dif_flags;
-#define RDMA_SQ_FMR_WQE_3RD_DIF_IO_DIRECTION_FLG_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_IO_DIRECTION_FLG_SHIFT		0
-#define RDMA_SQ_FMR_WQE_3RD_DIF_BLOCK_SIZE_MASK			0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_BLOCK_SIZE_SHIFT		1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_RUNT_VALID_FLG_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_RUNT_VALID_FLG_SHIFT		2
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_CRC_GUARD_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_CRC_GUARD_SHIFT	3
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_REF_TAG_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_REF_TAG_SHIFT		4
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_APP_TAG_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_APP_TAG_SHIFT		5
-#define RDMA_SQ_FMR_WQE_3RD_DIF_CRC_SEED_MASK			0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_CRC_SEED_SHIFT			6
-#define RDMA_SQ_FMR_WQE_3RD_DIF_RX_REF_TAG_CONST_MASK		0x1
-#define RDMA_SQ_FMR_WQE_3RD_DIF_RX_REF_TAG_CONST_SHIFT		7
-#define RDMA_SQ_FMR_WQE_3RD_RESERVED4_MASK			0xFF
-#define RDMA_SQ_FMR_WQE_RESERVED4_SHIFT				8
-	__le32 reserved5;
-};
 
 struct rdma_sq_local_inv_wqe {
 	struct regpair reserved;
@@ -637,8 +612,8 @@ struct rdma_sq_rdma_wqe {
 #define RDMA_SQ_RDMA_WQE_DIF_ON_HOST_FLG_SHIFT	5
 #define RDMA_SQ_RDMA_WQE_READ_INV_FLG_MASK	0x1
 #define RDMA_SQ_RDMA_WQE_READ_INV_FLG_SHIFT	6
-#define RDMA_SQ_RDMA_WQE_RESERVED0_MASK		0x1
-#define RDMA_SQ_RDMA_WQE_RESERVED0_SHIFT	7
+#define RDMA_SQ_RDMA_WQE_RESERVED1_MASK        0x1
+#define RDMA_SQ_RDMA_WQE_RESERVED1_SHIFT       7
 	u8 wqe_size;
 	u8 prev_wqe_size;
 	struct regpair remote_va;
@@ -646,13 +621,9 @@ struct rdma_sq_rdma_wqe {
 	u8 dif_flags;
 #define RDMA_SQ_RDMA_WQE_DIF_BLOCK_SIZE_MASK            0x1
 #define RDMA_SQ_RDMA_WQE_DIF_BLOCK_SIZE_SHIFT           0
-#define RDMA_SQ_RDMA_WQE_DIF_FIRST_RDMA_IN_IO_FLG_MASK  0x1
-#define RDMA_SQ_RDMA_WQE_DIF_FIRST_RDMA_IN_IO_FLG_SHIFT 1
-#define RDMA_SQ_RDMA_WQE_DIF_LAST_RDMA_IN_IO_FLG_MASK   0x1
-#define RDMA_SQ_RDMA_WQE_DIF_LAST_RDMA_IN_IO_FLG_SHIFT  2
-#define RDMA_SQ_RDMA_WQE_RESERVED1_MASK                 0x1F
-#define RDMA_SQ_RDMA_WQE_RESERVED1_SHIFT                3
-	u8 reserved2[3];
+#define RDMA_SQ_RDMA_WQE_RESERVED2_MASK        0x7F
+#define RDMA_SQ_RDMA_WQE_RESERVED2_SHIFT       1
+	u8 reserved3[3];
 };
 
 /* First element (16 bytes) of rdma wqe */

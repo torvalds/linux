@@ -49,10 +49,8 @@ int __init jbd2_journal_init_transaction_cache(void)
 
 void jbd2_journal_destroy_transaction_cache(void)
 {
-	if (transaction_cache) {
-		kmem_cache_destroy(transaction_cache);
-		transaction_cache = NULL;
-	}
+	kmem_cache_destroy(transaction_cache);
+	transaction_cache = NULL;
 }
 
 void jbd2_journal_free_transaction(transaction_t *transaction)
@@ -532,6 +530,7 @@ int jbd2_journal_start_reserved(handle_t *handle, unsigned int type,
 	 */
 	ret = start_this_handle(journal, handle, GFP_NOFS);
 	if (ret < 0) {
+		handle->h_journal = journal;
 		jbd2_journal_free_reserved(handle);
 		return ret;
 	}

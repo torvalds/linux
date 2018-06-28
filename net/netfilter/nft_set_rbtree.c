@@ -22,6 +22,7 @@ struct nft_rbtree {
 	struct rb_root		root;
 	rwlock_t		lock;
 	seqcount_t		count;
+	struct delayed_work	gc_work;
 };
 
 struct nft_rbtree_elem {
@@ -65,7 +66,7 @@ static bool __nft_rbtree_lookup(const struct net *net, const struct nft_set *set
 			parent = rcu_dereference_raw(parent->rb_left);
 			if (interval &&
 			    nft_rbtree_equal(set, this, interval) &&
-			    nft_rbtree_interval_end(this) &&
+			    nft_rbtree_interval_end(rbe) &&
 			    !nft_rbtree_interval_end(interval))
 				continue;
 			interval = rbe;
@@ -265,6 +266,7 @@ static void nft_rbtree_activate(const struct net *net,
 	struct nft_rbtree_elem *rbe = elem->priv;
 
 	nft_set_elem_change_active(net, set, &rbe->ext);
+	nft_set_elem_clear_busy(&rbe->ext);
 }
 
 static bool nft_rbtree_flush(const struct net *net,
@@ -272,8 +274,12 @@ static bool nft_rbtree_flush(const struct net *net,
 {
 	struct nft_rbtree_elem *rbe = priv;
 
-	nft_set_elem_change_active(net, set, &rbe->ext);
-	return true;
+	if (!nft_set_elem_mark_busy(&rbe->ext) ||
+	    !nft_is_active(net, &rbe->ext)) {
+		nft_set_elem_change_active(net, set, &rbe->ext);
+		return true;
+	}
+	return false;
 }
 
 static void *nft_rbtree_deactivate(const struct net *net,
@@ -347,6 +353,62 @@ cont:
 	read_unlock_bh(&priv->lock);
 }
 
+static void nft_rbtree_gc(struct work_struct *work)
+{
+	struct nft_set_gc_batch *gcb = NULL;
+	struct rb_node *node, *prev = NULL;
+	struct nft_rbtree_elem *rbe;
+	struct nft_rbtree *priv;
+	struct nft_set *set;
+	int i;
+
+	priv = container_of(work, struct nft_rbtree, gc_work.work);
+	set  = nft_set_container_of(priv);
+
+	write_lock_bh(&priv->lock);
+	write_seqcount_begin(&priv->count);
+	for (node = rb_first(&priv->root); node != NULL; node = rb_next(node)) {
+		rbe = rb_entry(node, struct nft_rbtree_elem, node);
+
+		if (nft_rbtree_interval_end(rbe)) {
+			prev = node;
+			continue;
+		}
+		if (!nft_set_elem_expired(&rbe->ext))
+			continue;
+		if (nft_set_elem_mark_busy(&rbe->ext))
+			continue;
+
+		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
+		if (!gcb)
+			goto out;
+
+		atomic_dec(&set->nelems);
+		nft_set_gc_batch_add(gcb, rbe);
+
+		if (prev) {
+			rbe = rb_entry(prev, struct nft_rbtree_elem, node);
+			atomic_dec(&set->nelems);
+			nft_set_gc_batch_add(gcb, rbe);
+		}
+		node = rb_next(node);
+	}
+out:
+	if (gcb) {
+		for (i = 0; i < gcb->head.cnt; i++) {
+			rbe = gcb->elems[i];
+			rb_erase(&rbe->node, &priv->root);
+		}
+	}
+	write_seqcount_end(&priv->count);
+	write_unlock_bh(&priv->lock);
+
+	nft_set_gc_batch_complete(gcb);
+
+	queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
+			   nft_set_gc_interval(set));
+}
+
 static unsigned int nft_rbtree_privsize(const struct nlattr * const nla[],
 					const struct nft_set_desc *desc)
 {
@@ -362,6 +424,12 @@ static int nft_rbtree_init(const struct nft_set *set,
 	rwlock_init(&priv->lock);
 	seqcount_init(&priv->count);
 	priv->root = RB_ROOT;
+
+	INIT_DEFERRABLE_WORK(&priv->gc_work, nft_rbtree_gc);
+	if (set->flags & NFT_SET_TIMEOUT)
+		queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
+				   nft_set_gc_interval(set));
+
 	return 0;
 }
 
@@ -371,6 +439,7 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 	struct nft_rbtree_elem *rbe;
 	struct rb_node *node;
 
+	cancel_delayed_work_sync(&priv->gc_work);
 	while ((node = priv->root.rb_node) != NULL) {
 		rb_erase(node, &priv->root);
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
@@ -393,28 +462,24 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_rbtree_type;
-static struct nft_set_ops nft_rbtree_ops __read_mostly = {
-	.type		= &nft_rbtree_type,
-	.privsize	= nft_rbtree_privsize,
-	.elemsize	= offsetof(struct nft_rbtree_elem, ext),
-	.estimate	= nft_rbtree_estimate,
-	.init		= nft_rbtree_init,
-	.destroy	= nft_rbtree_destroy,
-	.insert		= nft_rbtree_insert,
-	.remove		= nft_rbtree_remove,
-	.deactivate	= nft_rbtree_deactivate,
-	.flush		= nft_rbtree_flush,
-	.activate	= nft_rbtree_activate,
-	.lookup		= nft_rbtree_lookup,
-	.walk		= nft_rbtree_walk,
-	.get		= nft_rbtree_get,
-	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT,
-};
-
 static struct nft_set_type nft_rbtree_type __read_mostly = {
-	.ops		= &nft_rbtree_ops,
 	.owner		= THIS_MODULE,
+	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
+	.ops		= {
+		.privsize	= nft_rbtree_privsize,
+		.elemsize	= offsetof(struct nft_rbtree_elem, ext),
+		.estimate	= nft_rbtree_estimate,
+		.init		= nft_rbtree_init,
+		.destroy	= nft_rbtree_destroy,
+		.insert		= nft_rbtree_insert,
+		.remove		= nft_rbtree_remove,
+		.deactivate	= nft_rbtree_deactivate,
+		.flush		= nft_rbtree_flush,
+		.activate	= nft_rbtree_activate,
+		.lookup		= nft_rbtree_lookup,
+		.walk		= nft_rbtree_walk,
+		.get		= nft_rbtree_get,
+	},
 };
 
 static int __init nft_rbtree_module_init(void)

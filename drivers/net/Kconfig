@@ -198,6 +198,7 @@ config VXLAN
 config GENEVE
        tristate "Generic Network Virtualization Encapsulation"
        depends on INET && NET_UDP_TUNNEL
+       depends on IPV6 || !IPV6
        select NET_IP_TUNNEL
        select GRO_CELLS
        ---help---
@@ -331,6 +332,7 @@ config VETH
 config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
+	select NET_FAILOVER
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -508,5 +510,17 @@ config NETDEVSIM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called netdevsim.
+
+config NET_FAILOVER
+	tristate "Failover driver"
+	select FAILOVER
+	help
+	  This provides an automated failover mechanism via APIs to create
+	  and destroy a failover master netdev and manages a primary and
+	  standby slave netdevs that get registered via the generic failover
+	  infrastructure. This can be used by paravirtual drivers to enable
+	  an alternate low latency datapath. It alsoenables live migration of
+	  a VM with direct attached VF by failing over to the paravirtual
+	  datapath when the VF is unplugged.
 
 endif # NETDEVICES

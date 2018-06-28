@@ -64,7 +64,8 @@ struct drm_simple_display_pipe_funcs {
 	 * This hook is optional.
 	 */
 	void (*enable)(struct drm_simple_display_pipe *pipe,
-		       struct drm_crtc_state *crtc_state);
+		       struct drm_crtc_state *crtc_state,
+		       struct drm_plane_state *plane_state);
 	/**
 	 * @disable:
 	 *
@@ -115,6 +116,9 @@ struct drm_simple_display_pipe_funcs {
 	 * Optional, called by &drm_plane_helper_funcs.prepare_fb.  Please read
 	 * the documentation for the &drm_plane_helper_funcs.prepare_fb hook for
 	 * more details.
+	 *
+	 * Drivers which always have their buffers pinned should use
+	 * drm_gem_fb_simple_display_pipe_prepare_fb() for this hook.
 	 */
 	int (*prepare_fb)(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *plane_state);

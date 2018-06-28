@@ -2727,8 +2727,9 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	adev->pm.dpm.ps = kzalloc(sizeof(struct amdgpu_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	adev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct amdgpu_ps),
+				  GFP_KERNEL);
 	if (!adev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
@@ -2817,7 +2818,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 		pi->caps_tcp_ramping = true;
 	}
 
-	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
+	if (adev->powerplay.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
@@ -2974,7 +2975,7 @@ static int kv_dpm_late_init(void *handle)
 	/* powerdown unused blocks for now */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!adev->pm.dpm_enabled)
 		return 0;
 
 	kv_dpm_powergate_acp(adev, true);

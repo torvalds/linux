@@ -139,10 +139,6 @@ bool resource_validate_attach_surfaces(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams);
-
 void resource_validate_ctx_update_pointer_after_copy(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx);

@@ -53,6 +53,20 @@ static const struct silead_ts_dmi_data jumper_ezpad_mini3_data = {
 	.properties	= jumper_ezpad_mini3_props,
 };
 
+static const struct property_entry jumper_ezpad_6_pro_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-jumper-ezpad-6-pro.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data jumper_ezpad_6_pro_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= jumper_ezpad_6_pro_props,
+};
+
 static const struct property_entry dexp_ursus_7w_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 890),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
@@ -127,7 +141,25 @@ static const struct silead_ts_dmi_data pipo_w2s_data = {
 	.properties	= pipo_w2s_props,
 };
 
-static const struct property_entry pov_mobii_wintab_p800w_props[] = {
+static const struct property_entry pov_mobii_wintab_p800w_v20_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 32),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 16),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1692),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1146),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3680-pov-mobii-wintab-p800w-v20.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_v20_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= pov_mobii_wintab_p800w_v20_props,
+};
+
+static const struct property_entry pov_mobii_wintab_p800w_v21_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1800),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1150),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
@@ -137,9 +169,9 @@ static const struct property_entry pov_mobii_wintab_p800w_props[] = {
 	{ }
 };
 
-static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_data = {
+static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_v21_data = {
 	.acpi_name	= "MSSL1680:00",
-	.properties	= pov_mobii_wintab_p800w_props,
+	.properties	= pov_mobii_wintab_p800w_v21_props,
 };
 
 static const struct property_entry itworks_tw891_props[] = {
@@ -277,6 +309,23 @@ static const struct silead_ts_dmi_data teclast_x3_plus_data = {
 	.properties	= teclast_x3_plus_props,
 };
 
+static const struct property_entry onda_v891w_v1_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 46),
+	PROPERTY_ENTRY_U32("touchscreen-min-y",  8),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1676),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1130),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3680-onda-v891w-v1.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data onda_v891w_v1_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= onda_v891w_v1_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -294,6 +343,17 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			/* jumperx.T87.KFBNEEA02 with the version-nr dropped */
 			DMI_MATCH(DMI_BIOS_VERSION, "jumperx.T87.KFBNEEA"),
+		},
+	},
+	{
+		/* Jumper EZpad 6 Pro */
+		.driver_data = (void *)&jumper_ezpad_6_pro_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Jumper"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
+			DMI_MATCH(DMI_BIOS_VERSION, "5.12"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "08/18/2017"),
 		},
 	},
 	{
@@ -361,8 +421,19 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
-		/* Point of View mobii wintab p800w */
-		.driver_data = (void *)&pov_mobii_wintab_p800w_data,
+		/* Point of View mobii wintab p800w (v2.0) */
+		.driver_data = (void *)&pov_mobii_wintab_p800w_v20_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1014"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "10/24/2014"),
+		},
+	},
+	{
+		/* Point of View mobii wintab p800w (v2.1) */
+		.driver_data = (void *)&pov_mobii_wintab_p800w_v21_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
@@ -410,6 +481,15 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ilife"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "S806"),
+		},
+	},
+	{
+		/* Chuwi Hi8 (H1D_S806_206) */
+		.driver_data = (void *)&chuwi_hi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			DMI_MATCH(DMI_BIOS_VERSION, "H1D_S806_206"),
 		},
 	},
 	{
@@ -461,6 +541,17 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "YOURS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Y8W81"),
+		},
+	},
+	{
+		/* ONDA V891w revision P891WBEBV1B00 aka v1 */
+		.driver_data = (void *)&onda_v891w_v1_data,
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "ONDA"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONDA Tablet"),
+			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V001"),
+			/* Exact match, different versions need different fw */
+			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "ONDA.W89EBBN08"),
 		},
 	},
 	{ },

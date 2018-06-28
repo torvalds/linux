@@ -49,7 +49,7 @@ ENTRY(sve_save_state)
 ENDPROC(sve_save_state)
 
 ENTRY(sve_load_state)
-	sve_load 0, x1, x2, 3
+	sve_load 0, x1, x2, 3, x4
 	ret
 ENDPROC(sve_load_state)
 

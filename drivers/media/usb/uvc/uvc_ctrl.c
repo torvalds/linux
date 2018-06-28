@@ -1607,14 +1607,12 @@ static int uvc_ctrl_get_flags(struct uvc_device *dev,
 	ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id, dev->intfnum,
 			     info->selector, data, 1);
 	if (!ret)
-		info->flags = UVC_CTRL_FLAG_GET_MIN | UVC_CTRL_FLAG_GET_MAX
-			    | UVC_CTRL_FLAG_GET_RES | UVC_CTRL_FLAG_GET_DEF
-			    | (data[0] & UVC_CONTROL_CAP_GET ?
-			       UVC_CTRL_FLAG_GET_CUR : 0)
-			    | (data[0] & UVC_CONTROL_CAP_SET ?
-			       UVC_CTRL_FLAG_SET_CUR : 0)
-			    | (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
-			       UVC_CTRL_FLAG_AUTO_UPDATE : 0);
+		info->flags |= (data[0] & UVC_CONTROL_CAP_GET ?
+				UVC_CTRL_FLAG_GET_CUR : 0)
+			    |  (data[0] & UVC_CONTROL_CAP_SET ?
+				UVC_CTRL_FLAG_SET_CUR : 0)
+			    |  (data[0] & UVC_CONTROL_CAP_AUTOUPDATE ?
+				UVC_CTRL_FLAG_AUTO_UPDATE : 0);
 
 	kfree(data);
 	return ret;
@@ -1688,6 +1686,9 @@ static int uvc_ctrl_fill_xu_info(struct uvc_device *dev,
 	}
 
 	info->size = le16_to_cpup((__le16 *)data);
+
+	info->flags = UVC_CTRL_FLAG_GET_MIN | UVC_CTRL_FLAG_GET_MAX
+		    | UVC_CTRL_FLAG_GET_RES | UVC_CTRL_FLAG_GET_DEF;
 
 	ret = uvc_ctrl_get_flags(dev, ctrl, info);
 	if (ret < 0) {

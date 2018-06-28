@@ -201,13 +201,12 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 int cgroup_task_count(const struct cgroup *cgrp);
 
 /*
- * stat.c
+ * rstat.c
  */
-void cgroup_stat_flush(struct cgroup *cgrp);
-int cgroup_stat_init(struct cgroup *cgrp);
-void cgroup_stat_exit(struct cgroup *cgrp);
-void cgroup_stat_show_cputime(struct seq_file *seq);
-void cgroup_stat_boot(void);
+int cgroup_rstat_init(struct cgroup *cgrp);
+void cgroup_rstat_exit(struct cgroup *cgrp);
+void cgroup_rstat_boot(void);
+void cgroup_base_stat_cputime_show(struct seq_file *seq);
 
 /*
  * namespace.c
@@ -218,9 +217,9 @@ extern const struct proc_ns_operations cgroupns_operations;
  * cgroup-v1.c
  */
 extern struct cftype cgroup1_base_files[];
-extern const struct file_operations proc_cgroupstats_operations;
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 
+int proc_cgroupstats_show(struct seq_file *m, void *v);
 bool cgroup1_ssid_disabled(int ssid);
 void cgroup1_pidlist_destroy_all(struct cgroup *cgrp);
 void cgroup1_release_agent(struct work_struct *work);

@@ -25,8 +25,8 @@ Quote from RFC3173:
    is implementation dependent.
 
 Current IPComp implementation is indeed by the book, while as in practice
-when sending non-compressed packet to the peer(whether or not packet len
-is smaller than the threshold or the compressed len is large than original
+when sending non-compressed packet to the peer (whether or not packet len
+is smaller than the threshold or the compressed len is larger than original
 packet len), the packet is dropped when checking the policy as this packet
 matches the selector but not coming from any XFRM layer, i.e., with no
 security path. Such naked packet will not eventually make it to upper layer.

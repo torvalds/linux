@@ -187,9 +187,9 @@ PCI
 
 IOMMU (input/output memory management unit)
 
- Currently four x86-64 PCI-DMA mapping implementations exist:
+ Multiple x86-64 PCI-DMA mapping implementations exist, for example:
 
-   1. <arch/x86_64/kernel/pci-nommu.c>: use no hardware/software IOMMU at all
+   1. <lib/dma-direct.c>: use no hardware/software IOMMU at all
       (e.g. because you have < 3 GB memory).
       Kernel boot message: "PCI-DMA: Disabling IOMMU"
 
@@ -208,7 +208,7 @@ IOMMU (input/output memory management unit)
       Kernel boot message: "PCI-DMA: Using Calgary IOMMU"
 
  iommu=[<size>][,noagp][,off][,force][,noforce][,leak[=<nr_of_leak_pages>]
-	[,memaper[=<order>]][,merge][,forcesac][,fullflush][,nomerge]
+	[,memaper[=<order>]][,merge][,fullflush][,nomerge]
 	[,noaperture][,calgary]
 
   General iommu options:
@@ -235,14 +235,7 @@ IOMMU (input/output memory management unit)
                        (experimental).
     nomerge            Don't do scatter-gather (SG) merging.
     noaperture         Ask the IOMMU not to touch the aperture for AGP.
-    forcesac           Force single-address cycle (SAC) mode for masks <40bits
-                       (experimental).
     noagp              Don't initialize the AGP driver and use full aperture.
-    allowdac           Allow double-address cycle (DAC) mode, i.e. DMA >4GB.
-                       DAC is used with 32-bit PCI to push a 64-bit address in
-                       two cycles. When off all DMA over >4GB is forced through
-                       an IOMMU or software bounce buffering.
-    nodac              Forbid DAC mode, i.e. DMA >4GB.
     panic              Always panic when IOMMU overflows.
     calgary            Use the Calgary IOMMU if it is available
 

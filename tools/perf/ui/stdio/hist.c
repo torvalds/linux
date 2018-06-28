@@ -516,7 +516,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	}
 	printed += putc('\n', fp);
 
-	if (symbol_conf.use_callchain && he->leaf) {
+	if (he->leaf && hist_entry__has_callchains(he) && symbol_conf.use_callchain) {
 		u64 total = hists__total_period(hists);
 
 		printed += hist_entry_callchain__fprintf(he, total, 0, fp);
@@ -550,7 +550,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	ret = fprintf(fp, "%s\n", bf);
 
-	if (use_callchain)
+	if (hist_entry__has_callchains(he) && use_callchain)
 		callchain_ret = hist_entry_callchain__fprintf(he, total_period,
 							      0, fp);
 
@@ -819,8 +819,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		}
 
 		if (h->ms.map == NULL && verbose > 1) {
-			__map_groups__fprintf_maps(h->thread->mg,
-						   MAP__FUNCTION, fp);
+			map_groups__fprintf(h->thread->mg, fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}

@@ -1728,6 +1728,27 @@ iwl_dbgfs_send_echo_cmd_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
+static ssize_t
+iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	u8 buf[IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM * ETH_ALEN * 3 + 1];
+	unsigned int pos = 0;
+	size_t bufsz = sizeof(buf);
+	int i;
+
+	mutex_lock(&mvm->mutex);
+
+	for (i = 0; i < IWL_MVM_UAPSD_NOAGG_LIST_LEN; i++)
+		pos += scnprintf(buf + pos, bufsz - pos, "%pM\n",
+				 mvm->uapsd_noagg_bssids[i].addr);
+
+	mutex_unlock(&mvm->mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 
 /* Device wide debugfs entries */
@@ -1761,6 +1782,8 @@ MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
+
+MVM_DEBUGFS_READ_FILE_OPS(uapsd_noagg_bssids);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1971,6 +1994,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (!debugfs_create_bool("drop_bcn_ap_mode", 0600,
 				 mvm->debugfs_dir, &mvm->drop_bcn_ap_mode))
 		goto err;
+
+	MVM_DEBUGFS_ADD_FILE(uapsd_noagg_bssids, mvm->debugfs_dir, S_IRUSR);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING) {

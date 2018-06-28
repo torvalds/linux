@@ -195,7 +195,8 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	struct ghes_arr ghes_arr;
 
 	ghes_arr.count = 0;
-	ghes_arr.ghes_devs = kmalloc(sizeof(void *) * ghes_count, GFP_KERNEL);
+	ghes_arr.ghes_devs = kmalloc_array(ghes_count, sizeof(void *),
+					   GFP_KERNEL);
 	if (!ghes_arr.ghes_devs)
 		return -ENOMEM;
 

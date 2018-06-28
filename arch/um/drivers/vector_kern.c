@@ -188,7 +188,7 @@ static int get_transport_options(struct arglist *def)
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
 		return (vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
-		return (vec_rx | vec_tx);
+		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
 	return (vec_rx | vec_tx);
 }
 
@@ -504,15 +504,19 @@ static struct vector_queue *create_queue(
 
 	result = kmalloc(sizeof(struct vector_queue), GFP_KERNEL);
 	if (result == NULL)
-		goto out_fail;
+		return NULL;
 	result->max_depth = max_size;
 	result->dev = vp->dev;
 	result->mmsg_vector = kmalloc(
 		(sizeof(struct mmsghdr) * max_size), GFP_KERNEL);
+	if (result->mmsg_vector == NULL)
+		goto out_mmsg_fail;
 	result->skbuff_vector = kmalloc(
 		(sizeof(void *) * max_size), GFP_KERNEL);
-	if (result->mmsg_vector == NULL || result->skbuff_vector == NULL)
-		goto out_fail;
+	if (result->skbuff_vector == NULL)
+		goto out_skb_fail;
+
+	/* further failures can be handled safely by destroy_queue*/
 
 	mmsg_vector = result->mmsg_vector;
 	for (i = 0; i < max_size; i++) {
@@ -527,14 +531,14 @@ static struct vector_queue *create_queue(
 	result->max_iov_frags = num_extra_frags;
 	for (i = 0; i < max_size; i++) {
 		if (vp->header_size > 0)
-			iov = kmalloc(
-				sizeof(struct iovec) * (3 + num_extra_frags),
-				GFP_KERNEL
+			iov = kmalloc_array(3 + num_extra_frags,
+					    sizeof(struct iovec),
+					    GFP_KERNEL
 			);
 		else
-			iov = kmalloc(
-				sizeof(struct iovec) * (2 + num_extra_frags),
-				GFP_KERNEL
+			iov = kmalloc_array(2 + num_extra_frags,
+					    sizeof(struct iovec),
+					    GFP_KERNEL
 			);
 		if (iov == NULL)
 			goto out_fail;
@@ -563,6 +567,11 @@ static struct vector_queue *create_queue(
 	result->head = 0;
 	result->tail = 0;
 	return result;
+out_skb_fail:
+	kfree(result->mmsg_vector);
+out_mmsg_fail:
+	kfree(result);
+	return NULL;
 out_fail:
 	destroy_queue(result);
 	return NULL;
@@ -1232,9 +1241,8 @@ static int vector_net_open(struct net_device *dev)
 
 	if ((vp->options & VECTOR_QDISC_BYPASS) != 0) {
 		if (!uml_raw_enable_qdisc_bypass(vp->fds->rx_fd))
-			vp->options = vp->options | VECTOR_BPF;
+			vp->options |= VECTOR_BPF;
 	}
-
 	if ((vp->options & VECTOR_BPF) != 0)
 		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
 

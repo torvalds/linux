@@ -3,19 +3,6 @@
 // Socionext UniPhier AIO ALSA common driver.
 //
 // Copyright (c) 2016-2018 Socionext Inc.
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2
-// of the License.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <linux/bitfield.h>
 #include <linux/errno.h>
@@ -670,6 +657,64 @@ void aio_port_set_enable(struct uniphier_aio_sub *sub, int enable)
 					   IPORTMXCTR2_REQEN_MASK,
 					   IPORTMXCTR2_REQEN_DISABLE);
 	}
+}
+
+/**
+ * aio_port_get_volume - get volume of AIO port block
+ * @sub: the AIO substream pointer
+ *
+ * Return: current volume, range is 0x0000 - 0xffff
+ */
+int aio_port_get_volume(struct uniphier_aio_sub *sub)
+{
+	struct regmap *r = sub->aio->chip->regmap;
+	u32 v;
+
+	regmap_read(r, OPORTMXTYVOLGAINSTATUS(sub->swm->oport.map, 0), &v);
+
+	return FIELD_GET(OPORTMXTYVOLGAINSTATUS_CUR_MASK, v);
+}
+
+/**
+ * aio_port_set_volume - set volume of AIO port block
+ * @sub: the AIO substream pointer
+ * @vol: target volume, range is 0x0000 - 0xffff.
+ *
+ * Change digital volume and perfome fade-out/fade-in effect for specified
+ * output slot of port. Gained PCM value can calculate as the following:
+ *   Gained = Original * vol / 0x4000
+ */
+void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol)
+{
+	struct regmap *r = sub->aio->chip->regmap;
+	int oport_map = sub->swm->oport.map;
+	int cur, diff, slope = 0, fs;
+
+	if (sub->swm->dir == PORT_DIR_INPUT)
+		return;
+
+	cur = aio_port_get_volume(sub);
+	diff = abs(vol - cur);
+	fs = params_rate(&sub->params);
+	if (fs)
+		slope = diff / AUD_VOL_FADE_TIME * 1000 / fs;
+	slope = max(1, slope);
+
+	regmap_update_bits(r, OPORTMXTYVOLPARA1(oport_map, 0),
+			   OPORTMXTYVOLPARA1_SLOPEU_MASK, slope << 16);
+	regmap_update_bits(r, OPORTMXTYVOLPARA2(oport_map, 0),
+			   OPORTMXTYVOLPARA2_TARGET_MASK, vol);
+
+	if (cur < vol)
+		regmap_update_bits(r, OPORTMXTYVOLPARA2(oport_map, 0),
+				   OPORTMXTYVOLPARA2_FADE_MASK,
+				   OPORTMXTYVOLPARA2_FADE_FADEIN);
+	else
+		regmap_update_bits(r, OPORTMXTYVOLPARA2(oport_map, 0),
+				   OPORTMXTYVOLPARA2_FADE_MASK,
+				   OPORTMXTYVOLPARA2_FADE_FADEOUT);
+
+	regmap_write(r, AOUTFADECTR0, BIT(oport_map));
 }
 
 /**

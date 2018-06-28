@@ -1848,7 +1848,7 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	struct iscsi_cls_session *session;
 	struct iscsi_session *sess;
 	unsigned long flags;
-	enum blk_eh_timer_return ret = BLK_EH_NOT_HANDLED;
+	enum blk_eh_timer_return ret = BLK_EH_DONE;
 
 	session = starget_to_session(scsi_target(sc->device));
 	sess = session->dd_data;

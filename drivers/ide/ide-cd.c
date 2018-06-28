@@ -437,7 +437,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		bool delay = false;
 
 		rq = blk_get_request(drive->queue,
-			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,  __GFP_RECLAIM);
+			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
 		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;
@@ -1426,21 +1426,8 @@ static int idecd_capacity_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int idecd_capacity_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idecd_capacity_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idecd_capacity_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idecd_capacity_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static ide_proc_entry_t idecd_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, &idecd_capacity_proc_fops },
+	{ "capacity", S_IFREG|S_IRUGO, idecd_capacity_proc_show },
 	{}
 };
 

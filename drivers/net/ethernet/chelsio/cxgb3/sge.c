@@ -620,7 +620,7 @@ static void *alloc_ring(struct pci_dev *pdev, size_t nelem, size_t elem_size,
 {
 	size_t len = nelem * elem_size;
 	void *s = NULL;
-	void *p = dma_alloc_coherent(&pdev->dev, len, phys, GFP_KERNEL);
+	void *p = dma_zalloc_coherent(&pdev->dev, len, phys, GFP_KERNEL);
 
 	if (!p)
 		return NULL;
@@ -633,7 +633,6 @@ static void *alloc_ring(struct pci_dev *pdev, size_t nelem, size_t elem_size,
 		}
 		*(void **)metadata = s;
 	}
-	memset(p, 0, len);
 	return p;
 }
 

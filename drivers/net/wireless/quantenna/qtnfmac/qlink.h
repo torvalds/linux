@@ -68,10 +68,12 @@ struct qlink_msg_header {
  * @QLINK_HW_CAPAB_STA_INACT_TIMEOUT: device implements a logic to kick-out
  *	associated STAs due to inactivity. Inactivity timeout period is taken
  *	from QLINK_CMD_START_AP parameters.
+ * @QLINK_HW_CAPAB_DFS_OFFLOAD: device implements DFS offload functionality
  */
 enum qlink_hw_capab {
-	QLINK_HW_CAPAB_REG_UPDATE = BIT(0),
-	QLINK_HW_CAPAB_STA_INACT_TIMEOUT = BIT(1),
+	QLINK_HW_CAPAB_REG_UPDATE		= BIT(0),
+	QLINK_HW_CAPAB_STA_INACT_TIMEOUT	= BIT(1),
+	QLINK_HW_CAPAB_DFS_OFFLOAD		= BIT(2),
 };
 
 enum qlink_iface_type {
@@ -672,6 +674,8 @@ enum qlink_cmd_result {
 	QLINK_CMD_RESULT_ENOTSUPP,
 	QLINK_CMD_RESULT_ENOTFOUND,
 	QLINK_CMD_RESULT_EALREADY,
+	QLINK_CMD_RESULT_EADDRINUSE,
+	QLINK_CMD_RESULT_EADDRNOTAVAIL,
 };
 
 /**
@@ -1031,6 +1035,7 @@ enum qlink_radar_event {
 	QLINK_RADAR_CAC_ABORTED,
 	QLINK_RADAR_NOP_FINISHED,
 	QLINK_RADAR_PRE_CAC_EXPIRED,
+	QLINK_RADAR_CAC_STARTED,
 };
 
 /**

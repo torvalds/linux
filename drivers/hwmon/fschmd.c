@@ -105,7 +105,7 @@ static const u8 FSCHMD_REG_VOLT[7][6] = {
 static const int FSCHMD_NO_VOLT_SENSORS[7] = { 3, 3, 3, 3, 3, 3, 6 };
 
 /*
- * minimum pwm at which the fan is driven (pwm can by increased depending on
+ * minimum pwm at which the fan is driven (pwm can be increased depending on
  * the temp. Notice that for the scy some fans share there minimum speed.
  * Also notice that with the scy the sensor order is different than with the
  * other chips, this order was in the 2.4 driver and kept for consistency.

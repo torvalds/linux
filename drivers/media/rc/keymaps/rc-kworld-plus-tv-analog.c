@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 /* Kworld Plus TV Analog Lite PCI IR
-   Mauro Carvalho Chehab <mchehab@infradead.org>
+   Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 static struct rc_map_table kworld_plus_tv_analog[] = {

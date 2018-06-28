@@ -12,6 +12,8 @@
 
 /memreserve/ 0x80000000 0x00010000;
 
+#include "rtsm_ve-motherboard.dtsi"
+
 / {
 	model = "RTSM_VE_AEMv8A";
 	compatible = "arm,rtsm_ve,aemv8a", "arm,vexpress";
@@ -162,7 +164,5 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
-
-		/include/ "rtsm_ve-motherboard.dtsi"
 	};
 };

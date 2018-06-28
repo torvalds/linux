@@ -546,7 +546,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds to all reads with 0 */
 	if (l64781_readreg(state, 0x1a) != 0) {
-		dprintk("Read 1 returned unexpcted value\n");
+		dprintk("Read 1 returned unexpected value\n");
 		goto error;
 	}
 
@@ -555,7 +555,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds with register default value */
 	if (l64781_readreg(state, 0x1a) != 0xa1) {
-		dprintk("Read 2 returned unexpcted value\n");
+		dprintk("Read 2 returned unexpected value\n");
 		goto error;
 	}
 

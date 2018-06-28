@@ -1316,19 +1316,6 @@ static int synclink_gt_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int synclink_gt_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, synclink_gt_proc_show, NULL);
-}
-
-static const struct file_operations synclink_gt_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= synclink_gt_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /*
  * return count of bytes in transmit buffer
  */
@@ -3721,7 +3708,7 @@ static const struct tty_operations ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 	.get_icount = get_icount,
-	.proc_fops = &synclink_gt_proc_fops,
+	.proc_show = synclink_gt_proc_show,
 };
 
 static void slgt_cleanup(void)

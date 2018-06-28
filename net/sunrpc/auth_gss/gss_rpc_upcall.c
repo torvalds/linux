@@ -224,7 +224,7 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 {
 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
-	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
+	arg->pages = kcalloc(arg->npages, sizeof(struct page *), GFP_KERNEL);
 	/*
 	 * XXX: actual pages are allocated by xdr layer in
 	 * xdr_partial_copy_from_skb.
@@ -298,9 +298,11 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
 		data->mech_oid.len = rctxh.mech.len;
-		if (rctxh.mech.data)
+		if (rctxh.mech.data) {
 			memcpy(data->mech_oid.data, rctxh.mech.data,
 						data->mech_oid.len);
+			kfree(rctxh.mech.data);
+		}
 		client_name = rctxh.src_name.display_name;
 	}
 

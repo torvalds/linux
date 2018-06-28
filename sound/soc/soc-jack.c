@@ -29,24 +29,6 @@ struct jack_gpio_tbl {
 };
 
 /**
- * snd_soc_codec_set_jack - configure codec jack.
- * @codec: CODEC
- * @jack: structure to use for the jack
- * @data: can be used if codec driver need extra data for configuring jack
- *
- * Configures and enables jack detection function.
- */
-int snd_soc_codec_set_jack(struct snd_soc_codec *codec,
-	struct snd_soc_jack *jack, void *data)
-{
-	if (codec->driver->set_jack)
-		return codec->driver->set_jack(codec, jack, data);
-	else
-		return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(snd_soc_codec_set_jack);
-
-/**
  * snd_soc_component_set_jack - configure component jack.
  * @component: COMPONENTs
  * @jack: structure to use for the jack
@@ -57,10 +39,6 @@ EXPORT_SYMBOL_GPL(snd_soc_codec_set_jack);
 int snd_soc_component_set_jack(struct snd_soc_component *component,
 			       struct snd_soc_jack *jack, void *data)
 {
-	/* will be removed */
-	if (component->set_jack)
-		return component->set_jack(component, jack, data);
-
 	if (component->driver->set_jack)
 		return component->driver->set_jack(component, jack, data);
 

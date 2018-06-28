@@ -236,6 +236,9 @@ int gp100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 int gp10b_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
+int gv100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *,
+		  struct nvkm_vmm **);
 
 #define VMM_PRINT(l,v,p,f,a...) do {                                           \
 	struct nvkm_vmm *_vmm = (v);                                           \
