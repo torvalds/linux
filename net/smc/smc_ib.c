@@ -504,8 +504,12 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 	port_cnt = smcibdev->ibdev->phys_port_cnt;
 	for (i = 0;
 	     i < min_t(size_t, port_cnt, SMC_MAX_PORTS);
-	     i++)
+	     i++) {
 		set_bit(i, &smcibdev->port_event_mask);
+		/* determine pnetids of the port */
+		smc_pnetid_by_dev_port(ibdev->dev.parent, i,
+				       smcibdev->pnetid[i]);
+	}
 	schedule_work(&smcibdev->port_event_work);
 }
 

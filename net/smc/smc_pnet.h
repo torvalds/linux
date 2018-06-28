@@ -12,7 +12,21 @@
 #ifndef _SMC_PNET_H
 #define _SMC_PNET_H
 
+#if IS_ENABLED(CONFIG_HAVE_PNETID)
+#include <asm/pnet.h>
+#endif
+
 struct smc_ib_device;
+
+static inline int smc_pnetid_by_dev_port(struct device *dev,
+					 unsigned short port, u8 *pnetid)
+{
+#if IS_ENABLED(CONFIG_HAVE_PNETID)
+	return pnet_id_by_dev_port(dev, port, pnetid);
+#else
+	return -ENOENT;
+#endif
+}
 
 int smc_pnet_init(void) __init;
 void smc_pnet_exit(void);

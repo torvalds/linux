@@ -11,6 +11,8 @@
 #ifndef _SMC_H
 #define _SMC_H
 
+#define SMC_MAX_PNETID_LEN	16	/* Max. length of PNET id */
+
 struct smc_hashinfo {
 	rwlock_t lock;
 	struct hlist_head ht;
