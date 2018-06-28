@@ -761,6 +761,15 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
+static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	*std = decoder->norm;
+
+	return 0;
+}
+
 static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -1375,6 +1384,7 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_std = tvp5150_s_std,
+	.g_std = tvp5150_g_std,
 	.s_stream = tvp5150_s_stream,
 	.s_routing = tvp5150_s_routing,
 	.g_mbus_config = tvp5150_g_mbus_config,
