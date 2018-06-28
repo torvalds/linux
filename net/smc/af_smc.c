@@ -451,14 +451,14 @@ static int smc_check_rdma(struct smc_sock *smc, struct smc_ib_device **ibdev,
 }
 
 /* CLC handshake during connect */
-static int smc_connect_clc(struct smc_sock *smc,
+static int smc_connect_clc(struct smc_sock *smc, int smc_type,
 			   struct smc_clc_msg_accept_confirm *aclc,
 			   struct smc_ib_device *ibdev, u8 ibport)
 {
 	int rc = 0;
 
 	/* do inband token exchange */
-	rc = smc_clc_send_proposal(smc, ibdev, ibport);
+	rc = smc_clc_send_proposal(smc, smc_type, ibdev, ibport, NULL);
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
@@ -564,7 +564,7 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_CNFERR);
 
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, &aclc, ibdev, ibport);
+	rc = smc_connect_clc(smc, SMC_TYPE_R, &aclc, ibdev, ibport);
 	if (rc)
 		return smc_connect_decline_fallback(smc, rc);
 
@@ -1008,7 +1008,8 @@ static void smc_listen_work(struct work_struct *work)
 	smc_tx_init(new_smc);
 
 	/* check if RDMA is available */
-	if (smc_check_rdma(new_smc, &ibdev, &ibport) ||
+	if ((pclc->hdr.path != SMC_TYPE_R && pclc->hdr.path != SMC_TYPE_B) ||
+	    smc_check_rdma(new_smc, &ibdev, &ibport) ||
 	    smc_listen_rdma_check(new_smc, pclc) ||
 	    smc_listen_rdma_init(new_smc, pclc, ibdev, ibport,
 				 &local_contact) ||
