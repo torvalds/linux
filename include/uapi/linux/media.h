@@ -93,7 +93,7 @@ struct media_device_info {
  * Video decoder functions
  */
 #define MEDIA_ENT_F_ATV_DECODER			(MEDIA_ENT_F_OLD_SUBDEV_BASE + 4)
-#define MEDIA_ENT_F_DTV_DECODER			(MEDIA_ENT_F_BASE + 0x6001)
+#define MEDIA_ENT_F_DV_DECODER			(MEDIA_ENT_F_BASE + 0x6001)
 
 /*
  * Digital TV, analog TV, radio and/or software defined radio tuner functions.
@@ -399,6 +399,8 @@ struct media_v2_topology {
 #define MEDIA_ENT_T_V4L2_SUBDEV_LENS		MEDIA_ENT_F_LENS
 #define MEDIA_ENT_T_V4L2_SUBDEV_DECODER		MEDIA_ENT_F_ATV_DECODER
 #define MEDIA_ENT_T_V4L2_SUBDEV_TUNER		MEDIA_ENT_F_TUNER
+
+#define MEDIA_ENT_F_DTV_DECODER			MEDIA_ENT_F_DV_DECODER
 
 /*
  * There is still no ALSA support in the media controller. These

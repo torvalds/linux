@@ -3499,6 +3499,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	for (i = 0; i < state->source_pad; ++i)
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_DV_DECODER;
 
 	err = media_entity_pads_init(&sd->entity, state->source_pad + 1,
 				state->pads);

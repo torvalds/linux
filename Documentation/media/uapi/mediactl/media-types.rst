@@ -200,7 +200,7 @@ Types and flags used to represent the media graph elements
          MIPI CSI-2, etc.), and outputs them on its source pad to an output
          video bus of another type (eDP, MIPI CSI-2, parallel, etc.).
 
-    *  -  ``MEDIA_ENT_F_DTV_DECODER``
+    *  -  ``MEDIA_ENT_F_DV_DECODER``
        -  Digital video decoder. The basic function of the video decoder is
 	  to accept digital video from a wide variety of sources
 	  and output it in some digital video standard, with appropriate
