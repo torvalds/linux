@@ -1165,8 +1165,14 @@ static void sii8620_start_video(struct sii8620 *ctx)
 	sii8620_set_format(ctx);
 
 	if (!sii8620_is_mhl3(ctx)) {
-		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
-			MHL_DST_LM_CLK_MODE_NORMAL | MHL_DST_LM_PATH_ENABLED);
+		u8 link_mode = MHL_DST_LM_PATH_ENABLED;
+
+		if (ctx->use_packed_pixel)
+			link_mode |= MHL_DST_LM_CLK_MODE_PACKED_PIXEL;
+		else
+			link_mode |= MHL_DST_LM_CLK_MODE_NORMAL;
+
+		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE), link_mode);
 		sii8620_set_auto_zone(ctx);
 	} else {
 		static const struct {
@@ -1677,14 +1683,18 @@ static void sii8620_status_dcap_ready(struct sii8620 *ctx)
 
 static void sii8620_status_changed_path(struct sii8620 *ctx)
 {
-	if (ctx->stat[MHL_DST_LINK_MODE] & MHL_DST_LM_PATH_ENABLED) {
-		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
-				      MHL_DST_LM_CLK_MODE_NORMAL
-				      | MHL_DST_LM_PATH_ENABLED);
-	} else {
-		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
-				      MHL_DST_LM_CLK_MODE_NORMAL);
-	}
+	u8 link_mode;
+
+	if (ctx->use_packed_pixel)
+		link_mode = MHL_DST_LM_CLK_MODE_PACKED_PIXEL;
+	else
+		link_mode = MHL_DST_LM_CLK_MODE_NORMAL;
+
+	if (ctx->stat[MHL_DST_LINK_MODE] & MHL_DST_LM_PATH_ENABLED)
+		link_mode |= MHL_DST_LM_PATH_ENABLED;
+
+	sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
+			      link_mode);
 }
 
 static void sii8620_msc_mr_write_stat(struct sii8620 *ctx)
