@@ -56,6 +56,7 @@ struct sugov_cpu {
 	/* The fields below are only needed when sharing a policy: */
 	unsigned long		util_cfs;
 	unsigned long		util_dl;
+	unsigned long		bw_dl;
 	unsigned long		util_rt;
 	unsigned long		max;
 
@@ -187,6 +188,7 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu)
 	sg_cpu->max = arch_scale_cpu_capacity(NULL, sg_cpu->cpu);
 	sg_cpu->util_cfs = cpu_util_cfs(rq);
 	sg_cpu->util_dl  = cpu_util_dl(rq);
+	sg_cpu->bw_dl    = cpu_bw_dl(rq);
 	sg_cpu->util_rt  = cpu_util_rt(rq);
 }
 
@@ -198,20 +200,29 @@ static unsigned long sugov_aggregate_util(struct sugov_cpu *sg_cpu)
 	if (rt_rq_is_runnable(&rq->rt))
 		return sg_cpu->max;
 
-	util = sg_cpu->util_dl;
-	util += sg_cpu->util_cfs;
+	util = sg_cpu->util_cfs;
 	util += sg_cpu->util_rt;
 
+	if ((util + sg_cpu->util_dl) >= sg_cpu->max)
+		return sg_cpu->max;
+
 	/*
-	 * Utilization required by DEADLINE must always be granted while, for
-	 * FAIR, we use blocked utilization of IDLE CPUs as a mechanism to
-	 * gracefully reduce the frequency when no tasks show up for longer
+	 * As there is still idle time on the CPU, we need to compute the
+	 * utilization level of the CPU.
+	 *
+	 * Bandwidth required by DEADLINE must always be granted while, for
+	 * FAIR and RT, we use blocked utilization of IDLE CPUs as a mechanism
+	 * to gracefully reduce the frequency when no tasks show up for longer
 	 * periods of time.
 	 *
 	 * Ideally we would like to set util_dl as min/guaranteed freq and
 	 * util_cfs + util_dl as requested freq. However, cpufreq is not yet
 	 * ready for such an interface. So, we only do the latter for now.
 	 */
+
+	/* Add DL bandwidth requirement */
+	util += sg_cpu->bw_dl;
+
 	return min(sg_cpu->max, util);
 }
 
@@ -367,7 +378,7 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
  */
 static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu, struct sugov_policy *sg_policy)
 {
-	if (cpu_util_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->util_dl)
+	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_dl)
 		sg_policy->need_freq_update = true;
 }
 
