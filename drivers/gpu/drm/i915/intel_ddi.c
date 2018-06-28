@@ -2464,7 +2464,128 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
 }
 
-static void icl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level,
+static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
+					   int link_clock,
+					   u32 level)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	const struct icl_mg_phy_ddi_buf_trans *ddi_translations;
+	u32 n_entries, val;
+	int ln;
+
+	n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
+	ddi_translations = icl_mg_phy_ddi_translations;
+	/* The table does not have values for level 3 and level 9. */
+	if (level >= n_entries || level == 3 || level == 9) {
+		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.",
+			      level, n_entries - 2);
+		level = n_entries - 2;
+	}
+
+	/* Set MG_TX_LINK_PARAMS cri_use_fs32 to 0. */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_TX1_LINK_PARAMS(port, ln));
+		val &= ~CRI_USE_FS32;
+		I915_WRITE(MG_TX1_LINK_PARAMS(port, ln), val);
+
+		val = I915_READ(MG_TX2_LINK_PARAMS(port, ln));
+		val &= ~CRI_USE_FS32;
+		I915_WRITE(MG_TX2_LINK_PARAMS(port, ln), val);
+	}
+
+	/* Program MG_TX_SWINGCTRL with values from vswing table */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_TX1_SWINGCTRL(port, ln));
+		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
+		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
+			ddi_translations[level].cri_txdeemph_override_17_12);
+		I915_WRITE(MG_TX1_SWINGCTRL(port, ln), val);
+
+		val = I915_READ(MG_TX2_SWINGCTRL(port, ln));
+		val &= ~CRI_TXDEEMPH_OVERRIDE_17_12_MASK;
+		val |= CRI_TXDEEMPH_OVERRIDE_17_12(
+			ddi_translations[level].cri_txdeemph_override_17_12);
+		I915_WRITE(MG_TX2_SWINGCTRL(port, ln), val);
+	}
+
+	/* Program MG_TX_DRVCTRL with values from vswing table */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_TX1_DRVCTRL(port, ln));
+		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
+			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
+		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
+			ddi_translations[level].cri_txdeemph_override_5_0) |
+			CRI_TXDEEMPH_OVERRIDE_11_6(
+				ddi_translations[level].cri_txdeemph_override_11_6) |
+			CRI_TXDEEMPH_OVERRIDE_EN;
+		I915_WRITE(MG_TX1_DRVCTRL(port, ln), val);
+
+		val = I915_READ(MG_TX2_DRVCTRL(port, ln));
+		val &= ~(CRI_TXDEEMPH_OVERRIDE_11_6_MASK |
+			 CRI_TXDEEMPH_OVERRIDE_5_0_MASK);
+		val |= CRI_TXDEEMPH_OVERRIDE_5_0(
+			ddi_translations[level].cri_txdeemph_override_5_0) |
+			CRI_TXDEEMPH_OVERRIDE_11_6(
+				ddi_translations[level].cri_txdeemph_override_11_6) |
+			CRI_TXDEEMPH_OVERRIDE_EN;
+		I915_WRITE(MG_TX2_DRVCTRL(port, ln), val);
+
+		/* FIXME: Program CRI_LOADGEN_SEL after the spec is updated */
+	}
+
+	/*
+	 * Program MG_CLKHUB<LN, port being used> with value from frequency table
+	 * In case of Legacy mode on MG PHY, both TX1 and TX2 enabled so use the
+	 * values from table for which TX1 and TX2 enabled.
+	 */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_CLKHUB(port, ln));
+		if (link_clock < 300000)
+			val |= CFG_LOW_RATE_LKREN_EN;
+		else
+			val &= ~CFG_LOW_RATE_LKREN_EN;
+		I915_WRITE(MG_CLKHUB(port, ln), val);
+	}
+
+	/* Program the MG_TX_DCC<LN, port being used> based on the link frequency */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_TX1_DCC(port, ln));
+		val &= ~CFG_AMI_CK_DIV_OVERRIDE_VAL_MASK;
+		if (link_clock <= 500000) {
+			val &= ~CFG_AMI_CK_DIV_OVERRIDE_EN;
+		} else {
+			val |= CFG_AMI_CK_DIV_OVERRIDE_EN |
+				CFG_AMI_CK_DIV_OVERRIDE_VAL(1);
+		}
+		I915_WRITE(MG_TX1_DCC(port, ln), val);
+
+		val = I915_READ(MG_TX2_DCC(port, ln));
+		val &= ~CFG_AMI_CK_DIV_OVERRIDE_VAL_MASK;
+		if (link_clock <= 500000) {
+			val &= ~CFG_AMI_CK_DIV_OVERRIDE_EN;
+		} else {
+			val |= CFG_AMI_CK_DIV_OVERRIDE_EN |
+				CFG_AMI_CK_DIV_OVERRIDE_VAL(1);
+		}
+		I915_WRITE(MG_TX2_DCC(port, ln), val);
+	}
+
+	/* Program MG_TX_PISO_READLOAD with values from vswing table */
+	for (ln = 0; ln < 2; ln++) {
+		val = I915_READ(MG_TX1_PISO_READLOAD(port, ln));
+		val |= CRI_CALCINIT;
+		I915_WRITE(MG_TX1_PISO_READLOAD(port, ln), val);
+
+		val = I915_READ(MG_TX2_PISO_READLOAD(port, ln));
+		val |= CRI_CALCINIT;
+		I915_WRITE(MG_TX2_PISO_READLOAD(port, ln), val);
+	}
+}
+
+static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
+				    int link_clock,
+				    u32 level,
 				    enum intel_output_type type)
 {
 	enum port port = encoder->port;
@@ -2472,8 +2593,7 @@ static void icl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level,
 	if (port == PORT_A || port == PORT_B)
 		icl_combo_phy_ddi_vswing_sequence(encoder, level, type);
 	else
-		/* Not Implemented Yet */
-		WARN_ON(1);
+		icl_mg_phy_ddi_vswing_sequence(encoder, link_clock, level);
 }
 
 static uint32_t translate_signal_level(int signal_levels)
@@ -2508,7 +2628,8 @@ u32 bxt_signal_levels(struct intel_dp *intel_dp)
 	int level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_ICELAKE(dev_priv))
-		icl_ddi_vswing_sequence(encoder, level, encoder->type);
+		icl_ddi_vswing_sequence(encoder, intel_dp->link_rate,
+					level, encoder->type);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level, encoder->type);
 	else
@@ -2689,7 +2810,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	if (IS_ICELAKE(dev_priv))
-		icl_ddi_vswing_sequence(encoder, level, encoder->type);
+		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
+					level, encoder->type);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level, encoder->type);
 	else if (IS_GEN9_LP(dev_priv))
@@ -2724,7 +2846,8 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
 	if (IS_ICELAKE(dev_priv))
-		icl_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
+		icl_ddi_vswing_sequence(encoder, crtc_state->port_clock,
+					level, INTEL_OUTPUT_HDMI);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level, INTEL_OUTPUT_HDMI);
 	else if (IS_GEN9_LP(dev_priv))
