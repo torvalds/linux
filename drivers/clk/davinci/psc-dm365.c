@@ -21,7 +21,8 @@ LPSC_CLKDEV1(mmcsd1_clkdev,		NULL,		"da830-mmc.1");
 LPSC_CLKDEV1(asp0_clkdev,		NULL,		"davinci-mcbsp");
 LPSC_CLKDEV1(usb_clkdev,		"usb",		NULL);
 LPSC_CLKDEV1(spi2_clkdev,		NULL,		"spi_davinci.2");
-LPSC_CLKDEV1(aemif_clkdev,		"aemif",	NULL);
+LPSC_CLKDEV2(aemif_clkdev,		"aemif",	NULL,
+					NULL,		"ti-aemif");
 LPSC_CLKDEV1(mmcsd0_clkdev,		NULL,		"da830-mmc.0");
 LPSC_CLKDEV1(i2c_clkdev,		NULL,		"i2c_davinci.1");
 LPSC_CLKDEV1(uart0_clkdev,		NULL,		"serial8250.0");
