@@ -137,6 +137,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
+#include "i915_vgpu.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
 #include "intel_workarounds.h"
@@ -954,44 +955,40 @@ static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
-	struct drm_i915_private *i915 = engine->i915;
-
-	/* The HWSP contains a (cacheable) mirror of the CSB */
-	const u32 *buf =
-		&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
-	unsigned int head, tail;
-	bool fw = false;
+	const u32 * const buf = execlists->csb_status;
+	u8 head, tail;
 
 	/* Clear before reading to catch new interrupts */
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	smp_mb__after_atomic();
 
-	if (unlikely(execlists->csb_use_mmio)) {
-		intel_uncore_forcewake_get(i915, execlists->fw_domains);
-		fw = true;
+	/*
+	 * Note that csb_write, csb_status may be either in HWSP or mmio.
+	 * When reading from the csb_write mmio register, we have to be
+	 * careful to only use the GEN8_CSB_WRITE_PTR portion, which is
+	 * the low 4bits. As it happens we know the next 4bits are always
+	 * zero and so we can simply masked off the low u8 of the register
+	 * and treat it identically to reading from the HWSP (without having
+	 * to use explicit shifting and masking, and probably bifurcating
+	 * the code to handle the legacy mmio read).
+	 */
+	head = execlists->csb_head;
+	tail = READ_ONCE(*execlists->csb_write);
+	GEM_TRACE("%s cs-irq head=%d, tail=%d\n", engine->name, head, tail);
+	if (unlikely(head == tail))
+		return;
 
-		buf = (u32 * __force)
-			(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
+	/*
+	 * Hopefully paired with a wmb() in HW!
+	 *
+	 * We must complete the read of the write pointer before any reads
+	 * from the CSB, so that we do not see stale values. Without an rmb
+	 * (lfence) the HW may speculatively perform the CSB[] reads *before*
+	 * we perform the READ_ONCE(*csb_write).
+	 */
+	rmb();
 
-		head = readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
-		tail = GEN8_CSB_WRITE_PTR(head);
-		head = GEN8_CSB_READ_PTR(head);
-		execlists->csb_head = head;
-	} else {
-		const int write_idx =
-			intel_hws_csb_write_index(i915) -
-			I915_HWS_CSB_BUF0_INDEX;
-
-		head = execlists->csb_head;
-		tail = READ_ONCE(buf[write_idx]);
-		rmb(); /* Hopefully paired with a wmb() in HW */
-	}
-	GEM_TRACE("%s cs-irq head=%d [%d%s], tail=%d [%d%s]\n",
-		  engine->name,
-		  head, GEN8_CSB_READ_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?",
-		  tail, GEN8_CSB_WRITE_PTR(readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?");
-
-	while (head != tail) {
+	do {
 		struct i915_request *rq;
 		unsigned int status;
 		unsigned int count;
@@ -1017,12 +1014,12 @@ static void process_csb(struct intel_engine_cs *engine)
 		 * status notifier.
 		 */
 
-		status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
 		GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x, active=0x%x\n",
 			  engine->name, head,
-			  status, buf[2*head + 1],
+			  buf[2 * head + 0], buf[2 * head + 1],
 			  execlists->active);
 
+		status = buf[2 * head];
 		if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
 			      GEN8_CTX_STATUS_PREEMPTED))
 			execlists_set_active(execlists,
@@ -1104,16 +1101,11 @@ static void process_csb(struct intel_engine_cs *engine)
 		} else {
 			port_set(port, port_pack(rq, count));
 		}
-	}
+	} while (head != tail);
 
-	if (head != execlists->csb_head) {
-		execlists->csb_head = head;
-		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
-		       i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
-	}
-
-	if (unlikely(fw))
-		intel_uncore_forcewake_put(i915, execlists->fw_domains);
+	writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
+	       execlists->csb_read);
+	execlists->csb_head = head;
 }
 
 /*
@@ -2431,27 +2423,10 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 static void
 logical_ring_setup(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	enum forcewake_domains fw_domains;
-
 	intel_engine_setup_common(engine);
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
-
-	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
-						    RING_ELSP(engine),
-						    FW_REG_WRITE);
-
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
-						     RING_CONTEXT_STATUS_PTR(engine),
-						     FW_REG_READ | FW_REG_WRITE);
-
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
-						     RING_CONTEXT_STATUS_BUF_BASE(engine),
-						     FW_REG_READ);
-
-	engine->execlists.fw_domains = fw_domains;
 
 	tasklet_init(&engine->execlists.tasklet,
 		     execlists_submission_tasklet, (unsigned long)engine);
@@ -2460,34 +2435,56 @@ logical_ring_setup(struct intel_engine_cs *engine)
 	logical_ring_default_irqs(engine);
 }
 
+static bool csb_force_mmio(struct drm_i915_private *i915)
+{
+	/* Older GVT emulation depends upon intercepting CSB mmio */
+	return intel_vgpu_active(i915) && !intel_vgpu_has_hwsp_emulation(i915);
+}
+
 static int logical_ring_init(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_engine_execlists * const execlists = &engine->execlists;
 	int ret;
 
 	ret = intel_engine_init_common(engine);
 	if (ret)
 		goto error;
 
-	if (HAS_LOGICAL_RING_ELSQ(engine->i915)) {
-		engine->execlists.submit_reg = engine->i915->regs +
+	if (HAS_LOGICAL_RING_ELSQ(i915)) {
+		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
-		engine->execlists.ctrl_reg = engine->i915->regs +
+		execlists->ctrl_reg = i915->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(engine));
 	} else {
-		engine->execlists.submit_reg = engine->i915->regs +
+		execlists->submit_reg = i915->regs +
 			i915_mmio_reg_offset(RING_ELSP(engine));
 	}
 
-	engine->execlists.preempt_complete_status = ~0u;
-	if (engine->i915->preempt_context) {
+	execlists->preempt_complete_status = ~0u;
+	if (i915->preempt_context) {
 		struct intel_context *ce =
-			to_intel_context(engine->i915->preempt_context, engine);
+			to_intel_context(i915->preempt_context, engine);
 
-		engine->execlists.preempt_complete_status =
+		execlists->preempt_complete_status =
 			upper_32_bits(ce->lrc_desc);
 	}
 
-	engine->execlists.csb_head = GEN8_CSB_ENTRIES - 1;
+	execlists->csb_head = GEN8_CSB_ENTRIES - 1;
+	execlists->csb_read =
+		i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
+	if (csb_force_mmio(i915)) {
+		execlists->csb_status = (u32 __force *)
+			(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
+
+		execlists->csb_write = (u32 __force *)execlists->csb_read;
+	} else {
+		execlists->csb_status =
+			&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
+
+		execlists->csb_write =
+			&engine->status_page.page_addr[intel_hws_csb_write_index(i915)];
+	}
 
 	return 0;
 
