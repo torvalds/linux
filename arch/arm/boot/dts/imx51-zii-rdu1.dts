@@ -589,6 +589,8 @@
 	rave-sp {
 		compatible = "zii,rave-sp-rdu1";
 		current-speed = <38400>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
 		watchdog {
 			compatible = "zii,rave-sp-watchdog";
@@ -600,6 +602,33 @@
 
 		pwrbutton {
 			compatible = "zii,rave-sp-pwrbutton";
+		};
+
+		eeprom@a3 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa3 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "dds-eeprom";
+		};
+
+		eeprom@a4 {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xa4 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			zii,eeprom-name = "main-eeprom";
+		};
+
+		eeprom@ae {
+			compatible = "zii,rave-sp-eeprom";
+			reg = <0xae 0x200>;
+			zii,eeprom-name = "switch-eeprom";
+			/*
+			 * Not all RDU1s have this functionality, so we
+			 * rely on the bootloader to enable this
+			 */
+			status = "disabled";
 		};
 	};
 };
