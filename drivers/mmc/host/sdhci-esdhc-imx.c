@@ -1151,18 +1151,14 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			     &boarddata->tuning_start_tap);
 
 	if (of_find_property(np, "no-1-8-v", NULL))
-		boarddata->support_vsel = false;
-	else
-		boarddata->support_vsel = true;
+		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 
 	if (of_property_read_u32(np, "fsl,delay-line", &boarddata->delay_line))
 		boarddata->delay_line = 0;
 
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
-	/* sdr50 and sdr104 need work on 1.8v signal voltage */
-	if ((boarddata->support_vsel) && esdhc_is_usdhc(imx_data) &&
-	    !IS_ERR(imx_data->pins_default)) {
+	if (esdhc_is_usdhc(imx_data) && !IS_ERR(imx_data->pins_default)) {
 		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
 						ESDHC_PINCTRL_STATE_100MHZ);
 		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
