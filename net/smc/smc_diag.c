@@ -156,6 +156,21 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		if (nla_put(skb, SMC_DIAG_LGRINFO, sizeof(linfo), &linfo) < 0)
 			goto errout;
 	}
+	if (smc->conn.lgr && smc->conn.lgr->is_smcd &&
+	    (req->diag_ext & (1 << (SMC_DIAG_DMBINFO - 1))) &&
+	    !list_empty(&smc->conn.lgr->list)) {
+		struct smc_connection *conn = &smc->conn;
+		struct smcd_diag_dmbinfo dinfo = {
+			.linkid = *((u32 *)conn->lgr->id),
+			.peer_gid = conn->lgr->peer_gid,
+			.my_gid = conn->lgr->smcd->local_gid,
+			.token = conn->rmb_desc->token,
+			.peer_token = conn->peer_token
+		};
+
+		if (nla_put(skb, SMC_DIAG_DMBINFO, sizeof(dinfo), &dinfo) < 0)
+			goto errout;
+	}
 
 	nlmsg_end(skb, nlh);
 	return 0;

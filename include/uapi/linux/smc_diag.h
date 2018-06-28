@@ -35,6 +35,7 @@ enum {
 	SMC_DIAG_CONNINFO,
 	SMC_DIAG_LGRINFO,
 	SMC_DIAG_SHUTDOWN,
+	SMC_DIAG_DMBINFO,
 	__SMC_DIAG_MAX,
 };
 
@@ -83,4 +84,13 @@ struct smc_diag_lgrinfo {
 	struct smc_diag_linkinfo	lnk[1];
 	__u8				role;
 };
+
+struct smcd_diag_dmbinfo {		/* SMC-D Socket internals */
+	__u32 linkid;			/* Link identifier */
+	__u64 peer_gid;			/* Peer GID */
+	__u64 my_gid;			/* My GID */
+	__u64 token;			/* Token of DMB */
+	__u64 peer_token;		/* Token of remote DMBE */
+};
+
 #endif /* _UAPI_SMC_DIAG_H_ */
