@@ -34,29 +34,6 @@
 
 #include <linux/uaccess.h>
 
-__poll_t vfs_poll(struct file *file, struct poll_table_struct *pt)
-{
-	if (file->f_op->poll) {
-		return file->f_op->poll(file, pt);
-	} else if (file_has_poll_mask(file)) {
-		unsigned int events = poll_requested_events(pt);
-		struct wait_queue_head *head;
-
-		if (pt && pt->_qproc) {
-			head = file->f_op->get_poll_head(file, events);
-			if (!head)
-				return DEFAULT_POLLMASK;
-			if (IS_ERR(head))
-				return EPOLLERR;
-			pt->_qproc(file, head, pt);
-		}
-
-		return file->f_op->poll_mask(file, events);
-	} else {
-		return DEFAULT_POLLMASK;
-	}
-}
-EXPORT_SYMBOL_GPL(vfs_poll);
 
 /*
  * Estimate expected accuracy in ns from a timeval.

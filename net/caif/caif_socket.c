@@ -934,11 +934,15 @@ static int caif_release(struct socket *sock)
 }
 
 /* Copied from af_unix.c:unix_poll(), added CAIF tx_flow handling */
-static __poll_t caif_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t caif_poll(struct file *file,
+			      struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
+	__poll_t mask;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
-	__poll_t mask = 0;
+
+	sock_poll_wait(file, sk_sleep(sk), wait);
+	mask = 0;
 
 	/* exceptional events? */
 	if (sk->sk_err)
@@ -972,7 +976,7 @@ static const struct proto_ops caif_seqpacket_ops = {
 	.socketpair = sock_no_socketpair,
 	.accept = sock_no_accept,
 	.getname = sock_no_getname,
-	.poll_mask = caif_poll_mask,
+	.poll = caif_poll,
 	.ioctl = sock_no_ioctl,
 	.listen = sock_no_listen,
 	.shutdown = sock_no_shutdown,
@@ -993,7 +997,7 @@ static const struct proto_ops caif_stream_ops = {
 	.socketpair = sock_no_socketpair,
 	.accept = sock_no_accept,
 	.getname = sock_no_getname,
-	.poll_mask = caif_poll_mask,
+	.poll = caif_poll,
 	.ioctl = sock_no_ioctl,
 	.listen = sock_no_listen,
 	.shutdown = sock_no_shutdown,
