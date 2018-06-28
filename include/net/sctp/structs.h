@@ -220,6 +220,7 @@ struct sctp_sock {
 	__u32 adaptation_ind;
 	__u32 pd_point;
 	__u16	nodelay:1,
+		reuse:1,
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,

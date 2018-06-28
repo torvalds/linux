@@ -100,6 +100,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RECVNXTINFO	33
 #define SCTP_DEFAULT_SNDINFO	34
 #define SCTP_AUTH_DEACTIVATE_KEY	35
+#define SCTP_REUSE_PORT		36
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.

@@ -4170,6 +4170,28 @@ out:
 	return retval;
 }
 
+static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
+				      unsigned int optlen)
+{
+	int val;
+
+	if (!sctp_style(sk, TCP))
+		return -EOPNOTSUPP;
+
+	if (sctp_sk(sk)->ep->base.bind_addr.port)
+		return -EFAULT;
+
+	if (optlen < sizeof(int))
+		return -EINVAL;
+
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->reuse = !!val;
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -4363,6 +4385,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 	case SCTP_INTERLEAVING_SUPPORTED:
 		retval = sctp_setsockopt_interleaving_supported(sk, optval,
 								optlen);
+		break;
+	case SCTP_REUSE_PORT:
+		retval = sctp_setsockopt_reuse_port(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -7197,6 +7222,26 @@ out:
 	return retval;
 }
 
+static int sctp_getsockopt_reuse_port(struct sock *sk, int len,
+				      char __user *optval,
+				      int __user *optlen)
+{
+	int val;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+	val = sctp_sk(sk)->reuse;
+	if (put_user(len, optlen))
+		return -EFAULT;
+
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int sctp_getsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
@@ -7392,6 +7437,9 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_getsockopt_interleaving_supported(sk, len, optval,
 								optlen);
 		break;
+	case SCTP_REUSE_PORT:
+		retval = sctp_getsockopt_reuse_port(sk, len, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
@@ -7429,6 +7477,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 
 static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
+	bool reuse = (sk->sk_reuse || sctp_sk(sk)->reuse);
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp;
 	unsigned short snum;
@@ -7501,13 +7550,11 @@ pp_found:
 		 * used by other socket (pp->owner not empty); that other
 		 * socket is going to be sk2.
 		 */
-		int reuse = sk->sk_reuse;
 		struct sock *sk2;
 
 		pr_debug("%s: found a possible match\n", __func__);
 
-		if (pp->fastreuse && sk->sk_reuse &&
-			sk->sk_state != SCTP_SS_LISTENING)
+		if (pp->fastreuse && reuse && sk->sk_state != SCTP_SS_LISTENING)
 			goto success;
 
 		/* Run through the list of sockets bound to the port
@@ -7525,7 +7572,7 @@ pp_found:
 			ep2 = sctp_sk(sk2)->ep;
 
 			if (sk == sk2 ||
-			    (reuse && sk2->sk_reuse &&
+			    (reuse && (sk2->sk_reuse || sctp_sk(sk2)->reuse) &&
 			     sk2->sk_state != SCTP_SS_LISTENING))
 				continue;
 
@@ -7549,12 +7596,12 @@ pp_not_found:
 	 * SO_REUSEADDR on this socket -sk-).
 	 */
 	if (hlist_empty(&pp->owner)) {
-		if (sk->sk_reuse && sk->sk_state != SCTP_SS_LISTENING)
+		if (reuse && sk->sk_state != SCTP_SS_LISTENING)
 			pp->fastreuse = 1;
 		else
 			pp->fastreuse = 0;
 	} else if (pp->fastreuse &&
-		(!sk->sk_reuse || sk->sk_state == SCTP_SS_LISTENING))
+		   (!reuse || sk->sk_state == SCTP_SS_LISTENING))
 		pp->fastreuse = 0;
 
 	/* We are set, so fill up all the data in the hash table
@@ -7685,7 +7732,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 		err = 0;
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
-		if (sk->sk_reuse)
+		if (sk->sk_reuse || sctp_sk(sk)->reuse)
 			sctp_sk(sk)->bind_hash->fastreuse = 1;
 		goto out;
 	}
@@ -8550,6 +8597,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_no_check_tx = sk->sk_no_check_tx;
 	newsk->sk_no_check_rx = sk->sk_no_check_rx;
 	newsk->sk_reuse = sk->sk_reuse;
+	sctp_sk(newsk)->reuse = sp->reuse;
 
 	newsk->sk_shutdown = sk->sk_shutdown;
 	newsk->sk_destruct = sctp_destruct_sock;
