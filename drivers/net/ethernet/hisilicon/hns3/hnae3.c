@@ -8,7 +8,6 @@
  */
 
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include "hnae3.h"
