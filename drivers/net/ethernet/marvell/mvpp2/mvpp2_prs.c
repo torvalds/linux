@@ -30,17 +30,17 @@ static int mvpp2_prs_hw_write(struct mvpp2 *priv, struct mvpp2_prs_entry *pe)
 		return -EINVAL;
 
 	/* Clear entry invalidation bit */
-	pe->tcam.word[MVPP2_PRS_TCAM_INV_WORD] &= ~MVPP2_PRS_TCAM_INV_MASK;
+	pe->tcam[MVPP2_PRS_TCAM_INV_WORD] &= ~MVPP2_PRS_TCAM_INV_MASK;
 
 	/* Write tcam index - indirect access */
 	mvpp2_write(priv, MVPP2_PRS_TCAM_IDX_REG, pe->index);
 	for (i = 0; i < MVPP2_PRS_TCAM_WORDS; i++)
-		mvpp2_write(priv, MVPP2_PRS_TCAM_DATA_REG(i), pe->tcam.word[i]);
+		mvpp2_write(priv, MVPP2_PRS_TCAM_DATA_REG(i), pe->tcam[i]);
 
 	/* Write sram index - indirect access */
 	mvpp2_write(priv, MVPP2_PRS_SRAM_IDX_REG, pe->index);
 	for (i = 0; i < MVPP2_PRS_SRAM_WORDS; i++)
-		mvpp2_write(priv, MVPP2_PRS_SRAM_DATA_REG(i), pe->sram.word[i]);
+		mvpp2_write(priv, MVPP2_PRS_SRAM_DATA_REG(i), pe->sram[i]);
 
 	return 0;
 }
@@ -60,18 +60,18 @@ static int mvpp2_prs_init_from_hw(struct mvpp2 *priv,
 	/* Write tcam index - indirect access */
 	mvpp2_write(priv, MVPP2_PRS_TCAM_IDX_REG, pe->index);
 
-	pe->tcam.word[MVPP2_PRS_TCAM_INV_WORD] = mvpp2_read(priv,
+	pe->tcam[MVPP2_PRS_TCAM_INV_WORD] = mvpp2_read(priv,
 			      MVPP2_PRS_TCAM_DATA_REG(MVPP2_PRS_TCAM_INV_WORD));
-	if (pe->tcam.word[MVPP2_PRS_TCAM_INV_WORD] & MVPP2_PRS_TCAM_INV_MASK)
+	if (pe->tcam[MVPP2_PRS_TCAM_INV_WORD] & MVPP2_PRS_TCAM_INV_MASK)
 		return MVPP2_PRS_TCAM_ENTRY_INVALID;
 
 	for (i = 0; i < MVPP2_PRS_TCAM_WORDS; i++)
-		pe->tcam.word[i] = mvpp2_read(priv, MVPP2_PRS_TCAM_DATA_REG(i));
+		pe->tcam[i] = mvpp2_read(priv, MVPP2_PRS_TCAM_DATA_REG(i));
 
 	/* Write sram index - indirect access */
 	mvpp2_write(priv, MVPP2_PRS_SRAM_IDX_REG, pe->index);
 	for (i = 0; i < MVPP2_PRS_SRAM_WORDS; i++)
-		pe->sram.word[i] = mvpp2_read(priv, MVPP2_PRS_SRAM_DATA_REG(i));
+		pe->sram[i] = mvpp2_read(priv, MVPP2_PRS_SRAM_DATA_REG(i));
 
 	return 0;
 }
@@ -103,42 +103,35 @@ static void mvpp2_prs_shadow_ri_set(struct mvpp2 *priv, int index,
 /* Update lookup field in tcam sw entry */
 static void mvpp2_prs_tcam_lu_set(struct mvpp2_prs_entry *pe, unsigned int lu)
 {
-	int enable_off = MVPP2_PRS_TCAM_EN_OFFS(MVPP2_PRS_TCAM_LU_BYTE);
-
-	pe->tcam.byte[MVPP2_PRS_TCAM_LU_BYTE] = lu;
-	pe->tcam.byte[enable_off] = MVPP2_PRS_LU_MASK;
+	pe->tcam[MVPP2_PRS_TCAM_LU_WORD] &= ~MVPP2_PRS_TCAM_LU(MVPP2_PRS_LU_MASK);
+	pe->tcam[MVPP2_PRS_TCAM_LU_WORD] &= ~MVPP2_PRS_TCAM_LU_EN(MVPP2_PRS_LU_MASK);
+	pe->tcam[MVPP2_PRS_TCAM_LU_WORD] |= MVPP2_PRS_TCAM_LU(lu & MVPP2_PRS_LU_MASK);
+	pe->tcam[MVPP2_PRS_TCAM_LU_WORD] |= MVPP2_PRS_TCAM_LU_EN(MVPP2_PRS_LU_MASK);
 }
 
 /* Update mask for single port in tcam sw entry */
 static void mvpp2_prs_tcam_port_set(struct mvpp2_prs_entry *pe,
 				    unsigned int port, bool add)
 {
-	int enable_off = MVPP2_PRS_TCAM_EN_OFFS(MVPP2_PRS_TCAM_PORT_BYTE);
-
 	if (add)
-		pe->tcam.byte[enable_off] &= ~(1 << port);
+		pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] &= ~MVPP2_PRS_TCAM_PORT_EN(BIT(port));
 	else
-		pe->tcam.byte[enable_off] |= 1 << port;
+		pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] |= MVPP2_PRS_TCAM_PORT_EN(BIT(port));
 }
 
 /* Update port map in tcam sw entry */
 static void mvpp2_prs_tcam_port_map_set(struct mvpp2_prs_entry *pe,
 					unsigned int ports)
 {
-	unsigned char port_mask = MVPP2_PRS_PORT_MASK;
-	int enable_off = MVPP2_PRS_TCAM_EN_OFFS(MVPP2_PRS_TCAM_PORT_BYTE);
-
-	pe->tcam.byte[MVPP2_PRS_TCAM_PORT_BYTE] = 0;
-	pe->tcam.byte[enable_off] &= ~port_mask;
-	pe->tcam.byte[enable_off] |= ~ports & MVPP2_PRS_PORT_MASK;
+	pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] &= ~MVPP2_PRS_TCAM_PORT(MVPP2_PRS_PORT_MASK);
+	pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] &= ~MVPP2_PRS_TCAM_PORT_EN(MVPP2_PRS_PORT_MASK);
+	pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] |= MVPP2_PRS_TCAM_PORT_EN(~ports & MVPP2_PRS_PORT_MASK);
 }
 
 /* Obtain port map from tcam sw entry */
 static unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe)
 {
-	int enable_off = MVPP2_PRS_TCAM_EN_OFFS(MVPP2_PRS_TCAM_PORT_BYTE);
-
-	return ~(pe->tcam.byte[enable_off]) & MVPP2_PRS_PORT_MASK;
+	return (~pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] >> 24) & MVPP2_PRS_PORT_MASK;
 }
 
 /* Set byte of data and its enable bits in tcam sw entry */
@@ -146,8 +139,12 @@ static void mvpp2_prs_tcam_data_byte_set(struct mvpp2_prs_entry *pe,
 					 unsigned int offs, unsigned char byte,
 					 unsigned char enable)
 {
-	pe->tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE(offs)] = byte;
-	pe->tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE_EN(offs)] = enable;
+	int pos = MVPP2_PRS_BYTE_IN_WORD(offs) * BITS_PER_BYTE;
+
+	pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] &= ~(0xff << pos);
+	pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] &= ~(MVPP2_PRS_TCAM_EN(0xff) << pos);
+	pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] |= byte << pos;
+	pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] |= MVPP2_PRS_TCAM_EN(enable << pos);
 }
 
 /* Get byte of data and its enable bits from tcam sw entry */
@@ -155,46 +152,45 @@ static void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
 					 unsigned int offs, unsigned char *byte,
 					 unsigned char *enable)
 {
-	*byte = pe->tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE(offs)];
-	*enable = pe->tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE_EN(offs)];
+	int pos = MVPP2_PRS_BYTE_IN_WORD(offs) * BITS_PER_BYTE;
+
+	*byte = (pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] >> pos) & 0xff;
+	*enable = (pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] >> (pos + 16)) & 0xff;
 }
 
 /* Compare tcam data bytes with a pattern */
 static bool mvpp2_prs_tcam_data_cmp(struct mvpp2_prs_entry *pe, int offs,
 				    u16 data)
 {
-	int off = MVPP2_PRS_TCAM_DATA_BYTE(offs);
 	u16 tcam_data;
 
-	tcam_data = (pe->tcam.byte[off + 1] << 8) | pe->tcam.byte[off];
-	if (tcam_data != data)
-		return false;
-	return true;
+	tcam_data = pe->tcam[MVPP2_PRS_BYTE_TO_WORD(offs)] & 0xffff;
+	return tcam_data == data;
 }
 
 /* Update ai bits in tcam sw entry */
 static void mvpp2_prs_tcam_ai_update(struct mvpp2_prs_entry *pe,
 				     unsigned int bits, unsigned int enable)
 {
-	int i, ai_idx = MVPP2_PRS_TCAM_AI_BYTE;
+	int i;
 
 	for (i = 0; i < MVPP2_PRS_AI_BITS; i++) {
 		if (!(enable & BIT(i)))
 			continue;
 
 		if (bits & BIT(i))
-			pe->tcam.byte[ai_idx] |= 1 << i;
+			pe->tcam[MVPP2_PRS_TCAM_AI_WORD] |= BIT(i);
 		else
-			pe->tcam.byte[ai_idx] &= ~(1 << i);
+			pe->tcam[MVPP2_PRS_TCAM_AI_WORD] &= ~BIT(i);
 	}
 
-	pe->tcam.byte[MVPP2_PRS_TCAM_EN_OFFS(ai_idx)] |= enable;
+	pe->tcam[MVPP2_PRS_TCAM_AI_WORD] |= MVPP2_PRS_TCAM_AI_EN(enable);
 }
 
 /* Get ai bits from tcam sw entry */
 static int mvpp2_prs_tcam_ai_get(struct mvpp2_prs_entry *pe)
 {
-	return pe->tcam.byte[MVPP2_PRS_TCAM_AI_BYTE];
+	return pe->tcam[MVPP2_PRS_TCAM_AI_WORD] & MVPP2_PRS_AI_MASK;
 }
 
 /* Set ethertype in tcam sw entry */
@@ -215,16 +211,16 @@ static void mvpp2_prs_match_vid(struct mvpp2_prs_entry *pe, int offset,
 
 /* Set bits in sram sw entry */
 static void mvpp2_prs_sram_bits_set(struct mvpp2_prs_entry *pe, int bit_num,
-				    int val)
+				    u32 val)
 {
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(bit_num)] |= (val << (bit_num % 8));
+	pe->sram[MVPP2_BIT_TO_WORD(bit_num)] |= (val << (MVPP2_BIT_IN_WORD(bit_num)));
 }
 
 /* Clear bits in sram sw entry */
 static void mvpp2_prs_sram_bits_clear(struct mvpp2_prs_entry *pe, int bit_num,
-				      int val)
+				      u32 val)
 {
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(bit_num)] &= ~(val << (bit_num % 8));
+	pe->sram[MVPP2_BIT_TO_WORD(bit_num)] &= ~(val << (MVPP2_BIT_IN_WORD(bit_num)));
 }
 
 /* Update ri bits in sram sw entry */
@@ -234,15 +230,16 @@ static void mvpp2_prs_sram_ri_update(struct mvpp2_prs_entry *pe,
 	unsigned int i;
 
 	for (i = 0; i < MVPP2_PRS_SRAM_RI_CTRL_BITS; i++) {
-		int ri_off = MVPP2_PRS_SRAM_RI_OFFS;
-
 		if (!(mask & BIT(i)))
 			continue;
 
 		if (bits & BIT(i))
-			mvpp2_prs_sram_bits_set(pe, ri_off + i, 1);
+			mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_RI_OFFS + i,
+						1);
 		else
-			mvpp2_prs_sram_bits_clear(pe, ri_off + i, 1);
+			mvpp2_prs_sram_bits_clear(pe,
+						  MVPP2_PRS_SRAM_RI_OFFS + i,
+						  1);
 
 		mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_RI_CTRL_OFFS + i, 1);
 	}
@@ -251,7 +248,7 @@ static void mvpp2_prs_sram_ri_update(struct mvpp2_prs_entry *pe,
 /* Obtain ri bits from sram sw entry */
 static int mvpp2_prs_sram_ri_get(struct mvpp2_prs_entry *pe)
 {
-	return pe->sram.word[MVPP2_PRS_SRAM_RI_WORD];
+	return pe->sram[MVPP2_PRS_SRAM_RI_WORD];
 }
 
 /* Update ai bits in sram sw entry */
@@ -259,16 +256,18 @@ static void mvpp2_prs_sram_ai_update(struct mvpp2_prs_entry *pe,
 				     unsigned int bits, unsigned int mask)
 {
 	unsigned int i;
-	int ai_off = MVPP2_PRS_SRAM_AI_OFFS;
 
 	for (i = 0; i < MVPP2_PRS_SRAM_AI_CTRL_BITS; i++) {
 		if (!(mask & BIT(i)))
 			continue;
 
 		if (bits & BIT(i))
-			mvpp2_prs_sram_bits_set(pe, ai_off + i, 1);
+			mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_AI_OFFS + i,
+						1);
 		else
-			mvpp2_prs_sram_bits_clear(pe, ai_off + i, 1);
+			mvpp2_prs_sram_bits_clear(pe,
+						  MVPP2_PRS_SRAM_AI_OFFS + i,
+						  1);
 
 		mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_AI_CTRL_OFFS + i, 1);
 	}
@@ -278,12 +277,12 @@ static void mvpp2_prs_sram_ai_update(struct mvpp2_prs_entry *pe,
 static int mvpp2_prs_sram_ai_get(struct mvpp2_prs_entry *pe)
 {
 	u8 bits;
-	int ai_off = MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_AI_OFFS);
-	int ai_en_off = ai_off + 1;
-	int ai_shift = MVPP2_PRS_SRAM_AI_OFFS % 8;
+	/* ai is stored on bits 90->97; so it spreads across two u32 */
+	int ai_off = MVPP2_BIT_TO_WORD(MVPP2_PRS_SRAM_AI_OFFS);
+	int ai_shift = MVPP2_BIT_IN_WORD(MVPP2_PRS_SRAM_AI_OFFS);
 
-	bits = (pe->sram.byte[ai_off] >> ai_shift) |
-	       (pe->sram.byte[ai_en_off] << (8 - ai_shift));
+	bits = (pe->sram[ai_off] >> ai_shift) |
+	       (pe->sram[ai_off + 1] << (32 - ai_shift));
 
 	return bits;
 }
@@ -316,8 +315,7 @@ static void mvpp2_prs_sram_shift_set(struct mvpp2_prs_entry *pe, int shift,
 	}
 
 	/* Set value */
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_SHIFT_OFFS)] =
-							   (unsigned char)shift;
+	pe->sram[MVPP2_BIT_TO_WORD(MVPP2_PRS_SRAM_SHIFT_OFFS)] = shift & MVPP2_PRS_SRAM_SHIFT_MASK;
 
 	/* Reset and set operation */
 	mvpp2_prs_sram_bits_clear(pe, MVPP2_PRS_SRAM_OP_SEL_SHIFT_OFFS,
@@ -346,13 +344,8 @@ static void mvpp2_prs_sram_offset_set(struct mvpp2_prs_entry *pe,
 	/* Set value */
 	mvpp2_prs_sram_bits_clear(pe, MVPP2_PRS_SRAM_UDF_OFFS,
 				  MVPP2_PRS_SRAM_UDF_MASK);
-	mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_UDF_OFFS, offset);
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_UDF_OFFS +
-					MVPP2_PRS_SRAM_UDF_BITS)] &=
-	      ~(MVPP2_PRS_SRAM_UDF_MASK >> (8 - (MVPP2_PRS_SRAM_UDF_OFFS % 8)));
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_UDF_OFFS +
-					MVPP2_PRS_SRAM_UDF_BITS)] |=
-				(offset >> (8 - (MVPP2_PRS_SRAM_UDF_OFFS % 8)));
+	mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_UDF_OFFS,
+				offset & MVPP2_PRS_SRAM_UDF_MASK);
 
 	/* Set offset type */
 	mvpp2_prs_sram_bits_clear(pe, MVPP2_PRS_SRAM_UDF_TYPE_OFFS,
@@ -362,16 +355,8 @@ static void mvpp2_prs_sram_offset_set(struct mvpp2_prs_entry *pe,
 	/* Set offset operation */
 	mvpp2_prs_sram_bits_clear(pe, MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS,
 				  MVPP2_PRS_SRAM_OP_SEL_UDF_MASK);
-	mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS, op);
-
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS +
-					MVPP2_PRS_SRAM_OP_SEL_UDF_BITS)] &=
-					     ~(MVPP2_PRS_SRAM_OP_SEL_UDF_MASK >>
-				    (8 - (MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS % 8)));
-
-	pe->sram.byte[MVPP2_BIT_TO_BYTE(MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS +
-					MVPP2_PRS_SRAM_OP_SEL_UDF_BITS)] |=
-			     (op >> (8 - (MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS % 8)));
+	mvpp2_prs_sram_bits_set(pe, MVPP2_PRS_SRAM_OP_SEL_UDF_OFFS,
+				op & MVPP2_PRS_SRAM_OP_SEL_UDF_MASK);
 
 	/* Set base offset as current */
 	mvpp2_prs_sram_bits_clear(pe, MVPP2_PRS_SRAM_OP_SEL_BASE_OFFS, 1);
@@ -932,8 +917,8 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 
 	pe.index = tid;
 	/* Clear ri before updating */
-	pe.sram.word[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
-	pe.sram.word[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
 	mvpp2_prs_sram_ri_update(&pe, ri, ri_mask);
 
 	mvpp2_prs_sram_ri_update(&pe, ri | MVPP2_PRS_RI_IP_FRAG_TRUE,
@@ -1433,17 +1418,13 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 
 	pe.index = tid;
 
-	/* Clear tcam data before updating */
-	pe.tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE(MVPP2_ETH_TYPE_LEN)] = 0x0;
-	pe.tcam.byte[MVPP2_PRS_TCAM_DATA_BYTE_EN(MVPP2_ETH_TYPE_LEN)] = 0x0;
-
 	mvpp2_prs_tcam_data_byte_set(&pe, MVPP2_ETH_TYPE_LEN,
 				     MVPP2_PRS_IPV4_HEAD,
 				     MVPP2_PRS_IPV4_HEAD_MASK);
 
 	/* Clear ri before updating */
-	pe.sram.word[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
-	pe.sram.word[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
 	mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_L3_IP4_OPT,
 				 MVPP2_PRS_RI_L3_PROTO_MASK);
 
@@ -1644,8 +1625,8 @@ static int mvpp2_prs_pppoe_init(struct mvpp2 *priv)
 				     MVPP2_PRS_IPV4_IHL_MASK);
 
 	/* Clear ri before updating */
-	pe.sram.word[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
-	pe.sram.word[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_WORD] = 0x0;
+	pe.sram[MVPP2_PRS_SRAM_RI_CTRL_WORD] = 0x0;
 	mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_L3_IP4,
 				 MVPP2_PRS_RI_L3_PROTO_MASK);
 

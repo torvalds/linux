@@ -553,6 +553,8 @@
 	((total_size) - NET_SKB_PAD - MVPP2_SKB_SHINFO_SIZE)
 
 #define MVPP2_BIT_TO_BYTE(bit)		((bit) / 8)
+#define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
+#define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
 
 /* IPv6 max L3 address size */
 #define MVPP2_MAX_L3_ADDR_SIZE		16
