@@ -285,6 +285,11 @@
 	pinctrl-0 = <&pwm0_pin_pull_down>;
 };
 
+&sfc {
+	u-boot,dm-pre-reloc;
+	status = "okay";
+};
+
 &tsadc {
 	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
