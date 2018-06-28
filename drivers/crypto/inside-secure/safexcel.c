@@ -405,6 +405,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		val = EIP197_FUNCTION_RSVD;
 		val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
 		val |= EIP197_PROTOCOL_ENCRYPT_HASH | EIP197_PROTOCOL_HASH_DECRYPT;
+		val |= EIP197_ALG_DES_ECB | EIP197_ALG_DES_CBC;
 		val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
 		val |= EIP197_ALG_MD5 | EIP197_ALG_HMAC_MD5;
 		val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
@@ -840,6 +841,8 @@ static int safexcel_request_ring_irq(struct platform_device *pdev, const char *n
 }
 
 static struct safexcel_alg_template *safexcel_algs[] = {
+	&safexcel_alg_ecb_des,
+	&safexcel_alg_cbc_des,
 	&safexcel_alg_ecb_aes,
 	&safexcel_alg_cbc_aes,
 	&safexcel_alg_md5,
