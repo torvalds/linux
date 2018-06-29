@@ -201,4 +201,7 @@ int cif_isp10_pltfrm_soc_init(
 int cif_isp10_pltfrm_mipi_dphy_config(
 	struct cif_isp10_device *cif_isp10_dev);
 
+int cif_isp10_pltfrm_reset(
+	struct cif_isp10_device *cif_isp10_dev);
+
 #endif

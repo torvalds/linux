@@ -3379,15 +3379,7 @@ static int cif_isp10_config_cif(
 		cif_isp10_pltfrm_pr_dbg(dev->dev,
 			"CIF_ID 0x%08x\n", cif_id);
 
-		/*
-		 * Cancel isp reset internal here temporary for
-		 * isp bus may be dead when switch isp.
-		 */
-		/*
-		 * cif_iowrite32(CIF_IRCL_CIF_SW_RST,
-		 * dev->config.base_addr + CIF_IRCL);
-		 */
-
+		cif_isp10_pltfrm_reset(dev);
 		cif_isp10_config_clk(dev);
 
 		cifisp_frame_id_reset(&dev->isp_dev);

@@ -1054,6 +1054,31 @@ int cif_isp10_pltfrm_mipi_dphy_config(
 	return ret;
 }
 
+int cif_isp10_pltfrm_reset(
+	struct cif_isp10_device *cif_isp10_dev)
+{
+	struct pltfrm_soc_cfg_para cfg_para;
+	struct pltfrm_soc_cfg *soc_cfg;
+	int ret = 0;
+
+	soc_cfg = &cif_isp10_dev->soc_cfg;
+	if (!IS_ERR_OR_NULL(soc_cfg) &&
+		!IS_ERR_OR_NULL(soc_cfg->soc_cfg)) {
+		cfg_para.cmd =
+			PLTFRM_CLKRST;
+		cfg_para.cfg_para = 0;
+		cfg_para.isp_config = &soc_cfg->isp_config;
+		ret = soc_cfg->soc_cfg(&cfg_para);
+	}
+
+#ifdef CIF_ISP10_MODE_DMA_SG
+	cif_isp10_dma_detach_device(cif_isp10_dev);
+	cif_isp10_dma_attach_device(cif_isp10_dev);
+#endif
+
+	return ret;
+}
+
 int cif_isp10_pltfrm_pm_set_state(
 	struct device *dev,
 	enum cif_isp10_pm_state pm_state)
