@@ -142,8 +142,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
-	if (!nf_ct_invert_tuple(&innertuple, &origtuple,
-				&nf_conntrack_l3proto_ipv4, innerproto)) {
+	if (!nf_ct_invert_tuple(&innertuple, &origtuple, innerproto)) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
 	}

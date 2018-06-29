@@ -31,15 +31,6 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 
-static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
-				 const struct nf_conntrack_tuple *orig)
-{
-	memset(&tuple->src.u3, 0, sizeof(tuple->src.u3));
-	memset(&tuple->dst.u3, 0, sizeof(tuple->dst.u3));
-
-	return true;
-}
-
 static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			       unsigned int *dataoff, u_int8_t *protonum)
 {
@@ -50,7 +41,6 @@ static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
 	.l3proto	 = PF_UNSPEC,
-	.invert_tuple	 = generic_invert_tuple,
 	.get_l4proto	 = generic_get_l4proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);

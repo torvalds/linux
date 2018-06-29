@@ -41,15 +41,6 @@ struct conntrack6_net {
 	unsigned int users;
 };
 
-static bool ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
-			      const struct nf_conntrack_tuple *orig)
-{
-	memcpy(tuple->src.u3.ip6, orig->dst.u3.ip6, sizeof(tuple->src.u3.ip6));
-	memcpy(tuple->dst.u3.ip6, orig->src.u3.ip6, sizeof(tuple->dst.u3.ip6));
-
-	return true;
-}
-
 static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    unsigned int *dataoff, u_int8_t *protonum)
 {
@@ -290,7 +281,6 @@ static void ipv6_hooks_unregister(struct net *net)
 
 const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.l3proto		= PF_INET6,
-	.invert_tuple		= ipv6_invert_tuple,
 	.get_l4proto		= ipv6_get_l4proto,
 	.net_ns_get		= ipv6_hooks_register,
 	.net_ns_put		= ipv6_hooks_unregister,
