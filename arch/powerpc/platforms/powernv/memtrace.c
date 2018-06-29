@@ -47,38 +47,9 @@ static ssize_t memtrace_read(struct file *filp, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, count, ppos, ent->mem, ent->size);
 }
 
-static bool valid_memtrace_range(struct memtrace_entry *dev,
-				 unsigned long start, unsigned long size)
-{
-	if ((start >= dev->start) &&
-	    ((start + size) <= (dev->start + dev->size)))
-		return true;
-
-	return false;
-}
-
-static int memtrace_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	unsigned long size = vma->vm_end - vma->vm_start;
-	struct memtrace_entry *dev = filp->private_data;
-
-	if (!valid_memtrace_range(dev, vma->vm_pgoff << PAGE_SHIFT, size))
-		return -EINVAL;
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (remap_pfn_range(vma, vma->vm_start,
-			    vma->vm_pgoff + (dev->start >> PAGE_SHIFT),
-			    size, vma->vm_page_prot))
-		return -EAGAIN;
-
-	return 0;
-}
-
 static const struct file_operations memtrace_fops = {
 	.llseek = default_llseek,
 	.read	= memtrace_read,
-	.mmap	= memtrace_mmap,
 	.open	= simple_open,
 };
 
