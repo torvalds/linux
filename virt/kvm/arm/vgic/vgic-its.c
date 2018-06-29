@@ -168,8 +168,14 @@ struct vgic_its_abi {
 	int (*commit)(struct vgic_its *its);
 };
 
+#define ABI_0_ESZ	8
+#define ESZ_MAX		ABI_0_ESZ
+
 static const struct vgic_its_abi its_table_abi_versions[] = {
-	[0] = {.cte_esz = 8, .dte_esz = 8, .ite_esz = 8,
+	[0] = {
+	 .cte_esz = ABI_0_ESZ,
+	 .dte_esz = ABI_0_ESZ,
+	 .ite_esz = ABI_0_ESZ,
 	 .save_tables = vgic_its_save_tables_v0,
 	 .restore_tables = vgic_its_restore_tables_v0,
 	 .commit = vgic_its_commit_v0,
@@ -183,7 +189,7 @@ inline const struct vgic_its_abi *vgic_its_get_abi(struct vgic_its *its)
 	return &its_table_abi_versions[its->abi_rev];
 }
 
-int vgic_its_set_abi(struct vgic_its *its, int rev)
+static int vgic_its_set_abi(struct vgic_its *its, u32 rev)
 {
 	const struct vgic_its_abi *abi;
 
@@ -1881,14 +1887,14 @@ typedef int (*entry_fn_t)(struct vgic_its *its, u32 id, void *entry,
  * Return: < 0 on error, 0 if last element was identified, 1 otherwise
  * (the last element may not be found on second level tables)
  */
-static int scan_its_table(struct vgic_its *its, gpa_t base, int size, int esz,
+static int scan_its_table(struct vgic_its *its, gpa_t base, int size, u32 esz,
 			  int start_id, entry_fn_t fn, void *opaque)
 {
 	struct kvm *kvm = its->dev->kvm;
 	unsigned long len = size;
 	int id = start_id;
 	gpa_t gpa = base;
-	char entry[esz];
+	char entry[ESZ_MAX];
 	int ret;
 
 	memset(entry, 0, esz);
