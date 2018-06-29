@@ -747,13 +747,15 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				 * old element will be freed immediately.
 				 * Otherwise return an error
 				 */
-				atomic_dec(&htab->count);
-				return ERR_PTR(-E2BIG);
+				l_new = ERR_PTR(-E2BIG);
+				goto dec_count;
 			}
 		l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
 				     htab->map.numa_node);
-		if (!l_new)
-			return ERR_PTR(-ENOMEM);
+		if (!l_new) {
+			l_new = ERR_PTR(-ENOMEM);
+			goto dec_count;
+		}
 	}
 
 	memcpy(l_new->key, key, key_size);
@@ -766,7 +768,8 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 						  GFP_ATOMIC | __GFP_NOWARN);
 			if (!pptr) {
 				kfree(l_new);
-				return ERR_PTR(-ENOMEM);
+				l_new = ERR_PTR(-ENOMEM);
+				goto dec_count;
 			}
 		}
 
@@ -779,6 +782,9 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 	}
 
 	l_new->hash = hash;
+	return l_new;
+dec_count:
+	atomic_dec(&htab->count);
 	return l_new;
 }
 
