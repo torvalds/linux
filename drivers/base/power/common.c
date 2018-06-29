@@ -153,6 +153,23 @@ struct device *dev_pm_domain_attach_by_id(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
 
 /**
+ * dev_pm_domain_attach_by_name - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @name: The name of the PM domain.
+ *
+ * For a detailed function description, see dev_pm_domain_attach_by_id().
+ */
+struct device *dev_pm_domain_attach_by_name(struct device *dev,
+					    char *name)
+{
+	if (dev->pm_domain)
+		return ERR_PTR(-EEXIST);
+
+	return genpd_dev_pm_attach_by_name(dev, name);
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
+
+/**
  * dev_pm_domain_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
