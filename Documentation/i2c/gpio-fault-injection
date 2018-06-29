@@ -60,3 +60,22 @@ above, the bus master under test should detect this condition and try a bus
 recovery. This time, however, it should succeed and the device should release
 SDA after toggling SCL.
 
+"incomplete_write_byte"
+-----------------------
+
+Similar to above, this file is write only and you need to write the address of
+an existing I2C client device to it.
+
+The injector will again stop at one ACK phase, so the device will keep SDA low
+because it acknowledges data. However, there are two differences compared to
+'incomplete_address_phase':
+
+a) the message sent out will be a write message
+b) after the address byte, a 0x00 byte will be transferred. Then, stop at ACK.
+
+This is a highly delicate state, the device is set up to write any data to
+register 0x00 (if it has registers) when further clock pulses happen on SCL.
+This is why bus recovery (up to 9 clock pulses) must either check SDA or send
+additional STOP conditions to ensure the bus has been released. Otherwise
+random data will be written to a device!
+
