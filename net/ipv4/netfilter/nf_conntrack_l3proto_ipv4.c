@@ -38,22 +38,6 @@ struct conntrack4_net {
 	unsigned int users;
 };
 
-static bool ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
-			      struct nf_conntrack_tuple *tuple)
-{
-	const __be32 *ap;
-	__be32 _addrs[2];
-	ap = skb_header_pointer(skb, nhoff + offsetof(struct iphdr, saddr),
-				sizeof(u_int32_t) * 2, _addrs);
-	if (ap == NULL)
-		return false;
-
-	tuple->src.u3.ip = ap[0];
-	tuple->dst.u3.ip = ap[1];
-
-	return true;
-}
-
 static bool ipv4_invert_tuple(struct nf_conntrack_tuple *tuple,
 			      const struct nf_conntrack_tuple *orig)
 {
@@ -322,7 +306,6 @@ static void ipv4_hooks_unregister(struct net *net)
 
 const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 	.l3proto	 = PF_INET,
-	.pkt_to_tuple	 = ipv4_pkt_to_tuple,
 	.invert_tuple	 = ipv4_invert_tuple,
 	.get_l4proto	 = ipv4_get_l4proto,
 	.net_ns_get	 = ipv4_hooks_register,

@@ -25,13 +25,6 @@ struct nf_conntrack_l3proto {
 	u16 nla_size;
 
 	/*
-	 * Try to fill in the third arg: nhoff is offset of l3 proto
-         * hdr.  Return true if possible.
-	 */
-	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int nhoff,
-			     struct nf_conntrack_tuple *tuple);
-
-	/*
 	 * Invert the per-proto part of the tuple: ie. turn xmit into reply.
 	 * Some packets can't be inverted: return 0 in that case.
 	 */

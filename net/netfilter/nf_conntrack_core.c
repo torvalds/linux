@@ -230,14 +230,42 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		u_int8_t protonum,
 		struct net *net,
 		struct nf_conntrack_tuple *tuple,
-		const struct nf_conntrack_l3proto *l3proto,
 		const struct nf_conntrack_l4proto *l4proto)
 {
+	unsigned int size;
+	const __be32 *ap;
+	__be32 _addrs[8];
+
 	memset(tuple, 0, sizeof(*tuple));
 
 	tuple->src.l3num = l3num;
-	if (l3proto->pkt_to_tuple(skb, nhoff, tuple) == 0)
+	switch (l3num) {
+	case NFPROTO_IPV4:
+		nhoff += offsetof(struct iphdr, saddr);
+		size = 2 * sizeof(__be32);
+		break;
+	case NFPROTO_IPV6:
+		nhoff += offsetof(struct ipv6hdr, saddr);
+		size = sizeof(_addrs);
+		break;
+	default:
+		return true;
+	}
+
+	ap = skb_header_pointer(skb, nhoff, size, _addrs);
+	if (!ap)
 		return false;
+
+	switch (l3num) {
+	case NFPROTO_IPV4:
+		tuple->src.u3.ip = ap[0];
+		tuple->dst.u3.ip = ap[1];
+		break;
+	case NFPROTO_IPV6:
+		memcpy(tuple->src.u3.ip6, ap, sizeof(tuple->src.u3.ip6));
+		memcpy(tuple->dst.u3.ip6, ap + 4, sizeof(tuple->dst.u3.ip6));
+		break;
+	}
 
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
@@ -267,7 +295,7 @@ bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 	l4proto = __nf_ct_l4proto_find(l3num, protonum);
 
 	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple,
-			      l3proto, l4proto);
+			      l4proto);
 
 	rcu_read_unlock();
 	return ret;
@@ -1318,8 +1346,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	u32 hash;
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
-			     dataoff, l3num, protonum, net, &tuple, l3proto,
-			     l4proto)) {
+			     dataoff, l3num, protonum, net, &tuple, l4proto)) {
 		pr_debug("Can't get tuple\n");
 		return 0;
 	}
@@ -1633,7 +1660,7 @@ static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
 	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
-			     l4num, net, &tuple, l3proto, l4proto))
+			     l4num, net, &tuple, l4proto))
 		return -1;
 
 	if (ct->status & IPS_SRC_NAT) {
