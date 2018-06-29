@@ -372,7 +372,7 @@ static int tpm_request_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
 
-	if (flags & TPM_TRANSMIT_RAW)
+	if (flags & TPM_TRANSMIT_NESTED)
 		return 0;
 
 	if (!chip->ops->request_locality)
@@ -391,7 +391,7 @@ static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
 {
 	int rc;
 
-	if (flags & TPM_TRANSMIT_RAW)
+	if (flags & TPM_TRANSMIT_NESTED)
 		return;
 
 	if (!chip->ops->relinquish_locality)
@@ -406,7 +406,7 @@ static void tpm_relinquish_locality(struct tpm_chip *chip, unsigned int flags)
 
 static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
 {
-	if (flags & TPM_TRANSMIT_RAW)
+	if (flags & TPM_TRANSMIT_NESTED)
 		return 0;
 
 	if (!chip->ops->cmd_ready)
@@ -417,7 +417,7 @@ static int tpm_cmd_ready(struct tpm_chip *chip, unsigned int flags)
 
 static int tpm_go_idle(struct tpm_chip *chip, unsigned int flags)
 {
-	if (flags & TPM_TRANSMIT_RAW)
+	if (flags & TPM_TRANSMIT_NESTED)
 		return 0;
 
 	if (!chip->ops->go_idle)
@@ -466,9 +466,8 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 		return -E2BIG;
 	}
 
-	if (!(flags & TPM_TRANSMIT_UNLOCKED))
+	if (!(flags & TPM_TRANSMIT_UNLOCKED) && !(flags & TPM_TRANSMIT_NESTED))
 		mutex_lock(&chip->tpm_mutex);
-
 
 	if (chip->ops->clk_enable != NULL)
 		chip->ops->clk_enable(chip, true);
@@ -559,7 +558,7 @@ out_no_locality:
 	if (chip->ops->clk_enable != NULL)
 		chip->ops->clk_enable(chip, false);
 
-	if (!(flags & TPM_TRANSMIT_UNLOCKED))
+	if (!(flags & TPM_TRANSMIT_UNLOCKED) && !(flags & TPM_TRANSMIT_NESTED))
 		mutex_unlock(&chip->tpm_mutex);
 	return rc ? rc : len;
 }
