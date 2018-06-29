@@ -155,11 +155,13 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			/* We are going to append to the frags_list of head.
 			 * Need to unshare the frag_list.
 			 */
-			err = skb_unclone(head, GFP_ATOMIC);
-			if (err) {
-				STRP_STATS_INCR(strp->stats.mem_fail);
-				desc->error = err;
-				return 0;
+			if (skb_has_frag_list(head)) {
+				err = skb_unclone(head, GFP_ATOMIC);
+				if (err) {
+					STRP_STATS_INCR(strp->stats.mem_fail);
+					desc->error = err;
+					return 0;
+				}
 			}
 
 			if (unlikely(skb_shinfo(head)->frag_list)) {
@@ -216,14 +218,16 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			memset(stm, 0, sizeof(*stm));
 			stm->strp.offset = orig_offset + eaten;
 		} else {
-			/* Unclone since we may be appending to an skb that we
+			/* Unclone if we are appending to an skb that we
 			 * already share a frag_list with.
 			 */
-			err = skb_unclone(skb, GFP_ATOMIC);
-			if (err) {
-				STRP_STATS_INCR(strp->stats.mem_fail);
-				desc->error = err;
-				break;
+			if (skb_has_frag_list(skb)) {
+				err = skb_unclone(skb, GFP_ATOMIC);
+				if (err) {
+					STRP_STATS_INCR(strp->stats.mem_fail);
+					desc->error = err;
+					break;
+				}
 			}
 
 			stm = _strp_msg(head);
