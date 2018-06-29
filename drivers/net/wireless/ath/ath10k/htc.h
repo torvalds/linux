@@ -59,6 +59,7 @@ enum ath10k_htc_tx_flags {
 };
 
 enum ath10k_htc_rx_flags {
+	ATH10K_HTC_FLAGS_RECV_1MORE_BLOCK = 0x01,
 	ATH10K_HTC_FLAG_TRAILER_PRESENT = 0x02,
 	ATH10K_HTC_FLAG_BUNDLE_MASK     = 0xF0
 };
