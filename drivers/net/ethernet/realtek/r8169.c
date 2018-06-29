@@ -384,12 +384,6 @@ enum rtl_registers {
 	FuncForceEvent	= 0xfc,
 };
 
-enum rtl8110_registers {
-	TBICSR			= 0x64,
-	TBI_ANAR		= 0x68,
-	TBI_LPAR		= 0x6a,
-};
-
 enum rtl8168_8101_registers {
 	CSIDR			= 0x64,
 	CSIAR			= 0x68,
@@ -555,14 +549,6 @@ enum rtl_register_content {
 	LanWake		= (1 << 1),	/* LanWake enable/disable */
 	PMEStatus	= (1 << 0),	/* PME status can be reset by PCI RST# */
 	ASPM_en		= (1 << 0),	/* ASPM enable */
-
-	/* TBICSR p.28 */
-	TBIReset	= 0x80000000,
-	TBILoopback	= 0x40000000,
-	TBINwEnable	= 0x20000000,
-	TBINwRestart	= 0x10000000,
-	TBILinkOk	= 0x02000000,
-	TBINwComplete	= 0x01000000,
 
 	/* CPlusCmd p.31 */
 	EnableBist	= (1 << 15),	// 8168 8101
@@ -761,14 +747,7 @@ struct rtl8169_private {
 		void (*disable)(struct rtl8169_private *);
 	} jumbo_ops;
 
-	int (*set_speed)(struct net_device *, u8 aneg, u16 sp, u8 dpx, u32 adv);
-	int (*get_link_ksettings)(struct net_device *,
-				  struct ethtool_link_ksettings *);
-	void (*phy_reset_enable)(struct rtl8169_private *tp);
 	void (*hw_start)(struct rtl8169_private *tp);
-	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
-	unsigned int (*link_ok)(struct rtl8169_private *tp);
-	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
 	bool (*tso_csum)(struct rtl8169_private *, struct sk_buff *, u32 *);
 
 	struct {
@@ -1463,29 +1442,14 @@ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 	RTL_R8(tp, ChipCmd);
 }
 
-static unsigned int rtl8169_tbi_reset_pending(struct rtl8169_private *tp)
-{
-	return RTL_R32(tp, TBICSR) & TBIReset;
-}
-
 static unsigned int rtl8169_xmii_reset_pending(struct rtl8169_private *tp)
 {
 	return rtl_readphy(tp, MII_BMCR) & BMCR_RESET;
 }
 
-static unsigned int rtl8169_tbi_link_ok(struct rtl8169_private *tp)
-{
-	return RTL_R32(tp, TBICSR) & TBILinkOk;
-}
-
 static unsigned int rtl8169_xmii_link_ok(struct rtl8169_private *tp)
 {
 	return RTL_R8(tp, PHYstatus) & LinkStatus;
-}
-
-static void rtl8169_tbi_reset_enable(struct rtl8169_private *tp)
-{
-	RTL_W32(tp, TBICSR, RTL_R32(tp, TBICSR) | TBIReset);
 }
 
 static void rtl8169_xmii_reset_enable(struct rtl8169_private *tp)
@@ -1557,7 +1521,7 @@ static void rtl8169_check_link_status(struct net_device *dev,
 {
 	struct device *d = tp_to_dev(tp);
 
-	if (tp->link_ok(tp)) {
+	if (rtl8169_xmii_link_ok(tp)) {
 		rtl_link_chg_patch(tp);
 		/* This is to cancel a scheduled suspend if there's one. */
 		pm_request_resume(d);
@@ -1744,28 +1708,6 @@ static int rtl8169_get_regs_len(struct net_device *dev)
 	return R8169_REGS_SIZE;
 }
 
-static int rtl8169_set_speed_tbi(struct net_device *dev,
-				 u8 autoneg, u16 speed, u8 duplex, u32 ignored)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int ret = 0;
-	u32 reg;
-
-	reg = RTL_R32(tp, TBICSR);
-	if ((autoneg == AUTONEG_DISABLE) && (speed == SPEED_1000) &&
-	    (duplex == DUPLEX_FULL)) {
-		RTL_W32(tp, TBICSR, reg & ~(TBINwEnable | TBINwRestart));
-	} else if (autoneg == AUTONEG_ENABLE)
-		RTL_W32(tp, TBICSR, reg | TBINwEnable | TBINwRestart);
-	else {
-		netif_warn(tp, link, dev,
-			   "incorrect speed setting refused in TBI mode\n");
-		ret = -EOPNOTSUPP;
-	}
-
-	return ret;
-}
-
 static int rtl8169_set_speed_xmii(struct net_device *dev,
 				  u8 autoneg, u16 speed, u8 duplex, u32 adv)
 {
@@ -1849,7 +1791,7 @@ static int rtl8169_set_speed(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	int ret;
 
-	ret = tp->set_speed(dev, autoneg, speed, duplex, advertising);
+	ret = rtl8169_set_speed_xmii(dev, autoneg, speed, duplex, advertising);
 	if (ret < 0)
 		goto out;
 
@@ -1925,53 +1867,14 @@ static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 }
 
-static int rtl8169_get_link_ksettings_tbi(struct net_device *dev,
-					  struct ethtool_link_ksettings *cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	u32 status;
-	u32 supported, advertising;
-
-	supported =
-		SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_FIBRE;
-	cmd->base.port = PORT_FIBRE;
-
-	status = RTL_R32(tp, TBICSR);
-	advertising = (status & TBINwEnable) ?  ADVERTISED_Autoneg : 0;
-	cmd->base.autoneg = !!(status & TBINwEnable);
-
-	cmd->base.speed = SPEED_1000;
-	cmd->base.duplex = DUPLEX_FULL; /* Always set */
-
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
-						supported);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
-						advertising);
-
-	return 0;
-}
-
-static int rtl8169_get_link_ksettings_xmii(struct net_device *dev,
-					   struct ethtool_link_ksettings *cmd)
+static int rtl8169_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
 	mii_ethtool_get_link_ksettings(&tp->mii, cmd);
 
 	return 0;
-}
-
-static int rtl8169_get_link_ksettings(struct net_device *dev,
-				      struct ethtool_link_ksettings *cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int rc;
-
-	rtl_lock_work(tp);
-	rc = tp->get_link_ksettings(dev, cmd);
-	rtl_unlock_work(tp);
-
-	return rc;
 }
 
 static int rtl8169_set_link_ksettings(struct net_device *dev,
@@ -4395,7 +4298,7 @@ static void rtl_phy_work(struct rtl8169_private *tp)
 	struct timer_list *timer = &tp->timer;
 	unsigned long timeout = RTL8169_PHY_TIMEOUT;
 
-	if (tp->phy_reset_pending(tp)) {
+	if (rtl8169_xmii_reset_pending(tp)) {
 		/*
 		 * A busy loop could burn quite a few cycles on nowadays CPU.
 		 * Let's delay the execution of the timer for a few ticks.
@@ -4404,12 +4307,12 @@ static void rtl_phy_work(struct rtl8169_private *tp)
 		goto out_mod_timer;
 	}
 
-	if (tp->link_ok(tp))
+	if (rtl8169_xmii_link_ok(tp))
 		return;
 
 	netif_dbg(tp, link, tp->dev, "PHY reset until link up\n");
 
-	tp->phy_reset_enable(tp);
+	rtl8169_xmii_reset_enable(tp);
 
 out_mod_timer:
 	mod_timer(timer, jiffies + timeout);
@@ -4430,20 +4333,20 @@ static void rtl8169_phy_timer(struct timer_list *t)
 
 DECLARE_RTL_COND(rtl_phy_reset_cond)
 {
-	return tp->phy_reset_pending(tp);
+	return rtl8169_xmii_reset_pending(tp);
 }
 
 static void rtl8169_phy_reset(struct net_device *dev,
 			      struct rtl8169_private *tp)
 {
-	tp->phy_reset_enable(tp);
+	rtl8169_xmii_reset_enable(tp);
 	rtl_msleep_loop_wait_low(tp, &rtl_phy_reset_cond, 1, 100);
 }
 
 static bool rtl_tbi_enabled(struct rtl8169_private *tp)
 {
 	return (tp->mac_version == RTL_GIGA_MAC_VER_01) &&
-	    (RTL_R8(tp, PHYstatus) & TBI_Enable);
+	       (RTL_R8(tp, PHYstatus) & TBI_Enable);
 }
 
 static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
@@ -4478,9 +4381,6 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 			  (tp->mii.supports_gmii ?
 			   ADVERTISED_1000baseT_Half |
 			   ADVERTISED_1000baseT_Full : 0));
-
-	if (rtl_tbi_enabled(tp))
-		netif_info(tp, link, dev, "TBI auto-negotiating\n");
 }
 
 static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
@@ -4523,14 +4423,6 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct mii_ioctl_data *data = if_mii(ifr);
-
-	return netif_running(dev) ? tp->do_ioctl(tp, data, cmd) : -ENODEV;
-}
-
 static int rtl_xmii_ioctl(struct rtl8169_private *tp,
 			  struct mii_ioctl_data *data, int cmd)
 {
@@ -4550,9 +4442,12 @@ static int rtl_xmii_ioctl(struct rtl8169_private *tp,
 	return -EOPNOTSUPP;
 }
 
-static int rtl_tbi_ioctl(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd)
+static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	return -EOPNOTSUPP;
+	struct rtl8169_private *tp = netdev_priv(dev);
+	struct mii_ioctl_data *data = if_mii(ifr);
+
+	return netif_running(dev) ? rtl_xmii_ioctl(tp, data, cmd) : -ENODEV;
 }
 
 static void rtl_init_mdio_ops(struct rtl8169_private *tp)
@@ -7676,6 +7571,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, cfg->default_ver);
 
+	if (rtl_tbi_enabled(tp)) {
+		dev_err(&pdev->dev, "TBI fiber mode not supported\n");
+		return -ENODEV;
+	}
+
 	tp->cp_cmd = RTL_R16(tp, CPlusCmd);
 
 	if ((sizeof(dma_addr_t) > 4) &&
@@ -7723,22 +7623,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* override BIOS settings, use userspace tools to enable WOL */
 	__rtl8169_set_wol(tp, 0);
-
-	if (rtl_tbi_enabled(tp)) {
-		tp->set_speed = rtl8169_set_speed_tbi;
-		tp->get_link_ksettings = rtl8169_get_link_ksettings_tbi;
-		tp->phy_reset_enable = rtl8169_tbi_reset_enable;
-		tp->phy_reset_pending = rtl8169_tbi_reset_pending;
-		tp->link_ok = rtl8169_tbi_link_ok;
-		tp->do_ioctl = rtl_tbi_ioctl;
-	} else {
-		tp->set_speed = rtl8169_set_speed_xmii;
-		tp->get_link_ksettings = rtl8169_get_link_ksettings_xmii;
-		tp->phy_reset_enable = rtl8169_xmii_reset_enable;
-		tp->phy_reset_pending = rtl8169_xmii_reset_pending;
-		tp->link_ok = rtl8169_xmii_link_ok;
-		tp->do_ioctl = rtl_xmii_ioctl;
-	}
 
 	mutex_init(&tp->wk.mutex);
 	u64_stats_init(&tp->rx_stats.syncp);
