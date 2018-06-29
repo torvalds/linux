@@ -1536,6 +1536,7 @@ struct kbase_device {
 	struct kbase_devfreq_opp *opp_table;
 	int num_opps;
 	struct kbasep_pm_metrics last_devfreq_metrics;
+	struct thermal_opp_info *opp_info;
 #ifdef CONFIG_DEVFREQ_THERMAL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 	struct devfreq_cooling_device *devfreq_cooling;
