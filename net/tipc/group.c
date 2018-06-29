@@ -918,3 +918,35 @@ void tipc_group_member_evt(struct tipc_group *grp,
 	}
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 }
+
+int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
+{
+	struct nlattr *group = nla_nest_start(skb, TIPC_NLA_SOCK_GROUP);
+
+	if (nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_ID,
+			grp->type) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_INSTANCE,
+			grp->instance) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_GROUP_BC_SEND_NEXT,
+			grp->bc_snd_nxt))
+		goto group_msg_cancel;
+
+	if (grp->scope == TIPC_NODE_SCOPE)
+		if (nla_put_flag(skb, TIPC_NLA_SOCK_GROUP_NODE_SCOPE))
+			goto group_msg_cancel;
+
+	if (grp->scope == TIPC_CLUSTER_SCOPE)
+		if (nla_put_flag(skb, TIPC_NLA_SOCK_GROUP_CLUSTER_SCOPE))
+			goto group_msg_cancel;
+
+	if (*grp->open)
+		if (nla_put_flag(skb, TIPC_NLA_SOCK_GROUP_OPEN))
+			goto group_msg_cancel;
+
+	nla_nest_end(skb, group);
+	return 0;
+
+group_msg_cancel:
+	nla_nest_cancel(skb, group);
+	return -1;
+}

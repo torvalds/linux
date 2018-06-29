@@ -3316,6 +3316,11 @@ int tipc_sk_fill_sock_diag(struct sk_buff *skb, struct netlink_callback *cb,
 		goto stat_msg_cancel;
 
 	nla_nest_end(skb, stat);
+
+	if (tsk->group)
+		if (tipc_group_fill_sock_diag(tsk->group, skb))
+			goto stat_msg_cancel;
+
 	nla_nest_end(skb, attrs);
 
 	return 0;

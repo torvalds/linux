@@ -72,4 +72,5 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			       u32 port, struct sk_buff_head *xmitq);
 u16 tipc_group_bc_snd_nxt(struct tipc_group *grp);
 void tipc_group_update_member(struct tipc_member *m, int len);
+int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb);
 #endif
