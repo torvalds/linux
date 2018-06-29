@@ -131,6 +131,16 @@
 			 */
 		};
 
+		vhub: usb-vhub@1e6a0000 {
+			compatible = "aspeed,ast2400-usb-vhub";
+			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2d_default>;
+			status = "disabled";
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
