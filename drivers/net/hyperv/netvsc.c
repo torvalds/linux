@@ -62,6 +62,41 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       VM_PKT_DATA_INBAND, 0);
 }
 
+/* Worker to setup sub channels on initial setup
+ * Initial hotplug event occurs in softirq context
+ * and can't wait for channels.
+ */
+static void netvsc_subchan_work(struct work_struct *w)
+{
+	struct netvsc_device *nvdev =
+		container_of(w, struct netvsc_device, subchan_work);
+	struct rndis_device *rdev;
+	int i, ret;
+
+	/* Avoid deadlock with device removal already under RTNL */
+	if (!rtnl_trylock()) {
+		schedule_work(w);
+		return;
+	}
+
+	rdev = nvdev->extension;
+	if (rdev) {
+		ret = rndis_set_subchannel(rdev->ndev, nvdev);
+		if (ret == 0) {
+			netif_device_attach(rdev->ndev);
+		} else {
+			/* fallback to only primary channel */
+			for (i = 1; i < nvdev->num_chn; i++)
+				netif_napi_del(&nvdev->chan_table[i].napi);
+
+			nvdev->max_chn = 1;
+			nvdev->num_chn = 1;
+		}
+	}
+
+	rtnl_unlock();
+}
+
 static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
@@ -78,7 +113,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_completion(&net_device->channel_init_wait);
 	init_waitqueue_head(&net_device->subchan_open);
-	INIT_WORK(&net_device->subchan_work, rndis_set_subchannel);
+	INIT_WORK(&net_device->subchan_work, netvsc_subchan_work);
 
 	return net_device;
 }

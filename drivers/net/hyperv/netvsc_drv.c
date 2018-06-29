@@ -911,8 +911,20 @@ static int netvsc_attach(struct net_device *ndev,
 	if (IS_ERR(nvdev))
 		return PTR_ERR(nvdev);
 
-	/* Note: enable and attach happen when sub-channels setup */
+	if (nvdev->num_chn > 1) {
+		ret = rndis_set_subchannel(ndev, nvdev);
 
+		/* if unavailable, just proceed with one queue */
+		if (ret) {
+			nvdev->max_chn = 1;
+			nvdev->num_chn = 1;
+		}
+	}
+
+	/* In any case device is now ready */
+	netif_device_attach(ndev);
+
+	/* Note: enable and attach happen when sub-channels setup */
 	netif_carrier_off(ndev);
 
 	if (netif_running(ndev)) {
@@ -2034,6 +2046,9 @@ static int netvsc_probe(struct hv_device *dev,
 	}
 
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
+
+	if (nvdev->num_chn > 1)
+		schedule_work(&nvdev->subchan_work);
 
 	/* hw_features computed in rndis_netdev_set_hwcaps() */
 	net->features = net->hw_features |
