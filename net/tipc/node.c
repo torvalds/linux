@@ -45,6 +45,7 @@
 #include "netlink.h"
 
 #define INVALID_NODE_SIG	0x10000
+#define NODE_CLEANUP_AFTER	300000
 
 /* Flags used to take different actions according to flag type
  * TIPC_NOTIFY_NODE_DOWN: notify node is down
@@ -96,6 +97,7 @@ struct tipc_bclink_entry {
  * @link_id: local and remote bearer ids of changing link, if any
  * @publ_list: list of publications
  * @rcu: rcu struct for tipc_node
+ * @delete_at: indicates the time for deleting a down node
  */
 struct tipc_node {
 	u32 addr;
@@ -121,6 +123,7 @@ struct tipc_node {
 	unsigned long keepalive_intv;
 	struct timer_list timer;
 	struct rcu_head rcu;
+	unsigned long delete_at;
 };
 
 /* Node FSM states and events:
@@ -160,6 +163,7 @@ static struct tipc_node *tipc_node_find(struct net *net, u32 addr);
 static struct tipc_node *tipc_node_find_by_id(struct net *net, u8 *id);
 static void tipc_node_put(struct tipc_node *node);
 static bool node_is_up(struct tipc_node *n);
+static void tipc_node_delete_from_list(struct tipc_node *node);
 
 struct tipc_sock_conn {
 	u32 port;
@@ -390,6 +394,7 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 	for (i = 0; i < MAX_BEARERS; i++)
 		spin_lock_init(&n->links[i].lock);
 	n->state = SELF_DOWN_PEER_LEAVING;
+	n->delete_at = jiffies + msecs_to_jiffies(NODE_CLEANUP_AFTER);
 	n->signature = INVALID_NODE_SIG;
 	n->active_links[0] = INVALID_BEARER_ID;
 	n->active_links[1] = INVALID_BEARER_ID;
@@ -433,11 +438,16 @@ static void tipc_node_calculate_timer(struct tipc_node *n, struct tipc_link *l)
 	tipc_link_set_abort_limit(l, tol / n->keepalive_intv);
 }
 
-static void tipc_node_delete(struct tipc_node *node)
+static void tipc_node_delete_from_list(struct tipc_node *node)
 {
 	list_del_rcu(&node->list);
 	hlist_del_rcu(&node->hash);
 	tipc_node_put(node);
+}
+
+static void tipc_node_delete(struct tipc_node *node)
+{
+	tipc_node_delete_from_list(node);
 
 	del_timer_sync(&node->timer);
 	tipc_node_put(node);
@@ -544,6 +554,42 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 	tipc_node_put(node);
 }
 
+static void  tipc_node_clear_links(struct tipc_node *node)
+{
+	int i;
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		struct tipc_link_entry *le = &node->links[i];
+
+		if (le->link) {
+			kfree(le->link);
+			le->link = NULL;
+			node->link_cnt--;
+		}
+	}
+}
+
+/* tipc_node_cleanup - delete nodes that does not
+ * have active links for NODE_CLEANUP_AFTER time
+ */
+static int tipc_node_cleanup(struct tipc_node *peer)
+{
+	struct tipc_net *tn = tipc_net(peer->net);
+	bool deleted = false;
+
+	spin_lock_bh(&tn->node_list_lock);
+	tipc_node_write_lock(peer);
+
+	if (!node_is_up(peer) && time_after(jiffies, peer->delete_at)) {
+		tipc_node_clear_links(peer);
+		tipc_node_delete_from_list(peer);
+		deleted = true;
+	}
+	tipc_node_write_unlock(peer);
+	spin_unlock_bh(&tn->node_list_lock);
+	return deleted;
+}
+
 /* tipc_node_timeout - handle expiration of node timer
  */
 static void tipc_node_timeout(struct timer_list *t)
@@ -554,6 +600,12 @@ static void tipc_node_timeout(struct timer_list *t)
 	int remains = n->link_cnt;
 	int bearer_id;
 	int rc = 0;
+
+	if (!node_is_up(n) && tipc_node_cleanup(n)) {
+		/*Removing the reference of Timer*/
+		tipc_node_put(n);
+		return;
+	}
 
 	__skb_queue_head_init(&xmitq);
 
@@ -1173,6 +1225,7 @@ static void node_lost_contact(struct tipc_node *n,
 	uint i;
 
 	pr_debug("Lost contact with %x\n", n->addr);
+	n->delete_at = jiffies + msecs_to_jiffies(NODE_CLEANUP_AFTER);
 
 	/* Clean up broadcast state */
 	tipc_bcast_remove_peer(n->net, n->bc_entry.link);
@@ -1742,7 +1795,6 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	struct tipc_node *peer;
 	u32 addr;
 	int err;
-	int i;
 
 	/* We identify the peer by its net */
 	if (!info->attrs[TIPC_NLA_NET])
@@ -1777,15 +1829,7 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	for (i = 0; i < MAX_BEARERS; i++) {
-		struct tipc_link_entry *le = &peer->links[i];
-
-		if (le->link) {
-			kfree(le->link);
-			le->link = NULL;
-			peer->link_cnt--;
-		}
-	}
+	tipc_node_clear_links(peer);
 	tipc_node_write_unlock(peer);
 	tipc_node_delete(peer);
 
