@@ -265,7 +265,7 @@ ENTRY(sha256_mb_mgr_get_comp_job_avx2)
 	vpinsrd	$1, _args_digest+1*32(state, idx, 4), %xmm0, %xmm0
 	vpinsrd	$2, _args_digest+2*32(state, idx, 4), %xmm0, %xmm0
 	vpinsrd	$3, _args_digest+3*32(state, idx, 4), %xmm0, %xmm0
-	vmovd   _args_digest(state , idx, 4) , %xmm0
+	vmovd	_args_digest+4*32(state, idx, 4), %xmm1
 	vpinsrd	$1, _args_digest+5*32(state, idx, 4), %xmm1, %xmm1
 	vpinsrd	$2, _args_digest+6*32(state, idx, 4), %xmm1, %xmm1
 	vpinsrd	$3, _args_digest+7*32(state, idx, 4), %xmm1, %xmm1
