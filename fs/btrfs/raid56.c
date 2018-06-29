@@ -162,7 +162,6 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio);
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio);
 static void rmw_work(struct btrfs_work *work);
 static void read_rebuild_work(struct btrfs_work *work);
-static void async_rmw_stripe(struct btrfs_raid_bio *rbio);
 static void async_read_rebuild(struct btrfs_raid_bio *rbio);
 static int fail_bio_stripe(struct btrfs_raid_bio *rbio, struct bio *bio);
 static int fail_rbio_index(struct btrfs_raid_bio *rbio, int failed);
@@ -811,7 +810,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 				async_read_rebuild(next);
 			} else if (next->operation == BTRFS_RBIO_WRITE) {
 				steal_rbio(rbio, next);
-				async_rmw_stripe(next);
+				start_async_work(next, rmw_work);
 			} else if (next->operation == BTRFS_RBIO_PARITY_SCRUB) {
 				steal_rbio(rbio, next);
 				async_scrub_parity(next);
@@ -1501,12 +1500,6 @@ cleanup:
 	rbio_orig_end_io(rbio, BLK_STS_IOERR);
 }
 
-static void async_rmw_stripe(struct btrfs_raid_bio *rbio)
-{
-	btrfs_init_work(&rbio->work, btrfs_rmw_helper, rmw_work, NULL, NULL);
-	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
-}
-
 static void async_read_rebuild(struct btrfs_raid_bio *rbio)
 {
 	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
@@ -1645,7 +1638,7 @@ static int partial_stripe_write(struct btrfs_raid_bio *rbio)
 
 	ret = lock_stripe_add(rbio);
 	if (ret == 0)
-		async_rmw_stripe(rbio);
+		start_async_work(rbio, rmw_work);
 	return 0;
 }
 
