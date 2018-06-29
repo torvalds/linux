@@ -3218,6 +3218,15 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 		if (tcp_is_reno(tp)) {
 			tcp_remove_reno_sacks(sk, pkts_acked);
+
+			/* If any of the cumulatively ACKed segments was
+			 * retransmitted, non-SACK case cannot confirm that
+			 * progress was due to original transmission due to
+			 * lack of TCPCB_SACKED_ACKED bits even if some of
+			 * the packets may have been never retransmitted.
+			 */
+			if (flag & FLAG_RETRANS_DATA_ACKED)
+				flag &= ~FLAG_ORIG_SACK_ACKED;
 		} else {
 			int delta;
 
