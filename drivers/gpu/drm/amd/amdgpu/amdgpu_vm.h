@@ -164,6 +164,14 @@ struct amdgpu_vm_pt {
 #define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
 #define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
 
+
+struct amdgpu_task_info {
+	char	process_name[TASK_COMM_LEN];
+	char	task_name[TASK_COMM_LEN];
+	pid_t	pid;
+	pid_t	tgid;
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
@@ -215,6 +223,9 @@ struct amdgpu_vm {
 
 	/* Valid while the PD is reserved or fenced */
 	uint64_t		pd_phys_addr;
+
+	/* Some basic info about the task */
+	struct amdgpu_task_info task_info;
 };
 
 struct amdgpu_vm_manager {
@@ -316,5 +327,10 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);
 void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
+
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+			 struct amdgpu_task_info *task_info);
+
+void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 
 #endif

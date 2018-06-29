@@ -2942,3 +2942,42 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	return 0;
 }
+
+/**
+ * amdgpu_vm_get_task_info - Extracts task info for a PASID.
+ *
+ * @dev: drm device pointer
+ * @pasid: PASID identifier for VM
+ * @task_info: task_info to fill.
+ */
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+			 struct amdgpu_task_info *task_info)
+{
+	struct amdgpu_vm *vm;
+
+	spin_lock(&adev->vm_manager.pasid_lock);
+
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	if (vm)
+		*task_info = vm->task_info;
+
+	spin_unlock(&adev->vm_manager.pasid_lock);
+}
+
+/**
+ * amdgpu_vm_set_task_info - Sets VMs task info.
+ *
+ * @vm: vm for which to set the info
+ */
+void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
+{
+	if (!vm->task_info.pid) {
+		vm->task_info.pid = current->pid;
+		get_task_comm(vm->task_info.task_name, current);
+
+		if (current->group_leader->mm == current->mm) {
+			vm->task_info.tgid = current->group_leader->pid;
+			get_task_comm(vm->task_info.process_name, current->group_leader);
+		}
+	}
+}
