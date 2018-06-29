@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
@@ -333,3 +334,5 @@ int qcom_llcc_probe(struct platform_device *pdev,
 	return qcom_llcc_cfg_program(pdev);
 }
 EXPORT_SYMBOL_GPL(qcom_llcc_probe);
+
+MODULE_LICENSE("GPL v2");
