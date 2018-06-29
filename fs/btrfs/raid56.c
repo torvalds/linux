@@ -1686,8 +1686,11 @@ static void run_plug(struct btrfs_plug_cb *plug)
 		list_del_init(&cur->plug_list);
 
 		if (rbio_is_full(cur)) {
+			int ret;
+
 			/* we have a full stripe, send it down */
-			full_stripe_write(cur);
+			ret = full_stripe_write(cur);
+			BUG_ON(ret);
 			continue;
 		}
 		if (last) {
