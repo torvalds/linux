@@ -680,7 +680,11 @@ static int rcar_pcie_phy_init_gen3(struct rcar_pcie *pcie)
 	if (err)
 		return err;
 
-	return phy_power_on(pcie->phy);
+	err = phy_power_on(pcie->phy);
+	if (err)
+		phy_exit(pcie->phy);
+
+	return err;
 }
 
 static int rcar_msi_alloc(struct rcar_msi *chip)
