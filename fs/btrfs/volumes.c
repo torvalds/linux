@@ -1001,7 +1001,7 @@ static void btrfs_close_bdev(struct btrfs_device *device)
 	blkdev_put(device->bdev, device->mode);
 }
 
-static void btrfs_prepare_close_one_device(struct btrfs_device *device)
+static void btrfs_close_one_device(struct btrfs_device *device)
 {
 	struct btrfs_fs_devices *fs_devices = device->fs_devices;
 	struct btrfs_device *new_device;
@@ -1019,6 +1019,8 @@ static void btrfs_prepare_close_one_device(struct btrfs_device *device)
 	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		fs_devices->missing_devices--;
 
+	btrfs_close_bdev(device);
+
 	new_device = btrfs_alloc_device(NULL, &device->devid,
 					device->uuid);
 	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
@@ -1032,38 +1034,22 @@ static void btrfs_prepare_close_one_device(struct btrfs_device *device)
 
 	list_replace_rcu(&device->dev_list, &new_device->dev_list);
 	new_device->fs_devices = device->fs_devices;
+
+	call_rcu(&device->rcu, free_device_rcu);
 }
 
 static int close_fs_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct btrfs_device *device, *tmp;
-	struct list_head pending_put;
-
-	INIT_LIST_HEAD(&pending_put);
 
 	if (--fs_devices->opened > 0)
 		return 0;
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry_safe(device, tmp, &fs_devices->devices, dev_list) {
-		btrfs_prepare_close_one_device(device);
-		list_add(&device->dev_list, &pending_put);
+		btrfs_close_one_device(device);
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
-
-	/*
-	 * btrfs_show_devname() is using the device_list_mutex,
-	 * sometimes call to blkdev_put() leads vfs calling
-	 * into this func. So do put outside of device_list_mutex,
-	 * as of now.
-	 */
-	while (!list_empty(&pending_put)) {
-		device = list_first_entry(&pending_put,
-				struct btrfs_device, dev_list);
-		list_del(&device->dev_list);
-		btrfs_close_bdev(device);
-		call_rcu(&device->rcu, free_device_rcu);
-	}
 
 	WARN_ON(fs_devices->open_devices);
 	WARN_ON(fs_devices->rw_devices);
