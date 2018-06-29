@@ -112,8 +112,28 @@ MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
 module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, 0444);
 MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
-#define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
+enum {
+	WIL_BOOT_ERR,
+	WIL_BOOT_VANILLA,
+	WIL_BOOT_PRODUCTION,
+	WIL_BOOT_DEVELOPMENT,
+};
+
+enum {
+	WIL_SIG_STATUS_VANILLA = 0x0,
+	WIL_SIG_STATUS_DEVELOPMENT = 0x1,
+	WIL_SIG_STATUS_PRODUCTION = 0x2,
+	WIL_SIG_STATUS_CORRUPTED_PRODUCTION = 0x3,
+};
+
+#define RST_DELAY (20) /* msec, for loop in @wil_wait_device_ready */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
+
+#define PMU_READY_DELAY_MS (4) /* ms, for sleep in @wil_wait_device_ready */
+
+#define OTP_HW_DELAY (200) /* usec, loop in @wil_wait_device_ready_talyn_mb */
+/* round up to be above 2 ms total */
+#define OTP_HW_COUNT (1 + 2000 / OTP_HW_DELAY)
 
 /*
  * Due to a hardware issue,
@@ -831,10 +851,145 @@ static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 	}
 }
 
-static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
+static int wil_wait_device_ready(struct wil6210_priv *wil, int no_flash)
 {
 	int delay = 0;
 	u32 x, x1 = 0;
+
+	/* wait until device ready. */
+	if (no_flash) {
+		msleep(PMU_READY_DELAY_MS);
+
+		wil_dbg_misc(wil, "Reset completed\n");
+	} else {
+		do {
+			msleep(RST_DELAY);
+			x = wil_r(wil, RGF_USER_BL +
+				  offsetof(struct bl_dedicated_registers_v0,
+					   boot_loader_ready));
+			if (x1 != x) {
+				wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n",
+					     x1, x);
+				x1 = x;
+			}
+			if (delay++ > RST_COUNT) {
+				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
+					x);
+				return -ETIME;
+			}
+		} while (x != BL_READY);
+
+		wil_dbg_misc(wil, "Reset completed in %d ms\n",
+			     delay * RST_DELAY);
+	}
+
+	return 0;
+}
+
+static int wil_wait_device_ready_talyn_mb(struct wil6210_priv *wil)
+{
+	u32 otp_hw;
+	u8 signature_status;
+	bool otp_signature_err;
+	bool hw_section_done;
+	u32 otp_qc_secured;
+	int delay = 0;
+
+	/* Wait for OTP signature test to complete */
+	usleep_range(2000, 2200);
+
+	wil->boot_config = WIL_BOOT_ERR;
+
+	/* Poll until OTP signature status is valid.
+	 * In vanilla and development modes, when signature test is complete
+	 * HW sets BIT_OTP_SIGNATURE_ERR_TALYN_MB.
+	 * In production mode BIT_OTP_SIGNATURE_ERR_TALYN_MB remains 0, poll
+	 * for signature status change to 2 or 3.
+	 */
+	do {
+		otp_hw = wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1);
+		signature_status = WIL_GET_BITS(otp_hw, 8, 9);
+		otp_signature_err = otp_hw & BIT_OTP_SIGNATURE_ERR_TALYN_MB;
+
+		if (otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_VANILLA) {
+			wil->boot_config = WIL_BOOT_VANILLA;
+			break;
+		}
+		if (otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_DEVELOPMENT) {
+			wil->boot_config = WIL_BOOT_DEVELOPMENT;
+			break;
+		}
+		if (!otp_signature_err &&
+		    signature_status == WIL_SIG_STATUS_PRODUCTION) {
+			wil->boot_config = WIL_BOOT_PRODUCTION;
+			break;
+		}
+		if  (!otp_signature_err &&
+		     signature_status ==
+		     WIL_SIG_STATUS_CORRUPTED_PRODUCTION) {
+			/* Unrecognized OTP signature found. Possibly a
+			 * corrupted production signature, access control
+			 * is applied as in production mode, therefore
+			 * do not fail
+			 */
+			wil->boot_config = WIL_BOOT_PRODUCTION;
+			break;
+		}
+		if (delay++ > OTP_HW_COUNT)
+			break;
+
+		usleep_range(OTP_HW_DELAY, OTP_HW_DELAY + 10);
+	} while (!otp_signature_err && signature_status == 0);
+
+	if (wil->boot_config == WIL_BOOT_ERR) {
+		wil_err(wil,
+			"invalid boot config, signature_status %d otp_signature_err %d\n",
+			signature_status, otp_signature_err);
+		return -ETIME;
+	}
+
+	wil_dbg_misc(wil,
+		     "signature test done in %d usec, otp_hw 0x%x, boot_config %d\n",
+		     delay * OTP_HW_DELAY, otp_hw, wil->boot_config);
+
+	if (wil->boot_config == WIL_BOOT_VANILLA)
+		/* Assuming not SPI boot (currently not supported) */
+		goto out;
+
+	hw_section_done = otp_hw & BIT_OTP_HW_SECTION_DONE_TALYN_MB;
+	delay = 0;
+
+	while (!hw_section_done) {
+		msleep(RST_DELAY);
+
+		otp_hw = wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1);
+		hw_section_done = otp_hw & BIT_OTP_HW_SECTION_DONE_TALYN_MB;
+
+		if (delay++ > RST_COUNT) {
+			wil_err(wil, "TO waiting for hw_section_done\n");
+			return -ETIME;
+		}
+	}
+
+	wil_dbg_misc(wil, "HW section done in %d ms\n", delay * RST_DELAY);
+
+	otp_qc_secured = wil_r(wil, RGF_OTP_QC_SECURED);
+	wil->secured_boot = otp_qc_secured & BIT_BOOT_FROM_ROM ? 1 : 0;
+	wil_dbg_misc(wil, "secured boot is %sabled\n",
+		     wil->secured_boot ? "en" : "dis");
+
+out:
+	wil_dbg_misc(wil, "Reset completed\n");
+
+	return 0;
+}
+
+static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
+{
+	u32 x;
+	int rc;
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
@@ -901,34 +1056,12 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	/* wait until device ready. typical time is 20..80 msec */
-	if (no_flash)
-		do {
-			msleep(RST_DELAY);
-			x = wil_r(wil, USER_EXT_USER_PMU_3);
-			if (delay++ > RST_COUNT) {
-				wil_err(wil, "Reset not completed, PMU_3 0x%08x\n",
-					x);
-				return -ETIME;
-			}
-		} while ((x & BIT_PMU_DEVICE_RDY) == 0);
+	if (wil->hw_version == HW_VER_TALYN_MB)
+		rc = wil_wait_device_ready_talyn_mb(wil);
 	else
-		do {
-			msleep(RST_DELAY);
-			x = wil_r(wil, RGF_USER_BL +
-				  offsetof(struct bl_dedicated_registers_v0,
-					   boot_loader_ready));
-			if (x1 != x) {
-				wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n",
-					     x1, x);
-				x1 = x;
-			}
-			if (delay++ > RST_COUNT) {
-				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
-					x);
-				return -ETIME;
-			}
-		} while (x != BL_READY);
+		rc = wil_wait_device_ready(wil, no_flash);
+	if (rc)
+		return rc;
 
 	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
@@ -936,7 +1069,7 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
 	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
-	if (no_flash) {
+	if (wil->hw_version < HW_VER_TALYN_MB && no_flash) {
 		/* Reset OTP HW vectors to fit 40MHz */
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME1, 0x60001);
 		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME2, 0x20027);
@@ -951,7 +1084,6 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 		wil_w(wil, RGF_USER_XPM_RD_DOUT_SAMPLE_TIME, 0x57);
 	}
 
-	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 }
 

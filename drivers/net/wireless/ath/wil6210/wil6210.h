@@ -210,7 +210,9 @@ struct RGF_ICR {
 #define RGF_USER_SPARROW_M_4			(0x880c50) /* Sparrow */
 	#define BIT_SPARROW_M_4_SEL_SLEEP_OR_REF	BIT(2)
 #define RGF_USER_OTP_HW_RD_MACHINE_1	(0x880ce0)
-	#define BIT_NO_FLASH_INDICATION		BIT(8)
+	#define BIT_OTP_SIGNATURE_ERR_TALYN_MB		BIT(0)
+	#define BIT_OTP_HW_SECTION_DONE_TALYN_MB	BIT(2)
+	#define BIT_NO_FLASH_INDICATION			BIT(8)
 #define RGF_USER_XPM_IFC_RD_TIME1	(0x880cec)
 #define RGF_USER_XPM_IFC_RD_TIME2	(0x880cf0)
 #define RGF_USER_XPM_IFC_RD_TIME3	(0x880cf4)
@@ -311,6 +313,9 @@ struct RGF_ICR {
 	#define BIT_CAF_OSC_XTAL_EN		BIT(0)
 #define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
+
+#define RGF_OTP_QC_SECURED		(0x8a0038)
+	#define BIT_BOOT_FROM_ROM		BIT(31)
 
 /* eDMA */
 #define RGF_INT_COUNT_ON_SPECIAL_EVT	(0x8b62d8)
@@ -969,6 +974,8 @@ struct wil6210_priv {
 	u32 rx_buff_id_count;
 	bool amsdu_en;
 	bool use_rx_hw_reordering;
+	bool secured_boot;
+	u8 boot_config;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
