@@ -1992,6 +1992,19 @@ static void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs)
 			 __loaded_vmcs_clear, loaded_vmcs, 1);
 }
 
+static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)
+{
+	if (vpid == 0)
+		return true;
+
+	if (cpu_has_vmx_invvpid_individual_addr()) {
+		__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR, vpid, addr);
+		return true;
+	}
+
+	return false;
+}
+
 static inline void vpid_sync_vcpu_single(int vpid)
 {
 	if (vpid == 0)
@@ -4831,6 +4844,20 @@ static inline void __vmx_flush_tlb(struct kvm_vcpu *vcpu, int vpid,
 static void vmx_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
 {
 	__vmx_flush_tlb(vcpu, to_vmx(vcpu)->vpid, invalidate_gpa);
+}
+
+static void vmx_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t addr)
+{
+	int vpid = to_vmx(vcpu)->vpid;
+
+	if (!vpid_sync_vcpu_addr(vpid, addr))
+		vpid_sync_context(vpid);
+
+	/*
+	 * If VPIDs are not supported or enabled, then the above is a no-op.
+	 * But we don't really need a TLB flush in that case anyway, because
+	 * each VM entry/exit includes an implicit flush when VPID is 0.
+	 */
 }
 
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
@@ -13603,6 +13630,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.set_rflags = vmx_set_rflags,
 
 	.tlb_flush = vmx_flush_tlb,
+	.tlb_flush_gva = vmx_flush_tlb_gva,
 
 	.run = vmx_vcpu_run,
 	.handle_exit = vmx_handle_exit,

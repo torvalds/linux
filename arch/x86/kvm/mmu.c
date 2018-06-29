@@ -5226,6 +5226,10 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 
+	/* INVLPG on a * non-canonical address is a NOP according to the SDM.  */
+	if (is_noncanonical_address(gva, vcpu))
+		return;
+
 	mmu->invlpg(vcpu, gva, mmu->root_hpa);
 
 	/*
@@ -5242,7 +5246,7 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 	if (VALID_PAGE(mmu->prev_root.hpa))
 		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
 
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	kvm_x86_ops->tlb_flush_gva(vcpu, gva);
 	++vcpu->stat.invlpg;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
@@ -5250,17 +5254,21 @@ EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 {
 	struct kvm_mmu *mmu = &vcpu->arch.mmu;
+	bool tlb_flush = false;
 
 	if (pcid == kvm_get_active_pcid(vcpu)) {
 		mmu->invlpg(vcpu, gva, mmu->root_hpa);
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+		tlb_flush = true;
 	}
 
 	if (VALID_PAGE(mmu->prev_root.hpa) &&
 	    pcid == kvm_get_pcid(vcpu, mmu->prev_root.cr3)) {
 		mmu->invlpg(vcpu, gva, mmu->prev_root.hpa);
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+		tlb_flush = true;
 	}
+
+	if (tlb_flush)
+		kvm_x86_ops->tlb_flush_gva(vcpu, gva);
 
 	++vcpu->stat.invlpg;
 

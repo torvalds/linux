@@ -985,6 +985,14 @@ struct kvm_x86_ops {
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 
+	/*
+	 * Flush any TLB entries associated with the given GVA.
+	 * Does not need to flush GPA->HPA mappings.
+	 * Can potentially get non-canonical addresses through INVLPGs, which
+	 * the implementation may choose to ignore if appropriate.
+	 */
+	void (*tlb_flush_gva)(struct kvm_vcpu *vcpu, gva_t addr);
+
 	void (*run)(struct kvm_vcpu *vcpu);
 	int (*handle_exit)(struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
