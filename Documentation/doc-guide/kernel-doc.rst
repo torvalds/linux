@@ -488,13 +488,18 @@ doc: *title*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
 
-functions: *function* *[...]*
+functions: *[ function ...]*
   Include documentation for each *function* in *source*.
+  If no *function* if specified, the documentaion for all functions
+  and types in the *source* will be included.
 
-  Example::
+  Examples::
 
     .. kernel-doc:: lib/bitmap.c
        :functions: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :functions:
 
 Without options, the kernel-doc directive includes all documentation comments
 from the source file.
