@@ -113,6 +113,45 @@
 		reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 	};
 
+	sound-rk312x {
+		compatible = "simple-audio-card";
+		status = "disabled";
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,rk312x-codec";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&codec>;
+		};
+	};
+
+	sound-es8396 {
+		compatible = "simple-audio-card";
+		status = "okay";
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,es8396-codec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Line", "Microphone Headset",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC", "Microphone Jack",
+			"DMIC", "Microphone Headset",
+			"Headphone Jack", "LOUTP",
+			"Headphone Jack", "ROUTN";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&es8396>;
+		};
+	};
+
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 
@@ -269,6 +308,20 @@
 			hsync-active = <1>;
 		};
 	};
+};
+
+&codec {
+	#sound-dai-cells = <0>;
+	hp-ctl-gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	spk-ctl-gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+	spk-mute-delay = <200>;
+	hp-mute-delay = <100>;
+	spk_volume = <25>;
+	hp_volume = <25>;
+	capture_volume = <26>;
+	gpio_debug = <1>;
+	codec_hp_det = <1>;
+	status = "disabled";
 };
 
 &cpu0 {
@@ -516,6 +569,29 @@
 			};
 		};
 	};
+
+	es8396: es8396@11 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "es8396";
+		reg = <0x11>;
+		clock-names = "mclk";
+		clocks = <&cru SCLK_I2S_OUT>;
+		spk-con-gpio = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		lineout-con-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2s_2ch {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_bus>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&i2s_8ch {
+	#sound-dai-cells = <0>;
+	status = "disabled";
 };
 
 &pwm0 {
