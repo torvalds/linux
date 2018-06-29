@@ -273,7 +273,7 @@ lookup_priolist(struct intel_engine_cs *engine, int prio)
 find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	parent = &execlists->queue.rb_node;
+	parent = &execlists->queue.rb_root.rb_node;
 	while (*parent) {
 		rb = *parent;
 		p = to_priolist(rb);
@@ -311,10 +311,7 @@ find_priolist:
 	p->priority = prio;
 	INIT_LIST_HEAD(&p->requests);
 	rb_link_node(&p->node, rb, parent);
-	rb_insert_color(&p->node, &execlists->queue);
-
-	if (first)
-		execlists->first = &p->node;
+	rb_insert_color_cached(&p->node, &execlists->queue, first);
 
 	return p;
 }
@@ -602,9 +599,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
-	rb = execlists->first;
-	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
-
 	if (last) {
 		/*
 		 * Don't resubmit or switch until all outstanding
@@ -666,7 +660,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		last->tail = last->wa_tail;
 	}
 
-	while (rb) {
+	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
@@ -725,8 +719,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			submit = true;
 		}
 
-		rb = rb_next(rb);
-		rb_erase(&p->node, &execlists->queue);
+		rb_erase_cached(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
@@ -752,14 +745,14 @@ done:
 	execlists->queue_priority =
 		port != execlists->port ? rq_prio(last) : INT_MIN;
 
-	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
 		execlists_submit_ports(engine);
 	}
 
 	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(execlists->first && !port_isset(execlists->port));
+	GEM_BUG_ON(rb_first_cached(&execlists->queue) &&
+		   !port_isset(execlists->port));
 
 	/* Re-evaluate the executing context setup after each preemptive kick */
 	if (last)
@@ -922,8 +915,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	}
 
 	/* Flush the queued requests to the timeline list (for retiring). */
-	rb = execlists->first;
-	while (rb) {
+	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 
 		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
@@ -933,8 +925,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 			__i915_request_submit(rq);
 		}
 
-		rb = rb_next(rb);
-		rb_erase(&p->node, &execlists->queue);
+		rb_erase_cached(&p->node, &execlists->queue);
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
@@ -943,8 +934,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
 	execlists->queue_priority = INT_MIN;
-	execlists->queue = RB_ROOT;
-	execlists->first = NULL;
+	execlists->queue = RB_ROOT_CACHED;
 	GEM_BUG_ON(port_isset(execlists->port));
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
@@ -1192,7 +1182,7 @@ static void execlists_submit_request(struct i915_request *request)
 
 	queue_request(engine, &request->sched, rq_prio(request));
 
-	GEM_BUG_ON(!engine->execlists.first);
+	GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 	GEM_BUG_ON(list_empty(&request->sched.link));
 
 	submit_queue(engine, rq_prio(request));
@@ -2044,7 +2034,7 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
 	/* After a GPU reset, we may have requests to replay */
-	if (execlists->first)
+	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
 		tasklet_schedule(&execlists->tasklet);
 
 	/*
