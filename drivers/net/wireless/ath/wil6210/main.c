@@ -736,14 +736,24 @@ static void wil_bl_prepare_halt(struct wil6210_priv *wil)
 
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
 {
-	wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
-	wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	if (wil->hw_version >= HW_VER_TALYN_MB) {
+		wil_w(wil, RGF_USER_USER_CPU_0_TALYN_MB,
+		      BIT_USER_USER_CPU_MAN_RST);
+		wil_w(wil, RGF_USER_MAC_CPU_0_TALYN_MB,
+		      BIT_USER_MAC_CPU_MAN_RST);
+	} else {
+		wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+		wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	}
 }
 
 static inline void wil_release_cpu(struct wil6210_priv *wil)
 {
 	/* Start CPU */
-	wil_w(wil, RGF_USER_USER_CPU_0, 1);
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		wil_w(wil, RGF_USER_USER_CPU_0_TALYN_MB, 1);
+	else
+		wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
 static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
@@ -811,10 +821,17 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
-	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
+	if (wil->hw_version >= HW_VER_TALYN_MB) {
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x7e000000);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003f);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0xc00000f0);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xffe7fe00);
+	} else {
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xfe000000);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003f);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
+		wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xffe7fe00);
+	}
 
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
 	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
@@ -1042,8 +1059,14 @@ static int wil_get_otp_info(struct wil6210_priv *wil)
 	struct net_device *ndev = wil->main_ndev;
 	struct wiphy *wiphy = wil_to_wiphy(wil);
 	u8 mac[8];
+	int mac_addr;
 
-	wil_memcpy_fromio_32(mac, wil->csr + HOSTADDR(RGF_OTP_MAC),
+	if (wil->hw_version >= HW_VER_TALYN_MB)
+		mac_addr = RGF_OTP_MAC_TALYN_MB;
+	else
+		mac_addr = RGF_OTP_MAC;
+
+	wil_memcpy_fromio_32(mac, wil->csr + HOSTADDR(mac_addr),
 			     sizeof(mac));
 	if (!is_valid_ether_addr(mac)) {
 		wil_err(wil, "Invalid MAC %pM\n", mac);
@@ -1147,8 +1170,13 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 	/* it is W1C, clear by writing back same value */
 	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
 	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
-	/* clear PAL_UNIT_ICR (potential D0->D3 leftover) */
-	wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR), 0);
+	/* clear PAL_UNIT_ICR (potential D0->D3 leftover)
+	 * In Talyn-MB host cannot access this register due to
+	 * access control, hence PAL_UNIT_ICR is cleared by the FW
+	 */
+	if (wil->hw_version < HW_VER_TALYN_MB)
+		wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR),
+		      0);
 
 	if (wil->fw_calib_result > 0) {
 		__le32 val = cpu_to_le32(wil->fw_calib_result |

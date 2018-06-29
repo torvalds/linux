@@ -85,7 +85,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		wil->rgf_ucode_assert_code_addr = SPARROW_RGF_UCODE_ASSERT_CODE;
 		break;
 	case JTAG_DEV_ID_TALYN:
-		wil->hw_name = "Talyn";
+		wil->hw_name = "Talyn-MA";
 		wil->hw_version = HW_VER_TALYN;
 		memcpy(fw_mapping, talyn_fw_mapping, sizeof(talyn_fw_mapping));
 		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
@@ -93,6 +93,15 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		if (wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1) &
 		    BIT_NO_FLASH_INDICATION)
 			set_bit(hw_capa_no_flash, wil->hw_capa);
+		break;
+	case JTAG_DEV_ID_TALYN_MB:
+		wil->hw_name = "Talyn-MB";
+		wil->hw_version = HW_VER_TALYN_MB;
+		memcpy(fw_mapping, talyn_mb_fw_mapping,
+		       sizeof(talyn_mb_fw_mapping));
+		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
+		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
+		set_bit(hw_capa_no_flash, wil->hw_capa);
 		break;
 	default:
 		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",

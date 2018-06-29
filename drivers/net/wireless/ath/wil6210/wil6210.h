@@ -311,13 +311,19 @@ struct RGF_ICR {
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
 	#define JTAG_DEV_ID_TALYN	(0x7e0e1)
+	#define JTAG_DEV_ID_TALYN_MB	(0x1007e0e1)
 
 #define RGF_USER_REVISION_ID		(0x88afe4)
 #define RGF_USER_REVISION_ID_MASK	(3)
 	#define REVISION_ID_SPARROW_B0	(0x0)
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
+#define RGF_OTP_MAC_TALYN_MB		(0x8a0304)
 #define RGF_OTP_MAC			(0x8a0620)
+
+/* Talyn-MB */
+#define RGF_USER_USER_CPU_0_TALYN_MB	(0x8c0138)
+#define RGF_USER_MAC_CPU_0_TALYN_MB	(0x8c0154)
 
 /* crash codes for FW/Ucode stored here */
 
@@ -332,6 +338,7 @@ enum {
 	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
 	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
 	HW_VER_TALYN,	/* JTAG_DEV_ID_TALYN */
+	HW_VER_TALYN_MB	/* JTAG_DEV_ID_TALYN_MB */
 };
 
 /* popular locations */
@@ -349,7 +356,8 @@ enum {
 /* Hardware definitions end */
 #define SPARROW_FW_MAPPING_TABLE_SIZE 10
 #define TALYN_FW_MAPPING_TABLE_SIZE 13
-#define MAX_FW_MAPPING_TABLE_SIZE 13
+#define TALYN_MB_FW_MAPPING_TABLE_SIZE 19
+#define MAX_FW_MAPPING_TABLE_SIZE 19
 
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
@@ -363,6 +371,7 @@ struct fw_map {
 extern const struct fw_map sparrow_fw_mapping[SPARROW_FW_MAPPING_TABLE_SIZE];
 extern const struct fw_map sparrow_d0_mac_rgf_ext;
 extern const struct fw_map talyn_fw_mapping[TALYN_FW_MAPPING_TABLE_SIZE];
+extern const struct fw_map talyn_mb_fw_mapping[TALYN_MB_FW_MAPPING_TABLE_SIZE];
 extern struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
 
 /**

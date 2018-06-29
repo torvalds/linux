@@ -164,6 +164,61 @@ const struct fw_map talyn_fw_mapping[] = {
 	{0x800000, 0x808000, 0xa78000, "uc_data", false},
 };
 
+/**
+ * @talyn_mb_fw_mapping provides memory remapping table for Talyn-MB
+ *
+ * array size should be in sync with the declaration in the wil6210.h
+ *
+ * Talyn MB memory mapping:
+ * Linker address         PCI/Host address
+ *                        0x880000 .. 0xc80000  4Mb BAR0
+ * 0x800000 .. 0x820000   0xa00000 .. 0xa20000  128k DCCM
+ * 0x840000 .. 0x858000   0xa20000 .. 0xa38000  96k PERIPH
+ */
+const struct fw_map talyn_mb_fw_mapping[] = {
+	/* FW code RAM 768k */
+	{0x000000, 0x0c0000, 0x900000, "fw_code", true},
+	/* FW data RAM 128k */
+	{0x800000, 0x820000, 0xa00000, "fw_data", true},
+	/* periph. data RAM 96k */
+	{0x840000, 0x858000, 0xa20000, "fw_peri", true},
+	/* various RGF 40k */
+	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	/* AGC table 4k */
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	/* Pcie_ext_rgf 4k */
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	/* mac_ext_rgf 2256b */
+	{0x88c000, 0x88c8d0, 0x88c000, "mac_rgf_ext", true},
+	/* ext USER RGF 4k */
+	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true},
+	/* SEC PKA 16k */
+	{0x890000, 0x894000, 0x890000, "sec_pka", true},
+	/* SEC KDF RGF 3096b */
+	{0x898000, 0x898c18, 0x898000, "sec_kdf_rgf", true},
+	/* SEC MAIN 2124b */
+	{0x89a000, 0x89a84c, 0x89a000, "sec_main", true},
+	/* OTP 4k */
+	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true},
+	/* DMA EXT RGF 64k */
+	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true},
+	/* DUM USER RGF 528b */
+	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true},
+	/* DMA OFU 296b */
+	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true},
+	/* ucode debug 4k */
+	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true},
+	/* upper area 1536k */
+	{0x900000, 0xa80000, 0x900000, "upper", true},
+	/* UCODE areas - accessible by debugfs blobs but not by
+	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
+	 */
+	/* ucode code RAM 256k */
+	{0x000000, 0x040000, 0xa38000, "uc_code", false},
+	/* ucode data RAM 32k */
+	{0x800000, 0x808000, 0xa78000, "uc_data", false},
+};
+
 struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
 
 struct blink_on_off_time led_blink_time[] = {
