@@ -1562,6 +1562,15 @@ out:
 		if (x1->curlft.use_time)
 			xfrm_state_check_expire(x1);
 
+		if (x->props.smark.m || x->props.smark.v) {
+			spin_lock_bh(&net->xfrm.xfrm_state_lock);
+
+			x1->props.smark = x->props.smark;
+
+			__xfrm_state_bump_genids(x1);
+			spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+		}
+
 		err = 0;
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
