@@ -5,23 +5,18 @@
 
 #include <linux/kernel.h>
 #include <linux/bio.h>
-#include <linux/buffer_head.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
-#include <linux/init.h>
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/mount.h>
-#include <linux/mpage.h>
 #include <linux/namei.h>
-#include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/compat.h>
-#include <linux/bit_spinlock.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
 #include <linux/mm.h>

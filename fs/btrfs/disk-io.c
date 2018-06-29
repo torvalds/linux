@@ -5,8 +5,6 @@
 
 #include <linux/fs.h>
 #include <linux/blkdev.h>
-#include <linux/scatterlist.h>
-#include <linux/swap.h>
 #include <linux/radix-tree.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>

@@ -7,7 +7,6 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "ctree.h"

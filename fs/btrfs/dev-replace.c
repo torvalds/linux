@@ -6,14 +6,9 @@
 #include <linux/sched.h>
 #include <linux/bio.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/blkdev.h>
-#include <linux/random.h>
-#include <linux/iocontext.h>
-#include <linux/capability.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
-#include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"

@@ -3,7 +3,6 @@
  * Copyright (C) 2007 Oracle.  All rights reserved.
  */
 
-#include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
 

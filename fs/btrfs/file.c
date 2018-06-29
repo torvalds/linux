@@ -5,14 +5,11 @@
 
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <linux/highmem.h>
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/backing-dev.h>
-#include <linux/mpage.h>
 #include <linux/falloc.h>
-#include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/compat.h>
 #include <linux/slab.h>

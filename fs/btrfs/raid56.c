@@ -5,32 +5,19 @@
  */
 
 #include <linux/sched.h>
-#include <linux/wait.h>
 #include <linux/bio.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/blkdev.h>
-#include <linux/random.h>
-#include <linux/iocontext.h>
-#include <linux/capability.h>
-#include <linux/ratelimit.h>
-#include <linux/kthread.h>
 #include <linux/raid/pq.h>
 #include <linux/hash.h>
 #include <linux/list_sort.h>
 #include <linux/raid/xor.h>
 #include <linux/mm.h>
-#include <asm/div64.h>
 #include "ctree.h"
-#include "extent_map.h"
 #include "disk-io.h"
-#include "transaction.h"
-#include "print-tree.h"
 #include "volumes.h"
 #include "raid56.h"
 #include "async-thread.h"
-#include "check-integrity.h"
-#include "rcu-string.h"
 
 /* set when additional merges to this rbio are not allowed */
 #define RBIO_RMW_LOCKED_BIT	1
