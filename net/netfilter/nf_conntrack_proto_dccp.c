@@ -403,14 +403,6 @@ static bool dccp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	return true;
 }
 
-static bool dccp_invert_tuple(struct nf_conntrack_tuple *inv,
-			      const struct nf_conntrack_tuple *tuple)
-{
-	inv->src.u.dccp.port = tuple->dst.u.dccp.port;
-	inv->dst.u.dccp.port = tuple->src.u.dccp.port;
-	return true;
-}
-
 static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		     unsigned int dataoff, unsigned int *timeouts)
 {
@@ -865,7 +857,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
-	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
@@ -901,7 +892,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
-	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,

@@ -41,15 +41,6 @@ static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 	return true;
 }
 
-static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
-				 const struct nf_conntrack_tuple *orig)
-{
-	tuple->src.u.all = 0;
-	tuple->dst.u.all = 0;
-
-	return true;
-}
-
 static unsigned int *generic_get_timeouts(struct net *net)
 {
 	return &(generic_pernet(net)->timeout);
@@ -168,7 +159,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 	.l3proto		= PF_UNSPEC,
 	.l4proto		= 255,
 	.pkt_to_tuple		= generic_pkt_to_tuple,
-	.invert_tuple		= generic_invert_tuple,
 	.packet			= generic_packet,
 	.get_timeouts		= generic_get_timeouts,
 	.new			= generic_new,

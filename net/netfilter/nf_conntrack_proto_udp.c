@@ -55,14 +55,6 @@ static bool udp_pkt_to_tuple(const struct sk_buff *skb,
 	return true;
 }
 
-static bool udp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			     const struct nf_conntrack_tuple *orig)
-{
-	tuple->src.u.udp.port = orig->dst.u.udp.port;
-	tuple->dst.u.udp.port = orig->src.u.udp.port;
-	return true;
-}
-
 static unsigned int *udp_get_timeouts(struct net *net)
 {
 	return udp_pernet(net)->timeouts;
@@ -302,7 +294,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -334,7 +325,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -366,7 +356,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -398,7 +387,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
 	.pkt_to_tuple		= udp_pkt_to_tuple,
-	.invert_tuple		= udp_invert_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,

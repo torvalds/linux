@@ -400,7 +400,13 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 	inverse->dst.dir = !orig->dst.dir;
 
 	inverse->dst.protonum = orig->dst.protonum;
-	return l4proto->invert_tuple(inverse, orig);
+
+	if (unlikely(l4proto->invert_tuple))
+		return l4proto->invert_tuple(inverse, orig);
+
+	inverse->src.u.all = orig->dst.u.all;
+	inverse->dst.u.all = orig->src.u.all;
+	return true;
 }
 EXPORT_SYMBOL_GPL(nf_ct_invert_tuple);
 

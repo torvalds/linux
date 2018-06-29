@@ -36,7 +36,7 @@ struct nf_conntrack_l4proto {
 			     struct net *net, struct nf_conntrack_tuple *tuple);
 
 	/* Invert the per-proto part of the tuple: ie. turn xmit into reply.
-	 * Some packets can't be inverted: return 0 in that case.
+	 * Only used by icmp, most protocols use a generic version.
 	 */
 	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
 			     const struct nf_conntrack_tuple *orig);
