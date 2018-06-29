@@ -33,6 +33,12 @@
 #define MT_DFS_PKT_END_MASK		0
 #define MT_DFS_CH_EN			0xf
 
+/* sw detector params */
+#define MT_DFS_EVENT_LOOP		64
+#define MT_DFS_SW_TIMEOUT		(HZ / 20)
+#define MT_DFS_EVENT_WINDOW		(HZ / 5)
+#define MT_DFS_EVENT_TIME_MARGIN	2000
+
 struct mt76x2_radar_specs {
 	u8 mode;
 	u16 avg_len;
@@ -48,6 +54,23 @@ struct mt76x2_radar_specs {
 	u32 b_high;
 	u32 event_expiration;
 	u16 pwr_jmp;
+};
+
+#define MT_DFS_CHECK_EVENT(x)		((x) != GENMASK(31, 0))
+#define MT_DFS_EVENT_ENGINE(x)		(((x) & BIT(31)) ? 2 : 0)
+#define MT_DFS_EVENT_TIMESTAMP(x)	((x) & GENMASK(21, 0))
+#define MT_DFS_EVENT_WIDTH(x)		((x) & GENMASK(11, 0))
+struct mt76x2_dfs_event {
+	unsigned long fetch_ts;
+	u32 ts;
+	u16 width;
+	u8 engine;
+};
+
+#define MT_DFS_EVENT_BUFLEN		256
+struct mt76x2_dfs_event_rb {
+	struct mt76x2_dfs_event data[MT_DFS_EVENT_BUFLEN];
+	int h_rb, t_rb;
 };
 
 struct mt76x2_dfs_hw_pulse {
@@ -68,6 +91,10 @@ struct mt76x2_dfs_pattern_detector {
 
 	u8 chirp_pulse_cnt;
 	u32 chirp_pulse_ts;
+
+	struct mt76x2_dfs_event_rb event_rb[2];
+	unsigned long last_sw_check;
+	u32 last_event_ts;
 
 	struct mt76x2_dfs_engine_stats stats[MT_DFS_NUM_ENGINES];
 	struct tasklet_struct dfs_tasklet;
