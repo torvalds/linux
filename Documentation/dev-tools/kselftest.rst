@@ -156,6 +156,11 @@ Contributing new tests (details)
    installed by the distro on the system should be the primary focus to be able
    to find regressions.
 
+ * If a test needs specific kernel config options enabled, add a config file in
+   the test directory to enable them.
+
+   e.g: tools/testing/selftests/android/ion/config
+
 Test Harness
 ============
 
