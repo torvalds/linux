@@ -239,6 +239,8 @@ unsigned int of_genpd_opp_to_performance_state(struct device *dev,
 int genpd_dev_pm_attach(struct device *dev);
 struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 					 unsigned int index);
+struct device *genpd_dev_pm_attach_by_name(struct device *dev,
+					   char *name);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
 static inline int of_genpd_add_provider_simple(struct device_node *np,
 					struct generic_pm_domain *genpd)
@@ -286,6 +288,12 @@ static inline int genpd_dev_pm_attach(struct device *dev)
 
 static inline struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 						       unsigned int index)
+{
+	return NULL;
+}
+
+static inline struct device *genpd_dev_pm_attach_by_name(struct device *dev,
+							 char *name)
 {
 	return NULL;
 }
