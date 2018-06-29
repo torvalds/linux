@@ -1307,6 +1307,19 @@ static void hci_cc_le_write_def_data_len(struct hci_dev *hdev,
 	hdev->le_def_tx_time = le16_to_cpu(sent->tx_time);
 }
 
+static void hci_cc_le_clear_resolv_list(struct hci_dev *hdev,
+				       struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	hci_bdaddr_list_clear(&hdev->le_resolv_list);
+}
+
 static void hci_cc_le_read_resolv_list_size(struct hci_dev *hdev,
 					   struct sk_buff *skb)
 {
@@ -3027,6 +3040,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_WRITE_DEF_DATA_LEN:
 		hci_cc_le_write_def_data_len(hdev, skb);
+		break;
+
+	case HCI_OP_LE_CLEAR_RESOLV_LIST:
+		hci_cc_le_clear_resolv_list(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_RESOLV_LIST_SIZE:
