@@ -174,6 +174,12 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check);
 static void async_scrub_parity(struct btrfs_raid_bio *rbio);
 
+static void start_async_work(struct btrfs_raid_bio *rbio, btrfs_func_t work_func)
+{
+	btrfs_init_work(&rbio->work, btrfs_rmw_helper, work_func, NULL, NULL);
+	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
+}
+
 /*
  * the stripe hash table is used for locking, and to collect
  * bios in hopes of making a full stripe
