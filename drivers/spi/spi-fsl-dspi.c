@@ -1006,21 +1006,6 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	dspi_init(dspi);
-	dspi->irq = platform_get_irq(pdev, 0);
-	if (dspi->irq < 0) {
-		dev_err(&pdev->dev, "can't get platform irq\n");
-		ret = dspi->irq;
-		goto out_master_put;
-	}
-
-	ret = devm_request_irq(&pdev->dev, dspi->irq, dspi_interrupt, 0,
-			pdev->name, dspi);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to attach DSPI interrupt\n");
-		goto out_master_put;
-	}
-
 	dspi->clk = devm_clk_get(&pdev->dev, "dspi");
 	if (IS_ERR(dspi->clk)) {
 		ret = PTR_ERR(dspi->clk);
@@ -1030,6 +1015,21 @@ static int dspi_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(dspi->clk);
 	if (ret)
 		goto out_master_put;
+
+	dspi_init(dspi);
+	dspi->irq = platform_get_irq(pdev, 0);
+	if (dspi->irq < 0) {
+		dev_err(&pdev->dev, "can't get platform irq\n");
+		ret = dspi->irq;
+		goto out_clk_put;
+	}
+
+	ret = devm_request_irq(&pdev->dev, dspi->irq, dspi_interrupt, 0,
+			pdev->name, dspi);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Unable to attach DSPI interrupt\n");
+		goto out_clk_put;
+	}
 
 	if (dspi->devtype_data->trans_mode == DSPI_DMA_MODE) {
 		ret = dspi_request_dma(dspi, res->start);
