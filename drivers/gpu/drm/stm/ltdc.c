@@ -1082,8 +1082,11 @@ int ltdc_load(struct drm_device *ddev)
 		}
 	}
 
-	if (!IS_ERR(rstc))
+	if (!IS_ERR(rstc)) {
+		reset_control_assert(rstc);
+		usleep_range(10, 20);
 		reset_control_deassert(rstc);
+	}
 
 	/* Disable interrupts */
 	reg_clear(ldev->regs, LTDC_IER,
