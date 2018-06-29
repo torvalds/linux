@@ -166,8 +166,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 
 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
-		if (!(vflags & HPTE_V_BOLTED))
-			pr_devel(" full\n");
+		pr_devel("Hash table group is full\n");
 		return -1;
 	}
 
@@ -177,8 +176,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	 * or we will loop forever, so return -2 in this case.
 	 */
 	if (unlikely(lpar_rc != H_SUCCESS)) {
-		if (!(vflags & HPTE_V_BOLTED))
-			pr_devel(" lpar err %ld\n", lpar_rc);
+		pr_err("Failed hash pte insert with error %ld\n", lpar_rc);
 		return -2;
 	}
 	if (!(vflags & HPTE_V_BOLTED))
@@ -241,8 +239,11 @@ static void manual_hpte_clear_all(void)
          */
 	for (i = 0; i < hpte_count; i += 4) {
 		lpar_rc = plpar_pte_read_4_raw(0, i, (void *)ptes);
-		if (lpar_rc != H_SUCCESS)
+		if (lpar_rc != H_SUCCESS) {
+			pr_info("Failed to read hash page table at %ld err %ld\n",
+				i, lpar_rc);
 			continue;
+		}
 		for (j = 0; j < 4; j++){
 			if ((ptes[j].pteh & HPTE_V_VRMA_MASK) ==
 				HPTE_V_VRMA_MASK)
@@ -341,8 +342,11 @@ static long __pSeries_lpar_hpte_find(unsigned long want_v, unsigned long hpte_gr
 	for (i = 0; i < HPTES_PER_GROUP; i += 4, hpte_group += 4) {
 
 		lpar_rc = plpar_pte_read_4(0, hpte_group, (void *)ptes);
-		if (lpar_rc != H_SUCCESS)
+		if (lpar_rc != H_SUCCESS) {
+			pr_info("Failed to read hash page table at %ld err %ld\n",
+				hpte_group, lpar_rc);
 			continue;
+		}
 
 		for (j = 0; j < 4; j++) {
 			if (HPTE_V_COMPARE(ptes[j].pteh, want_v) &&
