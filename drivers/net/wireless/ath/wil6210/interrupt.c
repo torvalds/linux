@@ -186,6 +186,27 @@ void wil_unmask_irq(struct wil6210_priv *wil)
 	wil6210_unmask_irq_misc(wil, true);
 }
 
+void wil_configure_interrupt_moderation_edma(struct wil6210_priv *wil)
+{
+	u32 moderation;
+
+	wil_s(wil, RGF_INT_GEN_IDLE_TIME_LIMIT, WIL_EDMA_IDLE_TIME_LIMIT_USEC);
+
+	wil_s(wil, RGF_INT_GEN_TIME_UNIT_LIMIT, WIL_EDMA_TIME_UNIT_CLK_CYCLES);
+
+	/* Update RX and TX moderation */
+	moderation = wil->rx_max_burst_duration |
+		(WIL_EDMA_AGG_WATERMARK << WIL_EDMA_AGG_WATERMARK_POS);
+	wil_w(wil, RGF_INT_CTRL_INT_GEN_CFG_0, moderation);
+	wil_w(wil, RGF_INT_CTRL_INT_GEN_CFG_1, moderation);
+
+	/* Treat special events as regular
+	 * (set bit 0 to 0x1 and clear bits 1-8)
+	 */
+	wil_c(wil, RGF_INT_COUNT_ON_SPECIAL_EVT, 0x1FE);
+	wil_s(wil, RGF_INT_COUNT_ON_SPECIAL_EVT, 0x1);
+}
+
 void wil_configure_interrupt_moderation(struct wil6210_priv *wil)
 {
 	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;

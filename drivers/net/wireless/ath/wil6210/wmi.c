@@ -420,10 +420,10 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_DEL_STA_CMD";
 	case WMI_DISCONNECT_STA_CMDID:
 		return "WMI_DISCONNECT_STA_CMD";
-	case WMI_VRING_BA_EN_CMDID:
-		return "WMI_VRING_BA_EN_CMD";
-	case WMI_VRING_BA_DIS_CMDID:
-		return "WMI_VRING_BA_DIS_CMD";
+	case WMI_RING_BA_EN_CMDID:
+		return "WMI_RING_BA_EN_CMD";
+	case WMI_RING_BA_DIS_CMDID:
+		return "WMI_RING_BA_DIS_CMD";
 	case WMI_RCP_DELBA_CMDID:
 		return "WMI_RCP_DELBA_CMD";
 	case WMI_RCP_ADDBA_RESP_CMDID:
@@ -450,6 +450,18 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_START_SCHED_SCAN_CMD";
 	case WMI_STOP_SCHED_SCAN_CMDID:
 		return "WMI_STOP_SCHED_SCAN_CMD";
+	case WMI_TX_STATUS_RING_ADD_CMDID:
+		return "WMI_TX_STATUS_RING_ADD_CMD";
+	case WMI_RX_STATUS_RING_ADD_CMDID:
+		return "WMI_RX_STATUS_RING_ADD_CMD";
+	case WMI_TX_DESC_RING_ADD_CMDID:
+		return "WMI_TX_DESC_RING_ADD_CMD";
+	case WMI_RX_DESC_RING_ADD_CMDID:
+		return "WMI_RX_DESC_RING_ADD_CMD";
+	case WMI_BCAST_DESC_RING_ADD_CMDID:
+		return "WMI_BCAST_DESC_RING_ADD_CMD";
+	case WMI_CFG_DEF_RX_OFFLOAD_CMDID:
+		return "WMI_CFG_DEF_RX_OFFLOAD_CMD";
 	default:
 		return "Untracked CMD";
 	}
@@ -504,8 +516,8 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_RCP_ADDBA_REQ_EVENT";
 	case WMI_DELBA_EVENTID:
 		return "WMI_DELBA_EVENT";
-	case WMI_VRING_EN_EVENTID:
-		return "WMI_VRING_EN_EVENT";
+	case WMI_RING_EN_EVENTID:
+		return "WMI_RING_EN_EVENT";
 	case WMI_DATA_PORT_OPEN_EVENTID:
 		return "WMI_DATA_PORT_OPEN_EVENT";
 	case WMI_AOA_MEAS_EVENTID:
@@ -574,6 +586,16 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_STOP_SCHED_SCAN_EVENT";
 	case WMI_SCHED_SCAN_RESULT_EVENTID:
 		return "WMI_SCHED_SCAN_RESULT_EVENT";
+	case WMI_TX_STATUS_RING_CFG_DONE_EVENTID:
+		return "WMI_TX_STATUS_RING_CFG_DONE_EVENT";
+	case WMI_RX_STATUS_RING_CFG_DONE_EVENTID:
+		return "WMI_RX_STATUS_RING_CFG_DONE_EVENT";
+	case WMI_TX_DESC_RING_CFG_DONE_EVENTID:
+		return "WMI_TX_DESC_RING_CFG_DONE_EVENT";
+	case WMI_RX_DESC_RING_CFG_DONE_EVENTID:
+		return "WMI_RX_DESC_RING_CFG_DONE_EVENT";
+	case WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID:
+		return "WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENT";
 	default:
 		return "Untracked EVENT";
 	}
@@ -961,7 +983,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 	wil->sta[evt->cid].mid = vif->mid;
 	wil->sta[evt->cid].status = wil_sta_conn_pending;
 
-	rc = wil_tx_init(vif, evt->cid);
+	rc = wil_ring_init_tx(vif, evt->cid);
 	if (rc) {
 		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
 			evt->cid, rc);
@@ -1118,11 +1140,11 @@ static void wmi_evt_eapol_rx(struct wil6210_vif *vif, int id, void *d, int len)
 	}
 }
 
-static void wmi_evt_vring_en(struct wil6210_vif *vif, int id, void *d, int len)
+static void wmi_evt_ring_en(struct wil6210_vif *vif, int id, void *d, int len)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct wmi_vring_en_event *evt = d;
-	u8 vri = evt->vring_index;
+	struct wmi_ring_en_event *evt = d;
+	u8 vri = evt->ring_index;
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 
 	wil_dbg_wmi(wil, "Enable vring %d MID %d\n", vri, vif->mid);
@@ -1332,7 +1354,7 @@ static const struct {
 	{WMI_BA_STATUS_EVENTID,		wmi_evt_ba_status},
 	{WMI_RCP_ADDBA_REQ_EVENTID,	wmi_evt_addba_rx_req},
 	{WMI_DELBA_EVENTID,		wmi_evt_delba},
-	{WMI_VRING_EN_EVENTID,		wmi_evt_vring_en},
+	{WMI_RING_EN_EVENTID,		wmi_evt_ring_en},
 	{WMI_DATA_PORT_OPEN_EVENTID,		wmi_evt_ignore},
 	{WMI_SCHED_SCAN_RESULT_EVENTID,		wmi_evt_sched_scan_result},
 };
@@ -2118,8 +2140,8 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 int wmi_addba(struct wil6210_priv *wil, u8 mid,
 	      u8 ringid, u8 size, u16 timeout)
 {
-	struct wmi_vring_ba_en_cmd cmd = {
-		.ringid = ringid,
+	struct wmi_ring_ba_en_cmd cmd = {
+		.ring_id = ringid,
 		.agg_max_wsize = size,
 		.ba_timeout = cpu_to_le16(timeout),
 		.amsdu = 0,
@@ -2128,19 +2150,19 @@ int wmi_addba(struct wil6210_priv *wil, u8 mid,
 	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d)\n", ringid, size,
 		    timeout);
 
-	return wmi_send(wil, WMI_VRING_BA_EN_CMDID, mid, &cmd, sizeof(cmd));
+	return wmi_send(wil, WMI_RING_BA_EN_CMDID, mid, &cmd, sizeof(cmd));
 }
 
 int wmi_delba_tx(struct wil6210_priv *wil, u8 mid, u8 ringid, u16 reason)
 {
-	struct wmi_vring_ba_dis_cmd cmd = {
-		.ringid = ringid,
+	struct wmi_ring_ba_dis_cmd cmd = {
+		.ring_id = ringid,
 		.reason = cpu_to_le16(reason),
 	};
 
 	wil_dbg_wmi(wil, "delba_tx: (ring %d reason %d)\n", ringid, reason);
 
-	return wmi_send(wil, WMI_VRING_BA_DIS_CMDID, mid, &cmd, sizeof(cmd));
+	return wmi_send(wil, WMI_RING_BA_DIS_CMDID, mid, &cmd, sizeof(cmd));
 }
 
 int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cidxtid, u16 reason)
@@ -2906,4 +2928,264 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	kfree(cmd);
 
 	return rc;
+}
+
+int wil_wmi_tx_sring_cfg(struct wil6210_priv *wil, int ring_id)
+{
+	int rc;
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+	struct wil_status_ring *sring = &wil->srings[ring_id];
+	struct wmi_tx_status_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(sring->size),
+		},
+		.irq_index = WIL_TX_STATUS_IRQ_IDX
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_tx_status_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_id = ring_id;
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(sring->pa);
+	rc = wmi_call(wil, WMI_TX_STATUS_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_STATUS_RING_CFG_DONE_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "TX_STATUS_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "TX_STATUS_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	sring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_cfg_def_rx_offload(struct wil6210_priv *wil, u16 max_rx_pl_per_desc)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	int rc;
+	struct wmi_cfg_def_rx_offload_cmd cmd = {
+		.max_msdu_size = cpu_to_le16(wil_mtu2macbuf(WIL_MAX_ETH_MTU)),
+		.max_rx_pl_per_desc = cpu_to_le16(max_rx_pl_per_desc),
+		.decap_trans_type = WMI_DECAP_TYPE_802_3,
+		.l2_802_3_offload_ctrl = 0,
+		.l3_l4_ctrl = 1 << L3_L4_CTRL_TCPIP_CHECKSUM_EN_POS,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_cfg_def_rx_offload_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	rc = wmi_call(wil, WMI_CFG_DEF_RX_OFFLOAD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_CFG_DEF_RX_OFFLOAD_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_CFG_DEF_RX_OFFLOAD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_CFG_DEF_RX_OFFLOAD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int wil_wmi_rx_sring_add(struct wil6210_priv *wil, u16 ring_id)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	struct wil_status_ring *sring = &wil->srings[ring_id];
+	int rc;
+	struct wmi_rx_status_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(sring->size),
+			.ring_id = ring_id,
+		},
+		.rx_msg_type = wil->use_compressed_rx_status ?
+			WMI_RX_MSG_TYPE_COMPRESSED :
+			WMI_RX_MSG_TYPE_EXTENDED,
+		.irq_index = WIL_RX_STATUS_IRQ_IDX,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_status_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(sring->pa);
+	rc = wmi_call(wil, WMI_RX_STATUS_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_RX_STATUS_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "RX_STATUS_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "RX_STATUS_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	sring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_rx_desc_ring_add(struct wil6210_priv *wil, int status_ring_id)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	struct wil_ring *ring = &wil->ring_rx;
+	int rc;
+	struct wmi_rx_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = WIL_RX_DESC_RING_ID,
+		},
+		.status_ring_id = status_ring_id,
+		.irq_index = WIL_RX_STATUS_IRQ_IDX,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	cmd.sw_tail_host_addr = cpu_to_le64(ring->edma_rx_swtail.pa);
+	rc = wmi_call(wil, WMI_RX_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_RX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_RX_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_RX_DESC_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+
+	return 0;
+}
+
+int wil_wmi_tx_desc_ring_add(struct wil6210_vif *vif, int ring_id, int cid,
+			     int tid)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	int sring_id = wil->tx_sring_idx; /* there is only one TX sring */
+	int rc;
+	struct wil_ring *ring = &wil->ring_tx[ring_id];
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ring_id];
+	struct wmi_tx_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = ring_id,
+		},
+		.status_ring_id = sring_id,
+		.cid = cid,
+		.tid = tid,
+		.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
+		.max_msdu_size = cpu_to_le16(wil_mtu2macbuf(mtu_max)),
+		.schd_params = {
+			.priority = cpu_to_le16(0),
+			.timeslot_us = cpu_to_le16(0xfff),
+		}
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_tx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	rc = wmi_call(wil, WMI_TX_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_TX_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_TX_DESC_RING_ADD_CMD failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&txdata->lock);
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+	txdata->mid = vif->mid;
+	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
+	return 0;
+}
+
+int wil_wmi_bcast_desc_ring_add(struct wil6210_vif *vif, int ring_id)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct wil_ring *ring = &wil->ring_tx[ring_id];
+	int rc;
+	struct wmi_bcast_desc_ring_add_cmd cmd = {
+		.ring_cfg = {
+			.ring_size = cpu_to_le16(ring->size),
+			.ring_id = ring_id,
+		},
+		.status_ring_id = wil->tx_sring_idx,
+		.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_rx_desc_ring_cfg_done_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ring_id];
+
+	cmd.ring_cfg.ring_mem_base = cpu_to_le64(ring->pa);
+	rc = wmi_call(wil, WMI_BCAST_DESC_RING_ADD_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TX_DESC_RING_CFG_DONE_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_BCAST_DESC_RING_ADD_CMD failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "Broadcast Tx config failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&txdata->lock);
+	ring->hwtail = le32_to_cpu(reply.evt.ring_tail_ptr);
+	txdata->mid = vif->mid;
+	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
+	return 0;
 }

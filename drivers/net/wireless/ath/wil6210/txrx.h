@@ -570,6 +570,12 @@ static inline int wil_ring_avail_tx(struct wil_ring *ring)
 	return ring->size - wil_ring_used_tx(ring) - 1;
 }
 
+static inline int wil_get_min_tx_ring_id(struct wil6210_priv *wil)
+{
+	/* In Enhanced DMA ring 0 is reserved for RX */
+	return wil->use_enhanced_dma_hw ? 1 : 0;
+}
+
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
 void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
@@ -578,5 +584,7 @@ struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn);
 void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 			   struct wil_tid_ampdu_rx *r);
+void wil_tx_data_init(struct wil_ring_tx_data *txdata);
+void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil);
 
 #endif /* WIL6210_TXRX_H */

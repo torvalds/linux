@@ -202,14 +202,13 @@ static void wil_txdesc_unmap(struct device *dev, struct vring_tx_desc *d,
 	}
 }
 
-static void wil_vring_free(struct wil6210_priv *wil, struct wil_ring *vring,
-			   int tx)
+static void wil_vring_free(struct wil6210_priv *wil, struct wil_ring *vring)
 {
 	struct device *dev = wil_to_dev(wil);
 	size_t sz = vring->size * sizeof(vring->va[0]);
 
 	lockdep_assert_held(&wil->mutex);
-	if (tx) {
+	if (!vring->is_rx) {
 		int vring_index = vring - wil->ring_tx;
 
 		wil_dbg_misc(wil, "free Tx vring %d [%d] 0x%p:%pad 0x%p\n",
@@ -226,7 +225,7 @@ static void wil_vring_free(struct wil6210_priv *wil, struct wil_ring *vring,
 		u16 dmalen;
 		struct wil_ctx *ctx;
 
-		if (tx) {
+		if (!vring->is_rx) {
 			struct vring_tx_desc dd, *d = &dd;
 			volatile struct vring_tx_desc *_d =
 					&vring->va[vring->swtail].tx.legacy;
@@ -843,7 +842,7 @@ static void wil_rx_buf_len_init(struct wil6210_priv *wil)
 	}
 }
 
-int wil_rx_init(struct wil6210_priv *wil, u16 size)
+static int wil_rx_init(struct wil6210_priv *wil, u16 size)
 {
 	struct wil_ring *vring = &wil->ring_rx;
 	int rc;
@@ -858,6 +857,7 @@ int wil_rx_init(struct wil6210_priv *wil, u16 size)
 	wil_rx_buf_len_init(wil);
 
 	vring->size = size;
+	vring->is_rx = true;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
 		return rc;
@@ -872,22 +872,22 @@ int wil_rx_init(struct wil6210_priv *wil, u16 size)
 
 	return 0;
  err_free:
-	wil_vring_free(wil, vring, 0);
+	wil_vring_free(wil, vring);
 
 	return rc;
 }
 
-void wil_rx_fini(struct wil6210_priv *wil)
+static void wil_rx_fini(struct wil6210_priv *wil)
 {
 	struct wil_ring *vring = &wil->ring_rx;
 
 	wil_dbg_misc(wil, "rx_fini\n");
 
 	if (vring->va)
-		wil_vring_free(wil, vring, 0);
+		wil_vring_free(wil, vring);
 }
 
-static inline void wil_tx_data_init(struct wil_ring_tx_data *txdata)
+void wil_tx_data_init(struct wil_ring_tx_data *txdata)
 {
 	spin_lock_bh(&txdata->lock);
 	txdata->dot1x_open = 0;
@@ -903,8 +903,8 @@ static inline void wil_tx_data_init(struct wil_ring_tx_data *txdata)
 	spin_unlock_bh(&txdata->lock);
 }
 
-int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
-		      int cid, int tid)
+static int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
+			     int cid, int tid)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
@@ -948,6 +948,7 @@ int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
 	}
 
 	wil_tx_data_init(txdata);
+	vring->is_rx = false;
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -987,7 +988,7 @@ int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
 	txdata->dot1x_open = false;
 	txdata->enabled = 0;
 	spin_unlock_bh(&txdata->lock);
-	wil_vring_free(wil, vring, 1);
+	wil_vring_free(wil, vring);
 	wil->ring2cid_tid[id][0] = WIL6210_MAX_CID;
 	wil->ring2cid_tid[id][1] = 0;
 
@@ -1032,6 +1033,7 @@ int wil_vring_init_bcast(struct wil6210_vif *vif, int id, int size)
 	}
 
 	wil_tx_data_init(txdata);
+	vring->is_rx = false;
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -1069,41 +1071,10 @@ int wil_vring_init_bcast(struct wil6210_vif *vif, int id, int size)
 	txdata->enabled = 0;
 	txdata->dot1x_open = false;
 	spin_unlock_bh(&txdata->lock);
-	wil_vring_free(wil, vring, 1);
+	wil_vring_free(wil, vring);
  out:
 
 	return rc;
-}
-
-void wil_ring_fini_tx(struct wil6210_priv *wil, int id)
-{
-	struct wil_ring *vring = &wil->ring_tx[id];
-	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[id];
-
-	lockdep_assert_held(&wil->mutex);
-
-	if (!vring->va)
-		return;
-
-	wil_dbg_misc(wil, "vring_fini_tx: id=%d\n", id);
-
-	spin_lock_bh(&txdata->lock);
-	txdata->dot1x_open = false;
-	txdata->mid = U8_MAX;
-	txdata->enabled = 0; /* no Tx can be in progress or start anew */
-	spin_unlock_bh(&txdata->lock);
-	/* napi_synchronize waits for completion of the current NAPI but will
-	 * not prevent the next NAPI run.
-	 * Add a memory barrier to guarantee that txdata->enabled is zeroed
-	 * before napi_synchronize so that the next scheduled NAPI will not
-	 * handle this vring
-	 */
-	wmb();
-	/* make sure NAPI won't touch this vring */
-	if (test_bit(wil_status_napi_en, wil->status))
-		napi_synchronize(&wil->napi_tx);
-
-	wil_vring_free(wil, vring, 1);
 }
 
 static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
@@ -1113,12 +1084,13 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 	int i;
 	struct ethhdr *eth = (void *)skb->data;
 	int cid = wil_find_cid(wil, vif->mid, eth->h_dest);
+	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	if (cid < 0)
 		return NULL;
 
 	/* TODO: fix for multiple TID */
-	for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++) {
+	for (i = min_ring_id; i < ARRAY_SIZE(wil->ring2cid_tid); i++) {
 		if (!wil->ring_tx_data[i].dot1x_open &&
 		    skb->protocol != cpu_to_be16(ETH_P_PAE))
 			continue;
@@ -1153,12 +1125,13 @@ static struct wil_ring *wil_find_tx_ring_sta(struct wil6210_priv *wil,
 	int i;
 	u8 cid;
 	struct wil_ring_tx_data  *txdata;
+	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	/* In the STA mode, it is expected to have only 1 VRING
 	 * for the AP we connected to.
 	 * find 1-st vring eligible for this skb and use it.
 	 */
-	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+	for (i = min_ring_id; i < WIL6210_MAX_TX_RINGS; i++) {
 		ring = &wil->ring_tx[i];
 		txdata = &wil->ring_tx_data[i];
 		if (!ring->va || !txdata->enabled || txdata->mid != vif->mid)
@@ -1234,9 +1207,10 @@ static struct wil_ring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
 	struct ethhdr *eth = (void *)skb->data;
 	char *src = eth->h_source;
 	struct wil_ring_tx_data *txdata, *txdata2;
+	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	/* find 1-st vring eligible for data */
-	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+	for (i = min_ring_id; i < WIL6210_MAX_TX_RINGS; i++) {
 		v = &wil->ring_tx[i];
 		txdata = &wil->ring_tx_data[i];
 		if (!v->va || !txdata->enabled || txdata->mid != vif->mid)
@@ -2200,4 +2174,26 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 		wil_update_net_queues(wil, vif, vring, false);
 
 	return done;
+}
+
+static inline int wil_tx_init(struct wil6210_priv *wil)
+{
+	return 0;
+}
+
+static inline void wil_tx_fini(struct wil6210_priv *wil) {}
+
+void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
+{
+	wil->txrx_ops.configure_interrupt_moderation =
+		wil_configure_interrupt_moderation;
+	/* TX ops */
+	wil->txrx_ops.ring_init_tx = wil_vring_init_tx;
+	wil->txrx_ops.ring_fini_tx = wil_vring_free;
+	wil->txrx_ops.ring_init_bcast = wil_vring_init_bcast;
+	wil->txrx_ops.tx_init = wil_tx_init;
+	wil->txrx_ops.tx_fini = wil_tx_fini;
+	/* RX ops */
+	wil->txrx_ops.rx_init = wil_rx_init;
+	wil->txrx_ops.rx_fini = wil_rx_fini;
 }

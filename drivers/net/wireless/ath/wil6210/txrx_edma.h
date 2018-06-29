@@ -19,6 +19,25 @@
 
 #include "wil6210.h"
 
+/* limit status ring size in range [ring size..max ring size] */
+#define WIL_SRING_SIZE_ORDER_MIN	(WIL_RING_SIZE_ORDER_MIN)
+#define WIL_SRING_SIZE_ORDER_MAX	(WIL_RING_SIZE_ORDER_MAX)
+/* RX sring order should be bigger than RX ring order */
+#define WIL_RX_SRING_SIZE_ORDER_DEFAULT	(11)
+#define WIL_TX_SRING_SIZE_ORDER_DEFAULT	(12)
+#define WIL_RX_BUFF_ARR_SIZE_DEFAULT (1536)
+
+#define WIL_DEFAULT_RX_STATUS_RING_ID 0
+#define WIL_RX_DESC_RING_ID 0
+#define WIL_RX_STATUS_IRQ_IDX 0
+#define WIL_TX_STATUS_IRQ_IDX 1
+
+#define WIL_EDMA_AGG_WATERMARK (0xffff)
+#define WIL_EDMA_AGG_WATERMARK_POS (16)
+
+#define WIL_EDMA_IDLE_TIME_LIMIT_USEC (50)
+#define WIL_EDMA_TIME_UNIT_CLK_CYCLES (330) /* fits 1 usec */
+
 /* Enhanced Rx descriptor - MAC part
  * [dword 0] : Reserved
  * [dword 1] : Reserved
@@ -216,7 +235,7 @@ struct wil_ring_tx_status {
  *	bit 22..23 : CB mode:2 - The CB Mode: 0-DMG, 1-EDMG, 2-Wide
  *	bit 24..27 : Data Offset:4 - The data offset, a code that describe the
  *		     payload shift from the beginning of the buffer:
- *		     0 - 0 Bytes, 1 - 2 Bytes, 2 - 6 Bytes
+ *		     0 - 0 Bytes, 3 - 2 Bytes
  *	bit     28 : A-MSDU Present:1 - The QoS (b7) A-MSDU present field
  *	bit     29 : A-MSDU Type:1 The QoS (b8) A-MSDU Type field
  *	bit     30 : A-MPDU:1 - Packet is part of aggregated MPDU
@@ -285,6 +304,39 @@ struct wil_rx_status_extended {
 	struct wil_rx_status_compressed comp;
 	struct wil_rx_status_extension ext;
 };
+
+static inline u32 wil_ring_next_head(struct wil_ring *ring)
+{
+	return (ring->swhead + 1) % ring->size;
+}
+
+static inline void wil_desc_set_addr_edma(struct wil_ring_dma_addr *addr,
+					  __le16 *addr_high_high,
+					  dma_addr_t pa)
+{
+	addr->addr_low = cpu_to_le32(lower_32_bits(pa));
+	addr->addr_high = cpu_to_le16((u16)upper_32_bits(pa));
+	*addr_high_high = cpu_to_le16((u16)(upper_32_bits(pa) >> 16));
+}
+
+static inline
+dma_addr_t wil_tx_desc_get_addr_edma(struct wil_ring_tx_enhanced_dma *dma)
+{
+	return le32_to_cpu(dma->addr.addr_low) |
+			   ((u64)le16_to_cpu(dma->addr.addr_high) << 32) |
+			   ((u64)le16_to_cpu(dma->addr_high_high) << 48);
+}
+
+static inline
+dma_addr_t wil_rx_desc_get_addr_edma(struct wil_ring_rx_enhanced_dma *dma)
+{
+	return le32_to_cpu(dma->addr.addr_low) |
+			   ((u64)le16_to_cpu(dma->addr.addr_high) << 32) |
+			   ((u64)le16_to_cpu(dma->addr_high_high) << 48);
+}
+
+void wil_configure_interrupt_moderation_edma(struct wil6210_priv *wil);
+void wil_init_txrx_ops_edma(struct wil6210_priv *wil);
 
 #endif /* WIL6210_TXRX_EDMA_H */
 
