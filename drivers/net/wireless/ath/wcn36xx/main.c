@@ -1161,8 +1161,6 @@ static const struct ieee80211_ops wcn36xx_ops = {
 
 static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 {
-	int ret = 0;
-
 	static const u32 cipher_suites[] = {
 		WLAN_CIPHER_SUITE_WEP40,
 		WLAN_CIPHER_SUITE_WEP104,
@@ -1209,7 +1207,7 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 	wiphy_ext_feature_set(wcn->hw->wiphy,
 			      NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
-	return ret;
+	return 0;
 }
 
 static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
