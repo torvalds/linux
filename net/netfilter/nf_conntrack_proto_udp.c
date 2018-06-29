@@ -36,25 +36,6 @@ static inline struct nf_udp_net *udp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.udp;
 }
 
-static bool udp_pkt_to_tuple(const struct sk_buff *skb,
-			     unsigned int dataoff,
-			     struct net *net,
-			     struct nf_conntrack_tuple *tuple)
-{
-	const struct udphdr *hp;
-	struct udphdr _hdr;
-
-	/* Actually only need first 4 bytes to get ports. */
-	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (hp == NULL)
-		return false;
-
-	tuple->src.u.udp.port = hp->source;
-	tuple->dst.u.udp.port = hp->dest;
-
-	return true;
-}
-
 static unsigned int *udp_get_timeouts(struct net *net)
 {
 	return udp_pernet(net)->timeouts;
@@ -293,7 +274,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 =
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -324,7 +304,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 =
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -355,7 +334,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 =
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDP,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,
@@ -386,7 +364,6 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 =
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDPLITE,
 	.allow_clash		= true,
-	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.packet			= udp_packet,
 	.get_timeouts		= udp_get_timeouts,
 	.new			= udp_new,

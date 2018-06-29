@@ -388,21 +388,6 @@ static inline struct nf_dccp_net *dccp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.dccp;
 }
 
-static bool dccp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct net *net, struct nf_conntrack_tuple *tuple)
-{
-	struct dccp_hdr _hdr, *dh;
-
-	/* Actually only need first 4 bytes to get ports. */
-	dh = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (dh == NULL)
-		return false;
-
-	tuple->src.u.dccp.port = dh->dccph_sport;
-	tuple->dst.u.dccp.port = dh->dccph_dport;
-	return true;
-}
-
 static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		     unsigned int dataoff, unsigned int *timeouts)
 {
@@ -856,7 +841,6 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
-	.pkt_to_tuple		= dccp_pkt_to_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,
@@ -891,7 +875,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
-	.pkt_to_tuple		= dccp_pkt_to_tuple,
 	.new			= dccp_new,
 	.packet			= dccp_packet,
 	.get_timeouts		= dccp_get_timeouts,

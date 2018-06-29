@@ -235,6 +235,10 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	unsigned int size;
 	const __be32 *ap;
 	__be32 _addrs[8];
+	struct {
+		__be16 sport;
+		__be16 dport;
+	} _inet_hdr, *inet_hdr;
 
 	memset(tuple, 0, sizeof(*tuple));
 
@@ -270,7 +274,17 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
-	return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
+	if (unlikely(l4proto->pkt_to_tuple))
+		return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
+
+	/* Actually only need first 4 bytes to get ports. */
+	inet_hdr = skb_header_pointer(skb, dataoff, sizeof(_inet_hdr), &_inet_hdr);
+	if (!inet_hdr)
+		return false;
+
+	tuple->src.u.udp.port = inet_hdr->sport;
+	tuple->dst.u.udp.port = inet_hdr->dport;
+	return true;
 }
 
 static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,

@@ -150,22 +150,6 @@ static inline struct nf_sctp_net *sctp_pernet(struct net *net)
 	return &net->ct.nf_ct_proto.sctp;
 }
 
-static bool sctp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			      struct net *net, struct nf_conntrack_tuple *tuple)
-{
-	const struct sctphdr *hp;
-	struct sctphdr _hdr;
-
-	/* Actually only need first 4 bytes to get ports. */
-	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
-	if (hp == NULL)
-		return false;
-
-	tuple->src.u.sctp.port = hp->source;
-	tuple->dst.u.sctp.port = hp->dest;
-	return true;
-}
-
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 /* Print out the private part of the conntrack. */
 static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
@@ -772,7 +756,6 @@ static struct nf_proto_net *sctp_get_net_proto(struct net *net)
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
-	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= sctp_print_conntrack,
 #endif
@@ -808,7 +791,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_SCTP,
-	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= sctp_print_conntrack,
 #endif
