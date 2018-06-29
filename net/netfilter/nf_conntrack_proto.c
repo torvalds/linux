@@ -35,6 +35,11 @@ EXPORT_SYMBOL_GPL(nf_ct_l3protos);
 
 static DEFINE_MUTEX(nf_ct_proto_mutex);
 
+struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
+	.l3proto	 = PF_UNSPEC,
+};
+EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);
+
 #ifdef CONFIG_SYSCTL
 static int
 nf_ct_register_sysctl(struct net *net,

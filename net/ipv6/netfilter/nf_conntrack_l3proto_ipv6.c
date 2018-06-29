@@ -41,34 +41,6 @@ struct conntrack6_net {
 	unsigned int users;
 };
 
-static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
-			    unsigned int *dataoff, u_int8_t *protonum)
-{
-	unsigned int extoff = nhoff + sizeof(struct ipv6hdr);
-	__be16 frag_off;
-	int protoff;
-	u8 nexthdr;
-
-	if (skb_copy_bits(skb, nhoff + offsetof(struct ipv6hdr, nexthdr),
-			  &nexthdr, sizeof(nexthdr)) != 0) {
-		pr_debug("ip6_conntrack_core: can't get nexthdr\n");
-		return -NF_ACCEPT;
-	}
-	protoff = ipv6_skip_exthdr(skb, extoff, &nexthdr, &frag_off);
-	/*
-	 * (protoff == skb->len) means the packet has not data, just
-	 * IPv6 and possibly extensions headers, but it is tracked anyway
-	 */
-	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
-		pr_debug("ip6_conntrack_core: can't find proto in pkt\n");
-		return -NF_ACCEPT;
-	}
-
-	*dataoff = protoff;
-	*protonum = nexthdr;
-	return NF_ACCEPT;
-}
-
 static unsigned int ipv6_helper(void *priv,
 				struct sk_buff *skb,
 				const struct nf_hook_state *state)
@@ -281,7 +253,6 @@ static void ipv6_hooks_unregister(struct net *net)
 
 const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.l3proto		= PF_INET6,
-	.get_l4proto		= ipv6_get_l4proto,
 	.net_ns_get		= ipv6_hooks_register,
 	.net_ns_put		= ipv6_hooks_unregister,
 	.me			= THIS_MODULE,

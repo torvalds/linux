@@ -38,35 +38,6 @@ struct conntrack4_net {
 	unsigned int users;
 };
 
-static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
-			    unsigned int *dataoff, u_int8_t *protonum)
-{
-	const struct iphdr *iph;
-	struct iphdr _iph;
-
-	iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
-	if (iph == NULL)
-		return -NF_ACCEPT;
-
-	/* Conntrack defragments packets, we might still see fragments
-	 * inside ICMP packets though. */
-	if (iph->frag_off & htons(IP_OFFSET))
-		return -NF_ACCEPT;
-
-	*dataoff = nhoff + (iph->ihl << 2);
-	*protonum = iph->protocol;
-
-	/* Check bogus IP headers */
-	if (*dataoff > skb->len) {
-		pr_debug("nf_conntrack_ipv4: bogus IPv4 packet: "
-			 "nhoff %u, ihl %u, skblen %u\n",
-			 nhoff, iph->ihl << 2, skb->len);
-		return -NF_ACCEPT;
-	}
-
-	return NF_ACCEPT;
-}
-
 static unsigned int ipv4_helper(void *priv,
 				struct sk_buff *skb,
 				const struct nf_hook_state *state)
@@ -297,7 +268,6 @@ static void ipv4_hooks_unregister(struct net *net)
 
 const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 	.l3proto	 = PF_INET,
-	.get_l4proto	 = ipv4_get_l4proto,
 	.net_ns_get	 = ipv4_hooks_register,
 	.net_ns_put	 = ipv4_hooks_unregister,
 	.me		 = THIS_MODULE,

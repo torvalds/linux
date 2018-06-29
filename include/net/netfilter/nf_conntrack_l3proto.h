@@ -24,14 +24,6 @@ struct nf_conntrack_l3proto {
 	/* size of tuple nlattr, fills a hole */
 	u16 nla_size;
 
-	/*
-	 * Called before tracking. 
-	 *	*dataoff: offset of protocol header (TCP, UDP,...) in skb
-	 *	*protonum: protocol number
-	 */
-	int (*get_l4proto)(const struct sk_buff *skb, unsigned int nhoff,
-			   unsigned int *dataoff, u_int8_t *protonum);
-
 	/* Called when netns wants to use connection tracking */
 	int (*net_ns_get)(struct net *);
 	void (*net_ns_put)(struct net *);
