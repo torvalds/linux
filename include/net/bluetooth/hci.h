@@ -1490,6 +1490,12 @@ struct hci_cp_le_write_def_data_len {
 	__le16	tx_time;
 } __packed;
 
+#define HCI_OP_LE_READ_RESOLV_LIST_SIZE	0x202a
+struct hci_rp_le_read_resolv_list_size {
+	__u8	status;
+	__u8	size;
+} __packed;
+
 #define HCI_OP_LE_READ_MAX_DATA_LEN	0x202f
 struct hci_rp_le_read_max_data_len {
 	__u8	status;
