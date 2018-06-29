@@ -268,15 +268,15 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		skb->destructor = xsk_destruct_skb;
 
 		err = dev_direct_xmit(skb, xs->queue_id);
+		xskq_discard_desc(xs->tx);
 		/* Ignore NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP || err == NETDEV_TX_BUSY) {
-			err = -EAGAIN;
-			/* SKB consumed by dev_direct_xmit() */
+			/* SKB completed but not sent */
+			err = -EBUSY;
 			goto out;
 		}
 
 		sent_frame = true;
-		xskq_discard_desc(xs->tx);
 	}
 
 out:
