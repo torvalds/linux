@@ -4108,11 +4108,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->order = get_order(vmcs_conf->size);
 	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
 
-	/* KVM supports Enlightened VMCS v1 only */
-	if (static_branch_unlikely(&enable_evmcs))
-		vmcs_conf->revision_id = KVM_EVMCS_VERSION;
-	else
-		vmcs_conf->revision_id = vmx_msr_low;
+	vmcs_conf->revision_id = vmx_msr_low;
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
 	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
@@ -4182,7 +4178,13 @@ static struct vmcs *alloc_vmcs_cpu(int cpu)
 		return NULL;
 	vmcs = page_address(pages);
 	memset(vmcs, 0, vmcs_config.size);
-	vmcs->revision_id = vmcs_config.revision_id; /* vmcs revision id */
+
+	/* KVM supports Enlightened VMCS v1 only */
+	if (static_branch_unlikely(&enable_evmcs))
+		vmcs->revision_id = KVM_EVMCS_VERSION;
+	else
+		vmcs->revision_id = vmcs_config.revision_id;
+
 	return vmcs;
 }
 
@@ -4340,6 +4342,19 @@ static __init int alloc_kvm_area(void)
 			free_kvm_area();
 			return -ENOMEM;
 		}
+
+		/*
+		 * When eVMCS is enabled, alloc_vmcs_cpu() sets
+		 * vmcs->revision_id to KVM_EVMCS_VERSION instead of
+		 * revision_id reported by MSR_IA32_VMX_BASIC.
+		 *
+		 * However, even though not explictly documented by
+		 * TLFS, VMXArea passed as VMXON argument should
+		 * still be marked with revision_id reported by
+		 * physical CPU.
+		 */
+		if (static_branch_unlikely(&enable_evmcs))
+			vmcs->revision_id = vmcs_config.revision_id;
 
 		per_cpu(vmxarea, cpu) = vmcs;
 	}
