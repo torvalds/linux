@@ -139,8 +139,7 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_RST,
 					    RST_RESERVED_BITS | val);
 
-	if (host->data && host->data->flags & MMC_DATA_READ)
-		clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
+	clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
 
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 }
