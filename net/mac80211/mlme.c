@@ -4592,8 +4592,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		else
 			he_oper = NULL;
 
-		if (!he_oper ||
-		    !ieee80211_verify_sta_he_mcs_support(sband, he_oper))
+		if (!ieee80211_verify_sta_he_mcs_support(sband, he_oper))
 			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
 	}
 
