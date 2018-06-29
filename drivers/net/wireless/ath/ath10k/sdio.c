@@ -396,6 +396,7 @@ static int ath10k_sdio_mbox_rx_process_packet(struct ath10k *ar,
 	int ret;
 
 	payload_len = le16_to_cpu(htc_hdr->len);
+	skb->len = payload_len + sizeof(struct ath10k_htc_hdr);
 
 	if (trailer_present) {
 		trailer = skb->data + sizeof(*htc_hdr) +
