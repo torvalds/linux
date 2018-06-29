@@ -86,9 +86,9 @@ medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm 
 struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *kobj)
 {
 	struct ipc_kobject *ipc_kobj;
+	struct ipc_kobject *new_kobj = NULL;
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
-	void *new_kobj = NULL;
 
 	ipc_kobj = (struct ipc_kobject*)kobj;
 	if (!ipc_kobj)
@@ -105,10 +105,11 @@ struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *kobj)
 		goto out_rcu_unlock;
 
 	new_kobj = ipc_kern2kobj(&storage, ipcp);
+
 out_rcu_unlock:
 	rcu_read_unlock();
 out_err:
-	return new_kobj;
+	return (struct medusa_kobject_s *)new_kobj;
 }
 
 /**
@@ -143,10 +144,11 @@ medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 	//if (!ipc_rcu_getref(ipcp))
 	//	goto out_rcu_unlock;
 	ipc_lock_object(ipcp);
-
+	printk("MEdusa update before kobj2kern\n");
 	// update kernel structure	
 	retval = ipc_kobj2kern(ipc_kobj, ipcp);
 
+	printk("MEdusa update after kobj2kern %d\n", retval);
 	ipc_unlock_object(ipcp);
 	//ipc_rcu_putref(ipcp, ipc_rcu_free);	
 out_rcu_unlock:
