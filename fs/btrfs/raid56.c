@@ -507,32 +507,21 @@ static void run_xor(void **pages, int src_cnt, ssize_t len)
 }
 
 /*
- * returns true if the bio list inside this rbio
- * covers an entire stripe (no rmw required).
- * Must be called with the bio list lock held, or
- * at a time when you know it is impossible to add
- * new bios into the list
+ * Returns true if the bio list inside this rbio covers an entire stripe (no
+ * rmw required).
  */
-static int __rbio_is_full(struct btrfs_raid_bio *rbio)
-{
-	unsigned long size = rbio->bio_list_bytes;
-	int ret = 1;
-
-	if (size != rbio->nr_data * rbio->stripe_len)
-		ret = 0;
-
-	BUG_ON(size > rbio->nr_data * rbio->stripe_len);
-	return ret;
-}
-
 static int rbio_is_full(struct btrfs_raid_bio *rbio)
 {
 	unsigned long flags;
-	int ret;
+	unsigned long size = rbio->bio_list_bytes;
+	int ret = 1;
 
 	spin_lock_irqsave(&rbio->bio_list_lock, flags);
-	ret = __rbio_is_full(rbio);
+	if (size != rbio->nr_data * rbio->stripe_len)
+		ret = 0;
+	BUG_ON(size > rbio->nr_data * rbio->stripe_len);
 	spin_unlock_irqrestore(&rbio->bio_list_lock, flags);
+
 	return ret;
 }
 
