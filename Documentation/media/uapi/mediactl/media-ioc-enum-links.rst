@@ -92,7 +92,7 @@ returned during the enumeration process.
 
     *  -  __u16
        -  ``index``
-       -  0-based pad index.
+       -  Pad index, starts at 0.
 
     *  -  __u32
        -  ``flags``
