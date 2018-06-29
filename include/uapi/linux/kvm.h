@@ -1614,9 +1614,12 @@ struct kvm_xen_vcpu_attr {
 	__u16 type;
 	__u16 pad[3];
 	union {
+		__u64 gpa;
 		__u64 pad[8];
 	} u;
 };
+
+#define KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO	0x0
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {

@@ -120,15 +120,31 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 
 int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 {
-	int r = -ENOENT;
+	int idx, r = -ENOENT;
 
 	mutex_lock(&vcpu->kvm->lock);
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	switch (data->type) {
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
+		/* No compat necessary here. */
+		BUILD_BUG_ON(sizeof(struct vcpu_info) !=
+			     sizeof(struct compat_vcpu_info));
+
+		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
+					      &vcpu->arch.xen.vcpu_info_cache,
+					      data->u.gpa,
+					      sizeof(struct vcpu_info));
+		if (!r)
+			vcpu->arch.xen.vcpu_info_set = true;
+		break;
+
+
 	default:
 		break;
 	}
 
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	mutex_unlock(&vcpu->kvm->lock);
 	return r;
 }
@@ -140,6 +156,13 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 	mutex_lock(&vcpu->kvm->lock);
 
 	switch (data->type) {
+	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_INFO:
+		if (vcpu->arch.xen.vcpu_info_set) {
+			data->u.gpa = vcpu->arch.xen.vcpu_info_cache.gpa;
+			r = 0;
+		}
+		break;
+
 	default:
 		break;
 	}
