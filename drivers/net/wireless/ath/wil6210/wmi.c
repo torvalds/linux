@@ -428,6 +428,8 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_RCP_DELBA_CMD";
 	case WMI_RCP_ADDBA_RESP_CMDID:
 		return "WMI_RCP_ADDBA_RESP_CMD";
+	case WMI_RCP_ADDBA_RESP_EDMA_CMDID:
+		return "WMI_RCP_ADDBA_RESP_EDMA_CMD";
 	case WMI_PS_DEV_PROFILE_CFG_CMDID:
 		return "WMI_PS_DEV_PROFILE_CFG_CMD";
 	case WMI_SET_MGMT_RETRY_LIMIT_CMDID:
@@ -2140,15 +2142,18 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 int wmi_addba(struct wil6210_priv *wil, u8 mid,
 	      u8 ringid, u8 size, u16 timeout)
 {
+	u8 amsdu = wil->use_enhanced_dma_hw && wil->use_rx_hw_reordering &&
+		test_bit(WMI_FW_CAPABILITY_AMSDU, wil->fw_capabilities) &&
+		wil->amsdu_en;
 	struct wmi_ring_ba_en_cmd cmd = {
 		.ring_id = ringid,
 		.agg_max_wsize = size,
 		.ba_timeout = cpu_to_le16(timeout),
-		.amsdu = 0,
+		.amsdu = amsdu,
 	};
 
-	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d)\n", ringid, size,
-		    timeout);
+	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d amsdu %d)\n",
+		    ringid, size, timeout, amsdu);
 
 	return wmi_send(wil, WMI_RING_BA_EN_CMDID, mid, &cmd, sizeof(cmd));
 }
@@ -2211,6 +2216,54 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil,
 	rc = wmi_call(wil, WMI_RCP_ADDBA_RESP_CMDID, mid, &cmd, sizeof(cmd),
 		      WMI_RCP_ADDBA_RESP_SENT_EVENTID, &reply, sizeof(reply),
 		      100);
+	if (rc)
+		return rc;
+
+	if (reply.evt.status) {
+		wil_err(wil, "ADDBA response failed with status %d\n",
+			le16_to_cpu(reply.evt.status));
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+int wmi_addba_rx_resp_edma(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid,
+			   u8 token, u16 status, bool amsdu, u16 agg_wsize,
+			   u16 timeout)
+{
+	int rc;
+	struct wmi_rcp_addba_resp_edma_cmd cmd = {
+		.cid = cid,
+		.tid = tid,
+		.dialog_token = token,
+		.status_code = cpu_to_le16(status),
+		/* bit 0: A-MSDU supported
+		 * bit 1: policy (should be 0 for us)
+		 * bits 2..5: TID
+		 * bits 6..15: buffer size
+		 */
+		.ba_param_set = cpu_to_le16((amsdu ? 1 : 0) | (tid << 2) |
+					    (agg_wsize << 6)),
+		.ba_timeout = cpu_to_le16(timeout),
+		/* route all the connections to status ring 0 */
+		.status_ring_id = WIL_DEFAULT_RX_STATUS_RING_ID,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_rcp_addba_resp_sent_event evt;
+	} __packed reply = {
+		.evt = {.status = cpu_to_le16(WMI_FW_STATUS_FAILURE)},
+	};
+
+	wil_dbg_wmi(wil,
+		    "ADDBA response for CID %d TID %d size %d timeout %d status %d AMSDU%s, sring_id %d\n",
+		    cid, tid, agg_wsize, timeout, status, amsdu ? "+" : "-",
+		    WIL_DEFAULT_RX_STATUS_RING_ID);
+
+	rc = wmi_call(wil, WMI_RCP_ADDBA_RESP_EDMA_CMDID, mid, &cmd,
+		      sizeof(cmd), WMI_RCP_ADDBA_RESP_SENT_EVENTID, &reply,
+		      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
 	if (rc)
 		return rc;
 

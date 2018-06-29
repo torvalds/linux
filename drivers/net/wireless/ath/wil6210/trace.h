@@ -187,6 +187,40 @@ TRACE_EVENT(wil6210_rx,
 		  __entry->seq, __entry->type, __entry->subtype)
 );
 
+TRACE_EVENT(wil6210_rx_status,
+	    TP_PROTO(struct wil6210_priv *wil, u8 use_compressed, u16 buff_id,
+		     void *msg),
+	    TP_ARGS(wil, use_compressed, buff_id, msg),
+	    TP_STRUCT__entry(__field(u8, use_compressed)
+			     __field(u16, buff_id)
+			     __field(unsigned int, len)
+			     __field(u8, mid)
+			     __field(u8, cid)
+			     __field(u8, tid)
+			     __field(u8, type)
+			     __field(u8, subtype)
+			     __field(u16, seq)
+			     __field(u8, mcs)
+	    ),
+	    TP_fast_assign(__entry->use_compressed = use_compressed;
+			   __entry->buff_id = buff_id;
+			   __entry->len = wil_rx_status_get_length(msg);
+			   __entry->mid = wil_rx_status_get_mid(msg);
+			   __entry->cid = wil_rx_status_get_cid(msg);
+			   __entry->tid = wil_rx_status_get_tid(msg);
+			   __entry->type = wil_rx_status_get_frame_type(wil,
+									msg);
+			   __entry->subtype = wil_rx_status_get_fc1(wil, msg);
+			   __entry->seq = wil_rx_status_get_seq(wil, msg);
+			   __entry->mcs = wil_rx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "compressed %d buff_id %d len %d mid %d cid %d tid %d mcs %d seq 0x%03x type 0x%1x subtype 0x%1x",
+		      __entry->use_compressed, __entry->buff_id, __entry->len,
+		      __entry->mid, __entry->cid, __entry->tid, __entry->mcs,
+		      __entry->seq, __entry->type, __entry->subtype)
+);
+
 TRACE_EVENT(wil6210_tx,
 	TP_PROTO(u8 vring, u16 index, unsigned int len, u8 frags),
 	TP_ARGS(vring, index, len, frags),

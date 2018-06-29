@@ -120,6 +120,27 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	return done;
 }
 
+static int wil6210_netdev_poll_rx_edma(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_rx);
+	int quota = budget;
+	int done;
+
+	wil_rx_handle_edma(wil, &quota);
+	done = budget - quota;
+
+	if (done < budget) {
+		napi_complete_done(napi, done);
+		wil6210_unmask_irq_rx_edma(wil);
+		wil_dbg_txrx(wil, "NAPI RX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI RX poll(%d) done %d\n", budget, done);
+
+	return done;
+}
+
 static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 {
 	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
@@ -442,17 +463,21 @@ int wil_if_add(struct wil6210_priv *wil)
 	}
 
 	init_dummy_netdev(&wil->napi_ndev);
-	netif_napi_add(&wil->napi_ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
-		       WIL6210_NAPI_BUDGET);
-	if (wil->use_enhanced_dma_hw)
+	if (wil->use_enhanced_dma_hw) {
+		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
+			       wil6210_netdev_poll_rx_edma,
+			       WIL6210_NAPI_BUDGET);
 		netif_tx_napi_add(&wil->napi_ndev,
 				  &wil->napi_tx, wil6210_netdev_poll_tx_edma,
 				  WIL6210_NAPI_BUDGET);
-	else
+	} else {
+		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
+			       wil6210_netdev_poll_rx,
+			       WIL6210_NAPI_BUDGET);
 		netif_tx_napi_add(&wil->napi_ndev,
 				  &wil->napi_tx, wil6210_netdev_poll_tx,
 				  WIL6210_NAPI_BUDGET);
-
+	}
 
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 

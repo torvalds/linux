@@ -592,6 +592,13 @@ static inline int wil_get_min_tx_ring_id(struct wil6210_priv *wil)
 	return wil->use_enhanced_dma_hw ? 1 : 0;
 }
 
+/* similar to ieee80211_ version, but FC contain only 1-st byte */
+static inline int wil_is_back_req(u8 fc)
+{
+	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
 /* wil_val_in_range - check if value in [min,max) */
 static inline bool wil_val_in_range(int val, int min, int max)
 {

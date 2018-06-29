@@ -28,6 +28,7 @@
 #include "wmi.h"
 #include "txrx.h"
 #include "trace.h"
+#include "txrx_edma.h"
 
 static bool rtap_include_phy_info;
 module_param(rtap_include_phy_info, bool, 0444);
@@ -407,14 +408,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 	}
 }
 
-/* similar to ieee80211_ version, but FC contain only 1-st byte */
-static inline int wil_is_back_req(u8 fc)
-{
-	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
-	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
-}
-
-bool wil_is_rx_idle(struct wil6210_priv *wil)
+static bool wil_is_rx_idle(struct wil6210_priv *wil)
 {
 	struct vring_rx_desc *_d;
 	struct wil_ring *ring = &wil->ring_rx;
@@ -639,7 +633,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
  * Cut'n'paste from original memcmp (see lib/string.c)
  * with minimal modifications
  */
-static int reverse_memcmp(const void *cs, const void *ct, size_t count)
+int reverse_memcmp(const void *cs, const void *ct, size_t count)
 {
 	const unsigned char *su1, *su2;
 	int res = 0;
@@ -684,6 +678,15 @@ static int wil_rx_crypto_check(struct wil6210_priv *wil, struct sk_buff *skb)
 	return 0;
 }
 
+static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
+				    int *security)
+{
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+
+	*cid = wil_rxdesc_cid(d); /* always 0..7, no need to check */
+	*security = wil_rxdesc_security(d);
+}
+
 /*
  * Pass Rx packet to the netif. Update statistics.
  * Called in softirq context (NAPI poll).
@@ -695,15 +698,14 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	unsigned int len = skb->len;
-	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
-	int cid = wil_rxdesc_cid(d); /* always 0..7, no need to check */
-	int security = wil_rxdesc_security(d);
+	int cid;
+	int security;
 	struct ethhdr *eth = (void *)skb->data;
 	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
 	 * is not suitable, need to look at data
 	 */
 	int mcast = is_multicast_ether_addr(eth->h_dest);
-	struct wil_net_stats *stats = &wil->sta[cid].stats;
+	struct wil_net_stats *stats;
 	struct sk_buff *xmit_skb = NULL;
 	static const char * const gro_res_str[] = {
 		[GRO_MERGED]		= "GRO_MERGED",
@@ -712,6 +714,10 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_NORMAL]		= "GRO_NORMAL",
 		[GRO_DROP]		= "GRO_DROP",
 	};
+
+	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
+
+	stats = &wil->sta[cid].stats;
 
 	if (ndev->features & NETIF_F_RXHASH)
 		/* fake L4 to ensure it won't be re-calculated later
@@ -723,7 +729,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	skb_orphan(skb);
 
-	if (security && (wil_rx_crypto_check(wil, skb) != 0)) {
+	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
 		rc = GRO_DROP;
 		dev_kfree_skb(skb);
 		stats->rx_replay++;
@@ -2172,6 +2178,19 @@ static inline int wil_tx_init(struct wil6210_priv *wil)
 
 static inline void wil_tx_fini(struct wil6210_priv *wil) {}
 
+static void wil_get_reorder_params(struct wil6210_priv *wil,
+				   struct sk_buff *skb, int *tid, int *cid,
+				   int *mid, u16 *seq, int *mcast)
+{
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+
+	*tid = wil_rxdesc_tid(d);
+	*cid = wil_rxdesc_cid(d);
+	*mid = wil_rxdesc_mid(d);
+	*seq = wil_rxdesc_seq(d);
+	*mcast = wil_rxdesc_mcast(d);
+}
+
 void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
 {
 	wil->txrx_ops.configure_interrupt_moderation =
@@ -2187,5 +2206,11 @@ void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil)
 	wil->txrx_ops.tx_fini = wil_tx_fini;
 	/* RX ops */
 	wil->txrx_ops.rx_init = wil_rx_init;
+	wil->txrx_ops.wmi_addba_rx_resp = wmi_addba_rx_resp;
+	wil->txrx_ops.get_reorder_params = wil_get_reorder_params;
+	wil->txrx_ops.get_netif_rx_params =
+		wil_get_netif_rx_params;
+	wil->txrx_ops.rx_crypto_check = wil_rx_crypto_check;
+	wil->txrx_ops.is_rx_idle = wil_is_rx_idle;
 	wil->txrx_ops.rx_fini = wil_rx_fini;
 }
