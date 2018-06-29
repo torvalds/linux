@@ -37,7 +37,17 @@
 #define MT_DFS_EVENT_LOOP		64
 #define MT_DFS_SW_TIMEOUT		(HZ / 20)
 #define MT_DFS_EVENT_WINDOW		(HZ / 5)
+#define MT_DFS_SEQUENCE_WINDOW		(200 * (1 << 20))
 #define MT_DFS_EVENT_TIME_MARGIN	2000
+#define MT_DFS_PRI_MARGIN		4
+#define MT_DFS_SEQUENCE_TH		6
+
+#define MT_DFS_FCC_MAX_PRI		((28570 << 1) + 1000)
+#define MT_DFS_FCC_MIN_PRI		(3000 - 2)
+#define MT_DFS_JP_MAX_PRI		((80000 << 1) + 1000)
+#define MT_DFS_JP_MIN_PRI		(28500 - 2)
+#define MT_DFS_ETSI_MAX_PRI		(133333 + 125000 + 117647 + 1000)
+#define MT_DFS_ETSI_MIN_PRI		(4500 - 20)
 
 struct mt76x2_radar_specs {
 	u8 mode;
@@ -73,12 +83,27 @@ struct mt76x2_dfs_event_rb {
 	int h_rb, t_rb;
 };
 
+struct mt76x2_dfs_sequence {
+	struct list_head head;
+	u32 first_ts;
+	u32 last_ts;
+	u32 pri;
+	u16 count;
+	u8 engine;
+};
+
 struct mt76x2_dfs_hw_pulse {
 	u8 engine;
 	u32 period;
 	u32 w1;
 	u32 w2;
 	u32 burst;
+};
+
+struct mt76x2_dfs_sw_detector_params {
+	u32 min_pri;
+	u32 max_pri;
+	u32 pri_margin;
 };
 
 struct mt76x2_dfs_engine_stats {
@@ -92,7 +117,12 @@ struct mt76x2_dfs_pattern_detector {
 	u8 chirp_pulse_cnt;
 	u32 chirp_pulse_ts;
 
+	struct mt76x2_dfs_sw_detector_params sw_dpd_params;
 	struct mt76x2_dfs_event_rb event_rb[2];
+
+	struct list_head sequences;
+	struct list_head seq_pool;
+
 	unsigned long last_sw_check;
 	u32 last_event_ts;
 
