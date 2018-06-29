@@ -685,6 +685,17 @@ static inline int inode_unhashed(struct inode *inode)
 }
 
 /*
+ * __mark_inode_dirty expects inodes to be hashed.  Since we don't
+ * want special inodes in the fileset inode space, we make them
+ * appear hashed, but do not put on any lists.  hlist_del()
+ * will work fine and require no locking.
+ */
+static inline void inode_fake_hash(struct inode *inode)
+{
+	hlist_add_fake(&inode->i_hash);
+}
+
+/*
  * inode->i_mutex nesting subclasses for the lock validator:
  *
  * 0: the object of the current VFS operation
