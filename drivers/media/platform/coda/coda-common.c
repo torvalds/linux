@@ -1703,6 +1703,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			ctx->bitstream.vaddr, ctx->bitstream.size);
 		ctx->runcounter = 0;
 		ctx->aborting = 0;
+		ctx->hold = false;
 	}
 
 	if (!ctx->streamon_out && !ctx->streamon_cap)
