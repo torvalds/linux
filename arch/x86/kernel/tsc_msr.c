@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * tsc_msr.c - TSC frequency enumeration via MSR
+ * TSC frequency enumeration via MSR
  *
- * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2013, 2018 Intel Corporation
  * Author: Bin Gao <bin.gao@intel.com>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>
