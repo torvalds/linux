@@ -45,13 +45,12 @@ struct nf_conntrack_l4proto {
 	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
-		      enum ip_conntrack_info ctinfo,
-		      unsigned int *timeouts);
+		      enum ip_conntrack_info ctinfo);
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
 	bool (*new)(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff, unsigned int *timeouts);
+		    unsigned int dataoff);
 
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
@@ -62,9 +61,6 @@ struct nf_conntrack_l4proto {
 
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
-
-	/* Return the array of timeouts for this protocol. */
-	unsigned int *(*get_timeouts)(struct net *net);
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,

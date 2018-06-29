@@ -1337,7 +1337,6 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	const struct nf_conntrack_zone *zone;
 	struct nf_conn_timeout *timeout_ext;
 	struct nf_conntrack_zone tmp;
-	unsigned int *timeouts;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l4proto)) {
 		pr_debug("Can't invert tuple.\n");
@@ -1356,15 +1355,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
-	if (timeout_ext) {
-		timeouts = nf_ct_timeout_data(timeout_ext);
-		if (unlikely(!timeouts))
-			timeouts = l4proto->get_timeouts(net);
-	} else {
-		timeouts = l4proto->get_timeouts(net);
-	}
 
-	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
+	if (!l4proto->new(ct, skb, dataoff)) {
 		nf_conntrack_free(ct);
 		pr_debug("can't track with proto module\n");
 		return NULL;
@@ -1493,7 +1485,6 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conn *ct, *tmpl;
 	enum ip_conntrack_info ctinfo;
-	unsigned int *timeouts;
 	u_int8_t protonum;
 	int dataoff, ret;
 
@@ -1552,10 +1543,7 @@ repeat:
 		goto out;
 	}
 
-	/* Decide what timeout policy we want to apply to this flow. */
-	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
-
-	ret = l4proto->packet(ct, skb, dataoff, ctinfo, timeouts);
+	ret = l4proto->packet(ct, skb, dataoff, ctinfo);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
