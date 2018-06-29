@@ -101,6 +101,9 @@
 #define P2C_RG_AVALID			BIT(2)
 #define P2C_RG_IDDIG			BIT(1)
 
+#define U3P_U2PHYBC12C		0x080
+#define P2C_RG_CHGDT_EN		BIT(0)
+
 #define U3P_U3_CHIP_GPIO_CTLD		0x0c
 #define P3C_REG_IP_SW_RST		BIT(31)
 #define P3C_MCU_BUS_CK_GATE_EN		BIT(30)
@@ -297,6 +300,7 @@ struct mtk_phy_instance {
 	int eye_src;
 	int eye_vrt;
 	int eye_term;
+	bool bc12_en;
 };
 
 struct mtk_tphy {
@@ -839,12 +843,16 @@ static void phy_parse_property(struct mtk_tphy *tphy,
 	if (instance->type != PHY_TYPE_USB2)
 		return;
 
+	instance->bc12_en = device_property_read_bool(dev, "mediatek,bc12");
 	device_property_read_u32(dev, "mediatek,eye-src",
 				 &instance->eye_src);
 	device_property_read_u32(dev, "mediatek,eye-vrt",
 				 &instance->eye_vrt);
 	device_property_read_u32(dev, "mediatek,eye-term",
 				 &instance->eye_term);
+	dev_dbg(dev, "bc12:%d, src:%d, vrt:%d, term:%d\n",
+		instance->bc12_en, instance->eye_src,
+		instance->eye_vrt, instance->eye_term);
 }
 
 static void u2_phy_props_set(struct mtk_tphy *tphy,
@@ -854,6 +862,11 @@ static void u2_phy_props_set(struct mtk_tphy *tphy,
 	void __iomem *com = u2_banks->com;
 	u32 tmp;
 
+	if (instance->bc12_en) {
+		tmp = readl(com + U3P_U2PHYBC12C);
+		tmp |= P2C_RG_CHGDT_EN;	/* BC1.2 path Enable */
+		writel(tmp, com + U3P_U2PHYBC12C);
+	}
 
 	if (instance->eye_src) {
 		tmp = readl(com + U3P_USBPHYACR5);
