@@ -3137,9 +3137,22 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 
 	/* If OK, then make the new values permanent. */
 	update_flag = is_cur_manual(master) != is_new_manual(master);
-	for (i = 0; i < master->ncontrols; i++)
+
+	for (i = 0; i < master->ncontrols; i++) {
+		/*
+		 * If we switch from auto to manual mode, and this cluster
+		 * contains volatile controls, then all non-master controls
+		 * have to be marked as changed. The 'new' value contains
+		 * the volatile value (obtained by update_from_auto_cluster),
+		 * which now has to become the current value.
+		 */
+		if (i && update_flag && is_new_manual(master) &&
+		    master->has_volatiles && master->cluster[i])
+			master->cluster[i]->has_changed = true;
+
 		new_to_cur(fh, master->cluster[i], ch_flags |
 			((update_flag && i > 0) ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+	}
 	return 0;
 }
 
