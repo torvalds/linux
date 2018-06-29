@@ -568,9 +568,19 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	DBG_LOW("    invalidate(vpn=%016lx, hash: %lx)\n", vpn, slot);
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
-	native_lock_hpte(hptep);
 	hpte_v = hpte_get_old_v(hptep);
 
+	if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+		native_lock_hpte(hptep);
+		/* recheck with locks held */
+		hpte_v = hpte_get_old_v(hptep);
+
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
+			/* Invalidate the hpte. NOTE: this also unlocks it */
+			hptep->v = 0;
+		else
+			native_unlock_hpte(hptep);
+	}
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -578,13 +588,6 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	 * (hpte_remove) because we assume the old translation is still
 	 * technically "valid".
 	 */
-	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
-		native_unlock_hpte(hptep);
-	else
-		/* Invalidate the hpte. NOTE: this also unlocks it */
-		hptep->v = 0;
-
-	/* Invalidate the TLB */
 	tlbie(vpn, bpsize, apsize, ssize, local);
 
 	local_irq_restore(flags);
@@ -626,15 +629,23 @@ static void native_hugepage_invalidate(unsigned long vsid,
 
 		hptep = htab_address + slot;
 		want_v = hpte_encode_avpn(vpn, psize, ssize);
-		native_lock_hpte(hptep);
 		hpte_v = hpte_get_old_v(hptep);
 
 		/* Even if we miss, we need to invalidate the TLB */
-		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
-			native_unlock_hpte(hptep);
-		else
-			/* Invalidate the hpte. NOTE: this also unlocks it */
-			hptep->v = 0;
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+			/* recheck with locks held */
+			native_lock_hpte(hptep);
+			hpte_v = hpte_get_old_v(hptep);
+
+			if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
+				/*
+				 * Invalidate the hpte. NOTE: this also unlocks it
+				 */
+
+				hptep->v = 0;
+			} else
+				native_unlock_hpte(hptep);
+		}
 		/*
 		 * We need to do tlb invalidate for all the address, tlbie
 		 * instruction compares entry_VA in tlb with the VA specified
@@ -802,13 +813,19 @@ static void native_flush_hash_range(unsigned long number, int local)
 			slot += hidx & _PTEIDX_GROUP_IX;
 			hptep = htab_address + slot;
 			want_v = hpte_encode_avpn(vpn, psize, ssize);
+			hpte_v = hpte_get_old_v(hptep);
+
+			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
+				continue;
+			/* lock and try again */
 			native_lock_hpte(hptep);
 			hpte_v = hpte_get_old_v(hptep);
-			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
-			    !(hpte_v & HPTE_V_VALID))
+
+			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
 			else
 				hptep->v = 0;
+
 		} pte_iterate_hashed_end();
 	}
 
