@@ -197,7 +197,11 @@ static int cnl_be_fixup(struct snd_soc_pcm_runtime *rtd,
 static const char pname[] = "0000:02:18.0";
 static const char cname[] = "rt274.0-001c";
 #else
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
+static const char pname[] = "sof-audio";
+#else
 static const char pname[] = "0000:00:1f.3";
+#endif
 static const char cname[] = "i2c-INT34C2:00";
 #endif
 
