@@ -187,6 +187,10 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (p->uf_entry.robj)
 		p->job->uf_addr = uf_offset;
 	kfree(chunk_array);
+
+	/* Use this opportunity to fill in task info for the vm */
+	amdgpu_vm_set_task_info(vm);
+
 	return 0;
 
 free_all_kdata:
