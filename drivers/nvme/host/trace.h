@@ -50,13 +50,8 @@
 		nvme_admin_opcode_name(nvme_admin_security_recv),	\
 		nvme_admin_opcode_name(nvme_admin_sanitize_nvm))
 
-const char *nvme_trace_parse_admin_cmd(struct trace_seq *p, u8 opcode,
-				       u8 *cdw10);
-#define __parse_nvme_admin_cmd(opcode, cdw10) \
-	nvme_trace_parse_admin_cmd(p, opcode, cdw10)
-
 #define nvme_opcode_name(opcode)	{ opcode, #opcode }
-#define show_opcode_name(val)					\
+#define show_nvm_opcode_name(val)				\
 	__print_symbolic(val,					\
 		nvme_opcode_name(nvme_cmd_flush),		\
 		nvme_opcode_name(nvme_cmd_write),		\
@@ -70,83 +65,66 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p, u8 opcode,
 		nvme_opcode_name(nvme_cmd_resv_acquire),	\
 		nvme_opcode_name(nvme_cmd_resv_release))
 
+#define show_opcode_name(qid, opcode)					\
+	(qid ? show_nvm_opcode_name(opcode) : show_admin_opcode_name(opcode))
+
+const char *nvme_trace_parse_admin_cmd(struct trace_seq *p, u8 opcode,
+		u8 *cdw10);
 const char *nvme_trace_parse_nvm_cmd(struct trace_seq *p, u8 opcode,
-				     u8 *cdw10);
-#define __parse_nvme_cmd(opcode, cdw10) \
-	nvme_trace_parse_nvm_cmd(p, opcode, cdw10)
+		u8 *cdw10);
 
-TRACE_EVENT(nvme_setup_admin_cmd,
-	    TP_PROTO(struct nvme_command *cmd),
-	    TP_ARGS(cmd),
+#define parse_nvme_cmd(qid, opcode, cdw10) 			\
+	(qid ?							\
+	 nvme_trace_parse_nvm_cmd(p, opcode, cdw10) : 		\
+	 nvme_trace_parse_admin_cmd(p, opcode, cdw10))
+
+TRACE_EVENT(nvme_setup_cmd,
+	    TP_PROTO(struct request *req, struct nvme_command *cmd),
+	    TP_ARGS(req, cmd),
 	    TP_STRUCT__entry(
-		    __field(u8, opcode)
-		    __field(u8, flags)
-		    __field(u16, cid)
-		    __field(u64, metadata)
-		    __array(u8, cdw10, 24)
+		__field(int, qid)
+		__field(u8, opcode)
+		__field(u8, flags)
+		__field(u16, cid)
+		__field(u32, nsid)
+		__field(u64, metadata)
+		__array(u8, cdw10, 24)
 	    ),
 	    TP_fast_assign(
-		    __entry->opcode = cmd->common.opcode;
-		    __entry->flags = cmd->common.flags;
-		    __entry->cid = cmd->common.command_id;
-		    __entry->metadata = le64_to_cpu(cmd->common.metadata);
-		    memcpy(__entry->cdw10, cmd->common.cdw10,
-			   sizeof(__entry->cdw10));
+		__entry->qid = nvme_req_qid(req);
+		__entry->opcode = cmd->common.opcode;
+		__entry->flags = cmd->common.flags;
+		__entry->cid = cmd->common.command_id;
+		__entry->nsid = le32_to_cpu(cmd->common.nsid);
+		__entry->metadata = le64_to_cpu(cmd->common.metadata);
+		memcpy(__entry->cdw10, cmd->common.cdw10,
+		       sizeof(__entry->cdw10));
 	    ),
-	    TP_printk(" cmdid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
-		      __entry->cid, __entry->flags, __entry->metadata,
-		      show_admin_opcode_name(__entry->opcode),
-		      __parse_nvme_admin_cmd(__entry->opcode, __entry->cdw10))
-);
-
-
-TRACE_EVENT(nvme_setup_nvm_cmd,
-	    TP_PROTO(int qid, struct nvme_command *cmd),
-	    TP_ARGS(qid, cmd),
-	    TP_STRUCT__entry(
-		    __field(int, qid)
-		    __field(u8, opcode)
-		    __field(u8, flags)
-		    __field(u16, cid)
-		    __field(u32, nsid)
-		    __field(u64, metadata)
-		    __array(u8, cdw10, 24)
-	    ),
-	    TP_fast_assign(
-		    __entry->qid = qid;
-		    __entry->opcode = cmd->common.opcode;
-		    __entry->flags = cmd->common.flags;
-		    __entry->cid = cmd->common.command_id;
-		    __entry->nsid = le32_to_cpu(cmd->common.nsid);
-		    __entry->metadata = le64_to_cpu(cmd->common.metadata);
-		    memcpy(__entry->cdw10, cmd->common.cdw10,
-			   sizeof(__entry->cdw10));
-	    ),
-	    TP_printk("qid=%d, nsid=%u, cmdid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
-		      __entry->qid, __entry->nsid, __entry->cid,
+	    TP_printk("qid=%d, cmdid=%u, nsid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
+		      __entry->qid, __entry->cid, __entry->nsid,
 		      __entry->flags, __entry->metadata,
-		      show_opcode_name(__entry->opcode),
-		      __parse_nvme_cmd(__entry->opcode, __entry->cdw10))
+		      show_opcode_name(__entry->qid, __entry->opcode),
+		      parse_nvme_cmd(__entry->qid, __entry->opcode, __entry->cdw10))
 );
 
 TRACE_EVENT(nvme_complete_rq,
 	    TP_PROTO(struct request *req),
 	    TP_ARGS(req),
 	    TP_STRUCT__entry(
-		    __field(int, qid)
-		    __field(int, cid)
-		    __field(u64, result)
-		    __field(u8, retries)
-		    __field(u8, flags)
-		    __field(u16, status)
+		__field(int, qid)
+		__field(int, cid)
+		__field(u64, result)
+		__field(u8, retries)
+		__field(u8, flags)
+		__field(u16, status)
 	    ),
 	    TP_fast_assign(
-		    __entry->qid = req->q->id;
-		    __entry->cid = req->tag;
-		    __entry->result = le64_to_cpu(nvme_req(req)->result.u64);
-		    __entry->retries = nvme_req(req)->retries;
-		    __entry->flags = nvme_req(req)->flags;
-		    __entry->status = nvme_req(req)->status;
+		__entry->qid = nvme_req_qid(req);
+		__entry->cid = req->tag;
+		__entry->result = le64_to_cpu(nvme_req(req)->result.u64);
+		__entry->retries = nvme_req(req)->retries;
+		__entry->flags = nvme_req(req)->flags;
+		__entry->status = nvme_req(req)->status;
 	    ),
 	    TP_printk("qid=%d, cmdid=%u, res=%llu, retries=%u, flags=0x%x, status=%u",
 		      __entry->qid, __entry->cid, __entry->result,

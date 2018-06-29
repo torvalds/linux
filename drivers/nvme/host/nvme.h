@@ -120,6 +120,13 @@ static inline struct nvme_request *nvme_req(struct request *req)
 	return blk_mq_rq_to_pdu(req);
 }
 
+static inline u16 nvme_req_qid(struct request *req)
+{
+	if (!req->rq_disk)
+		return 0;
+	return blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(req)) + 1;
+}
+
 /* The below value is the specific amount of delay needed before checking
  * readiness in case of the PCI_DEVICE(0x1c58, 0x0003), which needs the
  * NVME_QUIRK_DELAY_BEFORE_CHK_RDY quirk enabled. The value (in ms) was
