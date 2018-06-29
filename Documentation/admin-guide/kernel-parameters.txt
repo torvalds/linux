@@ -2688,12 +2688,8 @@
 			Equivalent to smt=1.
 
 			[KNL,x86] Disable symmetric multithreading (SMT).
-			nosmt=force: Force disable SMT, similar to disabling
-				     it in the BIOS except that some of the
-				     resource partitioning effects which are
-				     caused by having SMT enabled in the BIOS
-				     cannot be undone. Depending on the CPU
-				     type this might have a performance impact.
+			nosmt=force: Force disable SMT, cannot be undone
+				     via the sysfs control file.
 
 	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
 			(indirect branch prediction) vulnerability. System may
