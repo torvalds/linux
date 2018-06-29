@@ -569,8 +569,6 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 					f->fmt.pix.height * 2;
 		break;
 	case V4L2_PIX_FMT_JPEG:
-		f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
-		/* fallthrough */
 	case V4L2_PIX_FMT_H264:
 	case V4L2_PIX_FMT_MPEG4:
 	case V4L2_PIX_FMT_MPEG2:
