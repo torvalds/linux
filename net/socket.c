@@ -1133,6 +1133,8 @@ static __poll_t sock_poll(struct file *file, poll_table *wait)
 	__poll_t events = poll_requested_events(wait);
 
 	sock_poll_busy_loop(sock, events);
+	if (!sock->ops->poll)
+		return 0;
 	return sock->ops->poll(file, sock, wait) | sock_poll_busy_flag(sock);
 }
 
