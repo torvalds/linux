@@ -1575,14 +1575,12 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 
 	server = tcon->ses->server;
 
-#ifdef CONFIG_CIFS_SMB311
 	if ((server->ops->posix_mkdir) && (tcon->posix_extensions)) {
 		rc = server->ops->posix_mkdir(xid, inode, mode, tcon, full_path,
 					      cifs_sb);
 		d_drop(direntry); /* for time being always refresh inode info */
 		goto mkdir_out;
 	}
-#endif /* SMB311 */
 
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {

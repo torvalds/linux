@@ -70,7 +70,6 @@ err:
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_SMB311
 int
 smb311_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
@@ -98,7 +97,6 @@ err:
 	cifs_free_hash(&p->hmacsha256, &p->sdeschmacsha256);
 	return rc;
 }
-#endif
 
 static struct cifs_ses *
 smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
@@ -395,7 +393,6 @@ generate_smb30signingkey(struct cifs_ses *ses)
 	return generate_smb3signingkey(ses, &triplet);
 }
 
-#ifdef CONFIG_CIFS_SMB311
 int
 generate_smb311signingkey(struct cifs_ses *ses)
 
@@ -423,7 +420,6 @@ generate_smb311signingkey(struct cifs_ses *ses)
 
 	return generate_smb3signingkey(ses, &triplet);
 }
-#endif /* 311 */
 
 int
 smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)

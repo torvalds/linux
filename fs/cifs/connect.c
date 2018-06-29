@@ -303,10 +303,8 @@ static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_21, SMB21_VERSION_STRING },
 	{ Smb_30, SMB30_VERSION_STRING },
 	{ Smb_302, SMB302_VERSION_STRING },
-#ifdef CONFIG_CIFS_SMB311
 	{ Smb_311, SMB311_VERSION_STRING },
 	{ Smb_311, ALT_SMB311_VERSION_STRING },
-#endif /* SMB311 */
 	{ Smb_3any, SMB3ANY_VERSION_STRING },
 	{ Smb_default, SMBDEFAULT_VERSION_STRING },
 	{ Smb_version_err, NULL }
@@ -1219,12 +1217,10 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 		vol->ops = &smb30_operations; /* currently identical with 3.0 */
 		vol->vals = &smb302_values;
 		break;
-#ifdef CONFIG_CIFS_SMB311
 	case Smb_311:
 		vol->ops = &smb311_operations;
 		vol->vals = &smb311_values;
 		break;
-#endif /* SMB311 */
 	case Smb_3any:
 		vol->ops = &smb30_operations; /* currently identical with 3.0 */
 		vol->vals = &smb3any_values;
@@ -3039,7 +3035,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
-#ifdef CONFIG_CIFS_SMB311
 	if (volume_info->linux_ext) {
 		if (ses->server->posix_ext_supported) {
 			tcon->posix_extensions = true;
@@ -3051,7 +3046,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			goto out_fail;
 		}
 	}
-#endif /* 311 */
 
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
@@ -4005,11 +3999,9 @@ try_mount_again:
 		goto remote_path_check;
 	}
 
-#ifdef CONFIG_CIFS_SMB311
 	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
 	if (tcon->posix_extensions)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
-#endif /* SMB3.11 */
 
 	/* tell server which Unix caps we support */
 	if (cap_unix(tcon->ses)) {
@@ -4472,11 +4464,10 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 		goto out;
 	}
 
-#ifdef CONFIG_CIFS_SMB311
 	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
 	if (tcon->posix_extensions)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
-#endif /* SMB3.11 */
+
 	if (cap_unix(ses))
 		reset_cifs_unix_caps(0, tcon, NULL, vol_info);
 

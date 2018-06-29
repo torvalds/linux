@@ -483,20 +483,12 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",persistenthandles");
 	else if (tcon->use_resilient)
 		seq_puts(s, ",resilienthandles");
-
-#ifdef CONFIG_CIFS_SMB311
 	if (tcon->posix_extensions)
 		seq_puts(s, ",posix");
 	else if (tcon->unix_ext)
 		seq_puts(s, ",unix");
 	else
 		seq_puts(s, ",nounix");
-#else
-	if (tcon->unix_ext)
-		seq_puts(s, ",unix");
-	else
-		seq_puts(s, ",nounix");
-#endif /* SMB311 */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 		seq_puts(s, ",posixpaths");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)

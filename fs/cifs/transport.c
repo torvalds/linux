@@ -807,11 +807,9 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		goto out;
 
-#ifdef CONFIG_CIFS_SMB311
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
 		smb311_update_preauth_hash(ses, rqst->rq_iov,
 					   rqst->rq_nvec);
-#endif
 
 	if (timeout == CIFS_ASYNC_OP)
 		goto out;
@@ -852,7 +850,6 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	else
 		*resp_buf_type = CIFS_SMALL_BUFFER;
 
-#ifdef CONFIG_CIFS_SMB311
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov->iov_base,
@@ -860,7 +857,6 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		};
 		smb311_update_preauth_hash(ses, &iov, 1);
 	}
-#endif
 
 	credits = ses->server->ops->get_credits(midQ);
 

@@ -275,10 +275,9 @@ skip_rdma:
 			server->credits,  server->dialect);
 		if (server->sign)
 			seq_printf(m, " signed");
-#ifdef CONFIG_CIFS_SMB311
 		if (server->posix_ext_supported)
 			seq_printf(m, " posix");
-#endif /* 3.1.1 */
+
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,

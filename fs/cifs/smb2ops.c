@@ -1533,7 +1533,6 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_SMB311
 static int
 smb311_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	     struct kstatfs *buf)
@@ -1564,7 +1563,6 @@ smb311_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	return rc;
 }
-#endif /* SMB311 */
 
 static bool
 smb2_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
@@ -3303,7 +3301,6 @@ struct smb_version_operations smb30_operations = {
 	.next_header = smb2_next_header,
 };
 
-#ifdef CONFIG_CIFS_SMB311
 struct smb_version_operations smb311_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -3404,7 +3401,6 @@ struct smb_version_operations smb311_operations = {
 #endif /* CIFS_XATTR */
 	.next_header = smb2_next_header,
 };
-#endif /* CIFS_SMB311 */
 
 struct smb_version_values smb20_values = {
 	.version_string = SMB20_VERSION_STRING,
@@ -3532,7 +3528,6 @@ struct smb_version_values smb302_values = {
 	.create_lease_size = sizeof(struct create_lease_v2),
 };
 
-#ifdef CONFIG_CIFS_SMB311
 struct smb_version_values smb311_values = {
 	.version_string = SMB311_VERSION_STRING,
 	.protocol_id = SMB311_PROT_ID,
@@ -3553,4 +3548,3 @@ struct smb_version_values smb311_values = {
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.create_lease_size = sizeof(struct create_lease_v2),
 };
-#endif /* SMB311 */

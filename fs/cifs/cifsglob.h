@@ -191,9 +191,7 @@ enum smb_version {
 	Smb_21,
 	Smb_30,
 	Smb_302,
-#ifdef CONFIG_CIFS_SMB311
 	Smb_311,
-#endif /* SMB311 */
 	Smb_3any,
 	Smb_default,
 	Smb_version_err
@@ -687,12 +685,10 @@ struct TCP_Server_Info {
 #endif
 	unsigned int	max_read;
 	unsigned int	max_write;
-#ifdef CONFIG_CIFS_SMB311
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 	bool	posix_ext_supported;
-#endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
 	unsigned long echo_interval;
@@ -886,9 +882,7 @@ struct cifs_ses {
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
-#ifdef CONFIG_CIFS_SMB311
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-#endif /* 3.1.1 */
 
 	/*
 	 * Network interfaces available on the server this session is
@@ -997,9 +991,7 @@ struct cifs_tcon {
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
-#ifdef CONFIG_CIFS_SMB311
 	bool posix_extensions; /* if true SMB3.11 posix extensions enabled */
-#endif /* CIFS_311 */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool broken_sparse_sup; /* if server or share does not support sparse */
