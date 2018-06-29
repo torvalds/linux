@@ -176,6 +176,16 @@
 			 */
 		};
 
+		vhub: usb-vhub@1e6a0000 {
+			compatible = "aspeed,ast2500-usb-vhub";
+			reg = <0x1e6a0000 0x300>;
+			interrupts = <5>;
+			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ad_default>;
+			status = "disabled";
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -1423,6 +1433,11 @@
 	pinctrl_usb2ah_default: usb2ah_default {
 		function = "USB2AH";
 		groups = "USB2AH";
+	};
+
+	pinctrl_usb2ad_default: usb2ad_default {
+		function = "USB2AD";
+		groups = "USB2AD";
 	};
 
 	pinctrl_usb11bhid_default: usb11bhid_default {
