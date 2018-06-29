@@ -1679,6 +1679,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 			coda_write(dev, 512, CODA_CMD_DEC_SEQ_SPP_CHUNK_SIZE);
 		}
 	}
+	if (src_fourcc == V4L2_PIX_FMT_JPEG)
+		coda_write(dev, 0, CODA_CMD_DEC_SEQ_JPG_THUMB_EN);
 	if (dev->devtype->product != CODA_960)
 		coda_write(dev, 0, CODA_CMD_DEC_SEQ_SRC_SIZE);
 
