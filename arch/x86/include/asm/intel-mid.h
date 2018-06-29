@@ -136,20 +136,6 @@ enum intel_mid_timer_options {
 
 extern enum intel_mid_timer_options intel_mid_timer_options;
 
-/*
- * Penwell uses spread spectrum clock, so the freq number is not exactly
- * the same as reported by MSR based on SDM.
- */
-#define FSB_FREQ_83SKU			83200
-#define FSB_FREQ_100SKU			99840
-#define FSB_FREQ_133SKU			133000
-
-#define FSB_FREQ_167SKU			167000
-#define FSB_FREQ_200SKU			200000
-#define FSB_FREQ_267SKU			267000
-#define FSB_FREQ_333SKU			333000
-#define FSB_FREQ_400SKU			400000
-
 /* Bus Select SoC Fuse value */
 #define BSEL_SOC_FUSE_MASK		0x7
 /* FSB 133MHz */

@@ -82,11 +82,6 @@ static void intel_mid_reboot(void)
 	intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
 }
 
-static unsigned long __init intel_mid_calibrate_tsc(void)
-{
-	return 0;
-}
-
 static void __init intel_mid_setup_bp_timer(void)
 {
 	apbt_time_init();
@@ -191,7 +186,6 @@ void __init x86_intel_mid_early_setup(void)
 
 	x86_cpuinit.setup_percpu_clockev = apbt_setup_secondary_clock;
 
-	x86_platform.calibrate_tsc = intel_mid_calibrate_tsc;
 	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
 	x86_init.pci.arch_init = intel_mid_pci_init;

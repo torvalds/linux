@@ -29,6 +29,11 @@ struct freq_desc {
 	u32 freqs[MAX_NUM_FREQS];
 };
 
+/*
+ * Penwell and Clovertrail use spread spectrum clock,
+ * so the freq number is not exactly the same as reported
+ * by MSR based on SDM.
+ */
 static const struct freq_desc freq_desc_pnw = {
 	0, { 0, 0, 0, 0, 0, 99840, 0, 83200 }
 };
