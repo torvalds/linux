@@ -555,6 +555,22 @@ static inline int wil_ring_is_full(struct wil_ring *ring)
 	return wil_ring_next_tail(ring) == ring->swhead;
 }
 
+static inline bool wil_need_txstat(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return is_unicast_ether_addr(eth->h_dest) && skb->sk &&
+	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
+}
+
+static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
+{
+	if (unlikely(wil_need_txstat(skb)))
+		skb_complete_wifi_ack(skb, acked);
+	else
+		acked ? dev_consume_skb_any(skb) : dev_kfree_skb_any(skb);
+}
+
 /* Used space in Tx ring */
 static inline int wil_ring_used_tx(struct wil_ring *ring)
 {
@@ -574,6 +590,12 @@ static inline int wil_get_min_tx_ring_id(struct wil6210_priv *wil)
 {
 	/* In Enhanced DMA ring 0 is reserved for RX */
 	return wil->use_enhanced_dma_hw ? 1 : 0;
+}
+
+/* wil_val_in_range - check if value in [min,max) */
+static inline bool wil_val_in_range(int val, int min, int max)
+{
+	return val >= min && val < max;
 }
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);

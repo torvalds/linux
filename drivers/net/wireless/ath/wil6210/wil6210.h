@@ -24,6 +24,7 @@
 #include <net/cfg80211.h>
 #include <linux/timex.h>
 #include <linux/types.h>
+#include <linux/irqreturn.h>
 #include "wmi.h"
 #include "wil_platform.h"
 #include "fw.h"
@@ -39,6 +40,7 @@ extern bool disable_ap_sme;
 
 struct wil6210_priv;
 struct wil6210_vif;
+union wil_tx_desc;
 
 #define WIL_NAME "wil6210"
 
@@ -320,6 +322,10 @@ struct RGF_ICR {
 #define RGF_INT_GEN_CTRL		(0x8bc0ec)
 	#define BIT_CONTROL_0			BIT(0)
 
+/* eDMA status interrupts */
+#define RGF_INT_GEN_TX_ICR		(0x8bc110)
+	#define BIT_TX_STATUS_IRQ BIT(WIL_TX_STATUS_IRQ_IDX)
+#define RGF_INT_CTRL_TX_INT_MASK	(0x8bc130)
 #define RGF_INT_GEN_IDLE_TIME_LIMIT	(0x8bc134)
 
 #define USER_EXT_USER_PMU_3		(0x88d00c)
@@ -540,6 +546,14 @@ struct wil_txrx_ops {
 	int (*ring_init_bcast)(struct wil6210_vif *vif, int id, int size);
 	int (*tx_init)(struct wil6210_priv *wil);
 	void (*tx_fini)(struct wil6210_priv *wil);
+	int (*tx_desc_map)(union wil_tx_desc *desc, dma_addr_t pa,
+			   u32 len, int ring_index);
+	void (*tx_desc_unmap)(struct device *dev,
+			      union wil_tx_desc *desc,
+			      struct wil_ctx *ctx);
+	int (*tx_ring_tso)(struct wil6210_priv *wil, struct wil6210_vif *vif,
+			   struct wil_ring *ring, struct sk_buff *skb);
+	irqreturn_t (*irq_tx)(int irq, void *cookie);
 	/* RX ops */
 	int (*rx_init)(struct wil6210_priv *wil, u16 ring_size);
 	void (*rx_fini)(struct wil6210_priv *wil);
@@ -1226,6 +1240,7 @@ void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_vif *vif, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
+void wil6210_unmask_irq_tx_edma(struct wil6210_priv *wil);
 
 /* RX API */
 void wil_rx_handle(struct wil6210_priv *wil, int *quota);

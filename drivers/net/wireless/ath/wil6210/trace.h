@@ -226,6 +226,31 @@ TRACE_EVENT(wil6210_tx_done,
 		  __entry->err)
 );
 
+TRACE_EVENT(wil6210_tx_status,
+	    TP_PROTO(struct wil_ring_tx_status *msg, u16 index,
+		     unsigned int len),
+	    TP_ARGS(msg, index, len),
+	    TP_STRUCT__entry(__field(u16, index)
+			     __field(unsigned int, len)
+			     __field(u8, num_descs)
+			     __field(u8, ring_id)
+			     __field(u8, status)
+			     __field(u8, mcs)
+
+	    ),
+	    TP_fast_assign(__entry->index = index;
+			   __entry->len = len;
+			   __entry->num_descs = msg->num_descriptors;
+			   __entry->ring_id = msg->ring_id;
+			   __entry->status = msg->status;
+			   __entry->mcs = wil_tx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "ring_id %d swtail 0x%x len %d num_descs %d status 0x%x mcs %d",
+		      __entry->ring_id, __entry->index, __entry->len,
+		      __entry->num_descs, __entry->status, __entry->mcs)
+);
+
 #endif /* WIL6210_TRACE_H || TRACE_HEADER_MULTI_READ*/
 
 #if defined(CONFIG_WIL6210_TRACING) && !defined(__CHECKER__)

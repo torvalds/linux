@@ -24,13 +24,15 @@
 #include "wil6210.h"
 #include "txrx_edma.h"
 #include "txrx.h"
+#include "trace.h"
 
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
 
 static void wil_tx_desc_unmap_edma(struct device *dev,
-				   struct wil_tx_enhanced_desc *d,
+				   union wil_tx_desc *desc,
 				   struct wil_ctx *ctx)
 {
+	struct wil_tx_enhanced_desc *d = (struct wil_tx_enhanced_desc *)desc;
 	dma_addr_t pa = wil_tx_desc_get_addr_edma(&d->dma);
 	u16 dmalen = le16_to_cpu(d->dma.length);
 
@@ -204,6 +206,13 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 	memcpy(skb->cb, &pa, sizeof(pa));
 
 	return 0;
+}
+
+static inline void wil_sring_advance_swhead(struct wil_status_ring *sring)
+{
+	sring->swhead = (sring->swhead + 1) % sring->size;
+	if (sring->swhead == 0)
+		sring->desc_rdy_pol = 1 - sring->desc_rdy_pol;
 }
 
 static int wil_rx_refill_edma(struct wil6210_priv *wil)
@@ -446,7 +455,7 @@ static void wil_ring_free_edma(struct wil6210_priv *wil, struct wil_ring *ring)
 			continue;
 		}
 		*d = *_d;
-		wil_tx_desc_unmap_edma(dev, d, ctx);
+		wil_tx_desc_unmap_edma(dev, (union wil_tx_desc *)d, ctx);
 		if (ctx->skb)
 			dev_kfree_skb_any(ctx->skb);
 		ring->swtail = wil_ring_next_tail(ring);
@@ -625,6 +634,417 @@ static int wil_ring_init_tx_edma(struct wil6210_vif *vif, int ring_id,
 	return rc;
 }
 
+static int wil_tx_desc_map_edma(union wil_tx_desc *desc,
+				dma_addr_t pa,
+				u32 len,
+				int ring_index)
+{
+	struct wil_tx_enhanced_desc *d =
+		(struct wil_tx_enhanced_desc *)&desc->enhanced;
+
+	memset(d, 0, sizeof(struct wil_tx_enhanced_desc));
+
+	wil_desc_set_addr_edma(&d->dma.addr, &d->dma.addr_high_high, pa);
+
+	/* 0..6: mac_length; 7:ip_version 0-IP6 1-IP4*/
+	d->dma.length = cpu_to_le16((u16)len);
+	d->mac.d[0] = (ring_index << WIL_EDMA_DESC_TX_MAC_CFG_0_QID_POS);
+	/* translation type:  0 - bypass; 1 - 802.3; 2 - native wifi;
+	 * 3 - eth mode
+	 */
+	d->mac.d[2] = BIT(MAC_CFG_DESC_TX_2_SNAP_HDR_INSERTION_EN_POS) |
+		      (0x3 << MAC_CFG_DESC_TX_2_L2_TRANSLATION_TYPE_POS);
+
+	return 0;
+}
+
+static inline void
+wil_get_next_tx_status_msg(struct wil_status_ring *sring,
+			   struct wil_ring_tx_status *msg)
+{
+	struct wil_ring_tx_status *_msg = (struct wil_ring_tx_status *)
+		(sring->va + (sring->elem_size * sring->swhead));
+
+	*msg = *_msg;
+}
+
+/**
+ * Clean up transmitted skb's from the Tx descriptor RING.
+ * Return number of descriptors cleared.
+ */
+int wil_tx_sring_handler(struct wil6210_priv *wil,
+			 struct wil_status_ring *sring)
+{
+	struct net_device *ndev;
+	struct device *dev = wil_to_dev(wil);
+	struct wil_ring *ring = NULL;
+	struct wil_ring_tx_data *txdata;
+	/* Total number of completed descriptors in all descriptor rings */
+	int desc_cnt = 0;
+	int cid;
+	struct wil_net_stats *stats = NULL;
+	struct wil_tx_enhanced_desc *_d;
+	unsigned int ring_id;
+	unsigned int num_descs;
+	int i;
+	u8 dr_bit; /* Descriptor Ready bit */
+	struct wil_ring_tx_status msg;
+	struct wil6210_vif *vif;
+	int used_before_complete;
+	int used_new;
+
+	wil_get_next_tx_status_msg(sring, &msg);
+	dr_bit = msg.desc_ready >> TX_STATUS_DESC_READY_POS;
+
+	/* Process completion messages while DR bit has the expected polarity */
+	while (dr_bit == sring->desc_rdy_pol) {
+		num_descs = msg.num_descriptors;
+		if (!num_descs) {
+			wil_err(wil, "invalid num_descs 0\n");
+			goto again;
+		}
+
+		/* Find the corresponding descriptor ring */
+		ring_id = msg.ring_id;
+
+		if (unlikely(ring_id >= WIL6210_MAX_TX_RINGS)) {
+			wil_err(wil, "invalid ring id %d\n", ring_id);
+			goto again;
+		}
+		ring = &wil->ring_tx[ring_id];
+		if (unlikely(!ring->va)) {
+			wil_err(wil, "Tx irq[%d]: ring not initialized\n",
+				ring_id);
+			goto again;
+		}
+		txdata = &wil->ring_tx_data[ring_id];
+		if (unlikely(!txdata->enabled)) {
+			wil_info(wil, "Tx irq[%d]: ring disabled\n", ring_id);
+			goto again;
+		}
+		vif = wil->vifs[txdata->mid];
+		if (unlikely(!vif)) {
+			wil_dbg_txrx(wil, "invalid MID %d for ring %d\n",
+				     txdata->mid, ring_id);
+			goto again;
+		}
+
+		ndev = vif_to_ndev(vif);
+
+		cid = wil->ring2cid_tid[ring_id][0];
+		if (cid < WIL6210_MAX_CID)
+			stats = &wil->sta[cid].stats;
+
+		wil_dbg_txrx(wil,
+			     "tx_status: completed desc_ring (%d), num_descs (%d)\n",
+			     ring_id, num_descs);
+
+		used_before_complete = wil_ring_used_tx(ring);
+
+		for (i = 0 ; i < num_descs; ++i) {
+			struct wil_ctx *ctx = &ring->ctx[ring->swtail];
+			struct wil_tx_enhanced_desc dd, *d = &dd;
+			u16 dmalen;
+			struct sk_buff *skb = ctx->skb;
+
+			_d = (struct wil_tx_enhanced_desc *)
+				&ring->va[ring->swtail].tx.enhanced;
+			*d = *_d;
+
+			dmalen = le16_to_cpu(d->dma.length);
+			trace_wil6210_tx_status(&msg, ring->swtail, dmalen);
+			wil_dbg_txrx(wil,
+				     "TxC[%2d][%3d] : %d bytes, status 0x%02x\n",
+				     ring_id, ring->swtail, dmalen,
+				     msg.status);
+			wil_hex_dump_txrx("TxS ", DUMP_PREFIX_NONE, 32, 4,
+					  (const void *)&msg, sizeof(msg),
+					  false);
+
+			wil_tx_desc_unmap_edma(dev,
+					       (union wil_tx_desc *)d,
+					       ctx);
+
+			if (skb) {
+				if (likely(msg.status == 0)) {
+					ndev->stats.tx_packets++;
+					ndev->stats.tx_bytes += skb->len;
+					if (stats) {
+						stats->tx_packets++;
+						stats->tx_bytes += skb->len;
+					}
+				} else {
+					ndev->stats.tx_errors++;
+					if (stats)
+						stats->tx_errors++;
+				}
+				wil_consume_skb(skb, msg.status == 0);
+			}
+			memset(ctx, 0, sizeof(*ctx));
+			/* Make sure the ctx is zeroed before updating the tail
+			 * to prevent a case where wil_tx_ring will see
+			 * this descriptor as used and handle it before ctx zero
+			 * is completed.
+			 */
+			wmb();
+
+			ring->swtail = wil_ring_next_tail(ring);
+
+			desc_cnt++;
+		}
+
+		/* performance monitoring */
+		used_new = wil_ring_used_tx(ring);
+		if (wil_val_in_range(wil->ring_idle_trsh,
+				     used_new, used_before_complete)) {
+			wil_dbg_txrx(wil, "Ring[%2d] idle %d -> %d\n",
+				     ring_id, used_before_complete, used_new);
+			txdata->last_idle = get_cycles();
+		}
+
+again:
+		wil_sring_advance_swhead(sring);
+
+		wil_get_next_tx_status_msg(sring, &msg);
+		dr_bit = msg.desc_ready >> TX_STATUS_DESC_READY_POS;
+	}
+
+	/* shall we wake net queues? */
+	if (desc_cnt)
+		wil_update_net_queues(wil, vif, NULL, false);
+
+	/* Update the HW tail ptr (RD ptr) */
+	wil_w(wil, sring->hwtail, (sring->swhead - 1) % sring->size);
+
+	return desc_cnt;
+}
+
+/**
+ * Sets the descriptor @d up for csum and/or TSO offloading. The corresponding
+ * @skb is used to obtain the protocol and headers length.
+ * @tso_desc_type is a descriptor type for TSO: 0 - a header, 1 - first data,
+ * 2 - middle, 3 - last descriptor.
+ */
+static void wil_tx_desc_offload_setup_tso_edma(struct wil_tx_enhanced_desc *d,
+					       int tso_desc_type, bool is_ipv4,
+					       int tcp_hdr_len,
+					       int skb_net_hdr_len,
+					       int mss)
+{
+	/* Number of descriptors */
+	d->mac.d[2] |= 1;
+	/* Maximum Segment Size */
+	d->mac.tso_mss |= cpu_to_le16(mss >> 2);
+	/* L4 header len: TCP header length */
+	d->dma.l4_hdr_len |= tcp_hdr_len & DMA_CFG_DESC_TX_0_L4_LENGTH_MSK;
+	/* EOP, TSO desc type, Segmentation enable,
+	 * Insert IPv4 and TCP / UDP Checksum
+	 */
+	d->dma.cmd |= BIT(WIL_EDMA_DESC_TX_CFG_EOP_POS) |
+		      tso_desc_type << WIL_EDMA_DESC_TX_CFG_TSO_DESC_TYPE_POS |
+		      BIT(WIL_EDMA_DESC_TX_CFG_SEG_EN_POS) |
+		      BIT(WIL_EDMA_DESC_TX_CFG_INSERT_IP_CHKSUM_POS) |
+		      BIT(WIL_EDMA_DESC_TX_CFG_INSERT_TCP_CHKSUM_POS);
+	/* Calculate pseudo-header */
+	d->dma.w1 |= BIT(WIL_EDMA_DESC_TX_CFG_PSEUDO_HEADER_CALC_EN_POS) |
+		     BIT(WIL_EDMA_DESC_TX_CFG_L4_TYPE_POS);
+	/* IP Header Length */
+	d->dma.ip_length |= skb_net_hdr_len;
+	/* MAC header length and IP address family*/
+	d->dma.b11 |= ETH_HLEN |
+		      is_ipv4 << DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS;
+}
+
+static int wil_tx_tso_gen_desc(struct wil6210_priv *wil, void *buff_addr,
+			       int len, uint i, int tso_desc_type,
+			       skb_frag_t *frag, struct wil_ring *ring,
+			       struct sk_buff *skb, bool is_ipv4,
+			       int tcp_hdr_len, int skb_net_hdr_len,
+			       int mss, int *descs_used)
+{
+	struct device *dev = wil_to_dev(wil);
+	struct wil_tx_enhanced_desc *_desc = (struct wil_tx_enhanced_desc *)
+		&ring->va[i].tx.enhanced;
+	struct wil_tx_enhanced_desc desc_mem, *d = &desc_mem;
+	int ring_index = ring - wil->ring_tx;
+	dma_addr_t pa;
+
+	if (len == 0)
+		return 0;
+
+	if (!frag) {
+		pa = dma_map_single(dev, buff_addr, len, DMA_TO_DEVICE);
+		ring->ctx[i].mapped_as = wil_mapped_as_single;
+	} else {
+		pa = skb_frag_dma_map(dev, frag, 0, len, DMA_TO_DEVICE);
+		ring->ctx[i].mapped_as = wil_mapped_as_page;
+	}
+	if (unlikely(dma_mapping_error(dev, pa))) {
+		wil_err(wil, "TSO: Skb DMA map error\n");
+		return -EINVAL;
+	}
+
+	wil->txrx_ops.tx_desc_map((union wil_tx_desc *)d, pa,
+				   len, ring_index);
+	wil_tx_desc_offload_setup_tso_edma(d, tso_desc_type, is_ipv4,
+					   tcp_hdr_len,
+					   skb_net_hdr_len, mss);
+
+	/* hold reference to skb
+	 * to prevent skb release before accounting
+	 * in case of immediate "tx done"
+	 */
+	if (tso_desc_type == wil_tso_type_lst)
+		ring->ctx[i].skb = skb_get(skb);
+
+	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+			  (const void *)d, sizeof(*d), false);
+
+	*_desc = *d;
+	(*descs_used)++;
+
+	return 0;
+}
+
+static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
+				  struct wil6210_vif *vif,
+				  struct wil_ring *ring,
+				  struct sk_buff *skb)
+{
+	int ring_index = ring - wil->ring_tx;
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ring_index];
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	int min_desc_required = nr_frags + 2; /* Headers, Head, Fragments */
+	int used, avail = wil_ring_avail_tx(ring);
+	int f, hdrlen, headlen;
+	int gso_type;
+	bool is_ipv4;
+	u32 swhead = ring->swhead;
+	int descs_used = 0; /* total number of used descriptors */
+	int rc = -EINVAL;
+	int tcp_hdr_len;
+	int skb_net_hdr_len;
+	int mss = skb_shinfo(skb)->gso_size;
+
+	wil_dbg_txrx(wil, "tx_ring_tso: %d bytes to ring %d\n", skb->len,
+		     ring_index);
+
+	if (unlikely(!txdata->enabled))
+		return -EINVAL;
+
+	if (unlikely(avail < min_desc_required)) {
+		wil_err_ratelimited(wil,
+				    "TSO: Tx ring[%2d] full. No space for %d fragments\n",
+				    ring_index, min_desc_required);
+		return -ENOMEM;
+	}
+
+	gso_type = skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV6 | SKB_GSO_TCPV4);
+	switch (gso_type) {
+	case SKB_GSO_TCPV4:
+		is_ipv4 = true;
+		break;
+	case SKB_GSO_TCPV6:
+		is_ipv4 = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return -EINVAL;
+
+	/* tcp header length and skb network header length are fixed for all
+	 * packet's descriptors - read them once here
+	 */
+	tcp_hdr_len = tcp_hdrlen(skb);
+	skb_net_hdr_len = skb_network_header_len(skb);
+
+	/* First descriptor must contain the header only
+	 * Header Length = MAC header len + IP header len + TCP header len
+	 */
+	hdrlen = ETH_HLEN + tcp_hdr_len + skb_net_hdr_len;
+	wil_dbg_txrx(wil, "TSO: process header descriptor, hdrlen %u\n",
+		     hdrlen);
+	rc = wil_tx_tso_gen_desc(wil, skb->data, hdrlen, swhead,
+				 wil_tso_type_hdr, NULL, ring, skb,
+				 is_ipv4, tcp_hdr_len, skb_net_hdr_len,
+				 mss, &descs_used);
+	if (rc)
+		return -EINVAL;
+
+	/* Second descriptor contains the head */
+	headlen = skb_headlen(skb) - hdrlen;
+	wil_dbg_txrx(wil, "TSO: process skb head, headlen %u\n", headlen);
+	rc = wil_tx_tso_gen_desc(wil, skb->data + hdrlen, headlen,
+				 (swhead + descs_used) % ring->size,
+				 (nr_frags != 0) ? wil_tso_type_first :
+				 wil_tso_type_lst, NULL, ring, skb,
+				 is_ipv4, tcp_hdr_len, skb_net_hdr_len,
+				 mss, &descs_used);
+	if (rc)
+		goto mem_error;
+
+	/* Rest of the descriptors are from the SKB fragments */
+	for (f = 0; f < nr_frags; f++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
+		int len = frag->size;
+
+		wil_dbg_txrx(wil, "TSO: frag[%d]: len %u, descs_used %d\n", f,
+			     len, descs_used);
+
+		rc = wil_tx_tso_gen_desc(wil, NULL, len,
+					 (swhead + descs_used) % ring->size,
+					 (f != nr_frags - 1) ?
+					 wil_tso_type_mid : wil_tso_type_lst,
+					 frag, ring, skb, is_ipv4,
+					 tcp_hdr_len, skb_net_hdr_len,
+					 mss, &descs_used);
+		if (rc)
+			goto mem_error;
+	}
+
+	/* performance monitoring */
+	used = wil_ring_used_tx(ring);
+	if (wil_val_in_range(wil->ring_idle_trsh,
+			     used, used + descs_used)) {
+		txdata->idle += get_cycles() - txdata->last_idle;
+		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+			     ring_index, used, used + descs_used);
+	}
+
+	/* advance swhead */
+	wil_ring_advance_head(ring, descs_used);
+	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, ring->swhead);
+
+	/* make sure all writes to descriptors (shared memory) are done before
+	 * committing them to HW
+	 */
+	wmb();
+
+	wil_w(wil, ring->hwtail, ring->swhead);
+
+	return 0;
+
+mem_error:
+	while (descs_used > 0) {
+		struct device *dev = wil_to_dev(wil);
+		struct wil_ctx *ctx;
+		int i = (swhead + descs_used - 1) % ring->size;
+		struct wil_tx_enhanced_desc dd, *d = &dd;
+		struct wil_tx_enhanced_desc *_desc =
+			(struct wil_tx_enhanced_desc *)
+			&ring->va[i].tx.enhanced;
+
+		*d = *_desc;
+		ctx = &ring->ctx[i];
+		wil_tx_desc_unmap_edma(dev, (union wil_tx_desc *)d, ctx);
+		memset(ctx, 0, sizeof(*ctx));
+		descs_used--;
+	}
+	return rc;
+}
+
 static int wil_ring_init_bcast_edma(struct wil6210_vif *vif, int ring_id,
 				    int size)
 {
@@ -712,6 +1132,9 @@ void wil_init_txrx_ops_edma(struct wil6210_priv *wil)
 	wil->txrx_ops.ring_init_bcast = wil_ring_init_bcast_edma;
 	wil->txrx_ops.tx_init = wil_tx_init_edma;
 	wil->txrx_ops.tx_fini = wil_tx_fini_edma;
+	wil->txrx_ops.tx_desc_map = wil_tx_desc_map_edma;
+	wil->txrx_ops.tx_desc_unmap = wil_tx_desc_unmap_edma;
+	wil->txrx_ops.tx_ring_tso = __wil_tx_ring_tso_edma;
 	/* RX ops */
 	wil->txrx_ops.rx_init = wil_rx_init_edma;
 	wil->txrx_ops.rx_fini = wil_rx_fini_edma;

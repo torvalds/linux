@@ -157,6 +157,30 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	return min(tx_done, budget);
 }
 
+static int wil6210_netdev_poll_tx_edma(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_tx);
+	int tx_done;
+	/* There is only one status TX ring */
+	struct wil_status_ring *sring = &wil->srings[wil->tx_sring_idx];
+
+	if (!sring->va)
+		return 0;
+
+	tx_done = wil_tx_sring_handler(wil, sring);
+
+	if (tx_done < budget) {
+		napi_complete(napi);
+		wil6210_unmask_irq_tx_edma(wil);
+		wil_dbg_txrx(wil, "NAPI TX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI TX poll(%d) done %d\n", budget, tx_done);
+
+	return min(tx_done, budget);
+}
+
 static void wil_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -420,9 +444,15 @@ int wil_if_add(struct wil6210_priv *wil)
 	init_dummy_netdev(&wil->napi_ndev);
 	netif_napi_add(&wil->napi_ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
 		       WIL6210_NAPI_BUDGET);
-	netif_tx_napi_add(&wil->napi_ndev,
-			  &wil->napi_tx, wil6210_netdev_poll_tx,
-			  WIL6210_NAPI_BUDGET);
+	if (wil->use_enhanced_dma_hw)
+		netif_tx_napi_add(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx_edma,
+				  WIL6210_NAPI_BUDGET);
+	else
+		netif_tx_napi_add(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx,
+				  WIL6210_NAPI_BUDGET);
+
 
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 

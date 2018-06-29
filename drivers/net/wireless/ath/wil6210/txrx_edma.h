@@ -38,6 +38,30 @@
 #define WIL_EDMA_IDLE_TIME_LIMIT_USEC (50)
 #define WIL_EDMA_TIME_UNIT_CLK_CYCLES (330) /* fits 1 usec */
 
+#define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_POS 16
+#define WIL_EDMA_DESC_TX_MAC_CFG_0_QID_LEN 6
+
+#define WIL_EDMA_DESC_TX_CFG_EOP_POS 0
+#define WIL_EDMA_DESC_TX_CFG_EOP_LEN 1
+
+#define WIL_EDMA_DESC_TX_CFG_TSO_DESC_TYPE_POS 3
+#define WIL_EDMA_DESC_TX_CFG_TSO_DESC_TYPE_LEN 2
+
+#define WIL_EDMA_DESC_TX_CFG_SEG_EN_POS 5
+#define WIL_EDMA_DESC_TX_CFG_SEG_EN_LEN 1
+
+#define WIL_EDMA_DESC_TX_CFG_INSERT_IP_CHKSUM_POS 6
+#define WIL_EDMA_DESC_TX_CFG_INSERT_IP_CHKSUM_LEN 1
+
+#define WIL_EDMA_DESC_TX_CFG_INSERT_TCP_CHKSUM_POS 7
+#define WIL_EDMA_DESC_TX_CFG_INSERT_TCP_CHKSUM_LEN 1
+
+#define WIL_EDMA_DESC_TX_CFG_L4_TYPE_POS 15
+#define WIL_EDMA_DESC_TX_CFG_L4_TYPE_LEN 1
+
+#define WIL_EDMA_DESC_TX_CFG_PSEUDO_HEADER_CALC_EN_POS 5
+#define WIL_EDMA_DESC_TX_CFG_PSEUDO_HEADER_CALC_EN_LEN 1
+
 /* Enhanced Rx descriptor - MAC part
  * [dword 0] : Reserved
  * [dword 1] : Reserved
@@ -303,7 +327,12 @@ struct wil_rx_status_extension {
 struct wil_rx_status_extended {
 	struct wil_rx_status_compressed comp;
 	struct wil_rx_status_extension ext;
-};
+} __packed;
+
+static inline u8 wil_tx_status_get_mcs(struct wil_ring_tx_status *msg)
+{
+	return WIL_GET_BITS(msg->d2, 0, 4);
+}
 
 static inline u32 wil_ring_next_head(struct wil_ring *ring)
 {
@@ -336,6 +365,8 @@ dma_addr_t wil_rx_desc_get_addr_edma(struct wil_ring_rx_enhanced_dma *dma)
 }
 
 void wil_configure_interrupt_moderation_edma(struct wil6210_priv *wil);
+int wil_tx_sring_handler(struct wil6210_priv *wil,
+			 struct wil_status_ring *sring);
 void wil_init_txrx_ops_edma(struct wil6210_priv *wil);
 
 #endif /* WIL6210_TXRX_EDMA_H */
