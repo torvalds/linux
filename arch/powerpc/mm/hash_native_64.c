@@ -423,9 +423,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	DBG_LOW("    update(vpn=%016lx, avpnv=%016lx, group=%lx, newpp=%lx)",
 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
 
-	hpte_v = be64_to_cpu(hptep->v);
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	hpte_v = hpte_get_old_v(hptep);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -439,9 +437,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	} else {
 		native_lock_hpte(hptep);
 		/* recheck with locks held */
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+		hpte_v = hpte_get_old_v(hptep);
 		if (unlikely(!HPTE_V_COMPARE(hpte_v, want_v) ||
 			     !(hpte_v & HPTE_V_VALID))) {
 			ret = -1;
@@ -481,11 +477,9 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	/* Bolted mappings are only ever in the primary group */
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
-		hptep = htab_address + slot;
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
 
+		hptep = htab_address + slot;
+		hpte_v = hpte_get_old_v(hptep);
 		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
 			/* HPTE matches */
 			return slot;
@@ -575,9 +569,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 	native_lock_hpte(hptep);
-	hpte_v = be64_to_cpu(hptep->v);
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	hpte_v = hpte_get_old_v(hptep);
 
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
@@ -635,9 +627,7 @@ static void native_hugepage_invalidate(unsigned long vsid,
 		hptep = htab_address + slot;
 		want_v = hpte_encode_avpn(vpn, psize, ssize);
 		native_lock_hpte(hptep);
-		hpte_v = be64_to_cpu(hptep->v);
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+		hpte_v = hpte_get_old_v(hptep);
 
 		/* Even if we miss, we need to invalidate the TLB */
 		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
@@ -813,10 +803,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 			hptep = htab_address + slot;
 			want_v = hpte_encode_avpn(vpn, psize, ssize);
 			native_lock_hpte(hptep);
-			hpte_v = be64_to_cpu(hptep->v);
-			if (cpu_has_feature(CPU_FTR_ARCH_300))
-				hpte_v = hpte_new_to_old_v(hpte_v,
-						be64_to_cpu(hptep->r));
+			hpte_v = hpte_get_old_v(hptep);
 			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
 			    !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
