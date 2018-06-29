@@ -37,6 +37,7 @@ struct mali_device {
 	struct devfreq *devfreq;
 	unsigned long current_freq;
 	unsigned long current_voltage;
+	struct thermal_opp_info *opp_info;
 #ifdef CONFIG_DEVFREQ_THERMAL
 	struct thermal_cooling_device *devfreq_cooling;
 #endif
