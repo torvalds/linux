@@ -9,6 +9,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-i2s-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-pdm-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-pdm-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-fpga.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-voice-module-board-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-ai-va-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-ai-va-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3326-evb-lp3-v10.dtb

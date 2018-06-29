@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "arm/rk3308-voice-module-board-v10-aarch32.dts"
+
+/ {
+	model = "Rockchip RK3308 Voice Module Board V10";
+	compatible = "rockchip,rk3308-voice-module-board-v10", "rockchip,rk3308";
+};
+
+&ramoops_mem {
+	reg = <0x0 0x110000 0x0 0xf0000>;
+};
+
+&ramoops {
+	record-size = <0x0 0x30000>;
+	console-size = <0x0 0xc0000>;
+};
