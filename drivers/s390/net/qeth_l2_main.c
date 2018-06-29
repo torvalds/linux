@@ -140,7 +140,7 @@ static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
 
 static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 {
-	enum qeth_ipa_cmds cmd = is_multicast_ether_addr_64bits(mac) ?
+	enum qeth_ipa_cmds cmd = is_multicast_ether_addr(mac) ?
 					IPA_CMD_SETGMAC : IPA_CMD_SETVMAC;
 	int rc;
 
@@ -157,7 +157,7 @@ static int qeth_l2_write_mac(struct qeth_card *card, u8 *mac)
 
 static int qeth_l2_remove_mac(struct qeth_card *card, u8 *mac)
 {
-	enum qeth_ipa_cmds cmd = is_multicast_ether_addr_64bits(mac) ?
+	enum qeth_ipa_cmds cmd = is_multicast_ether_addr(mac) ?
 					IPA_CMD_DELGMAC : IPA_CMD_DELVMAC;
 	int rc;
 
