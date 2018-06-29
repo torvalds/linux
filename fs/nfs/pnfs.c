@@ -1018,7 +1018,6 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	nfs4_stateid_copy(&lgp->args.stateid, stateid);
 	lgp->gfp_flags = gfp_flags;
 	lgp->cred = get_rpccred(ctx->cred);
-	lgp->callback_count = raw_seqcount_begin(&server->nfs_client->cl_callback_count);
 	return lgp;
 }
 
@@ -2181,9 +2180,6 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 	} else
 		lo = NFS_I(lgp->args.inode)->layout;
 
-	if (read_seqcount_retry(&srv->nfs_client->cl_callback_count,
-				lgp->callback_count))
-		return;
 	lseg = pnfs_layout_process(lgp);
 	if (!IS_ERR(lseg)) {
 		iomode = lgp->args.range.iomode;

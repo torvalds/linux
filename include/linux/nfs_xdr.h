@@ -271,7 +271,6 @@ struct nfs4_layoutget {
 	struct nfs4_layoutget_args args;
 	struct nfs4_layoutget_res res;
 	struct rpc_cred *cred;
-	unsigned callback_count;
 	gfp_t gfp_flags;
 };
 
