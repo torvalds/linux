@@ -109,6 +109,12 @@ struct mt76x2_dfs_sw_detector_params {
 struct mt76x2_dfs_engine_stats {
 	u32 hw_pattern;
 	u32 hw_pulse_discarded;
+	u32 sw_pattern;
+};
+
+struct mt76x2_dfs_seq_stats {
+	u32 seq_pool_len;
+	u32 seq_len;
 };
 
 struct mt76x2_dfs_pattern_detector {
@@ -122,6 +128,7 @@ struct mt76x2_dfs_pattern_detector {
 
 	struct list_head sequences;
 	struct list_head seq_pool;
+	struct mt76x2_dfs_seq_stats seq_stats;
 
 	unsigned long last_sw_check;
 	u32 last_event_ts;

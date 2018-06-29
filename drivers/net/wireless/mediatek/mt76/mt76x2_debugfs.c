@@ -91,12 +91,20 @@ mt76x2_dfs_stat_read(struct seq_file *file, void *data)
 	struct mt76x2_dev *dev = file->private;
 	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
+	seq_printf(file, "allocated sequences:\t%d\n",
+		   dfs_pd->seq_stats.seq_pool_len);
+	seq_printf(file, "used sequences:\t\t%d\n",
+		   dfs_pd->seq_stats.seq_len);
+	seq_puts(file, "\n");
+
 	for (i = 0; i < MT_DFS_NUM_ENGINES; i++) {
 		seq_printf(file, "engine: %d\n", i);
 		seq_printf(file, "  hw pattern detected:\t%d\n",
 			   dfs_pd->stats[i].hw_pattern);
 		seq_printf(file, "  hw pulse discarded:\t%d\n",
 			   dfs_pd->stats[i].hw_pulse_discarded);
+		seq_printf(file, "  sw pattern detected:\t%d\n",
+			   dfs_pd->stats[i].sw_pattern);
 	}
 
 	return 0;

@@ -165,6 +165,9 @@ static void mt76x2_dfs_seq_pool_put(struct mt76x2_dev *dev,
 	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	list_add(&seq->head, &dfs_pd->seq_pool);
+
+	dfs_pd->seq_stats.seq_pool_len++;
+	dfs_pd->seq_stats.seq_len--;
 }
 
 static
@@ -180,7 +183,11 @@ struct mt76x2_dfs_sequence *mt76x2_dfs_seq_pool_get(struct mt76x2_dev *dev)
 				       struct mt76x2_dfs_sequence,
 				       head);
 		list_del(&seq->head);
+		dfs_pd->seq_stats.seq_pool_len--;
 	}
+	if (seq)
+		dfs_pd->seq_stats.seq_len++;
+
 	return seq;
 }
 
@@ -555,8 +562,10 @@ static bool mt76x2_dfs_check_detection(struct mt76x2_dev *dev)
 		return false;
 
 	list_for_each_entry(seq, &dfs_pd->sequences, head) {
-		if (seq->count > MT_DFS_SEQUENCE_TH)
+		if (seq->count > MT_DFS_SEQUENCE_TH) {
+			dfs_pd->stats[seq->engine].sw_pattern++;
 			return true;
+		}
 	}
 	return false;
 }
