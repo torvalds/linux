@@ -170,7 +170,7 @@ static int alloc_rbio_pages(struct btrfs_raid_bio *rbio);
 
 static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check);
-static void async_scrub_parity(struct btrfs_raid_bio *rbio);
+static void scrub_parity_work(struct btrfs_work *work);
 
 static void start_async_work(struct btrfs_raid_bio *rbio, btrfs_func_t work_func)
 {
@@ -812,7 +812,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 				start_async_work(next, rmw_work);
 			} else if (next->operation == BTRFS_RBIO_PARITY_SCRUB) {
 				steal_rbio(rbio, next);
-				async_scrub_parity(next);
+				start_async_work(next, scrub_parity_work);
 			}
 
 			goto done_nolock;
@@ -2703,18 +2703,10 @@ static void scrub_parity_work(struct btrfs_work *work)
 	raid56_parity_scrub_stripe(rbio);
 }
 
-static void async_scrub_parity(struct btrfs_raid_bio *rbio)
-{
-	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
-			scrub_parity_work, NULL, NULL);
-
-	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
-}
-
 void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	if (!lock_stripe_add(rbio))
-		async_scrub_parity(rbio);
+		start_async_work(rbio, scrub_parity_work);
 }
 
 /* The following code is used for dev replace of a missing RAID 5/6 device. */
