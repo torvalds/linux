@@ -8,7 +8,6 @@
  */
 
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include "hnae3.h"
@@ -95,7 +94,7 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 		ret = ae_dev->ops->init_client_instance(client, ae_dev);
 		if (ret) {
 			dev_err(&ae_dev->pdev->dev,
-				"fail to instantiate client\n");
+				"fail to instantiate client, ret = %d\n", ret);
 			return ret;
 		}
 
@@ -135,7 +134,8 @@ int hnae3_register_client(struct hnae3_client *client)
 		ret = hnae3_match_n_instantiate(client, ae_dev, true);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
-				"match and instantiation failed for port\n");
+				"match and instantiation failed for port, ret = %d\n",
+				ret);
 	}
 
 exit:
@@ -185,7 +185,8 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 		ae_dev->ops = ae_algo->ops;
 		ret = ae_algo->ops->init_ae_dev(ae_dev);
 		if (ret) {
-			dev_err(&ae_dev->pdev->dev, "init ae_dev error.\n");
+			dev_err(&ae_dev->pdev->dev,
+				"init ae_dev error, ret = %d\n", ret);
 			continue;
 		}
 
@@ -198,7 +199,8 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 			ret = hnae3_match_n_instantiate(client, ae_dev, true);
 			if (ret)
 				dev_err(&ae_dev->pdev->dev,
-					"match and instantiation failed\n");
+					"match and instantiation failed, ret = %d\n",
+					ret);
 		}
 	}
 
@@ -271,7 +273,8 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 		/* ae_dev init should set flag */
 		ret = ae_dev->ops->init_ae_dev(ae_dev);
 		if (ret) {
-			dev_err(&ae_dev->pdev->dev, "init ae_dev error\n");
+			dev_err(&ae_dev->pdev->dev,
+				"init ae_dev error, ret = %d\n", ret);
 			goto out_err;
 		}
 
@@ -286,7 +289,8 @@ void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 		ret = hnae3_match_n_instantiate(client, ae_dev, true);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
-				"match and instantiation failed\n");
+				"match and instantiation failed, ret = %d\n",
+				ret);
 	}
 
 out_err:
