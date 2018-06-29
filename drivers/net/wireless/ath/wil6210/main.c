@@ -219,9 +219,9 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(sta->tid_crypto_rx, 0, sizeof(sta->tid_crypto_rx));
 	memset(&sta->group_crypto_rx, 0, sizeof(sta->group_crypto_rx));
 	/* release vrings */
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		if (wil->vring2cid_tid[i][0] == cid)
-			wil_vring_fini_tx(wil, i);
+	for (i = 0; i < ARRAY_SIZE(wil->ring_tx); i++) {
+		if (wil->ring2cid_tid[i][0] == cid)
+			wil_ring_fini_tx(wil, i);
 	}
 	/* statistics */
 	memset(&sta->stats, 0, sizeof(sta->stats));
@@ -453,12 +453,12 @@ static void wil_fw_error_worker(struct work_struct *work)
 	mutex_unlock(&wil->mutex);
 }
 
-static int wil_find_free_vring(struct wil6210_priv *wil)
+static int wil_find_free_ring(struct wil6210_priv *wil)
 {
 	int i;
 
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
-		if (!wil->vring_tx[i].va)
+		if (!wil->ring_tx[i].va)
 			return i;
 	}
 	return -EINVAL;
@@ -473,13 +473,13 @@ int wil_tx_init(struct wil6210_vif *vif, int cid)
 		wil_err(wil, "No connection pending\n");
 		goto out;
 	}
-	ringid = wil_find_free_vring(wil);
+	ringid = wil_find_free_ring(wil);
 	if (ringid < 0) {
 		wil_err(wil, "No free vring found\n");
 		goto out;
 	}
 
-	wil_dbg_wmi(wil, "Configure for connection CID %d MID %d vring %d\n",
+	wil_dbg_wmi(wil, "Configure for connection CID %d MID %d ring %d\n",
 		    cid, vif->mid, ringid);
 
 	rc = wil_vring_init_tx(vif, ringid, 1 << tx_ring_order, cid, 0);
@@ -494,19 +494,19 @@ out:
 int wil_bcast_init(struct wil6210_vif *vif)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	int ri = vif->bcast_vring, rc;
+	int ri = vif->bcast_ring, rc;
 
-	if ((ri >= 0) && wil->vring_tx[ri].va)
+	if (ri >= 0 && wil->ring_tx[ri].va)
 		return 0;
 
-	ri = wil_find_free_vring(wil);
+	ri = wil_find_free_ring(wil);
 	if (ri < 0)
 		return ri;
 
-	vif->bcast_vring = ri;
+	vif->bcast_ring = ri;
 	rc = wil_vring_init_bcast(vif, ri, 1 << bcast_ring_order);
 	if (rc)
-		vif->bcast_vring = -1;
+		vif->bcast_ring = -1;
 
 	return rc;
 }
@@ -514,13 +514,13 @@ int wil_bcast_init(struct wil6210_vif *vif)
 void wil_bcast_fini(struct wil6210_vif *vif)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	int ri = vif->bcast_vring;
+	int ri = vif->bcast_ring;
 
 	if (ri < 0)
 		return;
 
-	vif->bcast_vring = -1;
-	wil_vring_fini_tx(wil, ri);
+	vif->bcast_ring = -1;
+	wil_ring_fini_tx(wil, ri);
 }
 
 void wil_bcast_fini_all(struct wil6210_priv *wil)
@@ -548,7 +548,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	}
 
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++)
-		spin_lock_init(&wil->vring_tx_data[i].lock);
+		spin_lock_init(&wil->ring_tx_data[i].lock);
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->vif_mutex);
@@ -589,7 +589,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->wakeup_trigger = WMI_WAKEUP_TRIGGER_UCAST |
 			      WMI_WAKEUP_TRIGGER_BCAST;
 	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
-	wil->vring_idle_trsh = 16;
+	wil->ring_idle_trsh = 16;
 
 	wil->reply_mid = U8_MAX;
 	wil->max_vifs = 1;

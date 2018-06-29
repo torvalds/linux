@@ -129,11 +129,11 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 
 	/* always process ALL Tx complete, regardless budget - it is fast */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
-		struct vring *vring = &wil->vring_tx[i];
-		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+		struct wil_ring *ring = &wil->ring_tx[i];
+		struct wil_ring_tx_data *txdata = &wil->ring_tx_data[i];
 		struct wil6210_vif *vif;
 
-		if (!vring->va || !txdata->enabled ||
+		if (!ring->va || !txdata->enabled ||
 		    txdata->mid >= wil->max_vifs)
 			continue;
 
@@ -228,7 +228,7 @@ static void wil_p2p_discovery_timer_fn(struct timer_list *t)
 
 static void wil_vif_init(struct wil6210_vif *vif)
 {
-	vif->bcast_vring = -1;
+	vif->bcast_ring = -1;
 
 	mutex_init(&vif->probe_client_mutex);
 

@@ -18,6 +18,9 @@
 #ifndef WIL6210_TXRX_H
 #define WIL6210_TXRX_H
 
+#include "wil6210.h"
+#include "txrx_edma.h"
+
 #define BUF_SW_OWNED    (1)
 #define BUF_HW_OWNED    (0)
 
@@ -29,19 +32,13 @@
 
 /* Tx/Rx path */
 
-/* Common representation of physical address in Vring */
-struct vring_dma_addr {
-	__le32 addr_low;
-	__le16 addr_high;
-} __packed;
-
-static inline dma_addr_t wil_desc_addr(struct vring_dma_addr *addr)
+static inline dma_addr_t wil_desc_addr(struct wil_ring_dma_addr *addr)
 {
 	return le32_to_cpu(addr->addr_low) |
 			   ((u64)le16_to_cpu(addr->addr_high) << 32);
 }
 
-static inline void wil_desc_addr_set(struct vring_dma_addr *addr,
+static inline void wil_desc_addr_set(struct wil_ring_dma_addr *addr,
 				     dma_addr_t pa)
 {
 	addr->addr_low = cpu_to_le32(lower_32_bits(pa));
@@ -294,7 +291,7 @@ struct vring_tx_mac {
  */
 struct vring_tx_dma {
 	u32 d0;
-	struct vring_dma_addr addr;
+	struct wil_ring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;       /* 0..6: mac_length; 7:ip_version */
 	u8  error;     /* 0..2: err; 3..7: reserved; */
@@ -428,7 +425,7 @@ struct vring_rx_mac {
 
 struct vring_rx_dma {
 	u32 d0;
-	struct vring_dma_addr addr;
+	struct wil_ring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;
 	u8  error;
@@ -441,14 +438,24 @@ struct vring_tx_desc {
 	struct vring_tx_dma dma;
 } __packed;
 
+union wil_tx_desc {
+	struct vring_tx_desc legacy;
+	struct wil_tx_enhanced_desc enhanced;
+} __packed;
+
 struct vring_rx_desc {
 	struct vring_rx_mac mac;
 	struct vring_rx_dma dma;
 } __packed;
 
-union vring_desc {
-	struct vring_tx_desc tx;
-	struct vring_rx_desc rx;
+union wil_rx_desc {
+	struct vring_rx_desc legacy;
+	struct wil_rx_enhanced_desc enhanced;
+} __packed;
+
+union wil_ring_desc {
+	union wil_tx_desc tx;
+	union wil_rx_desc rx;
 } __packed;
 
 static inline int wil_rxdesc_tid(struct vring_rx_desc *d)
@@ -526,6 +533,41 @@ static inline int wil_rxdesc_phy_length(struct vring_rx_desc *d)
 static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
 {
 	return (void *)skb->cb;
+}
+
+static inline int wil_ring_is_empty(struct wil_ring *ring)
+{
+	return ring->swhead == ring->swtail;
+}
+
+static inline u32 wil_ring_next_tail(struct wil_ring *ring)
+{
+	return (ring->swtail + 1) % ring->size;
+}
+
+static inline void wil_ring_advance_head(struct wil_ring *ring, int n)
+{
+	ring->swhead = (ring->swhead + n) % ring->size;
+}
+
+static inline int wil_ring_is_full(struct wil_ring *ring)
+{
+	return wil_ring_next_tail(ring) == ring->swhead;
+}
+
+/* Used space in Tx ring */
+static inline int wil_ring_used_tx(struct wil_ring *ring)
+{
+	u32 swhead = ring->swhead;
+	u32 swtail = ring->swtail;
+
+	return (ring->size + swhead - swtail) % ring->size;
+}
+
+/* Available space in Tx ring */
+static inline int wil_ring_avail_tx(struct wil_ring *ring)
+{
+	return ring->size - wil_ring_used_tx(ring) - 1;
 }
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);

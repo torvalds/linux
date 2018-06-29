@@ -384,7 +384,7 @@ int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize)
 {
 	u8 agg_wsize = wil_agg_size(wil, wsize);
 	u16 agg_timeout = 0;
-	struct vring_tx_data *txdata = &wil->vring_tx_data[ringid];
+	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[ringid];
 	int rc = 0;
 
 	if (txdata->addba_in_progress) {

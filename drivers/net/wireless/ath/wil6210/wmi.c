@@ -1127,7 +1127,7 @@ static void wmi_evt_vring_en(struct wil6210_vif *vif, int id, void *d, int len)
 
 	wil_dbg_wmi(wil, "Enable vring %d MID %d\n", vri, vif->mid);
 
-	if (vri >= ARRAY_SIZE(wil->vring_tx)) {
+	if (vri >= ARRAY_SIZE(wil->ring_tx)) {
 		wil_err(wil, "Enable for invalid vring %d\n", vri);
 		return;
 	}
@@ -1136,8 +1136,8 @@ static void wmi_evt_vring_en(struct wil6210_vif *vif, int id, void *d, int len)
 		/* in AP mode with disable_ap_sme, this is done by
 		 * wil_cfg80211_change_station()
 		 */
-		wil->vring_tx_data[vri].dot1x_open = true;
-	if (vri == vif->bcast_vring) /* no BA for bcast */
+		wil->ring_tx_data[vri].dot1x_open = true;
+	if (vri == vif->bcast_ring) /* no BA for bcast */
 		return;
 	if (agg_wsize >= 0)
 		wil_addba_tx_request(wil, vri, agg_wsize);
@@ -1148,7 +1148,7 @@ static void wmi_evt_ba_status(struct wil6210_vif *vif, int id,
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	struct wmi_ba_status_event *evt = d;
-	struct vring_tx_data *txdata;
+	struct wil_ring_tx_data *txdata;
 
 	wil_dbg_wmi(wil, "BACK[%d] %s {%d} timeout %d AMSDU%s\n",
 		    evt->ringid,
@@ -1167,7 +1167,7 @@ static void wmi_evt_ba_status(struct wil6210_vif *vif, int id,
 		evt->amsdu = 0;
 	}
 
-	txdata = &wil->vring_tx_data[evt->ringid];
+	txdata = &wil->ring_tx_data[evt->ringid];
 
 	txdata->agg_timeout = le16_to_cpu(evt->ba_timeout);
 	txdata->agg_wsize = evt->agg_wsize;
@@ -1205,11 +1205,11 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	if (!evt->from_initiator) {
 		int i;
 		/* find Tx vring it belongs to */
-		for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++) {
-			if ((wil->vring2cid_tid[i][0] == cid) &&
-			    (wil->vring2cid_tid[i][1] == tid)) {
-				struct vring_tx_data *txdata =
-					&wil->vring_tx_data[i];
+		for (i = 0; i < ARRAY_SIZE(wil->ring2cid_tid); i++) {
+			if (wil->ring2cid_tid[i][0] == cid &&
+			    wil->ring2cid_tid[i][1] == tid) {
+				struct wil_ring_tx_data *txdata =
+					&wil->ring_tx_data[i];
 
 				wil_dbg_wmi(wil, "DELBA Tx vring %d\n", i);
 				txdata->agg_timeout = 0;
@@ -1219,7 +1219,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 				break; /* max. 1 matching ring */
 			}
 		}
-		if (i >= ARRAY_SIZE(wil->vring2cid_tid))
+		if (i >= ARRAY_SIZE(wil->ring2cid_tid))
 			wil_err(wil, "DELBA: unable to find Tx vring\n");
 		return;
 	}
@@ -1964,7 +1964,7 @@ int wmi_rxon(struct wil6210_priv *wil, bool on)
 	return rc;
 }
 
-int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
+int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring)
 {
 	struct net_device *ndev = wil->main_ndev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;

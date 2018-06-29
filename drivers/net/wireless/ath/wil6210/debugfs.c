@@ -29,7 +29,7 @@
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
-static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
+static u32 dbg_ring_index; /* 24+ for Rx, 0..23 for Tx */
 
 enum dbg_off_type {
 	doff_u32 = 0,
@@ -47,20 +47,20 @@ struct dbg_off {
 	enum dbg_off_type type;
 };
 
-static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
-			    const char *name, struct vring *vring,
-			    char _s, char _h)
+static void wil_print_ring(struct seq_file *s, struct wil6210_priv *wil,
+			   const char *name, struct wil_ring *ring,
+			   char _s, char _h)
 {
-	void __iomem *x = wmi_addr(wil, vring->hwtail);
+	void __iomem *x = wmi_addr(wil, ring->hwtail);
 	u32 v;
 
-	seq_printf(s, "VRING %s = {\n", name);
-	seq_printf(s, "  pa     = %pad\n", &vring->pa);
-	seq_printf(s, "  va     = 0x%p\n", vring->va);
-	seq_printf(s, "  size   = %d\n", vring->size);
-	seq_printf(s, "  swtail = %d\n", vring->swtail);
-	seq_printf(s, "  swhead = %d\n", vring->swhead);
-	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
+	seq_printf(s, "RING %s = {\n", name);
+	seq_printf(s, "  pa     = %pad\n", &ring->pa);
+	seq_printf(s, "  va     = 0x%p\n", ring->va);
+	seq_printf(s, "  size   = %d\n", ring->size);
+	seq_printf(s, "  swtail = %d\n", ring->swtail);
+	seq_printf(s, "  swhead = %d\n", ring->swhead);
+	seq_printf(s, "  hwtail = [0x%08x] -> ", ring->hwtail);
 	if (x) {
 		v = readl(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
@@ -68,41 +68,42 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 		seq_puts(s, "???\n");
 	}
 
-	if (vring->va && (vring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
+	if (ring->va && (ring->size <= (1 << WIL_RING_SIZE_ORDER_MAX))) {
 		uint i;
 
-		for (i = 0; i < vring->size; i++) {
-			volatile struct vring_tx_desc *d = &vring->va[i].tx;
+		for (i = 0; i < ring->size; i++) {
+			volatile struct vring_tx_desc *d =
+				&ring->va[i].tx.legacy;
 
 			if ((i % 128) == 0 && (i != 0))
 				seq_puts(s, "\n");
 			seq_printf(s, "%c", (d->dma.status & BIT(0)) ?
-					_s : (vring->ctx[i].skb ? _h : 'h'));
+					_s : (ring->ctx[i].skb ? _h : 'h'));
 		}
 		seq_puts(s, "\n");
 	}
 	seq_puts(s, "}\n");
 }
 
-static int wil_vring_debugfs_show(struct seq_file *s, void *data)
+static int wil_ring_debugfs_show(struct seq_file *s, void *data)
 {
 	uint i;
 	struct wil6210_priv *wil = s->private;
 
-	wil_print_vring(s, wil, "rx", &wil->vring_rx, 'S', '_');
+	wil_print_ring(s, wil, "rx", &wil->ring_rx, 'S', '_');
 
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		struct vring *vring = &wil->vring_tx[i];
-		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+	for (i = 0; i < ARRAY_SIZE(wil->ring_tx); i++) {
+		struct wil_ring *ring = &wil->ring_tx[i];
+		struct wil_ring_tx_data *txdata = &wil->ring_tx_data[i];
 
-		if (vring->va) {
-			int cid = wil->vring2cid_tid[i][0];
-			int tid = wil->vring2cid_tid[i][1];
-			u32 swhead = vring->swhead;
-			u32 swtail = vring->swtail;
-			int used = (vring->size + swhead - swtail)
-				   % vring->size;
-			int avail = vring->size - used - 1;
+		if (ring->va) {
+			int cid = wil->ring2cid_tid[i][0];
+			int tid = wil->ring2cid_tid[i][1];
+			u32 swhead = ring->swhead;
+			u32 swtail = ring->swtail;
+			int used = (ring->size + swhead - swtail)
+				   % ring->size;
+			int avail = ring->size - used - 1;
 			char name[10];
 			char sidle[10];
 			/* performance monitoring */
@@ -137,20 +138,20 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 					   txdata->dot1x_open ? "+" : "-",
 					   used, avail, sidle);
 
-			wil_print_vring(s, wil, name, vring, '_', 'H');
+			wil_print_ring(s, wil, name, ring, '_', 'H');
 		}
 	}
 
 	return 0;
 }
 
-static int wil_vring_seq_open(struct inode *inode, struct file *file)
+static int wil_ring_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_vring_debugfs_show, inode->i_private);
+	return single_open(file, wil_ring_debugfs_show, inode->i_private);
 }
 
-static const struct file_operations fops_vring = {
-	.open		= wil_vring_seq_open,
+static const struct file_operations fops_ring = {
+	.open		= wil_ring_seq_open,
 	.release	= single_release,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -162,8 +163,8 @@ static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
 	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
 }
 
-static void wil_print_ring(struct seq_file *s, const char *prefix,
-			   void __iomem *off)
+static void wil_print_mbox_ring(struct seq_file *s, const char *prefix,
+				void __iomem *off)
 {
 	struct wil6210_priv *wil = s->private;
 	struct wil6210_mbox_ring r;
@@ -249,9 +250,9 @@ static int wil_mbox_debugfs_show(struct seq_file *s, void *data)
 	if (ret < 0)
 		return ret;
 
-	wil_print_ring(s, "tx", wil->csr + HOST_MBOX +
+	wil_print_mbox_ring(s, "tx", wil->csr + HOST_MBOX +
 		       offsetof(struct wil6210_mbox_ctl, tx));
-	wil_print_ring(s, "rx", wil->csr + HOST_MBOX +
+	wil_print_mbox_ring(s, "rx", wil->csr + HOST_MBOX +
 		       offsetof(struct wil6210_mbox_ctl, rx));
 
 	wil_pm_runtime_put(wil);
@@ -719,13 +720,13 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 
 	if ((strcmp(cmd, "add") == 0) ||
 	    (strcmp(cmd, "del_tx") == 0)) {
-		struct vring_tx_data *txdata;
+		struct wil_ring_tx_data *txdata;
 
 		if (p1 < 0 || p1 >= WIL6210_MAX_TX_RINGS) {
 			wil_err(wil, "BACK: invalid ring id %d\n", p1);
 			return -EINVAL;
 		}
-		txdata = &wil->vring_tx_data[p1];
+		txdata = &wil->ring_tx_data[p1];
 		if (strcmp(cmd, "add") == 0) {
 			if (rc < 3) {
 				wil_err(wil, "BACK: add require at least 2 params\n");
@@ -972,30 +973,30 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct vring *vring;
-	bool tx = (dbg_vring_index < WIL6210_MAX_TX_RINGS);
+	struct wil_ring *ring;
+	bool tx = (dbg_ring_index < WIL6210_MAX_TX_RINGS);
 
-	vring = tx ? &wil->vring_tx[dbg_vring_index] : &wil->vring_rx;
+	ring = tx ? &wil->ring_tx[dbg_ring_index] : &wil->ring_rx;
 
-	if (!vring->va) {
+	if (!ring->va) {
 		if (tx)
-			seq_printf(s, "No Tx[%2d] VRING\n", dbg_vring_index);
+			seq_printf(s, "No Tx[%2d] VRING\n", dbg_ring_index);
 		else
 			seq_puts(s, "No Rx VRING\n");
 		return 0;
 	}
 
-	if (dbg_txdesc_index < vring->size) {
+	if (dbg_txdesc_index < ring->size) {
 		/* use struct vring_tx_desc for Rx as well,
 		 * only field used, .dma.length, is the same
 		 */
 		volatile struct vring_tx_desc *d =
-				&vring->va[dbg_txdesc_index].tx;
+				&ring->va[dbg_txdesc_index].tx.legacy;
 		volatile u32 *u = (volatile u32 *)d;
-		struct sk_buff *skb = vring->ctx[dbg_txdesc_index].skb;
+		struct sk_buff *skb = ring->ctx[dbg_txdesc_index].skb;
 
 		if (tx)
-			seq_printf(s, "Tx[%2d][%3d] = {\n", dbg_vring_index,
+			seq_printf(s, "Tx[%2d][%3d] = {\n", dbg_ring_index,
 				   dbg_txdesc_index);
 		else
 			seq_printf(s, "Rx[%3d] = {\n", dbg_txdesc_index);
@@ -1014,11 +1015,11 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 	} else {
 		if (tx)
 			seq_printf(s, "[%2d] TxDesc index (%d) >= size (%d)\n",
-				   dbg_vring_index, dbg_txdesc_index,
-				   vring->size);
+				   dbg_ring_index, dbg_txdesc_index,
+				   ring->size);
 		else
 			seq_printf(s, "RxDesc index (%d) >= size (%d)\n",
-				   dbg_txdesc_index, vring->size);
+				   dbg_txdesc_index, ring->size);
 	}
 
 	return 0;
@@ -1790,7 +1791,7 @@ static const struct {
 	const struct file_operations *fops;
 } dbg_files[] = {
 	{"mbox",	0444,		&fops_mbox},
-	{"vrings",	0444,		&fops_vring},
+	{"rings",	0444,		&fops_ring},
 	{"stations", 0444,		&fops_sta},
 	{"mids",	0444,		&fops_mids},
 	{"desc",	0444,		&fops_txdesc},
@@ -1858,7 +1859,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(chip_revision, 0444,	doff_u8),
 	WIL_FIELD(abft_len, 0644,		doff_u8),
 	WIL_FIELD(wakeup_trigger, 0644,		doff_u8),
-	WIL_FIELD(vring_idle_trsh, 0644,	doff_u32),
+	WIL_FIELD(ring_idle_trsh, 0644,	doff_u32),
 	{},
 };
 
@@ -1872,7 +1873,7 @@ static const struct dbg_off dbg_wil_regs[] = {
 /* static parameters */
 static const struct dbg_off dbg_statics[] = {
 	{"desc_index",	0644, (ulong)&dbg_txdesc_index, doff_u32},
-	{"vring_index",	0644, (ulong)&dbg_vring_index, doff_u32},
+	{"ring_index",	0644, (ulong)&dbg_ring_index, doff_u32},
 	{"mem_addr",	0644, (ulong)&mem_addr, doff_u32},
 	{"led_polarity", 0644, (ulong)&led_polarity, doff_u8},
 	{},

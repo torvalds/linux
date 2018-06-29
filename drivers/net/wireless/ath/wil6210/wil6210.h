@@ -80,6 +80,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
+#define WIL6210_MAX_STATUS_RINGS	(8)
+
 /* Hardware offload block adds the following:
  * 26 bytes - 3-address QoS data header
  *  8 bytes - IV + EIV (for GCMP)
@@ -359,6 +361,12 @@ enum {
 #define TALYN_MB_FW_MAPPING_TABLE_SIZE 19
 #define MAX_FW_MAPPING_TABLE_SIZE 19
 
+/* Common representation of physical address in wil ring */
+struct wil_ring_dma_addr {
+	__le32 addr_low;
+	__le16 addr_high;
+} __packed;
+
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
 	u32 to;   /* linker address - to, exclusive */
@@ -447,7 +455,7 @@ enum { /* for wil_ctx.mapped_as */
 };
 
 /**
- * struct wil_ctx - software context for Vring descriptor
+ * struct wil_ctx - software context for ring descriptor
  */
 struct wil_ctx {
 	struct sk_buff *skb;
@@ -455,22 +463,59 @@ struct wil_ctx {
 	u8 mapped_as;
 };
 
-union vring_desc;
-
-struct vring {
+struct wil_desc_ring_rx_swtail { /* relevant for enhanced DMA only */
+	u32 *va;
 	dma_addr_t pa;
-	volatile union vring_desc *va; /* vring_desc[size], WriteBack by DMA */
-	u16 size; /* number of vring_desc elements */
+};
+
+/**
+ * A general ring structure, used for RX and TX.
+ * In legacy DMA it represents the vring,
+ * In enahnced DMA it represents the descriptor ring (vrings are handled by FW)
+ */
+struct wil_ring {
+	dma_addr_t pa;
+	volatile union wil_ring_desc *va;
+	u16 size; /* number of wil_ring_desc elements */
 	u32 swtail;
 	u32 swhead;
 	u32 hwtail; /* write here to inform hw */
 	struct wil_ctx *ctx; /* ctx[size] - software context */
+	struct wil_desc_ring_rx_swtail edma_rx_swtail;
+	bool is_rx;
 };
 
 /**
- * Additional data for Tx Vring
+ * Additional data for Rx ring.
+ * Used for enhanced DMA RX chaining.
  */
-struct vring_tx_data {
+struct wil_ring_rx_data {
+	/* the skb being assembled */
+	struct sk_buff *skb;
+	/* true if we are skipping a bad fragmented packet */
+	bool skipping;
+	u16 buff_size;
+};
+
+/**
+ * Status ring structure, used for enhanced DMA completions for RX and TX.
+ */
+struct wil_status_ring {
+	dma_addr_t pa;
+	void *va; /* pointer to ring_[tr]x_status elements */
+	u16 size; /* number of status elements */
+	size_t elem_size; /* status element size in bytes */
+	u32 swhead;
+	u32 hwtail; /* write here to inform hw */
+	bool is_rx;
+	u8 desc_rdy_pol; /* Expected descriptor ready bit polarity */
+	struct wil_ring_rx_data rx_data;
+};
+
+/**
+ * Additional data for Tx ring
+ */
+struct wil_ring_tx_data {
 	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
@@ -573,6 +618,9 @@ struct wil_net_stats {
 	unsigned long	rx_short_frame;
 	unsigned long	rx_large_frame;
 	unsigned long	rx_replay;
+	unsigned long	rx_mic_error; /* eDMA specific */
+	unsigned long	rx_key_error; /* eDMA specific */
+	unsigned long	rx_amsdu_error; /* eDMA specific */
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
@@ -690,7 +738,7 @@ struct wil6210_vif {
 	u8 hidden_ssid; /* relevant in AP mode */
 	u32 ap_isolate; /* no intra-BSS communication */
 	bool pbss;
-	int bcast_vring;
+	int bcast_ring;
 	struct cfg80211_bss *bss; /* connected bss, relevant in STA mode */
 	int locally_generated_disc; /* relevant in STA mode */
 	struct timer_list connect_timer;
@@ -704,6 +752,31 @@ struct wil6210_vif {
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
 	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
+};
+
+/**
+ * RX buffer allocated for enhanced DMA RX descriptors
+ */
+struct wil_rx_buff {
+	struct sk_buff *skb;
+	struct list_head list;
+	int id;
+};
+
+/**
+ * During Rx completion processing, the driver extracts a buffer ID which
+ * is used as an index to the rx_buff_mgmt.buff_arr array and then the SKB
+ * is given to the network stack and the buffer is moved from the 'active'
+ * list to the 'free' list.
+ * During Rx refill, SKBs are attached to free buffers and moved to the
+ * 'active' list.
+ */
+struct wil_rx_buff_mgmt {
+	struct wil_rx_buff *buff_arr;
+	size_t size; /* number of items in buff_arr */
+	struct list_head active;
+	struct list_head free;
+	unsigned long free_list_empty_cnt; /* statistics */
 };
 
 struct wil6210_priv {
@@ -770,14 +843,17 @@ struct wil6210_priv {
 	struct net_device napi_ndev; /* dummy net_device serving all VIFs */
 
 	/* DMA related */
-	struct vring vring_rx;
+	struct wil_ring ring_rx;
 	unsigned int rx_buf_len;
-	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
-	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
-	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
+	struct wil_ring ring_tx[WIL6210_MAX_TX_RINGS];
+	struct wil_ring_tx_data ring_tx_data[WIL6210_MAX_TX_RINGS];
+	struct wil_status_ring srings[WIL6210_MAX_STATUS_RINGS];
+	int num_rx_status_rings;
+	u8 ring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
 	struct wil_sta_info sta[WIL6210_MAX_CID];
-	u32 vring_idle_trsh; /* HW fetches up to 16 descriptors at once  */
+	u32 ring_idle_trsh; /* HW fetches up to 16 descriptors at once  */
 	u32 dma_addr_size; /* indicates dma addr size */
+	struct wil_rx_buff_mgmt rx_buff_mgmt;
 
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
 	/* statistics */
@@ -999,7 +1075,7 @@ int wmi_add_cipher_key(struct wil6210_vif *vif, u8 key_index,
 		       int key_usage);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_vif *vif, u8 type, u16 ie_len, const void *ie);
-int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
+int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
@@ -1098,7 +1174,7 @@ void wil_rx_fini(struct wil6210_priv *wil);
 /* TX API */
 int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
 		      int cid, int tid);
-void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
+void wil_ring_fini_tx(struct wil6210_priv *wil, int id);
 int wil_tx_init(struct wil6210_vif *vif, int cid);
 int wil_vring_init_bcast(struct wil6210_vif *vif, int id, int size);
 int wil_bcast_init(struct wil6210_vif *vif);
@@ -1106,9 +1182,9 @@ void wil_bcast_fini(struct wil6210_vif *vif);
 void wil_bcast_fini_all(struct wil6210_priv *wil);
 
 void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			   struct vring *vring, bool should_stop);
+			   struct wil_ring *ring, bool should_stop);
 void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			      struct vring *vring, bool check_stop);
+			      struct wil_ring *ring, bool check_stop);
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_vif *vif, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
