@@ -153,7 +153,6 @@ config HAVE_HARDENED_USERCOPY_ALLOCATOR
 config HARDENED_USERCOPY
 	bool "Harden memory copies between kernel and userspace"
 	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
-	select BUG
 	imply STRICT_DEVMEM
 	help
 	  This option checks for obviously wrong memory regions when
