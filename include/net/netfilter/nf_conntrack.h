@@ -41,6 +41,11 @@ union nf_conntrack_expect_proto {
 	/* insert expect proto private data here */
 };
 
+struct nf_conntrack_net {
+	unsigned int users4;
+	unsigned int users6;
+};
+
 #include <linux/types.h>
 #include <linux/skbuff.h>
 

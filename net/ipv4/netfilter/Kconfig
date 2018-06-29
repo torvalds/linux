@@ -9,22 +9,6 @@ config NF_DEFRAG_IPV4
 	tristate
 	default n
 
-config NF_CONNTRACK_IPV4
-	tristate "IPv4 connection tracking support (required for NAT)"
-	depends on NF_CONNTRACK
-	default m if NETFILTER_ADVANCED=n
-	select NF_DEFRAG_IPV4
-	---help---
-	  Connection tracking keeps a record of what packets have passed
-	  through your machine, in order to figure out how they are related
-	  into connections.
-
-	  This is IPv4 support on Layer 3 independent connection tracking.
-	  Layer 3 independent connection tracking is experimental scheme
-	  which generalize ip_conntrack to support other layer 3 protocols.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config NF_SOCKET_IPV4
 	tristate "IPv4 socket lookup support"
 	help
@@ -112,7 +96,7 @@ config NF_REJECT_IPV4
 
 config NF_NAT_IPV4
 	tristate "IPv4 NAT"
-	depends on NF_CONNTRACK_IPV4
+	depends on NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
 	select NF_NAT
 	help
@@ -279,7 +263,7 @@ config IP_NF_TARGET_SYNPROXY
 # NAT + specific targets: nf_conntrack
 config IP_NF_NAT
 	tristate "iptables NAT support"
-	depends on NF_CONNTRACK_IPV4
+	depends on NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
 	select NF_NAT
 	select NF_NAT_IPV4
@@ -340,7 +324,7 @@ config IP_NF_MANGLE
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support"
 	depends on IP_NF_MANGLE
-	depends on NF_CONNTRACK_IPV4
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_MARK
 	select NETFILTER_FAMILY_ARP

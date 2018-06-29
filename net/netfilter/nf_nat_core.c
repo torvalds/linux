@@ -28,7 +28,6 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
-#include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
 
@@ -743,12 +742,6 @@ EXPORT_SYMBOL_GPL(nf_nat_l4proto_unregister);
 
 int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
 {
-	int err;
-
-	err = nf_ct_l3proto_try_module_get(l3proto->l3proto);
-	if (err < 0)
-		return err;
-
 	mutex_lock(&nf_nat_proto_mutex);
 	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_TCP],
 			 &nf_nat_l4proto_tcp);
@@ -781,7 +774,6 @@ void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *l3proto)
 	synchronize_rcu();
 
 	nf_nat_l3proto_clean(l3proto->l3proto);
-	nf_ct_l3proto_module_put(l3proto->l3proto);
 }
 EXPORT_SYMBOL_GPL(nf_nat_l3proto_unregister);
 

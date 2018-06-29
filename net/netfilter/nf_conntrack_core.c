@@ -291,7 +291,6 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    u_int8_t *protonum)
 {
 	int dataoff = -1;
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV4)
 	const struct iphdr *iph;
 	struct iphdr _iph;
 
@@ -314,15 +313,14 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			 nhoff, iph->ihl << 2, skb->len);
 		return -1;
 	}
-#endif
 	return dataoff;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    u8 *protonum)
 {
 	int protoff = -1;
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV6)
 	unsigned int extoff = nhoff + sizeof(struct ipv6hdr);
 	__be16 frag_off;
 	u8 nexthdr;
@@ -343,9 +341,9 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	}
 
 	*protonum = nexthdr;
-#endif
 	return protoff;
 }
+#endif
 
 static int get_l4proto(const struct sk_buff *skb,
 		       unsigned int nhoff, u8 pf, u8 *l4num)
@@ -353,8 +351,10 @@ static int get_l4proto(const struct sk_buff *skb,
 	switch (pf) {
 	case NFPROTO_IPV4:
 		return ipv4_get_l4proto(skb, nhoff, l4num);
+#if IS_ENABLED(CONFIG_IPV6)
 	case NFPROTO_IPV6:
 		return ipv6_get_l4proto(skb, nhoff, l4num);
+#endif
 	default:
 		*l4num = 0;
 		break;
@@ -2196,9 +2196,6 @@ int nf_conntrack_set_hashsize(const char *val, const struct kernel_param *kp)
 	return nf_conntrack_hash_resize(hashsize);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
-
-module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
-		  &nf_conntrack_htable_size, 0600);
 
 static __always_inline unsigned int total_extension_size(void)
 {

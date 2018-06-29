@@ -1,12 +1,4 @@
-/* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- * (C) 2005-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
-
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/slab.h>
@@ -32,7 +24,7 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <linux/rculist_nulls.h>
 
-MODULE_LICENSE("GPL");
+unsigned int nf_conntrack_net_id __read_mostly;
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 void
@@ -674,6 +666,8 @@ static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 static struct pernet_operations nf_conntrack_net_ops = {
 	.init		= nf_conntrack_pernet_init,
 	.exit_batch	= nf_conntrack_pernet_exit,
+	.id		= &nf_conntrack_net_id,
+	.size = sizeof(struct nf_conntrack_net),
 };
 
 static int __init nf_conntrack_standalone_init(void)

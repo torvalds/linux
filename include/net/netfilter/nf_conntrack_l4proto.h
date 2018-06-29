@@ -130,10 +130,6 @@ void nf_ct_l4proto_pernet_unregister(struct net *net,
 /* Protocol global registration. */
 int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *proto);
 void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *proto);
-int nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const proto[],
-			   unsigned int num_proto);
-void nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const proto[],
-			      unsigned int num_proto);
 
 /* Generic netlink helpers */
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
