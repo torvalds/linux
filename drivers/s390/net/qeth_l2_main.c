@@ -501,27 +501,34 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 		return -ERESTARTSYS;
 	}
 
+	/* avoid racing against concurrent state change: */
+	if (!mutex_trylock(&card->conf_mutex))
+		return -EAGAIN;
+
 	if (!qeth_card_hw_is_reachable(card)) {
 		ether_addr_copy(dev->dev_addr, addr->sa_data);
-		return 0;
+		goto out_unlock;
 	}
 
 	/* don't register the same address twice */
 	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
 	    (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
-		return 0;
+		goto out_unlock;
 
 	/* add the new address, switch over, drop the old */
 	rc = qeth_l2_send_setmac(card, addr->sa_data);
 	if (rc)
-		return rc;
+		goto out_unlock;
 	ether_addr_copy(old_addr, dev->dev_addr);
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
 		qeth_l2_remove_mac(card, old_addr);
 	card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
-	return 0;
+
+out_unlock:
+	mutex_unlock(&card->conf_mutex);
+	return rc;
 }
 
 static void qeth_promisc_to_bridge(struct qeth_card *card)
