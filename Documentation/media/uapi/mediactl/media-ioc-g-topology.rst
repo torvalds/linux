@@ -131,11 +131,14 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the entity.
+       -  Unique ID for the entity. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [64]
-       -  Entity name as an UTF-8 NULL-terminated string.
+       -  Entity name as an UTF-8 NULL-terminated string. This name must be unique
+          within the media topology.
 
     *  -  __u32
        -  ``function``
@@ -166,7 +169,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the interface.
+       -  Unique ID for the interface. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode interface IDs in an application.
 
     *  -  __u32
        -  ``intf_type``
@@ -215,7 +220,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the pad.
+       -  Unique ID for the pad. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode pad IDs in an application.
 
     *  -  __u32
        -  ``entity_id``
@@ -249,7 +256,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the link.
+       -  Unique ID for the link. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode link IDs in an application.
 
     *  -  __u32
        -  ``source_id``

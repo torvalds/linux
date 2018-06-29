@@ -62,15 +62,18 @@ id's until they get an error.
        -  ``id``
        -
        -
-       -  Entity id, set by the application. When the id is or'ed with
+       -  Entity ID, set by the application. When the ID is or'ed with
 	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
-	  the first entity with a larger id.
+	  the first entity with a larger ID. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [32]
        -
        -
-       -  Entity name as an UTF-8 NULL-terminated string.
+       -  Entity name as an UTF-8 NULL-terminated string. This name must be unique
+          within the media topology.
 
     *  -  __u32
        -  ``type``
