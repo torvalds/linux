@@ -89,28 +89,28 @@ MODULE_PARM_DESC(led_id,
  */
 const struct fw_map sparrow_fw_mapping[] = {
 	/* FW code RAM 256k */
-	{0x000000, 0x040000, 0x8c0000, "fw_code", true},
+	{0x000000, 0x040000, 0x8c0000, "fw_code", true, true},
 	/* FW data RAM 32k */
-	{0x800000, 0x808000, 0x900000, "fw_data", true},
+	{0x800000, 0x808000, 0x900000, "fw_data", true, true},
 	/* periph data 128k */
-	{0x840000, 0x860000, 0x908000, "fw_peri", true},
+	{0x840000, 0x860000, 0x908000, "fw_peri", true, true},
 	/* various RGF 40k */
-	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
 	/* AGC table   4k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
 	/* Pcie_ext_rgf 4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
 	/* mac_ext_rgf 512b */
-	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true},
+	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true, true},
 	/* upper area 548k */
-	{0x8c0000, 0x949000, 0x8c0000, "upper", true},
+	{0x8c0000, 0x949000, 0x8c0000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 128k */
-	{0x000000, 0x020000, 0x920000, "uc_code", false},
+	{0x000000, 0x020000, 0x920000, "uc_code", false, false},
 	/* ucode data RAM 16k */
-	{0x800000, 0x804000, 0x940000, "uc_data", false},
+	{0x800000, 0x804000, 0x940000, "uc_data", false, false},
 };
 
 /**
@@ -118,7 +118,7 @@ const struct fw_map sparrow_fw_mapping[] = {
  * it is a bit larger to support extra features
  */
 const struct fw_map sparrow_d0_mac_rgf_ext = {
-	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true
+	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true, true
 };
 
 /**
@@ -134,34 +134,34 @@ const struct fw_map sparrow_d0_mac_rgf_ext = {
  */
 const struct fw_map talyn_fw_mapping[] = {
 	/* FW code RAM 1M */
-	{0x000000, 0x100000, 0x900000, "fw_code", true},
+	{0x000000, 0x100000, 0x900000, "fw_code", true, true},
 	/* FW data RAM 128k */
-	{0x800000, 0x820000, 0xa00000, "fw_data", true},
+	{0x800000, 0x820000, 0xa00000, "fw_data", true, true},
 	/* periph. data RAM 96k */
-	{0x840000, 0x858000, 0xa20000, "fw_peri", true},
+	{0x840000, 0x858000, 0xa20000, "fw_peri", true, true},
 	/* various RGF 40k */
-	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
 	/* AGC table 4k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
 	/* Pcie_ext_rgf 4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
 	/* mac_ext_rgf 1344b */
-	{0x88c000, 0x88c540, 0x88c000, "mac_rgf_ext", true},
+	{0x88c000, 0x88c540, 0x88c000, "mac_rgf_ext", true, true},
 	/* ext USER RGF 4k */
-	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true},
+	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true, true},
 	/* OTP 4k */
-	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true},
+	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true, false},
 	/* DMA EXT RGF 64k */
-	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true},
+	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true, true},
 	/* upper area 1536k */
-	{0x900000, 0xa80000, 0x900000, "upper", true},
+	{0x900000, 0xa80000, 0x900000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 256k */
-	{0x000000, 0x040000, 0xa38000, "uc_code", false},
+	{0x000000, 0x040000, 0xa38000, "uc_code", false, false},
 	/* ucode data RAM 32k */
-	{0x800000, 0x808000, 0xa78000, "uc_data", false},
+	{0x800000, 0x808000, 0xa78000, "uc_data", false, false},
 };
 
 /**
@@ -177,46 +177,46 @@ const struct fw_map talyn_fw_mapping[] = {
  */
 const struct fw_map talyn_mb_fw_mapping[] = {
 	/* FW code RAM 768k */
-	{0x000000, 0x0c0000, 0x900000, "fw_code", true},
+	{0x000000, 0x0c0000, 0x900000, "fw_code", true, true},
 	/* FW data RAM 128k */
-	{0x800000, 0x820000, 0xa00000, "fw_data", true},
+	{0x800000, 0x820000, 0xa00000, "fw_data", true, true},
 	/* periph. data RAM 96k */
-	{0x840000, 0x858000, 0xa20000, "fw_peri", true},
+	{0x840000, 0x858000, 0xa20000, "fw_peri", true, true},
 	/* various RGF 40k */
-	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	{0x880000, 0x88a000, 0x880000, "rgf", true, true},
 	/* AGC table 4k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true, true},
 	/* Pcie_ext_rgf 4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true, true},
 	/* mac_ext_rgf 2256b */
-	{0x88c000, 0x88c8d0, 0x88c000, "mac_rgf_ext", true},
+	{0x88c000, 0x88c8d0, 0x88c000, "mac_rgf_ext", true, true},
 	/* ext USER RGF 4k */
-	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true},
+	{0x88d000, 0x88e000, 0x88d000, "ext_user_rgf", true, true},
 	/* SEC PKA 16k */
-	{0x890000, 0x894000, 0x890000, "sec_pka", true},
+	{0x890000, 0x894000, 0x890000, "sec_pka", true, true},
 	/* SEC KDF RGF 3096b */
-	{0x898000, 0x898c18, 0x898000, "sec_kdf_rgf", true},
+	{0x898000, 0x898c18, 0x898000, "sec_kdf_rgf", true, true},
 	/* SEC MAIN 2124b */
-	{0x89a000, 0x89a84c, 0x89a000, "sec_main", true},
+	{0x89a000, 0x89a84c, 0x89a000, "sec_main", true, true},
 	/* OTP 4k */
-	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true},
+	{0x8a0000, 0x8a1000, 0x8a0000, "otp", true, false},
 	/* DMA EXT RGF 64k */
-	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true},
+	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true, true},
 	/* DUM USER RGF 528b */
-	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true},
+	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true, true},
 	/* DMA OFU 296b */
-	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true},
+	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true, true},
 	/* ucode debug 4k */
-	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true},
+	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true, true},
 	/* upper area 1536k */
-	{0x900000, 0xa80000, 0x900000, "upper", true},
+	{0x900000, 0xa80000, 0x900000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 256k */
-	{0x000000, 0x040000, 0xa38000, "uc_code", false},
+	{0x000000, 0x040000, 0xa38000, "uc_code", false, false},
 	/* ucode data RAM 32k */
-	{0x800000, 0x808000, 0xa78000, "uc_data", false},
+	{0x800000, 0x808000, 0xa78000, "uc_data", false, false},
 };
 
 struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];

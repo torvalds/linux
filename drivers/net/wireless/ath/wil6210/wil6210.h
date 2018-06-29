@@ -403,6 +403,7 @@ struct fw_map {
 	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
 	const char *name; /* for debugfs */
 	bool fw; /* true if FW mapping, false if UCODE mapping */
+	bool crash_dump; /* true if should be dumped during crash dump */
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
