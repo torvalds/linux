@@ -33,7 +33,7 @@
 / {
 	aliases {
 		serial0 = &scif2;
-		serial1 = &scif1;
+		serial1 = &hscif1;
 		ethernet0 = &avb;
 	};
 
@@ -344,7 +344,7 @@
 
 	uart-has-rtscts;
 	/* Please only enable hscif1 or scif1 */
-	/* status = "okay"; */
+	status = "okay";
 };
 
 &hsusb {
@@ -723,7 +723,7 @@
 
 	uart-has-rtscts;
 	/* Please only enable hscif1 or scif1 */
-	status = "okay";
+	/* status = "okay"; */
 };
 
 &scif2 {
