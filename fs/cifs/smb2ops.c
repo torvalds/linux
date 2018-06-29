@@ -444,7 +444,11 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
 			NULL /* no data input */, 0 /* no data input */,
 			(char **)&out_buf, &ret_data_len);
-	if (rc != 0) {
+	if (rc == -EOPNOTSUPP) {
+		cifs_dbg(FYI,
+			 "server does not support query network interfaces\n");
+		goto out;
+	} else if (rc != 0) {
 		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
 		goto out;
 	}
