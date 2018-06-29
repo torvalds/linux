@@ -148,6 +148,8 @@
 			reg = <0x1e6a1000 0x100>;
 			interrupts = <5>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ah_default>;
 			status = "disabled";
 		};
 
@@ -156,6 +158,8 @@
 			reg = <0x1e6a3000 0x100>;
 			interrupts = <13>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBPORT2CLK>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bh_default>;
 			status = "disabled";
 		};
 
@@ -166,6 +170,10 @@
 			#ports = <2>;
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
 			status = "disabled";
+			/*
+			 * No default pinmux, it will follow EHCI, use an explicit pinmux
+			 * override if you don't enable EHCI
+			 */
 		};
 
 		apb {
