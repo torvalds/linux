@@ -139,19 +139,35 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	return !i915_mmio_reg_equal(reg, INVALID_MMIO_REG);
 }
 
+/*
+ * Given the first two numbers __a and __b of arbitrarily many evenly spaced
+ * numbers, pick the 0-based __index'th value.
+ *
+ * Always prefer this over _PICK() if the numbers are evenly spaced.
+ */
+#define _PICK_EVEN(__index, __a, __b) ((__a) + (__index) * ((__b) - (__a)))
+
+/*
+ * Given the arbitrary numbers in varargs, pick the 0-based __index'th number.
+ *
+ * Always prefer _PICK_EVEN() over this if the numbers are evenly spaced.
+ */
 #define _PICK(__index, ...) (((const u32 []){ __VA_ARGS__ })[__index])
 
-#define _PIPE(pipe, a, b) ((a) + (pipe) * ((b) - (a)))
+/*
+ * Named helper wrappers around _PICK_EVEN() and _PICK().
+ */
+#define _PIPE(pipe, a, b) _PICK_EVEN(pipe, a, b)
 #define _MMIO_PIPE(pipe, a, b) _MMIO(_PIPE(pipe, a, b))
-#define _PLANE(plane, a, b) _PIPE(plane, a, b)
+#define _PLANE(plane, a, b) _PICK_EVEN(plane, a, b)
 #define _MMIO_PLANE(plane, a, b) _MMIO_PIPE(plane, a, b)
-#define _TRANS(tran, a, b) ((a) + (tran) * ((b) - (a)))
+#define _TRANS(tran, a, b) _PICK_EVEN(tran, a, b)
 #define _MMIO_TRANS(tran, a, b) _MMIO(_TRANS(tran, a, b))
-#define _PORT(port, a, b) ((a) + (port) * ((b) - (a)))
+#define _PORT(port, a, b) _PICK_EVEN(port, a, b)
 #define _MMIO_PORT(port, a, b) _MMIO(_PORT(port, a, b))
 #define _MMIO_PIPE3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PICK(pipe, a, b, c))
-#define _PLL(pll, a, b) ((a) + (pll) * ((b) - (a)))
+#define _PLL(pll, a, b) _PICK_EVEN(pll, a, b)
 #define _MMIO_PLL(pll, a, b) _MMIO(_PLL(pll, a, b))
 #define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
@@ -6874,7 +6890,7 @@ enum {
 #define _PS_ECC_STAT_2B     0x68AD0
 #define _PS_ECC_STAT_1C     0x691D0
 
-#define _ID(id, a, b) ((a) + (id) * ((b) - (a)))
+#define _ID(id, a, b) _PICK_EVEN(id, a, b)
 #define SKL_PS_CTRL(pipe, id) _MMIO_PIPE(pipe,        \
 			_ID(id, _PS_1A_CTRL, _PS_2A_CTRL),       \
 			_ID(id, _PS_1B_CTRL, _PS_2B_CTRL))
