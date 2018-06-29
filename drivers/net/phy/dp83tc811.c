@@ -284,20 +284,18 @@ static int dp83811_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
+	value = phy_read(phydev, MII_DP83811_SGMII_CTRL);
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		value = phy_read(phydev, MII_DP83811_SGMII_CTRL);
-		if (!(value & DP83811_SGMII_EN)) {
-			err = phy_write(phydev, MII_DP83811_SGMII_CTRL,
+		err = phy_write(phydev, MII_DP83811_SGMII_CTRL,
 					(DP83811_SGMII_EN | value));
-			if (err < 0)
-				return err;
-		} else {
-			err = phy_write(phydev, MII_DP83811_SGMII_CTRL,
-					(~DP83811_SGMII_EN & value));
-			if (err < 0)
-				return err;
-		}
+	} else {
+		err = phy_write(phydev, MII_DP83811_SGMII_CTRL,
+				(~DP83811_SGMII_EN & value));
 	}
+
+	if (err < 0)
+
+		return err;
 
 	value = DP83811_WOL_MAGIC_EN | DP83811_WOL_SECURE_ON | DP83811_WOL_EN;
 
