@@ -54,6 +54,7 @@
 #define CODEC_DRV_NAME			"rk3308-acodec"
 
 #define ADC_LR_GROUP_MAX		4
+#define ADC_STABLE_MS			20
 #define DEBUG_POP_ALWAYS		0
 #define ENABLE_AGC			0
 #define HPDET_POLL_MS			2000
@@ -191,6 +192,8 @@ static const DECLARE_TLV_DB_RANGE(rk3308_codec_adc_3_8_mic_gain_tlv,
 	2, 2, TLV_DB_MINMAX_ITEM(1300, 1300),
 	3, 3, TLV_DB_MINMAX_ITEM(2000, 2000),
 );
+
+static bool has_loopback(int loopback_grp);
 
 static int rk3308_codec_hpout_l_get_tlv(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol);
@@ -957,6 +960,30 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 #endif
 		} else {
 #if !DEBUG_POP_ALWAYS
+			if (has_loopback(rk3308->loopback_grp) &&
+			    (rk3308->dac_output == DAC_LINEOUT)) {
+				int type = ADC_TYPE_LOOPBACK;
+				int idx, grp;
+
+				/*
+				 * Switch to dummy BIST mode (BIST keep reset
+				 * now) to keep the zero input data in I2S bus.
+				 *
+				 * It may cause the glitch if we hold the ADC
+				 * digtital i2s module in codec.
+				 */
+				for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+					regmap_update_bits(rk3308->regmap,
+							   RK3308_ADC_DIG_CON03(grp),
+							   RK3308_ADC_L_CH_BIST_MSK,
+							   RK3308_ADC_L_CH_BIST_SINE);
+					regmap_update_bits(rk3308->regmap,
+							   RK3308_ADC_DIG_CON03(grp),
+							   RK3308_ADC_R_CH_BIST_MSK,
+							   RK3308_ADC_R_CH_BIST_SINE);
+				}
+			}
+
 			if (rk3308->dac_output == DAC_LINEOUT)
 				rk3308_speaker_ctl(rk3308, 1);
 			else if (rk3308->dac_output == DAC_HPOUT)
@@ -2920,13 +2947,30 @@ static void rk3308_codec_loopback_work(struct work_struct *work)
 {
 	struct rk3308_codec_priv *rk3308 =
 		container_of(work, struct rk3308_codec_priv, loopback_work.work);
+	int type = ADC_TYPE_LOOPBACK;
+	int idx, grp;
 
 	/* Reset ADC quickly */
-	rk3308_codec_alc_disable(rk3308, ADC_TYPE_LOOPBACK);
-	rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_LOOPBACK);
+	rk3308_codec_alc_disable(rk3308, type);
+	rk3308_codec_adc_ana_disable(rk3308, type);
 
-	rk3308_codec_alc_enable(rk3308, ADC_TYPE_LOOPBACK);
-	rk3308_codec_adc_ana_enable(rk3308, ADC_TYPE_LOOPBACK);
+	rk3308_codec_alc_enable(rk3308, type);
+	rk3308_codec_adc_ana_enable(rk3308, type);
+
+	/* Waiting ADCs are stable */
+	msleep(ADC_STABLE_MS);
+
+	/* Recover normal mode after enable ADCs */
+	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		regmap_update_bits(rk3308->regmap,
+				   RK3308_ADC_DIG_CON03(grp),
+				   RK3308_ADC_L_CH_BIST_MSK,
+				   RK3308_ADC_L_CH_NORMAL_LEFT);
+		regmap_update_bits(rk3308->regmap,
+				   RK3308_ADC_DIG_CON03(grp),
+				   RK3308_ADC_R_CH_BIST_MSK,
+				   RK3308_ADC_R_CH_NORMAL_RIGHT);
+	}
 }
 
 static irqreturn_t rk3308_codec_hpdet_isr(int irq, void *data)
