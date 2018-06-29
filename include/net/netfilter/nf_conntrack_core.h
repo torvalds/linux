@@ -68,10 +68,8 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	return ret;
 }
 
-void
-print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
-            const struct nf_conntrack_l3proto *l3proto,
-            const struct nf_conntrack_l4proto *proto);
+void print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
+		 const struct nf_conntrack_l4proto *proto);
 
 #define CONNTRACK_LOCKS 1024
 

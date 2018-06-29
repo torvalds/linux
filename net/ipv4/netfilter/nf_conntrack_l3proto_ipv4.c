@@ -274,41 +274,6 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	return -ENOENT;
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-
-#include <linux/netfilter/nfnetlink.h>
-#include <linux/netfilter/nfnetlink_conntrack.h>
-
-static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
-				const struct nf_conntrack_tuple *tuple)
-{
-	if (nla_put_in_addr(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
-	    nla_put_in_addr(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-
-static const struct nla_policy ipv4_nla_policy[CTA_IP_MAX+1] = {
-	[CTA_IP_V4_SRC]	= { .type = NLA_U32 },
-	[CTA_IP_V4_DST]	= { .type = NLA_U32 },
-};
-
-static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
-				struct nf_conntrack_tuple *t)
-{
-	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
-		return -EINVAL;
-
-	t->src.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_SRC]);
-	t->dst.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_DST]);
-
-	return 0;
-}
-#endif
-
 static struct nf_sockopt_ops so_getorigdst = {
 	.pf		= PF_INET,
 	.get_optmin	= SO_ORIGINAL_DST,
@@ -360,13 +325,6 @@ const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 	.pkt_to_tuple	 = ipv4_pkt_to_tuple,
 	.invert_tuple	 = ipv4_invert_tuple,
 	.get_l4proto	 = ipv4_get_l4proto,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.tuple_to_nlattr = ipv4_tuple_to_nlattr,
-	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
-	.nla_policy	 = ipv4_nla_policy,
-	.nla_size	 = NLA_ALIGN(NLA_HDRLEN + sizeof(u32)) + /* CTA_IP_V4_SRC */
-			   NLA_ALIGN(NLA_HDRLEN + sizeof(u32)),  /* CTA_IP_V4_DST */
-#endif
 	.net_ns_get	 = ipv4_hooks_register,
 	.net_ns_put	 = ipv4_hooks_unregister,
 	.me		 = THIS_MODULE,
@@ -419,11 +377,6 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 
 	need_conntrack();
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	if (WARN_ON(nla_policy_len(ipv4_nla_policy, CTA_IP_MAX + 1) !=
-	    nf_conntrack_l3proto_ipv4.nla_size))
-		return -EINVAL;
-#endif
 	ret = nf_register_sockopt(&so_getorigdst);
 	if (ret < 0) {
 		pr_err("Unable to register netfilter socket option\n");

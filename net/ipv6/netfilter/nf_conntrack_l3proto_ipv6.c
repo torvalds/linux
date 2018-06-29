@@ -269,41 +269,6 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	return copy_to_user(user, &sin6, sizeof(sin6)) ? -EFAULT : 0;
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-
-#include <linux/netfilter/nfnetlink.h>
-#include <linux/netfilter/nfnetlink_conntrack.h>
-
-static int ipv6_tuple_to_nlattr(struct sk_buff *skb,
-				const struct nf_conntrack_tuple *tuple)
-{
-	if (nla_put_in6_addr(skb, CTA_IP_V6_SRC, &tuple->src.u3.in6) ||
-	    nla_put_in6_addr(skb, CTA_IP_V6_DST, &tuple->dst.u3.in6))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-
-static const struct nla_policy ipv6_nla_policy[CTA_IP_MAX+1] = {
-	[CTA_IP_V6_SRC]	= { .len = sizeof(u_int32_t)*4 },
-	[CTA_IP_V6_DST]	= { .len = sizeof(u_int32_t)*4 },
-};
-
-static int ipv6_nlattr_to_tuple(struct nlattr *tb[],
-				struct nf_conntrack_tuple *t)
-{
-	if (!tb[CTA_IP_V6_SRC] || !tb[CTA_IP_V6_DST])
-		return -EINVAL;
-
-	t->src.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_SRC]);
-	t->dst.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_DST]);
-
-	return 0;
-}
-#endif
-
 static int ipv6_hooks_register(struct net *net)
 {
 	struct conntrack6_net *cnet = net_generic(net, conntrack6_net_id);
@@ -345,13 +310,6 @@ const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,
 	.get_l4proto		= ipv6_get_l4proto,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.tuple_to_nlattr	= ipv6_tuple_to_nlattr,
-	.nlattr_to_tuple	= ipv6_nlattr_to_tuple,
-	.nla_policy		= ipv6_nla_policy,
-	.nla_size		= NLA_ALIGN(NLA_HDRLEN + sizeof(u32[4])) +
-				  NLA_ALIGN(NLA_HDRLEN + sizeof(u32[4])),
-#endif
 	.net_ns_get		= ipv6_hooks_register,
 	.net_ns_put		= ipv6_hooks_unregister,
 	.me			= THIS_MODULE,
@@ -408,12 +366,6 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	int ret = 0;
 
 	need_conntrack();
-
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	if (WARN_ON(nla_policy_len(ipv6_nla_policy, CTA_IP_MAX + 1) !=
-	    nf_conntrack_l3proto_ipv6.nla_size))
-		return -EINVAL;
-#endif
 
 	ret = nf_register_sockopt(&so_getorigdst6);
 	if (ret < 0) {
