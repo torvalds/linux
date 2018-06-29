@@ -487,7 +487,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
 	sq->pc += MLX5E_UMR_WQEBBS;
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &umr_wqe->ctrl);
+	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &umr_wqe->ctrl);
 
 	return 0;
 
@@ -601,6 +601,8 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 
 	if (!rq->mpwqe.umr_in_progress)
 		mlx5e_alloc_rx_mpwqe(rq, wq->head);
+	else
+		rq->stats->congst_umr += mlx5_wq_ll_missing(wq) > 2;
 
 	return false;
 }
@@ -1261,7 +1263,10 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	}
 
 	if (unlikely(mpwrq_is_filler_cqe(cqe))) {
-		rq->stats->mpwqe_filler++;
+		struct mlx5e_rq_stats *stats = rq->stats;
+
+		stats->mpwqe_filler_cqes++;
+		stats->mpwqe_filler_strides += cstrides;
 		goto mpwrq_cqe_out;
 	}
 
@@ -1382,6 +1387,8 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 			mlx5e_page_release(rq, di, true);
 		} while (!last_wqe);
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
+
+	rq->stats->xdp_tx_cqe += i;
 
 	mlx5_cqwq_update_db_record(&cq->wq);
 

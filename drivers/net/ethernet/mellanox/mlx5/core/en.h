@@ -137,7 +137,6 @@ struct page_pool;
 #define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE >> 1)
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
-#define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
 #define MLX5E_SQ_RECOVER_MIN_INTERVAL  500 /* msecs */
 
 #define MLX5E_UMR_WQE_INLINE_SZ \

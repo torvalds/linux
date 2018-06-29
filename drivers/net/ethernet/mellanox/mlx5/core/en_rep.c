@@ -893,6 +893,9 @@ mlx5e_rep_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
+	/* update HW stats in background for next time */
+	queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
+
 	memcpy(stats, &priv->stats.vf_vport, sizeof(*stats));
 }
 
