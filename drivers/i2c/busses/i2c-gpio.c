@@ -101,17 +101,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_##wire, fops_##wire##_get, fops_##wire##_set, "%ll
 WIRE_ATTRIBUTE(scl);
 WIRE_ATTRIBUTE(sda);
 
-static int fops_incomplete_transfer_set(void *data, u64 addr)
+static void i2c_gpio_incomplete_transfer(struct i2c_gpio_private_data *priv,
+					u32 pattern, u8 pattern_size)
 {
-	struct i2c_gpio_private_data *priv = data;
 	struct i2c_algo_bit_data *bit_data = &priv->bit_data;
-	int i, pattern;
-
-	if (addr > 0x7f)
-		return -EINVAL;
-
-	/* ADDR (7 bit) + RD (1 bit) + SDA hi (1 bit) */
-	pattern = (addr << 2) | 3;
+	int i;
 
 	i2c_lock_adapter(&priv->adap);
 
@@ -119,8 +113,8 @@ static int fops_incomplete_transfer_set(void *data, u64 addr)
 	setsda(bit_data, 0);
 	udelay(bit_data->udelay);
 
-	/* Send ADDR+RD, request ACK, don't send STOP */
-	for (i = 8; i >= 0; i--) {
+	/* Send pattern, request ACK, don't send STOP */
+	for (i = pattern_size - 1; i >= 0; i--) {
 		setscl(bit_data, 0);
 		udelay(bit_data->udelay / 2);
 		setsda(bit_data, (pattern >> i) & 1);
@@ -130,10 +124,24 @@ static int fops_incomplete_transfer_set(void *data, u64 addr)
 	}
 
 	i2c_unlock_adapter(&priv->adap);
+}
+
+static int fops_incomplete_addr_phase_set(void *data, u64 addr)
+{
+	struct i2c_gpio_private_data *priv = data;
+	u32 pattern;
+
+	if (addr > 0x7f)
+		return -EINVAL;
+
+	/* ADDR (7 bit) + RD (1 bit) + Client ACK, keep SDA hi (1 bit) */
+	pattern = (addr << 2) | 3;
+
+	i2c_gpio_incomplete_transfer(priv, pattern, 9);
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_transfer, NULL, fops_incomplete_transfer_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_incomplete_addr_phase, NULL, fops_incomplete_addr_phase_set, "%llu\n");
 
 static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 {
@@ -156,8 +164,8 @@ static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 
 	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
 	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
-	debugfs_create_file_unsafe("incomplete_transfer", 0200, priv->debug_dir,
-				   priv, &fops_incomplete_transfer);
+	debugfs_create_file_unsafe("incomplete_address_phase", 0200, priv->debug_dir,
+				   priv, &fops_incomplete_addr_phase);
 }
 
 static void i2c_gpio_fault_injector_exit(struct platform_device *pdev)
