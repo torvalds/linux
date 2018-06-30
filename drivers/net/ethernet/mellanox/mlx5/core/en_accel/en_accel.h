@@ -38,14 +38,22 @@
 #include <linux/netdevice.h>
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/tls_rxtx.h"
-#include "en_accel/rxtx.h"
 #include "en.h"
 
-static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
-						    struct mlx5e_txqsq *sq,
-						    struct net_device *dev,
-						    struct mlx5e_tx_wqe **wqe,
-						    u16 *pi)
+static inline void
+mlx5e_udp_gso_handle_tx_skb(struct sk_buff *skb)
+{
+	int payload_len = skb_shinfo(skb)->gso_size + sizeof(struct udphdr);
+
+	udp_hdr(skb)->len = htons(payload_len);
+}
+
+static inline struct sk_buff *
+mlx5e_accel_handle_tx(struct sk_buff *skb,
+		      struct mlx5e_txqsq *sq,
+		      struct net_device *dev,
+		      struct mlx5e_tx_wqe **wqe,
+		      u16 *pi)
 {
 #ifdef CONFIG_MLX5_EN_TLS
 	if (test_bit(MLX5E_SQ_STATE_TLS, &sq->state)) {
@@ -63,11 +71,8 @@ static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
 	}
 #endif
 
-	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
-		skb = mlx5e_udp_gso_handle_tx_skb(dev, sq, skb, wqe, pi);
-		if (unlikely(!skb))
-			return NULL;
-	}
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+		mlx5e_udp_gso_handle_tx_skb(skb);
 
 	return skb;
 }
