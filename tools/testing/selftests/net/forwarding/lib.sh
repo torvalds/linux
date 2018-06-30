@@ -14,8 +14,13 @@ PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
 NETIF_TYPE=${NETIF_TYPE:=veth}
 NETIF_CREATE=${NETIF_CREATE:=yes}
 
-if [[ -f forwarding.config ]]; then
-	source forwarding.config
+relative_path="${BASH_SOURCE%/*}"
+if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
+	relative_path="."
+fi
+
+if [[ -f $relative_path/forwarding.config ]]; then
+	source "$relative_path/forwarding.config"
 fi
 
 ##############################################################################
