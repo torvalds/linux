@@ -1257,7 +1257,7 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 	int ret;
 
 	cpu_dp = ds->dst->cpu_dp;
-	master = cpu_dp->netdev;
+	master = ds->ports[port->upstream].ethernet;
 
 	if (!ds->num_tx_queues)
 		ds->num_tx_queues = 1;
@@ -1295,6 +1295,7 @@ int dsa_slave_create(struct dsa_port *port, const char *name)
 	p->dp = port;
 	INIT_LIST_HEAD(&p->mall_tc_list);
 	p->xmit = dst->tag_ops->xmit;
+	p->master = master;
 
 	p->old_pause = -1;
 	p->old_link = -1;

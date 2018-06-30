@@ -91,6 +91,8 @@ struct dsa_slave_priv {
 
 	/* TC context */
 	struct list_head	mall_tc_list;
+
+	struct net_device       *master;
 };
 
 /* dsa.c */
@@ -177,6 +179,9 @@ extern const struct dsa_device_ops trailer_netdev_ops;
 
 static inline struct net_device *dsa_master_netdev(struct dsa_slave_priv *p)
 {
+	if (p->master)
+		return p->master;
+
 	return p->dp->cpu_dp->netdev;
 }
 

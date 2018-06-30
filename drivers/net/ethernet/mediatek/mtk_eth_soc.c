@@ -80,7 +80,10 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 			return 0;
 		if (time_after(jiffies, t_start + PHY_IAC_TIMEOUT))
 			break;
-		usleep_range(10, 20);
+		if (in_atomic())
+			udelay(10);
+		else
+			usleep_range(10, 20);
 	}
 
 	dev_err(eth->dev, "mdio: MDIO timeout\n");
@@ -410,6 +413,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 
 	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%s", mii_np->name);
 	ret = of_mdiobus_register(eth->mii_bus, mii_np);
+printk("%s:%s[%d]%d %p\n", __FILE__, __func__, __LINE__, ret, eth->mii_bus);
 
 err_put_node:
 	of_node_put(mii_np);
@@ -713,8 +717,8 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 		txd4 |= TX_DMA_CHKSUM;
 
 	/* VLAN header offload */
-	if (skb_vlan_tag_present(skb))
-		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
+//	if (skb_vlan_tag_present(skb))
+//		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
 
 	mapped_addr = dma_map_single(eth->dev, skb->data,
 				     skb_headlen(skb), DMA_TO_DEVICE);
@@ -783,7 +787,16 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	WRITE_ONCE(itxd->txd3, (TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
 				(!nr_frags * TX_DMA_LS0)));
 
-	netdev_sent_queue(dev, skb->len);
+	/* we have a single DMA ring so BQL needs to be updated for all devices
+	 * sitting on this ring
+	 */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		netdev_sent_queue(eth->netdev[i], skb->len);
+	}
+
 	skb_tx_timestamp(skb);
 
 	ring->next_free = mtk_qdma_phys_to_virt(ring, txd->txd2);
@@ -994,10 +1007,16 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		if (!(trxd.rxd2 & RX_DMA_DONE))
 			break;
 
-		/* find out which mac the packet come from. values start at 1 */
-		mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
-		      RX_DMA_FPORT_MASK;
-		mac--;
+		/* find out which mac the packet comes from. If the special tag is
+		 * we can assume that the traffic is coming from the builtin mt7530
+		 * and the DSA driver has loaded. FPORT will be the physical switch
+		 * port in this case rather than the FE forward port id. */
+		if (!(trxd.rxd4 & RX_DMA_SP_TAG)) {
+			/* values start at 1 */
+			mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
+			      RX_DMA_FPORT_MASK;
+			mac--;
+		}
 
 		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
 			     !eth->netdev[mac]))
@@ -1080,20 +1099,17 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 	struct mtk_tx_dma *desc;
 	struct sk_buff *skb;
 	struct mtk_tx_buf *tx_buf;
-	unsigned int done[MTK_MAX_DEVS];
-	unsigned int bytes[MTK_MAX_DEVS];
+	int total = 0, done = 0;
+	unsigned int bytes = 0;
 	u32 cpu, dma;
-	int total = 0, i;
-
-	memset(done, 0, sizeof(done));
-	memset(bytes, 0, sizeof(bytes));
+	int i;
 
 	cpu = mtk_r32(eth, MTK_QTX_CRX_PTR);
 	dma = mtk_r32(eth, MTK_QTX_DRX_PTR);
 
 	desc = mtk_qdma_phys_to_virt(ring, cpu);
 
-	while ((cpu != dma) && budget) {
+	while ((cpu != dma) && (done < budget)) {
 		u32 next_cpu = desc->txd2;
 		int mac = 0;
 
@@ -1110,9 +1126,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 			break;
 
 		if (skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC) {
-			bytes[mac] += skb->len;
-			done[mac]++;
-			budget--;
+			bytes += skb->len;
+			done++;
 		}
 		mtk_tx_unmap(eth, tx_buf);
 
@@ -1124,11 +1139,13 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 
 	mtk_w32(eth, cpu, MTK_QTX_CRX_PTR);
 
+	/* we have a single DMA ring so BQL needs to be updated for all devices
+	 * sitting on this ring
+	 */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i] || !done[i])
+		if (!eth->netdev[i])
 			continue;
-		netdev_completed_queue(eth->netdev[i], done[i], bytes[i]);
-		total += done[i];
+		netdev_completed_queue(eth->netdev[i], done, bytes);
 	}
 
 	if (mtk_queue_stopped(eth) &&
@@ -1460,7 +1477,10 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 	for (i = 0; i < 10; i++) {
 		val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW0);
 		if (val & MTK_LRO_RING_RELINQUISH_DONE) {
-			msleep(20);
+			if (in_atomic())
+				mdelay(20);
+			else
+				msleep(20);
 			continue;
 		}
 		break;
@@ -1856,7 +1876,10 @@ static void mtk_stop_dma(struct mtk_eth *eth, u32 glo_cfg)
 	for (i = 0; i < 10; i++) {
 		val = mtk_r32(eth, glo_cfg);
 		if (val & (MTK_TX_DMA_BUSY | MTK_RX_DMA_BUSY)) {
-			msleep(20);
+			if (in_atomic())
+				mdelay(20);
+			else
+				msleep(20);
 			continue;
 		}
 		break;
@@ -1894,7 +1917,10 @@ static void ethsys_reset(struct mtk_eth *eth, u32 reset_bits)
 			   reset_bits,
 			   reset_bits);
 
-	usleep_range(1000, 1100);
+	if (in_atomic())
+		udelay(1000);
+	else
+		usleep_range(1000, 1100);
 	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
 			   reset_bits,
 			   ~reset_bits);
@@ -1975,12 +2001,18 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	 */
 	val = mtk_r32(eth, MTK_CDMQ_IG_CTRL);
 	mtk_w32(eth, val | MTK_CDMQ_STAG_EN, MTK_CDMQ_IG_CTRL);
+	val = mtk_r32(eth, MTK_CDMP_IG_CTRL);
+	mtk_w32(eth, val | MTK_CDMP_STAG_EN, MTK_CDMP_IG_CTRL);
 
 	/* Enable RX VLan Offloading */
-	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
+	if (MTK_HW_FEATURES & NETIF_F_HW_VLAN_CTAG_RX)
+		mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
+	else
+		mtk_w32(eth, 0, MTK_CDMP_EG_CTRL);
 
 	/* enable interrupt delay for RX */
 	mtk_w32(eth, MTK_PDMA_DELAY_RX_DELAY, MTK_PDMA_DELAY_INT);
+	//mtk_w32(eth, MTK_PDMA_DELAY_RX_DELAY, MTK_QDMA_DELAY_INT);
 
 	/* disable delay and normal interrupt */
 	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
@@ -2439,7 +2471,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	SET_NETDEV_DEV(eth->netdev[id], eth->dev);
-	eth->netdev[id]->watchdog_timeo = 5 * HZ;
+	eth->netdev[id]->watchdog_timeo = 30 * HZ;
 	eth->netdev[id]->netdev_ops = &mtk_netdev_ops;
 	eth->netdev[id]->base_addr = (unsigned long)eth->base;
 
