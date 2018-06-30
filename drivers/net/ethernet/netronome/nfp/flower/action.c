@@ -45,6 +45,8 @@
 #include "main.h"
 #include "../nfp_net_repr.h"
 
+#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(TUNNEL_CSUM | TUNNEL_KEY)
+
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
 	size_t act_size = sizeof(struct nfp_fl_pop_vlan);
@@ -273,6 +275,13 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 	} else {
 		set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
 	}
+
+	set_tun->tos = ip_tun->key.tos;
+
+	if (!(ip_tun->key.tun_flags & TUNNEL_KEY) ||
+	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS)
+		return -EOPNOTSUPP;
+	set_tun->tun_flags = ip_tun->key.tun_flags;
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
