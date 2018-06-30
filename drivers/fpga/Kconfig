@@ -156,6 +156,12 @@ config FPGA_DFL_FME
 	  FPGA platform level management features. There shall be one FME
 	  per DFL based FPGA device.
 
+config FPGA_DFL_FME_MGR
+	tristate "FPGA DFL FME Manager Driver"
+	depends on FPGA_DFL_FME && HAS_IOMEM
+	help
+	  Say Y to enable FPGA Manager driver for FPGA Management Engine.
+
 config FPGA_DFL_PCI
 	tristate "FPGA DFL PCIe Device Driver"
 	depends on PCI && FPGA_DFL
