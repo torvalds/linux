@@ -553,6 +553,8 @@
 	((total_size) - NET_SKB_PAD - MVPP2_SKB_SHINFO_SIZE)
 
 #define MVPP2_BIT_TO_BYTE(bit)		((bit) / 8)
+#define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
+#define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
 
 /* IPv6 max L3 address size */
 #define MVPP2_MAX_L3_ADDR_SIZE		16
@@ -831,52 +833,52 @@ struct mvpp2_port {
 
 /* HW TX descriptor for PPv2.1 */
 struct mvpp21_tx_desc {
-	u32 command;		/* Options used by HW for packet transmitting.*/
+	__le32 command;		/* Options used by HW for packet transmitting.*/
 	u8  packet_offset;	/* the offset from the buffer beginning	*/
 	u8  phys_txq;		/* destination queue ID			*/
-	u16 data_size;		/* data size of transmitted packet in bytes */
-	u32 buf_dma_addr;	/* physical addr of transmitted buffer	*/
-	u32 buf_cookie;		/* cookie for access to TX buffer in tx path */
-	u32 reserved1[3];	/* hw_cmd (for future use, BM, PON, PNC) */
-	u32 reserved2;		/* reserved (for future use)		*/
+	__le16 data_size;	/* data size of transmitted packet in bytes */
+	__le32 buf_dma_addr;	/* physical addr of transmitted buffer	*/
+	__le32 buf_cookie;	/* cookie for access to TX buffer in tx path */
+	__le32 reserved1[3];	/* hw_cmd (for future use, BM, PON, PNC) */
+	__le32 reserved2;	/* reserved (for future use)		*/
 };
 
 /* HW RX descriptor for PPv2.1 */
 struct mvpp21_rx_desc {
-	u32 status;		/* info about received packet		*/
-	u16 reserved1;		/* parser_info (for future use, PnC)	*/
-	u16 data_size;		/* size of received packet in bytes	*/
-	u32 buf_dma_addr;	/* physical address of the buffer	*/
-	u32 buf_cookie;		/* cookie for access to RX buffer in rx path */
-	u16 reserved2;		/* gem_port_id (for future use, PON)	*/
-	u16 reserved3;		/* csum_l4 (for future use, PnC)	*/
+	__le32 status;		/* info about received packet		*/
+	__le16 reserved1;	/* parser_info (for future use, PnC)	*/
+	__le16 data_size;	/* size of received packet in bytes	*/
+	__le32 buf_dma_addr;	/* physical address of the buffer	*/
+	__le32 buf_cookie;	/* cookie for access to RX buffer in rx path */
+	__le16 reserved2;	/* gem_port_id (for future use, PON)	*/
+	__le16 reserved3;	/* csum_l4 (for future use, PnC)	*/
 	u8  reserved4;		/* bm_qset (for future use, BM)		*/
 	u8  reserved5;
-	u16 reserved6;		/* classify_info (for future use, PnC)	*/
-	u32 reserved7;		/* flow_id (for future use, PnC) */
-	u32 reserved8;
+	__le16 reserved6;	/* classify_info (for future use, PnC)	*/
+	__le32 reserved7;	/* flow_id (for future use, PnC) */
+	__le32 reserved8;
 };
 
 /* HW TX descriptor for PPv2.2 */
 struct mvpp22_tx_desc {
-	u32 command;
+	__le32 command;
 	u8  packet_offset;
 	u8  phys_txq;
-	u16 data_size;
-	u64 reserved1;
-	u64 buf_dma_addr_ptp;
-	u64 buf_cookie_misc;
+	__le16 data_size;
+	__le64 reserved1;
+	__le64 buf_dma_addr_ptp;
+	__le64 buf_cookie_misc;
 };
 
 /* HW RX descriptor for PPv2.2 */
 struct mvpp22_rx_desc {
-	u32 status;
-	u16 reserved1;
-	u16 data_size;
-	u32 reserved2;
-	u32 reserved3;
-	u64 buf_dma_addr_key_hash;
-	u64 buf_cookie_misc;
+	__le32 status;
+	__le16 reserved1;
+	__le16 data_size;
+	__le32 reserved2;
+	__le32 reserved3;
+	__le64 buf_dma_addr_key_hash;
+	__le64 buf_cookie_misc;
 };
 
 /* Opaque type used by the driver to manipulate the HW TX and RX

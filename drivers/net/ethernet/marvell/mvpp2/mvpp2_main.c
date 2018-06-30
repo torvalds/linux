@@ -151,9 +151,10 @@ static dma_addr_t mvpp2_txdesc_dma_addr_get(struct mvpp2_port *port,
 					    struct mvpp2_tx_desc *tx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return tx_desc->pp21.buf_dma_addr;
+		return le32_to_cpu(tx_desc->pp21.buf_dma_addr);
 	else
-		return tx_desc->pp22.buf_dma_addr_ptp & MVPP2_DESC_DMA_MASK;
+		return le64_to_cpu(tx_desc->pp22.buf_dma_addr_ptp) &
+		       MVPP2_DESC_DMA_MASK;
 }
 
 static void mvpp2_txdesc_dma_addr_set(struct mvpp2_port *port,
@@ -166,12 +167,12 @@ static void mvpp2_txdesc_dma_addr_set(struct mvpp2_port *port,
 	offset = dma_addr & MVPP2_TX_DESC_ALIGN;
 
 	if (port->priv->hw_version == MVPP21) {
-		tx_desc->pp21.buf_dma_addr = addr;
+		tx_desc->pp21.buf_dma_addr = cpu_to_le32(addr);
 		tx_desc->pp21.packet_offset = offset;
 	} else {
-		u64 val = (u64)addr;
+		__le64 val = cpu_to_le64(addr);
 
-		tx_desc->pp22.buf_dma_addr_ptp &= ~MVPP2_DESC_DMA_MASK;
+		tx_desc->pp22.buf_dma_addr_ptp &= ~cpu_to_le64(MVPP2_DESC_DMA_MASK);
 		tx_desc->pp22.buf_dma_addr_ptp |= val;
 		tx_desc->pp22.packet_offset = offset;
 	}
@@ -181,9 +182,9 @@ static size_t mvpp2_txdesc_size_get(struct mvpp2_port *port,
 				    struct mvpp2_tx_desc *tx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return tx_desc->pp21.data_size;
+		return le16_to_cpu(tx_desc->pp21.data_size);
 	else
-		return tx_desc->pp22.data_size;
+		return le16_to_cpu(tx_desc->pp22.data_size);
 }
 
 static void mvpp2_txdesc_size_set(struct mvpp2_port *port,
@@ -191,9 +192,9 @@ static void mvpp2_txdesc_size_set(struct mvpp2_port *port,
 				  size_t size)
 {
 	if (port->priv->hw_version == MVPP21)
-		tx_desc->pp21.data_size = size;
+		tx_desc->pp21.data_size = cpu_to_le16(size);
 	else
-		tx_desc->pp22.data_size = size;
+		tx_desc->pp22.data_size = cpu_to_le16(size);
 }
 
 static void mvpp2_txdesc_txq_set(struct mvpp2_port *port,
@@ -211,9 +212,9 @@ static void mvpp2_txdesc_cmd_set(struct mvpp2_port *port,
 				 unsigned int command)
 {
 	if (port->priv->hw_version == MVPP21)
-		tx_desc->pp21.command = command;
+		tx_desc->pp21.command = cpu_to_le32(command);
 	else
-		tx_desc->pp22.command = command;
+		tx_desc->pp22.command = cpu_to_le32(command);
 }
 
 static unsigned int mvpp2_txdesc_offset_get(struct mvpp2_port *port,
@@ -229,36 +230,38 @@ static dma_addr_t mvpp2_rxdesc_dma_addr_get(struct mvpp2_port *port,
 					    struct mvpp2_rx_desc *rx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return rx_desc->pp21.buf_dma_addr;
+		return le32_to_cpu(rx_desc->pp21.buf_dma_addr);
 	else
-		return rx_desc->pp22.buf_dma_addr_key_hash & MVPP2_DESC_DMA_MASK;
+		return le64_to_cpu(rx_desc->pp22.buf_dma_addr_key_hash) &
+		       MVPP2_DESC_DMA_MASK;
 }
 
 static unsigned long mvpp2_rxdesc_cookie_get(struct mvpp2_port *port,
 					     struct mvpp2_rx_desc *rx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return rx_desc->pp21.buf_cookie;
+		return le32_to_cpu(rx_desc->pp21.buf_cookie);
 	else
-		return rx_desc->pp22.buf_cookie_misc & MVPP2_DESC_DMA_MASK;
+		return le64_to_cpu(rx_desc->pp22.buf_cookie_misc) &
+		       MVPP2_DESC_DMA_MASK;
 }
 
 static size_t mvpp2_rxdesc_size_get(struct mvpp2_port *port,
 				    struct mvpp2_rx_desc *rx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return rx_desc->pp21.data_size;
+		return le16_to_cpu(rx_desc->pp21.data_size);
 	else
-		return rx_desc->pp22.data_size;
+		return le16_to_cpu(rx_desc->pp22.data_size);
 }
 
 static u32 mvpp2_rxdesc_status_get(struct mvpp2_port *port,
 				   struct mvpp2_rx_desc *rx_desc)
 {
 	if (port->priv->hw_version == MVPP21)
-		return rx_desc->pp21.status;
+		return le32_to_cpu(rx_desc->pp21.status);
 	else
-		return rx_desc->pp22.status;
+		return le32_to_cpu(rx_desc->pp22.status);
 }
 
 static void mvpp2_txq_inc_get(struct mvpp2_txq_pcpu *txq_pcpu)
@@ -1735,7 +1738,7 @@ static u32 mvpp2_txq_desc_csum(int l3_offs, int l3_proto,
 	command |= (ip_hdr_len << MVPP2_TXD_IP_HLEN_SHIFT);
 	command |= MVPP2_TXD_IP_CSUM_DISABLE;
 
-	if (l3_proto == swab16(ETH_P_IP)) {
+	if (l3_proto == htons(ETH_P_IP)) {
 		command &= ~MVPP2_TXD_IP_CSUM_DISABLE;	/* enable IPv4 csum */
 		command &= ~MVPP2_TXD_L3_IP6;		/* enable IPv4 */
 	} else {

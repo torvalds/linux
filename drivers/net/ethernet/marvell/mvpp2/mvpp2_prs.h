@@ -50,17 +50,25 @@
  * The fields are represented by MVPP2_PRS_TCAM_DATA_REG(5)->(0).
  */
 #define MVPP2_PRS_AI_BITS			8
+#define MVPP2_PRS_AI_MASK			0xff
 #define MVPP2_PRS_PORT_MASK			0xff
 #define MVPP2_PRS_LU_MASK			0xf
-#define MVPP2_PRS_TCAM_DATA_BYTE(offs)		\
-				    (((offs) - ((offs) % 2)) * 2 + ((offs) % 2))
-#define MVPP2_PRS_TCAM_DATA_BYTE_EN(offs)	\
-					      (((offs) * 2) - ((offs) % 2)  + 2)
-#define MVPP2_PRS_TCAM_AI_BYTE			16
-#define MVPP2_PRS_TCAM_PORT_BYTE		17
-#define MVPP2_PRS_TCAM_LU_BYTE			20
-#define MVPP2_PRS_TCAM_EN_OFFS(offs)		((offs) + 2)
-#define MVPP2_PRS_TCAM_INV_WORD			5
+
+/* TCAM entries in registers are accessed using 16 data bits + 16 enable bits */
+#define MVPP2_PRS_BYTE_TO_WORD(byte)	((byte) / 2)
+#define MVPP2_PRS_BYTE_IN_WORD(byte)	((byte) % 2)
+
+#define MVPP2_PRS_TCAM_EN(data)		((data) << 16)
+#define MVPP2_PRS_TCAM_AI_WORD		4
+#define MVPP2_PRS_TCAM_AI(ai)		(ai)
+#define MVPP2_PRS_TCAM_AI_EN(ai)	MVPP2_PRS_TCAM_EN(MVPP2_PRS_TCAM_AI(ai))
+#define MVPP2_PRS_TCAM_PORT_WORD	4
+#define MVPP2_PRS_TCAM_PORT(p)		((p) << 8)
+#define MVPP2_PRS_TCAM_PORT_EN(p)	MVPP2_PRS_TCAM_EN(MVPP2_PRS_TCAM_PORT(p))
+#define MVPP2_PRS_TCAM_LU_WORD		5
+#define MVPP2_PRS_TCAM_LU(lu)		(lu)
+#define MVPP2_PRS_TCAM_LU_EN(lu)	MVPP2_PRS_TCAM_EN(MVPP2_PRS_TCAM_LU(lu))
+#define MVPP2_PRS_TCAM_INV_WORD		5
 
 #define MVPP2_PRS_VID_TCAM_BYTE         2
 
@@ -146,6 +154,7 @@
 #define MVPP2_PRS_SRAM_RI_CTRL_BITS		32
 #define MVPP2_PRS_SRAM_SHIFT_OFFS		64
 #define MVPP2_PRS_SRAM_SHIFT_SIGN_BIT		72
+#define MVPP2_PRS_SRAM_SHIFT_MASK		0xff
 #define MVPP2_PRS_SRAM_UDF_OFFS			73
 #define MVPP2_PRS_SRAM_UDF_BITS			8
 #define MVPP2_PRS_SRAM_UDF_MASK			0xff
@@ -255,20 +264,10 @@ enum mvpp2_prs_lookup {
 	MVPP2_PRS_LU_LAST,
 };
 
-union mvpp2_prs_tcam_entry {
-	u32 word[MVPP2_PRS_TCAM_WORDS];
-	u8  byte[MVPP2_PRS_TCAM_WORDS * 4];
-};
-
-union mvpp2_prs_sram_entry {
-	u32 word[MVPP2_PRS_SRAM_WORDS];
-	u8  byte[MVPP2_PRS_SRAM_WORDS * 4];
-};
-
 struct mvpp2_prs_entry {
 	u32 index;
-	union mvpp2_prs_tcam_entry tcam;
-	union mvpp2_prs_sram_entry sram;
+	u32 tcam[MVPP2_PRS_TCAM_WORDS];
+	u32 sram[MVPP2_PRS_SRAM_WORDS];
 };
 
 struct mvpp2_prs_shadow {
