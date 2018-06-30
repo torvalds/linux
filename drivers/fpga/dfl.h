@@ -15,6 +15,7 @@
 #define __FPGA_DFL_H
 
 #include <linux/bitfield.h>
+#include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/iopoll.h>
@@ -150,6 +151,7 @@ struct dfl_feature {
  *
  * @node: node to link feature devs to container device's port_dev_list.
  * @lock: mutex to protect platform data.
+ * @cdev: cdev of feature dev.
  * @dev: ptr to platform device linked with this platform data.
  * @dfl_cdev: ptr to container device.
  * @disable_count: count for port disable.
@@ -159,6 +161,7 @@ struct dfl_feature {
 struct dfl_feature_platform_data {
 	struct list_head node;
 	struct mutex lock;
+	struct cdev cdev;
 	struct platform_device *dev;
 	struct dfl_fpga_cdev *dfl_cdev;
 	unsigned int disable_count;
@@ -175,6 +178,11 @@ static inline int dfl_feature_platform_data_size(const int num)
 	return sizeof(struct dfl_feature_platform_data) +
 		num * sizeof(struct dfl_feature);
 }
+
+int dfl_fpga_dev_ops_register(struct platform_device *pdev,
+			      const struct file_operations *fops,
+			      struct module *owner);
+void dfl_fpga_dev_ops_unregister(struct platform_device *pdev);
 
 #define dfl_fpga_dev_for_each_feature(pdata, feature)			    \
 	for ((feature) = (pdata)->features;				    \

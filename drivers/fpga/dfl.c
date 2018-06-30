@@ -22,6 +22,11 @@ static DEFINE_MUTEX(dfl_id_mutex);
  * dfl_devs table which is indexed by dfl_id_type, e.g. name string used for
  * platform device creation (define name strings in dfl.h, as they could be
  * reused by platform device drivers).
+ *
+ * if the new feature dev needs chardev support, then it's required to add
+ * a new item in dfl_chardevs table and configure dfl_devs[i].devt_type as
+ * index to dfl_chardevs table. If no chardev support just set devt_type
+ * as one invalid index (DFL_FPGA_DEVT_MAX).
  */
 enum dfl_id_type {
 	FME_ID,		/* fme id allocation and mapping */
@@ -29,22 +34,48 @@ enum dfl_id_type {
 	DFL_ID_MAX,
 };
 
+enum dfl_fpga_devt_type {
+	DFL_FPGA_DEVT_FME,
+	DFL_FPGA_DEVT_PORT,
+	DFL_FPGA_DEVT_MAX,
+};
+
 /**
  * dfl_dev_info - dfl feature device information.
  * @name: name string of the feature platform device.
  * @dfh_id: id value in Device Feature Header (DFH) register by DFL spec.
  * @id: idr id of the feature dev.
+ * @devt_type: index to dfl_chrdevs[].
  */
 struct dfl_dev_info {
 	const char *name;
 	u32 dfh_id;
 	struct idr id;
+	enum dfl_fpga_devt_type devt_type;
 };
 
 /* it is indexed by dfl_id_type */
 static struct dfl_dev_info dfl_devs[] = {
-	{.name = DFL_FPGA_FEATURE_DEV_FME, .dfh_id = DFH_ID_FIU_FME},
-	{.name = DFL_FPGA_FEATURE_DEV_PORT, .dfh_id = DFH_ID_FIU_PORT},
+	{.name = DFL_FPGA_FEATURE_DEV_FME, .dfh_id = DFH_ID_FIU_FME,
+	 .devt_type = DFL_FPGA_DEVT_FME},
+	{.name = DFL_FPGA_FEATURE_DEV_PORT, .dfh_id = DFH_ID_FIU_PORT,
+	 .devt_type = DFL_FPGA_DEVT_PORT},
+};
+
+/**
+ * dfl_chardev_info - chardev information of dfl feature device
+ * @name: nmae string of the char device.
+ * @devt: devt of the char device.
+ */
+struct dfl_chardev_info {
+	const char *name;
+	dev_t devt;
+};
+
+/* indexed by enum dfl_fpga_devt_type */
+static struct dfl_chardev_info dfl_chrdevs[] = {
+	{.name = DFL_FPGA_FEATURE_DEV_FME},
+	{.name = DFL_FPGA_FEATURE_DEV_PORT},
 };
 
 static void dfl_ids_init(void)
@@ -104,6 +135,86 @@ static enum dfl_id_type dfh_id_to_type(u32 id)
 
 	return DFL_ID_MAX;
 }
+
+static void dfl_chardev_uinit(void)
+{
+	int i;
+
+	for (i = 0; i < DFL_FPGA_DEVT_MAX; i++)
+		if (MAJOR(dfl_chrdevs[i].devt)) {
+			unregister_chrdev_region(dfl_chrdevs[i].devt,
+						 MINORMASK);
+			dfl_chrdevs[i].devt = MKDEV(0, 0);
+		}
+}
+
+static int dfl_chardev_init(void)
+{
+	int i, ret;
+
+	for (i = 0; i < DFL_FPGA_DEVT_MAX; i++) {
+		ret = alloc_chrdev_region(&dfl_chrdevs[i].devt, 0, MINORMASK,
+					  dfl_chrdevs[i].name);
+		if (ret)
+			goto exit;
+	}
+
+	return 0;
+
+exit:
+	dfl_chardev_uinit();
+	return ret;
+}
+
+static dev_t dfl_get_devt(enum dfl_fpga_devt_type type, int id)
+{
+	if (type >= DFL_FPGA_DEVT_MAX)
+		return 0;
+
+	return MKDEV(MAJOR(dfl_chrdevs[type].devt), id);
+}
+
+/**
+ * dfl_fpga_dev_ops_register - register cdev ops for feature dev
+ *
+ * @pdev: feature dev.
+ * @fops: file operations for feature dev's cdev.
+ * @owner: owning module/driver.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int dfl_fpga_dev_ops_register(struct platform_device *pdev,
+			      const struct file_operations *fops,
+			      struct module *owner)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+
+	cdev_init(&pdata->cdev, fops);
+	pdata->cdev.owner = owner;
+
+	/*
+	 * set parent to the feature device so that its refcount is
+	 * decreased after the last refcount of cdev is gone, that
+	 * makes sure the feature device is valid during device
+	 * file's life-cycle.
+	 */
+	pdata->cdev.kobj.parent = &pdev->dev.kobj;
+
+	return cdev_add(&pdata->cdev, pdev->dev.devt, 1);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_register);
+
+/**
+ * dfl_fpga_dev_ops_unregister - unregister cdev ops for feature dev
+ * @pdev: feature dev.
+ */
+void dfl_fpga_dev_ops_unregister(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+
+	cdev_del(&pdata->cdev);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
 
 /**
  * struct build_feature_devs_info - info collected during feature dev build.
@@ -266,6 +377,7 @@ build_info_create_dev(struct build_feature_devs_info *binfo,
 		return fdev->id;
 
 	fdev->dev.parent = &binfo->cdev->region->dev;
+	fdev->dev.devt = dfl_get_devt(dfl_devs[type].devt_type, fdev->id);
 
 	return 0;
 }
@@ -703,13 +815,20 @@ EXPORT_SYMBOL_GPL(dfl_fpga_feature_devs_remove);
 
 static int __init dfl_fpga_init(void)
 {
+	int ret;
+
 	dfl_ids_init();
 
-	return 0;
+	ret = dfl_chardev_init();
+	if (ret)
+		dfl_ids_destroy();
+
+	return ret;
 }
 
 static void __exit dfl_fpga_exit(void)
 {
+	dfl_chardev_uinit();
 	dfl_ids_destroy();
 }
 
