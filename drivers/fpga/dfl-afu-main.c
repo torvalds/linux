@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/fpga-dfl.h>
 
 #include "dfl.h"
 
@@ -87,6 +88,41 @@ static int port_disable(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * This function resets the FPGA Port and its accelerator (AFU) by function
+ * __port_disable and __port_enable (set port soft reset bit and then clear
+ * it). Userspace can do Port reset at any time, e.g. during DMA or Partial
+ * Reconfiguration. But it should never cause any system level issue, only
+ * functional failure (e.g. DMA or PR operation failure) and be recoverable
+ * from the failure.
+ *
+ * Note: the accelerator (AFU) is not accessible when its port is in reset
+ * (disabled). Any attempts on MMIO access to AFU while in reset, will
+ * result errors reported via port error reporting sub feature (if present).
+ */
+static int __port_reset(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = port_disable(pdev);
+	if (!ret)
+		port_enable(pdev);
+
+	return ret;
+}
+
+static int port_reset(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	int ret;
+
+	mutex_lock(&pdata->lock);
+	ret = __port_reset(pdev);
+	mutex_unlock(&pdata->lock);
+
+	return ret;
+}
+
 static int port_get_id(struct platform_device *pdev)
 {
 	void __iomem *base;
@@ -96,23 +132,63 @@ static int port_get_id(struct platform_device *pdev)
 	return FIELD_GET(PORT_CAP_PORT_NUM, readq(base + PORT_HDR_CAP));
 }
 
+static ssize_t
+id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int id = port_get_id(to_platform_device(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", id);
+}
+static DEVICE_ATTR_RO(id);
+
+static const struct attribute *port_hdr_attrs[] = {
+	&dev_attr_id.attr,
+	NULL,
+};
+
 static int port_hdr_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
 	dev_dbg(&pdev->dev, "PORT HDR Init.\n");
 
-	return 0;
+	port_reset(pdev);
+
+	return sysfs_create_files(&pdev->dev.kobj, port_hdr_attrs);
 }
 
 static void port_hdr_uinit(struct platform_device *pdev,
 			   struct dfl_feature *feature)
 {
 	dev_dbg(&pdev->dev, "PORT HDR UInit.\n");
+
+	sysfs_remove_files(&pdev->dev.kobj, port_hdr_attrs);
+}
+
+static long
+port_hdr_ioctl(struct platform_device *pdev, struct dfl_feature *feature,
+	       unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	switch (cmd) {
+	case DFL_FPGA_PORT_RESET:
+		if (!arg)
+			ret = port_reset(pdev);
+		else
+			ret = -EINVAL;
+		break;
+	default:
+		dev_dbg(&pdev->dev, "%x cmd not handled", cmd);
+		ret = -ENODEV;
+	}
+
+	return ret;
 }
 
 static const struct dfl_feature_ops port_hdr_ops = {
 	.init = port_hdr_init,
 	.uinit = port_hdr_uinit,
+	.ioctl = port_hdr_ioctl,
 };
 
 static struct dfl_feature_driver port_feature_drvs[] = {
@@ -154,6 +230,7 @@ static int afu_release(struct inode *inode, struct file *filp)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
+	port_reset(pdev);
 	dfl_feature_dev_use_end(pdata);
 
 	return 0;

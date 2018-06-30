@@ -29,7 +29,10 @@
 #define DFL_FPGA_MAGIC 0xB6
 
 #define DFL_FPGA_BASE 0
+#define DFL_PORT_BASE 0x40
 #define DFL_FME_BASE 0x80
+
+/* Common IOCTLs for both FME and AFU file descriptor */
 
 /**
  * DFL_FPGA_GET_API_VERSION - _IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 0)
@@ -48,6 +51,20 @@
  */
 
 #define DFL_FPGA_CHECK_EXTENSION	_IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
+
+/* IOCTLs for AFU file descriptor */
+
+/**
+ * DFL_FPGA_PORT_RESET - _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
+ *
+ * Reset the FPGA Port and its AFU. No parameters are supported.
+ * Userspace can do Port reset at any time, e.g. during DMA or PR. But
+ * it should never cause any system level issue, only functional failure
+ * (e.g. DMA or PR operation failure) and be recoverable from the failure.
+ * Return: 0 on success, -errno of failure
+ */
+
+#define DFL_FPGA_PORT_RESET		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
 
 /* IOCTLs for FME file descriptor */
 
