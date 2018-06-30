@@ -236,9 +236,12 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
 	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
 	u32 tmp_set_ip_tun_type_index = 0;
+	struct flowi4 flow = {};
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
+	struct rtable *rt;
 	struct net *net;
+	int err;
 
 	if (ip_tun->options_len)
 		return -EOPNOTSUPP;
@@ -255,7 +258,21 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
 	set_tun->tun_id = ip_tun->key.tun_id;
-	set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+
+	/* Do a route lookup to determine ttl - if fails then use default.
+	 * Note that CONFIG_INET is a requirement of CONFIG_NET_SWITCHDEV so
+	 * must be defined here.
+	 */
+	flow.daddr = ip_tun->key.u.ipv4.dst;
+	flow.flowi4_proto = IPPROTO_UDP;
+	rt = ip_route_output_key(net, &flow);
+	err = PTR_ERR_OR_ZERO(rt);
+	if (!err) {
+		set_tun->ttl = ip4_dst_hoplimit(&rt->dst);
+		ip_rt_put(rt);
+	} else {
+		set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+	}
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
