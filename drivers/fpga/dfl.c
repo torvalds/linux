@@ -136,6 +136,85 @@ static enum dfl_id_type dfh_id_to_type(u32 id)
 	return DFL_ID_MAX;
 }
 
+/*
+ * introduce a global port_ops list, it allows port drivers to register ops
+ * in such list, then other feature devices (e.g. FME), could use the port
+ * functions even related port platform device is hidden. Below is one example,
+ * in virtualization case of PCIe-based FPGA DFL device, when SRIOV is
+ * enabled, port (and it's AFU) is turned into VF and port platform device
+ * is hidden from system but it's still required to access port to finish FPGA
+ * reconfiguration function in FME.
+ */
+
+static DEFINE_MUTEX(dfl_port_ops_mutex);
+static LIST_HEAD(dfl_port_ops_list);
+
+/**
+ * dfl_fpga_port_ops_get - get matched port ops from the global list
+ * @pdev: platform device to match with associated port ops.
+ * Return: matched port ops on success, NULL otherwise.
+ *
+ * Please note that must dfl_fpga_port_ops_put after use the port_ops.
+ */
+struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev)
+{
+	struct dfl_fpga_port_ops *ops = NULL;
+
+	mutex_lock(&dfl_port_ops_mutex);
+	if (list_empty(&dfl_port_ops_list))
+		goto done;
+
+	list_for_each_entry(ops, &dfl_port_ops_list, node) {
+		/* match port_ops using the name of platform device */
+		if (!strcmp(pdev->name, ops->name)) {
+			if (!try_module_get(ops->owner))
+				ops = NULL;
+			goto done;
+		}
+	}
+
+	ops = NULL;
+done:
+	mutex_unlock(&dfl_port_ops_mutex);
+	return ops;
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_get);
+
+/**
+ * dfl_fpga_port_ops_put - put port ops
+ * @ops: port ops.
+ */
+void dfl_fpga_port_ops_put(struct dfl_fpga_port_ops *ops)
+{
+	if (ops && ops->owner)
+		module_put(ops->owner);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_put);
+
+/**
+ * dfl_fpga_port_ops_add - add port_ops to global list
+ * @ops: port ops to add.
+ */
+void dfl_fpga_port_ops_add(struct dfl_fpga_port_ops *ops)
+{
+	mutex_lock(&dfl_port_ops_mutex);
+	list_add_tail(&ops->node, &dfl_port_ops_list);
+	mutex_unlock(&dfl_port_ops_mutex);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_add);
+
+/**
+ * dfl_fpga_port_ops_del - remove port_ops from global list
+ * @ops: port ops to del.
+ */
+void dfl_fpga_port_ops_del(struct dfl_fpga_port_ops *ops)
+{
+	mutex_lock(&dfl_port_ops_mutex);
+	list_del(&ops->node);
+	mutex_unlock(&dfl_port_ops_mutex);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_del);
+
 /**
  * dfl_fpga_dev_feature_uinit - uinit for sub features of dfl feature device
  * @pdev: feature device.

@@ -130,6 +130,27 @@
 /* Latency tolerance reporting. '1' >= 40us, '0' < 40us.*/
 #define PORT_CTRL_LATENCY	BIT_ULL(2)
 #define PORT_CTRL_SFTRST_ACK	BIT_ULL(4)		/* HW ack for reset */
+/**
+ * struct dfl_fpga_port_ops - port ops
+ *
+ * @name: name of this port ops, to match with port platform device.
+ * @owner: pointer to the module which owns this port ops.
+ * @node: node to link port ops to global list.
+ * @get_id: get port id from hardware.
+ * @enable_set: enable/disable the port.
+ */
+struct dfl_fpga_port_ops {
+	const char *name;
+	struct module *owner;
+	struct list_head node;
+	int (*get_id)(struct platform_device *pdev);
+	int (*enable_set)(struct platform_device *pdev, bool enable);
+};
+
+void dfl_fpga_port_ops_add(struct dfl_fpga_port_ops *ops);
+void dfl_fpga_port_ops_del(struct dfl_fpga_port_ops *ops);
+struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev);
+void dfl_fpga_port_ops_put(struct dfl_fpga_port_ops *ops);
 
 /**
  * struct dfl_feature_driver - sub feature's driver
