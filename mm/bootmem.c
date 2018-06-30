@@ -21,6 +21,53 @@
 
 #include "internal.h"
 
+/**
+ * DOC: bootmem overview
+ *
+ * Bootmem is a boot-time physical memory allocator and configurator.
+ *
+ * It is used early in the boot process before the page allocator is
+ * set up.
+ *
+ * Bootmem is based on the most basic of allocators, a First Fit
+ * allocator which uses a bitmap to represent memory. If a bit is 1,
+ * the page is allocated and 0 if unallocated. To satisfy allocations
+ * of sizes smaller than a page, the allocator records the Page Frame
+ * Number (PFN) of the last allocation and the offset the allocation
+ * ended at. Subsequent small allocations are merged together and
+ * stored on the same page.
+ *
+ * The information used by the bootmem allocator is represented by
+ * :c:type:`struct bootmem_data`. An array to hold up to %MAX_NUMNODES
+ * such structures is statically allocated and then it is discarded
+ * when the system initialization completes. Each entry in this array
+ * corresponds to a node with memory. For UMA systems only entry 0 is
+ * used.
+ *
+ * The bootmem allocator is initialized during early architecture
+ * specific setup. Each architecture is required to supply a
+ * :c:func:`setup_arch` function which, among other tasks, is
+ * responsible for acquiring the necessary parameters to initialise
+ * the boot memory allocator. These parameters define limits of usable
+ * physical memory:
+ *
+ * * @min_low_pfn - the lowest PFN that is available in the system
+ * * @max_low_pfn - the highest PFN that may be addressed by low
+ *   memory (%ZONE_NORMAL)
+ * * @max_pfn - the last PFN available to the system.
+ *
+ * After those limits are determined, the :c:func:`init_bootmem` or
+ * :c:func:`init_bootmem_node` function should be called to initialize
+ * the bootmem allocator. The UMA case should use the `init_bootmem`
+ * function. It will initialize ``contig_page_data`` structure that
+ * represents the only memory node in the system. In the NUMA case the
+ * `init_bootmem_node` function should be called to initialize the
+ * bootmem allocator for each node.
+ *
+ * Once the allocator is set up, it is possible to use either single
+ * node or NUMA variant of the allocation APIs.
+ */
+
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 struct pglist_data __refdata contig_page_data = {
 	.bdata = &bootmem_node_data[0]
