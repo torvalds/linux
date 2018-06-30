@@ -158,6 +158,27 @@ err_put_region:
 }
 EXPORT_SYMBOL_GPL(fpga_region_program_fpga);
 
+static ssize_t compat_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct fpga_region *region = to_fpga_region(dev);
+
+	if (!region->compat_id)
+		return -ENOENT;
+
+	return sprintf(buf, "%016llx%016llx\n",
+		       (unsigned long long)region->compat_id->id_h,
+		       (unsigned long long)region->compat_id->id_l);
+}
+
+static DEVICE_ATTR_RO(compat_id);
+
+static struct attribute *fpga_region_attrs[] = {
+	&dev_attr_compat_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(fpga_region);
+
 /**
  * fpga_region_create - alloc and init a struct fpga_region
  * @dev: device parent
@@ -258,6 +279,7 @@ static int __init fpga_region_init(void)
 	if (IS_ERR(fpga_region_class))
 		return PTR_ERR(fpga_region_class);
 
+	fpga_region_class->dev_groups = fpga_region_groups;
 	fpga_region_class->dev_release = fpga_region_dev_release;
 
 	return 0;
