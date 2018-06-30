@@ -122,15 +122,8 @@ test_span_gre_egress_up()
 	# After setting the device up, wait for neighbor to get resolved so that
 	# we can expect mirroring to work.
 	ip link set dev $swp3 up
-	while true; do
-		ip neigh sh dev $swp3 $remote_ip nud reachable |
-		    grep -q ^
-		if [[ $? -ne 0 ]]; then
-			sleep 1
-		else
-			break
-		fi
-	done
+	setup_wait_dev $swp3
+	ping -c 1 -I $swp3 $remote_ip &>/dev/null
 
 	quick_test_span_gre_dir $tundev ingress
 	mirror_uninstall $swp1 ingress

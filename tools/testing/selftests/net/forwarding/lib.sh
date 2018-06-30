@@ -185,18 +185,25 @@ log_info()
 	echo "INFO: $msg"
 }
 
+setup_wait_dev()
+{
+	local dev=$1; shift
+
+	while true; do
+		ip link show dev $dev up \
+			| grep 'state UP' &> /dev/null
+		if [[ $? -ne 0 ]]; then
+			sleep 1
+		else
+			break
+		fi
+	done
+}
+
 setup_wait()
 {
 	for i in $(eval echo {1..$NUM_NETIFS}); do
-		while true; do
-			ip link show dev ${NETIFS[p$i]} up \
-				| grep 'state UP' &> /dev/null
-			if [[ $? -ne 0 ]]; then
-				sleep 1
-			else
-				break
-			fi
-		done
+		setup_wait_dev ${NETIFS[p$i]}
 	done
 
 	# Make sure links are ready.
@@ -472,9 +479,15 @@ trap_install()
 	local dev=$1; shift
 	local direction=$1; shift
 
-	# For slow-path testing, we need to install a trap to get to
-	# slow path the packets that would otherwise be switched in HW.
-	tc filter add dev $dev $direction pref 1 flower skip_sw action trap
+	# Some devices may not support or need in-hardware trapping of traffic
+	# (e.g. the veth pairs that this library creates for non-existent
+	# loopbacks). Use continue instead, so that there is a filter in there
+	# (some tests check counters), and so that other filters are still
+	# processed.
+	tc filter add dev $dev $direction pref 1 \
+		flower skip_sw action trap 2>/dev/null \
+	    || tc filter add dev $dev $direction pref 1 \
+		       flower action continue
 }
 
 trap_uninstall()
@@ -482,11 +495,13 @@ trap_uninstall()
 	local dev=$1; shift
 	local direction=$1; shift
 
-	tc filter del dev $dev $direction pref 1 flower skip_sw
+	tc filter del dev $dev $direction pref 1 flower
 }
 
 slow_path_trap_install()
 {
+	# For slow-path testing, we need to install a trap to get to
+	# slow path the packets that would otherwise be switched in HW.
 	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
 		trap_install "$@"
 	fi
