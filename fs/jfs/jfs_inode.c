@@ -69,8 +69,6 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	rc = diAlloc(parent, S_ISDIR(mode), inode);
 	if (rc) {
 		jfs_warn("ialloc: diAlloc returned %d!", rc);
-		if (rc == -EIO)
-			make_bad_inode(inode);
 		goto fail_put;
 	}
 
