@@ -1066,12 +1066,11 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
+	qede_rdma_dev_remove(edev);
 	unregister_netdev(ndev);
 	cancel_delayed_work_sync(&edev->sp_task);
 
 	qede_ptp_disable(edev);
-
-	qede_rdma_dev_remove(edev);
 
 	edev->ops->common->set_power_state(cdev, PCI_D0);
 

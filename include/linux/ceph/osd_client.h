@@ -77,7 +77,10 @@ struct ceph_osd_data {
 			u32			bio_length;
 		};
 #endif /* CONFIG_BLOCK */
-		struct ceph_bvec_iter	bvec_pos;
+		struct {
+			struct ceph_bvec_iter	bvec_pos;
+			u32			num_bvecs;
+		};
 	};
 };
 
@@ -412,6 +415,10 @@ void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
 				    struct ceph_bio_iter *bio_pos,
 				    u32 bio_length);
 #endif /* CONFIG_BLOCK */
+void osd_req_op_extent_osd_data_bvecs(struct ceph_osd_request *osd_req,
+				      unsigned int which,
+				      struct bio_vec *bvecs, u32 num_bvecs,
+				      u32 bytes);
 void osd_req_op_extent_osd_data_bvec_pos(struct ceph_osd_request *osd_req,
 					 unsigned int which,
 					 struct ceph_bvec_iter *bvec_pos);
@@ -426,7 +433,8 @@ extern void osd_req_op_cls_request_data_pages(struct ceph_osd_request *,
 					bool own_pages);
 void osd_req_op_cls_request_data_bvecs(struct ceph_osd_request *osd_req,
 				       unsigned int which,
-				       struct bio_vec *bvecs, u32 bytes);
+				       struct bio_vec *bvecs, u32 num_bvecs,
+				       u32 bytes);
 extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 					unsigned int which,
 					struct page **pages, u64 length,

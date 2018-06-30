@@ -2416,7 +2416,7 @@ static void set_proto(void *outer_c, void *outer_v, u8 mask, u8 val)
 	MLX5_SET(fte_match_set_lyr_2_4, outer_v, ip_protocol, val);
 }
 
-static void set_flow_label(void *misc_c, void *misc_v, u8 mask, u8 val,
+static void set_flow_label(void *misc_c, void *misc_v, u32 mask, u32 val,
 			   bool inner)
 {
 	if (inner) {

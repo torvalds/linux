@@ -717,6 +717,8 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 			nla_strlcpy(tmp, nla, sizeof(tmp));
 			val = tcp_ca_get_key_by_name(fi->fib_net, tmp, &ecn_ca);
 		} else {
+			if (nla_len(nla) != sizeof(u32))
+				return false;
 			val = nla_get_u32(nla);
 		}
 
@@ -1043,6 +1045,8 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 			if (val == TCP_CA_UNSPEC)
 				return -EINVAL;
 		} else {
+			if (nla_len(nla) != sizeof(u32))
+				return -EINVAL;
 			val = nla_get_u32(nla);
 		}
 		if (type == RTAX_ADVMSS && val > 65535 - 40)

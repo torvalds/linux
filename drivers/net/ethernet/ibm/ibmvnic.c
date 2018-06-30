@@ -192,6 +192,7 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 	if (adapter->fw_done_rc) {
 		dev_err(dev, "Couldn't map long term buffer,rc = %d\n",
 			adapter->fw_done_rc);
+		dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 		return -1;
 	}
 	return 0;
@@ -795,9 +796,11 @@ static int ibmvnic_login(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int retry_count = 0;
+	bool retry;
 	int rc;
 
 	do {
+		retry = false;
 		if (retry_count > IBMVNIC_MAX_QUEUES) {
 			netdev_warn(netdev, "Login attempts exceeded\n");
 			return -1;
@@ -821,6 +824,9 @@ static int ibmvnic_login(struct net_device *netdev)
 			retry_count++;
 			release_sub_crqs(adapter, 1);
 
+			retry = true;
+			netdev_dbg(netdev,
+				   "Received partial success, retrying...\n");
 			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
@@ -848,7 +854,7 @@ static int ibmvnic_login(struct net_device *netdev)
 			netdev_warn(netdev, "Adapter login failed\n");
 			return -1;
 		}
-	} while (adapter->init_done_rc == PARTIALSUCCESS);
+	} while (retry);
 
 	/* handle pending MAC address changes after successful login */
 	if (adapter->mac_change_pending) {
@@ -1821,9 +1827,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			if (rc)
 				return rc;
 		}
+		ibmvnic_disable_irqs(adapter);
 	}
-
-	ibmvnic_disable_irqs(adapter);
 	adapter->state = VNIC_CLOSED;
 
 	if (reset_state == VNIC_CLOSED)
@@ -2617,18 +2622,21 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
-	u64 val;
 
 	if (scrq->hw_irq > 0x100000000ULL) {
 		dev_err(dev, "bad hw_irq = %lx\n", scrq->hw_irq);
 		return 1;
 	}
 
-	val = (0xff000000) | scrq->hw_irq;
-	rc = plpar_hcall_norets(H_EOI, val);
-	if (rc)
-		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-			val, rc);
+	if (adapter->resetting &&
+	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
+		u64 val = (0xff000000) | scrq->hw_irq;
+
+		rc = plpar_hcall_norets(H_EOI, val);
+		if (rc)
+			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
+				val, rc);
+	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
@@ -4586,14 +4594,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		release_crq_queue(adapter);
 	}
 
-	rc = init_stats_buffers(adapter);
-	if (rc)
-		return rc;
-
-	rc = init_stats_token(adapter);
-	if (rc)
-		return rc;
-
 	return rc;
 }
 
@@ -4662,13 +4662,21 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 			goto ibmvnic_init_fail;
 	} while (rc == EAGAIN);
 
+	rc = init_stats_buffers(adapter);
+	if (rc)
+		goto ibmvnic_init_fail;
+
+	rc = init_stats_token(adapter);
+	if (rc)
+		goto ibmvnic_stats_fail;
+
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 	netdev->min_mtu = adapter->min_mtu - ETH_HLEN;
 	netdev->max_mtu = adapter->max_mtu - ETH_HLEN;
 
 	rc = device_create_file(&dev->dev, &dev_attr_failover);
 	if (rc)
-		goto ibmvnic_init_fail;
+		goto ibmvnic_dev_file_err;
 
 	netif_carrier_off(netdev);
 	rc = register_netdev(netdev);
@@ -4686,6 +4694,12 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 ibmvnic_register_fail:
 	device_remove_file(&dev->dev, &dev_attr_failover);
+
+ibmvnic_dev_file_err:
+	release_stats_token(adapter);
+
+ibmvnic_stats_fail:
+	release_stats_buffers(adapter);
 
 ibmvnic_init_fail:
 	release_sub_crqs(adapter, 1);

@@ -237,19 +237,17 @@ static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
 	context->buf.sg[0].data = &context->command;
 
 	spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-	list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
+	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
+	if (!res)
+		list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
 	spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
 
-	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
 	if (res) {
-		mlx5_fpga_warn(fdev, "Failure sending IPSec command: %d\n",
-			       res);
-		spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-		list_del(&context->list);
-		spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
+		mlx5_fpga_warn(fdev, "Failed to send IPSec command: %d\n", res);
 		kfree(context);
 		return ERR_PTR(res);
 	}
+
 	/* Context will be freed by wait func after completion */
 	return context;
 }

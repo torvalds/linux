@@ -401,49 +401,47 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
 	struct qedr_ucontext *ucontext = get_qedr_ucontext(context);
 	struct qedr_dev *dev = get_qedr_dev(context->device);
-	unsigned long vm_page = vma->vm_pgoff << PAGE_SHIFT;
-	u64 unmapped_db = dev->db_phys_addr;
+	unsigned long phys_addr = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long len = (vma->vm_end - vma->vm_start);
-	int rc = 0;
-	bool found;
+	unsigned long dpi_start;
+
+	dpi_start = dev->db_phys_addr + (ucontext->dpi * ucontext->dpi_size);
 
 	DP_DEBUG(dev, QEDR_MSG_INIT,
-		 "qedr_mmap called vm_page=0x%lx vm_pgoff=0x%lx unmapped_db=0x%llx db_size=%x, len=%lx\n",
-		 vm_page, vma->vm_pgoff, unmapped_db, dev->db_size, len);
-	if (vma->vm_start & (PAGE_SIZE - 1)) {
-		DP_ERR(dev, "Vma_start not page aligned = %ld\n",
-		       vma->vm_start);
+		 "mmap invoked with vm_start=0x%pK, vm_end=0x%pK,vm_pgoff=0x%pK; dpi_start=0x%pK dpi_size=0x%x\n",
+		 (void *)vma->vm_start, (void *)vma->vm_end,
+		 (void *)vma->vm_pgoff, (void *)dpi_start, ucontext->dpi_size);
+
+	if ((vma->vm_start & (PAGE_SIZE - 1)) || (len & (PAGE_SIZE - 1))) {
+		DP_ERR(dev,
+		       "failed mmap, adrresses must be page aligned: start=0x%pK, end=0x%pK\n",
+		       (void *)vma->vm_start, (void *)vma->vm_end);
 		return -EINVAL;
 	}
 
-	found = qedr_search_mmap(ucontext, vm_page, len);
-	if (!found) {
-		DP_ERR(dev, "Vma_pgoff not found in mapped array = %ld\n",
+	if (!qedr_search_mmap(ucontext, phys_addr, len)) {
+		DP_ERR(dev, "failed mmap, vm_pgoff=0x%lx is not authorized\n",
 		       vma->vm_pgoff);
 		return -EINVAL;
 	}
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping doorbell bar\n");
-
-	if ((vm_page >= unmapped_db) && (vm_page <= (unmapped_db +
-						     dev->db_size))) {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping doorbell bar\n");
-		if (vma->vm_flags & VM_READ) {
-			DP_ERR(dev, "Trying to map doorbell bar for read\n");
-			return -EPERM;
-		}
-
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-		rc = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-					PAGE_SIZE, vma->vm_page_prot);
-	} else {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Mapping chains\n");
-		rc = remap_pfn_range(vma, vma->vm_start,
-				     vma->vm_pgoff, len, vma->vm_page_prot);
+	if (phys_addr < dpi_start ||
+	    ((phys_addr + len) > (dpi_start + ucontext->dpi_size))) {
+		DP_ERR(dev,
+		       "failed mmap, pages are outside of dpi; page address=0x%pK, dpi_start=0x%pK, dpi_size=0x%x\n",
+		       (void *)phys_addr, (void *)dpi_start,
+		       ucontext->dpi_size);
+		return -EINVAL;
 	}
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr_mmap return code: %d\n", rc);
-	return rc;
+
+	if (vma->vm_flags & VM_READ) {
+		DP_ERR(dev, "failed mmap, cannot map doorbell bar for read\n");
+		return -EINVAL;
+	}
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff, len,
+				  vma->vm_page_prot);
 }
 
 struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,

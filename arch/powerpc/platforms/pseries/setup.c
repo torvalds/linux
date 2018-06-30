@@ -710,6 +710,7 @@ static void __init pSeries_setup_arch(void)
 	fwnmi_init();
 
 	pseries_setup_rfi_flush();
+	setup_stf_barrier();
 
 	/* By default, only probe PCI (can be overridden by rtas_pci) */
 	pci_add_flags(PCI_PROBE_ONLY);

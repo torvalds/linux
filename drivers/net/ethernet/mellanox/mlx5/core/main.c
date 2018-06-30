@@ -1587,6 +1587,14 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 
 	mlx5_enter_error_state(dev, true);
 
+	/* Some platforms requiring freeing the IRQ's in the shutdown
+	 * flow. If they aren't freed they can't be allocated after
+	 * kexec. There is no need to cleanup the mlx5_core software
+	 * contexts.
+	 */
+	mlx5_irq_clear_affinity_hints(dev);
+	mlx5_core_eq_free_irqs(dev);
+
 	return 0;
 }
 

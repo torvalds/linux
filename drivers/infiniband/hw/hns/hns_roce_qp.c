@@ -660,6 +660,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				goto err_rq_sge_list;
 			}
 			*hr_qp->rdb.db_record = 0;
+			hr_qp->rdb_en = 1;
 		}
 
 		/* Allocate QP buf */
@@ -955,7 +956,14 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
-		ret = 0;
+		if (hr_dev->caps.min_wqes) {
+			ret = -EPERM;
+			dev_err(dev, "cur_state=%d new_state=%d\n", cur_state,
+				new_state);
+		} else {
+			ret = 0;
+		}
+
 		goto out;
 	}
 

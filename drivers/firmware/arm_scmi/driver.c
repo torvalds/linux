@@ -778,6 +778,7 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 	if (scmi_mbox_chan_setup(info, &sdev->dev, prot_id)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
+		return;
 	}
 
 	/* setup handle now as the transport is ready */

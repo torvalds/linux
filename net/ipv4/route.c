@@ -1375,6 +1375,7 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 			fnhe->fnhe_gw = 0;
 			fnhe->fnhe_pmtu = 0;
 			fnhe->fnhe_expires = 0;
+			fnhe->fnhe_mtu_locked = false;
 			fnhe_flush_routes(fnhe);
 			orig = NULL;
 		}
@@ -1960,8 +1961,13 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	fl4.saddr = saddr;
 	fl4.flowi4_uid = sock_net_uid(net, NULL);
 
-	if (fib4_rules_early_flow_dissect(net, skb, &fl4, &_flkeys))
+	if (fib4_rules_early_flow_dissect(net, skb, &fl4, &_flkeys)) {
 		flkeys = &_flkeys;
+	} else {
+		fl4.flowi4_proto = 0;
+		fl4.fl4_sport = 0;
+		fl4.fl4_dport = 0;
+	}
 
 	err = fib_lookup(net, &fl4, res, 0);
 	if (err != 0) {

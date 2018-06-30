@@ -134,6 +134,7 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 				     struct afs_read *read_req)
 {
 	const struct afs_xdr_AFSFetchStatus *xdr = (const void *)*_bp;
+	bool inline_error = (call->operation_ID == afs_FS_InlineBulkStatus);
 	u64 data_version, size;
 	u32 type, abort_code;
 	u8 flags = 0;
@@ -142,13 +143,32 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 	if (vnode)
 		write_seqlock(&vnode->cb_lock);
 
+	abort_code = ntohl(xdr->abort_code);
+
 	if (xdr->if_version != htonl(AFS_FSTATUS_VERSION)) {
+		if (xdr->if_version == htonl(0) &&
+		    abort_code != 0 &&
+		    inline_error) {
+			/* The OpenAFS fileserver has a bug in FS.InlineBulkStatus
+			 * whereby it doesn't set the interface version in the error
+			 * case.
+			 */
+			status->abort_code = abort_code;
+			ret = 0;
+			goto out;
+		}
+
 		pr_warn("Unknown AFSFetchStatus version %u\n", ntohl(xdr->if_version));
 		goto bad;
 	}
 
+	if (abort_code != 0 && inline_error) {
+		status->abort_code = abort_code;
+		ret = 0;
+		goto out;
+	}
+
 	type = ntohl(xdr->type);
-	abort_code = ntohl(xdr->abort_code);
 	switch (type) {
 	case AFS_FTYPE_FILE:
 	case AFS_FTYPE_DIR:
@@ -165,13 +185,6 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 		}
 		status->type = type;
 		break;
-	case AFS_FTYPE_INVALID:
-		if (abort_code != 0) {
-			status->abort_code = abort_code;
-			ret = 0;
-			goto out;
-		}
-		/* Fall through */
 	default:
 		goto bad;
 	}
@@ -248,7 +261,7 @@ static void xdr_decode_AFSCallBack(struct afs_call *call,
 
 	write_seqlock(&vnode->cb_lock);
 
-	if (call->cb_break == (vnode->cb_break + cbi->server->cb_s_break)) {
+	if (call->cb_break == afs_cb_break_sum(vnode, cbi)) {
 		vnode->cb_version	= ntohl(*bp++);
 		cb_expiry		= ntohl(*bp++);
 		vnode->cb_type		= ntohl(*bp++);

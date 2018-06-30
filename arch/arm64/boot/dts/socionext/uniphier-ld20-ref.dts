@@ -67,3 +67,11 @@
 		reg = <0>;
 	};
 };
+
+&pinctrl_ether_rgmii {
+	tx {
+		pins = "RGMII_TXCLK", "RGMII_TXD0", "RGMII_TXD1",
+		       "RGMII_TXD2", "RGMII_TXD3", "RGMII_TXCTL";
+		drive-strength = <9>;
+	};
+};

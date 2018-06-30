@@ -460,7 +460,7 @@ static struct platform_device smc91x_device = {
 
 /* i2c */
 static struct gpiod_lookup_table viper_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.1",
 	.table		= {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SDA_GPIO,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
@@ -789,7 +789,7 @@ static int __init viper_tpm_setup(char *str)
 __setup("tpm=", viper_tpm_setup);
 
 struct gpiod_lookup_table viper_tpm_i2c_gpiod_table = {
-	.dev_id = "i2c-gpio",
+	.dev_id = "i2c-gpio.2",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SDA_GPIO,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),

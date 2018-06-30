@@ -34,16 +34,15 @@ config IPV6_ROUTE_INFO
 	bool "IPv6: Route Information (RFC 4191) support"
 	depends on IPV6_ROUTER_PREF
 	---help---
-	  This is experimental support of Route Information.
+	  Support of Route Information.
 
 	  If unsure, say N.
 
 config IPV6_OPTIMISTIC_DAD
 	bool "IPv6: Enable RFC 4429 Optimistic DAD"
 	---help---
-	  This is experimental support for optimistic Duplicate
-	  Address Detection.  It allows for autoconfigured addresses
-	  to be used more quickly.
+	  Support for optimistic Duplicate Address Detection. It allows for
+	  autoconfigured addresses to be used more quickly.
 
 	  If unsure, say N.
 
@@ -280,7 +279,7 @@ config IPV6_MROUTE
 	depends on IPV6
 	select IP_MROUTE_COMMON
 	---help---
-	  Experimental support for IPv6 multicast forwarding.
+	  Support for IPv6 multicast forwarding.
 	  If unsure, say N.
 
 config IPV6_MROUTE_MULTIPLE_TABLES

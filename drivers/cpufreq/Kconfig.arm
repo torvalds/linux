@@ -20,7 +20,7 @@ config ACPI_CPPC_CPUFREQ
 
 config ARM_ARMADA_37XX_CPUFREQ
 	tristate "Armada 37xx CPUFreq support"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU && CPUFREQ_DT
 	help
 	  This adds the CPUFreq driver support for Marvell Armada 37xx SoCs.
 	  The Armada 37xx PMU supports 4 frequency and VDD levels.

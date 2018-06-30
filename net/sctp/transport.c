@@ -634,7 +634,7 @@ unsigned long sctp_transport_timeout(struct sctp_transport *trans)
 	    trans->state != SCTP_PF)
 		timeout += trans->hbinterval;
 
-	return timeout;
+	return max_t(unsigned long, timeout, HZ / 5);
 }
 
 /* Reset transport variables to their initial values */

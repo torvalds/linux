@@ -528,14 +528,12 @@ int migrate_page_move_mapping(struct address_space *mapping,
 		int i;
 		int index = page_index(page);
 
-		for (i = 0; i < HPAGE_PMD_NR; i++) {
+		for (i = 1; i < HPAGE_PMD_NR; i++) {
 			pslot = radix_tree_lookup_slot(&mapping->i_pages,
 						       index + i);
 			radix_tree_replace_slot(&mapping->i_pages, pslot,
 						newpage + i);
 		}
-	} else {
-		radix_tree_replace_slot(&mapping->i_pages, pslot, newpage);
 	}
 
 	/*

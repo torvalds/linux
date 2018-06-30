@@ -380,7 +380,7 @@ rpcrdma_mr_pop(struct list_head *list)
 	struct rpcrdma_mr *mr;
 
 	mr = list_first_entry(list, struct rpcrdma_mr, mr_list);
-	list_del(&mr->mr_list);
+	list_del_init(&mr->mr_list);
 	return mr;
 }
 

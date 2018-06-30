@@ -680,7 +680,7 @@ static int qed_nic_stop(struct qed_dev *cdev)
 			tasklet_disable(p_hwfn->sp_dpc);
 			p_hwfn->b_sp_dpc_enabled = false;
 			DP_VERBOSE(cdev, NETIF_MSG_IFDOWN,
-				   "Disabled sp taskelt [hwfn %d] at %p\n",
+				   "Disabled sp tasklet [hwfn %d] at %p\n",
 				   i, p_hwfn->sp_dpc);
 		}
 	}

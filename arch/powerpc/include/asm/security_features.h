@@ -12,6 +12,17 @@
 extern unsigned long powerpc_security_features;
 extern bool rfi_flush;
 
+/* These are bit flags */
+enum stf_barrier_type {
+	STF_BARRIER_NONE	= 0x1,
+	STF_BARRIER_FALLBACK	= 0x2,
+	STF_BARRIER_EIEIO	= 0x4,
+	STF_BARRIER_SYNC_ORI	= 0x8,
+};
+
+void setup_stf_barrier(void);
+void do_stf_barrier_fixups(enum stf_barrier_type types);
+
 static inline void security_ftr_set(unsigned long feature)
 {
 	powerpc_security_features |= feature;

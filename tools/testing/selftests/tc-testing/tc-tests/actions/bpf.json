@@ -66,7 +66,7 @@
         "cmdUnderTest": "$TC action add action bpf object-file _b.o index 667",
         "expExitCode": "0",
         "verifyCmd": "$TC action get action bpf index 667",
-        "matchPattern": "action order [0-9]*: bpf _b.o:\\[action\\] id [0-9]* tag 3b185187f1855c4c default-action pipe.*index 667 ref",
+        "matchPattern": "action order [0-9]*: bpf _b.o:\\[action\\] id [0-9]* tag 3b185187f1855c4c( jited)? default-action pipe.*index 667 ref",
         "matchCount": "1",
         "teardown": [
             "$TC action flush action bpf",
@@ -92,10 +92,15 @@
         "cmdUnderTest": "$TC action add action bpf object-file _c.o index 667",
         "expExitCode": "255",
         "verifyCmd": "$TC action get action bpf index 667",
-        "matchPattern": "action order [0-9]*: bpf _b.o:\\[action\\] id [0-9].*index 667 ref",
+        "matchPattern": "action order [0-9]*: bpf _c.o:\\[action\\] id [0-9].*index 667 ref",
         "matchCount": "0",
         "teardown": [
-            "$TC action flush action bpf",
+            [
+                "$TC action flush action bpf",
+                0,
+                1,
+                255
+            ],
             "rm -f _c.o"
         ]
     },

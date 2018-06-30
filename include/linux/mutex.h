@@ -50,25 +50,6 @@ struct ww_acquire_ctx;
  * - detects multi-task circular deadlocks and prints out all affected
  *   locks and tasks (and only those tasks)
  */
- /*Kernel Sync:
-   1. atomic_t(32/64/bit);      cannot sleep
-   2. spinlock, r/w spinlock;   cannot sleep
-   3. semaphore, r/w semaphore; can sleep; may "one lock, other unlock"
-   4. mutex;					can sleep; no interrupt context/bottom half; debug
-   5. completion var; simplified signal; one complete,the other do something
-   6. BKL(globel spinlock)
-   7. seq_lock; write first
-   8. preempt_disable; 
-   9. barrier(mb,rmb,wmb,);
-   IPC:
-   1. file
-   2. pipe
-   3. share memory
-   4. semaphore
-   5. unix socket(message<send, receive>)
-   6. signal 
-   
-*/
 struct mutex {
 	atomic_long_t		owner;
 	spinlock_t		wait_lock;

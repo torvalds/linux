@@ -2302,9 +2302,44 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 	return 0;
 }
 
+static int skl_dpll0_vco(struct intel_atomic_state *intel_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_state->base.dev);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	int vco, i;
+
+	vco = intel_state->cdclk.logical.vco;
+	if (!vco)
+		vco = dev_priv->skl_preferred_vco_freq;
+
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+		if (!crtc_state->base.enable)
+			continue;
+
+		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+			continue;
+
+		/*
+		 * DPLL0 VCO may need to be adjusted to get the correct
+		 * clock for eDP. This will affect cdclk as well.
+		 */
+		switch (crtc_state->port_clock / 2) {
+		case 108000:
+		case 216000:
+			vco = 8640000;
+			break;
+		default:
+			vco = 8100000;
+			break;
+		}
+	}
+
+	return vco;
+}
+
 static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	int min_cdclk, cdclk, vco;
 
@@ -2312,9 +2347,7 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	vco = intel_state->cdclk.logical.vco;
-	if (!vco)
-		vco = dev_priv->skl_preferred_vco_freq;
+	vco = skl_dpll0_vco(intel_state);
 
 	/*
 	 * FIXME should also account for plane ratio

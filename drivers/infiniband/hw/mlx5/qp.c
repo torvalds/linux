@@ -484,11 +484,6 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
-static int first_med_bfreg(void)
-{
-	return 1;
-}
-
 enum {
 	/* this is the first blue flame register in the array of bfregs assigned
 	 * to a processes. Since we do not use it for blue flame but rather
@@ -512,6 +507,12 @@ static int num_med_bfreg(struct mlx5_ib_dev *dev,
 	    NUM_NON_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
+}
+
+static int first_med_bfreg(struct mlx5_ib_dev *dev,
+			   struct mlx5_bfreg_info *bfregi)
+{
+	return num_med_bfreg(dev, bfregi) ? 1 : -ENOMEM;
 }
 
 static int first_hi_bfreg(struct mlx5_ib_dev *dev,
@@ -541,10 +542,13 @@ static int alloc_high_class_bfreg(struct mlx5_ib_dev *dev,
 static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
 				 struct mlx5_bfreg_info *bfregi)
 {
-	int minidx = first_med_bfreg();
+	int minidx = first_med_bfreg(dev, bfregi);
 	int i;
 
-	for (i = first_med_bfreg(); i < first_hi_bfreg(dev, bfregi); i++) {
+	if (minidx < 0)
+		return minidx;
+
+	for (i = minidx; i < first_hi_bfreg(dev, bfregi); i++) {
 		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
 		if (!bfregi->count[minidx])

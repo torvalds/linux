@@ -50,8 +50,8 @@ int kvm_check_cap(long cap)
 	int kvm_fd;
 
 	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
 	TEST_ASSERT(ret != -1, "KVM_CHECK_EXTENSION IOCTL failed,\n"
@@ -91,8 +91,8 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 
 	vm->mode = mode;
 	kvm_fd = open(KVM_DEV_PATH, perm);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	/* Create VM. */
 	vm->fd = ioctl(kvm_fd, KVM_CREATE_VM, NULL);
@@ -418,8 +418,8 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 
 	cpuid = allocate_kvm_cpuid2();
 	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
 	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
@@ -675,8 +675,8 @@ static int vcpu_mmap_sz(void)
 	int dev_fd, ret;
 
 	dev_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(dev_fd >= 0, "%s open %s failed, rc: %i errno: %i",
-		__func__, KVM_DEV_PATH, dev_fd, errno);
+	if (dev_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
 	TEST_ASSERT(ret >= sizeof(struct kvm_run),

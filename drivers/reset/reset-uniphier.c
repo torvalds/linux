@@ -110,7 +110,7 @@ static const struct uniphier_reset_data uniphier_ld20_sys_reset_data[] = {
 	UNIPHIER_RESETX(4, 0x200c, 2),		/* eMMC */
 	UNIPHIER_RESETX(6, 0x200c, 6),		/* Ether */
 	UNIPHIER_RESETX(8, 0x200c, 8),		/* STDMAC (HSC) */
-	UNIPHIER_RESETX(12, 0x200c, 5),		/* GIO (PCIe, USB3) */
+	UNIPHIER_RESETX(14, 0x200c, 5),		/* USB30 */
 	UNIPHIER_RESETX(16, 0x200c, 12),	/* USB30-PHY0 */
 	UNIPHIER_RESETX(17, 0x200c, 13),	/* USB30-PHY1 */
 	UNIPHIER_RESETX(18, 0x200c, 14),	/* USB30-PHY2 */
@@ -127,8 +127,8 @@ static const struct uniphier_reset_data uniphier_pxs3_sys_reset_data[] = {
 	UNIPHIER_RESETX(6, 0x200c, 9),		/* Ether0 */
 	UNIPHIER_RESETX(7, 0x200c, 10),		/* Ether1 */
 	UNIPHIER_RESETX(8, 0x200c, 12),		/* STDMAC */
-	UNIPHIER_RESETX(12, 0x200c, 4),		/* USB30 link (GIO0) */
-	UNIPHIER_RESETX(13, 0x200c, 5),		/* USB31 link (GIO1) */
+	UNIPHIER_RESETX(12, 0x200c, 4),		/* USB30 link */
+	UNIPHIER_RESETX(13, 0x200c, 5),		/* USB31 link */
 	UNIPHIER_RESETX(16, 0x200c, 16),	/* USB30-PHY0 */
 	UNIPHIER_RESETX(17, 0x200c, 18),	/* USB30-PHY1 */
 	UNIPHIER_RESETX(18, 0x200c, 20),	/* USB30-PHY2 */

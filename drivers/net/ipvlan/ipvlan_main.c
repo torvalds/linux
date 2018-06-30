@@ -792,8 +792,10 @@ static int ipvlan_device_event(struct notifier_block *unused,
 		break;
 
 	case NETDEV_CHANGEADDR:
-		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
+		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
 			ether_addr_copy(ipvlan->dev->dev_addr, dev->dev_addr);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR, ipvlan->dev);
+		}
 		break;
 
 	case NETDEV_PRE_TYPE_CHANGE:

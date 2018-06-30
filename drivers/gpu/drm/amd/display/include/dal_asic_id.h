@@ -113,9 +113,14 @@
 
 #define AI_GREENLAND_P_A0 1
 #define AI_GREENLAND_P_A1 2
+#define AI_UNKNOWN 0xFF
 
-#define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_UNKNOWN)
-#define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_UNKNOWN)
+#define AI_VEGA12_P_A0 20
+#define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
+#define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_VEGA12_P_A0)
+
+#define ASICREV_IS_VEGA12_P(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_UNKNOWN))
+#define ASICREV_IS_VEGA12_p(eChipRev) ((eChipRev >= AI_VEGA12_P_A0) && (eChipRev < AI_UNKNOWN))
 
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */

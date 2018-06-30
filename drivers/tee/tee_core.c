@@ -238,6 +238,17 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			if (IS_ERR(shm))
 				return PTR_ERR(shm);
 
+			/*
+			 * Ensure offset + size does not overflow offset
+			 * and does not overflow the size of the referred
+			 * shared memory object.
+			 */
+			if ((ip.a + ip.b) < ip.a ||
+			    (ip.a + ip.b) > shm->size) {
+				tee_shm_put(shm);
+				return -EINVAL;
+			}
+
 			params[n].u.memref.shm_offs = ip.a;
 			params[n].u.memref.size = ip.b;
 			params[n].u.memref.shm = shm;

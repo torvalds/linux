@@ -178,14 +178,14 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 #ifdef CONFIG_PM
 	int ret;
 
-	atomic_set(&st->user_requested_state, state);
-
 	if (atomic_add_unless(&st->runtime_pm_enable, 1, 1))
 		pm_runtime_enable(&st->pdev->dev);
 
-	if (state)
+	if (state) {
+		atomic_inc(&st->user_requested_state);
 		ret = pm_runtime_get_sync(&st->pdev->dev);
-	else {
+	} else {
+		atomic_dec(&st->user_requested_state);
 		pm_runtime_mark_last_busy(&st->pdev->dev);
 		pm_runtime_use_autosuspend(&st->pdev->dev);
 		ret = pm_runtime_put_autosuspend(&st->pdev->dev);

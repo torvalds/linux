@@ -191,17 +191,11 @@ static void tls_free_both_sg(struct sock *sk)
 }
 
 static int tls_do_encryption(struct tls_context *tls_ctx,
-			     struct tls_sw_context *ctx, size_t data_len,
-			     gfp_t flags)
+			     struct tls_sw_context *ctx,
+			     struct aead_request *aead_req,
+			     size_t data_len)
 {
-	unsigned int req_size = sizeof(struct aead_request) +
-		crypto_aead_reqsize(ctx->aead_send);
-	struct aead_request *aead_req;
 	int rc;
-
-	aead_req = kzalloc(req_size, flags);
-	if (!aead_req)
-		return -ENOMEM;
 
 	ctx->sg_encrypted_data[0].offset += tls_ctx->tx.prepend_size;
 	ctx->sg_encrypted_data[0].length -= tls_ctx->tx.prepend_size;
@@ -219,7 +213,6 @@ static int tls_do_encryption(struct tls_context *tls_ctx,
 	ctx->sg_encrypted_data[0].offset -= tls_ctx->tx.prepend_size;
 	ctx->sg_encrypted_data[0].length += tls_ctx->tx.prepend_size;
 
-	kfree(aead_req);
 	return rc;
 }
 
@@ -228,7 +221,13 @@ static int tls_push_record(struct sock *sk, int flags,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
+	struct aead_request *req;
 	int rc;
+
+	req = kzalloc(sizeof(struct aead_request) +
+		      crypto_aead_reqsize(ctx->aead_send), sk->sk_allocation);
+	if (!req)
+		return -ENOMEM;
 
 	sg_mark_end(ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem - 1);
 	sg_mark_end(ctx->sg_encrypted_data + ctx->sg_encrypted_num_elem - 1);
@@ -245,15 +244,14 @@ static int tls_push_record(struct sock *sk, int flags,
 	tls_ctx->pending_open_record_frags = 0;
 	set_bit(TLS_PENDING_CLOSED_RECORD, &tls_ctx->flags);
 
-	rc = tls_do_encryption(tls_ctx, ctx, ctx->sg_plaintext_size,
-			       sk->sk_allocation);
+	rc = tls_do_encryption(tls_ctx, ctx, req, ctx->sg_plaintext_size);
 	if (rc < 0) {
 		/* If we are called from write_space and
 		 * we fail, we need to set this SOCK_NOSPACE
 		 * to trigger another write_space in the future.
 		 */
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		return rc;
+		goto out_req;
 	}
 
 	free_sg(sk, ctx->sg_plaintext_data, &ctx->sg_plaintext_num_elem,
@@ -268,6 +266,8 @@ static int tls_push_record(struct sock *sk, int flags,
 		tls_err_abort(sk, EBADMSG);
 
 	tls_advance_record_sn(sk, &tls_ctx->tx);
+out_req:
+	kfree(req);
 	return rc;
 }
 
@@ -680,7 +680,6 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	struct scatterlist *sgin = &sgin_arr[0];
 	struct strp_msg *rxm = strp_msg(skb);
 	int ret, nsg = ARRAY_SIZE(sgin_arr);
-	char aad_recv[TLS_AAD_SPACE_SIZE];
 	struct sk_buff *unused;
 
 	ret = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
@@ -698,13 +697,13 @@ static int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 	}
 
 	sg_init_table(sgin, nsg);
-	sg_set_buf(&sgin[0], aad_recv, sizeof(aad_recv));
+	sg_set_buf(&sgin[0], ctx->rx_aad_ciphertext, TLS_AAD_SPACE_SIZE);
 
 	nsg = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + tls_ctx->rx.prepend_size,
 			   rxm->full_len - tls_ctx->rx.prepend_size);
 
-	tls_make_aad(aad_recv,
+	tls_make_aad(ctx->rx_aad_ciphertext,
 		     rxm->full_len - tls_ctx->rx.overhead_size,
 		     tls_ctx->rx.rec_seq,
 		     tls_ctx->rx.rec_seq_size,
@@ -756,7 +755,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	struct sk_buff *skb;
 	ssize_t copied = 0;
 	bool cmsg = false;
-	int err = 0;
+	int target, err = 0;
 	long timeo;
 
 	flags |= nonblock;
@@ -766,6 +765,7 @@ int tls_sw_recvmsg(struct sock *sk,
 
 	lock_sock(sk);
 
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	do {
 		bool zc = false;
@@ -803,12 +803,12 @@ int tls_sw_recvmsg(struct sock *sk,
 			if (to_copy <= len && page_count < MAX_SKB_FRAGS &&
 			    likely(!(flags & MSG_PEEK)))  {
 				struct scatterlist sgin[MAX_SKB_FRAGS + 1];
-				char unused[21];
 				int pages = 0;
 
 				zc = true;
 				sg_init_table(sgin, MAX_SKB_FRAGS + 1);
-				sg_set_buf(&sgin[0], unused, 13);
+				sg_set_buf(&sgin[0], ctx->rx_aad_plaintext,
+					   TLS_AAD_SPACE_SIZE);
 
 				err = zerocopy_from_iter(sk, &msg->msg_iter,
 							 to_copy, &pages,
@@ -858,6 +858,9 @@ fallback_to_reg_recv:
 					goto recv_end;
 			}
 		}
+		/* If we have a new message from strparser, continue now. */
+		if (copied >= target && !ctx->recv_pkt)
+			break;
 	} while (len);
 
 recv_end:

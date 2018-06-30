@@ -299,7 +299,6 @@
 		/* GPIO blocks 16 thru 19 do not appear to be routed to pins */
 
 		dwmmc_0: dwmmc0@f723d000 {
-			max-frequency = <150000000>;
 			cap-mmc-highspeed;
 			mmc-hs200-1_8v;
 			non-removable;

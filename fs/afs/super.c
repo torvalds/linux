@@ -590,7 +590,7 @@ static void afs_i_init_once(void *_vnode)
 	memset(vnode, 0, sizeof(*vnode));
 	inode_init_once(&vnode->vfs_inode);
 	mutex_init(&vnode->io_lock);
-	mutex_init(&vnode->validate_lock);
+	init_rwsem(&vnode->validate_lock);
 	spin_lock_init(&vnode->wb_lock);
 	spin_lock_init(&vnode->lock);
 	INIT_LIST_HEAD(&vnode->wb_keys);
@@ -688,7 +688,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		fc.flags |= AFS_FS_CURSOR_NO_VSLEEP;
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_get_volume_status(&fc, &vs);
 		}
 

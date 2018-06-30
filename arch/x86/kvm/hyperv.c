@@ -1260,12 +1260,16 @@ static void kvm_hv_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 	}
 }
 
+static int kvm_hv_hypercall_complete(struct kvm_vcpu *vcpu, u64 result)
+{
+	kvm_hv_hypercall_set_result(vcpu, result);
+	++vcpu->stat.hypercalls;
+	return kvm_skip_emulated_instruction(vcpu);
+}
+
 static int kvm_hv_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
-
-	kvm_hv_hypercall_set_result(vcpu, run->hyperv.u.hcall.result);
-	return 1;
+	return kvm_hv_hypercall_complete(vcpu, vcpu->run->hyperv.u.hcall.result);
 }
 
 static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
@@ -1296,8 +1300,10 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
 	if (param & ~KVM_HYPERV_CONN_ID_MASK)
 		return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
-	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	/* the eventfd is protected by vcpu->kvm->srcu, but conn_to_evt isn't */
+	rcu_read_lock();
 	eventfd = idr_find(&vcpu->kvm->arch.hyperv.conn_to_evt, param);
+	rcu_read_unlock();
 	if (!eventfd)
 		return HV_STATUS_INVALID_PORT_ID;
 
@@ -1348,7 +1354,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	/* Hypercall continuation is not supported yet */
 	if (rep_cnt || rep_idx) {
 		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
-		goto set_result;
+		goto out;
 	}
 
 	switch (code) {
@@ -1379,9 +1385,8 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-set_result:
-	kvm_hv_hypercall_set_result(vcpu, ret);
-	return 1;
+out:
+	return kvm_hv_hypercall_complete(vcpu, ret);
 }
 
 void kvm_hv_init_vm(struct kvm *kvm)

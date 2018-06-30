@@ -709,11 +709,6 @@ void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
 	if (m->count + width >= m->size)
 		goto overflow;
 
-	if (num < 10) {
-		m->buf[m->count++] = num + '0';
-		return;
-	}
-
 	len = num_to_str(m->buf + m->count, m->size - m->count, num, width);
 	if (!len)
 		goto overflow;

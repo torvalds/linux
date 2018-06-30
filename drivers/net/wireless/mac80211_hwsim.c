@@ -3236,6 +3236,7 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 			GENL_SET_ERR_MSG(info,"MAC is no valid source addr");
 			NL_SET_BAD_ATTR(info->extack,
 					info->attrs[HWSIM_ATTR_PERM_ADDR]);
+			kfree(hwname);
 			return -EINVAL;
 		}
 
@@ -3339,7 +3340,7 @@ out_err:
 static int hwsim_dump_radio_nl(struct sk_buff *skb,
 			       struct netlink_callback *cb)
 {
-	int last_idx = cb->args[0];
+	int last_idx = cb->args[0] - 1;
 	struct mac80211_hwsim_data *data = NULL;
 	int res = 0;
 	void *hdr;
@@ -3367,7 +3368,7 @@ static int hwsim_dump_radio_nl(struct sk_buff *skb,
 		last_idx = data->idx;
 	}
 
-	cb->args[0] = last_idx;
+	cb->args[0] = last_idx + 1;
 
 	/* list changed, but no new element sent, set interrupted flag */
 	if (skb->len == 0 && cb->prev_seq && cb->seq != cb->prev_seq) {

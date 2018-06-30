@@ -10,7 +10,7 @@
 
 / {
 	model = "DM8148 EVM";
-	compatible = "ti,dm8148-evm", "ti,dm8148";
+	compatible = "ti,dm8148-evm", "ti,dm8148", "ti,dm814";
 
 	memory@80000000 {
 		device_type = "memory";

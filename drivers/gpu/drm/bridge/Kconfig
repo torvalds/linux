@@ -74,6 +74,7 @@ config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF && RC_CORE
 	select DRM_KMS_HELPER
+	imply EXTCON
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
 

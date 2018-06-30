@@ -207,9 +207,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (hw_rev->rev >= CC_HW_REV_712) {
 		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_712);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_712);
 	} else {
 		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_630);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_630);
 	}
 
 	platform_set_drvdata(plat_dev, new_drvdata);
@@ -276,7 +280,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	/* Verify correct mapping */
-	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
+	signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
 	if (signature_val != hw_rev->sig) {
 		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
 			signature_val, hw_rev->sig);
@@ -287,7 +291,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 hw_rev->name, cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
+		 hw_rev->name, cc_ioread(new_drvdata, new_drvdata->ver_offset),
 		 DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);

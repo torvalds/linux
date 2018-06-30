@@ -52,8 +52,6 @@
 
 #define NFP_FLOWER_ALLOWED_VER 0x0001000000010000UL
 
-#define NFP_FLOWER_FRAME_HEADROOM	158
-
 static const char *nfp_flower_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 {
 	return "FLOWER";
@@ -559,22 +557,6 @@ static void nfp_flower_clean(struct nfp_app *app)
 	app->priv = NULL;
 }
 
-static int
-nfp_flower_check_mtu(struct nfp_app *app, struct net_device *netdev,
-		     int new_mtu)
-{
-	/* The flower fw reserves NFP_FLOWER_FRAME_HEADROOM bytes of the
-	 * supported max MTU to allow for appending tunnel headers. To prevent
-	 * unexpected behaviour this needs to be accounted for.
-	 */
-	if (new_mtu > netdev->max_mtu - NFP_FLOWER_FRAME_HEADROOM) {
-		nfp_err(app->cpp, "New MTU (%d) is not valid\n", new_mtu);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static bool nfp_flower_check_ack(struct nfp_flower_priv *app_priv)
 {
 	bool ret;
@@ -656,7 +638,6 @@ const struct nfp_app_type app_flower = {
 	.init		= nfp_flower_init,
 	.clean		= nfp_flower_clean,
 
-	.check_mtu	= nfp_flower_check_mtu,
 	.repr_change_mtu  = nfp_flower_repr_change_mtu,
 
 	.vnic_alloc	= nfp_flower_vnic_alloc,

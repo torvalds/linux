@@ -323,7 +323,7 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 
 /* All EP93xx devices use the same two GPIO pins for I2C bit-banging */
 static struct gpiod_lookup_table ep93xx_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.0",
 	.table		= {
 		/* Use local offsets on gpiochip/port "G" */
 		GPIO_LOOKUP_IDX("G", 1, NULL, 0,

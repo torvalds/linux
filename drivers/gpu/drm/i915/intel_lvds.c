@@ -326,7 +326,8 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 
 	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) | PANEL_POWER_ON);
 	POSTING_READ(lvds_encoder->reg);
-	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, PP_ON, 1000))
+
+	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, PP_ON, 5000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
 	intel_panel_enable_backlight(pipe_config, conn_state);
@@ -573,6 +574,36 @@ exit:
 	return NOTIFY_OK;
 }
 
+static int
+intel_lvds_connector_register(struct drm_connector *connector)
+{
+	struct intel_lvds_connector *lvds = to_lvds_connector(connector);
+	int ret;
+
+	ret = intel_connector_register(connector);
+	if (ret)
+		return ret;
+
+	lvds->lid_notifier.notifier_call = intel_lid_notify;
+	if (acpi_lid_notifier_register(&lvds->lid_notifier)) {
+		DRM_DEBUG_KMS("lid notifier registration failed\n");
+		lvds->lid_notifier.notifier_call = NULL;
+	}
+
+	return 0;
+}
+
+static void
+intel_lvds_connector_unregister(struct drm_connector *connector)
+{
+	struct intel_lvds_connector *lvds = to_lvds_connector(connector);
+
+	if (lvds->lid_notifier.notifier_call)
+		acpi_lid_notifier_unregister(&lvds->lid_notifier);
+
+	intel_connector_unregister(connector);
+}
+
 /**
  * intel_lvds_destroy - unregister and free LVDS structures
  * @connector: connector to free
@@ -584,9 +615,6 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct intel_lvds_connector *lvds_connector =
 		to_lvds_connector(connector);
-
-	if (lvds_connector->lid_notifier.notifier_call)
-		acpi_lid_notifier_unregister(&lvds_connector->lid_notifier);
 
 	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
 		kfree(lvds_connector->base.edid);
@@ -608,8 +636,8 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
-	.late_register = intel_connector_register,
-	.early_unregister = intel_connector_unregister,
+	.late_register = intel_lvds_connector_register,
+	.early_unregister = intel_lvds_connector_unregister,
 	.destroy = intel_lvds_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
@@ -824,6 +852,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "D525MW"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Radiant P845",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Radiant Systems Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P845"),
 		},
 	},
 
@@ -1148,12 +1184,6 @@ out:
 		      lvds_encoder->is_dual_link ? "dual" : "single");
 
 	lvds_encoder->a3_power = lvds & LVDS_A3_POWER_MASK;
-
-	lvds_connector->lid_notifier.notifier_call = intel_lid_notify;
-	if (acpi_lid_notifier_register(&lvds_connector->lid_notifier)) {
-		DRM_DEBUG_KMS("lid notifier registration failed\n");
-		lvds_connector->lid_notifier.notifier_call = NULL;
-	}
 
 	return;
 

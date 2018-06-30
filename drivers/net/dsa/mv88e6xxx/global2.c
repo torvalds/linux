@@ -1118,7 +1118,7 @@ int mv88e6xxx_g2_irq_mdio_setup(struct mv88e6xxx_chip *chip,
 			err = irq;
 			goto out;
 		}
-		bus->irq[chip->info->port_base_addr + phy] = irq;
+		bus->irq[chip->info->phy_base_addr + phy] = irq;
 	}
 	return 0;
 out:

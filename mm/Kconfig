@@ -636,6 +636,7 @@ config DEFERRED_STRUCT_PAGE_INIT
 	default n
 	depends on NO_BOOTMEM
 	depends on !FLATMEM
+	depends on !NEED_PER_CPU_KM
 	help
 	  Ordinarily all struct pages are initialised during early boot in a
 	  single thread. On very large machines this can take a considerable

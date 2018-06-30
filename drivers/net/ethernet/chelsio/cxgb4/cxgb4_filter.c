@@ -836,7 +836,7 @@ bool is_filter_exact_match(struct adapter *adap,
 {
 	struct tp_params *tp = &adap->params.tp;
 	u64 hash_filter_mask = tp->hash_filter_mask;
-	u32 mask;
+	u64 ntuple_mask = 0;
 
 	if (!is_hashfilter(adap))
 		return false;
@@ -865,73 +865,45 @@ bool is_filter_exact_match(struct adapter *adap,
 	if (!fs->val.fport || fs->mask.fport != 0xffff)
 		return false;
 
-	if (tp->fcoe_shift >= 0) {
-		mask = (hash_filter_mask >> tp->fcoe_shift) & FT_FCOE_W;
-		if (mask && !fs->mask.fcoe)
-			return false;
-	}
+	/* calculate tuple mask and compare with mask configured in hw */
+	if (tp->fcoe_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.fcoe << tp->fcoe_shift;
 
-	if (tp->port_shift >= 0) {
-		mask = (hash_filter_mask >> tp->port_shift) & FT_PORT_W;
-		if (mask && !fs->mask.iport)
-			return false;
-	}
+	if (tp->port_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.iport << tp->port_shift;
 
 	if (tp->vnic_shift >= 0) {
-		mask = (hash_filter_mask >> tp->vnic_shift) & FT_VNIC_ID_W;
-
-		if ((adap->params.tp.ingress_config & VNIC_F)) {
-			if (mask && !fs->mask.pfvf_vld)
-				return false;
-		} else {
-			if (mask && !fs->mask.ovlan_vld)
-				return false;
-		}
+		if ((adap->params.tp.ingress_config & VNIC_F))
+			ntuple_mask |= (u64)fs->mask.pfvf_vld << tp->vnic_shift;
+		else
+			ntuple_mask |= (u64)fs->mask.ovlan_vld <<
+				tp->vnic_shift;
 	}
 
-	if (tp->vlan_shift >= 0) {
-		mask = (hash_filter_mask >> tp->vlan_shift) & FT_VLAN_W;
-		if (mask && !fs->mask.ivlan)
-			return false;
-	}
+	if (tp->vlan_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.ivlan << tp->vlan_shift;
 
-	if (tp->tos_shift >= 0) {
-		mask = (hash_filter_mask >> tp->tos_shift) & FT_TOS_W;
-		if (mask && !fs->mask.tos)
-			return false;
-	}
+	if (tp->tos_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.tos << tp->tos_shift;
 
-	if (tp->protocol_shift >= 0) {
-		mask = (hash_filter_mask >> tp->protocol_shift) & FT_PROTOCOL_W;
-		if (mask && !fs->mask.proto)
-			return false;
-	}
+	if (tp->protocol_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.proto << tp->protocol_shift;
 
-	if (tp->ethertype_shift >= 0) {
-		mask = (hash_filter_mask >> tp->ethertype_shift) &
-			FT_ETHERTYPE_W;
-		if (mask && !fs->mask.ethtype)
-			return false;
-	}
+	if (tp->ethertype_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.ethtype << tp->ethertype_shift;
 
-	if (tp->macmatch_shift >= 0) {
-		mask = (hash_filter_mask >> tp->macmatch_shift) & FT_MACMATCH_W;
-		if (mask && !fs->mask.macidx)
-			return false;
-	}
+	if (tp->macmatch_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.macidx << tp->macmatch_shift;
 
-	if (tp->matchtype_shift >= 0) {
-		mask = (hash_filter_mask >> tp->matchtype_shift) &
-			FT_MPSHITTYPE_W;
-		if (mask && !fs->mask.matchtype)
-			return false;
-	}
-	if (tp->frag_shift >= 0) {
-		mask = (hash_filter_mask >> tp->frag_shift) &
-			FT_FRAGMENTATION_W;
-		if (mask && !fs->mask.frag)
-			return false;
-	}
+	if (tp->matchtype_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.matchtype << tp->matchtype_shift;
+
+	if (tp->frag_shift >= 0)
+		ntuple_mask |= (u64)fs->mask.frag << tp->frag_shift;
+
+	if (ntuple_mask != hash_filter_mask)
+		return false;
+
 	return true;
 }
 

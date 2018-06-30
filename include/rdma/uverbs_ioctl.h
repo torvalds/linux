@@ -411,13 +411,13 @@ static inline int uverbs_attr_get_enum_id(const struct uverbs_attr_bundle *attrs
 static inline void *uverbs_attr_get_obj(const struct uverbs_attr_bundle *attrs_bundle,
 					u16 idx)
 {
-	struct ib_uobject *uobj =
-		uverbs_attr_get(attrs_bundle, idx)->obj_attr.uobject;
+	const struct uverbs_attr *attr;
 
-	if (IS_ERR(uobj))
-		return uobj;
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	if (IS_ERR(attr))
+		return ERR_CAST(attr);
 
-	return uobj->object;
+	return attr->obj_attr.uobject->object;
 }
 
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,

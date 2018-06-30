@@ -43,9 +43,13 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  * kvm->lock (mutex)
  *   its->cmd_lock (mutex)
  *     its->its_lock (mutex)
- *       vgic_cpu->ap_list_lock
- *         kvm->lpi_list_lock
- *           vgic_irq->irq_lock
+ *       vgic_cpu->ap_list_lock		must be taken with IRQs disabled
+ *         kvm->lpi_list_lock		must be taken with IRQs disabled
+ *           vgic_irq->irq_lock		must be taken with IRQs disabled
+ *
+ * As the ap_list_lock might be taken from the timer interrupt handler,
+ * we have to disable IRQs before taking this lock and everything lower
+ * than it.
  *
  * If you need to take multiple locks, always take the upper lock first,
  * then the lower ones, e.g. first take the its_lock, then the irq_lock.
@@ -72,8 +76,9 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_irq *irq = NULL;
+	unsigned long flags;
 
-	spin_lock(&dist->lpi_list_lock);
+	spin_lock_irqsave(&dist->lpi_list_lock, flags);
 
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
 		if (irq->intid != intid)
@@ -89,7 +94,7 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
 	irq = NULL;
 
 out_unlock:
-	spin_unlock(&dist->lpi_list_lock);
+	spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 
 	return irq;
 }
@@ -134,19 +139,20 @@ static void vgic_irq_release(struct kref *ref)
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	unsigned long flags;
 
 	if (irq->intid < VGIC_MIN_LPI)
 		return;
 
-	spin_lock(&dist->lpi_list_lock);
+	spin_lock_irqsave(&dist->lpi_list_lock, flags);
 	if (!kref_put(&irq->refcount, vgic_irq_release)) {
-		spin_unlock(&dist->lpi_list_lock);
+		spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 		return;
 	};
 
 	list_del(&irq->lpi_list);
 	dist->lpi_list_count--;
-	spin_unlock(&dist->lpi_list_lock);
+	spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 
 	kfree(irq);
 }

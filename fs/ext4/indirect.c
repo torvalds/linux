@@ -561,10 +561,16 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 		unsigned epb = inode->i_sb->s_blocksize / sizeof(u32);
 		int i;
 
-		/* Count number blocks in a subtree under 'partial' */
-		count = 1;
-		for (i = 0; partial + i != chain + depth - 1; i++)
-			count *= epb;
+		/*
+		 * Count number blocks in a subtree under 'partial'. At each
+		 * level we count number of complete empty subtrees beyond
+		 * current offset and then descend into the subtree only
+		 * partially beyond current offset.
+		 */
+		count = 0;
+		for (i = partial - chain + 1; i < depth; i++)
+			count = count * epb + (epb - offsets[i] - 1);
+		count++;
 		/* Fill in size of a hole we found */
 		map->m_pblk = 0;
 		map->m_len = min_t(unsigned int, map->m_len, count);

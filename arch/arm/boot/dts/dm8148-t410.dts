@@ -9,7 +9,7 @@
 
 / {
 	model = "HP t410 Smart Zero Client";
-	compatible = "hp,t410", "ti,dm8148";
+	compatible = "hp,t410", "ti,dm8148", "ti,dm814";
 
 	memory@80000000 {
 		device_type = "memory";

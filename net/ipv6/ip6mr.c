@@ -227,8 +227,8 @@ static int __net_init ip6mr_rules_init(struct net *net)
 	INIT_LIST_HEAD(&net->ipv6.mr6_tables);
 
 	mrt = ip6mr_new_table(net, RT6_TABLE_DFLT);
-	if (!mrt) {
-		err = -ENOMEM;
+	if (IS_ERR(mrt)) {
+		err = PTR_ERR(mrt);
 		goto err1;
 	}
 
@@ -301,8 +301,13 @@ static int ip6mr_fib_lookup(struct net *net, struct flowi6 *flp6,
 
 static int __net_init ip6mr_rules_init(struct net *net)
 {
-	net->ipv6.mrt6 = ip6mr_new_table(net, RT6_TABLE_DFLT);
-	return net->ipv6.mrt6 ? 0 : -ENOMEM;
+	struct mr_table *mrt;
+
+	mrt = ip6mr_new_table(net, RT6_TABLE_DFLT);
+	if (IS_ERR(mrt))
+		return PTR_ERR(mrt);
+	net->ipv6.mrt6 = mrt;
+	return 0;
 }
 
 static void __net_exit ip6mr_rules_exit(struct net *net)
@@ -1757,9 +1762,11 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 
 		rtnl_lock();
 		ret = 0;
-		if (!ip6mr_new_table(net, v))
-			ret = -ENOMEM;
-		raw6_sk(sk)->ip6mr_table = v;
+		mrt = ip6mr_new_table(net, v);
+		if (IS_ERR(mrt))
+			ret = PTR_ERR(mrt);
+		else
+			raw6_sk(sk)->ip6mr_table = v;
 		rtnl_unlock();
 		return ret;
 	}
