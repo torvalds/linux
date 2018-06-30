@@ -264,18 +264,17 @@ bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 	bool result = true;
 
 	switch (numoutpipe) {
+	case 1:
+		one_out_pipe(adapter);
+		break;
 	case 2:
 		two_out_pipe(adapter, wifi_cfg);
 		break;
 	case 3:
 		three_out_pipe(adapter, wifi_cfg);
 		break;
-	case 1:
-		one_out_pipe(adapter);
-		break;
 	default:
 		result = false;
-		break;
 	}
 	return result;
 }
