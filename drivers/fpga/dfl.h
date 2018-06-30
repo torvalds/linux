@@ -132,6 +132,17 @@
 #define PORT_CTRL_SFTRST_ACK	BIT_ULL(4)		/* HW ack for reset */
 
 /**
+ * struct dfl_feature_driver - sub feature's driver
+ *
+ * @id: sub feature id.
+ * @ops: ops of this sub feature.
+ */
+struct dfl_feature_driver {
+	u64 id;
+	const struct dfl_feature_ops *ops;
+};
+
+/**
  * struct dfl_feature - sub feature of the feature devices
  *
  * @id: sub feature id.
@@ -139,12 +150,16 @@
  *		    this index is used to find its mmio resource from the
  *		    feature dev (platform device)'s reources.
  * @ioaddr: mapped mmio resource address.
+ * @ops: ops of this sub feature.
  */
 struct dfl_feature {
 	u64 id;
 	int resource_index;
 	void __iomem *ioaddr;
+	const struct dfl_feature_ops *ops;
 };
+
+#define DEV_STATUS_IN_USE	0
 
 /**
  * struct dfl_feature_platform_data - platform data for feature devices
@@ -156,6 +171,8 @@ struct dfl_feature {
  * @dfl_cdev: ptr to container device.
  * @disable_count: count for port disable.
  * @num: number for sub features.
+ * @dev_status: dev status (e.g. DEV_STATUS_IN_USE).
+ * @private: ptr to feature dev private data.
  * @features: sub features of this feature dev.
  */
 struct dfl_feature_platform_data {
@@ -165,9 +182,47 @@ struct dfl_feature_platform_data {
 	struct platform_device *dev;
 	struct dfl_fpga_cdev *dfl_cdev;
 	unsigned int disable_count;
-
+	unsigned long dev_status;
+	void *private;
 	int num;
 	struct dfl_feature features[0];
+};
+
+static inline
+int dfl_feature_dev_use_begin(struct dfl_feature_platform_data *pdata)
+{
+	/* Test and set IN_USE flags to ensure file is exclusively used */
+	if (test_and_set_bit_lock(DEV_STATUS_IN_USE, &pdata->dev_status))
+		return -EBUSY;
+
+	return 0;
+}
+
+static inline
+void dfl_feature_dev_use_end(struct dfl_feature_platform_data *pdata)
+{
+	clear_bit_unlock(DEV_STATUS_IN_USE, &pdata->dev_status);
+}
+
+static inline
+void dfl_fpga_pdata_set_private(struct dfl_feature_platform_data *pdata,
+				void *private)
+{
+	pdata->private = private;
+}
+
+static inline
+void *dfl_fpga_pdata_get_private(struct dfl_feature_platform_data *pdata)
+{
+	return pdata->private;
+}
+
+struct dfl_feature_ops {
+	int (*init)(struct platform_device *pdev, struct dfl_feature *feature);
+	void (*uinit)(struct platform_device *pdev,
+		      struct dfl_feature *feature);
+	long (*ioctl)(struct platform_device *pdev, struct dfl_feature *feature,
+		      unsigned int cmd, unsigned long arg);
 };
 
 #define DFL_FPGA_FEATURE_DEV_FME		"dfl-fme"
@@ -179,10 +234,24 @@ static inline int dfl_feature_platform_data_size(const int num)
 		num * sizeof(struct dfl_feature);
 }
 
+void dfl_fpga_dev_feature_uinit(struct platform_device *pdev);
+int dfl_fpga_dev_feature_init(struct platform_device *pdev,
+			      struct dfl_feature_driver *feature_drvs);
+
 int dfl_fpga_dev_ops_register(struct platform_device *pdev,
 			      const struct file_operations *fops,
 			      struct module *owner);
 void dfl_fpga_dev_ops_unregister(struct platform_device *pdev);
+
+static inline
+struct platform_device *dfl_fpga_inode_to_feature_dev(struct inode *inode)
+{
+	struct dfl_feature_platform_data *pdata;
+
+	pdata = container_of(inode->i_cdev, struct dfl_feature_platform_data,
+			     cdev);
+	return pdata->dev;
+}
 
 #define dfl_fpga_dev_for_each_feature(pdata, feature)			    \
 	for ((feature) = (pdata)->features;				    \
@@ -211,6 +280,17 @@ void __iomem *dfl_get_feature_ioaddr_by_id(struct device *dev, u64 id)
 
 	WARN_ON(1);
 	return NULL;
+}
+
+static inline bool is_dfl_feature_present(struct device *dev, u64 id)
+{
+	return !!dfl_get_feature_ioaddr_by_id(dev, id);
+}
+
+static inline
+struct device *dfl_fpga_pdata_to_parent(struct dfl_feature_platform_data *pdata)
+{
+	return pdata->dev->dev.parent->parent;
 }
 
 static inline bool dfl_feature_is_fme(void __iomem *base)

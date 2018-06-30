@@ -136,6 +136,77 @@ static enum dfl_id_type dfh_id_to_type(u32 id)
 	return DFL_ID_MAX;
 }
 
+/**
+ * dfl_fpga_dev_feature_uinit - uinit for sub features of dfl feature device
+ * @pdev: feature device.
+ */
+void dfl_fpga_dev_feature_uinit(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_feature *feature;
+
+	dfl_fpga_dev_for_each_feature(pdata, feature)
+		if (feature->ops) {
+			feature->ops->uinit(pdev, feature);
+			feature->ops = NULL;
+		}
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_dev_feature_uinit);
+
+static int dfl_feature_instance_init(struct platform_device *pdev,
+				     struct dfl_feature_platform_data *pdata,
+				     struct dfl_feature *feature,
+				     struct dfl_feature_driver *drv)
+{
+	int ret;
+
+	ret = drv->ops->init(pdev, feature);
+	if (ret)
+		return ret;
+
+	feature->ops = drv->ops;
+
+	return ret;
+}
+
+/**
+ * dfl_fpga_dev_feature_init - init for sub features of dfl feature device
+ * @pdev: feature device.
+ * @feature_drvs: drvs for sub features.
+ *
+ * This function will match sub features with given feature drvs list and
+ * use matched drv to init related sub feature.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int dfl_fpga_dev_feature_init(struct platform_device *pdev,
+			      struct dfl_feature_driver *feature_drvs)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_feature_driver *drv = feature_drvs;
+	struct dfl_feature *feature;
+	int ret;
+
+	while (drv->ops) {
+		dfl_fpga_dev_for_each_feature(pdata, feature) {
+			/* match feature and drv using id */
+			if (feature->id == drv->id) {
+				ret = dfl_feature_instance_init(pdev, pdata,
+								feature, drv);
+				if (ret)
+					goto exit;
+			}
+		}
+		drv++;
+	}
+
+	return 0;
+exit:
+	dfl_fpga_dev_feature_uinit(pdev);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_dev_feature_init);
+
 static void dfl_chardev_uinit(void)
 {
 	int i;
