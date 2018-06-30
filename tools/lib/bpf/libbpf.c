@@ -234,6 +234,7 @@ struct bpf_object {
 	size_t nr_maps;
 
 	bool loaded;
+	bool has_pseudo_calls;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -400,10 +401,6 @@ bpf_object__init_prog_names(struct bpf_object *obj)
 		const char *name = NULL;
 
 		prog = &obj->programs[pi];
-		if (prog->idx == obj->efile.text_shndx) {
-			name = ".text";
-			goto skip_search;
-		}
 
 		for (si = 0; si < symbols->d_size / sizeof(GElf_Sym) && !name;
 		     si++) {
@@ -426,12 +423,15 @@ bpf_object__init_prog_names(struct bpf_object *obj)
 			}
 		}
 
+		if (!name && prog->idx == obj->efile.text_shndx)
+			name = ".text";
+
 		if (!name) {
 			pr_warning("failed to find sym for prog %s\n",
 				   prog->section_name);
 			return -EINVAL;
 		}
-skip_search:
+
 		prog->name = strdup(name);
 		if (!prog->name) {
 			pr_warning("failed to allocate memory for prog sym %s\n",
@@ -981,6 +981,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			prog->reloc_desc[i].type = RELO_CALL;
 			prog->reloc_desc[i].insn_idx = insn_idx;
 			prog->reloc_desc[i].text_off = sym.st_value;
+			obj->has_pseudo_calls = true;
 			continue;
 		}
 
@@ -1426,6 +1427,12 @@ out:
 	return err;
 }
 
+static bool bpf_program__is_function_storage(struct bpf_program *prog,
+					     struct bpf_object *obj)
+{
+	return prog->idx == obj->efile.text_shndx && obj->has_pseudo_calls;
+}
+
 static int
 bpf_object__load_progs(struct bpf_object *obj)
 {
@@ -1433,7 +1440,7 @@ bpf_object__load_progs(struct bpf_object *obj)
 	int err;
 
 	for (i = 0; i < obj->nr_programs; i++) {
-		if (obj->programs[i].idx == obj->efile.text_shndx)
+		if (bpf_program__is_function_storage(&obj->programs[i], obj))
 			continue;
 		err = bpf_program__load(&obj->programs[i],
 					obj->license,
@@ -1858,8 +1865,8 @@ void *bpf_object__priv(struct bpf_object *obj)
 	return obj ? obj->priv : ERR_PTR(-EINVAL);
 }
 
-struct bpf_program *
-bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+static struct bpf_program *
+__bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 {
 	size_t idx;
 
@@ -1880,6 +1887,18 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 	return &obj->programs[idx];
 }
 
+struct bpf_program *
+bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+{
+	struct bpf_program *prog = prev;
+
+	do {
+		prog = __bpf_program__next(prog, obj);
+	} while (prog && bpf_program__is_function_storage(prog, obj));
+
+	return prog;
+}
+
 int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 			  bpf_program_clear_priv_t clear_priv)
 {
@@ -1894,6 +1913,11 @@ int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 void *bpf_program__priv(struct bpf_program *prog)
 {
 	return prog ? prog->priv : ERR_PTR(-EINVAL);
+}
+
+void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex)
+{
+	prog->prog_ifindex = ifindex;
 }
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
@@ -2037,9 +2061,11 @@ static const struct {
 	BPF_PROG_SEC("lwt_in",		BPF_PROG_TYPE_LWT_IN),
 	BPF_PROG_SEC("lwt_out",		BPF_PROG_TYPE_LWT_OUT),
 	BPF_PROG_SEC("lwt_xmit",	BPF_PROG_TYPE_LWT_XMIT),
+	BPF_PROG_SEC("lwt_seg6local",	BPF_PROG_TYPE_LWT_SEG6LOCAL),
 	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
 	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
 	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
+	BPF_PROG_SEC("lirc_mode2",	BPF_PROG_TYPE_LIRC_MODE2),
 	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
@@ -2118,6 +2144,11 @@ int bpf_map__set_priv(struct bpf_map *map, void *priv,
 void *bpf_map__priv(struct bpf_map *map)
 {
 	return map ? map->priv : ERR_PTR(-EINVAL);
+}
+
+void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
+{
+	map->map_ifindex = ifindex;
 }
 
 struct bpf_map *
@@ -2235,7 +2266,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		bpf_program__set_expected_attach_type(prog,
 						      expected_attach_type);
 
-		if (prog->idx != obj->efile.text_shndx && !first_prog)
+		if (!bpf_program__is_function_storage(prog, obj) && !first_prog)
 			first_prog = prog;
 	}
 
