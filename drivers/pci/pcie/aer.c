@@ -32,6 +32,9 @@
 
 #define AER_ERROR_SOURCES_MAX		100
 
+#define AER_MAX_TYPEOF_COR_ERRS		16	/* as per PCI_ERR_COR_STATUS */
+#define AER_MAX_TYPEOF_UNCOR_ERRS	26	/* as per PCI_ERR_UNCOR_STATUS*/
+
 struct aer_err_source {
 	unsigned int status;
 	unsigned int id;
@@ -54,6 +57,42 @@ struct aer_rpc {
 					 * recovery on the same
 					 * root port hierarchy
 					 */
+};
+
+/* AER stats for the device */
+struct aer_stats {
+
+	/*
+	 * Fields for all AER capable devices. They indicate the errors
+	 * "as seen by this device". Note that this may mean that if an
+	 * end point is causing problems, the AER counters may increment
+	 * at its link partner (e.g. root port) because the errors will be
+	 * "seen" by the link partner and not the the problematic end point
+	 * itself (which may report all counters as 0 as it never saw any
+	 * problems).
+	 */
+	/* Counters for different type of correctable errors */
+	u64 dev_cor_errs[AER_MAX_TYPEOF_COR_ERRS];
+	/* Counters for different type of fatal uncorrectable errors */
+	u64 dev_fatal_errs[AER_MAX_TYPEOF_UNCOR_ERRS];
+	/* Counters for different type of nonfatal uncorrectable errors */
+	u64 dev_nonfatal_errs[AER_MAX_TYPEOF_UNCOR_ERRS];
+	/* Total number of ERR_COR sent by this device */
+	u64 dev_total_cor_errs;
+	/* Total number of ERR_FATAL sent by this device */
+	u64 dev_total_fatal_errs;
+	/* Total number of ERR_NONFATAL sent by this device */
+	u64 dev_total_nonfatal_errs;
+
+	/*
+	 * Fields for Root ports & root complex event collectors only, these
+	 * indicate the total number of ERR_COR, ERR_FATAL, and ERR_NONFATAL
+	 * messages received by the root port / event collector, INCLUDING the
+	 * ones that are generated internally (by the rootport itself)
+	 */
+	u64 rootport_total_cor_errs;
+	u64 rootport_total_fatal_errs;
+	u64 rootport_total_nonfatal_errs;
 };
 
 #define AER_LOG_TLP_MASKS		(PCI_ERR_UNC_POISON_TLP|	\
@@ -385,7 +424,17 @@ int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 void pci_aer_init(struct pci_dev *dev)
 {
 	dev->aer_cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+
+	if (dev->aer_cap)
+		dev->aer_stats = kzalloc(sizeof(struct aer_stats), GFP_KERNEL);
+
 	pci_cleanup_aer_error_status_regs(dev);
+}
+
+void pci_aer_exit(struct pci_dev *dev)
+{
+	kfree(dev->aer_stats);
+	dev->aer_stats = NULL;
 }
 
 #define AER_AGENT_RECEIVER		0
@@ -438,7 +487,7 @@ static const char *aer_error_layer[] = {
 	"Transaction Layer"
 };
 
-static const char *aer_correctable_error_string[] = {
+static const char *aer_correctable_error_string[AER_MAX_TYPEOF_COR_ERRS] = {
 	"RxErr",			/* Bit Position 0	*/
 	NULL,
 	NULL,
@@ -457,7 +506,7 @@ static const char *aer_correctable_error_string[] = {
 	"HeaderOF",			/* Bit Position 15	*/
 };
 
-static const char *aer_uncorrectable_error_string[] = {
+static const char *aer_uncorrectable_error_string[AER_MAX_TYPEOF_UNCOR_ERRS] = {
 	"Undefined",			/* Bit Position 0	*/
 	NULL,
 	NULL,
