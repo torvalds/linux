@@ -76,4 +76,15 @@ config NET_DSA_SMSC_LAN9303_MDIO
 	  Enable access functions if the SMSC/Microchip LAN9303 is configured
 	  for MDIO managed mode.
 
+config NET_DSA_VITESSE_VSC73XX
+	tristate "Vitesse VSC7385/7388/7395/7398 support"
+	depends on OF && SPI
+	depends on NET_DSA
+	select FIXED_PHY
+	select VITESSE_PHY
+	select GPIOLIB
+	---help---
+	  This enables support for the Vitesse VSC7385, VSC7388,
+	  VSC7395 and VSC7398 SparX integrated ethernet switches.
+
 endmenu
