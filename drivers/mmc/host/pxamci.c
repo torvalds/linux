@@ -58,7 +58,6 @@ struct pxamci_host {
 	void __iomem		*base;
 	struct clk		*clk;
 	unsigned long		clkrate;
-	int			irq;
 	unsigned int		clkrt;
 	unsigned int		cmdat;
 	unsigned int		imask;
@@ -711,7 +710,6 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	spin_lock_init(&host->lock);
 	host->res = r;
-	host->irq = irq;
 	host->imask = MMC_I_MASK_ALL;
 
 	host->base = devm_ioremap_resource(&pdev->dev, r);
@@ -729,7 +727,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	writel(64, host->base + MMC_RESTO);
 	writel(host->imask, host->base + MMC_I_MASK);
 
-	ret = devm_request_irq(&pdev->dev, host->irq, pxamci_irq, 0,
+	ret = devm_request_irq(&pdev->dev, irq, pxamci_irq, 0,
 			       DRIVER_NAME, host);
 	if (ret)
 		goto out;
