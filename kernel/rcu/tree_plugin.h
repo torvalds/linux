@@ -332,7 +332,7 @@ static void rcu_preempt_qs(void)
 static void rcu_preempt_note_context_switch(bool preempt)
 {
 	struct task_struct *t = current;
-	struct rcu_data *rdp;
+	struct rcu_data *rdp = this_cpu_ptr(rcu_state_p->rda);
 	struct rcu_node *rnp;
 
 	lockdep_assert_irqs_disabled();
@@ -341,7 +341,6 @@ static void rcu_preempt_note_context_switch(bool preempt)
 	    !t->rcu_read_unlock_special.b.blocked) {
 
 		/* Possibly blocking in an RCU read-side critical section. */
-		rdp = this_cpu_ptr(rcu_state_p->rda);
 		rnp = rdp->mynode;
 		raw_spin_lock_rcu_node(rnp);
 		t->rcu_read_unlock_special.b.blocked = true;
@@ -383,6 +382,8 @@ static void rcu_preempt_note_context_switch(bool preempt)
 	 * means that we continue to block the current grace period.
 	 */
 	rcu_preempt_qs();
+	if (rdp->deferred_qs)
+		rcu_report_exp_rdp(rcu_state_p, rdp, true);
 }
 
 /*
