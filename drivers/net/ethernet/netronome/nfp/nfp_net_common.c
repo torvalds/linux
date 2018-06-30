@@ -945,11 +945,12 @@ err_free:
 
 /**
  * nfp_net_tx_complete() - Handled completed TX packets
- * @tx_ring:   TX ring structure
+ * @tx_ring:	TX ring structure
+ * @budget:	NAPI budget (only used as bool to determine if in NAPI context)
  *
  * Return: Number of completed TX descriptors
  */
-static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
+static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
@@ -999,7 +1000,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 
 		/* check for last gather fragment */
 		if (fidx == nr_frags - 1)
-			dev_consume_skb_any(skb);
+			napi_consume_skb(skb, budget);
 
 		tx_ring->txbufs[idx].dma_addr = 0;
 		tx_ring->txbufs[idx].skb = NULL;
@@ -1828,7 +1829,7 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 	unsigned int pkts_polled = 0;
 
 	if (r_vec->tx_ring)
-		nfp_net_tx_complete(r_vec->tx_ring);
+		nfp_net_tx_complete(r_vec->tx_ring, budget);
 	if (r_vec->rx_ring)
 		pkts_polled = nfp_net_rx(r_vec->rx_ring, budget);
 
@@ -2062,7 +2063,7 @@ static void nfp_ctrl_poll(unsigned long arg)
 	struct nfp_net_r_vector *r_vec = (void *)arg;
 
 	spin_lock_bh(&r_vec->lock);
-	nfp_net_tx_complete(r_vec->tx_ring);
+	nfp_net_tx_complete(r_vec->tx_ring, 0);
 	__nfp_ctrl_tx_queued(r_vec);
 	spin_unlock_bh(&r_vec->lock);
 
