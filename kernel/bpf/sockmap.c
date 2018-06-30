@@ -1602,17 +1602,27 @@ free_stab:
 	return ERR_PTR(err);
 }
 
-static void smap_list_remove(struct smap_psock *psock,
-			     struct sock **entry,
-			     struct htab_elem *hash_link)
+static void smap_list_map_remove(struct smap_psock *psock,
+				 struct sock **entry)
 {
 	struct smap_psock_map_entry *e, *tmp;
 
 	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
-		if (e->entry == entry || e->hash_link == hash_link) {
+		if (e->entry == entry)
 			list_del(&e->list);
-			break;
-		}
+	}
+}
+
+static void smap_list_hash_remove(struct smap_psock *psock,
+				  struct htab_elem *hash_link)
+{
+	struct smap_psock_map_entry *e, *tmp;
+
+	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
+		struct htab_elem *c = e->hash_link;
+
+		if (c == hash_link)
+			list_del(&e->list);
 	}
 }
 
@@ -1647,7 +1657,7 @@ static void sock_map_free(struct bpf_map *map)
 		 * to be null and queued for garbage collection.
 		 */
 		if (likely(psock)) {
-			smap_list_remove(psock, &stab->sock_map[i], NULL);
+			smap_list_map_remove(psock, &stab->sock_map[i]);
 			smap_release_sock(psock, sock);
 		}
 		write_unlock_bh(&sock->sk_callback_lock);
@@ -1706,7 +1716,7 @@ static int sock_map_delete_elem(struct bpf_map *map, void *key)
 
 	if (psock->bpf_parse)
 		smap_stop_sock(psock, sock);
-	smap_list_remove(psock, &stab->sock_map[k], NULL);
+	smap_list_map_remove(psock, &stab->sock_map[k]);
 	smap_release_sock(psock, sock);
 out:
 	write_unlock_bh(&sock->sk_callback_lock);
@@ -1908,7 +1918,7 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		struct smap_psock *opsock = smap_psock_sk(osock);
 
 		write_lock_bh(&osock->sk_callback_lock);
-		smap_list_remove(opsock, &stab->sock_map[i], NULL);
+		smap_list_map_remove(opsock, &stab->sock_map[i]);
 		smap_release_sock(opsock, osock);
 		write_unlock_bh(&osock->sk_callback_lock);
 	}
@@ -2142,7 +2152,7 @@ static void sock_hash_free(struct bpf_map *map)
 			 * (psock) to be null and queued for garbage collection.
 			 */
 			if (likely(psock)) {
-				smap_list_remove(psock, NULL, l);
+				smap_list_hash_remove(psock, l);
 				smap_release_sock(psock, sock);
 			}
 			write_unlock_bh(&sock->sk_callback_lock);
@@ -2322,7 +2332,7 @@ static int sock_hash_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		psock = smap_psock_sk(l_old->sk);
 
 		hlist_del_rcu(&l_old->hash_node);
-		smap_list_remove(psock, NULL, l_old);
+		smap_list_hash_remove(psock, l_old);
 		smap_release_sock(psock, l_old->sk);
 		free_htab_elem(htab, l_old);
 	}
@@ -2390,7 +2400,7 @@ static int sock_hash_delete_elem(struct bpf_map *map, void *key)
 		 * to be null and queued for garbage collection.
 		 */
 		if (likely(psock)) {
-			smap_list_remove(psock, NULL, l);
+			smap_list_hash_remove(psock, l);
 			smap_release_sock(psock, sock);
 		}
 		write_unlock_bh(&sock->sk_callback_lock);
