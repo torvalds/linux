@@ -1338,8 +1338,7 @@ static struct cc_crypto_alg *cc_create_alg(const struct cc_alg_template *tmpl,
 
 	alg->base.cra_init = cc_cipher_init;
 	alg->base.cra_exit = cc_cipher_exit;
-	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
-				CRYPTO_ALG_TYPE_SKCIPHER;
+	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
 
 	t_alg->cipher_mode = tmpl->cipher_mode;
 	t_alg->flow_mode = tmpl->flow_mode;

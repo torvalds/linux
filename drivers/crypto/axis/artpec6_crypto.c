@@ -2867,8 +2867,7 @@ static struct skcipher_alg crypto_algos[] = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "artpec6-ecb-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
-				     CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct artpec6_cryptotfm_context),
 			.cra_alignmask = 3,
@@ -2888,8 +2887,7 @@ static struct skcipher_alg crypto_algos[] = {
 			.cra_name = "ctr(aes)",
 			.cra_driver_name = "artpec6-ctr-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
-				     CRYPTO_ALG_ASYNC |
+			.cra_flags = CRYPTO_ALG_ASYNC |
 				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct artpec6_cryptotfm_context),
@@ -2911,8 +2909,7 @@ static struct skcipher_alg crypto_algos[] = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "artpec6-cbc-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
-				     CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct artpec6_cryptotfm_context),
 			.cra_alignmask = 3,
@@ -2933,8 +2930,7 @@ static struct skcipher_alg crypto_algos[] = {
 			.cra_name = "xts(aes)",
 			.cra_driver_name = "artpec6-xts-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER |
-				     CRYPTO_ALG_ASYNC,
+			.cra_flags = CRYPTO_ALG_ASYNC,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct artpec6_cryptotfm_context),
 			.cra_alignmask = 3,

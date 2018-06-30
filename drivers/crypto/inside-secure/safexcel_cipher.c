@@ -863,7 +863,7 @@ struct safexcel_alg_template safexcel_alg_ecb_aes = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "safexcel-ecb-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER | CRYPTO_ALG_ASYNC |
+			.cra_flags = CRYPTO_ALG_ASYNC |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
@@ -903,7 +903,7 @@ struct safexcel_alg_template safexcel_alg_cbc_aes = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "safexcel-cbc-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_SKCIPHER | CRYPTO_ALG_ASYNC |
+			.cra_flags = CRYPTO_ALG_ASYNC |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
