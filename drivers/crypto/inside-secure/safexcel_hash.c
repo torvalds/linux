@@ -941,8 +941,7 @@ int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 	u8 *ipad, *opad;
 	int ret;
 
-	tfm = crypto_alloc_ahash(alg, CRYPTO_ALG_TYPE_AHASH,
-				 CRYPTO_ALG_TYPE_AHASH_MASK);
+	tfm = crypto_alloc_ahash(alg, 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
