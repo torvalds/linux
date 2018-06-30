@@ -48,7 +48,6 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_type = &crypto_ahash_type,
 				.cra_init = sun4i_hash_crainit
 			}
 		}
@@ -75,7 +74,6 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct sun4i_req_ctx),
 				.cra_module = THIS_MODULE,
-				.cra_type = &crypto_ahash_type,
 				.cra_init = sun4i_hash_crainit
 			}
 		}

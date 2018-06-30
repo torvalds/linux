@@ -503,7 +503,6 @@ static int ccp_register_sha_alg(struct list_head *head,
 	base->cra_blocksize = def->block_size;
 	base->cra_ctxsize = sizeof(struct ccp_ctx);
 	base->cra_priority = CCP_CRA_PRIORITY;
-	base->cra_type = &crypto_ahash_type;
 	base->cra_init = ccp_sha_cra_init;
 	base->cra_exit = ccp_sha_cra_exit;
 	base->cra_module = THIS_MODULE;

@@ -310,7 +310,6 @@ static struct ahash_alg ghash_async_alg = {
 		.cra_priority	= 300,
 		.cra_flags	= CRYPTO_ALG_ASYNC,
 		.cra_blocksize	= GHASH_BLOCK_SIZE,
-		.cra_type	= &crypto_ahash_type,
 		.cra_ctxsize	= sizeof(struct ghash_async_ctx),
 		.cra_module	= THIS_MODULE,
 		.cra_init	= ghash_async_init_tfm,

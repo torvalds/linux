@@ -4260,7 +4260,6 @@ static int chcr_register_alg(void)
 			a_hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
 			a_hash->halg.base.cra_alignmask = 0;
 			a_hash->halg.base.cra_exit = NULL;
-			a_hash->halg.base.cra_type = &crypto_ahash_type;
 
 			if (driver_algs[i].type == CRYPTO_ALG_TYPE_HMAC) {
 				a_hash->halg.base.cra_init = chcr_hmac_cra_init;

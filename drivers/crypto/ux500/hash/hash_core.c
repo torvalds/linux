@@ -1550,7 +1550,6 @@ static struct hash_algo_template hash_algs[] = {
 				.cra_flags = CRYPTO_ALG_ASYNC,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct hash_ctx),
-				.cra_type = &crypto_ahash_type,
 				.cra_init = hash_cra_init,
 				.cra_module = THIS_MODULE,
 			}
@@ -1575,7 +1574,6 @@ static struct hash_algo_template hash_algs[] = {
 				.cra_flags = CRYPTO_ALG_ASYNC,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct hash_ctx),
-				.cra_type = &crypto_ahash_type,
 				.cra_init = hash_cra_init,
 				.cra_module = THIS_MODULE,
 			}
@@ -1600,7 +1598,6 @@ static struct hash_algo_template hash_algs[] = {
 				.cra_flags = CRYPTO_ALG_ASYNC,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct hash_ctx),
-				.cra_type = &crypto_ahash_type,
 				.cra_init = hash_cra_init,
 				.cra_module = THIS_MODULE,
 			}

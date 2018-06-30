@@ -4648,7 +4648,6 @@ static int spu_register_ahash(struct iproc_alg_s *driver_alg)
 	hash->halg.base.cra_ctxsize = sizeof(struct iproc_ctx_s);
 	hash->halg.base.cra_init = ahash_cra_init;
 	hash->halg.base.cra_exit = generic_cra_exit;
-	hash->halg.base.cra_type = &crypto_ahash_type;
 	hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
 	hash->halg.statesize = sizeof(struct spu_hash_export_s);
 

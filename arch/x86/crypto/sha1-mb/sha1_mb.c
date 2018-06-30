@@ -880,7 +880,6 @@ static struct ahash_alg sha1_mb_async_alg = {
 			.cra_priority           = 50,
 			.cra_flags              = CRYPTO_ALG_ASYNC,
 			.cra_blocksize          = SHA1_BLOCK_SIZE,
-			.cra_type               = &crypto_ahash_type,
 			.cra_module             = THIS_MODULE,
 			.cra_list               = LIST_HEAD_INIT(sha1_mb_async_alg.halg.base.cra_list),
 			.cra_init               = sha1_mb_async_init_tfm,

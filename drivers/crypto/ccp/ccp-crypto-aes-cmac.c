@@ -405,7 +405,6 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	base->cra_blocksize = AES_BLOCK_SIZE;
 	base->cra_ctxsize = sizeof(struct ccp_ctx);
 	base->cra_priority = CCP_CRA_PRIORITY;
-	base->cra_type = &crypto_ahash_type;
 	base->cra_init = ccp_aes_cmac_cra_init;
 	base->cra_exit = ccp_aes_cmac_cra_exit;
 	base->cra_module = THIS_MODULE;
