@@ -44,10 +44,10 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 
 #define	CHAN_PLAN_HW	0x80
 
-u8 /* return the final channel plan decision */
-hal_com_get_channel_plan(struct adapter *padapter, u8 hw_channel_plan,
-			 u8 sw_channel_plan, u8 def_channel_plan,
-			 bool load_fail)
+/* return the final channel plan decision */
+u8 hal_com_get_channel_plan(struct adapter *padapter, u8 hw_channel_plan,
+			    u8 sw_channel_plan, u8 def_channel_plan,
+			    bool load_fail)
 {
 	u8 sw_cfg;
 	u8 chnlplan;
