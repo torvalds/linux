@@ -62,6 +62,8 @@ static unsigned long __init bootmap_bytes(unsigned long pages)
 /**
  * bootmem_bootmap_pages - calculate bitmap size in pages
  * @pages: number of pages the bitmap has to represent
+ *
+ * Return: the number of pages needed to hold the bitmap.
  */
 unsigned long __init bootmem_bootmap_pages(unsigned long pages)
 {
@@ -121,7 +123,7 @@ static unsigned long __init init_bootmem_core(bootmem_data_t *bdata,
  * @startpfn: first pfn on the node
  * @endpfn: first pfn after the node
  *
- * Returns the number of bytes needed to hold the bitmap for this node.
+ * Return: the number of bytes needed to hold the bitmap for this node.
  */
 unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
 				unsigned long startpfn, unsigned long endpfn)
@@ -134,7 +136,7 @@ unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
  * @start: pfn where the bitmap is to be placed
  * @pages: number of available physical pages
  *
- * Returns the number of bytes needed to hold the bitmap.
+ * Return: the number of bytes needed to hold the bitmap.
  */
 unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
 {
@@ -406,6 +408,8 @@ void __init free_bootmem(unsigned long physaddr, unsigned long size)
  * Partial pages will be reserved.
  *
  * The range must reside completely on the specified node.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 				 unsigned long size, int flags)
@@ -427,6 +431,8 @@ int __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
  * Partial pages will be reserved.
  *
  * The range must be contiguous but may span node boundaries.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 int __init reserve_bootmem(unsigned long addr, unsigned long size,
 			    int flags)
