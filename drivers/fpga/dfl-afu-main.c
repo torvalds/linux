@@ -19,6 +19,83 @@
 
 #include "dfl.h"
 
+/**
+ * port_enable - enable a port
+ * @pdev: port platform device.
+ *
+ * Enable Port by clear the port soft reset bit, which is set by default.
+ * The User AFU is unable to respond to any MMIO access while in reset.
+ * port_enable function should only be used after port_disable
+ * function.
+ */
+static void port_enable(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	void __iomem *base;
+	u64 v;
+
+	WARN_ON(!pdata->disable_count);
+
+	if (--pdata->disable_count != 0)
+		return;
+
+	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+
+	/* Clear port soft reset */
+	v = readq(base + PORT_HDR_CTRL);
+	v &= ~PORT_CTRL_SFTRST;
+	writeq(v, base + PORT_HDR_CTRL);
+}
+
+#define RST_POLL_INVL 10 /* us */
+#define RST_POLL_TIMEOUT 1000 /* us */
+
+/**
+ * port_disable - disable a port
+ * @pdev: port platform device.
+ *
+ * Disable Port by setting the port soft reset bit, it puts the port into
+ * reset.
+ */
+static int port_disable(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	void __iomem *base;
+	u64 v;
+
+	if (pdata->disable_count++ != 0)
+		return 0;
+
+	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+
+	/* Set port soft reset */
+	v = readq(base + PORT_HDR_CTRL);
+	v |= PORT_CTRL_SFTRST;
+	writeq(v, base + PORT_HDR_CTRL);
+
+	/*
+	 * HW sets ack bit to 1 when all outstanding requests have been drained
+	 * on this port and minimum soft reset pulse width has elapsed.
+	 * Driver polls port_soft_reset_ack to determine if reset done by HW.
+	 */
+	if (readq_poll_timeout(base + PORT_HDR_CTRL, v, v & PORT_CTRL_SFTRST,
+			       RST_POLL_INVL, RST_POLL_TIMEOUT)) {
+		dev_err(&pdev->dev, "timeout, fail to reset device\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int port_get_id(struct platform_device *pdev)
+{
+	void __iomem *base;
+
+	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+
+	return FIELD_GET(PORT_CAP_PORT_NUM, readq(base + PORT_HDR_CAP));
+}
+
 static int port_hdr_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
@@ -119,6 +196,28 @@ static const struct file_operations afu_fops = {
 	.unlocked_ioctl = afu_ioctl,
 };
 
+static int port_enable_set(struct platform_device *pdev, bool enable)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	int ret = 0;
+
+	mutex_lock(&pdata->lock);
+	if (enable)
+		port_enable(pdev);
+	else
+		ret = port_disable(pdev);
+	mutex_unlock(&pdata->lock);
+
+	return ret;
+}
+
+static struct dfl_fpga_port_ops afu_port_ops = {
+	.name = DFL_FPGA_FEATURE_DEV_PORT,
+	.owner = THIS_MODULE,
+	.get_id = port_get_id,
+	.enable_set = port_enable_set,
+};
+
 static int afu_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -154,7 +253,28 @@ static struct platform_driver afu_driver = {
 	.remove  = afu_remove,
 };
 
-module_platform_driver(afu_driver);
+static int __init afu_init(void)
+{
+	int ret;
+
+	dfl_fpga_port_ops_add(&afu_port_ops);
+
+	ret = platform_driver_register(&afu_driver);
+	if (ret)
+		dfl_fpga_port_ops_del(&afu_port_ops);
+
+	return ret;
+}
+
+static void __exit afu_exit(void)
+{
+	platform_driver_unregister(&afu_driver);
+
+	dfl_fpga_port_ops_del(&afu_port_ops);
+}
+
+module_init(afu_init);
+module_exit(afu_exit);
 
 MODULE_DESCRIPTION("FPGA Accelerated Function Unit driver");
 MODULE_AUTHOR("Intel Corporation");
