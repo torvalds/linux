@@ -34,6 +34,7 @@
 #include <linux/bitfield.h>
 #include <net/pkt_cls.h>
 #include <net/switchdev.h>
+#include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/tc_act/tc_pedit.h>
@@ -43,6 +44,8 @@
 #include "cmsg.h"
 #include "main.h"
 #include "../nfp_net_repr.h"
+
+#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(TUNNEL_CSUM | TUNNEL_KEY)
 
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
@@ -235,9 +238,12 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
 	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
 	u32 tmp_set_ip_tun_type_index = 0;
+	struct flowi4 flow = {};
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
+	struct rtable *rt;
 	struct net *net;
+	int err;
 
 	if (ip_tun->options_len)
 		return -EOPNOTSUPP;
@@ -254,7 +260,28 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
 	set_tun->tun_id = ip_tun->key.tun_id;
-	set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+
+	/* Do a route lookup to determine ttl - if fails then use default.
+	 * Note that CONFIG_INET is a requirement of CONFIG_NET_SWITCHDEV so
+	 * must be defined here.
+	 */
+	flow.daddr = ip_tun->key.u.ipv4.dst;
+	flow.flowi4_proto = IPPROTO_UDP;
+	rt = ip_route_output_key(net, &flow);
+	err = PTR_ERR_OR_ZERO(rt);
+	if (!err) {
+		set_tun->ttl = ip4_dst_hoplimit(&rt->dst);
+		ip_rt_put(rt);
+	} else {
+		set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
+	}
+
+	set_tun->tos = ip_tun->key.tos;
+
+	if (!(ip_tun->key.tun_flags & TUNNEL_KEY) ||
+	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS)
+		return -EOPNOTSUPP;
+	set_tun->tun_flags = ip_tun->key.tun_flags;
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
@@ -398,8 +425,27 @@ nfp_fl_set_tport(const struct tc_action *action, int idx, u32 off,
 	return 0;
 }
 
+static u32 nfp_fl_csum_l4_to_flag(u8 ip_proto)
+{
+	switch (ip_proto) {
+	case 0:
+		/* Filter doesn't force proto match,
+		 * both TCP and UDP will be updated if encountered
+		 */
+		return TCA_CSUM_UPDATE_FLAG_TCP | TCA_CSUM_UPDATE_FLAG_UDP;
+	case IPPROTO_TCP:
+		return TCA_CSUM_UPDATE_FLAG_TCP;
+	case IPPROTO_UDP:
+		return TCA_CSUM_UPDATE_FLAG_UDP;
+	default:
+		/* All other protocols will be ignored by FW */
+		return 0;
+	}
+}
+
 static int
-nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
+nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
+	     char *nfp_action, int *a_len, u32 *csum_updated)
 {
 	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ip4_addrs set_ip_addr;
@@ -409,6 +455,7 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 	int idx, nkeys, err;
 	size_t act_size;
 	u32 offset, cmd;
+	u8 ip_proto = 0;
 
 	memset(&set_ip6_dst, 0, sizeof(set_ip6_dst));
 	memset(&set_ip6_src, 0, sizeof(set_ip6_src));
@@ -451,6 +498,15 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 			return err;
 	}
 
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *basic;
+
+		basic = skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  flow->key);
+		ip_proto = basic->ip_proto;
+	}
+
 	if (set_eth.head.len_lw) {
 		act_size = sizeof(set_eth);
 		memcpy(nfp_action, &set_eth, act_size);
@@ -459,6 +515,10 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 		act_size = sizeof(set_ip_addr);
 		memcpy(nfp_action, &set_ip_addr, act_size);
 		*a_len += act_size;
+
+		/* Hardware will automatically fix IPv4 and TCP/UDP checksum. */
+		*csum_updated |= TCA_CSUM_UPDATE_FLAG_IPV4HDR |
+				nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_ip6_dst.head.len_lw && set_ip6_src.head.len_lw) {
 		/* TC compiles set src and dst IPv6 address as a single action,
 		 * the hardware requires this to be 2 separate actions.
@@ -471,18 +531,30 @@ nfp_fl_pedit(const struct tc_action *action, char *nfp_action, int *a_len)
 		memcpy(&nfp_action[sizeof(set_ip6_src)], &set_ip6_dst,
 		       act_size);
 		*a_len += act_size;
+
+		/* Hardware will automatically fix TCP/UDP checksum. */
+		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_ip6_dst.head.len_lw) {
 		act_size = sizeof(set_ip6_dst);
 		memcpy(nfp_action, &set_ip6_dst, act_size);
 		*a_len += act_size;
+
+		/* Hardware will automatically fix TCP/UDP checksum. */
+		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_ip6_src.head.len_lw) {
 		act_size = sizeof(set_ip6_src);
 		memcpy(nfp_action, &set_ip6_src, act_size);
 		*a_len += act_size;
+
+		/* Hardware will automatically fix TCP/UDP checksum. */
+		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_tport.head.len_lw) {
 		act_size = sizeof(set_tport);
 		memcpy(nfp_action, &set_tport, act_size);
 		*a_len += act_size;
+
+		/* Hardware will automatically fix TCP/UDP checksum. */
+		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	}
 
 	return 0;
@@ -493,11 +565,17 @@ nfp_flower_output_action(struct nfp_app *app, const struct tc_action *a,
 			 struct nfp_fl_payload *nfp_fl, int *a_len,
 			 struct net_device *netdev, bool last,
 			 enum nfp_flower_tun_type *tun_type, int *tun_out_cnt,
-			 int *out_cnt)
+			 int *out_cnt, u32 *csum_updated)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_output *output;
 	int err, prelag_size;
+
+	/* If csum_updated has not been reset by now, it means HW will
+	 * incorrectly update csums when they are not requested.
+	 */
+	if (*csum_updated)
+		return -EOPNOTSUPP;
 
 	if (*a_len + sizeof(struct nfp_fl_output) > NFP_FL_MAX_A_SIZ)
 		return -EOPNOTSUPP;
@@ -529,10 +607,11 @@ nfp_flower_output_action(struct nfp_app *app, const struct tc_action *a,
 
 static int
 nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
+		       struct tc_cls_flower_offload *flow,
 		       struct nfp_fl_payload *nfp_fl, int *a_len,
 		       struct net_device *netdev,
 		       enum nfp_flower_tun_type *tun_type, int *tun_out_cnt,
-		       int *out_cnt)
+		       int *out_cnt, u32 *csum_updated)
 {
 	struct nfp_fl_set_ipv4_udp_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
@@ -545,14 +624,14 @@ nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
 	} else if (is_tcf_mirred_egress_redirect(a)) {
 		err = nfp_flower_output_action(app, a, nfp_fl, a_len, netdev,
 					       true, tun_type, tun_out_cnt,
-					       out_cnt);
+					       out_cnt, csum_updated);
 		if (err)
 			return err;
 
 	} else if (is_tcf_mirred_egress_mirror(a)) {
 		err = nfp_flower_output_action(app, a, nfp_fl, a_len, netdev,
 					       false, tun_type, tun_out_cnt,
-					       out_cnt);
+					       out_cnt, csum_updated);
 		if (err)
 			return err;
 
@@ -602,8 +681,17 @@ nfp_flower_loop_action(struct nfp_app *app, const struct tc_action *a,
 		/* Tunnel decap is handled by default so accept action. */
 		return 0;
 	} else if (is_tcf_pedit(a)) {
-		if (nfp_fl_pedit(a, &nfp_fl->action_data[*a_len], a_len))
+		if (nfp_fl_pedit(a, flow, &nfp_fl->action_data[*a_len],
+				 a_len, csum_updated))
 			return -EOPNOTSUPP;
+	} else if (is_tcf_csum(a)) {
+		/* csum action requests recalc of something we have not fixed */
+		if (tcf_csum_update_flags(a) & ~*csum_updated)
+			return -EOPNOTSUPP;
+		/* If we will correctly fix the csum we can remove it from the
+		 * csum update list. Which will later be used to check support.
+		 */
+		*csum_updated &= ~tcf_csum_update_flags(a);
 	} else {
 		/* Currently we do not handle any other actions. */
 		return -EOPNOTSUPP;
@@ -620,6 +708,7 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	int act_len, act_cnt, err, tun_out_cnt, out_cnt;
 	enum nfp_flower_tun_type tun_type;
 	const struct tc_action *a;
+	u32 csum_updated = 0;
 	LIST_HEAD(actions);
 
 	memset(nfp_flow->action_data, 0, NFP_FL_MAX_A_SIZ);
@@ -632,8 +721,9 @@ int nfp_flower_compile_action(struct nfp_app *app,
 
 	tcf_exts_to_list(flow->exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		err = nfp_flower_loop_action(app, a, nfp_flow, &act_len, netdev,
-					     &tun_type, &tun_out_cnt, &out_cnt);
+		err = nfp_flower_loop_action(app, a, flow, nfp_flow, &act_len,
+					     netdev, &tun_type, &tun_out_cnt,
+					     &out_cnt, &csum_updated);
 		if (err)
 			return err;
 		act_cnt++;
