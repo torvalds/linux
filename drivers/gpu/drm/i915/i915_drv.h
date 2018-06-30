@@ -2245,9 +2245,6 @@ static inline struct scatterlist *____sg_next(struct scatterlist *sg)
  **/
 static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg->sg_magic != SG_MAGIC);
-#endif
 	return sg_is_last(sg) ? NULL : ____sg_next(sg);
 }
 

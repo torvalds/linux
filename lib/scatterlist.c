@@ -24,9 +24,6 @@
  **/
 struct scatterlist *sg_next(struct scatterlist *sg)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg->sg_magic != SG_MAGIC);
-#endif
 	if (sg_is_last(sg))
 		return NULL;
 
@@ -111,10 +108,7 @@ struct scatterlist *sg_last(struct scatterlist *sgl, unsigned int nents)
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
 
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sgl[0].sg_magic != SG_MAGIC);
 	BUG_ON(!sg_is_last(ret));
-#endif
 	return ret;
 }
 EXPORT_SYMBOL(sg_last);
