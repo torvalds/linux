@@ -68,7 +68,6 @@ static struct shash_alg algs[] = { {
 	.base.cra_name		= "sha256",
 	.base.cra_driver_name	= "sha256-arm64",
 	.base.cra_priority	= 100,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -81,7 +80,6 @@ static struct shash_alg algs[] = { {
 	.base.cra_name		= "sha224",
 	.base.cra_driver_name	= "sha224-arm64",
 	.base.cra_priority	= 100,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };
@@ -153,7 +151,6 @@ static struct shash_alg neon_algs[] = { {
 	.base.cra_name		= "sha256",
 	.base.cra_driver_name	= "sha256-arm64-neon",
 	.base.cra_priority	= 150,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -166,7 +163,6 @@ static struct shash_alg neon_algs[] = { {
 	.base.cra_name		= "sha224",
 	.base.cra_driver_name	= "sha224-arm64-neon",
 	.base.cra_priority	= 150,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };
