@@ -65,7 +65,7 @@ struct f2fs_fault_info {
 	unsigned int inject_type;
 };
 
-extern char *fault_name[FAULT_MAX];
+extern char *f2fs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 #endif
 
@@ -1283,7 +1283,7 @@ struct f2fs_sb_info {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 #define f2fs_show_injection_info(type)				\
 	printk("%sF2FS-fs : inject %s in %s of %pF\n",		\
-		KERN_INFO, fault_name[type],			\
+		KERN_INFO, f2fs_fault_name[type],		\
 		__func__, __builtin_return_address(0))
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 {
