@@ -73,9 +73,6 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
 		struct qeth_qdio_out_buffer *buf,
 		enum iucv_tx_notify notification);
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf);
-static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf,
-		enum qeth_qdio_buffer_states newbufstate);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
 struct workqueue_struct *qeth_wq;
@@ -489,6 +486,7 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 	struct qaob *aob;
 	struct qeth_qdio_out_buffer *buffer;
 	enum iucv_tx_notify notification;
+	unsigned int i;
 
 	aob = (struct qaob *) phys_to_virt(phys_aob_addr);
 	QETH_CARD_TEXT(card, 5, "haob");
@@ -513,10 +511,18 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 	qeth_notify_skbs(buffer->q, buffer, notification);
 
 	buffer->aob = NULL;
-	qeth_clear_output_buffer(buffer->q, buffer,
-				 QETH_QDIO_BUF_HANDLED_DELAYED);
+	/* Free dangling allocations. The attached skbs are handled by
+	 * qeth_cleanup_handled_pending().
+	 */
+	for (i = 0;
+	     i < aob->sb_count && i < QETH_MAX_BUFFER_ELEMENTS(card);
+	     i++) {
+		if (aob->sba[i] && buffer->is_header[i])
+			kmem_cache_free(qeth_core_header_cache,
+					(void *) aob->sba[i]);
+	}
+	atomic_set(&buffer->state, QETH_QDIO_BUF_HANDLED_DELAYED);
 
-	/* from here on: do not touch buffer anymore */
 	qdio_release_aob(aob);
 }
 
@@ -3759,6 +3765,10 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 			QETH_CARD_TEXT(queue->card, 5, "aob");
 			QETH_CARD_TEXT_(queue->card, 5, "%lx",
 					virt_to_phys(buffer->aob));
+
+			/* prepare the queue slot for re-use: */
+			qeth_scrub_qdio_buffer(buffer->buffer,
+					       QETH_MAX_BUFFER_ELEMENTS(card));
 			if (qeth_init_qdio_out_buf(queue, bidx)) {
 				QETH_CARD_TEXT(card, 2, "outofbuf");
 				qeth_schedule_recovery(card);
@@ -4834,7 +4844,7 @@ int qeth_vm_request_mac(struct qeth_card *card)
 		goto out;
 	}
 
-	ccw_device_get_id(CARD_RDEV(card), &id);
+	ccw_device_get_id(CARD_DDEV(card), &id);
 	request->resp_buf_len = sizeof(*response);
 	request->resp_version = DIAG26C_VERSION2;
 	request->op_code = DIAG26C_GET_MAC;
@@ -6459,28 +6469,27 @@ static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
 #define QETH_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_TSO | \
 			  NETIF_F_IPV6_CSUM)
 /**
- * qeth_recover_features() - Restore device features after recovery
- * @dev:	the recovering net_device
- *
- * Caller must hold rtnl lock.
+ * qeth_enable_hw_features() - (Re-)Enable HW functions for device features
+ * @dev:	a net_device
  */
-void qeth_recover_features(struct net_device *dev)
+void qeth_enable_hw_features(struct net_device *dev)
 {
-	netdev_features_t features = dev->features;
 	struct qeth_card *card = dev->ml_priv;
+	netdev_features_t features;
 
+	rtnl_lock();
+	features = dev->features;
 	/* force-off any feature that needs an IPA sequence.
 	 * netdev_update_features() will restart them.
 	 */
 	dev->features &= ~QETH_HW_FEATURES;
 	netdev_update_features(dev);
-
-	if (features == dev->features)
-		return;
-	dev_warn(&card->gdev->dev,
-		 "Device recovery failed to restore all offload features\n");
+	if (features != dev->features)
+		dev_warn(&card->gdev->dev,
+			 "Device recovery failed to restore all offload features\n");
+	rtnl_unlock();
 }
-EXPORT_SYMBOL_GPL(qeth_recover_features);
+EXPORT_SYMBOL_GPL(qeth_enable_hw_features);
 
 int qeth_set_features(struct net_device *dev, netdev_features_t features)
 {
