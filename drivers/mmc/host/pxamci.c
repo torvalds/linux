@@ -591,11 +591,13 @@ static const struct of_device_id pxa_mmc_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, pxa_mmc_dt_ids);
 
-static int pxamci_of_init(struct platform_device *pdev)
+static int pxamci_of_init(struct platform_device *pdev,
+			  struct mmc_host *mmc)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct pxamci_platform_data *pdata;
 	u32 tmp;
+	int ret;
 
 	if (!np)
 		return 0;
@@ -604,11 +606,6 @@ static int pxamci_of_init(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->gpio_card_detect =
-		of_get_named_gpio(np, "cd-gpios", 0);
-	pdata->gpio_card_ro =
-		of_get_named_gpio(np, "wp-gpios", 0);
-
 	/* pxa-mmc specific */
 	pdata->gpio_power =
 		of_get_named_gpio(np, "pxa-mmc,gpio-power", 0);
@@ -616,12 +613,17 @@ static int pxamci_of_init(struct platform_device *pdev)
 	if (of_property_read_u32(np, "pxa-mmc,detect-delay-ms", &tmp) == 0)
 		pdata->detect_delay_ms = tmp;
 
+	ret = mmc_of_parse(mmc);
+	if (ret < 0)
+		return ret;
+
 	pdev->dev.platform_data = pdata;
 
 	return 0;
 }
 #else
-static int pxamci_of_init(struct platform_device *pdev)
+static int pxamci_of_init(struct platform_device *pdev,
+			  struct mmc_host *mmc)
 {
         return 0;
 }
@@ -633,10 +635,6 @@ static int pxamci_probe(struct platform_device *pdev)
 	struct pxamci_host *host = NULL;
 	struct resource *r;
 	int ret, irq, gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
-
-	ret = pxamci_of_init(pdev);
-	if (ret)
-		return ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -671,6 +669,10 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Block count register is 16 bits.
 	 */
 	mmc->max_blk_count = 65535;
+
+	ret = pxamci_of_init(pdev, mmc);
+	if (ret)
+		return ret;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
