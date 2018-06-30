@@ -50,7 +50,7 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 		process_kern2kobj(&process, current);
 		if(info_flag == 0) {
 			access.ipc_class = ipc_security(ipcp)->ipc_class;
-			if(ipc_kern2kobj(&object, ipcp) != 0)
+			if (ipc_kern2kobj(&object, ipcp) == NULL)
 				goto out_err;
 			retval = MED_DECIDE(ipc_ctl_access, &access, &process, &object);
 		}else{

@@ -42,21 +42,17 @@ MED_ATTRS(ipc_kobject) {
  * @ipc_kobj - pointer to ipc_kobject where data will be stored 
  * @ipcp - pointer to kernel structure used to get data
  * Return: pointer to ipc_kobject with data on success, NULL on error
+ *
+ * This routine expects the existing Medusa ipcp security struct!
  */
 struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp)
 {
-	struct medusa_l1_ipc_s* security_s;
-
-	security_s = (struct medusa_l1_ipc_s*)ipcp->security;
-	if (!security_s)
-		return NULL;
-
 	memset(ipc_kobj, '\0', sizeof(struct ipc_kobject));
-	ipc_kobj->ipc_class = security_s->ipc_class;
+	ipc_kobj->ipc_class = ipc_security(ipcp)->ipc_class;
 
-	COPY_WRITE_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
-	COPY_READ_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
-	COPY_MEDUSA_OBJECT_VARS(ipc_kobj, security_s);
+	COPY_WRITE_IPC_VARS(ipcp, &(ipc_kobj->ipc_perm));
+	COPY_READ_IPC_VARS(ipcp, &(ipc_kobj->ipc_perm));
+	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_kobj);
 
 	return ipc_kobj;
 }
@@ -66,15 +62,13 @@ struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc
  */
 medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm *ipcp)
 {
-	struct medusa_l1_ipc_s* security_s;
-
-	security_s = (struct medusa_l1_ipc_s*)ipcp->security;
+	struct medusa_l1_ipc_s *security_s = (struct medusa_l1_ipc_s*)ipcp->security;
 	if (!security_s)
 		return MED_ERR;
 
-	COPY_WRITE_IPC_VARS(ipcp, &(ipc_obj->ipc_perm));
-	COPY_MEDUSA_OBJECT_VARS(security_s, ipc_obj);
-	MED_MAGIC_VALIDATE(security_s);
+	COPY_WRITE_IPC_VARS(&(ipc_obj->ipc_perm), ipcp);
+	COPY_MEDUSA_OBJECT_VARS(ipc_obj, ipc_security(ipcp));
+	MED_MAGIC_VALIDATE(ipc_security(ipcp));
 	
 	return MED_OK;
 }

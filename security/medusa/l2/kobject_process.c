@@ -59,6 +59,10 @@ medusa_answer_t process_kobj2kern(struct process_kobject * tk, struct task_struc
 	MED_MAGIC_VALIDATE(&task_security(ts));
 	return MED_OK;
 }
+
+/*
+ * This routine expects the existing Medusa task_struct security struct!
+ */
 int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 {
         memset(tk, '\0', sizeof(struct process_kobject));
@@ -79,7 +83,7 @@ int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 	tk->icap = task_cap_inheritable(ts);
 	tk->pcap = task_cap_permitted(ts);
 
-	unsigned __capi;
+	//unsigned __capi;
 	//CAP_FOR_EACH_U32(__capi)
 	//	printk("MEDUSA: ECAP[%d]=%08x\n", __capi, (tk->ecap).cap[CAP_LAST_U32 - __capi]);
 	

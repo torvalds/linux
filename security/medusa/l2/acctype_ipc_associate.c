@@ -51,7 +51,7 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 		access.ipc_class = ipc_security(ipcp)->ipc_class;
 
 		process_kern2kobj(&process, current);
-		if(ipc_kern2kobj(&object, ipcp) != 0)
+		if (ipc_kern2kobj(&object, ipcp) == NULL)
 			goto out_err;
 
 		retval = MED_DECIDE(ipc_associate_access, &access, &process, &object);

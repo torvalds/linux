@@ -22,18 +22,21 @@ int __init ipc_evtype_init(void) {
 	return 0;
 }
 
-medusa_answer_t medusa_ipc_validate(struct kern_ipc_perm *ipcp) {
-	medusa_answer_t retval = MED_OK;
+/*
+ * This routine expects the existing, but !MED_MAGIC_VALID Medusa ipcp security struct!
+ */
+int medusa_ipc_validate(struct kern_ipc_perm *ipcp) {
+	medusa_answer_t retval;
 	struct ipc_event event;
 	struct ipc_kobject sender;
 
 	memset(&event, '\0', sizeof(struct ipc_event));
 	INIT_MEDUSA_OBJECT_VARS(ipc_security(ipcp));
-	if(ipc_kern2kobj(&sender, ipcp) == 0){
-		retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
-		if (retval == MED_ERR)
-			retval = MED_OK;
-	}
-	return retval;
+	ipc_kern2kobj(&sender, ipcp);
+	retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
+	if (retval != MED_ERR)
+		return 1;
+	return MED_ERR;
 }
+
 __initcall(ipc_evtype_init);

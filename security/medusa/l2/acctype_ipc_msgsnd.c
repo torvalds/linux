@@ -32,27 +32,28 @@ medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *ms
 	struct ipc_msgsnd_access access;
 	struct process_kobject process;
 	struct ipc_kobject object;
-    memset(&access, '\0', sizeof(struct ipc_msgsnd_access));
-    /* process_kobject parent is zeroed by process_kern2kobj function */
+
+	memset(&access, '\0', sizeof(struct ipc_msgsnd_access));
+	/* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
-		goto out_err;
+		goto out;
 	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
-		goto out_err;
+		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_msgsnd_access, &task_security(current))) {
 		access.msg_flg = msgflg;
 		access.ipc_class = ipc_security(ipcp)->ipc_class;
 
 		process_kern2kobj(&process, current);
-		if(ipc_kern2kobj(&object, ipcp) != 0)
-			goto out_err;
+		if (ipc_kern2kobj(&object, ipcp) == NULL)
+			goto out;
 
 		retval = MED_DECIDE(ipc_msgsnd_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
-out_err:
+out:
 	return retval;
 }
 __initcall(ipc_acctype_msgsnd_init);

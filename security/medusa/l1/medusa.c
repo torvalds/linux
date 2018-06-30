@@ -748,7 +748,7 @@ static int medusa_l1_msg_queue_msgsnd(struct kern_ipc_perm *msq, struct msg_msg 
 				int msgflg)
 {
 	if(medusa_ipc_msgsnd(msq, msg, msgflg) == MED_NO)
-		return -EPERM;	
+		return -EPERM;
 	return 0;
 }
 

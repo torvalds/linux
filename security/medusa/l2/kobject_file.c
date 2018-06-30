@@ -26,6 +26,9 @@ int file_kobj2kern(struct file_kobject * fk, struct inode * inode)
 	return 0;
 }
 
+/*
+ * This routine expects the existing Medusa inode security struct!
+ */
 int file_kern2kobj(struct file_kobject * fk, struct inode * inode)
 {
         memset( fk, '\0', sizeof(struct file_kobject));
