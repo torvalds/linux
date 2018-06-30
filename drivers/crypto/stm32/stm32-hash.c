@@ -1150,8 +1150,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "md5",
 				.cra_driver_name = "stm32-md5",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1177,8 +1176,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "stm32-hmac-md5",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1203,8 +1201,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "sha1",
 				.cra_driver_name = "stm32-sha1",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1230,8 +1227,7 @@ static struct ahash_alg algs_md5_sha1[] = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "stm32-hmac-sha1",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA1_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1259,8 +1255,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "sha224",
 				.cra_driver_name = "stm32-sha224",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1286,8 +1281,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "hmac(sha224)",
 				.cra_driver_name = "stm32-hmac-sha224",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1312,8 +1306,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "sha256",
 				.cra_driver_name = "stm32-sha256",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),
@@ -1339,8 +1332,7 @@ static struct ahash_alg algs_sha224_sha256[] = {
 				.cra_name = "hmac(sha256)",
 				.cra_driver_name = "stm32-hmac-sha256",
 				.cra_priority = 200,
-				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					CRYPTO_ALG_ASYNC |
+				.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct stm32_hash_ctx),

@@ -1253,8 +1253,7 @@ static struct ahash_alg sha_v3_algs[] = {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "sahara-sha1",
 		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-						CRYPTO_ALG_ASYNC |
+		.cra_flags		= CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct sahara_ctx),
@@ -1280,8 +1279,7 @@ static struct ahash_alg sha_v4_algs[] = {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "sahara-sha256",
 		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-						CRYPTO_ALG_ASYNC |
+		.cra_flags		= CRYPTO_ALG_ASYNC |
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA256_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct sahara_ctx),

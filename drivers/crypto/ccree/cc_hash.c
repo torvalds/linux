@@ -1813,8 +1813,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 	alg->cra_exit = cc_cra_exit;
 
 	alg->cra_init = cc_cra_init;
-	alg->cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_TYPE_AHASH |
-			CRYPTO_ALG_KERN_DRIVER_ONLY;
+	alg->cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY;
 	alg->cra_type = &crypto_ahash_type;
 
 	t_crypto_alg->hash_mode = template->hash_mode;

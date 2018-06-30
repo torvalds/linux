@@ -3914,8 +3914,7 @@ static struct iproc_alg_s driver_algs[] = {
 				    .cra_name = "md5",
 				    .cra_driver_name = "md5-iproc",
 				    .cra_blocksize = MD5_BLOCK_WORDS * 4,
-				    .cra_flags = CRYPTO_ALG_TYPE_AHASH |
-					     CRYPTO_ALG_ASYNC,
+				    .cra_flags = CRYPTO_ALG_ASYNC,
 				}
 		      },
 	 .cipher_info = {
@@ -4650,7 +4649,7 @@ static int spu_register_ahash(struct iproc_alg_s *driver_alg)
 	hash->halg.base.cra_init = ahash_cra_init;
 	hash->halg.base.cra_exit = generic_cra_exit;
 	hash->halg.base.cra_type = &crypto_ahash_type;
-	hash->halg.base.cra_flags = CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC;
+	hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
 	hash->halg.statesize = sizeof(struct spu_hash_export_s);
 
 	if (driver_alg->auth_info.mode != HASH_MODE_HMAC) {
