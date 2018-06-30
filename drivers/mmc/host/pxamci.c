@@ -607,9 +607,6 @@ static int pxamci_of_init(struct platform_device *pdev,
 		return -ENOMEM;
 
 	/* pxa-mmc specific */
-	pdata->gpio_power =
-		of_get_named_gpio(np, "pxa-mmc,gpio-power", 0);
-
 	if (of_property_read_u32(np, "pxa-mmc,detect-delay-ms", &tmp) == 0)
 		pdata->detect_delay_ms = tmp;
 
