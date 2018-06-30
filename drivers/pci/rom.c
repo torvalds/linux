@@ -80,7 +80,8 @@ EXPORT_SYMBOL_GPL(pci_disable_rom);
  * The PCI window size could be much larger than the
  * actual image size.
  */
-size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
+static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
+			       size_t size)
 {
 	void __iomem *image;
 	int last_image;
