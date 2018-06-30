@@ -904,7 +904,14 @@ static struct ahash_alg sha512_mb_async_alg = {
 		.base = {
 			.cra_name               = "sha512",
 			.cra_driver_name        = "sha512_mb",
-			.cra_priority           = 200,
+			/*
+			 * Low priority, since with few concurrent hash requests
+			 * this is extremely slow due to the flush delay.  Users
+			 * whose workloads would benefit from this can request
+			 * it explicitly by driver name, or can increase its
+			 * priority at runtime using NETLINK_CRYPTO.
+			 */
+			.cra_priority           = 50,
 			.cra_flags              = CRYPTO_ALG_TYPE_AHASH |
 							CRYPTO_ALG_ASYNC,
 			.cra_blocksize          = SHA512_BLOCK_SIZE,
