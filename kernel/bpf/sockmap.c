@@ -140,6 +140,7 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 static int bpf_tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 static int bpf_tcp_sendpage(struct sock *sk, struct page *page,
 			    int offset, size_t size, int flags);
+static void bpf_tcp_close(struct sock *sk, long timeout);
 
 static inline struct smap_psock *smap_psock_sk(const struct sock *sk)
 {
@@ -161,7 +162,42 @@ out:
 	return !empty;
 }
 
-static struct proto tcp_bpf_proto;
+enum {
+	SOCKMAP_IPV4,
+	SOCKMAP_IPV6,
+	SOCKMAP_NUM_PROTS,
+};
+
+enum {
+	SOCKMAP_BASE,
+	SOCKMAP_TX,
+	SOCKMAP_NUM_CONFIGS,
+};
+
+static struct proto *saved_tcpv6_prot __read_mostly;
+static DEFINE_SPINLOCK(tcpv6_prot_lock);
+static struct proto bpf_tcp_prots[SOCKMAP_NUM_PROTS][SOCKMAP_NUM_CONFIGS];
+static void build_protos(struct proto prot[SOCKMAP_NUM_CONFIGS],
+			 struct proto *base)
+{
+	prot[SOCKMAP_BASE]			= *base;
+	prot[SOCKMAP_BASE].close		= bpf_tcp_close;
+	prot[SOCKMAP_BASE].recvmsg		= bpf_tcp_recvmsg;
+	prot[SOCKMAP_BASE].stream_memory_read	= bpf_tcp_stream_read;
+
+	prot[SOCKMAP_TX]			= prot[SOCKMAP_BASE];
+	prot[SOCKMAP_TX].sendmsg		= bpf_tcp_sendmsg;
+	prot[SOCKMAP_TX].sendpage		= bpf_tcp_sendpage;
+}
+
+static void update_sk_prot(struct sock *sk, struct smap_psock *psock)
+{
+	int family = sk->sk_family == AF_INET6 ? SOCKMAP_IPV6 : SOCKMAP_IPV4;
+	int conf = psock->bpf_tx_msg ? SOCKMAP_TX : SOCKMAP_BASE;
+
+	sk->sk_prot = &bpf_tcp_prots[family][conf];
+}
+
 static int bpf_tcp_init(struct sock *sk)
 {
 	struct smap_psock *psock;
@@ -181,14 +217,17 @@ static int bpf_tcp_init(struct sock *sk)
 	psock->save_close = sk->sk_prot->close;
 	psock->sk_proto = sk->sk_prot;
 
-	if (psock->bpf_tx_msg) {
-		tcp_bpf_proto.sendmsg = bpf_tcp_sendmsg;
-		tcp_bpf_proto.sendpage = bpf_tcp_sendpage;
-		tcp_bpf_proto.recvmsg = bpf_tcp_recvmsg;
-		tcp_bpf_proto.stream_memory_read = bpf_tcp_stream_read;
+	/* Build IPv6 sockmap whenever the address of tcpv6_prot changes */
+	if (sk->sk_family == AF_INET6 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
+		spin_lock_bh(&tcpv6_prot_lock);
+		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
+			build_protos(bpf_tcp_prots[SOCKMAP_IPV6], sk->sk_prot);
+			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
+		}
+		spin_unlock_bh(&tcpv6_prot_lock);
 	}
-
-	sk->sk_prot = &tcp_bpf_proto;
+	update_sk_prot(sk, psock);
 	rcu_read_unlock();
 	return 0;
 }
@@ -1111,8 +1150,7 @@ static void bpf_tcp_msg_add(struct smap_psock *psock,
 
 static int bpf_tcp_ulp_register(void)
 {
-	tcp_bpf_proto = tcp_prot;
-	tcp_bpf_proto.close = bpf_tcp_close;
+	build_protos(bpf_tcp_prots[SOCKMAP_IPV4], &tcp_prot);
 	/* Once BPF TX ULP is registered it is never unregistered. It
 	 * will be in the ULP list for the lifetime of the system. Doing
 	 * duplicate registers is not a problem.
