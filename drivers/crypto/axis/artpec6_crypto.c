@@ -2964,7 +2964,7 @@ static struct aead_alg aead_algos[] = {
 			.cra_name = "gcm(aes)",
 			.cra_driver_name = "artpec-gcm-aes",
 			.cra_priority = 300,
-			.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC |
+			.cra_flags = CRYPTO_ALG_ASYNC |
 				     CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct artpec6_cryptotfm_context),

@@ -4236,8 +4236,7 @@ static int chcr_register_alg(void)
 			break;
 		case CRYPTO_ALG_TYPE_AEAD:
 			driver_algs[i].alg.aead.base.cra_flags =
-				CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC |
-				CRYPTO_ALG_NEED_FALLBACK;
+				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
 			driver_algs[i].alg.aead.encrypt = chcr_aead_encrypt;
 			driver_algs[i].alg.aead.decrypt = chcr_aead_decrypt;
 			driver_algs[i].alg.aead.init = chcr_aead_cra_init;

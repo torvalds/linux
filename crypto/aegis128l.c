@@ -493,7 +493,6 @@ static struct aead_alg crypto_aegis128l_alg = {
 	.chunksize = AEGIS128L_CHUNK_SIZE,
 
 	.base = {
-		.cra_flags = CRYPTO_ALG_TYPE_AEAD,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx),
 		.cra_alignmask = 0,

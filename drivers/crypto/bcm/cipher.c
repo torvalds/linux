@@ -4689,7 +4689,7 @@ static int spu_register_aead(struct iproc_alg_s *driver_alg)
 	aead->base.cra_ctxsize = sizeof(struct iproc_ctx_s);
 	INIT_LIST_HEAD(&aead->base.cra_list);
 
-	aead->base.cra_flags |= CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
+	aead->base.cra_flags |= CRYPTO_ALG_ASYNC;
 	/* setkey set in alg initialization */
 	aead->setauthsize = aead_setauthsize;
 	aead->encrypt = aead_encrypt;
