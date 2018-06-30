@@ -233,12 +233,10 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 static void
 nfp_app_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
-	struct nfp_app *app;
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
 
-	app = nfp_app_from_netdev(netdev);
-	if (!app)
-		return;
-
+	strlcpy(drvinfo->bus_info, pci_name(app->pdev),
+		sizeof(drvinfo->bus_info));
 	nfp_get_drvinfo(app, app->pdev, "*", drvinfo);
 }
 
