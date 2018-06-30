@@ -171,6 +171,9 @@ struct symbol {
  * config BAZ
  *         int "BAZ Value"
  *         range 1..255
+ *
+ * Please, also check zconf.y:print_symbol() when modifying the
+ * list of property types!
  */
 enum prop_type {
 	P_UNKNOWN,
