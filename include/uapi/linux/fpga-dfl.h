@@ -66,6 +66,54 @@
 
 #define DFL_FPGA_PORT_RESET		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
 
+/**
+ * DFL_FPGA_PORT_GET_INFO - _IOR(DFL_FPGA_MAGIC, DFL_PORT_BASE + 1,
+ *						struct dfl_fpga_port_info)
+ *
+ * Retrieve information about the fpga port.
+ * Driver fills the info in provided struct dfl_fpga_port_info.
+ * Return: 0 on success, -errno on failure.
+ */
+struct dfl_fpga_port_info {
+	/* Input */
+	__u32 argsz;		/* Structure length */
+	/* Output */
+	__u32 flags;		/* Zero for now */
+	__u32 num_regions;	/* The number of supported regions */
+	__u32 num_umsgs;	/* The number of allocated umsgs */
+};
+
+#define DFL_FPGA_PORT_GET_INFO		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 1)
+
+/**
+ * FPGA_PORT_GET_REGION_INFO - _IOWR(FPGA_MAGIC, PORT_BASE + 2,
+ *					struct dfl_fpga_port_region_info)
+ *
+ * Retrieve information about a device memory region.
+ * Caller provides struct dfl_fpga_port_region_info with index value set.
+ * Driver returns the region info in other fields.
+ * Return: 0 on success, -errno on failure.
+ */
+struct dfl_fpga_port_region_info {
+	/* input */
+	__u32 argsz;		/* Structure length */
+	/* Output */
+	__u32 flags;		/* Access permission */
+#define DFL_PORT_REGION_READ	(1 << 0)	/* Region is readable */
+#define DFL_PORT_REGION_WRITE	(1 << 1)	/* Region is writable */
+#define DFL_PORT_REGION_MMAP	(1 << 2)	/* Can be mmaped to userspace */
+	/* Input */
+	__u32 index;		/* Region index */
+#define DFL_PORT_REGION_INDEX_AFU	0	/* AFU */
+#define DFL_PORT_REGION_INDEX_STP	1	/* Signal Tap */
+	__u32 padding;
+	/* Output */
+	__u64 size;		/* Region size (bytes) */
+	__u64 offset;		/* Region offset from start of device fd */
+};
+
+#define DFL_FPGA_PORT_GET_REGION_INFO	_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 2)
+
 /* IOCTLs for FME file descriptor */
 
 /**

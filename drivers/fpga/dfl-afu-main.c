@@ -16,18 +16,18 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <linux/fpga-dfl.h>
 
-#include "dfl.h"
+#include "dfl-afu.h"
 
 /**
  * port_enable - enable a port
  * @pdev: port platform device.
  *
  * Enable Port by clear the port soft reset bit, which is set by default.
- * The User AFU is unable to respond to any MMIO access while in reset.
- * port_enable function should only be used after port_disable
- * function.
+ * The AFU is unable to respond to any MMIO access while in reset.
+ * port_enable function should only be used after port_disable function.
  */
 static void port_enable(struct platform_device *pdev)
 {
@@ -191,10 +191,73 @@ static const struct dfl_feature_ops port_hdr_ops = {
 	.ioctl = port_hdr_ioctl,
 };
 
+static ssize_t
+afu_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	void __iomem *base;
+	u64 guidl, guidh;
+
+	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_AFU);
+
+	mutex_lock(&pdata->lock);
+	if (pdata->disable_count) {
+		mutex_unlock(&pdata->lock);
+		return -EBUSY;
+	}
+
+	guidl = readq(base + GUID_L);
+	guidh = readq(base + GUID_H);
+	mutex_unlock(&pdata->lock);
+
+	return scnprintf(buf, PAGE_SIZE, "%016llx%016llx\n", guidh, guidl);
+}
+static DEVICE_ATTR_RO(afu_id);
+
+static const struct attribute *port_afu_attrs[] = {
+	&dev_attr_afu_id.attr,
+	NULL
+};
+
+static int port_afu_init(struct platform_device *pdev,
+			 struct dfl_feature *feature)
+{
+	struct resource *res = &pdev->resource[feature->resource_index];
+	int ret;
+
+	dev_dbg(&pdev->dev, "PORT AFU Init.\n");
+
+	ret = afu_mmio_region_add(dev_get_platdata(&pdev->dev),
+				  DFL_PORT_REGION_INDEX_AFU, resource_size(res),
+				  res->start, DFL_PORT_REGION_READ |
+				  DFL_PORT_REGION_WRITE | DFL_PORT_REGION_MMAP);
+	if (ret)
+		return ret;
+
+	return sysfs_create_files(&pdev->dev.kobj, port_afu_attrs);
+}
+
+static void port_afu_uinit(struct platform_device *pdev,
+			   struct dfl_feature *feature)
+{
+	dev_dbg(&pdev->dev, "PORT AFU UInit.\n");
+
+	sysfs_remove_files(&pdev->dev.kobj, port_afu_attrs);
+}
+
+static const struct dfl_feature_ops port_afu_ops = {
+	.init = port_afu_init,
+	.uinit = port_afu_uinit,
+};
+
 static struct dfl_feature_driver port_feature_drvs[] = {
 	{
 		.id = PORT_FEATURE_ID_HEADER,
 		.ops = &port_hdr_ops,
+	},
+	{
+		.id = PORT_FEATURE_ID_AFU,
+		.ops = &port_afu_ops,
 	},
 	{
 		.ops = NULL,
@@ -243,6 +306,64 @@ static long afu_ioctl_check_extension(struct dfl_feature_platform_data *pdata,
 	return 0;
 }
 
+static long
+afu_ioctl_get_info(struct dfl_feature_platform_data *pdata, void __user *arg)
+{
+	struct dfl_fpga_port_info info;
+	struct dfl_afu *afu;
+	unsigned long minsz;
+
+	minsz = offsetofend(struct dfl_fpga_port_info, num_umsgs);
+
+	if (copy_from_user(&info, arg, minsz))
+		return -EFAULT;
+
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	mutex_lock(&pdata->lock);
+	afu = dfl_fpga_pdata_get_private(pdata);
+	info.flags = 0;
+	info.num_regions = afu->num_regions;
+	info.num_umsgs = afu->num_umsgs;
+	mutex_unlock(&pdata->lock);
+
+	if (copy_to_user(arg, &info, sizeof(info)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static long afu_ioctl_get_region_info(struct dfl_feature_platform_data *pdata,
+				      void __user *arg)
+{
+	struct dfl_fpga_port_region_info rinfo;
+	struct dfl_afu_mmio_region region;
+	unsigned long minsz;
+	long ret;
+
+	minsz = offsetofend(struct dfl_fpga_port_region_info, offset);
+
+	if (copy_from_user(&rinfo, arg, minsz))
+		return -EFAULT;
+
+	if (rinfo.argsz < minsz || rinfo.padding)
+		return -EINVAL;
+
+	ret = afu_mmio_region_get_by_index(pdata, rinfo.index, &region);
+	if (ret)
+		return ret;
+
+	rinfo.flags = region.flags;
+	rinfo.size = region.size;
+	rinfo.offset = region.offset;
+
+	if (copy_to_user(arg, &rinfo, sizeof(rinfo)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct platform_device *pdev = filp->private_data;
@@ -259,6 +380,10 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return DFL_FPGA_API_VERSION;
 	case DFL_FPGA_CHECK_EXTENSION:
 		return afu_ioctl_check_extension(pdata, arg);
+	case DFL_FPGA_PORT_GET_INFO:
+		return afu_ioctl_get_info(pdata, (void __user *)arg);
+	case DFL_FPGA_PORT_GET_REGION_INFO:
+		return afu_ioctl_get_region_info(pdata, (void __user *)arg);
 	default:
 		/*
 		 * Let sub-feature's ioctl function to handle the cmd
@@ -277,12 +402,82 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+static int afu_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct platform_device *pdev = filp->private_data;
+	struct dfl_feature_platform_data *pdata;
+	u64 size = vma->vm_end - vma->vm_start;
+	struct dfl_afu_mmio_region region;
+	u64 offset;
+	int ret;
+
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	pdata = dev_get_platdata(&pdev->dev);
+
+	offset = vma->vm_pgoff << PAGE_SHIFT;
+	ret = afu_mmio_region_get_by_offset(pdata, offset, size, &region);
+	if (ret)
+		return ret;
+
+	if (!(region.flags & DFL_PORT_REGION_MMAP))
+		return -EINVAL;
+
+	if ((vma->vm_flags & VM_READ) && !(region.flags & DFL_PORT_REGION_READ))
+		return -EPERM;
+
+	if ((vma->vm_flags & VM_WRITE) &&
+	    !(region.flags & DFL_PORT_REGION_WRITE))
+		return -EPERM;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	return remap_pfn_range(vma, vma->vm_start,
+			(region.phys + (offset - region.offset)) >> PAGE_SHIFT,
+			size, vma->vm_page_prot);
+}
+
 static const struct file_operations afu_fops = {
 	.owner = THIS_MODULE,
 	.open = afu_open,
 	.release = afu_release,
 	.unlocked_ioctl = afu_ioctl,
+	.mmap = afu_mmap,
 };
+
+static int afu_dev_init(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_afu *afu;
+
+	afu = devm_kzalloc(&pdev->dev, sizeof(*afu), GFP_KERNEL);
+	if (!afu)
+		return -ENOMEM;
+
+	afu->pdata = pdata;
+
+	mutex_lock(&pdata->lock);
+	dfl_fpga_pdata_set_private(pdata, afu);
+	afu_mmio_region_init(pdata);
+	mutex_unlock(&pdata->lock);
+
+	return 0;
+}
+
+static int afu_dev_destroy(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_afu *afu;
+
+	mutex_lock(&pdata->lock);
+	afu = dfl_fpga_pdata_get_private(pdata);
+	afu_mmio_region_destroy(pdata);
+	dfl_fpga_pdata_set_private(pdata, NULL);
+	mutex_unlock(&pdata->lock);
+
+	return 0;
+}
 
 static int port_enable_set(struct platform_device *pdev, bool enable)
 {
@@ -312,14 +507,25 @@ static int afu_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
+	ret = afu_dev_init(pdev);
+	if (ret)
+		goto exit;
+
 	ret = dfl_fpga_dev_feature_init(pdev, port_feature_drvs);
 	if (ret)
-		return ret;
+		goto dev_destroy;
 
 	ret = dfl_fpga_dev_ops_register(pdev, &afu_fops, THIS_MODULE);
-	if (ret)
+	if (ret) {
 		dfl_fpga_dev_feature_uinit(pdev);
+		goto dev_destroy;
+	}
 
+	return 0;
+
+dev_destroy:
+	afu_dev_destroy(pdev);
+exit:
 	return ret;
 }
 
@@ -329,6 +535,7 @@ static int afu_remove(struct platform_device *pdev)
 
 	dfl_fpga_dev_ops_unregister(pdev);
 	dfl_fpga_dev_feature_uinit(pdev);
+	afu_dev_destroy(pdev);
 
 	return 0;
 }
