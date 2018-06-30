@@ -115,11 +115,7 @@ s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 
 void rtw_btcoex_SetManualControl(struct adapter *padapter, u8 manual)
 {
-	if (true == manual) {
-		hal_btcoex_SetManualControl(padapter, true);
-	} else{
-		hal_btcoex_SetManualControl(padapter, false);
-	}
+	hal_btcoex_SetManualControl(padapter, manual);
 }
 
 u8 rtw_btcoex_IsBtControlLps(struct adapter *padapter)
