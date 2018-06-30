@@ -14,8 +14,13 @@ PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
 NETIF_TYPE=${NETIF_TYPE:=veth}
 NETIF_CREATE=${NETIF_CREATE:=yes}
 
-if [[ -f forwarding.config ]]; then
-	source forwarding.config
+relative_path="${BASH_SOURCE%/*}"
+if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
+	relative_path="."
+fi
+
+if [[ -f $relative_path/forwarding.config ]]; then
+	source "$relative_path/forwarding.config"
 fi
 
 ##############################################################################
@@ -151,6 +156,19 @@ check_fail()
 	fi
 }
 
+check_err_fail()
+{
+	local should_fail=$1; shift
+	local err=$1; shift
+	local what=$1; shift
+
+	if ((should_fail)); then
+		check_fail $err "$what succeeded, but should have failed"
+	else
+		check_err $err "$what failed"
+	fi
+}
+
 log_test()
 {
 	local test_name=$1
@@ -202,7 +220,9 @@ setup_wait_dev()
 
 setup_wait()
 {
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	local num_netifs=${1:-$NUM_NETIFS}
+
+	for ((i = 1; i <= num_netifs; ++i)); do
 		setup_wait_dev ${NETIFS[p$i]}
 	done
 
@@ -463,7 +483,9 @@ forwarding_restore()
 
 tc_offload_check()
 {
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	local num_netifs=${1:-$NUM_NETIFS}
+
+	for ((i = 1; i <= num_netifs; ++i)); do
 		ethtool -k ${NETIFS[p$i]} \
 			| grep "hw-tc-offload: on" &> /dev/null
 		if [[ $? -ne 0 ]]; then

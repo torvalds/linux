@@ -9154,6 +9154,7 @@ S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxsw/
+F:	tools/testing/selftests/drivers/net/mlxsw/
 
 MELLANOX FIRMWARE FLASH LIBRARY (mlxfw)
 M:	mlxsw@mellanox.com
