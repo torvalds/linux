@@ -31,6 +31,9 @@ obj-$(CONFIG_OF_FPGA_REGION)		+= of-fpga-region.o
 
 # FPGA Device Feature List Support
 obj-$(CONFIG_FPGA_DFL)			+= dfl.o
+obj-$(CONFIG_FPGA_DFL_FME)		+= dfl-fme.o
+
+dfl-fme-objs := dfl-fme-main.o
 
 # Drivers for FPGAs which implement DFL
 obj-$(CONFIG_FPGA_DFL_PCI)		+= dfl-pci.o
