@@ -239,7 +239,6 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
 /**
  * for_each_resv_unavail_range - iterate through reserved and unavailable memory
  * @i: u64 used as loop variable
- * @flags: pick from blocks based on memory attributes
  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
  *
@@ -367,8 +366,10 @@ phys_addr_t memblock_get_current_limit(void);
  */
 
 /**
- * memblock_region_memory_base_pfn - Return the lowest pfn intersecting with the memory region
+ * memblock_region_memory_base_pfn - get the lowest pfn of the memory region
  * @reg: memblock_region structure
+ *
+ * Return: the lowest pfn intersecting with the memory region
  */
 static inline unsigned long memblock_region_memory_base_pfn(const struct memblock_region *reg)
 {
@@ -376,8 +377,10 @@ static inline unsigned long memblock_region_memory_base_pfn(const struct membloc
 }
 
 /**
- * memblock_region_memory_end_pfn - Return the end_pfn this region
+ * memblock_region_memory_end_pfn - get the end pfn of the memory region
  * @reg: memblock_region structure
+ *
+ * Return: the end_pfn of the reserved region
  */
 static inline unsigned long memblock_region_memory_end_pfn(const struct memblock_region *reg)
 {
@@ -385,8 +388,10 @@ static inline unsigned long memblock_region_memory_end_pfn(const struct memblock
 }
 
 /**
- * memblock_region_reserved_base_pfn - Return the lowest pfn intersecting with the reserved region
+ * memblock_region_reserved_base_pfn - get the lowest pfn of the reserved region
  * @reg: memblock_region structure
+ *
+ * Return: the lowest pfn intersecting with the reserved region
  */
 static inline unsigned long memblock_region_reserved_base_pfn(const struct memblock_region *reg)
 {
@@ -394,8 +399,10 @@ static inline unsigned long memblock_region_reserved_base_pfn(const struct membl
 }
 
 /**
- * memblock_region_reserved_end_pfn - Return the end_pfn this region
+ * memblock_region_reserved_end_pfn - get the end pfn of the reserved region
  * @reg: memblock_region structure
+ *
+ * Return: the end_pfn of the reserved region
  */
 static inline unsigned long memblock_region_reserved_end_pfn(const struct memblock_region *reg)
 {
