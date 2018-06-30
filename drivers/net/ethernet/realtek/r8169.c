@@ -80,7 +80,6 @@ static const int multicast_filter_limit = 32;
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
 #define RTL8169_TX_TIMEOUT	(6*HZ)
-#define RTL8169_PHY_TIMEOUT	(10*HZ)
 
 /* write/read MMIO register */
 #define RTL_W8(tp, reg, val8)	writeb((val8), tp->mmio_addr + (reg))
@@ -703,7 +702,6 @@ enum rtl_flag {
 	RTL_FLAG_TASK_ENABLED,
 	RTL_FLAG_TASK_SLOW_PENDING,
 	RTL_FLAG_TASK_RESET_PENDING,
-	RTL_FLAG_TASK_PHY_PENDING,
 	RTL_FLAG_MAX
 };
 
@@ -731,7 +729,6 @@ struct rtl8169_private {
 	dma_addr_t RxPhyAddr;
 	void *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
-	struct timer_list timer;
 	u16 cp_cmd;
 
 	u16 event_slow;
@@ -1788,20 +1785,7 @@ out:
 static int rtl8169_set_speed(struct net_device *dev,
 			     u8 autoneg, u16 speed, u8 duplex, u32 advertising)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int ret;
-
-	ret = rtl8169_set_speed_xmii(dev, autoneg, speed, duplex, advertising);
-	if (ret < 0)
-		goto out;
-
-	if (netif_running(dev) && (autoneg == AUTONEG_ENABLE) &&
-	    (advertising & ADVERTISED_1000baseT_Full) &&
-	    !pci_is_pcie(tp->pci_dev)) {
-		mod_timer(&tp->timer, jiffies + RTL8169_PHY_TIMEOUT);
-	}
-out:
-	return ret;
+	return rtl8169_set_speed_xmii(dev, autoneg, speed, duplex, advertising);
 }
 
 static netdev_features_t rtl8169_fix_features(struct net_device *dev,
@@ -1887,8 +1871,6 @@ static int rtl8169_set_link_ksettings(struct net_device *dev,
 	if (!ethtool_convert_link_mode_to_legacy_u32(&advertising,
 	    cmd->link_modes.advertising))
 		return -EINVAL;
-
-	del_timer_sync(&tp->timer);
 
 	rtl_lock_work(tp);
 	rc = rtl8169_set_speed(dev, cmd->base.autoneg, cmd->base.speed,
@@ -4293,42 +4275,10 @@ static void rtl_hw_phy_config(struct net_device *dev)
 	}
 }
 
-static void rtl_phy_work(struct rtl8169_private *tp)
-{
-	struct timer_list *timer = &tp->timer;
-	unsigned long timeout = RTL8169_PHY_TIMEOUT;
-
-	if (rtl8169_xmii_reset_pending(tp)) {
-		/*
-		 * A busy loop could burn quite a few cycles on nowadays CPU.
-		 * Let's delay the execution of the timer for a few ticks.
-		 */
-		timeout = HZ/10;
-		goto out_mod_timer;
-	}
-
-	if (rtl8169_xmii_link_ok(tp))
-		return;
-
-	netif_dbg(tp, link, tp->dev, "PHY reset until link up\n");
-
-	rtl8169_xmii_reset_enable(tp);
-
-out_mod_timer:
-	mod_timer(timer, jiffies + timeout);
-}
-
 static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 {
 	if (!test_and_set_bit(flag, tp->wk.flags))
 		schedule_work(&tp->wk.work);
-}
-
-static void rtl8169_phy_timer(struct timer_list *t)
-{
-	struct rtl8169_private *tp = from_timer(tp, t, timer);
-
-	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
 
 DECLARE_RTL_COND(rtl_phy_reset_cond)
@@ -6909,7 +6859,6 @@ static void rtl_task(struct work_struct *work)
 		/* XXX - keep rtl_slow_event_work() as first element. */
 		{ RTL_FLAG_TASK_SLOW_PENDING,	rtl_slow_event_work },
 		{ RTL_FLAG_TASK_RESET_PENDING,	rtl_reset_work },
-		{ RTL_FLAG_TASK_PHY_PENDING,	rtl_phy_work }
 	};
 	struct rtl8169_private *tp =
 		container_of(work, struct rtl8169_private, wk.work);
@@ -6981,8 +6930,6 @@ static void rtl8169_rx_missed(struct net_device *dev)
 static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-
-	del_timer_sync(&tp->timer);
 
 	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
@@ -7693,8 +7640,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;
 	tp->coalesce_info = cfg->coalesce_info;
-
-	timer_setup(&tp->timer, rtl8169_phy_timer, 0);
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 
