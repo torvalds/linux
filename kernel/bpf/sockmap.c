@@ -2496,6 +2496,7 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_get_next_key = sock_hash_get_next_key,
 	.map_update_elem = sock_hash_update_elem,
 	.map_delete_elem = sock_hash_delete_elem,
+	.map_release_uref = sock_map_release,
 };
 
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,
