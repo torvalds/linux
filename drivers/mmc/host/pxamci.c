@@ -593,16 +593,16 @@ MODULE_DEVICE_TABLE(of, pxa_mmc_dt_ids);
 
 static int pxamci_of_init(struct platform_device *pdev)
 {
-        struct device_node *np = pdev->dev.of_node;
-        struct pxamci_platform_data *pdata;
-        u32 tmp;
+	struct device_node *np = pdev->dev.of_node;
+	struct pxamci_platform_data *pdata;
+	u32 tmp;
 
-        if (!np)
-                return 0;
+	if (!np)
+		return 0;
 
-        pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-        if (!pdata)
-                return -ENOMEM;
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	pdata->gpio_card_detect =
 		of_get_named_gpio(np, "cd-gpios", 0);
@@ -616,9 +616,9 @@ static int pxamci_of_init(struct platform_device *pdev)
 	if (of_property_read_u32(np, "pxa-mmc,detect-delay-ms", &tmp) == 0)
 		pdata->detect_delay_ms = tmp;
 
-        pdev->dev.platform_data = pdata;
+	pdev->dev.platform_data = pdata;
 
-        return 0;
+	return 0;
 }
 #else
 static int pxamci_of_init(struct platform_device *pdev)
