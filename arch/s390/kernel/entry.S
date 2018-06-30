@@ -357,6 +357,10 @@ ENTRY(system_call)
 	stg	%r2,__PT_R2(%r11)		# store return value
 
 .Lsysc_return:
+#ifdef CONFIG_DEBUG_RSEQ
+	lgr	%r2,%r11
+	brasl	%r14,rseq_syscall
+#endif
 	LOCKDEP_SYS_EXIT
 .Lsysc_tif:
 	TSTMSK	__PT_FLAGS(%r11),_PIF_WORK
