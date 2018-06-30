@@ -293,7 +293,11 @@ static int afu_release(struct inode *inode, struct file *filp)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
-	port_reset(pdev);
+	mutex_lock(&pdata->lock);
+	__port_reset(pdev);
+	afu_dma_region_destroy(pdata);
+	mutex_unlock(&pdata->lock);
+
 	dfl_feature_dev_use_end(pdata);
 
 	return 0;
@@ -364,6 +368,55 @@ static long afu_ioctl_get_region_info(struct dfl_feature_platform_data *pdata,
 	return 0;
 }
 
+static long
+afu_ioctl_dma_map(struct dfl_feature_platform_data *pdata, void __user *arg)
+{
+	struct dfl_fpga_port_dma_map map;
+	unsigned long minsz;
+	long ret;
+
+	minsz = offsetofend(struct dfl_fpga_port_dma_map, iova);
+
+	if (copy_from_user(&map, arg, minsz))
+		return -EFAULT;
+
+	if (map.argsz < minsz || map.flags)
+		return -EINVAL;
+
+	ret = afu_dma_map_region(pdata, map.user_addr, map.length, &map.iova);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, &map, sizeof(map))) {
+		afu_dma_unmap_region(pdata, map.iova);
+		return -EFAULT;
+	}
+
+	dev_dbg(&pdata->dev->dev, "dma map: ua=%llx, len=%llx, iova=%llx\n",
+		(unsigned long long)map.user_addr,
+		(unsigned long long)map.length,
+		(unsigned long long)map.iova);
+
+	return 0;
+}
+
+static long
+afu_ioctl_dma_unmap(struct dfl_feature_platform_data *pdata, void __user *arg)
+{
+	struct dfl_fpga_port_dma_unmap unmap;
+	unsigned long minsz;
+
+	minsz = offsetofend(struct dfl_fpga_port_dma_unmap, iova);
+
+	if (copy_from_user(&unmap, arg, minsz))
+		return -EFAULT;
+
+	if (unmap.argsz < minsz || unmap.flags)
+		return -EINVAL;
+
+	return afu_dma_unmap_region(pdata, unmap.iova);
+}
+
 static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct platform_device *pdev = filp->private_data;
@@ -384,6 +437,10 @@ static long afu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return afu_ioctl_get_info(pdata, (void __user *)arg);
 	case DFL_FPGA_PORT_GET_REGION_INFO:
 		return afu_ioctl_get_region_info(pdata, (void __user *)arg);
+	case DFL_FPGA_PORT_DMA_MAP:
+		return afu_ioctl_dma_map(pdata, (void __user *)arg);
+	case DFL_FPGA_PORT_DMA_UNMAP:
+		return afu_ioctl_dma_unmap(pdata, (void __user *)arg);
 	default:
 		/*
 		 * Let sub-feature's ioctl function to handle the cmd
@@ -460,6 +517,7 @@ static int afu_dev_init(struct platform_device *pdev)
 	mutex_lock(&pdata->lock);
 	dfl_fpga_pdata_set_private(pdata, afu);
 	afu_mmio_region_init(pdata);
+	afu_dma_region_init(pdata);
 	mutex_unlock(&pdata->lock);
 
 	return 0;
@@ -473,6 +531,7 @@ static int afu_dev_destroy(struct platform_device *pdev)
 	mutex_lock(&pdata->lock);
 	afu = dfl_fpga_pdata_get_private(pdata);
 	afu_mmio_region_destroy(pdata);
+	afu_dma_region_destroy(pdata);
 	dfl_fpga_pdata_set_private(pdata, NULL);
 	mutex_unlock(&pdata->lock);
 
