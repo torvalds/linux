@@ -151,6 +151,7 @@ void dfl_fpga_port_ops_add(struct dfl_fpga_port_ops *ops);
 void dfl_fpga_port_ops_del(struct dfl_fpga_port_ops *ops);
 struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev);
 void dfl_fpga_port_ops_put(struct dfl_fpga_port_ops *ops);
+int dfl_fpga_check_port_id(struct platform_device *pdev, void *pport_id);
 
 /**
  * struct dfl_feature_driver - sub feature's driver
