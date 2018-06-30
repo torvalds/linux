@@ -19,6 +19,7 @@
 #include <linux/fpga-dfl.h>
 
 #include "dfl.h"
+#include "dfl-fme.h"
 
 static ssize_t ports_num_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -113,6 +114,10 @@ static struct dfl_feature_driver fme_feature_drvs[] = {
 		.ops = &fme_hdr_ops,
 	},
 	{
+		.id = FME_FEATURE_ID_PR_MGMT,
+		.ops = &pr_mgmt_ops,
+	},
+	{
 		.ops = NULL,
 	},
 };
@@ -187,6 +192,35 @@ static long fme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+static int fme_dev_init(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_fme *fme;
+
+	fme = devm_kzalloc(&pdev->dev, sizeof(*fme), GFP_KERNEL);
+	if (!fme)
+		return -ENOMEM;
+
+	fme->pdata = pdata;
+
+	mutex_lock(&pdata->lock);
+	dfl_fpga_pdata_set_private(pdata, fme);
+	mutex_unlock(&pdata->lock);
+
+	return 0;
+}
+
+static void fme_dev_destroy(struct platform_device *pdev)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_fme *fme;
+
+	mutex_lock(&pdata->lock);
+	fme = dfl_fpga_pdata_get_private(pdata);
+	dfl_fpga_pdata_set_private(pdata, NULL);
+	mutex_unlock(&pdata->lock);
+}
+
 static const struct file_operations fme_fops = {
 	.owner		= THIS_MODULE,
 	.open		= fme_open,
@@ -198,9 +232,13 @@ static int fme_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = dfl_fpga_dev_feature_init(pdev, fme_feature_drvs);
+	ret = fme_dev_init(pdev);
 	if (ret)
 		goto exit;
+
+	ret = dfl_fpga_dev_feature_init(pdev, fme_feature_drvs);
+	if (ret)
+		goto dev_destroy;
 
 	ret = dfl_fpga_dev_ops_register(pdev, &fme_fops, THIS_MODULE);
 	if (ret)
@@ -210,6 +248,8 @@ static int fme_probe(struct platform_device *pdev)
 
 feature_uinit:
 	dfl_fpga_dev_feature_uinit(pdev);
+dev_destroy:
+	fme_dev_destroy(pdev);
 exit:
 	return ret;
 }
@@ -218,6 +258,7 @@ static int fme_remove(struct platform_device *pdev)
 {
 	dfl_fpga_dev_ops_unregister(pdev);
 	dfl_fpga_dev_feature_uinit(pdev);
+	fme_dev_destroy(pdev);
 
 	return 0;
 }
