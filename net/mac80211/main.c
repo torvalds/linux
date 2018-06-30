@@ -3,6 +3,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2017     Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -557,10 +558,19 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	wiphy_ext_feature_set(wiphy,
 			      NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211);
 
-	if (!ops->hw_scan)
+	if (!ops->hw_scan) {
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
 				   NL80211_FEATURE_AP_SCAN;
-
+		/*
+		 * if the driver behaves correctly using the probe request
+		 * (template) from mac80211, then both of these should be
+		 * supported even with hw scan - but let drivers opt in.
+		 */
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_SCAN_RANDOM_SN);
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT);
+	}
 
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -588,8 +598,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	local->hw.queues = 1;
 	local->hw.max_rates = 1;
 	local->hw.max_report_rates = 0;
-	local->hw.max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
-	local->hw.max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
+	local->hw.max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF_HT;
+	local->hw.max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF_HT;
 	local->hw.offchannel_tx_hw_queue = IEEE80211_INVAL_HW_QUEUE;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
@@ -816,7 +826,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum nl80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht, supp_vht;
+	bool supp_ht, supp_vht, supp_he;
 	netdev_features_t feature_whitelist;
 	struct cfg80211_chan_def dflt_chandef = {};
 
@@ -896,6 +906,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	max_bitrates = 0;
 	supp_ht = false;
 	supp_vht = false;
+	supp_he = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
@@ -921,6 +932,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
+
+		if (!supp_he)
+			supp_he = !!ieee80211_get_he_sta_cap(sband);
 
 		if (!sband->ht_cap.ht_supported)
 			continue;
@@ -1010,6 +1024,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_vht)
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
+
+	/* HE cap element is variable in size - set len to allow max size */
+	/*
+	 * TODO: 1 is added at the end of the calculation to accommodate for
+	 *	the temporary placing of the HE capabilities IE under EXT.
+	 *	Remove it once it is placed in the final place.
+	 */
+	if (supp_he)
+		local->scan_ies_len +=
+			2 + sizeof(struct ieee80211_he_cap_elem) +
+			sizeof(struct ieee80211_he_mcs_nss_supp) +
+			IEEE80211_HE_PPE_THRES_MAX_LEN + 1;
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */

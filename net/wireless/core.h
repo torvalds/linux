@@ -76,7 +76,7 @@ struct cfg80211_registered_device {
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	struct sk_buff *scan_msg;
 	struct list_head sched_scan_req_list;
-	unsigned long suspend_at;
+	time64_t suspend_at;
 	struct work_struct scan_done_wk;
 
 	struct genl_info *cur_cmd_info;

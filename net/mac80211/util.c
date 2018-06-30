@@ -1095,6 +1095,21 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			if (elen >= sizeof(*elems->max_idle_period_ie))
 				elems->max_idle_period_ie = (void *)pos;
 			break;
+		case WLAN_EID_EXTENSION:
+			if (pos[0] == WLAN_EID_EXT_HE_MU_EDCA &&
+			    elen >= (sizeof(*elems->mu_edca_param_set) + 1)) {
+				elems->mu_edca_param_set = (void *)&pos[1];
+			} else if (pos[0] == WLAN_EID_EXT_HE_CAPABILITY) {
+				elems->he_cap = (void *)&pos[1];
+				elems->he_cap_len = elen - 1;
+			} else if (pos[0] == WLAN_EID_EXT_HE_OPERATION &&
+				   elen >= sizeof(*elems->he_operation) &&
+				   elen >= ieee80211_he_oper_size(&pos[1])) {
+				elems->he_operation = (void *)&pos[1];
+			} else if (pos[0] == WLAN_EID_EXT_UORA && elen >= 1) {
+				elems->uora_element = (void *)&pos[1];
+			}
+			break;
 		default:
 			break;
 		}
@@ -1353,9 +1368,10 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 					 enum nl80211_band band,
 					 u32 rate_mask,
 					 struct cfg80211_chan_def *chandef,
-					 size_t *offset)
+					 size_t *offset, u32 flags)
 {
 	struct ieee80211_supported_band *sband;
+	const struct ieee80211_sta_he_cap *he_cap;
 	u8 *pos = buffer, *end = buffer + buffer_len;
 	size_t noffset;
 	int supp_rates_len, i;
@@ -1433,6 +1449,9 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 				chandef->chan->center_freq);
 	}
 
+	if (flags & IEEE80211_PROBE_FLAG_MIN_CONTENT)
+		goto done;
+
 	/* insert custom IEs that go before HT */
 	if (ie && ie_len) {
 		static const u8 before_ht[] = {
@@ -1459,11 +1478,6 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
 	}
-
-	/*
-	 * If adding more here, adjust code in main.c
-	 * that calculates local->scan_ies_len.
-	 */
 
 	/* insert custom IEs that go before VHT */
 	if (ie && ie_len) {
@@ -1507,9 +1521,43 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 						 sband->vht_cap.cap);
 	}
 
+	/* insert custom IEs that go before HE */
+	if (ie && ie_len) {
+		static const u8 before_he[] = {
+			/*
+			 * no need to list the ones split off before VHT
+			 * or generated here
+			 */
+			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_REQ_PARAMS,
+			WLAN_EID_AP_CSN,
+			/* TODO: add 11ah/11aj/11ak elements */
+		};
+		noffset = ieee80211_ie_split(ie, ie_len,
+					     before_he, ARRAY_SIZE(before_he),
+					     *offset);
+		if (end - pos < noffset - *offset)
+			goto out_err;
+		memcpy(pos, ie + *offset, noffset - *offset);
+		pos += noffset - *offset;
+		*offset = noffset;
+	}
+
+	he_cap = ieee80211_get_he_sta_cap(sband);
+	if (he_cap) {
+		pos = ieee80211_ie_build_he_cap(pos, he_cap, end);
+		if (!pos)
+			goto out_err;
+	}
+
+	/*
+	 * If adding more here, adjust code in main.c
+	 * that calculates local->scan_ies_len.
+	 */
+
 	return pos - buffer;
  out_err:
 	WARN_ONCE(1, "not enough space for preq IEs\n");
+ done:
 	return pos - buffer;
 }
 
@@ -1518,7 +1566,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,
 			     u8 bands_used, u32 *rate_masks,
-			     struct cfg80211_chan_def *chandef)
+			     struct cfg80211_chan_def *chandef,
+			     u32 flags)
 {
 	size_t pos = 0, old_pos = 0, custom_ie_offset = 0;
 	int i;
@@ -1533,7 +1582,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 							     ie, ie_len, i,
 							     rate_masks[i],
 							     chandef,
-							     &custom_ie_offset);
+							     &custom_ie_offset,
+							     flags);
 			ie_desc->ies[i] = buffer + old_pos;
 			ie_desc->len[i] = pos - old_pos;
 			old_pos = pos;
@@ -1561,7 +1611,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
-					  bool directed)
+					  u32 flags)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct cfg80211_chan_def chandef;
@@ -1577,7 +1627,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	 * badly-behaved APs don't respond when this parameter is included.
 	 */
 	chandef.width = sdata->vif.bss_conf.chandef.width;
-	if (directed)
+	if (flags & IEEE80211_PROBE_FLAG_DIRECTED)
 		chandef.chan = NULL;
 	else
 		chandef.chan = chan;
@@ -1591,7 +1641,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
 					   skb_tailroom(skb), &dummy_ie_desc,
 					   ie, ie_len, BIT(chan->band),
-					   rate_masks, &chandef);
+					   rate_masks, &chandef, flags);
 	skb_put(skb, ies_len);
 
 	if (dst) {
@@ -1603,27 +1653,6 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 
 	return skb;
-}
-
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
-			      const u8 *src, const u8 *dst,
-			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed, u32 tx_flags,
-			      struct ieee80211_channel *channel, bool scan)
-{
-	struct sk_buff *skb;
-
-	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
-					ssid, ssid_len,
-					ie, ie_len, directed);
-	if (skb) {
-		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
-		if (scan)
-			ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
-		else
-			ieee80211_tx_skb(sdata, skb);
-	}
 }
 
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
@@ -2409,6 +2438,72 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	memcpy(pos, &vht_cap->vht_mcs, sizeof(vht_cap->vht_mcs));
 	pos += sizeof(vht_cap->vht_mcs);
 
+	return pos;
+}
+
+u8 *ieee80211_ie_build_he_cap(u8 *pos,
+			      const struct ieee80211_sta_he_cap *he_cap,
+			      u8 *end)
+{
+	u8 n;
+	u8 ie_len;
+	u8 *orig_pos = pos;
+
+	/* Make sure we have place for the IE */
+	/*
+	 * TODO: the 1 added is because this temporarily is under the EXTENSION
+	 * IE. Get rid of it when it moves.
+	 */
+	if (!he_cap)
+		return orig_pos;
+
+	n = ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem);
+	ie_len = 2 + 1 +
+		 sizeof(he_cap->he_cap_elem) + n +
+		 ieee80211_he_ppe_size(he_cap->ppe_thres[0],
+				       he_cap->he_cap_elem.phy_cap_info);
+
+	if ((end - pos) < ie_len)
+		return orig_pos;
+
+	*pos++ = WLAN_EID_EXTENSION;
+	pos++; /* We'll set the size later below */
+	*pos++ = WLAN_EID_EXT_HE_CAPABILITY;
+
+	/* Fixed data */
+	memcpy(pos, &he_cap->he_cap_elem, sizeof(he_cap->he_cap_elem));
+	pos += sizeof(he_cap->he_cap_elem);
+
+	memcpy(pos, &he_cap->he_mcs_nss_supp, n);
+	pos += n;
+
+	/* Check if PPE Threshold should be present */
+	if ((he_cap->he_cap_elem.phy_cap_info[6] &
+	     IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) == 0)
+		goto end;
+
+	/*
+	 * Calculate how many PPET16/PPET8 pairs are to come. Algorithm:
+	 * (NSS_M1 + 1) x (num of 1 bits in RU_INDEX_BITMASK)
+	 */
+	n = hweight8(he_cap->ppe_thres[0] &
+		     IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK);
+	n *= (1 + ((he_cap->ppe_thres[0] & IEEE80211_PPE_THRES_NSS_MASK) >>
+		   IEEE80211_PPE_THRES_NSS_POS));
+
+	/*
+	 * Each pair is 6 bits, and we need to add the 7 "header" bits to the
+	 * total size.
+	 */
+	n = (n * IEEE80211_PPE_THRES_INFO_PPET_SIZE * 2) + 7;
+	n = DIV_ROUND_UP(n, 8);
+
+	/* Copy PPE Thresholds */
+	memcpy(pos, &he_cap->ppe_thres, n);
+	pos += n;
+
+end:
+	orig_pos[1] = (pos - orig_pos) - 2;
 	return pos;
 }
 

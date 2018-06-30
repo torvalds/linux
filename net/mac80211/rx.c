@@ -175,6 +175,20 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 		len += 12;
 	}
 
+	if (status->encoding == RX_ENC_HE &&
+	    status->flag & RX_FLAG_RADIOTAP_HE) {
+		len = ALIGN(len, 2);
+		len += 12;
+		BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he) != 12);
+	}
+
+	if (status->encoding == RX_ENC_HE &&
+	    status->flag & RX_FLAG_RADIOTAP_HE_MU) {
+		len = ALIGN(len, 2);
+		len += 12;
+		BUILD_BUG_ON(sizeof(struct ieee80211_radiotap_he_mu) != 12);
+	}
+
 	if (status->chains) {
 		/* antenna and antenna signal fields */
 		len += 2 * hweight8(status->chains);
@@ -263,6 +277,19 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	int mpdulen, chain;
 	unsigned long chains = status->chains;
 	struct ieee80211_vendor_radiotap rtap = {};
+	struct ieee80211_radiotap_he he = {};
+	struct ieee80211_radiotap_he_mu he_mu = {};
+
+	if (status->flag & RX_FLAG_RADIOTAP_HE) {
+		he = *(struct ieee80211_radiotap_he *)skb->data;
+		skb_pull(skb, sizeof(he));
+		WARN_ON_ONCE(status->encoding != RX_ENC_HE);
+	}
+
+	if (status->flag & RX_FLAG_RADIOTAP_HE_MU) {
+		he_mu = *(struct ieee80211_radiotap_he_mu *)skb->data;
+		skb_pull(skb, sizeof(he_mu));
+	}
 
 	if (status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA) {
 		rtap = *(struct ieee80211_vendor_radiotap *)skb->data;
@@ -520,6 +547,89 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		*pos++ = flags;
 	}
 
+	if (status->encoding == RX_ENC_HE &&
+	    status->flag & RX_FLAG_RADIOTAP_HE) {
+#define HE_PREP(f, val)	cpu_to_le16(FIELD_PREP(IEEE80211_RADIOTAP_HE_##f, val))
+
+		if (status->enc_flags & RX_ENC_FLAG_STBC_MASK) {
+			he.data6 |= HE_PREP(DATA6_NSTS,
+					    FIELD_GET(RX_ENC_FLAG_STBC_MASK,
+						      status->enc_flags));
+			he.data3 |= HE_PREP(DATA3_STBC, 1);
+		} else {
+			he.data6 |= HE_PREP(DATA6_NSTS, status->nss);
+		}
+
+#define CHECK_GI(s) \
+	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA5_GI_##s != \
+		     (int)NL80211_RATE_INFO_HE_GI_##s)
+
+		CHECK_GI(0_8);
+		CHECK_GI(1_6);
+		CHECK_GI(3_2);
+
+		he.data3 |= HE_PREP(DATA3_DATA_MCS, status->rate_idx);
+		he.data3 |= HE_PREP(DATA3_DATA_DCM, status->he_dcm);
+		he.data3 |= HE_PREP(DATA3_CODING,
+				    !!(status->enc_flags & RX_ENC_FLAG_LDPC));
+
+		he.data5 |= HE_PREP(DATA5_GI, status->he_gi);
+
+		switch (status->bw) {
+		case RATE_INFO_BW_20:
+			he.data5 |= HE_PREP(DATA5_DATA_BW_RU_ALLOC,
+					    IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC_20MHZ);
+			break;
+		case RATE_INFO_BW_40:
+			he.data5 |= HE_PREP(DATA5_DATA_BW_RU_ALLOC,
+					    IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC_40MHZ);
+			break;
+		case RATE_INFO_BW_80:
+			he.data5 |= HE_PREP(DATA5_DATA_BW_RU_ALLOC,
+					    IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC_80MHZ);
+			break;
+		case RATE_INFO_BW_160:
+			he.data5 |= HE_PREP(DATA5_DATA_BW_RU_ALLOC,
+					    IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC_160MHZ);
+			break;
+		case RATE_INFO_BW_HE_RU:
+#define CHECK_RU_ALLOC(s) \
+	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA5_DATA_BW_RU_ALLOC_##s##T != \
+		     NL80211_RATE_INFO_HE_RU_ALLOC_##s + 4)
+
+			CHECK_RU_ALLOC(26);
+			CHECK_RU_ALLOC(52);
+			CHECK_RU_ALLOC(106);
+			CHECK_RU_ALLOC(242);
+			CHECK_RU_ALLOC(484);
+			CHECK_RU_ALLOC(996);
+			CHECK_RU_ALLOC(2x996);
+
+			he.data5 |= HE_PREP(DATA5_DATA_BW_RU_ALLOC,
+					    status->he_ru + 4);
+			break;
+		default:
+			WARN_ONCE(1, "Invalid SU BW %d\n", status->bw);
+		}
+
+		/* ensure 2 byte alignment */
+		while ((pos - (u8 *)rthdr) & 1)
+			pos++;
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_HE);
+		memcpy(pos, &he, sizeof(he));
+		pos += sizeof(he);
+	}
+
+	if (status->encoding == RX_ENC_HE &&
+	    status->flag & RX_FLAG_RADIOTAP_HE_MU) {
+		/* ensure 2 byte alignment */
+		while ((pos - (u8 *)rthdr) & 1)
+			pos++;
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_HE_MU);
+		memcpy(pos, &he_mu, sizeof(he_mu));
+		pos += sizeof(he_mu);
+	}
+
 	for_each_set_bit(chain, &chains, IEEE80211_MAX_CHAINS) {
 		*pos++ = status->chain_signal[chain];
 		*pos++ = chain;
@@ -612,6 +722,12 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct ieee80211_sub_if_data *monitor_sdata =
 		rcu_dereference(local->monitor_sdata);
 	bool only_monitor = false;
+
+	if (status->flag & RX_FLAG_RADIOTAP_HE)
+		rtap_space += sizeof(struct ieee80211_radiotap_he);
+
+	if (status->flag & RX_FLAG_RADIOTAP_HE_MU)
+		rtap_space += sizeof(struct ieee80211_radiotap_he_mu);
 
 	if (unlikely(status->flag & RX_FLAG_RADIOTAP_VENDOR_DATA)) {
 		struct ieee80211_vendor_radiotap *rtap = (void *)origskb->data;
@@ -3241,7 +3357,7 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 		}
 
 		__ieee80211_tx_skb_tid_band(rx->sdata, nskb, 7,
-					    status->band);
+					    status->band, 0);
 	}
 	dev_kfree_skb(rx->skb);
 	return RX_QUEUED;
@@ -3386,8 +3502,7 @@ static void ieee80211_rx_handlers_result(struct ieee80211_rx_data *rx,
 		status = IEEE80211_SKB_RXCB((rx->skb));
 
 		sband = rx->local->hw.wiphy->bands[status->band];
-		if (!(status->encoding == RX_ENC_HT) &&
-		    !(status->encoding == RX_ENC_VHT))
+		if (status->encoding == RX_ENC_LEGACY)
 			rate = &sband->bitrates[status->rate_idx];
 
 		ieee80211_rx_cooked_monitor(rx, rate);
@@ -4383,6 +4498,14 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 				      !status->nss ||
 				      status->nss > 8,
 				      "Rate marked as a VHT rate but data is invalid: MCS: %d, NSS: %d\n",
+				      status->rate_idx, status->nss))
+				goto drop;
+			break;
+		case RX_ENC_HE:
+			if (WARN_ONCE(status->rate_idx > 11 ||
+				      !status->nss ||
+				      status->nss > 8,
+				      "Rate marked as an HE rate but data is invalid: MCS: %d, NSS: %d\n",
 				      status->rate_idx, status->nss))
 				goto drop;
 			break;

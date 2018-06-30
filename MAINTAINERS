@@ -12156,6 +12156,8 @@ S:	Maintained
 F:	Documentation/rfkill.txt
 F:	Documentation/ABI/stable/sysfs-class-rfkill
 F:	net/rfkill/
+F:	include/linux/rfkill.h
+F:	include/uapi/linux/rfkill.h
 
 RHASHTABLE
 M:	Thomas Graf <tgraf@suug.ch>

@@ -116,16 +116,16 @@ static void ieee80211_get_stats(struct net_device *dev,
 		data[i++] = sta->sta_state;
 
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE))
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_TX_BITRATE))
 			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo.txrate);
 		i++;
-		if (sinfo.filled & BIT(NL80211_STA_INFO_RX_BITRATE))
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE))
 			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo.rxrate);
 		i++;
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG))
 			data[i] = (u8)sinfo.signal_avg;
 		i++;
 	} else {
