@@ -3459,35 +3459,63 @@ sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
 }
 #endif /* CONFIG_NET_EGRESS */
 
-static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
+#ifdef CONFIG_XPS
+static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
+			       struct xps_dev_maps *dev_maps, unsigned int tci)
+{
+	struct xps_map *map;
+	int queue_index = -1;
+
+	if (dev->num_tc) {
+		tci *= dev->num_tc;
+		tci += netdev_get_prio_tc_map(dev, skb->priority);
+	}
+
+	map = rcu_dereference(dev_maps->attr_map[tci]);
+	if (map) {
+		if (map->len == 1)
+			queue_index = map->queues[0];
+		else
+			queue_index = map->queues[reciprocal_scale(
+						skb_get_hash(skb), map->len)];
+		if (unlikely(queue_index >= dev->real_num_tx_queues))
+			queue_index = -1;
+	}
+	return queue_index;
+}
+#endif
+
+static int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_XPS
 	struct xps_dev_maps *dev_maps;
-	struct xps_map *map;
+	struct sock *sk = skb->sk;
 	int queue_index = -1;
 
 	if (!static_key_false(&xps_needed))
 		return -1;
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_cpus_map);
+	if (!static_key_false(&xps_rxqs_needed))
+		goto get_cpus_map;
+
+	dev_maps = rcu_dereference(dev->xps_rxqs_map);
 	if (dev_maps) {
-		unsigned int tci = skb->sender_cpu - 1;
+		int tci = sk_rx_queue_get(sk);
 
-		if (dev->num_tc) {
-			tci *= dev->num_tc;
-			tci += netdev_get_prio_tc_map(dev, skb->priority);
-		}
+		if (tci >= 0 && tci < dev->num_rx_queues)
+			queue_index = __get_xps_queue_idx(dev, skb, dev_maps,
+							  tci);
+	}
 
-		map = rcu_dereference(dev_maps->attr_map[tci]);
-		if (map) {
-			if (map->len == 1)
-				queue_index = map->queues[0];
-			else
-				queue_index = map->queues[reciprocal_scale(skb_get_hash(skb),
-									   map->len)];
-			if (unlikely(queue_index >= dev->real_num_tx_queues))
-				queue_index = -1;
+get_cpus_map:
+	if (queue_index < 0) {
+		dev_maps = rcu_dereference(dev->xps_cpus_map);
+		if (dev_maps) {
+			unsigned int tci = skb->sender_cpu - 1;
+
+			queue_index = __get_xps_queue_idx(dev, skb, dev_maps,
+							  tci);
 		}
 	}
 	rcu_read_unlock();

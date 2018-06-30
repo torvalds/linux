@@ -1730,6 +1730,16 @@ static inline void sk_rx_queue_clear(struct sock *sk)
 #endif
 }
 
+#ifdef CONFIG_XPS
+static inline int sk_rx_queue_get(const struct sock *sk)
+{
+	if (sk && sk->sk_rx_queue_mapping != NO_QUEUE_MAPPING)
+		return sk->sk_rx_queue_mapping;
+
+	return -1;
+}
+#endif
+
 static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 {
 	sk_tx_queue_clear(sk);
