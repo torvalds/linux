@@ -26,6 +26,61 @@
 
 #include "internal.h"
 
+/**
+ * DOC: memblock overview
+ *
+ * Memblock is a method of managing memory regions during the early
+ * boot period when the usual kernel memory allocators are not up and
+ * running.
+ *
+ * Memblock views the system memory as collections of contiguous
+ * regions. There are several types of these collections:
+ *
+ * * ``memory`` - describes the physical memory available to the
+ *   kernel; this may differ from the actual physical memory installed
+ *   in the system, for instance when the memory is restricted with
+ *   ``mem=`` command line parameter
+ * * ``reserved`` - describes the regions that were allocated
+ * * ``physmap`` - describes the actual physical memory regardless of
+ *   the possible restrictions; the ``physmap`` type is only available
+ *   on some architectures.
+ *
+ * Each region is represented by :c:type:`struct memblock_region` that
+ * defines the region extents, its attributes and NUMA node id on NUMA
+ * systems. Every memory type is described by the :c:type:`struct
+ * memblock_type` which contains an array of memory regions along with
+ * the allocator metadata. The memory types are nicely wrapped with
+ * :c:type:`struct memblock`. This structure is statically initialzed
+ * at build time. The region arrays for the "memory" and "reserved"
+ * types are initially sized to %INIT_MEMBLOCK_REGIONS and for the
+ * "physmap" type to %INIT_PHYSMEM_REGIONS.
+ * The :c:func:`memblock_allow_resize` enables automatic resizing of
+ * the region arrays during addition of new regions. This feature
+ * should be used with care so that memory allocated for the region
+ * array will not overlap with areas that should be reserved, for
+ * example initrd.
+ *
+ * The early architecture setup should tell memblock what the physical
+ * memory layout is by using :c:func:`memblock_add` or
+ * :c:func:`memblock_add_node` functions. The first function does not
+ * assign the region to a NUMA node and it is appropriate for UMA
+ * systems. Yet, it is possible to use it on NUMA systems as well and
+ * assign the region to a NUMA node later in the setup process using
+ * :c:func:`memblock_set_node`. The :c:func:`memblock_add_node`
+ * performs such an assignment directly.
+ *
+ * Once memblock is setup the memory can be allocated using either
+ * memblock or bootmem APIs.
+ *
+ * As the system boot progresses, the architecture specific
+ * :c:func:`mem_init` function frees all the memory to the buddy page
+ * allocator.
+ *
+ * If an architecure enables %CONFIG_ARCH_DISCARD_MEMBLOCK, the
+ * memblock data structures will be discarded after the system
+ * initialization compltes.
+ */
+
 static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
 static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
 #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
