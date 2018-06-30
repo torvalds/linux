@@ -1516,10 +1516,9 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->present_callback = card_present;
 	priv->card = card;
 	priv->firmware = NULL;
-	priv->firmware_id[0] = '\0';
 	priv->firmware_type = fw_type;
 	if (firmware) /* module parameter */
-		strcpy(priv->firmware_id, firmware);
+		strlcpy(priv->firmware_id, firmware, sizeof(priv->firmware_id));
 	priv->bus_type = card_present ? BUS_TYPE_PCCARD : BUS_TYPE_PCI;
 	priv->station_state = STATION_STATE_DOWN;
 	priv->do_rx_crc = 0;
