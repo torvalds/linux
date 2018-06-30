@@ -249,7 +249,7 @@ bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 	}
 
 	sa_idx = xs->xso.offload_handle & ~NSIM_IPSEC_VALID;
-	if (unlikely(sa_idx > NSIM_IPSEC_MAX_SA_COUNT)) {
+	if (unlikely(sa_idx >= NSIM_IPSEC_MAX_SA_COUNT)) {
 		netdev_err(ns->netdev, "bad sa_idx=%d max=%d\n",
 			   sa_idx, NSIM_IPSEC_MAX_SA_COUNT);
 		return false;
