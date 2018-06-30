@@ -46,6 +46,7 @@ static const int config_pins[] = {
 struct titsc {
 	struct input_dev	*input;
 	struct ti_tscadc_dev	*mfd_tscadc;
+	struct device		*dev;
 	unsigned int		irq;
 	unsigned int		wires;
 	unsigned int		x_plate_resistance;
@@ -276,7 +277,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 	if (status & IRQENB_HW_PEN) {
 		ts_dev->pen_down = true;
 		irqclr |= IRQENB_HW_PEN;
-		pm_stay_awake(ts_dev->mfd_tscadc->dev);
+		pm_stay_awake(ts_dev->dev);
 	}
 
 	if (status & IRQENB_PENUP) {
@@ -286,7 +287,7 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 			input_report_key(input_dev, BTN_TOUCH, 0);
 			input_report_abs(input_dev, ABS_PRESSURE, 0);
 			input_sync(input_dev);
-			pm_relax(ts_dev->mfd_tscadc->dev);
+			pm_relax(ts_dev->dev);
 		} else {
 			ts_dev->pen_down = true;
 		}
@@ -422,6 +423,7 @@ static int titsc_probe(struct platform_device *pdev)
 	ts_dev->mfd_tscadc = tscadc_dev;
 	ts_dev->input = input_dev;
 	ts_dev->irq = tscadc_dev->irq;
+	ts_dev->dev = &pdev->dev;
 
 	err = titsc_parse_dt(pdev, ts_dev);
 	if (err) {
@@ -435,6 +437,8 @@ static int titsc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate irq.\n");
 		goto err_free_mem;
 	}
+
+	device_init_wakeup(&pdev->dev, true);
 
 	titsc_writel(ts_dev, REG_IRQSTATUS, TSC_IRQENB_MASK);
 	titsc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
@@ -467,6 +471,7 @@ static int titsc_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_irq:
+	device_init_wakeup(&pdev->dev, false);
 	free_irq(ts_dev->irq, ts_dev);
 err_free_mem:
 	input_free_device(input_dev);
@@ -479,6 +484,7 @@ static int titsc_remove(struct platform_device *pdev)
 	struct titsc *ts_dev = platform_get_drvdata(pdev);
 	u32 steps;
 
+	device_init_wakeup(&pdev->dev, false);
 	free_irq(ts_dev->irq, ts_dev);
 
 	/* total steps followed by the enable mask */
@@ -499,7 +505,7 @@ static int __maybe_unused titsc_suspend(struct device *dev)
 	unsigned int idle;
 
 	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
-	if (device_may_wakeup(tscadc_dev->dev)) {
+	if (device_may_wakeup(dev)) {
 		titsc_writel(ts_dev, REG_IRQSTATUS, TSC_IRQENB_MASK);
 		idle = titsc_readl(ts_dev, REG_IRQENABLE);
 		titsc_writel(ts_dev, REG_IRQENABLE,
@@ -515,11 +521,11 @@ static int __maybe_unused titsc_resume(struct device *dev)
 	struct ti_tscadc_dev *tscadc_dev;
 
 	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
-	if (device_may_wakeup(tscadc_dev->dev)) {
+	if (device_may_wakeup(dev)) {
 		titsc_writel(ts_dev, REG_IRQWAKEUP,
 				0x00);
 		titsc_writel(ts_dev, REG_IRQCLR, IRQENB_HW_PEN);
-		pm_relax(ts_dev->mfd_tscadc->dev);
+		pm_relax(dev);
 	}
 	titsc_step_config(ts_dev);
 	titsc_writel(ts_dev, REG_FIFO0THR,
