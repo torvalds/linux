@@ -156,6 +156,19 @@ check_fail()
 	fi
 }
 
+check_err_fail()
+{
+	local should_fail=$1; shift
+	local err=$1; shift
+	local what=$1; shift
+
+	if ((should_fail)); then
+		check_fail $err "$what succeeded, but should have failed"
+	else
+		check_err $err "$what failed"
+	fi
+}
+
 log_test()
 {
 	local test_name=$1
