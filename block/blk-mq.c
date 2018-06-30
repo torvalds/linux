@@ -2707,7 +2707,7 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 /*
  * Alloc a tag set to be associated with one or more request queues.
  * May fail with EINVAL for various error conditions. May adjust the
- * requested depth down, if if it too large. In that case, the set
+ * requested depth down, if it's too large. In that case, the set
  * value will be stored in set->queue_depth.
  */
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
