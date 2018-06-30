@@ -806,18 +806,12 @@ out:
 static int pxamci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
-	int gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 
 		mmc_remove_host(mmc);
 
-		if (host->pdata) {
-			gpio_cd = host->pdata->gpio_card_detect;
-			gpio_ro = host->pdata->gpio_card_ro;
-			gpio_power = host->pdata->gpio_power;
-		}
 		if (host->pdata && host->pdata->exit)
 			host->pdata->exit(&pdev->dev, mmc);
 
@@ -833,6 +827,7 @@ static int pxamci_remove(struct platform_device *pdev)
 
 		mmc_free_host(mmc);
 	}
+
 	return 0;
 }
 
