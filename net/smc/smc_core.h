@@ -124,15 +124,28 @@ struct smc_buf_desc {
 	void			*cpu_addr;	/* virtual address of buffer */
 	struct page		*pages;
 	int			len;		/* length of buffer */
-	struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];/* virtual buffer */
-	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
-						/* for rmb only: memory region
-						 * incl. rkey provided to peer
-						 */
-	u32			order;		/* allocation order */
 	u32			used;		/* currently used / unused */
 	u8			reused	: 1;	/* new created / reused */
 	u8			regerr	: 1;	/* err during registration */
+	union {
+		struct { /* SMC-R */
+			struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];
+						/* virtual buffer */
+			struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
+						/* for rmb only: memory region
+						 * incl. rkey provided to peer
+						 */
+			u32			order;	/* allocation order */
+		};
+		struct { /* SMC-D */
+			unsigned short		sba_idx;
+						/* SBA index number */
+			u64			token;
+						/* DMB token number */
+			dma_addr_t		dma_addr;
+						/* DMA address */
+		};
+	};
 };
 
 struct smc_rtoken {				/* address/key of remote RMB */
@@ -148,12 +161,10 @@ struct smc_rtoken {				/* address/key of remote RMB */
  * struct smc_clc_msg_accept_confirm.rmbe_size being a 4 bit value (0..15)
  */
 
+struct smcd_dev;
+
 struct smc_link_group {
 	struct list_head	list;
-	enum smc_lgr_role	role;		/* client or server */
-	struct smc_link		lnk[SMC_LINKS_PER_LGR_MAX];	/* smc link */
-	char			peer_systemid[SMC_SYSTEMID_LEN];
-						/* unique system_id of peer */
 	struct rb_root		conns_all;	/* connection tree */
 	rwlock_t		conns_lock;	/* protects conns_all */
 	unsigned int		conns_num;	/* current # of connections */
@@ -163,17 +174,35 @@ struct smc_link_group {
 	rwlock_t		sndbufs_lock;	/* protects tx buffers */
 	struct list_head	rmbs[SMC_RMBE_SIZES];	/* rx buffers */
 	rwlock_t		rmbs_lock;	/* protects rx buffers */
-	struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
-				       [SMC_LINKS_PER_LGR_MAX];
-						/* remote addr/key pairs */
-	unsigned long		rtokens_used_mask[BITS_TO_LONGS(
-							SMC_RMBS_PER_LGR_MAX)];
-						/* used rtoken elements */
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
 	u8			sync_err : 1;	/* lgr no longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
+
+	bool			is_smcd;	/* SMC-R or SMC-D */
+	union {
+		struct { /* SMC-R */
+			enum smc_lgr_role	role;
+						/* client or server */
+			struct smc_link		lnk[SMC_LINKS_PER_LGR_MAX];
+						/* smc link */
+			char			peer_systemid[SMC_SYSTEMID_LEN];
+						/* unique system_id of peer */
+			struct smc_rtoken	rtokens[SMC_RMBS_PER_LGR_MAX]
+						[SMC_LINKS_PER_LGR_MAX];
+						/* remote addr/key pairs */
+			unsigned long		rtokens_used_mask[BITS_TO_LONGS
+							(SMC_RMBS_PER_LGR_MAX)];
+						/* used rtoken elements */
+		};
+		struct { /* SMC-D */
+			u64			peer_gid;
+						/* Peer GID (remote) */
+			struct smcd_dev		*smcd;
+						/* ISM device for VLAN reg. */
+		};
+	};
 };
 
 /* Find the connection associated with the given alert token in the link group.
@@ -217,7 +246,8 @@ void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
-int smc_buf_create(struct smc_sock *smc);
+void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid);
+int smc_buf_create(struct smc_sock *smc, bool is_smcd);
 int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
@@ -227,9 +257,13 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
+int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
+
 void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc,
+int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 		    struct smc_ib_device *smcibdev, u8 ibport,
-		    struct smc_clc_msg_local *lcl, int srv_first_contact);
+		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
+		    u64 peer_gid);
+void smcd_conn_free(struct smc_connection *conn);
 void smc_core_exit(void);
 #endif

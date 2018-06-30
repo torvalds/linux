@@ -23,6 +23,9 @@
 #define SMC_CLC_DECLINE		0x04
 
 #define SMC_CLC_V1		0x1		/* SMC version                */
+#define SMC_TYPE_R		0		/* SMC-R only		      */
+#define SMC_TYPE_D		1		/* SMC-D only		      */
+#define SMC_TYPE_B		3		/* SMC-R and SMC-D	      */
 #define CLC_WAIT_TIME		(6 * HZ)	/* max. wait time on clcsock  */
 #define SMC_CLC_DECL_MEM	0x01010000  /* insufficient memory resources  */
 #define SMC_CLC_DECL_TIMEOUT	0x02000000  /* timeout                        */
@@ -42,9 +45,11 @@ struct smc_clc_msg_hdr {	/* header1 of clc messages */
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 version : 4,
 	   flag    : 1,
-	   rsvd    : 3;
+	   rsvd	   : 1,
+	   path	   : 2;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u8 rsvd    : 3,
+	u8 path    : 2,
+	   rsvd    : 1,
 	   flag    : 1,
 	   version : 4;
 #endif
@@ -77,6 +82,11 @@ struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 	u8 ipv6_prefixes_cnt;	/* number of IPv6 prefixes in prefix array */
 } __aligned(4);
 
+struct smc_clc_msg_smcd {	/* SMC-D GID information */
+	u64 gid;		/* ISM GID of requestor */
+	u8 res[32];
+};
+
 struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 	struct smc_clc_msg_hdr hdr;
 	struct smc_clc_msg_local lcl;
@@ -94,23 +104,45 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
-	struct smc_clc_msg_local lcl;
-	u8 qpn[3];		/* QP number */
-	__be32 rmb_rkey;	/* RMB rkey */
-	u8 rmbe_idx;		/* Index of RMBE in RMB */
-	__be32 rmbe_alert_token;/* unique connection id */
+	union {
+		struct { /* SMC-R */
+			struct smc_clc_msg_local lcl;
+			u8 qpn[3];		/* QP number */
+			__be32 rmb_rkey;	/* RMB rkey */
+			u8 rmbe_idx;		/* Index of RMBE in RMB */
+			__be32 rmbe_alert_token;/* unique connection id */
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u8 rmbe_size : 4,	/* RMBE buf size (compressed notation) */
-	   qp_mtu   : 4;	/* QP mtu */
+			u8 rmbe_size : 4,	/* buf size (compressed) */
+			   qp_mtu   : 4;	/* QP mtu */
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u8 qp_mtu   : 4,
-	   rmbe_size : 4;
+			u8 qp_mtu   : 4,
+			   rmbe_size : 4;
 #endif
-	u8 reserved;
-	__be64 rmb_dma_addr;	/* RMB virtual address */
-	u8 reserved2;
-	u8 psn[3];		/* initial packet sequence number */
-	struct smc_clc_msg_trail trl; /* eye catcher "SMCR" EBCDIC */
+			u8 reserved;
+			__be64 rmb_dma_addr;	/* RMB virtual address */
+			u8 reserved2;
+			u8 psn[3];		/* packet sequence number */
+			struct smc_clc_msg_trail smcr_trl;
+						/* eye catcher "SMCR" EBCDIC */
+		} __packed;
+		struct { /* SMC-D */
+			u64 gid;		/* Sender GID */
+			u64 token;		/* DMB token */
+			u8 dmbe_idx;		/* DMBE index */
+#if defined(__BIG_ENDIAN_BITFIELD)
+			u8 dmbe_size : 4,	/* buf size (compressed) */
+			   reserved3 : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+			u8 reserved3 : 4,
+			   dmbe_size : 4;
+#endif
+			u16 reserved4;
+			u32 linkid;		/* Link identifier */
+			u32 reserved5[3];
+			struct smc_clc_msg_trail smcd_trl;
+						/* eye catcher "SMCD" EBCDIC */
+		} __packed;
+	};
 } __packed;			/* format defined in RFC7609 */
 
 struct smc_clc_msg_decline {	/* clc decline message */
@@ -129,13 +161,26 @@ smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
 	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
 }
 
+/* get SMC-D info from proposal message */
+static inline struct smc_clc_msg_smcd *
+smc_get_clc_msg_smcd(struct smc_clc_msg_proposal *prop)
+{
+	if (ntohs(prop->iparea_offset) != sizeof(struct smc_clc_msg_smcd))
+		return NULL;
+
+	return (struct smc_clc_msg_smcd *)(prop + 1);
+}
+
+struct smcd_dev;
+
 int smc_clc_prfx_match(struct socket *clcsock,
 		       struct smc_clc_msg_proposal_prefix *prop);
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
-int smc_clc_send_proposal(struct smc_sock *smc, struct smc_ib_device *smcibdev,
-			  u8 ibport);
+int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
+			  struct smc_ib_device *smcibdev, u8 ibport,
+			  struct smcd_dev *ismdev);
 int smc_clc_send_confirm(struct smc_sock *smc);
 int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);
 
