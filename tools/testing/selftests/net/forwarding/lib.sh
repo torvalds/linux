@@ -220,7 +220,9 @@ setup_wait_dev()
 
 setup_wait()
 {
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	local num_netifs=${1:-$NUM_NETIFS}
+
+	for ((i = 1; i <= num_netifs; ++i)); do
 		setup_wait_dev ${NETIFS[p$i]}
 	done
 
@@ -481,7 +483,9 @@ forwarding_restore()
 
 tc_offload_check()
 {
-	for i in $(eval echo {1..$NUM_NETIFS}); do
+	local num_netifs=${1:-$NUM_NETIFS}
+
+	for ((i = 1; i <= num_netifs; ++i)); do
 		ethtool -k ${NETIFS[p$i]} \
 			| grep "hw-tc-offload: on" &> /dev/null
 		if [[ $? -ne 0 ]]; then
