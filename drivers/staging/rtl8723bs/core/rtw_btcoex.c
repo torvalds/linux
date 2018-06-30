@@ -77,14 +77,14 @@ void rtw_btcoex_SuspendNotify(struct adapter *padapter, u8 state)
 
 void rtw_btcoex_HaltNotify(struct adapter *padapter)
 {
-	if (false == padapter->bup) {
+	if (!padapter->bup) {
 		DBG_871X(FUNC_ADPT_FMT ": bup =%d Skip!\n",
 			FUNC_ADPT_ARG(padapter), padapter->bup);
 
 		return;
 	}
 
-	if (true == padapter->bSurpriseRemoved) {
+	if (padapter->bSurpriseRemoved) {
 		DBG_871X(FUNC_ADPT_FMT ": bSurpriseRemoved =%d Skip!\n",
 			FUNC_ADPT_ARG(padapter), padapter->bSurpriseRemoved);
 
@@ -198,11 +198,11 @@ void rtw_btcoex_RejectApAggregatedPacket(struct adapter *padapter, u8 enable)
 	pmlmeinfo = &padapter->mlmeextpriv.mlmext_info;
 	psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
 
-	if (true == enable) {
+	if (enable) {
 		pmlmeinfo->accept_addba_req = false;
 		if (psta)
 			send_delba(padapter, 0, psta->hwaddr);
-	} else{
+	} else {
 		pmlmeinfo->accept_addba_req = true;
 	}
 }
