@@ -106,12 +106,13 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 	/* FIXME: overlay on an interlaced display */
 	if (old_state->src.x1 != state->src.x1 ||
 	    old_state->src.y1 != state->src.y1 ||
-	    old_state->fb != state->fb) {
+	    old_state->fb != state->fb ||
+	    state->crtc->state->mode_changed) {
 		const struct drm_format_info *format;
 		u16 src_x, pitches[3];
 		u32 addrs[2][3];
 
-		armada_drm_plane_calc(state, addrs, pitches, false);
+		armada_drm_plane_calc(state, addrs, pitches, dcrtc->interlaced);
 
 		armada_reg_queue_set(regs, idx, addrs[0][0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
@@ -146,6 +147,8 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 		src_x = state->src.x1 >> 16;
 		if (format->num_planes == 1 && src_x & (format->hsub - 1))
 			cfg ^= CFG_DMA_MOD(CFG_SWAPUV);
+		if (dcrtc->interlaced)
+			cfg |= CFG_DMA_FTOGGLE;
 		cfg_mask = CFG_CBSH_ENA | CFG_DMAFORMAT |
 			   CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV |
 				       CFG_SWAPYU | CFG_YUV2RGB) |
