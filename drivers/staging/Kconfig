@@ -84,8 +84,6 @@ source "drivers/staging/dgnc/Kconfig"
 
 source "drivers/staging/gs_fpgaboot/Kconfig"
 
-source "drivers/staging/skein/Kconfig"
-
 source "drivers/staging/unisys/Kconfig"
 
 source "drivers/staging/clocking-wizard/Kconfig"
