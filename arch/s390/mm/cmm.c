@@ -251,45 +251,42 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-static struct ctl_table cmm_table[];
-
 static int cmm_pages_handler(struct ctl_table *ctl, int write,
 			     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	char buf[16], *p;
-	unsigned int len;
-	long nr;
+	long nr = cmm_get_pages();
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &nr,
+		.maxlen		= sizeof(long),
+	};
+	int rc;
 
-	if (!*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
+	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
 
-	if (write) {
-		len = *lenp;
-		if (copy_from_user(buf, buffer,
-				   len > sizeof(buf) ? sizeof(buf) : len))
-			return -EFAULT;
-		buf[sizeof(buf) - 1] = '\0';
-		cmm_skip_blanks(buf, &p);
-		nr = simple_strtoul(p, &p, 0);
-		if (ctl == &cmm_table[0])
-			cmm_set_pages(nr);
-		else
-			cmm_add_timed_pages(nr);
-	} else {
-		if (ctl == &cmm_table[0])
-			nr = cmm_get_pages();
-		else
-			nr = cmm_get_timed_pages();
-		len = sprintf(buf, "%ld\n", nr);
-		if (len > *lenp)
-			len = *lenp;
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-	}
-	*lenp = len;
-	*ppos += len;
+	cmm_set_pages(nr);
+	return 0;
+}
+
+static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
+				   void __user *buffer, size_t *lenp,
+				   loff_t *ppos)
+{
+	long nr = cmm_get_timed_pages();
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &nr,
+		.maxlen		= sizeof(long),
+	};
+	int rc;
+
+	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+
+	cmm_add_timed_pages(nr);
 	return 0;
 }
 
@@ -338,7 +335,7 @@ static struct ctl_table cmm_table[] = {
 	{
 		.procname	= "cmm_timed_pages",
 		.mode		= 0644,
-		.proc_handler	= cmm_pages_handler,
+		.proc_handler	= cmm_timed_pages_handler,
 	},
 	{
 		.procname	= "cmm_timeout",
