@@ -687,7 +687,7 @@ static int cc_cipher_process(struct skcipher_request *req,
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct cc_crypto_req cc_req = {};
-	int rc, cts_restore_flag = 0;
+	int rc;
 	unsigned int seq_len = 0;
 	gfp_t flags = cc_gfp_flags(&req->base);
 
@@ -717,13 +717,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 	if (!req_ctx->iv) {
 		rc = -ENOMEM;
 		goto exit_process;
-	}
-
-	/*For CTS in case of data size aligned to 16 use CBC mode*/
-	if (((nbytes % AES_BLOCK_SIZE) == 0) &&
-	    ctx_p->cipher_mode == DRV_CIPHER_CBC_CTS) {
-		ctx_p->cipher_mode = DRV_CIPHER_CBC;
-		cts_restore_flag = 1;
 	}
 
 	/* Setup request structure */
@@ -770,9 +763,6 @@ static int cc_cipher_process(struct skcipher_request *req,
 	}
 
 exit_process:
-	if (cts_restore_flag)
-		ctx_p->cipher_mode = DRV_CIPHER_CBC_CTS;
-
 	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		kzfree(req_ctx->backup_info);
 		kzfree(req_ctx->iv);
@@ -1026,8 +1016,8 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.min_hw_rev = CC_HW_REV_712,
 	},
 	{
-		.name = "cts1(cbc(paes))",
-		.driver_name = "cts1-cbc-paes-ccree",
+		.name = "cts(cbc(paes))",
+		.driver_name = "cts-cbc-paes-ccree",
 		.blocksize = AES_BLOCK_SIZE,
 		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
 		.template_skcipher = {
@@ -1261,8 +1251,8 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.min_hw_rev = CC_HW_REV_630,
 	},
 	{
-		.name = "cts1(cbc(aes))",
-		.driver_name = "cts1-cbc-aes-ccree",
+		.name = "cts(cbc(aes))",
+		.driver_name = "cts-cbc-aes-ccree",
 		.blocksize = AES_BLOCK_SIZE,
 		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
 		.template_skcipher = {
