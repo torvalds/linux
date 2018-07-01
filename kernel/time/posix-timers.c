@@ -86,15 +86,6 @@ static const struct k_clock clock_realtime, clock_monotonic;
 #endif
 
 /*
- * parisc wants ENOTSUP instead of EOPNOTSUPP
- */
-#ifndef ENOTSUP
-# define ENANOSLEEP_NOTSUP EOPNOTSUPP
-#else
-# define ENANOSLEEP_NOTSUP ENOTSUP
-#endif
-
-/*
  * The timer ID is turned into a timer address by idr_find().
  * Verifying a valid ID consists of:
  *
@@ -1220,7 +1211,7 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
-		return -ENANOSLEEP_NOTSUP;
+		return -EOPNOTSUPP;
 
 	if (get_timespec64(&t, rqtp))
 		return -EFAULT;
@@ -1247,7 +1238,7 @@ COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
-		return -ENANOSLEEP_NOTSUP;
+		return -EOPNOTSUPP;
 
 	if (compat_get_timespec64(&t, rqtp))
 		return -EFAULT;
