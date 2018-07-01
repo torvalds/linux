@@ -486,6 +486,16 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 		},
 		.driver_data = (void *)(BYT_RT5640_DMIC1_MAP),
 	},
+	{	/* Connect Tablet 9 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Connect"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Tablet 9"),
+		},
+		.driver_data = (void *)(BYTCR_INPUT_DEFAULTS |
+					BYT_RT5640_MONO_SPEAKER |
+					BYT_RT5640_SSP0_AIF1 |
+					BYT_RT5640_MCLK_EN),
+	},
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
