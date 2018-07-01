@@ -515,6 +515,13 @@ static void armada_load_cursor_argb(void __iomem *base, uint32_t *pix,
 		for (x = 0; x < width; x++, p++) {
 			uint32_t val = *p;
 
+			/*
+			 * In "ARGB888" (HWC32) mode, writing to the SRAM
+			 * requires these bits to contain:
+			 * 31:24 = alpha 23:16 = blue 15:8 = green 7:0 = red
+			 * So, it's actually ABGR8888.  This is independent
+			 * of the SWAPRB bits in DMA control register 0.
+			 */
 			val = (val & 0xff00ff00) |
 			      (val & 0x000000ff) << 16 |
 			      (val & 0x00ff0000) >> 16;
