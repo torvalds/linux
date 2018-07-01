@@ -403,15 +403,10 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
  * Note this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
-static int byt_rt5651_add_codec_device_props(const char *i2c_dev_name)
+static int byt_rt5651_add_codec_device_props(struct device *i2c_dev)
 {
 	struct property_entry props[MAX_NO_PROPS] = {};
-	struct device *i2c_dev;
-	int ret, cnt = 0;
-
-	i2c_dev = bus_find_device_by_name(&i2c_bus_type, NULL, i2c_dev_name);
-	if (!i2c_dev)
-		return -EPROBE_DEFER;
+	int cnt = 0;
 
 	props[cnt++] = PROPERTY_ENTRY_U32("realtek,jack-detect-source",
 				BYT_RT5651_JDSRC(byt_rt5651_quirk));
@@ -425,10 +420,7 @@ static int byt_rt5651_add_codec_device_props(const char *i2c_dev_name)
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
 
-	ret = device_add_properties(i2c_dev, props);
-	put_device(i2c_dev);
-
-	return ret;
+	return device_add_properties(i2c_dev, props);
 }
 
 static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
@@ -696,6 +688,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	const char * const mic_name[] = { "dmic", "in1", "in12" };
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
+	struct device *codec_dev;
 	const char *i2c_name = NULL;
 	const char *hp_swapped;
 	bool is_bytcr = false;
@@ -730,6 +723,11 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
 		"%s%s", "i2c-", i2c_name);
 	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
+
+	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL,
+					    byt_rt5651_codec_name);
+	if (!codec_dev)
+		return -EPROBE_DEFER;
 
 	/*
 	 * swap SSP0 if bytcr is detected
@@ -794,7 +792,8 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	dmi_check_system(byt_rt5651_quirk_table);
 
 	/* Must be called before register_card, also see declaration comment. */
-	ret_val = byt_rt5651_add_codec_device_props(byt_rt5651_codec_name);
+	ret_val = byt_rt5651_add_codec_device_props(codec_dev);
+	put_device(codec_dev);
 	if (ret_val)
 		return ret_val;
 
