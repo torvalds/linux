@@ -590,11 +590,11 @@ static int rdtgroup_locksetup_user_restrict(struct rdtgroup *rdtgrp)
 	goto out;
 
 err_cpus_list:
-	rdtgroup_kn_mode_restore(rdtgrp, "cpus_list");
+	rdtgroup_kn_mode_restore(rdtgrp, "cpus_list", 0777);
 err_cpus:
-	rdtgroup_kn_mode_restore(rdtgrp, "cpus");
+	rdtgroup_kn_mode_restore(rdtgrp, "cpus", 0777);
 err_tasks:
-	rdtgroup_kn_mode_restore(rdtgrp, "tasks");
+	rdtgroup_kn_mode_restore(rdtgrp, "tasks", 0777);
 out:
 	return ret;
 }
@@ -615,20 +615,20 @@ static int rdtgroup_locksetup_user_restore(struct rdtgroup *rdtgrp)
 {
 	int ret;
 
-	ret = rdtgroup_kn_mode_restore(rdtgrp, "tasks");
+	ret = rdtgroup_kn_mode_restore(rdtgrp, "tasks", 0777);
 	if (ret)
 		return ret;
 
-	ret = rdtgroup_kn_mode_restore(rdtgrp, "cpus");
+	ret = rdtgroup_kn_mode_restore(rdtgrp, "cpus", 0777);
 	if (ret)
 		goto err_tasks;
 
-	ret = rdtgroup_kn_mode_restore(rdtgrp, "cpus_list");
+	ret = rdtgroup_kn_mode_restore(rdtgrp, "cpus_list", 0777);
 	if (ret)
 		goto err_cpus;
 
 	if (rdt_mon_capable) {
-		ret = rdtgroup_kn_mode_restore(rdtgrp, "mon_groups");
+		ret = rdtgroup_kn_mode_restore(rdtgrp, "mon_groups", 0777);
 		if (ret)
 			goto err_cpus_list;
 	}

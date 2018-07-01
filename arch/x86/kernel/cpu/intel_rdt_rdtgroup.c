@@ -1405,13 +1405,15 @@ int rdtgroup_kn_mode_restrict(struct rdtgroup *r, const char *name)
  * rdtgroup_kn_mode_restore - Restore user access to named resctrl file
  * @r: The resource group with which the file is associated.
  * @name: Name of the file
+ * @mask: Mask of permissions that should be restored
  *
  * Restore the permissions of the named file. If @name is a directory the
  * permissions of its parent will be used.
  *
  * Return: 0 on success, <0 on failure.
  */
-int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name)
+int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
+			     umode_t mask)
 {
 	struct iattr iattr = {.ia_valid = ATTR_MODE,};
 	struct kernfs_node *kn, *parent;
@@ -1423,7 +1425,7 @@ int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name)
 
 	for (rft = rfts; rft < rfts + len; rft++) {
 		if (!strcmp(rft->name, name))
-			iattr.ia_mode = rft->mode;
+			iattr.ia_mode = rft->mode & mask;
 	}
 
 	kn = kernfs_find_and_get_ns(r->kn, name, NULL);
