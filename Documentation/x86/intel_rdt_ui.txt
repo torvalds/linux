@@ -178,6 +178,9 @@ All groups contain the following files:
 	CPUs to/from this group. As with the tasks file a hierarchy is
 	maintained where MON groups may only include CPUs owned by the
 	parent CTRL_MON group.
+	When the resouce group is in pseudo-locked mode this file will
+	only be readable, reflecting the CPUs associated with the
+	pseudo-locked region.
 
 
 "cpus_list":

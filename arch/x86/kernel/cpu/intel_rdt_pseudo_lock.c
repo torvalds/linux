@@ -1303,6 +1303,9 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 	rdtgrp->mode = RDT_MODE_PSEUDO_LOCKED;
 	closid_free(rdtgrp->closid);
+	rdtgroup_kn_mode_restore(rdtgrp, "cpus", 0444);
+	rdtgroup_kn_mode_restore(rdtgrp, "cpus_list", 0444);
+
 	ret = 0;
 	goto out;
 

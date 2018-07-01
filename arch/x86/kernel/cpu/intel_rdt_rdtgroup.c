@@ -265,8 +265,12 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 
 	if (rdtgrp) {
-		seq_printf(s, is_cpu_list(of) ? "%*pbl\n" : "%*pb\n",
-			   cpumask_pr_args(&rdtgrp->cpu_mask));
+		if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED)
+			seq_printf(s, is_cpu_list(of) ? "%*pbl\n" : "%*pb\n",
+				   cpumask_pr_args(&rdtgrp->plr->d->cpu_mask));
+		else
+			seq_printf(s, is_cpu_list(of) ? "%*pbl\n" : "%*pb\n",
+				   cpumask_pr_args(&rdtgrp->cpu_mask));
 	} else {
 		ret = -ENOENT;
 	}
