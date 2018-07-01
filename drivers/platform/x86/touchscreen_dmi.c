@@ -86,6 +86,23 @@ static const struct ts_dmi_data chuwi_vi10_data = {
 	.properties     = chuwi_vi10_props,
 };
 
+static const struct property_entry connect_tablet9_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 9),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 8),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1664),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 878),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-connect-tablet9.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data connect_tablet9_data = {
+	.acpi_name      = "MSSL1680:00",
+	.properties     = connect_tablet9_props,
+};
+
 static const struct property_entry cube_iwork8_air_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1660),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 900),
@@ -406,6 +423,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "BYT-PF02"),
 			DMI_MATCH(DMI_SYS_VENDOR, "ilife"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "S165"),
+		},
+	},
+	{
+		/* Connect Tablet 9 */
+		.driver_data = (void *)&connect_tablet9_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Connect"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Tablet 9"),
 		},
 	},
 	{
