@@ -593,33 +593,81 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 	}
 }
 
+/*
+ * Update a CTR-AES 128 bit counter
+ */
+static void cc_update_ctr(u8 *ctr, unsigned int increment)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
+	    IS_ALIGNED((unsigned long)ctr, 8)) {
+
+		__be64 *high_be = (__be64 *)ctr;
+		__be64 *low_be = high_be + 1;
+		u64 orig_low = __be64_to_cpu(*low_be);
+		u64 new_low = orig_low + (u64)increment;
+
+		*low_be = __cpu_to_be64(new_low);
+
+		if (new_low < orig_low)
+			*high_be = __cpu_to_be64(__be64_to_cpu(*high_be) + 1);
+	} else {
+		u8 *pos = (ctr + AES_BLOCK_SIZE);
+		u8 val;
+		unsigned int size;
+
+		for (; increment; increment--)
+			for (size = AES_BLOCK_SIZE; size; size--) {
+				val = *--pos + 1;
+				*pos = val;
+				if (val)
+					break;
+			}
+	}
+}
+
 static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 {
 	struct skcipher_request *req = (struct skcipher_request *)cc_req;
 	struct scatterlist *dst = req->dst;
 	struct scatterlist *src = req->src;
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	struct crypto_skcipher *sk_tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(sk_tfm);
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
+	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
+	unsigned int len;
+
+	switch (ctx_p->cipher_mode) {
+	case DRV_CIPHER_CBC:
+		/*
+		 * The crypto API expects us to set the req->iv to the last
+		 * ciphertext block. For encrypt, simply copy from the result.
+		 * For decrypt, we must copy from a saved buffer since this
+		 * could be an in-place decryption operation and the src is
+		 * lost by this point.
+		 */
+		if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT)  {
+			memcpy(req->iv, req_ctx->backup_info, ivsize);
+			kzfree(req_ctx->backup_info);
+		} else if (!err) {
+			len = req->cryptlen - ivsize;
+			scatterwalk_map_and_copy(req->iv, req->dst, len,
+						 ivsize, 0);
+		}
+		break;
+
+	case DRV_CIPHER_CTR:
+		/* Compute the counter of the last block */
+		len = ALIGN(req->cryptlen, AES_BLOCK_SIZE) / AES_BLOCK_SIZE;
+		cc_update_ctr((u8 *)req->iv, len);
+		break;
+
+	default:
+		break;
+	}
 
 	cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 	kzfree(req_ctx->iv);
-
-	/*
-	 * The crypto API expects us to set the req->iv to the last
-	 * ciphertext block. For encrypt, simply copy from the result.
-	 * For decrypt, we must copy from a saved buffer since this
-	 * could be an in-place decryption operation and the src is
-	 * lost by this point.
-	 */
-	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT)  {
-		memcpy(req->iv, req_ctx->backup_info, ivsize);
-		kzfree(req_ctx->backup_info);
-	} else if (!err) {
-		scatterwalk_map_and_copy(req->iv, req->dst,
-					 (req->cryptlen - ivsize),
-					 ivsize, 0);
-	}
 
 	skcipher_request_complete(req, err);
 }
@@ -752,20 +800,29 @@ static int cc_cipher_encrypt(struct skcipher_request *req)
 static int cc_cipher_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *sk_tfm = crypto_skcipher_reqtfm(req);
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(sk_tfm);
+	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct cipher_req_ctx *req_ctx = skcipher_request_ctx(req);
 	unsigned int ivsize = crypto_skcipher_ivsize(sk_tfm);
 	gfp_t flags = cc_gfp_flags(&req->base);
+	unsigned int len;
 
-	/*
-	 * Allocate and save the last IV sized bytes of the source, which will
-	 * be lost in case of in-place decryption and might be needed for CTS.
-	 */
-	req_ctx->backup_info = kmalloc(ivsize, flags);
-	if (!req_ctx->backup_info)
-		return -ENOMEM;
+	if (ctx_p->cipher_mode == DRV_CIPHER_CBC) {
 
-	scatterwalk_map_and_copy(req_ctx->backup_info, req->src,
-				 (req->cryptlen - ivsize), ivsize, 0);
+		/* Allocate and save the last IV sized bytes of the source,
+		 * which will be lost in case of in-place decryption.
+		 */
+		req_ctx->backup_info = kzalloc(ivsize, flags);
+		if (!req_ctx->backup_info)
+			return -ENOMEM;
+
+		len = req->cryptlen - ivsize;
+		scatterwalk_map_and_copy(req_ctx->backup_info, req->src, len,
+					 ivsize, 0);
+	} else {
+		req_ctx->backup_info = NULL;
+	}
+
 	req_ctx->is_giv = false;
 
 	return cc_cipher_process(req, DRV_CRYPTO_DIRECTION_DECRYPT);
