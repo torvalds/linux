@@ -782,6 +782,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
+	if (unlikely(test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state)))
+		goto csum_unnecessary;
+
 	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
 		if (unlikely(get_ip_proto(skb, proto) == IPPROTO_SCTP))
 			goto csum_unnecessary;
