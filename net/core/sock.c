@@ -2401,9 +2401,10 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
 	struct proto *prot = sk->sk_prot;
 	long allocated = sk_memory_allocated_add(sk, amt);
+	bool charged = true;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-	    !mem_cgroup_charge_skmem(sk->sk_memcg, amt))
+	    !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt)))
 		goto suppress_allocation;
 
 	/* Under limit. */
@@ -2461,7 +2462,8 @@ suppress_allocation:
 			return 1;
 	}
 
-	trace_sock_exceed_buf_limit(sk, prot, allocated);
+	if (kind == SK_MEM_SEND || (kind == SK_MEM_RECV && charged))
+		trace_sock_exceed_buf_limit(sk, prot, allocated, kind);
 
 	sk_memory_allocated_sub(sk, amt);
 
