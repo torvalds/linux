@@ -3586,7 +3586,7 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	kern_spec = kern_flow_attr->flow_specs;
 	ib_spec = flow_attr + 1;
 	for (i = 0; i < flow_attr->num_of_specs &&
-			cmd.flow_attr.size > sizeof(*kern_spec) &&
+			cmd.flow_attr.size >= sizeof(*kern_spec) &&
 			cmd.flow_attr.size >= kern_spec->size;
 	     i++) {
 		err = kern_spec_to_ib_spec(
