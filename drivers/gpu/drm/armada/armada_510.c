@@ -24,8 +24,13 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 
 	dcrtc->extclk[0] = clk;
 
-	/* Lower the watermark so to eliminate jitter at higher bandwidths */
-	armada_updatel(0x20, (1 << 11) | 0xff, dcrtc->base + LCD_CFG_RDREG4F);
+	/*
+	 * Lower the watermark so to eliminate jitter at higher bandwidths.
+	 * Disable SRAM read wait state to avoid system hang with external
+	 * clock.
+	 */
+	armada_updatel(CFG_DMA_WM(0x20), CFG_SRAM_WAIT | CFG_DMA_WM_MASK,
+		       dcrtc->base + LCD_CFG_RDREG4F);
 
 	/* Initialise SPU register */
 	writel_relaxed(ADV_HWC32ENABLE | ADV_HWC32ARGB | ADV_HWC32BLEND,

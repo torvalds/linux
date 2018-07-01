@@ -88,6 +88,16 @@ enum {
 	ADV_VSYNC_H_OFF	= 0xfff << 0,
 };
 
+/* LCD_CFG_RDREG4F - Armada 510 only */
+enum {
+	CFG_SRAM_WAIT	= BIT(11),
+	CFG_SMPN_FASTTX	= BIT(10),
+	CFG_DMA_ARB	= BIT(9),
+	CFG_DMA_WM_EN	= BIT(8),
+	CFG_DMA_WM_MASK	= 0xff,
+#define CFG_DMA_WM(x)	((x) & CFG_DMA_WM_MASK)
+};
+
 enum {
 	CFG_565		= 0,
 	CFG_1555	= 1,
