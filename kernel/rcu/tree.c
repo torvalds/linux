@@ -108,7 +108,6 @@ struct rcu_state sname##_state = { \
 }
 
 RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
-RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
 
 static struct rcu_state *const rcu_state_p;
 LIST_HEAD(rcu_struct_flavors);
@@ -242,17 +241,6 @@ void rcu_sched_qs(void)
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, false);
 	rcu_report_exp_rdp(&rcu_sched_state,
 			   this_cpu_ptr(&rcu_sched_data), true);
-}
-
-void rcu_bh_qs(void)
-{
-	RCU_LOCKDEP_WARN(preemptible(), "rcu_bh_qs() invoked with preemption enabled!!!");
-	if (__this_cpu_read(rcu_bh_data.cpu_no_qs.s)) {
-		trace_rcu_grace_period(TPS("rcu_bh"),
-				       __this_cpu_read(rcu_bh_data.gp_seq),
-				       TPS("cpuqs"));
-		__this_cpu_write(rcu_bh_data.cpu_no_qs.b.norm, false);
-	}
 }
 
 void rcu_softirq_qs(void)
@@ -581,7 +569,7 @@ EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
  */
 unsigned long rcu_bh_get_gp_seq(void)
 {
-	return READ_ONCE(rcu_bh_state.gp_seq);
+	return READ_ONCE(rcu_state_p->gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
 
@@ -621,7 +609,7 @@ EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
  */
 void rcu_bh_force_quiescent_state(void)
 {
-	force_quiescent_state(&rcu_bh_state);
+	force_quiescent_state(rcu_state_p);
 }
 EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
 
@@ -680,10 +668,8 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 
 	switch (test_type) {
 	case RCU_FLAVOR:
-		rsp = rcu_state_p;
-		break;
 	case RCU_BH_FLAVOR:
-		rsp = &rcu_bh_state;
+		rsp = rcu_state_p;
 		break;
 	case RCU_SCHED_FLAVOR:
 		rsp = &rcu_sched_state;
@@ -2673,26 +2659,15 @@ void rcu_check_callbacks(int user)
 		 * nested interrupt.  In this case, the CPU is in
 		 * a quiescent state, so note it.
 		 *
-		 * No memory barrier is required here because both
-		 * rcu_sched_qs() and rcu_bh_qs() reference only CPU-local
-		 * variables that other CPUs neither access nor modify,
-		 * at least not while the corresponding CPU is online.
+		 * No memory barrier is required here because
+		 * rcu_sched_qs() references only CPU-local variables
+		 * that other CPUs neither access nor modify, at least
+		 * not while the corresponding CPU is online.
 		 */
 
 		rcu_sched_qs();
-		rcu_bh_qs();
 		rcu_note_voluntary_context_switch(current);
 
-	} else if (!in_softirq()) {
-
-		/*
-		 * Get here if this CPU did not take its interrupt from
-		 * softirq, in other words, if it is not interrupting
-		 * a rcu_bh read-side critical section.  This is an _bh
-		 * critical section, so note it.
-		 */
-
-		rcu_bh_qs();
 	}
 	rcu_preempt_check_callbacks();
 	if (rcu_pending())
@@ -3079,34 +3054,6 @@ void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 }
 EXPORT_SYMBOL_GPL(call_rcu_sched);
 
-/**
- * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_bh() assumes
- * that the read-side critical sections end on completion of a softirq
- * handler. This means that read-side critical sections in process
- * context must not be interrupted by softirqs. This interface is to be
- * used when most of the read-side critical sections are in softirq context.
- * RCU read-side critical sections are delimited by:
- *
- * - rcu_read_lock() and  rcu_read_unlock(), if in interrupt context, OR
- * - rcu_read_lock_bh() and rcu_read_unlock_bh(), if in process context.
- *
- * These may be nested.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
-void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
-{
-	__call_rcu(head, func, &rcu_bh_state, -1, 0);
-}
-EXPORT_SYMBOL_GPL(call_rcu_bh);
-
 /*
  * Queue an RCU callback for lazy invocation after a grace period.
  * This will likely be later named something like "call_rcu_lazy()",
@@ -3190,33 +3137,6 @@ void synchronize_sched(void)
 		wait_rcu_gp(call_rcu_sched);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
-
-/**
- * synchronize_rcu_bh - wait until an rcu_bh grace period has elapsed.
- *
- * Control will return to the caller some time after a full rcu_bh grace
- * period has elapsed, in other words after all currently executing rcu_bh
- * read-side critical sections have completed.  RCU read-side critical
- * sections are delimited by rcu_read_lock_bh() and rcu_read_unlock_bh(),
- * and may be nested.
- *
- * See the description of synchronize_sched() for more detailed information
- * on memory ordering guarantees.
- */
-void synchronize_rcu_bh(void)
-{
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
-			 lock_is_held(&rcu_lock_map) ||
-			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_rcu_bh() in RCU-bh read-side critical section");
-	if (rcu_blocking_is_gp())
-		return;
-	if (rcu_gp_is_expedited())
-		synchronize_rcu_bh_expedited();
-	else
-		wait_rcu_gp(call_rcu_bh);
-}
-EXPORT_SYMBOL_GPL(synchronize_rcu_bh);
 
 /**
  * get_state_synchronize_rcu - Snapshot current RCU state
@@ -3529,7 +3449,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
  */
 void rcu_barrier_bh(void)
 {
-	_rcu_barrier(&rcu_bh_state);
+	_rcu_barrier(rcu_state_p);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_bh);
 
@@ -4180,7 +4100,6 @@ void __init rcu_init(void)
 
 	rcu_bootup_announce();
 	rcu_init_geometry();
-	rcu_init_one(&rcu_bh_state);
 	rcu_init_one(&rcu_sched_state);
 	if (dump_tree)
 		rcu_dump_rcu_node_tree(&rcu_sched_state);

@@ -55,10 +55,14 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 #define	call_rcu	call_rcu_sched
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
-void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
 void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
 void synchronize_sched(void);
 void rcu_barrier_tasks(void);
+
+static inline void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
+{
+	call_rcu(head, func);
+}
 
 #ifdef CONFIG_PREEMPT_RCU
 
@@ -104,7 +108,6 @@ static inline int rcu_preempt_depth(void)
 void rcu_init(void);
 extern int rcu_scheduler_active __read_mostly;
 void rcu_sched_qs(void);
-void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
 void rcutree_migrate_callbacks(int cpu);
@@ -326,8 +329,7 @@ static inline void rcu_preempt_sleep_check(void) { }
  * and rcu_assign_pointer().  Some of these could be folded into their
  * callers, but they are left separate in order to ease introduction of
  * multiple flavors of pointers to match the multiple flavors of RCU
- * (e.g., __rcu_bh, * __rcu_sched, and __srcu), should this make sense in
- * the future.
+ * (e.g., __rcu_sched, and __srcu), should this make sense in the future.
  */
 
 #ifdef __CHECKER__

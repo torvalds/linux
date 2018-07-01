@@ -56,17 +56,21 @@ static inline void cond_synchronize_sched(unsigned long oldstate)
 	might_sleep();
 }
 
-extern void rcu_barrier_bh(void);
-extern void rcu_barrier_sched(void);
-
 static inline void synchronize_rcu_expedited(void)
 {
 	synchronize_sched();	/* Only one CPU, so pretty fast anyway!!! */
 }
 
+extern void rcu_barrier_sched(void);
+
 static inline void rcu_barrier(void)
 {
 	rcu_barrier_sched();  /* Only one CPU, so only one list of callbacks! */
+}
+
+static inline void rcu_barrier_bh(void)
+{
+	rcu_barrier();
 }
 
 static inline void synchronize_rcu_bh(void)
