@@ -180,6 +180,13 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	    adj->flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
+	/*
+	 * Set CRTC modesetting parameters for the adjusted mode.  This is
+	 * applied after the connectors, bridges, and encoders have fixed up
+	 * this mode, as described above drm_atomic_helper_check_modeset().
+	 */
+	drm_mode_set_crtcinfo(adj, CRTC_INTERLACE_HALVE_V);
+
 	/* Check whether the display mode is possible */
 	ret = dcrtc->variant->compute_clock(dcrtc, adj, NULL);
 	if (ret)
