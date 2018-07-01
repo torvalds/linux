@@ -265,7 +265,7 @@ static void armada_drm_primary_plane_atomic_disable(struct drm_plane *plane,
 	/* Disable plane and power down most RAMs and FIFOs */
 	armada_reg_queue_mod(regs, idx, 0, CFG_GRA_ENA, LCD_SPU_DMA_CTRL0);
 	armada_reg_queue_mod(regs, idx, CFG_PDWN256x32 | CFG_PDWN256x24 |
-			     CFG_PDWN256x8 | CFG_PDWN32x32 | CFG_PDWN64x66,
+			     CFG_PDWN32x32 | CFG_PDWN64x66,
 			     0, LCD_SPU_SRAM_PARA1);
 
 	dcrtc->regs_idx += idx;

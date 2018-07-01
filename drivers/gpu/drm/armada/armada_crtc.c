@@ -130,6 +130,44 @@ static void armada_drm_crtc_queue_state_event(struct drm_crtc *crtc)
 	}
 }
 
+static void armada_drm_update_gamma(struct drm_crtc *crtc)
+{
+	struct drm_property_blob *blob = crtc->state->gamma_lut;
+	void __iomem *base = drm_to_armada_crtc(crtc)->base;
+	int i;
+
+	if (blob) {
+		struct drm_color_lut *lut = blob->data;
+
+		armada_updatel(CFG_CSB_256x8, CFG_CSB_256x8 | CFG_PDWN256x8,
+			       base + LCD_SPU_SRAM_PARA1);
+
+		for (i = 0; i < 256; i++) {
+			writel_relaxed(drm_color_lut_extract(lut[i].red, 8),
+				       base + LCD_SPU_SRAM_WRDAT);
+			writel_relaxed(i | SRAM_WRITE | SRAM_GAMMA_YR,
+				       base + LCD_SPU_SRAM_CTRL);
+			readl_relaxed(base + LCD_SPU_HWC_OVSA_HPXL_VLN);
+			writel_relaxed(drm_color_lut_extract(lut[i].green, 8),
+				       base + LCD_SPU_SRAM_WRDAT);
+			writel_relaxed(i | SRAM_WRITE | SRAM_GAMMA_UG,
+				       base + LCD_SPU_SRAM_CTRL);
+			readl_relaxed(base + LCD_SPU_HWC_OVSA_HPXL_VLN);
+			writel_relaxed(drm_color_lut_extract(lut[i].blue, 8),
+				       base + LCD_SPU_SRAM_WRDAT);
+			writel_relaxed(i | SRAM_WRITE | SRAM_GAMMA_VB,
+				       base + LCD_SPU_SRAM_CTRL);
+			readl_relaxed(base + LCD_SPU_HWC_OVSA_HPXL_VLN);
+		}
+		armada_updatel(CFG_GAMMA_ENA, CFG_GAMMA_ENA,
+			       base + LCD_SPU_DMA_CTRL0);
+	} else {
+		armada_updatel(0, CFG_GAMMA_ENA, base + LCD_SPU_DMA_CTRL0);
+		armada_updatel(CFG_PDWN256x8, CFG_CSB_256x8 | CFG_PDWN256x8,
+			       base + LCD_SPU_SRAM_PARA1);
+	}
+}
+
 /* The mode_config.mutex will be held for this call */
 static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	const struct drm_display_mode *mode, struct drm_display_mode *adj)
@@ -338,12 +376,29 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
 
+static int armada_drm_crtc_atomic_check(struct drm_crtc *crtc,
+					struct drm_crtc_state *state)
+{
+	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	if (state->gamma_lut && drm_color_lut_size(state->gamma_lut) != 256)
+		return -EINVAL;
+
+	if (state->color_mgmt_changed)
+		state->planes_changed = true;
+
+	return 0;
+}
+
 static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+
+	if (crtc->state->color_mgmt_changed)
+		armada_drm_update_gamma(crtc);
 
 	dcrtc->regs_idx = 0;
 	dcrtc->regs = dcrtc->atomic_regs;
@@ -439,6 +494,7 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
 	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
+	.atomic_check	= armada_drm_crtc_atomic_check,
 	.atomic_begin	= armada_drm_crtc_atomic_begin,
 	.atomic_flush	= armada_drm_crtc_atomic_flush,
 	.atomic_disable	= armada_drm_crtc_atomic_disable,
@@ -702,6 +758,7 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.cursor_set	= armada_drm_crtc_cursor_set,
 	.cursor_move	= armada_drm_crtc_cursor_move,
 	.destroy	= armada_drm_crtc_destroy,
+	.gamma_set	= drm_atomic_helper_legacy_gamma_set,
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
@@ -792,6 +849,12 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		goto err_crtc_init;
 
 	drm_crtc_helper_add(&dcrtc->crtc, &armada_crtc_helper_funcs);
+
+	ret = drm_mode_crtc_set_gamma_size(&dcrtc->crtc, 256);
+	if (ret)
+		return ret;
+
+	drm_crtc_enable_color_mgmt(&dcrtc->crtc, 0, false, 256);
 
 	return armada_overlay_plane_create(drm, 1 << dcrtc->num);
 
