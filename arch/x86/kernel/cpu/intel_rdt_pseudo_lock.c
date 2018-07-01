@@ -247,6 +247,29 @@ out_err:
 }
 
 /**
+ * pseudo_lock_region_clear - Reset pseudo-lock region data
+ * @plr: pseudo-lock region
+ *
+ * All content of the pseudo-locked region is reset - any memory allocated
+ * freed.
+ *
+ * Return: void
+ */
+static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
+{
+	plr->size = 0;
+	plr->line_size = 0;
+	kfree(plr->kmem);
+	plr->kmem = NULL;
+	plr->r = NULL;
+	if (plr->d)
+		plr->d->plr = NULL;
+	plr->d = NULL;
+	plr->cbm = 0;
+	plr->debugfs_dir = NULL;
+}
+
+/**
  * pseudo_lock_region_init - Initialize pseudo-lock region information
  * @plr: pseudo-lock region
  *
@@ -316,29 +339,6 @@ static int pseudo_lock_init(struct rdtgroup *rdtgrp)
 	INIT_LIST_HEAD(&plr->pm_reqs);
 	rdtgrp->plr = plr;
 	return 0;
-}
-
-/**
- * pseudo_lock_region_clear - Reset pseudo-lock region data
- * @plr: pseudo-lock region
- *
- * All content of the pseudo-locked region is reset - any memory allocated
- * freed.
- *
- * Return: void
- */
-static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
-{
-	plr->size = 0;
-	plr->line_size = 0;
-	kfree(plr->kmem);
-	plr->kmem = NULL;
-	plr->r = NULL;
-	if (plr->d)
-		plr->d->plr = NULL;
-	plr->d = NULL;
-	plr->cbm = 0;
-	plr->debugfs_dir = NULL;
 }
 
 /**
