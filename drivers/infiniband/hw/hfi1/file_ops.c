@@ -985,7 +985,11 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	 * sub contexts.
 	 * This has to be done here so the rest of the sub-contexts find the
 	 * proper base context.
+	 * NOTE: _set_bit() can be used here because the context creation is
+	 * protected by the mutex (rather than the spin_lock), and will be the
+	 * very first instance of this context.
 	 */
+	__set_bit(0, uctxt->in_use_ctxts);
 	if (uinfo->subctxt_cnt)
 		init_subctxts(uctxt, uinfo);
 	uctxt->userversion = uinfo->userversion;

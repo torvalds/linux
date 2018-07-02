@@ -364,7 +364,6 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		hfi1_exp_tid_group_init(rcd);
 		rcd->ppd = ppd;
 		rcd->dd = dd;
-		__set_bit(0, rcd->in_use_ctxts);
 		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 		rcd->rhf_rcv_function_map = normal_rhf_rcv_functions;
