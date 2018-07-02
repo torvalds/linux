@@ -267,29 +267,14 @@ out:
 static int lm3692x_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int ret;
+	struct fwnode_handle *child = NULL;
 	struct lm3692x_led *led;
-	struct device_node *np = client->dev.of_node;
-	struct device_node *child_node;
 	const char *name;
+	int ret;
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
-
-	for_each_available_child_of_node(np, child_node) {
-		led->led_dev.default_trigger = of_get_property(child_node,
-						    "linux,default-trigger",
-						    NULL);
-
-		ret = of_property_read_string(child_node, "label", &name);
-		if (!ret)
-			snprintf(led->label, sizeof(led->label),
-				 "%s:%s", id->name, name);
-		else
-			snprintf(led->label, sizeof(led->label),
-				 "%s::backlight_cluster", id->name);
-	};
 
 	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
 						   "enable", GPIOD_OUT_LOW);
@@ -322,6 +307,25 @@ static int lm3692x_probe(struct i2c_client *client,
 	ret = lm3692x_init(led);
 	if (ret)
 		return ret;
+
+	child = device_get_next_child_node(&led->client->dev, child);
+	if (!child) {
+		dev_err(&led->client->dev, "No LED Child node\n");
+		return ret;
+	}
+
+	fwnode_property_read_string(child, "linux,default-trigger",
+				    &led->led_dev.default_trigger);
+
+	ret = fwnode_property_read_string(child, "label", &name);
+	if (ret)
+		snprintf(led->label, sizeof(led->label),
+			"%s::", led->client->name);
+	else
+		snprintf(led->label, sizeof(led->label),
+			 "%s:%s", led->client->name, name);
+
+	led->led_dev.dev->of_node = to_of_node(child);
 
 	ret = devm_led_classdev_register(&client->dev, &led->led_dev);
 	if (ret) {
