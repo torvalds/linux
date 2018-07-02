@@ -1,15 +1,12 @@
-/*
- * ASoC simple SCU sound card support
- *
- * Copyright (C) 2015 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * based on ${LINUX}/sound/soc/generic/simple-card.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ASoC simple SCU sound card support
+//
+// Copyright (C) 2015 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// based on ${LINUX}/sound/soc/generic/simple-card.c
+
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/module.h>
