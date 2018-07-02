@@ -361,6 +361,8 @@ struct ct_arg {
 	dma_addr_t	rsp_dma;
 	u32		req_size;
 	u32		rsp_size;
+	u32		req_allocated_size;
+	u32		rsp_allocated_size;
 	void		*req;
 	void		*rsp;
 	port_id_t	id;
