@@ -24,8 +24,10 @@ struct aq_hw_caps_s {
 	u64 link_speed_msk;
 	unsigned int hw_priv_flags;
 	u32 media_type;
-	u32 rxds;
-	u32 txds;
+	u32 rxds_max;
+	u32 txds_max;
+	u32 rxds_min;
+	u32 txds_min;
 	u32 txhwb_alignment;
 	u32 irq_mask;
 	u32 vecs;
@@ -97,6 +99,9 @@ struct aq_stats_s {
 
 #define AQ_HW_MEDIA_TYPE_TP    1U
 #define AQ_HW_MEDIA_TYPE_FIBRE 2U
+
+#define AQ_HW_TXD_MULTIPLE 8U
+#define AQ_HW_RXD_MULTIPLE 8U
 
 struct aq_hw_s {
 	atomic_t flags;
