@@ -129,6 +129,8 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 			led_cdev->trigger->deactivate(led_cdev);
 		device_remove_groups(led_cdev->dev, led_cdev->trigger->groups);
 		led_cdev->trigger = NULL;
+		led_cdev->trigger_data = NULL;
+		led_cdev->activated = false;
 		led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trig) {
@@ -170,6 +172,7 @@ err_add_groups:
 err_activate:
 
 	led_cdev->trigger = NULL;
+	led_cdev->trigger_data = NULL;
 	write_lock_irqsave(&led_cdev->trigger->leddev_list_lock, flags);
 	list_del(&led_cdev->trig_list);
 	write_unlock_irqrestore(&led_cdev->trigger->leddev_list_lock, flags);
