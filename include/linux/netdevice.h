@@ -731,10 +731,15 @@ struct xps_map {
  */
 struct xps_dev_maps {
 	struct rcu_head rcu;
-	struct xps_map __rcu *cpu_map[0];
+	struct xps_map __rcu *attr_map[0]; /* Either CPUs map or RXQs map */
 };
-#define XPS_DEV_MAPS_SIZE(_tcs) (sizeof(struct xps_dev_maps) +		\
+
+#define XPS_CPU_DEV_MAPS_SIZE(_tcs) (sizeof(struct xps_dev_maps) +	\
 	(nr_cpu_ids * (_tcs) * sizeof(struct xps_map *)))
+
+#define XPS_RXQ_DEV_MAPS_SIZE(_tcs, _rxqs) (sizeof(struct xps_dev_maps) +\
+	(_rxqs * (_tcs) * sizeof(struct xps_map *)))
+
 #endif /* CONFIG_XPS */
 
 #define TC_MAX_QUEUE	16
@@ -1910,7 +1915,8 @@ struct net_device {
 	int			watchdog_timeo;
 
 #ifdef CONFIG_XPS
-	struct xps_dev_maps __rcu *xps_maps;
+	struct xps_dev_maps __rcu *xps_cpus_map;
+	struct xps_dev_maps __rcu *xps_rxqs_map;
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	struct mini_Qdisc __rcu	*miniq_egress;
@@ -3259,6 +3265,92 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 #ifdef CONFIG_XPS
 int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
 			u16 index);
+int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
+			  u16 index, bool is_rxqs_map);
+
+/**
+ *	netif_attr_test_mask - Test a CPU or Rx queue set in a mask
+ *	@j: CPU/Rx queue index
+ *	@mask: bitmask of all cpus/rx queues
+ *	@nr_bits: number of bits in the bitmask
+ *
+ * Test if a CPU or Rx queue index is set in a mask of all CPU/Rx queues.
+ */
+static inline bool netif_attr_test_mask(unsigned long j,
+					const unsigned long *mask,
+					unsigned int nr_bits)
+{
+	cpu_max_bits_warn(j, nr_bits);
+	return test_bit(j, mask);
+}
+
+/**
+ *	netif_attr_test_online - Test for online CPU/Rx queue
+ *	@j: CPU/Rx queue index
+ *	@online_mask: bitmask for CPUs/Rx queues that are online
+ *	@nr_bits: number of bits in the bitmask
+ *
+ * Returns true if a CPU/Rx queue is online.
+ */
+static inline bool netif_attr_test_online(unsigned long j,
+					  const unsigned long *online_mask,
+					  unsigned int nr_bits)
+{
+	cpu_max_bits_warn(j, nr_bits);
+
+	if (online_mask)
+		return test_bit(j, online_mask);
+
+	return (j < nr_bits);
+}
+
+/**
+ *	netif_attrmask_next - get the next CPU/Rx queue in a cpu/Rx queues mask
+ *	@n: CPU/Rx queue index
+ *	@srcp: the cpumask/Rx queue mask pointer
+ *	@nr_bits: number of bits in the bitmask
+ *
+ * Returns >= nr_bits if no further CPUs/Rx queues set.
+ */
+static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
+					       unsigned int nr_bits)
+{
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpu_max_bits_warn(n, nr_bits);
+
+	if (srcp)
+		return find_next_bit(srcp, nr_bits, n + 1);
+
+	return n + 1;
+}
+
+/**
+ *	netif_attrmask_next_and - get the next CPU/Rx queue in *src1p & *src2p
+ *	@n: CPU/Rx queue index
+ *	@src1p: the first CPUs/Rx queues mask pointer
+ *	@src2p: the second CPUs/Rx queues mask pointer
+ *	@nr_bits: number of bits in the bitmask
+ *
+ * Returns >= nr_bits if no further CPUs/Rx queues set in both.
+ */
+static inline int netif_attrmask_next_and(int n, const unsigned long *src1p,
+					  const unsigned long *src2p,
+					  unsigned int nr_bits)
+{
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpu_max_bits_warn(n, nr_bits);
+
+	if (src1p && src2p)
+		return find_next_and_bit(src1p, src2p, nr_bits, n + 1);
+	else if (src1p)
+		return find_next_bit(src1p, nr_bits, n + 1);
+	else if (src2p)
+		return find_next_bit(src2p, nr_bits, n + 1);
+
+	return n + 1;
+}
 #else
 static inline int netif_set_xps_queue(struct net_device *dev,
 				      const struct cpumask *mask,

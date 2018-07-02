@@ -1227,13 +1227,13 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 		return -ENOMEM;
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps);
+	dev_maps = rcu_dereference(dev->xps_cpus_map);
 	if (dev_maps) {
 		for_each_possible_cpu(cpu) {
 			int i, tci = cpu * num_tc + tc;
 			struct xps_map *map;
 
-			map = rcu_dereference(dev_maps->cpu_map[tci]);
+			map = rcu_dereference(dev_maps->attr_map[tci]);
 			if (!map)
 				continue;
 
@@ -1283,6 +1283,88 @@ static ssize_t xps_cpus_store(struct netdev_queue *queue,
 
 static struct netdev_queue_attribute xps_cpus_attribute __ro_after_init
 	= __ATTR_RW(xps_cpus);
+
+static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
+{
+	struct net_device *dev = queue->dev;
+	struct xps_dev_maps *dev_maps;
+	unsigned long *mask, index;
+	int j, len, num_tc = 1, tc = 0;
+
+	index = get_netdev_queue_index(queue);
+
+	if (dev->num_tc) {
+		num_tc = dev->num_tc;
+		tc = netdev_txq_to_tc(dev, index);
+		if (tc < 0)
+			return -EINVAL;
+	}
+	mask = kcalloc(BITS_TO_LONGS(dev->num_rx_queues), sizeof(long),
+		       GFP_KERNEL);
+	if (!mask)
+		return -ENOMEM;
+
+	rcu_read_lock();
+	dev_maps = rcu_dereference(dev->xps_rxqs_map);
+	if (!dev_maps)
+		goto out_no_maps;
+
+	for (j = -1; j = netif_attrmask_next(j, NULL, dev->num_rx_queues),
+	     j < dev->num_rx_queues;) {
+		int i, tci = j * num_tc + tc;
+		struct xps_map *map;
+
+		map = rcu_dereference(dev_maps->attr_map[tci]);
+		if (!map)
+			continue;
+
+		for (i = map->len; i--;) {
+			if (map->queues[i] == index) {
+				set_bit(j, mask);
+				break;
+			}
+		}
+	}
+out_no_maps:
+	rcu_read_unlock();
+
+	len = bitmap_print_to_pagebuf(false, buf, mask, dev->num_rx_queues);
+	kfree(mask);
+
+	return len < PAGE_SIZE ? len : -EINVAL;
+}
+
+static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
+			      size_t len)
+{
+	struct net_device *dev = queue->dev;
+	struct net *net = dev_net(dev);
+	unsigned long *mask, index;
+	int err;
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	mask = kcalloc(BITS_TO_LONGS(dev->num_rx_queues), sizeof(long),
+		       GFP_KERNEL);
+	if (!mask)
+		return -ENOMEM;
+
+	index = get_netdev_queue_index(queue);
+
+	err = bitmap_parse(buf, len, mask, dev->num_rx_queues);
+	if (err) {
+		kfree(mask);
+		return err;
+	}
+
+	err = __netif_set_xps_queue(dev, mask, index, true);
+	kfree(mask);
+	return err ? : len;
+}
+
+static struct netdev_queue_attribute xps_rxqs_attribute __ro_after_init
+	= __ATTR_RW(xps_rxqs);
 #endif /* CONFIG_XPS */
 
 static struct attribute *netdev_queue_default_attrs[] __ro_after_init = {
@@ -1290,6 +1372,7 @@ static struct attribute *netdev_queue_default_attrs[] __ro_after_init = {
 	&queue_traffic_class.attr,
 #ifdef CONFIG_XPS
 	&xps_cpus_attribute.attr,
+	&xps_rxqs_attribute.attr,
 	&queue_tx_maxrate.attr,
 #endif
 	NULL
