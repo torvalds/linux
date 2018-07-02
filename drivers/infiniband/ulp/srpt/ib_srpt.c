@@ -1940,8 +1940,8 @@ static void __srpt_close_all_ch(struct srpt_port *sport)
 	list_for_each_entry(nexus, &sport->nexus_list, entry) {
 		list_for_each_entry(ch, &nexus->ch_list, list) {
 			if (srpt_disconnect_ch(ch) >= 0)
-				pr_info("Closing channel %s-%d because target %s_%d has been disabled\n",
-					ch->sess_name, ch->qp->qp_num,
+				pr_info("Closing channel %s because target %s_%d has been disabled\n",
+					ch->sess_name,
 					sport->sdev->device->name, sport->port);
 			srpt_close_ch(ch);
 		}
