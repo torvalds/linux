@@ -28,7 +28,8 @@ struct seq_file;
  *	is not available on this controller this should return -ENOTSUPP
  *	and if it is available but disabled it should return -EINVAL
  * @pin_config_set: configure an individual pin
- * @pin_config_group_get: get configurations for an entire pin group
+ * @pin_config_group_get: get configurations for an entire pin group; should
+ *	return -ENOTSUPP and -EINVAL using the same rules as pin_config_get.
  * @pin_config_group_set: configure all pins in a group
  * @pin_config_dbg_parse_modify: optional debugfs to modify a pin configuration
  * @pin_config_dbg_show: optional debugfs display hook that will provide
