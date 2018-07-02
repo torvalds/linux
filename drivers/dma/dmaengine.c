@@ -500,12 +500,8 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	caps->max_burst = device->max_burst;
 	caps->residue_granularity = device->residue_granularity;
 	caps->descriptor_reuse = device->descriptor_reuse;
-
-	/*
-	 * Some devices implement only pause (e.g. to get residuum) but no
-	 * resume. However cmd_pause is advertised as pause AND resume.
-	 */
-	caps->cmd_pause = !!(device->device_pause && device->device_resume);
+	caps->cmd_pause = !!device->device_pause;
+	caps->cmd_resume = !!device->device_resume;
 	caps->cmd_terminate = !!device->device_terminate_all;
 
 	return 0;
