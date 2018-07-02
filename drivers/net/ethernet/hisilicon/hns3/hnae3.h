@@ -167,7 +167,6 @@ struct hnae3_client_ops {
 #define HNAE3_CLIENT_NAME_LENGTH 16
 struct hnae3_client {
 	char name[HNAE3_CLIENT_NAME_LENGTH];
-	u16 version;
 	unsigned long state;
 	enum hnae3_client_type type;
 	const struct hnae3_client_ops *ops;
@@ -436,7 +435,6 @@ struct hnae3_dcb_ops {
 struct hnae3_ae_algo {
 	const struct hnae3_ae_ops *ops;
 	struct list_head node;
-	char name[HNAE3_CLASS_NAME_SIZE];
 	const struct pci_device_id *pdev_id_table;
 };
 

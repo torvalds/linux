@@ -6287,7 +6287,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 
 static struct hnae3_ae_algo ae_algo = {
 	.ops = &hclge_ops,
-	.name = HCLGE_NAME,
 	.pdev_id_table = ae_algo_pci_tbl,
 };
 

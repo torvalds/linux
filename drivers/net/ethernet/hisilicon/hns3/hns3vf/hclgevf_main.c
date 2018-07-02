@@ -1959,7 +1959,6 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 
 static struct hnae3_ae_algo ae_algovf = {
 	.ops = &hclgevf_ops,
-	.name = HCLGEVF_NAME,
 	.pdev_id_table = ae_algovf_pci_tbl,
 };
 
