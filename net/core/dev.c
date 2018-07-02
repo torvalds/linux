@@ -4806,9 +4806,11 @@ static inline void __netif_receive_skb_list_ptype(struct list_head *head,
 		return;
 	if (list_empty(head))
 		return;
-
-	list_for_each_entry_safe(skb, next, head, list)
-		pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+	if (pt_prev->list_func != NULL)
+		pt_prev->list_func(head, pt_prev, orig_dev);
+	else
+		list_for_each_entry_safe(skb, next, head, list)
+			pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
 
 static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemalloc)
