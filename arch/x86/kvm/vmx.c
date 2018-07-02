@@ -9051,9 +9051,20 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 #define L1D_CACHE_ORDER 4
 static void *vmx_l1d_flush_pages;
 
-static void __maybe_unused vmx_l1d_flush(void)
+static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 {
 	int size = PAGE_SIZE << L1D_CACHE_ORDER;
+	bool always;
+
+	/*
+	 * If the mitigation mode is 'flush always', keep the flush bit
+	 * set, otherwise clear it. It gets set again either from
+	 * vcpu_run() or from one of the unsafe VMEXIT handlers.
+	 */
+	always = vmentry_l1d_flush == VMENTER_L1D_FLUSH_ALWAYS;
+	vcpu->arch.l1tf_flush_l1d = always;
+
+	vcpu->stat.l1d_flush++;
 
 	if (static_cpu_has(X86_FEATURE_FLUSH_L1D)) {
 		wrmsrl(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
@@ -9324,6 +9335,7 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 			[ss]"i"(__KERNEL_DS),
 			[cs]"i"(__KERNEL_CS)
 			);
+		vcpu->arch.l1tf_flush_l1d = true;
 	}
 }
 STACK_FRAME_NON_STANDARD(vmx_handle_external_intr);
@@ -9578,6 +9590,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	x86_spec_ctrl_set_guest(vmx->spec_ctrl, 0);
 
 	vmx->__launched = vmx->loaded_vmcs->launched;
+
+	if (static_branch_unlikely(&vmx_l1d_should_flush)) {
+		if (vcpu->arch.l1tf_flush_l1d)
+			vmx_l1d_flush(vcpu);
+	}
 
 	asm(
 		/* Store host registers */
@@ -11311,6 +11328,9 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	ret = enter_vmx_non_root_mode(vcpu, true);
 	if (ret)
 		return ret;
+
+	/* Hide L1D cache contents from the nested guest.  */
+	vmx->vcpu.arch.l1tf_flush_l1d = true;
 
 	/*
 	 * If we're entering a halted L2 vcpu and the L2 vcpu won't be woken
