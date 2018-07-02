@@ -55,16 +55,30 @@ static const struct {
 	struct usb_functionfs_descs_head_v2 header;
 	__le32 fs_count;
 	__le32 hs_count;
+	__le32 ss_count;
+	__le32 os_count;
 	struct {
 		struct usb_interface_descriptor intf;
 		struct usb_endpoint_descriptor_no_audio bulk_sink;
 		struct usb_endpoint_descriptor_no_audio bulk_source;
 	} __attribute__ ((__packed__)) fs_descs, hs_descs;
+	struct {
+		struct usb_interface_descriptor intf;
+		struct usb_endpoint_descriptor_no_audio sink;
+		struct usb_ss_ep_comp_descriptor sink_comp;
+		struct usb_endpoint_descriptor_no_audio source;
+		struct usb_ss_ep_comp_descriptor source_comp;
+	} __attribute__ ((__packed__)) ss_descs;
+	struct usb_os_desc_header os_header;
+	struct usb_ext_compat_desc os_desc;
+
 } __attribute__ ((__packed__)) descriptors = {
 	.header = {
 		.magic = htole32(FUNCTIONFS_DESCRIPTORS_MAGIC_V2),
 		.flags = htole32(FUNCTIONFS_HAS_FS_DESC |
-				     FUNCTIONFS_HAS_HS_DESC),
+				 FUNCTIONFS_HAS_HS_DESC |
+				 FUNCTIONFS_HAS_SS_DESC |
+				 FUNCTIONFS_HAS_MS_OS_DESC),
 		.length = htole32(sizeof(descriptors)),
 	},
 	.fs_count = htole32(3),
@@ -112,6 +126,58 @@ static const struct {
 			.bmAttributes = USB_ENDPOINT_XFER_BULK,
 			.wMaxPacketSize = htole16(512),
 		},
+	},
+	.ss_count = htole32(5),
+	.ss_descs = {
+		.intf = {
+			.bLength = sizeof(descriptors.ss_descs.intf),
+			.bDescriptorType = USB_DT_INTERFACE,
+			.bInterfaceNumber = 0,
+			.bNumEndpoints = 2,
+			.bInterfaceClass = USB_CLASS_VENDOR_SPEC,
+			.iInterface = 1,
+		},
+		.sink = {
+			.bLength = sizeof(descriptors.ss_descs.sink),
+			.bDescriptorType = USB_DT_ENDPOINT,
+			.bEndpointAddress = 1 | USB_DIR_IN,
+			.bmAttributes = USB_ENDPOINT_XFER_BULK,
+			.wMaxPacketSize = htole16(1024),
+		},
+		.sink_comp = {
+			.bLength = sizeof(descriptors.ss_descs.sink_comp),
+			.bDescriptorType = USB_DT_SS_ENDPOINT_COMP,
+			.bMaxBurst = 4,
+		},
+		.source = {
+			.bLength = sizeof(descriptors.ss_descs.source),
+			.bDescriptorType = USB_DT_ENDPOINT,
+			.bEndpointAddress = 2 | USB_DIR_OUT,
+			.bmAttributes = USB_ENDPOINT_XFER_BULK,
+			.wMaxPacketSize = htole16(1024),
+		},
+		.source_comp = {
+			.bLength = sizeof(descriptors.ss_descs.source_comp),
+			.bDescriptorType = USB_DT_SS_ENDPOINT_COMP,
+			.bMaxBurst = 4,
+		},
+	},
+	.os_count = htole32(1),
+	.os_header = {
+		.interface = htole32(1),
+		.dwLength = htole32(sizeof(descriptors.os_header) +
+			    sizeof(descriptors.os_desc)),
+		.bcdVersion = htole32(1),
+		.wIndex = htole32(4),
+		.bCount = htole32(1),
+		.Reserved = htole32(0),
+	},
+	.os_desc = {
+		.bFirstInterfaceNumber = 0,
+		.Reserved1 = htole32(1),
+		.CompatibleID = {0},
+		.SubCompatibleID = {0},
+		.Reserved2 = {0},
 	},
 };
 
