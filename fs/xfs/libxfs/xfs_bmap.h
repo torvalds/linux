@@ -227,6 +227,8 @@ int	xfs_bmap_collapse_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
 		bool *done, xfs_fsblock_t *firstblock,
 		struct xfs_defer_ops *dfops);
+int	xfs_bmap_can_insert_extents(struct xfs_inode *ip, xfs_fileoff_t off,
+		xfs_fileoff_t shift);
 int	xfs_bmap_insert_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
 		bool *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock,

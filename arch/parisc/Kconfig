@@ -244,11 +244,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 endchoice
 
@@ -347,7 +347,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32"
+	default "4"
 
 endmenu
 

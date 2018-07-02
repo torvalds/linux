@@ -799,7 +799,7 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
 
 	return 0;
 }
-EXPORT_SYMBOL(gnttab_alloc_pages);
+EXPORT_SYMBOL_GPL(gnttab_alloc_pages);
 
 /**
  * gnttab_free_pages - free pages allocated by gnttab_alloc_pages()
@@ -820,7 +820,7 @@ void gnttab_free_pages(int nr_pages, struct page **pages)
 	}
 	free_xenballooned_pages(nr_pages, pages);
 }
-EXPORT_SYMBOL(gnttab_free_pages);
+EXPORT_SYMBOL_GPL(gnttab_free_pages);
 
 /* Handling of paged out grant targets (GNTST_eagain) */
 #define MAX_DELAY 256

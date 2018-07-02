@@ -132,6 +132,12 @@ struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
 extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 			struct fileIdentDesc *, struct udf_fileident_bh *,
 			uint8_t *, uint8_t *);
+static inline unsigned int udf_dir_entry_len(struct fileIdentDesc *cfi)
+{
+	return ALIGN(sizeof(struct fileIdentDesc) +
+		le16_to_cpu(cfi->lengthOfImpUse) + cfi->lengthFileIdent,
+		UDF_NAME_PAD);
+}
 
 /* file.c */
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
@@ -167,8 +173,7 @@ extern int udf_add_aext(struct inode *, struct extent_position *,
 			struct kernel_lb_addr *, uint32_t, int);
 extern void udf_write_aext(struct inode *, struct extent_position *,
 			   struct kernel_lb_addr *, uint32_t, int);
-extern int8_t udf_delete_aext(struct inode *, struct extent_position,
-			      struct kernel_lb_addr, uint32_t);
+extern int8_t udf_delete_aext(struct inode *, struct extent_position);
 extern int8_t udf_next_aext(struct inode *, struct extent_position *,
 			    struct kernel_lb_addr *, uint32_t *, int);
 extern int8_t udf_current_aext(struct inode *, struct extent_position *,

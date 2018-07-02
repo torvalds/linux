@@ -255,9 +255,8 @@ qed_dcbx_get_app_protocol_type(struct qed_hwfn *p_hwfn,
 		*type = DCBX_PROTOCOL_ROCE_V2;
 	} else {
 		*type = DCBX_MAX_PROTOCOL_TYPE;
-		DP_ERR(p_hwfn,
-		       "No action required, App TLV id = 0x%x app_prio_bitmap = 0x%x\n",
-		       id, app_prio_bitmap);
+		DP_ERR(p_hwfn, "No action required, App TLV entry = 0x%x\n",
+		       app_prio_bitmap);
 		return false;
 	}
 
@@ -1479,8 +1478,8 @@ static u8 qed_dcbnl_getcap(struct qed_dev *cdev, int capid, u8 *cap)
 		*cap = 0x80;
 		break;
 	case DCB_CAP_ATTR_DCBX:
-		*cap = (DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_CEE |
-			DCB_CAP_DCBX_VER_IEEE | DCB_CAP_DCBX_STATIC);
+		*cap = (DCB_CAP_DCBX_VER_CEE | DCB_CAP_DCBX_VER_IEEE |
+			DCB_CAP_DCBX_STATIC);
 		break;
 	default:
 		*cap = false;
@@ -1548,8 +1547,6 @@ static u8 qed_dcbnl_getdcbx(struct qed_dev *cdev)
 	if (!dcbx_info)
 		return 0;
 
-	if (dcbx_info->operational.enabled)
-		mode |= DCB_CAP_DCBX_LLD_MANAGED;
 	if (dcbx_info->operational.ieee)
 		mode |= DCB_CAP_DCBX_VER_IEEE;
 	if (dcbx_info->operational.cee)

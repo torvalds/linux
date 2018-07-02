@@ -5507,9 +5507,9 @@ static void __exit scsi_debug_exit(void)
 	int k = sdebug_add_host;
 
 	stop_all_queued();
-	free_all_queued();
 	for (; k; k--)
 		sdebug_remove_adapter();
+	free_all_queued();
 	driver_unregister(&sdebug_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	root_device_unregister(pseudo_primary);

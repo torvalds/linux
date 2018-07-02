@@ -5780,6 +5780,32 @@ del_cursor:
 	return error;
 }
 
+/* Make sure we won't be right-shifting an extent past the maximum bound. */
+int
+xfs_bmap_can_insert_extents(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		off,
+	xfs_fileoff_t		shift)
+{
+	struct xfs_bmbt_irec	got;
+	int			is_empty;
+	int			error = 0;
+
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		return -EIO;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	error = xfs_bmap_last_extent(NULL, ip, XFS_DATA_FORK, &got, &is_empty);
+	if (!error && !is_empty && got.br_startoff >= off &&
+	    ((got.br_startoff + shift) & BMBT_STARTOFF_MASK) < got.br_startoff)
+		error = -EINVAL;
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+
+	return error;
+}
+
 int
 xfs_bmap_insert_extents(
 	struct xfs_trans	*tp,

@@ -781,7 +781,6 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		WARN_ON_ONCE(ret != BLK_EH_RESET_TIMER);
 	}
 
-	req->rq_flags &= ~RQF_TIMED_OUT;
 	blk_add_timer(req);
 }
 
@@ -1076,6 +1075,9 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
 
 #define BLK_MQ_RESOURCE_DELAY	3		/* ms units */
 
+/*
+ * Returns true if we did some work AND can potentially do more.
+ */
 bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 			     bool got_budget)
 {
@@ -1206,7 +1208,16 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 			blk_mq_run_hw_queue(hctx, true);
 		else if (needs_restart && (ret == BLK_STS_RESOURCE))
 			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
+
+		return false;
 	}
+
+	/*
+	 * If the host/device is unable to accept more work, inform the
+	 * caller of that.
+	 */
+	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
+		return false;
 
 	return (queued + errors) != 0;
 }
