@@ -326,6 +326,10 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 extern void led_trigger_rename_static(const char *name,
 				      struct led_trigger *trig);
 
+#define module_led_trigger(__led_trigger) \
+	module_driver(__led_trigger, led_trigger_register, \
+		      led_trigger_unregister)
+
 #else
 
 /* Trigger has no members */
