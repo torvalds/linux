@@ -171,6 +171,8 @@ static void armada_drm_unbind(struct device *dev)
 
 	drm_dev_unregister(&priv->drm);
 
+	drm_atomic_helper_shutdown(&priv->drm);
+
 	component_unbind_all(dev, &priv->drm);
 
 	drm_mode_config_cleanup(&priv->drm);
