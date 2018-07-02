@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Broxton-P I2S Machine Driver for IVI reference platform
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -37,7 +29,6 @@ static const struct snd_soc_dapm_widget broxton_tdf8532_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route broxton_tdf8532_map[] = {
-
 	/* Speaker BE connections */
 	{ "Speaker", NULL, "ssp4 Tx"},
 	{ "ssp4 Tx", NULL, "codec0_out"},
@@ -77,7 +68,7 @@ static const struct snd_soc_dapm_route broxton_tdf8532_map[] = {
 };
 
 static int bxt_tdf8532_ssp2_fixup(struct snd_soc_pcm_runtime *rtd,
-				struct snd_pcm_hw_params *params)
+				  struct snd_pcm_hw_params *params)
 {
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 
@@ -218,7 +209,7 @@ static struct snd_soc_dai_link broxton_tdf8532_dais[] = {
 
 #if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 static int bxt_add_dai_link(struct snd_soc_card *card,
-			struct snd_soc_dai_link *link)
+			    struct snd_soc_dai_link *link)
 {
 	link->platform_name = "0000:00:0e.0";
 	link->nonatomic = 1;
