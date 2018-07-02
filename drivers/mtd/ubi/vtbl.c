@@ -560,6 +560,9 @@ static int init_volumes(struct ubi_device *ubi,
 		vol->name[vol->name_len] = '\0';
 		vol->vol_id = i;
 
+		if (vtbl[i].flags & UBI_VTBL_SKIP_CRC_CHECK_FLG)
+			vol->skip_check = 1;
+
 		if (vtbl[i].flags & UBI_VTBL_AUTORESIZE_FLG) {
 			/* Auto re-size flag may be set only for one volume */
 			if (ubi->autoresize_vol_id != -1) {
