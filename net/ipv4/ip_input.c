@@ -307,7 +307,8 @@ drop:
 	return true;
 }
 
-static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int ip_rcv_finish_core(struct net *net, struct sock *sk,
+			      struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	int (*edemux)(struct sk_buff *skb);
@@ -393,7 +394,7 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 			goto drop;
 	}
 
-	return dst_input(skb);
+	return NET_RX_SUCCESS;
 
 drop:
 	kfree_skb(skb);
@@ -403,6 +404,15 @@ drop_error:
 	if (err == -EXDEV)
 		__NET_INC_STATS(net, LINUX_MIB_IPRPFILTER);
 	goto drop;
+}
+
+static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	int ret = ip_rcv_finish_core(net, sk, skb);
+
+	if (ret != NET_RX_DROP)
+		ret = dst_input(skb);
+	return ret;
 }
 
 /*
@@ -515,15 +525,47 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 		       ip_rcv_finish);
 }
 
-static void ip_sublist_rcv(struct list_head *head, struct net_device *dev,
-			   struct net *net)
+static void ip_sublist_rcv_finish(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
 
+	list_for_each_entry_safe(skb, next, head, list)
+		dst_input(skb);
+}
+
+static void ip_list_rcv_finish(struct net *net, struct sock *sk,
+			       struct list_head *head)
+{
+	struct dst_entry *curr_dst = NULL;
+	struct sk_buff *skb, *next;
+	struct list_head sublist;
+
+	list_for_each_entry_safe(skb, next, head, list) {
+		struct dst_entry *dst;
+
+		if (ip_rcv_finish_core(net, sk, skb) == NET_RX_DROP)
+			continue;
+
+		dst = skb_dst(skb);
+		if (curr_dst != dst) {
+			/* dispatch old sublist */
+			list_cut_before(&sublist, head, &skb->list);
+			if (!list_empty(&sublist))
+				ip_sublist_rcv_finish(&sublist);
+			/* start new sublist */
+			curr_dst = dst;
+		}
+	}
+	/* dispatch final sublist */
+	ip_sublist_rcv_finish(head);
+}
+
+static void ip_sublist_rcv(struct list_head *head, struct net_device *dev,
+			   struct net *net)
+{
 	NF_HOOK_LIST(NFPROTO_IPV4, NF_INET_PRE_ROUTING, net, NULL,
 		     head, dev, NULL, ip_rcv_finish);
-	list_for_each_entry_safe(skb, next, head, list)
-		ip_rcv_finish(net, NULL, skb);
+	ip_list_rcv_finish(net, NULL, head);
 }
 
 /* Receive a list of IP packets */
