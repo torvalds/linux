@@ -2925,7 +2925,7 @@ static unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb)
 		/* Add 16M for POWER8 by default */
 		if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 				!cpu_has_feature(CPU_FTR_ARCH_300))
-			mask |= SZ_16M;
+			mask |= SZ_16M | SZ_256M;
 		return mask;
 	}
 
