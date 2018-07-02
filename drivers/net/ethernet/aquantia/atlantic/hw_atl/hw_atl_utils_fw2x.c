@@ -28,6 +28,10 @@
 #define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
 #define HW_ATL_FW2X_MPI_STATE2_ADDR	0x374
 
+static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed);
+static int aq_fw2x_set_state(struct aq_hw_s *self,
+			     enum hal_atl_utils_fw_state_e state);
+
 static int aq_fw2x_init(struct aq_hw_s *self)
 {
 	int err = 0;
@@ -36,6 +40,16 @@ static int aq_fw2x_init(struct aq_hw_s *self)
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
 			aq_hw_read_reg(self, HW_ATL_FW2X_MPI_MBOX_ADDR)),
 		       1000U, 10U);
+	return err;
+}
+
+static int aq_fw2x_deinit(struct aq_hw_s *self)
+{
+	int err = aq_fw2x_set_link_speed(self, 0);
+
+	if (!err)
+		err = aq_fw2x_set_state(self, MPI_DEINIT);
+
 	return err;
 }
 
@@ -76,7 +90,21 @@ static int aq_fw2x_set_link_speed(struct aq_hw_s *self, u32 speed)
 static int aq_fw2x_set_state(struct aq_hw_s *self,
 			     enum hal_atl_utils_fw_state_e state)
 {
-	/* No explicit state in 2x fw */
+	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+
+	switch (state) {
+	case MPI_INIT:
+		mpi_state &= ~BIT(CAPS_HI_LINK_DROP);
+		break;
+	case MPI_DEINIT:
+		mpi_state |= BIT(CAPS_HI_LINK_DROP);
+		break;
+	case MPI_RESET:
+	case MPI_POWER:
+		/* No actions */
+		break;
+	}
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_state);
 	return 0;
 }
 
@@ -175,6 +203,7 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 
 const struct aq_fw_ops aq_fw_2x_ops = {
 	.init = aq_fw2x_init,
+	.deinit = aq_fw2x_deinit,
 	.reset = NULL,
 	.get_mac_permanent = aq_fw2x_get_mac_permanent,
 	.set_link_speed = aq_fw2x_set_link_speed,
