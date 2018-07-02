@@ -262,7 +262,18 @@ struct led_trigger {
 
 	/* Link to next registered trigger */
 	struct list_head  next_trig;
+
+	const struct attribute_group **groups;
 };
+
+/*
+ * Currently the attributes in struct led_trigger::groups are added directly to
+ * the LED device. As this might change in the future, the following
+ * macros abstract getting the LED device and its trigger_data from the dev
+ * parameter passed to the attribute accessor functions.
+ */
+#define led_trigger_get_led(dev)	((struct led_classdev *)dev_get_drvdata((dev)))
+#define led_trigger_get_drvdata(dev)	(led_get_trigger_data(led_trigger_get_led(dev)))
 
 ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count);
