@@ -74,16 +74,16 @@
 #define ACP_TO_I2S_DMA_CH_NUM 13
 
 /* Capture DMA channels */
-#define ACP_TO_SYSRAM_CH_NUM 14
-#define I2S_TO_ACP_DMA_CH_NUM 15
+#define I2S_TO_ACP_DMA_CH_NUM 14
+#define ACP_TO_SYSRAM_CH_NUM 15
 
 /* Playback DMA Channels for I2S BT instance */
 #define SYSRAM_TO_ACP_BT_INSTANCE_CH_NUM  8
 #define ACP_TO_I2S_DMA_BT_INSTANCE_CH_NUM 9
 
 /* Capture DMA Channels for I2S BT Instance */
-#define ACP_TO_SYSRAM_BT_INSTANCE_CH_NUM 10
-#define I2S_TO_ACP_DMA_BT_INSTANCE_CH_NUM 11
+#define I2S_TO_ACP_DMA_BT_INSTANCE_CH_NUM 10
+#define ACP_TO_SYSRAM_BT_INSTANCE_CH_NUM 11
 
 #define NUM_DSCRS_PER_CHANNEL 2
 
