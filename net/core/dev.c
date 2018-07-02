@@ -4843,6 +4843,14 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 	return ret;
 }
 
+static void __netif_receive_skb_list(struct list_head *head)
+{
+	struct sk_buff *skb, *next;
+
+	list_for_each_entry_safe(skb, next, head, list)
+		__netif_receive_skb(skb);
+}
+
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -4883,6 +4891,50 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	return ret;
 }
 
+static void netif_receive_skb_list_internal(struct list_head *head)
+{
+	struct bpf_prog *xdp_prog = NULL;
+	struct sk_buff *skb, *next;
+
+	list_for_each_entry_safe(skb, next, head, list) {
+		net_timestamp_check(netdev_tstamp_prequeue, skb);
+		if (skb_defer_rx_timestamp(skb))
+			/* Handled, remove from list */
+			list_del(&skb->list);
+	}
+
+	if (static_branch_unlikely(&generic_xdp_needed_key)) {
+		preempt_disable();
+		rcu_read_lock();
+		list_for_each_entry_safe(skb, next, head, list) {
+			xdp_prog = rcu_dereference(skb->dev->xdp_prog);
+			if (do_xdp_generic(xdp_prog, skb) != XDP_PASS)
+				/* Dropped, remove from list */
+				list_del(&skb->list);
+		}
+		rcu_read_unlock();
+		preempt_enable();
+	}
+
+	rcu_read_lock();
+#ifdef CONFIG_RPS
+	if (static_key_false(&rps_needed)) {
+		list_for_each_entry_safe(skb, next, head, list) {
+			struct rps_dev_flow voidflow, *rflow = &voidflow;
+			int cpu = get_rps_cpu(skb->dev, skb, &rflow);
+
+			if (cpu >= 0) {
+				enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
+				/* Handled, remove from list */
+				list_del(&skb->list);
+			}
+		}
+	}
+#endif
+	__netif_receive_skb_list(head);
+	rcu_read_unlock();
+}
+
 /**
  *	netif_receive_skb - process receive buffer from network
  *	@skb: buffer to process
@@ -4910,20 +4962,19 @@ EXPORT_SYMBOL(netif_receive_skb);
  *	netif_receive_skb_list - process many receive buffers from network
  *	@head: list of skbs to process.
  *
- *	For now, just calls netif_receive_skb() in a loop, ignoring the
- *	return value.
+ *	Since return value of netif_receive_skb() is normally ignored, and
+ *	wouldn't be meaningful for a list, this function returns void.
  *
  *	This function may only be called from softirq context and interrupts
  *	should be enabled.
  */
 void netif_receive_skb_list(struct list_head *head)
 {
-	struct sk_buff *skb, *next;
+	struct sk_buff *skb;
 
 	list_for_each_entry(skb, head, list)
 		trace_netif_receive_skb_list_entry(skb);
-	list_for_each_entry_safe(skb, next, head, list)
-		netif_receive_skb_internal(skb);
+	netif_receive_skb_list_internal(head);
 }
 EXPORT_SYMBOL(netif_receive_skb_list);
 
