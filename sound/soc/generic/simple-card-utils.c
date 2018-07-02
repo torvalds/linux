@@ -1,12 +1,9 @@
-/*
- * simple-card-utils.c
- *
- * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// simple-card-utils.c
+//
+// Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
