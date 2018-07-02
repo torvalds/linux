@@ -761,9 +761,13 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Full);
 
-	if (self->aq_nic_cfg.flow_control)
+	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_RX)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     Pause);
+
+	if (self->aq_nic_cfg.flow_control & AQ_NIC_FC_TX)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     Asym_Pause);
 
 	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_FIBRE)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
