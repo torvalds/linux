@@ -71,6 +71,11 @@ bool dm_pp_apply_display_requirements(
 		adev->pm.pm_display_cfg.min_mem_set_clock =
 				pp_display_cfg->min_memory_clock_khz/10;
 
+		adev->pm.pm_display_cfg.min_dcef_deep_sleep_set_clk =
+				pp_display_cfg->min_engine_clock_deep_sleep_khz/10;
+		adev->pm.pm_display_cfg.min_dcef_set_clk =
+				pp_display_cfg->min_dcfclock_khz/10;
+
 		adev->pm.pm_display_cfg.multi_monitor_in_sync =
 				pp_display_cfg->all_displays_in_sync;
 		adev->pm.pm_display_cfg.min_vblank_time =
