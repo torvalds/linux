@@ -4052,15 +4052,12 @@ static void hns_roce_mhop_free_eq(struct hns_roce_dev *hr_dev,
 	u32 bt_chk_sz;
 	u32 mhop_num;
 	int eqe_alloc;
-	int ba_num;
 	int i = 0;
 	int j = 0;
 
 	mhop_num = hr_dev->caps.eqe_hop_num;
 	buf_chk_sz = 1 << (hr_dev->caps.eqe_buf_pg_sz + PAGE_SHIFT);
 	bt_chk_sz = 1 << (hr_dev->caps.eqe_ba_pg_sz + PAGE_SHIFT);
-	ba_num = (PAGE_ALIGN(eq->entries * eq->eqe_size) + buf_chk_sz - 1) /
-		 buf_chk_sz;
 
 	/* hop_num = 0 */
 	if (mhop_num == HNS_ROCE_HOP_NUM_0) {
