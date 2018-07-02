@@ -596,9 +596,6 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_camera_device,
 	&ams_delta_audio_device,
 	&ams_delta_serio_device,
-};
-
-static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&cx20442_codec_device,
@@ -607,9 +604,6 @@ static struct platform_device *late_devices[] __initdata = {
 static struct gpiod_lookup_table *ams_delta_gpio_tables[] __initdata = {
 	&ams_delta_audio_gpio_table,
 	&keybrd_pwr_gpio_table,
-};
-
-static struct gpiod_lookup_table *late_gpio_tables[] __initdata = {
 	&ams_delta_lcd_gpio_table,
 	&ams_delta_nand_gpio_table,
 };
@@ -713,6 +707,8 @@ static void __init ams_delta_init(void)
 	ams_delta_audio_gpio_table.dev_id =
 			dev_name(&ams_delta_audio_device.dev);
 	keybrd_pwr_gpio_table.dev_id = dev_name(&keybrd_pwr_device.dev);
+	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
+	ams_delta_lcd_gpio_table.dev_id = dev_name(&ams_delta_lcd_device.dev);
 
 	/*
 	 * Once GPIO lookup tables are populated with dev_names, register them.
@@ -836,20 +832,6 @@ static int __init ams_delta_gpio_init(void)
 }
 device_initcall_sync(ams_delta_gpio_init);
 
-static void __init ams_delta_late_devices(void)
-{
-	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
-
-	/*
-	 * As soon as devices have been registered, assign their dev_names
-	 * to respective GPIO lookup tables before they are added.
-	 */
-	ams_delta_lcd_gpio_table.dev_id = dev_name(&ams_delta_lcd_device.dev);
-	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
-
-	gpiod_add_lookup_tables(late_gpio_tables, ARRAY_SIZE(late_gpio_tables));
-}
-
 static int __init modem_nreset_init(void)
 {
 	int err;
@@ -893,8 +875,6 @@ static int __init ams_delta_modem_init(void)
 static int __init late_init(void)
 {
 	int err;
-
-	ams_delta_late_devices();
 
 	err = modem_nreset_init();
 	if (err)
