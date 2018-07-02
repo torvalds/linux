@@ -4396,6 +4396,8 @@ static void qed_sriov_enable_qid_config(struct qed_hwfn *hwfn,
 static int qed_sriov_enable(struct qed_dev *cdev, int num)
 {
 	struct qed_iov_vf_init_params params;
+	struct qed_hwfn *hwfn;
+	struct qed_ptt *ptt;
 	int i, j, rc;
 
 	if (num >= RESC_NUM(&cdev->hwfns[0], QED_VPORT)) {
@@ -4408,8 +4410,8 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 
 	/* Initialize HW for VF access */
 	for_each_hwfn(cdev, j) {
-		struct qed_hwfn *hwfn = &cdev->hwfns[j];
-		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+		hwfn = &cdev->hwfns[j];
+		ptt = qed_ptt_acquire(hwfn);
 
 		/* Make sure not to use more than 16 queues per VF */
 		params.num_queues = min_t(int,
@@ -4444,6 +4446,19 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 		DP_ERR(cdev, "Failed to enable sriov [%d]\n", rc);
 		goto err;
 	}
+
+	hwfn = QED_LEADING_HWFN(cdev);
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_ERR(hwfn, "Failed to acquire ptt\n");
+		rc = -EBUSY;
+		goto err;
+	}
+
+	rc = qed_mcp_ov_update_eswitch(hwfn, ptt, QED_OV_ESWITCH_VEB);
+	if (rc)
+		DP_INFO(cdev, "Failed to update eswitch mode\n");
+	qed_ptt_release(hwfn, ptt);
 
 	return num;
 
