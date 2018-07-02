@@ -144,8 +144,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	int ret = 0, err;
 	int ksize;
 
-	if (!nla)
+	if (!nla) {
+		NL_SET_ERR_MSG_MOD(extack, "Pedit requires attributes to be passed");
 		return -EINVAL;
+	}
 
 	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy, NULL);
 	if (err < 0)
@@ -154,21 +156,27 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	pattr = tb[TCA_PEDIT_PARMS];
 	if (!pattr)
 		pattr = tb[TCA_PEDIT_PARMS_EX];
-	if (!pattr)
+	if (!pattr) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing required TCA_PEDIT_PARMS or TCA_PEDIT_PARMS_EX pedit attribute");
 		return -EINVAL;
+	}
 
 	parm = nla_data(pattr);
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
-	if (nla_len(pattr) < sizeof(*parm) + ksize)
+	if (nla_len(pattr) < sizeof(*parm) + ksize) {
+		NL_SET_ERR_MSG_ATTR(extack, pattr, "Length of TCA_PEDIT_PARMS or TCA_PEDIT_PARMS_EX pedit attribute is invalid");
 		return -EINVAL;
+	}
 
 	keys_ex = tcf_pedit_keys_ex_parse(tb[TCA_PEDIT_KEYS_EX], parm->nkeys);
 	if (IS_ERR(keys_ex))
 		return PTR_ERR(keys_ex);
 
 	if (!tcf_idr_check(tn, parm->index, a, bind)) {
-		if (!parm->nkeys)
+		if (!parm->nkeys) {
+			NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
 			return -EINVAL;
+		}
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_pedit_ops, bind, false);
 		if (ret)
