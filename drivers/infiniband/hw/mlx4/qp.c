@@ -4014,9 +4014,9 @@ static void to_rdma_ah_attr(struct mlx4_ib_dev *ibdev,
 	u8 port_num = path->sched_queue & 0x40 ? 2 : 1;
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
-	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, port_num);
 	if (port_num == 0 || port_num > dev->caps.num_ports)
 		return;
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, port_num);
 
 	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE)
 		rdma_ah_set_sl(ah_attr, ((path->sched_queue >> 3) & 0x7) |
