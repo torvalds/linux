@@ -4920,8 +4920,10 @@ void netif_receive_skb_list(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
 
+	list_for_each_entry(skb, head, list)
+		trace_netif_receive_skb_list_entry(skb);
 	list_for_each_entry_safe(skb, next, head, list)
-		netif_receive_skb(skb);
+		netif_receive_skb_internal(skb);
 }
 EXPORT_SYMBOL(netif_receive_skb_list);
 
