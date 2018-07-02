@@ -18,8 +18,7 @@
 #include "hclge_main.h"
 
 #define hclge_is_csq(ring) ((ring)->flag & HCLGE_TYPE_CSQ)
-#define hclge_ring_to_dma_dir(ring) (hclge_is_csq(ring) ? \
-	DMA_TO_DEVICE : DMA_FROM_DEVICE)
+
 #define cmq_ring_to_dev(ring)   (&(ring)->dev->pdev->dev)
 
 static int hclge_ring_space(struct hclge_cmq_ring *ring)
