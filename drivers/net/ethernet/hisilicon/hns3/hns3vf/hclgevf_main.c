@@ -450,12 +450,12 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_RSS_TC_MODE, false);
 	for (i = 0; i < HCLGEVF_MAX_TC_NUM; i++) {
-		hnae_set_bit(req->rss_tc_mode[i], HCLGEVF_RSS_TC_VALID_B,
-			     (tc_valid[i] & 0x1));
-		hnae_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_SIZE_M,
-			       HCLGEVF_RSS_TC_SIZE_S, tc_size[i]);
-		hnae_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_OFFSET_M,
-			       HCLGEVF_RSS_TC_OFFSET_S, tc_offset[i]);
+		hnae3_set_bit(req->rss_tc_mode[i], HCLGEVF_RSS_TC_VALID_B,
+			      (tc_valid[i] & 0x1));
+		hnae3_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_SIZE_M,
+				HCLGEVF_RSS_TC_SIZE_S, tc_size[i]);
+		hnae3_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_OFFSET_M,
+				HCLGEVF_RSS_TC_OFFSET_S, tc_offset[i]);
 	}
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -582,11 +582,11 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 		}
 
 		req->msg[idx_offset] =
-				hnae_get_bit(node->flag, HNAE3_RING_TYPE_B);
+				hnae3_get_bit(node->flag, HNAE3_RING_TYPE_B);
 		req->msg[idx_offset + 1] = node->tqp_index;
-		req->msg[idx_offset + 2] = hnae_get_field(node->int_gl_idx,
-							  HNAE3_RING_GL_IDX_M,
-							  HNAE3_RING_GL_IDX_S);
+		req->msg[idx_offset + 2] = hnae3_get_field(node->int_gl_idx,
+							   HNAE3_RING_GL_IDX_M,
+							   HNAE3_RING_GL_IDX_S);
 
 		i++;
 		if ((i == (HCLGE_MBX_VF_MSG_DATA_NUM -
@@ -1000,8 +1000,8 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 
 	/* wait to check the hardware reset completion status */
 	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
-	while (hnae_get_bit(val, HCLGEVF_FUN_RST_ING_B) &&
-			    (cnt < HCLGEVF_RESET_WAIT_CNT)) {
+	while (hnae3_get_bit(val, HCLGEVF_FUN_RST_ING_B) &&
+	       (cnt < HCLGEVF_RESET_WAIT_CNT)) {
 		msleep(HCLGEVF_RESET_WAIT_MS);
 		val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
 		cnt++;

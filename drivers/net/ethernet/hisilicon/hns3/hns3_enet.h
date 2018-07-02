@@ -590,7 +590,7 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 
-#define hnae_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
+#define hnae3_queue_xmit(tqp, buf_num) writel_relaxed(buf_num, \
 		(tqp)->io_base + HNS3_RING_TX_RING_TAIL_REG)
 
 #define ring_to_dev(ring) (&(ring)->tqp->handle->pdev->dev)
@@ -600,9 +600,9 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 
 #define tx_ring_data(priv, idx) ((priv)->ring_data[idx])
 
-#define hnae_buf_size(_ring) ((_ring)->buf_size)
-#define hnae_page_order(_ring) (get_order(hnae_buf_size(_ring)))
-#define hnae_page_size(_ring) (PAGE_SIZE << hnae_page_order(_ring))
+#define hnae3_buf_size(_ring) ((_ring)->buf_size)
+#define hnae3_page_order(_ring) (get_order(hnae3_buf_size(_ring)))
+#define hnae3_page_size(_ring) (PAGE_SIZE << hnae3_page_order(_ring))
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \

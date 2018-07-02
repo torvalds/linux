@@ -123,10 +123,11 @@ struct hclge_port_shapping_cmd {
 };
 
 #define hclge_tm_set_field(dest, string, val) \
-			hnae_set_field((dest), (HCLGE_TM_SHAP_##string##_MSK), \
-				       (HCLGE_TM_SHAP_##string##_LSH), val)
+			   hnae3_set_field((dest), \
+			   (HCLGE_TM_SHAP_##string##_MSK), \
+			   (HCLGE_TM_SHAP_##string##_LSH), val)
 #define hclge_tm_get_field(src, string) \
-			hnae_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
+			hnae3_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
 				       (HCLGE_TM_SHAP_##string##_LSH))
 
 int hclge_tm_schd_init(struct hclge_dev *hdev);

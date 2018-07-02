@@ -152,7 +152,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		req = (struct hclge_mbx_pf_to_vf_cmd *)desc->data;
 
 		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
-		if (unlikely(!hnae_get_bit(flag, HCLGEVF_CMDQ_RX_OUTVLD_B))) {
+		if (unlikely(!hnae3_get_bit(flag, HCLGEVF_CMDQ_RX_OUTVLD_B))) {
 			dev_warn(&hdev->pdev->dev,
 				 "dropped invalid mailbox message, code = %d\n",
 				 req->msg[0]);
