@@ -193,6 +193,9 @@ struct sctp_sock {
 	/* This is the max_retrans value for new associations. */
 	__u16 pathmaxrxt;
 
+	__u32 flowlabel;
+	__u8  dscp;
+
 	/* The initial Path MTU to use for new associations. */
 	__u32 pathmtu;
 
@@ -894,6 +897,9 @@ struct sctp_transport {
 	 * using the SCTP_SET_PEER_ADDR_PARAMS socket option.
 	 */
 	__u16 pathmaxrxt;
+
+	__u32 flowlabel;
+	__u8  dscp;
 
 	/* This is the partially failed retrans value for the transport
 	 * and will be initialized from the assocs value.  This can be changed
@@ -1771,6 +1777,9 @@ struct sctp_association {
 	 * association.
 	 */
 	__u16 pathmaxrxt;
+
+	__u32 flowlabel;
+	__u8  dscp;
 
 	/* Flag that path mtu update is pending */
 	__u8   pmtu_pending;
