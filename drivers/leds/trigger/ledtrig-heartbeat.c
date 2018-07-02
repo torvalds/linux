@@ -96,8 +96,8 @@ static void led_heartbeat_function(struct timer_list *t)
 static ssize_t led_invert_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
+	struct heartbeat_trig_data *heartbeat_data =
+		led_trigger_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", heartbeat_data->invert);
 }
@@ -105,8 +105,8 @@ static ssize_t led_invert_show(struct device *dev,
 static ssize_t led_invert_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
+	struct heartbeat_trig_data *heartbeat_data =
+		led_trigger_get_drvdata(dev);
 	unsigned long state;
 	int ret;
 
@@ -121,22 +121,22 @@ static ssize_t led_invert_store(struct device *dev,
 
 static DEVICE_ATTR(invert, 0644, led_invert_show, led_invert_store);
 
+static struct attribute *heartbeat_trig_attrs[] = {
+	&dev_attr_invert.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(heartbeat_trig);
+
 static int heartbeat_trig_activate(struct led_classdev *led_cdev)
 {
 	struct heartbeat_trig_data *heartbeat_data;
-	int rc;
 
 	heartbeat_data = kzalloc(sizeof(*heartbeat_data), GFP_KERNEL);
 	if (!heartbeat_data)
-		return 0;
+		return -ENOMEM;
 
-	led_cdev->trigger_data = heartbeat_data;
+	led_set_trigger_data(led_cdev, heartbeat_data);
 	heartbeat_data->led_cdev = led_cdev;
-	rc = device_create_file(led_cdev->dev, &dev_attr_invert);
-	if (rc) {
-		kfree(led_cdev->trigger_data);
-		return 0;
-	}
 
 	timer_setup(&heartbeat_data->timer, led_heartbeat_function, 0);
 	heartbeat_data->phase = 0;
@@ -144,28 +144,25 @@ static int heartbeat_trig_activate(struct led_classdev *led_cdev)
 		led_cdev->blink_brightness = led_cdev->max_brightness;
 	led_heartbeat_function(&heartbeat_data->timer);
 	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
-	led_cdev->activated = true;
 
 	return 0;
 }
 
 static void heartbeat_trig_deactivate(struct led_classdev *led_cdev)
 {
-	struct heartbeat_trig_data *heartbeat_data = led_cdev->trigger_data;
+	struct heartbeat_trig_data *heartbeat_data =
+		led_get_trigger_data(led_cdev);
 
-	if (led_cdev->activated) {
-		del_timer_sync(&heartbeat_data->timer);
-		device_remove_file(led_cdev->dev, &dev_attr_invert);
-		kfree(heartbeat_data);
-		clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
-		led_cdev->activated = false;
-	}
+	del_timer_sync(&heartbeat_data->timer);
+	kfree(heartbeat_data);
+	clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
 }
 
 static struct led_trigger heartbeat_led_trigger = {
 	.name     = "heartbeat",
 	.activate = heartbeat_trig_activate,
 	.deactivate = heartbeat_trig_deactivate,
+	.groups = heartbeat_trig_groups,
 };
 
 static int heartbeat_reboot_notifier(struct notifier_block *nb,
