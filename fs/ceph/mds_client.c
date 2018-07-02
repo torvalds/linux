@@ -3644,8 +3644,8 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	init_rwsem(&mdsc->pool_perm_rwsem);
 	mdsc->pool_perm_tree = RB_ROOT;
 
-	strncpy(mdsc->nodename, utsname()->nodename,
-		sizeof(mdsc->nodename) - 1);
+	strscpy(mdsc->nodename, utsname()->nodename,
+		sizeof(mdsc->nodename));
 	return 0;
 }
 
