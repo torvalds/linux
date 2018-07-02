@@ -368,6 +368,73 @@
 		};
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10000>;
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10001>;
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x100>;
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x101>;
+			enable-method = "psci";
+		};
+
+		cpu@4 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x200>;
+			enable-method = "psci";
+		};
+
+		cpu@5 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x201>;
+			enable-method = "psci";
+		};
+
+		cpu@6 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10300>;
+			enable-method = "psci";
+		};
+
+		cpu@7 {
+			compatible = "nvidia,tegra194-carmel", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x10301>;
+			enable-method = "psci";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13
