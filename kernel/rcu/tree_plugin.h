@@ -285,7 +285,7 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 	 * still in a quiescent state in any case.)
 	 */
 	if (blkd_state & RCU_EXP_BLKD && rdp->deferred_qs)
-		rcu_report_exp_rdp(rdp->rsp, rdp, true);
+		rcu_report_exp_rdp(rdp->rsp, rdp);
 	else
 		WARN_ON_ONCE(rdp->deferred_qs);
 }
@@ -383,7 +383,7 @@ static void rcu_preempt_note_context_switch(bool preempt)
 	 */
 	rcu_preempt_qs();
 	if (rdp->deferred_qs)
-		rcu_report_exp_rdp(rcu_state_p, rdp, true);
+		rcu_report_exp_rdp(rcu_state_p, rdp);
 }
 
 /*
@@ -508,7 +508,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	 * blocked-tasks list below.
 	 */
 	if (rdp->deferred_qs) {
-		rcu_report_exp_rdp(rcu_state_p, rdp, true);
+		rcu_report_exp_rdp(rcu_state_p, rdp);
 		if (!t->rcu_read_unlock_special.s) {
 			local_irq_restore(flags);
 			return;

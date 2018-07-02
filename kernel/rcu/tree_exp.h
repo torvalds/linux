@@ -259,11 +259,10 @@ static void rcu_report_exp_cpu_mult(struct rcu_state *rsp, struct rcu_node *rnp,
 /*
  * Report expedited quiescent state for specified rcu_data (CPU).
  */
-static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp,
-			       bool wake)
+static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	WRITE_ONCE(rdp->deferred_qs, false);
-	rcu_report_exp_cpu_mult(rsp, rdp->mynode, rdp->grpmask, wake);
+	rcu_report_exp_cpu_mult(rsp, rdp->mynode, rdp->grpmask, true);
 }
 
 /* Common code for synchronize_{rcu,sched}_expedited() work-done checking. */
@@ -352,7 +351,7 @@ static void sync_sched_exp_handler(void *data)
 		return;
 	if (rcu_is_cpu_rrupt_from_idle()) {
 		rcu_report_exp_rdp(&rcu_sched_state,
-				   this_cpu_ptr(&rcu_sched_data), true);
+				   this_cpu_ptr(&rcu_sched_data));
 		return;
 	}
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
@@ -750,7 +749,7 @@ static void sync_rcu_exp_handler(void *info)
 	if (!t->rcu_read_lock_nesting) {
 		if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
 		    rcu_dynticks_curr_cpu_in_eqs()) {
-			rcu_report_exp_rdp(rsp, rdp, true);
+			rcu_report_exp_rdp(rsp, rdp);
 		} else {
 			rdp->deferred_qs = true;
 			resched_cpu(rdp->cpu);
