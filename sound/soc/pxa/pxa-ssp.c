@@ -41,6 +41,7 @@
  */
 struct ssp_priv {
 	struct ssp_device *ssp;
+	struct clk *extclk;
 	unsigned long ssp_clk;
 	unsigned int sysclk;
 	unsigned int dai_fmt;
@@ -204,6 +205,21 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 	u32 sscr0 = pxa_ssp_read_reg(ssp, SSCR0) &
 		~(SSCR0_ECS | SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
+
+	if (priv->extclk) {
+		int ret;
+
+		/*
+		 * For DT based boards, if an extclk is given, use it
+		 * here and configure PXA_SSP_CLK_EXT.
+		 */
+
+		ret = clk_set_rate(priv->extclk, freq);
+		if (ret < 0)
+			return ret;
+
+		clk_id = PXA_SSP_CLK_EXT;
+	}
 
 	dev_dbg(&ssp->pdev->dev,
 		"pxa_ssp_set_dai_sysclk id: %d, clk_id %d, freq %u\n",
@@ -773,6 +789,15 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 		if (priv->ssp == NULL) {
 			ret = -ENODEV;
 			goto err_priv;
+		}
+
+		priv->extclk = devm_clk_get(dev, "extclk");
+		if (IS_ERR(priv->extclk)) {
+			ret = PTR_ERR(priv->extclk);
+			if (ret == -EPROBE_DEFER)
+				return ret;
+
+			priv->extclk = NULL;
 		}
 	} else {
 		priv->ssp = pxa_ssp_request(dai->id + 1, "SoC audio");
