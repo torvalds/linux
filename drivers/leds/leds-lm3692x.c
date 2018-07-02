@@ -1,17 +1,6 @@
-/*
- * TI lm3692x LED Driver
- *
- * Copyright (C) 2017 Texas Instruments
- *
- * Author: Dan Murphy <dmurphy@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * Data sheet is located
- * http://www.ti.com/lit/ds/snvsa29/snvsa29.pdf
- */
+// SPDX-License-Identifier: GPL-2.0
+// TI LM3692x LED chip family driver
+// Copyright (C) 2017-18 Texas Instruments Incorporated - http://www.ti.com/
 
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
