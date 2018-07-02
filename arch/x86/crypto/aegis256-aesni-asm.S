@@ -59,7 +59,7 @@
  *   %r9
  */
 __load_partial:
-	xor %r9, %r9
+	xor %r9d, %r9d
 	pxor MSG, MSG
 
 	mov LEN, %r8

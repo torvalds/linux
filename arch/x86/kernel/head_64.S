@@ -235,7 +235,7 @@ ENTRY(secondary_startup_64)
 	 *		address given in m16:64.
 	 */
 	pushq	$.Lafter_lret	# put return address on stack for unwinder
-	xorq	%rbp, %rbp	# clear frame pointer
+	xorl	%ebp, %ebp	# clear frame pointer
 	movq	initial_code(%rip), %rax
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space

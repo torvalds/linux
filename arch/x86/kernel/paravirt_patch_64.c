@@ -20,7 +20,7 @@ DEF_NATIVE(, mov64, "mov %rdi, %rax");
 
 #if defined(CONFIG_PARAVIRT_SPINLOCKS)
 DEF_NATIVE(pv_lock_ops, queued_spin_unlock, "movb $0, (%rdi)");
-DEF_NATIVE(pv_lock_ops, vcpu_is_preempted, "xor %rax, %rax");
+DEF_NATIVE(pv_lock_ops, vcpu_is_preempted, "xor %eax, %eax");
 #endif
 
 unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len)
