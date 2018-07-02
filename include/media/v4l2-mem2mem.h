@@ -47,6 +47,7 @@ struct v4l2_m2m_ops {
 	void (*job_abort)(void *priv);
 };
 
+struct video_device;
 struct v4l2_m2m_dev;
 
 /**
@@ -321,6 +322,24 @@ int v4l2_m2m_mmap(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  * Return: returns an opaque pointer to the internal data to handle M2M context
  */
 struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops);
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+void v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev);
+int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
+			struct video_device *vdev, int function);
+#else
+static inline void
+v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev)
+{
+}
+
+static inline int
+v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
+		struct video_device *vdev, int function)
+{
+	return 0;
+}
+#endif
 
 /**
  * v4l2_m2m_release() - cleans up and frees a m2m_dev structure
