@@ -130,8 +130,9 @@
 #define MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS		BIT(12)
 #define MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE	BIT(14)
 
-#define MII_88E1121_PHY_LED_CTRL	16
+#define MII_PHY_LED_CTRL	        16
 #define MII_88E1121_PHY_LED_DEF		0x0030
+#define MII_88E1510_PHY_LED_DEF		0x1177
 
 #define MII_M1011_PHY_STATUS		0x11
 #define MII_M1011_PHY_STATUS_1000	0x8000
@@ -632,8 +633,40 @@ error:
 	return err;
 }
 
+static void marvell_config_led(struct phy_device *phydev)
+{
+	u16 def_config;
+	int err;
+
+	switch (MARVELL_PHY_FAMILY_ID(phydev->phy_id)) {
+	/* Default PHY LED config: LED[0] .. Link, LED[1] .. Activity */
+	case MARVELL_PHY_FAMILY_ID(MARVELL_PHY_ID_88E1121R):
+	case MARVELL_PHY_FAMILY_ID(MARVELL_PHY_ID_88E1318S):
+		def_config = MII_88E1121_PHY_LED_DEF;
+		break;
+	/* Default PHY LED config:
+	 * LED[0] .. 1000Mbps Link
+	 * LED[1] .. 100Mbps Link
+	 * LED[2] .. Blink, Activity
+	 */
+	case MARVELL_PHY_FAMILY_ID(MARVELL_PHY_ID_88E1510):
+		def_config = MII_88E1510_PHY_LED_DEF;
+		break;
+	default:
+		return;
+	}
+
+	err = phy_write_paged(phydev, MII_MARVELL_LED_PAGE, MII_PHY_LED_CTRL,
+			      def_config);
+	if (err < 0)
+		pr_warn("Fail to config marvell phy LED.\n");
+}
+
 static int marvell_config_init(struct phy_device *phydev)
 {
+	/* Set defalut LED */
+	marvell_config_led(phydev);
+
 	/* Set registers from marvell,reg-init DT property */
 	return marvell_of_reg_init(phydev);
 }
@@ -813,21 +846,6 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	return genphy_soft_reset(phydev);
 }
 
-static int m88e1121_config_init(struct phy_device *phydev)
-{
-	int err;
-
-	/* Default PHY LED config: LED[0] .. Link, LED[1] .. Activity */
-	err = phy_write_paged(phydev, MII_MARVELL_LED_PAGE,
-			      MII_88E1121_PHY_LED_CTRL,
-			      MII_88E1121_PHY_LED_DEF);
-	if (err < 0)
-		return err;
-
-	/* Set marvell,reg-init configuration from device tree */
-	return marvell_config_init(phydev);
-}
-
 static int m88e1318_config_init(struct phy_device *phydev)
 {
 	if (phy_interrupt_is_valid(phydev)) {
@@ -841,7 +859,7 @@ static int m88e1318_config_init(struct phy_device *phydev)
 			return err;
 	}
 
-	return m88e1121_config_init(phydev);
+	return marvell_config_init(phydev);
 }
 
 static int m88e1510_config_init(struct phy_device *phydev)
@@ -2087,7 +2105,7 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1121_probe,
-		.config_init = &m88e1121_config_init,
+		.config_init = &marvell_config_init,
 		.config_aneg = &m88e1121_config_aneg,
 		.read_status = &marvell_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
