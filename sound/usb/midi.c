@@ -281,15 +281,16 @@ static void snd_usbmidi_out_urb_complete(struct urb *urb)
 	struct out_urb_context *context = urb->context;
 	struct snd_usb_midi_out_endpoint *ep = context->ep;
 	unsigned int urb_index;
+	unsigned long flags;
 
-	spin_lock(&ep->buffer_lock);
+	spin_lock_irqsave(&ep->buffer_lock, flags);
 	urb_index = context - ep->urbs;
 	ep->active_urbs &= ~(1 << urb_index);
 	if (unlikely(ep->drain_urbs)) {
 		ep->drain_urbs &= ~(1 << urb_index);
 		wake_up(&ep->drain_wait);
 	}
-	spin_unlock(&ep->buffer_lock);
+	spin_unlock_irqrestore(&ep->buffer_lock, flags);
 	if (urb->status < 0) {
 		int err = snd_usbmidi_urb_error(urb);
 		if (err < 0) {
