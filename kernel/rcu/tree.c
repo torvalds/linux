@@ -565,7 +565,8 @@ unsigned long rcu_sched_get_gp_seq(void)
 EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
 
 /*
- * Return the number of RCU-bh GPs completed thus far for debug & stats.
+ * Return the number of RCU GPs completed thus far for debug & stats.
+ * This is a transitional API and will soon be removed.
  */
 unsigned long rcu_bh_get_gp_seq(void)
 {
@@ -3069,13 +3070,13 @@ void kfree_call_rcu(struct rcu_head *head,
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
 /*
- * Because a context switch is a grace period for RCU-sched and RCU-bh,
- * any blocking grace-period wait automatically implies a grace period
- * if there is only one CPU online at any point time during execution
- * of either synchronize_sched() or synchronize_rcu_bh().  It is OK to
- * occasionally incorrectly indicate that there are multiple CPUs online
- * when there was in fact only one the whole time, as this just adds
- * some overhead: RCU still operates correctly.
+ * Because a context switch is a grace period for RCU-sched, any blocking
+ * grace-period wait automatically implies a grace period if there
+ * is only one CPU online at any point time during execution of either
+ * synchronize_sched() or synchronize_rcu_bh().  It is OK to occasionally
+ * incorrectly indicate that there are multiple CPUs online when there
+ * was in fact only one the whole time, as this just adds some overhead:
+ * RCU still operates correctly.
  */
 static int rcu_blocking_is_gp(void)
 {

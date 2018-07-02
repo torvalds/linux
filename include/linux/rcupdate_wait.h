@@ -36,13 +36,13 @@ do {									\
  * @...: List of call_rcu() functions for the flavors to wait on.
  *
  * This macro waits concurrently for multiple flavors of RCU grace periods.
- * For example, synchronize_rcu_mult(call_rcu, call_rcu_bh) would wait
- * on concurrent RCU and RCU-bh grace periods.  Waiting on a give SRCU
+ * For example, synchronize_rcu_mult(call_rcu, call_rcu_sched) would wait
+ * on concurrent RCU and RCU-sched grace periods.  Waiting on a give SRCU
  * domain requires you to write a wrapper function for that SRCU domain's
  * call_srcu() function, supplying the corresponding srcu_struct.
  *
  * If Tiny RCU, tell _wait_rcu_gp() not to bother waiting for RCU
- * or RCU-bh, given that anywhere synchronize_rcu_mult() can be called
+ * or RCU-sched, given that anywhere synchronize_rcu_mult() can be called
  * is automatically a grace period.
  */
 #define synchronize_rcu_mult(...) \

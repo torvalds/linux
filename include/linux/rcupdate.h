@@ -688,14 +688,10 @@ static inline void rcu_read_unlock(void)
 /**
  * rcu_read_lock_bh() - mark the beginning of an RCU-bh critical section
  *
- * This is equivalent of rcu_read_lock(), but to be used when updates
- * are being done using call_rcu_bh() or synchronize_rcu_bh(). Since
- * both call_rcu_bh() and synchronize_rcu_bh() consider completion of a
- * softirq handler to be a quiescent state, a process in RCU read-side
- * critical section must be protected by disabling softirqs. Read-side
- * critical sections in interrupt context can use just rcu_read_lock(),
- * though this should at least be commented to avoid confusing people
- * reading the code.
+ * This is equivalent of rcu_read_lock(), but also disables softirqs.
+ * Note that synchronize_rcu() and friends may be used for the update
+ * side, although synchronize_rcu_bh() is available as a wrapper in the
+ * short term.  Longer term, the _bh update-side API will be eliminated.
  *
  * Note that rcu_read_lock_bh() and the matching rcu_read_unlock_bh()
  * must occur in the same context, for example, it is illegal to invoke
