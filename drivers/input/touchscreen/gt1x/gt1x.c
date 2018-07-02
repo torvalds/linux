@@ -316,6 +316,10 @@ static int gt1x_parse_dt(struct device *dev)
 	if (PTR_ERR(vdd_ana) == -ENODEV) {
 		GTP_ERROR("vdd_ana not specified, fallback to power-supply");
 		vdd_ana = devm_regulator_get_optional(dev, "power");
+		if (PTR_ERR(vdd_ana) == -ENODEV) {
+			GTP_ERROR("power not specified, ignore power ctrl");
+			vdd_ana = NULL;
+		}
 	}
 	if (IS_ERR(vdd_ana)) {
 		GTP_ERROR("regulator get of vdd_ana/power-supply failed");

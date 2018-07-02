@@ -439,7 +439,6 @@ s32 _do_i2c_write(struct i2c_msg *msg, u16 addr, u8 *buffer, s32 len)
 	return 0;
 }
 
-#if !GTP_POWER_CTRL_SLEEP
 #if !GTP_ESD_PROTECT
 static s32 gt1x_i2c_test(void)
 {
@@ -462,7 +461,6 @@ static s32 gt1x_i2c_test(void)
 
 	return ERROR_RETRY;
 }
-#endif
 #endif
 
 /**
@@ -911,29 +909,30 @@ s32 gt1x_get_chip_type(void)
  */
 static s32 gt1x_enter_sleep(void)
 {
+	s32 retry = 0;
+
 #if GTP_POWER_CTRL_SLEEP
-	gt1x_power_switch(SWITCH_OFF);
-	return 0;
-#else
-	{
-		s32 retry = 0;
-		if (gt1x_wakeup_level == 1) {	/* high level wakeup */
-			GTP_GPIO_OUTPUT(GTP_INT_PORT, 0);
-		}
-		usleep_range(5000, 6000);
-
-		while (retry++ < 3) {
-			if (!gt1x_send_cmd(GTP_CMD_SLEEP, 0)) {
-				GTP_INFO("Enter sleep mode!");
-				return 0;
-			}
-			usleep_range(10000, 11000);
-		}
-
-		GTP_ERROR("Enter sleep mode failed.");
-		return -1;
+	if (!gt1x_power_switch(SWITCH_OFF)) {
+		GTP_INFO("Enter sleep mode by poweroff");
+		return 0;
 	}
 #endif
+
+	if (gt1x_wakeup_level == 1) {	/* high level wakeup */
+		GTP_GPIO_OUTPUT(GTP_INT_PORT, 0);
+	}
+	usleep_range(5000, 6000);
+
+	while (retry++ < 3) {
+		if (!gt1x_send_cmd(GTP_CMD_SLEEP, 0)) {
+			GTP_INFO("Enter sleep mode!");
+			return 0;
+		}
+		usleep_range(10000, 11000);
+	}
+
+	GTP_ERROR("Enter sleep mode failed.");
+	return -1;
 }
 
 /**
@@ -943,20 +942,22 @@ static s32 gt1x_enter_sleep(void)
  */
 static s32 gt1x_wakeup_sleep(void)
 {
-#if !GTP_POWER_CTRL_SLEEP
 	u8 retry = 0;
 	s32 ret = -1;
 	int flag = 0;
-#endif
+
 	GTP_DEBUG("Wake up begin.");
 	gt1x_irq_disable();
 
 #if GTP_POWER_CTRL_SLEEP	/* power manager unit control the procedure */
-	gt1x_power_switch(SWITCH_ON);
-	gt1x_power_reset();
-	GTP_INFO("Wakeup by poweron");
-	return 0;
-#else /* gesture wakeup & int port wakeup */
+	if (!gt1x_power_switch(SWITCH_ON)) {
+		gt1x_power_reset();
+		GTP_INFO("Wakeup by poweron");
+		return 0;
+	}
+#endif
+
+	/* gesture wakeup & int port wakeup */
 	while (retry++ < 2) {
 #if GTP_GESTURE_WAKEUP
 		if (gesture_enabled) {
@@ -1003,7 +1004,6 @@ static s32 gt1x_wakeup_sleep(void)
 		GTP_INFO("Wake up end.");
 		return 0;
 	}
-#endif /* END GTP_POWER_CTRL_SLEEP */
 }
 
 /**
