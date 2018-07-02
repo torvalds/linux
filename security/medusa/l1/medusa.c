@@ -697,7 +697,7 @@ static void medusa_l1_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 }
 
 //Message queue IPC
-static int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
+int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 {
 	struct medusa_l1_ipc_s *med;
 
@@ -709,7 +709,7 @@ static int medusa_l1_msg_msg_alloc_security(struct msg_msg *msg)
 	return 0;
 }
 
-static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
+void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 {
 	struct medusa_l1_ipc_s *med;
 	
@@ -720,12 +720,12 @@ static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 	}
 }
 
-static int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
+int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 {
 	return medusa_l1_ipc_alloc_security(msq, MED_IPC_MSG);
 }
 
-static void medusa_l1_msg_queue_free_security(struct kern_ipc_perm *msq)
+void medusa_l1_msg_queue_free_security(struct kern_ipc_perm *msq)
 {
 	medusa_l1_ipc_free_security(msq);
 }
@@ -761,12 +761,12 @@ static int medusa_l1_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg 
 }
 
 //shared memory
-static int medusa_l1_shm_alloc_security(struct kern_ipc_perm *shp)
+int medusa_l1_shm_alloc_security(struct kern_ipc_perm *shp)
 {
 	return medusa_l1_ipc_alloc_security(shp, MED_IPC_SHM);
 }
 
-static void medusa_l1_shm_free_security(struct kern_ipc_perm *shp)
+void medusa_l1_shm_free_security(struct kern_ipc_perm *shp)
 {
 	return medusa_l1_ipc_free_security(shp);	
 }
@@ -794,12 +794,12 @@ static int medusa_l1_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr,
 }
 
 //Semaphores
-static int medusa_l1_sem_alloc_security(struct kern_ipc_perm *sma)
+int medusa_l1_sem_alloc_security(struct kern_ipc_perm *sma)
 {
 	return medusa_l1_ipc_alloc_security(sma, MED_IPC_SEM);
 }
 
-static void medusa_l1_sem_free_security(struct kern_ipc_perm *sma)
+void medusa_l1_sem_free_security(struct kern_ipc_perm *sma)
 {
 	return medusa_l1_ipc_free_security(sma);
 }
@@ -1609,6 +1609,14 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 	LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
 	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
 	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+	LSM_HOOK_INIT(msg_msg_alloc_security, medusa_l1_msg_msg_alloc_security),
+	LSM_HOOK_INIT(msg_queue_alloc_security, medusa_l1_msg_queue_alloc_security),
+	LSM_HOOK_INIT(shm_alloc_security, medusa_l1_shm_alloc_security),
+	LSM_HOOK_INIT(sem_alloc_security, medusa_l1_sem_alloc_security),
+	LSM_HOOK_INIT(msg_msg_free_security, medusa_l1_msg_msg_free_security),
+	LSM_HOOK_INIT(msg_queue_free_security, medusa_l1_msg_queue_free_security),
+	LSM_HOOK_INIT(shm_free_security, medusa_l1_shm_free_security),
+	LSM_HOOK_INIT(sem_free_security, medusa_l1_sem_free_security),
 };
 
 void __init medusa_init(void);
@@ -1649,6 +1657,8 @@ static int __init medusa_l1_init(void)
 	struct list_head *pos, *q;
 	struct inode_list *tmp = NULL;
 	struct cred_list *tmp_cred;
+	struct msg_msg_list *tmp_msg;
+	struct kern_ipc_perm_list *tmp_ipcp;
 
 	/* register the hooks */	
 	if (!security_module_enable("medusa"))
@@ -1677,6 +1687,22 @@ static int __init medusa_l1_init(void)
 		kfree(tmp); 
 	}
 	
+	list_for_each_safe(pos, q, &l0_msg_msg_list.list) {
+		tmp_msg = list_entry(pos, struct msg_msg_list, list);
+		medusa_l1_msg_msg_alloc_security(tmp_msg->msg);
+		printk("medusa: l1_msg_msg_alloc for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp);
+	}
+
+	list_for_each_safe(pos, q, &l0_kern_ipc_perm_list.list) {
+		tmp_ipcp = list_entry(pos, struct kern_ipc_perm_list, list);
+		tmp_ipcp->medusa_l1_ipc_alloc_security(tmp_ipcp->ipcp);
+		printk("medusa: l1_ipc_alloc for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp);
+	}
+
 	l1_initialized = true;
 	
 	mutex_unlock(&l0_mutex);
