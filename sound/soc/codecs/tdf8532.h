@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * tdf8532.h - Codec driver for NXP Semiconductors
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
-
 
 #ifndef __TDF8532_H_
 #define __TDF8532_H_
@@ -87,7 +78,7 @@ struct get_dev_status_repl {
 } __packed;
 
 /* Helpers */
-#define CHNL_MASK(channels) (u8)((0x00FF << channels) >> 8)
+#define CHNL_MASK(channels) (u8)((0x00FF << (channels)) >> 8)
 
 #define tdf8532_amp_write(dev_data, ...)\
 	__tdf8532_single_write(dev_data, 0, AMP_MOD, __VA_ARGS__, END)
