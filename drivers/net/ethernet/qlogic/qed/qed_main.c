@@ -779,6 +779,14 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	/* We want a minimum of one slowpath and one fastpath vector per hwfn */
 	cdev->int_params.in.min_msix_cnt = cdev->num_hwfns * 2;
 
+	if (is_kdump_kernel()) {
+		DP_INFO(cdev,
+			"Kdump kernel: Limit the max number of requested MSI-X vectors to %hd\n",
+			cdev->int_params.in.min_msix_cnt);
+		cdev->int_params.in.num_vectors =
+			cdev->int_params.in.min_msix_cnt;
+	}
+
 	rc = qed_set_int_mode(cdev, false);
 	if (rc)  {
 		DP_ERR(cdev, "qed_slowpath_setup_int ERR\n");
