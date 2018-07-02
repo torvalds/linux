@@ -1295,7 +1295,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
-	int ret, i, count;
+	int i, count;
 	int channel = sdmac->channel;
 	struct scatterlist *sg;
 	struct sdma_desc *desc;
@@ -1318,17 +1318,14 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 		if (count > 0xffff) {
 			dev_err(sdma->dev, "SDMA channel %d: maximum bytes for sg entry exceeded: %d > %d\n",
 					channel, count, 0xffff);
-			ret = -EINVAL;
 			goto err_bd_out;
 		}
 
 		bd->mode.count = count;
 		desc->chn_count += count;
 
-		if (sdmac->word_size > DMA_SLAVE_BUSWIDTH_4_BYTES) {
-			ret =  -EINVAL;
+		if (sdmac->word_size > DMA_SLAVE_BUSWIDTH_4_BYTES)
 			goto err_bd_out;
-		}
 
 		switch (sdmac->word_size) {
 		case DMA_SLAVE_BUSWIDTH_4_BYTES:
