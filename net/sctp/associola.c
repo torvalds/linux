@@ -650,8 +650,16 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	peer->sackdelay = asoc->sackdelay;
 	peer->sackfreq = asoc->sackfreq;
 
-	if (addr->sa.sa_family == AF_INET6)
-		peer->flowlabel = asoc->flowlabel;
+	if (addr->sa.sa_family == AF_INET6) {
+		__be32 info = addr->v6.sin6_flowinfo;
+
+		if (info) {
+			peer->flowlabel = ntohl(info & IPV6_FLOWLABEL_MASK);
+			peer->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+		} else {
+			peer->flowlabel = asoc->flowlabel;
+		}
+	}
 	peer->dscp = asoc->dscp;
 
 	/* Enable/disable heartbeat, SACK delay, and path MTU discovery
