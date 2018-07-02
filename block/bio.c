@@ -1807,9 +1807,6 @@ again:
 	if (!bio_integrity_endio(bio))
 		return;
 
-	if (WARN_ONCE(bio->bi_next, "driver left bi_next not NULL"))
-		bio->bi_next = NULL;
-
 	/*
 	 * Need to have a real endio function for chained bios, otherwise
 	 * various corner cases will break (like stacking block devices that

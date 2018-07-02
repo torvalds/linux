@@ -18,6 +18,7 @@
 #include "smbdirect.h"
 #include "cifs_debug.h"
 #include "cifsproto.h"
+#include "smb2proto.h"
 
 static struct smbd_response *get_empty_queue_buffer(
 		struct smbd_connection *info);
@@ -2087,7 +2088,7 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 	struct kvec vec;
 	int nvecs;
 	int size;
-	unsigned int buflen = 0, remaining_data_length;
+	unsigned int buflen, remaining_data_length;
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
@@ -2111,25 +2112,13 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		log_write(ERR, "expected the pdu length in 1st iov, but got %zu\n", rqst->rq_iov[0].iov_len);
 		return -EINVAL;
 	}
-	iov = &rqst->rq_iov[1];
-
-	/* total up iov array first */
-	for (i = 0; i < rqst->rq_nvec-1; i++) {
-		buflen += iov[i].iov_len;
-	}
 
 	/*
 	 * Add in the page array if there is one. The caller needs to set
 	 * rq_tailsz to PAGE_SIZE when the buffer has multiple pages and
 	 * ends at page boundary
 	 */
-	if (rqst->rq_npages) {
-		if (rqst->rq_npages == 1)
-			buflen += rqst->rq_tailsz;
-		else
-			buflen += rqst->rq_pagesz * (rqst->rq_npages - 1) -
-					rqst->rq_offset + rqst->rq_tailsz;
-	}
+	buflen = smb2_rqst_len(rqst, true);
 
 	if (buflen + sizeof(struct smbd_data_transfer) >
 		info->max_fragmented_send_size) {
@@ -2138,6 +2127,8 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		rc = -EINVAL;
 		goto done;
 	}
+
+	iov = &rqst->rq_iov[1];
 
 	cifs_dbg(FYI, "Sending smb (RDMA): smb_len=%u\n", buflen);
 	for (i = 0; i < rqst->rq_nvec-1; i++)

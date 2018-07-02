@@ -3180,6 +3180,7 @@ bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
 	return true;
 }
 
+static
 struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
 				       const struct efx_filter_spec *spec)
 {

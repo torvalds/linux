@@ -184,6 +184,9 @@ static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 {
+	if (!pgtable_l5_enabled())
+		return;
+
 	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
 	free_page((unsigned long)p4d);
 }

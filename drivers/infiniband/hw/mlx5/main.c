@@ -3199,8 +3199,8 @@ static int flow_counters_set_data(struct ib_counters *ibcounters,
 	if (!mcounters->hw_cntrs_hndl) {
 		mcounters->hw_cntrs_hndl = mlx5_fc_create(
 			to_mdev(ibcounters->device)->mdev, false);
-		if (!mcounters->hw_cntrs_hndl) {
-			ret = -ENOMEM;
+		if (IS_ERR(mcounters->hw_cntrs_hndl)) {
+			ret = PTR_ERR(mcounters->hw_cntrs_hndl);
 			goto free;
 		}
 		hw_hndl = true;
@@ -3546,29 +3546,35 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 			return ERR_PTR(-ENOMEM);
 
 		err = ib_copy_from_udata(ucmd, udata, required_ucmd_sz);
-		if (err) {
-			kfree(ucmd);
-			return ERR_PTR(err);
-		}
+		if (err)
+			goto free_ucmd;
 	}
 
-	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO)
-		return ERR_PTR(-ENOMEM);
+	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO) {
+		err = -ENOMEM;
+		goto free_ucmd;
+	}
 
 	if (domain != IB_FLOW_DOMAIN_USER ||
 	    flow_attr->port > dev->num_ports ||
 	    (flow_attr->flags & ~(IB_FLOW_ATTR_FLAGS_DONT_TRAP |
-				  IB_FLOW_ATTR_FLAGS_EGRESS)))
-		return ERR_PTR(-EINVAL);
+				  IB_FLOW_ATTR_FLAGS_EGRESS))) {
+		err = -EINVAL;
+		goto free_ucmd;
+	}
 
 	if (is_egress &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
-	     flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT))
-		return ERR_PTR(-EINVAL);
+	     flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT)) {
+		err = -EINVAL;
+		goto free_ucmd;
+	}
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
-	if (!dst)
-		return ERR_PTR(-ENOMEM);
+	if (!dst) {
+		err = -ENOMEM;
+		goto free_ucmd;
+	}
 
 	mutex_lock(&dev->flow_db->lock);
 
@@ -3637,8 +3643,8 @@ destroy_ft:
 unlock:
 	mutex_unlock(&dev->flow_db->lock);
 	kfree(dst);
+free_ucmd:
 	kfree(ucmd);
-	kfree(handler);
 	return ERR_PTR(err);
 }
 

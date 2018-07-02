@@ -79,6 +79,10 @@ extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
 extern int smb2_set_file_info(struct inode *inode, const char *full_path,
 			      FILE_BASIC_INFO *buf, const unsigned int xid);
+extern int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
+			       umode_t mode, struct cifs_tcon *tcon,
+			       const char *full_path,
+			       struct cifs_sb_info *cifs_sb);
 extern int smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
@@ -109,6 +113,8 @@ extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
 extern void smb2_reconnect_server(struct work_struct *work);
 extern int smb3_crypto_aead_allocate(struct TCP_Server_Info *server);
+extern unsigned long
+smb2_rqst_len(struct smb_rqst *rqst, bool skip_rfc1002_marker);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details

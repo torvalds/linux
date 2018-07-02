@@ -201,7 +201,7 @@ virtio_transport_send_pkt(struct virtio_vsock_pkt *pkt)
 		return -ENODEV;
 	}
 
-	if (le32_to_cpu(pkt->hdr.dst_cid) == vsock->guest_cid)
+	if (le64_to_cpu(pkt->hdr.dst_cid) == vsock->guest_cid)
 		return virtio_transport_send_pkt_loopback(vsock, pkt);
 
 	if (pkt->reply)

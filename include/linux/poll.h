@@ -74,17 +74,17 @@ static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 	pt->_key   = ~(__poll_t)0; /* all events enabled */
 }
 
-static inline bool file_has_poll_mask(struct file *file)
-{
-	return file->f_op->get_poll_head && file->f_op->poll_mask;
-}
-
 static inline bool file_can_poll(struct file *file)
 {
-	return file->f_op->poll || file_has_poll_mask(file);
+	return file->f_op->poll;
 }
 
-__poll_t vfs_poll(struct file *file, struct poll_table_struct *pt);
+static inline __poll_t vfs_poll(struct file *file, struct poll_table_struct *pt)
+{
+	if (unlikely(!file->f_op->poll))
+		return DEFAULT_POLLMASK;
+	return file->f_op->poll(file, pt);
+}
 
 struct poll_table_entry {
 	struct file *filp;
