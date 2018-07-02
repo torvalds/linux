@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Codec driver for NXP Semiconductors - TDF8532
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -24,7 +16,7 @@
 #include "tdf8532.h"
 
 static int __tdf8532_build_pkt(struct tdf8532_priv *dev_data,
-				va_list valist,	u8 *payload)
+			       va_list valist,	u8 *payload)
 {
 	int param;
 	u8 len;
@@ -34,7 +26,7 @@ static int __tdf8532_build_pkt(struct tdf8532_priv *dev_data,
 	payload[HEADER_TYPE] = MSG_TYPE_STX;
 	payload[HEADER_PKTID] = dev_data->pkt_id;
 
-	cmd_payload = &(payload[cmd_offset]);
+	cmd_payload = &payload[cmd_offset];
 
 	param = va_arg(valist, int);
 	len = 0;
@@ -53,7 +45,7 @@ static int __tdf8532_build_pkt(struct tdf8532_priv *dev_data,
 }
 
 static int __tdf8532_single_write(struct tdf8532_priv *dev_data,
-						int dummy, ...)
+				  int dummy, ...)
 {
 	va_list valist;
 	int ret;
@@ -67,14 +59,14 @@ static int __tdf8532_single_write(struct tdf8532_priv *dev_data,
 	va_end(valist);
 
 	print_hex_dump_debug("tdf8532-codec: Tx:", DUMP_PREFIX_NONE, 32, 1,
-			payload, len, false);
+			     payload, len, false);
 	ret = i2c_master_send(dev_data->i2c, payload, len);
 
 	dev_data->pkt_id++;
 
 	if (ret < 0) {
-		dev_err(&(dev_data->i2c->dev),
-				"i2c send packet returned: %d\n", ret);
+		dev_err(&dev_data->i2c->dev,
+			"i2c send packet returned: %d\n", ret);
 
 		return ret;
 	}
@@ -82,15 +74,14 @@ static int __tdf8532_single_write(struct tdf8532_priv *dev_data,
 	return 0;
 }
 
-
-static uint8_t tdf8532_read_wait_ack(struct tdf8532_priv *dev_data,
-						unsigned long timeout)
+static u8 tdf8532_read_wait_ack(struct tdf8532_priv *dev_data,
+				unsigned long timeout)
 {
-	uint8_t ack_repl[HEADER_SIZE] = {0, 0, 0};
+	u8 ack_repl[HEADER_SIZE] = {0, 0, 0};
 	unsigned long timeout_point = jiffies + timeout;
 	int ret;
 
-	usleep_range(10000,20000);
+	usleep_range(10000, 20000);
 	do {
 		ret = i2c_master_recv(dev_data->i2c, ack_repl, HEADER_SIZE);
 		if (ret < 0)
@@ -108,18 +99,18 @@ out:
 }
 
 static int tdf8532_single_read(struct tdf8532_priv *dev_data,
-						char **repl_buff)
+			       char **repl_buff)
 {
 	int ret;
 	int len;
 
-	struct device *dev = &(dev_data->i2c->dev);
+	struct device *dev = &dev_data->i2c->dev;
 
 	ret = tdf8532_read_wait_ack(dev_data, msecs_to_jiffies(ACK_TIMEOUT));
 
 	if (ret < 0) {
 		dev_err(dev,
-				"Error waiting for ACK reply: %d\n", ret);
+			"Error waiting for ACK reply: %d\n", ret);
 		goto out;
 	}
 
@@ -134,12 +125,12 @@ static int tdf8532_single_read(struct tdf8532_priv *dev_data,
 	ret = i2c_master_recv(dev_data->i2c, *repl_buff, len);
 
 	print_hex_dump_debug("tdf8532-codec: Rx:", DUMP_PREFIX_NONE, 32, 1,
-			*repl_buff, len, false);
+			     *repl_buff, len, false);
 
 	if (ret < 0 || ret != len) {
 		dev_err(dev,
-				"i2c recv packet returned: %d (expected: %d)\n",
-				ret, len);
+			"i2c recv packet returned: %d (expected: %d)\n",
+			ret, len);
 
 		ret = -EINVAL;
 		goto out_free;
@@ -155,10 +146,10 @@ out:
 }
 
 static int tdf8532_get_state(struct tdf8532_priv *dev_data,
-		struct get_dev_status_repl **status_repl)
+			     struct get_dev_status_repl **status_repl)
 {
-	int ret = 0;
 	char *repl_buff = NULL;
+	int ret = 0;
 
 	ret = tdf8532_amp_write(dev_data, GET_DEV_STATUS);
 	if (ret < 0)
@@ -168,20 +159,20 @@ static int tdf8532_get_state(struct tdf8532_priv *dev_data,
 	if (ret < 0)
 		goto out;
 
-	*status_repl = (struct get_dev_status_repl *) repl_buff;
+	*status_repl = (struct get_dev_status_repl *)repl_buff;
 
 out:
 	return ret;
 }
 
 static int tdf8532_wait_state(struct tdf8532_priv *dev_data, u8 req_state,
-							unsigned long timeout)
+			      unsigned long timeout)
 {
 	unsigned long timeout_point = jiffies + msecs_to_jiffies(timeout);
-	int ret;
+	struct device *dev = &dev_data->i2c->dev;
 	struct get_dev_status_repl *status_repl = NULL;
 	u8 cur_state = STATE_NONE;
-	struct device *dev = &(dev_data->i2c->dev);
+	int ret;
 
 	do {
 		ret = tdf8532_get_state(dev_data, &status_repl);
@@ -189,13 +180,12 @@ static int tdf8532_wait_state(struct tdf8532_priv *dev_data, u8 req_state,
 			goto out;
 		cur_state = status_repl->state;
 		print_hex_dump_debug("tdf8532-codec: wait_state: ",
-				DUMP_PREFIX_NONE, 32, 1, status_repl,
-				6, false);
+				     DUMP_PREFIX_NONE, 32, 1, status_repl,
+				     6, false);
 
 		kfree(status_repl);
 		status_repl = NULL;
-	} while (time_before(jiffies, timeout_point)
-			&& cur_state != req_state);
+	} while (time_before(jiffies, timeout_point) && cur_state != req_state);
 
 	if (cur_state == req_state)
 		return 0;
@@ -204,7 +194,7 @@ out:
 	ret = -ETIME;
 
 	dev_err(dev, "tdf8532-codec: state: %u, req_state: %u, ret: %d\n",
-			cur_state, req_state, ret);
+		cur_state, req_state, ret);
 	return ret;
 }
 
@@ -217,7 +207,7 @@ static int tdf8532_start_play(struct tdf8532_priv *tdf8532)
 		return ret;
 
 	ret = tdf8532_amp_write(tdf8532, SET_CHNL_ENABLE,
-			CHNL_MASK(tdf8532->channels));
+				CHNL_MASK(tdf8532->channels));
 
 	if (ret >= 0)
 		ret = tdf8532_wait_state(tdf8532, STATE_PLAY, ACK_TIMEOUT);
@@ -225,13 +215,12 @@ static int tdf8532_start_play(struct tdf8532_priv *tdf8532)
 	return ret;
 }
 
-
 static int tdf8532_stop_play(struct tdf8532_priv *tdf8532)
 {
 	int ret;
 
 	ret = tdf8532_amp_write(tdf8532, SET_CHNL_DISABLE,
-			CHNL_MASK(tdf8532->channels));
+				CHNL_MASK(tdf8532->channels));
 	if (ret < 0)
 		goto out;
 
@@ -255,13 +244,12 @@ out:
 	return ret;
 }
 
-
 static int tdf8532_dai_trigger(struct snd_pcm_substream *substream, int cmd,
-		struct snd_soc_dai *dai)
+			       struct snd_soc_dai *dai)
 {
-	int ret = 0;
 	struct snd_soc_component *component = dai->component;
 	struct tdf8532_priv *tdf8532 = snd_soc_component_get_drvdata(component);
+	int ret = 0;
 
 	dev_dbg(component->dev, "%s: cmd = %d\n", __func__, cmd);
 
@@ -301,7 +289,7 @@ static const struct snd_soc_dai_ops tdf8532_dai_ops = {
 	.digital_mute = tdf8532_mute,
 };
 
-static struct snd_soc_component_driver  soc_component_tdf8532;
+static const struct snd_soc_component_driver  soc_component_tdf8532;
 
 static struct snd_soc_dai_driver tdf8532_dai[] = {
 	{
@@ -318,11 +306,11 @@ static struct snd_soc_dai_driver tdf8532_dai[] = {
 };
 
 static int tdf8532_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
 	int ret;
 	struct tdf8532_priv *dev_data;
-	struct device *dev = &(i2c->dev);
+	struct device *dev = &i2c->dev;
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
@@ -340,7 +328,7 @@ static int tdf8532_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, dev_data);
 
 	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_tdf8532,
-			tdf8532_dai, ARRAY_SIZE(tdf8532_dai));
+					tdf8532_dai, ARRAY_SIZE(tdf8532_dai));
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
 		goto out;
