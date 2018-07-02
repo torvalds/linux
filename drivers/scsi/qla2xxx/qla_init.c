@@ -591,12 +591,14 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 				conflict_fcport =
 					qla2x00_find_fcport_by_wwpn(vha,
 					    e->port_name, 0);
-				ql_dbg(ql_dbg_disc, vha, 0x20e6,
-				    "%s %d %8phC post del sess\n",
-				    __func__, __LINE__,
-				    conflict_fcport->port_name);
-				qlt_schedule_sess_for_deletion
-					(conflict_fcport);
+				if (conflict_fcport) {
+					qlt_schedule_sess_for_deletion
+						(conflict_fcport);
+					ql_dbg(ql_dbg_disc, vha, 0x20e6,
+					    "%s %d %8phC post del sess\n",
+					    __func__, __LINE__,
+					    conflict_fcport->port_name);
+				}
 			}
 
 			/* FW already picked this loop id for another fcport */
