@@ -9,8 +9,8 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -213,4 +213,4 @@ module_exit(heartbeat_trig_exit);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Heartbeat LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

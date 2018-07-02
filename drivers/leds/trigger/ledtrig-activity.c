@@ -7,8 +7,8 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
  */
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
@@ -269,4 +269,4 @@ module_exit(activity_exit);
 
 MODULE_AUTHOR("Willy Tarreau <w@1wt.eu>");
 MODULE_DESCRIPTION("Activity LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

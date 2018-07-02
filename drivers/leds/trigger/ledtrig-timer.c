@@ -8,7 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -127,4 +126,4 @@ module_exit(timer_trig_exit);
 
 MODULE_AUTHOR("Richard Purdie <rpurdie@openedhand.com>");
 MODULE_DESCRIPTION("Timer LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
