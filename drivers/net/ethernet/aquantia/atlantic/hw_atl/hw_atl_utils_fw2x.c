@@ -215,6 +215,17 @@ static int aq_fw2x_update_stats(struct aq_hw_s *self)
 	return hw_atl_utils_update_stats(self);
 }
 
+static int aq_fw2x_renegotiate(struct aq_hw_s *self)
+{
+	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+
+	mpi_opts |= BIT(CTRL_FORCE_RECONNECT);
+
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, mpi_opts);
+
+	return 0;
+}
+
 static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 {
 	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
@@ -230,6 +241,7 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.init = aq_fw2x_init,
 	.deinit = aq_fw2x_deinit,
 	.reset = NULL,
+	.renegotiate = aq_fw2x_renegotiate,
 	.get_mac_permanent = aq_fw2x_get_mac_permanent,
 	.set_link_speed = aq_fw2x_set_link_speed,
 	.set_state = aq_fw2x_set_state,

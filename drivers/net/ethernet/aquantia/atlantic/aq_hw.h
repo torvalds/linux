@@ -212,6 +212,8 @@ struct aq_fw_ops {
 
 	int (*reset)(struct aq_hw_s *self);
 
+	int (*renegotiate)(struct aq_hw_s *self);
+
 	int (*get_mac_permanent)(struct aq_hw_s *self, u8 *mac);
 
 	int (*set_link_speed)(struct aq_hw_s *self, u32 speed);
