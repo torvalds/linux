@@ -2379,6 +2379,12 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
 
+	if (vif->type == NL80211_IFTYPE_AP && !vif->p2p) {
+		iwl_mvm_vif_set_low_latency(mvmvif, true,
+					    LOW_LATENCY_VIF_TYPE);
+		iwl_mvm_send_low_latency_cmd(mvm, true, mvmvif->id);
+	}
+
 	/* power updated needs to be done before quotas */
 	iwl_mvm_power_update_mac(mvm);
 
@@ -2440,6 +2446,12 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	mvmvif->ap_ibss_active = false;
 	mvm->ap_last_beacon_gp2 = 0;
+
+	if (vif->type == NL80211_IFTYPE_AP && !vif->p2p) {
+		iwl_mvm_vif_set_low_latency(mvmvif, false,
+					    LOW_LATENCY_VIF_TYPE);
+		iwl_mvm_send_low_latency_cmd(mvm, false,  mvmvif->id);
+	}
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 

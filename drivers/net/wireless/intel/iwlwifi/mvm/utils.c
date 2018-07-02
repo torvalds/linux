@@ -764,6 +764,29 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 	return result;
 }
 
+void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm,
+				  bool low_latency, u16 mac_id)
+{
+	struct iwl_mac_low_latency_cmd cmd = {
+		.mac_id = cpu_to_le32(mac_id)
+	};
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA))
+		return;
+
+	if (low_latency) {
+		/* currently we don't care about the direction */
+		cmd.low_latency_rx = 1;
+		cmd.low_latency_tx = 1;
+	}
+
+	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(LOW_LATENCY_CMD,
+						 MAC_CONF_GROUP, 0),
+				 0, sizeof(cmd), &cmd))
+		IWL_ERR(mvm, "Failed to send low latency command\n");
+}
+
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool low_latency,
 			       enum iwl_mvm_low_latency_cause cause)
@@ -782,24 +805,7 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (low_latency == prev)
 		return 0;
 
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA)) {
-		struct iwl_mac_low_latency_cmd cmd = {
-			.mac_id = cpu_to_le32(mvmvif->id)
-		};
-
-		if (low_latency) {
-			/* currently we don't care about the direction */
-			cmd.low_latency_rx = 1;
-			cmd.low_latency_tx = 1;
-		}
-		res = iwl_mvm_send_cmd_pdu(mvm,
-					   iwl_cmd_id(LOW_LATENCY_CMD,
-						      MAC_CONF_GROUP, 0),
-					   0, sizeof(cmd), &cmd);
-		if (res)
-			IWL_ERR(mvm, "Failed to send low latency command\n");
-	}
+	iwl_mvm_send_low_latency_cmd(mvm, low_latency, mvmvif->id);
 
 	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)

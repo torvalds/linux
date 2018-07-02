@@ -303,11 +303,13 @@ enum iwl_bt_force_ant_mode {
 * @LOW_LATENCY_TRAFFIC: indicates low latency traffic was detected
 * @LOW_LATENCY_DEBUGFS: low latency mode set from debugfs
 * @LOW_LATENCY_VCMD: low latency mode set from vendor command
+* @LOW_LATENCY_VIF_TYPE: low latency mode set because of vif type (ap)
 */
 enum iwl_mvm_low_latency_cause {
 	LOW_LATENCY_TRAFFIC = BIT(0),
 	LOW_LATENCY_DEBUGFS = BIT(1),
 	LOW_LATENCY_VCMD = BIT(2),
+	LOW_LATENCY_VIF_TYPE = BIT(3),
 };
 
 /**
@@ -1845,6 +1847,8 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 /* get SystemLowLatencyMode - only needed for beacon threshold? */
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
 bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band);
+void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm, bool low_latency,
+				  u16 mac_id);
 
 /* get VMACLowLatencyMode */
 static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)

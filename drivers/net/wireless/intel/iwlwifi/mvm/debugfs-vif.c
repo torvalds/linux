@@ -1299,10 +1299,11 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 	int len;
 
 	len = scnprintf(buf, sizeof(buf) - 1,
-			"traffic=%d\ndbgfs=%d\nvcmd=%d\n",
+			"traffic=%d\ndbgfs=%d\nvcmd=%d\nvif_type=%d\n",
 			!!(mvmvif->low_latency & LOW_LATENCY_TRAFFIC),
 			!!(mvmvif->low_latency & LOW_LATENCY_DEBUGFS),
-			!!(mvmvif->low_latency & LOW_LATENCY_VCMD));
+			!!(mvmvif->low_latency & LOW_LATENCY_VCMD),
+			!!(mvmvif->low_latency & LOW_LATENCY_VIF_TYPE));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
