@@ -18,8 +18,7 @@
 #include "hclge_main.h"
 
 #define hclge_is_csq(ring) ((ring)->flag & HCLGE_TYPE_CSQ)
-#define hclge_ring_to_dma_dir(ring) (hclge_is_csq(ring) ? \
-	DMA_TO_DEVICE : DMA_FROM_DEVICE)
+
 #define cmq_ring_to_dev(ring)   (&(ring)->dev->pdev->dev)
 
 static int hclge_ring_space(struct hclge_cmq_ring *ring)
@@ -46,31 +45,24 @@ static int hclge_alloc_cmd_desc(struct hclge_cmq_ring *ring)
 {
 	int size  = ring->desc_num * sizeof(struct hclge_desc);
 
-	ring->desc = kzalloc(size, GFP_KERNEL);
+	ring->desc = dma_zalloc_coherent(cmq_ring_to_dev(ring),
+					 size, &ring->desc_dma_addr,
+					 GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
-
-	ring->desc_dma_addr = dma_map_single(cmq_ring_to_dev(ring), ring->desc,
-					     size, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(cmq_ring_to_dev(ring), ring->desc_dma_addr)) {
-		ring->desc_dma_addr = 0;
-		kfree(ring->desc);
-		ring->desc = NULL;
-		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void hclge_free_cmd_desc(struct hclge_cmq_ring *ring)
 {
-	dma_unmap_single(cmq_ring_to_dev(ring), ring->desc_dma_addr,
-			 ring->desc_num * sizeof(ring->desc[0]),
-			 DMA_BIDIRECTIONAL);
+	int size  = ring->desc_num * sizeof(struct hclge_desc);
 
-	ring->desc_dma_addr = 0;
-	kfree(ring->desc);
-	ring->desc = NULL;
+	if (ring->desc) {
+		dma_free_coherent(cmq_ring_to_dev(ring), size,
+				  ring->desc, ring->desc_dma_addr);
+		ring->desc = NULL;
+	}
 }
 
 static int hclge_alloc_cmd_queue(struct hclge_dev *hdev, int ring_type)
@@ -111,8 +103,6 @@ void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
 
 	if (is_read)
 		desc->flag |= cpu_to_le16(HCLGE_CMD_FLAG_WR);
-	else
-		desc->flag &= cpu_to_le16(~HCLGE_CMD_FLAG_WR);
 }
 
 static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
@@ -154,31 +144,20 @@ static int hclge_cmd_csq_clean(struct hclge_hw *hw)
 {
 	struct hclge_dev *hdev = container_of(hw, struct hclge_dev, hw);
 	struct hclge_cmq_ring *csq = &hw->cmq.csq;
-	u16 ntc = csq->next_to_clean;
-	struct hclge_desc *desc;
-	int clean = 0;
 	u32 head;
+	int clean;
 
-	desc = &csq->desc[ntc];
 	head = hclge_read_dev(hw, HCLGE_NIC_CSQ_HEAD_REG);
 	rmb(); /* Make sure head is ready before touch any data */
 
 	if (!is_valid_csq_clean_head(csq, head)) {
-		dev_warn(&hdev->pdev->dev, "wrong head (%d, %d-%d)\n", head,
-			   csq->next_to_use, csq->next_to_clean);
+		dev_warn(&hdev->pdev->dev, "wrong cmd head (%d, %d-%d)\n", head,
+			 csq->next_to_use, csq->next_to_clean);
 		return 0;
 	}
 
-	while (head != ntc) {
-		memset(desc, 0, sizeof(*desc));
-		ntc++;
-		if (ntc == csq->desc_num)
-			ntc = 0;
-		desc = &csq->desc[ntc];
-		clean++;
-	}
-	csq->next_to_clean = ntc;
-
+	clean = (head - csq->next_to_clean + csq->desc_num) % csq->desc_num;
+	csq->next_to_clean = head;
 	return clean;
 }
 
@@ -256,42 +235,40 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 */
 	if (HCLGE_SEND_SYNC(le16_to_cpu(desc->flag))) {
 		do {
-			if (hclge_cmd_csq_done(hw))
+			if (hclge_cmd_csq_done(hw)) {
+				complete = true;
 				break;
+			}
 			udelay(1);
 			timeout++;
 		} while (timeout < hw->cmq.tx_timeout);
 	}
 
-	if (hclge_cmd_csq_done(hw)) {
-		complete = true;
+	if (!complete) {
+		retval = -EAGAIN;
+	} else {
 		handle = 0;
 		while (handle < num) {
 			/* Get the result of hardware write back */
 			desc_to_use = &hw->cmq.csq.desc[ntc];
 			desc[handle] = *desc_to_use;
-			pr_debug("Get cmd desc:\n");
 
 			if (likely(!hclge_is_special_opcode(opcode)))
 				desc_ret = le16_to_cpu(desc[handle].retval);
 			else
 				desc_ret = le16_to_cpu(desc[0].retval);
 
-			if ((enum hclge_cmd_return_status)desc_ret ==
-			    HCLGE_CMD_EXEC_SUCCESS)
+			if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
 				retval = 0;
 			else
 				retval = -EIO;
-			hw->cmq.last_status = (enum hclge_cmd_status)desc_ret;
+			hw->cmq.last_status = desc_ret;
 			ntc++;
 			handle++;
 			if (ntc == hw->cmq.csq.desc_num)
 				ntc = 0;
 		}
 	}
-
-	if (!complete)
-		retval = -EAGAIN;
 
 	/* Clean the command send queue */
 	handle = hclge_cmd_csq_clean(hw);
