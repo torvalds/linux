@@ -53,6 +53,7 @@ struct rockchip_crtc_funcs {
 					   const struct drm_display_mode *mode,
 					   int output_type);
 	void (*crtc_close)(struct drm_crtc *crtc);
+	void (*crtc_send_mcu_cmd)(struct drm_crtc *crtc, u32 type, u32 value);
 };
 
 struct drm_rockchip_subdrv {

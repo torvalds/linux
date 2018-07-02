@@ -37,6 +37,7 @@
 #include <video/mipi_display.h>
 #include <linux/of_device.h>
 #include <video/of_display_timing.h>
+#include <linux/of_graph.h>
 #include <video/videomode.h>
 
 struct cmd_ctrl_hdr {
@@ -121,12 +122,19 @@ struct panel_simple {
 
 	struct panel_cmds *on_cmds;
 	struct panel_cmds *off_cmds;
+	struct device_node *np_crtc;
 };
 
 enum rockchip_cmd_type {
 	CMD_TYPE_DEFAULT,
 	CMD_TYPE_SPI,
 	CMD_TYPE_MCU
+};
+
+enum MCU_IOCTL {
+	MCU_WRCMD = 0,
+	MCU_WRDATA,
+	MCU_SETBYPASS,
 };
 
 static inline int get_panel_cmd_type(const char *s)
@@ -254,6 +262,32 @@ static void panel_simple_spi_write_cmd(struct panel_simple *panel,
 	}
 
 	gpiod_direction_output(panel->spi_cs_gpio, 1);
+}
+
+static int panel_simple_mcu_send_cmds(struct panel_simple *panel,
+				      struct panel_cmds *cmds)
+{
+	int i;
+
+	if (!cmds)
+		return -EINVAL;
+
+	rockchip_drm_crtc_send_mcu_cmd(panel->base.drm,
+				       panel->np_crtc, MCU_SETBYPASS, 1);
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		struct cmd_desc *cmd = &cmds->cmds[i];
+		u32 value = 0;
+
+		value = cmd->payload[0];
+		rockchip_drm_crtc_send_mcu_cmd(panel->base.drm, panel->np_crtc,
+					       cmd->dchdr.dtype, value);
+		if (cmd->dchdr.wait)
+			msleep(cmd->dchdr.wait);
+	}
+	rockchip_drm_crtc_send_mcu_cmd(panel->base.drm,
+				       panel->np_crtc, MCU_SETBYPASS, 0);
+
+	return 0;
 }
 
 static int panel_simple_spi_send_cmds(struct panel_simple *panel,
@@ -524,6 +558,7 @@ static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
 static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
 
 	if (!p->enabled)
 		return 0;
@@ -536,6 +571,11 @@ static int panel_simple_disable(struct drm_panel *panel)
 	if (p->desc && p->desc->delay.disable)
 		msleep(p->desc->delay.disable);
 
+	if (p->cmd_type == CMD_TYPE_MCU) {
+		err = panel_simple_mcu_send_cmds(p, p->off_cmds);
+		if (err)
+			dev_err(p->dev, "failed to send mcu off cmds\n");
+	}
 	p->enabled = false;
 
 	return 0;
@@ -623,10 +663,16 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
 
 	if (p->enabled)
 		return 0;
 
+	if (p->cmd_type == CMD_TYPE_MCU) {
+		err = panel_simple_mcu_send_cmds(p, p->on_cmds);
+		if (err)
+			dev_err(p->dev, "failed to send mcu on cmds\n");
+	}
 	if (p->desc && p->desc->delay.enable)
 		msleep(p->desc->delay.enable);
 
@@ -793,6 +839,24 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		gpiod_direction_output(panel->spi_cs_gpio, 1);
 		gpiod_direction_output(panel->spi_sdi_gpio, 1);
 		gpiod_direction_output(panel->spi_scl_gpio, 1);
+	} else if (panel->cmd_type == CMD_TYPE_MCU) {
+		struct device_node *port, *endpoint;
+		struct device_node *np;
+
+		port = of_graph_get_port_by_id(dev->of_node, 0);
+		if (port) {
+			endpoint = of_get_next_child(port, NULL);
+			/* get connect device node */
+			np = of_graph_get_remote_port_parent(endpoint);
+
+			port = of_graph_get_port_by_id(np, 0);
+			if (port) {
+				endpoint = of_get_next_child(port, NULL);
+				/* get crtc device node */
+				np = of_graph_get_remote_port_parent(endpoint);
+				panel->np_crtc = np;
+			}
+		}
 	}
 	panel->power_invert =
 			of_property_read_bool(dev->of_node, "power-invert");

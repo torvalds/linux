@@ -895,6 +895,32 @@ static int __init rockchip_clocks_loader_unprotect(void)
 late_initcall_sync(rockchip_clocks_loader_unprotect);
 #endif
 
+int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
+				   struct device_node *np_crtc,
+				   u32 type, u32 value)
+{
+	struct drm_crtc *crtc;
+	int pipe = 0;
+	struct rockchip_drm_private *priv;
+
+	if (!np_crtc || !of_device_is_available(np_crtc))
+		return -EINVAL;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		if (of_get_parent(crtc->port) == np_crtc)
+			break;
+	}
+
+	pipe = drm_crtc_index(crtc);
+	if (pipe >= ROCKCHIP_MAX_CRTC)
+		return -EINVAL;
+	priv = crtc->dev->dev_private;
+	if (priv->crtc_funcs[pipe]->crtc_send_mcu_cmd)
+		priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, type, value);
+
+	return 0;
+}
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA

@@ -143,6 +143,9 @@ void drm_panel_remove(struct drm_panel *panel);
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
 int drm_panel_detach(struct drm_panel *panel);
 
+int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
+				   struct device_node *np_crtc,
+				   u32 type, u32 value);
 struct drm_panel *drm_find_panel_by_connector(struct drm_connector *connector);
 #ifdef CONFIG_OF
 struct drm_panel *of_drm_find_panel(struct device_node *np);
