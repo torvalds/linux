@@ -388,14 +388,14 @@ static void netdev_trig_work(struct work_struct *work)
 			(atomic_read(&trigger_data->interval)*2));
 }
 
-static void netdev_trig_activate(struct led_classdev *led_cdev)
+static int netdev_trig_activate(struct led_classdev *led_cdev)
 {
 	struct led_netdev_data *trigger_data;
 	int rc;
 
 	trigger_data = kzalloc(sizeof(struct led_netdev_data), GFP_KERNEL);
 	if (!trigger_data)
-		return;
+		return 0;
 
 	spin_lock_init(&trigger_data->lock);
 
@@ -432,7 +432,7 @@ static void netdev_trig_activate(struct led_classdev *led_cdev)
 	rc = register_netdevice_notifier(&trigger_data->notifier);
 	if (rc)
 		goto err_out_interval;
-	return;
+	return 0;
 
 err_out_interval:
 	device_remove_file(led_cdev->dev, &dev_attr_interval);
@@ -447,6 +447,8 @@ err_out_device_name:
 err_out:
 	led_cdev->trigger_data = NULL;
 	kfree(trigger_data);
+
+	return 0;
 }
 
 static void netdev_trig_deactivate(struct led_classdev *led_cdev)

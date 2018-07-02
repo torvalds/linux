@@ -97,7 +97,7 @@ static ssize_t bl_trig_invert_store(struct device *dev,
 }
 static DEVICE_ATTR(inverted, 0644, bl_trig_invert_show, bl_trig_invert_store);
 
-static void bl_trig_activate(struct led_classdev *led)
+static int bl_trig_activate(struct led_classdev *led)
 {
 	int ret;
 
@@ -107,7 +107,7 @@ static void bl_trig_activate(struct led_classdev *led)
 	led->trigger_data = n;
 	if (!n) {
 		dev_err(led->dev, "unable to allocate backlight trigger\n");
-		return;
+		return 0;
 	}
 
 	ret = device_create_file(led->dev, &dev_attr_inverted);
@@ -124,11 +124,13 @@ static void bl_trig_activate(struct led_classdev *led)
 		dev_err(led->dev, "unable to register backlight trigger\n");
 	led->activated = true;
 
-	return;
+	return 0;
 
 err_invert:
 	led->trigger_data = NULL;
 	kfree(n);
+
+	return 0;
 }
 
 static void bl_trig_deactivate(struct led_classdev *led)

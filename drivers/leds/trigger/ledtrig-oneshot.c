@@ -122,14 +122,14 @@ static DEVICE_ATTR(delay_off, 0644, led_delay_off_show, led_delay_off_store);
 static DEVICE_ATTR(invert, 0644, led_invert_show, led_invert_store);
 static DEVICE_ATTR(shot, 0200, NULL, led_shot);
 
-static void oneshot_trig_activate(struct led_classdev *led_cdev)
+static int oneshot_trig_activate(struct led_classdev *led_cdev)
 {
 	struct oneshot_trig_data *oneshot_data;
 	int rc;
 
 	oneshot_data = kzalloc(sizeof(*oneshot_data), GFP_KERNEL);
 	if (!oneshot_data)
-		return;
+		return 0;
 
 	led_cdev->trigger_data = oneshot_data;
 
@@ -151,7 +151,7 @@ static void oneshot_trig_activate(struct led_classdev *led_cdev)
 
 	led_cdev->activated = true;
 
-	return;
+	return 0;
 
 err_out_invert:
 	device_remove_file(led_cdev->dev, &dev_attr_invert);
@@ -161,6 +161,8 @@ err_out_delayon:
 	device_remove_file(led_cdev->dev, &dev_attr_delay_on);
 err_out_trig_data:
 	kfree(led_cdev->trigger_data);
+
+	return 0;
 }
 
 static void oneshot_trig_deactivate(struct led_classdev *led_cdev)

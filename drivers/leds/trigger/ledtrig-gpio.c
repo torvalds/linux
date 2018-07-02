@@ -162,14 +162,14 @@ static ssize_t gpio_trig_gpio_store(struct device *dev,
 }
 static DEVICE_ATTR(gpio, 0644, gpio_trig_gpio_show, gpio_trig_gpio_store);
 
-static void gpio_trig_activate(struct led_classdev *led)
+static int gpio_trig_activate(struct led_classdev *led)
 {
 	struct gpio_trig_data *gpio_data;
 	int ret;
 
 	gpio_data = kzalloc(sizeof(*gpio_data), GFP_KERNEL);
 	if (!gpio_data)
-		return;
+		return 0;
 
 	ret = device_create_file(led->dev, &dev_attr_gpio);
 	if (ret)
@@ -187,7 +187,7 @@ static void gpio_trig_activate(struct led_classdev *led)
 	led->trigger_data = gpio_data;
 	led->activated = true;
 
-	return;
+	return 0;
 
 err_brightness:
 	device_remove_file(led->dev, &dev_attr_inverted);
@@ -197,6 +197,8 @@ err_inverted:
 
 err_gpio:
 	kfree(gpio_data);
+
+	return 0;
 }
 
 static void gpio_trig_deactivate(struct led_classdev *led)

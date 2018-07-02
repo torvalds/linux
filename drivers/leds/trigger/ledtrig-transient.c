@@ -152,7 +152,7 @@ static DEVICE_ATTR(duration, 0644, transient_duration_show,
 		   transient_duration_store);
 static DEVICE_ATTR(state, 0644, transient_state_show, transient_state_store);
 
-static void transient_trig_activate(struct led_classdev *led_cdev)
+static int transient_trig_activate(struct led_classdev *led_cdev)
 {
 	int rc;
 	struct transient_trig_data *tdata;
@@ -161,7 +161,7 @@ static void transient_trig_activate(struct led_classdev *led_cdev)
 	if (!tdata) {
 		dev_err(led_cdev->dev,
 			"unable to allocate transient trigger\n");
-		return;
+		return 0;
 	}
 	led_cdev->trigger_data = tdata;
 	tdata->led_cdev = led_cdev;
@@ -181,7 +181,7 @@ static void transient_trig_activate(struct led_classdev *led_cdev)
 	timer_setup(&tdata->timer, transient_timer_function, 0);
 	led_cdev->activated = true;
 
-	return;
+	return 0;
 
 err_out_state:
 	device_remove_file(led_cdev->dev, &dev_attr_duration);
@@ -191,6 +191,8 @@ err_out:
 	dev_err(led_cdev->dev, "unable to register transient trigger\n");
 	led_cdev->trigger_data = NULL;
 	kfree(tdata);
+
+	return 0;
 }
 
 static void transient_trig_deactivate(struct led_classdev *led_cdev)

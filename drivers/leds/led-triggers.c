@@ -103,15 +103,16 @@ ssize_t led_trigger_show(struct device *dev, struct device_attribute *attr,
 EXPORT_SYMBOL_GPL(led_trigger_show);
 
 /* Caller must ensure led_cdev->trigger_lock held */
-void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
+int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 {
 	unsigned long flags;
 	char *event = NULL;
 	char *envp[2];
 	const char *name;
+	int ret;
 
 	if (!led_cdev->trigger && !trig)
-		return;
+		return 0;
 
 	name = trig ? trig->name : "none";
 	event = kasprintf(GFP_KERNEL, "TRIGGER=%s", name);
@@ -134,8 +135,14 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 		list_add_tail(&led_cdev->trig_list, &trig->led_cdevs);
 		write_unlock_irqrestore(&trig->leddev_list_lock, flags);
 		led_cdev->trigger = trig;
+
 		if (trig->activate)
-			trig->activate(led_cdev);
+			ret = trig->activate(led_cdev);
+		else
+			ret = 0;
+
+		if (ret)
+			goto err_activate;
 	}
 
 	if (event) {
@@ -146,6 +153,17 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 				"%s: Error sending uevent\n", __func__);
 		kfree(event);
 	}
+
+	return 0;
+
+err_activate:
+	led_cdev->trigger = NULL;
+	write_lock_irqsave(&led_cdev->trigger->leddev_list_lock, flags);
+	list_del(&led_cdev->trig_list);
+	write_unlock_irqrestore(&led_cdev->trigger->leddev_list_lock, flags);
+	led_set_brightness(led_cdev, LED_OFF);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(led_trigger_set);
 

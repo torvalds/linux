@@ -178,20 +178,20 @@ static ssize_t led_invert_store(struct device *dev,
 
 static DEVICE_ATTR(invert, 0644, led_invert_show, led_invert_store);
 
-static void activity_activate(struct led_classdev *led_cdev)
+static int activity_activate(struct led_classdev *led_cdev)
 {
 	struct activity_data *activity_data;
 	int rc;
 
 	activity_data = kzalloc(sizeof(*activity_data), GFP_KERNEL);
 	if (!activity_data)
-		return;
+		return 0;
 
 	led_cdev->trigger_data = activity_data;
 	rc = device_create_file(led_cdev->dev, &dev_attr_invert);
 	if (rc) {
 		kfree(led_cdev->trigger_data);
-		return;
+		return 0;
 	}
 
 	activity_data->led_cdev = led_cdev;
@@ -201,6 +201,8 @@ static void activity_activate(struct led_classdev *led_cdev)
 	led_activity_function(&activity_data->timer);
 	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
 	led_cdev->activated = true;
+
+	return 0;
 }
 
 static void activity_deactivate(struct led_classdev *led_cdev)

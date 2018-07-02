@@ -16,9 +16,10 @@
 #include <linux/leds.h>
 #include "../leds.h"
 
-static void defon_trig_activate(struct led_classdev *led_cdev)
+static int defon_trig_activate(struct led_classdev *led_cdev)
 {
 	led_set_brightness_nosleep(led_cdev, led_cdev->max_brightness);
+	return 0;
 }
 
 static struct led_trigger defon_led_trigger = {

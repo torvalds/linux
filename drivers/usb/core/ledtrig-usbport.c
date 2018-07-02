@@ -298,14 +298,14 @@ static int usbport_trig_notify(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
-static void usbport_trig_activate(struct led_classdev *led_cdev)
+static int usbport_trig_activate(struct led_classdev *led_cdev)
 {
 	struct usbport_trig_data *usbport_data;
 	int err;
 
 	usbport_data = kzalloc(sizeof(*usbport_data), GFP_KERNEL);
 	if (!usbport_data)
-		return;
+		return 0;
 	usbport_data->led_cdev = led_cdev;
 
 	/* List of ports */
@@ -322,10 +322,11 @@ static void usbport_trig_activate(struct led_classdev *led_cdev)
 	usb_register_notify(&usbport_data->nb);
 
 	led_cdev->activated = true;
-	return;
+	return 0;
 
 err_free:
 	kfree(usbport_data);
+	return 0;
 }
 
 static void usbport_trig_deactivate(struct led_classdev *led_cdev)

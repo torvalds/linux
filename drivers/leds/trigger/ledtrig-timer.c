@@ -70,7 +70,7 @@ static ssize_t led_delay_off_store(struct device *dev,
 static DEVICE_ATTR(delay_on, 0644, led_delay_on_show, led_delay_on_store);
 static DEVICE_ATTR(delay_off, 0644, led_delay_off_show, led_delay_off_store);
 
-static void timer_trig_activate(struct led_classdev *led_cdev)
+static int timer_trig_activate(struct led_classdev *led_cdev)
 {
 	int rc;
 
@@ -78,7 +78,7 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 
 	rc = device_create_file(led_cdev->dev, &dev_attr_delay_on);
 	if (rc)
-		return;
+		return 0;
 	rc = device_create_file(led_cdev->dev, &dev_attr_delay_off);
 	if (rc)
 		goto err_out_delayon;
@@ -87,10 +87,12 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 		      &led_cdev->blink_delay_off);
 	led_cdev->activated = true;
 
-	return;
+	return 0;
 
 err_out_delayon:
 	device_remove_file(led_cdev->dev, &dev_attr_delay_on);
+
+	return 0;
 }
 
 static void timer_trig_deactivate(struct led_classdev *led_cdev)

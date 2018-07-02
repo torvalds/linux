@@ -121,21 +121,21 @@ static ssize_t led_invert_store(struct device *dev,
 
 static DEVICE_ATTR(invert, 0644, led_invert_show, led_invert_store);
 
-static void heartbeat_trig_activate(struct led_classdev *led_cdev)
+static int heartbeat_trig_activate(struct led_classdev *led_cdev)
 {
 	struct heartbeat_trig_data *heartbeat_data;
 	int rc;
 
 	heartbeat_data = kzalloc(sizeof(*heartbeat_data), GFP_KERNEL);
 	if (!heartbeat_data)
-		return;
+		return 0;
 
 	led_cdev->trigger_data = heartbeat_data;
 	heartbeat_data->led_cdev = led_cdev;
 	rc = device_create_file(led_cdev->dev, &dev_attr_invert);
 	if (rc) {
 		kfree(led_cdev->trigger_data);
-		return;
+		return 0;
 	}
 
 	timer_setup(&heartbeat_data->timer, led_heartbeat_function, 0);
@@ -145,6 +145,8 @@ static void heartbeat_trig_activate(struct led_classdev *led_cdev)
 	led_heartbeat_function(&heartbeat_data->timer);
 	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
 	led_cdev->activated = true;
+
+	return 0;
 }
 
 static void heartbeat_trig_deactivate(struct led_classdev *led_cdev)
