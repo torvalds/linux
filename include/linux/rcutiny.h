@@ -36,6 +36,11 @@ static inline int rcu_dynticks_snap(struct rcu_dynticks *rdtp)
 /* Never flag non-existent other CPUs! */
 static inline bool rcu_eqs_special_set(int cpu) { return false; }
 
+static inline void synchronize_rcu(void)
+{
+	synchronize_sched();
+}
+
 static inline unsigned long get_state_synchronize_rcu(void)
 {
 	return 0;
@@ -93,6 +98,8 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 {
 	call_rcu(head, func);
 }
+
+void rcu_sched_qs(void);
 
 static inline void rcu_softirq_qs(void)
 {

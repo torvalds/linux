@@ -92,24 +92,29 @@ static const char *tp_##sname##_varname __used __tracepoint_string = sname##_var
 
 #define RCU_STATE_INITIALIZER(sname, sabbr, cr) \
 DEFINE_RCU_TPS(sname) \
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data); \
-struct rcu_state sname##_state = { \
-	.level = { &sname##_state.node[0] }, \
-	.rda = &sname##_data, \
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, rcu_data); \
+struct rcu_state rcu_state = { \
+	.level = { &rcu_state.node[0] }, \
+	.rda = &rcu_data, \
 	.call = cr, \
 	.gp_state = RCU_GP_IDLE, \
 	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT, \
-	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
+	.barrier_mutex = __MUTEX_INITIALIZER(rcu_state.barrier_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
-	.exp_mutex = __MUTEX_INITIALIZER(sname##_state.exp_mutex), \
-	.exp_wake_mutex = __MUTEX_INITIALIZER(sname##_state.exp_wake_mutex), \
-	.ofl_lock = __SPIN_LOCK_UNLOCKED(sname##_state.ofl_lock), \
+	.exp_mutex = __MUTEX_INITIALIZER(rcu_state.exp_mutex), \
+	.exp_wake_mutex = __MUTEX_INITIALIZER(rcu_state.exp_wake_mutex), \
+	.ofl_lock = __SPIN_LOCK_UNLOCKED(rcu_state.ofl_lock), \
 }
 
-RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
+#ifdef CONFIG_PREEMPT_RCU
+RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
+#else
+RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu);
+#endif
 
-static struct rcu_state *const rcu_state_p;
+static struct rcu_state *const rcu_state_p = &rcu_state;
+static struct rcu_data __percpu *const rcu_data_p = &rcu_data;
 LIST_HEAD(rcu_struct_flavors);
 
 /* Dump rcu_node combining tree at boot to verify correct setup. */
@@ -220,31 +225,9 @@ static int rcu_gp_in_progress(struct rcu_state *rsp)
 	return rcu_seq_state(rcu_seq_current(&rsp->gp_seq));
 }
 
-/*
- * Note a quiescent state.  Because we do not need to know
- * how many quiescent states passed, just if there was at least
- * one since the start of the grace period, this just sets a flag.
- * The caller must have disabled preemption.
- */
-void rcu_sched_qs(void)
-{
-	RCU_LOCKDEP_WARN(preemptible(), "rcu_sched_qs() invoked with preemption enabled!!!");
-	if (!__this_cpu_read(rcu_sched_data.cpu_no_qs.s))
-		return;
-	trace_rcu_grace_period(TPS("rcu_sched"),
-			       __this_cpu_read(rcu_sched_data.gp_seq),
-			       TPS("cpuqs"));
-	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.norm, false);
-	if (!__this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp))
-		return;
-	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, false);
-	rcu_report_exp_rdp(&rcu_sched_state, this_cpu_ptr(&rcu_sched_data));
-}
-
 void rcu_softirq_qs(void)
 {
-	rcu_sched_qs();
-	rcu_preempt_qs();
+	rcu_qs();
 	rcu_preempt_deferred_qs(current);
 }
 
@@ -418,31 +401,18 @@ static void rcu_momentary_dyntick_idle(void)
 	rcu_preempt_deferred_qs(current);
 }
 
-/*
- * Note a context switch.  This is a quiescent state for RCU-sched,
- * and requires special handling for preemptible RCU.
- * The caller must have disabled interrupts.
+/**
+ * rcu_is_cpu_rrupt_from_idle - see if idle or immediately interrupted from idle
+ *
+ * If the current CPU is idle or running at a first-level (not nested)
+ * interrupt from idle, return true.  The caller must have at least
+ * disabled preemption.
  */
-void rcu_note_context_switch(bool preempt)
+static int rcu_is_cpu_rrupt_from_idle(void)
 {
-	barrier(); /* Avoid RCU read-side critical sections leaking down. */
-	trace_rcu_utilization(TPS("Start context switch"));
-	rcu_sched_qs();
-	rcu_preempt_note_context_switch(preempt);
-	/* Load rcu_urgent_qs before other flags. */
-	if (!smp_load_acquire(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs)))
-		goto out;
-	this_cpu_write(rcu_dynticks.rcu_urgent_qs, false);
-	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_need_heavy_qs)))
-		rcu_momentary_dyntick_idle();
-	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
-	if (!preempt)
-		rcu_tasks_qs(current);
-out:
-	trace_rcu_utilization(TPS("End context switch"));
-	barrier(); /* Avoid RCU read-side critical sections leaking up. */
+	return __this_cpu_read(rcu_dynticks.dynticks_nesting) <= 0 &&
+	       __this_cpu_read(rcu_dynticks.dynticks_nmi_nesting) <= 1;
 }
-EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 
 /*
  * Register a quiescent state for all RCU flavors.  If there is an
@@ -476,8 +446,8 @@ void rcu_all_qs(void)
 		rcu_momentary_dyntick_idle();
 		local_irq_restore(flags);
 	}
-	if (unlikely(raw_cpu_read(rcu_sched_data.cpu_no_qs.b.exp)))
-		rcu_sched_qs();
+	if (unlikely(raw_cpu_read(rcu_data.cpu_no_qs.b.exp)))
+		rcu_qs();
 	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 	preempt_enable();
@@ -558,7 +528,7 @@ EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
  */
 unsigned long rcu_sched_get_gp_seq(void)
 {
-	return READ_ONCE(rcu_sched_state.gp_seq);
+	return rcu_get_gp_seq();
 }
 EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
 
@@ -590,7 +560,7 @@ EXPORT_SYMBOL_GPL(rcu_exp_batches_completed);
  */
 unsigned long rcu_exp_batches_completed_sched(void)
 {
-	return rcu_sched_state.expedited_sequence;
+	return rcu_state.expedited_sequence;
 }
 EXPORT_SYMBOL_GPL(rcu_exp_batches_completed_sched);
 
@@ -617,7 +587,7 @@ EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
  */
 void rcu_sched_force_quiescent_state(void)
 {
-	force_quiescent_state(&rcu_sched_state);
+	rcu_force_quiescent_state();
 }
 EXPORT_SYMBOL_GPL(rcu_sched_force_quiescent_state);
 
@@ -668,10 +638,8 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	switch (test_type) {
 	case RCU_FLAVOR:
 	case RCU_BH_FLAVOR:
-		rsp = rcu_state_p;
-		break;
 	case RCU_SCHED_FLAVOR:
-		rsp = &rcu_sched_state;
+		rsp = rcu_state_p;
 		break;
 	default:
 		break;
@@ -1106,19 +1074,6 @@ bool rcu_lockdep_current_cpu_online(void)
 EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
 
 #endif /* #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU) */
-
-/**
- * rcu_is_cpu_rrupt_from_idle - see if idle or immediately interrupted from idle
- *
- * If the current CPU is idle or running at a first-level (not nested)
- * interrupt from idle, return true.  The caller must have at least
- * disabled preemption.
- */
-static int rcu_is_cpu_rrupt_from_idle(void)
-{
-	return __this_cpu_read(rcu_dynticks.dynticks_nesting) <= 0 &&
-	       __this_cpu_read(rcu_dynticks.dynticks_nmi_nesting) <= 1;
-}
 
 /*
  * We are reporting a quiescent state on behalf of some other CPU, so
@@ -2364,7 +2319,7 @@ rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 	struct rcu_node *rnp_p;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
-	if (WARN_ON_ONCE(rcu_state_p == &rcu_sched_state) ||
+	if (WARN_ON_ONCE(!IS_ENABLED(CONFIG_PREEMPT)) ||
 	    WARN_ON_ONCE(rsp != rcu_state_p) ||
 	    WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)) ||
 	    rnp->qsmask != 0) {
@@ -2650,25 +2605,7 @@ void rcu_check_callbacks(int user)
 {
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
 	increment_cpu_stall_ticks();
-	if (user || rcu_is_cpu_rrupt_from_idle()) {
-
-		/*
-		 * Get here if this CPU took its interrupt from user
-		 * mode or from the idle loop, and if this is not a
-		 * nested interrupt.  In this case, the CPU is in
-		 * a quiescent state, so note it.
-		 *
-		 * No memory barrier is required here because
-		 * rcu_sched_qs() references only CPU-local variables
-		 * that other CPUs neither access nor modify, at least
-		 * not while the corresponding CPU is online.
-		 */
-
-		rcu_sched_qs();
-		rcu_note_voluntary_context_switch(current);
-
-	}
-	rcu_preempt_check_callbacks();
+	rcu_flavor_check_callbacks(user);
 	if (rcu_pending())
 		invoke_rcu_core();
 
@@ -2694,7 +2631,7 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 		mask = 0;
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->qsmask == 0) {
-			if (rcu_state_p == &rcu_sched_state ||
+			if (!IS_ENABLED(CONFIG_PREEMPT) ||
 			    rsp != rcu_state_p ||
 			    rcu_preempt_blocked_readers_cgp(rnp)) {
 				/*
@@ -3028,28 +2965,56 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
 }
 
 /**
- * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
+ * call_rcu() - Queue an RCU callback for invocation after a grace period.
  * @head: structure to be used for queueing the RCU updates.
  * @func: actual callback function to be invoked after the grace period
  *
  * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_sched() assumes
- * that the read-side critical sections end on enabling of preemption
- * or on voluntary preemption.
- * RCU read-side critical sections are delimited by:
+ * period elapses, in other words after all pre-existing RCU read-side
+ * critical sections have completed.  However, the callback function
+ * might well execute concurrently with RCU read-side critical sections
+ * that started after call_rcu() was invoked.  RCU read-side critical
+ * sections are delimited by rcu_read_lock() and rcu_read_unlock(), and
+ * may be nested.  In addition, regions of code across which interrupts,
+ * preemption, or softirqs have been disabled also serve as RCU read-side
+ * critical sections.  This includes hardware interrupt handlers, softirq
+ * handlers, and NMI handlers.
  *
- * - rcu_read_lock_sched() and rcu_read_unlock_sched(), OR
- * - anything that disables preemption.
+ * Note that all CPUs must agree that the grace period extended beyond
+ * all pre-existing RCU read-side critical section.  On systems with more
+ * than one CPU, this means that when "func()" is invoked, each CPU is
+ * guaranteed to have executed a full memory barrier since the end of its
+ * last RCU read-side critical section whose beginning preceded the call
+ * to call_rcu().  It also means that each CPU executing an RCU read-side
+ * critical section that continues beyond the start of "func()" must have
+ * executed a memory barrier after the call_rcu() but before the beginning
+ * of that RCU read-side critical section.  Note that these guarantees
+ * include CPUs that are offline, idle, or executing in user mode, as
+ * well as CPUs that are executing in the kernel.
  *
- *  These may be nested.
+ * Furthermore, if CPU A invoked call_rcu() and CPU B invoked the
+ * resulting RCU callback function "func()", then both CPU A and CPU B are
+ * guaranteed to execute a full memory barrier during the time interval
+ * between the call to call_rcu() and the invocation of "func()" -- even
+ * if CPU A and CPU B are the same CPU (but again only if the system has
+ * more than one CPU).
+ */
+void call_rcu(struct rcu_head *head, rcu_callback_t func)
+{
+	__call_rcu(head, func, rcu_state_p, -1, 0);
+}
+EXPORT_SYMBOL_GPL(call_rcu);
+
+/**
+ * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
+ * @head: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
  *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
+ * This is transitional.
  */
 void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 {
-	__call_rcu(head, func, &rcu_sched_state, -1, 0);
+	call_rcu(head, func);
 }
 EXPORT_SYMBOL_GPL(call_rcu_sched);
 
@@ -3067,73 +3032,14 @@ void kfree_call_rcu(struct rcu_head *head,
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
-/*
- * Because a context switch is a grace period for RCU-sched, any blocking
- * grace-period wait automatically implies a grace period if there
- * is only one CPU online at any point time during execution of either
- * synchronize_sched() or synchronize_rcu_bh().  It is OK to occasionally
- * incorrectly indicate that there are multiple CPUs online when there
- * was in fact only one the whole time, as this just adds some overhead:
- * RCU still operates correctly.
- */
-static int rcu_blocking_is_gp(void)
-{
-	int ret;
-
-	might_sleep();  /* Check for RCU read-side critical section. */
-	preempt_disable();
-	ret = num_online_cpus() <= 1;
-	preempt_enable();
-	return ret;
-}
-
 /**
  * synchronize_sched - wait until an rcu-sched grace period has elapsed.
  *
- * Control will return to the caller some time after a full rcu-sched
- * grace period has elapsed, in other words after all currently executing
- * rcu-sched read-side critical sections have completed.   These read-side
- * critical sections are delimited by rcu_read_lock_sched() and
- * rcu_read_unlock_sched(), and may be nested.  Note that preempt_disable(),
- * local_irq_disable(), and so on may be used in place of
- * rcu_read_lock_sched().
- *
- * This means that all preempt_disable code sequences, including NMI and
- * non-threaded hardware-interrupt handlers, in progress on entry will
- * have completed before this primitive returns.  However, this does not
- * guarantee that softirq handlers will have completed, since in some
- * kernels, these handlers can run in process context, and can block.
- *
- * Note that this guarantee implies further memory-ordering guarantees.
- * On systems with more than one CPU, when synchronize_sched() returns,
- * each CPU is guaranteed to have executed a full memory barrier since the
- * end of its last RCU-sched read-side critical section whose beginning
- * preceded the call to synchronize_sched().  In addition, each CPU having
- * an RCU read-side critical section that extends beyond the return from
- * synchronize_sched() is guaranteed to have executed a full memory barrier
- * after the beginning of synchronize_sched() and before the beginning of
- * that RCU read-side critical section.  Note that these guarantees include
- * CPUs that are offline, idle, or executing in user mode, as well as CPUs
- * that are executing in the kernel.
- *
- * Furthermore, if CPU A invoked synchronize_sched(), which returned
- * to its caller on CPU B, then both CPU A and CPU B are guaranteed
- * to have executed a full memory barrier during the execution of
- * synchronize_sched() -- even if CPU A and CPU B are the same CPU (but
- * again only if the system has more than one CPU).
+ * This is transitional.
  */
 void synchronize_sched(void)
 {
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
-			 lock_is_held(&rcu_lock_map) ||
-			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_sched() in RCU-sched read-side critical section");
-	if (rcu_blocking_is_gp())
-		return;
-	if (rcu_gp_is_expedited())
-		synchronize_sched_expedited();
-	else
-		wait_rcu_gp(call_rcu_sched);
+	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
 
@@ -3181,41 +3087,23 @@ EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 /**
  * get_state_synchronize_sched - Snapshot current RCU-sched state
  *
- * Returns a cookie that is used by a later call to cond_synchronize_sched()
- * to determine whether or not a full grace period has elapsed in the
- * meantime.
+ * This is transitional, and only used by rcutorture.
  */
 unsigned long get_state_synchronize_sched(void)
 {
-	/*
-	 * Any prior manipulation of RCU-protected data must happen
-	 * before the load from ->gp_seq.
-	 */
-	smp_mb();  /* ^^^ */
-	return rcu_seq_snap(&rcu_sched_state.gp_seq);
+	return get_state_synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_sched);
 
 /**
  * cond_synchronize_sched - Conditionally wait for an RCU-sched grace period
- *
  * @oldstate: return value from earlier call to get_state_synchronize_sched()
  *
- * If a full RCU-sched grace period has elapsed since the earlier call to
- * get_state_synchronize_sched(), just return.  Otherwise, invoke
- * synchronize_sched() to wait for a full grace period.
- *
- * Yes, this function does not take counter wrap into account.  But
- * counter wrap is harmless.  If the counter wraps, we have waited for
- * more than 2 billion grace periods (and way more on a 64-bit system!),
- * so waiting for one additional grace period should be just fine.
+ * This is transitional and only used by rcutorture.
  */
 void cond_synchronize_sched(unsigned long oldstate)
 {
-	if (!rcu_seq_done(&rcu_sched_state.gp_seq, oldstate))
-		synchronize_sched();
-	else
-		smp_mb(); /* Ensure GP ends before subsequent accesses. */
+	cond_synchronize_rcu(oldstate);
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_sched);
 
@@ -3453,11 +3341,27 @@ void rcu_barrier_bh(void)
 EXPORT_SYMBOL_GPL(rcu_barrier_bh);
 
 /**
+ * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
+ *
+ * Note that this primitive does not necessarily wait for an RCU grace period
+ * to complete.  For example, if there are no RCU callbacks queued anywhere
+ * in the system, then rcu_barrier() is within its rights to return
+ * immediately, without waiting for anything, much less an RCU grace period.
+ */
+void rcu_barrier(void)
+{
+	_rcu_barrier(rcu_state_p);
+}
+EXPORT_SYMBOL_GPL(rcu_barrier);
+
+/**
  * rcu_barrier_sched - Wait for in-flight call_rcu_sched() callbacks.
+ *
+ * This is transitional.
  */
 void rcu_barrier_sched(void)
 {
-	_rcu_barrier(&rcu_sched_state);
+	rcu_barrier();
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
@@ -3756,7 +3660,7 @@ void rcu_report_dead(unsigned int cpu)
 
 	/* QS for any half-done expedited RCU-sched GP. */
 	preempt_disable();
-	rcu_report_exp_rdp(&rcu_sched_state, this_cpu_ptr(rcu_sched_state.rda));
+	rcu_report_exp_rdp(&rcu_state, this_cpu_ptr(rcu_state.rda));
 	preempt_enable();
 	rcu_preempt_deferred_qs(current);
 	for_each_rcu_flavor(rsp)
@@ -4098,10 +4002,9 @@ void __init rcu_init(void)
 
 	rcu_bootup_announce();
 	rcu_init_geometry();
-	rcu_init_one(&rcu_sched_state);
+	rcu_init_one(&rcu_state);
 	if (dump_tree)
-		rcu_dump_rcu_node_tree(&rcu_sched_state);
-	__rcu_init_preempt();
+		rcu_dump_rcu_node_tree(&rcu_state);
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
 	/*

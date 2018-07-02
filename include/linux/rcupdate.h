@@ -49,11 +49,11 @@
 
 /* Exported common interfaces */
 
-#ifdef CONFIG_PREEMPT_RCU
-void call_rcu(struct rcu_head *head, rcu_callback_t func);
-#else /* #ifdef CONFIG_PREEMPT_RCU */
+#ifdef CONFIG_TINY_RCU
 #define	call_rcu	call_rcu_sched
-#endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+#else
+void call_rcu(struct rcu_head *head, rcu_callback_t func);
+#endif
 
 void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
 void synchronize_sched(void);
@@ -92,11 +92,6 @@ static inline void __rcu_read_unlock(void)
 		preempt_enable();
 }
 
-static inline void synchronize_rcu(void)
-{
-	synchronize_sched();
-}
-
 static inline int rcu_preempt_depth(void)
 {
 	return 0;
@@ -107,7 +102,6 @@ static inline int rcu_preempt_depth(void)
 /* Internal to kernel */
 void rcu_init(void);
 extern int rcu_scheduler_active __read_mostly;
-void rcu_sched_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
 void rcutree_migrate_callbacks(int cpu);

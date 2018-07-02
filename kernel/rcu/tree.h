@@ -225,9 +225,6 @@ struct rcu_data {
 
 	/* 5) _rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
-#ifdef CONFIG_RCU_FAST_NO_HZ
-	struct rcu_head oom_head;
-#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
 	/* 6) Callback offloading. */
@@ -433,8 +430,7 @@ DECLARE_PER_CPU(char, rcu_cpu_has_work);
 
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
-static void rcu_preempt_qs(void);
-static void rcu_preempt_note_context_switch(bool preempt);
+static void rcu_qs(void);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
@@ -444,9 +440,8 @@ static int rcu_print_task_stall(struct rcu_node *rnp);
 static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 static void rcu_preempt_check_blocked_tasks(struct rcu_state *rsp,
 					    struct rcu_node *rnp);
-static void rcu_preempt_check_callbacks(void);
+static void rcu_flavor_check_callbacks(int user);
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
-static void __init __rcu_init_preempt(void);
 static void dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp,
 			    int ncheck);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
