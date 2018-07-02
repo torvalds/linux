@@ -42,6 +42,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/dma-iommu.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include <soc/rockchip/rockchip-system-status.h>
 #include "regs.h"
 #include "rkisp1.h"
 #include "common.h"
@@ -187,8 +189,10 @@ static int rkisp1_pipeline_set_stream(struct rkisp1_pipeline *p, bool on)
 	    (!on && atomic_dec_return(&p->stream_cnt) > 0))
 		return 0;
 
-	if (on)
+	if (on) {
+		rockchip_set_system_status(SYS_STATUS_ISP);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, true);
+	}
 
 	/* phy -> sensor */
 	for (i = 0; i < p->num_subdevs; ++i) {
@@ -197,8 +201,10 @@ static int rkisp1_pipeline_set_stream(struct rkisp1_pipeline *p, bool on)
 			goto err_stream_off;
 	}
 
-	if (!on)
+	if (!on) {
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
+		rockchip_clear_system_status(SYS_STATUS_ISP);
+	}
 
 	return 0;
 
@@ -206,6 +212,7 @@ err_stream_off:
 	for (--i; i >= 0; --i)
 		v4l2_subdev_call(p->subdevs[i], video, s_stream, false);
 	v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
+	rockchip_clear_system_status(SYS_STATUS_ISP);
 	return ret;
 }
 
