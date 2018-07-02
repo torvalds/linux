@@ -1,18 +1,12 @@
-/*
- * soc-compress.c  --  ALSA SoC Compress
- *
- * Copyright (C) 2012 Intel Corp.
- *
- * Authors: Namarta Kohli <namartax.kohli@intel.com>
- *          Ramesh Babu K V <ramesh.babu@linux.intel.com>
- *          Vinod Koul <vinod.koul@linux.intel.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// soc-compress.c  --  ALSA SoC Compress
+//
+// Copyright (C) 2012 Intel Corp.
+//
+// Authors: Namarta Kohli <namartax.kohli@intel.com>
+//          Ramesh Babu K V <ramesh.babu@linux.intel.com>
+//          Vinod Koul <vinod.koul@linux.intel.com>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
