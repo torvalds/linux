@@ -1,29 +1,24 @@
-/*
- * soc-topology.c  --  ALSA SoC Topology
- *
- * Copyright (C) 2012 Texas Instruments Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
- *		K, Mythri P <mythri.p.k@intel.com>
- *		Prusty, Subhransu S <subhransu.s.prusty@intel.com>
- *		B, Jayachandran <jayachandran.b@intel.com>
- *		Abdullah, Omair M <omair.m.abdullah@intel.com>
- *		Jin, Yao <yao.jin@intel.com>
- *		Lin, Mengdong <mengdong.lin@intel.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- *  Add support to read audio firmware topology alongside firmware text. The
- *  topology data can contain kcontrols, DAPM graphs, widgets, DAIs, DAI links,
- *  equalizers, firmware, coefficients etc.
- *
- *  This file only manages the core ALSA and ASoC components, all other bespoke
- *  firmware topology data is passed to component drivers for bespoke handling.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// soc-topology.c  --  ALSA SoC Topology
+//
+// Copyright (C) 2012 Texas Instruments Inc.
+// Copyright (C) 2015 Intel Corporation.
+//
+// Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
+//		K, Mythri P <mythri.p.k@intel.com>
+//		Prusty, Subhransu S <subhransu.s.prusty@intel.com>
+//		B, Jayachandran <jayachandran.b@intel.com>
+//		Abdullah, Omair M <omair.m.abdullah@intel.com>
+//		Jin, Yao <yao.jin@intel.com>
+//		Lin, Mengdong <mengdong.lin@intel.com>
+//
+//  Add support to read audio firmware topology alongside firmware text. The
+//  topology data can contain kcontrols, DAPM graphs, widgets, DAIs, DAI links,
+//  equalizers, firmware, coefficients etc.
+//
+//  This file only manages the core ALSA and ASoC components, all other bespoke
+//  firmware topology data is passed to component drivers for bespoke handling.
 
 #include <linux/kernel.h>
 #include <linux/export.h>
