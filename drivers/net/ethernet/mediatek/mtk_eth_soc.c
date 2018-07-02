@@ -24,6 +24,17 @@
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
 
+#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
+struct mtk_ioctl_reg {
+	unsigned int off;
+	unsigned int val;
+};
+
+#define REG_HQOS_MAX			0x3FFF
+#define RAETH_QDMA_REG_READ		0x89F8
+#define RAETH_QDMA_REG_WRITE		0x89F9
+#endif
+
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
 #include "mtk_hnat/nf_hnat_mtk.h"
 #endif
@@ -696,7 +707,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0, fport;
+	u32 txd3 = 0, txd4 = 0, fport;
 
 	itxd = ring->next_free;
 	if (itxd == ring->last_free)
@@ -719,6 +730,12 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	/* VLAN header offload */
 //	if (skb_vlan_tag_present(skb))
 //		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
+
+#ifdef CONFIG_NET_MEDIATEK_HW_QOS
+	txd3 |= skb->mark & 0x7;
+	if (mac->id)
+		txd3 += 8;
+#endif
 
 	mapped_addr = dma_map_single(eth->dev, skb->data,
 				     skb_headlen(skb), DMA_TO_DEVICE);
@@ -763,7 +780,8 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd1, mapped_addr);
 			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
 					       TX_DMA_PLEN0(frag_map_size) |
-					       last_frag * TX_DMA_LS0));
+					       last_frag * TX_DMA_LS0 |
+					       txd3));
 			WRITE_ONCE(txd->txd4, fport);
 
 			tx_buf = mtk_desc_to_tx_buf(ring, txd);
@@ -2097,7 +2115,31 @@ static void mtk_uninit(struct net_device *dev)
 
 static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_ioctl_reg reg;
+#endif
+
 	switch (cmd) {
+#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
+	case RAETH_QDMA_REG_READ:
+		copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
+		if (reg.off > REG_HQOS_MAX)
+			return -EINVAL;
+		reg.val = mtk_r32(eth, 0x1800 + reg.off);
+//		printk("read reg off:%x val:%x\n", reg.off, reg.val);
+		copy_to_user(ifr->ifr_data, &reg, sizeof(reg));
+		return 0;
+
+	case RAETH_QDMA_REG_WRITE:
+		copy_from_user(&reg, ifr->ifr_data, sizeof(reg));
+		if (reg.off > REG_HQOS_MAX)
+			return -EINVAL;
+		mtk_w32(eth, reg.val, 0x1800 + reg.off);
+//		printk("write reg off:%x val:%x\n", reg.off, reg.val);
+		return 0;
+#endif
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
