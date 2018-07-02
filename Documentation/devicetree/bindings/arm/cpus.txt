@@ -183,6 +183,7 @@ described below.
 			    "marvell,sheeva-v5"
 			    "nvidia,tegra132-denver"
 			    "nvidia,tegra186-denver"
+			    "nvidia,tegra194-carmel"
 			    "qcom,krait"
 			    "qcom,kryo"
 			    "qcom,kryo385"
