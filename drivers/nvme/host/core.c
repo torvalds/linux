@@ -1060,14 +1060,17 @@ EXPORT_SYMBOL_GPL(nvme_set_queue_count);
 
 static void nvme_enable_aen(struct nvme_ctrl *ctrl)
 {
-	u32 result;
+	u32 result, supported_aens = ctrl->oaes & NVME_AEN_SUPPORTED;
 	int status;
 
-	status = nvme_set_features(ctrl, NVME_FEAT_ASYNC_EVENT,
-			ctrl->oaes & NVME_AEN_SUPPORTED, NULL, 0, &result);
+	if (!supported_aens)
+		return;
+
+	status = nvme_set_features(ctrl, NVME_FEAT_ASYNC_EVENT, supported_aens,
+			NULL, 0, &result);
 	if (status)
 		dev_warn(ctrl->device, "Failed to configure AEN (cfg %x)\n",
-			 ctrl->oaes & NVME_AEN_SUPPORTED);
+			 supported_aens);
 }
 
 static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
