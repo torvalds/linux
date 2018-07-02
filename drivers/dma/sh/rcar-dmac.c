@@ -820,9 +820,9 @@ static void rcar_dmac_stop_all_chan(struct rcar_dmac *dmac)
 		struct rcar_dmac_chan *chan = &dmac->channels[i];
 
 		/* Stop and reinitialize the channel. */
-		spin_lock(&chan->lock);
+		spin_lock_irq(&chan->lock);
 		rcar_dmac_chan_halt(chan);
-		spin_unlock(&chan->lock);
+		spin_unlock_irq(&chan->lock);
 	}
 }
 
