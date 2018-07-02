@@ -1229,6 +1229,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Prevent unwanted bits from being set in PTEs. */
 	__supported_pte_mask &= ~_PAGE_GLOBAL;
+	__default_kernel_pte_mask &= ~_PAGE_GLOBAL;
 
 	/*
 	 * Prevent page tables from being allocated in highmem, even
