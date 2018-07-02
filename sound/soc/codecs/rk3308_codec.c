@@ -2587,14 +2587,12 @@ static int rk3308_codec_close_capture(struct rk3308_codec_priv *rk3308)
 static int rk3308_codec_open_playback(struct rk3308_codec_priv *rk3308)
 {
 	rk3308_codec_dac_enable(rk3308);
-	rk3308_codec_set_dac_path_state(rk3308, PATH_BUSY);
 
 	return 0;
 }
 
 static int rk3308_codec_close_playback(struct rk3308_codec_priv *rk3308)
 {
-	rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 	rk3308_codec_dac_disable(rk3308);
 
 	return 0;
@@ -2706,6 +2704,7 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 		rk3308_codec_dac_mclk_enable(rk3308);
 		rk3308_codec_open_playback(rk3308);
 		rk3308_codec_dac_dig_config(rk3308, params);
+		rk3308_codec_set_dac_path_state(rk3308, PATH_BUSY);
 	} else {
 		rk3308_codec_adc_mclk_enable(rk3308);
 		ret = rk3308_codec_update_adc_grps(rk3308, params);
@@ -2797,13 +2796,15 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		rk3308_codec_close_playback(rk3308);
 		rk3308_codec_dac_mclk_disable(rk3308);
+		regcache_cache_only(rk3308->regmap, false);
+		regcache_sync(rk3308->regmap);
+		rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 	} else {
 		rk3308_codec_close_capture(rk3308);
 		rk3308_codec_adc_mclk_disable(rk3308);
+		regcache_cache_only(rk3308->regmap, false);
+		regcache_sync(rk3308->regmap);
 	}
-
-	regcache_cache_only(rk3308->regmap, false);
-	regcache_sync(rk3308->regmap);
 }
 
 static struct snd_soc_dai_ops rk3308_dai_ops = {
