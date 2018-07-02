@@ -82,6 +82,7 @@ TRACE_EVENT(nvme_setup_cmd,
 	    TP_PROTO(struct request *req, struct nvme_command *cmd),
 	    TP_ARGS(req, cmd),
 	    TP_STRUCT__entry(
+		__field(int, ctrl_id)
 		__field(int, qid)
 		__field(u8, opcode)
 		__field(u8, flags)
@@ -91,6 +92,7 @@ TRACE_EVENT(nvme_setup_cmd,
 		__array(u8, cdw10, 24)
 	    ),
 	    TP_fast_assign(
+		__entry->ctrl_id = nvme_req(req)->ctrl->instance;
 		__entry->qid = nvme_req_qid(req);
 		__entry->opcode = cmd->common.opcode;
 		__entry->flags = cmd->common.flags;
@@ -100,9 +102,9 @@ TRACE_EVENT(nvme_setup_cmd,
 		memcpy(__entry->cdw10, cmd->common.cdw10,
 		       sizeof(__entry->cdw10));
 	    ),
-	    TP_printk("qid=%d, cmdid=%u, nsid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
-		      __entry->qid, __entry->cid, __entry->nsid,
-		      __entry->flags, __entry->metadata,
+	    TP_printk("nvme%d: qid=%d, cmdid=%u, nsid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
+		      __entry->ctrl_id, __entry->qid, __entry->cid,
+		      __entry->nsid, __entry->flags, __entry->metadata,
 		      show_opcode_name(__entry->qid, __entry->opcode),
 		      parse_nvme_cmd(__entry->qid, __entry->opcode, __entry->cdw10))
 );
@@ -111,6 +113,7 @@ TRACE_EVENT(nvme_complete_rq,
 	    TP_PROTO(struct request *req),
 	    TP_ARGS(req),
 	    TP_STRUCT__entry(
+		__field(int, ctrl_id)
 		__field(int, qid)
 		__field(int, cid)
 		__field(u64, result)
@@ -119,6 +122,7 @@ TRACE_EVENT(nvme_complete_rq,
 		__field(u16, status)
 	    ),
 	    TP_fast_assign(
+		__entry->ctrl_id = nvme_req(req)->ctrl->instance;
 		__entry->qid = nvme_req_qid(req);
 		__entry->cid = req->tag;
 		__entry->result = le64_to_cpu(nvme_req(req)->result.u64);
@@ -126,9 +130,10 @@ TRACE_EVENT(nvme_complete_rq,
 		__entry->flags = nvme_req(req)->flags;
 		__entry->status = nvme_req(req)->status;
 	    ),
-	    TP_printk("qid=%d, cmdid=%u, res=%llu, retries=%u, flags=0x%x, status=%u",
-		      __entry->qid, __entry->cid, __entry->result,
-		      __entry->retries, __entry->flags, __entry->status)
+	    TP_printk("nvme%d: qid=%d, cmdid=%u, res=%llu, retries=%u, flags=0x%x, status=%u",
+		      __entry->ctrl_id,  __entry->qid, __entry->cid,
+		      __entry->result, __entry->retries, __entry->flags,
+		      __entry->status)
 
 );
 
