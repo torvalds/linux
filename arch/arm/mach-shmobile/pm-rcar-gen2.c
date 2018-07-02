@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
-#include <linux/soc/renesas/rcar-sysc.h>
 #include <asm/io.h>
 #include <asm/cputype.h>
 #include "common.h"
@@ -46,23 +45,6 @@ static inline u32 phys_to_sbar(phys_addr_t addr)
 	return (addr >> 8) & 0xfffffc00;
 }
 
-/* SYSC */
-#define SYSCIER 0x0c
-#define SYSCIMR 0x10
-
-#if defined(CONFIG_SMP)
-
-static void __init rcar_gen2_sysc_init(u32 syscier)
-{
-	rcar_sysc_init(0xe6180000, syscier);
-}
-
-#else /* CONFIG_SMP */
-
-static inline void rcar_gen2_sysc_init(u32 syscier) {}
-
-#endif /* CONFIG_SMP */
-
 void __init rcar_gen2_pm_init(void)
 {
 	void __iomem *p;
@@ -72,7 +54,6 @@ void __init rcar_gen2_pm_init(void)
 	bool has_a7 = false;
 	bool has_a15 = false;
 	struct resource res;
-	u32 syscier = 0;
 	int error;
 
 	if (once++)
@@ -88,11 +69,6 @@ void __init rcar_gen2_pm_init(void)
 		else if (of_device_is_compatible(np, "arm,cortex-a7"))
 			has_a7 = true;
 	}
-
-	if (of_machine_is_compatible("renesas,r8a7790"))
-		syscier = 0x013111ef;
-	else if (of_machine_is_compatible("renesas,r8a7791"))
-		syscier = 0x00111003;
 
 	np = of_find_compatible_node(NULL, NULL, "renesas,smp-sram");
 	if (!np) {
@@ -155,6 +131,5 @@ map:
 	}
 	iounmap(p);
 
-	rcar_gen2_sysc_init(syscier);
 	shmobile_smp_apmu_suspend_init();
 }

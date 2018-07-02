@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * R-Car Generation 2 support
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
  * Copyright (C) 2014  Ulrich Hecht
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -186,10 +178,8 @@ void __init rcar_gen2_reserve(void)
 }
 
 static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
-	/*
-	 * R8A7790 and R8A7791 can't be handled here as long as they need SMP
-	 * initialization fallback.
-	 */
+	"renesas,r8a7790",
+	"renesas,r8a7791",
 	"renesas,r8a7792",
 	"renesas,r8a7793",
 	"renesas,r8a7794",
