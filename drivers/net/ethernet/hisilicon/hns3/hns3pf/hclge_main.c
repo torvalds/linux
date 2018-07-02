@@ -2733,7 +2733,6 @@ int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_RST_TRIGGER, false);
-	hnae_set_bit(req->mac_func_reset, HCLGE_CFG_RESET_MAC_B, 0);
 	hnae_set_bit(req->mac_func_reset, HCLGE_CFG_RESET_FUNC_B, 1);
 	req->fun_reset_vfid = func_id;
 
@@ -4264,16 +4263,9 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 
 	memset(&req, 0, sizeof(req));
 	hnae_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
-	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
-	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT1_EN_B, 0);
-	hnae_set_bit(req.mc_mac_en, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 
-	hnae_set_bit(egress_port, HCLGE_MAC_EPORT_SW_EN_B, 0);
-	hnae_set_bit(egress_port, HCLGE_MAC_EPORT_TYPE_B, 0);
 	hnae_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
 		       HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
-	hnae_set_field(egress_port, HCLGE_MAC_EPORT_PFID_M,
-		       HCLGE_MAC_EPORT_PFID_S, 0);
 
 	req.egress_port = cpu_to_le16(egress_port);
 
