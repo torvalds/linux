@@ -297,9 +297,9 @@ struct sdma_engine;
  * @buf_ptail		ID of the previous buffer that was processed
  * @period_len		period length, used in cyclic.
  * @chn_real_count	the real count updated from bd->mode.count
- * @chn_count		the transfer count setuped
+ * @chn_count		the transfer count set
  * @sdmac		sdma_channel pointer
- * @bd			pointer of alloced bd
+ * @bd			pointer of allocate bd
  */
 struct sdma_desc {
 	struct virt_dma_desc	vd;
@@ -708,7 +708,7 @@ static void sdma_start_desc(struct sdma_channel *sdmac)
 	sdmac->desc = desc = to_sdma_desc(&vd->tx);
 	/*
 	 * Do not delete the node in desc_issued list in cyclic mode, otherwise
-	 * the desc alloced will never be freed in vchan_dma_desc_free_list
+	 * the desc allocated will never be freed in vchan_dma_desc_free_list
 	 */
 	if (!(sdmac->flags & IMX_DMA_SG_LOOP))
 		list_del(&vd->node);
