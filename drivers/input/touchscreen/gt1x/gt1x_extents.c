@@ -145,7 +145,7 @@ int gesture_enter_doze(void)
 			GTP_DEBUG("Working in doze mode!");
 			return 0;
 		}
-		msleep(10);
+		usleep_range(10000, 11000);
 	}
 	GTP_ERROR("Send doze cmd failed.");
 	return -1;

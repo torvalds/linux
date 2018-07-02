@@ -455,7 +455,7 @@ static s32 gt1x_i2c_test(void)
 			return ret;
 		}
 
-		msleep(10);
+		usleep_range(10000, 11000);
 		GTP_ERROR("Hardware Info:%08X", hw_info);
 		GTP_ERROR("I2c failed%d.", retry);
 	}
@@ -489,7 +489,7 @@ s32 gt1x_i2c_read_dbl_check(u16 addr, u8 *buffer, s32 len)
 		return ret;
 	}
 
-	msleep(5);
+	usleep_range(5000, 6000);
 	memset(confirm_buf, 0, sizeof(confirm_buf));
 	ret = gt1x_i2c_read(addr, confirm_buf, len);
 	if (ret < 0) {
@@ -660,9 +660,9 @@ void gt1x_select_addr(void)
 {
 	GTP_GPIO_OUTPUT(GTP_RST_PORT, 0);
 	GTP_GPIO_OUTPUT(GTP_INT_PORT, gt1x_i2c_client->addr == 0x14);
-	msleep(2);
+	usleep_range(2000, 3000);
 	GTP_GPIO_OUTPUT(GTP_RST_PORT, 1);
-	msleep(2);
+	usleep_range(2000, 3000);
 }
 
 static s32 gt1x_set_reset_status(void)
@@ -786,7 +786,7 @@ s32 gt1x_reset_guitar(void)
 		return ret;
 #else
 	gt1x_select_addr();
-	msleep(8);     /* must >= 6ms */
+	usleep_range(8000, 9000);     /* must >= 6ms */
 #endif
 
 	/* int synchronization */
@@ -920,14 +920,14 @@ static s32 gt1x_enter_sleep(void)
 		if (gt1x_wakeup_level == 1) {	/* high level wakeup */
 			GTP_GPIO_OUTPUT(GTP_INT_PORT, 0);
 		}
-		msleep(5);
+		usleep_range(5000, 6000);
 
 		while (retry++ < 3) {
 			if (!gt1x_send_cmd(GTP_CMD_SLEEP, 0)) {
 				GTP_INFO("Enter sleep mode!");
 				return 0;
 			}
-			msleep(10);
+			usleep_range(10000, 11000);
 		}
 
 		GTP_ERROR("Enter sleep mode failed.");
@@ -970,7 +970,7 @@ static s32 gt1x_wakeup_sleep(void)
 		{
 			/* wake up through int port */
 			GTP_GPIO_OUTPUT(GTP_INT_PORT, gt1x_wakeup_level);
-			msleep(5);
+			usleep_range(5000, 6000);
 
 			/* Synchronize int IO */
 			GTP_GPIO_OUTPUT(GTP_INT_PORT, 0);

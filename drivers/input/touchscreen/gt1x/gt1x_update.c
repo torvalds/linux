@@ -1026,7 +1026,7 @@ int gt1x_burn_subsystem(struct fw_subsystem_info *subsystem)
 		}
 		burn_state = ERROR;
 		wait_time = 200;
-		msleep(5);
+		usleep_range(5000, 6000);
 
 		while (wait_time-- > 0) {
 			u8 confirm = 0x55;
@@ -1035,7 +1035,7 @@ int gt1x_burn_subsystem(struct fw_subsystem_info *subsystem)
 			if (ret < 0) {
 				continue;
 			}
-			msleep(5);
+			usleep_range(5000, 6000);
 			ret = gt1x_i2c_read(0x8022, &confirm, 1);
 			if (ret < 0) {
 				continue;
@@ -1148,7 +1148,7 @@ int gt1x_read_flash(u32 addr, int length)
 	wait_time = 200;
 	while (wait_time > 0) {
 		wait_time--;
-		msleep(5);
+		usleep_range(5000, 6000);
 		ret = gt1x_i2c_read_dbl_check(0x8022, buffer, 1);
 		if (ret) {
 			continue;
@@ -1257,7 +1257,7 @@ int gt1x_error_erase(void)
 	    wait_time = 200;
 	    while (wait_time > 0) {
 		    wait_time--;
-		    msleep(5);
+		    usleep_range(5000, 6000);
 		    ret = gt1x_i2c_read_dbl_check(0x8022, buffer, 1);
 		    if (ret)
 			    continue;
