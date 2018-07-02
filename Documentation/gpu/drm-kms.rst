@@ -527,7 +527,7 @@ Standard Connector Properties
    :doc: standard connector properties
 
 HDMI Specific Connector Properties
------------------------------
+----------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties

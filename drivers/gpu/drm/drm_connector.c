@@ -1033,9 +1033,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  *
  *	Drivers can set up this property by calling
  *	drm_connector_attach_content_type_property(). Decoding to
- *	infoframe values is done through
- *	drm_hdmi_get_content_type_from_property() and
- *	drm_hdmi_get_itc_bit_from_property().
+ *	infoframe values is done through drm_hdmi_avi_infoframe_content_type().
  */
 
 /**
