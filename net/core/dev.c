@@ -4608,7 +4608,8 @@ static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 	return 0;
 }
 
-static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
+static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc,
+				    struct packet_type **ppt_prev)
 {
 	struct packet_type *ptype, *pt_prev;
 	rx_handler_func_t *rx_handler;
@@ -4738,8 +4739,7 @@ skip_classify:
 	if (pt_prev) {
 		if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC)))
 			goto drop;
-		else
-			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+		*ppt_prev = pt_prev;
 	} else {
 drop:
 		if (!deliver_exact)
@@ -4754,6 +4754,18 @@ drop:
 	}
 
 out:
+	return ret;
+}
+
+static int __netif_receive_skb_one_core(struct sk_buff *skb, bool pfmemalloc)
+{
+	struct net_device *orig_dev = skb->dev;
+	struct packet_type *pt_prev = NULL;
+	int ret;
+
+	ret = __netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
+	if (pt_prev)
+		ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 	return ret;
 }
 
@@ -4777,19 +4789,63 @@ int netif_receive_skb_core(struct sk_buff *skb)
 	int ret;
 
 	rcu_read_lock();
-	ret = __netif_receive_skb_core(skb, false);
+	ret = __netif_receive_skb_one_core(skb, false);
 	rcu_read_unlock();
 
 	return ret;
 }
 EXPORT_SYMBOL(netif_receive_skb_core);
 
-static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemalloc)
+static inline void __netif_receive_skb_list_ptype(struct list_head *head,
+						  struct packet_type *pt_prev,
+						  struct net_device *orig_dev)
 {
 	struct sk_buff *skb, *next;
 
+	if (!pt_prev)
+		return;
+	if (list_empty(head))
+		return;
+
 	list_for_each_entry_safe(skb, next, head, list)
-		__netif_receive_skb_core(skb, pfmemalloc);
+		pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+}
+
+static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemalloc)
+{
+	/* Fast-path assumptions:
+	 * - There is no RX handler.
+	 * - Only one packet_type matches.
+	 * If either of these fails, we will end up doing some per-packet
+	 * processing in-line, then handling the 'last ptype' for the whole
+	 * sublist.  This can't cause out-of-order delivery to any single ptype,
+	 * because the 'last ptype' must be constant across the sublist, and all
+	 * other ptypes are handled per-packet.
+	 */
+	/* Current (common) ptype of sublist */
+	struct packet_type *pt_curr = NULL;
+	/* Current (common) orig_dev of sublist */
+	struct net_device *od_curr = NULL;
+	struct list_head sublist;
+	struct sk_buff *skb, *next;
+
+	list_for_each_entry_safe(skb, next, head, list) {
+		struct net_device *orig_dev = skb->dev;
+		struct packet_type *pt_prev = NULL;
+
+		__netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
+		if (pt_curr != pt_prev || od_curr != orig_dev) {
+			/* dispatch old sublist */
+			list_cut_before(&sublist, head, &skb->list);
+			__netif_receive_skb_list_ptype(&sublist, pt_curr, od_curr);
+			/* start new sublist */
+			pt_curr = pt_prev;
+			od_curr = orig_dev;
+		}
+	}
+
+	/* dispatch final sublist */
+	__netif_receive_skb_list_ptype(head, pt_curr, od_curr);
 }
 
 static int __netif_receive_skb(struct sk_buff *skb)
@@ -4809,10 +4865,10 @@ static int __netif_receive_skb(struct sk_buff *skb)
 		 * context down to all allocation sites.
 		 */
 		noreclaim_flag = memalloc_noreclaim_save();
-		ret = __netif_receive_skb_core(skb, true);
+		ret = __netif_receive_skb_one_core(skb, true);
 		memalloc_noreclaim_restore(noreclaim_flag);
 	} else
-		ret = __netif_receive_skb_core(skb, false);
+		ret = __netif_receive_skb_one_core(skb, false);
 
 	return ret;
 }
