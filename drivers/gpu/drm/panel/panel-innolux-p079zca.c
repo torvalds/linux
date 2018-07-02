@@ -33,6 +33,8 @@ struct panel_desc {
 	unsigned int lanes;
 	const char * const *supply_names;
 	unsigned int num_supplies;
+	unsigned int sleep_mode_delay;
+	unsigned int power_down_delay;
 };
 
 struct innolux_panel {
@@ -89,10 +91,13 @@ static int innolux_panel_unprepare(struct drm_panel *panel)
 		return err;
 	}
 
+	if (innolux->desc->sleep_mode_delay)
+		msleep(innolux->desc->sleep_mode_delay);
+
 	gpiod_set_value_cansleep(innolux->enable_gpio, 0);
 
-	/* T8: 80ms - 1000ms */
-	msleep(80);
+	if (innolux->desc->power_down_delay)
+		msleep(innolux->desc->power_down_delay);
 
 	err = regulator_bulk_disable(innolux->desc->num_supplies,
 				     innolux->supplies);
@@ -208,6 +213,7 @@ static const struct panel_desc innolux_p079zca_panel_desc = {
 	.lanes = 4,
 	.supply_names = innolux_p079zca_supply_names,
 	.num_supplies = ARRAY_SIZE(innolux_p079zca_supply_names),
+	.power_down_delay = 80, /* T8: 80ms - 1000ms */
 };
 
 static int innolux_panel_get_modes(struct drm_panel *panel)
