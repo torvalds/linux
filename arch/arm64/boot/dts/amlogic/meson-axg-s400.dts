@@ -215,3 +215,8 @@
 		compatible = "brcm,bcm4329-fmac";
 	};
 };
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_ao18>;
+};
