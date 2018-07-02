@@ -242,15 +242,18 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 */
 	if (HCLGE_SEND_SYNC(le16_to_cpu(desc->flag))) {
 		do {
-			if (hclge_cmd_csq_done(hw))
+			if (hclge_cmd_csq_done(hw)) {
+				complete = true;
 				break;
+			}
 			udelay(1);
 			timeout++;
 		} while (timeout < hw->cmq.tx_timeout);
 	}
 
-	if (hclge_cmd_csq_done(hw)) {
-		complete = true;
+	if (!complete) {
+		retval = -EAGAIN;
+	} else {
 		handle = 0;
 		while (handle < num) {
 			/* Get the result of hardware write back */
@@ -273,9 +276,6 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 				ntc = 0;
 		}
 	}
-
-	if (!complete)
-		retval = -EAGAIN;
 
 	/* Clean the command send queue */
 	handle = hclge_cmd_csq_clean(hw);
