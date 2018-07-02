@@ -269,19 +269,17 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 			/* Get the result of hardware write back */
 			desc_to_use = &hw->cmq.csq.desc[ntc];
 			desc[handle] = *desc_to_use;
-			pr_debug("Get cmd desc:\n");
 
 			if (likely(!hclge_is_special_opcode(opcode)))
 				desc_ret = le16_to_cpu(desc[handle].retval);
 			else
 				desc_ret = le16_to_cpu(desc[0].retval);
 
-			if ((enum hclge_cmd_return_status)desc_ret ==
-			    HCLGE_CMD_EXEC_SUCCESS)
+			if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
 				retval = 0;
 			else
 				retval = -EIO;
-			hw->cmq.last_status = (enum hclge_cmd_status)desc_ret;
+			hw->cmq.last_status = desc_ret;
 			ntc++;
 			handle++;
 			if (ntc == hw->cmq.csq.desc_num)
