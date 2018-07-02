@@ -830,7 +830,6 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 {
 	char buf[64];
 	int r_objid, r_name, r_id1, r_id2, len;
-	struct vblk_dgrp *dgrp;
 
 	BUG_ON (!buffer || !vb);
 
@@ -852,8 +851,6 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 	len += VBLK_SIZE_DGR4;
 	if (len != get_unaligned_be32(buffer + 0x14))
 		return false;
-
-	dgrp = &vb->vblk.dgrp;
 
 	ldm_get_vstr (buffer + 0x18 + r_objid, buf, sizeof (buf));
 	return true;
