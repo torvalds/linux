@@ -41,6 +41,7 @@ bool dm_pp_apply_display_requirements(
 		const struct dm_pp_display_configuration *pp_display_cfg)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
+	int i;
 
 	if (adev->pm.dpm_enabled) {
 
@@ -94,6 +95,12 @@ bool dm_pp_apply_display_requirements(
 		adev->pm.pm_display_cfg.vrefresh = pp_display_cfg->disp_configs[0].v_refresh;
 		adev->pm.pm_display_cfg.crossfire_display_index = -1;
 		adev->pm.pm_display_cfg.min_bus_bandwidth = 0;
+
+		for (i = 0; i < pp_display_cfg->display_count; i++) {
+			const struct dm_pp_single_disp_config *dc_cfg =
+						&pp_display_cfg->disp_configs[i];
+			adev->pm.pm_display_cfg.displays[i].controller_id = dc_cfg->pipe_idx + 1;
+		}
 
 		/* TODO: complete implementation of
 		 * pp_display_configuration_change().
