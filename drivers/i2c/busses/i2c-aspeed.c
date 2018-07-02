@@ -234,7 +234,6 @@ static bool aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus)
 	bool irq_handled = true;
 	u8 value;
 
-	spin_lock(&bus->lock);
 	if (!slave) {
 		irq_handled = false;
 		goto out;
@@ -325,7 +324,6 @@ static bool aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus)
 	writel(status_ack, bus->base + ASPEED_I2C_INTR_STS_REG);
 
 out:
-	spin_unlock(&bus->lock);
 	return irq_handled;
 }
 #endif /* CONFIG_I2C_SLAVE */
@@ -389,7 +387,6 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	u8 recv_byte;
 	int ret;
 
-	spin_lock(&bus->lock);
 	irq_status = readl(bus->base + ASPEED_I2C_INTR_STS_REG);
 	/* Ack all interrupt bits. */
 	writel(irq_status, bus->base + ASPEED_I2C_INTR_STS_REG);
@@ -547,22 +544,29 @@ out_no_complete:
 		dev_err(bus->dev,
 			"irq handled != irq. expected 0x%08x, but was 0x%08x\n",
 			irq_status, status_ack);
-	spin_unlock(&bus->lock);
 	return !!irq_status;
 }
 
 static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 {
 	struct aspeed_i2c_bus *bus = dev_id;
+	bool ret;
+
+	spin_lock(&bus->lock);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	if (aspeed_i2c_slave_irq(bus)) {
 		dev_dbg(bus->dev, "irq handled by slave.\n");
-		return IRQ_HANDLED;
+		ret = true;
+		goto out;
 	}
 #endif /* CONFIG_I2C_SLAVE */
 
-	return aspeed_i2c_master_irq(bus) ? IRQ_HANDLED : IRQ_NONE;
+	ret = aspeed_i2c_master_irq(bus);
+
+out:
+	spin_unlock(&bus->lock);
+	return ret ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
