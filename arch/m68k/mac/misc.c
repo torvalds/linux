@@ -85,7 +85,7 @@ static void cuda_write_pram(int offset, __u8 data)
 }
 #endif /* CONFIG_ADB_CUDA */
 
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 static long pmu_read_time(void)
 {
 	struct adb_request req;
@@ -136,7 +136,7 @@ static void pmu_write_pram(int offset, __u8 data)
 	while (!req.complete)
 		pmu_poll();
 }
-#endif /* CONFIG_ADB_PMU68K */
+#endif /* CONFIG_ADB_PMU */
 
 /*
  * VIA PRAM/RTC access routines
@@ -367,38 +367,6 @@ static void cuda_shutdown(void)
 }
 #endif /* CONFIG_ADB_CUDA */
 
-#ifdef CONFIG_ADB_PMU68K
-
-void pmu_restart(void)
-{
-	struct adb_request req;
-	if (pmu_request(&req, NULL,
-			2, PMU_SET_INTR_MASK, PMU_INT_ADB|PMU_INT_TICK) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-	if (pmu_request(&req, NULL, 1, PMU_RESET) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-}
-
-void pmu_shutdown(void)
-{
-	struct adb_request req;
-	if (pmu_request(&req, NULL,
-			2, PMU_SET_INTR_MASK, PMU_INT_ADB|PMU_INT_TICK) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-	if (pmu_request(&req, NULL, 5, PMU_SHUTDOWN, 'M', 'A', 'T', 'T') < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-}
-
-#endif
-
 /*
  *-------------------------------------------------------------------
  * Below this point are the generic routines; they'll dispatch to the
@@ -423,7 +391,7 @@ void mac_pram_read(int offset, __u8 *buffer, int len)
 		func = cuda_read_pram;
 		break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
 		func = pmu_read_pram;
 		break;
@@ -453,7 +421,7 @@ void mac_pram_write(int offset, __u8 *buffer, int len)
 		func = cuda_write_pram;
 		break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
 		func = pmu_write_pram;
 		break;
@@ -477,7 +445,7 @@ void mac_poweroff(void)
 	           macintosh_config->adb_type == MAC_ADB_CUDA) {
 		cuda_shutdown();
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	} else if (macintosh_config->adb_type == MAC_ADB_PB2) {
 		pmu_shutdown();
 #endif
@@ -518,7 +486,7 @@ void mac_reset(void)
 	           macintosh_config->adb_type == MAC_ADB_CUDA) {
 		cuda_restart();
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	} else if (macintosh_config->adb_type == MAC_ADB_PB2) {
 		pmu_restart();
 #endif
@@ -670,7 +638,7 @@ int mac_hwclk(int op, struct rtc_time *t)
 			now = cuda_read_time();
 			break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
 			now = pmu_read_time();
 			break;
@@ -706,7 +674,7 @@ int mac_hwclk(int op, struct rtc_time *t)
 			cuda_write_time(now);
 			break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
 			pmu_write_time(now);
 			break;
