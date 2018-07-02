@@ -65,7 +65,7 @@ config ADB_CUDA
 	  If unsure say Y.
 
 config ADB_PMU
-	bool "Support for PMU  based PowerMacs"
+	bool "Support for PMU based PowerMacs and PowerBooks"
 	depends on PPC_PMAC
 	help
 	  On PowerBooks, iBooks, and recent iMacs and Power Macintoshes, the
