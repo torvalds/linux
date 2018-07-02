@@ -33,6 +33,7 @@
 #define ACODEC_REG_NUM	28
 #define VAD_SRAM_BUFFER_END	0xfffbfff8
 
+static struct snd_pcm_substream *vad_substream;
 static unsigned int voice_inactive_frames;
 module_param(voice_inactive_frames, uint, 0644);
 MODULE_PARM_DESC(voice_inactive_frames, "voice inactive frame count");
@@ -306,7 +307,8 @@ bool snd_pcm_vad_attached(struct snd_pcm_substream *substream)
 {
 	struct rockchip_vad *vad = NULL;
 
-	vad = substream_get_drvdata(substream);
+	if (vad_substream == substream)
+		vad = substream_get_drvdata(substream);
 
 	return vad ? true : false;
 }
@@ -572,6 +574,14 @@ static int rockchip_vad_enable_cpudai(struct snd_pcm_substream *substream)
 	return ret;
 }
 
+static int rockchip_vad_pcm_startup(struct snd_pcm_substream *substream,
+				    struct snd_soc_dai *dai)
+{
+	vad_substream = substream;
+
+	return 0;
+}
+
 static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
@@ -583,6 +593,8 @@ static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
 
 	rockchip_vad_enable_cpudai(substream);
 	rockchip_vad_setup(vad);
+
+	vad_substream = NULL;
 }
 
 static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -613,6 +625,7 @@ static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
 static struct snd_soc_dai_ops rockchip_vad_dai_ops = {
 	.hw_params = rockchip_vad_hw_params,
 	.shutdown = rockchip_vad_pcm_shutdown,
+	.startup = rockchip_vad_pcm_startup,
 	.trigger = rockchip_vad_trigger,
 };
 
