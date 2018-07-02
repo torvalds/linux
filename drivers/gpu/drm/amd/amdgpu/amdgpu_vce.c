@@ -40,11 +40,11 @@
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
-#define FIRMWARE_BONAIRE	"radeon/bonaire_vce.bin"
-#define FIRMWARE_KABINI	"radeon/kabini_vce.bin"
-#define FIRMWARE_KAVERI	"radeon/kaveri_vce.bin"
-#define FIRMWARE_HAWAII	"radeon/hawaii_vce.bin"
-#define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
+#define FIRMWARE_BONAIRE	"amdgpu/bonaire_vce.bin"
+#define FIRMWARE_KABINI	"amdgpu/kabini_vce.bin"
+#define FIRMWARE_KAVERI	"amdgpu/kaveri_vce.bin"
+#define FIRMWARE_HAWAII	"amdgpu/hawaii_vce.bin"
+#define FIRMWARE_MULLINS	"amdgpu/mullins_vce.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"

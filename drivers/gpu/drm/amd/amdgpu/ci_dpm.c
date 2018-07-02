@@ -49,10 +49,10 @@
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"
 
-MODULE_FIRMWARE("radeon/bonaire_smc.bin");
-MODULE_FIRMWARE("radeon/bonaire_k_smc.bin");
-MODULE_FIRMWARE("radeon/hawaii_smc.bin");
-MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_smc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_k_smc.bin");
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -5815,7 +5815,7 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 	default: BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
 	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
