@@ -338,8 +338,14 @@ static void recover_bitmaps(struct md_thread *thread)
 			/* wake up thread to continue resync in case resync
 			 * is not finished */
 			if (mddev->recovery_cp != MaxSector) {
-			    set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			    md_wakeup_thread(mddev->thread);
+				/*
+				 * clear the REMOTE flag since we will launch
+				 * resync thread in current node.
+				 */
+				clear_bit(MD_RESYNCING_REMOTE,
+					  &mddev->recovery);
+				set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+				md_wakeup_thread(mddev->thread);
 			}
 		}
 clear_bit:
@@ -458,6 +464,11 @@ static void process_suspend_info(struct mddev *mddev,
 	struct suspend_info *s;
 
 	if (!hi) {
+		/*
+		 * clear the REMOTE flag since resync or recovery is finished
+		 * in remote node.
+		 */
+		clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 		remove_suspend_info(mddev, slot);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
@@ -586,6 +597,7 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		revalidate_disk(mddev->gendisk);
 		break;
 	case RESYNCING:
+		set_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 		process_suspend_info(mddev, le32_to_cpu(msg->slot),
 				     le64_to_cpu(msg->low),
 				     le64_to_cpu(msg->high));
@@ -1266,6 +1278,8 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 static int resync_finish(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 	dlm_unlock_sync(cinfo->resync_lockres);
 	return resync_info_update(mddev, 0, 0);
 }
