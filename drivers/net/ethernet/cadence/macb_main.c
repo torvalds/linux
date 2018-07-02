@@ -3726,6 +3726,8 @@ static int at91ether_init(struct platform_device *pdev)
 	int err;
 	u32 reg;
 
+	bp->queues[0].bp = bp;
+
 	dev->netdev_ops = &at91ether_netdev_ops;
 	dev->ethtool_ops = &macb_ethtool_ops;
 

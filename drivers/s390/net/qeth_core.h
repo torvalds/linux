@@ -829,6 +829,17 @@ struct qeth_trap_id {
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
+static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
+					  unsigned int elements)
+{
+	unsigned int i;
+
+	for (i = 0; i < elements; i++)
+		memset(&buf->element[i], 0, sizeof(struct qdio_buffer_element));
+	buf->element[14].sflags = 0;
+	buf->element[15].sflags = 0;
+}
+
 /**
  * qeth_get_elements_for_range() -	find number of SBALEs to cover range.
  * @start:				Start of the address range.
@@ -1029,7 +1040,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 __u16, __u16,
 						 enum qeth_prot_versions);
 int qeth_set_features(struct net_device *, netdev_features_t);
-void qeth_recover_features(struct net_device *dev);
+void qeth_enable_hw_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
 netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,

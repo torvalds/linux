@@ -701,7 +701,7 @@ EXPORT_SYMBOL_GPL(mlx5_query_port_prio_tc);
 static int mlx5_set_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *in,
 				   int inlen)
 {
-	u32 out[MLX5_ST_SZ_DW(qtct_reg)];
+	u32 out[MLX5_ST_SZ_DW(qetc_reg)];
 
 	if (!MLX5_CAP_GEN(mdev, ets))
 		return -EOPNOTSUPP;
@@ -713,7 +713,7 @@ static int mlx5_set_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *in,
 static int mlx5_query_port_qetcr_reg(struct mlx5_core_dev *mdev, u32 *out,
 				     int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(qtct_reg)];
+	u32 in[MLX5_ST_SZ_DW(qetc_reg)];
 
 	if (!MLX5_CAP_GEN(mdev, ets))
 		return -EOPNOTSUPP;

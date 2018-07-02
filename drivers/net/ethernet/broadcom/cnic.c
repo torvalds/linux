@@ -660,7 +660,7 @@ static int cnic_init_id_tbl(struct cnic_id_tbl *id_tbl, u32 size, u32 start_id,
 	id_tbl->max = size;
 	id_tbl->next = next;
 	spin_lock_init(&id_tbl->lock);
-	id_tbl->table = kcalloc(DIV_ROUND_UP(size, 32), 4, GFP_KERNEL);
+	id_tbl->table = kcalloc(BITS_TO_LONGS(size), sizeof(long), GFP_KERNEL);
 	if (!id_tbl->table)
 		return -ENOMEM;
 

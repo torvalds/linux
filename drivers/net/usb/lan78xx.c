@@ -64,6 +64,7 @@
 #define DEFAULT_RX_CSUM_ENABLE		(true)
 #define DEFAULT_TSO_CSUM_ENABLE		(true)
 #define DEFAULT_VLAN_FILTER_ENABLE	(true)
+#define DEFAULT_VLAN_RX_OFFLOAD		(true)
 #define TX_OVERHEAD			(8)
 #define RXW_PADDING			2
 
@@ -2298,7 +2299,7 @@ static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
 
-	ret = lan78xx_set_rx_max_frame_length(dev, new_mtu + ETH_HLEN);
+	ret = lan78xx_set_rx_max_frame_length(dev, new_mtu + VLAN_ETH_HLEN);
 
 	netdev->mtu = new_mtu;
 
@@ -2364,6 +2365,11 @@ static int lan78xx_set_features(struct net_device *netdev,
 	}
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		pdata->rfe_ctl |= RFE_CTL_VLAN_STRIP_;
+	else
+		pdata->rfe_ctl &= ~RFE_CTL_VLAN_STRIP_;
+
+	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		pdata->rfe_ctl |= RFE_CTL_VLAN_FILTER_;
 	else
 		pdata->rfe_ctl &= ~RFE_CTL_VLAN_FILTER_;
@@ -2587,7 +2593,8 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	buf |= FCT_TX_CTL_EN_;
 	ret = lan78xx_write_reg(dev, FCT_TX_CTL, buf);
 
-	ret = lan78xx_set_rx_max_frame_length(dev, dev->net->mtu + ETH_HLEN);
+	ret = lan78xx_set_rx_max_frame_length(dev,
+					      dev->net->mtu + VLAN_ETH_HLEN);
 
 	ret = lan78xx_read_reg(dev, MAC_RX, &buf);
 	buf |= MAC_RX_RXEN_;
@@ -2975,6 +2982,12 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 	if (DEFAULT_TSO_CSUM_ENABLE)
 		dev->net->features |= NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_SG;
 
+	if (DEFAULT_VLAN_RX_OFFLOAD)
+		dev->net->features |= NETIF_F_HW_VLAN_CTAG_RX;
+
+	if (DEFAULT_VLAN_FILTER_ENABLE)
+		dev->net->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
 	dev->net->hw_features = dev->net->features;
 
 	ret = lan78xx_setup_irq_domain(dev);
@@ -3039,13 +3052,28 @@ static void lan78xx_rx_csum_offload(struct lan78xx_net *dev,
 				    struct sk_buff *skb,
 				    u32 rx_cmd_a, u32 rx_cmd_b)
 {
+	/* HW Checksum offload appears to be flawed if used when not stripping
+	 * VLAN headers. Drop back to S/W checksums under these conditions.
+	 */
 	if (!(dev->net->features & NETIF_F_RXCSUM) ||
-	    unlikely(rx_cmd_a & RX_CMD_A_ICSM_)) {
+	    unlikely(rx_cmd_a & RX_CMD_A_ICSM_) ||
+	    ((rx_cmd_a & RX_CMD_A_FVTG_) &&
+	     !(dev->net->features & NETIF_F_HW_VLAN_CTAG_RX))) {
 		skb->ip_summed = CHECKSUM_NONE;
 	} else {
 		skb->csum = ntohs((u16)(rx_cmd_b >> RX_CMD_B_CSUM_SHIFT_));
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
+}
+
+static void lan78xx_rx_vlan_offload(struct lan78xx_net *dev,
+				    struct sk_buff *skb,
+				    u32 rx_cmd_a, u32 rx_cmd_b)
+{
+	if ((dev->net->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    (rx_cmd_a & RX_CMD_A_FVTG_))
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       (rx_cmd_b & 0xffff));
 }
 
 static void lan78xx_skb_return(struct lan78xx_net *dev, struct sk_buff *skb)
@@ -3112,6 +3140,8 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 			if (skb->len == size) {
 				lan78xx_rx_csum_offload(dev, skb,
 							rx_cmd_a, rx_cmd_b);
+				lan78xx_rx_vlan_offload(dev, skb,
+							rx_cmd_a, rx_cmd_b);
 
 				skb_trim(skb, skb->len - 4); /* remove fcs */
 				skb->truesize = size + sizeof(struct sk_buff);
@@ -3130,6 +3160,7 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 			skb_set_tail_pointer(skb2, size);
 
 			lan78xx_rx_csum_offload(dev, skb2, rx_cmd_a, rx_cmd_b);
+			lan78xx_rx_vlan_offload(dev, skb2, rx_cmd_a, rx_cmd_b);
 
 			skb_trim(skb2, skb2->len - 4); /* remove fcs */
 			skb2->truesize = size + sizeof(struct sk_buff);
