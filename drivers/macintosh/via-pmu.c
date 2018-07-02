@@ -172,7 +172,9 @@ static int drop_interrupts;
 static int option_lid_wakeup = 1;
 #endif /* CONFIG_SUSPEND && CONFIG_PPC32 */
 static unsigned long async_req_locks;
-static unsigned int pmu_irq_stats[11];
+
+#define NUM_IRQ_STATS 13
+static unsigned int pmu_irq_stats[NUM_IRQ_STATS];
 
 static struct proc_dir_entry *proc_pmu_root;
 static struct proc_dir_entry *proc_pmu_info;
@@ -873,9 +875,9 @@ static int pmu_info_proc_show(struct seq_file *m, void *v)
 static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
-	static const char *irq_names[] = {
-		"Total CB1 triggered events",
-		"Total GPIO1 triggered events",
+	static const char *irq_names[NUM_IRQ_STATS] = {
+		"Unknown interrupt (type 0)",
+		"Unknown interrupt (type 1)",
 		"PC-Card eject button",
 		"Sound/Brightness button",
 		"ADB message",
@@ -884,10 +886,12 @@ static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 		"Tick timer",
 		"Ghost interrupt (zero len)",
 		"Empty interrupt (empty mask)",
-		"Max irqs in a row"
+		"Max irqs in a row",
+		"Total CB1 triggered events",
+		"Total GPIO1 triggered events",
         };
 
-	for (i=0; i<11; i++) {
+	for (i = 0; i < NUM_IRQ_STATS; i++) {
 		seq_printf(m, " %2u: %10u (%s)\n",
 			     i, pmu_irq_stats[i], irq_names[i]);
 	}
@@ -1622,7 +1626,7 @@ via_pmu_interrupt(int irq, void *arg)
 		}
 		if (intr & CB1_INT) {
 			adb_int_pending = 1;
-			pmu_irq_stats[0]++;
+			pmu_irq_stats[11]++;
 		}
 		if (intr & SR_INT) {
 			req = pmu_sr_intr();
@@ -1709,7 +1713,7 @@ gpio1_interrupt(int irq, void *arg)
 			disable_irq_nosync(gpio_irq);
 			gpio_irq_enabled = 0;
 		}
-		pmu_irq_stats[1]++;
+		pmu_irq_stats[12]++;
 		adb_int_pending = 1;
 		spin_unlock_irqrestore(&pmu_lock, flags);
 		via_pmu_interrupt(0, NULL);
