@@ -9580,6 +9580,11 @@ static void __maybe_unused vmx_l1d_flush(void)
 {
 	int size = PAGE_SIZE << L1D_CACHE_ORDER;
 
+	if (static_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+		wrmsrl(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
+		return;
+	}
+
 	asm volatile(
 		/* First ensure the pages are in the TLB */
 		"xorl	%%eax, %%eax\n"
@@ -13158,11 +13163,13 @@ static int __init vmx_setup_l1d_flush(void)
 	    !boot_cpu_has_bug(X86_BUG_L1TF))
 		return 0;
 
-	page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
-	if (!page)
-		return -ENOMEM;
+	if (!boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+		page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
+		if (!page)
+			return -ENOMEM;
+		vmx_l1d_flush_pages = page_address(page);
+	}
 
-	vmx_l1d_flush_pages = page_address(page);
 	static_branch_enable(&vmx_l1d_should_flush);
 	return 0;
 }

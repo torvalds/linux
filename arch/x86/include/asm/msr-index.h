@@ -76,6 +76,12 @@
 						    * control required.
 						    */
 
+#define MSR_IA32_FLUSH_CMD		0x0000010b
+#define L1D_FLUSH			(1 << 0)   /*
+						    * Writeback and invalidate the
+						    * L1 data cache.
+						    */
+
 #define MSR_IA32_BBL_CR_CTL		0x00000119
 #define MSR_IA32_BBL_CR_CTL3		0x0000011e
 
