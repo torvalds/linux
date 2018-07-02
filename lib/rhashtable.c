@@ -774,7 +774,7 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 				skip++;
 				if (list == iter->list) {
 					iter->p = p;
-					skip = skip;
+					iter->skip = skip;
 					goto found;
 				}
 			}
