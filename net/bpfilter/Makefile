@@ -22,7 +22,7 @@ endif
 quiet_cmd_copy_umh = GEN $@
       cmd_copy_umh = echo ':' > $(obj)/.bpfilter_umh.o.cmd; \
       $(OBJCOPY) -I binary \
-          `LC_ALL=C objdump -f net/bpfilter/bpfilter_umh \
+          `LC_ALL=C $(OBJDUMP) -f net/bpfilter/bpfilter_umh \
           |awk -F' |,' '/file format/{print "-O",$$NF} \
           /^architecture:/{print "-B",$$2}'` \
       --rename-section .data=.init.rodata $< $@

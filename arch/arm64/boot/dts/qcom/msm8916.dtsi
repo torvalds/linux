@@ -1191,14 +1191,14 @@
 
 				port@0 {
 					reg = <0>;
-					etf_out: endpoint {
+					etf_in: endpoint {
 						slave-mode;
 						remote-endpoint = <&funnel0_out>;
 					};
 				};
 				port@1 {
 					reg = <0>;
-					etf_in: endpoint {
+					etf_out: endpoint {
 						remote-endpoint = <&replicator_in>;
 					};
 				};

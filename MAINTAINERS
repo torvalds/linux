@@ -2971,9 +2971,13 @@ N:	bcm585*
 N:	bcm586*
 N:	bcm88312
 N:	hr2
-F:	arch/arm64/boot/dts/broadcom/ns2*
+N:	stingray
+F:	arch/arm64/boot/dts/broadcom/northstar2/*
+F:	arch/arm64/boot/dts/broadcom/stingray/*
 F:	drivers/clk/bcm/clk-ns*
+F:	drivers/clk/bcm/clk-sr*
 F:	drivers/pinctrl/bcm/pinctrl-ns*
+F:	include/dt-bindings/clock/bcm-sr*
 
 BROADCOM KONA GPIO DRIVER
 M:	Ray Jui <rjui@broadcom.com>
@@ -5669,7 +5673,7 @@ F:	drivers/crypto/caam/
 F:	Documentation/devicetree/bindings/crypto/fsl-sec4.txt
 
 FREESCALE DIU FRAMEBUFFER DRIVER
-M:	Timur Tabi <timur@tabi.org>
+M:	Timur Tabi <timur@kernel.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/fsl-diu-fb.*
@@ -5769,7 +5773,7 @@ S:	Maintained
 F:	drivers/net/wan/fsl_ucc_hdlc*
 
 FREESCALE QUICC ENGINE UCC UART DRIVER
-M:	Timur Tabi <timur@tabi.org>
+M:	Timur Tabi <timur@kernel.org>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/tty/serial/ucc_uart.c
@@ -5793,7 +5797,7 @@ F:	drivers/net/ethernet/freescale/fs_enet/
 F:	include/linux/fs_enet_pd.h
 
 FREESCALE SOC SOUND DRIVERS
-M:	Timur Tabi <timur@tabi.org>
+M:	Timur Tabi <timur@kernel.org>
 M:	Nicolin Chen <nicoleotsuka@gmail.com>
 M:	Xiubo Li <Xiubo.Lee@gmail.com>
 R:	Fabio Estevam <fabio.estevam@nxp.com>
@@ -9882,6 +9886,7 @@ M:	Andrew Lunn <andrew@lunn.ch>
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 S:	Maintained
+F:	Documentation/devicetree/bindings/net/dsa/
 F:	net/dsa/
 F:	include/net/dsa.h
 F:	include/linux/dsa/
@@ -11476,6 +11481,15 @@ W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/intersil/prism54/
 
+PROC FILESYSTEM
+R:	Alexey Dobriyan <adobriyan@gmail.com>
+L:	linux-kernel@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	fs/proc/
+F:	include/linux/proc_fs.h
+F:	tools/testing/selftests/proc/
+
 PROC SYSCTL
 M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
 M:	Kees Cook <keescook@chromium.org>
@@ -11808,9 +11822,9 @@ F:  Documentation/devicetree/bindings/opp/kryo-cpufreq.txt
 F:  drivers/cpufreq/qcom-cpufreq-kryo.c
 
 QUALCOMM EMAC GIGABIT ETHERNET DRIVER
-M:	Timur Tabi <timur@codeaurora.org>
+M:	Timur Tabi <timur@kernel.org>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM HEXAGON ARCHITECTURE

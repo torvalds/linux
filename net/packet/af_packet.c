@@ -2262,21 +2262,19 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		if (po->stats.stats1.tp_drops)
 			status |= TP_STATUS_LOSING;
 	}
+
+	if (do_vnet &&
+	    virtio_net_hdr_from_skb(skb, h.raw + macoff -
+				    sizeof(struct virtio_net_hdr),
+				    vio_le(), true, 0))
+		goto drop_n_account;
+
 	po->stats.stats1.tp_packets++;
 	if (copy_skb) {
 		status |= TP_STATUS_COPY;
 		__skb_queue_tail(&sk->sk_receive_queue, copy_skb);
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
-
-	if (do_vnet) {
-		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
-					    sizeof(struct virtio_net_hdr),
-					    vio_le(), true, 0)) {
-			spin_lock(&sk->sk_receive_queue.lock);
-			goto drop_n_account;
-		}
-	}
 
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
 
@@ -4078,11 +4076,12 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	return 0;
 }
 
-static __poll_t packet_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t packet_poll(struct file *file, struct socket *sock,
+				poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
-	__poll_t mask = datagram_poll_mask(sock, events);
+	__poll_t mask = datagram_poll(file, sock, wait);
 
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	if (po->rx_ring.pg_vec) {
@@ -4424,7 +4423,7 @@ static const struct proto_ops packet_ops_spkt = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	packet_getname_spkt,
-	.poll_mask =	datagram_poll_mask,
+	.poll =		datagram_poll,
 	.ioctl =	packet_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
@@ -4445,7 +4444,7 @@ static const struct proto_ops packet_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	packet_getname,
-	.poll_mask =	packet_poll_mask,
+	.poll =		packet_poll,
 	.ioctl =	packet_ioctl,
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
