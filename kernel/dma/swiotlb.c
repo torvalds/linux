@@ -1085,3 +1085,4 @@ const struct dma_map_ops swiotlb_dma_ops = {
 	.unmap_page		= swiotlb_unmap_page,
 	.dma_supported		= dma_direct_supported,
 };
+EXPORT_SYMBOL(swiotlb_dma_ops);

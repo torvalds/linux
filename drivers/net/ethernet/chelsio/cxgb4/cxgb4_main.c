@@ -263,7 +263,7 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 				"Can't %s DCB Priority on port %d, TX Queue %d: err=%d\n",
 				enable ? "set" : "unset", pi->port_id, i, -err);
 		else
-			txq->dcb_prio = value;
+			txq->dcb_prio = enable ? value : 0;
 	}
 }
 

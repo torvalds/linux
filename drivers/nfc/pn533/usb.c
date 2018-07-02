@@ -74,7 +74,7 @@ static void pn533_recv_response(struct urb *urb)
 	struct sk_buff *skb = NULL;
 
 	if (!urb->status) {
-		skb = alloc_skb(urb->actual_length, GFP_KERNEL);
+		skb = alloc_skb(urb->actual_length, GFP_ATOMIC);
 		if (!skb) {
 			nfc_err(&phy->udev->dev, "failed to alloc memory\n");
 		} else {
@@ -186,7 +186,7 @@ static int pn533_usb_send_frame(struct pn533 *dev,
 
 	if (dev->protocol_type == PN533_PROTO_REQ_RESP) {
 		/* request for response for sent packet directly */
-		rc = pn533_submit_urb_for_response(phy, GFP_ATOMIC);
+		rc = pn533_submit_urb_for_response(phy, GFP_KERNEL);
 		if (rc)
 			goto error;
 	} else if (dev->protocol_type == PN533_PROTO_REQ_ACK_RESP) {

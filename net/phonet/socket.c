@@ -340,11 +340,14 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 	return sizeof(struct sockaddr_pn);
 }
 
-static __poll_t pn_socket_poll_mask(struct socket *sock, __poll_t events)
+static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
+					poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct pep_sock *pn = pep_sk(sk);
 	__poll_t mask = 0;
+
+	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == TCP_CLOSE)
 		return EPOLLERR;
@@ -445,7 +448,7 @@ const struct proto_ops phonet_dgram_ops = {
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= pn_socket_getname,
-	.poll_mask	= datagram_poll_mask,
+	.poll		= datagram_poll,
 	.ioctl		= pn_socket_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
@@ -470,7 +473,7 @@ const struct proto_ops phonet_stream_ops = {
 	.socketpair	= sock_no_socketpair,
 	.accept		= pn_socket_accept,
 	.getname	= pn_socket_getname,
-	.poll_mask	= pn_socket_poll_mask,
+	.poll		= pn_socket_poll,
 	.ioctl		= pn_socket_ioctl,
 	.listen		= pn_socket_listen,
 	.shutdown	= sock_no_shutdown,
