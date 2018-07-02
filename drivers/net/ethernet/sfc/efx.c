@@ -264,10 +264,16 @@ static int efx_check_disabled(struct efx_nic *efx)
 static int efx_process_channel(struct efx_channel *channel, int budget)
 {
 	struct efx_tx_queue *tx_queue;
+	struct list_head rx_list;
 	int spent;
 
 	if (unlikely(!channel->enabled))
 		return 0;
+
+	/* Prepare the batch receive list */
+	EFX_WARN_ON_PARANOID(channel->rx_list != NULL);
+	INIT_LIST_HEAD(&rx_list);
+	channel->rx_list = &rx_list;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		tx_queue->pkts_compl = 0;
@@ -290,6 +296,10 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 				tx_queue->pkts_compl, tx_queue->bytes_compl);
 		}
 	}
+
+	/* Receive any packets we queued up */
+	netif_receive_skb_list(channel->rx_list);
+	channel->rx_list = NULL;
 
 	return spent;
 }
@@ -554,6 +564,8 @@ static int efx_probe_channel(struct efx_channel *channel)
 		if (rc)
 			goto fail;
 	}
+
+	channel->rx_list = NULL;
 
 	return 0;
 
