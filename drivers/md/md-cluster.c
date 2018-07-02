@@ -1281,7 +1281,15 @@ static int resync_finish(struct mddev *mddev)
 
 	clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 	dlm_unlock_sync(cinfo->resync_lockres);
-	return resync_info_update(mddev, 0, 0);
+
+	/*
+	 * If resync thread is interrupted so we can't say resync is finished,
+	 * another node will launch resync thread to continue.
+	 */
+	if (test_bit(MD_CLOSING, &mddev->flags))
+		return 0;
+	else
+		return resync_info_update(mddev, 0, 0);
 }
 
 static int area_resyncing(struct mddev *mddev, int direction,
