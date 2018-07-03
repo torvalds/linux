@@ -209,44 +209,9 @@ static inline uint64_t CVMX_CIU_WDOGX(unsigned long offset)
 	return CVMX_ADD_IO_SEG(0x0001070000000500ull) + (offset) * 8;
 }
 
-union cvmx_ciu_qlm0 {
+union cvmx_ciu_qlm {
 	uint64_t u64;
-	struct cvmx_ciu_qlm0_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t g2bypass:1;
-		uint64_t reserved_53_62:10;
-		uint64_t g2deemph:5;
-		uint64_t reserved_45_47:3;
-		uint64_t g2margin:5;
-		uint64_t reserved_32_39:8;
-		uint64_t txbypass:1;
-		uint64_t reserved_21_30:10;
-		uint64_t txdeemph:5;
-		uint64_t reserved_13_15:3;
-		uint64_t txmargin:5;
-		uint64_t reserved_4_7:4;
-		uint64_t lane_en:4;
-#else
-		uint64_t lane_en:4;
-		uint64_t reserved_4_7:4;
-		uint64_t txmargin:5;
-		uint64_t reserved_13_15:3;
-		uint64_t txdeemph:5;
-		uint64_t reserved_21_30:10;
-		uint64_t txbypass:1;
-		uint64_t reserved_32_39:8;
-		uint64_t g2margin:5;
-		uint64_t reserved_45_47:3;
-		uint64_t g2deemph:5;
-		uint64_t reserved_53_62:10;
-		uint64_t g2bypass:1;
-#endif
-	} s;
-};
-
-union cvmx_ciu_qlm1 {
-	uint64_t u64;
-	struct cvmx_ciu_qlm1_s {
+	struct cvmx_ciu_qlm_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t g2bypass:1;
 		uint64_t reserved_53_62:10;
