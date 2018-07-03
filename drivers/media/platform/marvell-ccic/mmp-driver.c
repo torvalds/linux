@@ -362,7 +362,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->mclk_div = pdata->mclk_div;
 	mcam->bus_type = pdata->bus_type;
 	mcam->dphy = pdata->dphy;
-	if (mcam->bus_type == V4L2_MBUS_CSI2) {
+	if (mcam->bus_type == V4L2_MBUS_CSI2_DPHY) {
 		cam->mipi_clk = devm_clk_get(mcam->dev, "mipi");
 		if ((IS_ERR(cam->mipi_clk) && mcam->dphy[2] == 0))
 			return PTR_ERR(cam->mipi_clk);

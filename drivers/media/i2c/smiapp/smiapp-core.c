@@ -2780,7 +2780,7 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		goto out_err;
 
 	switch (bus_cfg->bus_type) {
-	case V4L2_MBUS_CSI2:
+	case V4L2_MBUS_CSI2_DPHY:
 		hwcfg->csi_signalling_mode = SMIAPP_CSI_SIGNALLING_MODE_CSI2;
 		hwcfg->lanes = bus_cfg->bus.mipi_csi2.num_data_lanes;
 		break;

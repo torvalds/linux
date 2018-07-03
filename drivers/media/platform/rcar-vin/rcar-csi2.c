@@ -714,7 +714,7 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 	if (vep->base.port || vep->base.id)
 		return -ENOTCONN;
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
+	if (vep->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(priv->dev, "Unsupported bus: %u\n", vep->bus_type);
 		return -EINVAL;
 	}

@@ -563,7 +563,7 @@ static int csi2_parse_endpoint(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
+	if (vep->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		v4l2_err(&csi2->sd, "invalid bus type, must be MIPI CSI2\n");
 		return -EINVAL;
 	}

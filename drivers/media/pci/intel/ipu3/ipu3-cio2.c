@@ -1482,7 +1482,7 @@ static int cio2_fwnode_parse(struct device *dev,
 	struct sensor_async_subdev *s_asd =
 			container_of(asd, struct sensor_async_subdev, asd);
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
+	if (vep->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "Only CSI2 bus type is currently supported\n");
 		return -EINVAL;
 	}

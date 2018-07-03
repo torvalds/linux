@@ -115,7 +115,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	}
 
 	bus->flags = flags;
-	vep->bus_type = V4L2_MBUS_CSI2;
+	vep->bus_type = V4L2_MBUS_CSI2_DPHY;
 
 	return 0;
 }

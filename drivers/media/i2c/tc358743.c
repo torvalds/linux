@@ -1607,7 +1607,7 @@ static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -1922,7 +1922,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		goto put_node;
 	}
 
-	if (endpoint->bus_type != V4L2_MBUS_CSI2 ||
+	if (endpoint->bus_type != V4L2_MBUS_CSI2_DPHY ||
 	    endpoint->bus.mipi_csi2.num_data_lanes == 0 ||
 	    endpoint->nr_of_link_frequencies == 0) {
 		dev_err(dev, "missing CSI-2 properties in endpoint\n");

@@ -124,7 +124,7 @@ static inline struct csi_priv *sd_to_dev(struct v4l2_subdev *sdev)
 
 static inline bool is_parallel_bus(struct v4l2_fwnode_endpoint *ep)
 {
-	return ep->bus_type != V4L2_MBUS_CSI2;
+	return ep->bus_type != V4L2_MBUS_CSI2_DPHY;
 }
 
 static inline bool is_parallel_16bit_bus(struct v4l2_fwnode_endpoint *ep)

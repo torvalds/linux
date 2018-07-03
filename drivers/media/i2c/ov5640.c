@@ -1820,7 +1820,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 			goto power_off;
 
 		/* We're done here for DVP bus, while CSI-2 needs setup. */
-		if (sensor->ep.bus_type != V4L2_MBUS_CSI2)
+		if (sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY)
 			return 0;
 
 		/*
@@ -1867,7 +1867,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 		usleep_range(500, 1000);
 
 	} else {
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2) {
+		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
 			/* Reset MIPI bus settings to their default values. */
 			ov5640_write_reg(sensor,
 					 OV5640_REG_IO_MIPI_CTRL00, 0x58);
@@ -2625,7 +2625,7 @@ static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
 			sensor->pending_fmt_change = false;
 		}
 
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2)
+		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
 			ret = ov5640_set_stream_mipi(sensor, enable);
 		else
 			ret = ov5640_set_stream_dvp(sensor, enable);

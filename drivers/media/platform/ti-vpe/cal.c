@@ -1710,7 +1710,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 	v4l2_fwnode_endpoint_parse(of_fwnode_handle(remote_ep), endpoint);
 
-	if (endpoint->bus_type != V4L2_MBUS_CSI2) {
+	if (endpoint->bus_type != V4L2_MBUS_CSI2_DPHY) {
 		ctx_err(ctx, "Port:%d sub-device %pOFn is not a CSI2 device\n",
 			inst, sensor_node);
 		goto cleanup_exit;

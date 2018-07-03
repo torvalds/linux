@@ -75,14 +75,16 @@
  *			also be used for BT.1120
  * @V4L2_MBUS_CSI1:	MIPI CSI-1 serial interface
  * @V4L2_MBUS_CCP2:	CCP2 (Compact Camera Port 2)
- * @V4L2_MBUS_CSI2:	MIPI CSI-2 serial interface
+ * @V4L2_MBUS_CSI2_DPHY: MIPI CSI-2 serial interface, with D-PHY
+ * @V4L2_MBUS_CSI2_CPHY: MIPI CSI-2 serial interface, with C-PHY
  */
 enum v4l2_mbus_type {
 	V4L2_MBUS_PARALLEL,
 	V4L2_MBUS_BT656,
 	V4L2_MBUS_CSI1,
 	V4L2_MBUS_CCP2,
-	V4L2_MBUS_CSI2,
+	V4L2_MBUS_CSI2_DPHY,
+	V4L2_MBUS_CSI2_CPHY,
 };
 
 /**

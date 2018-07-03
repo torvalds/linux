@@ -688,7 +688,7 @@ static int s5k6aa_configure_video_bus(struct s5k6aa *s5k6aa,
 	 * but there is nothing indicating how to switch between both
 	 * in the datasheet. For now default BT.601 interface is assumed.
 	 */
-	if (bus_type == V4L2_MBUS_CSI2)
+	if (bus_type == V4L2_MBUS_CSI2_DPHY)
 		cfg = nlanes;
 	else if (bus_type != V4L2_MBUS_PARALLEL)
 		return -EINVAL;

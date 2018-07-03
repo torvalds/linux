@@ -794,7 +794,7 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	/*
 	 * This field controls the generation of EOF(DVP only)
 	 */
-	if (cam->bus_type != V4L2_MBUS_CSI2)
+	if (cam->bus_type != V4L2_MBUS_CSI2_DPHY)
 		mcam_reg_set_bit(cam, REG_CTRL0,
 				C0_EOF_VSYNC | C0_VEDGE_CTRL);
 }
@@ -1023,7 +1023,7 @@ static int mcam_read_setup(struct mcam_camera *cam)
 		cam->calc_dphy(cam);
 	cam_dbg(cam, "camera: DPHY sets: dphy3=0x%x, dphy5=0x%x, dphy6=0x%x\n",
 			cam->dphy[0], cam->dphy[1], cam->dphy[2]);
-	if (cam->bus_type == V4L2_MBUS_CSI2)
+	if (cam->bus_type == V4L2_MBUS_CSI2_DPHY)
 		mcam_enable_mipi(cam);
 	else
 		mcam_disable_mipi(cam);

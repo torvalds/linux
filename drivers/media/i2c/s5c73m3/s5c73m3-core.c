@@ -1644,7 +1644,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	if (ret)
 		return ret;
 
-	if (ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "unsupported bus type\n");
 		return -EINVAL;
 	}

@@ -2054,7 +2054,7 @@ static int isp_fwnode_parse(struct device *dev,
 			dev_dbg(dev, "CSI-1/CCP-2 configuration\n");
 			csi1 = true;
 			break;
-		case V4L2_MBUS_CSI2:
+		case V4L2_MBUS_CSI2_DPHY:
 			dev_dbg(dev, "CSI-2 configuration\n");
 			csi1 = false;
 			break;

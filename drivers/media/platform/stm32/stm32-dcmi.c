@@ -1663,7 +1663,7 @@ static int dcmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (ep.bus_type == V4L2_MBUS_CSI2) {
+	if (ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		dev_err(&pdev->dev, "CSI bus not supported\n");
 		return -ENODEV;
 	}

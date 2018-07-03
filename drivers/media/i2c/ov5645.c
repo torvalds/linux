@@ -1127,7 +1127,7 @@ static int ov5645_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "invalid bus type, must be CSI2\n");
 		return -EINVAL;
 	}

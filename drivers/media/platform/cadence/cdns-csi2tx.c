@@ -446,7 +446,7 @@ static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 		goto out;
 	}
 
-	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2) {
+	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(csi2tx->dev, "Unsupported media bus type: 0x%x\n",
 			v4l2_ep.bus_type);
 		ret = -EINVAL;

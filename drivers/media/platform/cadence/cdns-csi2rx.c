@@ -378,7 +378,7 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 		return ret;
 	}
 
-	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2) {
+	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(csi2rx->dev, "Unsupported media bus type: 0x%x\n",
 			v4l2_ep.bus_type);
 		of_node_put(ep);

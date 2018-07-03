@@ -912,7 +912,7 @@ static int ov5642_get_selection(struct v4l2_subdev *sd,
 static int ov5642_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 	cfg->flags = V4L2_MBUS_CSI2_2_LANE | V4L2_MBUS_CSI2_CHANNEL_0 |
 					V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
