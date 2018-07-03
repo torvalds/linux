@@ -123,6 +123,13 @@ struct mlx5_vport {
 	u16                     enabled_events;
 };
 
+enum offloads_fdb_flags {
+	ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
+};
+
+extern const unsigned int ESW_POOLS[4];
+
+#define PRIO_LEVELS 2
 struct mlx5_eswitch_fdb {
 	union {
 		struct legacy_fdb {
@@ -133,16 +140,24 @@ struct mlx5_eswitch_fdb {
 		} legacy;
 
 		struct offloads_fdb {
-			struct mlx5_flow_table *fast_fdb;
-			struct mlx5_flow_table *fwd_fdb;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_handle *miss_rule_uni;
 			struct mlx5_flow_handle *miss_rule_multi;
 			int vlan_push_pop_refcount;
+
+			struct {
+				struct mlx5_flow_table *fdb;
+				u32 num_rules;
+			} fdb_prio[FDB_MAX_CHAIN + 1][FDB_MAX_PRIO + 1][PRIO_LEVELS];
+			/* Protects fdb_prio table */
+			struct mutex fdb_prio_lock;
+
+			int fdb_left[ARRAY_SIZE(ESW_POOLS)];
 		} offloads;
 	};
+	u32 flags;
 };
 
 struct mlx5_esw_offload {
@@ -184,6 +199,7 @@ struct mlx5_eswitch {
 
 	struct mlx5_esw_offload offloads;
 	int                     mode;
+	int                     nvports;
 };
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
@@ -236,6 +252,15 @@ mlx5_eswitch_del_fwd_rule(struct mlx5_eswitch *esw,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_esw_flow_attr *attr);
 
+bool
+mlx5_eswitch_prios_supported(struct mlx5_eswitch *esw);
+
+u16
+mlx5_eswitch_get_prio_range(struct mlx5_eswitch *esw);
+
+u32
+mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw);
+
 struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport,
 				  struct mlx5_flow_destination *dest);
@@ -274,6 +299,9 @@ struct mlx5_esw_flow_attr {
 	u32	mod_hdr_id;
 	u8	match_level;
 	struct mlx5_fc *counter;
+	u32	chain;
+	u16	prio;
+	u32	dest_chain;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
