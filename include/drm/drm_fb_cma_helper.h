@@ -23,9 +23,6 @@ int drm_fb_cma_fbdev_init(struct drm_device *dev, unsigned int preferred_bpp,
 			  unsigned int max_conn_count);
 void drm_fb_cma_fbdev_fini(struct drm_device *dev);
 
-struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
-	unsigned int preferred_bpp, unsigned int max_conn_count,
-	const struct drm_framebuffer_funcs *funcs);
 struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int max_conn_count);
 void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma);
