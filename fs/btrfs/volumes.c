@@ -2407,7 +2407,6 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
 	struct block_device *bdev;
-	struct list_head *devices;
 	struct super_block *sb = fs_info->sb;
 	struct rcu_string *name;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
@@ -2432,10 +2431,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	filemap_write_and_wait(bdev->bd_inode->i_mapping);
 
-	devices = &fs_devices->devices;
-
 	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, devices, dev_list) {
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
 			mutex_unlock(
