@@ -7562,9 +7562,8 @@ S:	Maintained
 F:	drivers/firmware/iscsi_ibft*
 
 ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
-M:	Or Gerlitz <ogerlitz@mellanox.com>
 M:	Sagi Grimberg <sagi@grimberg.me>
-M:	Roi Dayan <roid@mellanox.com>
+M:	Max Gurtovoy <maxg@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 W:	http://www.openfabrics.org
