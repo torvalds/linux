@@ -47,7 +47,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					       enum v4l2_fwnode_bus_type bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
-	bool have_clk_lane = false;
+	bool have_clk_lane = false, have_lane_polarities = false;
 	unsigned int flags = 0, lanes_used = 0;
 	u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 	unsigned int num_data_lanes = 0;
@@ -73,7 +73,6 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					array[i]);
 			lanes_used |= BIT(array[i]);
 
-			bus->data_lanes[i] = array[i];
 			pr_debug("lane %u position %u\n", i, array[i]);
 		}
 	}
@@ -87,16 +86,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			return -EINVAL;
 		}
 
-		fwnode_property_read_u32_array(fwnode, "lane-polarities", array,
-					       1 + num_data_lanes);
-
-		for (i = 0; i < 1 + num_data_lanes; i++) {
-			bus->lane_polarities[i] = array[i];
-			pr_debug("lane %u polarity %sinverted",
-				 i, array[i] ? "" : "not ");
-		}
-	} else {
-		pr_debug("no lane polarities defined, assuming not inverted\n");
+		have_lane_polarities = true;
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
@@ -121,6 +111,22 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		bus->flags = flags;
 		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
 		bus->num_data_lanes = num_data_lanes;
+		for (i = 0; i < num_data_lanes; i++)
+			bus->data_lanes[i] = array[i];
+
+		if (have_lane_polarities) {
+			fwnode_property_read_u32_array(fwnode,
+						       "lane-polarities", array,
+						       1 + num_data_lanes);
+
+			for (i = 0; i < 1 + num_data_lanes; i++) {
+				bus->lane_polarities[i] = array[i];
+				pr_debug("lane %u polarity %sinverted",
+					 i, array[i] ? "" : "not ");
+			}
+		} else {
+			pr_debug("no lane polarities defined, assuming not inverted\n");
+		}
 	}
 
 	return 0;
