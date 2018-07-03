@@ -74,6 +74,12 @@ Required properties for DSI:
 		The 3 clocks output from the DSI analog PHY: dsi[01]_byte,
 		dsi[01]_ddr2, and dsi[01]_ddr
 
+Required properties for the TXP (writeback) block:
+- compatible:	Should be "brcm,bcm2835-txp"
+- reg:		Physical base address and length of the TXP block's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
 [1] Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
