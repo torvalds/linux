@@ -122,6 +122,9 @@ TRACE_EVENT(s390_cio_tpi,
 		__field(u8, cssid)
 		__field(u8, ssid)
 		__field(u16, schno)
+		__field(u8, adapter_IO)
+		__field(u8, isc)
+		__field(u8, type)
 	),
 	TP_fast_assign(
 		__entry->cc = cc;
@@ -136,11 +139,14 @@ TRACE_EVENT(s390_cio_tpi,
 		__entry->cssid = __entry->tpi_info.schid.cssid;
 		__entry->ssid = __entry->tpi_info.schid.ssid;
 		__entry->schno = __entry->tpi_info.schid.sch_no;
+		__entry->adapter_IO = __entry->tpi_info.adapter_IO;
+		__entry->isc = __entry->tpi_info.isc;
+		__entry->type = __entry->tpi_info.type;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d a=%d isc=%d type=%d",
 		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
-		  __entry->tpi_info.adapter_IO, __entry->tpi_info.isc,
-		  __entry->tpi_info.type
+		  __entry->adapter_IO, __entry->isc,
+		  __entry->type
 	)
 );
 
