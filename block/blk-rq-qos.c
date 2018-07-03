@@ -1,7 +1,5 @@
 #include "blk-rq-qos.h"
 
-#include "blk-wbt.h"
-
 /*
  * Increment 'v', if 'v' is below 'below'. Returns true if we succeeded,
  * false if 'v' + 1 would be bigger than 'below'.
@@ -29,13 +27,13 @@ bool rq_wait_inc_below(struct rq_wait *rq_wait, int limit)
 	return atomic_inc_below(&rq_wait->inflight, limit);
 }
 
-void rq_qos_cleanup(struct request_queue *q, enum wbt_flags wb_acct)
+void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
 {
 	struct rq_qos *rqos;
 
 	for (rqos = q->rq_qos; rqos; rqos = rqos->next) {
 		if (rqos->ops->cleanup)
-			rqos->ops->cleanup(rqos, wb_acct);
+			rqos->ops->cleanup(rqos, bio);
 	}
 }
 
@@ -69,17 +67,25 @@ void rq_qos_requeue(struct request_queue *q, struct request *rq)
 	}
 }
 
-enum wbt_flags rq_qos_throttle(struct request_queue *q, struct bio *bio,
-			       spinlock_t *lock)
+void rq_qos_throttle(struct request_queue *q, struct bio *bio,
+		     spinlock_t *lock)
 {
 	struct rq_qos *rqos;
-	enum wbt_flags flags = 0;
 
 	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
 		if (rqos->ops->throttle)
-			flags |= rqos->ops->throttle(rqos, bio, lock);
+			rqos->ops->throttle(rqos, bio, lock);
 	}
-	return flags;
+}
+
+void rq_qos_track(struct request_queue *q, struct request *rq, struct bio *bio)
+{
+	struct rq_qos *rqos;
+
+	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+		if (rqos->ops->track)
+			rqos->ops->track(rqos, rq, bio);
+	}
 }
 
 /*

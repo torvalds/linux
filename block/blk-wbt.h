@@ -87,11 +87,6 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 #ifdef CONFIG_BLK_WBT
 
-static inline void wbt_track(struct request *rq, enum wbt_flags flags)
-{
-	rq->wbt_flags |= flags;
-}
-
 int wbt_init(struct request_queue *);
 void wbt_update_limits(struct request_queue *);
 void wbt_disable_default(struct request_queue *);
