@@ -181,6 +181,7 @@ struct rbd_image_header {
 struct rbd_spec {
 	u64		pool_id;
 	const char	*pool_name;
+	const char	*pool_ns;	/* NULL if default, never "" */
 
 	const char	*image_id;
 	const char	*image_name;
@@ -735,6 +736,7 @@ enum {
 	Opt_lock_timeout,
 	Opt_last_int,
 	/* int args above */
+	Opt_pool_ns,
 	Opt_last_string,
 	/* string args above */
 	Opt_read_only,
@@ -749,6 +751,7 @@ static match_table_t rbd_opts_tokens = {
 	{Opt_queue_depth, "queue_depth=%d"},
 	{Opt_lock_timeout, "lock_timeout=%d"},
 	/* int args above */
+	{Opt_pool_ns, "_pool_ns=%s"},
 	/* string args above */
 	{Opt_read_only, "read_only"},
 	{Opt_read_only, "ro"},		/* Alternate spelling */
@@ -816,6 +819,12 @@ static int parse_rbd_opts_token(char *c, void *private)
 			return -EINVAL;
 		}
 		pctx->opts->lock_timeout = msecs_to_jiffies(intval * 1000);
+		break;
+	case Opt_pool_ns:
+		kfree(pctx->spec->pool_ns);
+		pctx->spec->pool_ns = match_strdup(argstr);
+		if (!pctx->spec->pool_ns)
+			return -ENOMEM;
 		break;
 	case Opt_read_only:
 		pctx->opts->read_only = true;
@@ -1480,7 +1489,13 @@ rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
 	req->r_callback = rbd_osd_req_callback;
 	req->r_priv = obj_req;
 
+	/*
+	 * Data objects may be stored in a separate pool, but always in
+	 * the same namespace in that pool as the header in its pool.
+	 */
+	ceph_oloc_copy(&req->r_base_oloc, &rbd_dev->header_oloc);
 	req->r_base_oloc.pool = rbd_dev->layout.pool_id;
+
 	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, name_format,
 			rbd_dev->header.object_prefix, obj_req->ex.oe_objno))
 		goto err_req;
@@ -4124,6 +4139,14 @@ static ssize_t rbd_pool_id_show(struct device *dev,
 			(unsigned long long) rbd_dev->spec->pool_id);
 }
 
+static ssize_t rbd_pool_ns_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+
+	return sprintf(buf, "%s\n", rbd_dev->spec->pool_ns ?: "");
+}
+
 static ssize_t rbd_name_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -4222,6 +4245,7 @@ static DEVICE_ATTR(cluster_fsid, 0444, rbd_cluster_fsid_show, NULL);
 static DEVICE_ATTR(config_info, 0400, rbd_config_info_show, NULL);
 static DEVICE_ATTR(pool, 0444, rbd_pool_show, NULL);
 static DEVICE_ATTR(pool_id, 0444, rbd_pool_id_show, NULL);
+static DEVICE_ATTR(pool_ns, 0444, rbd_pool_ns_show, NULL);
 static DEVICE_ATTR(name, 0444, rbd_name_show, NULL);
 static DEVICE_ATTR(image_id, 0444, rbd_image_id_show, NULL);
 static DEVICE_ATTR(refresh, 0200, NULL, rbd_image_refresh);
@@ -4240,6 +4264,7 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_config_info.attr,
 	&dev_attr_pool.attr,
 	&dev_attr_pool_id.attr,
+	&dev_attr_pool_ns.attr,
 	&dev_attr_name.attr,
 	&dev_attr_image_id.attr,
 	&dev_attr_current_snap.attr,
@@ -4300,6 +4325,7 @@ static void rbd_spec_free(struct kref *kref)
 	struct rbd_spec *spec = container_of(kref, struct rbd_spec, kref);
 
 	kfree(spec->pool_name);
+	kfree(spec->pool_ns);
 	kfree(spec->image_id);
 	kfree(spec->image_name);
 	kfree(spec->snap_name);
@@ -4358,6 +4384,12 @@ static struct rbd_device *__rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->header.data_pool_id = CEPH_NOPOOL;
 	ceph_oid_init(&rbd_dev->header_oid);
 	rbd_dev->header_oloc.pool = spec->pool_id;
+	if (spec->pool_ns) {
+		WARN_ON(!*spec->pool_ns);
+		rbd_dev->header_oloc.pool_ns =
+		    ceph_find_or_create_string(spec->pool_ns,
+					       strlen(spec->pool_ns));
+	}
 
 	mutex_init(&rbd_dev->watch_mutex);
 	rbd_dev->watch_state = RBD_WATCH_STATE_UNREGISTERED;
@@ -4638,6 +4670,17 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 		parent_spec->pool_id = pool_id;
 		parent_spec->image_id = image_id;
 		parent_spec->snap_id = snap_id;
+
+		/* TODO: support cloning across namespaces */
+		if (rbd_dev->spec->pool_ns) {
+			parent_spec->pool_ns = kstrdup(rbd_dev->spec->pool_ns,
+						       GFP_KERNEL);
+			if (!parent_spec->pool_ns) {
+				ret = -ENOMEM;
+				goto out_err;
+			}
+		}
+
 		rbd_dev->parent_spec = parent_spec;
 		parent_spec = NULL;	/* rbd_dev now owns this */
 	} else {
@@ -5590,8 +5633,10 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 		ret = rbd_register_watch(rbd_dev);
 		if (ret) {
 			if (ret == -ENOENT)
-				pr_info("image %s/%s does not exist\n",
+				pr_info("image %s/%s%s%s does not exist\n",
 					rbd_dev->spec->pool_name,
+					rbd_dev->spec->pool_ns ?: "",
+					rbd_dev->spec->pool_ns ? "/" : "",
 					rbd_dev->spec->image_name);
 			goto err_out_format;
 		}
@@ -5613,8 +5658,10 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 		ret = rbd_spec_fill_names(rbd_dev);
 	if (ret) {
 		if (ret == -ENOENT)
-			pr_info("snap %s/%s@%s does not exist\n",
+			pr_info("snap %s/%s%s%s@%s does not exist\n",
 				rbd_dev->spec->pool_name,
+				rbd_dev->spec->pool_ns ?: "",
+				rbd_dev->spec->pool_ns ? "/" : "",
 				rbd_dev->spec->image_name,
 				rbd_dev->spec->snap_name);
 		goto err_out_probe;
