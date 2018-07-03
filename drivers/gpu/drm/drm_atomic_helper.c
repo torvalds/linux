@@ -1187,7 +1187,7 @@ static void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
 
 		if (new_conn_state->writeback_job && new_conn_state->writeback_job->fb) {
 			WARN_ON(connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-			funcs->atomic_commit(connector, new_conn_state->writeback_job);
+			funcs->atomic_commit(connector, new_conn_state);
 		}
 	}
 }
