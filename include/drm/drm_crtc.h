@@ -119,6 +119,29 @@ struct drm_crtc_state {
 	bool zpos_changed : 1;
 	bool color_mgmt_changed : 1;
 
+	/**
+	 * @no_vblank:
+	 *
+	 * Reflects the ability of a CRTC to send VBLANK events. This state
+	 * usually depends on the pipeline configuration, and the main usuage
+	 * is CRTCs feeding a writeback connector operating in oneshot mode.
+	 * In this case the VBLANK event is only generated when a job is queued
+	 * to the writeback connector, and we want the core to fake VBLANK
+	 * events when this part of the pipeline hasn't changed but others had
+	 * or when the CRTC and connectors are being disabled.
+	 *
+	 * __drm_atomic_helper_crtc_duplicate_state() will not reset the value
+	 * from the current state, the CRTC driver is then responsible for
+	 * updating this field when needed.
+	 *
+	 * Note that the combination of &drm_crtc_state.event == NULL and
+	 * &drm_crtc_state.no_blank == true is valid and usually used when the
+	 * writeback connector attached to the CRTC has a new job queued. In
+	 * this case the driver will send the VBLANK event on its own when the
+	 * writeback job is complete.
+	 */
+	bool no_vblank : 1;
+
 	/* attached planes bitmask:
 	 * WARNING: transitional helpers do not maintain plane_mask so
 	 * drivers not converted over to atomic helpers should not rely
