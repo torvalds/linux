@@ -220,9 +220,9 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
-endif ## SND_SOC_INTEL_SKL
+endif ## SND_SOC_INTEL_SKYLAKE
 
-if SND_SOC_INTEL_SKL || SND_SOC_SOF_APOLLOLAKE
+if SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_APOLLOLAKE
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
@@ -251,9 +251,9 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
-endif ##  SND_SOC_INTEL_SKL || SND_SOC_SOF_APOLLOLAKE
+endif ##  SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_APOLLOLAKE
 
-if  SND_SOC_INTEL_SKL
+if  SND_SOC_INTEL_SKYLAKE
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	tristate "KBL with RT5663 and MAX98927 in I2S Mode"
