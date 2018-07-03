@@ -407,13 +407,20 @@ static int sram_probe(struct platform_device *pdev)
 	if (init_func) {
 		ret = init_func();
 		if (ret)
-			return ret;
+			goto err_disable_clk;
 	}
 
 	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
 		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
+
+err_disable_clk:
+	if (sram->clk)
+		clk_disable_unprepare(sram->clk);
+	sram_free_partitions(sram);
+
+	return ret;
 }
 
 static int sram_remove(struct platform_device *pdev)
