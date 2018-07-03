@@ -21,16 +21,19 @@ unsigned int nf_conncount_count(struct net *net,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_zone *zone);
 
-unsigned int nf_conncount_lookup(struct net *net, struct nf_conncount_list *list,
-				 const struct nf_conntrack_tuple *tuple,
-				 const struct nf_conntrack_zone *zone,
-				 bool *addit);
+void nf_conncount_lookup(struct net *net, struct nf_conncount_list *list,
+			 const struct nf_conntrack_tuple *tuple,
+			 const struct nf_conntrack_zone *zone,
+			 bool *addit);
 
 void nf_conncount_list_init(struct nf_conncount_list *list);
 
 bool nf_conncount_add(struct nf_conncount_list *list,
 		      const struct nf_conntrack_tuple *tuple,
 		      const struct nf_conntrack_zone *zone);
+
+void nf_conncount_gc_list(struct net *net,
+			  struct nf_conncount_list *list);
 
 void nf_conncount_cache_free(struct nf_conncount_list *list);
 

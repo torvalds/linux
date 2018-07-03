@@ -144,26 +144,29 @@ find_or_evict(struct net *net, struct nf_conncount_list *list,
 	return ERR_PTR(-EAGAIN);
 }
 
-unsigned int nf_conncount_lookup(struct net *net,
-				 struct nf_conncount_list *list,
-				 const struct nf_conntrack_tuple *tuple,
-				 const struct nf_conntrack_zone *zone,
-				 bool *addit)
+void nf_conncount_lookup(struct net *net,
+			 struct nf_conncount_list *list,
+			 const struct nf_conntrack_tuple *tuple,
+			 const struct nf_conntrack_zone *zone,
+			 bool *addit)
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct nf_conncount_tuple *conn, *conn_n;
 	struct nf_conn *found_ct;
-	unsigned int length = 0;
+	unsigned int collect = 0;
 
+	/* best effort only */
 	*addit = tuple ? true : false;
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, conn_n, &list->head, node) {
+		if (collect > CONNCOUNT_GC_MAX_NODES)
+			break;
+
 		found = find_or_evict(net, list, conn);
 		if (IS_ERR(found)) {
 			/* Not found, but might be about to be confirmed */
 			if (PTR_ERR(found) == -EAGAIN) {
-				length++;
 				if (!tuple)
 					continue;
 
@@ -171,8 +174,8 @@ unsigned int nf_conncount_lookup(struct net *net,
 				    nf_ct_zone_id(&conn->zone, conn->zone.dir) ==
 				    nf_ct_zone_id(zone, zone->dir))
 					*addit = false;
-			}
-
+			} else if (PTR_ERR(found) == -ENOENT)
+				collect++;
 			continue;
 		}
 
@@ -181,9 +184,10 @@ unsigned int nf_conncount_lookup(struct net *net,
 		if (tuple && nf_ct_tuple_equal(&conn->tuple, tuple) &&
 		    nf_ct_zone_equal(found_ct, zone, zone->dir)) {
 			/*
-			 * Just to be sure we have it only once in the list.
 			 * We should not see tuples twice unless someone hooks
 			 * this into a table without "-p tcp --syn".
+			 *
+			 * Attempt to avoid a re-add in this case.
 			 */
 			*addit = false;
 		} else if (already_closed(found_ct)) {
@@ -193,14 +197,12 @@ unsigned int nf_conncount_lookup(struct net *net,
 			 */
 			nf_ct_put(found_ct);
 			conn_free(list, conn);
+			collect++;
 			continue;
 		}
 
 		nf_ct_put(found_ct);
-		length++;
 	}
-
-	return length;
 }
 EXPORT_SYMBOL_GPL(nf_conncount_lookup);
 
@@ -211,8 +213,8 @@ void nf_conncount_list_init(struct nf_conncount_list *list)
 }
 EXPORT_SYMBOL_GPL(nf_conncount_list_init);
 
-static void nf_conncount_gc_list(struct net *net,
-				 struct nf_conncount_list *list)
+void nf_conncount_gc_list(struct net *net,
+			  struct nf_conncount_list *list)
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct nf_conncount_tuple *conn, *conn_n;
@@ -244,6 +246,7 @@ static void nf_conncount_gc_list(struct net *net,
 			return;
 	}
 }
+EXPORT_SYMBOL_GPL(nf_conncount_gc_list);
 
 static void tree_nodes_free(struct rb_root *root,
 			    struct nf_conncount_rb *gc_nodes[],
@@ -291,8 +294,9 @@ count_tree(struct net *net, struct rb_root *root,
 			/* same source network -> be counted! */
 			unsigned int count;
 
-			count = nf_conncount_lookup(net, &rbconn->list, tuple,
-						    zone, &addit);
+			nf_conncount_lookup(net, &rbconn->list, tuple, zone,
+					    &addit);
+			count = rbconn->list.count;
 
 			tree_nodes_free(root, gc_nodes, gc_count);
 			if (!addit)

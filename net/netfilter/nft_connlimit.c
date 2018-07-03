@@ -46,8 +46,9 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 	}
 
 	spin_lock_bh(&priv->lock);
-	count = nf_conncount_lookup(nft_net(pkt), &priv->list, tuple_ptr, zone,
-				    &addit);
+	nf_conncount_lookup(nft_net(pkt), &priv->list, tuple_ptr, zone,
+			    &addit);
+	count = priv->list.count;
 
 	if (!addit)
 		goto out;
@@ -231,10 +232,10 @@ static void nft_connlimit_destroy_clone(const struct nft_ctx *ctx,
 static bool nft_connlimit_gc(struct net *net, const struct nft_expr *expr)
 {
 	struct nft_connlimit *priv = nft_expr_priv(expr);
-	bool addit, ret;
+	bool ret;
 
 	spin_lock_bh(&priv->lock);
-	nf_conncount_lookup(net, &priv->list, NULL, &nf_ct_zone_dflt, &addit);
+	nf_conncount_gc_list(net, &priv->list);
 
 	ret = list_empty(&priv->list.head);
 	spin_unlock_bh(&priv->lock);
