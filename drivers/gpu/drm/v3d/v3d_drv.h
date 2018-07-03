@@ -184,6 +184,8 @@ struct v3d_job {
 
 	/* GPU virtual addresses of the start/end of the CL job. */
 	u32 start, end;
+
+	u32 timedout_ctca, timedout_ctra;
 };
 
 struct v3d_exec_info {
