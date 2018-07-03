@@ -1,32 +1,13 @@
-/***********************license start***************
- * Author: Cavium Networks
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Octeon CIU definitions
  *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
- *
- * Copyright (c) 2003-2012 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
- ***********************license end**************************************/
+ * Copyright (C) 2003-2018 Cavium, Inc.
+ */
 
 #ifndef __CVMX_CIU_DEFS_H__
 #define __CVMX_CIU_DEFS_H__
+
+#include <asm/bitfield.h>
 
 #define CVMX_CIU_BIST (CVMX_ADD_IO_SEG(0x0001070000000730ull))
 #define CVMX_CIU_BLOCK_INT (CVMX_ADD_IO_SEG(0x00010700000007C0ull))
@@ -209,142 +190,89 @@ static inline uint64_t CVMX_CIU_WDOGX(unsigned long offset)
 	return CVMX_ADD_IO_SEG(0x0001070000000500ull) + (offset) * 8;
 }
 
+
 union cvmx_ciu_qlm {
 	uint64_t u64;
 	struct cvmx_ciu_qlm_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t g2bypass:1;
-		uint64_t reserved_53_62:10;
-		uint64_t g2deemph:5;
-		uint64_t reserved_45_47:3;
-		uint64_t g2margin:5;
-		uint64_t reserved_32_39:8;
-		uint64_t txbypass:1;
-		uint64_t reserved_21_30:10;
-		uint64_t txdeemph:5;
-		uint64_t reserved_13_15:3;
-		uint64_t txmargin:5;
-		uint64_t reserved_4_7:4;
-		uint64_t lane_en:4;
-#else
-		uint64_t lane_en:4;
-		uint64_t reserved_4_7:4;
-		uint64_t txmargin:5;
-		uint64_t reserved_13_15:3;
-		uint64_t txdeemph:5;
-		uint64_t reserved_21_30:10;
-		uint64_t txbypass:1;
-		uint64_t reserved_32_39:8;
-		uint64_t g2margin:5;
-		uint64_t reserved_45_47:3;
-		uint64_t g2deemph:5;
-		uint64_t reserved_53_62:10;
-		uint64_t g2bypass:1;
-#endif
+		__BITFIELD_FIELD(uint64_t g2bypass:1,
+		__BITFIELD_FIELD(uint64_t reserved_53_62:10,
+		__BITFIELD_FIELD(uint64_t g2deemph:5,
+		__BITFIELD_FIELD(uint64_t reserved_45_47:3,
+		__BITFIELD_FIELD(uint64_t g2margin:5,
+		__BITFIELD_FIELD(uint64_t reserved_32_39:8,
+		__BITFIELD_FIELD(uint64_t txbypass:1,
+		__BITFIELD_FIELD(uint64_t reserved_21_30:10,
+		__BITFIELD_FIELD(uint64_t txdeemph:5,
+		__BITFIELD_FIELD(uint64_t reserved_13_15:3,
+		__BITFIELD_FIELD(uint64_t txmargin:5,
+		__BITFIELD_FIELD(uint64_t reserved_4_7:4,
+		__BITFIELD_FIELD(uint64_t lane_en:4,
+		;)))))))))))))
 	} s;
 };
 
 union cvmx_ciu_qlm_jtgc {
 	uint64_t u64;
 	struct cvmx_ciu_qlm_jtgc_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_17_63:47;
-		uint64_t bypass_ext:1;
-		uint64_t reserved_11_15:5;
-		uint64_t clk_div:3;
-		uint64_t reserved_7_7:1;
-		uint64_t mux_sel:3;
-		uint64_t bypass:4;
-#else
-		uint64_t bypass:4;
-		uint64_t mux_sel:3;
-		uint64_t reserved_7_7:1;
-		uint64_t clk_div:3;
-		uint64_t reserved_11_15:5;
-		uint64_t bypass_ext:1;
-		uint64_t reserved_17_63:47;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved_17_63:47,
+		__BITFIELD_FIELD(uint64_t bypass_ext:1,
+		__BITFIELD_FIELD(uint64_t reserved_11_15:5,
+		__BITFIELD_FIELD(uint64_t clk_div:3,
+		__BITFIELD_FIELD(uint64_t reserved_7_7:1,
+		__BITFIELD_FIELD(uint64_t mux_sel:3,
+		__BITFIELD_FIELD(uint64_t bypass:4,
+		;)))))))
 	} s;
 };
 
 union cvmx_ciu_qlm_jtgd {
 	uint64_t u64;
 	struct cvmx_ciu_qlm_jtgd_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t capture:1;
-		uint64_t shift:1;
-		uint64_t update:1;
-		uint64_t reserved_45_60:16;
-		uint64_t select:5;
-		uint64_t reserved_37_39:3;
-		uint64_t shft_cnt:5;
-		uint64_t shft_reg:32;
-#else
-		uint64_t shft_reg:32;
-		uint64_t shft_cnt:5;
-		uint64_t reserved_37_39:3;
-		uint64_t select:5;
-		uint64_t reserved_45_60:16;
-		uint64_t update:1;
-		uint64_t shift:1;
-		uint64_t capture:1;
-#endif
+		__BITFIELD_FIELD(uint64_t capture:1,
+		__BITFIELD_FIELD(uint64_t shift:1,
+		__BITFIELD_FIELD(uint64_t update:1,
+		__BITFIELD_FIELD(uint64_t reserved_45_60:16,
+		__BITFIELD_FIELD(uint64_t select:5,
+		__BITFIELD_FIELD(uint64_t reserved_37_39:3,
+		__BITFIELD_FIELD(uint64_t shft_cnt:5,
+		__BITFIELD_FIELD(uint64_t shft_reg:32,
+		;))))))))
 	} s;
 };
 
 union cvmx_ciu_soft_prst {
 	uint64_t u64;
 	struct cvmx_ciu_soft_prst_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_3_63:61;
-		uint64_t host64:1;
-		uint64_t npi:1;
-		uint64_t soft_prst:1;
-#else
-		uint64_t soft_prst:1;
-		uint64_t npi:1;
-		uint64_t host64:1;
-		uint64_t reserved_3_63:61;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved_3_63:61,
+		__BITFIELD_FIELD(uint64_t host64:1,
+		__BITFIELD_FIELD(uint64_t npi:1,
+		__BITFIELD_FIELD(uint64_t soft_prst:1,
+		;))))
 	} s;
 };
 
 union cvmx_ciu_timx {
 	uint64_t u64;
 	struct cvmx_ciu_timx_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_37_63:27;
-		uint64_t one_shot:1;
-		uint64_t len:36;
-#else
-		uint64_t len:36;
-		uint64_t one_shot:1;
-		uint64_t reserved_37_63:27;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved_37_63:27,
+		__BITFIELD_FIELD(uint64_t one_shot:1,
+		__BITFIELD_FIELD(uint64_t len:36,
+		;)))
 	} s;
 };
 
 union cvmx_ciu_wdogx {
 	uint64_t u64;
 	struct cvmx_ciu_wdogx_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_46_63:18;
-		uint64_t gstopen:1;
-		uint64_t dstop:1;
-		uint64_t cnt:24;
-		uint64_t len:16;
-		uint64_t state:2;
-		uint64_t mode:2;
-#else
-		uint64_t mode:2;
-		uint64_t state:2;
-		uint64_t len:16;
-		uint64_t cnt:24;
-		uint64_t dstop:1;
-		uint64_t gstopen:1;
-		uint64_t reserved_46_63:18;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved_46_63:18,
+		__BITFIELD_FIELD(uint64_t gstopen:1,
+		__BITFIELD_FIELD(uint64_t dstop:1,
+		__BITFIELD_FIELD(uint64_t cnt:24,
+		__BITFIELD_FIELD(uint64_t len:16,
+		__BITFIELD_FIELD(uint64_t state:2,
+		__BITFIELD_FIELD(uint64_t mode:2,
+		;)))))))
 	} s;
 };
 
-#endif
+#endif /* __CVMX_CIU_DEFS_H__ */
