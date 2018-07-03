@@ -319,6 +319,9 @@ struct sock_common {
   *	@sk_destruct: called at sock freeing time, i.e. when all refcnt == 0
   *	@sk_reuseport_cb: reuseport group container
   *	@sk_rcu: used during RCU grace period
+  *	@sk_clockid: clockid used by time-based scheduling (SO_TXTIME)
+  *	@sk_txtime_deadline_mode: set deadline mode for SO_TXTIME
+  *	@sk_txtime_unused: unused txtime flags
   */
 struct sock {
 	/*
@@ -475,6 +478,11 @@ struct sock {
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
+
+	u8			sk_clockid;
+	u8			sk_txtime_deadline_mode : 1,
+				sk_txtime_unused : 7;
+
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 #ifdef CONFIG_SECURITY
@@ -790,6 +798,7 @@ enum sock_flags {
 	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
 	SOCK_SELECT_ERR_QUEUE, /* Wake select on error queue */
 	SOCK_RCU_FREE, /* wait rcu grace period in sk_destruct() */
+	SOCK_TXTIME,
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
@@ -1585,6 +1594,7 @@ void sock_kzfree_s(struct sock *sk, void *mem, int size);
 void sk_send_sigurg(struct sock *sk);
 
 struct sockcm_cookie {
+	u64 transmit_time;
 	u32 mark;
 	u16 tsflags;
 };
