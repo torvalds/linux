@@ -84,8 +84,6 @@ done:
 
 static void sev_wait_cmd_ioc(struct psp_device *psp, unsigned int *reg)
 {
-	psp->sev_int_rcvd = 0;
-
 	wait_event(psp->sev_int_queue, psp->sev_int_rcvd);
 	*reg = ioread32(psp->io_regs + PSP_CMDRESP);
 }
@@ -147,6 +145,8 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 
 	iowrite32(phys_lsb, psp->io_regs + PSP_CMDBUFF_ADDR_LO);
 	iowrite32(phys_msb, psp->io_regs + PSP_CMDBUFF_ADDR_HI);
+
+	psp->sev_int_rcvd = 0;
 
 	reg = cmd;
 	reg <<= PSP_CMDRESP_CMD_SHIFT;
