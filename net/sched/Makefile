@@ -54,6 +54,7 @@ obj-$(CONFIG_NET_SCH_FQ)	+= sch_fq.o
 obj-$(CONFIG_NET_SCH_HHF)	+= sch_hhf.o
 obj-$(CONFIG_NET_SCH_PIE)	+= sch_pie.o
 obj-$(CONFIG_NET_SCH_CBS)	+= sch_cbs.o
+obj-$(CONFIG_NET_SCH_ETF)	+= sch_etf.o
 
 obj-$(CONFIG_NET_CLS_U32)	+= cls_u32.o
 obj-$(CONFIG_NET_CLS_ROUTE4)	+= cls_route.o
