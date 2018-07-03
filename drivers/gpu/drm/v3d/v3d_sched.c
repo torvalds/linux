@@ -14,8 +14,8 @@
  * to the HW only when it has completed the last one, instead of
  * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
  * v3d_job_dependency() to manage the dependency between bin and
- * render, instead of having the clients submit jobs with using the
- * HW's semaphores to interlock between them.
+ * render, instead of having the clients submit jobs using the HW's
+ * semaphores to interlock between them.
  */
 
 #include <linux/kthread.h>
