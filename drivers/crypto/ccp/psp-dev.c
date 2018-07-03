@@ -65,7 +65,7 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 	status = ioread32(psp->io_regs + PSP_P2CMSG_INTSTS);
 
 	/* Check if it is command completion: */
-	if (!(status & BIT(PSP_CMD_COMPLETE_REG)))
+	if (!(status & PSP_CMD_COMPLETE))
 		goto done;
 
 	/* Check if it is SEV command completion: */
