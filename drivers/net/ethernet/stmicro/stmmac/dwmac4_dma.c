@@ -420,6 +420,16 @@ static void dwmac4_qmode(void __iomem *ioaddr, u32 channel, u8 qmode)
 	writel(mtl_tx_op, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
 }
 
+static void dwmac4_set_bfsize(void __iomem *ioaddr, int bfsize, u32 chan)
+{
+	u32 value = readl(ioaddr + DMA_CHAN_RX_CONTROL(chan));
+
+	value &= ~DMA_RBSZ_MASK;
+	value |= (bfsize << DMA_RBSZ_SHIFT) & DMA_RBSZ_MASK;
+
+	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(chan));
+}
+
 const struct stmmac_dma_ops dwmac4_dma_ops = {
 	.reset = dwmac4_dma_reset,
 	.init = dwmac4_dma_init,
@@ -445,6 +455,7 @@ const struct stmmac_dma_ops dwmac4_dma_ops = {
 	.set_tx_tail_ptr = dwmac4_set_tx_tail_ptr,
 	.enable_tso = dwmac4_enable_tso,
 	.qmode = dwmac4_qmode,
+	.set_bfsize = dwmac4_set_bfsize,
 };
 
 const struct stmmac_dma_ops dwmac410_dma_ops = {
@@ -472,4 +483,5 @@ const struct stmmac_dma_ops dwmac410_dma_ops = {
 	.set_tx_tail_ptr = dwmac4_set_tx_tail_ptr,
 	.enable_tso = dwmac4_enable_tso,
 	.qmode = dwmac4_qmode,
+	.set_bfsize = dwmac4_set_bfsize,
 };

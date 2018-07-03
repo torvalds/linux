@@ -232,7 +232,7 @@ struct nfp_nffw_info *nfp_nffw_info_open(struct nfp_cpp *cpp)
 	err = nfp_cpp_read(cpp, nfp_resource_cpp_id(state->res),
 			   nfp_resource_address(state->res),
 			   fwinf, sizeof(*fwinf));
-	if (err < sizeof(*fwinf))
+	if (err < (int)sizeof(*fwinf))
 		goto err_release;
 
 	if (!nffw_res_flg_init_get(fwinf))

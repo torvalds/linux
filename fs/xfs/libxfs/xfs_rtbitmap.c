@@ -1029,8 +1029,8 @@ xfs_rtalloc_query_range(
 	if (low_rec->ar_startext >= mp->m_sb.sb_rextents ||
 	    low_rec->ar_startext == high_rec->ar_startext)
 		return 0;
-	if (high_rec->ar_startext >= mp->m_sb.sb_rextents)
-		high_rec->ar_startext = mp->m_sb.sb_rextents - 1;
+	if (high_rec->ar_startext > mp->m_sb.sb_rextents)
+		high_rec->ar_startext = mp->m_sb.sb_rextents;
 
 	/* Iterate the bitmap, looking for discrepancies. */
 	rtstart = low_rec->ar_startext;
