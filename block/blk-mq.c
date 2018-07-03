@@ -1074,6 +1074,35 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	return true;
 }
 
+#define BLK_MQ_DISPATCH_BUSY_EWMA_WEIGHT  8
+#define BLK_MQ_DISPATCH_BUSY_EWMA_FACTOR  4
+/*
+ * Update dispatch busy with the Exponential Weighted Moving Average(EWMA):
+ * - EWMA is one simple way to compute running average value
+ * - weight(7/8 and 1/8) is applied so that it can decrease exponentially
+ * - take 4 as factor for avoiding to get too small(0) result, and this
+ *   factor doesn't matter because EWMA decreases exponentially
+ */
+static void blk_mq_update_dispatch_busy(struct blk_mq_hw_ctx *hctx, bool busy)
+{
+	unsigned int ewma;
+
+	if (hctx->queue->elevator)
+		return;
+
+	ewma = hctx->dispatch_busy;
+
+	if (!ewma && !busy)
+		return;
+
+	ewma *= BLK_MQ_DISPATCH_BUSY_EWMA_WEIGHT - 1;
+	if (busy)
+		ewma += 1 << BLK_MQ_DISPATCH_BUSY_EWMA_FACTOR;
+	ewma /= BLK_MQ_DISPATCH_BUSY_EWMA_WEIGHT;
+
+	hctx->dispatch_busy = ewma;
+}
+
 #define BLK_MQ_RESOURCE_DELAY	3		/* ms units */
 
 /*
@@ -1210,8 +1239,10 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 		else if (needs_restart && (ret == BLK_STS_RESOURCE))
 			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
 
+		blk_mq_update_dispatch_busy(hctx, true);
 		return false;
-	}
+	} else
+		blk_mq_update_dispatch_busy(hctx, false);
 
 	/*
 	 * If the host/device is unable to accept more work, inform the
