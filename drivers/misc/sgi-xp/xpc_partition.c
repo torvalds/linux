@@ -446,8 +446,10 @@ xpc_discovery(void)
 		switch (region_size) {
 		case 128:
 			max_regions *= 2;
+			/* fall through */
 		case 64:
 			max_regions *= 2;
+			/* fall through */
 		case 32:
 			max_regions *= 2;
 			region_size = 16;
