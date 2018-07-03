@@ -1000,11 +1000,6 @@ static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Unable to get eint resource\n");
-		return -ENODEV;
-	}
-
 	pctl->eint->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pctl->eint->base))
 		return PTR_ERR(pctl->eint->base);

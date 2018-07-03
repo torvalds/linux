@@ -369,13 +369,6 @@ EXPORT_SYMBOL(drm_dev_exit);
  */
 void drm_dev_unplug(struct drm_device *dev)
 {
-	drm_dev_unregister(dev);
-
-	mutex_lock(&drm_global_mutex);
-	if (dev->open_count == 0)
-		drm_dev_put(dev);
-	mutex_unlock(&drm_global_mutex);
-
 	/*
 	 * After synchronizing any critical read section is guaranteed to see
 	 * the new value of ->unplugged, and any critical section which might
@@ -384,6 +377,13 @@ void drm_dev_unplug(struct drm_device *dev)
 	 */
 	dev->unplugged = true;
 	synchronize_srcu(&drm_unplug_srcu);
+
+	drm_dev_unregister(dev);
+
+	mutex_lock(&drm_global_mutex);
+	if (dev->open_count == 0)
+		drm_dev_put(dev);
+	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 

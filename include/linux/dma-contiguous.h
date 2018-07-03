@@ -48,7 +48,7 @@
  *   CMA should not be used by the device drivers directly. It is
  *   only a helper framework for dma-mapping subsystem.
  *
- *   For more information, see kernel-docs in drivers/base/dma-contiguous.c
+ *   For more information, see kernel-docs in kernel/dma/contiguous.c
  */
 
 #ifdef __KERNEL__

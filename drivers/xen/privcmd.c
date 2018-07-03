@@ -1007,12 +1007,21 @@ static int __init privcmd_init(void)
 		pr_err("Could not register Xen privcmd device\n");
 		return err;
 	}
+
+	err = misc_register(&xen_privcmdbuf_dev);
+	if (err != 0) {
+		pr_err("Could not register Xen hypercall-buf device\n");
+		misc_deregister(&privcmd_dev);
+		return err;
+	}
+
 	return 0;
 }
 
 static void __exit privcmd_exit(void)
 {
 	misc_deregister(&privcmd_dev);
+	misc_deregister(&xen_privcmdbuf_dev);
 }
 
 module_init(privcmd_init);
