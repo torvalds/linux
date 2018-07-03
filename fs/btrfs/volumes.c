@@ -2410,12 +2410,13 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct list_head *devices;
 	struct super_block *sb = fs_info->sb;
 	struct rcu_string *name;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u64 tmp;
 	int seeding_dev = 0;
 	int ret = 0;
 	bool unlocked = false;
 
-	if (sb_rdonly(sb) && !fs_info->fs_devices->seeding)
+	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
 
 	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
@@ -2423,7 +2424,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
-	if (fs_info->fs_devices->seeding) {
+	if (fs_devices->seeding) {
 		seeding_dev = 1;
 		down_write(&sb->s_umount);
 		mutex_lock(&uuid_mutex);
@@ -2431,18 +2432,18 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	filemap_write_and_wait(bdev->bd_inode->i_mapping);
 
-	devices = &fs_info->fs_devices->devices;
+	devices = &fs_devices->devices;
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry(device, devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
 			mutex_unlock(
-				&fs_info->fs_devices->device_list_mutex);
+				&fs_devices->device_list_mutex);
 			goto error;
 		}
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	device = btrfs_alloc_device(fs_info, NULL, NULL);
 	if (IS_ERR(device)) {
@@ -2491,23 +2492,22 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		}
 	}
 
-	device->fs_devices = fs_info->fs_devices;
+	device->fs_devices = fs_devices;
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	mutex_lock(&fs_devices->device_list_mutex);
 	mutex_lock(&fs_info->chunk_mutex);
-	list_add_rcu(&device->dev_list, &fs_info->fs_devices->devices);
-	list_add(&device->dev_alloc_list,
-		 &fs_info->fs_devices->alloc_list);
-	fs_info->fs_devices->num_devices++;
-	fs_info->fs_devices->open_devices++;
-	fs_info->fs_devices->rw_devices++;
-	fs_info->fs_devices->total_devices++;
-	fs_info->fs_devices->total_rw_bytes += device->total_bytes;
+	list_add_rcu(&device->dev_list, &fs_devices->devices);
+	list_add(&device->dev_alloc_list, &fs_devices->alloc_list);
+	fs_devices->num_devices++;
+	fs_devices->open_devices++;
+	fs_devices->rw_devices++;
+	fs_devices->total_devices++;
+	fs_devices->total_rw_bytes += device->total_bytes;
 
 	atomic64_add(device->total_bytes, &fs_info->free_chunk_space);
 
 	if (!blk_queue_nonrot(q))
-		fs_info->fs_devices->rotating = 1;
+		fs_devices->rotating = 1;
 
 	tmp = btrfs_super_total_bytes(fs_info->super_copy);
 	btrfs_set_super_total_bytes(fs_info->super_copy,
@@ -2517,7 +2517,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	btrfs_set_super_num_devices(fs_info->super_copy, tmp + 1);
 
 	/* add sysfs device entry */
-	btrfs_sysfs_add_device_link(fs_info->fs_devices, device);
+	btrfs_sysfs_add_device_link(fs_devices, device);
 
 	/*
 	 * we've got more storage, clear any full flags on the space
@@ -2526,7 +2526,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	btrfs_clear_space_info_full(fs_info);
 
 	mutex_unlock(&fs_info->chunk_mutex);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
 		mutex_lock(&fs_info->chunk_mutex);
@@ -2558,7 +2558,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		 */
 		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
 						fs_info->fsid);
-		if (kobject_rename(&fs_info->fs_devices->fsid_kobj, fsid_buf))
+		if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
 			btrfs_warn(fs_info,
 				   "sysfs: failed to create fsid for sprout");
 	}
@@ -2593,7 +2593,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	return ret;
 
 error_sysfs:
-	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
+	btrfs_sysfs_rm_device_link(fs_devices, device);
 error_trans:
 	if (seeding_dev)
 		sb->s_flags |= SB_RDONLY;
