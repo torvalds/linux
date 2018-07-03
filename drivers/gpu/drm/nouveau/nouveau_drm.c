@@ -79,6 +79,10 @@ MODULE_PARM_DESC(modeset, "enable driver (default: auto, "
 int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
+MODULE_PARM_DESC(atomic, "Expose atomic ioctl (default: disabled)");
+static int nouveau_atomic = 0;
+module_param_named(atomic, nouveau_atomic, int, 0400);
+
 MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1)");
 static int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
@@ -382,6 +386,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		return ret;
 
 	pci_set_master(pdev);
+
+	if (nouveau_atomic)
+		driver_pci.driver_features |= DRIVER_ATOMIC;
 
 	ret = drm_get_pci_dev(pdev, pent, &driver_pci);
 	if (ret) {
