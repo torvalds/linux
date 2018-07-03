@@ -153,6 +153,8 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	drm_atomic_helper_fake_vblank(state);
+
 	drm_atomic_helper_commit_hw_done(state);
 
 	drm_atomic_helper_wait_for_flip_done(dev, state);
