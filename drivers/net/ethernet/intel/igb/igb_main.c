@@ -2474,6 +2474,19 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	return features;
 }
 
+static void igb_offload_apply(struct igb_adapter *adapter, s32 queue)
+{
+	if (!is_fqtss_enabled(adapter)) {
+		enable_fqtss(adapter, true);
+		return;
+	}
+
+	igb_config_tx_modes(adapter, queue);
+
+	if (!is_any_cbs_enabled(adapter))
+		enable_fqtss(adapter, false);
+}
+
 static int igb_offload_cbs(struct igb_adapter *adapter,
 			   struct tc_cbs_qopt_offload *qopt)
 {
@@ -2494,15 +2507,7 @@ static int igb_offload_cbs(struct igb_adapter *adapter,
 	if (err)
 		return err;
 
-	if (is_fqtss_enabled(adapter)) {
-		igb_config_tx_modes(adapter, qopt->queue);
-
-		if (!is_any_cbs_enabled(adapter))
-			enable_fqtss(adapter, false);
-
-	} else {
-		enable_fqtss(adapter, true);
-	}
+	igb_offload_apply(adapter, qopt->queue);
 
 	return 0;
 }
