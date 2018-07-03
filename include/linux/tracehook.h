@@ -51,6 +51,7 @@
 #include <linux/security.h>
 #include <linux/task_work.h>
 #include <linux/memcontrol.h>
+#include <linux/blk-cgroup.h>
 struct linux_binprm;
 
 /*
@@ -192,6 +193,7 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
 		task_work_run();
 
 	mem_cgroup_handle_over_high();
+	blkcg_maybe_throttle_current();
 }
 
 #endif	/* <linux/tracehook.h> */

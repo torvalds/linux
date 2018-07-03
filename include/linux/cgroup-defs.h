@@ -438,6 +438,9 @@ struct cgroup {
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
 
+	/* If there is block congestion on this cgroup. */
+	atomic_t congestion_count;
+
 	/* ids of the ancestors at each level including self */
 	int ancestor_ids[];
 };
