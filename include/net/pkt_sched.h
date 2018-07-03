@@ -155,4 +155,9 @@ struct tc_cbs_qopt_offload {
 	s32 sendslope;
 };
 
+struct tc_etf_qopt_offload {
+	u8 enable;
+	s32 queue;
+};
+
 #endif

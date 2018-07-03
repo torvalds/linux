@@ -20,8 +20,10 @@
 #include <net/sock.h>
 
 #define DEADLINE_MODE_IS_ON(x) ((x)->flags & TC_ETF_DEADLINE_MODE_ON)
+#define OFFLOAD_IS_ON(x) ((x)->flags & TC_ETF_OFFLOAD_ON)
 
 struct etf_sched_data {
+	bool offload;
 	bool deadline_mode;
 	int clockid;
 	int queue;
@@ -45,6 +47,9 @@ static inline int validate_input_params(struct tc_etf_qopt *qopt,
 	 *	* Dynamic clockids are not supported.
 	 *
 	 *	* Delta must be a positive integer.
+	 *
+	 * Also note that for the HW offload case, we must
+	 * expect that system clocks have been synchronized to PHC.
 	 */
 	if (qopt->clockid < 0) {
 		NL_SET_ERR_MSG(extack, "Dynamic clockids are not supported");
@@ -225,6 +230,56 @@ out:
 	return skb;
 }
 
+static void etf_disable_offload(struct net_device *dev,
+				struct etf_sched_data *q)
+{
+	struct tc_etf_qopt_offload etf = { };
+	const struct net_device_ops *ops;
+	int err;
+
+	if (!q->offload)
+		return;
+
+	ops = dev->netdev_ops;
+	if (!ops->ndo_setup_tc)
+		return;
+
+	etf.queue = q->queue;
+	etf.enable = 0;
+
+	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_ETF, &etf);
+	if (err < 0)
+		pr_warn("Couldn't disable ETF offload for queue %d\n",
+			etf.queue);
+}
+
+static int etf_enable_offload(struct net_device *dev, struct etf_sched_data *q,
+			      struct netlink_ext_ack *extack)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	struct tc_etf_qopt_offload etf = { };
+	int err;
+
+	if (q->offload)
+		return 0;
+
+	if (!ops->ndo_setup_tc) {
+		NL_SET_ERR_MSG(extack, "Specified device does not support ETF offload");
+		return -EOPNOTSUPP;
+	}
+
+	etf.queue = q->queue;
+	etf.enable = 1;
+
+	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_ETF, &etf);
+	if (err < 0) {
+		NL_SET_ERR_MSG(extack, "Specified device failed to setup ETF hardware offload");
+		return err;
+	}
+
+	return 0;
+}
+
 static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 		    struct netlink_ext_ack *extack)
 {
@@ -251,8 +306,9 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	qopt = nla_data(tb[TCA_ETF_PARMS]);
 
-	pr_debug("delta %d clockid %d deadline %s\n",
+	pr_debug("delta %d clockid %d offload %s deadline %s\n",
 		 qopt->delta, qopt->clockid,
+		 OFFLOAD_IS_ON(qopt) ? "on" : "off",
 		 DEADLINE_MODE_IS_ON(qopt) ? "on" : "off");
 
 	err = validate_input_params(qopt, extack);
@@ -261,9 +317,16 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	q->queue = sch->dev_queue - netdev_get_tx_queue(dev, 0);
 
+	if (OFFLOAD_IS_ON(qopt)) {
+		err = etf_enable_offload(dev, q, extack);
+		if (err < 0)
+			return err;
+	}
+
 	/* Everything went OK, save the parameters used. */
 	q->delta = qopt->delta;
 	q->clockid = qopt->clockid;
+	q->offload = OFFLOAD_IS_ON(qopt);
 	q->deadline_mode = DEADLINE_MODE_IS_ON(qopt);
 
 	switch (q->clockid) {
@@ -326,10 +389,13 @@ static void etf_reset(struct Qdisc *sch)
 static void etf_destroy(struct Qdisc *sch)
 {
 	struct etf_sched_data *q = qdisc_priv(sch);
+	struct net_device *dev = qdisc_dev(sch);
 
 	/* Only cancel watchdog if it's been initialized. */
 	if (q->watchdog.qdisc == sch)
 		qdisc_watchdog_cancel(&q->watchdog);
+
+	etf_disable_offload(dev, q);
 }
 
 static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -344,6 +410,9 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	opt.delta = q->delta;
 	opt.clockid = q->clockid;
+	if (q->offload)
+		opt.flags |= TC_ETF_OFFLOAD_ON;
+
 	if (q->deadline_mode)
 		opt.flags |= TC_ETF_DEADLINE_MODE_ON;
 
