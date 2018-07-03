@@ -155,6 +155,12 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	bool is_contig = false;
 	sector_t sector;
 
+	if (iomap->type == IOMAP_INLINE) {
+		WARN_ON_ONCE(poff);
+		iomap_read_inline_data(inode, page, iomap);
+		return PAGE_SIZE;
+	}
+
 	/* we don't support blocksize < PAGE_SIZE quite yet. */
 	WARN_ON_ONCE(pos != page_offset(page));
 	WARN_ON_ONCE(plen != PAGE_SIZE);
