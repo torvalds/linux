@@ -503,9 +503,9 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
 				ranges->writer_wm_sets[i].min_fill_clk_khz;
 		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].max_fill_clk_khz;
+				ranges->writer_wm_sets[i].max_drain_clk_khz;
 		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
-				ranges->writer_wm_sets[i].min_fill_clk_khz;
+				ranges->writer_wm_sets[i].min_drain_clk_khz;
 	}
 
 	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);
