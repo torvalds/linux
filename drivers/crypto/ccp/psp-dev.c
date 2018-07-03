@@ -840,6 +840,8 @@ int psp_dev_init(struct sp_device *sp)
 	/* Enable interrupt */
 	iowrite32(-1, psp->io_regs + PSP_P2CMSG_INTEN);
 
+	dev_notice(dev, "psp enabled\n");
+
 	return 0;
 
 e_irq:
