@@ -351,8 +351,9 @@
 #define SRST_SFC_H		136
 #define SRST_SFC		137
 #define SRST_GMAC_NIU_A		140
-#define SRST_GMAC_NIU_P		141
-#define SRST_GAMC_A		142
+#define SRST_GMAC_NIU_H		141
+#define SRST_GMAC_NIU_P		142
+#define SRST_GAMC_A		143
 
 /* cru_softrst_con9 */
 #define SRST_PMU_NIU_P		144
