@@ -1654,6 +1654,18 @@ static void set_queue_mode(struct e1000_hw *hw, int queue, enum queue_mode mode)
 	wr32(E1000_I210_TQAVCC(queue), val);
 }
 
+static bool is_any_cbs_enabled(struct igb_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		if (adapter->tx_ring[i]->cbs_enable)
+			return true;
+	}
+
+	return false;
+}
+
 /**
  *  igb_config_tx_modes - Configure "Qav Tx mode" features on igb
  *  @adapter: pointer to adapter struct
@@ -1668,7 +1680,7 @@ static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 	struct igb_ring *ring = adapter->tx_ring[queue];
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
-	u32 tqavcc;
+	u32 tqavcc, tqavctrl;
 	u16 value;
 
 	WARN_ON(hw->mac.type != e1000_i210);
@@ -1692,6 +1704,14 @@ static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 
 		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_HIGH);
 		set_queue_mode(hw, queue, QUEUE_MODE_STREAM_RESERVATION);
+
+		/* Always set data transfer arbitration to credit-based
+		 * shaper algorithm on TQAVCTRL if CBS is enabled for any of
+		 * the queues.
+		 */
+		tqavctrl = rd32(E1000_I210_TQAVCTRL);
+		tqavctrl |= E1000_TQAVCTRL_DATATRANARB;
+		wr32(E1000_I210_TQAVCTRL, tqavctrl);
 
 		/* According to i210 datasheet section 7.2.7.7, we should set
 		 * the 'idleSlope' field from TQAVCC register following the
@@ -1770,6 +1790,16 @@ static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 
 		/* Set hiCredit to zero. */
 		wr32(E1000_I210_TQAVHC(queue), 0);
+
+		/* If CBS is not enabled for any queues anymore, then return to
+		 * the default state of Data Transmission Arbitration on
+		 * TQAVCTRL.
+		 */
+		if (!is_any_cbs_enabled(adapter)) {
+			tqavctrl = rd32(E1000_I210_TQAVCTRL);
+			tqavctrl &= ~E1000_TQAVCTRL_DATATRANARB;
+			wr32(E1000_I210_TQAVCTRL, tqavctrl);
+		}
 	}
 
 	/* XXX: In i210 controller the sendSlope and loCredit parameters from
@@ -1803,18 +1833,6 @@ static int igb_save_cbs_params(struct igb_adapter *adapter, int queue,
 	return 0;
 }
 
-static bool is_any_cbs_enabled(struct igb_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		if (adapter->tx_ring[i]->cbs_enable)
-			return true;
-	}
-
-	return false;
-}
-
 /**
  *  igb_setup_tx_mode - Switch to/from Qav Tx mode when applicable
  *  @adapter: pointer to adapter struct
@@ -1838,11 +1856,10 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 		int i, max_queue;
 
 		/* Configure TQAVCTRL register: set transmit mode to 'Qav',
-		 * set data fetch arbitration to 'round robin' and set data
-		 * transfer arbitration to 'credit shaper algorithm.
+		 * set data fetch arbitration to 'round robin'.
 		 */
 		val = rd32(E1000_I210_TQAVCTRL);
-		val |= E1000_TQAVCTRL_XMIT_MODE | E1000_TQAVCTRL_DATATRANARB;
+		val |= E1000_TQAVCTRL_XMIT_MODE;
 		val &= ~E1000_TQAVCTRL_DATAFETCHARB;
 		wr32(E1000_I210_TQAVCTRL, val);
 
