@@ -394,6 +394,8 @@ static sector_t get_data_sector(struct dm_integrity_c *ic, sector_t area, sector
 		result += (area + 1) * ic->metadata_run;
 
 	result += (sector_t)ic->initial_sectors + offset;
+	result += ic->start;
+
 	return result;
 }
 
@@ -865,7 +867,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 	io_req.notify.context = data;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->dev->bdev;
-	io_loc.sector = ic->start + target;
+	io_loc.sector = target;
 	io_loc.count = n_sectors;
 
 	r = dm_io(&io_req, 1, &io_loc, NULL);
@@ -1753,7 +1755,6 @@ offload_to_thread:
 	bio->bi_end_io = integrity_end_io;
 
 	bio->bi_iter.bi_size = dio->range.n_sectors << SECTOR_SHIFT;
-	bio->bi_iter.bi_sector += ic->start;
 	generic_make_request(bio);
 
 	if (need_sync_io) {
@@ -2391,7 +2392,7 @@ static int calculate_device_limits(struct dm_integrity_c *ic)
 	get_area_and_offset(ic, ic->provided_data_sectors - 1, &last_area, &last_offset);
 	last_sector = get_data_sector(ic, last_area, last_offset);
 
-	if (ic->start + last_sector < last_sector || ic->start + last_sector >= ic->device_sectors)
+	if (last_sector < ic->start || last_sector >= ic->device_sectors)
 		return -EINVAL;
 
 	return 0;
