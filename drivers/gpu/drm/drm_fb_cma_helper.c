@@ -100,27 +100,6 @@ dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_addr);
 
 /**
- * drm_fb_cma_fbdev_init_with_funcs() - Allocate and initialize fbdev emulation
- * @dev: DRM device
- * @preferred_bpp: Preferred bits per pixel for the device.
- *                 @dev->mode_config.preferred_depth is used if this is zero.
- * @max_conn_count: Maximum number of connectors.
- *                  @dev->mode_config.num_connector is used if this is zero.
- * @funcs: Framebuffer functions, in particular a custom dirty() callback.
- *         Can be NULL.
- *
- * Returns:
- * Zero on success or negative error code on failure.
- */
-int drm_fb_cma_fbdev_init_with_funcs(struct drm_device *dev,
-	unsigned int preferred_bpp, unsigned int max_conn_count,
-	const struct drm_framebuffer_funcs *funcs)
-{
-	return drm_fb_cma_fbdev_init(dev, preferred_bpp, max_conn_count);
-}
-EXPORT_SYMBOL_GPL(drm_fb_cma_fbdev_init_with_funcs);
-
-/**
  * drm_fb_cma_fbdev_init() - Allocate and initialize fbdev emulation
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device.
