@@ -94,6 +94,7 @@
 		rockchip,mclk-fs = <256>;
 		rockchip,cpu = <&i2s_8ch_2>;
 		rockchip,codec = <&acodec>;
+		status = "disabled";
 	};
 
 	spdif_tx_sound: spdif-tx-sound {
@@ -106,6 +107,15 @@
 		simple-audio-card,codec {
 			sound-dai = <&dummy_codec>;
 		};
+	};
+
+	vad-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
+		rockchip,codec-hp-det;
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>, <&vad>;
 	};
 
 	vdd_log: vdd_core: vdd-core {
@@ -319,4 +329,13 @@
 
 &usb_host0_ohci{
 	status = "okay";
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&i2s_8ch_2>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <1>;
+	rockchip,buffer-time-ms = <500>;
+	#sound-dai-cells = <0>;
 };

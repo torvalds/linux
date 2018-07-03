@@ -36,7 +36,7 @@
 
 &acodec {
 	status = "okay";
-
+	rockchip,no-deep-low-power;
 	/* ADC3-6 for 4ch capture, loopback to ADC7 */
 	rockchip,adc-grps-route = <1 2 3 0>;
 };
@@ -401,11 +401,4 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart4_xfer &uart4_cts>;
 	status = "okay";
-};
-
-&vad {
-	status = "disabled";
-	rockchip,audio-src = <&i2s_8ch_2>;
-	rockchip,mode = <1>;
-	#sound-dai-cells = <0>;
 };
