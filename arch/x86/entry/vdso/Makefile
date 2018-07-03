@@ -58,9 +58,7 @@ HOST_EXTRACFLAGS += -I$(srctree)/tools/include -I$(srctree)/include/uapi -I$(src
 hostprogs-y			+= vdso2c
 
 quiet_cmd_vdso2c = VDSO2C  $@
-define cmd_vdso2c
-	$(obj)/vdso2c $< $(<:%.dbg=%) $@
-endef
+      cmd_vdso2c = $(obj)/vdso2c $< $(<:%.dbg=%) $@
 
 $(obj)/vdso-image-%.c: $(obj)/vdso%.so.dbg $(obj)/vdso%.so $(obj)/vdso2c FORCE
 	$(call if_changed,vdso2c)
