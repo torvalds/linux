@@ -299,16 +299,20 @@ TRACE_EVENT(s390_cio_interrupt,
 		__field(u8, cssid)
 		__field(u8, ssid)
 		__field(u16, schno)
+		__field(u8, isc)
+		__field(u8, type)
 	),
 	TP_fast_assign(
 		__entry->tpi_info = *tpi_info;
-		__entry->cssid = __entry->tpi_info.schid.cssid;
-		__entry->ssid = __entry->tpi_info.schid.ssid;
-		__entry->schno = __entry->tpi_info.schid.sch_no;
+		__entry->cssid = tpi_info->schid.cssid;
+		__entry->ssid = tpi_info->schid.ssid;
+		__entry->schno = tpi_info->schid.sch_no;
+		__entry->isc = tpi_info->isc;
+		__entry->type = tpi_info->type;
 	),
 	TP_printk("schid=%x.%x.%04x isc=%d type=%d",
 		  __entry->cssid, __entry->ssid, __entry->schno,
-		  __entry->tpi_info.isc, __entry->tpi_info.type
+		  __entry->isc, __entry->type
 	)
 );
 
