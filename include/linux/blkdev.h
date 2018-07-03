@@ -42,7 +42,7 @@ struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
-struct rq_wb;
+struct rq_qos;
 struct blk_queue_stats;
 struct blk_stat_callback;
 
@@ -443,7 +443,7 @@ struct request_queue {
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
 	struct blk_queue_stats	*stats;
-	struct rq_wb		*rq_wb;
+	struct rq_qos		*rq_qos;
 
 	/*
 	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg

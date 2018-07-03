@@ -1645,7 +1645,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
-	wbt_requeue(q->rq_wb, rq);
+	rq_qos_requeue(q, rq);
 
 	if (rq->rq_flags & RQF_QUEUED)
 		blk_queue_end_tag(q, rq);
@@ -1752,7 +1752,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	/* this is a bio leak */
 	WARN_ON(req->bio != NULL);
 
-	wbt_done(q->rq_wb, req);
+	rq_qos_done(q, req);
 
 	/*
 	 * Request may not have originated from ll_rw_blk. if not,
@@ -2044,7 +2044,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 	}
 
 get_rq:
-	wb_acct = wbt_wait(q->rq_wb, bio, q->queue_lock);
+	wb_acct = rq_qos_throttle(q, bio, q->queue_lock);
 
 	/*
 	 * Grab a free request. This is might sleep but can not fail.
@@ -2054,7 +2054,7 @@ get_rq:
 	req = get_request(q, bio->bi_opf, bio, 0, GFP_NOIO);
 	if (IS_ERR(req)) {
 		blk_queue_exit(q);
-		__wbt_done(q->rq_wb, wb_acct);
+		rq_qos_cleanup(q, wb_acct);
 		if (PTR_ERR(req) == -ENOMEM)
 			bio->bi_status = BLK_STS_RESOURCE;
 		else
@@ -2983,7 +2983,7 @@ void blk_start_request(struct request *req)
 		req->throtl_size = blk_rq_sectors(req);
 #endif
 		req->rq_flags |= RQF_STATS;
-		wbt_issue(req->q->rq_wb, req);
+		rq_qos_issue(req->q, req);
 	}
 
 	BUG_ON(blk_rq_is_complete(req));
@@ -3207,7 +3207,7 @@ void blk_finish_request(struct request *req, blk_status_t error)
 	blk_account_io_done(req, now);
 
 	if (req->end_io) {
-		wbt_done(req->q->rq_wb, req);
+		rq_qos_done(q, req);
 		req->end_io(req, error);
 	} else {
 		if (blk_bidi_rq(req))

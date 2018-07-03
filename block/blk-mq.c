@@ -504,7 +504,7 @@ void blk_mq_free_request(struct request *rq)
 	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
 		laptop_io_completion(q->backing_dev_info);
 
-	wbt_done(q->rq_wb, rq);
+	rq_qos_done(q, rq);
 
 	if (blk_rq_rl(rq))
 		blk_put_rl(blk_rq_rl(rq));
@@ -527,7 +527,7 @@ inline void __blk_mq_end_request(struct request *rq, blk_status_t error)
 	blk_account_io_done(rq, now);
 
 	if (rq->end_io) {
-		wbt_done(rq->q->rq_wb, rq);
+		rq_qos_done(rq->q, rq);
 		rq->end_io(rq, error);
 	} else {
 		if (unlikely(blk_bidi_rq(rq)))
@@ -641,7 +641,7 @@ void blk_mq_start_request(struct request *rq)
 		rq->throtl_size = blk_rq_sectors(rq);
 #endif
 		rq->rq_flags |= RQF_STATS;
-		wbt_issue(q->rq_wb, rq);
+		rq_qos_issue(q, rq);
 	}
 
 	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IDLE);
@@ -667,7 +667,7 @@ static void __blk_mq_requeue_request(struct request *rq)
 	blk_mq_put_driver_tag(rq);
 
 	trace_block_rq_requeue(q, rq);
-	wbt_requeue(q->rq_wb, rq);
+	rq_qos_requeue(q, rq);
 
 	if (blk_mq_request_started(rq)) {
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
@@ -1806,13 +1806,13 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (blk_mq_sched_bio_merge(q, bio))
 		return BLK_QC_T_NONE;
 
-	wb_acct = wbt_wait(q->rq_wb, bio, NULL);
+	wb_acct = rq_qos_throttle(q, bio, NULL);
 
 	trace_block_getrq(q, bio, bio->bi_opf);
 
 	rq = blk_mq_get_request(q, bio, bio->bi_opf, &data);
 	if (unlikely(!rq)) {
-		__wbt_done(q->rq_wb, wb_acct);
+		rq_qos_cleanup(q, wb_acct);
 		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
 		return BLK_QC_T_NONE;
