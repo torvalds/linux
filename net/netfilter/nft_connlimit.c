@@ -14,7 +14,6 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 
 struct nft_connlimit {
-	spinlock_t			lock;
 	struct nf_conncount_list	list;
 	u32				limit;
 	bool				invert;
@@ -45,7 +44,6 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 		return;
 	}
 
-	spin_lock_bh(&priv->lock);
 	nf_conncount_lookup(nft_net(pkt), &priv->list, tuple_ptr, zone,
 			    &addit);
 	count = priv->list.count;
@@ -53,14 +51,12 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 	if (!addit)
 		goto out;
 
-	if (!nf_conncount_add(&priv->list, tuple_ptr, zone)) {
+	if (nf_conncount_add(&priv->list, tuple_ptr, zone) == NF_CONNCOUNT_ERR) {
 		regs->verdict.code = NF_DROP;
-		spin_unlock_bh(&priv->lock);
 		return;
 	}
 	count++;
 out:
-	spin_unlock_bh(&priv->lock);
 
 	if ((count > priv->limit) ^ priv->invert) {
 		regs->verdict.code = NFT_BREAK;
@@ -88,7 +84,6 @@ static int nft_connlimit_do_init(const struct nft_ctx *ctx,
 			invert = true;
 	}
 
-	spin_lock_init(&priv->lock);
 	nf_conncount_list_init(&priv->list);
 	priv->limit	= limit;
 	priv->invert	= invert;
@@ -213,7 +208,6 @@ static int nft_connlimit_clone(struct nft_expr *dst, const struct nft_expr *src)
 	struct nft_connlimit *priv_dst = nft_expr_priv(dst);
 	struct nft_connlimit *priv_src = nft_expr_priv(src);
 
-	spin_lock_init(&priv_dst->lock);
 	nf_conncount_list_init(&priv_dst->list);
 	priv_dst->limit	 = priv_src->limit;
 	priv_dst->invert = priv_src->invert;
@@ -232,15 +226,8 @@ static void nft_connlimit_destroy_clone(const struct nft_ctx *ctx,
 static bool nft_connlimit_gc(struct net *net, const struct nft_expr *expr)
 {
 	struct nft_connlimit *priv = nft_expr_priv(expr);
-	bool ret;
 
-	spin_lock_bh(&priv->lock);
-	nf_conncount_gc_list(net, &priv->list);
-
-	ret = list_empty(&priv->list.head);
-	spin_unlock_bh(&priv->lock);
-
-	return ret;
+	return nf_conncount_gc_list(net, &priv->list);
 }
 
 static struct nft_expr_type nft_connlimit_type;
