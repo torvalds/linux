@@ -16,6 +16,11 @@ Supported chips:
     Prefixes: 'max34446'
     Addresses scanned: -
     Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34446.pdf
+  * Maxim MAX34451
+    PMBus 16-Channel V/I Monitor and 12-Channel Sequencer/Marginer
+    Prefixes: 'max34451'
+    Addresses scanned: -
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34451.pdf
   * Maxim MAX34460
     PMBus 12-Channel Voltage Monitor & Sequencer
     Prefix: 'max34460'
@@ -36,9 +41,10 @@ Description
 This driver supports hardware monitoring for Maxim MAX34440 PMBus 6-Channel
 Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply Manager
 and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data Logger.
-It also supports the MAX34460 and MAX34461 PMBus Voltage Monitor & Sequencers.
-The MAX34460 supports 12 voltage channels, and the MAX34461 supports 16 voltage
-channels.
+It also supports the MAX34451, MAX34460, and MAX34461 PMBus Voltage Monitor &
+Sequencers. The MAX34451 supports monitoring voltage or current of 12 channels
+based on GIN pins. The MAX34460 supports 12 voltage channels, and the MAX34461
+supports 16 voltage channels.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus for details on PMBus client drivers.
@@ -93,7 +99,7 @@ curr[1-6]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
 curr[1-6]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
 curr[1-6]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.
 curr[1-6]_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
-curr[1-4]_average	Historical average current (MAX34446 only).
+curr[1-4]_average	Historical average current (MAX34446/34451 only).
 curr[1-6]_highest	Historical maximum current.
 curr[1-6]_reset_history	Write any value to reset history.
 
@@ -123,5 +129,7 @@ temp[1-8]_reset_history	Write any value to reset history.
 			temp7 and temp8 attributes only exist for MAX34440.
 			MAX34446 only supports temp[1-3].
 
+MAX34451 supports attribute groups in[1-16] (or curr[1-16] based on input pins)
+and temp[1-5].
 MAX34460 supports attribute groups in[1-12] and temp[1-5].
 MAX34461 supports attribute groups in[1-16] and temp[1-5].
