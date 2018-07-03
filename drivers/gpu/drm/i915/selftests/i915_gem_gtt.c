@@ -32,6 +32,20 @@
 #include "mock_drm.h"
 #include "mock_gem_device.h"
 
+static void cleanup_freed_objects(struct drm_i915_private *i915)
+{
+	/*
+	 * As we may hold onto the struct_mutex for inordinate lengths of
+	 * time, the NMI khungtaskd detector may fire for the free objects
+	 * worker.
+	 */
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	i915_gem_drain_freed_objects(i915);
+
+	mutex_lock(&i915->drm.struct_mutex);
+}
+
 static void fake_free_pages(struct drm_i915_gem_object *obj,
 			    struct sg_table *pages)
 {
@@ -291,6 +305,8 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		i915_gem_object_put(obj);
 
 		kfree(order);
+
+		cleanup_freed_objects(i915);
 	}
 
 	return 0;
@@ -519,6 +535,7 @@ static int fill_hole(struct drm_i915_private *i915,
 		}
 
 		close_object_list(&objects, vm);
+		cleanup_freed_objects(i915);
 	}
 
 	return 0;
@@ -605,6 +622,8 @@ err_put:
 		i915_gem_object_put(obj);
 		if (err)
 			return err;
+
+		cleanup_freed_objects(i915);
 	}
 
 	return 0;
@@ -789,6 +808,8 @@ err_obj:
 		kfree(order);
 		if (err)
 			return err;
+
+		cleanup_freed_objects(i915);
 	}
 
 	return 0;
@@ -857,6 +878,7 @@ static int __shrink_hole(struct drm_i915_private *i915,
 	}
 
 	close_object_list(&objects, vm);
+	cleanup_freed_objects(i915);
 	return err;
 }
 
@@ -949,6 +971,7 @@ static int shrink_boom(struct drm_i915_private *i915,
 		i915_gem_object_put(explode);
 
 		memset(&vm->fault_attr, 0, sizeof(vm->fault_attr));
+		cleanup_freed_objects(i915);
 	}
 
 	return 0;
