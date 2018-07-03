@@ -15,9 +15,14 @@
 #include <dt-bindings/arm/ux500_pm_domains.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/ste-ab8500.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
