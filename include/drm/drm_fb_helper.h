@@ -354,6 +354,7 @@ void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 
 int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 				struct drm_fb_helper_surface_size *sizes);
+int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -591,6 +592,12 @@ static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
 static inline int
 drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 			    struct drm_fb_helper_surface_size *sizes)
+{
+	return 0;
+}
+
+static inline int
+drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
 	return 0;
 }

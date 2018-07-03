@@ -67,6 +67,9 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
  *
+ * Drivers that support a dumb buffer with a virtual address and mmap support,
+ * should try out the generic fbdev emulation using drm_fbdev_generic_setup().
+ *
  * Setup fbdev emulation by calling drm_fb_helper_fbdev_setup() and tear it
  * down by calling drm_fb_helper_fbdev_teardown().
  *
@@ -3117,6 +3120,120 @@ err_free_buffer:
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_generic_probe);
+
+static const struct drm_fb_helper_funcs drm_fb_helper_generic_funcs = {
+	.fb_probe = drm_fb_helper_generic_probe,
+};
+
+static void drm_fbdev_client_unregister(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	if (fb_helper->fbdev) {
+		drm_fb_helper_unregister_fbi(fb_helper);
+		/* drm_fbdev_fb_destroy() takes care of cleanup */
+		return;
+	}
+
+	/* Did drm_fb_helper_fbdev_setup() run? */
+	if (fb_helper->dev)
+		drm_fb_helper_fini(fb_helper);
+
+	drm_client_release(client);
+	kfree(fb_helper);
+}
+
+static int drm_fbdev_client_restore(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
+
+	return 0;
+}
+
+static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+	struct drm_device *dev = client->dev;
+	int ret;
+
+	/* If drm_fb_helper_fbdev_setup() failed, we only try once */
+	if (!fb_helper->dev && fb_helper->funcs)
+		return 0;
+
+	if (dev->fb_helper)
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
+
+	if (!dev->mode_config.num_connector)
+		return 0;
+
+	ret = drm_fb_helper_fbdev_setup(dev, fb_helper, &drm_fb_helper_generic_funcs,
+					fb_helper->preferred_bpp, 0);
+	if (ret) {
+		fb_helper->dev = NULL;
+		fb_helper->fbdev = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct drm_client_funcs drm_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= drm_fbdev_client_unregister,
+	.restore	= drm_fbdev_client_restore,
+	.hotplug	= drm_fbdev_client_hotplug,
+};
+
+/**
+ * drm_fb_helper_generic_fbdev_setup() - Setup generic fbdev emulation
+ * @dev: DRM device
+ * @preferred_bpp: Preferred bits per pixel for the device.
+ *                 @dev->mode_config.preferred_depth is used if this is zero.
+ *
+ * This function sets up generic fbdev emulation for drivers that supports
+ * dumb buffers with a virtual address and that can be mmap'ed.
+ *
+ * Restore, hotplug events and teardown are all taken care of. Drivers that do
+ * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.
+ * Simple drivers might use drm_mode_config_helper_suspend().
+ *
+ * Drivers that set the dirty callback on their framebuffer will get a shadow
+ * fbdev buffer that is blitted onto the real buffer. This is done in order to
+ * make deferred I/O work with all kinds of buffers.
+ *
+ * This function is safe to call even when there are no connectors present.
+ * Setup will be retried on the next hotplug event.
+ *
+ * Returns:
+ * Zero on success or negative error code on failure.
+ */
+int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
+{
+	struct drm_fb_helper *fb_helper;
+	int ret;
+
+	if (!drm_fbdev_emulation)
+		return 0;
+
+	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
+	if (!fb_helper)
+		return -ENOMEM;
+
+	ret = drm_client_new(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
+	if (ret) {
+		kfree(fb_helper);
+		return ret;
+	}
+
+	fb_helper->preferred_bpp = preferred_bpp;
+
+	drm_fbdev_client_hotplug(&fb_helper->client);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fbdev_generic_setup);
 
 /* The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EXPERT)
  * but the module doesn't depend on any fb console symbols.  At least
