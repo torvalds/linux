@@ -386,7 +386,6 @@ struct rcu_state {
 #define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
 #define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
 
-#ifndef RCU_TREE_NONCORE
 static const char * const gp_state_names[] = {
 	"RCU_GP_IDLE",
 	"RCU_GP_WAIT_GPS",
@@ -398,7 +397,29 @@ static const char * const gp_state_names[] = {
 	"RCU_GP_CLEANUP",
 	"RCU_GP_CLEANED",
 };
-#endif /* #ifndef RCU_TREE_NONCORE */
+
+/*
+ * In order to export the rcu_state name to the tracing tools, it
+ * needs to be added in the __tracepoint_string section.
+ * This requires defining a separate variable tp_<sname>_varname
+ * that points to the string being used, and this will allow
+ * the tracing userspace tools to be able to decipher the string
+ * address to the matching string.
+ */
+#ifdef CONFIG_PREEMPT_RCU
+#define RCU_ABBR 'p'
+#define RCU_NAME_RAW "rcu_preempt"
+#else /* #ifdef CONFIG_PREEMPT_RCU */
+#define RCU_ABBR 's'
+#define RCU_NAME_RAW "rcu_sched"
+#endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+#ifndef CONFIG_TRACING
+#define RCU_NAME RCU_NAME_RAW
+#else /* #ifdef CONFIG_TRACING */
+static char rcu_name[] = RCU_NAME_RAW;
+static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
+#define RCU_NAME rcu_name
+#endif /* #else #ifdef CONFIG_TRACING */
 
 extern struct list_head rcu_struct_flavors;
 
@@ -425,8 +446,6 @@ DECLARE_PER_CPU(int, rcu_cpu_kthread_cpu);
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DECLARE_PER_CPU(char, rcu_cpu_has_work);
 #endif /* #ifdef CONFIG_RCU_BOOST */
-
-#ifndef RCU_TREE_NONCORE
 
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
@@ -495,5 +514,3 @@ void srcu_offline_cpu(unsigned int cpu);
 void srcu_online_cpu(unsigned int cpu) { }
 void srcu_offline_cpu(unsigned int cpu) { }
 #endif /* #else #ifdef CONFIG_SRCU */
-
-#endif /* #ifndef RCU_TREE_NONCORE */

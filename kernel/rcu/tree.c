@@ -72,46 +72,20 @@
 
 /* Data structures. */
 
-/*
- * In order to export the rcu_state name to the tracing tools, it
- * needs to be added in the __tracepoint_string section.
- * This requires defining a separate variable tp_<sname>_varname
- * that points to the string being used, and this will allow
- * the tracing userspace tools to be able to decipher the string
- * address to the matching string.
- */
-#ifdef CONFIG_TRACING
-# define DEFINE_RCU_TPS(sname) \
-static char sname##_varname[] = #sname; \
-static const char *tp_##sname##_varname __used __tracepoint_string = sname##_varname;
-# define RCU_STATE_NAME(sname) sname##_varname
-#else
-# define DEFINE_RCU_TPS(sname)
-# define RCU_STATE_NAME(sname) __stringify(sname)
-#endif
-
-#define RCU_STATE_INITIALIZER(sname, sabbr, cr) \
-DEFINE_RCU_TPS(sname) \
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, rcu_data); \
-struct rcu_state rcu_state = { \
-	.level = { &rcu_state.node[0] }, \
-	.rda = &rcu_data, \
-	.call = cr, \
-	.gp_state = RCU_GP_IDLE, \
-	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT, \
-	.barrier_mutex = __MUTEX_INITIALIZER(rcu_state.barrier_mutex), \
-	.name = RCU_STATE_NAME(sname), \
-	.abbr = sabbr, \
-	.exp_mutex = __MUTEX_INITIALIZER(rcu_state.exp_mutex), \
-	.exp_wake_mutex = __MUTEX_INITIALIZER(rcu_state.exp_wake_mutex), \
-	.ofl_lock = __SPIN_LOCK_UNLOCKED(rcu_state.ofl_lock), \
-}
-
-#ifdef CONFIG_PREEMPT_RCU
-RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
-#else
-RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu);
-#endif
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, rcu_data);
+struct rcu_state rcu_state = {
+	.level = { &rcu_state.node[0] },
+	.rda = &rcu_data,
+	.call = call_rcu,
+	.gp_state = RCU_GP_IDLE,
+	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT,
+	.barrier_mutex = __MUTEX_INITIALIZER(rcu_state.barrier_mutex),
+	.name = RCU_NAME,
+	.abbr = RCU_ABBR,
+	.exp_mutex = __MUTEX_INITIALIZER(rcu_state.exp_mutex),
+	.exp_wake_mutex = __MUTEX_INITIALIZER(rcu_state.exp_wake_mutex),
+	.ofl_lock = __SPIN_LOCK_UNLOCKED(rcu_state.ofl_lock),
+};
 
 static struct rcu_state *const rcu_state_p = &rcu_state;
 static struct rcu_data __percpu *const rcu_data_p = &rcu_data;
