@@ -9,17 +9,21 @@
 
 struct ipc_semop_access {
 	MEDUSA_ACCESS_HEADER;
+	/* sem_num, sem_op and sem_flg are from sembuf struct definition;
+	   see include/uapi/linux/sem.h */
+	unsigned int sem_num;	/* semaphore index in array */
+	int sem_op;		/* semaphore operation */
+	int sem_flg;		/* operation flags */
+	unsigned int nsops;	/* number of operations to perform */
+	int alter;		/* indicates whether changes on semaphore array are to be made */
 	unsigned int ipc_class;
-	unsigned int sem_num;
-	int sem_op;
-	int sem_flg;
-	int alter;
 };
 
 MED_ATTRS(ipc_semop_access) {
 	MED_ATTR_RO (ipc_semop_access, sem_num, "sem_num", MED_UNSIGNED),
 	MED_ATTR_RO (ipc_semop_access, sem_op, "sem_op", MED_SIGNED),
 	MED_ATTR_RO (ipc_semop_access, sem_flg, "sem_flg", MED_SIGNED),
+	MED_ATTR_RO (ipc_semop_access, nsops, "nsops", MED_UNSIGNED),
 	MED_ATTR_RO (ipc_semop_access, alter, "alter", MED_SIGNED),
 	MED_ATTR_RO (ipc_semop_access, ipc_class, "ipc_class", MED_UNSIGNED),
 	MED_ATTR_END
@@ -32,36 +36,46 @@ int __init ipc_acctype_semop_init(void) {
 	return 0;
 }
 
+/*
+ * Check permissions before performing operations on members of the semaphore set
+ * @ipcp contains semaphore ipc_perm structure
+ * @sops contains the operation to perform
+ * @nsops contains the number of operations to perform
+ * @alter contains the flag indicating whether changes are to be made;
+ *	if @alter flag is nonzero, the semaphore set may be modified
+ */
 medusa_answer_t medusa_ipc_semop(struct kern_ipc_perm *ipcp, struct sembuf *sops, unsigned nsops, int alter)
 {
 	medusa_answer_t retval = MED_OK;
 	struct ipc_semop_access access;
 	struct process_kobject process;
 	struct ipc_kobject object;
-    memset(&access, '\0', sizeof(struct ipc_semop_access));
-    /* process_kobject parent is zeroed by process_kern2kobj function */
+
+	memset(&access, '\0', sizeof(struct ipc_semop_access));
+	/* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
-		goto out_err;
+		goto out;
 	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
-		goto out_err;
+		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_semop_access, &task_security(current))) {
 		access.sem_op = sops->sem_op;
 		access.sem_num = sops->sem_num;
 		access.sem_flg = sops->sem_flg;
+		access.nsops = nsops;
 		access.alter = alter;
 		access.ipc_class = ipc_security(ipcp)->ipc_class;
 
 		process_kern2kobj(&process, current);
 		if (ipc_kern2kobj(&object, ipcp) == NULL)
-			goto out_err;
+			goto out;
 
 		retval = MED_DECIDE(ipc_semop_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
-out_err:
+out:
 	return retval;
 }
 __initcall(ipc_acctype_semop_init);

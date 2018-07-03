@@ -10,7 +10,7 @@
 struct ipc_perm_access {
 	MEDUSA_ACCESS_HEADER;
 	unsigned int ipc_class;
-	u32 perms;
+	u32 perms;	/* desired (requested) permission set */
 };
 
 MED_ATTRS(ipc_perm_access) {
@@ -26,6 +26,11 @@ int __init ipc_acctype_init(void) {
 	return 0;
 }
 
+/*
+ * Check permissions for access to IPC
+ * @ipcp contains the kernel IPC permission structure
+ * @perm contains the desired (requested) permission set
+ */
 medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 {
 	medusa_answer_t retval = MED_OK;

@@ -9,12 +9,14 @@
 
 struct ipc_shmat_access {
 	MEDUSA_ACCESS_HEADER;
+	char __user *shmaddr;	/* address to attach memory region to */
+	int shmflg;		/* operational flags */
 	unsigned int ipc_class;
-	int shm_flg;
 };
 
 MED_ATTRS(ipc_shmat_access) {
-	MED_ATTR_RO (ipc_shmat_access, shm_flg, "shm_flg", MED_SIGNED),
+	MED_ATTR_RO (ipc_shmat_access, shmflg, "shmflg", MED_SIGNED),
+	MED_ATTR_RO (ipc_shmat_access, shmaddr, "shmaddr", MED_UNSIGNED),
 	MED_ATTR_RO (ipc_shmat_access, ipc_class, "ipc_class", MED_UNSIGNED),
 	MED_ATTR_END
 };
@@ -26,33 +28,43 @@ int __init ipc_acctype_shmat_init(void) {
 	return 0;
 }
 
+/*
+ * Check permissions prior to allowing the shmat system call to attach the
+ * shared memory segment with given ipc_perm @ipcp to the data segment of
+ * the calling process. The attaching address is specified by @shmaddr
+ * @ipcp contains shared memory segment ipc_perm structure
+ * @shmaddr contains the address to attach memory region to
+ * @shmflag contains the operational flags
+ */
 medusa_answer_t medusa_ipc_shmat(struct kern_ipc_perm *ipcp, char __user *shmaddr, int shmflg)
 {
 	medusa_answer_t retval = MED_OK;
 	struct ipc_shmat_access access;
 	struct process_kobject process;
 	struct ipc_kobject object;
-    memset(&access, '\0', sizeof(struct ipc_shmat_access));
-    /* process_kobject parent is zeroed by process_kern2kobj function */
+
+	memset(&access, '\0', sizeof(struct ipc_shmat_access));
+	/* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
-		goto out_err;
+		goto out;
 	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
-		goto out_err;
+		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_shmat_access, &task_security(current))) {
-		access.shm_flg = shmflg;
+		access.shmflg = shmflg;
+		access.shmaddr = shmaddr;
 		access.ipc_class = ipc_security(ipcp)->ipc_class;
 
 		process_kern2kobj(&process, current);
 		if (ipc_kern2kobj(&object, ipcp) == NULL)
-			goto out_err;
+			goto out;
 
 		retval = MED_DECIDE(ipc_shmat_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
-out_err:
+out:
 	return retval;
 }
 __initcall(ipc_acctype_shmat_init);

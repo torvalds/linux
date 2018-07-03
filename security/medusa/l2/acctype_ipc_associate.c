@@ -9,8 +9,8 @@
 
 struct ipc_associate_access {
 	MEDUSA_ACCESS_HEADER;
+	int flag;	/* operation control flags */
 	unsigned int ipc_class;
-	int flag;
 };
 
 MED_ATTRS(ipc_associate_access) {
@@ -26,6 +26,15 @@ int __init ipc_acctype_associate_init(void) {
 	return 0;
 }
 
+/* Check permission when
+ *	1) a message queue is requested through the msgget system call
+ *	2) a shared memory region is requested through the shmget system call
+ *	3) a semaphore is requested through the semget system call
+ * This hook is only called when returning the identifier for an existing IPC
+ * object, not when a new one must be created!
+ * @ipcp contains kernel permission IPC structure
+ * @flag contains the operation control flags
+ */
 medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 {
 	medusa_answer_t retval = MED_OK;

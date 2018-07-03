@@ -9,12 +9,17 @@
 
 struct ipc_msgsnd_access {
 	MEDUSA_ACCESS_HEADER;
+	long m_type;	/* message type;  see 'struct msg_msg' in include/linux/msg.h */
+	size_t m_ts;	/* msg text size; see 'struct msg_msg' in include/linux/msg.h */
+	/* TODO char m_text[???]; send also message text? */
+	int msgflg;
 	unsigned int ipc_class;
-	int msg_flg;
 };
 
 MED_ATTRS(ipc_msgsnd_access) {
-	MED_ATTR_RO (ipc_msgsnd_access, msg_flg, "msg_flg", MED_SIGNED),
+	MED_ATTR_RO (ipc_msgsnd_access, m_type, "m_type", MED_SIGNED),
+	MED_ATTR_RO (ipc_msgsnd_access, m_ts, "m_ts", MED_UNSIGNED),
+	MED_ATTR_RO (ipc_msgsnd_access, msgflg, "msgflg", MED_SIGNED),
 	MED_ATTR_RO (ipc_msgsnd_access, ipc_class, "ipc_class", MED_UNSIGNED),
 	MED_ATTR_END
 };
@@ -26,6 +31,13 @@ int __init ipc_acctype_msgsnd_init(void) {
 	return 0;
 }
 
+/*
+ * Check permission before a message @msg is enqueued on the message queue which
+ * kernel ipc permission @ipcp is given.
+ * @ipcp contains kernel ipc permissions for related message queue
+ * @msg contains the message to be enqueued
+ * @msgflg contains the operational flags
+ */
 medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *msg, int msgflg)
 {
 	medusa_answer_t retval = MED_OK;
@@ -42,7 +54,9 @@ medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *ms
 		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_msgsnd_access, &task_security(current))) {
-		access.msg_flg = msgflg;
+		access.m_type = msg->m_type;
+		access.m_ts = msg->m_ts;
+		access.msgflg = msgflg;
 		access.ipc_class = ipc_security(ipcp)->ipc_class;
 
 		process_kern2kobj(&process, current);

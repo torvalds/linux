@@ -26,42 +26,51 @@ int __init ipc_acctype_ctl_init(void) {
 	return 0;
 }
 
+/*
+ * Check permission when an IPC object (semaphore, message queue, shared memory)
+ * operation specified by @cmd is to be performed on the IPC object which
+ * kernel ipc permission @ipcp is given. The @ipcp may be NULL, e.g. for
+ * IPC_INFO or MSG_INFO or SEM_INFO or SHM_INFO @cmd value.
+ * @ipcp contains kernel IPC permission of the related IPC object
+ * @cmd contains the operation to be performed
+ */
 medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 {
 	medusa_answer_t retval = MED_OK;
 	struct ipc_ctl_access access;
 	struct process_kobject process;
-	struct ipc_kobject object;
-	unsigned int info_flag = 0;
-    memset(&access, '\0', sizeof(struct ipc_ctl_access));
-    /* process_kobject parent is zeroed by process_kern2kobj function */
+	struct ipc_kobject object, *object_p = NULL;
+
+	memset(&access, '\0', sizeof(struct ipc_ctl_access));
+	/* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
-		goto out_err;
-	if(ipcp == NULL && (cmd == IPC_INFO || cmd == MSG_INFO || cmd == SEM_INFO || cmd == SHM_INFO)) {
-		info_flag = 1;
-	} 
-	else {
+		goto out;
+
+	/* 'ipcp' is NULL in case of 'cmd': IPC_INFO, MSG_INFO, SEM_INFO, SHM_INFO */
+	if(likely(ipcp)) {
+		object_p = &object;
 		if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
-			goto out_err;
+			goto out;
 	}
+
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_ctl_access, &task_security(current))) {
 		access.cmd = cmd;
+		access.ipc_class = MED_IPC_UNDEFINED;
+
 		process_kern2kobj(&process, current);
-		if(info_flag == 0) {
+		if (likely(object_p)) {
 			access.ipc_class = ipc_security(ipcp)->ipc_class;
-			if (ipc_kern2kobj(&object, ipcp) == NULL)
-				goto out_err;
-			retval = MED_DECIDE(ipc_ctl_access, &access, &process, &object);
-		}else{
-			access.ipc_class = MED_IPC_UNDEFINED;
-			retval = MED_DECIDE(ipc_ctl_access, &access, &process, NULL);
+			if (ipc_kern2kobj(object_p, ipcp) <= 0)
+				goto out;
 		}
 
+		/* in case of NULL 'ipcp', 'object_p' is NULL too */
+		retval = MED_DECIDE(ipc_ctl_access, &access, &process, object_p);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
-out_err:
+out:
 	return retval;
 }
 __initcall(ipc_acctype_ctl_init);
