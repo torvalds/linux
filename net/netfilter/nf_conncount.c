@@ -189,6 +189,42 @@ unsigned int nf_conncount_lookup(struct net *net, struct hlist_head *head,
 }
 EXPORT_SYMBOL_GPL(nf_conncount_lookup);
 
+static void nf_conncount_gc_list(struct net *net,
+				 struct nf_conncount_rb *rbconn)
+{
+	const struct nf_conntrack_tuple_hash *found;
+	struct nf_conncount_tuple *conn;
+	struct hlist_node *n;
+	struct nf_conn *found_ct;
+	unsigned int collected = 0;
+
+	hlist_for_each_entry_safe(conn, n, &rbconn->hhead, node) {
+		found = find_or_evict(net, conn);
+		if (IS_ERR(found)) {
+			if (PTR_ERR(found) == -ENOENT)
+				collected++;
+			continue;
+		}
+
+		found_ct = nf_ct_tuplehash_to_ctrack(found);
+		if (already_closed(found_ct)) {
+			/*
+			 * we do not care about connections which are
+			 * closed already -> ditch it
+			 */
+			nf_ct_put(found_ct);
+			hlist_del(&conn->node);
+			kmem_cache_free(conncount_conn_cachep, conn);
+			collected++;
+			continue;
+		}
+
+		nf_ct_put(found_ct);
+		if (collected > CONNCOUNT_GC_MAX_NODES)
+			return;
+	}
+}
+
 static void tree_nodes_free(struct rb_root *root,
 			    struct nf_conncount_rb *gc_nodes[],
 			    unsigned int gc_count)
@@ -251,8 +287,7 @@ count_tree(struct net *net, struct rb_root *root,
 		if (no_gc || gc_count >= ARRAY_SIZE(gc_nodes))
 			continue;
 
-		/* only used for GC on hhead, retval and 'addit' ignored */
-		nf_conncount_lookup(net, &rbconn->hhead, tuple, zone, &addit);
+		nf_conncount_gc_list(net, rbconn);
 		if (hlist_empty(&rbconn->hhead))
 			gc_nodes[gc_count++] = rbconn;
 	}
