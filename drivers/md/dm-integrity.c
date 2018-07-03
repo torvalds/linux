@@ -2295,7 +2295,9 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%llu", (unsigned long long)atomic64_read(&ic->number_of_mismatches));
+		DMEMIT("%llu %llu",
+			(unsigned long long)atomic64_read(&ic->number_of_mismatches),
+			(unsigned long long)ic->provided_data_sectors);
 		break;
 
 	case STATUSTYPE_TABLE: {
