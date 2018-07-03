@@ -3440,10 +3440,10 @@ static void hpsa_get_enclosure_info(struct ctlr_info *h,
 	struct ext_report_lun_entry *rle = &rlep->LUN[rle_index];
 	u16 bmic_device_index = 0;
 
-	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
-
-	encl_dev->sas_address =
+	encl_dev->eli =
 		hpsa_get_enclosure_logical_identifier(h, scsi3addr);
+
+	bmic_device_index = GET_BMIC_DRIVE_NUMBER(&rle->lunid[0]);
 
 	if (encl_dev->target == -1 || encl_dev->lun == -1) {
 		rc = IO_OK;
@@ -9697,7 +9697,24 @@ hpsa_sas_get_linkerrors(struct sas_phy *phy)
 static int
 hpsa_sas_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 {
-	*identifier = rphy->identify.sas_address;
+	struct Scsi_Host *shost = phy_to_shost(rphy);
+	struct ctlr_info *h;
+	struct hpsa_scsi_dev_t *sd;
+
+	if (!shost)
+		return -ENXIO;
+
+	h = shost_to_hba(shost);
+
+	if (!h)
+		return -ENXIO;
+
+	sd = hpsa_find_device_by_sas_rphy(h, rphy);
+	if (!sd)
+		return -ENXIO;
+
+	*identifier = sd->eli;
+
 	return 0;
 }
 
