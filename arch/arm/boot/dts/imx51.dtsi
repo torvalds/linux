@@ -93,18 +93,11 @@
 		};
 	};
 
-	usbphy {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
-
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy0: usbphy0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 
 	display-subsystem {
