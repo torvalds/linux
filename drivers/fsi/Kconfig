@@ -34,6 +34,7 @@ config FSI_SCOM
 
 config FSI_SBEFIFO
 	tristate "SBEFIFO FSI client device driver"
+	depends on OF_ADDRESS
 	---help---
 	This option enables an FSI based SBEFIFO device driver. The SBEFIFO is
 	a pipe-like FSI device for communicating with the self boot engine
