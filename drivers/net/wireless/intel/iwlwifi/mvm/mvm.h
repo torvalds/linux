@@ -788,6 +788,18 @@ struct iwl_mvm_geo_profile {
 	u8 values[ACPI_GEO_TABLE_SIZE];
 };
 
+struct iwl_mvm_dqa_txq_info {
+	u8 hw_queue_refcount;
+	u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
+	bool reserved; /* Is this the TXQ reserved for a STA */
+	u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */
+	u8 txq_tid; /* The TID "owner" of this queue*/
+	u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
+	/* Timestamp for inactivation per TID of this queue */
+	unsigned long last_frame_time[IWL_MAX_TID_COUNT + 1];
+	enum iwl_mvm_queue_status status;
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -844,17 +856,7 @@ struct iwl_mvm {
 
 	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
 
-	struct {
-		u8 hw_queue_refcount;
-		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
-		bool reserved; /* Is this the TXQ reserved for a STA */
-		u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */
-		u8 txq_tid; /* The TID "owner" of this queue*/
-		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
-		/* Timestamp for inactivation per TID of this queue */
-		unsigned long last_frame_time[IWL_MAX_TID_COUNT + 1];
-		enum iwl_mvm_queue_status status;
-	} queue_info[IWL_MAX_HW_QUEUES];
+	struct iwl_mvm_dqa_txq_info queue_info[IWL_MAX_HW_QUEUES];
 	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	struct work_struct add_stream_wk; /* To add streams to queues */
 
