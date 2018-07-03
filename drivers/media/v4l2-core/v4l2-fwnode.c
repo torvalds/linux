@@ -240,31 +240,44 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 	unsigned int flags = 0;
 	u32 v;
 
+	if (bus_type == V4L2_MBUS_PARALLEL || bus_type == V4L2_MBUS_BT656)
+		flags = bus->flags;
+
 	if (!fwnode_property_read_u32(fwnode, "hsync-active", &v)) {
+		flags &= ~(V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+			   V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_HSYNC_ACTIVE_HIGH :
 			V4L2_MBUS_HSYNC_ACTIVE_LOW;
 		pr_debug("hsync-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "vsync-active", &v)) {
+		flags &= ~(V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+			   V4L2_MBUS_VSYNC_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VSYNC_ACTIVE_HIGH :
 			V4L2_MBUS_VSYNC_ACTIVE_LOW;
 		pr_debug("vsync-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "field-even-active", &v)) {
+		flags &= ~(V4L2_MBUS_FIELD_EVEN_HIGH |
+			   V4L2_MBUS_FIELD_EVEN_LOW);
 		flags |= v ? V4L2_MBUS_FIELD_EVEN_HIGH :
 			V4L2_MBUS_FIELD_EVEN_LOW;
 		pr_debug("field-even-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "pclk-sample", &v)) {
+		flags &= ~(V4L2_MBUS_PCLK_SAMPLE_RISING |
+			   V4L2_MBUS_PCLK_SAMPLE_FALLING);
 		flags |= v ? V4L2_MBUS_PCLK_SAMPLE_RISING :
 			V4L2_MBUS_PCLK_SAMPLE_FALLING;
 		pr_debug("pclk-sample %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-active", &v)) {
+		flags &= ~(V4L2_MBUS_PCLK_SAMPLE_RISING |
+			   V4L2_MBUS_PCLK_SAMPLE_FALLING);
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
 			V4L2_MBUS_DATA_ACTIVE_LOW;
 		pr_debug("data-active %s\n", v ? "high" : "low");
@@ -272,8 +285,10 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 
 	if (fwnode_property_present(fwnode, "slave-mode")) {
 		pr_debug("slave mode\n");
+		flags &= ~V4L2_MBUS_MASTER;
 		flags |= V4L2_MBUS_SLAVE;
 	} else {
+		flags &= ~V4L2_MBUS_SLAVE;
 		flags |= V4L2_MBUS_MASTER;
 	}
 
@@ -288,12 +303,16 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "sync-on-green-active", &v)) {
+		flags &= ~(V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH |
+			   V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_VIDEO_SOG_ACTIVE_HIGH :
 			V4L2_MBUS_VIDEO_SOG_ACTIVE_LOW;
 		pr_debug("sync-on-green-active %s\n", v ? "high" : "low");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-enable-active", &v)) {
+		flags &= ~(V4L2_MBUS_DATA_ENABLE_HIGH |
+			   V4L2_MBUS_DATA_ENABLE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ENABLE_HIGH :
 			V4L2_MBUS_DATA_ENABLE_LOW;
 		pr_debug("data-enable-active %s\n", v ? "high" : "low");
