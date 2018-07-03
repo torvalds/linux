@@ -613,6 +613,7 @@ static int pxamci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
+	struct device *dev = &pdev->dev;
 	struct resource *r;
 	int ret, irq;
 
@@ -621,7 +622,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	mmc = mmc_alloc_host(sizeof(struct pxamci_host), &pdev->dev);
+	mmc = mmc_alloc_host(sizeof(struct pxamci_host), dev);
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto out;
@@ -659,7 +660,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->pdata = pdev->dev.platform_data;
 	host->clkrt = CLKRT_OFF;
 
-	host->clk = devm_clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		host->clk = NULL;
@@ -692,7 +693,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->res = r;
 	host->imask = MMC_I_MASK_ALL;
 
-	host->base = devm_ioremap_resource(&pdev->dev, r);
+	host->base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(host->base)) {
 		ret = PTR_ERR(host->base);
 		goto out;
@@ -707,23 +708,23 @@ static int pxamci_probe(struct platform_device *pdev)
 	writel(64, host->base + MMC_RESTO);
 	writel(host->imask, host->base + MMC_I_MASK);
 
-	ret = devm_request_irq(&pdev->dev, irq, pxamci_irq, 0,
+	ret = devm_request_irq(dev, irq, pxamci_irq, 0,
 			       DRIVER_NAME, host);
 	if (ret)
 		goto out;
 
 	platform_set_drvdata(pdev, mmc);
 
-	host->dma_chan_rx = dma_request_slave_channel(&pdev->dev, "rx");
+	host->dma_chan_rx = dma_request_slave_channel(dev, "rx");
 	if (host->dma_chan_rx == NULL) {
-		dev_err(&pdev->dev, "unable to request rx dma channel\n");
+		dev_err(dev, "unable to request rx dma channel\n");
 		ret = -ENODEV;
 		goto out;
 	}
 
-	host->dma_chan_tx = dma_request_slave_channel(&pdev->dev, "tx");
+	host->dma_chan_tx = dma_request_slave_channel(dev, "tx");
 	if (host->dma_chan_tx == NULL) {
-		dev_err(&pdev->dev, "unable to request tx dma channel\n");
+		dev_err(dev, "unable to request tx dma channel\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -736,10 +737,10 @@ static int pxamci_probe(struct platform_device *pdev)
 		host->detect_delay_ms = host->pdata->detect_delay_ms;
 
 		if (gpio_is_valid(gpio_power)) {
-			ret = devm_gpio_request(&pdev->dev, gpio_power,
+			ret = devm_gpio_request(dev, gpio_power,
 						"mmc card power");
 			if (ret) {
-				dev_err(&pdev->dev,
+				dev_err(dev,
 					"Failed requesting gpio_power %d\n",
 					gpio_power);
 				goto out;
@@ -751,7 +752,7 @@ static int pxamci_probe(struct platform_device *pdev)
 		if (gpio_is_valid(gpio_ro)) {
 			ret = mmc_gpio_request_ro(mmc, gpio_ro);
 			if (ret) {
-				dev_err(&pdev->dev,
+				dev_err(dev,
 					"Failed requesting gpio_ro %d\n",
 					gpio_ro);
 				goto out;
@@ -764,18 +765,18 @@ static int pxamci_probe(struct platform_device *pdev)
 		if (gpio_is_valid(gpio_cd))
 			ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n",
+			dev_err(dev, "Failed requesting gpio_cd %d\n",
 				gpio_cd);
 			goto out;
 		}
 
 		if (host->pdata->init)
-			host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
+			host->pdata->init(dev, pxamci_detect_irq, mmc);
 
 		if (gpio_is_valid(gpio_power) && host->pdata->setpower)
-			dev_warn(&pdev->dev, "gpio_power and setpower() both defined\n");
+			dev_warn(dev, "gpio_power and setpower() both defined\n");
 		if (gpio_is_valid(gpio_ro) && host->pdata->get_ro)
-			dev_warn(&pdev->dev, "gpio_ro and get_ro() both defined\n");
+			dev_warn(dev, "gpio_ro and get_ro() both defined\n");
 	}
 
 	mmc_add_host(mmc);
