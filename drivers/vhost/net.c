@@ -396,13 +396,10 @@ static inline unsigned long busy_clock(void)
 	return local_clock() >> 10;
 }
 
-static bool vhost_can_busy_poll(struct vhost_dev *dev,
-				unsigned long endtime)
+static bool vhost_can_busy_poll(unsigned long endtime)
 {
-	return likely(!need_resched()) &&
-	       likely(!time_after(busy_clock(), endtime)) &&
-	       likely(!signal_pending(current)) &&
-	       !vhost_has_work(dev);
+	return likely(!need_resched() && !time_after(busy_clock(), endtime) &&
+		      !signal_pending(current));
 }
 
 static void vhost_net_disable_vq(struct vhost_net *n,
@@ -434,7 +431,8 @@ static int vhost_net_enable_vq(struct vhost_net *n,
 static int vhost_net_tx_get_vq_desc(struct vhost_net *net,
 				    struct vhost_virtqueue *vq,
 				    struct iovec iov[], unsigned int iov_size,
-				    unsigned int *out_num, unsigned int *in_num)
+				    unsigned int *out_num, unsigned int *in_num,
+				    bool *busyloop_intr)
 {
 	unsigned long uninitialized_var(endtime);
 	int r = vhost_get_vq_desc(vq, vq->iov, ARRAY_SIZE(vq->iov),
@@ -443,9 +441,15 @@ static int vhost_net_tx_get_vq_desc(struct vhost_net *net,
 	if (r == vq->num && vq->busyloop_timeout) {
 		preempt_disable();
 		endtime = busy_clock() + vq->busyloop_timeout;
-		while (vhost_can_busy_poll(vq->dev, endtime) &&
-		       vhost_vq_avail_empty(vq->dev, vq))
+		while (vhost_can_busy_poll(endtime)) {
+			if (vhost_has_work(vq->dev)) {
+				*busyloop_intr = true;
+				break;
+			}
+			if (!vhost_vq_avail_empty(vq->dev, vq))
+				break;
 			cpu_relax();
+		}
 		preempt_enable();
 		r = vhost_get_vq_desc(vq, vq->iov, ARRAY_SIZE(vq->iov),
 				      out_num, in_num, NULL, NULL);
@@ -501,20 +505,24 @@ static void handle_tx(struct vhost_net *net)
 	zcopy = nvq->ubufs;
 
 	for (;;) {
+		bool busyloop_intr;
+
 		/* Release DMAs done buffers first */
 		if (zcopy)
 			vhost_zerocopy_signal_used(net, vq);
 
-
+		busyloop_intr = false;
 		head = vhost_net_tx_get_vq_desc(net, vq, vq->iov,
 						ARRAY_SIZE(vq->iov),
-						&out, &in);
+						&out, &in, &busyloop_intr);
 		/* On error, stop handling until the next kick. */
 		if (unlikely(head < 0))
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
+			if (unlikely(busyloop_intr)) {
+				vhost_poll_queue(&vq->poll);
+			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
 				vhost_disable_notify(&net->dev, vq);
 				continue;
 			}
@@ -663,7 +671,8 @@ static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk)
 		preempt_disable();
 		endtime = busy_clock() + tvq->busyloop_timeout;
 
-		while (vhost_can_busy_poll(&net->dev, endtime) &&
+		while (vhost_can_busy_poll(endtime) &&
+		       !vhost_has_work(&net->dev) &&
 		       !sk_has_rx_data(sk) &&
 		       vhost_vq_avail_empty(&net->dev, tvq))
 			cpu_relax();
