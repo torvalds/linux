@@ -85,7 +85,6 @@ struct rcu_state rcu_state = {
 	.ofl_lock = __SPIN_LOCK_UNLOCKED(rcu_state.ofl_lock),
 };
 
-static struct rcu_state *const rcu_state_p = &rcu_state;
 static struct rcu_data __percpu *const rcu_data_p = &rcu_data;
 LIST_HEAD(rcu_struct_flavors);
 
@@ -491,7 +490,7 @@ static int rcu_pending(void);
  */
 unsigned long rcu_get_gp_seq(void)
 {
-	return READ_ONCE(rcu_state_p->gp_seq);
+	return READ_ONCE(rcu_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
 
@@ -510,7 +509,7 @@ EXPORT_SYMBOL_GPL(rcu_sched_get_gp_seq);
  */
 unsigned long rcu_bh_get_gp_seq(void)
 {
-	return READ_ONCE(rcu_state_p->gp_seq);
+	return READ_ONCE(rcu_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
 
@@ -522,7 +521,7 @@ EXPORT_SYMBOL_GPL(rcu_bh_get_gp_seq);
  */
 unsigned long rcu_exp_batches_completed(void)
 {
-	return rcu_state_p->expedited_sequence;
+	return rcu_state.expedited_sequence;
 }
 EXPORT_SYMBOL_GPL(rcu_exp_batches_completed);
 
@@ -541,7 +540,7 @@ EXPORT_SYMBOL_GPL(rcu_exp_batches_completed_sched);
  */
 void rcu_force_quiescent_state(void)
 {
-	force_quiescent_state(rcu_state_p);
+	force_quiescent_state(&rcu_state);
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
@@ -550,7 +549,7 @@ EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
  */
 void rcu_bh_force_quiescent_state(void)
 {
-	force_quiescent_state(rcu_state_p);
+	force_quiescent_state(&rcu_state);
 }
 EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
 
@@ -611,7 +610,7 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	case RCU_FLAVOR:
 	case RCU_BH_FLAVOR:
 	case RCU_SCHED_FLAVOR:
-		rsp = rcu_state_p;
+		rsp = &rcu_state;
 		break;
 	default:
 		break;
@@ -2292,7 +2291,6 @@ rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 	if (WARN_ON_ONCE(!IS_ENABLED(CONFIG_PREEMPT)) ||
-	    WARN_ON_ONCE(rsp != rcu_state_p) ||
 	    WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)) ||
 	    rnp->qsmask != 0) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -2604,7 +2602,6 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->qsmask == 0) {
 			if (!IS_ENABLED(CONFIG_PREEMPT) ||
-			    rsp != rcu_state_p ||
 			    rcu_preempt_blocked_readers_cgp(rnp)) {
 				/*
 				 * No point in scanning bits because they
@@ -2973,7 +2970,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
  */
 void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
-	__call_rcu(head, func, rcu_state_p, -1, 0);
+	__call_rcu(head, func, &rcu_state, -1, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
 
@@ -3000,7 +2997,7 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
 void kfree_call_rcu(struct rcu_head *head,
 		    rcu_callback_t func)
 {
-	__call_rcu(head, func, rcu_state_p, -1, 1);
+	__call_rcu(head, func, &rcu_state, -1, 1);
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
@@ -3029,7 +3026,7 @@ unsigned long get_state_synchronize_rcu(void)
 	 * before the load from ->gp_seq.
 	 */
 	smp_mb();  /* ^^^ */
-	return rcu_seq_snap(&rcu_state_p->gp_seq);
+	return rcu_seq_snap(&rcu_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
 
@@ -3049,7 +3046,7 @@ EXPORT_SYMBOL_GPL(get_state_synchronize_rcu);
  */
 void cond_synchronize_rcu(unsigned long oldstate)
 {
-	if (!rcu_seq_done(&rcu_state_p->gp_seq, oldstate))
+	if (!rcu_seq_done(&rcu_state.gp_seq, oldstate))
 		synchronize_rcu();
 	else
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
@@ -3308,7 +3305,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
  */
 void rcu_barrier_bh(void)
 {
-	_rcu_barrier(rcu_state_p);
+	_rcu_barrier(&rcu_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_bh);
 
@@ -3322,7 +3319,7 @@ EXPORT_SYMBOL_GPL(rcu_barrier_bh);
  */
 void rcu_barrier(void)
 {
-	_rcu_barrier(rcu_state_p);
+	_rcu_barrier(&rcu_state);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 

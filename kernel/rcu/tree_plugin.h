@@ -381,7 +381,7 @@ void rcu_note_context_switch(bool preempt)
 	 */
 	rcu_qs();
 	if (rdp->deferred_qs)
-		rcu_report_exp_rdp(rcu_state_p, rdp);
+		rcu_report_exp_rdp(&rcu_state, rdp);
 	trace_rcu_utilization(TPS("End context switch"));
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 }
@@ -509,7 +509,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	 * blocked-tasks list below.
 	 */
 	if (rdp->deferred_qs) {
-		rcu_report_exp_rdp(rcu_state_p, rdp);
+		rcu_report_exp_rdp(&rcu_state, rdp);
 		if (!t->rcu_read_unlock_special.s) {
 			local_irq_restore(flags);
 			return;
@@ -566,7 +566,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 							 rnp->grplo,
 							 rnp->grphi,
 							 !!rnp->gp_tasks);
-			rcu_report_unblock_qs_rnp(rcu_state_p, rnp, flags);
+			rcu_report_unblock_qs_rnp(&rcu_state, rnp, flags);
 		} else {
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		}
@@ -580,7 +580,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 		 * then we need to report up the rcu_node hierarchy.
 		 */
 		if (!empty_exp && empty_exp_now)
-			rcu_report_exp_rnp(rcu_state_p, rnp, true);
+			rcu_report_exp_rnp(&rcu_state, rnp, true);
 	} else {
 		local_irq_restore(flags);
 	}
@@ -1300,7 +1300,7 @@ static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	struct sched_param sp;
 	struct task_struct *t;
 
-	if (rcu_state_p != rsp)
+	if (&rcu_state != rsp)
 		return 0;
 
 	if (!rcu_scheduler_fully_active || rcu_rnp_online_cpus(rnp) == 0)
@@ -1431,8 +1431,8 @@ static void __init rcu_spawn_boost_kthreads(void)
 	for_each_possible_cpu(cpu)
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
 	BUG_ON(smpboot_register_percpu_thread(&rcu_cpu_thread_spec));
-	rcu_for_each_leaf_node(rcu_state_p, rnp)
-		(void)rcu_spawn_one_boost_kthread(rcu_state_p, rnp);
+	rcu_for_each_leaf_node(&rcu_state, rnp)
+		(void)rcu_spawn_one_boost_kthread(&rcu_state, rnp);
 }
 
 static void rcu_prepare_kthreads(int cpu)
@@ -1442,7 +1442,7 @@ static void rcu_prepare_kthreads(int cpu)
 
 	/* Fire up the incoming CPU's kthread and leaf rcu_node kthread. */
 	if (rcu_scheduler_fully_active)
-		(void)rcu_spawn_one_boost_kthread(rcu_state_p, rnp);
+		(void)rcu_spawn_one_boost_kthread(&rcu_state, rnp);
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */

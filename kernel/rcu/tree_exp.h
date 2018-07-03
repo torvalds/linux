@@ -756,7 +756,7 @@ static void sync_sched_exp_online_cleanup(int cpu)
  */
 void synchronize_rcu_expedited(void)
 {
-	struct rcu_state *rsp = rcu_state_p;
+	struct rcu_state *rsp = &rcu_state;
 
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
