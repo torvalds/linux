@@ -187,6 +187,7 @@ int scif_close(scif_epd_t epd)
 	case SCIFEP_ZOMBIE:
 		dev_err(scif_info.mdev.this_device,
 			"SCIFAPI close: zombie state unexpected\n");
+		/* fall through */
 	case SCIFEP_DISCONNECTED:
 		spin_unlock(&ep->lock);
 		scif_unregister_all_windows(epd);
