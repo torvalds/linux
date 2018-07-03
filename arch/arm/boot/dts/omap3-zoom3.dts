@@ -202,7 +202,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>; /* gpio 162 */
+		interrupts = <2 IRQ_TYPE_EDGE_RISING>; /* gpio 162 */
 		ref-clock-frequency = <26000000>;
 	};
 };
