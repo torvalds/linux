@@ -302,11 +302,11 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 static void rcu_qs(void)
 {
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_qs() invoked with preemption enabled!!!\n");
-	if (__this_cpu_read(rcu_data_p->cpu_no_qs.s)) {
+	if (__this_cpu_read(rcu_data.cpu_no_qs.s)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
-				       __this_cpu_read(rcu_data_p->gp_seq),
+				       __this_cpu_read(rcu_data.gp_seq),
 				       TPS("cpuqs"));
-		__this_cpu_write(rcu_data_p->cpu_no_qs.b.norm, false);
+		__this_cpu_write(rcu_data.cpu_no_qs.b.norm, false);
 		barrier(); /* Coordinate with rcu_flavor_check_callbacks(). */
 		current->rcu_read_unlock_special.b.need_qs = false;
 	}
@@ -805,8 +805,8 @@ static void rcu_flavor_check_callbacks(int user)
 
 	/* If GP is oldish, ask for help from rcu_read_unlock_special(). */
 	if (t->rcu_read_lock_nesting > 0 &&
-	    __this_cpu_read(rcu_data_p->core_needs_qs) &&
-	    __this_cpu_read(rcu_data_p->cpu_no_qs.b.norm) &&
+	    __this_cpu_read(rcu_data.core_needs_qs) &&
+	    __this_cpu_read(rcu_data.cpu_no_qs.b.norm) &&
 	    !t->rcu_read_unlock_special.b.need_qs &&
 	    time_after(jiffies, rsp->gp_start + HZ))
 		t->rcu_read_unlock_special.b.need_qs = true;

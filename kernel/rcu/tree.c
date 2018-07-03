@@ -85,7 +85,6 @@ struct rcu_state rcu_state = {
 	.ofl_lock = __SPIN_LOCK_UNLOCKED(rcu_state.ofl_lock),
 };
 
-static struct rcu_data __percpu *const rcu_data_p = &rcu_data;
 LIST_HEAD(rcu_struct_flavors);
 
 /* Dump rcu_node combining tree at boot to verify correct setup. */
