@@ -62,6 +62,7 @@ struct pxamci_host {
 	unsigned int		cmdat;
 	unsigned int		imask;
 	unsigned int		power_mode;
+	unsigned long		detect_delay_ms;
 	struct pxamci_platform_data *pdata;
 
 	struct mmc_request	*mrq;
@@ -567,7 +568,7 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = mmc_priv(devid);
 
-	mmc_detect_change(devid, msecs_to_jiffies(host->pdata->detect_delay_ms));
+	mmc_detect_change(devid, msecs_to_jiffies(host->detect_delay_ms));
 	return IRQ_HANDLED;
 }
 
@@ -583,26 +584,20 @@ static int pxamci_of_init(struct platform_device *pdev,
 			  struct mmc_host *mmc)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct pxamci_platform_data *pdata;
+	struct pxamci_host *host = mmc_priv(mmc);
 	u32 tmp;
 	int ret;
 
 	if (!np)
 		return 0;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-
 	/* pxa-mmc specific */
 	if (of_property_read_u32(np, "pxa-mmc,detect-delay-ms", &tmp) == 0)
-		pdata->detect_delay_ms = tmp;
+		host->detect_delay_ms = tmp;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
 		return ret;
-
-	pdev->dev.platform_data = pdata;
 
 	return 0;
 }
@@ -619,7 +614,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
 	struct resource *r;
-	int ret, irq, gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
+	int ret, irq;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -734,47 +729,54 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	if (host->pdata) {
-		gpio_cd = host->pdata->gpio_card_detect;
-		gpio_ro = host->pdata->gpio_card_ro;
-		gpio_power = host->pdata->gpio_power;
-	}
-	if (gpio_is_valid(gpio_power)) {
-		ret = devm_gpio_request(&pdev->dev, gpio_power,
-					"mmc card power");
+		int gpio_cd = host->pdata->gpio_card_detect;
+		int gpio_ro = host->pdata->gpio_card_ro;
+		int gpio_power = host->pdata->gpio_power;
+
+		host->detect_delay_ms = host->pdata->detect_delay_ms;
+
+		if (gpio_is_valid(gpio_power)) {
+			ret = devm_gpio_request(&pdev->dev, gpio_power,
+						"mmc card power");
+			if (ret) {
+				dev_err(&pdev->dev,
+					"Failed requesting gpio_power %d\n",
+					gpio_power);
+				goto out;
+			}
+			gpio_direction_output(gpio_power,
+					      host->pdata->gpio_power_invert);
+		}
+
+		if (gpio_is_valid(gpio_ro)) {
+			ret = mmc_gpio_request_ro(mmc, gpio_ro);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"Failed requesting gpio_ro %d\n",
+					gpio_ro);
+				goto out;
+			} else {
+				mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
+					0 : MMC_CAP2_RO_ACTIVE_HIGH;
+			}
+		}
+
+		if (gpio_is_valid(gpio_cd))
+			ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_power %d\n",
-				gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n",
+				gpio_cd);
 			goto out;
 		}
-		gpio_direction_output(gpio_power,
-				      host->pdata->gpio_power_invert);
-	}
-	if (gpio_is_valid(gpio_ro)) {
-		ret = mmc_gpio_request_ro(mmc, gpio_ro);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n",
-				gpio_ro);
-			goto out;
-		} else {
-			mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
-				0 : MMC_CAP2_RO_ACTIVE_HIGH;
-		}
-	}
 
-	if (gpio_is_valid(gpio_cd))
-		ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
-		goto out;
+		if (host->pdata->init)
+			host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
+
+		if (gpio_is_valid(gpio_power) && host->pdata->setpower)
+			dev_warn(&pdev->dev, "gpio_power and setpower() both defined\n");
+		if (gpio_is_valid(gpio_ro) && host->pdata->get_ro)
+			dev_warn(&pdev->dev, "gpio_ro and get_ro() both defined\n");
 	}
-
-	if (host->pdata && host->pdata->init)
-		host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
-
-	if (gpio_is_valid(gpio_power) && host->pdata->setpower)
-		dev_warn(&pdev->dev, "gpio_power and setpower() both defined\n");
-	if (gpio_is_valid(gpio_ro) && host->pdata->get_ro)
-		dev_warn(&pdev->dev, "gpio_ro and get_ro() both defined\n");
 
 	mmc_add_host(mmc);
 
