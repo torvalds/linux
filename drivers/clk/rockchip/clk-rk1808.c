@@ -122,7 +122,6 @@ static const struct rockchip_cpuclk_reg_data rk1808_cpuclk_data = {
 	.mux_core_main = 0,
 	.mux_core_shift = 6,
 	.mux_core_mask = 0x3,
-	.pll_name = "pll_apll",
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k"};
@@ -335,9 +334,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 4
 	 */
-	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE,
+	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE | CLK_OPS_PARENT_ENABLE,
 			RK1808_CLKSEL_CON(1), 8, 2, MFLAGS, 0, 4, DFLAGS),
-	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE,
+	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE | CLK_OPS_PARENT_ENABLE,
 			RK1808_CLKSEL_CON(1), 10, 2, MFLAGS, 4, 4, DFLAGS),
 	MUX(0, "clk_npu_pre", mux_npu_p, CLK_SET_RATE_PARENT,
 			RK1808_CLKSEL_CON(1), 15, 1, MFLAGS),

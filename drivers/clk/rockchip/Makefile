@@ -16,6 +16,7 @@ obj-$(CONFIG_RESET_CONTROLLER)	+= softrst.o
 
 obj-$(CONFIG_CPU_PX30)		+= clk-px30.o
 obj-$(CONFIG_CPU_RV1108)	+= clk-rv1108.o
+obj-$(CONFIG_CPU_RK1808)	+= clk-rk1808.o
 obj-$(CONFIG_CPU_RK3036)	+= clk-rk3036.o
 obj-$(CONFIG_CPU_RK312X)	+= clk-rk3128.o
 obj-$(CONFIG_CPU_RK3188)	+= clk-rk3188.o
