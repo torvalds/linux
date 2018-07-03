@@ -46,25 +46,25 @@ struct rcu_ctrlblk {
 };
 
 /* Definition for rcupdate control block. */
-static struct rcu_ctrlblk rcu_sched_ctrlblk = {
-	.donetail	= &rcu_sched_ctrlblk.rcucblist,
-	.curtail	= &rcu_sched_ctrlblk.rcucblist,
+static struct rcu_ctrlblk rcu_ctrlblk = {
+	.donetail	= &rcu_ctrlblk.rcucblist,
+	.curtail	= &rcu_ctrlblk.rcucblist,
 };
 
-void rcu_barrier_sched(void)
+void rcu_barrier(void)
 {
-	wait_rcu_gp(call_rcu_sched);
+	wait_rcu_gp(call_rcu);
 }
-EXPORT_SYMBOL(rcu_barrier_sched);
+EXPORT_SYMBOL(rcu_barrier);
 
 /* Record an rcu quiescent state.  */
-void rcu_sched_qs(void)
+void rcu_qs(void)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	if (rcu_sched_ctrlblk.donetail != rcu_sched_ctrlblk.curtail) {
-		rcu_sched_ctrlblk.donetail = rcu_sched_ctrlblk.curtail;
+	if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
+		rcu_ctrlblk.donetail = rcu_ctrlblk.curtail;
 		raise_softirq(RCU_SOFTIRQ);
 	}
 	local_irq_restore(flags);
@@ -79,7 +79,7 @@ void rcu_sched_qs(void)
 void rcu_check_callbacks(int user)
 {
 	if (user)
-		rcu_sched_qs();
+		rcu_qs();
 }
 
 /* Invoke the RCU callbacks whose grace period has elapsed.  */
@@ -90,17 +90,17 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
-	if (rcu_sched_ctrlblk.donetail == &rcu_sched_ctrlblk.rcucblist) {
+	if (rcu_ctrlblk.donetail == &rcu_ctrlblk.rcucblist) {
 		/* No callbacks ready, so just leave. */
 		local_irq_restore(flags);
 		return;
 	}
-	list = rcu_sched_ctrlblk.rcucblist;
-	rcu_sched_ctrlblk.rcucblist = *rcu_sched_ctrlblk.donetail;
-	*rcu_sched_ctrlblk.donetail = NULL;
-	if (rcu_sched_ctrlblk.curtail == rcu_sched_ctrlblk.donetail)
-		rcu_sched_ctrlblk.curtail = &rcu_sched_ctrlblk.rcucblist;
-	rcu_sched_ctrlblk.donetail = &rcu_sched_ctrlblk.rcucblist;
+	list = rcu_ctrlblk.rcucblist;
+	rcu_ctrlblk.rcucblist = *rcu_ctrlblk.donetail;
+	*rcu_ctrlblk.donetail = NULL;
+	if (rcu_ctrlblk.curtail == rcu_ctrlblk.donetail)
+		rcu_ctrlblk.curtail = &rcu_ctrlblk.rcucblist;
+	rcu_ctrlblk.donetail = &rcu_ctrlblk.rcucblist;
 	local_irq_restore(flags);
 
 	/* Invoke the callbacks on the local list. */
@@ -125,21 +125,21 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
  *
  * Cool, huh?  (Due to Josh Triplett.)
  */
-void synchronize_sched(void)
+void synchronize_rcu(void)
 {
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_sched() in RCU read-side critical section");
 }
-EXPORT_SYMBOL_GPL(synchronize_sched);
+EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 /*
  * Post an RCU callback to be invoked after the end of an RCU-sched grace
  * period.  But since we have but one CPU, that would be after any
  * quiescent state.
  */
-void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
+void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	unsigned long flags;
 
@@ -148,16 +148,16 @@ void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
 	head->next = NULL;
 
 	local_irq_save(flags);
-	*rcu_sched_ctrlblk.curtail = head;
-	rcu_sched_ctrlblk.curtail = &head->next;
+	*rcu_ctrlblk.curtail = head;
+	rcu_ctrlblk.curtail = &head->next;
 	local_irq_restore(flags);
 
 	if (unlikely(is_idle_task(current))) {
-		/* force scheduling for rcu_sched_qs() */
+		/* force scheduling for rcu_qs() */
 		resched_cpu(0);
 	}
 }
-EXPORT_SYMBOL_GPL(call_rcu_sched);
+EXPORT_SYMBOL_GPL(call_rcu);
 
 void __init rcu_init(void)
 {

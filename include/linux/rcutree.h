@@ -45,7 +45,6 @@ static inline void rcu_virt_note_context_switch(int cpu)
 	rcu_note_context_switch(false);
 }
 
-void synchronize_rcu(void);
 static inline void synchronize_rcu_bh(void)
 {
 	synchronize_rcu();
