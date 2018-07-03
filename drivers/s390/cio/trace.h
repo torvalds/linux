@@ -30,6 +30,17 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 		__field(u16, schno)
 		__field(u16, devno)
 		__field_struct(struct schib, schib)
+		__field(u8, pmcw_ena)
+		__field(u8, pmcw_st)
+		__field(u8, pmcw_dnv)
+		__field(u16, pmcw_dev)
+		__field(u8, pmcw_lpm)
+		__field(u8, pmcw_pnom)
+		__field(u8, pmcw_lpum)
+		__field(u8, pmcw_pim)
+		__field(u8, pmcw_pam)
+		__field(u8, pmcw_pom)
+		__field(u64, pmcw_chpid)
 		__field(int, cc)
 	),
 	TP_fast_assign(
@@ -38,18 +49,29 @@ DECLARE_EVENT_CLASS(s390_class_schib,
 		__entry->schno = schid.sch_no;
 		__entry->devno = schib->pmcw.dev;
 		__entry->schib = *schib;
+		__entry->pmcw_ena = schib->pmcw.ena;
+		__entry->pmcw_st = schib->pmcw.ena;
+		__entry->pmcw_dnv = schib->pmcw.dnv;
+		__entry->pmcw_dev = schib->pmcw.dev;
+		__entry->pmcw_lpm = schib->pmcw.lpm;
+		__entry->pmcw_pnom = schib->pmcw.pnom;
+		__entry->pmcw_lpum = schib->pmcw.lpum;
+		__entry->pmcw_pim = schib->pmcw.pim;
+		__entry->pmcw_pam = schib->pmcw.pam;
+		__entry->pmcw_pom = schib->pmcw.pom;
+		memcpy(&__entry->pmcw_chpid, &schib->pmcw.chpid, 8);
 		__entry->cc = cc;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d ena=%d st=%d dnv=%d dev=%04x "
 		  "lpm=0x%02x pnom=0x%02x lpum=0x%02x pim=0x%02x pam=0x%02x "
 		  "pom=0x%02x chpids=%016llx",
 		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
-		  __entry->schib.pmcw.ena, __entry->schib.pmcw.st,
-		  __entry->schib.pmcw.dnv, __entry->schib.pmcw.dev,
-		  __entry->schib.pmcw.lpm, __entry->schib.pmcw.pnom,
-		  __entry->schib.pmcw.lpum, __entry->schib.pmcw.pim,
-		  __entry->schib.pmcw.pam, __entry->schib.pmcw.pom,
-		  *((u64 *) __entry->schib.pmcw.chpid)
+		  __entry->pmcw_ena, __entry->pmcw_st,
+		  __entry->pmcw_dnv, __entry->pmcw_dev,
+		  __entry->pmcw_lpm, __entry->pmcw_pnom,
+		  __entry->pmcw_lpum, __entry->pmcw_pim,
+		  __entry->pmcw_pam, __entry->pmcw_pom,
+		  __entry->pmcw_chpid
 	)
 );
 
