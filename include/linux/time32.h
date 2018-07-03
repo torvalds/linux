@@ -69,9 +69,9 @@ extern int get_old_itimerspec32(struct itimerspec64 *its,
 			const struct old_itimerspec32 __user *uits);
 extern int put_old_itimerspec32(const struct itimerspec64 *its,
 			struct old_itimerspec32 __user *uits);
-struct timex;
-int get_old_timex32(struct timex *, const struct old_timex32 __user *);
-int put_old_timex32(struct old_timex32 __user *, const struct timex *);
+struct __kernel_timex;
+int get_old_timex32(struct __kernel_timex *, const struct old_timex32 __user *);
+int put_old_timex32(struct old_timex32 __user *, const struct __kernel_timex *);
 
 #if __BITS_PER_LONG == 64
 

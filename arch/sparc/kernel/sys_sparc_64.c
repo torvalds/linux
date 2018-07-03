@@ -548,7 +548,7 @@ out_unlock:
 SYSCALL_DEFINE1(sparc_adjtimex, struct timex __user *, txc_p)
 {
 	struct timex txc;		/* Local copy of parameter */
-	struct timex *kt = (void *)&txc;
+	struct __kernel_timex *kt = (void *)&txc;
 	int ret;
 
 	/* Copy the user data space into the kernel copy
@@ -572,7 +572,7 @@ SYSCALL_DEFINE1(sparc_adjtimex, struct timex __user *, txc_p)
 SYSCALL_DEFINE2(sparc_clock_adjtime, const clockid_t, which_clock,struct timex __user *, txc_p)
 {
 	struct timex txc;		/* Local copy of parameter */
-	struct timex *kt = (void *)&txc;
+	struct __kernel_timex *kt = (void *)&txc;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_POSIX_TIMERS)) {

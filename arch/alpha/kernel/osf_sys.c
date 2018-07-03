@@ -1253,7 +1253,7 @@ struct timex32 {
 
 SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 {
-        struct timex txc;
+	struct __kernel_timex txc;
 	int ret;
 
 	/* copy relevant bits of struct timex. */
@@ -1270,7 +1270,8 @@ SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 	if (copy_to_user(txc_p, &txc, offsetof(struct timex32, time)) ||
 	    (copy_to_user(&txc_p->tick, &txc.tick, sizeof(struct timex32) - 
 			  offsetof(struct timex32, tick))) ||
-	    (put_tv_to_tv32(&txc_p->time, &txc.time)))
+	    (put_user(txc.time.tv_sec, &txc_p->time.tv_sec)) ||
+	    (put_user(txc.time.tv_usec, &txc_p->time.tv_usec)))
 	  return -EFAULT;
 
 	return ret;

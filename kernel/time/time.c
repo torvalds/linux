@@ -265,25 +265,25 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 
 SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
 {
-	struct timex txc;		/* Local copy of parameter */
+	struct __kernel_timex txc;		/* Local copy of parameter */
 	int ret;
 
 	/* Copy the user data space into the kernel copy
 	 * structure. But bear in mind that the structures
 	 * may change
 	 */
-	if (copy_from_user(&txc, txc_p, sizeof(struct timex)))
+	if (copy_from_user(&txc, txc_p, sizeof(struct __kernel_timex)))
 		return -EFAULT;
 	ret = do_adjtimex(&txc);
-	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
+	return copy_to_user(txc_p, &txc, sizeof(struct __kernel_timex)) ? -EFAULT : ret;
 }
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
-int get_old_timex32(struct timex *txc, const struct old_timex32 __user *utp)
+int get_old_timex32(struct __kernel_timex *txc, const struct old_timex32 __user *utp)
 {
 	struct old_timex32 tx32;
 
-	memset(txc, 0, sizeof(struct timex));
+	memset(txc, 0, sizeof(struct __kernel_timex));
 	if (copy_from_user(&tx32, utp, sizeof(struct old_timex32)))
 		return -EFAULT;
 
@@ -311,7 +311,7 @@ int get_old_timex32(struct timex *txc, const struct old_timex32 __user *utp)
 	return 0;
 }
 
-int put_old_timex32(struct old_timex32 __user *utp, const struct timex *txc)
+int put_old_timex32(struct old_timex32 __user *utp, const struct __kernel_timex *txc)
 {
 	struct old_timex32 tx32;
 
@@ -344,7 +344,7 @@ int put_old_timex32(struct old_timex32 __user *utp, const struct timex *txc)
 
 COMPAT_SYSCALL_DEFINE1(adjtimex, struct old_timex32 __user *, utp)
 {
-	struct timex txc;
+	struct __kernel_timex txc;
 	int err, ret;
 
 	err = get_old_timex32(&txc, utp);
