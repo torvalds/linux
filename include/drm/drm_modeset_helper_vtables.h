@@ -983,6 +983,8 @@ struct drm_connector_helper_funcs {
 	 * The writeback_job to commit is available in
 	 * &drm_connector_state.writeback_job.
 	 *
+	 * This hook is optional.
+	 *
 	 * This callback is used by the atomic modeset helpers.
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
