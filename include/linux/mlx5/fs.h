@@ -102,6 +102,8 @@ struct mlx5_flow_destination {
 };
 
 struct mlx5_flow_namespace *
+mlx5_get_fdb_sub_ns(struct mlx5_core_dev *dev, int n);
+struct mlx5_flow_namespace *
 mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 			enum mlx5_flow_namespace_type type);
 struct mlx5_flow_namespace *
