@@ -1451,6 +1451,33 @@ iomap_dio_hole_actor(loff_t length, struct iomap_dio *dio)
 }
 
 static loff_t
+iomap_dio_inline_actor(struct inode *inode, loff_t pos, loff_t length,
+		struct iomap_dio *dio, struct iomap *iomap)
+{
+	struct iov_iter *iter = dio->submit.iter;
+	size_t copied;
+
+	BUG_ON(pos + length > PAGE_SIZE - offset_in_page(iomap->inline_data));
+
+	if (dio->flags & IOMAP_DIO_WRITE) {
+		loff_t size = inode->i_size;
+
+		if (pos > size)
+			memset(iomap->inline_data + size, 0, pos - size);
+		copied = copy_from_iter(iomap->inline_data + pos, length, iter);
+		if (copied) {
+			if (pos + copied > size)
+				i_size_write(inode, pos + copied);
+			mark_inode_dirty(inode);
+		}
+	} else {
+		copied = copy_to_iter(iomap->inline_data + pos, length, iter);
+	}
+	dio->size += copied;
+	return copied;
+}
+
+static loff_t
 iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		void *data, struct iomap *iomap)
 {
@@ -1467,6 +1494,8 @@ iomap_dio_actor(struct inode *inode, loff_t pos, loff_t length,
 		return iomap_dio_bio_actor(inode, pos, length, dio, iomap);
 	case IOMAP_MAPPED:
 		return iomap_dio_bio_actor(inode, pos, length, dio, iomap);
+	case IOMAP_INLINE:
+		return iomap_dio_inline_actor(inode, pos, length, dio, iomap);
 	default:
 		WARN_ON_ONCE(1);
 		return -EIO;
