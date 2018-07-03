@@ -150,6 +150,8 @@ struct intel_vgpu_mm {
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;
+			unsigned long last_partial_off;
+			u64 last_partial_data;
 		} ggtt_mm;
 	};
 };
