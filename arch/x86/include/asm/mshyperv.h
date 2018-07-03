@@ -9,6 +9,8 @@
 #include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
 
+#define VP_INVAL	U32_MAX
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 misc_features;
@@ -19,7 +21,6 @@ struct ms_hyperv_info {
 };
 
 extern struct ms_hyperv_info ms_hyperv;
-
 
 /*
  * Generate the guest ID.
@@ -281,6 +282,8 @@ static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 	 */
 	for_each_cpu(cpu, cpus) {
 		vcpu = hv_cpu_number_to_vp_number(cpu);
+		if (vcpu == VP_INVAL)
+			return -1;
 		vcpu_bank = vcpu / 64;
 		vcpu_offset = vcpu % 64;
 		__set_bit(vcpu_offset, (unsigned long *)
