@@ -22,7 +22,7 @@
 	};
 
 	memory {
-		reg = <0 0x80000000 0 0x20000000>;
+		reg = <0 0x80000000 0 0x80000000>;
 	};
 
 	cpus {
@@ -114,11 +114,7 @@
 			default-state = "off";
 		};
 	};
-/*
-	memory@80000000 {
-		reg = <0 0x80000000 0 0x40000000>;
-	};
-*/
+
 	vdd_fixed_vgpu_reg: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_fixed_vgpu";
