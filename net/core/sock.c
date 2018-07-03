@@ -1087,6 +1087,8 @@ set_rcvbuf:
 			sk->sk_clockid = sk_txtime.clockid;
 			sk->sk_txtime_deadline_mode =
 				!!(sk_txtime.flags & SOF_TXTIME_DEADLINE_MODE);
+			sk->sk_txtime_report_errors =
+				!!(sk_txtime.flags & SOF_TXTIME_REPORT_ERRORS);
 		}
 		break;
 
@@ -1429,6 +1431,8 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.txtime.clockid = sk->sk_clockid;
 		v.txtime.flags |= sk->sk_txtime_deadline_mode ?
 				  SOF_TXTIME_DEADLINE_MODE : 0;
+		v.txtime.flags |= sk->sk_txtime_report_errors ?
+				  SOF_TXTIME_REPORT_ERRORS : 0;
 		break;
 
 	default:

@@ -481,7 +481,8 @@ struct sock {
 
 	u8			sk_clockid;
 	u8			sk_txtime_deadline_mode : 1,
-				sk_txtime_unused : 7;
+				sk_txtime_report_errors : 1,
+				sk_txtime_unused : 6;
 
 	struct socket		*sk_socket;
 	void			*sk_user_data;
