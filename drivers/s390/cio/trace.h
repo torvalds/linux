@@ -331,11 +331,13 @@ TRACE_EVENT(s390_cio_adapter_int,
 	TP_ARGS(tpi_info),
 	TP_STRUCT__entry(
 		__field_struct(struct tpi_info, tpi_info)
+		__field(u8, isc)
 	),
 	TP_fast_assign(
 		__entry->tpi_info = *tpi_info;
+		__entry->isc = tpi_info->isc;
 	),
-	TP_printk("isc=%d", __entry->tpi_info.isc)
+	TP_printk("isc=%d", __entry->isc)
 );
 
 /**
