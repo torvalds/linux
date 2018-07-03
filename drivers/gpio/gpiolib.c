@@ -3262,6 +3262,12 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	if (!chip->can_sleep && chip->get_direction) {
 		int dir = chip->get_direction(chip, offset);
 
+		if (dir < 0) {
+			chip_err(chip, "%s: cannot get GPIO direction\n",
+				 __func__);
+			return dir;
+		}
+
 		if (dir)
 			clear_bit(FLAG_IS_OUT, &desc->flags);
 		else
