@@ -634,10 +634,12 @@ static int m_can_clk_start(struct m_can_priv *priv)
 	int err;
 
 	err = pm_runtime_get_sync(priv->device);
-	if (err)
+	if (err < 0) {
 		pm_runtime_put_noidle(priv->device);
+		return err;
+	}
 
-	return err;
+	return 0;
 }
 
 static void m_can_clk_stop(struct m_can_priv *priv)
@@ -1687,8 +1689,6 @@ pm_runtime_fail:
 failed_ret:
 	return ret;
 }
-
-/* TODO: runtime PM with power down or sleep mode  */
 
 static __maybe_unused int m_can_suspend(struct device *dev)
 {
