@@ -386,6 +386,7 @@ struct dasd_discipline {
 	int (*ext_pool_cap_at_warnlevel)(struct dasd_device *);
 	int (*ext_pool_warn_thrshld)(struct dasd_device *);
 	int (*ext_pool_oos)(struct dasd_device *);
+	int (*ext_pool_exhaust)(struct dasd_device *, struct dasd_ccw_req *);
 	struct dasd_ccw_req *(*ese_format)(struct dasd_device *, struct dasd_ccw_req *);
 	void (*ese_read)(struct dasd_ccw_req *);
 };
@@ -407,6 +408,7 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_EER_NOPATH      2
 #define DASD_EER_STATECHANGE 3
 #define DASD_EER_PPRCSUSPEND 4
+#define DASD_EER_NOSPC	     5
 
 /* DASD path handling */
 
@@ -581,6 +583,7 @@ struct dasd_queue {
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
 #define DASD_STOPPED_PM      32        /* pm state transition */
 #define DASD_UNRESUMED_PM    64        /* pm resume failed state */
+#define DASD_STOPPED_NOSPC   128       /* no space left */
 
 /* per device flags */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
@@ -776,6 +779,8 @@ int dasd_generic_restore_device(struct ccw_device *);
 enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
 void dasd_generic_path_event(struct ccw_device *, int *);
 int dasd_generic_verify_path(struct dasd_device *, __u8);
+void dasd_generic_space_exhaust(struct dasd_device *, struct dasd_ccw_req *);
+void dasd_generic_space_avail(struct dasd_device *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);

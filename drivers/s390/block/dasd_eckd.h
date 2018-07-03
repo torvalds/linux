@@ -90,10 +90,22 @@
 #define CUIR_RESUME			 0x02
 
 /*
+ * Out-of-space (OOS) Codes
+ */
+#define REPO_WARN			 0x01
+#define REPO_EXHAUST			 0x02
+#define POOL_WARN			 0x03
+#define POOL_EXHAUST			 0x04
+#define REPO_RELIEVE			 0x05
+#define POOL_RELIEVE			 0x06
+
+/*
  * attention message definitions
  */
 #define ATTENTION_LENGTH_CUIR		 0x0e
 #define ATTENTION_FORMAT_CUIR		 0x01
+#define ATTENTION_LENGTH_OOS		 0x10
+#define ATTENTION_FORMAT_OOS		 0x06
 
 #define DASD_ECKD_PG_GROUPED		 0x10
 
@@ -447,6 +459,17 @@ struct dasd_rssd_lcq {
 	__u8 sfi_seq_num[10];		/* Storage Facility Image Sequence Number */
 	__u8 reserved[7];
 	struct dasd_ext_pool_sum ext_pool_sum[448];
+} __packed;
+
+struct dasd_oos_message {
+	__u16 length;
+	__u8 format;
+	__u8 code;
+	__u8 percentage_empty;
+	__u8 reserved;
+	__u16 ext_pool_id;
+	__u16 token;
+	__u8 unused[6];
 } __packed;
 
 struct dasd_cuir_message {

@@ -89,6 +89,19 @@ static struct {
 } *dasd_reserve_req;
 static DEFINE_MUTEX(dasd_reserve_mutex);
 
+static struct {
+	struct dasd_ccw_req cqr;
+	struct ccw1 ccw[2];
+	char data[40];
+} *dasd_vol_info_req;
+static DEFINE_MUTEX(dasd_vol_info_mutex);
+
+struct ext_pool_exhaust_work_data {
+	struct work_struct worker;
+	struct dasd_device *device;
+	struct dasd_device *base;
+};
+
 /* definitions for the path verification worker */
 struct path_verification_work_data {
 	struct work_struct worker;
@@ -1479,6 +1492,7 @@ static int dasd_eckd_read_vol_info(struct dasd_device *device)
 	struct dasd_rssd_vsq *vsq;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
+	int useglobal;
 	int rc;
 
 	/* This command cannot be executed on an alias device */
@@ -1486,12 +1500,20 @@ static int dasd_eckd_read_vol_info(struct dasd_device *device)
 	    private->uid.type == UA_HYPER_PAV_ALIAS)
 		return 0;
 
+	useglobal = 0;
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 2 /* PSF + RSSD */,
 				   sizeof(*prssdp) + sizeof(*vsq), device, NULL);
 	if (IS_ERR(cqr)) {
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
 				"Could not allocate initialization request");
-		return PTR_ERR(cqr);
+		mutex_lock(&dasd_vol_info_mutex);
+		useglobal = 1;
+		cqr = &dasd_vol_info_req->cqr;
+		memset(cqr, 0, sizeof(*cqr));
+		memset(dasd_vol_info_req, 0, sizeof(*dasd_vol_info_req));
+		cqr->cpaddr = &dasd_vol_info_req->ccw;
+		cqr->data = &dasd_vol_info_req->data;
+		cqr->magic = DASD_ECKD_MAGIC;
 	}
 
 	/* Prepare for Read Subsystem Data */
@@ -1535,7 +1557,10 @@ static int dasd_eckd_read_vol_info(struct dasd_device *device)
 			 "Reading the volume storage information failed with rc=%d\n", rc);
 	}
 
-	dasd_sfree_request(cqr, cqr->memdev);
+	if (useglobal)
+		mutex_unlock(&dasd_vol_info_mutex);
+	else
+		dasd_sfree_request(cqr, cqr->memdev);
 
 	return rc;
 }
@@ -1588,6 +1613,53 @@ static int dasd_eckd_logical_capacity(struct dasd_device *device)
 	struct dasd_eckd_private *private = device->private;
 
 	return private->vsq.logical_capacity;
+}
+
+static void dasd_eckd_ext_pool_exhaust_work(struct work_struct *work)
+{
+	struct ext_pool_exhaust_work_data *data;
+	struct dasd_device *device;
+	struct dasd_device *base;
+
+	data = container_of(work, struct ext_pool_exhaust_work_data, worker);
+	device = data->device;
+	base = data->base;
+
+	if (!base)
+		base = device;
+	if (dasd_eckd_space_configured(base) != 0) {
+		dasd_generic_space_avail(device);
+	} else {
+		dev_warn(&device->cdev->dev, "No space left in the extent pool\n");
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s", "out of space");
+	}
+
+	dasd_put_device(device);
+	kfree(data);
+}
+
+static int dasd_eckd_ext_pool_exhaust(struct dasd_device *device,
+				      struct dasd_ccw_req *cqr)
+{
+	struct ext_pool_exhaust_work_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_ATOMIC);
+	if (!data)
+		return -ENOMEM;
+	INIT_WORK(&data->worker, dasd_eckd_ext_pool_exhaust_work);
+	dasd_get_device(device);
+	data->device = device;
+
+	if (cqr->block)
+		data->base = cqr->block->base;
+	else if (cqr->basedev)
+		data->base = cqr->basedev;
+	else
+		data->base = NULL;
+
+	schedule_work(&data->worker);
+
+	return 0;
 }
 
 static void dasd_eckd_cpy_ext_pool_data(struct dasd_device *device,
@@ -2099,6 +2171,9 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
 	cqr->retries = 255;
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
+	/* Set flags to suppress output for expected errors */
+	set_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+
 	return cqr;
 }
 
@@ -6267,6 +6342,73 @@ static void dasd_eckd_handle_cuir(struct dasd_device *device, void *messages,
 	device->discipline->check_attention(device, lpum);
 }
 
+static void dasd_eckd_oos_resume(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct alias_pav_group *pavgroup, *tempgroup;
+	struct dasd_device *dev, *n;
+	unsigned long flags;
+
+	spin_lock_irqsave(&private->lcu->lock, flags);
+	list_for_each_entry_safe(dev, n, &private->lcu->active_devices,
+				 alias_list) {
+		if (dev->stopped & DASD_STOPPED_NOSPC)
+			dasd_generic_space_avail(dev);
+	}
+	list_for_each_entry_safe(dev, n, &private->lcu->inactive_devices,
+				 alias_list) {
+		if (dev->stopped & DASD_STOPPED_NOSPC)
+			dasd_generic_space_avail(dev);
+	}
+	/* devices in PAV groups */
+	list_for_each_entry_safe(pavgroup, tempgroup,
+				 &private->lcu->grouplist,
+				 group) {
+		list_for_each_entry_safe(dev, n, &pavgroup->baselist,
+					 alias_list) {
+			if (dev->stopped & DASD_STOPPED_NOSPC)
+				dasd_generic_space_avail(dev);
+		}
+		list_for_each_entry_safe(dev, n, &pavgroup->aliaslist,
+					 alias_list) {
+			if (dev->stopped & DASD_STOPPED_NOSPC)
+				dasd_generic_space_avail(dev);
+		}
+	}
+	spin_unlock_irqrestore(&private->lcu->lock, flags);
+}
+
+static void dasd_eckd_handle_oos(struct dasd_device *device, void *messages,
+				 __u8 lpum)
+{
+	struct dasd_oos_message *oos = messages;
+
+	switch (oos->code) {
+	case REPO_WARN:
+	case POOL_WARN:
+		dev_warn(&device->cdev->dev,
+			 "Extent pool usage has reached a critical value\n");
+		dasd_eckd_oos_resume(device);
+		break;
+	case REPO_EXHAUST:
+	case POOL_EXHAUST:
+		dev_warn(&device->cdev->dev,
+			 "Extent pool is exhausted\n");
+		break;
+	case REPO_RELIEVE:
+	case POOL_RELIEVE:
+		dev_info(&device->cdev->dev,
+			 "Extent pool physical space constraint has been relieved\n");
+		break;
+	}
+
+	/* In any case, update related data */
+	dasd_eckd_read_ext_pool_info(device);
+
+	/* to make sure there is no attention left schedule work again */
+	device->discipline->check_attention(device, lpum);
+}
+
 static void dasd_eckd_check_attention_work(struct work_struct *work)
 {
 	struct check_attention_work_data *data;
@@ -6285,9 +6427,14 @@ static void dasd_eckd_check_attention_work(struct work_struct *work)
 	rc = dasd_eckd_read_message_buffer(device, messages, data->lpum);
 	if (rc)
 		goto out;
+
 	if (messages->length == ATTENTION_LENGTH_CUIR &&
 	    messages->format == ATTENTION_FORMAT_CUIR)
 		dasd_eckd_handle_cuir(device, messages, data->lpum);
+	if (messages->length == ATTENTION_LENGTH_OOS &&
+	    messages->format == ATTENTION_FORMAT_OOS)
+		dasd_eckd_handle_oos(device, messages, data->lpum);
+
 out:
 	dasd_put_device(device);
 	kfree(messages);
@@ -6501,6 +6648,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.ext_pool_cap_at_warnlevel = dasd_eckd_ext_pool_cap_at_warnlevel,
 	.ext_pool_warn_thrshld = dasd_eckd_ext_pool_warn_thrshld,
 	.ext_pool_oos = dasd_eckd_ext_pool_oos,
+	.ext_pool_exhaust = dasd_eckd_ext_pool_exhaust,
 	.ese_format = dasd_eckd_ese_format,
 	.ese_read = dasd_eckd_ese_read,
 };
@@ -6515,16 +6663,22 @@ dasd_eckd_init(void)
 				   GFP_KERNEL | GFP_DMA);
 	if (!dasd_reserve_req)
 		return -ENOMEM;
+	dasd_vol_info_req = kmalloc(sizeof(*dasd_vol_info_req),
+				    GFP_KERNEL | GFP_DMA);
+	if (!dasd_vol_info_req)
+		return -ENOMEM;
 	path_verification_worker = kmalloc(sizeof(*path_verification_worker),
 				   GFP_KERNEL | GFP_DMA);
 	if (!path_verification_worker) {
 		kfree(dasd_reserve_req);
+		kfree(dasd_vol_info_req);
 		return -ENOMEM;
 	}
 	rawpadpage = (void *)__get_free_page(GFP_KERNEL);
 	if (!rawpadpage) {
 		kfree(path_verification_worker);
 		kfree(dasd_reserve_req);
+		kfree(dasd_vol_info_req);
 		return -ENOMEM;
 	}
 	ret = ccw_driver_register(&dasd_eckd_driver);
@@ -6533,6 +6687,7 @@ dasd_eckd_init(void)
 	else {
 		kfree(path_verification_worker);
 		kfree(dasd_reserve_req);
+		kfree(dasd_vol_info_req);
 		free_page((unsigned long)rawpadpage);
 	}
 	return ret;
