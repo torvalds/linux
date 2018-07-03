@@ -148,6 +148,7 @@ struct inet_cork {
 	__s16			tos;
 	char			priority;
 	__u16			gso_size;
+	u64			transmit_time;
 };
 
 struct inet_cork_full {
