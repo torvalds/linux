@@ -670,7 +670,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	xfer_num = round_up(len, 4) / 4;
 
 	if (src_40bit_addr)
-		addr40_offset(nfp_prog, meta->insn.src_reg, off, &src_base,
+		addr40_offset(nfp_prog, meta->insn.src_reg * 2, off, &src_base,
 			      &off);
 
 	/* Setup PREV_ALU fields to override memory read length. */
@@ -3299,7 +3299,8 @@ curr_pair_is_memcpy(struct nfp_insn_meta *ld_meta,
 	if (!is_mbpf_load(ld_meta) || !is_mbpf_store(st_meta))
 		return false;
 
-	if (ld_meta->ptr.type != PTR_TO_PACKET)
+	if (ld_meta->ptr.type != PTR_TO_PACKET &&
+	    ld_meta->ptr.type != PTR_TO_MAP_VALUE)
 		return false;
 
 	if (st_meta->ptr.type != PTR_TO_PACKET)

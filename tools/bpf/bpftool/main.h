@@ -31,8 +31,6 @@
  * SOFTWARE.
  */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
 #ifndef __BPF_TOOL_H
 #define __BPF_TOOL_H
 

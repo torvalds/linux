@@ -50,6 +50,8 @@ static const struct option long_options[] = {
 	{"sec",		required_argument,	NULL, 's' },
 	{"no-separators", no_argument,		NULL, 'z' },
 	{"action",	required_argument,	NULL, 'a' },
+	{"readmem", 	no_argument,		NULL, 'r' },
+	{"swapmac", 	no_argument,		NULL, 'm' },
 	{0, 0, NULL,  0 }
 };
 
@@ -66,6 +68,12 @@ static void int_exit(int sig)
 struct config {
 	__u32 action;
 	int ifindex;
+	__u32 options;
+};
+enum cfg_options_flags {
+	NO_TOUCH = 0x0U,
+	READ_MEM = 0x1U,
+	SWAP_MAC = 0x2U,
 };
 #define XDP_ACTION_MAX (XDP_TX + 1)
 #define XDP_ACTION_MAX_STRLEN 11
@@ -107,6 +115,18 @@ static void list_xdp_actions(void)
 	for (i = 0; i < XDP_ACTION_MAX; i++)
 		printf("\t%s\n", xdp_action_names[i]);
 	printf("\n");
+}
+
+static char* options2str(enum cfg_options_flags flag)
+{
+	if (flag == NO_TOUCH)
+		return "no_touch";
+	if (flag & SWAP_MAC)
+		return "swapmac";
+	if (flag & READ_MEM)
+		return "read";
+	fprintf(stderr, "ERR: Unknown config option flags");
+	exit(EXIT_FAIL);
 }
 
 static void usage(char *argv[])
@@ -305,7 +325,7 @@ static __u64 calc_errs_pps(struct datarec *r,
 
 static void stats_print(struct stats_record *stats_rec,
 			struct stats_record *stats_prev,
-			int action)
+			int action, __u32 cfg_opt)
 {
 	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
 	unsigned int nr_cpus = bpf_num_possible_cpus();
@@ -316,8 +336,8 @@ static void stats_print(struct stats_record *stats_rec,
 	int i;
 
 	/* Header */
-	printf("\nRunning XDP on dev:%s (ifindex:%d) action:%s\n",
-	       ifname, ifindex, action2str(action));
+	printf("\nRunning XDP on dev:%s (ifindex:%d) action:%s options:%s\n",
+	       ifname, ifindex, action2str(action), options2str(cfg_opt));
 
 	/* stats_global_map */
 	{
@@ -399,7 +419,7 @@ static inline void swap(struct stats_record **a, struct stats_record **b)
 	*b = tmp;
 }
 
-static void stats_poll(int interval, int action)
+static void stats_poll(int interval, int action, __u32 cfg_opt)
 {
 	struct stats_record *record, *prev;
 
@@ -410,7 +430,7 @@ static void stats_poll(int interval, int action)
 	while (1) {
 		swap(&prev, &record);
 		stats_collect(record);
-		stats_print(record, prev, action);
+		stats_print(record, prev, action, cfg_opt);
 		sleep(interval);
 	}
 
@@ -421,6 +441,7 @@ static void stats_poll(int interval, int action)
 
 int main(int argc, char **argv)
 {
+	__u32 cfg_options= NO_TOUCH ; /* Default: Don't touch packet memory */
 	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_XDP,
@@ -434,6 +455,7 @@ int main(int argc, char **argv)
 	int longindex = 0;
 	int interval = 2;
 	__u32 key = 0;
+
 
 	char action_str_buf[XDP_ACTION_MAX_STRLEN + 1 /* for \0 */] = { 0 };
 	int action = XDP_PASS; /* Default action */
@@ -496,6 +518,12 @@ int main(int argc, char **argv)
 			action_str = (char *)&action_str_buf;
 			strncpy(action_str, optarg, XDP_ACTION_MAX_STRLEN);
 			break;
+		case 'r':
+			cfg_options |= READ_MEM;
+			break;
+		case 'm':
+			cfg_options |= SWAP_MAC;
+			break;
 		case 'h':
 		error:
 		default:
@@ -523,6 +551,11 @@ int main(int argc, char **argv)
 	}
 	cfg.action = action;
 
+	/* XDP_TX requires changing MAC-addrs, else HW may drop */
+	if (action == XDP_TX)
+		cfg_options |= SWAP_MAC;
+	cfg.options = cfg_options;
+
 	/* Trick to pretty printf with thousands separators use %' */
 	if (use_separators)
 		setlocale(LC_NUMERIC, "en_US");
@@ -542,6 +575,6 @@ int main(int argc, char **argv)
 		return EXIT_FAIL_XDP;
 	}
 
-	stats_poll(interval, action);
+	stats_poll(interval, action, cfg_options);
 	return EXIT_OK;
 }
