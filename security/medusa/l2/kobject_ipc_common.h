@@ -7,7 +7,7 @@
 #include <linux/medusa/l3/constants.h>
 #include <linux/medusa/l1/ipc.h>
 
-#define ipc_security(ipc) ((struct medusa_l1_ipc_s*)ipcp->security)
+#define ipc_security(ipc) ((struct medusa_l1_ipc_s*)(ipcp->security))
 
 /*
  * medusa_ipc_perm - struct holding relevant entries from 'kern_ipc_perm' (see linux/ipc.h)

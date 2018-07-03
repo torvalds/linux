@@ -5,14 +5,14 @@
 
 static struct ipc_kobject storage;
 
-#define COPY_WRITE_IPC_VARS(from, to) \
+#define COPY_WRITE_IPC_VARS(to,from) \
 	do { \
 		(to)->uid = (from)->uid; \
 		(to)->gid = (from)->gid; \
 		(to)->mode = (from)->mode; \
 	} while(0);
 
-#define COPY_READ_IPC_VARS(from, to) \
+#define COPY_READ_IPC_VARS(to, from) \
 	do { \
 		(to)->deleted = (from)->deleted; \
 		(to)->id = (from)->id; \
@@ -50,9 +50,9 @@ struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc
 	memset(ipc_kobj, '\0', sizeof(struct ipc_kobject));
 	ipc_kobj->ipc_class = ipc_security(ipcp)->ipc_class;
 
-	COPY_WRITE_IPC_VARS(ipcp, &(ipc_kobj->ipc_perm));
-	COPY_READ_IPC_VARS(ipcp, &(ipc_kobj->ipc_perm));
-	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_kobj);
+	COPY_WRITE_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
+	COPY_READ_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
+	COPY_MEDUSA_OBJECT_VARS(ipc_kobj, ipc_security(ipcp));
 
 	return ipc_kobj;
 }
@@ -66,8 +66,8 @@ medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm 
 	if (!security_s)
 		return MED_ERR;
 
-	COPY_WRITE_IPC_VARS(&(ipc_obj->ipc_perm), ipcp);
-	COPY_MEDUSA_OBJECT_VARS(ipc_obj, ipc_security(ipcp));
+	COPY_WRITE_IPC_VARS(ipcp, &(ipc_obj->ipc_perm));
+	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_obj);
 	MED_MAGIC_VALIDATE(ipc_security(ipcp));
 	
 	return MED_OK;
