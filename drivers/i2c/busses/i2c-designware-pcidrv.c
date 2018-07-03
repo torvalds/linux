@@ -105,6 +105,7 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 	case 0x0817:
 		c->bus_cfg &= ~DW_IC_CON_SPEED_MASK;
 		c->bus_cfg |= DW_IC_CON_SPEED_STD;
+		/* fall through */
 	case 0x0818:
 	case 0x0819:
 		c->bus_num = pdev->device - 0x817 + 3;
