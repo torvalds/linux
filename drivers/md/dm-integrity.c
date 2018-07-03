@@ -44,7 +44,8 @@
  */
 
 #define SB_MAGIC			"integrt"
-#define SB_VERSION			1
+#define SB_VERSION_1			1
+#define SB_VERSION_2			2
 #define SB_SECTORS			8
 #define MAX_SECTORS_PER_BLOCK		8
 
@@ -412,6 +413,14 @@ static void wraparound_section(struct dm_integrity_c *ic, unsigned *sec_ptr)
 {
 	if (unlikely(*sec_ptr >= ic->journal_sections))
 		*sec_ptr -= ic->journal_sections;
+}
+
+static void sb_set_version(struct dm_integrity_c *ic)
+{
+	if (ic->meta_dev)
+		ic->sb->version = SB_VERSION_2;
+	else
+		ic->sb->version = SB_VERSION_1;
 }
 
 static int sync_rw_sb(struct dm_integrity_c *ic, int op, int op_flags)
@@ -2432,7 +2441,6 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 
 	memset(ic->sb, 0, SB_SECTORS << SECTOR_SHIFT);
 	memcpy(ic->sb->magic, SB_MAGIC, 8);
-	ic->sb->version = SB_VERSION;
 	ic->sb->integrity_tag_size = cpu_to_le16(ic->tag_size);
 	ic->sb->log2_sectors_per_block = __ffs(ic->sectors_per_block);
 	if (ic->journal_mac_alg.alg_string)
@@ -2488,6 +2496,8 @@ try_smaller_buffer:
 	}
 
 	ic->sb->provided_data_sectors = cpu_to_le64(ic->provided_data_sectors);
+
+	sb_set_version(ic);
 
 	return 0;
 }
@@ -3193,7 +3203,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			should_write_sb = true;
 	}
 
-	if (ic->sb->version != SB_VERSION) {
+	if (!ic->sb->version || ic->sb->version > SB_VERSION_2) {
 		r = -EINVAL;
 		ti->error = "Unknown version";
 		goto bad;
