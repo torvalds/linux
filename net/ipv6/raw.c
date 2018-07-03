@@ -620,7 +620,7 @@ out:
 
 static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 			struct flowi6 *fl6, struct dst_entry **dstp,
-			unsigned int flags)
+			unsigned int flags, const struct sockcm_cookie *sockc)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net *net = sock_net(sk);
@@ -650,6 +650,7 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+	skb->tstamp = sockc->transmit_time;
 	skb_dst_set(skb, &rt->dst);
 	*dstp = NULL;
 
@@ -848,6 +849,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 
 	sockc.tsflags = sk->sk_tsflags;
+	sockc.transmit_time = 0;
 	if (msg->msg_controllen) {
 		opt = &opt_space;
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
@@ -921,7 +923,8 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 back_from_confirm:
 	if (inet->hdrincl)
-		err = rawv6_send_hdrinc(sk, msg, len, &fl6, &dst, msg->msg_flags);
+		err = rawv6_send_hdrinc(sk, msg, len, &fl6, &dst,
+					msg->msg_flags, &sockc);
 	else {
 		ipc6.opt = opt;
 		lock_sock(sk);

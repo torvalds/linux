@@ -1158,7 +1158,8 @@ static void ip6_append_data_mtu(unsigned int *mtu,
 
 static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 			  struct inet6_cork *v6_cork, struct ipcm6_cookie *ipc6,
-			  struct rt6_info *rt, struct flowi6 *fl6)
+			  struct rt6_info *rt, struct flowi6 *fl6,
+			  const struct sockcm_cookie *sockc)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	unsigned int mtu;
@@ -1225,6 +1226,8 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	if (dst_allfrag(xfrm_dst_path(&rt->dst)))
 		cork->base.flags |= IPCORK_ALLFRAG;
 	cork->base.length = 0;
+
+	cork->base.transmit_time = sockc->transmit_time;
 
 	return 0;
 }
@@ -1575,7 +1578,7 @@ int ip6_append_data(struct sock *sk,
 		 * setup for corking
 		 */
 		err = ip6_setup_cork(sk, &inet->cork, &np->cork,
-				     ipc6, rt, fl6);
+				     ipc6, rt, fl6, sockc);
 		if (err)
 			return err;
 
@@ -1673,6 +1676,8 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
+	skb->tstamp = cork->base.transmit_time;
+
 	skb_dst_set(skb, dst_clone(&rt->dst));
 	IP6_UPD_PO_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	if (proto == IPPROTO_ICMPV6) {
@@ -1765,7 +1770,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 	cork->base.opt = NULL;
 	cork->base.dst = NULL;
 	v6_cork.opt = NULL;
-	err = ip6_setup_cork(sk, cork, &v6_cork, ipc6, rt, fl6);
+	err = ip6_setup_cork(sk, cork, &v6_cork, ipc6, rt, fl6, sockc);
 	if (err) {
 		ip6_cork_release(cork, &v6_cork);
 		return ERR_PTR(err);
