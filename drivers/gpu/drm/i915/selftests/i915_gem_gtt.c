@@ -156,12 +156,9 @@ static int igt_ppgtt_alloc(void *arg)
 	if (!USES_PPGTT(dev_priv))
 		return 0;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt = __hw_ppgtt_create(dev_priv);
-	if (IS_ERR(ppgtt)) {
-		err = PTR_ERR(ppgtt);
-		goto err_unlock;
-	}
+	if (IS_ERR(ppgtt))
+		return PTR_ERR(ppgtt);
 
 	if (!ppgtt->vm.allocate_va_range)
 		goto err_ppgtt_cleanup;
@@ -180,6 +177,8 @@ static int igt_ppgtt_alloc(void *arg)
 			goto err_ppgtt_cleanup;
 		}
 
+		cond_resched();
+
 		ppgtt->vm.clear_range(&ppgtt->vm, 0, size);
 	}
 
@@ -197,13 +196,15 @@ static int igt_ppgtt_alloc(void *arg)
 			}
 			goto err_ppgtt_cleanup;
 		}
+
+		cond_resched();
 	}
 
 err_ppgtt_cleanup:
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt->vm.cleanup(&ppgtt->vm);
-	kfree(ppgtt);
-err_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+	kfree(ppgtt);
 	return err;
 }
 
