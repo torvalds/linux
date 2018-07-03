@@ -270,7 +270,12 @@ static int sp_pci_resume(struct pci_dev *pdev)
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 static const struct psp_vdata psp_entry = {
-	.offset = 0x10500,
+	.cmdresp_reg		= 0x10580,
+	.cmdbuff_addr_lo_reg	= 0x105e0,
+	.cmdbuff_addr_hi_reg	= 0x105e4,
+	.feature_reg		= 0x105fc,
+	.inten_reg		= 0x10610,
+	.intsts_reg		= 0x10614,
 };
 #endif
 

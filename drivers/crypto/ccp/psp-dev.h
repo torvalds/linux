@@ -30,16 +30,7 @@
 
 #include "sp-dev.h"
 
-#define PSP_C2PMSG(_num)		((_num) << 2)
-#define PSP_CMDRESP			PSP_C2PMSG(32)
-#define PSP_CMDBUFF_ADDR_LO		PSP_C2PMSG(56)
-#define PSP_CMDBUFF_ADDR_HI             PSP_C2PMSG(57)
-#define PSP_FEATURE_REG			PSP_C2PMSG(63)
-
 #define PSP_CMD_COMPLETE		BIT(1)
-
-#define PSP_P2CMSG_INTEN		0x0110
-#define PSP_P2CMSG_INTSTS		0x0114
 
 #define PSP_CMDRESP_CMD_SHIFT		16
 #define PSP_CMDRESP_IOC			BIT(0)
