@@ -286,7 +286,7 @@ static bool sync_exp_work_done(struct rcu_state *rsp, unsigned long s)
  */
 static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 {
-	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
 	struct rcu_node *rnp = rdp->mynode;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 
@@ -361,7 +361,7 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 	mask_ofl_test = 0;
 	for_each_leaf_node_cpu_mask(rnp, cpu, rnp->expmask) {
 		unsigned long mask = leaf_node_cpu_bit(rnp, cpu);
-		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 		struct rcu_dynticks *rdtp = per_cpu_ptr(&rcu_dynticks, cpu);
 		int snap;
 
@@ -390,7 +390,7 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 	/* IPI the remaining CPUs for expedited quiescent state. */
 	for_each_leaf_node_cpu_mask(rnp, cpu, rnp->expmask) {
 		unsigned long mask = leaf_node_cpu_bit(rnp, cpu);
-		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
 		if (!(mask_ofl_ipi & mask))
 			continue;
@@ -509,7 +509,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 				if (!(rnp->expmask & mask))
 					continue;
 				ndetected++;
-				rdp = per_cpu_ptr(rsp->rda, cpu);
+				rdp = per_cpu_ptr(&rcu_data, cpu);
 				pr_cont(" %d-%c%c%c", cpu,
 					"O."[!!cpu_online(cpu)],
 					"o."[!!(rdp->grpmask & rnp->expmaskinit)],
@@ -642,7 +642,7 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 	}
 
 	/* Wait for expedited grace period to complete. */
-	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
+	rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
 	rnp = rcu_get_root(rsp);
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(rsp, s));
@@ -665,7 +665,7 @@ static void sync_rcu_exp_handler(void *info)
 {
 	unsigned long flags;
 	struct rcu_state *rsp = info;
-	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;
 	struct task_struct *t = current;
 
@@ -772,13 +772,12 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
-static void sync_sched_exp_handler(void *data)
+static void sync_sched_exp_handler(void *unused)
 {
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = data;
 
-	rdp = this_cpu_ptr(rsp->rda);
+	rdp = this_cpu_ptr(&rcu_data);
 	rnp = rdp->mynode;
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
 	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp))
@@ -801,7 +800,7 @@ static void sync_sched_exp_online_cleanup(int cpu)
 	struct rcu_node *rnp;
 	struct rcu_state *rsp = &rcu_state;
 
-	rdp = per_cpu_ptr(rsp->rda, cpu);
+	rdp = per_cpu_ptr(&rcu_data, cpu);
 	rnp = rdp->mynode;
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask))
 		return;
