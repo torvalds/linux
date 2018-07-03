@@ -415,7 +415,6 @@ xpc_discovery(void)
 	int region_size;
 	int max_regions;
 	int nasid;
-	struct xpc_rsvd_page *rp;
 	unsigned long *discovered_nasids;
 	enum xp_retval ret;
 
@@ -431,8 +430,6 @@ xpc_discovery(void)
 		kfree(remote_rp_base);
 		return;
 	}
-
-	rp = (struct xpc_rsvd_page *)xpc_rsvd_page;
 
 	/*
 	 * The term 'region' in this context refers to the minimum number of
