@@ -391,15 +391,15 @@ static int sram_probe(struct platform_device *pdev)
 	if (IS_ERR(sram->pool))
 		return PTR_ERR(sram->pool);
 
-	ret = sram_reserve_regions(sram, res);
-	if (ret)
-		return ret;
-
 	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
 		sram->clk = NULL;
 	else
 		clk_prepare_enable(sram->clk);
+
+	ret = sram_reserve_regions(sram, res);
+	if (ret)
+		goto err_disable_clk;
 
 	platform_set_drvdata(pdev, sram);
 
@@ -407,7 +407,7 @@ static int sram_probe(struct platform_device *pdev)
 	if (init_func) {
 		ret = init_func();
 		if (ret)
-			goto err_disable_clk;
+			goto err_free_partitions;
 	}
 
 	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
@@ -415,10 +415,11 @@ static int sram_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_free_partitions:
+	sram_free_partitions(sram);
 err_disable_clk:
 	if (sram->clk)
 		clk_disable_unprepare(sram->clk);
-	sram_free_partitions(sram);
 
 	return ret;
 }
