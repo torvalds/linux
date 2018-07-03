@@ -111,8 +111,7 @@ static struct {
 
 static int modparam_gpiobase = -1;	/* dynamic */
 module_param_named(gpiobase, modparam_gpiobase, int, 0444);
-MODULE_PARM_DESC(gpiobase, "The GPIO number base. -1 means dynamic, "
-			   "which is the default.");
+MODULE_PARM_DESC(gpiobase, "The GPIO number base. -1 means dynamic, which is the default.");
 
 static int ichx_write_bit(int reg, unsigned nr, int val, int verify)
 {
@@ -448,7 +447,7 @@ static int ichx_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * If necessary, determine the I/O address of ACPI/power management
-	 * registers which are needed to read the the GPE0 register for GPI pins
+	 * registers which are needed to read the GPE0 register for GPI pins
 	 * 0 - 15 on some chipsets.
 	 */
 	if (!ichx_priv.desc->uses_gpe0)
