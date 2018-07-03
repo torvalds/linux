@@ -658,6 +658,7 @@ static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk,
 {
 	struct vhost_net_virtqueue *rnvq = &net->vqs[VHOST_NET_VQ_RX];
 	struct vhost_net_virtqueue *tnvq = &net->vqs[VHOST_NET_VQ_TX];
+	struct vhost_virtqueue *rvq = &rnvq->vq;
 	struct vhost_virtqueue *tvq = &tnvq->vq;
 	unsigned long uninitialized_var(endtime);
 	int len = peek_head_len(rnvq, sk);
@@ -677,7 +678,8 @@ static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk,
 				*busyloop_intr = true;
 				break;
 			}
-			if (sk_has_rx_data(sk) ||
+			if ((sk_has_rx_data(sk) &&
+			     !vhost_vq_avail_empty(&net->dev, rvq)) ||
 			    !vhost_vq_avail_empty(&net->dev, tvq))
 				break;
 			cpu_relax();
@@ -827,7 +829,6 @@ static void handle_rx(struct vhost_net *net)
 
 	while ((sock_len = vhost_net_rx_peek_head_len(net, sock->sk,
 						      &busyloop_intr))) {
-		busyloop_intr = false;
 		sock_len += sock_hlen;
 		vhost_len = sock_len + vhost_hlen;
 		headcount = get_rx_bufs(vq, vq->heads + nvq->done_idx,
@@ -838,7 +839,9 @@ static void handle_rx(struct vhost_net *net)
 			goto out;
 		/* OK, now we need to know about added descriptors. */
 		if (!headcount) {
-			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
+			if (unlikely(busyloop_intr)) {
+				vhost_poll_queue(&vq->poll);
+			} else if (unlikely(vhost_enable_notify(&net->dev, vq))) {
 				/* They have slipped one in as we were
 				 * doing that: check again. */
 				vhost_disable_notify(&net->dev, vq);
@@ -848,6 +851,7 @@ static void handle_rx(struct vhost_net *net)
 			 * they refilled. */
 			goto out;
 		}
+		busyloop_intr = false;
 		if (nvq->rx_ring)
 			msg.msg_control = vhost_net_buf_consume(&nvq->rxq);
 		/* On overrun, truncate and discard */
