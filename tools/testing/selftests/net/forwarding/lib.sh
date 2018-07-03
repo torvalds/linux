@@ -659,30 +659,40 @@ multipath_eval()
 ##############################################################################
 # Tests
 
-ping_test()
+ping_do()
 {
 	local if_name=$1
 	local dip=$2
 	local vrf_name
 
-	RET=0
-
 	vrf_name=$(master_name_get $if_name)
 	ip vrf exec $vrf_name $PING $dip -c 10 -i 0.1 -w 2 &> /dev/null
+}
+
+ping_test()
+{
+	RET=0
+
+	ping_do $1 $2
 	check_err $?
 	log_test "ping"
 }
 
-ping6_test()
+ping6_do()
 {
 	local if_name=$1
 	local dip=$2
 	local vrf_name
 
-	RET=0
-
 	vrf_name=$(master_name_get $if_name)
 	ip vrf exec $vrf_name $PING6 $dip -c 10 -i 0.1 -w 2 &> /dev/null
+}
+
+ping6_test()
+{
+	RET=0
+
+	ping6_do $1 $2
 	check_err $?
 	log_test "ping6"
 }
