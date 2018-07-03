@@ -1655,23 +1655,17 @@ static void set_queue_mode(struct e1000_hw *hw, int queue, enum queue_mode mode)
 }
 
 /**
- *  igb_configure_cbs - Configure Credit-Based Shaper (CBS)
+ *  igb_config_tx_modes - Configure "Qav Tx mode" features on igb
  *  @adapter: pointer to adapter struct
  *  @queue: queue number
- *  @enable: true = enable CBS, false = disable CBS
- *  @idleslope: idleSlope in kbps
- *  @sendslope: sendSlope in kbps
- *  @hicredit: hiCredit in bytes
- *  @locredit: loCredit in bytes
  *
- *  Configure CBS for a given hardware queue. When disabling, idleslope,
- *  sendslope, hicredit, locredit arguments are ignored. Returns 0 if
- *  success. Negative otherwise.
+ *  Configure CBS for a given hardware queue. Parameters are retrieved
+ *  from the correct Tx ring, so igb_save_cbs_params() should be used
+ *  for setting those correctly prior to this function being called.
  **/
-static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
-			      bool enable, int idleslope, int sendslope,
-			      int hicredit, int locredit)
+static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 {
+	struct igb_ring *ring = adapter->tx_ring[queue];
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tqavcc;
@@ -1680,7 +1674,7 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 	WARN_ON(hw->mac.type != e1000_i210);
 	WARN_ON(queue < 0 || queue > 1);
 
-	if (enable || queue == 0) {
+	if (ring->cbs_enable || queue == 0) {
 		/* i210 does not allow the queue 0 to be in the Strict
 		 * Priority mode while the Qav mode is enabled, so,
 		 * instead of disabling strict priority mode, we give
@@ -1690,10 +1684,10 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 		 * Queue0 QueueMode must be set to 1b when
 		 * TransmitMode is set to Qav."
 		 */
-		if (queue == 0 && !enable) {
+		if (queue == 0 && !ring->cbs_enable) {
 			/* max "linkspeed" idleslope in kbps */
-			idleslope = 1000000;
-			hicredit = ETH_FRAME_LEN;
+			ring->idleslope = 1000000;
+			ring->hicredit = ETH_FRAME_LEN;
 		}
 
 		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_HIGH);
@@ -1756,14 +1750,15 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 		 *       calculated value, so the resulting bandwidth might
 		 *       be slightly higher for some configurations.
 		 */
-		value = DIV_ROUND_UP_ULL(idleslope * 61034ULL, 1000000);
+		value = DIV_ROUND_UP_ULL(ring->idleslope * 61034ULL, 1000000);
 
 		tqavcc = rd32(E1000_I210_TQAVCC(queue));
 		tqavcc &= ~E1000_TQAVCC_IDLESLOPE_MASK;
 		tqavcc |= value;
 		wr32(E1000_I210_TQAVCC(queue), tqavcc);
 
-		wr32(E1000_I210_TQAVHC(queue), 0x80000000 + hicredit * 0x7735);
+		wr32(E1000_I210_TQAVHC(queue),
+		     0x80000000 + ring->hicredit * 0x7735);
 	} else {
 		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_LOW);
 		set_queue_mode(hw, queue, QUEUE_MODE_STRICT_PRIORITY);
@@ -1783,8 +1778,9 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 	 */
 
 	netdev_dbg(netdev, "CBS %s: queue %d idleslope %d sendslope %d hiCredit %d locredit %d\n",
-		   (enable) ? "enabled" : "disabled", queue,
-		   idleslope, sendslope, hicredit, locredit);
+		   (ring->cbs_enable) ? "enabled" : "disabled", queue,
+		   ring->idleslope, ring->sendslope, ring->hicredit,
+		   ring->locredit);
 }
 
 static int igb_save_cbs_params(struct igb_adapter *adapter, int queue,
@@ -1809,19 +1805,25 @@ static int igb_save_cbs_params(struct igb_adapter *adapter, int queue,
 
 static bool is_any_cbs_enabled(struct igb_adapter *adapter)
 {
-	struct igb_ring *ring;
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		ring = adapter->tx_ring[i];
-
-		if (ring->cbs_enable)
+		if (adapter->tx_ring[i]->cbs_enable)
 			return true;
 	}
 
 	return false;
 }
 
+/**
+ *  igb_setup_tx_mode - Switch to/from Qav Tx mode when applicable
+ *  @adapter: pointer to adapter struct
+ *
+ *  Configure TQAVCTRL register switching the controller's Tx mode
+ *  if FQTSS mode is enabled or disabled. Additionally, will issue
+ *  a call to igb_config_tx_modes() per queue so any previously saved
+ *  Tx parameters are applied.
+ **/
 static void igb_setup_tx_mode(struct igb_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1881,11 +1883,7 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 			    adapter->num_tx_queues : I210_SR_QUEUES_NUM;
 
 		for (i = 0; i < max_queue; i++) {
-			struct igb_ring *ring = adapter->tx_ring[i];
-
-			igb_configure_cbs(adapter, i, ring->cbs_enable,
-					  ring->idleslope, ring->sendslope,
-					  ring->hicredit, ring->locredit);
+			igb_config_tx_modes(adapter, i);
 		}
 	} else {
 		wr32(E1000_RXPBS, I210_RXPBSIZE_DEFAULT);
@@ -2480,9 +2478,7 @@ static int igb_offload_cbs(struct igb_adapter *adapter,
 		return err;
 
 	if (is_fqtss_enabled(adapter)) {
-		igb_configure_cbs(adapter, qopt->queue, qopt->enable,
-				  qopt->idleslope, qopt->sendslope,
-				  qopt->hicredit, qopt->locredit);
+		igb_config_tx_modes(adapter, qopt->queue);
 
 		if (!is_any_cbs_enabled(adapter))
 			enable_fqtss(adapter, false);
