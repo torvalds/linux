@@ -1522,7 +1522,15 @@ static irqreturn_t rcar_dmac_isr_channel(int irq, void *dev)
 
 	chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
 	if (chcr & RCAR_DMACHCR_CAE) {
-		rcar_dmac_chan_halt(chan);
+		struct rcar_dmac *dmac = to_rcar_dmac(chan->chan.device);
+
+		/*
+		 * We don't need to call rcar_dmac_chan_halt()
+		 * because channel is already stopped in error case.
+		 * We need to clear register and check DE bit as recovery.
+		 */
+		rcar_dmac_write(dmac, RCAR_DMACHCLR, 1 << chan->index);
+		rcar_dmac_chcr_de_barrier(chan);
 		reinit = true;
 		goto spin_lock_end;
 	}
