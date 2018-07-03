@@ -313,7 +313,6 @@ struct rcu_state {
 						/* Hierarchy levels (+1 to */
 						/*  shut bogus gcc warning) */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
-	call_rcu_func_t call;			/* call_rcu() flavor. */
 	int ncpus;				/* # CPUs seen so far. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */

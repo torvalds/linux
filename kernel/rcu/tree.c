@@ -76,7 +76,6 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, rcu_data);
 struct rcu_state rcu_state = {
 	.level = { &rcu_state.node[0] },
 	.rda = &rcu_data,
-	.call = call_rcu,
 	.gp_state = RCU_GP_IDLE,
 	.gp_seq = (0UL - 300UL) << RCU_SEQ_CTR_SHIFT,
 	.barrier_mutex = __MUTEX_INITIALIZER(rcu_state.barrier_mutex),
