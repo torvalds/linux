@@ -1768,6 +1768,43 @@ static void dcn10_get_surface_visual_confirm_color(
 	}
 }
 
+static void dcn10_get_hdr_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	// Determine the overscan color based on the top-most (desktop) plane's context
+	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
+
+	while (top_pipe_ctx->top_pipe != NULL)
+		top_pipe_ctx = top_pipe_ctx->top_pipe;
+
+	switch (top_pipe_ctx->plane_res.scl_data.format) {
+	case PIXEL_FORMAT_ARGB2101010:
+		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_UNITY) {
+			/* HDR10, ARGB2101010 - set boarder color to red */
+			color->color_r_cr = color_value;
+		}
+		break;
+	case PIXEL_FORMAT_FP16:
+		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
+			/* HDR10, FP16 - set boarder color to blue */
+			color->color_b_cb = color_value;
+		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
+			/* FreeSync 2 HDR - set boarder color to green */
+			color->color_g_y = color_value;
+		}
+		break;
+	default:
+		/* SDR - set boarder color to Gray */
+		color->color_r_cr = color_value/2;
+		color->color_b_cb = color_value/2;
+		color->color_g_y = color_value/2;
+		break;
+	}
+}
+
 static uint16_t fixed_point_to_int_frac(
 	struct fixed31_32 arg,
 	uint8_t integer_bits,
@@ -1862,13 +1899,17 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/* TODO: proper fix once fpga works */
 
-	if (dc->debug.surface_visual_confirm)
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
+		dcn10_get_hdr_visual_confirm_color(
+				pipe_ctx, &blnd_cfg.black_color);
+	} else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE) {
 		dcn10_get_surface_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
-	else
+	} else {
 		color_space_to_black_color(
-			dc, pipe_ctx->stream->output_color_space,
-			&blnd_cfg.black_color);
+				dc, pipe_ctx->stream->output_color_space,
+				&blnd_cfg.black_color);
+	}
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
@@ -2148,6 +2189,7 @@ static void program_all_pipe_in_tree(
 				pipe_ctx->stream_res.tg);
 
 		dc->hwss.blank_pixel_data(dc, pipe_ctx, blank);
+
 	}
 
 	if (pipe_ctx->plane_state != NULL) {

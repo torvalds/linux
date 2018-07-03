@@ -169,6 +169,12 @@ struct dc_config {
 	bool disable_disp_pll_sharing;
 };
 
+enum visual_confirm {
+	VISUAL_CONFIRM_DISABLE = 0,
+	VISUAL_CONFIRM_SURFACE = 1,
+	VISUAL_CONFIRM_HDR = 2,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
@@ -202,7 +208,7 @@ struct dc_clocks {
 };
 
 struct dc_debug {
-	bool surface_visual_confirm;
+	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
@@ -387,7 +393,8 @@ enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_LINEAR,
 	TRANSFER_FUNCTION_UNITY,
 	TRANSFER_FUNCTION_HLG,
-	TRANSFER_FUNCTION_HLG12
+	TRANSFER_FUNCTION_HLG12,
+	TRANSFER_FUNCTION_GAMMA22
 };
 
 struct dc_transfer_func {

@@ -621,6 +621,10 @@ static void dpp1_dscl_set_manual_ratio_init(
 static void dpp1_dscl_set_recout(
 			struct dcn10_dpp *dpp, const struct rect *recout)
 {
+	int visual_confirm_on = 0;
+	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
+		visual_confirm_on = 1;
+
 	REG_SET_2(RECOUT_START, 0,
 		/* First pixel of RECOUT */
 			 RECOUT_START_X, recout->x,
@@ -632,8 +636,7 @@ static void dpp1_dscl_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - dpp->base.ctx->dc->debug.surface_visual_confirm * 4 *
-			 (dpp->base.inst + 1));
+			 - visual_confirm_on * 4 * (dpp->base.inst + 1));
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */

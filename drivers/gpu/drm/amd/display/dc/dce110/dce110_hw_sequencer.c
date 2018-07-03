@@ -1256,7 +1256,7 @@ static void program_scaler(const struct dc *dc,
 		return;
 #endif
 
-	if (dc->debug.surface_visual_confirm)
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
 		color_space_to_black_color(dc,
