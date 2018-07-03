@@ -300,9 +300,9 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FREE_INO_OBJECTID)
 		check_crcs = 1;
 
-	/* Make sure we can fit our crcs into the first page */
+	/* Make sure we can fit our crcs and generation into the first page */
 	if (write && check_crcs &&
-	    (num_pages * sizeof(u32)) >= PAGE_SIZE)
+	    (num_pages * sizeof(u32) + sizeof(u64)) > PAGE_SIZE)
 		return -ENOSPC;
 
 	memset(io_ctl, 0, sizeof(struct btrfs_io_ctl));
