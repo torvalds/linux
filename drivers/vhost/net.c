@@ -653,7 +653,8 @@ static void vhost_rx_signal_used(struct vhost_net_virtqueue *nvq)
 	nvq->done_idx = 0;
 }
 
-static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk)
+static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk,
+				      bool *busyloop_intr)
 {
 	struct vhost_net_virtqueue *rnvq = &net->vqs[VHOST_NET_VQ_RX];
 	struct vhost_net_virtqueue *tnvq = &net->vqs[VHOST_NET_VQ_TX];
@@ -671,11 +672,16 @@ static int vhost_net_rx_peek_head_len(struct vhost_net *net, struct sock *sk)
 		preempt_disable();
 		endtime = busy_clock() + tvq->busyloop_timeout;
 
-		while (vhost_can_busy_poll(endtime) &&
-		       !vhost_has_work(&net->dev) &&
-		       !sk_has_rx_data(sk) &&
-		       vhost_vq_avail_empty(&net->dev, tvq))
+		while (vhost_can_busy_poll(endtime)) {
+			if (vhost_has_work(&net->dev)) {
+				*busyloop_intr = true;
+				break;
+			}
+			if (sk_has_rx_data(sk) ||
+			    !vhost_vq_avail_empty(&net->dev, tvq))
+				break;
 			cpu_relax();
+		}
 
 		preempt_enable();
 
@@ -795,6 +801,7 @@ static void handle_rx(struct vhost_net *net)
 	s16 headcount;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
+	bool busyloop_intr = false;
 	struct socket *sock;
 	struct iov_iter fixup;
 	__virtio16 num_buffers;
@@ -818,7 +825,9 @@ static void handle_rx(struct vhost_net *net)
 		vq->log : NULL;
 	mergeable = vhost_has_feature(vq, VIRTIO_NET_F_MRG_RXBUF);
 
-	while ((sock_len = vhost_net_rx_peek_head_len(net, sock->sk))) {
+	while ((sock_len = vhost_net_rx_peek_head_len(net, sock->sk,
+						      &busyloop_intr))) {
+		busyloop_intr = false;
 		sock_len += sock_hlen;
 		vhost_len = sock_len + vhost_hlen;
 		headcount = get_rx_bufs(vq, vq->heads + nvq->done_idx,
@@ -905,7 +914,10 @@ static void handle_rx(struct vhost_net *net)
 			goto out;
 		}
 	}
-	vhost_net_enable_vq(net, vq);
+	if (unlikely(busyloop_intr))
+		vhost_poll_queue(&vq->poll);
+	else
+		vhost_net_enable_vq(net, vq);
 out:
 	vhost_rx_signal_used(nvq);
 	mutex_unlock(&vq->mutex);
