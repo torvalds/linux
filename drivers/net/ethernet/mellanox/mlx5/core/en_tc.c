@@ -2578,6 +2578,32 @@ out_err:
 	return err;
 }
 
+static int parse_tc_vlan_action(struct mlx5e_priv *priv,
+				const struct tc_action *a,
+				struct mlx5_esw_flow_attr *attr,
+				u32 *action)
+{
+	if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
+		*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
+	} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
+		*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
+		attr->vlan_vid[0] = tcf_vlan_push_vid(a);
+		if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
+			attr->vlan_prio[0] = tcf_vlan_push_prio(a);
+			attr->vlan_proto[0] = tcf_vlan_push_proto(a);
+			if (!attr->vlan_proto[0])
+				attr->vlan_proto[0] = htons(ETH_P_8021Q);
+		} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
+			   tcf_vlan_push_prio(a)) {
+			return -EOPNOTSUPP;
+		}
+	} else { /* action is TCA_VLAN_ACT_MODIFY */
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
 				struct mlx5e_tc_flow *flow)
@@ -2589,6 +2615,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	LIST_HEAD(actions);
 	bool encap = false;
 	u32 action = 0;
+	int err;
 
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
@@ -2605,8 +2632,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		}
 
 		if (is_tcf_pedit(a)) {
-			int err;
-
 			err = parse_tc_pedit_action(priv, a, MLX5_FLOW_NAMESPACE_FDB,
 						    parse_attr);
 			if (err)
@@ -2673,23 +2698,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		}
 
 		if (is_tcf_vlan(a)) {
-			if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-			} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-				attr->vlan_vid = tcf_vlan_push_vid(a);
-				if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
-					attr->vlan_prio = tcf_vlan_push_prio(a);
-					attr->vlan_proto = tcf_vlan_push_proto(a);
-					if (!attr->vlan_proto)
-						attr->vlan_proto = htons(ETH_P_8021Q);
-				} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
-					   tcf_vlan_push_prio(a)) {
-					return -EOPNOTSUPP;
-				}
-			} else { /* action is TCA_VLAN_ACT_MODIFY */
-				return -EOPNOTSUPP;
-			}
+			err = parse_tc_vlan_action(priv, a, attr, &action);
+
+			if (err)
+				return err;
+
 			attr->mirror_count = attr->out_count;
 			continue;
 		}

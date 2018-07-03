@@ -70,9 +70,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		flow_act.action &= ~(MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
 				     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP);
 	else if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH) {
-		flow_act.vlan[0].ethtype = ntohs(attr->vlan_proto);
-		flow_act.vlan[0].vid = attr->vlan_vid;
-		flow_act.vlan[0].prio = attr->vlan_prio;
+		flow_act.vlan[0].ethtype = ntohs(attr->vlan_proto[0]);
+		flow_act.vlan[0].vid = attr->vlan_vid[0];
+		flow_act.vlan[0].prio = attr->vlan_prio[0];
 	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
@@ -266,7 +266,7 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 	/* protects against (1) setting rules with different vlans to push and
 	 * (2) setting rules w.o vlans (attr->vlan = 0) && w. vlans to push (!= 0)
 	 */
-	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan_vid))
+	if (push && in_rep->vlan_refcount && (in_rep->vlan != attr->vlan_vid[0]))
 		goto out_notsupp;
 
 	return 0;
@@ -324,11 +324,11 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 		if (vport->vlan_refcount)
 			goto skip_set_push;
 
-		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport, attr->vlan_vid, 0,
+		err = __mlx5_eswitch_set_vport_vlan(esw, vport->vport, attr->vlan_vid[0], 0,
 						    SET_VLAN_INSERT | SET_VLAN_STRIP);
 		if (err)
 			goto out;
-		vport->vlan = attr->vlan_vid;
+		vport->vlan = attr->vlan_vid[0];
 skip_set_push:
 		vport->vlan_refcount++;
 	}

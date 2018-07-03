@@ -256,9 +256,9 @@ struct mlx5_esw_flow_attr {
 	int out_count;
 
 	int	action;
-	__be16	vlan_proto;
-	u16	vlan_vid;
-	u8	vlan_prio;
+	__be16	vlan_proto[1];
+	u16	vlan_vid[1];
+	u8	vlan_prio[1];
 	bool	vlan_handled;
 	u32	encap_id;
 	u32	mod_hdr_id;
