@@ -1268,6 +1268,16 @@ config SENSORS_NCT7904
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct7904.
 
+config SENSORS_NPCM7XX
+	tristate "Nuvoton NPCM750 and compatible PWM and Fan controllers"
+	imply THERMAL
+	help
+	  This driver provides support for Nuvoton NPCM750/730/715/705 PWM
+          and Fan controllers.
+
+          This driver can also be built as a module. If so, the module
+          will be called npcm750-pwm-fan.
+
 config SENSORS_NSA320
 	tristate "ZyXEL NSA320 and compatible fan speed and temperature sensors"
 	depends on GPIOLIB && OF
