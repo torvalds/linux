@@ -1058,14 +1058,11 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 						printk("dst : aw=%d ah=%d vw=%d vh=%d  \n",
 							req_first.dst.act_w, req_first.dst.act_h, req_first.dst.vir_w, req_first.dst.vir_h);
 					} else {
-						if ((req_first.src.act_w != req_first.dst.act_w)
-								|| (req_first.src.act_h != req_first.dst.act_h)) {
 							req_first.src.act_w = MIN(320, MIN(req_first.src.act_w, req_first.dst.act_w));
 							req_first.src.act_h = MIN(240, MIN(req_first.src.act_h, req_first.dst.act_h));
 							req_first.dst.act_w = req_first.src.act_w;
 							req_first.dst.act_h = req_first.src.act_h;
 							ret = rga2_blit_sync(session, &req_first);
-						}
 					}
 				}
 				ret = rga2_blit_async(session, &req);
