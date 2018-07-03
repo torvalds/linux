@@ -101,8 +101,8 @@ const char *dbg_sym_flags(int val)
 		strcat(buf, "write/");
 	if (val & SYMBOL_CHANGED)
 		strcat(buf, "changed/");
-	if (val & SYMBOL_AUTO)
-		strcat(buf, "auto/");
+	if (val & SYMBOL_NO_WRITE)
+		strcat(buf, "no_write/");
 
 	buf[strlen(buf) - 1] = '\0';
 

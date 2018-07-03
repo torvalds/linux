@@ -463,7 +463,7 @@ void sym_calc_value(struct symbol *sym)
 		}
 	}
 
-	if (sym->flags & SYMBOL_AUTO)
+	if (sym->flags & SYMBOL_NO_WRITE)
 		sym->flags &= ~SYMBOL_WRITE;
 
 	if (sym->flags & SYMBOL_NEED_SET_CHOICE_VALUES)

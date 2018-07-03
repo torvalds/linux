@@ -397,7 +397,7 @@ int conf_read(const char *name)
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if (sym_is_choice(sym) || (sym->flags & SYMBOL_AUTO))
+		if (sym_is_choice(sym) || (sym->flags & SYMBOL_NO_WRITE))
 			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
@@ -832,7 +832,7 @@ static int conf_split_config(void)
 	res = 0;
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if ((sym->flags & SYMBOL_AUTO) || !sym->name)
+		if ((sym->flags & SYMBOL_NO_WRITE) || !sym->name)
 			continue;
 		if (sym->flags & SYMBOL_WRITE) {
 			if (sym->flags & SYMBOL_DEF_AUTO) {
