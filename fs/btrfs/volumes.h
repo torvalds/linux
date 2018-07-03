@@ -11,6 +11,8 @@
 #include <linux/btrfs.h>
 #include "async-thread.h"
 
+#define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
+
 extern struct mutex uuid_mutex;
 
 #define BTRFS_STRIPE_LEN	SZ_64K
