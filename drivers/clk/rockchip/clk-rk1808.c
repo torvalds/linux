@@ -116,9 +116,10 @@ static struct rockchip_cpuclk_rate_table rk1808_cpuclk_rates[] __initdata = {
 };
 
 static const struct rockchip_cpuclk_reg_data rk1808_cpuclk_data = {
-	.core_reg = RK1808_CLKSEL_CON(0),
-	.div_core_shift = 0,
-	.div_core_mask = 0xf,
+	.core_reg[0] = RK1808_CLKSEL_CON(0),
+	.div_core_shift[0] = 0,
+	.div_core_mask[0] = 0xf,
+	.num_cores = 1,
 	.mux_core_alt = 2,
 	.mux_core_main = 0,
 	.mux_core_shift = 6,
@@ -336,9 +337,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 4
 	 */
-	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE | CLK_OPS_PARENT_ENABLE,
+	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_p, CLK_OPS_PARENT_ENABLE,
 			RK1808_CLKSEL_CON(1), 8, 2, MFLAGS, 0, 4, DFLAGS),
-	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE | CLK_OPS_PARENT_ENABLE,
+	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_p, CLK_OPS_PARENT_ENABLE,
 			RK1808_CLKSEL_CON(1), 10, 2, MFLAGS, 4, 4, DFLAGS),
 	MUX(0, "clk_npu_pre", mux_npu_p, CLK_SET_RATE_PARENT,
 			RK1808_CLKSEL_CON(1), 15, 1, MFLAGS),
@@ -416,9 +417,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(8), 5, GFLAGS),
 	GATE(0, "gpll_ddr", "gpll", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(8), 6, GFLAGS),
-	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", mux_ddr_p, CLK_IGNORE_UNUSED,
-			RK1808_CLKSEL_CON(3), 7, 1, 0, 5,
-			ROCKCHIP_DDRCLK_SIP_V2),
+
+	COMPOSITE_NOGATE(SCLK_DDRCLK, "sclk_ddrc", mux_ddr_p, CLK_IGNORE_UNUSED,
+			RK1808_CLKSEL_CON(3), 7, 1, MFLAGS, 0, 5, DFLAGS),
 	FACTOR(0, "clk_ddrphy1x_out", "sclk_ddrc", CLK_IGNORE_UNUSED, 1, 1),
 
 	COMPOSITE_NOMUX(PCLK_DDR, "pclk_ddr", "gpll", 0,

@@ -21,6 +21,12 @@ config CLK_RV110X
 	help
 	  Build the driver for RV110x Clock Driver.
 
+config CLK_RK1808
+	bool "Rockchip RK1808 clock controller support"
+	default y
+	help
+	  Build the driver for RK1808 Clock Driver.
+
 config CLK_RK3036
 	bool "Rockchip RK3036 clock controller support"
 	default y
