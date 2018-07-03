@@ -345,7 +345,8 @@ dtb-$(CONFIG_SOC_IMX27) += \
 	imx27-phytec-phycore-rdk.dtb \
 	imx27-phytec-phycard-s-rdk.dtb
 dtb-$(CONFIG_SOC_IMX31) += \
-	imx31-bug.dtb
+	imx31-bug.dtb \
+	imx31-lite.dtb
 dtb-$(CONFIG_SOC_IMX35) += \
 	imx35-eukrea-mbimxsd35-baseboard.dtb \
 	imx35-pdk.dtb
