@@ -110,6 +110,12 @@ struct drm_writeback_job {
 	struct dma_fence *out_fence;
 };
 
+static inline struct drm_writeback_connector *
+drm_connector_to_writeback(struct drm_connector *connector)
+{
+	return container_of(connector, struct drm_writeback_connector, base);
+}
+
 int drm_writeback_connector_init(struct drm_device *dev,
 				 struct drm_writeback_connector *wb_connector,
 				 const struct drm_connector_funcs *con_funcs,
