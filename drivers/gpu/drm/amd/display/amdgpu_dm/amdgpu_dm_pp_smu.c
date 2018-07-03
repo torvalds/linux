@@ -33,7 +33,6 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
-#include "../../powerplay/inc/hwmgr.h"
 
 
 bool dm_pp_apply_display_requirements(
@@ -452,76 +451,77 @@ bool dm_pp_get_static_clocks(
 void pp_rv_set_display_requirement(struct pp_smu *pp,
 		struct pp_smu_display_requirement_rv *req)
 {
-	struct amdgpu_device *adev = pp->ctx->driver_context;
-	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
-	int ret = 0;
-	if (hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
-		ret = hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, req->hard_min_dcefclk_khz/10);
-	if (hwmgr->hwmgr_func->set_active_display_count)
-		ret = hwmgr->hwmgr_func->set_active_display_count(hwmgr, req->display_count);
+	struct dc_context *ctx = pp->ctx;
+	struct amdgpu_device *adev = ctx->driver_context;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	//store_cc6 is not yet implemented in SMU level
+	if (!pp_funcs || !pp_funcs->display_configuration_changed)
+		return;
+
+	amdgpu_dpm_display_configuration_changed(adev);
 }
 
 void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
-	struct amdgpu_device *adev = pp->ctx->driver_context;
-	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
-	struct pp_wm_sets_with_clock_ranges_soc15 ranges_soc15 = {0};
-	int i = 0;
+	struct dc_context *ctx = pp->ctx;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 wm_with_clock_ranges;
+	struct dm_pp_clock_range_for_dmif_wm_set_soc15 *wm_dce_clocks = wm_with_clock_ranges.wm_dmif_clocks_ranges;
+	struct dm_pp_clock_range_for_mcif_wm_set_soc15 *wm_soc_clocks = wm_with_clock_ranges.wm_mcif_clocks_ranges;
+	int32_t i;
 
-	if (!hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges ||
-			!pp || !ranges)
-		return;
+	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
+	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
 
-	//not entirely sure if thats a correct assignment
-	ranges_soc15.num_wm_sets_dmif = ranges->num_reader_wm_sets;
-	ranges_soc15.num_wm_sets_mcif = ranges->num_writer_wm_sets;
-
-	for (i = 0; i < ranges_soc15.num_wm_sets_dmif; i++) {
+	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
 		if (ranges->reader_wm_sets[i].wm_inst > 3)
-			ranges_soc15.wm_sets_dmif[i].wm_set_id = DC_WM_SET_A;
+			wm_dce_clocks[i].wm_set_id = WM_SET_A;
 		else
-			ranges_soc15.wm_sets_dmif[i].wm_set_id =
+			wm_dce_clocks[i].wm_set_id =
 					ranges->reader_wm_sets[i].wm_inst;
-		ranges_soc15.wm_sets_dmif[i].wm_max_dcefclk_in_khz =
+		wm_dce_clocks[i].wm_max_dcfclk_clk_in_khz =
 				ranges->reader_wm_sets[i].max_drain_clk_khz;
-		ranges_soc15.wm_sets_dmif[i].wm_min_dcefclk_in_khz =
+		wm_dce_clocks[i].wm_min_dcfclk_clk_in_khz =
 				ranges->reader_wm_sets[i].min_drain_clk_khz;
-		ranges_soc15.wm_sets_dmif[i].wm_max_memclk_in_khz =
+		wm_dce_clocks[i].wm_max_mem_clk_in_khz =
 				ranges->reader_wm_sets[i].max_fill_clk_khz;
-		ranges_soc15.wm_sets_dmif[i].wm_min_memclk_in_khz =
+		wm_dce_clocks[i].wm_min_mem_clk_in_khz =
 				ranges->reader_wm_sets[i].min_fill_clk_khz;
 	}
 
-	for (i = 0; i < ranges_soc15.num_wm_sets_mcif; i++) {
+	for (i = 0; i < wm_with_clock_ranges.num_wm_mcif_sets; i++) {
 		if (ranges->writer_wm_sets[i].wm_inst > 3)
-			ranges_soc15.wm_sets_dmif[i].wm_set_id = DC_WM_SET_A;
+			wm_soc_clocks[i].wm_set_id = WM_SET_A;
 		else
-			ranges_soc15.wm_sets_mcif[i].wm_set_id =
+			wm_soc_clocks[i].wm_set_id =
 					ranges->writer_wm_sets[i].wm_inst;
-		ranges_soc15.wm_sets_mcif[i].wm_max_socclk_in_khz =
+		wm_soc_clocks[i].wm_max_socclk_clk_in_khz =
 				ranges->writer_wm_sets[i].max_fill_clk_khz;
-		ranges_soc15.wm_sets_mcif[i].wm_min_socclk_in_khz =
+		wm_soc_clocks[i].wm_min_socclk_clk_in_khz =
 				ranges->writer_wm_sets[i].min_fill_clk_khz;
-		ranges_soc15.wm_sets_mcif[i].wm_max_memclk_in_khz =
+		wm_soc_clocks[i].wm_max_mem_clk_in_khz =
 				ranges->writer_wm_sets[i].max_fill_clk_khz;
-		ranges_soc15.wm_sets_mcif[i].wm_min_memclk_in_khz =
+		wm_soc_clocks[i].wm_min_mem_clk_in_khz =
 				ranges->writer_wm_sets[i].min_fill_clk_khz;
 	}
 
-	hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr, &ranges_soc15);
-
+	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 {
-	struct amdgpu_device *adev = pp->ctx->driver_context;
-	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	struct dc_context *ctx = pp->ctx;
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (hwmgr->hwmgr_func->smus_notify_pwe)
-		hwmgr->hwmgr_func->smus_notify_pwe(hwmgr);
+	if (!pp_funcs || !pp_funcs->notify_smu_enable_pwe)
+		return;
+
+	pp_funcs->notify_smu_enable_pwe(pp_handle);
 }
 
 void dm_pp_get_funcs_rv(
