@@ -175,32 +175,35 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (!tcf_idr_check(tn, parm->index, a, bind)) {
 		if (!parm->nkeys) {
 			NL_SET_ERR_MSG_MOD(extack, "Pedit requires keys to be passed");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out_free;
 		}
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_pedit_ops, bind, false);
 		if (ret)
-			return ret;
+			goto out_free;
 		p = to_pedit(*a);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (!keys) {
 			tcf_idr_release(*a, bind);
-			kfree(keys_ex);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out_free;
 		}
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)
-			return 0;
+			goto out_free;
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		if (!ovr) {
+			ret = -EEXIST;
+			goto out_free;
+		}
 		p = to_pedit(*a);
 		if (p->tcfp_nkeys && p->tcfp_nkeys != parm->nkeys) {
 			keys = kmalloc(ksize, GFP_KERNEL);
 			if (!keys) {
-				kfree(keys_ex);
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto out_free;
 			}
 		}
 	}
@@ -222,6 +225,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+out_free:
+	kfree(keys_ex);
+	return ret;
+
 }
 
 static void tcf_pedit_cleanup(struct tc_action *a)
