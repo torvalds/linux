@@ -65,6 +65,7 @@ struct rockchip_vad {
 	u32 buffer_time; /* msec */
 	struct dentry *debugfs_dir;
 	void *buf;
+	bool acodec_cfg;
 };
 
 struct audio_src_addr_map {
@@ -421,6 +422,9 @@ static int rockchip_vad_config_acodec(struct snd_pcm_hw_params *params,
 	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
 	unsigned int val = 0;
 
+	if (!vad->acodec_cfg)
+		return 0;
+
 	val = ACODEC_BASE + ACODEC_ADC_ANA_CON0;
 	regmap_write(vad->regmap, VAD_ID_ADDR, val);
 
@@ -742,6 +746,7 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 
 	vad->dev = &pdev->dev;
 
+	vad->acodec_cfg = of_property_read_bool(np, "rockchip,acodec-cfg");
 	of_property_read_u32(np, "rockchip,mode", &vad->mode);
 	of_property_read_u32(np, "rockchip,det-channel", &vad->audio_chnl);
 	of_property_read_u32(np, "rockchip,buffer-time-ms", &vad->buffer_time);

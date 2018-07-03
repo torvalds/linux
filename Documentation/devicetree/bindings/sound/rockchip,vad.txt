@@ -16,6 +16,9 @@ Required properties:
   - 1: begin to store the data after vad is enabled.
   - 2: don't store the data.
 
+Optional properties:
+- rockchip,acodec-cfg: boolean, config acodec after voice activity detection.
+
 Example for rk3308 VAD controller:
 
 vad: vad@ff3c0000 {
