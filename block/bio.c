@@ -32,6 +32,7 @@
 
 #include <trace/events/block.h>
 #include "blk.h"
+#include "blk-rq-qos.h"
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
@@ -1807,6 +1808,9 @@ again:
 		return;
 	if (!bio_integrity_endio(bio))
 		return;
+
+	if (bio->bi_disk)
+		rq_qos_done_bio(bio->bi_disk->queue, bio);
 
 	/*
 	 * Need to have a real endio function for chained bios, otherwise
