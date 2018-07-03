@@ -50,6 +50,8 @@ Optional properties in the area nodes:
 		 manipulation of the page attributes.
 - label : the name for the reserved partition, if omitted, the label
           is taken from the node name excluding the unit address.
+- clocks : a list of phandle and clock specifier pair that controls the
+	   single SRAM clock.
 
 Example:
 
