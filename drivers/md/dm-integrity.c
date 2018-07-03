@@ -1599,8 +1599,12 @@ retry:
 
 			dio->range.n_sectors = min(dio->range.n_sectors,
 						   ic->free_sectors << ic->sb->log2_sectors_per_block);
-			if (unlikely(!dio->range.n_sectors))
-				goto sleep;
+			if (unlikely(!dio->range.n_sectors)) {
+				if (from_map)
+					goto offload_to_thread;
+				sleep_on_endio_wait(ic);
+				goto retry;
+			}
 			range_sectors = dio->range.n_sectors >> ic->sb->log2_sectors_per_block;
 			ic->free_sectors -= range_sectors;
 			journal_section = ic->free_section;
@@ -1660,8 +1664,8 @@ retry:
 		 * stall bios on current->bio_list.
 		 * So, we offload the bio to a workqueue if we have to sleep.
 		 */
-sleep:
 		if (from_map) {
+offload_to_thread:
 			spin_unlock_irq(&ic->endio_wait.lock);
 			INIT_WORK(&dio->work, integrity_bio_wait);
 			queue_work(ic->wait_wq, &dio->work);
