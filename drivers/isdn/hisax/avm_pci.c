@@ -207,6 +207,7 @@ modehdlc(struct BCState *bcs, int mode, int bc)
 		bcs->mode = 1;
 		bcs->channel = bc;
 		bc = 0;
+		/* fall through */
 	case (L1_MODE_NULL):
 		if (bcs->mode == L1_MODE_NULL)
 			return;

@@ -1843,6 +1843,7 @@ static void hisax_b_l2l1(struct PStack *st, int pr, void *arg)
 	case PH_DEACTIVATE | REQUEST:
 		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
 		skb_queue_purge(&bcs->squeue);
+		/* fall through */
 	default:
 		B_L2L1(b_if, pr, arg);
 		break;

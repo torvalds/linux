@@ -739,6 +739,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_OPEN_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_OPEN_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, BS_B1OPEN << channel, 0);
@@ -752,6 +753,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_CLOSE_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_CLOSE_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, 0, BS_B1OPEN << channel);
@@ -765,6 +767,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_B2_FLOW_CONTROL:
 		++channel;
+		/* fall through */
 	case HD_B1_FLOW_CONTROL:
 		bcs = cs->bcs + channel;
 		atomic_add((l - BAS_NORMFRAME) * BAS_CORRFRAMES,
