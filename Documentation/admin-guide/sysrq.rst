@@ -68,6 +68,11 @@ On PowerPC
 	Press :kbd:`ALT - Print Screen` (or :kbd:`F13`) - :kbd:`<command key>`,
         :kbd:`Print Screen` (or :kbd:`F13`) - :kbd:`<command key>` may suffice.
 
+On System Z - Press 'CTRL-O-<command key>' on the hvc0 console.'CTRL-O' means
+              pressing 'O' (not zero) while holding down the 'CTRL' key. For 
+              3270 console or line-mode HMC console: Pass '^-<command key>'
+              Here, '^-' means cap and dash characters.
+
 On other
 	If you know of the key combos for other architectures, please
         let me know so I can add them to this section.
