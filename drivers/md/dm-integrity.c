@@ -186,6 +186,7 @@ struct dm_integrity_c {
 
 	/* these variables are locked with endio_wait.lock */
 	struct rb_root in_progress;
+	struct list_head wait_list;
 	wait_queue_head_t endio_wait;
 	struct workqueue_struct *wait_wq;
 
@@ -233,7 +234,14 @@ struct dm_integrity_c {
 struct dm_integrity_range {
 	sector_t logical_sector;
 	unsigned n_sectors;
-	struct rb_node node;
+	bool waiting;
+	union {
+		struct rb_node node;
+		struct {
+			struct task_struct *task;
+			struct list_head wait_entry;
+		};
+	};
 };
 
 struct dm_integrity_io {
@@ -867,12 +875,26 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 	}
 }
 
-static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range)
+static bool ranges_overlap(struct dm_integrity_range *range1, struct dm_integrity_range *range2)
+{
+	return range1->logical_sector < range2->logical_sector + range2->n_sectors &&
+	       range2->logical_sector + range2->n_sectors > range2->logical_sector;
+}
+
+static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range, bool check_waiting)
 {
 	struct rb_node **n = &ic->in_progress.rb_node;
 	struct rb_node *parent;
 
 	BUG_ON((new_range->logical_sector | new_range->n_sectors) & (unsigned)(ic->sectors_per_block - 1));
+
+	if (likely(check_waiting)) {
+		struct dm_integrity_range *range;
+		list_for_each_entry(range, &ic->wait_list, wait_entry) {
+			if (unlikely(ranges_overlap(range, new_range)))
+				return false;
+		}
+	}
 
 	parent = NULL;
 
@@ -898,7 +920,22 @@ static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *
 static void remove_range_unlocked(struct dm_integrity_c *ic, struct dm_integrity_range *range)
 {
 	rb_erase(&range->node, &ic->in_progress);
-	wake_up_locked(&ic->endio_wait);
+	while (unlikely(!list_empty(&ic->wait_list))) {
+		struct dm_integrity_range *last_range =
+			list_first_entry(&ic->wait_list, struct dm_integrity_range, wait_entry);
+		struct task_struct *last_range_task;
+		if (!ranges_overlap(range, last_range))
+			break;
+		last_range_task = last_range->task;
+		list_del(&last_range->wait_entry);
+		if (!add_new_range(ic, last_range, false)) {
+			last_range->task = last_range_task;
+			list_add(&last_range->wait_entry, &ic->wait_list);
+			break;
+		}
+		last_range->waiting = false;
+		wake_up_process(last_range_task);
+	}
 }
 
 static void remove_range(struct dm_integrity_c *ic, struct dm_integrity_range *range)
@@ -908,6 +945,19 @@ static void remove_range(struct dm_integrity_c *ic, struct dm_integrity_range *r
 	spin_lock_irqsave(&ic->endio_wait.lock, flags);
 	remove_range_unlocked(ic, range);
 	spin_unlock_irqrestore(&ic->endio_wait.lock, flags);
+}
+
+static void wait_and_add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range)
+{
+	new_range->waiting = true;
+	list_add_tail(&new_range->wait_entry, &ic->wait_list);
+	new_range->task = current;
+	do {
+		__set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_unlock_irq(&ic->endio_wait.lock);
+		io_schedule();
+		spin_lock_irq(&ic->endio_wait.lock);
+	} while (unlikely(new_range->waiting));
 }
 
 static void init_journal_node(struct journal_node *node)
@@ -1658,7 +1708,7 @@ retry:
 			}
 		}
 	}
-	if (unlikely(!add_new_range(ic, &dio->range))) {
+	if (unlikely(!add_new_range(ic, &dio->range, true))) {
 		/*
 		 * We must not sleep in the request routine because it could
 		 * stall bios on current->bio_list.
@@ -1670,10 +1720,8 @@ offload_to_thread:
 			INIT_WORK(&dio->work, integrity_bio_wait);
 			queue_work(ic->wait_wq, &dio->work);
 			return;
-		} else {
-			sleep_on_endio_wait(ic);
-			goto retry;
 		}
+		wait_and_add_new_range(ic, &dio->range);
 	}
 	spin_unlock_irq(&ic->endio_wait.lock);
 
@@ -1896,8 +1944,8 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 			io->range.n_sectors = (k - j) << ic->sb->log2_sectors_per_block;
 
 			spin_lock_irq(&ic->endio_wait.lock);
-			while (unlikely(!add_new_range(ic, &io->range)))
-				sleep_on_endio_wait(ic);
+			if (unlikely(!add_new_range(ic, &io->range, true)))
+				wait_and_add_new_range(ic, &io->range);
 
 			if (likely(!from_replay)) {
 				struct journal_node *section_node = &ic->journal_tree[i * ic->journal_section_entries];
@@ -2852,6 +2900,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->per_io_data_size = sizeof(struct dm_integrity_io);
 
 	ic->in_progress = RB_ROOT;
+	INIT_LIST_HEAD(&ic->wait_list);
 	init_waitqueue_head(&ic->endio_wait);
 	bio_list_init(&ic->flush_bio_list);
 	init_waitqueue_head(&ic->copy_to_journal_wait);
@@ -3196,6 +3245,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 	struct dm_integrity_c *ic = ti->private;
 
 	BUG_ON(!RB_EMPTY_ROOT(&ic->in_progress));
+	BUG_ON(!list_empty(&ic->wait_list));
 
 	if (ic->metadata_wq)
 		destroy_workqueue(ic->metadata_wq);
