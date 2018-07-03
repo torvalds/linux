@@ -776,9 +776,14 @@ struct rbd_options {
 #define RBD_EXCLUSIVE_DEFAULT	false
 #define RBD_TRIM_DEFAULT	true
 
+struct parse_rbd_opts_ctx {
+	struct rbd_spec		*spec;
+	struct rbd_options	*opts;
+};
+
 static int parse_rbd_opts_token(char *c, void *private)
 {
-	struct rbd_options *rbd_opts = private;
+	struct parse_rbd_opts_ctx *pctx = private;
 	substring_t argstr[MAX_OPT_ARGS];
 	int token, intval, ret;
 
@@ -802,7 +807,7 @@ static int parse_rbd_opts_token(char *c, void *private)
 			pr_err("queue_depth out of range\n");
 			return -EINVAL;
 		}
-		rbd_opts->queue_depth = intval;
+		pctx->opts->queue_depth = intval;
 		break;
 	case Opt_lock_timeout:
 		/* 0 is "wait forever" (i.e. infinite timeout) */
@@ -810,22 +815,22 @@ static int parse_rbd_opts_token(char *c, void *private)
 			pr_err("lock_timeout out of range\n");
 			return -EINVAL;
 		}
-		rbd_opts->lock_timeout = msecs_to_jiffies(intval * 1000);
+		pctx->opts->lock_timeout = msecs_to_jiffies(intval * 1000);
 		break;
 	case Opt_read_only:
-		rbd_opts->read_only = true;
+		pctx->opts->read_only = true;
 		break;
 	case Opt_read_write:
-		rbd_opts->read_only = false;
+		pctx->opts->read_only = false;
 		break;
 	case Opt_lock_on_read:
-		rbd_opts->lock_on_read = true;
+		pctx->opts->lock_on_read = true;
 		break;
 	case Opt_exclusive:
-		rbd_opts->exclusive = true;
+		pctx->opts->exclusive = true;
 		break;
 	case Opt_notrim:
-		rbd_opts->trim = false;
+		pctx->opts->trim = false;
 		break;
 	default:
 		/* libceph prints "bad option" msg */
@@ -5146,8 +5151,7 @@ static int rbd_add_parse_args(const char *buf,
 	const char *mon_addrs;
 	char *snap_name;
 	size_t mon_addrs_size;
-	struct rbd_spec *spec = NULL;
-	struct rbd_options *rbd_opts = NULL;
+	struct parse_rbd_opts_ctx pctx = { 0 };
 	struct ceph_options *copts;
 	int ret;
 
@@ -5171,22 +5175,22 @@ static int rbd_add_parse_args(const char *buf,
 		goto out_err;
 	}
 
-	spec = rbd_spec_alloc();
-	if (!spec)
+	pctx.spec = rbd_spec_alloc();
+	if (!pctx.spec)
 		goto out_mem;
 
-	spec->pool_name = dup_token(&buf, NULL);
-	if (!spec->pool_name)
+	pctx.spec->pool_name = dup_token(&buf, NULL);
+	if (!pctx.spec->pool_name)
 		goto out_mem;
-	if (!*spec->pool_name) {
+	if (!*pctx.spec->pool_name) {
 		rbd_warn(NULL, "no pool name provided");
 		goto out_err;
 	}
 
-	spec->image_name = dup_token(&buf, NULL);
-	if (!spec->image_name)
+	pctx.spec->image_name = dup_token(&buf, NULL);
+	if (!pctx.spec->image_name)
 		goto out_mem;
-	if (!*spec->image_name) {
+	if (!*pctx.spec->image_name) {
 		rbd_warn(NULL, "no image name provided");
 		goto out_err;
 	}
@@ -5207,24 +5211,24 @@ static int rbd_add_parse_args(const char *buf,
 	if (!snap_name)
 		goto out_mem;
 	*(snap_name + len) = '\0';
-	spec->snap_name = snap_name;
+	pctx.spec->snap_name = snap_name;
 
 	/* Initialize all rbd options to the defaults */
 
-	rbd_opts = kzalloc(sizeof (*rbd_opts), GFP_KERNEL);
-	if (!rbd_opts)
+	pctx.opts = kzalloc(sizeof(*pctx.opts), GFP_KERNEL);
+	if (!pctx.opts)
 		goto out_mem;
 
-	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
-	rbd_opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
-	rbd_opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
-	rbd_opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
-	rbd_opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
-	rbd_opts->trim = RBD_TRIM_DEFAULT;
+	pctx.opts->read_only = RBD_READ_ONLY_DEFAULT;
+	pctx.opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
+	pctx.opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
+	pctx.opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
+	pctx.opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
+	pctx.opts->trim = RBD_TRIM_DEFAULT;
 
 	copts = ceph_parse_options(options, mon_addrs,
-					mon_addrs + mon_addrs_size - 1,
-					parse_rbd_opts_token, rbd_opts);
+				   mon_addrs + mon_addrs_size - 1,
+				   parse_rbd_opts_token, &pctx);
 	if (IS_ERR(copts)) {
 		ret = PTR_ERR(copts);
 		goto out_err;
@@ -5232,15 +5236,15 @@ static int rbd_add_parse_args(const char *buf,
 	kfree(options);
 
 	*ceph_opts = copts;
-	*opts = rbd_opts;
-	*rbd_spec = spec;
+	*opts = pctx.opts;
+	*rbd_spec = pctx.spec;
 
 	return 0;
 out_mem:
 	ret = -ENOMEM;
 out_err:
-	kfree(rbd_opts);
-	rbd_spec_put(spec);
+	kfree(pctx.opts);
+	rbd_spec_put(pctx.spec);
 	kfree(options);
 
 	return ret;
