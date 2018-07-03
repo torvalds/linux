@@ -1238,6 +1238,14 @@ int blkcg_init_queue(struct request_queue *q)
 	if (preloaded)
 		radix_tree_preload_end();
 
+	ret = blk_iolatency_init(q);
+	if (ret) {
+		spin_lock_irq(q->queue_lock);
+		blkg_destroy_all(q);
+		spin_unlock_irq(q->queue_lock);
+		return ret;
+	}
+
 	ret = blk_throtl_init(q);
 	if (ret) {
 		spin_lock_irq(q->queue_lock);

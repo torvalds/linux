@@ -180,9 +180,7 @@ struct bio {
 	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
 	struct blkcg_gq		*bi_blkg;
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	struct bio_issue	bi_issue;
-#endif
 #endif
 	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
