@@ -80,6 +80,8 @@ enum devlink_command {
 
 	DEVLINK_CMD_PARAM_GET,		/* can dump */
 	DEVLINK_CMD_PARAM_SET,
+	DEVLINK_CMD_PARAM_NEW,
+	DEVLINK_CMD_PARAM_DEL,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
