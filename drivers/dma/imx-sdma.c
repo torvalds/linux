@@ -202,9 +202,9 @@ struct sdma_buffer_descriptor {
 /**
  * struct sdma_channel_control - Channel control Block
  *
- * @current_bd_ptr	current buffer descriptor processed
- * @base_bd_ptr		first element of buffer descriptor array
- * @unused		padding. The SDMA engine expects an array of 128 byte
+ * @current_bd_ptr:	current buffer descriptor processed
+ * @base_bd_ptr:	first element of buffer descriptor array
+ * @unused:		padding. The SDMA engine expects an array of 128 byte
  *			control blocks
  */
 struct sdma_channel_control {
@@ -217,10 +217,13 @@ struct sdma_channel_control {
  * struct sdma_state_registers - SDMA context for a channel
  *
  * @pc:		program counter
+ * @unused1:	unused
  * @t:		test bit: status of arithmetic & test instruction
  * @rpc:	return program counter
+ * @unused0:	unused
  * @sf:		source fault while loading data
  * @spc:	loop start program counter
+ * @unused2:	unused
  * @df:		destination fault while storing data
  * @epc:	loop end program counter
  * @lm:		loop mode
@@ -258,6 +261,14 @@ struct sdma_state_registers {
  * @dsa:		dedicated core source address register
  * @ds:			dedicated core status register
  * @dd:			dedicated core data register
+ * @scratch0:		1st word of dedicated ram for context switch
+ * @scratch1:		2nd word of dedicated ram for context switch
+ * @scratch2:		3rd word of dedicated ram for context switch
+ * @scratch3:		4th word of dedicated ram for context switch
+ * @scratch4:		5th word of dedicated ram for context switch
+ * @scratch5:		6th word of dedicated ram for context switch
+ * @scratch6:		7th word of dedicated ram for context switch
+ * @scratch7:		8th word of dedicated ram for context switch
  */
 struct sdma_context_data {
 	struct sdma_state_registers  channel_state;
@@ -291,15 +302,16 @@ struct sdma_engine;
 
 /**
  * struct sdma_desc - descriptor structor for one transfer
- * @vd			descriptor for virt dma
- * @num_bd		max NUM_BD. number of descriptors currently handling
- * @buf_tail		ID of the buffer that was processed
- * @buf_ptail		ID of the previous buffer that was processed
- * @period_len		period length, used in cyclic.
- * @chn_real_count	the real count updated from bd->mode.count
- * @chn_count		the transfer count set
- * @sdmac		sdma_channel pointer
- * @bd			pointer of allocate bd
+ * @vd:			descriptor for virt dma
+ * @num_bd:		number of descriptors currently handling
+ * @bd_phys:		physical address of bd
+ * @buf_tail:		ID of the buffer that was processed
+ * @buf_ptail:		ID of the previous buffer that was processed
+ * @period_len:		period length, used in cyclic.
+ * @chn_real_count:	the real count updated from bd->mode.count
+ * @chn_count:		the transfer count set
+ * @sdmac:		sdma_channel pointer
+ * @bd:			pointer of allocate bd
  */
 struct sdma_desc {
 	struct virt_dma_desc	vd;
@@ -317,13 +329,30 @@ struct sdma_desc {
 /**
  * struct sdma_channel - housekeeping for a SDMA channel
  *
- * @sdma		pointer to the SDMA engine for this channel
- * @channel		the channel number, matches dmaengine chan_id + 1
- * @direction		transfer type. Needed for setting SDMA script
- * @peripheral_type	Peripheral type. Needed for setting SDMA script
- * @event_id0		aka dma request line
- * @event_id1		for channels that use 2 events
- * @word_size		peripheral access size
+ * @vc:			virt_dma base structure
+ * @desc:		sdma description including vd and other special member
+ * @sdma:		pointer to the SDMA engine for this channel
+ * @channel:		the channel number, matches dmaengine chan_id + 1
+ * @direction:		transfer type. Needed for setting SDMA script
+ * @peripheral_type:	Peripheral type. Needed for setting SDMA script
+ * @event_id0:		aka dma request line
+ * @event_id1:		for channels that use 2 events
+ * @word_size:		peripheral access size
+ * @pc_from_device:	script address for those device_2_memory
+ * @pc_to_device:	script address for those memory_2_device
+ * @device_to_device:	script address for those device_2_device
+ * @flags:		loop mode or not
+ * @per_address:	peripheral source or destination address in common case
+ *                      destination address in p_2_p case
+ * @per_address2:	peripheral source address in p_2_p case
+ * @event_mask:		event mask used in p_2_p script
+ * @watermark_level:	value for gReg[7], some script will extend it from
+ *			basic watermark such as p_2_p
+ * @shp_addr:		value for gReg[6]
+ * @per_addr:		value for gReg[2]
+ * @status:		status of dma channel
+ * @data:		specific sdma interface structure
+ * @bd_pool:		dma_pool for bd
  */
 struct sdma_channel {
 	struct virt_dma_chan		vc;
@@ -359,15 +388,15 @@ struct sdma_channel {
 /**
  * struct sdma_firmware_header - Layout of the firmware image
  *
- * @magic		"SDMA"
- * @version_major	increased whenever layout of struct sdma_script_start_addrs
- *			changes.
- * @version_minor	firmware minor version (for binary compatible changes)
- * @script_addrs_start	offset of struct sdma_script_start_addrs in this image
- * @num_script_addrs	Number of script addresses in this image
- * @ram_code_start	offset of SDMA ram image in this firmware image
- * @ram_code_size	size of SDMA ram image
- * @script_addrs	Stores the start address of the SDMA scripts
+ * @magic:		"SDMA"
+ * @version_major:	increased whenever layout of struct
+ *			sdma_script_start_addrs changes.
+ * @version_minor:	firmware minor version (for binary compatible changes)
+ * @script_addrs_start:	offset of struct sdma_script_start_addrs in this image
+ * @num_script_addrs:	Number of script addresses in this image
+ * @ram_code_start:	offset of SDMA ram image in this firmware image
+ * @ram_code_size:	size of SDMA ram image
+ * @script_addrs:	Stores the start address of the SDMA scripts
  *			(in SDMA memory space)
  */
 struct sdma_firmware_header {
