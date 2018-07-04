@@ -100,6 +100,16 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	u16 column = ((u16)addr << 8) | addr;
 
+	if (chip->exec_op) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_ADDR(1, &addr, 0),
+			NAND_OP_8BIT_DATA_OUT(1, &val, 0),
+		};
+		struct nand_operation op = NAND_OPERATION(instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
 	chip->cmdfunc(mtd, NAND_CMD_NONE, column, -1);
 	chip->write_byte(mtd, val);
 
