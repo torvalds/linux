@@ -17,6 +17,8 @@
 
 #include "rockchip_multi_dais.h"
 
+#define MAX_FIFO_SIZE	32 /* max fifo size in frames */
+
 struct dmaengine_mpcm {
 	struct rk_mdais_dev *mdais;
 	struct dma_chan *tx_chans[MAX_DAIS];
@@ -30,6 +32,8 @@ struct dmaengine_mpcm_runtime_data {
 	unsigned int *channel_maps;
 	int num_chans;
 	unsigned int pos;
+	unsigned int master_chan;
+	bool start_flag;
 };
 
 static inline struct dmaengine_mpcm_runtime_data *substream_to_prtd(
@@ -145,6 +149,7 @@ static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream
 			desc->callback = dmaengine_mpcm_dma_complete;
 			desc->callback_param = substream;
 			callback = true;
+			prtd->master_chan = i;
 		}
 		prtd->cookies[i] = dmaengine_submit(desc);
 		offset += samples_to_bytes(runtime, maps[i]);
@@ -215,12 +220,15 @@ static int snd_dmaengine_mpcm_trigger(struct snd_pcm_substream *substream, int c
 			mpcm_dmaengine_pause(prtd);
 		else
 			mpcm_dmaengine_terminate_all(prtd);
+		prtd->start_flag = false;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		mpcm_dmaengine_pause(prtd);
+		prtd->start_flag = false;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		mpcm_dmaengine_terminate_all(prtd);
+		prtd->start_flag = false;
 		break;
 	default:
 		return -EINVAL;
@@ -393,6 +401,7 @@ static int dmaengine_mpcm_open(struct snd_pcm_substream *substream)
 	}
 
 	prtd->num_chans = pcm->mdais->num_dais;
+	prtd->start_flag = false;
 	substream->runtime->private_data = prtd;
 
 	return 0;
@@ -430,22 +439,32 @@ static int dmaengine_mpcm_new(struct snd_soc_pcm_runtime *rtd)
 static snd_pcm_uframes_t dmaengine_mpcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dma_tx_state state;
+	snd_pcm_uframes_t frames;
 	unsigned int buf_size;
 	unsigned int pos = 0;
-	int i = 0;
+	unsigned int master = prtd->master_chan;
 
 	buf_size = snd_pcm_lib_buffer_bytes(substream);
-	for (i = 0; i < prtd->num_chans; i++) {
-		if (!prtd->chans[i])
-			continue;
-		dmaengine_tx_status(prtd->chans[i], prtd->cookies[i], &state);
-		if (state.residue > 0 && state.residue <= buf_size)
-			pos = buf_size - state.residue;
-		break;
+	dmaengine_tx_status(prtd->chans[master], prtd->cookies[master], &state);
+	if (state.residue > 0 && state.residue <= buf_size)
+		pos = buf_size - state.residue;
+
+	frames = bytes_to_frames(substream->runtime, pos);
+	if (!prtd->start_flag && frames >= MAX_FIFO_SIZE)
+		prtd->start_flag = true;
+
+	if (prtd->start_flag) {
+		if (frames >= MAX_FIFO_SIZE)
+			frames -= MAX_FIFO_SIZE;
+		else
+			frames = runtime->buffer_size + frames - MAX_FIFO_SIZE;
+	} else {
+		frames = 0;
 	}
 
-	return bytes_to_frames(substream->runtime, pos);
+	return frames;
 }
 
 static int dmaengine_mpcm_close(struct snd_pcm_substream *substream)
