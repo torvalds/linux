@@ -611,8 +611,14 @@ static int tb_init_port(struct tb_port *port)
 	int cap;
 
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
-	if (res)
+	if (res) {
+		if (res == -ENODEV) {
+			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
+			       port->port);
+			return 0;
+		}
 		return res;
+	}
 
 	/* Port 0 is the switch itself and has no PHY. */
 	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
