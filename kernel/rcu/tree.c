@@ -189,9 +189,9 @@ unsigned long rcu_rnp_online_cpus(struct rcu_node *rnp)
  * permit this function to be invoked without holding the root rcu_node
  * structure's ->lock, but of course results can be subject to change.
  */
-static int rcu_gp_in_progress(struct rcu_state *rsp)
+static int rcu_gp_in_progress(void)
 {
-	return rcu_seq_state(rcu_seq_current(&rsp->gp_seq));
+	return rcu_seq_state(rcu_seq_current(&rcu_state.gp_seq));
 }
 
 void rcu_softirq_qs(void)
@@ -1297,7 +1297,7 @@ static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
 		return;
 	j = READ_ONCE(rsp->jiffies_kick_kthreads);
 	if (time_after(jiffies, j) && rsp->gp_kthread &&
-	    (rcu_gp_in_progress(rsp) || READ_ONCE(rsp->gp_flags))) {
+	    (rcu_gp_in_progress() || READ_ONCE(rsp->gp_flags))) {
 		WARN_ONCE(1, "Kicking %s grace-period kthread\n", rsp->name);
 		rcu_ftrace_dump(DUMP_ALL);
 		wake_up_process(rsp->gp_kthread);
@@ -1449,7 +1449,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	struct rcu_node *rnp;
 
 	if ((rcu_cpu_stall_suppress && !rcu_kick_kthreads) ||
-	    !rcu_gp_in_progress(rsp))
+	    !rcu_gp_in_progress())
 		return;
 	rcu_stall_kick_kthreads(rsp);
 	j = jiffies;
@@ -1484,14 +1484,14 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 		return; /* No stall or GP completed since entering function. */
 	rnp = rdp->mynode;
 	jn = jiffies + 3 * rcu_jiffies_till_stall_check() + 3;
-	if (rcu_gp_in_progress(rsp) &&
+	if (rcu_gp_in_progress() &&
 	    (READ_ONCE(rnp->qsmask) & rdp->grpmask) &&
 	    cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
 
-	} else if (rcu_gp_in_progress(rsp) &&
+	} else if (rcu_gp_in_progress() &&
 		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
 		   cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
 
@@ -1589,7 +1589,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 	}
 
 	/* If GP already in progress, just leave, otherwise start one. */
-	if (rcu_gp_in_progress(rsp)) {
+	if (rcu_gp_in_progress()) {
 		trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("Startedleafroot"));
 		goto unlock_out;
 	}
@@ -1846,7 +1846,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	}
 	WRITE_ONCE(rsp->gp_flags, 0); /* Clear all flags: New grace period. */
 
-	if (WARN_ON_ONCE(rcu_gp_in_progress(rsp))) {
+	if (WARN_ON_ONCE(rcu_gp_in_progress())) {
 		/*
 		 * Grace period already in progress, don't start another.
 		 * Not supposed to be able to happen.
@@ -2195,7 +2195,7 @@ static void rcu_report_qs_rsp(unsigned long flags)
 	struct rcu_state *rsp = &rcu_state;
 
 	raw_lockdep_assert_held_rcu_node(rcu_get_root(rsp));
-	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
+	WARN_ON_ONCE(!rcu_gp_in_progress());
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
 	raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(rsp), flags);
 	rcu_gp_kthread_wake(rsp);
@@ -2682,7 +2682,7 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	static atomic_t warned = ATOMIC_INIT(0);
 
-	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress(rsp) ||
+	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed))
 		return;
 	j = jiffies; /* Expensive access, and in common case don't get here. */
@@ -2693,7 +2693,7 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	j = jiffies;
-	if (rcu_gp_in_progress(rsp) ||
+	if (rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
 	    time_before(j, READ_ONCE(rsp->gp_req_activity) + gpssdelay) ||
 	    time_before(j, READ_ONCE(rsp->gp_activity) + gpssdelay) ||
@@ -2706,7 +2706,7 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	if (rnp_root != rnp)
 		raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
 	j = jiffies;
-	if (rcu_gp_in_progress(rsp) ||
+	if (rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
 	    time_before(j, rsp->gp_req_activity + gpssdelay) ||
 	    time_before(j, rsp->gp_activity + gpssdelay) ||
@@ -2751,7 +2751,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	rcu_check_quiescent_state(rsp, rdp);
 
 	/* No grace period and unregistered callbacks? */
-	if (!rcu_gp_in_progress(rsp) &&
+	if (!rcu_gp_in_progress() &&
 	    rcu_segcblist_is_enabled(&rdp->cblist)) {
 		local_irq_save(flags);
 		if (!rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
@@ -2841,7 +2841,7 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 		note_gp_changes(rsp, rdp);
 
 		/* Start a new grace period if one not already started. */
-		if (!rcu_gp_in_progress(rsp)) {
+		if (!rcu_gp_in_progress()) {
 			rcu_accelerate_cbs_unlocked(rsp, rdp->mynode, rdp);
 		} else {
 			/* Give the grace period a kick. */
@@ -3105,7 +3105,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 		return 1;
 
 	/* Has RCU gone idle with this CPU needing another grace period? */
-	if (!rcu_gp_in_progress(rsp) &&
+	if (!rcu_gp_in_progress() &&
 	    rcu_segcblist_is_enabled(&rdp->cblist) &&
 	    !rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
 		return 1;
