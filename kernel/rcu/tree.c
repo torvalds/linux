@@ -1214,17 +1214,17 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	return 0;
 }
 
-static void record_gp_stall_check_time(struct rcu_state *rsp)
+static void record_gp_stall_check_time(void)
 {
 	unsigned long j = jiffies;
 	unsigned long j1;
 
-	rsp->gp_start = j;
+	rcu_state.gp_start = j;
 	j1 = rcu_jiffies_till_stall_check();
 	/* Record ->gp_start before ->jiffies_stall. */
-	smp_store_release(&rsp->jiffies_stall, j + j1); /* ^^^ */
-	rsp->jiffies_resched = j + j1 / 2;
-	rsp->n_force_qs_gpstart = READ_ONCE(rsp->n_force_qs);
+	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
+	rcu_state.jiffies_resched = j + j1 / 2;
+	rcu_state.n_force_qs_gpstart = READ_ONCE(rcu_state.n_force_qs);
 }
 
 /*
@@ -1856,7 +1856,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	}
 
 	/* Advance to a new grace period and initialize state. */
-	record_gp_stall_check_time(rsp);
+	record_gp_stall_check_time();
 	/* Record GP times before starting GP, hence rcu_seq_start(). */
 	rcu_seq_start(&rsp->gp_seq);
 	trace_rcu_grace_period(rsp->name, rsp->gp_seq, TPS("start"));
