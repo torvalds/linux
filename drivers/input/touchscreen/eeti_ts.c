@@ -1,9 +1,9 @@
 /*
  * Touch Screen driver for EETI's I2C connected touch screen panels
- *   Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
+ *   Copyright (c) 2009,2018 Daniel Mack <daniel@zonque.org>
  *
  * See EETI's software guide for the protocol specification:
- *   http://home.eeti.com.tw/web20/eg/guide.htm
+ *   http://home.eeti.com.tw/documentation.html
  *
  * Based on migor_ts.c
  *   Copyright (c) 2008 Magnus Damm
@@ -271,5 +271,5 @@ static struct i2c_driver eeti_ts_driver = {
 module_i2c_driver(eeti_ts_driver);
 
 MODULE_DESCRIPTION("EETI Touchscreen driver");
-MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
+MODULE_AUTHOR("Daniel Mack <daniel@zonque.org>");
 MODULE_LICENSE("GPL");
