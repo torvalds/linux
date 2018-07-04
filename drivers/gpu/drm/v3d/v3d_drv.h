@@ -2,6 +2,7 @@
 /* Copyright (C) 2015-2018 Broadcom */
 
 #include <linux/reservation.h>
+#include <linux/mm_types.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
@@ -252,7 +253,7 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
-int v3d_gem_fault(struct vm_fault *vmf);
+vm_fault_t v3d_gem_fault(struct vm_fault *vmf);
 int v3d_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *v3d_prime_res_obj(struct drm_gem_object *obj);
 int v3d_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
