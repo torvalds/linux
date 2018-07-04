@@ -287,6 +287,11 @@ enum pgtable_index {
 	PMD_INDEX,
 	PUD_INDEX,
 	PGD_INDEX,
+	/*
+	 * Below are used with 4k page size and hugetlb
+	 */
+	HTLB_16M_INDEX,
+	HTLB_16G_INDEX,
 };
 
 extern unsigned long __vmalloc_start;

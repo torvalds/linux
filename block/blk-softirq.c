@@ -144,6 +144,7 @@ do_local:
 
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(__blk_complete_request);
 
 /**
  * blk_complete_request - end I/O on a request

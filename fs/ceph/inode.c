@@ -1135,6 +1135,7 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
 	if (IS_ERR(realdn)) {
 		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
 		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
+		dput(dn);
 		dn = realdn; /* note realdn contains the error */
 		goto out;
 	} else if (realdn) {
