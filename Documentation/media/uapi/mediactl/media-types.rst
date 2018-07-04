@@ -37,6 +37,8 @@ Types and flags used to represent the media graph elements
 .. _MEDIA-ENT-F-PROC-VIDEO-LUT:
 .. _MEDIA-ENT-F-PROC-VIDEO-SCALER:
 .. _MEDIA-ENT-F-PROC-VIDEO-STATISTICS:
+.. _MEDIA-ENT-F-PROC-VIDEO-ENCODER:
+.. _MEDIA-ENT-F-PROC-VIDEO-DECODER:
 .. _MEDIA-ENT-F-VID-MUX:
 .. _MEDIA-ENT-F-VID-IF-BRIDGE:
 .. _MEDIA-ENT-F-DTV-DECODER:
@@ -187,6 +189,15 @@ Types and flags used to represent the media graph elements
 	  one source pad. It computes statistics over the frames
 	  received on its sink pad and outputs the statistics data on
 	  its source pad.
+
+    *  -  ``MEDIA_ENT_F_PROC_VIDEO_ENCODER``
+       -  Video (MPEG, HEVC, VPx, etc.) encoder. An entity capable of
+          compressing video frames. Must have one sink pad and one source pad.
+
+    *  -  ``MEDIA_ENT_F_PROC_VIDEO_DECODER``
+       -  Video (MPEG, HEVC, VPx, etc.) decoder. An entity capable of
+          decompressing a compressed video stream into uncompressed video
+	  frames. Must have one sink pad and one source pad.
 
     *  -  ``MEDIA_ENT_F_VID_MUX``
        - Video multiplexer. An entity capable of multiplexing must have at
