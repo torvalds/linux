@@ -174,6 +174,7 @@ static int lirc_bpf_detach(struct rc_dev *rcdev, struct bpf_prog *prog)
 
 	rcu_assign_pointer(raw->progs, new_array);
 	bpf_prog_array_free(old_array);
+	bpf_prog_put(prog);
 unlock:
 	mutex_unlock(&ir_raw_handler_lock);
 	return ret;
