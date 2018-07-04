@@ -2,7 +2,7 @@
 # Packet engine device configuration
 #
 
-config NET_PACKET_ENGINE
+config NET_VENDOR_PACKET_ENGINES
 	bool "Packet Engine devices"
 	default y
 	depends on PCI
@@ -14,7 +14,7 @@ config NET_PACKET_ENGINE
 	  the questions about packet engine devices. If you say Y, you will
 	  be asked for your specific card in the following questions.
 
-if NET_PACKET_ENGINE
+if NET_VENDOR_PACKET_ENGINES
 
 config HAMACHI
 	tristate "Packet Engines Hamachi GNIC-II support"
@@ -40,4 +40,4 @@ config YELLOWFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called yellowfin.  This is recommended.
 
-endif # NET_PACKET_ENGINE
+endif # NET_VENDOR_PACKET_ENGINES
