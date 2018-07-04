@@ -1886,17 +1886,6 @@ void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
 		mvmvif->low_latency &= ~cause;
 }
 
-/* hw scheduler queue config */
-bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
-			unsigned int wdg_timeout);
-int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
-			    u8 sta_id, u8 tid, unsigned int timeout);
-
-int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			u8 tid, u8 flags);
-int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
-
 /* Return a bitmask with all the hw supported queues, except for the
  * command queue, which can't be flushed.
  */
@@ -1997,8 +1986,6 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 void iwl_mvm_reorder_timer_expired(struct timer_list *t);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
-
-void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
 
 #define MVM_TCM_PERIOD_MSEC 500
 #define MVM_TCM_PERIOD (HZ * MVM_TCM_PERIOD_MSEC / 1000)
