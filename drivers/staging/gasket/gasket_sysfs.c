@@ -137,9 +137,9 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 		device = mapping->device;
 		legacy_device = mapping->legacy_device;
 		num_files_to_remove = mapping->attribute_count;
-		files_to_remove = kzalloc(
-			num_files_to_remove * sizeof(*files_to_remove),
-			GFP_KERNEL);
+		files_to_remove = kcalloc(num_files_to_remove,
+					  sizeof(*files_to_remove),
+					  GFP_KERNEL);
 		for (i = 0; i < num_files_to_remove; i++)
 			files_to_remove[i] = mapping->attributes[i].attr;
 
@@ -238,9 +238,9 @@ int gasket_sysfs_create_mapping(
 	kref_init(&mapping->refcount);
 	mapping->device = device;
 	mapping->gasket_dev = gasket_dev;
-	mapping->attributes = kzalloc(
-		GASKET_SYSFS_MAX_NODES * sizeof(*mapping->attributes),
-		GFP_KERNEL);
+	mapping->attributes = kcalloc(GASKET_SYSFS_MAX_NODES,
+				      sizeof(*mapping->attributes),
+				      GFP_KERNEL);
 	mapping->attribute_count = 0;
 	if (!mapping->attributes) {
 		gasket_nodev_error("Unable to allocate sysfs attribute array.");

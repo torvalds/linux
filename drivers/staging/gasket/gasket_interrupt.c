@@ -136,23 +136,26 @@ int gasket_interrupt_init(
 	interrupt_data->wire_interrupt_offsets = wire_int_offsets;
 
 	/* Allocate all dynamic structures. */
-	interrupt_data->msix_entries = kzalloc(
-		sizeof(struct msix_entry) * num_interrupts, GFP_KERNEL);
+	interrupt_data->msix_entries = kcalloc(num_interrupts,
+					       sizeof(struct msix_entry),
+					       GFP_KERNEL);
 	if (!interrupt_data->msix_entries) {
 		kfree(interrupt_data);
 		return -ENOMEM;
 	}
 
-	interrupt_data->eventfd_ctxs = kzalloc(
-		sizeof(struct eventfd_ctx *) * num_interrupts, GFP_KERNEL);
+	interrupt_data->eventfd_ctxs = kcalloc(num_interrupts,
+					       sizeof(struct eventfd_ctx *),
+					       GFP_KERNEL);
 	if (!interrupt_data->eventfd_ctxs) {
 		kfree(interrupt_data->msix_entries);
 		kfree(interrupt_data);
 		return -ENOMEM;
 	}
 
-	interrupt_data->interrupt_counts = kzalloc(
-		sizeof(ulong) * num_interrupts, GFP_KERNEL);
+	interrupt_data->interrupt_counts = kcalloc(num_interrupts,
+						   sizeof(ulong),
+						   GFP_KERNEL);
 	if (!interrupt_data->interrupt_counts) {
 		kfree(interrupt_data->eventfd_ctxs);
 		kfree(interrupt_data->msix_entries);

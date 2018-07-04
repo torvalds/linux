@@ -1697,9 +1697,9 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 			return -EPERM;
 		}
 		num_map_regions = bar_desc->num_mappable_regions;
-		map_regions = kzalloc(
-			num_map_regions * sizeof(*bar_desc->mappable_regions),
-			GFP_KERNEL);
+		map_regions = kcalloc(num_map_regions,
+				      sizeof(*bar_desc->mappable_regions),
+				      GFP_KERNEL);
 		if (map_regions) {
 			memcpy(map_regions, bar_desc->mappable_regions,
 			       num_map_regions *
