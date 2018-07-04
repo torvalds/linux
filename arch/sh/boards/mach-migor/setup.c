@@ -28,7 +28,6 @@
 #include <video/sh_mobile_lcdc.h>
 #include <media/drv-intf/renesas-ceu.h>
 #include <media/i2c/ov772x.h>
-#include <media/soc_camera.h>
 #include <media/i2c/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
