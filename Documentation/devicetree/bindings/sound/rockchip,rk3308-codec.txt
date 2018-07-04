@@ -38,6 +38,8 @@ Optional properties:
   You need to add the property on dts:
   - rockchip,adc-grps-route = <3 0 2 1>;
 
+- rockchip,delay-loopback-handle-ms: This property points out that the delay for
+  handling ADC after enable PAs during loopback.
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
 - rockchip,no-deep-low-power: The codec will not enter deep low power mode
   during suspend.
