@@ -52,7 +52,6 @@ ib_uverbs_lookup_comp_file(int fd, struct ib_uverbs_file *ufile)
 {
 	struct ib_uobject *uobj = uobj_get_read(UVERBS_OBJECT_COMP_CHANNEL,
 						fd, ufile);
-	struct ib_uobject_file *uobj_file;
 
 	if (IS_ERR(uobj))
 		return (void *)uobj;
@@ -60,9 +59,8 @@ ib_uverbs_lookup_comp_file(int fd, struct ib_uverbs_file *ufile)
 	uverbs_uobject_get(uobj);
 	uobj_put_read(uobj);
 
-	uobj_file = container_of(uobj, struct ib_uobject_file, uobj);
-	return container_of(uobj_file, struct ib_uverbs_completion_event_file,
-			    uobj_file);
+	return container_of(uobj, struct ib_uverbs_completion_event_file,
+			    uobj);
 }
 
 ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
@@ -927,7 +925,7 @@ ssize_t ib_uverbs_create_comp_channel(struct ib_uverbs_file *file,
 	resp.fd = uobj->id;
 
 	ev_file = container_of(uobj, struct ib_uverbs_completion_event_file,
-			       uobj_file.uobj);
+			       uobj);
 	ib_uverbs_init_event_queue(&ev_file->ev_queue);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {

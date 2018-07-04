@@ -190,12 +190,12 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	return 0;
 }
 
-static int uverbs_hot_unplug_completion_event_file(struct ib_uobject_file *uobj_file,
+static int uverbs_hot_unplug_completion_event_file(struct ib_uobject *uobj,
 						   enum rdma_remove_reason why)
 {
 	struct ib_uverbs_completion_event_file *comp_event_file =
-		container_of(uobj_file, struct ib_uverbs_completion_event_file,
-			     uobj_file);
+		container_of(uobj, struct ib_uverbs_completion_event_file,
+			     uobj);
 	struct ib_uverbs_event_queue *event_queue = &comp_event_file->ev_queue;
 
 	spin_lock_irq(&event_queue->lock);

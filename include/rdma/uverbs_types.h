@@ -139,7 +139,7 @@ struct uverbs_obj_fd_type {
 	 * the driver is removed or the process terminated.
 	 */
 	struct uverbs_obj_type  type;
-	int (*context_closed)(struct ib_uobject_file *uobj_file,
+	int (*context_closed)(struct ib_uobject *uobj,
 			      enum rdma_remove_reason why);
 	const struct file_operations	*fops;
 	const char			*name;
@@ -156,7 +156,8 @@ extern const struct uverbs_obj_type_class uverbs_fd_class;
 	 {.type = {							\
 		.type_class = &uverbs_fd_class,				\
 		.obj_size = (_obj_size) +				\
-			UVERBS_BUILD_BUG_ON((_obj_size) < sizeof(struct ib_uobject_file)), \
+			UVERBS_BUILD_BUG_ON((_obj_size) <               \
+					    sizeof(struct ib_uobject)), \
 	 },								\
 	 .context_closed = _context_closed,				\
 	 .fops = _fops,							\

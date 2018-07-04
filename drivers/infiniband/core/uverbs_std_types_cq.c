@@ -93,7 +93,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	if (!IS_ERR(ev_file_uobj)) {
 		ev_file = container_of(ev_file_uobj,
 				       struct ib_uverbs_completion_event_file,
-				       uobj_file.uobj);
+				       uobj);
 		uverbs_uobject_get(ev_file_uobj);
 	}
 

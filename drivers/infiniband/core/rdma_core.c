@@ -334,7 +334,6 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 		container_of(type, struct uverbs_obj_fd_type, type);
 	int new_fd;
 	struct ib_uobject *uobj;
-	struct ib_uobject_file *uobj_file;
 	struct file *filp;
 
 	new_fd = get_unused_fd_flags(O_CLOEXEC);
@@ -347,10 +346,9 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 		return uobj;
 	}
 
-	uobj_file = container_of(uobj, struct ib_uobject_file, uobj);
 	filp = anon_inode_getfile(fd_type->name,
 				  fd_type->fops,
-				  uobj_file,
+				  uobj,
 				  fd_type->flags);
 	if (IS_ERR(filp)) {
 		put_unused_fd(new_fd);
@@ -358,11 +356,11 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 		return (void *)filp;
 	}
 
-	uobj_file->uobj.id = new_fd;
-	uobj_file->uobj.object = filp;
-	uobj_file->ufile = ufile;
+	uobj->id = new_fd;
+	uobj->object = filp;
+	uobj->ufile = ufile;
 	INIT_LIST_HEAD(&uobj->list);
-	kref_get(&uobj_file->ufile->ref);
+	kref_get(&ufile->ref);
 
 	return uobj;
 }
@@ -398,10 +396,8 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 
 static void alloc_abort_fd_uobject(struct ib_uobject *uobj)
 {
-	struct ib_uobject_file *uobj_file =
-		container_of(uobj, struct ib_uobject_file, uobj);
 	struct file *filp = uobj->object;
-	int id = uobj_file->uobj.id;
+	int id = uobj->id;
 
 	/* Unsuccessful NEW */
 	fput(filp);
@@ -413,9 +409,7 @@ static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 {
 	const struct uverbs_obj_fd_type *fd_type =
 		container_of(uobj->type, struct uverbs_obj_fd_type, type);
-	struct ib_uobject_file *uobj_file =
-		container_of(uobj, struct ib_uobject_file, uobj);
-	int ret = fd_type->context_closed(uobj_file, why);
+	int ret = fd_type->context_closed(uobj, why);
 
 	if (ib_is_destroy_retryable(ret, why, uobj))
 		return ret;
@@ -425,7 +419,7 @@ static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 		return ret;
 	}
 
-	uobj_file->uobj.context = NULL;
+	uobj->context = NULL;
 	return ret;
 }
 
@@ -530,14 +524,11 @@ static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 
 static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 {
-	struct ib_uobject_file *uobj_file =
-		container_of(uobj, struct ib_uobject_file, uobj);
-
-	fd_install(uobj_file->uobj.id, uobj->object);
+	fd_install(uobj->id, uobj->object);
 	/* This shouldn't be used anymore. Use the file object instead */
-	uobj_file->uobj.id = 0;
+	uobj->id = 0;
 	/* Get another reference as we export this to the fops */
-	uverbs_uobject_get(&uobj_file->uobj);
+	uverbs_uobject_get(uobj);
 }
 
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
@@ -638,19 +629,19 @@ const struct uverbs_obj_type_class uverbs_idr_class = {
 };
 EXPORT_SYMBOL(uverbs_idr_class);
 
-static void _uverbs_close_fd(struct ib_uobject_file *uobj_file)
+static void _uverbs_close_fd(struct ib_uobject *uobj)
 {
-	struct ib_uverbs_file *ufile = uobj_file->ufile;
+	struct ib_uverbs_file *ufile = uobj->ufile;
 	int ret;
 
 	mutex_lock(&ufile->cleanup_mutex);
 
 	/* uobject was either already cleaned up or is cleaned up right now anyway */
-	if (!uobj_file->uobj.context ||
+	if (!uobj->context ||
 	    !down_read_trylock(&ufile->cleanup_rwsem))
 		goto unlock;
 
-	ret = _rdma_remove_commit_uobject(&uobj_file->uobj, RDMA_REMOVE_CLOSE);
+	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_CLOSE);
 	up_read(&ufile->cleanup_rwsem);
 	if (ret)
 		pr_warn("uverbs: unable to clean up uobject file in uverbs_close_fd.\n");
@@ -660,11 +651,11 @@ unlock:
 
 void uverbs_close_fd(struct file *f)
 {
-	struct ib_uobject_file *uobj_file = f->private_data;
-	struct kref *uverbs_file_ref = &uobj_file->ufile->ref;
+	struct ib_uobject *uobj = f->private_data;
+	struct kref *uverbs_file_ref = &uobj->ufile->ref;
 
-	_uverbs_close_fd(uobj_file);
-	uverbs_uobject_put(&uobj_file->uobj);
+	_uverbs_close_fd(uobj);
+	uverbs_uobject_put(uobj);
 	kref_put(uverbs_file_ref, ib_uverbs_release_file);
 }
 

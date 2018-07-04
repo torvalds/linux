@@ -191,7 +191,7 @@ void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
 		}
 		spin_unlock_irq(&ev_file->ev_queue.lock);
 
-		uverbs_uobject_put(&ev_file->uobj_file.uobj);
+		uverbs_uobject_put(&ev_file->uobj);
 	}
 
 	spin_lock_irq(&file->async_file->ev_queue.lock);
@@ -346,7 +346,7 @@ static ssize_t ib_uverbs_comp_event_read(struct file *filp, char __user *buf,
 		filp->private_data;
 
 	return ib_uverbs_event_read(&comp_ev_file->ev_queue,
-				    comp_ev_file->uobj_file.ufile, filp,
+				    comp_ev_file->uobj.ufile, filp,
 				    buf, count, pos,
 				    sizeof(struct ib_uverbs_comp_event_desc));
 }
@@ -428,7 +428,9 @@ static int ib_uverbs_async_event_close(struct inode *inode, struct file *filp)
 
 static int ib_uverbs_comp_event_close(struct inode *inode, struct file *filp)
 {
-	struct ib_uverbs_completion_event_file *file = filp->private_data;
+	struct ib_uobject *uobj = filp->private_data;
+	struct ib_uverbs_completion_event_file *file = container_of(
+		uobj, struct ib_uverbs_completion_event_file, uobj);
 	struct ib_uverbs_event *entry, *tmp;
 
 	spin_lock_irq(&file->ev_queue.lock);
