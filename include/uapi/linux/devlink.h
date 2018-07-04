@@ -78,6 +78,8 @@ enum devlink_command {
 	 */
 	DEVLINK_CMD_RELOAD,
 
+	DEVLINK_CMD_PARAM_GET,		/* can dump */
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -247,6 +249,15 @@ enum devlink_attr {
 	DEVLINK_ATTR_PORT_FLAVOUR,		/* u16 */
 	DEVLINK_ATTR_PORT_NUMBER,		/* u32 */
 	DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,	/* u32 */
+
+	DEVLINK_ATTR_PARAM,			/* nested */
+	DEVLINK_ATTR_PARAM_NAME,		/* string */
+	DEVLINK_ATTR_PARAM_GENERIC,		/* flag */
+	DEVLINK_ATTR_PARAM_TYPE,		/* u8 */
+	DEVLINK_ATTR_PARAM_VALUES_LIST,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE,		/* nested */
+	DEVLINK_ATTR_PARAM_VALUE_DATA,		/* dynamic */
+	DEVLINK_ATTR_PARAM_VALUE_CMODE,		/* u8 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

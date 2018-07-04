@@ -2645,6 +2645,248 @@ devlink_param_find_by_name(struct list_head *param_list,
 	return NULL;
 }
 
+static bool
+devlink_param_cmode_is_supported(const struct devlink_param *param,
+				 enum devlink_param_cmode cmode)
+{
+	return test_bit(cmode, &param->supported_cmodes);
+}
+
+static int devlink_param_get(struct devlink *devlink,
+			     const struct devlink_param *param,
+			     struct devlink_param_gset_ctx *ctx)
+{
+	if (!param->get)
+		return -EOPNOTSUPP;
+	return param->get(devlink, param->id, ctx);
+}
+
+static int
+devlink_param_type_to_nla_type(enum devlink_param_type param_type)
+{
+	switch (param_type) {
+	case DEVLINK_PARAM_TYPE_U8:
+		return NLA_U8;
+	case DEVLINK_PARAM_TYPE_U16:
+		return NLA_U16;
+	case DEVLINK_PARAM_TYPE_U32:
+		return NLA_U32;
+	case DEVLINK_PARAM_TYPE_STRING:
+		return NLA_STRING;
+	case DEVLINK_PARAM_TYPE_BOOL:
+		return NLA_FLAG;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
+devlink_nl_param_value_fill_one(struct sk_buff *msg,
+				enum devlink_param_type type,
+				enum devlink_param_cmode cmode,
+				union devlink_param_value val)
+{
+	struct nlattr *param_value_attr;
+
+	param_value_attr = nla_nest_start(msg, DEVLINK_ATTR_PARAM_VALUE);
+	if (!param_value_attr)
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_VALUE_CMODE, cmode))
+		goto value_nest_cancel;
+
+	switch (type) {
+	case DEVLINK_PARAM_TYPE_U8:
+		if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu8))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_U16:
+		if (nla_put_u16(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu16))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_U32:
+		if (nla_put_u32(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu32))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_STRING:
+		if (nla_put_string(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
+				   val.vstr))
+			goto value_nest_cancel;
+		break;
+	case DEVLINK_PARAM_TYPE_BOOL:
+		if (val.vbool &&
+		    nla_put_flag(msg, DEVLINK_ATTR_PARAM_VALUE_DATA))
+			goto value_nest_cancel;
+		break;
+	}
+
+	nla_nest_end(msg, param_value_attr);
+	return 0;
+
+value_nest_cancel:
+	nla_nest_cancel(msg, param_value_attr);
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
+				 struct devlink_param_item *param_item,
+				 enum devlink_command cmd,
+				 u32 portid, u32 seq, int flags)
+{
+	union devlink_param_value param_value[DEVLINK_PARAM_CMODE_MAX + 1];
+	const struct devlink_param *param = param_item->param;
+	struct devlink_param_gset_ctx ctx;
+	struct nlattr *param_values_list;
+	struct nlattr *param_attr;
+	int nla_type;
+	void *hdr;
+	int err;
+	int i;
+
+	/* Get value from driver part to driverinit configuration mode */
+	for (i = 0; i <= DEVLINK_PARAM_CMODE_MAX; i++) {
+		if (!devlink_param_cmode_is_supported(param, i))
+			continue;
+		if (i == DEVLINK_PARAM_CMODE_DRIVERINIT) {
+			if (!param_item->driverinit_value_valid)
+				return -EOPNOTSUPP;
+			param_value[i] = param_item->driverinit_value;
+		} else {
+			ctx.cmode = i;
+			err = devlink_param_get(devlink, param, &ctx);
+			if (err)
+				return err;
+			param_value[i] = ctx.val;
+		}
+	}
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (devlink_nl_put_handle(msg, devlink))
+		goto genlmsg_cancel;
+	param_attr = nla_nest_start(msg, DEVLINK_ATTR_PARAM);
+	if (!param_attr)
+		goto genlmsg_cancel;
+	if (nla_put_string(msg, DEVLINK_ATTR_PARAM_NAME, param->name))
+		goto param_nest_cancel;
+	if (param->generic && nla_put_flag(msg, DEVLINK_ATTR_PARAM_GENERIC))
+		goto param_nest_cancel;
+
+	nla_type = devlink_param_type_to_nla_type(param->type);
+	if (nla_type < 0)
+		goto param_nest_cancel;
+	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, nla_type))
+		goto param_nest_cancel;
+
+	param_values_list = nla_nest_start(msg, DEVLINK_ATTR_PARAM_VALUES_LIST);
+	if (!param_values_list)
+		goto param_nest_cancel;
+
+	for (i = 0; i <= DEVLINK_PARAM_CMODE_MAX; i++) {
+		if (!devlink_param_cmode_is_supported(param, i))
+			continue;
+		err = devlink_nl_param_value_fill_one(msg, param->type,
+						      i, param_value[i]);
+		if (err)
+			goto values_list_nest_cancel;
+	}
+
+	nla_nest_end(msg, param_values_list);
+	nla_nest_end(msg, param_attr);
+	genlmsg_end(msg, hdr);
+	return 0;
+
+values_list_nest_cancel:
+	nla_nest_end(msg, param_values_list);
+param_nest_cancel:
+	nla_nest_cancel(msg, param_attr);
+genlmsg_cancel:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int devlink_nl_cmd_param_get_dumpit(struct sk_buff *msg,
+					   struct netlink_callback *cb)
+{
+	struct devlink_param_item *param_item;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(param_item, &devlink->param_list, list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_param_fill(msg, devlink, param_item,
+						    DEVLINK_CMD_PARAM_GET,
+						    NETLINK_CB(cb->skb).portid,
+						    cb->nlh->nlmsg_seq,
+						    NLM_F_MULTI);
+			if (err) {
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+
+	cb->args[0] = idx;
+	return msg->len;
+}
+
+static struct devlink_param_item *
+devlink_param_get_from_info(struct devlink *devlink,
+			    struct genl_info *info)
+{
+	char *param_name;
+
+	if (!info->attrs[DEVLINK_ATTR_PARAM_NAME])
+		return NULL;
+
+	param_name = nla_data(info->attrs[DEVLINK_ATTR_PARAM_NAME]);
+	return devlink_param_find_by_name(&devlink->param_list, param_name);
+}
+
+static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
+					 struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_param_item *param_item;
+	struct sk_buff *msg;
+	int err;
+
+	param_item = devlink_param_get_from_info(devlink, info);
+	if (!param_item)
+		return -EINVAL;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_param_fill(msg, devlink, param_item,
+				    DEVLINK_CMD_PARAM_GET,
+				    info->snd_portid, info->snd_seq, 0);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
 static int devlink_param_register_one(struct devlink *devlink,
 				      const struct devlink_param *param)
 {
@@ -2882,6 +3124,14 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
 				  DEVLINK_NL_FLAG_NO_LOCK,
+	},
+	{
+		.cmd = DEVLINK_CMD_PARAM_GET,
+		.doit = devlink_nl_cmd_param_get_doit,
+		.dumpit = devlink_nl_cmd_param_get_dumpit,
+		.policy = devlink_nl_policy,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+		/* can be retrieved by unprivileged users */
 	},
 };
 
