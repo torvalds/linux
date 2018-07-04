@@ -1638,7 +1638,9 @@ next_step:
 						!is_cold_node(page)))
 				continue;
 lock_node:
-			if (!trylock_page(page))
+			if (wbc->sync_mode == WB_SYNC_ALL)
+				lock_page(page);
+			else if (!trylock_page(page))
 				continue;
 
 			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
