@@ -3708,7 +3708,7 @@ void rcu_scheduler_starting(void)
 /*
  * Helper function for rcu_init() that initializes one rcu_state structure.
  */
-static void __init rcu_init_one(struct rcu_state *rsp)
+static void __init rcu_init_one(void)
 {
 	static const char * const buf[] = RCU_NODE_NAME_INIT;
 	static const char * const fqs[] = RCU_FQS_NAME_INIT;
@@ -3720,6 +3720,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 	int i;
 	int j;
 	struct rcu_node *rnp;
+	struct rcu_state *rsp = &rcu_state;
 
 	BUILD_BUG_ON(RCU_NUM_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
 
@@ -3870,14 +3871,14 @@ static void __init rcu_init_geometry(void)
  * Dump out the structure of the rcu_node combining tree associated
  * with the rcu_state structure referenced by rsp.
  */
-static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+static void __init rcu_dump_rcu_node_tree(void)
 {
 	int level = 0;
 	struct rcu_node *rnp;
 
 	pr_info("rcu_node tree layout dump\n");
 	pr_info(" ");
-	rcu_for_each_node_breadth_first(rsp, rnp) {
+	rcu_for_each_node_breadth_first(&rcu_state, rnp) {
 		if (rnp->level != level) {
 			pr_cont("\n");
 			pr_info(" ");
@@ -3899,9 +3900,9 @@ void __init rcu_init(void)
 
 	rcu_bootup_announce();
 	rcu_init_geometry();
-	rcu_init_one(&rcu_state);
+	rcu_init_one();
 	if (dump_tree)
-		rcu_dump_rcu_node_tree(&rcu_state);
+		rcu_dump_rcu_node_tree();
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
 	/*
