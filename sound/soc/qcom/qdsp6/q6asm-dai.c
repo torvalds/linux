@@ -390,7 +390,9 @@ static int q6asm_dai_close(struct snd_pcm_substream *substream)
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
 
 	if (prtd->audio_client) {
-		q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+		if (prtd->state)
+			q6asm_cmd(prtd->audio_client, CMD_CLOSE);
+
 		q6asm_unmap_memory_regions(substream->stream,
 					   prtd->audio_client);
 		q6asm_audio_client_free(prtd->audio_client);
