@@ -1663,11 +1663,11 @@ static void rcu_gp_kthread_wake(void)
  *
  * The caller must hold rnp->lock with interrupts disabled.
  */
-static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
-			       struct rcu_data *rdp)
+static bool rcu_accelerate_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
 {
 	unsigned long gp_seq_req;
 	bool ret = false;
+	struct rcu_state *rsp = &rcu_state;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 
@@ -1719,7 +1719,7 @@ static void rcu_accelerate_cbs_unlocked(struct rcu_state *rsp,
 		return;
 	}
 	raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
-	needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
+	needwake = rcu_accelerate_cbs(rnp, rdp);
 	raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 	if (needwake)
 		rcu_gp_kthread_wake();
@@ -1751,7 +1751,7 @@ static bool rcu_advance_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 	rcu_segcblist_advance(&rdp->cblist, rnp->gp_seq);
 
 	/* Classify any remaining callbacks. */
-	return rcu_accelerate_cbs(rsp, rnp, rdp);
+	return rcu_accelerate_cbs(rnp, rdp);
 }
 
 /*
@@ -1777,7 +1777,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		ret = rcu_advance_cbs(rsp, rnp, rdp); /* Advance callbacks. */
 		trace_rcu_grace_period(rsp->name, rdp->gp_seq, TPS("cpuend"));
 	} else {
-		ret = rcu_accelerate_cbs(rsp, rnp, rdp); /* Recent callbacks. */
+		ret = rcu_accelerate_cbs(rnp, rdp); /* Recent callbacks. */
 	}
 
 	/* Now handle the beginnings of any new-to-this-CPU grace periods. */
@@ -2078,7 +2078,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		needgp = true;
 	}
 	/* Advance CBs to reduce false positives below. */
-	if (!rcu_accelerate_cbs(rsp, rnp, rdp) && needgp) {
+	if (!rcu_accelerate_cbs(rnp, rdp) && needgp) {
 		WRITE_ONCE(rsp->gp_flags, RCU_GP_FLAG_INIT);
 		rsp->gp_req_activity = jiffies;
 		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gp_seq),
@@ -2331,7 +2331,6 @@ rcu_report_qs_rdp(int cpu, struct rcu_data *rdp)
 	unsigned long mask;
 	bool needwake;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = &rcu_state;
 
 	rnp = rdp->mynode;
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -2359,7 +2358,7 @@ rcu_report_qs_rdp(int cpu, struct rcu_data *rdp)
 		 * This GP can't end until cpu checks in, so all of our
 		 * callbacks can be processed during the next GP.
 		 */
-		needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
+		needwake = rcu_accelerate_cbs(rnp, rdp);
 
 		rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags);
 		/* ^^^ Released rnp->lock */
