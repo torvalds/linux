@@ -952,7 +952,7 @@ struct i915_gem_mm {
 	/**
 	 * Small stash of WC pages
 	 */
-	struct pagevec wc_stash;
+	struct pagestash wc_stash;
 
 	/**
 	 * tmpfs instance used for shmem backed objects

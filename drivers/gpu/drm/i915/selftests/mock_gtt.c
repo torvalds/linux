@@ -124,7 +124,7 @@ void mock_init_ggtt(struct drm_i915_private *i915)
 	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
 	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
-	i915_address_space_init(&ggtt->vm, i915, "global");
+	i915_address_space_init(&ggtt->vm, i915);
 }
 
 void mock_fini_ggtt(struct drm_i915_private *i915)

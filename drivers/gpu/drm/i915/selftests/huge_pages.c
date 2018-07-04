@@ -1694,7 +1694,7 @@ int i915_gem_huge_page_mock_selftests(void)
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(39));
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ppgtt = i915_ppgtt_create(dev_priv, ERR_PTR(-ENODEV), "mock");
+	ppgtt = i915_ppgtt_create(dev_priv, ERR_PTR(-ENODEV));
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
