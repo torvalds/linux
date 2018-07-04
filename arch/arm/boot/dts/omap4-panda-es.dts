@@ -46,6 +46,12 @@
 			OMAP4_IOPAD(0x0f6, PIN_OUTPUT | MUX_MODE3)	/* gpio_110 */
 		>;
 	};
+
+	button_pins: pinmux_button_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x11b, PIN_INPUT_PULLUP | MUX_MODE3) /* gpio_113 */
+		>;
+	};
 };
 
 &led_wkgpio_pins {
@@ -65,6 +71,12 @@
 	};
 	mmc {
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&gpio_keys {
+	buttonS2 {
+		gpios = <&gpio4 17 GPIO_ACTIVE_LOW>; /* gpio_113 */
 	};
 };
 
