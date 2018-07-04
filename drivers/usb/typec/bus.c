@@ -51,7 +51,7 @@ static int typec_altmode_set_state(struct typec_altmode *adev, int state)
 int typec_altmode_notify(struct typec_altmode *adev,
 			 unsigned long conf, void *data)
 {
-	bool is_port = is_typec_port(adev->dev.parent);
+	bool is_port;
 	struct altmode *altmode;
 	struct altmode *partner;
 	int ret;
@@ -64,6 +64,7 @@ int typec_altmode_notify(struct typec_altmode *adev,
 	if (!altmode->partner)
 		return -ENODEV;
 
+	is_port = is_typec_port(adev->dev.parent);
 	partner = altmode->partner;
 
 	ret = typec_altmode_set_mux(is_port ? altmode : partner, (u8)conf);
