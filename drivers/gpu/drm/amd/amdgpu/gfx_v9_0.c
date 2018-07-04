@@ -943,6 +943,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		dst_ptr = adev->gfx.rlc.cs_ptr;
 		gfx_v9_0_get_csb_buffer(adev, dst_ptr);
 		amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
+		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
 	}
 
@@ -969,6 +970,39 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+static int gfx_v9_0_csb_vram_pin(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+	if (unlikely(r != 0))
+		return r;
+
+	r = amdgpu_bo_pin(adev->gfx.rlc.clear_state_obj,
+			AMDGPU_GEM_DOMAIN_VRAM);
+	if (!r)
+		adev->gfx.rlc.clear_state_gpu_addr =
+			amdgpu_bo_gpu_offset(adev->gfx.rlc.clear_state_obj);
+
+	amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
+
+	return r;
+}
+
+static void gfx_v9_0_csb_vram_unpin(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (!adev->gfx.rlc.clear_state_obj)
+		return;
+
+	r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
+	if (likely(r == 0)) {
+		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
+		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
+	}
 }
 
 static void gfx_v9_0_mec_fini(struct amdgpu_device *adev)
@@ -3116,6 +3150,10 @@ static int gfx_v9_0_hw_init(void *handle)
 
 	gfx_v9_0_gpu_init(adev);
 
+	r = gfx_v9_0_csb_vram_pin(adev);
+	if (r)
+		return r;
+
 	r = gfx_v9_0_rlc_resume(adev);
 	if (r)
 		return r;
@@ -3223,6 +3261,8 @@ static int gfx_v9_0_hw_fini(void *handle)
 
 	gfx_v9_0_cp_enable(adev, false);
 	gfx_v9_0_rlc_stop(adev);
+
+	gfx_v9_0_csb_vram_unpin(adev);
 
 	return 0;
 }
