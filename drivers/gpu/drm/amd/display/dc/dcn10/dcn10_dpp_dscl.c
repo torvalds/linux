@@ -655,6 +655,12 @@ void dpp1_dscl_set_scaler_manual_scale(
 
 	dpp->scl_data = *scl_data;
 
+	/* Autocal off */
+	REG_SET_3(DSCL_AUTOCAL, 0,
+		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
+		AUTOCAL_NUM_PIPE, 0,
+		AUTOCAL_PIPE_ID, 0);
+
 	/* Recout */
 	dpp1_dscl_set_recout(dpp, &scl_data->recout);
 
@@ -677,12 +683,6 @@ void dpp1_dscl_set_scaler_manual_scale(
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
-
-	/* Autocal off */
-	REG_SET_3(DSCL_AUTOCAL, 0,
-		AUTOCAL_MODE, AUTOCAL_MODE_OFF,
-		AUTOCAL_NUM_PIPE, 0,
-		AUTOCAL_PIPE_ID, 0);
 
 	/* Black offsets */
 	if (ycbcr)
