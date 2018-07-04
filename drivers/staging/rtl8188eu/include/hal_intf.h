@@ -9,7 +9,7 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
-#include <Hal8188EPhyCfg.h>
+#include <hal8188e_phy_cfg.h>
 
 enum RTL871X_HCI_TYPE {
 	RTW_PCIE	= BIT(0),
