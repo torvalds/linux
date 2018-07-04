@@ -1821,10 +1821,10 @@ static void note_gp_changes(struct rcu_data *rdp)
 		rcu_gp_kthread_wake();
 }
 
-static void rcu_gp_slow(struct rcu_state *rsp, int delay)
+static void rcu_gp_slow(int delay)
 {
 	if (delay > 0 &&
-	    !(rcu_seq_ctr(rsp->gp_seq) %
+	    !(rcu_seq_ctr(rcu_state.gp_seq) %
 	      (rcu_num_nodes * PER_RCU_NODE_PERIOD * delay)))
 		schedule_timeout_uninterruptible(delay);
 }
@@ -1917,7 +1917,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 		raw_spin_unlock_irq_rcu_node(rnp);
 		spin_unlock(&rsp->ofl_lock);
 	}
-	rcu_gp_slow(rsp, gp_preinit_delay); /* Races with CPU hotplug. */
+	rcu_gp_slow(gp_preinit_delay); /* Races with CPU hotplug. */
 
 	/*
 	 * Set the quiescent-state-needed bits in all the rcu_node
@@ -1933,7 +1933,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	 */
 	rsp->gp_state = RCU_GP_INIT;
 	rcu_for_each_node_breadth_first(rsp, rnp) {
-		rcu_gp_slow(rsp, gp_init_delay);
+		rcu_gp_slow(gp_init_delay);
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		rdp = this_cpu_ptr(&rcu_data);
 		rcu_preempt_check_blocked_tasks(rsp, rnp);
@@ -2059,7 +2059,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		rcu_nocb_gp_cleanup(sq);
 		cond_resched_tasks_rcu_qs();
 		WRITE_ONCE(rsp->gp_activity, jiffies);
-		rcu_gp_slow(rsp, gp_cleanup_delay);
+		rcu_gp_slow(gp_cleanup_delay);
 	}
 	rnp = rcu_get_root();
 	raw_spin_lock_irq_rcu_node(rnp); /* GP before rsp->gp_seq update. */
