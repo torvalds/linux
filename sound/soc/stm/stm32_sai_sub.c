@@ -300,11 +300,8 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 		status = SNDRV_PCM_STATE_XRUN;
 	}
 
-	if (status != SNDRV_PCM_STATE_RUNNING) {
-		snd_pcm_stream_lock(sai->substream);
-		snd_pcm_stop(sai->substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(sai->substream);
-	}
+	if (status != SNDRV_PCM_STATE_RUNNING)
+		snd_pcm_stop_xrun(sai->substream);
 
 	return IRQ_HANDLED;
 }
