@@ -356,11 +356,42 @@ struct devlink_param_item {
 };
 
 enum devlink_param_generic_id {
+	DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MAX = __DEVLINK_PARAM_GENERIC_ID_MAX - 1,
 };
+
+#define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_NAME "internal_error_reset"
+#define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_MAX_MACS_NAME "max_macs"
+#define DEVLINK_PARAM_GENERIC_MAX_MACS_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
+{									\
+	.id = DEVLINK_PARAM_GENERIC_ID_##_id,				\
+	.name = DEVLINK_PARAM_GENERIC_##_id##_NAME,			\
+	.type = DEVLINK_PARAM_GENERIC_##_id##_TYPE,			\
+	.generic = true,						\
+	.supported_cmodes = _cmodes,					\
+	.get = _get,							\
+	.set = _set,							\
+	.validate = _validate,						\
+}
+
+#define DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes, _get, _set, _validate)	\
+{									\
+	.id = _id,							\
+	.name = _name,							\
+	.type = _type,							\
+	.supported_cmodes = _cmodes,					\
+	.get = _get,							\
+	.set = _set,							\
+	.validate = _validate,						\
+}
 
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);

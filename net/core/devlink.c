@@ -2604,7 +2604,19 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	return devlink->ops->reload(devlink, info->extack);
 }
 
-static const struct devlink_param devlink_param_generic[] = {};
+static const struct devlink_param devlink_param_generic[] = {
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+		.name = DEVLINK_PARAM_GENERIC_INT_ERR_RESET_NAME,
+		.type = DEVLINK_PARAM_GENERIC_INT_ERR_RESET_TYPE,
+	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+		.name = DEVLINK_PARAM_GENERIC_MAX_MACS_NAME,
+		.type = DEVLINK_PARAM_GENERIC_MAX_MACS_TYPE,
+	},
+
+};
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
 {
