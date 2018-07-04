@@ -3095,7 +3095,7 @@ static int rcu_pending(void)
 	check_cpu_stall(rdp);
 
 	/* Is this CPU a NO_HZ_FULL CPU that should ignore RCU? */
-	if (rcu_nohz_full_cpu(&rcu_state))
+	if (rcu_nohz_full_cpu())
 		return 0;
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
@@ -3246,7 +3246,7 @@ static void _rcu_barrier(void)
 			continue;
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		if (rcu_is_nocb_cpu(cpu)) {
-			if (!rcu_nocb_cpu_needs_barrier(rsp, cpu)) {
+			if (!rcu_nocb_cpu_needs_barrier(cpu)) {
 				_rcu_barrier_trace(TPS("OfflineNoCB"), cpu,
 						   rsp->barrier_sequence);
 			} else {
