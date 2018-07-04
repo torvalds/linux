@@ -5766,7 +5766,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
 			u32 hash_base, hash_reg;
 
-			if (chip <= CHELSIO_T5) {
+			if (chip_ver <= CHELSIO_T5) {
 				hash_reg = LE_DB_TID_HASHBASE_A;
 				hash_base = t4_read_reg(adapter, hash_reg);
 				adapter->tids.hash_base = hash_base / 4;
