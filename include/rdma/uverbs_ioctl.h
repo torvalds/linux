@@ -207,8 +207,11 @@ struct uverbs_object_tree_def {
 	.u.ptr.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .u.ptr.len = sizeof(_type)
 #define UVERBS_ATTR_SIZE(_min_len, _len)			\
 	.u.ptr.min_len = _min_len, .u.ptr.len = _len
-#define UVERBS_ATTR_MIN_SIZE(_min_len)				\
-	UVERBS_ATTR_SIZE(_min_len, USHRT_MAX)
+/*
+ * Specifies at least min_len bytes must be passed in, but the amount can be
+ * larger, up to the protocol maximum size. No check for zeroing is done.
+ */
+#define UVERBS_ATTR_MIN_SIZE(_min_len) UVERBS_ATTR_SIZE(_min_len, USHRT_MAX)
 
 /* Must be used in the '...' of any UVERBS_ATTR */
 #define UA_ALLOC_AND_COPY .alloc_and_copy = 1
@@ -265,13 +268,11 @@ struct uverbs_object_tree_def {
  */
 #define UVERBS_ATTR_UHW()                                                      \
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_UHW_IN,                                 \
-			   UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
-			   UA_OPTIONAL,					       \
-			   UA_MIN_SZ_OR_ZERO),				       \
+			   UVERBS_ATTR_MIN_SIZE(0),			       \
+			   UA_OPTIONAL),				       \
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_UHW_OUT,                               \
-			    UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
-			    UA_OPTIONAL,				       \
-			    UA_MIN_SZ_OR_ZERO),				       \
+			    UVERBS_ATTR_MIN_SIZE(0),			       \
+			    UA_OPTIONAL)
 
 /*
  * =======================================
