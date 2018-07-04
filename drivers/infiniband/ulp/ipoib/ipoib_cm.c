@@ -547,7 +547,7 @@ static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
 					   0, PAGE_SIZE);
 			--skb_shinfo(skb)->nr_frags;
 		} else {
-			size = min(length, (unsigned) PAGE_SIZE);
+			size = min_t(unsigned int, length, PAGE_SIZE);
 
 			skb_frag_size_set(frag, size);
 			skb->data_len += size;
@@ -641,8 +641,9 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		}
 	}
 
-	frags = PAGE_ALIGN(wc->byte_len - min(wc->byte_len,
-					      (unsigned)IPOIB_CM_HEAD_SIZE)) / PAGE_SIZE;
+	frags = PAGE_ALIGN(wc->byte_len -
+			   min_t(u32, wc->byte_len, IPOIB_CM_HEAD_SIZE)) /
+		PAGE_SIZE;
 
 	newskb = ipoib_cm_alloc_rx_skb(dev, rx_ring, wr_id, frags,
 				       mapping, GFP_ATOMIC);
