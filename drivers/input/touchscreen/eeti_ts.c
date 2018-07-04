@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/timer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -262,10 +263,18 @@ static const struct i2c_device_id eeti_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, eeti_ts_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_eeti_ts_match[] = {
+	{ .compatible = "eeti,exc3000-i2c", },
+	{ }
+};
+#endif
+
 static struct i2c_driver eeti_ts_driver = {
 	.driver = {
 		.name = "eeti_ts",
 		.pm = &eeti_ts_pm,
+		.of_match_table = of_match_ptr(of_eeti_ts_match),
 	},
 	.probe = eeti_ts_probe,
 	.id_table = eeti_ts_id,
