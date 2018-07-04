@@ -2402,20 +2402,22 @@ rcu_check_quiescent_state(struct rcu_data *rdp)
 }
 
 /*
- * Trace the fact that this CPU is going offline.
+ * Near the end of the offline process.  Trace the fact that this CPU
+ * is going offline.
  */
-static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
+int rcutree_dying_cpu(unsigned int cpu)
 {
 	RCU_TRACE(bool blkd;)
 	RCU_TRACE(struct rcu_data *rdp = this_cpu_ptr(&rcu_data);)
 	RCU_TRACE(struct rcu_node *rnp = rdp->mynode;)
 
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		return;
+		return 0;
 
 	RCU_TRACE(blkd = !!(rnp->qsmask & rdp->grpmask);)
-	trace_rcu_grace_period(rsp->name, rnp->gp_seq,
+	trace_rcu_grace_period(rcu_state.name, rnp->gp_seq,
 			       blkd ? TPS("cpuofl") : TPS("cpuofl-bgp"));
+	return 0;
 }
 
 /*
@@ -2469,16 +2471,19 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
  * There can only be one CPU hotplug operation at a time, so no need for
  * explicit locking.
  */
-static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
+int rcutree_dead_cpu(unsigned int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
-		return;
+		return 0;
 
 	/* Adjust any no-longer-needed kthreads. */
 	rcu_boost_kthread_setaffinity(rnp, -1);
+	/* Do any needed no-CB deferred wakeups from this CPU. */
+	do_nocb_deferred_wakeup(per_cpu_ptr(&rcu_data, cpu));
+	return 0;
 }
 
 /*
@@ -3511,32 +3516,6 @@ int rcutree_offline_cpu(unsigned int cpu)
 	rcutree_affinity_setting(cpu, cpu);
 	if (IS_ENABLED(CONFIG_TREE_SRCU))
 		srcu_offline_cpu(cpu);
-	return 0;
-}
-
-/*
- * Near the end of the offline process.  We do only tracing here.
- */
-int rcutree_dying_cpu(unsigned int cpu)
-{
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		rcu_cleanup_dying_cpu(rsp);
-	return 0;
-}
-
-/*
- * The outgoing CPU is gone and we are running elsewhere.
- */
-int rcutree_dead_cpu(unsigned int cpu)
-{
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp) {
-		rcu_cleanup_dead_cpu(cpu, rsp);
-		do_nocb_deferred_wakeup(per_cpu_ptr(&rcu_data, cpu));
-	}
 	return 0;
 }
 
