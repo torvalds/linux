@@ -3852,8 +3852,57 @@ static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
 	return __set_port_type(info, mlx4_port_type);
 }
 
+static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
+{
+	union devlink_param_value saved_value;
+	int err;
+
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+						 &saved_value);
+	if (!err && mlx4_internal_err_reset != saved_value.vbool) {
+		mlx4_internal_err_reset = saved_value.vbool;
+		/* Notify on value changed on runtime configuration mode */
+		devlink_param_value_changed(devlink,
+					    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET);
+	}
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+						 &saved_value);
+	if (!err)
+		log_num_mac = order_base_2(saved_value.vu32);
+	err = devlink_param_driverinit_value_get(devlink,
+						 MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+						 &saved_value);
+	if (!err)
+		enable_64b_cqe_eqe = saved_value.vbool;
+	err = devlink_param_driverinit_value_get(devlink,
+						 MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+						 &saved_value);
+	if (!err)
+		enable_4k_uar = saved_value.vbool;
+}
+
+static int mlx4_devlink_reload(struct devlink *devlink,
+			       struct netlink_ext_ack *extack)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_dev_persistent *persist = dev->persist;
+	int err;
+
+	if (persist->num_vfs)
+		mlx4_warn(persist->dev, "Reload performed on PF, will cause reset on operating Virtual Functions\n");
+	err = mlx4_restart_one(persist->pdev, true, devlink);
+	if (err)
+		mlx4_err(persist->dev, "mlx4_restart_one failed, ret=%d\n", err);
+
+	return err;
+}
+
 static const struct devlink_ops mlx4_devlink_ops = {
 	.port_type_set	= mlx4_devlink_port_type_set,
+	.reload		= mlx4_devlink_reload,
 };
 
 static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -4064,7 +4113,7 @@ static int restore_current_port_types(struct mlx4_dev *dev,
 	return err;
 }
 
-int mlx4_restart_one(struct pci_dev *pdev)
+int mlx4_restart_one(struct pci_dev *pdev, bool reload, struct devlink *devlink)
 {
 	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
 	struct mlx4_dev	 *dev  = persist->dev;
@@ -4077,6 +4126,8 @@ int mlx4_restart_one(struct pci_dev *pdev)
 	memcpy(nvfs, dev->persist->nvfs, sizeof(dev->persist->nvfs));
 
 	mlx4_unload_one(pdev);
+	if (reload)
+		mlx4_devlink_param_load_driverinit_values(devlink);
 	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv, 1);
 	if (err) {
 		mlx4_err(dev, "%s: ERROR: mlx4_load_one failed, pci_name=%s, err=%d\n",
