@@ -2249,7 +2249,7 @@ static int sh_eth_nway_reset(struct net_device *ndev)
 	if (!ndev->phydev)
 		return -ENODEV;
 
-	return phy_start_aneg(ndev->phydev);
+	return phy_restart_aneg(ndev->phydev);
 }
 
 static u32 sh_eth_get_msglevel(struct net_device *ndev)
