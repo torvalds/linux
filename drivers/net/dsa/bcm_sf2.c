@@ -220,7 +220,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 				 struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 off, reg;
+	u32 reg;
 
 	if (priv->wol_ports_mask & (1 << port))
 		return;
@@ -230,11 +230,6 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, false);
-
-	if (dsa_is_cpu_port(ds, port))
-		off = CORE_IMP_CTL;
-	else
-		off = CORE_G_PCTL_PORT(port);
 
 	b53_disable_port(ds, port, phy);
 
