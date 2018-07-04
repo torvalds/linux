@@ -885,7 +885,6 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	u16 out_vtag = 0;
 	u32 paylen = 0;
 	u16 mss = 0;
-	__be16 protocol;
 	u8 ol4_proto;
 	u8 il4_proto;
 	int ret;
@@ -914,7 +913,6 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_mac_len(skb);
-			protocol = skb->protocol;
 
 			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
 			if (ret)
