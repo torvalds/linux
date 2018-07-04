@@ -4434,7 +4434,8 @@ S:	Maintained
 F:	drivers/staging/fsl-dpaa2/ethernet
 
 DPAA2 ETHERNET SWITCH DRIVER
-M:	Razvan Stefanescu <razvan.stefanescu@nxp.com>
+M:	Ioana Radulescu <ruxandra.radulescu@nxp.com>
+M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fsl-dpaa2/ethsw
