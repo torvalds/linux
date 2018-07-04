@@ -360,7 +360,6 @@ struct rcu_state {
 						/*  jiffies. */
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
-	struct list_head flavors;		/* List of RCU flavors. */
 
 	spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
 						/* Synchronize offline with */
@@ -416,12 +415,6 @@ static char rcu_name[] = RCU_NAME_RAW;
 static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 #define RCU_NAME rcu_name
 #endif /* #else #ifdef CONFIG_TRACING */
-
-extern struct list_head rcu_struct_flavors;
-
-/* Sequence through rcu_state structures for each RCU flavor. */
-#define for_each_rcu_flavor(rsp) \
-	list_for_each_entry((rsp), &rcu_struct_flavors, flavors)
 
 /*
  * RCU implementation internal declarations:

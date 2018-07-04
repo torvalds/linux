@@ -1561,31 +1561,28 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
 	struct rcu_data *rdp;
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	struct rcu_node *rnp;
-	struct rcu_state *rsp;
 
 	/* Exit early if we advanced recently. */
 	if (jiffies == rdtp->last_advance_all)
 		return false;
 	rdtp->last_advance_all = jiffies;
 
-	for_each_rcu_flavor(rsp) {
-		rdp = this_cpu_ptr(&rcu_data);
-		rnp = rdp->mynode;
+	rdp = this_cpu_ptr(&rcu_data);
+	rnp = rdp->mynode;
 
-		/*
-		 * Don't bother checking unless a grace period has
-		 * completed since we last checked and there are
-		 * callbacks not yet ready to invoke.
-		 */
-		if ((rcu_seq_completed_gp(rdp->gp_seq,
-					  rcu_seq_current(&rnp->gp_seq)) ||
-		     unlikely(READ_ONCE(rdp->gpwrap))) &&
-		    rcu_segcblist_pend_cbs(&rdp->cblist))
-			note_gp_changes(rdp);
+	/*
+	 * Don't bother checking unless a grace period has
+	 * completed since we last checked and there are
+	 * callbacks not yet ready to invoke.
+	 */
+	if ((rcu_seq_completed_gp(rdp->gp_seq,
+				  rcu_seq_current(&rnp->gp_seq)) ||
+	     unlikely(READ_ONCE(rdp->gpwrap))) &&
+	    rcu_segcblist_pend_cbs(&rdp->cblist))
+		note_gp_changes(rdp);
 
-		if (rcu_segcblist_ready_cbs(&rdp->cblist))
-			cbs_ready = true;
-	}
+	if (rcu_segcblist_ready_cbs(&rdp->cblist))
+		cbs_ready = true;
 	return cbs_ready;
 }
 
@@ -1648,7 +1645,6 @@ static void rcu_prepare_for_idle(void)
 	struct rcu_data *rdp;
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	struct rcu_node *rnp;
-	struct rcu_state *rsp;
 	int tne;
 
 	lockdep_assert_irqs_disabled();
@@ -1686,10 +1682,8 @@ static void rcu_prepare_for_idle(void)
 	if (rdtp->last_accelerate == jiffies)
 		return;
 	rdtp->last_accelerate = jiffies;
-	for_each_rcu_flavor(rsp) {
-		rdp = this_cpu_ptr(&rcu_data);
-		if (!rcu_segcblist_pend_cbs(&rdp->cblist))
-			continue;
+	rdp = this_cpu_ptr(&rcu_data);
+	if (rcu_segcblist_pend_cbs(&rdp->cblist)) {
 		rnp = rdp->mynode;
 		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 		needwake = rcu_accelerate_cbs(rnp, rdp);
@@ -1824,10 +1818,7 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 /* Increment ->ticks_this_gp for all flavors of RCU. */
 static void increment_cpu_stall_ticks(void)
 {
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		raw_cpu_inc(rcu_data.ticks_this_gp);
+	raw_cpu_inc(rcu_data.ticks_this_gp);
 }
 
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -2384,7 +2375,6 @@ void __init rcu_init_nohz(void)
 {
 	int cpu;
 	bool need_rcu_nocb_mask = false;
-	struct rcu_state *rsp;
 
 #if defined(CONFIG_NO_HZ_FULL)
 	if (tick_nohz_full_running && cpumask_weight(tick_nohz_full_mask))
@@ -2418,11 +2408,9 @@ void __init rcu_init_nohz(void)
 	if (rcu_nocb_poll)
 		pr_info("\tPoll for callbacks from no-CBs CPUs.\n");
 
-	for_each_rcu_flavor(rsp) {
-		for_each_cpu(cpu, rcu_nocb_mask)
-			init_nocb_callback_list(per_cpu_ptr(&rcu_data, cpu));
-		rcu_organize_nocb_kthreads();
-	}
+	for_each_cpu(cpu, rcu_nocb_mask)
+		init_nocb_callback_list(per_cpu_ptr(&rcu_data, cpu));
+	rcu_organize_nocb_kthreads();
 }
 
 /* Initialize per-rcu_data variables for no-CBs CPUs. */
@@ -2489,11 +2477,8 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
  */
 static void rcu_spawn_all_nocb_kthreads(int cpu)
 {
-	struct rcu_state *rsp;
-
 	if (rcu_scheduler_fully_active)
-		for_each_rcu_flavor(rsp)
-			rcu_spawn_one_nocb_kthread(cpu);
+		rcu_spawn_one_nocb_kthread(cpu);
 }
 
 /*
