@@ -597,21 +597,16 @@ EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);
 void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 			    unsigned long *gp_seq)
 {
-	struct rcu_state *rsp = NULL;
-
 	switch (test_type) {
 	case RCU_FLAVOR:
 	case RCU_BH_FLAVOR:
 	case RCU_SCHED_FLAVOR:
-		rsp = &rcu_state;
+		*flags = READ_ONCE(rcu_state.gp_flags);
+		*gp_seq = rcu_seq_current(&rcu_state.gp_seq);
 		break;
 	default:
 		break;
 	}
-	if (rsp == NULL)
-		return;
-	*flags = READ_ONCE(rsp->gp_flags);
-	*gp_seq = rcu_seq_current(&rsp->gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 
