@@ -1586,7 +1586,7 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
 					  rcu_seq_current(&rnp->gp_seq)) ||
 		     unlikely(READ_ONCE(rdp->gpwrap))) &&
 		    rcu_segcblist_pend_cbs(&rdp->cblist))
-			note_gp_changes(rsp, rdp);
+			note_gp_changes(rdp);
 
 		if (rcu_segcblist_ready_cbs(&rdp->cblist))
 			cbs_ready = true;

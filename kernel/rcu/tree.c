@@ -1801,7 +1801,7 @@ static bool __note_gp_changes(struct rcu_node *rnp, struct rcu_data *rdp)
 	return ret;
 }
 
-static void note_gp_changes(struct rcu_state *rsp, struct rcu_data *rdp)
+static void note_gp_changes(struct rcu_data *rdp)
 {
 	unsigned long flags;
 	bool needwake;
@@ -2375,7 +2375,7 @@ static void
 rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	/* Check for grace-period ends and beginnings. */
-	note_gp_changes(rsp, rdp);
+	note_gp_changes(rdp);
 
 	/*
 	 * Does this CPU still need to do its part for current grace period?
@@ -2840,7 +2840,7 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 		     rdp->qlen_last_fqs_check + qhimark)) {
 
 		/* Are we ignoring a completed grace period? */
-		note_gp_changes(rsp, rdp);
+		note_gp_changes(rdp);
 
 		/* Start a new grace period if one not already started. */
 		if (!rcu_gp_in_progress()) {
