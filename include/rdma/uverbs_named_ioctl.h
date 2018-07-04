@@ -45,8 +45,9 @@
 #define UVERBS_HANDLER(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _handler_##id)
 #define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MOUDLE_NAME, _object_##id)
 
-#define UVERBS_METHOD_ATTRS(id)                                                \
-	_UVERBS_NAME(UVERBS_MODULE_NAME, _method_attrs_##id)
+/* These are static so they do not need to be qualified */
+#define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
+#define UVERBS_OBJECT_METHODS(object_id) _object_methods_##object_id
 
 #define DECLARE_UVERBS_NAMED_METHOD(_method_id, ...)                           \
 	static const struct uverbs_attr_def *const UVERBS_METHOD_ATTRS(        \
@@ -72,13 +73,18 @@
 		.attrs = &UVERBS_METHOD_ATTRS(_method_id),                     \
 	}
 
-#define DECLARE_UVERBS_NAMED_OBJECT(id, ...)	\
-	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT(id), id, ##__VA_ARGS__)
+#define DECLARE_UVERBS_NAMED_OBJECT(_object_id, _type_attrs, ...)              \
+	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
+		_object_id)[] = { __VA_ARGS__ };                               \
+	const struct uverbs_object_def UVERBS_OBJECT(_object_id) = {           \
+		.id = _object_id,                                              \
+		.type_attrs = _type_attrs,                                     \
+		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
+		.methods = &UVERBS_OBJECT_METHODS(_object_id)                  \
+	}
 
 #define DECLARE_UVERBS_GLOBAL_METHODS(_name, ...)	\
 	DECLARE_UVERBS_NAMED_OBJECT(_name, NULL, ##__VA_ARGS__)
-
-#define _UVERBS_COMP_NAME(x, y, z) _UVERBS_NAME(_UVERBS_NAME(x, y), z)
 
 /* Used by drivers to declare a complete parsing tree for a single method that
  * differs only in having additional driver specific attributes.
@@ -91,11 +97,19 @@
 		.num_attrs = ARRAY_SIZE(UVERBS_METHOD_ATTRS(_method_id)),      \
 		.attrs = &UVERBS_METHOD_ATTRS(_method_id),                     \
 	};                                                                     \
-	static DECLARE_UVERBS_OBJECT(                                          \
-		_UVERBS_COMP_NAME(UVERBS_MODULE_NAME, _object_id, _name),      \
-		_object_id, NULL, &UVERBS_METHOD(_method_id));                 \
-	static DECLARE_UVERBS_OBJECT_TREE(                                     \
-		_name,                                                         \
-		&_UVERBS_COMP_NAME(UVERBS_MODULE_NAME, _object_id, _name))
+	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
+		_object_id)[] = { &UVERBS_METHOD(_method_id) };                \
+	static const struct uverbs_object_def _name##_struct = {               \
+		.id = _object_id,                                              \
+		.num_methods = 1,                                              \
+		.methods = &UVERBS_OBJECT_METHODS(_object_id)                  \
+	};                                                                     \
+	static const struct uverbs_object_def *const _name##_ptrs[] = {        \
+		&_name##_struct,                                               \
+	};                                                                     \
+	static const struct uverbs_object_tree_def _name = {                   \
+		.num_objects = 1,                                              \
+		.objects = &_name##_ptrs,                                      \
+	}
 
 #endif

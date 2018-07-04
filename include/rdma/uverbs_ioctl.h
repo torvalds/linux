@@ -254,32 +254,32 @@ struct uverbs_object_tree_def {
 	})
 
 /*
+ * This spec is used in order to pass information to the hardware driver in a
+ * legacy way. Every verb that could get driver specific data should get this
+ * spec.
+ */
+#define UVERBS_ATTR_UHW()                                                      \
+	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_UHW_IN,                                \
+			    UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
+			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),      \
+	&UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_UHW_OUT,                              \
+			     UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
+			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO))
+
+/*
  * =======================================
  *	Declaration helpers
  * =======================================
  */
-#define _UVERBS_OBJECT_METHODS_SZ(...)					\
-	(sizeof((const struct uverbs_method_def * const []){__VA_ARGS__}) / \
-	 sizeof(const struct uverbs_method_def *))
-#define _UVERBS_OBJECT(_id, _type_attrs, ...)				\
-	((const struct uverbs_object_def) {				\
-	 .id = _id,							\
-	 .type_attrs = _type_attrs,					\
-	 .num_methods = _UVERBS_OBJECT_METHODS_SZ(__VA_ARGS__),		\
-	 .methods = &(const struct uverbs_method_def * const []){__VA_ARGS__} })
-#define DECLARE_UVERBS_OBJECT(_name, _id, _type_attrs, ...)		\
-	const struct uverbs_object_def _name =				\
-		_UVERBS_OBJECT(_id, _type_attrs, ##__VA_ARGS__)
-#define _UVERBS_TREE_OBJECTS_SZ(...)					\
-	(sizeof((const struct uverbs_object_def * const []){__VA_ARGS__}) / \
-	 sizeof(const struct uverbs_object_def *))
-#define _UVERBS_OBJECT_TREE(...)					\
-	((const struct uverbs_object_tree_def) {			\
-	 .num_objects = _UVERBS_TREE_OBJECTS_SZ(__VA_ARGS__),		\
-	 .objects = &(const struct uverbs_object_def * const []){__VA_ARGS__} })
-#define DECLARE_UVERBS_OBJECT_TREE(_name, ...)				\
-	const struct uverbs_object_tree_def _name =			\
-		_UVERBS_OBJECT_TREE(__VA_ARGS__)
+
+#define DECLARE_UVERBS_OBJECT_TREE(_name, ...)                                 \
+	static const struct uverbs_object_def *const _name##_ptr[] = {         \
+		__VA_ARGS__,                                                   \
+	};                                                                     \
+	static const struct uverbs_object_tree_def _name = {                   \
+		.num_objects = ARRAY_SIZE(_name##_ptr),                        \
+		.objects = &_name##_ptr,                                       \
+	}
 
 /* =================================================
  *              Parsing infrastructure
