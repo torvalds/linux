@@ -141,6 +141,7 @@ reservation_object_add_shared_inplace(struct reservation_object *obj,
 	if (signaled) {
 		RCU_INIT_POINTER(fobj->shared[signaled_idx], fence);
 	} else {
+		BUG_ON(fobj->shared_count >= fobj->shared_max);
 		RCU_INIT_POINTER(fobj->shared[fobj->shared_count], fence);
 		fobj->shared_count++;
 	}
@@ -230,10 +231,9 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 	old = reservation_object_get_list(obj);
 	obj->staged = NULL;
 
-	if (!fobj) {
-		BUG_ON(old->shared_count >= old->shared_max);
+	if (!fobj)
 		reservation_object_add_shared_inplace(obj, old, fence);
-	} else
+	else
 		reservation_object_add_shared_replace(obj, old, fobj, fence);
 }
 EXPORT_SYMBOL(reservation_object_add_shared_fence);
