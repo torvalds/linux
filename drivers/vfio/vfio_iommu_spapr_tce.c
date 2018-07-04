@@ -631,7 +631,7 @@ static long tce_iommu_create_table(struct tce_container *container,
 			page_shift, window_size, levels, ptbl);
 
 	WARN_ON(!ret && !(*ptbl)->it_ops->free);
-	WARN_ON(!ret && ((*ptbl)->it_allocated_size != table_size));
+	WARN_ON(!ret && ((*ptbl)->it_allocated_size > table_size));
 
 	return ret;
 }
