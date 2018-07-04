@@ -593,8 +593,6 @@ static int cif_isp10_v4l2_do_streamoff(
 		ret = -EFAULT;
 	}
 
-	vb2_queue_release(queue);
-
 	if (IS_ERR_VALUE(ret))
 		cif_isp10_pltfrm_pr_err(dev->dev,
 			"failed with error %d\n", ret);
@@ -1100,6 +1098,8 @@ static int cif_isp10_v4l2_release(struct file *file)
 
 		/* Last close, so uninitialize hardware */
 		ret = cif_isp10_release(dev, stream_id);
+
+		vb2_queue_release(queue);
 	}
 
 	if (node->owner == fh)
