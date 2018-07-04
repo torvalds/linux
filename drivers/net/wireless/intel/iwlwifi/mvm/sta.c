@@ -674,9 +674,9 @@ static int iwl_mvm_get_shared_queue(struct iwl_mvm *mvm,
  * in such a case, otherwise - if no redirection required - it does nothing,
  * unless the %force param is true.
  */
-int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
-			       int ac, int ssn, unsigned int wdg_timeout,
-			       bool force)
+static int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
+				      int ac, int ssn, unsigned int wdg_timeout,
+				      bool force)
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
