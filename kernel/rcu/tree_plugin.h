@@ -683,12 +683,12 @@ static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
  * Dump detailed information for all tasks blocking the current RCU
  * grace period.
  */
-static void rcu_print_detail_task_stall(struct rcu_state *rsp)
+static void rcu_print_detail_task_stall(void)
 {
 	struct rcu_node *rnp = rcu_get_root();
 
 	rcu_print_detail_task_stall_rnp(rnp);
-	rcu_for_each_leaf_node(rsp, rnp)
+	rcu_for_each_leaf_node(&rcu_state, rnp)
 		rcu_print_detail_task_stall_rnp(rnp);
 }
 
@@ -1005,7 +1005,7 @@ static void rcu_preempt_deferred_qs(struct task_struct *t) { }
  * Because preemptible RCU does not exist, we never have to check for
  * tasks blocked within RCU read-side critical sections.
  */
-static void rcu_print_detail_task_stall(struct rcu_state *rsp)
+static void rcu_print_detail_task_stall(void)
 {
 }
 

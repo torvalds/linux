@@ -1360,7 +1360,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 		rcu_dump_cpu_stacks();
 
 		/* Complain about tasks blocking the grace period. */
-		rcu_print_detail_task_stall(rsp);
+		rcu_print_detail_task_stall();
 	} else {
 		if (rcu_seq_current(&rsp->gp_seq) != gp_seq) {
 			pr_err("INFO: Stall ended before state dump start\n");
