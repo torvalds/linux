@@ -2604,6 +2604,82 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	return devlink->ops->reload(devlink, info->extack);
 }
 
+static const struct devlink_param devlink_param_generic[] = {};
+
+static int devlink_param_generic_verify(const struct devlink_param *param)
+{
+	/* verify it match generic parameter by id and name */
+	if (param->id > DEVLINK_PARAM_GENERIC_ID_MAX)
+		return -EINVAL;
+	if (strcmp(param->name, devlink_param_generic[param->id].name))
+		return -ENOENT;
+
+	WARN_ON(param->type != devlink_param_generic[param->id].type);
+
+	return 0;
+}
+
+static int devlink_param_driver_verify(const struct devlink_param *param)
+{
+	int i;
+
+	if (param->id <= DEVLINK_PARAM_GENERIC_ID_MAX)
+		return -EINVAL;
+	/* verify no such name in generic params */
+	for (i = 0; i <= DEVLINK_PARAM_GENERIC_ID_MAX; i++)
+		if (!strcmp(param->name, devlink_param_generic[i].name))
+			return -EEXIST;
+
+	return 0;
+}
+
+static struct devlink_param_item *
+devlink_param_find_by_name(struct list_head *param_list,
+			   const char *param_name)
+{
+	struct devlink_param_item *param_item;
+
+	list_for_each_entry(param_item, param_list, list)
+		if (!strcmp(param_item->param->name, param_name))
+			return param_item;
+	return NULL;
+}
+
+static int devlink_param_register_one(struct devlink *devlink,
+				      const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	if (devlink_param_find_by_name(&devlink->param_list,
+				       param->name))
+		return -EEXIST;
+
+	if (param->supported_cmodes == BIT(DEVLINK_PARAM_CMODE_DRIVERINIT))
+		WARN_ON(param->get || param->set);
+	else
+		WARN_ON(!param->get || !param->set);
+
+	param_item = kzalloc(sizeof(*param_item), GFP_KERNEL);
+	if (!param_item)
+		return -ENOMEM;
+	param_item->param = param;
+
+	list_add_tail(&param_item->list, &devlink->param_list);
+	return 0;
+}
+
+static void devlink_param_unregister_one(struct devlink *devlink,
+					 const struct devlink_param *param)
+{
+	struct devlink_param_item *param_item;
+
+	param_item = devlink_param_find_by_name(&devlink->param_list,
+						param->name);
+	WARN_ON(!param_item);
+	list_del(&param_item->list);
+	kfree(param_item);
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -2845,6 +2921,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD(&devlink->sb_list);
 	INIT_LIST_HEAD_RCU(&devlink->dpipe_table_list);
 	INIT_LIST_HEAD(&devlink->resource_list);
+	INIT_LIST_HEAD(&devlink->param_list);
 	mutex_init(&devlink->lock);
 	return devlink;
 }
@@ -3433,6 +3510,77 @@ out:
 	mutex_unlock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devlink_resource_occ_get_unregister);
+
+/**
+ *	devlink_params_register - register configuration parameters
+ *
+ *	@devlink: devlink
+ *	@params: configuration parameters array
+ *	@params_count: number of parameters provided
+ *
+ *	Register the configuration parameters supported by the driver.
+ */
+int devlink_params_register(struct devlink *devlink,
+			    const struct devlink_param *params,
+			    size_t params_count)
+{
+	const struct devlink_param *param = params;
+	int i;
+	int err;
+
+	mutex_lock(&devlink->lock);
+	for (i = 0; i < params_count; i++, param++) {
+		if (!param || !param->name || !param->supported_cmodes) {
+			err = -EINVAL;
+			goto rollback;
+		}
+		if (param->generic) {
+			err = devlink_param_generic_verify(param);
+			if (err)
+				goto rollback;
+		} else {
+			err = devlink_param_driver_verify(param);
+			if (err)
+				goto rollback;
+		}
+		err = devlink_param_register_one(devlink, param);
+		if (err)
+			goto rollback;
+	}
+
+	mutex_unlock(&devlink->lock);
+	return 0;
+
+rollback:
+	if (!i)
+		goto unlock;
+	for (param--; i > 0; i--, param--)
+		devlink_param_unregister_one(devlink, param);
+unlock:
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_params_register);
+
+/**
+ *	devlink_params_unregister - unregister configuration parameters
+ *	@devlink: devlink
+ *	@params: configuration parameters to unregister
+ *	@params_count: number of parameters provided
+ */
+void devlink_params_unregister(struct devlink *devlink,
+			       const struct devlink_param *params,
+			       size_t params_count)
+{
+	const struct devlink_param *param = params;
+	int i;
+
+	mutex_lock(&devlink->lock);
+	for (i = 0; i < params_count; i++, param++)
+		devlink_param_unregister_one(devlink, param);
+	mutex_unlock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devlink_params_unregister);
 
 static int __init devlink_module_init(void)
 {

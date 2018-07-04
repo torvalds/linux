@@ -27,6 +27,7 @@ struct devlink {
 	struct list_head sb_list;
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
+	struct list_head param_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -295,6 +296,68 @@ struct devlink_resource {
 
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
+#define DEVLINK_PARAM_MAX_STRING_VALUE 32
+enum devlink_param_type {
+	DEVLINK_PARAM_TYPE_U8,
+	DEVLINK_PARAM_TYPE_U16,
+	DEVLINK_PARAM_TYPE_U32,
+	DEVLINK_PARAM_TYPE_STRING,
+	DEVLINK_PARAM_TYPE_BOOL,
+};
+
+union devlink_param_value {
+	u8 vu8;
+	u16 vu16;
+	u32 vu32;
+	const char *vstr;
+	bool vbool;
+};
+
+struct devlink_param_gset_ctx {
+	union devlink_param_value val;
+	enum devlink_param_cmode cmode;
+};
+
+/**
+ * struct devlink_param - devlink configuration parameter data
+ * @name: name of the parameter
+ * @generic: indicates if the parameter is generic or driver specific
+ * @type: parameter type
+ * @supported_cmodes: bitmap of supported configuration modes
+ * @get: get parameter value, used for runtime and permanent
+ *       configuration modes
+ * @set: set parameter value, used for runtime and permanent
+ *       configuration modes
+ *
+ * This struct should be used by the driver to fill the data for
+ * a parameter it registers.
+ */
+struct devlink_param {
+	u32 id;
+	const char *name;
+	bool generic;
+	enum devlink_param_type type;
+	unsigned long supported_cmodes;
+	int (*get)(struct devlink *devlink, u32 id,
+		   struct devlink_param_gset_ctx *ctx);
+	int (*set)(struct devlink *devlink, u32 id,
+		   struct devlink_param_gset_ctx *ctx);
+};
+
+struct devlink_param_item {
+	struct list_head list;
+	const struct devlink_param *param;
+	union devlink_param_value driverinit_value;
+	bool driverinit_value_valid;
+};
+
+enum devlink_param_generic_id {
+
+	/* add new param generic ids above here*/
+	__DEVLINK_PARAM_GENERIC_ID_MAX,
+	DEVLINK_PARAM_GENERIC_ID_MAX = __DEVLINK_PARAM_GENERIC_ID_MAX - 1,
+};
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -430,6 +493,12 @@ void devlink_resource_occ_get_register(struct devlink *devlink,
 				       void *occ_get_priv);
 void devlink_resource_occ_get_unregister(struct devlink *devlink,
 					 u64 resource_id);
+int devlink_params_register(struct devlink *devlink,
+			    const struct devlink_param *params,
+			    size_t params_count);
+void devlink_params_unregister(struct devlink *devlink,
+			       const struct devlink_param *params,
+			       size_t params_count);
 
 #else
 
@@ -620,6 +689,22 @@ static inline void
 devlink_resource_occ_get_unregister(struct devlink *devlink,
 				    u64 resource_id)
 {
+}
+
+static inline int
+devlink_params_register(struct devlink *devlink,
+			const struct devlink_param *params,
+			size_t params_count)
+{
+	return 0;
+}
+
+static inline void
+devlink_params_unregister(struct devlink *devlink,
+			  const struct devlink_param *params,
+			  size_t params_count)
+{
+
 }
 
 #endif
