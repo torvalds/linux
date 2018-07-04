@@ -6723,7 +6723,7 @@ static enum dbg_status qed_parse_mcp_trace_buf(u8 *trace_buf,
 		format_idx = header & MFW_TRACE_EVENTID_MASK;
 
 		/* Skip message if its index doesn't exist in the meta data */
-		if (format_idx > s_mcp_trace_meta.formats_num) {
+		if (format_idx >= s_mcp_trace_meta.formats_num) {
 			u8 format_size =
 				(u8)((header & MFW_TRACE_PRM_SIZE_MASK) >>
 				     MFW_TRACE_PRM_SIZE_SHIFT);
