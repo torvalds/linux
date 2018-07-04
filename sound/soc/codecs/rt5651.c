@@ -1703,14 +1703,10 @@ static void rt5651_cancel_work(void *data)
 	cancel_work_sync(&rt5651->jack_detect_work);
 }
 
-static int rt5651_set_jack(struct snd_soc_component *component,
-			   struct snd_soc_jack *hp_jack, void *data)
+static void rt5651_enable_jack_detect(struct snd_soc_component *component,
+				      struct snd_soc_jack *hp_jack)
 {
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
-	int ret;
-
-	if (!rt5651->irq)
-		return -EINVAL;
 
 	/* IRQ output on GPIO1 */
 	snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
@@ -1737,10 +1733,10 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 			RT5651_JD2_IRQ_EN, RT5651_JD2_IRQ_EN);
 		break;
 	case RT5651_JD_NULL:
-		return 0;
+		return;
 	default:
 		dev_err(component->dev, "Currently only JD1_1 / JD1_2 / JD2 are supported\n");
-		return -EINVAL;
+		return;
 	}
 
 	/* Enable jack detect power */
@@ -1774,19 +1770,28 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 		RT5651_MB1_OC_STKY_MASK, RT5651_MB1_OC_STKY_EN);
 
 	rt5651->hp_jack = hp_jack;
-
-	ret = devm_request_threaded_irq(component->dev, rt5651->irq, NULL,
-					rt5651_irq,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING |
-					IRQF_ONESHOT, "rt5651", rt5651);
-	if (ret) {
-		dev_err(component->dev, "Failed to reguest IRQ: %d\n", ret);
-		return ret;
-	}
-
+	enable_irq(rt5651->irq);
 	/* sync initial jack state */
 	queue_work(system_power_efficient_wq, &rt5651->jack_detect_work);
+}
+
+static void rt5651_disable_jack_detect(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	disable_irq(rt5651->irq);
+	rt5651_cancel_work(rt5651);
+
+	rt5651->hp_jack = NULL;
+}
+
+static int rt5651_set_jack(struct snd_soc_component *component,
+			   struct snd_soc_jack *jack, void *data)
+{
+	if (jack)
+		rt5651_enable_jack_detect(component, jack);
+	else
+		rt5651_disable_jack_detect(component);
 
 	return 0;
 }
@@ -2047,6 +2052,18 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 	ret = devm_add_action_or_reset(&i2c->dev, rt5651_cancel_work, rt5651);
 	if (ret)
 		return ret;
+
+	ret = devm_request_irq(&i2c->dev, rt5651->irq, rt5651_irq,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
+			       | IRQF_ONESHOT, "rt5651", rt5651);
+	if (ret == 0) {
+		/* Gets re-enabled by rt5651_set_jack() */
+		disable_irq(rt5651->irq);
+	} else {
+		dev_warn(&i2c->dev, "Failed to reguest IRQ %d: %d\n",
+			 rt5651->irq, ret);
+		rt5651->irq = -ENXIO;
+	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
