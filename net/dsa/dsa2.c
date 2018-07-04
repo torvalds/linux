@@ -253,6 +253,8 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 	memset(&port->devlink_port, 0, sizeof(port->devlink_port));
 	err = devlink_port_register(ds->devlink, &port->devlink_port,
 				    port->index);
+	if (port->netdev)
+		port->netdev->dsa_ptr = ds->dst;
 	return err;
 }
 
@@ -262,6 +264,12 @@ static void dsa_cpu_port_unapply(struct dsa_port *port)
 	dsa_cpu_dsa_destroy(port);
 	port->ds->cpu_port_mask &= ~BIT(port->index);
 
+	if (port->netdev)
+		port->netdev->dsa_ptr = NULL;
+	if (port->ethernet) {
+		dev_put(port->ethernet);
+		port->ethernet = NULL;
+	}
 }
 
 static int dsa_user_port_apply(struct dsa_port *port)
@@ -505,10 +513,9 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		dev_put(ethernet_dev);
 	}
 
-	if (!dst->cpu_dp) {
+	if (!dst->cpu_dp)
 		dst->cpu_dp = port;
-		dst->cpu_dp->netdev = ethernet_dev;
-	}
+	port->netdev = ethernet_dev;
 
 	/* Initialize cpu_port_mask now for drv->setup()
 	 * to have access to a correct value, just like what
@@ -526,6 +533,29 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 
 	dst->rcv = dst->tag_ops->rcv;
 
+	dev_hold(ethernet_dev);
+	ds->ports[index].ethernet = ethernet_dev;
+	ds->cpu_port_mask |= BIT(index);
+
+	return 0;
+}
+
+static int dsa_user_parse(struct dsa_port *port, u32 index,
+			  struct dsa_switch *ds)
+{
+	struct device_node *cpu_port;
+	const unsigned int *cpu_port_reg;
+	int cpu_port_index;
+
+	cpu_port = of_parse_phandle(port->dn, "cpu", 0);
+	if (cpu_port) {
+		cpu_port_reg = of_get_property(cpu_port, "reg", NULL);
+		if (!cpu_port_reg)
+			return -EINVAL;
+		cpu_port_index = be32_to_cpup(cpu_port_reg);
+		ds->ports[index].upstream = cpu_port_index;
+	}
+
 	return 0;
 }
 
@@ -533,7 +563,7 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 {
 	struct dsa_port *port;
 	u32 index;
-	int err;
+	int err = 0;
 
 	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
@@ -546,6 +576,9 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			if (err)
 				return err;
 		} else {
+			err = dsa_user_parse(port, index, ds);
+			if (err)
+				return err;
 			/* Initialize enabled_port_mask now for drv->setup()
 			 * to have access to a correct value, just like what
 			 * net/dsa/dsa.c::dsa_switch_setup_one does.

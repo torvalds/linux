@@ -21,6 +21,10 @@
 		stdout-path = "serial2:115200n8";
 	};
 
+	memory {
+		reg = <0 0x80000000 0 0x80000000>;
+	};
+
 	cpus {
 		cpu@0 {
 			proc-supply = <&mt6323_vproc_reg>;
@@ -111,16 +115,15 @@
 		};
 	};
 
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0 0x80000000 0 0x40000000>;
-	};
-
 	vdd_fixed_vgpu_reg: fixedregulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_fixed_vgpu";
 		regulator-min-microvolt = <1150000>;
 		regulator-max-microvolt = <1150000>;
+	};
+
+	mt7530: switch@0 {
+		compatible = "mediatek,mt7530";
 	};
 };
 
@@ -158,19 +161,34 @@
 		};
 	};
 
+	gmac1: mac@1 {
+		compatible = "mediatek,eth-mac";
+		reg = <1>;
+		phy-mode = "trgmii";
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+			pause;
+		};
+	};
+
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		switch@0 {
+	};
+};
+		&mt7530 {
 			compatible = "mediatek,mt7530";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+			//reg = <0>;
 			pinctrl-names = "default";
 			reset-gpios = <&pio 33 0>;
 			core-supply = <&mt6323_vpa_reg>;
 			io-supply = <&mt6323_vemc3v3_reg>;
+
+			dsa,mii-bus = <&mdio>;
 
 			ports {
 				#address-cells = <1>;
@@ -180,29 +198,46 @@
 				port@0 {
 					reg = <0>;
 					label = "wan";
+					cpu = <&cpu_port1>;
 				};
 
 				port@1 {
 					reg = <1>;
 					label = "lan0";
+					cpu = <&cpu_port0>;
 				};
 
 				port@2 {
 					reg = <2>;
 					label = "lan1";
+					cpu = <&cpu_port0>;
 				};
 
 				port@3 {
 					reg = <3>;
 					label = "lan2";
+					cpu = <&cpu_port0>;
 				};
 
 				port@4 {
 					reg = <4>;
 					label = "lan3";
+					cpu = <&cpu_port0>;
 				};
 
-				port@6 {
+				cpu_port1: port@5 {
+					reg = <5>;
+					label = "cpu";
+					ethernet = <&gmac1>;
+					phy-mode = "trgmii";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+
+				cpu_port0: port@6 {
 					reg = <6>;
 					label = "cpu";
 					ethernet = <&gmac0>;
@@ -215,8 +250,6 @@
 				};
 			};
 		};
-	};
-};
 
 &cec {
 	status = "okay";

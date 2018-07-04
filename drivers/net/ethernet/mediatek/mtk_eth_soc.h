@@ -34,8 +34,6 @@
 				 NETIF_MSG_TX_ERR)
 #define MTK_HW_FEATURES		(NETIF_F_IP_CSUM | \
 				 NETIF_F_RXCSUM | \
-				 NETIF_F_HW_VLAN_CTAG_TX | \
-				 NETIF_F_HW_VLAN_CTAG_RX | \
 				 NETIF_F_SG | NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
 				 NETIF_F_IPV6_CSUM)
@@ -73,6 +71,10 @@
 /* CDMP Ingress Control Register */
 #define MTK_CDMQ_IG_CTRL	0x1400
 #define MTK_CDMQ_STAG_EN	BIT(0)
+
+/* CDMP Ingress Control Register */
+#define MTK_CDMP_IG_CTRL	0x400
+#define MTK_CDMP_STAG_EN	BIT(0)
 
 /* CDMP Exgress Control Register */
 #define MTK_CDMP_EG_CTRL	0x404
@@ -289,6 +291,7 @@
 
 /* QDMA descriptor rxd4 */
 #define RX_DMA_L4_VALID		BIT(24)
+#define RX_DMA_SP_TAG		BIT(22)
 #define RX_DMA_FPORT_SHIFT	19
 #define RX_DMA_FPORT_MASK	0x7
 

@@ -22,6 +22,10 @@
 
 #define TRGMII_BASE(x)			(0x10000 + (x))
 
+/* Registers for GDMA configuration access */
+#define MTK_GDMA_FWD_CFG(x)		(0x500 + (x * 0x1000))
+#define GDMA_SPEC_TAG			BIT(24)
+
 /* Registers to ethsys access */
 #define ETHSYS_CLKCFG0			0x2c
 #define  ETHSYS_TRGMII_CLK_SEL362_5	BIT(11)

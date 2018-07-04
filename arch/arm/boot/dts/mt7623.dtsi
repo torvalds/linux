@@ -837,7 +837,7 @@
 		clocks = <&mmsys CLK_MM_MDP_BLS_26M>,
 			<&mmsys CLK_MM_DISP_BLS>;
 		clock-names = "main", "mm";
- 		status = "disabled";
+		status = "disabled";
 	};
 
 	color@1400b000 {
@@ -1236,5 +1236,6 @@
 			     "syscon";
 		reg = <0 0x1c000000 0 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 };

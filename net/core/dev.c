@@ -3626,6 +3626,58 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	return rflow;
 }
 
+#define RPS_TBL_SIZE_SHIFT	10
+#define RPS_TBL_SIZE		(1 << RPS_TBL_SIZE_SHIFT)
+struct rps_table {
+	int			core;
+	struct timer_list	expire;
+};
+static struct rps_table rps_table[RPS_TBL_SIZE];
+static int rps_table_last_core;
+
+static void rps_table_expire(unsigned long data)
+{
+	struct rps_table *entry = (struct rps_table *) data;
+
+	entry->core = -1;
+}
+
+static int rps_table_core(struct rps_map *map)
+{
+	int i;
+
+	for (i = 0; i < map->len; i++) {
+		int cpu = map->cpus[(rps_table_last_core + i + 1) % map->len];
+		if (cpu_online(cpu)) {
+			rps_table_last_core = cpu;
+			return cpu;
+		}
+	}
+	return map->cpus[0];
+}
+
+static int rps_table_lookup(struct rps_map *map, u32 hash)
+{
+	int bucket = hash & 0x3ff;
+
+	if (rps_table[bucket].core < 0)
+		rps_table[bucket].core = rps_table_core(map);
+	mod_timer(&rps_table[bucket].expire, jiffies + HZ);
+
+	return rps_table[bucket].core;
+}
+
+static void rps_table_init(void)
+{
+	int i;
+
+	for (i = 0; i < RPS_TBL_SIZE; i++) {
+		rps_table[i].core = -1;
+		setup_timer(&rps_table[i].expire, rps_table_expire,
+			    (unsigned long) &rps_table[i]);
+	}
+}
+
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
@@ -3715,7 +3767,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 try_rps:
 
 	if (map) {
-		tcpu = map->cpus[reciprocal_scale(hash, map->len)];
+		tcpu = rps_table_lookup(map, hash);
 		if (cpu_online(tcpu)) {
 			cpu = tcpu;
 			goto done;
@@ -8751,6 +8803,9 @@ static int __init net_dev_init(void)
 		sd->backlog.poll = process_backlog;
 		sd->backlog.weight = weight_p;
 	}
+
+	if (IS_ENABLED(CONFIG_RPS))
+		rps_table_init();
 
 	dev_boot_phase = 0;
 
