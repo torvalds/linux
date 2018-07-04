@@ -1534,12 +1534,6 @@ static void rtl8169_check_link_status(struct net_device *dev,
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
 
-/* Currently we only enable WoL if explicitly told by userspace to circumvent
- * issues on certain platforms, see commit bde135a672bf ("r8169: only enable
- * PCI wakeups when WOL is active"). Let's keep __rtl8169_get_wol() for the
- * case that we want to respect BIOS settings again.
- */
-#if 0
 static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 {
 	u8 options;
@@ -1574,7 +1568,6 @@ static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 
 	return wolopts;
 }
-#endif
 
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
@@ -4470,7 +4463,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 
 static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 {
-	if (!netif_running(tp->dev) || !tp->saved_wolopts)
+	if (!netif_running(tp->dev) || !__rtl8169_get_wol(tp))
 		return false;
 
 	rtl_speed_down(tp);
