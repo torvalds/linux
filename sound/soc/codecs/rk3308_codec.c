@@ -143,6 +143,7 @@ struct rk3308_codec_priv {
 	u32 loopback_grp;
 	u32 i2s_sdis[ADC_LR_GROUP_MAX];
 	u32 to_i2s_grps;
+	u32 delay_loopback_handle_ms;
 	int which_i2s;
 	int irq;
 	int adc_grp0_using_linein;
@@ -2765,7 +2766,7 @@ static int rk3308_pcm_trigger(struct snd_pcm_substream *substream,
 			if (capture_str->substream_opened)
 				queue_delayed_work(system_power_efficient_wq,
 						   &rk3308->loopback_work,
-						   msecs_to_jiffies(LOOPBACK_HANDLE_MS));
+						   msecs_to_jiffies(rk3308->delay_loopback_handle_ms));
 		} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
 			/*
 			 * Switch to dummy bist mode to kick the glitch during disable
@@ -3673,6 +3674,10 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 
 	rk3308->no_deep_low_power =
 		of_property_read_bool(np, "rockchip,no-deep-low-power");
+
+	rk3308->delay_loopback_handle_ms = LOOPBACK_HANDLE_MS;
+	ret = of_property_read_u32(np, "rockchip,delay-loopback-handle-ms",
+				   &rk3308->delay_loopback_handle_ms);
 
 	rk3308->loopback_grp = LOOPBACK_NO_USE;
 	ret = of_property_read_u32(np, "rockchip,loopback-grp",
