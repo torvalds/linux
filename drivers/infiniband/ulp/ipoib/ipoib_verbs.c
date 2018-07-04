@@ -52,7 +52,7 @@ int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
 
 	if (set_qkey) {
 		ret = -ENOMEM;
-		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
+		qp_attr = kmalloc(sizeof(*qp_attr), GFP_KERNEL);
 		if (!qp_attr)
 			goto out;
 

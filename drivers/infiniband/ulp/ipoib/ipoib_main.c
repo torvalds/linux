@@ -634,7 +634,7 @@ struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
 {
 	struct ipoib_path_iter *iter;
 
-	iter = kmalloc(sizeof *iter, GFP_KERNEL);
+	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
 		return NULL;
 
@@ -885,7 +885,7 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	if (!priv->broadcast)
 		return NULL;
 
-	path = kzalloc(sizeof *path, GFP_ATOMIC);
+	path = kzalloc(sizeof(*path), GFP_ATOMIC);
 	if (!path)
 		return NULL;
 
@@ -1207,7 +1207,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 {
 	struct ipoib_header *header;
 
-	header = skb_push(skb, sizeof *header);
+	header = skb_push(skb, sizeof(*header));
 
 	header->proto = htons(type);
 	header->reserved = 0;
@@ -1375,7 +1375,7 @@ static struct ipoib_neigh *ipoib_neigh_ctor(u8 *daddr,
 {
 	struct ipoib_neigh *neigh;
 
-	neigh = kzalloc(sizeof *neigh, GFP_ATOMIC);
+	neigh = kzalloc(sizeof(*neigh), GFP_ATOMIC);
 	if (!neigh)
 		return NULL;
 
@@ -2366,7 +2366,7 @@ static void ipoib_add_one(struct ib_device *device)
 	int p;
 	int count = 0;
 
-	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
+	dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL);
 	if (!dev_list)
 		return;
 

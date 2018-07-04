@@ -58,7 +58,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;
 
-	ah = kmalloc(sizeof *ah, GFP_KERNEL);
+	ah = kmalloc(sizeof(*ah), GFP_KERNEL);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
@@ -203,7 +203,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	}
 
 	memcpy(mapping, priv->rx_ring[wr_id].mapping,
-	       IPOIB_UD_RX_SG * sizeof *mapping);
+	       IPOIB_UD_RX_SG * sizeof(*mapping));
 
 	/*
 	 * If we can't allocate a new RX buffer, dump

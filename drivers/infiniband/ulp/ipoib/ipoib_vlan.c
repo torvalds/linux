@@ -130,7 +130,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
 		return -EPERM;
 
-	snprintf(intf_name, sizeof intf_name, "%s.%04x",
+	snprintf(intf_name, sizeof(intf_name), "%s.%04x",
 		 ppriv->dev->name, pkey);
 
 	if (!mutex_trylock(&ppriv->sysfs_mutex))
