@@ -110,6 +110,10 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.suspend_time = 95,
 		.max_out_time = 44,
 	},
+	[IWL_SCAN_TYPE_FAST_BALANCE] = {
+		.suspend_time = 30,
+		.max_out_time = 37,
+	},
 };
 
 struct iwl_mvm_scan_params {
@@ -860,6 +864,12 @@ static inline bool iwl_mvm_is_regular_scan(struct iwl_mvm_scan_params *params)
 		params->scan_plans[0].iterations == 1;
 }
 
+static bool iwl_mvm_is_scan_fragmented(enum iwl_mvm_scan_type type)
+{
+	return (type == IWL_SCAN_TYPE_FRAGMENTED ||
+		type == IWL_SCAN_TYPE_FAST_BALANCE);
+}
+
 static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 				   struct iwl_mvm_scan_params *params,
 				   struct ieee80211_vif *vif)
@@ -872,7 +882,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
 
-	if (params->type == IWL_SCAN_TYPE_FRAGMENTED)
+	if (iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
 
 	if (iwl_mvm_rrm_scan_needed(mvm) &&
@@ -895,7 +905,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
+	    !iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL;
 
 	return flags;
@@ -1162,7 +1172,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 		 SCAN_CONFIG_FLAG_SET_MAC_ADDR |
 		 SCAN_CONFIG_FLAG_SET_CHANNEL_FLAGS |
 		 SCAN_CONFIG_N_CHANNELS(num_channels) |
-		 (type == IWL_SCAN_TYPE_FRAGMENTED ?
+		 (iwl_mvm_is_scan_fragmented(type) ?
 		  SCAN_CONFIG_FLAG_SET_FRAGMENTED :
 		  SCAN_CONFIG_FLAG_CLEAR_FRAGMENTED);
 
@@ -1177,7 +1187,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	 */
 	if (iwl_mvm_cdb_scan_api(mvm)) {
 		if (iwl_mvm_is_cdb_supported(mvm))
-			flags |= (hb_type == IWL_SCAN_TYPE_FRAGMENTED) ?
+			flags |= (iwl_mvm_is_scan_fragmented(hb_type)) ?
 				 SCAN_CONFIG_FLAG_SET_LMAC2_FRAGMENTED :
 				 SCAN_CONFIG_FLAG_CLEAR_LMAC2_FRAGMENTED;
 		iwl_mvm_fill_scan_config(mvm, cfg, flags, channel_flags);
@@ -1338,11 +1348,11 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_PRE_CONNECT;
 
-	if (params->type == IWL_SCAN_TYPE_FRAGMENTED)
+	if (iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_FRAGMENTED;
 
 	if (iwl_mvm_is_cdb_supported(mvm) &&
-	    params->hb_type == IWL_SCAN_TYPE_FRAGMENTED)
+	    iwl_mvm_is_scan_fragmented(params->hb_type))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED;
 
 	if (iwl_mvm_rrm_scan_needed(mvm) &&
@@ -1380,7 +1390,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	 */
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-	    params->type != IWL_SCAN_TYPE_FRAGMENTED &&
+	    !iwl_mvm_is_scan_fragmented(params->type) &&
 	    !iwl_mvm_is_adaptive_dwell_supported(mvm) &&
 	    !iwl_mvm_is_oce_supported(mvm))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL;

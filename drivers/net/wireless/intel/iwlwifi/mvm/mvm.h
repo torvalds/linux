@@ -512,6 +512,7 @@ enum iwl_mvm_scan_type {
 	IWL_SCAN_TYPE_WILD,
 	IWL_SCAN_TYPE_MILD,
 	IWL_SCAN_TYPE_FRAGMENTED,
+	IWL_SCAN_TYPE_FAST_BALANCE,
 };
 
 enum iwl_mvm_sched_scan_pass_all_states {
