@@ -78,6 +78,10 @@ enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_IP_BASED_GIDS = 1 << 26,
 };
 
+enum ib_uverbs_query_port_flags {
+	IB_UVERBS_QPF_GRH_REQUIRED = 1 << 0,
+};
+
 enum ib_uverbs_flow_action_esp_keymat {
 	IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM,
 };

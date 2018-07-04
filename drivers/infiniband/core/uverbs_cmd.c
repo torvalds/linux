@@ -294,6 +294,9 @@ ssize_t ib_uverbs_query_port(struct ib_uverbs_file *file,
 	resp.qkey_viol_cntr  = attr.qkey_viol_cntr;
 	resp.pkey_tbl_len    = attr.pkey_tbl_len;
 
+	if (rdma_is_grh_required(ib_dev, cmd.port_num))
+		resp.flags |= IB_UVERBS_QPF_GRH_REQUIRED;
+
 	if (rdma_cap_opa_ah(ib_dev, cmd.port_num)) {
 		resp.lid     = OPA_TO_IB_UCAST_LID(attr.lid);
 		resp.sm_lid  = OPA_TO_IB_UCAST_LID(attr.sm_lid);
