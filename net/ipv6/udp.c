@@ -1148,6 +1148,7 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc6.dontfrag = -1;
 	ipc6.gso_size = up->gso_size;
 	sockc.tsflags = sk->sk_tsflags;
+	sockc.transmit_time = 0;
 
 	/* destination address check */
 	if (sin6) {

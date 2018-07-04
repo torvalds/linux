@@ -930,6 +930,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc.tx_flags = 0;
 	ipc.ttl = 0;
 	ipc.tos = -1;
+	ipc.sockc.transmit_time = 0;
 
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 

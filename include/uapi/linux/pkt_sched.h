@@ -937,4 +937,22 @@ enum {
 
 #define TCA_CBS_MAX (__TCA_CBS_MAX - 1)
 
+
+/* ETF */
+struct tc_etf_qopt {
+	__s32 delta;
+	__s32 clockid;
+	__u32 flags;
+#define TC_ETF_DEADLINE_MODE_ON	BIT(0)
+#define TC_ETF_OFFLOAD_ON	BIT(1)
+};
+
+enum {
+	TCA_ETF_UNSPEC,
+	TCA_ETF_PARMS,
+	__TCA_ETF_MAX,
+};
+
+#define TCA_ETF_MAX (__TCA_ETF_MAX - 1)
+
 #endif
