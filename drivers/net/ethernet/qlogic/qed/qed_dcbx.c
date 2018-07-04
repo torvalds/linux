@@ -221,7 +221,6 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 	struct qed_hw_info *p_info = &p_hwfn->hw_info;
 	enum qed_pci_personality personality;
 	enum dcbx_protocol_type id;
-	char *name;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(qed_dcbx_app_update); i++) {
@@ -231,7 +230,6 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 			continue;
 
 		personality = qed_dcbx_app_update[i].personality;
-		name = qed_dcbx_app_update[i].name;
 
 		qed_dcbx_set_params(p_data, p_info, enable,
 				    prio, tc, type, personality);
