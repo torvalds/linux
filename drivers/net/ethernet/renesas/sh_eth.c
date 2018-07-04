@@ -2040,15 +2040,6 @@ static int sh_eth_phy_start(struct net_device *ndev)
 	return 0;
 }
 
-static int sh_eth_set_link_ksettings(struct net_device *ndev,
-				     const struct ethtool_link_ksettings *cmd)
-{
-	if (!ndev->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
-}
-
 /* If it is ever necessary to increase SH_ETH_REG_DUMP_MAX_REGS, the
  * version must be bumped as well.  Just adding registers up to that
  * limit is fine, as long as the existing register indices don't
@@ -2388,7 +2379,7 @@ static const struct ethtool_ops sh_eth_ethtool_ops = {
 	.get_ringparam	= sh_eth_get_ringparam,
 	.set_ringparam	= sh_eth_set_ringparam,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
-	.set_link_ksettings = sh_eth_set_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_wol	= sh_eth_get_wol,
 	.set_wol	= sh_eth_set_wol,
 };
