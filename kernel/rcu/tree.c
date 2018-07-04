@@ -1290,9 +1290,10 @@ static void rcu_dump_cpu_stacks(void)
  * If too much time has passed in the current grace period, and if
  * so configured, go kick the relevant kthreads.
  */
-static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
+static void rcu_stall_kick_kthreads(void)
 {
 	unsigned long j;
+	struct rcu_state *rsp = &rcu_state;
 
 	if (!rcu_kick_kthreads)
 		return;
@@ -1323,7 +1324,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gp_seq)
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
-	rcu_stall_kick_kthreads(rsp);
+	rcu_stall_kick_kthreads();
 	if (rcu_cpu_stall_suppress)
 		return;
 
@@ -1394,7 +1395,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
-	rcu_stall_kick_kthreads(rsp);
+	rcu_stall_kick_kthreads();
 	if (rcu_cpu_stall_suppress)
 		return;
 
@@ -1452,7 +1453,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	if ((rcu_cpu_stall_suppress && !rcu_kick_kthreads) ||
 	    !rcu_gp_in_progress())
 		return;
-	rcu_stall_kick_kthreads(rsp);
+	rcu_stall_kick_kthreads();
 	j = jiffies;
 
 	/*
