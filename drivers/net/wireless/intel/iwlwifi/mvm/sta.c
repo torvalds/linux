@@ -1351,6 +1351,33 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_reconfigure_queue(struct iwl_mvm *mvm, int queue)
+{
+	bool reconfig;
+	bool change_owner;
+
+	spin_lock_bh(&mvm->queue_info_lock);
+	reconfig = mvm->queue_info[queue].status == IWL_MVM_QUEUE_RECONFIGURING;
+
+	/*
+	 * We need to take into account a situation in which a TXQ was
+	 * allocated to TID x, and then turned shared by adding TIDs y
+	 * and z. If TID x becomes inactive and is removed from the TXQ,
+	 * ownership must be given to one of the remaining TIDs.
+	 * This is mainly because if TID x continues - a new queue can't
+	 * be allocated for it as long as it is an owner of another TXQ.
+	 */
+	change_owner = !(mvm->queue_info[queue].tid_bitmap &
+			 BIT(mvm->queue_info[queue].txq_tid)) &&
+		       (mvm->queue_info[queue].status == IWL_MVM_QUEUE_SHARED);
+	spin_unlock_bh(&mvm->queue_info_lock);
+
+	if (reconfig)
+		iwl_mvm_unshare_queue(mvm, queue);
+	else if (change_owner)
+		iwl_mvm_change_queue_owner(mvm, queue);
+}
+
 static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 {
 	unsigned long now = jiffies;
@@ -1504,7 +1531,7 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
 	unsigned long deferred_tid_traffic;
-	int queue, sta_id, tid;
+	int sta_id, tid;
 
 	/* Check inactivity of queues */
 	iwl_mvm_inactivity_check(mvm);
@@ -1512,39 +1539,14 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 	mutex_lock(&mvm->mutex);
 
 	/* No queue reconfiguration in TVQM mode */
-	if (iwl_mvm_has_new_tx_api(mvm))
-		goto alloc_queues;
+	if (!iwl_mvm_has_new_tx_api(mvm)) {
+		int queue;
 
-	/* Reconfigure queues requiring reconfiguation */
-	for (queue = 0; queue < ARRAY_SIZE(mvm->queue_info); queue++) {
-		bool reconfig;
-		bool change_owner;
-
-		spin_lock_bh(&mvm->queue_info_lock);
-		reconfig = (mvm->queue_info[queue].status ==
-			    IWL_MVM_QUEUE_RECONFIGURING);
-
-		/*
-		 * We need to take into account a situation in which a TXQ was
-		 * allocated to TID x, and then turned shared by adding TIDs y
-		 * and z. If TID x becomes inactive and is removed from the TXQ,
-		 * ownership must be given to one of the remaining TIDs.
-		 * This is mainly because if TID x continues - a new queue can't
-		 * be allocated for it as long as it is an owner of another TXQ.
-		 */
-		change_owner = !(mvm->queue_info[queue].tid_bitmap &
-				 BIT(mvm->queue_info[queue].txq_tid)) &&
-			       (mvm->queue_info[queue].status ==
-				IWL_MVM_QUEUE_SHARED);
-		spin_unlock_bh(&mvm->queue_info_lock);
-
-		if (reconfig)
-			iwl_mvm_unshare_queue(mvm, queue);
-		else if (change_owner)
-			iwl_mvm_change_queue_owner(mvm, queue);
+		/* Reconfigure queues requiring reconfiguation */
+		for (queue = 0; queue < ARRAY_SIZE(mvm->queue_info); queue++)
+			iwl_mvm_reconfigure_queue(mvm, queue);
 	}
 
-alloc_queues:
 	/* Go over all stations with deferred traffic */
 	for_each_set_bit(sta_id, mvm->sta_deferred_frames,
 			 IWL_MVM_STATION_COUNT) {
