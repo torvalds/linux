@@ -2199,11 +2199,6 @@ static void pnv_ioda2_tce_free(struct iommu_table *tbl, long index,
 	pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
 }
 
-static void pnv_ioda2_table_free(struct iommu_table *tbl)
-{
-	pnv_pci_ioda2_table_free_pages(tbl);
-}
-
 static struct iommu_table_ops pnv_ioda2_iommu_ops = {
 	.set = pnv_ioda2_tce_build,
 #ifdef CONFIG_IOMMU_API
@@ -2212,7 +2207,7 @@ static struct iommu_table_ops pnv_ioda2_iommu_ops = {
 #endif
 	.clear = pnv_ioda2_tce_free,
 	.get = pnv_tce_get,
-	.free = pnv_ioda2_table_free,
+	.free = pnv_pci_ioda2_table_free_pages,
 };
 
 static int pnv_pci_ioda_dev_dma_weight(struct pci_dev *dev, void *data)
