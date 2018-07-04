@@ -120,32 +120,18 @@ static long tee_smc_call_switchcpu0(struct smc_param *param)
 }
 #endif /* SWITCH_CPU0_DEBUG */
 
-static void e_lock_teez(struct tee_tz *ptee)
+static void wait_completion_teez(struct tee_tz *ptee)
 {
-	mutex_lock(&ptee->mutex);
-}
-
-static void e_lock_wait_completion_teez(struct tee_tz *ptee)
-{
-	/*
-	 * Release the lock until "something happens" and then reacquire it
-	 * again.
-	 *
-	 * This is needed when TEE returns "busy" and we need to try again
-	 * later.
-	 */
 	ptee->c_waiters++;
-	mutex_unlock(&ptee->mutex);
 	/*
 	 * Wait at most one second. Secure world is normally never busy
 	 * more than that so we should normally never timeout.
 	 */
 	wait_for_completion_timeout(&ptee->c, HZ);
-	mutex_lock(&ptee->mutex);
 	ptee->c_waiters--;
 }
 
-static void e_unlock_teez(struct tee_tz *ptee)
+static void complete_teez(struct tee_tz *ptee)
 {
 	/*
 	 * If at least one thread is waiting for "something to happen" let
@@ -153,7 +139,6 @@ static void e_unlock_teez(struct tee_tz *ptee)
 	 */
 	if (ptee->c_waiters)
 		complete(&ptee->c);
-	mutex_unlock(&ptee->mutex);
 }
 
 static void handle_rpc_func_cmd_mutex_wait(struct tee_tz *ptee,
@@ -458,7 +443,6 @@ static void call_tee(struct tee_tz *ptee,
 
 
 	param.a1 = parg32;
-	e_lock_teez(ptee);
 	while (true) {
 		param.a0 = funcid;
 
@@ -478,17 +462,19 @@ static void call_tee(struct tee_tz *ptee,
 			 * exit from secure world and needed resources may
 			 * have become available).
 			 */
-			e_lock_wait_completion_teez(ptee);
+			wait_completion_teez(ptee);
 		} else if (TEESMC_RETURN_IS_RPC(ret)) {
+			/* Wake up waiting task */
+			complete_teez(ptee);
 			/* Process the RPC. */
-			e_unlock_teez(ptee);
 			funcid = handle_rpc(ptee, &param);
-			e_lock_teez(ptee);
 		} else {
 			break;
 		}
 	}
-	e_unlock_teez(ptee);
+
+	/* Wake up waiting task */
+	complete_teez(ptee);
 
 	switch (ret) {
 	case TEESMC_RETURN_UNKNOWN_FUNCTION:
