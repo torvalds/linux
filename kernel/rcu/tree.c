@@ -2490,12 +2490,13 @@ int rcutree_dead_cpu(unsigned int cpu)
  * Invoke any RCU callbacks that have made it to the end of their grace
  * period.  Thottle as specified by rdp->blimit.
  */
-static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
+static void rcu_do_batch(struct rcu_data *rdp)
 {
 	unsigned long flags;
 	struct rcu_head *rhp;
 	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
 	long bl, count;
+	struct rcu_state *rsp = &rcu_state;
 
 	/* If no callbacks are ready, just return. */
 	if (!rcu_segcblist_ready_cbs(&rdp->cblist)) {
@@ -2808,7 +2809,7 @@ static void invoke_rcu_callbacks(struct rcu_data *rdp)
 	if (unlikely(!READ_ONCE(rcu_scheduler_fully_active)))
 		return;
 	if (likely(!rsp->boost)) {
-		rcu_do_batch(rsp, rdp);
+		rcu_do_batch(rdp);
 		return;
 	}
 	invoke_rcu_callbacks_kthread();
