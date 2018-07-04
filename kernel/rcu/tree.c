@@ -1387,12 +1387,13 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 	force_quiescent_state(rsp);  /* Kick them all. */
 }
 
-static void print_cpu_stall(struct rcu_state *rsp)
+static void print_cpu_stall(void)
 {
 	int cpu;
 	unsigned long flags;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rcu_get_root();
+	struct rcu_state *rsp = &rcu_state;
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -1492,7 +1493,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	    cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
 
 		/* We haven't checked in, so go dump stack. */
-		print_cpu_stall(rsp);
+		print_cpu_stall();
 
 	} else if (rcu_gp_in_progress() &&
 		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
