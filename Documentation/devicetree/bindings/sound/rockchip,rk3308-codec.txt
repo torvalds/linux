@@ -43,6 +43,8 @@ Optional properties:
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
 - rockchip,no-deep-low-power: The codec will not enter deep low power mode
   during suspend.
+- rockchip,no-hp-det: If there is no headphone on boards, we don't need to
+  enable headphone detection.
 - hp-ctl-gpios: The gpio of head phone controller.
 - spk-ctl-gpios: The gpio of speak controller.
 
