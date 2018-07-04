@@ -192,8 +192,8 @@ static u8 MgntQuery_MgntFrameTxRate(struct ieee80211_device *ieee)
 
 	if (rate == 0) {
 		/* 2005.01.26, by rcnjko. */
-		if(ieee->mode == IEEE_A||
-		   ieee->mode == IEEE_N_5G||
+		if(ieee->mode == IEEE_A ||
+		   ieee->mode == IEEE_N_5G ||
 		   (ieee->mode == IEEE_N_24G&&!pHTInfo->bCurSuppCCK))
 			rate = 0x0c;
 		else
@@ -265,8 +265,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			ieee->seq_ctrl[0]++;
 
 		/* check whether the managed packet queued greater than 5 */
-		if(!ieee->check_nic_enough_desc(ieee->dev,tcb_desc->queue_index)||\
-				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0)||\
+		if(!ieee->check_nic_enough_desc(ieee->dev,tcb_desc->queue_index) ||\
+				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0) ||\
 				(ieee->queue_stop) ) {
 			/* insert the skb packet to the management queue */
 			/* as for the completion function, it does not need
@@ -1315,7 +1315,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	}
 	ieee->LinkDetectInfo.SlotNum = 2 * (1 + ieee->current_network.beacon_interval/500);
 	// To prevent the immediately calling watch_dog after association.
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0||ieee->LinkDetectInfo.NumRecvDataInPeriod == 0 )
+	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 || ieee->LinkDetectInfo.NumRecvDataInPeriod == 0 )
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
@@ -2088,7 +2088,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 #else
 		if ((skb_queue_len(&ieee->skb_waitQ[queue_index]) != 0) ||
 #endif
-		(!ieee->check_nic_enough_desc(ieee->dev,queue_index))||\
+		(!ieee->check_nic_enough_desc(ieee->dev,queue_index)) || \
 		     (ieee->queue_stop)) {
 			/* insert the skb packet to the wait queue */
 			/* as for the completion function, it does not need
