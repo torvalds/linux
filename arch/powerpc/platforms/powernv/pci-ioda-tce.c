@@ -31,6 +31,23 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 	tbl->it_type = TCE_PCI;
 }
 
+static __be64 *pnv_alloc_tce_level(int nid, unsigned int shift)
+{
+	struct page *tce_mem = NULL;
+	__be64 *addr;
+
+	tce_mem = alloc_pages_node(nid, GFP_KERNEL, shift - PAGE_SHIFT);
+	if (!tce_mem) {
+		pr_err("Failed to allocate a TCE memory, level shift=%d\n",
+				shift);
+		return NULL;
+	}
+	addr = page_address(tce_mem);
+	memset(addr, 0, 1UL << shift);
+
+	return addr;
+}
+
 static __be64 *pnv_tce(struct iommu_table *tbl, bool user, long idx)
 {
 	__be64 *tmp = user ? tbl->it_userspace : (__be64 *) tbl->it_base;
@@ -165,21 +182,12 @@ static __be64 *pnv_pci_ioda2_table_do_alloc_pages(int nid, unsigned int shift,
 		unsigned int levels, unsigned long limit,
 		unsigned long *current_offset, unsigned long *total_allocated)
 {
-	struct page *tce_mem = NULL;
 	__be64 *addr, *tmp;
-	unsigned int order = max_t(unsigned int, shift, PAGE_SHIFT) -
-			PAGE_SHIFT;
-	unsigned long allocated = 1UL << (order + PAGE_SHIFT);
+	unsigned long allocated = 1UL << shift;
 	unsigned int entries = 1UL << (shift - 3);
 	long i;
 
-	tce_mem = alloc_pages_node(nid, GFP_KERNEL, order);
-	if (!tce_mem) {
-		pr_err("Failed to allocate a TCE memory, order=%d\n", order);
-		return NULL;
-	}
-	addr = page_address(tce_mem);
-	memset(addr, 0, allocated);
+	addr = pnv_alloc_tce_level(nid, shift);
 	*total_allocated += allocated;
 
 	--levels;
