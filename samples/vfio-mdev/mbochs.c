@@ -657,7 +657,7 @@ static void mbochs_put_pages(struct mdev_state *mdev_state)
 	dev_dbg(dev, "%s: %d pages released\n", __func__, count);
 }
 
-static int mbochs_region_vm_fault(struct vm_fault *vmf)
+static vm_fault_t mbochs_region_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct mdev_state *mdev_state = vma->vm_private_data;
@@ -695,7 +695,7 @@ static int mbochs_mmap(struct mdev_device *mdev, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int mbochs_dmabuf_vm_fault(struct vm_fault *vmf)
+static vm_fault_t mbochs_dmabuf_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct mbochs_dmabuf *dmabuf = vma->vm_private_data;
