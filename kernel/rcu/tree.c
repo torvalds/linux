@@ -1270,13 +1270,13 @@ static void rcu_check_gp_kthread_starvation(void)
  * that don't support NMI-based stack dumps.  The NMI-triggered stack
  * traces are more accurate because they are printed by the target CPU.
  */
-static void rcu_dump_cpu_stacks(struct rcu_state *rsp)
+static void rcu_dump_cpu_stacks(void)
 {
 	int cpu;
 	unsigned long flags;
 	struct rcu_node *rnp;
 
-	rcu_for_each_leaf_node(rsp, rnp) {
+	rcu_for_each_leaf_node(&rcu_state, rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		for_each_leaf_node_possible_cpu(rnp, cpu)
 			if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu))
@@ -1355,7 +1355,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gp_seq)
 	       smp_processor_id(), (long)(jiffies - rsp->gp_start),
 	       (long)rcu_seq_current(&rsp->gp_seq), totqlen);
 	if (ndetected) {
-		rcu_dump_cpu_stacks(rsp);
+		rcu_dump_cpu_stacks();
 
 		/* Complain about tasks blocking the grace period. */
 		rcu_print_detail_task_stall(rsp);
@@ -1418,7 +1418,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 
 	rcu_check_gp_kthread_starvation();
 
-	rcu_dump_cpu_stacks(rsp);
+	rcu_dump_cpu_stacks();
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	/* Rewrite if needed in case of slow consoles. */
