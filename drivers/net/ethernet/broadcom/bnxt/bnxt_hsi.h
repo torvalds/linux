@@ -6201,6 +6201,19 @@ struct hwrm_nvm_install_update_cmd_err {
 	u8	unused_0[7];
 };
 
+struct hwrm_nvm_variable_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le64	data_addr;
+	__le16	data_len;
+	__le16	option_num;
+	__le16	dimensions;
+	__le16	index_0;
+};
+
 /* hwrm_nvm_get_variable_input (size:320b/40B) */
 struct hwrm_nvm_get_variable_input {
 	__le16	req_type;
