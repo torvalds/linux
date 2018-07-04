@@ -283,3 +283,7 @@
 &ibt {
 	status = "okay";
 };
+
+&vhub {
+	status = "okay";
+};
