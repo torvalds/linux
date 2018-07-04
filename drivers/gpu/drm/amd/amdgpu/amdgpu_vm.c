@@ -1646,18 +1646,17 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	uint64_t flags;
 	int r;
 
-	if (clear || !bo_va->base.bo) {
+	if (clear || !bo) {
 		mem = NULL;
 		nodes = NULL;
 		exclusive = NULL;
 	} else {
 		struct ttm_dma_tt *ttm;
 
-		mem = &bo_va->base.bo->tbo.mem;
+		mem = &bo->tbo.mem;
 		nodes = mem->mm_node;
 		if (mem->mem_type == TTM_PL_TT) {
-			ttm = container_of(bo_va->base.bo->tbo.ttm,
-					   struct ttm_dma_tt, ttm);
+			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
 		exclusive = reservation_object_get_excl(bo->tbo.resv);
