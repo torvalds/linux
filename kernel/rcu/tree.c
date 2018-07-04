@@ -479,8 +479,8 @@ module_param(rcu_kick_kthreads, bool, 0644);
 static ulong jiffies_till_sched_qs = HZ / 10;
 module_param(jiffies_till_sched_qs, ulong, 0444);
 
-static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp));
-static void force_quiescent_state(struct rcu_state *rsp);
+static void force_qs_rnp(int (*f)(struct rcu_data *rsp));
+static void force_quiescent_state(void);
 static int rcu_pending(void);
 
 /*
@@ -538,7 +538,7 @@ EXPORT_SYMBOL_GPL(rcu_exp_batches_completed_sched);
  */
 void rcu_force_quiescent_state(void)
 {
-	force_quiescent_state(&rcu_state);
+	force_quiescent_state();
 }
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
@@ -547,7 +547,7 @@ EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
  */
 void rcu_bh_force_quiescent_state(void)
 {
-	force_quiescent_state(&rcu_state);
+	force_quiescent_state();
 }
 EXPORT_SYMBOL_GPL(rcu_bh_force_quiescent_state);
 
@@ -1384,7 +1384,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	panic_on_rcu_stall();
 
-	force_quiescent_state(rsp);  /* Kick them all. */
+	force_quiescent_state();  /* Kick them all. */
 }
 
 static void print_cpu_stall(void)
@@ -1992,10 +1992,10 @@ static void rcu_gp_fqs(bool first_time)
 	rsp->n_force_qs++;
 	if (first_time) {
 		/* Collect dyntick-idle snapshots. */
-		force_qs_rnp(rsp, dyntick_save_progress_counter);
+		force_qs_rnp(dyntick_save_progress_counter);
 	} else {
 		/* Handle dyntick-idle and offline CPUs. */
-		force_qs_rnp(rsp, rcu_implicit_dynticks_qs);
+		force_qs_rnp(rcu_implicit_dynticks_qs);
 	}
 	/* Clear flag to prevent immediate re-entry. */
 	if (READ_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
@@ -2600,12 +2600,13 @@ void rcu_check_callbacks(int user)
  *
  * The caller must have suppressed start of new grace periods.
  */
-static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
+static void force_qs_rnp(int (*f)(struct rcu_data *rsp))
 {
 	int cpu;
 	unsigned long flags;
 	unsigned long mask;
 	struct rcu_node *rnp;
+	struct rcu_state *rsp = &rcu_state;
 
 	rcu_for_each_leaf_node(rsp, rnp) {
 		cond_resched_tasks_rcu_qs();
@@ -2647,12 +2648,13 @@ static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp))
  * Force quiescent states on reluctant CPUs, and also detect which
  * CPUs are in dyntick-idle mode.
  */
-static void force_quiescent_state(struct rcu_state *rsp)
+static void force_quiescent_state(void)
 {
 	unsigned long flags;
 	bool ret;
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_old = NULL;
+	struct rcu_state *rsp = &rcu_state;
 
 	/* Funnel through hierarchy to reduce memory contention. */
 	rnp = __this_cpu_read(rcu_data.mynode);
@@ -2859,7 +2861,7 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 			rdp->blimit = LONG_MAX;
 			if (rsp->n_force_qs == rdp->n_force_qs_snap &&
 			    rcu_segcblist_first_pend_cb(&rdp->cblist) != head)
-				force_quiescent_state(rsp);
+				force_quiescent_state();
 			rdp->n_force_qs_snap = rsp->n_force_qs;
 			rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 		}
