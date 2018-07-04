@@ -152,9 +152,9 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		if (!object)
 			return -EINVAL;
 
-		o_attr->uobject = uverbs_get_uobject_from_context(
+		o_attr->uobject = uverbs_get_uobject_from_file(
 					object->type_attrs,
-					ufile->ucontext,
+					ufile,
 					spec->u.obj.access,
 					(int)uattr->data);
 

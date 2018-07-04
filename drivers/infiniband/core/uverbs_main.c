@@ -227,12 +227,13 @@ void ib_uverbs_detach_umcast(struct ib_qp *qp,
 	}
 }
 
-static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
-				      struct ib_ucontext *context,
-				      bool device_removed)
+static int ib_uverbs_cleanup_ufile(struct ib_uverbs_file *file,
+				   bool device_removed)
 {
+	struct ib_ucontext *context = file->ucontext;
+
 	context->closing = 1;
-	uverbs_cleanup_ucontext(context, device_removed);
+	uverbs_cleanup_ufile(file, device_removed);
 	put_pid(context->tgid);
 
 	ib_rdmacg_uncharge(&context->cg_obj, context->device,
@@ -918,7 +919,7 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 
 	mutex_lock(&file->cleanup_mutex);
 	if (file->ucontext) {
-		ib_uverbs_cleanup_ucontext(file, file->ucontext, false);
+		ib_uverbs_cleanup_ufile(file, false);
 		file->ucontext = NULL;
 	}
 	mutex_unlock(&file->cleanup_mutex);
@@ -1176,7 +1177,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 		mutex_unlock(&file->cleanup_mutex);
 
 		/* At this point ib_uverbs_close cannot be running
-		 * ib_uverbs_cleanup_ucontext
+		 * ib_uverbs_cleanup_ufile
 		 */
 		if (ucontext) {
 			/* We must release the mutex before going ahead and
@@ -1188,7 +1189,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 			ib_uverbs_event_handler(&file->event_handler, &event);
 			ib_uverbs_disassociate_ucontext(ucontext);
 			mutex_lock(&file->cleanup_mutex);
-			ib_uverbs_cleanup_ucontext(file, ucontext, true);
+			ib_uverbs_cleanup_ufile(file, true);
 			mutex_unlock(&file->cleanup_mutex);
 		}
 
