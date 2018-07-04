@@ -133,7 +133,7 @@ static bool calculate_fb_and_fractional_fb_divider(
 	uint64_t feedback_divider;
 
 	feedback_divider =
-		(uint64_t)(target_pix_clk_khz * ref_divider * post_divider);
+		(uint64_t)target_pix_clk_khz * ref_divider * post_divider;
 	feedback_divider *= 10;
 	/* additional factor, since we divide by 10 afterwards */
 	feedback_divider *= (uint64_t)(calc_pll_cs->fract_fb_divider_factor);
@@ -145,8 +145,8 @@ static bool calculate_fb_and_fractional_fb_divider(
  * of fractional feedback decimal point and the fractional FB Divider precision
  * is 2 then the equation becomes (ullfeedbackDivider + 5*100) / (10*100))*/
 
-	feedback_divider += (uint64_t)
-			(5 * calc_pll_cs->fract_fb_divider_precision_factor);
+	feedback_divider += 5ULL *
+			    calc_pll_cs->fract_fb_divider_precision_factor;
 	feedback_divider =
 		div_u64(feedback_divider,
 			calc_pll_cs->fract_fb_divider_precision_factor * 10);
@@ -203,8 +203,8 @@ static bool calc_fb_divider_checking_tolerance(
 			&fract_feedback_divider);
 
 	/*Actual calculated value*/
-	actual_calc_clk_khz = (uint64_t)(feedback_divider *
-					calc_pll_cs->fract_fb_divider_factor) +
+	actual_calc_clk_khz = (uint64_t)feedback_divider *
+					calc_pll_cs->fract_fb_divider_factor +
 							fract_feedback_divider;
 	actual_calc_clk_khz *= calc_pll_cs->ref_freq_khz;
 	actual_calc_clk_khz =
