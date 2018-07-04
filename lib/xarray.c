@@ -52,6 +52,11 @@ static inline void xas_unlock_type(struct xa_state *xas, unsigned int lock_type)
 		xas_unlock(xas);
 }
 
+static inline bool xa_track_free(const struct xarray *xa)
+{
+	return xa->xa_flags & XA_FLAGS_TRACK_FREE;
+}
+
 static inline void xa_mark_set(struct xarray *xa, xa_mark_t mark)
 {
 	if (!(xa->xa_flags & XA_FLAGS_MARK(mark)))
@@ -92,6 +97,11 @@ static inline bool node_clear_mark(struct xa_node *node, unsigned int offset,
 static inline bool node_any_mark(struct xa_node *node, xa_mark_t mark)
 {
 	return !bitmap_empty(node_marks(node, mark), XA_CHUNK_SIZE);
+}
+
+static inline void node_mark_all(struct xa_node *node, xa_mark_t mark)
+{
+	bitmap_fill(node_marks(node, mark), XA_CHUNK_SIZE);
 }
 
 #define mark_inc(mark) do { \
@@ -416,6 +426,8 @@ static void xas_shrink(struct xa_state *xas)
 		xas->xa_node = XAS_BOUNDS;
 
 		RCU_INIT_POINTER(xa->xa_head, entry);
+		if (xa_track_free(xa) && !node_get_mark(node, 0, XA_FREE_MARK))
+			xa_mark_clear(xa, XA_FREE_MARK);
 
 		node->count = 0;
 		node->nr_values = 0;
@@ -549,8 +561,15 @@ static int xas_expand(struct xa_state *xas, void *head)
 
 		/* Propagate the aggregated mark info to the new child */
 		for (;;) {
-			if (xa_marked(xa, mark))
+			if (xa_track_free(xa) && mark == XA_FREE_MARK) {
+				node_mark_all(node, XA_FREE_MARK);
+				if (!xa_marked(xa, XA_FREE_MARK)) {
+					node_clear_mark(node, 0, XA_FREE_MARK);
+					xa_mark_set(xa, XA_FREE_MARK);
+				}
+			} else if (xa_marked(xa, mark)) {
 				node_set_mark(node, 0, mark);
+			}
 			if (mark == XA_MARK_MAX)
 				break;
 			mark_inc(mark);
@@ -624,6 +643,8 @@ static void *xas_create(struct xa_state *xas)
 			node = xas_alloc(xas, shift);
 			if (!node)
 				break;
+			if (xa_track_free(xa))
+				node_mark_all(node, XA_FREE_MARK);
 			rcu_assign_pointer(*slot, xa_mk_node(node));
 		} else if (xa_is_node(entry)) {
 			node = xa_to_node(entry);
@@ -882,7 +903,10 @@ void xas_init_marks(const struct xa_state *xas)
 	xa_mark_t mark = 0;
 
 	for (;;) {
-		xas_clear_mark(xas, mark);
+		if (xa_track_free(xas->xa) && mark == XA_FREE_MARK)
+			xas_set_mark(xas, mark);
+		else
+			xas_clear_mark(xas, mark);
 		if (mark == XA_MARK_MAX)
 			break;
 		mark_inc(mark);
@@ -1333,6 +1357,8 @@ void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 	do {
 		xas_lock(&xas);
 		curr = xas_store(&xas, entry);
+		if (xa_track_free(xa) && entry)
+			xas_clear_mark(&xas, XA_FREE_MARK);
 		xas_unlock(&xas);
 	} while (xas_nomem(&xas, gfp));
 
@@ -1365,6 +1391,8 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 
 	do {
 		curr = xas_store(&xas, entry);
+		if (xa_track_free(xa) && entry)
+			xas_clear_mark(&xas, XA_FREE_MARK);
 	} while (__xas_nomem(&xas, gfp));
 
 	return xas_result(&xas, curr);
@@ -1400,8 +1428,11 @@ void *xa_cmpxchg(struct xarray *xa, unsigned long index,
 		curr = xas_load(&xas);
 		if (curr == XA_ZERO_ENTRY)
 			curr = NULL;
-		if (curr == old)
+		if (curr == old) {
 			xas_store(&xas, entry);
+			if (xa_track_free(xa) && entry)
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		}
 		xas_unlock(&xas);
 	} while (xas_nomem(&xas, gfp));
 
@@ -1438,8 +1469,11 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 		curr = xas_load(&xas);
 		if (curr == XA_ZERO_ENTRY)
 			curr = NULL;
-		if (curr == old)
+		if (curr == old) {
 			xas_store(&xas, entry);
+			if (xa_track_free(xa) && entry)
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		}
 	} while (__xas_nomem(&xas, gfp));
 
 	return xas_result(&xas, curr);
@@ -1482,6 +1516,52 @@ int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 	return xas_error(&xas);
 }
 EXPORT_SYMBOL(xa_reserve);
+
+/**
+ * __xa_alloc() - Find somewhere to store this entry in the XArray.
+ * @xa: XArray.
+ * @id: Pointer to ID.
+ * @max: Maximum ID to allocate (inclusive).
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * Allocates an unused ID in the range specified by @id and @max.
+ * Updates the @id pointer with the index, then stores the entry at that
+ * index.  A concurrent lookup will not see an uninitialised @id.
+ *
+ * Context: Any context.  Expects xa_lock to be held on entry.  May
+ * release and reacquire xa_lock if @gfp flags permit.
+ * Return: 0 on success, -ENOMEM if memory allocation fails or -ENOSPC if
+ * there is no more space in the XArray.
+ */
+int __xa_alloc(struct xarray *xa, u32 *id, u32 max, void *entry, gfp_t gfp)
+{
+	XA_STATE(xas, xa, 0);
+	int err;
+
+	if (WARN_ON_ONCE(xa_is_internal(entry)))
+		return -EINVAL;
+	if (WARN_ON_ONCE(!xa_track_free(xa)))
+		return -EINVAL;
+
+	if (!entry)
+		entry = XA_ZERO_ENTRY;
+
+	do {
+		xas.xa_index = *id;
+		xas_find_marked(&xas, max, XA_FREE_MARK);
+		if (xas.xa_node == XAS_RESTART)
+			xas_set_err(&xas, -ENOSPC);
+		xas_store(&xas, entry);
+		xas_clear_mark(&xas, XA_FREE_MARK);
+	} while (__xas_nomem(&xas, gfp));
+
+	err = xas_error(&xas);
+	if (!err)
+		*id = xas.xa_index;
+	return err;
+}
+EXPORT_SYMBOL(__xa_alloc);
 
 /**
  * __xa_set_mark() - Set this mark on this entry while locked.

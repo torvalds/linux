@@ -33,6 +33,15 @@ static void *xa_store_index(struct xarray *xa, unsigned long index, gfp_t gfp)
 	return xa_store(xa, index, xa_mk_value(index & LONG_MAX), gfp);
 }
 
+static void xa_alloc_index(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	u32 id = 0;
+
+	XA_BUG_ON(xa, xa_alloc(xa, &id, UINT_MAX, xa_mk_value(index & LONG_MAX),
+				gfp) != 0);
+	XA_BUG_ON(xa, id != index);
+}
+
 static void xa_erase_index(struct xarray *xa, unsigned long index)
 {
 	XA_BUG_ON(xa, xa_erase(xa, index) != xa_mk_value(index & LONG_MAX));
@@ -402,6 +411,57 @@ static noinline void check_multi_store(struct xarray *xa)
 		}
 	}
 #endif
+}
+
+static DEFINE_XARRAY_ALLOC(xa0);
+
+static noinline void check_xa_alloc(void)
+{
+	int i;
+	u32 id;
+
+	/* An empty array should assign 0 to the first alloc */
+	xa_alloc_index(&xa0, 0, GFP_KERNEL);
+
+	/* Erasing it should make the array empty again */
+	xa_erase_index(&xa0, 0);
+	XA_BUG_ON(&xa0, !xa_empty(&xa0));
+
+	/* And it should assign 0 again */
+	xa_alloc_index(&xa0, 0, GFP_KERNEL);
+
+	/* The next assigned ID should be 1 */
+	xa_alloc_index(&xa0, 1, GFP_KERNEL);
+	xa_erase_index(&xa0, 1);
+
+	/* Storing a value should mark it used */
+	xa_store_index(&xa0, 1, GFP_KERNEL);
+	xa_alloc_index(&xa0, 2, GFP_KERNEL);
+
+	/* If we then erase 0, it should be free */
+	xa_erase_index(&xa0, 0);
+	xa_alloc_index(&xa0, 0, GFP_KERNEL);
+
+	xa_erase_index(&xa0, 1);
+	xa_erase_index(&xa0, 2);
+
+	for (i = 1; i < 5000; i++) {
+		xa_alloc_index(&xa0, i, GFP_KERNEL);
+	}
+
+	xa_destroy(&xa0);
+
+	id = 0xfffffffeU;
+	XA_BUG_ON(&xa0, xa_alloc(&xa0, &id, UINT_MAX, xa_mk_value(0),
+				GFP_KERNEL) != 0);
+	XA_BUG_ON(&xa0, id != 0xfffffffeU);
+	XA_BUG_ON(&xa0, xa_alloc(&xa0, &id, UINT_MAX, xa_mk_value(0),
+				GFP_KERNEL) != 0);
+	XA_BUG_ON(&xa0, id != 0xffffffffU);
+	XA_BUG_ON(&xa0, xa_alloc(&xa0, &id, UINT_MAX, xa_mk_value(0),
+				GFP_KERNEL) != -ENOSPC);
+	XA_BUG_ON(&xa0, id != 0xffffffffU);
+	xa_destroy(&xa0);
 }
 
 static noinline void __check_store_iter(struct xarray *xa, unsigned long start,
@@ -849,6 +909,7 @@ static int xarray_checks(void)
 	check_cmpxchg(&array);
 	check_reserve(&array);
 	check_multi_store(&array);
+	check_xa_alloc();
 	check_find(&array);
 	check_destroy(&array);
 	check_move(&array);
