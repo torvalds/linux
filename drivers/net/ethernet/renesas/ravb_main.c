@@ -1136,7 +1136,7 @@ static int ravb_nway_reset(struct net_device *ndev)
 	int error = -ENODEV;
 
 	if (ndev->phydev)
-		error = phy_start_aneg(ndev->phydev);
+		error = phy_restart_aneg(ndev->phydev);
 
 	return error;
 }
