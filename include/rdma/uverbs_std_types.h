@@ -71,6 +71,11 @@ static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 #define uobj_get_write(_type, _id, _ucontext)				\
 	 __uobj_get(uobj_get_type(_type), true, _ucontext, _id)
 
+int __uobj_perform_destroy(const struct uverbs_obj_type *type, int id,
+			   struct ib_uverbs_file *ufile, int success_res);
+#define uobj_perform_destroy(_type, _id, _ufile, _success_res)                 \
+	__uobj_perform_destroy(uobj_get_type(_type), _id, _ufile, _success_res)
+
 static inline void uobj_put_read(struct ib_uobject *uobj)
 {
 	rdma_lookup_put_uobject(uobj, false);

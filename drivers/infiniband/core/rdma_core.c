@@ -128,6 +128,28 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 	return atomic_cmpxchg(&uobj->usecnt, 0, -1) == 0 ? 0 : -EBUSY;
 }
 
+/*
+ * Does both rdma_lookup_get_uobject() and rdma_remove_commit_uobject(), then
+ * returns success_res on success (negative errno on failure). For use by
+ * callers that do not need the uobj.
+ */
+int __uobj_perform_destroy(const struct uverbs_obj_type *type, int id,
+			   struct ib_uverbs_file *ufile, int success_res)
+{
+	struct ib_uobject *uobj;
+	int ret;
+
+	uobj = rdma_lookup_get_uobject(type, ufile->ucontext, id, true);
+	if (IS_ERR(uobj))
+		return PTR_ERR(uobj);
+
+	ret = rdma_remove_commit_uobject(uobj);
+	if (ret)
+		return ret;
+
+	return success_res;
+}
+
 static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
 				     const struct uverbs_obj_type *type)
 {
