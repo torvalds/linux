@@ -1131,15 +1131,10 @@ error_exit:
 
 static int ravb_nway_reset(struct net_device *ndev)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
 	int error = -ENODEV;
-	unsigned long flags;
 
-	if (ndev->phydev) {
-		spin_lock_irqsave(&priv->lock, flags);
+	if (ndev->phydev)
 		error = phy_start_aneg(ndev->phydev);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
 
 	return error;
 }
