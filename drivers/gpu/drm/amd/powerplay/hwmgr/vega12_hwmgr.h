@@ -393,6 +393,9 @@ struct vega12_hwmgr {
 	struct vega12_smc_state_table  smc_state_table;
 
 	struct vega12_clock_range      clk_range[PPCLK_COUNT];
+
+	/* ---- Gfxoff ---- */
+	bool                           gfxoff_controlled_by_driver;
 };
 
 #define VEGA12_DPM2_NEAR_TDP_DEC                      10

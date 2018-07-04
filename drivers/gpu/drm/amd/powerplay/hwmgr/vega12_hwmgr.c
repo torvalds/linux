@@ -423,6 +423,11 @@ static int vega12_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			hwmgr->thermal_controller.advanceFanControlParameters.usFanPWMMinLimit *
 			hwmgr->thermal_controller.fanInfo.ulMaxRPM / 100;
 
+	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
+		data->gfxoff_controlled_by_driver = true;
+	else
+		data->gfxoff_controlled_by_driver = false;
+
 	return result;
 }
 
@@ -2328,6 +2333,38 @@ static int vega12_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega12_enable_gfx_off(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (data->gfxoff_controlled_by_driver)
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_AllowGfxOff);
+
+	return ret;
+}
+
+static int vega12_disable_gfx_off(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (data->gfxoff_controlled_by_driver)
+		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisallowGfxOff);
+
+	return ret;
+}
+
+static int vega12_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable)
+		return vega12_enable_gfx_off(hwmgr);
+	else
+		return vega12_disable_gfx_off(hwmgr);
+}
+
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2377,6 +2414,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,
+	.powergate_gfx = vega12_gfx_off_control,
 };
 
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr)
