@@ -2997,8 +2997,7 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
  * callbacks in the list of pending callbacks. Until then, this
  * function may only be called from __kfree_rcu().
  */
-void kfree_call_rcu(struct rcu_head *head,
-		    rcu_callback_t func)
+void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	__call_rcu(head, func, -1, 1);
 }
@@ -3080,21 +3079,23 @@ void cond_synchronize_sched(unsigned long oldstate)
 EXPORT_SYMBOL_GPL(cond_synchronize_sched);
 
 /*
- * Check to see if there is any immediate RCU-related work to be done
- * by the current CPU, for the specified type of RCU, returning 1 if so.
- * The checks are in order of increasing expense: checks that can be
- * carried out against CPU-local state are performed first.  However,
- * we must check for CPU stalls first, else we might not get a chance.
+ * Check to see if there is any immediate RCU-related work to be done by
+ * the current CPU, for the specified type of RCU, returning 1 if so and
+ * zero otherwise.  The checks are in order of increasing expense: checks
+ * that can be carried out against CPU-local state are performed first.
+ * However, we must check for CPU stalls first, else we might not get
+ * a chance.
  */
-static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
+static int rcu_pending(void)
 {
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;
 
 	/* Check for CPU stalls, if enabled. */
 	check_cpu_stall(rdp);
 
 	/* Is this CPU a NO_HZ_FULL CPU that should ignore RCU? */
-	if (rcu_nohz_full_cpu(rsp))
+	if (rcu_nohz_full_cpu(&rcu_state))
 		return 0;
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
@@ -3121,21 +3122,6 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 		return 1;
 
 	/* nothing to do */
-	return 0;
-}
-
-/*
- * Check to see if there is any immediate RCU-related work to be done
- * by the current CPU, returning 1 if so.  This function is part of the
- * RCU implementation; it is -not- an exported member of the RCU API.
- */
-static int rcu_pending(void)
-{
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		if (__rcu_pending(rsp, this_cpu_ptr(&rcu_data)))
-			return 1;
 	return 0;
 }
 
