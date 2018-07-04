@@ -119,11 +119,6 @@ static const char *msm_fence_get_timeline_name(struct dma_fence *fence)
 	return f->fctx->name;
 }
 
-static bool msm_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 static bool msm_fence_signaled(struct dma_fence *fence)
 {
 	struct msm_fence *f = to_msm_fence(fence);
@@ -133,10 +128,7 @@ static bool msm_fence_signaled(struct dma_fence *fence)
 static const struct dma_fence_ops msm_fence_ops = {
 	.get_driver_name = msm_fence_get_driver_name,
 	.get_timeline_name = msm_fence_get_timeline_name,
-	.enable_signaling = msm_fence_enable_signaling,
 	.signaled = msm_fence_signaled,
-	.wait = dma_fence_default_wait,
-	.release = dma_fence_free,
 };
 
 struct dma_fence *
