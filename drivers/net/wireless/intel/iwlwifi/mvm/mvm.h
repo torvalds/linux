@@ -760,10 +760,6 @@ iwl_mvm_baid_data_from_reorder_buf(struct iwl_mvm_reorder_buffer *buf)
  *	it. In this state, when a new queue is needed to be allocated but no
  *	such free queue exists, an inactive queue might be freed and given to
  *	the new RA/TID.
- * @IWL_MVM_QUEUE_RECONFIGURING: queue is being reconfigured
- *	This is the state of a queue that has had traffic pass through it, but
- *	needs to be reconfigured for some reason, e.g. the queue needs to
- *	become unshared and aggregations re-enabled on.
  */
 enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_FREE,
@@ -771,7 +767,6 @@ enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_READY,
 	IWL_MVM_QUEUE_SHARED,
 	IWL_MVM_QUEUE_INACTIVE,
-	IWL_MVM_QUEUE_RECONFIGURING,
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)

@@ -606,7 +606,13 @@ static int iwl_mvm_get_shared_queue(struct iwl_mvm *mvm,
 	u8 ac_to_queue[IEEE80211_NUM_ACS];
 	int i;
 
+	/*
+	 * This protects us against grabbing a queue that's being reconfigured
+	 * by the inactivity checker.
+	 */
+	lockdep_assert_held(&mvm->mutex);
 	lockdep_assert_held(&mvm->queue_info_lock);
+
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
 		return -EINVAL;
 
@@ -617,11 +623,6 @@ static int iwl_mvm_get_shared_queue(struct iwl_mvm *mvm,
 		/* Only DATA queues can be shared */
 		if (i < IWL_MVM_DQA_MIN_DATA_QUEUE &&
 		    i != IWL_MVM_DQA_BSS_CLIENT_QUEUE)
-			continue;
-
-		/* Don't try and take queues being reconfigured */
-		if (mvm->queue_info[queue].status ==
-		    IWL_MVM_QUEUE_RECONFIGURING)
 			continue;
 
 		ac_to_queue[mvm->queue_info[i].mac80211_ac] = i;
@@ -662,14 +663,6 @@ static int iwl_mvm_get_shared_queue(struct iwl_mvm *mvm,
 	    (queue != IWL_MVM_DQA_BSS_CLIENT_QUEUE)) {
 		IWL_ERR(mvm, "No DATA queues available to share\n");
 		return -ENOSPC;
-	}
-
-	/* Make sure the queue isn't in the middle of being reconfigured */
-	if (mvm->queue_info[queue].status == IWL_MVM_QUEUE_RECONFIGURING) {
-		IWL_ERR(mvm,
-			"TXQ %d is in the middle of re-config - try again\n",
-			queue);
-		return -EBUSY;
 	}
 
 	return queue;
@@ -1278,7 +1271,8 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
  */
 static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 					 struct iwl_mvm_sta *mvmsta, int queue,
-					 unsigned long tid_bitmap)
+					 unsigned long tid_bitmap,
+					 unsigned long *unshare_queues)
 {
 	int tid;
 
@@ -1345,19 +1339,17 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	/* If the queue is marked as shared - "unshare" it */
 	if (hweight16(mvm->queue_info[queue].tid_bitmap) == 1 &&
 	    mvm->queue_info[queue].status == IWL_MVM_QUEUE_SHARED) {
-		mvm->queue_info[queue].status = IWL_MVM_QUEUE_RECONFIGURING;
 		IWL_DEBUG_TX_QUEUES(mvm, "Marking Q:%d for reconfig\n",
 				    queue);
+		set_bit(queue, unshare_queues);
 	}
 }
 
 static void iwl_mvm_reconfigure_queue(struct iwl_mvm *mvm, int queue)
 {
-	bool reconfig;
 	bool change_owner;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	reconfig = mvm->queue_info[queue].status == IWL_MVM_QUEUE_RECONFIGURING;
 
 	/*
 	 * We need to take into account a situation in which a TXQ was
@@ -1372,15 +1364,14 @@ static void iwl_mvm_reconfigure_queue(struct iwl_mvm *mvm, int queue)
 		       (mvm->queue_info[queue].status == IWL_MVM_QUEUE_SHARED);
 	spin_unlock_bh(&mvm->queue_info_lock);
 
-	if (reconfig)
-		iwl_mvm_unshare_queue(mvm, queue);
-	else if (change_owner)
+	if (change_owner)
 		iwl_mvm_change_queue_owner(mvm, queue);
 }
 
 static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 {
 	unsigned long now = jiffies;
+	unsigned long unshare_queues = 0;
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1456,7 +1447,8 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		spin_lock(&mvmsta->lock);
 		spin_lock(&mvm->queue_info_lock);
 		iwl_mvm_remove_inactive_tids(mvm, mvmsta, i,
-					     inactive_tid_bitmap);
+					     inactive_tid_bitmap,
+					     &unshare_queues);
 		/* only unlock sta lock - we still need the queue info lock */
 		spin_unlock(&mvmsta->lock);
 	}
@@ -1465,6 +1457,8 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	/* Reconfigure queues requiring reconfiguation */
+	for_each_set_bit(i, &unshare_queues, IWL_MAX_HW_QUEUES)
+		iwl_mvm_unshare_queue(mvm, i);
 	for (i = 0; i < ARRAY_SIZE(mvm->queue_info); i++)
 		iwl_mvm_reconfigure_queue(mvm, i);
 }
