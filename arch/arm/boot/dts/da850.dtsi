@@ -639,6 +639,7 @@
 				interrupts = <58>;
 				#dma-cells = <2>;
 				#dma-channels = <4>;
+				power-domains = <&psc1 1>;
 				status = "okay";
 			};
 		};
