@@ -717,10 +717,11 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 			 */
 			pr_err("extension failed to load: %s", hook->name);
 			__battery_hook_unregister(hook, 0);
-			return;
+			goto end;
 		}
 	}
 	pr_info("new extension: %s\n", hook->name);
+end:
 	mutex_unlock(&hook_mutex);
 }
 EXPORT_SYMBOL_GPL(battery_hook_register);
@@ -732,7 +733,7 @@ EXPORT_SYMBOL_GPL(battery_hook_register);
 */
 static void battery_hook_add_battery(struct acpi_battery *battery)
 {
-	struct acpi_battery_hook *hook_node;
+	struct acpi_battery_hook *hook_node, *tmp;
 
 	mutex_lock(&hook_mutex);
 	INIT_LIST_HEAD(&battery->list);
@@ -744,15 +745,15 @@ static void battery_hook_add_battery(struct acpi_battery *battery)
 	 * when a battery gets hotplugged or initialized
 	 * during the battery module initialization.
 	 */
-	list_for_each_entry(hook_node, &battery_hook_list, list) {
+	list_for_each_entry_safe(hook_node, tmp, &battery_hook_list, list) {
 		if (hook_node->add_battery(battery->bat)) {
 			/*
 			 * The notification of the extensions has failed, to
 			 * prevent further errors we will unload the extension.
 			 */
-			__battery_hook_unregister(hook_node, 0);
 			pr_err("error in extension, unloading: %s",
 					hook_node->name);
+			__battery_hook_unregister(hook_node, 0);
 		}
 	}
 	mutex_unlock(&hook_mutex);
