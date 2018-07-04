@@ -529,6 +529,7 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 #define RDMA_CORE_CAP_AF_IB             0x00001000
 #define RDMA_CORE_CAP_ETH_AH            0x00002000
 #define RDMA_CORE_CAP_OPA_AH            0x00004000
+#define RDMA_CORE_CAP_IB_GRH_REQUIRED   0x00008000
 
 /* Protocol                             0xFFF00000 */
 #define RDMA_CORE_CAP_PROT_IB           0x00100000
@@ -537,6 +538,10 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 #define RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP 0x00800000
 #define RDMA_CORE_CAP_PROT_RAW_PACKET   0x01000000
 #define RDMA_CORE_CAP_PROT_USNIC        0x02000000
+
+#define RDMA_CORE_PORT_IB_GRH_REQUIRED (RDMA_CORE_CAP_IB_GRH_REQUIRED \
+					| RDMA_CORE_CAP_PROT_ROCE     \
+					| RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP)
 
 #define RDMA_CORE_PORT_IBA_IB          (RDMA_CORE_CAP_PROT_IB  \
 					| RDMA_CORE_CAP_IB_MAD \
@@ -570,7 +575,6 @@ struct ib_port_attr {
 	enum ib_mtu		max_mtu;
 	enum ib_mtu		active_mtu;
 	int			gid_tbl_len;
-	unsigned int		grh_required:1;
 	unsigned int		ip_gids:1;
 	/* This is the value from PortInfo CapabilityMask, defined by IBA */
 	u32			port_cap_flags;
@@ -2769,6 +2773,13 @@ static inline int rdma_is_port_valid(const struct ib_device *device,
 {
 	return (port >= rdma_start_port(device) &&
 		port <= rdma_end_port(device));
+}
+
+static inline bool rdma_is_grh_required(const struct ib_device *device,
+					u8 port_num)
+{
+	return device->port_immutable[port_num].core_cap_flags &
+		RDMA_CORE_PORT_IB_GRH_REQUIRED;
 }
 
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)

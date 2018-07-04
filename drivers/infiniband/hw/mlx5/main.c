@@ -1220,7 +1220,6 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	props->qkey_viol_cntr	= rep->qkey_violation_counter;
 	props->subnet_timeout	= rep->subnet_timeout;
 	props->init_type_reply	= rep->init_type_reply;
-	props->grh_required	= rep->grh_required;
 
 	err = mlx5_query_port_link_width_oper(mdev, &ib_link_width_oper, port);
 	if (err)
@@ -4462,7 +4461,8 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 		cancel_work_sync(&devr->ports[port].pkey_change_work);
 }
 
-static u32 get_core_cap_flags(struct ib_device *ibdev)
+static u32 get_core_cap_flags(struct ib_device *ibdev,
+			      struct mlx5_hca_vport_context *rep)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, 1);
@@ -4471,11 +4471,14 @@ static u32 get_core_cap_flags(struct ib_device *ibdev)
 	bool raw_support = !mlx5_core_mp_enabled(dev->mdev);
 	u32 ret = 0;
 
+	if (rep->grh_required)
+		ret |= RDMA_CORE_CAP_IB_GRH_REQUIRED;
+
 	if (ll == IB_LINK_LAYER_INFINIBAND)
-		return RDMA_CORE_PORT_IBA_IB;
+		return ret | RDMA_CORE_PORT_IBA_IB;
 
 	if (raw_support)
-		ret = RDMA_CORE_PORT_RAW_PACKET;
+		ret |= RDMA_CORE_PORT_RAW_PACKET;
 
 	if (!(l3_type_cap & MLX5_ROCE_L3_TYPE_IPV4_CAP))
 		return ret;
@@ -4498,17 +4501,23 @@ static int mlx5_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(ibdev, port_num);
+	struct mlx5_hca_vport_context rep = {0};
 	int err;
-
-	immutable->core_cap_flags = get_core_cap_flags(ibdev);
 
 	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
+	if (ll == IB_LINK_LAYER_INFINIBAND) {
+		err = mlx5_query_hca_vport_context(dev->mdev, 0, port_num, 0,
+						   &rep);
+		if (err)
+			return err;
+	}
+
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = get_core_cap_flags(ibdev);
+	immutable->core_cap_flags = get_core_cap_flags(ibdev, &rep);
 	if ((ll == IB_LINK_LAYER_INFINIBAND) || MLX5_CAP_GEN(dev->mdev, roce))
 		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 

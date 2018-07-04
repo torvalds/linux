@@ -2276,6 +2276,7 @@ static void update_sm_ah(struct work_struct *work)
 	struct ib_sa_sm_ah *new_ah;
 	struct ib_port_attr port_attr;
 	struct rdma_ah_attr   ah_attr;
+	bool grh_required;
 
 	if (ib_query_port(port->agent->device, port->port_num, &port_attr)) {
 		pr_warn("Couldn't query port\n");
@@ -2301,6 +2302,9 @@ static void update_sm_ah(struct work_struct *work)
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
 
+	grh_required = rdma_is_grh_required(port->agent->device,
+					    port->port_num);
+
 	/*
 	 * The OPA sm_lid of 0xFFFF needs special handling so that it can be
 	 * differentiated from a permissive LID of 0xFFFF.  We set the
@@ -2308,11 +2312,11 @@ static void update_sm_ah(struct work_struct *work)
 	 * address handle appropriately
 	 */
 	if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA &&
-	    (port_attr.grh_required ||
+	    (grh_required ||
 	     port_attr.sm_lid == be16_to_cpu(IB_LID_PERMISSIVE)))
 		rdma_ah_set_make_grd(&ah_attr, true);
 
-	if (ah_attr.type == RDMA_AH_ATTR_TYPE_IB && port_attr.grh_required) {
+	if (ah_attr.type == RDMA_AH_ATTR_TYPE_IB && grh_required) {
 		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
 		rdma_ah_set_subnet_prefix(&ah_attr,
 					  cpu_to_be64(port_attr.subnet_prefix));
