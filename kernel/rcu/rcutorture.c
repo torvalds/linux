@@ -1387,6 +1387,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 static int
 rcu_torture_reader(void *arg)
 {
+	unsigned long lastsleep = jiffies;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct timer_list t;
 
@@ -1402,6 +1403,10 @@ rcu_torture_reader(void *arg)
 		}
 		if (!rcu_torture_one_read(&rand))
 			schedule_timeout_interruptible(HZ);
+		if (time_after(jiffies, lastsleep)) {
+			schedule_timeout_interruptible(1);
+			lastsleep = jiffies + 10;
+		}
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());
 	if (irqreader && cur_ops->irq_capable) {
