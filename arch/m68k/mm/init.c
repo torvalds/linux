@@ -71,7 +71,6 @@ void __init m68k_setup_node(int node)
 		pg_data_table[i] = pg_data_map + node;
 	}
 #endif
-	pg_data_map[node].bdata = bootmem_node_data + node;
 	node_set_online(node);
 }
 

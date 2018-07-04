@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 
 #include <asm/setup.h>
@@ -208,7 +209,7 @@ void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 	unsigned long min_addr, max_addr;
-	unsigned long addr, size, end;
+	unsigned long addr;
 	int i;
 
 #ifdef DEBUG
@@ -253,34 +254,20 @@ void __init paging_init(void)
 	min_low_pfn = availmem >> PAGE_SHIFT;
 	max_pfn = max_low_pfn = max_addr >> PAGE_SHIFT;
 
-	for (i = 0; i < m68k_num_memory; i++) {
-		addr = m68k_memory[i].addr;
-		end = addr + m68k_memory[i].size;
-		m68k_setup_node(i);
-		availmem = PAGE_ALIGN(availmem);
-		availmem += init_bootmem_node(NODE_DATA(i),
-					      availmem >> PAGE_SHIFT,
-					      addr >> PAGE_SHIFT,
-					      end >> PAGE_SHIFT);
-	}
+	/* Reserve kernel text/data/bss and the memory allocated in head.S */
+	memblock_reserve(m68k_memory[0].addr, availmem - m68k_memory[0].addr);
 
 	/*
 	 * Map the physical memory available into the kernel virtual
-	 * address space. First initialize the bootmem allocator with
-	 * the memory we already mapped, so map_node() has something
-	 * to allocate.
+	 * address space. Make sure memblock will not try to allocate
+	 * pages beyond the memory we already mapped in head.S
 	 */
-	addr = m68k_memory[0].addr;
-	size = m68k_memory[0].size;
-	free_bootmem_node(NODE_DATA(0), availmem,
-			  min(m68k_init_mapped_size, size) - (availmem - addr));
-	map_node(0);
-	if (size > m68k_init_mapped_size)
-		free_bootmem_node(NODE_DATA(0), addr + m68k_init_mapped_size,
-				  size - m68k_init_mapped_size);
+	memblock_set_bottom_up(true);
 
-	for (i = 1; i < m68k_num_memory; i++)
+	for (i = 0; i < m68k_num_memory; i++) {
+		m68k_setup_node(i);
 		map_node(i);
+	}
 
 	flush_tlb_all();
 
