@@ -25,9 +25,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/timer.h>
@@ -36,18 +36,11 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-static bool flip_x;
-module_param(flip_x, bool, 0644);
-MODULE_PARM_DESC(flip_x, "flip x coordinate");
-
-static bool flip_y;
-module_param(flip_y, bool, 0644);
-MODULE_PARM_DESC(flip_y, "flip y coordinate");
-
 struct eeti_ts {
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct gpio_desc *attn_gpio;
+	struct touchscreen_properties props;
 	bool running;
 };
 
@@ -74,17 +67,10 @@ static void eeti_ts_report_event(struct eeti_ts *eeti, u8 *buf)
 	x >>= res - EETI_TS_BITDEPTH;
 	y >>= res - EETI_TS_BITDEPTH;
 
-	if (flip_x)
-		x = EETI_MAXVAL - x;
-
-	if (flip_y)
-		y = EETI_MAXVAL - y;
-
 	if (buf[0] & REPORT_BIT_HAS_PRESSURE)
 		input_report_abs(eeti->input, ABS_PRESSURE, buf[5]);
 
-	input_report_abs(eeti->input, ABS_X, x);
-	input_report_abs(eeti->input, ABS_Y, y);
+	touchscreen_report_pos(eeti->input, &eeti->props, x, y, false);
 	input_report_key(eeti->input, BTN_TOUCH, buf[0] & REPORT_BIT_PRESSED);
 	input_sync(eeti->input);
 }
@@ -178,6 +164,8 @@ static int eeti_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_X, 0, EETI_MAXVAL, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, EETI_MAXVAL, 0, 0);
 	input_set_abs_params(input, ABS_PRESSURE, 0, 0xff, 0, 0);
+
+	touchscreen_parse_properties(input, false, &eeti->props);
 
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;
