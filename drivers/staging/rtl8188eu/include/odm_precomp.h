@@ -26,7 +26,7 @@
 #include "odm_debug.h"
 #include "odm_RegDefine11N.h"
 
-#include "Hal8188ERateAdaptive.h"/* for  RA,Power training */
+#include "hal8188e_rate_adaptive.h" /* for RA,Power training */
 #include "rtl8188e_hal.h"
 
 #include "odm_reg.h"

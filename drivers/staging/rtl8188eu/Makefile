@@ -24,7 +24,7 @@ r8188eu-y :=				\
 		hal/rf_cfg.o \
 		hal/pwrseqcmd.o \
 		hal/pwrseq.o \
-		hal/Hal8188ERateAdaptive.o\
+		hal/hal8188e_rate_adaptive.o \
 		hal/hal_intf.o		\
 		hal/hal_com.o		\
 		hal/odm.o		\
