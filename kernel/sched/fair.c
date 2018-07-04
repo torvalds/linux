@@ -6890,6 +6890,7 @@ struct lb_env {
 	unsigned int		loop_max;
 
 	enum fbq_type		fbq_type;
+	enum group_type		src_grp_type;
 	struct list_head	tasks;
 };
 
@@ -7873,6 +7874,17 @@ static bool update_sd_pick_busiest(struct lb_env *env,
 {
 	struct sg_lb_stats *busiest = &sds->busiest_stat;
 
+	/*
+	 * Don't try to pull misfit tasks we can't help.
+	 * We can use max_capacity here as reduction in capacity on some
+	 * CPUs in the group should either be possible to resolve
+	 * internally or be covered by avg_load imbalance (eventually).
+	 */
+	if (sgs->group_type == group_misfit_task &&
+	    (!group_smaller_max_cpu_capacity(sg, sds->local) ||
+	     !group_has_capacity(env, &sds->local_stat)))
+		return false;
+
 	if (sgs->group_type > busiest->group_type)
 		return true;
 
@@ -7893,6 +7905,13 @@ static bool update_sd_pick_busiest(struct lb_env *env,
 	 */
 	if (sgs->sum_nr_running <= sgs->group_weight &&
 	    group_smaller_min_cpu_capacity(sds->local, sg))
+		return false;
+
+	/*
+	 * If we have more than one misfit sg go with the biggest misfit.
+	 */
+	if (sgs->group_type == group_misfit_task &&
+	    sgs->group_misfit_task_load < busiest->group_misfit_task_load)
 		return false;
 
 asym_packing:
@@ -8192,8 +8211,9 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 	 * factors in sg capacity and sgs with smaller group_type are
 	 * skipped when updating the busiest sg:
 	 */
-	if (busiest->avg_load <= sds->avg_load ||
-	    local->avg_load >= sds->avg_load) {
+	if (busiest->group_type != group_misfit_task &&
+	    (busiest->avg_load <= sds->avg_load ||
+	     local->avg_load >= sds->avg_load)) {
 		env->imbalance = 0;
 		return fix_small_imbalance(env, sds);
 	}
@@ -8226,6 +8246,12 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 		max_pull * busiest->group_capacity,
 		(sds->avg_load - local->avg_load) * local->group_capacity
 	) / SCHED_CAPACITY_SCALE;
+
+	/* Boost imbalance to allow misfit task to be balanced. */
+	if (busiest->group_type == group_misfit_task) {
+		env->imbalance = max_t(long, env->imbalance,
+				       busiest->group_misfit_task_load);
+	}
 
 	/*
 	 * if *imbalance is less than the average load per runnable task
@@ -8293,6 +8319,10 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
 	    busiest->group_no_capacity)
 		goto force_balance;
 
+	/* Misfit tasks should be dealt with regardless of the avg load */
+	if (busiest->group_type == group_misfit_task)
+		goto force_balance;
+
 	/*
 	 * If the local group is busier than the selected busiest group
 	 * don't try and pull any tasks.
@@ -8330,6 +8360,7 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
 
 force_balance:
 	/* Looks like there is an imbalance. Compute it */
+	env->src_grp_type = busiest->group_type;
 	calculate_imbalance(env, &sds);
 	return env->imbalance ? sds.busiest : NULL;
 
@@ -8376,6 +8407,19 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 		 */
 		if (rt > env->fbq_type)
 			continue;
+
+		/*
+		 * For ASYM_CPUCAPACITY domains with misfit tasks we simply
+		 * seek the "biggest" misfit task.
+		 */
+		if (env->src_grp_type == group_misfit_task) {
+			if (rq->misfit_task_load > busiest_load) {
+				busiest_load = rq->misfit_task_load;
+				busiest = rq;
+			}
+
+			continue;
+		}
 
 		capacity = capacity_of(i);
 
@@ -8445,6 +8489,9 @@ static int need_active_balance(struct lb_env *env)
 		    (capacity_of(env->src_cpu)*sd->imbalance_pct < capacity_of(env->dst_cpu)*100))
 			return 1;
 	}
+
+	if (env->src_grp_type == group_misfit_task)
+		return 1;
 
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2);
 }
