@@ -2414,6 +2414,44 @@ static const struct file_operations rss_vf_config_debugfs_fops = {
 	.release = seq_release_private
 };
 
+static int resources_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adapter = seq->private;
+	struct pf_resources *pfres = &adapter->params.pfres;
+
+	#define S(desc, fmt, var) \
+		seq_printf(seq, "%-60s " fmt "\n", \
+			   desc " (" #var "):", pfres->var)
+
+	S("Virtual Interfaces", "%d", nvi);
+	S("Egress Queues", "%d", neq);
+	S("Ethernet Control", "%d", nethctrl);
+	S("Ingress Queues/w Free Lists/Interrupts", "%d", niqflint);
+	S("Ingress Queues", "%d", niq);
+	S("Traffic Class", "%d", tc);
+	S("Port Access Rights Mask", "%#x", pmask);
+	S("MAC Address Filters", "%d", nexactf);
+	S("Firmware Command Read Capabilities", "%#x", r_caps);
+	S("Firmware Command Write/Execute Capabilities", "%#x", wx_caps);
+
+	#undef S
+
+	return 0;
+}
+
+static int resources_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, resources_show, inode->i_private);
+}
+
+static const struct file_operations resources_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = resources_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
 /**
  * ethqset2pinfo - return port_info of an Ethernet Queue Set
  * @adap: the adapter
@@ -2973,6 +3011,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "rss_key", &rss_key_debugfs_fops, 0400, 0 },
 		{ "rss_pf_config", &rss_pf_config_debugfs_fops, 0400, 0 },
 		{ "rss_vf_config", &rss_vf_config_debugfs_fops, 0400, 0 },
+		{ "resources", &resources_debugfs_fops, 0400, 0 },
 		{ "sge_qinfo", &sge_qinfo_debugfs_fops, 0400, 0 },
 		{ "ibq_tp0",  &cim_ibq_fops, 0400, 0 },
 		{ "ibq_tp1",  &cim_ibq_fops, 0400, 1 },

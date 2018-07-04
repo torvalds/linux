@@ -924,6 +924,7 @@ static int setup_sge_queues(struct adapter *adap)
 		     QUEUENUMBER_V(s->ethrxq[0].rspq.abs_id));
 	return 0;
 freeout:
+	dev_err(adap->pdev_dev, "Can't allocate queues, err=%d\n", -err);
 	t4_free_sge_resources(adap);
 	return err;
 }
@@ -3536,6 +3537,16 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	u32 v;
 	int ret;
 
+	/* Now that we've successfully configured and initialized the adapter
+	 * can ask the Firmware what resources it has provisioned for us.
+	 */
+	ret = t4_get_pfres(adap);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Unable to retrieve resource provisioning information\n");
+		return ret;
+	}
+
 	/* get device capabilities */
 	memset(c, 0, sizeof(*c));
 	c->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
@@ -4170,32 +4181,6 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 	}
 
-	/*
-	 * Grab VPD parameters.  This should be done after we establish a
-	 * connection to the firmware since some of the VPD parameters
-	 * (notably the Core Clock frequency) are retrieved via requests to
-	 * the firmware.  On the other hand, we need these fairly early on
-	 * so we do this right after getting ahold of the firmware.
-	 */
-	ret = t4_get_vpd_params(adap, &adap->params.vpd);
-	if (ret < 0)
-		goto bye;
-
-	/*
-	 * Find out what ports are available to us.  Note that we need to do
-	 * this before calling adap_init0_no_config() since it needs nports
-	 * and portvec ...
-	 */
-	v =
-	    FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
-	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
-	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &v, &port_vec);
-	if (ret < 0)
-		goto bye;
-
-	adap->params.nports = hweight32(port_vec);
-	adap->params.portvec = port_vec;
-
 	/* If the firmware is initialized already, emit a simply note to that
 	 * effect. Otherwise, it's time to try initializing the adapter.
 	 */
@@ -4245,6 +4230,45 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 		}
 	}
+
+	/* Now that we've successfully configured and initialized the adapter
+	 * (or found it already initialized), we can ask the Firmware what
+	 * resources it has provisioned for us.
+	 */
+	ret = t4_get_pfres(adap);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Unable to retrieve resource provisioning information\n");
+		goto bye;
+	}
+
+	/* Grab VPD parameters.  This should be done after we establish a
+	 * connection to the firmware since some of the VPD parameters
+	 * (notably the Core Clock frequency) are retrieved via requests to
+	 * the firmware.  On the other hand, we need these fairly early on
+	 * so we do this right after getting ahold of the firmware.
+	 *
+	 * We need to do this after initializing the adapter because someone
+	 * could have FLASHed a new VPD which won't be read by the firmware
+	 * until we do the RESET ...
+	 */
+	ret = t4_get_vpd_params(adap, &adap->params.vpd);
+	if (ret < 0)
+		goto bye;
+
+	/* Find out what ports are available to us.  Note that we need to do
+	 * this before calling adap_init0_no_config() since it needs nports
+	 * and portvec ...
+	 */
+	v =
+	    FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &v, &port_vec);
+	if (ret < 0)
+		goto bye;
+
+	adap->params.nports = hweight32(port_vec);
+	adap->params.portvec = port_vec;
 
 	/* Give the SGE code a chance to pull in anything that it needs ...
 	 * Note that this must be called after we retrieve our VPD parameters
@@ -4797,10 +4821,12 @@ static inline bool is_x_10g_port(const struct link_config *lc)
  * of ports we found and the number of available CPUs.  Most settings can be
  * modified by the admin prior to actual use.
  */
-static void cfg_queues(struct adapter *adap)
+static int cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int i = 0, n10g = 0, qidx = 0;
+	int i, n10g = 0, qidx = 0;
+	int niqflint, neq, avail_eth_qsets;
+	int max_eth_qsets = 32;
 #ifndef CONFIG_CHELSIO_T4_DCB
 	int q10g = 0;
 #endif
@@ -4812,16 +4838,46 @@ static void cfg_queues(struct adapter *adap)
 		adap->params.crypto = 0;
 	}
 
-	n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+	/* Calculate the number of Ethernet Queue Sets available based on
+	 * resources provisioned for us.  We always have an Asynchronous
+	 * Firmware Event Ingress Queue.  If we're operating in MSI or Legacy
+	 * IRQ Pin Interrupt mode, then we'll also have a Forwarded Interrupt
+	 * Ingress Queue.  Meanwhile, we need two Egress Queues for each
+	 * Queue Set: one for the Free List and one for the Ethernet TX Queue.
+	 *
+	 * Note that we should also take into account all of the various
+	 * Offload Queues.  But, in any situation where we're operating in
+	 * a Resource Constrained Provisioning environment, doing any Offload
+	 * at all is problematic ...
+	 */
+	niqflint = adap->params.pfres.niqflint - 1;
+	if (!(adap->flags & USING_MSIX))
+		niqflint--;
+	neq = adap->params.pfres.neq / 2;
+	avail_eth_qsets = min(niqflint, neq);
+
+	if (avail_eth_qsets > max_eth_qsets)
+		avail_eth_qsets = max_eth_qsets;
+
+	if (avail_eth_qsets < adap->params.nports) {
+		dev_err(adap->pdev_dev, "avail_eth_qsets=%d < nports=%d\n",
+			avail_eth_qsets, adap->params.nports);
+		return -ENOMEM;
+	}
+
+	/* Count the number of 10Gb/s or better ports */
+	for_each_port(adap, i)
+		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
 	 * own TX Queue in order to prevent Head-Of-Line Blocking.
 	 */
-	if (adap->params.nports * 8 > MAX_ETH_QSETS) {
-		dev_err(adap->pdev_dev, "MAX_ETH_QSETS=%d < %d!\n",
-			MAX_ETH_QSETS, adap->params.nports * 8);
-		BUG_ON(1);
+	if (adap->params.nports * 8 > avail_eth_qsets) {
+		dev_err(adap->pdev_dev, "DCB avail_eth_qsets=%d < %d!\n",
+			avail_eth_qsets, adap->params.nports * 8);
+		return -ENOMEM;
 	}
 
 	for_each_port(adap, i) {
@@ -4837,7 +4893,7 @@ static void cfg_queues(struct adapter *adap)
 	 * per 10G port.
 	 */
 	if (n10g)
-		q10g = (MAX_ETH_QSETS - (adap->params.nports - n10g)) / n10g;
+		q10g = (avail_eth_qsets - (adap->params.nports - n10g)) / n10g;
 	if (q10g > netif_get_num_default_rss_queues())
 		q10g = netif_get_num_default_rss_queues();
 
@@ -4888,6 +4944,8 @@ static void cfg_queues(struct adapter *adap)
 
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
 	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
+
+	return 0;
 }
 
 /*
@@ -5628,10 +5686,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
+	if (!(adapter->flags & FW_OK))
+		goto fw_attach_fail;
+
 	/* Configure queues and allocate tables now, they can be needed as
 	 * soon as the first register_netdev completes.
 	 */
-	cfg_queues(adapter);
+	err = cfg_queues(adapter);
+	if (err)
+		goto out_free_dev;
 
 	adapter->smt = t4_init_smt();
 	if (!adapter->smt) {
@@ -5738,6 +5801,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_dev;
 	}
 
+fw_attach_fail:
 	/*
 	 * The card is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole card but rather proceed only
