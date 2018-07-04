@@ -1353,7 +1353,6 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 
 static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 {
-	unsigned long timeout_queues_map = 0;
 	unsigned long now = jiffies;
 	int i;
 
@@ -1361,22 +1360,18 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		return;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	/* skip the CMD queue */
-	BUILD_BUG_ON(IWL_MVM_DQA_CMD_QUEUE != 0);
-	for (i = 1; i < IWL_MAX_HW_QUEUES; i++) {
-		if (mvm->queue_info[i].tid_bitmap)
-			timeout_queues_map |= BIT(i);
-	}
-	spin_unlock_bh(&mvm->queue_info_lock);
 
 	rcu_read_lock();
+
+	/* we skip the CMD queue below by starting at 1 */
+	BUILD_BUG_ON(IWL_MVM_DQA_CMD_QUEUE != 0);
 
 	/*
 	 * If a queue times out - mark it as INACTIVE (don't remove right away
 	 * if we don't have to.) This is an optimization in case traffic comes
 	 * later, and we don't HAVE to use a currently-inactive queue
 	 */
-	for_each_set_bit(i, &timeout_queues_map, IWL_MAX_HW_QUEUES) {
+	for (i = 1; i < IWL_MAX_HW_QUEUES; i++) {
 		struct ieee80211_sta *sta;
 		struct iwl_mvm_sta *mvmsta;
 		u8 sta_id;
@@ -1384,15 +1379,14 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		unsigned long inactive_tid_bitmap = 0;
 		unsigned long queue_tid_bitmap;
 
-		spin_lock_bh(&mvm->queue_info_lock);
 		queue_tid_bitmap = mvm->queue_info[i].tid_bitmap;
+		if (!queue_tid_bitmap)
+			continue;
 
 		/* If TXQ isn't in active use anyway - nothing to do here... */
 		if (mvm->queue_info[i].status != IWL_MVM_QUEUE_READY &&
-		    mvm->queue_info[i].status != IWL_MVM_QUEUE_SHARED) {
-			spin_unlock_bh(&mvm->queue_info_lock);
+		    mvm->queue_info[i].status != IWL_MVM_QUEUE_SHARED)
 			continue;
-		}
 
 		/* Check to see if there are inactive TIDs on this queue */
 		for_each_set_bit(tid, &queue_tid_bitmap,
@@ -1403,7 +1397,6 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 
 			inactive_tid_bitmap |= BIT(tid);
 		}
-		spin_unlock_bh(&mvm->queue_info_lock);
 
 		/* If all TIDs are active - finish check on this queue */
 		if (!inactive_tid_bitmap)
@@ -1427,15 +1420,20 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		spin_lock_bh(&mvmsta->lock);
+		/* this isn't so nice, but works OK due to the way we loop */
+		spin_unlock(&mvm->queue_info_lock);
+
+		/* and we need this locking order */
+		spin_lock(&mvmsta->lock);
 		spin_lock(&mvm->queue_info_lock);
 		iwl_mvm_remove_inactive_tids(mvm, mvmsta, i,
 					     inactive_tid_bitmap);
-		spin_unlock(&mvm->queue_info_lock);
-		spin_unlock_bh(&mvmsta->lock);
+		/* only unlock sta lock - we still need the queue info lock */
+		spin_unlock(&mvmsta->lock);
 	}
 
 	rcu_read_unlock();
+	spin_unlock_bh(&mvm->queue_info_lock);
 }
 
 static inline u8 iwl_mvm_tid_to_ac_queue(int tid)
