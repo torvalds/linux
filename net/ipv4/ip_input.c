@@ -540,24 +540,27 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 	struct sk_buff *skb, *next;
 	struct list_head sublist;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct dst_entry *dst;
 
+		list_del(&skb->list);
 		if (ip_rcv_finish_core(net, sk, skb) == NET_RX_DROP)
 			continue;
 
 		dst = skb_dst(skb);
 		if (curr_dst != dst) {
 			/* dispatch old sublist */
-			list_cut_before(&sublist, head, &skb->list);
 			if (!list_empty(&sublist))
 				ip_sublist_rcv_finish(&sublist);
 			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
 			curr_dst = dst;
 		}
+		list_add_tail(&skb->list, &sublist);
 	}
 	/* dispatch final sublist */
-	ip_sublist_rcv_finish(head);
+	ip_sublist_rcv_finish(&sublist);
 }
 
 static void ip_sublist_rcv(struct list_head *head, struct net_device *dev,
@@ -577,24 +580,27 @@ void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 	struct sk_buff *skb, *next;
 	struct list_head sublist;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct net_device *dev = skb->dev;
 		struct net *net = dev_net(dev);
 
+		list_del(&skb->list);
 		skb = ip_rcv_core(skb, net);
 		if (skb == NULL)
 			continue;
 
 		if (curr_dev != dev || curr_net != net) {
 			/* dispatch old sublist */
-			list_cut_before(&sublist, head, &skb->list);
 			if (!list_empty(&sublist))
-				ip_sublist_rcv(&sublist, dev, net);
+				ip_sublist_rcv(&sublist, curr_dev, curr_net);
 			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
 			curr_dev = dev;
 			curr_net = net;
 		}
+		list_add_tail(&skb->list, &sublist);
 	}
 	/* dispatch final sublist */
-	ip_sublist_rcv(head, curr_dev, curr_net);
+	ip_sublist_rcv(&sublist, curr_dev, curr_net);
 }
