@@ -1696,6 +1696,13 @@ static irqreturn_t rt5651_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void rt5651_cancel_work(void *data)
+{
+	struct rt5651_priv *rt5651 = data;
+
+	cancel_work_sync(&rt5651->jack_detect_work);
+}
+
 static int rt5651_set_jack(struct snd_soc_component *component,
 			   struct snd_soc_jack *hp_jack, void *data)
 {
@@ -2036,20 +2043,16 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 
 	INIT_WORK(&rt5651->jack_detect_work, rt5651_jack_detect_work);
 
+	/* Make sure work is stopped on probe-error / remove */
+	ret = devm_add_action_or_reset(&i2c->dev, rt5651_cancel_work, rt5651);
+	if (ret)
+		return ret;
+
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
 				rt5651_dai, ARRAY_SIZE(rt5651_dai));
 
 	return ret;
-}
-
-static int rt5651_i2c_remove(struct i2c_client *i2c)
-{
-	struct rt5651_priv *rt5651 = i2c_get_clientdata(i2c);
-
-	cancel_work_sync(&rt5651->jack_detect_work);
-
-	return 0;
 }
 
 static struct i2c_driver rt5651_i2c_driver = {
@@ -2059,7 +2062,6 @@ static struct i2c_driver rt5651_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
 	.probe = rt5651_i2c_probe,
-	.remove   = rt5651_i2c_remove,
 	.id_table = rt5651_i2c_id,
 };
 module_i2c_driver(rt5651_i2c_driver);
