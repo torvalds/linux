@@ -258,24 +258,6 @@ struct uverbs_object_tree_def {
  *	Declaration helpers
  * =======================================
  */
-#define _UVERBS_METHOD_ATTRS_SZ(...)					\
-	(sizeof((const struct uverbs_attr_def * const []){__VA_ARGS__}) /\
-	 sizeof(const struct uverbs_attr_def *))
-#define _UVERBS_METHOD(_id, _handler, _flags, ...)			\
-	((const struct uverbs_method_def) {				\
-	 .id = _id,							\
-	 .flags = _flags,						\
-	 .handler = _handler,						\
-	 .num_attrs = _UVERBS_METHOD_ATTRS_SZ(__VA_ARGS__),		\
-	 .attrs = &(const struct uverbs_attr_def * const []){__VA_ARGS__} })
-#define DECLARE_UVERBS_METHOD(_name, _id, _handler, ...)		\
-	const struct uverbs_method_def _name =				\
-		_UVERBS_METHOD(_id, _handler, 0, ##__VA_ARGS__)
-#define DECLARE_UVERBS_CTX_METHOD(_name, _id, _handler, _flags, ...)	\
-	const struct uverbs_method_def _name =				\
-		_UVERBS_METHOD(_id, _handler,				\
-			       UVERBS_ACTION_FLAG_CREATE_ROOT,		\
-			       ##__VA_ARGS__)
 #define _UVERBS_OBJECT_METHODS_SZ(...)					\
 	(sizeof((const struct uverbs_method_def * const []){__VA_ARGS__}) / \
 	 sizeof(const struct uverbs_method_def *))
