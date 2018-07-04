@@ -842,7 +842,6 @@
 
 			crypto: caam@30900000 {
 				compatible = "fsl,sec-v4.0";
-				fsl,sec-era = <8>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x30900000 0x40000>;
