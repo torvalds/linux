@@ -219,7 +219,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 {
 	unsigned long flags;
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
-	struct rtl_80211_hdr_3addr  *header=
+	struct rtl_80211_hdr_3addr  *header =
 		(struct rtl_80211_hdr_3addr  *)skb->data;
 
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
@@ -686,12 +686,12 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	u8 erpinfo_content = 0;
 
 	u8 *tmp_ht_cap_buf;
-	u8 tmp_ht_cap_len=0;
+	u8 tmp_ht_cap_len = 0;
 	u8 *tmp_ht_info_buf;
-	u8 tmp_ht_info_len=0;
+	u8 tmp_ht_info_len = 0;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	u8 *tmp_generic_ie_buf=NULL;
-	u8 tmp_generic_ie_len=0;
+	u8 *tmp_generic_ie_buf = NULL;
+	u8 tmp_generic_ie_len = 0;
 
 	if(rate_ex_len > 0) rate_ex_len+=2;
 
@@ -710,9 +710,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
 		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
 	/* HT ralated element */
-	tmp_ht_cap_buf =(u8 *)&(ieee->pHTInfo->SelfHTCap);
+	tmp_ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
 	tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
-	tmp_ht_info_buf =(u8 *)&(ieee->pHTInfo->SelfHTInfo);
+	tmp_ht_info_buf = (u8 *)&(ieee->pHTInfo->SelfHTInfo);
 	tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
 	HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt);
 	HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
@@ -858,7 +858,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 
 	assoc->status = 0;
 	assoc->aid = cpu_to_le16(ieee->assoc_id);
-	if (ieee->assoc_id == 0x2007) ieee->assoc_id=0;
+	if (ieee->assoc_id == 0x2007) ieee->assoc_id = 0;
 	else ieee->assoc_id++;
 
 	tag = skb_put(skb, rate_len);
@@ -960,13 +960,13 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	//unsigned int wpa_len = beacon->wpa_ie_len;
 	//for HT
 	u8 *ht_cap_buf = NULL;
-	u8 ht_cap_len=0;
-	u8 *realtek_ie_buf=NULL;
-	u8 realtek_ie_len=0;
-	int wpa_ie_len= ieee->wpa_ie_len;
-	unsigned int ckip_ie_len=0;
-	unsigned int ccxrm_ie_len=0;
-	unsigned int cxvernum_ie_len=0;
+	u8 ht_cap_len = 0;
+	u8 *realtek_ie_buf = NULL;
+	u8 realtek_ie_len = 0;
+	int wpa_ie_len = ieee->wpa_ie_len;
+	unsigned int ckip_ie_len = 0;
+	unsigned int ccxrm_ie_len = 0;
+	unsigned int cxvernum_ie_len = 0;
 	struct ieee80211_crypt_data *crypt;
 	int encrypt;
 
@@ -1221,7 +1221,7 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	IEEE80211_DEBUG_MGMT("Stopping scan\n");
 
 	ieee->softmac_stats.tx_auth_rq++;
-	skb=ieee80211_authentication_req(beacon, ieee, 0);
+	skb = ieee80211_authentication_req(beacon, ieee, 0);
 
 	if (!skb)
 		ieee80211_associate_abort(ieee);
@@ -1280,7 +1280,7 @@ static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 	IEEE80211_DEBUG_MGMT("Sending association request\n");
 
 	ieee->softmac_stats.tx_ass_rq++;
-	skb=ieee80211_association_req(beacon, ieee);
+	skb = ieee80211_association_req(beacon, ieee);
 	if (!skb)
 		ieee80211_associate_abort(ieee);
 	else{
@@ -1318,7 +1318,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 || ieee->LinkDetectInfo.NumRecvDataInPeriod == 0 )
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
+		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
 	}
 	ieee->link_change(ieee->dev);
 	if (!ieee->is_silent_reset) {
@@ -1530,7 +1530,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 {
 	u8 *tag;
 	u8 *skbend;
-	u8 *ssid=NULL;
+	u8 *ssid = NULL;
 	u8 ssidlen = 0;
 
 	struct rtl_80211_hdr_3addr   *header =
@@ -1945,7 +1945,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 			errcode = assoc_parse(ieee, skb, &aid);
 			if (!errcode) {
-				ieee->state=IEEE80211_LINKED;
+				ieee->state = IEEE80211_LINKED;
 				ieee->assoc_id = aid;
 				ieee->softmac_stats.rx_ass_ok++;
 				/* station support qos */
@@ -2597,8 +2597,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for DOT11D\n");
 	//added for  AP roaming
 	ieee->LinkDetectInfo.SlotNum = 2;
-	ieee->LinkDetectInfo.NumRecvBcnInPeriod=0;
-	ieee->LinkDetectInfo.NumRecvDataInPeriod=0;
+	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
+	ieee->LinkDetectInfo.NumRecvDataInPeriod = 0;
 
 	ieee->assoc_id = 0;
 	ieee->queue_stop = 0;
@@ -2611,9 +2611,9 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->rate = 22;
 	ieee->ps = IEEE80211_PS_DISABLED;
 	ieee->sta_sleep = 0;
-	ieee->Regdot11HTOperationalRateSet[0]= 0xff;//support MCS 0~7
-	ieee->Regdot11HTOperationalRateSet[1]= 0xff;//support MCS 8~15
-	ieee->Regdot11HTOperationalRateSet[4]= 0x01;
+	ieee->Regdot11HTOperationalRateSet[0] = 0xff;//support MCS 0~7
+	ieee->Regdot11HTOperationalRateSet[1] = 0xff;//support MCS 8~15
+	ieee->Regdot11HTOperationalRateSet[4] = 0x01;
 	//added by amy
 	ieee->actscanning = false;
 	ieee->beinretry = false;
