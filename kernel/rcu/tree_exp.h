@@ -97,7 +97,7 @@ static void sync_exp_reset_tree_hotplug(void)
 	 * Each pass through the following loop propagates newly onlined
 	 * CPUs for the current rcu_node structure up the rcu_node tree.
 	 */
-	rcu_for_each_leaf_node(&rcu_state, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->expmaskinit == rnp->expmaskinitnext) {
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -141,7 +141,7 @@ static void __maybe_unused sync_exp_reset_tree(void)
 	struct rcu_node *rnp;
 
 	sync_exp_reset_tree_hotplug();
-	rcu_for_each_node_breadth_first(&rcu_state, rnp) {
+	rcu_for_each_node_breadth_first(rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		WARN_ON_ONCE(rnp->expmask);
 		rnp->expmask = rnp->expmaskinit;
@@ -438,14 +438,14 @@ static void sync_rcu_exp_select_cpus(smp_call_func_t func)
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("select"));
 
 	/* Schedule work for each leaf rcu_node structure. */
-	rcu_for_each_leaf_node(&rcu_state, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		rnp->exp_need_flush = false;
 		if (!READ_ONCE(rnp->expmask))
 			continue; /* Avoid early boot non-existent wq. */
 		rnp->rew.rew_func = func;
 		if (!READ_ONCE(rcu_par_gp_wq) ||
 		    rcu_scheduler_active != RCU_SCHEDULER_RUNNING ||
-		    rcu_is_last_leaf_node(&rcu_state, rnp)) {
+		    rcu_is_last_leaf_node(rnp)) {
 			/* No workqueues yet or last leaf, do direct call. */
 			sync_rcu_exp_select_node_cpus(&rnp->rew.rew_work);
 			continue;
@@ -462,7 +462,7 @@ static void sync_rcu_exp_select_cpus(smp_call_func_t func)
 	}
 
 	/* Wait for workqueue jobs (if any) to complete. */
-	rcu_for_each_leaf_node(&rcu_state, rnp)
+	rcu_for_each_leaf_node(rnp)
 		if (rnp->exp_need_flush)
 			flush_work(&rnp->rew.rew_work);
 }
@@ -496,7 +496,7 @@ static void synchronize_sched_expedited_wait(void)
 		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
 		       rcu_state.name);
 		ndetected = 0;
-		rcu_for_each_leaf_node(&rcu_state, rnp) {
+		rcu_for_each_leaf_node(rnp) {
 			ndetected += rcu_print_task_exp_stall(rnp);
 			for_each_leaf_node_possible_cpu(rnp, cpu) {
 				struct rcu_data *rdp;
@@ -517,7 +517,7 @@ static void synchronize_sched_expedited_wait(void)
 			rnp_root->expmask, ".T"[!!rnp_root->exp_tasks]);
 		if (ndetected) {
 			pr_err("blocking rcu_node structures:");
-			rcu_for_each_node_breadth_first(&rcu_state, rnp) {
+			rcu_for_each_node_breadth_first(rnp) {
 				if (rnp == rnp_root)
 					continue; /* printed unconditionally */
 				if (sync_rcu_preempt_exp_done_unlocked(rnp))
@@ -529,7 +529,7 @@ static void synchronize_sched_expedited_wait(void)
 			}
 			pr_cont("\n");
 		}
-		rcu_for_each_leaf_node(&rcu_state, rnp) {
+		rcu_for_each_leaf_node(rnp) {
 			for_each_leaf_node_possible_cpu(rnp, cpu) {
 				mask = leaf_node_cpu_bit(rnp, cpu);
 				if (!(rnp->expmask & mask))
@@ -561,7 +561,7 @@ static void rcu_exp_wait_wake(unsigned long s)
 	 */
 	mutex_lock(&rcu_state.exp_wake_mutex);
 
-	rcu_for_each_node_breadth_first(&rcu_state, rnp) {
+	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s)) {
 			spin_lock(&rnp->exp_lock);
 			/* Recheck, avoid hang in case someone just arrived. */

@@ -105,7 +105,7 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 	rcu_init_levelspread(levelspread, num_rcu_lvl);
 
 	/* Each pass through this loop initializes one srcu_node structure. */
-	rcu_for_each_node_breadth_first(sp, snp) {
+	srcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_init(&ACCESS_PRIVATE(snp, lock));
 		WARN_ON_ONCE(ARRAY_SIZE(snp->srcu_have_cbs) !=
 			     ARRAY_SIZE(snp->srcu_data_have_cbs));
@@ -561,7 +561,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 
 	/* Initiate callback invocation as needed. */
 	idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
-	rcu_for_each_node_breadth_first(sp, snp) {
+	srcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_irq_rcu_node(snp);
 		cbs = false;
 		last_lvl = snp >= sp->level[rcu_num_lvls - 1];

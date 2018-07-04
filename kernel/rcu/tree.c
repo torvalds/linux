@@ -573,7 +573,7 @@ void show_rcu_gp_kthreads(void)
 	for_each_rcu_flavor(rsp) {
 		pr_info("%s: wait state: %d ->state: %#lx\n",
 			rsp->name, rsp->gp_state, rsp->gp_kthread->state);
-		rcu_for_each_node_breadth_first(rsp, rnp) {
+		rcu_for_each_node_breadth_first(rnp) {
 			if (ULONG_CMP_GE(rsp->gp_seq, rnp->gp_seq_needed))
 				continue;
 			pr_info("\trcu_node %d:%d ->gp_seq %lu ->gp_seq_needed %lu\n",
@@ -1276,7 +1276,7 @@ static void rcu_dump_cpu_stacks(void)
 	unsigned long flags;
 	struct rcu_node *rnp;
 
-	rcu_for_each_leaf_node(&rcu_state, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		for_each_leaf_node_possible_cpu(rnp, cpu)
 			if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu))
@@ -1336,7 +1336,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 	 */
 	pr_err("INFO: %s detected stalls on CPUs/tasks:", rsp->name);
 	print_cpu_stall_info_begin();
-	rcu_for_each_leaf_node(rsp, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		ndetected += rcu_print_task_stall(rnp);
 		if (rnp->qsmask != 0) {
@@ -1873,7 +1873,7 @@ static bool rcu_gp_init(void)
 	 * will handle subsequent offline CPUs.
 	 */
 	rsp->gp_state = RCU_GP_ONOFF;
-	rcu_for_each_leaf_node(rsp, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		spin_lock(&rsp->ofl_lock);
 		raw_spin_lock_irq_rcu_node(rnp);
 		if (rnp->qsmaskinit == rnp->qsmaskinitnext &&
@@ -1933,7 +1933,7 @@ static bool rcu_gp_init(void)
 	 * process finishes, because this kthread handles both.
 	 */
 	rsp->gp_state = RCU_GP_INIT;
-	rcu_for_each_node_breadth_first(rsp, rnp) {
+	rcu_for_each_node_breadth_first(rnp) {
 		rcu_gp_slow(gp_init_delay);
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		rdp = this_cpu_ptr(&rcu_data);
@@ -2046,7 +2046,7 @@ static void rcu_gp_cleanup(void)
 	 */
 	new_gp_seq = rsp->gp_seq;
 	rcu_seq_end(&new_gp_seq);
-	rcu_for_each_node_breadth_first(rsp, rnp) {
+	rcu_for_each_node_breadth_first(rnp) {
 		raw_spin_lock_irq_rcu_node(rnp);
 		if (WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)))
 			dump_blkd_tasks(rnp, 10);
@@ -2606,9 +2606,8 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rsp))
 	unsigned long flags;
 	unsigned long mask;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = &rcu_state;
 
-	rcu_for_each_leaf_node(rsp, rnp) {
+	rcu_for_each_leaf_node(rnp) {
 		cond_resched_tasks_rcu_qs();
 		mask = 0;
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -3778,7 +3777,7 @@ static void __init rcu_init_one(void)
 
 	init_swait_queue_head(&rsp->gp_wq);
 	init_swait_queue_head(&rsp->expedited_wq);
-	rnp = rcu_first_leaf_node(rsp);
+	rnp = rcu_first_leaf_node();
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)
 			rnp++;
@@ -3878,7 +3877,7 @@ static void __init rcu_dump_rcu_node_tree(void)
 
 	pr_info("rcu_node tree layout dump\n");
 	pr_info(" ");
-	rcu_for_each_node_breadth_first(&rcu_state, rnp) {
+	rcu_for_each_node_breadth_first(rnp) {
 		if (rnp->level != level) {
 			pr_cont("\n");
 			pr_info(" ");
