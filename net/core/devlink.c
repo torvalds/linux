@@ -2661,6 +2661,15 @@ static int devlink_param_get(struct devlink *devlink,
 	return param->get(devlink, param->id, ctx);
 }
 
+static int devlink_param_set(struct devlink *devlink,
+			     const struct devlink_param *param,
+			     struct devlink_param_gset_ctx *ctx)
+{
+	if (!param->set)
+		return -EOPNOTSUPP;
+	return param->set(devlink, param->id, ctx);
+}
+
 static int
 devlink_param_type_to_nla_type(enum devlink_param_type param_type)
 {
@@ -2847,6 +2856,69 @@ out:
 	return msg->len;
 }
 
+static int
+devlink_param_type_get_from_info(struct genl_info *info,
+				 enum devlink_param_type *param_type)
+{
+	if (!info->attrs[DEVLINK_ATTR_PARAM_TYPE])
+		return -EINVAL;
+
+	switch (nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE])) {
+	case NLA_U8:
+		*param_type = DEVLINK_PARAM_TYPE_U8;
+		break;
+	case NLA_U16:
+		*param_type = DEVLINK_PARAM_TYPE_U16;
+		break;
+	case NLA_U32:
+		*param_type = DEVLINK_PARAM_TYPE_U32;
+		break;
+	case NLA_STRING:
+		*param_type = DEVLINK_PARAM_TYPE_STRING;
+		break;
+	case NLA_FLAG:
+		*param_type = DEVLINK_PARAM_TYPE_BOOL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+devlink_param_value_get_from_info(const struct devlink_param *param,
+				  struct genl_info *info,
+				  union devlink_param_value *value)
+{
+	if (param->type != DEVLINK_PARAM_TYPE_BOOL &&
+	    !info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA])
+		return -EINVAL;
+
+	switch (param->type) {
+	case DEVLINK_PARAM_TYPE_U8:
+		value->vu8 = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		break;
+	case DEVLINK_PARAM_TYPE_U16:
+		value->vu16 = nla_get_u16(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		break;
+	case DEVLINK_PARAM_TYPE_U32:
+		value->vu32 = nla_get_u32(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		break;
+	case DEVLINK_PARAM_TYPE_STRING:
+		if (nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) >
+		    DEVLINK_PARAM_MAX_STRING_VALUE)
+			return -EINVAL;
+		value->vstr = nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		break;
+	case DEVLINK_PARAM_TYPE_BOOL:
+		value->vbool = info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA] ?
+			       true : false;
+		break;
+	}
+	return 0;
+}
+
 static struct devlink_param_item *
 devlink_param_get_from_info(struct devlink *devlink,
 			    struct genl_info *info)
@@ -2885,6 +2957,58 @@ static int devlink_nl_cmd_param_get_doit(struct sk_buff *skb,
 	}
 
 	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
+					 struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	enum devlink_param_type param_type;
+	struct devlink_param_gset_ctx ctx;
+	enum devlink_param_cmode cmode;
+	struct devlink_param_item *param_item;
+	const struct devlink_param *param;
+	union devlink_param_value value;
+	int err = 0;
+
+	param_item = devlink_param_get_from_info(devlink, info);
+	if (!param_item)
+		return -EINVAL;
+	param = param_item->param;
+	err = devlink_param_type_get_from_info(info, &param_type);
+	if (err)
+		return err;
+	if (param_type != param->type)
+		return -EINVAL;
+	err = devlink_param_value_get_from_info(param, info, &value);
+	if (err)
+		return err;
+	if (param->validate) {
+		err = param->validate(devlink, param->id, value, info->extack);
+		if (err)
+			return err;
+	}
+
+	if (!info->attrs[DEVLINK_ATTR_PARAM_VALUE_CMODE])
+		return -EINVAL;
+	cmode = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_VALUE_CMODE]);
+	if (!devlink_param_cmode_is_supported(param, cmode))
+		return -EOPNOTSUPP;
+
+	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
+		param_item->driverinit_value = value;
+		param_item->driverinit_value_valid = true;
+	} else {
+		if (!param->set)
+			return -EOPNOTSUPP;
+		ctx.val = value;
+		ctx.cmode = cmode;
+		err = devlink_param_set(devlink, param, &ctx);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int devlink_param_register_one(struct devlink *devlink,
@@ -2942,6 +3066,9 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_RESOURCE_ID] = { .type = NLA_U64},
 	[DEVLINK_ATTR_RESOURCE_SIZE] = { .type = NLA_U64},
+	[DEVLINK_ATTR_PARAM_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_PARAM_TYPE] = { .type = NLA_U8 },
+	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -3132,6 +3259,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.policy = devlink_nl_policy,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = DEVLINK_CMD_PARAM_SET,
+		.doit = devlink_nl_cmd_param_set_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
 };
 
