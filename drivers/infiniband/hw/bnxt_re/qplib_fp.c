@@ -2354,7 +2354,7 @@ static int bnxt_qplib_cq_process_res_rc(struct bnxt_qplib_cq *cq,
 		srq = qp->srq;
 		if (!srq)
 			return -EINVAL;
-		if (wr_id_idx > srq->hwq.max_elements) {
+		if (wr_id_idx >= srq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process RC ");
 			dev_err(&cq->hwq.pdev->dev,
@@ -2369,7 +2369,7 @@ static int bnxt_qplib_cq_process_res_rc(struct bnxt_qplib_cq *cq,
 		*pcqe = cqe;
 	} else {
 		rq = &qp->rq;
-		if (wr_id_idx > rq->hwq.max_elements) {
+		if (wr_id_idx >= rq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process RC ");
 			dev_err(&cq->hwq.pdev->dev,
@@ -2437,7 +2437,7 @@ static int bnxt_qplib_cq_process_res_ud(struct bnxt_qplib_cq *cq,
 		if (!srq)
 			return -EINVAL;
 
-		if (wr_id_idx > srq->hwq.max_elements) {
+		if (wr_id_idx >= srq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process UD ");
 			dev_err(&cq->hwq.pdev->dev,
@@ -2452,7 +2452,7 @@ static int bnxt_qplib_cq_process_res_ud(struct bnxt_qplib_cq *cq,
 		*pcqe = cqe;
 	} else {
 		rq = &qp->rq;
-		if (wr_id_idx > rq->hwq.max_elements) {
+		if (wr_id_idx >= rq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process UD ");
 			dev_err(&cq->hwq.pdev->dev,
@@ -2546,7 +2546,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 				"QPLIB: FP: SRQ used but not defined??");
 			return -EINVAL;
 		}
-		if (wr_id_idx > srq->hwq.max_elements) {
+		if (wr_id_idx >= srq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process Raw/QP1 ");
 			dev_err(&cq->hwq.pdev->dev,
@@ -2561,7 +2561,7 @@ static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 		*pcqe = cqe;
 	} else {
 		rq = &qp->rq;
-		if (wr_id_idx > rq->hwq.max_elements) {
+		if (wr_id_idx >= rq->hwq.max_elements) {
 			dev_err(&cq->hwq.pdev->dev,
 				"QPLIB: FP: CQ Process Raw/QP1 RQ wr_id ");
 			dev_err(&cq->hwq.pdev->dev,
