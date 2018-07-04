@@ -2814,8 +2814,8 @@ static void invoke_rcu_core(void)
 /*
  * Handle any core-RCU processing required by a call_rcu() invocation.
  */
-static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
-			    struct rcu_head *head, unsigned long flags)
+static void __call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
+			    unsigned long flags)
 {
 	/*
 	 * If called from an extended quiescent state, invoke the RCU
@@ -2847,10 +2847,10 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 		} else {
 			/* Give the grace period a kick. */
 			rdp->blimit = LONG_MAX;
-			if (rsp->n_force_qs == rdp->n_force_qs_snap &&
+			if (rcu_state.n_force_qs == rdp->n_force_qs_snap &&
 			    rcu_segcblist_first_pend_cb(&rdp->cblist) != head)
 				force_quiescent_state();
-			rdp->n_force_qs_snap = rsp->n_force_qs;
+			rdp->n_force_qs_snap = rcu_state.n_force_qs;
 			rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 		}
 	}
@@ -2870,11 +2870,11 @@ static void rcu_leak_callback(struct rcu_head *rhp)
  * is expected to specify a CPU.
  */
 static void
-__call_rcu(struct rcu_head *head, rcu_callback_t func,
-	   struct rcu_state *rsp, int cpu, bool lazy)
+__call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 {
 	unsigned long flags;
 	struct rcu_data *rdp;
+	struct rcu_state __maybe_unused *rsp = &rcu_state;
 
 	/* Misaligned rcu_head! */
 	WARN_ON_ONCE((unsigned long)head & (sizeof(void *) - 1));
@@ -2932,7 +2932,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
 				   rcu_segcblist_n_cbs(&rdp->cblist));
 
 	/* Go handle any RCU core processing required. */
-	__call_rcu_core(rsp, rdp, head, flags);
+	__call_rcu_core(rdp, head, flags);
 	local_irq_restore(flags);
 }
 
@@ -2973,7 +2973,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
  */
 void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
-	__call_rcu(head, func, &rcu_state, -1, 0);
+	__call_rcu(head, func, -1, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
 
@@ -3000,7 +3000,7 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
 void kfree_call_rcu(struct rcu_head *head,
 		    rcu_callback_t func)
 {
-	__call_rcu(head, func, &rcu_state, -1, 1);
+	__call_rcu(head, func, -1, 1);
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
@@ -3272,7 +3272,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 				smp_mb__before_atomic();
 				atomic_inc(&rsp->barrier_cpu_count);
 				__call_rcu(&rdp->barrier_head,
-					   rcu_barrier_callback, rsp, cpu, 0);
+					   rcu_barrier_callback, cpu, 0);
 			}
 		} else if (rcu_segcblist_n_cbs(&rdp->cblist)) {
 			_rcu_barrier_trace(rsp, TPS("OnlineQ"), cpu,
