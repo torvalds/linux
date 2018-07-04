@@ -123,8 +123,7 @@ static void __init rcu_bootup_announce_oddness(void)
 
 #ifdef CONFIG_PREEMPT_RCU
 
-static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
-			       bool wake);
+static void rcu_report_exp_rnp(struct rcu_node *rnp, bool wake);
 static void rcu_read_unlock_special(struct task_struct *t);
 
 /*
@@ -281,7 +280,7 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 	 * still in a quiescent state in any case.)
 	 */
 	if (blkd_state & RCU_EXP_BLKD && rdp->deferred_qs)
-		rcu_report_exp_rdp(rdp->rsp, rdp);
+		rcu_report_exp_rdp(rdp);
 	else
 		WARN_ON_ONCE(rdp->deferred_qs);
 }
@@ -381,7 +380,7 @@ void rcu_note_context_switch(bool preempt)
 	 */
 	rcu_qs();
 	if (rdp->deferred_qs)
-		rcu_report_exp_rdp(&rcu_state, rdp);
+		rcu_report_exp_rdp(rdp);
 	trace_rcu_utilization(TPS("End context switch"));
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 }
@@ -509,7 +508,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 	 * blocked-tasks list below.
 	 */
 	if (rdp->deferred_qs) {
-		rcu_report_exp_rdp(&rcu_state, rdp);
+		rcu_report_exp_rdp(rdp);
 		if (!t->rcu_read_unlock_special.s) {
 			local_irq_restore(flags);
 			return;
@@ -580,7 +579,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 		 * then we need to report up the rcu_node hierarchy.
 		 */
 		if (!empty_exp && empty_exp_now)
-			rcu_report_exp_rnp(&rcu_state, rnp, true);
+			rcu_report_exp_rnp(rnp, true);
 	} else {
 		local_irq_restore(flags);
 	}
@@ -947,7 +946,7 @@ static void rcu_qs(void)
 	if (!__this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 		return;
 	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, false);
-	rcu_report_exp_rdp(&rcu_state, this_cpu_ptr(&rcu_data));
+	rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 }
 
 /*

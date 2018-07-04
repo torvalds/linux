@@ -139,7 +139,7 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf);
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_core(void);
 static void invoke_rcu_callbacks(struct rcu_data *rdp);
-static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp);
+static void rcu_report_exp_rdp(struct rcu_data *rdp);
 static void sync_sched_exp_online_cleanup(int cpu);
 
 /* rcuc/rcub kthread realtime priority */
@@ -3553,7 +3553,7 @@ void rcu_report_dead(unsigned int cpu)
 
 	/* QS for any half-done expedited RCU-sched GP. */
 	preempt_disable();
-	rcu_report_exp_rdp(&rcu_state, this_cpu_ptr(&rcu_data));
+	rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 	preempt_enable();
 	rcu_preempt_deferred_qs(current);
 
