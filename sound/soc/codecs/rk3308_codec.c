@@ -163,6 +163,7 @@ struct rk3308_codec_priv {
 	bool hp_plugged;
 	bool loopback_dacs_enabled;
 	bool no_deep_low_power;
+	bool no_hp_det;
 	struct delayed_work hpdet_work;
 	struct delayed_work loopback_work;
 
@@ -2974,7 +2975,8 @@ static int rk3308_probe(struct snd_soc_codec *codec)
 	rk3308_codec_micbias_enable(rk3308, RK3308_ADC_MICBIAS_VOLT_0_85);
 
 	rk3308_codec_prepare(rk3308);
-	rk3308_codec_headset_detect_enable(rk3308);
+	if (!rk3308->no_hp_det)
+		rk3308_codec_headset_detect_enable(rk3308);
 
 	regcache_cache_only(rk3308->regmap, false);
 	regcache_sync(rk3308->regmap);
@@ -2988,7 +2990,8 @@ static int rk3308_remove(struct snd_soc_codec *codec)
 
 	rk3308_headphone_ctl(rk3308, 0);
 	rk3308_speaker_ctl(rk3308, 0);
-	rk3308_codec_headset_detect_disable(rk3308);
+	if (!rk3308->no_hp_det)
+		rk3308_codec_headset_detect_disable(rk3308);
 	rk3308_codec_micbias_disable(rk3308);
 	rk3308_codec_power_off(rk3308);
 
@@ -3675,6 +3678,9 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->no_deep_low_power =
 		of_property_read_bool(np, "rockchip,no-deep-low-power");
 
+	rk3308->no_hp_det =
+		of_property_read_bool(np, "rockchip,no-hp-det");
+
 	rk3308->delay_loopback_handle_ms = LOOPBACK_HANDLE_MS;
 	ret = of_property_read_u32(np, "rockchip,delay-loopback-handle-ms",
 				   &rk3308->delay_loopback_handle_ms);
@@ -3715,24 +3721,27 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	rk3308->irq = platform_get_irq(pdev, 0);
-	if (rk3308->irq < 0) {
-		dev_err(&pdev->dev, "Can not get codec irq\n");
-		goto failed;
+	if (!rk3308->no_hp_det) {
+		rk3308->irq = platform_get_irq(pdev, 0);
+		if (rk3308->irq < 0) {
+			dev_err(&pdev->dev, "Can not get codec irq\n");
+			goto failed;
+		}
+
+		INIT_DELAYED_WORK(&rk3308->hpdet_work, rk3308_codec_hpdetect_work);
+
+		ret = devm_request_irq(&pdev->dev, rk3308->irq,
+				       rk3308_codec_hpdet_isr,
+				       0,
+				       "acodec-hpdet",
+				       rk3308);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to request IRQ: %d\n", ret);
+			goto failed;
+		}
 	}
 
-	INIT_DELAYED_WORK(&rk3308->hpdet_work, rk3308_codec_hpdetect_work);
 	INIT_DELAYED_WORK(&rk3308->loopback_work, rk3308_codec_loopback_work);
-
-	ret = devm_request_irq(&pdev->dev, rk3308->irq,
-			       rk3308_codec_hpdet_isr,
-			       0,
-			       "acodec-hpdet",
-			       rk3308);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request IRQ: %d\n", ret);
-		goto failed;
-	}
 
 	rk3308->adc_grp0_using_linein = ADC_GRP0_MICIN;
 	rk3308->dac_output = DAC_LINEOUT;
