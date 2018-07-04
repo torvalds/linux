@@ -206,10 +206,6 @@ static long kvmppc_rm_tce_iommu_mapped_dec(struct kvm *kvm,
 		/* it_userspace allocation might be delayed */
 		return H_TOO_HARD;
 
-	pua = (void *) vmalloc_to_phys(pua);
-	if (WARN_ON_ONCE_RM(!pua))
-		return H_HARDWARE;
-
 	mem = mm_iommu_lookup_rm(kvm->mm, be64_to_cpu(*pua), pgsize);
 	if (!mem)
 		return H_TOO_HARD;
@@ -280,10 +276,6 @@ static long kvmppc_rm_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 		return H_TOO_HARD;
 
 	if (WARN_ON_ONCE_RM(mm_iommu_ua_to_hpa_rm(mem, ua, &hpa)))
-		return H_HARDWARE;
-
-	pua = (void *) vmalloc_to_phys(pua);
-	if (WARN_ON_ONCE_RM(!pua))
 		return H_HARDWARE;
 
 	if (WARN_ON_ONCE_RM(mm_iommu_mapped_inc(mem)))

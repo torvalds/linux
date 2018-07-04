@@ -69,6 +69,8 @@ struct iommu_table_ops {
 			long index,
 			unsigned long *hpa,
 			enum dma_data_direction *direction);
+
+	__be64 *(*useraddrptr)(struct iommu_table *tbl, long index);
 #endif
 	void (*clear)(struct iommu_table *tbl,
 			long index, long npages);
@@ -123,9 +125,7 @@ struct iommu_table {
 };
 
 #define IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry) \
-		((tbl)->it_userspace ? \
-			&((tbl)->it_userspace[(entry) - (tbl)->it_offset]) : \
-			NULL)
+		((tbl)->it_ops->useraddrptr((tbl), (entry)))
 
 /* Pure 2^n version of get_order */
 static inline __attribute_const__

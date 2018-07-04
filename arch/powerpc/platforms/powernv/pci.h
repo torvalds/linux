@@ -267,11 +267,12 @@ extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 extern void pnv_tce_free(struct iommu_table *tbl, long index, long npages);
 extern int pnv_tce_xchg(struct iommu_table *tbl, long index,
 		unsigned long *hpa, enum dma_data_direction *direction);
+extern __be64 *pnv_tce_useraddrptr(struct iommu_table *tbl, long index);
 extern unsigned long pnv_tce_get(struct iommu_table *tbl, long index);
 
 extern long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 		__u32 page_shift, __u64 window_size, __u32 levels,
-		struct iommu_table *tbl);
+		bool alloc_userspace_copy, struct iommu_table *tbl);
 extern void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
 extern long pnv_pci_link_table_and_group(int node, int num,
