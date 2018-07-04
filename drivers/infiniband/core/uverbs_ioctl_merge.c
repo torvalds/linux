@@ -367,8 +367,8 @@ static struct uverbs_method_spec *build_method_with_attrs(const struct uverbs_me
 			memcpy(attr, &attr_defs[0]->attr, sizeof(*attr));
 
 			attr_obj_with_special_access = IS_ATTR_OBJECT(attr) &&
-				   (attr->obj.access == UVERBS_ACCESS_NEW ||
-				    attr->obj.access == UVERBS_ACCESS_DESTROY);
+				   (attr->u.obj.access == UVERBS_ACCESS_NEW ||
+				    attr->u.obj.access == UVERBS_ACCESS_DESTROY);
 			num_of_singularities +=  !!attr_obj_with_special_access;
 			if (WARN(num_of_singularities > 1,
 				 "ib_uverbs: Method contains more than one object attr (%d) with new/destroy access\n",

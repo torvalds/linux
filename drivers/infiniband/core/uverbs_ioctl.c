@@ -77,13 +77,13 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 
 	switch (spec->type) {
 	case UVERBS_ATTR_TYPE_ENUM_IN:
-		if (uattr->attr_data.enum_data.elem_id >= spec->enum_def.num_elems)
+		if (uattr->attr_data.enum_data.elem_id >= spec->u.enum_def.num_elems)
 			return -EOPNOTSUPP;
 
 		if (uattr->attr_data.enum_data.reserved)
 			return -EINVAL;
 
-		val_spec = &spec->enum_def.ids[uattr->attr_data.enum_data.elem_id];
+		val_spec = &spec->u2.enum_def.ids[uattr->attr_data.enum_data.elem_id];
 
 		/* Currently we only support PTR_IN based enums */
 		if (val_spec->type != UVERBS_ATTR_TYPE_PTR_IN)
@@ -97,16 +97,16 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		 * longer struct will fail here if used with an old kernel and
 		 * non-zero content, making ABI compat/discovery simpler.
 		 */
-		if (uattr->len > val_spec->ptr.len &&
+		if (uattr->len > val_spec->u.ptr.len &&
 		    val_spec->flags & UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO &&
-		    !uverbs_is_attr_cleared(uattr, val_spec->ptr.len))
+		    !uverbs_is_attr_cleared(uattr, val_spec->u.ptr.len))
 			return -EOPNOTSUPP;
 
 	/* fall through */
 	case UVERBS_ATTR_TYPE_PTR_OUT:
-		if (uattr->len < val_spec->ptr.min_len ||
+		if (uattr->len < val_spec->u.ptr.min_len ||
 		    (!(val_spec->flags & UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO) &&
-		     uattr->len > val_spec->ptr.len))
+		     uattr->len > val_spec->u.ptr.len))
 			return -EINVAL;
 
 		if (spec->type != UVERBS_ATTR_TYPE_ENUM_IN &&
@@ -149,20 +149,20 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
-		object = uverbs_get_object(ufile, spec->obj.obj_type);
+		object = uverbs_get_object(ufile, spec->u.obj.obj_type);
 		if (!object)
 			return -EINVAL;
 
 		o_attr->uobject = uverbs_get_uobject_from_context(
 					object->type_attrs,
 					ufile->ucontext,
-					spec->obj.access,
+					spec->u.obj.access,
 					(int)uattr->data);
 
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
 
-		if (spec->obj.access == UVERBS_ACCESS_NEW) {
+		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
 			u64 id = o_attr->uobject->id;
 
 			/* Copy the allocated id to the user-space */
@@ -216,7 +216,7 @@ static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
 
 				current_ret = uverbs_finalize_object(
 					attr->obj_attr.uobject,
-					spec->obj.access, commit);
+					spec->u.obj.access, commit);
 				if (!ret)
 					ret = current_ret;
 			} else if (spec->type == UVERBS_ATTR_TYPE_PTR_IN &&

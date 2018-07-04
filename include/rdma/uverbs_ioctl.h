@@ -73,46 +73,42 @@ enum {
 
 /* Specification of a single attribute inside the ioctl message */
 struct uverbs_attr_spec {
+	u8 type;
+	u8 flags;
+
 	union {
-		/* Header shared by all following union members - to reduce space. */
 		struct {
-			enum uverbs_attr_type		type;
-			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
-			u8				flags;
-		};
-		struct {
-			enum uverbs_attr_type		type;
-			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
-			u8				flags;
 			/* Current known size to kernel */
-			u16				len;
+			u16 len;
 			/* User isn't allowed to provide something < min_len */
-			u16				min_len;
+			u16 min_len;
 		} ptr;
+
 		struct {
-			enum uverbs_attr_type		type;
-			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
-			u8				flags;
 			/*
 			 * higher bits mean the namespace and lower bits mean
 			 * the type id within the namespace.
 			 */
-			u16			obj_type;
-			u8			access;
+			u16 obj_type;
+			u8 access;
 		} obj;
+
 		struct {
-			enum uverbs_attr_type		type;
-			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
-			u8				flags;
-			u8				num_elems;
+			u8 num_elems;
+		} enum_def;
+	} u;
+
+	/* This weird split of the enum lets us remove some padding */
+	union {
+		struct {
 			/*
 			 * The enum attribute can select one of the attributes
 			 * contained in the ids array. Currently only PTR_IN
 			 * attributes are supported in the ids array.
 			 */
-			const struct uverbs_attr_spec	*ids;
+			const struct uverbs_attr_spec *ids;
 		} enum_def;
-	};
+	} u2;
 };
 
 struct uverbs_attr_spec_hash {
@@ -196,92 +192,72 @@ struct uverbs_object_tree_def {
 	const struct uverbs_object_def * const (*objects)[];
 };
 
-#define UA_FLAGS(_flags)  .flags = _flags
-#define __UVERBS_ATTR0(_id, _type, _fld, _attr, ...)              \
-	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, .flags = 0, } }, } })
-#define __UVERBS_ATTR1(_id, _type, _fld, _attr, _extra1, ...)      \
-	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, _extra1 } },} })
-#define __UVERBS_ATTR2(_id, _type, _fld, _attr, _extra1, _extra2)    \
-	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, _extra1, _extra2 } },} })
-#define __UVERBS_ATTR(_id, _type, _fld, _attr, _extra1, _extra2, _n, ...)	\
-	__UVERBS_ATTR##_n(_id, _type, _fld, _attr, _extra1, _extra2)
+/*
+ * =======================================
+ *	Attribute Specifications
+ * =======================================
+ */
 
+/* Use in the _type parameter for attribute specifications */
 #define UVERBS_ATTR_TYPE(_type)					\
-	.min_len = sizeof(_type), .len = sizeof(_type)
+	.u.ptr.min_len = sizeof(_type), .u.ptr.len = sizeof(_type)
 #define UVERBS_ATTR_STRUCT(_type, _last)			\
-	.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .len = sizeof(_type)
+	.u.ptr.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .u.ptr.len = sizeof(_type)
 #define UVERBS_ATTR_SIZE(_min_len, _len)			\
-	.min_len = _min_len, .len = _len
+	.u.ptr.min_len = _min_len, .u.ptr.len = _len
 #define UVERBS_ATTR_MIN_SIZE(_min_len)				\
 	UVERBS_ATTR_SIZE(_min_len, USHRT_MAX)
 
-/*
- * In new compiler, UVERBS_ATTR could be simplified by declaring it as
- * [_id] = {.type = _type, .len = _len, ##__VA_ARGS__}
- * But since we support older compilers too, we need the more complex code.
- */
-#define UVERBS_ATTR(_id, _type, _fld, _attr, ...)			\
-	__UVERBS_ATTR(_id, _type, _fld, _attr, ##__VA_ARGS__, 2, 1, 0)
-#define UVERBS_ATTR_PTR_IN_SZ(_id, _len, ...)				\
-	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_PTR_IN, ptr, _len, ##__VA_ARGS__)
-/* If sizeof(_type) <= sizeof(u64), this will be inlined rather than a pointer */
-#define UVERBS_ATTR_PTR_IN(_id, _type, ...)				\
-	UVERBS_ATTR_PTR_IN_SZ(_id, _type, ##__VA_ARGS__)
-#define UVERBS_ATTR_PTR_OUT_SZ(_id, _len, ...)				\
-	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_PTR_OUT, ptr, _len, ##__VA_ARGS__)
-#define UVERBS_ATTR_PTR_OUT(_id, _type, ...)				\
-	UVERBS_ATTR_PTR_OUT_SZ(_id, _type, ##__VA_ARGS__)
-#define UVERBS_ATTR_ENUM_IN(_id, _enum_arr, ...)			\
-	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_ENUM_IN, enum_def,		\
-		    .ids = (_enum_arr),					\
-		    .num_elems = ARRAY_SIZE(_enum_arr), ##__VA_ARGS__)
+/* Must be used in the '...' of any UVERBS_ATTR */
+#define UA_FLAGS(_flags) .flags = _flags
+
+#define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
+	((const struct uverbs_attr_def){                                       \
+		.id = _attr_id,                                                \
+		.attr = { .type = UVERBS_ATTR_TYPE_IDR,                        \
+			  .u.obj.obj_type = _idr_type,                         \
+			  .u.obj.access = _access,                             \
+			  __VA_ARGS__ } })
+
+#define UVERBS_ATTR_FD(_attr_id, _fd_type, _access, ...)                       \
+	((const struct uverbs_attr_def){                                       \
+		.id = (_attr_id) +                                             \
+		      BUILD_BUG_ON_ZERO((_access) != UVERBS_ACCESS_NEW &&      \
+					(_access) != UVERBS_ACCESS_READ),      \
+		.attr = { .type = UVERBS_ATTR_TYPE_FD,                         \
+			  .u.obj.obj_type = _fd_type,                          \
+			  .u.obj.access = _access,                             \
+			  __VA_ARGS__ } })
+
+#define UVERBS_ATTR_PTR_IN(_attr_id, _type, ...)                               \
+	((const struct uverbs_attr_def){                                       \
+		.id = _attr_id,                                                \
+		.attr = { .type = UVERBS_ATTR_TYPE_PTR_IN,                     \
+			  _type,                                               \
+			  __VA_ARGS__ } })
+
+#define UVERBS_ATTR_PTR_OUT(_attr_id, _type, ...)                              \
+	((const struct uverbs_attr_def){                                       \
+		.id = _attr_id,                                                \
+		.attr = { .type = UVERBS_ATTR_TYPE_PTR_OUT,                    \
+			  _type,                                               \
+			  __VA_ARGS__ } })
+
+/* _enum_arry should be a 'static const union uverbs_attr_spec[]' */
+#define UVERBS_ATTR_ENUM_IN(_attr_id, _enum_arr, ...)                          \
+	((const struct uverbs_attr_def){                                       \
+		.id = _attr_id,                                                \
+		.attr = { .type = UVERBS_ATTR_TYPE_ENUM_IN,                    \
+			  .u2.enum_def.ids = _enum_arr,                        \
+			  .u.enum_def.num_elems = ARRAY_SIZE(_enum_arr),       \
+			  __VA_ARGS__ },                                       \
+	})
 
 /*
- * In new compiler, UVERBS_ATTR_IDR (and FD) could be simplified by declaring
- * it as
- * {.id = _id,								\
- *  .attr {.type = __obj_class,						\
- *         .obj = {.obj_type = _idr_type,				\
- *                       .access = _access                              \
- *                }, ##__VA_ARGS__ } }
- * But since we support older compilers too, we need the more complex code.
+ * =======================================
+ *	Declaration helpers
+ * =======================================
  */
-#define ___UVERBS_ATTR_OBJ0(_id, _obj_class, _obj_type, _access, ...)\
-	((const struct uverbs_attr_def)					\
-	{.id = _id,							\
-	 .attr = { {.obj = {.type = _obj_class, .obj_type = _obj_type,	\
-			    .access = _access, .flags = 0 } }, } })
-#define ___UVERBS_ATTR_OBJ1(_id, _obj_class, _obj_type, _access, _flags)\
-	((const struct uverbs_attr_def)					\
-	{.id = _id,							\
-	.attr = { {.obj = {.type = _obj_class, .obj_type = _obj_type,	\
-			   .access = _access, _flags} }, } })
-#define ___UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access, _flags, \
-			   _n, ...)					\
-	___UVERBS_ATTR_OBJ##_n(_id, _obj_class, _obj_type, _access, _flags)
-#define __UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access, ...)	\
-	___UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access,		\
-			   ##__VA_ARGS__, 1, 0)
-#define UVERBS_ATTR_IDR(_id, _idr_type, _access, ...)			 \
-	__UVERBS_ATTR_OBJ(_id, UVERBS_ATTR_TYPE_IDR, _idr_type, _access,\
-			  ##__VA_ARGS__)
-#define UVERBS_ATTR_FD(_id, _fd_type, _access, ...)			\
-	__UVERBS_ATTR_OBJ(_id, UVERBS_ATTR_TYPE_FD, _fd_type,		\
-			  (_access) + BUILD_BUG_ON_ZERO(		\
-				(_access) != UVERBS_ACCESS_NEW &&	\
-				(_access) != UVERBS_ACCESS_READ),	\
-			  ##__VA_ARGS__)
-#define DECLARE_UVERBS_ATTR_SPEC(_name, ...)				\
-	const struct uverbs_attr_def _name = __VA_ARGS__
-
-#define DECLARE_UVERBS_ENUM(_name, ...)					\
-	const struct uverbs_enum_spec _name = {				\
-		.len = ARRAY_SIZE(((struct uverbs_attr_spec[]){__VA_ARGS__})),\
-		.ids = {__VA_ARGS__},					\
-	}
 #define _UVERBS_METHOD_ATTRS_SZ(...)					\
 	(sizeof((const struct uverbs_attr_def * const []){__VA_ARGS__}) /\
 	 sizeof(const struct uverbs_attr_def *))

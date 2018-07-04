@@ -366,28 +366,22 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(struct ib_device
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
-			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		} },
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
+		UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO),
 	},
 };
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			/* No need to specify any data */
-			.len = 0,
-		} }
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		/* No need to specify any data */
+		UVERBS_ATTR_SIZE(0, 0),
 	},
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
-		{ .ptr = {
-			.type = UVERBS_ATTR_TYPE_PTR_IN,
-			UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
-			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		} }
+		.type = UVERBS_ATTR_TYPE_PTR_IN,
+		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
+		UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO),
 	},
 };
 
