@@ -1,0 +1,313 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * TCE helpers for IODA PCI/PCIe on PowerNV platforms
+ *
+ * Copyright 2018 IBM Corp.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ */
+
+#include <linux/kernel.h>
+#include <linux/iommu.h>
+
+#include <asm/iommu.h>
+#include <asm/tce.h>
+#include "pci.h"
+
+void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
+		void *tce_mem, u64 tce_size,
+		u64 dma_offset, unsigned int page_shift)
+{
+	tbl->it_blocksize = 16;
+	tbl->it_base = (unsigned long)tce_mem;
+	tbl->it_page_shift = page_shift;
+	tbl->it_offset = dma_offset >> tbl->it_page_shift;
+	tbl->it_index = 0;
+	tbl->it_size = tce_size >> 3;
+	tbl->it_busno = 0;
+	tbl->it_type = TCE_PCI;
+}
+
+static __be64 *pnv_tce(struct iommu_table *tbl, long idx)
+{
+	__be64 *tmp = ((__be64 *)tbl->it_base);
+	int  level = tbl->it_indirect_levels;
+	const long shift = ilog2(tbl->it_level_size);
+	unsigned long mask = (tbl->it_level_size - 1) << (level * shift);
+
+	while (level) {
+		int n = (idx & mask) >> (level * shift);
+		unsigned long tce = be64_to_cpu(tmp[n]);
+
+		tmp = __va(tce & ~(TCE_PCI_READ | TCE_PCI_WRITE));
+		idx &= ~mask;
+		mask >>= shift;
+		--level;
+	}
+
+	return tmp + idx;
+}
+
+int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
+		unsigned long uaddr, enum dma_data_direction direction,
+		unsigned long attrs)
+{
+	u64 proto_tce = iommu_direction_to_tce_perm(direction);
+	u64 rpn = __pa(uaddr) >> tbl->it_page_shift;
+	long i;
+
+	if (proto_tce & TCE_PCI_WRITE)
+		proto_tce |= TCE_PCI_READ;
+
+	for (i = 0; i < npages; i++) {
+		unsigned long newtce = proto_tce |
+			((rpn + i) << tbl->it_page_shift);
+		unsigned long idx = index - tbl->it_offset + i;
+
+		*(pnv_tce(tbl, idx)) = cpu_to_be64(newtce);
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_IOMMU_API
+int pnv_tce_xchg(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction)
+{
+	u64 proto_tce = iommu_direction_to_tce_perm(*direction);
+	unsigned long newtce = *hpa | proto_tce, oldtce;
+	unsigned long idx = index - tbl->it_offset;
+
+	BUG_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
+
+	if (newtce & TCE_PCI_WRITE)
+		newtce |= TCE_PCI_READ;
+
+	oldtce = be64_to_cpu(xchg(pnv_tce(tbl, idx), cpu_to_be64(newtce)));
+	*hpa = oldtce & ~(TCE_PCI_READ | TCE_PCI_WRITE);
+	*direction = iommu_tce_direction(oldtce);
+
+	return 0;
+}
+#endif
+
+void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
+{
+	long i;
+
+	for (i = 0; i < npages; i++) {
+		unsigned long idx = index - tbl->it_offset + i;
+
+		*(pnv_tce(tbl, idx)) = cpu_to_be64(0);
+	}
+}
+
+unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
+{
+	return be64_to_cpu(*(pnv_tce(tbl, index - tbl->it_offset)));
+}
+
+static void pnv_pci_ioda2_table_do_free_pages(__be64 *addr,
+		unsigned long size, unsigned int levels)
+{
+	const unsigned long addr_ul = (unsigned long) addr &
+			~(TCE_PCI_READ | TCE_PCI_WRITE);
+
+	if (levels) {
+		long i;
+		u64 *tmp = (u64 *) addr_ul;
+
+		for (i = 0; i < size; ++i) {
+			unsigned long hpa = be64_to_cpu(tmp[i]);
+
+			if (!(hpa & (TCE_PCI_READ | TCE_PCI_WRITE)))
+				continue;
+
+			pnv_pci_ioda2_table_do_free_pages(__va(hpa), size,
+					levels - 1);
+		}
+	}
+
+	free_pages(addr_ul, get_order(size << 3));
+}
+
+void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl)
+{
+	const unsigned long size = tbl->it_indirect_levels ?
+			tbl->it_level_size : tbl->it_size;
+
+	if (!tbl->it_size)
+		return;
+
+	pnv_pci_ioda2_table_do_free_pages((__be64 *)tbl->it_base, size,
+			tbl->it_indirect_levels);
+}
+
+static __be64 *pnv_pci_ioda2_table_do_alloc_pages(int nid, unsigned int shift,
+		unsigned int levels, unsigned long limit,
+		unsigned long *current_offset, unsigned long *total_allocated)
+{
+	struct page *tce_mem = NULL;
+	__be64 *addr, *tmp;
+	unsigned int order = max_t(unsigned int, shift, PAGE_SHIFT) -
+			PAGE_SHIFT;
+	unsigned long allocated = 1UL << (order + PAGE_SHIFT);
+	unsigned int entries = 1UL << (shift - 3);
+	long i;
+
+	tce_mem = alloc_pages_node(nid, GFP_KERNEL, order);
+	if (!tce_mem) {
+		pr_err("Failed to allocate a TCE memory, order=%d\n", order);
+		return NULL;
+	}
+	addr = page_address(tce_mem);
+	memset(addr, 0, allocated);
+	*total_allocated += allocated;
+
+	--levels;
+	if (!levels) {
+		*current_offset += allocated;
+		return addr;
+	}
+
+	for (i = 0; i < entries; ++i) {
+		tmp = pnv_pci_ioda2_table_do_alloc_pages(nid, shift,
+				levels, limit, current_offset, total_allocated);
+		if (!tmp)
+			break;
+
+		addr[i] = cpu_to_be64(__pa(tmp) |
+				TCE_PCI_READ | TCE_PCI_WRITE);
+
+		if (*current_offset >= limit)
+			break;
+	}
+
+	return addr;
+}
+
+long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
+		__u32 page_shift, __u64 window_size, __u32 levels,
+		struct iommu_table *tbl)
+{
+	void *addr;
+	unsigned long offset = 0, level_shift, total_allocated = 0;
+	const unsigned int window_shift = ilog2(window_size);
+	unsigned int entries_shift = window_shift - page_shift;
+	unsigned int table_shift = max_t(unsigned int, entries_shift + 3,
+			PAGE_SHIFT);
+	const unsigned long tce_table_size = 1UL << table_shift;
+
+	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS))
+		return -EINVAL;
+
+	if (!is_power_of_2(window_size))
+		return -EINVAL;
+
+	/* Adjust direct table size from window_size and levels */
+	entries_shift = (entries_shift + levels - 1) / levels;
+	level_shift = entries_shift + 3;
+	level_shift = max_t(unsigned int, level_shift, PAGE_SHIFT);
+
+	if ((level_shift - 3) * levels + page_shift >= 60)
+		return -EINVAL;
+
+	/* Allocate TCE table */
+	addr = pnv_pci_ioda2_table_do_alloc_pages(nid, level_shift,
+			levels, tce_table_size, &offset, &total_allocated);
+
+	/* addr==NULL means that the first level allocation failed */
+	if (!addr)
+		return -ENOMEM;
+
+	/*
+	 * First level was allocated but some lower level failed as
+	 * we did not allocate as much as we wanted,
+	 * release partially allocated table.
+	 */
+	if (offset < tce_table_size) {
+		pnv_pci_ioda2_table_do_free_pages(addr,
+				1ULL << (level_shift - 3), levels - 1);
+		return -ENOMEM;
+	}
+
+	/* Setup linux iommu table */
+	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, bus_offset,
+			page_shift);
+	tbl->it_level_size = 1ULL << (level_shift - 3);
+	tbl->it_indirect_levels = levels - 1;
+	tbl->it_allocated_size = total_allocated;
+
+	pr_devel("Created TCE table: ws=%08llx ts=%lx @%08llx\n",
+			window_size, tce_table_size, bus_offset);
+
+	return 0;
+}
+
+static void pnv_iommu_table_group_link_free(struct rcu_head *head)
+{
+	struct iommu_table_group_link *tgl = container_of(head,
+			struct iommu_table_group_link, rcu);
+
+	kfree(tgl);
+}
+
+void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
+		struct iommu_table_group *table_group)
+{
+	long i;
+	bool found;
+	struct iommu_table_group_link *tgl;
+
+	if (!tbl || !table_group)
+		return;
+
+	/* Remove link to a group from table's list of attached groups */
+	found = false;
+	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
+		if (tgl->table_group == table_group) {
+			list_del_rcu(&tgl->next);
+			call_rcu(&tgl->rcu, pnv_iommu_table_group_link_free);
+			found = true;
+			break;
+		}
+	}
+	if (WARN_ON(!found))
+		return;
+
+	/* Clean a pointer to iommu_table in iommu_table_group::tables[] */
+	found = false;
+	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
+		if (table_group->tables[i] == tbl) {
+			table_group->tables[i] = NULL;
+			found = true;
+			break;
+		}
+	}
+	WARN_ON(!found);
+}
+
+long pnv_pci_link_table_and_group(int node, int num,
+		struct iommu_table *tbl,
+		struct iommu_table_group *table_group)
+{
+	struct iommu_table_group_link *tgl = NULL;
+
+	if (WARN_ON(!tbl || !table_group))
+		return -EINVAL;
+
+	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
+			node);
+	if (!tgl)
+		return -ENOMEM;
+
+	tgl->table_group = table_group;
+	list_add_rcu(&tgl->next, &tbl->it_group_list);
+
+	table_group->tables[num] = tbl;
+
+	return 0;
+}
