@@ -2686,13 +2686,13 @@ static void force_quiescent_state(void)
  * RCU to come out of its idle mode.
  */
 static void
-rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
-			 struct rcu_data *rdp)
+rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 {
 	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
+	struct rcu_state *rsp = &rcu_state;
 	static atomic_t warned = ATOMIC_INIT(0);
 
 	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
@@ -2772,7 +2772,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 		local_irq_restore(flags);
 	}
 
-	rcu_check_gp_start_stall(rsp, rnp, rdp);
+	rcu_check_gp_start_stall(rnp, rdp);
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
