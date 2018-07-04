@@ -600,11 +600,11 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	/* disable byte swapping */
 	lmi_swap_cntl = 0;
 
-	vcn_v1_0_mc_resume(adev);
-
 	vcn_1_0_disable_static_power_gating(adev);
 	/* disable clock gating */
 	vcn_v1_0_disable_clock_gating(adev);
+
+	vcn_v1_0_mc_resume(adev);
 
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
