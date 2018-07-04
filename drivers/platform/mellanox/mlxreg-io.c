@@ -152,8 +152,8 @@ static int mlxreg_io_attr_init(struct mlxreg_io_priv_data *priv)
 {
 	int i;
 
-	priv->group.attrs = devm_kzalloc(&priv->pdev->dev,
-					 priv->pdata->counter *
+	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
+					 priv->pdata->counter,
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)
