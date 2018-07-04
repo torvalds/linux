@@ -177,6 +177,101 @@ struct mlx4_port_config {
 
 static atomic_t pf_loading = ATOMIC_INIT(0);
 
+static int mlx4_devlink_ierr_reset_get(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx)
+{
+	ctx->val.vbool = !!mlx4_internal_err_reset;
+	return 0;
+}
+
+static int mlx4_devlink_ierr_reset_set(struct devlink *devlink, u32 id,
+				       struct devlink_param_gset_ctx *ctx)
+{
+	mlx4_internal_err_reset = ctx->val.vbool;
+	return 0;
+}
+
+static int
+mlx4_devlink_max_macs_validate(struct devlink *devlink, u32 id,
+			       union devlink_param_value val,
+			       struct netlink_ext_ack *extack)
+{
+	u32 value = val.vu32;
+
+	if (value < 1 || value > 128)
+		return -ERANGE;
+
+	if (!is_power_of_2(value)) {
+		NL_SET_ERR_MSG_MOD(extack, "max_macs supported must be power of 2");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum mlx4_devlink_param_id {
+	MLX4_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+	MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+};
+
+static const struct devlink_param mlx4_devlink_params[] = {
+	DEVLINK_PARAM_GENERIC(INT_ERR_RESET,
+			      BIT(DEVLINK_PARAM_CMODE_RUNTIME) |
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      mlx4_devlink_ierr_reset_get,
+			      mlx4_devlink_ierr_reset_set, NULL),
+	DEVLINK_PARAM_GENERIC(MAX_MACS,
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      NULL, NULL, mlx4_devlink_max_macs_validate),
+	DEVLINK_PARAM_DRIVER(MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+			     "enable_64b_cqe_eqe", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, NULL),
+	DEVLINK_PARAM_DRIVER(MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+			     "enable_4k_uar", DEVLINK_PARAM_TYPE_BOOL,
+			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			     NULL, NULL, NULL),
+};
+
+static void mlx4_devlink_set_init_value(struct devlink *devlink, u32 param_id,
+					union devlink_param_value init_val)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	int err;
+
+	err = devlink_param_driverinit_value_set(devlink, param_id, init_val);
+	if (err)
+		mlx4_warn(dev,
+			  "devlink set parameter %u value failed (err = %d)",
+			  param_id, err);
+}
+
+static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
+{
+	union devlink_param_value value;
+
+	value.vbool = !!mlx4_internal_err_reset;
+	mlx4_devlink_set_init_value(devlink,
+				    DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+				    value);
+
+	value.vu32 = 1UL << log_num_mac;
+	mlx4_devlink_set_init_value(devlink,
+				    DEVLINK_PARAM_GENERIC_ID_MAX_MACS, value);
+
+	value.vbool = enable_64b_cqe_eqe;
+	mlx4_devlink_set_init_value(devlink,
+				    MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
+				    value);
+
+	value.vbool = enable_4k_uar;
+	mlx4_devlink_set_init_value(devlink,
+				    MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+				    value);
+}
+
 static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,
 					      struct mlx4_dev_cap *dev_cap)
 {
@@ -3792,14 +3887,21 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = devlink_register(devlink, &pdev->dev);
 	if (ret)
 		goto err_persist_free;
-
-	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
+	ret = devlink_params_register(devlink, mlx4_devlink_params,
+				      ARRAY_SIZE(mlx4_devlink_params));
 	if (ret)
 		goto err_devlink_unregister;
+	mlx4_devlink_set_params_init_values(devlink);
+	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
+	if (ret)
+		goto err_params_unregister;
 
 	pci_save_state(pdev);
 	return 0;
 
+err_params_unregister:
+	devlink_params_unregister(devlink, mlx4_devlink_params,
+				  ARRAY_SIZE(mlx4_devlink_params));
 err_devlink_unregister:
 	devlink_unregister(devlink);
 err_persist_free:
@@ -3936,6 +4038,8 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	mlx4_pci_disable_device(dev);
+	devlink_params_unregister(devlink, mlx4_devlink_params,
+				  ARRAY_SIZE(mlx4_devlink_params));
 	devlink_unregister(devlink);
 	kfree(dev->persist);
 	devlink_free(devlink);
