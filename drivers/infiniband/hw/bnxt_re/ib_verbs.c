@@ -244,8 +244,8 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	port_attr->gid_tbl_len = dev_attr->max_sgid;
 	port_attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 				    IB_PORT_DEVICE_MGMT_SUP |
-				    IB_PORT_VENDOR_CLASS_SUP |
-				    IB_PORT_IP_BASED_GIDS;
+				    IB_PORT_VENDOR_CLASS_SUP;
+	port_attr->ip_gids = true;
 
 	port_attr->max_msg_sz = (u32)BNXT_RE_MAX_MR_SIZE_LOW;
 	port_attr->bad_pkey_cntr = 0;

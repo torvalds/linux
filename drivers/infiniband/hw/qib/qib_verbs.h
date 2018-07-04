@@ -78,9 +78,6 @@ struct qib_verbs_txreq;
 
 #define QIB_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
-/* XXX Should be defined in ib_verbs.h enum ib_port_cap_flags */
-#define IB_PORT_OTHER_LOCAL_CHANGES_SUP (1 << 26)
-
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
 
 /* Values for set/get portinfo VLCap OperationalVLs */

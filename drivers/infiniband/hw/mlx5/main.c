@@ -419,8 +419,8 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
 				 &props->active_width);
 
-	props->port_cap_flags  |= IB_PORT_CM_SUP;
-	props->port_cap_flags  |= IB_PORT_IP_BASED_GIDS;
+	props->port_cap_flags |= IB_PORT_CM_SUP;
+	props->ip_gids = true;
 
 	props->gid_tbl_len      = MLX5_CAP_ROCE(dev->mdev,
 						roce_address_table_size);
