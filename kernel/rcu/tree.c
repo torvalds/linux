@@ -1734,8 +1734,7 @@ static void rcu_accelerate_cbs_unlocked(struct rcu_node *rnp,
  *
  * The caller must hold rnp->lock with interrupts disabled.
  */
-static bool rcu_advance_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
-			    struct rcu_data *rdp)
+static bool rcu_advance_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
 {
 	raw_lockdep_assert_held_rcu_node(rnp);
 
@@ -1773,7 +1772,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 	/* Handle the ends of any preceding grace periods first. */
 	if (rcu_seq_completed_gp(rdp->gp_seq, rnp->gp_seq) ||
 	    unlikely(READ_ONCE(rdp->gpwrap))) {
-		ret = rcu_advance_cbs(rsp, rnp, rdp); /* Advance callbacks. */
+		ret = rcu_advance_cbs(rnp, rdp); /* Advance callbacks. */
 		trace_rcu_grace_period(rsp->name, rdp->gp_seq, TPS("cpuend"));
 	} else {
 		ret = rcu_accelerate_cbs(rnp, rdp); /* Recent callbacks. */
@@ -3663,8 +3662,8 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	}
 	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
 	/* Leverage recent GPs and set GP for new callbacks. */
-	needwake = rcu_advance_cbs(rsp, rnp_root, rdp) ||
-		   rcu_advance_cbs(rsp, rnp_root, my_rdp);
+	needwake = rcu_advance_cbs(rnp_root, rdp) ||
+		   rcu_advance_cbs(rnp_root, my_rdp);
 	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
 	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) !=
 		     !rcu_segcblist_n_cbs(&my_rdp->cblist));
