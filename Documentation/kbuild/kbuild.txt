@@ -88,6 +88,7 @@ In most cases the name of the architecture is the same as the
 directory name found in the arch/ directory.
 But some architectures such as x86 and sparc have aliases.
 x86: i386 for 32 bit, x86_64 for 64 bit
+sh: sh for 32 bit, sh64 for 64 bit
 sparc: sparc for 32 bit, sparc64 for 64 bit
 
 CROSS_COMPILE
