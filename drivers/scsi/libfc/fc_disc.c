@@ -59,9 +59,6 @@ static void fc_disc_restart(struct fc_disc *);
 /**
  * fc_disc_stop_rports() - Delete all the remote ports associated with the lport
  * @disc: The discovery job to stop remote ports on
- *
- * Locking Note: This function expects that the lport mutex is locked before
- * calling it.
  */
 static void fc_disc_stop_rports(struct fc_disc *disc)
 {
@@ -69,6 +66,7 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 	struct fc_rport_priv *rdata;
 
 	lport = fc_disc_lport(disc);
+	lockdep_assert_held(&lport->lp_mutex);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
@@ -84,9 +82,6 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
  * fc_disc_recv_rscn_req() - Handle Registered State Change Notification (RSCN)
  * @disc:  The discovery object to which the RSCN applies
  * @fp:	   The RSCN frame
- *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
  */
 static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 {
@@ -100,6 +95,8 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 	enum fc_els_rscn_addr_fmt fmt;
 	LIST_HEAD(disc_ports);
 	struct fc_disc_port *dp, *next;
+
+	lockdep_assert_held(&disc->disc_mutex);
 
 	lport = fc_disc_lport(disc);
 
@@ -220,12 +217,11 @@ static void fc_disc_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_disc_restart() - Restart discovery
  * @disc: The discovery object to be restarted
- *
- * Locking Note: This function expects that the disc mutex
- *		 is already locked.
  */
 static void fc_disc_restart(struct fc_disc *disc)
 {
+	lockdep_assert_held(&disc->disc_mutex);
+
 	if (!disc->disc_callback)
 		return;
 
@@ -271,16 +267,13 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
  * fc_disc_done() - Discovery has been completed
  * @disc:  The discovery context
  * @event: The discovery completion status
- *
- * Locking Note: This function expects that the disc mutex is locked before
- * it is called. The discovery callback is then made with the lock released,
- * and the lock is re-taken before returning from this function
  */
 static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 {
 	struct fc_lport *lport = fc_disc_lport(disc);
 	struct fc_rport_priv *rdata;
 
+	lockdep_assert_held(&disc->disc_mutex);
 	FC_DISC_DBG(disc, "Discovery complete\n");
 
 	disc->pending = 0;
@@ -360,14 +353,13 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 /**
  * fc_disc_gpn_ft_req() - Send Get Port Names by FC-4 type (GPN_FT) request
  * @lport: The discovery context
- *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
  */
 static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 {
 	struct fc_frame *fp;
 	struct fc_lport *lport = fc_disc_lport(disc);
+
+	lockdep_assert_held(&disc->disc_mutex);
 
 	WARN_ON(!fc_lport_test_ready(lport));
 
@@ -658,8 +650,6 @@ out:
  * @lport: The local port to initiate discovery on
  * @rdata: remote port private data
  *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
  * On failure, an error code is returned.
  */
 static int fc_disc_gpn_id_req(struct fc_lport *lport,
@@ -667,6 +657,7 @@ static int fc_disc_gpn_id_req(struct fc_lport *lport,
 {
 	struct fc_frame *fp;
 
+	lockdep_assert_held(&lport->disc.disc_mutex);
 	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
 			    sizeof(struct fc_ns_fid));
 	if (!fp)
@@ -683,13 +674,12 @@ static int fc_disc_gpn_id_req(struct fc_lport *lport,
  * fc_disc_single() - Discover the directory information for a single target
  * @lport: The local port the remote port is associated with
  * @dp:	   The port to rediscover
- *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
  */
 static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
 {
 	struct fc_rport_priv *rdata;
+
+	lockdep_assert_held(&lport->disc.disc_mutex);
 
 	rdata = fc_rport_create(lport, dp->port_id);
 	if (!rdata)
