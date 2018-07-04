@@ -2300,16 +2300,24 @@ static void update_sm_ah(struct work_struct *work)
 	rdma_ah_set_dlid(&ah_attr, port_attr.sm_lid);
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
-	if (port_attr.grh_required) {
-		if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA) {
-			rdma_ah_set_make_grd(&ah_attr, true);
-		} else {
-			rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
-			rdma_ah_set_subnet_prefix(&ah_attr,
-						  cpu_to_be64(port_attr.subnet_prefix));
-			rdma_ah_set_interface_id(&ah_attr,
-						 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
-		}
+
+	/*
+	 * The OPA sm_lid of 0xFFFF needs special handling so that it can be
+	 * differentiated from a permissive LID of 0xFFFF.  We set the
+	 * grh_required flag here so the SA can program the DGID in the
+	 * address handle appropriately
+	 */
+	if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA &&
+	    (port_attr.grh_required ||
+	     port_attr.sm_lid == be16_to_cpu(IB_LID_PERMISSIVE)))
+		rdma_ah_set_make_grd(&ah_attr, true);
+
+	if (ah_attr.type == RDMA_AH_ATTR_TYPE_IB && port_attr.grh_required) {
+		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
+		rdma_ah_set_subnet_prefix(&ah_attr,
+					  cpu_to_be64(port_attr.subnet_prefix));
+		rdma_ah_set_interface_id(&ah_attr,
+					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);
