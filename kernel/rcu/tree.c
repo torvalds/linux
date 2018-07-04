@@ -3352,7 +3352,7 @@ static void rcu_init_new_rnp(struct rcu_node *rnp_leaf)
  * Do boot-time initialization of a CPU's per-CPU RCU data.
  */
 static void __init
-rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
+rcu_boot_init_percpu_data(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
@@ -3361,23 +3361,25 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
 	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != 1);
 	WARN_ON_ONCE(rcu_dynticks_in_eqs(rcu_dynticks_snap(rdp->dynticks)));
-	rdp->rcu_ofl_gp_seq = rsp->gp_seq;
+	rdp->rcu_ofl_gp_seq = rcu_state.gp_seq;
 	rdp->rcu_ofl_gp_flags = RCU_GP_CLEANED;
-	rdp->rcu_onl_gp_seq = rsp->gp_seq;
+	rdp->rcu_onl_gp_seq = rcu_state.gp_seq;
 	rdp->rcu_onl_gp_flags = RCU_GP_CLEANED;
 	rdp->cpu = cpu;
-	rdp->rsp = rsp;
+	rdp->rsp = &rcu_state;
 	rcu_boot_init_nocb_percpu_data(rdp);
 }
 
 /*
- * Initialize a CPU's per-CPU RCU data.  Note that only one online or
+ * Invoked early in the CPU-online process, when pretty much all services
+ * are available.  The incoming CPU is not present.
+ *
+ * Initializes a CPU's per-CPU RCU data.  Note that only one online or
  * offline event can be happening at a given time.  Note also that we can
  * accept some slop in the rsp->gp_seq access due to the fact that this
  * CPU cannot possibly have any RCU callbacks in flight yet.
  */
-static void
-rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
+int rcutree_prepare_cpu(unsigned int cpu)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
@@ -3386,7 +3388,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rdp->qlen_last_fqs_check = 0;
-	rdp->n_force_qs_snap = rsp->n_force_qs;
+	rdp->n_force_qs_snap = rcu_state.n_force_qs;
 	rdp->blimit = blimit;
 	if (rcu_segcblist_empty(&rdp->cblist) && /* No early-boot CBs? */
 	    !init_nocb_callback_list(rdp))
@@ -3410,21 +3412,8 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->core_needs_qs = false;
 	rdp->rcu_iw_pending = false;
 	rdp->rcu_iw_gp_seq = rnp->gp_seq - 1;
-	trace_rcu_grace_period(rsp->name, rdp->gp_seq, TPS("cpuonl"));
+	trace_rcu_grace_period(rcu_state.name, rdp->gp_seq, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-}
-
-/*
- * Invoked early in the CPU-online process, when pretty much all
- * services are available.  The incoming CPU is not present.
- */
-int rcutree_prepare_cpu(unsigned int cpu)
-{
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		rcu_init_percpu_data(cpu, rsp);
-
 	rcu_prepare_kthreads(cpu);
 	rcu_spawn_all_nocb_kthreads(cpu);
 
@@ -3548,36 +3537,8 @@ void rcu_cpu_starting(unsigned int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
- * The CPU is exiting the idle loop into the arch_cpu_idle_dead()
- * function.  We now remove it from the rcu_node tree's ->qsmaskinitnext
- * bit masks.
- */
-static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
-{
-	unsigned long flags;
-	unsigned long mask;
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
-
-	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
-	mask = rdp->grpmask;
-	spin_lock(&rsp->ofl_lock);
-	raw_spin_lock_irqsave_rcu_node(rnp, flags); /* Enforce GP memory-order guarantee. */
-	rdp->rcu_ofl_gp_seq = READ_ONCE(rsp->gp_seq);
-	rdp->rcu_ofl_gp_flags = READ_ONCE(rsp->gp_flags);
-	if (rnp->qsmask & mask) { /* RCU waiting on outgoing CPU? */
-		/* Report quiescent state -before- changing ->qsmaskinitnext! */
-		rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags);
-		raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	}
-	rnp->qsmaskinitnext &= ~mask;
-	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-	spin_unlock(&rsp->ofl_lock);
-}
-
-/*
  * The outgoing function has no further need of RCU, so remove it from
- * the list of CPUs that RCU must track.
+ * the rcu_node tree's ->qsmaskinitnext bit masks.
  *
  * Note that this function is special in that it is invoked directly
  * from the outgoing CPU rather than from the cpuhp_step mechanism.
@@ -3585,21 +3546,41 @@ static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
  */
 void rcu_report_dead(unsigned int cpu)
 {
-	struct rcu_state *rsp;
+	unsigned long flags;
+	unsigned long mask;
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
 	/* QS for any half-done expedited RCU-sched GP. */
 	preempt_disable();
 	rcu_report_exp_rdp(&rcu_state, this_cpu_ptr(&rcu_data));
 	preempt_enable();
 	rcu_preempt_deferred_qs(current);
-	for_each_rcu_flavor(rsp)
-		rcu_cleanup_dying_idle_cpu(cpu, rsp);
+
+	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
+	mask = rdp->grpmask;
+	spin_lock(&rcu_state.ofl_lock);
+	raw_spin_lock_irqsave_rcu_node(rnp, flags); /* Enforce GP memory-order guarantee. */
+	rdp->rcu_ofl_gp_seq = READ_ONCE(rcu_state.gp_seq);
+	rdp->rcu_ofl_gp_flags = READ_ONCE(rcu_state.gp_flags);
+	if (rnp->qsmask & mask) { /* RCU waiting on outgoing CPU? */
+		/* Report quiescent state -before- changing ->qsmaskinitnext! */
+		rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags);
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	}
+	rnp->qsmaskinitnext &= ~mask;
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	spin_unlock(&rcu_state.ofl_lock);
 
 	per_cpu(rcu_cpu_started, cpu) = 0;
 }
 
-/* Migrate the dead CPU's callbacks to the current CPU. */
-static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
+/*
+ * The outgoing CPU has just passed through the dying-idle state, and we
+ * are being invoked from the CPU that was IPIed to continue the offline
+ * operation.  Migrate the outgoing CPU's callbacks to the current CPU.
+ */
+void rcutree_migrate_callbacks(int cpu)
 {
 	unsigned long flags;
 	struct rcu_data *my_rdp;
@@ -3631,19 +3612,6 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
 		  cpu, rcu_segcblist_n_cbs(&rdp->cblist),
 		  rcu_segcblist_first_cb(&rdp->cblist));
-}
-
-/*
- * The outgoing CPU has just passed through the dying-idle state,
- * and we are being invoked from the CPU that was IPIed to continue the
- * offline operation.  We need to migrate the outgoing CPU's callbacks.
- */
-void rcutree_migrate_callbacks(int cpu)
-{
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		rcu_migrate_callbacks(cpu, rsp);
 }
 #endif
 
@@ -3814,7 +3782,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 		while (i > rnp->grphi)
 			rnp++;
 		per_cpu_ptr(&rcu_data, i)->mynode = rnp;
-		rcu_boot_init_percpu_data(i, rsp);
+		rcu_boot_init_percpu_data(i);
 	}
 	list_add(&rsp->flavors, &rcu_struct_flavors);
 }
