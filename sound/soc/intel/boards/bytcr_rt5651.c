@@ -676,6 +676,48 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 };
 
 /* SoC card */
+static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
+static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
+static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
+static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-mic[-swapped-hp]" */
+
+static int byt_rt5651_suspend(struct snd_soc_card *card)
+{
+	struct snd_soc_component *component;
+
+	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		return 0;
+
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, byt_rt5651_codec_name)) {
+			dev_dbg(component->dev, "disabling jack detect before suspend\n");
+			snd_soc_component_set_jack(component, NULL, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int byt_rt5651_resume(struct snd_soc_card *card)
+{
+	struct byt_rt5651_private *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_component *component;
+
+	if (!BYT_RT5651_JDSRC(byt_rt5651_quirk))
+		return 0;
+
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, byt_rt5651_codec_name)) {
+			dev_dbg(component->dev, "re-enabling jack detect after resume\n");
+			snd_soc_component_set_jack(component, &priv->jack, NULL);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static struct snd_soc_card byt_rt5651_card = {
 	.name = "bytcr-rt5651",
 	.owner = THIS_MODULE,
@@ -686,12 +728,9 @@ static struct snd_soc_card byt_rt5651_card = {
 	.dapm_routes = byt_rt5651_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(byt_rt5651_audio_map),
 	.fully_routed = true,
+	.suspend_pre = byt_rt5651_suspend,
+	.resume_post = byt_rt5651_resume,
 };
-
-static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
-static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
-static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
-static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-mic[-swapped-hp]" */
 
 static const struct x86_cpu_id baytrail_cpu_ids[] = {
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1 }, /* Valleyview */
