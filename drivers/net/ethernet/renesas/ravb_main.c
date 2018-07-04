@@ -1131,16 +1131,6 @@ static int ravb_set_link_ksettings(struct net_device *ndev,
 	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
 }
 
-static int ravb_nway_reset(struct net_device *ndev)
-{
-	int error = -ENODEV;
-
-	if (ndev->phydev)
-		error = phy_restart_aneg(ndev->phydev);
-
-	return error;
-}
-
 static u32 ravb_get_msglevel(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -1353,7 +1343,7 @@ static int ravb_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 }
 
 static const struct ethtool_ops ravb_ethtool_ops = {
-	.nway_reset		= ravb_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_msglevel		= ravb_get_msglevel,
 	.set_msglevel		= ravb_set_msglevel,
 	.get_link		= ethtool_op_get_link,
