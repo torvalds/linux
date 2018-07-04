@@ -255,7 +255,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 		iforce->cr.bRequest = packet[0];
 		iforce->ctrl->dev = iforce->usbdev;
 
-		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
+		status = usb_submit_urb(iforce->ctrl, GFP_KERNEL);
 		if (status) {
 			dev_err(&iforce->intf->dev,
 				"usb_submit_urb failed %d\n", status);
