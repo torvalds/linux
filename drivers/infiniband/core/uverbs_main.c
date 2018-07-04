@@ -883,8 +883,6 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	file->device	 = dev;
 	spin_lock_init(&file->idr_lock);
 	idr_init(&file->idr);
-	file->ucontext	 = NULL;
-	file->async_file = NULL;
 	kref_init(&file->ref);
 	mutex_init(&file->mutex);
 	mutex_init(&file->cleanup_mutex);

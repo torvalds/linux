@@ -50,7 +50,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
 						  struct ib_uverbs_file *file,
 						  struct uverbs_attr_bundle *attrs)
 {
-	struct ib_ucontext *ucontext = file->ucontext;
 	struct ib_dm_alloc_attr attr = {};
 	struct ib_uobject *uobj;
 	struct ib_dm *dm;
@@ -71,7 +70,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
 
 	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_ALLOC_DM_HANDLE)->obj_attr.uobject;
 
-	dm = ib_dev->alloc_dm(ib_dev, ucontext, &attr, attrs);
+	dm = ib_dev->alloc_dm(ib_dev, file->ucontext, &attr, attrs);
 	if (IS_ERR(dm))
 		return PTR_ERR(dm);
 

@@ -61,7 +61,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 						   struct ib_uverbs_file *file,
 						   struct uverbs_attr_bundle *attrs)
 {
-	struct ib_ucontext *ucontext = file->ucontext;
 	struct ib_ucq_object           *obj;
 	struct ib_udata uhw;
 	int ret;
@@ -98,7 +97,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 		uverbs_uobject_get(ev_file_uobj);
 	}
 
-	if (attr.comp_vector >= ucontext->ufile->device->num_comp_vectors) {
+	if (attr.comp_vector >= file->device->num_comp_vectors) {
 		ret = -EINVAL;
 		goto err_event_file;
 	}
@@ -106,7 +105,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	obj = container_of(uverbs_attr_get_uobject(attrs,
 						   UVERBS_ATTR_CREATE_CQ_HANDLE),
 			   typeof(*obj), uobject);
-	obj->uverbs_file	   = ucontext->ufile;
+	obj->uverbs_file	   = file;
 	obj->comp_events_reported  = 0;
 	obj->async_events_reported = 0;
 	INIT_LIST_HEAD(&obj->comp_list);
@@ -115,7 +114,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	/* Temporary, only until drivers get the new uverbs_attr_bundle */
 	create_udata(attrs, &uhw);
 
-	cq = ib_dev->create_cq(ib_dev, &attr, ucontext, &uhw);
+	cq = ib_dev->create_cq(ib_dev, &attr, file->ucontext, &uhw);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_event_file;

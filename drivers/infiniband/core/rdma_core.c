@@ -180,19 +180,19 @@ static int idr_add_uobj(struct ib_uobject *uobj)
 	int ret;
 
 	idr_preload(GFP_KERNEL);
-	spin_lock(&uobj->context->ufile->idr_lock);
+	spin_lock(&uobj->ufile->idr_lock);
 
 	/*
 	 * We start with allocating an idr pointing to NULL. This represents an
 	 * object which isn't initialized yet. We'll replace it later on with
 	 * the real object once we commit.
 	 */
-	ret = idr_alloc(&uobj->context->ufile->idr, NULL, 0,
+	ret = idr_alloc(&uobj->ufile->idr, NULL, 0,
 			min_t(unsigned long, U32_MAX - 1, INT_MAX), GFP_NOWAIT);
 	if (ret >= 0)
 		uobj->id = ret;
 
-	spin_unlock(&uobj->context->ufile->idr_lock);
+	spin_unlock(&uobj->ufile->idr_lock);
 	idr_preload_end();
 
 	return ret < 0 ? ret : 0;
@@ -204,9 +204,9 @@ static int idr_add_uobj(struct ib_uobject *uobj)
  */
 static void uverbs_idr_remove_uobj(struct ib_uobject *uobj)
 {
-	spin_lock(&uobj->context->ufile->idr_lock);
-	idr_remove(&uobj->context->ufile->idr, uobj->id);
-	spin_unlock(&uobj->context->ufile->idr_lock);
+	spin_lock(&uobj->ufile->idr_lock);
+	idr_remove(&uobj->ufile->idr, uobj->id);
+	spin_unlock(&uobj->ufile->idr_lock);
 }
 
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
@@ -519,14 +519,13 @@ out:
 
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
-	spin_lock(&uobj->context->ufile->idr_lock);
+	spin_lock(&uobj->ufile->idr_lock);
 	/*
 	 * We already allocated this IDR with a NULL object, so
 	 * this shouldn't fail.
 	 */
-	WARN_ON(idr_replace(&uobj->context->ufile->idr,
-			    uobj, uobj->id));
-	spin_unlock(&uobj->context->ufile->idr_lock);
+	WARN_ON(idr_replace(&uobj->ufile->idr, uobj, uobj->id));
+	spin_unlock(&uobj->ufile->idr_lock);
 }
 
 static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
