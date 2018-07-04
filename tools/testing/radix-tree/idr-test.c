@@ -402,16 +402,15 @@ void ida_check_nomem(void)
  */
 void ida_check_conv_user(void)
 {
-#if 0
 	DEFINE_IDA(ida);
 	unsigned long i;
 
-	radix_tree_cpu_dead(1);
 	for (i = 0; i < 1000000; i++) {
 		int id = ida_alloc(&ida, GFP_NOWAIT);
 		if (id == -ENOMEM) {
-			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) !=
-					BITS_PER_XA_VALUE);
+			IDA_BUG_ON(&ida, ((i % IDA_BITMAP_BITS) !=
+					  BITS_PER_XA_VALUE) &&
+					 ((i % IDA_BITMAP_BITS) != 0));
 			id = ida_alloc(&ida, GFP_KERNEL);
 		} else {
 			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) ==
@@ -420,7 +419,6 @@ void ida_check_conv_user(void)
 		IDA_BUG_ON(&ida, id != i);
 	}
 	ida_destroy(&ida);
-#endif
 }
 
 void ida_check_random(void)

@@ -255,54 +255,6 @@ static unsigned long next_index(unsigned long index,
 	return (index & ~node_maxindex(node)) + (offset << node->shift);
 }
 
-#ifndef __KERNEL__
-static void dump_ida_node(void *entry, unsigned long index)
-{
-	unsigned long i;
-
-	if (!entry)
-		return;
-
-	if (radix_tree_is_internal_node(entry)) {
-		struct radix_tree_node *node = entry_to_node(entry);
-
-		pr_debug("ida node: %p offset %d indices %lu-%lu parent %p free %lx shift %d count %d\n",
-			node, node->offset, index * IDA_BITMAP_BITS,
-			((index | node_maxindex(node)) + 1) *
-				IDA_BITMAP_BITS - 1,
-			node->parent, node->tags[0][0], node->shift,
-			node->count);
-		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
-			dump_ida_node(node->slots[i],
-					index | (i << node->shift));
-	} else if (xa_is_value(entry)) {
-		pr_debug("ida excp: %p offset %d indices %lu-%lu data %lx\n",
-				entry, (int)(index & RADIX_TREE_MAP_MASK),
-				index * IDA_BITMAP_BITS,
-				index * IDA_BITMAP_BITS + BITS_PER_XA_VALUE,
-				xa_to_value(entry));
-	} else {
-		struct ida_bitmap *bitmap = entry;
-
-		pr_debug("ida btmp: %p offset %d indices %lu-%lu data", bitmap,
-				(int)(index & RADIX_TREE_MAP_MASK),
-				index * IDA_BITMAP_BITS,
-				(index + 1) * IDA_BITMAP_BITS - 1);
-		for (i = 0; i < IDA_BITMAP_LONGS; i++)
-			pr_cont(" %lx", bitmap->bitmap[i]);
-		pr_cont("\n");
-	}
-}
-
-static void ida_dump(struct ida *ida)
-{
-	struct radix_tree_root *root = &ida->ida_rt;
-	pr_debug("ida: %p node %p free %d\n", ida, root->xa_head,
-				root->xa_flags >> ROOT_TAG_SHIFT);
-	dump_ida_node(root->xa_head, 0);
-}
-#endif
-
 /*
  * This assumes that the caller has performed appropriate preallocation, and
  * that the caller has pinned this thread of control to the current CPU.
@@ -2039,27 +1991,6 @@ void idr_preload(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(idr_preload);
 
-int ida_pre_get(struct ida *ida, gfp_t gfp)
-{
-	/*
-	 * The IDA API has no preload_end() equivalent.  Instead,
-	 * ida_get_new() can return -EAGAIN, prompting the caller
-	 * to return to the ida_pre_get() step.
-	 */
-	if (!__radix_tree_preload(gfp, IDA_PRELOAD_SIZE))
-		preempt_enable();
-
-	if (!this_cpu_read(ida_bitmap)) {
-		struct ida_bitmap *bitmap = kzalloc(sizeof(*bitmap), gfp);
-		if (!bitmap)
-			return 0;
-		if (this_cpu_cmpxchg(ida_bitmap, NULL, bitmap))
-			kfree(bitmap);
-	}
-
-	return 1;
-}
-
 void __rcu **idr_get_free(struct radix_tree_root *root,
 			      struct radix_tree_iter *iter, gfp_t gfp,
 			      unsigned long max)
@@ -2201,8 +2132,6 @@ static int radix_tree_cpu_dead(unsigned int cpu)
 		kmem_cache_free(radix_tree_node_cachep, node);
 		rtp->nr--;
 	}
-	kfree(per_cpu(ida_bitmap, cpu));
-	per_cpu(ida_bitmap, cpu) = NULL;
 	return 0;
 }
 
