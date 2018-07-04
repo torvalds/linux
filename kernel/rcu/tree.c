@@ -138,7 +138,7 @@ static void rcu_init_new_rnp(struct rcu_node *rnp_leaf);
 static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf);
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_core(void);
-static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
+static void invoke_rcu_callbacks(struct rcu_data *rdp);
 static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp);
 static void sync_sched_exp_online_cleanup(int cpu);
 
@@ -2189,9 +2189,11 @@ static int __noreturn rcu_gp_kthread(void *arg)
  * just-completed grace period.  Note that the caller must hold rnp->lock,
  * which is released before return.
  */
-static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
+static void rcu_report_qs_rsp(unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
 {
+	struct rcu_state *rsp = &rcu_state;
+
 	raw_lockdep_assert_held_rcu_node(rcu_get_root(rsp));
 	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
@@ -2268,7 +2270,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
 	 * state for this grace period.  Invoke rcu_report_qs_rsp()
 	 * to clean up and start the next grace period if one is needed.
 	 */
-	rcu_report_qs_rsp(rsp, flags); /* releases rnp->lock. */
+	rcu_report_qs_rsp(flags); /* releases rnp->lock. */
 }
 
 /*
@@ -2302,7 +2304,7 @@ rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 		 * Only one rcu_node structure in the tree, so don't
 		 * try to report up to its nonexistent parent!
 		 */
-		rcu_report_qs_rsp(rsp, flags);
+		rcu_report_qs_rsp(flags);
 		return;
 	}
 
@@ -2761,7 +2763,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
-		invoke_rcu_callbacks(rsp, rdp);
+		invoke_rcu_callbacks(rdp);
 
 	/* Do any needed deferred wakeups of rcuo kthreads. */
 	do_nocb_deferred_wakeup(rdp);
@@ -2789,8 +2791,10 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
  * are running on the current CPU with softirqs disabled, the
  * rcu_cpu_kthread_task cannot disappear out from under us.
  */
-static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
+static void invoke_rcu_callbacks(struct rcu_data *rdp)
 {
+	struct rcu_state *rsp = &rcu_state;
+
 	if (unlikely(!READ_ONCE(rcu_scheduler_fully_active)))
 		return;
 	if (likely(!rsp->boost)) {
