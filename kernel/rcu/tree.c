@@ -2281,8 +2281,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
  * disabled.
  */
 static void __maybe_unused
-rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
-			  struct rcu_node *rnp, unsigned long flags)
+rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
 	unsigned long gps;

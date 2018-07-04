@@ -566,7 +566,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
 							 rnp->grplo,
 							 rnp->grphi,
 							 !!rnp->gp_tasks);
-			rcu_report_unblock_qs_rnp(&rcu_state, rnp, flags);
+			rcu_report_unblock_qs_rnp(rnp, flags);
 		} else {
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		}
