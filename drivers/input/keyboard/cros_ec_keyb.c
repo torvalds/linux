@@ -160,9 +160,6 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 	int col, row;
 	int new_state;
 	int old_state;
-	int num_cols;
-
-	num_cols = len;
 
 	if (ckdev->ghost_filter && cros_ec_keyb_has_ghosting(ckdev, kb_state)) {
 		/*
