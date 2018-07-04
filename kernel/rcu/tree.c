@@ -1704,15 +1704,14 @@ static bool rcu_accelerate_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
  * that a new grace-period request be made, invokes rcu_accelerate_cbs()
  * while holding the leaf rcu_node structure's ->lock.
  */
-static void rcu_accelerate_cbs_unlocked(struct rcu_state *rsp,
-					struct rcu_node *rnp,
+static void rcu_accelerate_cbs_unlocked(struct rcu_node *rnp,
 					struct rcu_data *rdp)
 {
 	unsigned long c;
 	bool needwake;
 
 	lockdep_assert_irqs_disabled();
-	c = rcu_seq_snap(&rsp->gp_seq);
+	c = rcu_seq_snap(&rcu_state.gp_seq);
 	if (!rdp->gpwrap && ULONG_CMP_GE(rdp->gp_seq_needed, c)) {
 		/* Old request still live, so mark recent callbacks. */
 		(void)rcu_segcblist_accelerate(&rdp->cblist, c);
@@ -2759,7 +2758,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	    rcu_segcblist_is_enabled(&rdp->cblist)) {
 		local_irq_save(flags);
 		if (!rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL))
-			rcu_accelerate_cbs_unlocked(rsp, rnp, rdp);
+			rcu_accelerate_cbs_unlocked(rnp, rdp);
 		local_irq_restore(flags);
 	}
 
@@ -2846,7 +2845,7 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 
 		/* Start a new grace period if one not already started. */
 		if (!rcu_gp_in_progress()) {
-			rcu_accelerate_cbs_unlocked(rsp, rdp->mynode, rdp);
+			rcu_accelerate_cbs_unlocked(rdp->mynode, rdp);
 		} else {
 			/* Give the grace period a kick. */
 			rdp->blimit = LONG_MAX;
