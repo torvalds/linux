@@ -265,7 +265,6 @@ struct rcu_data {
 	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
 
 	int cpu;
-	struct rcu_state *rsp;
 };
 
 /* Values for nocb_defer_wakeup field in struct rcu_data. */

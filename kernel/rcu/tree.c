@@ -1070,7 +1070,7 @@ static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
 	rdp->dynticks_snap = rcu_dynticks_snap(rdp->dynticks);
 	if (rcu_dynticks_in_eqs(rdp->dynticks_snap)) {
-		trace_rcu_fqs(rdp->rsp->name, rdp->gp_seq, rdp->cpu, TPS("dti"));
+		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
 		rcu_gpnum_ovf(rdp->mynode, rdp);
 		return 1;
 	}
@@ -1120,7 +1120,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * of the current RCU grace period.
 	 */
 	if (rcu_dynticks_in_eqs_since(rdp->dynticks, rdp->dynticks_snap)) {
-		trace_rcu_fqs(rdp->rsp->name, rdp->gp_seq, rdp->cpu, TPS("dti"));
+		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
 		rdp->dynticks_fqs++;
 		rcu_gpnum_ovf(rnp, rdp);
 		return 1;
@@ -1134,20 +1134,20 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 */
 	jtsq = jiffies_till_sched_qs;
 	ruqp = per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, rdp->cpu);
-	if (time_after(jiffies, rdp->rsp->gp_start + jtsq) &&
+	if (time_after(jiffies, rcu_state.gp_start + jtsq) &&
 	    READ_ONCE(rdp->rcu_qs_ctr_snap) != per_cpu(rcu_dynticks.rcu_qs_ctr, rdp->cpu) &&
 	    rcu_seq_current(&rdp->gp_seq) == rnp->gp_seq && !rdp->gpwrap) {
-		trace_rcu_fqs(rdp->rsp->name, rdp->gp_seq, rdp->cpu, TPS("rqc"));
+		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("rqc"));
 		rcu_gpnum_ovf(rnp, rdp);
 		return 1;
-	} else if (time_after(jiffies, rdp->rsp->gp_start + jtsq)) {
+	} else if (time_after(jiffies, rcu_state.gp_start + jtsq)) {
 		/* Load rcu_qs_ctr before store to rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
 	}
 
 	/* If waiting too long on an offline CPU, complain. */
 	if (!(rdp->grpmask & rcu_rnp_online_cpus(rnp)) &&
-	    time_after(jiffies, rdp->rsp->gp_start + HZ)) {
+	    time_after(jiffies, rcu_state.gp_start + HZ)) {
 		bool onl;
 		struct rcu_node *rnp1;
 
@@ -1185,12 +1185,12 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 */
 	rnhqp = &per_cpu(rcu_dynticks.rcu_need_heavy_qs, rdp->cpu);
 	if (!READ_ONCE(*rnhqp) &&
-	    (time_after(jiffies, rdp->rsp->gp_start + jtsq) ||
-	     time_after(jiffies, rdp->rsp->jiffies_resched))) {
+	    (time_after(jiffies, rcu_state.gp_start + jtsq) ||
+	     time_after(jiffies, rcu_state.jiffies_resched))) {
 		WRITE_ONCE(*rnhqp, true);
 		/* Store rcu_need_heavy_qs before rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
-		rdp->rsp->jiffies_resched += jtsq; /* Re-enable beating. */
+		rcu_state.jiffies_resched += jtsq; /* Re-enable beating. */
 	}
 
 	/*
@@ -1199,7 +1199,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * see if the CPU is getting hammered with interrupts, but only
 	 * once per grace period, just to keep the IPIs down to a dull roar.
 	 */
-	if (jiffies - rdp->rsp->gp_start > rcu_jiffies_till_stall_check() / 2) {
+	if (jiffies - rcu_state.gp_start > rcu_jiffies_till_stall_check() / 2) {
 		resched_cpu(rdp->cpu);
 		if (IS_ENABLED(CONFIG_IRQ_WORK) &&
 		    !rdp->rcu_iw_pending && rdp->rcu_iw_gp_seq != rnp->gp_seq &&
@@ -1526,7 +1526,7 @@ void rcu_cpu_stall_reset(void)
 static void trace_rcu_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 			      unsigned long gp_seq_req, const char *s)
 {
-	trace_rcu_future_grace_period(rdp->rsp->name, rnp->gp_seq, gp_seq_req,
+	trace_rcu_future_grace_period(rcu_state.name, rnp->gp_seq, gp_seq_req,
 				      rnp->level, rnp->grplo, rnp->grphi, s);
 }
 
@@ -1550,7 +1550,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 			      unsigned long gp_seq_req)
 {
 	bool ret = false;
-	struct rcu_state *rsp = rdp->rsp;
+	struct rcu_state *rsp = &rcu_state;
 	struct rcu_node *rnp;
 
 	/*
@@ -3167,8 +3167,7 @@ static void _rcu_barrier_trace(const char *s, int cpu, unsigned long done)
  */
 static void rcu_barrier_callback(struct rcu_head *rhp)
 {
-	struct rcu_data *rdp = container_of(rhp, struct rcu_data, barrier_head);
-	struct rcu_state *rsp = rdp->rsp;
+	struct rcu_state *rsp = &rcu_state;
 
 	if (atomic_dec_and_test(&rsp->barrier_cpu_count)) {
 		_rcu_barrier_trace(TPS("LastCB"), -1, rsp->barrier_sequence);
@@ -3365,7 +3364,6 @@ rcu_boot_init_percpu_data(int cpu)
 	rdp->rcu_onl_gp_seq = rcu_state.gp_seq;
 	rdp->rcu_onl_gp_flags = RCU_GP_CLEANED;
 	rdp->cpu = cpu;
-	rdp->rsp = &rcu_state;
 	rcu_boot_init_nocb_percpu_data(rdp);
 }
 
