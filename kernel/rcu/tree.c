@@ -2375,7 +2375,7 @@ rcu_report_qs_rdp(int cpu, struct rcu_data *rdp)
  * quiescent state for this grace period, and record that fact if so.
  */
 static void
-rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
+rcu_check_quiescent_state(struct rcu_data *rdp)
 {
 	/* Check for grace-period ends and beginnings. */
 	note_gp_changes(rdp);
@@ -2753,7 +2753,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 		resched_cpu(rdp->cpu); /* Provoke future context switch. */
 
 	/* Update RCU state based on any recent quiescent states. */
-	rcu_check_quiescent_state(rsp, rdp);
+	rcu_check_quiescent_state(rdp);
 
 	/* No grace period and unregistered callbacks? */
 	if (!rcu_gp_in_progress() &&
