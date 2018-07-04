@@ -56,20 +56,24 @@ static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 
 #define uobj_get_type(_object) UVERBS_OBJECT(_object).type_attrs
 
-#define uobj_get_read(_type, _id, _ucontext)                                   \
-	__uobj_get(uobj_get_type(_type), false, (_ucontext)->ufile, _id)
+#define uobj_get_read(_type, _id, _ufile)                                      \
+	__uobj_get(uobj_get_type(_type), false, _ufile, _id)
 
-#define uobj_get_obj_read(_object, _type, _id, _ucontext)		\
-({									\
-	struct ib_uobject *__uobj =					\
-		__uobj_get(uobj_get_type(_type),			\
-			   false, (_ucontext)->ufile, _id);		\
-									\
-	(struct ib_##_object *)(IS_ERR(__uobj) ? NULL : __uobj->object);\
-})
+static inline void *_uobj_get_obj_read(const struct uverbs_obj_type *type,
+				       int id, struct ib_uverbs_file *ufile)
+{
+	struct ib_uobject *uobj = __uobj_get(type, false, ufile, id);
 
-#define uobj_get_write(_type, _id, _ucontext)                                  \
-	__uobj_get(uobj_get_type(_type), true, (_ucontext)->ufile, _id)
+	if (IS_ERR(uobj))
+		return NULL;
+	return uobj->object;
+}
+#define uobj_get_obj_read(_object, _type, _id, _ufile)                         \
+	((struct ib_##_object *)_uobj_get_obj_read(uobj_get_type(_type), _id,  \
+						   _ufile))
+
+#define uobj_get_write(_type, _id, _ufile)                                     \
+	__uobj_get(uobj_get_type(_type), true, _ufile, _id)
 
 int __uobj_perform_destroy(const struct uverbs_obj_type *type, int id,
 			   struct ib_uverbs_file *ufile, int success_res);
@@ -105,13 +109,12 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj)
 }
 
 static inline struct ib_uobject *__uobj_alloc(const struct uverbs_obj_type *type,
-					      struct ib_ucontext *ucontext)
+					      struct ib_uverbs_file *ufile)
 {
-	return rdma_alloc_begin_uobject(type, ucontext->ufile);
+	return rdma_alloc_begin_uobject(type, ufile);
 }
 
-#define uobj_alloc(_type, ucontext)	\
-	__uobj_alloc(uobj_get_type(_type), ucontext)
+#define uobj_alloc(_type, _ufile) __uobj_alloc(uobj_get_type(_type), _ufile)
 
 #endif
 
