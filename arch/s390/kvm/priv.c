@@ -956,7 +956,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {
-			if (clear_user((void __user *)useraddr, PAGE_SIZE))
+			if (kvm_clear_guest(vcpu->kvm, start, PAGE_SIZE))
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 
