@@ -1764,7 +1764,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 				core_memres);
 
 		if (IS_ERR(msm_host->core_mem)) {
-			dev_err(&pdev->dev, "Failed to remap registers\n");
 			ret = PTR_ERR(msm_host->core_mem);
 			goto clk_disable;
 		}
