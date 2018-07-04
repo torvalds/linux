@@ -40,6 +40,14 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 	const struct dc_edid *edid,
 	struct dc_edid_caps *edid_caps);
 
+
+/*
+ * Update DP branch info
+ */
+void dm_helpers_dp_update_branch_info(
+		struct dc_context *ctx,
+		const struct dc_link *link);
+
 /*
  * Writes payload allocation table in immediate downstream device.
  */

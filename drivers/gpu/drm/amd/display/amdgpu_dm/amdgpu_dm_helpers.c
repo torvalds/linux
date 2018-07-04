@@ -169,6 +169,11 @@ static void get_payload_table(
 	mutex_unlock(&mst_mgr->payload_lock);
 }
 
+void dm_helpers_dp_update_branch_info(
+	struct dc_context *ctx,
+	const struct dc_link *link)
+{}
+
 /*
  * Writes payload allocation table in immediate downstream device.
  */

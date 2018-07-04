@@ -529,6 +529,10 @@ static bool detect_dp(
 			if (reason == DETECT_REASON_BOOT)
 				boot = true;
 
+			dm_helpers_dp_update_branch_info(
+				link->ctx,
+				link);
+
 			if (!dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
 				link, boot)) {
