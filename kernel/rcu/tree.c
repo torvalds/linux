@@ -1342,7 +1342,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 		if (rnp->qsmask != 0) {
 			for_each_leaf_node_possible_cpu(rnp, cpu)
 				if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
-					print_cpu_stall_info(rsp, cpu);
+					print_cpu_stall_info(cpu);
 					ndetected++;
 				}
 		}
@@ -1409,7 +1409,7 @@ static void print_cpu_stall(void)
 	pr_err("INFO: %s self-detected stall on CPU", rsp->name);
 	print_cpu_stall_info_begin();
 	raw_spin_lock_irqsave_rcu_node(rdp->mynode, flags);
-	print_cpu_stall_info(rsp, smp_processor_id());
+	print_cpu_stall_info(smp_processor_id());
 	raw_spin_unlock_irqrestore_rcu_node(rdp->mynode, flags);
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)

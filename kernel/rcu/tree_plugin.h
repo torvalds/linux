@@ -1771,7 +1771,7 @@ static void print_cpu_stall_info_begin(void)
  *
  * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
  */
-static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
+static void print_cpu_stall_info(int cpu)
 {
 	unsigned long delta;
 	char fast_no_hz[72];
@@ -1786,7 +1786,7 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
 	 */
 	touch_nmi_watchdog();
 
-	ticks_value = rcu_seq_ctr(rsp->gp_seq - rdp->gp_seq);
+	ticks_value = rcu_seq_ctr(rcu_state.gp_seq - rdp->gp_seq);
 	if (ticks_value) {
 		ticks_title = "GPs behind";
 	} else {
@@ -1807,7 +1807,7 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
 	       rcu_dynticks_snap(rdtp) & 0xfff,
 	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
-	       READ_ONCE(rsp->n_force_qs) - rsp->n_force_qs_gpstart,
+	       READ_ONCE(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
 	       fast_no_hz);
 }
 
