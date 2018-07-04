@@ -761,8 +761,6 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
  */
 static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 {
-	u8					i;
-
 	if (!pOperateMCS) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,
 				"pOperateMCS can't be null in %s\n",
@@ -777,8 +775,7 @@ static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 		//legacy rate routine handled at selectedrate
 
 		//no MCS rate
-		for (i = 0; i <= 15; i++)
-			pOperateMCS[i] = 0;
+		memset(pOperateMCS, 0, 16);
 		break;
 
 	case IEEE_N_24G:	//assume CCK rate ok
