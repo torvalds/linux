@@ -549,11 +549,12 @@ static int iwl_mvm_remove_sta_queue_marking(struct iwl_mvm *mvm, int queue)
 }
 
 static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
-				       bool same_sta)
+				       u8 new_sta_id)
 {
 	struct iwl_mvm_sta *mvmsta;
 	u8 txq_curr_ac, sta_id, tid;
 	unsigned long disable_agg_tids = 0;
+	bool same_sta;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -566,6 +567,8 @@ static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
 	sta_id = mvm->queue_info[queue].ra_sta_id;
 	tid = mvm->queue_info[queue].txq_tid;
 	spin_unlock_bh(&mvm->queue_info_lock);
+
+	same_sta = sta_id == new_sta_id;
 
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, sta_id);
 	if (WARN_ON(!mvmsta))
@@ -581,10 +584,6 @@ static int iwl_mvm_free_inactive_queue(struct iwl_mvm *mvm, int queue,
 				  mvmsta->vif->hw_queue[txq_curr_ac],
 				  tid, 0);
 	if (ret) {
-		/* Re-mark the inactive queue as inactive */
-		spin_lock_bh(&mvm->queue_info_lock);
-		mvm->queue_info[queue].status = IWL_MVM_QUEUE_INACTIVE;
-		spin_unlock_bh(&mvm->queue_info_lock);
 		IWL_ERR(mvm,
 			"Failed to free inactive queue %d (ret=%d)\n",
 			queue, ret);
@@ -844,7 +843,6 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 
 	spin_lock_bh(&mvmsta->lock);
 	mvmsta->tid_data[tid].txq_id = queue;
-	mvmsta->tid_data[tid].is_tid_active = true;
 	spin_unlock_bh(&mvmsta->lock);
 
 	return 0;
@@ -1063,8 +1061,10 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
  * Remove inactive TIDs of a given queue.
  * If all queue TIDs are inactive - mark the queue as inactive
  * If only some the queue TIDs are inactive - unmap them from the queue
+ *
+ * Returns %true if all TIDs were removed and the queue could be reused.
  */
-static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
+static bool iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 					 struct iwl_mvm_sta *mvmsta, int queue,
 					 unsigned long tid_bitmap,
 					 unsigned long *unshare_queues,
@@ -1076,7 +1076,7 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->queue_info_lock);
 
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
-		return;
+		return false;
 
 	/* Go over all non-active TIDs, incl. IWL_MAX_TID_COUNT (for mgmt) */
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
@@ -1089,16 +1089,10 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 			tid_bitmap &= ~BIT(tid);
 	}
 
-	/* If all TIDs in the queue are inactive - mark queue as inactive. */
+	/* If all TIDs in the queue are inactive - return it can be reused */
 	if (tid_bitmap == mvm->queue_info[queue].tid_bitmap) {
-		mvm->queue_info[queue].status = IWL_MVM_QUEUE_INACTIVE;
-
-		for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1)
-			mvmsta->tid_data[tid].is_tid_active = false;
-
-		IWL_DEBUG_TX_QUEUES(mvm, "Queue %d marked as inactive\n",
-				    queue);
-		return;
+		IWL_DEBUG_TX_QUEUES(mvm, "Queue %d is inactive\n", queue);
+		return true;
 	}
 
 	/*
@@ -1112,7 +1106,6 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].txq_id = IWL_MVM_INVALID_QUEUE;
 		mvm->hw_queue_to_mac80211[queue] &= ~BIT(mac_queue);
 		mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);
-		mvmsta->tid_data[tid].is_tid_active = false;
 
 		tid_bitmap = mvm->queue_info[queue].tid_bitmap;
 
@@ -1156,19 +1149,30 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 				    queue);
 		set_bit(queue, unshare_queues);
 	}
+
+	return false;
 }
 
-static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
+/*
+ * Check for inactivity - this includes checking if any queue
+ * can be unshared and finding one (and only one) that can be
+ * reused.
+ * This function is also invoked as a sort of clean-up task,
+ * in which case @alloc_for_sta is IWL_MVM_INVALID_STA.
+ *
+ * Returns the queue number, or -ENOSPC.
+ */
+static int iwl_mvm_inactivity_check(struct iwl_mvm *mvm, u8 alloc_for_sta)
 {
 	unsigned long now = jiffies;
 	unsigned long unshare_queues = 0;
 	unsigned long changetid_queues = 0;
-	int i;
+	int i, ret, free_queue = -ENOSPC;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return;
+		return -ENOSPC;
 
 	spin_lock_bh(&mvm->queue_info_lock);
 
@@ -1177,11 +1181,6 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 	/* we skip the CMD queue below by starting at 1 */
 	BUILD_BUG_ON(IWL_MVM_DQA_CMD_QUEUE != 0);
 
-	/*
-	 * If a queue times out - mark it as INACTIVE (don't remove right away
-	 * if we don't have to.) This is an optimization in case traffic comes
-	 * later, and we don't HAVE to use a currently-inactive queue
-	 */
 	for (i = 1; i < IWL_MAX_HW_QUEUES; i++) {
 		struct ieee80211_sta *sta;
 		struct iwl_mvm_sta *mvmsta;
@@ -1237,10 +1236,12 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		/* and we need this locking order */
 		spin_lock(&mvmsta->lock);
 		spin_lock(&mvm->queue_info_lock);
-		iwl_mvm_remove_inactive_tids(mvm, mvmsta, i,
-					     inactive_tid_bitmap,
-					     &unshare_queues,
-					     &changetid_queues);
+		ret = iwl_mvm_remove_inactive_tids(mvm, mvmsta, i,
+						   inactive_tid_bitmap,
+						   &unshare_queues,
+						   &changetid_queues);
+		if (ret >= 0 && free_queue < 0)
+			free_queue = ret;
 		/* only unlock sta lock - we still need the queue info lock */
 		spin_unlock(&mvmsta->lock);
 	}
@@ -1253,6 +1254,15 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		iwl_mvm_unshare_queue(mvm, i);
 	for_each_set_bit(i, &changetid_queues, IWL_MAX_HW_QUEUES)
 		iwl_mvm_change_queue_tid(mvm, i);
+
+	if (free_queue >= 0 && alloc_for_sta != IWL_MVM_INVALID_STA) {
+		ret = iwl_mvm_free_inactive_queue(mvm, free_queue,
+						  alloc_for_sta);
+		if (ret)
+			return ret;
+	}
+
+	return free_queue;
 }
 
 static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
@@ -1270,7 +1280,6 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		iwl_mvm_get_wd_timeout(mvm, mvmsta->vif, false, false);
 	u8 mac_queue = mvmsta->vif->hw_queue[ac];
 	int queue = -1;
-	bool using_inactive_queue = false, same_sta = false;
 	unsigned long disable_agg_tids = 0;
 	enum iwl_mvm_agg_state queue_state;
 	bool shared_queue = false, inc_ssn;
@@ -1307,9 +1316,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 
 	if ((queue < 0 && mvmsta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) &&
 	    (mvm->queue_info[mvmsta->reserved_queue].status ==
-	     IWL_MVM_QUEUE_RESERVED ||
-	     mvm->queue_info[mvmsta->reserved_queue].status ==
-	     IWL_MVM_QUEUE_INACTIVE)) {
+			IWL_MVM_QUEUE_RESERVED)) {
 		queue = mvmsta->reserved_queue;
 		mvm->queue_info[queue].reserved = true;
 		IWL_DEBUG_TX_QUEUES(mvm, "Using reserved queue #%d\n", queue);
@@ -1319,21 +1326,13 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		queue = iwl_mvm_find_free_queue(mvm, mvmsta->sta_id,
 						IWL_MVM_DQA_MIN_DATA_QUEUE,
 						IWL_MVM_DQA_MAX_DATA_QUEUE);
+	if (queue < 0) {
+		spin_unlock_bh(&mvm->queue_info_lock);
 
-	/*
-	 * Check if this queue is already allocated but inactive.
-	 * In such a case, we'll need to first free this queue before enabling
-	 * it again, so we'll mark it as reserved to make sure no new traffic
-	 * arrives on it
-	 */
-	if (queue > 0 &&
-	    mvm->queue_info[queue].status == IWL_MVM_QUEUE_INACTIVE) {
-		mvm->queue_info[queue].status = IWL_MVM_QUEUE_RESERVED;
-		using_inactive_queue = true;
-		same_sta = mvm->queue_info[queue].ra_sta_id == mvmsta->sta_id;
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "Re-assigning TXQ %d: sta_id=%d, tid=%d\n",
-				    queue, mvmsta->sta_id, tid);
+		/* try harder - perhaps kill an inactive queue */
+		queue = iwl_mvm_inactivity_check(mvm, mvmsta->sta_id);
+
+		spin_lock_bh(&mvm->queue_info_lock);
 	}
 
 	/* No free queue - we'll have to share */
@@ -1371,16 +1370,6 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	 */
 	cfg.aggregate = (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE ||
 			 queue == IWL_MVM_DQA_BSS_CLIENT_QUEUE);
-
-	/*
-	 * If this queue was previously inactive (idle) - we need to free it
-	 * first
-	 */
-	if (using_inactive_queue) {
-		ret = iwl_mvm_free_inactive_queue(mvm, queue, same_sta);
-		if (ret)
-			return ret;
-	}
 
 	IWL_DEBUG_TX_QUEUES(mvm,
 			    "Allocating %squeue #%d to sta %d on tid %d\n",
@@ -1425,7 +1414,6 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	if (inc_ssn)
 		mvmsta->tid_data[tid].seq_number += 0x10;
 	mvmsta->tid_data[tid].txq_id = queue;
-	mvmsta->tid_data[tid].is_tid_active = true;
 	mvmsta->tfd_queue_msk |= BIT(queue);
 	queue_state = mvmsta->tid_data[tid].state;
 
@@ -1532,7 +1520,7 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 
 	mutex_lock(&mvm->mutex);
 
-	iwl_mvm_inactivity_check(mvm);
+	iwl_mvm_inactivity_check(mvm, IWL_MVM_INVALID_STA);
 
 	/* Go over all stations with deferred traffic */
 	for_each_set_bit(sta_id, mvm->sta_deferred_frames,
@@ -1560,17 +1548,13 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int queue;
-	bool using_inactive_queue = false, same_sta = false;
 
 	/* queue reserving is disabled on new TX path */
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
 		return 0;
 
-	/*
-	 * Check for inactive queues, so we don't reach a situation where we
-	 * can't add a STA due to a shortage in queues that doesn't really exist
-	 */
-	iwl_mvm_inactivity_check(mvm);
+	/* run the general cleanup/unsharing of queues */
+	iwl_mvm_inactivity_check(mvm, IWL_MVM_INVALID_STA);
 
 	spin_lock_bh(&mvm->queue_info_lock);
 
@@ -1586,25 +1570,19 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 						IWL_MVM_DQA_MAX_DATA_QUEUE);
 	if (queue < 0) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		IWL_ERR(mvm, "No available queues for new station\n");
-		return -ENOSPC;
-	} else if (mvm->queue_info[queue].status == IWL_MVM_QUEUE_INACTIVE) {
-		/*
-		 * If this queue is already allocated but inactive we'll need to
-		 * first free this queue before enabling it again, we'll mark
-		 * it as reserved to make sure no new traffic arrives on it
-		 */
-		using_inactive_queue = true;
-		same_sta = mvm->queue_info[queue].ra_sta_id == mvmsta->sta_id;
+		/* try again - this time kick out a queue if needed */
+		queue = iwl_mvm_inactivity_check(mvm, mvmsta->sta_id);
+		if (queue < 0) {
+			IWL_ERR(mvm, "No available queues for new station\n");
+			return -ENOSPC;
+		}
+		spin_lock_bh(&mvm->queue_info_lock);
 	}
 	mvm->queue_info[queue].status = IWL_MVM_QUEUE_RESERVED;
 
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	mvmsta->reserved_queue = queue;
-
-	if (using_inactive_queue)
-		iwl_mvm_free_inactive_queue(mvm, queue, same_sta);
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Reserving data queue #%d for sta_id %d\n",
 			    queue, mvmsta->sta_id);

@@ -754,19 +754,12 @@ iwl_mvm_baid_data_from_reorder_buf(struct iwl_mvm_reorder_buffer *buf)
  *	This is a state in which a single queue serves more than one TID, all of
  *	which are not aggregated. Note that the queue is only associated to one
  *	RA.
- * @IWL_MVM_QUEUE_INACTIVE: queue is allocated but no traffic on it
- *	This is a state of a queue that has had traffic on it, but during the
- *	last %IWL_MVM_DQA_QUEUE_TIMEOUT time period there has been no traffic on
- *	it. In this state, when a new queue is needed to be allocated but no
- *	such free queue exists, an inactive queue might be freed and given to
- *	the new RA/TID.
  */
 enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_FREE,
 	IWL_MVM_QUEUE_RESERVED,
 	IWL_MVM_QUEUE_READY,
 	IWL_MVM_QUEUE_SHARED,
-	IWL_MVM_QUEUE_INACTIVE,
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
