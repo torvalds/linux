@@ -56,7 +56,6 @@ const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_sp
  * cleanup_ucontext removes all uobjects from the context and puts them.
  */
 void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed);
-void uverbs_initialize_ucontext(struct ib_ucontext *ucontext);
 
 /*
  * uverbs_uobject_get is called in order to increase the reference count on

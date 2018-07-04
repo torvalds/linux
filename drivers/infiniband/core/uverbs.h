@@ -145,6 +145,14 @@ struct ib_uverbs_file {
 	struct list_head			list;
 	int					is_closed;
 
+	/* locking the uobjects_list */
+	struct mutex		uobjects_lock;
+	struct list_head	uobjects;
+
+	/* protects cleanup process from other actions */
+	struct rw_semaphore	cleanup_rwsem;
+	enum rdma_remove_reason cleanup_reason;
+
 	struct idr		idr;
 	/* spinlock protects write access to idr */
 	spinlock_t		idr_lock;

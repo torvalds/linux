@@ -161,6 +161,7 @@ static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
 	 * user_handle should be filled by the handler,
 	 * The object is added to the list in the commit stage.
 	 */
+	uobj->ufile = context->ufile;
 	uobj->context = context;
 	uobj->type = type;
 	/*
@@ -286,7 +287,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 
 	ret = uverbs_try_lock_object(uobj, exclusive);
 	if (ret) {
-		WARN(ucontext->cleanup_reason,
+		WARN(uobj->ufile->cleanup_reason,
 		     "ib_uverbs: Trying to lookup_get while cleanup context\n");
 		goto free;
 	}
@@ -441,8 +442,8 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj, bool exclusive)
 static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 						    enum rdma_remove_reason why)
 {
+	struct ib_uverbs_file *ufile = uobj->ufile;
 	int ret;
-	struct ib_ucontext *ucontext = uobj->context;
 
 	ret = uobj->type->type_class->remove_commit(uobj, why);
 	if (ib_is_destroy_retryable(ret, why, uobj)) {
@@ -450,9 +451,9 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 		atomic_set(&uobj->usecnt, 0);
 		uobj->type->type_class->lookup_put(uobj, true);
 	} else {
-		mutex_lock(&ucontext->uobjects_lock);
+		mutex_lock(&ufile->uobjects_lock);
 		list_del(&uobj->list);
-		mutex_unlock(&ucontext->uobjects_lock);
+		mutex_unlock(&ufile->uobjects_lock);
 		/* put the ref we took when we created the object */
 		uverbs_uobject_put(uobj);
 	}
@@ -464,19 +465,19 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 {
 	int ret;
-	struct ib_ucontext *ucontext = uobj->context;
+	struct ib_uverbs_file *ufile = uobj->ufile;
 
 	/* put the ref count we took at lookup_get */
 	uverbs_uobject_put(uobj);
 	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ucontext->cleanup_rwsem)) {
+	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
 		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
 		return 0;
 	}
 	assert_uverbs_usecnt(uobj, true);
 	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_DESTROY);
 
-	up_read(&ucontext->cleanup_rwsem);
+	up_read(&ufile->cleanup_rwsem);
 	return ret;
 }
 
@@ -496,10 +497,10 @@ static const struct uverbs_obj_type null_obj_type = {
 int rdma_explicit_destroy(struct ib_uobject *uobject)
 {
 	int ret;
-	struct ib_ucontext *ucontext = uobject->context;
+	struct ib_uverbs_file *ufile = uobject->ufile;
 
 	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ucontext->cleanup_rwsem)) {
+	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
 		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
 		return 0;
 	}
@@ -512,7 +513,7 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 	uobject->type = &null_obj_type;
 
 out:
-	up_read(&ucontext->cleanup_rwsem);
+	up_read(&ufile->cleanup_rwsem);
 	return ret;
 }
 
@@ -542,8 +543,10 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 {
+	struct ib_uverbs_file *ufile = uobj->ufile;
+
 	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&uobj->context->cleanup_rwsem)) {
+	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
 		int ret;
 
 		WARN(true, "ib_uverbs: Cleanup is running while allocating an uobject\n");
@@ -559,12 +562,12 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	assert_uverbs_usecnt(uobj, true);
 	atomic_set(&uobj->usecnt, 0);
 
-	mutex_lock(&uobj->context->uobjects_lock);
-	list_add(&uobj->list, &uobj->context->uobjects);
-	mutex_unlock(&uobj->context->uobjects_lock);
+	mutex_lock(&ufile->uobjects_lock);
+	list_add(&uobj->list, &ufile->uobjects);
+	mutex_unlock(&ufile->uobjects_lock);
 
 	uobj->type->type_class->alloc_commit(uobj);
-	up_read(&uobj->context->cleanup_rwsem);
+	up_read(&ufile->cleanup_rwsem);
 
 	return 0;
 }
@@ -638,20 +641,18 @@ EXPORT_SYMBOL(uverbs_idr_class);
 
 static void _uverbs_close_fd(struct ib_uobject_file *uobj_file)
 {
-	struct ib_ucontext *ucontext;
 	struct ib_uverbs_file *ufile = uobj_file->ufile;
 	int ret;
 
-	mutex_lock(&uobj_file->ufile->cleanup_mutex);
+	mutex_lock(&ufile->cleanup_mutex);
 
 	/* uobject was either already cleaned up or is cleaned up right now anyway */
 	if (!uobj_file->uobj.context ||
-	    !down_read_trylock(&uobj_file->uobj.context->cleanup_rwsem))
+	    !down_read_trylock(&ufile->cleanup_rwsem))
 		goto unlock;
 
-	ucontext = uobj_file->uobj.context;
 	ret = _rdma_remove_commit_uobject(&uobj_file->uobj, RDMA_REMOVE_CLOSE);
-	up_read(&ucontext->cleanup_rwsem);
+	up_read(&ufile->cleanup_rwsem);
 	if (ret)
 		pr_warn("uverbs: unable to clean up uobject file in uverbs_close_fd.\n");
 unlock:
@@ -671,6 +672,7 @@ void uverbs_close_fd(struct file *f)
 static int __uverbs_cleanup_ucontext(struct ib_ucontext *ucontext,
 				    enum rdma_remove_reason reason)
 {
+	struct ib_uverbs_file *ufile = ucontext->ufile;
 	struct ib_uobject *obj, *next_obj;
 	int ret = -EINVAL;
 	int err = 0;
@@ -684,9 +686,9 @@ static int __uverbs_cleanup_ucontext(struct ib_ucontext *ucontext,
 	 * We take and release the lock per traversal in order to let
 	 * other threads (which might still use the FDs) chance to run.
 	 */
-	mutex_lock(&ucontext->uobjects_lock);
-	ucontext->cleanup_reason = reason;
-	list_for_each_entry_safe(obj, next_obj, &ucontext->uobjects, list) {
+	mutex_lock(&ufile->uobjects_lock);
+	ufile->cleanup_reason = reason;
+	list_for_each_entry_safe(obj, next_obj, &ufile->uobjects, list) {
 		/*
 		 * if we hit this WARN_ON, that means we are
 		 * racing with a lookup_get.
@@ -710,7 +712,7 @@ static int __uverbs_cleanup_ucontext(struct ib_ucontext *ucontext,
 		uverbs_uobject_put(obj);
 		ret = 0;
 	}
-	mutex_unlock(&ucontext->uobjects_lock);
+	mutex_unlock(&ufile->uobjects_lock);
 	return ret;
 }
 
@@ -719,14 +721,16 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 	enum rdma_remove_reason reason = device_removed ?
 					RDMA_REMOVE_DRIVER_REMOVE :
 					RDMA_REMOVE_CLOSE;
+	struct ib_uverbs_file *ufile = ucontext->ufile;
+
 	/*
 	 * Waits for all remove_commit and alloc_commit to finish. Logically, We
 	 * want to hold this forever as the context is going to be destroyed,
 	 * but we'll release it since it causes a "held lock freed" BUG message.
 	 */
-	down_write(&ucontext->cleanup_rwsem);
-	ucontext->cleanup_retryable = true;
-	while (!list_empty(&ucontext->uobjects))
+	down_write(&ufile->cleanup_rwsem);
+	ufile->ucontext->cleanup_retryable = true;
+	while (!list_empty(&ufile->uobjects))
 		if (__uverbs_cleanup_ucontext(ucontext, reason)) {
 			/*
 			 * No entry was cleaned-up successfully during this
@@ -735,19 +739,11 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 			break;
 		}
 
-	ucontext->cleanup_retryable = false;
-	if (!list_empty(&ucontext->uobjects))
+	ufile->ucontext->cleanup_retryable = false;
+	if (!list_empty(&ufile->uobjects))
 		__uverbs_cleanup_ucontext(ucontext, reason);
 
-	up_write(&ucontext->cleanup_rwsem);
-}
-
-void uverbs_initialize_ucontext(struct ib_ucontext *ucontext)
-{
-	ucontext->cleanup_reason = 0;
-	mutex_init(&ucontext->uobjects_lock);
-	INIT_LIST_HEAD(&ucontext->uobjects);
-	init_rwsem(&ucontext->cleanup_rwsem);
+	up_write(&ufile->cleanup_rwsem);
 }
 
 const struct uverbs_obj_type_class uverbs_fd_class = {

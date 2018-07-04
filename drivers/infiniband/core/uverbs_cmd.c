@@ -110,7 +110,6 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	ucontext->cg_obj = cg_obj;
 	/* ufile is required when some objects are released */
 	ucontext->ufile = file;
-	uverbs_initialize_ucontext(ucontext);
 
 	rcu_read_lock();
 	ucontext->tgid = get_task_pid(current->group_leader, PIDTYPE_PID);

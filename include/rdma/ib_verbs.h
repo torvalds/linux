@@ -1500,12 +1500,6 @@ struct ib_ucontext {
 	struct ib_uverbs_file  *ufile;
 	int			closing;
 
-	/* locking the uobjects_list */
-	struct mutex		uobjects_lock;
-	struct list_head	uobjects;
-	/* protects cleanup process from other actions */
-	struct rw_semaphore	cleanup_rwsem;
-	enum rdma_remove_reason cleanup_reason;
 	bool cleanup_retryable;
 
 	struct pid             *tgid;
@@ -1531,6 +1525,9 @@ struct ib_ucontext {
 
 struct ib_uobject {
 	u64			user_handle;	/* handle given to us by userspace */
+	/* ufile & ucontext owning this object */
+	struct ib_uverbs_file  *ufile;
+	/* FIXME, save memory: ufile->context == context */
 	struct ib_ucontext     *context;	/* associated user context */
 	void		       *object;		/* containing object */
 	struct list_head	list;		/* link to context's list */
