@@ -374,18 +374,18 @@ static struct uverbs_method_spec *build_method_with_attrs(const struct uverbs_me
 				 "ib_uverbs: Method contains more than one object attr (%d) with new/destroy access\n",
 				 min_id) ||
 			    WARN(attr_obj_with_special_access &&
-				 !(attr->flags & UVERBS_ATTR_SPEC_F_MANDATORY),
+				 !attr->mandatory,
 				 "ib_uverbs: Tried to merge attr (%d) but it's an object with new/destroy access but isn't mandatory\n",
 				 min_id) ||
 			    WARN(IS_ATTR_OBJECT(attr) &&
-				 attr->flags & UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
+				 attr->min_sz_or_zero,
 				 "ib_uverbs: Tried to merge attr (%d) but it's an object with min_sz flag\n",
 				 min_id)) {
 				res = -EINVAL;
 				goto free;
 			}
 
-			if (attr->flags & UVERBS_ATTR_SPEC_F_MANDATORY)
+			if (attr->mandatory)
 				set_bit(min_id, hash->mandatory_attrs_bitmask);
 			min_id++;
 

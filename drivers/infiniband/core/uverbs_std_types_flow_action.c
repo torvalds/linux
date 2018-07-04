@@ -368,7 +368,7 @@ static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,
 		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
-		UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO),
+		UA_MIN_SZ_OR_ZERO
 	},
 };
 
@@ -381,7 +381,7 @@ static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,
 		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
-		UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO),
+		UA_MIN_SZ_OR_ZERO
 	},
 };
 
@@ -390,51 +390,59 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_IDR(UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE,
 			UVERBS_OBJECT_FLOW_ACTION,
 			UVERBS_ACCESS_NEW,
-			UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
 			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
 					      hard_limit_pkts),
-			   UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
-				    UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),
+			   UA_MANDATORY,
+			   UA_MIN_SZ_OR_ZERO),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
-			   UVERBS_ATTR_TYPE(__u32)),
+			   UVERBS_ATTR_TYPE(__u32),
+			   UA_OPTIONAL),
 	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
 			    uverbs_flow_action_esp_keymat,
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+			    UA_MANDATORY),
 	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
-			    uverbs_flow_action_esp_replay),
+			    uverbs_flow_action_esp_replay,
+			    UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(
 		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
 		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap,
-				   type)));
+				   type),
+		UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE,
 			UVERBS_OBJECT_FLOW_ACTION,
 			UVERBS_ACCESS_WRITE,
-			UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+			UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
 			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
 					      hard_limit_pkts),
-			   UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),
+			   UA_OPTIONAL,
+			   UA_MIN_SZ_OR_ZERO),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
-			   UVERBS_ATTR_TYPE(__u32)),
+			   UVERBS_ATTR_TYPE(__u32),
+			   UA_OPTIONAL),
 	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
-			    uverbs_flow_action_esp_keymat),
+			    uverbs_flow_action_esp_keymat,
+			    UA_OPTIONAL),
 	UVERBS_ATTR_ENUM_IN(UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
-			    uverbs_flow_action_esp_replay),
+			    uverbs_flow_action_esp_replay,
+			    UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(
 		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
 		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap,
-				   type)));
+				   type),
+		UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	UVERBS_METHOD_FLOW_ACTION_DESTROY,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_FLOW_ACTION_HANDLE,
 			UVERBS_OBJECT_FLOW_ACTION,
 			UVERBS_ACCESS_DESTROY,
-			UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+			UA_MANDATORY));
 
 DECLARE_UVERBS_NAMED_OBJECT(
 	UVERBS_OBJECT_FLOW_ACTION,

@@ -98,14 +98,14 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		 * non-zero content, making ABI compat/discovery simpler.
 		 */
 		if (uattr->len > val_spec->u.ptr.len &&
-		    val_spec->flags & UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO &&
+		    val_spec->min_sz_or_zero &&
 		    !uverbs_is_attr_cleared(uattr, val_spec->u.ptr.len))
 			return -EOPNOTSUPP;
 
 	/* fall through */
 	case UVERBS_ATTR_TYPE_PTR_OUT:
 		if (uattr->len < val_spec->u.ptr.min_len ||
-		    (!(val_spec->flags & UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO) &&
+		    (!val_spec->min_sz_or_zero &&
 		     uattr->len > val_spec->u.ptr.len))
 			return -EINVAL;
 
@@ -116,8 +116,7 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		e->ptr_attr.len = uattr->len;
 		e->ptr_attr.flags = uattr->flags;
 
-		if (val_spec->flags & UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY &&
-		    !uverbs_attr_ptr_is_inline(e)) {
+		if (val_spec->alloc_and_copy && !uverbs_attr_ptr_is_inline(e)) {
 			void *p;
 
 			p = kvmalloc(uattr->len, GFP_KERNEL);
@@ -220,8 +219,7 @@ static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
 				if (!ret)
 					ret = current_ret;
 			} else if (spec->type == UVERBS_ATTR_TYPE_PTR_IN &&
-				   spec->flags &
-					   UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY &&
+				   spec->alloc_and_copy &&
 				   !uverbs_attr_ptr_is_inline(attr)) {
 				kvfree(attr->ptr_attr.ptr);
 			}

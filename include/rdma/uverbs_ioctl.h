@@ -61,20 +61,22 @@ enum uverbs_obj_access {
 	UVERBS_ACCESS_DESTROY
 };
 
-enum {
-	UVERBS_ATTR_SPEC_F_MANDATORY	= 1U << 0,
-	/* Support extending attributes by length, validate all unknown size == zero  */
-	UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO = 1U << 1,
-	/*
-	 * Valid only for PTR_IN. Allocate and copy the data inside the parser
-	 */
-	UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY = 1U << 2,
-};
-
 /* Specification of a single attribute inside the ioctl message */
+/* good size 16 */
 struct uverbs_attr_spec {
 	u8 type;
-	u8 flags;
+
+	/*
+	 * Support extending attributes by length, validate all
+	 * unknown size == zero
+	 */
+	u8 min_sz_or_zero:1;
+	/*
+	 * Valid only for PTR_IN. Allocate and copy the data inside
+	 * the parser
+	 */
+	u8 alloc_and_copy:1;
+	u8 mandatory:1;
 
 	union {
 		struct {
@@ -209,7 +211,10 @@ struct uverbs_object_tree_def {
 	UVERBS_ATTR_SIZE(_min_len, USHRT_MAX)
 
 /* Must be used in the '...' of any UVERBS_ATTR */
-#define UA_FLAGS(_flags) .flags = _flags
+#define UA_ALLOC_AND_COPY .alloc_and_copy = 1
+#define UA_MANDATORY .mandatory = 1
+#define UA_MIN_SZ_OR_ZERO .min_sz_or_zero = 1
+#define UA_OPTIONAL .mandatory = 0
 
 #define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
 	(&(const struct uverbs_attr_def){                                      \
@@ -261,10 +266,12 @@ struct uverbs_object_tree_def {
 #define UVERBS_ATTR_UHW()                                                      \
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_UHW_IN,                                 \
 			   UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
-			   UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)),       \
+			   UA_OPTIONAL,					       \
+			   UA_MIN_SZ_OR_ZERO),				       \
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_UHW_OUT,                               \
 			    UVERBS_ATTR_SIZE(0, USHRT_MAX),		       \
-			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO))
+			    UA_OPTIONAL,				       \
+			    UA_MIN_SZ_OR_ZERO),				       \
 
 /*
  * =======================================
