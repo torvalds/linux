@@ -358,6 +358,7 @@ struct devlink_param_item {
 enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
 	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -369,6 +370,9 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_MAX_MACS_NAME "max_macs"
 #define DEVLINK_PARAM_GENERIC_MAX_MACS_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME "enable_sriov"
+#define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\

@@ -2615,7 +2615,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_MAX_MACS_NAME,
 		.type = DEVLINK_PARAM_GENERIC_MAX_MACS_TYPE,
 	},
-
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
+		.name = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME,
+		.type = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
