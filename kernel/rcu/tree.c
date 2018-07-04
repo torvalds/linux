@@ -1240,10 +1240,11 @@ static const char *gp_state_getname(short gs)
 /*
  * Complain about starvation of grace-period kthread.
  */
-static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
+static void rcu_check_gp_kthread_starvation(void)
 {
 	unsigned long gpa;
 	unsigned long j;
+	struct rcu_state *rsp = &rcu_state;
 
 	j = jiffies;
 	gpa = READ_ONCE(rsp->gp_activity);
@@ -1377,7 +1378,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gp_seq)
 		WRITE_ONCE(rsp->jiffies_stall,
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 
-	rcu_check_gp_kthread_starvation(rsp);
+	rcu_check_gp_kthread_starvation();
 
 	panic_on_rcu_stall();
 
@@ -1415,7 +1416,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 		jiffies - rsp->gp_start,
 		(long)rcu_seq_current(&rsp->gp_seq), totqlen);
 
-	rcu_check_gp_kthread_starvation(rsp);
+	rcu_check_gp_kthread_starvation();
 
 	rcu_dump_cpu_stacks(rsp);
 
