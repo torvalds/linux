@@ -275,7 +275,7 @@ static struct ib_qp *ipoib_cm_create_rx_qp(struct net_device *dev,
 
 static int ipoib_cm_modify_rx_qp(struct net_device *dev,
 				 struct ib_cm_id *cm_id, struct ib_qp *qp,
-				 unsigned psn)
+				 unsigned int psn)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_attr qp_attr;
@@ -422,7 +422,7 @@ err_free_1:
 
 static int ipoib_cm_send_rep(struct net_device *dev, struct ib_cm_id *cm_id,
 			     struct ib_qp *qp, struct ib_cm_req_event_param *req,
-			     unsigned psn)
+			     unsigned int psn)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_cm_data data = {};
@@ -446,7 +446,7 @@ static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 	struct net_device *dev = cm_id->context;
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_cm_rx *p;
-	unsigned psn;
+	unsigned int psn;
 	int ret;
 
 	ipoib_dbg(priv, "REQ arrived\n");
@@ -713,7 +713,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_tx_buf *tx_req;
 	int rc;
-	unsigned usable_sge = tx->max_send_sge - !!skb_headlen(skb);
+	unsigned int usable_sge = tx->max_send_sge - !!skb_headlen(skb);
 
 	if (unlikely(skb->len > tx->mtu)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
@@ -1429,7 +1429,7 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 	struct net_device *dev = priv->dev;
 	struct sk_buff *skb;
 	unsigned long flags;
-	unsigned mtu = priv->mcast_mtu;
+	unsigned int mtu = priv->mcast_mtu;
 
 	netif_tx_lock_bh(dev);
 	spin_lock_irqsave(&priv->lock, flags);

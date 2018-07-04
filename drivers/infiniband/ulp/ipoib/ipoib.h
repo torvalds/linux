@@ -252,11 +252,11 @@ struct ipoib_cm_tx {
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
 	struct ipoib_tx_buf *tx_ring;
-	unsigned	     tx_head;
-	unsigned	     tx_tail;
+	unsigned int	     tx_head;
+	unsigned int	     tx_tail;
 	unsigned long	     flags;
 	u32		     mtu;
-	unsigned             max_send_sge;
+	unsigned int         max_send_sge;
 };
 
 struct ipoib_cm_rx_buf {
@@ -373,8 +373,8 @@ struct ipoib_dev_priv {
 	struct ipoib_rx_buf *rx_ring;
 
 	struct ipoib_tx_buf *tx_ring;
-	unsigned	     tx_head;
-	unsigned	     tx_tail;
+	unsigned int	     tx_head;
+	unsigned int	     tx_tail;
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_ud_wr      tx_wr;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
@@ -404,7 +404,7 @@ struct ipoib_dev_priv {
 #endif
 	u64	hca_caps;
 	struct ipoib_ethtool_st ethtool;
-	unsigned max_send_sge;
+	unsigned int max_send_sge;
 	bool sm_fullmember_sendonly_support;
 	const struct net_device_ops	*rn_ops;
 };
@@ -414,7 +414,7 @@ struct ipoib_ah {
 	struct ib_ah	  *ah;
 	struct list_head   list;
 	struct kref	   ref;
-	unsigned	   last_send;
+	unsigned int	   last_send;
 	int  		   valid;
 };
 

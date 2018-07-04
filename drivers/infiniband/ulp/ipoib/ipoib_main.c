@@ -1201,7 +1201,9 @@ static void ipoib_timeout(struct net_device *dev)
 static int ipoib_hard_header(struct sk_buff *skb,
 			     struct net_device *dev,
 			     unsigned short type,
-			     const void *daddr, const void *saddr, unsigned len)
+			     const void *daddr,
+			     const void *saddr,
+			     unsigned int len)
 {
 	struct ipoib_header *header;
 
