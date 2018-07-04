@@ -1383,6 +1383,8 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 	unsigned long now = jiffies;
 	int i;
 
+	lockdep_assert_held(&mvm->mutex);
+
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return;
 
@@ -1461,6 +1463,10 @@ static void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 
 	rcu_read_unlock();
 	spin_unlock_bh(&mvm->queue_info_lock);
+
+	/* Reconfigure queues requiring reconfiguation */
+	for (i = 0; i < ARRAY_SIZE(mvm->queue_info); i++)
+		iwl_mvm_reconfigure_queue(mvm, i);
 }
 
 static inline u8 iwl_mvm_tid_to_ac_queue(int tid)
@@ -1533,19 +1539,9 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 	unsigned long deferred_tid_traffic;
 	int sta_id, tid;
 
-	/* Check inactivity of queues */
-	iwl_mvm_inactivity_check(mvm);
-
 	mutex_lock(&mvm->mutex);
 
-	/* No queue reconfiguration in TVQM mode */
-	if (!iwl_mvm_has_new_tx_api(mvm)) {
-		int queue;
-
-		/* Reconfigure queues requiring reconfiguation */
-		for (queue = 0; queue < ARRAY_SIZE(mvm->queue_info); queue++)
-			iwl_mvm_reconfigure_queue(mvm, queue);
-	}
+	iwl_mvm_inactivity_check(mvm);
 
 	/* Go over all stations with deferred traffic */
 	for_each_set_bit(sta_id, mvm->sta_deferred_frames,
