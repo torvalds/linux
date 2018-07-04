@@ -610,6 +610,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
 			break;
+		/* else: fall through */
 	case NETDEV_UP:
 		test_and_set_bit_lock(0, &b->up);
 		break;
