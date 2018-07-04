@@ -229,7 +229,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (set_clocks && adev->pm.dpm_enabled) {
+	if (set_clocks) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
