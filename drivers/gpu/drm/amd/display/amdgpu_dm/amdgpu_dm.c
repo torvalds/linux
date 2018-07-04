@@ -2183,6 +2183,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_connector *connector)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
+	const struct drm_display_info *info = &connector->display_info;
 
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
@@ -2191,8 +2192,10 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 	timing_out->v_border_top = 0;
 	timing_out->v_border_bottom = 0;
 	/* TODO: un-hardcode */
-
-	if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
+	if (drm_mode_is_420_only(info, mode_in)
+			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
+	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
 			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
 	else
