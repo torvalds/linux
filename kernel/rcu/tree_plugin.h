@@ -782,7 +782,6 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
  */
 static void rcu_flavor_check_callbacks(int user)
 {
-	struct rcu_state *rsp = &rcu_state;
 	struct task_struct *t = current;
 
 	if (user || rcu_is_cpu_rrupt_from_idle()) {
@@ -806,7 +805,7 @@ static void rcu_flavor_check_callbacks(int user)
 	    __this_cpu_read(rcu_data.core_needs_qs) &&
 	    __this_cpu_read(rcu_data.cpu_no_qs.b.norm) &&
 	    !t->rcu_read_unlock_special.b.need_qs &&
-	    time_after(jiffies, rsp->gp_start + HZ))
+	    time_after(jiffies, rcu_state.gp_start + HZ))
 		t->rcu_read_unlock_special.b.need_qs = true;
 }
 
@@ -1761,12 +1760,11 @@ static void print_cpu_stall_info_begin(void)
 /*
  * Print out diagnostic information for the specified stalled CPU.
  *
- * If the specified CPU is aware of the current RCU grace period
- * (flavor specified by rsp), then print the number of scheduling
- * clock interrupts the CPU has taken during the time that it has
- * been aware.  Otherwise, print the number of RCU grace periods
- * that this CPU is ignorant of, for example, "1" if the CPU was
- * aware of the previous grace period.
+ * If the specified CPU is aware of the current RCU grace period, then
+ * print the number of scheduling clock interrupts the CPU has taken
+ * during the time that it has been aware.  Otherwise, print the number
+ * of RCU grace periods that this CPU is ignorant of, for example, "1"
+ * if the CPU was aware of the previous grace period.
  *
  * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
  */
