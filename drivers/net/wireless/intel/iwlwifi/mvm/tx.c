@@ -1160,11 +1160,11 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * If we have timed-out TIDs - schedule the worker that will
 		 * reconfig the queues and update them
 		 *
-		 * Note that the mvm->queue_info_lock isn't being taken here in
-		 * order to not serialize the TX flow. This isn't dangerous
-		 * because scheduling mvm->add_stream_wk can't ruin the state,
-		 * and if we DON'T schedule it due to some race condition then
-		 * next TX we get here we will.
+		 * Note that the no lock is taken here in order to not serialize
+		 * the TX flow. This isn't dangerous because scheduling
+		 * mvm->add_stream_wk can't ruin the state, and if we DON'T
+		 * schedule it due to some race condition then next TX we get
+		 * here we will.
 		 */
 		if (unlikely(mvm->queue_info[txq_id].status ==
 			     IWL_MVM_QUEUE_SHARED &&

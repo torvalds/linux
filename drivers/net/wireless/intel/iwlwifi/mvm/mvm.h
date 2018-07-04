@@ -844,7 +844,6 @@ struct iwl_mvm {
 	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
 
 	struct iwl_mvm_dqa_txq_info queue_info[IWL_MAX_HW_QUEUES];
-	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	struct work_struct add_stream_wk; /* To add streams to queues */
 
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
