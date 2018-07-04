@@ -1622,7 +1622,7 @@ unlock_out:
  * Clean up any old requests for the just-ended grace period.  Also return
  * whether any additional grace periods have been requested.
  */
-static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static bool rcu_future_gp_cleanup(struct rcu_node *rnp)
 {
 	bool needmore;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
@@ -2055,7 +2055,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		if (rnp == rdp->mynode)
 			needgp = __note_gp_changes(rsp, rnp, rdp) || needgp;
 		/* smp_mb() provided by prior unlock-lock pair. */
-		needgp = rcu_future_gp_cleanup(rsp, rnp) || needgp;
+		needgp = rcu_future_gp_cleanup(rnp) || needgp;
 		sq = rcu_nocb_gp_get(rnp);
 		raw_spin_unlock_irq_rcu_node(rnp);
 		rcu_nocb_gp_cleanup(sq);
