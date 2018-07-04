@@ -1339,7 +1339,7 @@ int snd_pcm_stop_xrun(struct snd_pcm_substream *substream)
 	unsigned long flags;
 
 	snd_pcm_stream_lock_irqsave(substream, flags);
-	if (snd_pcm_running(substream))
+	if (substream->runtime && snd_pcm_running(substream))
 		__snd_pcm_xrun(substream);
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
