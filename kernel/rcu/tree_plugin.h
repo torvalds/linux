@@ -685,7 +685,7 @@ static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
  */
 static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 {
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	rcu_print_detail_task_stall_rnp(rnp);
 	rcu_for_each_leaf_node(rsp, rnp)

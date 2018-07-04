@@ -288,7 +288,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
 	struct rcu_node *rnp = rdp->mynode;
-	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	struct rcu_node *rnp_root = rcu_get_root();
 
 	/* Low-contention fastpath. */
 	if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s) &&
@@ -479,7 +479,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 	unsigned long mask;
 	int ndetected;
 	struct rcu_node *rnp;
-	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	struct rcu_node *rnp_root = rcu_get_root();
 	int ret;
 
 	trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("startwait"));
@@ -643,7 +643,7 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 
 	/* Wait for expedited grace period to complete. */
 	rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
-	rnp = rcu_get_root(rsp);
+	rnp = rcu_get_root();
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(rsp, s));
 	smp_mb(); /* Workqueue actions happen before return. */

@@ -623,9 +623,9 @@ EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 /*
  * Return the root node of the specified rcu_state structure.
  */
-static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
+static struct rcu_node *rcu_get_root(void)
 {
-	return &rsp->node[0];
+	return &rcu_state.node[0];
 }
 
 /*
@@ -1318,7 +1318,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gp_seq)
 	unsigned long gpa;
 	unsigned long j;
 	int ndetected = 0;
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -1367,7 +1367,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gp_seq)
 			pr_err("All QSes seen, last %s kthread activity %ld (%ld-%ld), jiffies_till_next_fqs=%ld, root ->qsmask %#lx\n",
 			       rsp->name, j - gpa, j, gpa,
 			       jiffies_till_next_fqs,
-			       rcu_get_root(rsp)->qsmask);
+			       rcu_get_root()->qsmask);
 			/* In this case, the current CPU might be at fault. */
 			sched_show_task(current);
 		}
@@ -1389,7 +1389,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	int cpu;
 	unsigned long flags;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -1835,7 +1835,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
 	unsigned long oldmask;
 	unsigned long mask;
 	struct rcu_data *rdp;
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	WRITE_ONCE(rsp->gp_activity, jiffies);
 	raw_spin_lock_irq_rcu_node(rnp);
@@ -1962,7 +1962,7 @@ static bool rcu_gp_init(struct rcu_state *rsp)
  */
 static bool rcu_gp_fqs_check_wake(struct rcu_state *rsp, int *gfp)
 {
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	/* Someone like call_rcu() requested a force-quiescent-state scan. */
 	*gfp = READ_ONCE(rsp->gp_flags);
@@ -1981,7 +1981,7 @@ static bool rcu_gp_fqs_check_wake(struct rcu_state *rsp, int *gfp)
  */
 static void rcu_gp_fqs(struct rcu_state *rsp, bool first_time)
 {
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	WRITE_ONCE(rsp->gp_activity, jiffies);
 	rsp->n_force_qs++;
@@ -2010,7 +2010,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	bool needgp = false;
 	unsigned long new_gp_seq;
 	struct rcu_data *rdp;
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 	struct swait_queue_head *sq;
 
 	WRITE_ONCE(rsp->gp_activity, jiffies);
@@ -2058,7 +2058,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		WRITE_ONCE(rsp->gp_activity, jiffies);
 		rcu_gp_slow(rsp, gp_cleanup_delay);
 	}
-	rnp = rcu_get_root(rsp);
+	rnp = rcu_get_root();
 	raw_spin_lock_irq_rcu_node(rnp); /* GP before rsp->gp_seq update. */
 
 	/* Declare grace period done. */
@@ -2094,7 +2094,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 	unsigned long j;
 	int ret;
 	struct rcu_state *rsp = arg;
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	rcu_bind_gp_kthread();
 	for (;;) {
@@ -2190,14 +2190,14 @@ static int __noreturn rcu_gp_kthread(void *arg)
  * which is released before return.
  */
 static void rcu_report_qs_rsp(unsigned long flags)
-	__releases(rcu_get_root(rsp)->lock)
+	__releases(rcu_get_root()->lock)
 {
 	struct rcu_state *rsp = &rcu_state;
 
-	raw_lockdep_assert_held_rcu_node(rcu_get_root(rsp));
+	raw_lockdep_assert_held_rcu_node(rcu_get_root());
 	WARN_ON_ONCE(!rcu_gp_in_progress());
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
-	raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(rsp), flags);
+	raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(), flags);
 	rcu_gp_kthread_wake(rsp);
 }
 
@@ -2654,7 +2654,7 @@ static void force_quiescent_state(struct rcu_state *rsp)
 			return;
 		rnp_old = rnp;
 	}
-	/* rnp_old == rcu_get_root(rsp), rnp == NULL. */
+	/* rnp_old == rcu_get_root(), rnp == NULL. */
 
 	/* Reached the root of the rcu_node tree, acquire lock. */
 	raw_spin_lock_irqsave_rcu_node(rnp_old, flags);
@@ -2679,7 +2679,7 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
 	unsigned long flags;
 	unsigned long j;
-	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	struct rcu_node *rnp_root = rcu_get_root();
 	static atomic_t warned = ATOMIC_INIT(0);
 
 	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
@@ -3397,7 +3397,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	struct rcu_node *rnp = rcu_get_root(rsp);
+	struct rcu_node *rnp = rcu_get_root();
 
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -3646,7 +3646,7 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	unsigned long flags;
 	struct rcu_data *my_rdp;
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
+	struct rcu_node *rnp_root = rcu_get_root();
 	bool needwake;
 
 	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
@@ -3744,7 +3744,7 @@ static int __init rcu_spawn_gp_kthread(void)
 	for_each_rcu_flavor(rsp) {
 		t = kthread_create(rcu_gp_kthread, rsp, "%s", rsp->name);
 		BUG_ON(IS_ERR(t));
-		rnp = rcu_get_root(rsp);
+		rnp = rcu_get_root();
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		rsp->gp_kthread = t;
 		if (kthread_prio) {
