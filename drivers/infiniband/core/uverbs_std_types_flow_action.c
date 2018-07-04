@@ -367,8 +367,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(struct ib_device
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,
-		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
-		UA_MIN_SZ_OR_ZERO
+		UVERBS_ATTR_STRUCT(
+			struct ib_uverbs_flow_action_esp_keymat_aes_gcm,
+			aes_key),
 	},
 };
 
@@ -380,8 +381,8 @@ static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	},
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
 		.type = UVERBS_ATTR_TYPE_PTR_IN,
-		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
-		UA_MIN_SZ_OR_ZERO
+		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp,
+				   size),
 	},
 };
 
@@ -394,8 +395,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
 			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
 					      hard_limit_pkts),
-			   UA_MANDATORY,
-			   UA_MIN_SZ_OR_ZERO),
+			   UA_MANDATORY),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
 			   UVERBS_ATTR_TYPE(__u32),
 			   UA_OPTIONAL),
@@ -407,8 +407,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(
 		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
-		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap,
-				   type),
+		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_encap),
 		UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD(
@@ -420,8 +419,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
 			   UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp,
 					      hard_limit_pkts),
-			   UA_OPTIONAL,
-			   UA_MIN_SZ_OR_ZERO),
+			   UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
 			   UVERBS_ATTR_TYPE(__u32),
 			   UA_OPTIONAL),
@@ -433,8 +431,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(
 		UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
-		UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_encap,
-				   type),
+		UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_encap),
 		UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(

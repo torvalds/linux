@@ -98,14 +98,14 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		 * non-zero content, making ABI compat/discovery simpler.
 		 */
 		if (uattr->len > val_spec->u.ptr.len &&
-		    val_spec->min_sz_or_zero &&
+		    val_spec->zero_trailing &&
 		    !uverbs_is_attr_cleared(uattr, val_spec->u.ptr.len))
 			return -EOPNOTSUPP;
 
 	/* fall through */
 	case UVERBS_ATTR_TYPE_PTR_OUT:
 		if (uattr->len < val_spec->u.ptr.min_len ||
-		    (!val_spec->min_sz_or_zero &&
+		    (!val_spec->zero_trailing &&
 		     uattr->len > val_spec->u.ptr.len))
 			return -EINVAL;
 

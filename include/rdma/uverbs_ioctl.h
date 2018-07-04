@@ -67,10 +67,11 @@ struct uverbs_attr_spec {
 	u8 type;
 
 	/*
-	 * Support extending attributes by length, validate all
-	 * unknown size == zero
+	 * Support extending attributes by length. Allow the user to provide
+	 * more bytes than ptr.len, but check that everything after is zero'd
+	 * by the user.
 	 */
-	u8 min_sz_or_zero:1;
+	u8 zero_trailing:1;
 	/*
 	 * Valid only for PTR_IN. Allocate and copy the data inside
 	 * the parser
@@ -200,13 +201,26 @@ struct uverbs_object_tree_def {
  * =======================================
  */
 
-/* Use in the _type parameter for attribute specifications */
-#define UVERBS_ATTR_TYPE(_type)					\
-	.u.ptr.min_len = sizeof(_type), .u.ptr.len = sizeof(_type)
-#define UVERBS_ATTR_STRUCT(_type, _last)			\
-	.u.ptr.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .u.ptr.len = sizeof(_type)
 #define UVERBS_ATTR_SIZE(_min_len, _len)			\
 	.u.ptr.min_len = _min_len, .u.ptr.len = _len
+
+/*
+ * Specifies a uapi structure that cannot be extended. The user must always
+ * supply the whole structure and nothing more. The structure must be declared
+ * in a header under include/uapi/rdma.
+ */
+#define UVERBS_ATTR_TYPE(_type)					\
+	.u.ptr.min_len = sizeof(_type), .u.ptr.len = sizeof(_type)
+/*
+ * Specifies a uapi structure where the user must provide at least up to
+ * member 'last'.  Anything after last and up until the end of the structure
+ * can be non-zero, anything longer than the end of the structure must be
+ * zero. The structure must be declared in a header under include/uapi/rdma.
+ */
+#define UVERBS_ATTR_STRUCT(_type, _last)                                       \
+	.zero_trailing = 1,                                                    \
+	UVERBS_ATTR_SIZE(((uintptr_t)(&((_type *)0)->_last + 1)),              \
+			 sizeof(_type))
 /*
  * Specifies at least min_len bytes must be passed in, but the amount can be
  * larger, up to the protocol maximum size. No check for zeroing is done.
@@ -216,7 +230,6 @@ struct uverbs_object_tree_def {
 /* Must be used in the '...' of any UVERBS_ATTR */
 #define UA_ALLOC_AND_COPY .alloc_and_copy = 1
 #define UA_MANDATORY .mandatory = 1
-#define UA_MIN_SZ_OR_ZERO .min_sz_or_zero = 1
 #define UA_OPTIONAL .mandatory = 0
 
 #define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
