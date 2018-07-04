@@ -181,6 +181,7 @@
 &acodec {
 	status = "disabled";
 
+	rockchip,no-hp-det;
 	rockchip,loopback-grp = <1>;
 	spk-ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 };
