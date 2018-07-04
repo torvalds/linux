@@ -909,6 +909,63 @@ static struct clk_regmap axg_sd_emmc_c_clk0 = {
 	},
 };
 
+static u32 mux_table_gen_clk[]	= { 0, 4, 5, 6, 7, 8,
+				    9, 10, 11, 13, 14, };
+static const char * const gen_clk_parent_names[] = {
+	"xtal", "hifi_pll", "mpll0", "mpll1", "mpll2", "mpll3",
+	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7", "gp0_pll",
+};
+
+static struct clk_regmap axg_gen_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.mask = 0xf,
+		.shift = 12,
+		.table = mux_table_gen_clk,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_sel",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * bits 15:12 selects from 14 possible parents:
+		 * xtal, [rtc_oscin_i], [sys_cpu_div16], [ddr_dpll_pt],
+		 * hifi_pll, mpll0, mpll1, mpll2, mpll3, fdiv4,
+		 * fdiv3, fdiv5, [cts_msr_clk], fdiv7, gp0_pll
+		 */
+		.parent_names = gen_clk_parent_names,
+		.num_parents = ARRAY_SIZE(gen_clk_parent_names),
+	},
+};
+
+static struct clk_regmap axg_gen_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.shift = 0,
+		.width = 11,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "gen_clk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_gen_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.bit_idx = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "gen_clk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(axg_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(axg_audio_locker, HHI_GCLK_MPEG0, 2);
@@ -1047,7 +1104,9 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_PCIE_CML_EN0]		= &axg_pcie_cml_en0.hw,
 		[CLKID_PCIE_CML_EN1]		= &axg_pcie_cml_en1.hw,
 		[CLKID_MIPI_ENABLE]		= &axg_mipi_enable.hw,
-
+		[CLKID_GEN_CLK_SEL]		= &axg_gen_clk_sel.hw,
+		[CLKID_GEN_CLK_DIV]		= &axg_gen_clk_div.hw,
+		[CLKID_GEN_CLK]			= &axg_gen_clk.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -1132,6 +1191,9 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_pcie_cml_en0,
 	&axg_pcie_cml_en1,
 	&axg_mipi_enable,
+	&axg_gen_clk_sel,
+	&axg_gen_clk_div,
+	&axg_gen_clk,
 };
 
 static const struct of_device_id clkc_match_table[] = {

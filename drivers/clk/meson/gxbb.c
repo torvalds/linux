@@ -1624,6 +1624,63 @@ static struct clk_regmap gxbb_vdec_hevc = {
 	},
 };
 
+static u32 mux_table_gen_clk[]	= { 0, 4, 5, 6, 7, 8,
+				    9, 10, 11, 13, 14, };
+static const char * const gen_clk_parent_names[] = {
+	"xtal", "vdec_1", "vdec_hevc", "mpll0", "mpll1", "mpll2",
+	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7", "gp0_pll",
+};
+
+static struct clk_regmap gxbb_gen_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.mask = 0xf,
+		.shift = 12,
+		.table = mux_table_gen_clk,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_sel",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * bits 15:12 selects from 14 possible parents:
+		 * xtal, [rtc_oscin_i], [sys_cpu_div16], [ddr_dpll_pt],
+		 * vid_pll, vid2_pll (hevc), mpll0, mpll1, mpll2, fdiv4,
+		 * fdiv3, fdiv5, [cts_msr_clk], fdiv7, gp0_pll
+		 */
+		.parent_names = gen_clk_parent_names,
+		.num_parents = ARRAY_SIZE(gen_clk_parent_names),
+	},
+};
+
+static struct clk_regmap gxbb_gen_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.shift = 0,
+		.width = 11,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "gen_clk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_gen_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_GEN_CLK_CNTL,
+		.bit_idx = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "gen_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "gen_clk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 static MESON_GATE(gxbb_ddr, HHI_GCLK_MPEG0, 0);
 static MESON_GATE(gxbb_dos, HHI_GCLK_MPEG0, 1);
@@ -1873,6 +1930,9 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_VDEC_HEVC_SEL]	    = &gxbb_vdec_hevc_sel.hw,
 		[CLKID_VDEC_HEVC_DIV]	    = &gxbb_vdec_hevc_div.hw,
 		[CLKID_VDEC_HEVC]	    = &gxbb_vdec_hevc.hw,
+		[CLKID_GEN_CLK_SEL]	    = &gxbb_gen_clk_sel.hw,
+		[CLKID_GEN_CLK_DIV]	    = &gxbb_gen_clk_div.hw,
+		[CLKID_GEN_CLK]		    = &gxbb_gen_clk.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -2035,6 +2095,9 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_VDEC_HEVC_SEL]	    = &gxbb_vdec_hevc_sel.hw,
 		[CLKID_VDEC_HEVC_DIV]	    = &gxbb_vdec_hevc_div.hw,
 		[CLKID_VDEC_HEVC]	    = &gxbb_vdec_hevc.hw,
+		[CLKID_GEN_CLK_SEL]	    = &gxbb_gen_clk_sel.hw,
+		[CLKID_GEN_CLK_DIV]	    = &gxbb_gen_clk_div.hw,
+		[CLKID_GEN_CLK]		    = &gxbb_gen_clk.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -2199,6 +2262,9 @@ static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_vdec_hevc_sel,
 	&gxbb_vdec_hevc_div,
 	&gxbb_vdec_hevc,
+	&gxbb_gen_clk_sel,
+	&gxbb_gen_clk_div,
+	&gxbb_gen_clk,
 };
 
 struct clkc_data {
