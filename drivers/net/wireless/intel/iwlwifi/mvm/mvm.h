@@ -789,7 +789,6 @@ struct iwl_mvm_geo_profile {
 };
 
 struct iwl_mvm_dqa_txq_info {
-	u8 hw_queue_refcount;
 	u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 	bool reserved; /* Is this the TXQ reserved for a STA */
 	u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */

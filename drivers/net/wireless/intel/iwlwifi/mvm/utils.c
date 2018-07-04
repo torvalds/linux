@@ -619,7 +619,7 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 		return -EINVAL;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	if (WARN(mvm->queue_info[queue].hw_queue_refcount == 0,
+	if (WARN(mvm->queue_info[queue].tid_bitmap == 0,
 		 "Trying to reconfig unallocated queue %d\n", queue)) {
 		spin_unlock_bh(&mvm->queue_info_lock);
 		return -ENXIO;
