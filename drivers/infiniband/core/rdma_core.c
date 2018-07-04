@@ -52,10 +52,10 @@ int uverbs_ns_idx(u16 *id, unsigned int ns_count)
 	return ret;
 }
 
-const struct uverbs_object_spec *uverbs_get_object(const struct ib_device *ibdev,
+const struct uverbs_object_spec *uverbs_get_object(struct ib_uverbs_file *ufile,
 						   uint16_t object)
 {
-	const struct uverbs_root_spec *object_hash = ibdev->specs_root;
+	const struct uverbs_root_spec *object_hash = ufile->device->specs_root;
 	const struct uverbs_object_spec_hash *objects;
 	int ret = uverbs_ns_idx(&object, object_hash->num_buckets);
 

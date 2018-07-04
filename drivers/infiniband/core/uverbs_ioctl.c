@@ -46,8 +46,7 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 			   0, uattr->len - len);
 }
 
-static int uverbs_process_attr(struct ib_device *ibdev,
-			       struct ib_ucontext *ucontext,
+static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 			       const struct ib_uverbs_attr *uattr,
 			       u16 attr_id,
 			       const struct uverbs_attr_spec_hash *attr_spec_bucket,
@@ -145,17 +144,18 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 		if (uattr->attr_data.reserved)
 			return -EINVAL;
 
-		if (uattr->len != 0 || !ucontext || uattr->data > INT_MAX)
+		if (uattr->len != 0 || !ufile->ucontext ||
+		    uattr->data > INT_MAX)
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
-		object = uverbs_get_object(ibdev, spec->obj.obj_type);
+		object = uverbs_get_object(ufile, spec->obj.obj_type);
 		if (!object)
 			return -EINVAL;
 
 		o_attr->uobject = uverbs_get_uobject_from_context(
 					object->type_attrs,
-					ucontext,
+					ufile->ucontext,
 					spec->obj.access,
 					(int)uattr->data);
 
@@ -230,8 +230,7 @@ static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
 	return ret;
 }
 
-static int uverbs_uattrs_process(struct ib_device *ibdev,
-				 struct ib_ucontext *ucontext,
+static int uverbs_uattrs_process(struct ib_uverbs_file *ufile,
 				 const struct ib_uverbs_attr *uattrs,
 				 size_t num_uattrs,
 				 const struct uverbs_method_spec *method,
@@ -267,9 +266,9 @@ static int uverbs_uattrs_process(struct ib_device *ibdev,
 			num_given_buckets = ret + 1;
 
 		attr_spec_bucket = method->attr_buckets[ret];
-		ret = uverbs_process_attr(ibdev, ucontext, uattr, attr_id,
-					  attr_spec_bucket, &attr_bundle->hash[ret],
-					  uattr_ptr++);
+		ret = uverbs_process_attr(ufile, uattr, attr_id,
+					  attr_spec_bucket,
+					  &attr_bundle->hash[ret], uattr_ptr++);
 		if (ret) {
 			uverbs_finalize_attrs(attr_bundle,
 					      method->attr_buckets,
@@ -324,9 +323,8 @@ static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
 	int finalize_ret;
 	int num_given_buckets;
 
-	num_given_buckets = uverbs_uattrs_process(ibdev, ufile->ucontext, uattrs,
-						  num_uattrs, method_spec,
-						  attr_bundle, uattr_ptr);
+	num_given_buckets = uverbs_uattrs_process(
+		ufile, uattrs, num_uattrs, method_spec, attr_bundle, uattr_ptr);
 	if (num_given_buckets <= 0)
 		return -EINVAL;
 
@@ -367,7 +365,7 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	if (hdr->driver_id != ib_dev->driver_id)
 		return -EINVAL;
 
-	object_spec = uverbs_get_object(ib_dev, hdr->object_id);
+	object_spec = uverbs_get_object(file, hdr->object_id);
 	if (!object_spec)
 		return -EPROTONOSUPPORT;
 

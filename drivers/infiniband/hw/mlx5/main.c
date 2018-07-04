@@ -5350,15 +5350,15 @@ static int populate_specs_root(struct mlx5_ib_dev *dev)
 	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
 		default_root[num_trees++] = mlx5_ib_get_devx_tree();
 
-	dev->ib_dev.specs_root =
+	dev->ib_dev.driver_specs_root =
 		uverbs_alloc_spec_tree(num_trees, default_root);
 
-	return PTR_ERR_OR_ZERO(dev->ib_dev.specs_root);
+	return PTR_ERR_OR_ZERO(dev->ib_dev.driver_specs_root);
 }
 
 static void depopulate_specs_root(struct mlx5_ib_dev *dev)
 {
-	uverbs_free_spec_tree(dev->ib_dev.specs_root);
+	uverbs_free_spec_tree(dev->ib_dev.driver_specs_root);
 }
 
 static int mlx5_ib_read_counters(struct ib_counters *counters,
