@@ -2741,17 +2741,19 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 }
 
 /*
- * This does the RCU core processing work for the specified rcu_state
- * and rcu_data structures.  This may be called only from the CPU to
- * whom the rdp belongs.
+ * This does the RCU core processing work for the specified rcu_data
+ * structures.  This may be called only from the CPU to whom the rdp
+ * belongs.
  */
-static void
-__rcu_process_callbacks(struct rcu_state *rsp)
+static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rdp->mynode;
 
+	if (cpu_is_offline(smp_processor_id()))
+		return;
+	trace_rcu_utilization(TPS("Start RCU core"));
 	WARN_ON_ONCE(!rdp->beenonline);
 
 	/* Report any deferred quiescent states if preemption enabled. */
@@ -2780,20 +2782,6 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 
 	/* Do any needed deferred wakeups of rcuo kthreads. */
 	do_nocb_deferred_wakeup(rdp);
-}
-
-/*
- * Do RCU core processing for the current CPU.
- */
-static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
-{
-	struct rcu_state *rsp;
-
-	if (cpu_is_offline(smp_processor_id()))
-		return;
-	trace_rcu_utilization(TPS("Start RCU core"));
-	for_each_rcu_flavor(rsp)
-		__rcu_process_callbacks(rsp);
 	trace_rcu_utilization(TPS("End RCU core"));
 }
 
