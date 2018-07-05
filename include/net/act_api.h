@@ -153,6 +153,7 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   int bind, bool cpustats);
 void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 
+int tcf_idr_delete_index(struct tc_action_net *tn, u32 index);
 int __tcf_idr_release(struct tc_action *a, bool bind, bool strict);
 
 static inline int tcf_idr_release(struct tc_action *a, bool bind)

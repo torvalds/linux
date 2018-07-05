@@ -319,6 +319,45 @@ bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 }
 EXPORT_SYMBOL(tcf_idr_check);
 
+int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p;
+	int ret = 0;
+
+	spin_lock(&idrinfo->lock);
+	p = idr_find(&idrinfo->action_idr, index);
+	if (!p) {
+		spin_unlock(&idrinfo->lock);
+		return -ENOENT;
+	}
+
+	if (!atomic_read(&p->tcfa_bindcnt)) {
+		if (refcount_dec_and_test(&p->tcfa_refcnt)) {
+			struct module *owner = p->ops->owner;
+
+			WARN_ON(p != idr_remove(&idrinfo->action_idr,
+						p->tcfa_index));
+			spin_unlock(&idrinfo->lock);
+
+			if (p->ops->cleanup)
+				p->ops->cleanup(p);
+
+			gen_kill_estimator(&p->tcfa_rate_est);
+			free_tcf(p);
+			module_put(owner);
+			return 0;
+		}
+		ret = 0;
+	} else {
+		ret = -EPERM;
+	}
+
+	spin_unlock(&idrinfo->lock);
+	return ret;
+}
+EXPORT_SYMBOL(tcf_idr_delete_index);
+
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
 		   int bind, bool cpustats)
