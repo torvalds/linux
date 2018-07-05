@@ -1712,20 +1712,20 @@ static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 			       bool long_pulse_detect(enum port port, u32 val))
 {
 	enum port port;
-	int i;
+	enum hpd_pin pin;
 
-	for_each_hpd_pin(i) {
-		if ((hpd[i] & hotplug_trigger) == 0)
+	for_each_hpd_pin(pin) {
+		if ((hpd[pin] & hotplug_trigger) == 0)
 			continue;
 
-		*pin_mask |= BIT(i);
+		*pin_mask |= BIT(pin);
 
-		port = intel_hpd_pin_to_port(dev_priv, i);
+		port = intel_hpd_pin_to_port(dev_priv, pin);
 		if (port == PORT_NONE)
 			continue;
 
 		if (long_pulse_detect(port, dig_hotplug_reg))
-			*long_mask |= BIT(i);
+			*long_mask |= BIT(pin);
 	}
 
 	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x\n",

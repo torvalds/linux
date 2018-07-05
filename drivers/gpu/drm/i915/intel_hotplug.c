@@ -241,25 +241,25 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     hotplug.reenable_work.work);
 	struct drm_device *dev = &dev_priv->drm;
-	int i;
+	enum hpd_pin pin;
 
 	intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	for_each_hpd_pin(i) {
+	for_each_hpd_pin(pin) {
 		struct drm_connector *connector;
 		struct drm_connector_list_iter conn_iter;
 
-		if (dev_priv->hotplug.stats[i].state != HPD_DISABLED)
+		if (dev_priv->hotplug.stats[pin].state != HPD_DISABLED)
 			continue;
 
-		dev_priv->hotplug.stats[i].state = HPD_ENABLED;
+		dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
 
 		drm_connector_list_iter_begin(dev, &conn_iter);
 		drm_for_each_connector_iter(connector, &conn_iter) {
 			struct intel_connector *intel_connector = to_intel_connector(connector);
 
-			if (intel_connector->encoder->hpd_pin == i) {
+			if (intel_connector->encoder->hpd_pin == pin) {
 				if (connector->polled != intel_connector->polled)
 					DRM_DEBUG_DRIVER("Reenabling HPD on connector %s\n",
 							 connector->name);
@@ -432,14 +432,14 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 	spin_lock(&dev_priv->irq_lock);
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		enum hpd_pin i = encoder->hpd_pin;
+		enum hpd_pin pin = encoder->hpd_pin;
 		bool has_hpd_pulse = intel_encoder_has_hpd_pulse(encoder);
 
-		if (!(BIT(i) & pin_mask))
+		if (!(BIT(pin) & pin_mask))
 			continue;
 
 		if (has_hpd_pulse) {
-			bool long_hpd = long_mask & BIT(i);
+			bool long_hpd = long_mask & BIT(pin);
 			enum port port = encoder->port;
 
 			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
@@ -458,7 +458,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			}
 		}
 
-		if (dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
+		if (dev_priv->hotplug.stats[pin].state == HPD_DISABLED) {
 			/*
 			 * On GMCH platforms the interrupt mask bits only
 			 * prevent irq generation, not the setting of the
@@ -466,20 +466,20 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			 * interrupts on saner platforms.
 			 */
 			WARN_ONCE(!HAS_GMCH_DISPLAY(dev_priv),
-				  "Received HPD interrupt on pin %d although disabled\n", i);
+				  "Received HPD interrupt on pin %d although disabled\n", pin);
 			continue;
 		}
 
-		if (dev_priv->hotplug.stats[i].state != HPD_ENABLED)
+		if (dev_priv->hotplug.stats[pin].state != HPD_ENABLED)
 			continue;
 
 		if (!has_hpd_pulse) {
-			dev_priv->hotplug.event_bits |= BIT(i);
+			dev_priv->hotplug.event_bits |= BIT(pin);
 			queue_hp = true;
 		}
 
-		if (intel_hpd_irq_storm_detect(dev_priv, i)) {
-			dev_priv->hotplug.event_bits &= ~BIT(i);
+		if (intel_hpd_irq_storm_detect(dev_priv, pin)) {
+			dev_priv->hotplug.event_bits &= ~BIT(pin);
 			storm_detected = true;
 		}
 	}
