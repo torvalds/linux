@@ -329,12 +329,24 @@ static int wkup_m3_finish_low_power(struct wkup_m3_ipc *m3_ipc)
 	return 0;
 }
 
+/**
+ * wkup_m3_set_rtc_only - Set the rtc_only flag
+ * @wkup_m3_wakeup: struct wkup_m3_wakeup_src * gets assigned the
+ *                  wakeup src value
+ */
+static void wkup_m3_set_rtc_only(struct wkup_m3_ipc *m3_ipc)
+{
+	if (m3_ipc_state)
+		m3_ipc_state->is_rtc_only = true;
+}
+
 static struct wkup_m3_ipc_ops ipc_ops = {
 	.set_mem_type = wkup_m3_set_mem_type,
 	.set_resume_address = wkup_m3_set_resume_address,
 	.prepare_low_power = wkup_m3_prepare_low_power,
 	.finish_low_power = wkup_m3_finish_low_power,
 	.request_pm_status = wkup_m3_request_pm_status,
+	.set_rtc_only = wkup_m3_set_rtc_only,
 };
 
 /**
@@ -484,6 +496,32 @@ static int wkup_m3_ipc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wkup_m3_ipc_suspend(struct device *dev)
+{
+	/*
+	 * Nothing needs to be done on suspend even with rtc_only flag set
+	 */
+	return 0;
+}
+
+static int wkup_m3_ipc_resume(struct device *dev)
+{
+	if (m3_ipc_state->is_rtc_only) {
+		rproc_shutdown(m3_ipc_state->rproc);
+		rproc_boot(m3_ipc_state->rproc);
+	}
+
+	m3_ipc_state->is_rtc_only = false;
+
+	return 0;
+}
+
+static const struct dev_pm_ops wkup_m3_ipc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(wkup_m3_ipc_suspend, wkup_m3_ipc_resume)
+};
+#endif
+
 static const struct of_device_id wkup_m3_ipc_of_match[] = {
 	{ .compatible = "ti,am3352-wkup-m3-ipc", },
 	{ .compatible = "ti,am4372-wkup-m3-ipc", },
@@ -497,6 +535,9 @@ static struct platform_driver wkup_m3_ipc_driver = {
 	.driver = {
 		.name = "wkup_m3_ipc",
 		.of_match_table = wkup_m3_ipc_of_match,
+#ifdef CONFIG_PM
+		.pm = &wkup_m3_ipc_pm_ops,
+#endif
 	},
 };
 
