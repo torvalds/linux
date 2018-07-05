@@ -4441,7 +4441,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
 #ifdef CONFIG_SUSPEND
-static int _regulator_suspend_late(struct device *dev, void *data)
+static int _regulator_suspend(struct device *dev, void *data)
 {
 	struct regulator_dev *rdev = dev_to_rdev(dev);
 	suspend_state_t *state = data;
@@ -4455,20 +4455,20 @@ static int _regulator_suspend_late(struct device *dev, void *data)
 }
 
 /**
- * regulator_suspend_late - prepare regulators for system wide suspend
+ * regulator_suspend - prepare regulators for system wide suspend
  * @state: system suspend state
  *
  * Configure each regulator with it's suspend operating parameters for state.
  */
-static int regulator_suspend_late(struct device *dev)
+static int regulator_suspend(struct device *dev)
 {
 	suspend_state_t state = pm_suspend_target_state;
 
 	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_suspend_late);
+				     _regulator_suspend);
 }
 
-static int _regulator_resume_early(struct device *dev, void *data)
+static int _regulator_resume(struct device *dev, void *data)
 {
 	int ret = 0;
 	struct regulator_dev *rdev = dev_to_rdev(dev);
@@ -4481,35 +4481,35 @@ static int _regulator_resume_early(struct device *dev, void *data)
 
 	regulator_lock(rdev);
 
-	if (rdev->desc->ops->resume_early &&
+	if (rdev->desc->ops->resume &&
 	    (rstate->enabled == ENABLE_IN_SUSPEND ||
 	     rstate->enabled == DISABLE_IN_SUSPEND))
-		ret = rdev->desc->ops->resume_early(rdev);
+		ret = rdev->desc->ops->resume(rdev);
 
 	regulator_unlock(rdev);
 
 	return ret;
 }
 
-static int regulator_resume_early(struct device *dev)
+static int regulator_resume(struct device *dev)
 {
 	suspend_state_t state = pm_suspend_target_state;
 
 	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_resume_early);
+				     _regulator_resume);
 }
 
 #else /* !CONFIG_SUSPEND */
 
-#define regulator_suspend_late	NULL
-#define regulator_resume_early	NULL
+#define regulator_suspend	NULL
+#define regulator_resume	NULL
 
 #endif /* !CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops __maybe_unused regulator_pm_ops = {
-	.suspend_late	= regulator_suspend_late,
-	.resume_early	= regulator_resume_early,
+	.suspend	= regulator_suspend,
+	.resume		= regulator_resume,
 };
 #endif
 
