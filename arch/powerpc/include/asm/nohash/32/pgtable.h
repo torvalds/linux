@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
+#include <asm/asm-405.h>
 
 extern unsigned long ioremap_bot;
 

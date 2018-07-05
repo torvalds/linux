@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
+#include <asm/asm-405.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 

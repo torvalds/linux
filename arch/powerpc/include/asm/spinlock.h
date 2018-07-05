@@ -27,6 +27,7 @@
 #include <asm/asm-compat.h>
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-405.h>
 
 #ifdef CONFIG_PPC64
 /* use 0x800000yy when locked, where yy == CPU number */

@@ -9,6 +9,7 @@
 #include <asm/errno.h>
 #include <asm/synch.h>
 #include <asm/asm-compat.h>
+#include <asm/asm-405.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
   __asm__ __volatile ( \
