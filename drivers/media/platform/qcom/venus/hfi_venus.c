@@ -1444,13 +1444,40 @@ static int venus_suspend_1xx(struct venus_core *core)
 	return 0;
 }
 
+static bool venus_cpu_and_video_core_idle(struct venus_hfi_device *hdev)
+{
+	u32 ctrl_status, cpu_status;
+
+	cpu_status = venus_readl(hdev, WRAPPER_CPU_STATUS);
+	ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
+
+	if (cpu_status & WRAPPER_CPU_STATUS_WFI &&
+	    ctrl_status & CPU_CS_SCIACMDARG0_INIT_IDLE_MSG_MASK)
+		return true;
+
+	return false;
+}
+
+static bool venus_cpu_idle_and_pc_ready(struct venus_hfi_device *hdev)
+{
+	u32 ctrl_status, cpu_status;
+
+	cpu_status = venus_readl(hdev, WRAPPER_CPU_STATUS);
+	ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
+
+	if (cpu_status & WRAPPER_CPU_STATUS_WFI &&
+	    ctrl_status & CPU_CS_SCIACMDARG0_PC_READY)
+		return true;
+
+	return false;
+}
+
 static int venus_suspend_3xx(struct venus_core *core)
 {
 	struct venus_hfi_device *hdev = to_hfi_priv(core);
 	struct device *dev = core->dev;
-	u32 ctrl_status, wfi_status;
+	bool val;
 	int ret;
-	int cnt = 100;
 
 	if (!hdev->power_enabled || hdev->suspended)
 		return 0;
@@ -1464,28 +1491,29 @@ static int venus_suspend_3xx(struct venus_core *core)
 		return -EINVAL;
 	}
 
-	ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
-	if (!(ctrl_status & CPU_CS_SCIACMDARG0_PC_READY)) {
-		wfi_status = venus_readl(hdev, WRAPPER_CPU_STATUS);
-		ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
+	/*
+	 * Power collapse sequence for Venus 3xx and 4xx versions:
+	 * 1. Check for ARM9 and video core to be idle by checking WFI bit
+	 *    (bit 0) in CPU status register and by checking Idle (bit 30) in
+	 *    Control status register for video core.
+	 * 2. Send a command to prepare for power collapse.
+	 * 3. Check for WFI and PC_READY bits.
+	 */
+	ret = readx_poll_timeout(venus_cpu_and_video_core_idle, hdev, val, val,
+				 1500, 100 * 1500);
+	if (ret)
+		return ret;
 
-		ret = venus_prepare_power_collapse(hdev, false);
-		if (ret) {
-			dev_err(dev, "prepare for power collapse fail (%d)\n",
-				ret);
-			return ret;
-		}
-
-		cnt = 100;
-		while (cnt--) {
-			wfi_status = venus_readl(hdev, WRAPPER_CPU_STATUS);
-			ctrl_status = venus_readl(hdev, CPU_CS_SCIACMDARG0);
-			if (ctrl_status & CPU_CS_SCIACMDARG0_PC_READY &&
-			    wfi_status & BIT(0))
-				break;
-			usleep_range(1000, 1500);
-		}
+	ret = venus_prepare_power_collapse(hdev, false);
+	if (ret) {
+		dev_err(dev, "prepare for power collapse fail (%d)\n", ret);
+		return ret;
 	}
+
+	ret = readx_poll_timeout(venus_cpu_idle_and_pc_ready, hdev, val, val,
+				 1500, 100 * 1500);
+	if (ret)
+		return ret;
 
 	mutex_lock(&hdev->lock);
 
