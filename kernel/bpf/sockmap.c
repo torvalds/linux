@@ -2467,10 +2467,8 @@ struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key)
 	b = __select_bucket(htab, hash);
 	head = &b->head;
 
-	raw_spin_lock_bh(&b->lock);
 	l = lookup_elem_raw(head, hash, key, key_size);
 	sk = l ? l->sk : NULL;
-	raw_spin_unlock_bh(&b->lock);
 	return sk;
 }
 
