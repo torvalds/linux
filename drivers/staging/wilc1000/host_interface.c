@@ -3370,15 +3370,15 @@ int wilc_deinit(struct wilc_vif *vif)
 		struct host_if_msg *msg;
 
 		msg = wilc_alloc_work(vif, handle_hif_exit_work, true);
-		if (IS_ERR(msg))
-			return PTR_ERR(msg);
-
-		result = wilc_enqueue_work(msg);
-		if (result)
-			netdev_err(vif->ndev, "deinit : Error(%d)\n", result);
-		else
-			wait_for_completion(&msg->work_comp);
-		kfree(msg);
+		if (!IS_ERR(msg)) {
+			result = wilc_enqueue_work(msg);
+			if (result)
+				netdev_err(vif->ndev, "deinit : Error(%d)\n",
+					   result);
+			else
+				wait_for_completion(&msg->work_comp);
+			kfree(msg);
+		}
 		destroy_workqueue(hif_workqueue);
 	}
 
