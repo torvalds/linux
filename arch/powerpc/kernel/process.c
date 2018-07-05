@@ -717,6 +717,13 @@ void switch_booke_debug_regs(struct debug_reg *new_debug)
 EXPORT_SYMBOL_GPL(switch_booke_debug_regs);
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
+static void set_breakpoint(struct arch_hw_breakpoint *brk)
+{
+	preempt_disable();
+	__set_breakpoint(brk);
+	preempt_enable();
+}
+
 static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	thread->hw_brk.address = 0;
@@ -827,13 +834,6 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 	else
 		// Shouldn't happen due to higher level checks
 		WARN_ON_ONCE(1);
-}
-
-void set_breakpoint(struct arch_hw_breakpoint *brk)
-{
-	preempt_disable();
-	__set_breakpoint(brk);
-	preempt_enable();
 }
 
 /* Check if we have DAWR or DABR hardware */
