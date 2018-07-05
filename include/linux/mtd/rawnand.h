@@ -23,7 +23,6 @@
 #include <linux/mtd/bbm.h>
 #include <linux/types.h>
 
-struct mtd_info;
 struct nand_flash_dev;
 struct device_node;
 
