@@ -249,7 +249,8 @@ config MTD_NAND_DOCG4
 
 config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
-	depends on ARCH_PXA
+	depends on ARCH_PXA || COMPILE_TEST
+	depends on HAS_IOMEM
 
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
