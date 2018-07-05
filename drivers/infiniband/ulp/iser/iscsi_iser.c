@@ -610,12 +610,10 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			  uint32_t initial_cmdsn)
 {
 	struct iscsi_cls_session *cls_session;
-	struct iscsi_session *session;
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
 	struct ib_conn *ib_conn;
 	u32 max_fr_sectors;
-	u16 max_cmds;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
@@ -661,7 +659,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		mutex_unlock(&iser_conn->state_mutex);
 	} else {
 		shost->can_queue = min_t(u16, cmds_max, ISER_DEF_XMIT_CMDS_MAX);
-		max_cmds = ISER_DEF_XMIT_CMDS_MAX;
 		if (iscsi_host_add(shost, NULL))
 			goto free_host;
 	}
@@ -683,7 +680,6 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 					  initial_cmdsn, 0);
 	if (!cls_session)
 		goto remove_host;
-	session = cls_session->dd_data;
 
 	return cls_session;
 
