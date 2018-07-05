@@ -1672,29 +1672,28 @@ unwind:
 }
 
 static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
-				 struct snd_soc_pcm_stream *stream,
-				 u64 formats)
+				 struct snd_soc_pcm_stream *stream)
 {
 	runtime->hw.rate_min = stream->rate_min;
 	runtime->hw.rate_max = stream->rate_max;
 	runtime->hw.channels_min = stream->channels_min;
 	runtime->hw.channels_max = stream->channels_max;
 	if (runtime->hw.formats)
-		runtime->hw.formats &= formats & stream->formats;
+		runtime->hw.formats &= stream->formats;
 	else
-		runtime->hw.formats = formats & stream->formats;
+		runtime->hw.formats = stream->formats;
 	runtime->hw.rates = stream->rates;
 }
 
-static u64 dpcm_runtime_base_format(struct snd_pcm_substream *substream)
+static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
+				      u64 *formats)
 {
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	struct snd_soc_dpcm *dpcm;
-	u64 formats = ULLONG_MAX;
 	int stream = substream->stream;
 
 	if (!fe->dai_link->dpcm_merged_format)
-		return formats;
+		return;
 
 	/*
 	 * It returns merged BE codec format
@@ -1714,16 +1713,14 @@ static u64 dpcm_runtime_base_format(struct snd_pcm_substream *substream)
 			else
 				codec_stream = &codec_dai_drv->capture;
 
-			formats &= codec_stream->formats;
+			*formats &= codec_stream->formats;
 		}
 	}
-
-	return formats;
 }
 
-static void dpcm_runtime_base_chan(struct snd_pcm_substream *substream,
-				   unsigned int *channels_min,
-				   unsigned int *channels_max)
+static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
+				    unsigned int *channels_min,
+				    unsigned int *channels_max)
 {
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	struct snd_soc_dpcm *dpcm;
@@ -1731,9 +1728,6 @@ static void dpcm_runtime_base_chan(struct snd_pcm_substream *substream,
 
 	if (!fe->dai_link->dpcm_merged_chan)
 		return;
-
-	*channels_min = 0;
-	*channels_max = UINT_MAX;
 
 	/*
 	 * It returns merged BE codec channel;
@@ -1781,18 +1775,15 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai_driver *cpu_dai_drv = cpu_dai->driver;
-	u64 format = dpcm_runtime_base_format(substream);
-	unsigned int channels_min = 0, channels_max = UINT_MAX;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback, format);
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->playback);
 	else
-		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture, format);
+		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
 
-	dpcm_runtime_base_chan(substream, &channels_min, &channels_max);
-
-	runtime->hw.channels_min = max(channels_min, runtime->hw.channels_min);
-	runtime->hw.channels_max = min(channels_max, runtime->hw.channels_max);
+	dpcm_runtime_merge_format(substream, &runtime->hw.formats);
+	dpcm_runtime_merge_chan(substream, &runtime->hw.channels_min,
+				&runtime->hw.channels_max);
 }
 
 static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd);
