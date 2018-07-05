@@ -529,10 +529,16 @@ static int vdec_set_properties(struct venus_inst *inst)
 	return 0;
 }
 
+#define is_ubwc_fmt(fmt) (!!((fmt) & HFI_COLOR_FORMAT_UBWC_BASE))
+
 static int vdec_output_conf(struct venus_inst *inst)
 {
 	struct venus_core *core = inst->core;
 	struct hfi_enable en = { .enable = 1 };
+	u32 width = inst->out_width;
+	u32 height = inst->out_height;
+	u32 out_fmt, out2_fmt;
+	bool ubwc = false;
 	u32 ptype;
 	int ret;
 
@@ -549,6 +555,80 @@ static int vdec_output_conf(struct venus_inst *inst)
 		ret = hfi_session_set_property(inst, ptype, &en);
 		if (ret)
 			return ret;
+	}
+
+	/* Force searching UBWC formats for bigger then HD resolutions */
+	if (width > 1920 && height > ALIGN(1080, 32))
+		ubwc = true;
+
+	/* For Venus v4 UBWC format is mandatory */
+	if (IS_V4(core))
+		ubwc = true;
+
+	ret = venus_helper_get_out_fmts(inst, inst->fmt_cap->pixfmt, &out_fmt,
+					&out2_fmt, ubwc);
+	if (ret)
+		return ret;
+
+	inst->output_buf_size =
+			venus_helper_get_framesz_raw(out_fmt, width, height);
+	inst->output2_buf_size =
+			venus_helper_get_framesz_raw(out2_fmt, width, height);
+
+	if (is_ubwc_fmt(out_fmt)) {
+		inst->opb_buftype = HFI_BUFFER_OUTPUT2;
+		inst->opb_fmt = out2_fmt;
+		inst->dpb_buftype = HFI_BUFFER_OUTPUT;
+		inst->dpb_fmt = out_fmt;
+	} else if (is_ubwc_fmt(out2_fmt)) {
+		inst->opb_buftype = HFI_BUFFER_OUTPUT;
+		inst->opb_fmt = out_fmt;
+		inst->dpb_buftype = HFI_BUFFER_OUTPUT2;
+		inst->dpb_fmt = out2_fmt;
+	} else {
+		inst->opb_buftype = HFI_BUFFER_OUTPUT;
+		inst->opb_fmt = out_fmt;
+		inst->dpb_buftype = 0;
+		inst->dpb_fmt = 0;
+	}
+
+	ret = venus_helper_set_raw_format(inst, inst->opb_fmt,
+					  inst->opb_buftype);
+	if (ret)
+		return ret;
+
+	if (inst->dpb_fmt) {
+		ret = venus_helper_set_multistream(inst, false, true);
+		if (ret)
+			return ret;
+
+		ret = venus_helper_set_raw_format(inst, inst->dpb_fmt,
+						  inst->dpb_buftype);
+		if (ret)
+			return ret;
+
+		ret = venus_helper_set_output_resolution(inst, width, height,
+							 HFI_BUFFER_OUTPUT2);
+		if (ret)
+			return ret;
+	}
+
+	if (IS_V3(core) || IS_V4(core)) {
+		if (inst->output2_buf_size) {
+			ret = venus_helper_set_bufsize(inst,
+						       inst->output2_buf_size,
+						       HFI_BUFFER_OUTPUT2);
+			if (ret)
+				return ret;
+		}
+
+		if (inst->output_buf_size) {
+			ret = venus_helper_set_bufsize(inst,
+						       inst->output_buf_size,
+						       HFI_BUFFER_OUTPUT);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = venus_helper_set_dyn_bufmode(inst);
@@ -621,6 +701,8 @@ static int vdec_queue_setup(struct vb2_queue *q,
 	int ret = 0;
 
 	if (*num_planes) {
+		unsigned int output_buf_size = venus_helper_get_opb_size(inst);
+
 		if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
 		    *num_planes != inst->fmt_out->num_planes)
 			return -EINVAL;
@@ -634,7 +716,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
 			return -EINVAL;
 
 		if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
-		    sizes[0] < inst->output_buf_size)
+		    sizes[0] < output_buf_size)
 			return -EINVAL;
 
 		return 0;
@@ -743,6 +825,10 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (ret)
 		goto deinit_sess;
 
+	ret = venus_helper_alloc_dpb_bufs(inst);
+	if (ret)
+		goto deinit_sess;
+
 	ret = venus_helper_vb2_start_streaming(inst);
 	if (ret)
 		goto deinit_sess;
@@ -794,9 +880,11 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	vbuf->field = V4L2_FIELD_NONE;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		unsigned int opb_sz = venus_helper_get_opb_size(inst);
+
 		vb = &vbuf->vb2_buf;
 		vb->planes[0].bytesused =
-			max_t(unsigned int, inst->output_buf_size, bytesused);
+			max_t(unsigned int, opb_sz, bytesused);
 		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;
@@ -934,6 +1022,7 @@ static int vdec_open(struct file *file)
 	if (!inst)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&inst->dpbbufs);
 	INIT_LIST_HEAD(&inst->registeredbufs);
 	INIT_LIST_HEAD(&inst->internalbufs);
 	INIT_LIST_HEAD(&inst->list);

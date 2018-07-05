@@ -85,6 +85,106 @@ bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt)
 }
 EXPORT_SYMBOL_GPL(venus_helper_check_codec);
 
+static int venus_helper_queue_dpb_bufs(struct venus_inst *inst)
+{
+	struct intbuf *buf;
+	int ret = 0;
+
+	list_for_each_entry(buf, &inst->dpbbufs, list) {
+		struct hfi_frame_data fdata;
+
+		memset(&fdata, 0, sizeof(fdata));
+		fdata.alloc_len = buf->size;
+		fdata.device_addr = buf->da;
+		fdata.buffer_type = buf->type;
+
+		ret = hfi_session_process_buf(inst, &fdata);
+		if (ret)
+			goto fail;
+	}
+
+fail:
+	return ret;
+}
+
+int venus_helper_free_dpb_bufs(struct venus_inst *inst)
+{
+	struct intbuf *buf, *n;
+
+	list_for_each_entry_safe(buf, n, &inst->dpbbufs, list) {
+		list_del_init(&buf->list);
+		dma_free_attrs(inst->core->dev, buf->size, buf->va, buf->da,
+			       buf->attrs);
+		kfree(buf);
+	}
+
+	INIT_LIST_HEAD(&inst->dpbbufs);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(venus_helper_free_dpb_bufs);
+
+int venus_helper_alloc_dpb_bufs(struct venus_inst *inst)
+{
+	struct venus_core *core = inst->core;
+	struct device *dev = core->dev;
+	enum hfi_version ver = core->res->hfi_version;
+	struct hfi_buffer_requirements bufreq;
+	u32 buftype = inst->dpb_buftype;
+	unsigned int dpb_size = 0;
+	struct intbuf *buf;
+	unsigned int i;
+	u32 count;
+	int ret;
+
+	/* no need to allocate dpb buffers */
+	if (!inst->dpb_fmt)
+		return 0;
+
+	if (inst->dpb_buftype == HFI_BUFFER_OUTPUT)
+		dpb_size = inst->output_buf_size;
+	else if (inst->dpb_buftype == HFI_BUFFER_OUTPUT2)
+		dpb_size = inst->output2_buf_size;
+
+	if (!dpb_size)
+		return 0;
+
+	ret = venus_helper_get_bufreq(inst, buftype, &bufreq);
+	if (ret)
+		return ret;
+
+	count = HFI_BUFREQ_COUNT_MIN(&bufreq, ver);
+
+	for (i = 0; i < count; i++) {
+		buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+		if (!buf) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		buf->type = buftype;
+		buf->size = dpb_size;
+		buf->attrs = DMA_ATTR_WRITE_COMBINE |
+			     DMA_ATTR_NO_KERNEL_MAPPING;
+		buf->va = dma_alloc_attrs(dev, buf->size, &buf->da, GFP_KERNEL,
+					  buf->attrs);
+		if (!buf->va) {
+			kfree(buf);
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		list_add_tail(&buf->list, &inst->dpbbufs);
+	}
+
+	return 0;
+
+fail:
+	venus_helper_free_dpb_bufs(inst);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(venus_helper_alloc_dpb_bufs);
+
 static int intbufs_set_buffer(struct venus_inst *inst, u32 type)
 {
 	struct venus_core *core = inst->core;
@@ -347,7 +447,10 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST || !fdata.filled_len)
 			fdata.flags |= HFI_BUFFERFLAG_EOS;
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		fdata.buffer_type = HFI_BUFFER_OUTPUT;
+		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+			fdata.buffer_type = HFI_BUFFER_OUTPUT;
+		else
+			fdata.buffer_type = inst->opb_buftype;
 		fdata.filled_len = 0;
 		fdata.offset = 0;
 	}
@@ -677,6 +780,27 @@ int venus_helper_set_color_format(struct venus_inst *inst, u32 pixfmt)
 }
 EXPORT_SYMBOL_GPL(venus_helper_set_color_format);
 
+int venus_helper_set_multistream(struct venus_inst *inst, bool out_en,
+				 bool out2_en)
+{
+	struct hfi_multi_stream multi = {0};
+	u32 ptype = HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM;
+	int ret;
+
+	multi.buffer_type = HFI_BUFFER_OUTPUT;
+	multi.enable = out_en;
+
+	ret = hfi_session_set_property(inst, ptype, &multi);
+	if (ret)
+		return ret;
+
+	multi.buffer_type = HFI_BUFFER_OUTPUT2;
+	multi.enable = out2_en;
+
+	return hfi_session_set_property(inst, ptype, &multi);
+}
+EXPORT_SYMBOL_GPL(venus_helper_set_multistream);
+
 int venus_helper_set_dyn_bufmode(struct venus_inst *inst)
 {
 	const u32 ptype = HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE;
@@ -824,9 +948,10 @@ EXPORT_SYMBOL_GPL(venus_helper_vb2_buf_init);
 int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
+	unsigned int out_buf_size = venus_helper_get_opb_size(inst);
 
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
-	    vb2_plane_size(vb, 0) < inst->output_buf_size)
+	    vb2_plane_size(vb, 0) < out_buf_size)
 		return -EINVAL;
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
 	    vb2_plane_size(vb, 0) < inst->input_buf_size)
@@ -896,6 +1021,8 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q)
 		if (ret)
 			hfi_session_abort(inst);
 
+		venus_helper_free_dpb_bufs(inst);
+
 		load_scale_clocks(core);
 		INIT_LIST_HEAD(&inst->registeredbufs);
 	}
@@ -934,8 +1061,14 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
 	if (ret)
 		goto err_unload_res;
 
+	ret = venus_helper_queue_dpb_bufs(inst);
+	if (ret)
+		goto err_session_stop;
+
 	return 0;
 
+err_session_stop:
+	hfi_session_stop(inst);
 err_unload_res:
 	hfi_session_unload_res(inst);
 err_unreg_bufs:
@@ -988,6 +1121,67 @@ void venus_helper_init_instance(struct venus_inst *inst)
 	}
 }
 EXPORT_SYMBOL_GPL(venus_helper_init_instance);
+
+static bool find_fmt_from_caps(struct venus_caps *caps, u32 buftype, u32 fmt)
+{
+	unsigned int i;
+
+	for (i = 0; i < caps->num_fmts; i++) {
+		if (caps->fmts[i].buftype == buftype &&
+		    caps->fmts[i].fmt == fmt)
+			return true;
+	}
+
+	return false;
+}
+
+int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
+			      u32 *out_fmt, u32 *out2_fmt, bool ubwc)
+{
+	struct venus_core *core = inst->core;
+	struct venus_caps *caps;
+	u32 ubwc_fmt, fmt = to_hfi_raw_fmt(v4l2_fmt);
+	bool found, found_ubwc;
+
+	*out_fmt = *out2_fmt = 0;
+
+	if (!fmt)
+		return -EINVAL;
+
+	caps = venus_caps_by_codec(core, inst->hfi_codec, inst->session_type);
+	if (!caps)
+		return -EINVAL;
+
+	if (ubwc) {
+		ubwc_fmt = fmt | HFI_COLOR_FORMAT_UBWC_BASE;
+		found_ubwc = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT,
+						ubwc_fmt);
+		found = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT2, fmt);
+
+		if (found_ubwc && found) {
+			*out_fmt = ubwc_fmt;
+			*out2_fmt = fmt;
+			return 0;
+		}
+	}
+
+	found = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT, fmt);
+	if (found) {
+		*out_fmt = fmt;
+		*out2_fmt = 0;
+		return 0;
+	}
+
+	found = find_fmt_from_caps(caps, HFI_BUFFER_OUTPUT2, fmt);
+	if (found) {
+		*out_fmt = 0;
+		*out2_fmt = fmt;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_out_fmts);
 
 int venus_helper_power_enable(struct venus_core *core, u32 session_type,
 			      bool enable)

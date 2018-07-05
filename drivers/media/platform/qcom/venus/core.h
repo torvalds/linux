@@ -215,6 +215,7 @@ struct venus_buffer {
  * @list:	used for attach an instance to the core
  * @lock:	instance lock
  * @core:	a reference to the core struct
+ * @dpbbufs:	a list of decoded picture buffers
  * @internalbufs:	a list of internal bufferes
  * @registeredbufs:	a list of registered capture bufferes
  * @delayed_process	a list of delayed buffers
@@ -240,6 +241,8 @@ struct venus_buffer {
  * @input_buf_size	holds input buffer size
  * @output_buf_size:	holds output buffer size
  * @output2_buf_size:	holds secondary decoder output buffer size
+ * @dpb_buftype:	decoded picture buffer type
+ * @dpb_fmt:		decoded picture buffer raw format
  * @opb_buftype:	output picture buffer type
  * @opb_fmt:		output picture buffer raw format
  * @reconfig:	a flag raised by decoder when the stream resolution changed
@@ -263,6 +266,7 @@ struct venus_inst {
 	struct list_head list;
 	struct mutex lock;
 	struct venus_core *core;
+	struct list_head dpbbufs;
 	struct list_head internalbufs;
 	struct list_head registeredbufs;
 	struct list_head delayed_process;
@@ -292,6 +296,8 @@ struct venus_inst {
 	unsigned int input_buf_size;
 	unsigned int output_buf_size;
 	unsigned int output2_buf_size;
+	u32 dpb_buftype;
+	u32 dpb_fmt;
 	u32 opb_buftype;
 	u32 opb_fmt;
 	bool reconfig;
