@@ -187,11 +187,6 @@ struct paca_struct {
 	u8 subcore_sibling_mask;
 	/* Flag to request this thread not to stop */
 	atomic_t dont_stop;
-	/*
-	 * Pointer to an array which contains pointer
-	 * to the sibling threads' paca.
-	 */
-	struct paca_struct **thread_sibling_pacas;
 	/* The PSSCR value that the kernel requested before going to stop */
 	u64 requested_psscr;
 

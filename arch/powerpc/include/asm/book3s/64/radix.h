@@ -12,12 +12,6 @@
 #include <asm/book3s/64/radix-4k.h>
 #endif
 
-/*
- * For P9 DD1 only, we need to track whether the pte's huge.
- */
-#define R_PAGE_LARGE	_RPAGE_RSV1
-
-
 #ifndef __ASSEMBLY__
 #include <asm/book3s/64/tlbflush-radix.h>
 #include <asm/cpu_has_feature.h>
@@ -154,20 +148,7 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 {
 	unsigned long old_pte;
 
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-
-		unsigned long new_pte;
-
-		old_pte = __radix_pte_update(ptep, ~0ul, 0);
-		/*
-		 * new value of pte
-		 */
-		new_pte = (old_pte | set) & ~clr;
-		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
-		if (new_pte)
-			__radix_pte_update(ptep, 0, new_pte);
-	} else
-		old_pte = __radix_pte_update(ptep, clr, set);
+	old_pte = __radix_pte_update(ptep, clr, set);
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
@@ -253,8 +234,6 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
 {
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return __pmd(pmd_val(pmd) | _PAGE_PTE | R_PAGE_LARGE);
 	return __pmd(pmd_val(pmd) | _PAGE_PTE);
 }
 
@@ -285,18 +264,14 @@ static inline unsigned long radix__get_tree_size(void)
 	unsigned long rts_field;
 	/*
 	 * We support 52 bits, hence:
-	 *  DD1    52-28 = 24, 0b11000
-	 *  Others 52-31 = 21, 0b10101
+	 * bits 52 - 31 = 21, 0b10101
 	 * RTS encoding details
 	 * bits 0 - 3 of rts -> bits 6 - 8 unsigned long
 	 * bits 4 - 5 of rts -> bits 62 - 63 of unsigned long
 	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		rts_field = (0x3UL << 61);
-	else {
-		rts_field = (0x5UL << 5); /* 6 - 8 bits */
-		rts_field |= (0x2UL << 61);
-	}
+	rts_field = (0x5UL << 5); /* 6 - 8 bits */
+	rts_field |= (0x2UL << 61);
+
 	return rts_field;
 }
 

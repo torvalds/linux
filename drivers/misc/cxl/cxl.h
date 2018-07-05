@@ -865,14 +865,6 @@ static inline bool cxl_is_power9(void)
 	return false;
 }
 
-static inline bool cxl_is_power9_dd1(void)
-{
-	if ((pvr_version_is(PVR_POWER9)) &&
-	    cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return true;
-	return false;
-}
-
 ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);
 

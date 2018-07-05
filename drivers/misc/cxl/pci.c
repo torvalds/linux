@@ -465,23 +465,21 @@ int cxl_get_xsl9_dsnctl(struct pci_dev *dev, u64 capp_unit_id, u64 *reg)
 	/* nMMU_ID Defaults to: b’000001001’*/
 	xsl_dsnctl |= ((u64)0x09 << (63-28));
 
-	if (!(cxl_is_power9_dd1())) {
-		/*
-		 * Used to identify CAPI packets which should be sorted into
-		 * the Non-Blocking queues by the PHB. This field should match
-		 * the PHB PBL_NBW_CMPM register
-		 * nbwind=0x03, bits [57:58], must include capi indicator.
-		 * Not supported on P9 DD1.
-		 */
-		xsl_dsnctl |= (nbwind << (63-55));
+	/*
+	 * Used to identify CAPI packets which should be sorted into
+	 * the Non-Blocking queues by the PHB. This field should match
+	 * the PHB PBL_NBW_CMPM register
+	 * nbwind=0x03, bits [57:58], must include capi indicator.
+	 * Not supported on P9 DD1.
+	 */
+	xsl_dsnctl |= (nbwind << (63-55));
 
-		/*
-		 * Upper 16b address bits of ASB_Notify messages sent to the
-		 * system. Need to match the PHB’s ASN Compare/Mask Register.
-		 * Not supported on P9 DD1.
-		 */
-		xsl_dsnctl |= asnind;
-	}
+	/*
+	 * Upper 16b address bits of ASB_Notify messages sent to the
+	 * system. Need to match the PHB’s ASN Compare/Mask Register.
+	 * Not supported on P9 DD1.
+	 */
+	xsl_dsnctl |= asnind;
 
 	*reg = xsl_dsnctl;
 	return 0;
@@ -539,15 +537,8 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	/* Snoop machines */
 	cxl_p1_write(adapter, CXL_PSL9_APCDEDALLOC, 0x800F000200000000ULL);
 
-	if (cxl_is_power9_dd1()) {
-		/* Disabling deadlock counter CAR */
-		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0020000000000001ULL);
-		/* Enable NORST */
-		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
-	} else {
-		/* Enable NORST and DD2 features */
-		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0xC000000000000000ULL);
-	}
+	/* Enable NORST and DD2 features */
+	cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0xC000000000000000ULL);
 
 	/*
 	 * Check if PSL has data-cache. We need to flush adapter datacache

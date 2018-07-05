@@ -283,23 +283,6 @@ static void pnv_cause_ipi(int cpu)
 	ic_cause_ipi(cpu);
 }
 
-static void pnv_p9_dd1_cause_ipi(int cpu)
-{
-	int this_cpu = get_cpu();
-
-	/*
-	 * POWER9 DD1 has a global addressed msgsnd, but for now we restrict
-	 * IPIs to same core, because it requires additional synchronization
-	 * for inter-core doorbells which we do not implement.
-	 */
-	if (cpumask_test_cpu(cpu, cpu_sibling_mask(this_cpu)))
-		doorbell_global_ipi(cpu);
-	else
-		ic_cause_ipi(cpu);
-
-	put_cpu();
-}
-
 static void __init pnv_smp_probe(void)
 {
 	if (xive_enabled())
@@ -311,14 +294,10 @@ static void __init pnv_smp_probe(void)
 		ic_cause_ipi = smp_ops->cause_ipi;
 		WARN_ON(!ic_cause_ipi);
 
-		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-			if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-				smp_ops->cause_ipi = pnv_p9_dd1_cause_ipi;
-			else
-				smp_ops->cause_ipi = doorbell_global_ipi;
-		} else {
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			smp_ops->cause_ipi = doorbell_global_ipi;
+		else
 			smp_ops->cause_ipi = pnv_cause_ipi;
-		}
 	}
 }
 

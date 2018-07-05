@@ -917,9 +917,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR)
 	mtspr	SPRN_PID, r7
 	mtspr	SPRN_WORT, r8
 BEGIN_FTR_SECTION
-	PPC_INVALIDATE_ERAT
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
-BEGIN_FTR_SECTION
 	/* POWER8-only registers */
 	ld	r5, VCPU_TCSCR(r4)
 	ld	r6, VCPU_ACOP(r4)
@@ -1912,7 +1909,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	ld	r5, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r5)
 	cmpwi	cr2, r0, 0
-	beq	cr2, 4f
+	beq	cr2, 2f
 
 	/*
 	 * Radix: do eieio; tlbsync; ptesync sequence in case we
@@ -1952,11 +1949,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	bdnz	1b
 	ptesync
 
-2:	/* Flush the ERAT on radix P9 DD1 guest exit */
-BEGIN_FTR_SECTION
-	PPC_INVALIDATE_ERAT
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
-4:
+2:
 #endif /* CONFIG_PPC_RADIX_MMU */
 
 	/*
@@ -3366,11 +3359,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_IAMR, r0
 	mtspr	SPRN_CIABR, r0
 	mtspr	SPRN_DAWRX, r0
-
-	/* Flush the ERAT on radix P9 DD1 guest exit */
-BEGIN_FTR_SECTION
-	PPC_INVALIDATE_ERAT
-END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 
 BEGIN_MMU_FTR_SECTION
 	b	4f

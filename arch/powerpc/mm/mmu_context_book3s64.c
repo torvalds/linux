@@ -273,15 +273,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 #ifdef CONFIG_PPC_RADIX_MMU
 void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		isync();
-		mtspr(SPRN_PID, next->context.id);
-		isync();
-		asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
-	} else {
-		mtspr(SPRN_PID, next->context.id);
-		isync();
-	}
+	mtspr(SPRN_PID, next->context.id);
+	isync();
 }
 #endif

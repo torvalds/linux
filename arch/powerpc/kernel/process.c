@@ -1250,17 +1250,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		 * mappings. If the new process has the foreign real address
 		 * mappings, we must issue a cp_abort to clear any state and
 		 * prevent snooping, corruption or a covert channel.
-		 *
-		 * DD1 allows paste into normal system memory so we do an
-		 * unpaired copy, rather than cp_abort, to clear the buffer,
-		 * since cp_abort is quite expensive.
 		 */
-		if (current_thread_info()->task->thread.used_vas) {
+		if (current_thread_info()->task->thread.used_vas)
 			asm volatile(PPC_CP_ABORT);
-		} else if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-			asm volatile(PPC_COPY(%0, %1)
-					: : "r"(dummy_copy_buffer), "r"(0));
-		}
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
