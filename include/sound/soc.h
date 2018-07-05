@@ -964,6 +964,8 @@ struct snd_soc_dai_link {
 	unsigned int dpcm_merged_format:1;
 	/* DPCM used FE & BE merged channel */
 	unsigned int dpcm_merged_chan:1;
+	/* DPCM used FE & BE merged rate */
+	unsigned int dpcm_merged_rate:1;
 
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
