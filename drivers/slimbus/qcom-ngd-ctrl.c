@@ -603,7 +603,9 @@ static void qcom_slim_ngd_rx(struct qcom_slim_ngd_ctrl *ctrl, u8 *buf)
 
 	if (mc == SLIM_MSG_MC_REPLY_INFORMATION ||
 	    mc == SLIM_MSG_MC_REPLY_VALUE || (mc == SLIM_USR_MC_ADDR_REPLY &&
-	    mt == SLIM_MSG_MT_SRC_REFERRED_USER)) {
+	    mt == SLIM_MSG_MT_SRC_REFERRED_USER) ||
+		(mc == SLIM_USR_MC_GENERIC_ACK &&
+		 mt == SLIM_MSG_MT_SRC_REFERRED_USER)) {
 		slim_msg_response(&ctrl->ctrl, &buf[4], buf[3], len - 4);
 		pm_runtime_mark_last_busy(ctrl->dev);
 	}
@@ -766,10 +768,14 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 {
 	struct qcom_slim_ngd_ctrl *ctrl = dev_get_drvdata(sctrl->dev);
 	DECLARE_COMPLETION_ONSTACK(tx_sent);
-	int ret, timeout;
+	DECLARE_COMPLETION_ONSTACK(done);
+	int ret, timeout, i;
+	u8 wbuf[SLIM_MSGQ_BUF_LEN];
+	u8 rbuf[SLIM_MSGQ_BUF_LEN];
 	u32 *pbuf;
 	u8 *puc;
 	u8 la = txn->la;
+	bool usr_msg = false;
 
 	if (txn->mc & SLIM_MSG_CLK_PAUSE_SEQ_FLG)
 		return -EPROTONOSUPPORT;
@@ -792,6 +798,48 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	if (!pbuf) {
 		dev_err(ctrl->dev, "Message buffer unavailable\n");
 		return -ENOMEM;
+	}
+
+	if (txn->mt == SLIM_MSG_MT_CORE &&
+		(txn->mc == SLIM_MSG_MC_CONNECT_SOURCE ||
+		txn->mc == SLIM_MSG_MC_CONNECT_SINK ||
+		txn->mc == SLIM_MSG_MC_DISCONNECT_PORT)) {
+		txn->mt = SLIM_MSG_MT_DEST_REFERRED_USER;
+		switch (txn->mc) {
+		case SLIM_MSG_MC_CONNECT_SOURCE:
+			txn->mc = SLIM_USR_MC_CONNECT_SRC;
+			break;
+		case SLIM_MSG_MC_CONNECT_SINK:
+			txn->mc = SLIM_USR_MC_CONNECT_SINK;
+			break;
+		case SLIM_MSG_MC_DISCONNECT_PORT:
+			txn->mc = SLIM_USR_MC_DISCONNECT_PORT;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		usr_msg = true;
+		i = 0;
+		wbuf[i++] = txn->la;
+		la = SLIM_LA_MGR;
+		wbuf[i++] = txn->msg->wbuf[0];
+		if (txn->mc != SLIM_USR_MC_DISCONNECT_PORT)
+			wbuf[i++] = txn->msg->wbuf[1];
+
+		txn->comp = &done;
+		ret = slim_alloc_txn_tid(sctrl, txn);
+		if (ret) {
+			dev_err(ctrl->dev, "Unable to allocate TID\n");
+			return ret;
+		}
+
+		wbuf[i++] = txn->tid;
+
+		txn->msg->num_bytes = i;
+		txn->msg->wbuf = wbuf;
+		txn->msg->rbuf = rbuf;
+		txn->rl = txn->msg->num_bytes + 4;
 	}
 
 	/* HW expects length field to be excluded */
@@ -830,6 +878,15 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		return -ETIMEDOUT;
 	}
 
+	if (usr_msg) {
+		timeout = wait_for_completion_timeout(&done, HZ);
+		if (!timeout) {
+			dev_err(sctrl->dev, "TX timed out:MC:0x%x,mt:0x%x",
+				txn->mc, txn->mt);
+			return -ETIMEDOUT;
+		}
+	}
+
 	return 0;
 }
 
@@ -854,6 +911,93 @@ static int qcom_slim_ngd_xfer_msg_sync(struct slim_controller *ctrl,
 		return -ETIMEDOUT;
 	}
 	return 0;
+}
+
+static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
+{
+	struct slim_device *sdev = rt->dev;
+	struct slim_controller *ctrl = sdev->ctrl;
+	struct slim_val_inf msg =  {0};
+	u8 wbuf[SLIM_MSGQ_BUF_LEN];
+	u8 rbuf[SLIM_MSGQ_BUF_LEN];
+	struct slim_msg_txn txn = {0,};
+	int i, ret;
+
+	txn.mt = SLIM_MSG_MT_DEST_REFERRED_USER;
+	txn.dt = SLIM_MSG_DEST_LOGICALADDR;
+	txn.la = SLIM_LA_MGR;
+	txn.ec = 0;
+	txn.msg = &msg;
+	txn.msg->num_bytes = 0;
+	txn.msg->wbuf = wbuf;
+	txn.msg->rbuf = rbuf;
+
+	for (i = 0; i < rt->num_ports; i++) {
+		struct slim_port *port = &rt->ports[i];
+
+		if (txn.msg->num_bytes == 0) {
+			int seg_interval = SLIM_SLOTS_PER_SUPERFRAME/rt->ratem;
+			int exp;
+
+			wbuf[txn.msg->num_bytes++] = sdev->laddr;
+			wbuf[txn.msg->num_bytes] = rt->bps >> 2 |
+						   (port->ch.aux_fmt << 6);
+
+			/* Data channel segment interval not multiple of 3 */
+			exp = seg_interval % 3;
+			if (exp)
+				wbuf[txn.msg->num_bytes] |= BIT(5);
+
+			txn.msg->num_bytes++;
+			wbuf[txn.msg->num_bytes++] = exp << 4 | rt->prot;
+
+			if (rt->prot == SLIM_PROTO_ISO)
+				wbuf[txn.msg->num_bytes++] =
+						port->ch.prrate |
+						SLIM_CHANNEL_CONTENT_FL;
+			else
+				wbuf[txn.msg->num_bytes++] =  port->ch.prrate;
+
+			ret = slim_alloc_txn_tid(ctrl, &txn);
+			if (ret) {
+				dev_err(&sdev->dev, "Fail to allocate TID\n");
+				return -ENXIO;
+			}
+			wbuf[txn.msg->num_bytes++] = txn.tid;
+		}
+		wbuf[txn.msg->num_bytes++] = port->ch.id;
+	}
+
+	txn.mc = SLIM_USR_MC_DEF_ACT_CHAN;
+	txn.rl = txn.msg->num_bytes + 4;
+	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
+	if (ret) {
+		slim_free_txn_tid(ctrl, &txn);
+		dev_err(&sdev->dev, "TX timed out:MC:0x%x,mt:0x%x", txn.mc,
+				txn.mt);
+		return ret;
+	}
+
+	txn.mc = SLIM_USR_MC_RECONFIG_NOW;
+	txn.msg->num_bytes = 2;
+	wbuf[1] = sdev->laddr;
+	txn.rl = txn.msg->num_bytes + 4;
+
+	ret = slim_alloc_txn_tid(ctrl, &txn);
+	if (ret) {
+		dev_err(ctrl->dev, "Fail to allocate TID\n");
+		return ret;
+	}
+
+	wbuf[0] = txn.tid;
+	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
+	if (ret) {
+		slim_free_txn_tid(ctrl, &txn);
+		dev_err(&sdev->dev, "TX timed out:MC:0x%x,mt:0x%x", txn.mc,
+				txn.mt);
+	}
+
+	return ret;
 }
 
 static int qcom_slim_ngd_get_laddr(struct slim_controller *ctrl,
@@ -1288,6 +1432,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	ctrl->ctrl.a_framer = &ctrl->framer;
 	ctrl->ctrl.clkgear = SLIM_MAX_CLK_GEAR;
 	ctrl->ctrl.get_laddr = qcom_slim_ngd_get_laddr;
+	ctrl->ctrl.enable_stream = qcom_slim_ngd_enable_stream;
 	ctrl->ctrl.xfer_msg = qcom_slim_ngd_xfer_msg;
 	ctrl->ctrl.wakeup = NULL;
 	ctrl->state = QCOM_SLIM_NGD_CTRL_DOWN;
