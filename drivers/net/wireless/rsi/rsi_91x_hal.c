@@ -246,7 +246,7 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		}
 	}
 
-	data_desc->mac_flags = cpu_to_le16(seq_num & 0xfff);
+	data_desc->mac_flags |= cpu_to_le16(seq_num & 0xfff);
 	data_desc->qid_tid = ((skb->priority & 0xf) |
 			      ((tx_params->tid & 0xf) << 4));
 	data_desc->sta_id = tx_params->sta_id;
