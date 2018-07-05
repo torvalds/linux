@@ -375,22 +375,22 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 {
 	compat_ulong_t handler = ptr_to_compat(ka->sa.sa_handler);
 	compat_ulong_t retcode;
-	compat_ulong_t spsr = regs->pstate & ~(PSR_f | COMPAT_PSR_E_BIT);
+	compat_ulong_t spsr = regs->pstate & ~(PSR_f | PSR_AA32_E_BIT);
 	int thumb;
 
 	/* Check if the handler is written for ARM or Thumb */
 	thumb = handler & 1;
 
 	if (thumb)
-		spsr |= COMPAT_PSR_T_BIT;
+		spsr |= PSR_AA32_T_BIT;
 	else
-		spsr &= ~COMPAT_PSR_T_BIT;
+		spsr &= ~PSR_AA32_T_BIT;
 
 	/* The IT state must be cleared for both ARM and Thumb-2 */
-	spsr &= ~COMPAT_PSR_IT_MASK;
+	spsr &= ~PSR_AA32_IT_MASK;
 
 	/* Restore the original endianness */
-	spsr |= COMPAT_PSR_ENDSTATE;
+	spsr |= PSR_AA32_ENDSTATE;
 
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		retcode = ptr_to_compat(ka->sa.sa_restorer);

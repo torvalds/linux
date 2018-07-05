@@ -182,12 +182,12 @@ static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 				       unsigned long sp)
 {
 	start_thread_common(regs, pc);
-	regs->pstate = COMPAT_PSR_MODE_USR;
+	regs->pstate = PSR_AA32_MODE_USR;
 	if (pc & 1)
-		regs->pstate |= COMPAT_PSR_T_BIT;
+		regs->pstate |= PSR_AA32_T_BIT;
 
 #ifdef __AARCH64EB__
-	regs->pstate |= COMPAT_PSR_E_BIT;
+	regs->pstate |= PSR_AA32_E_BIT;
 #endif
 
 	regs->compat_sp = sp;

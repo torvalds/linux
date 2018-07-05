@@ -177,16 +177,16 @@ static void print_pstate(struct pt_regs *regs)
 	if (compat_user_mode(regs)) {
 		printk("pstate: %08llx (%c%c%c%c %c %s %s %c%c%c)\n",
 			pstate,
-			pstate & COMPAT_PSR_N_BIT ? 'N' : 'n',
-			pstate & COMPAT_PSR_Z_BIT ? 'Z' : 'z',
-			pstate & COMPAT_PSR_C_BIT ? 'C' : 'c',
-			pstate & COMPAT_PSR_V_BIT ? 'V' : 'v',
-			pstate & COMPAT_PSR_Q_BIT ? 'Q' : 'q',
-			pstate & COMPAT_PSR_T_BIT ? "T32" : "A32",
-			pstate & COMPAT_PSR_E_BIT ? "BE" : "LE",
-			pstate & COMPAT_PSR_A_BIT ? 'A' : 'a',
-			pstate & COMPAT_PSR_I_BIT ? 'I' : 'i',
-			pstate & COMPAT_PSR_F_BIT ? 'F' : 'f');
+			pstate & PSR_AA32_N_BIT ? 'N' : 'n',
+			pstate & PSR_AA32_Z_BIT ? 'Z' : 'z',
+			pstate & PSR_AA32_C_BIT ? 'C' : 'c',
+			pstate & PSR_AA32_V_BIT ? 'V' : 'v',
+			pstate & PSR_AA32_Q_BIT ? 'Q' : 'q',
+			pstate & PSR_AA32_T_BIT ? "T32" : "A32",
+			pstate & PSR_AA32_E_BIT ? "BE" : "LE",
+			pstate & PSR_AA32_A_BIT ? 'A' : 'a',
+			pstate & PSR_AA32_I_BIT ? 'I' : 'i',
+			pstate & PSR_AA32_F_BIT ? 'F' : 'f');
 	} else {
 		printk("pstate: %08llx (%c%c%c%c %c%c%c%c %cPAN %cUAO)\n",
 			pstate,

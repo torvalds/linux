@@ -1681,15 +1681,15 @@ static int valid_compat_regs(struct user_pt_regs *regs)
 
 	if (!system_supports_mixed_endian_el0()) {
 		if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
-			regs->pstate |= COMPAT_PSR_E_BIT;
+			regs->pstate |= PSR_AA32_E_BIT;
 		else
-			regs->pstate &= ~COMPAT_PSR_E_BIT;
+			regs->pstate &= ~PSR_AA32_E_BIT;
 	}
 
 	if (user_mode(regs) && (regs->pstate & PSR_MODE32_BIT) &&
-	    (regs->pstate & COMPAT_PSR_A_BIT) == 0 &&
-	    (regs->pstate & COMPAT_PSR_I_BIT) == 0 &&
-	    (regs->pstate & COMPAT_PSR_F_BIT) == 0) {
+	    (regs->pstate & PSR_AA32_A_BIT) == 0 &&
+	    (regs->pstate & PSR_AA32_I_BIT) == 0 &&
+	    (regs->pstate & PSR_AA32_F_BIT) == 0) {
 		return 1;
 	}
 
@@ -1697,11 +1697,11 @@ static int valid_compat_regs(struct user_pt_regs *regs)
 	 * Force PSR to a valid 32-bit EL0t, preserving the same bits as
 	 * arch/arm.
 	 */
-	regs->pstate &= COMPAT_PSR_N_BIT | COMPAT_PSR_Z_BIT |
-			COMPAT_PSR_C_BIT | COMPAT_PSR_V_BIT |
-			COMPAT_PSR_Q_BIT | COMPAT_PSR_IT_MASK |
-			COMPAT_PSR_GE_MASK | COMPAT_PSR_E_BIT |
-			COMPAT_PSR_T_BIT;
+	regs->pstate &= PSR_AA32_N_BIT | PSR_AA32_Z_BIT |
+			PSR_AA32_C_BIT | PSR_AA32_V_BIT |
+			PSR_AA32_Q_BIT | PSR_AA32_IT_MASK |
+			PSR_AA32_GE_MASK | PSR_AA32_E_BIT |
+			PSR_AA32_T_BIT;
 	regs->pstate |= PSR_MODE32_BIT;
 
 	return 0;

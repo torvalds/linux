@@ -211,7 +211,7 @@ static inline void forget_syscall(struct pt_regs *regs)
 
 #ifdef CONFIG_COMPAT
 #define compat_thumb_mode(regs) \
-	(((regs)->pstate & COMPAT_PSR_T_BIT))
+	(((regs)->pstate & PSR_AA32_T_BIT))
 #else
 #define compat_thumb_mode(regs) (0)
 #endif
