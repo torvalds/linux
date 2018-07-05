@@ -114,6 +114,8 @@ static int slim_add_device(struct slim_controller *ctrl,
 	sbdev->dev.release = slim_dev_release;
 	sbdev->dev.driver = NULL;
 	sbdev->ctrl = ctrl;
+	INIT_LIST_HEAD(&sbdev->stream_list);
+	spin_lock_init(&sbdev->stream_list_lock);
 
 	if (node)
 		sbdev->dev.of_node = of_node_get(node);

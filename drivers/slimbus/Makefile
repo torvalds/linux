@@ -3,7 +3,7 @@
 # Makefile for kernel SLIMbus framework.
 #
 obj-$(CONFIG_SLIMBUS)			+= slimbus.o
-slimbus-y				:= core.o messaging.o sched.o
+slimbus-y				:= core.o messaging.o sched.o stream.o
 
 #Controllers
 obj-$(CONFIG_SLIM_QCOM_CTRL)		+= slim-qcom-ctrl.o
