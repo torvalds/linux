@@ -1522,6 +1522,11 @@ static inline u8 iwl_mvm_get_valid_rx_ant(struct iwl_mvm *mvm)
 	       mvm->fw->valid_rx_ant;
 }
 
+static inline void iwl_mvm_toggle_tx_ant(struct iwl_mvm *mvm, u8 *ant)
+{
+	*ant = iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm), *ant);
+}
+
 static inline u32 iwl_mvm_get_phy_config(struct iwl_mvm *mvm)
 {
 	u32 phy_config = ~(FW_PHY_CFG_TX_CHAIN |

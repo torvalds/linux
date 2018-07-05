@@ -381,10 +381,6 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 			cpu_to_le32(TX_CMD_FLG_ACK | TX_CMD_FLG_BAR);
 	}
 
-	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
-				     mvm->mgmt_last_antenna_idx);
-
 	/* Set the rate in the TX cmd */
 	tx_cmd->rate_n_flags = cpu_to_le32(iwl_mvm_get_tx_rate(mvm, info, sta));
 }
@@ -1500,6 +1496,10 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		default:
 			break;
 		}
+
+		if ((status & TX_STATUS_MSK) != TX_STATUS_SUCCESS &&
+		    ieee80211_is_mgmt(hdr->frame_control))
+			iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
 		/*
 		 * If we are freeing multiple frames, mark all the frames
