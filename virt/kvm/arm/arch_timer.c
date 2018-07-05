@@ -25,6 +25,7 @@
 
 #include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 
 #include <kvm/arm_vgic.h>
@@ -52,6 +53,13 @@ static bool kvm_timer_irq_can_fire(struct arch_timer_context *timer_ctx);
 static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				 struct arch_timer_context *timer_ctx);
 static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx);
+static void kvm_arm_timer_write(struct kvm_vcpu *vcpu,
+				struct arch_timer_context *timer,
+				enum kvm_arch_timer_regs treg,
+				u64 val);
+static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
+			      struct arch_timer_context *timer,
+			      enum kvm_arch_timer_regs treg);
 
 u64 kvm_phys_timer_read(void)
 {
@@ -628,24 +636,25 @@ static void kvm_timer_init_interrupt(void *info)
 
 int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 {
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
 	switch (regid) {
 	case KVM_REG_ARM_TIMER_CTL:
-		vtimer->cnt_ctl = value & ~ARCH_TIMER_CTRL_IT_STAT;
+		kvm_arm_timer_write(vcpu,
+				    vcpu_vtimer(vcpu), TIMER_REG_CTL, value);
 		break;
 	case KVM_REG_ARM_TIMER_CNT:
 		update_vtimer_cntvoff(vcpu, kvm_phys_timer_read() - value);
 		break;
 	case KVM_REG_ARM_TIMER_CVAL:
-		vtimer->cnt_cval = value;
+		kvm_arm_timer_write(vcpu,
+				    vcpu_vtimer(vcpu), TIMER_REG_CVAL, value);
 		break;
 	case KVM_REG_ARM_PTIMER_CTL:
-		ptimer->cnt_ctl = value & ~ARCH_TIMER_CTRL_IT_STAT;
+		kvm_arm_timer_write(vcpu,
+				    vcpu_ptimer(vcpu), TIMER_REG_CTL, value);
 		break;
 	case KVM_REG_ARM_PTIMER_CVAL:
-		ptimer->cnt_cval = value;
+		kvm_arm_timer_write(vcpu,
+				    vcpu_ptimer(vcpu), TIMER_REG_CVAL, value);
 		break;
 
 	default:
@@ -672,24 +681,111 @@ static u64 read_timer_ctl(struct arch_timer_context *timer)
 
 u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
 {
-	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
-
 	switch (regid) {
 	case KVM_REG_ARM_TIMER_CTL:
-		return read_timer_ctl(vtimer);
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_vtimer(vcpu), TIMER_REG_CTL);
 	case KVM_REG_ARM_TIMER_CNT:
-		return kvm_phys_timer_read() - vtimer->cntvoff;
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_vtimer(vcpu), TIMER_REG_CNT);
 	case KVM_REG_ARM_TIMER_CVAL:
-		return vtimer->cnt_cval;
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_vtimer(vcpu), TIMER_REG_CVAL);
 	case KVM_REG_ARM_PTIMER_CTL:
-		return read_timer_ctl(ptimer);
-	case KVM_REG_ARM_PTIMER_CVAL:
-		return ptimer->cnt_cval;
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_ptimer(vcpu), TIMER_REG_CTL);
 	case KVM_REG_ARM_PTIMER_CNT:
-		return kvm_phys_timer_read();
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_vtimer(vcpu), TIMER_REG_CNT);
+	case KVM_REG_ARM_PTIMER_CVAL:
+		return kvm_arm_timer_read(vcpu,
+					  vcpu_ptimer(vcpu), TIMER_REG_CVAL);
 	}
 	return (u64)-1;
+}
+
+static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
+			      struct arch_timer_context *timer,
+			      enum kvm_arch_timer_regs treg)
+{
+	u64 val;
+
+	switch (treg) {
+	case TIMER_REG_TVAL:
+		val = kvm_phys_timer_read() - timer->cntvoff - timer->cnt_cval;
+		break;
+
+	case TIMER_REG_CTL:
+		val = read_timer_ctl(timer);
+		break;
+
+	case TIMER_REG_CVAL:
+		val = timer->cnt_cval;
+		break;
+
+	case TIMER_REG_CNT:
+		val = kvm_phys_timer_read() - timer->cntvoff;
+		break;
+
+	default:
+		BUG();
+	}
+
+	return val;
+}
+
+u64 kvm_arm_timer_read_sysreg(struct kvm_vcpu *vcpu,
+			      enum kvm_arch_timers tmr,
+			      enum kvm_arch_timer_regs treg)
+{
+	u64 val;
+
+	preempt_disable();
+	kvm_timer_vcpu_put(vcpu);
+
+	val = kvm_arm_timer_read(vcpu, vcpu_get_timer(vcpu, tmr), treg);
+
+	kvm_timer_vcpu_load(vcpu);
+	preempt_enable();
+
+	return val;
+}
+
+static void kvm_arm_timer_write(struct kvm_vcpu *vcpu,
+				struct arch_timer_context *timer,
+				enum kvm_arch_timer_regs treg,
+				u64 val)
+{
+	switch (treg) {
+	case TIMER_REG_TVAL:
+		timer->cnt_cval = val - kvm_phys_timer_read() - timer->cntvoff;
+		break;
+
+	case TIMER_REG_CTL:
+		timer->cnt_ctl = val & ~ARCH_TIMER_CTRL_IT_STAT;
+		break;
+
+	case TIMER_REG_CVAL:
+		timer->cnt_cval = val;
+		break;
+
+	default:
+		BUG();
+	}
+}
+
+void kvm_arm_timer_write_sysreg(struct kvm_vcpu *vcpu,
+				enum kvm_arch_timers tmr,
+				enum kvm_arch_timer_regs treg,
+				u64 val)
+{
+	preempt_disable();
+	kvm_timer_vcpu_put(vcpu);
+
+	kvm_arm_timer_write(vcpu, vcpu_get_timer(vcpu, tmr), treg, val);
+
+	kvm_timer_vcpu_load(vcpu);
+	preempt_enable();
 }
 
 static int kvm_timer_starting_cpu(unsigned int cpu)

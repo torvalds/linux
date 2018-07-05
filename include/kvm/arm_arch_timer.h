@@ -22,6 +22,19 @@
 #include <linux/clocksource.h>
 #include <linux/hrtimer.h>
 
+enum kvm_arch_timers {
+	TIMER_PTIMER,
+	TIMER_VTIMER,
+	NR_KVM_TIMERS
+};
+
+enum kvm_arch_timer_regs {
+	TIMER_REG_CNT,
+	TIMER_REG_CVAL,
+	TIMER_REG_TVAL,
+	TIMER_REG_CTL,
+};
+
 struct arch_timer_context {
 	/* Registers: control register, timer value */
 	u32				cnt_ctl;
@@ -87,5 +100,15 @@ bool kvm_arch_timer_get_input_level(int vintid);
 
 #define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
+#define vcpu_get_timer(v,t)					\
+	(t == TIMER_VTIMER ? vcpu_vtimer(v) : vcpu_ptimer(v))
+
+u64 kvm_arm_timer_read_sysreg(struct kvm_vcpu *vcpu,
+			      enum kvm_arch_timers tmr,
+			      enum kvm_arch_timer_regs treg);
+void kvm_arm_timer_write_sysreg(struct kvm_vcpu *vcpu,
+				enum kvm_arch_timers tmr,
+				enum kvm_arch_timer_regs treg,
+				u64 val);
 
 #endif
