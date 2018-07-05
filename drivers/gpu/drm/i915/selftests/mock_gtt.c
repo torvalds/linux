@@ -70,11 +70,7 @@ mock_ppgtt(struct drm_i915_private *i915,
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.file = ERR_PTR(-ENODEV);
 
-	INIT_LIST_HEAD(&ppgtt->vm.active_list);
-	INIT_LIST_HEAD(&ppgtt->vm.inactive_list);
-	INIT_LIST_HEAD(&ppgtt->vm.unbound_list);
-
-	drm_mm_init(&ppgtt->vm.mm, 0, ppgtt->vm.total);
+	i915_address_space_init(&ppgtt->vm, i915);
 
 	ppgtt->vm.clear_range = nop_clear_range;
 	ppgtt->vm.insert_page = mock_insert_page;
