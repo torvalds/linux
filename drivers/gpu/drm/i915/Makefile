@@ -135,6 +135,7 @@ i915-y += dvo_ch7017.o \
 	  dvo_ns2501.o \
 	  dvo_sil164.o \
 	  dvo_tfp410.o \
+	  icl_dsi.o \
 	  intel_crt.o \
 	  intel_ddi.o \
 	  intel_dp_aux_backlight.o \
