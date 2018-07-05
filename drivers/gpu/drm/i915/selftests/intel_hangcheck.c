@@ -1243,6 +1243,9 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	if (!intel_has_gpu_reset(i915))
 		return 0;
 
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return -EIO; /* we're long past hope of a successful reset */
+
 	intel_runtime_pm_get(i915);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 
