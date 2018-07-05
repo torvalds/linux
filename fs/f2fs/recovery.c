@@ -241,8 +241,8 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 	struct page *page = NULL;
 	block_t blkaddr;
 	unsigned int loop_cnt = 0;
-	unsigned int free_blocks = sbi->user_block_count -
-					valid_user_blocks(sbi);
+	unsigned int free_blocks = MAIN_SEGS(sbi) * sbi->blocks_per_seg -
+						valid_user_blocks(sbi);
 	int err = 0;
 
 	/* get node pages in the current segment */
