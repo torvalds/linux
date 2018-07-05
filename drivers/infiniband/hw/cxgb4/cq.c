@@ -77,6 +77,10 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	int user = (uctx != &rdev->uctx);
 	int ret;
 	struct sk_buff *skb;
+	struct c4iw_ucontext *ucontext = NULL;
+
+	if (user)
+		ucontext = container_of(uctx, struct c4iw_ucontext, uctx);
 
 	cq->cqid = c4iw_get_cqid(rdev, uctx);
 	if (!cq->cqid) {
@@ -99,6 +103,16 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	}
 	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
 	memset(cq->queue, 0, cq->memsize);
+
+	if (user && ucontext->is_32b_cqe) {
+		cq->qp_errp = &((struct t4_status_page *)
+		((u8 *)cq->queue + (cq->size - 1) *
+		 (sizeof(*cq->queue) / 2)))->qp_err;
+	} else {
+		cq->qp_errp = &((struct t4_status_page *)
+		((u8 *)cq->queue + (cq->size - 1) *
+		 sizeof(*cq->queue)))->qp_err;
+	}
 
 	/* build fw_ri_res_wr */
 	wr_len = sizeof *res_wr + sizeof *res;
@@ -132,7 +146,9 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 			FW_RI_RES_WR_IQPCIECH_V(2) |
 			FW_RI_RES_WR_IQINTCNTTHRESH_V(0) |
 			FW_RI_RES_WR_IQO_F |
-			FW_RI_RES_WR_IQESIZE_V(1));
+			((user && ucontext->is_32b_cqe) ?
+			 FW_RI_RES_WR_IQESIZE_V(1) :
+			 FW_RI_RES_WR_IQESIZE_V(2)));
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 
@@ -884,6 +900,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	int vector = attr->comp_vector;
 	struct c4iw_dev *rhp;
 	struct c4iw_cq *chp;
+	struct c4iw_create_cq ucmd;
 	struct c4iw_create_cq_resp uresp;
 	struct c4iw_ucontext *ucontext = NULL;
 	int ret, wr_len;
@@ -899,9 +916,16 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	if (vector >= rhp->rdev.lldi.nciq)
 		return ERR_PTR(-EINVAL);
 
+	if (ib_context) {
+		ucontext = to_c4iw_ucontext(ib_context);
+		if (udata->inlen < sizeof(ucmd))
+			ucontext->is_32b_cqe = 1;
+	}
+
 	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
 	if (!chp)
 		return ERR_PTR(-ENOMEM);
+
 	chp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!chp->wr_waitp) {
 		ret = -ENOMEM;
@@ -915,9 +939,6 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		ret = -ENOMEM;
 		goto err_free_wr_wait;
 	}
-
-	if (ib_context)
-		ucontext = to_c4iw_ucontext(ib_context);
 
 	/* account for the status page. */
 	entries++;
@@ -942,13 +963,15 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	if (hwentries < 64)
 		hwentries = 64;
 
-	memsize = hwentries * sizeof *chp->cq.queue;
+	memsize = hwentries * ((ucontext && ucontext->is_32b_cqe) ?
+			(sizeof(*chp->cq.queue) / 2) : sizeof(*chp->cq.queue));
 
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
 	if (ucontext)
 		memsize = roundup(memsize, PAGE_SIZE);
+
 	chp->cq.size = hwentries;
 	chp->cq.memsize = memsize;
 	chp->cq.vector = vector;
@@ -979,6 +1002,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		if (!mm2)
 			goto err_free_mm;
 
+		memset(&uresp, 0, sizeof(uresp));
 		uresp.qid_mask = rhp->rdev.cqmask;
 		uresp.cqid = chp->cq.cqid;
 		uresp.size = chp->cq.size;
@@ -988,9 +1012,16 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		ucontext->key += PAGE_SIZE;
 		uresp.gts_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
+		/* communicate to the userspace that
+		 * kernel driver supports 64B CQE
+		 */
+		uresp.flags |= C4IW_64B_CQE;
+
 		spin_unlock(&ucontext->mmap_lock);
 		ret = ib_copy_to_udata(udata, &uresp,
-				       sizeof(uresp) - sizeof(uresp.reserved));
+				       ucontext->is_32b_cqe ?
+				       sizeof(uresp) - sizeof(uresp.flags) :
+				       sizeof(uresp));
 		if (ret)
 			goto err_free_mm2;
 

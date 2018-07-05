@@ -566,6 +566,7 @@ struct c4iw_ucontext {
 	spinlock_t mmap_lock;
 	struct list_head mmaps;
 	struct kref kref;
+	bool is_32b_cqe;
 };
 
 static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)

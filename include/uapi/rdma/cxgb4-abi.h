@@ -44,6 +44,16 @@
  * In particular do not use pointer types -- pass pointers in __aligned_u64
  * instead.
  */
+
+enum {
+	C4IW_64B_CQE = (1 << 0)
+};
+
+struct c4iw_create_cq {
+	__u32 flags;
+	__u32 reserved;
+};
+
 struct c4iw_create_cq_resp {
 	__aligned_u64 key;
 	__aligned_u64 gts_key;
@@ -51,7 +61,7 @@ struct c4iw_create_cq_resp {
 	__u32 cqid;
 	__u32 size;
 	__u32 qid_mask;
-	__u32 reserved; /* explicit padding (optional for i386) */
+	__u32 flags;
 };
 
 enum {

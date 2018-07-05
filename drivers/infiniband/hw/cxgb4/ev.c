@@ -70,9 +70,10 @@ static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		CQE_STATUS(err_cqe), CQE_TYPE(err_cqe), ntohl(err_cqe->len),
 		CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
 
-	pr_debug("%016llx %016llx %016llx %016llx\n",
+	pr_debug("%016llx %016llx %016llx %016llx - %016llx %016llx %016llx %016llx\n",
 		 be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
-		 be64_to_cpu(p[3]));
+		 be64_to_cpu(p[3]), be64_to_cpu(p[4]), be64_to_cpu(p[5]),
+		 be64_to_cpu(p[6]), be64_to_cpu(p[7]));
 
 	/*
 	 * Ingress WRITE and READ_RESP errors provide
