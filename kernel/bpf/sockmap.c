@@ -571,7 +571,8 @@ static int free_sg(struct sock *sk, int start, struct sk_msg_buff *md)
 	while (sg[i].length) {
 		free += sg[i].length;
 		sk_mem_uncharge(sk, sg[i].length);
-		put_page(sg_page(&sg[i]));
+		if (!md->skb)
+			put_page(sg_page(&sg[i]));
 		sg[i].length = 0;
 		sg[i].page_link = 0;
 		sg[i].offset = 0;
@@ -580,6 +581,8 @@ static int free_sg(struct sock *sk, int start, struct sk_msg_buff *md)
 		if (i == MAX_SKB_FRAGS)
 			i = 0;
 	}
+	if (md->skb)
+		consume_skb(md->skb);
 
 	return free;
 }
