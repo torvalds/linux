@@ -1368,12 +1368,12 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, NOHEAP);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
-	if (f2fs_sb_has_blkzoned(sbi->sb)) {
-		set_opt_mode(sbi, F2FS_MOUNT_LFS);
+	if (blk_queue_discard(bdev_get_queue(sbi->sb->s_bdev)))
 		set_opt(sbi, DISCARD);
-	} else {
+	if (f2fs_sb_has_blkzoned(sbi->sb))
+		set_opt_mode(sbi, F2FS_MOUNT_LFS);
+	else
 		set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
-	}
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);
