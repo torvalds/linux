@@ -236,9 +236,6 @@ mediatek_gpio_bank_probe(struct platform_device *pdev,
 	spin_lock_init(&rg->lock);
 	rg->chip.of_node = node;
 	rg->bank = bank;
-	rg->chip.of_gpio_n_cells = 2;
-	rg->chip.of_xlate = mediatek_gpio_xlate;
-	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
 
 	dat = gpio->gpio_membase + GPIO_REG_DATA + (rg->bank * GPIO_BANK_WIDE);
 	set = gpio->gpio_membase + GPIO_REG_DSET + (rg->bank * GPIO_BANK_WIDE);
@@ -251,6 +248,10 @@ mediatek_gpio_bank_probe(struct platform_device *pdev,
 		dev_err(&pdev->dev, "bgpio_init() failed\n");
 		return ret;
 	}
+
+	rg->chip.of_gpio_n_cells = 2;
+	rg->chip.of_xlate = mediatek_gpio_xlate;
+	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &rg->chip, gpio);
 	if (ret < 0) {
