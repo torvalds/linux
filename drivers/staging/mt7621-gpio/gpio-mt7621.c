@@ -196,15 +196,6 @@ static struct irq_chip mediatek_gpio_irq_chip = {
 	.irq_set_type		= mediatek_gpio_irq_type,
 };
 
-static inline const char * const mediatek_gpio_bank_name(int bank)
-{
-	static const char * const bank_names[] = {
-		"mt7621-bank0", "mt7621-bank1", "mt7621-bank2",
-	};
-
-	return bank_names[bank];
-}
-
 static int
 mediatek_gpio_xlate(struct gpio_chip *chip,
 		    const struct of_phandle_args *spec, u32 *flags)
@@ -251,7 +242,8 @@ mediatek_gpio_bank_probe(struct platform_device *pdev,
 
 	rg->chip.of_gpio_n_cells = 2;
 	rg->chip.of_xlate = mediatek_gpio_xlate;
-	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
+	rg->chip.label = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-bank%d",
+					dev_name(&pdev->dev), bank);
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &rg->chip, gpio);
 	if (ret < 0) {
