@@ -42,6 +42,7 @@
 #include "nouveau_fence.h"
 #include "nouveau_abi16.h"
 #include "nouveau_vmm.h"
+#include "nouveau_svm.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
 int nouveau_vram_pushbuf;
@@ -95,6 +96,10 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 
 		if (chan->fence)
 			nouveau_fence(chan->drm)->context_del(chan);
+
+		if (cli)
+			nouveau_svmm_part(chan->vmm->svmm, chan->inst);
+
 		nvif_object_fini(&chan->nvsw);
 		nvif_object_fini(&chan->gart);
 		nvif_object_fini(&chan->vram);
@@ -493,6 +498,10 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
 	}
+
+	ret = nouveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
+	if (ret)
+		nouveau_channel_del(pchan);
 
 done:
 	cli->base.super = super;

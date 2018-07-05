@@ -22,6 +22,7 @@
 #include "nouveau_vmm.h"
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
+#include "nouveau_svm.h"
 #include "nouveau_mem.h"
 
 void
@@ -119,6 +120,7 @@ done:
 void
 nouveau_vmm_fini(struct nouveau_vmm *vmm)
 {
+	nouveau_svmm_fini(&vmm->svmm);
 	nvif_vmm_fini(&vmm->vmm);
 	vmm->cli = NULL;
 }

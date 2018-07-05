@@ -210,6 +210,8 @@ struct nouveau_drm {
 	bool have_disp_power_ref;
 
 	struct dev_pm_domain vga_pm_domain;
+
+	struct nouveau_svm *svm;
 };
 
 static inline struct nouveau_drm *
