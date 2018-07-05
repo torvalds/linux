@@ -211,10 +211,11 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	if (!dentry)
 		return NULL;
 
-	fc->ctl_dentry[fc->ctl_ndents++] = dentry;
 	inode = new_inode(fuse_control_sb);
-	if (!inode)
+	if (!inode) {
+		dput(dentry);
 		return NULL;
+	}
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
@@ -228,6 +229,9 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	set_nlink(inode, nlink);
 	inode->i_private = fc;
 	d_add(dentry, inode);
+
+	fc->ctl_dentry[fc->ctl_ndents++] = dentry;
+
 	return dentry;
 }
 
@@ -284,7 +288,10 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
 		struct dentry *dentry = fc->ctl_dentry[i];
 		d_inode(dentry)->i_private = NULL;
-		d_drop(dentry);
+		if (!i) {
+			/* Get rid of submounts: */
+			d_invalidate(dentry);
+		}
 		dput(dentry);
 	}
 	drop_nlink(d_inode(fuse_control_sb->s_root));

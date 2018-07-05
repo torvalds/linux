@@ -2580,8 +2580,11 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
 	u8		devctl;
+	int		ret;
 
-	musb_port_suspend(musb, true);
+	ret = musb_port_suspend(musb, true);
+	if (ret)
+		return ret;
 
 	if (!is_host_active(musb))
 		return 0;
