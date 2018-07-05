@@ -31,32 +31,6 @@
 
 #define NUM_B_FRAMES_MAX	4
 
-static u32 get_framesize_uncompressed(unsigned int plane, u32 width, u32 height)
-{
-	u32 y_stride, uv_stride, y_plane;
-	u32 y_sclines, uv_sclines, uv_plane;
-	u32 size;
-
-	y_stride = ALIGN(width, 128);
-	uv_stride = ALIGN(width, 128);
-	y_sclines = ALIGN(height, 32);
-	uv_sclines = ALIGN(((height + 1) >> 1), 16);
-
-	y_plane = y_stride * y_sclines;
-	uv_plane = uv_stride * uv_sclines + SZ_4K;
-	size = y_plane + uv_plane + SZ_8K;
-	size = ALIGN(size, SZ_4K);
-
-	return size;
-}
-
-static u32 get_framesize_compressed(u32 width, u32 height)
-{
-	u32 sz = ALIGN(height, 32) * ALIGN(width, 32) * 3 / 2 / 2;
-
-	return ALIGN(sz, SZ_4K);
-}
-
 /*
  * Three resons to keep MPLANE formats (despite that the number of planes
  * currently is one):
@@ -284,7 +258,6 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pixmp = &f->fmt.pix_mp;
 	struct v4l2_plane_pix_format *pfmt = pixmp->plane_fmt;
 	const struct venus_format *fmt;
-	unsigned int p;
 
 	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
 	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
@@ -316,19 +289,14 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	pixmp->num_planes = fmt->num_planes;
 	pixmp->flags = 0;
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		for (p = 0; p < pixmp->num_planes; p++) {
-			pfmt[p].sizeimage =
-				get_framesize_uncompressed(p, pixmp->width,
-							   pixmp->height);
+	pfmt[0].sizeimage = venus_helper_get_framesz(pixmp->pixelformat,
+						     pixmp->width,
+						     pixmp->height);
 
-			pfmt[p].bytesperline = ALIGN(pixmp->width, 128);
-		}
-	} else {
-		pfmt[0].sizeimage = get_framesize_compressed(pixmp->width,
-							     pixmp->height);
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		pfmt[0].bytesperline = ALIGN(pixmp->width, 128);
+	else
 		pfmt[0].bytesperline = 0;
-	}
 
 	return fmt;
 }
@@ -843,7 +811,7 @@ static int venc_queue_setup(struct vb2_queue *q,
 			    unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct venus_inst *inst = vb2_get_drv_priv(q);
-	unsigned int p, num, min = 4;
+	unsigned int num, min = 4;
 	int ret = 0;
 
 	if (*num_planes) {
@@ -878,16 +846,18 @@ static int venc_queue_setup(struct vb2_queue *q,
 		*num_buffers = max(*num_buffers, num);
 		inst->num_input_bufs = *num_buffers;
 
-		for (p = 0; p < *num_planes; ++p)
-			sizes[p] = get_framesize_uncompressed(p, inst->width,
-							      inst->height);
+		sizes[0] = venus_helper_get_framesz(inst->fmt_out->pixfmt,
+						    inst->width,
+						    inst->height);
 		inst->input_buf_size = sizes[0];
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		*num_planes = inst->fmt_cap->num_planes;
 		*num_buffers = max(*num_buffers, min);
 		inst->num_output_bufs = *num_buffers;
-		sizes[0] = get_framesize_compressed(inst->width, inst->height);
+		sizes[0] = venus_helper_get_framesz(inst->fmt_cap->pixfmt,
+						    inst->width,
+						    inst->height);
 		inst->output_buf_size = sizes[0];
 		break;
 	default:

@@ -457,6 +457,104 @@ int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_bufreq);
 
+static u32 get_framesize_raw_nv12(u32 width, u32 height)
+{
+	u32 y_stride, uv_stride, y_plane;
+	u32 y_sclines, uv_sclines, uv_plane;
+	u32 size;
+
+	y_stride = ALIGN(width, 128);
+	uv_stride = ALIGN(width, 128);
+	y_sclines = ALIGN(height, 32);
+	uv_sclines = ALIGN(((height + 1) >> 1), 16);
+
+	y_plane = y_stride * y_sclines;
+	uv_plane = uv_stride * uv_sclines + SZ_4K;
+	size = y_plane + uv_plane + SZ_8K;
+
+	return ALIGN(size, SZ_4K);
+}
+
+static u32 get_framesize_raw_nv12_ubwc(u32 width, u32 height)
+{
+	u32 y_meta_stride, y_meta_plane;
+	u32 y_stride, y_plane;
+	u32 uv_meta_stride, uv_meta_plane;
+	u32 uv_stride, uv_plane;
+	u32 extradata = SZ_16K;
+
+	y_meta_stride = ALIGN(DIV_ROUND_UP(width, 32), 64);
+	y_meta_plane = y_meta_stride * ALIGN(DIV_ROUND_UP(height, 8), 16);
+	y_meta_plane = ALIGN(y_meta_plane, SZ_4K);
+
+	y_stride = ALIGN(width, 128);
+	y_plane = ALIGN(y_stride * ALIGN(height, 32), SZ_4K);
+
+	uv_meta_stride = ALIGN(DIV_ROUND_UP(width / 2, 16), 64);
+	uv_meta_plane = uv_meta_stride * ALIGN(DIV_ROUND_UP(height / 2, 8), 16);
+	uv_meta_plane = ALIGN(uv_meta_plane, SZ_4K);
+
+	uv_stride = ALIGN(width, 128);
+	uv_plane = ALIGN(uv_stride * ALIGN(height / 2, 32), SZ_4K);
+
+	return ALIGN(y_meta_plane + y_plane + uv_meta_plane + uv_plane +
+		     max(extradata, y_stride * 48), SZ_4K);
+}
+
+u32 venus_helper_get_framesz_raw(u32 hfi_fmt, u32 width, u32 height)
+{
+	switch (hfi_fmt) {
+	case HFI_COLOR_FORMAT_NV12:
+	case HFI_COLOR_FORMAT_NV21:
+		return get_framesize_raw_nv12(width, height);
+	case HFI_COLOR_FORMAT_NV12_UBWC:
+		return get_framesize_raw_nv12_ubwc(width, height);
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_framesz_raw);
+
+u32 venus_helper_get_framesz(u32 v4l2_fmt, u32 width, u32 height)
+{
+	u32 hfi_fmt, sz;
+	bool compressed;
+
+	switch (v4l2_fmt) {
+	case V4L2_PIX_FMT_MPEG:
+	case V4L2_PIX_FMT_H264:
+	case V4L2_PIX_FMT_H264_NO_SC:
+	case V4L2_PIX_FMT_H264_MVC:
+	case V4L2_PIX_FMT_H263:
+	case V4L2_PIX_FMT_MPEG1:
+	case V4L2_PIX_FMT_MPEG2:
+	case V4L2_PIX_FMT_MPEG4:
+	case V4L2_PIX_FMT_XVID:
+	case V4L2_PIX_FMT_VC1_ANNEX_G:
+	case V4L2_PIX_FMT_VC1_ANNEX_L:
+	case V4L2_PIX_FMT_VP8:
+	case V4L2_PIX_FMT_VP9:
+	case V4L2_PIX_FMT_HEVC:
+		compressed = true;
+		break;
+	default:
+		compressed = false;
+		break;
+	}
+
+	if (compressed) {
+		sz = ALIGN(height, 32) * ALIGN(width, 32) * 3 / 2 / 2;
+		return ALIGN(sz, SZ_4K);
+	}
+
+	hfi_fmt = to_hfi_raw_fmt(v4l2_fmt);
+	if (!hfi_fmt)
+		return 0;
+
+	return venus_helper_get_framesz_raw(hfi_fmt, width, height);
+}
+EXPORT_SYMBOL_GPL(venus_helper_get_framesz);
+
 int venus_helper_set_input_resolution(struct venus_inst *inst,
 				      unsigned int width, unsigned int height)
 {
