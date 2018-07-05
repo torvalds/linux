@@ -196,7 +196,8 @@ err1:
 
 static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a, int ovr,
-			int bind, struct netlink_ext_ack *extack)
+			int bind, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops, ovr,
 			      bind);
@@ -204,7 +205,8 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 
 static int tcf_xt_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a, int ovr,
-		       int bind, struct netlink_ext_ack *extack)
+		       int bind, bool unlocked,
+		       struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops, ovr,
 			      bind);
