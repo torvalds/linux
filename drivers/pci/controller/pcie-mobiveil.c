@@ -107,7 +107,7 @@
 #define CFG_WINDOW_TYPE	0
 #define IO_WINDOW_TYPE		1
 #define MEM_WINDOW_TYPE	2
-#define IB_WIN_SIZE		(256 * 1024 * 1024 * 1024)
+#define IB_WIN_SIZE		((u64)256 * 1024 * 1024 * 1024)
 #define MAX_PIO_WINDOWS	8
 
 /* Parameters for the waiting for link up routine */
