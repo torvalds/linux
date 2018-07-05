@@ -35,7 +35,37 @@
 #define COMPAT_PTRACE_GETHBPREGS	29
 #define COMPAT_PTRACE_SETHBPREGS	30
 
-/* AArch32 CPSR bits */
+/* SPSR_ELx bits for exceptions taken from AArch32 */
+#define PSR_AA32_MODE_MASK	0x0000001f
+#define PSR_AA32_MODE_USR	0x00000010
+#define PSR_AA32_MODE_FIQ	0x00000011
+#define PSR_AA32_MODE_IRQ	0x00000012
+#define PSR_AA32_MODE_SVC	0x00000013
+#define PSR_AA32_MODE_ABT	0x00000017
+#define PSR_AA32_MODE_HYP	0x0000001a
+#define PSR_AA32_MODE_UND	0x0000001b
+#define PSR_AA32_MODE_SYS	0x0000001f
+#define PSR_AA32_T_BIT		0x00000020
+#define PSR_AA32_F_BIT		0x00000040
+#define PSR_AA32_I_BIT		0x00000080
+#define PSR_AA32_A_BIT		0x00000100
+#define PSR_AA32_E_BIT		0x00000200
+#define PSR_AA32_DIT_BIT	0x01000000
+#define PSR_AA32_Q_BIT		0x08000000
+#define PSR_AA32_V_BIT		0x10000000
+#define PSR_AA32_C_BIT		0x20000000
+#define PSR_AA32_Z_BIT		0x40000000
+#define PSR_AA32_N_BIT		0x80000000
+#define PSR_AA32_IT_MASK	0x0600fc00	/* If-Then execution state mask */
+#define PSR_AA32_GE_MASK	0x000f0000
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define PSR_AA32_ENDSTATE	PSR_AA32_E_BIT
+#else
+#define PSR_AA32_ENDSTATE	0
+#endif
+
+/* AArch32 CPSR bits, as seen in AArch32 */
 #define COMPAT_PSR_MODE_MASK	0x0000001f
 #define COMPAT_PSR_MODE_USR	0x00000010
 #define COMPAT_PSR_MODE_FIQ	0x00000011
@@ -50,6 +80,7 @@
 #define COMPAT_PSR_I_BIT	0x00000080
 #define COMPAT_PSR_A_BIT	0x00000100
 #define COMPAT_PSR_E_BIT	0x00000200
+#define COMPAT_PSR_DIT_BIT	0x00200000
 #define COMPAT_PSR_J_BIT	0x01000000
 #define COMPAT_PSR_Q_BIT	0x08000000
 #define COMPAT_PSR_V_BIT	0x10000000
@@ -110,6 +141,30 @@
 #define compat_r12_fiq	regs[28]
 #define compat_sp_fiq	regs[29]
 #define compat_lr_fiq	regs[30]
+
+static inline unsigned long compat_psr_to_pstate(const unsigned long psr)
+{
+	unsigned long pstate;
+
+	pstate = psr & ~COMPAT_PSR_DIT_BIT;
+
+	if (psr & COMPAT_PSR_DIT_BIT)
+		pstate |= PSR_AA32_DIT_BIT;
+
+	return pstate;
+}
+
+static inline unsigned long pstate_to_compat_psr(const unsigned long pstate)
+{
+	unsigned long psr;
+
+	psr = pstate & ~PSR_AA32_DIT_BIT;
+
+	if (pstate & PSR_AA32_DIT_BIT)
+		psr |= COMPAT_PSR_DIT_BIT;
+
+	return psr;
+}
 
 /*
  * This struct defines the way the registers are stored on the stack during an
