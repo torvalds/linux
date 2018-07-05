@@ -54,11 +54,34 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_enable_io_power(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_DSI_IO_MODECTL(port));
+		tmp |= COMBO_PHY_MODE_DSI;
+		I915_WRITE(ICL_DSI_IO_MODECTL(port), tmp);
+	}
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		intel_display_power_get(dev_priv, port == PORT_A ?
+					POWER_DOMAIN_PORT_DDI_A_IO :
+					POWER_DOMAIN_PORT_DDI_B_IO);
+	}
+}
+
 static void __attribute__((unused))
 gen11_dsi_pre_enable(struct intel_encoder *encoder,
 		     const struct intel_crtc_state *pipe_config,
 		     const struct drm_connector_state *conn_state)
 {
+	/* step2: enable IO power */
+	gen11_dsi_enable_io_power(encoder);
+
 	/* step3: enable DSI PLL */
 	gen11_dsi_program_esc_clk_div(encoder);
 }
