@@ -77,37 +77,6 @@
  */
 
 /**
- * intel_hpd_port - return port hard associated with certain pin.
- * @dev_priv: private driver data pointer
- * @pin: the hpd pin to get associated port
- *
- * Return port that is associatade with @pin and PORT_NONE if no port is
- * hard associated with that @pin.
- */
-enum port intel_hpd_pin_to_port(struct drm_i915_private *dev_priv,
-				enum hpd_pin pin)
-{
-	switch (pin) {
-	case HPD_PORT_A:
-		return PORT_A;
-	case HPD_PORT_B:
-		return PORT_B;
-	case HPD_PORT_C:
-		return PORT_C;
-	case HPD_PORT_D:
-		return PORT_D;
-	case HPD_PORT_E:
-		if (IS_CNL_WITH_PORT_F(dev_priv))
-			return PORT_F;
-		return PORT_E;
-	case HPD_PORT_F:
-		return PORT_F;
-	default:
-		return PORT_NONE; /* no port for this pin */
-	}
-}
-
-/**
  * intel_hpd_pin_default - return default pin associated with certain port.
  * @dev_priv: private driver data pointer
  * @port: the hpd port to get associated pin
