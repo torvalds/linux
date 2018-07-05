@@ -21,6 +21,7 @@
 #define __OMAPDRM_GEM_H__
 
 #include <linux/types.h>
+#include <linux/mm_types.h>
 
 enum dma_data_direction;
 
@@ -80,7 +81,7 @@ struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 
-int omap_gem_fault(struct vm_fault *vmf);
+vm_fault_t omap_gem_fault(struct vm_fault *vmf);
 int omap_gem_roll(struct drm_gem_object *obj, u32 roll);
 void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff);
 void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,

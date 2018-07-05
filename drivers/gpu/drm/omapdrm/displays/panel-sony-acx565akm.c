@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Nokia Corporation
  *
  * Original Driver Author: Imre Deak <imre.deak@nokia.com>
- * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@ti.com>
  * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
