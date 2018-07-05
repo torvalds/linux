@@ -764,6 +764,7 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
+	.list_func = ipv6_list_rcv,
 };
 
 static int __init ipv6_packet_init(void)
