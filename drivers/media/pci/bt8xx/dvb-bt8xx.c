@@ -602,8 +602,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 
 		if (card->fe != NULL) {
 			card->fe->ops.tuner_ops.calc_regs = thomson_dtt7579_tuner_calc_regs;
-			card->fe->ops.info.frequency_min = 174000000;
-			card->fe->ops.info.frequency_max = 862000000;
+			card->fe->ops.info.frequency_min_hz = 174 * MHz;
+			card->fe->ops.info.frequency_max_hz = 862 * MHz;
 		}
 		break;
 
@@ -655,8 +655,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		card->fe = dvb_attach(mt352_attach, &advbt771_samsung_tdtc9251dh0_config, card->i2c_adapter);
 		if (card->fe != NULL) {
 			card->fe->ops.tuner_ops.calc_regs = advbt771_samsung_tdtc9251dh0_tuner_calc_regs;
-			card->fe->ops.info.frequency_min = 174000000;
-			card->fe->ops.info.frequency_max = 862000000;
+			card->fe->ops.info.frequency_min_hz = 174 * MHz;
+			card->fe->ops.info.frequency_max_hz = 862 * MHz;
 		}
 		break;
 

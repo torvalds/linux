@@ -317,6 +317,34 @@ struct analog_demod_ops {
 
 struct dtv_frontend_properties;
 
+/**
+ * struct dvb_frontend_internal_info - Frontend properties and capabilities
+ *
+ * @name:			Name of the frontend
+ * @frequency_min_hz:		Minimal frequency supported by the frontend.
+ * @frequency_max_hz:		Minimal frequency supported by the frontend.
+ * @frequency_stepsize_hz:	All frequencies are multiple of this value.
+ * @frequency_tolerance_hz:	Frequency tolerance.
+ * @symbol_rate_min:		Minimal symbol rate, in bauds
+ *				(for Cable/Satellite systems).
+ * @symbol_rate_max:		Maximal symbol rate, in bauds
+ *				(for Cable/Satellite systems).
+ * @symbol_rate_tolerance:	Maximal symbol rate tolerance, in ppm
+ *				(for Cable/Satellite systems).
+ * @caps:			Capabilities supported by the frontend,
+ *				as specified in &enum fe_caps.
+ */
+struct dvb_frontend_internal_info {
+	char	name[128];
+	u32	frequency_min_hz;
+	u32	frequency_max_hz;
+	u32	frequency_stepsize_hz;
+	u32	frequency_tolerance_hz;
+	u32	symbol_rate_min;
+	u32	symbol_rate_max;
+	u32	symbol_rate_tolerance;
+	enum fe_caps caps;
+};
 
 /**
  * struct dvb_frontend_ops - Demodulation information and callbacks for
@@ -404,7 +432,7 @@ struct dtv_frontend_properties;
  * @analog_ops:		pointer to &struct analog_demod_ops
  */
 struct dvb_frontend_ops {
-	struct dvb_frontend_info info;
+	struct dvb_frontend_internal_info info;
 
 	u8 delsys[MAX_DELSYS];
 

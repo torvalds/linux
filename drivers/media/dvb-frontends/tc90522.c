@@ -714,8 +714,8 @@ static const struct dvb_frontend_ops tc90522_ops_sat = {
 	.delsys = { SYS_ISDBS },
 	.info = {
 		.name = "Toshiba TC90522 ISDB-S module",
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 		.caps = FE_CAN_INVERSION_AUTO | FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO,
@@ -734,9 +734,9 @@ static const struct dvb_frontend_ops tc90522_ops_ter = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name = "Toshiba TC90522 ISDB-T module",
-		.frequency_min = 470000000,
-		.frequency_max = 770000000,
-		.frequency_stepsize = 142857,
+		.frequency_min_hz = 470 * MHz,
+		.frequency_max_hz = 770 * MHz,
+		.frequency_stepsize_hz = 142857,
 		.caps = FE_CAN_INVERSION_AUTO |
 			FE_CAN_FEC_1_2  | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6  | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

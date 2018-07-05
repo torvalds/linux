@@ -12374,9 +12374,9 @@ static const struct dvb_frontend_ops drx39xxj_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		 .name = "Micronas DRX39xxj family Frontend",
-		 .frequency_stepsize = 62500,
-		 .frequency_min = 51000000,
-		 .frequency_max = 858000000,
+		 .frequency_min_hz =  51 * MHz,
+		 .frequency_max_hz = 858 * MHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 

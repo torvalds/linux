@@ -311,8 +311,8 @@ static int zl10036_set_params(struct dvb_frontend *fe)
 
 	/* ensure correct values
 	 * maybe redundant as core already checks this */
-	if ((frequency < fe->ops.info.frequency_min)
-	||  (frequency > fe->ops.info.frequency_max))
+	if ((frequency < fe->ops.info.frequency_min_hz / kHz)
+	||  (frequency > fe->ops.info.frequency_max_hz / kHz))
 		return -EINVAL;
 
 	/*

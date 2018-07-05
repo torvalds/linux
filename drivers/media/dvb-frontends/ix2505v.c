@@ -135,8 +135,8 @@ static int ix2505v_set_params(struct dvb_frontend *fe)
 	u8 gain, cc, ref, psc, local_osc, lpf;
 	u8 data[4] = {0};
 
-	if ((frequency < fe->ops.info.frequency_min)
-	||  (frequency > fe->ops.info.frequency_max))
+	if ((frequency < fe->ops.info.frequency_min_hz / kHz)
+	||  (frequency > fe->ops.info.frequency_max_hz / kHz))
 		return -EINVAL;
 
 	if (state->config->tuner_gain)
