@@ -1395,8 +1395,8 @@ static void fjes_watch_unshare_task(struct work_struct *work)
 
 	while ((unshare_watch_bitmask || hw->txrx_stop_req_bit) &&
 	       (wait_time < 3000)) {
-		for (epidx = 0; epidx < hw->max_epid; epidx++) {
-			if (epidx == hw->my_epid)
+		for (epidx = 0; epidx < max_epid; epidx++) {
+			if (epidx == my_epid)
 				continue;
 
 			is_shared = fjes_hw_epid_is_shared(hw->hw_info.share,
@@ -1453,8 +1453,8 @@ static void fjes_watch_unshare_task(struct work_struct *work)
 	}
 
 	if (hw->hw_info.buffer_unshare_reserve_bit) {
-		for (epidx = 0; epidx < hw->max_epid; epidx++) {
-			if (epidx == hw->my_epid)
+		for (epidx = 0; epidx < max_epid; epidx++) {
+			if (epidx == my_epid)
 				continue;
 
 			if (test_bit(epidx,
