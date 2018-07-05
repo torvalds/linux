@@ -29,8 +29,30 @@ struct cpuidle_driver powernv_idle_driver = {
 
 static int max_idle_state;
 static struct cpuidle_state *cpuidle_state_table;
-static u64 snooze_timeout;
+static u64 default_snooze_timeout;
 static bool snooze_timeout_en;
+
+static u64 get_snooze_timeout(struct cpuidle_device *dev,
+			      struct cpuidle_driver *drv,
+			      int index)
+{
+	int i;
+
+	if (unlikely(!snooze_timeout_en))
+		return default_snooze_timeout;
+
+	for (i = index + 1; i < drv->state_count; i++) {
+		struct cpuidle_state *s = &drv->states[i];
+		struct cpuidle_state_usage *su = &dev->states_usage[i];
+
+		if (s->disabled || su->disable)
+			continue;
+
+		return s->target_residency * tb_ticks_per_usec;
+	}
+
+	return default_snooze_timeout;
+}
 
 static int snooze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
@@ -41,7 +63,7 @@ static int snooze_loop(struct cpuidle_device *dev,
 	local_irq_enable();
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
-	snooze_exit_time = get_tb() + snooze_timeout;
+	snooze_exit_time = get_tb() + get_snooze_timeout(dev, drv, index);
 	ppc64_runlatch_off();
 	while (!need_resched()) {
 		HMT_low();
@@ -286,11 +308,9 @@ static int powernv_idle_probe(void)
 		cpuidle_state_table = powernv_states;
 		/* Device tree can indicate more idle states */
 		max_idle_state = powernv_add_idle_states();
-		if (max_idle_state > 1) {
+		default_snooze_timeout = TICK_USEC * tb_ticks_per_usec;
+		if (max_idle_state > 1)
 			snooze_timeout_en = true;
-			snooze_timeout = powernv_states[1].target_residency *
-					 tb_ticks_per_usec;
-		}
  	} else
  		return -ENODEV;
 
