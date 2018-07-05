@@ -930,7 +930,7 @@ static void vsc73xx_adjust_link(struct dsa_switch *ds, int port,
 				     VSC73XX_ARBEMPTY, &val);
 			if (--maxloop == 0) {
 				dev_err(vsc->dev,
-					"timeout waitting for block arbiter\n");
+					"timeout waiting for block arbiter\n");
 				/* Continue anyway */
 				break;
 			}
