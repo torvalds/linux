@@ -550,12 +550,12 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		vlv_dsi_device_ready(encoder);
-	else if (IS_BROXTON(dev_priv))
-		bxt_dsi_device_ready(encoder);
-	else if (IS_GEMINILAKE(dev_priv))
+	if (IS_GEMINILAKE(dev_priv))
 		glk_dsi_device_ready(encoder);
+	else if (IS_GEN9_LP(dev_priv))
+		bxt_dsi_device_ready(encoder);
+	else
+		vlv_dsi_device_ready(encoder);
 }
 
 static void glk_dsi_enter_low_power_mode(struct intel_encoder *encoder)
@@ -938,11 +938,10 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
-	    IS_BROXTON(dev_priv))
-		vlv_dsi_clear_device_ready(encoder);
-	else if (IS_GEMINILAKE(dev_priv))
+	if (IS_GEMINILAKE(dev_priv))
 		glk_dsi_clear_device_ready(encoder);
+	else
+		vlv_dsi_clear_device_ready(encoder);
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder,
@@ -1599,23 +1598,24 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 	enum port port;
 	u32 val;
 
-	if (!IS_GEMINILAKE(dev_priv)) {
-		for_each_dsi_port(port, intel_dsi->ports) {
-			/* Panel commands can be sent when clock is in LP11 */
-			I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
+	if (IS_GEMINILAKE(dev_priv))
+		return;
 
-			if (IS_GEN9_LP(dev_priv))
-				bxt_dsi_reset_clocks(encoder, port);
-			else
-				vlv_dsi_reset_clocks(encoder, port);
-			I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* Panel commands can be sent when clock is in LP11 */
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
 
-			val = I915_READ(MIPI_DSI_FUNC_PRG(port));
-			val &= ~VID_MODE_FORMAT_MASK;
-			I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
+		if (IS_GEN9_LP(dev_priv))
+			bxt_dsi_reset_clocks(encoder, port);
+		else
+			vlv_dsi_reset_clocks(encoder, port);
+		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 
-			I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
-		}
+		val = I915_READ(MIPI_DSI_FUNC_PRG(port));
+		val &= ~VID_MODE_FORMAT_MASK;
+		I915_WRITE(MIPI_DSI_FUNC_PRG(port), val);
+
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
 	}
 }
 
@@ -1747,14 +1747,10 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
-	} else if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv))
 		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
-	} else {
-		DRM_ERROR("Unsupported Mipi device to reg base");
-		return;
-	}
+	else
+		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
 	if (!intel_dsi)
