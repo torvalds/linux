@@ -316,13 +316,6 @@ static int ip_rcv_finish_core(struct net *net, struct sock *sk,
 	struct rtable *rt;
 	int err;
 
-	/* if ingress device is enslaved to an L3 master device pass the
-	 * skb to its handler for processing
-	 */
-	skb = l3mdev_ip_rcv(skb);
-	if (!skb)
-		return NET_RX_SUCCESS;
-
 	if (net->ipv4.sysctl_ip_early_demux &&
 	    !skb_dst(skb) &&
 	    !skb->sk &&
@@ -408,8 +401,16 @@ drop_error:
 
 static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	int ret = ip_rcv_finish_core(net, sk, skb);
+	int ret;
 
+	/* if ingress device is enslaved to an L3 master device pass the
+	 * skb to its handler for processing
+	 */
+	skb = l3mdev_ip_rcv(skb);
+	if (!skb)
+		return NET_RX_SUCCESS;
+
+	ret = ip_rcv_finish_core(net, sk, skb);
 	if (ret != NET_RX_DROP)
 		ret = dst_input(skb);
 	return ret;
@@ -545,6 +546,12 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 		struct dst_entry *dst;
 
 		list_del(&skb->list);
+		/* if ingress device is enslaved to an L3 master device pass the
+		 * skb to its handler for processing
+		 */
+		skb = l3mdev_ip_rcv(skb);
+		if (!skb)
+			continue;
 		if (ip_rcv_finish_core(net, sk, skb) == NET_RX_DROP)
 			continue;
 
