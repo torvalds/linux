@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/log2.h>
 
-#include <asm/tlbflush.h>
 #include <asm/trace.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>

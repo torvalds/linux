@@ -48,7 +48,6 @@
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
-#include <asm/tlbflush.h>
 #include <asm/io.h>
 #include <asm/eeh.h>
 #include <asm/tlb.h>

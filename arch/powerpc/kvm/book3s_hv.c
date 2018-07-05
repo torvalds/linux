@@ -53,7 +53,6 @@
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>

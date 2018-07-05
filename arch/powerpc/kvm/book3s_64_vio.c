@@ -31,7 +31,6 @@
 #include <linux/iommu.h>
 #include <linux/file.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/book3s/64/mmu-hash.h>

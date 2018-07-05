@@ -37,7 +37,6 @@
 #include <asm/machdep.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
-#include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/prom.h>
 #include <asm/cputable.h>

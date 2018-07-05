@@ -17,7 +17,6 @@
 #include <asm/pgtable.h>
 #endif
 #include <asm/pgalloc.h>
-#include <asm/tlbflush.h>
 #ifndef __powerpc64__
 #include <asm/page.h>
 #include <asm/mmu.h>
