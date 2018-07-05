@@ -74,7 +74,6 @@ mock_ppgtt(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ppgtt->vm.inactive_list);
 	INIT_LIST_HEAD(&ppgtt->vm.unbound_list);
 
-	INIT_LIST_HEAD(&ppgtt->vm.global_link);
 	drm_mm_init(&ppgtt->vm.mm, 0, ppgtt->vm.total);
 
 	ppgtt->vm.clear_range = nop_clear_range;
@@ -105,8 +104,6 @@ static void mock_unbind_ggtt(struct i915_vma *vma)
 void mock_init_ggtt(struct drm_i915_private *i915)
 {
 	struct i915_ggtt *ggtt = &i915->ggtt;
-
-	INIT_LIST_HEAD(&i915->vm_list);
 
 	ggtt->vm.i915 = i915;
 

@@ -540,8 +540,6 @@ static void i915_address_space_init(struct i915_address_space *vm,
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	INIT_LIST_HEAD(&vm->unbound_list);
-
-	list_add_tail(&vm->global_link, &dev_priv->vm_list);
 }
 
 static void i915_address_space_fini(struct i915_address_space *vm)
@@ -553,7 +551,6 @@ static void i915_address_space_fini(struct i915_address_space *vm)
 	spin_unlock(&vm->free_pages.lock);
 
 	drm_mm_takedown(&vm->mm);
-	list_del(&vm->global_link);
 }
 
 static int __setup_page_dma(struct i915_address_space *vm,
@@ -3571,8 +3568,6 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	int ret;
 
 	stash_init(&dev_priv->mm.wc_stash);
-
-	INIT_LIST_HEAD(&dev_priv->vm_list);
 
 	/* Note that we use page colouring to enforce a guard page at the
 	 * end of the address space. This is required as the CS may prefetch
