@@ -418,15 +418,6 @@ Current status:
   why it is wise to cut down on the rate used is wise for large
   transfers until this is settled.
   
-Options supported:
-  If this driver is compiled as a module you can pass the following
-  options to it:
-  debug			- extra verbose debugging info
-  			  (default: 0; nonzero enables)
-  use_lowlatency	- use low_latency flag to speed up tty layer
-			  when reading from the device.
-			  (default: 0; nonzero enables)
-
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date
   information on this driver.
 
