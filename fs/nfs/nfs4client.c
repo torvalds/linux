@@ -1127,7 +1127,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	nfs_server_copy_userdata(server, parent_server);
 
 	/* Get a client representation */
-#ifdef CONFIG_SUNRPC_XPRT_RDMA
+#if IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA)
 	rpc_set_port(data->addr, NFS_RDMA_PORT);
 	error = nfs4_set_client(server, data->hostname,
 				data->addr,
@@ -1139,7 +1139,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				parent_client->cl_net);
 	if (!error)
 		goto init_server;
-#endif	/* CONFIG_SUNRPC_XPRT_RDMA */
+#endif	/* IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA) */
 
 	rpc_set_port(data->addr, NFS_PORT);
 	error = nfs4_set_client(server, data->hostname,
@@ -1153,7 +1153,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (error < 0)
 		goto error;
 
-#ifdef CONFIG_SUNRPC_XPRT_RDMA
+#if IS_ENABLED(CONFIG_SUNRPC_XPRT_RDMA)
 init_server:
 #endif
 	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout, data->authflavor);
