@@ -1051,8 +1051,8 @@ vsc73xx_find_counter(struct vsc73xx *vsc,
 	return NULL;
 }
 
-void vsc73xx_get_strings(struct dsa_switch *ds, int port, u32 stringset,
-			 uint8_t *data)
+static void vsc73xx_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+				uint8_t *data)
 {
 	const struct vsc73xx_counter *cnt;
 	struct vsc73xx *vsc = ds->priv;
@@ -1110,7 +1110,7 @@ void vsc73xx_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 	}
 }
 
-int vsc73xx_get_sset_count(struct dsa_switch *ds, int port, int sset)
+static int vsc73xx_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	/* We only support SS_STATS */
 	if (sset != ETH_SS_STATS)
@@ -1119,7 +1119,8 @@ int vsc73xx_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return 8;
 }
 
-void vsc73xx_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
+static void vsc73xx_get_ethtool_stats(struct dsa_switch *ds, int port,
+				      uint64_t *data)
 {
 	struct vsc73xx *vsc = ds->priv;
 	u8 regs[] = {
