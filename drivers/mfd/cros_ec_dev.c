@@ -381,6 +381,10 @@ static const struct mfd_cell cros_ec_rtc_cells[] = {
 	{ .name = "cros-ec-rtc" }
 };
 
+static const struct mfd_cell cros_usbpd_charger_cells[] = {
+	{ .name = "cros-usbpd-charger" }
+};
+
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
@@ -428,6 +432,18 @@ static int ec_device_probe(struct platform_device *pdev)
 		if (retval)
 			dev_err(ec->dev,
 				"failed to add cros-ec-rtc device: %d\n",
+				retval);
+	}
+
+	/* Check whether this EC instance has the PD charge manager */
+	if (cros_ec_check_features(ec, EC_FEATURE_USB_PD)) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_usbpd_charger_cells,
+					 ARRAY_SIZE(cros_usbpd_charger_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_err(ec->dev,
+				"failed to add cros-usbpd-charger device: %d\n",
 				retval);
 	}
 
