@@ -6483,37 +6483,44 @@ err_connector_alloc:
 	return false;
 }
 
-void intel_dp_mst_suspend(struct drm_device *dev)
+void intel_dp_mst_suspend(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int i;
+	struct intel_encoder *encoder;
 
-	/* disable MST */
-	for (i = 0; i < I915_MAX_PORTS; i++) {
-		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp;
 
-		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
+		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		if (intel_dig_port->dp.is_mst)
-			drm_dp_mst_topology_mgr_suspend(&intel_dig_port->dp.mst_mgr);
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		if (!intel_dp->can_mst)
+			continue;
+
+		if (intel_dp->is_mst)
+			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst_mgr);
 	}
 }
 
-void intel_dp_mst_resume(struct drm_device *dev)
+void intel_dp_mst_resume(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int i;
+	struct intel_encoder *encoder;
 
-	for (i = 0; i < I915_MAX_PORTS; i++) {
-		struct intel_digital_port *intel_dig_port = dev_priv->hotplug.irq_port[i];
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp;
 		int ret;
 
-		if (!intel_dig_port || !intel_dig_port->dp.can_mst)
+		if (encoder->type != INTEL_OUTPUT_DDI)
 			continue;
 
-		ret = drm_dp_mst_topology_mgr_resume(&intel_dig_port->dp.mst_mgr);
+		intel_dp = enc_to_intel_dp(&encoder->base);
+
+		if (!intel_dp->can_mst)
+			continue;
+
+		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst_mgr);
 		if (ret)
-			intel_dp_check_mst_status(&intel_dig_port->dp);
+			intel_dp_check_mst_status(intel_dp);
 	}
 }

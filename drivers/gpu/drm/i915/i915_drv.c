@@ -1586,7 +1586,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_display_suspend(dev);
 
-	intel_dp_mst_suspend(dev);
+	intel_dp_mst_suspend(dev_priv);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
@@ -1751,7 +1751,7 @@ static int i915_drm_resume(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_dp_mst_resume(dev);
+	intel_dp_mst_resume(dev_priv);
 
 	intel_display_resume(dev);
 
