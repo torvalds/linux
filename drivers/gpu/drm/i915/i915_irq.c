@@ -1723,8 +1723,8 @@ static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 			*long_mask |= BIT(pin);
 	}
 
-	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x\n",
-			 hotplug_trigger, dig_hotplug_reg, *pin_mask);
+	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x, dig 0x%08x, pins 0x%08x, long 0x%08x\n",
+			 hotplug_trigger, dig_hotplug_reg, *pin_mask, *long_mask);
 
 }
 
