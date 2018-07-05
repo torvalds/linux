@@ -616,6 +616,26 @@ struct group_desc *pinctrl_generic_get_group(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_generic_get_group);
 
+static int pinctrl_generic_group_name_to_selector(struct pinctrl_dev *pctldev,
+						  const char *function)
+{
+	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
+	int ngroups = ops->get_groups_count(pctldev);
+	int selector = 0;
+
+	/* See if this pctldev has this group */
+	while (selector < ngroups) {
+		const char *gname = ops->get_group_name(pctldev, selector);
+
+		if (!strcmp(function, gname))
+			return selector;
+
+		selector++;
+	}
+
+	return -EINVAL;
+}
+
 /**
  * pinctrl_generic_add_group() - adds a new pin group
  * @pctldev: pin controller device
@@ -630,6 +650,16 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 			      int *pins, int num_pins, void *data)
 {
 	struct group_desc *group;
+	int selector;
+
+	if (!name)
+		return -EINVAL;
+
+	selector = pinctrl_generic_group_name_to_selector(pctldev, name);
+	if (selector >= 0)
+		return selector;
+
+	selector = pctldev->num_groups;
 
 	group = devm_kzalloc(pctldev->dev, sizeof(*group), GFP_KERNEL);
 	if (!group)
@@ -640,12 +670,11 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 	group->num_pins = num_pins;
 	group->data = data;
 
-	radix_tree_insert(&pctldev->pin_group_tree, pctldev->num_groups,
-			  group);
+	radix_tree_insert(&pctldev->pin_group_tree, selector, group);
 
 	pctldev->num_groups++;
 
-	return 0;
+	return selector;
 }
 EXPORT_SYMBOL_GPL(pinctrl_generic_add_group);
 
