@@ -1892,7 +1892,7 @@ static int scaling_goodness(struct v4l2_subdev *subdev, int w, int ask_w,
 		val -= SCALING_GOODNESS_EXTREME;
 
 	dev_dbg(&client->dev, "w %d ask_w %d h %d ask_h %d goodness %d\n",
-		w, ask_h, h, ask_h, val);
+		w, ask_w, h, ask_h, val);
 
 	return val;
 }
