@@ -746,7 +746,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 			key_descriptor |= RSI_CIPHER_TKIP;
 	}
 	key_descriptor |= RSI_PROTECT_DATA_FRAMES;
-	key_descriptor |= ((key_id << RSI_KEY_ID_OFFSET) & RSI_KEY_ID_MASK);
+	key_descriptor |= (key_id << RSI_KEY_ID_OFFSET);
 
 	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
