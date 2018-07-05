@@ -90,20 +90,38 @@ static void free_tcf(struct tc_action *p)
 	kfree(p);
 }
 
-static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
+static void tcf_action_cleanup(struct tc_action *p)
 {
-	spin_lock(&idrinfo->lock);
-	idr_remove(&idrinfo->action_idr, p->tcfa_index);
-	spin_unlock(&idrinfo->lock);
+	if (p->ops->cleanup)
+		p->ops->cleanup(p);
+
 	gen_kill_estimator(&p->tcfa_rate_est);
 	free_tcf(p);
+}
+
+static int __tcf_action_put(struct tc_action *p, bool bind)
+{
+	struct tcf_idrinfo *idrinfo = p->idrinfo;
+
+	if (refcount_dec_and_lock(&p->tcfa_refcnt, &idrinfo->lock)) {
+		if (bind)
+			atomic_dec(&p->tcfa_bindcnt);
+		idr_remove(&idrinfo->action_idr, p->tcfa_index);
+		spin_unlock(&idrinfo->lock);
+
+		tcf_action_cleanup(p);
+		return 1;
+	}
+
+	if (bind)
+		atomic_dec(&p->tcfa_bindcnt);
+
+	return 0;
 }
 
 int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 {
 	int ret = 0;
-
-	ASSERT_RTNL();
 
 	/* Release with strict==1 and bind==0 is only called through act API
 	 * interface (classifiers always bind). Only case when action with
@@ -118,18 +136,11 @@ int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 	 * are acceptable.
 	 */
 	if (p) {
-		if (bind)
-			atomic_dec(&p->tcfa_bindcnt);
-		else if (strict && atomic_read(&p->tcfa_bindcnt) > 0)
+		if (!bind && strict && atomic_read(&p->tcfa_bindcnt) > 0)
 			return -EPERM;
 
-		if (atomic_read(&p->tcfa_bindcnt) <= 0 &&
-		    refcount_dec_and_test(&p->tcfa_refcnt)) {
-			if (p->ops->cleanup)
-				p->ops->cleanup(p);
-			tcf_idr_remove(p->idrinfo, p);
+		if (__tcf_action_put(p, bind))
 			ret = ACT_P_DELETED;
-		}
 	}
 
 	return ret;
@@ -340,11 +351,7 @@ int tcf_idr_delete_index(struct tc_action_net *tn, u32 index)
 						p->tcfa_index));
 			spin_unlock(&idrinfo->lock);
 
-			if (p->ops->cleanup)
-				p->ops->cleanup(p);
-
-			gen_kill_estimator(&p->tcfa_rate_est);
-			free_tcf(p);
+			tcf_action_cleanup(p);
 			module_put(owner);
 			return 0;
 		}
@@ -613,6 +620,11 @@ int tcf_action_destroy(struct list_head *actions, int bind)
 			return ret;
 	}
 	return ret;
+}
+
+static int tcf_action_put(struct tc_action *p)
+{
+	return __tcf_action_put(p, false);
 }
 
 int
@@ -1092,6 +1104,35 @@ err_out:
 	return err;
 }
 
+static int tcf_action_delete(struct net *net, struct list_head *actions,
+			     struct netlink_ext_ack *extack)
+{
+	struct tc_action *a, *tmp;
+	u32 act_index;
+	int ret;
+
+	list_for_each_entry_safe(a, tmp, actions, list) {
+		const struct tc_action_ops *ops = a->ops;
+
+		/* Actions can be deleted concurrently so we must save their
+		 * type and id to search again after reference is released.
+		 */
+		act_index = a->tcfa_index;
+
+		list_del(&a->list);
+		if (tcf_action_put(a)) {
+			/* last reference, action was deleted concurrently */
+			module_put(ops->owner);
+		} else  {
+			/* now do the delete */
+			ret = ops->delete(net, act_index);
+			if (ret < 0)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 static int
 tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
@@ -1112,7 +1153,7 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 	}
 
 	/* now do the delete */
-	ret = tcf_action_destroy(actions, 0);
+	ret = tcf_action_delete(net, actions, extack);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
 		kfree_skb(skb);
@@ -1164,7 +1205,6 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, &actions, event, extack);
 	else { /* delete */
-		cleanup_a(&actions, 1); /* lookup took reference */
 		ret = tcf_del_notify(net, n, &actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
