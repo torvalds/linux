@@ -37,7 +37,7 @@ struct tc_action {
 	spinlock_t			tcfa_lock;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
-	struct tc_cookie	*act_cookie;
+	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	*goto_chain;
 };
 #define tcf_index	common.tcfa_index
