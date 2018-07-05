@@ -772,16 +772,13 @@ static void show_helptext(const char *title, const char *text)
 	show_textbox(title, text, 0, 0);
 }
 
-static void conf_message_callback(const char *fmt, va_list ap)
+static void conf_message_callback(const char *s)
 {
-	char buf[PATH_MAX+1];
-
-	vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (save_and_exit) {
 		if (!silent)
-			printf("%s", buf);
+			printf("%s", s);
 	} else {
-		show_textbox(NULL, buf, 6, 60);
+		show_textbox(NULL, s, 6, 60);
 	}
 }
 
