@@ -333,7 +333,7 @@ configuration_store(struct device *dev, struct device_attribute *attr,
 	u32 conf;
 	u32 cap;
 	int con;
-	int ret;
+	int ret = 0;
 
 	con = sysfs_match_string(configurations, buf);
 	if (con < 0)
@@ -349,8 +349,10 @@ configuration_store(struct device *dev, struct device_attribute *attr,
 	cap = DP_CAP_CAPABILITY(dp->alt->vdo);
 
 	if ((con == DP_CONF_DFP_D && !(cap & DP_CAP_DFP_D)) ||
-	    (con == DP_CONF_UFP_D && !(cap & DP_CAP_UFP_D)))
-		return -EINVAL;
+	    (con == DP_CONF_UFP_D && !(cap & DP_CAP_UFP_D))) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
 
 	conf = dp->data.conf & ~DP_CONF_DUAL_D;
 	conf |= con;
