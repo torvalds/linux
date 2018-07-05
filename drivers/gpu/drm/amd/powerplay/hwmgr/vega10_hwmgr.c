@@ -3801,7 +3801,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 	if (i < dpm_table->count) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value;
+		clock_req.clock_freq_in_khz = dpm_table->dpm_levels[i].value * 10;
 		if (!vega10_display_clock_voltage_request(hwmgr, &clock_req)) {
 			smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetMinDeepSleepDcefclk,

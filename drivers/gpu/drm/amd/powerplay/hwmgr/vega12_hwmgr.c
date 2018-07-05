@@ -1361,7 +1361,6 @@ int vega12_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	if (data->smu_features[GNLD_DPM_DCEFCLK].enabled) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
-			clk_freq = clock_req->clock_freq_in_khz / 100;
 			clk_select = PPCLK_DCEFCLK;
 			break;
 		case amd_pp_disp_clock:
@@ -1410,7 +1409,7 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 
 	if (data->smu_features[GNLD_DPM_DCEFCLK].supported) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = min_clocks.dcefClock;
+		clock_req.clock_freq_in_khz = min_clocks.dcefClock/10;
 		if (!vega12_display_clock_voltage_request(hwmgr, &clock_req)) {
 			if (data->smu_features[GNLD_DS_DCEFCLK].supported)
 				PP_ASSERT_WITH_CODE(
