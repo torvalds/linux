@@ -1740,6 +1740,8 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 			rdev->use_count = 0;
 	}
 
+	device_link_add(dev, &rdev->dev, DL_FLAG_STATELESS);
+
 	return regulator;
 }
 
@@ -1829,9 +1831,21 @@ static void _regulator_put(struct regulator *regulator)
 
 	debugfs_remove_recursive(regulator->debugfs);
 
-	/* remove any sysfs entries */
-	if (regulator->dev)
+	if (regulator->dev) {
+		int count = 0;
+		struct regulator *r;
+
+		list_for_each_entry(r, &rdev->consumer_list, list)
+			if (r->dev == regulator->dev)
+				count++;
+
+		if (count == 1)
+			device_link_remove(regulator->dev, &rdev->dev);
+
+		/* remove any sysfs entries */
 		sysfs_remove_link(&rdev->dev.kobj, regulator->supply_name);
+	}
+
 	regulator_lock(rdev);
 	list_del(&regulator->list);
 
