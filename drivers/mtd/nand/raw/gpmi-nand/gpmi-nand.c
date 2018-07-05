@@ -1944,7 +1944,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	ret = nand_boot_init(this);
 	if (ret)
 		goto err_nand_cleanup;
-	ret = chip->scan_bbt(mtd);
+	ret = nand_create_bbt(chip);
 	if (ret)
 		goto err_nand_cleanup;
 

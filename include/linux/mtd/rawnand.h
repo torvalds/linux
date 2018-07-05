@@ -1199,7 +1199,6 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @buf_align:		minimum buffer alignment required by a platform
  * @hwcontrol:		platform-specific hardware control structure
  * @erase:		[REPLACEABLE] erase function
- * @scan_bbt:		[REPLACEABLE] function to scan bad block table
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transferring
  *			data from array to read regs (tR).
  * @state:		[INTERN] the current state of the NAND device
@@ -1292,7 +1291,6 @@ struct nand_chip {
 		       const struct nand_operation *op,
 		       bool check_only);
 	int (*erase)(struct mtd_info *mtd, int page);
-	int (*scan_bbt)(struct mtd_info *mtd);
 	int (*set_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			    int feature_addr, uint8_t *subfeature_para);
 	int (*get_features)(struct mtd_info *mtd, struct nand_chip *chip,

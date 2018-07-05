@@ -4924,11 +4924,6 @@ static void nand_shutdown(struct mtd_info *mtd)
 	nand_get_device(mtd, FL_PM_SUSPENDED);
 }
 
-static int nand_default_bbt(struct mtd_info *mtd)
-{
-	return nand_create_bbt(mtd_to_nand(mtd));
-}
-
 /* Set default functions */
 static void nand_set_defaults(struct nand_chip *chip)
 {
@@ -4970,8 +4965,6 @@ static void nand_set_defaults(struct nand_chip *chip)
 		chip->write_byte = busw ? nand_write_byte16 : nand_write_byte;
 	if (!chip->read_buf || chip->read_buf == nand_read_buf)
 		chip->read_buf = busw ? nand_read_buf16 : nand_read_buf;
-	if (!chip->scan_bbt)
-		chip->scan_bbt = nand_default_bbt;
 
 	if (!chip->controller) {
 		chip->controller = &chip->hwcontrol;
@@ -6673,7 +6666,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return 0;
 
 	/* Build bad block table */
-	ret = chip->scan_bbt(mtd);
+	ret = nand_create_bbt(chip);
 	if (ret)
 		goto err_nand_manuf_cleanup;
 
