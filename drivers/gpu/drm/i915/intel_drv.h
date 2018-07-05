@@ -304,6 +304,8 @@ struct intel_panel {
 	} backlight;
 };
 
+struct intel_digital_port;
+
 /*
  * This structure serves as a translation layer between the generic HDCP code
  * and the bus-specific code. What that means is that HDCP over HDMI differs
