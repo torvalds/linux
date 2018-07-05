@@ -2198,7 +2198,6 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
 {
 	unsigned long oldmask = 0;
 	struct rcu_node *rnp_c;
-	struct rcu_state __maybe_unused *rsp = &rcu_state;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 
@@ -2217,7 +2216,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
 		WARN_ON_ONCE(!rcu_is_leaf_node(rnp) &&
 			     rcu_preempt_blocked_readers_cgp(rnp));
 		rnp->qsmask &= ~mask;
-		trace_rcu_quiescent_state_report(rsp->name, rnp->gp_seq,
+		trace_rcu_quiescent_state_report(rcu_state.name, rnp->gp_seq,
 						 mask, rnp->qsmask, rnp->level,
 						 rnp->grplo, rnp->grphi,
 						 !!rnp->gp_tasks);
@@ -2624,12 +2623,11 @@ static void force_quiescent_state(void)
 	bool ret;
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_old = NULL;
-	struct rcu_state *rsp = &rcu_state;
 
 	/* Funnel through hierarchy to reduce memory contention. */
 	rnp = __this_cpu_read(rcu_data.mynode);
 	for (; rnp != NULL; rnp = rnp->parent) {
-		ret = (READ_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) ||
+		ret = (READ_ONCE(rcu_state.gp_flags) & RCU_GP_FLAG_FQS) ||
 		      !raw_spin_trylock(&rnp->fqslock);
 		if (rnp_old != NULL)
 			raw_spin_unlock(&rnp_old->fqslock);
@@ -2642,11 +2640,12 @@ static void force_quiescent_state(void)
 	/* Reached the root of the rcu_node tree, acquire lock. */
 	raw_spin_lock_irqsave_rcu_node(rnp_old, flags);
 	raw_spin_unlock(&rnp_old->fqslock);
-	if (READ_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
+	if (READ_ONCE(rcu_state.gp_flags) & RCU_GP_FLAG_FQS) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
 		return;  /* Someone beat us to it. */
 	}
-	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
+	WRITE_ONCE(rcu_state.gp_flags,
+		   READ_ONCE(rcu_state.gp_flags) | RCU_GP_FLAG_FQS);
 	raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
 	rcu_gp_kthread_wake();
 }
@@ -2662,15 +2661,14 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
-	struct rcu_state *rsp = &rcu_state;
 	static atomic_t warned = ATOMIC_INIT(0);
 
 	if (!IS_ENABLED(CONFIG_PROVE_RCU) || rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed))
 		return;
 	j = jiffies; /* Expensive access, and in common case don't get here. */
-	if (time_before(j, READ_ONCE(rsp->gp_req_activity) + gpssdelay) ||
-	    time_before(j, READ_ONCE(rsp->gp_activity) + gpssdelay) ||
+	if (time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
 	    atomic_read(&warned))
 		return;
 
@@ -2678,8 +2676,8 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 	j = jiffies;
 	if (rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
-	    time_before(j, READ_ONCE(rsp->gp_req_activity) + gpssdelay) ||
-	    time_before(j, READ_ONCE(rsp->gp_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rcu_state.gp_activity) + gpssdelay) ||
 	    atomic_read(&warned)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
@@ -2691,19 +2689,19 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 	j = jiffies;
 	if (rcu_gp_in_progress() ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
-	    time_before(j, rsp->gp_req_activity + gpssdelay) ||
-	    time_before(j, rsp->gp_activity + gpssdelay) ||
+	    time_before(j, rcu_state.gp_req_activity + gpssdelay) ||
+	    time_before(j, rcu_state.gp_activity + gpssdelay) ||
 	    atomic_xchg(&warned, 1)) {
 		raw_spin_unlock_rcu_node(rnp_root); /* irqs remain disabled. */
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
 	pr_alert("%s: g%ld->%ld gar:%lu ga:%lu f%#x gs:%d %s->state:%#lx\n",
-		 __func__, (long)READ_ONCE(rsp->gp_seq),
+		 __func__, (long)READ_ONCE(rcu_state.gp_seq),
 		 (long)READ_ONCE(rnp_root->gp_seq_needed),
-		 j - rsp->gp_req_activity, j - rsp->gp_activity,
-		 rsp->gp_flags, rsp->gp_state, rsp->name,
-		 rsp->gp_kthread ? rsp->gp_kthread->state : 0x1ffffL);
+		 j - rcu_state.gp_req_activity, j - rcu_state.gp_activity,
+		 rcu_state.gp_flags, rcu_state.gp_state, rcu_state.name,
+		 rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL);
 	WARN_ON(1);
 	if (rnp_root != rnp)
 		raw_spin_unlock_rcu_node(rnp_root);
