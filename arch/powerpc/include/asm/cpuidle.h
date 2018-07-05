@@ -79,6 +79,17 @@ struct stop_sprs {
 	u64 mmcra;
 };
 
+#define PNV_IDLE_NAME_LEN    16
+struct pnv_idle_states_t {
+	char name[PNV_IDLE_NAME_LEN];
+	u32 latency_ns;
+	u32 residency_ns;
+	u64 psscr_val;
+	u64 psscr_mask;
+	u32 flags;
+	bool valid;
+};
+
 extern u32 pnv_fastsleep_workaround_at_entry[];
 extern u32 pnv_fastsleep_workaround_at_exit[];
 
