@@ -594,11 +594,8 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	} else if (gen >= 6) {
 		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*cmd++ = lower_32_bits(vma->node.start);
-	} else if (gen >= 4) {
-		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT;
-		*cmd++ = lower_32_bits(vma->node.start);
 	} else {
-		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT | 1;
+		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT;
 		*cmd++ = lower_32_bits(vma->node.start);
 	}
 	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */

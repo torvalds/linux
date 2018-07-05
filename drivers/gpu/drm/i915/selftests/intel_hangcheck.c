@@ -193,7 +193,7 @@ static int emit_recurse_batch(struct hang *h,
 		batch += 1024 / sizeof(*batch);
 
 		*batch++ = MI_ARB_CHECK;
-		*batch++ = MI_BATCH_BUFFER_START | 2 << 6 | 1;
+		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	}
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
