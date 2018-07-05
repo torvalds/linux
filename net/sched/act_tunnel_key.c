@@ -329,12 +329,10 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		}
 
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr) {
-			NL_SET_ERR_MSG(extack, "TC IDR already exists");
-			return -EEXIST;
-		}
+		NL_SET_ERR_MSG(extack, "TC IDR already exists");
+		return -EEXIST;
 	}
 
 	t = to_tunnel_key(*a);
@@ -342,8 +340,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		return -ENOMEM;
 	}

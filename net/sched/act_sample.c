@@ -69,10 +69,9 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 	s = to_sample(*a);
 
@@ -81,8 +80,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	s->psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, s->psample_group_num);
 	if (!psample_group) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 	RCU_INIT_POINTER(s->psample_group, psample_group);

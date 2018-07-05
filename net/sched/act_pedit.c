@@ -194,8 +194,8 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	} else {
 		if (bind)
 			goto out_free;
-		tcf_idr_release(*a, bind);
 		if (!ovr) {
+			tcf_idr_release(*a, bind);
 			ret = -EEXIST;
 			goto out_free;
 		}

@@ -870,8 +870,6 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		}
 		act->order = i;
 		sz += tcf_action_fill_size(act);
-		if (ovr)
-			refcount_inc(&act->tcfa_refcnt);
 		list_add_tail(&act->list, actions);
 	}
 

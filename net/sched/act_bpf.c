@@ -311,9 +311,10 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		if (bind)
 			return 0;
 
-		tcf_idr_release(*act, bind);
-		if (!replace)
+		if (!replace) {
+			tcf_idr_release(*act, bind);
 			return -EEXIST;
+		}
 	}
 
 	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
@@ -356,8 +357,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	return res;
 out:
-	if (res == ACT_P_CREATED)
-		tcf_idr_release(*act, bind);
+	tcf_idr_release(*act, bind);
 
 	return ret;
 }
