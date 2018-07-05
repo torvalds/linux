@@ -1398,6 +1398,7 @@ enum amd_hw_ip_block_type {
 	PWR_HWIP,
 	NBIF_HWIP,
 	THM_HWIP,
+	CLK_HWIP,
 	MAX_HWIP
 };
 
