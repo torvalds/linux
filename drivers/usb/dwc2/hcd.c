@@ -2668,6 +2668,7 @@ static int dwc2_alloc_split_dma_aligned_buf(struct dwc2_hsotg *hsotg,
 static void dwc2_free_dma_aligned_buffer(struct urb *urb)
 {
 	void *stored_xfer_buffer;
+	size_t length;
 
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
 		return;
@@ -2676,9 +2677,14 @@ static void dwc2_free_dma_aligned_buffer(struct urb *urb)
 	memcpy(&stored_xfer_buffer, urb->transfer_buffer +
 	       urb->transfer_buffer_length, sizeof(urb->transfer_buffer));
 
-	if (usb_urb_dir_in(urb))
-		memcpy(stored_xfer_buffer, urb->transfer_buffer,
-		       urb->transfer_buffer_length);
+	if (usb_urb_dir_in(urb)) {
+		if (usb_pipeisoc(urb->pipe))
+			length = urb->transfer_buffer_length;
+		else
+			length = urb->actual_length;
+
+		memcpy(stored_xfer_buffer, urb->transfer_buffer, length);
+	}
 	kfree(urb->transfer_buffer);
 	urb->transfer_buffer = stored_xfer_buffer;
 
