@@ -206,6 +206,22 @@ static inline const char * const mediatek_gpio_bank_name(int bank)
 }
 
 static int
+mediatek_gpio_xlate(struct gpio_chip *chip,
+		    const struct of_phandle_args *spec, u32 *flags)
+{
+	int gpio = spec->args[0];
+	struct mtk_gc *rg = to_mediatek_gpio(chip);
+
+	if (rg->bank != gpio / MTK_BANK_WIDTH)
+		return -EINVAL;
+
+	if (flags)
+		*flags = spec->args[1];
+
+	return gpio % MTK_BANK_WIDTH;
+}
+
+static int
 mediatek_gpio_bank_probe(struct platform_device *pdev,
 			 struct device_node *node, int bank)
 {
@@ -220,6 +236,8 @@ mediatek_gpio_bank_probe(struct platform_device *pdev,
 	spin_lock_init(&rg->lock);
 	rg->chip.of_node = node;
 	rg->bank = bank;
+	rg->chip.of_gpio_n_cells = 2;
+	rg->chip.of_xlate = mediatek_gpio_xlate;
 	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
 
 	dat = gpio->gpio_membase + GPIO_REG_DATA + (rg->bank * GPIO_BANK_WIDE);
