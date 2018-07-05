@@ -429,11 +429,18 @@ int gfs2_recover_set(struct gfs2_sbd *sdp, unsigned jid)
 
 	spin_lock(&sdp->sd_jindex_spin);
 	rv = -EBUSY;
-	if (sdp->sd_jdesc->jd_jid == jid)
+	/**
+	 * If we're a spectator, we use journal0, but it's not really ours.
+	 * So we need to wait for its recovery too. If we skip it we'd never
+	 * queue work to the recovery workqueue, and so its completion would
+	 * never clear the DFL_BLOCK_LOCKS flag, so all our locks would
+	 * permanently stop working.
+	 */
+	if (sdp->sd_jdesc->jd_jid == jid && !sdp->sd_args.ar_spectator)
 		goto out;
 	rv = -ENOENT;
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
-		if (jd->jd_jid != jid)
+		if (jd->jd_jid != jid && !sdp->sd_args.ar_spectator)
 			continue;
 		rv = gfs2_recover_journal(jd, false);
 		break;
