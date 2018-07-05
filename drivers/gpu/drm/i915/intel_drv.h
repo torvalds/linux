@@ -1275,6 +1275,20 @@ static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
 	return &enc_to_dig_port(encoder)->dp;
 }
 
+static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
+{
+	switch (encoder->type) {
+	case INTEL_OUTPUT_DP:
+	case INTEL_OUTPUT_EDP:
+		return true;
+	case INTEL_OUTPUT_DDI:
+		/* Skip pure HDMI/DVI DDI encoders */
+		return i915_mmio_reg_valid(enc_to_intel_dp(&encoder->base)->output_reg);
+	default:
+		return false;
+	}
+}
+
 static inline struct intel_digital_port *
 dp_to_dig_port(struct intel_dp *intel_dp)
 {

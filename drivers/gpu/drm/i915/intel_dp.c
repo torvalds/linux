@@ -600,14 +600,8 @@ static enum pipe vlv_find_free_pps(struct drm_i915_private *dev_priv)
 	 * We don't have power sequencer currently.
 	 * Pick one that's not used by other ports.
 	 */
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			WARN_ON(intel_dp->active_pipe != INVALID_PIPE &&
@@ -799,19 +793,8 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	 * should use them always.
 	 */
 
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP &&
-		    encoder->type != INTEL_OUTPUT_DDI)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
-
-		/* Skip pure DVI/HDMI DDI encoders */
-		if (!i915_mmio_reg_valid(intel_dp->output_reg))
-			continue;
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 		WARN_ON(intel_dp->active_pipe != INVALID_PIPE);
 
@@ -3097,16 +3080,9 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		struct intel_dp *intel_dp;
-		enum port port;
-
-		if (encoder->type != INTEL_OUTPUT_DP &&
-		    encoder->type != INTEL_OUTPUT_EDP)
-			continue;
-
-		intel_dp = enc_to_intel_dp(&encoder->base);
-		port = dp_to_dig_port(intel_dp)->base.port;
+	for_each_intel_dp(&dev_priv->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+		enum port port = encoder->port;
 
 		WARN(intel_dp->active_pipe == pipe,
 		     "stealing pipe %c power sequencer from active (e)DP port %c\n",
