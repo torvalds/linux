@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
-#include <linux/stringify.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/bitops.h>

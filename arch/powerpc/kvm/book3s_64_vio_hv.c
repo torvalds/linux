@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
 #include <linux/list.h>
+#include <linux/stringify.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>

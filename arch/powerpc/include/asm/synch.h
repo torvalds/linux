@@ -3,7 +3,6 @@
 #define _ASM_POWERPC_SYNCH_H 
 #ifdef __KERNEL__
 
-#include <linux/stringify.h>
 #include <asm/feature-fixups.h>
 #include <asm/asm-const.h>
 
