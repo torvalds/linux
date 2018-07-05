@@ -390,6 +390,7 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 		null_del_dev(dev->nullb);
 		mutex_unlock(&lock);
 		clear_bit(NULLB_DEV_FL_UP, &dev->flags);
+		clear_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
 	}
 
 	return count;
