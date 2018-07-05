@@ -2006,24 +2006,19 @@ intel_ddi_main_link_aux_domain(struct intel_dp *intel_dp)
 static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
-	enum pipe pipe;
+	struct intel_digital_port *dig_port;
 	u64 domains;
-
-	if (!intel_ddi_get_hw_state(encoder, &pipe))
-		return 0;
-
-	domains = BIT_ULL(dig_port->ddi_io_power_domain);
-	if (!crtc_state)
-		return domains;
 
 	/*
 	 * TODO: Add support for MST encoders. Atm, the following should never
-	 * happen since this function will be called only for the primary
-	 * encoder which doesn't have its own pipe/crtc_state.
+	 * happen since fake-MST encoders don't set their get_power_domains()
+	 * hook.
 	 */
 	if (WARN_ON(intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)))
-		return domains;
+		return 0;
+
+	dig_port = enc_to_dig_port(&encoder->base);
+	domains = BIT_ULL(dig_port->ddi_io_power_domain);
 
 	/* AUX power is only needed for (e)DP mode, not for HDMI. */
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
