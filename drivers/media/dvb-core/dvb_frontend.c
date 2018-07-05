@@ -939,7 +939,10 @@ static void dvb_frontend_get_frequency_limits(struct dvb_frontend *fe,
 static u32 dvb_frontend_get_stepsize(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	u32 step = fe->ops.info.frequency_stepsize_hz;
+	u32 fe_step = fe->ops.info.frequency_stepsize_hz;
+	u32 tuner_step = fe->ops.tuner_ops.info.frequency_step_hz;
+	u32 step = max(fe_step, tuner_step);
+
 	switch (c->delivery_system) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
