@@ -141,8 +141,8 @@ static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 	struct tcf_bpf *prog = to_bpf(act);
 	struct tc_act_bpf opt = {
 		.index   = prog->tcf_index,
-		.refcnt  = prog->tcf_refcnt - ref,
-		.bindcnt = prog->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&prog->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&prog->tcf_bindcnt) - bind,
 		.action  = prog->tcf_action,
 	};
 	struct tcf_t tm;

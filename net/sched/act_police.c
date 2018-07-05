@@ -274,8 +274,8 @@ static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
 		.action = police->tcf_action,
 		.mtu = police->tcfp_mtu,
 		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
-		.refcnt = police->tcf_refcnt - ref,
-		.bindcnt = police->tcf_bindcnt - bind,
+		.refcnt = refcount_read(&police->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&police->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 

@@ -169,8 +169,8 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_gact *gact = to_gact(a);
 	struct tc_gact opt = {
 		.index   = gact->tcf_index,
-		.refcnt  = gact->tcf_refcnt - ref,
-		.bindcnt = gact->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&gact->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&gact->tcf_bindcnt) - bind,
 		.action  = gact->tcf_action,
 	};
 	struct tcf_t t;

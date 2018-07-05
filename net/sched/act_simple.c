@@ -145,8 +145,8 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_defact *d = to_defact(a);
 	struct tc_defact opt = {
 		.index   = d->tcf_index,
-		.refcnt  = d->tcf_refcnt - ref,
-		.bindcnt = d->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&d->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&d->tcf_bindcnt) - bind,
 		.action  = d->tcf_action,
 	};
 	struct tcf_t t;

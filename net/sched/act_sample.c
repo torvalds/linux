@@ -173,8 +173,8 @@ static int tcf_sample_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tc_sample opt = {
 		.index      = s->tcf_index,
 		.action     = s->tcf_action,
-		.refcnt     = s->tcf_refcnt - ref,
-		.bindcnt    = s->tcf_bindcnt - bind,
+		.refcnt     = refcount_read(&s->tcf_refcnt) - ref,
+		.bindcnt    = atomic_read(&s->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 

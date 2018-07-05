@@ -105,14 +105,26 @@ int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 
 	ASSERT_RTNL();
 
+	/* Release with strict==1 and bind==0 is only called through act API
+	 * interface (classifiers always bind). Only case when action with
+	 * positive reference count and zero bind count can exist is when it was
+	 * also created with act API (unbinding last classifier will destroy the
+	 * action if it was created by classifier). So only case when bind count
+	 * can be changed after initial check is when unbound action is
+	 * destroyed by act API while classifier binds to action with same id
+	 * concurrently. This result either creation of new action(same behavior
+	 * as before), or reusing existing action if concurrent process
+	 * increments reference count before action is deleted. Both scenarios
+	 * are acceptable.
+	 */
 	if (p) {
 		if (bind)
-			p->tcfa_bindcnt--;
-		else if (strict && p->tcfa_bindcnt > 0)
+			atomic_dec(&p->tcfa_bindcnt);
+		else if (strict && atomic_read(&p->tcfa_bindcnt) > 0)
 			return -EPERM;
 
-		p->tcfa_refcnt--;
-		if (p->tcfa_bindcnt <= 0 && p->tcfa_refcnt <= 0) {
+		if (atomic_read(&p->tcfa_bindcnt) <= 0 &&
+		    refcount_dec_and_test(&p->tcfa_refcnt)) {
 			if (p->ops->cleanup)
 				p->ops->cleanup(p);
 			tcf_idr_remove(p->idrinfo, p);
@@ -304,8 +316,8 @@ bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 
 	if (index && p) {
 		if (bind)
-			p->tcfa_bindcnt++;
-		p->tcfa_refcnt++;
+			atomic_inc(&p->tcfa_bindcnt);
+		refcount_inc(&p->tcfa_refcnt);
 		*a = p;
 		return true;
 	}
@@ -324,9 +336,9 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 
 	if (unlikely(!p))
 		return -ENOMEM;
-	p->tcfa_refcnt = 1;
+	refcount_set(&p->tcfa_refcnt, 1);
 	if (bind)
-		p->tcfa_bindcnt = 1;
+		atomic_set(&p->tcfa_bindcnt, 1);
 
 	if (cpustats) {
 		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
@@ -782,7 +794,7 @@ static void cleanup_a(struct list_head *actions, int ovr)
 		return;
 
 	list_for_each_entry(a, actions, list)
-		a->tcfa_refcnt--;
+		refcount_dec(&a->tcfa_refcnt);
 }
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
@@ -810,7 +822,7 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		act->order = i;
 		sz += tcf_action_fill_size(act);
 		if (ovr)
-			act->tcfa_refcnt++;
+			refcount_inc(&act->tcfa_refcnt);
 		list_add_tail(&act->list, actions);
 	}
 

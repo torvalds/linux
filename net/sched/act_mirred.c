@@ -250,8 +250,8 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tc_mirred opt = {
 		.index   = m->tcf_index,
 		.action  = m->tcf_action,
-		.refcnt  = m->tcf_refcnt - ref,
-		.bindcnt = m->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&m->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&m->tcf_bindcnt) - bind,
 		.eaction = m->tcfm_eaction,
 		.ifindex = dev ? dev->ifindex : 0,
 	};

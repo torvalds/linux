@@ -6,6 +6,7 @@
  * Public action API for classifiers/qdiscs
 */
 
+#include <linux/refcount.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
@@ -26,8 +27,8 @@ struct tc_action {
 	struct tcf_idrinfo		*idrinfo;
 
 	u32				tcfa_index;
-	int				tcfa_refcnt;
-	int				tcfa_bindcnt;
+	refcount_t			tcfa_refcnt;
+	atomic_t			tcfa_bindcnt;
 	u32				tcfa_capab;
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;

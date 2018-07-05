@@ -409,8 +409,8 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->nkeys = p->tcfp_nkeys;
 	opt->flags = p->tcfp_flags;
 	opt->action = p->tcf_action;
-	opt->refcnt = p->tcf_refcnt - ref;
-	opt->bindcnt = p->tcf_bindcnt - bind;
+	opt->refcnt = refcount_read(&p->tcf_refcnt) - ref;
+	opt->bindcnt = atomic_read(&p->tcf_bindcnt) - bind;
 
 	if (p->tcfp_keys_ex) {
 		tcf_pedit_key_ex_dump(skb, p->tcfp_keys_ex, p->tcfp_nkeys);

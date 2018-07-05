@@ -239,8 +239,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_vlan_params *p = rtnl_dereference(v->vlan_p);
 	struct tc_vlan opt = {
 		.index    = v->tcf_index,
-		.refcnt   = v->tcf_refcnt - ref,
-		.bindcnt  = v->tcf_bindcnt - bind,
+		.refcnt   = refcount_read(&v->tcf_refcnt) - ref,
+		.bindcnt  = atomic_read(&v->tcf_bindcnt) - bind,
 		.action   = v->tcf_action,
 		.v_action = p->tcfv_action,
 	};

@@ -154,8 +154,8 @@ static inline int tcf_connmark_dump(struct sk_buff *skb, struct tc_action *a,
 
 	struct tc_connmark opt = {
 		.index   = ci->tcf_index,
-		.refcnt  = ci->tcf_refcnt - ref,
-		.bindcnt = ci->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&ci->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&ci->tcf_bindcnt) - bind,
 		.action  = ci->tcf_action,
 		.zone   = ci->zone,
 	};

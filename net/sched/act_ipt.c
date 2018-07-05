@@ -280,8 +280,8 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	if (unlikely(!t))
 		goto nla_put_failure;
 
-	c.bindcnt = ipt->tcf_bindcnt - bind;
-	c.refcnt = ipt->tcf_refcnt - ref;
+	c.bindcnt = atomic_read(&ipt->tcf_bindcnt) - bind;
+	c.refcnt = refcount_read(&ipt->tcf_refcnt) - ref;
 	strcpy(t->u.user.name, ipt->tcfi_t->u.kernel.target->name);
 
 	if (nla_put(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t) ||

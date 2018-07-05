@@ -257,8 +257,8 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 
 		.index    = p->tcf_index,
 		.action   = p->tcf_action,
-		.refcnt   = p->tcf_refcnt - ref,
-		.bindcnt  = p->tcf_bindcnt - bind,
+		.refcnt   = refcount_read(&p->tcf_refcnt) - ref,
+		.bindcnt  = atomic_read(&p->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 

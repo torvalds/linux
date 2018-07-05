@@ -474,8 +474,8 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_tunnel_key_params *params;
 	struct tc_tunnel_key opt = {
 		.index    = t->tcf_index,
-		.refcnt   = t->tcf_refcnt - ref,
-		.bindcnt  = t->tcf_bindcnt - bind,
+		.refcnt   = refcount_read(&t->tcf_refcnt) - ref,
+		.bindcnt  = atomic_read(&t->tcf_bindcnt) - bind,
 	};
 	struct tcf_t tm;
 
