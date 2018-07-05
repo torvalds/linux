@@ -9416,7 +9416,7 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		 * registers/MIPI[BXT]. We can break out here early, since we
 		 * need the same DSI PLL to be enabled for both DSI ports.
 		 */
-		if (!intel_dsi_pll_is_enabled(dev_priv))
+		if (!bxt_dsi_pll_is_enabled(dev_priv))
 			break;
 
 		/* XXX: this works for video mode only */
@@ -14092,7 +14092,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);
 
-		intel_dsi_init(dev_priv);
+		vlv_dsi_init(dev_priv);
 	} else if (HAS_DDI(dev_priv)) {
 		int found;
 
@@ -14198,7 +14198,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 				intel_hdmi_init(dev_priv, CHV_HDMID, PORT_D);
 		}
 
-		intel_dsi_init(dev_priv);
+		vlv_dsi_init(dev_priv);
 	} else if (!IS_GEN2(dev_priv) && !IS_PINEVIEW(dev_priv)) {
 		bool found = false;
 

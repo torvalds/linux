@@ -1731,7 +1731,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
 /* vlv_dsi.c */
-void intel_dsi_init(struct drm_i915_private *dev_priv);
+void vlv_dsi_init(struct drm_i915_private *dev_priv);
 
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
