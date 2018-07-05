@@ -1581,7 +1581,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 		if (WARN_ON(IS_ERR(crtc_state)))
 			return PTR_ERR(crtc_state);
 
-		crtc_state->plane_mask &= ~(1 << drm_plane_index(plane));
+		crtc_state->plane_mask &= ~drm_plane_mask(plane);
 	}
 
 	plane_state->crtc = crtc;
@@ -1591,7 +1591,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 						       crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
-		crtc_state->plane_mask |= (1 << drm_plane_index(plane));
+		crtc_state->plane_mask |= drm_plane_mask(plane);
 	}
 
 	if (crtc)
@@ -1700,7 +1700,7 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 							   conn_state->crtc);
 
 		crtc_state->connector_mask &=
-			~(1 << drm_connector_index(conn_state->connector));
+			~drm_connector_mask(conn_state->connector);
 
 		drm_connector_put(conn_state->connector);
 		conn_state->crtc = NULL;
@@ -1712,7 +1712,7 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 			return PTR_ERR(crtc_state);
 
 		crtc_state->connector_mask |=
-			1 << drm_connector_index(conn_state->connector);
+			drm_connector_mask(conn_state->connector);
 
 		drm_connector_get(conn_state->connector);
 		conn_state->crtc = crtc;
@@ -1839,7 +1839,7 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	 */
 	drm_connector_list_iter_begin(state->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (!(crtc_state->connector_mask & (1 << drm_connector_index(connector))))
+		if (!(crtc_state->connector_mask & drm_connector_mask(connector)))
 			continue;
 
 		conn_state = drm_atomic_get_connector_state(state, connector);

@@ -1030,9 +1030,15 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder);
 
 void drm_connector_cleanup(struct drm_connector *connector);
-static inline unsigned drm_connector_index(struct drm_connector *connector)
+
+static inline unsigned int drm_connector_index(const struct drm_connector *connector)
 {
 	return connector->index;
+}
+
+static inline u32 drm_connector_mask(const struct drm_connector *connector)
+{
+	return 1 << connector->index;
 }
 
 /**

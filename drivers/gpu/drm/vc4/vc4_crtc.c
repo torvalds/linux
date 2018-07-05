@@ -1081,7 +1081,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		if (IS_ERR(plane))
 			continue;
 
-		plane->possible_crtcs = 1 << drm_crtc_index(crtc);
+		plane->possible_crtcs = drm_crtc_mask(crtc);
 	}
 
 	/* Set up the legacy cursor after overlay initialization,
@@ -1090,7 +1090,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	 */
 	cursor_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_CURSOR);
 	if (!IS_ERR(cursor_plane)) {
-		cursor_plane->possible_crtcs = 1 << drm_crtc_index(crtc);
+		cursor_plane->possible_crtcs = drm_crtc_mask(crtc);
 		crtc->cursor = cursor_plane;
 	}
 
@@ -1118,7 +1118,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 err_destroy_planes:
 	list_for_each_entry_safe(destroy_plane, temp,
 				 &drm->mode_config.plane_list, head) {
-		if (destroy_plane->possible_crtcs == 1 << drm_crtc_index(crtc))
+		if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
 		    destroy_plane->funcs->destroy(destroy_plane);
 	}
 err:

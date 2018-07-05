@@ -847,7 +847,7 @@ retry:
 		if (ret)
 			goto unlock;
 
-		plane_mask |= BIT(drm_plane_index(plane));
+		plane_mask |= drm_plane_mask(plane);
 	}
 
 	/* This list is only filled when disable_crtcs is set. */

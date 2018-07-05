@@ -261,7 +261,7 @@ struct intel_link_m_n {
 			    &(dev)->mode_config.plane_list,		\
 			    base.head)					\
 		for_each_if((plane_mask) &				\
-			    BIT(drm_plane_index(&intel_plane->base)))
+			    drm_plane_mask(&intel_plane->base)))
 
 #define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
 	list_for_each_entry(intel_plane,				\
@@ -278,7 +278,7 @@ struct intel_link_m_n {
 	list_for_each_entry(intel_crtc,					\
 			    &(dev)->mode_config.crtc_list,		\
 			    base.head)					\
-		for_each_if((crtc_mask) & BIT(drm_crtc_index(&intel_crtc->base)))
+		for_each_if((crtc_mask) & drm_crtc_mask(&intel_crtc->base))
 
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
