@@ -1223,10 +1223,16 @@ static int venc_probe(struct platform_device *pdev)
 	if (!core)
 		return -EPROBE_DEFER;
 
-	if (core->res->hfi_version == HFI_VERSION_3XX) {
+	if (IS_V3(core) || IS_V4(core)) {
 		core->core1_clk = devm_clk_get(dev, "core");
 		if (IS_ERR(core->core1_clk))
 			return PTR_ERR(core->core1_clk);
+	}
+
+	if (IS_V4(core)) {
+		core->core1_bus_clk = devm_clk_get(dev, "bus");
+		if (IS_ERR(core->core1_bus_clk))
+			return PTR_ERR(core->core1_bus_clk);
 	}
 
 	platform_set_drvdata(pdev, core);
@@ -1273,15 +1279,21 @@ static int venc_remove(struct platform_device *pdev)
 static __maybe_unused int venc_runtime_suspend(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
+	int ret;
 
-	if (core->res->hfi_version == HFI_VERSION_1XX)
+	if (IS_V1(core))
 		return 0;
 
-	writel(0, core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL);
-	clk_disable_unprepare(core->core1_clk);
-	writel(1, core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL);
+	ret = venus_helper_power_enable(core, VIDC_SESSION_TYPE_ENC, true);
+	if (ret)
+		return ret;
 
-	return 0;
+	if (IS_V4(core))
+		clk_disable_unprepare(core->core1_bus_clk);
+
+	clk_disable_unprepare(core->core1_clk);
+
+	return venus_helper_power_enable(core, VIDC_SESSION_TYPE_ENC, false);
 }
 
 static __maybe_unused int venc_runtime_resume(struct device *dev)
@@ -1289,13 +1301,29 @@ static __maybe_unused int venc_runtime_resume(struct device *dev)
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
 
-	if (core->res->hfi_version == HFI_VERSION_1XX)
+	if (IS_V1(core))
 		return 0;
 
-	writel(0, core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL);
-	ret = clk_prepare_enable(core->core1_clk);
-	writel(1, core->base + WRAPPER_VENC_VCODEC_POWER_CONTROL);
+	ret = venus_helper_power_enable(core, VIDC_SESSION_TYPE_ENC, true);
+	if (ret)
+		return ret;
 
+	ret = clk_prepare_enable(core->core1_clk);
+	if (ret)
+		goto err_power_disable;
+
+	if (IS_V4(core))
+		ret = clk_prepare_enable(core->core1_bus_clk);
+
+	if (ret)
+		goto err_unprepare_core1;
+
+	return venus_helper_power_enable(core, VIDC_SESSION_TYPE_ENC, false);
+
+err_unprepare_core1:
+	clk_disable_unprepare(core->core1_clk);
+err_power_disable:
+	venus_helper_power_enable(core, VIDC_SESSION_TYPE_ENC, false);
 	return ret;
 }
 
