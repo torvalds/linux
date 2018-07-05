@@ -202,9 +202,8 @@ static int igt_ppgtt_alloc(void *arg)
 
 err_ppgtt_cleanup:
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ppgtt->vm.cleanup(&ppgtt->vm);
+	i915_ppgtt_put(ppgtt);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
-	kfree(ppgtt);
 	return err;
 }
 
