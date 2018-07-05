@@ -322,6 +322,13 @@ static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
 	return rtnl_dereference(m->tcfm_dev);
 }
 
+static int tcf_mirred_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.type		=	TCA_ACT_MIRRED,
@@ -335,6 +342,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.lookup		=	tcf_mirred_search,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
+	.delete		=	tcf_mirred_delete,
 };
 
 static __net_init int mirred_init_net(struct net *net)
