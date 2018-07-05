@@ -147,7 +147,8 @@ static int smc_release(struct socket *sock)
 		smc->clcsock = NULL;
 	}
 	if (smc->use_fallback) {
-		sock_put(sk); /* passive closing */
+		if (sk->sk_state != SMC_LISTEN && sk->sk_state != SMC_INIT)
+			sock_put(sk); /* passive closing */
 		sk->sk_state = SMC_CLOSED;
 		sk->sk_state_change(sk);
 	}
@@ -417,12 +418,18 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
 {
 	int rc;
 
-	if (reason_code < 0) /* error, fallback is not possible */
+	if (reason_code < 0) { /* error, fallback is not possible */
+		if (smc->sk.sk_state == SMC_INIT)
+			sock_put(&smc->sk); /* passive closing */
 		return reason_code;
+	}
 	if (reason_code != SMC_CLC_DECL_REPLY) {
 		rc = smc_clc_send_decline(smc, reason_code);
-		if (rc < 0)
+		if (rc < 0) {
+			if (smc->sk.sk_state == SMC_INIT)
+				sock_put(&smc->sk); /* passive closing */
 			return rc;
+		}
 	}
 	return smc_connect_fallback(smc);
 }
@@ -435,8 +442,6 @@ static int smc_connect_abort(struct smc_sock *smc, int reason_code,
 		smc_lgr_forget(smc->conn.lgr);
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_conn_free(&smc->conn);
-	if (reason_code < 0 && smc->sk.sk_state == SMC_INIT)
-		sock_put(&smc->sk); /* passive closing */
 	return reason_code;
 }
 
