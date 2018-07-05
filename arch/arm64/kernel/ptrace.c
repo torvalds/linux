@@ -1076,6 +1076,7 @@ static int compat_gpr_get(struct task_struct *target,
 			break;
 		case 16:
 			reg = task_pt_regs(target)->pstate;
+			reg = pstate_to_compat_psr(reg);
 			break;
 		case 17:
 			reg = task_pt_regs(target)->orig_x0;
@@ -1143,6 +1144,7 @@ static int compat_gpr_set(struct task_struct *target,
 			newregs.pc = reg;
 			break;
 		case 16:
+			reg = compat_psr_to_pstate(reg);
 			newregs.pstate = reg;
 			break;
 		case 17:
