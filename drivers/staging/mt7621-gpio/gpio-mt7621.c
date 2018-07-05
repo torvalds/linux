@@ -257,7 +257,6 @@ mediatek_gpio_bank_probe(struct platform_device *pdev,
 			return ret;
 		}
 
-		mediatek_gpio_irq_chip.name = rg->chip.label;
 		ret = gpiochip_irqchip_add(&rg->chip, &mediatek_gpio_irq_chip,
 					   0, handle_simple_irq, IRQ_TYPE_NONE);
 		if (ret) {
@@ -296,6 +295,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	gpio_data->gpio_irq = irq_of_parse_and_map(np, 0);
 	gpio_data->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gpio_data);
+	mediatek_gpio_irq_chip.name = dev_name(&pdev->dev);
 
 	for (i = 0; i < MTK_BANK_CNT; i++)
 		mediatek_gpio_bank_probe(pdev, np, i);
