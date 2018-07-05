@@ -9688,6 +9688,14 @@ enum skl_power_gate {
 #define _BXT_MIPIC_PORT_CTRL				0x6B8C0
 #define BXT_MIPI_PORT_CTRL(tc)	_MMIO_MIPI(tc, _BXT_MIPIA_PORT_CTRL, _BXT_MIPIC_PORT_CTRL)
 
+/* ICL DSI MODE control */
+#define _ICL_DSI_IO_MODECTL_0				0x6B094
+#define _ICL_DSI_IO_MODECTL_1				0x6B894
+#define ICL_DSI_IO_MODECTL(port)	_MMIO_PORT(port,	\
+						    _ICL_DSI_IO_MODECTL_0, \
+						    _ICL_DSI_IO_MODECTL_1)
+#define  COMBO_PHY_MODE_DSI				(1 << 0)
+
 #define BXT_P_DSI_REGULATOR_CFG			_MMIO(0x160020)
 #define  STAP_SELECT					(1 << 0)
 
