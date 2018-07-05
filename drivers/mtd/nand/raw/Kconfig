@@ -152,6 +152,7 @@ config MTD_NAND_S3C2410_CLKSTOP
 config MTD_NAND_TANGO
 	tristate "NAND Flash support for Tango chips"
 	depends on ARCH_TANGO || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enables the NAND Flash controller on Tango chips.
 
@@ -513,6 +514,7 @@ config MTD_NAND_SUNXI
 config MTD_NAND_HISI504
 	tristate "Support for NAND controller on Hisilicon SoC Hip04"
 	depends on ARCH_HISI || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enables support for NAND controller on Hisilicon SoC Hip04.
 
@@ -526,6 +528,7 @@ config MTD_NAND_QCOM
 config MTD_NAND_MTK
 	tristate "Support for NAND controller on MTK SoCs"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enables support for NAND controller on MTK SoCs.
 	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
@@ -533,6 +536,7 @@ config MTD_NAND_MTK
 config MTD_NAND_TEGRA
 	tristate "Support for NAND controller on NVIDIA Tegra"
 	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enables support for NAND flash controller on NVIDIA Tegra SoC.
 	  The driver has been developed and tested on a Tegra 2 SoC. DMA
