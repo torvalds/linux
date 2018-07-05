@@ -649,6 +649,8 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
+
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
@@ -673,11 +675,9 @@ static int __setplane_internal(struct drm_plane *plane,
 					 crtc_x, crtc_y, crtc_w, crtc_h,
 					 src_x, src_y, src_w, src_h, ctx);
 	if (!ret) {
-		if (!plane->state) {
-			plane->crtc = crtc;
-			plane->fb = fb;
-			drm_framebuffer_get(plane->fb);
-		}
+		plane->crtc = crtc;
+		plane->fb = fb;
+		drm_framebuffer_get(plane->fb);
 	} else {
 		plane->old_fb = NULL;
 	}
@@ -688,6 +688,41 @@ out:
 	plane->old_fb = NULL;
 
 	return ret;
+}
+
+static int __setplane_atomic(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h,
+			     struct drm_modeset_acquire_ctx *ctx)
+{
+	int ret;
+
+	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
+
+	/* No fb means shut it down */
+	if (!fb)
+		return plane->funcs->disable_plane(plane, ctx);
+
+	/*
+	 * FIXME: This is redundant with drm_atomic_plane_check(),
+	 * but the legacy cursor/"async" .update_plane() tricks
+	 * don't call that so we still need this here. Should remove
+	 * this when all .update_plane() implementations have been
+	 * fixed to call drm_atomic_plane_check().
+	 */
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
+	if (ret)
+		return ret;
+
+	return plane->funcs->update_plane(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, ctx);
 }
 
 static int setplane_internal(struct drm_plane *plane,
@@ -707,9 +742,15 @@ retry:
 	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
 	if (ret)
 		goto fail;
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h, &ctx);
+
+	if (drm_drv_uses_atomic_modeset(plane->dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					src_x, src_y, src_w, src_h, &ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, &ctx);
 
 fail:
 	if (ret == -EDEADLK) {
@@ -841,9 +882,14 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		src_h = fb->height << 16;
 	}
 
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  0, 0, src_w, src_h, ctx);
+	if (drm_drv_uses_atomic_modeset(dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					0, 0, src_w, src_h, ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  0, 0, src_w, src_h, ctx);
 
 	if (fb)
 		drm_framebuffer_put(fb);
