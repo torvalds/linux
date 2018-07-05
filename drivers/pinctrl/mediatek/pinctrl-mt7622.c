@@ -1263,6 +1263,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 					       MTK_DISABLE);
 			if (err)
 				goto err;
+			/* else: fall through */
 		case PIN_CONFIG_INPUT_ENABLE:
 		case PIN_CONFIG_SLEW_RATE:
 			reg = (param == PIN_CONFIG_SLEW_RATE) ?
