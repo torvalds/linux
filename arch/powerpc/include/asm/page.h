@@ -17,7 +17,6 @@
 #include <asm/types.h>
 #endif
 #include <asm/asm-compat.h>
-#include <asm/kdump.h>
 
 /*
  * On regular PPC32 page size is 4K (but we support 4K/16K/64K/256K pages

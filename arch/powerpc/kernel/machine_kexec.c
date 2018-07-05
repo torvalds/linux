@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/ftrace.h>
 
+#include <asm/kdump.h>
 #include <asm/machdep.h>
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
