@@ -23,7 +23,7 @@ static struct file_system_type autofs_fs_type = {
 	.kill_sb	= autofs_kill_sb,
 };
 MODULE_ALIAS_FS("autofs");
-MODULE_ALIAS("autofs4");
+MODULE_ALIAS("autofs");
 
 static int __init init_autofs_fs(void)
 {
