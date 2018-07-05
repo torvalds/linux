@@ -16,6 +16,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/irqflags.h>
 #include <asm/hw_irq.h>
+#include <asm/feature-fixups.h>
 
 #undef DEBUG
 

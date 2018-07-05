@@ -28,6 +28,7 @@
 #include <asm/exception-64s.h>
 #include <asm/ppc-opcode.h>
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 /*****************************************************************************
  *                                                                           *

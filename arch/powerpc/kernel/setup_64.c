@@ -68,6 +68,7 @@
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 #include <asm/hw_irq.h>
+#include <asm/feature-fixups.h>
 
 #include "setup.h"
 

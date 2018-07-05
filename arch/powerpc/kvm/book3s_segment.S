@@ -20,6 +20,7 @@
 /* Real mode helpers */
 
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 

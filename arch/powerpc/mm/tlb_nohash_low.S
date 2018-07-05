@@ -35,6 +35,7 @@
 #include <asm/processor.h>
 #include <asm/bug.h>
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 #if defined(CONFIG_40x)
 

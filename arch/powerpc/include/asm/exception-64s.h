@@ -35,6 +35,7 @@
  * implementations as possible.
  */
 #include <asm/head-64.h>
+#include <asm/feature-fixups.h>
 
 /* PACA save area offsets (exgen, exmc, etc) */
 #define EX_R9		0

@@ -16,6 +16,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/mmu.h>
+#include <asm/feature-fixups.h>
 
 _GLOBAL(__setup_cpu_603)
 	mflr	r5

@@ -18,6 +18,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/mmu.h>
+#include <asm/feature-fixups.h>
 
 #define MAGIC	0x4c617273	/* 'Lars' */
 

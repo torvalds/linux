@@ -15,6 +15,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/opal.h>
 #include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 	.section	".text"
 

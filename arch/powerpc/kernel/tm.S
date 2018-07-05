@@ -13,6 +13,7 @@
 #include <asm/reg.h>
 #include <asm/bug.h>
 #include <asm/export.h>
+#include <asm/feature-fixups.h>
 
 #ifdef CONFIG_VSX
 /* See fpu.S, this is borrowed from there */

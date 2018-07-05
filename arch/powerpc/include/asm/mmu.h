@@ -5,7 +5,6 @@
 
 #include <linux/types.h>
 
-#include <asm/feature-fixups.h>
 #include <asm/asm-const.h>
 
 /*

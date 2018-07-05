@@ -30,6 +30,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
+#include <asm/feature-fixups.h>
 
 #include <misc/cxl-base.h>
 

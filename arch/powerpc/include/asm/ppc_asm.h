@@ -9,6 +9,7 @@
 #include <asm/processor.h>
 #include <asm/ppc-opcode.h>
 #include <asm/firmware.h>
+#include <asm/feature-fixups.h>
 
 #ifdef __ASSEMBLY__
 

@@ -18,6 +18,7 @@
 #include <asm/ptrace.h>
 #include <asm/cpuidle.h>
 #include <asm/head-64.h>
+#include <asm/feature-fixups.h>
 
 /*
  * There are a few constraints to be concerned with.
