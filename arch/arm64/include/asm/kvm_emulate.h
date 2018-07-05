@@ -140,7 +140,7 @@ static inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
 {
-	*vcpu_cpsr(vcpu) |= COMPAT_PSR_T_BIT;
+	*vcpu_cpsr(vcpu) |= PSR_AA32_T_BIT;
 }
 
 /*
@@ -190,8 +190,8 @@ static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
 	u32 mode;
 
 	if (vcpu_mode_is_32bit(vcpu)) {
-		mode = *vcpu_cpsr(vcpu) & COMPAT_PSR_MODE_MASK;
-		return mode > COMPAT_PSR_MODE_USR;
+		mode = *vcpu_cpsr(vcpu) & PSR_AA32_MODE_MASK;
+		return mode > PSR_AA32_MODE_USR;
 	}
 
 	mode = *vcpu_cpsr(vcpu) & PSR_MODE_MASK;
@@ -329,7 +329,7 @@ static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_mode_is_32bit(vcpu)) {
-		*vcpu_cpsr(vcpu) |= COMPAT_PSR_E_BIT;
+		*vcpu_cpsr(vcpu) |= PSR_AA32_E_BIT;
 	} else {
 		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
 		sctlr |= (1 << 25);
@@ -340,7 +340,7 @@ static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_mode_is_32bit(vcpu))
-		return !!(*vcpu_cpsr(vcpu) & COMPAT_PSR_E_BIT);
+		return !!(*vcpu_cpsr(vcpu) & PSR_AA32_E_BIT);
 
 	return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & (1 << 25));
 }
