@@ -1225,24 +1225,21 @@ static const char *gp_state_getname(short gs)
  */
 static void rcu_check_gp_kthread_starvation(void)
 {
-	unsigned long gpa;
+	struct task_struct *gpk = rcu_state.gp_kthread;
 	unsigned long j;
-	struct rcu_state *rsp = &rcu_state;
 
-	j = jiffies;
-	gpa = READ_ONCE(rsp->gp_activity);
-	if (j - gpa > 2 * HZ) {
+	j = jiffies - READ_ONCE(rcu_state.gp_activity);
+	if (j > 2 * HZ) {
 		pr_err("%s kthread starved for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx ->cpu=%d\n",
-		       rsp->name, j - gpa,
-		       (long)rcu_seq_current(&rsp->gp_seq),
-		       rsp->gp_flags,
-		       gp_state_getname(rsp->gp_state), rsp->gp_state,
-		       rsp->gp_kthread ? rsp->gp_kthread->state : ~0,
-		       rsp->gp_kthread ? task_cpu(rsp->gp_kthread) : -1);
-		if (rsp->gp_kthread) {
+		       rcu_state.name, j,
+		       (long)rcu_seq_current(&rcu_state.gp_seq),
+		       rcu_state.gp_flags,
+		       gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
+		       gpk ? gpk->state : ~0, gpk ? task_cpu(gpk) : -1);
+		if (gpk) {
 			pr_err("RCU grace-period kthread stack dump:\n");
-			sched_show_task(rsp->gp_kthread);
-			wake_up_process(rsp->gp_kthread);
+			sched_show_task(gpk);
+			wake_up_process(gpk);
 		}
 	}
 }
