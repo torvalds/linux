@@ -1273,17 +1273,17 @@ static void rcu_dump_cpu_stacks(void)
 static void rcu_stall_kick_kthreads(void)
 {
 	unsigned long j;
-	struct rcu_state *rsp = &rcu_state;
 
 	if (!rcu_kick_kthreads)
 		return;
-	j = READ_ONCE(rsp->jiffies_kick_kthreads);
-	if (time_after(jiffies, j) && rsp->gp_kthread &&
-	    (rcu_gp_in_progress() || READ_ONCE(rsp->gp_flags))) {
-		WARN_ONCE(1, "Kicking %s grace-period kthread\n", rsp->name);
+	j = READ_ONCE(rcu_state.jiffies_kick_kthreads);
+	if (time_after(jiffies, j) && rcu_state.gp_kthread &&
+	    (rcu_gp_in_progress() || READ_ONCE(rcu_state.gp_flags))) {
+		WARN_ONCE(1, "Kicking %s grace-period kthread\n",
+			  rcu_state.name);
 		rcu_ftrace_dump(DUMP_ALL);
-		wake_up_process(rsp->gp_kthread);
-		WRITE_ONCE(rsp->jiffies_kick_kthreads, j + HZ);
+		wake_up_process(rcu_state.gp_kthread);
+		WRITE_ONCE(rcu_state.jiffies_kick_kthreads, j + HZ);
 	}
 }
 
@@ -1301,7 +1301,6 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 	unsigned long j;
 	int ndetected = 0;
 	struct rcu_node *rnp = rcu_get_root();
-	struct rcu_state *rsp = &rcu_state;
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -1314,7 +1313,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 	 * See Documentation/RCU/stallwarn.txt for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
-	pr_err("INFO: %s detected stalls on CPUs/tasks:", rsp->name);
+	pr_err("INFO: %s detected stalls on CPUs/tasks:", rcu_state.name);
 	print_cpu_stall_info_begin();
 	rcu_for_each_leaf_node(rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -1334,21 +1333,21 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
 							    cpu)->cblist);
 	pr_cont("(detected by %d, t=%ld jiffies, g=%ld, q=%lu)\n",
-	       smp_processor_id(), (long)(jiffies - rsp->gp_start),
-	       (long)rcu_seq_current(&rsp->gp_seq), totqlen);
+	       smp_processor_id(), (long)(jiffies - rcu_state.gp_start),
+	       (long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
 	if (ndetected) {
 		rcu_dump_cpu_stacks();
 
 		/* Complain about tasks blocking the grace period. */
 		rcu_print_detail_task_stall();
 	} else {
-		if (rcu_seq_current(&rsp->gp_seq) != gp_seq) {
+		if (rcu_seq_current(&rcu_state.gp_seq) != gp_seq) {
 			pr_err("INFO: Stall ended before state dump start\n");
 		} else {
 			j = jiffies;
-			gpa = READ_ONCE(rsp->gp_activity);
+			gpa = READ_ONCE(rcu_state.gp_activity);
 			pr_err("All QSes seen, last %s kthread activity %ld (%ld-%ld), jiffies_till_next_fqs=%ld, root ->qsmask %#lx\n",
-			       rsp->name, j - gpa, j, gpa,
+			       rcu_state.name, j - gpa, j, gpa,
 			       jiffies_till_next_fqs,
 			       rcu_get_root()->qsmask);
 			/* In this case, the current CPU might be at fault. */
@@ -1356,8 +1355,8 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 		}
 	}
 	/* Rewrite if needed in case of slow consoles. */
-	if (ULONG_CMP_GE(jiffies, READ_ONCE(rsp->jiffies_stall)))
-		WRITE_ONCE(rsp->jiffies_stall,
+	if (ULONG_CMP_GE(jiffies, READ_ONCE(rcu_state.jiffies_stall)))
+		WRITE_ONCE(rcu_state.jiffies_stall,
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 
 	rcu_check_gp_kthread_starvation();
@@ -1373,7 +1372,6 @@ static void print_cpu_stall(void)
 	unsigned long flags;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	struct rcu_node *rnp = rcu_get_root();
-	struct rcu_state *rsp = &rcu_state;
 	long totqlen = 0;
 
 	/* Kick and suppress, if so configured. */
@@ -1386,7 +1384,7 @@ static void print_cpu_stall(void)
 	 * See Documentation/RCU/stallwarn.txt for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
-	pr_err("INFO: %s self-detected stall on CPU", rsp->name);
+	pr_err("INFO: %s self-detected stall on CPU", rcu_state.name);
 	print_cpu_stall_info_begin();
 	raw_spin_lock_irqsave_rcu_node(rdp->mynode, flags);
 	print_cpu_stall_info(smp_processor_id());
@@ -1396,8 +1394,8 @@ static void print_cpu_stall(void)
 		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
 							    cpu)->cblist);
 	pr_cont(" (t=%lu jiffies g=%ld q=%lu)\n",
-		jiffies - rsp->gp_start,
-		(long)rcu_seq_current(&rsp->gp_seq), totqlen);
+		jiffies - rcu_state.gp_start,
+		(long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
 
 	rcu_check_gp_kthread_starvation();
 
@@ -1405,8 +1403,8 @@ static void print_cpu_stall(void)
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	/* Rewrite if needed in case of slow consoles. */
-	if (ULONG_CMP_GE(jiffies, READ_ONCE(rsp->jiffies_stall)))
-		WRITE_ONCE(rsp->jiffies_stall,
+	if (ULONG_CMP_GE(jiffies, READ_ONCE(rcu_state.jiffies_stall)))
+		WRITE_ONCE(rcu_state.jiffies_stall,
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 
@@ -1431,7 +1429,6 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	unsigned long jn;
 	unsigned long js;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = &rcu_state;
 
 	if ((rcu_cpu_stall_suppress && !rcu_kick_kthreads) ||
 	    !rcu_gp_in_progress())
@@ -1442,27 +1439,28 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	/*
 	 * Lots of memory barriers to reject false positives.
 	 *
-	 * The idea is to pick up rsp->gp_seq, then rsp->jiffies_stall,
-	 * then rsp->gp_start, and finally another copy of rsp->gp_seq.
-	 * These values are updated in the opposite order with memory
-	 * barriers (or equivalent) during grace-period initialization
-	 * and cleanup.  Now, a false positive can occur if we get an new
-	 * value of rsp->gp_start and a old value of rsp->jiffies_stall.
-	 * But given the memory barriers, the only way that this can happen
-	 * is if one grace period ends and another starts between these
-	 * two fetches.  This is detected by comparing the second fetch
-	 * of rsp->gp_seq with the previous fetch from rsp->gp_seq.
+	 * The idea is to pick up rcu_state.gp_seq, then
+	 * rcu_state.jiffies_stall, then rcu_state.gp_start, and finally
+	 * another copy of rcu_state.gp_seq.  These values are updated in
+	 * the opposite order with memory barriers (or equivalent) during
+	 * grace-period initialization and cleanup.  Now, a false positive
+	 * can occur if we get an new value of rcu_state.gp_start and a old
+	 * value of rcu_state.jiffies_stall.  But given the memory barriers,
+	 * the only way that this can happen is if one grace period ends
+	 * and another starts between these two fetches.  This is detected
+	 * by comparing the second fetch of rcu_state.gp_seq with the
+	 * previous fetch from rcu_state.gp_seq.
 	 *
-	 * Given this check, comparisons of jiffies, rsp->jiffies_stall,
-	 * and rsp->gp_start suffice to forestall false positives.
+	 * Given this check, comparisons of jiffies, rcu_state.jiffies_stall,
+	 * and rcu_state.gp_start suffice to forestall false positives.
 	 */
-	gs1 = READ_ONCE(rsp->gp_seq);
+	gs1 = READ_ONCE(rcu_state.gp_seq);
 	smp_rmb(); /* Pick up ->gp_seq first... */
-	js = READ_ONCE(rsp->jiffies_stall);
+	js = READ_ONCE(rcu_state.jiffies_stall);
 	smp_rmb(); /* ...then ->jiffies_stall before the rest... */
-	gps = READ_ONCE(rsp->gp_start);
+	gps = READ_ONCE(rcu_state.gp_start);
 	smp_rmb(); /* ...and finally ->gp_start before ->gp_seq again. */
-	gs2 = READ_ONCE(rsp->gp_seq);
+	gs2 = READ_ONCE(rcu_state.gp_seq);
 	if (gs1 != gs2 ||
 	    ULONG_CMP_LT(j, js) ||
 	    ULONG_CMP_GE(gps, js))
@@ -1471,14 +1469,14 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	jn = jiffies + 3 * rcu_jiffies_till_stall_check() + 3;
 	if (rcu_gp_in_progress() &&
 	    (READ_ONCE(rnp->qsmask) & rdp->grpmask) &&
-	    cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
+	    cmpxchg(&rcu_state.jiffies_stall, js, jn) == js) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall();
 
 	} else if (rcu_gp_in_progress() &&
 		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
-		   cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
+		   cmpxchg(&rcu_state.jiffies_stall, js, jn) == js) {
 
 		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(gs2);
