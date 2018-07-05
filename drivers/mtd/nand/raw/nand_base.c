@@ -4924,6 +4924,11 @@ static void nand_shutdown(struct mtd_info *mtd)
 	nand_get_device(mtd, FL_PM_SUSPENDED);
 }
 
+static int nand_default_bbt(struct mtd_info *mtd)
+{
+	return nand_create_bbt(mtd_to_nand(mtd));
+}
+
 /* Set default functions */
 static void nand_set_defaults(struct nand_chip *chip)
 {
