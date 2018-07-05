@@ -522,7 +522,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
+static int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 {
 	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 
@@ -533,8 +533,8 @@ int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 	return 0;
 }
 
-int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
-			       enum hal_atl_utils_fw_state_e state)
+static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
+				      enum hal_atl_utils_fw_state_e state)
 {
 	int err = 0;
 	u32 transaction_id = 0;
