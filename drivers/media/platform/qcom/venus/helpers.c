@@ -166,21 +166,38 @@ static int intbufs_unset_buffers(struct venus_inst *inst)
 	return ret;
 }
 
-static const unsigned int intbuf_types[] = {
-	HFI_BUFFER_INTERNAL_SCRATCH,
-	HFI_BUFFER_INTERNAL_SCRATCH_1,
-	HFI_BUFFER_INTERNAL_SCRATCH_2,
+static const unsigned int intbuf_types_1xx[] = {
+	HFI_BUFFER_INTERNAL_SCRATCH(HFI_VERSION_1XX),
+	HFI_BUFFER_INTERNAL_SCRATCH_1(HFI_VERSION_1XX),
+	HFI_BUFFER_INTERNAL_SCRATCH_2(HFI_VERSION_1XX),
+	HFI_BUFFER_INTERNAL_PERSIST,
+	HFI_BUFFER_INTERNAL_PERSIST_1,
+};
+
+static const unsigned int intbuf_types_4xx[] = {
+	HFI_BUFFER_INTERNAL_SCRATCH(HFI_VERSION_4XX),
+	HFI_BUFFER_INTERNAL_SCRATCH_1(HFI_VERSION_4XX),
+	HFI_BUFFER_INTERNAL_SCRATCH_2(HFI_VERSION_4XX),
 	HFI_BUFFER_INTERNAL_PERSIST,
 	HFI_BUFFER_INTERNAL_PERSIST_1,
 };
 
 static int intbufs_alloc(struct venus_inst *inst)
 {
-	unsigned int i;
+	const unsigned int *intbuf;
+	size_t arr_sz, i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(intbuf_types); i++) {
-		ret = intbufs_set_buffer(inst, intbuf_types[i]);
+	if (IS_V4(inst->core)) {
+		arr_sz = ARRAY_SIZE(intbuf_types_4xx);
+		intbuf = intbuf_types_4xx;
+	} else {
+		arr_sz = ARRAY_SIZE(intbuf_types_1xx);
+		intbuf = intbuf_types_1xx;
+	}
+
+	for (i = 0; i < arr_sz; i++) {
+		ret = intbufs_set_buffer(inst, intbuf[i]);
 		if (ret)
 			goto error;
 	}
@@ -257,20 +274,23 @@ static int load_scale_clocks(struct venus_core *core)
 
 set_freq:
 
-	if (core->res->hfi_version == HFI_VERSION_3XX) {
-		ret = clk_set_rate(clk, freq);
-		ret |= clk_set_rate(core->core0_clk, freq);
-		ret |= clk_set_rate(core->core1_clk, freq);
-	} else {
-		ret = clk_set_rate(clk, freq);
-	}
+	ret = clk_set_rate(clk, freq);
+	if (ret)
+		goto err;
 
-	if (ret) {
-		dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
-		return ret;
-	}
+	ret = clk_set_rate(core->core0_clk, freq);
+	if (ret)
+		goto err;
+
+	ret = clk_set_rate(core->core1_clk, freq);
+	if (ret)
+		goto err;
 
 	return 0;
+
+err:
+	dev_err(dev, "failed to set clock rate %lu (%d)\n", freq, ret);
+	return ret;
 }
 
 static void fill_buffer_desc(const struct venus_buffer *buf,
