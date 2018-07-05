@@ -3129,32 +3129,31 @@ static void _rcu_barrier_trace(const char *s, int cpu, unsigned long done)
  */
 static void rcu_barrier_callback(struct rcu_head *rhp)
 {
-	struct rcu_state *rsp = &rcu_state;
-
-	if (atomic_dec_and_test(&rsp->barrier_cpu_count)) {
-		_rcu_barrier_trace(TPS("LastCB"), -1, rsp->barrier_sequence);
-		complete(&rsp->barrier_completion);
+	if (atomic_dec_and_test(&rcu_state.barrier_cpu_count)) {
+		_rcu_barrier_trace(TPS("LastCB"), -1,
+				   rcu_state.barrier_sequence);
+		complete(&rcu_state.barrier_completion);
 	} else {
-		_rcu_barrier_trace(TPS("CB"), -1, rsp->barrier_sequence);
+		_rcu_barrier_trace(TPS("CB"), -1, rcu_state.barrier_sequence);
 	}
 }
 
 /*
  * Called with preemption disabled, and from cross-cpu IRQ context.
  */
-static void rcu_barrier_func(void *type)
+static void rcu_barrier_func(void *unused)
 {
-	struct rcu_state *rsp = type;
 	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
 
-	_rcu_barrier_trace(TPS("IRQ"), -1, rsp->barrier_sequence);
+	_rcu_barrier_trace(TPS("IRQ"), -1, rcu_state.barrier_sequence);
 	rdp->barrier_head.func = rcu_barrier_callback;
 	debug_rcu_head_queue(&rdp->barrier_head);
 	if (rcu_segcblist_entrain(&rdp->cblist, &rdp->barrier_head, 0)) {
-		atomic_inc(&rsp->barrier_cpu_count);
+		atomic_inc(&rcu_state.barrier_cpu_count);
 	} else {
 		debug_rcu_head_unqueue(&rdp->barrier_head);
-		_rcu_barrier_trace(TPS("IRQNQ"), -1, rsp->barrier_sequence);
+		_rcu_barrier_trace(TPS("IRQNQ"), -1,
+				   rcu_state.barrier_sequence);
 	}
 }
 
@@ -3166,25 +3165,25 @@ static void _rcu_barrier(void)
 {
 	int cpu;
 	struct rcu_data *rdp;
-	struct rcu_state *rsp = &rcu_state;
-	unsigned long s = rcu_seq_snap(&rsp->barrier_sequence);
+	unsigned long s = rcu_seq_snap(&rcu_state.barrier_sequence);
 
 	_rcu_barrier_trace(TPS("Begin"), -1, s);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
-	mutex_lock(&rsp->barrier_mutex);
+	mutex_lock(&rcu_state.barrier_mutex);
 
 	/* Did someone else do our work for us? */
-	if (rcu_seq_done(&rsp->barrier_sequence, s)) {
-		_rcu_barrier_trace(TPS("EarlyExit"), -1, rsp->barrier_sequence);
+	if (rcu_seq_done(&rcu_state.barrier_sequence, s)) {
+		_rcu_barrier_trace(TPS("EarlyExit"), -1,
+				   rcu_state.barrier_sequence);
 		smp_mb(); /* caller's subsequent code after above check. */
-		mutex_unlock(&rsp->barrier_mutex);
+		mutex_unlock(&rcu_state.barrier_mutex);
 		return;
 	}
 
 	/* Mark the start of the barrier operation. */
-	rcu_seq_start(&rsp->barrier_sequence);
-	_rcu_barrier_trace(TPS("Inc1"), -1, rsp->barrier_sequence);
+	rcu_seq_start(&rcu_state.barrier_sequence);
+	_rcu_barrier_trace(TPS("Inc1"), -1, rcu_state.barrier_sequence);
 
 	/*
 	 * Initialize the count to one rather than to zero in order to
@@ -3192,8 +3191,8 @@ static void _rcu_barrier(void)
 	 * (or preemption of this task).  Exclude CPU-hotplug operations
 	 * to ensure that no offline CPU has callbacks queued.
 	 */
-	init_completion(&rsp->barrier_completion);
-	atomic_set(&rsp->barrier_cpu_count, 1);
+	init_completion(&rcu_state.barrier_completion);
+	atomic_set(&rcu_state.barrier_cpu_count, 1);
 	get_online_cpus();
 
 	/*
@@ -3208,22 +3207,22 @@ static void _rcu_barrier(void)
 		if (rcu_is_nocb_cpu(cpu)) {
 			if (!rcu_nocb_cpu_needs_barrier(cpu)) {
 				_rcu_barrier_trace(TPS("OfflineNoCB"), cpu,
-						   rsp->barrier_sequence);
+						   rcu_state.barrier_sequence);
 			} else {
 				_rcu_barrier_trace(TPS("OnlineNoCB"), cpu,
-						   rsp->barrier_sequence);
+						   rcu_state.barrier_sequence);
 				smp_mb__before_atomic();
-				atomic_inc(&rsp->barrier_cpu_count);
+				atomic_inc(&rcu_state.barrier_cpu_count);
 				__call_rcu(&rdp->barrier_head,
 					   rcu_barrier_callback, cpu, 0);
 			}
 		} else if (rcu_segcblist_n_cbs(&rdp->cblist)) {
 			_rcu_barrier_trace(TPS("OnlineQ"), cpu,
-					   rsp->barrier_sequence);
-			smp_call_function_single(cpu, rcu_barrier_func, rsp, 1);
+					   rcu_state.barrier_sequence);
+			smp_call_function_single(cpu, rcu_barrier_func, NULL, 1);
 		} else {
 			_rcu_barrier_trace(TPS("OnlineNQ"), cpu,
-					   rsp->barrier_sequence);
+					   rcu_state.barrier_sequence);
 		}
 	}
 	put_online_cpus();
@@ -3232,18 +3231,18 @@ static void _rcu_barrier(void)
 	 * Now that we have an rcu_barrier_callback() callback on each
 	 * CPU, and thus each counted, remove the initial count.
 	 */
-	if (atomic_dec_and_test(&rsp->barrier_cpu_count))
-		complete(&rsp->barrier_completion);
+	if (atomic_dec_and_test(&rcu_state.barrier_cpu_count))
+		complete(&rcu_state.barrier_completion);
 
 	/* Wait for all rcu_barrier_callback() callbacks to be invoked. */
-	wait_for_completion(&rsp->barrier_completion);
+	wait_for_completion(&rcu_state.barrier_completion);
 
 	/* Mark the end of the barrier operation. */
-	_rcu_barrier_trace(TPS("Inc2"), -1, rsp->barrier_sequence);
-	rcu_seq_end(&rsp->barrier_sequence);
+	_rcu_barrier_trace(TPS("Inc2"), -1, rcu_state.barrier_sequence);
+	rcu_seq_end(&rcu_state.barrier_sequence);
 
 	/* Other rcu_barrier() invocations can now safely proceed. */
-	mutex_unlock(&rsp->barrier_mutex);
+	mutex_unlock(&rcu_state.barrier_mutex);
 }
 
 /**
