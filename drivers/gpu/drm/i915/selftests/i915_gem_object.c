@@ -347,6 +347,14 @@ static int igt_partial_tiling(void *arg)
 		unsigned int pitch;
 		struct tile tile;
 
+		if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+			/*
+			 * The swizzling pattern is actually unknown as it
+			 * varies based on physical address of each page.
+			 * See i915_gem_detect_bit_6_swizzle().
+			 */
+			break;
+
 		tile.tiling = tiling;
 		switch (tiling) {
 		case I915_TILING_X:
@@ -357,8 +365,8 @@ static int igt_partial_tiling(void *arg)
 			break;
 		}
 
-		if (tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN ||
-		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
+		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
+		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
 
 		if (INTEL_GEN(i915) <= 2) {
