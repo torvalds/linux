@@ -824,11 +824,8 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 {
 	union ib_gid gid = { };
 	struct ib_gid_attr gid_attr;
-	struct ib_gid_table *table;
 	unsigned int gid_type;
 	unsigned long mask;
-
-	table = rdma_gid_table(ib_dev, port);
 
 	mask = GID_ATTR_FIND_MASK_GID_TYPE |
 	       GID_ATTR_FIND_MASK_DEFAULT |
@@ -1293,12 +1290,9 @@ static void ib_cache_update(struct ib_device *device,
 	struct ib_pkey_cache      *pkey_cache = NULL, *old_pkey_cache;
 	int                        i;
 	int                        ret;
-	struct ib_gid_table	  *table;
 
 	if (!rdma_is_port_valid(device, port))
 		return;
-
-	table = rdma_gid_table(device, port);
 
 	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
 	if (!tprops)
