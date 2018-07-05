@@ -896,14 +896,31 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 static void dvb_frontend_get_frequency_limits(struct dvb_frontend *fe,
 					      u32 *freq_min, u32 *freq_max)
 {
-	*freq_min = max(fe->ops.info.frequency_min, fe->ops.tuner_ops.info.frequency_min);
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	__u32 tuner_min = fe->ops.tuner_ops.info.frequency_min_hz;
+	__u32 tuner_max = fe->ops.tuner_ops.info.frequency_max_hz;
+
+	/* If the standard is for satellite, convert frequencies to kHz */
+	switch (c->delivery_system) {
+	case SYS_DVBS:
+	case SYS_DVBS2:
+	case SYS_TURBO:
+	case SYS_ISDBS:
+		tuner_max /= kHz;
+		tuner_min /= kHz;
+		break;
+	default:
+		break;
+	}
+
+	*freq_min = max(fe->ops.info.frequency_min, tuner_min);
 
 	if (fe->ops.info.frequency_max == 0)
-		*freq_max = fe->ops.tuner_ops.info.frequency_max;
-	else if (fe->ops.tuner_ops.info.frequency_max == 0)
+		*freq_max = tuner_max;
+	else if (tuner_max == 0)
 		*freq_max = fe->ops.info.frequency_max;
 	else
-		*freq_max = min(fe->ops.info.frequency_max, fe->ops.tuner_ops.info.frequency_max);
+		*freq_max = min(fe->ops.info.frequency_max, tuner_max);
 
 	if (*freq_min == 0 || *freq_max == 0)
 		dev_warn(fe->dvb->device,

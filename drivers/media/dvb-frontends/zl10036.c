@@ -443,8 +443,8 @@ static int zl10036_init(struct dvb_frontend *fe)
 static const struct dvb_tuner_ops zl10036_tuner_ops = {
 	.info = {
 		.name = "Zarlink ZL10036",
-		.frequency_min = 950000,
-		.frequency_max = 2175000
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2175 * MHz
 	},
 	.init = zl10036_init,
 	.release = zl10036_release,

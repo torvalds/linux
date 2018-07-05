@@ -799,6 +799,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 	const struct dvb_pll_desc *desc;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	b1 = kmalloc(1, GFP_KERNEL);
 	if (!b1)
@@ -844,8 +845,19 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 
 	strncpy(fe->ops.tuner_ops.info.name, desc->name,
 		sizeof(fe->ops.tuner_ops.info.name));
-	fe->ops.tuner_ops.info.frequency_min = desc->min;
-	fe->ops.tuner_ops.info.frequency_max = desc->max;
+	switch (c->delivery_system) {
+	case SYS_DVBS:
+	case SYS_DVBS2:
+	case SYS_TURBO:
+	case SYS_ISDBS:
+		fe->ops.tuner_ops.info.frequency_min_hz = desc->min * kHz;
+		fe->ops.tuner_ops.info.frequency_max_hz = desc->max * kHz;
+		break;
+	default:
+		fe->ops.tuner_ops.info.frequency_min_hz = desc->min;
+		fe->ops.tuner_ops.info.frequency_max_hz = desc->max;
+	}
+
 	if (!desc->initdata)
 		fe->ops.tuner_ops.init = NULL;
 	if (!desc->sleepdata)

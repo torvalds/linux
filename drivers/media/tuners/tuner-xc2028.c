@@ -1440,9 +1440,9 @@ unlock:
 static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.info = {
 		 .name = "Xceive XC3028",
-		 .frequency_min = 42000000,
-		 .frequency_max = 864000000,
-		 .frequency_step = 50000,
+		 .frequency_min_hz  =  42 * MHz,
+		 .frequency_max_hz  = 864 * MHz,
+		 .frequency_step_hz =  50 * kHz,
 		 },
 
 	.set_config	   = xc2028_set_config,

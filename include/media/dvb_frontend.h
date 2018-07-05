@@ -52,6 +52,10 @@
  */
 #define MAX_DELSYS	8
 
+/* Helper definitions to be used at frontend drivers */
+#define kHz 1000UL
+#define MHz 1000000UL
+
 /**
  * struct dvb_frontend_tune_settings - parameters to adjust frontend tuning
  *
@@ -73,22 +77,19 @@ struct dvb_frontend;
  * struct dvb_tuner_info - Frontend name and min/max ranges/bandwidths
  *
  * @name:		name of the Frontend
- * @frequency_min:	minimal frequency supported
- * @frequency_max:	maximum frequency supported
- * @frequency_step:	frequency step
+ * @frequency_min_hz:	minimal frequency supported in Hz
+ * @frequency_max_hz:	maximum frequency supported in Hz
+ * @frequency_step_hz:	frequency step in Hz
  * @bandwidth_min:	minimal frontend bandwidth supported
  * @bandwidth_max:	maximum frontend bandwidth supported
  * @bandwidth_step:	frontend bandwidth step
- *
- * NOTE: frequency parameters are in Hz, for terrestrial/cable or kHz for
- * satellite.
  */
 struct dvb_tuner_info {
 	char name[128];
 
-	u32 frequency_min;
-	u32 frequency_max;
-	u32 frequency_step;
+	u32 frequency_min_hz;
+	u32 frequency_max_hz;
+	u32 frequency_step_hz;
 
 	u32 bandwidth_min;
 	u32 bandwidth_max;
