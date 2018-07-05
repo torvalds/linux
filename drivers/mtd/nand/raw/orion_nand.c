@@ -153,9 +153,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	if (board->width == 16)
 		nc->options |= NAND_BUSWIDTH_16;
 
-	if (board->dev_ready)
-		nc->dev_ready = board->dev_ready;
-
 	platform_set_drvdata(pdev, info);
 
 	/* Not all platforms can gate the clock, so it is not
