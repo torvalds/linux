@@ -975,30 +975,6 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 #endif
 		} else {
 #if !DEBUG_POP_ALWAYS
-			if (has_loopback(rk3308->loopback_grp) &&
-			    (rk3308->dac_output == DAC_LINEOUT)) {
-				int type = ADC_TYPE_LOOPBACK;
-				int idx, grp;
-
-				/*
-				 * Switch to dummy BIST mode (BIST keep reset
-				 * now) to keep the zero input data in I2S bus.
-				 *
-				 * It may cause the glitch if we hold the ADC
-				 * digtital i2s module in codec.
-				 */
-				for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-					regmap_update_bits(rk3308->regmap,
-							   RK3308_ADC_DIG_CON03(grp),
-							   RK3308_ADC_L_CH_BIST_MSK,
-							   RK3308_ADC_L_CH_BIST_SINE);
-					regmap_update_bits(rk3308->regmap,
-							   RK3308_ADC_DIG_CON03(grp),
-							   RK3308_ADC_R_CH_BIST_MSK,
-							   RK3308_ADC_R_CH_BIST_SINE);
-				}
-			}
-
 			if (rk3308->dac_output == DAC_LINEOUT)
 				rk3308_speaker_ctl(rk3308, 1);
 			else if (rk3308->dac_output == DAC_HPOUT)
@@ -2535,14 +2511,35 @@ static int rk3308_codec_open_capture(struct rk3308_codec_priv *rk3308)
 				   RK3308_ADC_R_CH_NORMAL_LEFT);
 	} else {
 		for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-			regmap_update_bits(rk3308->regmap,
-					   RK3308_ADC_DIG_CON03(grp),
-					   RK3308_ADC_L_CH_BIST_MSK,
-					   RK3308_ADC_L_CH_NORMAL_LEFT);
-			regmap_update_bits(rk3308->regmap,
-					   RK3308_ADC_DIG_CON03(grp),
-					   RK3308_ADC_R_CH_BIST_MSK,
-					   RK3308_ADC_R_CH_NORMAL_RIGHT);
+			if (has_loopback(rk3308->loopback_grp) &&
+			    grp == ADC_GRP_SKIP_MAGIC) {
+				/*
+				 * Switch to dummy BIST mode (BIST keep reset
+				 * now) to keep the zero input data in I2S bus.
+				 *
+				 * It may cause the glitch if we hold the ADC
+				 * digtital i2s module in codec.
+				 *
+				 * Then, the grp which is set from loopback_grp.
+				 */
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_ADC_DIG_CON03(rk3308->loopback_grp),
+						   RK3308_ADC_L_CH_BIST_MSK,
+						   RK3308_ADC_L_CH_BIST_SINE);
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_ADC_DIG_CON03(rk3308->loopback_grp),
+						   RK3308_ADC_R_CH_BIST_MSK,
+						   RK3308_ADC_R_CH_BIST_SINE);
+			} else {
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_ADC_DIG_CON03(grp),
+						   RK3308_ADC_L_CH_BIST_MSK,
+						   RK3308_ADC_L_CH_NORMAL_LEFT);
+				regmap_update_bits(rk3308->regmap,
+						   RK3308_ADC_DIG_CON03(grp),
+						   RK3308_ADC_R_CH_BIST_MSK,
+						   RK3308_ADC_R_CH_NORMAL_RIGHT);
+			}
 		}
 	}
 
