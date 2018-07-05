@@ -107,6 +107,9 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 		return;
 	list_add_tail(&base->bo_list, &bo->va);
 
+	if (bo->tbo.type == ttm_bo_type_kernel)
+		list_move(&base->vm_status, &vm->relocated);
+
 	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
 		return;
 
@@ -468,7 +471,6 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			pt->parent = amdgpu_bo_ref(parent->base.bo);
 
 			amdgpu_vm_bo_base_init(&entry->base, vm, pt);
-			list_move(&entry->base.vm_status, &vm->relocated);
 		}
 
 		if (level < AMDGPU_VM_PTB) {
