@@ -648,7 +648,10 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 
-		if (adev->gfx.rlc.is_rlc_v2_1) {
+		if (adev->gfx.rlc.is_rlc_v2_1 &&
+		    adev->gfx.rlc.save_restore_list_cntl_size_bytes &&
+		    adev->gfx.rlc.save_restore_list_gpm_size_bytes &&
+		    adev->gfx.rlc.save_restore_list_srm_size_bytes) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL];
 			info->ucode_id = AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL;
 			info->fw = adev->gfx.rlc_fw;
@@ -2184,8 +2187,14 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
 	gfx_v9_0_init_csb(adev);
 
-	if (!adev->gfx.rlc.is_rlc_v2_1)
-		return;
+	/*
+	 * Rlc save restore list is workable since v2_1.
+	 * And it's needed by gfxoff feature.
+	 */
+	if (adev->gfx.rlc.is_rlc_v2_1) {
+		gfx_v9_1_init_rlc_save_restore_list(adev);
+		gfx_v9_0_enable_save_restore_machine(adev);
+	}
 
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
 			      AMD_PG_SUPPORT_GFX_SMG |
@@ -2193,9 +2202,6 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 			      AMD_PG_SUPPORT_CP |
 			      AMD_PG_SUPPORT_GDS |
 			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
-		gfx_v9_1_init_rlc_save_restore_list(adev);
-		gfx_v9_0_enable_save_restore_machine(adev);
-
 		WREG32(mmRLC_JUMP_TABLE_RESTORE,
 		       adev->gfx.rlc.cp_table_gpu_addr >> 8);
 		gfx_v9_0_init_gfx_power_gating(adev);
