@@ -91,19 +91,24 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 
-	if (!tcf_idr_check(tn, parm->index, a, bind)) {
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (!err) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_gact_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (err > 0) {
 		if (bind)/* dont override defaults */
 			return 0;
 		if (!ovr) {
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}
+	} else {
+		return err;
 	}
 
 	gact = to_gact(*a);

@@ -46,7 +46,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	struct tc_sample *parm;
 	struct tcf_sample *s;
 	bool exists = false;
-	int ret;
+	int ret, err;
 
 	if (!nla)
 		return -EINVAL;
@@ -59,15 +59,20 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_SAMPLE_PARMS]);
 
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_sample_ops, bind, false);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
 	} else if (!ovr) {
 		tcf_idr_release(*a, bind);

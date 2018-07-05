@@ -118,11 +118,14 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 
-	if (!tcf_idr_check(tn, parm->index, a, bind)) {
+	ret = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (!ret) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_connmark_ops, bind, false);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 
 		ci = to_connmark(*a);
 		ci->tcf_action = parm->action;
@@ -131,7 +134,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 
 		tcf_idr_insert(tn, *a);
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (ret > 0) {
 		ci = to_connmark(*a);
 		if (bind)
 			return 0;
@@ -142,6 +145,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		/* replacing action and zone */
 		ci->tcf_action = parm->action;
 		ci->zone = parm->zone;
+		ret = 0;
 	}
 
 	return ret;

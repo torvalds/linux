@@ -237,7 +237,10 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	}
 
 	parm = nla_data(tb[TCA_TUNNEL_KEY_PARMS]);
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
@@ -325,7 +328,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 				     &act_tunnel_key_ops, bind, true);
 		if (ret) {
 			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
-			return ret;
+			goto err_out;
 		}
 
 		ret = ACT_P_CREATED;
@@ -364,6 +367,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 err_out:
 	if (exists)
 		tcf_idr_release(*a, bind);
+	else
+		tcf_idr_cleanup(tn, parm->index);
 	return ret;
 }
 

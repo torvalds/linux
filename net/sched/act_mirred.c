@@ -79,7 +79,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	struct tcf_mirred *m;
 	struct net_device *dev;
 	bool exists = false;
-	int ret;
+	int ret, err;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Mirred requires attributes to be passed");
@@ -94,7 +94,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
@@ -107,6 +110,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	default:
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, parm->index);
 		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
@@ -115,6 +120,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (dev == NULL) {
 			if (exists)
 				tcf_idr_release(*a, bind);
+			else
+				tcf_idr_cleanup(tn, parm->index);
 			return -ENODEV;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
@@ -124,13 +131,16 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		if (!dev) {
+			tcf_idr_cleanup(tn, parm->index);
 			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
 		}
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_mirred_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
 	} else if (!ovr) {
 		tcf_idr_release(*a, bind);

@@ -299,14 +299,17 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
 
-	if (!tcf_idr_check(tn, parm->index, act, bind)) {
+	ret = tcf_idr_check_alloc(tn, &parm->index, act, bind);
+	if (!ret) {
 		ret = tcf_idr_create(tn, parm->index, est, act,
 				     &act_bpf_ops, bind, true);
-		if (ret < 0)
+		if (ret < 0) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 
 		res = ACT_P_CREATED;
-	} else {
+	} else if (ret > 0) {
 		/* Don't override defaults. */
 		if (bind)
 			return 0;
@@ -315,6 +318,8 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 			tcf_idr_release(*act, bind);
 			return -EEXIST;
 		}
+	} else {
+		return ret;
 	}
 
 	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];

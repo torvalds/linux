@@ -303,7 +303,9 @@ static bool __tcf_idr_check(struct tc_action_net *tn, u32 index,
 
 	spin_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
-	if (p) {
+	if (IS_ERR(p)) {
+		p = NULL;
+	} else if (p) {
 		refcount_inc(&p->tcfa_refcnt);
 		if (bind)
 			atomic_inc(&p->tcfa_bindcnt);
@@ -371,7 +373,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 {
 	struct tc_action *p = kzalloc(ops->size, GFP_KERNEL);
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
-	struct idr *idr = &idrinfo->action_idr;
 	int err = -ENOMEM;
 
 	if (unlikely(!p))
@@ -389,20 +390,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 			goto err2;
 	}
 	spin_lock_init(&p->tcfa_lock);
-	idr_preload(GFP_KERNEL);
-	spin_lock(&idrinfo->lock);
-	/* user doesn't specify an index */
-	if (!index) {
-		index = 1;
-		err = idr_alloc_u32(idr, NULL, &index, UINT_MAX, GFP_ATOMIC);
-	} else {
-		err = idr_alloc_u32(idr, NULL, &index, index, GFP_ATOMIC);
-	}
-	spin_unlock(&idrinfo->lock);
-	idr_preload_end();
-	if (err)
-		goto err3;
-
 	p->tcfa_index = index;
 	p->tcfa_tm.install = jiffies;
 	p->tcfa_tm.lastuse = jiffies;
@@ -412,7 +399,7 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 					&p->tcfa_rate_est,
 					&p->tcfa_lock, NULL, est);
 		if (err)
-			goto err4;
+			goto err3;
 	}
 
 	p->idrinfo = idrinfo;
@@ -420,8 +407,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 	INIT_LIST_HEAD(&p->list);
 	*a = p;
 	return 0;
-err4:
-	idr_remove(idr, index);
 err3:
 	free_percpu(p->cpu_qstats);
 err2:
@@ -437,10 +422,77 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
 	spin_lock(&idrinfo->lock);
-	idr_replace(&idrinfo->action_idr, a, a->tcfa_index);
+	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
+	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
 	spin_unlock(&idrinfo->lock);
 }
 EXPORT_SYMBOL(tcf_idr_insert);
+
+/* Cleanup idr index that was allocated but not initialized. */
+
+void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+
+	spin_lock(&idrinfo->lock);
+	/* Remove ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
+	WARN_ON(!IS_ERR(idr_remove(&idrinfo->action_idr, index)));
+	spin_unlock(&idrinfo->lock);
+}
+EXPORT_SYMBOL(tcf_idr_cleanup);
+
+/* Check if action with specified index exists. If actions is found, increments
+ * its reference and bind counters, and return 1. Otherwise insert temporary
+ * error pointer (to prevent concurrent users from inserting actions with same
+ * index) and return 0.
+ */
+
+int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
+			struct tc_action **a, int bind)
+{
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p;
+	int ret;
+
+again:
+	spin_lock(&idrinfo->lock);
+	if (*index) {
+		p = idr_find(&idrinfo->action_idr, *index);
+		if (IS_ERR(p)) {
+			/* This means that another process allocated
+			 * index but did not assign the pointer yet.
+			 */
+			spin_unlock(&idrinfo->lock);
+			goto again;
+		}
+
+		if (p) {
+			refcount_inc(&p->tcfa_refcnt);
+			if (bind)
+				atomic_inc(&p->tcfa_bindcnt);
+			*a = p;
+			ret = 1;
+		} else {
+			*a = NULL;
+			ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
+					    *index, GFP_ATOMIC);
+			if (!ret)
+				idr_replace(&idrinfo->action_idr,
+					    ERR_PTR(-EBUSY), *index);
+		}
+	} else {
+		*index = 1;
+		*a = NULL;
+		ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
+				    UINT_MAX, GFP_ATOMIC);
+		if (!ret)
+			idr_replace(&idrinfo->action_idr, ERR_PTR(-EBUSY),
+				    *index);
+	}
+	spin_unlock(&idrinfo->lock);
+	return ret;
+}
+EXPORT_SYMBOL(tcf_idr_check_alloc);
 
 void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo)
