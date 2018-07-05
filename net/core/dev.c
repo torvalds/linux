@@ -149,7 +149,6 @@
 
 #include "net-sysfs.h"
 
-/* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
 
 /* This should be increased if a protocol with a bigger head is added. */
@@ -5151,9 +5150,10 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
-static void __napi_gro_flush_chain(struct napi_struct *napi, struct list_head *head,
+static void __napi_gro_flush_chain(struct napi_struct *napi, u32 index,
 				   bool flush_old)
 {
+	struct list_head *head = &napi->gro_hash[index].list;
 	struct sk_buff *skb, *p;
 
 	list_for_each_entry_safe_reverse(skb, p, head, list) {
@@ -5162,22 +5162,20 @@ static void __napi_gro_flush_chain(struct napi_struct *napi, struct list_head *h
 		list_del_init(&skb->list);
 		napi_gro_complete(skb);
 		napi->gro_count--;
+		napi->gro_hash[index].count--;
 	}
 }
 
-/* napi->gro_hash contains packets ordered by age.
+/* napi->gro_hash[].list contains packets ordered by age.
  * youngest packets at the head of it.
  * Complete skbs in reverse order to reduce latencies.
  */
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
-	int i;
+	u32 i;
 
-	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
-		struct list_head *head = &napi->gro_hash[i];
-
-		__napi_gro_flush_chain(napi, head, flush_old);
-	}
+	for (i = 0; i < GRO_HASH_BUCKETS; i++)
+		__napi_gro_flush_chain(napi, i, flush_old);
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
@@ -5189,7 +5187,7 @@ static struct list_head *gro_list_prepare(struct napi_struct *napi,
 	struct list_head *head;
 	struct sk_buff *p;
 
-	head = &napi->gro_hash[hash & (GRO_HASH_BUCKETS - 1)];
+	head = &napi->gro_hash[hash & (GRO_HASH_BUCKETS - 1)].list;
 	list_for_each_entry(p, head, list) {
 		unsigned long diffs;
 
@@ -5257,27 +5255,13 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
-static void gro_flush_oldest(struct napi_struct *napi)
+static void gro_flush_oldest(struct list_head *head)
 {
-	struct sk_buff *oldest = NULL;
-	unsigned long age = jiffies;
-	int i;
+	struct sk_buff *oldest;
 
-	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
-		struct list_head *head = &napi->gro_hash[i];
-		struct sk_buff *skb;
+	oldest = list_last_entry(head, struct sk_buff, list);
 
-		if (list_empty(head))
-			continue;
-
-		skb = list_last_entry(head, struct sk_buff, list);
-		if (!oldest || time_before(NAPI_GRO_CB(skb)->age, age)) {
-			oldest = skb;
-			age = NAPI_GRO_CB(skb)->age;
-		}
-	}
-
-	/* We are called with napi->gro_count >= MAX_GRO_SKBS, so this is
+	/* We are called with head length >= MAX_GRO_SKBS, so this is
 	 * impossible.
 	 */
 	if (WARN_ON_ONCE(!oldest))
@@ -5292,6 +5276,7 @@ static void gro_flush_oldest(struct napi_struct *napi)
 
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
+	u32 hash = skb_get_hash_raw(skb) & (GRO_HASH_BUCKETS - 1);
 	struct list_head *head = &offload_base;
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
@@ -5358,6 +5343,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		list_del_init(&pp->list);
 		napi_gro_complete(pp);
 		napi->gro_count--;
+		napi->gro_hash[hash].count--;
 	}
 
 	if (same_flow)
@@ -5366,10 +5352,11 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (NAPI_GRO_CB(skb)->flush)
 		goto normal;
 
-	if (unlikely(napi->gro_count >= MAX_GRO_SKBS)) {
-		gro_flush_oldest(napi);
+	if (unlikely(napi->gro_hash[hash].count >= MAX_GRO_SKBS)) {
+		gro_flush_oldest(gro_head);
 	} else {
 		napi->gro_count++;
+		napi->gro_hash[hash].count++;
 	}
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
@@ -6006,8 +5993,10 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
 	napi->timer.function = napi_watchdog;
 	napi->gro_count = 0;
-	for (i = 0; i < GRO_HASH_BUCKETS; i++)
-		INIT_LIST_HEAD(&napi->gro_hash[i]);
+	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
+		INIT_LIST_HEAD(&napi->gro_hash[i].list);
+		napi->gro_hash[i].count = 0;
+	}
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
@@ -6047,8 +6036,9 @@ static void flush_gro_hash(struct napi_struct *napi)
 	for (i = 0; i < GRO_HASH_BUCKETS; i++) {
 		struct sk_buff *skb, *n;
 
-		list_for_each_entry_safe(skb, n, &napi->gro_hash[i], list)
+		list_for_each_entry_safe(skb, n, &napi->gro_hash[i].list, list)
 			kfree_skb(skb);
+		napi->gro_hash[i].count = 0;
 	}
 }
 
