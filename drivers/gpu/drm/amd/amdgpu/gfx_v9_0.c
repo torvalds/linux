@@ -2182,6 +2182,8 @@ static void gfx_v9_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *ad
 
 static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
+	gfx_v9_0_init_csb(adev);
+
 	if (!adev->gfx.rlc.is_rlc_v2_1)
 		return;
 
@@ -2191,7 +2193,6 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 			      AMD_PG_SUPPORT_CP |
 			      AMD_PG_SUPPORT_GDS |
 			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
-		gfx_v9_0_init_csb(adev);
 		gfx_v9_1_init_rlc_save_restore_list(adev);
 		gfx_v9_0_enable_save_restore_machine(adev);
 
