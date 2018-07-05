@@ -2767,86 +2767,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
 			i915_edp_psr_debug_get, i915_edp_psr_debug_set,
 			"%llu\n");
 
-static int i915_sink_crc(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-	struct intel_dp *intel_dp = NULL;
-	struct drm_modeset_acquire_ctx ctx;
-	int ret;
-	u8 crc[6];
-
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-
-	drm_connector_list_iter_begin(dev, &conn_iter);
-
-	for_each_intel_connector_iter(connector, &conn_iter) {
-		struct drm_crtc *crtc;
-		struct drm_connector_state *state;
-		struct intel_crtc_state *crtc_state;
-
-		if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
-			continue;
-
-retry:
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
-		if (ret)
-			goto err;
-
-		state = connector->base.state;
-		if (!state->best_encoder)
-			continue;
-
-		crtc = state->crtc;
-		ret = drm_modeset_lock(&crtc->mutex, &ctx);
-		if (ret)
-			goto err;
-
-		crtc_state = to_intel_crtc_state(crtc->state);
-		if (!crtc_state->base.active)
-			continue;
-
-		/*
-		 * We need to wait for all crtc updates to complete, to make
-		 * sure any pending modesets and plane updates are completed.
-		 */
-		if (crtc_state->base.commit) {
-			ret = wait_for_completion_interruptible(&crtc_state->base.commit->hw_done);
-
-			if (ret)
-				goto err;
-		}
-
-		intel_dp = enc_to_intel_dp(state->best_encoder);
-
-		ret = intel_dp_sink_crc(intel_dp, crtc_state, crc);
-		if (ret)
-			goto err;
-
-		seq_printf(m, "%02x%02x%02x%02x%02x%02x\n",
-			   crc[0], crc[1], crc[2],
-			   crc[3], crc[4], crc[5]);
-		goto out;
-
-err:
-		if (ret == -EDEADLK) {
-			ret = drm_modeset_backoff(&ctx);
-			if (!ret)
-				goto retry;
-		}
-		goto out;
-	}
-	ret = -ENODEV;
-out:
-	drm_connector_list_iter_end(&conn_iter);
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	return ret;
-}
-
 static int i915_energy_uJ(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4792,7 +4712,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
-	{"i915_sink_crc_eDP1", i915_sink_crc, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
 	{"i915_runtime_pm_status", i915_runtime_pm_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
