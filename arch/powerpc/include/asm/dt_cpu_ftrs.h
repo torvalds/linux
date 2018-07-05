@@ -10,7 +10,6 @@
  */
 
 #include <linux/types.h>
-#include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 #include <uapi/asm/cputable.h>
 

@@ -34,6 +34,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/bug.h>
+#include <asm/asm-compat.h>
 
 #if defined(CONFIG_40x)
 

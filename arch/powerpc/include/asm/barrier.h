@@ -5,6 +5,8 @@
 #ifndef _ASM_POWERPC_BARRIER_H
 #define _ASM_POWERPC_BARRIER_H
 
+#include <asm/asm-const.h>
+
 /*
  * Memory barrier.
  * The sync instruction guarantees that all memory accesses initiated

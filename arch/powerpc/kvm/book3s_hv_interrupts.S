@@ -27,6 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-compat.h>
 
 /*****************************************************************************
  *                                                                           *

@@ -14,7 +14,7 @@
 #include <linux/types.h>
 
 #include <asm/feature-fixups.h>
-#include <asm/asm-compat.h>
+#include <asm/asm-const.h>
 
 #define JUMP_ENTRY_TYPE		stringify_in_c(FTR_ENTRY_LONG)
 #define JUMP_LABEL_NOP_SIZE	4

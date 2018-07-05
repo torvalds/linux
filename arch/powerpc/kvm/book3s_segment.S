@@ -19,6 +19,8 @@
 
 /* Real mode helpers */
 
+#include <asm/asm-compat.h>
+
 #if defined(CONFIG_PPC_BOOK3S_64)
 
 #define GET_SHADOW_VCPU(reg)    \

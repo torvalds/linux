@@ -23,6 +23,7 @@
 #include <asm/exception-64s.h>
 #include <asm/book3s/64/mmu-hash.h>
 #include <asm/mmu.h>
+#include <asm/asm-compat.h>
 
 #undef DEBUG
 

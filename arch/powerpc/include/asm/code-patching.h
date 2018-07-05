@@ -14,6 +14,7 @@
 #include <asm/ppc-opcode.h>
 #include <linux/string.h>
 #include <linux/kallsyms.h>
+#include <asm/asm-compat.h>
 
 /* Flags for create_branch:
  * "b"   == create_branch(addr, target, 0);

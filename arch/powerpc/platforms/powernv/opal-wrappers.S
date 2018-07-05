@@ -14,6 +14,7 @@
 #include <asm/hvcall.h>
 #include <asm/asm-offsets.h>
 #include <asm/opal.h>
+#include <asm/asm-compat.h>
 
 	.section	".text"
 

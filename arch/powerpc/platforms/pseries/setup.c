@@ -69,6 +69,7 @@
 #include <asm/kexec.h>
 #include <asm/isa-bridge.h>
 #include <asm/security_features.h>
+#include <asm/asm-const.h>
 
 #include "pseries.h"
 

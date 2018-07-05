@@ -30,6 +30,7 @@
 #include <asm/machdep.h>
 #include <asm/types.h>
 #include <asm/pci-bridge.h>
+#include <asm/asm-const.h>
 
 #define IOMMU_PAGE_SHIFT_4K      12
 #define IOMMU_PAGE_SIZE_4K       (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K)

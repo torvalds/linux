@@ -12,9 +12,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <asm/asm-compat.h>
 #include <asm/page.h>
 #include <asm/bug.h>
+#include <asm/asm-const.h>
 
 /*
  * This is necessary to get the definition of PGTABLE_RANGE which we

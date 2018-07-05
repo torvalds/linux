@@ -9,6 +9,8 @@
 #ifndef _ASM_POWERPC_THREAD_INFO_H
 #define _ASM_POWERPC_THREAD_INFO_H
 
+#include <asm/asm-const.h>
+
 #ifdef __KERNEL__
 
 #define THREAD_SHIFT		CONFIG_THREAD_SHIFT

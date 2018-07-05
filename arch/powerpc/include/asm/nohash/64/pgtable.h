@@ -8,6 +8,7 @@
 
 #include <asm/nohash/64/pgtable-4k.h>
 #include <asm/barrier.h>
+#include <asm/asm-const.h>
 
 #ifdef CONFIG_PPC_64K_PAGES
 #error "Page size not supported"

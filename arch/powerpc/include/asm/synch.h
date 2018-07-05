@@ -5,6 +5,7 @@
 
 #include <linux/stringify.h>
 #include <asm/feature-fixups.h>
+#include <asm/asm-const.h>
 
 #ifndef __ASSEMBLY__
 extern unsigned int __start___lwsync_fixup, __stop___lwsync_fixup;

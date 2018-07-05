@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_PGTABLE_RADIX_H
 #define _ASM_POWERPC_PGTABLE_RADIX_H
 
+#include <asm/asm-const.h>
+
 #ifndef __ASSEMBLY__
 #include <asm/cmpxchg.h>
 #endif
