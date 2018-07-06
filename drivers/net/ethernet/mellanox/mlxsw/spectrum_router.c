@@ -6878,11 +6878,9 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 		vid = vlan_dev_vlan_id(rif->dev);
 	} else {
 		err = br_vlan_get_pvid(rif->dev, &vid);
-		if (!vid)
-			err = -EINVAL;
-		if (err) {
+		if (err < 0 || !vid) {
 			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
-			return ERR_PTR(err);
+			return ERR_PTR(-EINVAL);
 		}
 	}
 
