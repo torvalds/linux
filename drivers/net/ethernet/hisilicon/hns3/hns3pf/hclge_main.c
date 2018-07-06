@@ -2805,8 +2805,6 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 		clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
 		break;
 	default:
-		dev_warn(&hdev->pdev->dev, "Unsupported reset event to clear:%d",
-			 hdev->reset_type);
 		break;
 	}
 
