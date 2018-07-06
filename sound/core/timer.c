@@ -1514,7 +1514,7 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 				} else {
 					if (id.subdevice < 0)
 						id.subdevice = 0;
-					else
+					else if (id.subdevice < INT_MAX)
 						id.subdevice++;
 				}
 			}

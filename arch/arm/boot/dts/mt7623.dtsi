@@ -24,11 +24,12 @@
 #include <dt-bindings/reset/mt2701-resets.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
 #include <dt-bindings/thermal/thermal.h>
-#include "skeleton64.dtsi"
 
 / {
 	compatible = "mediatek,mt7623";
 	interrupt-parent = <&sysirq>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	aliases {
 		rdma0 = &rdma0;
