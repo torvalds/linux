@@ -1107,7 +1107,7 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 				&cp->caddr.in6, ntohs(cp->cport),
 				&cp->vaddr.in6, ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				(cp->timer.expires-jiffies)/HZ, pe_data);
 		else
 #endif
@@ -1118,7 +1118,7 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				(cp->timer.expires-jiffies)/HZ, pe_data);
 	}
 	return 0;
@@ -1169,7 +1169,7 @@ static int ip_vs_conn_sync_seq_show(struct seq_file *seq, void *v)
 				&cp->caddr.in6, ntohs(cp->cport),
 				&cp->vaddr.in6, ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				ip_vs_origin_name(cp->flags),
 				(cp->timer.expires-jiffies)/HZ);
 		else
@@ -1181,7 +1181,7 @@ static int ip_vs_conn_sync_seq_show(struct seq_file *seq, void *v)
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
 				dbuf, ntohs(cp->dport),
-				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_state_name(cp),
 				ip_vs_origin_name(cp->flags),
 				(cp->timer.expires-jiffies)/HZ);
 	}

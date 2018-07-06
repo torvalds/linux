@@ -193,13 +193,13 @@ ip_vs_create_timeout_table(int *table, int size)
 }
 
 
-const char * ip_vs_state_name(__u16 proto, int state)
+const char *ip_vs_state_name(const struct ip_vs_conn *cp)
 {
-	struct ip_vs_protocol *pp = ip_vs_proto_get(proto);
+	struct ip_vs_protocol *pp = ip_vs_proto_get(cp->protocol);
 
 	if (pp == NULL || pp->state_name == NULL)
-		return (IPPROTO_IP == proto) ? "NONE" : "ERR!";
-	return pp->state_name(state);
+		return (cp->protocol == IPPROTO_IP) ? "NONE" : "ERR!";
+	return pp->state_name(cp->state);
 }
 
 
