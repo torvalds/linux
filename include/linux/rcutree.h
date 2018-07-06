@@ -45,11 +45,6 @@ static inline void rcu_virt_note_context_switch(int cpu)
 	rcu_note_context_switch(false);
 }
 
-static inline void synchronize_rcu_bh(void)
-{
-	synchronize_rcu();
-}
-
 void synchronize_rcu_expedited(void);
 
 static inline void synchronize_sched_expedited(void)
@@ -59,19 +54,7 @@ static inline void synchronize_sched_expedited(void)
 
 void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
 
-/**
- * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
- *
- * This is a transitional API and will soon be removed, with all
- * callers converted to synchronize_rcu_expedited().
- */
-static inline void synchronize_rcu_bh_expedited(void)
-{
-	synchronize_rcu_expedited();
-}
-
 void rcu_barrier(void);
-void rcu_barrier_bh(void);
 void rcu_barrier_sched(void);
 bool rcu_eqs_special_set(int cpu);
 unsigned long get_state_synchronize_rcu(void);

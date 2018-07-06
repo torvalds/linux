@@ -68,21 +68,6 @@ static inline void rcu_barrier_sched(void)
 	rcu_barrier();  /* Only one CPU, so only one list of callbacks! */
 }
 
-static inline void rcu_barrier_bh(void)
-{
-	rcu_barrier();
-}
-
-static inline void synchronize_rcu_bh(void)
-{
-	synchronize_sched();
-}
-
-static inline void synchronize_rcu_bh_expedited(void)
-{
-	synchronize_sched();
-}
-
 static inline void synchronize_rcu_expedited(void)
 {
 	synchronize_sched();

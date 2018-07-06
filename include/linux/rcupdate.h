@@ -58,11 +58,6 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void synchronize_rcu(void);
 
-static inline void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
-{
-	call_rcu(head, func);
-}
-
 #ifdef CONFIG_PREEMPT_RCU
 
 void __rcu_read_lock(void);
@@ -874,5 +869,27 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define smp_mb__after_unlock_lock()	do { } while (0)
 #endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
 
+
+/* Transitional pre-consolidation compatibility definitions. */
+
+static inline void synchronize_rcu_bh(void)
+{
+	synchronize_rcu();
+}
+
+static inline void synchronize_rcu_bh_expedited(void)
+{
+	synchronize_rcu_expedited();
+}
+
+static inline void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
+{
+	call_rcu(head, func);
+}
+
+static inline void rcu_barrier_bh(void)
+{
+	rcu_barrier();
+}
 
 #endif /* __LINUX_RCUPDATE_H */

@@ -3253,15 +3253,6 @@ static void _rcu_barrier(void)
 }
 
 /**
- * rcu_barrier_bh - Wait until all in-flight call_rcu_bh() callbacks complete.
- */
-void rcu_barrier_bh(void)
-{
-	_rcu_barrier();
-}
-EXPORT_SYMBOL_GPL(rcu_barrier_bh);
-
-/**
  * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
  *
  * Note that this primitive does not necessarily wait for an RCU grace period
