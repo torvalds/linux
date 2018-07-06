@@ -1574,6 +1574,13 @@ static int ipip6_newlink(struct net *src_net, struct net_device *dev,
 	if (err < 0)
 		return err;
 
+	if (tb[IFLA_MTU]) {
+		u32 mtu = nla_get_u32(tb[IFLA_MTU]);
+
+		if (mtu >= IPV6_MIN_MTU && mtu <= 0xFFF8 - dev->hard_header_len)
+			dev->mtu = mtu;
+	}
+
 #ifdef CONFIG_IPV6_SIT_6RD
 	if (ipip6_netlink_6rd_parms(data, &ip6rd))
 		err = ipip6_tunnel_update_6rd(nt, &ip6rd);

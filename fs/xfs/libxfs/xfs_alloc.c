@@ -1924,6 +1924,93 @@ xfs_alloc_space_available(
 }
 
 /*
+ * Check the agfl fields of the agf for inconsistency or corruption. The purpose
+ * is to detect an agfl header padding mismatch between current and early v5
+ * kernels. This problem manifests as a 1-slot size difference between the
+ * on-disk flcount and the active [first, last] range of a wrapped agfl. This
+ * may also catch variants of agfl count corruption unrelated to padding. Either
+ * way, we'll reset the agfl and warn the user.
+ *
+ * Return true if a reset is required before the agfl can be used, false
+ * otherwise.
+ */
+static bool
+xfs_agfl_needs_reset(
+	struct xfs_mount	*mp,
+	struct xfs_agf		*agf)
+{
+	uint32_t		f = be32_to_cpu(agf->agf_flfirst);
+	uint32_t		l = be32_to_cpu(agf->agf_fllast);
+	uint32_t		c = be32_to_cpu(agf->agf_flcount);
+	int			agfl_size = XFS_AGFL_SIZE(mp);
+	int			active;
+
+	/* no agfl header on v4 supers */
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return false;
+
+	/*
+	 * The agf read verifier catches severe corruption of these fields.
+	 * Repeat some sanity checks to cover a packed -> unpacked mismatch if
+	 * the verifier allows it.
+	 */
+	if (f >= agfl_size || l >= agfl_size)
+		return true;
+	if (c > agfl_size)
+		return true;
+
+	/*
+	 * Check consistency between the on-disk count and the active range. An
+	 * agfl padding mismatch manifests as an inconsistent flcount.
+	 */
+	if (c && l >= f)
+		active = l - f + 1;
+	else if (c)
+		active = agfl_size - f + l + 1;
+	else
+		active = 0;
+
+	return active != c;
+}
+
+/*
+ * Reset the agfl to an empty state. Ignore/drop any existing blocks since the
+ * agfl content cannot be trusted. Warn the user that a repair is required to
+ * recover leaked blocks.
+ *
+ * The purpose of this mechanism is to handle filesystems affected by the agfl
+ * header padding mismatch problem. A reset keeps the filesystem online with a
+ * relatively minor free space accounting inconsistency rather than suffer the
+ * inevitable crash from use of an invalid agfl block.
+ */
+static void
+xfs_agfl_reset(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
+	struct xfs_perag	*pag)
+{
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
+
+	ASSERT(pag->pagf_agflreset);
+	trace_xfs_agfl_reset(mp, agf, 0, _RET_IP_);
+
+	xfs_warn(mp,
+	       "WARNING: Reset corrupted AGFL on AG %u. %d blocks leaked. "
+	       "Please unmount and run xfs_repair.",
+	         pag->pag_agno, pag->pagf_flcount);
+
+	agf->agf_flfirst = 0;
+	agf->agf_fllast = cpu_to_be32(XFS_AGFL_SIZE(mp) - 1);
+	agf->agf_flcount = 0;
+	xfs_alloc_log_agf(tp, agbp, XFS_AGF_FLFIRST | XFS_AGF_FLLAST |
+				    XFS_AGF_FLCOUNT);
+
+	pag->pagf_flcount = 0;
+	pag->pagf_agflreset = false;
+}
+
+/*
  * Decide whether to use this allocation group for this allocation.
  * If so, fix up the btree freelist's size.
  */
@@ -1982,6 +2069,10 @@ xfs_alloc_fix_freelist(
 			goto out_no_agbp;
 		}
 	}
+
+	/* reset a padding mismatched agfl before final free space check */
+	if (pag->pagf_agflreset)
+		xfs_agfl_reset(tp, agbp, pag);
 
 	/* If there isn't enough total space or single-extent, reject it. */
 	need = xfs_alloc_min_freelist(mp, pag);
@@ -2121,6 +2212,7 @@ xfs_alloc_get_freelist(
 		agf->agf_flfirst = 0;
 
 	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
+	ASSERT(!pag->pagf_agflreset);
 	be32_add_cpu(&agf->agf_flcount, -1);
 	xfs_trans_agflist_delta(tp, -1);
 	pag->pagf_flcount--;
@@ -2226,6 +2318,7 @@ xfs_alloc_put_freelist(
 		agf->agf_fllast = 0;
 
 	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
+	ASSERT(!pag->pagf_agflreset);
 	be32_add_cpu(&agf->agf_flcount, 1);
 	xfs_trans_agflist_delta(tp, 1);
 	pag->pagf_flcount++;
@@ -2417,6 +2510,7 @@ xfs_alloc_read_agf(
 		pag->pagb_count = 0;
 		pag->pagb_tree = RB_ROOT;
 		pag->pagf_init = 1;
+		pag->pagf_agflreset = xfs_agfl_needs_reset(mp, agf);
 	}
 #ifdef DEBUG
 	else if (!XFS_FORCED_SHUTDOWN(mp)) {

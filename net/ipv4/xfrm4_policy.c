@@ -101,6 +101,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_gateway = rt->rt_gateway;
 	xdst->u.rt.rt_uses_gateway = rt->rt_uses_gateway;
 	xdst->u.rt.rt_pmtu = rt->rt_pmtu;
+	xdst->u.rt.rt_mtu_locked = rt->rt_mtu_locked;
 	xdst->u.rt.rt_table_id = rt->rt_table_id;
 	INIT_LIST_HEAD(&xdst->u.rt.rt_uncached);
 

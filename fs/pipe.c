@@ -616,6 +616,9 @@ struct pipe_inode_info *alloc_pipe_info(void)
 		unsigned long pipe_bufs = PIPE_DEF_BUFFERS;
 		struct user_struct *user = get_current_user();
 
+		if (pipe_bufs * PAGE_SIZE > pipe_max_size && !capable(CAP_SYS_RESOURCE))
+			pipe_bufs = pipe_max_size >> PAGE_SHIFT;
+
 		if (!too_many_pipe_buffers_hard(user)) {
 			if (too_many_pipe_buffers_soft(user))
 				pipe_bufs = 1;

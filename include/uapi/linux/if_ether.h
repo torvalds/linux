@@ -29,6 +29,7 @@
  */
 
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
+#define ETH_TLEN	2		/* Octets in ethernet type field */
 #define ETH_HLEN	14		/* Total octets in header.	 */
 #define ETH_ZLEN	60		/* Min. octets in frame sans FCS */
 #define ETH_DATA_LEN	1500		/* Max. octets in payload	 */

@@ -751,7 +751,6 @@ dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
 	if (read_cr0() & X86_CR0_EM) {

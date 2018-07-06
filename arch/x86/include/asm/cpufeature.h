@@ -104,7 +104,7 @@
 #define X86_FEATURE_EXTD_APICID	( 3*32+26) /* has extended APICID (8 bits) */
 #define X86_FEATURE_AMD_DCM     ( 3*32+27) /* multi-node processor */
 #define X86_FEATURE_APERFMPERF	( 3*32+28) /* APERFMPERF */
-#define X86_FEATURE_EAGER_FPU	( 3*32+29) /* "eagerfpu" Non lazy FPU restore */
+/* free, was #define X86_FEATURE_EAGER_FPU	( 3*32+29) * "eagerfpu" Non lazy FPU restore */
 #define X86_FEATURE_NONSTOP_TSC_S3 ( 3*32+30) /* TSC doesn't stop in S3 state */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
@@ -368,58 +368,29 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
-#define cpu_has_de		boot_cpu_has(X86_FEATURE_DE)
 #define cpu_has_pse		boot_cpu_has(X86_FEATURE_PSE)
 #define cpu_has_tsc		boot_cpu_has(X86_FEATURE_TSC)
 #define cpu_has_pge		boot_cpu_has(X86_FEATURE_PGE)
 #define cpu_has_apic		boot_cpu_has(X86_FEATURE_APIC)
-#define cpu_has_sep		boot_cpu_has(X86_FEATURE_SEP)
-#define cpu_has_mtrr		boot_cpu_has(X86_FEATURE_MTRR)
-#define cpu_has_mmx		boot_cpu_has(X86_FEATURE_MMX)
 #define cpu_has_fxsr		boot_cpu_has(X86_FEATURE_FXSR)
 #define cpu_has_xmm		boot_cpu_has(X86_FEATURE_XMM)
 #define cpu_has_xmm2		boot_cpu_has(X86_FEATURE_XMM2)
-#define cpu_has_xmm3		boot_cpu_has(X86_FEATURE_XMM3)
-#define cpu_has_ssse3		boot_cpu_has(X86_FEATURE_SSSE3)
 #define cpu_has_aes		boot_cpu_has(X86_FEATURE_AES)
 #define cpu_has_avx		boot_cpu_has(X86_FEATURE_AVX)
 #define cpu_has_avx2		boot_cpu_has(X86_FEATURE_AVX2)
-#define cpu_has_ht		boot_cpu_has(X86_FEATURE_HT)
-#define cpu_has_nx		boot_cpu_has(X86_FEATURE_NX)
-#define cpu_has_xstore		boot_cpu_has(X86_FEATURE_XSTORE)
-#define cpu_has_xstore_enabled	boot_cpu_has(X86_FEATURE_XSTORE_EN)
-#define cpu_has_xcrypt		boot_cpu_has(X86_FEATURE_XCRYPT)
-#define cpu_has_xcrypt_enabled	boot_cpu_has(X86_FEATURE_XCRYPT_EN)
-#define cpu_has_ace2		boot_cpu_has(X86_FEATURE_ACE2)
-#define cpu_has_ace2_enabled	boot_cpu_has(X86_FEATURE_ACE2_EN)
-#define cpu_has_phe		boot_cpu_has(X86_FEATURE_PHE)
-#define cpu_has_phe_enabled	boot_cpu_has(X86_FEATURE_PHE_EN)
-#define cpu_has_pmm		boot_cpu_has(X86_FEATURE_PMM)
-#define cpu_has_pmm_enabled	boot_cpu_has(X86_FEATURE_PMM_EN)
-#define cpu_has_ds		boot_cpu_has(X86_FEATURE_DS)
-#define cpu_has_pebs		boot_cpu_has(X86_FEATURE_PEBS)
 #define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLUSH)
-#define cpu_has_bts		boot_cpu_has(X86_FEATURE_BTS)
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_arch_perfmon	boot_cpu_has(X86_FEATURE_ARCH_PERFMON)
 #define cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
-#define cpu_has_xmm4_1		boot_cpu_has(X86_FEATURE_XMM4_1)
-#define cpu_has_xmm4_2		boot_cpu_has(X86_FEATURE_XMM4_2)
 #define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
 #define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
-#define cpu_has_xsaveopt	boot_cpu_has(X86_FEATURE_XSAVEOPT)
 #define cpu_has_xsaves		boot_cpu_has(X86_FEATURE_XSAVES)
 #define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
-#define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
-#define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
-#define cpu_has_perfctr_nb	boot_cpu_has(X86_FEATURE_PERFCTR_NB)
-#define cpu_has_perfctr_l2	boot_cpu_has(X86_FEATURE_PERFCTR_L2)
-#define cpu_has_cx8		boot_cpu_has(X86_FEATURE_CX8)
-#define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
-#define cpu_has_eager_fpu	boot_cpu_has(X86_FEATURE_EAGER_FPU)
-#define cpu_has_topoext		boot_cpu_has(X86_FEATURE_TOPOEXT)
-#define cpu_has_bpext		boot_cpu_has(X86_FEATURE_BPEXT)
+/*
+ * Do not add any more of those clumsy macros - use static_cpu_has_safe() for
+ * fast paths and boot_cpu_has() otherwise!
+ */
 
 #if __GNUC__ >= 4
 extern void warn_pre_alternatives(void);

@@ -923,7 +923,7 @@ static int check_async_write(struct inode *inode, unsigned long bio_flags)
 	if (bio_flags & EXTENT_BIO_TREE_LOG)
 		return 0;
 #ifdef CONFIG_X86
-	if (cpu_has_xmm4_2)
+	if (static_cpu_has_safe(X86_FEATURE_XMM4_2))
 		return 0;
 #endif
 	return 1;
@@ -1196,7 +1196,7 @@ static struct btrfs_subvolume_writers *btrfs_alloc_subvolume_writers(void)
 	if (!writers)
 		return ERR_PTR(-ENOMEM);
 
-	ret = percpu_counter_init(&writers->counter, 0, GFP_KERNEL);
+	ret = percpu_counter_init(&writers->counter, 0, GFP_NOFS);
 	if (ret < 0) {
 		kfree(writers);
 		return ERR_PTR(ret);

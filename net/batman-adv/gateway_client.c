@@ -798,6 +798,9 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 
 	vid = batadv_get_vid(skb, 0);
 
+	if (is_multicast_ether_addr(ethhdr->h_dest))
+		goto out;
+
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 						 ethhdr->h_dest, vid);
 	if (!orig_dst_node)

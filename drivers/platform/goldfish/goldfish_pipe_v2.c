@@ -948,7 +948,8 @@ static int goldfish_pipe_dma_alloc_locked(struct goldfish_pipe *pipe)
 				dma->dma_size,
 				&dma->phys_begin,
 				GFP_KERNEL);
-	return -ENOMEM;
+	if (!dma->dma_vaddr)
+		return -ENOMEM;
 
 	dma->phys_end = dma->phys_begin + dma->dma_size;
 	pipe->dev->dma_alloc_total += dma->dma_size;
@@ -993,7 +994,6 @@ static int goldfish_dma_mmap_locked(
 				dma->phys_begin >> PAGE_SHIFT,
 				sz_requested,
 				vma->vm_page_prot);
-
 	if (status < 0) {
 		dev_err(pdev_dev, "Cannot remap pfn range....\n");
 		return -EAGAIN;
@@ -1022,7 +1022,6 @@ static int goldfish_dma_mmap(struct file *filp, struct vm_area_struct *vma)
 	status = goldfish_dma_mmap_locked(pipe, vma);
 	mutex_unlock(&pipe->lock);
 	return status;
-
 }
 
 static int goldfish_pipe_dma_create_region(
@@ -1151,6 +1150,15 @@ static struct miscdevice goldfish_pipe_miscdev = {
 	.fops = &goldfish_pipe_fops,
 };
 
+
+static void write_pa_addr(void *addr, void __iomem *portl, void __iomem *porth)
+{
+	const unsigned long paddr = __pa(addr);
+
+	writel(paddr >> 32, porth);
+	writel((u32)paddr, portl);
+}
+
 static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
@@ -1194,14 +1202,14 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	dev->buffers = (struct goldfish_pipe_dev_buffers *)page;
 
 	/* Send the buffer addresses to the host */
-	gf_write_ptr(&dev->buffers->signalled_pipe_buffers,
+	write_pa_addr(&dev->buffers->signalled_pipe_buffers,
 		dev->base + PIPE_REG_SIGNAL_BUFFER,
 		dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
 
 	writel((u32)MAX_SIGNALLED_PIPES,
 		dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
 
-	gf_write_ptr(&dev->buffers->open_command_params,
+	write_pa_addr(&dev->buffers->open_command_params,
 		dev->base + PIPE_REG_OPEN_BUFFER,
 		dev->base + PIPE_REG_OPEN_BUFFER_HIGH);
 

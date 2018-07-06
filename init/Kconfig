@@ -1382,6 +1382,17 @@ source "usr/Kconfig"
 
 endif
 
+choice
+	prompt "Compiler optimization level"
+	default CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+
+config CC_OPTIMIZE_FOR_PERFORMANCE
+	bool "Optimize for performance"
+	help
+	  This is the default optimization level for the kernel, building
+	  with the "-O2" compiler flag for best performance and most
+	  helpful compile-time warnings.
+
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
 	help
@@ -1389,6 +1400,8 @@ config CC_OPTIMIZE_FOR_SIZE
 	  your compiler resulting in a smaller kernel.
 
 	  If unsure, say N.
+
+endchoice
 
 config SYSCTL
 	bool

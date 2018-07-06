@@ -170,6 +170,7 @@ int main(void)
 	OFFSET(__LC_MACHINE_FLAGS, _lowcore, machine_flags);
 	OFFSET(__LC_GMAP, _lowcore, gmap);
 	OFFSET(__LC_PASTE, _lowcore, paste);
+	OFFSET(__LC_BR_R1, _lowcore, br_r1_trampoline);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, _lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */

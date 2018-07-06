@@ -740,6 +740,10 @@ static int parse_options(struct super_block *sb, char *options)
 			} else if (strlen(name) == 6 &&
 					!strncmp(name, "strict", 6)) {
 				F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_STRICT;
+			} else if (strlen(name) == 9 &&
+					!strncmp(name, "nobarrier", 9)) {
+				F2FS_OPTION(sbi).fsync_mode =
+							FSYNC_MODE_NOBARRIER;
 			} else {
 				kfree(name);
 				return -EINVAL;

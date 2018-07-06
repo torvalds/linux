@@ -101,10 +101,8 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	 * (2) It is assigned to the wrong parent.
 	 *
 	 * This check help debug the case (1), which seems to be the
-	 * most likely problem we often made and explicitly makes people
-	 * harder to debug the unstable mmc tuning stuff. So hope people
-	 * to have a close look at this comment to help check out what was
-	 * happening.
+	 * most likely problem we often face and which makes it difficult
+	 * for people to debug unstable mmc tuning results.
 	 */
 	if (!rate) {
 		pr_err("%s: invalid clk rate\n", __func__);

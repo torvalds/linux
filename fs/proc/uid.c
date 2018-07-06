@@ -174,7 +174,7 @@ static int proc_uid_base_readdir(struct file *file, struct dir_context *ctx)
 		return 0;
 
 	for (u = uid_base_stuff + (ctx->pos - 2);
-	     u <= uid_base_stuff + nents - 1; u++) {
+	     u < uid_base_stuff + nents; u++) {
 		if (!proc_fill_cache(file, ctx, u->name, u->len,
 				     proc_uident_instantiate, NULL, u))
 			break;

@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
 #include <linux/major.h>
+#include <linux/of.h>
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
@@ -324,7 +325,19 @@ static void tpm1_chip_unregister(struct tpm_chip *chip)
  */
 int tpm_chip_register(struct tpm_chip *chip)
 {
+#ifdef CONFIG_OF
+	struct device_node *np;
+#endif
 	int rc;
+
+#ifdef CONFIG_OF
+	np = of_find_node_by_name(NULL, "vtpm");
+	if (np) {
+		if (of_property_read_bool(np, "powered-while-suspended"))
+			chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
+	}
+	of_node_put(np);
+#endif
 
 	rc = tpm1_chip_register(chip);
 	if (rc)

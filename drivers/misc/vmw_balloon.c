@@ -576,15 +576,9 @@ static void vmballoon_pop(struct vmballoon *b)
 		}
 	}
 
-	if (b->batch_page) {
-		vunmap(b->batch_page);
-		b->batch_page = NULL;
-	}
-
-	if (b->page) {
-		__free_page(b->page);
-		b->page = NULL;
-	}
+	/* Clearing the batch_page unconditionally has no adverse effect */
+	free_page((unsigned long)b->batch_page);
+	b->batch_page = NULL;
 }
 
 /*
@@ -991,16 +985,13 @@ static const struct vmballoon_ops vmballoon_batched_ops = {
 
 static bool vmballoon_init_batching(struct vmballoon *b)
 {
-	b->page = alloc_page(VMW_PAGE_ALLOC_NOSLEEP);
-	if (!b->page)
+	struct page *page;
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page)
 		return false;
 
-	b->batch_page = vmap(&b->page, 1, VM_MAP, PAGE_KERNEL);
-	if (!b->batch_page) {
-		__free_page(b->page);
-		return false;
-	}
-
+	b->batch_page = page_address(page);
 	return true;
 }
 
