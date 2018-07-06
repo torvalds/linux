@@ -1600,6 +1600,12 @@ struct sockcm_cookie {
 	u16 tsflags;
 };
 
+static inline void sockcm_init(struct sockcm_cookie *sockc,
+			       const struct sock *sk)
+{
+	*sockc = (struct sockcm_cookie) { .tsflags = sk->sk_tsflags };
+}
+
 int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
 		     struct sockcm_cookie *sockc);
 int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
