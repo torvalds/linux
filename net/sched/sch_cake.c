@@ -270,6 +270,7 @@ enum {
 
 struct cobalt_skb_cb {
 	ktime_t enqueue_time;
+	u32     adjusted_len;
 };
 
 static u64 us_to_ns(u64 us)
@@ -1251,6 +1252,88 @@ static u64 cake_ewma(u64 avg, u64 sample, u32 shift)
 	return avg;
 }
 
+static u32 cake_calc_overhead(struct cake_sched_data *q, u32 len, u32 off)
+{
+	if (q->rate_flags & CAKE_FLAG_OVERHEAD)
+		len -= off;
+
+	if (q->max_netlen < len)
+		q->max_netlen = len;
+	if (q->min_netlen > len)
+		q->min_netlen = len;
+
+	len += q->rate_overhead;
+
+	if (len < q->rate_mpu)
+		len = q->rate_mpu;
+
+	if (q->atm_mode == CAKE_ATM_ATM) {
+		len += 47;
+		len /= 48;
+		len *= 53;
+	} else if (q->atm_mode == CAKE_ATM_PTM) {
+		/* Add one byte per 64 bytes or part thereof.
+		 * This is conservative and easier to calculate than the
+		 * precise value.
+		 */
+		len += (len + 63) / 64;
+	}
+
+	if (q->max_adjlen < len)
+		q->max_adjlen = len;
+	if (q->min_adjlen > len)
+		q->min_adjlen = len;
+
+	return len;
+}
+
+static u32 cake_overhead(struct cake_sched_data *q, const struct sk_buff *skb)
+{
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+	unsigned int hdr_len, last_len = 0;
+	u32 off = skb_network_offset(skb);
+	u32 len = qdisc_pkt_len(skb);
+	u16 segs = 1;
+
+	q->avg_netoff = cake_ewma(q->avg_netoff, off << 16, 8);
+
+	if (!shinfo->gso_size)
+		return cake_calc_overhead(q, len, off);
+
+	/* borrowed from qdisc_pkt_len_init() */
+	hdr_len = skb_transport_header(skb) - skb_mac_header(skb);
+
+	/* + transport layer */
+	if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 |
+						SKB_GSO_TCPV6))) {
+		const struct tcphdr *th;
+		struct tcphdr _tcphdr;
+
+		th = skb_header_pointer(skb, skb_transport_offset(skb),
+					sizeof(_tcphdr), &_tcphdr);
+		if (likely(th))
+			hdr_len += __tcp_hdrlen(th);
+	} else {
+		struct udphdr _udphdr;
+
+		if (skb_header_pointer(skb, skb_transport_offset(skb),
+				       sizeof(_udphdr), &_udphdr))
+			hdr_len += sizeof(struct udphdr);
+	}
+
+	if (unlikely(shinfo->gso_type & SKB_GSO_DODGY))
+		segs = DIV_ROUND_UP(skb->len - hdr_len,
+				    shinfo->gso_size);
+	else
+		segs = shinfo->gso_segs;
+
+	len = shinfo->gso_size + hdr_len;
+	last_len = skb->len - shinfo->gso_size * (segs - 1);
+
+	return (cake_calc_overhead(q, len, off) * (segs - 1) +
+		cake_calc_overhead(q, last_len, off));
+}
+
 static void cake_heap_swap(struct cake_sched_data *q, u16 i, u16 j)
 {
 	struct cake_heap_entry ii = q->overflow_heap[i];
@@ -1328,7 +1411,7 @@ static int cake_advance_shaper(struct cake_sched_data *q,
 			       struct sk_buff *skb,
 			       ktime_t now, bool drop)
 {
-	u32 len = qdisc_pkt_len(skb);
+	u32 len = get_cobalt_cb(skb)->adjusted_len;
 
 	/* charge packet bandwidth to this tin
 	 * and to the global shaper.
@@ -1568,6 +1651,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		b->max_skblen = len;
 
 	cobalt_set_enqueue_time(skb, now);
+	get_cobalt_cb(skb)->adjusted_len = cake_overhead(q, skb);
 	flow_queue_add(flow, skb);
 
 	if (q->ack_filter)
@@ -2388,6 +2472,31 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 				(nla_get_u32(tb[TCA_CAKE_FLOW_MODE]) &
 					CAKE_FLOW_MASK));
 
+	if (tb[TCA_CAKE_ATM])
+		q->atm_mode = nla_get_u32(tb[TCA_CAKE_ATM]);
+
+	if (tb[TCA_CAKE_OVERHEAD]) {
+		q->rate_overhead = nla_get_s32(tb[TCA_CAKE_OVERHEAD]);
+		q->rate_flags |= CAKE_FLAG_OVERHEAD;
+
+		q->max_netlen = 0;
+		q->max_adjlen = 0;
+		q->min_netlen = ~0;
+		q->min_adjlen = ~0;
+	}
+
+	if (tb[TCA_CAKE_RAW]) {
+		q->rate_flags &= ~CAKE_FLAG_OVERHEAD;
+
+		q->max_netlen = 0;
+		q->max_adjlen = 0;
+		q->min_netlen = ~0;
+		q->min_adjlen = ~0;
+	}
+
+	if (tb[TCA_CAKE_MPU])
+		q->rate_mpu = nla_get_u32(tb[TCA_CAKE_MPU]);
+
 	if (tb[TCA_CAKE_RTT]) {
 		q->interval = nla_get_u32(tb[TCA_CAKE_RTT]);
 
@@ -2562,6 +2671,19 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	if (nla_put_u32(skb, TCA_CAKE_WASH,
 			!!(q->rate_flags & CAKE_FLAG_WASH)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_CAKE_OVERHEAD, q->rate_overhead))
+		goto nla_put_failure;
+
+	if (!(q->rate_flags & CAKE_FLAG_OVERHEAD))
+		if (nla_put_u32(skb, TCA_CAKE_RAW, 0))
+			goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_CAKE_ATM, q->atm_mode))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_CAKE_MPU, q->rate_mpu))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
