@@ -583,9 +583,7 @@ static __always_inline void trace_clear_recursion(int bit)
 static inline struct ring_buffer_iter *
 trace_buffer_iter(struct trace_iterator *iter, int cpu)
 {
-	if (iter->buffer_iter && iter->buffer_iter[cpu])
-		return iter->buffer_iter[cpu];
-	return NULL;
+	return iter->buffer_iter ? iter->buffer_iter[cpu] : NULL;
 }
 
 int tracer_init(struct tracer *t, struct trace_array *tr);
