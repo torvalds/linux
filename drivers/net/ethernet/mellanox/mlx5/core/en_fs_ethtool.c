@@ -66,11 +66,14 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
 		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
 		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
 		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
 		break;
 	case IP_USER_FLOW:
+	case IPV6_USER_FLOW:
 		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
 		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
 		eth_ft = &priv->fs.ethtool.l3_l4_ft[prio];
@@ -140,6 +143,29 @@ set_ip4(void *headers_c, void *headers_v, __be32 ip4src_m,
 
 	MLX5E_FTE_SET(headers_c, ethertype, 0xffff);
 	MLX5E_FTE_SET(headers_v, ethertype, ETH_P_IP);
+}
+
+static void
+set_ip6(void *headers_c, void *headers_v, __be32 ip6src_m[4],
+	__be32 ip6src_v[4], __be32 ip6dst_m[4], __be32 ip6dst_v[4])
+{
+	u8 ip6_sz = MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6);
+
+	if (!ipv6_addr_any((struct in6_addr *)ip6src_m)) {
+		memcpy(MLX5E_FTE_ADDR_OF(headers_v, src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       ip6src_v, ip6_sz);
+		memcpy(MLX5E_FTE_ADDR_OF(headers_c, src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       ip6src_m, ip6_sz);
+	}
+	if (!ipv6_addr_any((struct in6_addr *)ip6dst_m)) {
+		memcpy(MLX5E_FTE_ADDR_OF(headers_v, dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       ip6dst_v, ip6_sz);
+		memcpy(MLX5E_FTE_ADDR_OF(headers_c, dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       ip6dst_m, ip6_sz);
+	}
+
+	MLX5E_FTE_SET(headers_c, ethertype, 0xffff);
+	MLX5E_FTE_SET(headers_v, ethertype, ETH_P_IPV6);
 }
 
 static void
@@ -214,6 +240,42 @@ parse_ip4(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
 }
 
 static void
+parse_ip6(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_usrip6_spec *l3_mask = &fs->m_u.usr_ip6_spec;
+	struct ethtool_usrip6_spec *l3_val  = &fs->h_u.usr_ip6_spec;
+
+	set_ip6(headers_c, headers_v, l3_mask->ip6src,
+		l3_val->ip6src, l3_mask->ip6dst, l3_val->ip6dst);
+}
+
+static void
+parse_tcp6(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip6_spec *l4_mask = &fs->m_u.tcp_ip6_spec;
+	struct ethtool_tcpip6_spec *l4_val  = &fs->h_u.tcp_ip6_spec;
+
+	set_ip6(headers_c, headers_v, l4_mask->ip6src,
+		l4_val->ip6src, l4_mask->ip6dst, l4_val->ip6dst);
+
+	set_tcp(headers_c, headers_v, l4_mask->psrc, l4_val->psrc,
+		l4_mask->pdst, l4_val->pdst);
+}
+
+static void
+parse_udp6(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip6_spec *l4_mask = &fs->m_u.udp_ip6_spec;
+	struct ethtool_tcpip6_spec *l4_val  = &fs->h_u.udp_ip6_spec;
+
+	set_ip6(headers_c, headers_v, l4_mask->ip6src,
+		l4_val->ip6src, l4_mask->ip6dst, l4_val->ip6dst);
+
+	set_udp(headers_c, headers_v, l4_mask->psrc, l4_val->psrc,
+		l4_mask->pdst, l4_val->pdst);
+}
+
+static void
 parse_ether(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
 {
 	struct ethhdr *eth_mask = &fs->m_u.ether_spec;
@@ -263,6 +325,15 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 		break;
 	case IP_USER_FLOW:
 		parse_ip4(outer_headers_c, outer_headers_v, fs);
+		break;
+	case TCP_V6_FLOW:
+		parse_tcp6(outer_headers_c, outer_headers_v, fs);
+		break;
+	case UDP_V6_FLOW:
+		parse_udp6(outer_headers_c, outer_headers_v, fs);
+		break;
+	case IPV6_USER_FLOW:
+		parse_ip6(outer_headers_c, outer_headers_v, fs);
 		break;
 	case ETHER_FLOW:
 		parse_ether(outer_headers_c, outer_headers_v, fs);
@@ -473,6 +544,51 @@ static int validate_ip4(struct ethtool_rx_flow_spec *fs)
 	return ++ntuples;
 }
 
+static int validate_ip6(struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_usrip6_spec *l3_mask = &fs->m_u.usr_ip6_spec;
+	int ntuples = 0;
+
+	if (l3_mask->l4_4_bytes || l3_mask->tclass || l3_mask->l4_proto)
+		return -EINVAL;
+	if (!ipv6_addr_any((struct in6_addr *)l3_mask->ip6src))
+		ntuples++;
+
+	if (!ipv6_addr_any((struct in6_addr *)l3_mask->ip6dst))
+		ntuples++;
+
+	/* Flow is IPv6 */
+	return ++ntuples;
+}
+
+static int validate_tcpudp6(struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip6_spec *l4_mask = &fs->m_u.tcp_ip6_spec;
+	int ntuples = 0;
+
+	if (l4_mask->tclass)
+		return -EINVAL;
+
+	if (!ipv6_addr_any((struct in6_addr *)l4_mask->ip6src))
+		ntuples++;
+
+	if (!ipv6_addr_any((struct in6_addr *)l4_mask->ip6dst))
+		ntuples++;
+
+	if (l4_mask->psrc) {
+		if (!all_ones(l4_mask->psrc))
+			return -EINVAL;
+		ntuples++;
+	}
+	if (l4_mask->pdst) {
+		if (!all_ones(l4_mask->pdst))
+			return -EINVAL;
+		ntuples++;
+	}
+	/* Flow is TCP/UDP */
+	return ++ntuples;
+}
+
 static int validate_vlan(struct ethtool_rx_flow_spec *fs)
 {
 	if (fs->m_ext.vlan_etype ||
@@ -512,6 +628,19 @@ static int validate_flow(struct mlx5e_priv *priv,
 		break;
 	case IP_USER_FLOW:
 		ret = validate_ip4(fs);
+		if (ret < 0)
+			return ret;
+		num_tuples += ret;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		ret = validate_tcpudp6(fs);
+		if (ret < 0)
+			return ret;
+		num_tuples += ret;
+		break;
+	case IPV6_USER_FLOW:
+		ret = validate_ip6(fs);
 		if (ret < 0)
 			return ret;
 		num_tuples += ret;
