@@ -725,6 +725,433 @@ static void flow_queue_add(struct cake_flow *flow, struct sk_buff *skb)
 	skb->next = NULL;
 }
 
+static struct iphdr *cake_get_iphdr(const struct sk_buff *skb,
+				    struct ipv6hdr *buf)
+{
+	unsigned int offset = skb_network_offset(skb);
+	struct iphdr *iph;
+
+	iph = skb_header_pointer(skb, offset, sizeof(struct iphdr), buf);
+
+	if (!iph)
+		return NULL;
+
+	if (iph->version == 4 && iph->protocol == IPPROTO_IPV6)
+		return skb_header_pointer(skb, offset + iph->ihl * 4,
+					  sizeof(struct ipv6hdr), buf);
+
+	else if (iph->version == 4)
+		return iph;
+
+	else if (iph->version == 6)
+		return skb_header_pointer(skb, offset, sizeof(struct ipv6hdr),
+					  buf);
+
+	return NULL;
+}
+
+static struct tcphdr *cake_get_tcphdr(const struct sk_buff *skb,
+				      void *buf, unsigned int bufsize)
+{
+	unsigned int offset = skb_network_offset(skb);
+	const struct ipv6hdr *ipv6h;
+	const struct tcphdr *tcph;
+	const struct iphdr *iph;
+	struct ipv6hdr _ipv6h;
+	struct tcphdr _tcph;
+
+	ipv6h = skb_header_pointer(skb, offset, sizeof(_ipv6h), &_ipv6h);
+
+	if (!ipv6h)
+		return NULL;
+
+	if (ipv6h->version == 4) {
+		iph = (struct iphdr *)ipv6h;
+		offset += iph->ihl * 4;
+
+		/* special-case 6in4 tunnelling, as that is a common way to get
+		 * v6 connectivity in the home
+		 */
+		if (iph->protocol == IPPROTO_IPV6) {
+			ipv6h = skb_header_pointer(skb, offset,
+						   sizeof(_ipv6h), &_ipv6h);
+
+			if (!ipv6h || ipv6h->nexthdr != IPPROTO_TCP)
+				return NULL;
+
+			offset += sizeof(struct ipv6hdr);
+
+		} else if (iph->protocol != IPPROTO_TCP) {
+			return NULL;
+		}
+
+	} else if (ipv6h->version == 6) {
+		if (ipv6h->nexthdr != IPPROTO_TCP)
+			return NULL;
+
+		offset += sizeof(struct ipv6hdr);
+	} else {
+		return NULL;
+	}
+
+	tcph = skb_header_pointer(skb, offset, sizeof(_tcph), &_tcph);
+	if (!tcph)
+		return NULL;
+
+	return skb_header_pointer(skb, offset,
+				  min(__tcp_hdrlen(tcph), bufsize), buf);
+}
+
+static const void *cake_get_tcpopt(const struct tcphdr *tcph,
+				   int code, int *oplen)
+{
+	/* inspired by tcp_parse_options in tcp_input.c */
+	int length = __tcp_hdrlen(tcph) - sizeof(struct tcphdr);
+	const u8 *ptr = (const u8 *)(tcph + 1);
+
+	while (length > 0) {
+		int opcode = *ptr++;
+		int opsize;
+
+		if (opcode == TCPOPT_EOL)
+			break;
+		if (opcode == TCPOPT_NOP) {
+			length--;
+			continue;
+		}
+		opsize = *ptr++;
+		if (opsize < 2 || opsize > length)
+			break;
+
+		if (opcode == code) {
+			*oplen = opsize;
+			return ptr;
+		}
+
+		ptr += opsize - 2;
+		length -= opsize;
+	}
+
+	return NULL;
+}
+
+/* Compare two SACK sequences. A sequence is considered greater if it SACKs more
+ * bytes than the other. In the case where both sequences ACKs bytes that the
+ * other doesn't, A is considered greater. DSACKs in A also makes A be
+ * considered greater.
+ *
+ * @return -1, 0 or 1 as normal compare functions
+ */
+static int cake_tcph_sack_compare(const struct tcphdr *tcph_a,
+				  const struct tcphdr *tcph_b)
+{
+	const struct tcp_sack_block_wire *sack_a, *sack_b;
+	u32 ack_seq_a = ntohl(tcph_a->ack_seq);
+	u32 bytes_a = 0, bytes_b = 0;
+	int oplen_a, oplen_b;
+	bool first = true;
+
+	sack_a = cake_get_tcpopt(tcph_a, TCPOPT_SACK, &oplen_a);
+	sack_b = cake_get_tcpopt(tcph_b, TCPOPT_SACK, &oplen_b);
+
+	/* pointers point to option contents */
+	oplen_a -= TCPOLEN_SACK_BASE;
+	oplen_b -= TCPOLEN_SACK_BASE;
+
+	if (sack_a && oplen_a >= sizeof(*sack_a) &&
+	    (!sack_b || oplen_b < sizeof(*sack_b)))
+		return -1;
+	else if (sack_b && oplen_b >= sizeof(*sack_b) &&
+		 (!sack_a || oplen_a < sizeof(*sack_a)))
+		return 1;
+	else if ((!sack_a || oplen_a < sizeof(*sack_a)) &&
+		 (!sack_b || oplen_b < sizeof(*sack_b)))
+		return 0;
+
+	while (oplen_a >= sizeof(*sack_a)) {
+		const struct tcp_sack_block_wire *sack_tmp = sack_b;
+		u32 start_a = get_unaligned_be32(&sack_a->start_seq);
+		u32 end_a = get_unaligned_be32(&sack_a->end_seq);
+		int oplen_tmp = oplen_b;
+		bool found = false;
+
+		/* DSACK; always considered greater to prevent dropping */
+		if (before(start_a, ack_seq_a))
+			return -1;
+
+		bytes_a += end_a - start_a;
+
+		while (oplen_tmp >= sizeof(*sack_tmp)) {
+			u32 start_b = get_unaligned_be32(&sack_tmp->start_seq);
+			u32 end_b = get_unaligned_be32(&sack_tmp->end_seq);
+
+			/* first time through we count the total size */
+			if (first)
+				bytes_b += end_b - start_b;
+
+			if (!after(start_b, start_a) && !before(end_b, end_a)) {
+				found = true;
+				if (!first)
+					break;
+			}
+			oplen_tmp -= sizeof(*sack_tmp);
+			sack_tmp++;
+		}
+
+		if (!found)
+			return -1;
+
+		oplen_a -= sizeof(*sack_a);
+		sack_a++;
+		first = false;
+	}
+
+	/* If we made it this far, all ranges SACKed by A are covered by B, so
+	 * either the SACKs are equal, or B SACKs more bytes.
+	 */
+	return bytes_b > bytes_a ? 1 : 0;
+}
+
+static void cake_tcph_get_tstamp(const struct tcphdr *tcph,
+				 u32 *tsval, u32 *tsecr)
+{
+	const u8 *ptr;
+	int opsize;
+
+	ptr = cake_get_tcpopt(tcph, TCPOPT_TIMESTAMP, &opsize);
+
+	if (ptr && opsize == TCPOLEN_TIMESTAMP) {
+		*tsval = get_unaligned_be32(ptr);
+		*tsecr = get_unaligned_be32(ptr + 4);
+	}
+}
+
+static bool cake_tcph_may_drop(const struct tcphdr *tcph,
+			       u32 tstamp_new, u32 tsecr_new)
+{
+	/* inspired by tcp_parse_options in tcp_input.c */
+	int length = __tcp_hdrlen(tcph) - sizeof(struct tcphdr);
+	const u8 *ptr = (const u8 *)(tcph + 1);
+	u32 tstamp, tsecr;
+
+	/* 3 reserved flags must be unset to avoid future breakage
+	 * ACK must be set
+	 * ECE/CWR are handled separately
+	 * All other flags URG/PSH/RST/SYN/FIN must be unset
+	 * 0x0FFF0000 = all TCP flags (confirm ACK=1, others zero)
+	 * 0x00C00000 = CWR/ECE (handled separately)
+	 * 0x0F3F0000 = 0x0FFF0000 & ~0x00C00000
+	 */
+	if (((tcp_flag_word(tcph) &
+	      cpu_to_be32(0x0F3F0000)) != TCP_FLAG_ACK))
+		return false;
+
+	while (length > 0) {
+		int opcode = *ptr++;
+		int opsize;
+
+		if (opcode == TCPOPT_EOL)
+			break;
+		if (opcode == TCPOPT_NOP) {
+			length--;
+			continue;
+		}
+		opsize = *ptr++;
+		if (opsize < 2 || opsize > length)
+			break;
+
+		switch (opcode) {
+		case TCPOPT_MD5SIG: /* doesn't influence state */
+			break;
+
+		case TCPOPT_SACK: /* stricter checking performed later */
+			if (opsize % 8 != 2)
+				return false;
+			break;
+
+		case TCPOPT_TIMESTAMP:
+			/* only drop timestamps lower than new */
+			if (opsize != TCPOLEN_TIMESTAMP)
+				return false;
+			tstamp = get_unaligned_be32(ptr);
+			tsecr = get_unaligned_be32(ptr + 4);
+			if (after(tstamp, tstamp_new) ||
+			    after(tsecr, tsecr_new))
+				return false;
+			break;
+
+		case TCPOPT_MSS:  /* these should only be set on SYN */
+		case TCPOPT_WINDOW:
+		case TCPOPT_SACK_PERM:
+		case TCPOPT_FASTOPEN:
+		case TCPOPT_EXP:
+		default: /* don't drop if any unknown options are present */
+			return false;
+		}
+
+		ptr += opsize - 2;
+		length -= opsize;
+	}
+
+	return true;
+}
+
+static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
+				       struct cake_flow *flow)
+{
+	bool aggressive = q->ack_filter == CAKE_ACK_AGGRESSIVE;
+	struct sk_buff *elig_ack = NULL, *elig_ack_prev = NULL;
+	struct sk_buff *skb_check, *skb_prev = NULL;
+	const struct ipv6hdr *ipv6h, *ipv6h_check;
+	unsigned char _tcph[64], _tcph_check[64];
+	const struct tcphdr *tcph, *tcph_check;
+	const struct iphdr *iph, *iph_check;
+	struct ipv6hdr _iph, _iph_check;
+	const struct sk_buff *skb;
+	int seglen, num_found = 0;
+	u32 tstamp = 0, tsecr = 0;
+	__be32 elig_flags = 0;
+	int sack_comp;
+
+	/* no other possible ACKs to filter */
+	if (flow->head == flow->tail)
+		return NULL;
+
+	skb = flow->tail;
+	tcph = cake_get_tcphdr(skb, _tcph, sizeof(_tcph));
+	iph = cake_get_iphdr(skb, &_iph);
+	if (!tcph)
+		return NULL;
+
+	cake_tcph_get_tstamp(tcph, &tstamp, &tsecr);
+
+	/* the 'triggering' packet need only have the ACK flag set.
+	 * also check that SYN is not set, as there won't be any previous ACKs.
+	 */
+	if ((tcp_flag_word(tcph) &
+	     (TCP_FLAG_ACK | TCP_FLAG_SYN)) != TCP_FLAG_ACK)
+		return NULL;
+
+	/* the 'triggering' ACK is at the tail of the queue, we have already
+	 * returned if it is the only packet in the flow. loop through the rest
+	 * of the queue looking for pure ACKs with the same 5-tuple as the
+	 * triggering one.
+	 */
+	for (skb_check = flow->head;
+	     skb_check && skb_check != skb;
+	     skb_prev = skb_check, skb_check = skb_check->next) {
+		iph_check = cake_get_iphdr(skb_check, &_iph_check);
+		tcph_check = cake_get_tcphdr(skb_check, &_tcph_check,
+					     sizeof(_tcph_check));
+
+		/* only TCP packets with matching 5-tuple are eligible, and only
+		 * drop safe headers
+		 */
+		if (!tcph_check || iph->version != iph_check->version ||
+		    tcph_check->source != tcph->source ||
+		    tcph_check->dest != tcph->dest)
+			continue;
+
+		if (iph_check->version == 4) {
+			if (iph_check->saddr != iph->saddr ||
+			    iph_check->daddr != iph->daddr)
+				continue;
+
+			seglen = ntohs(iph_check->tot_len) -
+				       (4 * iph_check->ihl);
+		} else if (iph_check->version == 6) {
+			ipv6h = (struct ipv6hdr *)iph;
+			ipv6h_check = (struct ipv6hdr *)iph_check;
+
+			if (ipv6_addr_cmp(&ipv6h_check->saddr, &ipv6h->saddr) ||
+			    ipv6_addr_cmp(&ipv6h_check->daddr, &ipv6h->daddr))
+				continue;
+
+			seglen = ntohs(ipv6h_check->payload_len);
+		} else {
+			WARN_ON(1);  /* shouldn't happen */
+			continue;
+		}
+
+		/* If the ECE/CWR flags changed from the previous eligible
+		 * packet in the same flow, we should no longer be dropping that
+		 * previous packet as this would lose information.
+		 */
+		if (elig_ack && (tcp_flag_word(tcph_check) &
+				 (TCP_FLAG_ECE | TCP_FLAG_CWR)) != elig_flags) {
+			elig_ack = NULL;
+			elig_ack_prev = NULL;
+			num_found--;
+		}
+
+		/* Check TCP options and flags, don't drop ACKs with segment
+		 * data, and don't drop ACKs with a higher cumulative ACK
+		 * counter than the triggering packet. Check ACK seqno here to
+		 * avoid parsing SACK options of packets we are going to exclude
+		 * anyway.
+		 */
+		if (!cake_tcph_may_drop(tcph_check, tstamp, tsecr) ||
+		    (seglen - __tcp_hdrlen(tcph_check)) != 0 ||
+		    after(ntohl(tcph_check->ack_seq), ntohl(tcph->ack_seq)))
+			continue;
+
+		/* Check SACK options. The triggering packet must SACK more data
+		 * than the ACK under consideration, or SACK the same range but
+		 * have a larger cumulative ACK counter. The latter is a
+		 * pathological case, but is contained in the following check
+		 * anyway, just to be safe.
+		 */
+		sack_comp = cake_tcph_sack_compare(tcph_check, tcph);
+
+		if (sack_comp < 0 ||
+		    (ntohl(tcph_check->ack_seq) == ntohl(tcph->ack_seq) &&
+		     sack_comp == 0))
+			continue;
+
+		/* At this point we have found an eligible pure ACK to drop; if
+		 * we are in aggressive mode, we are done. Otherwise, keep
+		 * searching unless this is the second eligible ACK we
+		 * found.
+		 *
+		 * Since we want to drop ACK closest to the head of the queue,
+		 * save the first eligible ACK we find, even if we need to loop
+		 * again.
+		 */
+		if (!elig_ack) {
+			elig_ack = skb_check;
+			elig_ack_prev = skb_prev;
+			elig_flags = (tcp_flag_word(tcph_check)
+				      & (TCP_FLAG_ECE | TCP_FLAG_CWR));
+		}
+
+		if (num_found++ > 0)
+			goto found;
+	}
+
+	/* We made it through the queue without finding two eligible ACKs . If
+	 * we found a single eligible ACK we can drop it in aggressive mode if
+	 * we can guarantee that this does not interfere with ECN flag
+	 * information. We ensure this by dropping it only if the enqueued
+	 * packet is consecutive with the eligible ACK, and their flags match.
+	 */
+	if (elig_ack && aggressive && elig_ack->next == skb &&
+	    (elig_flags == (tcp_flag_word(tcph) &
+			    (TCP_FLAG_ECE | TCP_FLAG_CWR))))
+		goto found;
+
+	return NULL;
+
+found:
+	if (elig_ack_prev)
+		elig_ack_prev->next = elig_ack->next;
+	else
+		flow->head = elig_ack->next;
+
+	elig_ack->next = NULL;
+
+	return elig_ack;
+}
+
 static u64 cake_ewma(u64 avg, u64 sample, u32 shift)
 {
 	avg -= avg >> shift;
@@ -934,6 +1361,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	struct cake_sched_data *q = qdisc_priv(sch);
 	int len = qdisc_pkt_len(skb);
 	int uninitialized_var(ret);
+	struct sk_buff *ack = NULL;
 	ktime_t now = ktime_get();
 	struct cake_tin_data *b;
 	struct cake_flow *flow;
@@ -980,8 +1408,24 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	cobalt_set_enqueue_time(skb, now);
 	flow_queue_add(flow, skb);
 
-	sch->q.qlen++;
-	q->buffer_used      += skb->truesize;
+	if (q->ack_filter)
+		ack = cake_ack_filter(q, flow);
+
+	if (ack) {
+		b->ack_drops++;
+		sch->qstats.drops++;
+		b->bytes += qdisc_pkt_len(ack);
+		len -= qdisc_pkt_len(ack);
+		q->buffer_used += skb->truesize - ack->truesize;
+		if (q->rate_flags & CAKE_FLAG_INGRESS)
+			cake_advance_shaper(q, b, ack, now, true);
+
+		qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(ack));
+		consume_skb(ack);
+	} else {
+		sch->q.qlen++;
+		q->buffer_used      += skb->truesize;
+	}
 
 	/* stats */
 	b->packets++;
@@ -1530,6 +1974,9 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 			q->rate_flags &= ~CAKE_FLAG_INGRESS;
 	}
 
+	if (tb[TCA_CAKE_ACK_FILTER])
+		q->ack_filter = nla_get_u32(tb[TCA_CAKE_ACK_FILTER]);
+
 	if (tb[TCA_CAKE_MEMORY])
 		q->buffer_config_limit = nla_get_u32(tb[TCA_CAKE_MEMORY]);
 
@@ -1659,6 +2106,9 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	if (nla_put_u32(skb, TCA_CAKE_INGRESS,
 			!!(q->rate_flags & CAKE_FLAG_INGRESS)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_CAKE_ACK_FILTER, q->ack_filter))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
