@@ -68,6 +68,6 @@
 	};
 };
 
-&gpio1 {
+&gpio1_target {
 	 ti,no-reset-on-init;
 };
