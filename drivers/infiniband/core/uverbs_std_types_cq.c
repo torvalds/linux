@@ -70,7 +70,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	struct ib_uverbs_completion_event_file    *ev_file = NULL;
 	struct ib_uobject *ev_file_uobj;
 
-	if (!(ib_dev->uverbs_cmd_mask & 1ULL << IB_USER_VERBS_CMD_CREATE_CQ))
+	if (!ib_dev->create_cq || !ib_dev->destroy_cq)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.comp_vector, attrs,
@@ -184,9 +184,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(struct ib_device *ib_dev,
 		return PTR_ERR(uobj);
 
 	obj = container_of(uobj, struct ib_ucq_object, uobject);
-
-	if (!(ib_dev->uverbs_cmd_mask & 1ULL << IB_USER_VERBS_CMD_DESTROY_CQ))
-		return -EOPNOTSUPP;
 
 	ret = rdma_explicit_destroy(uobj);
 	if (ret)
