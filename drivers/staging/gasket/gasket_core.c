@@ -1719,8 +1719,10 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 		/* Try the next region if this one was not mappable. */
 		if (map_status == DO_MAP_REGION_INVALID)
 			continue;
-		if (map_status == DO_MAP_REGION_FAILURE)
+		if (map_status == DO_MAP_REGION_FAILURE) {
+			ret = -ENOMEM;
 			goto fail;
+		}
 
 		has_mapped_anything = 1;
 	}
