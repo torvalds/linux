@@ -336,10 +336,14 @@ static int igt_ctx_exec(void *arg)
 	bool first_shared_gtt = true;
 	int err = -ENODEV;
 
-	/* Create a few different contexts (with different mm) and write
+	/*
+	 * Create a few different contexts (with different mm) and write
 	 * through each ctx/mm using the GPU making sure those writes end
 	 * up in the expected pages of our obj.
 	 */
+
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return 0;
 
 	file = mock_file(i915);
 	if (IS_ERR(file))
@@ -367,6 +371,9 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
+			if (!engine->context_size)
+				continue; /* No logical context support in HW */
+
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
