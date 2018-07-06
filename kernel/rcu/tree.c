@@ -477,7 +477,7 @@ module_param(rcu_kick_kthreads, bool, 0644);
 static ulong jiffies_till_sched_qs = HZ / 10;
 module_param(jiffies_till_sched_qs, ulong, 0444);
 
-static void force_qs_rnp(int (*f)(struct rcu_data *rsp));
+static void force_qs_rnp(int (*f)(struct rcu_data *rdp));
 static void force_quiescent_state(void);
 static int rcu_pending(void);
 
@@ -2570,7 +2570,7 @@ void rcu_check_callbacks(int user)
  *
  * The caller must have suppressed start of new grace periods.
  */
-static void force_qs_rnp(int (*f)(struct rcu_data *rsp))
+static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
 {
 	int cpu;
 	unsigned long flags;
