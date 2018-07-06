@@ -325,7 +325,7 @@ out_unmap_sg:
 EXPORT_SYMBOL(rdma_rw_ctx_init);
 
 /**
- * rdma_rw_ctx_signature init - initialize a RW context with signature offload
+ * rdma_rw_ctx_signature_init - initialize a RW context with signature offload
  * @ctx:	context to initialize
  * @qp:		queue pair to operate on
  * @port_num:	port num to which the connection is bound
