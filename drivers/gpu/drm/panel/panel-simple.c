@@ -1991,6 +1991,30 @@ static const struct panel_desc samsung_ltn140at29_301 = {
 	},
 };
 
+static const struct drm_display_mode sharp_lq035q7db03_mode = {
+	.clock = 5500,
+	.hdisplay = 240,
+	.hsync_start = 240 + 16,
+	.hsync_end = 240 + 16 + 7,
+	.htotal = 240 + 16 + 7 + 5,
+	.vdisplay = 320,
+	.vsync_start = 320 + 9,
+	.vsync_end = 320 + 9 + 1,
+	.vtotal = 320 + 9 + 1 + 7,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc sharp_lq035q7db03 = {
+	.modes = &sharp_lq035q7db03_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 54,
+		.height = 72,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct display_timing sharp_lq101k1ly04_timing = {
 	.pixelclock = { 60000000, 65000000, 80000000 },
 	.hactive = { 1280, 1280, 1280 },
@@ -2492,6 +2516,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "samsung,ltn140at29-301",
 		.data = &samsung_ltn140at29_301,
+	}, {
+		.compatible = "sharp,lq035q7db03",
+		.data = &sharp_lq035q7db03,
 	}, {
 		.compatible = "sharp,lq101k1ly04",
 		.data = &sharp_lq101k1ly04,
