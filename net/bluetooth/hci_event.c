@@ -1127,24 +1127,11 @@ static void store_pending_adv_report(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	d->last_adv_data_len = len;
 }
 
-static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
-				      struct sk_buff *skb)
+static void le_set_scan_enable_complete(struct hci_dev *hdev, u8 enable)
 {
-	struct hci_cp_le_set_scan_enable *cp;
-	__u8 status = *((__u8 *) skb->data);
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
-
-	if (status)
-		return;
-
-	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_SCAN_ENABLE);
-	if (!cp)
-		return;
-
 	hci_dev_lock(hdev);
 
-	switch (cp->enable) {
+	switch (enable) {
 	case LE_SCAN_ENABLE:
 		hci_dev_set_flag(hdev, HCI_LE_SCAN);
 		if (hdev->le_scan_type == LE_SCAN_ACTIVE)
@@ -1190,11 +1177,29 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 	default:
 		bt_dev_err(hdev, "use of reserved LE_Scan_Enable param %d",
-			   cp->enable);
+			   enable);
 		break;
 	}
 
 	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
+				      struct sk_buff *skb)
+{
+	struct hci_cp_le_set_scan_enable *cp;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_SCAN_ENABLE);
+	if (!cp)
+		return;
+
+	le_set_scan_enable_complete(hdev, cp->enable);
 }
 
 static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
