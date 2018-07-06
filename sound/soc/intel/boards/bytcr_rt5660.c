@@ -197,11 +197,10 @@ static int byt_rt5660_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
 	struct byt_rt5660_private *priv = snd_soc_card_get_drvdata(card);
-	struct snd_soc_codec *codec = runtime->codec;
 	int ret;
 
 	/* Request rt5660 GPIO for lineout mute control */
-	priv->gpio_lo_mute = devm_gpiod_get_index(codec->dev,
+	priv->gpio_lo_mute = devm_gpiod_get_index(card->dev,
 			"lineout-mute", 0, 0);
 	if (IS_ERR(priv->gpio_lo_mute)) {
 		dev_err(card->dev, "Can't find GPIO_MUTE# gpio\n");
