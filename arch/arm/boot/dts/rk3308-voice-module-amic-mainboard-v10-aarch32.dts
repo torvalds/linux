@@ -13,6 +13,11 @@
 	compatible = "rockchip,rk3308-voice-module-amic-mainboard-v10-aarch32", "rockchip,rk3308";
 };
 
+&acodec {
+	/* The grp1/2 (ADC3-6) keeps enabled always for VAD */
+	rockchip,en-always-grps = <1 2>;
+};
+
 &is31fl3236 {
 	reg = <0x3f>;
 };
