@@ -130,13 +130,19 @@ static int emit_recurse_batch(struct hang *h,
 	if (err)
 		goto unpin_vma;
 
-	i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	i915_vma_move_to_active(hws, rq, 0);
+	err = i915_vma_move_to_active(hws, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(hws->obj)) {
 		i915_gem_object_get(hws->obj);
 		i915_gem_object_set_active_reference(hws->obj);
@@ -205,6 +211,7 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
+unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);

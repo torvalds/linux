@@ -675,7 +675,9 @@ static int live_all_engines(void *arg)
 			i915_gem_object_set_active_reference(batch->obj);
 		}
 
-		i915_vma_move_to_active(batch, request[id], 0);
+		err = i915_vma_move_to_active(batch, request[id], 0);
+		GEM_BUG_ON(err);
+
 		i915_request_get(request[id]);
 		i915_request_add(request[id]);
 	}
@@ -785,7 +787,9 @@ static int live_sequential_engines(void *arg)
 		GEM_BUG_ON(err);
 		request[id]->batch = batch;
 
-		i915_vma_move_to_active(batch, request[id], 0);
+		err = i915_vma_move_to_active(batch, request[id], 0);
+		GEM_BUG_ON(err);
+
 		i915_gem_object_set_active_reference(batch->obj);
 		i915_vma_get(batch);
 

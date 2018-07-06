@@ -170,18 +170,26 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	if (err)
 		goto err_request;
 
-	i915_vma_move_to_active(batch, rq, 0);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
+
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
+
 	i915_gem_object_set_active_reference(batch->obj);
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unpin(vma);
 
 	i915_request_add(rq);
 
 	return 0;
 
+skip_request:
+	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_batch:

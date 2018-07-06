@@ -1165,12 +1165,16 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto err_request;
 
 	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
-	i915_vma_move_to_active(batch, rq, 0);
-	i915_vma_unpin(batch);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
 
 	rq->batch = batch;
+	i915_vma_unpin(batch);
 
 	cache->rq = rq;
 	cache->rq_cmd = cmd;
@@ -1179,6 +1183,8 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	/* Return with batch mapping (cmd) still pinned */
 	return 0;
 
+skip_request:
+	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1818,7 +1824,11 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		unsigned int flags = eb->flags[i];
 		struct i915_vma *vma = eb->vma[i];
 
-		i915_vma_move_to_active(vma, eb->request, flags);
+		err = i915_vma_move_to_active(vma, eb->request, flags);
+		if (unlikely(err)) {
+			i915_request_skip(eb->request, err);
+			return err;
+		}
 
 		__eb_unreserve_vma(vma, flags);
 		vma->exec_flags = NULL;
@@ -1877,9 +1887,9 @@ static void export_fence(struct i915_vma *vma,
 	reservation_object_unlock(resv);
 }
 
-void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct i915_request *rq,
-			     unsigned int flags)
+int i915_vma_move_to_active(struct i915_vma *vma,
+			    struct i915_request *rq,
+			    unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	const unsigned int idx = rq->engine->id;
@@ -1916,6 +1926,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		i915_gem_active_set(&vma->last_fence, rq);
 
 	export_fence(vma, rq, flags);
+	return 0;
 }
 
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)

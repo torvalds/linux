@@ -985,7 +985,10 @@ static int gpu_write(struct i915_vma *vma,
 		goto err_request;
 	}
 
-	i915_vma_move_to_active(batch, rq, 0);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto err_request;
+
 	i915_gem_object_set_active_reference(batch->obj);
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
@@ -996,7 +999,9 @@ static int gpu_write(struct i915_vma *vma,
 	if (err)
 		goto err_request;
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		i915_request_skip(rq, err);
 
 err_request:
 	i915_request_add(rq);

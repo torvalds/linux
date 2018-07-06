@@ -222,12 +222,12 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	}
 	intel_ring_advance(rq, cs);
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unpin(vma);
 
 	i915_request_add(rq);
 
-	return 0;
+	return err;
 }
 
 static bool always_valid(struct drm_i915_private *i915)

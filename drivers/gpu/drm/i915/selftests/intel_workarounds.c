@@ -49,6 +49,10 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		goto err_pin;
 	}
 
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto err_req;
+
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	if (INTEL_GEN(ctx->i915) >= 8)
 		srm++;
@@ -66,8 +70,6 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		*cs++ = 0;
 	}
 	intel_ring_advance(rq, cs);
-
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 
 	i915_gem_object_get(result);
 	i915_gem_object_set_active_reference(result);

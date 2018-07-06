@@ -3090,9 +3090,9 @@ i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
 }
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
-void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct i915_request *rq,
-			     unsigned int flags);
+int __must_check i915_vma_move_to_active(struct i915_vma *vma,
+					 struct i915_request *rq,
+					 unsigned int flags);
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);

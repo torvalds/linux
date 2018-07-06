@@ -464,13 +464,14 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		return PTR_ERR(rq);
 	}
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 
 	i915_request_add(rq);
 
-	i915_gem_object_set_active_reference(obj);
+	__i915_gem_object_release_unless_active(obj);
 	i915_vma_unpin(vma);
-	return 0;
+
+	return err;
 }
 
 static bool assert_mmap_offset(struct drm_i915_private *i915,
