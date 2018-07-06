@@ -837,6 +837,10 @@ flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 		}
 		break;
 
+	case I915_GEM_DOMAIN_WC:
+		wmb();
+		break;
+
 	case I915_GEM_DOMAIN_CPU:
 		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
 		break;
