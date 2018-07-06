@@ -3128,11 +3128,15 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			u32 index)
 {
 	struct xdp_frame *xdpf;
-	int sent;
+	int err, sent;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
 	}
+
+	err = xdp_ok_fwd_dev(dev, xdp->data_end - xdp->data);
+	if (unlikely(err))
+		return err;
 
 	xdpf = convert_to_xdp_frame(xdp);
 	if (unlikely(!xdpf))
@@ -3367,7 +3371,8 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 		goto err;
 	}
 
-	if (unlikely((err = __xdp_generic_ok_fwd_dev(skb, fwd))))
+	err = xdp_ok_fwd_dev(fwd, skb->len);
+	if (unlikely(err))
 		goto err;
 
 	skb->dev = fwd;
