@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/remoteproc.h>
@@ -32,6 +33,7 @@ int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(qcom_q6v5_prepare);
 
 /**
  * qcom_q6v5_unprepare() - unprepare the qcom_q6v5 context after stop
@@ -45,6 +47,7 @@ int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5)
 
 	return !q6v5->handover_issued;
 }
+EXPORT_SYMBOL_GPL(qcom_q6v5_unprepare);
 
 static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 {
@@ -114,6 +117,7 @@ int qcom_q6v5_wait_for_start(struct qcom_q6v5 *q6v5, int timeout)
 
 	return !ret ? -ETIMEDOUT : 0;
 }
+EXPORT_SYMBOL_GPL(qcom_q6v5_wait_for_start);
 
 static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
 {
@@ -157,6 +161,7 @@ int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5)
 
 	return ret == 0 ? -ETIMEDOUT : 0;
 }
+EXPORT_SYMBOL_GPL(qcom_q6v5_request_stop);
 
 /**
  * qcom_q6v5_init() - initializer of the q6v5 common struct
@@ -241,3 +246,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(qcom_q6v5_init);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Qualcomm Peripheral Image Loader for Q6V5");
