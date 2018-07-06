@@ -399,6 +399,11 @@ static inline bool is_mbpf_mul(const struct nfp_insn_meta *meta)
 	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_MUL;
 }
 
+static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
+}
+
 /**
  * struct nfp_prog - nfp BPF program
  * @bpf: backpointer to the bpf app priv structure

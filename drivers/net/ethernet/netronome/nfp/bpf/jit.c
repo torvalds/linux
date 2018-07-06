@@ -34,10 +34,11 @@
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
 #include <linux/bug.h>
-#include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
 #include <linux/pkt_cls.h>
+#include <linux/reciprocal_div.h>
 #include <linux/unistd.h>
 
 #include "main.h"
@@ -1493,6 +1494,32 @@ wrp_mul(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
+static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
+{
+	swreg dst_both = reg_both(dst), dst_a = reg_a(dst), dst_b = reg_a(dst);
+	struct reciprocal_value rvalue;
+	swreg tmp_b = imm_b(nfp_prog);
+	swreg magic;
+
+	if (imm > U32_MAX) {
+		wrp_immed(nfp_prog, dst_both, 0);
+		return 0;
+	}
+
+	rvalue = reciprocal_value(imm);
+	magic = ur_load_imm_any(nfp_prog, rvalue.m, imm_b(nfp_prog));
+	wrp_mul_u32(nfp_prog, imm_both(nfp_prog), reg_none(), dst_a, magic,
+		    true);
+	emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_SUB, tmp_b);
+	emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		 SHF_SC_R_SHF, rvalue.sh1);
+	emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_ADD, tmp_b);
+	emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		 SHF_SC_R_SHF, rvalue.sh2);
+
+	return 0;
+}
+
 static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	swreg tmp = imm_a(nfp_prog), tmp_len = imm_b(nfp_prog);
@@ -1805,6 +1832,21 @@ static int mul_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int mul_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return wrp_mul(nfp_prog, meta, true, false);
+}
+
+static int div_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+
+	return wrp_div_imm(nfp_prog, insn->dst_reg * 2, insn->imm);
+}
+
+static int div_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	/* NOTE: verifier hook has rejected cases for which verifier doesn't
+	 * know whether the source operand is constant or not.
+	 */
+	return wrp_div_imm(nfp_prog, meta->insn.dst_reg * 2, meta->umin_src);
 }
 
 static int neg_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2228,6 +2270,16 @@ static int mul_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int mul_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return wrp_mul(nfp_prog, meta, false, false);
+}
+
+static int div_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return div_reg64(nfp_prog, meta);
+}
+
+static int div_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return div_imm64(nfp_prog, meta);
 }
 
 static int neg_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2983,6 +3035,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU64 | BPF_SUB | BPF_K] =	sub_imm64,
 	[BPF_ALU64 | BPF_MUL | BPF_X] =	mul_reg64,
 	[BPF_ALU64 | BPF_MUL | BPF_K] =	mul_imm64,
+	[BPF_ALU64 | BPF_DIV | BPF_X] =	div_reg64,
+	[BPF_ALU64 | BPF_DIV | BPF_K] =	div_imm64,
 	[BPF_ALU64 | BPF_NEG] =		neg_reg64,
 	[BPF_ALU64 | BPF_LSH | BPF_X] =	shl_reg64,
 	[BPF_ALU64 | BPF_LSH | BPF_K] =	shl_imm64,
@@ -3004,6 +3058,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_SUB | BPF_K] =	sub_imm,
 	[BPF_ALU | BPF_MUL | BPF_X] =	mul_reg,
 	[BPF_ALU | BPF_MUL | BPF_K] =	mul_imm,
+	[BPF_ALU | BPF_DIV | BPF_X] =	div_reg,
+	[BPF_ALU | BPF_DIV | BPF_K] =	div_imm,
 	[BPF_ALU | BPF_NEG] =		neg_reg,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
 	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,

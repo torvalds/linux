@@ -558,6 +558,37 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		}
 	}
 
+	/* NFP doesn't have divide instructions, we support divide by constant
+	 * through reciprocal multiplication. Given NFP support multiplication
+	 * no bigger than u32, we'd require divisor and dividend no bigger than
+	 * that as well.
+	 *
+	 * Also eBPF doesn't support signed divide and has enforced this on C
+	 * language level by failing compilation. However LLVM assembler hasn't
+	 * enforced this, so it is possible for negative constant to leak in as
+	 * a BPF_K operand through assembly code, we reject such cases as well.
+	 */
+	if (is_mbpf_div(meta)) {
+		if (meta->umax_dst > U32_MAX) {
+			pr_vlog(env, "dividend is not within u32 value range\n");
+			return -EINVAL;
+		}
+		if (mbpf_src(meta) == BPF_X) {
+			if (meta->umin_src != meta->umax_src) {
+				pr_vlog(env, "divisor is not constant\n");
+				return -EINVAL;
+			}
+			if (meta->umax_src > U32_MAX) {
+				pr_vlog(env, "divisor is not within u32 value range\n");
+				return -EINVAL;
+			}
+		}
+		if (mbpf_src(meta) == BPF_K && meta->insn.imm < 0) {
+			pr_vlog(env, "divide by negative constant is not supported\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
