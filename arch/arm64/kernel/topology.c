@@ -293,6 +293,19 @@ topology_populated:
 	update_siblings_masks(cpuid);
 }
 
+static void clear_cpu_topology(int cpu)
+{
+	struct cpu_topology *cpu_topo = &cpu_topology[cpu];
+
+	cpumask_clear(&cpu_topo->llc_siblings);
+	cpumask_set_cpu(cpu, &cpu_topo->llc_siblings);
+
+	cpumask_clear(&cpu_topo->core_sibling);
+	cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
+	cpumask_clear(&cpu_topo->thread_sibling);
+	cpumask_set_cpu(cpu, &cpu_topo->thread_sibling);
+}
+
 static void __init reset_cpu_topology(void)
 {
 	unsigned int cpu;
@@ -303,15 +316,9 @@ static void __init reset_cpu_topology(void)
 		cpu_topo->thread_id = -1;
 		cpu_topo->core_id = 0;
 		cpu_topo->package_id = -1;
-
 		cpu_topo->llc_id = -1;
-		cpumask_clear(&cpu_topo->llc_siblings);
-		cpumask_set_cpu(cpu, &cpu_topo->llc_siblings);
 
-		cpumask_clear(&cpu_topo->core_sibling);
-		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
-		cpumask_clear(&cpu_topo->thread_sibling);
-		cpumask_set_cpu(cpu, &cpu_topo->thread_sibling);
+		clear_cpu_topology(cpu);
 	}
 }
 
