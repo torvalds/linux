@@ -321,18 +321,16 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	speed_div = (priv->speed == SPEED_100) ? 100000 : 1000000;
 
 	/* Final adjustments for HW */
-	value = qopt->idleslope * 1024UL * ptr;
-	do_div(value, speed_div);
+	value = div_s64(qopt->idleslope * 1024ll * ptr, speed_div);
 	priv->plat->tx_queues_cfg[queue].idle_slope = value & GENMASK(31, 0);
 
-	value = -qopt->sendslope * 1024UL * ptr;
-	do_div(value, speed_div);
+	value = div_s64(-qopt->sendslope * 1024ll * ptr, speed_div);
 	priv->plat->tx_queues_cfg[queue].send_slope = value & GENMASK(31, 0);
 
-	value = qopt->hicredit * 1024UL * 8;
+	value = qopt->hicredit * 1024ll * 8;
 	priv->plat->tx_queues_cfg[queue].high_credit = value & GENMASK(31, 0);
 
-	value = qopt->locredit * 1024UL * 8;
+	value = qopt->locredit * 1024ll * 8;
 	priv->plat->tx_queues_cfg[queue].low_credit = value & GENMASK(31, 0);
 
 	ret = stmmac_config_cbs(priv, priv->hw,
