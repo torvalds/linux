@@ -683,7 +683,7 @@ static inline void gasket_read_modify_write_64(
 	u64 mask, tmp;
 
 	tmp = gasket_dev_read_64(dev, bar, location);
-	mask = ((1 << mask_width) - 1) << mask_shift;
+	mask = ((1ULL << mask_width) - 1) << mask_shift;
 	tmp = (tmp & ~mask) | (value << mask_shift);
 	gasket_dev_write_64(dev, tmp, bar, location);
 }
