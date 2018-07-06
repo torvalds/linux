@@ -288,6 +288,8 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		kunmap(p);
 		if (err)
 			return err;
+
+		i915_vma_destroy(vma);
 	}
 
 	return 0;
