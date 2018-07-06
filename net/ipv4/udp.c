@@ -926,12 +926,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & MSG_OOB) /* Mirror BSD error message compatibility */
 		return -EOPNOTSUPP;
 
-	ipc.opt = NULL;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-	ipc.sockc.transmit_time = 0;
-
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
 	fl4 = &inet->cork.fl.u.ip4;
@@ -978,9 +972,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		connected = 1;
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.addr = inet->inet_saddr;
-	ipc.oif = sk->sk_bound_dev_if;
+	ipcm_init_sk(&ipc, inet);
 	ipc.gso_size = up->gso_size;
 
 	if (msg->msg_controllen) {

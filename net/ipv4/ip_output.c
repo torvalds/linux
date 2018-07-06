@@ -1548,12 +1548,8 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 	if (__ip_options_echo(net, &replyopts.opt.opt, skb, sopt))
 		return;
 
+	ipcm_init(&ipc);
 	ipc.addr = daddr;
-	ipc.opt = NULL;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-	ipc.sockc.transmit_time = 0;
 
 	if (replyopts.opt.opt.optlen) {
 		ipc.opt = &replyopts.opt;

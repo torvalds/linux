@@ -739,14 +739,7 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		/* no remote port */
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.addr = inet->inet_saddr;
-	ipc.opt = NULL;
-	ipc.oif = sk->sk_bound_dev_if;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-	ipc.sockc.transmit_time = 0;
+	ipcm_init_sk(&ipc, inet);
 
 	if (msg->msg_controllen) {
 		err = ip_cmsg_send(sk, msg, &ipc, false);

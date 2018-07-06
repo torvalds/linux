@@ -562,14 +562,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		daddr = inet->inet_daddr;
 	}
 
-	ipc.sockc.tsflags = sk->sk_tsflags;
-	ipc.sockc.transmit_time = 0;
-	ipc.addr = inet->inet_saddr;
-	ipc.opt = NULL;
-	ipc.tx_flags = 0;
-	ipc.ttl = 0;
-	ipc.tos = -1;
-	ipc.oif = sk->sk_bound_dev_if;
+	ipcm_init_sk(&ipc, inet);
 
 	if (msg->msg_controllen) {
 		err = ip_cmsg_send(sk, msg, &ipc, false);

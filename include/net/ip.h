@@ -79,6 +79,21 @@ struct ipcm_cookie {
 	__u16			gso_size;
 };
 
+static inline void ipcm_init(struct ipcm_cookie *ipcm)
+{
+	*ipcm = (struct ipcm_cookie) { .tos = -1 };
+}
+
+static inline void ipcm_init_sk(struct ipcm_cookie *ipcm,
+				const struct inet_sock *inet)
+{
+	ipcm_init(ipcm);
+
+	ipcm->sockc.tsflags = inet->sk.sk_tsflags;
+	ipcm->oif = inet->sk.sk_bound_dev_if;
+	ipcm->addr = inet->inet_saddr;
+}
+
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
 #define PKTINFO_SKB_CB(skb) ((struct in_pktinfo *)((skb)->cb))
 
