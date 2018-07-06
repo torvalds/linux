@@ -888,7 +888,7 @@
 		#size-cells = <1>;
 	};
 
-	segment@300000 {					/* 0x4a300000 */
+	l4_cfg_segment_300000: segment@300000 {			/* 0x4a300000 */
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -904,7 +904,7 @@
 			 <0x0002a000 0x0032a000 0x002000>,	/* ap 90 */
 			 <0x0002c000 0x0032c000 0x004000>;	/* ap 91 */
 
-		target-module@0 {			/* 0x4a300000, ap 67 14.0 */
+		l4_cfg_target_0: target-module@0 {	/* 0x4a300000, ap 67 14.0 */
 			compatible = "ti,sysc";
 			status = "disabled";
 			#address-cells = <1>;
