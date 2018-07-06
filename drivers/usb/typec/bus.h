@@ -16,7 +16,7 @@ struct altmode {
 	enum typec_port_data		roles;
 
 	struct attribute		*attrs[5];
-	char				group_name[6];
+	char				group_name[8];
 	struct attribute_group		group;
 	const struct attribute_group	*groups[2];
 
