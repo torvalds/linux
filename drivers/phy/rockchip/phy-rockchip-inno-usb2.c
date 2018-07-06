@@ -743,7 +743,8 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 
 	if (rport->port_id == USB2PHY_PORT_HOST)
 		cancel_delayed_work_sync(&rport->sm_work);
-	else if (rport->port_id == USB2PHY_PORT_OTG)
+	else if (rport->port_id == USB2PHY_PORT_OTG &&
+		 rport->bvalid_irq > 0)
 		flush_delayed_work(&rport->otg_sm_work);
 
 	return 0;
