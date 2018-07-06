@@ -7717,11 +7717,13 @@ out:
  * here, again, by modeling the current TCP/UDP code.  We don't have
  * a good way to test with it yet.
  */
-__poll_t sctp_poll_mask(struct socket *sock, __poll_t events)
+__poll_t sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct sctp_sock *sp = sctp_sk(sk);
 	__poll_t mask;
+
+	poll_wait(file, sk_sleep(sk), wait);
 
 	sock_rps_record_flow(sk);
 

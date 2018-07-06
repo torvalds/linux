@@ -258,7 +258,12 @@ xfs_trans_alloc(
 	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_start_intwrite(mp->m_super);
 
-	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
+	/*
+	 * Zero-reservation ("empty") transactions can't modify anything, so
+	 * they're allowed to run while we're frozen.
+	 */
+	WARN_ON(resp->tr_logres > 0 &&
+		mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	atomic_inc(&mp->m_active_trans);
 
 	tp = kmem_zone_zalloc(xfs_trans_zone,

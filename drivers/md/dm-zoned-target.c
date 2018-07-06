@@ -787,7 +787,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Chunk BIO work */
 	mutex_init(&dmz->chunk_lock);
-	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_KERNEL);
+	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_NOIO);
 	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s", WQ_MEM_RECLAIM | WQ_UNBOUND,
 					0, dev->name);
 	if (!dmz->chunk_wq) {
