@@ -313,6 +313,8 @@ struct tile_config {
  * @set_compute_idle: Indicates that compute is idle on a device. This
  * can be used to change power profiles depending on compute activity.
  *
+ * @get_hive_id: Returns hive id of current  device,  0 if xgmi is not enabled
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -438,6 +440,9 @@ struct kfd2kgd_calls {
 	void (*gpu_recover)(struct kgd_dev *kgd);
 
 	void (*set_compute_idle)(struct kgd_dev *kgd, bool idle);
+
+	uint64_t (*get_hive_id)(struct kgd_dev *kgd);
+
 };
 
 /**
