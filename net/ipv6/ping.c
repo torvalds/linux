@@ -62,7 +62,6 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct dst_entry *dst;
 	struct rt6_info *rt;
 	struct pingfakehdr pfh;
-	struct sockcm_cookie junk = {0};
 	struct ipcm6_cookie ipc6;
 
 	pr_debug("ping_v6_sendmsg(sk=%p,sk->num=%u)\n", inet, inet->inet_num);
@@ -146,7 +145,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	lock_sock(sk);
 	err = ip6_append_data(sk, ping_getfrag, &pfh, len,
 			      0, &ipc6, &fl6, rt,
-			      MSG_DONTWAIT, &junk);
+			      MSG_DONTWAIT);
 
 	if (err) {
 		ICMP6_INC_STATS(sock_net(sk), rt->rt6i_idev,

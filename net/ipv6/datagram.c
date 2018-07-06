@@ -736,7 +736,7 @@ EXPORT_SYMBOL_GPL(ip6_datagram_recv_ctl);
 
 int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			  struct msghdr *msg, struct flowi6 *fl6,
-			  struct ipcm6_cookie *ipc6, struct sockcm_cookie *sockc)
+			  struct ipcm6_cookie *ipc6)
 {
 	struct in6_pktinfo *src_info;
 	struct cmsghdr *cmsg;
@@ -755,7 +755,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 		}
 
 		if (cmsg->cmsg_level == SOL_SOCKET) {
-			err = __sock_cmsg_send(sk, msg, cmsg, sockc);
+			err = __sock_cmsg_send(sk, msg, cmsg, &ipc6->sockc);
 			if (err)
 				return err;
 			continue;

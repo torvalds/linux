@@ -294,6 +294,7 @@ struct ipv6_fl_socklist {
 };
 
 struct ipcm6_cookie {
+	struct sockcm_cookie sockc;
 	__s16 hlimit;
 	__s16 tclass;
 	__s8  dontfrag;
@@ -959,8 +960,7 @@ int ip6_append_data(struct sock *sk,
 				int odd, struct sk_buff *skb),
 		    void *from, int length, int transhdrlen,
 		    struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
-		    struct rt6_info *rt, unsigned int flags,
-		    const struct sockcm_cookie *sockc);
+		    struct rt6_info *rt, unsigned int flags);
 
 int ip6_push_pending_frames(struct sock *sk);
 
@@ -977,8 +977,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     void *from, int length, int transhdrlen,
 			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
 			     struct rt6_info *rt, unsigned int flags,
-			     struct inet_cork_full *cork,
-			     const struct sockcm_cookie *sockc);
+			     struct inet_cork_full *cork);
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 {
