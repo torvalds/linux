@@ -514,7 +514,7 @@ int gasket_interrupt_set_eventfd(
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	if (interrupt < 0 || interrupt > interrupt_data->num_interrupts)
+	if (interrupt < 0 || interrupt >= interrupt_data->num_interrupts)
 		return -EINVAL;
 
 	interrupt_data->eventfd_ctxs[interrupt] = ctx;
@@ -524,7 +524,7 @@ int gasket_interrupt_set_eventfd(
 int gasket_interrupt_clear_eventfd(
 	struct gasket_interrupt_data *interrupt_data, int interrupt)
 {
-	if (interrupt < 0 || interrupt > interrupt_data->num_interrupts)
+	if (interrupt < 0 || interrupt >= interrupt_data->num_interrupts)
 		return -EINVAL;
 
 	interrupt_data->eventfd_ctxs[interrupt] = NULL;
