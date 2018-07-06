@@ -2175,6 +2175,46 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing)
 	return color_space;
 }
 
+static void reduce_mode_colour_depth(struct dc_crtc_timing *timing_out)
+{
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+
+	timing_out->display_color_depth--;
+}
+
+static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,
+						const struct drm_display_info *info)
+{
+	int normalized_clk;
+	if (timing_out->display_color_depth <= COLOR_DEPTH_888)
+		return;
+	do {
+		normalized_clk = timing_out->pix_clk_khz;
+		/* YCbCr 4:2:0 requires additional adjustment of 1/2 */
+		if (timing_out->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			normalized_clk /= 2;
+		/* Adjusting pix clock following on HDMI spec based on colour depth */
+		switch (timing_out->display_color_depth) {
+		case COLOR_DEPTH_101010:
+			normalized_clk = (normalized_clk * 30) / 24;
+			break;
+		case COLOR_DEPTH_121212:
+			normalized_clk = (normalized_clk * 36) / 24;
+			break;
+		case COLOR_DEPTH_161616:
+			normalized_clk = (normalized_clk * 48) / 24;
+			break;
+		default:
+			return;
+		}
+		if (normalized_clk <= info->max_tmds_clock)
+			return;
+		reduce_mode_colour_depth(timing_out);
+
+	} while (timing_out->display_color_depth > COLOR_DEPTH_888);
+
+}
 /*****************************************************************************/
 
 static void
@@ -2183,6 +2223,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 					     const struct drm_connector *connector)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
+	const struct drm_display_info *info = &connector->display_info;
 
 	memset(timing_out, 0, sizeof(struct dc_crtc_timing));
 
@@ -2191,8 +2232,10 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 	timing_out->v_border_top = 0;
 	timing_out->v_border_bottom = 0;
 	/* TODO: un-hardcode */
-
-	if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
+	if (drm_mode_is_420_only(info, mode_in)
+			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
+	else if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB444)
 			&& stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
 		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
 	else
@@ -2228,6 +2271,8 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+	if (stream->sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A)
+		adjust_colour_depth_from_display_info(timing_out, info);
 }
 
 static void fill_audio_info(struct audio_info *audio_info,

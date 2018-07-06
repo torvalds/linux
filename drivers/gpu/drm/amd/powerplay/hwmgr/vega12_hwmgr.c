@@ -81,6 +81,7 @@ static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 
 	data->registry_data.disallowed_features = 0x0;
 	data->registry_data.od_state_in_dc_support = 0;
+	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
 
 	data->registry_data.log_avfs_param = 0;
@@ -803,6 +804,9 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		data->vbios_boot_state.uc_cooling_id = boot_up_values.ucCoolingID;
+		data->vbios_boot_state.eclock = boot_up_values.ulEClk;
+		data->vbios_boot_state.dclock = boot_up_values.ulDClk;
+		data->vbios_boot_state.vclock = boot_up_values.ulVClk;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
