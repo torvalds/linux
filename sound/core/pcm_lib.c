@@ -1833,12 +1833,19 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	if (runtime->no_period_wakeup)
 		wait_time = MAX_SCHEDULE_TIMEOUT;
 	else {
-		wait_time = 10;
-		if (runtime->rate) {
-			long t = runtime->period_size * 2 / runtime->rate;
-			wait_time = max(t, wait_time);
+		/* use wait time from substream if available */
+		if (substream->wait_time) {
+			wait_time = substream->wait_time;
+		} else {
+			wait_time = 10;
+
+			if (runtime->rate) {
+				long t = runtime->period_size * 2 /
+					 runtime->rate;
+				wait_time = max(t, wait_time);
+			}
+			wait_time = msecs_to_jiffies(wait_time * 1000);
 		}
-		wait_time = msecs_to_jiffies(wait_time * 1000);
 	}
 
 	for (;;) {
