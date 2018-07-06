@@ -157,7 +157,8 @@ struct drm_i915_private *mock_gem_device(void)
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	WARN_ON(pm_runtime_get_sync(&pdev->dev));
+	if (pm_runtime_enabled(&pdev->dev))
+		WARN_ON(pm_runtime_get_sync(&pdev->dev));
 
 	i915 = (struct drm_i915_private *)(pdev + 1);
 	pci_set_drvdata(pdev, i915);
