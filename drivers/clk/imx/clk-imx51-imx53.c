@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/sizes.h>
 #include <soc/imx/revision.h>
 #include <dt-bindings/clock/imx5-clock.h>
 
