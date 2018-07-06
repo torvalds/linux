@@ -1313,6 +1313,10 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 	if (fl_dump_key_vlan(skb, &key->vlan, &mask->vlan))
 		goto nla_put_failure;
 
+	if (mask->vlan.vlan_tpid &&
+	    nla_put_be16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE, key->basic.n_proto))
+		goto nla_put_failure;
+
 	if ((key->basic.n_proto == htons(ETH_P_IP) ||
 	     key->basic.n_proto == htons(ETH_P_IPV6)) &&
 	    (fl_dump_key_val(skb, &key->basic.ip_proto, TCA_FLOWER_KEY_IP_PROTO,
