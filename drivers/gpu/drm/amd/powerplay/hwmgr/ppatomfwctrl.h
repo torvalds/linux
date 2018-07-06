@@ -136,6 +136,9 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulUClk;
 	uint32_t   ulSocClk;
 	uint32_t   ulDCEFClk;
+	uint32_t   ulEClk;
+	uint32_t   ulVClk;
+	uint32_t   ulDClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;
@@ -207,6 +210,8 @@ struct pp_atomfwctrl_smc_dpm_parameters
 	uint8_t  acggfxclkspreadenabled;
 	uint8_t  acggfxclkspreadpercent;
 	uint16_t acggfxclkspreadfreq;
+
+	uint8_t Vr2_I2C_address;
 };
 
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
