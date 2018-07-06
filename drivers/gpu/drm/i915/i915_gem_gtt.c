@@ -561,8 +561,10 @@ static int __setup_page_dma(struct i915_address_space *vm,
 	if (unlikely(!p->page))
 		return -ENOMEM;
 
-	p->daddr = dma_map_page(vm->dma, p->page, 0, PAGE_SIZE,
-				PCI_DMA_BIDIRECTIONAL);
+	p->daddr = dma_map_page_attrs(vm->dma,
+				      p->page, 0, PAGE_SIZE,
+				      PCI_DMA_BIDIRECTIONAL,
+				      DMA_ATTR_NO_WARN);
 	if (unlikely(dma_mapping_error(vm->dma, p->daddr))) {
 		vm_free_page(vm, p->page);
 		return -ENOMEM;
@@ -643,8 +645,10 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 		if (unlikely(!page))
 			goto skip;
 
-		addr = dma_map_page(vm->dma, page, 0, size,
-				    PCI_DMA_BIDIRECTIONAL);
+		addr = dma_map_page_attrs(vm->dma,
+					  page, 0, size,
+					  PCI_DMA_BIDIRECTIONAL,
+					  DMA_ATTR_NO_WARN);
 		if (unlikely(dma_mapping_error(vm->dma, addr)))
 			goto free_page;
 
