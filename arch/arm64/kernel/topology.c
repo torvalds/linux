@@ -218,8 +218,8 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	const cpumask_t *core_mask = &cpu_topology[cpu].core_sibling;
 
 	if (cpu_topology[cpu].llc_id != -1) {
-		if (cpumask_subset(&cpu_topology[cpu].llc_siblings, core_mask))
-			core_mask = &cpu_topology[cpu].llc_siblings;
+		if (cpumask_subset(&cpu_topology[cpu].llc_sibling, core_mask))
+			core_mask = &cpu_topology[cpu].llc_sibling;
 	}
 
 	return core_mask;
@@ -235,8 +235,8 @@ static void update_siblings_masks(unsigned int cpuid)
 		cpu_topo = &cpu_topology[cpu];
 
 		if (cpuid_topo->llc_id == cpu_topo->llc_id) {
-			cpumask_set_cpu(cpu, &cpuid_topo->llc_siblings);
-			cpumask_set_cpu(cpuid, &cpu_topo->llc_siblings);
+			cpumask_set_cpu(cpu, &cpuid_topo->llc_sibling);
+			cpumask_set_cpu(cpuid, &cpu_topo->llc_sibling);
 		}
 
 		if (cpuid_topo->package_id != cpu_topo->package_id)
@@ -295,8 +295,8 @@ static void clear_cpu_topology(int cpu)
 {
 	struct cpu_topology *cpu_topo = &cpu_topology[cpu];
 
-	cpumask_clear(&cpu_topo->llc_siblings);
-	cpumask_set_cpu(cpu, &cpu_topo->llc_siblings);
+	cpumask_clear(&cpu_topo->llc_sibling);
+	cpumask_set_cpu(cpu, &cpu_topo->llc_sibling);
 
 	cpumask_clear(&cpu_topo->core_sibling);
 	cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
