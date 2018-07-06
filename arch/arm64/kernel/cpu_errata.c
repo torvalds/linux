@@ -662,7 +662,6 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 	{
 		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.cpu_enable = enable_smccc_arch_workaround_1,
 		ERRATA_MIDR_RANGE_LIST(arm64_bp_harden_smccc_cpus),
 	},
@@ -671,7 +670,6 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 		.desc = "EL2 vector hardening",
 		.capability = ARM64_HARDEN_EL2_VECTORS,
-		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		ERRATA_MIDR_RANGE_LIST(arm64_harden_el2_vectors),
 	},
 #endif
