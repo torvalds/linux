@@ -476,6 +476,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
+	if (kfd->kfd2kgd->get_hive_id)
+		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
+
 	if (kfd_topology_add_device(kfd)) {
 		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;

@@ -254,6 +254,9 @@ struct kfd_dev {
 	bool cwsr_enabled;
 	const void *cwsr_isa;
 	unsigned int cwsr_isa_size;
+
+	/* xGMI */
+	uint64_t hive_id;
 };
 
 /* KGD2KFD callbacks */
