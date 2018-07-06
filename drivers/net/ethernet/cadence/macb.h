@@ -166,6 +166,7 @@
 #define GEM_DCFG6		0x0294 /* Design Config 6 */
 #define GEM_DCFG7		0x0298 /* Design Config 7 */
 #define GEM_DCFG8		0x029C /* Design Config 8 */
+#define GEM_DCFG10		0x02A4 /* Design Config 10 */
 
 #define GEM_TXBDCTRL	0x04cc /* TX Buffer Descriptor control register */
 #define GEM_RXBDCTRL	0x04d0 /* RX Buffer Descriptor control register */
@@ -490,6 +491,12 @@
 #define GEM_SCR2CMP_OFFSET			0
 #define GEM_SCR2CMP_SIZE			8
 
+/* Bitfields in DCFG10 */
+#define GEM_TXBD_RDBUFF_OFFSET			12
+#define GEM_TXBD_RDBUFF_SIZE			4
+#define GEM_RXBD_RDBUFF_OFFSET			8
+#define GEM_RXBD_RDBUFF_SIZE			4
+
 /* Bitfields in TISUBN */
 #define GEM_SUBNSINCR_OFFSET			0
 #define GEM_SUBNSINCR_SIZE			16
@@ -635,6 +642,7 @@
 #define MACB_CAPS_USRIO_DISABLED		0x00000010
 #define MACB_CAPS_JUMBO				0x00000020
 #define MACB_CAPS_GEM_HAS_PTP			0x00000040
+#define MACB_CAPS_BD_RD_PREFETCH		0x00000080
 #define MACB_CAPS_FIFO_MODE			0x10000000
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
@@ -1203,6 +1211,9 @@ struct macb {
 	unsigned int max_tuples;
 
 	struct tasklet_struct	hresp_err_tasklet;
+
+	int	rx_bd_rd_prefetch;
+	int	tx_bd_rd_prefetch;
 };
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
