@@ -16,6 +16,7 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/llcc-qcom.h>
+#include <linux/module.h>
 
 #define ACTIVATE                      BIT(0)
 #define DEACTIVATE                    BIT(1)
@@ -360,5 +361,5 @@ int qcom_llcc_probe(struct platform_device *pdev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(qcom_llcc_probe);
-
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Qualcomm Last Level Cache Controller");
