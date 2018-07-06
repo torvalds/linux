@@ -500,6 +500,7 @@ static int fl_set_key_mpls(struct nlattr **tb,
 }
 
 static void fl_set_key_vlan(struct nlattr **tb,
+			    __be16 ethertype,
 			    struct flow_dissector_key_vlan *key_val,
 			    struct flow_dissector_key_vlan *key_mask)
 {
@@ -516,6 +517,8 @@ static void fl_set_key_vlan(struct nlattr **tb,
 			VLAN_PRIORITY_MASK;
 		key_mask->vlan_priority = VLAN_PRIORITY_MASK;
 	}
+	key_val->vlan_tpid = ethertype;
+	key_mask->vlan_tpid = cpu_to_be16(~0);
 }
 
 static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
@@ -592,8 +595,8 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_ETH_TYPE]) {
 		ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_ETH_TYPE]);
 
-		if (ethertype == htons(ETH_P_8021Q)) {
-			fl_set_key_vlan(tb, &key->vlan, &mask->vlan);
+		if (eth_type_vlan(ethertype)) {
+			fl_set_key_vlan(tb, ethertype, &key->vlan, &mask->vlan);
 			fl_set_key_val(tb, &key->basic.n_proto,
 				       TCA_FLOWER_KEY_VLAN_ETH_TYPE,
 				       &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
