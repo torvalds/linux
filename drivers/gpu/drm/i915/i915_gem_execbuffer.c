@@ -1166,15 +1166,9 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 
 	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
 	i915_vma_move_to_active(batch, rq, 0);
-	reservation_object_lock(batch->resv, NULL);
-	reservation_object_add_excl_fence(batch->resv, &rq->fence);
-	reservation_object_unlock(batch->resv);
 	i915_vma_unpin(batch);
 
 	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
 
 	rq->batch = batch;
 
@@ -1771,25 +1765,6 @@ slow:
 	return eb_relocate_slow(eb);
 }
 
-static void eb_export_fence(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
-{
-	struct reservation_object *resv = vma->resv;
-
-	/*
-	 * Ignore errors from failing to allocate the new fence, we can't
-	 * handle an error right now. Worst case should be missed
-	 * synchronisation leading to rendering corruption.
-	 */
-	reservation_object_lock(resv, NULL);
-	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
-	reservation_object_unlock(resv);
-}
-
 static int eb_move_to_gpu(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
@@ -1844,7 +1819,6 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		struct i915_vma *vma = eb->vma[i];
 
 		i915_vma_move_to_active(vma, eb->request, flags);
-		eb_export_fence(vma, eb->request, flags);
 
 		__eb_unreserve_vma(vma, flags);
 		vma->exec_flags = NULL;
@@ -1884,6 +1858,25 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	return true;
 }
 
+static void export_fence(struct i915_vma *vma,
+			 struct i915_request *rq,
+			 unsigned int flags)
+{
+	struct reservation_object *resv = vma->resv;
+
+	/*
+	 * Ignore errors from failing to allocate the new fence, we can't
+	 * handle an error right now. Worst case should be missed
+	 * synchronisation leading to rendering corruption.
+	 */
+	reservation_object_lock(resv, NULL);
+	if (flags & EXEC_OBJECT_WRITE)
+		reservation_object_add_excl_fence(resv, &rq->fence);
+	else if (reservation_object_reserve_shared(resv) == 0)
+		reservation_object_add_shared_fence(resv, &rq->fence);
+	reservation_object_unlock(resv);
+}
+
 void i915_vma_move_to_active(struct i915_vma *vma,
 			     struct i915_request *rq,
 			     unsigned int flags)
@@ -1921,6 +1914,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_gem_active_set(&vma->last_fence, rq);
+
+	export_fence(vma, rq, flags);
 }
 
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)

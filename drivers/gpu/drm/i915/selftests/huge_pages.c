@@ -998,10 +998,6 @@ static int gpu_write(struct i915_vma *vma,
 
 	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
-
 err_request:
 	i915_request_add(rq);
 

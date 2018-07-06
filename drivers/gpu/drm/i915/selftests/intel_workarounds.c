@@ -68,9 +68,6 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	intel_ring_advance(rq, cs);
 
 	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
 
 	i915_gem_object_get(result);
 	i915_gem_object_set_active_reference(result);

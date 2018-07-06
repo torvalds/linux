@@ -466,10 +466,6 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 
 	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
-
 	i915_request_add(rq);
 
 	i915_gem_object_set_active_reference(obj);
