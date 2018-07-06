@@ -414,8 +414,17 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 
 extern void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *) __rcu;
 void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
+struct nf_conntrack_tuple;
+bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
+			 const struct sk_buff *skb);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
+struct nf_conntrack_tuple;
+static inline bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
+				       const struct sk_buff *skb)
+{
+	return false;
+}
 #endif
 
 struct nf_conn;
@@ -424,6 +433,8 @@ enum ip_conntrack_info;
 struct nf_ct_hook {
 	int (*update)(struct net *net, struct sk_buff *skb);
 	void (*destroy)(struct nf_conntrack *);
+	bool (*get_tuple_skb)(struct nf_conntrack_tuple *,
+			      const struct sk_buff *);
 };
 extern struct nf_ct_hook __rcu *nf_ct_hook;
 
