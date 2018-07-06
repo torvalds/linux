@@ -859,5 +859,9 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_sequential_engines),
 		SUBTEST(live_empty_request),
 	};
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return 0;
+
 	return i915_subtests(tests, i915);
 }
