@@ -48,12 +48,6 @@
 #define ulong2long(a)		(*(long *)(&(a)))
 
 /* Exported common interfaces */
-
-#ifndef CONFIG_TINY_RCU
-void synchronize_sched(void);
-void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
-#endif
-
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void synchronize_rcu(void);
@@ -170,7 +164,7 @@ void exit_tasks_rcu_finish(void);
 #define rcu_tasks_qs(t)	do { } while (0)
 #define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
 #define call_rcu_tasks call_rcu_sched
-#define synchronize_rcu_tasks synchronize_sched
+#define synchronize_rcu_tasks synchronize_rcu
 static inline void exit_tasks_rcu_start(void) { }
 static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
@@ -890,6 +884,36 @@ static inline void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
 static inline void rcu_barrier_bh(void)
 {
 	rcu_barrier();
+}
+
+static inline void synchronize_sched(void)
+{
+	synchronize_rcu();
+}
+
+static inline void synchronize_sched_expedited(void)
+{
+	synchronize_rcu_expedited();
+}
+
+static inline void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
+{
+	call_rcu(head, func);
+}
+
+static inline void rcu_barrier_sched(void)
+{
+	rcu_barrier();
+}
+
+static inline unsigned long get_state_synchronize_sched(void)
+{
+	return get_state_synchronize_rcu();
+}
+
+static inline void cond_synchronize_sched(unsigned long oldstate)
+{
+	cond_synchronize_rcu(oldstate);
 }
 
 #endif /* __LINUX_RCUPDATE_H */

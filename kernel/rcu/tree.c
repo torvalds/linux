@@ -2950,19 +2950,6 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func)
 }
 EXPORT_SYMBOL_GPL(call_rcu);
 
-/**
- * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
- * @head: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * This is transitional.
- */
-void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
-{
-	call_rcu(head, func);
-}
-EXPORT_SYMBOL_GPL(call_rcu_sched);
-
 /*
  * Queue an RCU callback for lazy invocation after a grace period.
  * This will likely be later named something like "call_rcu_lazy()",
@@ -2975,17 +2962,6 @@ void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 	__call_rcu(head, func, -1, 1);
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
-
-/**
- * synchronize_sched - wait until an rcu-sched grace period has elapsed.
- *
- * This is transitional.
- */
-void synchronize_sched(void)
-{
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(synchronize_sched);
 
 /**
  * get_state_synchronize_rcu - Snapshot current RCU state
@@ -3027,29 +3003,6 @@ void cond_synchronize_rcu(unsigned long oldstate)
 		smp_mb(); /* Ensure GP ends before subsequent accesses. */
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
-
-/**
- * get_state_synchronize_sched - Snapshot current RCU-sched state
- *
- * This is transitional, and only used by rcutorture.
- */
-unsigned long get_state_synchronize_sched(void)
-{
-	return get_state_synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(get_state_synchronize_sched);
-
-/**
- * cond_synchronize_sched - Conditionally wait for an RCU-sched grace period
- * @oldstate: return value from earlier call to get_state_synchronize_sched()
- *
- * This is transitional and only used by rcutorture.
- */
-void cond_synchronize_sched(unsigned long oldstate)
-{
-	cond_synchronize_rcu(oldstate);
-}
-EXPORT_SYMBOL_GPL(cond_synchronize_sched);
 
 /*
  * Check to see if there is any immediate RCU-related work to be done by
@@ -3265,17 +3218,6 @@ void rcu_barrier(void)
 	_rcu_barrier();
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
-
-/**
- * rcu_barrier_sched - Wait for in-flight call_rcu_sched() callbacks.
- *
- * This is transitional.
- */
-void rcu_barrier_sched(void)
-{
-	rcu_barrier();
-}
-EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
 /*
  * Propagate ->qsinitmask bits up the rcu_node tree to account for the

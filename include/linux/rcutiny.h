@@ -36,11 +36,6 @@ static inline int rcu_dynticks_snap(struct rcu_dynticks *rdtp)
 /* Never flag non-existent other CPUs! */
 static inline bool rcu_eqs_special_set(int cpu) { return false; }
 
-static inline void synchronize_sched(void)
-{
-	synchronize_rcu();
-}
-
 static inline unsigned long get_state_synchronize_rcu(void)
 {
 	return 0;
@@ -51,36 +46,11 @@ static inline void cond_synchronize_rcu(unsigned long oldstate)
 	might_sleep();
 }
 
-static inline unsigned long get_state_synchronize_sched(void)
-{
-	return 0;
-}
-
-static inline void cond_synchronize_sched(unsigned long oldstate)
-{
-	might_sleep();
-}
-
 extern void rcu_barrier(void);
-
-static inline void rcu_barrier_sched(void)
-{
-	rcu_barrier();  /* Only one CPU, so only one list of callbacks! */
-}
 
 static inline void synchronize_rcu_expedited(void)
 {
-	synchronize_sched();
-}
-
-static inline void synchronize_sched_expedited(void)
-{
-	synchronize_sched();
-}
-
-static inline void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
-{
-	call_rcu(head, func);
+	synchronize_rcu();
 }
 
 static inline void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
