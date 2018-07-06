@@ -257,6 +257,7 @@ struct cpsw_ss_regs {
 #define VLAN_LTYPE2_EN      BIT(21) /* VLAN LTYPE 2 enable */
 #define VLAN_LTYPE1_EN      BIT(20) /* VLAN LTYPE 1 enable */
 #define DSCP_PRI_EN         BIT(16) /* DSCP Priority Enable */
+#define TS_107              BIT(15) /* Tyme Sync Dest IP Address 107 */
 #define TS_320              BIT(14) /* Time Sync Dest Port 320 enable */
 #define TS_319              BIT(13) /* Time Sync Dest Port 319 enable */
 #define TS_132              BIT(12) /* Time Sync Dest IP Addr 132 enable */
@@ -281,7 +282,7 @@ struct cpsw_ss_regs {
 
 
 #define CTRL_V3_TS_BITS \
-	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
+	(TS_107 | TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
 	 TS_TTL_NONZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
 	 TS_LTYPE1_EN)
 
