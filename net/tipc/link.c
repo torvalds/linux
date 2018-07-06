@@ -106,7 +106,8 @@ struct tipc_stats {
  * @backlogq: queue for messages waiting to be sent
  * @snt_nxt: next sequence number to use for outbound messages
  * @last_retransmitted: sequence number of most recently retransmitted message
- * @stale_count: # of identical retransmit requests made by peer
+ * @stale_cnt: counter for number of identical retransmit attempts
+ * @stale_limit: time when repeated identical retransmits must force link reset
  * @ackers: # of peers that needs to ack each packet before it can be released
  * @acked: # last packet acked by a certain peer. Used for broadcast.
  * @rcv_nxt: next sequence number to expect for inbound messages
@@ -161,7 +162,8 @@ struct tipc_link {
 	u16 snd_nxt;
 	u16 last_retransm;
 	u16 window;
-	u32 stale_count;
+	u16 stale_cnt;
+	unsigned long stale_limit;
 
 	/* Reception */
 	u16 rcv_nxt;
@@ -860,7 +862,7 @@ void tipc_link_reset(struct tipc_link *l)
 	l->acked = 0;
 	l->silent_intv_cnt = 0;
 	l->rst_cnt = 0;
-	l->stale_count = 0;
+	l->stale_cnt = 0;
 	l->bc_peer_is_up = false;
 	memset(&l->mon_state, 0, sizeof(l->mon_state));
 	tipc_link_reset_stats(l);
@@ -997,39 +999,41 @@ static void link_retransmit_failure(struct tipc_link *l, struct sk_buff *skb)
 		msg_seqno(hdr), msg_prevnode(hdr), msg_orignode(hdr));
 }
 
-int tipc_link_retrans(struct tipc_link *l, struct tipc_link *nacker,
+/* tipc_link_retrans() - retransmit one or more packets
+ * @l: the link to transmit on
+ * @r: the receiving link ordering the retransmit. Same as l if unicast
+ * @from: retransmit from (inclusive) this sequence number
+ * @to: retransmit to (inclusive) this sequence number
+ * xmitq: queue for accumulating the retransmitted packets
+ */
+int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 		      u16 from, u16 to, struct sk_buff_head *xmitq)
 {
 	struct sk_buff *_skb, *skb = skb_peek(&l->transmq);
-	struct tipc_msg *hdr;
-	u16 ack = l->rcv_nxt - 1;
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
+	u16 ack = l->rcv_nxt - 1;
+	struct tipc_msg *hdr;
 
 	if (!skb)
 		return 0;
 
 	/* Detect repeated retransmit failures on same packet */
-	if (nacker->last_retransm != buf_seqno(skb)) {
-		nacker->last_retransm = buf_seqno(skb);
-		nacker->stale_count = 1;
-	} else if (++nacker->stale_count > 100) {
+	if (r->last_retransm != buf_seqno(skb)) {
+		r->last_retransm = buf_seqno(skb);
+		r->stale_limit = jiffies + msecs_to_jiffies(l->tolerance);
+	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
 		link_retransmit_failure(l, skb);
-		nacker->stale_count = 0;
 		if (link_is_bc_sndlink(l))
 			return TIPC_LINK_DOWN_EVT;
 		return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 	}
 
-	/* Move forward to where retransmission should start */
 	skb_queue_walk(&l->transmq, skb) {
-		if (!less(buf_seqno(skb), from))
-			break;
-	}
-
-	skb_queue_walk_from(&l->transmq, skb) {
-		if (more(buf_seqno(skb), to))
-			break;
 		hdr = buf_msg(skb);
+		if (less(msg_seqno(hdr), from))
+			continue;
+		if (more(msg_seqno(hdr), to))
+			break;
 		_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
@@ -1272,6 +1276,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 		/* Forward queues and wake up waiting users */
 		if (likely(tipc_link_release_pkts(l, msg_ack(hdr)))) {
+			l->stale_cnt = 0;
 			tipc_link_advance_backlog(l, xmitq);
 			if (unlikely(!skb_queue_empty(&l->wakeupq)))
 				link_prepare_wakeup(l);
