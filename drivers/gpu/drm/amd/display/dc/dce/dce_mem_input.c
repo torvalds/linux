@@ -729,7 +729,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 	return true;
 }
 
-static struct mem_input_funcs dce_mi_funcs = {
+static const struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_program_display_marks = dce_mi_program_display_marks,
 	.allocate_mem_input = dce_mi_allocate_dmif,
 	.free_mem_input = dce_mi_free_dmif,
@@ -741,7 +741,7 @@ static struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_is_flip_pending = dce_mi_is_flip_pending
 };
 
-static struct mem_input_funcs dce112_mi_funcs = {
+static const struct mem_input_funcs dce112_mi_funcs = {
 	.mem_input_program_display_marks = dce112_mi_program_display_marks,
 	.allocate_mem_input = dce_mi_allocate_dmif,
 	.free_mem_input = dce_mi_free_dmif,
@@ -753,7 +753,7 @@ static struct mem_input_funcs dce112_mi_funcs = {
 	.mem_input_is_flip_pending = dce_mi_is_flip_pending
 };
 
-static struct mem_input_funcs dce120_mi_funcs = {
+static const struct mem_input_funcs dce120_mi_funcs = {
 	.mem_input_program_display_marks = dce120_mi_program_display_marks,
 	.allocate_mem_input = dce_mi_allocate_dmif,
 	.free_mem_input = dce_mi_free_dmif,
