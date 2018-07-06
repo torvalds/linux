@@ -555,8 +555,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 		const struct bpf_reg_state *sreg =
 			cur_regs(env) + meta->insn.src_reg;
 
-		meta->umin = min(meta->umin, sreg->umin_value);
-		meta->umax = max(meta->umax, sreg->umax_value);
+		meta->umin_src = min(meta->umin_src, sreg->umin_value);
+		meta->umax_src = max(meta->umax_src, sreg->umax_value);
 	}
 
 	return 0;

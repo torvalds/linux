@@ -263,8 +263,8 @@ struct nfp_bpf_reg_state {
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
- * @umin: copy of core verifier umin_value.
- * @umax: copy of core verifier umax_value.
+ * @umin_src: copy of core verifier umin_value for src opearnd.
+ * @umax_src: copy of core verifier umax_value for src operand.
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -301,11 +301,11 @@ struct nfp_insn_meta {
 			struct nfp_bpf_reg_state arg2;
 		};
 		/* We are interested in range info for some operands,
-		 * for example, the shift amount.
+		 * for example, the shift amount which is kept in src operand.
 		 */
 		struct {
-			u64 umin;
-			u64 umax;
+			u64 umin_src;
+			u64 umax_src;
 		};
 	};
 	unsigned int off;
