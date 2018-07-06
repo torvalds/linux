@@ -2031,6 +2031,31 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_le_ext_create_conn(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_ext_create_conn *cp;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	/* All connection failure handling is taken care of by the
+	 * hci_le_conn_failed function which is triggered by the HCI
+	 * request completion callbacks used for connecting.
+	 */
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_EXT_CREATE_CONN);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	cs_le_create_conn(hdev, &cp->peer_addr, cp->peer_addr_type,
+			  cp->own_addr_type, cp->filter_policy);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_le_read_remote_features(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_read_remote_features *cp;
@@ -3231,6 +3256,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_START_ENC:
 		hci_cs_le_start_enc(hdev, ev->status);
+		break;
+
+	case HCI_OP_LE_EXT_CREATE_CONN:
+		hci_cs_le_ext_create_conn(hdev, ev->status);
 		break;
 
 	default:
@@ -4733,6 +4762,20 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			     le16_to_cpu(ev->supervision_timeout));
 }
 
+static void hci_le_enh_conn_complete_evt(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_ev_le_enh_conn_complete *ev = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+
+	le_conn_complete_evt(hdev, ev->status, &ev->bdaddr, ev->bdaddr_type,
+			     ev->role, le16_to_cpu(ev->handle),
+			     le16_to_cpu(ev->interval),
+			     le16_to_cpu(ev->latency),
+			     le16_to_cpu(ev->supervision_timeout));
+}
+
 static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
 					    struct sk_buff *skb)
 {
@@ -5350,6 +5393,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_EXT_ADV_REPORT:
 		hci_le_ext_adv_report_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_ENHANCED_CONN_COMPLETE:
+		hci_le_enh_conn_complete_evt(hdev, skb);
 		break;
 
 	default:

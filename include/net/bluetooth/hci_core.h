@@ -1161,6 +1161,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 /* Use ext scanning if set ext scan param and ext scan enable is supported */
 #define use_ext_scan(dev) (((dev)->commands[37] & 0x20) && \
 			   ((dev)->commands[37] & 0x40))
+/* Use ext create connection if command is supported */
+#define use_ext_conn(dev) ((dev)->commands[37] & 0x80)
 
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
