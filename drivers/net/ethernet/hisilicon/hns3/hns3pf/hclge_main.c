@@ -1834,8 +1834,6 @@ static int hclge_rx_priv_buf_alloc(struct hclge_dev *hdev,
 	return 0;
 }
 
-#define HCLGE_PRIV_ENABLE(a) ((a) > 0 ? 1 : 0)
-
 static int hclge_rx_priv_wl_config(struct hclge_dev *hdev,
 				   struct hclge_pkt_buf_alloc *buf_alloc)
 {
@@ -1863,13 +1861,11 @@ static int hclge_rx_priv_wl_config(struct hclge_dev *hdev,
 			req->tc_wl[j].high =
 				cpu_to_le16(priv->wl.high >> HCLGE_BUF_UNIT_S);
 			req->tc_wl[j].high |=
-				cpu_to_le16(HCLGE_PRIV_ENABLE(priv->wl.high) <<
-					    HCLGE_RX_PRIV_EN_B);
+				cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 			req->tc_wl[j].low =
 				cpu_to_le16(priv->wl.low >> HCLGE_BUF_UNIT_S);
 			req->tc_wl[j].low |=
-				cpu_to_le16(HCLGE_PRIV_ENABLE(priv->wl.low) <<
-					    HCLGE_RX_PRIV_EN_B);
+				 cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 		}
 	}
 
@@ -1911,13 +1907,11 @@ static int hclge_common_thrd_config(struct hclge_dev *hdev,
 			req->com_thrd[j].high =
 				cpu_to_le16(tc->high >> HCLGE_BUF_UNIT_S);
 			req->com_thrd[j].high |=
-				cpu_to_le16(HCLGE_PRIV_ENABLE(tc->high) <<
-					    HCLGE_RX_PRIV_EN_B);
+				 cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 			req->com_thrd[j].low =
 				cpu_to_le16(tc->low >> HCLGE_BUF_UNIT_S);
 			req->com_thrd[j].low |=
-				cpu_to_le16(HCLGE_PRIV_ENABLE(tc->low) <<
-					    HCLGE_RX_PRIV_EN_B);
+				 cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 		}
 	}
 
@@ -1943,14 +1937,10 @@ static int hclge_common_wl_config(struct hclge_dev *hdev,
 
 	req = (struct hclge_rx_com_wl *)desc.data;
 	req->com_wl.high = cpu_to_le16(buf->self.high >> HCLGE_BUF_UNIT_S);
-	req->com_wl.high |=
-		cpu_to_le16(HCLGE_PRIV_ENABLE(buf->self.high) <<
-			    HCLGE_RX_PRIV_EN_B);
+	req->com_wl.high |=  cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 
 	req->com_wl.low = cpu_to_le16(buf->self.low >> HCLGE_BUF_UNIT_S);
-	req->com_wl.low |=
-		cpu_to_le16(HCLGE_PRIV_ENABLE(buf->self.low) <<
-			    HCLGE_RX_PRIV_EN_B);
+	req->com_wl.low |=  cpu_to_le16(BIT(HCLGE_RX_PRIV_EN_B));
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
