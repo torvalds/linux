@@ -668,43 +668,22 @@ skip_cqe:
 	return ret;
 }
 
-/*
- * Get one cq entry from c4iw and map it to openib.
- *
- * Returns:
- *	0			cqe returned
- *	-ENODATA		EMPTY;
- *	-EAGAIN			caller must try again
- *	any other -errno	fatal error
- */
-static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
+static int __c4iw_poll_cq_one(struct c4iw_cq *chp, struct c4iw_qp *qhp,
+			      struct ib_wc *wc)
 {
-	struct c4iw_qp *qhp = NULL;
-	struct t4_cqe uninitialized_var(cqe), *rd_cqe;
-	struct t4_wq *wq;
+	struct t4_cqe cqe;
+	struct t4_wq *wq = qhp ? &qhp->wq : NULL;
 	u32 credit = 0;
 	u8 cqe_flushed;
 	u64 cookie = 0;
 	int ret;
 
-	ret = t4_next_cqe(&chp->cq, &rd_cqe);
-
-	if (ret)
-		return ret;
-
-	qhp = get_qhp(chp->rhp, CQE_QPID(rd_cqe));
-	if (!qhp)
-		wq = NULL;
-	else {
-		spin_lock(&qhp->lock);
-		wq = &(qhp->wq);
-	}
 	ret = poll_cq(wq, &(chp->cq), &cqe, &cqe_flushed, &cookie, &credit);
 	if (ret)
 		goto out;
 
 	wc->wr_id = cookie;
-	wc->qp = &qhp->ibqp;
+	wc->qp = qhp ? &qhp->ibqp : NULL;
 	wc->vendor_err = CQE_STATUS(&cqe);
 	wc->wc_flags = 0;
 
@@ -819,8 +798,37 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		}
 	}
 out:
-	if (wq)
+	return ret;
+}
+
+/*
+ * Get one cq entry from c4iw and map it to openib.
+ *
+ * Returns:
+ *	0			cqe returned
+ *	-ENODATA		EMPTY;
+ *	-EAGAIN			caller must try again
+ *	any other -errno	fatal error
+ */
+static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
+{
+	struct c4iw_qp *qhp = NULL;
+	struct t4_cqe *rd_cqe;
+	int ret;
+
+	ret = t4_next_cqe(&chp->cq, &rd_cqe);
+
+	if (ret)
+		return ret;
+
+	qhp = get_qhp(chp->rhp, CQE_QPID(rd_cqe));
+	if (qhp) {
+		spin_lock(&qhp->lock);
+		ret = __c4iw_poll_cq_one(chp, qhp, wc);
 		spin_unlock(&qhp->lock);
+	} else {
+		ret = __c4iw_poll_cq_one(chp, NULL, wc);
+	}
 	return ret;
 }
 
