@@ -239,8 +239,16 @@ static bool always_valid(struct drm_i915_private *i915)
 	return true;
 }
 
+static bool needs_fence_registers(struct drm_i915_private *i915)
+{
+	return !i915_terminally_wedged(&i915->gpu_error);
+}
+
 static bool needs_mi_store_dword(struct drm_i915_private *i915)
 {
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return false;
+
 	return intel_engine_can_store_dword(i915->engine[RCS]);
 }
 
@@ -251,7 +259,7 @@ static const struct igt_coherency_mode {
 	bool (*valid)(struct drm_i915_private *i915);
 } igt_coherency_mode[] = {
 	{ "cpu", cpu_set, cpu_get, always_valid },
-	{ "gtt", gtt_set, gtt_get, always_valid },
+	{ "gtt", gtt_set, gtt_get, needs_fence_registers },
 	{ "wc", wc_set, wc_get, always_valid },
 	{ "gpu", gpu_set, NULL, needs_mi_store_dword },
 	{ },
