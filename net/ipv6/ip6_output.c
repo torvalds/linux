@@ -1219,8 +1219,7 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	if (mtu < IPV6_MIN_MTU)
 		return -EINVAL;
 	cork->base.fragsize = mtu;
-	cork->base.gso_size = sk->sk_type == SOCK_DGRAM &&
-			      sk->sk_protocol == IPPROTO_UDP ? ipc6->gso_size : 0;
+	cork->base.gso_size = ipc6->gso_size;
 	cork->base.tx_flags = 0;
 	sock_tx_timestamp(sk, ipc6->sockc.tsflags, &cork->base.tx_flags);
 

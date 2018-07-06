@@ -1146,8 +1146,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	cork->fragsize = ip_sk_use_pmtu(sk) ?
 			 dst_mtu(&rt->dst) : rt->dst.dev->mtu;
 
-	cork->gso_size = sk->sk_type == SOCK_DGRAM &&
-			 sk->sk_protocol == IPPROTO_UDP ? ipc->gso_size : 0;
+	cork->gso_size = ipc->gso_size;
 	cork->dst = &rt->dst;
 	cork->length = 0;
 	cork->ttl = ipc->ttl;
