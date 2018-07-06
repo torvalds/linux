@@ -396,8 +396,8 @@ static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	if (!memcmp(saddr, daddr, sizeof(*daddr)))
 		pkt->mask |= RXE_LOOPBACK_MASK;
 
-	prepare_udp_hdr(skb, htons(RXE_ROCE_V2_SPORT),
-			htons(ROCE_V2_UDP_DPORT));
+	prepare_udp_hdr(skb, cpu_to_be16(qp->src_port),
+			cpu_to_be16(ROCE_V2_UDP_DPORT));
 
 	prepare_ipv4_hdr(dst, skb, saddr->s_addr, daddr->s_addr, IPPROTO_UDP,
 			 av->grh.traffic_class, av->grh.hop_limit, df, xnet);
@@ -423,8 +423,8 @@ static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	if (!memcmp(saddr, daddr, sizeof(*daddr)))
 		pkt->mask |= RXE_LOOPBACK_MASK;
 
-	prepare_udp_hdr(skb, htons(RXE_ROCE_V2_SPORT),
-			htons(ROCE_V2_UDP_DPORT));
+	prepare_udp_hdr(skb, cpu_to_be16(qp->src_port),
+			cpu_to_be16(ROCE_V2_UDP_DPORT));
 
 	prepare_ipv6_hdr(dst, skb, saddr, daddr, IPPROTO_UDP,
 			 av->grh.traffic_class,
