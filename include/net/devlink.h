@@ -768,7 +768,6 @@ devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 static inline void
 devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 {
-	return -EOPNOTSUPP;
 }
 
 #endif
