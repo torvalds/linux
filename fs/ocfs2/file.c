@@ -2537,19 +2537,14 @@ static int ocfs2_file_clone_range(struct file *file_in,
 					 len, false);
 }
 
-static ssize_t ocfs2_file_dedupe_range(struct file *src_file,
-				       u64 loff,
-				       u64 len,
-				       struct file *dst_file,
-				       u64 dst_loff)
+static int ocfs2_file_dedupe_range(struct file *src_file,
+				   u64 loff,
+				   u64 len,
+				   struct file *dst_file,
+				   u64 dst_loff)
 {
-	int error;
-
-	error = ocfs2_reflink_remap_range(src_file, loff, dst_file, dst_loff,
+	return ocfs2_reflink_remap_range(src_file, loff, dst_file, dst_loff,
 					  len, true);
-	if (error)
-		return error;
-	return len;
 }
 
 const struct inode_operations ocfs2_file_iops = {

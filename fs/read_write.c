@@ -1976,7 +1976,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 	u16 count = same->dest_count;
 	struct file *dst_file;
 	loff_t dst_off;
-	ssize_t deduped;
+	int deduped;
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EINVAL;
@@ -2056,7 +2056,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 			else if (deduped < 0)
 				info->status = deduped;
 			else
-				info->bytes_deduped += deduped;
+				info->bytes_deduped += len;
 		}
 
 next_file:

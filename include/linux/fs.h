@@ -1749,7 +1749,7 @@ struct file_operations {
 			loff_t, size_t, unsigned int);
 	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t,
 			u64);
-	ssize_t (*dedupe_file_range)(struct file *, u64, u64, struct file *,
+	int (*dedupe_file_range)(struct file *, u64, u64, struct file *,
 			u64);
 } __randomize_layout;
 
