@@ -42,11 +42,21 @@ static int cpu_set(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
-	if (needs_clflush & CLFLUSH_BEFORE)
+
+	if (needs_clflush & CLFLUSH_BEFORE) {
+		mb();
 		clflush(map+offset_in_page(offset) / sizeof(*map));
+		mb();
+	}
+
 	map[offset_in_page(offset) / sizeof(*map)] = v;
-	if (needs_clflush & CLFLUSH_AFTER)
+
+	if (needs_clflush & CLFLUSH_AFTER) {
+		mb();
 		clflush(map+offset_in_page(offset) / sizeof(*map));
+		mb();
+	}
+
 	kunmap_atomic(map);
 
 	i915_gem_obj_finish_shmem_access(obj);
@@ -68,8 +78,13 @@ static int cpu_get(struct drm_i915_gem_object *obj,
 
 	page = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 	map = kmap_atomic(page);
-	if (needs_clflush & CLFLUSH_BEFORE)
+
+	if (needs_clflush & CLFLUSH_BEFORE) {
+		mb();
 		clflush(map+offset_in_page(offset) / sizeof(*map));
+		mb();
+	}
+
 	*v = map[offset_in_page(offset) / sizeof(*map)];
 	kunmap_atomic(map);
 
