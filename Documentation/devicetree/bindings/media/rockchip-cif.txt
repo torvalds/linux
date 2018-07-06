@@ -1,0 +1,64 @@
+Rockchip SoC Camera Interface
+----------------------------------------------
+
+Rockchip CIF is a camera interface for the Rockchip series of SoCs
+like rk3288, rk312x, RV1108 to receive frame data from camera or CCIR656 encoder,
+and transfer the data into system main memory by AXI bus.
+
+Required properties:
+- compatible: value should be one of the following
+	"rockchip,rk3128-cif";
+	"rockchip,rk3288-cif";
+- reg : offset and length of the register set for the device.
+- interrupts: should contain cif interrupt.
+- clocks: phandle to the required clocks.
+- clock-names: required clock name.
+
+Optional properties:
+- iommus: iommu node attached to cif if exist.
+- resets: CRU reset of cif if exist.
+
+port node
+-------------------
+
+The device node should contain one 'port' child node with child 'endpoint'
+nodes, according to the bindings defined in Documentation/devicetree/bindings/
+media/video-interfaces.txt.
+
+- endpoint(parallel):
+	- remote-endpoint: Connecting to a sensor with a parallel video bus.
+	- parallel_bus properties: Refer to Documentation/devicetree/bindings/
+		media/video-interfaces.txt.
+
+The port node must contain at least one endpoint.
+It could have multiple endpoints, but please note the hardware don't support
+two sensors work at a time, they are supposed to work asynchronously.
+
+Device node example
+-------------------
+
+	cif: cif@1010a000 {
+		compatible = "rockchip,rk3128-cif";
+		reg = <0x1010a000 0x200>;
+
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>,
+			 <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif", "hclk_cif",
+			      "sclk_cif_out";
+		resets = <&cru SRST_CIF0>;
+		reset-names = "rst_cif";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		/* px3se has not iommu attached */
+		/* iommus = <&cif_mmu>; */
+		power-domains = <&power RK3128_PD_VIO>;
+
+		status = "okay";
+
+		port {
+			cif_in: endpoint {
+				remote-endpoint = <&adv7181_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+		};
+	};
