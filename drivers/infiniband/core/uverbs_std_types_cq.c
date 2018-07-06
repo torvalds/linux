@@ -105,7 +105,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	obj = container_of(uverbs_attr_get_uobject(attrs,
 						   UVERBS_ATTR_CREATE_CQ_HANDLE),
 			   typeof(*obj), uobject);
-	obj->uverbs_file	   = file;
 	obj->comp_events_reported  = 0;
 	obj->async_events_reported = 0;
 	INIT_LIST_HEAD(&obj->comp_list);

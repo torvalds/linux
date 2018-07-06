@@ -204,7 +204,6 @@ struct ib_uwq_object {
 
 struct ib_ucq_object {
 	struct ib_uobject	uobject;
-	struct ib_uverbs_file  *uverbs_file;
 	struct list_head	comp_list;
 	struct list_head	async_list;
 	u32			comp_events_reported;

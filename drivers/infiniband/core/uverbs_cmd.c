@@ -976,7 +976,6 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	}
 
 	obj->uobject.user_handle = cmd->user_handle;
-	obj->uverbs_file	   = file;
 	obj->comp_events_reported  = 0;
 	obj->async_events_reported = 0;
 	INIT_LIST_HEAD(&obj->comp_list);
