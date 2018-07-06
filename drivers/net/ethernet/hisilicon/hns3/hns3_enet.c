@@ -791,16 +791,14 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 		 */
 		if (skb_is_gso(skb))
 			hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L3CS_B, 1);
-
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 	} else if (l3.v6->version == 6) {
 		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_M,
 				HNS3_TXD_L3T_S, HNS3_L3T_IPV6);
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 	}
 
 	switch (l4_proto) {
 	case IPPROTO_TCP:
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
@@ -810,12 +808,14 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 		if (hns3_tunnel_csum_bug(skb))
 			break;
 
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
 				HNS3_L4T_UDP);
 		break;
 	case IPPROTO_SCTP:
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
