@@ -1,3 +1,5 @@
+.. _kernel_hacking_lock:
+
 ===========================
 Unreliable Guide To Locking
 ===========================

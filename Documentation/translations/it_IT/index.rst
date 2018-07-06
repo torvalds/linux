@@ -87,6 +87,7 @@ vostre modifiche molto più semplice
    :maxdepth: 2
 
    doc-guide/index
+   kernel-hacking/index
 
 .. warning::
 
