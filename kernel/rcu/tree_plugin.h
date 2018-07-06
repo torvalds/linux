@@ -1815,12 +1815,6 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 	rdp->softirq_snap = kstat_softirqs_cpu(RCU_SOFTIRQ, smp_processor_id());
 }
 
-/* Increment ->ticks_this_gp for all flavors of RCU. */
-static void increment_cpu_stall_ticks(void)
-{
-	raw_cpu_inc(rcu_data.ticks_this_gp);
-}
-
 #ifdef CONFIG_RCU_NOCB_CPU
 
 /*

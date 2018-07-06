@@ -2555,7 +2555,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 void rcu_check_callbacks(int user)
 {
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
-	increment_cpu_stall_ticks();
+	raw_cpu_inc(rcu_data.ticks_this_gp);
 	rcu_flavor_check_callbacks(user);
 	if (rcu_pending())
 		invoke_rcu_core();
