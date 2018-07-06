@@ -198,15 +198,24 @@ const char *aa_file_perm_names[] = {
 /**
  * aa_perm_mask_to_str - convert a perm mask to its short string
  * @str: character buffer to store string in (at least 10 characters)
+ * @str_size: size of the @str buffer
+ * @chrs: NUL-terminated character buffer of permission characters
  * @mask: permission mask to convert
  */
-void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask)
+void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs, u32 mask)
 {
 	unsigned int i, perm = 1;
+	size_t num_chrs = strlen(chrs);
 
-	for (i = 0; i < 32; perm <<= 1, i++) {
-		if (mask & perm)
+	for (i = 0; i < num_chrs; perm <<= 1, i++) {
+		if (mask & perm) {
+			/* Ensure that one byte is left for NUL-termination */
+			if (WARN_ON_ONCE(str_size <= 1))
+				break;
+
 			*str++ = chrs[i];
+			str_size--;
+		}
 	}
 	*str = '\0';
 }
@@ -236,7 +245,7 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 
 	audit_log_format(ab, "\"");
 	if ((mask & chrsmask) && chrs) {
-		aa_perm_mask_to_str(str, chrs, mask & chrsmask);
+		aa_perm_mask_to_str(str, sizeof(str), chrs, mask & chrsmask);
 		mask &= ~chrsmask;
 		audit_log_format(ab, "%s", str);
 		if (mask & namesmask)
