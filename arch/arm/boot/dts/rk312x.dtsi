@@ -537,6 +537,24 @@
 		status = "disabled";
 	};
 
+	cif_new: cif-new@1010a000 {
+		compatible = "rockchip,rk3128-cif";
+		reg = <0x1010a000 0x200>;
+
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>,
+			 <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif", "hclk_cif",
+			      "sclk_cif_out";
+		resets = <&cru SRST_CIF0>;
+		reset-names = "rst_cif";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		/* rk312x has not iommu attached */
+		/* iommus = <&cif_mmu>; */
+		power-domains = <&power RK3128_PD_VIO>;
+
+		status = "disabled";
+	};
+
 	rga: rga@1010c000 {
 		compatible = "rockchip,rk312x-rga";
 		reg = <0x1010c000 0x1000>;
