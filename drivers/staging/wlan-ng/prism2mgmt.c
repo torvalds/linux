@@ -414,7 +414,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 		goto exit;
 	}
 
-	item = &(hw->scanresults->info.hscanresult.result[req->bssindex.data]);
+	item = &hw->scanresults->info.hscanresult.result[req->bssindex.data];
 	/* signal and noise */
 	req->signal.status = P80211ENUM_msgitem_status_data_ok;
 	req->noise.status = P80211ENUM_msgitem_status_data_ok;
@@ -1075,7 +1075,7 @@ int prism2mgmt_autojoin(struct wlandevice *wlandev, void *msgp)
 
 	/* Set the ssid */
 	memset(bytebuf, 0, 256);
-	pstr = (struct p80211pstrd *)&(msg->ssid.data);
+	pstr = (struct p80211pstrd *)&msg->ssid.data;
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFDESIREDSSID,
 					bytebuf,
@@ -1199,7 +1199,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 				/* Save macport 0 state */
 				result = hfa384x_drvr_getconfig16(hw,
 						  HFA384x_RID_CNFPORTTYPE,
-						  &(hw->presniff_port_type));
+						  &hw->presniff_port_type);
 				if (result) {
 					netdev_dbg
 					(wlandev->netdev,
@@ -1210,7 +1210,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 				/* Save the wepflags state */
 				result = hfa384x_drvr_getconfig16(hw,
 						  HFA384x_RID_CNFWEPFLAGS,
-						  &(hw->presniff_wepflags));
+						  &hw->presniff_wepflags);
 				if (result) {
 					netdev_dbg
 					(wlandev->netdev,
