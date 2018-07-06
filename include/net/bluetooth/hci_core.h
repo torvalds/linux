@@ -1158,6 +1158,10 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define bredr_sc_enabled(dev)  (lmp_sc_capable(dev) && \
 				hci_dev_test_flag(dev, HCI_SC_ENABLED))
 
+/* Use ext scanning if set ext scan param and ext scan enable is supported */
+#define use_ext_scan(dev) (((dev)->commands[37] & 0x20) && \
+			   ((dev)->commands[37] & 0x40))
+
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
 

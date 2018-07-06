@@ -647,11 +647,22 @@ void __hci_req_update_eir(struct hci_request *req)
 
 void hci_req_add_le_scan_disable(struct hci_request *req)
 {
-	struct hci_cp_le_set_scan_enable cp;
+	struct hci_dev *hdev = req->hdev;
 
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_DISABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_DISABLE;
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE, sizeof(cp),
+			    &cp);
+	} else {
+		struct hci_cp_le_set_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_DISABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	}
 }
 
 static void add_to_white_list(struct hci_request *req,
@@ -770,23 +781,60 @@ static bool scan_use_rpa(struct hci_dev *hdev)
 static void hci_req_start_scan(struct hci_request *req, u8 type, u16 interval,
 			       u16 window, u8 own_addr_type, u8 filter_policy)
 {
-	struct hci_cp_le_set_scan_param param_cp;
-	struct hci_cp_le_set_scan_enable enable_cp;
+	struct hci_dev *hdev = req->hdev;
 
-	memset(&param_cp, 0, sizeof(param_cp));
-	param_cp.type = type;
-	param_cp.interval = cpu_to_le16(interval);
-	param_cp.window = cpu_to_le16(window);
-	param_cp.own_address_type = own_addr_type;
-	param_cp.filter_policy = filter_policy;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
-		    &param_cp);
+	/* Use ext scanning if set ext scan param and ext scan enable is
+	 * supported
+	 */
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_params *ext_param_cp;
+		struct hci_cp_le_set_ext_scan_enable ext_enable_cp;
+		struct hci_cp_le_scan_phy_params *phy_params;
+		/* Ony single PHY (1M) is supported as of now */
+		u8 data[sizeof(*ext_param_cp) + sizeof(*phy_params) * 1];
 
-	memset(&enable_cp, 0, sizeof(enable_cp));
-	enable_cp.enable = LE_SCAN_ENABLE;
-	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
-		    &enable_cp);
+		ext_param_cp = (void *)data;
+		phy_params = (void *)ext_param_cp->data;
+
+		memset(ext_param_cp, 0, sizeof(*ext_param_cp));
+		ext_param_cp->own_addr_type = own_addr_type;
+		ext_param_cp->filter_policy = filter_policy;
+		ext_param_cp->scanning_phys = LE_SCAN_PHY_1M;
+
+		memset(phy_params, 0, sizeof(*phy_params));
+		phy_params->type = type;
+		phy_params->interval = cpu_to_le16(interval);
+		phy_params->window = cpu_to_le16(window);
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_PARAMS,
+			    sizeof(*ext_param_cp) + sizeof(*phy_params),
+			    ext_param_cp);
+
+		memset(&ext_enable_cp, 0, sizeof(ext_enable_cp));
+		ext_enable_cp.enable = LE_SCAN_ENABLE;
+		ext_enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE,
+			    sizeof(ext_enable_cp), &ext_enable_cp);
+	} else {
+		struct hci_cp_le_set_scan_param param_cp;
+		struct hci_cp_le_set_scan_enable enable_cp;
+
+		memset(&param_cp, 0, sizeof(param_cp));
+		param_cp.type = type;
+		param_cp.interval = cpu_to_le16(interval);
+		param_cp.window = cpu_to_le16(window);
+		param_cp.own_address_type = own_addr_type;
+		param_cp.filter_policy = filter_policy;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+			    &param_cp);
+
+		memset(&enable_cp, 0, sizeof(enable_cp));
+		enable_cp.enable = LE_SCAN_ENABLE;
+		enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+			    &enable_cp);
+	}
 }
 
 void hci_req_add_le_passive_scan(struct hci_request *req)
@@ -1948,7 +1996,6 @@ discov_stopped:
 static int le_scan_restart(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_enable cp;
 
 	/* If controller is not scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
@@ -1956,10 +2003,23 @@ static int le_scan_restart(struct hci_request *req, unsigned long opt)
 
 	hci_req_add_le_scan_disable(req);
 
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_ENABLE;
-	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_enable ext_enable_cp;
+
+		memset(&ext_enable_cp, 0, sizeof(ext_enable_cp));
+		ext_enable_cp.enable = LE_SCAN_ENABLE;
+		ext_enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE,
+			    sizeof(ext_enable_cp), &ext_enable_cp);
+	} else {
+		struct hci_cp_le_set_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_ENABLE;
+		cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	}
 
 	return 0;
 }

@@ -1098,6 +1098,31 @@ static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_le_set_ext_scan_param(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_cp_le_set_ext_scan_params *cp;
+	__u8 status = *((__u8 *) skb->data);
+	struct hci_cp_le_scan_phy_params *phy_param;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_EXT_SCAN_PARAMS);
+	if (!cp)
+		return;
+
+	phy_param = (void *)cp->data;
+
+	hci_dev_lock(hdev);
+
+	hdev->le_scan_type = phy_param->type;
+
+	hci_dev_unlock(hdev);
+}
+
 static bool has_pending_adv_report(struct hci_dev *hdev)
 {
 	struct discovery_state *d = &hdev->discovery;
@@ -1196,6 +1221,24 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		return;
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_SCAN_ENABLE);
+	if (!cp)
+		return;
+
+	le_set_scan_enable_complete(hdev, cp->enable);
+}
+
+static void hci_cc_le_set_ext_scan_enable(struct hci_dev *hdev,
+				      struct sk_buff *skb)
+{
+	struct hci_cp_le_set_ext_scan_enable *cp;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_EXT_SCAN_ENABLE);
 	if (!cp)
 		return;
 
@@ -3077,6 +3120,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_WRITE_SSP_DEBUG_MODE:
 		hci_cc_write_ssp_debug_mode(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_EXT_SCAN_PARAMS:
+		hci_cc_le_set_ext_scan_param(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_EXT_SCAN_ENABLE:
+		hci_cc_le_set_ext_scan_enable(hdev, skb);
 		break;
 
 	default:

@@ -1514,6 +1514,30 @@ struct hci_cp_le_set_default_phy {
 	__u8    rx_phys;
 } __packed;
 
+#define HCI_OP_LE_SET_EXT_SCAN_PARAMS   0x2041
+struct hci_cp_le_set_ext_scan_params {
+	__u8    own_addr_type;
+	__u8    filter_policy;
+	__u8    scanning_phys;
+	__u8    data[0];
+} __packed;
+
+#define LE_SCAN_PHY_1M 0x01
+
+struct hci_cp_le_scan_phy_params {
+	__u8    type;
+	__le16  interval;
+	__le16  window;
+} __packed;
+
+#define HCI_OP_LE_SET_EXT_SCAN_ENABLE   0x2042
+struct hci_cp_le_set_ext_scan_enable {
+	__u8    enable;
+	__u8    filter_dup;
+	__le16  duration;
+	__le16  period;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 
