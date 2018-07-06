@@ -215,7 +215,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.submit_ib = amdgpu_amdkfd_submit_ib,
 	.gpu_recover = amdgpu_amdkfd_gpu_reset,
-	.set_compute_idle = amdgpu_amdkfd_set_compute_idle
+	.set_compute_idle = amdgpu_amdkfd_set_compute_idle,
+	.get_hive_id = amdgpu_amdkfd_get_hive_id,
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)

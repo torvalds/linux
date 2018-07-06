@@ -411,6 +411,13 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd)
 	return amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 }
 
+uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return adev->gmc.xgmi.hive_id;
+}
+
 int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
 				uint32_t *ib_cmd, uint32_t ib_len)
