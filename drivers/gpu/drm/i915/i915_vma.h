@@ -215,6 +215,10 @@ static inline bool i915_vma_has_active_engine(const struct i915_vma *vma,
 	return vma->active & BIT(engine);
 }
 
+int __must_check i915_vma_move_to_active(struct i915_vma *vma,
+					 struct i915_request *rq,
+					 unsigned int flags);
+
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));

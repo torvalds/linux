@@ -1868,67 +1868,6 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	return true;
 }
 
-static void export_fence(struct i915_vma *vma,
-			 struct i915_request *rq,
-			 unsigned int flags)
-{
-	struct reservation_object *resv = vma->resv;
-
-	/*
-	 * Ignore errors from failing to allocate the new fence, we can't
-	 * handle an error right now. Worst case should be missed
-	 * synchronisation leading to rendering corruption.
-	 */
-	reservation_object_lock(resv, NULL);
-	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
-	reservation_object_unlock(resv);
-}
-
-int i915_vma_move_to_active(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
-{
-	struct drm_i915_gem_object *obj = vma->obj;
-	const unsigned int idx = rq->engine->id;
-
-	lockdep_assert_held(&rq->i915->drm.struct_mutex);
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	/*
-	 * Add a reference if we're newly entering the active list.
-	 * The order in which we add operations to the retirement queue is
-	 * vital here: mark_active adds to the start of the callback list,
-	 * such that subsequent callbacks are called first. Therefore we
-	 * add the active reference first and queue for it to be dropped
-	 * *last*.
-	 */
-	if (!i915_vma_is_active(vma))
-		obj->active_count++;
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], rq);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
-
-	obj->write_domain = 0;
-	if (flags & EXEC_OBJECT_WRITE) {
-		obj->write_domain = I915_GEM_DOMAIN_RENDER;
-
-		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, rq);
-
-		obj->read_domains = 0;
-	}
-	obj->read_domains |= I915_GEM_GPU_DOMAINS;
-
-	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, rq);
-
-	export_fence(vma, rq, flags);
-	return 0;
-}
-
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 {
 	u32 *cs;
