@@ -1220,7 +1220,7 @@ static void sci_rx_dma_release(struct sci_port *s)
 
 	s->chan_rx_saved = s->chan_rx = NULL;
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
-	dmaengine_terminate_all(chan);
+	dmaengine_terminate_sync(chan);
 	dma_free_coherent(chan->device->dev, s->buf_len_rx * 2, s->rx_buf[0],
 			  sg_dma_address(&s->sg_rx[0]));
 	dma_release_channel(chan);
@@ -1296,7 +1296,7 @@ static void sci_tx_dma_release(struct sci_port *s)
 	cancel_work_sync(&s->work_tx);
 	s->chan_tx_saved = s->chan_tx = NULL;
 	s->cookie_tx = -EINVAL;
-	dmaengine_terminate_all(chan);
+	dmaengine_terminate_sync(chan);
 	dma_unmap_single(chan->device->dev, s->tx_dma_addr, UART_XMIT_SIZE,
 			 DMA_TO_DEVICE);
 	dma_release_channel(chan);
@@ -1334,7 +1334,7 @@ static void sci_submit_rx(struct sci_port *s)
 
 fail:
 	if (i)
-		dmaengine_terminate_all(chan);
+		dmaengine_terminate_async(chan);
 	for (i = 0; i < 2; i++)
 		s->cookie_rx[i] = -EINVAL;
 	s->active_rx = -EINVAL;
@@ -1452,7 +1452,7 @@ static enum hrtimer_restart rx_timer_fn(struct hrtimer *t)
 	}
 
 	/* Handle incomplete DMA receive */
-	dmaengine_terminate_all(s->chan_rx);
+	dmaengine_terminate_async(s->chan_rx);
 	read = sg_dma_len(&s->sg_rx[active]) - state.residue;
 
 	if (read) {
