@@ -380,6 +380,7 @@ static inline void
 init_request_active(struct i915_gem_active *active,
 		    i915_gem_retire_fn retire)
 {
+	RCU_INIT_POINTER(active->request, NULL);
 	INIT_LIST_HEAD(&active->link);
 	active->retire = retire ?: i915_gem_retire_noop;
 }

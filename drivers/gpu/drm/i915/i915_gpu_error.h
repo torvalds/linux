@@ -177,7 +177,7 @@ struct i915_gpu_state {
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 rseqno[I915_NUM_ENGINES], wseqno;
+		u32 wseqno;
 		u64 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
