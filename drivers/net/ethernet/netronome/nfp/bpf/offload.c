@@ -190,8 +190,10 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 
 		meta->insn = prog[i];
 		meta->n = i;
-		if (is_mbpf_indir_shift(meta))
+		if (is_mbpf_alu(meta)) {
 			meta->umin_src = U64_MAX;
+			meta->umin_dst = U64_MAX;
+		}
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
 	}

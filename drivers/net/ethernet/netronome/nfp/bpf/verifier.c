@@ -551,12 +551,16 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	if (is_mbpf_xadd(meta))
 		return nfp_bpf_check_xadd(nfp_prog, meta, env);
 
-	if (is_mbpf_indir_shift(meta)) {
+	if (is_mbpf_alu(meta)) {
 		const struct bpf_reg_state *sreg =
 			cur_regs(env) + meta->insn.src_reg;
+		const struct bpf_reg_state *dreg =
+			cur_regs(env) + meta->insn.dst_reg;
 
 		meta->umin_src = min(meta->umin_src, sreg->umin_value);
 		meta->umax_src = max(meta->umax_src, sreg->umax_value);
+		meta->umin_dst = min(meta->umin_dst, dreg->umin_value);
+		meta->umax_dst = max(meta->umax_dst, dreg->umax_value);
 	}
 
 	return 0;

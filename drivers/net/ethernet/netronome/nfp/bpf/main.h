@@ -265,6 +265,8 @@ struct nfp_bpf_reg_state {
  * @arg2: arg2 for call instructions
  * @umin_src: copy of core verifier umin_value for src opearnd.
  * @umax_src: copy of core verifier umax_value for src operand.
+ * @umin_dst: copy of core verifier umin_value for dst opearnd.
+ * @umax_dst: copy of core verifier umax_value for dst operand.
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -300,12 +302,15 @@ struct nfp_insn_meta {
 			struct bpf_reg_state arg1;
 			struct nfp_bpf_reg_state arg2;
 		};
-		/* We are interested in range info for some operands,
-		 * for example, the shift amount which is kept in src operand.
+		/* We are interested in range info for operands of ALU
+		 * operations. For example, shift amount, multiplicand and
+		 * multiplier etc.
 		 */
 		struct {
 			u64 umin_src;
 			u64 umax_src;
+			u64 umin_dst;
+			u64 umax_dst;
 		};
 	};
 	unsigned int off;
@@ -337,6 +342,11 @@ static inline u8 mbpf_op(const struct nfp_insn_meta *meta)
 static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
 {
 	return BPF_MODE(meta->insn.code);
+}
+
+static inline bool is_mbpf_alu(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_ALU64 || mbpf_class(meta) == BPF_ALU;
 }
 
 static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
@@ -382,25 +392,6 @@ static inline bool is_mbpf_classic_store_pkt(const struct nfp_insn_meta *meta)
 static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
 {
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
-}
-
-static inline bool is_mbpf_indir_shift(const struct nfp_insn_meta *meta)
-{
-	u8 code = meta->insn.code;
-	bool is_alu, is_shift;
-	u8 opclass, opcode;
-
-	opclass = BPF_CLASS(code);
-	is_alu = opclass == BPF_ALU64 || opclass == BPF_ALU;
-	if (!is_alu)
-		return false;
-
-	opcode = BPF_OP(code);
-	is_shift = opcode == BPF_LSH || opcode == BPF_RSH || opcode == BPF_ARSH;
-	if (!is_shift)
-		return false;
-
-	return BPF_SRC(code) == BPF_X;
 }
 
 /**
