@@ -2306,6 +2306,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 }
 
 #define INTEL_INFO(dev_priv)	intel_info((dev_priv))
+#define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
 
 #define INTEL_GEN(dev_priv)	((dev_priv)->info.gen)
 #define INTEL_DEVID(dev_priv)	((dev_priv)->info.device_id)

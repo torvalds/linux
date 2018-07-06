@@ -302,6 +302,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 							   engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
 		engine->context_size = 0;
+	if (engine->context_size)
+		DRIVER_CAPS(dev_priv)->has_logical_contexts = true;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
