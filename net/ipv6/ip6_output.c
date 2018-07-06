@@ -1221,6 +1221,8 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	cork->base.fragsize = mtu;
 	cork->base.gso_size = sk->sk_type == SOCK_DGRAM &&
 			      sk->sk_protocol == IPPROTO_UDP ? ipc6->gso_size : 0;
+	cork->base.tx_flags = 0;
+	sock_tx_timestamp(sk, ipc6->sockc.tsflags, &cork->base.tx_flags);
 
 	if (dst_allfrag(xfrm_dst_path(&rt->dst)))
 		cork->base.flags |= IPCORK_ALLFRAG;
@@ -1250,7 +1252,6 @@ static int __ip6_append_data(struct sock *sk,
 	int copy;
 	int err;
 	int offset = 0;
-	__u8 tx_flags = 0;
 	u32 tskey = 0;
 	struct rt6_info *rt = (struct rt6_info *)cork->dst;
 	struct ipv6_txoptions *opt = v6_cork->opt;
@@ -1268,6 +1269,10 @@ static int __ip6_append_data(struct sock *sk,
 	paged = !!cork->gso_size;
 	mtu = cork->gso_size ? IP6_MAX_MTU : cork->fragsize;
 	orig_mtu = mtu;
+
+	if (cork->tx_flags & SKBTX_ANY_SW_TSTAMP &&
+	    sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
+		tskey = sk->sk_tskey++;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
 
@@ -1317,13 +1322,6 @@ emsgsize:
 	    (!(flags & MSG_MORE) || cork->gso_size) &&
 	    rt->dst.dev->features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
 		csummode = CHECKSUM_PARTIAL;
-
-	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_RAW) {
-		sock_tx_timestamp(sk, ipc6->sockc.tsflags, &tx_flags);
-		if (tx_flags & SKBTX_ANY_SW_TSTAMP &&
-		    sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
-			tskey = sk->sk_tskey++;
-	}
 
 	/*
 	 * Let's try using as much space as possible.
@@ -1443,8 +1441,8 @@ alloc_new_skb:
 				    dst_exthdrlen);
 
 			/* Only the initial fragment is time stamped */
-			skb_shinfo(skb)->tx_flags = tx_flags;
-			tx_flags = 0;
+			skb_shinfo(skb)->tx_flags = cork->tx_flags;
+			cork->tx_flags = 0;
 			skb_shinfo(skb)->tskey = tskey;
 			tskey = 0;
 

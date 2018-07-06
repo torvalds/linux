@@ -1153,8 +1153,9 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	cork->ttl = ipc->ttl;
 	cork->tos = ipc->tos;
 	cork->priority = ipc->priority;
-	cork->tx_flags = ipc->tx_flags;
 	cork->transmit_time = ipc->sockc.transmit_time;
+	cork->tx_flags = 0;
+	sock_tx_timestamp(sk, ipc->sockc.tsflags, &cork->tx_flags);
 
 	return 0;
 }

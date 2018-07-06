@@ -72,7 +72,6 @@ struct ipcm_cookie {
 	__be32			addr;
 	int			oif;
 	struct ip_options_rcu	*opt;
-	__u8			tx_flags;
 	__u8			ttl;
 	__s16			tos;
 	char			priority;

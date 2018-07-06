@@ -763,8 +763,6 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rcu_read_unlock();
 	}
 
-	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
-
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
 

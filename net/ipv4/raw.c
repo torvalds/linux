@@ -665,8 +665,6 @@ back_from_confirm:
 				      &rt, msg->msg_flags, &ipc.sockc);
 
 	 else {
-		sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
-
 		if (!ipc.addr)
 			ipc.addr = fl4.daddr;
 		lock_sock(sk);

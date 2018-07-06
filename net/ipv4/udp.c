@@ -1020,8 +1020,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	saddr = ipc.addr;
 	ipc.addr = faddr = daddr;
 
-	sock_tx_timestamp(sk, ipc.sockc.tsflags, &ipc.tx_flags);
-
 	if (ipc.opt && ipc.opt->opt.srr) {
 		if (!daddr) {
 			err = -EINVAL;
