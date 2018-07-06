@@ -1774,13 +1774,13 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	 * protect against proessing in-flight CQEs for this QP.
 	 */
 	spin_lock_irqsave(&qp->sq_cq->cq_lock, flags);
-	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq))
+	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq)) {
 		spin_lock(&qp->rq_cq->cq_lock);
-
-	ocrdma_del_qpn_map(dev, qp);
-
-	if (qp->rq_cq && (qp->rq_cq != qp->sq_cq))
+		ocrdma_del_qpn_map(dev, qp);
 		spin_unlock(&qp->rq_cq->cq_lock);
+	} else {
+		ocrdma_del_qpn_map(dev, qp);
+	}
 	spin_unlock_irqrestore(&qp->sq_cq->cq_lock, flags);
 
 	if (!pd->uctx) {
