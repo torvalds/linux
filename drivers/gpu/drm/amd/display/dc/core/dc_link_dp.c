@@ -39,7 +39,7 @@ static bool decide_fallback_link_setting(
 		struct dc_link_settings initial_link_settings,
 		struct dc_link_settings *current_link_setting,
 		enum link_training_result training_result);
-static struct dc_link_settings get_common_supported_link_settings (
+static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b);
 
@@ -94,8 +94,8 @@ static void dpcd_set_link_settings(
 	uint8_t rate = (uint8_t)
 	(lt_settings->link_settings.link_rate);
 
-	union down_spread_ctrl downspread = {{0}};
-	union lane_count_set lane_count_set = {{0}};
+	union down_spread_ctrl downspread = { {0} };
+	union lane_count_set lane_count_set = { {0} };
 	uint8_t link_set_buffer[2];
 
 	downspread.raw = (uint8_t)
@@ -165,11 +165,11 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	const struct link_training_settings *lt_settings,
 	enum hw_dp_training_pattern pattern)
 {
-	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = {{{0}}};
+	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = { { {0} } };
 	const uint32_t dpcd_base_lt_offset =
 	DP_TRAINING_PATTERN_SET;
 	uint8_t dpcd_lt_buffer[5] = {0};
-	union dpcd_training_pattern dpcd_pattern = {{0}};
+	union dpcd_training_pattern dpcd_pattern = { {0} };
 	uint32_t lane;
 	uint32_t size_in_bytes;
 	bool edp_workaround = false; /* TODO link_prop.INTERNAL */
@@ -233,7 +233,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 			link,
 			DP_TRAINING_PATTERN_SET,
 			&dpcd_pattern.raw,
-			sizeof(dpcd_pattern.raw) );
+			sizeof(dpcd_pattern.raw));
 
 		core_link_write_dpcd(
 			link,
@@ -247,7 +247,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 				link,
 				dpcd_base_lt_offset,
 				dpcd_lt_buffer,
-				size_in_bytes + sizeof(dpcd_pattern.raw) );
+				size_in_bytes + sizeof(dpcd_pattern.raw));
 
 	link->cur_lane_setting = lt_settings->lane_settings[0];
 }
@@ -429,8 +429,8 @@ static void get_lane_status_and_drive_settings(
 	struct link_training_settings *req_settings)
 {
 	uint8_t dpcd_buf[6] = {0};
-	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {{{0}}};
-	struct link_training_settings request_settings = {{0}};
+	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = { { {0} } };
+	struct link_training_settings request_settings = { {0} };
 	uint32_t lane;
 
 	memset(req_settings, '\0', sizeof(struct link_training_settings));
@@ -652,7 +652,7 @@ static bool perform_post_lt_adj_req_sequence(
 
 			if (req_drv_setting_changed) {
 				update_drive_settings(
-					lt_settings,req_settings);
+					lt_settings, req_settings);
 
 				dc_link_dp_set_drive_settings(link,
 						lt_settings);
@@ -725,8 +725,8 @@ static enum link_training_result perform_channel_equalization_sequence(
 	enum hw_dp_training_pattern hw_tr_pattern;
 	uint32_t retries_ch_eq;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
-	union lane_align_status_updated dpcd_lane_status_updated = {{0}};
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};
+	union lane_align_status_updated dpcd_lane_status_updated = { {0} };
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = { { {0} } };
 
 	hw_tr_pattern = get_supported_tp(link);
 
@@ -1186,7 +1186,7 @@ bool dp_hbr_verify_link_cap(
 	return success;
 }
 
-static struct dc_link_settings get_common_supported_link_settings (
+static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b)
 {
@@ -1432,6 +1432,7 @@ static uint32_t bandwidth_in_kbps_from_link_settings(
 
 	uint32_t lane_count  = link_setting->lane_count;
 	uint32_t kbps = link_rate_in_kbps;
+
 	kbps *= lane_count;
 	kbps *= 8;   /* 8 bits per byte*/
 
@@ -1449,9 +1450,9 @@ bool dp_validate_mode_timing(
 	const struct dc_link_settings *link_setting;
 
 	/*always DP fail safe mode*/
-	if (timing->pix_clk_khz == (uint32_t)25175 &&
-		timing->h_addressable == (uint32_t)640 &&
-		timing->v_addressable == (uint32_t)480)
+	if (timing->pix_clk_khz == (uint32_t) 25175 &&
+		timing->h_addressable == (uint32_t) 640 &&
+		timing->v_addressable == (uint32_t) 480)
 		return true;
 
 	/* We always use verified link settings */
@@ -2001,7 +2002,7 @@ static void handle_automated_test(struct dc_link *link)
 
 bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss)
 {
-	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
+	union hpd_irq_data hpd_irq_dpcd_data = { { { {0} } } };
 	union device_service_irq device_service_clear = { { 0 } };
 	enum dc_status result;
 
