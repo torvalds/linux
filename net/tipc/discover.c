@@ -133,6 +133,8 @@ static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 }
 
 /* tipc_disc_addr_trial(): - handle an address uniqueness trial from peer
+ * Returns true if message should be dropped by caller, i.e., if it is a
+ * trial message or we are inside trial period. Otherwise false.
  */
 static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 				     struct tipc_media_addr *maddr,
@@ -168,8 +170,9 @@ static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
 	}
 
+	/* Accept regular link requests/responses only after trial period */
 	if (mtyp != DSC_TRIAL_MSG)
-		return false;
+		return trial;
 
 	sugg_addr = tipc_node_try_addr(net, peer_id, src);
 	if (sugg_addr)
