@@ -428,7 +428,7 @@ void mpc1_read_mpcc_state(
 			MPCC_BUSY, &s->busy);
 }
 
-const struct mpc_funcs dcn10_mpc_funcs = {
+static const struct mpc_funcs dcn10_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,

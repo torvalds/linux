@@ -1125,7 +1125,7 @@ void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VTG_SEL, otg_inst);
 }
 
-static struct hubp_funcs dcn10_hubp_funcs = {
+static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
 	.hubp_program_surface_config =
