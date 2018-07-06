@@ -47,6 +47,8 @@ In 'operating-points-v2' table:
                        used when current temperature is below reference
                        temperature. Conversely, The second one is used when
                        current temperature is above reference temperature.
+- rockchip,pvtm-thermal-zone: A thermal zone node containing thermal sensor,
+                       it's used to get the current temperature.
 - rockchip,thermal-zone: A thermal zone node containing thermal sensor,
                        it's used to get the current temperature.
 

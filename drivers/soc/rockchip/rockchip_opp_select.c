@@ -232,9 +232,9 @@ static int rockchip_parse_pvtm_config(struct device_node *np,
 	if (of_property_read_u32_array(np, "rockchip,pvtm-temp-prop",
 				       pvtm->temp_prop, 2))
 		return -EINVAL;
-	if (of_property_read_string(np, "rockchip,thermal-zone",
+	if (of_property_read_string(np, "rockchip,pvtm-thermal-zone",
 				    &pvtm->tz_name)) {
-		if (of_property_read_string(np, "rockchip,pvtm-thermal-zone",
+		if (of_property_read_string(np, "rockchip,thermal-zone",
 					    &pvtm->tz_name))
 			return -EINVAL;
 	}
