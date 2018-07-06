@@ -935,13 +935,13 @@ xfs_file_clone_range(
 
 STATIC int
 xfs_file_dedupe_range(
-	struct file	*src_file,
-	u64		loff,
-	u64		len,
-	struct file	*dst_file,
-	u64		dst_loff)
+	struct file	*file_in,
+	loff_t		pos_in,
+	struct file	*file_out,
+	loff_t		pos_out,
+	u64		len)
 {
-	return xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
+	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
 				     len, true);
 }
 

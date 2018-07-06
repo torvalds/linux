@@ -2049,8 +2049,8 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 			info->status = -EINVAL;
 		} else {
 			deduped = dst_file->f_op->dedupe_file_range(file, off,
-							len, dst_file,
-							info->dest_offset);
+							dst_file,
+							info->dest_offset, len);
 			if (deduped == -EBADE)
 				info->status = FILE_DEDUPE_RANGE_DIFFERS;
 			else if (deduped < 0)
