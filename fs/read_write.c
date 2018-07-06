@@ -2003,6 +2003,9 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 	if (off + len > i_size_read(src))
 		return -EINVAL;
 
+	/* Arbitrary 1G limit on a single dedupe request, can be raised. */
+	len = min_t(u64, len, 1 << 30);
+
 	/* pre-format output fields to sane values */
 	for (i = 0; i < count; i++) {
 		same->info[i].bytes_deduped = 0ULL;
