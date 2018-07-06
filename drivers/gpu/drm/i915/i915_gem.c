@@ -3085,25 +3085,6 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 	return err;
 }
 
-static void skip_request(struct i915_request *request)
-{
-	void *vaddr = request->ring->vaddr;
-	u32 head;
-
-	/* As this request likely depends on state from the lost
-	 * context, clear out all the user operations leaving the
-	 * breadcrumb at the end (so we get the fence notifications).
-	 */
-	head = request->head;
-	if (request->postfix < head) {
-		memset(vaddr + head, 0, request->ring->size - head);
-		head = 0;
-	}
-	memset(vaddr + head, 0, request->postfix - head);
-
-	dma_fence_set_error(&request->fence, -EIO);
-}
-
 static void engine_skip_context(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -3118,10 +3099,10 @@ static void engine_skip_context(struct i915_request *request)
 
 	list_for_each_entry_continue(request, &engine->timeline.requests, link)
 		if (request->gem_context == hung_ctx)
-			skip_request(request);
+			i915_request_skip(request, -EIO);
 
 	list_for_each_entry(request, &timeline->requests, link)
-		skip_request(request);
+		i915_request_skip(request, -EIO);
 
 	spin_unlock(&timeline->lock);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
@@ -3164,7 +3145,7 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 
 	if (stalled) {
 		i915_gem_context_mark_guilty(request->gem_context);
-		skip_request(request);
+		i915_request_skip(request, -EIO);
 
 		/* If this context is now banned, skip all pending requests. */
 		if (i915_gem_context_is_banned(request->gem_context))

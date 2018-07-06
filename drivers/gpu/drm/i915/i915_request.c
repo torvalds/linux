@@ -1013,6 +1013,27 @@ i915_request_await_object(struct i915_request *to,
 	return ret;
 }
 
+void i915_request_skip(struct i915_request *rq, int error)
+{
+	void *vaddr = rq->ring->vaddr;
+	u32 head;
+
+	GEM_BUG_ON(!IS_ERR_VALUE((long)error));
+	dma_fence_set_error(&rq->fence, error);
+
+	/*
+	 * As this request likely depends on state from the lost
+	 * context, clear out all the user operations leaving the
+	 * breadcrumb at the end (so we get the fence notifications).
+	 */
+	head = rq->infix;
+	if (rq->postfix < head) {
+		memset(vaddr + head, 0, rq->ring->size - head);
+		head = 0;
+	}
+	memset(vaddr + head, 0, rq->postfix - head);
+}
+
 /*
  * NB: This function is not allowed to fail. Doing so would mean the the
  * request is not being tracked for completion but the work itself is

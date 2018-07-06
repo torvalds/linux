@@ -258,6 +258,8 @@ void i915_request_add(struct i915_request *rq);
 void __i915_request_submit(struct i915_request *request);
 void i915_request_submit(struct i915_request *request);
 
+void i915_request_skip(struct i915_request *request, int error);
+
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
 
