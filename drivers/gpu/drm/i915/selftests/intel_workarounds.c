@@ -283,6 +283,9 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 	};
 	int err;
 
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return 0;
+
 	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_subtests(tests, i915);
 	mutex_unlock(&i915->drm.struct_mutex);
