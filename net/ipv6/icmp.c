@@ -545,7 +545,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
-	ipc6.tclass = np->tclass;
+	ipcm6_init_sk(&ipc6, np);
 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
 
 	dst = icmpv6_route_lookup(net, skb, sk, &fl6);
@@ -553,8 +553,6 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		goto out;
 
 	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
-	ipc6.dontfrag = np->dontfrag;
-	ipc6.opt = NULL;
 
 	msg.skb = skb;
 	msg.offset = skb_network_offset(skb);
@@ -726,10 +724,9 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	msg.offset = 0;
 	msg.type = ICMPV6_ECHO_REPLY;
 
+	ipcm6_init_sk(&ipc6, np);
 	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
 	ipc6.tclass = ipv6_get_dsfield(ipv6_hdr(skb));
-	ipc6.dontfrag = np->dontfrag;
-	ipc6.opt = NULL;
 
 	if (ip6_append_data(sk, icmpv6_getfrag, &msg,
 			    skb->len + sizeof(struct icmp6hdr),

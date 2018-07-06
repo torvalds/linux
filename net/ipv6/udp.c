@@ -1143,9 +1143,7 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sockcm_cookie sockc;
 
-	ipc6.hlimit = -1;
-	ipc6.tclass = -1;
-	ipc6.dontfrag = -1;
+	ipcm6_init(&ipc6);
 	ipc6.gso_size = up->gso_size;
 	sockc.tsflags = sk->sk_tsflags;
 	sockc.transmit_time = 0;

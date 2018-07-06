@@ -301,6 +301,25 @@ struct ipcm6_cookie {
 	__u16 gso_size;
 };
 
+static inline void ipcm6_init(struct ipcm6_cookie *ipc6)
+{
+	*ipc6 = (struct ipcm6_cookie) {
+		.hlimit = -1,
+		.tclass = -1,
+		.dontfrag = -1,
+	};
+}
+
+static inline void ipcm6_init_sk(struct ipcm6_cookie *ipc6,
+				 const struct ipv6_pinfo *np)
+{
+	*ipc6 = (struct ipcm6_cookie) {
+		.hlimit = -1,
+		.tclass = np->tclass,
+		.dontfrag = np->dontfrag,
+	};
+}
+
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 {
 	struct ipv6_txoptions *opt;

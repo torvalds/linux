@@ -525,9 +525,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	fl6.flowi6_mark = sk->sk_mark;
 	fl6.flowi6_uid = sk->sk_uid;
 
-	ipc6.hlimit = -1;
-	ipc6.tclass = -1;
-	ipc6.dontfrag = -1;
+	ipcm6_init(&ipc6);
 
 	if (lsa) {
 		if (addr_len < SIN6_LEN_RFC2133)
