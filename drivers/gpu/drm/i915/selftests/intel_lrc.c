@@ -455,5 +455,8 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 	if (!HAS_EXECLISTS(i915))
 		return 0;
 
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return 0;
+
 	return i915_subtests(tests, i915);
 }
