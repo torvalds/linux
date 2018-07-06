@@ -180,6 +180,14 @@ static bool g_use_per_node_hctx;
 module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
 MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
+static bool g_zoned;
+module_param_named(zoned, g_zoned, bool, S_IRUGO);
+MODULE_PARM_DESC(zoned, "Make device as a host-managed zoned block device. Default: false");
+
+static unsigned long g_zone_size = 256;
+module_param_named(zone_size, g_zone_size, ulong, S_IRUGO);
+MODULE_PARM_DESC(zone_size, "Zone size in MB when block device is zoned. Must be power-of-two: Default: 256");
+
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
@@ -283,6 +291,8 @@ NULLB_DEVICE_ATTR(memory_backed, bool);
 NULLB_DEVICE_ATTR(discard, bool);
 NULLB_DEVICE_ATTR(mbps, uint);
 NULLB_DEVICE_ATTR(cache_size, ulong);
+NULLB_DEVICE_ATTR(zoned, bool);
+NULLB_DEVICE_ATTR(zone_size, ulong);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -395,6 +405,8 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_mbps,
 	&nullb_device_attr_cache_size,
 	&nullb_device_attr_badblocks,
+	&nullb_device_attr_zoned,
+	&nullb_device_attr_zone_size,
 	NULL,
 };
 
@@ -447,7 +459,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "memory_backed,discard,bandwidth,cache,badblocks\n");
+	return snprintf(page, PAGE_SIZE, "memory_backed,discard,bandwidth,cache,badblocks,zoned,zone_size\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -506,6 +518,8 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->hw_queue_depth = g_hw_queue_depth;
 	dev->blocking = g_blocking;
 	dev->use_per_node_hctx = g_use_per_node_hctx;
+	dev->zoned = g_zoned;
+	dev->zone_size = g_zone_size;
 	return dev;
 }
 
@@ -514,6 +528,7 @@ static void null_free_dev(struct nullb_device *dev)
 	if (!dev)
 		return;
 
+	null_zone_exit(dev);
 	badblocks_exit(&dev->badblocks);
 	kfree(dev);
 }
@@ -1146,6 +1161,11 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 	struct nullb *nullb = dev->nullb;
 	int err = 0;
 
+	if (req_op(cmd->rq) == REQ_OP_ZONE_REPORT) {
+		cmd->error = null_zone_report(nullb, cmd);
+		goto out;
+	}
+
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		struct request *rq = cmd->rq;
 
@@ -1210,6 +1230,13 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 		}
 	}
 	cmd->error = errno_to_blk_status(err);
+
+	if (!cmd->error && dev->zoned) {
+		if (req_op(cmd->rq) == REQ_OP_WRITE)
+			null_zone_write(cmd);
+		else if (req_op(cmd->rq) == REQ_OP_ZONE_RESET)
+			null_zone_reset(cmd);
+	}
 out:
 	/* Complete IO by inline, softirq or timer */
 	switch (dev->irqmode) {
@@ -1737,6 +1764,15 @@ static int null_add_dev(struct nullb_device *dev)
 		blk_queue_flush_queueable(nullb->q, true);
 	}
 
+	if (dev->zoned) {
+		rv = null_zone_init(dev);
+		if (rv)
+			goto out_cleanup_blk_queue;
+
+		blk_queue_chunk_sectors(nullb->q, dev->zone_size_sects);
+		nullb->q->limits.zoned = BLK_ZONED_HM;
+	}
+
 	nullb->q->queuedata = nullb;
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, nullb->q);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, nullb->q);
@@ -1755,13 +1791,16 @@ static int null_add_dev(struct nullb_device *dev)
 
 	rv = null_gendisk_register(nullb);
 	if (rv)
-		goto out_cleanup_blk_queue;
+		goto out_cleanup_zone;
 
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
 	mutex_unlock(&lock);
 
 	return 0;
+out_cleanup_zone:
+	if (dev->zoned)
+		null_zone_exit(dev);
 out_cleanup_blk_queue:
 	blk_cleanup_queue(nullb->q);
 out_cleanup_tags:
@@ -1786,6 +1825,11 @@ static int __init null_init(void)
 		pr_warn("null_blk: invalid block size\n");
 		pr_warn("null_blk: defaults block size to %lu\n", PAGE_SIZE);
 		g_bs = PAGE_SIZE;
+	}
+
+	if (!is_power_of_2(g_zone_size)) {
+		pr_err("null_blk: zone_size must be power-of-two\n");
+		return -EINVAL;
 	}
 
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {

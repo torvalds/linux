@@ -41,9 +41,14 @@ struct nullb_device {
 	unsigned int curr_cache;
 	struct badblocks badblocks;
 
+	unsigned int nr_zones;
+	struct blk_zone *zones;
+	sector_t zone_size_sects;
+
 	unsigned long size; /* device size in MB */
 	unsigned long completion_nsec; /* time in ns to complete a request */
 	unsigned long cache_size; /* disk cache size in MB */
+	unsigned long zone_size; /* zone size in MB if device is zoned */
 	unsigned int submit_queues; /* number of submission queues */
 	unsigned int home_node; /* home node for the device */
 	unsigned int queue_mode; /* block interface */
@@ -57,6 +62,7 @@ struct nullb_device {
 	bool power; /* power on/off the device */
 	bool memory_backed; /* if data is stored in memory */
 	bool discard; /* if support discard */
+	bool zoned; /* if device is zoned */
 };
 
 struct nullb {
@@ -77,4 +83,26 @@ struct nullb {
 	unsigned int nr_queues;
 	char disk_name[DISK_NAME_LEN];
 };
+
+#ifdef CONFIG_BLK_DEV_ZONED
+int null_zone_init(struct nullb_device *dev);
+void null_zone_exit(struct nullb_device *dev);
+blk_status_t null_zone_report(struct nullb *nullb,
+					    struct nullb_cmd *cmd);
+void null_zone_write(struct nullb_cmd *cmd);
+void null_zone_reset(struct nullb_cmd *cmd);
+#else
+static inline int null_zone_init(struct nullb_device *dev)
+{
+	return -EINVAL;
+}
+static inline void null_zone_exit(struct nullb_device *dev) {}
+static inline blk_status_t null_zone_report(struct nullb *nullb,
+					    struct nullb_cmd *cmd)
+{
+	return BLK_STS_NOTSUPP;
+}
+static inline void null_zone_write(struct nullb_cmd *cmd) {}
+static inline void null_zone_reset(struct nullb_cmd *cmd) {}
+#endif /* CONFIG_BLK_DEV_ZONED */
 #endif /* __NULL_BLK_H */
