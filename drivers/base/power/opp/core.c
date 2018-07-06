@@ -552,7 +552,7 @@ static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 	}
 
 	/* Scaling up? Scale voltage before frequency */
-	if (freq >= old_freq) {
+	if (freq > old_freq) {
 		ret = _set_opp_voltage(dev, reg, new_supply);
 		if (ret)
 			goto restore_voltage;

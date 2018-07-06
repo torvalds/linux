@@ -1131,7 +1131,7 @@ static int init_nest_pmu_ref(void)
 
 static void cleanup_all_core_imc_memory(void)
 {
-	int i, nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
+	int i, nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 	struct imc_mem_info *ptr = core_imc_pmu->mem_info;
 	int size = core_imc_pmu->counter_mem_size;
 
@@ -1239,7 +1239,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		if (!pmu_ptr->pmu.name)
 			return -ENOMEM;
 
-		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
+		nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 		pmu_ptr->mem_info = kcalloc(nr_cores, sizeof(struct imc_mem_info),
 								GFP_KERNEL);
 

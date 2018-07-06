@@ -132,8 +132,19 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 					 unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned int pllr;
+	u16 mul;
+	u8 div;
 
-	return (parent_rate / pll->div) * (pll->mul + 1);
+	regmap_read(pll->regmap, PLL_REG(pll->id), &pllr);
+
+	div = PLL_DIV(pllr);
+	mul = PLL_MUL(pllr, pll->layout);
+
+	if (!div || !mul)
+		return 0;
+
+	return (parent_rate / div) * (mul + 1);
 }
 
 static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,

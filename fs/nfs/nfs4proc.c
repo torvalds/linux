@@ -750,7 +750,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 * The slot id we used was probably retired. Try again
 		 * using a different slot id.
 		 */
-		if (slot->slot_nr < slot->table->target_highest_slotid)
+		if (slot->seq_nr < slot->table->target_highest_slotid)
 			goto session_recover;
 		goto retry_nowait;
 	case -NFS4ERR_SEQ_MISORDERED:

@@ -593,7 +593,8 @@
 			#size-cells = <0>;
 			reg = <0xffda5000 0x100>;
 			interrupts = <0 102 4>;
-			num-cs = <4>;
+			num-chipselect = <4>;
+			bus-num = <0>;
 			/*32bit_access;*/
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
@@ -632,7 +633,7 @@
 		nand: nand@ffb90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "altr,socfpga-denali-nand";
+			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
 			reg = <0xffb90000 0x72000>,
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";

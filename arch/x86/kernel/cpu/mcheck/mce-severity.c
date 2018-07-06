@@ -143,11 +143,6 @@ static struct severity {
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_INSTR),
 		USER
 		),
-	MCESEV(
-		PANIC, "Data load in unrecoverable area of kernel",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
-		KERNEL
-		),
 #endif
 	MCESEV(
 		PANIC, "Action required: unknown MCACOD",

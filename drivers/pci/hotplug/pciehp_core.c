@@ -297,7 +297,7 @@ static int pciehp_resume(struct pcie_device *dev)
 	ctrl = get_service_data(dev);
 
 	/* reinitialize the chipset's event detection logic */
-	pcie_reenable_notification(ctrl);
+	pcie_enable_notification(ctrl);
 
 	slot = ctrl->slot;
 

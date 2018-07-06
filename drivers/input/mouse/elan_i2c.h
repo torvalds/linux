@@ -27,8 +27,6 @@
 #define ETP_DISABLE_POWER	0x0001
 #define ETP_PRESSURE_OFFSET	25
 
-#define ETP_CALIBRATE_MAX_LEN	3
-
 /* IAP Firmware handling */
 #define ETP_PRODUCT_ID_FORMAT_STRING	"%d.0"
 #define ETP_FW_NAME		"elan_i2c_" ETP_PRODUCT_ID_FORMAT_STRING ".bin"

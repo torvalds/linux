@@ -217,13 +217,6 @@ struct device_link *device_link_add(struct device *consumer,
 			link->rpm_active = true;
 		}
 		pm_runtime_new_link(consumer);
-		/*
-		 * If the link is being added by the consumer driver at probe
-		 * time, balance the decrementation of the supplier's runtime PM
-		 * usage counter after consumer probe in driver_probe_device().
-		 */
-		if (consumer->links.status == DL_DEV_PROBING)
-			pm_runtime_get_noresume(supplier);
 	}
 	get_device(supplier);
 	link->supplier = supplier;
@@ -242,12 +235,12 @@ struct device_link *device_link_add(struct device *consumer,
 			switch (consumer->links.status) {
 			case DL_DEV_PROBING:
 				/*
-				 * Some callers expect the link creation during
-				 * consumer driver probe to resume the supplier
-				 * even without DL_FLAG_RPM_ACTIVE.
+				 * Balance the decrementation of the supplier's
+				 * runtime PM usage counter after consumer probe
+				 * in driver_probe_device().
 				 */
 				if (flags & DL_FLAG_PM_RUNTIME)
-					pm_runtime_resume(supplier);
+					pm_runtime_get_sync(supplier);
 
 				link->status = DL_STATE_CONSUMER_PROBE;
 				break;

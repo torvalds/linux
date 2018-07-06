@@ -849,8 +849,9 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	return 0;
 }
 
-static void vsp1_video_release_buffers(struct vsp1_video *video)
+static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 {
+	struct vsp1_video *video = pipe->output->video;
 	struct vsp1_vb2_buffer *buffer;
 	unsigned long flags;
 
@@ -860,18 +861,12 @@ static void vsp1_video_release_buffers(struct vsp1_video *video)
 		vb2_buffer_done(&buffer->buf.vb2_buf, VB2_BUF_STATE_ERROR);
 	INIT_LIST_HEAD(&video->irqqueue);
 	spin_unlock_irqrestore(&video->irqlock, flags);
-}
-
-static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
-{
-	lockdep_assert_held(&pipe->lock);
 
 	/* Release our partition table allocation */
+	mutex_lock(&pipe->lock);
 	kfree(pipe->part_table);
 	pipe->part_table = NULL;
-
-	vsp1_dl_list_put(pipe->dl);
-	pipe->dl = NULL;
+	mutex_unlock(&pipe->lock);
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -886,9 +881,8 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (pipe->stream_count == pipe->num_inputs) {
 		ret = vsp1_video_setup_pipeline(pipe);
 		if (ret < 0) {
-			vsp1_video_release_buffers(video);
-			vsp1_video_cleanup_pipeline(pipe);
 			mutex_unlock(&pipe->lock);
+			vsp1_video_cleanup_pipeline(pipe);
 			return ret;
 		}
 
@@ -938,12 +932,13 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 		if (ret == -ETIMEDOUT)
 			dev_err(video->vsp1->dev, "pipeline stop timeout\n");
 
-		vsp1_video_cleanup_pipeline(pipe);
+		vsp1_dl_list_put(pipe->dl);
+		pipe->dl = NULL;
 	}
 	mutex_unlock(&pipe->lock);
 
 	media_pipeline_stop(&video->video.entity);
-	vsp1_video_release_buffers(video);
+	vsp1_video_cleanup_pipeline(pipe);
 	vsp1_video_pipeline_put(pipe);
 }
 

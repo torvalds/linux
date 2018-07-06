@@ -175,8 +175,8 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	if (cpu_has_feature(CPU_FTR_DAWR)) {
 		length_max = 512 ; /* 64 doublewords */
 		/* DAWR region can't cross 512 boundary */
-		if ((bp->attr.bp_addr >> 9) !=
-		    ((bp->attr.bp_addr + bp->attr.bp_len - 1) >> 9))
+		if ((bp->attr.bp_addr >> 10) != 
+		    ((bp->attr.bp_addr + bp->attr.bp_len - 1) >> 10))
 			return -EINVAL;
 	}
 	if (info->len >

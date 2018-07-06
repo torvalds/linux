@@ -420,8 +420,11 @@ validate_seqid(const struct nfs4_slot_table *tbl, const struct nfs4_slot *slot,
 		return htonl(NFS4ERR_SEQ_FALSE_RETRY);
 	}
 
-	/* Note: wraparound relies on seq_nr being of type u32 */
-	if (likely(args->csa_sequenceid == slot->seq_nr + 1))
+	/* Wraparound */
+	if (unlikely(slot->seq_nr == 0xFFFFFFFFU)) {
+		if (args->csa_sequenceid == 1)
+			return htonl(NFS4_OK);
+	} else if (likely(args->csa_sequenceid == slot->seq_nr + 1))
 		return htonl(NFS4_OK);
 
 	/* Misordered request */

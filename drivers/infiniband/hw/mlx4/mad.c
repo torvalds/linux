@@ -1934,6 +1934,7 @@ static void mlx4_ib_sqp_comp_worker(struct work_struct *work)
 					       "buf:%lld\n", wc.wr_id);
 				break;
 			default:
+				BUG_ON(1);
 				break;
 			}
 		} else  {

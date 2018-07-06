@@ -69,9 +69,7 @@ Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 Set the mode for prefaulting in segments into the segment table
-                when performing the START_WORK ioctl. Only applicable when
-                running under hashed page table mmu.
-                Possible values:
+                when performing the START_WORK ioctl. Possible values:
                         none: No prefaulting (default)
                         work_element_descriptor: Treat the work element
                                  descriptor as an effective address and

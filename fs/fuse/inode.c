@@ -1176,7 +1176,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_dev_free(fud);
  err_put_conn:
 	fuse_conn_put(fc);
-	sb->s_fs_info = NULL;
  err_fput:
 	fput(file);
  err:

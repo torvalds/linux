@@ -366,7 +366,7 @@ static int intel_pt_get_cyc(unsigned int byte, const unsigned char *buf,
 		if (len < offs)
 			return INTEL_PT_NEED_MORE_BYTES;
 		byte = buf[offs++];
-		payload |= ((uint64_t)byte >> 1) << shift;
+		payload |= (byte >> 1) << shift;
 	}
 
 	packet->type = INTEL_PT_CYC;

@@ -151,12 +151,8 @@ struct kmem_cache {
 
 #ifdef CONFIG_SYSFS
 #define SLAB_SUPPORTS_SYSFS
-void sysfs_slab_unlink(struct kmem_cache *);
 void sysfs_slab_release(struct kmem_cache *);
 #else
-static inline void sysfs_slab_unlink(struct kmem_cache *s)
-{
-}
 static inline void sysfs_slab_release(struct kmem_cache *s)
 {
 }

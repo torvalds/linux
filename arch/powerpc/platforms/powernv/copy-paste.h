@@ -42,6 +42,5 @@ static inline int vas_paste(void *paste_address, int offset)
 		: "b" (offset), "b" (paste_address)
 		: "memory", "cr0");
 
-	/* We mask with 0xE to ignore SO */
-	return (cr >> CR0_SHIFT) & 0xE;
+	return (cr >> CR0_SHIFT) & CR0_MASK;
 }

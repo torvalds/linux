@@ -1629,19 +1629,8 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		return err;
 
 	if (attr->ia_valid & ATTR_OPEN) {
-		/* This is coming from open(..., ... | O_TRUNC); */
-		WARN_ON(!(attr->ia_valid & ATTR_SIZE));
-		WARN_ON(attr->ia_size != 0);
-		if (fc->atomic_o_trunc) {
-			/*
-			 * No need to send request to userspace, since actual
-			 * truncation has already been done by OPEN.  But still
-			 * need to truncate page cache.
-			 */
-			i_size_write(inode, 0);
-			truncate_pagecache(inode, 0);
+		if (fc->atomic_o_trunc)
 			return 0;
-		}
 		file = NULL;
 	}
 

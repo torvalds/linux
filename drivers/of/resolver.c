@@ -129,11 +129,6 @@ static int update_usages_of_a_phandle_reference(struct device_node *overlay,
 			goto err_fail;
 		}
 
-		if (offset < 0 || offset + sizeof(__be32) > prop->length) {
-			err = -EINVAL;
-			goto err_fail;
-		}
-
 		*(__be32 *)(prop->value + offset) = cpu_to_be32(phandle);
 	}
 

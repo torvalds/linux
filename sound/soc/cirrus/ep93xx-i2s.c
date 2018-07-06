@@ -51,9 +51,7 @@
 #define EP93XX_I2S_WRDLEN_24		(1 << 0)
 #define EP93XX_I2S_WRDLEN_32		(2 << 0)
 
-#define EP93XX_I2S_RXLINCTRLDATA_R_JUST	BIT(1) /* Right justify */
-
-#define EP93XX_I2S_TXLINCTRLDATA_R_JUST	BIT(2) /* Right justify */
+#define EP93XX_I2S_LINCTRLDATA_R_JUST	(1 << 2) /* Right justify */
 
 #define EP93XX_I2S_CLKCFG_LRS		(1 << 0) /* lrclk polarity */
 #define EP93XX_I2S_CLKCFG_CKP		(1 << 1) /* Bit clock polarity */
@@ -172,25 +170,25 @@ static int ep93xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				  unsigned int fmt)
 {
 	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(cpu_dai);
-	unsigned int clk_cfg;
-	unsigned int txlin_ctrl = 0;
-	unsigned int rxlin_ctrl = 0;
+	unsigned int clk_cfg, lin_ctrl;
 
 	clk_cfg  = ep93xx_i2s_read_reg(info, EP93XX_I2S_RXCLKCFG);
+	lin_ctrl = ep93xx_i2s_read_reg(info, EP93XX_I2S_RXLINCTRLDATA);
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		clk_cfg |= EP93XX_I2S_CLKCFG_REL;
+		lin_ctrl &= ~EP93XX_I2S_LINCTRLDATA_R_JUST;
 		break;
 
 	case SND_SOC_DAIFMT_LEFT_J:
 		clk_cfg &= ~EP93XX_I2S_CLKCFG_REL;
+		lin_ctrl &= ~EP93XX_I2S_LINCTRLDATA_R_JUST;
 		break;
 
 	case SND_SOC_DAIFMT_RIGHT_J:
 		clk_cfg &= ~EP93XX_I2S_CLKCFG_REL;
-		rxlin_ctrl |= EP93XX_I2S_RXLINCTRLDATA_R_JUST;
-		txlin_ctrl |= EP93XX_I2S_TXLINCTRLDATA_R_JUST;
+		lin_ctrl |= EP93XX_I2S_LINCTRLDATA_R_JUST;
 		break;
 
 	default:
@@ -215,32 +213,32 @@ static int ep93xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 		/* Negative bit clock, lrclk low on left word */
-		clk_cfg &= ~(EP93XX_I2S_CLKCFG_CKP | EP93XX_I2S_CLKCFG_LRS);
+		clk_cfg &= ~(EP93XX_I2S_CLKCFG_CKP | EP93XX_I2S_CLKCFG_REL);
 		break;
 
 	case SND_SOC_DAIFMT_NB_IF:
 		/* Negative bit clock, lrclk low on right word */
 		clk_cfg &= ~EP93XX_I2S_CLKCFG_CKP;
-		clk_cfg |= EP93XX_I2S_CLKCFG_LRS;
+		clk_cfg |= EP93XX_I2S_CLKCFG_REL;
 		break;
 
 	case SND_SOC_DAIFMT_IB_NF:
 		/* Positive bit clock, lrclk low on left word */
 		clk_cfg |= EP93XX_I2S_CLKCFG_CKP;
-		clk_cfg &= ~EP93XX_I2S_CLKCFG_LRS;
+		clk_cfg &= ~EP93XX_I2S_CLKCFG_REL;
 		break;
 
 	case SND_SOC_DAIFMT_IB_IF:
 		/* Positive bit clock, lrclk low on right word */
-		clk_cfg |= EP93XX_I2S_CLKCFG_CKP | EP93XX_I2S_CLKCFG_LRS;
+		clk_cfg |= EP93XX_I2S_CLKCFG_CKP | EP93XX_I2S_CLKCFG_REL;
 		break;
 	}
 
 	/* Write new register values */
 	ep93xx_i2s_write_reg(info, EP93XX_I2S_RXCLKCFG, clk_cfg);
 	ep93xx_i2s_write_reg(info, EP93XX_I2S_TXCLKCFG, clk_cfg);
-	ep93xx_i2s_write_reg(info, EP93XX_I2S_RXLINCTRLDATA, rxlin_ctrl);
-	ep93xx_i2s_write_reg(info, EP93XX_I2S_TXLINCTRLDATA, txlin_ctrl);
+	ep93xx_i2s_write_reg(info, EP93XX_I2S_RXLINCTRLDATA, lin_ctrl);
+	ep93xx_i2s_write_reg(info, EP93XX_I2S_TXLINCTRLDATA, lin_ctrl);
 	return 0;
 }
 

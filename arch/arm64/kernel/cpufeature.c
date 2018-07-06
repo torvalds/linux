@@ -877,7 +877,7 @@ static int __init parse_kpti(char *str)
 	__kpti_forced = enabled ? 1 : -1;
 	return 0;
 }
-early_param("kpti", parse_kpti);
+__setup("kpti=", parse_kpti);
 #endif	/* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
 static const struct arm64_cpu_capabilities arm64_features[] = {

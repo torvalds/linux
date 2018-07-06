@@ -262,10 +262,10 @@ static int as3711_bl_register(struct platform_device *pdev,
 static int as3711_backlight_parse_dt(struct device *dev)
 {
 	struct as3711_bl_pdata *pdata = dev_get_platdata(dev);
-	struct device_node *bl, *fb;
+	struct device_node *bl =
+		of_find_node_by_name(dev->parent->of_node, "backlight"), *fb;
 	int ret;
 
-	bl = of_get_child_by_name(dev->parent->of_node, "backlight");
 	if (!bl) {
 		dev_dbg(dev, "backlight node not found\n");
 		return -ENODEV;
@@ -279,7 +279,7 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		if (pdata->su1_max_uA <= 0)
 			ret = -EINVAL;
 		if (ret < 0)
-			goto err_put_bl;
+			return ret;
 	}
 
 	fb = of_parse_phandle(bl, "su2-dev", 0);
@@ -292,7 +292,7 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		if (pdata->su2_max_uA <= 0)
 			ret = -EINVAL;
 		if (ret < 0)
-			goto err_put_bl;
+			return ret;
 
 		if (of_find_property(bl, "su2-feedback-voltage", NULL)) {
 			pdata->su2_feedback = AS3711_SU2_VOLTAGE;
@@ -314,10 +314,8 @@ static int as3711_backlight_parse_dt(struct device *dev)
 			pdata->su2_feedback = AS3711_SU2_CURR_AUTO;
 			count++;
 		}
-		if (count != 1) {
-			ret = -EINVAL;
-			goto err_put_bl;
-		}
+		if (count != 1)
+			return -EINVAL;
 
 		count = 0;
 		if (of_find_property(bl, "su2-fbprot-lx-sd4", NULL)) {
@@ -336,10 +334,8 @@ static int as3711_backlight_parse_dt(struct device *dev)
 			pdata->su2_fbprot = AS3711_SU2_GPIO4;
 			count++;
 		}
-		if (count != 1) {
-			ret = -EINVAL;
-			goto err_put_bl;
-		}
+		if (count != 1)
+			return -EINVAL;
 
 		count = 0;
 		if (of_find_property(bl, "su2-auto-curr1", NULL)) {
@@ -359,20 +355,11 @@ static int as3711_backlight_parse_dt(struct device *dev)
 		 * At least one su2-auto-curr* must be specified iff
 		 * AS3711_SU2_CURR_AUTO is used
 		 */
-		if (!count ^ (pdata->su2_feedback != AS3711_SU2_CURR_AUTO)) {
-			ret = -EINVAL;
-			goto err_put_bl;
-		}
+		if (!count ^ (pdata->su2_feedback != AS3711_SU2_CURR_AUTO))
+			return -EINVAL;
 	}
 
-	of_node_put(bl);
-
 	return 0;
-
-err_put_bl:
-	of_node_put(bl);
-
-	return ret;
 }
 
 static int as3711_backlight_probe(struct platform_device *pdev)
