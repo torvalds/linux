@@ -203,13 +203,12 @@ int hfi_session_init(struct venus_inst *inst, u32 pixfmt)
 {
 	struct venus_core *core = inst->core;
 	const struct hfi_ops *ops = core->ops;
-	u32 codec;
 	int ret;
 
-	codec = to_codec_type(pixfmt);
+	inst->hfi_codec = to_codec_type(pixfmt);
 	reinit_completion(&inst->done);
 
-	ret = ops->session_init(inst, inst->session_type, codec);
+	ret = ops->session_init(inst, inst->session_type, inst->hfi_codec);
 	if (ret)
 		return ret;
 

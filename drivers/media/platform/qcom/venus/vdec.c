@@ -24,6 +24,7 @@
 #include <media/videobuf2-dma-sg.h>
 
 #include "hfi_venus_io.h"
+#include "hfi_parser.h"
 #include "core.h"
 #include "helpers.h"
 #include "vdec.h"
@@ -175,10 +176,10 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 		fmt = find_format(inst, pixmp->pixelformat, f->type);
 	}
 
-	pixmp->width = clamp(pixmp->width, inst->cap_width.min,
-			     inst->cap_width.max);
-	pixmp->height = clamp(pixmp->height, inst->cap_height.min,
-			      inst->cap_height.max);
+	pixmp->width = clamp(pixmp->width, frame_width_min(inst),
+			     frame_width_max(inst));
+	pixmp->height = clamp(pixmp->height, frame_height_min(inst),
+			      frame_height_max(inst));
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		pixmp->height = ALIGN(pixmp->height, 32);
@@ -440,12 +441,12 @@ static int vdec_enum_framesizes(struct file *file, void *fh,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 
-	fsize->stepwise.min_width = inst->cap_width.min;
-	fsize->stepwise.max_width = inst->cap_width.max;
-	fsize->stepwise.step_width = inst->cap_width.step_size;
-	fsize->stepwise.min_height = inst->cap_height.min;
-	fsize->stepwise.max_height = inst->cap_height.max;
-	fsize->stepwise.step_height = inst->cap_height.step_size;
+	fsize->stepwise.min_width = frame_width_min(inst);
+	fsize->stepwise.max_width = frame_width_max(inst);
+	fsize->stepwise.step_width = frame_width_step(inst);
+	fsize->stepwise.min_height = frame_height_min(inst);
+	fsize->stepwise.max_height = frame_height_max(inst);
+	fsize->stepwise.step_height = frame_height_step(inst);
 
 	return 0;
 }
@@ -900,22 +901,7 @@ static void vdec_inst_init(struct venus_inst *inst)
 	inst->fps = 30;
 	inst->timeperframe.numerator = 1;
 	inst->timeperframe.denominator = 30;
-
-	inst->cap_width.min = 64;
-	inst->cap_width.max = 1920;
-	if (inst->core->res->hfi_version == HFI_VERSION_3XX)
-		inst->cap_width.max = 3840;
-	inst->cap_width.step_size = 1;
-	inst->cap_height.min = 64;
-	inst->cap_height.max = ALIGN(1080, 32);
-	if (inst->core->res->hfi_version == HFI_VERSION_3XX)
-		inst->cap_height.max = ALIGN(2160, 32);
-	inst->cap_height.step_size = 1;
-	inst->cap_framerate.min = 1;
-	inst->cap_framerate.max = 30;
-	inst->cap_framerate.step_size = 1;
-	inst->cap_mbs_per_frame.min = 16;
-	inst->cap_mbs_per_frame.max = 8160;
+	inst->hfi_codec = HFI_VIDEO_CODEC_H264;
 }
 
 static const struct v4l2_m2m_ops vdec_m2m_ops = {

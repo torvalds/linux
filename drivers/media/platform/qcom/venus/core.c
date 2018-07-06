@@ -152,6 +152,83 @@ static void venus_clks_disable(struct venus_core *core)
 		clk_disable_unprepare(core->clks[i]);
 }
 
+static u32 to_v4l2_codec_type(u32 codec)
+{
+	switch (codec) {
+	case HFI_VIDEO_CODEC_H264:
+		return V4L2_PIX_FMT_H264;
+	case HFI_VIDEO_CODEC_H263:
+		return V4L2_PIX_FMT_H263;
+	case HFI_VIDEO_CODEC_MPEG1:
+		return V4L2_PIX_FMT_MPEG1;
+	case HFI_VIDEO_CODEC_MPEG2:
+		return V4L2_PIX_FMT_MPEG2;
+	case HFI_VIDEO_CODEC_MPEG4:
+		return V4L2_PIX_FMT_MPEG4;
+	case HFI_VIDEO_CODEC_VC1:
+		return V4L2_PIX_FMT_VC1_ANNEX_G;
+	case HFI_VIDEO_CODEC_VP8:
+		return V4L2_PIX_FMT_VP8;
+	case HFI_VIDEO_CODEC_VP9:
+		return V4L2_PIX_FMT_VP9;
+	case HFI_VIDEO_CODEC_DIVX:
+	case HFI_VIDEO_CODEC_DIVX_311:
+		return V4L2_PIX_FMT_XVID;
+	default:
+		return 0;
+	}
+}
+
+static int venus_enumerate_codecs(struct venus_core *core, u32 type)
+{
+	const struct hfi_inst_ops dummy_ops = {};
+	struct venus_inst *inst;
+	u32 codec, codecs;
+	unsigned int i;
+	int ret;
+
+	if (core->res->hfi_version != HFI_VERSION_1XX)
+		return 0;
+
+	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
+
+	mutex_init(&inst->lock);
+	inst->core = core;
+	inst->session_type = type;
+	if (type == VIDC_SESSION_TYPE_DEC)
+		codecs = core->dec_codecs;
+	else
+		codecs = core->enc_codecs;
+
+	ret = hfi_session_create(inst, &dummy_ops);
+	if (ret)
+		goto err;
+
+	for (i = 0; i < MAX_CODEC_NUM; i++) {
+		codec = (1 << i) & codecs;
+		if (!codec)
+			continue;
+
+		ret = hfi_session_init(inst, to_v4l2_codec_type(codec));
+		if (ret)
+			goto done;
+
+		ret = hfi_session_deinit(inst);
+		if (ret)
+			goto done;
+	}
+
+done:
+	hfi_session_destroy(inst);
+err:
+	mutex_destroy(&inst->lock);
+	kfree(inst);
+
+	return ret;
+}
+
 static int venus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -216,6 +293,14 @@ static int venus_probe(struct platform_device *pdev)
 		goto err_venus_shutdown;
 
 	ret = hfi_core_init(core);
+	if (ret)
+		goto err_venus_shutdown;
+
+	ret = venus_enumerate_codecs(core, VIDC_SESSION_TYPE_DEC);
+	if (ret)
+		goto err_venus_shutdown;
+
+	ret = venus_enumerate_codecs(core, VIDC_SESSION_TYPE_ENC);
 	if (ret)
 		goto err_venus_shutdown;
 

@@ -24,6 +24,7 @@
 #include <media/v4l2-ctrls.h>
 
 #include "hfi_venus_io.h"
+#include "hfi_parser.h"
 #include "core.h"
 #include "helpers.h"
 #include "venc.h"
@@ -299,10 +300,10 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 		fmt = find_format(inst, pixmp->pixelformat, f->type);
 	}
 
-	pixmp->width = clamp(pixmp->width, inst->cap_width.min,
-			     inst->cap_width.max);
-	pixmp->height = clamp(pixmp->height, inst->cap_height.min,
-			      inst->cap_height.max);
+	pixmp->width = clamp(pixmp->width, frame_width_min(inst),
+			     frame_width_max(inst));
+	pixmp->height = clamp(pixmp->height, frame_height_min(inst),
+			      frame_height_max(inst));
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		pixmp->height = ALIGN(pixmp->height, 32);
@@ -551,12 +552,12 @@ static int venc_enum_framesizes(struct file *file, void *fh,
 	if (fsize->index)
 		return -EINVAL;
 
-	fsize->stepwise.min_width = inst->cap_width.min;
-	fsize->stepwise.max_width = inst->cap_width.max;
-	fsize->stepwise.step_width = inst->cap_width.step_size;
-	fsize->stepwise.min_height = inst->cap_height.min;
-	fsize->stepwise.max_height = inst->cap_height.max;
-	fsize->stepwise.step_height = inst->cap_height.step_size;
+	fsize->stepwise.min_width = frame_width_min(inst);
+	fsize->stepwise.max_width = frame_width_max(inst);
+	fsize->stepwise.step_width = frame_width_step(inst);
+	fsize->stepwise.min_height = frame_height_min(inst);
+	fsize->stepwise.max_height = frame_height_max(inst);
+	fsize->stepwise.step_height = frame_height_step(inst);
 
 	return 0;
 }
@@ -584,18 +585,18 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 	if (!fival->width || !fival->height)
 		return -EINVAL;
 
-	if (fival->width > inst->cap_width.max ||
-	    fival->width < inst->cap_width.min ||
-	    fival->height > inst->cap_height.max ||
-	    fival->height < inst->cap_height.min)
+	if (fival->width > frame_width_max(inst) ||
+	    fival->width < frame_width_min(inst) ||
+	    fival->height > frame_height_max(inst) ||
+	    fival->height < frame_height_min(inst))
 		return -EINVAL;
 
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.min.denominator = inst->cap_framerate.max;
+	fival->stepwise.min.denominator = frate_max(inst);
 	fival->stepwise.max.numerator = 1;
-	fival->stepwise.max.denominator = inst->cap_framerate.min;
+	fival->stepwise.max.denominator = frate_min(inst);
 	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = inst->cap_framerate.max;
+	fival->stepwise.step.denominator = frate_max(inst);
 
 	return 0;
 }
@@ -1089,22 +1090,7 @@ static void venc_inst_init(struct venus_inst *inst)
 	inst->fps = 15;
 	inst->timeperframe.numerator = 1;
 	inst->timeperframe.denominator = 15;
-
-	inst->cap_width.min = 96;
-	inst->cap_width.max = 1920;
-	if (inst->core->res->hfi_version == HFI_VERSION_3XX)
-		inst->cap_width.max = 3840;
-	inst->cap_width.step_size = 2;
-	inst->cap_height.min = 64;
-	inst->cap_height.max = ALIGN(1080, 32);
-	if (inst->core->res->hfi_version == HFI_VERSION_3XX)
-		inst->cap_height.max = ALIGN(2160, 32);
-	inst->cap_height.step_size = 2;
-	inst->cap_framerate.min = 1;
-	inst->cap_framerate.max = 30;
-	inst->cap_framerate.step_size = 1;
-	inst->cap_mbs_per_frame.min = 24;
-	inst->cap_mbs_per_frame.max = 8160;
+	inst->hfi_codec = HFI_VIDEO_CODEC_H264;
 }
 
 static int venc_open(struct file *file)

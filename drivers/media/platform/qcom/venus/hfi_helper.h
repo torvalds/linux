@@ -858,10 +858,23 @@ struct hfi_uncompressed_format_select {
 	u32 format;
 };
 
+struct hfi_uncompressed_plane_constraints {
+	u32 stride_multiples;
+	u32 max_stride;
+	u32 min_plane_buffer_height_multiple;
+	u32 buffer_alignment;
+};
+
+struct hfi_uncompressed_plane_info {
+	u32 format;
+	u32 num_planes;
+	struct hfi_uncompressed_plane_constraints plane_constraints[1];
+};
+
 struct hfi_uncompressed_format_supported {
 	u32 buffer_type;
 	u32 format_entries;
-	u32 format_info[1];
+	struct hfi_uncompressed_plane_info plane_info[1];
 };
 
 struct hfi_uncompressed_plane_actual {
@@ -873,19 +886,6 @@ struct hfi_uncompressed_plane_actual_info {
 	u32 buffer_type;
 	u32 num_planes;
 	struct hfi_uncompressed_plane_actual plane_format[1];
-};
-
-struct hfi_uncompressed_plane_constraints {
-	u32 stride_multiples;
-	u32 max_stride;
-	u32 min_plane_buffer_height_multiple;
-	u32 buffer_alignment;
-};
-
-struct hfi_uncompressed_plane_info {
-	u32 format;
-	u32 num_planes;
-	struct hfi_uncompressed_plane_constraints plane_format[1];
 };
 
 struct hfi_uncompressed_plane_actual_constraints_info {
