@@ -30,7 +30,7 @@
 
 #include <drm/drm_gem.h>
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && IS_ENABLED(CONFIG_DRM_DEBUG_MM)
+#if IS_ENABLED(CONFIG_DRM_I915_ERRLOG_GEM) && IS_ENABLED(CONFIG_DRM_DEBUG_MM)
 
 #include <linux/stackdepot.h>
 
