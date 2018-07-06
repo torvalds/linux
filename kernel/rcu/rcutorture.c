@@ -66,13 +66,16 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@jos
 /* Bits for ->extendables field, extendables param, and related definitions. */
 #define RCUTORTURE_RDR_SHIFT	 8	/* Put SRCU index in upper bits. */
 #define RCUTORTURE_RDR_MASK	 ((1 << RCUTORTURE_RDR_SHIFT) - 1)
-#define RCUTORTURE_RDR_BH	 0x1	/* Extend readers by disabling bh. */
-#define RCUTORTURE_RDR_IRQ	 0x2	/*  ... disabling interrupts. */
-#define RCUTORTURE_RDR_PREEMPT	 0x4	/*  ... disabling preemption. */
-#define RCUTORTURE_RDR_RCU	 0x8	/*  ... entering another RCU reader. */
-#define RCUTORTURE_RDR_NBITS	 4	/* Number of bits defined above. */
-#define RCUTORTURE_MAX_EXTEND	 (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | \
-				  RCUTORTURE_RDR_PREEMPT)
+#define RCUTORTURE_RDR_BH	 0x01	/* Extend readers by disabling bh. */
+#define RCUTORTURE_RDR_IRQ	 0x02	/*  ... disabling interrupts. */
+#define RCUTORTURE_RDR_PREEMPT	 0x04	/*  ... disabling preemption. */
+#define RCUTORTURE_RDR_RBH	 0x08	/*  ... rcu_read_lock_bh(). */
+#define RCUTORTURE_RDR_SCHED	 0x10	/*  ... rcu_read_lock_sched(). */
+#define RCUTORTURE_RDR_RCU	 0x20	/*  ... entering another RCU reader. */
+#define RCUTORTURE_RDR_NBITS	 6	/* Number of bits defined above. */
+#define RCUTORTURE_MAX_EXTEND	 \
+	(RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | RCUTORTURE_RDR_PREEMPT | \
+	 RCUTORTURE_RDR_RBH | RCUTORTURE_RDR_SCHED)
 #define RCUTORTURE_RDR_MAX_LOOPS 0x7	/* Maximum reader extensions. */
 					/* Must be power of two minus one. */
 
@@ -1217,6 +1220,10 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		local_irq_disable();
 	if (statesnew & RCUTORTURE_RDR_PREEMPT)
 		preempt_disable();
+	if (statesnew & RCUTORTURE_RDR_RBH)
+		rcu_read_lock_bh();
+	if (statesnew & RCUTORTURE_RDR_SCHED)
+		rcu_read_lock_sched();
 	if (statesnew & RCUTORTURE_RDR_RCU)
 		idxnew = cur_ops->readlock() << RCUTORTURE_RDR_SHIFT;
 
@@ -1227,6 +1234,10 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		local_bh_enable();
 	if (statesold & RCUTORTURE_RDR_PREEMPT)
 		preempt_enable();
+	if (statesold & RCUTORTURE_RDR_RBH)
+		rcu_read_unlock_bh();
+	if (statesold & RCUTORTURE_RDR_SCHED)
+		rcu_read_unlock_sched();
 	if (statesold & RCUTORTURE_RDR_RCU)
 		cur_ops->readunlock(idxold >> RCUTORTURE_RDR_SHIFT);
 
@@ -1269,10 +1280,11 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 		mask = mask & randmask2;
 	else
 		mask = mask & (1 << (randmask2 % RCUTORTURE_RDR_NBITS));
+	/* Can't enable bh w/irq disabled. */
 	if ((mask & RCUTORTURE_RDR_IRQ) &&
-	    !(mask & RCUTORTURE_RDR_BH) &&
-	    (oldmask & RCUTORTURE_RDR_BH))
-		mask |= RCUTORTURE_RDR_BH; /* Can't enable bh w/irq disabled. */
+	    ((!(mask & RCUTORTURE_RDR_BH) && (oldmask & RCUTORTURE_RDR_BH)) ||
+	     (!(mask & RCUTORTURE_RDR_RBH) && (oldmask & RCUTORTURE_RDR_RBH))))
+		mask |= RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH;
 	if ((mask & RCUTORTURE_RDR_IRQ) &&
 	    !(mask & cur_ops->ext_irq_conflict) &&
 	    (oldmask & cur_ops->ext_irq_conflict))
