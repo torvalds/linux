@@ -379,16 +379,95 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 #define all_zeros_or_all_ones(field)		\
 	((field) == 0 || (field) == (__force typeof(field))-1)
 
+static int validate_ethter(struct ethtool_rx_flow_spec *fs)
+{
+	struct ethhdr *eth_mask = &fs->m_u.ether_spec;
+	int ntuples = 0;
+
+	if (!is_zero_ether_addr(eth_mask->h_dest))
+		ntuples++;
+	if (!is_zero_ether_addr(eth_mask->h_source))
+		ntuples++;
+	if (eth_mask->h_proto)
+		ntuples++;
+	return ntuples;
+}
+
+static int validate_tcpudp4(struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip4_spec *l4_mask = &fs->m_u.tcp_ip4_spec;
+	int ntuples = 0;
+
+	if (l4_mask->tos)
+		return -EINVAL;
+
+	if (l4_mask->ip4src) {
+		if (!all_ones(l4_mask->ip4src))
+			return -EINVAL;
+		ntuples++;
+	}
+	if (l4_mask->ip4dst) {
+		if (!all_ones(l4_mask->ip4dst))
+			return -EINVAL;
+		ntuples++;
+	}
+	if (l4_mask->psrc) {
+		if (!all_ones(l4_mask->psrc))
+			return -EINVAL;
+		ntuples++;
+	}
+	if (l4_mask->pdst) {
+		if (!all_ones(l4_mask->pdst))
+			return -EINVAL;
+		ntuples++;
+	}
+	/* Flow is TCP/UDP */
+	return ++ntuples;
+}
+
+static int validate_ip4(struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_usrip4_spec *l3_mask = &fs->m_u.usr_ip4_spec;
+	int ntuples = 0;
+
+	if (l3_mask->l4_4_bytes || l3_mask->tos || l3_mask->proto ||
+	    fs->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
+		return -EINVAL;
+	if (l3_mask->ip4src) {
+		if (!all_ones(l3_mask->ip4src))
+			return -EINVAL;
+		ntuples++;
+	}
+	if (l3_mask->ip4dst) {
+		if (!all_ones(l3_mask->ip4dst))
+			return -EINVAL;
+		ntuples++;
+	}
+	/* Flow is IPv4 */
+	return ++ntuples;
+}
+
+static int validate_vlan(struct ethtool_rx_flow_spec *fs)
+{
+	if (fs->m_ext.vlan_etype ||
+	    fs->m_ext.vlan_tci != cpu_to_be16(VLAN_VID_MASK))
+		return -EINVAL;
+
+	if (fs->m_ext.vlan_tci &&
+	    (be16_to_cpu(fs->h_ext.vlan_tci) >= VLAN_N_VID))
+		return -EINVAL;
+
+	return 1;
+}
+
 static int validate_flow(struct mlx5e_priv *priv,
 			 struct ethtool_rx_flow_spec *fs)
 {
-	struct ethtool_tcpip4_spec *l4_mask;
-	struct ethtool_usrip4_spec *l3_mask;
-	struct ethhdr *eth_mask;
 	int num_tuples = 0;
+	int ret = 0;
 
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
-		return -EINVAL;
+		return -ENOSPC;
 
 	if (fs->ring_cookie >= priv->channels.params.num_channels &&
 	    fs->ring_cookie != RX_CLS_FLOW_DISC)
@@ -396,73 +475,29 @@ static int validate_flow(struct mlx5e_priv *priv,
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case ETHER_FLOW:
-		eth_mask = &fs->m_u.ether_spec;
-		if (!is_zero_ether_addr(eth_mask->h_dest))
-			num_tuples++;
-		if (!is_zero_ether_addr(eth_mask->h_source))
-			num_tuples++;
-		if (eth_mask->h_proto)
-			num_tuples++;
+		num_tuples += validate_ethter(fs);
 		break;
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
-		if (fs->m_u.tcp_ip4_spec.tos)
-			return -EINVAL;
-		l4_mask = &fs->m_u.tcp_ip4_spec;
-		if (l4_mask->ip4src) {
-			if (!all_ones(l4_mask->ip4src))
-				return -EINVAL;
-			num_tuples++;
-		}
-		if (l4_mask->ip4dst) {
-			if (!all_ones(l4_mask->ip4dst))
-				return -EINVAL;
-			num_tuples++;
-		}
-		if (l4_mask->psrc) {
-			if (!all_ones(l4_mask->psrc))
-				return -EINVAL;
-			num_tuples++;
-		}
-		if (l4_mask->pdst) {
-			if (!all_ones(l4_mask->pdst))
-				return -EINVAL;
-			num_tuples++;
-		}
-		/* Flow is TCP/UDP */
-		num_tuples++;
+		ret = validate_tcpudp4(fs);
+		if (ret < 0)
+			return ret;
+		num_tuples += ret;
 		break;
 	case IP_USER_FLOW:
-		l3_mask = &fs->m_u.usr_ip4_spec;
-		if (l3_mask->l4_4_bytes || l3_mask->tos || l3_mask->proto ||
-		    fs->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
-			return -EINVAL;
-		if (l3_mask->ip4src) {
-			if (!all_ones(l3_mask->ip4src))
-				return -EINVAL;
-			num_tuples++;
-		}
-		if (l3_mask->ip4dst) {
-			if (!all_ones(l3_mask->ip4dst))
-				return -EINVAL;
-			num_tuples++;
-		}
-		/* Flow is IPv4 */
-		num_tuples++;
+		ret = validate_ip4(fs);
+		if (ret < 0)
+			return ret;
+		num_tuples += ret;
 		break;
 	default:
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 	if ((fs->flow_type & FLOW_EXT)) {
-		if (fs->m_ext.vlan_etype ||
-		    (fs->m_ext.vlan_tci != cpu_to_be16(VLAN_VID_MASK)))
-			return -EINVAL;
-
-		if (fs->m_ext.vlan_tci) {
-			if (be16_to_cpu(fs->h_ext.vlan_tci) >= VLAN_N_VID)
-				return -EINVAL;
-		}
-		num_tuples++;
+		ret = validate_vlan(fs);
+		if (ret < 0)
+			return ret;
+		num_tuples += ret;
 	}
 
 	if (fs->flow_type & FLOW_MAC_EXT &&
@@ -483,8 +518,9 @@ int mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 
 	num_tuples = validate_flow(priv, fs);
 	if (num_tuples <= 0) {
-		netdev_warn(priv->netdev, "%s: flow is not valid\n",  __func__);
-		return -EINVAL;
+		netdev_warn(priv->netdev, "%s: flow is not valid %d\n",
+			    __func__, num_tuples);
+		return num_tuples;
 	}
 
 	eth_ft = get_flow_table(priv, fs, num_tuples);
