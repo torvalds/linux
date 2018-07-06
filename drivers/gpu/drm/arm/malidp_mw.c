@@ -141,6 +141,11 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
+	if (fb->modifier) {
+		DRM_DEBUG_KMS("Writeback framebuffer does not support modifiers\n");
+		return -EINVAL;
+	}
+
 	mw_state->format =
 		malidp_hw_get_format_id(&malidp->dev->hw->map, SE_MEMWRITE,
 					fb->format->format, !!fb->modifier);
