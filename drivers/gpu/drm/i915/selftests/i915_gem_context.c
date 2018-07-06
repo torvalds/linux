@@ -599,6 +599,9 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 	bool fake_alias = false;
 	int err;
 
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return 0;
+
 	/* Install a fake aliasing gtt for exercise */
 	if (USES_PPGTT(dev_priv) && !dev_priv->mm.aliasing_ppgtt) {
 		mutex_lock(&dev_priv->drm.struct_mutex);
