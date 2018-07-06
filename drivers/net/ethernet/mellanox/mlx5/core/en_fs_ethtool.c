@@ -115,29 +115,134 @@ static void mask_spec(u8 *mask, u8 *val, size_t size)
 		*((u8 *)val) = *((u8 *)mask) & *((u8 *)val);
 }
 
-static void set_ips(void *outer_headers_v, void *outer_headers_c, __be32 ip4src_m,
-		    __be32 ip4src_v, __be32 ip4dst_m, __be32 ip4dst_v)
+#define MLX5E_FTE_SET(header_p, fld, v)  \
+	MLX5_SET(fte_match_set_lyr_2_4, header_p, fld, v)
+
+#define MLX5E_FTE_ADDR_OF(header_p, fld) \
+	MLX5_ADDR_OF(fte_match_set_lyr_2_4, header_p, fld)
+
+static void
+set_ip4(void *headers_c, void *headers_v, __be32 ip4src_m,
+	__be32 ip4src_v, __be32 ip4dst_m, __be32 ip4dst_v)
 {
 	if (ip4src_m) {
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
-				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
+		memcpy(MLX5E_FTE_ADDR_OF(headers_v, src_ipv4_src_ipv6.ipv4_layout.ipv4),
 		       &ip4src_v, sizeof(ip4src_v));
-		memset(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
-				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
+		memset(MLX5E_FTE_ADDR_OF(headers_c, src_ipv4_src_ipv6.ipv4_layout.ipv4),
 		       0xff, sizeof(ip4src_m));
 	}
 	if (ip4dst_m) {
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
-				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+		memcpy(MLX5E_FTE_ADDR_OF(headers_v, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       &ip4dst_v, sizeof(ip4dst_v));
-		memset(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
-				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+		memset(MLX5E_FTE_ADDR_OF(headers_c, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       0xff, sizeof(ip4dst_m));
 	}
-	MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-		 ethertype, ETH_P_IP);
-	MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
-		 ethertype, 0xffff);
+
+	MLX5E_FTE_SET(headers_c, ethertype, 0xffff);
+	MLX5E_FTE_SET(headers_v, ethertype, ETH_P_IP);
+}
+
+static void
+set_tcp(void *headers_c, void *headers_v, __be16 psrc_m, __be16 psrc_v,
+	__be16 pdst_m, __be16 pdst_v)
+{
+	if (psrc_m) {
+		MLX5E_FTE_SET(headers_c, tcp_sport, 0xffff);
+		MLX5E_FTE_SET(headers_v, tcp_sport, ntohs(psrc_v));
+	}
+	if (pdst_m) {
+		MLX5E_FTE_SET(headers_c, tcp_dport, 0xffff);
+		MLX5E_FTE_SET(headers_v, tcp_dport, ntohs(pdst_v));
+	}
+
+	MLX5E_FTE_SET(headers_c, ip_protocol, 0xffff);
+	MLX5E_FTE_SET(headers_v, ip_protocol, IPPROTO_TCP);
+}
+
+static void
+set_udp(void *headers_c, void *headers_v, __be16 psrc_m, __be16 psrc_v,
+	__be16 pdst_m, __be16 pdst_v)
+{
+	if (psrc_m) {
+		MLX5E_FTE_SET(headers_c, udp_sport, 0xffff);
+		MLX5E_FTE_SET(headers_c, udp_sport, ntohs(psrc_v));
+	}
+
+	if (pdst_m) {
+		MLX5E_FTE_SET(headers_c, udp_dport, 0xffff);
+		MLX5E_FTE_SET(headers_v, udp_dport, ntohs(pdst_v));
+	}
+
+	MLX5E_FTE_SET(headers_c, ip_protocol, 0xffff);
+	MLX5E_FTE_SET(headers_v, ip_protocol, IPPROTO_UDP);
+}
+
+static void
+parse_tcp4(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip4_spec *l4_mask = &fs->m_u.tcp_ip4_spec;
+	struct ethtool_tcpip4_spec *l4_val  = &fs->h_u.tcp_ip4_spec;
+
+	set_ip4(headers_c, headers_v, l4_mask->ip4src, l4_val->ip4src,
+		l4_mask->ip4dst, l4_val->ip4dst);
+
+	set_tcp(headers_c, headers_v, l4_mask->psrc, l4_val->psrc,
+		l4_mask->pdst, l4_val->pdst);
+}
+
+static void
+parse_udp4(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip4_spec *l4_mask = &fs->m_u.udp_ip4_spec;
+	struct ethtool_tcpip4_spec *l4_val  = &fs->h_u.udp_ip4_spec;
+
+	set_ip4(headers_c, headers_v, l4_mask->ip4src, l4_val->ip4src,
+		l4_mask->ip4dst, l4_val->ip4dst);
+
+	set_udp(headers_c, headers_v, l4_mask->psrc, l4_val->psrc,
+		l4_mask->pdst, l4_val->pdst);
+}
+
+static void
+parse_ip4(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_usrip4_spec *l3_mask = &fs->m_u.usr_ip4_spec;
+	struct ethtool_usrip4_spec *l3_val  = &fs->h_u.usr_ip4_spec;
+
+	set_ip4(headers_c, headers_v, l3_mask->ip4src, l3_val->ip4src,
+		l3_mask->ip4dst, l3_val->ip4dst);
+}
+
+static void
+parse_ether(void *headers_c, void *headers_v, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethhdr *eth_mask = &fs->m_u.ether_spec;
+	struct ethhdr *eth_val = &fs->h_u.ether_spec;
+
+	mask_spec((u8 *)eth_mask, (u8 *)eth_val, sizeof(*eth_mask));
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_c, smac_47_16), eth_mask->h_source);
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_v, smac_47_16), eth_val->h_source);
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_c, dmac_47_16), eth_mask->h_dest);
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_v, dmac_47_16), eth_val->h_dest);
+	MLX5E_FTE_SET(headers_c, ethertype, ntohs(eth_mask->h_proto));
+	MLX5E_FTE_SET(headers_v, ethertype, ntohs(eth_val->h_proto));
+}
+
+static void
+set_cvlan(void *headers_c, void *headers_v, __be16 vlan_tci)
+{
+	MLX5E_FTE_SET(headers_c, cvlan_tag, 1);
+	MLX5E_FTE_SET(headers_v, cvlan_tag, 1);
+	MLX5E_FTE_SET(headers_c, first_vid, 0xfff);
+	MLX5E_FTE_SET(headers_v, first_vid, ntohs(vlan_tci));
+}
+
+static void
+set_dmac(void *headers_c, void *headers_v,
+	 unsigned char m_dest[ETH_ALEN], unsigned char v_dest[ETH_ALEN])
+{
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_c, dmac_47_16), m_dest);
+	ether_addr_copy(MLX5E_FTE_ADDR_OF(headers_v, dmac_47_16), v_dest);
 }
 
 static int set_flow_attrs(u32 *match_c, u32 *match_v,
@@ -148,112 +253,33 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	void *outer_headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					     outer_headers);
 	u32 flow_type = fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT);
-	struct ethtool_tcpip4_spec *l4_mask;
-	struct ethtool_tcpip4_spec *l4_val;
-	struct ethtool_usrip4_spec *l3_mask;
-	struct ethtool_usrip4_spec *l3_val;
-	struct ethhdr *eth_val;
-	struct ethhdr *eth_mask;
 
 	switch (flow_type) {
 	case TCP_V4_FLOW:
-		l4_mask = &fs->m_u.tcp_ip4_spec;
-		l4_val = &fs->h_u.tcp_ip4_spec;
-		set_ips(outer_headers_v, outer_headers_c, l4_mask->ip4src,
-			l4_val->ip4src, l4_mask->ip4dst, l4_val->ip4dst);
-
-		if (l4_mask->psrc) {
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_sport,
-				 0xffff);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_sport,
-				 ntohs(l4_val->psrc));
-		}
-		if (l4_mask->pdst) {
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_dport,
-				 0xffff);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_dport,
-				 ntohs(l4_val->pdst));
-		}
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
-			 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
-			 IPPROTO_TCP);
+		parse_tcp4(outer_headers_c, outer_headers_v, fs);
 		break;
 	case UDP_V4_FLOW:
-		l4_mask = &fs->m_u.tcp_ip4_spec;
-		l4_val = &fs->h_u.tcp_ip4_spec;
-		set_ips(outer_headers_v, outer_headers_c, l4_mask->ip4src,
-			l4_val->ip4src, l4_mask->ip4dst, l4_val->ip4dst);
-
-		if (l4_mask->psrc) {
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_sport,
-				 0xffff);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_sport,
-				 ntohs(l4_val->psrc));
-		}
-		if (l4_mask->pdst) {
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_dport,
-				 0xffff);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_dport,
-				 ntohs(l4_val->pdst));
-		}
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
-			 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
-			 IPPROTO_UDP);
+		parse_udp4(outer_headers_c, outer_headers_v, fs);
 		break;
 	case IP_USER_FLOW:
-		l3_mask = &fs->m_u.usr_ip4_spec;
-		l3_val = &fs->h_u.usr_ip4_spec;
-		set_ips(outer_headers_v, outer_headers_c, l3_mask->ip4src,
-			l3_val->ip4src, l3_mask->ip4dst, l3_val->ip4dst);
+		parse_ip4(outer_headers_c, outer_headers_v, fs);
 		break;
 	case ETHER_FLOW:
-		eth_mask = &fs->m_u.ether_spec;
-		eth_val = &fs->h_u.ether_spec;
-
-		mask_spec((u8 *)eth_mask, (u8 *)eth_val, sizeof(*eth_mask));
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_c, smac_47_16),
-				eth_mask->h_source);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_v, smac_47_16),
-				eth_val->h_source);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_c, dmac_47_16),
-				eth_mask->h_dest);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_v, dmac_47_16),
-				eth_val->h_dest);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ethertype,
-			 ntohs(eth_mask->h_proto));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ethertype,
-			 ntohs(eth_val->h_proto));
+		parse_ether(outer_headers_c, outer_headers_v, fs);
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	if ((fs->flow_type & FLOW_EXT) &&
-	    (fs->m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK))) {
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
-			 cvlan_tag, 1);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-			 cvlan_tag, 1);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
-			 first_vid, 0xfff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
-			 first_vid, ntohs(fs->h_ext.vlan_tci));
-	}
+	    (fs->m_ext.vlan_tci & cpu_to_be16(VLAN_VID_MASK)))
+		set_cvlan(outer_headers_c, outer_headers_v, fs->h_ext.vlan_tci);
+
 	if (fs->flow_type & FLOW_MAC_EXT &&
 	    !is_zero_ether_addr(fs->m_ext.h_dest)) {
 		mask_spec(fs->m_ext.h_dest, fs->h_ext.h_dest, ETH_ALEN);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_c, dmac_47_16),
-				fs->m_ext.h_dest);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
-					     outer_headers_v, dmac_47_16),
-				fs->h_ext.h_dest);
+		set_dmac(outer_headers_c, outer_headers_v, fs->m_ext.h_dest,
+			 fs->h_ext.h_dest);
 	}
 
 	return 0;
