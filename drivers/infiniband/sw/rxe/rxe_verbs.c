@@ -241,24 +241,17 @@ static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 
 	err = rxe_av_chk_attr(rxe, attr);
 	if (err)
-		goto err1;
+		return ERR_PTR(err);
 
 	ah = rxe_alloc(&rxe->ah_pool);
-	if (!ah) {
-		err = -ENOMEM;
-		goto err1;
-	}
+	if (!ah)
+		return ERR_PTR(-ENOMEM);
 
 	rxe_add_ref(pd);
 	ah->pd = pd;
 
 	rxe_init_av(rxe, attr, &ah->av);
 	return &ah->ibah;
-
-	rxe_drop_ref(pd);
-	rxe_drop_ref(ah);
-err1:
-	return ERR_PTR(err);
 }
 
 static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
