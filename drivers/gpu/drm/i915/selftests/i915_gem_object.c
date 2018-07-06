@@ -553,6 +553,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 	/* Now fill with busy dead objects that we expect to reap */
 	for (loop = 0; loop < 3; loop++) {
+		if (i915_terminally_wedged(&i915->gpu_error))
+			break;
+
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 		if (IS_ERR(obj)) {
 			err = PTR_ERR(obj);
