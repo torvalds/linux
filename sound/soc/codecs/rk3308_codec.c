@@ -54,12 +54,13 @@
 #define CODEC_DRV_NAME			"rk3308-acodec"
 
 #define ADC_GRP_SKIP_MAGIC		0x1001
+#define ADC_GRP_SKIP_MAGIC2		0x1002
 #define ADC_LR_GROUP_MAX		4
 #define ADC_STABLE_MS			20
 #define DEBUG_POP_ALWAYS		0
 #define ENABLE_AGC			0
 #define HPDET_POLL_MS			2000
-#define LOOPBACK_NO_USE			255
+#define NOT_USED			255
 #define LOOPBACK_HANDLE_MS		100
 
 #define GRF_SOC_CON1			0x304
@@ -94,6 +95,7 @@ enum {
 enum {
 	ADC_TYPE_NORMAL = 0,
 	ADC_TYPE_LOOPBACK,
+	ADC_TYPE_ALL,
 };
 
 enum {
@@ -141,6 +143,9 @@ struct rk3308_codec_priv {
 	u32 used_adc_grps;
 	/* The ADC group which is used for loop back */
 	u32 loopback_grp;
+	u32 en_always_grps[ADC_LR_GROUP_MAX];
+	u32 en_always_grps_num;
+	u32 enabled_grps[ADC_LR_GROUP_MAX];
 	u32 i2s_sdis[ADC_LR_GROUP_MAX];
 	u32 to_i2s_grps;
 	u32 delay_loopback_handle_ms;
@@ -561,10 +566,16 @@ static int rk3308_codec_hpout_r_put_tlv(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw_range(kcontrol, ucontrol);
 }
 
+static u32 to_mapped_grp(struct rk3308_codec_priv *rk3308, int idx)
+{
+	return rk3308->i2s_sdis[idx];
+}
+
 static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 			     int type, int idx, u32 *grp)
 {
 	if (type == ADC_TYPE_NORMAL) {
+		u32 mapped_grp = to_mapped_grp(rk3308, idx);
 		int max_grps;
 
 		if (rk3308->enable_all_adcs)
@@ -583,12 +594,23 @@ static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 			 * loopback ADCs.
 			 */
 			*grp = ADC_GRP_SKIP_MAGIC;
+		} else if (rk3308->enabled_grps[mapped_grp]) {
+			/* To set the skip flag if the ADC GRP is enabled. */
+			*grp = ADC_GRP_SKIP_MAGIC2;
 		} else {
-			*grp = rk3308->i2s_sdis[idx];
+			*grp = mapped_grp;
 		}
 
 		dev_dbg(rk3308->plat_dev,
 			"ADC_TYPE_NORMAL, idx: %d, get grp: %d\n",
+			idx, *grp);
+	} else if (type == ADC_TYPE_ALL) {
+		if (idx >= ADC_LR_GROUP_MAX)
+			return false;
+
+		*grp = idx;
+		dev_dbg(rk3308->plat_dev,
+			"ADC_TYPE_ALL, idx: %d, get grp: %d\n",
 			idx, *grp);
 	} else {
 		if (idx >= 1)
@@ -1893,6 +1915,19 @@ static bool has_loopback(int loopback_grp)
 	return false;
 }
 
+static bool has_en_always_grps(struct rk3308_codec_priv *rk3308)
+{
+	int idx;
+
+	for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++) {
+		if (rk3308->en_always_grps[idx] >= 0 &&
+		    rk3308->en_always_grps[idx] <= ADC_LR_GROUP_MAX - 1)
+			return true;
+	}
+
+	return false;
+}
+
 static int rk3308_codec_micbias_enable(struct rk3308_codec_priv *rk3308,
 				       int micbias)
 {
@@ -2082,6 +2117,9 @@ static int rk3308_codec_alc_disable(struct rk3308_codec_priv *rk3308,
 	int idx, grp;
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/*
 		 * 1. Set ACODEC_ALC_DIG_CON9[6] to 0x0, to disable the ALC
 		 * module, then the ALC output gain will keep to the last value
@@ -2095,6 +2133,9 @@ static int rk3308_codec_alc_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/*
 		 * 2. Set ACODEC_ADC_ANA_CON11[1:0], (ACODEC_ADC_ANA_CON11+0x40)
 		 * [1:0], (ACODEC_ADC_ANA_CON11+0x80)[1:0] and
@@ -2403,6 +2444,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	int idx, grp;
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 1 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
 				   RK3308_ADC_CH1_ZEROCROSS_DET_EN |
@@ -2412,6 +2456,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 2 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
 				   RK3308_ADC_CH1_ADC_EN |
@@ -2421,6 +2468,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 3 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
 				   RK3308_ADC_CH1_CLK_EN |
@@ -2430,6 +2480,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 4 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
 				   RK3308_ADC_CH1_ALC_EN |
@@ -2439,6 +2492,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 5 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
 				   RK3308_ADC_CH1_MIC_EN |
@@ -2448,6 +2504,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 6 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
 				   RK3308_ADC_CH1_BUF_REF_EN |
@@ -2457,6 +2516,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 7 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON06(grp),
 				   RK3308_ADC_CURRENT_MSK,
@@ -2464,6 +2526,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 8 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON05(grp),
 				   RK3308_ADC_CH1_ADC_WORK |
@@ -2473,6 +2538,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 9 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON02(grp),
 				   RK3308_ADC_CH1_ALC_WORK |
@@ -2482,6 +2550,9 @@ static int rk3308_codec_adc_ana_disable(struct rk3308_codec_priv *rk3308,
 	}
 
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
+		if (grp == ADC_GRP_SKIP_MAGIC2)
+			continue;
+
 		/* vendor step 10 */
 		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON00(grp),
 				   RK3308_ADC_CH1_MIC_WORK |
@@ -2574,6 +2645,14 @@ static void rk3308_codec_dac_mclk_enable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_MCLK_MSK,
 			   RK3308_DAC_MCLK_EN);
 	udelay(20);
+}
+
+static int rk3308_codec_close_all_capture(struct rk3308_codec_priv *rk3308)
+{
+	rk3308_codec_alc_disable(rk3308, ADC_TYPE_ALL);
+	rk3308_codec_adc_ana_disable(rk3308, ADC_TYPE_ALL);
+
+	return 0;
 }
 
 static int rk3308_codec_close_capture(struct rk3308_codec_priv *rk3308)
@@ -2687,6 +2766,32 @@ err:
 	return;
 }
 
+static void rk3308_codec_update_adcs_status(struct rk3308_codec_priv *rk3308,
+					    int state)
+{
+	int idx;
+
+	if (state == PATH_BUSY) {
+		/*
+		 * The used_adc_grps points out the current max ADC grps
+		 * dynamically during enable ADCs.
+		 */
+		for (idx = 0; idx < rk3308->en_always_grps_num; idx++) {
+			u32 mapped_grp = to_mapped_grp(rk3308, idx);
+
+			rk3308->enabled_grps[mapped_grp] = 1;
+		}
+	} else {
+		/* Clear all of enabled_grps flags if en_always_grps is 0 */
+		for (idx = 0; idx < ADC_LR_GROUP_MAX; idx++) {
+			if (rk3308->en_always_grps[idx])
+				continue;
+
+			rk3308->enabled_grps[idx] = 0;
+		}
+	}
+}
+
 static int rk3308_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -2740,6 +2845,7 @@ static int rk3308_hw_params(struct snd_pcm_substream *substream,
 
 		rk3308_codec_open_capture(rk3308);
 		rk3308_codec_adc_dig_config(rk3308, params);
+		rk3308_codec_update_adcs_status(rk3308, PATH_BUSY);
 	}
 
 	return 0;
@@ -2801,9 +2907,12 @@ static void rk3308_pcm_shutdown(struct snd_pcm_substream *substream,
 		rk3308_codec_set_dac_path_state(rk3308, PATH_IDLE);
 	} else {
 		rk3308_codec_close_capture(rk3308);
-		rk3308_codec_adc_mclk_disable(rk3308);
+		if (!has_en_always_grps(rk3308))
+			rk3308_codec_adc_mclk_disable(rk3308);
+
 		regcache_cache_only(rk3308->regmap, false);
 		regcache_sync(rk3308->regmap);
+		rk3308_codec_update_adcs_status(rk3308, PATH_IDLE);
 	}
 }
 
@@ -2948,11 +3057,49 @@ static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
 	return 0;
 }
 
+static int rk3308_codec_setup_en_always_adcs(struct rk3308_codec_priv *rk3308,
+					     struct device_node *np)
+{
+	int num, ret;
+
+	num = of_count_phandle_with_args(np, "rockchip,en-always-grps", NULL);
+	if (num < 0) {
+		if (num == -ENOENT) {
+			/*
+			 * If there is note use 'rockchip,en-always-grps'
+			 * property, return 0 is also right.
+			 */
+			ret = 0;
+		} else {
+			dev_err(rk3308->plat_dev,
+				"Failed to read 'rockchip,adc-grps-route' num: %d\n",
+				num);
+			ret = num;
+		}
+
+		rk3308->en_always_grps_num = 0;
+		return ret;
+	}
+
+	rk3308->en_always_grps_num = num;
+
+	ret = of_property_read_u32_array(np, "rockchip,en-always-grps",
+					 rk3308->en_always_grps, num);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to read 'rockchip,en-always-grps': %d\n",
+			ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 {
 	/* Clear registers for ADC and DAC */
 	rk3308_codec_close_playback(rk3308);
-	rk3308_codec_close_capture(rk3308);
+	rk3308_codec_close_all_capture(rk3308);
 	rk3308_codec_default_gains(rk3308);
 	rk3308_codec_llp_down(rk3308);
 
@@ -3683,7 +3830,7 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "rockchip,delay-loopback-handle-ms",
 				   &rk3308->delay_loopback_handle_ms);
 
-	rk3308->loopback_grp = LOOPBACK_NO_USE;
+	rk3308->loopback_grp = NOT_USED;
 	ret = of_property_read_u32(np, "rockchip,loopback-grp",
 				   &rk3308->loopback_grp);
 	/*
@@ -3699,6 +3846,13 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	ret = rk3308_codec_adc_grps_route(rk3308, np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to route ADC groups: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = rk3308_codec_setup_en_always_adcs(rk3308, np);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to setup enabled always ADCs: %d\n",
 			ret);
 		return ret;
 	}
