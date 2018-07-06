@@ -919,12 +919,12 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 			*cmd++ = val;
 		} else if (gen >= 4) {
 			*cmd++ = MI_STORE_DWORD_IMM_GEN4 |
-				(gen < 6 ? 1 << 22 : 0);
+				(gen < 6 ? MI_USE_GGTT : 0);
 			*cmd++ = 0;
 			*cmd++ = offset;
 			*cmd++ = val;
 		} else {
-			*cmd++ = MI_STORE_DWORD_IMM | 1 << 22;
+			*cmd++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 			*cmd++ = offset;
 			*cmd++ = val;
 		}

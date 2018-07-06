@@ -63,12 +63,12 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 			*cmd++ = value;
 		} else if (gen >= 4) {
 			*cmd++ = MI_STORE_DWORD_IMM_GEN4 |
-				(gen < 6 ? 1 << 22 : 0);
+				(gen < 6 ? MI_USE_GGTT : 0);
 			*cmd++ = 0;
 			*cmd++ = offset;
 			*cmd++ = value;
 		} else {
-			*cmd++ = MI_STORE_DWORD_IMM | 1 << 22;
+			*cmd++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 			*cmd++ = offset;
 			*cmd++ = value;
 		}

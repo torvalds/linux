@@ -171,7 +171,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else if (INTEL_GEN(i915) >= 4) {
-		*batch++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*batch++ = 0;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
