@@ -23,17 +23,6 @@
 #define AVECR IOMEM(0xfe700040)
 #define R8A7779_SCU_BASE 0xf0000000
 
-static int r8a7779_platform_cpu_kill(unsigned int cpu)
-{
-	int ret = -EIO;
-
-	cpu = cpu_logical_map(cpu);
-	if (cpu)
-		ret = rcar_sysc_power_down_cpu(cpu);
-
-	return ret ? ret : 1;
-}
-
 static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret = -EIO;
@@ -55,6 +44,17 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+static int r8a7779_platform_cpu_kill(unsigned int cpu)
+{
+	int ret = -EIO;
+
+	cpu = cpu_logical_map(cpu);
+	if (cpu)
+		ret = rcar_sysc_power_down_cpu(cpu);
+
+	return ret ? ret : 1;
+}
+
 static int r8a7779_cpu_kill(unsigned int cpu)
 {
 	if (shmobile_smp_scu_cpu_kill(cpu))
