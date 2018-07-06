@@ -732,6 +732,14 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 			     struct list_head *validated);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
 void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
+int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
+				      struct drm_amdgpu_bo_list_entry **info_param);
+
+int amdgpu_bo_list_create(struct amdgpu_device *adev,
+				 struct drm_file *filp,
+				 struct drm_amdgpu_bo_list_entry *info,
+				 unsigned num_entries,
+				 struct amdgpu_bo_list **list);
 
 /*
  * GFX stuff

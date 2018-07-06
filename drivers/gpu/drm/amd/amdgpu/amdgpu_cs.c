@@ -66,11 +66,35 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
-static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
+static int amdgpu_cs_bo_handles_chunk(struct amdgpu_cs_parser *p,
+				      struct drm_amdgpu_bo_list_in *data)
+{
+	int r;
+	struct drm_amdgpu_bo_list_entry *info = NULL;
+
+	r = amdgpu_bo_create_list_entry_array(data, &info);
+	if (r)
+		return r;
+
+	r = amdgpu_bo_list_create(p->adev, p->filp, info, data->bo_number,
+				  &p->bo_list);
+	if (r)
+		goto error_free;
+
+	kvfree(info);
+	return 0;
+
+error_free:
+	if (info)
+		kvfree(info);
+
+	return r;
+}
+
+static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
-	union drm_amdgpu_cs *cs = data;
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array;
 	unsigned size, num_ibs = 0;
@@ -159,6 +183,19 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 
 			ret = amdgpu_cs_user_fence_chunk(p, p->chunks[i].kdata,
 							 &uf_offset);
+			if (ret)
+				goto free_partial_kdata;
+
+			break;
+
+		case AMDGPU_CHUNK_ID_BO_HANDLES:
+			size = sizeof(struct drm_amdgpu_bo_list_in);
+			if (p->chunks[i].length_dw * sizeof(uint32_t) < size) {
+				ret = -EINVAL;
+				goto free_partial_kdata;
+			}
+
+			ret = amdgpu_cs_bo_handles_chunk(p, p->chunks[i].kdata);
 			if (ret)
 				goto free_partial_kdata;
 
@@ -534,7 +571,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	INIT_LIST_HEAD(&p->validated);
 
-	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
+	/* p->bo_list could already be assigned if AMDGPU_CHUNK_ID_BO_HANDLES is present */
+	if (!p->bo_list)
+		p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
+	else
+		mutex_lock(&p->bo_list->lock);
+
 	if (p->bo_list) {
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 		if (p->bo_list->first_userptr != p->bo_list->num_entries)

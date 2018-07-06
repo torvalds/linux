@@ -69,9 +69,10 @@
  * - 3.24.0 - Add high priority compute support for gfx9
  * - 3.25.0 - Add support for sensor query info (stable pstate sclk/mclk).
  * - 3.26.0 - GFX9: Process AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE.
+ * - 3.27.0 - Add new chunk to to AMDGPU_CS to enable BO_LIST creation.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	26
+#define KMS_DRIVER_MINOR	27
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
