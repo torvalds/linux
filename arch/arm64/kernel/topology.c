@@ -231,7 +231,7 @@ static void update_siblings_masks(unsigned int cpuid)
 	int cpu;
 
 	/* update core and thread sibling masks */
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		cpu_topo = &cpu_topology[cpu];
 
 		if (cpuid_topo->llc_id == cpu_topo->llc_id) {
@@ -243,15 +243,13 @@ static void update_siblings_masks(unsigned int cpuid)
 			continue;
 
 		cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
-		if (cpu != cpuid)
-			cpumask_set_cpu(cpu, &cpuid_topo->core_sibling);
+		cpumask_set_cpu(cpu, &cpuid_topo->core_sibling);
 
 		if (cpuid_topo->core_id != cpu_topo->core_id)
 			continue;
 
 		cpumask_set_cpu(cpuid, &cpu_topo->thread_sibling);
-		if (cpu != cpuid)
-			cpumask_set_cpu(cpu, &cpuid_topo->thread_sibling);
+		cpumask_set_cpu(cpu, &cpuid_topo->thread_sibling);
 	}
 }
 
