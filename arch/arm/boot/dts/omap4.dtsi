@@ -787,12 +787,33 @@
 			ti,hwmods = "wd_timer2";
 		};
 
-		wdt3: wdt@40130000 {
-			compatible = "ti,omap4-wdt", "ti,omap3-wdt";
-			reg = <0x40130000 0x80>, /* MPU private access */
-			      <0x49030000 0x80>; /* L3 Interconnect */
-			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		target-module@40130000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
 			ti,hwmods = "wd_timer3";
+			reg = <0x40130000 0x4>,
+			      <0x40130010 0x4>,
+			      <0x40130014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_EMUFREE |
+					 SYSC_OMAP2_SOFTRESET)>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			ti,syss-mask = <1>;
+			/* Domains (V, P, C): abe, abe_pwrdm, abe_clkdm */
+			clocks = <&abe_clkctrl OMAP4_WD_TIMER3_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x40130000 0x1000>, /* MPU private access */
+				 <0x49030000 0x49030000 0x0080>; /* L3 Interconnect */
+
+			wdt3: wdt@0 {
+				compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+				reg = <0x0 0x80>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		mcpdm: mcpdm@40132000 {
