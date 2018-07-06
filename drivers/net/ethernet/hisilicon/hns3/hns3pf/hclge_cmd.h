@@ -571,7 +571,8 @@ struct hclge_config_auto_neg_cmd {
 
 struct hclge_config_max_frm_size_cmd {
 	__le16  max_frm_size;
-	u8      rsv[22];
+	u8      min_frm_size;
+	u8      rsv[21];
 };
 
 enum hclge_mac_vlan_tbl_opcode {

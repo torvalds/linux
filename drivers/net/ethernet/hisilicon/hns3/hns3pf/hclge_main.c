@@ -4987,6 +4987,7 @@ static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
 	req->max_frm_size = cpu_to_le16(max_frm_size);
+	req->min_frm_size = HCLGE_MAC_MIN_FRAME;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
