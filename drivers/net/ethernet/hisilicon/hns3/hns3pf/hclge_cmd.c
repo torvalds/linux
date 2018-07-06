@@ -206,7 +206,8 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 
 	spin_lock_bh(&hw->cmq.csq.lock);
 
-	if (num > hclge_ring_space(&hw->cmq.csq)) {
+	if (num > hclge_ring_space(&hw->cmq.csq) ||
+	    test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
 		spin_unlock_bh(&hw->cmq.csq.lock);
 		return -EBUSY;
 	}
@@ -346,6 +347,7 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	spin_lock_init(&hdev->hw.cmq.crq.lock);
 
 	hclge_cmd_init_regs(&hdev->hw);
+	clear_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 
 	ret = hclge_cmd_query_firmware_version(&hdev->hw, &version);
 	if (ret) {
