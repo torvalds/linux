@@ -156,6 +156,10 @@ NUMA
 		If given as an integer, fills all system RAM with N fake nodes
 		interleaved over physical nodes.
 
+  numa=fake=<N>U
+		If given as an integer followed by 'U', it will divide each
+		physical node into N emulated nodes.
+
 ACPI
 
   acpi=off	Don't enable ACPI
