@@ -3455,7 +3455,6 @@ void rcu_cpu_starting(unsigned int cpu)
 	unsigned long oldmask;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = &rcu_state;
 
 	if (per_cpu(rcu_cpu_started, cpu))
 		return;
@@ -3472,10 +3471,10 @@ void rcu_cpu_starting(unsigned int cpu)
 	oldmask ^= rnp->expmaskinitnext;
 	nbits = bitmap_weight(&oldmask, BITS_PER_LONG);
 	/* Allow lockless access for expedited grace periods. */
-	smp_store_release(&rsp->ncpus, rsp->ncpus + nbits); /* ^^^ */
+	smp_store_release(&rcu_state.ncpus, rcu_state.ncpus + nbits); /* ^^^ */
 	rcu_gpnum_ovf(rnp, rdp); /* Offline-induced counter wrap? */
-	rdp->rcu_onl_gp_seq = READ_ONCE(rsp->gp_seq);
-	rdp->rcu_onl_gp_flags = READ_ONCE(rsp->gp_flags);
+	rdp->rcu_onl_gp_seq = READ_ONCE(rcu_state.gp_seq);
+	rdp->rcu_onl_gp_flags = READ_ONCE(rcu_state.gp_flags);
 	if (rnp->qsmask & mask) { /* RCU waiting on incoming CPU? */
 		/* Report QS -after- changing ->qsmaskinitnext! */
 		rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags);
@@ -3667,7 +3666,6 @@ static void __init rcu_init_one(void)
 	int i;
 	int j;
 	struct rcu_node *rnp;
-	struct rcu_state *rsp = &rcu_state;
 
 	BUILD_BUG_ON(RCU_NUM_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
 
@@ -3678,14 +3676,15 @@ static void __init rcu_init_one(void)
 	/* Initialize the level-tracking arrays. */
 
 	for (i = 1; i < rcu_num_lvls; i++)
-		rsp->level[i] = rsp->level[i - 1] + num_rcu_lvl[i - 1];
+		rcu_state.level[i] =
+			rcu_state.level[i - 1] + num_rcu_lvl[i - 1];
 	rcu_init_levelspread(levelspread, num_rcu_lvl);
 
 	/* Initialize the elements themselves, starting from the leaves. */
 
 	for (i = rcu_num_lvls - 1; i >= 0; i--) {
 		cpustride *= levelspread[i];
-		rnp = rsp->level[i];
+		rnp = rcu_state.level[i];
 		for (j = 0; j < num_rcu_lvl[i]; j++, rnp++) {
 			raw_spin_lock_init(&ACCESS_PRIVATE(rnp, lock));
 			lockdep_set_class_and_name(&ACCESS_PRIVATE(rnp, lock),
@@ -3693,9 +3692,9 @@ static void __init rcu_init_one(void)
 			raw_spin_lock_init(&rnp->fqslock);
 			lockdep_set_class_and_name(&rnp->fqslock,
 						   &rcu_fqs_class[i], fqs[i]);
-			rnp->gp_seq = rsp->gp_seq;
-			rnp->gp_seq_needed = rsp->gp_seq;
-			rnp->completedqs = rsp->gp_seq;
+			rnp->gp_seq = rcu_state.gp_seq;
+			rnp->gp_seq_needed = rcu_state.gp_seq;
+			rnp->completedqs = rcu_state.gp_seq;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
 			rnp->grplo = j * cpustride;
@@ -3709,7 +3708,7 @@ static void __init rcu_init_one(void)
 			} else {
 				rnp->grpnum = j % levelspread[i - 1];
 				rnp->grpmask = 1UL << rnp->grpnum;
-				rnp->parent = rsp->level[i - 1] +
+				rnp->parent = rcu_state.level[i - 1] +
 					      j / levelspread[i - 1];
 			}
 			rnp->level = i;
@@ -3723,8 +3722,8 @@ static void __init rcu_init_one(void)
 		}
 	}
 
-	init_swait_queue_head(&rsp->gp_wq);
-	init_swait_queue_head(&rsp->expedited_wq);
+	init_swait_queue_head(&rcu_state.gp_wq);
+	init_swait_queue_head(&rcu_state.expedited_wq);
 	rnp = rcu_first_leaf_node();
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)
