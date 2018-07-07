@@ -763,6 +763,7 @@ nvkm_vma_tail(struct nvkm_vma *vma, u64 tail)
 	new->part = vma->part;
 	new->user = vma->user;
 	new->busy = vma->busy;
+	new->mapped = vma->mapped;
 	list_add(&new->head, &vma->head);
 	return new;
 }
@@ -1112,10 +1113,11 @@ nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 
 	nvkm_memory_tags_put(vma->memory, vmm->mmu->subdev.device, &vma->tags);
 	nvkm_memory_unref(&vma->memory);
+	vma->mapped = false;
 
-	if (!vma->part || ((prev = node(vma, prev)), prev->memory))
+	if (!vma->part || ((prev = node(vma, prev)), prev->mapped))
 		prev = NULL;
-	if (!next->part || next->memory)
+	if (!next->part || next->mapped)
 		next = NULL;
 	nvkm_vmm_node_merge(vmm, prev, vma, next, vma->size);
 }
@@ -1274,6 +1276,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	nvkm_memory_tags_put(vma->memory, vmm->mmu->subdev.device, &vma->tags);
 	nvkm_memory_unref(&vma->memory);
 	vma->memory = nvkm_memory_ref(map->memory);
+	vma->mapped = true;
 	vma->tags = map->tags;
 	return 0;
 }
@@ -1319,14 +1322,16 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 
 	if (vma->mapref || !vma->sparse) {
 		do {
-			const bool map = next->memory != NULL;
+			const bool mem = next->memory != NULL;
+			const bool map = next->mapped;
 			const u8  refd = next->refd;
 			const u64 addr = next->addr;
 			u64 size = next->size;
 
 			/* Merge regions that are in the same state. */
 			while ((next = node(next, next)) && next->part &&
-			       (next->memory != NULL) == map &&
+			       (next->mapped == map) &&
+			       (next->memory != NULL) == mem &&
 			       (next->refd == refd))
 				size += next->size;
 
@@ -1351,7 +1356,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	 */
 	next = vma;
 	do {
-		if (next->memory)
+		if (next->mapped)
 			nvkm_vmm_unmap_region(vmm, next);
 	} while ((next = node(vma, next)) && next->part);
 

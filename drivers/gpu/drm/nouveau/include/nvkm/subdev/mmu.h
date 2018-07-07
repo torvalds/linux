@@ -17,6 +17,7 @@ struct nvkm_vma {
 	bool part:1; /* Region was split from an allocated region by map(). */
 	bool user:1; /* Region user-allocated. */
 	bool busy:1; /* Region busy (for temporarily preventing user access). */
+	bool mapped:1; /* Region contains valid pages. */
 	struct nvkm_memory *memory; /* Memory currently mapped into VMA. */
 	struct nvkm_tags *tags; /* Compression tag reference. */
 };
