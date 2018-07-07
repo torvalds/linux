@@ -774,6 +774,14 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(dcrtc);
 }
 
+static int armada_drm_crtc_late_register(struct drm_crtc *crtc)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		armada_drm_crtc_debugfs_init(drm_to_armada_crtc(crtc));
+
+	return 0;
+}
+
 /* These are called under the vbl_lock. */
 static int armada_drm_crtc_enable_vblank(struct drm_crtc *crtc)
 {
@@ -806,6 +814,7 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.page_flip	= drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.late_register	= armada_drm_crtc_late_register,
 	.enable_vblank	= armada_drm_crtc_enable_vblank,
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
