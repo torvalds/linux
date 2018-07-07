@@ -27,10 +27,10 @@
 //
 // Represent Channel Width in HT Capabilities
 //
-typedef enum _HT_CHANNEL_WIDTH {
+enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
-}HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
+};
 
 //
 // Represent Extension Channel Offset in HT Capabilities

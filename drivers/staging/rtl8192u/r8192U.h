@@ -996,7 +996,7 @@ typedef struct r8192_priv {
 	u8	SwChnlStage;
 	u8	SwChnlStep;
 	u8	SetBWModeInProgress;
-	HT_CHANNEL_WIDTH		CurrentChannelBW;
+	enum ht_channel_width 	CurrentChannelBW;
 	u8      ChannelPlan;
 	/* 8190 40MHz mode */
 	/* Control channel sub-carrier */
