@@ -532,8 +532,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	*(unsigned int *)(0xbe000620) |= 0x1<<19 | 0x1<<8 | 0x1<<7;		// set DATA
 	mdelay(1000);
 
-	if ((RALINK_PCI0_STATUS & 0x1) == 0)
-	{
+	if ((RALINK_PCI0_STATUS & 0x1) == 0) {
 		printk("PCIE0 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST);
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
@@ -543,8 +542,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		RALINK_PCI_PCIMSK_ADDR |= (1<<20); // enable pcie1 interrupt
 	}
 
-	if ((RALINK_PCI1_STATUS & 0x1) == 0)
-	{
+	if ((RALINK_PCI1_STATUS & 0x1) == 0) {
 		printk("PCIE1 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE1_RST);
 		rt_sysc_m32(RALINK_PCIE1_CLK_EN, 0, RALINK_CLKCFG1);
