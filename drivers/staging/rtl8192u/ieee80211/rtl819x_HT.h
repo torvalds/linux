@@ -36,12 +36,12 @@ enum ht_channel_width {
 // Represent Extension Channel Offset in HT Capabilities
 // This is available only in 40Mhz mode.
 //
-typedef enum _HT_EXTCHNL_OFFSET {
+enum ht_extension_chan_offset {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-}HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
+};
 
 typedef enum _CHNLOP {
 	CHNLOP_NONE = 0, // No Action now
@@ -237,7 +237,7 @@ typedef struct _RT_HIGH_THROUGHPUT {
 	u8				PeerMimoPs;
 
 	// 40MHz Channel Offset settings.
-	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
+	enum ht_extension_chan_offset	CurSTAExtChnlOffset;
 	u8				bCurTxBW40MHz;	// If we use 40 MHz to Tx
 	u8				PeerBandwidth;
 

@@ -302,7 +302,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
 	short chan;
-	HT_EXTCHNL_OFFSET chan_offset = 0;
+	enum ht_extension_chan_offset chan_offset = 0;
 	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
 

@@ -2002,7 +2002,7 @@ struct ieee80211_device {
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	//added by wb for HT related
 //	void (*SwChnlByTimerHandler)(struct net_device *dev, int channel);
-	void (*SetBWModeHandler)(struct net_device *dev, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET Offset);
+	void (*SetBWModeHandler)(struct net_device *dev, enum ht_channel_width Bandwidth, enum ht_extension_chan_offset Offset);
 //	void (*UpdateHalRATRTableHandler)(struct net_device* dev, u8* pMcsRate);
 	bool (*GetNmodeSupportBySecCfg)(struct net_device *dev);
 	void (*SetWirelessMode)(struct net_device *dev, u8 wireless_mode);
@@ -2358,7 +2358,7 @@ void HTDebugHTCapability(u8 *CapIE, u8 *TitleString);
 void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString);
 
 void HTSetConnectBwMode(struct ieee80211_device *ieee,
-			enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET Offset);
+			enum ht_channel_width Bandwidth, enum ht_extension_chan_offset Offset);
 void HTUpdateDefaultSetting(struct ieee80211_device *ieee);
 void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap,
 				  u8 *len, u8 isEncrypt);

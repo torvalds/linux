@@ -1663,8 +1663,9 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
  * notice:    I doubt whether SetBWModeInProgress flag is necessary as we can
  *	      test whether current work in the queue or not.//do I?
  *****************************************************************************/
-void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width bandwidth,
-		       HT_EXTCHNL_OFFSET offset)
+void rtl8192_SetBWMode(struct net_device *dev,
+		       enum ht_channel_width bandwidth,
+		       enum ht_extension_chan_offset offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
