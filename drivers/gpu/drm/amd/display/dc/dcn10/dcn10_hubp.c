@@ -457,9 +457,6 @@ bool hubp1_program_surface_flip_and_addr(
 
 	hubp->request_address = *address;
 
-	if (flip_immediate)
-		hubp->current_address = *address;
-
 	return true;
 }
 
@@ -695,7 +692,6 @@ bool hubp1_is_flip_pending(struct hubp *hubp)
 	if (earliest_inuse_address.grph.addr.quad_part != hubp->request_address.grph.addr.quad_part)
 		return true;
 
-	hubp->current_address = hubp->request_address;
 	return false;
 }
 

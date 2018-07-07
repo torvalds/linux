@@ -1157,12 +1157,19 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 
 	if (plane_state == NULL)
 		return;
+
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
+
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
 			plane_state->flip_immediate);
+
 	plane_state->status.requested_address = plane_state->address;
+
+	if (plane_state->flip_immediate)
+		plane_state->status.current_address = plane_state->address;
+
 	if (addr_patched)
 		pipe_ctx->plane_state->address.grph_stereo.left_addr = addr;
 }
@@ -2533,16 +2540,20 @@ static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	bool flip_pending;
 
 	if (plane_state == NULL)
 		return;
 
-	plane_state->status.is_flip_pending =
-			pipe_ctx->plane_res.hubp->funcs->hubp_is_flip_pending(
+	flip_pending = pipe_ctx->plane_res.hubp->funcs->hubp_is_flip_pending(
 					pipe_ctx->plane_res.hubp);
 
-	plane_state->status.current_address = pipe_ctx->plane_res.hubp->current_address;
-	if (pipe_ctx->plane_res.hubp->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+	plane_state->status.is_flip_pending = flip_pending;
+
+	if (!flip_pending)
+		plane_state->status.current_address = plane_state->status.requested_address;
+
+	if (plane_state->status.current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =
 				!tg->funcs->is_stereo_left_eye(pipe_ctx->stream_res.tg);
