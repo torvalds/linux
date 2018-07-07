@@ -18,6 +18,7 @@
 #ifndef R819xU_H
 #define R819xU_H
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

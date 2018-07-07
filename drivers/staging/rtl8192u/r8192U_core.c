@@ -505,7 +505,7 @@ static void watch_dog_timer_callback(struct timer_list *t);
 
 static struct proc_dir_entry *rtl8192_proc;
 
-static int proc_get_stats_ap(struct seq_file *m, void *v)
+static int __maybe_unused proc_get_stats_ap(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -524,7 +524,7 @@ static int proc_get_stats_ap(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_get_registers(struct seq_file *m, void *v)
+static int __maybe_unused proc_get_registers(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	int i, n, max = 0xff;
@@ -565,7 +565,7 @@ static int proc_get_registers(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_get_stats_tx(struct seq_file *m, void *v)
+static int __maybe_unused proc_get_stats_tx(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -624,7 +624,7 @@ static int proc_get_stats_tx(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_get_stats_rx(struct seq_file *m, void *v)
+static int __maybe_unused proc_get_stats_rx(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
