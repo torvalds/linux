@@ -8,11 +8,11 @@
 #include <linux/fsi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>
+#include <linux/irqflags.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 
 #include "fsi-master.h"
 
@@ -22,45 +22,48 @@
 #define	FSI_BREAK_CLOCKS	256	/* Number of clocks to issue break */
 #define	FSI_POST_BREAK_CLOCKS	16000	/* Number clocks to set up cfam */
 #define	FSI_INIT_CLOCKS		5000	/* Clock out any old data */
+#define	FSI_GPIO_DPOLL_CLOCKS	50      /* < 21 will cause slave to hang */
+#define	FSI_GPIO_EPOLL_CLOCKS	50      /* Number of clocks for E_POLL retry */
 #define	FSI_GPIO_STD_DELAY	10	/* Standard GPIO delay in nS */
 					/* todo: adjust down as low as */
 					/* possible or eliminate */
+#define FSI_CRC_ERR_RETRIES	10
+
 #define	FSI_GPIO_CMD_DPOLL      0x2
+#define	FSI_GPIO_CMD_EPOLL      0x3
 #define	FSI_GPIO_CMD_TERM	0x3f
 #define FSI_GPIO_CMD_ABS_AR	0x4
+#define FSI_GPIO_CMD_REL_AR	0x5
+#define FSI_GPIO_CMD_SAME_AR	0x3	/* but only a 2-bit opcode... */
 
-#define	FSI_GPIO_DPOLL_CLOCKS	100      /* < 21 will cause slave to hang */
-
-/* Bus errors */
-#define	FSI_GPIO_ERR_BUSY	1	/* Slave stuck in busy state */
+/* Slave responses */
+#define	FSI_GPIO_RESP_ACK	0	/* Success */
+#define	FSI_GPIO_RESP_BUSY	1	/* Slave busy */
 #define	FSI_GPIO_RESP_ERRA	2	/* Any (misc) Error */
 #define	FSI_GPIO_RESP_ERRC	3	/* Slave reports master CRC error */
-#define	FSI_GPIO_MTOE		4	/* Master time out error */
-#define	FSI_GPIO_CRC_INVAL	5	/* Master reports slave CRC error */
 
-/* Normal slave responses */
-#define	FSI_GPIO_RESP_BUSY	1
-#define	FSI_GPIO_RESP_ACK	0
-#define	FSI_GPIO_RESP_ACKD	4
-
-#define	FSI_GPIO_MAX_BUSY	100
+#define	FSI_GPIO_MAX_BUSY	200
 #define	FSI_GPIO_MTOE_COUNT	1000
 #define	FSI_GPIO_DRAIN_BITS	20
 #define	FSI_GPIO_CRC_SIZE	4
 #define	FSI_GPIO_MSG_ID_SIZE		2
 #define	FSI_GPIO_MSG_RESPID_SIZE	2
-#define	FSI_GPIO_PRIME_SLAVE_CLOCKS	100
+#define	FSI_GPIO_PRIME_SLAVE_CLOCKS	20
+
+#define LAST_ADDR_INVALID		0x1
 
 struct fsi_master_gpio {
 	struct fsi_master	master;
 	struct device		*dev;
-	spinlock_t		cmd_lock;	/* Lock for commands */
+	struct mutex		cmd_lock;	/* mutex for command ordering */
 	struct gpio_desc	*gpio_clk;
 	struct gpio_desc	*gpio_data;
 	struct gpio_desc	*gpio_trans;	/* Voltage translator */
 	struct gpio_desc	*gpio_enable;	/* FSI enable */
 	struct gpio_desc	*gpio_mux;	/* Mux control */
 	bool			external_mode;
+	bool			no_delays;
+	uint32_t		last_addr;
 };
 
 #define CREATE_TRACE_POINTS
@@ -78,19 +81,31 @@ static void clock_toggle(struct fsi_master_gpio *master, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		ndelay(FSI_GPIO_STD_DLY);
+		if (!master->no_delays)
+			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 0);
-		ndelay(FSI_GPIO_STD_DLY);
+		if (!master->no_delays)
+			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 1);
 	}
 }
 
-static int sda_in(struct fsi_master_gpio *master)
+static int sda_clock_in(struct fsi_master_gpio *master)
 {
 	int in;
 
-	ndelay(FSI_GPIO_STD_DLY);
+	if (!master->no_delays)
+		ndelay(FSI_GPIO_STD_DLY);
+	gpiod_set_value(master->gpio_clk, 0);
+
+	/* Dummy read to feed the synchronizers */
+	gpiod_get_value(master->gpio_data);
+
+	/* Actual data read */
 	in = gpiod_get_value(master->gpio_data);
+	if (!master->no_delays)
+		ndelay(FSI_GPIO_STD_DLY);
+	gpiod_set_value(master->gpio_clk, 1);
 	return in ? 1 : 0;
 }
 
@@ -125,8 +140,7 @@ static void serial_in(struct fsi_master_gpio *master, struct fsi_gpio_msg *msg,
 	set_sda_input(master);
 
 	for (bit = 0; bit < num_bits; bit++) {
-		clock_toggle(master, 1);
-		in_bit = sda_in(master);
+		in_bit = sda_clock_in(master);
 		msg->msg <<= 1;
 		msg->msg |= ~in_bit & 0x1;	/* Data is active low */
 	}
@@ -191,22 +205,89 @@ static void msg_push_crc(struct fsi_gpio_msg *msg)
 	msg_push_bits(msg, crc, 4);
 }
 
-/*
- * Encode an Absolute Address command
- */
-static void build_abs_ar_command(struct fsi_gpio_msg *cmd,
-		uint8_t id, uint32_t addr, size_t size, const void *data)
+static bool check_same_address(struct fsi_master_gpio *master, int id,
+		uint32_t addr)
 {
+	/* this will also handle LAST_ADDR_INVALID */
+	return master->last_addr == (((id & 0x3) << 21) | (addr & ~0x3));
+}
+
+static bool check_relative_address(struct fsi_master_gpio *master, int id,
+		uint32_t addr, uint32_t *rel_addrp)
+{
+	uint32_t last_addr = master->last_addr;
+	int32_t rel_addr;
+
+	if (last_addr == LAST_ADDR_INVALID)
+		return false;
+
+	/* We may be in 23-bit addressing mode, which uses the id as the
+	 * top two address bits. So, if we're referencing a different ID,
+	 * use absolute addresses.
+	 */
+	if (((last_addr >> 21) & 0x3) != id)
+		return false;
+
+	/* remove the top two bits from any 23-bit addressing */
+	last_addr &= (1 << 21) - 1;
+
+	/* We know that the addresses are limited to 21 bits, so this won't
+	 * overflow the signed rel_addr */
+	rel_addr = addr - last_addr;
+	if (rel_addr > 255 || rel_addr < -256)
+		return false;
+
+	*rel_addrp = (uint32_t)rel_addr;
+
+	return true;
+}
+
+static void last_address_update(struct fsi_master_gpio *master,
+		int id, bool valid, uint32_t addr)
+{
+	if (!valid)
+		master->last_addr = LAST_ADDR_INVALID;
+	else
+		master->last_addr = ((id & 0x3) << 21) | (addr & ~0x3);
+}
+
+/*
+ * Encode an Absolute/Relative/Same Address command
+ */
+static void build_ar_command(struct fsi_master_gpio *master,
+		struct fsi_gpio_msg *cmd, uint8_t id,
+		uint32_t addr, size_t size, const void *data)
+{
+	int i, addr_bits, opcode_bits;
 	bool write = !!data;
-	uint8_t ds;
-	int i;
+	uint8_t ds, opcode;
+	uint32_t rel_addr;
 
 	cmd->bits = 0;
 	cmd->msg = 0;
 
-	msg_push_bits(cmd, id, 2);
-	msg_push_bits(cmd, FSI_GPIO_CMD_ABS_AR, 3);
-	msg_push_bits(cmd, write ? 0 : 1, 1);
+	/* we have 21 bits of address max */
+	addr &= ((1 << 21) - 1);
+
+	/* cmd opcodes are variable length - SAME_AR is only two bits */
+	opcode_bits = 3;
+
+	if (check_same_address(master, id, addr)) {
+		/* we still address the byte offset within the word */
+		addr_bits = 2;
+		opcode_bits = 2;
+		opcode = FSI_GPIO_CMD_SAME_AR;
+
+	} else if (check_relative_address(master, id, addr, &rel_addr)) {
+		/* 8 bits plus sign */
+		addr_bits = 9;
+		addr = rel_addr;
+		opcode = FSI_GPIO_CMD_REL_AR;
+
+	} else {
+		addr_bits = 21;
+		opcode = FSI_GPIO_CMD_ABS_AR;
+	}
 
 	/*
 	 * The read/write size is encoded in the lower bits of the address
@@ -223,7 +304,10 @@ static void build_abs_ar_command(struct fsi_gpio_msg *cmd,
 	if (size == 4)
 		addr |= 1;
 
-	msg_push_bits(cmd, addr & ((1 << 21) - 1), 21);
+	msg_push_bits(cmd, id, 2);
+	msg_push_bits(cmd, opcode, opcode_bits);
+	msg_push_bits(cmd, write ? 0 : 1, 1);
+	msg_push_bits(cmd, addr, addr_bits);
 	msg_push_bits(cmd, ds, 1);
 	for (i = 0; write && i < size; i++)
 		msg_push_bits(cmd, ((uint8_t *)data)[i], 8);
@@ -238,6 +322,16 @@ static void build_dpoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 
 	msg_push_bits(cmd, slave_id, 2);
 	msg_push_bits(cmd, FSI_GPIO_CMD_DPOLL, 3);
+	msg_push_crc(cmd);
+}
+
+static void build_epoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
+{
+	cmd->bits = 0;
+	cmd->msg = 0;
+
+	msg_push_bits(cmd, slave_id, 2);
+	msg_push_bits(cmd, FSI_GPIO_CMD_EPOLL, 3);
 	msg_push_crc(cmd);
 }
 
@@ -258,21 +352,21 @@ static void build_term_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 }
 
 /*
- * Store information on master errors so handler can detect and clean
- * up the bus
+ * Note: callers rely specifically on this returning -EAGAIN for
+ * a CRC error detected in the response. Use other error code
+ * for other situations. It will be converted to something else
+ * higher up the stack before it reaches userspace.
  */
-static void fsi_master_gpio_error(struct fsi_master_gpio *master, int error)
-{
-
-}
-
 static int read_one_response(struct fsi_master_gpio *master,
 		uint8_t data_size, struct fsi_gpio_msg *msgp, uint8_t *tagp)
 {
 	struct fsi_gpio_msg msg;
-	uint8_t id, tag;
+	unsigned long flags;
 	uint32_t crc;
+	uint8_t tag;
 	int i;
+
+	local_irq_save(flags);
 
 	/* wait for the start bit */
 	for (i = 0; i < FSI_GPIO_MTOE_COUNT; i++) {
@@ -285,8 +379,8 @@ static int read_one_response(struct fsi_master_gpio *master,
 	if (i == FSI_GPIO_MTOE_COUNT) {
 		dev_dbg(master->dev,
 			"Master time out waiting for response\n");
-		fsi_master_gpio_error(master, FSI_GPIO_MTOE);
-		return -EIO;
+		local_irq_restore(flags);
+		return -ETIMEDOUT;
 	}
 
 	msg.bits = 0;
@@ -295,7 +389,6 @@ static int read_one_response(struct fsi_master_gpio *master,
 	/* Read slave ID & response tag */
 	serial_in(master, &msg, 4);
 
-	id = (msg.msg >> FSI_GPIO_MSG_RESPID_SIZE) & 0x3;
 	tag = msg.msg & 0x3;
 
 	/* If we have an ACK and we're expecting data, clock the data in too */
@@ -305,13 +398,18 @@ static int read_one_response(struct fsi_master_gpio *master,
 	/* read CRC */
 	serial_in(master, &msg, FSI_GPIO_CRC_SIZE);
 
+	local_irq_restore(flags);
+
 	/* we have a whole message now; check CRC */
 	crc = crc4(0, 1, 1);
 	crc = crc4(crc, msg.msg, msg.bits);
 	if (crc) {
-		dev_dbg(master->dev, "ERR response CRC\n");
-		fsi_master_gpio_error(master, FSI_GPIO_CRC_INVAL);
-		return -EIO;
+		/* Check if it's all 1's, that probably means the host is off */
+		if (((~msg.msg) & ((1ull << msg.bits) - 1)) == 0)
+			return -ENODEV;
+		dev_dbg(master->dev, "ERR response CRC msg: 0x%016llx (%d bits)\n",
+			msg.msg, msg.bits);
+		return -EAGAIN;
 	}
 
 	if (msgp)
@@ -325,12 +423,16 @@ static int read_one_response(struct fsi_master_gpio *master,
 static int issue_term(struct fsi_master_gpio *master, uint8_t slave)
 {
 	struct fsi_gpio_msg cmd;
+	unsigned long flags;
 	uint8_t tag;
 	int rc;
 
 	build_term_command(&cmd, slave);
+
+	local_irq_save(flags);
 	serial_out(master, &cmd);
 	echo_delay(master);
+	local_irq_restore(flags);
 
 	rc = read_one_response(master, 0, NULL, &tag);
 	if (rc < 0) {
@@ -350,13 +452,36 @@ static int poll_for_response(struct fsi_master_gpio *master,
 {
 	struct fsi_gpio_msg response, cmd;
 	int busy_count = 0, rc, i;
+	unsigned long flags;
 	uint8_t tag;
 	uint8_t *data_byte = data;
-
+	int crc_err_retries = 0;
 retry:
 	rc = read_one_response(master, size, &response, &tag);
-	if (rc)
-		return rc;
+
+	/* Handle retries on CRC errors */
+	if (rc == -EAGAIN) {
+		/* Too many retries ? */
+		if (crc_err_retries++ > FSI_CRC_ERR_RETRIES) {
+			/*
+			 * Pass it up as a -EIO otherwise upper level will retry
+			 * the whole command which isn't what we want here.
+			 */
+			rc = -EIO;
+			goto fail;
+		}
+		dev_dbg(master->dev,
+			 "CRC error retry %d\n", crc_err_retries);
+		trace_fsi_master_gpio_crc_rsp_error(master);
+		build_epoll_command(&cmd, slave);
+		local_irq_save(flags);
+		clock_zeros(master, FSI_GPIO_EPOLL_CLOCKS);
+		serial_out(master, &cmd);
+		echo_delay(master);
+		local_irq_restore(flags);
+		goto retry;
+	} else if (rc)
+		goto fail;
 
 	switch (tag) {
 	case FSI_GPIO_RESP_ACK:
@@ -378,51 +503,80 @@ retry:
 		 * d-poll, not indicated in the hardware protocol
 		 * spec. < 20 clocks causes slave to hang, 21 ok.
 		 */
-		clock_zeros(master, FSI_GPIO_DPOLL_CLOCKS);
 		if (busy_count++ < FSI_GPIO_MAX_BUSY) {
 			build_dpoll_command(&cmd, slave);
+			local_irq_save(flags);
+			clock_zeros(master, FSI_GPIO_DPOLL_CLOCKS);
 			serial_out(master, &cmd);
 			echo_delay(master);
+			local_irq_restore(flags);
 			goto retry;
 		}
 		dev_warn(master->dev,
 			"ERR slave is stuck in busy state, issuing TERM\n");
+		local_irq_save(flags);
+		clock_zeros(master, FSI_GPIO_DPOLL_CLOCKS);
+		local_irq_restore(flags);
 		issue_term(master, slave);
 		rc = -EIO;
 		break;
 
 	case FSI_GPIO_RESP_ERRA:
-	case FSI_GPIO_RESP_ERRC:
-		dev_dbg(master->dev, "ERR%c received: 0x%x\n",
-			tag == FSI_GPIO_RESP_ERRA ? 'A' : 'C',
-			(int)response.msg);
-		fsi_master_gpio_error(master, response.msg);
+		dev_dbg(master->dev, "ERRA received: 0x%x\n", (int)response.msg);
 		rc = -EIO;
+		break;
+	case FSI_GPIO_RESP_ERRC:
+		dev_dbg(master->dev, "ERRC received: 0x%x\n", (int)response.msg);
+		trace_fsi_master_gpio_crc_cmd_error(master);
+		rc = -EAGAIN;
 		break;
 	}
 
+	if (busy_count > 0)
+		trace_fsi_master_gpio_poll_response_busy(master, busy_count);
+ fail:
 	/* Clock the slave enough to be ready for next operation */
+	local_irq_save(flags);
 	clock_zeros(master, FSI_GPIO_PRIME_SLAVE_CLOCKS);
+	local_irq_restore(flags);
+
 	return rc;
+}
+
+static int send_request(struct fsi_master_gpio *master,
+		struct fsi_gpio_msg *cmd)
+{
+	unsigned long flags;
+
+	if (master->external_mode)
+		return -EBUSY;
+
+	local_irq_save(flags);
+	serial_out(master, cmd);
+	echo_delay(master);
+	local_irq_restore(flags);
+
+	return 0;
 }
 
 static int fsi_master_gpio_xfer(struct fsi_master_gpio *master, uint8_t slave,
 		struct fsi_gpio_msg *cmd, size_t resp_len, void *resp)
 {
-	unsigned long flags;
-	int rc;
+	int rc = -EAGAIN, retries = 0;
 
-	spin_lock_irqsave(&master->cmd_lock, flags);
+	while ((retries++) < FSI_CRC_ERR_RETRIES) {
+		rc = send_request(master, cmd);
+		if (rc)
+			break;
+		rc = poll_for_response(master, slave, resp_len, resp);
+		if (rc != -EAGAIN)
+			break;
+		rc = -EIO;
+		dev_warn(master->dev, "ECRC retry %d\n", retries);
 
-	if (master->external_mode) {
-		spin_unlock_irqrestore(&master->cmd_lock, flags);
-		return -EBUSY;
+		/* Pace it a bit before retry */
+		msleep(1);
 	}
-
-	serial_out(master, cmd);
-	echo_delay(master);
-	rc = poll_for_response(master, slave, resp_len, resp);
-	spin_unlock_irqrestore(&master->cmd_lock, flags);
 
 	return rc;
 }
@@ -432,12 +586,18 @@ static int fsi_master_gpio_read(struct fsi_master *_master, int link,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
-	build_abs_ar_command(&cmd, id, addr, size, NULL);
-	return fsi_master_gpio_xfer(master, id, &cmd, size, val);
+	mutex_lock(&master->cmd_lock);
+	build_ar_command(master, &cmd, id, addr, size, NULL);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, size, val);
+	last_address_update(master, id, rc == 0, addr);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_write(struct fsi_master *_master, int link,
@@ -445,12 +605,18 @@ static int fsi_master_gpio_write(struct fsi_master *_master, int link,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
-	build_abs_ar_command(&cmd, id, addr, size, val);
-	return fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	mutex_lock(&master->cmd_lock);
+	build_ar_command(master, &cmd, id, addr, size, val);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	last_address_update(master, id, rc == 0, addr);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_term(struct fsi_master *_master,
@@ -458,12 +624,18 @@ static int fsi_master_gpio_term(struct fsi_master *_master,
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
 	struct fsi_gpio_msg cmd;
+	int rc;
 
 	if (link != 0)
 		return -ENODEV;
 
+	mutex_lock(&master->cmd_lock);
 	build_term_command(&cmd, id);
-	return fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	rc = fsi_master_gpio_xfer(master, id, &cmd, 0, NULL);
+	last_address_update(master, id, false, 0);
+	mutex_unlock(&master->cmd_lock);
+
+	return rc;
 }
 
 static int fsi_master_gpio_break(struct fsi_master *_master, int link)
@@ -476,11 +648,14 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 
 	trace_fsi_master_gpio_break(master);
 
-	spin_lock_irqsave(&master->cmd_lock, flags);
+	mutex_lock(&master->cmd_lock);
 	if (master->external_mode) {
-		spin_unlock_irqrestore(&master->cmd_lock, flags);
+		mutex_unlock(&master->cmd_lock);
 		return -EBUSY;
 	}
+
+	local_irq_save(flags);
+
 	set_sda_output(master, 1);
 	sda_out(master, 1);
 	clock_toggle(master, FSI_PRE_BREAK_CLOCKS);
@@ -489,7 +664,11 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 	echo_delay(master);
 	sda_out(master, 1);
 	clock_toggle(master, FSI_POST_BREAK_CLOCKS);
-	spin_unlock_irqrestore(&master->cmd_lock, flags);
+
+	local_irq_restore(flags);
+
+	last_address_update(master, 0, false, 0);
+	mutex_unlock(&master->cmd_lock);
 
 	/* Wait for logic reset to take effect */
 	udelay(200);
@@ -499,6 +678,8 @@ static int fsi_master_gpio_break(struct fsi_master *_master, int link)
 
 static void fsi_master_gpio_init(struct fsi_master_gpio *master)
 {
+	unsigned long flags;
+
 	gpiod_direction_output(master->gpio_mux, 1);
 	gpiod_direction_output(master->gpio_trans, 1);
 	gpiod_direction_output(master->gpio_enable, 1);
@@ -506,7 +687,9 @@ static void fsi_master_gpio_init(struct fsi_master_gpio *master)
 	gpiod_direction_output(master->gpio_data, 1);
 
 	/* todo: evaluate if clocks can be reduced */
+	local_irq_save(flags);
 	clock_zeros(master, FSI_INIT_CLOCKS);
+	local_irq_restore(flags);
 }
 
 static void fsi_master_gpio_init_external(struct fsi_master_gpio *master)
@@ -521,18 +704,17 @@ static void fsi_master_gpio_init_external(struct fsi_master_gpio *master)
 static int fsi_master_gpio_link_enable(struct fsi_master *_master, int link)
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(_master);
-	unsigned long flags;
 	int rc = -EBUSY;
 
 	if (link != 0)
 		return -ENODEV;
 
-	spin_lock_irqsave(&master->cmd_lock, flags);
+	mutex_lock(&master->cmd_lock);
 	if (!master->external_mode) {
 		gpiod_set_value(master->gpio_enable, 1);
 		rc = 0;
 	}
-	spin_unlock_irqrestore(&master->cmd_lock, flags);
+	mutex_unlock(&master->cmd_lock);
 
 	return rc;
 }
@@ -550,7 +732,7 @@ static ssize_t external_mode_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct fsi_master_gpio *master = dev_get_drvdata(dev);
-	unsigned long flags, val;
+	unsigned long val;
 	bool external_mode;
 	int err;
 
@@ -560,10 +742,10 @@ static ssize_t external_mode_store(struct device *dev,
 
 	external_mode = !!val;
 
-	spin_lock_irqsave(&master->cmd_lock, flags);
+	mutex_lock(&master->cmd_lock);
 
 	if (external_mode == master->external_mode) {
-		spin_unlock_irqrestore(&master->cmd_lock, flags);
+		mutex_unlock(&master->cmd_lock);
 		return count;
 	}
 
@@ -572,7 +754,8 @@ static ssize_t external_mode_store(struct device *dev,
 		fsi_master_gpio_init_external(master);
 	else
 		fsi_master_gpio_init(master);
-	spin_unlock_irqrestore(&master->cmd_lock, flags);
+
+	mutex_unlock(&master->cmd_lock);
 
 	fsi_master_rescan(&master->master);
 
@@ -595,6 +778,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
 	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
+	master->last_addr = LAST_ADDR_INVALID;
 
 	gpio = devm_gpiod_get(&pdev->dev, "clock", 0);
 	if (IS_ERR(gpio)) {
@@ -632,6 +816,13 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	}
 	master->gpio_mux = gpio;
 
+	/*
+	 * Check if GPIO block is slow enought that no extra delays
+	 * are necessary. This improves performance on ast2500 by
+	 * an order of magnitude.
+	 */
+	master->no_delays = device_property_present(&pdev->dev, "no-gpio-delays");
+
 	master->master.n_links = 1;
 	master->master.flags = FSI_MASTER_FLAG_SWCLOCK;
 	master->master.read = fsi_master_gpio_read;
@@ -640,7 +831,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	master->master.send_break = fsi_master_gpio_break;
 	master->master.link_enable = fsi_master_gpio_link_enable;
 	platform_set_drvdata(pdev, master);
-	spin_lock_init(&master->cmd_lock);
+	mutex_init(&master->cmd_lock);
 
 	fsi_master_gpio_init(master);
 

@@ -26,15 +26,11 @@
 
 #define FSI_ENGID_SCOM		0x5
 
-#define SCOM_FSI2PIB_DELAY	50
-
 /* SCOM engine register set */
 #define SCOM_DATA0_REG		0x00
 #define SCOM_DATA1_REG		0x04
 #define SCOM_CMD_REG		0x08
-#define SCOM_RESET_REG		0x1C
 
-#define SCOM_RESET_CMD		0x80000000
 #define SCOM_WRITE_CMD		0x80000000
 
 struct scom_device {
@@ -180,7 +176,6 @@ static const struct file_operations scom_fops = {
 
 static int scom_probe(struct device *dev)
 {
-	uint32_t data;
 	struct fsi_device *fsi_dev = to_fsi_dev(dev);
 	struct scom_device *scom;
 
@@ -196,9 +191,6 @@ static int scom_probe(struct device *dev)
 	scom->mdev.name = scom->name;
 	scom->mdev.parent = dev;
 	list_add(&scom->link, &scom_devices);
-
-	data = cpu_to_be32(SCOM_RESET_CMD);
-	fsi_device_write(fsi_dev, SCOM_RESET_REG, &data, sizeof(uint32_t));
 
 	return misc_register(&scom->mdev);
 }

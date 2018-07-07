@@ -32,4 +32,11 @@ config FSI_SCOM
 	---help---
 	This option enables an FSI based SCOM device driver.
 
+config FSI_SBEFIFO
+	tristate "SBEFIFO FSI client device driver"
+	---help---
+	This option enables an FSI based SBEFIFO device driver. The SBEFIFO is
+	a pipe-like FSI device for communicating with the self boot engine
+	(SBE) on POWER processors.
+
 endif
