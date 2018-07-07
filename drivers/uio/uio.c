@@ -902,8 +902,9 @@ int __uio_register_device(struct module *owner,
 		 * FDs at the time of unregister and therefore may not be
 		 * freed until they are released.
 		 */
-		ret = request_irq(info->irq, uio_interrupt,
-				  info->irq_flags, info->name, idev);
+		ret = request_threaded_irq(info->irq, NULL, uio_interrupt,
+					   info->irq_flags, info->name, idev);
+
 		if (ret)
 			goto err_request_irq;
 	}
