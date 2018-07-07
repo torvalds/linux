@@ -325,9 +325,8 @@ enum slim_transport_protocol {
 /**
  * struct slim_stream_runtime  - SLIMbus stream runtime instance
  *
- * @dev: Name of the stream
+ * @name: Name of the stream
  * @dev: SLIM Device instance associated with this stream
- * @state: state of stream
  * @direction: direction of stream
  * @prot: Transport protocol used in this stream
  * @rate: Data rate of samples *
