@@ -63,16 +63,6 @@
 #define RAVE_SP_TX_BUFFER_SIZE				\
 	(RAVE_SP_STX_ETX_SIZE + 2 * RAVE_SP_RX_BUFFER_SIZE)
 
-#define RAVE_SP_BOOT_SOURCE_GET		0
-#define RAVE_SP_BOOT_SOURCE_SET		1
-
-#define RAVE_SP_RDU2_BOARD_TYPE_RMB	0
-#define RAVE_SP_RDU2_BOARD_TYPE_DEB	1
-
-#define RAVE_SP_BOOT_SOURCE_SD		0
-#define RAVE_SP_BOOT_SOURCE_EMMC	1
-#define RAVE_SP_BOOT_SOURCE_NOR		2
-
 /**
  * enum rave_sp_deframer_state - Possible state for de-framer
  *
