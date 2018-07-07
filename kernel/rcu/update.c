@@ -203,11 +203,7 @@ void rcu_test_sync_prims(void)
 	if (!IS_ENABLED(CONFIG_PROVE_RCU))
 		return;
 	synchronize_rcu();
-	synchronize_rcu_bh();
-	synchronize_sched();
 	synchronize_rcu_expedited();
-	synchronize_rcu_bh_expedited();
-	synchronize_sched_expedited();
 }
 
 #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU)
@@ -870,15 +866,10 @@ static void __init rcu_tasks_bootup_oddness(void)
 #ifdef CONFIG_PROVE_RCU
 
 /*
- * Early boot self test parameters, one for each flavor
+ * Early boot self test parameters.
  */
 static bool rcu_self_test;
-static bool rcu_self_test_bh;
-static bool rcu_self_test_sched;
-
 module_param(rcu_self_test, bool, 0444);
-module_param(rcu_self_test_bh, bool, 0444);
-module_param(rcu_self_test_sched, bool, 0444);
 
 static int rcu_self_test_counter;
 
@@ -895,30 +886,12 @@ static void early_boot_test_call_rcu(void)
 	call_rcu(&head, test_callback);
 }
 
-static void early_boot_test_call_rcu_bh(void)
-{
-	static struct rcu_head head;
-
-	call_rcu_bh(&head, test_callback);
-}
-
-static void early_boot_test_call_rcu_sched(void)
-{
-	static struct rcu_head head;
-
-	call_rcu_sched(&head, test_callback);
-}
-
 void rcu_early_boot_tests(void)
 {
 	pr_info("Running RCU self tests\n");
 
 	if (rcu_self_test)
 		early_boot_test_call_rcu();
-	if (rcu_self_test_bh)
-		early_boot_test_call_rcu_bh();
-	if (rcu_self_test_sched)
-		early_boot_test_call_rcu_sched();
 	rcu_test_sync_prims();
 }
 
@@ -931,15 +904,6 @@ static int rcu_verify_early_boot_tests(void)
 		early_boot_test_counter++;
 		rcu_barrier();
 	}
-	if (rcu_self_test_bh) {
-		early_boot_test_counter++;
-		rcu_barrier_bh();
-	}
-	if (rcu_self_test_sched) {
-		early_boot_test_counter++;
-		rcu_barrier_sched();
-	}
-
 	if (rcu_self_test_counter != early_boot_test_counter) {
 		WARN_ON(1);
 		ret = -1;
