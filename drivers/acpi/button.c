@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt) "ACPI: button: " fmt
 
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -249,7 +250,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	return ret;
 }
 
-static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
+static int __maybe_unused acpi_button_state_seq_show(struct seq_file *seq,
+						     void *offset)
 {
 	struct acpi_device *device = seq->private;
 	int state;
