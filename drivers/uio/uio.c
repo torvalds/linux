@@ -433,7 +433,6 @@ static int uio_open(struct inode *inode, struct file *filep)
 	struct uio_device *idev;
 	struct uio_listener *listener;
 	int ret = 0;
-	unsigned long flags;
 
 	mutex_lock(&minor_lock);
 	idev = idr_find(&uio_idr, iminor(inode));
@@ -460,10 +459,10 @@ static int uio_open(struct inode *inode, struct file *filep)
 	listener->event_count = atomic_read(&idev->event);
 	filep->private_data = listener;
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	if (idev->info && idev->info->open)
 		ret = idev->info->open(idev->info, inode);
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 	if (ret)
 		goto err_infoopen;
 
@@ -495,12 +494,11 @@ static int uio_release(struct inode *inode, struct file *filep)
 	int ret = 0;
 	struct uio_listener *listener = filep->private_data;
 	struct uio_device *idev = listener->dev;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	if (idev->info && idev->info->release)
 		ret = idev->info->release(idev->info, inode);
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 
 	module_put(idev->owner);
 	kfree(listener);
@@ -513,12 +511,11 @@ static __poll_t uio_poll(struct file *filep, poll_table *wait)
 	struct uio_listener *listener = filep->private_data;
 	struct uio_device *idev = listener->dev;
 	__poll_t ret = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	if (!idev->info || !idev->info->irq)
 		ret = -EIO;
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 
 	if (ret)
 		return ret;
@@ -537,12 +534,11 @@ static ssize_t uio_read(struct file *filep, char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t retval = 0;
 	s32 event_count;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	if (!idev->info || !idev->info->irq)
 		retval = -EIO;
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 
 	if (retval)
 		return retval;
@@ -592,9 +588,8 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	struct uio_device *idev = listener->dev;
 	ssize_t retval;
 	s32 irq_on;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	if (!idev->info || !idev->info->irq) {
 		retval = -EIO;
 		goto out;
@@ -618,7 +613,7 @@ static ssize_t uio_write(struct file *filep, const char __user *buf,
 	retval = idev->info->irqcontrol(idev->info, irq_on);
 
 out:
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 	return retval ? retval : sizeof(s32);
 }
 
@@ -865,7 +860,7 @@ int __uio_register_device(struct module *owner,
 
 	idev->owner = owner;
 	idev->info = info;
-	spin_lock_init(&idev->info_lock);
+	mutex_init(&idev->info_lock);
 	init_waitqueue_head(&idev->wait);
 	atomic_set(&idev->event, 0);
 
@@ -929,7 +924,6 @@ EXPORT_SYMBOL_GPL(__uio_register_device);
 void uio_unregister_device(struct uio_info *info)
 {
 	struct uio_device *idev;
-	unsigned long flags;
 
 	if (!info || !info->uio_dev)
 		return;
@@ -943,9 +937,9 @@ void uio_unregister_device(struct uio_info *info)
 	if (info->irq && info->irq != UIO_IRQ_CUSTOM)
 		free_irq(info->irq, idev);
 
-	spin_lock_irqsave(&idev->info_lock, flags);
+	mutex_lock(&idev->info_lock);
 	idev->info = NULL;
-	spin_unlock_irqrestore(&idev->info_lock, flags);
+	mutex_unlock(&idev->info_lock);
 
 	device_unregister(&idev->dev);
 
