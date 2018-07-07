@@ -766,6 +766,13 @@ static int rave_sp_probe(struct serdev_device *serdev)
 		return ret;
 
 	serdev_device_set_baudrate(serdev, baud);
+	serdev_device_set_flow_control(serdev, false);
+
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	if (ret) {
+		dev_err(dev, "Failed to set parity\n");
+		return ret;
+	}
 
 	ret = rave_sp_get_status(sp);
 	if (ret) {
