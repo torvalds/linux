@@ -169,9 +169,16 @@ static u64 tiled_offset(const struct tile *tile, u64 v)
 		v += y * tile->width;
 		v += div64_u64_rem(x, tile->width, &x) << tile->size;
 		v += x;
-	} else {
+	} else if (tile->width == 128) {
 		const unsigned int ytile_span = 16;
-		const unsigned int ytile_height = 32 * ytile_span;
+		const unsigned int ytile_height = 512;
+
+		v += y * ytile_span;
+		v += div64_u64_rem(x, ytile_span, &x) * ytile_height;
+		v += x;
+	} else {
+		const unsigned int ytile_span = 32;
+		const unsigned int ytile_height = 256;
 
 		v += y * ytile_span;
 		v += div64_u64_rem(x, ytile_span, &x) * ytile_height;
