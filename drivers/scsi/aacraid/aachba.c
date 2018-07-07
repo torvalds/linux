@@ -1974,7 +1974,6 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev)
 	u32 lun_count, nexus;
 	u32 i, bus, target;
 	u8 expose_flag, attribs;
-	u8 devtype;
 
 	lun_count = aac_get_safw_phys_lun_count(dev);
 
@@ -1992,23 +1991,23 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev)
 			continue;
 
 		if (expose_flag != 0) {
-			devtype = AAC_DEVTYPE_RAID_MEMBER;
-			goto update_devtype;
+			dev->hba_map[bus][target].devtype =
+				AAC_DEVTYPE_RAID_MEMBER;
+			continue;
 		}
 
 		if (nexus != 0 && (attribs & 8)) {
-			devtype = AAC_DEVTYPE_NATIVE_RAW;
+			dev->hba_map[bus][target].devtype =
+				AAC_DEVTYPE_NATIVE_RAW;
 			dev->hba_map[bus][target].rmw_nexus =
 					nexus;
 		} else
-			devtype = AAC_DEVTYPE_ARC_RAW;
+			dev->hba_map[bus][target].devtype =
+				AAC_DEVTYPE_ARC_RAW;
 
 		dev->hba_map[bus][target].scan_counter = dev->scan_counter;
 
 		aac_set_safw_target_qd(dev, bus, target);
-
-update_devtype:
-		dev->hba_map[bus][target].devtype = devtype;
 	}
 }
 
