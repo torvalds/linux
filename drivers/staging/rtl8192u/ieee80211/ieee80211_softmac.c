@@ -110,7 +110,7 @@ static void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p)
 	*tag++ = 0x01;
 #ifdef SUPPORT_USPD
 	if (ieee->current_network.wmm_info & 0x80) {
-		*tag++ = 0x0f|MAX_SP_Len;
+		*tag++ = 0x0f | MAX_SP_Len;
 	} else {
 		*tag++ = MAX_SP_Len;
 	}
@@ -144,7 +144,7 @@ static void enqueue_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
 	int nh;
 
-	nh = (ieee->mgmt_queue_head +1) % MGMT_QUEUE_NUM;
+	nh = (ieee->mgmt_queue_head + 1) % MGMT_QUEUE_NUM;
 
 /*
  * if the queue is full but we have newer frames then
@@ -169,7 +169,7 @@ static struct sk_buff *dequeue_mgmt(struct ieee80211_device *ieee)
 	ret = ieee->mgmt_queue_ring[ieee->mgmt_queue_tail];
 
 	ieee->mgmt_queue_tail =
-		(ieee->mgmt_queue_tail+1) % MGMT_QUEUE_NUM;
+		(ieee->mgmt_queue_tail + 1) % MGMT_QUEUE_NUM;
 
 	return ret;
 }
@@ -194,7 +194,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct ieee80211_device *ieee)
 		/* 2005.01.26, by rcnjko. */
 		if (ieee->mode == IEEE_A ||
 		    ieee->mode == IEEE_N_5G ||
-		    (ieee->mode == IEEE_N_24G&&!pHTInfo->bCurSuppCCK))
+		    (ieee->mode == IEEE_N_24G && !pHTInfo->bCurSuppCCK))
 			rate = 0x0c;
 		else
 			rate = 0x02;
@@ -239,7 +239,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		if (ieee->queue_stop){
 			enqueue_mgmt(ieee, skb);
 		}else{
-			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4);
+			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 			if (ieee->seq_ctrl[0] == 0xFFF)
 				ieee->seq_ctrl[0] = 0;
@@ -376,7 +376,7 @@ static void ieee80211_send_beacon(struct ieee80211_device *ieee)
 //		if(!timer_pending(&ieee->beacon_timer))
 //			add_timer(&ieee->beacon_timer);
 		mod_timer(&ieee->beacon_timer,
-			  jiffies + msecs_to_jiffies(ieee->current_network.beacon_interval-5));
+			  jiffies + msecs_to_jiffies(ieee->current_network.beacon_interval - 5));
 	}
 	//spin_unlock_irqrestore(&ieee->beacon_lock,flags);
 }
@@ -418,9 +418,9 @@ static void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 {
 	short ch = 0;
-	u8 channel_map[MAX_CHANNEL_NUMBER+1];
+	u8 channel_map[MAX_CHANNEL_NUMBER + 1];
 
-	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
+	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER + 1);
 	mutex_lock(&ieee->scan_mutex);
 
 	while (1)
@@ -483,9 +483,9 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
 	static short watchdog;
-	u8 channel_map[MAX_CHANNEL_NUMBER+1];
+	u8 channel_map[MAX_CHANNEL_NUMBER + 1];
 
-	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
+	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER + 1);
 	if (!ieee->ieee_up)
 		return;
 	mutex_lock(&ieee->scan_mutex);
@@ -680,7 +680,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 
 	char *ssid = ieee->current_network.ssid;
 	int ssid_len = ieee->current_network.ssid_len;
-	int rate_len = ieee->current_network.rates_len+2;
+	int rate_len = ieee->current_network.rates_len + 2;
 	int rate_ex_len = ieee->current_network.rates_ex_len;
 	int wpa_ie_len = ieee->wpa_ie_len;
 	u8 erpinfo_content = 0;
@@ -693,7 +693,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	u8 *tmp_generic_ie_buf = NULL;
 	u8 tmp_generic_ie_len = 0;
 
-	if (rate_ex_len > 0) rate_ex_len+=2;
+	if (rate_ex_len > 0) rate_ex_len += 2;
 
 	if (ieee->current_network.capability & WLAN_CAPABILITY_IBSS)
 		atim_len = 4;
@@ -724,19 +724,19 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		HTConstructRT2RTAggElement(ieee, tmp_generic_ie_buf, &tmp_generic_ie_len);
 	}
 //	printk("===============>tmp_ht_cap_len is %d,tmp_ht_info_len is %d, tmp_generic_ie_len is %d\n",tmp_ht_cap_len,tmp_ht_info_len,tmp_generic_ie_len);
-	beacon_size = sizeof(struct ieee80211_probe_response)+2+
-		ssid_len
-		+3 //channel
-		+rate_len
-		+rate_ex_len
-		+atim_len
-		+erp_len
-		+wpa_ie_len
-	//	+tmp_ht_cap_len
-	//	+tmp_ht_info_len
-	//	+tmp_generic_ie_len
-//		+wmm_len+2
-		+ieee->tx_headroom;
+	beacon_size = sizeof(struct ieee80211_probe_response) + 2
+		+ ssid_len
+		+ 3 //channel
+		+ rate_len
+		+ rate_ex_len
+		+ atim_len
+		+ erp_len
+		+ wpa_ie_len
+	//	+ tmp_ht_cap_len
+	//	+ tmp_ht_info_len
+	//	+ tmp_generic_ie_len
+//		+ wmm_len+2
+		+ ieee->tx_headroom;
 	skb = dev_alloc_skb(beacon_size);
 	if (!skb)
 		return NULL;
@@ -772,9 +772,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	tag += ssid_len;
 
 	*(tag++) = MFIE_TYPE_RATES;
-	*(tag++) = rate_len-2;
-	memcpy(tag, ieee->current_network.rates, rate_len-2);
-	tag+=rate_len-2;
+	*(tag++) = rate_len - 2;
+	memcpy(tag, ieee->current_network.rates, rate_len - 2);
+	tag += rate_len - 2;
 
 	*(tag++) = MFIE_TYPE_DS_SET;
 	*(tag++) = 1;
@@ -786,7 +786,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 
 		put_unaligned_le16(ieee->current_network.atim_window,
 				   tag);
-		tag+=2;
+		tag += 2;
 	}
 
 	if (erp_len) {
@@ -796,9 +796,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	}
 	if (rate_ex_len) {
 		*(tag++) = MFIE_TYPE_RATES_EX;
-		*(tag++) = rate_ex_len-2;
-		memcpy(tag, ieee->current_network.rates_ex, rate_ex_len-2);
-		tag+=rate_ex_len-2;
+		*(tag++) = rate_ex_len - 2;
+		memcpy(tag, ieee->current_network.rates_ex, rate_ex_len - 2);
+		tag += rate_ex_len - 2;
 	}
 
 	if (wpa_ie_len)
@@ -874,7 +874,7 @@ static struct sk_buff *ieee80211_auth_resp(struct ieee80211_device *ieee,
 {
 	struct sk_buff *skb;
 	struct ieee80211_authentication *auth;
-	int len = ieee->tx_headroom + sizeof(struct ieee80211_authentication)+1;
+	int len = ieee->tx_headroom + sizeof(struct ieee80211_authentication) + 1;
 
 	skb = dev_alloc_skb(len);
 
@@ -915,7 +915,7 @@ static struct sk_buff *ieee80211_null_func(struct ieee80211_device *ieee,
 
 	hdr->frame_ctl = cpu_to_le16(IEEE80211_FTYPE_DATA |
 		IEEE80211_STYPE_NULLFUNC | IEEE80211_FCTL_TODS |
-		(pwr ? IEEE80211_FCTL_PM:0));
+		(pwr ? IEEE80211_FCTL_PM : 0));
 
 	return skb;
 }
@@ -971,9 +971,9 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	int encrypt;
 
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
-	unsigned int wmm_info_len = beacon->qos_data.supported?9:0;
+	unsigned int wmm_info_len = beacon->qos_data.supported ? 9 : 0;
 #ifdef THOMAS_TURBO
-	unsigned int turbo_info_len = beacon->Turbo_Enable?9:0;
+	unsigned int turbo_info_len = beacon->Turbo_Enable ? 9 : 0;
 #endif
 
 	int len = 0;
@@ -982,7 +982,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 	encrypt = ieee->host_encrypt && crypt && crypt->ops && ((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
 
 	/* Include High Throuput capability && Realtek proprietary */
-	if (ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
+	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT)
 	{
 		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
@@ -995,22 +995,22 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		}
 	}
 	if (ieee->qos_support) {
-		wmm_info_len = beacon->qos_data.supported?9:0;
+		wmm_info_len = beacon->qos_data.supported ? 9 : 0;
 	}
 
 	if (beacon->bCkipSupported)
 	{
-		ckip_ie_len = 30+2;
+		ckip_ie_len = 30 + 2;
 	}
 	if (beacon->bCcxRmEnable)
 	{
-		ccxrm_ie_len = 6+2;
+		ccxrm_ie_len = 6 + 2;
 	}
 	if (beacon->BssCcxVerNumber >= 2)
-		cxvernum_ie_len = 5+2;
+		cxvernum_ie_len = 5 + 2;
 
 #ifdef THOMAS_TURBO
-	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
+	len = sizeof(struct ieee80211_assoc_request_frame) + 2
 		+ beacon->ssid_len	/* essid tagged val */
 		+ rate_len	/* rates tagged val */
 		+ wpa_ie_len
@@ -1023,7 +1023,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		+ cxvernum_ie_len
 		+ ieee->tx_headroom;
 #else
-	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
+	len = sizeof(struct ieee80211_assoc_request_frame) + 2
 		+ beacon->ssid_len	/* essid tagged val */
 		+ rate_len	/* rates tagged val */
 		+ wpa_ie_len
@@ -1093,7 +1093,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		// CCX1 spec V1.13, A01.1 CKIP Negotiation (page23):
 		// "The CKIP negotiation is started with the associate request from the client to the access point,
 		//  containing an Aironet element with both the MIC and KP bits set."
-		osCcxAironetIE.Octet[IE_CISCO_FLAG_POSITION] |=  (SUPPORT_CKIP_PK|SUPPORT_CKIP_MIC) ;
+		osCcxAironetIE.Octet[IE_CISCO_FLAG_POSITION] |=  (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC) ;
 		tag = skb_put(skb, ckip_ie_len);
 		*tag++ = MFIE_TYPE_AIRONET;
 		*tag++ = osCcxAironetIE.Length;
@@ -1135,7 +1135,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 			*tag++ = MFIE_TYPE_HT_CAP;
 			*tag++ = ht_cap_len - 2;
 			memcpy(tag, ht_cap_buf, ht_cap_len - 2);
-			tag += ht_cap_len -2;
+			tag += ht_cap_len - 2;
 		}
 	}
 
@@ -1162,7 +1162,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 			*tag++ = MFIE_TYPE_GENERIC;
 			*tag++ = ht_cap_len - 2;
 			memcpy(tag, ht_cap_buf, ht_cap_len - 2);
-			tag += ht_cap_len -2;
+			tag += ht_cap_len - 2;
 		}
 
 		if (ieee->pHTInfo->bCurrentRT2RTAggregation) {
@@ -1250,11 +1250,11 @@ static void ieee80211_auth_challenge(struct ieee80211_device *ieee,
 	ieee->associate_seq++;
 	ieee->softmac_stats.tx_auth_rq++;
 
-	skb = ieee80211_authentication_req(beacon, ieee, chlen+2);
+	skb = ieee80211_authentication_req(beacon, ieee, chlen + 2);
 	if (!skb)
 		ieee80211_associate_abort(ieee);
 	else{
-		c = skb_put(skb, chlen+2);
+		c = skb_put(skb, chlen + 2);
 		*(c++) = MFIE_TYPE_CHALLENGE;
 		*(c++) = chlen;
 		memcpy(c, challenge, chlen);
@@ -1264,7 +1264,7 @@ static void ieee80211_auth_challenge(struct ieee80211_device *ieee,
 		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct rtl_80211_hdr_3addr  ));
 
 		softmac_mgmt_xmit(skb, ieee);
-		mod_timer(&ieee->associate_timer, jiffies + (HZ/2));
+		mod_timer(&ieee->associate_timer, jiffies + (HZ / 2));
 		//dev_kfree_skb_any(skb);//edit by thomas
 	}
 	kfree(challenge);
@@ -1285,7 +1285,7 @@ static void ieee80211_associate_step2(struct ieee80211_device *ieee)
 		ieee80211_associate_abort(ieee);
 	else{
 		softmac_mgmt_xmit(skb, ieee);
-		mod_timer(&ieee->associate_timer, jiffies + (HZ/2));
+		mod_timer(&ieee->associate_timer, jiffies + (HZ / 2));
 		//dev_kfree_skb_any(skb);//edit by thomas
 	}
 }
@@ -1301,7 +1301,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 		ieee->rate = 22;
 		printk(KERN_INFO"Using B rates:%d\n", ieee->rate);
 	}
-	if (ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
+	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT)
 	{
 		printk("Successfully associated, ht enabled\n");
 		HTOnAssocRsp(ieee);
@@ -1312,7 +1312,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 		memset(ieee->dot11HTOperationalRateSet, 0, 16);
 		//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	}
-	ieee->LinkDetectInfo.SlotNum = 2 * (1 + ieee->current_network.beacon_interval/500);
+	ieee->LinkDetectInfo.SlotNum = 2 * (1 + ieee->current_network.beacon_interval / 500);
 	// To prevent the immediately calling watch_dog after association.
 	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 || ieee->LinkDetectInfo.NumRecvDataInPeriod == 0 )
 	{
@@ -1366,7 +1366,7 @@ static void ieee80211_associate_procedure_wq(struct work_struct *work)
 
 inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee80211_network *net)
 {
-	u8 tmp_ssid[IW_ESSID_MAX_SIZE+1];
+	u8 tmp_ssid[IW_ESSID_MAX_SIZE + 1];
 	int tmp_ssid_len = 0;
 
 	short apset, ssidset, ssidbroad, apmatch, ssidmatch;
@@ -1392,8 +1392,8 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 		ssidset = ieee->ssid_set;//ieee->current_network.ssid[0] != '\0';
 		ssidbroad =  !(net->ssid_len == 0 || net->ssid[0] == '\0');
 		apmatch = (memcmp(ieee->current_network.bssid, net->bssid, ETH_ALEN) == 0);
-		ssidmatch = (ieee->current_network.ssid_len == net->ssid_len)&&\
-				(!strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
+		ssidmatch = (ieee->current_network.ssid_len == net->ssid_len) &&
+			(!strncmp(ieee->current_network.ssid, net->ssid, net->ssid_len));
 
 		if (	/* if the user set the AP check if match.
 			 * if the network does not broadcast essid we check the user supplyed ANY essid
@@ -1549,10 +1549,10 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 
 	tag = skb->data + sizeof (struct rtl_80211_hdr_3addr  );
 
-	while (tag+1 < skbend){
+	while (tag + 1 < skbend){
 		if (*tag == 0) {
-			ssid = tag+2;
-			ssidlen = *(tag+1);
+			ssid = tag + 2;
+			ssidlen = *(tag + 1);
 			break;
 		}
 		tag++; /* point to the len field */
@@ -1599,11 +1599,11 @@ static inline u16 assoc_parse(struct ieee80211_device *ieee, struct sk_buff *skb
 	*aid = le16_to_cpu(response_head->aid) & 0x3fff;
 
 	status_code = le16_to_cpu(response_head->status);
-	if ((status_code == WLAN_STATUS_ASSOC_DENIED_RATES || \
-	     status_code == WLAN_STATUS_CAPS_UNSUPPORTED)&&
+	if ((status_code == WLAN_STATUS_ASSOC_DENIED_RATES ||
+	     status_code == WLAN_STATUS_CAPS_UNSUPPORTED) &&
 	    ((ieee->mode == IEEE_G) &&
 	     (ieee->current_network.mode == IEEE_N_24G) &&
-	     (ieee->AsocRetryCount++ < (RT_ASOC_RETRY_LIMIT-1)))) {
+	     (ieee->AsocRetryCount++ < (RT_ASOC_RETRY_LIMIT - 1)))) {
 		ieee->pHTInfo->IOTAction |= HT_IOT_ACT_PURE_N_MODE;
 	}else {
 		ieee->AsocRetryCount = 0;
@@ -1686,7 +1686,7 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	timeout = ieee->current_network.beacon_interval; //should we use ps_timeout value or beacon_interval
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 
-	if (dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
+	if (dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST) & ieee->ps))
 		return 2;
 
 	if (!time_after(jiffies,
