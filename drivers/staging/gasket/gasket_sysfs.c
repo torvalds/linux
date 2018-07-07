@@ -122,7 +122,7 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	}
 
 	mutex_lock(&mapping->mutex);
-	if (mapping->refcount.refcount.refs.counter == 0)
+	if (refcount_read(&mapping->refcount.refcount) == 0)
 		gasket_nodev_error("Refcount is already 0!");
 	if (kref_put(&mapping->refcount, release_entry)) {
 		gasket_nodev_info("Removing Gasket sysfs mapping, device %s",
