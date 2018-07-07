@@ -253,23 +253,24 @@ struct cpsw_ss_regs {
 #define RX_DSCP_PRI_MAP7    0x4c /* Rx DSCP Priority to Rx Packet Mapping */
 
 /* Bit definitions for the CPSW2_CONTROL register */
-#define PASS_PRI_TAGGED     (1<<24) /* Pass Priority Tagged */
-#define VLAN_LTYPE2_EN      (1<<21) /* VLAN LTYPE 2 enable */
-#define VLAN_LTYPE1_EN      (1<<20) /* VLAN LTYPE 1 enable */
-#define DSCP_PRI_EN         (1<<16) /* DSCP Priority Enable */
-#define TS_320              (1<<14) /* Time Sync Dest Port 320 enable */
-#define TS_319              (1<<13) /* Time Sync Dest Port 319 enable */
-#define TS_132              (1<<12) /* Time Sync Dest IP Addr 132 enable */
-#define TS_131              (1<<11) /* Time Sync Dest IP Addr 131 enable */
-#define TS_130              (1<<10) /* Time Sync Dest IP Addr 130 enable */
-#define TS_129              (1<<9)  /* Time Sync Dest IP Addr 129 enable */
-#define TS_TTL_NONZERO      (1<<8)  /* Time Sync Time To Live Non-zero enable */
-#define TS_ANNEX_F_EN       (1<<6)  /* Time Sync Annex F enable */
-#define TS_ANNEX_D_EN       (1<<4)  /* Time Sync Annex D enable */
-#define TS_LTYPE2_EN        (1<<3)  /* Time Sync LTYPE 2 enable */
-#define TS_LTYPE1_EN        (1<<2)  /* Time Sync LTYPE 1 enable */
-#define TS_TX_EN            (1<<1)  /* Time Sync Transmit Enable */
-#define TS_RX_EN            (1<<0)  /* Time Sync Receive Enable */
+#define PASS_PRI_TAGGED     BIT(24) /* Pass Priority Tagged */
+#define VLAN_LTYPE2_EN      BIT(21) /* VLAN LTYPE 2 enable */
+#define VLAN_LTYPE1_EN      BIT(20) /* VLAN LTYPE 1 enable */
+#define DSCP_PRI_EN         BIT(16) /* DSCP Priority Enable */
+#define TS_107              BIT(15) /* Tyme Sync Dest IP Address 107 */
+#define TS_320              BIT(14) /* Time Sync Dest Port 320 enable */
+#define TS_319              BIT(13) /* Time Sync Dest Port 319 enable */
+#define TS_132              BIT(12) /* Time Sync Dest IP Addr 132 enable */
+#define TS_131              BIT(11) /* Time Sync Dest IP Addr 131 enable */
+#define TS_130              BIT(10) /* Time Sync Dest IP Addr 130 enable */
+#define TS_129              BIT(9)  /* Time Sync Dest IP Addr 129 enable */
+#define TS_TTL_NONZERO      BIT(8)  /* Time Sync Time To Live Non-zero enable */
+#define TS_ANNEX_F_EN       BIT(6)  /* Time Sync Annex F enable */
+#define TS_ANNEX_D_EN       BIT(4)  /* Time Sync Annex D enable */
+#define TS_LTYPE2_EN        BIT(3)  /* Time Sync LTYPE 2 enable */
+#define TS_LTYPE1_EN        BIT(2)  /* Time Sync LTYPE 1 enable */
+#define TS_TX_EN            BIT(1)  /* Time Sync Transmit Enable */
+#define TS_RX_EN            BIT(0)  /* Time Sync Receive Enable */
 
 #define CTRL_V2_TS_BITS \
 	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
@@ -281,7 +282,7 @@ struct cpsw_ss_regs {
 
 
 #define CTRL_V3_TS_BITS \
-	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
+	(TS_107 | TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
 	 TS_TTL_NONZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
 	 TS_LTYPE1_EN)
 
