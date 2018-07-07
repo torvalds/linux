@@ -130,14 +130,15 @@ config POWER_RESET_LTC2952
 	  This driver supports an external powerdown trigger and board power
 	  down via the LTC2952. Bindings are made in the device tree.
 
-config POWER_RESET_MT6397_RTC
-	bool "MediaTek MT6397 RTC power-off driver"
+config POWER_RESET_MT6323
+	bool "MediaTek MT6323 power-off driver"
+	depends on MFD_MT6397
 	help
-	  This driver supports turning off a remote MediaTek SoC by
-	  controlling BBPU on MT6397 or MT6323 RTC.
+	  The power-off driver is responsible for externally shutdown down
+	  the power of a remote MediaTek SoC MT6323 is connected to through
+	  controlling a tiny circuit BBPU inside MT6323 RTC.
 
-	  Select this if you're building a kernel with your MediaTek SoC
-	  with an equipment with MT6397 or MT6323 PMIC.
+	  Say Y if you have a board where MT6323 could be found.
 
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"

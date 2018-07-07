@@ -1594,7 +1594,9 @@ M:	Eddie Huang <eddie.huang@mediatek.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:      Documentation/devicetree/bindings/rtc/rtc-mt6397.txt
 F:	drivers/rtc/rtc-mt6397.c
+F:      include/linux/mfd/mt6397/rtc.h
 
 ARM/Mediatek SoC support
 M:	Matthias Brugger <matthias.bgg@gmail.com>
@@ -8613,6 +8615,13 @@ M:	Nelson Chang <nelson.chang@mediatek.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/mediatek/
+
+MEDIATEK BOARD LEVEL SHUTDOWN DRIVERS
+M:	Sean Wang <sean.wang@mediatek.com>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/reset/mt6323-poweroff.txt
+F:	drivers/power/reset/mt6323-poweroff.c
 
 MEDIATEK JPEG DRIVER
 M:	Rick Chang <rick.chang@mediatek.com>

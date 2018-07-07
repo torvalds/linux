@@ -871,15 +871,33 @@
 			};
 		};
 
-		mt6323rtc: rtc {
-			compatible = "mediatek,mt6323-rtc";
+                mt6323keys: mt6323keys {
+                        compatible = "mediatek,mt6323-keys";
+                        mediatek,long-press-mode = <1>;
+                        power-off-time-sec = <0>;
 
-			power-off {
-				compatible = "mediatek,mt6323-rtc-poweroff";
-			};
-		};
+                        power {
+                                linux,keycodes = <116>;
+                                wakeup-source;
+                        };
+
+                        home {
+                                linux,keycodes = <114>;
+                        };
+                };
+
+                codec: mt6397codec {
+                        compatible = "mediatek,mt6397-codec";
+                };
+
+                power-controller {
+                        compatible = "mediatek,mt6323-pwrc";
+                };
+
+                rtc {
+                        compatible = "mediatek,mt6323-rtc";
+                };
 	};
-
 };
 
 &consys {       

@@ -756,4 +756,13 @@ config KEYBOARD_BCM
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm-keypad.
 
+config KEYBOARD_MTK_PMIC
+	tristate "MediaTek PMIC keys support"
+	depends on MFD_MT6397
+	help
+	  Say Y here if you want to use the pmic keys (powerkey/homekey).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic-keys.
+
 endif
