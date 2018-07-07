@@ -2030,6 +2030,7 @@ static struct platform_driver armv7_pmu_driver = {
 	.driver		= {
 		.name	= "armv7-pmu",
 		.of_match_table = armv7_pmu_of_device_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= armv7_pmu_device_probe,
 };
