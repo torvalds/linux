@@ -430,7 +430,6 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	struct icmp6hdr tmp_hdr;
 	struct flowi6 fl6;
 	struct icmpv6_msg msg;
-	struct sockcm_cookie sockc_unused = {0};
 	struct ipcm6_cookie ipc6;
 	int iif = 0;
 	int addr_type = 0;
@@ -545,7 +544,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
-	ipc6.tclass = np->tclass;
+	ipcm6_init_sk(&ipc6, np);
 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
 
 	dst = icmpv6_route_lookup(net, skb, sk, &fl6);
@@ -553,8 +552,6 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		goto out;
 
 	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
-	ipc6.dontfrag = np->dontfrag;
-	ipc6.opt = NULL;
 
 	msg.skb = skb;
 	msg.offset = skb_network_offset(skb);
@@ -575,7 +572,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 			    len + sizeof(struct icmp6hdr),
 			    sizeof(struct icmp6hdr),
 			    &ipc6, &fl6, (struct rt6_info *)dst,
-			    MSG_DONTWAIT, &sockc_unused)) {
+			    MSG_DONTWAIT)) {
 		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTERRORS);
 		ip6_flush_pending_frames(sk);
 	} else {
@@ -679,7 +676,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	struct ipcm6_cookie ipc6;
 	u32 mark = IP6_REPLY_MARK(net, skb->mark);
-	struct sockcm_cookie sockc_unused = {0};
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
@@ -726,16 +722,14 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	msg.offset = 0;
 	msg.type = ICMPV6_ECHO_REPLY;
 
+	ipcm6_init_sk(&ipc6, np);
 	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
 	ipc6.tclass = ipv6_get_dsfield(ipv6_hdr(skb));
-	ipc6.dontfrag = np->dontfrag;
-	ipc6.opt = NULL;
 
 	if (ip6_append_data(sk, icmpv6_getfrag, &msg,
 			    skb->len + sizeof(struct icmp6hdr),
 			    sizeof(struct icmp6hdr), &ipc6, &fl6,
-			    (struct rt6_info *)dst, MSG_DONTWAIT,
-			    &sockc_unused)) {
+			    (struct rt6_info *)dst, MSG_DONTWAIT)) {
 		__ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTERRORS);
 		ip6_flush_pending_frames(sk);
 	} else {

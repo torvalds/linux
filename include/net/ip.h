@@ -72,12 +72,26 @@ struct ipcm_cookie {
 	__be32			addr;
 	int			oif;
 	struct ip_options_rcu	*opt;
-	__u8			tx_flags;
 	__u8			ttl;
 	__s16			tos;
 	char			priority;
 	__u16			gso_size;
 };
+
+static inline void ipcm_init(struct ipcm_cookie *ipcm)
+{
+	*ipcm = (struct ipcm_cookie) { .tos = -1 };
+}
+
+static inline void ipcm_init_sk(struct ipcm_cookie *ipcm,
+				const struct inet_sock *inet)
+{
+	ipcm_init(ipcm);
+
+	ipcm->sockc.tsflags = inet->sk.sk_tsflags;
+	ipcm->oif = inet->sk.sk_bound_dev_if;
+	ipcm->addr = inet->inet_saddr;
+}
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
 #define PKTINFO_SKB_CB(skb) ((struct in_pktinfo *)((skb)->cb))
