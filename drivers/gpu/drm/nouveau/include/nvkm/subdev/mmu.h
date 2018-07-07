@@ -64,6 +64,7 @@ struct nvkm_vmm_map {
 	struct nvkm_mm_node *mem;
 	struct scatterlist *sgl;
 	dma_addr_t *dma;
+	u64 *pfn;
 	u64 off;
 
 	const struct nvkm_vmm_page *page;

@@ -15,6 +15,8 @@ struct nvif_vmm_v0 {
 #define NVIF_VMM_V0_PUT                                                    0x02
 #define NVIF_VMM_V0_MAP                                                    0x03
 #define NVIF_VMM_V0_UNMAP                                                  0x04
+#define NVIF_VMM_V0_PFNMAP                                                 0x05
+#define NVIF_VMM_V0_PFNCLR                                                 0x06
 
 struct nvif_vmm_page_v0 {
 	__u8  version;
@@ -61,5 +63,29 @@ struct nvif_vmm_unmap_v0 {
 	__u8  version;
 	__u8  pad01[7];
 	__u64 addr;
+};
+
+struct nvif_vmm_pfnmap_v0 {
+	__u8  version;
+	__u8  page;
+	__u8  pad02[6];
+	__u64 addr;
+	__u64 size;
+#define NVIF_VMM_PFNMAP_V0_ADDR                           0xfffffffffffff000ULL
+#define NVIF_VMM_PFNMAP_V0_ADDR_SHIFT                                        12
+#define NVIF_VMM_PFNMAP_V0_APER                           0x00000000000000f0ULL
+#define NVIF_VMM_PFNMAP_V0_HOST                           0x0000000000000000ULL
+#define NVIF_VMM_PFNMAP_V0_VRAM                           0x0000000000000010ULL
+#define NVIF_VMM_PFNMAP_V0_W                              0x0000000000000002ULL
+#define NVIF_VMM_PFNMAP_V0_V                              0x0000000000000001ULL
+#define NVIF_VMM_PFNMAP_V0_NONE                           0x0000000000000000ULL
+	__u64 phys[];
+};
+
+struct nvif_vmm_pfnclr_v0 {
+	__u8  version;
+	__u8  pad01[7];
+	__u64 addr;
+	__u64 size;
 };
 #endif

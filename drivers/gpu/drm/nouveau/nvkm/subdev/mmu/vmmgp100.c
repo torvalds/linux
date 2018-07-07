@@ -27,6 +27,81 @@
 #include <nvif/ifc00d.h>
 #include <nvif/unpack.h>
 
+static void
+gp100_vmm_pfn_unmap(struct nvkm_vmm *vmm,
+		    struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+		if ((data & (3ULL << 1)) != 0) {
+			addr = (data >> 8) << 12;
+			dma_unmap_page(dev, addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+}
+
+static bool
+gp100_vmm_pfn_clear(struct nvkm_vmm *vmm,
+		    struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	bool dma = false;
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+		if ((data & BIT_ULL(0)) && (data & (3ULL << 1)) != 0) {
+			VMM_WO064(pt, vmm, ptei * 8, data & ~BIT_ULL(0));
+			dma = true;
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+	return dma;
+}
+
+static void
+gp100_vmm_pgt_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		  u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u64 data = 0;
+		if (!(*map->pfn & NVKM_VMM_PFN_W))
+			data |= BIT_ULL(6); /* RO. */
+
+		if (!(*map->pfn & NVKM_VMM_PFN_VRAM)) {
+			addr = *map->pfn >> NVKM_VMM_PFN_ADDR_SHIFT;
+			addr = dma_map_page(dev, pfn_to_page(addr), 0,
+					    PAGE_SIZE, DMA_BIDIRECTIONAL);
+			if (!WARN_ON(dma_mapping_error(dev, addr))) {
+				data |= addr >> 4;
+				data |= 2ULL << 1; /* SYSTEM_COHERENT_MEMORY. */
+				data |= BIT_ULL(3); /* VOL. */
+				data |= BIT_ULL(0); /* VALID. */
+			}
+		} else {
+			data |= (*map->pfn & NVKM_VMM_PFN_ADDR) >> 4;
+			data |= BIT_ULL(0); /* VALID. */
+		}
+
+		VMM_WO064(pt, vmm, ptei++ * 8, data);
+		map->pfn++;
+	}
+	nvkm_done(pt->memory);
+}
+
 static inline void
 gp100_vmm_pgt_pte(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		  u32 ptei, u32 ptes, struct nvkm_vmm_map *map, u64 addr)
@@ -89,6 +164,9 @@ gp100_vmm_desc_spt = {
 	.mem = gp100_vmm_pgt_mem,
 	.dma = gp100_vmm_pgt_dma,
 	.sgl = gp100_vmm_pgt_sgl,
+	.pfn = gp100_vmm_pgt_pfn,
+	.pfn_clear = gp100_vmm_pfn_clear,
+	.pfn_unmap = gp100_vmm_pfn_unmap,
 };
 
 static void

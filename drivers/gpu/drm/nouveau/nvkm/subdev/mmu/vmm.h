@@ -67,6 +67,10 @@ struct nvkm_vmm_desc_func {
 	nvkm_vmm_pte_func mem;
 	nvkm_vmm_pte_func dma;
 	nvkm_vmm_pte_func sgl;
+
+	nvkm_vmm_pte_func pfn;
+	bool (*pfn_clear)(struct nvkm_vmm *, struct nvkm_mmu_pt *, u32 ptei, u32 ptes);
+	nvkm_vmm_pxe_func pfn_unmap;
 };
 
 extern const struct nvkm_vmm_desc_func gf100_vmm_pgd;
@@ -166,8 +170,20 @@ int nvkm_vmm_get_locked(struct nvkm_vmm *, bool getref, bool mapref,
 			bool sparse, u8 page, u8 align, u64 size,
 			struct nvkm_vma **pvma);
 void nvkm_vmm_put_locked(struct nvkm_vmm *, struct nvkm_vma *);
-void nvkm_vmm_unmap_locked(struct nvkm_vmm *, struct nvkm_vma *);
-void nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma);
+void nvkm_vmm_unmap_locked(struct nvkm_vmm *, struct nvkm_vma *, bool pfn);
+void nvkm_vmm_unmap_region(struct nvkm_vmm *, struct nvkm_vma *);
+
+#define NVKM_VMM_PFN_ADDR                                 0xfffffffffffff000ULL
+#define NVKM_VMM_PFN_ADDR_SHIFT                                              12
+#define NVKM_VMM_PFN_APER                                 0x00000000000000f0ULL
+#define NVKM_VMM_PFN_HOST                                 0x0000000000000000ULL
+#define NVKM_VMM_PFN_VRAM                                 0x0000000000000010ULL
+#define NVKM_VMM_PFN_W                                    0x0000000000000002ULL
+#define NVKM_VMM_PFN_V                                    0x0000000000000001ULL
+#define NVKM_VMM_PFN_NONE                                 0x0000000000000000ULL
+
+int nvkm_vmm_pfn_map(struct nvkm_vmm *, u8 page, u64 addr, u64 size, u64 *pfn);
+int nvkm_vmm_pfn_unmap(struct nvkm_vmm *, u64 addr, u64 size);
 
 struct nvkm_vma *nvkm_vma_tail(struct nvkm_vma *, u64 tail);
 
