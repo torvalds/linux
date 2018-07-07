@@ -635,6 +635,8 @@ static int rave_sp_default_cmd_translate(enum rave_sp_command command)
 		return 0x1E;
 	case RAVE_SP_CMD_RESET_REASON:
 		return 0x1F;
+	case RAVE_SP_CMD_RMB_EEPROM:
+		return 0x20;
 	default:
 		return -EINVAL;
 	}
