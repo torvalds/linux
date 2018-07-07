@@ -697,7 +697,7 @@ static const struct rave_sp_checksum rave_sp_checksum_ccitt = {
 };
 
 static const struct rave_sp_variant rave_sp_legacy = {
-	.checksum = &rave_sp_checksum_8b2c,
+	.checksum = &rave_sp_checksum_ccitt,
 	.cmd = {
 		.translate = rave_sp_default_cmd_translate,
 	},
