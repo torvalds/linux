@@ -239,7 +239,28 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
 	unsigned int queue_size = kinfo->rss_size * kinfo->num_tc;
-	int ret;
+	int i, ret;
+
+	if (kinfo->num_tc <= 1) {
+		netdev_reset_tc(netdev);
+	} else {
+		ret = netdev_set_num_tc(netdev, kinfo->num_tc);
+		if (ret) {
+			netdev_err(netdev,
+				   "netdev_set_num_tc fail, ret=%d!\n", ret);
+			return ret;
+		}
+
+		for (i = 0; i < HNAE3_MAX_TC; i++) {
+			if (!kinfo->tc_info[i].enable)
+				continue;
+
+			netdev_set_tc_queue(netdev,
+					    kinfo->tc_info[i].tc,
+					    kinfo->tc_info[i].tqp_count,
+					    kinfo->tc_info[i].tqp_offset);
+		}
+	}
 
 	ret = netif_set_real_num_tx_queues(netdev, queue_size);
 	if (ret) {
@@ -312,7 +333,9 @@ out_start_err:
 static int hns3_nic_net_open(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int ret;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_knic_private_info *kinfo;
+	int i, ret;
 
 	netif_carrier_off(netdev);
 
@@ -325,6 +348,12 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		netdev_err(netdev,
 			   "hns net up fail, ret=%d!\n", ret);
 		return ret;
+	}
+
+	kinfo = &h->kinfo;
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
+		netdev_set_prio_tc_map(netdev, i,
+				       kinfo->prio_tc[i]);
 	}
 
 	priv->ae_handle->last_reset_time = jiffies;
@@ -762,16 +791,14 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 		 */
 		if (skb_is_gso(skb))
 			hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L3CS_B, 1);
-
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 	} else if (l3.v6->version == 6) {
 		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_M,
 				HNS3_TXD_L3T_S, HNS3_L3T_IPV6);
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 	}
 
 	switch (l4_proto) {
 	case IPPROTO_TCP:
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
@@ -781,12 +808,14 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 		if (hns3_tunnel_csum_bug(skb))
 			break;
 
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
 				HNS3_L4T_UDP);
 		break;
 	case IPPROTO_SCTP:
+		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
 		hnae3_set_field(*type_cs_vlan_tso,
 				HNS3_TXD_L4T_M,
 				HNS3_TXD_L4T_S,
@@ -1307,7 +1336,6 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	u16 mode = mqprio_qopt->mode;
 	u8 hw = mqprio_qopt->qopt.hw;
 	bool if_running;
-	unsigned int i;
 	int ret;
 
 	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
@@ -1330,24 +1358,6 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
 	if (ret)
 		goto out;
-
-	if (tc <= 1) {
-		netdev_reset_tc(netdev);
-	} else {
-		ret = netdev_set_num_tc(netdev, tc);
-		if (ret)
-			goto out;
-
-		for (i = 0; i < HNAE3_MAX_TC; i++) {
-			if (!kinfo->tc_info[i].enable)
-				continue;
-
-			netdev_set_tc_queue(netdev,
-					    kinfo->tc_info[i].tc,
-					    kinfo->tc_info[i].tqp_count,
-					    kinfo->tc_info[i].tqp_offset);
-		}
-	}
 
 	ret = hns3_nic_set_real_num_queue(netdev);
 
@@ -3202,7 +3212,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	struct net_device *ndev = kinfo->netdev;
 	bool if_running;
 	int ret;
-	u8 i;
 
 	if (tc > HNAE3_MAX_TC)
 		return -EINVAL;
@@ -3211,10 +3220,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 		return -ENODEV;
 
 	if_running = netif_running(ndev);
-
-	ret = netdev_set_num_tc(ndev, tc);
-	if (ret)
-		return ret;
 
 	if (if_running) {
 		(void)hns3_nic_net_stop(ndev);
@@ -3226,27 +3231,6 @@ static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
 	if (ret)
 		goto err_out;
 
-	if (tc <= 1) {
-		netdev_reset_tc(ndev);
-		goto out;
-	}
-
-	for (i = 0; i < HNAE3_MAX_TC; i++) {
-		struct hnae3_tc_info *tc_info = &kinfo->tc_info[i];
-
-		if (tc_info->enable)
-			netdev_set_tc_queue(ndev,
-					    tc_info->tc,
-					    tc_info->tqp_count,
-					    tc_info->tqp_offset);
-	}
-
-	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
-		netdev_set_prio_tc_map(ndev, i,
-				       kinfo->prio_tc[i]);
-	}
-
-out:
 	ret = hns3_nic_set_real_num_queue(ndev);
 
 err_out:

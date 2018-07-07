@@ -208,7 +208,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 
 			/* tail the async message in arq */
 			msg_q = hdev->arq.msg_q[hdev->arq.tail];
-			memcpy(&msg_q[0], req->msg, HCLGE_MBX_MAX_ARQ_MSG_SIZE);
+			memcpy(&msg_q[0], req->msg,
+			       HCLGE_MBX_MAX_ARQ_MSG_SIZE * sizeof(u16));
 			hclge_mbx_tail_ptr_move_arq(hdev->arq);
 			hdev->arq.count++;
 
