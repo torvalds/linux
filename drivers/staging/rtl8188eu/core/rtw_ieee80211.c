@@ -200,17 +200,13 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 	}
 }
 
-uint	rtw_get_rateset_len(u8	*rateset)
+uint rtw_get_rateset_len(u8 *rateset)
 {
-	uint i = 0;
+	uint i;
 
-	while (1) {
-		if ((rateset[i]) == 0)
+	for (i = 0; i < 13; i++)
+		if (rateset[i] == 0)
 			break;
-		if (i > 12)
-			break;
-		i++;
-	}
 	return i;
 }
 
