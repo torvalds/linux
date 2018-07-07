@@ -631,6 +631,8 @@ static int rave_sp_default_cmd_translate(enum rave_sp_command command)
 		return 0x14;
 	case RAVE_SP_CMD_SW_WDT:
 		return 0x1C;
+	case RAVE_SP_CMD_PET_WDT:
+		return 0x1D;
 	case RAVE_SP_CMD_RESET:
 		return 0x1E;
 	case RAVE_SP_CMD_RESET_REASON:
