@@ -53,11 +53,9 @@ static u8 WIFI_OFDMRATES[] = {
 		IEEE80211_OFDM_RATE_54MB
 };
 
-
 int rtw_get_bit_value_from_ieee_value(u8 val)
 {
 	unsigned char dot11_rate_table[] = {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 0}; /*  last element must be zero!! */
-
 	int i = 0;
 	while (dot11_rate_table[i] != 0) {
 		if (dot11_rate_table[i] == val)
@@ -85,7 +83,6 @@ uint rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
-
 	while (rate[i] != 0) {
 		if  ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
 		     (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
@@ -111,7 +108,6 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 		else
 			return WIRELESS_11G;
 	}
-
 }
 
 u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *source,
@@ -191,7 +187,6 @@ u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, u
 	uint cnt;
 	u8 *target_ie = NULL;
 
-
 	if (ielen)
 		*ielen = 0;
 
@@ -215,7 +210,6 @@ u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, u
 		} else{
 			cnt += in_ie[cnt+1]+2; /* goto next */
 		}
-
 	}
 
 	return target_ie;
@@ -292,7 +286,6 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
-
 	}
 }
 
@@ -363,7 +356,6 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	/* DS parameter set */
 	ie = rtw_set_ie(ie, _DSSET_IE_, 1, (u8 *)&(pdev_network->Configuration.DSConfig), &sz);
 
-
 	/* IBSS Parameter Set */
 
 	ie = rtw_set_ie(ie, _IBSS_PARA_IE_, 2, (u8 *)&(pdev_network->Configuration.ATIMWindow), &sz);
@@ -398,10 +390,8 @@ unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 		pbuf = rtw_get_ie(pbuf, _WPA_IE_ID_, &len, limit_new);
 
 		if (pbuf) {
-
 			/* check if oui matches... */
 			if (memcmp((pbuf + 2), wpa_oui_type, sizeof(wpa_oui_type))) {
-
 				goto check_next_ie;
 			}
 
@@ -417,7 +407,6 @@ unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 			return pbuf;
 
 		} else{
-
 			*wpa_ie_len = 0;
 			return NULL;
 		}
@@ -430,20 +419,16 @@ check_next_ie:
 			break;
 
 		pbuf += (2 + len);
-
 	}
 
 	*wpa_ie_len = 0;
 
 	return NULL;
-
 }
 
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit)
 {
-
 	return rtw_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
-
 }
 
 int rtw_get_wpa_cipher_suite(u8 *s)
@@ -478,7 +463,6 @@ int rtw_get_wpa2_cipher_suite(u8 *s)
 	return 0;
 }
 
-
 int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
@@ -491,7 +475,6 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 		return _FAIL;
 	}
 
-
 	if ((*wpa_ie != _WPA_IE_ID_) || (*(wpa_ie+1) != (u8)(wpa_ie_len - 2)) ||
 	   (memcmp(wpa_ie+2, RTW_WPA_OUI_TYPE, WPA_SELECTOR_LEN))) {
 		return _FAIL;
@@ -502,10 +485,8 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 	pos += 8;
 	left = wpa_ie_len - 8;
 
-
 	/* group_cipher */
 	if (left >= WPA_SELECTOR_LEN) {
-
 		*group_cipher = rtw_get_wpa_cipher_suite(pos);
 
 		pos += WPA_SELECTOR_LEN;
@@ -516,7 +497,6 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 
 		return _FAIL;
 	}
-
 
 	/* pairwise_cipher */
 	if (left >= 2) {
@@ -554,7 +534,6 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 	}
 
 	return ret;
-
 }
 
 int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
@@ -569,7 +548,6 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 		return _FAIL;
 	}
 
-
 	if ((*rsn_ie != _WPA2_IE_ID_) || (*(rsn_ie+1) != (u8)(rsn_ie_len - 2))) {
 		return _FAIL;
 	}
@@ -580,7 +558,6 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 
 	/* group_cipher */
 	if (left >= RSN_SELECTOR_LEN) {
-
 		*group_cipher = rtw_get_wpa2_cipher_suite(pos);
 
 		pos += RSN_SELECTOR_LEN;
@@ -628,7 +605,6 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 	}
 
 	return ret;
-
 }
 
 /* ifdef CONFIG_WAPI_SUPPORT */
@@ -730,7 +706,6 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 				cnt += in_ie[cnt+1]+2;   /* get next */
 			}
 		}
-
 	}
 
 	return (*rsn_len + *wpa_len);
@@ -795,7 +770,6 @@ u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 		} else{
 			cnt += in_ie[cnt+1]+2; /* goto next */
 		}
-
 	}
 
 	return wpsie_ptr;
@@ -848,7 +822,6 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_att
 		} else{
 			attr_ptr += attr_len; /* goto next */
 		}
-
 	}
 
 	return target_attr_ptr;
@@ -981,7 +954,6 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
 	}
 
 	return 0;
-
 }
 
 /**
@@ -1128,7 +1100,6 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 		return ParseFailed;
 
 	return unknown ? ParseUnknown : ParseOK;
-
 }
 
 void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
@@ -1173,7 +1144,6 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 	if (pbuf && (wpa_ielen > 0)) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_get_cipher_info: wpa_ielen: %d", wpa_ielen));
 		if (_SUCCESS == rtw_parse_wpa_ie(pbuf, wpa_ielen+2, &group_cipher, &pairwise_cipher, &is8021x)) {
-
 			pnetwork->BcnInfo.pairwise_cipher = pairwise_cipher;
 			pnetwork->BcnInfo.group_cipher = group_cipher;
 			pnetwork->BcnInfo.is_8021x = is8021x;
@@ -1182,7 +1152,6 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 			ret = _SUCCESS;
 		}
 	} else {
-
 		pbuf = rtw_get_wpa2_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength-12);
 
 		if (pbuf && (wpa_ielen > 0)) {
