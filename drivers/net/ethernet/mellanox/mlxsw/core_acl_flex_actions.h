@@ -54,6 +54,7 @@ struct mlxsw_afa_ops {
 			  bool ingress, int *p_span_id);
 	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
 			   bool ingress);
+	bool dummy_first_set;
 };
 
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
