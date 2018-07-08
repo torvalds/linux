@@ -2678,6 +2678,21 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	return 0;
 }
 
+static void marvell_nfc_reset(struct marvell_nfc *nfc)
+{
+	/*
+	 * ECC operations and interruptions are only enabled when specifically
+	 * needed. ECC shall not be activated in the early stages (fails probe).
+	 * Arbiter flag, even if marked as "reserved", must be set (empirical).
+	 * SPARE_EN bit must always be set or ECC bytes will not be at the same
+	 * offset in the read page and this will fail the protection.
+	 */
+	writel_relaxed(NDCR_ALL_INT | NDCR_ND_ARB_EN | NDCR_SPARE_EN |
+		       NDCR_RD_ID_CNT(NFCV1_READID_LEN), nfc->regs + NDCR);
+	writel_relaxed(0xFFFFFFFF, nfc->regs + NDSR);
+	writel_relaxed(0, nfc->regs + NDECCCTRL);
+}
+
 static int marvell_nfc_init(struct marvell_nfc *nfc)
 {
 	struct device_node *np = nfc->dev->of_node;
@@ -2716,17 +2731,7 @@ static int marvell_nfc_init(struct marvell_nfc *nfc)
 	if (!nfc->caps->is_nfcv2)
 		marvell_nfc_init_dma(nfc);
 
-	/*
-	 * ECC operations and interruptions are only enabled when specifically
-	 * needed. ECC shall not be activated in the early stages (fails probe).
-	 * Arbiter flag, even if marked as "reserved", must be set (empirical).
-	 * SPARE_EN bit must always be set or ECC bytes will not be at the same
-	 * offset in the read page and this will fail the protection.
-	 */
-	writel_relaxed(NDCR_ALL_INT | NDCR_ND_ARB_EN | NDCR_SPARE_EN |
-		       NDCR_RD_ID_CNT(NFCV1_READID_LEN), nfc->regs + NDCR);
-	writel_relaxed(0xFFFFFFFF, nfc->regs + NDSR);
-	writel_relaxed(0, nfc->regs + NDECCCTRL);
+	marvell_nfc_reset(nfc);
 
 	return 0;
 }
@@ -2841,6 +2846,51 @@ static int marvell_nfc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused marvell_nfc_suspend(struct device *dev)
+{
+	struct marvell_nfc *nfc = dev_get_drvdata(dev);
+	struct marvell_nand_chip *chip;
+
+	list_for_each_entry(chip, &nfc->chips, node)
+		marvell_nfc_wait_ndrun(&chip->chip);
+
+	clk_disable_unprepare(nfc->reg_clk);
+	clk_disable_unprepare(nfc->core_clk);
+
+	return 0;
+}
+
+static int __maybe_unused marvell_nfc_resume(struct device *dev)
+{
+	struct marvell_nfc *nfc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(nfc->core_clk);
+	if (ret < 0)
+		return ret;
+
+	if (!IS_ERR(nfc->reg_clk)) {
+		ret = clk_prepare_enable(nfc->reg_clk);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Reset nfc->selected_chip so the next command will cause the timing
+	 * registers to be restored in marvell_nfc_select_chip().
+	 */
+	nfc->selected_chip = NULL;
+
+	/* Reset registers that have lost their contents */
+	marvell_nfc_reset(nfc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops marvell_nfc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(marvell_nfc_suspend, marvell_nfc_resume)
+};
+
 static const struct marvell_nfc_caps marvell_armada_8k_nfc_caps = {
 	.max_cs_nb = 4,
 	.max_rb_nb = 2,
@@ -2925,6 +2975,7 @@ static struct platform_driver marvell_nfc_driver = {
 	.driver	= {
 		.name		= "marvell-nfc",
 		.of_match_table = marvell_nfc_of_ids,
+		.pm		= &marvell_nfc_pm_ops,
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,
