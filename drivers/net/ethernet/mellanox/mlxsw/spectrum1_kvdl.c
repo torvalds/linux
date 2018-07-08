@@ -175,6 +175,7 @@ static void mlxsw_sp1_kvdl_part_free(struct mlxsw_sp1_kvdl_part *part,
 }
 
 static int mlxsw_sp1_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, void *priv,
+				enum mlxsw_sp_kvdl_entry_type type,
 				unsigned int entry_count,
 				u32 *p_entry_index)
 {
@@ -192,6 +193,7 @@ static int mlxsw_sp1_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, void *priv,
 }
 
 static void mlxsw_sp1_kvdl_free(struct mlxsw_sp *mlxsw_sp, void *priv,
+				enum mlxsw_sp_kvdl_entry_type type,
 				int entry_index)
 {
 	struct mlxsw_sp1_kvdl *kvdl = priv;
@@ -204,7 +206,9 @@ static void mlxsw_sp1_kvdl_free(struct mlxsw_sp *mlxsw_sp, void *priv,
 }
 
 static int mlxsw_sp1_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
-					   void *priv, unsigned int entry_count,
+					   void *priv,
+					   enum mlxsw_sp_kvdl_entry_type type,
+					   unsigned int entry_count,
 					   unsigned int *p_alloc_size)
 {
 	struct mlxsw_sp1_kvdl *kvdl = priv;

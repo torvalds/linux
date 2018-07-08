@@ -438,28 +438,55 @@ mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 
 /* spectrum_kvdl.c */
+enum mlxsw_sp_kvdl_entry_type {
+	MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+	MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+	MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+	MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+};
+
+static inline unsigned int
+mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
+{
+	switch (type) {
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ADJ: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR: /* fall through */
+	default:
+		return 1;
+	}
+}
+
 struct mlxsw_sp_kvdl_ops {
 	size_t priv_size;
 	int (*init)(struct mlxsw_sp *mlxsw_sp, void *priv);
 	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
 	int (*alloc)(struct mlxsw_sp *mlxsw_sp, void *priv,
+		     enum mlxsw_sp_kvdl_entry_type type,
 		     unsigned int entry_count, u32 *p_entry_index);
 	void (*free)(struct mlxsw_sp *mlxsw_sp, void *priv,
+		     enum mlxsw_sp_kvdl_entry_type type,
 		     int entry_index);
 	int (*alloc_size_query)(struct mlxsw_sp *mlxsw_sp, void *priv,
+				enum mlxsw_sp_kvdl_entry_type type,
 				unsigned int entry_count,
-				unsigned int *p_alloc_size);
+				unsigned int *p_alloc_count);
 	int (*resources_register)(struct mlxsw_sp *mlxsw_sp, void *priv);
 };
 
 int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_kvdl_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
-			u32 *p_entry_index);
-void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
-int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
-				   unsigned int entry_count,
-				   unsigned int *p_alloc_size);
+int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp,
+			enum mlxsw_sp_kvdl_entry_type type,
+			unsigned int entry_count, u32 *p_entry_index);
+void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp,
+			enum mlxsw_sp_kvdl_entry_type type,
+			int entry_index);
+int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,
+				    enum mlxsw_sp_kvdl_entry_type type,
+				    unsigned int entry_count,
+				    unsigned int *p_alloc_count);
 
 /* spectrum1_kvdl.c */
 extern const struct mlxsw_sp_kvdl_ops mlxsw_sp1_kvdl_ops;

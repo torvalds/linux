@@ -37,8 +37,6 @@
 #include "core_acl_flex_actions.h"
 #include "spectrum_span.h"
 
-#define MLXSW_SP_KVDL_ACT_EXT_SIZE 1
-
 static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 				     char *enc_actions, bool is_first)
 {
@@ -53,8 +51,8 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	if (is_first)
 		return 0;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ACT_EXT_SIZE,
-				  &kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+				  1, &kvdl_index);
 	if (err)
 		return err;
 	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
@@ -65,7 +63,8 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	return 0;
 
 err_pefa_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+			   kvdl_index);
 	return err;
 }
 
@@ -76,7 +75,8 @@ static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
 
 	if (is_first)
 		return;
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
+			   kvdl_index);
 }
 
 static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
@@ -87,7 +87,8 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	u32 kvdl_index;
 	int err;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+				  1, &kvdl_index);
 	if (err)
 		return err;
 	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
@@ -98,7 +99,8 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	return 0;
 
 err_ppbs_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+			   kvdl_index);
 	return err;
 }
 
@@ -106,7 +108,8 @@ static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
+			   kvdl_index);
 }
 
 static int

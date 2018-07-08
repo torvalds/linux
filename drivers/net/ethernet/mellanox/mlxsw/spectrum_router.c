@@ -1106,7 +1106,8 @@ mlxsw_sp_fib_entry_decap_init(struct mlxsw_sp *mlxsw_sp,
 	u32 tunnel_index;
 	int err;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &tunnel_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+				  1, &tunnel_index);
 	if (err)
 		return err;
 
@@ -1122,7 +1123,8 @@ static void mlxsw_sp_fib_entry_decap_fini(struct mlxsw_sp *mlxsw_sp,
 	/* Unlink this node from the IPIP entry that it's the decap entry of. */
 	fib_entry->decap.ipip_entry->decap_fib_entry = NULL;
 	fib_entry->decap.ipip_entry = NULL;
-	mlxsw_sp_kvdl_free(mlxsw_sp, fib_entry->decap.tunnel_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+			   fib_entry->decap.tunnel_index);
 }
 
 static struct mlxsw_sp_fib_node *
@@ -3162,8 +3164,9 @@ static int mlxsw_sp_fix_adj_grp_size(struct mlxsw_sp *mlxsw_sp,
 	 * by the device and make sure the request can be satisfied.
 	 */
 	mlxsw_sp_adj_grp_size_round_up(p_adj_grp_size);
-	err = mlxsw_sp_kvdl_alloc_size_query(mlxsw_sp, *p_adj_grp_size,
-					     &alloc_size);
+	err = mlxsw_sp_kvdl_alloc_count_query(mlxsw_sp,
+					      MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+					      *p_adj_grp_size, &alloc_size);
 	if (err)
 		return err;
 	/* It is possible the allocation results in more allocated
@@ -3275,7 +3278,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		/* No valid allocation size available. */
 		goto set_trap;
 
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, ecmp_size, &adj_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+				  ecmp_size, &adj_index);
 	if (err) {
 		/* We ran out of KVD linear space, just set the
 		 * trap and let everything flow through kernel.
@@ -3310,7 +3314,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 
 	err = mlxsw_sp_adj_index_mass_update(mlxsw_sp, nh_grp,
 					     old_adj_index, old_ecmp_size);
-	mlxsw_sp_kvdl_free(mlxsw_sp, old_adj_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+			   old_adj_index);
 	if (err) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to mass-update adjacency index for nexthop group.\n");
 		goto set_trap;
@@ -3332,7 +3337,8 @@ set_trap:
 	if (err)
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set traps for fib entries.\n");
 	if (old_adj_index_valid)
-		mlxsw_sp_kvdl_free(mlxsw_sp, nh_grp->adj_index);
+		mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
+				   nh_grp->adj_index);
 }
 
 static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,

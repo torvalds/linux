@@ -84,8 +84,6 @@ mlxsw_sp_mr_erif_list_init(struct mlxsw_sp_mr_tcam_erif_list *erif_list)
 	INIT_LIST_HEAD(&erif_list->erif_sublists);
 }
 
-#define MLXSW_SP_KVDL_RIGR2_SIZE 1
-
 static struct mlxsw_sp_mr_erif_sublist *
 mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_mr_tcam_erif_list *erif_list)
@@ -96,8 +94,8 @@ mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 	erif_sublist = kzalloc(sizeof(*erif_sublist), GFP_KERNEL);
 	if (!erif_sublist)
 		return ERR_PTR(-ENOMEM);
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_RIGR2_SIZE,
-				  &erif_sublist->rigr2_kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+				  1, &erif_sublist->rigr2_kvdl_index);
 	if (err) {
 		kfree(erif_sublist);
 		return ERR_PTR(err);
@@ -112,7 +110,8 @@ mlxsw_sp_mr_erif_sublist_destroy(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_mr_erif_sublist *erif_sublist)
 {
 	list_del(&erif_sublist->list);
-	mlxsw_sp_kvdl_free(mlxsw_sp, erif_sublist->rigr2_kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+			   erif_sublist->rigr2_kvdl_index);
 	kfree(erif_sublist);
 }
 

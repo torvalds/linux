@@ -74,28 +74,32 @@ void mlxsw_sp_kvdl_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(kvdl);
 }
 
-int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
-			u32 *p_entry_index)
+int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp,
+			enum mlxsw_sp_kvdl_entry_type type,
+			unsigned int entry_count, u32 *p_entry_index)
 {
 	struct mlxsw_sp_kvdl *kvdl = mlxsw_sp->kvdl;
 
-	return kvdl->kvdl_ops->alloc(mlxsw_sp, kvdl->priv,
+	return kvdl->kvdl_ops->alloc(mlxsw_sp, kvdl->priv, type,
 				     entry_count, p_entry_index);
 }
 
-void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index)
+void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp,
+			enum mlxsw_sp_kvdl_entry_type type,
+			int entry_index)
 {
 	struct mlxsw_sp_kvdl *kvdl = mlxsw_sp->kvdl;
 
-	kvdl->kvdl_ops->free(mlxsw_sp, kvdl->priv, entry_index);
+	kvdl->kvdl_ops->free(mlxsw_sp, kvdl->priv, type, entry_index);
 }
 
-int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
-				   unsigned int entry_count,
-				   unsigned int *p_alloc_size)
+int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,
+				    enum mlxsw_sp_kvdl_entry_type type,
+				    unsigned int entry_count,
+				    unsigned int *p_alloc_count)
 {
 	struct mlxsw_sp_kvdl *kvdl = mlxsw_sp->kvdl;
 
-	return kvdl->kvdl_ops->alloc_size_query(mlxsw_sp, kvdl->priv,
-						entry_count, p_alloc_size);
+	return kvdl->kvdl_ops->alloc_size_query(mlxsw_sp, kvdl->priv, type,
+						entry_count, p_alloc_count);
 }
