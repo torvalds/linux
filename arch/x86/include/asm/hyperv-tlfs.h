@@ -176,9 +176,10 @@
 #define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
 
 /*
- * Crash notification flag.
+ * Crash notification flags.
  */
-#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
+#define HV_CRASH_CTL_CRASH_NOTIFY_MSG	BIT_ULL(62)
+#define HV_CRASH_CTL_CRASH_NOTIFY	BIT_ULL(63)
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
