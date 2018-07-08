@@ -67,7 +67,7 @@ int rtw_get_bit_value_from_ieee_value(u8 val)
 	return 0;
 }
 
-uint	rtw_is_cckrates_included(u8 *rate)
+uint rtw_is_cckrates_included(u8 *rate)
 {
 		u32 i = 0;
 
@@ -81,7 +81,7 @@ uint	rtw_is_cckrates_included(u8 *rate)
 		return false;
 }
 
-uint	rtw_is_cckratesonly_included(u8 *rate)
+uint rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
@@ -296,7 +296,7 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 	}
 }
 
-uint	rtw_get_rateset_len(u8 *rateset)
+uint rtw_get_rateset_len(u8 *rateset)
 {
 	uint i;
 
