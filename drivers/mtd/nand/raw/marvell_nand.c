@@ -2773,16 +2773,18 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		return ret;
 
 	nfc->reg_clk = devm_clk_get(&pdev->dev, "reg");
-	if (PTR_ERR(nfc->reg_clk) != -ENOENT) {
-		if (!IS_ERR(nfc->reg_clk)) {
-			ret = clk_prepare_enable(nfc->reg_clk);
-			if (ret)
-				goto unprepare_core_clk;
-		} else {
+	if (IS_ERR(nfc->reg_clk)) {
+		if (PTR_ERR(nfc->reg_clk) != -ENOENT) {
 			ret = PTR_ERR(nfc->reg_clk);
 			goto unprepare_core_clk;
 		}
+
+		nfc->reg_clk = NULL;
 	}
+
+	ret = clk_prepare_enable(nfc->reg_clk);
+	if (ret)
+		goto unprepare_core_clk;
 
 	marvell_nfc_disable_int(nfc, NDCR_ALL_INT);
 	marvell_nfc_clear_int(nfc, NDCR_ALL_INT);
@@ -2864,11 +2866,9 @@ static int __maybe_unused marvell_nfc_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (!IS_ERR(nfc->reg_clk)) {
-		ret = clk_prepare_enable(nfc->reg_clk);
-		if (ret < 0)
-			return ret;
-	}
+	ret = clk_prepare_enable(nfc->reg_clk);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Reset nfc->selected_chip so the next command will cause the timing
