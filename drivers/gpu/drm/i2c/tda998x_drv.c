@@ -258,6 +258,7 @@ struct tda998x_priv {
 # define HVF_CNTRL_1_PAD(x)       (((x) & 3) << 4)
 # define HVF_CNTRL_1_SEMI_PLANAR  (1 << 6)
 #define REG_RPT_CNTRL             REG(0x00, 0xf0)     /* write */
+# define RPT_CNTRL_REPEAT(x)      ((x) & 15)
 #define REG_I2S_FORMAT            REG(0x00, 0xfc)     /* read/write */
 # define I2S_FORMAT_PHILIPS       (0 << 0)
 # define I2S_FORMAT_LEFT_J        (2 << 0)
@@ -1423,7 +1424,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	u16 vwin1_line_s, vwin1_line_e;
 	u16 vwin2_line_s, vwin2_line_e;
 	u16 de_pix_s, de_pix_e;
-	u8 reg, div, rep;
+	u8 reg, div, rep, sel_clk;
 
 	/*
 	 * Internally TDA998x is using ITU-R BT.656 style sync but
@@ -1486,7 +1487,16 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 			       (mode->vsync_end - mode->vsync_start)/2;
 	}
 
-	tmds_clock = mode->clock;
+	/*
+	 * Select pixel repeat depending on the double-clock flag
+	 * (which means we have to repeat each pixel once.)
+	 */
+	rep = mode->flags & DRM_MODE_FLAG_DBLCLK ? 1 : 0;
+	sel_clk = SEL_CLK_ENA_SC_CLK | SEL_CLK_SEL_CLK1 |
+		  SEL_CLK_SEL_VRF_CLK(rep ? 2 : 0);
+
+	/* the TMDS clock is scaled up by the pixel repeat */
+	tmds_clock = mode->clock * (1 + rep);
 
 	/*
 	 * The divisor is power-of-2. The TDA9983B datasheet gives
@@ -1501,6 +1511,8 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 			break;
 
 	mutex_lock(&priv->audio_mutex);
+
+	priv->tmds_clock = tmds_clock;
 
 	/* mute the audio FIFO: */
 	reg_set(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_FIFO);
@@ -1524,12 +1536,8 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_write(priv, REG_SERIALIZER, 0);
 	reg_write(priv, REG_HVF_CNTRL_1, HVF_CNTRL_1_VQR(0));
 
-	/* TODO enable pixel repeat for pixel rates less than 25Msamp/s */
-	rep = 0;
-	reg_write(priv, REG_RPT_CNTRL, 0);
-	reg_write(priv, REG_SEL_CLK, SEL_CLK_SEL_VRF_CLK(0) |
-			SEL_CLK_SEL_CLK1 | SEL_CLK_ENA_SC_CLK);
-
+	reg_write(priv, REG_RPT_CNTRL, RPT_CNTRL_REPEAT(rep));
+	reg_write(priv, REG_SEL_CLK, sel_clk);
 	reg_write(priv, REG_PLL_SERIAL_2, PLL_SERIAL_2_SRL_NOSC(div) |
 			PLL_SERIAL_2_SRL_PR(rep));
 
@@ -1596,8 +1604,6 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 
 	/* must be last register set: */
 	reg_write(priv, REG_TBG_CNTRL_0, 0);
-
-	priv->tmds_clock = adjusted_mode->clock;
 
 	/* CEA-861B section 6 says that:
 	 * CEA version 1 (CEA-861) has no support for infoframes.
