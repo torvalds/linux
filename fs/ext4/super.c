@@ -5163,6 +5163,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 
 			if (sbi->s_journal)
 				ext4_mark_recovery_complete(sb, es);
+			if (sbi->s_mmp_tsk)
+				kthread_stop(sbi->s_mmp_tsk);
 		} else {
 			/* Make sure we can mount this feature set readwrite */
 			if (ext4_has_feature_readonly(sb) ||
