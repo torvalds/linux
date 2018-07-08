@@ -203,7 +203,7 @@ mlxsw_sp1_acl_tcam_region_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_QUERY_CLEAR_ON_READ,
-			     _region->tcam_region_info, offset);
+			     _region->tcam_region_info, offset, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
 	if (err)
 		return err;

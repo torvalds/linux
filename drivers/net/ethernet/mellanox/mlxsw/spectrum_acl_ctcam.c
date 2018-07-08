@@ -80,7 +80,7 @@ mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 	char *key;
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset);
+			     region->tcam_region_info, offset, 0);
 	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
 	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask);
@@ -100,7 +100,7 @@ mlxsw_sp_acl_ctcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, false, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset);
+			     region->tcam_region_info, offset, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
 }
 
