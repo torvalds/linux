@@ -1330,6 +1330,6 @@ unsigned long mlx5_ib_get_xlt_emergency_page(void);
 void mlx5_ib_put_xlt_emergency_page(void);
 
 int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
-			struct mlx5_bfreg_info *bfregi, int bfregn,
+			struct mlx5_bfreg_info *bfregi, u32 bfregn,
 			bool dyn_bfreg);
 #endif /* MLX5_IB_H */
