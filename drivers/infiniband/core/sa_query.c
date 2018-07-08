@@ -1227,13 +1227,9 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-static int
-roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
-			     struct sa_path_rec *rec,
-			     const struct ib_gid_attr *attr)
+static int roce_resolve_route_from_path(struct sa_path_rec *rec,
+					const struct ib_gid_attr *attr)
 {
-	struct net_device *resolved_dev;
-	struct net_device *idev;
 	struct rdma_dev_addr dev_addr = {};
 	union {
 		struct sockaddr     _sockaddr;
@@ -1253,9 +1249,6 @@ roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
 	 */
 	dev_addr.net = &init_net;
 
-	if (!device->get_netdev)
-		return -EOPNOTSUPP;
-
 	rdma_gid2ip(&sgid_addr._sockaddr, &rec->sgid);
 	rdma_gid2ip(&dgid_addr._sockaddr, &rec->dgid);
 
@@ -1270,28 +1263,8 @@ roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
 	    rec->rec_type != SA_PATH_REC_TYPE_ROCE_V2)
 		return -EINVAL;
 
-	idev = device->get_netdev(device, port_num);
-	if (!idev)
-		return -ENODEV;
-
-	resolved_dev = dev_get_by_index(dev_addr.net,
-					dev_addr.bound_dev_if);
-	if (!resolved_dev) {
-		ret = -ENODEV;
-		goto done;
-	}
-	rcu_read_lock();
-	if (attr->ndev != resolved_dev ||
-	    (resolved_dev != idev &&
-	     !rdma_is_upper_dev_rcu(idev, resolved_dev)))
-		ret = -EHOSTUNREACH;
-	rcu_read_unlock();
-	dev_put(resolved_dev);
-done:
-	dev_put(idev);
-	if (!ret)
-		rec->roce.route_resolved = true;
-	return ret;
+	rec->roce.route_resolved = true;
+	return 0;
 }
 
 static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
@@ -1346,8 +1319,7 @@ int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
 	rdma_ah_set_static_rate(ah_attr, rec->rate);
 
 	if (sa_path_is_roce(rec)) {
-		ret = roce_resolve_route_from_path(device, port_num, rec,
-						   gid_attr);
+		ret = roce_resolve_route_from_path(rec, gid_attr);
 		if (ret)
 			return ret;
 
