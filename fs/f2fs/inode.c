@@ -196,6 +196,7 @@ void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct page *page)
 static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned long long iblocks;
 
 	iblocks = le64_to_cpu(F2FS_INODE(node_page)->i_blocks);
@@ -234,6 +235,17 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 			"%s: inode (ino=%lx) is with extra_attr, "
 			"but extra_attr feature is off",
 			__func__, inode->i_ino);
+		return false;
+	}
+
+	if (fi->i_extra_isize > F2FS_TOTAL_EXTRA_ATTR_SIZE ||
+			fi->i_extra_isize % sizeof(__le32)) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"%s: inode (ino=%lx) has corrupted i_extra_isize: %d, "
+			"max: %zu",
+			__func__, inode->i_ino, fi->i_extra_isize,
+			F2FS_TOTAL_EXTRA_ATTR_SIZE);
 		return false;
 	}
 
@@ -305,11 +317,6 @@ static int do_read_inode(struct inode *inode)
 
 	get_inline_info(inode, ri);
 
-	if (!sanity_check_inode(inode, node_page)) {
-		f2fs_put_page(node_page, 1);
-		return -EINVAL;
-	}
-
 	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
 					le16_to_cpu(ri->i_extra_isize) : 0;
 
@@ -327,6 +334,11 @@ static int do_read_inode(struct inode *inode)
 		 * we get the space back only from inline_data.
 		 */
 		fi->i_inline_xattr_size = 0;
+	}
+
+	if (!sanity_check_inode(inode, node_page)) {
+		f2fs_put_page(node_page, 1);
+		return -EINVAL;
 	}
 
 	/* check data exist */
