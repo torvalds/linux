@@ -58,6 +58,16 @@ struct mlxsw_sp1_acl_tcam_entry {
 	struct mlxsw_sp_acl_ctcam_entry centry;
 };
 
+static int mlxsw_sp1_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
+				   struct mlxsw_sp_acl_tcam *tcam)
+{
+	return 0;
+}
+
+static void mlxsw_sp1_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
+{
+}
+
 static int
 mlxsw_sp1_acl_ctcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp1_acl_tcam_region *region)
@@ -218,6 +228,9 @@ mlxsw_sp1_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 
 const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops = {
 	.key_type		= MLXSW_REG_PTAR_KEY_TYPE_FLEX,
+	.priv_size		= 0,
+	.init			= mlxsw_sp1_acl_tcam_init,
+	.fini			= mlxsw_sp1_acl_tcam_fini,
 	.region_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_region),
 	.region_init		= mlxsw_sp1_acl_tcam_region_init,
 	.region_fini		= mlxsw_sp1_acl_tcam_region_fini,

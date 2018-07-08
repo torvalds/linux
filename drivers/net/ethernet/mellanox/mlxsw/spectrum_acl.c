@@ -55,7 +55,6 @@ struct mlxsw_sp_acl {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_afk *afk;
 	struct mlxsw_sp_fid *dummy_fid;
-	const struct mlxsw_sp_acl_ops *ops;
 	struct rhashtable ruleset_ht;
 	struct list_head rules;
 	struct {
@@ -63,8 +62,7 @@ struct mlxsw_sp_acl {
 		unsigned long interval;	/* ms */
 #define MLXSW_SP_ACL_RULE_ACTIVITY_UPDATE_PERIOD_MS 1000
 	} rule_activity_update;
-	unsigned long priv[0];
-	/* priv has to be always the last item */
+	struct mlxsw_sp_acl_tcam tcam;
 };
 
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl)
@@ -340,7 +338,7 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_init;
 
-	err = ops->ruleset_add(mlxsw_sp, acl->priv, ruleset->priv);
+	err = ops->ruleset_add(mlxsw_sp, &acl->tcam, ruleset->priv);
 	if (err)
 		goto err_ops_ruleset_add;
 
@@ -410,7 +408,7 @@ mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 	struct mlxsw_sp_acl_ruleset *ruleset;
 
-	ops = acl->ops->profile_ops(mlxsw_sp, profile);
+	ops = mlxsw_sp_acl_tcam_profile_ops(mlxsw_sp, profile);
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 	ruleset = __mlxsw_sp_acl_ruleset_lookup(acl, block, chain_index, ops);
@@ -428,7 +426,7 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 	struct mlxsw_sp_acl_ruleset *ruleset;
 
-	ops = acl->ops->profile_ops(mlxsw_sp, profile);
+	ops = mlxsw_sp_acl_tcam_profile_ops(mlxsw_sp, profile);
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
@@ -827,12 +825,13 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 {
-	const struct mlxsw_sp_acl_ops *acl_ops = &mlxsw_sp_acl_tcam_ops;
 	struct mlxsw_sp_fid *fid;
 	struct mlxsw_sp_acl *acl;
+	size_t alloc_size;
 	int err;
 
-	acl = kzalloc(sizeof(*acl) + acl_ops->priv_size, GFP_KERNEL);
+	alloc_size = sizeof(*acl) + mlxsw_sp_acl_tcam_priv_size(mlxsw_sp);
+	acl = kzalloc(alloc_size, GFP_KERNEL);
 	if (!acl)
 		return -ENOMEM;
 	mlxsw_sp->acl = acl;
@@ -859,11 +858,9 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	acl->dummy_fid = fid;
 
 	INIT_LIST_HEAD(&acl->rules);
-	err = acl_ops->init(mlxsw_sp, acl->priv);
+	err = mlxsw_sp_acl_tcam_init(mlxsw_sp, &acl->tcam);
 	if (err)
 		goto err_acl_ops_init;
-
-	acl->ops = acl_ops;
 
 	/* Create the delayed work for the rule activity_update */
 	INIT_DELAYED_WORK(&acl->rule_activity_update.dw,
@@ -886,10 +883,9 @@ err_afk_create:
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
-	const struct mlxsw_sp_acl_ops *acl_ops = acl->ops;
 
 	cancel_delayed_work_sync(&mlxsw_sp->acl->rule_activity_update.dw);
-	acl_ops->fini(mlxsw_sp, acl->priv);
+	mlxsw_sp_acl_tcam_fini(mlxsw_sp, &acl->tcam);
 	WARN_ON(!list_empty(&acl->rules));
 	mlxsw_sp_fid_put(acl->dummy_fid);
 	rhashtable_destroy(&acl->ruleset_ht);

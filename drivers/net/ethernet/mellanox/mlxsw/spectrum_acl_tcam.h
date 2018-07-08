@@ -42,7 +42,46 @@
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
 
-extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
+struct mlxsw_sp_acl_tcam {
+	unsigned long *used_regions; /* bit array */
+	unsigned int max_regions;
+	unsigned long *used_groups;  /* bit array */
+	unsigned int max_groups;
+	unsigned int max_group_size;
+	unsigned long priv[0];
+	/* priv has to be always the last item */
+};
+
+size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_tcam *tcam);
+void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_tcam *tcam);
+
+struct mlxsw_sp_acl_profile_ops {
+	size_t ruleset_priv_size;
+	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv);
+	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
+	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
+			    struct mlxsw_sp_port *mlxsw_sp_port,
+			    bool ingress);
+	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       bool ingress);
+	u16 (*ruleset_group_id)(void *ruleset_priv);
+	size_t (*rule_priv_size)(struct mlxsw_sp *mlxsw_sp);
+	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
+			void *ruleset_priv, void *rule_priv,
+			struct mlxsw_sp_acl_rule_info *rulei);
+	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
+	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
+				 bool *activity);
+};
+
+const struct mlxsw_sp_acl_profile_ops *
+mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
+			      enum mlxsw_sp_acl_profile profile);
 
 #define MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT 16
 #define MLXSW_SP_ACL_TCAM_REGION_RESIZE_STEP 16

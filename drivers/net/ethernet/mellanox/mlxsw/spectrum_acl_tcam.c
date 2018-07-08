@@ -47,17 +47,17 @@
 #include "spectrum_acl_tcam.h"
 #include "core_acl_flex_keys.h"
 
-struct mlxsw_sp_acl_tcam {
-	unsigned long *used_regions; /* bit array */
-	unsigned int max_regions;
-	unsigned long *used_groups;  /* bit array */
-	unsigned int max_groups;
-	unsigned int max_group_size;
-};
-
-static int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
+size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_sp_acl_tcam *tcam = priv;
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	return ops->priv_size;
+}
+
+int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_tcam *tcam)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	u64 max_tcam_regions;
 	u64 max_regions;
 	u64 max_groups;
@@ -88,17 +88,26 @@ static int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 	tcam->max_groups = max_groups;
 	tcam->max_group_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						 ACL_MAX_GROUP_SIZE);
+
+	err = ops->init(mlxsw_sp, tcam->priv, tcam);
+	if (err)
+		goto err_tcam_init;
+
 	return 0;
 
+err_tcam_init:
+	kfree(tcam->used_groups);
 err_alloc_used_groups:
 	kfree(tcam->used_regions);
 	return err;
 }
 
-static void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
+void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_tcam *tcam)
 {
-	struct mlxsw_sp_acl_tcam *tcam = priv;
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 
+	ops->fini(mlxsw_sp, tcam->priv);
 	kfree(tcam->used_groups);
 	kfree(tcam->used_regions);
 }
@@ -827,10 +836,10 @@ struct mlxsw_sp_acl_tcam_flower_rule {
 
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
-				     void *priv, void *ruleset_priv)
+				     struct mlxsw_sp_acl_tcam *tcam,
+				     void *ruleset_priv)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
-	struct mlxsw_sp_acl_tcam *tcam = priv;
 
 	return mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
 					   mlxsw_sp_acl_tcam_patterns,
@@ -932,7 +941,7 @@ mlxsw_sp_acl_tcam_profile_ops_arr[] = {
 	[MLXSW_SP_ACL_PROFILE_FLOWER] = &mlxsw_sp_acl_tcam_flower_ops,
 };
 
-static const struct mlxsw_sp_acl_profile_ops *
+const struct mlxsw_sp_acl_profile_ops *
 mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 			      enum mlxsw_sp_acl_profile profile)
 {
@@ -945,10 +954,3 @@ mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 		return NULL;
 	return ops;
 }
-
-const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops = {
-	.priv_size		= sizeof(struct mlxsw_sp_acl_tcam),
-	.init			= mlxsw_sp_acl_tcam_init,
-	.fini			= mlxsw_sp_acl_tcam_fini,
-	.profile_ops		= mlxsw_sp_acl_tcam_profile_ops,
-};

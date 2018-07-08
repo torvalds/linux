@@ -503,44 +503,14 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int counter_index;
 };
 
-enum mlxsw_sp_acl_profile {
-	MLXSW_SP_ACL_PROFILE_FLOWER,
-};
-
-struct mlxsw_sp_acl_profile_ops {
-	size_t ruleset_priv_size;
-	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
-			   void *priv, void *ruleset_priv);
-	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
-	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
-			    struct mlxsw_sp_port *mlxsw_sp_port,
-			    bool ingress);
-	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
-			       struct mlxsw_sp_port *mlxsw_sp_port,
-			       bool ingress);
-	u16 (*ruleset_group_id)(void *ruleset_priv);
-	size_t (*rule_priv_size)(struct mlxsw_sp *mlxsw_sp);
-	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
-			void *ruleset_priv, void *rule_priv,
-			struct mlxsw_sp_acl_rule_info *rulei);
-	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
-	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
-				 bool *activity);
-};
-
-struct mlxsw_sp_acl_ops {
-	size_t priv_size;
-	int (*init)(struct mlxsw_sp *mlxsw_sp, void *priv);
-	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
-	const struct mlxsw_sp_acl_profile_ops *
-			(*profile_ops)(struct mlxsw_sp *mlxsw_sp,
-				       enum mlxsw_sp_acl_profile profile);
-};
-
 struct mlxsw_sp_acl_block;
 struct mlxsw_sp_acl_ruleset;
 
 /* spectrum_acl.c */
+enum mlxsw_sp_acl_profile {
+	MLXSW_SP_ACL_PROFILE_FLOWER,
+};
+
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
 struct mlxsw_sp *mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block);
 unsigned int mlxsw_sp_acl_block_rule_count(struct mlxsw_sp_acl_block *block);
@@ -633,10 +603,15 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
 
 /* spectrum_acl_tcam.c */
+struct mlxsw_sp_acl_tcam;
 struct mlxsw_sp_acl_tcam_region;
 
 struct mlxsw_sp_acl_tcam_ops {
 	enum mlxsw_reg_ptar_key_type key_type;
+	size_t priv_size;
+	int (*init)(struct mlxsw_sp *mlxsw_sp, void *priv,
+		    struct mlxsw_sp_acl_tcam *tcam);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
 	size_t region_priv_size;
 	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			   struct mlxsw_sp_acl_tcam_region *region);
