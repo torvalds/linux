@@ -105,7 +105,7 @@ do_test_span_vlan_dir_ips()
 	# Install the capture as skip_hw to avoid double-counting of packets.
 	# The traffic is meant for local box anyway, so will be trapped to
 	# kernel.
-	vlan_capture_install $dev "skip_hw vlan_id $vid"
+	vlan_capture_install $dev "skip_hw vlan_id $vid vlan_ethtype ip"
 	mirror_test v$h1 $ip1 $ip2 $dev 100 $expect
 	mirror_test v$h2 $ip2 $ip1 $dev 100 $expect
 	vlan_capture_uninstall $dev
