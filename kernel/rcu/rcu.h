@@ -176,8 +176,9 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
- * by call_rcu() and rcu callback execution, and are therefore not part of the
- * RCU API. Leaving in rcupdate.h because they are used by all RCU flavors.
+ * by call_rcu() and rcu callback execution, and are therefore not part
+ * of the RCU API. These are in rcupdate.h because they are used by all
+ * RCU implementations.
  */
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
@@ -328,7 +329,7 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	}
 }
 
-/* Returns first leaf rcu_node of the specified RCU flavor. */
+/* Returns a pointer to the first leaf rcu_node structure. */
 #define rcu_first_leaf_node() (rcu_state.level[rcu_num_lvls - 1])
 
 /* Is this rcu_node a leaf? */
@@ -339,7 +340,8 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 
 /*
  * Do a full breadth-first scan of the {s,}rcu_node structures for the
- * specified rcu_state structure.
+ * specified state structure (for SRCU) or the only rcu_state structure
+ * (for RCU).
  */
 #define srcu_for_each_node_breadth_first(sp, rnp) \
 	for ((rnp) = &(sp)->node[0]; \
@@ -348,10 +350,10 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	srcu_for_each_node_breadth_first(&rcu_state, rnp)
 
 /*
- * Scan the leaves of the rcu_node hierarchy for the specified rcu_state
- * structure.  Note that if there is a singleton rcu_node tree with but
- * one rcu_node structure, this loop -will- visit the rcu_node structure.
- * It is still a leaf node, even if it is also the root node.
+ * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.
+ * Note that if there is a singleton rcu_node tree with but one rcu_node
+ * structure, this loop -will- visit the rcu_node structure.  It is still
+ * a leaf node, even if it is also the root node.
  */
 #define rcu_for_each_leaf_node(rnp) \
 	for ((rnp) = rcu_first_leaf_node(); \
