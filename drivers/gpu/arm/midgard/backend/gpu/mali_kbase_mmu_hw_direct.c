@@ -14,6 +14,8 @@
  */
 
 
+/* #define ENABLE_DEBUG_LOG */
+#include "../../platform/rk/custom_log.h"
 
 #include <linux/bitops.h>
 
@@ -164,6 +166,10 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		 * the MMU is updated
 		 */
 		kctx = kbasep_js_runpool_lookup_ctx(kbdev, as_no);
+		if (!kctx) {
+			E("fail to lookup ctx, to break out.");
+			break;
+		}
 
 
 		/* find faulting address */

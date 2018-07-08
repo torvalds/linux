@@ -131,16 +131,21 @@ int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx)
 	return kctx->as_nr;
 }
 
-void kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx)
+int kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx)
 {
 	struct kbase_device *const kbdev = kctx->kbdev;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 	WARN_ON(atomic_read(&kctx->refcount) == 0);
+	if (atomic_read(&kctx->refcount) == 0)
+		return -1;
+
 	WARN_ON(kctx->as_nr == KBASEP_AS_NR_INVALID);
 	WARN_ON(kbdev->as_to_kctx[kctx->as_nr] != kctx);
 
 	atomic_inc(&kctx->refcount);
+
+	return 0;
 }
 
 void kbase_ctx_sched_release_ctx(struct kbase_context *kctx)
