@@ -650,11 +650,6 @@ static void marvell_nfc_select_chip(struct mtd_info *mtd, int die_nr)
 		return;
 	}
 
-	/*
-	 * Do not change the timing registers when using the DT property
-	 * marvell,nand-keep-config; in that case ->ndtr0 and ->ndtr1 from the
-	 * marvell_nand structure are supposedly empty.
-	 */
 	writel_relaxed(marvell_nand->ndtr0, nfc->regs + NDTR0);
 	writel_relaxed(marvell_nand->ndtr1, nfc->regs + NDTR1);
 
