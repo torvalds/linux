@@ -165,6 +165,7 @@ struct mlxsw_sp_acl_tcam_region {
 	struct parman *parman;
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_acl_tcam_group *group;
+	enum mlxsw_reg_ptar_key_type key_type;
 	u16 id; /* ACL ID and region ID - they are same */
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
 	struct mlxsw_afk_key_info *key_info;
@@ -455,6 +456,7 @@ mlxsw_sp_acl_tcam_region_alloc(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_ALLOC,
+			    region->key_type,
 			    MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT,
 			    region->id, region->tcam_region_info);
 	encodings_count = mlxsw_afk_key_info_blocks_count_get(key_info);
@@ -477,7 +479,8 @@ mlxsw_sp_acl_tcam_region_free(struct mlxsw_sp *mlxsw_sp,
 {
 	char ptar_pl[MLXSW_REG_PTAR_LEN];
 
-	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_FREE, 0, region->id,
+	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_FREE,
+			    region->key_type, 0, region->id,
 			    region->tcam_region_info);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptar), ptar_pl);
 }
@@ -490,7 +493,8 @@ mlxsw_sp_acl_tcam_region_resize(struct mlxsw_sp *mlxsw_sp,
 	char ptar_pl[MLXSW_REG_PTAR_LEN];
 
 	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_RESIZE,
-			    new_size, region->id, region->tcam_region_info);
+			    region->key_type, new_size, region->id,
+			    region->tcam_region_info);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptar), ptar_pl);
 }
 
@@ -713,6 +717,7 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_region_id_get;
 
+	region->key_type = MLXSW_REG_PTAR_KEY_TYPE_FLEX;
 	err = mlxsw_sp_acl_tcam_region_alloc(mlxsw_sp, region);
 	if (err)
 		goto err_tcam_region_alloc;
