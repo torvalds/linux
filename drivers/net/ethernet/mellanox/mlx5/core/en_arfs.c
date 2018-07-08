@@ -711,6 +711,9 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	    skb->protocol != htons(ETH_P_IPV6))
 		return -EPROTONOSUPPORT;
 
+	if (skb->encapsulation)
+		return -EPROTONOSUPPORT;
+
 	arfs_t = arfs_get_table(arfs, arfs_get_ip_proto(skb), skb->protocol);
 	if (!arfs_t)
 		return -EPROTONOSUPPORT;
