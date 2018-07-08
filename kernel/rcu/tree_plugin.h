@@ -38,8 +38,7 @@
 #include "../locking/rtmutex_common.h"
 
 /*
- * Control variables for per-CPU and per-rcu_node kthreads.  These
- * handle all flavors of RCU.
+ * Control variables for per-CPU and per-rcu_node kthreads.
  */
 static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -826,8 +825,8 @@ static void rcu_flavor_check_callbacks(int user)
  *
  * Note that this guarantee implies further memory-ordering guarantees.
  * On systems with more than one CPU, when synchronize_rcu() returns,
- * each CPU is guaranteed to have executed a full memory barrier since the
- * end of its last RCU-sched read-side critical section whose beginning
+ * each CPU is guaranteed to have executed a full memory barrier since
+ * the end of its last RCU read-side critical section whose beginning
  * preceded the call to synchronize_rcu().  In addition, each CPU having
  * an RCU read-side critical section that extends beyond the return from
  * synchronize_rcu() is guaranteed to have executed a full memory barrier
@@ -1069,7 +1068,7 @@ void synchronize_rcu(void)
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_rcu() in RCU-sched read-side critical section");
+			 "Illegal synchronize_rcu() in RCU read-side critical section");
 	if (rcu_blocking_is_gp())
 		return;
 	if (rcu_gp_is_expedited())
@@ -1341,9 +1340,9 @@ static int rcu_cpu_kthread_should_run(unsigned int cpu)
 }
 
 /*
- * Per-CPU kernel thread that invokes RCU callbacks.  This replaces the
- * RCU softirq used in flavors and configurations of RCU that do not
- * support RCU priority boosting.
+ * Per-CPU kernel thread that invokes RCU callbacks.  This replaces
+ * the RCU softirq used in configurations of RCU that do not support RCU
+ * priority boosting.
  */
 static void rcu_cpu_kthread(unsigned int cpu)
 {
@@ -1484,8 +1483,8 @@ static void rcu_prepare_kthreads(int cpu)
  * 1 if so.  This function is part of the RCU implementation; it is -not-
  * an exported member of the RCU API.
  *
- * Because we not have RCU_FAST_NO_HZ, just check whether this CPU needs
- * any flavor of RCU.
+ * Because we not have RCU_FAST_NO_HZ, just check whether or not this
+ * CPU has RCU callbacks queued.
  */
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
@@ -1551,9 +1550,9 @@ static int rcu_idle_lazy_gp_delay = RCU_IDLE_LAZY_GP_DELAY;
 module_param(rcu_idle_lazy_gp_delay, int, 0644);
 
 /*
- * Try to advance callbacks for all flavors of RCU on the current CPU, but
- * only if it has been awhile since the last time we did so.  Afterwards,
- * if there are any callbacks ready for immediate invocation, return true.
+ * Try to advance callbacks on the current CPU, but only if it has been
+ * awhile since the last time we did so.  Afterwards, if there are any
+ * callbacks ready for immediate invocation, return true.
  */
 static bool __maybe_unused rcu_try_advance_all_cbs(void)
 {
@@ -1808,7 +1807,7 @@ static void print_cpu_stall_info_end(void)
 	pr_err("\t");
 }
 
-/* Zero ->ticks_this_gp for all flavors of RCU. */
+/* Zero ->ticks_this_gp and snapshot the number of RCU softirq handlers. */
 static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 {
 	rdp->ticks_this_gp = 0;
@@ -1939,7 +1938,7 @@ static void wake_nocb_leader_defer(struct rcu_data *rdp, int waketype,
 }
 
 /*
- * Does the specified CPU need an RCU callback for the specified flavor
+ * Does the specified CPU need an RCU callback for this invocation
  * of rcu_barrier()?
  */
 static bool rcu_nocb_cpu_needs_barrier(int cpu)
@@ -2419,9 +2418,8 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 
 /*
  * If the specified CPU is a no-CBs CPU that does not already have its
- * rcuo kthread for the specified RCU flavor, spawn it.  If the CPUs are
- * brought online out of order, this can require re-organizing the
- * leader-follower relationships.
+ * rcuo kthread, spawn it.  If the CPUs are brought online out of order,
+ * this can require re-organizing the leader-follower relationships.
  */
 static void rcu_spawn_one_nocb_kthread(int cpu)
 {
@@ -2458,7 +2456,7 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 		rdp_spawn->nocb_next_follower = rdp_old_leader;
 	}
 
-	/* Spawn the kthread for this CPU and RCU flavor. */
+	/* Spawn the kthread for this CPU. */
 	t = kthread_run(rcu_nocb_kthread, rdp_spawn,
 			"rcuo%c/%d", rcu_state.abbr, cpu);
 	BUG_ON(IS_ERR(t));
