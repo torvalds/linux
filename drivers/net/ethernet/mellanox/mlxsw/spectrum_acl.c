@@ -48,6 +48,7 @@
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
 #include "core_acl_flex_actions.h"
+#include "spectrum_acl_tcam.h"
 #include "spectrum_acl_flex_keys.h"
 
 struct mlxsw_sp_acl {
@@ -634,7 +635,8 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_sp_acl_ruleset_ref_inc(ruleset);
-	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size, GFP_KERNEL);
+	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size(mlxsw_sp),
+		       GFP_KERNEL);
 	if (!rule) {
 		err = -ENOMEM;
 		goto err_alloc;

@@ -1,0 +1,103 @@
+/*
+ * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_tcam.h
+ * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Jiri Pirko <jiri@mellanox.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the names of the copyright holders nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#ifndef _MLXSW_SPECTRUM_ACL_TCAM_H
+#define _MLXSW_SPECTRUM_ACL_TCAM_H
+
+#include <linux/list.h>
+#include <linux/parman.h>
+
+#include "reg.h"
+#include "spectrum.h"
+#include "core_acl_flex_keys.h"
+
+extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
+
+#define MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT 16
+#define MLXSW_SP_ACL_TCAM_REGION_RESIZE_STEP 16
+
+#define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
+
+struct mlxsw_sp_acl_tcam_group;
+
+struct mlxsw_sp_acl_tcam_region {
+	struct list_head list; /* Member of a TCAM group */
+	struct list_head chunk_list; /* List of chunks under this region */
+	struct mlxsw_sp_acl_tcam_group *group;
+	enum mlxsw_reg_ptar_key_type key_type;
+	u16 id; /* ACL ID and region ID - they are same */
+	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
+	struct mlxsw_afk_key_info *key_info;
+	struct mlxsw_sp *mlxsw_sp;
+	unsigned long priv[0];
+	/* priv has to be always the last item */
+};
+
+struct mlxsw_sp_acl_ctcam_region {
+	struct parman *parman;
+	struct mlxsw_sp_acl_tcam_region *region;
+};
+
+struct mlxsw_sp_acl_ctcam_chunk {
+	struct parman_prio parman_prio;
+};
+
+struct mlxsw_sp_acl_ctcam_entry {
+	struct parman_item parman_item;
+};
+
+int mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_ctcam_region *cregion,
+				   struct mlxsw_sp_acl_tcam_region *region);
+void mlxsw_sp_acl_ctcam_region_fini(struct mlxsw_sp_acl_ctcam_region *cregion);
+void mlxsw_sp_acl_ctcam_chunk_init(struct mlxsw_sp_acl_ctcam_region *cregion,
+				   struct mlxsw_sp_acl_ctcam_chunk *cchunk,
+				   unsigned int priority);
+void mlxsw_sp_acl_ctcam_chunk_fini(struct mlxsw_sp_acl_ctcam_chunk *cchunk);
+int mlxsw_sp_acl_ctcam_entry_add(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_ctcam_region *cregion,
+				 struct mlxsw_sp_acl_ctcam_chunk *cchunk,
+				 struct mlxsw_sp_acl_ctcam_entry *centry,
+				 struct mlxsw_sp_acl_rule_info *rulei);
+void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_ctcam_region *cregion,
+				  struct mlxsw_sp_acl_ctcam_chunk *cchunk,
+				  struct mlxsw_sp_acl_ctcam_entry *centry);
+static inline unsigned int
+mlxsw_sp_acl_ctcam_entry_offset(struct mlxsw_sp_acl_ctcam_entry *centry)
+{
+	return centry->parman_item.index;
+}
+
+#endif

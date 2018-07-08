@@ -147,6 +147,7 @@ struct mlxsw_sp_fid_core;
 struct mlxsw_sp_kvdl;
 struct mlxsw_sp_kvdl_ops;
 struct mlxsw_sp_mr_tcam_ops;
+struct mlxsw_sp_acl_tcam_ops;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -173,6 +174,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
+	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -517,7 +519,7 @@ struct mlxsw_sp_acl_profile_ops {
 			       struct mlxsw_sp_port *mlxsw_sp_port,
 			       bool ingress);
 	u16 (*ruleset_group_id)(void *ruleset_priv);
-	size_t rule_priv_size;
+	size_t (*rule_priv_size)(struct mlxsw_sp *mlxsw_sp);
 	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);
@@ -631,7 +633,33 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
 
 /* spectrum_acl_tcam.c */
-extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
+struct mlxsw_sp_acl_tcam_region;
+
+struct mlxsw_sp_acl_tcam_ops {
+	enum mlxsw_reg_ptar_key_type key_type;
+	size_t region_priv_size;
+	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
+			   struct mlxsw_sp_acl_tcam_region *region);
+	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
+	size_t chunk_priv_size;
+	void (*chunk_init)(void *region_priv, void *chunk_priv,
+			   unsigned int priority);
+	void (*chunk_fini)(void *chunk_priv);
+	size_t entry_priv_size;
+	int (*entry_add)(struct mlxsw_sp *mlxsw_sp,
+			 void *region_priv, void *chunk_priv,
+			 void *entry_priv,
+			 struct mlxsw_sp_acl_rule_info *rulei);
+	void (*entry_del)(struct mlxsw_sp *mlxsw_sp,
+			  void *region_priv, void *chunk_priv,
+			  void *entry_priv);
+	int (*entry_activity_get)(struct mlxsw_sp *mlxsw_sp,
+				  void *region_priv, void *entry_priv,
+				  bool *activity);
+};
+
+/* spectrum1_acl_tcam.c */
+extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops;
 
 /* spectrum_acl_flex_actions.c */
 extern const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops;
