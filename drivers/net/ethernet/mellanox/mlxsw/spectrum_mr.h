@@ -46,15 +46,6 @@ enum mlxsw_sp_mr_route_action {
 	MLXSW_SP_MR_ROUTE_ACTION_TRAP_AND_FORWARD,
 };
 
-enum mlxsw_sp_mr_route_prio {
-	MLXSW_SP_MR_ROUTE_PRIO_SG,
-	MLXSW_SP_MR_ROUTE_PRIO_STARG,
-	MLXSW_SP_MR_ROUTE_PRIO_CATCHALL,
-	__MLXSW_SP_MR_ROUTE_PRIO_MAX
-};
-
-#define MLXSW_SP_MR_ROUTE_PRIO_MAX (__MLXSW_SP_MR_ROUTE_PRIO_MAX - 1)
-
 struct mlxsw_sp_mr_route_key {
 	int vrid;
 	enum mlxsw_sp_l3proto proto;
@@ -101,7 +92,7 @@ struct mlxsw_sp_mr_ops {
 			      u16 erif_index);
 	void (*route_destroy)(struct mlxsw_sp *mlxsw_sp, void *priv,
 			      void *route_priv);
-	void (*fini)(void *priv);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
 };
 
 struct mlxsw_sp_mr;

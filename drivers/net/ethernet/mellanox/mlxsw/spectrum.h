@@ -146,6 +146,7 @@ struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
 struct mlxsw_sp_kvdl;
 struct mlxsw_sp_kvdl_ops;
+struct mlxsw_sp_mr_tcam_ops;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -171,6 +172,7 @@ struct mlxsw_sp {
 	} span;
 	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
+	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -680,5 +682,38 @@ int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp);
+
+/* spectrum_mr.c */
+enum mlxsw_sp_mr_route_prio {
+	MLXSW_SP_MR_ROUTE_PRIO_SG,
+	MLXSW_SP_MR_ROUTE_PRIO_STARG,
+	MLXSW_SP_MR_ROUTE_PRIO_CATCHALL,
+	__MLXSW_SP_MR_ROUTE_PRIO_MAX
+};
+
+#define MLXSW_SP_MR_ROUTE_PRIO_MAX (__MLXSW_SP_MR_ROUTE_PRIO_MAX - 1)
+
+struct mlxsw_sp_mr_route_key;
+
+struct mlxsw_sp_mr_tcam_ops {
+	size_t priv_size;
+	int (*init)(struct mlxsw_sp *mlxsw_sp, void *priv);
+	void (*fini)(void *priv);
+	size_t route_priv_size;
+	int (*route_create)(struct mlxsw_sp *mlxsw_sp, void *priv,
+			    void *route_priv,
+			    struct mlxsw_sp_mr_route_key *key,
+			    struct mlxsw_afa_block *afa_block,
+			    enum mlxsw_sp_mr_route_prio prio);
+	void (*route_destroy)(struct mlxsw_sp *mlxsw_sp, void *priv,
+			      void *route_priv,
+			      struct mlxsw_sp_mr_route_key *key);
+	int (*route_update)(struct mlxsw_sp *mlxsw_sp, void *route_priv,
+			    struct mlxsw_sp_mr_route_key *key,
+			    struct mlxsw_afa_block *afa_block);
+};
+
+/* spectrum1_mr_tcam.c */
+extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp1_mr_tcam_ops;
 
 #endif
