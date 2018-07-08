@@ -601,8 +601,8 @@ static void wait_rcu_exp_gp(struct work_struct *wp)
 }
 
 /*
- * Given an rcu_state pointer and a smp_call_function() handler, kick
- * off the specified flavor of expedited grace period.
+ * Given a smp_call_function() handler, kick off the specified
+ * implementation of expedited grace period.
  */
 static void _synchronize_rcu_expedited(smp_call_func_t func)
 {
@@ -721,7 +721,7 @@ static void sync_rcu_exp_handler(void *unused)
 		resched_cpu(rdp->cpu);
 }
 
-/* PREEMPT=y, so no RCU-sched to clean up after. */
+/* PREEMPT=y, so no PREEMPT=n expedited grace period to clean up after. */
 static void sync_sched_exp_online_cleanup(int cpu)
 {
 }
@@ -798,13 +798,13 @@ static void sync_sched_exp_online_cleanup(int cpu)
 }
 
 /*
- * Because a context switch is a grace period for RCU-sched, any blocking
- * grace-period wait automatically implies a grace period if there
- * is only one CPU online at any point time during execution of either
- * synchronize_sched() or synchronize_rcu_bh().  It is OK to occasionally
- * incorrectly indicate that there are multiple CPUs online when there
- * was in fact only one the whole time, as this just adds some overhead:
- * RCU still operates correctly.
+ * Because a context switch is a grace period for !PREEMPT, any
+ * blocking grace-period wait automatically implies a grace period if
+ * there is only one CPU online at any point time during execution of
+ * either synchronize_rcu() or synchronize_rcu_expedited().  It is OK to
+ * occasionally incorrectly indicate that there are multiple CPUs online
+ * when there was in fact only one the whole time, as this just adds some
+ * overhead: RCU still operates correctly.
  */
 static int rcu_blocking_is_gp(void)
 {
@@ -823,7 +823,7 @@ void synchronize_rcu_expedited(void)
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_sched_expedited() in RCU read-side critical section");
+			 "Illegal synchronize_rcu_expedited() in RCU read-side critical section");
 
 	/* If only one CPU, this is automatically a grace period. */
 	if (rcu_blocking_is_gp())
