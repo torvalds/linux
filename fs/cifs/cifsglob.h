@@ -423,7 +423,7 @@ struct smb_version_operations {
 	void (*set_oplock_level)(struct cifsInodeInfo *, __u32, unsigned int,
 				 bool *);
 	/* create lease context buffer for CREATE request */
-	char * (*create_lease_buf)(u8 *, u8);
+	char * (*create_lease_buf)(u8 *lease_key, u8 oplock);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *buf, unsigned int *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
@@ -1416,6 +1416,7 @@ typedef int (mid_handle_t)(struct TCP_Server_Info *server,
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
+	struct kref refcount;
 	struct TCP_Server_Info *server;	/* server corresponding to this mid */
 	__u64 mid;		/* multiplex id */
 	__u32 pid;		/* process id */

@@ -61,6 +61,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 
 	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
 	memset(temp, 0, sizeof(struct mid_q_entry));
+	kref_init(&temp->refcount);
 	temp->mid = get_mid(smb_buffer);
 	temp->pid = current->pid;
 	temp->command = cpu_to_le16(smb_buffer->Command);
@@ -80,6 +81,21 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	atomic_inc(&midCount);
 	temp->mid_state = MID_REQUEST_ALLOCATED;
 	return temp;
+}
+
+static void _cifs_mid_q_entry_release(struct kref *refcount)
+{
+	struct mid_q_entry *mid = container_of(refcount, struct mid_q_entry,
+					       refcount);
+
+	mempool_free(mid, cifs_mid_poolp);
+}
+
+void cifs_mid_q_entry_release(struct mid_q_entry *midEntry)
+{
+	spin_lock(&GlobalMid_Lock);
+	kref_put(&midEntry->refcount, _cifs_mid_q_entry_release);
+	spin_unlock(&GlobalMid_Lock);
 }
 
 void
@@ -110,7 +126,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		}
 	}
 #endif
-	mempool_free(midEntry, cifs_mid_poolp);
+	cifs_mid_q_entry_release(midEntry);
 }
 
 void
@@ -202,14 +218,15 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 }
 
 unsigned long
-smb2_rqst_len(struct smb_rqst *rqst, bool skip_rfc1002_marker)
+smb_rqst_len(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	unsigned int i;
 	struct kvec *iov;
 	int nvec;
 	unsigned long buflen = 0;
 
-	if (skip_rfc1002_marker && rqst->rq_iov[0].iov_len == 4) {
+	if (server->vals->header_preamble_size == 0 &&
+	    rqst->rq_nvec >= 2 && rqst->rq_iov[0].iov_len == 4) {
 		iov = &rqst->rq_iov[1];
 		nvec = rqst->rq_nvec - 1;
 	} else {
@@ -260,7 +277,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	__be32 rfc1002_marker;
 
 	if (cifs_rdma_enabled(server) && server->smbd_conn) {
-		rc = smbd_send(server->smbd_conn, rqst);
+		rc = smbd_send(server, rqst);
 		goto smbd_done;
 	}
 	if (ssocket == NULL)
@@ -271,7 +288,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 				(char *)&val, sizeof(val));
 
 	for (j = 0; j < num_rqst; j++)
-		send_length += smb2_rqst_len(&rqst[j], true);
+		send_length += smb_rqst_len(server, &rqst[j]);
 	rfc1002_marker = cpu_to_be32(send_length);
 
 	/* Generate a rfc1002 marker for SMB2+ */
