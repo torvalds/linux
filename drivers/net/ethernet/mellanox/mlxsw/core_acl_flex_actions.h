@@ -54,6 +54,7 @@ struct mlxsw_afa_ops {
 			  bool ingress, int *p_span_id);
 	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
 			   bool ingress);
+	bool dummy_first_set;
 };
 
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
@@ -64,7 +65,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa);
 void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_commit(struct mlxsw_afa_block *block);
 char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
-u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block);
+u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
 int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block);

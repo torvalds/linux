@@ -351,9 +351,24 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 	block->first_set = mlxsw_afa_set_create(true);
 	if (!block->first_set)
 		goto err_first_set_create;
-	block->cur_set = block->first_set;
+
+	/* In case user instructs to have dummy first set, we leave it
+	 * empty here and create another, real, set right away.
+	 */
+	if (mlxsw_afa->ops->dummy_first_set) {
+		block->cur_set = mlxsw_afa_set_create(false);
+		if (!block->cur_set)
+			goto err_second_set_create;
+		block->cur_set->prev = block->first_set;
+		block->first_set->next = block->cur_set;
+	} else {
+		block->cur_set = block->first_set;
+	}
+
 	return block;
 
+err_second_set_create:
+	mlxsw_afa_set_destroy(block->first_set);
 err_first_set_create:
 	kfree(block);
 	return NULL;
@@ -415,11 +430,16 @@ char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set);
 
-u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block)
+u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block)
 {
-	return block->first_set->kvdl_index;
+	/* First set is never in KVD linear. So the first set
+	 * with valid KVD linear index is always the second one.
+	 */
+	if (WARN_ON(!block->first_set->next))
+		return 0;
+	return block->first_set->next->kvdl_index;
 }
-EXPORT_SYMBOL(mlxsw_afa_block_first_set_kvdl_index);
+EXPORT_SYMBOL(mlxsw_afa_block_first_kvdl_index);
 
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 {

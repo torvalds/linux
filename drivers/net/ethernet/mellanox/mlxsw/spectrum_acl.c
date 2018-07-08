@@ -487,7 +487,7 @@ int mlxsw_sp_acl_rulei_commit(struct mlxsw_sp_acl_rule_info *rulei)
 void mlxsw_sp_acl_rulei_priority(struct mlxsw_sp_acl_rule_info *rulei,
 				 unsigned int priority)
 {
-	rulei->priority = priority;
+	rulei->priority = priority >> 16;
 }
 
 void mlxsw_sp_acl_rulei_keymask_u32(struct mlxsw_sp_acl_rule_info *rulei,
@@ -837,8 +837,8 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	acl->mlxsw_sp = mlxsw_sp;
 	acl->afk = mlxsw_afk_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						       ACL_FLEX_KEYS),
-				    mlxsw_sp_afk_blocks,
-				    MLXSW_SP_AFK_BLOCKS_COUNT);
+				    mlxsw_sp1_afk_blocks,
+				    MLXSW_SP1_AFK_BLOCKS_COUNT);
 	if (!acl->afk) {
 		err = -ENOMEM;
 		goto err_afk_create;

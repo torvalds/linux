@@ -154,7 +154,7 @@ mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
 }
 
-static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
+const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
@@ -169,7 +169,7 @@ int mlxsw_sp_afa_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->afa = mlxsw_afa_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 							    ACL_ACTIONS_PER_SET),
-					 &mlxsw_sp_act_afa_ops, mlxsw_sp);
+					 mlxsw_sp->afa_ops, mlxsw_sp);
 	return PTR_ERR_OR_ZERO(mlxsw_sp->afa);
 }
 

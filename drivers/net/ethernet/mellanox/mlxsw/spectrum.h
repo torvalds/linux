@@ -168,6 +168,7 @@ struct mlxsw_sp {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
 	} span;
+	const struct mlxsw_afa_ops *afa_ops;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -583,6 +584,9 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
 
 /* spectrum_acl_tcam.c */
 extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
+
+/* spectrum_acl_flex_actions.c */
+extern const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
