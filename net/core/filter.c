@@ -1762,6 +1762,37 @@ static const struct bpf_func_proto bpf_skb_pull_data_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static inline int sk_skb_try_make_writable(struct sk_buff *skb,
+					   unsigned int write_len)
+{
+	int err = __bpf_try_make_writable(skb, write_len);
+
+	bpf_compute_data_end_sk_skb(skb);
+	return err;
+}
+
+BPF_CALL_2(sk_skb_pull_data, struct sk_buff *, skb, u32, len)
+{
+	/* Idea is the following: should the needed direct read/write
+	 * test fail during runtime, we can pull in more data and redo
+	 * again, since implicitly, we invalidate previous checks here.
+	 *
+	 * Or, since we know how much we need to make read/writeable,
+	 * this can be done once at the program beginning for direct
+	 * access case. By this we overcome limitations of only current
+	 * headroom being accessible.
+	 */
+	return sk_skb_try_make_writable(skb, len ? : skb_headlen(skb));
+}
+
+static const struct bpf_func_proto sk_skb_pull_data_proto = {
+	.func		= sk_skb_pull_data,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+
 BPF_CALL_5(bpf_l3_csum_replace, struct sk_buff *, skb, u32, offset,
 	   u64, from, u64, to, u64, flags)
 {
@@ -2779,7 +2810,8 @@ static int bpf_skb_net_shrink(struct sk_buff *skb, u32 len_diff)
 
 static u32 __bpf_skb_max_len(const struct sk_buff *skb)
 {
-	return skb->dev->mtu + skb->dev->hard_header_len;
+	return skb->dev ? skb->dev->mtu + skb->dev->hard_header_len :
+			  SKB_MAX_ALLOC;
 }
 
 static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
@@ -2863,8 +2895,8 @@ static int bpf_skb_trim_rcsum(struct sk_buff *skb, unsigned int new_len)
 	return __skb_trim_rcsum(skb, new_len);
 }
 
-BPF_CALL_3(bpf_skb_change_tail, struct sk_buff *, skb, u32, new_len,
-	   u64, flags)
+static inline int __bpf_skb_change_tail(struct sk_buff *skb, u32 new_len,
+					u64 flags)
 {
 	u32 max_len = __bpf_skb_max_len(skb);
 	u32 min_len = __bpf_skb_min_len(skb);
@@ -2900,6 +2932,13 @@ BPF_CALL_3(bpf_skb_change_tail, struct sk_buff *, skb, u32, new_len,
 		if (!ret && skb_is_gso(skb))
 			skb_gso_reset(skb);
 	}
+	return ret;
+}
+
+BPF_CALL_3(bpf_skb_change_tail, struct sk_buff *, skb, u32, new_len,
+	   u64, flags)
+{
+	int ret = __bpf_skb_change_tail(skb, new_len, flags);
 
 	bpf_compute_data_pointers(skb);
 	return ret;
@@ -2914,8 +2953,26 @@ static const struct bpf_func_proto bpf_skb_change_tail_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_skb_change_head, struct sk_buff *, skb, u32, head_room,
+BPF_CALL_3(sk_skb_change_tail, struct sk_buff *, skb, u32, new_len,
 	   u64, flags)
+{
+	int ret = __bpf_skb_change_tail(skb, new_len, flags);
+
+	bpf_compute_data_end_sk_skb(skb);
+	return ret;
+}
+
+static const struct bpf_func_proto sk_skb_change_tail_proto = {
+	.func		= sk_skb_change_tail,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+static inline int __bpf_skb_change_head(struct sk_buff *skb, u32 head_room,
+					u64 flags)
 {
 	u32 max_len = __bpf_skb_max_len(skb);
 	u32 new_len = skb->len + head_room;
@@ -2941,8 +2998,16 @@ BPF_CALL_3(bpf_skb_change_head, struct sk_buff *, skb, u32, head_room,
 		skb_reset_mac_header(skb);
 	}
 
+	return ret;
+}
+
+BPF_CALL_3(bpf_skb_change_head, struct sk_buff *, skb, u32, head_room,
+	   u64, flags)
+{
+	int ret = __bpf_skb_change_head(skb, head_room, flags);
+
 	bpf_compute_data_pointers(skb);
-	return 0;
+	return ret;
 }
 
 static const struct bpf_func_proto bpf_skb_change_head_proto = {
@@ -2954,6 +3019,23 @@ static const struct bpf_func_proto bpf_skb_change_head_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
+BPF_CALL_3(sk_skb_change_head, struct sk_buff *, skb, u32, head_room,
+	   u64, flags)
+{
+	int ret = __bpf_skb_change_head(skb, head_room, flags);
+
+	bpf_compute_data_end_sk_skb(skb);
+	return ret;
+}
+
+static const struct bpf_func_proto sk_skb_change_head_proto = {
+	.func		= sk_skb_change_head,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+};
 static unsigned long xdp_get_metalen(const struct xdp_buff *xdp)
 {
 	return xdp_data_meta_unsupported(xdp) ? 0 :
@@ -3046,11 +3128,15 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			u32 index)
 {
 	struct xdp_frame *xdpf;
-	int sent;
+	int err, sent;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
 	}
+
+	err = xdp_ok_fwd_dev(dev, xdp->data_end - xdp->data);
+	if (unlikely(err))
+		return err;
 
 	xdpf = convert_to_xdp_frame(xdp);
 	if (unlikely(!xdpf))
@@ -3285,7 +3371,8 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 		goto err;
 	}
 
-	if (unlikely((err = __xdp_generic_ok_fwd_dev(skb, fwd))))
+	err = xdp_ok_fwd_dev(fwd, skb->len);
+	if (unlikely(err))
 		goto err;
 
 	skb->dev = fwd;
@@ -4617,9 +4704,12 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_skb_store_bytes ||
 	    func == bpf_skb_change_proto ||
 	    func == bpf_skb_change_head ||
+	    func == sk_skb_change_head ||
 	    func == bpf_skb_change_tail ||
+	    func == sk_skb_change_tail ||
 	    func == bpf_skb_adjust_room ||
 	    func == bpf_skb_pull_data ||
+	    func == sk_skb_pull_data ||
 	    func == bpf_clone_redirect ||
 	    func == bpf_l3_csum_replace ||
 	    func == bpf_l4_csum_replace ||
@@ -4871,11 +4961,11 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
 	case BPF_FUNC_skb_pull_data:
-		return &bpf_skb_pull_data_proto;
+		return &sk_skb_pull_data_proto;
 	case BPF_FUNC_skb_change_tail:
-		return &bpf_skb_change_tail_proto;
+		return &sk_skb_change_tail_proto;
 	case BPF_FUNC_skb_change_head:
-		return &bpf_skb_change_head_proto;
+		return &sk_skb_change_head_proto;
 	case BPF_FUNC_get_socket_cookie:
 		return &bpf_get_socket_cookie_proto;
 	case BPF_FUNC_get_socket_uid:
