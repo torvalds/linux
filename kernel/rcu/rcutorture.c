@@ -1221,7 +1221,7 @@ static void rcutorture_loop_extend(int *readstate,
 
 	WARN_ON_ONCE(!*readstate); /* -Existing- RCU read-side critsect! */
 	if (!((mask - 1) & mask))
-		return;  /* Current RCU flavor not extendable. */
+		return;  /* Current RCU reader not extendable. */
 	i = (torture_random(trsp) >> 3) & RCUTORTURE_RDR_MAX_LOOPS;
 	while (i--) {
 		mask = rcutorture_extend_mask(*readstate, trsp);
@@ -1790,7 +1790,7 @@ rcu_torture_cleanup(void)
 		cpuhp_remove_state(rcutor_hp);
 
 	/*
-	 * Wait for all RCU callbacks to fire, then do flavor-specific
+	 * Wait for all RCU callbacks to fire, then do torture-type-specific
 	 * cleanup operations.
 	 */
 	if (cur_ops->cb_barrier != NULL)
