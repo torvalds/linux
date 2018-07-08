@@ -215,6 +215,7 @@ int uverbs_destroy_def_handler(struct ib_device *ib_dev,
 {
 	return 0;
 }
+EXPORT_SYMBOL(uverbs_destroy_def_handler);
 
 void create_udata(struct uverbs_attr_bundle *ctx, struct ib_udata *udata)
 {

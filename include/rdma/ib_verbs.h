@@ -4146,4 +4146,7 @@ void rdma_roce_rescan_device(struct ib_device *ibdev);
 
 struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile);
 
+int uverbs_destroy_def_handler(struct ib_device *ib_dev,
+			       struct ib_uverbs_file *file,
+			       struct uverbs_attr_bundle *attrs);
 #endif /* IB_VERBS_H */

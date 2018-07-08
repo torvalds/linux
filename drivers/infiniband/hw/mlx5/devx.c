@@ -682,13 +682,6 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_DESTROY)(struct ib_device *ib_dev,
-				    struct ib_uverbs_file *file,
-				    struct uverbs_attr_bundle *attrs)
-{
-	return 0;
-}
-
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(struct ib_device *ib_dev,
 				   struct ib_uverbs_file *file,
 				   struct uverbs_attr_bundle *attrs)
@@ -961,13 +954,6 @@ err_obj_free:
 	return err;
 }
 
-static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_DEREG)(struct ib_device *ib_dev,
-				   struct ib_uverbs_file *file,
-				   struct uverbs_attr_bundle *attrs)
-{
-	return 0;
-}
-
 static int devx_umem_cleanup(struct ib_uobject *uobject,
 			     enum rdma_remove_reason why)
 {
@@ -1003,7 +989,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 			    UVERBS_ATTR_TYPE(u32),
 			    UA_MANDATORY));
 
-DECLARE_UVERBS_NAMED_METHOD(
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DEVX_UMEM_DEREG,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_UMEM_DEREG_HANDLE,
 			MLX5_IB_OBJECT_DEVX_UMEM,
@@ -1056,7 +1042,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 		UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_out_cmd_hdr)),
 		UA_MANDATORY));
 
-DECLARE_UVERBS_NAMED_METHOD(
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DEVX_OBJ_DESTROY,
 	UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_DESTROY_HANDLE,
 			MLX5_IB_OBJECT_DEVX_OBJ,
