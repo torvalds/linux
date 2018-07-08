@@ -73,9 +73,9 @@ int rtw_get_bit_value_from_ieee_value(u8 val)
 	return 0;
 }
 
-uint	rtw_is_cckrates_included(u8 *rate)
+uint rtw_is_cckrates_included(u8 *rate)
 {
-	u32	i = 0;
+	u32 i = 0;
 
 	while (rate[i] != 0) {
 		if  ((((rate[i]) & 0x7f) == 2) || (((rate[i]) & 0x7f) == 4) ||
@@ -86,7 +86,7 @@ uint	rtw_is_cckrates_included(u8 *rate)
 	return false;
 }
 
-uint	rtw_is_cckratesonly_included(u8 *rate)
+uint rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
@@ -212,9 +212,9 @@ uint rtw_get_rateset_len(u8 *rateset)
 
 int rtw_generate_ie(struct registry_priv *pregistrypriv)
 {
-	u8	wireless_mode;
-	int	rateLen;
-	uint    sz = 0;
+	u8 wireless_mode;
+	int rateLen;
+	uint sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->ies;
 
