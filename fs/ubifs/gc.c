@@ -483,7 +483,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 			/*
 			 * Write buffers must be sync'd before unmapping
 			 * freeable LEBs, because one of them may contain data
-			 * which obsoletes something in 'lp->pnum'.
+			 * which obsoletes something in 'lp->lnum'.
 			 */
 			err = gc_sync_wbufs(c);
 			if (err)
