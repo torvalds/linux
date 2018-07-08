@@ -24,6 +24,10 @@
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
 
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+#include "mtk_hnat/nf_hnat_mtk.h"
+#endif
+
 #include "mtk_eth_soc.h"
 
 static int mtk_msg_level = -1;
@@ -699,6 +703,11 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 		return -ENOMEM;
 
 	/* set the forward port */
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+	if (HNAT_SKB_CB2(skb)->magic == 0x78681415)
+		fport |= 0x4 << TX_DMA_FPORT_SHIFT;
+	else
+#endif
 	fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
 	txd4 |= fport;
 
@@ -1063,6 +1072,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		    RX_DMA_VID(trxd.rxd3))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       RX_DMA_VID(trxd.rxd3));
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+		*(u32 *)(skb->head) = trxd.rxd4;
+		skb_hnat_alg(skb) = 0;
+#endif
 		skb_record_rx_queue(skb, 0);
 		napi_gro_receive(napi, skb);
 
@@ -2000,6 +2013,12 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	val = mtk_r32(eth, MTK_CDMP_IG_CTRL);
 	mtk_w32(eth, val | MTK_CDMP_STAG_EN, MTK_CDMP_IG_CTRL);
 
+	/* Indicates CDM to parse the MTK special tag from CPU
+	 * which also is working out for untag packets.
+	 */
+	val = mtk_r32(eth, MTK_CDMQ_IG_CTRL);
+	mtk_w32(eth, val | MTK_CDMQ_STAG_EN, MTK_CDMQ_IG_CTRL);
+
 	/* Enable RX VLan Offloading */
 	if (MTK_HW_FEATURES & NETIF_F_HW_VLAN_CTAG_RX)
 		mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
@@ -2032,6 +2051,9 @@ static int mtk_hw_init(struct mtk_eth *eth)
 
 		/* Enable RX checksum */
 		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
+
+        /* Enable special tag */
+        val |= BIT(24);
 
 		/* setup the mac dma */
 		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));

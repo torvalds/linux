@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_NET_MEDIATEK_SOC)			+= mtk_eth_soc.o
+obj-$(CONFIG_NET_MEDIATEK_HNAT)			+= mtk_hnat/
