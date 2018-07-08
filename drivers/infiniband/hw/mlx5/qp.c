@@ -563,32 +563,21 @@ static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
 }
 
 static int alloc_bfreg(struct mlx5_ib_dev *dev,
-		       struct mlx5_bfreg_info *bfregi,
-		       enum mlx5_ib_latency_class lat)
+		       struct mlx5_bfreg_info *bfregi)
 {
-	int bfregn = -EINVAL;
+	int bfregn = -ENOMEM;
 
 	mutex_lock(&bfregi->lock);
-	switch (lat) {
-	case MLX5_IB_LATENCY_CLASS_LOW:
+	if (bfregi->ver >= 2) {
+		bfregn = alloc_high_class_bfreg(dev, bfregi);
+		if (bfregn < 0)
+			bfregn = alloc_med_class_bfreg(dev, bfregi);
+	}
+
+	if (bfregn < 0) {
 		BUILD_BUG_ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
 		bfregn = 0;
 		bfregi->count[bfregn]++;
-		break;
-
-	case MLX5_IB_LATENCY_CLASS_MEDIUM:
-		if (bfregi->ver < 2)
-			bfregn = -ENOMEM;
-		else
-			bfregn = alloc_med_class_bfreg(dev, bfregi);
-		break;
-
-	case MLX5_IB_LATENCY_CLASS_HIGH:
-		if (bfregi->ver < 2)
-			bfregn = -ENOMEM;
-		else
-			bfregn = alloc_high_class_bfreg(dev, bfregi);
-		break;
 	}
 	mutex_unlock(&bfregi->lock);
 
@@ -822,21 +811,9 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		bfregn = MLX5_CROSS_CHANNEL_BFREG;
 	}
 	else {
-		bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_HIGH);
-		if (bfregn < 0) {
-			mlx5_ib_dbg(dev, "failed to allocate low latency BFREG\n");
-			mlx5_ib_dbg(dev, "reverting to medium latency\n");
-			bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_MEDIUM);
-			if (bfregn < 0) {
-				mlx5_ib_dbg(dev, "failed to allocate medium latency BFREG\n");
-				mlx5_ib_dbg(dev, "reverting to high latency\n");
-				bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_LOW);
-				if (bfregn < 0) {
-					mlx5_ib_warn(dev, "bfreg allocation failed\n");
-					return bfregn;
-				}
-			}
-		}
+		bfregn = alloc_bfreg(dev, &context->bfregi);
+		if (bfregn < 0)
+			return bfregn;
 	}
 
 	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);

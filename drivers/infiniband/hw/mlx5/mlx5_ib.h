@@ -78,12 +78,6 @@ enum {
 	MLX5_REQ_SCAT_DATA64_CQE	= 0x22,
 };
 
-enum mlx5_ib_latency_class {
-	MLX5_IB_LATENCY_CLASS_LOW,
-	MLX5_IB_LATENCY_CLASS_MEDIUM,
-	MLX5_IB_LATENCY_CLASS_HIGH,
-};
-
 enum mlx5_ib_mad_ifc_flags {
 	MLX5_MAD_IFC_IGNORE_MKEY	= 1,
 	MLX5_MAD_IFC_IGNORE_BKEY	= 2,
