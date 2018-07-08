@@ -430,11 +430,16 @@ char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set);
 
-u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block)
+u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block)
 {
-	return block->first_set->kvdl_index;
+	/* First set is never in KVD linear. So the first set
+	 * with valid KVD linear index is always the second one.
+	 */
+	if (WARN_ON(!block->first_set->next))
+		return 0;
+	return block->first_set->next->kvdl_index;
 }
-EXPORT_SYMBOL(mlxsw_afa_block_first_set_kvdl_index);
+EXPORT_SYMBOL(mlxsw_afa_block_first_kvdl_index);
 
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 {
