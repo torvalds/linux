@@ -104,7 +104,7 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_packet_type[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(ETHERTYPE, 0x00, 0, 16),
 };
 
-static const struct mlxsw_afk_block mlxsw_sp_afk_blocks[] = {
+static const struct mlxsw_afk_block mlxsw_sp1_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0x10, mlxsw_sp_afk_element_info_l2_dmac),
 	MLXSW_AFK_BLOCK(0x11, mlxsw_sp_afk_element_info_l2_smac),
 	MLXSW_AFK_BLOCK(0x12, mlxsw_sp_afk_element_info_l2_smac_ex),
@@ -119,6 +119,6 @@ static const struct mlxsw_afk_block mlxsw_sp_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0xB0, mlxsw_sp_afk_element_info_packet_type),
 };
 
-#define MLXSW_SP_AFK_BLOCKS_COUNT ARRAY_SIZE(mlxsw_sp_afk_blocks)
+#define MLXSW_SP1_AFK_BLOCKS_COUNT ARRAY_SIZE(mlxsw_sp1_afk_blocks)
 
 #endif
