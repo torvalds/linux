@@ -145,6 +145,7 @@ struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
 struct mlxsw_sp_kvdl;
+struct mlxsw_sp_kvdl_ops;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -168,6 +169,7 @@ struct mlxsw_sp {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
 	} span;
+	const struct mlxsw_sp_kvdl_ops *kvdl_ops;
 	const struct mlxsw_afa_ops *afa_ops;
 };
 
@@ -436,6 +438,20 @@ mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 
 /* spectrum_kvdl.c */
+struct mlxsw_sp_kvdl_ops {
+	size_t priv_size;
+	int (*init)(struct mlxsw_sp *mlxsw_sp, void *priv);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp, void *priv);
+	int (*alloc)(struct mlxsw_sp *mlxsw_sp, void *priv,
+		     unsigned int entry_count, u32 *p_entry_index);
+	void (*free)(struct mlxsw_sp *mlxsw_sp, void *priv,
+		     int entry_index);
+	int (*alloc_size_query)(struct mlxsw_sp *mlxsw_sp, void *priv,
+				unsigned int entry_count,
+				unsigned int *p_alloc_size);
+	int (*resources_register)(struct mlxsw_sp *mlxsw_sp, void *priv);
+};
+
 int mlxsw_sp_kvdl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_kvdl_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
@@ -444,7 +460,10 @@ void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
 int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
 				   unsigned int entry_count,
 				   unsigned int *p_alloc_size);
-int mlxsw_sp_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
+
+/* spectrum1_kvdl.c */
+extern const struct mlxsw_sp_kvdl_ops mlxsw_sp1_kvdl_ops;
+int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;

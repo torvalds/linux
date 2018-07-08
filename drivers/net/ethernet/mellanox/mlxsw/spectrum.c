@@ -3621,6 +3621,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
+	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
 	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
 
 	mlxsw_sp->core = mlxsw_core;
@@ -3880,7 +3881,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
-	err = mlxsw_sp_kvdl_resources_register(mlxsw_core);
+	err = mlxsw_sp1_kvdl_resources_register(mlxsw_core);
 	if  (err)
 		return err;
 
