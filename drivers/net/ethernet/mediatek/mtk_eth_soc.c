@@ -24,10 +24,6 @@
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
 
-#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-#include "mtk_hnat/nf_hnat_mtk.h"
-#endif
-
 #include "mtk_eth_soc.h"
 
 static int mtk_msg_level = -1;

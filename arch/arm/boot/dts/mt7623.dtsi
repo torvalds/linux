@@ -1207,14 +1207,6 @@
 		status = "disabled";
 	};
 
-	hnat: hnat@1b000000 {
-		compatible = "mediatek,mt7623-hnat";
-		reg = <0 0x1b100000 0 0x3000>;
-		mtketh-wan = "wan";
-		resets = <&ethsys 0>;
-		reset-names = "mtketh";
-	};
-
 	crypto: crypto@1b240000 {
 		compatible = "mediatek,mt7623-crypto";
 		reg = <0 0x1b240000 0 0x20000>;
