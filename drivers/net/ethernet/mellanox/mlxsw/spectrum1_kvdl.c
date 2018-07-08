@@ -194,7 +194,7 @@ static int mlxsw_sp1_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, void *priv,
 
 static void mlxsw_sp1_kvdl_free(struct mlxsw_sp *mlxsw_sp, void *priv,
 				enum mlxsw_sp_kvdl_entry_type type,
-				int entry_index)
+				unsigned int entry_count, int entry_index)
 {
 	struct mlxsw_sp1_kvdl *kvdl = priv;
 	struct mlxsw_sp1_kvdl_part *part;

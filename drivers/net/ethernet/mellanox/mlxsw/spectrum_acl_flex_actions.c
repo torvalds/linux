@@ -64,7 +64,7 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 
 err_pefa_write:
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
-			   kvdl_index);
+			   1, kvdl_index);
 	return err;
 }
 
@@ -76,7 +76,7 @@ static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
 	if (is_first)
 		return;
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
-			   kvdl_index);
+			   1, kvdl_index);
 }
 
 static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
@@ -100,7 +100,7 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 
 err_ppbs_write:
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
-			   kvdl_index);
+			   1, kvdl_index);
 	return err;
 }
 
@@ -109,7 +109,7 @@ static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
 	struct mlxsw_sp *mlxsw_sp = priv;
 
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
-			   kvdl_index);
+			   1, kvdl_index);
 }
 
 static int

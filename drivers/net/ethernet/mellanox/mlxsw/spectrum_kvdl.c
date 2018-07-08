@@ -86,11 +86,12 @@ int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp,
 
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp,
 			enum mlxsw_sp_kvdl_entry_type type,
-			int entry_index)
+			unsigned int entry_count, int entry_index)
 {
 	struct mlxsw_sp_kvdl *kvdl = mlxsw_sp->kvdl;
 
-	kvdl->kvdl_ops->free(mlxsw_sp, kvdl->priv, type, entry_index);
+	kvdl->kvdl_ops->free(mlxsw_sp, kvdl->priv, type,
+			     entry_count, entry_index);
 }
 
 int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,

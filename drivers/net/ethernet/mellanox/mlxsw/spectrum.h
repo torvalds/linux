@@ -467,7 +467,7 @@ struct mlxsw_sp_kvdl_ops {
 		     unsigned int entry_count, u32 *p_entry_index);
 	void (*free)(struct mlxsw_sp *mlxsw_sp, void *priv,
 		     enum mlxsw_sp_kvdl_entry_type type,
-		     int entry_index);
+		     unsigned int entry_count, int entry_index);
 	int (*alloc_size_query)(struct mlxsw_sp *mlxsw_sp, void *priv,
 				enum mlxsw_sp_kvdl_entry_type type,
 				unsigned int entry_count,
@@ -482,7 +482,7 @@ int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp,
 			unsigned int entry_count, u32 *p_entry_index);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp,
 			enum mlxsw_sp_kvdl_entry_type type,
-			int entry_index);
+			unsigned int entry_count, int entry_index);
 int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,
 				    enum mlxsw_sp_kvdl_entry_type type,
 				    unsigned int entry_count,

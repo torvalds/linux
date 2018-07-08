@@ -1124,7 +1124,7 @@ static void mlxsw_sp_fib_entry_decap_fini(struct mlxsw_sp *mlxsw_sp,
 	fib_entry->decap.ipip_entry->decap_fib_entry = NULL;
 	fib_entry->decap.ipip_entry = NULL;
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
-			   fib_entry->decap.tunnel_index);
+			   1, fib_entry->decap.tunnel_index);
 }
 
 static struct mlxsw_sp_fib_node *
@@ -3315,7 +3315,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_adj_index_mass_update(mlxsw_sp, nh_grp,
 					     old_adj_index, old_ecmp_size);
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
-			   old_adj_index);
+			   old_ecmp_size, old_adj_index);
 	if (err) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to mass-update adjacency index for nexthop group.\n");
 		goto set_trap;
@@ -3338,7 +3338,7 @@ set_trap:
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set traps for fib entries.\n");
 	if (old_adj_index_valid)
 		mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ,
-				   nh_grp->adj_index);
+				   nh_grp->ecmp_size, nh_grp->adj_index);
 }
 
 static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,

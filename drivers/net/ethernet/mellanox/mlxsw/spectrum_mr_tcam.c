@@ -111,7 +111,7 @@ mlxsw_sp_mr_erif_sublist_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	list_del(&erif_sublist->list);
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
-			   erif_sublist->rigr2_kvdl_index);
+			   1, erif_sublist->rigr2_kvdl_index);
 	kfree(erif_sublist);
 }
 
