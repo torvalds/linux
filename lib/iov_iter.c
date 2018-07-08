@@ -596,6 +596,32 @@ static unsigned long memcpy_mcsafe_to_page(struct page *page, size_t offset,
 	return ret;
 }
 
+/**
+ * _copy_to_iter_mcsafe - copy to user with source-read error exception handling
+ * @addr: source kernel address
+ * @bytes: total transfer length
+ * @iter: destination iterator
+ *
+ * The pmem driver arranges for filesystem-dax to use this facility via
+ * dax_copy_to_iter() for protecting read/write to persistent memory.
+ * Unless / until an architecture can guarantee identical performance
+ * between _copy_to_iter_mcsafe() and _copy_to_iter() it would be a
+ * performance regression to switch more users to the mcsafe version.
+ *
+ * Otherwise, the main differences between this and typical _copy_to_iter().
+ *
+ * * Typical tail/residue handling after a fault retries the copy
+ *   byte-by-byte until the fault happens again. Re-triggering machine
+ *   checks is potentially fatal so the implementation uses source
+ *   alignment and poison alignment assumptions to avoid re-triggering
+ *   hardware exceptions.
+ *
+ * * ITER_KVEC, ITER_PIPE, and ITER_BVEC can return short copies.
+ *   Compare to copy_to_iter() where only ITER_IOVEC attempts might return
+ *   a short copy.
+ *
+ * See MCSAFE_TEST for self-test.
+ */
 size_t _copy_to_iter_mcsafe(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	const char *from = addr;
