@@ -680,6 +680,7 @@ rcu_perf_init(void)
 		for (i = 0; i < ARRAY_SIZE(perf_ops); i++)
 			pr_cont(" %s", perf_ops[i]->name);
 		pr_cont("\n");
+		WARN_ON(!IS_MODULE(CONFIG_RCU_PERF_TEST));
 		firsterr = -EINVAL;
 		goto unwind;
 	}
