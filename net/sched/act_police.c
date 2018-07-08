@@ -75,7 +75,7 @@ static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
 
 static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 			       struct nlattr *est, struct tc_action **a,
-			       int ovr, int bind,
+			       int ovr, int bind, bool rtnl_held,
 			       struct netlink_ext_ack *extack)
 {
 	int ret = 0, err;
@@ -101,20 +101,24 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, NULL, a,
 				     &act_police_ops, bind, false);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 
 	police = to_police(*a);
@@ -195,8 +199,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
-	if (ret == ACT_P_CREATED)
-		tcf_idr_release(*a, bind);
+	tcf_idr_release(*a, bind);
 	return err;
 }
 
@@ -274,8 +277,8 @@ static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
 		.action = police->tcf_action,
 		.mtu = police->tcfp_mtu,
 		.burst = PSCHED_NS2TICKS(police->tcfp_burst),
-		.refcnt = police->tcf_refcnt - ref,
-		.bindcnt = police->tcf_bindcnt - bind,
+		.refcnt = refcount_read(&police->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&police->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
@@ -314,6 +317,13 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_police_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -327,6 +337,7 @@ static struct tc_action_ops act_police_ops = {
 	.init		=	tcf_act_police_init,
 	.walk		=	tcf_act_police_walker,
 	.lookup		=	tcf_police_search,
+	.delete		=	tcf_police_delete,
 	.size		=	sizeof(struct tcf_police),
 };
 

@@ -781,6 +781,7 @@ struct tc_mqprio_qopt_offload {
 struct tc_cookie {
 	u8  *data;
 	u32 len;
+	struct rcu_head rcu;
 };
 
 struct tc_qopt_offload_stats {

@@ -109,7 +109,8 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, struct netlink_ext_ack *extack)
+			 int ovr, int bind, bool rtnl_held,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
@@ -133,7 +134,10 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_VLAN_PARMS])
 		return -EINVAL;
 	parm = nla_data(tb[TCA_VLAN_PARMS]);
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
@@ -145,12 +149,16 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
 			if (exists)
 				tcf_idr_release(*a, bind);
+			else
+				tcf_idr_cleanup(tn, parm->index);
 			return -EINVAL;
 		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
 		if (push_vid >= VLAN_VID_MASK) {
 			if (exists)
 				tcf_idr_release(*a, bind);
+			else
+				tcf_idr_cleanup(tn, parm->index);
 			return -ERANGE;
 		}
 
@@ -163,6 +171,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			default:
 				if (exists)
 					tcf_idr_release(*a, bind);
+				else
+					tcf_idr_cleanup(tn, parm->index);
 				return -EPROTONOSUPPORT;
 			}
 		} else {
@@ -175,6 +185,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	default:
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, parm->index);
 		return -EINVAL;
 	}
 	action = parm->v_action;
@@ -182,14 +194,15 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_vlan_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 
 	v = to_vlan(*a);
@@ -197,8 +210,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 
@@ -239,8 +251,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_vlan_params *p = rtnl_dereference(v->vlan_p);
 	struct tc_vlan opt = {
 		.index    = v->tcf_index,
-		.refcnt   = v->tcf_refcnt - ref,
-		.bindcnt  = v->tcf_bindcnt - bind,
+		.refcnt   = refcount_read(&v->tcf_refcnt) - ref,
+		.bindcnt  = atomic_read(&v->tcf_bindcnt) - bind,
 		.action   = v->tcf_action,
 		.v_action = p->tcfv_action,
 	};
@@ -286,6 +298,13 @@ static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_vlan_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
 	.type		=	TCA_ACT_VLAN,
@@ -296,6 +315,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.cleanup	=	tcf_vlan_cleanup,
 	.walk		=	tcf_vlan_walker,
 	.lookup		=	tcf_vlan_search,
+	.delete		=	tcf_vlan_delete,
 	.size		=	sizeof(struct tcf_vlan),
 };
 

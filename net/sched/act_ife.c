@@ -448,7 +448,8 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
 
 static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a,
-			int ovr, int bind, struct netlink_ext_ack *extack)
+			int ovr, int bind, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 	struct nlattr *tb[TCA_IFE_MAX + 1];
@@ -483,7 +484,10 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	if (!p)
 		return -ENOMEM;
 
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind) {
 		kfree(p);
 		return 0;
@@ -493,16 +497,15 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		ret = tcf_idr_create(tn, parm->index, est, a, &act_ife_ops,
 				     bind, true);
 		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			kfree(p);
 			return ret;
 		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr) {
-			kfree(p);
-			return -EEXIST;
-		}
+		kfree(p);
+		return -EEXIST;
 	}
 
 	ife = to_ife(*a);
@@ -547,6 +550,8 @@ metadata_parse_err:
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
+			tcf_idr_release(*a, bind);
+
 			kfree(p);
 			return err;
 		}
@@ -596,8 +601,8 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tcf_ife_params *p = rtnl_dereference(ife->params);
 	struct tc_ife opt = {
 		.index = ife->tcf_index,
-		.refcnt = ife->tcf_refcnt - ref,
-		.bindcnt = ife->tcf_bindcnt - bind,
+		.refcnt = refcount_read(&ife->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&ife->tcf_bindcnt) - bind,
 		.action = ife->tcf_action,
 		.flags = p->flags,
 	};
@@ -843,6 +848,13 @@ static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_ife_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, ife_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_ife_ops = {
 	.kind = "ife",
 	.type = TCA_ACT_IFE,
@@ -853,6 +865,7 @@ static struct tc_action_ops act_ife_ops = {
 	.init = tcf_ife_init,
 	.walk = tcf_ife_walker,
 	.lookup = tcf_ife_search,
+	.delete = tcf_ife_delete,
 	.size =	sizeof(struct tcf_ife_info),
 };
 

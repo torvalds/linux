@@ -56,7 +56,8 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind, struct netlink_ext_ack *extack)
+			 int ovr, int bind, bool rtnl_held,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 	struct nlattr *tb[TCA_GACT_MAX + 1];
@@ -90,18 +91,24 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 
-	if (!tcf_idr_check(tn, parm->index, a, bind)) {
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (!err) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_gact_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (err > 0) {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_idr_release(*a, bind);
-		if (!ovr)
+		if (!ovr) {
+			tcf_idr_release(*a, bind);
 			return -EEXIST;
+		}
+	} else {
+		return err;
 	}
 
 	gact = to_gact(*a);
@@ -169,8 +176,8 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_gact *gact = to_gact(a);
 	struct tc_gact opt = {
 		.index   = gact->tcf_index,
-		.refcnt  = gact->tcf_refcnt - ref,
-		.bindcnt = gact->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&gact->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&gact->tcf_bindcnt) - bind,
 		.action  = gact->tcf_action,
 	};
 	struct tcf_t t;
@@ -230,6 +237,13 @@ static size_t tcf_gact_get_fill_size(const struct tc_action *act)
 	return sz;
 }
 
+static int tcf_gact_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, gact_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
 	.type		=	TCA_ACT_GACT,
@@ -241,6 +255,7 @@ static struct tc_action_ops act_gact_ops = {
 	.walk		=	tcf_gact_walker,
 	.lookup		=	tcf_gact_search,
 	.get_fill_size	=	tcf_gact_get_fill_size,
+	.delete		=	tcf_gact_delete,
 	.size		=	sizeof(struct tcf_gact),
 };
 

@@ -68,8 +68,9 @@ static unsigned int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
-			   struct nlattr *est, struct tc_action **a, int ovr,
-			   int bind, struct netlink_ext_ack *extack)
+			   struct nlattr *est, struct tc_action **a,
+			   int ovr, int bind, bool rtnl_held,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
@@ -78,7 +79,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	struct tcf_mirred *m;
 	struct net_device *dev;
 	bool exists = false;
-	int ret;
+	int ret, err;
 
 	if (!nla) {
 		NL_SET_ERR_MSG_MOD(extack, "Mirred requires attributes to be passed");
@@ -93,7 +94,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
-	exists = tcf_idr_check(tn, parm->index, a, bind);
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
@@ -106,6 +110,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	default:
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, parm->index);
 		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
@@ -114,6 +120,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (dev == NULL) {
 			if (exists)
 				tcf_idr_release(*a, bind);
+			else
+				tcf_idr_cleanup(tn, parm->index);
 			return -ENODEV;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(dev);
@@ -123,18 +131,20 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		if (!dev) {
+			tcf_idr_cleanup(tn, parm->index);
 			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
 		}
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_mirred_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
-		if (!ovr)
-			return -EEXIST;
+		return -EEXIST;
 	}
 	m = to_mirred(*a);
 
@@ -250,8 +260,8 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tc_mirred opt = {
 		.index   = m->tcf_index,
 		.action  = m->tcf_action,
-		.refcnt  = m->tcf_refcnt - ref,
-		.bindcnt = m->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&m->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&m->tcf_bindcnt) - bind,
 		.eaction = m->tcfm_eaction,
 		.ifindex = dev ? dev->ifindex : 0,
 	};
@@ -321,6 +331,13 @@ static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
 	return rtnl_dereference(m->tcfm_dev);
 }
 
+static int tcf_mirred_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, mirred_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.type		=	TCA_ACT_MIRRED,
@@ -334,6 +351,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.lookup		=	tcf_mirred_search,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
+	.delete		=	tcf_mirred_delete,
 };
 
 static __net_init int mirred_init_net(struct net *net)

@@ -119,13 +119,18 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
-	exists = tcf_idr_check(tn, index, a, bind);
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
+	if (err < 0)
+		return err;
+	exists = err;
 	if (exists && bind)
 		return 0;
 
 	if (tb[TCA_IPT_HOOK] == NULL || tb[TCA_IPT_TARG] == NULL) {
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, index);
 		return -EINVAL;
 	}
 
@@ -133,22 +138,27 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size) {
 		if (exists)
 			tcf_idr_release(*a, bind);
+		else
+			tcf_idr_cleanup(tn, index);
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a, ops, bind,
 				     false);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_idr_release(*a, bind);
 
-		if (!ovr)
+		if (!ovr) {
+			tcf_idr_release(*a, bind);
 			return -EEXIST;
+		}
 	}
 	hook = nla_get_u32(tb[TCA_IPT_HOOK]);
 
@@ -196,7 +206,8 @@ err1:
 
 static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a, int ovr,
-			int bind, struct netlink_ext_ack *extack)
+			int bind, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops, ovr,
 			      bind);
@@ -204,7 +215,8 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 
 static int tcf_xt_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a, int ovr,
-		       int bind, struct netlink_ext_ack *extack)
+		       int bind, bool unlocked,
+		       struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops, ovr,
 			      bind);
@@ -280,8 +292,8 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	if (unlikely(!t))
 		goto nla_put_failure;
 
-	c.bindcnt = ipt->tcf_bindcnt - bind;
-	c.refcnt = ipt->tcf_refcnt - ref;
+	c.bindcnt = atomic_read(&ipt->tcf_bindcnt) - bind;
+	c.refcnt = refcount_read(&ipt->tcf_refcnt) - ref;
 	strcpy(t->u.user.name, ipt->tcfi_t->u.kernel.target->name);
 
 	if (nla_put(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t) ||
@@ -322,6 +334,13 @@ static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_ipt_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, ipt_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_ipt_ops = {
 	.kind		=	"ipt",
 	.type		=	TCA_ACT_IPT,
@@ -332,6 +351,7 @@ static struct tc_action_ops act_ipt_ops = {
 	.init		=	tcf_ipt_init,
 	.walk		=	tcf_ipt_walker,
 	.lookup		=	tcf_ipt_search,
+	.delete		=	tcf_ipt_delete,
 	.size		=	sizeof(struct tcf_ipt),
 };
 
@@ -372,6 +392,13 @@ static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_xt_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, xt_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_xt_ops = {
 	.kind		=	"xt",
 	.type		=	TCA_ACT_XT,
@@ -382,6 +409,7 @@ static struct tc_action_ops act_xt_ops = {
 	.init		=	tcf_xt_init,
 	.walk		=	tcf_xt_walker,
 	.lookup		=	tcf_xt_search,
+	.delete		=	tcf_xt_delete,
 	.size		=	sizeof(struct tcf_ipt),
 };
 

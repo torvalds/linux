@@ -46,7 +46,8 @@ static struct tc_action_ops act_csum_ops;
 
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a, int ovr,
-			 int bind, struct netlink_ext_ack *extack)
+			 int bind, bool rtnl_held,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 	struct tcf_csum_params *params_old, *params_new;
@@ -66,18 +67,24 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
 
-	if (!tcf_idr_check(tn, parm->index, a, bind)) {
+	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	if (!err) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_csum_ops, bind, true);
-		if (ret)
+		if (ret) {
+			tcf_idr_cleanup(tn, parm->index);
 			return ret;
+		}
 		ret = ACT_P_CREATED;
-	} else {
+	} else if (err > 0) {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_idr_release(*a, bind);
-		if (!ovr)
+		if (!ovr) {
+			tcf_idr_release(*a, bind);
 			return -EEXIST;
+		}
+	} else {
+		return err;
 	}
 
 	p = to_tcf_csum(*a);
@@ -85,8 +92,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		if (ret == ACT_P_CREATED)
-			tcf_idr_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
 	params_old = rtnl_dereference(p->params);
@@ -597,8 +603,8 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tcf_csum_params *params;
 	struct tc_csum opt = {
 		.index   = p->tcf_index,
-		.refcnt  = p->tcf_refcnt - ref,
-		.bindcnt = p->tcf_bindcnt - bind,
+		.refcnt  = refcount_read(&p->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&p->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 
@@ -653,6 +659,13 @@ static size_t tcf_csum_get_fill_size(const struct tc_action *act)
 	return nla_total_size(sizeof(struct tc_csum));
 }
 
+static int tcf_csum_delete(struct net *net, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, csum_net_id);
+
+	return tcf_idr_delete_index(tn, index);
+}
+
 static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
 	.type		= TCA_ACT_CSUM,
@@ -664,6 +677,7 @@ static struct tc_action_ops act_csum_ops = {
 	.walk		= tcf_csum_walker,
 	.lookup		= tcf_csum_search,
 	.get_fill_size  = tcf_csum_get_fill_size,
+	.delete		= tcf_csum_delete,
 	.size		= sizeof(struct tcf_csum),
 };
 
