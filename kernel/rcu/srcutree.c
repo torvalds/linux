@@ -980,7 +980,7 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
  * There are memory-ordering constraints implied by synchronize_srcu().
  * On systems with more than one CPU, when synchronize_srcu() returns,
  * each CPU is guaranteed to have executed a full memory barrier since
- * the end of its last corresponding SRCU-sched read-side critical section
+ * the end of its last corresponding SRCU read-side critical section
  * whose beginning preceded the call to synchronize_srcu().  In addition,
  * each CPU having an SRCU read-side critical section that extends beyond
  * the return from synchronize_srcu() is guaranteed to have executed a
