@@ -91,7 +91,8 @@ mlxsw_sp1_acl_ctcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_rulei_commit;
 	err = mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &region->cregion,
 					   &region->catchall.cchunk,
-					   &region->catchall.centry, rulei);
+					   &region->catchall.centry,
+					   rulei, false);
 	if (err)
 		goto err_entry_add;
 	region->catchall.rulei = rulei;
@@ -178,7 +179,7 @@ static int mlxsw_sp1_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	return mlxsw_sp_acl_ctcam_entry_add(mlxsw_sp, &region->cregion,
 					    &chunk->cchunk, &entry->centry,
-					    rulei);
+					    rulei, false);
 }
 
 static void mlxsw_sp1_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,

@@ -57,6 +57,9 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam);
 void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_tcam *tcam);
+int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_rule_info *rulei,
+				   u32 *priority, bool fillup_priority);
 
 struct mlxsw_sp_acl_profile_ops {
 	size_t ruleset_priv_size;
@@ -128,7 +131,8 @@ int mlxsw_sp_acl_ctcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_ctcam_region *cregion,
 				 struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 				 struct mlxsw_sp_acl_ctcam_entry *centry,
-				 struct mlxsw_sp_acl_rule_info *rulei);
+				 struct mlxsw_sp_acl_rule_info *rulei,
+				 bool fillup_priority);
 void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_ctcam_region *cregion,
 				  struct mlxsw_sp_acl_ctcam_chunk *cchunk,

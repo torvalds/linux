@@ -71,16 +71,24 @@ static int
 mlxsw_sp_acl_ctcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_acl_tcam_region *region,
 				       unsigned int offset,
-				       struct mlxsw_sp_acl_rule_info *rulei)
+				       struct mlxsw_sp_acl_rule_info *rulei,
+				       bool fillup_priority)
 {
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
 	char *act_set;
+	u32 priority;
 	char *mask;
 	char *key;
+	int err;
+
+	err = mlxsw_sp_acl_tcam_priority_get(mlxsw_sp, rulei, &priority,
+					     fillup_priority);
+	if (err)
+		return err;
 
 	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset, 0);
+			     region->tcam_region_info, offset, priority);
 	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
 	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
 	mlxsw_afk_encode(afk, region->key_info, &rulei->values, key, mask);
@@ -172,7 +180,8 @@ int mlxsw_sp_acl_ctcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_ctcam_region *cregion,
 				 struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 				 struct mlxsw_sp_acl_ctcam_entry *centry,
-				 struct mlxsw_sp_acl_rule_info *rulei)
+				 struct mlxsw_sp_acl_rule_info *rulei,
+				 bool fillup_priority)
 {
 	int err;
 
@@ -183,7 +192,7 @@ int mlxsw_sp_acl_ctcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	err = mlxsw_sp_acl_ctcam_region_entry_insert(mlxsw_sp, cregion->region,
 						     centry->parman_item.index,
-						     rulei);
+						     rulei, fillup_priority);
 	if (err)
 		goto err_rule_insert;
 	return 0;
