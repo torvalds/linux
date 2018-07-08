@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_flex_keys.h
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_flex_keys.c
+ * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Jiri Pirko <jiri@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,9 +32,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MLXSW_SPECTRUM_ACL_FLEX_KEYS_H
-#define _MLXSW_SPECTRUM_ACL_FLEX_KEYS_H
-
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include "spectrum.h"
+#include "item.h"
 #include "core_acl_flex_keys.h"
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_dmac[] = {
@@ -126,6 +127,7 @@ static const struct mlxsw_afk_block mlxsw_sp1_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0xB0, mlxsw_sp_afk_element_info_packet_type),
 };
 
-#define MLXSW_SP1_AFK_BLOCKS_COUNT ARRAY_SIZE(mlxsw_sp1_afk_blocks)
-
-#endif
+const struct mlxsw_afk_ops mlxsw_sp1_afk_ops = {
+	.blocks		= mlxsw_sp1_afk_blocks,
+	.blocks_count	= ARRAY_SIZE(mlxsw_sp1_afk_blocks),
+};

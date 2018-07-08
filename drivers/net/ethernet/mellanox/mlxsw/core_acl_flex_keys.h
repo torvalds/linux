@@ -216,9 +216,13 @@ mlxsw_afk_element_usage_subset(struct mlxsw_afk_element_usage *elusage_small,
 
 struct mlxsw_afk;
 
+struct mlxsw_afk_ops {
+	const struct mlxsw_afk_block *blocks;
+	unsigned int blocks_count;
+};
+
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
-				   const struct mlxsw_afk_block *blocks,
-				   unsigned int blocks_count);
+				   const struct mlxsw_afk_ops *ops);
 void mlxsw_afk_destroy(struct mlxsw_afk *mlxsw_afk);
 
 struct mlxsw_afk_key_info;

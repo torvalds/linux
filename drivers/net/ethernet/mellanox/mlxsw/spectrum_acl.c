@@ -49,7 +49,6 @@
 #include "core_acl_flex_keys.h"
 #include "core_acl_flex_actions.h"
 #include "spectrum_acl_tcam.h"
-#include "spectrum_acl_flex_keys.h"
 
 struct mlxsw_sp_acl {
 	struct mlxsw_sp *mlxsw_sp;
@@ -838,8 +837,7 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	acl->mlxsw_sp = mlxsw_sp;
 	acl->afk = mlxsw_afk_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						       ACL_FLEX_KEYS),
-				    mlxsw_sp1_afk_blocks,
-				    MLXSW_SP1_AFK_BLOCKS_COUNT);
+				    mlxsw_sp->afk_ops);
 	if (!acl->afk) {
 		err = -ENOMEM;
 		goto err_afk_create;

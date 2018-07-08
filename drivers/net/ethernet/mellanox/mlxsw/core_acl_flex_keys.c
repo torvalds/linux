@@ -43,6 +43,7 @@
 struct mlxsw_afk {
 	struct list_head key_info_list;
 	unsigned int max_blocks;
+	const struct mlxsw_afk_ops *ops;
 	const struct mlxsw_afk_block *blocks;
 	unsigned int blocks_count;
 };
@@ -69,8 +70,7 @@ static bool mlxsw_afk_blocks_check(struct mlxsw_afk *mlxsw_afk)
 }
 
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
-				   const struct mlxsw_afk_block *blocks,
-				   unsigned int blocks_count)
+				   const struct mlxsw_afk_ops *ops)
 {
 	struct mlxsw_afk *mlxsw_afk;
 
@@ -79,8 +79,9 @@ struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
 		return NULL;
 	INIT_LIST_HEAD(&mlxsw_afk->key_info_list);
 	mlxsw_afk->max_blocks = max_blocks;
-	mlxsw_afk->blocks = blocks;
-	mlxsw_afk->blocks_count = blocks_count;
+	mlxsw_afk->ops = ops;
+	mlxsw_afk->blocks = ops->blocks;
+	mlxsw_afk->blocks_count = ops->blocks_count;
 	WARN_ON(!mlxsw_afk_blocks_check(mlxsw_afk));
 	return mlxsw_afk;
 }
