@@ -117,9 +117,9 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 
 /*
  * Wait for a grace period to elapse.  But it is illegal to invoke
- * synchronize_sched() from within an RCU read-side critical section.
- * Therefore, any legal call to synchronize_sched() is a quiescent
- * state, and so on a UP system, synchronize_sched() need do nothing.
+ * synchronize_rcu() from within an RCU read-side critical section.
+ * Therefore, any legal call to synchronize_rcu() is a quiescent
+ * state, and so on a UP system, synchronize_rcu() need do nothing.
  * (But Lai Jiangshan points out the benefits of doing might_sleep()
  * to reduce latency.)
  *
@@ -130,12 +130,12 @@ void synchronize_rcu(void)
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
-			 "Illegal synchronize_sched() in RCU read-side critical section");
+			 "Illegal synchronize_rcu() in RCU read-side critical section");
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 /*
- * Post an RCU callback to be invoked after the end of an RCU-sched grace
+ * Post an RCU callback to be invoked after the end of an RCU grace
  * period.  But since we have but one CPU, that would be after any
  * quiescent state.
  */
