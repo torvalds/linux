@@ -64,6 +64,7 @@ extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 
+u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo);
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
 

@@ -1298,11 +1298,9 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	 */
 
 
-	if ((bio_end_sector(bio) > mddev->suspend_lo &&
-	    bio->bi_iter.bi_sector < mddev->suspend_hi) ||
-	    (mddev_is_clustered(mddev) &&
+	if (mddev_is_clustered(mddev) &&
 	     md_cluster_ops->area_resyncing(mddev, WRITE,
-		     bio->bi_iter.bi_sector, bio_end_sector(bio)))) {
+		     bio->bi_iter.bi_sector, bio_end_sector(bio))) {
 
 		/*
 		 * As the suspend_* range is controlled by userspace, we want
@@ -1313,12 +1311,10 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			sigset_t full, old;
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
-			if ((bio_end_sector(bio) <= mddev->suspend_lo ||
-			     bio->bi_iter.bi_sector >= mddev->suspend_hi) &&
-			    (!mddev_is_clustered(mddev) ||
-			     !md_cluster_ops->area_resyncing(mddev, WRITE,
+			if (!mddev_is_clustered(mddev) ||
+			    !md_cluster_ops->area_resyncing(mddev, WRITE,
 							bio->bi_iter.bi_sector,
-							bio_end_sector(bio))))
+							bio_end_sector(bio)))
 				break;
 			sigfillset(&full);
 			sigprocmask(SIG_BLOCK, &full, &old);
@@ -3280,21 +3276,14 @@ static int raid1_reshape(struct mddev *mddev)
 	return 0;
 }
 
-static void raid1_quiesce(struct mddev *mddev, int state)
+static void raid1_quiesce(struct mddev *mddev, int quiesce)
 {
 	struct r1conf *conf = mddev->private;
 
-	switch(state) {
-	case 2: /* wake for suspend */
-		wake_up(&conf->wait_barrier);
-		break;
-	case 1:
+	if (quiesce)
 		freeze_array(conf, 0);
-		break;
-	case 0:
+	else
 		unfreeze_array(conf);
-		break;
-	}
 }
 
 static void *raid1_takeover(struct mddev *mddev)

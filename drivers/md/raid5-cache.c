@@ -693,6 +693,8 @@ static void r5c_disable_writeback_async(struct work_struct *work)
 	struct r5l_log *log = container_of(work, struct r5l_log,
 					   disable_writeback_work);
 	struct mddev *mddev = log->rdev->mddev;
+	struct r5conf *conf = mddev->private;
+	int locked = 0;
 
 	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH)
 		return;
@@ -701,11 +703,15 @@ static void r5c_disable_writeback_async(struct work_struct *work)
 
 	/* wait superblock change before suspend */
 	wait_event(mddev->sb_wait,
-		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
-
-	mddev_suspend(mddev);
-	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
-	mddev_resume(mddev);
+		   conf->log == NULL ||
+		   (!test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags) &&
+		    (locked = mddev_trylock(mddev))));
+	if (locked) {
+		mddev_suspend(mddev);
+		log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
+		mddev_resume(mddev);
+		mddev_unlock(mddev);
+	}
 }
 
 static void r5l_submit_current_io(struct r5l_log *log)
@@ -1583,21 +1589,21 @@ void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 	md_wakeup_thread(log->reclaim_thread);
 }
 
-void r5l_quiesce(struct r5l_log *log, int state)
+void r5l_quiesce(struct r5l_log *log, int quiesce)
 {
 	struct mddev *mddev;
-	if (!log || state == 2)
+	if (!log)
 		return;
-	if (state == 0)
-		kthread_unpark(log->reclaim_thread->tsk);
-	else if (state == 1) {
+
+	if (quiesce) {
 		/* make sure r5l_write_super_and_discard_space exits */
 		mddev = log->rdev->mddev;
 		wake_up(&mddev->sb_wait);
 		kthread_park(log->reclaim_thread->tsk);
 		r5l_wake_reclaim(log, MaxSector);
 		r5l_do_reclaim(log);
-	}
+	} else
+		kthread_unpark(log->reclaim_thread->tsk);
 }
 
 bool r5l_log_disk_error(struct r5conf *conf)
@@ -3161,6 +3167,8 @@ void r5l_exit_log(struct r5conf *conf)
 	conf->log = NULL;
 	synchronize_rcu();
 
+	/* Ensure disable_writeback_work wakes up and exits */
+	wake_up(&conf->mddev->sb_wait);
 	flush_work(&log->disable_writeback_work);
 	md_unregister_thread(&log->reclaim_thread);
 	mempool_destroy(log->meta_pool);

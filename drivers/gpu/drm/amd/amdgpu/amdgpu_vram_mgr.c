@@ -102,6 +102,22 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vram_mgr_bo_invisible_size - CPU invisible BO size
+ *
+ * @bo: &amdgpu_bo buffer object (must be in VRAM)
+ *
+ * Returns:
+ * How much of the given &amdgpu_bo buffer object lies in CPU invisible VRAM.
+ */
+u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo)
+{
+	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+		return amdgpu_bo_size(bo);
+
+	return 0;
+}
+
+/**
  * amdgpu_vram_mgr_new - allocate new ranges
  *
  * @man: TTM memory type manager
@@ -140,7 +156,8 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
 	}
 
-	nodes = kcalloc(num_nodes, sizeof(*nodes), GFP_KERNEL);
+	nodes = kvmalloc_array(num_nodes, sizeof(*nodes),
+			       GFP_KERNEL | __GFP_ZERO);
 	if (!nodes)
 		return -ENOMEM;
 
@@ -195,7 +212,7 @@ error:
 		drm_mm_remove_node(&nodes[i]);
 	spin_unlock(&mgr->lock);
 
-	kfree(nodes);
+	kvfree(nodes);
 	return r == -ENOSPC ? 0 : r;
 }
 
@@ -234,7 +251,7 @@ static void amdgpu_vram_mgr_del(struct ttm_mem_type_manager *man,
 	atomic64_sub(usage, &mgr->usage);
 	atomic64_sub(vis_usage, &mgr->vis_usage);
 
-	kfree(mem->mm_node);
+	kvfree(mem->mm_node);
 	mem->mm_node = NULL;
 }
 

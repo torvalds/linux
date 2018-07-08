@@ -3838,18 +3838,14 @@ static void raid10_free(struct mddev *mddev, void *priv)
 	kfree(conf);
 }
 
-static void raid10_quiesce(struct mddev *mddev, int state)
+static void raid10_quiesce(struct mddev *mddev, int quiesce)
 {
 	struct r10conf *conf = mddev->private;
 
-	switch(state) {
-	case 1:
+	if (quiesce)
 		raise_barrier(conf, 0);
-		break;
-	case 0:
+	else
 		lower_barrier(conf);
-		break;
-	}
 }
 
 static int raid10_resize(struct mddev *mddev, sector_t sectors)

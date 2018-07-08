@@ -69,8 +69,16 @@ err1:
 	return err;
 }
 
-static void nft_immediate_destroy(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr)
+static void nft_immediate_activate(const struct nft_ctx *ctx,
+				   const struct nft_expr *expr)
+{
+	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+
+	return nft_data_hold(&priv->data, nft_dreg_to_type(priv->dreg));
+}
+
+static void nft_immediate_deactivate(const struct nft_ctx *ctx,
+				     const struct nft_expr *expr)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 
@@ -108,7 +116,8 @@ static const struct nft_expr_ops nft_imm_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_immediate_expr)),
 	.eval		= nft_immediate_eval,
 	.init		= nft_immediate_init,
-	.destroy	= nft_immediate_destroy,
+	.activate	= nft_immediate_activate,
+	.deactivate	= nft_immediate_deactivate,
 	.dump		= nft_immediate_dump,
 	.validate	= nft_immediate_validate,
 };
