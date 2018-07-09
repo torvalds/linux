@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.56"
+#define DC_VER "3.1.58"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
