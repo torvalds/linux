@@ -610,3 +610,15 @@ in your dentry operations instead.
 	value for 'called finish_no_open(), open it yourself' case has become
 	0, not 1.  Since finish_no_open() itself is returning 0 now, that part
 	does not need any changes in ->atomic_open() instances.
+--
+[mandatory]
+	alloc_file() has become static now; two wrappers are to be used instead.
+	alloc_file_pseudo(inode, vfsmount, name, flags, ops) is for the cases
+	when dentry needs to be created; that's the majority of old alloc_file()
+	users.  Calling conventions: on success a reference to new struct file
+	is returned and callers reference to inode is subsumed by that.  On
+	failure, ERR_PTR() is returned and no caller's references are affected,
+	so the caller needs to drop the inode reference it held.
+	alloc_file_clone(file, flags, ops) does not affect any caller's references.
+	On success you get a new struct file sharing the mount/dentry with the
+	original, on failure - ERR_PTR().
