@@ -101,7 +101,6 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_gem *exynos_gem[MAX_FB_BUFFER];
-	struct drm_gem_object *obj;
 	struct drm_framebuffer *fb;
 	int i;
 	int ret;
@@ -112,14 +111,13 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		unsigned long size = height * mode_cmd->pitches[i] +
 				     mode_cmd->offsets[i];
 
-		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
-		if (!obj) {
+		exynos_gem[i] = exynos_drm_gem_get(file_priv,
+						   mode_cmd->handles[i]);
+		if (!exynos_gem[i]) {
 			DRM_ERROR("failed to lookup gem object\n");
 			ret = -ENOENT;
 			goto err;
 		}
-
-		exynos_gem[i] = to_exynos_gem(obj);
 
 		if (size > exynos_gem[i]->size) {
 			i++;
@@ -138,7 +136,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 err:
 	while (i--)
-		drm_gem_object_put_unlocked(&exynos_gem[i]->base);
+		exynos_drm_gem_put(exynos_gem[i]);
 
 	return ERR_PTR(ret);
 }
