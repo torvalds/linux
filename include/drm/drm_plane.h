@@ -34,31 +34,15 @@ struct drm_modeset_acquire_ctx;
 
 /**
  * struct drm_plane_state - mutable plane state
- * @plane: backpointer to the plane
- * @crtc_w: width of visible portion of plane on crtc
- * @crtc_h: height of visible portion of plane on crtc
- * @src_x: left position of visible portion of plane within
- *	plane (in 16.16)
- * @src_y: upper position of visible portion of plane within
- *	plane (in 16.16)
- * @src_w: width of visible portion of plane (in 16.16)
- * @src_h: height of visible portion of plane (in 16.16)
- * @alpha: opacity of the plane
- * @rotation: rotation of the plane
- * @zpos: priority of the given plane on crtc (optional)
- *	Note that multiple active planes on the same crtc can have an identical
- *	zpos value. The rule to solving the conflict is to compare the plane
- *	object IDs; the plane with a higher ID must be stacked on top of a
- *	plane with a lower ID.
- * @normalized_zpos: normalized value of zpos: unique, range from 0 to N-1
- *	where N is the number of active planes for given crtc. Note that
- *	the driver must set drm_mode_config.normalize_zpos or call
- *	drm_atomic_normalize_zpos() to update this before it can be trusted.
- * @src: clipped source coordinates of the plane (in 16.16)
- * @dst: clipped destination coordinates of the plane
- * @state: backpointer to global drm_atomic_state
+ *
+ * Please not that the destination coordinates @crtc_x, @crtc_y, @crtc_h and
+ * @crtc_w and the source coordinates @src_x, @src_y, @src_h and @src_w are the
+ * raw coordinates provided by userspace. Drivers should use
+ * drm_atomic_helper_check_plane_state() and only use the derived rectangles in
+ * @src and @dst to program the hardware.
  */
 struct drm_plane_state {
+	/** @plane: backpointer to the plane */
 	struct drm_plane *plane;
 
 	/**
@@ -87,7 +71,7 @@ struct drm_plane_state {
 	 * preserved.
 	 *
 	 * Drivers should store any implicit fence in this from their
-	 * &drm_plane_helper.prepare_fb callback. See drm_gem_fb_prepare_fb()
+	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_fb_prepare_fb()
 	 * and drm_gem_fb_simple_display_pipe_prepare_fb() for suitable helpers.
 	 */
 	struct dma_fence *fence;
@@ -108,20 +92,60 @@ struct drm_plane_state {
 	 */
 	int32_t crtc_y;
 
+	/** @crtc_w: width of visible portion of plane on crtc */
+	/** @crtc_h: height of visible portion of plane on crtc */
 	uint32_t crtc_w, crtc_h;
 
-	/* Source values are 16.16 fixed point */
-	uint32_t src_x, src_y;
+	/**
+	 * @src_x: left position of visible portion of plane within plane (in
+	 * 16.16 fixed point).
+	 */
+	uint32_t src_x;
+	/**
+	 * @src_y: upper position of visible portion of plane within plane (in
+	 * 16.16 fixed point).
+	 */
+	uint32_t src_y;
+	/** @src_w: width of visible portion of plane (in 16.16) */
+	/** @src_h: height of visible portion of plane (in 16.16) */
 	uint32_t src_h, src_w;
 
-	/* Plane opacity */
+	/**
+	 * @alpha:
+	 * Opacity of the plane with 0 as completely transparent and 0xffff as
+	 * completely opaque. See drm_plane_create_alpha_property() for more
+	 * details.
+	 */
 	u16 alpha;
 
-	/* Plane rotation */
+	/**
+	 * @rotation:
+	 * Rotation of the plane. See drm_plane_create_rotation_property() for
+	 * more details.
+	 */
 	unsigned int rotation;
 
-	/* Plane zpos */
+	/**
+	 * @zpos:
+	 * Priority of the given plane on crtc (optional).
+	 *
+	 * Note that multiple active planes on the same crtc can have an
+	 * identical zpos value. The rule to solving the conflict is to compare
+	 * the plane object IDs; the plane with a higher ID must be stacked on
+	 * top of a plane with a lower ID.
+	 *
+	 * See drm_plane_create_zpos_property() and
+	 * drm_plane_create_zpos_immutable_property() for more details.
+	 */
 	unsigned int zpos;
+
+	/**
+	 * @normalized_zpos:
+	 * Normalized value of zpos: unique, range from 0 to N-1 where N is the
+	 * number of active planes for given crtc. Note that the driver must set
+	 * &drm_mode_config.normalize_zpos or call drm_atomic_normalize_zpos() to
+	 * update this before it can be trusted.
+	 */
 	unsigned int normalized_zpos;
 
 	/**
@@ -138,7 +162,8 @@ struct drm_plane_state {
 	 */
 	enum drm_color_range color_range;
 
-	/* Clipped coordinates */
+	/** @src: clipped source coordinates of the plane (in 16.16) */
+	/** @dst: clipped destination coordinates of the plane */
 	struct drm_rect src, dst;
 
 	/**
@@ -157,6 +182,7 @@ struct drm_plane_state {
 	 */
 	struct drm_crtc_commit *commit;
 
+	/** @state: backpointer to global drm_atomic_state */
 	struct drm_atomic_state *state;
 };
 
