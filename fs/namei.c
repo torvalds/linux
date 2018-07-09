@@ -2028,6 +2028,8 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	int err;
 
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 	while (*name=='/')
 		name++;
 	if (!*name)
@@ -2265,12 +2267,7 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 	const char *s = path_init(nd, flags);
 	int err;
 
-	if (IS_ERR(s)) {
-		terminate_walk(nd);
-		return PTR_ERR(s);
-	}
-
-	if (unlikely(flags & LOOKUP_DOWN)) {
+	if (unlikely(flags & LOOKUP_DOWN) && !IS_ERR(s)) {
 		err = handle_lookup_down(nd);
 		if (unlikely(err < 0)) {
 			terminate_walk(nd);
@@ -2281,10 +2278,6 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 	while (!(err = link_path_walk(s, nd))
 		&& ((err = lookup_last(nd)) > 0)) {
 		s = trailing_symlink(nd);
-		if (IS_ERR(s)) {
-			err = PTR_ERR(s);
-			break;
-		}
 	}
 	if (!err)
 		err = complete_walk(nd);
@@ -2331,12 +2324,7 @@ static int path_parentat(struct nameidata *nd, unsigned flags,
 				struct path *parent)
 {
 	const char *s = path_init(nd, flags);
-	int err;
-	if (IS_ERR(s)) {
-		terminate_walk(nd);
-		return PTR_ERR(s);
-	}
-	err = link_path_walk(s, nd);
+	int err = link_path_walk(s, nd);
 	if (!err)
 		err = complete_walk(nd);
 	if (!err) {
@@ -2663,17 +2651,10 @@ path_mountpoint(struct nameidata *nd, unsigned flags, struct path *path)
 {
 	const char *s = path_init(nd, flags);
 	int err;
-	if (IS_ERR(s)) {
-		terminate_walk(nd);
-		return PTR_ERR(s);
-	}
+
 	while (!(err = link_path_walk(s, nd)) &&
 		(err = mountpoint_last(nd)) > 0) {
 		s = trailing_symlink(nd);
-		if (IS_ERR(s)) {
-			err = PTR_ERR(s);
-			break;
-		}
 	}
 	if (!err) {
 		*path = nd->path;
@@ -3510,19 +3491,10 @@ static struct file *path_openat(struct nameidata *nd,
 	}
 
 	s = path_init(nd, flags);
-	if (IS_ERR(s)) {
-		terminate_walk(nd);
-		fput(file);
-		return ERR_CAST(s);
-	}
 	while (!(error = link_path_walk(s, nd)) &&
 		(error = do_last(nd, file, op)) > 0) {
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		s = trailing_symlink(nd);
-		if (IS_ERR(s)) {
-			error = PTR_ERR(s);
-			break;
-		}
 	}
 	terminate_walk(nd);
 out2:
