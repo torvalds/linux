@@ -5029,32 +5029,32 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 }
 
-int i915_gem_suspend(struct drm_i915_private *dev_priv)
+int i915_gem_suspend(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	GEM_TRACE("\n");
 
-	intel_runtime_pm_get(dev_priv);
-	intel_suspend_gt_powersave(dev_priv);
+	intel_runtime_pm_get(i915);
+	intel_suspend_gt_powersave(i915);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&i915->drm.struct_mutex);
 
-	/* We have to flush all the executing contexts to main memory so
+	/*
+	 * We have to flush all the executing contexts to main memory so
 	 * that they can saved in the hibernation image. To ensure the last
 	 * context image is coherent, we have to switch away from it. That
-	 * leaves the dev_priv->kernel_context still active when
+	 * leaves the i915->kernel_context still active when
 	 * we actually suspend, and its image in memory may not match the GPU
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-		ret = i915_gem_switch_to_kernel_context(dev_priv);
+	if (!i915_terminally_wedged(&i915->gpu_error)) {
+		ret = i915_gem_switch_to_kernel_context(i915);
 		if (ret)
 			goto err_unlock;
 
-		ret = i915_gem_wait_for_idle(dev_priv,
+		ret = i915_gem_wait_for_idle(i915,
 					     I915_WAIT_INTERRUPTIBLE |
 					     I915_WAIT_LOCKED |
 					     I915_WAIT_FOR_IDLE_BOOST,
@@ -5062,33 +5062,35 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		if (ret && ret != -EIO)
 			goto err_unlock;
 
-		assert_kernel_context_is_current(dev_priv);
+		assert_kernel_context_is_current(i915);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
-	intel_uc_suspend(dev_priv);
+	intel_uc_suspend(i915);
 
-	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
-	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
+	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&i915->gt.retire_work);
 
-	/* As the idle_work is rearming if it detects a race, play safe and
+	/*
+	 * As the idle_work is rearming if it detects a race, play safe and
 	 * repeat the flush until it is definitely idle.
 	 */
-	drain_delayed_work(&dev_priv->gt.idle_work);
+	drain_delayed_work(&i915->gt.idle_work);
 
-	/* Assert that we sucessfully flushed all the work and
+	/*
+	 * Assert that we successfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
-	WARN_ON(dev_priv->gt.awake);
-	if (WARN_ON(!intel_engines_are_idle(dev_priv)))
-		i915_gem_set_wedged(dev_priv); /* no hope, discard everything */
+	WARN_ON(i915->gt.awake);
+	if (WARN_ON(!intel_engines_are_idle(i915)))
+		i915_gem_set_wedged(i915); /* no hope, discard everything */
 
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(i915);
 	return 0;
 
 err_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	intel_runtime_pm_put(dev_priv);
+	mutex_unlock(&i915->drm.struct_mutex);
+	intel_runtime_pm_put(i915);
 	return ret;
 }
 
