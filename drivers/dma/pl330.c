@@ -1782,8 +1782,6 @@ static inline void _free_event(struct pl330_thread *thrd, int ev)
 
 static void pl330_release_channel(struct pl330_thread *thrd)
 {
-	struct pl330_dmac *pl330;
-
 	if (!thrd || thrd->free)
 		return;
 
@@ -1791,8 +1789,6 @@ static void pl330_release_channel(struct pl330_thread *thrd)
 
 	dma_pl330_rqcb(thrd->req[1 - thrd->lstenq].desc, PL330_ERR_ABORT);
 	dma_pl330_rqcb(thrd->req[thrd->lstenq].desc, PL330_ERR_ABORT);
-
-	pl330 = thrd->dmac;
 
 	_free_event(thrd, thrd->ev);
 	thrd->free = true;
