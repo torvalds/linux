@@ -771,8 +771,9 @@ int create_pipe_files(struct file **res, int flags)
 
 	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
 	if (IS_ERR(res[0])) {
-		err = PTR_ERR(res[0]);
-		goto err_file;
+		put_pipe_info(inode, inode->i_pipe);
+		fput(f);
+		return PTR_ERR(res[0]);
 	}
 
 	path_get(&path);
@@ -781,8 +782,6 @@ int create_pipe_files(struct file **res, int flags)
 	res[1] = f;
 	return 0;
 
-err_file:
-	put_filp(f);
 err_dentry:
 	free_pipe_info(inode->i_pipe);
 	path_put(&path);
