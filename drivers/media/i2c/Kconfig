@@ -819,6 +819,15 @@ config VIDEO_UPD64083
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64083.
 
+comment "Camera lens devices"
+
+config VIDEO_VM149C
+	tristate "VM149C lens voice coil support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a driver for the VM149C camera lens voice coil.
+
 comment "Audio/Video compression chips"
 
 config VIDEO_SAA6752HS
