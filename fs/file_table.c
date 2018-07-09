@@ -51,6 +51,7 @@ static void file_free_rcu(struct rcu_head *head)
 
 static inline void file_free(struct file *f)
 {
+	security_file_free(f);
 	percpu_counter_dec(&nr_files);
 	call_rcu(&f->f_u.fu_rcuhead, file_free_rcu);
 }
@@ -123,11 +124,10 @@ struct file *get_empty_filp(void)
 	if (unlikely(!f))
 		return ERR_PTR(-ENOMEM);
 
-	percpu_counter_inc(&nr_files);
 	f->f_cred = get_cred(cred);
 	error = security_file_alloc(f);
 	if (unlikely(error)) {
-		file_free(f);
+		file_free_rcu(&f->f_u.fu_rcuhead);
 		return ERR_PTR(error);
 	}
 
@@ -137,6 +137,7 @@ struct file *get_empty_filp(void)
 	mutex_init(&f->f_pos_lock);
 	eventpoll_init_file(f);
 	/* f->f_version: 0 */
+	percpu_counter_inc(&nr_files);
 	return f;
 
 over:
@@ -207,7 +208,6 @@ static void __fput(struct file *file)
 	}
 	if (file->f_op->release)
 		file->f_op->release(inode, file);
-	security_file_free(file);
 	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL &&
 		     !(file->f_mode & FMODE_PATH))) {
 		cdev_put(inode->i_cdev);
@@ -302,10 +302,8 @@ EXPORT_SYMBOL(fput);
 
 void put_filp(struct file *file)
 {
-	if (atomic_long_dec_and_test(&file->f_count)) {
-		security_file_free(file);
+	if (atomic_long_dec_and_test(&file->f_count))
 		file_free(file);
-	}
 }
 
 void __init files_init(void)
