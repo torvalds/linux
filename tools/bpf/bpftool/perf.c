@@ -29,9 +29,10 @@ static bool has_perf_query_support(void)
 	if (perf_query_supported)
 		goto out;
 
-	fd = open(bin_name, O_RDONLY);
+	fd = open("/", O_RDONLY);
 	if (fd < 0) {
-		p_err("perf_query_support: %s", strerror(errno));
+		p_err("perf_query_support: cannot open directory \"/\" (%s)",
+		      strerror(errno));
 		goto out;
 	}
 

@@ -3214,20 +3214,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 
-static int __xdp_generic_ok_fwd_dev(struct sk_buff *skb, struct net_device *fwd)
-{
-	unsigned int len;
-
-	if (unlikely(!(fwd->flags & IFF_UP)))
-		return -ENETDOWN;
-
-	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
-	if (skb->len > len)
-		return -EMSGSIZE;
-
-	return 0;
-}
-
 static int xdp_do_generic_redirect_map(struct net_device *dev,
 				       struct sk_buff *skb,
 				       struct xdp_buff *xdp,
@@ -3256,10 +3242,11 @@ static int xdp_do_generic_redirect_map(struct net_device *dev,
 	}
 
 	if (map->map_type == BPF_MAP_TYPE_DEVMAP) {
-		if (unlikely((err = __xdp_generic_ok_fwd_dev(skb, fwd))))
+		struct bpf_dtab_netdev *dst = fwd;
+
+		err = dev_map_generic_redirect(dst, skb, xdp_prog);
+		if (unlikely(err))
 			goto err;
-		skb->dev = fwd;
-		generic_xdp_tx(skb, xdp_prog);
 	} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
 		struct xdp_sock *xs = fwd;
 
