@@ -579,22 +579,22 @@ struct hns_roce_ceqe {
 };
 
 struct hns_roce_aeqe {
-	u32 asyn;
+	__le32 asyn;
 	union {
 		struct {
-			u32 qp;
+			__le32 qp;
 			u32 rsv0;
 			u32 rsv1;
 		} qp_event;
 
 		struct {
-			u32 cq;
+			__le32 cq;
 			u32 rsv0;
 			u32 rsv1;
 		} cq_event;
 
 		struct {
-			u32 ceqe;
+			__le32 ceqe;
 			u32 rsv0;
 			u32 rsv1;
 		} ce_event;
@@ -864,7 +864,7 @@ static inline struct hns_roce_sqp *hr_to_hr_sqp(struct hns_roce_qp *hr_qp)
 	return container_of(hr_qp, struct hns_roce_sqp, hr_qp);
 }
 
-static inline void hns_roce_write64_k(__be32 val[2], void __iomem *dest)
+static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
 {
 	__raw_writeq(*(u64 *) val, dest);
 }
