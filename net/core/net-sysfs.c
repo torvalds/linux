@@ -1047,9 +1047,14 @@ static ssize_t traffic_class_show(struct netdev_queue *queue,
 				  char *buf)
 {
 	struct net_device *dev = queue->dev;
-	int index = get_netdev_queue_index(queue);
-	int tc = netdev_txq_to_tc(dev, index);
+	int index;
+	int tc;
 
+	if (!netif_is_multiqueue(dev))
+		return -ENOENT;
+
+	index = get_netdev_queue_index(queue);
+	tc = netdev_txq_to_tc(dev, index);
 	if (tc < 0)
 		return -EINVAL;
 
@@ -1214,6 +1219,9 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	cpumask_var_t mask;
 	unsigned long index;
 
+	if (!netif_is_multiqueue(dev))
+		return -ENOENT;
+
 	index = get_netdev_queue_index(queue);
 
 	if (dev->num_tc) {
@@ -1259,6 +1267,9 @@ static ssize_t xps_cpus_store(struct netdev_queue *queue,
 	unsigned long index;
 	cpumask_var_t mask;
 	int err;
+
+	if (!netif_is_multiqueue(dev))
+		return -ENOENT;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
