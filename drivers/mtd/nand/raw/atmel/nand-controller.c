@@ -2219,9 +2219,9 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 		return -ENOMEM;
 	}
 
-	nc->sram.virt = gen_pool_dma_alloc(nc->sram.pool,
-					    ATMEL_NFC_SRAM_SIZE,
-					    &nc->sram.dma);
+	nc->sram.virt = (void __iomem *)gen_pool_dma_alloc(nc->sram.pool,
+							   ATMEL_NFC_SRAM_SIZE,
+							   &nc->sram.dma);
 	if (!nc->sram.virt) {
 		dev_err(nc->base.dev,
 			"Could not allocate memory from the NFC SRAM pool\n");
