@@ -507,6 +507,15 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	u64 hole_start, hole_end;
 	int loop, err;
 
+	/* Disable background reaper */
+	mutex_lock(&i915->drm.struct_mutex);
+	if (!i915->gt.active_requests++)
+		i915_gem_unpark(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	cancel_delayed_work_sync(&i915->gt.retire_work);
+	cancel_delayed_work_sync(&i915->gt.idle_work);
+	GEM_BUG_ON(!i915->gt.awake);
+
 	/* Trim the device mmap space to only a page */
 	memset(&resv, 0, sizeof(resv));
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
@@ -515,7 +524,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		err = drm_mm_reserve_node(mm, &resv);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
-			return err;
+			goto out_park;
 		}
 		break;
 	}
@@ -576,6 +585,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 			goto err_obj;
 		}
 
+		/* NB we rely on the _active_ reference to access obj now */
 		GEM_BUG_ON(!i915_gem_object_is_active(obj));
 		err = i915_gem_object_create_mmap_offset(obj);
 		if (err) {
@@ -587,6 +597,13 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 out:
 	drm_mm_remove_node(&resv);
+out_park:
+	mutex_lock(&i915->drm.struct_mutex);
+	if (--i915->gt.active_requests)
+		queue_delayed_work(i915->wq, &i915->gt.retire_work, 0);
+	else
+		queue_delayed_work(i915->wq, &i915->gt.idle_work, 0);
+	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 err_obj:
 	i915_gem_object_put(obj);
