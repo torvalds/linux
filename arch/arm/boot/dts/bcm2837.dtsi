@@ -17,6 +17,12 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupt-parent = <&local_intc>;
+		interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupt-parent = <&local_intc>;
