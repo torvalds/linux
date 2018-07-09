@@ -1485,6 +1485,9 @@ static int rockchip_drm_bind(struct device *dev)
 		struct drm_fb_helper *helper = private->fbdev_helper;
 		struct rockchip_crtc_state *s = NULL;
 
+		if (!helper)
+			break;
+
 		s = to_rockchip_crtc_state(crtc->state);
 		if (is_support_hotplug(s->output_type)) {
 			s->crtc_primary_fb = crtc->primary->fb;
