@@ -4830,23 +4830,28 @@ static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemallo
 	struct list_head sublist;
 	struct sk_buff *skb, *next;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct net_device *orig_dev = skb->dev;
 		struct packet_type *pt_prev = NULL;
 
+		list_del(&skb->list);
 		__netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
+		if (!pt_prev)
+			continue;
 		if (pt_curr != pt_prev || od_curr != orig_dev) {
 			/* dispatch old sublist */
-			list_cut_before(&sublist, head, &skb->list);
 			__netif_receive_skb_list_ptype(&sublist, pt_curr, od_curr);
 			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
 			pt_curr = pt_prev;
 			od_curr = orig_dev;
 		}
+		list_add_tail(&skb->list, &sublist);
 	}
 
 	/* dispatch final sublist */
-	__netif_receive_skb_list_ptype(head, pt_curr, od_curr);
+	__netif_receive_skb_list_ptype(&sublist, pt_curr, od_curr);
 }
 
 static int __netif_receive_skb(struct sk_buff *skb)
@@ -4982,25 +4987,30 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 {
 	struct bpf_prog *xdp_prog = NULL;
 	struct sk_buff *skb, *next;
+	struct list_head sublist;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		net_timestamp_check(netdev_tstamp_prequeue, skb);
-		if (skb_defer_rx_timestamp(skb))
-			/* Handled, remove from list */
-			list_del(&skb->list);
+		list_del(&skb->list);
+		if (!skb_defer_rx_timestamp(skb))
+			list_add_tail(&skb->list, &sublist);
 	}
+	list_splice_init(&sublist, head);
 
 	if (static_branch_unlikely(&generic_xdp_needed_key)) {
 		preempt_disable();
 		rcu_read_lock();
 		list_for_each_entry_safe(skb, next, head, list) {
 			xdp_prog = rcu_dereference(skb->dev->xdp_prog);
-			if (do_xdp_generic(xdp_prog, skb) != XDP_PASS)
-				/* Dropped, remove from list */
-				list_del(&skb->list);
+			list_del(&skb->list);
+			if (do_xdp_generic(xdp_prog, skb) == XDP_PASS)
+				list_add_tail(&skb->list, &sublist);
 		}
 		rcu_read_unlock();
 		preempt_enable();
+		/* Put passed packets back on main list */
+		list_splice_init(&sublist, head);
 	}
 
 	rcu_read_lock();
@@ -5011,9 +5021,9 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 			int cpu = get_rps_cpu(skb->dev, skb, &rflow);
 
 			if (cpu >= 0) {
-				enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
-				/* Handled, remove from list */
+				/* Will be handled, remove from list */
 				list_del(&skb->list);
+				enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 			}
 		}
 	}
