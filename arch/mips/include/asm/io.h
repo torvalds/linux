@@ -301,15 +301,11 @@ static inline void __iomem * __ioremap_mode(phys_addr_t offset, unsigned long si
 	__ioremap_mode((offset), (size), boot_cpu_data.writecombine)
 
 /*
- * These two are MIPS specific ioremap variant.	 ioremap_cacheable_cow
- * requests a cachable mapping, ioremap_uncached_accelerated requests a
- * mapping using the uncached accelerated mode which isn't supported on
- * all processors.
+ * This is a MIPS specific ioremap variant. ioremap_cacheable_cow
+ * requests a cachable mapping with CWB attribute enabled.
  */
 #define ioremap_cacheable_cow(offset, size)				\
 	__ioremap_mode((offset), (size), _CACHE_CACHABLE_COW)
-#define ioremap_uncached_accelerated(offset, size)			\
-	__ioremap_mode((offset), (size), _CACHE_UNCACHED_ACCELERATED)
 
 static inline void iounmap(const volatile void __iomem *addr)
 {
