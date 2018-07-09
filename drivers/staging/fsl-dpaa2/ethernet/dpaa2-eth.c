@@ -2383,8 +2383,7 @@ static int netdev_init(struct net_device *net_dev)
 		return err;
 	}
 
-	/* Set MTU limits */
-	net_dev->min_mtu = 68;
+	/* Set MTU upper limit; lower limit is 68B (default value) */
 	net_dev->max_mtu = DPAA2_ETH_MAX_MTU;
 
 	/* Set actual number of queues in the net device */
