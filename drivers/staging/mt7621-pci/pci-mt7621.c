@@ -177,19 +177,26 @@ static int pcie_link_status = 0;
 #define PCI_ACCESS_WRITE_2 4
 #define PCI_ACCESS_WRITE_4 5
 
+static inline u32 mt7621_pci_get_cfgaddr(unsigned int bus, unsigned int slot,
+					 unsigned int func, unsigned int where)
+{
+	return (((where & 0xF00) >> 8) << 24) | (bus << 16) | (slot << 11) |
+		(func << 8) | (where & 0xfc) | 0x80000000;
+}
+
 static int config_access(unsigned char access_type, struct pci_bus *bus,
 			unsigned int devfn, unsigned int where, u32 *data)
 {
 	unsigned int slot = PCI_SLOT(devfn);
 	u8 func = PCI_FUNC(devfn);
-	uint32_t address_reg, data_reg;
+	u32 address_reg, data_reg;
 	unsigned int address;
 
 	address_reg = RALINK_PCI_CONFIG_ADDR;
 	data_reg = RALINK_PCI_CONFIG_DATA_VIRTUAL_REG;
 
-	address = (((where&0xF00)>>8)<<24) |(bus->number << 16) | (slot << 11) |
-				(func << 8) | (where & 0xfc) | 0x80000000;
+	address = mt7621_pci_get_cfgaddr(bus->number, slot, func, where);
+
 	MV_WRITE(address_reg, address);
 
 	switch (access_type) {
@@ -305,11 +312,11 @@ static struct pci_controller mt7621_controller = {
 static void
 read_config(unsigned long bus, unsigned long dev, unsigned long func, unsigned long reg, unsigned long *val)
 {
-	unsigned int address_reg, data_reg, address;
+	u32 address_reg, data_reg, address;
 
 	address_reg = RALINK_PCI_CONFIG_ADDR;
 	data_reg = RALINK_PCI_CONFIG_DATA_VIRTUAL_REG;
-	address = (((reg & 0xF00)>>8)<<24) | (bus << 16) | (dev << 11) | (func << 8) | (reg & 0xfc) | 0x80000000 ;
+	address = mt7621_pci_get_cfgaddr(bus, dev, func, reg);
 	MV_WRITE(address_reg, address);
 	MV_READ(data_reg, val);
 	return;
@@ -318,11 +325,11 @@ read_config(unsigned long bus, unsigned long dev, unsigned long func, unsigned l
 static void
 write_config(unsigned long bus, unsigned long dev, unsigned long func, unsigned long reg, unsigned long val)
 {
-	unsigned int address_reg, data_reg, address;
+	u32 address_reg, data_reg, address;
 
 	address_reg = RALINK_PCI_CONFIG_ADDR;
 	data_reg = RALINK_PCI_CONFIG_DATA_VIRTUAL_REG;
-	address = (((reg & 0xF00)>>8)<<24) | (bus << 16) | (dev << 11) | (func << 8) | (reg & 0xfc) | 0x80000000 ;
+	address = mt7621_pci_get_cfgaddr(bus, dev, func, reg);
 	MV_WRITE(address_reg, address);
 	MV_WRITE(data_reg, val);
 	return;
