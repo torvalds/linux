@@ -460,7 +460,8 @@ config MTD_NAND_SH_FLCTL
 
 config MTD_NAND_DAVINCI
 	tristate "Support NAND on DaVinci/Keystone SoC"
-	depends on ARCH_DAVINCI || (ARCH_KEYSTONE && TI_AEMIF)
+	depends on ARCH_DAVINCI || (ARCH_KEYSTONE && TI_AEMIF) || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Enable the driver for NAND flash chips on Texas Instruments
 	  DaVinci/Keystone processors.
