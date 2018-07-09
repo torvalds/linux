@@ -747,35 +747,25 @@ struct drm_crtc_funcs {
 
 /**
  * struct drm_crtc - central CRTC control structure
- * @dev: parent DRM device
- * @port: OF node used by drm_of_find_possible_crtcs()
- * @head: list management
- * @name: human readable name, can be overwritten by the driver
- * @mutex: per-CRTC locking
- * @base: base KMS object for ID tracking etc.
- * @primary: primary plane for this CRTC
- * @cursor: cursor plane for this CRTC
- * @cursor_x: current x position of the cursor, used for universal cursor planes
- * @cursor_y: current y position of the cursor, used for universal cursor planes
- * @enabled: is this CRTC enabled?
- * @mode: current mode timings
- * @hwmode: mode timings as programmed to hw regs
- * @x: x position on screen
- * @y: y position on screen
- * @funcs: CRTC control functions
- * @gamma_size: size of gamma ramp
- * @gamma_store: gamma ramp values
- * @helper_private: mid-layer private data
- * @properties: property tracking for this CRTC
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
  */
 struct drm_crtc {
+	/** @dev: parent DRM device */
 	struct drm_device *dev;
+	/** @port: OF node used by drm_of_find_possible_crtcs(). */
 	struct device_node *port;
+	/**
+	 * @head:
+	 *
+	 * List of all CRTCs on @dev, linked from &drm_mode_config.crtc_list.
+	 * Invariant over the lifetime of @dev and therefore does not need
+	 * locking.
+	 */
 	struct list_head head;
 
+	/** @name: human readable name, can be overwritten by the driver */
 	char *name;
 
 	/**
@@ -790,10 +780,25 @@ struct drm_crtc {
 	 */
 	struct drm_modeset_lock mutex;
 
+	/** @base: base KMS object for ID tracking etc. */
 	struct drm_mode_object base;
 
-	/* primary and cursor planes for CRTC */
+	/**
+	 * @primary:
+	 * Primary plane for this CRTC. Note that this is only
+	 * relevant for legacy IOCTL, it specifies the plane implicitly used by
+	 * the SETCRTC and PAGE_FLIP IOCTLs. It does not have any significance
+	 * beyond that.
+	 */
 	struct drm_plane *primary;
+
+	/**
+	 * @cursor:
+	 * Cursor plane for this CRTC. Note that this is only relevant for
+	 * legacy IOCTL, it specifies the plane implicitly used by the SETCURSOR
+	 * and SETCURSOR2 IOCTLs. It does not have any significance
+	 * beyond that.
+	 */
 	struct drm_plane *cursor;
 
 	/**
@@ -802,30 +807,94 @@ struct drm_crtc {
 	 */
 	unsigned index;
 
-	/* position of cursor plane on crtc */
+	/**
+	 * @cursor_x: Current x position of the cursor, used for universal
+	 * cursor planes because the SETCURSOR IOCTL only can update the
+	 * framebuffer without supplying the coordinates. Drivers should not use
+	 * this directly, atomic drivers should look at &drm_plane_state.crtc_x
+	 * of the cursor plane instead.
+	 */
 	int cursor_x;
+	/**
+	 * @cursor_y: Current y position of the cursor, used for universal
+	 * cursor planes because the SETCURSOR IOCTL only can update the
+	 * framebuffer without supplying the coordinates. Drivers should not use
+	 * this directly, atomic drivers should look at &drm_plane_state.crtc_y
+	 * of the cursor plane instead.
+	 */
 	int cursor_y;
 
+	/**
+	 * @enabled:
+	 *
+	 * Is this CRTC enabled? Should only be used by legacy drivers, atomic
+	 * drivers should instead consult &drm_crtc_state.enable and
+	 * &drm_crtc_state.active. Atomic drivers can update this by calling
+	 * drm_atomic_helper_update_legacy_modeset_state().
+	 */
 	bool enabled;
 
-	/* Requested mode from modesetting. */
+	/**
+	 * @mode:
+	 *
+	 * Current mode timings. Should only be used by legacy drivers, atomic
+	 * drivers should instead consult &drm_crtc_state.mode. Atomic drivers
+	 * can update this by calling
+	 * drm_atomic_helper_update_legacy_modeset_state().
+	 */
 	struct drm_display_mode mode;
 
-	/* Programmed mode in hw, after adjustments for encoders,
-	 * crtc, panel scaling etc. Needed for timestamping etc.
+	/**
+	 * @hwmode:
+	 *
+	 * Programmed mode in hw, after adjustments for encoders, crtc, panel
+	 * scaling etc. Should only be used by legacy drivers, for high
+	 * precision vblank timestamps in
+	 * drm_calc_vbltimestamp_from_scanoutpos().
+	 *
+	 * Note that atomic drivers should not use this, but instead use
+	 * &drm_crtc_state.adjusted_mode. And for high-precision timestamps
+	 * drm_calc_vbltimestamp_from_scanoutpos() used &drm_vblank_crtc.hwmode,
+	 * which is filled out by calling drm_calc_timestamping_constants().
 	 */
 	struct drm_display_mode hwmode;
 
-	int x, y;
+	/**
+	 * @x:
+	 * x position on screen. Should only be used by legacy drivers, atomic
+	 * drivers should look at &drm_plane_state.crtc_x of the primary plane
+	 * instead. Updated by calling
+	 * drm_atomic_helper_update_legacy_modeset_state().
+	 */
+	int x;
+	/**
+	 * @y:
+	 * y position on screen. Should only be used by legacy drivers, atomic
+	 * drivers should look at &drm_plane_state.crtc_y of the primary plane
+	 * instead. Updated by calling
+	 * drm_atomic_helper_update_legacy_modeset_state().
+	 */
+	int y;
+
+	/** @funcs: CRTC control functions */
 	const struct drm_crtc_funcs *funcs;
 
-	/* Legacy FB CRTC gamma size for reporting to userspace */
+	/**
+	 * @gamma_size: Size of legacy gamma ramp reported to userspace. Set up
+	 * by calling drm_mode_crtc_set_gamma_size().
+	 */
 	uint32_t gamma_size;
+
+	/**
+	 * @gamma_store: Gamma ramp values used by the legacy SETGAMMA and
+	 * GETGAMMA IOCTls. Set up by calling drm_mode_crtc_set_gamma_size().
+	 */
 	uint16_t *gamma_store;
 
-	/* if you are using the helper */
+	/** @helper_private: mid-layer private data */
 	const struct drm_crtc_helper_funcs *helper_private;
 
+	/** @properties: property tracking for this CRTC */
 	struct drm_object_properties properties;
 
 	/**
@@ -895,7 +964,6 @@ struct drm_crtc {
 	 *
 	 * spinlock to protect the fences in the fence_context.
 	 */
-
 	spinlock_t fence_lock;
 	/**
 	 * @fence_seqno:
