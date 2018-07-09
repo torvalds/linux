@@ -13,6 +13,7 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
+	unsigned long cookie;
 	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
 };
 

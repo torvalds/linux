@@ -1099,19 +1099,17 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f;
-	struct fl_flow_mask *mask;
 
-	list_for_each_entry_rcu(mask, &head->masks, list) {
-		list_for_each_entry_rcu(f, &mask->filters, list) {
-			if (arg->count < arg->skip)
-				goto skip;
-			if (arg->fn(tp, f, arg) < 0) {
-				arg->stop = 1;
-				break;
-			}
-skip:
-			arg->count++;
+	arg->count = arg->skip;
+
+	while ((f = idr_get_next_ul(&head->handle_idr,
+				    &arg->cookie)) != NULL) {
+		if (arg->fn(tp, f, arg) < 0) {
+			arg->stop = 1;
+			break;
 		}
+		arg->cookie = f->handle + 1;
+		arg->count++;
 	}
 }
 
