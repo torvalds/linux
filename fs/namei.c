@@ -3054,21 +3054,21 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 				       open_to_namei_flags(open_flag), mode);
 	d_lookup_done(dentry);
 	if (!error) {
-		/*
-		 * We didn't have the inode before the open, so check open
-		 * permission here.
-		 */
-		int acc_mode = op->acc_mode;
-		if (file->f_mode & FMODE_CREATED) {
-			WARN_ON(!(open_flag & O_CREAT));
-			fsnotify_create(dir, dentry);
-			acc_mode = 0;
-		}
-		error = may_open(&file->f_path, acc_mode, open_flag);
-		if (WARN_ON(error > 0))
-			error = -EINVAL;
-	} else if (error > 0) {
-		if (WARN_ON(file->f_path.dentry == DENTRY_NOT_SET)) {
+		if (file->f_mode & FMODE_OPENED) {
+			/*
+			 * We didn't have the inode before the open, so check open
+			 * permission here.
+			 */
+			int acc_mode = op->acc_mode;
+			if (file->f_mode & FMODE_CREATED) {
+				WARN_ON(!(open_flag & O_CREAT));
+				fsnotify_create(dir, dentry);
+				acc_mode = 0;
+			}
+			error = may_open(&file->f_path, acc_mode, open_flag);
+			if (WARN_ON(error > 0))
+				error = -EINVAL;
+		} else if (WARN_ON(file->f_path.dentry == DENTRY_NOT_SET)) {
 			error = -EIO;
 		} else {
 			if (file->f_path.dentry) {

@@ -863,13 +863,13 @@ EXPORT_SYMBOL(finish_open);
  * NB: unlike finish_open() this function does consume the dentry reference and
  * the caller need not dput() it.
  *
- * Returns "1" which must be the return value of ->atomic_open() after having
+ * Returns "0" which must be the return value of ->atomic_open() after having
  * called this function.
  */
 int finish_no_open(struct file *file, struct dentry *dentry)
 {
 	file->f_path.dentry = dentry;
-	return 1;
+	return 0;
 }
 EXPORT_SYMBOL(finish_no_open);
 
