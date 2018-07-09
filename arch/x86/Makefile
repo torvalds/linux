@@ -80,11 +80,6 @@ ifeq ($(CONFIG_X86_32),y)
         # alignment instructions.
         KBUILD_CFLAGS += $(call cc-option,$(cc_stack_align4))
 
-        # Disable unit-at-a-time mode on pre-gcc-4.0 compilers, it makes gcc use
-        # a lot more stack due to the lack of sharing of stacklots:
-        KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0400, \
-				$(call cc-option,-fno-unit-at-a-time))
-
         # CPU-specific tuning. Anything which can be shared with UML should go here.
         include arch/x86/Makefile_32.cpu
         KBUILD_CFLAGS += $(cflags-y)
