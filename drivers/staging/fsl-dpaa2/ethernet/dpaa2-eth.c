@@ -522,8 +522,6 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
  * back-pointed to is also freed.
  * This can be called either from dpaa2_eth_tx_conf() or on the error path of
  * dpaa2_eth_tx().
- * Optionally, return the frame annotation status word (FAS), which needs
- * to be checked if we're on the confirmation path.
  */
 static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		       const struct dpaa2_fd *fd)
