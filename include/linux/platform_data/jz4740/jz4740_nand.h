@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef __ASM_MACH_JZ4740_JZ4740_NAND_H__
-#define __ASM_MACH_JZ4740_JZ4740_NAND_H__
+#ifndef __JZ4740_NAND_H__
+#define __JZ4740_NAND_H__
 
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
