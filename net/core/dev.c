@@ -4830,23 +4830,28 @@ static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemallo
 	struct list_head sublist;
 	struct sk_buff *skb, *next;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct net_device *orig_dev = skb->dev;
 		struct packet_type *pt_prev = NULL;
 
+		list_del(&skb->list);
 		__netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
+		if (!pt_prev)
+			continue;
 		if (pt_curr != pt_prev || od_curr != orig_dev) {
 			/* dispatch old sublist */
-			list_cut_before(&sublist, head, &skb->list);
 			__netif_receive_skb_list_ptype(&sublist, pt_curr, od_curr);
 			/* start new sublist */
+			INIT_LIST_HEAD(&sublist);
 			pt_curr = pt_prev;
 			od_curr = orig_dev;
 		}
+		list_add_tail(&skb->list, &sublist);
 	}
 
 	/* dispatch final sublist */
-	__netif_receive_skb_list_ptype(head, pt_curr, od_curr);
+	__netif_receive_skb_list_ptype(&sublist, pt_curr, od_curr);
 }
 
 static int __netif_receive_skb(struct sk_buff *skb)
