@@ -459,11 +459,21 @@ static bool convert_bpf_ld_abs(struct sock_filter *fp, struct bpf_insn **insnp)
 	     (!unaligned_ok && offset >= 0 &&
 	      offset + ip_align >= 0 &&
 	      offset + ip_align % size == 0))) {
+		bool ldx_off_ok = offset <= S16_MAX;
+
 		*insn++ = BPF_MOV64_REG(BPF_REG_TMP, BPF_REG_H);
 		*insn++ = BPF_ALU64_IMM(BPF_SUB, BPF_REG_TMP, offset);
-		*insn++ = BPF_JMP_IMM(BPF_JSLT, BPF_REG_TMP, size, 2 + endian);
-		*insn++ = BPF_LDX_MEM(BPF_SIZE(fp->code), BPF_REG_A, BPF_REG_D,
-				      offset);
+		*insn++ = BPF_JMP_IMM(BPF_JSLT, BPF_REG_TMP,
+				      size, 2 + endian + (!ldx_off_ok * 2));
+		if (ldx_off_ok) {
+			*insn++ = BPF_LDX_MEM(BPF_SIZE(fp->code), BPF_REG_A,
+					      BPF_REG_D, offset);
+		} else {
+			*insn++ = BPF_MOV64_REG(BPF_REG_TMP, BPF_REG_D);
+			*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_TMP, offset);
+			*insn++ = BPF_LDX_MEM(BPF_SIZE(fp->code), BPF_REG_A,
+					      BPF_REG_TMP, 0);
+		}
 		if (endian)
 			*insn++ = BPF_ENDIAN(BPF_FROM_BE, BPF_REG_A, size * 8);
 		*insn++ = BPF_JMP_A(8);
