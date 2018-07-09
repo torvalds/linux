@@ -10,7 +10,7 @@
 	model = "Toradex Colibri T30";
 	compatible = "toradex,colibri_t30", "nvidia,tegra30";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
 

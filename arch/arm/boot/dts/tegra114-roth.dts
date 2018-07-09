@@ -28,7 +28,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		/* memory >= 0x79600000 is reserved for firmware usage */
 		reg = <0x80000000 0x79600000>;
 	};
