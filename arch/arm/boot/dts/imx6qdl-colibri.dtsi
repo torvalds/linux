@@ -387,6 +387,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_mmc_cd>;
 	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
+	disable-wp;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
 	no-1-8-v;
