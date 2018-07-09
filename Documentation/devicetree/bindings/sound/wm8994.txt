@@ -60,6 +60,9 @@ Optional properties:
   - wlf,spkmode-pu : If present enable the internal pull-up resistor on
     the SPKMODE pin.
 
+  - wlf,csnaddr-pd : If present enable the internal pull-down resistor on
+    the CS/ADDR pin.
+
 Example:
 
 wm8994: codec@1a {
