@@ -1853,7 +1853,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 		return ret;
 
 	intel_engine_reset_breadcrumbs(engine);
-	intel_engine_init_hangcheck(engine);
 
 	if (GEM_SHOW_DEBUG() && unexpected_starting_state(engine)) {
 		struct drm_printer p = drm_debug_printer(__func__);

@@ -524,8 +524,6 @@ static int init_ring_common(struct intel_engine_cs *engine)
 		goto out;
 	}
 
-	intel_engine_init_hangcheck(engine);
-
 	if (INTEL_GEN(dev_priv) > 2)
 		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
 
