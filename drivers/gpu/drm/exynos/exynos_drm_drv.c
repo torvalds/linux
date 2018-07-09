@@ -55,8 +55,7 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 		return -ENOMEM;
 
 	file->driver_priv = file_priv;
-
-	ret = exynos_drm_subdrv_open(dev, file);
+	ret = g2d_open(dev, file);
 	if (ret)
 		goto err_file_priv_free;
 
@@ -70,7 +69,7 @@ err_file_priv_free:
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	exynos_drm_subdrv_close(dev, file);
+	g2d_close(dev, file);
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
@@ -240,6 +239,7 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRM_COMPONENT_DRIVER | DRM_VIRTUAL_DEVICE
 	}, {
 		DRV_PTR(g2d_driver, CONFIG_DRM_EXYNOS_G2D),
+		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(fimc_driver, CONFIG_DRM_EXYNOS_FIMC),
 		DRM_COMPONENT_DRIVER | DRM_FIMC_DEVICE,
@@ -376,11 +376,6 @@ static int exynos_drm_bind(struct device *dev)
 	if (ret)
 		goto err_unbind_all;
 
-	/* Probe non kms sub drivers and virtual display driver. */
-	ret = exynos_drm_device_subdrv_probe(drm);
-	if (ret)
-		goto err_unbind_all;
-
 	drm_mode_config_reset(drm);
 
 	/*
@@ -411,7 +406,6 @@ err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
 err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
-	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
@@ -430,8 +424,6 @@ static void exynos_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
-
-	exynos_drm_device_subdrv_remove(drm);
 
 	exynos_drm_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
