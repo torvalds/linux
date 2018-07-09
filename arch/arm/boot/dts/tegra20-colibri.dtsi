@@ -2,7 +2,7 @@
 #include "tegra20.dtsi"
 
 / {
-	model = "Toradex Colibri T20 512MB";
+	model = "Toradex Colibri T20 256/512 MB";
 	compatible = "toradex,colibri_t20-512", "nvidia,tegra20";
 
 	aliases {
@@ -11,7 +11,12 @@
 	};
 
 	memory@0 {
-		reg = <0x00000000 0x20000000>;
+		/*
+		 * Set memory to 256 MB to be safe as this could be used on
+		 * 256 or 512 MB module. It is expected from bootloader
+		 * to fix this up for 512 MB version.
+		 */
+		reg = <0x00000000 0x10000000>;
 	};
 
 	host1x@50000000 {
