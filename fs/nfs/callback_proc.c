@@ -662,9 +662,45 @@ __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 }
 #endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
-__be32 nfs4_callback_offload(void *args, void *dummy,
+static void nfs4_copy_cb_args(struct nfs4_copy_state *cp_state,
+				struct cb_offloadargs *args)
+{
+	cp_state->count = args->wr_count;
+	cp_state->error = args->error;
+	if (!args->error) {
+		cp_state->verf.committed = args->wr_writeverf.committed;
+		memcpy(&cp_state->verf.verifier.data[0],
+			&args->wr_writeverf.verifier.data[0],
+			NFS4_VERIFIER_SIZE);
+	}
+}
+
+__be32 nfs4_callback_offload(void *data, void *dummy,
 			     struct cb_process_state *cps)
 {
+	struct cb_offloadargs *args = data;
+	struct nfs_server *server;
+	struct nfs4_copy_state *copy;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &cps->clp->cl_superblocks,
+				client_link) {
+		spin_lock(&server->nfs_client->cl_lock);
+		list_for_each_entry(copy, &server->ss_copies, copies) {
+			if (memcmp(args->coa_stateid.other,
+					copy->stateid.other,
+					sizeof(args->coa_stateid.other)))
+				continue;
+			nfs4_copy_cb_args(copy, args);
+			complete(&copy->completion);
+			spin_unlock(&server->nfs_client->cl_lock);
+			goto out;
+		}
+		spin_unlock(&server->nfs_client->cl_lock);
+	}
+out:
+	rcu_read_unlock();
+
 	return 0;
 }
 #endif /* CONFIG_NFS_V4_2 */

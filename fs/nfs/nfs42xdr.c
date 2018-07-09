@@ -150,7 +150,7 @@ static void encode_copy(struct xdr_stream *xdr,
 	encode_uint64(xdr, args->count);
 
 	encode_uint32(xdr, 1); /* consecutive = true */
-	encode_uint32(xdr, 1); /* synchronous = true */
+	encode_uint32(xdr, args->sync);
 	encode_uint32(xdr, 0); /* src server list */
 }
 
@@ -273,7 +273,8 @@ static void nfs4_xdr_enc_copy(struct rpc_rqst *req,
 	encode_savefh(xdr, &hdr);
 	encode_putfh(xdr, args->dst_fh, &hdr);
 	encode_copy(xdr, args, &hdr);
-	encode_copy_commit(xdr, args, &hdr);
+	if (args->sync)
+		encode_copy_commit(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -551,7 +552,8 @@ static int nfs4_xdr_dec_copy(struct rpc_rqst *rqstp,
 	status = decode_copy(xdr, res);
 	if (status)
 		goto out;
-	status = decode_commit(xdr, &res->commit_res);
+	if (res->commit_res.verf)
+		status = decode_commit(xdr, &res->commit_res);
 out:
 	return status;
 }
