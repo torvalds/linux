@@ -89,6 +89,13 @@ TRACE_EVENT(s390_cio_tsch,
 		__field(u8, ssid)
 		__field(u16, schno)
 		__field_struct(struct irb, irb)
+		__field(u8, scsw_dcc)
+		__field(u8, scsw_pno)
+		__field(u8, scsw_fctl)
+		__field(u8, scsw_actl)
+		__field(u8, scsw_stctl)
+		__field(u8, scsw_dstat)
+		__field(u8, scsw_cstat)
 		__field(int, cc)
 	),
 	TP_fast_assign(
@@ -96,15 +103,22 @@ TRACE_EVENT(s390_cio_tsch,
 		__entry->ssid = schid.ssid;
 		__entry->schno = schid.sch_no;
 		__entry->irb = *irb;
+		__entry->scsw_dcc = scsw_cc(&irb->scsw);
+		__entry->scsw_pno = scsw_pno(&irb->scsw);
+		__entry->scsw_fctl = scsw_fctl(&irb->scsw);
+		__entry->scsw_actl = scsw_actl(&irb->scsw);
+		__entry->scsw_stctl = scsw_stctl(&irb->scsw);
+		__entry->scsw_dstat = scsw_dstat(&irb->scsw);
+		__entry->scsw_cstat = scsw_cstat(&irb->scsw);
 		__entry->cc = cc;
 	),
 	TP_printk("schid=%x.%x.%04x cc=%d dcc=%d pno=%d fctl=0x%x actl=0x%x "
 		  "stctl=0x%x dstat=0x%x cstat=0x%x",
 		  __entry->cssid, __entry->ssid, __entry->schno, __entry->cc,
-		  scsw_cc(&__entry->irb.scsw), scsw_pno(&__entry->irb.scsw),
-		  scsw_fctl(&__entry->irb.scsw), scsw_actl(&__entry->irb.scsw),
-		  scsw_stctl(&__entry->irb.scsw),
-		  scsw_dstat(&__entry->irb.scsw), scsw_cstat(&__entry->irb.scsw)
+		  __entry->scsw_dcc, __entry->scsw_pno,
+		  __entry->scsw_fctl, __entry->scsw_actl,
+		  __entry->scsw_stctl,
+		  __entry->scsw_dstat, __entry->scsw_cstat
 	)
 );
 
