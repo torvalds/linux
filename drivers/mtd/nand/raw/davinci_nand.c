@@ -318,7 +318,7 @@ static int nand_davinci_correct_4bit(struct mtd_info *mtd,
 	/* Unpack ten bytes into eight 10 bit values.  We know we're
 	 * little-endian, and use type punning for less shifting/masking.
 	 */
-	if (WARN_ON(0x01 & (unsigned) ecc_code))
+	if (WARN_ON(0x01 & (uintptr_t)ecc_code))
 		return -EINVAL;
 	ecc16 = (unsigned short *)ecc_code;
 
@@ -440,9 +440,9 @@ static void nand_davinci_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
-	if ((0x03 & ((unsigned)buf)) == 0 && (0x03 & len) == 0)
+	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
 		ioread32_rep(chip->IO_ADDR_R, buf, len >> 2);
-	else if ((0x01 & ((unsigned)buf)) == 0 && (0x01 & len) == 0)
+	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
 		ioread16_rep(chip->IO_ADDR_R, buf, len >> 1);
 	else
 		ioread8_rep(chip->IO_ADDR_R, buf, len);
@@ -453,9 +453,9 @@ static void nand_davinci_write_buf(struct mtd_info *mtd,
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
-	if ((0x03 & ((unsigned)buf)) == 0 && (0x03 & len) == 0)
+	if ((0x03 & ((uintptr_t)buf)) == 0 && (0x03 & len) == 0)
 		iowrite32_rep(chip->IO_ADDR_R, buf, len >> 2);
-	else if ((0x01 & ((unsigned)buf)) == 0 && (0x01 & len) == 0)
+	else if ((0x01 & ((uintptr_t)buf)) == 0 && (0x01 & len) == 0)
 		iowrite16_rep(chip->IO_ADDR_R, buf, len >> 1);
 	else
 		iowrite8_rep(chip->IO_ADDR_R, buf, len);
