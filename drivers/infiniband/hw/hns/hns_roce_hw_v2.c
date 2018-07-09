@@ -925,7 +925,8 @@ static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
 static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc[2];
-	struct hns_roce_pf_res *res;
+	struct hns_roce_pf_res_a *req_a;
+	struct hns_roce_pf_res_b *req_b;
 	int ret;
 	int i;
 
@@ -943,20 +944,25 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 	if (ret)
 		return ret;
 
-	res = (struct hns_roce_pf_res *)desc[0].data;
+	req_a = (struct hns_roce_pf_res_a *)desc[0].data;
+	req_b = (struct hns_roce_pf_res_b *)desc[1].data;
 
-	hr_dev->caps.qpc_bt_num = roce_get_field(res->qpc_bt_idx_num,
+	hr_dev->caps.qpc_bt_num = roce_get_field(req_a->qpc_bt_idx_num,
 						 PF_RES_DATA_1_PF_QPC_BT_NUM_M,
 						 PF_RES_DATA_1_PF_QPC_BT_NUM_S);
-	hr_dev->caps.srqc_bt_num = roce_get_field(res->srqc_bt_idx_num,
+	hr_dev->caps.srqc_bt_num = roce_get_field(req_a->srqc_bt_idx_num,
 						PF_RES_DATA_2_PF_SRQC_BT_NUM_M,
 						PF_RES_DATA_2_PF_SRQC_BT_NUM_S);
-	hr_dev->caps.cqc_bt_num = roce_get_field(res->cqc_bt_idx_num,
+	hr_dev->caps.cqc_bt_num = roce_get_field(req_a->cqc_bt_idx_num,
 						 PF_RES_DATA_3_PF_CQC_BT_NUM_M,
 						 PF_RES_DATA_3_PF_CQC_BT_NUM_S);
-	hr_dev->caps.mpt_bt_num = roce_get_field(res->mpt_bt_idx_num,
+	hr_dev->caps.mpt_bt_num = roce_get_field(req_a->mpt_bt_idx_num,
 						 PF_RES_DATA_4_PF_MPT_BT_NUM_M,
 						 PF_RES_DATA_4_PF_MPT_BT_NUM_S);
+
+	hr_dev->caps.sl_num = roce_get_field(req_b->qid_idx_sl_num,
+					     PF_RES_DATA_3_PF_SL_NUM_M,
+					     PF_RES_DATA_3_PF_SL_NUM_S);
 
 	return 0;
 }
@@ -1203,6 +1209,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->eqe_ba_pg_sz	= 0;
 	caps->eqe_buf_pg_sz	= 0;
 	caps->eqe_hop_num	= HNS_ROCE_EQE_HOP_NUM;
+	caps->tsq_buf_pg_sz	= 0;
 	caps->chunk_sz		= HNS_ROCE_V2_TABLE_CHUNK_SIZE;
 
 	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
@@ -1222,6 +1229,202 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 			ret);
 
 	return ret;
+}
+
+static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
+				      enum hns_roce_link_table_type type)
+{
+	struct hns_roce_cmq_desc desc[2];
+	struct hns_roce_cfg_llm_a *req_a =
+				(struct hns_roce_cfg_llm_a *)desc[0].data;
+	struct hns_roce_cfg_llm_b *req_b =
+				(struct hns_roce_cfg_llm_b *)desc[1].data;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hns_roce_link_table *link_tbl;
+	struct hns_roce_link_table_entry *entry;
+	enum hns_roce_opcode_type opcode;
+	u32 page_num;
+	int i;
+
+	switch (type) {
+	case TSQ_LINK_TABLE:
+		link_tbl = &priv->tsq;
+		opcode = HNS_ROCE_OPC_CFG_EXT_LLM;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	page_num = link_tbl->npages;
+	entry = link_tbl->table.buf;
+	memset(req_a, 0, sizeof(*req_a));
+	memset(req_b, 0, sizeof(*req_b));
+
+	for (i = 0; i < 2; i++) {
+		hns_roce_cmq_setup_basic_desc(&desc[i], opcode, false);
+
+		if (i == 0)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+		else
+			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+
+		if (i == 0) {
+			req_a->base_addr_l = link_tbl->table.map & 0xffffffff;
+			req_a->base_addr_h = (link_tbl->table.map >> 32) &
+					     0xffffffff;
+			roce_set_field(req_a->depth_pgsz_init_en,
+				       CFG_LLM_QUE_DEPTH_M,
+				       CFG_LLM_QUE_DEPTH_S,
+				       link_tbl->npages);
+			roce_set_field(req_a->depth_pgsz_init_en,
+				       CFG_LLM_QUE_PGSZ_M,
+				       CFG_LLM_QUE_PGSZ_S,
+				       link_tbl->pg_sz);
+			req_a->head_ba_l = entry[0].blk_ba0;
+			req_a->head_ba_h_nxtptr = entry[0].blk_ba1_nxt_ptr;
+			roce_set_field(req_a->head_ptr,
+				       CFG_LLM_HEAD_PTR_M,
+				       CFG_LLM_HEAD_PTR_S, 0);
+		} else {
+			req_b->tail_ba_l = entry[page_num - 1].blk_ba0;
+			roce_set_field(req_b->tail_ba_h,
+				       CFG_LLM_TAIL_BA_H_M,
+				       CFG_LLM_TAIL_BA_H_S,
+				       entry[page_num - 1].blk_ba1_nxt_ptr &
+				       HNS_ROCE_LINK_TABLE_BA1_M);
+			roce_set_field(req_b->tail_ptr,
+				       CFG_LLM_TAIL_PTR_M,
+				       CFG_LLM_TAIL_PTR_S,
+				       (entry[page_num - 2].blk_ba1_nxt_ptr &
+				       HNS_ROCE_LINK_TABLE_NXT_PTR_M) >>
+				       HNS_ROCE_LINK_TABLE_NXT_PTR_S);
+		}
+	}
+	roce_set_field(req_a->depth_pgsz_init_en,
+		       CFG_LLM_INIT_EN_M, CFG_LLM_INIT_EN_S, 1);
+
+	return hns_roce_cmq_send(hr_dev, desc, 2);
+}
+
+static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev,
+				    enum hns_roce_link_table_type type)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hns_roce_link_table *link_tbl;
+	struct hns_roce_link_table_entry *entry;
+	struct device *dev = hr_dev->dev;
+	u32 buf_chk_sz;
+	dma_addr_t t;
+	int pg_num_a;
+	int pg_num_b;
+	int pg_num;
+	int size;
+	int i;
+
+	switch (type) {
+	case TSQ_LINK_TABLE:
+		link_tbl = &priv->tsq;
+		buf_chk_sz = 1 << (hr_dev->caps.tsq_buf_pg_sz + PAGE_SHIFT);
+		pg_num_a = hr_dev->caps.num_qps * 8 / buf_chk_sz;
+		pg_num_b = hr_dev->caps.sl_num * 4 + 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	pg_num = max(pg_num_a, pg_num_b);
+	size = pg_num * sizeof(struct hns_roce_link_table_entry);
+
+	link_tbl->table.buf = dma_alloc_coherent(dev, size,
+						 &link_tbl->table.map,
+						 GFP_KERNEL);
+	if (!link_tbl->table.buf)
+		goto out;
+
+	link_tbl->pg_list = kcalloc(pg_num, sizeof(*link_tbl->pg_list),
+				    GFP_KERNEL);
+	if (!link_tbl->pg_list)
+		goto err_kcalloc_failed;
+
+	entry = link_tbl->table.buf;
+	for (i = 0; i < pg_num; ++i) {
+		link_tbl->pg_list[i].buf = dma_alloc_coherent(dev, buf_chk_sz,
+							      &t, GFP_KERNEL);
+		if (!link_tbl->pg_list[i].buf)
+			goto err_alloc_buf_failed;
+
+		link_tbl->pg_list[i].map = t;
+		memset(link_tbl->pg_list[i].buf, 0, buf_chk_sz);
+
+		entry[i].blk_ba0 = (t >> 12) & 0xffffffff;
+		roce_set_field(entry[i].blk_ba1_nxt_ptr,
+			       HNS_ROCE_LINK_TABLE_BA1_M,
+			       HNS_ROCE_LINK_TABLE_BA1_S,
+			       t >> 44);
+
+		if (i < (pg_num - 1))
+			roce_set_field(entry[i].blk_ba1_nxt_ptr,
+				       HNS_ROCE_LINK_TABLE_NXT_PTR_M,
+				       HNS_ROCE_LINK_TABLE_NXT_PTR_S,
+				       i + 1);
+	}
+	link_tbl->npages = pg_num;
+	link_tbl->pg_sz = buf_chk_sz;
+
+	return hns_roce_config_link_table(hr_dev, type);
+
+err_alloc_buf_failed:
+	for (i -= 1; i >= 0; i--)
+		dma_free_coherent(dev, buf_chk_sz,
+				  link_tbl->pg_list[i].buf,
+				  link_tbl->pg_list[i].map);
+	kfree(link_tbl->pg_list);
+
+err_kcalloc_failed:
+	dma_free_coherent(dev, size, link_tbl->table.buf,
+			  link_tbl->table.map);
+
+out:
+	return -ENOMEM;
+}
+
+static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev,
+				     struct hns_roce_link_table *link_tbl)
+{
+	struct device *dev = hr_dev->dev;
+	int size;
+	int i;
+
+	size = link_tbl->npages * sizeof(struct hns_roce_link_table_entry);
+
+	for (i = 0; i < link_tbl->npages; ++i)
+		if (link_tbl->pg_list[i].buf)
+			dma_free_coherent(dev, link_tbl->pg_sz,
+					  link_tbl->pg_list[i].buf,
+					  link_tbl->pg_list[i].map);
+	kfree(link_tbl->pg_list);
+
+	dma_free_coherent(dev, size, link_tbl->table.buf,
+			  link_tbl->table.map);
+}
+
+static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
+{
+	int ret;
+
+	/* TSQ includes SQ doorbell and ack doorbell */
+	ret = hns_roce_init_link_table(hr_dev, TSQ_LINK_TABLE);
+	if (ret)
+		dev_err(hr_dev->dev, "TSQ init failed, ret = %d.\n", ret);
+
+	return ret;
+}
+
+static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+
+	hns_roce_free_link_table(hr_dev, &priv->tsq);
 }
 
 static int hns_roce_v2_cmd_pending(struct hns_roce_dev *hr_dev)
@@ -4722,6 +4925,8 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
 	.hw_profile = hns_roce_v2_profile,
+	.hw_init = hns_roce_v2_init,
+	.hw_exit = hns_roce_v2_exit,
 	.post_mbox = hns_roce_v2_post_mbox,
 	.chk_mbox = hns_roce_v2_chk_mbox,
 	.set_gid = hns_roce_v2_set_gid,

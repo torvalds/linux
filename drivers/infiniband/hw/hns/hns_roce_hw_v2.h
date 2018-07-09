@@ -203,6 +203,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_ALLOC_PF_RES			= 0x8004,
 	HNS_ROCE_OPC_QUERY_PF_RES			= 0x8400,
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
+	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
 };
 
@@ -1061,6 +1062,40 @@ struct hns_roce_query_version {
 	__le32 rsv[5];
 };
 
+struct hns_roce_cfg_llm_a {
+	__le32 base_addr_l;
+	__le32 base_addr_h;
+	__le32 depth_pgsz_init_en;
+	__le32 head_ba_l;
+	__le32 head_ba_h_nxtptr;
+	__le32 head_ptr;
+};
+
+#define CFG_LLM_QUE_DEPTH_S 0
+#define CFG_LLM_QUE_DEPTH_M GENMASK(12, 0)
+
+#define CFG_LLM_QUE_PGSZ_S 16
+#define CFG_LLM_QUE_PGSZ_M GENMASK(19, 16)
+
+#define CFG_LLM_INIT_EN_S 20
+#define CFG_LLM_INIT_EN_M GENMASK(20, 20)
+
+#define CFG_LLM_HEAD_PTR_S 0
+#define CFG_LLM_HEAD_PTR_M GENMASK(11, 0)
+
+struct hns_roce_cfg_llm_b {
+	__le32 tail_ba_l;
+	__le32 tail_ba_h;
+	__le32 tail_ptr;
+	__le32 rsv[3];
+};
+
+#define CFG_LLM_TAIL_BA_H_S 0
+#define CFG_LLM_TAIL_BA_H_M GENMASK(19, 0)
+
+#define CFG_LLM_TAIL_PTR_S 0
+#define CFG_LLM_TAIL_PTR_M GENMASK(11, 0)
+
 struct hns_roce_cfg_global_param {
 	__le32 time_cfg_udp_port;
 	__le32 rsv[5];
@@ -1072,7 +1107,7 @@ struct hns_roce_cfg_global_param {
 #define CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_S 16
 #define CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_M GENMASK(31, 16)
 
-struct hns_roce_pf_res {
+struct hns_roce_pf_res_a {
 	__le32	rsv;
 	__le32	qpc_bt_idx_num;
 	__le32	srqc_bt_idx_num;
@@ -1110,6 +1145,32 @@ struct hns_roce_pf_res {
 
 #define PF_RES_DATA_5_PF_EQC_BT_NUM_S 16
 #define PF_RES_DATA_5_PF_EQC_BT_NUM_M GENMASK(25, 16)
+
+struct hns_roce_pf_res_b {
+	__le32	rsv0;
+	__le32	smac_idx_num;
+	__le32	sgid_idx_num;
+	__le32	qid_idx_sl_num;
+	__le32	rsv[2];
+};
+
+#define PF_RES_DATA_1_PF_SMAC_IDX_S 0
+#define PF_RES_DATA_1_PF_SMAC_IDX_M GENMASK(7, 0)
+
+#define PF_RES_DATA_1_PF_SMAC_NUM_S 8
+#define PF_RES_DATA_1_PF_SMAC_NUM_M GENMASK(16, 8)
+
+#define PF_RES_DATA_2_PF_SGID_IDX_S 0
+#define PF_RES_DATA_2_PF_SGID_IDX_M GENMASK(7, 0)
+
+#define PF_RES_DATA_2_PF_SGID_NUM_S 8
+#define PF_RES_DATA_2_PF_SGID_NUM_M GENMASK(16, 8)
+
+#define PF_RES_DATA_3_PF_QID_IDX_S 0
+#define PF_RES_DATA_3_PF_QID_IDX_M GENMASK(9, 0)
+
+#define PF_RES_DATA_3_PF_SL_NUM_S 16
+#define PF_RES_DATA_3_PF_SL_NUM_M GENMASK(26, 16)
 
 struct hns_roce_vf_res_a {
 	__le32 vf_id;
@@ -1276,8 +1337,30 @@ struct hns_roce_v2_cmq {
 	u16 last_status;
 };
 
+enum hns_roce_link_table_type {
+	TSQ_LINK_TABLE,
+};
+
+struct hns_roce_link_table {
+	struct hns_roce_buf_list table;
+	struct hns_roce_buf_list *pg_list;
+	u32 npages;
+	u32 pg_sz;
+};
+
+struct hns_roce_link_table_entry {
+	u32 blk_ba0;
+	u32 blk_ba1_nxt_ptr;
+};
+#define HNS_ROCE_LINK_TABLE_BA1_S 0
+#define HNS_ROCE_LINK_TABLE_BA1_M GENMASK(19, 0)
+
+#define HNS_ROCE_LINK_TABLE_NXT_PTR_S 20
+#define HNS_ROCE_LINK_TABLE_NXT_PTR_M GENMASK(31, 20)
+
 struct hns_roce_v2_priv {
 	struct hns_roce_v2_cmq cmq;
+	struct hns_roce_link_table tsq;
 };
 
 struct hns_roce_eq_context {
