@@ -729,7 +729,7 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 static inline
 int ipoib_cm_dev_init(struct net_device *dev)
 {
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 
 static inline
