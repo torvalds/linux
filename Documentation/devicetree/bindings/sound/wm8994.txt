@@ -57,6 +57,9 @@ Optional properties:
 
   - wlf,ldoena-always-driven : If present LDOENA is always driven.
 
+  - wlf,spkmode-pu : If present enable the internal pull-up resistor on
+    the SPKMODE pin.
+
 Example:
 
 wm8994: codec@1a {
