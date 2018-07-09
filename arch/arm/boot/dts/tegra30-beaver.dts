@@ -1790,9 +1790,6 @@
 			vccio-supply = <&vdd_5v_in_reg>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
 				vdd1_reg: vdd1 {
 					regulator-name = "vddio_ddr_1v2";
 					regulator-min-microvolt = <1200000>;

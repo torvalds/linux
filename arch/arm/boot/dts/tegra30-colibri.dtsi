@@ -351,8 +351,6 @@
 		/* STMPE811 touch screen controller */
 		stmpe811@41 {
 			compatible = "st,stmpe811";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0x41>;
 			interrupts = <TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
 			interrupt-parent = <&gpio>;
