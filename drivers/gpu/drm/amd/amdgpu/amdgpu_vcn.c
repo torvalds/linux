@@ -211,6 +211,8 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
 	}
 
+	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
+
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
