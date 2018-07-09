@@ -2269,10 +2269,8 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 
 	if (unlikely(flags & LOOKUP_DOWN) && !IS_ERR(s)) {
 		err = handle_lookup_down(nd);
-		if (unlikely(err < 0)) {
-			terminate_walk(nd);
-			return err;
-		}
+		if (unlikely(err < 0))
+			s = ERR_PTR(err);
 	}
 
 	while (!(err = link_path_walk(s, nd))
@@ -3472,7 +3470,6 @@ static int do_o_path(struct nameidata *nd, unsigned flags, struct file *file)
 static struct file *path_openat(struct nameidata *nd,
 			const struct open_flags *op, unsigned flags)
 {
-	const char *s;
 	struct file *file;
 	int error;
 
@@ -3482,22 +3479,17 @@ static struct file *path_openat(struct nameidata *nd,
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(nd, flags, op, file);
-		goto out2;
-	}
-
-	if (unlikely(file->f_flags & O_PATH)) {
+	} else if (unlikely(file->f_flags & O_PATH)) {
 		error = do_o_path(nd, flags, file);
-		goto out2;
+	} else {
+		const char *s = path_init(nd, flags);
+		while (!(error = link_path_walk(s, nd)) &&
+			(error = do_last(nd, file, op)) > 0) {
+			nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
+			s = trailing_symlink(nd);
+		}
+		terminate_walk(nd);
 	}
-
-	s = path_init(nd, flags);
-	while (!(error = link_path_walk(s, nd)) &&
-		(error = do_last(nd, file, op)) > 0) {
-		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		s = trailing_symlink(nd);
-	}
-	terminate_walk(nd);
-out2:
 	if (likely(!error)) {
 		if (likely(file->f_mode & FMODE_OPENED))
 			return file;
