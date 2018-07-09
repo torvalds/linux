@@ -1260,6 +1260,222 @@ out_srf_unref:
 	return ret;
 }
 
+static uint32_t vmw_stdu_bo_fifo_size(struct vmw_du_update_plane *update,
+				      uint32_t num_hits)
+{
+	return sizeof(struct vmw_stdu_dma) + sizeof(SVGA3dCopyBox) * num_hits +
+		sizeof(SVGA3dCmdSurfaceDMASuffix) +
+		sizeof(struct vmw_stdu_update);
+}
+
+static uint32_t vmw_stdu_bo_fifo_size_cpu(struct vmw_du_update_plane *update,
+					  uint32_t num_hits)
+{
+	return sizeof(struct vmw_stdu_update_gb_image) +
+		sizeof(struct vmw_stdu_update);
+}
+
+static uint32_t vmw_stdu_bo_populate_dma(struct vmw_du_update_plane  *update,
+					 void *cmd, uint32_t num_hits)
+{
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer_bo *vfbbo;
+	struct vmw_stdu_dma *cmd_dma = cmd;
+
+	stdu = container_of(update->du, typeof(*stdu), base);
+	vfbbo = container_of(update->vfb, typeof(*vfbbo), base);
+
+	cmd_dma->header.id = SVGA_3D_CMD_SURFACE_DMA;
+	cmd_dma->header.size = sizeof(cmd_dma->body) +
+		sizeof(struct SVGA3dCopyBox) * num_hits +
+		sizeof(SVGA3dCmdSurfaceDMASuffix);
+	vmw_bo_get_guest_ptr(&vfbbo->buffer->base, &cmd_dma->body.guest.ptr);
+	cmd_dma->body.guest.pitch = update->vfb->base.pitches[0];
+	cmd_dma->body.host.sid = stdu->display_srf->res.id;
+	cmd_dma->body.host.face = 0;
+	cmd_dma->body.host.mipmap = 0;
+	cmd_dma->body.transfer = SVGA3D_WRITE_HOST_VRAM;
+
+	return sizeof(*cmd_dma);
+}
+
+static uint32_t vmw_stdu_bo_populate_clip(struct vmw_du_update_plane  *update,
+					  void *cmd, struct drm_rect *clip,
+					  uint32_t fb_x, uint32_t fb_y)
+{
+	struct SVGA3dCopyBox *box = cmd;
+
+	box->srcx = fb_x;
+	box->srcy = fb_y;
+	box->srcz = 0;
+	box->x = clip->x1;
+	box->y = clip->y1;
+	box->z = 0;
+	box->w = drm_rect_width(clip);
+	box->h = drm_rect_height(clip);
+	box->d = 1;
+
+	return sizeof(*box);
+}
+
+static uint32_t vmw_stdu_bo_populate_update(struct vmw_du_update_plane  *update,
+					    void *cmd, struct drm_rect *bb)
+{
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer_bo *vfbbo;
+	SVGA3dCmdSurfaceDMASuffix *suffix = cmd;
+
+	stdu = container_of(update->du, typeof(*stdu), base);
+	vfbbo = container_of(update->vfb, typeof(*vfbbo), base);
+
+	suffix->suffixSize = sizeof(*suffix);
+	suffix->maximumOffset = vfbbo->buffer->base.num_pages * PAGE_SIZE;
+
+	vmw_stdu_populate_update(&suffix[1], stdu->base.unit, bb->x1, bb->x2,
+				 bb->y1, bb->y2);
+
+	return sizeof(*suffix) + sizeof(struct vmw_stdu_update);
+}
+
+static uint32_t vmw_stdu_bo_pre_clip_cpu(struct vmw_du_update_plane  *update,
+					 void *cmd, uint32_t num_hits)
+{
+	struct vmw_du_update_plane_buffer *bo_update =
+		container_of(update, typeof(*bo_update), base);
+
+	bo_update->fb_left = INT_MAX;
+	bo_update->fb_top = INT_MAX;
+
+	return 0;
+}
+
+static uint32_t vmw_stdu_bo_clip_cpu(struct vmw_du_update_plane  *update,
+				     void *cmd, struct drm_rect *clip,
+				     uint32_t fb_x, uint32_t fb_y)
+{
+	struct vmw_du_update_plane_buffer *bo_update =
+		container_of(update, typeof(*bo_update), base);
+
+	bo_update->fb_left = min_t(int, bo_update->fb_left, fb_x);
+	bo_update->fb_top = min_t(int, bo_update->fb_top, fb_y);
+
+	return 0;
+}
+
+static uint32_t
+vmw_stdu_bo_populate_update_cpu(struct vmw_du_update_plane  *update, void *cmd,
+				struct drm_rect *bb)
+{
+	struct vmw_du_update_plane_buffer *bo_update;
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer_bo *vfbbo;
+	struct vmw_diff_cpy diff = VMW_CPU_BLIT_DIFF_INITIALIZER(0);
+	struct vmw_stdu_update_gb_image *cmd_img = cmd;
+	struct vmw_stdu_update *cmd_update;
+	struct ttm_buffer_object *src_bo, *dst_bo;
+	u32 src_offset, dst_offset;
+	s32 src_pitch, dst_pitch;
+	s32 width, height;
+
+	bo_update = container_of(update, typeof(*bo_update), base);
+	stdu = container_of(update->du, typeof(*stdu), base);
+	vfbbo = container_of(update->vfb, typeof(*vfbbo), base);
+
+	width = bb->x2 - bb->x1;
+	height = bb->y2 - bb->y1;
+
+	diff.cpp = stdu->cpp;
+
+	dst_bo = &stdu->display_srf->res.backup->base;
+	dst_pitch = stdu->display_srf->base_size.width * stdu->cpp;
+	dst_offset = bb->y1 * dst_pitch + bb->x1 * stdu->cpp;
+
+	src_bo = &vfbbo->buffer->base;
+	src_pitch = update->vfb->base.pitches[0];
+	src_offset = bo_update->fb_top * src_pitch + bo_update->fb_left *
+		stdu->cpp;
+
+	(void) vmw_bo_cpu_blit(dst_bo, dst_offset, dst_pitch, src_bo,
+			       src_offset, src_pitch, width * stdu->cpp, height,
+			       &diff);
+
+	if (drm_rect_visible(&diff.rect)) {
+		SVGA3dBox *box = &cmd_img->body.box;
+
+		cmd_img->header.id = SVGA_3D_CMD_UPDATE_GB_IMAGE;
+		cmd_img->header.size = sizeof(cmd_img->body);
+		cmd_img->body.image.sid = stdu->display_srf->res.id;
+		cmd_img->body.image.face = 0;
+		cmd_img->body.image.mipmap = 0;
+
+		box->x = diff.rect.x1;
+		box->y = diff.rect.y1;
+		box->z = 0;
+		box->w = drm_rect_width(&diff.rect);
+		box->h = drm_rect_height(&diff.rect);
+		box->d = 1;
+
+		cmd_update = (struct vmw_stdu_update *)&cmd_img[1];
+		vmw_stdu_populate_update(cmd_update, stdu->base.unit,
+					 diff.rect.x1, diff.rect.x2,
+					 diff.rect.y1, diff.rect.y2);
+
+		return sizeof(*cmd_img) + sizeof(*cmd_update);
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_stdu_plane_update_bo - Update display unit for bo backed fb.
+ * @dev_priv: device private.
+ * @plane: plane state.
+ * @old_state: old plane state.
+ * @vfb: framebuffer which is blitted to display unit.
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_stdu_plane_update_bo(struct vmw_private *dev_priv,
+				    struct drm_plane *plane,
+				    struct drm_plane_state *old_state,
+				    struct vmw_framebuffer *vfb,
+				    struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane_buffer bo_update;
+
+	memset(&bo_update, 0, sizeof(struct vmw_du_update_plane_buffer));
+	bo_update.base.plane = plane;
+	bo_update.base.old_state = old_state;
+	bo_update.base.dev_priv = dev_priv;
+	bo_update.base.du = vmw_crtc_to_du(plane->state->crtc);
+	bo_update.base.vfb = vfb;
+	bo_update.base.out_fence = out_fence;
+	bo_update.base.mutex = NULL;
+	bo_update.base.cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
+	bo_update.base.intr = false;
+
+	/*
+	 * VM without 3D support don't have surface DMA command and framebuffer
+	 * should be moved out of VRAM.
+	 */
+	if (bo_update.base.cpu_blit) {
+		bo_update.base.calc_fifo_size = vmw_stdu_bo_fifo_size_cpu;
+		bo_update.base.pre_clip = vmw_stdu_bo_pre_clip_cpu;
+		bo_update.base.clip = vmw_stdu_bo_clip_cpu;
+		bo_update.base.post_clip = vmw_stdu_bo_populate_update_cpu;
+	} else {
+		bo_update.base.calc_fifo_size = vmw_stdu_bo_fifo_size;
+		bo_update.base.pre_clip = vmw_stdu_bo_populate_dma;
+		bo_update.base.clip = vmw_stdu_bo_populate_clip;
+		bo_update.base.post_clip = vmw_stdu_bo_populate_update;
+	}
+
+	return vmw_du_helper_plane_update(&bo_update.base);
+}
+
 static uint32_t
 vmw_stdu_surface_fifo_size_same_display(struct vmw_du_update_plane *update,
 					uint32_t num_hits)

@@ -130,6 +130,17 @@ struct vmw_du_update_plane {
 };
 
 /**
+ * struct vmw_du_update_plane_buffer - Closure structure for buffer object
+ * @base: Base closure structure.
+ * @fb_left: x1 for fb damage bounding box.
+ * @fb_top: y1 for fb damage bounding box.
+ */
+struct vmw_du_update_plane_buffer {
+	struct vmw_du_update_plane base;
+	int fb_left, fb_top;
+};
+
+/**
  * struct vmw_kms_dirty - closure structure for the vmw_kms_helper_dirty
  * function.
  *
