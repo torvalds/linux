@@ -115,40 +115,8 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"db_drop                ",
 	"db_full                ",
 	"db_empty               ",
-	"tcp_ipv4_out_rsts      ",
-	"tcp_ipv4_in_segs       ",
-	"tcp_ipv4_out_segs      ",
-	"tcp_ipv4_retrans_segs  ",
-	"tcp_ipv6_out_rsts      ",
-	"tcp_ipv6_in_segs       ",
-	"tcp_ipv6_out_segs      ",
-	"tcp_ipv6_retrans_segs  ",
-	"usm_ddp_frames         ",
-	"usm_ddp_octets         ",
-	"usm_ddp_drops          ",
-	"rdma_no_rqe_mod_defer  ",
-	"rdma_no_rqe_pkt_defer  ",
-	"tp_err_ofld_no_neigh   ",
-	"tp_err_ofld_cong_defer ",
 	"write_coal_success     ",
 	"write_coal_fail        ",
-};
-
-static char channel_stats_strings[][ETH_GSTRING_LEN] = {
-	"--------Channel--------- ",
-	"tp_cpl_requests        ",
-	"tp_cpl_responses       ",
-	"tp_mac_in_errs         ",
-	"tp_hdr_in_errs         ",
-	"tp_tcp_in_errs         ",
-	"tp_tcp6_in_errs        ",
-	"tp_tnl_cong_drops      ",
-	"tp_tnl_tx_drops        ",
-	"tp_ofld_vlan_drops     ",
-	"tp_ofld_chan_drops     ",
-	"fcoe_octets_ddp        ",
-	"fcoe_frames_ddp        ",
-	"fcoe_frames_drop       ",
 };
 
 static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
@@ -187,7 +155,6 @@ static int get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings) +
 		       ARRAY_SIZE(adapter_stats_strings) +
-		       ARRAY_SIZE(channel_stats_strings) +
 		       ARRAY_SIZE(loopback_stats_strings);
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(cxgb4_priv_flags_strings);
@@ -252,9 +219,6 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		memcpy(data, adapter_stats_strings,
 		       sizeof(adapter_stats_strings));
 		data += sizeof(adapter_stats_strings);
-		memcpy(data, channel_stats_strings,
-		       sizeof(channel_stats_strings));
-		data += sizeof(channel_stats_strings);
 		memcpy(data, loopback_stats_strings,
 		       sizeof(loopback_stats_strings));
 	} else if (stringset == ETH_SS_PRIV_FLAGS) {
@@ -280,39 +244,8 @@ struct adapter_stats {
 	u64 db_drop;
 	u64 db_full;
 	u64 db_empty;
-	u64 tcp_v4_out_rsts;
-	u64 tcp_v4_in_segs;
-	u64 tcp_v4_out_segs;
-	u64 tcp_v4_retrans_segs;
-	u64 tcp_v6_out_rsts;
-	u64 tcp_v6_in_segs;
-	u64 tcp_v6_out_segs;
-	u64 tcp_v6_retrans_segs;
-	u64 frames;
-	u64 octets;
-	u64 drops;
-	u64 rqe_dfr_mod;
-	u64 rqe_dfr_pkt;
-	u64 ofld_no_neigh;
-	u64 ofld_cong_defer;
 	u64 wc_success;
 	u64 wc_fail;
-};
-
-struct channel_stats {
-	u64 cpl_req;
-	u64 cpl_rsp;
-	u64 mac_in_errs;
-	u64 hdr_in_errs;
-	u64 tcp_in_errs;
-	u64 tcp6_in_errs;
-	u64 tnl_cong_drops;
-	u64 tnl_tx_drops;
-	u64 ofld_vlan_drops;
-	u64 ofld_chan_drops;
-	u64 octets_ddp;
-	u64 frames_ddp;
-	u64 frames_drop;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -337,44 +270,13 @@ static void collect_sge_port_stats(const struct adapter *adap,
 
 static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 {
-	struct tp_tcp_stats v4, v6;
-	struct tp_rdma_stats rdma_stats;
-	struct tp_err_stats err_stats;
-	struct tp_usm_stats usm_stats;
 	u64 val1, val2;
 
 	memset(s, 0, sizeof(*s));
 
-	spin_lock(&adap->stats_lock);
-	t4_tp_get_tcp_stats(adap, &v4, &v6, false);
-	t4_tp_get_rdma_stats(adap, &rdma_stats, false);
-	t4_get_usm_stats(adap, &usm_stats, false);
-	t4_tp_get_err_stats(adap, &err_stats, false);
-	spin_unlock(&adap->stats_lock);
-
 	s->db_drop = adap->db_stats.db_drop;
 	s->db_full = adap->db_stats.db_full;
 	s->db_empty = adap->db_stats.db_empty;
-
-	s->tcp_v4_out_rsts = v4.tcp_out_rsts;
-	s->tcp_v4_in_segs = v4.tcp_in_segs;
-	s->tcp_v4_out_segs = v4.tcp_out_segs;
-	s->tcp_v4_retrans_segs = v4.tcp_retrans_segs;
-	s->tcp_v6_out_rsts = v6.tcp_out_rsts;
-	s->tcp_v6_in_segs = v6.tcp_in_segs;
-	s->tcp_v6_out_segs = v6.tcp_out_segs;
-	s->tcp_v6_retrans_segs = v6.tcp_retrans_segs;
-
-	if (is_offload(adap)) {
-		s->frames = usm_stats.frames;
-		s->octets = usm_stats.octets;
-		s->drops = usm_stats.drops;
-		s->rqe_dfr_mod = rdma_stats.rqe_dfr_mod;
-		s->rqe_dfr_pkt = rdma_stats.rqe_dfr_pkt;
-	}
-
-	s->ofld_no_neigh = err_stats.ofld_no_neigh;
-	s->ofld_cong_defer = err_stats.ofld_cong_defer;
 
 	if (!is_t4(adap->params.chip)) {
 		int v;
@@ -387,36 +289,6 @@ static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 			s->wc_fail = val2;
 		}
 	}
-}
-
-static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
-				  u8 i)
-{
-	struct tp_cpl_stats cpl_stats;
-	struct tp_err_stats err_stats;
-	struct tp_fcoe_stats fcoe_stats;
-
-	memset(s, 0, sizeof(*s));
-
-	spin_lock(&adap->stats_lock);
-	t4_tp_get_cpl_stats(adap, &cpl_stats, false);
-	t4_tp_get_err_stats(adap, &err_stats, false);
-	t4_get_fcoe_stats(adap, i, &fcoe_stats, false);
-	spin_unlock(&adap->stats_lock);
-
-	s->cpl_req = cpl_stats.req[i];
-	s->cpl_rsp = cpl_stats.rsp[i];
-	s->mac_in_errs = err_stats.mac_in_errs[i];
-	s->hdr_in_errs = err_stats.hdr_in_errs[i];
-	s->tcp_in_errs = err_stats.tcp_in_errs[i];
-	s->tcp6_in_errs = err_stats.tcp6_in_errs[i];
-	s->tnl_cong_drops = err_stats.tnl_cong_drops[i];
-	s->tnl_tx_drops = err_stats.tnl_tx_drops[i];
-	s->ofld_vlan_drops = err_stats.ofld_vlan_drops[i];
-	s->ofld_chan_drops = err_stats.ofld_chan_drops[i];
-	s->octets_ddp = fcoe_stats.octets_ddp;
-	s->frames_ddp = fcoe_stats.frames_ddp;
-	s->frames_drop = fcoe_stats.frames_drop;
 }
 
 static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
@@ -437,11 +309,6 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
 	collect_adapter_stats(adapter, (struct adapter_stats *)data);
 	data += sizeof(struct adapter_stats) / sizeof(u64);
-
-	*data++ = (u64)pi->port_id;
-	collect_channel_stats(adapter, (struct channel_stats *)data,
-			      pi->port_id);
-	data += sizeof(struct channel_stats) / sizeof(u64);
 
 	*data++ = (u64)pi->port_id;
 	memset(&s, 0, sizeof(s));
