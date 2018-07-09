@@ -1046,13 +1046,16 @@ static bool _start(struct pl330_thread *thrd)
 
 		if (_state(thrd) == PL330_STATE_KILLING)
 			UNTIL(thrd, PL330_STATE_STOPPED)
+		/* fall through */
 
 	case PL330_STATE_FAULTING:
 		_stop(thrd);
+		/* fall through */
 
 	case PL330_STATE_KILLING:
 	case PL330_STATE_COMPLETING:
 		UNTIL(thrd, PL330_STATE_STOPPED)
+		/* fall through */
 
 	case PL330_STATE_STOPPED:
 		return _trigger(thrd);
