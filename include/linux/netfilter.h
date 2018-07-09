@@ -294,12 +294,16 @@ NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	struct sk_buff *skb, *next;
+	struct list_head sublist;
 
+	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
-		int ret = nf_hook(pf, hook, net, sk, skb, in, out, okfn);
-		if (ret != 1)
-			list_del(&skb->list);
+		list_del(&skb->list);
+		if (nf_hook(pf, hook, net, sk, skb, in, out, okfn) == 1)
+			list_add_tail(&skb->list, &sublist);
 	}
+	/* Put passed packets back on main list */
+	list_splice(&sublist, head);
 }
 
 /* Call setsockopt() */
