@@ -5892,32 +5892,31 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 					 loff_t *ppos)
 {
 	int ret = 0;
-	int new_val;
+	u32 new_val;
 	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
 	struct net *net = (struct net *)ctl->extra2;
+	struct ctl_table tmp = {
+		.data = &new_val,
+		.maxlen = sizeof(new_val),
+		.mode = ctl->mode,
+	};
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	new_val = *((u32 *)ctl->data);
+
+	ret = proc_douintvec(&tmp, write, buffer, lenp, ppos);
+	if (ret != 0)
+		goto out;
 
 	if (write) {
-		new_val = *((int *)ctl->data);
-
 		if (check_addr_gen_mode(new_val) < 0) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		/* request for default */
-		if (&net->ipv6.devconf_dflt->addr_gen_mode == ctl->data) {
-			ipv6_devconf_dflt.addr_gen_mode = new_val;
-
-		/* request for individual net device */
-		} else {
-			if (!idev)
-				goto out;
-
+		if (idev) {
 			if (check_stable_privacy(idev, net, new_val) < 0) {
 				ret = -EINVAL;
 				goto out;
@@ -5928,6 +5927,8 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 				addrconf_dev_config(idev->dev);
 			}
 		}
+
+		*((u32 *)ctl->data) = new_val;
 	}
 
 out:
