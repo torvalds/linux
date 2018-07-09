@@ -133,6 +133,15 @@ static inline uint32_t rseq_current_cpu(void)
 	return cpu;
 }
 
+static inline void rseq_clear_rseq_cs(void)
+{
+#ifdef __LP64__
+	__rseq_abi.rseq_cs.ptr = 0;
+#else
+	__rseq_abi.rseq_cs.ptr.ptr32 = 0;
+#endif
+}
+
 /*
  * rseq_prepare_unload() should be invoked by each thread using rseq_finish*()
  * at least once between their last rseq_finish*() and library unload of the
@@ -143,7 +152,7 @@ static inline uint32_t rseq_current_cpu(void)
  */
 static inline void rseq_prepare_unload(void)
 {
-	__rseq_abi.rseq_cs = 0;
+	rseq_clear_rseq_cs();
 }
 
 #endif  /* RSEQ_H_ */
