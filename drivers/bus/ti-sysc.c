@@ -1552,6 +1552,23 @@ static const struct sysc_capabilities sysc_omap4_usb_host_fs = {
 	.regbits = &sysc_regbits_omap4_usb_host_fs,
 };
 
+static const struct sysc_regbits sysc_regbits_dra7_mcan = {
+	.dmadisable_shift = -ENODEV,
+	.midle_shift = -ENODEV,
+	.sidle_shift = -ENODEV,
+	.clkact_shift = -ENODEV,
+	.enwkup_shift = 4,
+	.srst_shift = 0,
+	.emufree_shift = -ENODEV,
+	.autoidle_shift = -ENODEV,
+};
+
+static const struct sysc_capabilities sysc_dra7_mcan = {
+	.type = TI_SYSC_DRA7_MCAN,
+	.sysc_mask = SYSC_DRA7_MCAN_ENAWAKEUP | SYSC_OMAP4_SOFTRESET,
+	.regbits = &sysc_regbits_dra7_mcan,
+};
+
 static int sysc_init_pdata(struct sysc *ddata)
 {
 	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
@@ -1743,6 +1760,7 @@ static const struct of_device_id sysc_match[] = {
 	{ .compatible = "ti,sysc-mcasp", .data = &sysc_omap4_mcasp, },
 	{ .compatible = "ti,sysc-usb-host-fs",
 	  .data = &sysc_omap4_usb_host_fs, },
+	{ .compatible = "ti,sysc-dra7-mcan", .data = &sysc_dra7_mcan, },
 	{  },
 };
 MODULE_DEVICE_TABLE(of, sysc_match);
