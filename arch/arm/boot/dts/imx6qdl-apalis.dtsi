@@ -457,7 +457,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_usdhc1_8bit>;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
-	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	status = "disabled";
 };
 
@@ -467,7 +467,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
-	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	status = "disabled";
 };
 
@@ -477,7 +477,7 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
-	voltage-ranges = <3300 3300>;
+	no-1-8-v;
 	non-removable;
 	status = "okay";
 };
