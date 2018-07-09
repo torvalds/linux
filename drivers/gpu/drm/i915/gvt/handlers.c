@@ -1584,6 +1584,13 @@ static int bxt_gt_disp_pwron_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int bxt_edp_psr_imr_iir_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	vgpu_vreg(vgpu, offset) = 0;
+	return 0;
+}
+
 static int mmio_read_from_hw(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -3181,6 +3188,9 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_A), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_B), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_C), D_BXT);
+
+	MMIO_DH(EDP_PSR_IMR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
+	MMIO_DH(EDP_PSR_IIR, D_BXT, NULL, bxt_edp_psr_imr_iir_write);
 
 	MMIO_D(RC6_CTX_BASE, D_BXT);
 
