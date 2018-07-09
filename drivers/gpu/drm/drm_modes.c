@@ -1353,7 +1353,7 @@ void drm_mode_sort(struct list_head *mode_list)
 EXPORT_SYMBOL(drm_mode_sort);
 
 /**
- * drm_mode_connector_list_update - update the mode list for the connector
+ * drm_connector_list_update - update the mode list for the connector
  * @connector: the connector to update
  *
  * This moves the modes from the @connector probed_modes list
@@ -1363,7 +1363,7 @@ EXPORT_SYMBOL(drm_mode_sort);
  * This is just a helper functions doesn't validate any modes itself and also
  * doesn't prune any invalid modes. Callers need to do that themselves.
  */
-void drm_mode_connector_list_update(struct drm_connector *connector)
+void drm_connector_list_update(struct drm_connector *connector)
 {
 	struct drm_display_mode *pmode, *pt;
 
@@ -1412,7 +1412,7 @@ void drm_mode_connector_list_update(struct drm_connector *connector)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_mode_connector_list_update);
+EXPORT_SYMBOL(drm_connector_list_update);
 
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector

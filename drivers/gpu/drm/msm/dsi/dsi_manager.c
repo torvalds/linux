@@ -393,7 +393,7 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 		ret = dsi_dual_connector_tile_init(connector, id);
 		if (ret)
 			return ret;
-		ret = drm_mode_connector_set_tile_property(connector);
+		ret = drm_connector_set_tile_property(connector);
 		if (ret) {
 			pr_err("%s: set tile property failed, %d\n",
 					__func__, ret);

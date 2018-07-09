@@ -919,7 +919,7 @@ struct drm_connector {
 	 * @path_blob_ptr:
 	 *
 	 * DRM blob property data for the DP MST path property. This should only
-	 * be updated by calling drm_mode_connector_set_path_property().
+	 * be updated by calling drm_connector_set_path_property().
 	 */
 	struct drm_property_blob *path_blob_ptr;
 
@@ -1046,7 +1046,7 @@ struct drm_connector {
 	 * the tiling and virtualize both &drm_crtc and &drm_plane if needed.
 	 *
 	 * This should only be updated by calling
-	 * drm_mode_connector_set_tile_property().
+	 * drm_connector_set_tile_property().
 	 */
 	struct drm_property_blob *tile_blob_ptr;
 
@@ -1191,13 +1191,13 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
-int drm_mode_connector_set_path_property(struct drm_connector *connector,
-					 const char *path);
-int drm_mode_connector_set_tile_property(struct drm_connector *connector);
+int drm_connector_set_path_property(struct drm_connector *connector,
+				    const char *path);
+int drm_connector_set_tile_property(struct drm_connector *connector);
 int drm_connector_update_edid_property(struct drm_connector *connector,
 				       const struct edid *edid);
-void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
-						 uint64_t link_status);
+void drm_connector_set_link_status_property(struct drm_connector *connector,
+					    uint64_t link_status);
 int drm_connector_init_panel_orientation_property(
 	struct drm_connector *connector, int width, int height);
 

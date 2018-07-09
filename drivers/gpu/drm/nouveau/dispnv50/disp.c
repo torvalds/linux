@@ -931,7 +931,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&mstc->connector.base, dev->mode_config.tile_property, 0);
-	drm_mode_connector_set_path_property(&mstc->connector, path);
+	drm_connector_set_path_property(&mstc->connector, path);
 	return 0;
 }
 
