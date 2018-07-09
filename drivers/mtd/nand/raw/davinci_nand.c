@@ -60,8 +60,7 @@ struct davinci_nand_info {
 	void __iomem		*base;
 	void __iomem		*vaddr;
 
-	uint32_t		ioaddr;
-	uint32_t		current_cs;
+	void __iomem		*current_cs;
 
 	uint32_t		mask_chipsel;
 	uint32_t		mask_ale;
@@ -102,17 +101,17 @@ static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
 				   unsigned int ctrl)
 {
 	struct davinci_nand_info	*info = to_davinci_nand(mtd);
-	uint32_t			addr = info->current_cs;
+	void __iomem			*addr = info->current_cs;
 	struct nand_chip		*nand = mtd_to_nand(mtd);
 
 	/* Did the control lines change? */
 	if (ctrl & NAND_CTRL_CHANGE) {
 		if ((ctrl & NAND_CTRL_CLE) == NAND_CTRL_CLE)
-			addr |= info->mask_cle;
+			addr += info->mask_cle;
 		else if ((ctrl & NAND_CTRL_ALE) == NAND_CTRL_ALE)
-			addr |= info->mask_ale;
+			addr += info->mask_ale;
 
-		nand->IO_ADDR_W = (void __iomem __force *)addr;
+		nand->IO_ADDR_W = addr;
 	}
 
 	if (cmd != NAND_CMD_NONE)
@@ -122,14 +121,14 @@ static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd,
 static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
 {
 	struct davinci_nand_info	*info = to_davinci_nand(mtd);
-	uint32_t			addr = info->ioaddr;
+
+	info->current_cs = info->vaddr;
 
 	/* maybe kick in a second chipselect */
 	if (chip > 0)
-		addr |= info->mask_chipsel;
-	info->current_cs = addr;
+		info->current_cs += info->mask_chipsel;
 
-	info->chip.IO_ADDR_W = (void __iomem __force *)addr;
+	info->chip.IO_ADDR_W = info->current_cs;
 	info->chip.IO_ADDR_R = info->chip.IO_ADDR_W;
 }
 
@@ -680,9 +679,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.bbt_md	= pdata->bbt_md;
 	info->timing		= pdata->timing;
 
-	info->ioaddr		= (uint32_t __force) vaddr;
-
-	info->current_cs	= info->ioaddr;
+	info->current_cs	= info->vaddr;
 	info->core_chipsel	= pdata->core_chipsel;
 	info->mask_chipsel	= pdata->mask_chipsel;
 
