@@ -12,6 +12,7 @@
 #ifndef _MVPP2_H_
 #define _MVPP2_H_
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
