@@ -192,6 +192,9 @@ static void __fput(struct file *file)
 	struct vfsmount *mnt = file->f_path.mnt;
 	struct inode *inode = file->f_inode;
 
+	if (unlikely(!(file->f_mode & FMODE_OPENED)))
+		goto out;
+
 	might_sleep();
 
 	fsnotify_close(file);
@@ -221,12 +224,10 @@ static void __fput(struct file *file)
 		put_write_access(inode);
 		__mnt_drop_write(mnt);
 	}
-	file->f_path.dentry = NULL;
-	file->f_path.mnt = NULL;
-	file->f_inode = NULL;
-	file_free(file);
 	dput(dentry);
 	mntput(mnt);
+out:
+	file_free(file);
 }
 
 static LLIST_HEAD(delayed_fput_list);
@@ -300,12 +301,6 @@ void __fput_sync(struct file *file)
 }
 
 EXPORT_SYMBOL(fput);
-
-void put_filp(struct file *file)
-{
-	if (atomic_long_dec_and_test(&file->f_count))
-		file_free(file);
-}
 
 void __init files_init(void)
 {
