@@ -462,7 +462,7 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_rbtree_type __read_mostly = {
+struct nft_set_type nft_set_rbtree_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 	.ops		= {
@@ -481,20 +481,3 @@ static struct nft_set_type nft_rbtree_type __read_mostly = {
 		.get		= nft_rbtree_get,
 	},
 };
-
-static int __init nft_rbtree_module_init(void)
-{
-	return nft_register_set(&nft_rbtree_type);
-}
-
-static void __exit nft_rbtree_module_exit(void)
-{
-	nft_unregister_set(&nft_rbtree_type);
-}
-
-module_init(nft_rbtree_module_init);
-module_exit(nft_rbtree_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_SET();

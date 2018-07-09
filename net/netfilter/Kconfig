@@ -460,6 +460,13 @@ config NF_TABLES
 
 if NF_TABLES
 
+config NF_TABLES_SET
+	tristate "Netfilter nf_tables set infrastructure"
+	help
+	  This option enables the nf_tables set infrastructure that allows to
+	  look up for elements in a set and to build one-way mappings between
+	  matchings and actions.
+
 config NF_TABLES_INET
 	depends on IPV6
 	select NF_TABLES_IPV4
@@ -492,24 +499,6 @@ config NFT_FLOW_OFFLOAD
 	help
 	  This option adds the "flow_offload" expression that you can use to
 	  choose what flows are placed into the hardware.
-
-config NFT_SET_RBTREE
-	tristate "Netfilter nf_tables rbtree set module"
-	help
-	  This option adds the "rbtree" set type (Red Black tree) that is used
-	  to build interval-based sets.
-
-config NFT_SET_HASH
-	tristate "Netfilter nf_tables hash set module"
-	help
-	  This option adds the "hash" set type that is used to build one-way
-	  mappings between matchings and actions.
-
-config NFT_SET_BITMAP
-	tristate "Netfilter nf_tables bitmap set module"
-	help
-	  This option adds the "bitmap" set type that is used to build sets
-	  whose keys are smaller or equal to 16 bits.
 
 config NFT_COUNTER
 	tristate "Netfilter nf_tables counter module"
