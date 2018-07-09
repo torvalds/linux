@@ -478,7 +478,9 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 		}
 	}
 
-	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		return err;
 

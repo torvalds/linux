@@ -206,7 +206,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	/* Carefully retire all requests without writing to the rings */
 	ret = i915_gem_wait_for_idle(i915,
 				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -735,7 +736,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		/* Ratelimit ourselves to prevent oom from malicious clients */
 		ret = i915_gem_wait_for_idle(i915,
 					     I915_WAIT_LOCKED |
-					     I915_WAIT_INTERRUPTIBLE);
+					     I915_WAIT_INTERRUPTIBLE,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			goto err_unreserve;
 

@@ -286,7 +286,9 @@ static int begin_live_test(struct live_test *t,
 	t->func = func;
 	t->name = name;
 
-	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err) {
 		pr_err("%s(%s): failed to idle before, with err=%d!",
 		       func, name, err);

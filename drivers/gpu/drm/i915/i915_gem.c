@@ -2267,7 +2267,9 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 
 	/* Attempt to reap some mmap space from dead objects */
 	do {
-		err = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
+		err = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (err)
 			break;
 
@@ -3742,14 +3744,14 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	return ret;
 }
 
-static int wait_for_timeline(struct i915_timeline *tl, unsigned int flags)
+static long wait_for_timeline(struct i915_timeline *tl,
+			      unsigned int flags, long timeout)
 {
 	struct i915_request *rq;
-	long ret;
 
 	rq = i915_gem_active_get_unlocked(&tl->last_request);
 	if (!rq)
-		return 0;
+		return timeout;
 
 	/*
 	 * "Race-to-idle".
@@ -3763,10 +3765,10 @@ static int wait_for_timeline(struct i915_timeline *tl, unsigned int flags)
 	if (flags & I915_WAIT_FOR_IDLE_BOOST)
 		gen6_rps_boost(rq, NULL);
 
-	ret = i915_request_wait(rq, flags, MAX_SCHEDULE_TIMEOUT);
+	timeout = i915_request_wait(rq, flags, timeout);
 	i915_request_put(rq);
 
-	return ret < 0 ? ret : 0;
+	return timeout;
 }
 
 static int wait_for_engines(struct drm_i915_private *i915)
@@ -3782,10 +3784,12 @@ static int wait_for_engines(struct drm_i915_private *i915)
 	return 0;
 }
 
-int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
+int i915_gem_wait_for_idle(struct drm_i915_private *i915,
+			   unsigned int flags, long timeout)
 {
-	GEM_TRACE("flags=%x (%s)\n",
-		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked");
+	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
+		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
+		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
 
 	/* If the device is asleep, we have no requests outstanding */
 	if (!READ_ONCE(i915->gt.awake))
@@ -3798,9 +3802,9 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 		lockdep_assert_held(&i915->drm.struct_mutex);
 
 		list_for_each_entry(tl, &i915->gt.timelines, link) {
-			err = wait_for_timeline(tl, flags);
-			if (err)
-				return err;
+			timeout = wait_for_timeline(tl, flags, timeout);
+			if (timeout < 0)
+				return timeout;
 		}
 
 		err = wait_for_engines(i915);
@@ -3812,12 +3816,13 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 	} else {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
-		int err;
 
 		for_each_engine(engine, i915, id) {
-			err = wait_for_timeline(&engine->timeline, flags);
-			if (err)
-				return err;
+			struct i915_timeline *tl = &engine->timeline;
+
+			timeout = wait_for_timeline(tl, flags, timeout);
+			if (timeout < 0)
+				return timeout;
 		}
 	}
 
@@ -5052,7 +5057,8 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		ret = i915_gem_wait_for_idle(dev_priv,
 					     I915_WAIT_INTERRUPTIBLE |
 					     I915_WAIT_LOCKED |
-					     I915_WAIT_FOR_IDLE_BOOST);
+					     I915_WAIT_FOR_IDLE_BOOST,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret && ret != -EIO)
 			goto err_unlock;
 
@@ -5356,7 +5362,9 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	if (err)
 		goto err_active;
 
-	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		goto err_active;
 
@@ -5421,7 +5429,9 @@ err_active:
 	if (WARN_ON(i915_gem_switch_to_kernel_context(i915)))
 		goto out_ctx;
 
-	if (WARN_ON(i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED)))
+	if (WARN_ON(i915_gem_wait_for_idle(i915,
+					   I915_WAIT_LOCKED,
+					   MAX_SCHEDULE_TIMEOUT)))
 		goto out_ctx;
 
 	i915_gem_contexts_lost(i915);

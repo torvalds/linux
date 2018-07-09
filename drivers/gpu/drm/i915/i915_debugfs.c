@@ -4105,7 +4105,8 @@ fault_irq_set(struct drm_i915_private *i915,
 
 	err = i915_gem_wait_for_idle(i915,
 				     I915_WAIT_LOCKED |
-				     I915_WAIT_INTERRUPTIBLE);
+				     I915_WAIT_INTERRUPTIBLE,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		goto err_unlock;
 
@@ -4210,7 +4211,8 @@ i915_drop_caches_set(void *data, u64 val)
 		if (val & DROP_ACTIVE)
 			ret = i915_gem_wait_for_idle(dev_priv,
 						     I915_WAIT_INTERRUPTIBLE |
-						     I915_WAIT_LOCKED);
+						     I915_WAIT_LOCKED,
+						     MAX_SCHEDULE_TIMEOUT);
 
 		if (val & DROP_RETIRE)
 			i915_retire_requests(dev_priv);

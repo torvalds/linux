@@ -64,7 +64,7 @@ int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
 	}
 
 	wedge_on_timeout(&w, i915, HZ)
-		i915_gem_wait_for_idle(i915, flags);
+		i915_gem_wait_for_idle(i915, flags, MAX_SCHEDULE_TIMEOUT);
 
 	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
 }
