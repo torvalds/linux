@@ -150,22 +150,18 @@ static int preserve_vfp_context(struct vfp_sigframe __user *frame)
 
 static int restore_vfp_context(char __user **auxp)
 {
-	struct vfp_sigframe __user *frame =
-		(struct vfp_sigframe __user *)*auxp;
-	unsigned long magic;
-	unsigned long size;
-	int err = 0;
+	struct vfp_sigframe frame;
+	int err;
 
-	__get_user_error(magic, &frame->magic, err);
-	__get_user_error(size, &frame->size, err);
-
+	err = __copy_from_user(&frame, *auxp, sizeof(frame));
 	if (err)
-		return -EFAULT;
-	if (magic != VFP_MAGIC || size != VFP_STORAGE_SIZE)
+		return err;
+
+	if (frame.magic != VFP_MAGIC || frame.size != VFP_STORAGE_SIZE)
 		return -EINVAL;
 
-	*auxp += size;
-	return vfp_restore_user_hwstate(&frame->ufp, &frame->ufp_exc);
+	*auxp += sizeof(frame);
+	return vfp_restore_user_hwstate(&frame.ufp, &frame.ufp_exc);
 }
 
 #endif
