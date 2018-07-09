@@ -29,6 +29,13 @@ Required properties:
 - #size-cells: Should be 0. There are cases where it makes sense to use a
   different value here. See below.
 
+Optional properties:
+- clock-master: boolean. Should be enabled if the host is being used in
+  conjunction with another DSI host to drive the same peripheral. Hardware
+  supporting such a configuration generally requires the data on both the busses
+  to be driven by the same clock. Only the DSI host instance controlling this
+  clock should contain this property.
+
 DSI peripheral
 ==============
 
@@ -62,6 +69,16 @@ primary control bus, but are also connected to a DSI bus (mostly for the data
 path). Connections between such peripherals and a DSI host can be represented
 using the graph bindings [1], [2].
 
+Peripherals that support dual channel DSI
+-----------------------------------------
+
+Peripherals with higher bandwidth requirements can be connected to 2 DSI
+busses. Each DSI bus/channel drives some portion of the pixel data (generally
+left/right half of each line of the display, or even/odd lines of the display).
+The graph bindings should be used to represent the multiple DSI busses that are
+connected to this peripheral. Each DSI host's output endpoint can be linked to
+an input endpoint of the DSI peripheral.
+
 [1] Documentation/devicetree/bindings/graph.txt
 [2] Documentation/devicetree/bindings/media/video-interfaces.txt
 
@@ -71,6 +88,8 @@ Examples
   with different virtual channel configurations.
 - (4) is an example of a peripheral on a I2C control bus connected to a
   DSI host using of-graph bindings.
+- (5) is an example of 2 DSI hosts driving a dual-channel DSI peripheral,
+  which uses I2C as its primary control bus.
 
 1)
 	dsi-host {
@@ -149,6 +168,67 @@ Examples
 			port {
 				host_mipi_out: endpoint {
 					remote-endpoint = <&bridge_mipi_in>;
+				};
+			};
+		};
+	};
+
+5)
+	i2c-host {
+		dsi-bridge@35 {
+			compatible = "...";
+			reg = <0x35>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi0_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi1_in: endpoint {
+						remote-endpoint = <&dsi1_out>;
+					};
+				};
+			};
+		};
+	};
+
+	dsi0-host {
+		...
+
+		/*
+		 * this DSI instance drives the clock for both the host
+		 * controllers
+		 */
+		clock-master;
+
+		ports {
+			...
+
+			port {
+				dsi0_out: endpoint {
+					remote-endpoint = <&dsi0_in>;
+				};
+			};
+		};
+	};
+
+	dsi1-host {
+		...
+
+		ports {
+			...
+
+			port {
+				dsi1_out: endpoint {
+					remote-endpoint = <&dsi1_in>;
 				};
 			};
 		};
