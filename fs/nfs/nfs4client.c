@@ -156,9 +156,23 @@ nfs4_shutdown_ds_clients(struct nfs_client *clp)
 	}
 }
 
+static void
+nfs4_cleanup_callback(struct nfs_client *clp)
+{
+	struct nfs4_copy_state *cp_state;
+
+	while (!list_empty(&clp->pending_cb_stateids)) {
+		cp_state = list_entry(clp->pending_cb_stateids.next,
+					struct nfs4_copy_state, copies);
+		list_del(&cp_state->copies);
+		kfree(cp_state);
+	}
+}
+
 void nfs41_shutdown_client(struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp)) {
+		nfs4_cleanup_callback(clp);
 		nfs4_shutdown_ds_clients(clp);
 		nfs4_destroy_session(clp->cl_session);
 		nfs4_destroy_clientid(clp);
@@ -202,6 +216,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 #if IS_ENABLED(CONFIG_NFS_V4_1)
 	init_waitqueue_head(&clp->cl_lock_waitq);
 #endif
+	INIT_LIST_HEAD(&clp->pending_cb_stateids);
 	return clp;
 
 error:
