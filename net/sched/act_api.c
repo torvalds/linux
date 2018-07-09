@@ -149,10 +149,15 @@ EXPORT_SYMBOL(__tcf_idr_release);
 
 static size_t tcf_action_shared_attrs_size(const struct tc_action *act)
 {
+	struct tc_cookie *act_cookie;
 	u32 cookie_len = 0;
 
-	if (act->act_cookie)
-		cookie_len = nla_total_size(act->act_cookie->len);
+	rcu_read_lock();
+	act_cookie = rcu_dereference(act->act_cookie);
+
+	if (act_cookie)
+		cookie_len = nla_total_size(act_cookie->len);
+	rcu_read_unlock();
 
 	return  nla_total_size(0) /* action number nested */
 		+ nla_total_size(IFNAMSIZ) /* TCA_ACT_KIND */
