@@ -302,6 +302,8 @@ static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 	if (of_find_property(np, "wlf,ldoena-always-driven", NULL))
 		pdata->lineout2fb = true;
 
+	pdata->spkmode_pu = of_property_read_bool(np, "wlf,spkmode-pu");
+
 	pdata->ldo[0].enable = of_get_named_gpio(np, "wlf,ldo1ena", 0);
 	if (pdata->ldo[0].enable < 0)
 		pdata->ldo[0].enable = 0;
