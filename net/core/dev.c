@@ -3633,8 +3633,8 @@ u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(dev_pick_tx_cpu_id);
 
-static u16 ___netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
-			     struct net_device *sb_dev)
+static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
+			    struct net_device *sb_dev)
 {
 	struct sock *sk = skb->sk;
 	int queue_index = sk_tx_queue_get(sk);
@@ -3659,12 +3659,6 @@ static u16 ___netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 	return queue_index;
 }
 
-static u16 __netdev_pick_tx(struct net_device *dev,
-			    struct sk_buff *skb)
-{
-	return ___netdev_pick_tx(dev, skb, NULL);
-}
-
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    struct sk_buff *skb,
 				    struct net_device *sb_dev)
@@ -3685,7 +3679,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
 							    __netdev_pick_tx);
 		else
-			queue_index = ___netdev_pick_tx(dev, skb, sb_dev);
+			queue_index = __netdev_pick_tx(dev, skb, sb_dev);
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}

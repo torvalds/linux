@@ -155,7 +155,7 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	unsigned int size = vif->hash.size;
 
 	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
-		return fallback(dev, skb) % dev->real_num_tx_queues;
+		return fallback(dev, skb, NULL) % dev->real_num_tx_queues;
 
 	xenvif_set_skb_hash(vif, skb);
 

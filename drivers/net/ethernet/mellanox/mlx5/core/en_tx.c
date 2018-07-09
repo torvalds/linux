@@ -115,7 +115,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       select_queue_fallback_t fallback)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int channel_ix = fallback(dev, skb);
+	int channel_ix = fallback(dev, skb, NULL);
 	u16 num_channels;
 	int up = 0;
 

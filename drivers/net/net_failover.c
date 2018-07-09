@@ -131,7 +131,7 @@ static u16 net_failover_select_queue(struct net_device *dev,
 			txq = ops->ndo_select_queue(primary_dev, skb,
 						    sb_dev, fallback);
 		else
-			txq = fallback(primary_dev, skb);
+			txq = fallback(primary_dev, skb, NULL);
 
 		qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
 
