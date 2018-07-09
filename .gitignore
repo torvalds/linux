@@ -45,6 +45,7 @@ Module.symvers
 /boot.img
 /kernel.img
 /resource.img
+/zboot.img
 /tags
 /TAGS
 /linux
