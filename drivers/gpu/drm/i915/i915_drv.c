@@ -104,8 +104,13 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
-		   __builtin_return_address(0), &vaf);
+	if (is_error)
+		dev_printk(level, kdev, "%pV", &vaf);
+	else
+		dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+
+	va_end(args);
 
 	if (is_error && !shown_bug_once) {
 		/*
@@ -117,8 +122,6 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 			dev_notice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
-
-	va_end(args);
 }
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
