@@ -216,6 +216,7 @@ config DRM_VGEM
 config DRM_VKMS
 	tristate "Virtual KMS (EXPERIMENTAL)"
 	depends on DRM
+	select DRM_KMS_HELPER
 	default n
 	help
 	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
