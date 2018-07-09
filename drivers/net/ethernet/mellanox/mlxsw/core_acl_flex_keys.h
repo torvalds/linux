@@ -216,9 +216,15 @@ mlxsw_afk_element_usage_subset(struct mlxsw_afk_element_usage *elusage_small,
 
 struct mlxsw_afk;
 
+struct mlxsw_afk_ops {
+	const struct mlxsw_afk_block *blocks;
+	unsigned int blocks_count;
+	void (*encode_one)(const struct mlxsw_afk_element_inst *elinst,
+			   int block_index, char *storage, char *output);
+};
+
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
-				   const struct mlxsw_afk_block *blocks,
-				   unsigned int blocks_count);
+				   const struct mlxsw_afk_ops *ops);
 void mlxsw_afk_destroy(struct mlxsw_afk *mlxsw_afk);
 
 struct mlxsw_afk_key_info;
@@ -251,7 +257,8 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 			      enum mlxsw_afk_element element,
 			      const char *key_value, const char *mask_value,
 			      unsigned int len);
-void mlxsw_afk_encode(struct mlxsw_afk_key_info *key_info,
+void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
+		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
 		      char *key, char *mask);
 

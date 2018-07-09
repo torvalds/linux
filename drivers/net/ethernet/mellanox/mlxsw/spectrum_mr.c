@@ -1075,6 +1075,6 @@ void mlxsw_sp_mr_fini(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_mr *mr = mlxsw_sp->mr;
 
 	cancel_delayed_work_sync(&mr->stats_update_dw);
-	mr->mr_ops->fini(mr->priv);
+	mr->mr_ops->fini(mlxsw_sp, mr->priv);
 	kfree(mr);
 }

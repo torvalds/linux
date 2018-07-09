@@ -2402,6 +2402,15 @@ MLXSW_ITEM32(reg, ptce2, op, 0x00, 20, 3);
  */
 MLXSW_ITEM32(reg, ptce2, offset, 0x00, 0, 16);
 
+/* reg_ptce2_priority
+ * Priority of the rule, higher values win. The range is 1..cap_kvd_size-1.
+ * Note: priority does not have to be unique per rule.
+ * Within a region, higher priority should have lower offset (no limitation
+ * between regions in a multi-region).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptce2, priority, 0x04, 0, 24);
+
 /* reg_ptce2_tcam_region_info
  * Opaque object that represents the TCAM region.
  * Access: Index
@@ -2437,12 +2446,13 @@ MLXSW_ITEM_BUF(reg, ptce2, flex_action_set, 0xE0,
 static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 					enum mlxsw_reg_ptce2_op op,
 					const char *tcam_region_info,
-					u16 offset)
+					u16 offset, u32 priority)
 {
 	MLXSW_REG_ZERO(ptce2, payload);
 	mlxsw_reg_ptce2_v_set(payload, valid);
 	mlxsw_reg_ptce2_op_set(payload, op);
 	mlxsw_reg_ptce2_offset_set(payload, offset);
+	mlxsw_reg_ptce2_priority_set(payload, priority);
 	mlxsw_reg_ptce2_tcam_region_info_memcpy_to(payload, tcam_region_info);
 }
 

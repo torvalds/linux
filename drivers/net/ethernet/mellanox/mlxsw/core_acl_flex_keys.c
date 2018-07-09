@@ -43,6 +43,7 @@
 struct mlxsw_afk {
 	struct list_head key_info_list;
 	unsigned int max_blocks;
+	const struct mlxsw_afk_ops *ops;
 	const struct mlxsw_afk_block *blocks;
 	unsigned int blocks_count;
 };
@@ -69,8 +70,7 @@ static bool mlxsw_afk_blocks_check(struct mlxsw_afk *mlxsw_afk)
 }
 
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
-				   const struct mlxsw_afk_block *blocks,
-				   unsigned int blocks_count)
+				   const struct mlxsw_afk_ops *ops)
 {
 	struct mlxsw_afk *mlxsw_afk;
 
@@ -79,8 +79,9 @@ struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
 		return NULL;
 	INIT_LIST_HEAD(&mlxsw_afk->key_info_list);
 	mlxsw_afk->max_blocks = max_blocks;
-	mlxsw_afk->blocks = blocks;
-	mlxsw_afk->blocks_count = blocks_count;
+	mlxsw_afk->ops = ops;
+	mlxsw_afk->blocks = ops->blocks;
+	mlxsw_afk->blocks_count = ops->blocks_count;
 	WARN_ON(!mlxsw_afk_blocks_check(mlxsw_afk));
 	return mlxsw_afk;
 }
@@ -415,45 +416,8 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 }
 EXPORT_SYMBOL(mlxsw_afk_values_add_buf);
 
-static void mlxsw_afk_encode_u32(const struct mlxsw_item *storage_item,
-				 const struct mlxsw_item *output_item,
-				 char *storage, char *output_indexed)
-{
-	u32 value;
-
-	value = __mlxsw_item_get32(storage, storage_item, 0);
-	__mlxsw_item_set32(output_indexed, output_item, 0, value);
-}
-
-static void mlxsw_afk_encode_buf(const struct mlxsw_item *storage_item,
-				 const struct mlxsw_item *output_item,
-				 char *storage, char *output_indexed)
-{
-	char *storage_data = __mlxsw_item_data(storage, storage_item, 0);
-	char *output_data = __mlxsw_item_data(output_indexed, output_item, 0);
-	size_t len = output_item->size.bytes;
-
-	memcpy(output_data, storage_data, len);
-}
-
-#define MLXSW_AFK_KEY_BLOCK_SIZE 16
-
-static void mlxsw_afk_encode_one(const struct mlxsw_afk_element_inst *elinst,
-				 int block_index, char *storage, char *output)
-{
-	char *output_indexed = output + block_index * MLXSW_AFK_KEY_BLOCK_SIZE;
-	const struct mlxsw_item *storage_item = &elinst->info->item;
-	const struct mlxsw_item *output_item = &elinst->item;
-
-	if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_U32)
-		mlxsw_afk_encode_u32(storage_item, output_item,
-				     storage, output_indexed);
-	else if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_BUF)
-		mlxsw_afk_encode_buf(storage_item, output_item,
-				     storage, output_indexed);
-}
-
-void mlxsw_afk_encode(struct mlxsw_afk_key_info *key_info,
+void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
+		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
 		      char *key, char *mask)
 {
@@ -466,10 +430,10 @@ void mlxsw_afk_encode(struct mlxsw_afk_key_info *key_info,
 						       &block_index);
 		if (!elinst)
 			continue;
-		mlxsw_afk_encode_one(elinst, block_index,
-				     values->storage.key, key);
-		mlxsw_afk_encode_one(elinst, block_index,
-				     values->storage.mask, mask);
+		mlxsw_afk->ops->encode_one(elinst, block_index,
+					   values->storage.key, key);
+		mlxsw_afk->ops->encode_one(elinst, block_index,
+					   values->storage.mask, mask);
 	}
 }
 EXPORT_SYMBOL(mlxsw_afk_encode);
