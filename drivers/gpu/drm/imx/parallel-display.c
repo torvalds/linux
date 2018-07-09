@@ -197,7 +197,7 @@ static int imx_pd_register(struct drm_device *drm,
 			return ret;
 		}
 	} else {
-		drm_mode_connector_attach_encoder(&imxpd->connector, encoder);
+		drm_connector_attach_encoder(&imxpd->connector, encoder);
 	}
 
 	return 0;

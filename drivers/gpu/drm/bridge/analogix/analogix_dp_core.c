@@ -1210,7 +1210,7 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 
 		drm_connector_helper_add(connector,
 					 &analogix_dp_connector_helper_funcs);
-		drm_mode_connector_attach_encoder(connector, encoder);
+		drm_connector_attach_encoder(connector, encoder);
 	}
 
 	/*

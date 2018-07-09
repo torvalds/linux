@@ -353,7 +353,7 @@ static int rcar_lvds_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(connector, &rcar_lvds_conn_helper_funcs);
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		return ret;
 

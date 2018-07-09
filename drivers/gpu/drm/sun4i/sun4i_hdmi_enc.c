@@ -623,7 +623,7 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	ret = cec_register_adapter(hdmi->cec_adap, dev);
 	if (ret < 0)
 		goto err_cleanup_connector;
-	drm_mode_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
+	drm_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
 
 	return 0;
 

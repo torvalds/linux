@@ -122,7 +122,7 @@ static int dumb_vga_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&vga->connector,
+	drm_connector_attach_encoder(&vga->connector,
 					  bridge->encoder);
 
 	return 0;

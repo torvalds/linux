@@ -175,7 +175,7 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 
 	drm_connector_helper_add(connector, &zx_vga_connector_helper_funcs);
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to attach encoder: %d\n", ret);
 		goto clean_connector;

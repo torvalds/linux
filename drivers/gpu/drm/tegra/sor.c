@@ -2622,7 +2622,7 @@ static int tegra_sor_init(struct host1x_client *client)
 			 encoder, NULL);
 	drm_encoder_helper_add(&sor->output.encoder, helpers);
 
-	drm_mode_connector_attach_encoder(&sor->output.connector,
+	drm_connector_attach_encoder(&sor->output.connector,
 					  &sor->output.encoder);
 	drm_connector_register(&sor->output.connector);
 

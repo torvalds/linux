@@ -324,7 +324,7 @@ static int sii902x_bridge_attach(struct drm_bridge *bridge)
 	else
 		sii902x->connector.polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	drm_mode_connector_attach_encoder(&sii902x->connector, bridge->encoder);
+	drm_connector_attach_encoder(&sii902x->connector, bridge->encoder);
 
 	return 0;
 }

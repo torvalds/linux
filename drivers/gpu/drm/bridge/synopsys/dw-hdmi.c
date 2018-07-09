@@ -1974,7 +1974,7 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

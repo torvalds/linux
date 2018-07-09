@@ -634,7 +634,7 @@ static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
 	drm_connector_init(drm, &hdmi->connector, &inno_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
-	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
+	drm_connector_attach_encoder(&hdmi->connector, encoder);
 
 	return 0;
 }

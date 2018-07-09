@@ -1747,7 +1747,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 		return -1;
 	}
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	ret = mgag200_fbdev_init(mdev);
 	if (ret) {

@@ -265,7 +265,7 @@ static int ptn3460_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&ptn_bridge->connector,
 					&ptn3460_connector_helper_funcs);
 	drm_connector_register(&ptn_bridge->connector);
-	drm_mode_connector_attach_encoder(&ptn_bridge->connector,
+	drm_connector_attach_encoder(&ptn_bridge->connector,
 							bridge->encoder);
 
 	if (ptn_bridge->panel)

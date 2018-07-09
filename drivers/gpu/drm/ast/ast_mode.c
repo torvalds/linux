@@ -900,7 +900,7 @@ static int ast_connector_init(struct drm_device *dev)
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
 	encoder = list_first_entry(&dev->mode_config.encoder_list, struct drm_encoder, head);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	ast_connector->i2c = ast_i2c_create(dev);
 	if (!ast_connector->i2c)

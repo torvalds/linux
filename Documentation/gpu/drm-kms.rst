@@ -466,7 +466,7 @@ Output discovery and initialization example
         drm_encoder_init(dev, &intel_output->enc, &intel_crt_enc_funcs,
                  DRM_MODE_ENCODER_DAC);
 
-        drm_mode_connector_attach_encoder(&intel_output->base,
+        drm_connector_attach_encoder(&intel_output->base,
                           &intel_output->enc);
 
         /* Set up the DDC bus. */

@@ -477,7 +477,7 @@ struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
 		return ERR_PTR(ret);
 	}
 
-	drm_mode_connector_attach_encoder(connector, hdmi->encoder);
+	drm_connector_attach_encoder(connector, hdmi->encoder);
 
 	return connector;
 }

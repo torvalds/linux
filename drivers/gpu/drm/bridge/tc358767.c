@@ -1195,7 +1195,7 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 
 	drm_display_info_set_bus_formats(&tc->connector.display_info,
 					 &bus_format, 1);
-	drm_mode_connector_attach_encoder(&tc->connector, tc->bridge.encoder);
+	drm_connector_attach_encoder(&tc->connector, tc->bridge.encoder);
 
 	return 0;
 }

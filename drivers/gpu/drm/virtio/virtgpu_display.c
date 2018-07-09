@@ -292,7 +292,7 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	drm_encoder_helper_add(encoder, &virtio_gpu_enc_helper_funcs);
 	encoder->possible_crtcs = 1 << index;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	drm_connector_register(connector);
 	return 0;
 }

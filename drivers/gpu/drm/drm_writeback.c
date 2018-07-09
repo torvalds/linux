@@ -202,7 +202,7 @@ int drm_writeback_connector_init(struct drm_device *dev,
 	if (ret)
 		goto connector_fail;
 
-	ret = drm_mode_connector_attach_encoder(connector,
+	ret = drm_connector_attach_encoder(connector,
 						&wb_connector->encoder);
 	if (ret)
 		goto attach_fail;

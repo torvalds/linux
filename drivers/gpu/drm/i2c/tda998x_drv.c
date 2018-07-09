@@ -1301,7 +1301,7 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 	if (ret)
 		return ret;
 
-	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
+	drm_connector_attach_encoder(&priv->connector, &priv->encoder);
 
 	return 0;
 }

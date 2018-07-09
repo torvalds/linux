@@ -655,7 +655,7 @@ static int vbox_connector_init(struct drm_device *dev,
 				   dev->mode_config.suggested_y_property, 0);
 	drm_connector_register(connector);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

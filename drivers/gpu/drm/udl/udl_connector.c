@@ -200,7 +200,7 @@ int udl_connector_init(struct drm_device *dev, struct drm_encoder *encoder)
 	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
 
 	drm_connector_register(connector);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	connector->polled = DRM_CONNECTOR_POLL_HPD |
 		DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 

@@ -951,7 +951,7 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	if (hdata->bridge) {
 		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);

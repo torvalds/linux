@@ -1086,7 +1086,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	/* we get HPD via client monitors config */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	encoder->possible_crtcs = 1 << num_output;
-	drm_mode_connector_attach_encoder(&qxl_output->base,
+	drm_connector_attach_encoder(&qxl_output->base,
 					  &qxl_output->enc);
 	drm_encoder_helper_add(encoder, &qxl_enc_helper_funcs);
 	drm_connector_helper_add(connector, &qxl_connector_helper_funcs);

@@ -665,7 +665,7 @@ void gma_connector_attach_encoder(struct gma_connector *connector,
 				  struct gma_encoder *encoder)
 {
 	connector->encoder = encoder;
-	drm_mode_connector_attach_encoder(&connector->base,
+	drm_connector_attach_encoder(&connector->base,
 					  &encoder->base);
 }
 

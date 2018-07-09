@@ -684,7 +684,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_mode_connector_attach_encoder(connector, msm_dsi->encoder);
+	drm_connector_attach_encoder(connector, msm_dsi->encoder);
 
 	return connector;
 }

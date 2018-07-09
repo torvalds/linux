@@ -287,7 +287,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	if (ret || !connector)
 		return ret;
 
-	return drm_mode_connector_attach_encoder(connector, encoder);
+	return drm_connector_attach_encoder(connector, encoder);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_init);
 

@@ -530,7 +530,7 @@ int cirrus_modeset_init(struct cirrus_device *cdev)
 		return -1;
 	}
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	ret = cirrus_fbdev_init(cdev);
 	if (ret) {

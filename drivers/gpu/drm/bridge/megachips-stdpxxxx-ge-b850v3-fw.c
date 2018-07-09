@@ -241,7 +241,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	ret = drm_mode_connector_attach_encoder(connector, bridge->encoder);
+	ret = drm_connector_attach_encoder(connector, bridge->encoder);
 	if (ret)
 		return ret;
 

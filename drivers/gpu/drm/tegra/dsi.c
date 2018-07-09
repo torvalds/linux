@@ -1052,7 +1052,7 @@ static int tegra_dsi_init(struct host1x_client *client)
 		drm_encoder_helper_add(&dsi->output.encoder,
 				       &tegra_dsi_encoder_helper_funcs);
 
-		drm_mode_connector_attach_encoder(&dsi->output.connector,
+		drm_connector_attach_encoder(&dsi->output.connector,
 						  &dsi->output.encoder);
 		drm_connector_register(&dsi->output.connector);
 

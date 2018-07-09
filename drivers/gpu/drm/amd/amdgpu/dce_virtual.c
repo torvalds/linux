@@ -627,7 +627,7 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 	drm_connector_register(connector);
 
 	/* link them */
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

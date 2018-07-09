@@ -941,7 +941,7 @@ static int sun6i_dsi_bind(struct device *dev, struct device *master,
 		goto err_cleanup_connector;
 	}
 
-	drm_mode_connector_attach_encoder(&dsi->connector, &dsi->encoder);
+	drm_connector_attach_encoder(&dsi->connector, &dsi->encoder);
 	drm_panel_attach(dsi->panel, &dsi->connector);
 
 	return 0;

@@ -1085,7 +1085,7 @@ int drm_connector_init(struct drm_device *dev,
 		       int connector_type);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
-int drm_mode_connector_attach_encoder(struct drm_connector *connector,
+int drm_connector_attach_encoder(struct drm_connector *connector,
 				      struct drm_encoder *encoder);
 
 void drm_connector_cleanup(struct drm_connector *connector);

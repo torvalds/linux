@@ -1306,7 +1306,7 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge)
 	hdmi->conn.interlace_allowed = true;
 	hdmi->conn.doublescan_allowed = false;
 
-	ret = drm_mode_connector_attach_encoder(&hdmi->conn,
+	ret = drm_connector_attach_encoder(&hdmi->conn,
 						bridge->encoder);
 	if (ret) {
 		dev_err(hdmi->dev,

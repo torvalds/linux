@@ -132,7 +132,7 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&dvi->connector,
+	drm_connector_attach_encoder(&dvi->connector,
 					  bridge->encoder);
 
 	return 0;

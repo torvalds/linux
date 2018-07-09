@@ -1062,7 +1062,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	drm_connector_helper_add(connector, &cdn_dp_connector_helper_funcs);
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("failed to attach connector and encoder\n");
 		goto err_free_connector;

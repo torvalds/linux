@@ -83,7 +83,7 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 	}
 	encoder->possible_crtcs = 1;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("Failed to attach connector to encoder\n");
 		goto err_attach;
