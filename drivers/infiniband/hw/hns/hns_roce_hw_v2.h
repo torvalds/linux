@@ -206,6 +206,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
 	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
+	HNS_ROCE_OPC_CFG_SMAC_TB			= 0x8501,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
 };
 
@@ -1242,10 +1243,6 @@ struct hns_roce_vf_res_b {
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
 
-/* Reg field definition */
-#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S 0
-#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M GENMASK(15, 0)
-
 struct hns_roce_cfg_bt_attr {
 	__le32 vf_qpc_cfg;
 	__le32 vf_srqc_cfg;
@@ -1303,6 +1300,18 @@ struct hns_roce_cfg_sgid_tb {
 
 #define CFG_SGID_TB_VF_SGID_TYPE_S 0
 #define CFG_SGID_TB_VF_SGID_TYPE_M GENMASK(1, 0)
+
+struct hns_roce_cfg_smac_tb {
+	__le32	tb_idx_rsv;
+	__le32	vf_smac_l;
+	__le32	vf_smac_h_rsv;
+	__le32	rsv[3];
+};
+#define CFG_SMAC_TB_IDX_S 0
+#define CFG_SMAC_TB_IDX_M GENMASK(7, 0)
+
+#define CFG_SMAC_TB_VF_SMAC_H_S 0
+#define CFG_SMAC_TB_VF_SMAC_H_M GENMASK(15, 0)
 
 struct hns_roce_cmq_desc {
 	__le16 opcode;

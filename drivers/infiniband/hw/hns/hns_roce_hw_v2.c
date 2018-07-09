@@ -1599,21 +1599,27 @@ static int hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
 static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 			       u8 *addr)
 {
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cfg_smac_tb *smac_tb =
+				    (struct hns_roce_cfg_smac_tb *)desc.data;
 	u16 reg_smac_h;
 	u32 reg_smac_l;
-	u32 val;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_SMAC_TB, false);
 
 	reg_smac_l = *(u32 *)(&addr[0]);
-	roce_raw_write(reg_smac_l, hr_dev->reg_base + ROCEE_VF_SMAC_CFG0_REG +
-		       0x08 * phy_port);
-	val = roce_read(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port);
+	reg_smac_h = *(u16 *)(&addr[4]);
 
-	reg_smac_h  = *(u16 *)(&addr[4]);
-	roce_set_field(val, ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M,
-		       ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S, reg_smac_h);
-	roce_write(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port, val);
+	memset(smac_tb, 0, sizeof(*smac_tb));
+	roce_set_field(smac_tb->tb_idx_rsv,
+		       CFG_SMAC_TB_IDX_M,
+		       CFG_SMAC_TB_IDX_S, phy_port);
+	roce_set_field(smac_tb->vf_smac_h_rsv,
+		       CFG_SMAC_TB_VF_SMAC_H_M,
+		       CFG_SMAC_TB_VF_SMAC_H_S, reg_smac_h);
+	smac_tb->vf_smac_l = reg_smac_l;
 
-	return 0;
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
 
 static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
