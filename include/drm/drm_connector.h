@@ -378,12 +378,9 @@ struct drm_tv_connector_state {
 
 /**
  * struct drm_connector_state - mutable connector state
- * @connector: backpointer to the connector
- * @best_encoder: can be used by helpers and drivers to select the encoder
- * @state: backpointer to global drm_atomic_state
- * @tv: TV connector state
  */
 struct drm_connector_state {
+	/** @connector: backpointer to the connector */
 	struct drm_connector *connector;
 
 	/**
@@ -394,6 +391,13 @@ struct drm_connector_state {
 	 */
 	struct drm_crtc *crtc;
 
+	/**
+	 * @best_encoder:
+	 *
+	 * Used by the atomic helpers to select the encoder, through the
+	 * &drm_connector_helper_funcs.atomic_best_encoder or
+	 * &drm_connector_helper_funcs.best_encoder callbacks.
+	 */
 	struct drm_encoder *best_encoder;
 
 	/**
@@ -402,6 +406,7 @@ struct drm_connector_state {
 	 */
 	enum drm_link_status link_status;
 
+	/** @state: backpointer to global drm_atomic_state */
 	struct drm_atomic_state *state;
 
 	/**
@@ -411,6 +416,7 @@ struct drm_connector_state {
 	 */
 	struct drm_crtc_commit *commit;
 
+	/** @tv: TV connector state */
 	struct drm_tv_connector_state tv;
 
 	/**
