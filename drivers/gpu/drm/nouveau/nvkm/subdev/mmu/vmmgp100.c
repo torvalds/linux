@@ -21,8 +21,11 @@
  */
 #include "vmm.h"
 
+#include <core/client.h>
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
+#include <subdev/timer.h>
+#include <engine/gr.h>
 
 #include <nvif/ifc00d.h>
 #include <nvif/unpack.h>
@@ -384,6 +387,73 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	return 0;
 }
 
+static int
+gp100_vmm_fault_cancel(struct nvkm_vmm *vmm, void *argv, u32 argc)
+{
+	struct nvkm_device *device = vmm->mmu->subdev.device;
+	union {
+		struct gp100_vmm_fault_cancel_v0 v0;
+	} *args = argv;
+	int ret = -ENOSYS;
+	u32 inst, aper;
+
+	if ((ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false)))
+		return ret;
+
+	/* Translate MaxwellFaultBufferA instance pointer to the same
+	 * format as the NV_GR_FECS_CURRENT_CTX register.
+	 */
+	aper = (args->v0.inst >> 8) & 3;
+	args->v0.inst >>= 12;
+	args->v0.inst |= aper << 28;
+	args->v0.inst |= 0x80000000;
+
+	if (!WARN_ON(nvkm_gr_ctxsw_pause(device))) {
+		if ((inst = nvkm_gr_ctxsw_inst(device)) == args->v0.inst) {
+			gf100_vmm_invalidate(vmm, 0x0000001b
+					     /* CANCEL_TARGETED. */ |
+					     (args->v0.hub    << 20) |
+					     (args->v0.gpc    << 15) |
+					     (args->v0.client << 9));
+		}
+		WARN_ON(nvkm_gr_ctxsw_resume(device));
+	}
+
+	return 0;
+}
+
+static int
+gp100_vmm_fault_replay(struct nvkm_vmm *vmm, void *argv, u32 argc)
+{
+	union {
+		struct gp100_vmm_fault_replay_vn vn;
+	} *args = argv;
+	int ret = -ENOSYS;
+
+	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
+		gf100_vmm_invalidate(vmm, 0x0000000b); /* REPLAY_GLOBAL. */
+	}
+
+	return ret;
+}
+
+int
+gp100_vmm_mthd(struct nvkm_vmm *vmm,
+	       struct nvkm_client *client, u32 mthd, void *argv, u32 argc)
+{
+	if (client->super) {
+		switch (mthd) {
+		case GP100_VMM_VN_FAULT_REPLAY:
+			return gp100_vmm_fault_replay(vmm, argv, argc);
+		case GP100_VMM_VN_FAULT_CANCEL:
+			return gp100_vmm_fault_cancel(vmm, argv, argc);
+		default:
+			break;
+		}
+	}
+	return -EINVAL;
+}
+
 void
 gp100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
 {
@@ -417,6 +487,7 @@ gp100_vmm = {
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
+	.mthd = gp100_vmm_mthd,
 	.invalidate_pdb = gp100_vmm_invalidate_pdb,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },

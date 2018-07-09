@@ -56,6 +56,7 @@ tu102_vmm = {
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = tu102_vmm_flush,
+	.mthd = gp100_vmm_mthd,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },

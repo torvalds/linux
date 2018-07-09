@@ -17,6 +17,7 @@ struct nvif_vmm_v0 {
 #define NVIF_VMM_V0_UNMAP                                                  0x04
 #define NVIF_VMM_V0_PFNMAP                                                 0x05
 #define NVIF_VMM_V0_PFNCLR                                                 0x06
+#define NVIF_VMM_V0_MTHD(i)                                         ((i) + 0x80)
 
 struct nvif_vmm_page_v0 {
 	__u8  version;

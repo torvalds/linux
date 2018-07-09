@@ -28,6 +28,7 @@ gp10b_vmm = {
 	.aper = gk20a_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
+	.mthd = gp100_vmm_mthd,
 	.invalidate_pdb = gp100_vmm_invalidate_pdb,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },

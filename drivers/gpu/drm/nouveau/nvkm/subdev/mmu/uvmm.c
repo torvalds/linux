@@ -341,6 +341,13 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	case NVIF_VMM_V0_UNMAP : return nvkm_uvmm_mthd_unmap (uvmm, argv, argc);
 	case NVIF_VMM_V0_PFNMAP: return nvkm_uvmm_mthd_pfnmap(uvmm, argv, argc);
 	case NVIF_VMM_V0_PFNCLR: return nvkm_uvmm_mthd_pfnclr(uvmm, argv, argc);
+	case NVIF_VMM_V0_MTHD(0x00) ... NVIF_VMM_V0_MTHD(0x7f):
+		if (uvmm->vmm->func->mthd) {
+			return uvmm->vmm->func->mthd(uvmm->vmm,
+						     uvmm->object.client,
+						     mthd, argv, argc);
+		}
+		break;
 	default:
 		break;
 	}
