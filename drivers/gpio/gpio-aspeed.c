@@ -240,7 +240,7 @@ static inline void __iomem *bank_reg(struct aspeed_gpio *gpio,
 	case reg_cmdsrc1:
 		return gpio->base + bank->cmdsrc_regs + GPIO_CMDSRC_1;
 	}
-	BUG_ON(1);
+	BUG();
 }
 
 #define GPIO_BANK(x)	((x) >> 5)
