@@ -56,17 +56,17 @@
 		status = "disabled";
 	};
 
-	reg_2p5v: regulator-2p5v {
+	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "2P5V";
-		regulator-min-microvolt = <2500000>;
-		regulator-max-microvolt = <2500000>;
+		regulator-name = "+V3.3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 
-	reg_3p3v: regulator-3p3v {
+	reg_module_3v3_audio: regulator-module-3v3-audio {
 		compatible = "regulator-fixed";
-		regulator-name = "3P3V";
+		regulator-name = "+V3.3_AUDIO";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
@@ -244,8 +244,8 @@
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
-		VDDA-supply = <&reg_2p5v>;
-		VDDIO-supply = <&reg_3p3v>;
+		VDDA-supply = <&reg_module_3v3_audio>;
+		VDDIO-supply = <&reg_module_3v3>;
 		lrclk-strength = <3>;
 	};
 
@@ -380,7 +380,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_mmc_cd>;
 	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
 	disable-wp;
-	vqmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <4>;
 	no-1-8-v;
 	status = "disabled";
@@ -390,7 +390,7 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	vqmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_module_3v3>;
 	bus-width = <8>;
 	no-1-8-v;
 	non-removable;
