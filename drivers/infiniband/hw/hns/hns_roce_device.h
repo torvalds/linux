@@ -722,6 +722,7 @@ struct hns_roce_caps {
 	u32		eqe_hop_num;
 	u32		sl_num;
 	u32		tsq_buf_pg_sz;
+	u32		tpq_buf_pg_sz;
 	u32		chunk_sz;	/* chunk size in non multihop mode*/
 	u64		flags;
 };

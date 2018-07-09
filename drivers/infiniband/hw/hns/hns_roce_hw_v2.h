@@ -204,6 +204,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_QUERY_PF_RES			= 0x8400,
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
+	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
 };
 
@@ -1339,6 +1340,7 @@ struct hns_roce_v2_cmq {
 
 enum hns_roce_link_table_type {
 	TSQ_LINK_TABLE,
+	TPQ_LINK_TABLE,
 };
 
 struct hns_roce_link_table {
@@ -1361,6 +1363,7 @@ struct hns_roce_link_table_entry {
 struct hns_roce_v2_priv {
 	struct hns_roce_v2_cmq cmq;
 	struct hns_roce_link_table tsq;
+	struct hns_roce_link_table tpq;
 };
 
 struct hns_roce_eq_context {

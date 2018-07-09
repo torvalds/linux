@@ -1251,6 +1251,10 @@ static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
 		link_tbl = &priv->tsq;
 		opcode = HNS_ROCE_OPC_CFG_EXT_LLM;
 		break;
+	case TPQ_LINK_TABLE:
+		link_tbl = &priv->tpq;
+		opcode = HNS_ROCE_OPC_CFG_TMOUT_LLM;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1315,6 +1319,7 @@ static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev,
 	struct device *dev = hr_dev->dev;
 	u32 buf_chk_sz;
 	dma_addr_t t;
+	int func_num = 1;
 	int pg_num_a;
 	int pg_num_b;
 	int pg_num;
@@ -1327,6 +1332,12 @@ static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev,
 		buf_chk_sz = 1 << (hr_dev->caps.tsq_buf_pg_sz + PAGE_SHIFT);
 		pg_num_a = hr_dev->caps.num_qps * 8 / buf_chk_sz;
 		pg_num_b = hr_dev->caps.sl_num * 4 + 2;
+		break;
+	case TPQ_LINK_TABLE:
+		link_tbl = &priv->tpq;
+		buf_chk_sz = 1 << (hr_dev->caps.tpq_buf_pg_sz +	PAGE_SHIFT);
+		pg_num_a = hr_dev->caps.num_cqs * 4 / buf_chk_sz;
+		pg_num_b = 2 * 4 * func_num + 2;
 		break;
 	default:
 		return -EINVAL;
@@ -1410,12 +1421,26 @@ static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 {
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int ret;
 
 	/* TSQ includes SQ doorbell and ack doorbell */
 	ret = hns_roce_init_link_table(hr_dev, TSQ_LINK_TABLE);
-	if (ret)
+	if (ret) {
 		dev_err(hr_dev->dev, "TSQ init failed, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = hns_roce_init_link_table(hr_dev, TPQ_LINK_TABLE);
+	if (ret) {
+		dev_err(hr_dev->dev, "TPQ init failed, ret = %d.\n", ret);
+		goto err_tpq_init_failed;
+	}
+
+	return 0;
+
+err_tpq_init_failed:
+	hns_roce_free_link_table(hr_dev, &priv->tsq);
 
 	return ret;
 }
@@ -1424,6 +1449,7 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
+	hns_roce_free_link_table(hr_dev, &priv->tpq);
 	hns_roce_free_link_table(hr_dev, &priv->tsq);
 }
 
