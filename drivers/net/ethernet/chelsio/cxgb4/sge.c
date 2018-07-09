@@ -3412,7 +3412,9 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
 	if (cong >= 0)
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F);
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F |
+				FW_IQ_CMD_IQTYPE_V(cong ? FW_IQ_IQTYPE_NIC
+							:  FW_IQ_IQTYPE_OFLD));
 
 	if (fl) {
 		enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);

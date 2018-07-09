@@ -1472,6 +1472,12 @@ enum fw_iq_type {
 	FW_IQ_TYPE_NO_FL_INT_CAP
 };
 
+enum fw_iq_iqtype {
+	FW_IQ_IQTYPE_OTHER,
+	FW_IQ_IQTYPE_NIC,
+	FW_IQ_IQTYPE_OFLD,
+};
+
 struct fw_iq_cmd {
 	__be32 op_to_vfn;
 	__be32 alloc_to_len16;
@@ -1585,6 +1591,12 @@ struct fw_iq_cmd {
 
 #define FW_IQ_CMD_IQFLINTISCSIC_S	26
 #define FW_IQ_CMD_IQFLINTISCSIC_V(x)	((x) << FW_IQ_CMD_IQFLINTISCSIC_S)
+
+#define FW_IQ_CMD_IQTYPE_S		24
+#define FW_IQ_CMD_IQTYPE_M		0x3
+#define FW_IQ_CMD_IQTYPE_V(x)		((x) << FW_IQ_CMD_IQTYPE_S)
+#define FW_IQ_CMD_IQTYPE_G(x)		\
+	(((x) >> FW_IQ_CMD_IQTYPE_S) & FW_IQ_CMD_IQTYPE_M)
 
 #define FW_IQ_CMD_FL0CNGCHMAP_S		20
 #define FW_IQ_CMD_FL0CNGCHMAP_V(x)	((x) << FW_IQ_CMD_FL0CNGCHMAP_S)
