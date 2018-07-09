@@ -5919,7 +5919,7 @@ unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 	return min_t(unsigned int, hw_resc->max_irqs, hw_resc->max_cp_rings);
 }
 
-void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
+static void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 {
 	bp->hw_resc.max_irqs = max_irqs;
 }
