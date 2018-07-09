@@ -363,6 +363,8 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *n, *temp_node;
+	struct tipc_link *l;
+	int bearer_id;
 	int i;
 
 	spin_lock_bh(&tn->node_list_lock);
@@ -370,6 +372,11 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 	if (n) {
 		/* Same node may come back with new capabilities */
 		n->capabilities = capabilities;
+		for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
+			l = n->links[bearer_id].link;
+			if (l)
+				tipc_link_update_caps(l, capabilities);
+		}
 		goto exit;
 	}
 	n = kzalloc(sizeof(*n), GFP_ATOMIC);

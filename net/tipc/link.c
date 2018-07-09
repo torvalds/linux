@@ -130,6 +130,8 @@ struct tipc_link {
 	/* Management and link supervision data */
 	u32 peer_session;
 	u32 session;
+	u16 snd_nxt_state;
+	u16 rcv_nxt_state;
 	u32 peer_bearer_id;
 	u32 bearer_id;
 	u32 tolerance;
@@ -337,6 +339,11 @@ struct sk_buff_head *tipc_link_inputq(struct tipc_link *l)
 char tipc_link_plane(struct tipc_link *l)
 {
 	return l->net_plane;
+}
+
+void tipc_link_update_caps(struct tipc_link *l, u16 capabilities)
+{
+	l->peer_caps = capabilities;
 }
 
 void tipc_link_add_bc_peer(struct tipc_link *snd_l,
@@ -859,6 +866,8 @@ void tipc_link_reset(struct tipc_link *l)
 	l->rcv_unacked = 0;
 	l->snd_nxt = 1;
 	l->rcv_nxt = 1;
+	l->snd_nxt_state = 1;
+	l->rcv_nxt_state = 1;
 	l->acked = 0;
 	l->silent_intv_cnt = 0;
 	l->rst_cnt = 0;
@@ -1353,6 +1362,8 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 	msg_set_seqno(hdr, l->snd_nxt + U16_MAX / 2);
 
 	if (mtyp == STATE_MSG) {
+		if (l->peer_caps & TIPC_LINK_PROTO_SEQNO)
+			msg_set_seqno(hdr, l->snd_nxt_state++);
 		msg_set_seq_gap(hdr, rcvgap);
 		msg_set_bc_gap(hdr, link_bc_rcv_gap(bcl));
 		msg_set_probe(hdr, probe);
@@ -1521,6 +1532,11 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		break;
 
 	case STATE_MSG:
+
+		if (l->peer_caps & TIPC_LINK_PROTO_SEQNO &&
+		    less(msg_seqno(hdr), l->rcv_nxt_state))
+			break;
+		l->rcv_nxt_state = msg_seqno(hdr) + 1;
 
 		/* Update own tolerance if peer indicates a non-zero value */
 		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
