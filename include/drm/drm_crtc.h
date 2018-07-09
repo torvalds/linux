@@ -77,21 +77,6 @@ struct drm_plane_helper_funcs;
 
 /**
  * struct drm_crtc_state - mutable CRTC state
- * @crtc: backpointer to the CRTC
- * @enable: whether the CRTC should be enabled, gates all other state
- * @active: whether the CRTC is actively displaying (used for DPMS)
- * @planes_changed: planes on this crtc are updated
- * @mode_changed: @mode or @enable has been changed
- * @active_changed: @active has been toggled.
- * @connectors_changed: connectors to this crtc have been updated
- * @zpos_changed: zpos values of planes on this crtc have been updated
- * @color_mgmt_changed: color management properties have changed (degamma or
- *	gamma LUT or CSC matrix)
- * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
- * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
- * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
- * @mode_blob: &drm_property_blob for @mode
- * @state: backpointer to global drm_atomic_state
  *
  * Note that the distinction between @enable and @active is rather subtile:
  * Flipping @active while @enable is set without changing anything else may
@@ -102,21 +87,86 @@ struct drm_plane_helper_funcs;
  *
  * The three booleans active_changed, connectors_changed and mode_changed are
  * intended to indicate whether a full modeset is needed, rather than strictly
- * describing what has changed in a commit.
- * See also: drm_atomic_crtc_needs_modeset()
+ * describing what has changed in a commit. See also:
+ * drm_atomic_crtc_needs_modeset()
+ *
+ * WARNING: Transitional helpers (like drm_helper_crtc_mode_set() or
+ * drm_helper_crtc_mode_set_base()) do not maintain many of the derived control
+ * state like @plane_mask so drivers not converted over to atomic helpers should
+ * not rely on these being accurate!
  */
 struct drm_crtc_state {
+	/** @crtc: backpointer to the CRTC */
 	struct drm_crtc *crtc;
 
+	/**
+	 * @enable: Whether the CRTC should be enabled, gates all other state.
+	 * This controls reservations of shared resources. Actual hardware state
+	 * is controlled by @active.
+	 */
 	bool enable;
+
+	/**
+	 * @active: Whether the CRTC is actively displaying (used for DPMS).
+	 * Implies that @enable is set. The driver must not release any shared
+	 * resources if @active is set to false but @enable still true, because
+	 * userspace expects that a DPMS ON always succeeds.
+	 *
+	 * Hence drivers must not consult @active in their various
+	 * &drm_mode_config_funcs.atomic_check callback to reject an atomic
+	 * commit. They can consult it to aid in the computation of derived
+	 * hardware state, since even in the DPMS OFF state the display hardware
+	 * should be as much powered down as when the CRTC is completely
+	 * disabled through setting @enable to false.
+	 */
 	bool active;
 
-	/* computed state bits used by helpers and drivers */
+	/**
+	 * @planes_changed: Planes on this crtc are updated. Used by the atomic
+	 * helpers and drivers to steer the atomic commit control flow.
+	 */
 	bool planes_changed : 1;
+
+	/**
+	 * @mode_changed: @mode or @enable has been changed. Used by the atomic
+	 * helpers and drivers to steer the atomic commit control flow. See also
+	 * drm_atomic_crtc_needs_modeset().
+	 *
+	 * Drivers are supposed to set this for any CRTC state changes that
+	 * require a full modeset. They can also reset it to false if e.g. a
+	 * @mode change can be done without a full modeset by only changing
+	 * scaler settings.
+	 */
 	bool mode_changed : 1;
+
+	/**
+	 * @active_changed: @active has been toggled. Used by the atomic
+	 * helpers and drivers to steer the atomic commit control flow. See also
+	 * drm_atomic_crtc_needs_modeset().
+	 */
 	bool active_changed : 1;
+
+	/**
+	 * @connectors_changed: Connectors to this crtc have been updated,
+	 * either in their state or routing. Used by the atomic
+	 * helpers and drivers to steer the atomic commit control flow. See also
+	 * drm_atomic_crtc_needs_modeset().
+	 *
+	 * Drivers are supposed to set this as-needed from their own atomic
+	 * check code, e.g. from &drm_encoder_helper_funcs.atomic_check
+	 */
 	bool connectors_changed : 1;
+	/**
+	 * @zpos_changed: zpos values of planes on this crtc have been updated.
+	 * Used by the atomic helpers and drivers to steer the atomic commit
+	 * control flow.
+	 */
 	bool zpos_changed : 1;
+	/**
+	 * @color_mgmt_changed: Color management properties have changed
+	 * (@gamma_lut, @degamma_lut or @ctm). Used by the atomic helpers and
+	 * drivers to steer the atomic commit control flow.
+	 */
 	bool color_mgmt_changed : 1;
 
 	/**
@@ -142,14 +192,22 @@ struct drm_crtc_state {
 	 */
 	bool no_vblank : 1;
 
-	/* attached planes bitmask:
-	 * WARNING: transitional helpers do not maintain plane_mask so
-	 * drivers not converted over to atomic helpers should not rely
-	 * on plane_mask being accurate!
+	/**
+	 * @plane_mask: Bitmask of drm_plane_mask(plane) of planes attached to
+	 * this CRTC.
 	 */
 	u32 plane_mask;
 
+	/**
+	 * @connector_mask: Bitmask of drm_connector_mask(connector) of
+	 * connectors attached to this CRTC.
+	 */
 	u32 connector_mask;
+
+	/**
+	 * @encoder_mask: Bitmask of drm_encoder_mask(encoder) of encoders
+	 * attached to this CRTC.
+	 */
 	u32 encoder_mask;
 
 	/**
@@ -159,7 +217,7 @@ struct drm_crtc_state {
 	 * differences between the mode requested by userspace in @mode and what
 	 * is actually programmed into the hardware.
 	 *
-	 * For drivers using drm_bridge, this stores hardware display timings
+	 * For drivers using &drm_bridge, this stores hardware display timings
 	 * used between the CRTC and the first bridge. For other drivers, the
 	 * meaning of the adjusted_mode field is purely driver implementation
 	 * defined information, and will usually be used to store the hardware
@@ -184,7 +242,10 @@ struct drm_crtc_state {
 	 */
 	struct drm_display_mode mode;
 
-	/* blob property to expose current mode to atomic userspace */
+	/**
+	 * @mode_blob: &drm_property_blob for @mode, for exposing the mode to
+	 * atomic userspace.
+	 */
 	struct drm_property_blob *mode_blob;
 
 	/**
@@ -288,6 +349,7 @@ struct drm_crtc_state {
 	 */
 	struct drm_crtc_commit *commit;
 
+	/** @state: backpointer to global drm_atomic_state */
 	struct drm_atomic_state *state;
 };
 
