@@ -75,6 +75,8 @@ extern __thread volatile struct rseq __rseq_abi;
 #include <rseq-ppc.h>
 #elif defined(__mips__)
 #include <rseq-mips.h>
+#elif defined(__s390__)
+#include <rseq-s390.h>
 #else
 #error unsupported target
 #endif
