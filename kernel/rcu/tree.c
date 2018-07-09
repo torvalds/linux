@@ -2474,7 +2474,7 @@ void rcu_check_callbacks(int user)
 	/* The load-acquire pairs with the store-release setting to true. */
 	if (smp_load_acquire(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs))) {
 		/* Idle and userspace execution already are quiescent states. */
-		if (!is_idle_task(current) && !user) {
+		if (!rcu_is_cpu_rrupt_from_idle() && !user) {
 			set_tsk_need_resched(current);
 			set_preempt_need_resched();
 		}
