@@ -547,7 +547,7 @@ static void fsmc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	struct fsmc_nand_data *host  = mtd_to_fsmc(mtd);
 	int i;
 
-	if (IS_ALIGNED((uint32_t)buf, sizeof(uint32_t)) &&
+	if (IS_ALIGNED((uintptr_t)buf, sizeof(uint32_t)) &&
 			IS_ALIGNED(len, sizeof(uint32_t))) {
 		uint32_t *p = (uint32_t *)buf;
 		len = len >> 2;
@@ -570,7 +570,7 @@ static void fsmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	struct fsmc_nand_data *host  = mtd_to_fsmc(mtd);
 	int i;
 
-	if (IS_ALIGNED((uint32_t)buf, sizeof(uint32_t)) &&
+	if (IS_ALIGNED((uintptr_t)buf, sizeof(uint32_t)) &&
 			IS_ALIGNED(len, sizeof(uint32_t))) {
 		uint32_t *p = (uint32_t *)buf;
 		len = len >> 2;
