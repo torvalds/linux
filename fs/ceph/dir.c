@@ -885,8 +885,10 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 	if (ceph_snap(dir) != CEPH_NOSNAP)
 		return -EROFS;
 
-	if (ceph_quota_is_max_files_exceeded(dir))
-		return -EDQUOT;
+	if (ceph_quota_is_max_files_exceeded(dir)) {
+		err = -EDQUOT;
+		goto out;
+	}
 
 	dout("symlink in dir %p dentry %p to '%s'\n", dir, dentry, dest);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SYMLINK, USE_AUTH_MDS);
