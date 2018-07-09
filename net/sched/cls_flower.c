@@ -605,20 +605,22 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 					TCA_FLOWER_KEY_VLAN_PRIO, &key->vlan,
 					&mask->vlan);
 
-			ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE]);
-			if (eth_type_vlan(ethertype)) {
-				fl_set_key_vlan(tb, ethertype,
-						TCA_FLOWER_KEY_CVLAN_ID,
-						TCA_FLOWER_KEY_CVLAN_PRIO,
-						&key->cvlan, &mask->cvlan);
-				fl_set_key_val(tb, &key->basic.n_proto,
-					       TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
-					       &mask->basic.n_proto,
-					       TCA_FLOWER_UNSPEC,
-					       sizeof(key->basic.n_proto));
-			} else {
-				key->basic.n_proto = ethertype;
-				mask->basic.n_proto = cpu_to_be16(~0);
+			if (tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE]) {
+				ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE]);
+				if (eth_type_vlan(ethertype)) {
+					fl_set_key_vlan(tb, ethertype,
+							TCA_FLOWER_KEY_CVLAN_ID,
+							TCA_FLOWER_KEY_CVLAN_PRIO,
+							&key->cvlan, &mask->cvlan);
+					fl_set_key_val(tb, &key->basic.n_proto,
+						       TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
+						       &mask->basic.n_proto,
+						       TCA_FLOWER_UNSPEC,
+						       sizeof(key->basic.n_proto));
+				} else {
+					key->basic.n_proto = ethertype;
+					mask->basic.n_proto = cpu_to_be16(~0);
+				}
 			}
 		} else {
 			key->basic.n_proto = ethertype;
@@ -1344,14 +1346,16 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 			 key->cvlan.vlan_tpid)))
 		goto nla_put_failure;
 
-	if (mask->cvlan.vlan_tpid) {
-		if (nla_put_be16(skb, TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
-				 key->basic.n_proto))
-			goto nla_put_failure;
-	} else if (mask->vlan.vlan_tpid) {
-		if (nla_put_be16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE,
-				 key->basic.n_proto))
-			goto nla_put_failure;
+	if (mask->basic.n_proto) {
+		if (mask->cvlan.vlan_tpid) {
+			if (nla_put_be16(skb, TCA_FLOWER_KEY_CVLAN_ETH_TYPE,
+					 key->basic.n_proto))
+				goto nla_put_failure;
+		} else if (mask->vlan.vlan_tpid) {
+			if (nla_put_be16(skb, TCA_FLOWER_KEY_VLAN_ETH_TYPE,
+					 key->basic.n_proto))
+				goto nla_put_failure;
+		}
 	}
 
 	if ((key->basic.n_proto == htons(ETH_P_IP) ||
