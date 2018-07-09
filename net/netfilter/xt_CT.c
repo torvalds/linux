@@ -93,7 +93,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 		return -ENOENT;
 	}
 
-	help = nf_ct_helper_ext_add(ct, helper, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 	if (help == NULL) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;

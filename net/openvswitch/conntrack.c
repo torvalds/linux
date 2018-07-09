@@ -1303,7 +1303,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 		return -EINVAL;
 	}
 
-	help = nf_ct_helper_ext_add(info->ct, helper, GFP_KERNEL);
+	help = nf_ct_helper_ext_add(info->ct, GFP_KERNEL);
 	if (!help) {
 		nf_conntrack_helper_put(helper);
 		return -ENOMEM;

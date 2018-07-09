@@ -870,7 +870,7 @@ static void nft_ct_helper_obj_eval(struct nft_object *obj,
 	if (test_bit(IPS_HELPER_BIT, &ct->status))
 		return;
 
-	help = nf_ct_helper_ext_add(ct, to_assign, GFP_ATOMIC);
+	help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 	if (help) {
 		rcu_assign_pointer(help->helper, to_assign);
 		set_bit(IPS_HELPER_BIT, &ct->status);

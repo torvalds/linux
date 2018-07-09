@@ -1947,7 +1947,7 @@ ctnetlink_create_conntrack(struct net *net,
 		} else {
 			struct nf_conn_help *help;
 
-			help = nf_ct_helper_ext_add(ct, helper, GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help == NULL) {
 				err = -ENOMEM;
 				goto err2;
