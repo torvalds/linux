@@ -5926,6 +5926,18 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 				idev->cnf.addr_gen_mode = new_val;
 				addrconf_dev_config(idev->dev);
 			}
+		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctl->data) {
+			struct net_device *dev;
+
+			net->ipv6.devconf_dflt->addr_gen_mode = new_val;
+			for_each_netdev(net, dev) {
+				idev = __in6_dev_get(dev);
+				if (idev &&
+				    idev->cnf.addr_gen_mode != new_val) {
+					idev->cnf.addr_gen_mode = new_val;
+					addrconf_dev_config(idev->dev);
+				}
+			}
 		}
 
 		*((u32 *)ctl->data) = new_val;
