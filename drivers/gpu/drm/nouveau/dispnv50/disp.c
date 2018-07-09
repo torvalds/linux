@@ -850,7 +850,7 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
-	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
+	drm_connector_update_edid_property(&mstc->connector, mstc->edid);
 	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
 

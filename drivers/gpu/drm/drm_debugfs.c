@@ -314,13 +314,13 @@ static ssize_t edid_write(struct file *file, const char __user *ubuf,
 
 	if (len == 5 && !strncmp(buf, "reset", 5)) {
 		connector->override_edid = false;
-		ret = drm_mode_connector_update_edid_property(connector, NULL);
+		ret = drm_connector_update_edid_property(connector, NULL);
 	} else if (len < EDID_LENGTH ||
 		   EDID_LENGTH * (1 + edid->extensions) > len)
 		ret = -EINVAL;
 	else {
 		connector->override_edid = false;
-		ret = drm_mode_connector_update_edid_property(connector, edid);
+		ret = drm_connector_update_edid_property(connector, edid);
 		if (!ret)
 			connector->override_edid = true;
 	}

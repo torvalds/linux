@@ -1472,7 +1472,7 @@ static void psb_intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		bool connector_is_digital = !!IS_TMDS(psb_intel_sdvo_connector);
 
 		if (connector_is_digital == monitor_is_digital) {
-			drm_mode_connector_update_edid_property(connector, edid);
+			drm_connector_update_edid_property(connector, edid);
 			drm_add_edid_modes(connector, edid);
 		}
 

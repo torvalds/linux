@@ -1140,7 +1140,7 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 	if (!edid)
 		return 0;
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 
 	return count;

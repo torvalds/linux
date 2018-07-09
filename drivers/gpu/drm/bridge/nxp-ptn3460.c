@@ -222,7 +222,7 @@ static int ptn3460_get_modes(struct drm_connector *connector)
 	}
 
 	ptn_bridge->edid = (struct edid *)edid;
-	drm_mode_connector_update_edid_property(connector, ptn_bridge->edid);
+	drm_connector_update_edid_property(connector, ptn_bridge->edid);
 
 	num_modes = drm_add_edid_modes(connector, ptn_bridge->edid);
 

@@ -814,7 +814,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * 	Blob property which contains the current EDID read from the sink. This
  * 	is useful to parse sink identification information like vendor, model
  * 	and serial. Drivers should update this property by calling
- * 	drm_mode_connector_update_edid_property(), usually after having parsed
+ * 	drm_connector_update_edid_property(), usually after having parsed
  * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
  * 	property.
  * DPMS:
@@ -1497,7 +1497,7 @@ int drm_mode_connector_set_tile_property(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
 
 /**
- * drm_mode_connector_update_edid_property - update the edid property of a connector
+ * drm_connector_update_edid_property - update the edid property of a connector
  * @connector: drm connector
  * @edid: new value of the edid property
  *
@@ -1507,7 +1507,7 @@ EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_connector_update_edid_property(struct drm_connector *connector,
+int drm_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
@@ -1546,7 +1546,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	                                       dev->mode_config.edid_property);
 	return ret;
 }
-EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
+EXPORT_SYMBOL(drm_connector_update_edid_property);
 
 /**
  * drm_mode_connector_set_link_status_property - Set link status property of a connector

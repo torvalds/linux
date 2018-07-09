@@ -896,7 +896,7 @@ struct drm_connector {
 	/**
 	 * @edid_blob_ptr: DRM property containing EDID if present. Protected by
 	 * &drm_mode_config.mutex. This should be updated only by calling
-	 * drm_mode_connector_update_edid_property().
+	 * drm_connector_update_edid_property().
 	 */
 	struct drm_property_blob *edid_blob_ptr;
 
@@ -1194,8 +1194,8 @@ int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 int drm_mode_connector_set_path_property(struct drm_connector *connector,
 					 const char *path);
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
-int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    const struct edid *edid);
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid);
 void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
 						 uint64_t link_status);
 int drm_connector_init_panel_orientation_property(

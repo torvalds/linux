@@ -888,7 +888,7 @@ static int hdmi_get_modes(struct drm_connector *connector)
 		(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
 		edid->width_cm, edid->height_cm);
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	cec_notifier_set_phys_addr_from_edid(hdata->notifier, edid);
 
 	ret = drm_add_edid_modes(connector, edid);

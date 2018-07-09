@@ -790,12 +790,12 @@ static int ast_get_modes(struct drm_connector *connector)
 	if (!flags)
 		edid = drm_get_edid(connector, &ast_connector->i2c->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(&ast_connector->base, edid);
+		drm_connector_update_edid_property(&ast_connector->base, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 		return ret;
 	} else
-		drm_mode_connector_update_edid_property(&ast_connector->base, NULL);
+		drm_connector_update_edid_property(&ast_connector->base, NULL);
 	return 0;
 }
 

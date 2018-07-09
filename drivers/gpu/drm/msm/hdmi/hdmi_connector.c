@@ -392,7 +392,7 @@ static int msm_hdmi_connector_get_modes(struct drm_connector *connector)
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
 
 	hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
 		ret = drm_add_edid_modes(connector, edid);

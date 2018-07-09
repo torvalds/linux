@@ -170,7 +170,7 @@ static int sii902x_get_modes(struct drm_connector *connector)
 		return ret;
 
 	edid = drm_get_edid(connector, sii902x->i2c->adapter);
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 	if (edid) {
 		num = drm_add_edid_modes(connector, edid);
 		kfree(edid);

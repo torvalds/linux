@@ -550,7 +550,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	/* Cleanup the previous EDID block. */
 	if (nv_connector->edid) {
-		drm_mode_connector_update_edid_property(connector, NULL);
+		drm_connector_update_edid_property(connector, NULL);
 		kfree(nv_connector->edid);
 		nv_connector->edid = NULL;
 	}
@@ -575,7 +575,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		else
 			nv_connector->edid = drm_get_edid(connector, i2c);
 
-		drm_mode_connector_update_edid_property(connector,
+		drm_connector_update_edid_property(connector,
 							nv_connector->edid);
 		if (!nv_connector->edid) {
 			NV_ERROR(drm, "DDC responded, but no EDID for %s\n",
@@ -657,7 +657,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 
 	/* Cleanup the previous EDID block. */
 	if (nv_connector->edid) {
-		drm_mode_connector_update_edid_property(connector, NULL);
+		drm_connector_update_edid_property(connector, NULL);
 		kfree(nv_connector->edid);
 		nv_connector->edid = NULL;
 	}
@@ -721,7 +721,7 @@ out:
 		status = connector_status_unknown;
 #endif
 
-	drm_mode_connector_update_edid_property(connector, nv_connector->edid);
+	drm_connector_update_edid_property(connector, nv_connector->edid);
 	nouveau_connector_set_encoder(connector, nv_encoder);
 	return status;
 }

@@ -252,7 +252,7 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
 		struct edid *edid = drm_get_edid(panel->connector, p->ddc);
-		drm_mode_connector_update_edid_property(panel->connector, edid);
+		drm_connector_update_edid_property(panel->connector, edid);
 		if (edid) {
 			num += drm_add_edid_modes(panel->connector, edid);
 			kfree(edid);

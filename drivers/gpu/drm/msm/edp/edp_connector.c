@@ -56,7 +56,7 @@ static int edp_connector_get_modes(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	drm_mode_connector_update_edid_property(connector, drm_edid);
+	drm_connector_update_edid_property(connector, drm_edid);
 	if (drm_edid)
 		ret = drm_add_edid_modes(connector, drm_edid);
 

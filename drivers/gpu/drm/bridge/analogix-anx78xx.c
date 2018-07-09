@@ -969,8 +969,8 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 		goto unlock;
 	}
 
-	err = drm_mode_connector_update_edid_property(connector,
-						      anx78xx->edid);
+	err = drm_connector_update_edid_property(connector,
+						 anx78xx->edid);
 	if (err) {
 		DRM_ERROR("Failed to update EDID property: %d\n", err);
 		goto unlock;

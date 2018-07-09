@@ -173,7 +173,7 @@ static int tfp410_connector_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, tfp410_connector->mod->i2c);
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
 		ret = drm_add_edid_modes(connector, edid);

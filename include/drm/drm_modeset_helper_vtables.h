@@ -785,7 +785,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function should fill in all modes currently valid for the sink
 	 * into the &drm_connector.probed_modes list. It should also update the
-	 * EDID property by calling drm_mode_connector_update_edid_property().
+	 * EDID property by calling drm_connector_update_edid_property().
 	 *
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.

@@ -99,7 +99,7 @@ static int udl_get_modes(struct drm_connector *connector)
 					struct udl_drm_connector,
 					connector);
 
-	drm_mode_connector_update_edid_property(connector, udl_connector->edid);
+	drm_connector_update_edid_property(connector, udl_connector->edid);
 	if (udl_connector->edid)
 		return drm_add_edid_modes(connector, udl_connector->edid);
 	return 0;
