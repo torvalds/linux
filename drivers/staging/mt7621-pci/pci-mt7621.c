@@ -117,9 +117,6 @@
 	*(volatile u32 *)(RALINK_PCI_BASE+(ofs)) = cpu_to_le32(data)
 #define MV_READ(ofs, data)	\
 	*(data) = le32_to_cpu(*(volatile u32 *)(RALINK_PCI_BASE+(ofs)))
-#define MV_READ_DATA(ofs)	\
-	le32_to_cpu(*(volatile u32 *)(RALINK_PCI_BASE+(ofs)))
-
 #define MV_WRITE_16(ofs, data)	\
 	*(volatile u16 *)(RALINK_PCI_BASE+(ofs)) = cpu_to_le16(data)
 #define MV_READ_16(ofs, data)	\
