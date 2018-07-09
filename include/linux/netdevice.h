@@ -2103,7 +2103,7 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    struct sk_buff *skb,
-				    void *accel_priv);
+				    struct net_device *sb_dev);
 
 /* returns the headroom that the master device needs to take in account
  * when forwarding to this dev
@@ -2568,7 +2568,7 @@ void dev_close_many(struct list_head *head, bool unlink);
 void dev_disable_lro(struct net_device *dev);
 int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *newskb);
 int dev_queue_xmit(struct sk_buff *skb);
-int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv);
+int dev_queue_xmit_accel(struct sk_buff *skb, struct net_device *sb_dev);
 int dev_direct_xmit(struct sk_buff *skb, u16 queue_id);
 int register_netdevice(struct net_device *dev);
 void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);

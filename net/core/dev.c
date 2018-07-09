@@ -2786,24 +2786,26 @@ EXPORT_SYMBOL(netif_device_attach);
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
  * to be used as a distribution range.
  */
-static u16 skb_tx_hash(const struct net_device *dev, struct sk_buff *skb)
+static u16 skb_tx_hash(const struct net_device *dev,
+		       const struct net_device *sb_dev,
+		       struct sk_buff *skb)
 {
 	u32 hash;
 	u16 qoffset = 0;
 	u16 qcount = dev->real_num_tx_queues;
 
+	if (dev->num_tc) {
+		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
+
+		qoffset = sb_dev->tc_to_txq[tc].offset;
+		qcount = sb_dev->tc_to_txq[tc].count;
+	}
+
 	if (skb_rx_queue_recorded(skb)) {
 		hash = skb_get_rx_queue(skb);
 		while (unlikely(hash >= qcount))
 			hash -= qcount;
-		return hash;
-	}
-
-	if (dev->num_tc) {
-		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
-
-		qoffset = dev->tc_to_txq[tc].offset;
-		qcount = dev->tc_to_txq[tc].count;
+		return hash + qoffset;
 	}
 
 	return (u16) reciprocal_scale(skb_get_hash(skb), qcount) + qoffset;
@@ -3573,7 +3575,8 @@ static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 }
 #endif
 
-static int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
+static int get_xps_queue(struct net_device *dev, struct net_device *sb_dev,
+			 struct sk_buff *skb)
 {
 #ifdef CONFIG_XPS
 	struct xps_dev_maps *dev_maps;
@@ -3587,7 +3590,7 @@ static int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 	if (!static_key_false(&xps_rxqs_needed))
 		goto get_cpus_map;
 
-	dev_maps = rcu_dereference(dev->xps_rxqs_map);
+	dev_maps = rcu_dereference(sb_dev->xps_rxqs_map);
 	if (dev_maps) {
 		int tci = sk_rx_queue_get(sk);
 
@@ -3598,7 +3601,7 @@ static int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 
 get_cpus_map:
 	if (queue_index < 0) {
-		dev_maps = rcu_dereference(dev->xps_cpus_map);
+		dev_maps = rcu_dereference(sb_dev->xps_cpus_map);
 		if (dev_maps) {
 			unsigned int tci = skb->sender_cpu - 1;
 
@@ -3614,17 +3617,20 @@ get_cpus_map:
 #endif
 }
 
-static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
+static u16 ___netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
+			     struct net_device *sb_dev)
 {
 	struct sock *sk = skb->sk;
 	int queue_index = sk_tx_queue_get(sk);
 
+	sb_dev = sb_dev ? : dev;
+
 	if (queue_index < 0 || skb->ooo_okay ||
 	    queue_index >= dev->real_num_tx_queues) {
-		int new_index = get_xps_queue(dev, skb);
+		int new_index = get_xps_queue(dev, sb_dev, skb);
 
 		if (new_index < 0)
-			new_index = skb_tx_hash(dev, skb);
+			new_index = skb_tx_hash(dev, sb_dev, skb);
 
 		if (queue_index != new_index && sk &&
 		    sk_fullsock(sk) &&
@@ -3637,9 +3643,15 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 	return queue_index;
 }
 
+static u16 __netdev_pick_tx(struct net_device *dev,
+			    struct sk_buff *skb)
+{
+	return ___netdev_pick_tx(dev, skb, NULL);
+}
+
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    struct sk_buff *skb,
-				    void *accel_priv)
+				    struct net_device *sb_dev)
 {
 	int queue_index = 0;
 
@@ -3654,10 +3666,10 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb, accel_priv,
+			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
 							    __netdev_pick_tx);
 		else
-			queue_index = __netdev_pick_tx(dev, skb);
+			queue_index = ___netdev_pick_tx(dev, skb, sb_dev);
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
@@ -3669,7 +3681,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 /**
  *	__dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit
- *	@accel_priv: private data used for L2 forwarding offload
+ *	@sb_dev: suboordinate device used for L2 forwarding offload
  *
  *	Queue a buffer for transmission to a network device. The caller must
  *	have set the device and priority and built the buffer before calling
@@ -3692,7 +3704,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
  *      the BH enable code must have IRQs enabled so that it will not deadlock.
  *          --BLG
  */
-static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
+static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct net_device *dev = skb->dev;
 	struct netdev_queue *txq;
@@ -3731,7 +3743,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	else
 		skb_dst_force(skb);
 
-	txq = netdev_pick_tx(dev, skb, accel_priv);
+	txq = netdev_pick_tx(dev, skb, sb_dev);
 	q = rcu_dereference_bh(txq->qdisc);
 
 	trace_net_dev_queue(skb);
@@ -3805,9 +3817,9 @@ int dev_queue_xmit(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dev_queue_xmit);
 
-int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
+int dev_queue_xmit_accel(struct sk_buff *skb, struct net_device *sb_dev)
 {
-	return __dev_queue_xmit(skb, accel_priv);
+	return __dev_queue_xmit(skb, sb_dev);
 }
 EXPORT_SYMBOL(dev_queue_xmit_accel);
 

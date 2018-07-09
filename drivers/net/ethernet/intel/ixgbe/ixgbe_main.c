@@ -8208,20 +8208,17 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 					      input, common, ring->queue_index);
 }
 
+#ifdef IXGBE_FCOE
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 			      void *accel_priv, select_queue_fallback_t fallback)
 {
-	struct ixgbe_fwd_adapter *fwd_adapter = accel_priv;
-#ifdef IXGBE_FCOE
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_ring_feature *f;
-#endif
 	int txq;
 
-	if (fwd_adapter) {
-		u8 tc = netdev_get_num_tc(dev) ?
-			netdev_get_prio_tc_map(dev, skb->priority) : 0;
-		struct net_device *vdev = fwd_adapter->netdev;
+	if (accel_priv) {
+		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
+		struct net_device *vdev = accel_priv;
 
 		txq = vdev->tc_to_txq[tc].offset;
 		txq += reciprocal_scale(skb_get_hash(skb),
@@ -8229,8 +8226,6 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		return txq;
 	}
-
-#ifdef IXGBE_FCOE
 
 	/*
 	 * only execute the code below if protocol is FCoE
@@ -8257,11 +8252,9 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 		txq -= f->indices;
 
 	return txq + f->offset;
-#else
-	return fallback(dev, skb);
-#endif
 }
 
+#endif
 static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
 			       struct xdp_frame *xdpf)
 {
@@ -10058,7 +10051,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
 	.ndo_start_xmit		= ixgbe_xmit_frame,
-	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_set_rx_mode	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbe_set_mac,
@@ -10081,6 +10073,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
 #ifdef IXGBE_FCOE
+	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
 	.ndo_fcoe_ddp_target = ixgbe_fcoe_ddp_target,
 	.ndo_fcoe_ddp_done = ixgbe_fcoe_ddp_put,
