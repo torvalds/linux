@@ -375,7 +375,8 @@ static int igt_partial_tiling(void *arg)
 		}
 
 		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
-		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
+		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_17 ||
+		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
 
 		if (INTEL_GEN(i915) <= 2) {
