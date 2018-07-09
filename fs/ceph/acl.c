@@ -185,10 +185,10 @@ int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
 		return err;
 
 	if (acl) {
-		int ret = posix_acl_equiv_mode(acl, mode);
-		if (ret < 0)
+		err = posix_acl_equiv_mode(acl, mode);
+		if (err < 0)
 			goto out_err;
-		if (ret == 0) {
+		if (err == 0) {
 			posix_acl_release(acl);
 			acl = NULL;
 		}
