@@ -1540,7 +1540,7 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
  * tipc_node_check_state - check and if necessary update node state
  * @skb: TIPC packet
  * @bearer_id: identity of bearer delivering the packet
- * Returns true if state is ok, otherwise consumes buffer and returns false
+ * Returns true if state and msg are ok, otherwise false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 				  int bearer_id, struct sk_buff_head *xmitq)
@@ -1573,6 +1573,9 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 			break;
 		}
 	}
+
+	if (!tipc_link_validate_msg(l, hdr))
+		return false;
 
 	/* Check and update node accesibility if applicable */
 	if (state == SELF_UP_PEER_COMING) {
