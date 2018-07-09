@@ -525,30 +525,27 @@ enum drm_plane_type {
 
 /**
  * struct drm_plane - central DRM plane control structure
- * @dev: DRM device this plane belongs to
- * @head: for list management
- * @name: human readable name, can be overwritten by the driver
- * @base: base mode object
- * @possible_crtcs: pipes this plane can be bound to
- * @format_types: array of formats supported by this plane
- * @format_count: number of formats supported
- * @format_default: driver hasn't supplied supported formats for the plane
- * @modifiers: array of modifiers supported by this plane
- * @modifier_count: number of modifiers supported
- * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
- * 	drm_mode_set_config_internal() to implement correct refcounting.
- * @funcs: helper functions
- * @properties: property tracking for this plane
- * @type: type of plane (overlay, primary, cursor)
- * @alpha_property: alpha property for this plane
- * @zpos_property: zpos property for this plane
- * @rotation_property: rotation property for this plane
- * @helper_private: mid-layer private data
+ *
+ * Planes represent the scanout hardware of a display block. They receive their
+ * input data from a &drm_framebuffer and feed it to a &drm_crtc. Planes control
+ * the color conversion, see `Plane Composition Properties`_ for more details,
+ * and are also involved in the color conversion of input pixels, see `Color
+ * Management Properties`_ for details on that.
  */
 struct drm_plane {
+	/** @dev: DRM device this plane belongs to */
 	struct drm_device *dev;
+
+	/**
+	 * @head:
+	 *
+	 * List of all planes on @dev, linked from &drm_mode_config.plane_list.
+	 * Invariant over the lifetime of @dev and therefore does not need
+	 * locking.
+	 */
 	struct list_head head;
 
+	/** @name: human readable name, can be overwritten by the driver */
 	char *name;
 
 	/**
@@ -562,35 +559,62 @@ struct drm_plane {
 	 */
 	struct drm_modeset_lock mutex;
 
+	/** @base: base mode object */
 	struct drm_mode_object base;
 
+	/**
+	 * @possible_crtcs: pipes this plane can be bound to constructed from
+	 * drm_crtc_mask()
+	 */
 	uint32_t possible_crtcs;
+	/** @format_types: array of formats supported by this plane */
 	uint32_t *format_types;
+	/** @format_count: Size of the array pointed at by @format_types. */
 	unsigned int format_count;
+	/**
+	 * @format_default: driver hasn't supplied supported formats for the
+	 * plane. Used by the drm_plane_init compatibility wrapper only.
+	 */
 	bool format_default;
 
+	/** @modifiers: array of modifiers supported by this plane */
 	uint64_t *modifiers;
+	/** @modifier_count: Size of the array pointed at by @modifier_count. */
 	unsigned int modifier_count;
 
 	/**
-	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
-	 * drivers.  Atomic drivers should instead check &drm_plane_state.crtc.
+	 * @crtc:
+	 *
+	 * Currently bound CRTC, only meaningful for non-atomic drivers. For
+	 * atomic drivers this is forced to be NULL, atomic drivers should
+	 * instead check &drm_plane_state.crtc.
 	 */
 	struct drm_crtc *crtc;
 
 	/**
-	 * @fb: Currently bound framebuffer, only really meaningful for
-	 * non-atomic drivers.  Atomic drivers should instead check
-	 * &drm_plane_state.fb.
+	 * @fb:
+	 *
+	 * Currently bound framebuffer, only meaningful for non-atomic drivers.
+	 * For atomic drivers this is forced to be NULL, atomic drivers should
+	 * instead check &drm_plane_state.fb.
 	 */
 	struct drm_framebuffer *fb;
 
+	/**
+	 * @old_fb:
+	 *
+	 * Temporary tracking of the old fb while a modeset is ongoing. Only
+	 * used by non-atomic drivers, forced to be NULL for atomic drivers.
+	 */
 	struct drm_framebuffer *old_fb;
 
+	/** @funcs: plane control functions */
 	const struct drm_plane_funcs *funcs;
 
+	/** @properties: property tracking for this plane */
 	struct drm_object_properties properties;
 
+	/** @type: Type of plane, see &enum drm_plane_type for details. */
 	enum drm_plane_type type;
 
 	/**
@@ -599,6 +623,7 @@ struct drm_plane {
 	 */
 	unsigned index;
 
+	/** @helper_private: mid-layer private data */
 	const struct drm_plane_helper_funcs *helper_private;
 
 	/**
@@ -616,8 +641,23 @@ struct drm_plane {
 	 */
 	struct drm_plane_state *state;
 
+	/**
+	 * @alpha_property:
+	 * Optional alpha property for this plane. See
+	 * drm_plane_create_alpha_property().
+	 */
 	struct drm_property *alpha_property;
+	/**
+	 * @zpos_property:
+	 * Optional zpos property for this plane. See
+	 * drm_plane_create_zpos_property().
+	 */
 	struct drm_property *zpos_property;
+	/**
+	 * @rotation_property:
+	 * Optional rotation property for this plane. See
+	 * drm_plane_create_rotation_property().
+	 */
 	struct drm_property *rotation_property;
 
 	/**

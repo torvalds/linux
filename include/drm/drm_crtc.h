@@ -965,8 +965,8 @@ static inline unsigned int drm_crtc_index(const struct drm_crtc *crtc)
  * drm_crtc_mask - find the mask of a registered CRTC
  * @crtc: CRTC to find mask for
  *
- * Given a registered CRTC, return the mask bit of that CRTC for an
- * encoder's possible_crtcs field.
+ * Given a registered CRTC, return the mask bit of that CRTC for the
+ * &drm_encoder.possible_crtcs and &drm_plane.possible_crtcs fields.
  */
 static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
