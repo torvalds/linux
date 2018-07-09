@@ -48,6 +48,13 @@
 					AM43XX_CM_PER_EMIF_CLKCTRL_OFFSET)
 #define AM43XX_PRM_EMIF_CTRL_OFFSET			0x0030
 
+#define RTC_SECONDS_REG					0x0
+#define RTC_PMIC_REG					0x98
+#define RTC_PMIC_POWER_EN				BIT(16)
+#define RTC_PMIC_EXT_WAKEUP_STS				BIT(12)
+#define RTC_PMIC_EXT_WAKEUP_POL				BIT(4)
+#define RTC_PMIC_EXT_WAKEUP_EN				BIT(0)
+
 	.arm
 	.align 3
 
@@ -147,6 +154,20 @@ sync:
 	ldr	r4, [r2, #AMX3_PM_WFI_FLAGS_OFFSET]
 
 cache_skip_flush:
+	/*
+	 * If we are trying to enter RTC+DDR mode we must perform
+	 * a read from the rtc address space to ensure translation
+	 * presence in the TLB to avoid page table walk after DDR
+	 * is unavailable.
+	 */
+	tst	r4, #WFI_FLAG_RTC_ONLY
+	beq	skip_rtc_va_refresh
+
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r1, [r3, #AMX3_PM_RTC_BASE_VIRT_OFFSET]
+	ldr	r0, [r1]
+
+skip_rtc_va_refresh:
 	/* Check if we want self refresh */
 	tst	r4, #WFI_FLAG_SELF_REFRESH
 	beq	emif_skip_enter_sr
@@ -182,6 +203,34 @@ wait_emif_disable:
 	bne	wait_emif_disable
 
 emif_skip_disable:
+	tst	r4, #WFI_FLAG_RTC_ONLY
+	beq	skip_rtc_only
+
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r1, [r3, #AMX3_PM_RTC_BASE_VIRT_OFFSET]
+
+	ldr	r0, [r1, #RTC_PMIC_REG]
+	orr	r0, r0, #RTC_PMIC_POWER_EN
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_STS
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_EN
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_POL
+	str	r0, [r1, #RTC_PMIC_REG]
+	ldr	r0, [r1, #RTC_PMIC_REG]
+	/* Wait for 2 seconds to lose power */
+	mov	r3, #2
+	ldr	r2, [r1, #RTC_SECONDS_REG]
+rtc_loop:
+	ldr	r0, [r1, #RTC_SECONDS_REG]
+	cmp	r0, r2
+	beq	rtc_loop
+	mov	r2, r0
+	subs	r3, r3, #1
+	bne	rtc_loop
+
+	b	re_enable_emif
+
+skip_rtc_only:
+
 	tst	r4, #WFI_FLAG_WAKE_M3
 	beq	wkup_m3_skip
 
@@ -247,6 +296,7 @@ wkup_m3_skip:
 	mov	r2, #AM33XX_CM_CLKCTRL_MODULEMODE_ENABLE
 	str	r2, [r1]
 
+re_enable_emif:
 	/* Re-enable EMIF */
 	ldr	r1, am43xx_virt_emif_clkctrl
 	mov	r2, #AM33XX_CM_CLKCTRL_MODULEMODE_ENABLE
@@ -381,8 +431,6 @@ ENDPROC(am43xx_resume_from_deep_sleep)
  * Local variables
  */
 	.align
-resume_addr:
-	.word	cpu_resume - PAGE_OFFSET + 0x80000000
 kernel_flush:
 	.word   v7_flush_dcache_all
 ddr_start:
@@ -429,6 +477,8 @@ ENTRY(am43xx_pm_sram)
 	.word am43xx_emif_sram_table
 	.word am43xx_pm_ro_sram_data
 
+resume_addr:
+	.word   cpu_resume - PAGE_OFFSET + 0x80000000
 .align 3
 
 ENTRY(am43xx_pm_ro_sram_data)

@@ -42,6 +42,7 @@ struct am33xx_pm_sram_addr {
 	unsigned long *resume_offset;
 	unsigned long *emif_sram_table;
 	unsigned long *ro_sram_data;
+	unsigned long resume_address;
 };
 
 struct am33xx_pm_platform_data {
@@ -49,6 +50,7 @@ struct am33xx_pm_platform_data {
 	int	(*soc_suspend)(unsigned int state, int (*fn)(unsigned long),
 			       unsigned long args);
 	struct  am33xx_pm_sram_addr *(*get_sram_addrs)(void);
+	void __iomem *(*get_rtc_base_addr)(void);
 };
 
 struct am33xx_pm_sram_data {
@@ -60,6 +62,7 @@ struct am33xx_pm_sram_data {
 struct am33xx_pm_ro_sram_data {
 	u32 amx3_pm_sram_data_virt;
 	u32 amx3_pm_sram_data_phys;
+	void __iomem *rtc_base_virt;
 } __packed __aligned(8);
 
 #endif /* __ASSEMBLER__ */

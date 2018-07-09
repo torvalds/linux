@@ -229,6 +229,7 @@ static int am33xx_push_sram_idle(void)
 	ro_sram_data.amx3_pm_sram_data_virt = ocmcram_location_data;
 	ro_sram_data.amx3_pm_sram_data_phys =
 		gen_pool_virt_to_phys(sram_pool_data, ocmcram_location_data);
+	ro_sram_data.rtc_base_virt = pm_ops->get_rtc_base_addr();
 
 	/* Save physical address to calculate resume offset during pm init */
 	am33xx_do_wfi_sram_phys = gen_pool_virt_to_phys(sram_pool,

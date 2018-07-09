@@ -228,8 +228,6 @@ ENDPROC(am33xx_resume_from_deep_sleep)
  * Local variables
  */
 	.align
-resume_addr:
-	.word	cpu_resume - PAGE_OFFSET + 0x80000000
 kernel_flush:
 	.word   v7_flush_dcache_all
 virt_mpu_clkctrl:
@@ -251,6 +249,9 @@ ENTRY(am33xx_pm_sram)
 	.word am33xx_resume_offset
 	.word am33xx_emif_sram_table
 	.word am33xx_pm_ro_sram_data
+
+resume_addr:
+.word  cpu_resume - PAGE_OFFSET + 0x80000000
 
 .align 3
 ENTRY(am33xx_pm_ro_sram_data)
