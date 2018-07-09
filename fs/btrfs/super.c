@@ -933,8 +933,8 @@ out:
  *
  * The value is later passed to mount_subvol()
  */
-static int btrfs_parse_subvol_options(const char *options, fmode_t flags,
-		char **subvol_name, u64 *subvol_objectid)
+static int btrfs_parse_subvol_options(const char *options, char **subvol_name,
+		u64 *subvol_objectid)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *opts, *orig, *p;
@@ -1648,8 +1648,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	error = btrfs_parse_subvol_options(data, mode,
-					  &subvol_name, &subvol_objectid);
+	error = btrfs_parse_subvol_options(data, &subvol_name,
+					&subvol_objectid);
 	if (error) {
 		kfree(subvol_name);
 		return ERR_PTR(error);
