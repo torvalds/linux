@@ -39,9 +39,11 @@ Additionally, an alias named vinX will need to be created to specify
 which video input device this is.
 
 The per-board settings Gen2 platforms:
- - port sub-node describing a single endpoint connected to the vin
-   as described in video-interfaces.txt[1]. Only the first one will
-   be considered as each vin interface has one input port.
+
+- port - sub-node describing a single endpoint connected to the VIN
+  from external SoC pins as described in video-interfaces.txt[1].
+  Only the first one will be considered as each vin interface has one
+  input port.
 
 The per-board settings Gen3 platforms:
 
@@ -52,7 +54,7 @@ from local SoC CSI-2 receivers (port@1) depending on SoC.
 - renesas,id - ID number of the VIN, VINx in the documentation.
 - ports
     - port@0 - sub-node describing a single endpoint connected to the VIN
-      from external SoC pins described in video-interfaces.txt[1].
+      from external SoC pins as described in video-interfaces.txt[1].
       Describing more than one endpoint in port@0 is invalid. Only VIN
       instances that are connected to external pins should have port@0.
     - port@1 - sub-nodes describing one or more endpoints connected to
