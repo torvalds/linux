@@ -287,12 +287,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 	if (ret) {
 		if (bdev->driver->move_notify) {
-			struct ttm_mem_reg tmp_mem = *mem;
-			*mem = bo->mem;
-			bo->mem = tmp_mem;
+			swap(*mem, bo->mem);
 			bdev->driver->move_notify(bo, false, mem);
-			bo->mem = *mem;
-			*mem = tmp_mem;
+			swap(*mem, bo->mem);
 		}
 
 		goto out_err;
