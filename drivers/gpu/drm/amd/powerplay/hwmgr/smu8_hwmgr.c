@@ -1604,17 +1604,17 @@ static int smu8_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	switch (type) {
 	case amd_pp_disp_clock:
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = data->sys_info.display_clock[i];
+			clocks->clock[i] = data->sys_info.display_clock[i] * 10;
 		break;
 	case amd_pp_sys_clock:
 		table = hwmgr->dyn_state.vddc_dependency_on_sclk;
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = table->entries[i].clk;
+			clocks->clock[i] = table->entries[i].clk * 10;
 		break;
 	case amd_pp_mem_clock:
 		clocks->count = SMU8_NUM_NBPMEMORYCLOCK;
 		for (i = 0; i < clocks->count; i++)
-			clocks->clock[i] = data->sys_info.nbp_memory_clock[clocks->count - 1 - i];
+			clocks->clock[i] = data->sys_info.nbp_memory_clock[clocks->count - 1 - i] * 10;
 		break;
 	default:
 		return -1;

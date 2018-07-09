@@ -4610,12 +4610,12 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_sclk_table = table_info->vdd_dep_on_sclk;
 		for (i = 0; i < dep_sclk_table->count; i++)
-			clocks->clock[i] = dep_sclk_table->entries[i].clk;
+			clocks->clock[i] = dep_sclk_table->entries[i].clk * 10;
 		clocks->count = dep_sclk_table->count;
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
 		for (i = 0; i < sclk_table->count; i++)
-			clocks->clock[i] = sclk_table->entries[i].clk;
+			clocks->clock[i] = sclk_table->entries[i].clk * 10;
 		clocks->count = sclk_table->count;
 	}
 
@@ -4647,7 +4647,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			return -EINVAL;
 		dep_mclk_table = table_info->vdd_dep_on_mclk;
 		for (i = 0; i < dep_mclk_table->count; i++) {
-			clocks->clock[i] = dep_mclk_table->entries[i].clk;
+			clocks->clock[i] = dep_mclk_table->entries[i].clk * 10;
 			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
 		}
@@ -4655,7 +4655,7 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
 		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
 		for (i = 0; i < mclk_table->count; i++)
-			clocks->clock[i] = mclk_table->entries[i].clk;
+			clocks->clock[i] = mclk_table->entries[i].clk * 10;
 		clocks->count = mclk_table->count;
 	}
 	return 0;
