@@ -918,7 +918,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 EXPORT_SYMBOL_GPL(uprobe_register);
 
 /*
- * uprobe_apply - unregister a already registered probe.
+ * uprobe_apply - unregister an already registered probe.
  * @inode: the file in which the probe has to be removed.
  * @offset: offset from the start of the file.
  * @uc: consumer which wants to add more or remove some breakpoints
@@ -947,7 +947,7 @@ int uprobe_apply(struct inode *inode, loff_t offset,
 }
 
 /*
- * uprobe_unregister - unregister a already registered probe.
+ * uprobe_unregister - unregister an already registered probe.
  * @inode: the file in which the probe has to be removed.
  * @offset: offset from the start of the file.
  * @uc: identify which probe if multiple probes are colocated.
@@ -1403,7 +1403,7 @@ static struct return_instance *free_ret_instance(struct return_instance *ri)
 
 /*
  * Called with no locks held.
- * Called in context of a exiting or a exec-ing thread.
+ * Called in context of an exiting or an exec-ing thread.
  */
 void uprobe_free_utask(struct task_struct *t)
 {

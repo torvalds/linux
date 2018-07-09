@@ -234,7 +234,7 @@ perf also supports group leader sampling using the :S specifier.
   perf record -e '{cycles,instructions}:S' ...
   perf report --group
 
-Normally all events in a event group sample, but with :S only
+Normally all events in an event group sample, but with :S only
 the first event (the leader) samples, and it only reads the values of the
 other events in the group.
 

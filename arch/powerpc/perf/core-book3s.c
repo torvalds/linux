@@ -1469,7 +1469,7 @@ static int collect_events(struct perf_event *group, int max_count,
 }
 
 /*
- * Add a event to the PMU.
+ * Add an event to the PMU.
  * If all events are not already frozen, then we disable and
  * re-enable the PMU in order to get hw_perf_enable to do the
  * actual work of reconfiguring the PMU.
@@ -1548,7 +1548,7 @@ nocheck:
 }
 
 /*
- * Remove a event from the PMU.
+ * Remove an event from the PMU.
  */
 static void power_pmu_del(struct perf_event *event, int ef_flags)
 {
@@ -1742,7 +1742,7 @@ static int power_pmu_commit_txn(struct pmu *pmu)
 /*
  * Return 1 if we might be able to put event on a limited PMC,
  * or 0 if not.
- * A event can only go on a limited PMC if it counts something
+ * An event can only go on a limited PMC if it counts something
  * that a limited PMC can count, doesn't require interrupts, and
  * doesn't exclude any processor mode.
  */
