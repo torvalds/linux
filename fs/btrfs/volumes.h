@@ -384,8 +384,6 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 	}
 }
 
-int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
-				   u64 end, u64 *length);
 void btrfs_get_bbio(struct btrfs_bio *bbio);
 void btrfs_put_bbio(struct btrfs_bio *bbio);
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
