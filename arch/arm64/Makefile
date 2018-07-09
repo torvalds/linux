@@ -163,7 +163,7 @@ define archhelp
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef
 
-kernel.img: Image
+kernel.img: Image.lz4
 	$(Q)$(srctree)/scripts/mkkrnlimg $(objtree)/arch/arm64/boot/Image $(objtree)/kernel.img >/dev/null
 	@echo '  Image:  kernel.img is ready'
 ifdef CONFIG_MODULES
@@ -177,6 +177,17 @@ LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
 	$(Q) if [ -f $(srctree)/$(LOGO_KERNEL) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO_KERNEL) $(objtree)/; fi
 	$(Q)$(srctree)/scripts/resource_tool $(objtree)/arch/arm64/boot/dts/rockchip/$*.dtb $(LOGO) $(LOGO_KERNEL)
 	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
-	$(Q) if [ -x $(srctree)/scripts/mkbootimg ]; then $(srctree)/scripts/mkbootimg --kernel $(objtree)/arch/arm64/boot/Image --second resource.img -o boot.img && echo '  Image:  boot.img (with Image resource.img) is ready'; fi
+	$(Q) if [ -x $(srctree)/scripts/mkbootimg ]; then \
+		$(srctree)/scripts/mkbootimg \
+			--kernel $(objtree)/arch/arm64/boot/Image \
+			--second resource.img \
+			-o boot.img && \
+		echo '  Image:  boot.img (with Image resource.img) is ready'; \
+		$(srctree)/scripts/mkbootimg \
+			--kernel $(objtree)/arch/arm64/boot/Image.lz4 \
+			--second resource.img \
+			-o zboot.img && \
+		echo '  Image:  zboot.img (with Image.lz4 resource.img) is ready'; \
+	fi
 
-CLEAN_FILES += boot.img kernel.img resource.img
+CLEAN_FILES += boot.img kernel.img resource.img zboot.img
