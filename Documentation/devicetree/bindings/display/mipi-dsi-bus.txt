@@ -16,7 +16,7 @@ The following assumes that only a single peripheral is connected to a DSI
 host. Experience shows that this is true for the large majority of setups.
 
 DSI host
---------
+========
 
 In addition to the standard properties and those defined by the parent bus of
 a DSI host, the following properties apply to a node representing a DSI host.
@@ -30,11 +30,16 @@ Required properties:
   different value here. See below.
 
 DSI peripheral
---------------
+==============
 
-Peripherals are represented as child nodes of the DSI host's node. Properties
-described here apply to all DSI peripherals, but individual bindings may want
-to define additional, device-specific properties.
+Peripherals with DSI as control bus, or no control bus
+------------------------------------------------------
+
+Peripherals with the DSI bus as the primary control bus, or peripherals with
+no control bus but use the DSI bus to transmit pixel data are represented
+as child nodes of the DSI host's node. Properties described here apply to all
+DSI peripherals, but individual bindings may want to define additional,
+device-specific properties.
 
 Required properties:
 - reg: The virtual channel number of a DSI peripheral. Must be in the range
@@ -49,9 +54,25 @@ case two alternative representations can be chosen:
   property is the number of the first virtual channel and the second cell is
   the number of consecutive virtual channels.
 
-Example
--------
+Peripherals with a different control bus
+----------------------------------------
 
+There are peripherals that have I2C/SPI (or some other non-DSI bus) as the
+primary control bus, but are also connected to a DSI bus (mostly for the data
+path). Connections between such peripherals and a DSI host can be represented
+using the graph bindings [1], [2].
+
+[1] Documentation/devicetree/bindings/graph.txt
+[2] Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Examples
+========
+- (1), (2) and (3) are examples of a DSI host and peripheral on the DSI bus
+  with different virtual channel configurations.
+- (4) is an example of a peripheral on a I2C control bus connected to a
+  DSI host using of-graph bindings.
+
+1)
 	dsi-host {
 		...
 
@@ -67,6 +88,7 @@ Example
 		...
 	};
 
+2)
 	dsi-host {
 		...
 
@@ -82,6 +104,7 @@ Example
 		...
 	};
 
+3)
 	dsi-host {
 		...
 
@@ -95,4 +118,38 @@ Example
 		};
 
 		...
+	};
+
+4)
+	i2c-host {
+		...
+
+		dsi-bridge@35 {
+			compatible = "...";
+			reg = <0x35>;
+
+			ports {
+				...
+
+				port {
+					bridge_mipi_in: endpoint {
+						remote-endpoint = <&host_mipi_out>;
+					};
+				};
+			};
+		};
+	};
+
+	dsi-host {
+		...
+
+		ports {
+			...
+
+			port {
+				host_mipi_out: endpoint {
+					remote-endpoint = <&bridge_mipi_in>;
+				};
+			};
+		};
 	};
