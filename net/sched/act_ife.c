@@ -485,8 +485,10 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		return -ENOMEM;
 
 	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
-	if (err < 0)
+	if (err < 0) {
+		kfree(p);
 		return err;
+	}
 	exists = err;
 	if (exists && bind) {
 		kfree(p);
