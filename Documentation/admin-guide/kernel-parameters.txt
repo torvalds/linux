@@ -804,6 +804,15 @@
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	deferred_probe_timeout=
+			[KNL] Debugging option to set a timeout in seconds for
+			deferred probe to give up waiting on dependencies to
+			probe. Only specific dependencies (subsystems or
+			drivers) that have opted in will be ignored. A timeout of 0
+			will timeout at the end of initcalls. This option will also
+			dump out devices still on the deferred probe list after
+			retrying.
+
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 

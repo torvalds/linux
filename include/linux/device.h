@@ -339,6 +339,8 @@ struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, void *data,
 				  int (*match)(struct device *dev, void *data));
 
+int driver_deferred_probe_check_state(struct device *dev);
+
 /**
  * struct subsys_interface - interfaces to device functions
  * @name:       name of the device function
