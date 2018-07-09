@@ -544,7 +544,7 @@ static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 
 static uint8_t sunxi_nfc_read_byte(struct mtd_info *mtd)
 {
-	uint8_t ret;
+	uint8_t ret = 0;
 
 	sunxi_nfc_read_buf(mtd, &ret, 1);
 
