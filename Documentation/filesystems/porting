@@ -602,3 +602,11 @@ in your dentry operations instead.
 	dentry separately, and it now has request_mask and query_flags arguments
 	to specify the fields and sync type requested by statx.  Filesystems not
 	supporting any statx-specific features may ignore the new arguments.
+--
+[mandatory]
+	->atomic_open() calling conventions have changed.  Gone is int *opened,
+	along with FILE_OPENED/FILE_CREATED.  In place of those we have
+	FMODE_OPENED/FMODE_CREATED, set in file->f_mode.  Additionally, return
+	value for 'called finish_no_open(), open it yourself' case has become
+	0, not 1.  Since finish_no_open() itself is returning 0 now, that part
+	does not need any changes in ->atomic_open() instances.
