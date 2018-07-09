@@ -5712,7 +5712,9 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	}
 	vnic->uc_filter_count = 1;
 
-	vnic->rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
+	vnic->rx_mask = 0;
+	if (bp->dev->flags & IFF_BROADCAST)
+		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
 
 	if ((bp->dev->flags & IFF_PROMISC) && bnxt_promisc_ok(bp))
 		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
@@ -7214,13 +7216,16 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 
 	mask &= ~(CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS |
 		  CFA_L2_SET_RX_MASK_REQ_MASK_MCAST |
-		  CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST);
+		  CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST |
+		  CFA_L2_SET_RX_MASK_REQ_MASK_BCAST);
 
 	if ((dev->flags & IFF_PROMISC) && bnxt_promisc_ok(bp))
 		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 
 	uc_update = bnxt_uc_list_updated(bp);
 
+	if (dev->flags & IFF_BROADCAST)
+		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
 	if (dev->flags & IFF_ALLMULTI) {
 		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
 		vnic->mc_list_count = 0;
