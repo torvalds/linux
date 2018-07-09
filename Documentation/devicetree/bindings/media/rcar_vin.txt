@@ -55,6 +55,8 @@ The per-board settings Gen2 platforms:
       the SoC type and selected input image format.
       Valid values are: 8, 10, 12, 16, 24 and 32.
     - data-shift: see [1] for description. Valid values are 0 and 8.
+    - data-enable-active: polarity of CLKENB signal, see [1] for
+      description. Default is active high.
 
 The per-board settings Gen3 platforms:
 
