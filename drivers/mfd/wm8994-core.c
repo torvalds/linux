@@ -304,6 +304,8 @@ static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 
 	pdata->spkmode_pu = of_property_read_bool(np, "wlf,spkmode-pu");
 
+	pdata->csnaddr_pd = of_property_read_bool(np, "wlf,csnaddr-pd");
+
 	pdata->ldo[0].enable = of_get_named_gpio(np, "wlf,ldo1ena", 0);
 	if (pdata->ldo[0].enable < 0)
 		pdata->ldo[0].enable = 0;
@@ -562,6 +564,8 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	if (pdata->spkmode_pu)
 		pulls |= WM8994_SPKMODE_PU;
+	if (pdata->csnaddr_pd)
+		pulls |= WM8994_CSNADDR_PD;
 
 	/* Disable unneeded pulls */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
