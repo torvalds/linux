@@ -2107,7 +2107,7 @@ static const struct ethtool_ops bcm_sysport_ethtool_ops = {
 };
 
 static u16 bcm_sysport_select_queue(struct net_device *dev, struct sk_buff *skb,
-				    void *accel_priv,
+				    struct net_device *sb_dev,
 				    select_queue_fallback_t fallback)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);

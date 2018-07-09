@@ -1910,7 +1910,8 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 }
 
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
-		       void *accel_priv, select_queue_fallback_t fallback)
+		       struct net_device *sb_dev,
+		       select_queue_fallback_t fallback)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 

@@ -8210,15 +8210,16 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 
 #ifdef IXGBE_FCOE
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
-			      void *accel_priv, select_queue_fallback_t fallback)
+			      struct net_device *sb_dev,
+			      select_queue_fallback_t fallback)
 {
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_ring_feature *f;
 	int txq;
 
-	if (accel_priv) {
+	if (sb_dev) {
 		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
-		struct net_device *vdev = accel_priv;
+		struct net_device *vdev = sb_dev;
 
 		txq = vdev->tc_to_txq[tc].offset;
 		txq += reciprocal_scale(skb_get_hash(skb),

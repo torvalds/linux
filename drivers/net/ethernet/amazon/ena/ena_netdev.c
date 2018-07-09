@@ -2213,7 +2213,8 @@ static void ena_netpoll(struct net_device *netdev)
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv, select_queue_fallback_t fallback)
+			    struct net_device *sb_dev,
+			    select_queue_fallback_t fallback)
 {
 	u16 qid;
 	/* we suspect that this is good for in--kernel network services that

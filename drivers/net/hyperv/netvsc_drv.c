@@ -329,7 +329,7 @@ static u16 netvsc_pick_tx(struct net_device *ndev, struct sk_buff *skb)
 }
 
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
-			       void *accel_priv,
+			       struct net_device *sb_dev,
 			       select_queue_fallback_t fallback)
 {
 	struct net_device_context *ndc = netdev_priv(ndev);
@@ -343,7 +343,7 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 
 		if (vf_ops->ndo_select_queue)
 			txq = vf_ops->ndo_select_queue(vf_netdev, skb,
-						       accel_priv, fallback);
+						       sb_dev, fallback);
 		else
 			txq = fallback(vf_netdev, skb);
 

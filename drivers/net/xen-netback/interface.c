@@ -148,7 +148,7 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 }
 
 static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
-			       void *accel_priv,
+			       struct net_device *sb_dev,
 			       select_queue_fallback_t fallback)
 {
 	struct xenvif *vif = netdev_priv(dev);

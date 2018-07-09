@@ -957,7 +957,8 @@ struct dev_ifalias {
  *	those the driver believes to be appropriate.
  *
  * u16 (*ndo_select_queue)(struct net_device *dev, struct sk_buff *skb,
- *                         void *accel_priv, select_queue_fallback_t fallback);
+ *                         struct net_device *sb_dev,
+ *                         select_queue_fallback_t fallback);
  *	Called to decide which queue to use when device supports multiple
  *	transmit queues.
  *
@@ -1229,7 +1230,7 @@ struct net_device_ops {
 						      netdev_features_t features);
 	u16			(*ndo_select_queue)(struct net_device *dev,
 						    struct sk_buff *skb,
-						    void *accel_priv,
+						    struct net_device *sb_dev,
 						    select_queue_fallback_t fallback);
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
@@ -2568,9 +2569,11 @@ void dev_close_many(struct list_head *head, bool unlink);
 void dev_disable_lro(struct net_device *dev);
 int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *newskb);
 u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
-		     void *accel_priv, select_queue_fallback_t fallback);
+		     struct net_device *sb_dev,
+		     select_queue_fallback_t fallback);
 u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
-		       void *accel_priv, select_queue_fallback_t fallback);
+		       struct net_device *sb_dev,
+		       select_queue_fallback_t fallback);
 int dev_queue_xmit(struct sk_buff *skb);
 int dev_queue_xmit_accel(struct sk_buff *skb, struct net_device *sb_dev);
 int dev_direct_xmit(struct sk_buff *skb, u16 queue_id);
