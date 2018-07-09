@@ -38,6 +38,9 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	gt->awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 	GEM_BUG_ON(!gt->awake);
 
+	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
+
 	intel_enable_gt_powersave(i915);
 
 	i915_update_gfx_val(i915);
@@ -66,6 +69,11 @@ static int __gt_park(struct intel_wakeref *wf)
 	i915_pmu_gt_parked(i915);
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_idle(i915);
+
+	if (NEEDS_RC6_CTX_CORRUPTION_WA(i915)) {
+		i915_rc6_ctx_wa_check(i915);
+		intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
+	}
 
 	/* Everything switched off, flush any residual interrupt just in case */
 	intel_synchronize_irq(i915);
