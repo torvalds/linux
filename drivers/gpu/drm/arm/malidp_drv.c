@@ -37,6 +37,7 @@
 #include "malidp_hw.h"
 
 #define MALIDP_CONF_VALID_TIMEOUT	250
+#define AFBC_HEADER_SIZE		16
 
 static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
 				     u32 data[MALIDP_COEFFTAB_NUM_COEFFS])
@@ -258,8 +259,133 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 	.atomic_commit_tail = malidp_atomic_commit_tail,
 };
 
+static bool
+malidp_verify_afbc_framebuffer_caps(struct drm_device *dev,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	const struct drm_format_info *info;
+
+	if ((mode_cmd->modifier[0] >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
+		DRM_DEBUG_KMS("Unknown modifier (not Arm)\n");
+		return false;
+	}
+
+	if (mode_cmd->modifier[0] &
+	    ~DRM_FORMAT_MOD_ARM_AFBC(AFBC_MOD_VALID_BITS)) {
+		DRM_DEBUG_KMS("Unsupported modifiers\n");
+		return false;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+	if (!info) {
+		DRM_DEBUG_KMS("Unable to get the format information\n");
+		return false;
+	}
+
+	if (info->num_planes != 1) {
+		DRM_DEBUG_KMS("AFBC buffers expect one plane\n");
+		return false;
+	}
+
+	if (mode_cmd->offsets[0] != 0) {
+		DRM_DEBUG_KMS("AFBC buffers' plane offset should be 0\n");
+		return false;
+	}
+
+	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		if ((mode_cmd->width % 16) || (mode_cmd->height % 16)) {
+			DRM_DEBUG_KMS("AFBC buffers must be aligned to 16 pixels\n");
+			return false;
+		}
+		break;
+	default:
+		DRM_DEBUG_KMS("Unsupported AFBC block size\n");
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
+				    struct drm_file *file,
+				    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	int n_superblocks = 0;
+	const struct drm_format_info *info;
+	struct drm_gem_object *objs = NULL;
+	u32 afbc_superblock_size = 0, afbc_superblock_height = 0;
+	u32 afbc_superblock_width = 0, afbc_size = 0;
+
+	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
+	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+		afbc_superblock_height = 16;
+		afbc_superblock_width = 16;
+		break;
+	default:
+		DRM_DEBUG_KMS("AFBC superblock size is not supported\n");
+		return false;
+	}
+
+	info = drm_get_format_info(dev, mode_cmd);
+
+	n_superblocks = (mode_cmd->width / afbc_superblock_width) *
+		(mode_cmd->height / afbc_superblock_height);
+
+	afbc_superblock_size = info->cpp[0] * afbc_superblock_width *
+		afbc_superblock_height;
+
+	afbc_size = ALIGN(n_superblocks * AFBC_HEADER_SIZE, 128);
+
+	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
+		DRM_DEBUG_KMS("Invalid value of pitch (=%u) should be same as width (=%u) * cpp (=%u)\n",
+			      mode_cmd->pitches[0], mode_cmd->width, info->cpp[0]);
+		return false;
+	}
+
+	objs = drm_gem_object_lookup(file, mode_cmd->handles[0]);
+	if (!objs) {
+		DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+		return false;
+	}
+
+	if (objs->size < afbc_size) {
+		DRM_DEBUG_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
+			      objs->size, afbc_size);
+		drm_gem_object_put_unlocked(objs);
+		return false;
+	}
+
+	drm_gem_object_put_unlocked(objs);
+
+	return true;
+}
+
+static bool
+malidp_verify_afbc_framebuffer(struct drm_device *dev, struct drm_file *file,
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (malidp_verify_afbc_framebuffer_caps(dev, mode_cmd))
+		return malidp_verify_afbc_framebuffer_size(dev, file, mode_cmd);
+
+	return false;
+}
+
+struct drm_framebuffer *
+malidp_fb_create(struct drm_device *dev, struct drm_file *file,
+		 const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	if (mode_cmd->modifier[0]) {
+		if (!malidp_verify_afbc_framebuffer(dev, file, mode_cmd))
+			return ERR_PTR(-EINVAL);
+	}
+
+	return drm_gem_fb_create(dev, file, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create,
+	.fb_create = malidp_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };

@@ -388,4 +388,9 @@ static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
 
 #define MALIDP_GAMMA_LUT_SIZE		4096
 
+#define AFBC_MOD_VALID_BITS (AFBC_FORMAT_MOD_BLOCK_SIZE_MASK | \
+			AFBC_FORMAT_MOD_YTR | AFBC_FORMAT_MOD_SPLIT | \
+			AFBC_FORMAT_MOD_SPARSE | AFBC_FORMAT_MOD_CBR | \
+			AFBC_FORMAT_MOD_TILED | AFBC_FORMAT_MOD_SC)
+
 #endif  /* __MALIDP_HW_H__ */
