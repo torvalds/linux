@@ -114,8 +114,8 @@
 		#size-cells = <1>;
 		ranges;
 
-		sram-controller@1c00000 {
-			compatible = "allwinner,sun4i-a10-sram-controller";
+		system-control@1c00000 {
+			compatible = "allwinner,sun5i-a13-system-control";
 			reg = <0x01c00000 0x30>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -130,7 +130,8 @@
 			};
 
 			emac_sram: sram-section@8000 {
-				compatible = "allwinner,sun4i-a10-sram-a3-a4";
+				compatible = "allwinner,sun5i-a13-sram-a3-a4",
+					     "allwinner,sun4i-a10-sram-a3-a4";
 				reg = <0x8000 0x4000>;
 				status = "disabled";
 			};
@@ -143,7 +144,8 @@
 				ranges = <0 0x00010000 0x1000>;
 
 				otg_sram: sram-section@0 {
-					compatible = "allwinner,sun4i-a10-sram-d";
+					compatible = "allwinner,sun5i-a13-sram-d",
+						     "allwinner,sun4i-a10-sram-d";
 					reg = <0x0000 0x1000>;
 					status = "disabled";
 				};
