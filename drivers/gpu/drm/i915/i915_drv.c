@@ -1154,8 +1154,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_uncore_sanitize(dev_priv);
 
-	intel_opregion_setup(dev_priv);
-
 	i915_gem_load_init_fences(dev_priv);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -1184,10 +1182,16 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_init(dev_priv);
 	if (ret)
-		goto err_ggtt;
+		goto err_msi;
+
+	intel_opregion_setup(dev_priv);
 
 	return 0;
 
+err_msi:
+	if (pdev->msi_enabled)
+		pci_disable_msi(pdev);
+	pm_qos_remove_request(&dev_priv->pm_qos);
 err_ggtt:
 	i915_ggtt_cleanup_hw(dev_priv);
 err_perf:
