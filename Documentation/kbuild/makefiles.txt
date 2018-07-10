@@ -661,7 +661,7 @@ Both possibilities are described in the following.
 
 	When compiling host programs, it is possible to set specific flags.
 	The programs will always be compiled utilising $(HOSTCC) passed
-	the options specified in $(HOSTCFLAGS).
+	the options specified in $(KBUILD_HOSTCFLAGS).
 	To set flags that will take effect for all host programs created
 	in that Makefile, use the variable HOST_EXTRACFLAGS.
 
