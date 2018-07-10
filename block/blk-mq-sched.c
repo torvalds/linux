@@ -405,8 +405,19 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 
 	if (e && e->type->ops.mq.insert_requests)
 		e->type->ops.mq.insert_requests(hctx, list, false);
-	else
+	else {
+		/*
+		 * try to issue requests directly if the hw queue isn't
+		 * busy in case of 'none' scheduler, and this way may save
+		 * us one extra enqueue & dequeue to sw queue.
+		 */
+		if (!hctx->dispatch_busy && !e && !run_queue_async) {
+			blk_mq_try_issue_list_directly(hctx, list);
+			if (list_empty(list))
+				return;
+		}
 		blk_mq_insert_requests(hctx, ctx, list);
+	}
 
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 }

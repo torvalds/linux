@@ -1691,13 +1691,16 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	ret = q->mq_ops->queue_rq(hctx, &bd);
 	switch (ret) {
 	case BLK_STS_OK:
+		blk_mq_update_dispatch_busy(hctx, false);
 		*cookie = new_cookie;
 		break;
 	case BLK_STS_RESOURCE:
 	case BLK_STS_DEV_RESOURCE:
+		blk_mq_update_dispatch_busy(hctx, true);
 		__blk_mq_requeue_request(rq);
 		break;
 	default:
+		blk_mq_update_dispatch_busy(hctx, false);
 		*cookie = BLK_QC_T_NONE;
 		break;
 	}
@@ -1778,6 +1781,23 @@ blk_status_t blk_mq_request_issue_directly(struct request *rq)
 	hctx_unlock(hctx, srcu_idx);
 
 	return ret;
+}
+
+void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
+		struct list_head *list)
+{
+	while (!list_empty(list)) {
+		blk_status_t ret;
+		struct request *rq = list_first_entry(list, struct request,
+				queuelist);
+
+		list_del_init(&rq->queuelist);
+		ret = blk_mq_request_issue_directly(rq);
+		if (ret != BLK_STS_OK) {
+			list_add(&rq->queuelist, list);
+			break;
+		}
+	}
 }
 
 static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
@@ -1880,7 +1900,8 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
 					&cookie);
 		}
-	} else if (q->nr_hw_queues > 1 && is_sync) {
+	} else if ((q->nr_hw_queues > 1 && is_sync) || (!q->elevator &&
+			!data.hctx->dispatch_busy)) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
