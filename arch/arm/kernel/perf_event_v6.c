@@ -411,6 +411,12 @@ armv6pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	}
 }
 
+static void armv6pmu_clear_event_idx(struct pmu_hw_events *cpuc,
+				     struct perf_event *event)
+{
+	clear_bit(event->hw.idx, cpuc->used_mask);
+}
+
 static void armv6pmu_disable_event(struct perf_event *event)
 {
 	unsigned long val, mask, evt, flags;
@@ -491,6 +497,7 @@ static void armv6pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= armv6pmu_read_counter;
 	cpu_pmu->write_counter	= armv6pmu_write_counter;
 	cpu_pmu->get_event_idx	= armv6pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = armv6pmu_clear_event_idx;
 	cpu_pmu->start		= armv6pmu_start;
 	cpu_pmu->stop		= armv6pmu_stop;
 	cpu_pmu->map_event	= armv6_map_event;
@@ -541,6 +548,7 @@ static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= armv6pmu_read_counter;
 	cpu_pmu->write_counter	= armv6pmu_write_counter;
 	cpu_pmu->get_event_idx	= armv6pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = armv6pmu_clear_event_idx;
 	cpu_pmu->start		= armv6pmu_start;
 	cpu_pmu->stop		= armv6pmu_stop;
 	cpu_pmu->map_event	= armv6mpcore_map_event;

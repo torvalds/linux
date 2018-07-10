@@ -292,6 +292,12 @@ xscale1pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	}
 }
 
+static void xscalepmu_clear_event_idx(struct pmu_hw_events *cpuc,
+				     struct perf_event *event)
+{
+	clear_bit(event->hw.idx, cpuc->used_mask);
+}
+
 static void xscale1pmu_start(struct arm_pmu *cpu_pmu)
 {
 	unsigned long flags, val;
@@ -370,6 +376,7 @@ static int xscale1pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= xscale1pmu_read_counter;
 	cpu_pmu->write_counter	= xscale1pmu_write_counter;
 	cpu_pmu->get_event_idx	= xscale1pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = xscalepmu_clear_event_idx;
 	cpu_pmu->start		= xscale1pmu_start;
 	cpu_pmu->stop		= xscale1pmu_stop;
 	cpu_pmu->map_event	= xscale_map_event;
@@ -738,6 +745,7 @@ static int xscale2pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->read_counter	= xscale2pmu_read_counter;
 	cpu_pmu->write_counter	= xscale2pmu_write_counter;
 	cpu_pmu->get_event_idx	= xscale2pmu_get_event_idx;
+	cpu_pmu->clear_event_idx = xscalepmu_clear_event_idx;
 	cpu_pmu->start		= xscale2pmu_start;
 	cpu_pmu->stop		= xscale2pmu_stop;
 	cpu_pmu->map_event	= xscale_map_event;
