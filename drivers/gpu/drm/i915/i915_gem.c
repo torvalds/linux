@@ -5550,6 +5550,8 @@ err_init_hw:
 	WARN_ON(i915_gem_suspend(dev_priv));
 	i915_gem_suspend_late(dev_priv);
 
+	i915_gem_drain_workqueue(dev_priv);
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 err_uc_init:

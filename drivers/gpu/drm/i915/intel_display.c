@@ -15847,6 +15847,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
+	flush_workqueue(dev_priv->modeset_wq);
+
 	flush_work(&dev_priv->atomic_helper.free_work);
 	WARN_ON(!llist_empty(&dev_priv->atomic_helper.free_list));
 
