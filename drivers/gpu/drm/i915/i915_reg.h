@@ -10231,6 +10231,12 @@ enum skl_power_gate {
 #define  PREPARE_COUNT_SHIFT				0
 #define  PREPARE_COUNT_MASK				(0x3f << 0)
 
+#define _ICL_DSI_T_INIT_MASTER_0	0x6b088
+#define _ICL_DSI_T_INIT_MASTER_1	0x6b888
+#define ICL_DSI_T_INIT_MASTER(port)	_MMIO_PORT(port,	\
+						   _ICL_DSI_T_INIT_MASTER_0,\
+						   _ICL_DSI_T_INIT_MASTER_1)
+
 /* bits 31:0 */
 #define _MIPIA_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb084)
 #define _MIPIC_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb884)
