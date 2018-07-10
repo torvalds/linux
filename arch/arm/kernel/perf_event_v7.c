@@ -743,7 +743,7 @@ static inline void armv7_pmnc_select_counter(int idx)
 	isb();
 }
 
-static inline u32 armv7pmu_read_counter(struct perf_event *event)
+static inline u64 armv7pmu_read_counter(struct perf_event *event)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -763,7 +763,7 @@ static inline u32 armv7pmu_read_counter(struct perf_event *event)
 	return value;
 }
 
-static inline void armv7pmu_write_counter(struct perf_event *event, u32 value)
+static inline void armv7pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;

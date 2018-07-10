@@ -87,8 +87,8 @@ struct arm_pmu {
 					 struct perf_event *event);
 	int		(*set_event_filter)(struct hw_perf_event *evt,
 					    struct perf_event_attr *attr);
-	u32		(*read_counter)(struct perf_event *event);
-	void		(*write_counter)(struct perf_event *event, u32 val);
+	u64		(*read_counter)(struct perf_event *event);
+	void		(*write_counter)(struct perf_event *event, u64 val);
 	void		(*start)(struct arm_pmu *);
 	void		(*stop)(struct arm_pmu *);
 	void		(*reset)(void *);

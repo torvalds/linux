@@ -233,7 +233,7 @@ armv6_pmcr_counter_has_overflowed(unsigned long pmcr,
 	return ret;
 }
 
-static inline u32 armv6pmu_read_counter(struct perf_event *event)
+static inline u64 armv6pmu_read_counter(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int counter = hwc->idx;
@@ -251,7 +251,7 @@ static inline u32 armv6pmu_read_counter(struct perf_event *event)
 	return value;
 }
 
-static inline void armv6pmu_write_counter(struct perf_event *event, u32 value)
+static inline void armv6pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	int counter = hwc->idx;

@@ -512,7 +512,7 @@ static inline int armv8pmu_select_counter(int idx)
 	return idx;
 }
 
-static inline u32 armv8pmu_read_counter(struct perf_event *event)
+static inline u64 armv8pmu_read_counter(struct perf_event *event)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -530,7 +530,7 @@ static inline u32 armv8pmu_read_counter(struct perf_event *event)
 	return value;
 }
 
-static inline void armv8pmu_write_counter(struct perf_event *event, u32 value)
+static inline void armv8pmu_write_counter(struct perf_event *event, u64 value)
 {
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -545,9 +545,8 @@ static inline void armv8pmu_write_counter(struct perf_event *event, u32 value)
 		 * count using the lower 32bits and we want an interrupt when
 		 * it overflows.
 		 */
-		u64 value64 = 0xffffffff00000000ULL | value;
-
-		write_sysreg(value64, pmccntr_el0);
+		value |= 0xffffffff00000000ULL;
+		write_sysreg(value, pmccntr_el0);
 	} else if (armv8pmu_select_counter(idx) == idx)
 		write_sysreg(value, pmxevcntr_el0);
 }
