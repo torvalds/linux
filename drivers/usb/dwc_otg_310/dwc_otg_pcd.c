@@ -1403,25 +1403,6 @@ uint32_t dwc_otg_pcd_is_otg(dwc_otg_pcd_t *pcd)
  * This function assigns periodic Tx FIFO to an periodic EP
  * in shared Tx FIFO mode
  */
-static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
-{
-	uint32_t TxMsk = 1;
-	int i;
-
-	for (i = 0; i < core_if->hwcfg4.b.num_in_eps; ++i) {
-		if ((TxMsk & core_if->tx_msk) == 0) {
-			core_if->tx_msk |= TxMsk;
-			return i + 1;
-		}
-		TxMsk <<= 1;
-	}
-	return 0;
-}
-
-/**
- * This function assigns periodic Tx FIFO to an periodic EP
- * in shared Tx FIFO mode
- */
 static uint32_t assign_perio_tx_fifo(dwc_otg_core_if_t *core_if)
 {
 	uint32_t PerTxMsk = 1;
@@ -1464,7 +1445,7 @@ static void release_tx_fifo(dwc_otg_core_if_t *core_if, uint32_t fifo_num)
 int dwc_otg_pcd_ep_enable(dwc_otg_pcd_t *pcd,
 			  const uint8_t *ep_desc, void *usb_ep)
 {
-	int num, dir;
+	int num, dir, fifo_map;
 	dwc_otg_pcd_ep_t *ep = NULL;
 	const usb_endpoint_descriptor_t *desc;
 	dwc_irqflags_t flags;
@@ -1497,6 +1478,7 @@ int dwc_otg_pcd_ep_enable(dwc_otg_pcd_t *pcd,
 		for (i = 0; i < epcount; i++) {
 			if (num == pcd->in_ep[i].dwc_ep.num) {
 				ep = &pcd->in_ep[i];
+				fifo_map = i;
 				break;
 			}
 		}
@@ -1543,11 +1525,25 @@ int dwc_otg_pcd_ep_enable(dwc_otg_pcd_t *pcd,
 				    assign_perio_tx_fifo(GET_CORE_IF(pcd));
 			}
 		} else {
+			fifosize_data_t txfifosize;
+			dwc_otg_core_global_regs_t *global_regs =
+				GET_CORE_IF(pcd)->core_global_regs;
+
+			txfifosize.d32 =
+				DWC_READ_REG32(&global_regs->dtxfsiz[fifo_map]);
+
+			if ((txfifosize.b.depth * 4) < ep->dwc_ep.maxpacket)
+				DWC_WARN("No suitable fifo found for ep %d\n", num);
 			/*
 			 * if Dedicated FIFOs mode is on then assign a Tx FIFO.
+			 * According to register DIEPCTL.TxFNum, the TxFIFO Num
+			 * index from 1, and the max FIFO Num is core_if->dev_if
+			 * ->num_in_eps. We make one-to-one fixed mapping here:
+			 * EP1-IN FIFO Num = 1, EP3-IN FIFO Num = 2,
+			 * EP5-IN FIFO Num = 3, EP7-IN FIFO Num = 4,
+			 * EP8-IN FIFO Num = 5, EP9-IN FIFO Num = 6.
 			 */
-			ep->dwc_ep.tx_fifo_num =
-			    assign_tx_fifo(GET_CORE_IF(pcd));
+			ep->dwc_ep.tx_fifo_num = fifo_map + 1;
 		}
 
 		/* Calculating EP info controller base address */
