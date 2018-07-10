@@ -755,6 +755,14 @@ static __be32 mlx5e_get_fcs(struct sk_buff *skb)
 	return fcs_bytes;
 }
 
+static u8 get_ip_proto(struct sk_buff *skb, __be16 proto)
+{
+	void *ip_p = skb->data + sizeof(struct ethhdr);
+
+	return (proto == htons(ETH_P_IP)) ? ((struct iphdr *)ip_p)->protocol :
+					    ((struct ipv6hdr *)ip_p)->nexthdr;
+}
+
 static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct mlx5_cqe64 *cqe,
 				     struct mlx5e_rq *rq,
@@ -775,6 +783,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 	}
 
 	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
+		if (unlikely(get_ip_proto(skb, proto) == IPPROTO_SCTP))
+			goto csum_unnecessary;
+
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (network_depth > ETH_HLEN)
@@ -792,6 +803,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
+csum_unnecessary:
 	if (likely((cqe->hds_ip_ext & CQE_L3_OK) &&
 		   (cqe->hds_ip_ext & CQE_L4_OK))) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
