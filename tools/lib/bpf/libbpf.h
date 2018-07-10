@@ -255,6 +255,7 @@ typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,
 		      bpf_map_clear_priv_t clear_priv);
 void *bpf_map__priv(struct bpf_map *map);
+bool bpf_map__is_offload_neutral(struct bpf_map *map);
 void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 int bpf_map__pin(struct bpf_map *map, const char *path);
 

@@ -2154,6 +2154,11 @@ void *bpf_map__priv(struct bpf_map *map)
 	return map ? map->priv : ERR_PTR(-EINVAL);
 }
 
+bool bpf_map__is_offload_neutral(struct bpf_map *map)
+{
+	return map->def.type == BPF_MAP_TYPE_PERF_EVENT_ARRAY;
+}
+
 void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
 {
 	map->map_ifindex = ifindex;
@@ -2278,7 +2283,8 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	}
 
 	bpf_map__for_each(map, obj) {
-		map->map_ifindex = attr->ifindex;
+		if (!bpf_map__is_offload_neutral(map))
+			map->map_ifindex = attr->ifindex;
 	}
 
 	if (!first_prog) {
