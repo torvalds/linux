@@ -974,7 +974,7 @@ int security_file_open(struct file *file)
 {
 	int ret;
 
-	ret = call_int_hook(file_open, 0, file, file->f_cred);
+	ret = call_int_hook(file_open, 0, file);
 	if (ret)
 		return ret;
 
