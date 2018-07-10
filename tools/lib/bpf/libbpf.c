@@ -2081,23 +2081,31 @@ static const struct {
 #undef BPF_S_PROG_SEC
 #undef BPF_SA_PROG_SEC
 
-static int bpf_program__identify_section(struct bpf_program *prog)
+int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
+			     enum bpf_attach_type *expected_attach_type)
 {
 	int i;
 
-	if (!prog->section_name)
-		goto err;
+	if (!name)
+		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(section_names); i++)
-		if (strncmp(prog->section_name, section_names[i].sec,
-			    section_names[i].len) == 0)
-			return i;
+	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
+		if (strncmp(name, section_names[i].sec, section_names[i].len))
+			continue;
+		*prog_type = section_names[i].prog_type;
+		*expected_attach_type = section_names[i].expected_attach_type;
+		return 0;
+	}
+	return -EINVAL;
+}
 
-err:
-	pr_warning("failed to guess program type based on section name %s\n",
-		   prog->section_name);
-
-	return -1;
+static int
+bpf_program__identify_section(struct bpf_program *prog,
+			      enum bpf_prog_type *prog_type,
+			      enum bpf_attach_type *expected_attach_type)
+{
+	return libbpf_prog_type_by_name(prog->section_name, prog_type,
+					expected_attach_type);
 }
 
 int bpf_map__fd(struct bpf_map *map)
@@ -2230,7 +2238,6 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	enum bpf_prog_type prog_type;
 	struct bpf_object *obj;
 	struct bpf_map *map;
-	int section_idx;
 	int err;
 
 	if (!attr)
@@ -2252,14 +2259,14 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		prog->prog_ifindex = attr->ifindex;
 		expected_attach_type = attr->expected_attach_type;
 		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
-			section_idx = bpf_program__identify_section(prog);
-			if (section_idx < 0) {
+			err = bpf_program__identify_section(prog, &prog_type,
+							    &expected_attach_type);
+			if (err < 0) {
+				pr_warning("failed to guess program type based on section name %s\n",
+					   prog->section_name);
 				bpf_object__close(obj);
 				return -EINVAL;
 			}
-			prog_type = section_names[section_idx].prog_type;
-			expected_attach_type =
-				section_names[section_idx].expected_attach_type;
 		}
 
 		bpf_program__set_type(prog, prog_type);

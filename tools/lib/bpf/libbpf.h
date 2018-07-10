@@ -92,6 +92,9 @@ int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 			 bpf_object_clear_priv_t clear_priv);
 void *bpf_object__priv(struct bpf_object *prog);
 
+int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
+			     enum bpf_attach_type *expected_attach_type);
+
 /* Accessors of bpf_program */
 struct bpf_program;
 struct bpf_program *bpf_program__next(struct bpf_program *prog,
