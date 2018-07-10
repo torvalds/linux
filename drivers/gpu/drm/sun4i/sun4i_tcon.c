@@ -1319,6 +1319,40 @@ static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
 	return 0;
 }
 
+static int sun8i_r40_tcon_tv_set_mux(struct sun4i_tcon *tcon,
+				     const struct drm_encoder *encoder)
+{
+	struct device_node *port, *remote;
+	struct platform_device *pdev;
+	int id, ret;
+
+	/* find TCON TOP platform device and TCON id */
+
+	port = of_graph_get_port_by_id(tcon->dev->of_node, 0);
+	if (!port)
+		return -EINVAL;
+
+	id = sun4i_tcon_of_get_id_from_port(port);
+	of_node_put(port);
+
+	remote = of_graph_get_remote_node(tcon->dev->of_node, 0, -1);
+	if (!remote)
+		return -EINVAL;
+
+	pdev = of_find_device_by_node(remote);
+	of_node_put(remote);
+	if (!pdev)
+		return -EINVAL;
+
+	if (encoder->encoder_type == DRM_MODE_ENCODER_TMDS) {
+		ret = sun8i_tcon_top_set_hdmi_src(&pdev->dev, id);
+		if (ret)
+			return ret;
+	}
+
+	return sun8i_tcon_top_de_config(&pdev->dev, tcon->id, id);
+}
+
 static const struct sun4i_tcon_quirks sun4i_a10_quirks = {
 	.has_channel_0		= true,
 	.has_channel_1		= true,
@@ -1366,6 +1400,11 @@ static const struct sun4i_tcon_quirks sun8i_a83t_tv_quirks = {
 	.has_channel_1		= true,
 };
 
+static const struct sun4i_tcon_quirks sun8i_r40_tv_quirks = {
+	.has_channel_1		= true,
+	.set_mux		= sun8i_r40_tcon_tv_set_mux,
+};
+
 static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
 	.has_channel_0		= true,
 };
@@ -1390,6 +1429,7 @@ const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
 	{ .compatible = "allwinner,sun8i-a83t-tcon-lcd", .data = &sun8i_a83t_lcd_quirks },
 	{ .compatible = "allwinner,sun8i-a83t-tcon-tv", .data = &sun8i_a83t_tv_quirks },
+	{ .compatible = "allwinner,sun8i-r40-tcon-tv", .data = &sun8i_r40_tv_quirks },
 	{ .compatible = "allwinner,sun8i-v3s-tcon", .data = &sun8i_v3s_quirks },
 	{ .compatible = "allwinner,sun9i-a80-tcon-lcd", .data = &sun9i_a80_tcon_lcd_quirks },
 	{ .compatible = "allwinner,sun9i-a80-tcon-tv", .data = &sun9i_a80_tcon_tv_quirks },
