@@ -202,7 +202,8 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 		/*
 		 * If we can set SDA, we will always create STOP here to ensure
 		 * the additional pulses will do no harm. This is achieved by
-		 * letting SDA follow SCL half a cycle later.
+		 * letting SDA follow SCL half a cycle later. Check the
+		 * 'incomplete_write_byte' fault injector for details.
 		 */
 		ndelay(RECOVERY_NDELAY / 2);
 		if (bri->set_sda)
@@ -272,6 +273,10 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
 			err_str = "no {get|set}_scl() found";
+			goto err;
+		}
+		if (!bri->set_sda && !bri->get_sda) {
+			err_str = "either get_sda() or set_sda() needed";
 			goto err;
 		}
 	}
