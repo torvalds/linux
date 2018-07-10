@@ -43,6 +43,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <linux/err.h>
+
 #include <bpf.h>
 #include <libbpf.h>
 
@@ -682,17 +684,20 @@ static int do_pin(int argc, char **argv)
 
 static int do_load(int argc, char **argv)
 {
-	struct bpf_prog_load_attr attr = {
+	enum bpf_attach_type expected_attach_type;
+	struct bpf_object_open_attr attr = {
 		.prog_type	= BPF_PROG_TYPE_UNSPEC,
 	};
-	const char *objfile, *pinfile;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
-	int prog_fd;
+	struct bpf_map *map;
+	const char *pinfile;
+	__u32 ifindex = 0;
 	int err;
 
 	if (!REQ_ARGS(2))
 		return -1;
-	objfile = GET_ARG();
+	attr.file = GET_ARG();
 	pinfile = GET_ARG();
 
 	while (argc) {
@@ -719,7 +724,7 @@ static int do_load(int argc, char **argv)
 			strcat(type, "/");
 
 			err = libbpf_prog_type_by_name(type, &attr.prog_type,
-						       &attr.expected_attach_type);
+						       &expected_attach_type);
 			free(type);
 			if (err < 0) {
 				p_err("unknown program type '%s'", *argv);
@@ -729,15 +734,15 @@ static int do_load(int argc, char **argv)
 		} else if (is_prefix(*argv, "dev")) {
 			NEXT_ARG();
 
-			if (attr.ifindex) {
+			if (ifindex) {
 				p_err("offload device already specified");
 				return -1;
 			}
 			if (!REQ_ARGS(1))
 				return -1;
 
-			attr.ifindex = if_nametoindex(*argv);
-			if (!attr.ifindex) {
+			ifindex = if_nametoindex(*argv);
+			if (!ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
 				      *argv, strerror(errno));
 				return -1;
@@ -750,14 +755,44 @@ static int do_load(int argc, char **argv)
 		}
 	}
 
-	attr.file = objfile;
-
-	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
-		p_err("failed to load program");
+	obj = bpf_object__open_xattr(&attr);
+	if (IS_ERR_OR_NULL(obj)) {
+		p_err("failed to open object file");
 		return -1;
 	}
 
-	if (do_pin_fd(prog_fd, pinfile))
+	prog = bpf_program__next(NULL, obj);
+	if (!prog) {
+		p_err("object file doesn't contain any bpf program");
+		goto err_close_obj;
+	}
+
+	bpf_program__set_ifindex(prog, ifindex);
+	if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
+		const char *sec_name = bpf_program__title(prog, false);
+
+		err = libbpf_prog_type_by_name(sec_name, &attr.prog_type,
+					       &expected_attach_type);
+		if (err < 0) {
+			p_err("failed to guess program type based on section name %s\n",
+			      sec_name);
+			goto err_close_obj;
+		}
+	}
+	bpf_program__set_type(prog, attr.prog_type);
+	bpf_program__set_expected_attach_type(prog, expected_attach_type);
+
+	bpf_map__for_each(map, obj)
+		if (!bpf_map__is_offload_neutral(map))
+			bpf_map__set_ifindex(map, ifindex);
+
+	err = bpf_object__load(obj);
+	if (err) {
+		p_err("failed to load object file");
+		goto err_close_obj;
+	}
+
+	if (do_pin_fd(bpf_program__fd(prog), pinfile))
 		goto err_close_obj;
 
 	if (json_output)
