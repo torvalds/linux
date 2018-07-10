@@ -171,6 +171,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_RV:
 		switch (hwmgr->chip_id) {
 		case CHIP_RAVEN:
+		case CHIP_PICASSO:
 			hwmgr->od_enabled = false;
 			hwmgr->smumgr_funcs = &smu10_smu_funcs;
 			smu10_init_function_pointers(hwmgr);
