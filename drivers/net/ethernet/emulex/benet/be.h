@@ -522,11 +522,13 @@ enum {
 };
 
 struct be_error_recovery {
-	/* Lancer error recovery variables */
-	u8 recovery_retries;
+	union {
+		u8 recovery_retries;	/* used for Lancer		*/
+		u8 recovery_state;	/* used for BEx and Skyhawk	*/
+	};
 
 	/* BEx/Skyhawk error recovery variables */
-	u8 recovery_state;
+	bool recovery_supported;
 	u16 ue_to_reset_time;		/* Time after UE, to soft reset
 					 * the chip - PF0 only
 					 */
@@ -534,7 +536,6 @@ struct be_error_recovery {
 					 * of SLIPORT_SEMAPHORE reg
 					 */
 	u16 last_err_code;
-	bool recovery_supported;
 	unsigned long probe_time;
 	unsigned long last_recovery_time;
 
