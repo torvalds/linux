@@ -22,6 +22,7 @@
  * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -41,6 +42,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
+#include <tools/libc_compat.h>
 #include <libelf.h>
 #include <gelf.h>
 
@@ -321,7 +323,7 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 	progs = obj->programs;
 	nr_progs = obj->nr_programs;
 
-	progs = realloc(progs, sizeof(progs[0]) * (nr_progs + 1));
+	progs = reallocarray(progs, nr_progs + 1, sizeof(progs[0]));
 	if (!progs) {
 		/*
 		 * In this case the original obj->programs
@@ -822,8 +824,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				continue;
 			}
 
-			reloc = realloc(reloc,
-					sizeof(*obj->efile.reloc) * nr_reloc);
+			reloc = reallocarray(reloc, nr_reloc,
+					     sizeof(*obj->efile.reloc));
 			if (!reloc) {
 				pr_warning("realloc failed\n");
 				err = -ENOMEM;
@@ -1115,7 +1117,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 		new_cnt = prog->insns_cnt + text->insns_cnt;
-		new_insn = realloc(prog->insns, new_cnt * sizeof(*insn));
+		new_insn = reallocarray(prog->insns, new_cnt, sizeof(*insn));
 		if (!new_insn) {
 			pr_warning("oom in prog realloc\n");
 			return -ENOMEM;

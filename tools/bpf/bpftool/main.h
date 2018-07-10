@@ -42,6 +42,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
+#include <tools/libc_compat.h>
 
 #include "json_writer.h"
 
