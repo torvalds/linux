@@ -35,14 +35,12 @@ unsigned int sftl_flash_get_capacity(void)
 
 int sftl_flash_write(u32 sec, u32 n_sec, void *p_data)
 {
-	sftl_write(sec, n_sec, p_data);
-	return 0;
+	return sftl_write(sec, n_sec, p_data);
 }
 
 int sftl_flash_read(u32 sec, u32 n_sec, void *p_data)
 {
-	sftl_read(sec, n_sec, p_data);
-	return 0;
+	return sftl_read(sec, n_sec, p_data);
 }
 
 void sftl_flash_deinit(void)

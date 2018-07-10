@@ -106,6 +106,38 @@ static char *mtd_read_temp_buffer;
 #define MTD_RW_SECTORS (512)
 static DEFINE_MUTEX(g_flash_ops_mutex);
 
+static int vendor_read(u32 sec, u32 n_sec, void *p_data)
+{
+	int ret;
+
+	if (g_boot_ops[g_flash_type]->vendor_read) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops[g_flash_type]->vendor_read(sec, n_sec, p_data);
+		mutex_unlock(&g_flash_ops_mutex);
+	} else {
+		ret = -EPERM;
+	}
+
+	return ret;
+}
+
+static int vendor_write(u32 sec, u32 n_sec, void *p_data)
+{
+	int ret;
+
+	if (g_boot_ops[g_flash_type]->vendor_write) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops[g_flash_type]->vendor_write(sec,
+							     n_sec,
+							     p_data);
+		mutex_unlock(&g_flash_ops_mutex);
+	} else {
+		ret = -EPERM;
+	}
+
+	return ret;
+}
+
 static unsigned int rk_partition_init(struct flash_part *part)
 {
 	int i, part_num = 0;
@@ -647,8 +679,8 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 	pr_info("rkflash[%d] init success\n", tmp_id);
 	g_flash_type = tmp_id;
 	mytr.quit = 1;
-	flash_vendor_dev_ops_register(g_boot_ops[g_flash_type]->vendor_read,
-				      g_boot_ops[g_flash_type]->vendor_write);
+	flash_vendor_dev_ops_register(&vendor_read,
+				      &vendor_write);
 #ifdef CONFIG_RK_SFC_NOR_MTD
 	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
 		pr_info("sfc_nor flash registered as a mtd device\n");
