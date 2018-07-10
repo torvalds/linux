@@ -147,6 +147,16 @@ config RESET_UNIPHIER
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
 
+config RESET_UNIPHIER_USB3
+	tristate "USB3 reset driver for UniPhier SoCs"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	default ARCH_UNIPHIER
+	select RESET_SIMPLE
+	help
+	  Support for the USB3 core reset on UniPhier SoCs.
+	  Say Y if you want to control reset signals provided by
+	  USB3 glue layer.
+
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST
 	default ARCH_ZYNQ
