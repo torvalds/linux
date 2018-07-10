@@ -84,7 +84,6 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	struct ib_umem *umem;
 	struct page **page_list;
 	struct vm_area_struct **vma_list;
-	unsigned long locked;
 	unsigned long lock_limit;
 	unsigned long cur_base;
 	unsigned long npages;
@@ -149,15 +148,16 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	npages = ib_umem_num_pages(umem);
 
-	down_write(&current->mm->mmap_sem);
-
-	locked     = npages + current->mm->pinned_vm;
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
-	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+	down_write(&current->mm->mmap_sem);
+	current->mm->pinned_vm += npages;
+	if ((current->mm->pinned_vm > lock_limit) && !capable(CAP_IPC_LOCK)) {
+		up_write(&current->mm->mmap_sem);
 		ret = -ENOMEM;
 		goto out;
 	}
+	up_write(&current->mm->mmap_sem);
 
 	cur_base = addr & PAGE_MASK;
 
@@ -176,14 +176,16 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	need_release = 1;
 	sg_list_start = umem->sg_head.sgl;
 
+	down_read(&current->mm->mmap_sem);
 	while (npages) {
 		ret = get_user_pages_longterm(cur_base,
 				     min_t(unsigned long, npages,
 					   PAGE_SIZE / sizeof (struct page *)),
 				     gup_flags, page_list, vma_list);
-
-		if (ret < 0)
+		if (ret < 0) {
+			up_read(&current->mm->mmap_sem);
 			goto out;
+		}
 
 		umem->npages += ret;
 		cur_base += ret * PAGE_SIZE;
@@ -199,6 +201,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 		/* preparing for next loop */
 		sg_list_start = sg;
 	}
+	up_read(&current->mm->mmap_sem);
 
 	umem->nmap = ib_dma_map_sg_attrs(context->device,
 				  umem->sg_head.sgl,
@@ -215,13 +218,14 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 out:
 	if (ret < 0) {
+		down_write(&current->mm->mmap_sem);
+		current->mm->pinned_vm -= ib_umem_num_pages(umem);
+		up_write(&current->mm->mmap_sem);
 		if (need_release)
 			__ib_umem_release(context->device, umem, 0);
 		kfree(umem);
-	} else
-		current->mm->pinned_vm = locked;
+	}
 
-	up_write(&current->mm->mmap_sem);
 	if (vma_list)
 		free_page((unsigned long) vma_list);
 	free_page((unsigned long) page_list);
