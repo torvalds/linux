@@ -2087,7 +2087,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		struct rdma_conn_param rdma_cm;
 		struct ib_cm_rep_param ib_cm;
 	} *rep_param = NULL;
-	struct srpt_rdma_ch *ch;
+	struct srpt_rdma_ch *ch = NULL;
 	char i_port_id[36];
 	u32 it_iu_len;
 	int i, ret;
@@ -2234,13 +2234,15 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 						TARGET_PROT_NORMAL,
 						i_port_id + 2, ch, NULL);
 	if (IS_ERR_OR_NULL(ch->sess)) {
+		WARN_ON_ONCE(ch->sess == NULL);
 		ret = PTR_ERR(ch->sess);
+		ch->sess = NULL;
 		pr_info("Rejected login for initiator %s: ret = %d.\n",
 			ch->sess_name, ret);
 		rej->reason = cpu_to_be32(ret == -ENOMEM ?
 				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES :
 				SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED);
-		goto reject;
+		goto destroy_ib;
 	}
 
 	mutex_lock(&sport->mutex);
@@ -2279,7 +2281,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_err("rejected SRP_LOGIN_REQ because enabling RTR failed (error code = %d)\n",
 		       ret);
-		goto destroy_ib;
+		goto reject;
 	}
 
 	pr_debug("Establish connection sess=%p name=%s ch=%p\n", ch->sess,
@@ -2378,6 +2380,15 @@ reject:
 	else
 		ib_send_cm_rej(ib_cm_id, IB_CM_REJ_CONSUMER_DEFINED, NULL, 0,
 			       rej, sizeof(*rej));
+
+	if (ch && ch->sess) {
+		srpt_close_ch(ch);
+		/*
+		 * Tell the caller not to free cm_id since
+		 * srpt_release_channel_work() will do that.
+		 */
+		ret = 0;
+	}
 
 out:
 	kfree(rep_param);
