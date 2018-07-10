@@ -2947,6 +2947,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_X2APIC_API:
 		r = KVM_X2APIC_API_VALID_FLAGS;
 		break;
+	case KVM_CAP_NESTED_STATE:
+		r = kvm_x86_ops->get_nested_state ?
+			kvm_x86_ops->get_nested_state(NULL, 0, 0) : 0;
+		break;
 	default:
 		break;
 	}
@@ -3961,6 +3965,56 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&cap, argp, sizeof(cap)))
 			goto out;
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		break;
+	}
+	case KVM_GET_NESTED_STATE: {
+		struct kvm_nested_state __user *user_kvm_nested_state = argp;
+		u32 user_data_size;
+
+		r = -EINVAL;
+		if (!kvm_x86_ops->get_nested_state)
+			break;
+
+		BUILD_BUG_ON(sizeof(user_data_size) != sizeof(user_kvm_nested_state->size));
+		if (get_user(user_data_size, &user_kvm_nested_state->size))
+			return -EFAULT;
+
+		r = kvm_x86_ops->get_nested_state(vcpu, user_kvm_nested_state,
+						  user_data_size);
+		if (r < 0)
+			return r;
+
+		if (r > user_data_size) {
+			if (put_user(r, &user_kvm_nested_state->size))
+				return -EFAULT;
+			return -E2BIG;
+		}
+		r = 0;
+		break;
+	}
+	case KVM_SET_NESTED_STATE: {
+		struct kvm_nested_state __user *user_kvm_nested_state = argp;
+		struct kvm_nested_state kvm_state;
+
+		r = -EINVAL;
+		if (!kvm_x86_ops->set_nested_state)
+			break;
+
+		if (copy_from_user(&kvm_state, user_kvm_nested_state, sizeof(kvm_state)))
+			return -EFAULT;
+
+		if (kvm_state.size < sizeof(kvm_state))
+			return -EINVAL;
+
+		if (kvm_state.flags &
+		    ~(KVM_STATE_NESTED_RUN_PENDING | KVM_STATE_NESTED_GUEST_MODE))
+			return -EINVAL;
+
+		/* nested_run_pending implies guest_mode.  */
+		if (kvm_state.flags == KVM_STATE_NESTED_RUN_PENDING)
+			return -EINVAL;
+
+		r = kvm_x86_ops->set_nested_state(vcpu, user_kvm_nested_state, &kvm_state);
 		break;
 	}
 	default:

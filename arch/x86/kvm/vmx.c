@@ -7589,6 +7589,11 @@ static __init int hardware_setup(void)
 	else
 		kvm_disable_tdp();
 
+	if (!nested) {
+		kvm_x86_ops->get_nested_state = NULL;
+		kvm_x86_ops->set_nested_state = NULL;
+	}
+
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT
 	 * and EPT A/D bit features are enabled -- PML depends on them to work.
@@ -11775,8 +11780,8 @@ static int check_vmentry_postreqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 }
 
 /*
- * If exit_qual is NULL, this is being called from RSM.
- * Otherwise it's called from vmlaunch/vmresume.
+ * If exit_qual is NULL, this is being called from state restore (either RSM
+ * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
  */
 static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 {
@@ -13016,6 +13021,170 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				u32 user_data_size)
+{
+	struct vcpu_vmx *vmx;
+	struct vmcs12 *vmcs12;
+	struct kvm_nested_state kvm_state = {
+		.flags = 0,
+		.format = 0,
+		.size = sizeof(kvm_state),
+		.vmx.vmxon_pa = -1ull,
+		.vmx.vmcs_pa = -1ull,
+	};
+
+	if (!vcpu)
+		return kvm_state.size + 2 * VMCS12_SIZE;
+
+	vmx = to_vmx(vcpu);
+	vmcs12 = get_vmcs12(vcpu);
+	if (nested_vmx_allowed(vcpu) &&
+	    (vmx->nested.vmxon || vmx->nested.smm.vmxon)) {
+		kvm_state.vmx.vmxon_pa = vmx->nested.vmxon_ptr;
+		kvm_state.vmx.vmcs_pa = vmx->nested.current_vmptr;
+
+		if (vmx->nested.current_vmptr != -1ull)
+			kvm_state.size += VMCS12_SIZE;
+
+		if (vmx->nested.smm.vmxon)
+			kvm_state.vmx.smm.flags |= KVM_STATE_NESTED_SMM_VMXON;
+
+		if (vmx->nested.smm.guest_mode)
+			kvm_state.vmx.smm.flags |= KVM_STATE_NESTED_SMM_GUEST_MODE;
+
+		if (is_guest_mode(vcpu)) {
+			kvm_state.flags |= KVM_STATE_NESTED_GUEST_MODE;
+
+			if (vmx->nested.nested_run_pending)
+				kvm_state.flags |= KVM_STATE_NESTED_RUN_PENDING;
+		}
+	}
+
+	if (user_data_size < kvm_state.size)
+		goto out;
+
+	if (copy_to_user(user_kvm_nested_state, &kvm_state, sizeof(kvm_state)))
+		return -EFAULT;
+
+	if (vmx->nested.current_vmptr == -1ull)
+		goto out;
+
+	/*
+	 * When running L2, the authoritative vmcs12 state is in the
+	 * vmcs02. When running L1, the authoritative vmcs12 state is
+	 * in the shadow vmcs linked to vmcs01, unless
+	 * sync_shadow_vmcs is set, in which case, the authoritative
+	 * vmcs12 state is in the vmcs12 already.
+	 */
+	if (is_guest_mode(vcpu))
+		sync_vmcs12(vcpu, vmcs12);
+	else if (enable_shadow_vmcs && !vmx->nested.sync_shadow_vmcs)
+		copy_shadow_to_vmcs12(vmx);
+
+	if (copy_to_user(user_kvm_nested_state->data, vmcs12, sizeof(*vmcs12)))
+		return -EFAULT;
+
+out:
+	return kvm_state.size;
+}
+
+static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				struct kvm_nested_state *kvm_state)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs12 *vmcs12;
+	u32 exit_qual;
+	int ret;
+
+	if (kvm_state->format != 0)
+		return -EINVAL;
+
+	if (!nested_vmx_allowed(vcpu))
+		return kvm_state->vmx.vmxon_pa == -1ull ? 0 : -EINVAL;
+
+	if (kvm_state->vmx.vmxon_pa == -1ull) {
+		if (kvm_state->vmx.smm.flags)
+			return -EINVAL;
+
+		if (kvm_state->vmx.vmcs_pa != -1ull)
+			return -EINVAL;
+
+		vmx_leave_nested(vcpu);
+		return 0;
+	}
+
+	if (!page_address_valid(vcpu, kvm_state->vmx.vmxon_pa))
+		return -EINVAL;
+
+	if (kvm_state->size < sizeof(kvm_state) + sizeof(*vmcs12))
+		return -EINVAL;
+
+	if (kvm_state->vmx.vmcs_pa == kvm_state->vmx.vmxon_pa ||
+	    !page_address_valid(vcpu, kvm_state->vmx.vmcs_pa))
+		return -EINVAL;
+
+	if ((kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
+	    (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
+		return -EINVAL;
+
+	if (kvm_state->vmx.smm.flags &
+	    ~(KVM_STATE_NESTED_SMM_GUEST_MODE | KVM_STATE_NESTED_SMM_VMXON))
+		return -EINVAL;
+
+	if ((kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
+	    !(kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON))
+		return -EINVAL;
+
+	vmx_leave_nested(vcpu);
+	if (kvm_state->vmx.vmxon_pa == -1ull)
+		return 0;
+
+	vmx->nested.vmxon_ptr = kvm_state->vmx.vmxon_pa;
+	ret = enter_vmx_operation(vcpu);
+	if (ret)
+		return ret;
+
+	set_current_vmptr(vmx, kvm_state->vmx.vmcs_pa);
+
+	if (kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON) {
+		vmx->nested.smm.vmxon = true;
+		vmx->nested.vmxon = false;
+
+		if (kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE)
+			vmx->nested.smm.guest_mode = true;
+	}
+
+	vmcs12 = get_vmcs12(vcpu);
+	if (copy_from_user(vmcs12, user_kvm_nested_state->data, sizeof(*vmcs12)))
+		return -EFAULT;
+
+	if (vmcs12->revision_id != VMCS12_REVISION)
+		return -EINVAL;
+
+	if (!(kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
+		return 0;
+
+	vmx->nested.nested_run_pending =
+		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
+
+	if (check_vmentry_prereqs(vcpu, vmcs12) ||
+	    check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
+		return -EINVAL;
+
+	if (kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING)
+		vmx->nested.nested_run_pending = 1;
+
+	vmx->nested.dirty_vmcs12 = true;
+	ret = enter_vmx_non_root_mode(vcpu, NULL);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -13150,6 +13319,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.setup_mce = vmx_setup_mce,
 
+	.get_nested_state = vmx_get_nested_state,
+	.set_nested_state = vmx_set_nested_state,
 	.get_vmcs12_pages = nested_get_vmcs12_pages,
 
 	.smi_allowed = vmx_smi_allowed,

@@ -3561,6 +3561,62 @@ Returns: 0 on success,
 	-ENOENT on deassign if the conn_id isn't registered
 	-EEXIST on assign if the conn_id is already registered
 
+4.114 KVM_GET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in/out)
+Returns: 0 on success, -1 on error
+Errors:
+  E2BIG:     the total state size (including the fixed-size part of struct
+             kvm_nested_state) exceeds the value of 'size' specified by
+             the user; the size required will be written into size.
+
+struct kvm_nested_state {
+	__u16 flags;
+	__u16 format;
+	__u32 size;
+	union {
+		struct kvm_vmx_nested_state vmx;
+		struct kvm_svm_nested_state svm;
+		__u8 pad[120];
+	};
+	__u8 data[0];
+};
+
+#define KVM_STATE_NESTED_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_RUN_PENDING	0x00000002
+
+#define KVM_STATE_NESTED_SMM_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_SMM_VMXON	0x00000002
+
+struct kvm_vmx_nested_state {
+	__u64 vmxon_pa;
+	__u64 vmcs_pa;
+
+	struct {
+		__u16 flags;
+	} smm;
+};
+
+This ioctl copies the vcpu's nested virtualization state from the kernel to
+userspace.
+
+The maximum size of the state, including the fixed-size part of struct
+kvm_nested_state, can be retrieved by passing KVM_CAP_NESTED_STATE to
+the KVM_CHECK_EXTENSION ioctl().
+
+4.115 KVM_SET_NESTED_STATE
+
+Capability: KVM_CAP_NESTED_STATE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_nested_state (in)
+Returns: 0 on success, -1 on error
+
+This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
+the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 5. The kvm_run structure
 ------------------------

@@ -1086,6 +1086,12 @@ struct kvm_x86_ops {
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
 
+	int (*get_nested_state)(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				unsigned user_data_size);
+	int (*set_nested_state)(struct kvm_vcpu *vcpu,
+				struct kvm_nested_state __user *user_kvm_nested_state,
+				struct kvm_nested_state *kvm_state);
 	void (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
 
 	int (*smi_allowed)(struct kvm_vcpu *vcpu);
