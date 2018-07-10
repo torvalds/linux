@@ -99,6 +99,29 @@ _bpftool_get_prog_tags()
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_obj_map_names()
+{
+    local obj
+
+    obj=$1
+
+    maps=$(objdump -j maps -t $obj 2>/dev/null | \
+        command awk '/g     . maps/ {print $NF}')
+
+    COMPREPLY+=( $( compgen -W "$maps" -- "$cur" ) )
+}
+
+_bpftool_get_obj_map_idxs()
+{
+    local obj
+
+    obj=$1
+
+    nmaps=$(objdump -j maps -t $obj 2>/dev/null | grep -c 'g     . maps')
+
+    COMPREPLY+=( $( compgen -W "$(seq 0 $((nmaps - 1)))" -- "$cur" ) )
+}
+
 _sysfs_get_netdevs()
 {
     COMPREPLY+=( $( compgen -W "$( ls /sys/class/net 2>/dev/null )" -- \
@@ -220,12 +243,14 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            case $prev in
-                id)
-                    _bpftool_get_prog_ids
-                    return 0
-                    ;;
-            esac
+            if [[ $command != "load" ]]; then
+                case $prev in
+                    id)
+                        _bpftool_get_prog_ids
+                        return 0
+                        ;;
+                esac
+            fi
 
             local PROG_TYPE='id pinned tag'
             case $command in
@@ -268,8 +293,29 @@ _bpftool()
                     return 0
                     ;;
                 load)
+                    local obj
+
                     if [[ ${#words[@]} -lt 6 ]]; then
                         _filedir
+                        return 0
+                    fi
+
+                    obj=${words[3]}
+
+                    if [[ ${words[-4]} == "map" ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+                    if [[ ${words[-3]} == "map" ]]; then
+                        if [[ ${words[-2]} == "idx" ]]; then
+                            _bpftool_get_obj_map_idxs $obj
+                        elif [[ ${words[-2]} == "name" ]]; then
+                            _bpftool_get_obj_map_names $obj
+                        fi
+                        return 0
+                    fi
+                    if [[ ${words[-2]} == "map" ]]; then
+                        COMPREPLY=( $( compgen -W "idx name" -- "$cur" ) )
                         return 0
                     fi
 
@@ -279,11 +325,20 @@ _bpftool()
                                                    "$cur" ) )
                             return 0
                             ;;
+                        id)
+                            _bpftool_get_map_ids
+                            return 0
+                            ;;
+                        pinned)
+                            _filedir
+                            return 0
+                            ;;
                         dev)
                             _sysfs_get_netdevs
                             return 0
                             ;;
                         *)
+                            COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
                             _bpftool_once_attr 'dev'
                             return 0

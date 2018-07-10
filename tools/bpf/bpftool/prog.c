@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -682,18 +683,34 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+struct map_replace {
+	int idx;
+	int fd;
+	char *name;
+};
+
+int map_replace_compar(const void *p1, const void *p2)
+{
+	const struct map_replace *a = p1, *b = p2;
+
+	return a->idx - b->idx;
+}
+
 static int do_load(int argc, char **argv)
 {
 	enum bpf_attach_type expected_attach_type;
 	struct bpf_object_open_attr attr = {
 		.prog_type	= BPF_PROG_TYPE_UNSPEC,
 	};
+	struct map_replace *map_replace = NULL;
+	unsigned int old_map_fds = 0;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	const char *pinfile;
+	unsigned int i, j;
 	__u32 ifindex = 0;
-	int err;
+	int idx, err;
 
 	if (!REQ_ARGS(2))
 		return -1;
@@ -708,16 +725,16 @@ static int do_load(int argc, char **argv)
 
 			if (attr.prog_type != BPF_PROG_TYPE_UNSPEC) {
 				p_err("program type already specified");
-				return -1;
+				goto err_free_reuse_maps;
 			}
 			if (!REQ_ARGS(1))
-				return -1;
+				goto err_free_reuse_maps;
 
 			/* Put a '/' at the end of type to appease libbpf */
 			type = malloc(strlen(*argv) + 2);
 			if (!type) {
 				p_err("mem alloc failed");
-				return -1;
+				goto err_free_reuse_maps;
 			}
 			*type = 0;
 			strcat(type, *argv);
@@ -728,37 +745,81 @@ static int do_load(int argc, char **argv)
 			free(type);
 			if (err < 0) {
 				p_err("unknown program type '%s'", *argv);
-				return err;
+				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
+		} else if (is_prefix(*argv, "map")) {
+			char *endptr, *name;
+			int fd;
+
+			NEXT_ARG();
+
+			if (!REQ_ARGS(4))
+				goto err_free_reuse_maps;
+
+			if (is_prefix(*argv, "idx")) {
+				NEXT_ARG();
+
+				idx = strtoul(*argv, &endptr, 0);
+				if (*endptr) {
+					p_err("can't parse %s as IDX", *argv);
+					goto err_free_reuse_maps;
+				}
+				name = NULL;
+			} else if (is_prefix(*argv, "name")) {
+				NEXT_ARG();
+
+				name = *argv;
+				idx = -1;
+			} else {
+				p_err("expected 'idx' or 'name', got: '%s'?",
+				      *argv);
+				goto err_free_reuse_maps;
+			}
+			NEXT_ARG();
+
+			fd = map_parse_fd(&argc, &argv);
+			if (fd < 0)
+				goto err_free_reuse_maps;
+
+			map_replace = reallocarray(map_replace, old_map_fds + 1,
+						   sizeof(*map_replace));
+			if (!map_replace) {
+				p_err("mem alloc failed");
+				goto err_free_reuse_maps;
+			}
+			map_replace[old_map_fds].idx = idx;
+			map_replace[old_map_fds].name = name;
+			map_replace[old_map_fds].fd = fd;
+			old_map_fds++;
 		} else if (is_prefix(*argv, "dev")) {
 			NEXT_ARG();
 
 			if (ifindex) {
 				p_err("offload device already specified");
-				return -1;
+				goto err_free_reuse_maps;
 			}
 			if (!REQ_ARGS(1))
-				return -1;
+				goto err_free_reuse_maps;
 
 			ifindex = if_nametoindex(*argv);
 			if (!ifindex) {
 				p_err("unrecognized netdevice '%s': %s",
 				      *argv, strerror(errno));
-				return -1;
+				goto err_free_reuse_maps;
 			}
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'type' or 'dev', got: '%s'?",
+			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
 			      *argv);
-			return -1;
+			goto err_free_reuse_maps;
 		}
 	}
 
 	obj = bpf_object__open_xattr(&attr);
 	if (IS_ERR_OR_NULL(obj)) {
 		p_err("failed to open object file");
-		return -1;
+		goto err_free_reuse_maps;
 	}
 
 	prog = bpf_program__next(NULL, obj);
@@ -782,9 +843,61 @@ static int do_load(int argc, char **argv)
 	bpf_program__set_type(prog, attr.prog_type);
 	bpf_program__set_expected_attach_type(prog, expected_attach_type);
 
-	bpf_map__for_each(map, obj)
+	qsort(map_replace, old_map_fds, sizeof(*map_replace),
+	      map_replace_compar);
+
+	/* After the sort maps by name will be first on the list, because they
+	 * have idx == -1.  Resolve them.
+	 */
+	j = 0;
+	while (j < old_map_fds && map_replace[j].name) {
+		i = 0;
+		bpf_map__for_each(map, obj) {
+			if (!strcmp(bpf_map__name(map), map_replace[j].name)) {
+				map_replace[j].idx = i;
+				break;
+			}
+			i++;
+		}
+		if (map_replace[j].idx == -1) {
+			p_err("unable to find map '%s'", map_replace[j].name);
+			goto err_close_obj;
+		}
+		j++;
+	}
+	/* Resort if any names were resolved */
+	if (j)
+		qsort(map_replace, old_map_fds, sizeof(*map_replace),
+		      map_replace_compar);
+
+	/* Set ifindex and name reuse */
+	j = 0;
+	idx = 0;
+	bpf_map__for_each(map, obj) {
 		if (!bpf_map__is_offload_neutral(map))
 			bpf_map__set_ifindex(map, ifindex);
+
+		if (j < old_map_fds && idx == map_replace[j].idx) {
+			err = bpf_map__reuse_fd(map, map_replace[j++].fd);
+			if (err) {
+				p_err("unable to set up map reuse: %d", err);
+				goto err_close_obj;
+			}
+
+			/* Next reuse wants to apply to the same map */
+			if (j < old_map_fds && map_replace[j].idx == idx) {
+				p_err("replacement for map idx %d specified more than once",
+				      idx);
+				goto err_close_obj;
+			}
+		}
+
+		idx++;
+	}
+	if (j < old_map_fds) {
+		p_err("map idx '%d' not used", map_replace[j].idx);
+		goto err_close_obj;
+	}
 
 	err = bpf_object__load(obj);
 	if (err) {
@@ -799,11 +912,18 @@ static int do_load(int argc, char **argv)
 		jsonw_null(json_wtr);
 
 	bpf_object__close(obj);
+	for (i = 0; i < old_map_fds; i++)
+		close(map_replace[i].fd);
+	free(map_replace);
 
 	return 0;
 
 err_close_obj:
 	bpf_object__close(obj);
+err_free_reuse_maps:
+	for (i = 0; i < old_map_fds; i++)
+		close(map_replace[i].fd);
+	free(map_replace);
 	return -1;
 }
 
@@ -819,9 +939,11 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME]\n"
+		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME] \\\n"
+		"                         [map { idx IDX | name NAME } MAP]\n"
 		"       %s %s help\n"
 		"\n"
+		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       TYPE := { socket | kprobe | kretprobe | classifier | action |\n"
 		"                 tracepoint | raw_tracepoint | xdp | perf_event | cgroup/skb |\n"

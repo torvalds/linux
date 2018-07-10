@@ -75,6 +75,8 @@
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
 	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
+#define HELP_SPEC_MAP							\
+	"MAP := { id MAP_ID | pinned FILE }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -136,6 +138,7 @@ int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
+int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
