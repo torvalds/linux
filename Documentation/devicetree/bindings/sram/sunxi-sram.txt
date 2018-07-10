@@ -12,6 +12,10 @@ Required properties:
 - compatible : should be:
     - "allwinner,sun4i-a10-sram-controller" (deprecated)
     - "allwinner,sun4i-a10-system-control"
+    - "allwinner,sun5i-a13-system-control"
+    - "allwinner,sun7i-a20-system-control", "allwinner,sun4i-a10-system-control"
+    - "allwinner,sun8i-a23-system-control"
+    - "allwinner,sun8i-h3-system-control"
     - "allwinner,sun50i-a64-sram-controller" (deprecated)
     - "allwinner,sun50i-a64-system-control"
 - reg : sram controller register offset + length
