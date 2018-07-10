@@ -1520,15 +1520,26 @@ out:
 	return ERR_PTR(err);
 }
 
-struct bpf_object *bpf_object__open(const char *path)
+struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
 {
 	/* param validation */
-	if (!path)
+	if (!attr->file)
 		return NULL;
 
-	pr_debug("loading %s\n", path);
+	pr_debug("loading %s\n", attr->file);
 
-	return __bpf_object__open(path, NULL, 0, true);
+	return __bpf_object__open(attr->file, NULL, 0,
+				  bpf_prog_type__needs_kver(attr->prog_type));
+}
+
+struct bpf_object *bpf_object__open(const char *path)
+{
+	struct bpf_object_open_attr attr = {
+		.file		= path,
+		.prog_type	= BPF_PROG_TYPE_UNSPEC,
+	};
+
+	return bpf_object__open_xattr(&attr);
 }
 
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
@@ -2238,6 +2249,10 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 			struct bpf_object **pobj, int *prog_fd)
 {
+	struct bpf_object_open_attr open_attr = {
+		.file		= attr->file,
+		.prog_type	= attr->prog_type,
+	};
 	struct bpf_program *prog, *first_prog = NULL;
 	enum bpf_attach_type expected_attach_type;
 	enum bpf_prog_type prog_type;
@@ -2250,8 +2265,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	if (!attr->file)
 		return -EINVAL;
 
-	obj = __bpf_object__open(attr->file, NULL, 0,
-				 bpf_prog_type__needs_kver(attr->prog_type));
+	obj = bpf_object__open_xattr(&open_attr);
 	if (IS_ERR_OR_NULL(obj))
 		return -ENOENT;
 

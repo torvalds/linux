@@ -66,7 +66,13 @@ void libbpf_set_print(libbpf_print_fn_t warn,
 /* Hide internal to user */
 struct bpf_object;
 
+struct bpf_object_open_attr {
+	const char *file;
+	enum bpf_prog_type prog_type;
+};
+
 struct bpf_object *bpf_object__open(const char *path);
+struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr);
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 					   size_t obj_buf_sz,
 					   const char *name);
