@@ -628,7 +628,7 @@ config NFT_SOCKET
 	tristate "Netfilter nf_tables socket match support"
 	depends on IPV6 || IPV6=n
 	select NF_SOCKET_IPV4
-	select NF_SOCKET_IPV6 if IPV6
+	select NF_SOCKET_IPV6 if NF_TABLES_IPV6
 	help
 	  This option allows matching for the presence or absence of a
 	  corresponding socket and its attributes.
@@ -894,7 +894,7 @@ config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
 	select NF_LOG_COMMON
 	select NF_LOG_IPV4
-	select NF_LOG_IPV6 if IPV6
+	select NF_LOG_IPV6 if IP6_NF_IPTABLES
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option adds a `LOG' target, which allows you to create rules in
@@ -986,7 +986,7 @@ config NETFILTER_XT_TARGET_TEE
 	depends on IPV6 || IPV6=n
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	select NF_DUP_IPV4
-	select NF_DUP_IPV6 if IPV6
+	select NF_DUP_IPV6 if IP6_NF_IPTABLES
 	---help---
 	This option adds a "TEE" target with which a packet can be cloned and
 	this clone be rerouted to another nexthop.
