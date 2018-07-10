@@ -2360,8 +2360,11 @@ free_ring:
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
 			     ch->sport->sdev, ch->rq_size,
 			     ch->max_rsp_size, DMA_TO_DEVICE);
+
 free_ch:
-	if (ib_cm_id)
+	if (rdma_cm_id)
+		rdma_cm_id->context = NULL;
+	else
 		ib_cm_id->context = NULL;
 	kfree(ch);
 	ch = NULL;
