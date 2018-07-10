@@ -33,10 +33,8 @@
 #include "include/vector.h"
 #include "core_types.h"
 #include "dc_link_ddc.h"
-#include "i2caux/engine.h"
-#include "i2caux/i2c_engine.h"
-#include "i2caux/aux_engine.h"
-#include "i2caux/i2caux.h"
+#include "engine.h"
+#include "aux_engine.h"
 
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70
@@ -641,9 +639,9 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 			     enum aux_transaction_type type,
 			     enum i2caux_transaction_action action)
 {
-	struct i2caux *i2caux = ddc->ctx->i2caux;
 	struct ddc *ddc_pin = ddc->ddc_pin;
-	struct aux_engine *engine;
+	struct engine *engine;
+	struct aux_engine *aux_engine;
 	enum aux_channel_operation_result operation_result;
 	struct aux_request_transaction_data aux_req;
 	struct aux_reply_transaction_data aux_rep;
@@ -654,7 +652,8 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 	memset(&aux_req, 0, sizeof(aux_req));
 	memset(&aux_rep, 0, sizeof(aux_rep));
 
-	engine = i2caux->funcs->acquire_aux_engine(i2caux, ddc_pin);
+	engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+	aux_engine = engine->funcs->acquire(engine, ddc_pin);
 
 	aux_req.type = type;
 	aux_req.action = action;
@@ -664,15 +663,15 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 	aux_req.length = size;
 	aux_req.data = buffer;
 
-	engine->funcs->submit_channel_request(engine, &aux_req);
-	operation_result = engine->funcs->get_channel_status(engine, &returned_bytes);
+	aux_engine->funcs->submit_channel_request(aux_engine, &aux_req);
+	operation_result = aux_engine->funcs->get_channel_status(aux_engine, &returned_bytes);
 
 	switch (operation_result) {
 	case AUX_CHANNEL_OPERATION_SUCCEEDED:
 		res = returned_bytes;
 
 		if (res <= size && res >= 0)
-			res = engine->funcs->read_channel_reply(engine, size,
+			res = aux_engine->funcs->read_channel_reply(aux_engine, size,
 								buffer, reply,
 								&status);
 
@@ -686,8 +685,7 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 		res = -1;
 		break;
 	}
-
-	i2caux->funcs->release_engine(i2caux, &engine->base);
+	aux_engine->base.funcs->release_engine(&aux_engine->base);
 	return res;
 }
 
