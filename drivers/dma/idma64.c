@@ -496,6 +496,13 @@ static int idma64_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
+static void idma64_synchronize(struct dma_chan *chan)
+{
+	struct idma64_chan *idma64c = to_idma64_chan(chan);
+
+	vchan_synchronize(&idma64c->vchan);
+}
+
 static int idma64_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct idma64_chan *idma64c = to_idma64_chan(chan);
@@ -583,6 +590,7 @@ static int idma64_probe(struct idma64_chip *chip)
 	idma64->dma.device_pause = idma64_pause;
 	idma64->dma.device_resume = idma64_resume;
 	idma64->dma.device_terminate_all = idma64_terminate_all;
+	idma64->dma.device_synchronize = idma64_synchronize;
 
 	idma64->dma.src_addr_widths = IDMA64_BUSWIDTHS;
 	idma64->dma.dst_addr_widths = IDMA64_BUSWIDTHS;
