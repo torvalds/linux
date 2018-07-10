@@ -193,19 +193,6 @@ struct be_eq_obj {
 	struct napi_struct napi;
 	struct be_adapter *adapter;
 	cpumask_var_t  affinity_mask;
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#define BE_EQ_IDLE		0
-#define BE_EQ_NAPI		1	/* napi owns this EQ */
-#define BE_EQ_POLL		2	/* poll owns this EQ */
-#define BE_EQ_LOCKED		(BE_EQ_NAPI | BE_EQ_POLL)
-#define BE_EQ_NAPI_YIELD	4	/* napi yielded this EQ */
-#define BE_EQ_POLL_YIELD	8	/* poll yielded this EQ */
-#define BE_EQ_YIELD		(BE_EQ_NAPI_YIELD | BE_EQ_POLL_YIELD)
-#define BE_EQ_USER_PEND		(BE_EQ_POLL | BE_EQ_POLL_YIELD)
-	unsigned int state;
-	spinlock_t lock;	/* lock to serialize napi and busy-poll */
-#endif  /* CONFIG_NET_RX_BUSY_POLL */
 } ____cacheline_aligned_in_smp;
 
 struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
