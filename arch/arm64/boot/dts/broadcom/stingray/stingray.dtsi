@@ -146,6 +146,11 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
+	mhb: syscon@60401000 {
+		compatible = "brcm,sr-mhb", "syscon";
+		reg = <0 0x60401000 0 0x38c>;
+	};
+
 	scr {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -265,6 +270,11 @@
 			status = "okay";
 		};
 
+		cdru: syscon@1d000 {
+			compatible = "brcm,sr-cdru", "syscon";
+			reg = <0x0001d000 0x400>;
+		};
+
 		gpio_crmu: gpio@24800 {
 			compatible = "brcm,iproc-gpio";
 			reg = <0x00024800 0x4c>;
@@ -276,6 +286,7 @@
 
 	#include "stingray-fs4.dtsi"
 	#include "stingray-sata.dtsi"
+	#include "stingray-pcie.dtsi"
 
 	hsls {
 		compatible = "simple-bus";
