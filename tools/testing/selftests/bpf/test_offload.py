@@ -547,11 +547,11 @@ def check_extack(output, reference, args):
     if skip_extack:
         return
     lines = output.split("\n")
-    comp = len(lines) >= 2 and lines[1] == reference
+    comp = len(lines) >= 2 and lines[1] == 'Error: ' + reference
     fail(not comp, "Missing or incorrect netlink extack message")
 
 def check_extack_nsim(output, reference, args):
-    check_extack(output, "Error: netdevsim: " + reference, args)
+    check_extack(output, "netdevsim: " + reference, args)
 
 def check_no_extack(res, needle):
     fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
@@ -654,7 +654,7 @@ try:
     ret, _, err = sim.cls_bpf_add_filter(obj, skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "TC filter loaded without enabling TC offloads")
-    check_extack(err, "Error: TC offload is disabled on net device.", args)
+    check_extack(err, "TC offload is disabled on net device.", args)
     sim.wait_for_flush()
 
     sim.set_ethtool_tc_offloads(True)
@@ -694,7 +694,7 @@ try:
                                          skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "Offloaded a filter to chain other than 0")
-    check_extack(err, "Error: Driver supports only offload of chain 0.", args)
+    check_extack(err, "Driver supports only offload of chain 0.", args)
     sim.tc_flush_filters()
 
     start_test("Test TC replace...")
