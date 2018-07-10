@@ -28,6 +28,7 @@ Core utilities
    printk-formats
    circular-buffers
    gfp_mask-from-fs-io
+   timekeeping
 
 Interfaces for kernel debugging
 ===============================
