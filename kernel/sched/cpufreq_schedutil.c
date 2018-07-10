@@ -204,7 +204,8 @@ unsigned long schedutil_freq_util(int cpu, unsigned long util_cfs,
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long util, irq;
 
-	if (type == FREQUENCY_UTIL && rt_rq_is_runnable(&rq->rt))
+	if (sched_feat(SUGOV_RT_MAX_FREQ) && type == FREQUENCY_UTIL &&
+						rt_rq_is_runnable(&rq->rt))
 		return max;
 
 	/*
