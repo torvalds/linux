@@ -154,8 +154,14 @@ int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 				     const struct uverbs_obj_type *type)
 {
-	struct ib_uobject *uobj = kzalloc(type->obj_size, GFP_KERNEL);
+	struct ib_uobject *uobj;
+	struct ib_ucontext *ucontext;
 
+	ucontext = ib_uverbs_get_ucontext(ufile);
+	if (IS_ERR(ucontext))
+		return ERR_CAST(ucontext);
+
+	uobj = kzalloc(type->obj_size, GFP_KERNEL);
 	if (!uobj)
 		return ERR_PTR(-ENOMEM);
 	/*
@@ -163,7 +169,7 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 	 * The object is added to the list in the commit stage.
 	 */
 	uobj->ufile = ufile;
-	uobj->context = ufile->ucontext;
+	uobj->context = ucontext;
 	INIT_LIST_HEAD(&uobj->list);
 	uobj->type = type;
 	/*
@@ -309,7 +315,7 @@ static struct ib_uobject *alloc_begin_idr_uobject(const struct uverbs_obj_type *
 	if (ret)
 		goto uobj_put;
 
-	ret = ib_rdmacg_try_charge(&uobj->cg_obj, ufile->ucontext->device,
+	ret = ib_rdmacg_try_charge(&uobj->cg_obj, uobj->context->device,
 				   RDMACG_RESOURCE_HCA_OBJECT);
 	if (ret)
 		goto idr_remove;
@@ -761,7 +767,7 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
 	 * the error return.
 	 */
-	ret = ucontext->device->dealloc_ucontext(ufile->ucontext);
+	ret = ucontext->device->dealloc_ucontext(ucontext);
 	WARN_ON(ret);
 
 	ufile->ucontext = NULL;

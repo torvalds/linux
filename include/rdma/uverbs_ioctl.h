@@ -123,14 +123,6 @@ struct uverbs_attr_spec_hash {
 struct uverbs_attr_bundle;
 struct ib_uverbs_file;
 
-enum {
-	/*
-	 * Action marked with this flag creates a context (or root for all
-	 * objects).
-	 */
-	UVERBS_ACTION_FLAG_CREATE_ROOT = 1U << 0,
-};
-
 struct uverbs_method_spec {
 	/* Combination of bits from enum UVERBS_ACTION_FLAG_XXXX */
 	u32						flags;

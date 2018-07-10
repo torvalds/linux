@@ -458,16 +458,21 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(struct ib_device *ib_de
 				  struct ib_uverbs_file *file,
 				  struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
 	u32 user_idx;
 	s32 dev_idx;
+
+	c = devx_ufile2uctx(file);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
 
 	if (uverbs_copy_from(&user_idx, attrs,
 			     MLX5_IB_ATTR_DEVX_QUERY_UAR_USER_IDX))
 		return -EFAULT;
 
-	dev_idx = bfregn_to_uar_index(to_mdev(ib_dev),
-				      &c->bfregi, user_idx, true);
+	dev_idx = bfregn_to_uar_index(dev, &c->bfregi, user_idx, true);
 	if (dev_idx < 0)
 		return dev_idx;
 
@@ -482,14 +487,19 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(struct ib_device *ib_dev,
 				  struct ib_uverbs_file *file,
 				  struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
+	struct mlx5_ib_ucontext *c;
+	struct mlx5_ib_dev *dev;
 	void *cmd_in = uverbs_attr_get_alloced_ptr(
 		attrs, MLX5_IB_ATTR_DEVX_OTHER_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
 					MLX5_IB_ATTR_DEVX_OTHER_CMD_OUT);
 	void *cmd_out;
 	int err;
+
+	c = devx_ufile2uctx(file);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	dev = to_mdev(c->ibucontext.device);
 
 	if (!c->devx_uid)
 		return -EPERM;

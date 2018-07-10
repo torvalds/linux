@@ -146,9 +146,13 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 		goto err_file;
 	}
 
-	file->ucontext = ucontext;
-
 	fd_install(resp.async_fd, filp);
+
+	/*
+	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
+	 * only after all writes to setup the ucontext have completed
+	 */
+	smp_store_release(&file->ucontext, ucontext);
 
 	mutex_unlock(&file->ucontext_lock);
 
@@ -350,7 +354,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->alloc_pd(ib_dev, file->ucontext, &udata);
+	pd = ib_dev->alloc_pd(ib_dev, uobj->context, &udata);
 	if (IS_ERR(pd)) {
 		ret = PTR_ERR(pd);
 		goto err;
@@ -538,7 +542,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	}
 
 	if (!xrcd) {
-		xrcd = ib_dev->alloc_xrcd(ib_dev, file->ucontext, &udata);
+		xrcd = ib_dev->alloc_xrcd(ib_dev, obj->uobject.context, &udata);
 		if (IS_ERR(xrcd)) {
 			ret = PTR_ERR(xrcd);
 			goto err;
@@ -1004,7 +1008,7 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	if (cmd_sz > offsetof(typeof(*cmd), flags) + sizeof(cmd->flags))
 		attr.flags = cmd->flags;
 
-	cq = ib_dev->create_cq(ib_dev, &attr, file->ucontext, uhw);
+	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context, uhw);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_file;

@@ -140,7 +140,7 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		if (uattr->attr_data.reserved)
 			return -EINVAL;
 
-		if (uattr->len != 0 || !ufile->ucontext)
+		if (uattr->len != 0)
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
@@ -372,9 +372,6 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	method_spec = uverbs_get_method(object_spec, hdr->method_id);
 	if (!method_spec)
 		return -EPROTONOSUPPORT;
-
-	if ((method_spec->flags & UVERBS_ACTION_FLAG_CREATE_ROOT) ^ !file->ucontext)
-		return -EINVAL;
 
 	ctx_size = sizeof(*ctx) +
 		   sizeof(struct uverbs_attr_bundle) +

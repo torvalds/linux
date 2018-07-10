@@ -113,7 +113,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	/* Temporary, only until drivers get the new uverbs_attr_bundle */
 	create_udata(attrs, &uhw);
 
-	cq = ib_dev->create_cq(ib_dev, &attr, file->ucontext, &uhw);
+	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context, &uhw);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_event_file;

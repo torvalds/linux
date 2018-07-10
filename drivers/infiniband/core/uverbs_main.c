@@ -136,9 +136,27 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
+/*
+ * Must be called with the ufile->device->disassociate_srcu held, and the lock
+ * must be held until use of the ucontext is finished.
+ */
 struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile)
 {
-	return ufile->ucontext;
+	/*
+	 * We do not hold the hw_destroy_rwsem lock for this flow, instead
+	 * srcu is used. It does not matter if someone races this with
+	 * get_context, we get NULL or valid ucontext.
+	 */
+	struct ib_ucontext *ucontext = smp_load_acquire(&ufile->ucontext);
+
+	if (!srcu_dereference(ufile->device->ib_dev,
+			      &ufile->device->disassociate_srcu))
+		return ERR_PTR(-EIO);
+
+	if (!ucontext)
+		return ERR_PTR(-EINVAL);
+
+	return ucontext;
 }
 EXPORT_SYMBOL(ib_uverbs_get_ucontext);
 
@@ -729,10 +747,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (ret)
 		return ret;
 
-	if (!file->ucontext &&
-	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended))
-		return -EINVAL;
-
 	if (extended) {
 		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
 			return -EINVAL;
@@ -791,22 +805,18 @@ out:
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct ib_uverbs_file *file = filp->private_data;
-	struct ib_device *ib_dev;
+	struct ib_ucontext *ucontext;
 	int ret = 0;
 	int srcu_key;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
-	ib_dev = srcu_dereference(file->device->ib_dev,
-				  &file->device->disassociate_srcu);
-	if (!ib_dev) {
-		ret = -EIO;
+	ucontext = ib_uverbs_get_ucontext(file);
+	if (IS_ERR(ucontext)) {
+		ret = PTR_ERR(ucontext);
 		goto out;
 	}
 
-	if (!file->ucontext)
-		ret = -ENODEV;
-	else
-		ret = ib_dev->mmap(file->ucontext, vma);
+	ret = ucontext->device->mmap(ucontext, vma);
 out:
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
 	return ret;

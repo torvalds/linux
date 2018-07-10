@@ -70,7 +70,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_device *ib_dev,
 
 	uobj = uverbs_attr_get(attrs, UVERBS_ATTR_ALLOC_DM_HANDLE)->obj_attr.uobject;
 
-	dm = ib_dev->alloc_dm(ib_dev, file->ucontext, &attr, attrs);
+	dm = ib_dev->alloc_dm(ib_dev, uobj->context, &attr, attrs);
 	if (IS_ERR(dm))
 		return PTR_ERR(dm);
 
