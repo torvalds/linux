@@ -158,6 +158,22 @@ static void set_sda_gpio_value(struct i2c_adapter *adap, int val)
 	gpiod_set_value_cansleep(adap->bus_recovery_info->sda_gpiod, val);
 }
 
+static int i2c_generic_bus_free(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	int ret = -EOPNOTSUPP;
+
+	if (bri->get_bus_free)
+		ret = bri->get_bus_free(adap);
+	else if (bri->get_sda)
+		ret = bri->get_sda(adap);
+
+	if (ret < 0)
+		return ret;
+
+	return ret ? 0 : -EBUSY;
+}
+
 /*
  * We are generating clock pulses. ndelay() determines durating of clk pulses.
  * We will generate clock with rate 100 KHz and so duration of both clock levels
@@ -169,7 +185,7 @@ static void set_sda_gpio_value(struct i2c_adapter *adap, int val)
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-	int i = 0, val = 1, ret = 0;
+	int i = 0, val = 1, ret;
 
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
@@ -207,13 +223,16 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 			bri->set_sda(adap, val);
 		ndelay(RECOVERY_NDELAY / 2);
 
-		/* Break if SDA is high */
-		if (val && bri->get_sda) {
-			ret = bri->get_sda(adap) ? 0 : -EBUSY;
+		if (val) {
+			ret = i2c_generic_bus_free(adap);
 			if (ret == 0)
 				break;
 		}
 	}
+
+	/* If we can't check bus status, assume recovery worked */
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
 
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
