@@ -24,7 +24,7 @@ MAP COMMANDS
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog load** *OBJ* *FILE*
+|	**bpftool** **prog load** *OBJ* *FILE* [**dev** *NAME*]
 |	**bpftool** **prog help**
 |
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
@@ -64,8 +64,10 @@ DESCRIPTION
 
 		  Note: *FILE* must be located in *bpffs* mount.
 
-	**bpftool prog load** *OBJ* *FILE*
+	**bpftool prog load** *OBJ* *FILE* [**dev** *NAME*]
 		  Load bpf program from binary *OBJ* and pin as *FILE*.
+		  If **dev** *NAME* is specified program will be loaded onto
+		  given networking device (offload).
 
 		  Note: *FILE* must be located in *bpffs* mount.
 

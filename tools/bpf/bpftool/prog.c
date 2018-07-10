@@ -39,6 +39,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <net/if.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -681,6 +682,9 @@ static int do_pin(int argc, char **argv)
 
 static int do_load(int argc, char **argv)
 {
+	struct bpf_prog_load_attr attr = {
+		.prog_type	= BPF_PROG_TYPE_UNSPEC,
+	};
 	const char *objfile, *pinfile;
 	struct bpf_object *obj;
 	int prog_fd;
@@ -690,7 +694,34 @@ static int do_load(int argc, char **argv)
 	objfile = GET_ARG();
 	pinfile = GET_ARG();
 
-	if (bpf_prog_load(objfile, BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
+	while (argc) {
+		if (is_prefix(*argv, "dev")) {
+			NEXT_ARG();
+
+			if (attr.ifindex) {
+				p_err("offload device already specified");
+				return -1;
+			}
+			if (!REQ_ARGS(1))
+				return -1;
+
+			attr.ifindex = if_nametoindex(*argv);
+			if (!attr.ifindex) {
+				p_err("unrecognized netdevice '%s': %s",
+				      *argv, strerror(errno));
+				return -1;
+			}
+			NEXT_ARG();
+		} else {
+			p_err("expected no more arguments or 'dev', got: '%s'?",
+			      *argv);
+			return -1;
+		}
+	}
+
+	attr.file = objfile;
+
+	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
 		p_err("failed to load program");
 		return -1;
 	}
@@ -722,7 +753,7 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE\n"
+		"       %s %s load  OBJ  FILE [dev NAME]\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
