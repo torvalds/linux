@@ -185,7 +185,6 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 
 struct be_eq_obj {
 	struct be_queue_info q;
-	char desc[32];
 
 	u8 idx;			/* array index */
 	u8 msix_idx;
