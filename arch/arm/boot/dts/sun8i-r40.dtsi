@@ -679,6 +679,7 @@
 			clock-names = "ahb", "tcon-ch1";
 			resets = <&ccu RST_BUS_TCON_TV0>;
 			reset-names = "lcd";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -721,6 +722,7 @@
 			clock-names = "ahb", "tcon-ch1";
 			resets = <&ccu RST_BUS_TCON_TV1>;
 			reset-names = "lcd";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
