@@ -108,7 +108,7 @@ static struct snd_soc_dai_link dailink[] = {
 	{
 		.name = "SSP5-Codec",
 		.id = 0,
-		.cpu_dai_name = "sof-audio",
+		.cpu_dai_name = "SSP5 Pin",
 		.platform_name = "sof-audio",
 		.no_pcm = 1,
 		.codec_dai_name = "pcm512x-hifi",
@@ -119,6 +119,7 @@ static struct snd_soc_dai_link dailink[] = {
 		.be_hw_params_fixup = codec_fixup,
 		.nonatomic = true,
 		.dpcm_playback = 1,
+		.dpcm_capture = 1,
 	},
 };
 
