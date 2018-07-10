@@ -185,12 +185,12 @@ static int i2c_generic_bus_free(struct i2c_adapter *adap)
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-	int i = 0, val = 1, ret;
+	int i = 0, scl = 1, ret;
 
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
 
-	bri->set_scl(adap, val);
+	bri->set_scl(adap, scl);
 	if (bri->set_sda)
 		bri->set_sda(adap, 1);
 	ndelay(RECOVERY_NDELAY);
@@ -199,7 +199,7 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 	 * By this time SCL is high, as we need to give 9 falling-rising edges
 	 */
 	while (i++ < RECOVERY_CLK_CNT * 2) {
-		if (val) {
+		if (scl) {
 			/* SCL shouldn't be low here */
 			if (!bri->get_scl(adap)) {
 				dev_err(&adap->dev,
@@ -209,8 +209,8 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 			}
 		}
 
-		val = !val;
-		bri->set_scl(adap, val);
+		scl = !scl;
+		bri->set_scl(adap, scl);
 
 		/*
 		 * If we can set SDA, we will always create STOP here to ensure
@@ -220,10 +220,10 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 		 */
 		ndelay(RECOVERY_NDELAY / 2);
 		if (bri->set_sda)
-			bri->set_sda(adap, val);
+			bri->set_sda(adap, scl);
 		ndelay(RECOVERY_NDELAY / 2);
 
-		if (val) {
+		if (scl) {
 			ret = i2c_generic_bus_free(adap);
 			if (ret == 0)
 				break;
