@@ -53,22 +53,14 @@ static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
 	struct device_node *port, *ep, *remote, *remote_port;
 	u32 crtcs = 0;
 
-	port = of_graph_get_port_by_id(node, 0);
-	if (!port)
-		return 0;
-
-	ep = of_get_next_available_child(port, NULL);
-	if (!ep)
-		return 0;
-
-	remote = of_graph_get_remote_port_parent(ep);
+	remote = of_graph_get_remote_node(node, 0, -1);
 	if (!remote)
 		return 0;
 
 	if (sun8i_dw_hdmi_node_is_tcon_top(remote)) {
 		port = of_graph_get_port_by_id(remote, 4);
 		if (!port)
-			return 0;
+			goto crtcs_exit;
 
 		for_each_child_of_node(port, ep) {
 			remote_port = of_graph_get_remote_port(ep);
@@ -80,6 +72,9 @@ static u32 sun8i_dw_hdmi_find_possible_crtcs(struct drm_device *drm,
 	} else {
 		crtcs = drm_of_find_possible_crtcs(drm, node);
 	}
+
+crtcs_exit:
+	of_node_put(remote);
 
 	return crtcs;
 }
