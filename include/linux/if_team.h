@@ -74,6 +74,11 @@ struct team_port {
 	long mode_priv[0];
 };
 
+static inline struct team_port *team_port_get_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler_data);
+}
+
 static inline bool team_port_enabled(struct team_port *port)
 {
 	return port->index != -1;
