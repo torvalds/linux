@@ -356,13 +356,19 @@ static int rk816_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev,
 						  unsigned int sel)
 {
 	int ret, real_sel, delay = 100;
+	int rk816_type;
+	int id = rdev_get_id(rdev);
 
+	regmap_read(rdev->regmap, RK816_CHIP_VER_REG, &rk816_type);
+	rk816_type &= RK816_CHIP_VERSION_MASK;
 	sel <<= ffs(rdev->desc->vsel_mask) - 1;
 
-	if (sel > 23)
-		rkclk_cpuclk_div_setting(4);
-	else
-		rkclk_cpuclk_div_setting(2);
+	if ((rk816_type != RK816_TYPE_ES2) && (id == 0)) {
+		if (sel > 23)
+			rkclk_cpuclk_div_setting(4);
+		else
+			rkclk_cpuclk_div_setting(2);
+	}
 
 	do {
 		ret = regmap_update_bits(rdev->regmap,
@@ -371,13 +377,23 @@ static int rk816_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev,
 		if (ret)
 			return ret;
 
+		if (rk816_type == RK816_TYPE_ES2) {
+			ret = regmap_update_bits(rdev->regmap,
+						 RK816_DCDC_EN_REG2,
+						 RK816_BUCK_DVS_CONFIRM,
+						 RK816_BUCK_DVS_CONFIRM);
+			if (ret)
+				return ret;
+		}
+
 		regmap_read(rdev->regmap,
 			    rdev->desc->vsel_reg, &real_sel);
 		real_sel &= rdev->desc->vsel_mask;
 		delay--;
 	} while ((sel != real_sel) && (delay > 0));
 
-	rkclk_cpuclk_div_setting(1);
+	if ((rk816_type != RK816_TYPE_ES2) && (id == 0))
+		rkclk_cpuclk_div_setting(1);
 
 	return ret;
 }
@@ -1016,7 +1032,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.of_match = of_match_ptr("DCDC_REG2"),
 		.regulators_node = of_match_ptr("regulators"),
 		.id = RK816_ID_DCDC2,
-		.ops = &rk8xx_buck_ops_range,
+		.ops = &rk816_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 64,
 		.linear_ranges = rk816_buck_voltage_ranges,

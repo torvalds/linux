@@ -762,6 +762,9 @@ enum rk805_reg {
 #define BUCK3_4_IMAX_MAX			(0x3 << 3)
 #define BOOST_DISABLE				((0x1 << 5) | (0x0 << 1))
 #define BUCK4_VRP_3PERCENT			0xc0
+#define RK816_BUCK_DVS_CONFIRM			(0x1 << 7)
+#define RK816_TYPE_ES2				0x05
+#define RK816_CHIP_VERSION_MASK			0x0f
 
 #define TEMP105C			0x08
 #define TEMP115C			0x0c

@@ -196,6 +196,7 @@ static bool rk818_is_volatile_reg(struct device *dev, unsigned int reg)
 	case RK808_VB_MON_REG:
 	case RK808_THERMAL_REG:
 	case RK808_DCDC_EN_REG:
+	case RK808_LDO_EN_REG:
 	case RK808_DCDC_UV_STS_REG:
 	case RK808_LDO_UV_STS_REG:
 	case RK808_DCDC_PG_REG:
