@@ -11,6 +11,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
@@ -512,14 +513,9 @@ static void innolux_panel_del(struct innolux_panel *innolux)
 static int innolux_panel_probe(struct mipi_dsi_device *dsi)
 {
 	const struct panel_desc *desc;
-	const struct of_device_id *id;
 	int err;
 
-	id = of_match_node(innolux_of_match, dsi->dev.of_node);
-	if (!id)
-		return -ENODEV;
-
-	desc = id->data;
+	desc = of_device_get_match_data(&dsi->dev);
 	dsi->mode_flags = desc->flags;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
