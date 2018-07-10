@@ -601,10 +601,12 @@
 
 					tcon_top_mixer0_out_tcon_tv0: endpoint@2 {
 						reg = <2>;
+						remote-endpoint = <&tcon_tv0_in_tcon_top_mixer0>;
 					};
 
 					tcon_top_mixer0_out_tcon_tv1: endpoint@3 {
 						reg = <3>;
+						remote-endpoint = <&tcon_tv1_in_tcon_top_mixer0>;
 					};
 				};
 
@@ -634,10 +636,12 @@
 
 					tcon_top_mixer1_out_tcon_tv0: endpoint@2 {
 						reg = <2>;
+						remote-endpoint = <&tcon_tv0_in_tcon_top_mixer1>;
 					};
 
 					tcon_top_mixer1_out_tcon_tv1: endpoint@3 {
 						reg = <3>;
+						remote-endpoint = <&tcon_tv1_in_tcon_top_mixer1>;
 					};
 				};
 
@@ -648,10 +652,12 @@
 
 					tcon_top_hdmi_in_tcon_tv0: endpoint@0 {
 						reg = <0>;
+						remote-endpoint = <&tcon_tv0_out_tcon_top>;
 					};
 
 					tcon_top_hdmi_in_tcon_tv1: endpoint@1 {
 						reg = <1>;
+						remote-endpoint = <&tcon_tv1_out_tcon_top>;
 					};
 				};
 
@@ -679,11 +685,30 @@
 				#size-cells = <0>;
 
 				tcon_tv0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
+
+					tcon_tv0_in_tcon_top_mixer0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon_top_mixer0_out_tcon_tv0>;
+					};
+
+					tcon_tv0_in_tcon_top_mixer1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon_top_mixer1_out_tcon_tv0>;
+					};
 				};
 
 				tcon_tv0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <1>;
+
+					tcon_tv0_out_tcon_top: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon_top_hdmi_in_tcon_tv0>;
+					};
 				};
 			};
 		};
@@ -702,11 +727,30 @@
 				#size-cells = <0>;
 
 				tcon_tv1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
+
+					tcon_tv1_in_tcon_top_mixer0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon_top_mixer0_out_tcon_tv1>;
+					};
+
+					tcon_tv1_in_tcon_top_mixer1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon_top_mixer1_out_tcon_tv1>;
+					};
 				};
 
 				tcon_tv1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <1>;
+
+					tcon_tv1_out_tcon_top: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon_top_hdmi_in_tcon_tv1>;
+					};
 				};
 			};
 		};
