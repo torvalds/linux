@@ -1378,63 +1378,62 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 		 * if the network does broadcast and the user did set essid chech if essid match
 		 */
 		if ((apset && apmatch &&
-				((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
-			/* if the ap is not set, check that the user set the bssid
-			 * and the network does broadcast and that those two bssid matches
+		     ((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset))) ||
+		    /* if the ap is not set, check that the user set the bssid
+		     * and the network does broadcast and that those two bssid matches
+		     */
+		    (!apset && ssidset && ssidbroad && ssidmatch)) {
+			/* if the essid is hidden replace it with the
+			 * essid provided by the user.
 			 */
-			(!apset && ssidset && ssidbroad && ssidmatch)
-			) {
-				/* if the essid is hidden replace it with the
-				* essid provided by the user.
-				*/
-				if (!ssidbroad) {
-					strncpy(tmp_ssid, ieee->current_network.ssid, IW_ESSID_MAX_SIZE);
-					tmp_ssid_len = ieee->current_network.ssid_len;
-				}
-				memcpy(&ieee->current_network, net, sizeof(struct ieee80211_network));
+			if (!ssidbroad) {
+				strncpy(tmp_ssid, ieee->current_network.ssid, IW_ESSID_MAX_SIZE);
+				tmp_ssid_len = ieee->current_network.ssid_len;
+			}
+			memcpy(&ieee->current_network, net, sizeof(struct ieee80211_network));
 
-				strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
-				ieee->current_network.ssid_len = tmp_ssid_len;
-				printk(KERN_INFO"Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",
-				       ieee->current_network.ssid,
-				       ieee->current_network.channel,
-				       ieee->current_network.qos_data.supported,
-				       ieee->pHTInfo->bEnableHT,
-				       ieee->current_network.bssht.bdSupportHT);
+			strncpy(ieee->current_network.ssid, tmp_ssid, IW_ESSID_MAX_SIZE);
+			ieee->current_network.ssid_len = tmp_ssid_len;
+			printk(KERN_INFO"Linking with %s,channel:%d, qos:%d, myHT:%d, networkHT:%d\n",
+			       ieee->current_network.ssid,
+			       ieee->current_network.channel,
+			       ieee->current_network.qos_data.supported,
+			       ieee->pHTInfo->bEnableHT,
+			       ieee->current_network.bssht.bdSupportHT);
 
-				//ieee->pHTInfo->IOTAction = 0;
-				HTResetIOTSetting(ieee->pHTInfo);
-				if (ieee->iw_mode == IW_MODE_INFRA) {
-					/* Join the network for the first time */
-					ieee->AsocRetryCount = 0;
-					//for HT by amy 080514
-					if ((ieee->current_network.qos_data.supported == 1) &&
-					    // (ieee->pHTInfo->bEnableHT && ieee->current_network.bssht.bdSupportHT))
-					    ieee->current_network.bssht.bdSupportHT) {
+			//ieee->pHTInfo->IOTAction = 0;
+			HTResetIOTSetting(ieee->pHTInfo);
+			if (ieee->iw_mode == IW_MODE_INFRA) {
+				/* Join the network for the first time */
+				ieee->AsocRetryCount = 0;
+				//for HT by amy 080514
+				if ((ieee->current_network.qos_data.supported == 1) &&
+				    // (ieee->pHTInfo->bEnableHT && ieee->current_network.bssht.bdSupportHT))
+				    ieee->current_network.bssht.bdSupportHT) {
 /*WB, 2008.09.09:bCurrentHTSupport and bEnableHT two flags are going to put together to check whether we are in HT now, so needn't to check bEnableHT flags here. That's is to say we will set to HT support whenever joined AP has the ability to support HT. And whether we are in HT or not, please check bCurrentHTSupport&&bEnableHT now please.*/
 					//	ieee->pHTInfo->bCurrentHTSupport = true;
-						HTResetSelfAndSavePeerSetting(ieee, &ieee->current_network);
-					} else {
-						ieee->pHTInfo->bCurrentHTSupport = false;
-					}
-
-					ieee->state = IEEE80211_ASSOCIATING;
-					schedule_work(&ieee->associate_procedure_wq);
+					HTResetSelfAndSavePeerSetting(ieee, &ieee->current_network);
 				} else {
-					if (ieee80211_is_54g(&ieee->current_network) &&
-					    (ieee->modulation & IEEE80211_OFDM_MODULATION)) {
-						ieee->rate = 108;
-						ieee->SetWirelessMode(ieee->dev, IEEE_G);
-						printk(KERN_INFO"Using G rates\n");
-					} else {
-						ieee->rate = 22;
-						ieee->SetWirelessMode(ieee->dev, IEEE_B);
-						printk(KERN_INFO"Using B rates\n");
-					}
-					memset(ieee->dot11HTOperationalRateSet, 0, 16);
-					//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-					ieee->state = IEEE80211_LINKED;
+					ieee->pHTInfo->bCurrentHTSupport = false;
 				}
+
+				ieee->state = IEEE80211_ASSOCIATING;
+				schedule_work(&ieee->associate_procedure_wq);
+			} else {
+				if (ieee80211_is_54g(&ieee->current_network) &&
+				    (ieee->modulation & IEEE80211_OFDM_MODULATION)) {
+					ieee->rate = 108;
+					ieee->SetWirelessMode(ieee->dev, IEEE_G);
+					printk(KERN_INFO"Using G rates\n");
+				} else {
+					ieee->rate = 22;
+					ieee->SetWirelessMode(ieee->dev, IEEE_B);
+					printk(KERN_INFO"Using B rates\n");
+				}
+				memset(ieee->dot11HTOperationalRateSet, 0, 16);
+				//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+				ieee->state = IEEE80211_LINKED;
+			}
 		}
 	}
 }
