@@ -1170,7 +1170,6 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->start		= armv7pmu_start;
 	cpu_pmu->stop		= armv7pmu_stop;
 	cpu_pmu->reset		= armv7pmu_reset;
-	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
 static void armv7_read_num_pmnc_events(void *info)
