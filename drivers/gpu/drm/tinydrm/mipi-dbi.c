@@ -260,6 +260,8 @@ static const struct drm_framebuffer_funcs mipi_dbi_fb_funcs = {
 /**
  * mipi_dbi_enable_flush - MIPI DBI enable helper
  * @mipi: MIPI DBI structure
+ * @crtc_state: CRTC state
+ * @plane_state: Plane state
  *
  * This function sets &mipi_dbi->enabled, flushes the whole framebuffer and
  * enables the backlight. Drivers can use this in their

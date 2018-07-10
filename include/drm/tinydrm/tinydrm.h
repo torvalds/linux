@@ -16,16 +16,31 @@
 
 /**
  * struct tinydrm_device - tinydrm device
- * @drm: DRM device
- * @pipe: Display pipe structure
- * @dirty_lock: Serializes framebuffer flushing
- * @fb_funcs: Framebuffer functions used when creating framebuffers
  */
 struct tinydrm_device {
+	/**
+	 * @drm: DRM device
+	 */
 	struct drm_device *drm;
+
+	/**
+	 * @pipe: Display pipe structure
+	 */
 	struct drm_simple_display_pipe pipe;
+
+	/**
+	 * @dirty_lock: Serializes framebuffer flushing
+	 */
 	struct mutex dirty_lock;
+
+	/**
+	 * @fb_funcs: Framebuffer functions used when creating framebuffers
+	 */
 	const struct drm_framebuffer_funcs *fb_funcs;
+
+	/**
+	 * @fb_dirty: Framebuffer dirty callback
+	 */
 	int (*fb_dirty)(struct drm_framebuffer *framebuffer,
 			struct drm_file *file_priv, unsigned flags,
 			unsigned color, struct drm_clip_rect *clips,
