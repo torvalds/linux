@@ -1073,7 +1073,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 		// CCX1 spec V1.13, A01.1 CKIP Negotiation (page23):
 		// "The CKIP negotiation is started with the associate request from the client to the access point,
 		//  containing an Aironet element with both the MIC and KP bits set."
-		osCcxAironetIE.Octet[IE_CISCO_FLAG_POSITION] |=  (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC) ;
+		osCcxAironetIE.Octet[IE_CISCO_FLAG_POSITION] |= (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC);
 		tag = skb_put(skb, ckip_ie_len);
 		*tag++ = MFIE_TYPE_AIRONET;
 		*tag++ = osCcxAironetIE.Length;
@@ -1202,7 +1202,7 @@ static void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	if (!skb) {
 		ieee80211_associate_abort(ieee);
 	} else {
-		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING ;
+		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING;
 		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		//BUGON when you try to add_timer twice, using mod_timer may be better, john0709
@@ -1796,7 +1796,7 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 		return;
 	}
 	tmp = *act;
-	act ++;
+	act++;
 	switch (tmp) {
 	case ACT_CAT_BA:
 		if (*act == ACT_ADDBAREQ)
@@ -2115,7 +2115,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 	struct rtl_80211_hdr_3addr  *header;
 
 	spin_lock_irqsave(&ieee->lock, flags);
-	if (! ieee->queue_stop) goto exit;
+	if (!ieee->queue_stop) goto exit;
 
 	ieee->queue_stop = 0;
 
@@ -2141,7 +2141,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 		ieee->softmac_stats.swtxawake++;
 		netif_wake_queue(ieee->dev);
 	}
-exit :
+exit:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 EXPORT_SYMBOL(ieee80211_wake_queue);
@@ -2315,7 +2315,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	// STA shall not start a BSS unless properly formed Beacon frame including a Country IE.
 	//
 	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee)) {
-		if (! ieee->bGlobalDomain)
+		if (!ieee->bGlobalDomain)
 			return;
 	}
 	/* check if we have already found the net we
