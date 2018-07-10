@@ -111,6 +111,7 @@
 #define RK3328_CABAC_RATE_OFF			(100 * MHZ)
 
 #define FALLBACK_STATIC_TEMPERATURE		55000
+#define MAX_VCODEC_SUBDEV_COUNT			2
 
 static int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -300,6 +301,7 @@ struct vpu_subdev_data {
 	int irq_dec;
 	struct vpu_service_info *pservice;
 
+	struct resource *res;
 	u32 *regs;
 	enum VCODEC_RUNNING_MODE mode;
 	struct list_head lnk_service;
@@ -424,6 +426,7 @@ struct vpu_service_info {
 	char *name;
 
 	u32 subcnt;
+	struct platform_device *sub_pdev[MAX_VCODEC_SUBDEV_COUNT];
 	struct list_head subdev_list;
 
 	u32 alloc_type;
@@ -538,7 +541,8 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	 * For the RK3228H, it is not necessary to write a register to
 	 * switch vpu combo mode, it is unsafe to write the grf.
 	 */
-	if (pservice->subcnt < 2 || pservice->mode_ctrl == 0) {
+	if (pservice->subcnt < MAX_VCODEC_SUBDEV_COUNT ||
+	    pservice->mode_ctrl == 0) {
 		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 			set_bit(MMU_ACTIVATED, &data->state);
 
@@ -1945,7 +1949,7 @@ static int vpu_service_check_hw(struct vpu_subdev_data *data)
 	u32 hw_id = readl_relaxed(data->regs);
 
 	hw_id = (hw_id >> 16) & 0xFFFF;
-	dev_info(data->dev, "checking hw id %x\n", hw_id);
+	dev_dbg(data->dev, "checking hw id %x\n", hw_id);
 	data->hw_info = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(vcodec_info_set); i++) {
@@ -2036,7 +2040,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	filp->private_data = NULL;
 	mutex_unlock(&pservice->lock);
 
-	dev_info(pservice->dev, "closed\n");
+	dev_dbg(pservice->dev, "closed\n");
 	vpu_debug_leave();
 	return 0;
 }
@@ -2677,7 +2681,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 {
 	u8 *regs = NULL;
 	s32 ret = 0;
-	struct resource *res = NULL;
 	struct vpu_hw_info *hw_info = NULL;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
@@ -2719,8 +2722,8 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	}
 
 	if (!pservice->reg_base) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		data->regs = devm_ioremap_resource(dev, res);
+		data->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		data->regs = devm_ioremap_resource(dev, data->res);
 		if (IS_ERR(data->regs)) {
 			ret = PTR_ERR(data->regs);
 			goto err;
@@ -2762,8 +2765,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 			(dev, vcodec_iovmm_fault_hdl);
 	}
 
-	dev_info(dev, "vpu mmu dec %p\n", data->mmu_dev);
-
 #define BIT_VCODEC_CLK_SEL	BIT(10)
 	if (of_machine_is_compatible("rockchip,rk3126") ||
 	    of_machine_is_compatible("rockchip,rk3128"))
@@ -2777,8 +2778,10 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	of_property_read_u32(np, "allocator", (u32 *)&pservice->alloc_type);
 	data->iommu_info = vcodec_iommu_info_create(dev, data->mmu_dev,
 						    pservice->alloc_type);
-	dev_info(dev, "allocator is %s\n", pservice->alloc_type == 1 ? "drm" :
-		(pservice->alloc_type == 2 ? "ion" : "null"));
+	dev_info(dev, "%s allocator with mmu %s\n",
+		 pservice->alloc_type == 1 ? "drm" :
+		 (pservice->alloc_type == 2 ? "ion" : "null"),
+		 data->mmu_dev ? "enabled" : "disabled");
 	if (pservice->alloc_type == 1) {
 		struct vcodec_iommu_drm_info *drm_info =
 			data->iommu_info->private;
@@ -2902,27 +2905,56 @@ err:
 	return -1;
 }
 
-static void vcodec_subdev_remove(struct vpu_subdev_data *data)
+static void vcodec_subdev_remove(struct platform_device *pdev)
 {
+	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
 	struct vpu_service_info *pservice = data->pservice;
-	struct vpu_session *session = list_first_entry(&pservice->session,
-						       struct vpu_session,
-						       list_session);
+	struct device *dev = &pdev->dev;
 
-	vcodec_iommu_clear(data->iommu_info, session);
-	vcodec_iommu_info_destroy(data->iommu_info);
-	data->iommu_info = NULL;
-	kfree(session);
-
+	/* Insure device is power off and detached */
 	mutex_lock(&pservice->lock);
+	cancel_work_sync(&data->set_work);
 	cancel_delayed_work_sync(&pservice->power_off_work);
 	vpu_service_power_off(pservice);
 	mutex_unlock(&pservice->lock);
 
+	if (data->iommu_info) {
+		struct vpu_session *session =
+			list_first_entry(&pservice->session, struct vpu_session,
+					 list_session);
+
+		vcodec_iommu_clear(data->iommu_info, session);
+		vcodec_iommu_info_destroy(data->iommu_info);
+		data->iommu_info = NULL;
+	}
+
+	if (data->irq_enc > 0)
+		devm_free_irq(dev, data->irq_enc, (void *)data);
+
+	if (data->irq_dec > 0)
+		devm_free_irq(dev, data->irq_dec, (void *)data);
+
+	if (data->mmu_dev) {
+		platform_set_sysmmu(NULL, dev);
+		data->mmu_dev = NULL;
+	}
+
+	if (!pservice->reg_base && data->regs) {
+		struct resource *res = data->res;
+
+		devm_iounmap(dev, data->regs);
+		devm_release_mem_region(dev, res->start, resource_size(res));
+		data->regs = NULL;
+	}
+
 	device_destroy(data->cls, data->dev_t);
-	class_destroy(data->cls);
 	cdev_del(&data->cdev);
 	unregister_chrdev_region(data->dev_t, 1);
+	class_destroy(data->cls);
+
+	dev_info(dev, "removed");
+	platform_set_drvdata(pdev, NULL);
+	devm_kfree(dev, data);
 }
 
 static void vcodec_read_property(struct device_node *np,
@@ -2931,6 +2963,8 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->mode_bit = 0;
 	pservice->mode_ctrl = 0;
 	pservice->subcnt = 0;
+	pservice->sub_pdev[0] = NULL;
+	pservice->sub_pdev[1] = NULL;
 
 	of_property_read_u32(np, "subcnt", &pservice->subcnt);
 
@@ -2938,6 +2972,10 @@ static void vcodec_read_property(struct device_node *np,
 		of_property_read_u32(np, "mode_bit", &pservice->mode_bit);
 		of_property_read_u32(np, "mode_ctrl", &pservice->mode_ctrl);
 	}
+	WARN_ON(pservice->subcnt > MAX_VCODEC_SUBDEV_COUNT);
+	/* Limit sub-device count to not larger than 2 */
+	if (pservice->subcnt > MAX_VCODEC_SUBDEV_COUNT)
+		pservice->subcnt = MAX_VCODEC_SUBDEV_COUNT;
 
 	pservice->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR_OR_NULL(pservice->grf)) {
@@ -3278,7 +3316,6 @@ static int vcodec_devfreq_notifier_call(struct notifier_block *nb,
 
 static int vcodec_probe(struct platform_device *pdev)
 {
-	int i;
 	int ret = 0;
 	const struct of_device_id *match = NULL;
 	struct resource *res = NULL;
@@ -3443,7 +3480,8 @@ static int vcodec_probe(struct platform_device *pdev)
 	list_add_tail(&session->list_session, &pservice->session);
 	mutex_unlock(&pservice->lock);
 
-	if (of_property_read_bool(np, "subcnt")) {
+	if (pservice->subcnt) {
+		u32 i;
 		struct vpu_subdev_data *data = NULL;
 
 		data = devm_kzalloc(dev, sizeof(struct vpu_subdev_data),
@@ -3457,12 +3495,14 @@ static int vcodec_probe(struct platform_device *pdev)
 		data->pservice = pservice;
 		platform_set_drvdata(pdev, data);
 
+		/* NOTE: only has max 2 sub device */
 		for (i = 0; i < pservice->subcnt; i++) {
 			struct device_node *sub_np;
 			struct platform_device *sub_pdev;
 
 			sub_np = of_parse_phandle(np, "rockchip,sub", i);
 			sub_pdev = of_find_device_by_node(sub_np);
+			pservice->sub_pdev[i] = sub_pdev;
 
 			vcodec_subdev_probe(sub_pdev, pservice);
 		}
@@ -3501,10 +3541,34 @@ err:
 static int vcodec_remove(struct platform_device *pdev)
 {
 	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
+	struct vpu_service_info *pservice = data->pservice;
+	struct vpu_session *session = list_first_entry(&pservice->session,
+						       struct vpu_session,
+						       list_session);
 
-	vcodec_subdev_remove(data);
+	/* Stop workqueue first */
+	if (pservice->set_workq) {
+		destroy_workqueue(pservice->set_workq);
+		pservice->set_workq = NULL;
+	}
+
+	/* Then remove sub device */
+	if (pservice->subcnt) {
+		u32 i;
+
+		for (i = 0; i < pservice->subcnt; i++)
+			vcodec_subdev_remove(pservice->sub_pdev[i]);
+	} else {
+		vcodec_subdev_remove(pdev);
+	}
+
+	kfree(session);
+
+	devfreq_unregister_opp_notifier(&pdev->dev, pservice->devfreq);
+	dev_pm_opp_of_remove_table(&pdev->dev);
 
 	pm_runtime_disable(data->pservice->dev);
+	wake_lock_destroy(&pservice->wake_lock);
 
 	return 0;
 }
@@ -3516,7 +3580,7 @@ static void vcodec_shutdown(struct platform_device *pdev)
 	int val;
 	int ret;
 
-	dev_info(&pdev->dev, "vcodec shutdown");
+	dev_info(&pdev->dev, "shutdown");
 
 	/*
 	 * just wait for hardware finishing his work
