@@ -413,6 +413,13 @@ static void hsu_dma_free_chan_resources(struct dma_chan *chan)
 	vchan_free_chan_resources(to_virt_chan(chan));
 }
 
+static void hsu_dma_synchronize(struct dma_chan *chan)
+{
+	struct hsu_dma_chan *hsuc = to_hsu_dma_chan(chan);
+
+	vchan_synchronize(&hsuc->vchan);
+}
+
 int hsu_dma_probe(struct hsu_dma_chip *chip)
 {
 	struct hsu_dma *hsu;
@@ -459,6 +466,7 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 	hsu->dma.device_pause = hsu_dma_pause;
 	hsu->dma.device_resume = hsu_dma_resume;
 	hsu->dma.device_terminate_all = hsu_dma_terminate_all;
+	hsu->dma.device_synchronize = hsu_dma_synchronize;
 
 	hsu->dma.src_addr_widths = HSU_DMA_BUSWIDTHS;
 	hsu->dma.dst_addr_widths = HSU_DMA_BUSWIDTHS;
