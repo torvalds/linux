@@ -1715,6 +1715,9 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
 					      alignmask + 1);
 
+	sg_init_table(&drbg->sg_in, 1);
+	sg_init_table(&drbg->sg_out, 1);
+
 	return alignmask;
 }
 
@@ -1743,17 +1746,17 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inlen,
 			      u8 *outbuf, u32 outlen)
 {
-	struct scatterlist sg_in, sg_out;
+	struct scatterlist *sg_in = &drbg->sg_in, *sg_out = &drbg->sg_out;
 	int ret;
 
-	sg_init_one(&sg_in, inbuf, inlen);
-	sg_init_one(&sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
+	sg_set_buf(sg_in, inbuf, inlen);
+	sg_set_buf(sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
 
 	while (outlen) {
 		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
 
 		/* Output buffer may not be valid for SGL, use scratchpad */
-		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
+		skcipher_request_set_crypt(drbg->ctr_req, sg_in, sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_wait_req(crypto_skcipher_encrypt(drbg->ctr_req),
 					&drbg->ctr_wait);

@@ -127,6 +127,7 @@ struct drbg_state {
 	__u8 *outscratchpadbuf;			/* CTR mode output scratchpad */
         __u8 *outscratchpad;			/* CTR mode aligned outbuf */
 	struct crypto_wait ctr_wait;		/* CTR mode async wait obj */
+	struct scatterlist sg_in, sg_out;	/* CTR mode SGLs */
 
 	bool seeded;		/* DRBG fully seeded? */
 	bool pr;		/* Prediction resistance enabled? */
