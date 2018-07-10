@@ -846,6 +846,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
 		case CHIP_RAVEN:   /* DCE SG support */
+		case CHIP_PICASSO:   /* DCE SG support */
 			adev->gmc.gart_size = 1024ULL << 20;
 			break;
 		}
@@ -934,6 +935,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_PICASSO:
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		} else {
@@ -1060,6 +1062,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 		break;
 	case CHIP_RAVEN:
+	case CHIP_PICASSO:
 		soc15_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
 						ARRAY_SIZE(golden_settings_athub_1_0_0));
@@ -1094,6 +1097,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_PICASSO:
 		mmhub_v1_0_initialize_power_gating(adev);
 		mmhub_v1_0_update_power_gating(adev, true);
 		break;
