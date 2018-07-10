@@ -581,6 +581,9 @@ static int rockchip_vad_enable_cpudai(struct snd_pcm_substream *substream)
 static int rockchip_vad_pcm_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
 	vad_substream = substream;
 
 	return 0;
