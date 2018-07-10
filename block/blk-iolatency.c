@@ -798,8 +798,7 @@ static u64 iolatency_prfill_limit(struct seq_file *sf,
 	if (!dname || !iolat->min_lat_nsec)
 		return 0;
 	seq_printf(sf, "%s target=%llu\n",
-		   dname,
-		   (unsigned long long)iolat->min_lat_nsec / NSEC_PER_USEC);
+		   dname, div_u64(iolat->min_lat_nsec, NSEC_PER_USEC));
 	return 0;
 }
 
