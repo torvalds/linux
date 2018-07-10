@@ -187,13 +187,6 @@ struct be_eq_obj {
 	struct be_queue_info q;
 	char desc[32];
 
-	/* Adaptive interrupt coalescing (AIC) info */
-	bool enable_aic;
-	u32 min_eqd;		/* in usecs */
-	u32 max_eqd;		/* in usecs */
-	u32 eqd;		/* configured val when aic is off */
-	u32 cur_eqd;		/* in usecs */
-
 	u8 idx;			/* array index */
 	u8 msix_idx;
 	u16 spurious_intr;
