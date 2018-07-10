@@ -991,16 +991,13 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 				  void *data, u8 bits_offset,
 				  struct seq_file *m)
 {
+	u16 left_shift_bits, right_shift_bits;
 	u32 int_data = btf_type_int(t);
 	u16 nr_bits = BTF_INT_BITS(int_data);
 	u16 total_bits_offset;
 	u16 nr_copy_bytes;
 	u16 nr_copy_bits;
-	u8 nr_upper_bits;
-	union {
-		u64 u64_num;
-		u8  u8_nums[8];
-	} print_num;
+	u64 print_num;
 
 	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
@@ -1008,21 +1005,20 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 	nr_copy_bits = nr_bits + bits_offset;
 	nr_copy_bytes = BITS_ROUNDUP_BYTES(nr_copy_bits);
 
-	print_num.u64_num = 0;
-	memcpy(&print_num.u64_num, data, nr_copy_bytes);
+	print_num = 0;
+	memcpy(&print_num, data, nr_copy_bytes);
 
-	/* Ditch the higher order bits */
-	nr_upper_bits = BITS_PER_BYTE_MASKED(nr_copy_bits);
-	if (nr_upper_bits) {
-		/* We need to mask out some bits of the upper byte. */
-		u8 mask = (1 << nr_upper_bits) - 1;
+#ifdef __BIG_ENDIAN_BITFIELD
+	left_shift_bits = bits_offset;
+#else
+	left_shift_bits = BITS_PER_U64 - nr_copy_bits;
+#endif
+	right_shift_bits = BITS_PER_U64 - nr_bits;
 
-		print_num.u8_nums[nr_copy_bytes - 1] &= mask;
-	}
+	print_num <<= left_shift_bits;
+	print_num >>= right_shift_bits;
 
-	print_num.u64_num >>= bits_offset;
-
-	seq_printf(m, "0x%llx", print_num.u64_num);
+	seq_printf(m, "0x%llx", print_num);
 }
 
 static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
