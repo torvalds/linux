@@ -174,7 +174,7 @@ static int dh_compute_value(struct kpp_request *req)
 		}
 		ret = dh_is_pubkey_valid(ctx, base);
 		if (ret)
-			goto err_free_val;
+			goto err_free_base;
 	} else {
 		base = ctx->g;
 	}
