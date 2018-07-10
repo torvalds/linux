@@ -41,7 +41,10 @@ typedef uint64 PPN64;
 
 typedef bool Bool;
 
+#define MAX_UINT64 U64_MAX
 #define MAX_UINT32 U32_MAX
 #define MAX_UINT16 U16_MAX
+
+#define CONST64U(x) x##ULL
 
 #endif

@@ -43,10 +43,10 @@
 #include <linux/sync_file.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20180322"
+#define VMWGFX_DRIVER_DATE "20180704"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 14
-#define VMWGFX_DRIVER_PATCHLEVEL 1
+#define VMWGFX_DRIVER_MINOR 15
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -83,7 +83,7 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
-	bool gb_aware;
+	bool gb_aware; /* user-space is guest-backed aware */
 };
 
 struct vmw_buffer_object {
@@ -166,7 +166,7 @@ struct vmw_surface_offset;
 
 struct vmw_surface {
 	struct vmw_resource res;
-	uint32_t flags;
+	SVGA3dSurfaceAllFlags flags;
 	uint32_t format;
 	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
 	struct drm_vmw_size base_size;
@@ -180,6 +180,8 @@ struct vmw_surface {
 	SVGA3dTextureFilter autogen_filter;
 	uint32_t multisample_count;
 	struct list_head view_list;
+	SVGA3dMSPattern multisample_pattern;
+	SVGA3dMSQualityLevel quality_level;
 };
 
 struct vmw_marker_queue {
@@ -386,6 +388,7 @@ struct vmw_private {
 	uint32_t initial_height;
 	u32 *mmio_virt;
 	uint32_t capabilities;
+	uint32_t capabilities2;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
 	uint32_t max_mob_pages;
@@ -397,6 +400,7 @@ struct vmw_private {
 	spinlock_t cap_lock;
 	bool has_dx;
 	bool assume_16bpp;
+	bool has_sm4_1;
 
 	/*
 	 * VGA registers.
@@ -1076,14 +1080,22 @@ extern int vmw_surface_validate(struct vmw_private *dev_priv,
 				struct vmw_surface *srf);
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
-			       uint32_t svga3d_flags,
+			       SVGA3dSurfaceAllFlags svga3d_flags,
 			       SVGA3dSurfaceFormat format,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,
 			       uint32_t multisample_count,
 			       uint32_t array_size,
 			       struct drm_vmw_size size,
+			       SVGA3dMSPattern multisample_pattern,
+			       SVGA3dMSQualityLevel quality_level,
 			       struct vmw_surface **srf_out);
+extern int vmw_gb_surface_define_ext_ioctl(struct drm_device *dev,
+					   void *data,
+					   struct drm_file *file_priv);
+extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
+					      void *data,
+					      struct drm_file *file_priv);
 
 /*
  * Shader management - vmwgfx_shader.c

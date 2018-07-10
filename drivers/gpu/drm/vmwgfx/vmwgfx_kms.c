@@ -1238,15 +1238,17 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	content_base_size.depth  = 1;
 
 	ret = vmw_surface_gb_priv_define(dev,
-			0, /* kernel visible only */
-			0, /* flags */
-			format,
-			true, /* can be a scanout buffer */
-			1, /* num of mip levels */
-			0,
-			0,
-			content_base_size,
-			srf_out);
+					 0, /* kernel visible only */
+					 0, /* flags */
+					 format,
+					 true, /* can be a scanout buffer */
+					 1, /* num of mip levels */
+					 0,
+					 0,
+					 content_base_size,
+					 SVGA3D_MS_PATTERN_NONE,
+					 SVGA3D_MS_QUALITY_NONE,
+					 srf_out);
 	if (ret) {
 		DRM_ERROR("Failed to allocate proxy content buffer\n");
 		return ret;
