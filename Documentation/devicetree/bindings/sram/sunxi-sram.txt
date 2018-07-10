@@ -10,7 +10,8 @@ Controller Node
 
 Required properties:
 - compatible : should be:
-    - "allwinner,sun4i-a10-sram-controller"
+    - "allwinner,sun4i-a10-sram-controller" (deprecated)
+    - "allwinner,sun4i-a10-system-control"
     - "allwinner,sun50i-a64-sram-controller" (deprecated)
     - "allwinner,sun50i-a64-system-control"
 - reg : sram controller register offset + length
@@ -48,8 +49,8 @@ This valid values for this argument are:
 
 Example
 -------
-sram-controller@1c00000 {
-	compatible = "allwinner,sun4i-a10-sram-controller";
+system-control@1c00000 {
+	compatible = "allwinner,sun4i-a10-system-control";
 	reg = <0x01c00000 0x30>;
 	#address-cells = <1>;
 	#size-cells = <1>;
