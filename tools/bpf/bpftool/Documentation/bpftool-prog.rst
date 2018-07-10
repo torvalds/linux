@@ -24,10 +24,19 @@ MAP COMMANDS
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog load** *OBJ* *FILE* [**dev** *NAME*]
+|	**bpftool** **prog load** *OBJ* *FILE* [**type** *TYPE*] [**dev** *NAME*]
 |	**bpftool** **prog help**
 |
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*TYPE* := {
+|		**socket** | **kprobe** | **kretprobe** | **classifier** | **action** |
+|		**tracepoint** | **raw_tracepoint** | **xdp** | **perf_event** | **cgroup/skb** |
+|		**cgroup/sock** | **cgroup/dev** | **lwt_in** | **lwt_out** | **lwt_xmit** |
+|		**lwt_seg6local** | **sockops** | **sk_skb** | **sk_msg** | **lirc_mode2** |
+|		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
+|		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6**
+|	}
+
 
 DESCRIPTION
 ===========
@@ -64,8 +73,10 @@ DESCRIPTION
 
 		  Note: *FILE* must be located in *bpffs* mount.
 
-	**bpftool prog load** *OBJ* *FILE* [**dev** *NAME*]
+	**bpftool prog load** *OBJ* *FILE* [**type** *TYPE*] [**dev** *NAME*]
 		  Load bpf program from binary *OBJ* and pin as *FILE*.
+		  **type** is optional, if not specified program type will be
+		  inferred from section names.
 		  If **dev** *NAME* is specified program will be loaded onto
 		  given networking device (offload).
 

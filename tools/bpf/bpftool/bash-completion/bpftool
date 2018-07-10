@@ -274,11 +274,17 @@ _bpftool()
                     fi
 
                     case $prev in
+                        type)
+                            COMPREPLY=( $( compgen -W "socket kprobe kretprobe classifier action tracepoint raw_tracepoint xdp perf_event cgroup/skb cgroup/sock cgroup/dev lwt_in lwt_out lwt_xmit lwt_seg6local sockops sk_skb sk_msg lirc_mode2 cgroup/bind4 cgroup/bind6 cgroup/connect4 cgroup/connect6 cgroup/sendmsg4 cgroup/sendmsg6 cgroup/post_bind4 cgroup/post_bind6" -- \
+                                                   "$cur" ) )
+                            return 0
+                            ;;
                         dev)
                             _sysfs_get_netdevs
                             return 0
                             ;;
                         *)
+                            _bpftool_once_attr 'type'
                             _bpftool_once_attr 'dev'
                             return 0
                             ;;

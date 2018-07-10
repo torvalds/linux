@@ -688,6 +688,7 @@ static int do_load(int argc, char **argv)
 	const char *objfile, *pinfile;
 	struct bpf_object *obj;
 	int prog_fd;
+	int err;
 
 	if (!REQ_ARGS(2))
 		return -1;
@@ -695,7 +696,37 @@ static int do_load(int argc, char **argv)
 	pinfile = GET_ARG();
 
 	while (argc) {
-		if (is_prefix(*argv, "dev")) {
+		if (is_prefix(*argv, "type")) {
+			char *type;
+
+			NEXT_ARG();
+
+			if (attr.prog_type != BPF_PROG_TYPE_UNSPEC) {
+				p_err("program type already specified");
+				return -1;
+			}
+			if (!REQ_ARGS(1))
+				return -1;
+
+			/* Put a '/' at the end of type to appease libbpf */
+			type = malloc(strlen(*argv) + 2);
+			if (!type) {
+				p_err("mem alloc failed");
+				return -1;
+			}
+			*type = 0;
+			strcat(type, *argv);
+			strcat(type, "/");
+
+			err = libbpf_prog_type_by_name(type, &attr.prog_type,
+						       &attr.expected_attach_type);
+			free(type);
+			if (err < 0) {
+				p_err("unknown program type '%s'", *argv);
+				return err;
+			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "dev")) {
 			NEXT_ARG();
 
 			if (attr.ifindex) {
@@ -713,7 +744,7 @@ static int do_load(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments or 'dev', got: '%s'?",
+			p_err("expected no more arguments, 'type' or 'dev', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -753,10 +784,17 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE [dev NAME]\n"
+		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME]\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
+		"       TYPE := { socket | kprobe | kretprobe | classifier | action |\n"
+		"                 tracepoint | raw_tracepoint | xdp | perf_event | cgroup/skb |\n"
+		"                 cgroup/sock | cgroup/dev | lwt_in | lwt_out | lwt_xmit |\n"
+		"                 lwt_seg6local | sockops | sk_skb | sk_msg | lirc_mode2 |\n"
+		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
+		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
+		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
