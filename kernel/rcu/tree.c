@@ -356,7 +356,7 @@ bool rcu_eqs_special_set(int cpu)
  *
  * The caller must have disabled interrupts and must not be idle.
  */
-static void rcu_momentary_dyntick_idle(void)
+static void __maybe_unused rcu_momentary_dyntick_idle(void)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	int special;
@@ -380,45 +380,6 @@ static int rcu_is_cpu_rrupt_from_idle(void)
 	return __this_cpu_read(rcu_dynticks.dynticks_nesting) <= 0 &&
 	       __this_cpu_read(rcu_dynticks.dynticks_nmi_nesting) <= 1;
 }
-
-/*
- * Register an urgently needed quiescent state.  If there is an
- * emergency, invoke rcu_momentary_dyntick_idle() to do a heavy-weight
- * dyntick-idle quiescent state visible to other CPUs, which will in
- * some cases serve for expedited as well as normal grace periods.
- * Either way, register a lightweight quiescent state.
- *
- * The barrier() calls are redundant in the common case when this is
- * called externally, but just in case this is called from within this
- * file.
- *
- */
-void rcu_all_qs(void)
-{
-	unsigned long flags;
-
-	if (!raw_cpu_read(rcu_dynticks.rcu_urgent_qs))
-		return;
-	preempt_disable();
-	/* Load rcu_urgent_qs before other flags. */
-	if (!smp_load_acquire(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs))) {
-		preempt_enable();
-		return;
-	}
-	this_cpu_write(rcu_dynticks.rcu_urgent_qs, false);
-	barrier(); /* Avoid RCU read-side critical sections leaking down. */
-	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_need_heavy_qs))) {
-		local_irq_save(flags);
-		rcu_momentary_dyntick_idle();
-		local_irq_restore(flags);
-	}
-	if (unlikely(raw_cpu_read(rcu_data.cpu_no_qs.b.exp)))
-		rcu_qs();
-	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
-	barrier(); /* Avoid RCU read-side critical sections leaking up. */
-	preempt_enable();
-}
-EXPORT_SYMBOL_GPL(rcu_all_qs);
 
 #define DEFAULT_RCU_BLIMIT 10     /* Maximum callbacks per rcu_do_batch. */
 static long blimit = DEFAULT_RCU_BLIMIT;
