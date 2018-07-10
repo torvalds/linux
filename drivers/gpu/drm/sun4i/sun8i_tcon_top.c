@@ -87,34 +87,6 @@ int sun8i_tcon_top_de_config(struct device *dev, int mixer, int tcon)
 }
 EXPORT_SYMBOL(sun8i_tcon_top_de_config);
 
-static int sun8i_tcon_top_get_connected_ep_id(struct device_node *node,
-					      int port_id)
-{
-	struct device_node *ep, *remote, *port;
-	struct of_endpoint endpoint;
-
-	port = of_graph_get_port_by_id(node, port_id);
-	if (!port)
-		return -ENOENT;
-
-	for_each_available_child_of_node(port, ep) {
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote)
-			continue;
-
-		if (of_device_is_available(remote)) {
-			of_graph_parse_endpoint(ep, &endpoint);
-
-			of_node_put(remote);
-
-			return endpoint.id;
-		}
-
-		of_node_put(remote);
-	}
-
-	return -ENOENT;
-}
 
 static struct clk_hw *sun8i_tcon_top_register_gate(struct device *dev,
 						   const char *parent,
@@ -149,11 +121,9 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct clk_hw_onecell_data *clk_data;
 	struct sun8i_tcon_top *tcon_top;
-	bool mixer0_unused = false;
 	struct resource *res;
 	void __iomem *regs;
-	int ret, i, id;
-	u32 val;
+	int ret, i;
 
 	tcon_top = devm_kzalloc(dev, sizeof(*tcon_top), GFP_KERNEL);
 	if (!tcon_top)
@@ -197,50 +167,6 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 		dev_err(dev, "Could not enable bus clock\n");
 		goto err_assert_reset;
 	}
-
-	val = 0;
-
-	/* check if HDMI mux output is connected */
-	if (sun8i_tcon_top_get_connected_ep_id(dev->of_node, 5) >= 0) {
-		/* find HDMI input endpoint id, if it is connected at all*/
-		id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 4);
-		if (id >= 0)
-			val = FIELD_PREP(TCON_TOP_HDMI_SRC_MSK, id + 1);
-		else
-			DRM_DEBUG_DRIVER("TCON TOP HDMI input is not connected\n");
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP HDMI output is not connected\n");
-	}
-
-	writel(val, regs + TCON_TOP_GATE_SRC_REG);
-
-	val = 0;
-
-	/* process mixer0 mux output */
-	id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 1);
-	if (id >= 0) {
-		val = FIELD_PREP(TCON_TOP_PORT_DE0_MSK, id);
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP mixer0 output is not connected\n");
-		mixer0_unused = true;
-	}
-
-	/* process mixer1 mux output */
-	id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 3);
-	if (id >= 0) {
-		val |= FIELD_PREP(TCON_TOP_PORT_DE1_MSK, id);
-
-		/*
-		 * mixer0 mux has priority over mixer1 mux. We have to
-		 * make sure mixer0 doesn't overtake TCON from mixer1.
-		 */
-		if (mixer0_unused && id == 0)
-			val |= FIELD_PREP(TCON_TOP_PORT_DE0_MSK, 1);
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP mixer1 output is not connected\n");
-	}
-
-	writel(val, regs + TCON_TOP_PORT_SEL_REG);
 
 	/*
 	 * TCON TOP has two muxes, which select parent clock for each TCON TV
