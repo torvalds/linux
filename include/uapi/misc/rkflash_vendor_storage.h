@@ -7,8 +7,8 @@
 
 struct RK_VENDOR_REQ {
 	__u32 tag;
-	__u32 id;
-	__u32 len;
+	__u16 id;
+	__u16 len;
 	__u8 data[1024];
 };
 
