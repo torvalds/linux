@@ -681,18 +681,21 @@ static int do_pin(int argc, char **argv)
 
 static int do_load(int argc, char **argv)
 {
+	const char *objfile, *pinfile;
 	struct bpf_object *obj;
 	int prog_fd;
 
-	if (argc != 2)
-		usage();
+	if (!REQ_ARGS(2))
+		return -1;
+	objfile = GET_ARG();
+	pinfile = GET_ARG();
 
-	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
+	if (bpf_prog_load(objfile, BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
 		p_err("failed to load program");
 		return -1;
 	}
 
-	if (do_pin_fd(prog_fd, argv[1]))
+	if (do_pin_fd(prog_fd, pinfile))
 		goto err_close_obj;
 
 	if (json_output)
