@@ -190,8 +190,8 @@
 		#size-cells = <1>;
 		ranges;
 
-		sram-controller@1c00000 {
-			compatible = "allwinner,sun4i-a10-sram-controller";
+		system-control@1c00000 {
+			compatible = "allwinner,sun4i-a10-system-control";
 			reg = <0x01c00000 0x30>;
 			#address-cells = <1>;
 			#size-cells = <1>;
