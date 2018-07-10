@@ -974,7 +974,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	pm_runtime_get_sync(dev->dev);
 
-	if (adev->asic_type != CHIP_RAVEN) {
+	if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO) {
 		amdgpu_uvd_free_handles(adev, file_priv);
 		amdgpu_vce_free_handles(adev, file_priv);
 	}
