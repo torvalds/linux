@@ -1,0 +1,8 @@
+echo and1 &\
+& echo and2
+
+echo or1 |\
+| echo NOT SHOWN
+
+case w in a) echo SKIP;\
+; w) echo ok;; esac;

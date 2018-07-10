@@ -1,0 +1,23 @@
+# no output -- default state
+echo ___
+trap
+
+# assign some traps
+echo ___
+trap "a" EXIT INT USR1 USR2
+
+# show them all
+echo ___
+trap
+
+# clear one
+echo ___
+trap 0 INT
+echo ___
+trap
+
+# clear another
+echo ___
+trap "-" USR1
+echo ___
+trap

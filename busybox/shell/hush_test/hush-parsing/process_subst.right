@@ -1,0 +1,3 @@
+TESTzzBEST
+TEST$(echo zz)BEST
+TEST'BEST

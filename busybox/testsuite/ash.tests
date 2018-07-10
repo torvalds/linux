@@ -1,0 +1,83 @@
+#!/bin/sh
+#
+# These are not ash tests, we use ash as a way to test lineedit!
+#
+# Copyright 2010 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+test x"CONFIG_SCRIPT" = x"y" || exit 0
+test x"CONFIG_HEXDUMP" = x"y" || exit 0
+test x"CONFIG_FEATURE_DEVPTS" = x"y" || exit 0
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+if test x"$CONFIG_UNICODE_PRESERVE_BROKEN" = x"y"; then
+testing "One byte which is not valid unicode char followed by valid input" \
+	"script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  ff 2d 0a                                          |.-.|
+00000003
+" \
+	"" \
+	"echo \xff- | hexdump -C >ash.output; exit; exit; exit; exit\n"
+
+testing "30 bytes which are not valid unicode chars followed by valid input" \
+	"script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff ff ff  |................|
+00000010  ff ff ff ff ff ff ff ff  ff ff ff ff ff ff 2d 0a  |..............-.|
+00000020
+" \
+	"" \
+	"echo \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff- | hexdump -C >ash.output; exit; exit; exit; exit\n"
+else
+testing "One byte which is not valid unicode char followed by valid input" \
+	"script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  3f 2d 0a                                          |?-.|
+00000003
+" \
+	"" \
+	"echo \xff- | hexdump -C >ash.output; exit; exit; exit; exit\n"
+
+testing "30 bytes which are not valid unicode chars followed by valid input" \
+	"script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  3f 3f 3f 3f 3f 3f 3f 3f  3f 3f 3f 3f 3f 3f 3f 3f  |????????????????|
+00000010  3f 3f 3f 3f 3f 3f 3f 3f  3f 3f 3f 3f 3f 3f 2d 0a  |??????????????-.|
+00000020
+" \
+	"" \
+	"echo \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff- | hexdump -C >ash.output; exit; exit; exit; exit\n"
+fi
+
+
+# Not sure this behavior is perfect: we lose all invalid input which precedes
+# arrow keys and such. In this example, \xff\xff are lost
+testing "2 bytes which are not valid unicode chars followed by left arrow key" \
+	"script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  3d 2d 0a                                          |=-.|
+00000003
+" \
+	"" \
+	"echo =+\xff\xff\x1b\x5b\x44- | hexdump -C >ash.output; exit; exit; exit; exit\n"
+
+# ash should see "echo \xff\n",pause -> execute it as "echo ?" (which is
+# not checked by the test), then read and execute the rest: "echo A | ..."
+# The bug was that ash was eating the beginning of "echo A" despite the pause.
+testing "Invalid unicode chars followed by a pause do not eat next chars" \
+	"{ $ECHO -ne 'echo \xff\n'; sleep 1; $ECHO -ne 'echo A | hexdump -C >ash.output; exit; exit; exit; exit\n'; } \
+         | script -q -c 'ash' /dev/null >/dev/null; cat ash.output" \
+	"\
+00000000  41 0a                                             |A.|
+00000002
+" \
+	"" ""
+
+rm ash.output
+
+exit $FAILCOUNT

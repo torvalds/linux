@@ -1,0 +1,98 @@
+	Logging and backgrounding
+
+By default, bb_[p]error_msg[_and_die] messages go to stderr,
+and of course, usually applets do not auto-background. :)
+
+Historically, daemons and inetd services are different.
+
+Busybox is trying to provide compatible behavior, thus if an applet
+is emulating an existing utility, it should mimic it. If utility
+auto-backgrounds itself, busybox applet should do the same.
+If utility normally logs to syslog, busybox applet should do
+the same too.
+
+However, busybox should not needlessly restrict the freedom
+of the users. And users have different needs and different preferences.
+Some might like logging everything from daemons to syslog.
+Others prefer running stuff under runsv/svlogd and thus would like
+logging to stderr and no daemonization.
+
+To help with that, busybox applets should have options to override
+default behavior, whatever that is for a given applet.
+
+
+Current situation is a bit of a mess:
+
+acpid - auto-backgrounds unless -d
+crond - auto-backgrounds unless -f, logs to syslog unless -d or -L.
+    option -d logs to stderr, -L FILE logs to FILE
+devfsd - (obsolete)
+dnsd - option -d makes it background and log to syslog
+fakeidentd - inetd service. Auto-backgrounds and logs to syslog
+    if no -f and no -i and no -w (-i is "inetd service" flag,
+    -w is "inetd-wait service" flag)
+ftpd - inetd service. Logs to syslog with -S, with -v logs to strerr too
+httpd - auto-backgrounds unless -f or -i (-i is "inetd service" flag)
+inetd - auto-backgrounds unless -f, logs to syslog unless -e
+klogd - auto-backgrounds unless -n
+syslogd - auto-backgrounds unless -n
+telnetd - auto-backgrounds unless -f or -i (-i is "inetd service" flag)
+udhcpc - auto-backgrounds unless -f after lease is obtained,
+    option -b makes it background sooner (when lease attempt
+    fails and retries start),
+    after backgrounding it stops logging to stderr;
+    logs to stderr, but option -S makes it log *also* to syslog
+udhcpd - auto-backgrounds and do not log to stderr unless -f,
+    otherwise logs to stderr, but option -S makes it log *also* to syslog
+zcip - auto-backgrounds and logs *also* to syslog unless -f
+    behaviour can be overridden with experimental LOGGING env.var
+    (can be set to either "none" or "syslog")
+
+Total: 13 applets (+1 obsolete),
+ 4 log to syslog by default (crond fakeidentd inetd zcip),
+ 5 never log to syslog (acpid httpd telnetd klogd syslogd, last two
+ - for obviously correct reasons),
+ there are no daemons which always log to syslog,
+ 12 auto-background if not run as inetd services (all except dnsd.
+ Note that there is no "standard" dnsd AFAIKS). But see below
+ for daemons (tcpsvd etc) which don't auto-background.
+
+miscutils/crond.c:            logmode = LOGMODE_SYSLOG;
+networking/dnsd.c:            logmode = LOGMODE_SYSLOG;
+networking/ftpd.c:            logmode = LOGMODE_NONE;
+networking/ftpd.c:            logmode |= LOGMODE_SYSLOG;
+networking/inetd.c:           logmode = LOGMODE_SYSLOG;
+networking/isrv_identd.c:     logmode = LOGMODE_SYSLOG;
+networking/telnetd.c:         logmode = LOGMODE_SYSLOG;
+networking/udhcp/dhcpc.c:     logmode = LOGMODE_NONE;
+networking/udhcp/dhcpc.c:     logmode |= LOGMODE_SYSLOG;
+networking/udhcp/dhcpc.c:     logmode &= ~LOGMODE_STDIO;
+networking/udhcp/dhcpd.c:     logmode = LOGMODE_NONE;
+networking/udhcp/dhcpd.c:     logmode |= LOGMODE_SYSLOG;
+networking/zcip.c:            logmode |= LOGMODE_SYSLOG;
+
+
+These daemons never auto-background and never log to syslog:
+
+lpd - inetd service. Has nothing to log so far, though
+dhcprelay - standard behavior
+inotifyd - standard behavior
+runsv - standard behavior
+runsvdir - standard behavior
+svlogd - standard behavior
+tcpsvd, udpsvd - standard behavior
+tftpd - standard behavior
+
+
+Non-daemons (seems to be use syslog for a good reason):
+
+networking/nameif.c:          logmode |= LOGMODE_SYSLOG;
+loginutils/chpasswd.c:        logmode = LOGMODE_BOTH;
+loginutils/chpasswd.c:        logmode = LOGMODE_STDIO;
+loginutils/getty.c:           logmode = LOGMODE_BOTH;
+loginutils/getty.c:           logmode = LOGMODE_NONE;
+loginutils/passwd.c:          logmode = LOGMODE_STDIO;
+loginutils/passwd.c:          logmode = LOGMODE_BOTH;
+loginutils/sulogin.c:         logmode = LOGMODE_SYSLOG; (used if stdio isn't a tty)
+loginutils/sulogin.c:         logmode = LOGMODE_BOTH;
+util-linux/mount.c:           logmode = LOGMODE_SYSLOG; (used in a backgrounded NFS mount helper)

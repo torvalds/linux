@@ -1,0 +1,68 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Linux System Utilities"
+
+INSERT
+
+comment "Common options for mount/umount"
+	depends on MOUNT || UMOUNT
+
+config FEATURE_MOUNT_LOOP
+	bool "Support loopback mounts"
+	default y
+	depends on MOUNT || UMOUNT
+	help
+	Enabling this feature allows automatic mounting of files (containing
+	filesystem images) via the linux kernel's loopback devices.
+	The mount command will detect you are trying to mount a file instead
+	of a block device, and transparently associate the file with a
+	loopback device. The umount command will also free that loopback
+	device.
+
+	You can still use the 'losetup' utility (to manually associate files
+	with loop devices) if you need to do something advanced, such as
+	specify an offset or cryptographic options to the loopback device.
+	(If you don't want umount to free the loop device, use "umount -D".)
+
+config FEATURE_MOUNT_LOOP_CREATE
+	bool "Create new loopback devices if needed"
+	default y
+	depends on FEATURE_MOUNT_LOOP
+	help
+	Linux kernels >= 2.6.24 support unlimited loopback devices. They are
+	allocated for use when trying to use a loop device. The loop device
+	must however exist.
+
+	This feature lets mount to try to create next /dev/loopN device
+	if it does not find a free one.
+
+config FEATURE_MTAB_SUPPORT
+	bool "Support old /etc/mtab file"
+	default n
+	depends on MOUNT || UMOUNT
+	select FEATURE_MOUNT_FAKE
+	help
+	Historically, Unix systems kept track of the currently mounted
+	partitions in the file "/etc/mtab". These days, the kernel exports
+	the list of currently mounted partitions in "/proc/mounts", rendering
+	the old mtab file obsolete. (In modern systems, /etc/mtab should be
+	a symlink to /proc/mounts.)
+
+	The only reason to have mount maintain an /etc/mtab file itself is if
+	your stripped-down embedded system does not have a /proc directory.
+	If you must use this, keep in mind it's inherently brittle (for
+	example a mount under chroot won't update it), can't handle modern
+	features like separate per-process filesystem namespaces, requires
+	that your /etc directory be writable, tends to get easily confused
+	by --bind or --move mounts, won't update if you rename a directory
+	that contains a mount point, and so on. (In brief: avoid.)
+
+	About the only reason to use this is if you've removed /proc from
+	your kernel.
+
+source util-linux/volume_id/Config.in
+
+endmenu

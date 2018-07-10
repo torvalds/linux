@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Create signed release tarballs and signature files from current svn.
+# Since you don't have my gpg key, this doesn't do you much good,
+# but if I get hit by a bus the next maintainer might find this useful.
+# Run this in an empty directory.  The VERSION= line can get confused
+# otherwise.
+
+#svn co svn://busybox.net/trunk/busybox
+cd busybox || { echo "cd busybox failed"; exit 1; }
+make release || { echo "make release failed"; exit 1; }
+cd ..
+
+VERSION=`ls busybox-*.tar.gz | sed 's/busybox-\(.*\)\.tar\.gz/\1/'`
+
+zcat busybox-$VERSION.tar.gz | bzip2 > busybox-$VERSION.tar.bz2
+
+for releasefile in busybox-$VERSION.tar.gz busybox-$VERSION.tar.bz2; do
+    test -f $releasefile || { echo "no $releasefile"; exit 1; }
+    gpg --detach-sign $releasefile
+    sha256sum $releasefile > $releasefile.sha256
+done

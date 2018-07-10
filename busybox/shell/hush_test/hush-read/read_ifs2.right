@@ -1,0 +1,9 @@
+|X|Y:Z:|
+|X|Y:Z|
+|X|Y|
+|X|Y|
+|X||
+|X||
+|||
+Whitespace should be trimmed too:
+|X|Y|

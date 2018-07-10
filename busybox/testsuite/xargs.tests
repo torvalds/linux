@@ -1,0 +1,44 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+testing "xargs -E _ stops on underscore" \
+	"xargs -E _" \
+	"a\n" \
+	"" "a\n_\nb\n"
+
+testing "xargs -E ''" \
+	"xargs -E ''" \
+	"a _ b\n" \
+	"" "a\n_\nb\n"
+
+testing "xargs -e without param" \
+	"xargs -e" \
+	"a _ b\n" \
+	"" "a\n_\nb\n"
+
+testing "xargs does not stop on underscore ('new' GNU behavior)" \
+	"xargs" \
+	"a _ b\n" \
+	"" "a\n_\nb\n"
+
+testing "xargs -s7 can take one-char input" \
+	"xargs -s7 echo" \
+	"a\n" \
+	"" "a\n"
+
+testing "xargs -sNUM test 1" \
+	"xargs -ts25 echo 2>&1 >/dev/null" \
+	"echo 1 2 3 4 5 6 7 8 9 0\n""echo 1 2 3 4 5 6 7 8 9\n""echo 00\n" \
+	"" "1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 00\n"
+
+testing "xargs -sNUM test 2" \
+	"xargs -ts25 echo 1 2>&1 >/dev/null" \
+	"echo 1 2 3 4 5 6 7 8 9 0\n""echo 1 2 3 4 5 6 7 8 9\n""echo 1 00\n" \
+	"" "2 3 4 5 6 7 8 9 0 2 3 4 5 6 7 8 9 00\n"
+
+exit $FAILCOUNT

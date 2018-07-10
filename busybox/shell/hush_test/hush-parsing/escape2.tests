@@ -1,0 +1,4 @@
+echo "*?[a]*"
+echo a"*?[a]*"b
+echo '*?[a]*'
+echo c'*?[a]*'d

@@ -1,0 +1,21 @@
+empty=''
+
+echo 'Testing: in ""'
+for a in ""; do echo ".$a."; done
+
+echo 'Testing: in '"''"
+for a in ''; do echo ".$a."; done
+
+echo 'Testing: in $empty'
+for a in $empty; do echo ".$a."; done
+
+echo 'Testing: in $empty""'
+for a in $empty""; do echo ".$a."; done
+
+echo 'Testing: in $empty'"''"
+for a in $empty''; do echo ".$a."; done
+
+echo 'Testing: in "$empty"'
+for a in "$empty"; do echo ".$a."; done
+
+echo Finished

@@ -1,0 +1,6 @@
+# The "find" should not see "saved" (duplicated) fd #1
+# Explicitly use bbox find, since other implementations of "find"
+# may open other descriptors as well.
+{ busybox find /proc/self/fd; } >tmp_$$.out
+cat tmp_$$.out
+rm -f tmp_$$.out

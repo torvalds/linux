@@ -1,0 +1,15 @@
+#!/bin/sh
+
+func()
+{
+	while read p; do echo "$p"; done
+}
+
+pipe_to_func()
+{
+	# We had a NOMMU bug which caused "echo Ok |" part to be lost
+	echo Ok | func
+}
+
+pipe_to_func | cat
+echo $?

@@ -1,0 +1,14 @@
+set -x
+
+var1=val
+var2='one two'
+true %s\\n one "two 'three" four
+
+# assignment:
+this=command
+# NOT assignment, +x code should show it quoted:
+"this=command"
+
+if true; then true; fi
+# +x code should quote 'if' here:
+"if" true

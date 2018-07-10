@@ -1,0 +1,4 @@
+x=BAD
+{ sleep 0.4; echo Ok; } | { sleep 0.2 & read x; echo "x='$x'"; }
+echo "exitcode:$?"
+

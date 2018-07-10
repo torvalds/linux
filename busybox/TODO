@@ -1,0 +1,258 @@
+Busybox TODO
+
+Harvest patches from
+http://git.openembedded.org/cgit.cgi/openembedded/tree/recipes/busybox/
+https://dev.openwrt.org/browser/trunk/package/busybox/patches/
+
+
+Stuff that needs to be done.  This is organized by who plans to get around to
+doing it eventually, but that doesn't mean they "own" the item.  If you want to
+do one of these bounce an email off the person it's listed under to see if they
+have any suggestions how they plan to go about it, and to minimize conflicts
+between your work and theirs.  But otherwise, all of these are fair game.
+
+Rob Landley suggested this:
+  Implement bb_realpath() that can handle NULL on non-glibc.
+
+  sh
+    The command shell situation is a mess.  We have two different
+    shells that don't really share any code, and the "standalone shell" doesn't
+    work all that well (especially not in a chroot environment), due to apps not
+    being reentrant.
+
+  Do a SUSv3 audit
+    Look at the full Single Unix Specification version 3 (available online at
+    "http://www.opengroup.org/onlinepubs/009695399/nfindex.html") and
+    figure out which of our apps are compliant, and what we're missing that
+    we might actually care about.
+
+    Even better would be some kind of automated compliance test harness that
+    exercises each command line option and the various corner cases.
+
+  Internationalization
+    How much internationalization should we do?
+
+    The low hanging fruit is UTF-8 character set support.  We should do this.
+    See TODO_unicode file.
+
+    We also have lots of hardwired english text messages.  Consolidating this
+    into some kind of message table not only makes translation easier, but
+    also allows us to consolidate redundant (or close) strings.
+
+    We probably don't want to be bloated with locale support.  (Not unless we
+    can cleanly export it from our underlying C library without having to
+    concern ourselves with it directly.  Perhaps a few specific things like a
+    config option for "date" are low hanging fruit here?)
+
+    What level should things happen at?  How much do we care about
+    internationalizing the text console when X11 and xterms are so much better
+    at it?  (There's some infrastructure here we don't implement: The
+    "unicode_start" and "unicode_stop" shell scripts need "vt-is-UTF8" and a
+    --unicode option to loadkeys.  That implies a real loadkeys/dumpkeys
+    implementation to replace loadkmap/dumpkmap.  Plus messing with console font
+    loading.  Is it worth it, or do we just say "use X"?)
+
+  Individual compilation of applets.
+    It would be nice if busybox had the option to compile to individual applets,
+    for people who want an alternate implementation less bloated than the gnu
+    utils (or simply with less political baggage), but without it being one big
+    executable.
+
+    Turning libbb into a real dll is another possibility, especially if libbb
+    could export some of the other library interfaces we've already more or less
+    got the code for (like zlib).
+
+  buildroot - Make a "dogfood" option
+    Busybox 1.1 will be capable of replacing most gnu packages for real world
+    use, such as developing software or in a live CD.  It needs wider testing.
+
+    Busybox should now be able to replace bzip2, coreutils, e2fsprogs, file,
+    findutils, gawk, grep, inetutils, less, modutils, net-tools, patch, procps,
+    sed, shadow, sysklogd, sysvinit, tar, util-linux, and vim.  The resulting
+    system should be self-hosting (I.E. able to rebuild itself from source
+    code).  This means it would need (at least) binutils, gcc, and make, or
+    equivalents.
+
+    It would be a good "eating our own dogfood" test if buildroot had the option
+    of using a "make allyesconfig" busybox instead of the all of the above
+    packages.  Anything that's wrong with the resulting system, we can fix.  (It
+    would be nice to be able to upgrade busybox to be able to replace bash and
+    diffutils as well, but we're not there yet.)
+
+    One example of an existing system that does this already is Firmware Linux:
+      http://www.landley.net/code/firmware
+
+  initramfs
+    Busybox should have a sample initramfs build script.  This depends on
+    shell, mdev, and switch_root.
+
+  mkdep
+    Write a mkdep that doesn't segfault if there's a directory it doesn't
+    have permission to read, isn't based on manually editing the output of
+    lexx and yacc, doesn't make such a mess under include/config, etc.
+
+  Group globals into unions of structures.
+    Go through and turn all the global and static variables into structures,
+    and have all those structures be in a big union shared between processes,
+    so busybox uses less bss.  (This is a big win on nommu machines.)  See
+    sed.c and mdev.c for examples.
+
+  Go through bugs.busybox.net and close out all of that somehow.
+    This one's open to everybody, but I'll wind up doing it...
+
+Bernhard Reutner-Fischer <busybox@busybox.net> suggests to look at these:
+  New debug options:
+    -Wlarger-than-127
+    Cleanup any big users
+  Collate BUFSIZ IOBUF_SIZE MY_BUF_SIZE PIPE_PROGRESS_SIZE BUFSIZE PIPESIZE
+    make bb_common_bufsiz1 configurable, size wise.
+    make pipesize configurable, size wise.
+    Use bb_common_bufsiz1 throughout applets!
+
+As yet unclaimed:
+
+----
+diff
+  Make sure we handle empty files properly:
+    From the patch man page:
+
+    you can remove a file by sending out a context diff that compares
+    the file to be deleted with an empty file dated the Epoch.  The
+    file will be removed unless patch is conforming to POSIX and the
+    -E or --remove-empty-files option is not given.
+---
+patch
+  Should have simple fuzz factor support to apply patches at an offset which
+  shouldn't take up too much space.
+
+  And while we're at it, a new patch filename quoting format is apparently
+  coming soon:  http://marc.theaimsgroup.com/?l=git&m=112927316408690&w=2
+
+Architectural issues:
+
+bb_close() with fsync()
+  We should have a bb_close() in place of normal close, with a CONFIG_ option
+  to not just check the return value of close() for an error, but fsync().
+  Close can't reliably report anything useful because if write() accepted the
+  data then it either went out to the network or it's in cache or a pipe
+  buffer.  Either way, there's no guarantee it'll make it to its final
+  destination before close() gets called, so there's no guarantee that any
+  error will be reported.
+
+  You need to call fsync() if you care about errors that occur after write(),
+  but that can have a big performance impact.  So make it a config option.
+---
+Unify archivers
+  Lots of archivers have the same general infrastructure.  The directory
+  traversal code should be factored out, and the guts of each archiver could
+  be some setup code and a series of callbacks for "add this file",
+  "add this directory", "add this symlink" and so on.
+
+  This could clean up tar and zip, and make it cheaper to add cpio and ar
+  write support, and possibly even cheaply add things like mkisofs or
+  mksquashfs someday, if they become relevant.
+---
+Text buffer support.
+  Several existing applets (sort, vi, less...) read
+  a whole file into memory and act on it.  Use open_read_close().
+---
+Memory Allocation
+  We have a CONFIG_BUFFER mechanism that lets us select whether to do memory
+  allocation on the stack or the heap.  Unfortunately, we're not using it much.
+  We need to audit our memory allocations and turn a lot of malloc/free calls
+  into RESERVE_CONFIG_BUFFER/RELEASE_CONFIG_BUFFER.
+  For a start, see e.g. make EXTRA_CFLAGS=-Wlarger-than-64
+
+  And while we're at it, many of the CONFIG_FEATURE_CLEAN_UP #ifdefs will be
+  optimized out by the compiler in the stack allocation case (since there's no
+  free for an alloca()), and this means that various cleanup loops that just
+  call free might also be optimized out by the compiler if written right, so
+  we can yank those #ifdefs too, and generally clean up the code.
+---
+FEATURE_CLEAN_UP
+  This is more an unresolved issue than a to-do item.  More thought is needed.
+
+  Normally we rely on exit() to free memory, close files and unmap segments
+  for us.  This makes most calls to free(), close(), and unmap() optional in
+  busybox applets that don't intend to run for very long, and optional stuff
+  can be omitted to save size.
+
+  The idea was raised that we could simulate fork/exit with setjmp/longjmp
+  for _really_ brainless embedded systems, or speed up the standalone shell
+  by not forking.  Doing so would require a reliable FEATURE_CLEAN_UP.
+  Unfortunately, this isn't as easy as it sounds.
+
+  The problem is, lots of things exit(), sometimes unexpectedly (xmalloc())
+  and sometimes reliably (bb_perror_msg_and_die() or show_usage()).  This
+  jumps out of the normal flow control and bypasses any cleanup code we
+  put at the end of our applets.
+
+  It's possible to add hooks to libbb functions like xmalloc() and xopen()
+  to add their entries to a linked list, which could be traversed and
+  freed/closed automatically.  (This would need to be able to free just the
+  entries after a checkpoint to be usable for a forkless standalone shell.
+  You don't want to free the shell's own resources.)
+
+  Right now, FEATURE_CLEAN_UP is more or less a debugging aid, to make things
+  like valgrind happy.  It's also documentation of _what_ we're trusting
+  exit() to clean up for us.  But new infrastructure to auto-free stuff would
+  render the existing FEATURE_CLEAN_UP code redundant.
+
+  For right now, exit() handles it just fine.
+
+
+Minor stuff:
+  watchdog.c could autodetect the timer duration via:
+    if(!ioctl (fd, WDIOC_GETTIMEOUT, &tmo)) timer_duration = 1 + (tmo / 2);
+  Unfortunately, that needs linux/watchdog.h and that contains unfiltered
+  kernel types on some distros, which breaks the build.
+---
+  use bb_error_msg where appropriate: See
+  egrep "(printf.*\([[:space:]]*(stderr|2)|[^_]write.*\([[:space:]]*(stderr|2))"
+---
+  use bb_perror_msg where appropriate: See
+  egrep "[^_]perror"
+---
+  possible code duplication ingroup() and is_a_group_member()
+---
+  Move __get_hz() to a better place and (re)use it in route.c, ash.c
+---
+  See grep -r strtod
+  Alot of duplication that wants cleanup.
+---
+  unify progress_meter. wget, flash_eraseall, pipe_progress, fbsplash, setfiles.
+---
+  support start-stop-daemon -d <chdir-path>
+---
+
+(TODO list after discussion 11.05.2009)
+
+* shrink tc/brctl/ip
+  tc/brctl seem like fairly large things to try and tackle in your timeframe,
+  and i think people have posted attempts in the past. Adding additional
+  options to ip though seems reasonable.
+
+* add tests for some applets
+
+* implement POSIX utilities and audit them for POSIX conformance. then
+  audit them for GNU conformance. then document all your findings in a new
+  doc/conformance.txt file while perhaps implementing some of the missing
+  features.
+  you can find the latest POSIX documentation (1003.1-2008) here:
+  http://www.opengroup.org/onlinepubs/9699919799/
+  and the complete list of all utilities that POSIX covers:
+  http://www.opengroup.org/onlinepubs/9699919799/idx/utilities.html
+  The first step would to generate a file/matrix what is already archived
+  (also IPV6)
+
+* implement 'at'
+
+* rpcbind (former portmap) or equivalent
+  so that we don't have to use -o nolock on nfs mounts
+
+* check IPV6 compliance
+
+* generate a mini example using kernel+busybox only (+libc) for example
+
+* more support for advanced linux 2.6.x features, see: iotop
+  most likely there is more

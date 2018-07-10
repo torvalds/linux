@@ -1,0 +1,4 @@
+./test.sh: line 1: syntax error: unexpected ")"
+Done:2
+./exitcode2.tests: line 11: can't open does_not_exist: no such file
+Done:1

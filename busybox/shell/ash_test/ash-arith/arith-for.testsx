@@ -1,0 +1,94 @@
+fx()
+{
+i=0
+for (( ; i < 3; i++ ))
+do
+	echo $i
+done
+
+for (( i=0; ; i++ ))
+do
+	if (( i >= 3 )); then
+		break;
+	fi
+	echo $i
+done
+
+for (( i=0; i<3; ))
+do
+	echo $i
+	(( i++ ))
+done
+
+i=0
+for (( ; ; ))
+do
+	if (( i > 2 )); then
+		break;
+	fi
+	echo $i;
+	(( i++ ))
+done
+
+i=0
+for ((;;))
+do
+	if (( i > 2 )); then
+		break;
+	fi
+	echo $i;
+	(( i++ ))
+done
+}
+
+for (( i=0; "i < 3" ; i++ ))
+do
+	echo $i
+done
+
+i=0
+for (( ; "i < 3"; i++ ))
+do
+	echo $i
+done
+
+for (( i=0; ; i++ ))
+do
+	if (( i >= 3 )); then
+		break;
+	fi
+	echo $i
+done
+
+for ((i = 0; ;i++ ))
+do
+	echo $i
+	if (( i < 3 )); then
+		(( i++ ))
+		continue;
+	fi
+	break
+done
+
+type fx
+fx
+
+# errors
+for (( i=0; "i < 3" ))
+do
+	echo $i
+done
+echo $?
+
+for (( i=0; i < 3; i++; 7 ))
+do
+	echo $i
+done
+echo $?
+
+# one-liners added in post-bash-2.04
+for     ((i=0; i < 20; i++)) do : ; done
+echo $i
+
+for     ((i=0; i < 20; i++)) { : ; }
+echo $i

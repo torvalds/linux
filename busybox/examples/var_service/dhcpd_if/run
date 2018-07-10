@@ -1,0 +1,23 @@
+#!/bin/sh
+
+exec 2>&1
+exec </dev/null
+
+pwd="$PWD"
+
+if="${PWD##*/dhcpd_}"
+
+echo "* Upping iface $if"
+ip link set dev $if up
+
+>>udhcpd.leases
+sed 's/^interface.*$/interface '"$if/" -i udhcpd.conf
+
+echo "* Starting udhcpd"
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid root \
+udhcpd -f -vv udhcpd.conf
+
+exit $?

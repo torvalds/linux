@@ -1,0 +1,8 @@
+if test $# = 0; then
+    exec "$THIS_SH" star.tests 1 abc 'd e f'
+fi
+# 'd e f' should be split into 3 separate args:
+for a in $*; do echo ".$a."; done
+
+# must produce .1 abc d e f.
+for a in "$*"; do echo ".$a."; done

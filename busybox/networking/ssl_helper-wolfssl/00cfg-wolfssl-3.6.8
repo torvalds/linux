@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# How to configure & build a static wolfssl-3.6.8 library
+# suitable for static build of ssl_helper.
+
+export CC="i686-gcc"
+export CFLAGS="\
+-Os \
+-static \
+-fomit-frame-pointer \
+-falign-functions=1 -falign-labels=1 -falign-loops=1 -falign-jumps=1 \
+-ffunction-sections -fdata-sections \
+"
+
+./configure \
+	--host=i686 \
+	--enable-static \
+	--enable-singlethreaded \
+	--disable-shared \
+|| exit $?
+
+make

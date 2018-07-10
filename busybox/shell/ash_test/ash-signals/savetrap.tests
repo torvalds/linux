@@ -1,0 +1,9 @@
+trap 'echo Exiting' EXIT
+trap 'echo WINCH!' SIGWINCH
+v=` trap   `
+echo "$v"
+v=$(	trap )
+echo "$v"
+v=`trap`
+echo "$v"
+echo Done

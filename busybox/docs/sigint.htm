@@ -1,0 +1,627 @@
+<HTML>
+<HEAD>
+<link rel="SHORTCUT ICON" href="http://www.cons.org/favicon.ico">
+<TITLE>Proper handling of SIGINT/SIGQUIT [http://www.cons.org/cracauer/sigint.html]</TITLE>
+<!-- Created by: GNU m4 using $Revision: 1.20 $ of crawww.m4lib on 11-Feb-2005 -->
+<BODY BGCOLOR="#fff8e1">
+<CENTER><H2>Proper handling of SIGINT/SIGQUIT</H2></CENTER>
+<img src=linie.png width="100%" alt=" ">
+<P>
+
+<table border=1 cellpadding=4>
+<tr><th valign=top align=left>Abstract: </th>
+<td valign=top align=left>
+In UNIX terminal sessions, you usually have a key like
+<code>C-c</code> (Control-C) to immediately end whatever program you
+have running in the foreground. This should work even when the program
+you called has called other programs in turn. Everything should be
+aborted, giving you your command prompt back, no matter how deep the
+call stack is.
+
+<p>Basically, it's trivial. But the existence of interactive
+applications that use SIGINT and/or SIGQUIT for other purposes than a
+complete immediate abort make matters complicated, and - as was to
+expect - left us with several ways to solve the problems. Of course,
+existing shells and applications follow different ways.
+
+<P>This Web pages outlines different ways to solve the problem and
+argues that only one of them can do everything right, although it
+means that we have to fix some existing software.
+
+
+
+</td></tr><tr><th valign=top align=left>Intended audience: </th>
+<td valign=top align=left>Programmers who implement programs that catch SIGINT/SIGQUIT.
+<BR>Programmers who implements shells or shell-like programs that
+execute batches of programs.
+
+<p>Users who have problems problems getting rid of runaway shell
+scripts using <code>Control-C</code>. Or have interactive applications
+that don't behave right when sending SIGINT. Examples are emacs'es
+that die on Control-g or shellscript statements that sometimes are
+executed and sometimes not, apparently not determined by the user's
+intention.
+
+
+</td></tr><tr><th valign=top align=left>Required knowledge: </th>
+<td valign=top align=left>You have to know what it means to catch SIGINT or SIGQUIT and how
+processes are waiting for other processes (children) they spawned.
+
+
+</td></tr></table>
+<img src=linie.png width="100%" alt=" ">
+
+
+<H3>Basic concepts</H3>
+
+What technically happens when you press Control-C is that all programs
+running in the foreground in your current terminal (or virtual
+terminal) get the signal SIGINT sent.
+
+<p>You may change the key that triggers the signal using
+<code>stty</code> and running programs may remap the SIGINT-sending
+key at any time they like, without your intervention and without
+asking you first.
+
+<p>The usual reaction of a running program to SIGINT is to exit.
+However, not all program do an exit on SIGINT, programs are free to
+use the signal for other actions or to ignore it at all.
+
+<p>All programs running in the foreground receive the signal. This may
+be a nested "stack" of programs: You started a program that started
+another and the outer is waiting for the inner to exit. This nesting
+may be arbitrarily deep.
+
+<p>The innermost program is the one that decides what to do on SIGINT.
+It may exit, do something else or do nothing. Still, when the user hit
+SIGINT, all the outer programs are awaken, get the signal and may
+react on it.
+
+<H3>What we try to achieve</H3>
+
+The problem is with shell scripts (or similar programs that call
+several subprograms one after another).
+
+<p>Let us consider the most basic script:
+<PRE>
+#! /bin/sh
+program1
+program2
+</PRE>
+and the usual run looks like this:
+<PRE>
+$ sh myscript
+[output of program1]
+[output of program2]
+$
+</PRE>
+
+<p>Let us assume that both programs do nothing special on SIGINT, they
+just exit.
+
+<p>Now imagine the user hits C-c while a shellscript is executing its
+first program. The following programs receive SIGINT: program1 and
+also the shell executing the script. program1 exits.
+
+<p>But what should the shell do? If we say that it is only the
+innermost's programs business to react on SIGINT, the shell will do
+nothing special (not exit) and it will continue the execution of the
+script and run program2. But this is wrong: The user's intention in
+hitting C-c is to abort the whole script, to get his prompt back. If
+he hits C-c while the first program is running, he does not want
+program2 to be even started.
+
+<p>here is what would happen if the shell doesn't do anything:
+<PRE>
+$ sh myscript
+[first half of program1's output]
+C-c   [users presses C-c]
+[second half of program1's output will not be displayed]
+[output of program2 will appear]
+</PRE>
+
+
+<p>Consider a more annoying example:
+<pre>
+#! /bin/sh
+# let's assume there are 300 *.dat files
+for file in *.dat ; do
+	dat2ascii $dat
+done
+</pre>
+
+If your shell wouldn't end if the user hits <code>C-c</code>,
+<code>C-c</code> would just end <strong>one</strong> dat2ascii run and
+the script would continue. Thus, you had to hit <code>C-c</code> up to
+300 times to end this script.
+
+<H3>Alternatives to do so</H3>
+
+<p>There are several ways to handle abortion of shell scripts when
+SIGINT is received while a foreground child runs:
+
+<menu>
+
+<li>As just outlined, the shellscript may just continue, ignoring the
+fact that the user hit <code>C-c</code>. That way, your shellscript -
+including any loops - would continue and you had no chance of aborting
+it except using the kill command after finding out the outermost
+shell's PID. This "solution" will not be discussed further, as it is
+obviously not desirable.
+
+<p><li>The shell itself exits immediately when it receives SIGINT. Not
+only the program called will exit, but the calling (the
+script-executing) shell. The first variant is to exit the shell (and
+therefore discontinuing execution of the script) immediately, while
+the background program may still be executing (remember that although
+the shell is just waiting for the called program to exit, it is woken
+up and may act). I will call the way of doing things the "IUE" (for
+"immediate unconditional exit") for the rest of this document.
+
+<p><li>As a variant of the former, when the shell receives SIGINT
+while it is waiting for a child to exit, the shell does not exit
+immediately. but it remembers the fact that a SIGINT happened. After
+the called program exits and the shell's wait ends, the shell will
+exit itself and hence discontinue the script. I will call the way of
+doing things the "WUE" (for "wait and unconditional exit") for the
+rest of this document.
+
+<p><li>There is also a way that the calling shell can tell whether the
+called program exited on SIGINT and if it ignored SIGINT (or used it
+for other purposes). As in the <sl>WUE</sl> way, the shell waits for
+the child to complete. It figures whether the program was ended on
+SIGINT and if so, it discontinue the script. If the program did any
+other exit, the script will be continued. I will call the way of doing
+things the "WCE" (for "wait and cooperative exit") for the rest of
+this document.
+
+</menu>
+
+<H3>The problem</H3>
+
+On first sight, all three solutions (IUE, WUE and WCE) all seem to do
+what we want: If C-c is hit while the first program of the shell
+script runs, the script is discontinued. The user gets his prompt back
+immediately. So what are the difference between these way of handling
+SIGINT?
+
+<p>There are programs that use the signal SIGINT for other purposes
+than exiting. They use it as a normal keystroke. The user is expected
+to use the key that sends SIGINT during a perfectly normal program
+run. As a result, the user sends SIGINT in situations where he/she
+does not want the program or the script to end.
+
+<p>The primary example is the emacs editor: C-g does what ESC does in
+other applications: It cancels a partially executed or prepared
+operation. Technically, emacs remaps the key that sends SIGINT from
+C-c to C-g and catches SIGINT.
+
+<p>Remember that the SIGINT is sent to all programs running in the
+foreground. If emacs is executing from a shell script, both emacs and
+the shell get SIGINT. emacs is the program that decides what to do:
+Exit on SIGINT or not. emacs decides not to exit. The problem arises
+when the shell draws its own conclusions from receiving SIGINT without
+consulting emacs for its opinion.
+
+<p>Consider this script:
+<PRE>
+#! /bin/sh
+emacs /tmp/foo
+cp /tmp/foo /home/user/mail/sent
+</PRE>
+
+<p>If C-g is used in emacs, both the shell and emacs will received
+SIGINT. Emacs will not exit, the user used C-g as a normal editing
+keystroke, he/she does not want the script to be aborted on C-g.
+
+<p>The central problem is that the second command (cp) may
+unintentionally be killed when the shell draws its own conclusion
+about the user's intention. The innermost program is the only one to
+judge.
+
+<H3>One more example</H3>
+
+<p>Imagine a mail session using a curses mailer in a tty. You called
+your mailer and started to compose a message. Your mailer calls emacs.
+<code>C-g</code> is a normal editing key in emacs. Technically it
+sends SIGINT (it was <code>C-c</code>, but emacs remapped the key) to
+<menu>
+<li>emacs
+<li>the shell between your mailer and emacs, the one from your mailers
+    system("emacs /tmp/bla.44") command
+<li>the mailer itself
+<li>possibly another shell if your mailer was called by a shell script
+or from another application using system(3)
+<li>your interactive shell (which ignores it since it is interactive
+and hence is not relevant to this discussion)
+</menu>
+
+<p>If everyone just exits on SIGINT, you will be left with nothing but
+your login shell, without asking.
+
+<p>But for sure you don't want to be dropped out of your editor and
+out of your mailer back to the commandline, having your edited data
+and mailer status deleted.
+
+<p>Understand the difference: While <code>C-g</code> is used an a kind
+of abort key in emacs, it isn't the major "abort everything" key. When
+you use <code>C-g</code> in emacs, you want to end some internal emacs
+command. You don't want your whole emacs and mailer session to end.
+
+<p>So, if the shell exits immediately if the user sends SIGINT (the
+second of the four ways shown above), the parent of emacs would die,
+leaving emacs without the controlling tty. The user will lose it's
+editing session immediately and unrecoverable. If the "main" shell of
+the operating system defaults to this behavior, every editor session
+that is spawned from a mailer or such will break (because it is
+usually executed by system(3), which calls /bin/sh). This was the case
+in FreeBSD before I and Bruce Evans changed it in 1998.
+
+<p>If the shell recognized that SIGINT was sent and exits after the
+current foreground process exited (the third way of the four), the
+editor session will not be disturbed, but things will still not work
+right.
+
+<H3>A further look at the alternatives</H3>
+
+<p>Still considering this script to examine the shell's actions in the
+IUE, WUE and ICE way of handling SIGINT:
+<PRE>
+#! /bin/sh
+emacs /tmp/foo
+cp /tmp/foo /home/user/mail/sent
+</PRE>
+
+<p>The IUE ("immediate unconditional exit") way does not work at all:
+emacs wants to survive the SIGINT (it's a normal editing key for
+emacs), but its parent shell unconditionally thinks "We received
+SIGINT. Abort everything. Now.". The shell will exit even before emacs
+exits. But this will leave emacs in an unusable state, since the death
+of its calling shell will leave it without required resources (file
+descriptors). This way does not work at all for shellscripts that call
+programs that use SIGINT for other purposes than immediate exit. Even
+for programs that exit on SIGINT, but want to do some cleanup between
+the signal and the exit, may fail before they complete their cleanup.
+
+<p>It should be noted that this way has one advantage: If a child
+blocks SIGINT and does not exit at all, this way will get control back
+to the user's terminal. Since such programs should be banned from your
+system anyway, I don't think that weighs against the disadvantages.
+
+<p>WUE ("wait and unconditional exit") is a little more clever: If C-g
+was used in emacs, the shell will get SIGINT. It will not immediately
+exit, but remember the fact that a SIGINT happened. When emacs ends
+(maybe a long time after the SIGINT), it will say "Ok, a SIGINT
+happened sometime while the child was executing, the user wants the
+script to be discontinued". It will then exit. The cp will not be
+executed. But that's bad. The "cp" will be executed when the emacs
+session ended without the C-g key ever used, but it will not be
+executed when the user used C-g at least one time. That is clearly not
+desired. Since C-g is a normal editing key in emacs, the user expects
+the rest of the script to behave identically no matter what keys he
+used.
+
+<p>As a result, the "WUE" way is better than the "IUE" way in that it
+does not break SIGINT-using programs completely. The emacs session
+will end undisturbed. But it still does not support scripts where
+other actions should be performed after a program that use SIGINT for
+non-exit purposes. Since the behavior is basically undeterminable for
+the user, this can lead to nasty surprises.
+
+<p>The "WCE" way fixes this by "asking" the called program whether it
+exited on SIGINT or not. While emacs receives SIGINT, it does not exit
+on it and a calling shell waiting for its exit will not be told that
+it exited on SIGINT. (Although it receives SIGINT at some point in
+time, the system does not enforce that emacs will exit with
+"I-exited-on-SIGINT" status. This is under emacs' control, see below).
+
+<p>this still work for the normal script without SIGINT-using
+programs:</p>
+<PRE>
+#! /bin/sh
+program1
+program2
+</PRE>
+
+Unless program1 and program2 mess around with signal handling, the
+system will tell the calling shell whether the programs exited
+normally or as a result of SIGINT.
+
+<p>The "WCE" way then has an easy way to things right: When one called
+program exited with "I-exited-on-SIGINT" status, it will discontinue
+the script after this program. If the program ends without this
+status, the next command in the script is started.
+
+<p>It is important to understand that a shell in "WCE" modus does not
+need to listen to the SIGINT signal at all. Both in the
+"emacs-then-cp" script and in the "several-normal-programs" script, it
+will be woken up and receive SIGINT when the user hits the
+corresponding key. But the shell does not need to react on this event
+and it doesn't need to remember the event of any SIGINT, either.
+Telling whether the user wants to end a script is done by asking that
+program that has to decide, that program that interprets keystrokes
+from the user, the innermost program.
+
+<H3>So everything is well with WCE?</H3>
+
+Well, almost.
+
+<p>The problem with the "WCE" modus is that there are broken programs
+that do not properly communicate the required information up to the
+calling program.
+
+<p>Unless a program messes with signal handling, the system does this
+automatically.
+
+<p>There are programs that want to exit on SIGINT, but they don't let
+the system do the automatic exit, because they want to do some
+cleanup. To do so, they catch SIGINT, do the cleanup and then exit by
+themselves.
+
+<p>And here is where the problem arises: Once they catch the signal,
+the system will no longer communicate the "I-exited-on-SIGINT" status
+to the calling program automatically. Even if the program exit
+immediately in the signal handler of SIGINT. Once it catches the
+signal, it has to take care of communicating the signal status
+itself.
+
+<p>Some programs don't do this. On SIGINT, they do cleanup and exit
+immediately, but the calling shell isn't told about the non-normal exit
+and it will call the next program in the script.
+
+<p>As a result, the user hits SIGINT and while one program exits, the
+shellscript continues. To him/her it looks like the shell fails to
+obey to his abortion command.
+
+<p>Both IUE or WUE shell would not have this problem, since they
+discontinue the script on their own. But as I said, they don't support
+programs using SIGINT for non-exiting purposes, no matter whether
+these programs properly communicate their signal status to the calling
+shell or not.
+
+<p>Since some shell in wide use implement the WUE way (and some even
+IUE), there is a considerable number of broken programs out there that
+break WCE shells. The programmers just don't recognize it if their
+shell isn't WCE.
+
+<H3>How to be a proper program</H3>
+
+<p>(Short note in advance: What you need to achieve is that
+WIFSIGNALED(status) is true in the calling program and that
+WTERMSIG(status) returns SIGINT.)
+
+<p>If you don't catch SIGINT, the system automatically does the right
+thing for you: Your program exits and the calling program gets the
+right "I-exited-on-SIGINT" status after waiting for your exit.
+
+<p>But once you catch SIGINT, you have to act.
+
+<p>Decide whether the SIGINT is used for exit/abort purposes and hence
+a shellscript calling this program should discontinue. This is
+hopefully obvious. If you just need to do some cleanup on SIGINT, but
+then exit immediately, the answer is "yes".
+
+<p>If so, you have to tell the calling program about it by exiting
+with the "I-exited-on-SIGINT" status.
+
+<p>There is no other way of doing this than to kill yourself with a
+SIGINT signal. Do it by resetting the SIGINT handler to SIG_DFL, then
+send yourself the signal.
+
+<PRE>
+void sigint_handler(int sig)
+{
+	<do some cleanup>
+	signal(SIGINT, SIG_DFL);
+	kill(getpid(), SIGINT);
+}
+</PRE>
+
+Notes:
+
+<MENU>
+
+<LI>You cannot "fake" the proper exit status by an exit(3) with a
+special numeric value. People often assume this since the manuals for
+shells often list some return value for exactly this. But this is just
+a convention for your shell script. It does not work from one UNIX API
+program to another.
+
+<P>All that happens is that the shell sets the "$?" variable to a
+special numeric value for the convenience of your script, because your
+script does not have access to the lower-lever UNIX status evaluation
+functions. This is just an agreement between your script and the
+executing shell, it does not have any meaning in other contexts.
+
+<P><LI>Do not use kill(0, SIGINT) without consulting the manul for
+your OS implementation. I.e. on BSD, this would not send the signal to
+the current process, but to all processes in the group.
+
+<P><LI>POSIX 1003.1 allows all these calls to appear in signal
+handlers, so it is portable.
+
+</MENU>
+
+<p>In a bourne shell script, you can catch signals using the
+<code>trap</code> command. Here, the same as for C programs apply.  If
+the intention of SIGINT is to end your program, you have to exit in a
+way that the calling programs "sees" that you have been killed.  If
+you don't catch SIGINT, this happened automatically, but of you catch
+SIGINT, i.e. to do cleanup work, you have to end the program by
+killing yourself, not by calling exit.
+
+<p>Consider this example from FreeBSD's <code>mkdep</code>, which is a
+bourne shell script.
+
+<pre>
+TMP=_mkdep$$
+trap 'rm -f $TMP ; trap 2 ; kill -2 $$' 1 2 3 13 15
+</pre>
+
+Yes, you have to do it the hard way. It's even more annoying in shell
+scripts than in C programs since you can't "pre-delete" temporary
+files (which isn't really portable in C, though).
+
+<P>All this applies to programs in all languages, not only C and
+bourne shell. Every language implementation that lets you catch SIGINT
+should also give you the option to reset the signal and kill yourself.
+
+<P>It is always desirable to exit the right way, even if you don't
+expect your usual callers to depend on it, some unusual one will come
+along. This proper exit status will be needed for WCE and will not
+hurt when the calling shell uses IUE or WUE.
+
+<H3>How to be a proper shell</H3>
+
+All this applies only for the script-executing case. Most shells will
+also have interactive modes where things are different.
+
+<MENU>
+
+<LI>Do nothing special when SIGINT appears while you wait for a child.
+You don't even have to remember that one happened.
+
+<P><LI>Wait for child to exit, get the exit status. Do not truncate it
+to type char.
+
+<P><LI>Look at WIFSIGNALED(status) and WTERMSIG(status) to tell
+whether the child says "I exited on SIGINT: in my opinion the user
+wants the shellscript to be discontinued".
+
+<P><LI>If the latter applies, discontinue the script.
+
+<P><LI>Exit. But since a shellscript may in turn be called by a
+shellscript, you need to make sure that you properly communicate the
+discontinue intention to the calling program. As in any other program
+(see above), do
+
+<PRE>
+	signal(SIGINT, SIG_DFL);
+	kill(getpid(), SIGINT);
+</PRE>
+
+</MENU>
+
+<H3>Other remarks</H3>
+
+Although this web page talks about SIGINT only, almost the same issues
+apply to SIGQUIT, including proper exiting by killing yourself after
+catching the signal and proper reaction on the WIFSIGNALED(status)
+value. One notable difference for SIGQUIT is that you have to make
+sure that not the whole call tree dumps core.
+
+<H3>What to fight</H3>
+
+Make sure all programs <em>really</em> kill themselves if they react
+to SIGINT or SIGQUIT and intend to abort their operation as a result
+of this signal. Programs that don't use SIGINT/SIGQUIT as a
+termination trigger - but as part of normal operation - don't kill
+themselves, but do a normal exit instead.
+
+<p>Make sure people understand why you can't fake an exit-on-signal by
+doing exit(...) using any numerical status.
+
+<p>Make sure you use a shell that behaves right. Especially if you
+develop programs, since it will help seeing problems.
+
+<H3>Concrete examples how to fix programs:</H3>
+<ul>
+
+<li>The fix for FreeBSD's
+<A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/src/usr.bin/time/time.c.diff?r1=1.10&r2=1.11">time(1)</A>. This fix is the best example, it's quite short and clear and
+it fixes a case where someone tried to fake signal exit status by a
+numerical value. And the complete program is small.
+
+<p><li>Fix for FreeBSD's
+<A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/src/usr.bin/truss/main.c.diff?r1=1.9&r2=1.10">truss(1)</A>.
+
+<p><li>The fix for FreeBSD's
+<A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/src/usr.bin/mkdep/mkdep.gcc.sh.diff?r1=1.8.2.1&r2=1.8.2.2">mkdep(1)</A>, a shell script.
+
+
+<p><li>Fix for FreeBSD's make(1), <A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/src/usr.bin/make/job.c.diff?r1=1.9&r2=1.10">part 1</A>,
+<A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/src/usr.bin/make/compat.c.diff?r1=1.10&r2=1.11">part 2</A>.
+
+</ul>
+
+<H3>Testsuite for shells</H3>
+
+I have a collection of shellscripts that test shells for the
+behavior. See my <A HREF="download/">download dir</A> to get the newest
+"sh-interrupt" files, either as a tarfile or as individual file for
+online browsing. This isn't really documented, besides from the
+comments the scripts echo.
+
+<H3>Appendix 1 - table of implementation choices</H3>
+
+<table border cellpadding=2>
+
+<tr valign=top>
+<th>Method sign</th>
+<th>Does what?</th>
+<th>Example shells that implement it:</th>
+<th>What happens when a shellscript called emacs, the user used
+<code>C-g</code> and the script has additional commands in it?</th>
+<th>What happens when a shellscript called emacs, the user did not use
+<code>C-c</code> and the script has additional commands in it?</th>
+<th>What happens if a non-interactive child catches SIGINT?</th>
+<th>To behave properly, children must do what?</th>
+</tr>
+
+<tr valign=top align=left>
+<td>IUE</td>
+<td>The shell executing a script exits immediately if it receives
+SIGINT.</td>
+<td>4.4BSD ash (ash), NetBSD, FreeBSD prior to 3.0/22.8</td>
+<td>The editor session is lost and subsequent commands are not
+executed.</td>
+<td>The editor continues as normal and the subsequent commands are
+executed. </td>
+<td>The scripts ends immediately, returning to the caller even before
+the current foreground child of the shell exits. </td>
+<td>It doesn't matter what the child does or how it exits, even if the
+child continues to operate, the shell returns. </td>
+</tr>
+
+<tr valign=top align=left>
+<td>WUE</td>
+<td>If the shell executing a script received SIGINT while a foreground
+process was running, it will exit after that child's exit.</td>
+<td>pdksh (OpenBSD /bin/sh)</td>
+<td>The editor continues as normal, but subsequent commands from the
+script are not executed.</td>
+<td>The editor continues as normal and subsequent commands are
+executed. </td>
+<td>The scripts returns to its caller after the current foreground
+child exits, no matter how the child exited. </td>
+<td>It doesn't matter how the child exits (signal status or not), but
+if it doesn't return at all, the shell will not return. In no case
+will further commands from the script be executed. </td>
+</tr>
+
+<tr valign=top align=left>
+<td>WCE</td>
+<td>The shell exits if a child signaled that it was killed on a
+signal (either it had the default handler for SIGINT or it killed
+itself).  </td>
+<td>bash (Linux /bin/sh), most commercial /bin/sh, FreeBSD /bin/sh
+from 3.0/2.2.8.</td>
+<td>The editor continues as normal and subsequent commands are
+executed. </td>
+<td>The editor continues as normal and subsequent commands are
+executed. </td>
+<td>The scripts returns to its caller after the current foreground
+child exits, but only if the child exited with signal status. If
+the child did a normal exit (even if it received SIGINT, but catches
+it), the script will continue. </td>
+<td>The child must be implemented right, or the user will not be able
+to break shell scripts reliably.</td>
+</tr>
+
+</table>
+
+<P><img src=linie.png width="100%" alt=" ">
+<BR>&copy;2005 Martin Cracauer &lt;cracauer @ cons.org&gt;
+<A HREF="http://www.cons.org/cracauer/">http://www.cons.org/cracauer/</A>
+<BR>Last changed: $Date: 2005/02/11 21:44:43 $
+</BODY></HTML>

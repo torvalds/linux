@@ -1,0 +1,240 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+
+# diff outputs date/time in the header, which should not be analysed
+# NB: sed has tab character in s command!
+TRIM_TAB="sed 's/	.*//'"
+
+testing "diff of stdin" \
+	"diff -u - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -1 +1,3 @@
++qwe
+ asd
++zxc
+" \
+	"qwe\nasd\nzxc\n" \
+	"asd\n"
+
+testing "diff of stdin, no newline in the file" \
+	"diff -u - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -1 +1,3 @@
++qwe
+ asd
++zxc
+\\ No newline at end of file
+" \
+	"qwe\nasd\nzxc" \
+	"asd\n"
+
+# we also test that stdin is in fact NOT read
+testing "diff of stdin, twice" \
+	'diff - -; echo $?; wc -c' \
+	"0\n5\n" \
+	"" \
+	"stdin"
+
+testing "diff of empty file against stdin" \
+	"diff -u - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -1 +0,0 @@
+-a
+" \
+	"" \
+	"a\n"
+
+testing "diff of empty file against nonempty one" \
+	"diff -u - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -0,0 +1 @@
++a
+" \
+	"a\n" \
+	""
+
+testing "diff -b treats EOF as whitespace" \
+	'diff -ub - input; echo $?' \
+	"0\n" \
+	"abc" \
+	"abc "
+
+testing "diff -b treats all spaces as equal" \
+	'diff -ub - input; echo $?' \
+	"0\n" \
+	"a \t c\n" \
+	"a\t \tc\n"
+
+testing "diff -B ignores changes whose lines are all blank" \
+	'diff -uB - input; echo $?' \
+	"0\n" \
+	"a\n" \
+	"\na\n\n"
+
+testing "diff -B does not ignore changes whose lines are not all blank" \
+	"diff -uB - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -1,3 +1 @@
+-
+-b
+-
++a
+" \
+	"a\n" \
+	"\nb\n\n"
+
+testing "diff -B ignores blank single line change" \
+	'diff -qB - input; echo $?' \
+	"0\n" \
+	"\n1\n" \
+	"1\n"
+
+testing "diff -B does not ignore non-blank single line change" \
+	'diff -qB - input; echo $?' \
+	"Files - and input differ\n1\n" \
+	"0\n" \
+	"1\n"
+
+testing "diff always takes context from old file" \
+	"diff -ub - input | $TRIM_TAB" \
+"\
+--- -
++++ input
+@@ -1 +1,3 @@
++abc
+ a c
++def
+" \
+	"abc\na  c\ndef\n" \
+	"a c\n"
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+
+# clean up
+rm -rf diff1 diff2
+
+mkdir diff1 diff2 diff2/subdir
+echo qwe >diff1/-
+echo asd >diff2/subdir/-
+optional FEATURE_DIFF_DIR
+testing "diff diff1 diff2/subdir" \
+	"diff -ur diff1 diff2/subdir | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/subdir/-
+@@ -1 +1 @@
+-qwe
++asd
+" \
+	"" ""
+SKIP=
+
+# using directory structure from prev test...
+optional FEATURE_DIFF_DIR
+testing "diff dir dir2/file/-" \
+	"diff -ur diff1 diff2/subdir/- | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/subdir/-
+@@ -1 +1 @@
+-qwe
++asd
+" \
+	"" ""
+SKIP=
+
+# using directory structure from prev test...
+mkdir diff1/test
+mkfifo diff2/subdir/test
+optional FEATURE_DIFF_DIR
+testing "diff of dir and fifo" \
+	"diff -ur diff1 diff2/subdir | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/subdir/-
+@@ -1 +1 @@
+-qwe
++asd
+Only in diff2/subdir: test
+" \
+	"" ""
+SKIP=
+
+# using directory structure from prev test...
+rmdir diff1/test
+echo >diff1/test
+optional FEATURE_DIFF_DIR
+testing "diff of file and fifo" \
+	"diff -ur diff1 diff2/subdir | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/subdir/-
+@@ -1 +1 @@
+-qwe
++asd
+File diff2/subdir/test is not a regular file or directory and was skipped
+" \
+	"" ""
+SKIP=
+
+# using directory structure from prev test...
+mkfifo diff1/test2
+optional FEATURE_DIFF_DIR
+testing "diff -rN does not read non-regular files" \
+	"diff -urN diff1 diff2/subdir | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/subdir/-
+@@ -1 +1 @@
+-qwe
++asd
+File diff2/subdir/test is not a regular file or directory and was skipped
+File diff1/test2 is not a regular file or directory and was skipped
+" \
+	"" ""
+SKIP=
+
+# clean up
+rm -rf diff1 diff2
+
+# NOT using directory structure from prev test...
+mkdir diff1 diff2
+echo qwe >diff1/-
+echo rty >diff2/-
+optional FEATURE_DIFF_DIR
+testing "diff diff1 diff2/" \
+	"diff -ur diff1 diff2/ | $TRIM_TAB; diff -ur .///diff1 diff2//// | $TRIM_TAB" \
+"\
+--- diff1/-
++++ diff2/-
+@@ -1 +1 @@
+-qwe
++rty
+--- .///diff1/-
++++ diff2////-
+@@ -1 +1 @@
+-qwe
++rty
+" \
+	"" ""
+SKIP=
+
+# clean up
+rm -rf diff1 diff2
+
+exit $FAILCOUNT

@@ -1,0 +1,201 @@
+# ==========================================================================
+# Build system
+# ==========================================================================
+
+busybox.links: $(srctree)/applets/busybox.mkll $(objtree)/include/autoconf.h include/applets.h
+	$(Q)-$(SHELL) $^ > $@
+
+busybox.cfg.suid: $(srctree)/applets/busybox.mksuid $(objtree)/include/autoconf.h include/applets.h
+	$(Q)-SUID="yes" $(SHELL) $^ > $@
+busybox.cfg.nosuid: $(srctree)/applets/busybox.mksuid $(objtree)/include/autoconf.h include/applets.h
+	$(Q)-SUID="DROP" $(SHELL) $^ > $@
+
+.PHONY: install
+ifeq ($(CONFIG_INSTALL_APPLET_DONT),y)
+INSTALL_OPTS:= --none
+endif
+ifeq ($(CONFIG_INSTALL_APPLET_SYMLINKS),y)
+INSTALL_OPTS:= --symlinks
+endif
+ifeq ($(CONFIG_INSTALL_APPLET_HARDLINKS),y)
+INSTALL_OPTS:= --hardlinks
+endif
+ifeq ($(CONFIG_INSTALL_APPLET_SCRIPT_WRAPPERS),y)
+ifeq ($(CONFIG_INSTALL_SH_APPLET_SYMLINK),y)
+INSTALL_OPTS:= --sw-sh-sym
+endif
+ifeq ($(CONFIG_INSTALL_SH_APPLET_HARDLINK),y)
+INSTALL_OPTS:= --sw-sh-hard
+endif
+ifeq ($(CONFIG_INSTALL_SH_APPLET_SCRIPT_WRAPPER),y)
+INSTALL_OPTS:= --scriptwrapper
+endif
+endif
+ifeq ($(CONFIG_FEATURE_INDIVIDUAL),y)
+INSTALL_OPTS:= --binaries
+LIBBUSYBOX_SONAME:= 0_lib/libbusybox.so.$(BB_VER)
+endif
+install: $(srctree)/applets/install.sh busybox busybox.links
+	$(Q)DO_INSTALL_LIBS="$(strip $(LIBBUSYBOX_SONAME) $(DO_INSTALL_LIBS))" \
+		$(SHELL) $< $(CONFIG_PREFIX) $(INSTALL_OPTS)
+ifeq ($(strip $(CONFIG_FEATURE_SUID)),y)
+	@echo
+	@echo
+	@echo --------------------------------------------------
+	@echo You will probably need to make your busybox binary
+	@echo setuid root to ensure all configured applets will
+	@echo work properly.
+	@echo --------------------------------------------------
+	@echo
+endif
+
+install-noclobber: INSTALL_OPTS+=--noclobber
+install-noclobber: install
+
+uninstall: busybox.links
+	rm -f $(CONFIG_PREFIX)/bin/busybox
+	for i in `cat busybox.links` ; do rm -f $(CONFIG_PREFIX)$$i; done
+ifneq ($(strip $(DO_INSTALL_LIBS)),n)
+	for i in $(LIBBUSYBOX_SONAME) $(DO_INSTALL_LIBS); do \
+		rm -f $(CONFIG_PREFIX)$$i; \
+	done
+endif
+
+# Not very elegant: copies testsuite to objdir...
+# (cp -pPR is POSIX-compliant (cp -dpR or cp -a would not be))
+.PHONY: check
+.PHONY: test
+ifeq ($(CONFIG_UNIT_TEST),y)
+UNIT_CMD = ./busybox unit
+endif
+check test: busybox busybox.links
+	$(UNIT_CMD)
+	test -d $(objtree)/testsuite || cp -pPR $(srctree)/testsuite $(objtree)
+	bindir=$(objtree) srcdir=$(srctree)/testsuite \
+	$(SHELL) -c "cd $(objtree)/testsuite && $(srctree)/testsuite/runtest $(if $(KBUILD_VERBOSE:0=),-v)"
+
+.PHONY: release
+release: distclean
+	cd ..; \
+	rm -r -f busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION); \
+	cp -pPR busybox busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION) && { \
+	find busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)/ -type d \
+		-name .svn \
+		-print \
+		-exec rm -r -f {} \; ; \
+	find busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)/ -type d \
+		-name .git \
+		-print \
+		-exec rm -r -f {} \; ; \
+	find busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)/ -type f \
+		-name .gitignore \
+		-print \
+		-exec rm -f {} \; ; \
+	find busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)/ -type f \
+		-name .\#* \
+		-print \
+		-exec rm -f {} \; ; \
+	tar -czf busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION).tar.gz \
+		busybox-$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)/ ; }
+
+.PHONY: checkhelp
+checkhelp:
+	$(Q)$(srctree)/scripts/checkhelp.awk \
+		$(patsubst %,$(srctree)/%,$(wildcard $(patsubst %,%/Config.in,$(busybox-dirs) ./)))
+
+.PHONY: sizes
+sizes: busybox_unstripped
+	$(NM) --size-sort $(<)
+
+.PHONY: bloatcheck
+bloatcheck: busybox_old busybox_unstripped
+	@$(srctree)/scripts/bloat-o-meter busybox_old busybox_unstripped
+	@$(CROSS_COMPILE)size busybox_old busybox_unstripped
+
+.PHONY: baseline
+baseline: busybox_unstripped
+	@mv busybox_unstripped busybox_old
+
+.PHONY: objsizes
+objsizes: busybox_unstripped
+	$(srctree)/scripts/objsizes
+
+.PHONY: stksizes
+stksizes: busybox_unstripped
+	$(CROSS_COMPILE)objdump -d busybox_unstripped | $(srctree)/scripts/checkstack.pl $(ARCH) | uniq
+
+.PHONY: bigdata
+bigdata: busybox_unstripped
+	$(CROSS_COMPILE)nm --size-sort busybox_unstripped | grep -vi ' [trw] '
+
+# Documentation Targets
+.PHONY: doc
+doc: docs/busybox.pod docs/BusyBox.txt docs/busybox.1 docs/BusyBox.html
+
+# FIXME: Doesn't belong here
+       cmd_doc =
+ quiet_cmd_doc = $(Q)echo "  DOC     $(@F)"
+silent_cmd_doc =
+disp_doc       = $($(quiet)cmd_doc)
+
+# sed adds newlines after "Options:" etc,
+# this is needed in order to get good BusyBox.{1,txt,html}
+docs/busybox.pod: $(srctree)/docs/busybox_header.pod \
+		include/usage.h \
+		$(srctree)/docs/busybox_footer.pod \
+		applets/usage_pod
+	$(disp_doc)
+	$(Q)-mkdir -p docs
+	$(Q)-( \
+	    cat $(srctree)/docs/busybox_header.pod; \
+	    echo; \
+	    applets/usage_pod | sed 's/^[A-Za-z][A-Za-z ]*[a-z]:$$/&\n/'; \
+	    cat $(srctree)/docs/busybox_footer.pod; \
+	    ) > docs/busybox.pod
+
+docs/BusyBox.txt: docs/busybox.pod
+	$(disp_doc)
+	$(Q)-mkdir -p docs
+	$(Q)-pod2text $< > $@
+
+docs/busybox.1: docs/busybox.pod
+	$(disp_doc)
+	$(Q)-mkdir -p docs
+	$(Q)-pod2man --center=busybox --release="version $(KERNELVERSION)" $< > $@
+
+docs/BusyBox.html: docs/busybox.net/BusyBox.html
+	$(disp_doc)
+	$(Q)-mkdir -p docs
+	$(Q)-rm -f docs/BusyBox.html
+	$(Q)-cp docs/busybox.net/BusyBox.html docs/BusyBox.html
+
+docs/busybox.net/BusyBox.html: docs/busybox.pod
+	$(Q)-mkdir -p docs/busybox.net
+	$(Q)-pod2html --noindex $< > $@
+	$(Q)-rm -f pod2htm*
+
+# documentation, cross-reference
+# Modern distributions already ship synopsis packages (e.g. debian)
+# If you have an old distribution go to http://synopsis.fresco.org/
+syn_tgt = $(wildcard $(patsubst %,%/*.c,$(busybox-alldirs)))
+syn     = $(patsubst %.c, %.syn, $(syn_tgt))
+
+comma:= ,
+brace_open:= (
+brace_close:= )
+
+SYN_CPPFLAGS := $(strip $(CPPFLAGS) $(EXTRA_CPPFLAGS))
+SYN_CPPFLAGS := $(subst $(brace_open),\$(brace_open),$(SYN_CPPFLAGS))
+SYN_CPPFLAGS := $(subst $(brace_close),\$(brace_close),$(SYN_CPPFLAGS))
+#SYN_CPPFLAGS := $(subst ",\",$(SYN_CPPFLAGS))
+#")
+#SYN_CPPFLAGS := [$(patsubst %,'%'$(comma),$(SYN_CPPFLAGS))'']
+
+%.syn: %.c
+	synopsis -p C -l Comments.SSDFilter,Comments.Previous -Wp,preprocess=True,cppflags="'$(SYN_CPPFLAGS)'" -o $@ $<
+
+.PHONY: html
+html: $(syn)
+	synopsis -f HTML -Wf,title="'BusyBox Documentation'" -o $@ $^
+
+-include $(srctree)/Makefile.local

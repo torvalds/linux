@@ -1,0 +1,12 @@
+Unquoted%:<q>
+Unquoted%:<w>
+Unquoted%:<e>
+Unquoted%:<r>
+Unquoted%:<t>
+Unquoted#:<w>
+Unquoted#:<e>
+Unquoted#:<r>
+Unquoted#:<t>
+Unquoted#:<y>
+Quoted%:<q w e r t >
+Quoted#:< w e r t y>

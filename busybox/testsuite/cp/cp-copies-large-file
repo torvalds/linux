@@ -1,0 +1,3 @@
+dd if=/dev/zero of=foo seek=10k count=1 2>/dev/null
+busybox cp foo bar
+cmp foo bar

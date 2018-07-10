@@ -1,0 +1,5 @@
+#!/bin/sh
+# TODO: use getopt to avoid parsing options as filenames,
+# and to support -- and --help
+[ $# -ne 0 ] && DASH_I=-i
+sed $DASH_I -e 's/$/\r/' "$@"

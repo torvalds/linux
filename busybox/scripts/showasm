@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Copyright 2006 Rob Landley <rob@landley.net>
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+# Dumb little utility function to print out the assembly dump of a single
+# function, or list the functions so dumpable in an executable.  You'd think
+# there would be a way to get objdump to do this, but I can't find it.
+
+[ $# -lt 1 ] || [ $# -gt 2 ] && { echo "usage: showasm file function"; exit 1; }
+
+[ ! -f $1 ] && { echo "File $1 not found"; exit 1; }
+
+if [ $# -eq 1 ]
+then
+  objdump -d $1 | sed -n -e 's/^[0-9a-fA-F]* <\(.*\)>:$/\1/p'
+  exit 0
+fi
+
+objdump -d $1 | sed -n -e '/./{H;$!d}' -e "x;/^.[0-9a-fA-F]* <$2>:/p"

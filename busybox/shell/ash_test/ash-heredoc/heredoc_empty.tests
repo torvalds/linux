@@ -1,0 +1,8 @@
+unset a
+cat <<- $a
+	OK
+$a
+cat <<- ""
+	OK
+
+echo OK

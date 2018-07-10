@@ -1,0 +1,45 @@
+echo Default:
+echo "true | true:"
+  true | true; echo $?
+! true | true; echo $?
+echo "true | false:"
+  true | false; echo $?
+! true | false; echo $?
+echo "false | true:"
+  false | true; echo $?
+! false | true; echo $?
+echo "exit 2 | exit 3 | exit 4:"
+  exit 2 | exit 3 | exit 4; echo $?
+! exit 2 | exit 3 | exit 4; echo $?
+
+echo Pipefail on:
+set -o pipefail
+echo "true | true:"
+  true | true; echo $?
+! true | true; echo $?
+echo "true | false:"
+  true | false; echo $?
+! true | false; echo $?
+echo "false | true:"
+  false | true; echo $?
+! false | true; echo $?
+echo "exit 2 | exit 3 | exit 4:"
+  exit 2 | exit 3 | exit 4; echo $?
+! exit 2 | exit 3 | exit 4; echo $?
+
+echo Pipefail off:
+set +o pipefail
+echo "true | true:"
+  true | true; echo $?
+! true | true; echo $?
+echo "true | false:"
+  true | false; echo $?
+! true | false; echo $?
+echo "false | true:"
+  false | true; echo $?
+! false | true; echo $?
+echo "exit 2 | exit 3 | exit 4:"
+  exit 2 | exit 3 | exit 4; echo $?
+! exit 2 | exit 3 | exit 4; echo $?
+
+echo Done

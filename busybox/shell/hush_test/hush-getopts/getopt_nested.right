@@ -1,0 +1,14 @@
+var:a
+var:b
+var:c
+var:a
+var:b
+var:c
+./getopt_nested.tests: invalid option -- d
+var:?
+./getopt_nested.tests: invalid option -- e
+var:?
+./getopt_nested.tests: invalid option -- f
+var:?
+var:a
+End: var:? OPTIND:6

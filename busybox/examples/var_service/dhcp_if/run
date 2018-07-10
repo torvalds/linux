@@ -1,0 +1,23 @@
+#!/bin/sh
+
+exec 2>&1
+exec </dev/null
+
+pwd="$PWD"
+
+if="${PWD##*/dhcp_}"
+
+echo "* Upping iface $if"
+ip link set dev "$if" up
+
+echo "* Starting udhcpc"
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid root \
+udhcpc -vv \
+--hostname=null \
+--foreground \
+--interface="$if" \
+--pidfile="$pwd/udhcpc.pid" \
+--script="$pwd/dhcp_handler"

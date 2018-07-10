@@ -1,0 +1,8 @@
+# FEATURE: CONFIG_FEATURE_DU_DEFAULT_BLOCKSIZE_1K
+
+d=/bin
+du -s "$d" > logfile.gnu
+busybox du -s "$d" > logfile.bb
+cmp logfile.gnu logfile.bb && exit 0
+diff -u logfile.gnu logfile.bb
+exit 1

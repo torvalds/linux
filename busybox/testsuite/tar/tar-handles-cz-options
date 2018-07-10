@@ -1,0 +1,5 @@
+# FEATURE: CONFIG_FEATURE_TAR_CREATE
+# FEATURE: CONFIG_FEATURE_SEAMLESS_GZ
+touch foo
+busybox tar czf foo.tar.gz foo
+gzip -d foo.tar.gz

@@ -1,0 +1,13 @@
+# When different date's use time() and clock_gettime(),
+# seconds transition may not happen at _exactly_ the same moment.
+# Therefore we try it several times.
+
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+test x"`date -R`" = x"`busybox date -R`" && exit 0 || true
+false

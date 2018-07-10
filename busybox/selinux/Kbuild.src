@@ -1,0 +1,10 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2005 by Erik Andersen <andersen@codepoet.org>
+# Copyright (C) 2007 by KaiGai Kohei <kaigai@kaigai.gr.jp>
+#
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+lib-y:=
+
+INSERT

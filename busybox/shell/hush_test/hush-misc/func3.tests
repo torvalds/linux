@@ -1,0 +1,8 @@
+f() { false; return; echo BAD; };
+{ f; echo One:$?; }; echo Zero:$?
+
+f() { false; return; };
+f; echo One:$?
+
+f() { return 5; };
+f; echo Five:$?

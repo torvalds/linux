@@ -1,0 +1,49 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+
+optional DESKTOP
+testing "od -b" \
+	"od -b" \
+"\
+0000000 110 105 114 114 117
+0000005
+" \
+	"" "HELLO"
+SKIP=
+
+optional DESKTOP
+testing "od -f" \
+	"od -f" \
+"\
+0000000   0.0000000e+00   0.0000000e+00
+0000010
+" \
+	"" "\x00\x00\x00\x00\x00\x00\x00\x00"
+SKIP=
+
+optional DESKTOP LONG_OPTS
+testing "od -b --traditional" \
+	"od -b --traditional" \
+"\
+0000000 110 105 114 114 117
+0000005
+" \
+	"" "HELLO"
+SKIP=
+
+optional DESKTOP LONG_OPTS
+testing "od -b --traditional FILE" \
+	"od -b --traditional input" \
+"\
+0000000 110 105 114 114 117
+0000005
+" \
+	"HELLO" ""
+SKIP=
+
+exit $FAILCOUNT

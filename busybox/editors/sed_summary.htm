@@ -1,0 +1,223 @@
+<html>
+
+<head><title>Command Summary for sed (sed & awk, Second Edition)</title>
+</head>
+
+<body>
+
+<h2>Command Summary for sed</h2>
+
+<dl>
+
+<dt><b>: </b> <b> :</b><em>label</em></dt>
+<dd>Label a line in the script for the transfer of control by
+<b>b</b> or <b>t</b>.
+<em>label</em> may contain up to seven characters.
+(The POSIX standard says that an implementation can allow longer
+labels if it wishes to. GNU sed allows labels to be of any length.)
+</p></dd>
+
+
+<dt><b>=</b> [<em>address</em>]<b>=</b></dt>
+<dd>Write to standard output the line number of addressed line.</p></dd>
+
+
+<dt><b>a</b> [<em>address</em>]<b>a\</b></dt>
+<dd><em>text</em></p>
+
+<p>Append <em>text</em>
+following each line matched by <em>address</em>.  If
+<em>text</em> goes over more than one line, newlines
+must be "hidden" by preceding them with a backslash.  The
+<em>text</em> will be terminated by the first
+newline that is not hidden in this way.  The
+<em>text</em> is not available in the pattern space
+and subsequent commands cannot be applied to it.  The results of this
+command are sent to standard output when the list of editing commands
+is finished, regardless of what happens to the current line in the
+pattern space.</p></dd>
+
+
+<dt><b>b</b> [<em>address1</em>[,<em>address2</em>]]<b>b</b>[<em>label</em>]</dt>
+<dd>Transfer control unconditionally (branch) to
+<b>:</b><em>label</em> elsewhere in
+script.  That is, the command following the
+<em>label</em> is the next command applied to the
+current line.  If no <em>label</em> is specified,
+control falls through to the end of the script, so no more commands
+are applied to the current line.</p></dd>
+
+
+<dt><b>c</b> [<em>address1</em>[,<em>address2</em>]]<b>c\</b></dt>
+<dd><em>text</em></p>
+
+<p>Replace (change) the lines selected by the address with
+<em>text</em>.  When a range of lines is specified,
+all lines as a group are replaced by a single copy of
+<em>text</em>.  The newline following each line of
+<em>text</em> must be escaped by a backslash, except
+the last line.  The contents of the pattern space are, in effect,
+deleted and no subsequent editing commands can be applied to it (or to
+<em>text</em>).</p></dd>
+
+
+<dt><b>d</b> [<em>address1</em>[,<em>address2</em>]]<b>d</b></dt>
+<dd>Delete line(s) from pattern space.  Thus, the line is not passed to standard
+output. A new line of input is read and editing resumes with first
+command in script.</p></dd>
+
+
+<dt><b>D</b> [<em>address1</em>[,<em>address2</em>]]<b>D</b></dt>
+<dd>Delete first part (up to embedded newline) of multiline pattern space created
+by <b>N</b> command and resume editing with first command in
+script.  If this command empties the pattern space, then a new line
+of input is read, as if the <b>d</b> command had been executed.</p></dd>
+
+
+<dt><b>g</b> [<em>address1</em>[,<em>address2</em>]]<b>g</b></dt>
+<dd>Copy (get) contents of hold space (see <b>h</b> or
+<b>H</b> command) into the pattern space, wiping out
+previous contents.</p></dd>
+
+
+<dt><b>G</b> [<em>address1</em>[,<em>address2</em>]]<b>G</b></dt>
+<dd>Append newline followed by contents of hold space (see
+<b>h</b> or <b>H</b> command) to contents of
+the pattern space.  If hold space is empty, a newline is still
+appended to the pattern space.</p></dd>
+
+
+<dt><b>h</b> [<em>address1</em>[,<em>address2</em>]]<b>h</b></dt>
+<dd>Copy pattern space into hold space, a special temporary buffer.
+Previous contents of hold space are wiped out.</p></dd>
+
+
+<dt><b>H</b> [<em>address1</em>[,<em>address2</em>]]<b>H</b></dt>
+<dd>Append newline and contents of pattern space to contents of the hold
+space.  Even if hold space is empty, this command still appends the
+newline first.</p></dd>
+
+
+<dt><b>i</b> [<em>address1</em>]<b>i\</b></dt>
+<dd><em>text</em></p>
+
+<p>Insert <em>text</em> before each line matched by
+<em>address</em>. (See <b>a</b> for
+details on <em>text</em>.)</p></dd>
+
+
+<dt><b>l</b> [<em>address1</em>[,<em>address2</em>]]<b>l</b></dt>
+<dd>List the contents of the pattern space, showing nonprinting characters
+as ASCII codes.  Long lines are wrapped.</p></dd>
+
+
+<dt><b>n</b> [<em>address1</em>[,<em>address2</em>]]<b>n</b></dt>
+<dd>Read next line of input into pattern space.  Current line is sent to
+standard output.  New line becomes current line and increments line
+counter.  Control passes to command following <b>n</b>
+instead of resuming at the top of the script.</p></dd>
+
+
+<dt><b>N</b> [<em>address1</em>[,<em>address2</em>]]<b>N</b></dt>
+<dd>Append next input line to contents of pattern space; the new line is
+separated from the previous contents of the pattern space by a newline.
+(This command is designed to allow pattern matches across two
+lines.  Using \n to match the embedded newline, you can match
+patterns across multiple lines.)</p></dd>
+
+
+<dt><b>p</b> [<em>address1</em>[,<em>address2</em>]]<b>p</b></dt>
+<dd>Print the addressed line(s).  Note that this can result in duplicate
+output unless default output is suppressed by using "#n" or
+the <span class="option">-n</span>
+
+command-line option.  Typically used before commands that change flow
+control (<b>d</b>, <b>n</b>,
+<b>b</b>) and might prevent the current line from being
+output.</p></dd>
+
+
+<dt><b>P</b> [<em>address1</em>[,<em>address2</em>]]<b>P</b></dt>
+<dd>Print first part (up to embedded newline) of multiline pattern space
+created by <b>N</b> command.  Same as <b>p</b>
+if <b>N</b> has not been applied to a line.</p></dd>
+
+
+<dt><b>q</b> [<em>address</em>]<b>q</b></dt>
+<dd>Quit when <em>address</em> is encountered.  The
+addressed line is first written to output (if default output is not
+suppressed), along with any text appended to it by previous
+<b>a</b> or <b>r</b> commands.</p></dd>
+
+
+<dt><b>r</b> [<em>address</em>]<b>r</b> <em>file</em></dt>
+<dd>Read contents of <em>file</em> and append after the
+contents of the pattern space.  Exactly one space must be put between
+<b>r</b> and the filename.</p></dd>
+
+
+<dt><b>s</b> [<em>address1</em>[,<em>address2</em>]]<b>s</b>/<em>pattern</em>/<em>replacement</em>/[<em>flags</em>]</dt>
+<dd>Substitute <em>replacement</em> for
+<em>pattern</em> on each addressed line.  If pattern
+addresses are used, the pattern <b>//</b> represents the
+last pattern address specified.  The following flags can be specified:</p>
+
+	<dl>
+
+	<dt><b>n</b></dt>
+	<dd>Replace <em>n</em>th instance of
+	/<em>pattern</em>/ on each addressed line.
+	<em>n</em> is any number in the range 1 to 512, and
+	the default is 1.</p></dd>
+
+	<dt><b>g</b></dt>
+	<dd>Replace all instances of /<em>pattern</em>/ on each
+	addressed line, not just the first instance.</p></dd>
+
+	<dt><b>I</b></dt>
+	<dd>Matching is case-insensitive.<p></p></dd>
+
+	<dt><b>p</b></dt>
+	<dd>Print the line if a successful substitution is done.  If several
+	successful substitutions are done, multiple copies of the line will be
+	printed.</p></dd>
+
+	<dt><b>w</b> <em>file</em></dt>
+	<dd>Write the line to <em>file</em> if a replacement
+	was done.  A maximum of 10 different <em>files</em> can be opened.</p></dd>
+
+	</dl>
+
+</dd>
+
+
+<dt><b>t</b> [<em>address1</em>[,<em>address2</em>]]<b>t </b>[<em>label</em>]</dt>
+<dd>Test if successful substitutions have been made on addressed lines,
+and if so, branch to line marked by :<em>label</em>.
+(See <b>b</b> and <b>:</b>.)  If label is not
+specified, control falls through to bottom of script.</p></dd>
+
+
+<dt><b>w</b> [<em>address1</em>[,<em>address2</em>]]<b>w</b> <em>file</em></dt>
+<dd>Append contents of pattern space to <em>file</em>.
+This action occurs when the command is encountered rather than when
+the pattern space is output.  Exactly one space must separate the
+<b>w</b> and the filename.  A maximum of 10 different
+files can be opened in a script.  This command will create the file if
+it does not exist; if the file exists, its contents will be
+overwritten each time the script is executed.  Multiple write commands
+that direct output to the same file append to the end of the file.</p></dd>
+
+
+<dt><b>x</b> [<em>address1</em>[,<em>address2</em>]]<b>x</b></dt>
+<dd>Exchange contents of the pattern space with the contents of the hold
+space.</p></dd>
+
+
+<dt><b>y</b> [<em>address1</em>[,<em>address2</em>]]<b>y</b>/<em>abc</em>/<em>xyz</em>/</dt>
+<dd>Transform each character by position in string
+<em>abc</em> to its equivalent in string
+<em>xyz</em>.</p></dd>
+
+
+</dl>

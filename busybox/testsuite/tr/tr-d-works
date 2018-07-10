@@ -1,0 +1,4 @@
+echo testing | tr -d aeiou > logfile.gnu
+echo testing | busybox tr -d aeiou > logfile.bb
+
+diff -u logfile.gnu logfile.bb

@@ -1,0 +1,12 @@
+0
+0
+1
+Make sure len parsing doesnt break arg count
+0 0
+4 4
+Testing len op
+4 3 2 1 0 0
+0 3 0
+Nothing:
+Nothing:
+One:1

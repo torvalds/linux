@@ -1,0 +1,304 @@
+strace of "sleep 1 | sleep 2" being run from interactive bash 3.0
+
+
+Synopsis:
+open /dev/tty [, if fails, open ttyname(0)]; close /* helps re-establish ctty */
+get current signal mask
+TCGETS on fd# 0
+TCGETS on fd# 2 /* NB: if returns ENOTTY (2>/dev/null), sh seems to disable job control,
+                   does not show prompt, but still executes cmds from fd# 0 */
+install default handlers for CHLD QUIT TERM
+install common handler for HUP INT ILL TRAP ABRT FPE BUS SEGV SYS PIPE ALRM TERM XCPU XFSZ VTALRM USR1 USR2
+ignore QUIT
+install handler for INT
+ignore TERM
+install handler for INT
+ignore TSTP TTOU TTIN
+install handler for WINCH
+get pid, ppid
+block all signals
+unblock all signals
+get our pprocess group
+    minidoc:
+    Each process group is a member of a session and each process is a member
+    of the session of which its process group is a member.
+    Process groups are used for distribution of signals, and by terminals
+    to arbitrate requests for their input: processes that have the same
+    process group as the terminal are foreground and may read, while others
+    will block with a signal if they attempt to read.  These calls are thus used
+    by programs (shells) to create process groups in implementing job control.
+    The TIOCGPGRP and TIOCSPGRP calls described in termios(3) are used to get/set
+    the process group of the control terminal.
+    If a session has a controlling terminal, CLOCAL is not set and a hangup occurs,
+    then the session leader is sent a SIGHUP.  If the session leader exits,
+    the SIGHUP signal will be sent to each process in the foreground process
+    group of the controlling terminal.
+    If the exit of the process causes a process group to become orphaned,
+    and if any member of the newly-orphaned process group is stopped, then a SIGHUP
+    signal followed by a SIGCONT signal will be sent to each process
+    in the newly-orphaned process group.
+...
+dup stderr to fd# 255
+move ourself to our own process group
+block CHLD TSTP TTIN TTOU
+set tty's (255, stderr's) foreground process group to our group
+allow all signals
+mark 255 CLOEXEC
+set CHLD handler
+get signal mask
+get fd#0 flags
+get signal mask
+set INT handler
+block CHLD TSTP TTIN TTOU
+set fd #255 foreground process group to our group
+allow all signals
+set INT handler
+block all signals
+allow all signals
+block INT
+allow all signals
+lotsa sigactions: set INT,ALRM,WINCH handlers, ignore TERM,QUIT,TSTP,TTOU,TTIN
+block all signals
+allow all signals
+block all signals
+allow all signals
+block all signals
+allow all signals
+read "sleep 1 | sleep 2\n"
+block INT
+TCSETSW on fd# 0
+allow all signals
+lotsa sigactions: set INT,ALRM,WINCH handlers, ignore TERM,QUIT,TSTP,TTOU,TTIN
+block CHLD
+pipe([4, 5])  /* oops seems I lost another pipe() in editing... */
+fork child #1
+put child in it's own process group
+block only CHLD
+close(5)
+block only INT CHLD
+fork child #2
+put child in the same process group as first one
+block only CHLD
+close(4)
+block only CHLD
+block only CHLD TSTP TTIN TTOU
+set fd# 255 foreground process group to first child's one
+block only CHLD
+block only CHLD
+block only CHLD
+/* note: because shell is not in foreground now, e.g. Ctrl-C will send INT to children only! */
+wait4 for children to die or stop - first child exits
+wait4 for children to die or stop - second child exits
+block CHLD TSTP TTIN TTOU
+set fd# 255 foreground process group to our own one
+block only CHLD
+block only CHLD
+block nothing
+--- SIGCHLD (Child exited) @ 0 (0) ---
+    wait for it - no child (already waited for)
+    sigreturn()
+read signal mask
+lotsa sigactions...
+read next command
+
+
+execve("/bin/sh", ["sh"], [/* 34 vars */]) = 0
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+ioctl(0, SNDCTL_TMR_TIMEBASE or TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(2, SNDCTL_TMR_TIMEBASE or TCGETS, {B38400 opost isig icanon echo ...}) = 0
+rt_sigaction(SIGCHLD, {SIG_DFL}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_DFL}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_DFL}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGHUP, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGINT, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGILL, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGTRAP, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGABRT, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGFPE, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGBUS, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGSEGV, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGSYS, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGPIPE, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGALRM, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGTERM, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGXCPU, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGXFSZ, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGVTALRM, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGUSR1, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGUSR2, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+rt_sigaction(SIGQUIT, {SIG_IGN}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_IGN}, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_IGN}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_IGN}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGTTIN, {SIG_IGN}, {SIG_DFL}, 8) = 0
+rt_sigaction(SIGWINCH, {0x807dc33, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+getpid()                = 19473
+getppid()               = 19472
+rt_sigprocmask(SIG_BLOCK, ~[], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+getpgrp()               = 1865
+dup(2)                  = 4
+fcntl64(255, F_GETFD)   = -1 EBADF (Bad file descriptor)
+dup2(4, 255)            = 255
+close(4)                = 0
+ioctl(255, TIOCGPGRP, [1865]) = 0
+getpid()                = 19473
+setpgid(0, 19473)       = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [], 8) = 0
+ioctl(255, TIOCSPGRP, [19473]) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+fcntl64(255, F_SETFD, FD_CLOEXEC) = 0
+rt_sigaction(SIGCHLD, {0x807c922, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_DFL}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+fcntl64(0, F_GETFL)     = 0x2 (flags O_RDWR)
+...
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [], 8) = 0
+ioctl(255, TIOCSPGRP, [19473]) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, ~[], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [INT], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTERM, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGQUIT, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGALRM, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTSTP, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTTOU, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTTIN, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTIN, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGWINCH, {0x80ca5cd, [], SA_RESTORER|SA_RESTART, 0x6ff7a4f8}, {0x807dc33, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, ~[], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigprocmask(SIG_BLOCK, ~[], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigprocmask(SIG_BLOCK, ~[], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+write(2, "sh-3.00# ", 9) = 9
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+read(0, "s", 1)         = 1
+write(2, "s", 1)        = 1
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+read(0, "l", 1)         = 1
+write(2, "l", 1)        = 1
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+... rest of "sleep 1 | sleep 2" entered...
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+read(0, "2", 1)         = 1
+write(2, "2", 1)        = 1
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+read(0, "\r", 1)        = 1
+write(2, "\n", 1)       = 1
+rt_sigprocmask(SIG_BLOCK, [INT], [], 8) = 0
+ioctl(0, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost isig icanon echo ...}) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_IGN}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_IGN}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGALRM, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_IGN}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_IGN}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTIN, {SIG_IGN}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGWINCH, {0x807dc33, [], SA_RESTORER, 0x6ff7a4f8}, {0x80ca5cd, [], SA_RESTORER|SA_RESTART, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD], [], 8) = 0
+pipe([4, 5])            = 0
+rt_sigprocmask(SIG_BLOCK, [INT CHLD], [CHLD], 8) = 0
+fork()                  = 19755
+setpgid(19755, 19755)                = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+close(5)                = 0
+rt_sigprocmask(SIG_BLOCK, [INT CHLD], [CHLD], 8) = 0
+fork()                  = 19756
+setpgid(19756, 19755)   = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+close(4)                = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD], [CHLD], 8) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [CHLD], 8) = 0
+ioctl(255, TIOCSPGRP, [19755]) = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD], [CHLD], 8) = 0
+wait4(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], WUNTRACED, NULL) = 19755
+wait4(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], WUNTRACED, NULL) = 19756
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [CHLD], 8) = 0
+ioctl(255, TIOCSPGRP, [19473]) = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+rt_sigprocmask(SIG_SETMASK, [CHLD], NULL, 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+--- SIGCHLD (Child exited) @ 0 (0) ---
+wait4(-1, 0x77fc9c54, WNOHANG|WUNTRACED, NULL) = -1 ECHILD (No child processes)
+sigreturn()             = ? (mask now [])
+rt_sigprocmask(SIG_BLOCK, NULL, [], 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [], 8) = 0
+ioctl(255, TIOCSPGRP, [19473]) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigprocmask(SIG_BLOCK, [INT], [], 8) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGINT, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTERM, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGQUIT, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGALRM, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {0x808f752, [HUP INT ILL TRAP ABRT BUS FPE USR1 SEGV USR2 PIPE ALRM TERM XCPU XFSZ VTALRM SYS], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTSTP, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTTOU, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGTTIN, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTIN, {SIG_IGN}, {0x80ca530, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGWINCH, {0x80ca5cd, [], SA_RESTORER|SA_RESTART, 0x6ff7a4f8}, {0x807dc33, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+write(2, "sh-3.00# ", 9) = 9
+
+
+getpid() = 19755
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_DFL}, {SIG_IGN}, 8)    = 0
+rt_sigaction(SIGTTIN, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_DFL}, {SIG_IGN}, 8) = 0
+setpgid(19755, 19755) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [], 8) = 0
+ioctl(255, TIOCSPGRP, [19755]) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+close(4)   = 0
+dup2(5, 1) = 1
+close(5)              = 0
+rt_sigaction(SIGINT, {SIG_DFL}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGCHLD, {SIG_DFL}, {0x807c922, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+execve("/bin/sleep", ["sleep", "1"], [/* 34 vars */]) = 0
+...
+_exit(0)                = ?
+
+
+getpid() = 19756
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+rt_sigaction(SIGTSTP, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTIN, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTTOU, {SIG_DFL}, {SIG_IGN}, 8) = 0
+setpgid(19756, 19755) = 0
+rt_sigprocmask(SIG_BLOCK, [CHLD TSTP TTIN TTOU], [], 8) = 0
+ioctl(255, TIOCSPGRP, [19755]) = 0
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+dup2(4, 0) = 0
+close(4) = 0
+rt_sigaction(SIGINT, {SIG_DFL}, {0x808f7d7, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+rt_sigaction(SIGQUIT, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGTERM, {SIG_DFL}, {SIG_IGN}, 8) = 0
+rt_sigaction(SIGCHLD, {SIG_DFL}, {0x807c922, [], SA_RESTORER, 0x6ff7a4f8}, 8) = 0
+execve("/bin/sleep", ["sleep", "2"], [/* 34 vars */]) = 0
+...
+_exit(0)                = ?

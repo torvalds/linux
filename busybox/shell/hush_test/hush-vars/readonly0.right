@@ -1,0 +1,20 @@
+readonly a=A
+readonly b=B
+Ok:0
+
+hush: a=A: readonly variable
+Fail:1
+hush: a=A: readonly variable
+Fail:1
+
+hush: a=Z: readonly variable
+Fail:1
+
+hush: a=Z: readonly variable
+b=B
+^^^a is not exported
+hush: a=Z: readonly variable
+Visible:42
+
+hush: a: readonly variable
+Fail:1

@@ -1,0 +1,28 @@
+# Unicode: cf 80
+case π in
+( "π" ) echo ok ;;
+( * )   echo WRONG ;;
+esac
+# Unicode: cf 81
+case ρ in
+( "ρ" ) echo ok ;;
+( * )   echo WRONG ;;
+esac
+# Unicode: cf 82
+case ς in
+( "ς" ) echo ok ;;
+( * )   echo WRONG ;;
+esac
+
+case "π" in
+( π ) echo ok ;;
+( * ) echo WRONG ;;
+esac
+case "ρ" in
+( ρ ) echo ok ;;
+( * ) echo WRONG ;;
+esac
+case "ς" in
+( ς ) echo ok ;;
+( * ) echo WRONG ;;
+esac

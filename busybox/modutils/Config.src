@@ -1,0 +1,186 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Linux Module Utilities"
+
+config MODPROBE_SMALL
+	bool "Simplified modutils"
+	default y
+	help
+	Build smaller (~1.5 kbytes), simplified module tools.
+
+	This option by itself does not enable any applets -
+	you need to select applets individually below.
+
+	With this option modprobe does not require modules.dep file
+	and does not use /etc/modules.conf file.
+	It scans module files in /lib/modules/`uname -r` and
+	determines dependencies and module alias names on the fly.
+	This may make module loading slower, most notably
+	when one needs to load module by alias (this requires
+	scanning through module _bodies_).
+
+	At the first attempt to load a module by alias modprobe
+	will try to generate modules.dep.bb file in order to speed up
+	future loads by alias. Failure to do so (read-only /lib/modules,
+	etc) is not reported, and future modprobes will be slow too.
+
+	NB: modules.dep.bb file format is not compatible
+	with modules.dep file as created/used by standard module tools.
+
+	Additional module parameters can be stored in
+	/etc/modules/$module_name files.
+
+INSERT
+
+comment "Options common to multiple modutils"
+
+config FEATURE_CMDLINE_MODULE_OPTIONS
+	bool "Accept module options on modprobe command line"
+	default y
+	depends on INSMOD || MODPROBE
+	help
+	Allow insmod and modprobe take module options from the applets'
+	command line.
+
+config FEATURE_MODPROBE_SMALL_CHECK_ALREADY_LOADED
+	bool "Skip loading of already loaded modules"
+	default y
+	depends on MODPROBE_SMALL && (DEPMOD || INSMOD || MODPROBE)
+	help
+	Check if the module is already loaded.
+
+config FEATURE_2_4_MODULES
+	bool "Support version 2.2/2.4 Linux kernels"
+	default n
+	depends on (INSMOD || LSMOD || MODPROBE || RMMOD) && !MODPROBE_SMALL
+	help
+	Support module loading for 2.2.x and 2.4.x Linux kernels.
+	This increases size considerably. Say N unless you plan
+	to run ancient kernels.
+
+config FEATURE_INSMOD_VERSION_CHECKING
+	bool "Enable module version checking"
+	default n
+	depends on FEATURE_2_4_MODULES && (INSMOD || MODPROBE)
+	help
+	Support checking of versions for modules. This is used to
+	ensure that the kernel and module are made for each other.
+
+config FEATURE_INSMOD_KSYMOOPS_SYMBOLS
+	bool "Add module symbols to kernel symbol table"
+	default n
+	depends on FEATURE_2_4_MODULES && (INSMOD || MODPROBE)
+	help
+	By adding module symbols to the kernel symbol table, Oops messages
+	occurring within kernel modules can be properly debugged. By enabling
+	this feature, module symbols will always be added to the kernel symbol
+	table for proper debugging support. If you are not interested in
+	Oops messages from kernel modules, say N.
+
+config FEATURE_INSMOD_LOADINKMEM
+	bool "In kernel memory optimization (uClinux only)"
+	default n
+	depends on FEATURE_2_4_MODULES && (INSMOD || MODPROBE)
+	help
+	This is a special uClinux only memory optimization that lets insmod
+	load the specified kernel module directly into kernel space, reducing
+	memory usage by preventing the need for two copies of the module
+	being loaded into memory.
+
+config FEATURE_INSMOD_LOAD_MAP
+	bool "Enable insmod load map (-m) option"
+	default n
+	depends on FEATURE_2_4_MODULES && INSMOD
+	help
+	Enabling this, one would be able to get a load map
+	output on stdout. This makes kernel module debugging
+	easier.
+	If you don't plan to debug kernel modules, you
+	don't need this option.
+
+config FEATURE_INSMOD_LOAD_MAP_FULL
+	bool "Symbols in load map"
+	default y
+	depends on FEATURE_INSMOD_LOAD_MAP
+	help
+	Without this option, -m will only output section
+	load map. With this option, -m will also output
+	symbols load map.
+
+config FEATURE_CHECK_TAINTED_MODULE
+	bool "Support tainted module checking with new kernels"
+	default y
+	depends on (LSMOD || FEATURE_2_4_MODULES) && !MODPROBE_SMALL
+	help
+	Support checking for tainted modules. These are usually binary
+	only modules that will make the linux-kernel list ignore your
+	support request.
+	This option is required to support GPLONLY modules.
+
+config FEATURE_INSMOD_TRY_MMAP
+	bool "Try to load module from a mmap'ed area"
+	default n
+	depends on (INSMOD || MODPROBE) && !MODPROBE_SMALL
+	help
+	This option causes module loading code to try to mmap
+	module first. If it does not work (for example,
+	it does not work for compressed modules), module will be read
+	(and unpacked if needed) into a memory block allocated by malloc.
+
+	The only case when mmap works but malloc does not is when
+	you are trying to load a big module on a very memory-constrained
+	machine. Malloc will momentarily need 2x as much memory as mmap.
+
+	Choosing N saves about 250 bytes of code (on 32-bit x86).
+
+config FEATURE_MODUTILS_ALIAS
+	bool "Support module.aliases file"
+	default y
+	depends on (DEPMOD || MODPROBE) && !MODPROBE_SMALL
+	help
+	Generate and parse modules.alias containing aliases for bus
+	identifiers:
+		alias pcmcia:m*c*f03fn*pfn*pa*pb*pc*pd* parport_cs
+
+	and aliases for logical modules names e.g.:
+		alias padlock_aes aes
+		alias aes_i586 aes
+		alias aes_generic aes
+
+	Say Y if unsure.
+
+config FEATURE_MODUTILS_SYMBOLS
+	bool "Support module.symbols file"
+	default y
+	depends on (DEPMOD || MODPROBE) && !MODPROBE_SMALL
+	help
+	Generate and parse modules.symbols containing aliases for
+	symbol_request() kernel calls, such as:
+		alias symbol:usb_sg_init usbcore
+
+	Say Y if unsure.
+
+config DEFAULT_MODULES_DIR
+	string "Default directory containing modules"
+	default "/lib/modules"
+	depends on DEPMOD || MODPROBE || MODINFO
+	help
+	Directory that contains kernel modules.
+	Defaults to "/lib/modules"
+
+config DEFAULT_DEPMOD_FILE
+	string "Default name of modules.dep"
+	default "modules.dep"
+	depends on DEPMOD || MODPROBE || MODINFO
+	help
+	Filename that contains kernel modules dependencies.
+	Defaults to "modules.dep".
+	If you configured the "simplified modutils" (MODPROBE_SMALL), a
+	".bb" suffix will be added after this name. Do not specify ".bb"
+	here unless you intend your depmod or modprobe to work on
+	"modules.dep.bb.bb" or such.
+
+endmenu

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Sample udhcpc deconfig script
+
+/sbin/ifconfig $interface 0.0.0.0

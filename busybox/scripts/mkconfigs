@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# Copyright (C) 2002 Khalid Aziz <khalid_aziz at hp.com>
+# Copyright (C) 2002 Randy Dunlap <rddunlap at osdl.org>
+# Copyright (C) 2002 Al Stone <ahs3 at fc.hp.com>
+# Copyright (C) 2002 Hewlett-Packard Company
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+#   Busybox version by Matteo Croce <3297627799 at wind.it>
+#
+# Rules to generate bbconfigopts.h from .config:
+#      - Retain lines that begin with "CONFIG_"
+#      - Retain lines that begin with "# CONFIG_"
+#      - lines that use double-quotes must \\-escape-quote them
+
+config=.config
+
+{
+echo "\
+#ifndef _BBCONFIGOPTS_H
+#define _BBCONFIGOPTS_H
+/*
+ * busybox configuration settings.
+ *
+ * Licensed under GPLv2 or later, see file LICENSE in this source tree.
+ *
+ * This file is generated automatically by scripts/mkconfigs.
+ * Do not edit.
+ */
+static const char bbconfig_config[] ALIGN1 ="
+
+grep -e '^# CONFIG_' -e '^CONFIG_' "$config" \
+| sed -e 's/\"/\\\"/g' -e 's/^/"/' -e 's/$/\\n"/'
+
+echo ";"
+echo "#endif"
+} >"$1"
+
+{
+echo "\
+#ifndef _BBCONFIGOPTS_BZ2_H
+#define _BBCONFIGOPTS_BZ2_H
+/*
+ * busybox configuration settings.
+ *
+ * Licensed under GPLv2 or later, see file LICENSE in this source tree.
+ *
+ * This file is generated automatically by scripts/mkconfigs.
+ * Do not edit.
+ */
+static const char bbconfig_config_bz2[] ALIGN1 = {"
+
+grep -e '^# CONFIG_' -e '^CONFIG_' "$config" \
+| bzip2 -1 | dd bs=2 skip=1 2>/dev/null \
+| od -v -b \
+| sed -e 's/^[^ ]*//' \
+        -e 's/ //g' \
+        -e '/^$/d' \
+        -e 's/\(...\)/0\1,/g'
+
+echo "};"
+echo "#endif"
+} >"$2"

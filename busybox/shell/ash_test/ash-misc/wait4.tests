@@ -1,0 +1,2 @@
+sleep 1 | (sleep 1;exit 3) & wait %1
+echo Three:$?

@@ -1,0 +1,20 @@
+# avoid ugly warnings about signals not being caught
+trap ":" USR1 USR2
+
+"$THIS_SH" -c '
+trap "echo caught" USR2
+echo "sending USR2"
+kill -USR2 $$
+
+trap "" USR2
+echo "sending USR2"
+kill -USR2 $$
+
+trap "-" USR2
+echo "sending USR2"
+kill -USR2 $$
+
+echo "not reached"
+'
+
+trap "-" USR1 USR2

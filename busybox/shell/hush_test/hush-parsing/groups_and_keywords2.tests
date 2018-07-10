@@ -1,0 +1,9 @@
+# This is an error
+(eval 'if() { echo; }')
+echo Fail:$?
+# ^^^^^^ bash prints 1, but interactively it sets $? = 2
+# we print 2
+
+# This is an error, and it aborts in script
+if() { echo; }
+echo Not reached

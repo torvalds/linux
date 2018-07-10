@@ -1,0 +1,3 @@
+echo Test ` ` 1
+echo Test `</dev/null` 2
+echo Done

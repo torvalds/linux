@@ -1,0 +1,122 @@
+#!/bin/sh
+
+# unit test for uuencode to test functionality.
+# Copyright 2006 by Erik Hovland <erik@hovland.org>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+# AUDIT: Unit tests for uuencode
+
+. ./testing.sh
+
+# testing "test name" "command(s)" "expected result" "file input" "stdin"
+# file input will be file called "input"
+# test can create a file "actual" instead of writing to stdout
+
+# Test setup of standard input
+umask 0
+testing "uuencode sets standard input mode correctly" \
+        "uuencode foo </dev/null | head -n 1 | grep -q 666 && echo yes" "yes\n" "" ""
+umask 022
+
+testing "uuencode correct encoding" "uuencode bb_uuenc_test.out" \
+"begin 644 bb_uuenc_test.out\nM5&AE(&9A<W0@9W)E>2!F;W@@:G5M<&5D(&]V97(@=&AE(&QA>GD@8G)O=VX@\n%9&]G+@H\`\n\`\nend\n" \
+        "" "The fast grey fox jumped over the lazy brown dog.\n"
+testing "uuencode correct base64 encoding" "uuencode -m bb_uuenc_test.out" \
+"begin-base64 644 bb_uuenc_test.out\nVGhlIGZhc3QgZ3JleSBmb3gganVtcGVkIG92ZXIgdGhlIGxhenkgYnJvd24g\nZG9nLgo=\n====\n" \
+        "" "The fast grey fox jumped over the lazy brown dog.\n"
+
+testing "uuencode empty file" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+`
+end
+' "" ""
+testing "uuencode -m empty file" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+====
+' "" ""
+
+testing "uuencode file 'A'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+!00``
+`
+end
+A' "" "A"
+testing "uuencode -m file 'A'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QQ==
+====
+A' "" "A"
+
+testing "uuencode file 'AB'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+"04(`
+`
+end
+AB' "" "AB"
+testing "uuencode -m file 'AB'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QUI=
+====
+AB' "" "AB"
+
+testing "uuencode file 'ABC'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+#04)#
+`
+end
+ABC' "" "ABC"
+testing "uuencode -m file 'ABC'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QUJD
+====
+ABC' "" "ABC"
+
+testing "uuencode file 'ABCD'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+$04)#1```
+`
+end
+ABCD' "" "ABCD"
+testing "uuencode -m file 'ABCD'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QUJDRA==
+====
+ABCD' "" "ABCD"
+
+testing "uuencode file 'ABCDE'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+%04)#1$4`
+`
+end
+ABCDE' "" "ABCDE"
+testing "uuencode -m file 'ABCDE'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QUJDREU=
+====
+ABCDE' "" "ABCDE"
+
+testing "uuencode file 'ABCDEF'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+&04)#1$5&
+`
+end
+ABCDEF' "" "ABCDEF"
+testing "uuencode -m file 'ABCDEF'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QUJDREVG
+====
+ABCDEF' "" "ABCDEF"
+
+testing "uuencode file 'A<NUL><0xff>Z'" 'r=`uuencode FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin 644 FILE
+$00#_6@``
+`
+end
+A\x0\xffZ' "" "A\x0\xffZ"
+testing "uuencode -m file 'A<NUL><0xff>Z'" 'r=`uuencode -m FILE`; echo "$r"; echo "$r" | uudecode -o -;' \
+'begin-base64 644 FILE
+QQD/Wg==
+====
+A\x0\xffZ' "" "A\x0\xffZ"
+
+exit $FAILCOUNT

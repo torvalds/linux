@@ -1,0 +1,3 @@
+#!/bin/sh
+
+. ./md5sum.tests sha3sum 11659f09370139f8ef384f4a6260947fafa6e4fcd87a1ef3f35410e9

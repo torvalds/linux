@@ -1,0 +1,5 @@
+# FEATURE: CONFIG_FEATURE_MD5_SHA1_SUM_CHECK
+
+touch foo
+md5sum foo > bar
+busybox md5sum -c bar

@@ -1,0 +1,41 @@
+# Was seen leaking on NOMMU build
+
+echo "Warm up"
+i=1; t=1; export t
+while test $i != 400; do
+    t=valueA_$i true
+    : $((i++))
+done
+
+memleak
+echo "Measuring memory leak..."
+
+# Please copy the entire block from above verbatim
+i=1; t=1; export t
+while test $i != 400; do
+    t=valueA_$i true
+    : $((i++))
+done
+i=1; t=1; export t
+while test $i != 400; do
+    t=valueA_$i true
+    : $((i++))
+done
+i=1; t=1; export t
+while test $i != 400; do
+    t=valueA_$i true
+    : $((i++))
+done
+i=1; t=1; export t
+while test $i != 400; do
+    t=valueA_$i true
+    : $((i++))
+done
+
+memleak
+kb=$?
+if test $kb -le 4; then
+    echo Ok #$kb
+else
+    echo "Bad: $kb kb (or more) leaked"
+fi

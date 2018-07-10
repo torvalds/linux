@@ -1,0 +1,18 @@
+#!/bin/sh
+
+$THIS_SH -c '
+cleanup() {
+    echo "child exits as expected"
+    exit
+}
+trap cleanup HUP
+echo "child sleeps"
+sleep 1
+echo "BAD exit from child!"
+' &
+
+child=$!
+sleep 0.1 # let child install handler first
+kill -HUP $child
+wait
+echo "parent exits"

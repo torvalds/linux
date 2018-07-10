@@ -1,0 +1,10 @@
+$THIS_SH -c 'shift;    echo "$@"' 0 1 2 3 4
+#We complain on -1 and continue.
+$THIS_SH -c 'shift -1; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  0; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  1; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  2; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  3; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  4; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  5; echo "$@"' 0 1 2 3 4
+$THIS_SH -c 'shift  6; echo "$@"' 0 1 2 3 4

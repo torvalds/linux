@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# mkfs.minix tests.
+# Copyright 2007 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+# '\n' produces 10 on little endian, but not on big endian
+cr=`echo | od -i | sed 's/ *$//g;s/.* //g;2d'`
+if [ x"$cr" = x"10" ]; then
+	hash=4f35f7afeba07d56055bed1f29ae20b7
+else
+	hash=5adbc1b3ccd20ca5d0ab5bc1e13ac3fc
+fi
+
+testing "mkfs.minix" \
+	"dd if=/dev/zero of=input bs=1k count=1024 2>/dev/null; mkfs.minix input; md5sum <input" \
+"352 inodes\n"\
+"1024 blocks\n"\
+"Firstdatazone=15 (15)\n"\
+"Zonesize=1024\n"\
+"Maxsize=268966912\n"\
+"$hash  -\n" \
+	"" \
+	""
+
+exit $FAILCOUNT

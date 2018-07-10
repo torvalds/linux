@@ -1,0 +1,9 @@
+echo Error >/does/not/exist; echo One:$?
+t=BAD
+t=Ok >>/cant/be/created; echo One:$?
+echo $t
+! >/cant/be/created; echo Zero:$?
+exec >/cant/be/created; echo One:$?
+exec /bin/true >/cant/be/created; echo One:$?
+! exec /bin/true >/cant/be/created; echo Zero:$?
+echo Done

@@ -1,0 +1,6 @@
+mkdir a
+>a/file
+ln -s file a/link
+busybox cp -RHL a b
+test ! -L b/link
+#sh </dev/tty >/dev/tty 2>&1

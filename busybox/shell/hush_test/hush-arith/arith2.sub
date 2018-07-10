@@ -1,0 +1,57 @@
+# bash 3.2 apparently thinks that ++7 is 7 etc
+(  echo $(( --7 ))   )
+(  echo $(( ++7 ))   )
+(  echo $(( -- 7 ))  )
+(  echo $(( ++ 7 ))  )
+
+#ash# ((++array[0] ))
+#ash# echo 1 $array
+#ash# (( ++ array[0] ))
+#ash# echo 2 $array
+
+#ash# (( ++a ))
+#ash# echo 1 $a
+#ash# (( ++ a ))
+#ash# echo 2 $a
+
+#ash# (( --a ))
+#ash# echo 1 $a
+#ash# (( -- a ))
+#ash# echo 0 $a
+      a=0
+
+echo 5 $(( 4 + ++a ))
+echo 1 $a
+
+# this is treated as 4 + ++a
+echo 6 $(( 4+++a ))
+echo 2 $a
+      a=2
+
+# this is treated as 4 - --a
+echo 3 $(( 4---a ))
+echo 1 $a
+      a=1
+
+echo 4 $(( 4 - -- a ))
+echo 0 $a
+
+#ash# (( -- ))
+# bash 3.2 apparently thinks that ---7 is -7
+#ash# echo $(( ---7 ))
+(  echo $(( -- - 7 ))  )
+
+#ash# (( ++ ))
+# bash 3.2: 7
+#ash# echo 7 $(( ++7 ))
+(  echo $(( ++ + 7 ))  )
+
+# bash 3.2: -7
+#ash# echo -7 $(( ++-7 ))
+# bash 3.2: -7
+#ash# echo -7 $(( ++ - 7 ))
+
+# bash 3.2: 7
+#ash# echo 7 $(( +--7 ))
+# bash 3.2: 7
+#ash# echo 7 $(( -- + 7 ))

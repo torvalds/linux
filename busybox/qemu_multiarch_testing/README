@@ -1,0 +1,63 @@
+How to test build using Aboriginal Linux system images.
+
+* Put a source tree into hdc.dir/.
+For example, this should work:
+git clone git://busybox.net/var/lib/git/busybox.git
+
+* Run ./make-hdc-img.sh: it will generate ext2 image file,
+hdc.img, from hdc.dir/* data. This requires root for loop mount.
+
+* Download and unpack, or build from source and unpack
+one or more system-image-ARCH directories into this directory
+(the one which contains this README).
+
+* Install qemu-system-ARCH. The arch names may differ from
+system-image-ARCH: for example, all ARM flavors (armv4l...armv6l)
+are served by the same qemu - qemu-system-arm. On my machine,
+I needed to install qemu-system-{arm,mips,x86,ppc,sparc,m68k,sh4}.
+
+* Run: ./parallel-build-hdc-img.sh system-image-DIR1 system-image-DIR2...
+(background it if you don't want to see "Waiting to finish" thing).
+This runs build in several qemu virtual machines in parallel.
+
+* Observe system-image-*.log file(s) with growing log of the build.
+
+There is no automated detection of errors for now: you need to examine
+logs yourself.
+
+Log files will also contain uuencoded (or if all else fails, od -tx1'ed)
+binary, if build was successful.
+
+To debug a build problem in one of the sandboxes, change keep_hdb
+to "keep_hdb=true" in parallel-build-hdc-img.sh
+- this preserves system-image-ARCH/hdb.img after the build,
+so you can go into system-image-ARCH and run
+"HDB=hdb.img ./dev-environment.sh" to debug the problem.
+
+You can also run "./parallel-build-hdc-img.sh -s system-image-ARCH"
+- single mode, output is to screen and serial input is from keyboard.
+
+If hdc.dir/bin/busybox-$ARCH exists, it will be used during build
+to supply additional tools (dir with all applets appended to $PATH).
+
+For me, the following system images worked:
+system-image-armv4l
+system-image-armv4tl
+system-image-armv5l
+    od is buggy on arm*:
+    # echo Hello-hello-hello-hello | od -b
+    0000000 110 145 154 154 157 055 150 145 154 154 157 055 150 145 154 154
+    0000000 157 055 150 145 154 154 157 012  <= WRONG OFFSET
+    0000000                     (can also be even more bogus like 17767153361)
+system-image-i686
+system-image-mips    - od is buggy
+system-image-mipsel  - od is buggy
+system-image-x86_64
+system-image-powerpc - qemu 1.2.2 didn't work, 2.4.0 worked; od is buggy
+system-image-sparc   - qemu 1.2.2 didn't work, 2.4.0 worked; od is buggy
+
+And these did not:
+system-image-armv6l  - hang on "Uncompressing Linux... done, booting the kernel"
+system-image-m68k    - my qemu doesn't like "-M q800"
+system-image-mips64  - init dies "Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000a"
+system-image-sh4     - qemu segfaults early in kernel boot

@@ -1,0 +1,33 @@
+# First try some invalid patterns. Do in subshell due to parsing error.
+# (set argv0 to "SHELL" to avoid "/path/to/shell: blah" in error messages)
+"$THIS_SH" -c 'echo ${+}  ; echo moo' SHELL
+"$THIS_SH" -c 'echo ${:+} ; echo moo' SHELL
+
+# now some funky ones.
+# ${V+word} "if V unset, then substitute nothing, else substitute word"
+# ${V:+word} "if V unset or '', then substitute nothing, else substitute word"
+#
+# ${#:+} is a :+ op on $#, but ${#+} (and any other ${#c}) is "length of $c",
+# not + op on $#.
+# bash and dash do not accept ${#+}. it's possible for some shell to skip
+# the check that c is valid and interpret ${#+} as "len of $+". Not testing it.
+# echo _${#+}_
+echo _${#:+}_
+# Forms with non-empty word work as expected in both ash and bash.
+echo _${#+z}_ _${#:+z}_
+
+# now some valid ones
+set --
+echo _$1 _${1+} _${1:+} _${1+word} _${1:+word}
+
+set -- aaaa
+echo _$1 _${1+} _${1:+} _${1+word} _${1:+word}
+
+unset f
+echo _$f _${f+} _${f:+} _${f+word} _${f:+word}
+
+f=
+echo _$f _${f+} _${f:+} _${f+word} _${f:+word}
+
+f=fff
+echo _$f _${f+} _${f:+} _${f+word} _${f:+word}

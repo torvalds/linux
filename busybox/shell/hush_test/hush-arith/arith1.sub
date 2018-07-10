@@ -1,0 +1,40 @@
+# test of redone post-increment and post-decrement code
+(  echo $(( 4-- ))   )
+(  echo $(( 4++ ))   )
+(  echo $(( 4 -- ))  )
+(  echo $(( 4 ++ ))  )
+
+#ash# (( array[0]++ ))
+#ash# echo ${array}
+
+#ash# (( array[0] ++ ))
+#ash# echo ${array}
+
+#ash# (( a++ ))
+#ash# echo $a
+#ash# (( a ++ ))
+#ash# echo $a
+      a=2
+
+echo 6 $(( a ++ + 4 ))
+echo 3 $a
+
+echo 7 $(( a+++4 ))
+echo 4 $a
+
+echo 0 $(( a---4 ))
+echo 3 $a
+
+echo 7 $(( a -- + 4 ))
+echo 2 $a
+
+echo -2 $(( a -- - 4 ))
+echo 1 $a
+
+#ash# (( ++ + 7 ))
+
+#ash# (( ++ ))
+(  echo $(( +++7 ))  )
+# bash 3.2 apparently thinks that ++ +7 is 7
+#ash# echo $(( ++ + 7 ))
+#ash# (( -- ))

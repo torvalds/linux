@@ -1,0 +1,24 @@
+This patch scales down small offsets quadratically. Reduces sensitivity to jitter
+
+diff --git a/networking/ntpd.c b/networking/ntpd.c
+index 4695c33..ac05815 100644
+--- a/networking/ntpd.c
++++ b/networking/ntpd.c
+@@ -1654,6 +1654,17 @@ update_local_clock(peer_t *p)
+ 	 */
+ 	if (G.offset_to_jitter_ratio >= TIMECONST_HACK_GATE)
+ 		tmx.constant--;
++
++{
++    double d = p->lastpkt_delay;
++    if (d > SLEW_THRESHOLD)
++	d = SLEW_THRESHOLD;
++    d /= 2;
++    if ((abs_offset / d) < 1) {
++        offset *= (abs_offset / d);
++    }
++}
++
+ 	tmx.offset = (long)(offset * 1000000); /* usec */
+ 	if (SLEW_THRESHOLD < STEP_THRESHOLD) {
+ 		if (tmx.offset > (long)(SLEW_THRESHOLD * 1000000)) {

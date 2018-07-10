@@ -1,0 +1,50 @@
+Brace Expansion
+
+Brace expansion is a mechanism by which arbitrary strings may be gener-
+ated.   This  mechanism is similar to pathname expansion, but the file-
+names generated need not exist.  Patterns to be brace expanded take the
+form of an optional preamble, followed by either a series of comma-sep-
+arated strings or a sequence expression between a pair of braces,  fol-
+lowed  by  an  optional  postscript.   The preamble is prefixed to each
+string contained within the braces, and the postscript is then appended
+to each resulting string, expanding left to right.
+
+Brace  expansions  may  be nested.  The results of each expanded string
+are not sorted;  left  to  right  order  is  preserved.   For  example,
+a{d,c,b}e expands into `ade ace abe'.
+
+A  sequence  expression takes the form {x..y}, where x and y are either
+integers or single characters.  When integers are supplied, the expres-
+sion  expands  to each number between x and y, inclusive.  When charac-
+ters are supplied, the expression expands  to  each  character  lexico-
+graphically between x and y, inclusive.  Note that both x and y must be
+of the same type.
+
+Brace expansion is performed before any other expansions, and any char-
+acters  special to other expansions are preserved in the result.  It is
+strictly textual.  Bash does not apply any syntactic interpretation  to
+the context of the expansion or the text between the braces.
+
+A  correctly-formed  brace  expansion must contain unquoted opening and
+closing braces, and at least one unquoted comma  or  a  valid  sequence
+expression.   Any incorrectly formed brace expansion is left unchanged.
+A { or , may be quoted with a backslash to prevent its being considered
+part  of  a brace expression.  To avoid conflicts with parameter expan-
+sion, the string ${ is not considered eligible for brace expansion.
+
+This construct is typically used as shorthand when the common prefix of
+the strings to be generated is longer than in the above example:
+
+       mkdir /usr/local/src/bash/{old,new,dist,bugs}
+or
+       chown root /usr/{ucb/{ex,edit},lib/{ex?.?*,how_ex}}
+
+Brace  expansion  introduces  a  slight incompatibility with historical
+versions of sh.  sh does not treat opening or closing braces  specially
+when  they  appear as part of a word, and preserves them in the output.
+Bash removes braces from words as a  consequence  of  brace  expansion.
+For  example,  a word entered to sh as file{1,2} appears identically in
+the output.  The same word is output as file1 file2 after expansion  by
+bash.   If strict compatibility with sh is desired, start bash with the
++B option or disable brace expansion with the +B option to the set com-
+mand

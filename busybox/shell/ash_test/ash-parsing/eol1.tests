@@ -1,0 +1,18 @@
+# bug was that we treated <newline> as ';' in this line:
+true || echo foo |
+echo BAD1 | cat
+
+# variation on the same theme
+true || echo foo |
+# comment
+echo BAD2 | cat
+
+# variation on the same theme
+true || echo foo |
+
+echo BAD3 | cat
+
+# this should error out, but currently works in hush:
+#true || echo foo |;
+
+echo Done:$?

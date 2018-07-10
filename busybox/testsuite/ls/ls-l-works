@@ -1,0 +1,8 @@
+test x"$SKIP_KNOWN_BUGS" != x"" && exit
+
+# busybox does not emit "total NNN" line
+
+[ -n "$d" ] || d=..
+LC_ALL=C ls -l "$d" > logfile.gnu
+LC_ALL=C busybox ls -l "$d" > logfile.bb
+diff -ubw logfile.gnu logfile.bb

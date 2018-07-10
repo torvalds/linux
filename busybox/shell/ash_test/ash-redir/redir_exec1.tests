@@ -1,0 +1,2 @@
+v=`echo First >&2` exec >/cant/be/created
+echo One:$?

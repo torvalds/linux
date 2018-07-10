@@ -1,0 +1,33 @@
+#!/bin/sh
+
+test -d "$1" || exit 1
+test -d "$2" || exit 1
+
+{
+	(
+		cd "$1" || exit 1
+		find -name '*.o' -o -name '*.os' # -o -name '*.so'
+	)
+	(
+		cd "$2" || exit 1
+		find -name '*.o' -o -name '*.os' # -o -name '*.so'
+	)
+} | sed 's:^\./::' | sort | uniq | \
+tee LST | \
+(
+IFS=''
+while read -r oname; do
+	if ! test -f "$1/$oname"; then
+		echo "Only $2/$oname"
+		continue
+	fi
+	if ! test -f "$2/$oname"; then
+		echo "Only $1/$oname"
+		continue
+	fi
+	$1/scripts/bloat-o-meter $1/$oname $2/$oname | grep 'otal: 0 byte' >/dev/null && continue
+	$1/scripts/bloat-o-meter $1/$oname $2/$oname
+	size $1/$oname $2/$oname
+	echo
+done
+)

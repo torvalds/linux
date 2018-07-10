@@ -1,0 +1,2 @@
+while false; do echo NOT SHOWN; done
+echo OK:$?

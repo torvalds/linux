@@ -1,0 +1,16 @@
+#!/bin/sh
+
+busybox=../busybox
+
+i=4000
+echo "Before we started $i copies of '$busybox sleep 10':"
+$busybox nmeter '%t %[pn] %m' | head -3
+
+while test $i != 0; do
+    $busybox sleep 10 &
+    i=$((i-1))
+done
+sleep 1
+
+echo "After:"
+$busybox nmeter '%t %[pn] %m' | head -3

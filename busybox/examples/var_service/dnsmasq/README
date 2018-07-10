@@ -1,0 +1,10 @@
+Local DNS cache service.
+
+This service is useful if you have more than 3 DNS servers,
+or if you need a finer-grained control of which servers
+can serve which domain.
+
+To make programs use local DNS server, make sure
+/etc/resolv.conf says:
+
+nameserver 127.0.0.1

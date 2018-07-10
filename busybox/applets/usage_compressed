@@ -1,0 +1,62 @@
+#!/bin/sh
+
+target="$1"
+loc="$2"
+
+test "$target" || exit 1
+test "$loc" || loc=.
+test -x "$loc/usage" || exit 1
+test "$SED" || SED=sed
+test "$DD" || DD=dd
+
+# Some people were bitten by their system lacking a (proper) od
+od -v -b </dev/null >/dev/null
+if test $? != 0; then
+	echo 'od tool is not installed or cannot accept "-v -b" options'
+	exit 1
+fi
+
+exec >"$target.$$"
+
+echo '#define UNPACKED_USAGE "" \'
+"$loc/usage" | od -v -b \
+| grep -v '^ ' \
+| $SED -e 's/^[^ ]*//' \
+	-e 's/ //g' \
+	-e '/^$/d' \
+	-e 's/\(...\)/\\\1/g' \
+	-e 's/^/"/' \
+	-e 's/$/" \\/'
+echo ''
+# "grep -v '^ '" is for toybox's od bug: od -b prints some extra lines:
+#0000000 010 000 010 000 133 055 144 146 135 040 133 055 143 040 103 117
+#         000010 000010 026533 063144 020135 026533 020143 047503
+#0000020 116 106 104 111 122 135 040 133 055 154 040 114 117 107 106 111
+#         043116 044504 056522 055440 066055 046040 043517 044506
+#0000040 114 105 135 040 133 055 141 040 101 103 124 111 117 116 106 111
+#         042514 020135 026533 020141 041501 044524 047117 044506
+
+echo "#define UNPACKED_USAGE_LENGTH `$loc/usage | wc -c`"
+echo
+
+echo '#define PACKED_USAGE \'
+## Breaks on big-endian systems!
+## # Extra effort to avoid using "od -t x1": -t is not available
+## # in non-CONFIG_DESKTOPed busybox od
+##
+## "$loc/usage" | bzip2 -1 | od -v -x \
+## | $SED -e 's/^[^ ]*//' \
+##	-e 's/ //g' \
+##	-e '/^$/d' \
+##	-e 's/\(..\)\(..\)/0x\2,0x\1,/g'
+##	-e 's/$/ \\/'
+"$loc/usage" | bzip2 -1 | $DD bs=2 skip=1 2>/dev/null | od -v -b \
+| grep -v '^ ' \
+| $SED -e 's/^[^ ]*//' \
+	-e 's/ //g' \
+	-e '/^$/d' \
+	-e 's/\(...\)/0\1,/g' \
+	-e 's/$/ \\/'
+echo ''
+
+mv -- "$target.$$" "$target"

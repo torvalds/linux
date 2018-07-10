@@ -1,0 +1,123 @@
+#!/bin/sh
+
+test -f "$bindir/.config" && . "$bindir/.config"
+
+FAILCOUNT=0
+
+bb="busybox "
+
+unset LC_ALL
+unset LC_MESSAGES
+unset LANG
+unset LANGUAGE
+
+hello_Z() {
+    # Compressed "HELLO\n"
+    $ECHO -ne "\x1f\x9d\x90\x48\x8a\x30\x61\xf2\x44\x01"
+}
+
+hello_gz() {
+    # Gzipped "HELLO\n"
+    #_________________________ vvv vvv vvv vvv - mtime
+    $ECHO -ne "\x1f\x8b\x08\x00\x85\x1d\xef\x45\x02\x03\xf3\x70\xf5\xf1\xf1\xe7"
+    $ECHO -ne "\x02\x00\x6e\xd7\xac\xfd\x06\x00\x00\x00"
+}
+
+hello_bz2() {
+    # Bzipped "HELLO\n"
+    $ECHO -ne "\x42\x5a\x68\x39\x31\x41\x59\x26\x53\x59\x5b\xb8\xe8\xa3\x00\x00"
+    $ECHO -ne "\x01\x44\x00\x00\x10\x02\x44\xa0\x00\x30\xcd\x00\xc3\x46\x29\x97"
+    $ECHO -ne "\x17\x72\x45\x38\x50\x90\x5b\xb8\xe8\xa3"
+}
+
+test x"$CONFIG_ZCAT" = x"y" && \
+for ext in \
+    `test x"$CONFIG_FEATURE_SEAMLESS_GZ"  = x"y" && echo gz` \
+    `test x"$CONFIG_FEATURE_SEAMLESS_BZ2" = x"y" && echo bz2` \
+    `test x"$CONFIG_FEATURE_SEAMLESS_Z"   = x"y" && echo Z`
+do
+    prep() {
+	rm -f t1.$ext t2.$ext t_actual
+	hello_$ext >t1.$ext
+	hello_$ext >t2.$ext
+    }
+
+    check() {
+	eval $2 >t_actual 2>&1
+	if $ECHO -ne "$expected" | cmp - t_actual; then
+	    echo "PASS: $1"
+	else
+	    echo "FAIL: $1"
+	    #echo "t_actual:"
+	    #cat t_actual
+	    FAILCOUNT=$((FAILCOUNT + 1))
+	fi
+    }
+
+    mkdir testdir 2>/dev/null
+    (
+    cd testdir || { echo "cannot cd testdir!"; exit 1; }
+    expected="HELLO\nok\n"
+    prep
+    check "zcat: dont delete $ext src" "${bb}zcat t2.$ext; test -f t2.$ext && echo ok"
+    exit $FAILCOUNT
+    )
+    FAILCOUNT=$?
+    rm -rf testdir
+done
+
+
+# Copyright 2011 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+## bzip algorithm
+
+# "input" file is bzipped file with "a\n" data
+testing "bzcat can print many files" \
+"bzcat input input; echo \$?" \
+"\
+a
+a
+0
+" "\
+\x42\x5a\x68\x39\x31\x41\x59\x26\x53\x59\x63\x3e\xd6\xe2\x00\x00\
+\x00\xc1\x00\x00\x10\x20\x00\x20\x00\x21\x00\x82\xb1\x77\x24\x53\
+\x85\x09\x06\x33\xed\x6e\x20\
+" ""
+
+# "input" file is bzipped zero byte file
+testing "bzcat can handle compressed zero-length bzip2 files" \
+"bzcat input input; echo \$?" \
+"0\n" \
+"\x42\x5a\x68\x39\x17\x72\x45\x38\x50\x90\x00\x00\x00\x00" ""
+
+## compress algorithm
+
+# "input" file is compressed (.Z) file with "a\n" data
+test x"$CONFIG_ZCAT" = x"y" && \
+test x"$CONFIG_FEATURE_SEAMLESS_Z" = x"y" && \
+testing "zcat can print many files" \
+"zcat input input; echo \$?" \
+"\
+a
+a
+0
+" "\
+\x1f\x9d\x90\x61\x14\x00\
+" ""
+
+# "input" file is compressed (.Z) zero byte file
+test x"$CONFIG_ZCAT" = x"y" && \
+test x"$CONFIG_FEATURE_SEAMLESS_Z" = x"y" && \
+testing "zcat can handle compressed zero-length (.Z) files" \
+"zcat input input; echo \$?" \
+"0\n" \
+"\x1f\x9d\x90\x00" ""
+
+
+
+exit $((FAILCOUNT <= 255 ? FAILCOUNT : 255))

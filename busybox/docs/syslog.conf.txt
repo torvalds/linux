@@ -1,0 +1,28 @@
+If syslogd applet compiled with FEATURE_SYSLOGD_CFG=y, then it supports restricted syslog.conf.
+The config resembles rsyslog.conf in RULES part:
+
+LINE = DELIM [RULE | COMMENT]
+COMMENT = #.*
+DELIM = SPACE TAB
+RULE = SELECTOR [;SELECTOR]* DELIM* ACTION DELIM*
+SELECTOR = FACILITY [,FACILITY]* .[[!]=] PRIORITY
+FACILITY = * | kern | user ... (see syslog.h)
+PRIORITY = * | emerg | alert ... (see syslog.h)
+ACTION = FILE
+
+"mark" facility is NOT supported.
+"none" priority is supported.
+In FACILITY and PRIORITY "*" stands for "any".
+FILE is a regular file or tty device.
+
+Here is an example:
+
+#syslog.conf
+kern,user.*                                 /var/log/messages	#all messages of kern and user facilities
+kern.!err                                   /var/log/critical	#all messages of kern facility with priorities lower than err (warn, notice ...)
+*.*;auth,authpriv.none                      /var/log/noauth	#all messages except ones with auth and authpriv facilities
+kern,user.*;kern.!=notice;*.err;syslog.none /var/log/OMG	#some whicked rule just as an example =)
+*.*                                         /dev/null		#this prevents from logging to default log file (-O FILE or /var/log/messages)
+
+Even in the case of match with some rule another rules will be tried too.
+If there was no match with any of the rules, logging to default log file or shared memory will be performed.

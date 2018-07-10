@@ -1,0 +1,7 @@
+trap "echo Exiting; exit" INT
+
+(sleep 1; kill -s INT $$) &
+
+while continue; do
+        continue;
+done

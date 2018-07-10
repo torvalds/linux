@@ -1,0 +1,4 @@
+IFS=": "; x=" "; set x $x; for v; do echo "|$v|"; done
+echo Ok1:$?
+IFS=": "; x=":"; set x $x; for v; do echo "|$v|"; done
+echo Ok2:$?

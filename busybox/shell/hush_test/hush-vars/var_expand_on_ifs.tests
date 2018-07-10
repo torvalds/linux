@@ -1,0 +1,11 @@
+b=' b '
+e=''
+echo 1 a $b c
+echo 2 a +$b c
+echo 3 a $e$b c
+echo 4 a "$e"$b c
+echo 5 a ""$b c
+echo 6 a $b+ c
+echo 7 a $b$e c
+echo 8 a $b"$e" c
+echo 9 a $b"" c

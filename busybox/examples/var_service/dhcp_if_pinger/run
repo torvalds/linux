@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# How often to test, seconds
+ping_time=67
+# "One ping, must have reply in 1 sec"
+ping_opts="-c1 -W1 -w1"
+# If ping failed, how soon to retry
+retry_time=5
+# Reinit after this many consecutive ping error
+max_fail=5
+# Interface whose DHCP data to use
+if=${PWD##*/dhcp_}
+if=${if%%_pinger}
+
+msg() {
+	echo "`date '+%Y-%m-%d %H:%M:%S'` $*" >>"$0.log"
+}
+
+if test -f "$0.log"; then
+	tail -999 "$0.log" >"$0.log.new"
+	mv "$0.log.new" "$0.log"
+fi
+
+test -f "../dhcp_$if/env.out" || exec env - sleep "$ping_time"
+
+. "../dhcp_$if/env.out"
+test x"$router" != x"" || exec env - sleep "$ping_time"
+
+#msg "Pinging $router"
+failcnt=0
+while true; do
+	ping $ping_opts "$router" && exec env - sleep "$ping_time"
+	failcnt=$((failcnt+1))
+	msg "Failed to ping $router, fail count:$failcnt"
+	test $failcnt -ge $max_fail && break
+	env - sleep "$retry_time"
+done
+
+test -d "../dhcp_$if" && {
+	msg "Restarting dhcp_$if"
+	svc -t "dhcp_$if"
+}
+test -d "../supplicant_$if" && {
+	msg "Restarting supplicant_$if"
+	svc -t "supplicant_$if"
+}
+exec env - sleep "$ping_time"

@@ -1,0 +1,4 @@
+echo file number one > file1
+busybox ln file1 link1
+test -f file1
+test -f link1

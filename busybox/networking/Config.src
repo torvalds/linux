@@ -1,0 +1,62 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Networking Utilities"
+
+config FEATURE_IPV6
+	bool "Enable IPv6 support"
+	default y
+	help
+	Enable IPv6 support in busybox.
+	This adds IPv6 support in the networking applets.
+
+config FEATURE_UNIX_LOCAL
+	bool "Enable Unix domain socket support (usually not needed)"
+	default n
+	help
+	Enable Unix domain socket support in all busybox networking
+	applets.  Address of the form local:/path/to/unix/socket
+	will be recognized.
+
+	This extension is almost never used in real world usage.
+	You most likely want to say N.
+
+config FEATURE_PREFER_IPV4_ADDRESS
+	bool "Prefer IPv4 addresses from DNS queries"
+	default y
+	depends on FEATURE_IPV6
+	help
+	Use IPv4 address of network host if it has one.
+
+	If this option is off, the first returned address will be used.
+	This may cause problems when your DNS server is IPv6-capable and
+	is returning IPv6 host addresses too. If IPv6 address
+	precedes IPv4 one in DNS reply, busybox network applets
+	(e.g. wget) will use IPv6 address. On an IPv6-incapable host
+	or network applets will fail to connect to the host
+	using IPv6 address.
+
+config VERBOSE_RESOLUTION_ERRORS
+	bool "Verbose resolution errors"
+	default n
+	help
+	Enable if you are not satisfied with simplistic
+	"can't resolve 'hostname.com'" and want to know more.
+	This may increase size of your executable a bit.
+
+INSERT
+
+source networking/udhcp/Config.in
+
+config IFUPDOWN_UDHCPC_CMD_OPTIONS
+	string "ifup udhcpc command line options"
+	default "-R -n"
+	depends on IFUP || IFDOWN
+	help
+	Command line options to pass to udhcpc from ifup.
+	Intended to alter options not available in /etc/network/interfaces.
+	(IE: --syslog --background etc...)
+
+endmenu

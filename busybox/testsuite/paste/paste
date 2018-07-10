@@ -1,0 +1,20 @@
+cat > foo <<EOF
+foo1
+foo2
+foo3
+EOF
+
+cat > bar <<EOF
+bar1
+bar2
+bar3
+EOF
+
+cat > baz <<EOF
+foo1	bar1
+foo2	bar2
+foo3	bar3
+EOF
+
+busybox paste foo bar > qux
+diff -u baz qux

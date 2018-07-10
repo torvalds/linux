@@ -1,0 +1,56 @@
+#!/bin/sh
+# Copyright 2015 by Bernhard Reutner-Fischer
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+testing "dc basic syntax (stdin, multiple args)" \
+	"dc" \
+	"30\n" \
+	"" "10 20+p"
+
+testing "dc basic syntax (argv, single arg)" \
+	"dc '10 20+p'" \
+	"30\n" \
+	"" ""
+
+testing "dc basic syntax (argv, multiple args)" \
+	"dc 10 20+p" \
+	"30\n" \
+	"" ""
+
+testing "dc complex with spaces (single arg)" \
+	"dc '8 8 * 2 2 + / p'" \
+	"16\n" \
+	"" ""
+
+testing "dc complex without spaces (single arg)" \
+	"dc '8 8*2 2+/p'" \
+	"16\n" \
+	"" ""
+
+testing "dc complex with spaces (multiple args)" \
+	"dc 8 8 \* 2 2 + / p" \
+	"16\n" \
+	"" ""
+
+testing "dc complex without spaces (multiple args)" \
+	"dc 8 8\*2 2+/p" \
+	"16\n" \
+	"" ""
+
+exit $FAILCOUNT
+
+# we do not support arguments
+testing "dc -e <exprs>" \
+	"dc -e '10 2+f'" \
+	"12\n" \
+	"" ""
+
+testing "dc -f <exprs-from-given-file>" \
+	"dc -f input" \
+	"12\n" \
+	"10 2+f" ""
+

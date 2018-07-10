@@ -1,0 +1,13 @@
+x='\abc'
+
+case "$x" in
+\\*) echo ok1;;
+*)   echo BUG1;;
+esac
+
+case $x in
+\\*) echo ok2;;
+*)   echo BUG2;;
+esac
+
+echo Ok:$?

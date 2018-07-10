@@ -1,0 +1,2 @@
+v="abc"
+echo ${v/b/x/y}

@@ -1,0 +1,9 @@
+exit EOF-f
+"
+echo $f
+echo `echo Hello World`
+moo	 
+ EOF-f
+EOF-f   f
+EOF-f 
+Ok

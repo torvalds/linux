@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+user=www
+user=root
+
+exec \
+env - PATH="$PATH" \
+softlimit \
+tcpsvd \
+  -vE -l 0 -c 40 \
+  0.0.0.0 21 \
+setuidgid "$user" \
+ftpd -vv -t10 /pub/ftpd_root

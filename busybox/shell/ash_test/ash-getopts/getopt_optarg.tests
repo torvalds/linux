@@ -1,0 +1,18 @@
+set -- -q -w e -r -t -y
+echo "*** no OPTIND, optstring:'w:et' args:$*"
+var=QWERTY
+OPTARG=ASDFGH
+while getopts "w:et" var; do
+	echo "var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+	OPTARG=ASDFGH
+done
+echo "exited: var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+
+set -- -w 1 -w2 -w -e -e -t -t
+echo "*** OPTIND=0, optstring:'w:et' args:$*"
+OPTIND=0
+while getopts "w:et" var; do
+	echo "var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+	OPTARG=ASDFGH
+done
+echo "exited: var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"

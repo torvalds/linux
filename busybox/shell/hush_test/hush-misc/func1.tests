@@ -1,0 +1,16 @@
+f() { echo Hello; }
+g () { echo One: $# Param1: $1; }
+h ( )
+{
+    echo -n 'Multi ' && echo -n 'line '
+    echo function
+    false
+}
+
+f
+echo Zero: $?
+set -- Restored
+{ g World; }
+echo Zero: $? Param1: $1
+( h )
+echo One: $?

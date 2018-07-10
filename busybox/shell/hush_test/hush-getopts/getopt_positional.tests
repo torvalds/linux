@@ -1,0 +1,13 @@
+(
+
+set -- -q -w -e r -t -y
+echo "*** no OPTIND, optstring:'we' args:$*"
+var=QWERTY
+while getopts "we" var; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: var:'$var' OPTIND:$OPTIND"
+
+) 2>&1 \
+| sed	-e 's/ unrecognized option: / invalid option -- /' \
+	-e 's/ illegal option -- / invalid option -- /' \

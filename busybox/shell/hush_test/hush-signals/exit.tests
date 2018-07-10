@@ -1,0 +1,34 @@
+"$THIS_SH" -c 'trap "echo cow" 0'
+"$THIS_SH" -c 'trap "echo moo" EXIT'
+"$THIS_SH" -c 'trap "echo no" 0; trap 0'
+
+(
+exitfunc() {
+        echo "Traps1:"
+        trap
+        # EXIT trap is disabled after it is triggered,
+        # it can not be "re-armed" like this:
+        trap "echo Should not run" EXIT
+        echo "Traps2:"
+        trap
+}
+trap 'exitfunc' EXIT
+exit 42
+)
+echo Check1: $?
+
+(
+exitfunc() {
+        echo "Traps1:"
+        trap
+        # EXIT trap is disabled after it is triggered,
+        # it can not be "re-armed" like this:
+        trap "echo Should not run" EXIT
+        echo "Traps2:"
+        trap
+        exit 42
+}
+trap 'exitfunc' EXIT
+exit 66
+)
+echo Check2: $?

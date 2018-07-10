@@ -1,0 +1,19 @@
+#!/bin/sh
+
+test "$1" || {
+	echo "Syntax: ${0##*/} SERVICE"
+	exit 1
+}
+
+test x"$1" = x"${1#*/}" -a x"$1" != x"." && {
+	# has no slashes and is not a "."
+	cd "/var/service/$1" || exit $?
+	set -- "."
+}
+
+test -x "$1/page" && exec "$1/page"
+
+cd "log/logdir" || exit $?
+
+test "$PAGER" || PAGER=less
+cat @* current | $PAGER

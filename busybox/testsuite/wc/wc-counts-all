@@ -1,0 +1,2 @@
+# 1 line, 4 words, 20 chars.
+test "`echo i\'m a little teapot | busybox wc | sed 's/  */ /g' | sed 's/^ //'`" = '1 4 20'

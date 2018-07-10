@@ -1,0 +1,2 @@
+./redir_to_bad_fd3.tests: line 2: 3: Bad file descriptor
+OK

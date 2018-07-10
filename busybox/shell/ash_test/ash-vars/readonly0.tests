@@ -1,0 +1,45 @@
+unset a b
+#
+readonly a=A
+b=B
+readonly b
+# readonly on already readonly var is harmless:
+readonly b a
+readonly | grep '^readonly [ab]='
+# this should work:
+export a b
+export -n a b
+echo Ok:$?
+env | grep -e^a= -e^b=  # shows nothing
+
+echo
+# these should all fail (despite the same value being assigned)
+# bash does not abort even in non-interactive more (in script)
+# ash does, using subshell to continue
+true; (a=A)
+echo Fail:$?
+true; (readonly a=A)
+echo Fail:$?
+
+echo
+# in bash, assignment in export fails, but export succeeds! :)
+# we don't mimic that!
+true; (export a=Z)
+echo Fail:$?
+#env | grep '^a='
+#echo "^^^a is exported"
+export -n a  # undo that bashism, if it happens
+
+## ash: assignment errors in "a=Z CMD" lead to CMD not executed
+## echo
+## export b
+## # this fails to both set and export a:
+## a=Z env | echo grep '^[ab]='
+## echo "^^^a is not exported"
+## # but external command does get executed, and $? is not mangled (stays 42):
+## (exit 42); a=Z env echo Visible:$?
+
+echo
+# ash: this fails *silently*, bug? bash says "cannot unset: readonly variable"
+true; unset a
+echo Fail:$?

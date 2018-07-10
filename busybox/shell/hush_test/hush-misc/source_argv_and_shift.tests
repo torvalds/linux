@@ -1,0 +1,12 @@
+echo 'echo sourced_arg1:$1' >sourced1
+echo 'shift' >>sourced1
+
+set -- 1
+. ./sourced1
+echo arg1:$1
+
+set -- 1
+. ./sourced1 a
+echo arg1:$1
+
+rm sourced1

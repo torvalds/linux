@@ -1,0 +1,21 @@
+trap -- '' HUP
+trap -- '' QUIT
+trap -- '' SYS
+Ok
+trap -- '' HUP
+trap -- '' QUIT
+trap -- '' SYS
+Ok
+trap -- '' HUP
+trap -- '' QUIT
+trap -- '' SYS
+Ok
+trap -- '' HUP
+trap -- '' QUIT
+trap -- '' SYS
+Ok
+trap -- '' HUP
+trap -- '' QUIT
+trap -- '' SYS
+TERM
+Done

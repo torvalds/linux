@@ -1,0 +1,64 @@
+#!/bin/sh
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+# Usually, /sbin/ has symlinks named halt, reboot, poweroff
+# (and also possibly shutdown) to e.g.
+# /app/shutdown-1.0/script/shutdown (this file).
+cd /app/shutdown-1.0/script || exit 1
+test -x ./do_shutdown || exit 1
+test -x ./hardshutdown || exit 1
+
+# "reboot -f" -> "shutdown -f -r" -> "hardshutdown -r" -> immediate reboot
+# "reboot" -> "shutdown -r" -> "do_shutdown -r"
+# ^^^^^^^^^^^^^^^^^^ similarly for halt, poweroff.
+# "shutdown" -> "do_shutdown" (everything killed/unmounted, but kernel not asked to do any poweroff etc)
+force=""
+test x"$1" = x"-f" && {
+	force="-f"
+	shift
+}
+test ! "$*" && test x"${0##*/}" = x"halt" && exec "$0" $force -h
+test ! "$*" && test x"${0##*/}" = x"reboot" && exec "$0" $force -r
+test ! "$*" && test x"${0##*/}" = x"poweroff" && exec "$0" $force -p
+# We have something else than allowed parameters?
+test x"$*" = x"" || test x"$*" = x"-h" || test x"$*" = x"-r" || test x"$*" = x"-p" || {
+	echo "Syntax: $0 [-f] [-h/-r/-p]"
+	exit 1
+}
+
+# Emergency shutdown?
+test "$force" && {
+	exec ./hardshutdown "$@"
+	exit 1
+}
+
+# Normal shutdown
+
+# We must have these executables on root fs
+# (mount/umount aren't checked, all systems are ok versus that):
+test -x /bin/killall5 -o -x /sbin/killall5 || exit 1
+test -x /bin/ps       -o -x /sbin/ps       || exit 1
+test -x /bin/date     -o -x /sbin/date     || exit 1
+test -x /bin/xargs    -o -x /sbin/xargs    || exit 1
+test -x /bin/wc       -o -x /sbin/wc       || exit 1
+test -x /bin/cat      -o -x /sbin/cat      || exit 1
+test -x /bin/sort     -o -x /sbin/sort     || exit 1
+
+i="`ulimit -n`"
+echo -n "Closing file descriptors $i-3... "
+while test "$i" -ge 3; do
+	eval "exec $i>&-"
+	i=$((i-1))
+done
+
+echo "Shutting down. Please stand by..."
+
+# setsid & /dev/null:
+# make it a process leader & detach it from current tty.
+# Why /dev/null and not /dev/console?
+# I have seen a system which locked up while opening /dev/console
+# due to the bug (?) in keyboard driver.
+setsid env - PATH="$PATH" ./do_shutdown "$@" </dev/null >/dev/null 2>&1 &
+
+while true; do read junk; done

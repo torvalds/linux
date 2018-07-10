@@ -1,0 +1,1 @@
+test xfoo = x`busybox basename foo foo`

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+. ./bunzip2.tests

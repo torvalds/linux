@@ -1,0 +1,183 @@
+List of the authors of code contained in BusyBox.
+
+If you have code in BusyBox, you should be listed here.  If you should be
+listed, or the description of what you have done needs more detail, or is
+incorrect, _please_ let me know.
+
+ -Erik
+
+-----------
+
+Peter Willis <psyphreak@phreaker.net>
+    eject
+
+Emanuele Aina <emanuele.aina@tiscali.it>
+    run-parts
+
+Erik Andersen <andersen@codepoet.org>
+    Tons of new stuff, major rewrite of most of the
+    core apps, tons of new apps as noted in header files.
+    Lots of tedious effort writing these boring docs that
+    nobody is going to actually read.
+
+Laurence Anderson <l.d.anderson@warwick.ac.uk>
+    rpm2cpio, unzip, get_header_cpio, read_gz interface, rpm
+
+Jeff Angielski <jeff@theptrgroup.com>
+    ftpput, ftpget
+
+Enrik Berkhan <Enrik.Berkhan@inka.de>
+    setconsole
+
+Jim Bauer <jfbauer@nfr.com>
+    modprobe shell dependency
+
+Edward Betts <edward@debian.org>
+    expr, hostid, logname, whoami
+
+John Beppu <beppu@codepoet.org>
+    du, nslookup, sort
+
+David Brownell <dbrownell@users.sourceforge.net>
+    zcip
+
+Brian Candler <B.Candler@pobox.com>
+    tiny-ls(ls)
+
+Randolph Chung <tausq@debian.org>
+    fbset, ping, hostname
+
+Dave Cinege <dcinege@psychosis.com>
+    more(v2), makedevs, dutmp, modularization, auto links file,
+    various fixes, Linux Router Project maintenance
+
+Jordan Crouse <jordan@cosmicpenguin.net>
+    ipcalc
+
+Magnus Damm <damm@opensource.se>
+    tftp client
+    insmod powerpc support
+
+Larry Doolittle <ldoolitt@recycle.lbl.gov>
+    pristine source directory compilation, lots of patches and fixes.
+
+Glenn Engel <glenne@engel.org>
+    httpd
+
+Gennady Feldman <gfeldman@gena01.com>
+    Sysklogd (single threaded syslogd, IPC Circular buffer support,
+    logread), various fixes.
+
+Robert Griebl <sandman@handhelds.org>
+    modprobe, hwclock, suid/sgid handling, tinylogin integration
+    many bugfixes and enhancements
+
+Karl M. Hegbloom <karlheg@debian.org>
+    cp_mv.c, the test suite, various fixes to utility.c, &c.
+
+Daniel Jacobowitz <dan@debian.org>
+    mktemp.c
+
+Matt Kraai <kraai@alumni.cmu.edu>
+    documentation, bugfixes, test suite
+
+Rob Landley <rob@landley.net>
+    Became busybox maintainer in 2006.
+
+    sed (major rewrite in 2003, and I now maintain the thing)
+    bunzip2 (complete from-scratch rewrite, then mjn3 optimized the result)
+    sort (more or less from scratch rewrite in 2004, I now maintain it)
+    mount (rewrite in 2005, I maintain the new one)
+
+Stephan Linz <linz@li-pro.net>
+    ipcalc, Red Hat equivalence
+
+John Lombardo <john@deltanet.com>
+    tr
+
+Glenn McGrath <glenn.l.mcgrath@gmail.com>
+    Common unarchiving code and unarchiving applets, ifupdown, ftpgetput,
+    nameif, sed, patch, fold, install, uudecode.
+    Various bugfixes, review and apply numerous patches.
+
+Manuel Novoa III <mjn3@codepoet.org>
+    cat, head, mkfifo, mknod, rmdir, sleep, tee, tty, uniq, usleep, wc, yes,
+    mesg, vconfig, nice, renice,
+    make_directory, parse_mode, dirname, mode_string,
+    get_last_path_component, simplify_path, and a number trivial libbb routines
+
+    also bug fixes, partial rewrites, and size optimizations in
+    ash, basename, cal, cmp, cp, df, du, echo, env, ln, logname, md5sum, mkdir,
+    mv, realpath, rm, sort, tail, touch, uname, watch, arith, human_readable,
+    interface, dutmp, ifconfig, route
+
+Vladimir Oleynik <dzo@simtreas.ru>
+    cmdedit; bb_mkdep, xargs(current), httpd(current);
+    ports: ash, crond, fdisk (initial, unmaintained now), inetd, stty, traceroute,
+    top;
+    locale, various fixes
+    and irreconcilable critic of everything not perfect.
+
+Bruce Perens <bruce@pixar.com>
+    Original author of BusyBox in 1995, 1996. Some of his code can
+    still be found hiding here and there...
+
+Rodney Radford <rradford@mindspring.com>
+    ipcs, ipcrm
+
+Tim Riker <Tim@Rikers.org>
+    bug fixes, member of fan club
+
+Kent Robotti <robotti@metconnect.com>
+    reset, tons and tons of bug reports and patches.
+
+Chip Rosenthal <chip@unicom.com>, <crosenth@covad.com>
+    wget - Contributed by permission of Covad Communications
+
+Pavel Roskin <proski@gnu.org>
+    Lots of bugs fixes and patches.
+
+Gyepi Sam <gyepi@praxis-sw.com>
+    Remote logging feature for syslogd
+
+Rob Sullivan <cogito.ergo.cogito@gmail.com>
+    comm
+
+Linus Torvalds
+    mkswap, fsck.minix, mkfs.minix
+
+Linus Walleij
+    fbset and fbsplash config RGBA parsing
+    rewrite of mdev helper to create devices from /sys/dev
+
+Mark Whitley <markw@codepoet.org>
+    grep, sed, cut, xargs(previous),
+    style-guide, new-applet-HOWTO, bug fixes, etc.
+
+Charles P. Wright <cpwright@villagenet.com>
+    gzip, mini-netcat(nc)
+
+Enrique Zanardi <ezanardi@ull.es>
+    tarcat (since removed), loadkmap, various fixes, Debian maintenance
+
+Tito Ragusa <farmatito@tiscali.it>
+    devfsd and size optimizations in strings, openvt, chvt, deallocvt, hdparm,
+    fdformat, lsattr, chattr, id and eject.
+
+Paul Fox <pgf@foxharp.boston.ma.us>
+    vi editing mode for ash, various other patches/fixes
+
+Roberto A. Foglietta <me@roberto.foglietta.name>
+    port: dnsd
+
+Bernhard Reutner-Fischer <rep.dot.nop@gmail.com>
+    misc
+
+Mike Frysinger <vapier@gentoo.org>
+    initial e2fsprogs, printenv, setarch, sum, misc
+
+Jie Zhang <jie.zhang@analog.com>
+    fixed two bugs in msh and hush (exitcode of killed processes)
+
+Maxime Coste <mawww@kakoune.org>
+    paste implementation

@@ -1,0 +1,13 @@
+readonly a='A'
+readonly b='B'
+Ok:0
+
+./readonly0.tests: line 19: a: is read only
+Fail:2
+./readonly0.tests: readonly: line 21: a: is read only
+Fail:2
+
+./readonly0.tests: export: line 27: a: is read only
+Fail:2
+
+./readonly0.tests: unset: line 44: a: is read only

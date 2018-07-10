@@ -1,0 +1,46 @@
+dt=`busybox date`
+# Expected format: Fri Apr 25 03:47:55 CEST 2008
+dt=`echo "$dt" | sed 's/^[^ ][^ ][^ ] [^ ][^ ][^ ] [ 0123][0-9] [012][0-9]:[0-5][0-9]:[0-6][0-9] [A-Z][A-Z]* [012][0-9][0-9][0-9]$/OK/'`
+test x"$dt" = x"OK"
+
+dt=`busybox date -d 1:2`
+dt=`echo "$dt" | cut -b12-19`
+test x"$dt" = x"01:02:00"
+
+dt=`busybox date -d 1:2:3`
+dt=`echo "$dt" | cut -b12-19`
+test x"$dt" = x"01:02:03"
+
+dt=`busybox date -d 1.2-3:4`
+dt=`echo "$dt" | cut -b5-19`
+test x"$dt" = x"Jan  2 03:04:00"
+
+dt=`busybox date -d 1.2-3:4:5`
+dt=`echo "$dt" | cut -b5-19`
+test x"$dt" = x"Jan  2 03:04:05"
+
+dt=`busybox date -d 1999.1.2-3:4`
+dt=`echo "$dt" | cut -b1-19`
+test x"$dt" = x"Sat Jan  2 03:04:00"
+
+dt=`busybox date -d 1999.1.2-3:4:5`
+dt=`echo "$dt" | cut -b1-19`
+test x"$dt" = x"Sat Jan  2 03:04:05"
+
+dt=`busybox date -d '1999-1-2 3:4:5'`
+dt=`echo "$dt" | cut -b1-19`
+test x"$dt" = x"Sat Jan  2 03:04:05"
+
+# date (GNU coreutils) 8.17 doesn't accept 01231133 either:
+# date: invalid date '01231133'
+#dt=`busybox date -d 01231133`
+#dt=`echo "$dt" | cut -b5-19`
+#test x"$dt" = x"Jan 23 11:33:00"
+
+dt=`busybox date -d 200001231133`
+dt=`echo "$dt" | cut -b1-19`
+test x"$dt" = x"Sun Jan 23 11:33:00"
+
+dt=`busybox date -d 200001231133.30`
+dt=`echo "$dt" | cut -b1-19`
+test x"$dt" = x"Sun Jan 23 11:33:30"

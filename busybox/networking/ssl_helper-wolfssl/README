@@ -1,0 +1,24 @@
+A small SSL helper for busybox wget.
+
+Precompiled static binary may be found in
+http://busybox.net/downloads/binaries/
+
+Build instructions:
+
+* Unpack wolfssl-3.9.8.tar.gz from https://github.com/wolfSSL/wolfssl/releases
+  to a wolfssl-3.9.8 subdirectory here.
+* Create configure:
+	(cd wolfssl-* && ./autogen.sh)
+* Build it: see
+	(cd wolfssl-* && ../00cfg-wolfssl-3.9.8)
+* Run
+	./ssl_helper.sh
+  to compile and link the helper
+
+Usage: "ssl_helper -d FILE_DESCRIPTOR" where FILE_DESCRIPTOR is open to the peer.
+
+In bash, you can do it this way:
+$ ssl_helper -d3 3<>/dev/tcp/HOST/PORT
+
+Stdin will be SSL-encrypted and sent to FILE_DESCRIPTOR.
+Data from FILE_DESCRIPTOR will be decrypted and sent to stdout.

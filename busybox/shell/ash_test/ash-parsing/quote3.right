@@ -1,0 +1,12 @@
+Testing: in ""
+..
+Testing: in ''
+..
+Testing: in $empty
+Testing: in $empty""
+..
+Testing: in $empty''
+..
+Testing: in "$empty"
+..
+Finished

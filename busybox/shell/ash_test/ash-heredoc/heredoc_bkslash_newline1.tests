@@ -1,0 +1,25 @@
+cat <\
+<\
+EOF
+heredoc0
+EOF
+echo Ok0:$?
+
+cat <<\
+ EOF
+heredoc1
+EOF
+echo Ok1:$?
+
+cat <<\
+- EOF
+heredoc2
+	EOF
+echo Ok2:$?
+
+cat <\
+<\
+- EOF
+heredoc3
+	EOF
+echo Ok4:$?

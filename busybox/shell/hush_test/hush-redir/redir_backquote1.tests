@@ -1,0 +1,19 @@
+v=v
+v=`echo First >&2` `` >/cant/be/created
+echo One:$? v1:"[$v]"
+
+v=v
+v=`echo Second >&2` `true` >/cant/be/created
+echo One:$? v2:"[$v]"
+
+v=v
+v=`echo Third >&2` `true` 2>/dev/null
+echo Zero:$? v3:"[$v]"
+
+v=v
+v=`echo Fourth >&2` `false` 2>/dev/null
+echo Zero:$? v4:"[$v]"
+
+v=v
+v=`echo $?` `false` 2>/dev/null
+echo Zero:$? v5:"[$v]"

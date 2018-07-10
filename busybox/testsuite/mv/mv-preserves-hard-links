@@ -1,0 +1,6 @@
+# FEATURE: CONFIG_FEATURE_PRESERVE_HARDLINKS
+touch foo
+ln foo bar
+mkdir baz
+busybox mv foo bar baz
+test baz/foo -ef baz/bar

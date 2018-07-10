@@ -1,0 +1,7 @@
+$THIS_SH -c '
+(sleep 1; kill -HUP $$) &
+while true; do
+	read ignored
+done
+'
+echo "Done:$?"

@@ -1,0 +1,8 @@
+f() { echo "'f $1 $2 $3' called"; }
+
+set -- a b c
+echo "params: $1 $2 $3"
+f 1 2 3
+echo "params: $1 $2 $3"
+true | f 1 2 3
+echo "params: $1 $2 $3"

@@ -1,0 +1,17 @@
+./unset.tests: unset: line 3: -: bad variable name
+2
+./unset.tests: unset: line 5: illegal option -m
+2
+0
+___
+0 f g
+0 g
+0
+___
+0 f g
+0
+0 f g
+0
+___
+./unset.tests: unset: line 36: VAR_RO: is read only
+2 f g

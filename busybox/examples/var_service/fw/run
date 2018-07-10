@@ -1,0 +1,235 @@
+#!/bin/bash
+# (using bashism: arrays)
+
+user="root"
+reset_all_netdevs=true
+preferred_default_route_iface="if"
+extif="if"
+ext_open_tcp="22 80 88" # space-separated
+
+# Make ourself one-shot
+svc -o .
+# Debug
+#date '+%Y-%m-%d %H:%M:%S' >>"$0.log"
+
+service=`basename $PWD`
+rundir="/var/run/service/$service"
+
+### filter This is the default table (if no -t option is passed).  It contains
+###        the  built-in chains INPUT (for packets coming into the box itself),
+###        FORWARD (for packets being routed through the box), and OUTPUT (for
+###        locally-generated packets).
+###
+### nat    This table is consulted when a packet that creates a new connection
+###        is encountered.  It consists of three built-ins: PREROUTING (for
+###        altering packets as soon as they come in), OUTPUT (for altering
+###        locally-generated packets before routing), and POSTROUTING (for
+###        altering packets as they are about to go out).
+###
+### mangle It had two built-in chains: PREROUTING (for altering incoming
+###        packets before routing) and OUTPUT (for altering locally-generated
+###        packets before routing).  Recently three other built-in
+###        chains are added: INPUT (for packets coming into the box
+###        itself), FORWARD (for altering packets being routed through the
+###        box), and POSTROUTING (for altering packets as they are about to go
+###        out).
+###
+###       ...iface...                              ...iface...
+###          |                                        ^
+###          v                                        |
+### -mangle,NAT-               -mangle,filter-   -mangle,NAT--
+### |PREROUTING|-->[Routing]-->|FORWARD      |-->|POSTROUTING|
+### ------------    |    ^     ---------------   -------------
+###                 |    |                           ^
+###                 |    +--if NATed------------+    |
+###                 v                           |    |
+###      -mangle,filter-                -mangle,NAT,filter-
+###      |INPUT        |  +->[Routing]->|OUTPUT           |
+###      ---------------  |             -------------------
+###                 |     |
+###                 v     |
+###         ... Local Process...
+
+doit() {
+	echo "# $*"
+	"$@"
+}
+
+#exec >/dev/null
+exec >"$0.out"
+exec 2>&1
+exec </dev/null
+
+umask 077
+
+# Make sure rundir/ exists
+mkdir -p "$rundir" 2>/dev/null
+chown -R "$user": "$rundir"
+chmod -R a=rX "$rundir"
+rm -rf rundir 2>/dev/null
+ln -s "$rundir" rundir
+
+# Timestamping
+date '+%Y-%m-%d %H:%M:%S'
+
+echo; echo "* Reading IP config"
+cfg=-1
+#             static cfg    dhcp,zeroconf etc
+for ipconf in conf/*.ipconf "$rundir"/*.ipconf; do
+	if test -f "$ipconf"; then
+		echo "+ $ipconf"
+		. "$ipconf"
+	fi
+done
+
+echo; echo "* Configuring hardware"
+#doit ethtool -s if autoneg off speed 100 duplex full
+#doit ethtool -K if rx off tx off sg off tso off
+
+echo; echo "* Resetting address and routing info"
+if $reset_all_netdevs; then
+	devs=`sed -n 's/ //g;s/:.*$//p' </proc/net/dev`
+	for iface in $devs; do
+		doit ip a f dev "$iface"
+		doit ip r f dev "$iface" root 0/0
+	done
+else
+	doit ip a f dev lo
+	i=0; while test "${if[$i]}"; do
+		doit ip a f dev "${if[$i]}"
+		doit ip r f dev "${if[$i]}" root 0/0
+	let i++; done
+fi
+
+echo; echo "* Configuring addresses"
+doit ip a a dev lo 127.0.0.1/8 scope host
+doit ip a a dev lo ::1/128 scope host
+i=0; while test "${if[$i]}"; do
+	if test "${ipmask[$i]}"; then
+		doit ip a a dev "${if[$i]}" "${ipmask[$i]}" brd +
+		doit ip l set dev "${if[$i]}" up
+	fi
+let i++; done
+
+echo; echo "* Configuring routes"
+# If several ifaces are configured via DHCP, they often both have 0/0 route.
+# They have no way of knowing that this route is offered on more than one iface.
+# Often, it's desirable to prefer one iface: say, wired eth over wireless.
+# if preferred_default_route_iface is not set, 0/0 route will be assigned randomly.
+if test "$preferred_default_route_iface"; then
+	i=0; while test "${if[$i]}"; do
+		if test "${if[$i]}" = "$preferred_default_route_iface" \
+		&& test "${net[$i]}" = "0/0" \
+		&& test "${gw[$i]}"; then
+			echo "+ default route through ${if[$i]}, ${gw[$i]}:"
+			doit ip r a "${net[$i]}" via "${gw[$i]}"
+		fi
+	let i++; done
+fi
+i=0; while test "${if[$i]}"; do
+	#echo $i:"${if[$i]}"
+	if test "${net[$i]}" && test "${gw[$i]}"; then
+		doit ip r a "${net[$i]}" via "${gw[$i]}"
+	fi
+let i++; done
+
+echo; echo "* Recreating /etc/* files reflecting new network configuration:"
+for i in etc/*; do
+	n=`basename "$i"`
+	echo "+ $n"
+	(. "$i") >"/etc/$n"
+	chmod 644 "/etc/$n"
+done
+
+
+# Usage: new_chain <chain> [<table>]
+new_chain() {
+	local t=""
+	test x"$2" != x"" && t="-t $2"
+	doit iptables $t -N $1
+	ipt="iptables $t -A $1"
+}
+
+echo; echo "* Reset iptables"
+doit iptables           --flush
+doit iptables           --delete-chain
+doit iptables           --zero
+doit iptables -t nat    --flush
+doit iptables -t nat    --delete-chain
+doit iptables -t nat    --zero
+doit iptables -t mangle --flush
+doit iptables -t mangle --delete-chain
+doit iptables -t mangle --zero
+
+echo; echo "* Configure iptables"
+doit modprobe nf_nat_ftp
+doit modprobe nf_nat_tftp
+doit modprobe nf_conntrack_ftp
+doit modprobe nf_conntrack_tftp
+
+#       *** nat ***
+#       INCOMING TRAFFIC
+ipt="iptables -t nat -A PREROUTING"
+# nothing here
+
+#       LOCALLY ORIGINATED TRAFFIC
+ipt="iptables -t nat -A OUTPUT"
+# nothing here
+
+#       OUTGOING TRAFFIC
+ipt="iptables -t nat -A POSTROUTING"
+# Masquerade boxes on my private net
+doit $ipt -s 192.168.0.0/24 -o $extif -j MASQUERADE
+
+#       *** mangle ***
+### DEBUG
+### ipt="iptables -t mangle -A PREROUTING"
+### doit $ipt -s 192.168.0.0/24 -j RETURN
+### ipt="iptables -t mangle -A FORWARD"
+### doit $ipt -s 192.168.0.0/24 -j RETURN
+### ipt="iptables -t mangle -A POSTROUTING"
+### doit $ipt -s 192.168.0.0/24 -j RETURN
+# nothing here
+
+#       *** filter ***
+#
+new_chain iext filter
+#doit $ipt -s 203.177.104.72 -j DROP	# Some idiot probes my ssh
+#doit $ipt -d 203.177.104.72 -j DROP	# Some idiot probes my ssh
+doit $ipt -m state --state ESTABLISHED,RELATED -j RETURN  # FTP data etc is ok
+if test "$ext_open_tcp"; then
+	portlist="${ext_open_tcp// /,}"
+	doit $ipt -p tcp -m multiport --dports $portlist -j RETURN
+fi
+doit $ipt -p tcp -j REJECT	# Anything else isn't ok. REJECT = irc opens faster
+				# (it probes proxy ports, DROP will incur timeout delays)
+ipt="iptables -t filter -A INPUT"
+doit $ipt -i $extif -j iext
+
+
+echo; echo "* Enabling forwarding"
+echo 1 >/proc/sys/net/ipv4/ip_forward
+echo "/proc/sys/net/ipv4/ip_forward: `cat /proc/sys/net/ipv4/ip_forward`"
+
+
+# Signal everybody that firewall is up
+date '+%Y-%m-%d %H:%M:%S' >"$rundir/up"
+
+# Ok, spew out gobs of info and disable ourself
+echo; echo "* IP:"
+ip a l
+echo; echo "* Routing:"
+ip r l
+echo; echo "* Firewall:"
+{
+echo '---FILTER--';
+iptables -v -L -x -n;
+echo '---NAT-----';
+iptables -t nat -v -L -x -n;
+echo '---MANGLE--';
+iptables -t mangle -v -L -x -n;
+} \
+| grep -v '^$' | grep -Fv 'bytes target'
+echo
+
+echo "* End of firewall configuration"

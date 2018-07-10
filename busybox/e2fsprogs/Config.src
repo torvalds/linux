@@ -1,0 +1,43 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Linux Ext2 FS Progs"
+
+INSERT
+
+### config E2FSCK
+###	bool "e2fsck"
+###	default y
+###	help
+###	  e2fsck is used to check Linux second extended file systems (ext2fs).
+###	  e2fsck also supports ext2 filesystems countaining a journal (ext3).
+###	  The normal compat symlinks 'fsck.ext2' and 'fsck.ext3' are also
+###	  provided.
+
+### config MKE2FS
+###	bool "mke2fs"
+###	default y
+###	help
+###	  mke2fs is used to create an ext2/ext3 filesystem. The normal compat
+###	  symlinks 'mkfs.ext2' and 'mkfs.ext3' are also provided.
+
+### config E2LABEL
+###	bool "e2label"
+###	default y
+###	depends on TUNE2FS
+###	help
+###	  e2label will display or change the filesystem label on the ext2
+###	  filesystem located on device.
+
+### NB: this one is now provided by util-linux/volume_id/*
+### config FINDFS
+###	bool "findfs"
+###	default y
+###	depends on TUNE2FS
+###	help
+###	  findfs will search the disks in the system looking for a filesystem
+###	  which has a label matching label or a UUID equal to uuid.
+
+endmenu

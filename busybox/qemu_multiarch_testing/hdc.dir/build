@@ -1,0 +1,51 @@
+#!/bin/sh
+
+umount /mnt # optional
+
+test -x "bin/busybox-$HOST" && {
+	echo "Found bin/busybox-$HOST, using it"
+	cp -a "bin/busybox-$HOST" bin/busybox
+	bin/busybox --install -s bin/
+	# Supply missing stuff (e.g. bzip2):
+	PATH="$PATH:$PWD/bin"
+	# Override known-buggy host binaries:
+	cp -af bin/od `which od`
+}
+
+(
+	#set -e -x
+	cd busybox
+
+	make defconfig
+	# Want static build
+	sed 's/^.*CONFIG_STATIC.*$/CONFIG_STATIC=y/' -i .config
+	bzip2 </dev/null >/dev/null || {
+		# Drats, newer Aboriginal Linux has no bzip2
+		sed 's/^.*CONFIG_FEATURE_COMPRESS_USAGE.*$/# CONFIG_FEATURE_COMPRESS_USAGE is not set/' -i .config
+	}
+	test x"`uname -m`" = x"mips" && {
+		# Without this, I get MIPS-I binary instead of MIPS32.
+		# No idea what's the difference, but my router wants MIPS32.
+		sed 's/^.*CONFIG_EXTRA_CFLAGS.*$/CONFIG_EXTRA_CFLAGS="-mips32"/' -i .config
+	}
+	# These won't build because of toolchain/libc breakage:
+	sed 's/^.*CONFIG_FEATURE_SYNC_FANCY.*$/# CONFIG_FEATURE_SYNC_FANCY is not set/' -i .config # no syncfs() on armv4l, sparc
+	sed 's/^.*CONFIG_FEATURE_WTMP.*$/# CONFIG_FEATURE_WTMP is not set/' -i .config
+	sed 's/^.*CONFIG_FEATURE_UTMP.*$/# CONFIG_FEATURE_UTMP is not set/' -i .config
+	sed 's/^.*CONFIG_FEATURE_INETD_RPC.*$/# CONFIG_FEATURE_INETD_RPC is not set/' -i .config
+
+	make #V=1 || sh
+	test -f busybox || exit 1
+	size busybox
+	./busybox || echo "Exit code: $?"
+	if uuencode TEST </dev/null >/dev/null && bzip2 </dev/null >/dev/null; then
+		bzip2 <busybox | uuencode busybox.bz2
+	else
+		od -v -tx1 <busybox
+	fi
+	#test "x$FTP_PORT" = x ||
+	#	ftpput -P "$FTP_PORT" "$FTP_SERVER" strace
+) 2>&1 | tee build.log
+mount -o remount,ro /home
+sync
+sleep 1

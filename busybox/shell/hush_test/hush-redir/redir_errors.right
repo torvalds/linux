@@ -1,0 +1,14 @@
+hush: can't open '/does/not/exist': No such file or directory
+One:1
+hush: can't open '/cant/be/created': No such file or directory
+One:1
+Ok
+hush: can't open '/cant/be/created': No such file or directory
+Zero:0
+hush: can't open '/cant/be/created': No such file or directory
+One:1
+hush: can't open '/cant/be/created': No such file or directory
+One:1
+hush: can't open '/cant/be/created': No such file or directory
+Zero:0
+Done

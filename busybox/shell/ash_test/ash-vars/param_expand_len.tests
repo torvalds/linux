@@ -1,0 +1,24 @@
+"$THIS_SH" -c 'echo $#'
+"$THIS_SH" -c 'echo $#' arg0
+"$THIS_SH" -c 'echo $#' arg0 arg1
+
+echo Make sure len parsing doesnt break arg count
+set --
+echo $# ${#}
+set -- aaaa bbb cc d
+echo $# ${#}
+
+echo Testing len op
+echo ${#1} ${#2} ${#3} ${#4} ${#5} ${#6}
+
+unset e
+f=abc
+g=
+echo ${#e} ${#f} ${#g}
+
+set -- a
+# This must be interpreted as: $# ("1"), then remove trailing "1".
+# IOW: empty result.
+echo Nothing:${##1}
+echo Nothing:${#%1}
+echo One:${##x}

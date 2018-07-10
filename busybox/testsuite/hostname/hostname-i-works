@@ -1,0 +1,9 @@
+test x"$SKIP_KNOWN_BUGS" != x"" && exit
+
+# Observed bug:
+# # ./busybox hostname -i
+# 127.0.0.1
+# # hostname -i
+# 127.0.0.1 10.0.0.2 10.32.10.45
+
+test x$(hostname -i) = x$(busybox hostname -i)

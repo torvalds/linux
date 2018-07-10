@@ -1,0 +1,200 @@
+keymaps 0,1, 2,3, 4,6, 8,9, 10,11, 12,14
+#
+# This one is for generating Unicode Curillic chars
+# Cyr/Lat switches: RightAlt, Shift+Ctrl, Ctrl+Shift, Win keys
+#
+# plain,shift, plain,shift, ctrl,ctrl alt,shiftalt alt,shiftalt ctrlalt,ctrlalt
+# lat--------  cyr--------  lat  cyr  lat--------- cyr--------- lat     cyr
+#
+#Shift                     1
+#AltGr (cyr)               2
+#Control                   4
+#Alt                       8
+#ShiftL                   16
+#ShiftR                   32
+#CtrlL                    64
+#CtrlR                   128
+
+# L/R Ctrl: Shift+Ctrl - Cyrillic
+keycode  29 =   Control		AltGr_Lock      Control         AltGr_Lock      Control		        Control		        Control		        Control		        Control		        Control		        Control		        Control
+keycode  97 =   Control		AltGr_Lock      Control         AltGr_Lock      Control		        Control		        Control		        Control		        Control		        Control		        Control		        Control
+# L/R Shift: Ctrl+Shift - Cyrillic
+keycode  42 =   Shift           Shift           Shift           Shift           AltGr_Lock              AltGr_Lock              Shift                   Shift                   Shift                   Shift                   Shift                   Shift
+keycode  54 =   Shift           Shift           Shift           Shift           AltGr_Lock              AltGr_Lock              Shift                   Shift                   Shift                   Shift                   Shift                   Shift
+# Right Alt: Cyrillic
+keycode 100 =   AltGr_Lock
+# L/R Win: Cyrillic
+keycode 125 =   AltGr_Lock
+keycode 126 =   AltGr_Lock
+
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt shift ============= alt cyr =============== alt shift cur ========= ctrlalt =============== ctrlalt cyr ===========
+keycode   1 =   Escape          Escape          Escape          Escape          Escape                  Escape                  Meta_Escape             Meta_Escape             Meta_Escape             Meta_Escape             SAK                     SAK
+keycode   2 =   one             exclam          one             exclam          exclam                  exclam                  Meta_one                Meta_one                Meta_one                Meta_one
+keycode   3 =   two             at              two             at              nul                     nul                     Meta_two                Meta_two                Meta_two                Meta_two
+keycode   4 =   three           numbersign      three           numbersign      three                   three                   Meta_three              Meta_three              Meta_three              Meta_three
+keycode   5 =   four            dollar          four            dollar          Control_backslash       Control_backslash       Meta_four               Meta_four               Meta_four               Meta_four
+keycode   6 =   five            percent         five            percent         Control_bracketright    Control_bracketright    Meta_five               Meta_five               Meta_five               Meta_five
+keycode   7 =   six             asciicircum     six             asciicircum     Control_asciicircum     Control_asciicircum     Meta_six                Meta_six                Meta_six                Meta_six
+keycode   8 =   seven           ampersand       seven           ampersand       Control_underscore      Control_underscore      Meta_seven              Meta_seven              Meta_seven              Meta_seven
+keycode   9 =   eight           asterisk        eight           asterisk        eight                   eight                   Meta_eight              Meta_eight              Meta_eight              Meta_eight
+keycode  10 =   nine            parenleft       nine            parenleft       nine                    nine                    Meta_nine               Meta_nine               Meta_nine               Meta_nine
+keycode  11 =   zero            parenright      zero            parenright      zero                    zero                    Meta_zero               Meta_zero               Meta_zero               Meta_zero
+keycode  12 =   minus           underscore      minus           underscore      Control_underscore      Control_underscore      Meta_minus              Meta_minus              Meta_minus              Meta_minus
+keycode  13 =   equal           plus            equal           plus            equal                   equal                   Meta_equal              Meta_equal              Meta_equal              Meta_equal
+keycode  14 =   Delete          Delete          Delete          Delete          BackSpace               BackSpace               Meta_Delete             Meta_Delete             Meta_Delete             Meta_Delete
+keycode  15 =   Tab             Tab             Tab             Tab             Tab                     Tab                     Meta_Tab                Meta_Tab                Meta_Tab                Meta_Tab
+keycode  16 =   +q              +Q              +U+0439         +U+0419         Control_q               Control_q               Meta_q                  Meta_q                  Meta_q                  Meta_q                  Meta_Control_q          Meta_Control_q
+keycode  17 =   +w              +W              +U+0446         +U+0426         Control_w               Control_w               Meta_w                  Meta_w                  Meta_w                  Meta_w                  Meta_Control_w          Meta_Control_w
+keycode  18 =   +e              +E              +U+0443         +U+0423         Control_e               Control_e               Meta_e                  Meta_e                  Meta_e                  Meta_e                  Meta_Control_e          Meta_Control_e
+keycode  19 =   +r              +R              +U+043a         +U+041a         Control_r               Control_r               Meta_r                  Meta_r                  Meta_r                  Meta_r                  Meta_Control_r          Meta_Control_r
+keycode  20 =   +t              +T              +U+0435         +U+0415         Control_t               Control_t               Meta_t                  Meta_t                  Meta_t                  Meta_t                  Meta_Control_t          Meta_Control_t
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt =================== alt cyr =============== alt cyr =============== ctrlalt =============== ctrlalt cyr ===========
+keycode  21 =   +y              +Y              +U+043d         +U+041d         Control_y               Control_y               Meta_y                  Meta_y                  Meta_y                  Meta_y                  Meta_Control_y          Meta_Control_y
+keycode  22 =   +u              +U              +U+0433         +U+0413         Control_u               Control_u               Meta_u                  Meta_u                  Meta_u                  Meta_u                  Meta_Control_u          Meta_Control_u
+keycode  23 =   +i              +I              +U+0448         +U+0428         Control_i               Control_i               Meta_i                  Meta_i                  Meta_i                  Meta_i                  Meta_Control_i          Meta_Control_i
+keycode  24 =   +o              +O              +U+0449         +U+0429         Control_o               Control_o               Meta_o                  Meta_o                  Meta_o                  Meta_o                  Meta_Control_o          Meta_Control_o
+keycode  25 =   +p              +P              +U+0437         +U+0417         Control_p               Control_p               Meta_p                  Meta_p                  Meta_p                  Meta_p                  Meta_Control_p          Meta_Control_p
+keycode  26 =   bracketleft     braceleft       +U+0445         +U+0425         Escape                  Escape                  Meta_bracketleft        Meta_bracketleft        Meta_bracketleft        Meta_bracketleft
+keycode  27 =   bracketright    braceright      +U+044a         +U+042a         Control_bracketright    Control_bracketright
+keycode  28 =   Return
+# LCtrl
+#keycode  29 =
+keycode  30 =   +a              +A              +U+0444         +U+0424         Control_a               Control_a               Meta_a                  Meta_a                  Meta_a                  Meta_a                  Meta_Control_a          Meta_Control_a
+keycode  31 =   +s              +S              +U+044b         +U+042b         Control_s               Control_s               Meta_s                  Meta_s                  Meta_s                  Meta_s                  Meta_Control_s          Meta_Control_s
+keycode  32 =   +d              +D              +U+0432         +U+0412         Control_d               Control_d               Meta_d                  Meta_d                  Meta_d                  Meta_d                  Meta_Control_d          Meta_Control_d
+keycode  33 =   +f              +F              +U+0430         +U+0410         Control_f               Control_f               Meta_f                  Meta_f                  Meta_f                  Meta_f                  Meta_Control_f          Meta_Control_f
+keycode  34 =   +g              +G              +U+043f         +U+041f         Control_g               Control_g               Meta_g                  Meta_g                  Meta_g                  Meta_g                  Meta_Control_g          Meta_Control_g
+keycode  35 =   +h              +H              +U+0440         +U+0420         Control_h               Control_h               Meta_h                  Meta_h                  Meta_h                  Meta_h                  Meta_Control_h          Meta_Control_h
+keycode  36 =   +j              +J              +U+043e         +U+041e         Control_j               Control_j               Meta_j                  Meta_j                  Meta_j                  Meta_j                  Meta_Control_j          Meta_Control_j
+keycode  37 =   +k              +K              +U+043b         +U+041b         Control_k               Control_k               Meta_k                  Meta_k                  Meta_k                  Meta_k                  Meta_Control_k          Meta_Control_k
+keycode  38 =   +l              +L              +U+0434         +U+0414         Control_l               Control_l               Meta_l                  Meta_l                  Meta_l                  Meta_l                  Meta_Control_l          Meta_Control_l
+keycode  39 =   semicolon       colon           +U+0436         +U+0416         semicolon               semicolon               Meta_semicolon          Meta_semicolon          Meta_semicolon          Meta_semicolon
+keycode  40 =   apostrophe      quotedbl        +U+044d         +U+042d         Control_g               Control_g               Meta_apostrophe         Meta_apostrophe         Meta_apostrophe         Meta_apostrophe
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt =================== alt cyr =============== alt cyr =============== ctrlalt =============== ctrlalt cyr ===========
+keycode  41 =   grave           asciitilde      grave           asciitilde      nul                     nul                     Meta_grave              Meta_grave              Meta_grave              Meta_grave
+# LShift
+#keycode  42 =
+keycode  43 =   backslash       bar             backslash       bar             Control_backslash       Control_backslash       Meta_backslash          Meta_backslash          Meta_backslash          Meta_backslash
+keycode  44 =   +z              +Z              +U+044f         +U+042f         Control_z               Control_z               Meta_z                  Meta_z                  Meta_z                  Meta_z                  Meta_Control_z          Meta_Control_z
+keycode  45 =   +x              +X              +U+0447         +U+0427         Control_x               Control_x               Meta_x                  Meta_x                  Meta_x                  Meta_x                  Meta_Control_x          Meta_Control_x
+keycode  46 =   +c              +C              +U+0441         +U+0421         Control_c               Control_c               Meta_c                  Meta_c                  Meta_c                  Meta_c                  Meta_Control_c          Meta_Control_c
+keycode  47 =   +v              +V              +U+043c         +U+041c         Control_v               Control_v               Meta_v                  Meta_v                  Meta_v                  Meta_v                  Meta_Control_v          Meta_Control_v
+keycode  48 =   +b              +B              +U+0438         +U+0418         Control_b               Control_b               Meta_b                  Meta_b                  Meta_b                  Meta_b                  Meta_Control_b          Meta_Control_b
+keycode  49 =   +n              +N              +U+0442         +U+0422         Control_n               Control_n               Meta_n                  Meta_n                  Meta_n                  Meta_n                  Meta_Control_n          Meta_Control_n
+keycode  50 =   +m              +M              +U+044c         +U+042c         Control_m               Control_m               Meta_m                  Meta_m                  Meta_m                  Meta_m                  Meta_Control_m          Meta_Control_m
+keycode  51 =   comma           less            +U+0431         +U+0411         comma                   comma                   Meta_comma              Meta_comma              Meta_comma              Meta_comma
+keycode  52 =   period          greater         +U+044e         +U+042e         Compose                 Compose                 Meta_period             Meta_period             Meta_period             Meta_period
+keycode  53 =   slash           question        slash           question        Delete                  Delete                  Meta_slash              Meta_question           Meta_slash              Meta_question           Meta_question           Meta_question
+# RShift
+#keycode  54 =
+keycode  55 =   KP_Multiply
+keycode  56 =   Alt
+keycode  57 =   space           space           space           space           nul                     nul                     Meta_space              Meta_space              Meta_space              Meta_space
+keycode  58 =   Caps_Lock
+keycode  59 =   F1              F11             F1              F11             F1                      F1                      Console_1               Console_1               Console_1               Console_1               Console_1               Console_1
+keycode  60 =   F2              F12             F2              F12             F2                      F2                      Console_2               Console_2               Console_2               Console_2               Console_2               Console_2
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt =================== alt cyr =============== alt cyr =============== ctrlalt =============== ctrlalt cyr ===========
+keycode  61 =   F3              F13             F3              F13             F3                      F3                      Console_3               Console_3               Console_3               Console_3               Console_3               Console_3
+keycode  62 =   F4              F14             F4              F14             F4                      F4                      Console_4               Console_4               Console_4               Console_4               Console_4               Console_4
+keycode  63 =   F5              F15             F5              F15             F5                      F5                      Console_5               Console_5               Console_5               Console_5               Console_5               Console_5
+keycode  64 =   F6              F16             F6              F16             F6                      F6                      Console_6               Console_6               Console_6               Console_6               Console_6               Console_6
+keycode  65 =   F7              F17             F7              F17             F7                      F7                      Console_7               Console_7               Console_7               Console_7               Console_7               Console_7
+keycode  66 =   F8              F18             F8              F18             F8                      F8                      Console_8               Console_8               Console_8               Console_8               Console_8               Console_8
+keycode  67 =   F9              F19             F9              F19             F9                      F9                      Console_9               Console_9               Console_9               Console_9               Console_9               Console_9
+keycode  68 =   F10             F20             F10             F20             F10                     F10                     Console_10              Console_10              Console_10              Console_10              Console_10              Console_10
+keycode  69 =   Num_Lock        Bare_Num_Lock   Num_Lock        Bare_Num_Lock
+keycode  70 =   Scroll_Lock     Show_Memory     Scroll_Lock     Show_Memory     Show_State              Show_State
+keycode  71 =   KP_7            KP_7            KP_7            KP_7            KP_7                    KP_7                    Ascii_7                 Ascii_7                 Ascii_7                 Ascii_7
+keycode  72 =   KP_8            KP_8            KP_8            KP_8            KP_8                    KP_8                    Ascii_8                 Ascii_8                 Ascii_8                 Ascii_8
+keycode  73 =   KP_9            KP_9            KP_9            KP_9            KP_9                    KP_9                    Ascii_9                 Ascii_9                 Ascii_9                 Ascii_9
+keycode  74 =   KP_Subtract     KP_Subtract     KP_Subtract     KP_Subtract     KP_Subtract             KP_Subtract             KP_Subtract             KP_Subtract             KP_Subtract             KP_Subtract
+keycode  75 =   KP_4            KP_4            KP_4            KP_4            KP_4                    KP_4                    Ascii_4                 Ascii_4                 Ascii_4                 Ascii_4
+keycode  76 =   KP_5            KP_5            KP_5            KP_5            KP_5                    KP_5                    Ascii_5                 Ascii_5                 Ascii_5                 Ascii_5
+keycode  77 =   KP_6            KP_6            KP_6            KP_6            KP_6                    KP_6                    Ascii_6                 Ascii_6                 Ascii_6                 Ascii_6
+keycode  78 =   KP_Add          KP_Add          KP_Add          KP_Add          KP_Add                  KP_Add                  KP_Add                  KP_Add                  KP_Add                  KP_Add
+keycode  79 =   KP_1            KP_1            KP_1            KP_1            KP_1                    KP_1                    Ascii_1                 Ascii_1                 Ascii_1                 Ascii_1
+keycode  80 =   KP_2            KP_2            KP_2            KP_2            KP_2                    KP_2                    Ascii_2                 Ascii_2                 Ascii_2                 Ascii_2
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt =================== alt cyr =============== alt cyr =============== ctrlalt =============== ctrlalt cyr ===========
+keycode  81 =   KP_3            KP_3            KP_3            KP_3            KP_3                    KP_3                    Ascii_3                 Ascii_3                 Ascii_3                 Ascii_3
+keycode  82 =   KP_0            KP_0            KP_0            KP_0            KP_0                    KP_0                    Ascii_0                 Ascii_0                 Ascii_0                 Ascii_0
+keycode  83 =   KP_Period       KP_Period       KP_Period       KP_Period       KP_Period               KP_Period               KP_Period               KP_Period               KP_Period               KP_Period               Boot                    Boot
+keycode  84 =   Last_Console
+keycode  85 =
+keycode  86 =   less            greater         less            greater         less                    less                    Meta_less               Meta_less               Meta_less               Meta_less
+keycode  87 =   F11             F11             F11             F11             F11                     F11                     Console_11              Console_11              Console_11              Console_11              Console_11              Console_11
+keycode  88 =   F12             F12             F12             F12             F12                     F12                     Console_12              Console_12              Console_12              Console_12              Console_12              Console_12
+keycode  89 =
+keycode  90 =
+keycode  91 =
+keycode  92 =
+keycode  93 =
+keycode  94 =
+keycode  95 =
+keycode  96 =   KP_Enter
+# RControl
+#keycode  97 =
+keycode  98 =   KP_Divide
+keycode  99 =   Control_backslash
+# RAlt
+#keycode 100 =
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt shift ============= alt cyr =============== alt shift cyr ========= ctrlalt =============== ctrlalt cyr ===========
+keycode 101 =   Break
+keycode 102 =   Find
+keycode 103 =   Up
+keycode 104 =   Prior           Scroll_Backward Prior           Scroll_Backward Prior                   Prior                   Prior                   Prior                   Prior                   Prior                   Prior                   Prior
+keycode 105 =   Left            Left            Left            Left            Left                    Left                    Left                    Left                    Left                    Left                    Decr_Console            Decr_Console
+keycode 106 =   Right           Right           Right           Right           Right                   Right                   Right                   Right                   Right                   Right                   Incr_Console            Incr_Console
+keycode 107 =   Select
+keycode 108 =   Down
+keycode 109 =   Next            Scroll_Forward  Next            Scroll_Forward  Next                    Next                    Next                    Next                    Next                    Next                    Next                    Next
+keycode 110 =   Insert
+keycode 111 =   Remove          Remove          Remove          Remove          Remove                  Remove                  Remove                  Remove                  Remove                  Remove                  Boot                    Boot
+keycode 112 =   Macro
+keycode 113 =   F13
+keycode 114 =   F14
+keycode 115 =   Help
+keycode 116 =   Do
+keycode 117 =   F17
+keycode 118 =   KP_MinPlus
+keycode 119 =   Pause
+keycode 120 =
+#============== plain ========= shift========== plain cyr ===== shift cyr ===== ctrl ================== ctrl cyr ============== alt =================== alt =================== alt cyr =============== alt cyr =============== ctrlalt =============== ctrlalt cyr ===========
+keycode 121 =
+keycode 122 =
+keycode 123 =
+keycode 124 =
+# LWin
+#keycode 125 =
+# RWin
+#keycode 126 =
+# RMenu
+keycode 127 =
+
+string F1 = "\033[[A"
+string F2 = "\033[[B"
+string F3 = "\033[[C"
+string F4 = "\033[[D"
+string F5 = "\033[[E"
+string F6 = "\033[17~"
+string F7 = "\033[18~"
+string F8 = "\033[19~"
+string F9 = "\033[20~"
+string F10 = "\033[21~"
+string F11 = "\033[23~"
+string F12 = "\033[24~"
+string F13 = "\033[25~"
+string F14 = "\033[26~"
+string F15 = "\033[28~"
+string F16 = "\033[29~"
+string F17 = "\033[31~"
+string F18 = "\033[32~"
+string F19 = "\033[33~"
+string F20 = "\033[34~"
+string Find = "\033[1~"
+string Insert = "\033[2~"
+string Remove = "\033[3~"
+string Select = "\033[4~"
+string Prior = "\033[5~"
+string Next = "\033[6~"
+string Macro = "\033[M"
+string Pause = "\033[P"

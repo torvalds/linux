@@ -1,0 +1,200 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2005 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+libbb/appletlib.o: include/usage_compressed.h
+
+lib-y:=
+
+INSERT
+
+lib-y += appletlib.o
+lib-y += ask_confirmation.o
+lib-y += bb_askpass.o
+lib-y += bb_bswap_64.o
+lib-y += bb_do_delay.o
+lib-y += bb_pwd.o
+lib-y += bb_qsort.o
+#lib-y += bb_strtod.o
+lib-y += bb_strtonum.o
+lib-y += change_identity.o
+lib-y += chomp.o
+lib-y += compare_string_array.o
+lib-y += concat_path_file.o
+lib-y += concat_subpath_file.o
+lib-y += copy_file.o
+lib-y += copyfd.o
+lib-y += crc32.o
+lib-y += default_error_retval.o
+lib-y += device_open.o
+lib-y += dump.o
+lib-y += executable.o
+lib-y += fclose_nonstdin.o
+lib-y += fflush_stdout_and_exit.o
+lib-y += fgets_str.o
+lib-y += find_pid_by_name.o
+lib-y += find_root_device.o
+lib-y += full_write.o
+lib-y += get_console.o
+lib-y += get_last_path_component.o
+lib-y += get_line_from_file.o
+lib-y += getpty.o
+lib-y += get_volsize.o
+lib-y += herror_msg.o
+lib-y += human_readable.o
+lib-y += inet_common.o
+lib-y += inode_hash.o
+lib-y += isdirectory.o
+lib-y += kernel_version.o
+lib-y += last_char_is.o
+lib-y += lineedit.o lineedit_ptr_hack.o
+lib-y += llist.o
+lib-y += login.o
+lib-y += make_directory.o
+lib-y += makedev.o
+lib-y += hash_md5_sha.o
+# Alternative (disabled) MD5 implementation
+#lib-y += hash_md5prime.o
+lib-y += messages.o
+lib-y += mode_string.o
+lib-y += parse_mode.o
+lib-y += perror_msg.o
+lib-y += perror_nomsg.o
+lib-y += perror_nomsg_and_die.o
+lib-y += pidfile.o
+lib-y += platform.o
+lib-y += printable.o
+lib-y += printable_string.o
+lib-y += print_flags.o
+lib-y += process_escape_sequence.o
+lib-y += procps.o
+lib-y += progress.o
+lib-y += ptr_to_globals.o
+lib-y += read.o
+lib-y += read_printf.o
+lib-y += read_key.o
+lib-y += recursive_action.o
+lib-y += remove_file.o
+lib-y += run_shell.o
+lib-y += safe_gethostname.o
+lib-y += safe_poll.o
+lib-y += safe_strncpy.o
+lib-y += safe_write.o
+lib-y += securetty.o
+lib-y += setup_environment.o
+lib-y += signals.o
+lib-y += simplify_path.o
+lib-y += single_argv.o
+lib-y += skip_whitespace.o
+lib-y += speed_table.o
+lib-y += str_tolower.o
+lib-y += strrstr.o
+lib-y += sysconf.o
+lib-y += time.o
+lib-y += trim.o
+lib-y += u_signal_names.o
+lib-y += uuencode.o
+lib-y += verror_msg.o
+lib-y += vfork_daemon_rexec.o
+lib-y += warn_ignoring_args.o
+lib-y += wfopen.o
+lib-y += wfopen_input.o
+lib-y += write.o
+lib-y += xatonum.o
+lib-y += xconnect.o
+lib-y += xfuncs.o
+lib-y += xfuncs_printf.o
+lib-y += xfunc_die.o
+lib-y += xgetcwd.o
+lib-y += xgethostbyname.o
+lib-y += xreadlink.o
+lib-y += xrealloc_vector.o
+
+lib-$(CONFIG_PLATFORM_LINUX) += match_fstype.o
+
+lib-$(CONFIG_FEATURE_UTMP) += utmp.o
+
+# A mix of optimizations (why build stuff we know won't be used)
+# and objects which may fail to build (SELinux on selinux-less system)
+lib-$(CONFIG_SELINUX) += selinux_common.o
+lib-$(CONFIG_FEATURE_MTAB_SUPPORT) += mtab.o
+lib-$(CONFIG_UNICODE_SUPPORT) += unicode.o
+lib-$(CONFIG_FEATURE_CHECK_NAMES) += die_if_bad_username.o
+
+lib-$(CONFIG_NC) += udp_io.o
+lib-$(CONFIG_NETCAT) += udp_io.o
+lib-$(CONFIG_DNSD) += udp_io.o
+lib-$(CONFIG_NTPD) += udp_io.o
+lib-$(CONFIG_TFTP) += udp_io.o
+lib-$(CONFIG_TFTPD) += udp_io.o
+lib-$(CONFIG_TCPSVD) += udp_io.o
+lib-$(CONFIG_UDPSVD) += udp_io.o
+lib-$(CONFIG_TRACEROUTE) += udp_io.o
+lib-$(CONFIG_TRACEROUTE6) += udp_io.o
+
+lib-$(CONFIG_LOSETUP) += loop.o
+lib-$(CONFIG_FEATURE_MOUNT_LOOP) += loop.o
+
+lib-$(CONFIG_ADDGROUP) += update_passwd.o
+lib-$(CONFIG_ADDUSER) += update_passwd.o
+lib-$(CONFIG_DELGROUP) += update_passwd.o
+lib-$(CONFIG_DELUSER) += update_passwd.o
+
+lib-$(CONFIG_FTPD) += pw_encrypt.o correct_password.o
+lib-$(CONFIG_PASSWD) += pw_encrypt.o update_passwd.o
+lib-$(CONFIG_FEATURE_PASSWD_WEAK_CHECK) += obscure.o
+lib-$(CONFIG_CHPASSWD) += pw_encrypt.o update_passwd.o
+lib-$(CONFIG_CRYPTPW) += pw_encrypt.o
+lib-$(CONFIG_MKPASSWD) += pw_encrypt.o
+lib-$(CONFIG_SULOGIN) += pw_encrypt.o correct_password.o
+lib-$(CONFIG_VLOCK) += pw_encrypt.o correct_password.o
+lib-$(CONFIG_SU) += pw_encrypt.o correct_password.o
+lib-$(CONFIG_LOGIN) += pw_encrypt.o correct_password.o
+lib-$(CONFIG_FEATURE_HTTPD_AUTH_MD5) += pw_encrypt.o
+lib-$(CONFIG_FEATURE_FTP_AUTHENTICATION) += pw_encrypt.o
+
+lib-$(CONFIG_DF) += find_mount_point.o
+lib-$(CONFIG_MKFS_MINIX) += find_mount_point.o
+lib-$(CONFIG_MKFS_EXT2) += find_mount_point.o
+lib-$(CONFIG_MKE2FS) += find_mount_point.o
+lib-$(CONFIG_MKFS_REISER) += find_mount_point.o
+lib-$(CONFIG_FSCK_MINIX) += find_mount_point.o
+lib-$(CONFIG_MOUNT) += find_mount_point.o
+
+lib-$(CONFIG_HWCLOCK) += rtc.o
+lib-$(CONFIG_RTCWAKE) += rtc.o
+
+lib-$(CONFIG_IOSTAT) += get_cpu_count.o
+lib-$(CONFIG_MPSTAT) += get_cpu_count.o
+lib-$(CONFIG_POWERTOP) += get_cpu_count.o
+
+lib-$(CONFIG_PING) += inet_cksum.o
+lib-$(CONFIG_PING6) += inet_cksum.o
+lib-$(CONFIG_TRACEROUTE) += inet_cksum.o
+lib-$(CONFIG_TRACEROUTE6) += inet_cksum.o
+lib-$(CONFIG_UDHCPC) += inet_cksum.o
+lib-$(CONFIG_UDHCPC6) += inet_cksum.o
+lib-$(CONFIG_UDHCPD) += inet_cksum.o
+lib-$(CONFIG_DHCPRELAY) += inet_cksum.o
+
+# We shouldn't build xregcomp.c if we don't need it - this ensures we don't
+# require regex.h to be in the include dir even if we don't need it thereby
+# allowing us to build busybox even if uclibc regex support is disabled.
+
+lib-$(CONFIG_AWK) += xregcomp.o
+lib-$(CONFIG_SED) += xregcomp.o
+lib-$(CONFIG_GREP) += xregcomp.o
+lib-$(CONFIG_EGREP) += xregcomp.o
+lib-$(CONFIG_FGREP) += xregcomp.o
+lib-$(CONFIG_EXPR) += xregcomp.o
+lib-$(CONFIG_MDEV) += xregcomp.o
+lib-$(CONFIG_LESS) += xregcomp.o
+lib-$(CONFIG_PGREP) += xregcomp.o
+lib-$(CONFIG_PKILL) += xregcomp.o
+lib-$(CONFIG_DEVFSD) += xregcomp.o
+lib-$(CONFIG_FEATURE_FIND_REGEX) += xregcomp.o
+
+# Add the experimental logging functionality, only used by zcip
+lib-$(CONFIG_ZCIP) += logenv.o

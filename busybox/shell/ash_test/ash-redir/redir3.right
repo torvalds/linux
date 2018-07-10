@@ -1,0 +1,3 @@
+TEST
+./redir3.tests: line 4: 9: Bad file descriptor
+Output to fd#9: 1

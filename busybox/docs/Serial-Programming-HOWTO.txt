@@ -1,0 +1,424 @@
+Downloaded from http://www.lafn.org/~dave/linux/Serial-Programming-HOWTO.txt
+Seems to be somewhat old, but contains useful bits for getty.c hacking
+============================================================================
+
+  The Linux Serial Programming HOWTO, Part 1 of 2
+  By Vernon C. Hoxie
+  v2.0 10 September 1999
+
+  This document describes how to program communications with devices
+  over a serial port on a Linux box.
+  ______________________________________________________________________
+
+  Table of Contents
+
+  1. Copyright
+
+  2. Introduction
+
+  3. Opening
+
+  4. Commands
+
+  5. Changing Baud Rates
+
+  6. Additional Control Calls
+
+     6.1 Sending a "break".
+     6.2 Hardware flow control.
+     6.3 Flushing I/O buffers.
+
+  7. Modem control
+
+  8. Process Groups
+
+     8.1 Sessions
+     8.2 Process Groups
+     8.3 Controlling Terminal
+        8.3.1 Get the foreground group process id.
+        8.3.2 Set the foreground process group id of a terminal.
+        8.3.3 Get process group id.
+
+  9. Lockfiles
+
+  10. Additional Information
+
+  11. Feedback
+
+  ______________________________________________________________________
+
+  1.  Copyright
+
+  The Linux Serial-Programming-HOWTO is copyright (C) 1997 by Vernon
+  Hoxie.  Linux HOWTO documents may be reproduced and distributed in
+  whole or in part, in any medium physical or electronic, as long as
+  this copyright notice is retained on all copies. Commercial
+  redistribution is allowed and encouraged; however, the author would
+  like to be notified of any such distributions.
+
+  All translations, derivative works, or aggregate works incorporating
+  this Linux HOWTO document must be covered under this copyright notice.
+  That is, you may not produce a derivative work from this HOWTO and
+  impose additional restrictions on its distribution.
+
+  This version is a complete rewrite of the previous Serial-Programming-
+  HOWTO  by Peter H. Baumann,  <mailto:Peter.Baumann@dlr.de>
+
+  2.  Introduction
+
+  This HOWTO will attempt to give hints about how to write a program
+  which needs to access a serial port.  Its principal focus will be on
+  the Linux implementation and what the meaning of the various library
+  functions available.
+
+  Someone asked about which of several sequences of operations was
+  right.  There is no absolute right way to accomplish an outcome.  The
+  options available are too numerous.  If your sequences produces the
+  desired results, then that is the right way for you.  Another
+  programmer may select another set of options and get the same results.
+  His method is right for him.
+
+  Neither of these methods may operate properly with some other
+  implementation of UNIX.  It is strange that many of the concepts which
+  were implemented in the SYSV version have been dumped.  Because UNIX
+  was developed by AT&T and much code has been generated on those
+  concepts, the AT&T version should be the standard to which others
+  should emulate.
+
+  Now the standard is POSIX.
+
+  It was once stated that the popularity of UNIX and C was that they
+  were created by programmers for programmers.  Not by scholars who
+  insist on purity of style in deference to results and simplicity of
+  use.  Not by committees with people who have diverse personal or
+  proprietary agenda.  Now ANSI and POSIX have strayed from those
+  original clear and simply concepts.
+
+  3.  Opening
+
+  The various serial devices are opened just as any other file.
+  Although, the fopen(3) command may be used, the plain open(2) is
+  preferred.  This call returns the file descriptor which is required
+  for the various commands that configure the interface.
+
+  Open(2) has the format:
+
+       #include <fcntl.h>
+       int open(char *path, int flags, [int mode]);
+
+  In addition to the obvious O_RDWR, O_WRONLY and O_RDONLY, two
+  additional flags are available.  These are O_NONBLOCK and O_NOCTTY.
+  Other flags listed in the open(2) manual page are not applicable to
+  serial devices.
+
+  Normally, a serial device opens in "blocking" mode.  This means that
+  the open() will not return until the Carrier Detect line from the port
+  is active, e.g. modem, is active.  When opened with the O_NONBLOCK
+  flag set, the open() will return immediately regardless of the status
+  of the DCD line.  The "blocking" mode also affects the read() call.
+
+  The fcntl(2) command can be used to change the O_NONBLOCK flag anytime
+  after the device has been opened.
+
+  The device driver and the data passing through it are controlled
+  according to settings in the struct termios.  This structure is
+  defined in "/usr/include/termios.h".  In the Linux tree, further
+  reference is made to "/usr/include/asm/termbits.h".
+  In blocking mode, a read(2) will block until data is available or a
+  signal is received.  It is still subject to state of the ICANON flag.
+
+  When the termios.c_lflag ICANON bit is set, input data is collected
+  into strings until a NL, EOF or EOL character is received.  You can
+  define these in the termios.c_cc[] array.  Also, ERASE and KILL
+  characters will operate on the incoming data before it is delivered to
+  the user.
+
+  In non-canonical mode, incoming data is quantified by use of the
+  c_cc[VMIN and c_cc[VTIME] values in termios.c_cc[].
+
+  Some programmers use the select() call to detect the completion of a
+  read().  This is not the best way of checking for incoming data.
+  Select() is part of the SOCKETS scheme and too complex for most
+  applications.
+
+  A full explanation of the fields of the termios structure is contained
+  in termios(7) of the Users Manual.  A version is included in Part 2 of
+  this HOWTO document.
+
+  4.  Commands
+
+  Changes to the struct termios are made by retrieving the current
+  settings, making the desired changes and transmitting the modified
+  structure back to the kernel.
+
+  The historic means of communicating with the kernel was by use of the
+  ioctl(fd, COMMAND, arg) system call.  Then the purists in the
+  computer industry decided that this was not genetically consistent.
+  Their argument was that the argument changed its stripes.  Sometimes
+  it was an int, sometimes it was a pointer to int and other times it
+  was a pointer to struct termios.  Then there were those times it was
+  empty or NULL.  These variations are dependent upon the COMMAND.
+
+  As a alternative, the tc* series of functions were concocted.
+
+  These are:
+
+       int tcgetattr(int filedes, struct termios *termios_p);
+       int tcsetattr(int filedes, int optional_actions,
+                     const struct termios *termios_p);
+
+  instead of:
+
+       int ioctl(int filedes, int command,
+                 struct termios *termios_p);
+
+  where command is TCGETS or one of TCSETS, TCSETSW or TCSETSF.
+
+  The TCSETS command is comparable to the TCSANOW optional_action for
+  the tc* version.  These direct the kernel to adopt the changes
+  immediately.  Other pairs are:
+
+    command   optional_action   Meaning
+    TCSETSW   TCSADRAIN         Change after all output has drained.
+    TCSETSF   TCSAFLUSH         Change after all output has drained
+                                then discard any input characters
+                                not read.
+
+  Since the return code from either the ioctl(2) or the tcsetattr(2)
+  commands only indicate that the command was processed by the kernel.
+  These do not indicate whether or not the changes were actually
+  accomplished.  Either of these commands should be followed by a call
+  to:
+
+       ioctl(fd, TCGETS, &new_termios);
+
+  or:
+
+       tcgetattr(fd, &new_termios);
+
+  A user function which makes changes to the termios structure should
+  define two struct termios variables.  One of these variables should
+  contain the desired configuration.  The other should contain a copy of
+  the kernels version.  Then after the desired configuration has been
+  sent to the kernel, another call should be made to retrieve the
+  kernels version.  Then the two compared.
+
+  Here is an example of how to add RTS/CTS flow control:
+
+       struct termios my_termios;
+       struct termios new_termios;
+
+       tcgetattr(fd, &my_termios);
+       my_termios.c_flag |= CRTSCTS;
+       tcsetattr(fd, TCSANOW, &my_termios);
+       tcgetattr(fd, &new_termios);
+       if (memcmp(my_termios, new_termios,
+            sizeof(my_termios)) != 0) {
+           /* do some error handling */
+       }
+
+  5.  Changing Baud Rates
+
+  With Linux, the baud rate can be changed using a technique similar to
+  add/delete RTS/CTS.
+
+  struct termios my_termios;
+  struct termios new_termios;
+
+  tcgetattr(fd, &my_termios);
+  my_termios.c_flag &= ~CBAUD;
+  my_termios.c_flag |= B19200;
+  tcsetattr(fd, TCSANOW, &my_termios);
+  tcgetattr(fd, &new_termios);
+  if (memcmp(my_termios, new_termios,
+       sizeof(my_termios)) != 0) {
+      /* do some error handling */
+  }
+
+  POSIX adds another method.  They define:
+
+       speed_t cfgetispeed(const struct termios *termios_p);
+       speed_t cfgetospeed(const struct termios *termios_p);
+
+  library calls to extract the current input or output speed from the
+  struct termios pointed to with *termio_p.  This is a variable defined
+  in the calling process.  In practice, the data contained in this
+  termios, should be obtained by the tcgetattr() call or an ioctl() call
+  using the TCGETS command.
+
+  The companion library calls are:
+
+       int cfsetispeed(struct termios *termios_p, speed_t speed);
+       int cfsetospeed(struct termios *termios_p, speed_t speed);
+
+  which are used to change the value of the baud rate in the locally
+  defined *termios_p.  Following either of these calls, either a call to
+  tcsetattr() or ioctl() with one of TCSETS, TCSETSW or TCSETSF as the
+  command to transmit the change to the kernel.
+
+  The cf* commands are preferred for portability.  Some weird Unices use
+  a considerably different format of termios.
+
+  Most implementations of Linux use only the input speed for both input
+  and output.  These functions are defined in the application program by
+  reference to <termios.h>.  In reality, they are in
+  /usr/include/asm/termbits.h.
+
+  6.  Additional Control Calls
+
+  6.1.  Sending a "break".
+
+       int ioctl(fd, TCSBRK, int arg);
+       int tcsendbreak(fd, int arg);
+
+  Send a break:  Here the action differs between the conventional
+  ioctl() call and the POSIX call.  For the conventional call, an arg of
+  '0' sets the break control line of the UART for 0.25 seconds.  For the
+  POSIX command, the break line is set for arg times 0.1 seconds.
+
+  6.2.  Hardware flow control.
+
+       int ioctl(fd, TCXONC, int action);
+       int tcflow(fd, int action);
+
+  The action flags are:
+
+  o  TCOOFF  0  suspend output
+
+  o  TCOON   1  restart output
+
+  o  TCIOFF  2  transmit STOP character to suspend input
+
+  o  TCION   3  transmit START character to restart input
+
+  6.3.  Flushing I/O buffers.
+
+       int ioctl(fd, TCFLSH, queue_selector);
+       int tcflush(fd, queue_selector);
+
+  The queue_selector flags are:
+
+  o  TCIFLUSH  0  flush any data not yet read from the input buffer
+
+  o  TCOFLUSH  1  flush any data written to the output buffer but not
+     yet transmitted
+
+  o  TCIOFLUSH 2  flush both buffers
+
+  7.  Modem control
+
+  The hardware modem control lines can be monitored or modified by the
+  ioctl(2) system call.  A set of comparable tc* calls apparently do not
+  exist.  The form of this call is:
+
+       int ioctl(fd, COMMAND, (int *)flags);
+
+  The COMMANDS and their action are:
+
+  o  TIOCMBIS  turn on control lines depending upon which bits are set
+     in flags.
+
+  o  TIOCMBIC  turn off control lines depending upon which bits are
+     unset in flags.
+  o  TIOCMGET  the appropriate bits are set in flags according to the
+     current status
+
+  o  TIOCMSET  the state of the UART is changed according to which bits
+     are set/unset in 'flags'
+
+     The bit pattern of flags refer to the following control lines:
+
+  o  TIOCM_LE      Line enable
+
+  o  TIOCM_DTR     Data Terminal Ready
+
+  o  TIOCM_RTS     Request to send
+
+  o  TIOCM_ST      Secondary transmit
+
+  o  TIOCM_SR      Secondary receive
+
+  o  TIOCM_CTS     Clear to send
+
+  o  TIOCM_CAR     Carrier detect
+
+  o  TIOCM_RNG     Ring
+
+  o  TIOCM_DSR     Data set ready
+
+  It should be noted that some of these bits are controlled by the modem
+  and the UART cannot change them but their status can be sensed by
+  TIOCMGET.  Also, most Personal Computers do not provide hardware for
+  secondary transmit and receive.
+
+  There are also a pair of ioctl() to monitor these lines.  They are
+  undocumented as far as I have learned.  The commands are TIOCMIWAIT
+  and TCIOGICOUNT.  They also differ between versions of the Linux
+  kernel.
+
+  See the lines.c file in my "serial_suite" for an example of how these
+  can be used see  <ftp://scicom.alphacd.com/pub/linux/serial_suite>
+
+  8.  Process Groups
+
+  8.1.  Sessions
+
+  8.2.  Process Groups
+
+  Any newly created process inherits the Process Group of its creator.
+  The Process Group leader has the same PID as PGID.
+
+  8.3.  Controlling Terminal
+
+  There are a series of ioctl(2) and tc*(2) calls which can be used to
+  monitor or to change the process group to which the device is
+  attached.
+
+  8.3.1.  Get the foreground group process id.
+
+  If there is no foreground group, a number not representing an existing
+  process group is returned.  On error, a -1 is returned and errno is
+  set.
+
+       int ioctl(fd, TIOCGPGRP, (pid_t *)pid);
+       int tcgetpgrp(fd, (pid_t *)pid);
+
+  8.3.2.  Set the foreground process group id of a terminal.
+
+  The fd must be the controlling terminal and be associated with the
+  session of the calling process.
+
+       int ioctl(fd, TIOCSPGRP, (pid_t *)pid);
+       int tcsetpgrp(fd, (pid_t *)pid);
+
+  8.3.3.  Get process group id.
+
+       int ioctl(fd, TIOCGPGRP, &(pid_t)pid);
+       int tcgetpgrp(fd, &(pid_t)pid);
+
+  9.  Lockfiles
+
+  Any process which accesses a serial device should first check for the
+  existence of lock file for the desired device.  If such a lock lock
+  file exists, this means that the device may be in use by another
+  process.
+
+  Check my "libdevlocks-x.x.tgz" at
+  <ftp://scicom.alphacdc.com/pub/linux> for an example of how these lock
+  files should be utilized.
+
+  10.  Additional Information
+
+  Check out my "serial_suite.tgz" for more information about programming
+  the serial ports at   <mailto:vern@zebra.alphacdc.com>.  There some
+  examples and some blurbs about setting up modems and comments about
+  some general considerations.
+
+  11.  Feedback
+
+  Please send me any corrections, questions, comments, suggestions, or
+  additional material. I would like to improve this HOWTO!  Tell me
+  exactly what you don't understand, or what could be clearer.  You can
+  reach me at  <mailto:vern@zebra.alphacdc.com> via email.  Please
+  include the version number of the Serial-Programming-HOWTO when
+  writing.

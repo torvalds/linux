@@ -1,0 +1,5 @@
+# This must be interpreted as assignments
+a=1 b\
+=2 c=3
+echo Done:$?
+echo abc=$a$b$c

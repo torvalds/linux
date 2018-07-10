@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# Tests for busybox applet itself.
+# Copyright 2005 by Rob Landley <rob@landley.net>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+ln -s `which busybox` unknown
+
+testing "busybox as unknown name" "./unknown 2>&1" \
+	"unknown: applet not found\n" "" ""
+rm unknown
+
+# We need busybox --help to be enabled for the rest of tests
+test x"$CONFIG_BUSYBOX" = x"y" \
+|| { echo "SKIPPED: busybox --help"; exit 0; }
+
+HELPDUMP=`true | busybox 2>&1 | cat`
+
+optional FEATURE_VERBOSE_USAGE
+testing "busybox --help busybox" "true | busybox --help busybox 2>&1 | cat" "$HELPDUMP\n" "" ""
+SKIP=
+
+ln -s `which busybox` busybox-suffix
+for i in busybox ./busybox-suffix
+do
+	testing "$i" "$i 2>&1 | cat" "$HELPDUMP\n" "" ""
+
+	testing "$i unknown" "$i unknown 2>&1" \
+		"unknown: applet not found\n" "" ""
+
+	testing "$i --help" "$i --help 2>&1" "$HELPDUMP\n" "" ""
+
+	optional FEATURE_VERBOSE_USAGE CAT
+	testing "" "$i cat" "moo" "" "moo"
+	testing "$i --help cat" "$i --help cat 2>&1 | grep Print" \
+		"Print FILEs to stdout\n" "" ""
+	SKIP=
+
+	testing "$i --help unknown" "$i --help unknown 2>&1" \
+		"unknown: applet not found\n" "" ""
+done
+rm busybox-suffix
+
+exit $FAILCOUNT

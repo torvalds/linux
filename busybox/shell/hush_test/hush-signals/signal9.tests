@@ -1,0 +1,21 @@
+# Note: the inner script is a test which checks for a different bug
+# (ordering between INT handler and exit on "set -e"),
+# but so far I did not figure out how to simulate it non-interactively.
+
+"$THIS_SH" -c '
+exit_func() {
+    echo "Removing traps"
+    trap - EXIT TERM INT
+    echo "End of exit_func"
+}
+set -e
+trap exit_func EXIT TERM INT
+sleep 2
+exit 77
+' &
+
+child=$!
+sleep 1
+kill -TERM $child
+wait
+echo Done: $?

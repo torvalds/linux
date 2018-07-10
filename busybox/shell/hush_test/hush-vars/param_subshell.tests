@@ -1,0 +1,15 @@
+if test $# = 0; then
+    "$THIS_SH" "$0" 1 2 3 4 5 6 7 8 9
+    exit
+fi
+echo 1=$1
+{ echo 2=$2; }
+{ echo 3=$3; } &
+# cant use usleep as it isnt standard in $PATH --
+# we fail when testing busybox compiled solely as "hush"
+wait
+( echo 4=$4 )
+( echo 5=$5 ) &
+wait
+true | echo 6=$6 | cat
+true | { echo 7=$7; } | cat

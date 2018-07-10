@@ -1,0 +1,6 @@
+env | grep ^LINENO
+echo 2:$LINENO
+echo 3:$LINENO >&2 \
+| { sleep 0.1; echo 4:$LINENO; }
+echo 5:$LINENO
+test "$1" || . ./var_LINENO1.tests norepeat

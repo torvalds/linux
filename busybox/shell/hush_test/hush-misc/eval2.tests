@@ -1,0 +1,4 @@
+false; eval; echo Zero:$?
+false; eval ""; echo Zero:$?
+false; eval "
+"; echo Zero:$?

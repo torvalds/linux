@@ -1,0 +1,386 @@
+#!/bin/sh
+# Copyright 2009 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+unset LANG
+unset LANGUAGE
+unset LC_COLLATE
+unset LC_ALL
+umask 022
+
+# testing "test name" "script" "expected result" "file input" "stdin"
+
+testing "Empty file is not a tarball" '\
+tar xvf - 2>&1; echo $?
+' "\
+tar: short read
+1
+" \
+"" ""
+SKIP=
+
+optional FEATURE_SEAMLESS_GZ GUNZIP
+# In NOMMU case, "invalid magic" message comes from gunzip child process.
+# Otherwise, it comes from tar.
+# Need to fix output up to avoid false positive.
+testing "Empty file is not a tarball.tar.gz" '\
+{ tar xvzf - 2>&1; echo $?; } | grep -Fv "invalid magic"
+' "\
+tar: short read
+1
+" \
+"" ""
+SKIP=
+
+testing "Two zeroed blocks is a ('truncated') empty tarball" '\
+dd if=/dev/zero bs=512 count=2 2>/dev/null | tar xvf - 2>&1; echo $?
+' "\
+0
+" \
+"" ""
+SKIP=
+
+testing "Twenty zeroed blocks is an empty tarball" '\
+dd if=/dev/zero bs=512 count=20 2>/dev/null | tar xvf - 2>&1; echo $?
+' "\
+0
+" \
+"" ""
+SKIP=
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# "tar cf test.tar input input_dir/ input_hard1 input_hard2 input_hard1 input_dir/ input":
+# GNU tar 1.26 records as hardlinks:
+#  input_hard2 -> input_hard1
+#  input_hard1 -> input_hard1 (!!!)
+#  input_dir/file -> input_dir/file
+#  input -> input
+# As of 1.24.0, we don't record last two: for them, nlink==1
+# and we check for "hardlink"ness only files with nlink!=1
+# We also don't use "hrw-r--r--" notation for hardlinks in "tar tv" listing.
+optional FEATURE_TAR_CREATE FEATURE_LS_SORTFILES
+testing "tar hardlinks and repeated files" '\
+>input_hard1
+ln input_hard1 input_hard2
+mkdir input_dir
+>input_dir/file
+chmod -R 644 *
+chmod    755 input_dir
+tar cf test.tar input input_dir/ input_hard1 input_hard2 input_hard1 input_dir/ input
+tar tvf test.tar | sed "s/.*[0-9] input/input/"
+rm -rf input_dir
+tar xf test.tar 2>&1
+echo Ok: $?
+ls -l . input_dir/* | grep input_ | sed "s/\\(^[^ ]*\\) .* input/\\1 input/"
+' "\
+input
+input_dir/
+input_dir/file
+input_hard1
+input_hard2 -> input_hard1
+input_hard1 -> input_hard1
+input_dir/
+input_dir/file
+input
+Ok: 0
+-rw-r--r-- input_dir/file
+drwxr-xr-x input_dir
+-rw-r--r-- input_hard1
+-rw-r--r-- input_hard2
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional FEATURE_TAR_CREATE FEATURE_LS_SORTFILES
+testing "tar hardlinks mode" '\
+>input_hard1
+chmod 741 input_hard1
+ln input_hard1 input_hard2
+mkdir input_dir
+ln input_hard1 input_dir
+ln input_hard2 input_dir
+chmod 550 input_dir
+# On some filesystems, input_dir/input_hard2 is returned by readdir
+# BEFORE input_dir/input_hard1! Thats why we cant just "tar cf ... input_*":
+tar cf test.tar input_dir/input_hard* input_hard*
+tar tvf test.tar | sed "s/.*[0-9] input/input/"
+chmod 770 input_dir
+rm -rf input_*
+tar xf test.tar 2>&1
+echo Ok: $?
+ls -l . input_dir/* | grep "input.*hard" | sed "s/\\(^[^ ]*\\) .* input/\\1 input/"
+' "\
+input_dir/input_hard1
+input_dir/input_hard2 -> input_dir/input_hard1
+input_hard1 -> input_dir/input_hard1
+input_hard2 -> input_dir/input_hard1
+Ok: 0
+-rwxr----x input_dir/input_hard1
+-rwxr----x input_dir/input_hard2
+-rwxr----x input_hard1
+-rwxr----x input_hard2
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional FEATURE_TAR_CREATE FEATURE_LS_SORTFILES
+testing "tar symlinks mode" '\
+>input_file
+chmod 741 input_file
+ln -s input_file input_soft
+mkdir input_dir
+ln input_file input_dir
+ln input_soft input_dir
+chmod 550 input_dir
+tar cf test.tar input_dir/* input_[fs]*
+tar tvf test.tar | sed "s/.*[0-9] input/input/" | sort
+chmod 770 input_dir
+rm -rf input_*
+tar xf test.tar 2>&1
+echo Ok: $?
+ls -l . input_dir/* | grep "input_[fs]" | sed "s/\\(^[^ ]*\\) .* input/\\1 input/"
+' "\
+input_dir/input_file
+input_dir/input_soft -> input_file
+input_file -> input_dir/input_file
+input_soft -> input_dir/input_soft
+Ok: 0
+-rwxr----x input_dir/input_file
+lrwxrwxrwx input_file
+-rwxr----x input_file
+lrwxrwxrwx input_file
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional FEATURE_TAR_CREATE FEATURE_TAR_LONG_OPTIONS
+testing "tar --overwrite" "\
+ln input input_hard
+tar cf test.tar input_hard
+echo WRONG >input
+# --overwrite opens 'input_hard' without unlinking,
+# thus 'input_hard' still linked to 'input' and we write 'Ok' into it
+tar xf test.tar --overwrite 2>&1 && cat input
+" "\
+Ok
+" \
+"Ok\n" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+test x"$SKIP_KNOWN_BUGS" = x"" && {
+# Needs to be run under non-root for meaningful test
+optional FEATURE_TAR_CREATE
+testing "tar writing into read-only dir" '\
+mkdir input_dir
+>input_dir/input_file
+chmod 550 input_dir
+tar cf test.tar input_dir
+tar tvf test.tar | sed "s/.*[0-9] input/input/"
+chmod 770 input_dir
+rm -rf input_*
+tar xf test.tar 2>&1
+echo Ok: $?
+ls -l input_dir/* . | grep input_ | sed "s/\\(^[^ ]*\\) .* input/\\1 input/"
+chmod 770 input_dir
+' "\
+input_dir/
+input_dir/input_file
+Ok: 0
+-rw-r--r-- input_dir/input_file
+dr-xr-x--- input_dir
+" \
+"" ""
+SKIP=
+}
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# Had a bug where on extract autodetect first "switched off" -z
+# and then failed to recognize .tgz extension
+optional FEATURE_TAR_CREATE FEATURE_SEAMLESS_GZ GUNZIP
+testing "tar extract tgz" "\
+dd count=1 bs=1M if=/dev/zero of=F0 2>/dev/null
+tar -czf F0.tgz F0
+rm F0
+tar -xzvf F0.tgz && echo Ok
+rm F0 || echo BAD
+" "\
+F0
+Ok
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# Do we detect XZ-compressed data (even w/o .tar.xz or txz extension)?
+# (the uuencoded hello_world.txz contains one empty file named "hello_world")
+optional UUDECODE FEATURE_TAR_AUTODETECT FEATURE_SEAMLESS_XZ
+testing "tar extract txz" "\
+uudecode -o input && tar tf input && echo Ok
+" "\
+hello_world
+Ok
+" \
+"" "\
+begin-base64 644 hello_world.txz
+/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AX/AEldADQZSe6ODIZQ3rSQ8kAJ
+SnMPTX+XWGKW3Yu/Rwqg4Ik5wqgQKgVH97J8yA8IvZ4ahaCQogUNHRkXibr2
+Q615wcb2G7fJU49AhWAAAAAAUA8gu9DyXfAAAWWADAAAAB5FXGCxxGf7AgAA
+AAAEWVo=
+====
+"
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# On extract, everything up to and including last ".." component is stripped
+optional FEATURE_TAR_CREATE
+testing "tar strips /../ on extract" "\
+rm -rf input_* test.tar 2>/dev/null
+mkdir input_dir
+echo Ok >input_dir/file
+tar cf test.tar ./../tar.tempdir/input_dir/../input_dir 2>&1
+rm -rf input_* 2>/dev/null
+tar -vxf test.tar 2>&1
+cat input_dir/file 2>&1
+" "\
+tar: removing leading './../tar.tempdir/input_dir/../' from member names
+input_dir/
+input_dir/file
+Ok
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# attack.tar.bz2 has symlink pointing to a system file
+# followed by a regular file with the same name
+# containing "root::0:0::/root:/bin/sh":
+#  lrwxrwxrwx root/root passwd -> /tmp/passwd
+#  -rw-r--r-- root/root passwd
+# naive tar implementation may end up creating the symlink
+# and then writing into it.
+# The correct implementation unlinks target before
+# creating the second file.
+# We test that /tmp/passwd remains empty:
+optional UUDECODE FEATURE_TAR_AUTODETECT FEATURE_SEAMLESS_BZ2
+testing "tar does not extract into symlinks" "\
+>>/tmp/passwd && uudecode -o input && tar xf input 2>&1 && rm passwd; cat /tmp/passwd; echo \$?
+" "\
+tar: can't create symlink 'passwd' to '/tmp/passwd'
+0
+" \
+"" "\
+begin-base64 644 attack.tar.bz2
+QlpoOTFBWSZTWRVn/bIAAKt7hMqwAEBAAP2QAhB0Y96AAACACCAAlISgpqe0
+po0DIaDynqAkpDRP1ANAhiYNSPR8VchKhAz0AK59+DA6FcMKBggOARIJdVHL
+DGllrjs20ATUgR1HmccBX3EhoMnpMJaNyggmxgLDMz54lBnBTJO/1L1lbMS4
+l4/V8LDoe90yiWJhOJvIypgEfxdyRThQkBVn/bI=
+====
+"
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+# And same with -k
+optional UUDECODE FEATURE_TAR_AUTODETECT FEATURE_SEAMLESS_BZ2
+testing "tar -k does not extract into symlinks" "\
+>>/tmp/passwd && uudecode -o input && tar xf input -k 2>&1 && rm passwd; cat /tmp/passwd; echo \$?
+" "\
+tar: can't create symlink 'passwd' to '/tmp/passwd'
+0
+" \
+"" "\
+begin-base64 644 attack.tar.bz2
+QlpoOTFBWSZTWRVn/bIAAKt7hMqwAEBAAP2QAhB0Y96AAACACCAAlISgpqe0
+po0DIaDynqAkpDRP1ANAhiYNSPR8VchKhAz0AK59+DA6FcMKBggOARIJdVHL
+DGllrjs20ATUgR1HmccBX3EhoMnpMJaNyggmxgLDMz54lBnBTJO/1L1lbMS4
+l4/V8LDoe90yiWJhOJvIypgEfxdyRThQkBVn/bI=
+====
+"
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional UNICODE_SUPPORT FEATURE_TAR_GNU_EXTENSIONS FEATURE_SEAMLESS_BZ2 FEATURE_TAR_AUTODETECT
+testing "Pax-encoded UTF8 names and symlinks" '\
+tar xvf ../tar.utf8.tar.bz2 2>&1; echo $?
+export LANG=en_US.UTF-8
+ls -l etc/ssl/certs/* | sed "s:.*etc/:etc/:" | sort
+unset LANG
+rm -rf etc usr
+' "\
+etc/ssl/certs/3b2716e5.0
+etc/ssl/certs/EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.pem
+etc/ssl/certs/f80cc7f6.0
+usr/share/ca-certificates/mozilla/EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.crt
+0
+etc/ssl/certs/3b2716e5.0 -> EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.pem
+etc/ssl/certs/EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.pem -> /usr/share/ca-certificates/mozilla/EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.crt
+etc/ssl/certs/f80cc7f6.0 -> EBG_Elektronik_Sertifika_Hizmet_Sağlayıcısı.pem
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional FEATURE_SEAMLESS_BZ2 FEATURE_TAR_AUTODETECT LS
+testing "Symlink attack: create symlink and then write through it" '\
+exec 2>&1
+uudecode -o input && tar xvf input; echo $?
+ls /tmp/bb_test_evilfile
+ls bb_test_evilfile
+ls symlink/bb_test_evilfile
+' "\
+anything.txt
+symlink
+symlink/bb_test_evilfile
+tar: can't create symlink 'symlink' to '/tmp'
+1
+ls: /tmp/bb_test_evilfile: No such file or directory
+ls: bb_test_evilfile: No such file or directory
+symlink/bb_test_evilfile
+" \
+"" "\
+begin-base64 644 tar_symlink_attack.tar.bz2
+QlpoOTFBWSZTWZgs7bQAALT/hMmQAFBAAf+AEMAGJPPv32AAAIAIMAC5thlR
+omAjAmCMADQT1BqNE0AEwAAjAEwElTKeo9NTR6h6gaeoA0DQNLVdwZZ5iNTk
+AQwCAV6S00QFJYhrlfFkVCEDEGtgNVqYrI0uK3ggnt30gqk4e1TTQm5QIAKa
+SJqzRGSFLMmOloHSAcvLiFxxRiQtQZF+qPxbo173ZDISOAoNoPN4PQPhBhKS
+n8fYaKlioCTzL2oXYczyUUIP4u5IpwoSEwWdtoA=
+====
+"
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+mkdir tar.tempdir && cd tar.tempdir || exit 1
+optional FEATURE_TAR_CREATE
+testing "Symlinks and hardlinks coexist" '\
+mkdir dir
+>dir/a
+ln -s ../dir/a dir/b
+ln dir/b dir/c
+mkdir new
+tar cf - dir/* | tar -C new -xvf - 2>&1
+' "\
+dir/a
+dir/b
+dir/c
+" \
+"" ""
+SKIP=
+cd .. || exit 1; rm -rf tar.tempdir 2>/dev/null
+
+exit $FAILCOUNT

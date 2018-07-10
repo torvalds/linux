@@ -1,0 +1,5 @@
+/proc/self/fd
+/proc/self/fd/0
+/proc/self/fd/1
+/proc/self/fd/2
+/proc/self/fd/3

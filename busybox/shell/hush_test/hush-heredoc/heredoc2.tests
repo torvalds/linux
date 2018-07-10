@@ -1,0 +1,7 @@
+foo () {
+cat <<EOF && { echo "$1" ; }
+$1
+EOF
+}
+
+foo "bar"

@@ -1,0 +1,45 @@
+Already fixed applets:
+cal
+lsmod
+df
+dumpleases
+
+Applets which may need unicode handling (more extensive than sanitizing
+of filenames in error messages):
+
+ls - work in progress
+expand, unexpand - uses unicode_strlen, not scrlen
+ash, hush through lineedit - uses unicode_strlen, not scrlen
+top - need to sanitize process args
+ps - need to sanitize process args
+less
+more
+vi
+ed
+cut
+awk
+sed
+tr
+grep egrep fgrep
+fold
+sort
+head, tail
+catv - "display nonprinting chars" - what this could mean for unicode?
+wc
+chat
+dumpkmap
+last - just line up columns
+man
+microcom
+strings
+watch
+
+Unsure, may need fixing:
+
+hostname - do we really want to protect against bad chars in it?
+patch
+addgroup, adduser, delgroup, deluser
+telnet
+telnetd
+od
+printf

@@ -1,0 +1,9 @@
+cat <<000; cat <<www; cat <<eee
+000
+qwe
+asd
+www
+123
+456
+eee
+echo Ok

@@ -1,0 +1,171 @@
+#!/bin/sh
+# Usage:
+# runtest [applet1] [applet2...]
+
+. ./testing.sh
+
+total_failed=0
+
+# Run one old-style test.
+# Tests are stored in applet/testcase shell scripts.
+# They are run using "sh -x -e applet/testcase".
+# Option -e will make testcase stop on the first failed command.
+run_applet_testcase()
+{
+	applet="$1"
+	testcase="$2"
+
+	status=0
+	uc_applet=$(echo "$applet" | tr a-z A-Z)
+	testname="$testcase"
+
+	testname="${testname##*/}" # take basename
+	if grep "^# CONFIG_$uc_applet is not set$" "$bindir/.config" >/dev/null; then
+		echo "UNTESTED: $testname"
+		return 0
+	fi
+
+	if grep "^# FEATURE: " "$testcase" >/dev/null; then
+		local feature=$(sed -ne 's/^# FEATURE: //p' "$testcase")
+
+		for f in $feature; do
+			if grep "^# $f is not set$" "$bindir/.config" >/dev/null; then
+				echo "UNTESTED: $testname"
+				return 0
+			fi
+		done
+	fi
+
+	rm -rf ".tmpdir.$applet"
+	mkdir -p ".tmpdir.$applet"
+	cd ".tmpdir.$applet" || return 1
+
+#	echo "Running testcase $testcase"
+	d="$tsdir" \
+		sh -x -e "$testcase" >"$testname.stdout.txt" 2>&1 || status=$?
+	if [ $status -ne 0 ]; then
+		echo "FAIL: $testname"
+		if [ x"$VERBOSE" != x ]; then
+			cat "$testname.stdout.txt"
+		fi
+	else
+		echo "PASS: $testname"
+	fi
+
+	cd ..
+	rm -rf ".tmpdir.$applet"
+
+	return $status
+}
+
+# Run all old-style tests for given applet
+run_oldstyle_applet_tests()
+{
+	local applet="$1"
+	local status=0
+
+	for testcase in "$tsdir/$applet"/*; do
+		# switch on basename of $testcase
+		case "${testcase##*/}" in
+			.*)     continue ;;    # .svn, .git etc
+			*~)     continue ;;    # backup files
+			"CVS")  continue ;;
+			\#*)    continue ;;    # CVS merge residues
+			*.mine) continue ;;    # svn-produced junk
+			*.r[0-9]*) continue ;; # svn-produced junk
+		esac
+		run_applet_testcase "$applet" "$testcase" || {
+			status=1
+			total_failed=$((total_failed + 1))
+		}
+	done
+	return $status
+}
+
+
+
+lcwd=$(pwd)
+[ x"$tsdir" != x"" ] || tsdir="$lcwd"
+[ x"$bindir" != x"" ] || bindir="${lcwd%/*}" # one directory up from $lcwd
+PATH="$bindir:$PATH"
+export bindir   # some tests need to look at $bindir/.config
+
+if [ x"$VERBOSE" = x ]; then
+	export VERBOSE=
+fi
+
+if [ x"$1" = x"-v" ]; then
+	export VERBOSE=1
+	shift
+fi
+
+implemented=$(
+	printf "busybox " # always implemented
+	"$bindir/busybox" 2>&1 |
+	while read line; do
+		if [ x"$line" = x"Currently defined functions:" ]; then
+			xargs | sed 's/,//g'
+			break
+		fi
+	done
+	)
+
+applets="$implemented"
+if [ $# -ne 0 ]; then
+	applets="$@"
+fi
+
+# Populate a directory with links to all busybox applets
+
+LINKSDIR="$bindir/runtest-tempdir-links"
+
+# Comment this line out if you have put a different binary in $LINKSDIR
+# (say, a "standard" tool's binary) in order to run tests against it:
+rm -rf "$LINKSDIR" 2>/dev/null
+
+mkdir "$LINKSDIR" 2>/dev/null
+for i in $implemented; do
+	# Note: if $LINKSDIR/applet exists, we do not overwrite it.
+	# Useful if one wants to run tests against a standard utility,
+	# not an applet.
+	ln -s "$bindir/busybox" "$LINKSDIR/$i" 2>/dev/null
+done
+
+# Set up option flags so tests can be selective.
+export OPTIONFLAGS=:$(
+	sed -nr 's/^CONFIG_//p' "$bindir/.config" |
+	sed 's/=.*//' | xargs | sed 's/ /:/g'
+	):
+
+status=0
+for applet in $applets; do
+	# Any old-style tests for this applet?
+	if [ -d "$tsdir/$applet" ]; then
+		run_oldstyle_applet_tests "$applet" || status=1
+	fi
+
+	# Is this a new-style test?
+	if [ -f "$applet.tests" ]; then
+		if [ ! -e "$LINKSDIR/$applet" ]; then
+			# (avoiding bash'ism "${applet:0:4}")
+			if ! echo "$applet" | grep "^all_" >/dev/null; then
+				echo "SKIPPED: $applet (not built)"
+				continue
+			fi
+		fi
+#		echo "Running test $tsdir/$applet.tests"
+		PATH="$LINKSDIR:$tsdir:$bindir:$PATH" \
+			"$tsdir/$applet.tests"
+		rc=$?
+		total_failed=$((total_failed + rc))
+		test $rc -ne 0 && status=1
+	fi
+done
+
+# Leaving the dir makes it somewhat easier to run failed test by hand
+#rm -rf "$LINKSDIR"
+
+if [ $status -ne 0 ] && [ x"$VERBOSE" = x ]; then
+	echo "$total_failed failure(s) detected; running with -v (verbose) will give more info"
+fi
+exit $status

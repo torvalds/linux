@@ -1,0 +1,13 @@
+# Tests for time_t value (unix time format)
+
+# Just before DST switched off
+test x"Sun Oct 31 03:59:59 EEST 2010" = x"`TZ=EET-2EEST,M3.5.0/3,M10.5.0/4 busybox date -d @1288486799`"
+
+# Just after DST switched off
+test x"Sun Oct 31 03:00:01 EET 2010" = x"`TZ=EET-2EEST,M3.5.0/3,M10.5.0/4 busybox date -d @1288486801`"
+
+# Just before DST switched on
+test x"Sun Mar 28 02:59:59 EET 2010" = x"`TZ=EET-2EEST,M3.5.0/3,M10.5.0/4 busybox date -d @1269737999`"
+
+# Just after DST switched on
+test x"Sun Mar 28 04:00:01 EEST 2010" = x"`TZ=EET-2EEST,M3.5.0/3,M10.5.0/4 busybox date -d @1269738001`"

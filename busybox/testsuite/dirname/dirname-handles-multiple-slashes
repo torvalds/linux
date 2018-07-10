@@ -1,0 +1,1 @@
+test $(busybox dirname foo/bar///baz) = foo/bar

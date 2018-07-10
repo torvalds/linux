@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Tests for the sourcecode base itself.
+# Copyright 2006 by Mike Frysinger <vapier@gentoo.org>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+[ -n "$srcdir" ] || srcdir=$(pwd)
+. ./testing.sh
+
+
+#
+# if we don't have the sourcecode available, let's just bail
+#
+[ -s "$srcdir/../Makefile" ] || exit 0
+[ -s "$srcdir/../include/applets.h" ] || exit 0
+
+
+#
+# make sure all usage strings are properly escaped.  oftentimes people miss
+# an escape sequence so we end up with:
+# #define foo_usage \
+#       " this line is ok" \
+#       " as is this line"
+#       " but this one is broken as the \ is missing from above"
+#
+${CROSS_COMPILE}cpp -dD -P $srcdir/../include/usage.h \
+	| sed -e '/^#define/d' -e '/^$/d' > src.usage.escaped
+testing "Usage strings escaped" "cat src.usage.escaped" "" "" ""
+rm -f src.usage.escaped
+
+
+#
+# verify the applet order is correct in applets.h, otherwise
+# applets won't be called properly.
+#
+sed -n -e 's:^//::' -e '/^IF_[A-Z]*(APPLET/{s:,.*::;s:.*(::;s:"::g;p}' \
+	$srcdir/../include/applets.h > applet.order.current
+LC_ALL=C sort applet.order.current > applet.order.correct
+testing "Applet order" "diff -u applet.order.current applet.order.correct" "" "" ""
+rm -f applet.order.current applet.order.correct
+
+
+#
+# check for misc common typos
+#
+find $srcdir/../ \
+	'(' -type d -a '(' -name .svn -o -name testsuite ')' -prune ')' \
+	-o '(' -type f -a -print0 ')' | xargs -0 \
+	grep -I \
+		-e '\<compatability\>' \
+		-e '\<compatable\>' \
+		-e '\<fordeground\>' \
+		-e '\<depency\>' -e '\<dependancy\>' -e '\<dependancies\>' \
+		-e '\<defalt\>' \
+		-e '\<remaing\>' \
+		-e '\<queueing\>' \
+		-e '\<detatch\>' \
+		-e '\<sempahore\>' \
+		-e '\<reprenstative\>' \
+		-e '\<overriden\>' \
+		-e '\<readed\>' \
+		-e '\<formated\>' \
+		-e '\<algorithic\>' \
+		-e '\<deamon\>' \
+		-e '\<derefernce\>' \
+		-e '\<acomadate\>' \
+		| sed -e "s:^$srcdir/\.\./::g" > src.typos
+testing "Common typos" "cat src.typos" "" "" ""
+rm -f src.typos
+
+
+#
+# don't allow obsolete functions
+#
+find $srcdir/.. '(' -name '*.c' -o -name '*.h' ')' -print0 | xargs -0 \
+	grep -E -e '\<(bcmp|bcopy|bzero|getwd|index|mktemp|rindex|utime|sigblock|siggetmask|sigsetmask)\>[[:space:]]*\(' \
+	| sed -e "s:^$srcdir/\.\./::g" > src.obsolete.funcs
+testing "Obsolete function usage" "cat src.obsolete.funcs" "" "" ""
+rm -f src.obsolete.funcs
+
+
+#
+# don't allow obsolete headers
+#
+find $srcdir/.. '(' -name '*.c' -o -name '*.h' ')' -print0 | xargs -0 \
+	grep -E -e '\<(malloc|memory|sys/(errno|fcntl|signal|stropts|termios|unistd))\.h\>' \
+	| sed -e "s:^$srcdir/\.\./::g" > src.obsolete.headers
+testing "Obsolete headers" "cat src.obsolete.headers" "" "" ""
+rm -f src.obsolete.headers
+
+
+exit $FAILCOUNT

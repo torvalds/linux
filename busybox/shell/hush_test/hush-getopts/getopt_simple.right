@@ -1,0 +1,34 @@
+*** no OPTIND, optstring:'ab' args:-a -b c
+var:'a' OPTIND:2
+var:'b' OPTIND:3
+exited: rc:0 var:'?' OPTIND:3
+*** OPTIND=1, optstring:'ab' args:-a -b c
+var:'a' OPTIND:2
+var:'b' OPTIND:3
+exited: rc:0 var:'?' OPTIND:3
+*** OPTIND=0, optstring:'ab' args:-a -b c
+var:'a' OPTIND:2
+var:'b' OPTIND:3
+exited: rc:0 var:'?' OPTIND:3
+*** unset OPTIND, optstring:'ab' args:-a -b c
+var:'a' OPTIND:2
+var:'b' OPTIND:3
+exited: rc:0 var:'?' OPTIND:3
+*** optstring:'ab' args:-a -b c
+1 rc:0 var:'a' OPTIND:2
+2 rc:0 var:'b' OPTIND:3
+3 rc:1 var:'?' OPTIND:3
+*** unset OPTIND, optstring:'ab' args:-a c -c -b d
+var:'a' OPTIND:2
+exited: rc:0 var:'?' OPTIND:2
+*** unset OPTIND, optstring:'ab' args:-a -c -b d
+var:'a' OPTIND:2
+./getopt_simple.tests: invalid option -- c
+var:'?' OPTIND:3
+var:'b' OPTIND:4
+exited: rc:0 var:'?' OPTIND:4
+*** unset OPTIND, OPTERR=0, optstring:'ab' args:-a -c -b d
+var:'a' OPTIND:2
+var:'?' OPTIND:3
+var:'b' OPTIND:4
+exited: rc:0 var:'?' OPTIND:4

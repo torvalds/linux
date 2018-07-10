@@ -1,0 +1,6 @@
+if test $# = 0; then
+    exec "$THIS_SH" $0 abc "d e" 123
+fi
+false
+for v; do echo "PARAM:$v"; done
+echo OK: $?

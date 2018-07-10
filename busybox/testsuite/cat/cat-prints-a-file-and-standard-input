@@ -1,0 +1,7 @@
+echo I WANT > foo
+echo SOMETHING | busybox cat foo - >bar
+cat >baz <<EOF
+I WANT
+SOMETHING
+EOF
+cmp bar baz

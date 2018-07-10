@@ -1,0 +1,40 @@
+Testing: in x y z
+.x.
+.y.
+.z.
+Testing: in u $empty v
+.u.
+.v.
+Testing: in u " $empty" v
+.u.
+. .
+.v.
+Testing: in u $empty $empty$a v
+.u.
+.a.
+.v.
+Testing: in $a_b
+.a.
+.b.
+Testing: in $*
+.abc.
+.d.
+.e.
+Testing: in $@
+.abc.
+.d.
+.e.
+Testing: in -$*-
+.-abc.
+.d.
+.e-.
+Testing: in -$@-
+.-abc.
+.d.
+.e-.
+Testing: in $a_b -$a_b-
+.a.
+.b.
+.-a.
+.b-.
+Finished

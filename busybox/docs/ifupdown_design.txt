@@ -1,0 +1,44 @@
+This document is meant to convince you to not use ifup/ifdown.
+
+
+The general problem with ifupdown is that it is "copulated in vertical
+fashion" by design. It tries to do the job of shell script in C,
+and this is invariably doomed to fail. You need ifup/ifdown
+to be adaptable by local admins, and C is an extremely poor choice
+for that.
+
+We are doomed to have problems with ifup/ifdown. Just look as this code:
+
+static const struct dhcp_client_t ext_dhcp_clients[] = {
+	{ "dhcpcd", "<up cmd>", "<down cmd>" },
+	{ "dhclient", ........ },
+	{ "pump", ........ },
+	{ "udhcpc", ........ },
+};
+
+static int dhcp_down(struct interface_defn_t *ifd, execfn *exec)
+{
+#if ENABLE_FEATURE_IFUPDOWN_EXTERNAL_DHCP
+	int i ;
+	for (i = 0; i < ARRAY_SIZE(ext_dhcp_clients); i++) {
+		if (executable_exists(ext_dhcp_clients[i].name))
+			return execute(ext_dhcp_clients[i].stopcmd, ifd, exec);
+	}
+	bb_error_msg("no dhcp clients found, using static interface shutdown");
+	return static_down(ifd, exec);
+#elif ENABLE_UDHCPC
+	return execute("kill "
+			"`cat /var/run/udhcpc.%iface%.pid` 2>/dev/null", ifd, exec);
+#else
+	return 0; /* no dhcp support */
+#endif
+}
+
+How the hell it is supposed to work reliably this way? Just imagine that
+admin is using pump and ifup/ifdown. It works. Then, for whatever reason,
+admin installs dhclient, but does NOT use it. ifdown will STOP WORKING,
+just because it will see installed dhclient binary in e.g. /usr/bin/dhclient!
+This is stupid.
+
+I seriously urge people to not use ifup/ifdown.
+Use something less brain damaged.

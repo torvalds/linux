@@ -1,0 +1,30 @@
+# make sure we have a way of checking these things
+cd /proc/$$/fd || cd /dev/fd || exit 1
+
+[ -e 44 ] && exit 1
+exec 44>/dev/null
+[ -e 44 ] || exit 1
+echo pass fd out open
+
+[ -e 55 ] && exit 1
+exec 55>&44
+[ -e 55 ] || exit 1
+echo pass fd out dup
+
+exec 44>&-
+[ -e 44 ] && exit 1
+echo pass fd out close
+
+[ -e 66 ] && exit 1
+exec 66</dev/null
+[ -e 66 ] || exit 1
+echo pass fd in open
+
+[ -e 77 ] && exit 1
+exec 77<&66
+[ -e 77 ] || exit 1
+echo pass fd in dup
+
+exec 66<&-
+[ -e 66 ] && exit 1
+echo pass fd in close

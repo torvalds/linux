@@ -1,0 +1,4 @@
+Backgrounded pipes shall have their stdin redirected to /dev/null
+Zero:0
+Zero:0
+Done

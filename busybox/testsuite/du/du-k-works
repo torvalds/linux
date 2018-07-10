@@ -1,0 +1,13 @@
+mkdir du.testdir
+cd du.testdir
+dd if=/dev/zero of=file1 bs=1k count=64 2>/dev/null
+dd if=/dev/zero of=file2 bs=1k count=16 2>/dev/null
+# ext4 on images <512M gives 81kb
+# ext3 on images <512M gives 83kb
+# a bsd system reportedly gives 82kb
+test x"`busybox du -k .`" = x"80	." \
+  -o x"`busybox du -k .`" = x"81	." \
+  -o x"`busybox du -k .`" = x"82	." \
+  -o x"`busybox du -k .`" = x"83	." \
+  -o x"`busybox du -k .`" = x"84	." \
+  -o x"`busybox du -k .`" = x"88	."

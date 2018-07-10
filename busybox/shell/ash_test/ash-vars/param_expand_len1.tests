@@ -1,0 +1,31 @@
+# ${#c} for any single char c means "length of $c", including all special vars
+
+false
+echo One:${#?}
+(exit 10)
+echo Two:${#?}
+(exit 100)
+echo Three:${#?}
+
+echo
+echo One:${##}
+set -- 1 2 3 4 5 6 7 8 9 0
+echo Two:${##}
+set -- 1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0 \
+       1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0 \
+       1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0 \
+       1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0  1 2 3 4 5 6 7 8 9 0
+echo Three:${##}
+
+echo
+v=$$
+test "${#v}" = "${#$}"
+echo 'Ok ${#$}:' $?
+
+echo
+sleep 0 &
+v=$!
+test "${#v}" = "${#!}"
+echo 'Ok ${#!}:' $?
+
+# TODO: ${#-} ${#_}

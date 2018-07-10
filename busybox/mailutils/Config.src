@@ -1,0 +1,12 @@
+menu "Mail Utilities"
+
+INSERT
+
+config FEATURE_MIME_CHARSET
+	string "Default charset"
+	default "us-ascii"
+	depends on MAKEMIME || REFORMIME || SENDMAIL
+	help
+	Default charset of the message.
+
+endmenu

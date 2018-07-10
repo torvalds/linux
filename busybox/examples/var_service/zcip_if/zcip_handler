@@ -1,0 +1,47 @@
+#!/bin/sh
+# executed by zcip
+# parameters: $1 and environment
+# $1 is:
+#
+# init: zcip starts. Environment:
+# interface=eth0
+#
+# config: Address is obtained.
+# interface=eth0
+# ip=169.254.a.b
+#
+# deconfig: Conflict or link went down.
+# interface=eth0
+
+service=${PWD##*/}
+file_ipconf="$service.ipconf"
+dir_ipconf="/var/run/service/fw"
+
+exec >/dev/null
+#exec >>"$0.out"  #debug
+exec 2>&1
+
+echo "`date`: Params: $*"
+
+if test x"$1" != x"config"; then
+	# Reconfigure network with this interface disabled
+	echo "Deconfiguring"
+	rm "$file_ipconf"
+	rm "$dir_ipconf/$file_ipconf"
+	svc -u fw
+	exit
+fi
+
+# "config": we've got the address
+# Record information for e.g. dhcp_$IF_pinger service
+env >"env.out"
+
+./convert2ipconf "$file_ipconf"
+# Reconfigure routing and firewall if needed
+diff --brief "$file_ipconf" "$dir_ipconf/$file_ipconf" >/dev/null 2>&1
+if test $? != 0; then
+	echo "Reconfiguring fw"
+	mkdir -p "$dir_ipconf" 2>/dev/null
+	cp "$file_ipconf" "$dir_ipconf/$file_ipconf"
+	svc -u fw
+fi

@@ -1,0 +1,1 @@
+test $(echo abcd | busybox cut -c 3) = c

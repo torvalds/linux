@@ -1,0 +1,10 @@
+Please see the LICENSE file for copyright information (GPLv2)
+
+libbb is BusyBox's utility library.  All of this stuff used to be stuffed into
+a single file named utility.c.  When I split utility.c to create libbb, some of
+the very oldest stuff ended up without their original copyright and licensing
+information (which is now lost in the mists of time).  If you see something
+that you wrote that is mis-attributed, do let me know so we can fix that up.
+
+	Erik Andersen
+	<andersen@codepoet.org>

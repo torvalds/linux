@@ -1,0 +1,398 @@
+#!/bin/sh
+
+# SUSv3 compliant sed tests.
+# Copyright 2005 by Rob Landley <rob@landley.net>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "commands" "result" "infile" "stdin"
+
+# Corner cases
+testing "sed no files (stdin)" 'sed ""' "hello\n" "" "hello\n"
+testing "sed explicit stdin" 'sed "" -' "hello\n" "" "hello\n"
+testing "sed handles empty lines" "sed -e 's/\$/@/'" "@\n" "" "\n"
+testing "sed stdin twice" 'sed "" - -' "hello" "" "hello"
+
+# Trailing EOF.
+#	Match $, at end of each file or all files?
+
+# -e corner cases
+#	without -e
+#	multiple -e
+#		interact with a
+#	-eee arg1 arg2 arg3
+# -f corner cases
+#	-e -f -e
+# -n corner cases
+#	no newline at EOF?
+# -r corner cases
+#	Just make sure it works.
+# -i corner cases:
+#	sed -i -
+#	permissions
+#	-i on a symlink
+#	on a directory
+#       With $ last-line test
+# Continue with \
+#       End of script with trailing \
+
+# command list
+testing "sed accepts blanks before command" "sed -e '1 d'" "" "" ""
+testing "sed accepts newlines in -e" "sed -e 'i\
+1
+a\
+3'" "1\n2\n3\n" "" "2\n"
+testing "sed accepts multiple -e" "sed -e 'i\' -e '1' -e 'a\' -e '3'" \
+	"1\n2\n3\n" "" "2\n"
+
+# substitutions
+testing "sed -n" "sed -n -e s/foo/bar/ -e s/bar/baz/" "" "" "foo\n"
+testing "sed with empty match" "sed 's/z*//g'" "string\n" "" "string\n"
+testing "sed s//p" "sed -e s/foo/bar/p -e s/bar/baz/p" "bar\nbaz\nbaz\n" \
+	"" "foo\n"
+testing "sed -n s//p" "sed -ne s/abc/def/p" "def\n" "" "abc\n"
+testing "sed s//g (exhaustive)" "sed -e 's/[[:space:]]*/,/g'" ",1,2,3,4,5,\n" \
+	"" "12345\n"
+testing "sed s arbitrary delimiter" "sed -e 's woo boing '" "boing\n" "" "woo\n"
+testing "sed s chains" "sed -e s/foo/bar/ -e s/bar/baz/" "baz\n" "" "foo\n"
+testing "sed s chains2" "sed -e s/foo/bar/ -e s/baz/nee/" "bar\n" "" "foo\n"
+testing "sed s [delimiter]" "sed -e 's@[@]@@'" "onetwo" "" "one@two"
+testing "sed s with \\t (GNU ext)" "sed 's/\t/ /'" "one two" "" "one\ttwo"
+
+# branch
+testing "sed b (branch)" "sed -e 'b one;p;: one'" "foo\n" "" "foo\n"
+testing "sed b (branch with no label jumps to end)" "sed -e 'b;p'" \
+	"foo\n" "" "foo\n"
+
+# test and branch
+testing "sed t (test/branch)" "sed -e 's/a/1/;t one;p;: one;p'" \
+	"1\n1\nb\nb\nb\nc\nc\nc\n" "" "a\nb\nc\n"
+testing "sed t (test/branch clears test bit)" "sed -e 's/a/b/;:loop;t loop'" \
+	"b\nb\nc\n" "" "a\nb\nc\n"
+testing "sed T (!test/branch)" "sed -e 's/a/1/;T notone;p;: notone;p'" \
+	"1\n1\n1\nb\nb\nc\nc\n" "" "a\nb\nc\n"
+
+testing "sed n (flushes pattern space, terminates early)" "sed -e 'n;p'" \
+	"a\nb\nb\nc\n" "" "a\nb\nc\n"
+
+# non-GNU sed: N does _not_ flush pattern space, therefore c is eaten @ script end
+# GNU sed: N flushes pattern space, therefore c is printed too @ script end
+testing "sed N (flushes pattern space (GNU behavior))" "sed -e 'N;p'" \
+	"a\nb\na\nb\nc\n" "" "a\nb\nc\n"
+
+testing "sed N test2" "sed ':a;N;s/\n/ /;ta'" \
+	"a b c\n" "" "a\nb\nc\n"
+
+testing "sed N test3" "sed 'N;s/\n/ /'" \
+	"a b\nc\n" "" "a\nb\nc\n"
+
+testing "sed address match newline" 'sed "/b/N;/b\\nc/i woo"' \
+	"a\nwoo\nb\nc\nd\n" "" "a\nb\nc\nd\n"
+
+# Multiple lines in pattern space
+testing "sed N (stops at end of input) and P (prints to first newline only)" \
+	"sed -n 'N;P;p'" "a\na\nb\n" "" "a\nb\nc\n"
+
+# Hold space
+testing "sed G (append hold space to pattern space)" 'sed G' "a\n\nb\n\nc\n\n" \
+	"" "a\nb\nc\n"
+#testing "sed g/G (swap/append hold and patter space)"
+#testing "sed g (swap hold/pattern space)"
+
+testing "sed d ends script iteration" \
+	"sed -e '/ook/d;s/ook/ping/p;i woot'" "" "" "ook\n"
+testing "sed d ends script iteration (2)" \
+	"sed -e '/ook/d;a\' -e 'bang'" "woot\nbang\n" "" "ook\nwoot\n"
+
+# Multiple files, with varying newlines and NUL bytes
+test x"$SKIP_KNOWN_BUGS" = x"" && {
+testing "sed embedded NUL" "sed -e 's/woo/bang/'" "\0bang\0woo\0" "" \
+	"\0woo\0woo\0"
+}
+testing "sed embedded NUL g" "sed -e 's/woo/bang/g'" "bang\0bang\0" "" \
+	"woo\0woo\0"
+test x"$SKIP_KNOWN_BUGS" = x"" && {
+$ECHO -e "/woo/a he\0llo" > sed.commands
+testing "sed NUL in command" "sed -f sed.commands" "woo\nhe\0llo\n" "" "woo"
+rm sed.commands
+}
+
+# sed has funky behavior with newlines at the end of file.  Test lots of
+# corner cases with the optional newline appending behavior.
+
+testing "sed normal newlines" "sed -e 's/woo/bang/' input -" "bang\nbang\n" \
+	"woo\n" "woo\n"
+testing "sed leave off trailing newline" "sed -e 's/woo/bang/' input -" \
+	"bang\nbang" "woo\n" "woo"
+testing "sed autoinsert newline" "sed -e 's/woo/bang/' input -" "bang\nbang" \
+	"woo" "woo"
+testing "sed empty file plus cat" "sed -e 's/nohit//' input -" "one\ntwo" \
+	"" "one\ntwo"
+testing "sed cat plus empty file" "sed -e 's/nohit//' input -" "one\ntwo" \
+	"one\ntwo" ""
+testing "sed append autoinserts newline" "sed -e '/woot/a woo' -" \
+	"woot\nwoo\n" "" "woot"
+testing "sed append autoinserts newline 2" "sed -e '/oot/a woo' - input" \
+	"woot\nwoo\nboot\nwoo\n" "boot" "woot"
+testing "sed append autoinserts newline 3" "sed -e '/oot/a woo' -i input && cat input" \
+	"boot\nwoo\n" "boot" ""
+testing "sed insert doesn't autoinsert newline" "sed -e '/woot/i woo' -" \
+	"woo\nwoot" "" "woot"
+testing "sed print autoinsert newlines" "sed -e 'p' -" "one\none" "" "one"
+testing "sed print autoinsert newlines two files" "sed -e 'p' input -" \
+	"one\none\ntwo\ntwo" "one" "two"
+testing "sed noprint, no match, no newline" "sed -ne 's/woo/bang/' input" \
+	"" "no\n" ""
+testing "sed selective matches with one nl" "sed -ne 's/woo/bang/p' input -" \
+	"a bang\nc bang\n" "a woo\nb no" "c woo\nd no"
+testing "sed selective matches insert newline" \
+	"sed -ne 's/woo/bang/p' input -" "a bang\nb bang\nd bang" \
+	"a woo\nb woo" "c no\nd woo"
+testing "sed selective matches noinsert newline" \
+	"sed -ne 's/woo/bang/p' input -" "a bang\nb bang" "a woo\nb woo" \
+	"c no\nd no"
+testing "sed clusternewline" \
+	"sed -e '/one/a 111' -e '/two/i 222' -e p input -" \
+	"one\none\n111\n222\ntwo\ntwo" "one" "two"
+testing "sed subst+write" \
+	"sed -e 's/i/z/' -e 'woutputw' input -; $ECHO -n X; cat outputw" \
+	"thzngy\nagaznXthzngy\nagazn" "thingy" "again"
+rm outputw
+testing "sed trailing NUL" \
+	"sed 's/i/z/' input -" \
+	"a\0b\0\nc" "a\0b\0" "c"
+testing "sed escaped newline in command" \
+	"sed 's/a/z\\
+z/' input" \
+	"z\nz" "a" ""
+
+# Test end-of-file matching behavior
+
+testing "sed match EOF" "sed -e '"'$p'"'" "hello\nthere\nthere" "" \
+	"hello\nthere"
+testing "sed match EOF two files" "sed -e '"'$p'"' input -" \
+	"one\ntwo\nthree\nfour\nfour" "one\ntwo" "three\nfour"
+# sed match EOF inline: gnu sed 4.1.5 outputs this:
+#00000000  6f 6e 65 0a 6f 6f 6b 0a  6f 6f 6b 0a 74 77 6f 0a  |one.ook.ook.two.|
+#00000010  0a 74 68 72 65 65 0a 6f  6f 6b 0a 6f 6f 6b 0a 66  |.three.ook.ook.f|
+#00000020  6f 75 72                                          |our|
+# which looks buggy to me.
+$ECHO -ne "three\nfour" > input2
+testing "sed match EOF inline" \
+	"sed -e '"'$i ook'"' -i input input2 && cat input input2" \
+	"one\nook\ntwothree\nook\nfour" "one\ntwo" ""
+rm input2
+
+# Test lie-to-autoconf
+
+testing "sed lie-to-autoconf" "sed --version | grep -o 'GNU sed version '" \
+	"GNU sed version \n" "" ""
+
+# Jump to nonexistent label
+test x"$SKIP_KNOWN_BUGS" = x"" && {
+# Incompatibility: illegal jump is not detected if input is ""
+# (that is, no lines at all). GNU sed 4.1.5 complains even in this case
+testing "sed nonexistent label" "sed -e 'b walrus' 2>/dev/null || echo yes" \
+	"yes\n" "" ""
+}
+
+testing "sed backref from empty s uses range regex" \
+	"sed -e '/woot/s//eep \0 eep/'" "eep woot eep" "" "woot"
+
+testing "sed backref from empty s uses range regex with newline" \
+	"sed -e '/woot/s//eep \0 eep/'" "eep woot eep\n" "" "woot\n"
+
+# -i with no filename
+
+touch ./-  # Detect gnu failure mode here.
+testing "sed -i with no arg [GNUFAIL]" "sed -e '' -i 2> /dev/null || echo yes" \
+	"yes\n" "" ""
+rm ./-     # Clean up
+
+testing "sed s/xxx/[/" "sed -e 's/xxx/[/'" "[\n" "" "xxx\n"
+
+# Ponder this a bit more, why "woo not found" from gnu version?
+#testing "sed doesn't substitute in deleted line" \
+#	"sed -e '/ook/d;s/ook//;t woo;a bang;'" "bang" "" "ook\n"
+
+# This makes both seds very unhappy.  Why?
+#testing "sed -g (exhaustive)" "sed -e 's/[[:space:]]*/,/g'" ",1,2,3,4,5," \
+#	"" "12345"
+
+# testing "description" "commands" "result" "infile" "stdin"
+
+testing "sed n command must reset 'substituted' bit" \
+	"sed 's/1/x/;T;n;: next;s/3/y/;t quit;n;b next;: quit;q'" \
+	"0\nx\n2\ny\n" "" "0\n1\n2\n3\n"
+
+testing "sed d does not break n,m matching" \
+	"sed -n '1d;1,3p'" \
+	"second\nthird\n" "" "first\nsecond\nthird\nfourth\n"
+
+testing "sed d does not break n,regex matching" \
+	"sed -n '1d;1,/hir/p'" \
+	"second\nthird\n" "" "first\nsecond\nthird\nfourth\n"
+
+testing "sed d does not break n,regex matching #2" \
+	"sed -n '1,5d;1,/hir/p'" \
+	"second2\nthird2\n" "" \
+	"first\nsecond\nthird\nfourth\n""first2\nsecond2\nthird2\nfourth2\n"
+
+testing "sed 2d;2,1p (gnu compat)" \
+	"sed -n '2d;2,1p'" \
+	"third\n" "" \
+	"first\nsecond\nthird\nfourth\n"
+
+# Regex means: "match / at BOL or nothing, then one or more not-slashes".
+# The bug was that second slash in /usr/lib was treated as "at BOL" too.
+testing "sed beginning (^) matches only once" \
+	"sed 's,\(^/\|\)[^/][^/]*,>\0<,g'" \
+	">/usr</>lib<\n" "" \
+	"/usr/lib\n"
+
+testing "sed c" \
+	"sed 'crepl'" \
+	"repl\nrepl\n" "" \
+	"first\nsecond\n"
+
+testing "sed nested {}s" \
+	"sed '/asd/ { p; /s/ { s/s/c/ }; p; q }'" \
+	"qwe\nasd\nacd\nacd\n" "" \
+	"qwe\nasd\nzxc\n"
+
+testing "sed a cmd ended by double backslash" \
+	"sed -e '/| one /a \\
+	| three \\\\' -e '/| one-/a \\
+	| three-* \\\\'" \
+'	| one \\
+	| three \\
+	| two \\
+' '' \
+'	| one \\
+	| two \\
+'
+
+testing "sed a cmd understands \\n,\\t,\\r" \
+	"sed '/1/a\\\\t\\rzero\\none\\\\ntwo\\\\\\nthree'" \
+"\
+line1
+\t\rzero
+one\\\\ntwo\\
+three
+" "" "line1\n"
+
+testing "sed i cmd understands \\n,\\t,\\r" \
+	"sed '/1/i\\\\t\\rzero\\none\\\\ntwo\\\\\\nthree'" \
+"\
+\t\rzero
+one\\\\ntwo\\
+three
+line1
+" "" "line1\n"
+
+# first three lines are deleted; 4th line is matched and printed by "2,3" and by "4" ranges
+testing "sed with N skipping lines past ranges on next cmds" \
+	"sed -n '1{N;N;d};1p;2,3p;3p;4p'" \
+	"4\n4\n" "" "1\n2\n3\n4\n"
+
+testing "sed -i with address modifies all files, not only first" \
+	"cp input input2; sed -i -e '1s/foo/bar/' input input2 && cat input input2; rm input2" \
+	"bar\nbar\n" "foo\n" ""
+
+testing "sed understands \r" \
+	"sed 's/r/\r/'" \
+	"\rrr\n" "" "rrr\n"
+
+testing "sed -i finishes ranges correctly" \
+	"sed '1,2d' -i input; echo \$?; cat input" \
+	"0\n3\n4\n" "1\n2\n3\n4\n" ""
+
+testing "sed zero chars match/replace advances correctly 1" \
+	"sed 's/l*/@/g'" \
+	"@h@e@o@\n" "" "helllo\n"
+
+testing "sed zero chars match/replace advances correctly 2" \
+	"sed 's [^ .]* x g'" \
+	"x x.x\n" "" " a.b\n"
+
+testing "sed zero chars match/replace logic must not falsely trigger here 1" \
+	"sed 's/a/A/g'" \
+	"_AAA1AA\n" "" "_aaa1aa\n"
+
+testing "sed zero chars match/replace logic must not falsely trigger here 2" \
+	"sed 's/ *$/_/g'" \
+	"qwerty_\n" "" "qwerty\n"
+
+testing "sed /\$_in_regex/ should not match newlines, only end-of-line" \
+	"sed ': testcont; /\\\\$/{ =; N; b testcont }'" \
+	"\
+this is a regular line
+2
+line with \\
+continuation
+more regular lines
+5
+line with \\
+continuation
+" \
+	"" "\
+this is a regular line
+line with \\
+continuation
+more regular lines
+line with \\
+continuation
+"
+
+testing "sed s///NUM test" \
+	"sed -e 's/a/b/2; s/a/c/g'" \
+	"cb\n" "" "aa\n"
+
+testing "sed /regex/,N{...} addresses work" \
+	"sed /^2/,2{d}" \
+	"1\n3\n4\n5\n" \
+	"" \
+	"1\n2\n3\n4\n5\n"
+
+testing "sed /regex/,+N{...} addresses work" \
+	"sed /^2/,+2{d}" \
+	"1\n5\n" \
+	"" \
+	"1\n2\n3\n4\n5\n"
+
+testing "sed /regex/,+N{...} -i works" \
+	"cat - >input2; sed /^4/,+2{d} -i input input2; echo \$?; cat input input2; rm input2" \
+	"0\n""1\n2\n3\n7\n8\n""1\n2\n7\n8\n" \
+	"1\n2\n3\n4\n5\n6\n7\n8\n" \
+	"1\n2\n4\n5\n6\n7\n8\n" \
+
+# GNU sed 4.2.1 would also accept "/^4/,+{d}" with the same meaning, we don't
+testing "sed /regex/,+0{...} -i works" \
+	"cat - >input2; sed /^4/,+0{d} -i input input2; echo \$?; cat input input2; rm input2" \
+	"0\n""1\n2\n3\n5\n6\n7\n8\n""1\n2\n5\n6\n7\n8\n" \
+	"1\n2\n3\n4\n5\n6\n7\n8\n" \
+	"1\n2\n4\n5\n6\n7\n8\n" \
+
+# GNU sed 4.2.1 would also accept "/^4/,+d" with the same meaning, we don't
+testing "sed /regex/,+0<cmd> -i works" \
+	"cat - >input2; sed /^4/,+0d -i input input2; echo \$?; cat input input2; rm input2" \
+	"0\n""1\n2\n3\n5\n6\n7\n8\n""1\n2\n5\n6\n7\n8\n" \
+	"1\n2\n3\n4\n5\n6\n7\n8\n" \
+	"1\n2\n4\n5\n6\n7\n8\n" \
+
+testing "sed 's///w FILE'" \
+	"sed 's/qwe/ZZZ/wz'; cat z; rm z" \
+	"123\nZZZ\nasd\n""ZZZ\n" \
+	"" \
+	"123\nqwe\nasd\n"
+
+testing "sed uses previous regexp" \
+	"sed '/w/p;//q'" \
+	"q\nw\nw\n" \
+	"" \
+	"q\nw\ne\nr\n"
+
+# testing "description" "commands" "result" "infile" "stdin"
+
+exit $FAILCOUNT

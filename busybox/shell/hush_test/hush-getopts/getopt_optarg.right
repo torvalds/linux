@@ -1,0 +1,18 @@
+*** no OPTIND, optstring:'w:et' args:-q -w e -r -t -y
+./getopt_optarg.tests: invalid option -- q
+var:'?' OPTIND:2 OPTARG:''
+var:'w' OPTIND:4 OPTARG:'e'
+./getopt_optarg.tests: invalid option -- r
+var:'?' OPTIND:5 OPTARG:''
+var:'t' OPTIND:6 OPTARG:''
+./getopt_optarg.tests: invalid option -- y
+var:'?' OPTIND:7 OPTARG:''
+exited: var:'?' OPTIND:7 OPTARG:''
+*** OPTIND=0, optstring:'w:et' args:-w 1 -w2 -w -e -e -t -t
+var:'w' OPTIND:3 OPTARG:'1'
+var:'w' OPTIND:4 OPTARG:'2'
+var:'w' OPTIND:6 OPTARG:'-e'
+var:'e' OPTIND:7 OPTARG:''
+var:'t' OPTIND:8 OPTARG:''
+var:'t' OPTIND:9 OPTARG:''
+exited: var:'?' OPTIND:9 OPTARG:''

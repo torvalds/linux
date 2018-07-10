@@ -1,0 +1,97 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+lib-y:= common.o
+
+COMMON_FILES:= \
+\
+	data_skip.o \
+	data_extract_all.o \
+	data_extract_to_stdout.o \
+\
+	unsafe_symlink_target.o \
+\
+	filter_accept_all.o \
+	filter_accept_list.o \
+	filter_accept_reject_list.o \
+\
+	header_skip.o \
+	header_list.o \
+	header_verbose_list.o \
+\
+	seek_by_read.o \
+	seek_by_jump.o \
+\
+	data_align.o \
+	find_list_entry.o \
+	init_handle.o
+
+DPKG_FILES:= \
+	unpack_ar_archive.o \
+	filter_accept_list_reassign.o \
+	unsafe_prefix.o \
+	get_header_ar.o \
+	get_header_tar.o \
+	get_header_tar_gz.o \
+	get_header_tar_bz2.o \
+	get_header_tar_lzma.o \
+	get_header_tar_xz.o \
+
+INSERT
+
+lib-$(CONFIG_DPKG)                      += $(DPKG_FILES)
+lib-$(CONFIG_DPKG_DEB)                  += $(DPKG_FILES)
+
+lib-$(CONFIG_AR)                        += get_header_ar.o unpack_ar_archive.o
+lib-$(CONFIG_CPIO)                      += get_header_cpio.o
+lib-$(CONFIG_TAR)                       += get_header_tar.o unsafe_prefix.o
+lib-$(CONFIG_FEATURE_TAR_TO_COMMAND)    += data_extract_to_command.o
+lib-$(CONFIG_LZOP)                      += lzo1x_1.o lzo1x_1o.o lzo1x_d.o
+lib-$(CONFIG_UNLZOP)                    += lzo1x_1.o lzo1x_1o.o lzo1x_d.o
+lib-$(CONFIG_LZOPCAT)                   += lzo1x_1.o lzo1x_1o.o lzo1x_d.o
+lib-$(CONFIG_LZOP_COMPR_HIGH)           += lzo1x_9x.o
+# 'bzip2 -d', bunzip2 or bzcat selects FEATURE_BZIP2_DECOMPRESS
+lib-$(CONFIG_FEATURE_BZIP2_DECOMPRESS)  += open_transformer.o decompress_bunzip2.o
+lib-$(CONFIG_FEATURE_UNZIP_BZIP2)       += open_transformer.o decompress_bunzip2.o
+lib-$(CONFIG_UNLZMA)                    += open_transformer.o decompress_unlzma.o
+lib-$(CONFIG_LZCAT)                     += open_transformer.o decompress_unlzma.o
+lib-$(CONFIG_LZMA)                      += open_transformer.o decompress_unlzma.o
+lib-$(CONFIG_FEATURE_UNZIP_LZMA)        += open_transformer.o decompress_unlzma.o
+lib-$(CONFIG_UNXZ)                      += open_transformer.o decompress_unxz.o
+lib-$(CONFIG_XZCAT)                     += open_transformer.o decompress_unxz.o
+lib-$(CONFIG_XZ)                        += open_transformer.o decompress_unxz.o
+lib-$(CONFIG_FEATURE_UNZIP_XZ)          += open_transformer.o decompress_unxz.o
+# 'gzip -d', gunzip or zcat selects FEATURE_GZIP_DECOMPRESS
+lib-$(CONFIG_FEATURE_GZIP_DECOMPRESS)   += open_transformer.o decompress_gunzip.o
+lib-$(CONFIG_UNCOMPRESS)                += open_transformer.o decompress_uncompress.o
+lib-$(CONFIG_UNZIP)                     += open_transformer.o decompress_gunzip.o unsafe_prefix.o
+lib-$(CONFIG_RPM2CPIO)                  += open_transformer.o decompress_gunzip.o get_header_cpio.o
+lib-$(CONFIG_RPM)                       += open_transformer.o decompress_gunzip.o get_header_cpio.o
+lib-$(CONFIG_GZIP)                      += open_transformer.o
+lib-$(CONFIG_BZIP2)                     += open_transformer.o
+lib-$(CONFIG_LZOP)                      += open_transformer.o
+lib-$(CONFIG_MAN)                       += open_transformer.o
+lib-$(CONFIG_SETFONT)                   += open_transformer.o
+lib-$(CONFIG_FEATURE_2_4_MODULES)       += open_transformer.o
+lib-$(CONFIG_MODINFO)                   += open_transformer.o
+lib-$(CONFIG_INSMOD)                    += open_transformer.o
+lib-$(CONFIG_DEPMOD)                    += open_transformer.o
+lib-$(CONFIG_RMMOD)                     += open_transformer.o
+lib-$(CONFIG_LSMOD)                     += open_transformer.o
+lib-$(CONFIG_MODPROBE)                  += open_transformer.o
+lib-$(CONFIG_MODPROBE_SMALL)            += open_transformer.o
+
+lib-$(CONFIG_FEATURE_SEAMLESS_Z)        += open_transformer.o decompress_uncompress.o
+lib-$(CONFIG_FEATURE_SEAMLESS_GZ)       += open_transformer.o decompress_gunzip.o
+lib-$(CONFIG_FEATURE_SEAMLESS_BZ2)      += open_transformer.o decompress_bunzip2.o
+lib-$(CONFIG_FEATURE_SEAMLESS_LZMA)     += open_transformer.o decompress_unlzma.o
+lib-$(CONFIG_FEATURE_SEAMLESS_XZ)       += open_transformer.o decompress_unxz.o
+lib-$(CONFIG_FEATURE_COMPRESS_USAGE)    += open_transformer.o decompress_bunzip2.o
+lib-$(CONFIG_FEATURE_COMPRESS_BBCONFIG) += open_transformer.o decompress_bunzip2.o
+
+ifneq ($(lib-y),)
+lib-y += $(COMMON_FILES)
+endif

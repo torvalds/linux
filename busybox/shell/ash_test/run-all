@@ -1,0 +1,96 @@
+#!/bin/sh
+
+TOPDIR=`pwd`
+
+if test ! -x ash; then
+	if test ! -x ../../busybox; then
+		echo "Can't run tests. Put ash binary into this directory (`pwd`)"
+		exit 1
+	fi
+	echo "No ./ash - creating a link to ../../busybox"
+	ln -s ../../busybox ash
+fi
+if test ! -f .config; then
+	if test ! -f ../../.config; then
+		echo "Missing .config file"
+		exit 1
+	fi
+	cp ../../.config . || exit 1
+fi
+
+eval $(sed -e '/^#/d' -e '/^$/d' -e 's:^:export :' .config)
+
+test -x printenv || gcc -O2 -o printenv printenv.c || exit $?
+test -x recho    || gcc -O2 -o recho    recho.c    || exit $?
+test -x zecho    || gcc -O2 -o zecho    zecho.c    || exit $?
+
+PATH="`pwd`:$PATH" # for ash and recho/zecho/printenv
+export PATH
+
+THIS_SH="`pwd`/ash"
+export THIS_SH
+
+do_test()
+{
+	test -d "$1" || return 0
+	d=${d%/}
+#	echo Running tests in directory "$1"
+	# $1 but with / replaced by # so that it can be used as filename part
+	noslash=`echo "$1" | sed 's:/:#:g'`
+	(
+	cd "$1" || { echo "cannot cd $1!"; exit 1; }
+	for x in run-*; do
+		test -f "$x" || continue
+		case "$x" in
+			"$0"|run-minimal|run-gprof) ;;
+			*.orig|*~) ;;
+			#*) echo $x ; sh $x ;;
+			*)
+			echo -n "$1/$x:"
+			sh "$x" >"$TOPDIR/$noslash-$x.fail" 2>&1 && \
+			{ { echo " ok"; rm "$TOPDIR/$noslash-$x.fail"; } || echo " fail"; }
+			;;
+		esac
+	done
+	# Many bash run-XXX scripts just do this,
+	# no point in duplication it all over the place
+	for x in *.tests; do
+		test -x "$x" || continue
+		name="${x%%.tests}"
+		test -f "$name.right" || continue
+#		echo Running test: "$x"
+		echo -n "$1/$x:"
+		{
+			"$THIS_SH" "./$x" >"$name.xx" 2>&1
+			diff -u "$name.xx" "$name.right" >"$TOPDIR/$noslash-$x.fail" \
+			&& rm -f "$name.xx" "$TOPDIR/$noslash-$x.fail"
+		} && echo " ok" || echo " fail"
+		done
+	)
+}
+
+# Main part of this script
+# Usage: run-all [directories]
+
+ret=0
+
+if [ $# -lt 1 ]; then
+	# All sub directories
+	modules=`ls -d ash-*`
+	# If you want to test ash against hush testsuite
+	# (have to copy hush_test dir to current dir first):
+	#modules=`ls -d ash-* hush_test/hush-*`
+
+	for module in $modules; do
+		do_test $module || ret=1
+	done
+else
+	while [ $# -ge 1 ]; do
+	if [ -d $1 ]; then
+		do_test $1 || ret=1
+	fi
+	shift
+	done
+fi
+
+exit ${ret}

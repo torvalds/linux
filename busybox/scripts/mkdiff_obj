@@ -1,0 +1,46 @@
+#!/bin/sh
+
+usage() {
+	echo "Usage: ${0##*/} DIR1 DIR2"
+	echo
+	echo "Compares all object files recursivelty found in DIR1 and DIR2."
+	echo "Prints diff of their disassembly."
+	echo
+	exit $1
+}
+
+filter() {
+	# sed removes " address: " prefixes which mess up diff
+	sed $'s/^\\(\t*\\)[ ]*[0-9a-f][0-9a-f]*:[ \t]*/\\1/' \
+	| sed 's/__GI_//g'
+}
+
+test -d "$1" || usage 1
+test -d "$2" || usage 1
+
+{
+	(
+		cd "$1" || exit 1
+		find -name '*.o' # -o -name '*.os' # -o -name '*.so'
+	)
+	(
+		cd "$2" || exit 1
+		find -name '*.o' # -o -name '*.os' # -o -name '*.so'
+	)
+} | sed 's:^\./::' | sort | uniq | \
+(
+while IFS='' read -r oname; do
+	if ! test -f "$1/$oname"; then
+		echo "Only $2/$oname"
+		continue
+	fi
+	if ! test -f "$2/$oname"; then
+		echo "Only $1/$oname"
+		continue
+	fi
+	diff -q -- "$1/$oname" "$2/$oname" >/dev/null && continue
+	(cd "$1" && { size "$oname"; objdump -dr "$oname" | filter; } >"$oname.disasm")
+	(cd "$2" && { size "$oname"; objdump -dr "$oname" | filter; } >"$oname.disasm")
+	diff -u -- "$1/$oname.disasm" "$2/$oname.disasm"
+done
+)

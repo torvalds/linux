@@ -1,0 +1,8 @@
+echo 'echo "0:$0 1:$1 2:$2"' >sourced1
+set -- 1 2 3
+"$THIS_SH" -c '. ./sourced1' arg0 arg1 arg2
+echo Ok1:$?
+"$THIS_SH" -c '. ./sourced1 q w e' arg0 arg1 arg2
+echo Ok2:$?
+
+rm sourced1

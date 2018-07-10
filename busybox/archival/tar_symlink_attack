@@ -1,0 +1,16 @@
+#!/bin/sh
+# Makes "symlink attack" tarball (needs GNU tar for --append)
+
+true >anything.txt
+tar cvf tar_symlink_attack.tar anything.txt
+rm anything.txt
+
+ln -s /tmp symlink
+tar --append -f tar_symlink_attack.tar symlink
+rm symlink
+
+mkdir symlink
+echo BUG >symlink/bb_test_evilfile
+tar --append -f tar_symlink_attack.tar symlink/bb_test_evilfile
+rm symlink/bb_test_evilfile
+rmdir symlink

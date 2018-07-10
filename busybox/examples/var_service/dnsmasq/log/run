@@ -1,0 +1,2 @@
+#!/bin/sh
+exec std_service_logger

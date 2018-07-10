@@ -1,0 +1,70 @@
+# Test for correct handling of backslashes.
+# Note that some lines in each heredoc start with a tab.
+
+a=qwerty
+
+echo Quoted heredoc:
+cat <<"EOF1"
+a\
+	b
+a\\
+	b
+ 123456 -$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+	-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+ 123456 `echo  v'-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-'`
+ 123456 $(echo v'-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-')
+c\
+EOF1
+echo
+
+echo Unquoted heredoc:
+cat <<EOF2
+a\
+	b
+a\\
+	b
+ 123456 -$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+	-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+ 123456 `echo  v'-$a-\t-\\-\"-\x-\`-\--\z-\*-\?-'`
+ 123456 $(echo v'-$a-\t-\\-\"-\x-\`-\--\z-\*-\?-')
+c\
+EOF2
+EOF2
+echo
+
+echo Quoted -heredoc:
+cat <<-"EOF3"
+a\
+	b
+a\\
+	b
+ 123456 -$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+	-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+ 123456 `echo  v'-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-'`
+ 123456 $(echo v'-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-')
+c\
+	EOF3
+# In -heredoc case the marker is detected even if it is indented.
+echo
+
+echo Unquoted -heredoc:
+cat <<-EOF4
+a\
+	b
+a\\
+	b
+ 123456 -$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+	-$a-\t-\\-\"-\'-\`-\--\z-\*-\?-
+ 123456 `echo  v'-$a-\t-\\-\"-\x-\`-\--\z-\*-\?-'`
+ 123456 $(echo v'-$a-\t-\\-\"-\x-\`-\--\z-\*-\?-')
+c\
+EOF4
+	EOF4
+# The marker is not detected if preceding line ends in backslash.
+# TODO: marker should be detected even if it is split by line continuation:
+# EOF\
+# 4
+# but currently hush doesn't do it. (Tab before "4" is not allowed, though.)
+echo
+
+echo "Done: $?"

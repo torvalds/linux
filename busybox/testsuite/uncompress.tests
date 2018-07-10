@@ -1,0 +1,20 @@
+#!/bin/sh
+# Copyright 2011 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+
+testing "uncompress < \x1f\x9d\x90 \x01 x N" \
+'uncompress 2>&1 1>/dev/null; echo $?' \
+"\
+uncompress: corrupted data
+1
+" \
+"" "\
+\x1f\x9d\x90\
+\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\01\
+"
+
+exit $FAILCOUNT

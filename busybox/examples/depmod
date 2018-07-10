@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# Simple depmod, use to generate modprobe.conf
+#
+# Copyright (C) 2008 by Vladimir Dronnikov <dronnikov@gmail.com>
+#
+# Licensed under GPLv2, see file LICENSE in this source tree.
+#
+
+BASE="${1:-/usr/lib/modules}"
+
+find "$BASE" -name '*.ko.gz' | while read I ; do
+	N=`basename "$I" '.ko.gz'`
+	echo -n "@$N"
+	zcat "$I" | strings | grep '^depends=' | sed -e 's/^depends=$//' -e 's/^depends=/,/' -e 's/,/ @/g'
+done | awk '
+{
+	# modules which has no dependencies are resolved
+	if ( NF == 1 ) { res[$1] = ""; next }
+	# others have to be resolved based on those which already resolved
+	i = $1; $1 = ""; deps[i] = $0; ++ndeps
+}
+END {
+	# resolve implicit dependencies
+	while ( ndeps ) for (mod in deps) {
+		if ( index(deps[mod], "@") > 0 ) {
+			$0 = deps[mod]
+			for ( i=1; i<=NF; ++i ) {
+				if ( substr($i,1,1) == "@" ) {
+					if ( $i in res ) {
+						$i = res[$i] " " substr($i,2)
+					}
+				}
+			}
+			deps[mod] = $0
+		} else {
+			res[mod] = deps[mod]
+			delete deps[mod]
+			--ndeps
+		}
+	}
+
+	# output dependencies in modules.dep format
+	for ( mod in res ) {
+		$0 = res[mod]
+		s = ""
+		delete a
+		for ( i=1; i<=NF; ++i ) {
+			if ( ! ($i in a) ) {
+				a[$i] = $i
+				s = " ," $i s
+			}
+		}
+		print "," substr(mod,2) ":" s
+	}
+}
+' | sort | sed -r -e "s!,([^,: ]*)!/usr/lib/modules/\\1.ko.gz!g"

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+t_text=0
+t_data=0
+t_bss=0
+
+printf "%9s %11s %9s %9s %s\n" "text+data" "text+rodata" rwdata bss filename
+
+find -name '*.o' | grep -v '^\./scripts/' | grep -vF built-in.o \
+| sed 's:^\./::' | xargs "${CROSS_COMPILE}size" | grep '^ *[0-9]' \
+| {
+while read text data bss dec hex filename; do
+    t_text=$((t_text+text))
+    t_data=$((t_data+data))
+    t_bss=$((t_bss+bss))
+    printf "%9d %11d %9d %9d %s\n" $((text+data)) $text $data $bss "$filename"
+done
+printf "%9d %11d %9d %9d %s\n" $((t_text+t_data)) $t_text $t_data $t_bss "TOTAL"
+} | env -uLANG -uLC_ALL sort -r

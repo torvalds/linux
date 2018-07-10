@@ -1,0 +1,1 @@
+test x"Sat Jan  1 11:22:33 UTC 2000" = x"`TZ=CET-1CEST-2 busybox date -u -d 2000.01.01-11:22:33`"

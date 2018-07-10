@@ -1,0 +1,20 @@
+got signal
+trap -- 'echo got signal' USR1
+sent 1 signal
+got signal
+wait interrupted
+trap -- 'echo got signal' USR1
+sent 2 signal
+got signal
+wait interrupted
+trap -- 'echo got signal' USR1
+sent 3 signal
+got signal
+wait interrupted
+trap -- 'echo got signal' USR1
+sent 4 signal
+got signal
+wait interrupted
+trap -- 'echo got signal' USR1
+sent 5 signal
+sleep completed

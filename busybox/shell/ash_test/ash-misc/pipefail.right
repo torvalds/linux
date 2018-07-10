@@ -1,0 +1,40 @@
+Default:
+true | true:
+0
+1
+true | false:
+1
+0
+false | true:
+0
+1
+exit 2 | exit 3 | exit 4:
+4
+0
+Pipefail on:
+true | true:
+0
+1
+true | false:
+1
+0
+false | true:
+1
+0
+exit 2 | exit 3 | exit 4:
+4
+0
+Pipefail off:
+true | true:
+0
+1
+true | false:
+1
+0
+false | true:
+0
+1
+exit 2 | exit 3 | exit 4:
+4
+0
+Done

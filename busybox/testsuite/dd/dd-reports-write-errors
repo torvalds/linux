@@ -1,0 +1,2 @@
+busybox dd if="$0" of=/dev/full 2>/dev/null || status=$?
+test $status = 1

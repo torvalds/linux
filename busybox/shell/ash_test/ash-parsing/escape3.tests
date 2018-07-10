@@ -1,0 +1,10 @@
+test "$CONFIG_FEATURE_FANCY_ECHO" = "y" || exit 77
+
+v='a \ b \\ c \\\ d \\\\ e'
+echo v: $v
+echo v: "$v"
+echo Unquoted:
+for a in $v; do echo .$a.; done
+echo Quoted:
+for a in $v; do echo ".$a."; done
+echo done

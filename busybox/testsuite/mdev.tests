@@ -1,0 +1,246 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# ls -ln is showing date. Need to remove that, it's variable
+# sed: (1) "maj, min" -> "maj,min" (2) coalesce spaces
+# cut: remove date
+FILTER_LS="grep -v '^total ' | sed -e 's/,  */,/g' -e 's/  */ /g' | cut -d' ' -f 1-5,9-"
+# cut: remove size+date
+FILTER_LS2="grep -v '^total ' | sed -e 's/,  */,/g' -e 's/  */ /g' | cut -d' ' -f 1-4,9-"
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+
+rm -rf mdev.testdir
+mkdir mdev.testdir
+# We need mdev executable to be in chroot jail!
+# (will still fail with dynamically linked one, though...)
+cp ../busybox mdev.testdir/mdev
+mkdir mdev.testdir/bin
+cp ../busybox mdev.testdir/bin/sh 2>/dev/null # for testing cmd feature
+mkdir mdev.testdir/etc
+mkdir mdev.testdir/dev
+mkdir -p mdev.testdir/sys/block/sda
+echo "8:0" >mdev.testdir/sys/block/sda/dev
+
+# env - PATH=$PATH: on some systems chroot binary won't otherwise be found
+
+optional STATIC FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev add /block/sda" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -ln mdev.testdir/dev | $FILTER_LS" \
+"\
+brw-rw---- 1 0 0 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+optional STATIC FEATURE_MDEV_CONF FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev deletes /block/sda" \
+	"env - PATH=$PATH ACTION=remove DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -ln mdev.testdir/dev | $FILTER_LS" \
+"\
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo ".* 1:1 666" >mdev.testdir/etc/mdev.conf
+echo "sda 2:2 444" >>mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev stops on first rule" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -ln mdev.testdir/dev | $FILTER_LS" \
+"\
+brw-rw-rw- 1 1 1 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "-.* 1:1 666" >mdev.testdir/etc/mdev.conf
+echo "sda 2:2 444" >>mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev does not stop on dash-rule" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -ln mdev.testdir/dev | $FILTER_LS" \
+"\
+br--r--r-- 1 2 2 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "\$MODALIAS=qw  1:1 666" >mdev.testdir/etc/mdev.conf
+echo "\$MODALIAS=qw. 2:2 444" >>mdev.testdir/etc/mdev.conf
+echo "\$MODALIAS=qw. 3:3 400" >>mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev \$ENVVAR=regex match" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda MODALIAS=qwe chroot mdev.testdir /mdev 2>&1;
+	ls -ln mdev.testdir/dev | $FILTER_LS" \
+"\
+br--r--r-- 1 2 2 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "sda 0:0 444 >disk/scsiA" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev move/symlink rule '>bar/baz'" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS2" \
+"\
+mdev.testdir/dev:
+drwxr-xr-x 2 0 0 disk
+lrwxrwxrwx 1 0 0 sda -> disk/scsiA
+
+mdev.testdir/dev/disk:
+br--r--r-- 1 0 0 scsiA
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "sda 0:0 444 >disk/" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev move/symlink rule '>bar/'" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS2" \
+"\
+mdev.testdir/dev:
+drwxr-xr-x 2 0 0 disk
+lrwxrwxrwx 1 0 0 sda -> disk/sda
+
+mdev.testdir/dev/disk:
+br--r--r-- 1 0 0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "sda 0:0 444 =disk/sd/a" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev move rule '=bar/baz/fname'" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS2" \
+"\
+mdev.testdir/dev:
+drwxr-xr-x 3 0 0 disk
+
+mdev.testdir/dev/disk:
+drwxr-xr-x 2 0 0 sd
+
+mdev.testdir/dev/disk/sd:
+br--r--r-- 1 0 0 a
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+# here we complicate things by having non-matching group 1 and using %0
+echo "s([0-9])*d([a-z]+) 0:0 644 >sd/%2_%0" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_MDEV_RENAME_REGEXP FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME FEATURE_LS_SORTFILES
+testing "mdev regexp substring match + replace" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS2" \
+"\
+mdev.testdir/dev:
+drwxr-xr-x 2 0 0 sd
+lrwxrwxrwx 1 0 0 sda -> sd/a_sda
+
+mdev.testdir/dev/sd:
+brw-r--r-- 1 0 0 a_sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "sda 0:0 644 @echo @echo TEST" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_EXEC FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME SH_IS_ASH ASH_ECHO
+testing "mdev command" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS" \
+"\
+@echo TEST
+mdev.testdir/dev:
+brw-r--r-- 1 0 0 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "sda 0:0 644 =block/ @echo @echo TEST:\$MDEV" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_MDEV_EXEC FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME SH_IS_ASH
+testing "mdev move and command" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS2" \
+"\
+@echo TEST:block/sda
+mdev.testdir/dev:
+drwxr-xr-x 2 0 0 block
+
+mdev.testdir/dev/block:
+brw-r--r-- 1 0 0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+echo "@8,0 0:1 644" >mdev.testdir/etc/mdev.conf
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_MDEV_RENAME_REGEXP FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME
+testing "mdev #maj,min and no explicit uid" \
+	"env - PATH=$PATH ACTION=add DEVPATH=/block/sda chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS" \
+"\
+mdev.testdir/dev:
+brw-r--r-- 1 0 1 8,0 sda
+" \
+	"" ""
+SKIP=
+
+# continuing to use directory structure from prev test
+rm -rf mdev.testdir/dev/*
+mkdir -p mdev.testdir/sys/class/tty/capi
+echo "191:0" >mdev.testdir/sys/class/tty/capi/dev
+mkdir -p mdev.testdir/sys/class/tty/capi1
+echo "191:1" >mdev.testdir/sys/class/tty/capi1/dev
+mkdir -p mdev.testdir/sys/class/tty/capi20
+echo "191:20" >mdev.testdir/sys/class/tty/capi20/dev
+echo "capi            0:0 0660 =capi20"      >mdev.testdir/etc/mdev.conf
+echo "capi([0-9])     0:0 0660 =capi20.0%1" >>mdev.testdir/etc/mdev.conf
+echo "capi([0-9]*)    0:0 0660 =capi20.%1"  >>mdev.testdir/etc/mdev.conf
+# mdev invocation with DEVPATH=/class/tty/capi20 was deleting /dev/capi20
+optional STATIC FEATURE_MDEV_CONF FEATURE_MDEV_RENAME FEATURE_MDEV_RENAME_REGEXP FEATURE_LS_RECURSIVE FEATURE_LS_TIMESTAMPS FEATURE_LS_USERNAME FEATURE_LS_SORTFILES
+testing "move rule does not delete node with name == device_name" \
+	"\
+	env - PATH=$PATH ACTION=add DEVPATH=/class/tty/capi chroot mdev.testdir /mdev 2>&1;
+	env - PATH=$PATH ACTION=add DEVPATH=/class/tty/capi1 chroot mdev.testdir /mdev 2>&1;
+	env - PATH=$PATH ACTION=add DEVPATH=/class/tty/capi20 chroot mdev.testdir /mdev 2>&1;
+	ls -lnR mdev.testdir/dev | $FILTER_LS" \
+"\
+mdev.testdir/dev:
+crw-rw---- 1 0 0 191,0 capi20
+crw-rw---- 1 0 0 191,1 capi20.01
+crw-rw---- 1 0 0 191,20 capi20.20
+" \
+	"" ""
+SKIP=
+
+# clean up
+rm -rf mdev.testdir
+
+exit $FAILCOUNT

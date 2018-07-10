@@ -1,0 +1,6 @@
+v='z1.tmp z2.tmp'
+echo TEST >$v
+echo 'z1.tmp:' `cat 'z1.tmp' 2>/dev/null; echo $?`
+echo 'z2.tmp:' `cat 'z2.tmp' 2>/dev/null; echo $?`
+echo '"z1.tmp z2.tmp":' `cat 'z1.tmp z2.tmp' 2>/dev/null; echo $?`
+rm z*.tmp

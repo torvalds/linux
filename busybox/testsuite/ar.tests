@@ -1,0 +1,27 @@
+#!/bin/sh
+# Copyright 2010 Nokia Corporation
+# Written by Alexander Shishkin
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command(s)" "expected result" "file input" "stdin"
+
+optional FEATURE_AR_CREATE
+
+rm test.a 2>/dev/null
+testing "ar creates archives" \
+       "ar rc test.a README && ar p test.a README | md5sum" \
+       "$(md5sum <README)\n" \
+       "" \
+       ""
+rm test.a 2>/dev/null
+
+testing "ar replaces things in archives" \
+       "echo 'blah!' >file1 && echo 'blast!' >file2 && ar cr test.a README file1 file2 && mv file2 file1 && ar cr test.a file1 && ar p test.a file1" \
+       "blast!\n" \
+       "" \
+       ""
+rm test.a file1 file1 2>/dev/null
+
+exit $FAILCOUNT

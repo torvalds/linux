@@ -1,0 +1,2 @@
+a=~root:~root
+echo ${a#~root}

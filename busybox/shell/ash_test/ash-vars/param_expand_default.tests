@@ -1,0 +1,23 @@
+# first try some invalid patterns (do in subshell due to parsing error)
+# (set argv0 to "SHELL" to avoid "/path/to/shell: blah" in error messages)
+# valid in bash and ash (same as $-): "$THIS_SH" -c 'echo ${-}' SHELL
+"$THIS_SH" -c 'echo ${:-}' SHELL
+
+# now some funky ones
+echo _${#-} _${#:-}
+
+# now some valid ones
+set --
+echo _$1 _${1-} _${1:-} _${1-word} _${1:-word}
+
+set -- aaaa
+echo _$1 _${1-} _${1:-} _${1-word} _${1:-word}
+
+unset f
+echo _$f _${f-} _${f:-} _${f-word} _${f:-word}
+
+f=
+echo _$f _${f-} _${f:-} _${f-word} _${f:-word}
+
+f=fff
+echo _$f _${f-} _${f:-} _${f-word} _${f:-word}

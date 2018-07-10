@@ -1,0 +1,12 @@
+#!/bin/sh
+
+echo; echo "* Firewall:"
+{
+echo '---FILTER--';
+iptables -v -L -x -n;
+echo '---NAT-----';
+iptables -t nat -v -L -x -n;
+echo '---MANGLE--';
+iptables -t mangle -v -L -x -n;
+} \
+| grep -v '^$' | grep -Fv 'bytes target' | $PAGER

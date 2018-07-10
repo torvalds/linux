@@ -1,0 +1,9 @@
+exec 2>&1
+
+$THIS_SH -c 'kill -9 $$'
+echo 137:$?
+
+! $THIS_SH -c 'kill -9 $$'
+echo 0:$?
+
+echo Done

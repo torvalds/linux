@@ -1,0 +1,55 @@
+#!/bin/sh
+# Used by {ms5,shaN}sum
+
+# We pipe texts 0...999 bytes long, {md5,shaN}sum them,
+# then {md5,shaN}sum the resulting list.
+# Then we compare the result with expected result.
+#
+# Here are the expected results:
+# efe30c482e0b687e0cca0612f42ca29b
+# d41337e834377140ae7f98460d71d908598ef04f
+# 8e1d3ed57ebc130f0f72508446559eeae06451ae6d61b1e8ce46370cfb8963c3
+# fe413e0f177324d1353893ca0772ceba83fd41512ba63895a0eebb703ef9feac2fb4e92b2cb430b3bda41b46b0cb4ea8307190a5cc795157cfb680a9cd635d0f
+
+if ! test "$1"; then
+	set -- md5sum efe30c482e0b687e0cca0612f42ca29b
+fi
+
+sum="$1"
+expected="$2"
+
+test -f "$bindir/.config" && . "$bindir/.config"
+
+test x"$CONFIG_FEATURE_FANCY_HEAD" != x"y" \
+&& { echo "SKIPPED: $sum"; exit 0; }
+
+FAILCOUNT=0
+
+text="The quick brown fox jumps over the lazy dog"
+text=`yes "$text" | head -c 9999`
+
+result=`(
+n=0
+while test $n -le 999; do
+	echo "$text" | head -c $n | "$sum"
+	n=$(($n+1))
+done | "$sum"
+)`
+if test x"$result" != x"$expected  -"; then
+	echo "FAIL: $sum (r:$result exp:$expected)"
+	: $((FAILCOUNT++))
+else
+	echo "PASS: $sum"
+fi
+
+# GNU compat: -c EMPTY must fail (exitcode 1)!
+>EMPTY
+if "$sum" -c EMPTY 2>/dev/null; then
+	echo "FAIL: $sum -c EMPTY"
+	: $((FAILCOUNT++))
+else
+	echo "PASS: $sum -c EMPTY"
+fi
+rm EMPTY
+
+exit $FAILCOUNT

@@ -1,0 +1,19 @@
+echo ! printing !
+! false
+echo $?
+! true
+echo $?
+if ! false; then false; echo $?; fi
+echo $?
+if ! false; then ! false; echo $?; fi
+echo $?
+PRINTF=`which printf`
+for a in ! a b c; do echo $a; done
+for a in ! a b c; do ! printf "$a "; echo $?; done
+test x"$PRINTF" = x"" && exit 1
+for a in ! a b c; do ! "$PRINTF" "$a "; echo $?; done
+for a in ! a b c; do ! printf "$a " | false; echo $?; done
+for a in ! a b c; do ! printf "$a " | true; echo $?; done
+for a in ! a b c; do ! { printf "$a " | false; }; echo $?; done
+for a in ! a b c; do ! { printf "$a " | true; }; echo $?; done
+echo Done

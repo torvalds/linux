@@ -1,0 +1,4 @@
+should be empty: ''
+should be empty: ''
+should be not empty: 'val2'
+should be not empty: 'val3'

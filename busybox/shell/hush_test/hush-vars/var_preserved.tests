@@ -1,0 +1,16 @@
+export a=b
+
+# external program
+a=c /bin/true
+env | grep ^a=
+
+# builtin
+a=d true
+env | grep ^a=
+
+# exec with redirection only
+# in bash, this leaks!
+a=e exec 1>&1
+env | grep ^a=
+
+echo OK

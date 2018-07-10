@@ -1,0 +1,3 @@
+# Bug was in handling of "}&" without space
+{ trap "echo got TERM" TERM; sleep 2; }& sleep 1; kill $!; wait
+echo Done: $?

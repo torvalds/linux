@@ -1,0 +1,6 @@
+pass fd out open
+pass fd out dup
+pass fd out close
+pass fd in open
+pass fd in dup
+pass fd in close

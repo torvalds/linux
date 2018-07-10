@@ -1,0 +1,6 @@
+echo "echo test1; ./test2.sh" >test1.sh
+echo "echo test2" >test2.sh
+
+command . ./test1.sh
+
+rm -f test1.sh test2.sh

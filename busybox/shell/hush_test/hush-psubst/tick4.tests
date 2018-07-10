@@ -1,0 +1,7 @@
+echo $(echo '(TEST)' BEST)
+echo $(echo 'TEST)' BEST)
+echo $(echo \(\(TEST\) BEST)
+echo $(echo \))
+echo $(echo a"`echo "b"`"c )
+echo $(echo a"`echo ")"`"c )
+echo OK: $?

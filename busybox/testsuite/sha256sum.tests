@@ -1,0 +1,3 @@
+#!/bin/sh
+
+. ./md5sum.tests sha256sum 8e1d3ed57ebc130f0f72508446559eeae06451ae6d61b1e8ce46370cfb8963c3

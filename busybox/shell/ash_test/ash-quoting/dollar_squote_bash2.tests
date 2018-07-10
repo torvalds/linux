@@ -1,0 +1,10 @@
+# Embedded NULs
+echo $'str\x00'strstrstrstrstrstrstrstrstrstrstrstrstrstrstrstr
+echo $'str\000'strstrstrstrstrstrstrstrstrstrstrstrstrstrstrstr
+
+# The chars after '\' are hex 0x80,81,82...
+echo 80:$'\€'
+echo 81:$'\'
+echo 82:$'\‚'
+
+echo Done:$?

@@ -1,0 +1,5 @@
+Assignments only: c=a
+Assignments and a command: c=a
+Assignments and a builtin: c=a
+Assignments and a function: c=a
+Done

@@ -1,0 +1,4 @@
+readonly v=1
+# there was a bug causing second assignment to be not checked
+v=2 v=3 echo $v
+echo Ok:$v

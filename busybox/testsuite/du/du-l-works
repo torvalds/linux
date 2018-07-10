@@ -1,0 +1,12 @@
+# FEATURE: CONFIG_FEATURE_DU_DEFAULT_BLOCKSIZE_1K
+
+mkdir du.testdir
+cd du.testdir
+dd if=/dev/zero of=file1 bs=1k count=64 2>/dev/null
+ln file1 file1.1
+dd if=/dev/zero of=file2 bs=1k count=16 2>/dev/null
+test x"`busybox du -l .`" = x"144	." \
+  -o x"`busybox du -l .`" = x"146	." \
+  -o x"`busybox du -l .`" = x"148	." \
+  -o x"`busybox du -l .`" = x"152	." \
+  -o x"`busybox du -l .`" = x"156	."

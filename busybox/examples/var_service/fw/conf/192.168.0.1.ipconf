@@ -1,0 +1,11 @@
+#!/bin/sh
+# A small network with no routers
+# (maybe *we* are their router)
+#
+let cfg=cfg+1
+if[$cfg]=if
+ip[$cfg]=192.168.0.1
+ipmask[$cfg]=192.168.0.1/24
+### gw[$cfg]=
+### net[$cfg]=0/0
+### dns[$cfg]=''

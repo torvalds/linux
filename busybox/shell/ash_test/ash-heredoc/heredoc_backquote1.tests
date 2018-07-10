@@ -1,0 +1,10 @@
+cat <<EO`true`F
+heredoc1
+EO`true`F
+echo Ok1:$?
+
+cat <<EO`true`F
+heredoc2
+EO`false`F
+EO`true`F
+echo Ok2:$?

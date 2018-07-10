@@ -1,0 +1,41 @@
+# Testing glob-escaping of every ASCII punctuation char
+# Some chars have more than one test
+# 21..2f
+case '!' in [\!] ) echo ok;; *) echo 'WRONG!';; esac
+case '"' in [\"] ) echo ok;; *) echo 'WRONG"';; esac
+case '#' in [\#] ) echo ok;; *) echo 'WRONG#';; esac
+case '$' in [\$] ) echo ok;; *) echo 'WRONG$';; esac
+case '%' in [\%] ) echo ok;; *) echo 'WRONG%';; esac
+case '&' in [\&] ) echo ok;; *) echo 'WRONG&';; esac
+case "'" in [\'] ) echo ok;; *) echo "WRONG'";; esac
+case '(' in [\(] ) echo ok;; *) echo 'WRONG(';; esac
+case ')' in [\)] ) echo ok;; *) echo 'WRONG)';; esac
+case '*' in [\*] ) echo ok;; *) echo 'WRONG*';; esac
+case '+' in [\+] ) echo ok;; *) echo 'WRONG+';; esac
+case ',' in [\,] ) echo ok;; *) echo 'WRONG,';; esac
+case '-' in [\-] ) echo ok;; *) echo 'WRONG-';; esac
+case '-' in [a\-c]) echo ok;; *) echo 'WRONGa\-c';; esac
+case '.' in [\.] ) echo ok;; *) echo 'WRONG.';; esac
+case '/' in [\/] ) echo ok;; *) echo 'WRONG/';; esac
+# 3a..40
+case ':' in [\:] ) echo ok;; *) echo 'WRONG:';; esac
+case ';' in [\;] ) echo ok;; *) echo 'WRONG;';; esac
+case '<' in [\<] ) echo ok;; *) echo 'WRONG<';; esac
+case '=' in [\=] ) echo ok;; *) echo 'WRONG=';; esac
+case '>' in [\>] ) echo ok;; *) echo 'WRONG>';; esac
+case '?' in [\?] ) echo ok;; *) echo 'WRONG?';; esac
+case '@' in [\@] ) echo ok;; *) echo 'WRONG@';; esac
+# 5b..60
+case '[' in [\[] ) echo ok;; *) echo 'WRONG[';; esac
+case '\' in [\\] ) echo ok;; *) echo 'WRONG\';; esac
+case '\' in \\ ) echo ok;; *) echo 'WRONG\\';; esac
+case ']' in [\]] ) echo ok;; *) echo 'WRONG]';; esac
+case ']' in [a\]]) echo ok;; *) echo 'WRONGa]';; esac
+case '^' in [\^] ) echo ok;; *) echo 'WRONG^';; esac
+case '_' in [\_] ) echo ok;; *) echo 'WRONG_';; esac
+case '`' in [\`] ) echo ok;; *) echo 'WRONG`';; esac
+# 7b..7e
+case '{' in [\{] ) echo ok;; *) echo 'WRONG{';; esac
+case '|' in [\|] ) echo ok;; *) echo 'WRONG|';; esac
+case '}' in [\}] ) echo ok;; *) echo 'WRONG}';; esac
+case '~' in [\~] ) echo ok;; *) echo 'WRONG~';; esac

@@ -1,0 +1,24 @@
+var=abc123dcba123
+
+echo ${var/d/x}
+echo ${var/c/x}
+echo ${var//c/x}
+echo ${var/[123]/x}
+echo ${var//[123]/x}
+echo ${var/c*/x}
+echo ${var/*c/x}
+
+# must match longest match: result is "abx23"
+echo ${var/c*1/x}
+
+# empty replacement - 2nd slash can be omitted
+echo ${var/[123]}
+echo ${var//[123]}
+
+### ash doesn't support
+### # match only at the beginning:
+### echo ${var/#a/x}
+### echo ${var/#b/x} # should not match
+### echo ${var//#b/x} # should not match
+### # match only at the end:
+### echo ${var/%3/x}

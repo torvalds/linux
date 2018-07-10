@@ -1,0 +1,3 @@
+false
+for a in; do echo "HELLO"; done
+echo OK: $?

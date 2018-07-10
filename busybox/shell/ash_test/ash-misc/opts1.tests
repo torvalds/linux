@@ -1,0 +1,5 @@
+if test $# = 0; then
+    exec "$THIS_SH" $0 -10qwertyuiop
+fi
+echo "Param1: >$1<"
+echo Done

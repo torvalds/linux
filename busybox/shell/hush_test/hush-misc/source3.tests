@@ -1,0 +1,6 @@
+# Test both empty file, and one-empty-line file
+echo >sourced1
+true >sourced2
+false; . ./sourced1; echo Zero:$?
+false; . ./sourced2; echo Zero:$?
+rm sourced1 sourced2

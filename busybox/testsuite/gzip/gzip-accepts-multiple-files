@@ -1,0 +1,3 @@
+touch foo bar
+busybox gzip foo bar
+test -f foo.gz -a -f bar.gz

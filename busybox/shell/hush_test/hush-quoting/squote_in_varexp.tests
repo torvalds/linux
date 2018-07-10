@@ -1,0 +1,6 @@
+x=yz
+echo ${x#'y'}
+echo "${x#'y'}"
+echo ${x%'z'}
+echo "${x%'z'}"
+echo Ok:$?

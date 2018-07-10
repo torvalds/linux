@@ -1,0 +1,5 @@
+echo "echo Sourced ok" >../sourced.sh
+PATH="..:$PATH"
+. sourced.sh
+rm ../sourced.sh
+echo Done

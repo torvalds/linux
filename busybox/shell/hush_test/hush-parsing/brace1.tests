@@ -1,0 +1,7 @@
+echo {abc}
+echo {
+echo }
+{cmd
+""{
+{""
+echo Done: $?

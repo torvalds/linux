@@ -1,0 +1,90 @@
+This file is an abridged version of README from bzip2 1.0.4
+Build instructions (which are not relevant to busyboxed bzip2)
+are removed.
+===========================================================
+
+
+This is the README for bzip2/libzip2.
+This version is fully compatible with the previous public releases.
+
+------------------------------------------------------------------
+This file is part of bzip2/libbzip2, a program and library for
+lossless, block-sorting data compression.
+
+bzip2/libbzip2 version 1.0.4 of 20 December 2006
+Copyright (C) 1996-2006 Julian Seward <jseward@bzip.org>
+
+Please read the WARNING, DISCLAIMER and PATENTS sections in this file.
+
+This program is released under the terms of the license contained
+in the file LICENSE.
+------------------------------------------------------------------
+
+Please read and be aware of the following:
+
+
+WARNING:
+
+   This program and library (attempts to) compress data by
+   performing several non-trivial transformations on it.
+   Unless you are 100% familiar with *all* the algorithms
+   contained herein, and with the consequences of modifying them,
+   you should NOT meddle with the compression or decompression
+   machinery.  Incorrect changes can and very likely *will*
+   lead to disastrous loss of data.
+
+
+DISCLAIMER:
+
+   I TAKE NO RESPONSIBILITY FOR ANY LOSS OF DATA ARISING FROM THE
+   USE OF THIS PROGRAM/LIBRARY, HOWSOEVER CAUSED.
+
+   Every compression of a file implies an assumption that the
+   compressed file can be decompressed to reproduce the original.
+   Great efforts in design, coding and testing have been made to
+   ensure that this program works correctly.  However, the complexity
+   of the algorithms, and, in particular, the presence of various
+   special cases in the code which occur with very low but non-zero
+   probability make it impossible to rule out the possibility of bugs
+   remaining in the program.  DO NOT COMPRESS ANY DATA WITH THIS
+   PROGRAM UNLESS YOU ARE PREPARED TO ACCEPT THE POSSIBILITY, HOWEVER
+   SMALL, THAT THE DATA WILL NOT BE RECOVERABLE.
+
+   That is not to say this program is inherently unreliable.
+   Indeed, I very much hope the opposite is true.  bzip2/libbzip2
+   has been carefully constructed and extensively tested.
+
+
+PATENTS:
+
+   To the best of my knowledge, bzip2/libbzip2 does not use any
+   patented algorithms.  However, I do not have the resources
+   to carry out a patent search.  Therefore I cannot give any
+   guarantee of the above statement.
+
+
+I hope you find bzip2 useful.  Feel free to contact me at
+   jseward@bzip.org
+if you have any suggestions or queries.  Many people mailed me with
+comments, suggestions and patches after the releases of bzip-0.15,
+bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1,
+1.0.2 and 1.0.3, and the changes in bzip2 are largely a result of this
+feedback.  I thank you for your comments.
+
+bzip2's "home" is http://www.bzip.org/
+
+Julian Seward
+jseward@bzip.org
+Cambridge, UK.
+
+18     July 1996 (version 0.15)
+25   August 1996 (version 0.21)
+ 7   August 1997 (bzip2, version 0.1)
+29   August 1997 (bzip2, version 0.1pl2)
+23   August 1998 (bzip2, version 0.9.0)
+ 8     June 1999 (bzip2, version 0.9.5)
+ 4     Sept 1999 (bzip2, version 0.9.5d)
+ 5      May 2000 (bzip2, version 1.0pre8)
+30 December 2001 (bzip2, version 1.0.2pre1)
+15 February 2005 (bzip2, version 1.0.3)
+20 December 2006 (bzip2, version 1.0.4)

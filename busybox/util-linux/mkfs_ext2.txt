@@ -1,0 +1,77 @@
+Difference between bbox mke2fs and standard one (dumpe2fs comparison):
+
+[upd: inode size has been fixed since then]
+
+Two significant differences:
+- standard mke2fs has resize_inode feature and thus has reserved GDT blocks,
+  which decreases free blocks;
+- inode size: 128/256 (since 679807k is >0.5G, standard mke2fs uses "big" inodes)
+  this affects inode table in block groups
+
+Filesystem volume name:   <none>                                        Filesystem volume name:   <none>
+Last mounted on:          <not available>                               Last mounted on:          <not available>
+Filesystem UUID:          f4839760-c89b-44b7-ac52-08b4e326c0b4          Filesystem UUID:          71179558-8c8e-4a56-ad54-018008f5c358
+Filesystem magic number:  0xEF53                                        Filesystem magic number:  0xEF53
+Filesystem revision #:    1 (dynamic)                                   Filesystem revision #:    1 (dynamic)
+Filesystem features:      ext_attr dir_index filetype sparse_super      Filesystem features:      ext_attr resize_inode dir_index filetype sparse_super large_file
+Filesystem flags:         signed_directory_hash                         Filesystem flags:         signed_directory_hash
+Default mount options:    (none)                                        Default mount options:    (none)
+Filesystem state:         clean                                         Filesystem state:         clean
+Errors behavior:          Continue                                      Errors behavior:          Continue
+Filesystem OS type:       Linux                                         Filesystem OS type:       Linux
+Inode count:              42624                                         Inode count:              42528
+Block count:              169951                                        Block count:              169951
+Reserved block count:     8497                                          Reserved block count:     8497
+Free blocks:              168594                                        Free blocks:              167103
+Free inodes:              42613                                         Free inodes:              42517
+First block:              0                                             First block:              0
+Block size:               4096                                          Block size:               4096
+Fragment size:            4096                                          Fragment size:            4096
+                                                                        Reserved GDT blocks:      41
+Blocks per group:         32768                                         Blocks per group:         32768
+Fragments per group:      32768                                         Fragments per group:      32768
+Inodes per group:         7104                                          Inodes per group:         7088
+Inode blocks per group:   222                                           Inode blocks per group:   443
+Filesystem created:       Wed Oct 21 13:40:55 2009                      Filesystem created:       Wed Oct 21 13:40:55 2009
+Last mount time:          n/a                                           Last mount time:          n/a
+Last write time:          Wed Oct 21 13:40:55 2009                      Last write time:          Wed Oct 21 13:40:55 2009
+Mount count:              0                                             Mount count:              0
+Maximum mount count:      20                                            Maximum mount count:      37
+Last checked:             Wed Oct 21 13:40:55 2009                      Last checked:             Wed Oct 21 13:40:55 2009
+Check interval:           15552000 (6 months)                           Check interval:           15552000 (6 months)
+Next check after:         Mon Apr 19 13:40:55 2010                      Next check after:         Mon Apr 19 13:40:55 2010
+Reserved blocks uid:      0 (user root)                                 Reserved blocks uid:      0 (user root)
+Reserved blocks gid:      0 (group root)                                Reserved blocks gid:      0 (group root)
+First inode:              11                                            First inode:              11
+Inode size:               128                                           Inode size:               256
+                                                                        Required extra isize:     28
+                                                                        Desired extra isize:      28
+Default directory hash:   half_md4                                      Default directory hash:   half_md4
+Directory Hash Seed:      ff94d047-c9ca-4fe5-b553-937a76101a89          Directory Hash Seed:      c270fd43-9868-4a92-ae99-050098e12835
+
+
+Group 0: (Blocks 0-32767)                                               Group 0: (Blocks 0-32767)
+  Primary superblock at 0, Group descriptors at 1-1                       Primary superblock at 0, Group descriptors at 1-1
+                                                                          Reserved GDT blocks at 2-42
+  Block bitmap at 2 (+2), Inode bitmap at 3 (+3)                          Block bitmap at 43 (+43), Inode bitmap at 44 (+44)
+  Inode table at 4-225 (+4)                                               Inode table at 45-487 (+45)
+  32537 free blocks, 7093 free inodes, 2 directories                      32274 free blocks, 7077 free inodes, 2 directories
+  Free blocks: 231-32767                                                  Free blocks: 494-32767
+  Free inodes: 12-7104                                                    Free inodes: 12-7088
+
+Group 1: (Blocks 32768-65535)                                           Group 1: (Blocks 32768-65535)
+  Backup superblock at 32768, Group descriptors at 32769-32769            Backup superblock at 32768, Group descriptors at 32769-32769
+                                                                          Reserved GDT blocks at 32770-32810
+  Block bitmap at 32770 (+2), Inode bitmap at 32771 (+3)                  Block bitmap at 32811 (+43), Inode bitmap at 32812 (+44)
+  Inode table at 32772-32993 (+4)                                         Inode table at 32813-33255 (+45)
+  32542 free blocks, 7104 free inodes, 0 directories                      32280 free blocks, 7088 free inodes, 0 directories
+  Free blocks: 32994-65535                                                Free blocks: 33256-65535
+  Free inodes: 7105-14208                                                 Free inodes: 7089-14176
+
+Group 2: (Blocks 65536-98303)                                           Group 2: (Blocks 65536-98303)
+  Block bitmap at 65536 (+0), Inode bitmap at 65537 (+1)                  Block bitmap at 65536 (+0), Inode bitmap at 65537 (+1)
+  Inode table at 65538-65759 (+2)                                         Inode table at 65538-65980 (+2)
+  32544 free blocks, 7104 free inodes, 0 directories                      32323 free blocks, 7088 free inodes, 0 directories
+  Free blocks: 65760-98303                                                Free blocks: 65981-98303
+  Free inodes: 14209-21312                                                Free inodes: 14177-21264
+...

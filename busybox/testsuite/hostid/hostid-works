@@ -1,0 +1,6 @@
+h=x$(busybox hostid)
+# Is $h a sequence of hex numbers?
+case "$h" in
+ x*[!0-9a-f]*) false;;
+ *) true;;
+esac

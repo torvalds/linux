@@ -1,0 +1,4 @@
+read
+cat
+echo "REPLY=$REPLY"
+REPLY=exec <read.tests

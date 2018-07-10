@@ -1,0 +1,42 @@
+# Assignments after some keywords should still work
+
+if a=1 true; then a=1 true; elif a=1 true; then a=1 true; else a=1 true; fi
+echo if1:$?
+while a=1 true; do a=1 true; break; done
+echo while1:$?
+until a=1 false; do a=1 true; break; done
+echo until1:$?
+
+if a=1 true
+ then a=1 true
+ elif a=1 true
+ then a=1 true
+ else a=1 true
+ fi
+echo if2:$?
+while a=1 true
+ do a=1 true
+ break
+ done
+echo while2:$?
+until a=1 false
+ do a=1 true
+ break
+ done
+echo until2:$?
+
+if
+ a=1 true; then
+ a=1 true; elif
+ a=1 true; then
+ a=1 true; else
+ a=1 true; fi
+echo if3:$?
+while
+ a=1 true; do
+ a=1 true; break; done
+echo while3:$?
+until
+ a=1 false; do
+ a=1 true; break; done
+echo until3:$?

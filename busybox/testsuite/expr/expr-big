@@ -1,0 +1,16 @@
+# busybox expr
+
+# 3*1000*1000*1000 overflows 32-bit signed int
+res=`busybox expr 0 '<' 3000000000`
+[ x"$res" = x1 ] || exit 1
+
+# 9223372036854775807 = 2^31-1
+res=`busybox expr 0 '<' 9223372036854775807`
+[ x"$res" = x1 ] || exit 1
+# coreutils fails this one!
+res=`busybox expr -9223372036854775800 '<' 9223372036854775807`
+[ x"$res" = x1 ] || exit 1
+
+# This one works only by chance
+# res=`busybox expr 0 '<' 9223372036854775808`
+# [ x"$res" = x1 ] || exit 1

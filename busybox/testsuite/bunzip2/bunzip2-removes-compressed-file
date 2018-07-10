@@ -1,0 +1,3 @@
+echo foo | bzip2 >foo.bz2
+busybox bunzip2 foo.bz2
+test ! -f foo.bz2

@@ -1,0 +1,37 @@
+export aaa1="'''"
+export aaa2=""
+export aaa3="'''abc"
+export | grep aaa.=
+
+export -n aaa1
+unset aaa2; export -n aaa2="ghi"
+export -n aaa3="klm"
+export | grep aaa.=
+
+export aaa4=4 aaa5=5
+export -n aaa4=4n
+export -n aaa5
+export | grep aaa.=
+
+export aaa5=5 aaa6=6 aaa7=7 aaa8=8
+export -n aaa5 aaa6=6n aaa7
+export | grep aaa.=
+
+aaa9=9
+export -n aaa9
+set | grep ^aaa9=
+
+export aaa10=10
+export -n aaa10
+set | grep ^aaa10=
+
+
+export EXPORTED=qwe
+export -nnnnnn nnnnnn; echo "Nothing:"; env | grep nnnnnn
+
+export -n EXPORTED=123; echo "Nothing:"; env | grep ^EXPORTED
+
+export EXPORTED=qwe
+export -n EXPORTED; EXPORTED=123; echo "Nothing:"; env | grep ^EXPORTED
+
+echo Done

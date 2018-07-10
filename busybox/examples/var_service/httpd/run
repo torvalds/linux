@@ -1,0 +1,18 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+user=www
+user=root
+
+echo "* Starting tcpsvd for httpd [$$]"
+exec \
+env - PATH="$PATH" \
+softlimit \
+tcpsvd \
+  -v -E -l localhost -c 5 \
+  0 88 \
+setuidgid "$user" \
+httpd -vvv -i -h /pub/httpd_root

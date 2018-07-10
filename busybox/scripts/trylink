@@ -1,0 +1,339 @@
+#!/bin/sh
+
+debug=false
+
+# Linker flags used:
+#
+# Informational:
+# --warn-common
+# -Map $EXE.map
+# --verbose
+#
+# Optimizations:
+# --sort-common                 reduces padding
+# --sort-section alignment      reduces padding
+# --gc-sections                 throws out unused sections,
+#                               does not work for shared libs
+# -On                           Not used, maybe useful?
+#
+# List of files to link:
+# $l_list                       == --start-group -llib1 -llib2 --end-group
+# --start-group $O_FILES $A_FILES --end-group
+#
+# Shared library link:
+# -shared                       self-explanatory
+# -fPIC                         position-independent code
+# --enable-new-dtags            ?
+# -z,combreloc                  ?
+# -soname="libbusybox.so.$BB_VER"
+# --undefined=lbb_main          Seed name to start pulling from
+#                               (otherwise we'll need --whole-archive)
+# -static                       Not used, but may be useful! manpage:
+#                               "... This option can be used with -shared.
+#                               Doing so means that a shared library
+#                               is being created but that all of the library's
+#                               external references must be resolved by pulling
+#                               in entries from static libraries."
+
+
+try() {
+    printf "%s\n" "Output of:" >$EXE.out
+    printf "%s\n" "$*" >>$EXE.out
+    printf "%s\n" "==========" >>$EXE.out
+    $debug && echo "Trying: $*"
+    $@ >>$EXE.out 2>&1
+    return $?
+}
+
+check_cc() {
+    tempname="$(mktemp tmp.XXXXXXXXXX)"
+    echo "int main(int argc,char**argv){return argv?argc:0;}" >"$tempname".c
+    # Can use "-o /dev/null", but older gcc tend to *unlink it* on failure! :(
+    # Was using "-xc /dev/null", but we need a valid C program.
+    # "eval" may be needed if CFLAGS can contain
+    # '... -D"BB_VER=KBUILD_STR(1.N.M)" ...'
+    # and we need shell to process quotes!
+    $CC $CFLAGS $LDFLAGS $1 "$tempname".c -o "$tempname" >/dev/null 2>&1
+    exitcode=$?
+    rm -f "$tempname" "$tempname".c "$tempname".o
+    return $exitcode
+}
+
+check_libc_is_glibc() {
+    tempname="$(mktemp tmp.XXXXXXXXXX)"
+    echo "\
+	#include <stdlib.h>
+	/* Apparently uclibc defines __GLIBC__ (compat trick?). Oh well. */
+	#if defined(__GLIBC__) && !defined(__UCLIBC__)
+	syntax error here
+	#endif
+	" >"$tempname".c
+    ! $CC $CFLAGS "$tempname".c -c -o "$tempname".o >/dev/null 2>&1
+    exitcode=$?
+    rm -f "$tempname" "$tempname".c "$tempname".o
+    return $exitcode
+}
+
+EXE="$1"
+CC="$2"
+CFLAGS="$3"
+LDFLAGS="$4"
+O_FILES="$5"
+A_FILES="$6"
+LDLIBS="$7"
+
+# The --sort-section option is not supported by older versions of ld
+SORT_SECTION="-Wl,--sort-section,alignment"
+if ! check_cc "-Wl,--sort-section,alignment"; then
+    echo "Your linker does not support --sort-section,alignment"
+    SORT_SECTION=""
+fi
+
+START_GROUP="-Wl,--start-group"
+END_GROUP="-Wl,--end-group"
+INFO_OPTS() {
+	echo "-Wl,--warn-common -Wl,-Map,$EXE.map -Wl,--verbose"
+}
+
+# gold may not support --sort-common (yet)
+SORT_COMMON="-Wl,--sort-common"
+if ! check_cc "-Wl,--sort-common"; then
+    echo "Your linker does not support --sort-common"
+    SORT_COMMON=""
+fi
+
+# Static linking against glibc produces buggy executables
+# (glibc does not cope well with ld --gc-sections).
+# See sources.redhat.com/bugzilla/show_bug.cgi?id=3400
+# Note that glibc is unsuitable for static linking anyway.
+# We are removing -Wl,--gc-sections from link command line.
+GC_SECTIONS="-Wl,--gc-sections"
+if (. ./.config && test x"$CONFIG_STATIC" = x"y") then
+    if check_libc_is_glibc; then
+	echo "Static linking against glibc, can't use --gc-sections"
+	GC_SECTIONS=""
+    fi
+fi
+# The --gc-sections option is not supported by older versions of ld
+if test -n "$GC_SECTIONS"; then
+    if ! check_cc "$GC_SECTIONS"; then
+	echo "Your linker does not support $GC_SECTIONS"
+	GC_SECTIONS=""
+    fi
+fi
+
+# Sanitize lib list (dups, extra spaces etc)
+LDLIBS=`echo "$LDLIBS" | xargs -n1 | sort | uniq | xargs`
+
+# First link with all libs. If it fails, bail out
+echo "Trying libraries: $LDLIBS"
+# "lib1 lib2 lib3" -> "-llib1 -llib2 -llib3"
+l_list=`echo " $LDLIBS " | sed -e 's: \([^- ][^ ]*\): -l\1:g'`
+test "x$l_list" != "x" && l_list="$START_GROUP $l_list $END_GROUP"
+try $CC $CFLAGS $LDFLAGS \
+	-o $EXE \
+	$SORT_COMMON \
+	$SORT_SECTION \
+	$GC_SECTIONS \
+	$START_GROUP $O_FILES $A_FILES $END_GROUP \
+	$l_list \
+|| {
+    echo "Failed: $l_list"
+    cat $EXE.out
+    echo 'Note: if build needs additional libraries, put them in CONFIG_EXTRA_LDLIBS.'
+    echo 'Example: CONFIG_EXTRA_LDLIBS="pthread dl tirpc audit pam"'
+    exit 1
+}
+
+# Now try to remove each lib and build without it.
+# Stop when no lib can be removed.
+while test "$LDLIBS"; do
+    $debug && echo "Trying libraries: $LDLIBS"
+    all_needed=true
+    last_needed=false
+    for one in $LDLIBS; do
+	without_one=`echo " $LDLIBS " | sed "s/ $one / /g" | xargs`
+	# "lib1 lib2 lib3" -> "-llib1 -llib2 -llib3"
+	l_list=`echo " $without_one " | sed -e 's: \([^- ][^ ]*\): -l\1:g'`
+	test x"$l_list" != x"" && l_list="$START_GROUP $l_list $END_GROUP"
+	$debug && echo "Trying -l options: '$l_list'"
+	try $CC $CFLAGS $LDFLAGS \
+		-o $EXE \
+		$SORT_COMMON \
+		$SORT_SECTION \
+		$GC_SECTIONS \
+		$START_GROUP $O_FILES $A_FILES $END_GROUP \
+		$l_list
+	if test $? = 0; then
+	    echo " Library $one is not needed, excluding it"
+	    LDLIBS="$without_one"
+	    all_needed=false
+	    last_needed=false
+	else
+	    echo " Library $one is needed, can't exclude it (yet)"
+	    last_needed=true
+	fi
+    done
+    # All libs were needed, can't remove any
+    $all_needed && break
+    # Optimization: was the last tried lib needed?
+    if $last_needed; then
+	# Was it the only one lib left? Don't test again then.
+	{ echo "$LDLIBS" | grep -q ' '; } || break
+    fi
+done
+
+# Make the binary with final, minimal list of libs
+echo "Final link with: ${LDLIBS:-<none>}"
+l_list=`echo " $LDLIBS " | sed -e 's: \([^- ][^ ]*\): -l\1:g'`
+test "x$l_list" != "x" && l_list="$START_GROUP $l_list $END_GROUP"
+# --verbose gives us gobs of info to stdout (e.g. linker script used)
+if ! test -f busybox_ldscript; then
+    try $CC $CFLAGS $LDFLAGS \
+	    -o $EXE \
+	    $SORT_COMMON \
+	    $SORT_SECTION \
+	    $GC_SECTIONS \
+	    $START_GROUP $O_FILES $A_FILES $END_GROUP \
+	    $l_list \
+	    `INFO_OPTS` \
+    || {
+	cat $EXE.out
+	exit 1
+    }
+else
+    echo "Custom linker script 'busybox_ldscript' found, using it"
+    # Add SORT_BY_ALIGNMENT to linker script (found in $EXE.out):
+    #  .rodata         : { *(.rodata SORT_BY_ALIGNMENT(.rodata.*) .gnu.linkonce.r.*) }
+    #  *(.data SORT_BY_ALIGNMENT(.data.*) .gnu.linkonce.d.*)
+    #  *(.bss SORT_BY_ALIGNMENT(.bss.*) .gnu.linkonce.b.*)
+    # This will eliminate most of the padding (~3kb).
+    # Hmm, "ld --sort-section alignment" should do it too.
+    #
+    # There is a ld hack which is meant to decrease disk usage
+    # at the cost of more RAM usage (??!!) in standard ld script:
+    #  /* Adjust the address for the data segment.  We want to adjust up to
+    #     the same address within the page on the next page up.  */
+    #  . = ALIGN (0x1000) - ((0x1000 - .) & (0x1000 - 1)); . = DATA_SEGMENT_ALIGN (0x1000, 0x1000);
+    # Replace it with:
+    #  . = ALIGN (0x1000); . = DATA_SEGMENT_ALIGN (0x1000, 0x1000);
+    # to unconditionally align .data to the next page boundary,
+    # instead of "next page, plus current offset in this page"
+    try $CC $CFLAGS $LDFLAGS \
+	    -o $EXE \
+	    $SORT_COMMON \
+	    $SORT_SECTION \
+	    $GC_SECTIONS \
+	    -Wl,-T,busybox_ldscript \
+	    $START_GROUP $O_FILES $A_FILES $END_GROUP \
+	    $l_list \
+	    `INFO_OPTS` \
+    || {
+	cat $EXE.out
+	exit 1
+    }
+fi
+
+. ./.config
+
+sharedlib_dir="0_lib"
+
+if test "$CONFIG_BUILD_LIBBUSYBOX" = y; then
+    mkdir "$sharedlib_dir" 2>/dev/null
+    test -d "$sharedlib_dir" || {
+	echo "Cannot make directory $sharedlib_dir"
+	exit 1
+    }
+    ln -s "libbusybox.so.$BB_VER" "$sharedlib_dir"/libbusybox.so 2>/dev/null
+
+    # Yes, "ld -shared -static" is a thing. It's a shared library which is itself static.
+    LBB_STATIC=""
+    test "$CONFIG_FEATURE_LIBBUSYBOX_STATIC" = y && LBB_STATIC="-Wl,-static"
+
+    EXE="$sharedlib_dir/libbusybox.so.${BB_VER}_unstripped"
+    try $CC $CFLAGS $LDFLAGS \
+	    -o $EXE \
+	    -shared -fPIC $LBB_STATIC \
+	    -Wl,--enable-new-dtags \
+	    -Wl,-z,combreloc \
+	    -Wl,-soname="libbusybox.so.$BB_VER" \
+	    -Wl,--undefined=lbb_main \
+	    $SORT_COMMON \
+	    $SORT_SECTION \
+	    $START_GROUP $A_FILES $END_GROUP \
+	    $l_list \
+	    `INFO_OPTS` \
+    || {
+	echo "Linking $EXE failed"
+	cat $EXE.out
+	exit 1
+    }
+    $STRIP -s --remove-section=.note --remove-section=.comment $EXE -o "$sharedlib_dir/libbusybox.so.$BB_VER"
+    chmod a+x "$sharedlib_dir/libbusybox.so.$BB_VER"
+    echo "libbusybox: $sharedlib_dir/libbusybox.so.$BB_VER"
+fi
+
+if test "$CONFIG_FEATURE_SHARED_BUSYBOX" = y; then
+    EXE="$sharedlib_dir/busybox_unstripped"
+    try $CC $CFLAGS $LDFLAGS \
+	    -o $EXE \
+	    $SORT_COMMON \
+	    $SORT_SECTION \
+	    $GC_SECTIONS \
+	    $START_GROUP $O_FILES $END_GROUP \
+	    -L"$sharedlib_dir" -lbusybox \
+	    $l_list \
+	    `INFO_OPTS` \
+    || {
+	echo "Linking $EXE failed"
+	cat $EXE.out
+	exit 1
+    }
+    $STRIP -s --remove-section=.note --remove-section=.comment $EXE -o "$sharedlib_dir/busybox"
+    echo "busybox linked against libbusybox: $sharedlib_dir/busybox"
+fi
+
+if test "$CONFIG_FEATURE_INDIVIDUAL" = y; then
+    echo "Linking individual applets against libbusybox (see $sharedlib_dir/*)"
+    gcc -DNAME_MAIN -E -include include/autoconf.h include/applets.h \
+    | grep -v "^#" \
+    | grep -v "^ *$" \
+    > applet_lst.tmp
+    while read name main junk; do
+
+	echo "\
+void lbb_prepare(const char *applet, char **argv);
+int $main(int argc, char **argv);
+
+int main(int argc, char **argv)
+{
+	lbb_prepare(\"$name\", argv);
+	return $main(argc, argv);
+}
+" >"$sharedlib_dir/applet.c"
+
+	EXE="$sharedlib_dir/$name"
+	try $CC $CFLAGS $LDFLAGS "$sharedlib_dir/applet.c" \
+		-o $EXE \
+		$SORT_COMMON \
+		$SORT_SECTION \
+		$GC_SECTIONS \
+		-L"$sharedlib_dir" -lbusybox \
+		-Wl,--warn-common \
+	|| {
+	    echo "Linking $EXE failed"
+	    cat $EXE.out
+	    exit 1
+	}
+	rm -- "$sharedlib_dir/applet.c" $EXE.out
+	$STRIP -s --remove-section=.note --remove-section=.comment $EXE
+	# Let user see that we do something - list the names of created binaries:
+	echo "$EXE"
+
+    done <applet_lst.tmp
+fi
+
+# libbusybox.so is needed only for -lbusybox at link time,
+# it is not needed at runtime. Deleting to reduce confusion.
+rm "$sharedlib_dir"/libbusybox.so 2>/dev/null
+exit 0 # or else we may confuse make

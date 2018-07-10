@@ -1,0 +1,2 @@
+v=break; while true; do echo A; $v; echo B; break; echo C; done
+echo OK:$?

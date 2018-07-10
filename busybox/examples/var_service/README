@@ -1,0 +1,238 @@
+	Daemontools and runit
+
+Tired of PID files, needing root access, and writing init scripts just
+to have your UNIX apps start when your server boots? Want a simpler,
+better alternative that will also restart them if they crash? If so,
+this is an introduction to process supervision with runit/daemontools.
+
+
+	Background
+
+Classic init scripts, e.g. /etc/init.d/apache, are widely used for
+starting processes at system boot time, when they are executed by init.
+Sadly, init scripts are cumbersome and error-prone to write, they must
+typically be edited and run as root, and the processes they launch do
+not get restarted automatically if they crash.
+
+In an alternative scheme called "process supervision", each important
+process is looked after by a tiny supervising process, which deals with
+starting and stopping the important process on request, and re-starting
+it when it exits unexpectedly. Those supervising processes can in turn
+be supervised by other supervising processes.
+
+Dan Bernstein wrote the process supervision toolkit, "daemontools",
+which is a set of small, reliable programs that cooperate in the
+UNIX tradition to manage process supervision trees.
+
+Runit is a more conveniently licensed and more actively maintained
+reimplementation of daemontools, written by Gerrit Pape.
+
+Here I’ll use runit, however, the ideas are the same for other
+daemontools-like projects (there are several).
+
+
+	Service directories and scripts
+
+In runit parlance a "service" is simply a directory containing a script
+named "run".
+
+There are just two key programs in runit. Firstly, runsv supervises the
+process for an individual service. Service directories themselves sit
+inside a containing directory, and the runsvdir program supervises that
+directory, running one child runsv process for the service in each
+subdirectory. A typical choice is to start an instance of runsvdir
+which supervises services in subdirectories of /var/service/.
+
+If /var/service/log/ exists, runsv will supervise two services,
+and will connect stdout of main service to the stdin of log service.
+This is primarily used for logging.
+
+You can debug an individual service by running its SERVICE_DIR/run script.
+In this case, its stdout and stderr go to your terminal.
+
+You can also run "runsv SERVICE_DIR", which runs both the service
+and its logger service (SERVICE_DIR/log/run) if logger service exists.
+If logger service exists, the output will go to it instead of the terminal.
+
+"runsvdir /var/service" merely runs "runsv SERVICE_DIR" for every subdirectory
+in /var/service.
+
+
+	Examples
+
+This directory contains some examples of services:
+
+    var_service/getty_<tty>
+
+Runs a getty on <tty>. (run script looks at $PWD and extracts suffix
+after "_" as tty name). Create copies (or symlinks) of this directory
+with different names to run many gettys on many ttys.
+
+    var_service/gpm
+
+Runs gpm, the cut and paste utility and mouse server for text consoles.
+
+    var_service/inetd
+
+Runs inetd. This is an example of a service with log. Log service
+writes timestamped, rotated log data to /var/log/service/inetd/*
+using "svlogd -tt". p_log and w_log scripts demonstrage how you can
+"page log" and "watch log".
+
+Other services which have logs handle them in the same way.
+
+    var_service/nmeter
+
+Runs nmeter '%t %c ....' with output to /dev/tty9. This gives you
+a 1-second sampling of server load and health on a dedicated text console.
+
+
+	Networking examples
+
+In many cases, network configuration makes it necessary to run several daemons:
+dhcp, zeroconf, ppp, openvpn and such. They need to be controlled,
+and in many cases you also want to babysit them.
+
+They present a case where different services need to control (start, stop,
+restart) each other.
+
+    var_service/dhcp_if
+
+controls a udhcpc instance which provides DHCP-assigned IP
+address on interface named "if". Copy/rename this directory as needed to run
+udhcpc on other interfaces (var_service/dhcp_if/run script uses _foo suffix
+of the parent directory as interface name).
+
+When IP address is obtained or lost, var_service/dhcp_if/dhcp_handler is run.
+It saves new config data to /var/run/service/fw/dhcp_if.ipconf and (re)starts
+/var/service/fw service. This example can be used as a template for other
+dynamic network link services (ppp/vpn/zcip).
+
+This is an example of service with has a "finish" script. If downed ("sv d"),
+"finish" is executed. For this service, it removes DHCP address from
+the interface. This is useful when ifplugd detects that the the link is dead
+(cable is no longer attached anywhere) and downs us - keeping DHCP configured
+addresses on the interface would make kernel still try to use it.
+
+    var_service/zcip_if
+
+Zeroconf IP service: assigns a 169.254.x.y/16 address to interface "if".
+This allows to talk to other devices on a network without DHCP server
+(if they also assign 169.254 addresses to themselves).
+
+    var_service/ifplugd_if
+
+Watches link status of interface "if". Downs and ups /var/service/dhcp_if
+service accordingly. In effect, it allows you to unplug/plug-to-different-network
+and have your IP properly re-negotiated at once.
+
+    var_service/dhcp_if_pinger
+
+Uses var_service/dhcp_if's data to determine router IP. Pings it.
+If ping fails, restarts /var/service/dhcp_if service.
+Basically, an example of watchdog service for networks which are not reliable
+and need babysitting.
+
+    var_service/supplicant_if
+
+Wireless supplicant (wifi association and encryption daemon) service for
+interface "if".
+
+    var_service/fw
+
+"Firewall" script, although it is tasked with much more than setting up firewall.
+It is responsible for all aspects of network configuration.
+
+This is an example of *one-shot* service.
+
+It reconfigures network based on current known state of ALL interfaces.
+Uses conf/*.ipconf (static config) and /var/run/service/fw/*.ipconf
+(dynamic config from dhcp/ppp/vpn/etc) to determine what to do.
+
+One-shot-ness of this service means that it shuts itself off after single run.
+IOW: it is not a constantly running daemon sort of thing.
+It starts, it configures the network, it shuts down, all done
+(unlike infamous NetworkManagers which sit in RAM forever).
+
+However, any dhcp/ppp/vpn or similar service can restart it anytime
+when it senses the change in network configuration.
+This even works while fw service runs: if dhcp signals fw to (re)start
+while fw runs, fw will not stop after its execution, but will re-execute once,
+picking up dhcp's new configuration.
+This is achieved very simply by having
+	# Make ourself one-shot
+	sv o .
+at the very beginning of fw/run script, not at the end.
+
+Therefore, any "sv u fw" command by any other script "undoes" o(ne-shot)
+command if fw still runs, thus runsv will rerun it; or start it
+in a normal way if fw is not running.
+
+This mechanism is the reason why fw is a service, not just a script.
+
+System administrators are expected to edit fw/run script, since
+network configuration needs are likely to be very complex and different
+for non-trivial installations.
+
+    var_service/ftpd
+    var_service/httpd
+    var_service/tftpd
+    var_service/ntpd
+
+Examples of typical network daemons.
+
+
+	Process tree
+
+Here is an example of the process tree from a live system with these services
+(and a few others). An interesting detail are ftpd and vpnc services, where
+you can see only logger process. These services are "downed" at the moment:
+their daemons are not launched.
+
+PID TIME COMMAND
+553 0:04 runsvdir -P /var/service
+561 0:00   runsv sshd
+576 0:00     svlogd -tt /var/log/service/sshd
+589 0:00     /usr/sbin/sshd -D -e -p22 -u0 -h /var/service/sshd/ssh_host_rsa_key
+562 0:00   runsv dhcp_eth0
+568 0:00     svlogd -tt /var/log/service/dhcp_eth0
+850 0:00     udhcpc -vv --foreground --interface=eth0
+                --pidfile=/var/service/dhcp_eth0/udhcpc.pid
+                --script=/var/service/dhcp_eth0/dhcp_handler
+                -x hostname bbox
+563 0:00   runsv ntpd
+573 0:01     svlogd -tt /var/log/service/ntpd
+845 0:00     busybox ntpd -dddnNl -S ./ntp.script -p 10.x.x.x -p 10.x.x.x
+564 0:00   runsv ifplugd_wlan0
+598 0:00     svlogd -tt /var/log/service/ifplugd_wlan0
+614 0:05     ifplugd -apqns -t3 -u0 -d0 -i wlan0
+                -r /var/service/ifplugd_wlan0/ifplugd_handler
+565 0:08   runsv dhcp_wlan0_pinger
+911 0:00     sleep 67
+566 0:00   runsv unscd
+583 0:03     svlogd -tt /var/log/service/unscd
+599 0:02     nscd -dddd
+567 0:00   runsv dhcp_wlan0
+591 0:00     svlogd -tt /var/log/service/dhcp_wlan0
+802 0:00     udhcpc -vv -C -o -V  --foreground --interface=wlan0
+                --pidfile=/var/service/dhcp_wlan0/udhcpc.pid
+                --script=/var/service/dhcp_wlan0/dhcp_handler
+569 0:00   runsv fw
+570 0:00   runsv ifplugd_eth0
+597 0:00     svlogd -tt /var/log/service/ifplugd_eth0
+612 0:05     ifplugd -apqns -t3 -u8 -d8 -i eth0
+                -r /var/service/ifplugd_eth0/ifplugd_handler
+571 0:00   runsv zcip_eth0
+590 0:00     svlogd -tt /var/log/service/zcip_eth0
+607 0:01     zcip -fvv eth0 /var/service/zcip_eth0/zcip_handler
+572 0:00   runsv ftpd
+604 0:00     svlogd -tt /var/log/service/ftpd
+574 0:00   runsv vpnc
+603 0:00     svlogd -tt /var/log/service/vpnc
+575 0:00   runsv httpd
+602 0:00     svlogd -tt /var/log/service/httpd
+622 0:00     busybox httpd -p80 -vvv -f -h /home/httpd_root
+577 0:00   runsv supplicant_wlan0
+627 0:00     svlogd -tt /var/log/service/supplicant_wlan0
+638 0:03     wpa_supplicant -i wlan0
+                -c /var/service/supplicant_wlan0/wpa_supplicant.conf -d

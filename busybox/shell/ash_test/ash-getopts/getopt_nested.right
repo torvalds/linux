@@ -1,0 +1,14 @@
+var:a
+var:b
+var:c
+var:a
+var:b
+var:c
+Illegal option -d
+var:?
+Illegal option -e
+var:?
+Illegal option -f
+var:?
+var:a
+End: var:? OPTIND:6

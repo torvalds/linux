@@ -1,0 +1,2674 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
+ "http://www.w3.org/TR/REC-html40/loose.dtd">
+<HTML>
+ <HEAD>
+  <TITLE>Common Gateway Interface - 1.1 *Draft 03* [http://cgi-spec.golux.com/draft-coar-cgi-v11-03-clean.html]
+  </TITLE>
+<!--#if expr="$HTTP_USER_AGENT != /Lynx/" -->
+ <!--#set var="GUI" value="1" -->
+<!--#endif -->
+  <LINK HREF="mailto:Ken.Coar@Golux.Com" rev="revised">
+  <LINK REL="STYLESHEET" HREF="cgip-style-rfc.css" TYPE="text/css">
+  <META name="latexstyle" content="rfc">
+  <META name="author" content="Ken A L Coar">
+  <META name="institute" content="IBM Corporation">
+  <META name="date" content="25 June 1999">
+  <META name="expires" content="Expires 31 December 1999">
+  <META name="document" content="INTERNET-DRAFT">
+  <META name="file" content="&lt;draft-coar-cgi-v11-03.txt&gt;">
+  <META name="group" content="INTERNET-DRAFT">
+<!--
+    There are a lot of BNF fragments in this document.  To make it work
+    in all possible browsers (including Lynx, which is used to turn it
+    into text/plain), we handle these by using PREformatted blocks with
+    a universal internal margin of 2, inside one-level DL blocks.
+ -->
+ </HEAD>
+ <BODY>
+  <!--
+    HTML doesn't do paper pagination, so we need to fake it out.  Basing
+    our formatting upon RFC2068, there are four (4) lines of header and
+    four (4) lines of footer for each page.
+
+<DIV ALIGN="CENTER">
+ <PRE>
+
+
+
+
+Coar, et al.               CGI/1.1 Specification                     May, 1998
+INTERNET-DRAFT             Expires 1 December 1998                    [Page 2]
+
+
+ </PRE>
+</DIV>
+  -->
+  <!--
+    The following weirdness wrt non-breaking spaces is to get Lynx
+    (which is barely TABLE-aware) to line the left/right justified
+    text up properly.
+  -->
+  <DIV ALIGN="CENTER">
+   <TABLE WIDTH="100%" CELLPADDING=0 CELLSPACING=0>
+    <TR VALIGN="TOP">
+     <TD ALIGN="LEFT">
+      INTERNET-DRAFT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     </TD>
+     <TD ALIGN="RIGHT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ken A L Coar
+     </TD>
+    </TR>
+    <TR VALIGN="TOP">
+     <TD ALIGN="LEFT">
+      draft-coar-cgi-v11-03.{html,txt}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     </TD>
+     <TD ALIGN="RIGHT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IBM Corporation
+     </TD>
+    </TR>
+    <TR VALIGN="TOP">
+     <TD ALIGN="LEFT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     </TD>
+     <TD ALIGN="RIGHT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D.R.T. Robinson
+     </TD>
+    </TR>
+    <TR VALIGN="TOP">
+     <TD ALIGN="LEFT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     </TD>
+     <TD ALIGN="RIGHT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E*TRADE&nbsp;UK&nbsp;Ltd.
+     </TD>
+    </TR>
+    <TR VALIGN="TOP">
+     <TD ALIGN="LEFT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+     </TD>
+     <TD ALIGN="RIGHT">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;25 June 1999
+     </TD>
+    </TR>
+   </TABLE>
+  </DIV>
+
+  <H1 ALIGN="CENTER">
+   The WWW Common Gateway Interface
+   <BR>
+   Version 1.1
+  </H1>
+
+<!--#include virtual="I-D-statement" -->
+
+  <H2>
+   <A NAME="Abstract">
+    Abstract
+   </A>
+  </H2>
+  <P>
+  The Common Gateway Interface (CGI) is a simple interface for running
+  external programs, software or gateways under an information server
+  in a platform-independent manner. Currently, the supported information
+  servers are HTTP servers.
+  </P>
+  <P>
+  The interface has been in use by the World-Wide Web since 1993. This
+  specification defines the
+  "current practice" parameters of the
+  'CGI/1.1' interface developed and documented at the U.S. National
+  Centre for Supercomputing Applications [NCSA-CGI].
+  This document also defines the use of the CGI/1.1 interface
+  on the Unix and AmigaDOS(tm) systems.
+  </P>
+  <P>
+  Discussion of this draft occurs on the CGI-WG mailing list; see the
+  project Web page at
+  <SAMP>&lt;URL:<A HREF="http://CGI-Spec.Golux.Com/"
+                >http://CGI-Spec.Golux.Com/</A>&gt;</SAMP>
+  for details on the mailing list and the status of the project.
+  </P>
+
+<!--#if expr="$GUI" -->
+  <H2>
+   Revision History
+  </H2>
+  <P>
+  The revision history of this draft is being maintained using Web-based
+  GUI notation, such as struck-through characters and colour-coded
+  sections.  The following legend describes how to determine the origin
+  of a particular revision according to the colour of the text:
+  </P>
+  <DL COMPACT>
+   <DT>Black
+   </DT>
+   <DD>Revision 00, released 28 May 1998
+   </DD>
+   <DT>Green
+   </DT>
+   <DD>Revision 01, released 28 December 1998
+    <BR>
+    Major structure change: Section 4, "Request Metadata (Meta-Variables)"
+    was moved entirely under <A HREF="#7.0">Section 7</A>, "Data Input to the
+    CGI Script."
+    Due to the size of this change, it is noted here and the text in its
+    former location does <EM>not</EM> appear as struckthrough.  This has
+    caused major <A HREF="#6.0">sections 5</A> and following to decrement
+    by one.  Other
+    large text movements are likewise not marked up.  References to RFC
+    1738 were changed to 2396 (1738's replacement).
+   </DD>
+   <DT>Red
+   </DT>
+   <DD>Revision 02, released 2 April, 1999
+    <BR>
+    Added text to <A HREF="#8.3">section 8.3</A> defining correct handling
+    of HTTP/1.1
+    requests using "chunked" Transfer-Encoding.  Labelled metavariable
+    names in <A HREF="#8.0">section 8</A> with the appropriate detail section
+    numbers.
+    Clarified allowed usage of <SAMP>Status</SAMP> and
+    <SAMP>Location</SAMP> response header fields.  Included new
+    Internet-Draft language.
+   </DD>
+   <DT>Fuchsia
+   </DT>
+   <DD>Revision 03, released 25 June 1999
+    <BR>
+    Changed references from "HTTP" to "Protocol-Specific" for the listing of
+    things like HTTP_ACCEPT.  Changed 'entity-body' and 'content-body' to
+    'message-body.'  Added a note that response headers must comply with
+    requirements of the protocol level in use.  Added a lot of stuff about
+    security (section 11).  Clarified a bunch of productions.  Pointed out
+    that zero-length and omitted values are indistinguishable in this
+    specification.  Clarified production describing order of fields in
+    script response header.  Clarified issues surrounding encoding of
+    data.  Acknowledged additional contributors, and changed one of
+    the authors' addresses.
+   </DD>
+  </DL>
+<!--#endif -->
+
+  <H2>
+   <A NAME="Contents">
+    Table of Contents
+   </A>
+  </H2>
+  <DIV ALIGN="CENTER">
+   <PRE>
+  1 Introduction..............................................<A
+                                                               HREF="#1.0"
+                                                              >TBD</A>
+   1.1 Purpose................................................<A
+                                                               HREF="#1.1"
+                                                              >TBD</A>
+   1.2 Requirements...........................................<A
+                                                               HREF="#1.2"
+                                                              >TBD</A>
+   1.3 Specifications.........................................<A
+                                                               HREF="#1.3"
+                                                              >TBD</A>
+   1.4 Terminology............................................<A
+                                                               HREF="#1.4"
+                                                              >TBD</A>
+  2 Notational Conventions and Generic Grammar................<A
+                                                               HREF="#2.0"
+                                                              >TBD</A>
+   2.1 Augmented BNF..........................................<A
+                                                               HREF="#2.1"
+                                                              >TBD</A>
+   2.2 Basic Rules............................................<A
+                                                               HREF="#2.2"
+                                                              >TBD</A>
+  3 Protocol Parameters.......................................<A
+                                                               HREF="#3.0"
+                                                              >TBD</A>
+   3.1 URL Encoding...........................................<A
+                                                               HREF="#3.1"
+                                                              >TBD</A>
+   3.2 The Script-URI.........................................<A
+                                                               HREF="#3.2"
+                                                              >TBD</A>
+  4 Invoking the Script.......................................<A
+                                                               HREF="#4.0"
+                                                              >TBD</A>
+  5 The CGI Script Command Line...............................<A
+                                                               HREF="#5.0"
+                                                              >TBD</A>
+  6 Data Input to the CGI Script..............................<A
+                                                               HREF="#6.0"
+                                                              >TBD</A>
+   6.1 Request Metadata (Metavariables).......................<A
+                                                               HREF="#6.1"
+                                                              >TBD</A>
+    6.1.1 AUTH_TYPE...........................................<A
+                                                               HREF="#6.1.1"
+                                                              >TBD</A>
+    6.1.2 CONTENT_LENGTH......................................<A
+                                                               HREF="#6.1.2"
+                                                              >TBD</A>
+    6.1.3 CONTENT_TYPE........................................<A
+                                                               HREF="#6.1.3"
+                                                              >TBD</A>
+    6.1.4 GATEWAY_INTERFACE...................................<A
+                                                               HREF="#6.1.4"
+                                                              >TBD</A>
+    6.1.5 Protocol-Specific Metavariables.....................<A
+                                                               HREF="#6.1.5"
+                                                              >TBD</A>
+    6.1.6 PATH_INFO...........................................<A
+                                                               HREF="#6.1.6"
+                                                              >TBD</A>
+    6.1.7 PATH_TRANSLATED.....................................<A
+                                                               HREF="#6.1.7"
+                                                              >TBD</A>
+    6.1.8 QUERY_STRING........................................<A
+                                                               HREF="#6.1.8"
+                                                              >TBD</A>
+    6.1.9 REMOTE_ADDR.........................................<A
+                                                               HREF="#6.1.9"
+                                                              >TBD</A>
+    6.1.10 REMOTE_HOST........................................<A
+                                                               HREF="#6.1.10"
+                                                              >TBD</A>
+    6.1.11 REMOTE_IDENT.......................................<A
+                                                               HREF="#6.1.11"
+                                                              >TBD</A>
+    6.1.12 REMOTE_USER........................................<A
+                                                               HREF="#6.1.12"
+                                                              >TBD</A>
+    6.1.13 REQUEST_METHOD.....................................<A
+                                                               HREF="#6.1.13"
+                                                              >TBD</A>
+    6.1.14 SCRIPT_NAME........................................<A
+                                                               HREF="#6.1.14"
+                                                              >TBD</A>
+    6.1.15 SERVER_NAME........................................<A
+                                                               HREF="#6.1.15"
+                                                              >TBD</A>
+    6.1.16 SERVER_PORT........................................<A
+                                                               HREF="#6.1.16"
+                                                              >TBD</A>
+    6.1.17 SERVER_PROTOCOL....................................<A
+                                                               HREF="#6.1.17"
+                                                              >TBD</A>
+    6.1.18 SERVER_SOFTWARE....................................<A
+                                                               HREF="#6.1.18"
+                                                              >TBD</A>
+    6.2 Request Message-Bodies................................<A
+                                                               HREF="#6.2"
+                                                              >TBD</A>
+  7 Data Output from the CGI Script...........................<A
+                                                               HREF="#7.0"
+                                                              >TBD</A>
+   7.1 Non-Parsed Header Output...............................<A
+                                                               HREF="#7.1"
+                                                              >TBD</A>
+   7.2 Parsed Header Output...................................<A
+                                                               HREF="#7.2"
+                                                              >TBD</A>
+    7.2.1 CGI header fields...................................<A
+                                                               HREF="#7.2.1"
+                                                              >TBD</A>
+     7.2.1.1 Content-Type.....................................<A
+                                                               HREF="#7.2.1.1"
+                                                              >TBD</A>
+     7.2.1.2 Location.........................................<A
+                                                               HREF="#7.2.1.2"
+                                                              >TBD</A>
+     7.2.1.3 Status...........................................<A
+                                                               HREF="#7.2.1.3"
+                                                              >TBD</A>
+     7.2.1.4 Extension header fields..........................<A
+                                                               HREF="#7.2.1.3"
+                                                              >TBD</A>
+    7.2.2 HTTP header fields..................................<A
+                                                               HREF="#7.2.2"
+                                                              >TBD</A>
+  8 Server Implementation.....................................<A
+                                                               HREF="#8.0"
+                                                              >TBD</A>
+   8.1 Requirements for Servers...............................<A
+                                                               HREF="#8.1"
+                                                              >TBD</A>
+    8.1.1 Script-URI..........................................<A
+                                                               HREF="#8.1"
+                                                              >TBD</A>
+    8.1.2 Request Message-body Handling.......................<A
+                                                               HREF="#8.1.2"
+                                                              >TBD</A>
+    8.1.3 Required Metavariables..............................<A
+                                                               HREF="#8.1.3"
+                                                              >TBD</A>
+    8.1.4 Response Compliance.................................<A
+                                                               HREF="#8.1.4"
+                                                              >TBD</A>
+   8.2 Recommendations for Servers............................<A
+                                                               HREF="#8.2"
+                                                              >TBD</A>
+   8.3 Summary of Metavariables...............................<A
+                                                               HREF="#8.3"
+                                                              >TBD</A>
+  9 Script Implementation.....................................<A
+                                                               HREF="#9.0"
+                                                              >TBD</A>
+   9.1 Requirements for Scripts...............................<A
+                                                               HREF="#9.1"
+                                                              >TBD</A>
+   9.2 Recommendations for Scripts............................<A
+                                                               HREF="#9.2"
+                                                              >TBD</A>
+  10 System Specifications....................................<A
+                                                               HREF="#10.0"
+                                                              >TBD</A>
+   10.1 AmigaDOS..............................................<A
+                                                               HREF="#10.1"
+                                                              >TBD</A>
+   10.2 Unix..................................................<A
+                                                               HREF="#10.2"
+                                                              >TBD</A>
+  11 Security Considerations..................................<A
+                                                               HREF="#11.0"
+                                                              >TBD</A>
+   11.1 Safe Methods..........................................<A
+                                                               HREF="#11.1"
+                                                              >TBD</A>
+   11.2 HTTP Header Fields Containing Sensitive Information...<A
+                                                               HREF="#11.2"
+                                                              >TBD</A>
+   11.3 Script Interference with the Server...................<A
+                                                               HREF="#11.3"
+                                                              >TBD</A>
+   11.4 Data Length and Buffering Considerations..............<A
+                                                               HREF="#11.4"
+                                                              >TBD</A>
+   11.5 Stateless Processing..................................<A
+                                                               HREF="#11.5"
+                                                              >TBD</A>
+  12 Acknowledgments..........................................<A
+                                                               HREF="#12.0"
+                                                              >TBD</A>
+  13 References...............................................<A
+                                                               HREF="#13.0"
+                                                              >TBD</A>
+  14 Authors' Addresses.......................................<A
+                                                               HREF="#14.0"
+                                                              >TBD</A>
+     </PRE>
+  </DIV>
+
+  <H2>
+   <A NAME="1.0">
+    1. Introduction
+   </A>
+  </H2>
+
+  <H3>
+   <A NAME="1.1">
+    1.1. Purpose
+   </A>
+  </H3>
+  <P>
+  Together the HTTP [<A HREF="#[3]">3</A>,<A HREF="#[8]">8</A>] server
+  and the CGI script are responsible
+  for servicing a client
+  request by sending back responses. The client
+  request comprises a Universal Resource Identifier (URI)
+  [<A HREF="#[1]">1</A>], a
+  request method, and various ancillary
+  information about the request
+  provided by the transport mechanism.
+  </P>
+  <P>
+  The CGI defines the abstract parameters, known as
+  metavariables,
+  which describe the client's
+  request. Together with a
+  concrete programmer interface this specifies a platform-independent
+  interface between the script and the HTTP server.
+  </P>
+
+  <H3>
+   <A NAME="1.2">
+    1.2. Requirements
+   </A>
+  </H3>
+  <P>
+  This specification uses the same words as RFC 1123
+  [<A HREF="#[5]">5</A>] to define the
+  significance of each particular requirement. These are:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <DL>
+   <DT><EM>MUST</EM>
+   </DT>
+   <DD>
+    <P>
+    This word or the adjective 'required' means that the item is an
+    absolute requirement of the specification.
+    </P>
+   </DD>
+   <DT><EM>SHOULD</EM>
+   </DT>
+   <DD>
+    <P>
+    This word or the adjective 'recommended' means that there may
+    exist valid reasons in particular circumstances to ignore this
+    item, but the full implications should be understood and the case
+    carefully weighed before choosing a different course.
+    </P>
+   </DD>
+   <DT><EM>MAY</EM>
+   </DT>
+   <DD>
+    <P>
+    This word or the adjective 'optional' means that this item is
+    truly optional. One vendor may choose to include the item because
+    a particular marketplace requires it or because it enhances the
+    product, for example; another vendor may omit the same item.
+    </P>
+   </DD>
+  </DL>
+  <P>
+  An implementation is not compliant if it fails to satisfy one or more
+  of the 'must' requirements for the protocols it implements. An
+  implementation that satisfies all of the 'must' and all of the
+  'should' requirements for its features is said to be 'unconditionally
+  compliant'; one that satisfies all of the 'must' requirements but not
+  all of the 'should' requirements for its features is said to be
+  'conditionally compliant.'
+  </P>
+
+  <H3>
+   <A NAME="1.3">
+    1.3. Specifications
+   </A>
+  </H3>
+  <P>
+  Not all of the functions and features of the CGI are defined in the
+  main part of this specification. The following phrases are used to
+  describe the features which are not specified:
+  </P>
+  <DL>
+   <DT><EM>system defined</EM>
+   </DT>
+   <DD>
+    <P>
+    The feature may differ between systems, but must be the same for
+    different implementations using the same system. A system will
+    usually identify a class of operating-systems. Some systems are
+    defined in
+    <A HREF="#10.0"
+    >section 10</A> of this document.
+    New systems may be defined
+    by new specifications without revision of this document.
+    </P>
+   </DD>
+   <DT><EM>implementation defined</EM>
+   </DT>
+   <DD>
+    <P>
+    The behaviour of the feature may vary from implementation to
+    implementation, but a particular implementation must document its
+    behaviour.
+    </P>
+   </DD>
+  </DL>
+
+  <H3>
+   <A NAME="1.4">
+    1.4. Terminology
+   </A>
+  </H3>
+  <P>
+  This specification uses many terms defined in the HTTP/1.1
+  specification [<A HREF="#[8]">8</A>]; however, the following terms are
+  used here in a
+  sense which may not accord with their definitions in that document,
+  or with their common meaning.
+  </P>
+
+  <DL>
+   <DT><EM>metavariable</EM>
+   </DT>
+   <DD>
+    <P>
+    A named parameter that carries information from the server to the
+    script. It is not necessarily a variable in the operating-system's
+    environment, although that is the most common implementation.
+    </P>
+   </DD>
+
+   <DT><EM>script</EM>
+   </DT>
+   <DD>
+    <P>
+    The software which is invoked by the server <EM>via</EM> this
+    interface. It
+    need not be a standalone program, but could be a
+    dynamically-loaded or shared library, or even a subroutine in the
+    server.  It <EM>may</EM> be a set of statements
+    interpreted at run-time, as the term 'script' is frequently
+    understood, but that is not a requirement and within the context
+    of this specification the term has the broader definition stated.
+    </P>
+   </DD>
+   <DT><EM>server</EM>
+   </DT>
+   <DD>
+    <P>
+    The application program which invokes the script in order to service
+    requests.
+    </P>
+   </DD>
+  </DL>
+
+  <H2>
+   <A NAME="2.0">
+    2. Notational Conventions and Generic Grammar
+   </A>
+  </H2>
+
+  <H3>
+   <A NAME="2.1">
+    2.1. Augmented BNF
+   </A>
+  </H3>
+  <P>
+  All of the mechanisms specified in this document are described in
+  both prose and an augmented Backus-Naur Form (BNF) similar to that
+  used by RFC 822 [<A HREF="#[6]">6</A>]. This augmented BNF contains
+  the following constructs:
+  </P>
+  <DL>
+   <DT>name = definition
+   </DT>
+   <DD>
+    <P>
+    The
+    definition by the equal character ("="). Whitespace is only
+    significant in that continuation lines of a definition are
+    indented.
+    </P>
+   </DD>
+   <DT>"literal"
+   </DT>
+   <DD>
+    <P>
+    Quotation marks (") surround literal text, except for a literal
+    quotation mark, which is surrounded by angle-brackets ("&lt;" and "&gt;").
+    Unless stated otherwise, the text is case-sensitive.
+    </P>
+   </DD>
+   <DT>rule1 | rule2
+   </DT>
+   <DD>
+    <P>
+    Alternative rules are separated by a vertical bar ("|").
+    </P>
+   </DD>
+   <DT>(rule1 rule2 rule3)
+   </DT>
+   <DD>
+    <P>
+    Elements enclosed in parentheses are treated as a single element.
+    </P>
+   </DD>
+   <DT>*rule
+   </DT>
+   <DD>
+    <P>
+    A rule preceded by an asterisk ("*") may have zero or more
+    occurrences. A rule preceded by an integer followed by an asterisk
+    must occur at least the specified number of times.
+    </P>
+   </DD>
+   <DT>[rule]
+   </DT>
+   <DD>
+    <P>
+    An element enclosed in square
+    brackets ("[" and "]") is optional.
+    </P>
+   </DD>
+  </DL>
+
+  <H3>
+   <A NAME="2.2">
+    2.2. Basic Rules
+   </A>
+  </H3>
+  <P>
+  The following rules are used throughout this specification to
+  describe basic parsing constructs.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    alpha         = lowalpha | hialpha
+    alphanum      = alpha | digit
+    lowalpha      = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h"
+                    | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p"
+                    | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x"
+                    | "y" | "z"
+    hialpha       = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H"
+                    | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P"
+                    | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X"
+                    | "Y" | "Z"
+    digit         = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7"
+                    | "8" | "9"
+    hex           = digit | "A" | "B" | "C" | "D" | "E" | "F" | "a"
+                    | "b" | "c" | "d" | "e" | "f"
+    escaped       = "%" hex hex
+    OCTET         = &lt;any 8-bit sequence of data&gt;
+    CHAR          = &lt;any US-ASCII character (octets 0 - 127)&gt;
+    CTL           = &lt;any US-ASCII control character
+                    (octets 0 - 31) and DEL (127)&gt;
+    CR            = &lt;US-ASCII CR, carriage return (13)&gt;
+    LF            = &lt;US-ASCII LF, linefeed (10)&gt;
+    SP            = &lt;US-ASCII SP, space (32)&gt;
+    HT            = &lt;US-ASCII HT, horizontal tab (9)&gt;
+    NL            = CR | LF
+    LWSP          = SP | HT | NL
+    tspecial      = "(" | ")" | "@" | "," | ";" | ":" | "\" | &lt;"&gt;
+                    | "/" | "[" | "]" | "?" | "&lt;" | "&gt;" | "{" | "}"
+                    | SP | HT | NL
+    token         = 1*&lt;any CHAR except CTLs or tspecials&gt;
+    quoted-string = ( &lt;"&gt; *qdtext &lt;"&gt; ) | ( "&lt;" *qatext "&gt;")
+    qdtext        = &lt;any CHAR except &lt;"&gt; and CTLs but including LWSP&gt;
+    qatext        = &lt;any CHAR except "&lt;", "&gt;" and CTLs but
+                    including LWSP&gt;
+    mark          = "-" | "_" | "." | "!" | "~" | "*" | "'" | "(" | ")"
+    unreserved    = alphanum | mark
+    reserved      = ";" | "/" | "?" | ":" | "@" | "&amp;" | "=" |
+                    "$" | ","
+    uric          = reserved | unreserved | escaped
+  </PRE>
+  <P>
+  Note that newline (NL) need not be a single character, but can be a
+  character sequence.
+  </P>
+
+  <H2>
+   <A NAME="3.0">
+    3. Protocol Parameters
+   </A>
+  </H2>
+
+  <H3>
+   <A NAME="3.1">
+    3.1. URL Encoding
+   </A>
+  </H3>
+  <P>
+  Some variables and constructs used here are described as being
+  'URL-encoded'. This encoding is described in section
+  2 of RFC
+  2396
+  [<A HREF="#[4]">4</A>].
+  </P>
+  <P>
+  An alternate "shortcut" encoding for representing the space
+  character exists and is in common use.  Scripts MUST be prepared to
+  recognise both '+' and '%20' as an encoded space in a
+  URL-encoded value.
+  </P>
+  <P>
+  Note that some unsafe characters may have different semantics if
+  they are encoded. The definition of which characters are unsafe
+  depends on the context.
+  For example, the following two URLs do not
+  necessarily refer to the same resource:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    http://somehost.com/somedir%2Fvalue
+    http://somehost.com/somedir/value
+  </PRE>
+  <P>
+  See section
+  2 of RFC
+  2396 [<A HREF="#[4]">4</A>]
+  for authoritative treatment of this issue.
+  </P>
+
+  <H3>
+   <A NAME="3.2">
+    3.2. The Script-URI
+   </A>
+  </H3>
+  <P>
+  The 'Script-URI' is defined as the URI of the resource identified
+  by the metavariables.   Often,
+  this URI will be the same as
+  the URI requested by the client (the 'Client-URI'); however, it need
+  not be. Instead, it could be a URI invented by the server, and so it
+  can only be used in the context of the server and its CGI interface.
+  </P>
+  <P>
+  The Script-URI has the syntax of generic-RL as defined in section 2.1
+  of RFC 1808 [<A HREF="#[7]">7</A>], with the exception that object
+  parameters and
+  fragment identifiers are not permitted:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    &lt;scheme&gt;://&lt;host&gt;&lt;port&gt;/&lt;path&gt;?&lt;query&gt;
+  </PRE>
+  <P>
+  The various components of the
+  Script-URI
+  are defined by some of the
+  metavariables (see
+  <A HREF="#4.0">section 4</A>
+  below);
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    script-uri = protocol "://" SERVER_NAME ":" SERVER_PORT enc-script
+                 enc-path-info "?" QUERY_STRING
+  </PRE>
+  <P>
+  where 'protocol' is obtained
+  from SERVER_PROTOCOL, 'enc-script' is a
+  URL-encoded version of SCRIPT_NAME and 'enc-path-info' is a
+  URL-encoded version of PATH_INFO.  See
+  <A HREF="#4.6">section 4.6</A> for more information about the PATH_INFO
+  metavariable.
+  </P>
+  <P>
+  Note that the scheme and the protocol are <EM>not</EM> identical;
+  for instance, a resource accessed <EM>via</EM> an SSL mechanism
+  may have a Client-URI with a scheme of "<SAMP>https</SAMP>"
+  rather than "<SAMP>http</SAMP>".   CGI/1.1 provides no means
+  for the script to reconstruct this, and therefore
+  the Script-URI includes the base protocol used.
+  </P>
+
+  <H2>
+   <A NAME="4.0">
+    4. Invoking the Script
+   </A>
+  </H2>
+  <P>
+  The
+  script is invoked in a system defined manner. Unless specified
+  otherwise, the file containing the script will be invoked as an
+  executable program.
+  </P>
+
+  <H2>
+   <A NAME="5.0">
+    5. The CGI Script Command Line
+   </A>
+  </H2>
+  <P>
+  Some systems support a method for supplying an array of strings to
+  the CGI script. This is only used in the case of an 'indexed' query.
+  This is identified by a "GET" or "HEAD" HTTP request with a URL
+  query
+  string not containing any unencoded "=" characters. For such a
+  request,
+  servers SHOULD parse the search string
+  into words, using the following rules:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    search-string = search-word *( "+" search-word )
+    search-word   = 1*schar
+    schar         = xunreserved | escaped | xreserved
+    xunreserved   = alpha | digit | xsafe | extra
+    xsafe         = "$" | "-" | "_" | "."
+    xreserved     = ";" | "/" | "?" | ":" | "@" | "&"
+  </PRE>
+  <P>
+  After parsing, each word is URL-decoded, optionally encoded in a
+  system defined manner,
+  and then the argument list is set to the list
+  of words.
+  </P>
+  <P>
+  If the server cannot create any part of the argument list, then the
+  server SHOULD NOT generate any command line information. For example, the
+  number of arguments may be greater than operating system or server
+  limitations permit, or one of the words may not be representable as an
+  argument.
+  </P>
+  <P>
+  Scripts SHOULD check to see if the QUERY_STRING value contains an
+  unencoded "=" character, and SHOULD NOT use the command line arguments
+  if it does.
+  </P>
+
+  <H2>
+   <A NAME="6.0">
+    6. Data Input to the CGI Script
+   </A>
+  </H2>
+  <P>
+  Information about a request comes from two different sources: the
+  request header, and any associated
+  message-body.
+  Servers MUST
+  make portions of this information available to
+   scripts.
+  </P>
+
+  <H3>
+   <A NAME="6.1">
+    6.1. Request Metadata
+    (Metavariables)
+   </A>
+  </H3>
+  <P>
+  Each CGI server
+  implementation MUST define a mechanism
+  to pass data about the request from
+  the server to the script.
+  The metavariables containing these
+  data
+  are accessed by the script in a system
+  defined manner.
+  The
+  representation of the characters in the
+  metavariables is
+  system defined.
+  </P>
+  <P>
+  This specification does not distinguish between the representation of
+  null values and missing ones.  Whether null or missing values
+  (such as a query component of "?" or "", respectively) are represented
+  by undefined metavariables or by metavariables with values of "" is
+  implementation-defined.
+  </P>
+  <P>
+  Case is not significant in the
+  metavariable
+  names, in that there cannot be two
+  different variables
+  whose names differ in case only. Here they are
+  shown using a canonical representation of capitals plus underscore
+  ("_"). The actual representation of the names is system defined; for
+  a particular system the representation MAY be defined differently
+  than this.
+  </P>
+  <P>
+  Metavariable
+  values MUST be
+  considered case-sensitive except as noted
+  otherwise.
+  </P>
+  <P>
+  The canonical
+  metavariables
+  defined by this specification are:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    AUTH_TYPE
+    CONTENT_LENGTH
+    CONTENT_TYPE
+    GATEWAY_INTERFACE
+    PATH_INFO
+    PATH_TRANSLATED
+    QUERY_STRING
+    REMOTE_ADDR
+    REMOTE_HOST
+    REMOTE_IDENT
+    REMOTE_USER
+    REQUEST_METHOD
+    SCRIPT_NAME
+    SERVER_NAME
+    SERVER_PORT
+    SERVER_PROTOCOL
+    SERVER_SOFTWARE
+  </PRE>
+  <P>
+  Metavariables with names beginning with the protocol name (<EM>e.g.</EM>,
+  "HTTP_ACCEPT") are also canonical in their description of request header
+  fields.  The number and meaning of these fields may change independently
+  of this specification.  (See also <A HREF="#6.1.5">section 6.1.5</A>.)
+  </P>
+
+  <H4>
+   <A NAME="6.1.1">
+    6.1.1. AUTH_TYPE
+   </A>
+  </H4>
+  <P>
+  This variable is specific to requests made
+  <EM>via</EM> the
+  "<CODE>http</CODE>"
+  scheme.
+  </P>
+  <P>
+  If the Script-URI
+  required access authentication for external
+  access, then the server
+  MUST set
+  the value of
+  this variable
+  from the '<SAMP>auth-scheme</SAMP>' token in
+  the request's "<SAMP>Authorization</SAMP>" header
+  field.
+  Otherwise
+  it is
+  set to NULL.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    AUTH_TYPE   = "" | auth-scheme
+    auth-scheme = "Basic" | "Digest" | token
+  </PRE>
+  <P>
+  HTTP access authentication schemes are described in section 11 of the
+  HTTP/1.1 specification [<A HREF="#[8]">8</A>]. The auth-scheme is
+  not case-sensitive.
+  </P>
+  <P>
+  Servers
+  MUST
+  provide this metavariable
+  to scripts if the request
+  header included an "<SAMP>Authorization</SAMP>" field
+  that was authenticated.
+  </P>
+
+  <H4>
+   <A NAME="6.1.2">
+    6.1.2. CONTENT_LENGTH
+   </A>
+  </H4>
+  <P>
+  This
+  metavariable
+  is set to the
+  size of the message-body
+  entity attached to the request, if any, in decimal
+  number of octets. If no data are attached, then this
+  metavariable
+  is either NULL or not
+  defined. The syntax is
+  the same as for
+  the HTTP "<SAMP>Content-Length</SAMP>" header field (section 14.14, HTTP/1.1
+  specification [<A HREF="#[8]">8</A>]).
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    CONTENT_LENGTH = "" | 1*digit
+  </PRE>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts if the request
+  was accompanied by a
+  message-body entity.
+  </P>
+
+  <H4>
+   <A NAME="6.1.3">
+    6.1.3. CONTENT_TYPE
+   </A>
+  </H4>
+  <P>
+  If the request includes a
+  message-body,
+  CONTENT_TYPE is set
+  to
+  the Internet Media Type
+  [<A HREF="#[9]">9</A>] of the attached
+  entity if the type was provided <EM>via</EM>
+  a "<SAMP>Content-type</SAMP>" field in the
+  request header, or if the server can determine it in the absence
+  of a supplied "<SAMP>Content-type</SAMP>" field. The syntax is the
+  same as for the HTTP
+  "<SAMP>Content-Type</SAMP>" header field.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    CONTENT_TYPE = "" | media-type
+    media-type   = type "/" subtype *( ";" parameter)
+    type         = token
+    subtype      = token
+    parameter    = attribute "=" value
+    attribute    = token
+    value        = token | quoted-string
+  </PRE>
+  <P>
+  The type, subtype,
+  and parameter attribute names are not
+  case-sensitive. Parameter values MAY be case sensitive.
+  Media types and their use in HTTP are described
+  in section 3.7 of the
+  HTTP/1.1 specification [<A HREF="#[8]">8</A>].
+  </P>
+  <P>
+  Example:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    application/x-www-form-urlencoded
+  </PRE>
+  <P>
+  There is no default value for this variable. If and only if it is
+  unset, then the script MAY attempt to determine the media type from
+  the data received. If the type remains unknown, then
+  the script MAY choose to either assume a
+  content-type of
+  <SAMP>application/octet-stream</SAMP>
+  or reject the request with  a 415 ("Unsupported Media Type")
+  error.  See <A HREF="#7.2.1.3">section 7.2.1.3</A>
+  for more information about returning error status values.
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts if
+  a "<SAMP>Content-Type</SAMP>" field was present
+  in the original request header.  If the server receives a request
+  with an attached entity but no "<SAMP>Content-Type</SAMP>"
+  header field, it MAY attempt to
+  determine the correct datatype, or it MAY omit this
+  metavariable when
+  communicating the request information to the script.
+  </P>
+
+  <H4>
+   <A NAME="6.1.4">
+    6.1.4. GATEWAY_INTERFACE
+   </A>
+  </H4>
+  <P>
+  This
+  metavariable
+  is set to
+  the dialect of CGI being used
+  by the server to communicate with the script.
+  Syntax:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    GATEWAY_INTERFACE = "CGI" "/" major "." minor
+    major             = 1*digit
+    minor             = 1*digit
+  </PRE>
+  <P>
+  Note that the major and minor numbers are treated as separate
+  integers and hence each may be
+  more than a single
+  digit. Thus CGI/2.4 is a lower version than CGI/2.13 which in turn
+  is lower than CGI/12.3. Leading zeros in either
+  the major or the minor number MUST be ignored by scripts and
+  SHOULD NOT be generated by servers.
+  </P>
+  <P>
+  This document defines the 1.1 version of the CGI interface
+  ("CGI/1.1").
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.5">
+    6.1.5. Protocol-Specific Metavariables
+   </A>
+  </H4>
+  <P>
+  These metavariables are specific to
+  the protocol
+  <EM>via</EM> which the request is made.
+  Interpretation of these variables depends on the value of
+  the
+  SERVER_PROTOCOL
+  metavariable
+  (see
+  <A HREF="#6.1.17">section 6.1.17</A>).
+  </P>
+  <P>
+  Metavariables
+  with names beginning with "HTTP_" contain
+  values from the request header, if the
+  scheme used was HTTP.
+  Each
+  HTTP header field name is converted to upper case, has all occurrences of
+  "-" replaced with "_",
+  and has "HTTP_" prepended to  form
+  the metavariable name.
+  Similar transformations are applied for other
+  protocols.
+  The header data MAY be presented as sent
+  by the client, or MAY be rewritten in ways which do not change its
+  semantics. If multiple header fields with the same field-name are received
+  then  the server
+  MUST  rewrite them as though they
+  had been received as a single header field having the same
+  semantics before being represented in a
+  metavariable.
+  Similarly, a header field that is received on more than one line
+  MUST be merged into a single line. The server MUST, if necessary,
+  change the representation of the data (for example, the character
+  set) to be appropriate for a CGI
+  metavariable.
+  <!-- ###NOTE: See if 2068 describes this thoroughly, and
+  point there if so. -->
+  </P>
+  <P>
+  Servers are
+  not required to create
+  metavariables for all
+  the request
+  header fields that they
+  receive. In particular,
+  they MAY
+  decline to make available any
+  header fields carrying authentication information, such as
+  "<SAMP>Authorization</SAMP>", or
+  which are available to the script
+  <EM>via</EM> other metavariables,
+  such as "<SAMP>Content-Length</SAMP>" and "<SAMP>Content-Type</SAMP>".
+  </P>
+
+  <H4>
+   <A NAME="6.1.6">
+    6.1.6. PATH_INFO
+   </A>
+  </H4>
+  <P>
+  The PATH_INFO
+  metavariable
+  specifies
+  a path to be interpreted by the CGI script. It identifies the
+  resource or sub-resource to be returned
+  by the CGI
+  script, and it is derived from the portion
+  of the URI path following the script name but preceding
+  any query data.
+  The syntax
+  and semantics are similar to a decoded HTTP URL
+  'path' token
+  (defined in
+  RFC 2396
+  [<A HREF="#[4]">4</A>]), with the exception
+  that a PATH_INFO of "/"
+  represents a single void path segment.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    PATH_INFO = "" | ( "/" path )
+    path      = segment *( "/" segment )
+    segment   = *pchar
+    pchar     = &lt;any CHAR except "/"&gt;
+  </PRE>
+  <P>
+  The PATH_INFO string is the trailing part of the &lt;path&gt; component of
+  the Script-URI
+  (see <A HREF="#3.2">section 3.2</A>)
+  that follows the SCRIPT_NAME
+  portion of the path.
+  </P>
+  <P>
+  Servers MAY impose their own restrictions and
+  limitations on what values they will accept for PATH_INFO, and MAY
+  reject or edit any values they
+  consider objectionable before passing
+  them to the script.
+  </P>
+  <P>
+  Servers MUST make this URI component available
+  to CGI scripts.  The PATH_INFO
+  value is case-sensitive, and the
+  server MUST preserve the case of the PATH_INFO element of the URI
+  when making it available to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.7">
+    6.1.7. PATH_TRANSLATED
+   </A>
+  </H4>
+  <P>
+  PATH_TRANSLATED is derived by taking any path-info component of the
+  request URI (see
+  <A HREF="#6.1.6">section 6.1.6</A>), decoding it
+  (see <A HREF="#3.1">section 3.1</A>), parsing it as a URI in its own
+  right, and performing any virtual-to-physical
+  translation appropriate to map it onto the
+  server's document repository structure.
+  If the request URI includes no path-info
+  component, the PATH_TRANSLATED metavariable SHOULD NOT be defined.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    PATH_TRANSLATED = *CHAR
+  </PRE>
+  <P>
+  For a request such as the following:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    http://somehost.com/cgi-bin/somescript/this%2eis%2epath%2einfo
+  </PRE>
+  <P>
+  the PATH_INFO component would be decoded, and the result
+  parsed as though it were a request for the following:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    http://somehost.com/this.is.the.path.info
+  </PRE>
+  <P>
+  This would then be translated to a
+  location in the server's document repository,
+  perhaps a filesystem path something
+  like this:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    /usr/local/www/htdocs/this.is.the.path.info
+  </PRE>
+  <P>
+  The result of the translation is the value of PATH_TRANSLATED.
+  </P>
+  <P>
+  The value of PATH_TRANSLATED may or may not map to a valid
+  repository
+  location.
+  Servers MUST preserve the case of the path-info
+  segment if and only if the underlying
+  repository
+  supports case-sensitive
+  names.  If the
+  repository
+  is only case-aware, case-preserving, or case-blind
+  with regard to
+  document names,
+  servers are not required to preserve the
+  case of the original segment through the translation.
+  </P>
+  <P>
+  The
+  translation
+  algorithm the server uses to derive PATH_TRANSLATED is
+  implementation defined; CGI scripts which use this variable may
+  suffer limited portability.
+  </P>
+  <P>
+  Servers SHOULD provide this metavariable
+  to scripts if and only if the request URI includes a
+  path-info component.
+  </P>
+
+  <H4>
+   <A NAME="6.1.8">
+    6.1.8. QUERY_STRING
+   </A>
+  </H4>
+  <P>
+  A URL-encoded
+  string; the &lt;query&gt; part of the
+  Script-URI.
+  (See
+  <A HREF="#3.2">section 3.2</A>.)
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    QUERY_STRING = query-string
+    query-string = *uric
+  </PRE>
+  <P>
+  The URL syntax for a  query
+  string is described in
+  section 3 of
+  RFC 2396
+  [<A HREF="#[4]">4</A>].
+  </P>
+  <P>
+  Servers MUST supply this value to scripts.
+  The QUERY_STRING value is case-sensitive.
+  If the Script-URI does not include a query component,
+  the QUERY_STRING metavariable MUST be defined as an empty string ("").
+  </P>
+
+  <H4>
+   <A NAME="6.1.9">
+    6.1.9. REMOTE_ADDR
+   </A>
+  </H4>
+  <P>
+  The IP address of the client
+  sending the request to the server. This
+  is not necessarily that of the user
+  agent
+  (such as if the request came through a proxy).
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    REMOTE_ADDR  = hostnumber
+    hostnumber   = ipv4-address | ipv6-address
+  </PRE>
+  <P>
+  The definitions of <SAMP>ipv4-address</SAMP> and <SAMP>ipv6-address</SAMP>
+  are provided in Appendix B of RFC 2373 [<A HREF="#[13]">13</A>].
+  </P>
+  <P>
+  Servers MUST supply this value to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.10">
+    6.1.10. REMOTE_HOST
+   </A>
+  </H4>
+  <P>
+  The fully qualified domain name of the
+  client sending the request to
+  the server, if available, otherwise NULL.
+  (See <A HREF="#6.1.9">section 6.1.9</A>.)
+  Fully qualified domain names take the form as described in
+  section 3.5 of RFC 1034 [<A HREF="#[10]">10</A>] and section 2.1 of
+  RFC 1123 [<A HREF="#[5]">5</A>].  Domain names are not case sensitive.
+  </P>
+  <P>
+  Servers SHOULD provide this information to
+  scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.11">
+    6.1.11. REMOTE_IDENT
+   </A>
+  </H4>
+  <P>
+  The identity information reported about the connection by a
+  RFC 1413 [<A HREF="#[11]">11</A>] request to the remote agent, if
+  available. Servers
+  MAY choose not
+  to support this feature, or not to request the data
+  for efficiency reasons.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    REMOTE_IDENT = *CHAR
+  </PRE>
+  <P>
+  The data returned
+  may be used for authentication purposes, but the level
+  of trust reposed in them should be minimal.
+  </P>
+  <P>
+  Servers MAY supply this information to scripts if the
+  RFC1413 [<A HREF="#[11]">11</A>] lookup is performed.
+  </P>
+
+  <H4>
+   <A NAME="6.1.12">
+    6.1.12. REMOTE_USER
+   </A>
+  </H4>
+  <P>
+  If the request required authentication using the "Basic"
+  mechanism (<EM>i.e.</EM>, the AUTH_TYPE
+  metavariable is set
+  to "Basic"), then the value of the REMOTE_USER
+  metavariable is set to the
+  user-ID supplied.  In all other cases
+  the value of this metavariable
+  is undefined.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    REMOTE_USER = *OCTET
+  </PRE>
+  <P>
+  This variable is specific to requests made <EM>via</EM> the
+  HTTP protocol.
+  </P>
+  <P>
+  Servers SHOULD provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.13">
+    6.1.13. REQUEST_METHOD
+   </A>
+  </H4>
+  <P>
+  The REQUEST_METHOD
+  metavariable
+  is set to the
+  method with which the request was made, as described in section
+  5.1.1 of the HTTP/1.0 specification [<A HREF="#[3]">3</A>] and
+  section 5.1.1 of the
+  HTTP/1.1 specification [<A HREF="#[8]">8</A>].
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    REQUEST_METHOD   = http-method
+    http-method      = "GET" | "HEAD" | "POST" | "PUT" | "DELETE"
+                       | "OPTIONS" | "TRACE" | extension-method
+    extension-method = token
+  </PRE>
+  <P>
+  The method is case sensitive.
+  CGI/1.1 servers MAY choose to process some methods
+  directly rather than passing them to scripts.
+  </P>
+  <P>
+  This variable is specific to requests made with HTTP.
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.14">
+    6.1.14. SCRIPT_NAME
+   </A>
+  </H4>
+  <P>
+  The SCRIPT_NAME
+  metavariable
+  is
+  set to a URL path that could identify the CGI script (rather than the
+  script's
+  output). The syntax and semantics are identical to a
+  decoded HTTP URL 'path' token
+  (see RFC 2396
+  [<A HREF="#[4]">4</A>]).
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    SCRIPT_NAME = "" | ( "/" [ path ] )
+  </PRE>
+  <P>
+  The SCRIPT_NAME string is some leading part of the &lt;path&gt; component
+  of the Script-URI derived in some
+  implementation defined manner.
+  No PATH_INFO or QUERY_STRING segments
+  (see sections <A HREF="#6.1.6">6.1.6</A> and
+  <A HREF="#6.1.8">6.1.8</A>) are included
+  in the SCRIPT_NAME value.
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.15">
+    6.1.15. SERVER_NAME
+   </A>
+  </H4>
+  <P>
+  The SERVER_NAME
+  metavariable
+  is set to the
+  name  of the
+  server, as
+  derived from the &lt;host&gt; part of the
+  Script-URI
+  (see <A HREF="#3.2">section 3.2</A>).
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    SERVER_NAME = hostname | hostnumber
+  </PRE>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.16">
+    6.1.16. SERVER_PORT
+   </A>
+  </H4>
+  <P>
+  The SERVER_PORT
+  metavariable
+  is set to the
+  port on which the
+  request was received, as used in the &lt;port&gt;
+  part of the Script-URI.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    SERVER_PORT = 1*digit
+  </PRE>
+  <P>
+  If the &lt;port&gt; portion of the script-URI is blank, the actual
+  port number upon which the request was received MUST be supplied.
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.17">
+    6.1.17. SERVER_PROTOCOL
+   </A>
+  </H4>
+  <P>
+  The SERVER_PROTOCOL
+  metavariable
+  is set to
+  the
+  name and revision of the information protocol with which
+  the
+  request
+  arrived.  This is not necessarily the same as the protocol version used by
+  the server in its response to the client.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    SERVER_PROTOCOL   = HTTP-Version | extension-version
+                        | extension-token
+    HTTP-Version      = "HTTP" "/" 1*digit "." 1*digit
+    extension-version = protocol "/" 1*digit "." 1*digit
+    protocol          = 1*( alpha | digit | "+" | "-" | "." )
+    extension-token   = token
+  </PRE>
+  <P>
+  'protocol' is a version of the &lt;scheme&gt; part of the
+  Script-URI, but is
+  not identical to it.  For example, the scheme of a request may be
+  "<SAMP>https</SAMP>" while the protocol remains "<SAMP>http</SAMP>".
+  The protocol is not case sensitive, but
+  by convention, 'protocol' is in
+  upper case.
+  </P>
+  <P>
+  A well-known extension token value is "INCLUDED",
+  which signals that the current document is being included as part of
+  a composite document, rather than being the direct target of the
+  client request.
+  </P>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H4>
+   <A NAME="6.1.18">
+    6.1.18. SERVER_SOFTWARE
+   </A>
+  </H4>
+  <P>
+  The SERVER_SOFTWARE
+  metavariable
+  is set to the
+  name and version of the information server software answering the
+  request (and running the gateway).
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    SERVER_SOFTWARE = 1*product
+    product         = token [ "/" product-version ]
+    product-version = token
+  </PRE>
+  <P>
+  Servers MUST provide this metavariable
+  to scripts.
+  </P>
+
+  <H3>
+   <A NAME="6.2">
+    6.2. Request Message-Bodies
+   </A>
+  </H3>
+  <P>
+  As there may be a data entity attached to the request, there MUST be
+  a system defined method for the script to read
+  these data. Unless
+  defined otherwise, this will be <EM>via</EM> the 'standard input' file
+  descriptor.
+  </P>
+  <P>
+  If the CONTENT_LENGTH value (see <A HREF="#6.1.2">section 6.1.2</A>)
+  is non-NULL, the server MUST supply at least that many bytes to
+  scripts on the standard input stream.
+  Scripts are
+  not obliged to read the data.
+  Servers MAY signal an EOF condition after CONTENT_LENGTH bytes have been
+  read, but are
+  not obligated to do so.  Therefore, scripts
+  MUST NOT
+  attempt to read more than CONTENT_LENGTH bytes, even if more data
+  are available.
+  </P>
+  <P>
+  For non-parsed header (NPH) scripts (see
+  <A HREF="#7.1">section 7.1</A>
+  below),
+  servers SHOULD
+  attempt to ensure that the data
+  supplied to the script are precisely
+  as supplied by the client and unaltered by
+  the server.
+  </P>
+  <P>
+  <A HREF="#8.1.2">Section 8.1.2</A> describes the requirements of
+  servers with regard to requests that include
+  message-bodies.
+  </P>
+
+  <H2>
+   <A NAME="7.0">
+    7. Data Output from the CGI Script
+   </A>
+  </H2>
+  <P>
+  There MUST be a system defined method for the script to send data
+  back to the server or client; a script MUST always return some data.
+  Unless defined otherwise, this will be <EM>via</EM> the 'standard
+  output' file descriptor.
+  </P>
+  <P>
+  There are two forms of output that  scripts can supply to servers: non-parsed
+  header (NPH) output, and parsed header output.
+  Servers MUST support parsed header
+  output and MAY support NPH output.  The method of
+  distinguishing between the two
+  types of output (or scripts) is implementation defined.
+  </P>
+  <P>
+  Servers MAY implement a timeout period within which data must be
+  received from scripts.  If a server implementation defines such
+  a timeout and receives no data from a script within the timeout
+  period, the server MAY terminate the script process and SHOULD
+  abort the client request with
+  either a
+  '504 Gateway Timed Out' or a
+  '500 Internal Server Error' response.
+  </P>
+
+  <H3>
+   <A NAME="7.1">
+    7.1. Non-Parsed Header Output
+   </A>
+  </H3>
+  <P>
+  Scripts using the NPH output form
+  MUST return a complete HTTP response message, as described
+  in Section 6 of the HTTP specifications
+  [<A HREF="#[3]">3</A>,<A HREF="#[8]">8</A>].
+   NPH scripts
+  MUST use the SERVER_PROTOCOL variable to determine the appropriate format
+  for a response.
+  </P>
+  <P>
+  Servers
+  SHOULD attempt to ensure that the script output is sent
+  directly to the client, with minimal
+  internal and no transport-visible
+  buffering.
+  </P>
+
+  <H3>
+   <A NAME="7.2">
+    7.2. Parsed Header Output
+   </A>
+  </H3>
+  <P>
+  Scripts using the parsed header output form MUST supply
+  a CGI response message to the server
+  as follows:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    CGI-Response   = *optional-field CGI-Field *optional-field NL [ Message-Body ]
+    optional-field = ( CGI-Field | HTTP-Field )
+    CGI-Field      = Content-type
+                   | Location
+                   | Status
+                   | extension-header
+  </PRE>
+  <P><!-- ##### If HTTP defines x-headers, remove ours except x-cgi- -->
+  The response comprises a header and a body, separated by a blank line.
+  The body may be NULL.
+  The header fields are either CGI header fields to be interpreted by
+  the server, or HTTP header fields
+  to be included in the response returned
+  to the client
+  if the request method is HTTP. At least one
+  CGI-Field MUST be
+  supplied, but no CGI  field name may be used more than once
+  in a response.
+  If a body is supplied, then a "<SAMP>Content-type</SAMP>"
+  header field MUST be
+  supplied by the script,
+  otherwise the script MUST send a "<SAMP>Location</SAMP>"
+  or "<SAMP>Status</SAMP>" header field. If a
+  <SAMP>Location</SAMP> CGI-Field
+  is returned, then the script MUST NOT supply
+  any HTTP-Fields.
+  </P>
+  <P>
+  Each header field in a CGI-Response MUST be specified on a single line;
+  CGI/1.1 does not support continuation lines.
+  </P>
+
+  <H4>
+   <A NAME="7.2.1">
+    7.2.1. CGI header fields
+   </A>
+  </H4>
+  <P>
+  The CGI header fields have the generic syntax:
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    generic-field  = field-name ":" [ field-value ] NL
+    field-name     = token
+    field-value    = *( field-content | LWSP )
+    field-content  = *( token | tspecial | quoted-string )
+  </PRE>
+  <P>
+  The field-name is not case sensitive; a NULL field value is
+  equivalent to the header field not being sent.
+  </P>
+
+  <H4>
+   <A NAME="7.2.1.1">
+    7.2.1.1. Content-Type
+   </A>
+  </H4>
+  <P>
+  The Internet Media Type [<A HREF="#[9]">9</A>] of the entity
+  body, which is to be sent unmodified to the client.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    Content-Type = "Content-Type" ":" media-type NL
+  </PRE>
+  <P>
+  This is actually an HTTP-Field
+  rather than a CGI-Field, but
+  it is listed here because of its importance in the CGI dialogue as
+  a member of the "one of these is required" set of header
+  fields.
+  </P>
+
+  <H4>
+   <A NAME="7.2.1.2">
+    7.2.1.2. Location
+   </A>
+  </H4>
+  <P>
+  This is used to specify to the server that the script is returning a
+  reference to a document rather than an actual document.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    Location         = "Location" ":"
+                       ( fragment-URI | rel-URL-abs-path ) NL
+    fragment-URI     = URI [ # fragmentid ]
+    URI              = scheme ":" *qchar
+    fragmentid       = *qchar
+    rel-URL-abs-path = "/" [ hpath ] [ "?" query-string ]
+    hpath            = fpsegment *( "/" psegment )
+    fpsegment        = 1*hchar
+    psegment         = *hchar
+    hchar            = alpha | digit | safe | extra
+                       | ":" | "@" | "& | "="
+  </PRE>
+  <P>
+  The Location
+  value is either an absolute URI with optional fragment,
+  as defined in RFC 1630 [<A HREF="#[1]">1</A>], or an absolute path
+  within the server's URI space (<EM>i.e.</EM>,
+  omitting the scheme and network-related fields) and optional
+  query-string. If an absolute URI is returned by the script,
+  then the
+  server MUST generate a
+  '302 redirect' HTTP response
+  message unless the script has supplied an
+  explicit Status response header field.
+  Scripts returning an absolute URI MAY choose to
+  provide a message-body.  Servers MUST make any appropriate modifications
+  to the script's output to ensure the response to the user-agent complies
+  with the response protocol version.
+  If the Location value is a path, then the server
+  MUST generate
+  the response that it would have produced in response to a request
+  containing the URL
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    scheme "://" SERVER_NAME ":" SERVER_PORT rel-URL-abs-path
+  </PRE>
+  <P>
+  Note: If the request was accompanied by a
+  message-body
+  (such as for a POST request), and the script
+  redirects the request with a Location field, the
+  message-body
+  may not be
+  available to the resource that is the target of the redirect.
+  </P>
+
+  <H4>
+   <A NAME="7.2.1.3">
+    7.2.1.3. Status
+   </A>
+  </H4>
+  <P>
+  The "<SAMP>Status</SAMP>" header field is used to indicate to the server what
+  status code the server MUST use in the response message.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    Status        = "Status" ":" digit digit digit SP reason-phrase NL
+    reason-phrase = *&lt;CHAR, excluding CTLs, NL&gt;
+  </PRE>
+  <P>
+  The valid status codes are listed in section 6.1.1 of the HTTP/1.0
+  specifications [<A HREF="#[3]">3</A>]. If the SERVER_PROTOCOL is
+  "HTTP/1.1", then the status codes defined in the HTTP/1.1
+  specification [<A HREF="#[8]">8</A>] may
+  be used. If the script does not return a "<SAMP>Status</SAMP>" header
+  field, then "200 OK" SHOULD be assumed by the server.
+  </P>
+  <P>
+  If a script is being used to handle a particular error or condition
+  encountered by the server, such as a '404 Not Found' error, the script
+  SHOULD use the "<SAMP>Status</SAMP>" CGI header field to propagate the error
+  condition back to the client.  <EM>E.g.</EM>, in the example mentioned it
+  SHOULD include a "Status:&nbsp;404&nbsp;Not&nbsp;Found" in the
+  header data returned to the server.
+  </P>
+
+  <H4>
+   <A NAME="7.2.1.4">
+    7.2.1.4. Extension header fields
+   </A>
+  </H4>
+  <P>
+  Scripts MAY include in their CGI response header additional fields
+  not defined in this or the HTTP specification.
+  These are called "extension" fields,
+  and have the syntax of a <SAMP>generic-field</SAMP> as defined in
+  <A HREF="#7.2.1">section 7.2.1</A>.  The name of an extension field
+  MUST NOT conflict with a field name defined in this or any other
+  specification; extension field names SHOULD begin with "X-CGI-"
+  to ensure uniqueness.
+  </P>
+
+  <H4>
+   <A NAME="7.2.2">
+    7.2.2. HTTP header fields
+   </A>
+  </H4>
+  <P>
+  The script MAY return any other header fields defined by the
+  specification
+  for the SERVER_PROTOCOL (HTTP/1.0 [<A HREF="#[3]">3</A>] or HTTP/1.1
+  [<A HREF="#[8]">8</A>]).
+  Servers MUST resolve conflicts beteen CGI header
+  and HTTP header formats or names (see <A HREF="#8.0">section 8</A>).
+  </P>
+
+  <H2>
+   <A NAME="8.0">
+    8. Server Implementation
+   </A>
+  </H2>
+  <P>
+  This section defines the requirements that must be met by HTTP
+  servers in order to provide a coherent and correct CGI/1.1
+  environment in which scripts may function.  It is intended
+  primarily for server implementors, but it is useful for
+  script authors to be familiar with the information as well.
+  </P>
+
+  <H3>
+   <A NAME="8.1">
+    8.1. Requirements for Servers
+   </A>
+  </H3>
+  <P>
+  In order to be considered CGI/1.1-compliant, a server must meet
+  certain basic criteria and provide certain minimal functionality.
+  The details of these requirements are described in the following sections.
+  </P>
+
+  <H3>
+   <A NAME="8.1.1">
+    8.1.1. Script-URI
+   </A>
+  </H3>
+  <P>
+  Servers MUST support the standard mechanism (described below) which
+  allows
+  script authors to determine
+  what URL to use in documents
+  which reference the script;
+  specifically, what URL to use in order to
+  achieve particular settings of the
+  metavariables. This
+  mechanism is as follows:
+  </P>
+  <P>
+  The server
+  MUST translate the header data from the CGI header field syntax to
+  the HTTP
+  header field syntax if these differ. For example, the character
+  sequence for
+  newline (such as Unix's ASCII NL) used by CGI scripts may not be the
+  same as that used by HTTP (ASCII CR followed by LF). The server MUST
+  also resolve any conflicts between header fields returned by the script
+  and header fields that it would otherwise send itself.
+  </P>
+
+  <H3>
+   <A NAME="8.1.2">
+    8.1.2. Request Message-body Handling
+   </A>
+  </H3>
+  <P>
+  These are the requirements for server handling of message-bodies directed
+  to CGI/1.1 resources:
+  </P>
+  <OL>
+   <LI>The message-body the server provides to the CGI script MUST
+    have any transfer encodings removed.
+   </LI>
+   <LI>The server MUST derive and provide a value for the CONTENT_LENGTH
+    metavariable that reflects the length of the message-body after any
+    transfer decoding.
+   </LI>
+   <LI>The server MUST leave intact any content-encodings of the message-body.
+   </LI>
+  </OL>
+
+  <H3>
+   <A NAME="8.1.3">
+    8.1.3. Required Metavariables
+   </A>
+  </H3>
+  <P>
+  Servers MUST provide scripts with certain information and
+  metavariables
+  as described in <A HREF="#8.3">section 8.3</A>.
+  </P>
+
+  <H3>
+   <A NAME="8.1.4">
+    8.1.4. Response Compliance
+   </A>
+  </H3>
+  <P>
+  Servers MUST ensure that responses sent to the user-agent meet all
+  requirements of the protocol level in effect.  This may involve
+  modifying, deleting, or augmenting any header
+  fields and/or message-body supplied by the script.
+  </P>
+
+  <H3>
+   <A NAME="8.2">
+    8.2. Recommendations for Servers
+   </A>
+  </H3>
+  <P>
+  Servers SHOULD provide the "<SAMP>query</SAMP>" component of the script-URI
+  as command-line arguments to scripts if it does not
+  contain any unencoded '=' characters and the command-line arguments can
+  be generated in an unambiguous manner.
+  (See <A HREF="#5.0">section 5</A>.)
+  </P>
+  <P>
+  Servers SHOULD set the AUTH_TYPE
+  metavariable to the value of the
+  '<SAMP>auth-scheme</SAMP>' token of the "<SAMP>Authorization</SAMP>"
+  field if it was supplied as part of the request header.
+  (See <A HREF="#6.1.1">section 6.1.1</A>.)
+  </P>
+  <P>
+  Where applicable, servers SHOULD set the current working directory
+  to the directory in which the script is located before invoking
+  it.
+  </P>
+  <P>
+  Servers MAY reject with error '404 Not Found'
+  any requests that would result in
+  an encoded "/" being decoded into PATH_INFO or SCRIPT_NAME, as this
+  might represent a loss of information to the script.
+  </P>
+  <P>
+  Although the server and the CGI script need not be consistent in
+  their handling of URL paths (client URLs and the PATH_INFO data,
+  respectively), server authors may wish to impose consistency.
+  So the server implementation SHOULD define its behaviour for the
+  following cases:
+  </P>
+  <OL>
+   <LI>define any restrictions on allowed characters, in particular
+    whether ASCII NUL is permitted;
+   </LI>
+   <LI>define any restrictions on allowed path segments, in particular
+    whether non-terminal NULL segments are permitted;
+   </LI>
+   <LI>define the behaviour for <SAMP>"."</SAMP> or <SAMP>".."</SAMP> path
+    segments; <EM>i.e.</EM>, whether they are prohibited, treated as
+    ordinary path
+    segments or interpreted in accordance with the relative URL
+    specification [<A HREF="#[7]">7</A>];
+   </LI>
+   <LI>define any limits of the implementation, including limits on path or
+    search string lengths, and limits on the volume of header data the server
+    will parse.
+   </LI><!-- ##### Move the field resolution/translation para below here -->
+  </OL>
+  <P>
+  Servers MAY generate the
+  Script-URI in
+  any way from the client URI,
+  or from any other data (but the behaviour SHOULD be documented).
+  </P>
+  <P>
+  For non-parsed header (NPH) scripts (see
+  <A HREF="#7.1">section 7.1</A>), servers SHOULD
+  attempt to ensure that the script input comes directly from the
+  client, with minimal buffering. For all scripts the data will be
+  as supplied by the client.
+  </P>
+
+  <H3>
+   <A NAME="8.3">
+    8.3. Summary of
+    MetaVariables
+   </A>
+  </H3>
+  <P>
+  Servers MUST provide the following
+  metavariables to
+  scripts.  See the individual descriptions for exceptions and semantics.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    CONTENT_LENGTH (section <A HREF="#6.1.2">6.1.2</A>)
+    CONTENT_TYPE (section <A HREF="#6.1.3">6.1.3</A>)
+    GATEWAY_INTERFACE (section <A HREF="#6.1.4">6.1.4</A>)
+    PATH_INFO (section <A HREF="#6.1.6">6.1.6</A>)
+    QUERY_STRING (section <A HREF="#6.1.8">6.1.8</A>)
+    REMOTE_ADDR (section <A HREF="#6.1.9">6.1.9</A>)
+    REQUEST_METHOD (section <A HREF="#6.1.13">6.1.13</A>)
+    SCRIPT_NAME (section <A HREF="#6.1.14">6.1.14</A>)
+    SERVER_NAME (section <A HREF="#6.1.15">6.1.15</A>)
+    SERVER_PORT (section <A HREF="#6.1.16">6.1.16</A>)
+    SERVER_PROTOCOL (section <A HREF="#6.1.17">6.1.17</A>)
+    SERVER_SOFTWARE (section <A HREF="#6.1.18">6.1.18</A>)
+  </PRE>
+  <P>
+  Servers SHOULD define the following
+  metavariables for scripts.
+  See the individual descriptions for exceptions and semantics.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    AUTH_TYPE (section <A HREF="#6.1.1">6.1.1</A>)
+    REMOTE_HOST (section <A HREF="#6.1.10">6.1.10</A>)
+  </PRE>
+  <P>
+  In addition, servers SHOULD provide
+  metavariables for all fields present
+  in the HTTP request header, with the exception of those involved with
+  access control.  Servers MAY at their discretion provide
+  metavariables
+  for access control fields.
+  </P>
+  <P>
+  Servers MAY define the following
+  metavariables.  See the individual
+  descriptions for exceptions and semantics.
+  </P><!--#if expr="! $GUI" -->
+  <P></P><!--#endif -->
+  <PRE>
+    PATH_TRANSLATED (section <A HREF="#6.1.7">6.1.7</A>)
+    REMOTE_IDENT (section <A HREF="#6.1.11">6.1.11</A>)
+    REMOTE_USER (section <A HREF="#6.1.12">6.1.12</A>)
+  </PRE>
+  <P>
+  Servers MAY
+  at their discretion define additional implementation-specific
+  extension metavariables
+  provided their names do not
+  conflict with defined header field names.  Implementation-specific
+  metavariable names SHOULD
+  be prefixed with "X_" (<EM>e.g.</EM>,
+  "X_DBA") to avoid the potential for such conflicts.
+  </P>
+
+  <H2>
+   <A NAME="9.0">
+    9.
+    Script Implementation
+   </A>
+  </H2>
+  <P>
+  This section defines the requirements and recommendations for scripts
+  that are intended to function in a CGI/1.1 environment.  It is intended
+  primarily as a reference for script authors, but server implementors
+  should be familiar with these issues as well.
+  </P>
+
+  <H3>
+   <A NAME="9.1">
+    9.1. Requirements for Scripts
+   </A>
+  </H3>
+  <P>
+  Scripts using the parsed-header method to communicate with servers
+  MUST supply a response header to the server.
+  (See <A HREF="#7.0">section 7</A>.)
+  </P>
+  <P>
+  Scripts using the NPH method to communicate with servers MUST
+  provide complete HTTP responses, and MUST use the value of the
+  SERVER_PROTOCOL metavariable
+  to determine the appropriate format.
+  (See <A HREF="#7.1">section 7.1</A>.)
+  </P>
+  <P>
+  Scripts MUST check the value of the REQUEST_METHOD
+  metavariable in order
+  to provide an appropriate response.
+  (See <A HREF="#6.1.13">section 6.1.13</A>.)
+  </P>
+  <P>
+  Scripts MUST be prepared to handled URL-encoded values in
+  metavariables.
+  In addition, they MUST recognise both "+" and "%20" in URL-encoded
+  quantities as representing the space character.
+  (See <A HREF="#3.1">section 3.1</A>.)
+  </P>
+  <P>
+  Scripts MUST ignore leading zeros in the major and minor version numbers
+  in the GATEWAY_INTERFACE
+  metavariable value. (See
+  <A HREF="#6.1.4">section 6.1.4</A>.)
+  </P>
+  <P>
+  When processing requests that include a
+  message-body, scripts
+  MUST NOT read more than CONTENT_LENGTH bytes from the input stream.
+  (See sections <A HREF="#6.1.2">6.1.2</A> and <A HREF="#6.2">6.2</A>.)
+  </P>
+
+  <H3>
+   <A NAME="9.2">
+    9.2. Recommendations for Scripts
+   </A>
+  </H3>
+  <P>
+  Servers may interrupt or terminate script execution at any time
+  and without warning, so scripts SHOULD be prepared to deal with
+  abnormal termination.
+  </P>
+  <P>
+  Scripts MUST
+  reject with
+  error '405 Method Not
+  Allowed' requests
+  made using methods that they do not support. If the script does
+  not intend
+  processing the PATH_INFO data, then it SHOULD reject the request with
+  '404 Not
+  Found' if PATH_INFO is not NULL.
+  </P>
+  <P>
+  If a script is processing the output of a form, it SHOULD
+  verify that the CONTENT_TYPE
+  is "<SAMP>application/x-www-form-urlencoded</SAMP>" [<A HREF="#[2]">2</A>]
+  or whatever other media type is expected.
+  </P>
+  <P>
+  Scripts parsing PATH_INFO,
+  PATH_TRANSLATED, or SCRIPT_NAME
+  SHOULD be careful
+  of void path segments ("<SAMP>//</SAMP>") and special path segments
+  (<SAMP>"."</SAMP> and
+  <SAMP>".."</SAMP>). They SHOULD either be removed from the path before
+  use in OS
+  system calls, or the request SHOULD be rejected with
+  '404 Not Found'.
+  </P>
+  <P>
+  As it is impossible for
+  scripts to determine the client URI that
+  initiated  a
+  request without knowledge of the specific server in
+  use, the script SHOULD NOT return "<SAMP>text/html</SAMP>"
+  documents containing
+  relative URL links without including a "<SAMP>&lt;BASE&gt;</SAMP>"
+  tag in the document.
+  </P>
+  <P>
+  When returning header fields,
+  scripts SHOULD try to send the CGI
+  header fields (see section
+  <A HREF="#7.2">7.2</A>) as soon as possible, and
+  SHOULD send them
+  before any HTTP header fields. This may
+  help reduce the server's memory requirements.
+  </P>
+
+  <H2>
+   <A NAME="10.0">
+    10. System Specifications
+   </A>
+  </H2>
+
+  <H3>
+   <A NAME="10.1">
+    10.1. AmigaDOS
+   </A>
+  </H3>
+  <P>
+  The implementation of the CGI on an AmigaDOS operating system platform
+  SHOULD use environment variables as the mechanism of providing
+  request metadata to CGI scripts.
+  </P>
+  <DL>
+   <DT><STRONG>Environment variables</STRONG>
+   </DT>
+   <DD>
+    <P>
+    These are accessed by the DOS library routine <SAMP>GetVar</SAMP>. The
+    flags argument SHOULD be 0. Case is ignored, but upper case is
+    recommended for compatibility with case-sensitive systems.
+    </P>
+   </DD>
+   <DT><STRONG>The current working directory</STRONG>
+   </DT>
+   <DD>
+    <P>
+    The current working directory for the script is set to the directory
+    containing the script.
+    </P>
+   </DD>
+   <DT><STRONG>Character set</STRONG>
+   </DT>
+   <DD>
+    <P>
+    The US-ASCII character set is used for the definition of environment
+    variable names and header
+    field names; the newline (NL) sequence is LF;
+    servers SHOULD also accept CR LF as a newline.
+    </P>
+   </DD>
+  </DL>
+
+  <H3>
+   <A NAME="10.2">
+    10.2. Unix
+   </A>
+  </H3>
+  <P>
+  The implementation of the CGI on a UNIX operating system platform
+  SHOULD use environment variables as the mechanism of providing
+  request metadata to CGI scripts.
+  </P>
+  <P>
+  For Unix compatible operating systems, the following are defined:
+  </P>
+  <DL>
+   <DT><STRONG>Environment variables</STRONG>
+   </DT>
+   <DD>
+    <P>
+    These are accessed by the C library routine <SAMP>getenv</SAMP>.
+    </P>
+   </DD>
+   <DT><STRONG>The command line</STRONG>
+   </DT>
+   <DD>
+    <P>
+    This is accessed using the
+    <SAMP>argc</SAMP> and <SAMP>argv</SAMP>
+    arguments to <SAMP>main()</SAMP>. The words have any characters
+    that
+    are 'active' in the Bourne shell escaped with a backslash.
+    If the value of the QUERY_STRING
+    metavariable
+    contains an unencoded equals-sign '=', then the command line
+    SHOULD NOT be used by the script.
+    </P>
+   </DD>
+   <DT><STRONG>The current working directory</STRONG>
+   </DT>
+   <DD>
+    <P>
+    The current working directory for the script
+    SHOULD be set to the directory
+    containing the script.
+    </P>
+   </DD>
+   <DT><STRONG>Character set</STRONG>
+   </DT>
+   <DD>
+    <P>
+    The US-ASCII character set is used for the definition of environment
+    variable names and header field names; the newline (NL) sequence is LF;
+    servers SHOULD also accept CR LF as a newline.
+    </P>
+   </DD>
+  </DL>
+
+  <H2>
+   <A NAME="11.0">
+    11. Security Considerations
+   </A>
+  </H2>
+
+  <H3>
+   <A NAME="11.1">
+    11.1. Safe Methods
+   </A>
+  </H3>
+  <P>
+  As discussed in the security considerations of the HTTP
+  specifications [<A HREF="#[3]">3</A>,<A HREF="#[8]">8</A>], the
+  convention has been established that the
+  GET and HEAD methods should be 'safe'; they should cause no
+  side-effects and only have the significance of resource retrieval.
+  </P>
+  <P>
+  CGI scripts are responsible for enforcing any HTTP security considerations
+  [<A HREF="#[3]">3</A>,<A HREF="#[8]">8</A>]
+  with respect to the protocol version level of the request and
+  any side effects generated by the scripts on behalf of
+  the server.  Primary
+  among these
+  are the considerations of safe and idempotent methods.  Idempotent
+  requests are those that may be repeated an arbitrary number of times
+  and produce side effects identical to a single request.
+  </P>
+
+  <H3>
+   <A NAME="11.2">
+    11.2. HTTP Header
+    Fields Containing Sensitive Information
+   </A>
+  </H3>
+  <P>
+  Some HTTP header fields may carry sensitive information which the server
+  SHOULD NOT pass on to the script unless explicitly configured to do
+  so. For example, if the server protects the script using the
+  "<SAMP>Basic</SAMP>"
+  authentication scheme, then the client will send an
+  "<SAMP>Authorization</SAMP>"
+  header field containing a username and password. If the server, rather
+  than the script, validates this information then the password SHOULD
+  NOT be passed on to the script <EM>via</EM> the HTTP_AUTHORIZATION
+  metavariable
+  without careful consideration.
+  This also applies to the
+  Proxy-Authorization header field and the corresponding
+  HTTP_PROXY_AUTHORIZATION
+  metavariable.
+  </P>
+
+  <H3>
+   <A NAME="11.3">
+    11.3. Script
+    Interference with the Server
+   </A>
+  </H3>
+  <P>
+  The most common implementation of CGI invokes the script as a child
+  process using the same user and group as the server process. It
+  SHOULD therefore be ensured that the script cannot interfere with the
+  server process, its configuration, or documents.
+  </P>
+  <P>
+  If the script is executed by calling a function linked in to the
+  server software (either at compile-time or run-time) then precautions
+  SHOULD be taken to protect the core memory of the server, or to
+  ensure that untrusted code cannot be executed.
+  </P>
+
+  <H3>
+   <A NAME="11.4">
+    11.4. Data Length and Buffering Considerations
+   </A>
+  </H3>
+  <P>
+  This specification places no limits on the length of message-bodies
+  presented to the script.  Scripts should not assume that statically
+  allocated buffers of any size are sufficient to contain the entire
+  submission at one time.  Use of a fixed length buffer without careful
+  overflow checking may result in an attacker exploiting 'stack-smashing'
+  or 'stack-overflow' vulnerabilities of the operating system.
+  Scripts may spool large submissions to disk or other buffering media,
+  but a rapid succession of large submissions may result in denial of
+  service conditions.  If the CONTENT_LENGTH of a message-body is larger
+  than resource considerations allow, scripts should respond with an
+  error status appropriate for the protocol version; potentially applicable
+  status codes include '503 Service Unavailable' (HTTP/1.0 and HTTP/1.1),
+  '413 Request Entity Too Large' (HTTP/1.1), and
+  '414 Request-URI Too Long' (HTTP/1.1).
+  </P>
+
+  <H3>
+   <A NAME="11.5">
+    11.5. Stateless Processing
+   </A>
+  </H3>
+  <P>
+  The stateless nature of the Web makes each script execution and resource
+  retrieval independent of all others even when multiple requests constitute a
+  single conceptual Web transaction.  Because of this, a script should not
+  make any assumptions about the context of the user-agent submitting a
+  request.  In particular, scripts should examine data obtained from the client
+  and verify that they are valid, both in form and content, before allowing
+  them to be used for sensitive purposes such as input to other
+  applications, commands, or operating system services.  These uses
+  include, but are not
+  limited to: system call arguments, database writes, dynamically evaluated
+  source code, and input to billing or other secure processes.  It is important
+  that applications be protected from invalid input regardless of whether
+  the invalidity is the result of user error, logic error, or malicious action.
+  </P>
+  <P>
+  Authors of scripts involved in multi-request transactions should be
+  particularly cautios about validating the state information;
+  undesirable effects may result from the substitution of dangerous
+  values for portions of the submission which might otherwise be
+  presumed safe.  Subversion of this type occurs when alterations
+  are made to data from a prior stage of the transaction that were
+  not meant to be controlled by the client (<EM>e.g.</EM>, hidden
+  HTML form elements, cookies, embedded URLs, <EM>etc.</EM>).
+  </P>
+
+  <H2>
+   <A NAME="12.0">
+    12. Acknowledgements
+   </A>
+  </H2>
+  <P>
+  This work is based on a draft published in 1997 by David R. Robinson,
+  which in turn was based on the original CGI interface that arose out of
+  discussions on the <EM>www-talk</EM> mailing list. In particular,
+  Rob McCool, John Franks, Ari Luotonen,
+  George Phillips and
+  Tony Sanders deserve special recognition for their efforts in
+  defining and implementing the early versions of this interface.
+  </P>
+  <P>
+  This document has also greatly benefited from the comments and
+  suggestions made by  Chris Adie, Dave Kristol,
+  Mike Meyer, David Morris, Jeremy Madea,
+  Patrick M<SUP>c</SUP>Manus, Adam Donahue,
+  Ross Patterson, and Harald Alvestrand.
+  </P>
+
+  <H2>
+   <A NAME="13.0">
+    13. References
+   </A>
+  </H2>
+  <DL COMPACT>
+   <DT><A NAME="[1]">[1]</A>
+   </DT>
+   <DD>Berners-Lee, T., 'Universal Resource Identifiers in WWW: A
+       Unifying Syntax for the Expression of Names and Addresses of
+       Objects on the Network as used in the World-Wide Web', RFC 1630,
+       CERN, June 1994.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[2]">[2]</A>
+   </DT>
+   <DD>Berners-Lee, T. and Connolly, D., 'Hypertext Markup Language -
+        2.0', RFC 1866, MIT/W3C, November 1995.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[3]">[3]</A>
+   </DT>
+   <DD>Berners-Lee, T., Fielding, R. T. and Frystyk, H.,
+          'Hypertext Transfer Protocol -- HTTP/1.0', RFC 1945, MIT/LCS,
+          UC Irvine, May 1996.
+       <P>
+       </P>
+   </DD>
+
+  <DT><A NAME="[4]">[4]</A>
+  </DT>
+  <DD>Berners-Lee, T., Fielding, R., and Masinter, L., Editors,
+   'Uniform Resource Identifiers (URI): Generic Syntax', RFC 2396,
+   MIT, U.C. Irvine, Xerox Corporation, August 1996.
+   <P>
+   </P>
+  </DD>
+
+  <DT><A NAME="[5]">[5]</A>
+  </DT>
+  <DD>Braden, R., Editor, 'Requirements for Internet Hosts --
+          Application and Support', STD 3, RFC 1123, IETF, October 1989.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[6]">[6]</A>
+   </DT>
+   <DD>Crocker, D.H., 'Standard for the Format of ARPA Internet Text
+          Messages', STD 11, RFC 822, University of Delaware, August 1982.
+       <P>
+       </P>
+   </DD>
+  <DT><A NAME="[7]">[7]</A>
+  </DT>
+  <DD>Fielding, R., 'Relative Uniform Resource Locators', RFC 1808,
+          UC Irvine, June 1995.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[8]">[8]</A>
+   </DT>
+   <DD>Fielding, R., Gettys, J., Mogul, J., Frystyk, H. and
+          Berners-Lee, T., 'Hypertext Transfer Protocol -- HTTP/1.1',
+          RFC 2068, UC Irvine, DEC,
+	  MIT/LCS, January 1997.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[9]">[9]</A>
+   </DT>
+   <DD>Freed, N. and Borenstein N., 'Multipurpose Internet Mail
+          Extensions (MIME) Part Two: Media Types', RFC 2046, Innosoft,
+          First Virtual, November 1996.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[10]">[10]</A>
+   </DT>
+   <DD>Mockapetris, P., 'Domain Names - Concepts and Facilities',
+          STD 13, RFC 1034, ISI, November 1987.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[11]">[11]</A>
+   </DT>
+   <DD>St. Johns, M., 'Identification Protocol', RFC 1431, US
+          Department of Defense, February 1993.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[12]">[12]</A>
+   </DT>
+   <DD>'Coded Character Set -- 7-bit American Standard Code for
+          Information Interchange', ANSI X3.4-1986.
+       <P>
+       </P>
+   </DD>
+   <DT><A NAME="[13]">[13]</A>
+   </DT>
+   <DD>Hinden, R. and Deering, S.,
+          'IP Version 6 Addressing Architecture', RFC 2373,
+	  Nokia, Cisco Systems,
+          July 1998.
+       <P>
+       </P>
+   </DD>
+  </DL>
+
+  <H2>
+   <A NAME="14.0">
+    14. Authors' Addresses
+   </A>
+  </H2>
+  <ADDRESS>
+   <P>
+   Ken A L Coar
+   <BR>
+   MeepZor Consulting
+   <BR>
+   7824 Mayfaire Crest Lane, Suite 202
+   <BR>
+   Raleigh, NC   27615-4875
+   <BR>
+   U.S.A.
+   </P>
+   <P>
+   Tel: +1 (919) 254.4237
+   <BR>
+   Fax: +1 (919) 254.5250
+   <BR>
+   Email:
+   <A
+    HREF="mailto:Ken.Coar@Golux.Com"
+   ><SAMP>Ken.Coar@Golux.Com</SAMP></A>
+   </P>
+  </ADDRESS>
+  <ADDRESS>
+   <P>
+   David Robinson
+   <BR>
+   E*TRADE UK Ltd
+   <BR>
+   Mount Pleasant House
+   <BR>
+   2 Mount Pleasant
+   <BR>
+   Huntingdon Road
+   <BR>
+   Cambridge CB3 0RN
+   <BR>
+   UK
+   </P>
+   <P>
+   Tel: +44 (1223) 566926
+   <BR>
+   Fax: +44 (1223) 506288
+   <BR>
+   Email:
+   <A
+    HREF="mailto:drtr@etrade.co.uk"
+   ><SAMP>drtr@etrade.co.uk</SAMP></A>
+  </ADDRESS>
+
+ </BODY>
+</HTML>

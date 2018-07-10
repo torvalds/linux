@@ -1,0 +1,42 @@
+#!/bin/sh
+# Sample udhcpc renew script
+
+RESOLV_CONF="/etc/udhcpc/resolv.conf"
+
+[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
+[ -n "$subnet" ] && NETMASK="netmask $subnet"
+
+/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
+
+if [ -n "$router" ]
+then
+	echo "deleting routers"
+	while /sbin/route del default gw 0.0.0.0 dev $interface
+	do :
+	done
+
+	metric=0
+	for i in $router
+	do
+		if [ "$subnet" = "255.255.255.255" ]; then
+			# special case for /32 subnets:
+			# /32 instructs kernel to always use routing for all outgoing packets
+			# (they can never be sent to local subnet - there is no local subnet for /32).
+			# Used in datacenters, avoids the need for private ip-addresses between two hops.
+			/sbin/ip route add $i dev $interface
+		fi
+		/sbin/route add default gw $i dev $interface metric $((metric++))
+	done
+fi
+
+# Only replace resolv.conf if we have at least one DNS server
+if [ -n "$dns" ]
+then
+	echo -n > $RESOLV_CONF
+	[ -n "$domain" ] && echo domain $domain >> $RESOLV_CONF
+	for i in $dns
+	do
+		echo adding dns $i
+		echo nameserver $i >> $RESOLV_CONF
+	done
+fi

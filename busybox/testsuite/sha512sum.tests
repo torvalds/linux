@@ -1,0 +1,3 @@
+#!/bin/sh
+
+. ./md5sum.tests sha512sum fe413e0f177324d1353893ca0772ceba83fd41512ba63895a0eebb703ef9feac2fb4e92b2cb430b3bda41b46b0cb4ea8307190a5cc795157cfb680a9cd635d0f

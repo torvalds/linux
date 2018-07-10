@@ -1,0 +1,4 @@
+dd if=/dev/zero of=foo seek=10k count=1 2>/dev/null
+busybox mv foo bar
+test ! -e foo
+test -f bar

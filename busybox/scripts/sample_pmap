@@ -1,0 +1,11 @@
+#!/bin/sh
+
+busybox=../busybox
+
+$busybox sleep 10 &
+pid=$!
+sleep 1
+
+echo "Memory map of '$busybox sleep 10':"
+size $busybox
+pmap $pid | env - grep "^[0-9a-f][0-9a-f]* " | sort -r -t " " -k2,999

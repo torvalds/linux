@@ -1,0 +1,4 @@
+for v in a b c; do echo A:$v; continue 666; done
+echo OK1
+for v in a b c; do echo A:$v; continue 666; done
+echo OK2

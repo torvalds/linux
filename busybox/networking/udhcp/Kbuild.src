@@ -1,0 +1,21 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+#
+
+lib-y:=
+
+INSERT
+
+lib-$(CONFIG_UDHCPC)     += common.o packet.o signalpipe.o socket.o
+lib-$(CONFIG_UDHCPD)     += common.o packet.o signalpipe.o socket.o
+
+lib-$(CONFIG_UDHCPC)     += dhcpc.o
+lib-$(CONFIG_UDHCPD)     += dhcpd.o arpping.o
+lib-$(CONFIG_DUMPLEASES) += dumpleases.o
+lib-$(CONFIG_DHCPRELAY)  += dhcprelay.o common.o socket.o packet.o
+
+lib-$(CONFIG_FEATURE_UDHCPC_ARPING) += arpping.o
+lib-$(CONFIG_FEATURE_UDHCP_RFC3397) += domain_codec.o

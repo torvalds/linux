@@ -1,0 +1,58 @@
+# busybox expr
+busybox expr 1 \| 1
+busybox expr 1 \| 0
+busybox expr 0 \| 1
+busybox expr 1 \& 1
+busybox expr 0 \< 1
+busybox expr 1 \> 0
+busybox expr 0 \<= 1
+busybox expr 1 \<= 1
+busybox expr 1 \>= 0
+busybox expr 1 \>= 1
+busybox expr 1 + 2
+busybox expr 2 - 1
+busybox expr 2 \* 3
+busybox expr 12 / 2
+busybox expr 12 % 5
+
+
+set +e
+busybox expr 0 \| 0
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 1 \& 0
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 0 \& 1
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 0 \& 0
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 1 \< 0
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 0 \> 1
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 1 \<= 0
+if [ $? != 1 ] ; then
+	exit 1;
+fi;
+
+busybox expr 0 \>= 1
+if [ $? != 1 ] ; then
+	exit 1;
+fi;

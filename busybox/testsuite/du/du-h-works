@@ -1,0 +1,4 @@
+# FEATURE: CONFIG_FEATURE_HUMAN_READABLE
+
+dd if=/dev/zero of=file bs=1M count=1 2>/dev/null
+test x"`busybox du -h file`" = x"1.0M	file"

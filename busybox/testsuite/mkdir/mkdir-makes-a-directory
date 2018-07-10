@@ -1,0 +1,2 @@
+busybox mkdir foo
+test -d foo

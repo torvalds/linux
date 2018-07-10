@@ -1,0 +1,19 @@
+#!/bin/sh
+
+test "$1" || {
+	echo "Syntax: ${0##*/} SERVICE"
+	exit 1
+}
+
+test x"$1" = x"${1#*/}" -a x"$1" != x"." && {
+	# has no slashes and is not a "."
+	cd "/var/service/$1" || exit $?
+	set -- "."
+}
+
+test -x "$1/view" && exec "$1/view"
+
+cd "log/logdir" || exit $?
+
+h=`ttysize h`
+exec tail -n $((h-1)) -F current 2>&1

@@ -1,0 +1,2 @@
+test1
+./command2.tests: ./test1.sh: line 1: ./test2.sh: Permission denied

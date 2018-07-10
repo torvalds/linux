@@ -1,0 +1,749 @@
+
+Busybox POSIX conformance table
+
+See POSIX documentation (1003.1-2008) here:
+http://www.opengroup.org/onlinepubs/9699919799/
+And the complete list of all utilities that POSIX covers:
+http://www.opengroup.org/onlinepubs/9699919799/idx/utilities.html
+
+This listing is a work in progress, and currently only covers
+tool options (not operands, environment variables, return codes, etc..).
+For each option it is set if it (a) exists and (b) compliant to POSIX 2008.
+Some options exist but there is no value in the 'compliant' column: that
+means no one has yet bothered to make sure that the option does what it is
+required to do.
+
+-----------------------------------------------
+
+POSIX Tools supported only as shell built-ins (ash shell):
+  alias, bg, cd, fg, getopts, hash, jobs, read, type, umask, ulimit,
+  unalias, wait, write
+
+POSIX Tools not supported:
+  asa, at, batch, bc, c99, command, compress, csplit, ex, fc, file,
+  gencat, getconf, iconv, join, link, locale, localedef, lp, m4,
+  mailx, newgrp, nl, pathchk, pax, pr, qalter, qdel, qhold, qmove,
+  qmsg, qrerun, qrls, qselect, qsig, qstat, qsub, tabs, talk, tput,
+  tsort, unlink, uucp, uustat, uux
+
+POSIX Tools not supported (DEVELOPMENT):
+  admin, cflow, ctags, cxref, delta, fort77, get, lex, make, nm, prs, rmdel,
+  sact, sccs, strip, unget, val, what, yacc
+
+
+POSIX Tools supported:
+
+Note: echo, printf, kill, pwd documented here as stand-alone applets,
+      not as ash built-ins.
+
+
+ar POSIX options ********************* Failed to recognize zip & tar (did not compare to regular ar)
+ option           | exists | compliant | remarks
+  -C              |  no    | no        |
+  -T              |  no    | no        |
+  -a              |  no    | no        |
+  -b              |  no    | no        |
+  -c              |  no    | no        |
+  -d              |  no    | no        |
+  -i              |  no    | no        |
+  -m              |  no    | no        |
+  -p              |  yes   |           |
+  -q              |  no    | no        |
+  -r              |  no    | no        |
+  -s              |  no    | no        |
+  -t              |  yes   |           |
+  -u              |  no    | no        |
+  -v              |  yes   |           |
+  -x              |  yes   |           |
+ar Busybox specific options:
+  -o
+
+awk POSIX options
+ option           | exists | compliant | remarks
+  -F ERE          |  yes   |           |
+  -f progfile     |  yes   |           |
+  -v assignment   |  yes   |           |
+awk Busybox specific options: None
+
+basename POSIX options: None
+basename Busybox specific options: None
+
+cal POSIX options: None
+cal Busybox specific options:
+  -y, -j
+
+cat POSIX options
+ option           | exists | compliant | remarks
+  -u              |  yes   | no        | option is ignored
+cat Busybox specific options: None
+
+chgrp POSIX options
+ option           | exists | compliant | remarks
+  -H              |  yes   |           |
+  -L              |  yes   |           |
+  -P              |  yes   |           |
+  -R              |  yes   |           |
+  -h              |  yes   |           |
+chgrp Busybox specific options:
+  -f, -c, -v
+
+chmod POSIX options
+ option           | exists | compliant | remarks
+  -R              |  yes   | yes       |
+chmod Busybox specific options:
+  -f, -v, -c
+
+chown POSIX options *********************************************
+ option           | exists | compliant | remarks
+  -H              |  yes   |           | It seems like all flags are supported (according to printout), but
+  -L              |  yes   |           |  it fails to work on my machine
+  -P              |  yes   |           |
+  -R              |  yes   |           |
+  -h              |  yes   |           |
+chown Busybox specific options:
+  -f, -c, -v
+
+cksum POSIX options: None
+cksum Busybox specific options: None
+
+cmp POSIX options
+ option           | exists | compliant | remarks
+  -l              |  yes   | yes       |
+  -s              |  yes   | yes       |
+cmp Busybox specific options:
+
+
+comm POSIX options
+ option           | exists | compliant | remarks
+  -1              |  yes   | yes       |
+  -2              |  yes   | yes       |
+  -3              |  yes   | yes       |
+comm Busybox specific options: None
+
+cp POSIX options
+ option           | exists | compliant | remarks
+  -H              |  yes   | yes       |
+  -L              |  yes   | yes       |
+  -P              |  yes   | yes       |
+  -R              |  yes   | yes       |
+  -f              |  yes   | yes       |
+  -i              |  yes   | yes       |
+  -p              |  yes   | yes       |
+cp Busybox specific options:
+  -d, -a, -s, -c, -r, -l
+
+crontab POSIX options
+ option           | exists | compliant | remarks
+  -e              |  yes   |           |
+  -l              |  yes   |           |
+  -r              |  yes   |           |
+crontab Busybox specific options:
+  -u, -c
+
+cut POSIX options
+ option           | exists | compliant | remarks
+  -b list         |  yes   | yes       |
+  -c list         |  yes   | yes       |
+  -d delim        |  yes   | yes       |
+  -f list         |  yes   | yes       |
+  -n              |  yes   | yes       |
+  -s              |  yes   | yes       |
+cut Busybox specific options: None
+
+date POSIX options
+ option           | exists | compliant | remarks
+  -u              |  yes   | yes       |
+date Busybox specific options:
+  -I[SPEC], -d TIME, -r FILE, -R, -D FMT
+
+dd POSIX options:
+ option           | exists | compliant | remarks
+  if              |  yes   |           |
+  of              |  yes   |           |
+  ibs             |  yes   |           |
+  obs             |  yes   |           |
+  bs              |  yes   |           |
+  cbs             |  no    | no        |
+  skip            |  yes   |           |
+  seek            |  yes   |           |
+  count           |  yes   |           |
+  conv=ascii      |  no    | no        |
+  conv=ebcdic     |  no    | no        |
+  conv=ibm        |  no    | no        |
+  conv=block      |  no    | no        |
+  conv=unblock    |  no    | no        |
+  conv=lcase      |  no    | no        |
+  conv=ucase      |  no    | no        |
+  conv=swap       |  no    | no        |
+  conv=noerror    |  yes   |           |
+  conv=notrunc    |  yes   |           |
+  conv=sync       |  yes   |           |
+dd compatibility options:
+  conv=fsync      |  yes   |           |
+  iflag=skip_bytes|  yes   |           |
+  iflag=fullblock |  yes   |           |
+
+df POSIX options
+ option           | exists | compliant | remarks
+  -P              |  yes   | yes       |
+  -k              |  yes   | yes       |
+  -t              |  no    | no        |
+df Busybox specific options:
+  -a, -m, -B SIZE, -i, -h
+Remark:
+- It seems that GNU df does not round percents up in its output (thus its results are a bit different)
+
+diff POSIX options
+ option           | exists | compliant | remarks
+  -C n            |  no    | no        |
+  -U n            |  yes   |           |
+  -b              |  yes   |           |
+  -c              |  no    | no        |
+  -e              |  no    | no        |
+  -f              |  no    | no        |
+  -r              |  yes   |           |
+  -u              |  no    | no        |
+diff Busybox specific options:
+  -d, -a, -s, -t, -L, -N, -i, -T, -w, -q, -S
+
+dirname POSIX options: None
+dirname Busybox specific options: None
+
+du POSIX options
+ option           | exists | compliant | remarks
+  -H              |  yes   |           |
+  -L              |  yes   |           |
+  -a              |  yes   |           |
+  -k              |  yes   |           |
+  -s              |  yes   |           |
+  -x              |  yes   |           |
+du Busybox specific options:
+  -c, -m, -h, -d N, -l
+
+
+echo POSIX options: None
+ option           | exists | compliant | remarks
+  -n              |  yes   | yes       | The result of -n is "implementation-defined"
+echo Busybox specific options:
+  -e, -E
+
+ed POSIX options
+ option           | exists | compliant | remarks
+  -p string       |  no    | no        |
+  -s              |  no    | no        |
+ed Busybox specific options: None
+
+env POSIX options
+ option           | exists | compliant | remarks
+  -i              |  no    | no        |
+env Busybox specific options:
+  -u, -,  -i
+
+expand POSIX options
+ option           | exists | compliant | remarks
+  -t tablist      |  yes   | yes       |
+expand Busybox specific options:
+  --tabs=N, -i, --initial
+
+expr POSIX operations:
+ option           | exists | compliant | remarks
+  |               |  yes   |  yes      |
+  &               |  yes   |  yes      |
+  =               |  yes   |  yes      |
+  >               |  yes   |  yes      |
+  >=              |  yes   |  yes      |
+  <=              |  yes   |  yes      |
+  <               |  yes   |  yes      |
+  !=              |  yes   |  yes      |
+  +               |  yes   |  yes      |
+  -               |  yes   |  yes      |
+  *               |  yes   |  yes      |
+  /               |  yes   |  yes      |
+  %               |  yes   |  yes      |
+  :               |  yes   |  yes      |
+  (expr)          |  yes   |  yes      |
+  integer         |  yes   |  yes      |
+  string          |  yes   |  yes      |
+expr Busybox specific operations:
+  match, substr, index, length, quote
+
+false POSIX options: None
+false Busybox specific options: None
+
+find POSIX options
+ option           | exists | compliant | remarks
+  -H              |  no    | no        |
+  -L              |  no    | no        |
+find Busybox specific options:
+  -group NAME, -mtime DAYS, -print, -maxdepth N, -exec CMD ARG ;, -newer FILE, -context, -iname PATTERN, -follow, -depth, -xdev, -inum N, -type X, -print0, -mindepth N, -mmin MINS, -regex PATTERN, -prune, -path PATTERN, -user NAME, -delete, -perm NNN, -name PATTERN, -size N[bck]
+
+fold POSIX options
+ option           | exists | compliant | remarks
+  -b              |  yes   | yes       |
+  -s              |  yes   | yes       |
+  -w width        |  yes   | yes       |
+fold Busybox specific options: None
+
+fuser POSIX options
+ option           | exists | compliant | remarks
+  -c              |  no    | no        |
+  -f              |  no    | no        |
+  -u              |  no    | no        |
+fuser Busybox specific options:
+  -m, -k, -4, -SIGNAL, -6, -s
+
+grep POSIX options
+ option           | exists | compliant | remarks
+  -E              |  yes   |           |
+  -F              |  yes   |           |
+  -c              |  yes   |           |
+  -e pattern_list |  yes   |           |
+  -f pattern_file |  yes   |           |
+  -i              |  yes   |           |
+  -l              |  yes   |           |
+  -n              |  yes   |           |
+  -q              |  yes   |           |
+  -s              |  yes   |           |
+  -v              |  yes   |           |
+  -x              |  no    | no        |
+grep Busybox specific options:
+  -A, -C, -B, -L, -H, -o, -h, -w, -r, -z, -m MAX
+
+head POSIX options
+ option           | exists | compliant | remarks
+  -n number       |  yes   | yes       |
+head Busybox specific options:
+  -v, -c NUM, -q
+
+id POSIX options
+ option           | exists | compliant | remarks
+  -G              |  yes   | yes       |
+  -g              |  yes   | yes       |
+  -n              |  yes   | yes       |
+  -r              |  yes   | yes       |
+  -u              |  yes   | yes       |
+id Busybox specific options:
+  -Z
+
+ipcrm POSIX options
+ option           | exists | compliant | remarks
+  -M shmkey       |  no    | no        |
+  -Q msgkey       |  no    | no        |
+  -S semkey       |  no    | no        |
+  -m shmid        |  no    | no        |
+  -q msgid        |  no    | no        |
+  -s semid        |  no    | no        |
+ipcrm Busybox specific options:
+  -mM, -qQ, -sS
+
+ipcs POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   |           |
+  -b              |  no    | no        |
+  -c              |  yes   |           |
+  -m              |  yes   |           |
+  -o              |  no    | no        |
+  -p              |  yes   |           |
+  -q              |  yes   |           |
+  -s              |  yes   |           |
+  -t              |  yes   |           |
+ipcs Busybox specific options:
+  -l, -i, -u
+
+kill POSIX options
+ option           | exists | compliant | remarks
+  -l              |  yes   | yes       |
+  -s signal_name  |  yes   | yes       |
+  -signal_name    |  yes   | yes       |
+  -signal_number  |  yes   | yes       |
+kill Busybox specific options:
+   -q, -o
+
+ln POSIX options
+ option           | exists | compliant | remarks
+  -L              |  no    | no        |
+  -P              |  no    | no        |
+  -f              |  yes   | yes       |
+  -s              |  yes   | yes       |
+ln Busybox specific options:
+  -S suf, -n, -b
+
+logger POSIX options: None
+logger Busybox specific options:
+  -p PRIO, -t TAG, -s
+
+logname POSIX options: None
+logname Busybox specific options: None
+
+ls POSIX options
+ option           | exists | compliant | remarks
+  -1              |  yes   | yes       |
+  -A              |  yes   | yes       |
+  -C              |  yes   | yes       |
+  -F              |  yes   | yes       | And more: '=' for sockets (not defined by POSIX)
+  -H              |  no    | no        |
+  -L              |  yes   | yes       | But coloring may be wrong (at least POSIX does not require correct colors :) )
+  -R              |  yes   | yes       |
+  -S              |  yes   | yes       |
+  -a              |  yes   | yes       |
+  -c              |  yes   | no        | Sorts output with '-l' (should only show ctime with '-l', and sort only with '-t')
+  -d              |  yes   | no        | When invoked together with '-L' should read symbolic links, and doesn't
+  -f              |  no    | no        |
+  -g              |  no    | no        |
+  -i              |  yes   | yes       |
+  -k              |  yes   | no        | Does something completely unrelated! (Lists security context instead of specifying block size)
+  -l              |  yes   | yes       |
+  -m              |  no    | no        |
+  -n              |  yes   | no        | Works correctly only together with '-l' (but POSIX requires '-l' to be implicitly assumed)
+  -o              |  no    | no        |
+  -p              |  yes   | yes       |
+  -q              |  no    | no        |
+  -r              |  yes   | yes       |
+  -s              |  yes   | yes       |
+  -t              |  yes   | yes       |
+  -u              |  yes   | yes       |
+  -x              |  yes   | yes       |
+ls Busybox specific options:
+  --color, -T NUM, -K, -X, -Z, -e, -h, -v, -w NUM
+
+man POSIX options
+ option           | exists | compliant | remarks
+  -k              |  no    | no        |
+man Busybox specific options:
+  -a      Display all pages
+
+
+mesg POSIX options: None
+mesg Busybox specific options: None
+
+mkdir POSIX options
+ option           | exists | compliant | remarks
+  -m mode         |  yes   | yes       |
+  -p              |  yes   | yes       |
+mkdir Busybox specific options:
+  -Z
+
+mkfifo POSIX options
+ option           | exists | compliant | remarks
+  -m mode         |  yes   | yes       |
+mkfifo Busybox specific options:
+  -Z
+
+more POSIX options
+ option           | exists | compliant | remarks
+  -c              |  no    | no        |
+  -e              |  no    | no        |
+  -i              |  no    | no        |
+  -n number       |  no    | no        |
+  -p command      |  no    | no        |
+  -s              |  no    | no        |
+  -t tagstring    |  no    | no        |
+  -u              |  no    | no        |
+more Busybox specific options: None
+
+mv POSIX options
+ option           | exists | compliant | remarks
+  -f              |  yes   | yes       |
+  -i              |  yes   | yes       |
+mv Busybox specific options: None
+
+nice POSIX options
+ option           | exists | compliant | remarks
+  -n increment    |  yes   | yes       |
+nice Busybox specific options: None
+
+nohup POSIX options: None
+nohup Busybox specific options: None
+
+od POSIX options
+ option           | exists | compliant | remarks
+  -A address_base |  no    | no        |
+  -N count        |  no    | no        |
+  -b              |  no    | no        |
+  -c              |  no    | no        |
+  -d              |  no    | no        |
+  -j skip         |  no    | no        |
+  -o              |  no    | no        |
+  -s              |  no    | no        |
+  -t type_string  |  no    | no        |
+  -v              |  no    | no        |
+  -x              |  no    | no        |
+od Busybox specific options: None
+
+paste POSIX options
+ option           | exists | compliant | remarks
+  -d list         |  yes   | yes       |
+  -s              |  yes   | yes       |
+paste Busybox specific options: None
+
+patch POSIX options
+ option           | exists | compliant | remarks
+  -D define       |  no    | no        |
+  -N              |  no    | no        |
+  -R              |  yes   | yes       |
+  -b              |  no    | no        |
+  -c              |  no    | no        |
+  -d dir          |  no    | no        |
+  -e              |  no    | no        |
+  -i patchfile    |  yes   | yes       |
+  -l              |  no    | no        |
+  -n              |  no    | no        |
+  -o outfile      |  no    | no        |
+  -p num          |  yes   | yes       |
+  -r rejectfile   |  no    | no        |
+  -u              |  no    | no        |
+patch Busybox specific options: None
+
+printf POSIX options: None
+printf Busybox specific options: None
+
+ps POSIX options
+ option           | exists | compliant | remarks
+  -A              |  no    | no        |
+  -G grouplist    |  no    | no        |
+  -U userlist     |  no    | no        |
+  -a              |  no    | no        |
+  -d              |  no    | no        |
+  -e              |  no    | no        |
+  -f              |  no    | no        |
+  -g grouplist    |  no    | no        |
+  -l              |  no    | no        |
+  -n namelist     |  no    | no        |
+  -o format       |  yes   | no        | not supported: ruser, group, rgroup, pcpu
+  -p proclist     |  no    | no        |
+  -t termlist     |  no    | no        |
+  -u userlist     |  no    | no        |
+ps Busybox specific options: None
+
+pwd POSIX options
+ option           | exists | compliant | remarks
+  -L              |  no    | no        |
+  -P              |  no    | no        |
+pwd Busybox specific options: None
+
+renice POSIX options
+ option           | exists | compliant | remarks
+  -g              |  yes   | yes       |
+  -n increment    |  yes   | yes       | Note POSIX allows only to run with this option (busybox also allows to run without '-n' and set niceness directly)
+  -p              |  yes   | yes       |
+  -u              |  yes   | yes       |
+renice Busybox specific options: None
+
+rm POSIX options
+ option           | exists | compliant | remarks
+  -R              |  yes   | yes       |
+  -f              |  yes   | yes       |
+  -i              |  yes   | yes       |
+  -r              |  yes   | yes       |
+rm Busybox specific options: None
+
+rmdir POSIX options
+ option           | exists | compliant | remarks
+  -p              |  yes   | yes       |
+rmdir Busybox specific options:
+  --parents
+
+sed POSIX options
+ option           | exists | compliant | remarks
+  -e script       |  yes   |           |
+  -f script_file  |  yes   |           |
+  -n              |  yes   |           |
+sed Busybox specific options:
+  -i, -r
+
+sh POSIX options
+ option           | exists | compliant | remarks
+  -c              |  no    | no        |
+  -i              |  no    | no        |
+  -s              |  no    | no        |
+sh Busybox specific options: None
+
+sleep POSIX options: None
+sleep Busybox specific options: None
+
+sort POSIX options
+ option           | exists | compliant | remarks
+  -C              |  no    | no        |
+  -b              |  yes   | yes       |
+  -c              |  yes   | yes       |
+  -d              |  yes   | yes       |
+  -f              |  yes   | yes       |
+  -i              |  yes   | yes       | But is not like GNU sort, which isn't! (try to sort 'a\nA\nB\nb' with and without -f)
+  -k keydef       |  yes   |           |
+  -m              |  no    | no        |
+  -n              |  yes   | yes       |
+  -o output       |  yes   | yes       |
+  -r              |  yes   | yes       |
+  -t char         |  yes   |           |
+  -u              |  yes   | yes       |
+sort Busybox specific options:
+  -mST, -g, -M, -s, -z
+
+split POSIX options
+ option           | exists | compliant | remarks
+  -a suffix_length |  yes   | yes       |
+  -b n            |  yes   | yes       |
+  -b nk           |  yes   | yes       |
+  -b nm           |  yes   | yes       |
+  -l line_count   |  yes   | yes       |
+split Busybox specific options: None
+
+strings POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   | yes       |
+  -n number       |  yes   | yes       |
+  -t format       |  no    | no        |
+strings Busybox specific options:
+  -o, -f
+
+stty POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   | yes       |
+  -g              |  yes   | yes       |
+stty Busybox specific options:
+  -F DEVICE
+
+tail POSIX options
+ option           | exists | compliant | remarks
+  -c number       |  yes   | yes       |
+  -f              |  yes   | yes       |
+  -n number       |  yes   | yes       |
+tail Busybox specific options:
+  -v, -q, -s SEC
+
+tee POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   | yes       |
+  -i              |  yes   | yes       |
+tee Busybox specific options: None
+
+test POSIX options: None
+test Busybox specific options: None
+
+time POSIX options
+ option           | exists | compliant | remarks
+  -p              |  no    | no        |
+time Busybox specific options:
+  -v
+
+touch POSIX options
+ option           | exists | compliant | remarks
+  -a              |  no    | no        |
+  -c              |  yes   | yes       |
+  -d date_time    |  no    | no        |
+  -m              |  no    | no        |
+  -r ref_file     |  no    | no        |
+  -t time         |  no    | no        |
+touch Busybox specific options: None
+
+tr POSIX options
+ option           | exists | compliant | remarks
+  -C              |  no    | no        |
+  -c              |  yes   | yes       |
+  -d              |  yes   | yes       |
+  -s              |  yes   | yes       |
+tr Busybox specific options: None
+
+true POSIX options: None
+true Busybox specific options: None
+
+tty POSIX options: None
+tty Busybox specific options:
+  -s
+
+uname POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   | yes       |
+  -m              |  yes   | yes       |
+  -n              |  yes   | yes       |
+  -r              |  yes   | yes       |
+  -s              |  yes   | yes       |
+  -v              |  yes   | yes       |
+uname Busybox specific options:
+  -p
+
+uncompress POSIX options
+ option           | exists | compliant | remarks
+  -c              |  yes   | yes       |
+  -f              |  yes   | yes       |
+  -v              |  no    | no        |
+uncompress Busybox specific options: None
+
+unexpand POSIX options
+ option           | exists | compliant | remarks
+  -a              |  yes   | no        | POSIX requires converting two or more spaces to tabs, busybox converts one or more spaces
+  -t tablist      |  yes   | yes       |
+unexpand Busybox specific options:
+  --tabs=N, -f, --first-only, --all
+
+uniq POSIX options
+ option           | exists | compliant | remarks
+  -c              |  yes   | yes       |
+  -d              |  yes   | yes       |
+  -f fields       |  yes   | yes       |
+  -s chars        |  yes   | yes       |
+  -u              |  yes   | yes       |
+uniq Busybox specific options:
+  -w N
+
+uudecode POSIX options
+ option           | exists | compliant | remarks
+  -o outfile      |  no    | no        |
+uudecode Busybox specific options: None
+
+uuencode POSIX options
+ option           | exists | compliant | remarks
+  -m              |  yes   | yes       |
+uuencode Busybox specific options: None
+
+vi POSIX options
+ option           | exists | compliant | remarks
+  -R              |  yes   |           |
+  -c command      |  yes   |           |
+  -r              |  no    | no        |
+  -t tagstring    |  no    | no        |
+  -w size         |  no    | no        |
+vi Busybox specific options:
+  -H
+
+wc POSIX options
+ option           | exists | compliant | remarks
+  -c              |  yes   | yes       |
+  -l              |  yes   | yes       |
+  -m              |  no    | no        |
+  -w              |  yes   | yes       |
+wc Busybox specific options:
+  -L
+
+who POSIX options
+ option           | exists | compliant | remarks
+  -H              |  no    | no        |
+  -T              |  no    | no        |
+  -a              |  yes   | no        | just shows all
+  -b              |  no    | no        |
+  -d              |  no    | no        |
+  -l              |  no    | no        |
+  -m              |  no    | no        |
+  -p              |  no    | no        |
+  -q              |  no    | no        |
+  -r              |  no    | no        |
+  -s              |  no    | no        |
+  -t              |  no    | no        |
+  -u              |  no    | no        |
+who Busybox specific options: None
+
+xargs POSIX options
+ option           | exists | compliant | remarks
+  -E eofstr       |  no    | no        |
+  -I replstr      |  no    | no        |
+  -L number       |  no    | no        |
+  -n number       |  yes   | yes       |
+  -p              |  yes   | yes       |
+  -s size         |  yes   | yes       |
+  -t              |  yes   | yes       |
+  -x              |  yes   | yes       |
+xargs Busybox specific options:
+  -e[STR], -0, -r
+
+zcat POSIX options: None
+zcat Busybox specific options: None

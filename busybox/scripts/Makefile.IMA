@@ -1,0 +1,211 @@
+# This is completely unsupported.
+#
+# Uasge: make -f scripts/Makefile.IMA
+#
+# Fix COMBINED_COMPILE upstream (in the Kbuild) and propagate
+# the changes back
+srctree		:= $(if $(KBUILD_SRC),$(KBUILD_SRC),$(CURDIR))
+objtree		:= $(CURDIR)
+src		:= $(srctree)
+obj		:= $(objtree)
+
+# Make generated files
+DUMMY := $(shell $(Q)$(srctree)/scripts/gen_build_files.sh $(srctree) $(objtree) >&2)
+
+# Look for make include files relative to root of src
+MAKEFLAGS += --include-dir=$(srctree)
+
+default: busybox
+
+include .config
+
+# Cross compiling and selecting different set of gcc/bin-utils
+ifeq ($(CROSS_COMPILE),)
+CROSS_COMPILE := $(subst ",,$(CONFIG_CROSS_COMPILER_PREFIX))
+endif
+
+ifneq ($(CROSS_COMPILE),)
+SUBARCH := $(shell echo $(CROSS_COMPILE) | cut -d- -f1)
+else
+SUBARCH := $(shell uname -m)
+endif
+SUBARCH := $(shell echo $(SUBARCH) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+                                         -e s/arm.*/arm/ -e s/sa110/arm/ \
+                                         -e s/s390x/s390/ -e s/parisc64/parisc/ \
+                                         -e s/ppc.*/powerpc/ -e s/mips.*/mips/ )
+ARCH ?= $(SUBARCH)
+
+ifndef HOSTCC
+HOSTCC = cc
+endif
+AS              = $(CROSS_COMPILE)as
+CC              = $(CROSS_COMPILE)gcc
+LD              = $(CC) -nostdlib
+CPP             = $(CC) -E
+AR              = $(CROSS_COMPILE)ar
+NM              = $(CROSS_COMPILE)nm
+STRIP           = $(CROSS_COMPILE)strip
+OBJCOPY         = $(CROSS_COMPILE)objcopy
+OBJDUMP         = $(CROSS_COMPILE)objdump
+
+CFLAGS   := $(CFLAGS)
+CPPFLAGS += -D"KBUILD_STR(s)=\#s" #-Q
+
+# We need some generic definitions
+include $(srctree)/scripts/Kbuild.include
+
+include Makefile.flags
+
+-include $(srctree)/arch/$(ARCH)/Makefile
+ifdef CONFIG_FEATURE_COMPRESS_USAGE
+usage_stuff = include/usage_compressed.h
+endif
+
+ifndef BB_VER
+BB_VER:=""
+endif
+
+WHOLE_PROGRAM:=$(call cc-option,-fwhole-program,)
+
+# pull in the config stuff
+lib-all-y := applets/applets.o
+lib-y:=
+include procps/Kbuild
+lib-all-y += $(patsubst %,procps/%,$(sort $(lib-y)))
+lib-y:=
+include networking/Kbuild
+lib-all-y += $(patsubst %,networking/%,$(sort $(lib-y)))
+lib-y:=
+include networking/udhcp/Kbuild
+lib-all-y += $(patsubst %,networking/udhcp/%,$(sort $(lib-y)))
+lib-y:=
+include networking/libiproute/Kbuild
+lib-all-y += $(patsubst %,networking/libiproute/%,$(sort $(lib-y)))
+lib-y:=
+include loginutils/Kbuild
+lib-all-y += $(patsubst %,loginutils/%,$(sort $(lib-y)))
+lib-y:=
+include archival/Kbuild
+lib-all-y += $(patsubst %,archival/%,$(sort $(lib-y)))
+lib-y:=
+include archival/libarchive/Kbuild
+lib-all-y += $(patsubst %,archival/libarchive/%,$(sort $(lib-y)))
+lib-y:=
+include applets/Kbuild
+lib-all-y += $(patsubst %,applets/%,$(sort $(lib-y)))
+lib-y:=
+include e2fsprogs/Kbuild
+lib-all-y += $(patsubst %,e2fsprogs/%,$(sort $(lib-y)))
+lib-y:=
+#include e2fsprogs/old_e2fsprogs/Kbuild
+#lib-all-y += $(patsubst %,e2fsprogs/old_e2fsprogs/%,$(sort $(lib-y)))
+#lib-y:=
+#include e2fsprogs/old_e2fsprogs/ext2fs/Kbuild
+#lib-all-y += $(patsubst %,e2fsprogs/old_e2fsprogs/ext2fs/%,$(sort $(lib-y)))
+#lib-y:=
+#include e2fsprogs/old_e2fsprogs/blkid/Kbuild
+#lib-all-y += $(patsubst %,e2fsprogs/old_e2fsprogs/blkid/%,$(sort $(lib-y)))
+#lib-y:=
+#include e2fsprogs/old_e2fsprogs/uuid/Kbuild
+#lib-all-y += $(patsubst %,e2fsprogs/old_e2fsprogs/uuid/%,$(sort $(lib-y)))
+#lib-y:=
+#include e2fsprogs/old_e2fsprogs/e2p/Kbuild
+#lib-all-y += $(patsubst %,e2fsprogs/old_e2fsprogs/e2p/%,$(sort $(lib-y)))
+#lib-y:=
+include debianutils/Kbuild
+lib-all-y += $(patsubst %,debianutils/%,$(sort $(lib-y)))
+lib-y:=
+include klibc-utils/Kbuild
+lib-all-y += $(patsubst %,klibc-utils/%,$(sort $(lib-y)))
+lib-y:=
+include runit/Kbuild
+lib-all-y += $(patsubst %,runit/%,$(sort $(lib-y)))
+lib-y:=
+include modutils/Kbuild
+lib-all-y += $(patsubst %,modutils/%,$(sort $(lib-y)))
+lib-y:=
+include miscutils/Kbuild
+lib-all-y += $(patsubst %,miscutils/%,$(sort $(lib-y)))
+lib-y:=
+include mailutils/Kbuild
+lib-all-y += $(patsubst %,mailutils/%,$(sort $(lib-y)))
+lib-y:=
+include coreutils/libcoreutils/Kbuild
+lib-all-y += $(patsubst %,coreutils/libcoreutils/%,$(sort $(lib-y)))
+lib-y:=
+include coreutils/Kbuild
+lib-all-y += $(patsubst %,coreutils/%,$(sort $(lib-y)))
+lib-y:=
+include sysklogd/Kbuild
+lib-all-y += $(patsubst %,sysklogd/%,$(sort $(lib-y)))
+lib-y:=
+include shell/Kbuild
+lib-all-y += $(patsubst %,shell/%,$(sort $(lib-y)))
+lib-y:=
+include console-tools/Kbuild
+lib-all-y += $(patsubst %,console-tools/%,$(sort $(lib-y)))
+lib-y:=
+include findutils/Kbuild
+lib-all-y += $(patsubst %,findutils/%,$(sort $(lib-y)))
+lib-y:=
+include util-linux/Kbuild
+lib-all-y += $(patsubst %,util-linux/%,$(sort $(lib-y)))
+lib-y:=
+include util-linux/volume_id/Kbuild
+lib-all-y += $(patsubst %,util-linux/volume_id/%,$(sort $(lib-y)))
+lib-y:=
+include init/Kbuild
+lib-all-y += $(patsubst %,init/%,$(sort $(lib-y)))
+lib-y:=
+include libpwdgrp/Kbuild
+lib-all-y += $(patsubst %,libpwdgrp/%,$(sort $(lib-y)))
+lib-y:=
+include editors/Kbuild
+lib-all-y += $(patsubst %,editors/%,$(sort $(lib-y)))
+lib-y:=
+include printutils/Kbuild
+lib-all-y += $(patsubst %,printutils/%,$(sort $(lib-y)))
+lib-y:=
+include selinux/Kbuild
+lib-all-y += $(patsubst %,selinux/%,$(sort $(lib-y)))
+lib-y:=
+include scripts/Kbuild
+lib-all-y += $(patsubst %,scripts/%,$(sort $(lib-y)))
+lib-y:=
+include libbb/Kbuild
+lib-all-y += $(patsubst %,libbb/%,$(sort $(lib-y)))
+lib-y:=
+
+comma:=,
+busybox_unstripped.o: $(usage_stuff) include/applet_tables.h include/NUM_APPLETS.h include/autoconf.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(EXTRA_CFLAGS) \
+		$(patsubst %,-Wl$(comma)%,$(LDFLAGS) $(EXTRA_LDFLAGS)) \
+		-DGCC_COMBINE=1 \
+		--combine $(WHOLE_PROGRAM) \
+		-funit-at-a-time -Wno-error -std=gnu99  \
+		-c -o busybox_unstripped.o \
+		$(lib-all-y:.o=.c)
+
+busybox: busybox_unstripped.o
+	$(srctree)/scripts/trylink \
+		busybox_unstripped \
+		"$(CC) $(CFLAGS_busybox)" \
+		"$(CFLAGS)" \
+		"$(LDFLAGS)" \
+		"busybox_unstripped.o" \
+		"" \
+		"crypt m"
+	cp -f $(@)_unstripped $@
+	-$(STRIP) -s -R .note -R .comment -R .version $@
+
+# If .config is newer than include/autoconf.h, someone tinkered
+# with it and forgot to run make oldconfig.
+include/autoconf.h: .config
+	$(MAKE) -f $(srctree)/Makefile silentoldconfig
+
+# Override rules for host compile
+applets/usage: include/autoconf.h
+	$(HOSTCC) -Wall -O2 -I$(srctree)/include -o applets/usage applets/usage.c
+
+applets/applet_tables: include/autoconf.h
+	$(HOSTCC) -Wall -O2 -I$(srctree)/include -o applets/applet_tables applets/applet_tables.c

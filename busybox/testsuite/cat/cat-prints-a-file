@@ -1,0 +1,3 @@
+echo I WANT > foo
+busybox cat foo >bar
+cmp foo bar

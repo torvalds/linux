@@ -1,0 +1,2 @@
+echo Nothing: #should-not-be-echoed
+echo String: ""#should-be-echoed

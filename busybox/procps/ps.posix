@@ -1,0 +1,175 @@
+This is what POSIX 2003 says about ps:
+
+By default, ps shall select  all processes with the same effective user
+ID as the current user and the same controlling terminal as the invoker
+
+ps [-aA][-defl][-G grouplist][-o format]...[-p proclist][-t termlist]
+[-U userlist][-g grouplist][-n namelist][-u userlist]
+
+-a     Write information for all processes associated  with  terminals.
+       Implementations may omit session leaders from this list.
+
+-A     Write information for all processes.
+
+-d     Write information for all processes, except session leaders.
+
+-e     Write information for all processes.  (Equivalent to -A.)
+
+-f     Generate  a  full  listing. (See the STDOUT section for the con-
+       tents of a full listing.)
+
+-g  grouplist
+       Write information for processes whose session leaders are  given
+       in grouplist. The application shall ensure that the grouplist is
+       a single argument in the form of a  <blank>  or  comma-separated
+       list.
+
+-G  grouplist
+       Write  information for processes whose real group ID numbers are
+       given in grouplist. The application shall ensure that the  grou-
+       plist  is  a  single argument in the form of a <blank> or comma-
+       separated list.
+
+-l     Generate a long listing. (See STDOUT for the contents of a  long
+       listing.)
+
+-n  namelist
+       Specify the name of an alternative system namelist file in place
+       of the default. The name of the default file and the format of a
+       namelist file are unspecified.
+
+-o  format
+       Write information according to the format specification given in
+       format.  Multiple -o options can be specified; the format speci-
+       fication shall be interpreted as the  <space>-separated concate-
+       nation of all the format option-arguments.
+
+-p  proclist
+       Write  information  for  processes  whose process ID numbers are
+       given in proclist. The application shall ensure  that  the  pro-
+       clist  is  a  single argument in the form of a <blank> or comma-
+       separated list.
+
+-t  termlist
+       Write information for processes associated with terminals  given
+       in termlist. The application shall ensure that the termlist is a
+       single argument in the form  of  a  <blank>  or  comma-separated
+       list.  Terminal identifiers shall be given in an implementation-
+       defined format.    On  XSI-conformant  systems,  they  shall  be
+       given  in  one of two forms: the device's filename (for example,
+       tty04) or, if the device's filename starts with  tty,  just  the
+       identifier following the characters tty (for example, "04" ).
+
+-u  userlist
+       Write  information  for processes whose user ID numbers or login
+       names are given in userlist. The application shall  ensure  that
+       the  userlist  is  a single argument in the form of a <blank> or
+       comma-separated list. In the  listing,  the  numerical  user  ID
+       shall be written unless the -f option is used, in which case the
+       login name shall be written.
+
+-U  userlist
+       Write information for processes whose real user  ID  numbers  or
+       login  names are given in userlist. The application shall ensure
+       that the userlist is a single argument in the form of a  <blank>
+       or comma-separated list.
+
+With  the  exception of -o format, all of the options shown are used to
+select processes. If any are  specified,  the  default  list  shall  be
+ignored  and ps shall select the processes represented by the inclusive
+OR of all the selection-criteria options.
+
+The  -o option allows the output format to be specified under user con-
+trol.
+
+The application shall ensure that the format specification is a list of
+names  presented as a single argument, <blank> or comma-separated. Each
+variable has a default header. The default header can be overridden  by
+appending  an  equals  sign and the new text of the header. The rest of
+the characters in the argument shall be used as the  header  text.  The
+fields specified shall be written in the order specified on the command
+line, and should be arranged in columns in the output. The field widths
+shall  be  selected  by the system to be at least as wide as the header
+text (default or overridden value). If the header text is null, such as
+-o  user=,  the  field  width  shall be at least as wide as the default
+header text. If all header text fields are null, no header  line  shall
+be written.
+
+ruser  The  real user ID of the process. This shall be the textual user
+       ID, if it can be obtained and the field width permits, or a dec-
+       imal representation otherwise.
+
+user   The  effective user ID of the process. This shall be the textual
+       user ID, if it can be obtained and the field width permits, or a
+       decimal representation otherwise.
+
+rgroup The  real  group  ID  of  the process. This shall be the textual
+       group ID, if it can be obtained and the field width permits,  or
+       a decimal representation otherwise.
+
+group  The effective group ID of the process. This shall be the textual
+       group ID, if it can be obtained and the field width permits,  or
+       a decimal representation otherwise.
+
+pid    The decimal value of the process ID.
+
+ppid   The decimal value of the parent process ID.
+
+pgid   The decimal value of the process group ID.
+
+pcpu   The ratio of CPU time used recently to CPU time available in the
+       same  period,  expressed  as  a  percentage.  The   meaning   of
+       "recently"  in  this context is unspecified. The CPU time avail-
+       able is determined in an unspecified manner.
+
+vsz    The size of the process in (virtual) memory in 1024  byte  units
+       as a decimal integer.
+
+nice   The decimal value of the nice value of the process; see nice() .
+
+etime  In the POSIX locale, the elapsed  time  since  the  process  was
+       started, in the form: [[dd-]hh:]mm:ss
+
+time   In the POSIX locale, the cumulative CPU time of the  process  in
+       the form: [dd-]hh:mm:ss
+
+tty    The name of the controlling terminal of the process (if any)  in
+       the same format used by the who utility.
+
+comm   The  name  of  the  command being executed ( argv[0] value) as a
+       string.
+
+args   The command with all its arguments as a string. The  implementa-
+       tion may truncate this value to the field width; it is implemen-
+       tation-defined whether any  further  truncation  occurs.  It  is
+       unspecified  whether  the string represented is a version of the
+       argument list as it was passed to the command when  it  started,
+       or  is a version of the arguments as they may have been modified
+       by the application. Applications cannot depend on being able  to
+       modify  their  argument  list  and  having  that modification be
+       reflected in the output of ps.
+
+Any field need not be meaningful in all implementations. In such a case
+a hyphen ( '-' ) should be output in place of the field value.
+
+Only  comm  and  args  shall be allowed to contain <blank>s; all others
+shall not.
+
+The following table specifies the default header  to  be  used  in  the
+POSIX locale corresponding to each format specifier.
+
+    Format Specifier Default Header Format Specifier Default Header
+    args             COMMAND        ppid             PPID
+    comm             COMMAND        rgroup           RGROUP
+    etime            ELAPSED        ruser            RUSER
+    group            GROUP          time             TIME
+    nice             NI             tty              TT
+    pcpu             %CPU           user             USER
+    pgid             PGID           vsz              VSZ
+    pid              PID
+
+There  is no special quoting mechanism for header text. The header text
+is the rest of the argument. If multiple  header  changes  are  needed,
+multiple -o options can be used, such as:
+
+        ps -o "user=User Name" -o pid=Process\ ID

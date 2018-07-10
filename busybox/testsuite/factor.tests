@@ -1,0 +1,48 @@
+#!/bin/sh
+
+# Copyright 2017 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+testing "factor '  0'" \
+	"factor '  0'" \
+	"0:\n" \
+	"" ""
+testing "factor +1" \
+	"factor +1" \
+	"1:\n" \
+	"" ""
+testing "factor ' +2'" \
+	"factor ' +2'" \
+	"2: 2\n" \
+	"" ""
+
+testing "factor 1024" \
+	"factor 1024" \
+	"1024: 2 2 2 2 2 2 2 2 2 2\n" \
+	"" ""
+
+testing "factor 2^61-1" \
+	"factor 2305843009213693951" \
+	"2305843009213693951: 2305843009213693951\n" \
+	"" ""
+testing "factor 2^62-1" \
+	"factor 4611686018427387903" \
+	"4611686018427387903: 3 715827883 2147483647\n" \
+	"" ""
+testing "factor 2^64-1" \
+	"factor 18446744073709551615" \
+	"18446744073709551615: 3 5 17 257 641 65537 6700417\n" \
+	"" ""
+# This is a 60-bit number (0x888 86ff db34 4692): first few primes multiplied together:
+testing "factor \$((2*3*5*7*11*13*17*19*23*29*31*37*41*43*47))" \
+	"factor \$((2*3*5*7*11*13*17*19*23*29*31*37*41*43*47))" \
+	"614889782588491410: 2 3 5 7 11 13 17 19 23 29 31 37 41 43 47\n" \
+	"" ""
+
+exit $FAILCOUNT

@@ -1,0 +1,151 @@
+Format: 'expected actual'
+163 163
+4 4
+16 16
+8 8
+2 2
+4 4
+2 2
+2 2
+1 1
+0 0
+0 0
+0 0
+1 1
+1 1
+2 2
+-3 -3
+-2 -2
+1 1
+0 0
+2 2
+131072 131072
+29 29
+33 33
+49 49
+1 1
+1 1
+0 0
+0 0
+1 1
+1 1
+1 1
+2 2
+3 3
+1 1
+58 58
+2 2
+60 60
+1 1
+256 256
+16 16
+62 62
+4 4
+29 29
+5 5
+unary plus, minus
+-4 -4
+4 4
+conditional expressions
+1 1
+32 32
+32 32
+1 1
+1 1
+32 32
+check that parentheses in `cmd` are interpreted correctly
+3 3
+check that the unevaluated part of the ternary operator does not do evaluation or assignment
+20 20
+30 30
+20 20
+30 30
+check precedence of assignment vs. conditional operator
+hush: arithmetic syntax error
+check precedence of assignment vs. conditional operator
+associativity of assignment-operator operator
+6 6
+6,5,3 6,5,3
+octal, hex
+263 263
+255 255
+40 40
+hush: arithmetic syntax error
+hush: divide by zero
+hush: can't execute 'let': No such file or directory
+hush: arithmetic syntax error
+hush: can't execute 'let': No such file or directory
+abc
+def
+ghi
+hush: arithmetic syntax error
+16 16
+hush: arithmetic syntax error
+hush: malformed ?: operator
+hush: arithmetic syntax error
+9 9
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+9 9
+9 9
+9 9
+7 7
+7
+4 4
+32767 32767
+32768 32768
+131072 131072
+2147483647 2147483647
+1 1
+4 4
+4 4
+5 5
+5 5
+4 4
+3 3
+3 3
+4 4
+4 4
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+4 4
+7 7
+-7 -7
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+6 6
+3 3
+7 7
+4 4
+0 0
+3 3
+7 7
+2 2
+-2 -2
+1 1
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+5 5
+1 1
+6 6
+2 2
+3 3
+1 1
+4 4
+0 0
+hush: arithmetic syntax error
+hush: arithmetic syntax error
+8 12
+hush: arithmetic syntax error
+42
+42
+42
+hush: can't execute 'a[b[c]d]=e': No such file or directory

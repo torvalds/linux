@@ -1,0 +1,10 @@
+# FEATURE: CONFIG_FEATURE_TAR_FROM
+# FEATURE: CONFIG_FEATURE_TAR_CREATE
+touch foo
+touch bar
+tar cf foo.tar foo bar
+echo foo > foo.exclude
+echo bar > bar.exclude
+rm foo bar
+busybox tar xf foo.tar -X foo.exclude -X bar.exclude
+test ! -f foo -a ! -f bar

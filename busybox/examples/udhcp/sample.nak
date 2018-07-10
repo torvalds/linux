@@ -1,0 +1,4 @@
+#!/bin/sh
+# Sample udhcpc nak script
+
+echo Received a NAK: $message

@@ -1,0 +1,6 @@
+while true; do
+    echo A
+    while true; do echo AA; break 2; echo BB; done
+    echo B
+done
+echo OK:$?

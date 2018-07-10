@@ -1,0 +1,2 @@
+./redir_exec1.tests: line 1: can't create /cant/be/created: nonexistent directory
+First

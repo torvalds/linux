@@ -1,0 +1,4 @@
+while true; do echo A; { echo B; break; echo C; }; echo D; done
+echo $?
+for v in a b c; do echo A:$v; (echo B; break; echo C); echo D; done
+echo $?

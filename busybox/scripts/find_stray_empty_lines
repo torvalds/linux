@@ -1,0 +1,19 @@
+#!/bin/sh
+
+grep -n -B1 -r $'^\t*}$' . | grep -A1 '.[ch]-[0-9]*-$'
+grep -n -A1 -r $'^\t*{$' . | grep -B1 '.[ch]-[0-9]*-$'
+# or (less surefire ones):
+grep -n -B1 -r $'^\t*}' . | grep -A1 '.[ch]-[0-9]*-$'
+grep -n -A1 -r $'^\t*{' . | grep -B1 '.[ch]-[0-9]*-$'
+
+# find trailing empty lines
+find -type f | while read file; do
+        test x"$file" = x"" && continue
+        tail -n1 $file | while read lastline
+        do
+          #echo "|$file|$lastline"
+          if test x"$lastline" = x""; then
+                echo "$file"
+          fi
+        done
+done

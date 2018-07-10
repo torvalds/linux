@@ -1,0 +1,316 @@
+/*
+ * Copyright (c) 2017 Denys Vlasenko <vda.linux@googlemail.com>
+ *
+ * Licensed under GPLv2, see file LICENSE in this source tree.
+ */
+//config:config IPCONFIG
+//config:	bool "ipconfig"
+//config:	default y
+//config:	help
+//config:	(Auto)configure network.
+
+//applet:IF_IPCONFIG(APPLET(ipconfig, BB_DIR_BIN, BB_SUID_DROP))
+
+//kbuild:lib-$(CONFIG_IPCONFIG) += ipconfig.o
+
+#include <net/if.h>
+#include "libbb.h"
+
+struct globals {
+	int fixed;
+	const char *hostname;
+};
+#define G (*ptr_to_globals)
+#define INIT_G() do { \
+	SET_PTR_TO_GLOBALS(xzalloc(sizeof(G))); \
+} while (0)
+
+struct dev {
+	const char *name;
+	uint8_t  fixed;
+	uint32_t ip_addr;
+	uint32_t ip_netmask;
+	uint32_t ip_server;
+	uint32_t ip_router;
+};
+
+static int
+parse_method(const char *method)
+{
+	int fixed;
+
+	fixed = (method[0] != '\0');
+	if (fixed) {
+		/* if it's not "" */
+		fixed = index_in_strings(
+			/* 0 */ "on""\0"
+			/* 1 */ "any""\0"
+			/* 2 */ "both""\0"
+			/* 3 */ "dhcp""\0"
+			/* 4 */ "bootp""\0"
+			/* 5 */ "rarp""\0"
+			/* 6 */ "none""\0"
+			/* 7 */ "static""\0"
+			/* 8 */ "off""\0"
+			, method
+		);
+		if (fixed > 0)
+			fixed /= 6;
+	}
+	return fixed;
+}
+
+static uint32_t
+parse_addr(const char *ip)
+{
+	struct in_addr in;
+	if (inet_aton(ip, &in) == 0)
+		bb_error_msg_and_die("bad IP address '%s'", ip);
+	return in.s_addr;
+}
+
+static struct dev*
+find_device(llist_t *iface_list, const char *name)
+{
+	while (iface_list) {
+		struct dev *dev = (void*) iface_list->data;
+		if (strcmp(dev->name, name) == 0)
+			return dev;
+		iface_list = iface_list->link;
+	}
+	return NULL;
+}
+
+static void
+set_from_template(struct dev *dev, struct dev *template)
+{
+	if (template->ip_addr != 0)
+		dev->ip_addr = template->ip_addr;
+	if (template->ip_netmask != 0)
+		dev->ip_netmask = template->ip_netmask;
+	if (template->ip_server != 0)
+		dev->ip_server = template->ip_server;
+	if (template->ip_router != 0)
+		dev->ip_router = template->ip_router;
+	dev->fixed = template->fixed;
+}
+
+// "ip=PROTO" - also implies -o
+// "nfsaddrs=PROTO" - also implies -o
+// "<devname>"
+// "[ip=/nfsaddrs=]IP:SERVER_IP:ROUTER:NETMASK:HOSTNAME:IFACE:METHOD"
+// all optional. trailing empty :: can be skipped, only one : needs to be there
+// (to distinguish from other formats).
+// ":::::eth0" - dhcp on eth0
+// ":" - dhcp on all ifaces
+// "::1.2.3.4" - dhcp on all ifaces, gateway is 1.2.3.4 (fairly nonsensical)
+static void
+add_all_devices(llist_t **iface_list, struct dev *template);
+static struct dev*
+add_device(llist_t **iface_list, char *ip)
+{
+	struct dev *dev;
+
+	dev = xzalloc(sizeof(*dev));
+	dev->fixed = G.fixed;
+
+	if (strncmp("ip=", ip, 3) == 0
+	 || strncmp("nfsaddrs=", ip, 9) == 0
+	) {
+		int fixed;
+
+		ip = strchr(ip, '=') + 1;
+		fixed = parse_method(ip);
+		if (fixed >= 0) {
+			add_all_devices(iface_list, dev);
+			free(dev);
+			return NULL;
+		}
+	}
+
+	if (!strchr(ip, ':')) {
+		dev->name = ip;
+	} else {
+		unsigned opt = 0;
+		while (ip && *ip) {
+			char *next = strchr(ip, ':');
+			if (next)
+				*next++ = '\0';
+			if (opt > 6)
+				bb_error_msg_and_die("too many options for %s", dev->name);
+			if (ip[0]) switch (opt) {
+			case 0:
+				dev->ip_addr = parse_addr(ip);
+				break;
+			case 1:
+				dev->ip_server = parse_addr(ip);
+				break;
+			case 2:
+				dev->ip_router = parse_addr(ip);
+				break;
+			case 3:
+				dev->ip_netmask = parse_addr(ip);
+				break;
+			case 4:
+				if (G.hostname && strcmp(G.hostname, ip) != 0)
+					bb_error_msg_and_die("hostname must be the same");
+				G.hostname = ip;
+				break;
+			case 5:
+				dev->name = ip;
+				break;
+			case 6:
+				dev->fixed = parse_method(ip);
+				break;
+			}
+			ip = next;
+			opt++;
+		}
+	}
+
+	if (dev->name == NULL
+	 || strcmp(dev->name, "all") == 0
+	) {
+		add_all_devices(iface_list, dev);
+		free(dev);
+		return NULL;
+	}
+	llist_add_to_end(iface_list, dev);
+	return dev;
+}
+
+static void
+add_all_devices(llist_t **iface_list, struct dev *template)
+{
+	DIR *d;
+	struct dirent *de;
+#define sys_class_net "/sys/class/net"
+
+	/* All forms of "config all ifaces" imply -o */
+	option_mask32 |= 1;
+
+	d = opendir(sys_class_net);
+	if (!d)
+		return;
+
+	while ((de = readdir(d)) != NULL) {
+		struct dev *dev;
+		char *filename;
+		char p[sizeof(long)*3];
+		unsigned long flags;
+		int r;
+
+		/* Exclude devices beginning with dots as well as . and .. */
+		if (de->d_name[0] == '.')
+			continue;
+		filename = xasprintf("%s/%s/flags", sys_class_net, de->d_name);
+		r = open_read_close(filename, p, sizeof(p) - 1);
+		free(filename);
+		if (r < 0)
+			continue;
+		p[r] = '\0';
+		/* file's format is "0xNNNN\n" */
+		flags = bb_strtoul(p, NULL, 0);
+		/*
+		 * Heuristic for if this is a reasonable boot interface.
+		 * This is the same logic the in-kernel ipconfig uses.
+		 */
+		if (flags & IFF_LOOPBACK)
+			continue;
+		if (!(flags & (IFF_BROADCAST | IFF_POINTOPOINT)))
+			continue;
+		if (find_device(*iface_list, de->d_name))
+			continue;
+		dev = add_device(iface_list, xstrdup(de->d_name));
+		if (dev)
+			set_from_template(dev, template);
+	}
+	closedir(d);
+#undef sys_class_net
+}
+
+//usage:#define ipconfig_trivial_usage
+//usage:       "[-c METHOD] [-t TIMEOUT] [-on] [-i VENDOR_ID] [-p PORT] [-d] IFACE..."
+//usage:#define ipconfig_full_usage "\n\n"
+//usage:       "(Auto)configure network"
+//usage:   "\n"
+//usage:   "\n""	-c METHOD	off/none/static or on/dhcp (default)"
+//usage:   "\n""	-t SECONDS	Give up after SECONDS"
+//usage:   "\n""	-o		Stop after one interface is configured"
+//usage:   "\n""	-n		Dry run"
+//usage:   "\n""	-i VENDOR_ID	DHCP vendor id (default '')"
+//usage:   "\n""	-p PORT		DHCP port to use"
+//usage:   "\n""	[-d] IFACE...	Interface(s)"
+//usage:   "\n"
+//usage:   "\n""	IFACE can be:"
+//usage:   "\n""	all - configure all interfaces"
+//usage:   "\n""	IFACE - configure this interface"
+//usage:   "\n""	IP:SERVER_IP:ROUTER:NETMASK:HOSTNAME:IFACE:METHOD (all optional)"
+// TIMEOUT defaults to infinite
+// -d actually is an option with an argument
+// (not a clue why klibc-utils has two ways to specify interfaces)
+int ipconfig_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+int ipconfig_main(int argc UNUSED_PARAM, char **argv)
+{
+	const char *method = "";
+	const char *vendor_id = "";
+	llist_t *devname_list = NULL;
+	llist_t *iface_list;
+	int timeout = -1;
+	unsigned port;
+	unsigned opt;
+
+	INIT_G();
+
+	opt = getopt32(argv,
+		"onc:t:i:p:+d:*",
+		&method, &timeout, &vendor_id, &port, &devname_list
+	);
+	argv += optind;
+
+	G.fixed = parse_method(method);
+	if (G.fixed < 0)
+		bb_show_usage();
+
+	iface_list = NULL;
+	while (devname_list)
+		add_device(&iface_list, (char*) llist_pop(&devname_list));
+	while (*argv)
+		add_device(&iface_list, *argv++);
+
+	while (iface_list) {
+		struct dev *dev = (void*) iface_list->data;
+		printf("name:'%s'\n", dev->name);
+		printf("fixed:%u\n" , dev->fixed);
+		printf("ip:%s/"     , inet_ntoa(*(struct in_addr*)&dev->ip_addr));
+		printf("%s\n"       , inet_ntoa(*(struct in_addr*)&dev->ip_netmask));
+		printf("server:%s\n", inet_ntoa(*(struct in_addr*)&dev->ip_server));
+		printf("router:%s\n", inet_ntoa(*(struct in_addr*)&dev->ip_router));
+		iface_list = iface_list->link;
+	}
+	bb_error_msg("hostname:'%s'", G.hostname);
+	bb_error_msg("fixed:%u", G.fixed);
+
+	return EXIT_SUCCESS;
+}
+//After device is configured, write out a "/run/net-IFACE.conf" file:
+//                                                              // udchcp env values:
+//write_option("DEVICE",        dev->name);                     interface=eth0
+//write_option("PROTO",         method);
+//write_option("IPV4ADDR",      dev->ip_addr);                  ip=10.43.17.38
+//write_option("IPV4BROADCAST", dev->ip_broadcast);             subnet=255.255.255.0 mask=24
+//write_option("IPV4NETMASK",   dev->ip_netmask);               subnet=255.255.255.0 mask=24
+//write_option("IPV4GATEWAY",   dev->ip_gateway);               router=10.43.17.254
+//write_option("IPV4DNS0",      dev->ip_nameserver[0]);         dns=10.38.5.26 10.11.5.19
+//write_option("IPV4DNS1",      dev->ip_nameserver[1]);         dns=10.38.5.26 10.11.5.19
+//write_option("HOSTNAME",      dev->hostname);                   hostname="STR"
+//write_option("DNSDOMAIN",     dev->dnsdomainname);            domain=domain.com
+//write_option("NISDOMAIN",     dev->nisdomainname);              nisdomain="STR"
+//write_option("ROOTSERVER",    my_inet_ntoa(dev->ip_server));  serverid=10.44.6.2
+//write_option("ROOTPATH",      dev->bootpath);                   rootpath="STR"
+//write_option("filename",      dev->filename);                 boot_file=/pxelinux.0
+//write_option("UPTIME",        dev->uptime);                     sysinfo()->uptime
+//write_option("DHCPLEASETIME", dev->dhcpleasetime);            lease=44148
+//write_option("DOMAINSEARCH",  dev->domainsearch);             search="ABC DEF"
+//
+//(write_option writes out single-quote escaped string, VAR='VAL')

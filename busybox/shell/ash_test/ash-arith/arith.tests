@@ -1,0 +1,302 @@
+#ash# set +o posix
+#ash# declare -i iv jv
+
+echo "Format: 'expected actual'"
+
+iv=$(( 3 + 5 * 32 ))
+echo 163 $iv
+#ash# iv=iv+3
+#ash# echo 166 $iv
+iv=2
+jv=iv
+
+let "jv *= 2"
+echo 4 $jv
+jv=$(( $jv << 2 ))
+echo 16 $jv
+
+let jv="$jv / 2"
+echo 8 $jv
+#ash# jv="jv >> 2"
+      let jv="jv >> 2"
+echo 2 $jv
+
+iv=$((iv+ $jv))
+echo 4 $iv
+echo 2 $((iv -= jv))
+echo 2 $iv
+echo 1 $(( iv == jv ))
+echo 0 $(( iv != $jv ))
+echo 0 $(( iv < jv ))
+echo 0 $(( $iv > $jv ))
+echo 1 $(( iv <= $jv ))
+echo 1 $(( $iv >= jv ))
+
+echo 2 $jv
+echo -3 $(( ~$jv ))
+echo -2 $(( ~1 ))
+echo 1 $(( ! 0 ))
+
+echo 0 $(( jv % 2 ))
+echo 2 $(( $iv % 4 ))
+
+echo 131072 $(( iv <<= 16 ))
+echo 29 $(( iv %= 33 ))
+
+echo 33 $(( 33 & 55 ))
+echo 49 $(( 33 | 17 ))
+
+echo 1 $(( iv && $jv ))
+echo 1 $(( $iv || jv ))
+
+echo 0 $(( iv && 0 ))
+echo 0 $(( iv & 0 ))
+echo 1 $(( iv && 1 ))
+echo 1 $(( iv & 1 ))
+
+echo 1 $(( $jv || 0 ))
+echo 2 $(( jv | 0 ))
+echo 3 $(( jv | 1 ))
+echo 1 $(( $jv || 1 ))
+
+let 'iv *= jv'
+echo 58 $iv
+echo 2 $jv
+let "jv += $iv"
+echo 60 $jv
+
+echo 1 $(( jv /= iv ))
+echo 256 $(( jv <<= 8 ))
+echo 16 $(( jv >>= 4 ))
+
+echo 62 $(( iv |= 4 ))
+echo 4 $(( iv &= 4 ))
+
+echo 29 $(( iv += (jv + 9)))
+echo 5 $(( (iv + 4) % 7 ))
+
+# unary plus, minus
+echo -4 $(( +4 - 8 ))
+echo 4 $(( -4 + 8 ))
+
+# conditional expressions
+echo 1 $(( 4<5 ? 1 : 32))
+echo 32 $(( 4>5 ? 1 : 32))
+echo 32 $(( 4>(2+3) ? 1 : 32))
+echo 1 $(( 4<(2+3) ? 1 : 32))
+echo 1 $(( (2+2)<(2+3) ? 1 : 32))
+echo 32 $(( (2+2)>(2+3) ? 1 : 32))
+
+# check that the unevaluated part of the ternary operator does not do
+# evaluation or assignment
+x=i+=2
+y=j+=2
+#ash# declare -i i=1 j=1
+      i=1
+      j=1
+echo 20 $((1 ? 20 : (x+=2)))
+#ash# echo $i,$x             # ash mishandles this
+echo 30 $((0 ? (y+=2) : 30))
+#ash# echo $j,$y             # ash mishandles this
+
+x=i+=2
+y=j+=2
+#ash# declare -i i=1 j=1
+      i=1
+      j=1
+echo 20 $((1 ? 20 : (x+=2)))
+#ash# echo $i,$x             # ash mishandles this
+echo 30 $((0 ? (y+=2) : 30))
+#ash# echo $i,$y             # ash mishandles this
+
+# check precedence of assignment vs. conditional operator
+# should be an error
+#ash# declare -i x=2
+      x=2
+#ashnote# bash reports error but continues, ash aborts - using subshell to 'emulate' bash:
+(  y=$((1 ? 20 : x+=2))  )
+
+# check precedence of assignment vs. conditional operator
+#ash# declare -i x=2
+      x=2
+# ash says "line NNN: syntax error: 0 ? x+=2 : 20"
+#ash# echo 20 $((0 ? x+=2 : 20))
+
+# associativity of assignment-operator operator
+#ash# declare -i i=1 j=2 k=3
+i=1
+j=2
+k=3
+echo 6 $((i += j += k))
+echo 6,5,3 $i,$j,$k
+
+# octal, hex
+echo 263 $(( 0x100 | 007 ))
+echo 255 $(( 0xff ))
+#ash# echo 255 $(( 16#ff ))
+#ash# echo 127 $(( 16#FF/2 ))
+#ash# echo 36 $(( 8#44 ))
+
+echo 40 $(( 8 ^ 32 ))
+
+#ash# # other bases
+#ash# echo 10 $(( 16#a ))
+#ash# echo 10 $(( 32#a ))
+#ash# echo 10 $(( 56#a ))
+#ash# echo 10 $(( 64#a ))
+#ash#
+#ash# echo 10 $(( 16#A ))
+#ash# echo 10 $(( 32#A ))
+#ash# echo 36 $(( 56#A ))
+#ash# echo 36 $(( 64#A ))
+#ash#
+#ash# echo 62 $(( 64#@ ))
+#ash# echo 63 $(( 64#_ ))
+
+#ash# # weird bases (error)
+#ash# echo $(( 3425#56 ))
+
+#ash# # missing number after base
+#ash# echo 0 $(( 2# ))
+
+# these should generate errors
+(  echo $(( 7 = 43 ))      )
+#ash# echo $(( 2#44 ))
+(  echo $(( 44 / 0 ))      )
+(  let 'jv += $iv'         )
+(  echo $(( jv += \$iv ))  )
+(  let 'rv = 7 + (43 * 6'  )
+
+#ash# # more errors
+#ash# declare -i i
+#ash# i=0#4
+#ash# i=2#110#11
+
+((echo abc; echo def;); echo ghi)
+
+#ash# if (((4+4) + (4 + 7))); then
+#ash# 	echo ok
+#ash# fi
+
+#ash# (())	# make sure the null expression works OK
+
+#ash# a=(0 2 4 6)
+#ash# echo 6 $(( a[1] + a[2] ))
+#ash# echo 1 $(( (a[1] + a[2]) == a[3] ))
+#ash# (( (a[1] + a[2]) == a[3] )) ; echo 0 $?
+
+# test pushing and popping the expression stack
+unset A
+A="4 + "
+(  echo A $(( ( 4 + A ) + 4 ))  )
+A="3 + 5"
+echo 16 $(( ( 4 + A ) + 4 ))
+
+# badly-formed conditional expressions
+(  echo $(( 4 ? : $A ))  )
+(  echo $(( 1 ? 20 ))    )
+(  echo $(( 4 ? 20 : ))  )
+
+# precedence and short-circuit evaluation
+B=9
+echo 9 $B
+
+# error
+(  echo $(( 0 && B=42 )); echo 9 $B  )
+
+# error
+(  echo $(( 1 || B=88 )); echo 9 $B  )
+
+# ash mistakenly evaluates B=... below
+#ash# echo 0 $(( 0 && (B=42) ))
+echo 9 $B
+#ash# echo 0 $(( (${$} - $$) && (B=42) ))
+echo 9 $B
+#ash# echo 1 $(( 1 || (B=88) ))
+echo 9 $B
+
+
+# until command with (( )) command
+x=7
+
+echo 7 $x
+#ash# until (( x == 4 ))
+      until test "$x" = 4
+do
+	echo $x
+	x=4
+done
+
+echo 4 $x
+
+# exponentiation
+echo 32767 $(( 2**15 - 1))
+echo 32768 $(( 2**(16-1)))
+echo 131072 $(( 2**16*2 ))
+echo 2147483647 $(( 2**31-1))
+echo 1 $(( 2**0 ))
+
+# {pre,post}-{inc,dec}rement and associated errors
+
+x=4
+
+echo 4 $x
+echo 4 $(( x++ ))
+echo 5 $x
+echo 5 $(( x-- ))
+echo 4 $x
+
+echo 3 $(( --x ))
+echo 3 $x
+
+echo 4 $(( ++x ))
+echo 4 $x
+
+# bash 3.2 apparently thinks that ++7 is 7
+#ash# echo 7 $(( ++7 ))
+(  echo $(( 7-- ))    )
+
+(  echo $(( --x=7 ))  )
+(  echo $(( ++x=7 ))  )
+
+(  echo $(( x++=7 ))  )
+(  echo $(( x--=7 ))  )
+
+echo 4 $x
+
+echo 7 $(( +7 ))
+echo -7 $(( -7 ))
+
+# bash 3.2 apparently thinks that ++7 is 7
+#ash# echo $(( ++7 ))
+#ash# echo $(( --7 ))
+
+${THIS_SH} ./arith1.sub
+${THIS_SH} ./arith2.sub
+
+x=4
+y=7
+
+#ash# (( x=8 , y=12 ))
+      x=8
+      y=12
+echo $x $y
+
+#ash# # should be an error
+#ash# (( x=9 y=41 ))
+
+# These are errors
+unset b
+(  echo $((a b))  )
+#ash# ((a b))
+
+n=42
+printf "%d\n" $n
+printf "%i\n" $n
+#ash# echo $(( 8#$(printf "%o\n" $n) ))
+printf "%u\n" $n
+#ash# echo $(( 16#$(printf "%x\n" $n) ))
+#ash# echo $(( 16#$(printf "%X\n" $n) ))
+
+# causes longjmp botches through bash-2.05b
+a[b[c]d]=e

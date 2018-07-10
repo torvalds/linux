@@ -1,0 +1,40 @@
+# check invalid options are rejected
+# bash: in posix mode, aborts if non-interactive; using subshell to avoid that
+(unset -)
+echo $?
+(unset -m a b c)
+echo $?
+
+# check funky usage
+unset
+echo $?
+
+# check normal usage
+echo ___
+f=f g=g
+echo $? $f $g
+unset f
+echo $? $f $g
+unset g
+echo $? $f $g
+
+echo ___
+f=f g=g
+echo $? $f $g
+unset f g
+echo $? $f $g
+f=f g=g
+echo $? $f $g
+unset -v f g
+echo $? $f $g
+
+# check read only vars
+echo ___
+f=f g=g
+VAR_RO=1
+readonly VAR_RO
+(unset VAR_RO)
+echo $? $f $g
+# not testing "do variables survive error halfway through unset" since unset aborts
+# unset f VAR_RO g
+#echo $? $f $g

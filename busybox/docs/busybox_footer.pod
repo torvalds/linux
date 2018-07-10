@@ -1,0 +1,283 @@
+=head1 LIBC NSS
+
+GNU Libc (glibc) uses the Name Service Switch (NSS) to configure the behavior
+of the C library for the local environment, and to configure how it reads
+system data, such as passwords and group information.  This is implemented
+using an /etc/nsswitch.conf configuration file, and using one or more of the
+/lib/libnss_* libraries.  BusyBox tries to avoid using any libc calls that make
+use of NSS.  Some applets however, such as login and su, will use libc functions
+that require NSS.
+
+If you enable CONFIG_USE_BB_PWD_GRP, BusyBox will use internal functions to
+directly access the /etc/passwd, /etc/group, and /etc/shadow files without
+using NSS.  This may allow you to run your system without the need for
+installing any of the NSS configuration files and libraries.
+
+When used with glibc, the BusyBox 'networking' applets will similarly require
+that you install at least some of the glibc NSS stuff (in particular,
+/etc/nsswitch.conf, /lib/libnss_dns*, /lib/libnss_files*, and /lib/libresolv*).
+
+Shameless Plug: As an alternative, one could use a C library such as uClibc.  In
+addition to making your system significantly smaller, uClibc does not require the
+use of any NSS support files or libraries.
+
+=head1 MAINTAINER
+
+Denis Vlasenko <vda.linux@googlemail.com>
+
+=head1 AUTHORS
+
+The following people have contributed code to BusyBox whether they know it or
+not.  If you have written code included in BusyBox, you should probably be
+listed here so you can obtain your bit of eternal glory.  If you should be
+listed here, or the description of what you have done needs more detail, or is
+incorrect, please send in an update.
+
+
+=for html <br>
+
+Emanuele Aina <emanuele.aina@tiscali.it>
+    run-parts
+
+=for html <br>
+
+Erik Andersen <andersen@codepoet.org>
+
+    Tons of new stuff, major rewrite of most of the
+    core apps, tons of new apps as noted in header files.
+    Lots of tedious effort writing these boring docs that
+    nobody is going to actually read.
+
+=for html <br>
+
+Laurence Anderson <l.d.anderson@warwick.ac.uk>
+
+    rpm2cpio, unzip, get_header_cpio, read_gz interface, rpm
+
+=for html <br>
+
+Jeff Angielski <jeff@theptrgroup.com>
+
+    ftpput, ftpget
+
+=for html <br>
+
+Edward Betts <edward@debian.org>
+
+    expr, hostid, logname, whoami
+
+=for html <br>
+
+John Beppu <beppu@codepoet.org>
+
+    du, nslookup, sort
+
+=for html <br>
+
+Brian Candler <B.Candler@pobox.com>
+
+    tiny-ls(ls)
+
+=for html <br>
+
+Randolph Chung <tausq@debian.org>
+
+    fbset, ping, hostname
+
+=for html <br>
+
+Dave Cinege <dcinege@psychosis.com>
+
+    more(v2), makedevs, dutmp, modularization, auto links file,
+    various fixes, Linux Router Project maintenance
+
+=for html <br>
+
+Jordan Crouse <jordan@cosmicpenguin.net>
+
+    ipcalc
+
+=for html <br>
+
+Magnus Damm <damm@opensource.se>
+
+    tftp client insmod powerpc support
+
+=for html <br>
+
+Larry Doolittle <ldoolitt@recycle.lbl.gov>
+
+    pristine source directory compilation, lots of patches and fixes.
+
+=for html <br>
+
+Glenn Engel <glenne@engel.org>
+
+    httpd
+
+=for html <br>
+
+Gennady Feldman <gfeldman@gena01.com>
+
+    Sysklogd (single threaded syslogd, IPC Circular buffer support,
+    logread), various fixes.
+
+=for html <br>
+
+Karl M. Hegbloom <karlheg@debian.org>
+
+    cp_mv.c, the test suite, various fixes to utility.c, &c.
+
+=for html <br>
+
+Daniel Jacobowitz <dan@debian.org>
+
+    mktemp.c
+
+=for html <br>
+
+Matt Kraai <kraai@alumni.cmu.edu>
+
+    documentation, bugfixes, test suite
+
+=for html <br>
+
+Stephan Linz <linz@li-pro.net>
+
+    ipcalc, Red Hat equivalence
+
+=for html <br>
+
+John Lombardo <john@deltanet.com>
+
+    tr
+
+=for html <br>
+
+Glenn McGrath <bug1@iinet.net.au>
+
+    Common unarchiving code and unarchiving applets, ifupdown, ftpgetput,
+    nameif, sed, patch, fold, install, uudecode.
+    Various bugfixes, review and apply numerous patches.
+
+=for html <br>
+
+Manuel Novoa III <mjn3@codepoet.org>
+
+    cat, head, mkfifo, mknod, rmdir, sleep, tee, tty, uniq, usleep, wc, yes,
+    mesg, vconfig, make_directory, parse_mode, dirname, mode_string,
+    get_last_path_component, simplify_path, and a number trivial libbb routines
+
+    also bug fixes, partial rewrites, and size optimizations in
+    ash, basename, cal, cmp, cp, df, du, echo, env, ln, logname, md5sum, mkdir,
+    mv, realpath, rm, sort, tail, touch, uname, watch, arith, human_readable,
+    interface, dutmp, ifconfig, route
+
+=for html <br>
+
+Vladimir Oleynik <dzo@simtreas.ru>
+
+    cmdedit; xargs(current), httpd(current);
+    ports: ash, crond, fdisk, inetd, stty, traceroute, top;
+    locale, various fixes
+    and irreconcilable critic of everything not perfect.
+
+=for html <br>
+
+Bruce Perens <bruce@pixar.com>
+
+    Original author of BusyBox in 1995, 1996. Some of his code can
+    still be found hiding here and there...
+
+=for html <br>
+
+Tim Riker <Tim@Rikers.org>
+
+    bug fixes, member of fan club
+
+=for html <br>
+
+Kent Robotti <robotti@metconnect.com>
+
+    reset, tons and tons of bug reports and patches.
+
+=for html <br>
+
+Chip Rosenthal <chip@unicom.com>, <crosenth@covad.com>
+
+    wget - Contributed by permission of Covad Communications
+
+=for html <br>
+
+Pavel Roskin <proski@gnu.org>
+
+    Lots of bugs fixes and patches.
+
+=for html <br>
+
+Gyepi Sam <gyepi@praxis-sw.com>
+
+    Remote logging feature for syslogd
+
+=for html <br>
+
+Linus Torvalds <torvalds@transmeta.com>
+
+    mkswap, fsck.minix, mkfs.minix
+
+=for html <br>
+
+Mark Whitley <markw@codepoet.org>
+
+    grep, sed, cut, xargs(previous),
+    style-guide, new-applet-HOWTO, bug fixes, etc.
+
+=for html <br>
+
+Charles P. Wright <cpwright@villagenet.com>
+
+    gzip, mini-netcat(nc)
+
+=for html <br>
+
+Enrique Zanardi <ezanardi@ull.es>
+
+    tarcat (since removed), loadkmap, various fixes, Debian maintenance
+
+=for html <br>
+
+Tito Ragusa <farmatito@tiscali.it>
+
+    devfsd and size optimizations in strings, openvt and deallocvt.
+
+=for html <br>
+
+Paul Fox <pgf@foxharp.boston.ma.us>
+
+    vi editing mode for ash, various other patches/fixes
+
+=for html <br>
+
+Roberto A. Foglietta <me@roberto.foglietta.name>
+
+    port: dnsd
+
+=for html <br>
+
+Bernhard Reutner-Fischer <rep.dot.nop@gmail.com>
+
+    misc
+
+=for html <br>
+
+Mike Frysinger <vapier@gentoo.org>
+
+    initial e2fsprogs, printenv, setarch, sum, misc
+
+=for html <br>
+
+Jie Zhang <jie.zhang@analog.com>
+
+    fixed two bugs in msh and hush (exitcode of killed processes)
+
+=cut

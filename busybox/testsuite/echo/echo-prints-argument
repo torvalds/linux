@@ -1,0 +1,1 @@
+test xfubar = x`busybox echo fubar`

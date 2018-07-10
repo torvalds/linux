@@ -1,0 +1,140 @@
+#!/bin/sh
+
+# Copyright 2008 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+COLLAPSE=$((    0x00010000))
+TRIM=$((        0x00020000))
+GREEDY=$((      0x00040000))
+MIN_DIE=$((     0x00100000))
+KEEP_COPY=$((   0x00200000))
+EOL_COMMENTS=$((0x00400000))
+NORMAL=$((   COLLAPSE | TRIM | GREEDY | EOL_COMMENTS))
+
+# testing "description" "command" "result" "infile" "stdin"
+
+testing "parse mdev.conf" \
+	"parse -n 4 -m 3 -f $((NORMAL)) -" \
+	"[sda][0:0][644][@echo @echo TEST]\n" \
+	"-" \
+	" sda 0:0 644 @echo @echo TEST # echo trap\n"
+
+testing "parse notrim" \
+	"parse -n 4 -m 3 -f $((NORMAL - TRIM - COLLAPSE)) -" \
+	"[][sda][0:0][644 @echo @echo TEST ]\n" \
+	"-" \
+	" sda 0:0 644 @echo @echo TEST \n"
+
+testing "parse comments" \
+	"parse -n 4 -m 3 -f $((NORMAL - EOL_COMMENTS)) -" \
+	"[sda][0:0][644][@echo @echo TEST #this is not eaten]\n" \
+	"-" \
+	"\
+# sda 0:0 644 @echo @echo TEST - this gets eaten
+ sda 0:0 644 @echo @echo TEST #this is not eaten
+"
+
+testing "parse bad comment" \
+	"parse -n 2 -m 2 -d '#=' -f $((GREEDY)) - 2>&1" \
+	"\
+[var][val]
+parse: bad line 3: 1 tokens found, 2 needed
+[  #this][ok]
+[  #this][=ok]
+[  #this][=ok=ok=ok=]
+" \
+	"-" \
+	"\
+# this gets eaten
+var=val
+  #this causes error msg
+  #this=ok
+  #this==ok
+  #this==ok=ok=ok=
+"
+
+FILE=__parse
+cat >$FILE <<EOF
+#
+# Device         Point               System                       Options
+#_______________________________________________________________
+/dev/hdb3       /                       ext2                 defaults      1          0
+   /dev/hdb1       /dosc               hpfs                 ro      1          0
+ /dev/fd0          /dosa              vfat                  rw,user,noauto,nohide	 0		0
+	/dev/fd1          /dosb              vfat                  rw,user,noauto,nohide	 0		0
+#
+ /dev/cdrom     /cdrom            iso9660          ro,user,noauto,nohide	 0		0
+/dev/hdb5       /redhat            ext2                 rw,root,noauto,nohide	 0		0 #sssd
+	/dev/hdb6       /win2home     ntfs                  rw,root,noauto,nohide	 0		0# ssdsd
+/dev/hdb7       /win2skul        ntfs                  rw,root,noauto,nohide none	 0		0
+none     /dev/pts           devpts             gid=5,mode=620                 0    0 
+     none                /proc               proc                defaults     0          0
+EOF
+
+cat >$FILE.res <<EOF
+[/dev/hdb3][/][ext2][defaults][1][0]
+[/dev/hdb1][/dosc][hpfs][ro][1][0]
+[/dev/fd0][/dosa][vfat][rw,user,noauto,nohide][0][0]
+[/dev/fd1][/dosb][vfat][rw,user,noauto,nohide][0][0]
+[/dev/cdrom][/cdrom][iso9660][ro,user,noauto,nohide][0][0]
+[/dev/hdb5][/redhat][ext2][rw,root,noauto,nohide][0][0]
+[/dev/hdb6][/win2home][ntfs][rw,root,noauto,nohide][0][0]
+[/dev/hdb7][/win2skul][ntfs][rw,root,noauto,nohide][none][0		0]
+[none][/dev/pts][devpts][gid=5,mode=620][0][0]
+[none][/proc][proc][defaults][0][0]
+EOF
+
+testing "parse polluted fstab" \
+	"parse -n 6 -m 6 $FILE" \
+	"`cat $FILE.res`\n" \
+	"" \
+	""
+cp ../examples/inittab $FILE
+cat >$FILE.res <<EOF
+[][][sysinit][/etc/init.d/rcS]
+[][][askfirst][-/bin/sh]
+[tty2][][askfirst][-/bin/sh]
+[tty3][][askfirst][-/bin/sh]
+[tty4][][askfirst][-/bin/sh]
+[tty4][][respawn][/sbin/getty 38400 tty5]
+[tty5][][respawn][/sbin/getty 38400 tty6]
+[][][restart][/sbin/init]
+[][][ctrlaltdel][/sbin/reboot]
+[][][shutdown][/bin/umount -a -r]
+[][][shutdown][/sbin/swapoff -a]
+EOF
+
+testing "parse inittab from examples" \
+	"parse -n 4 -m 4 -f $((NORMAL - TRIM - COLLAPSE)) -d'#:' $FILE" \
+	"`cat $FILE.res`\n" \
+	"" \
+	""
+
+cp ../examples/udhcp/udhcpd.conf $FILE
+cat >$FILE.res <<EOF
+[start][192.168.0.20]
+[end][192.168.0.254]
+[interface][eth0]
+[opt][dns][192.168.10.2][192.168.10.10]
+[option][subnet][255.255.255.0]
+[opt][router][192.168.10.2]
+[opt][wins][192.168.10.10]
+[option][dns][129.219.13.81]
+[option][domain][local]
+[option][lease][864000]
+[option][msstaticroutes][10.0.0.0/8][10.127.0.1]
+[option][staticroutes][10.0.0.0/8][10.127.0.1,][10.11.12.0/24][10.11.12.1]
+[option][0x08][01020304]
+EOF
+
+testing "parse udhcpd.conf from examples" \
+	"parse -n 127 $FILE" \
+	"`cat $FILE.res`\n" \
+	"" \
+	""
+
+rm -f $FILE $FILE.res
+
+exit $FAILCOUNT

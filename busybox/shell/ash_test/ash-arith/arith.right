@@ -1,0 +1,142 @@
+Format: 'expected actual'
+163 163
+4 4
+16 16
+8 8
+2 2
+4 4
+2 2
+2 2
+1 1
+0 0
+0 0
+0 0
+1 1
+1 1
+2 2
+-3 -3
+-2 -2
+1 1
+0 0
+2 2
+131072 131072
+29 29
+33 33
+49 49
+1 1
+1 1
+0 0
+0 0
+1 1
+1 1
+1 1
+2 2
+3 3
+1 1
+58 58
+2 2
+60 60
+1 1
+256 256
+16 16
+62 62
+4 4
+29 29
+5 5
+-4 -4
+4 4
+1 1
+32 32
+32 32
+1 1
+1 1
+32 32
+20 20
+30 30
+20 20
+30 30
+./arith.tests: line 117: arithmetic syntax error
+6 6
+6,5,3 6,5,3
+263 263
+255 255
+40 40
+./arith.tests: line 163: arithmetic syntax error
+./arith.tests: line 165: divide by zero
+./arith.tests: let: line 166: arithmetic syntax error
+./arith.tests: line 167: arithmetic syntax error
+./arith.tests: let: line 168: arithmetic syntax error
+abc
+def
+ghi
+./arith.tests: line 191: arithmetic syntax error
+16 16
+./arith.tests: line 196: arithmetic syntax error
+./arith.tests: line 197: malformed ?: operator
+./arith.tests: line 198: arithmetic syntax error
+9 9
+./arith.tests: line 205: arithmetic syntax error
+./arith.tests: line 208: arithmetic syntax error
+9 9
+9 9
+9 9
+7 7
+7
+4 4
+32767 32767
+32768 32768
+131072 131072
+2147483647 2147483647
+1 1
+4 4
+4 4
+5 5
+5 5
+4 4
+3 3
+3 3
+4 4
+4 4
+./arith.tests: line 257: arithmetic syntax error
+./arith.tests: line 259: arithmetic syntax error
+./arith.tests: line 260: arithmetic syntax error
+./arith.tests: line 262: arithmetic syntax error
+./arith.tests: line 263: arithmetic syntax error
+4 4
+7 7
+-7 -7
+./arith1.sub: line 2: arithmetic syntax error
+./arith1.sub: line 3: arithmetic syntax error
+./arith1.sub: line 4: arithmetic syntax error
+./arith1.sub: line 5: arithmetic syntax error
+6 6
+3 3
+7 7
+4 4
+0 0
+3 3
+7 7
+2 2
+-2 -2
+1 1
+./arith1.sub: line 37: arithmetic syntax error
+./arith2.sub: line 2: arithmetic syntax error
+./arith2.sub: line 3: arithmetic syntax error
+./arith2.sub: line 4: arithmetic syntax error
+./arith2.sub: line 5: arithmetic syntax error
+5 5
+1 1
+6 6
+2 2
+3 3
+1 1
+4 4
+0 0
+./arith2.sub: line 42: arithmetic syntax error
+./arith2.sub: line 47: arithmetic syntax error
+8 12
+./arith.tests: line 290: arithmetic syntax error
+42
+42
+42
+./arith.tests: line 302: a[b[c]d]=e: not found

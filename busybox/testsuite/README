@@ -1,0 +1,52 @@
+To run the test suite, change to this directory and run "./runtest".  It will
+run all of the test cases, and list those with unexpected outcomes.  Adding the
+-v option will cause it to show expected outcomes as well.  To only run the test
+cases for particular applets:
+
+./runtest <applet1> <applet2>...
+
+Set SKIP_KNOWN_BUGS environment variable to any non-empty value
+to exclude tests which are known to fail.
+
+Set SKIP_INTERNET_TESTS to exclude tests which require working
+internet connection.
+
+
+Common causes of false positives:
+
+For busybox built against uclibc, /etc/TZ does not exist or does not match
+host system timezone setting. For glibc based host systems, timezone settings
+are in /etc/localtime.
+
+LANG and LC_xxx environment variables set to non-C locale.
+
+
+Developer's notes:
+
+The test cases for an applet reside in the subdirectory of the applet name.
+The name of the test case should be the assertion that is tested.
+The test case should be a shell fragment that returns successfully
+if the test case passes, and unsuccessfully otherwise.
+
+If the test case relies on a certain feature, it should include the string
+"FEATURE: " followed by the name of the feature in a comment.  If it is always
+expected to fail, it should include the string "XFAIL" in a comment.
+
+
+For the entire testsuite, the copyright is as follows:
+
+Copyright (C) 2001, 2002  Matt Kraai
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.

@@ -1,0 +1,5 @@
+echo Not shown | if true; then echo $(echo Ok); fi
+echo Not shown | if true; then echo `echo Ok`; fi
+echo Not shown | ( if true; then echo $(echo Ok); fi )
+echo Not shown | ( if true; then echo `echo Ok`; fi )
+echo Done

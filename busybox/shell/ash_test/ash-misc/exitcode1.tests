@@ -1,0 +1,2 @@
+false || case a in a) echo One:$?;; esac
+echo Zero:$?

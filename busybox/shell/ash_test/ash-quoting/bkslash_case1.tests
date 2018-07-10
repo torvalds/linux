@@ -1,0 +1,38 @@
+# Case argument is globbed, match patterns are not.
+# This caught some bugs in the past.
+
+case z in
+\z  ) echo ok1 ;;
+*   ) echo BUG ;;
+esac
+case \z in
+z   ) echo ok2 ;;
+*   ) echo BUG ;;
+esac
+case \z in
+\z  ) echo ok3 ;;
+*   ) echo BUG ;;
+esac
+case z in
+\z  ) echo ok4 ;;
+*   ) echo BUG ;;
+esac
+case \\z in
+\\z ) echo ok5 ;;
+*   ) echo BUG ;;
+esac
+echo Ok:$?
+
+case "\z" in
+"\z"  ) echo ok6 ;;
+*     ) echo BUG ;;
+esac
+case "\\z" in
+"\\z" ) echo ok7 ;;
+*     ) echo BUG ;;
+esac
+case "\\\z" in
+"\\\z") echo ok8 ;;
+*     ) echo BUG ;;
+esac
+echo Ok:$?

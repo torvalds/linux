@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Copyright 2008 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "command" "result" "infile" "stdin"
+
+testing "comm test 1" "comm input -"              "\t123\n""456\n""abc\n""\tdef\n" "456\nabc\n" "123\ndef\n"
+testing "comm test 2" "comm - input"              "123\n""\t456\n""\tabc\n""def\n" "456\nabc\n" "123\ndef\n"
+testing "comm test 3" "comm input -"              "abc\n""\tdef\n""xyz\n"          "abc\nxyz\n" "def\n"
+testing "comm test 4" "comm - input"              "\tabc\n""def\n""\txyz\n"        "abc\nxyz\n" "def\n"
+testing "comm test 5" "comm input -"              "123\n""abc\n""\tdef\n"          "123\nabc\n" "def\n"
+testing "comm test 6" "comm - input"              "\t123\n""\tabc\n""def\n"        "123\nabc\n" "def\n"
+testing "comm unterminated line 1" "comm input -" "abc\n""\tdef\n"                 "abc"        "def"
+testing "comm unterminated line 2" "comm - input" "\tabc\n""def\n"                 "abc"        "def"
+
+exit $FAILCOUNT

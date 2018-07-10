@@ -1,0 +1,6 @@
+Null 0th arg:
+hush: can't execute '': No such file or directory
+127
+Null 1st arg:
+0
+Null arg in exec:

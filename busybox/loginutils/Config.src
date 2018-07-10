@@ -1,0 +1,96 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Login/Password Management Utilities"
+
+config FEATURE_SHADOWPASSWDS
+	bool "Support shadow passwords"
+	default y
+	help
+	Build support for shadow password in /etc/shadow. This file is only
+	readable by root and thus the encrypted passwords are no longer
+	publicly readable.
+
+config USE_BB_PWD_GRP
+	bool "Use internal password and group functions rather than system functions"
+	default y
+	help
+	If you leave this disabled, busybox will use the system's password
+	and group functions. And if you are using the GNU C library
+	(glibc), you will then need to install the /etc/nsswitch.conf
+	configuration file and the required /lib/libnss_* libraries in
+	order for the password and group functions to work. This generally
+	makes your embedded system quite a bit larger.
+
+	Enabling this option will cause busybox to directly access the
+	system's /etc/password, /etc/group files (and your system will be
+	smaller, and I will get fewer emails asking about how glibc NSS
+	works). When this option is enabled, you will not be able to use
+	PAM to access remote LDAP password servers and whatnot. And if you
+	want hostname resolution to work with glibc, you still need the
+	/lib/libnss_* libraries.
+
+	If you need to use glibc's nsswitch.conf mechanism
+	(e.g. if user/group database is NOT stored in /etc/passwd etc),
+	you must NOT use this option.
+
+	If you enable this option, it will add about 1.5k.
+
+config USE_BB_SHADOW
+	bool "Use internal shadow password functions"
+	default y
+	depends on USE_BB_PWD_GRP && FEATURE_SHADOWPASSWDS
+	help
+	If you leave this disabled, busybox will use the system's shadow
+	password handling functions. And if you are using the GNU C library
+	(glibc), you will then need to install the /etc/nsswitch.conf
+	configuration file and the required /lib/libnss_* libraries in
+	order for the shadow password functions to work. This generally
+	makes your embedded system quite a bit larger.
+
+	Enabling this option will cause busybox to directly access the
+	system's /etc/shadow file when handling shadow passwords. This
+	makes your system smaller (and I will get fewer emails asking about
+	how glibc NSS works). When this option is enabled, you will not be
+	able to use PAM to access shadow passwords from remote LDAP
+	password servers and whatnot.
+
+config USE_BB_CRYPT
+	bool "Use internal crypt functions"
+	default y
+	help
+	Busybox has internal DES and MD5 crypt functions.
+	They produce results which are identical to corresponding
+	standard C library functions.
+
+	If you leave this disabled, busybox will use the system's
+	crypt functions. Most C libraries use large (~70k)
+	static buffers there, and also combine them with more general
+	DES encryption/decryption.
+
+	For busybox, having large static buffers is undesirable,
+	especially on NOMMU machines. Busybox also doesn't need
+	DES encryption/decryption and can do with smaller code.
+
+	If you enable this option, it will add about 4.8k of code
+	if you are building dynamically linked executable.
+	In static build, it makes code _smaller_ by about 1.2k,
+	and likely many kilobytes less of bss.
+
+config USE_BB_CRYPT_SHA
+	bool "Enable SHA256/512 crypt functions"
+	default y
+	depends on USE_BB_CRYPT
+	help
+	Enable this if you have passwords starting with "$5$" or "$6$"
+	in your /etc/passwd or /etc/shadow files. These passwords
+	are hashed using SHA256 and SHA512 algorithms. Support for them
+	was added to glibc in 2008.
+	With this option off, login will fail password check for any
+	user which has password encrypted with these algorithms.
+
+INSERT
+
+endmenu

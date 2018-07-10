@@ -1,0 +1,166 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Shells"
+
+
+choice
+	prompt "Choose which shell is aliased to 'sh' name"
+	default SH_IS_ASH
+	help
+	Choose which shell you want to be executed by 'sh' alias.
+	The ash shell is the most bash compatible and full featured one.
+
+# note: cannot use "select ASH" here, it breaks "make allnoconfig"
+config SH_IS_ASH
+	depends on !NOMMU
+	bool "ash"
+	help
+	Choose ash to be the shell executed by 'sh' name.
+	The ash code will be built into busybox. If you don't select
+	"ash" choice (CONFIG_ASH), this shell may only be invoked by
+	the name 'sh' (and not 'ash').
+
+config SH_IS_HUSH
+	bool "hush"
+	help
+	Choose hush to be the shell executed by 'sh' name.
+	The hush code will be built into busybox. If you don't select
+	"hush" choice (CONFIG_HUSH), this shell may only be invoked by
+	the name 'sh' (and not 'hush').
+
+config SH_IS_NONE
+	bool "none"
+
+endchoice
+
+choice
+	prompt "Choose which shell is aliased to 'bash' name"
+	default BASH_IS_NONE
+	help
+	Choose which shell you want to be executed by 'bash' alias.
+	The ash shell is the most bash compatible and full featured one,
+	although compatibility is far from being complete.
+
+	Note that selecting this option does not switch on any bash
+	compatibility code. It merely makes it possible to install
+	/bin/bash (sym)link and run scripts which start with
+	#!/bin/bash line.
+
+	Many systems use it in scripts which use bash-specific features,
+	even simple ones like $RANDOM. Without this option, busybox
+	can't be used for running them because it won't recongnize
+	"bash" as a supported applet name.
+
+config BASH_IS_ASH
+	depends on !NOMMU
+	bool "ash"
+	help
+	Choose ash to be the shell executed by 'bash' name.
+	The ash code will be built into busybox. If you don't select
+	"ash" choice (CONFIG_ASH), this shell may only be invoked by
+	the name 'bash' (and not 'ash').
+
+config BASH_IS_HUSH
+	bool "hush"
+	help
+	Choose hush to be the shell executed by 'bash' name.
+	The hush code will be built into busybox. If you don't select
+	"hush" choice (CONFIG_HUSH), this shell may only be invoked by
+	the name 'bash' (and not 'hush').
+
+config BASH_IS_NONE
+	bool "none"
+
+endchoice
+
+
+INSERT
+
+
+comment "Options common to all shells"
+if ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+
+config FEATURE_SH_MATH
+	bool "POSIX math support"
+	default y
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	Enable math support in the shell via $((...)) syntax.
+
+config FEATURE_SH_MATH_64
+	bool "Extend POSIX math support to 64 bit"
+	default y
+	depends on FEATURE_SH_MATH
+	help
+	Enable 64-bit math support in the shell. This will make the shell
+	slightly larger, but will allow computation with very large numbers.
+	This is not in POSIX, so do not rely on this in portable code.
+
+config FEATURE_SH_EXTRA_QUIET
+	bool "Hide message on interactive shell startup"
+	default y
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	Remove the busybox introduction when starting a shell.
+
+config FEATURE_SH_STANDALONE
+	bool "Standalone shell"
+	default n
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	This option causes busybox shells to use busybox applets
+	in preference to executables in the PATH whenever possible. For
+	example, entering the command 'ifconfig' into the shell would cause
+	busybox to use the ifconfig busybox applet. Specifying the fully
+	qualified executable name, such as '/sbin/ifconfig' will still
+	execute the /sbin/ifconfig executable on the filesystem. This option
+	is generally used when creating a statically linked version of busybox
+	for use as a rescue shell, in the event that you screw up your system.
+
+	This is implemented by re-execing /proc/self/exe (typically)
+	with right parameters.
+
+	However, there are drawbacks: it is problematic in chroot jails
+	without mounted /proc, and ps/top may show command name as 'exe'
+	for applets started this way.
+
+config FEATURE_SH_NOFORK
+	bool "Run 'nofork' applets directly"
+	default n
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	This option causes busybox shells to not execute typical
+	fork/exec/wait sequence, but call <applet>_main directly,
+	if possible. (Sometimes it is not possible: for example,
+	this is not possible in pipes).
+
+	This will be done only for some applets (those which are marked
+	NOFORK in include/applets.h).
+
+	This may significantly speed up some shell scripts.
+
+	This feature is relatively new. Use with care. Report bugs
+	to project mailing list.
+
+config FEATURE_SH_READ_FRAC
+	bool "read -t N.NNN support (+110 bytes)"
+	default y
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	Enable support for fractional second timeout in read builtin.
+
+config FEATURE_SH_HISTFILESIZE
+	bool "Use $HISTFILESIZE"
+	default y
+	depends on ASH || HUSH || SH_IS_ASH || BASH_IS_ASH || SH_IS_HUSH || BASH_IS_HUSH
+	help
+	This option makes busybox shells to use $HISTFILESIZE variable
+	to set shell history size. Note that its max value is capped
+	by "History size" setting in library tuning section.
+
+endif # Options common to all shells
+
+endmenu

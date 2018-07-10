@@ -1,0 +1,56 @@
+# coreutils 8.25 often says "input line is too long"
+# on ELF executables. In this case, do not run the test:
+unexpand ../../busybox >/dev/null || exit 0
+
+rm -f foo bar
+echo "       y" | unexpand ../../busybox > foo
+echo "       y" | busybox unexpand ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+rm -f foo bar
+echo "        y" | unexpand ../../busybox > foo
+echo "        y" | busybox unexpand ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+echo "       y       y" | unexpand ../../busybox > foo
+echo "       y       y" | busybox unexpand ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+rm -f foo bar
+echo "        y        y" | unexpand ../../busybox > foo
+echo "        y        y" | busybox unexpand ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+echo "       y       y" | unexpand -a ../../busybox > foo
+echo "       y       y" | busybox unexpand -a ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+rm -f foo bar
+echo "        y        y" | unexpand -a ../../busybox > foo
+echo "        y        y" | busybox unexpand -a ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi

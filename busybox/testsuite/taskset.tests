@@ -1,0 +1,16 @@
+#!/bin/sh
+# Copyright 2006 Bernhard Reutner-Fischer
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+. ./testing.sh
+a="taskset"
+
+# testing "test name"              "opts" "expected result" "file inp" "stdin"
+testing "taskset (get from pid 1)" "$a -p 1 >/dev/null;echo \$?" "0\n" "" ""
+testing "taskset (invalid pid)"    "$a -p 0 >/dev/null 2>&1;echo \$?" "1\n" "" ""
+testing "taskset (set_aff, needs CAP_SYS_NICE)" \
+	"$a 0x1 $SHELL -c '$a -p \$\$ | grep \"current affinity mask: 1\" >/dev/null'; echo \$?" \
+	"0\n" "" ""
+
+unset a
+exit $FAILCOUNT

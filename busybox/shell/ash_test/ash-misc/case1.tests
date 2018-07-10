@@ -1,0 +1,40 @@
+case w in a) echo SKIP;; w) echo OK_1;; w) echo WRONG;; esac
+
+case w in
+ a) echo SKIP;;
+ w)echo OK_1 ;;
+ w)
+ echo WRONG
+ ;;
+esac
+
+t=w
+case $t in a) echo SKIP;; w) echo OK_21;; w) echo WRONG;; esac;
+case "$t" in a) echo SKIP;; w) echo OK_22;; w) echo WRONG;; esac;
+case w in a) echo SKIP;; $t) echo OK_23;; "$t") echo WRONG;; esac;
+
+case '' in a) echo SKIP;; w) echo WRONG;; *) echo OK_31;; esac;
+case '' in a) echo SKIP;; '') echo OK_32;; *) echo WRONG;; esac;
+
+case `echo w` in a) echo SKIP;; w) echo OK_41;; w) echo WRONG;; esac;
+case "`echo w`" in a) echo SKIP;; w) echo OK_42;; w) echo WRONG;; esac;
+case `echo w w` in a) echo SKIP;; w) echo WRONG;; 'w w') echo OK_43;; esac;
+case `echo w w` in a) echo SKIP;; w) echo WRONG;; w*) echo OK_44;; esac;
+
+case w in `echo w`) echo OK_51;; `echo WRONG >&2`w) echo WRONG;; esac;
+case w in `echo OK_52 >&2`) echo SKIP;; `echo`w) echo OK_53;; esac;
+
+# parsing cases in subshells can easily get messy
+ case m in  m) echo OK_sub1;; esac
+ case m in (m) echo OK_sub2;; esac
+(case m in  m) echo OK_sub3;; esac)
+(case m in (m) echo OK_sub4;; esac)
+(
+ case m in  m) echo OK_sub5;; esac
+)
+(
+ case m in (m) echo OK_sub6;; esac
+)
+(case esac in "esac") echo OK_esac1;; esac)
+
+echo Done

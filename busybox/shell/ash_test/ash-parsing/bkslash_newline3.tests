@@ -1,0 +1,4 @@
+for s in 	\
+a; do
+	echo "a:[$s]"
+done

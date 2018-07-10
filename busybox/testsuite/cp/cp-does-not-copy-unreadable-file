@@ -1,0 +1,11 @@
+touch foo
+chmod a-r foo
+set +e
+if test `id -u` = 0; then
+    # run as user with nonzero uid
+    setuidgid 1 busybox cp foo bar
+else
+    busybox cp foo bar
+fi
+set -e
+test ! -f bar

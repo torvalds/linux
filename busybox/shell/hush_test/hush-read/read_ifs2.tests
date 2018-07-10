@@ -1,0 +1,9 @@
+echo "X:Y:Z:" | (IFS=": " read x y; echo "|$x|$y|")
+echo "X:Y:Z"  | (IFS=": " read x y; echo "|$x|$y|")
+echo "X:Y:"   | (IFS=": " read x y; echo "|$x|$y|")
+echo "X:Y"    | (IFS=": " read x y; echo "|$x|$y|")
+echo "X:"     | (IFS=": " read x y; echo "|$x|$y|")
+echo "X"      | (IFS=": " read x y; echo "|$x|$y|")
+echo ""       | (IFS=": " read x y; echo "|$x|$y|")
+echo Whitespace should be trimmed too:
+echo "X:Y  : " | (IFS=": " read x y; echo "|$x|$y|")

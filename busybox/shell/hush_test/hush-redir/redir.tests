@@ -1,0 +1,6 @@
+# test: closed fds should stay closed
+exec 1>&-
+echo TEST >TEST
+echo JUNK # lost: stdout is closed
+cat TEST >&2
+rm TEST

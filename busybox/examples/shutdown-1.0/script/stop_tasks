@@ -1,0 +1,70 @@
+#!/bin/sh
+# We are trying to be nice.
+# TERM everybody. Give them some time to die.
+# KILL might make some filesystems non-unmountable,
+# so we'll do it in stop_storage instead.
+
+killcnt=30
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+echo "<*> `date '+%Y-%m-%d %H:%M:%S'` Executing '$0 $*'"
+
+showps() {
+	# sleep 1 ensures that xargs will have time to start up.
+	# This makes pslist less prone to random jitter.
+	pslist=`{ sleep 1; ps -A -o comm=; } | sort | xargs`
+	pscnt=$(( `echo "$pslist" | wc -w` + 0 ))
+	if test x"$VERBOSE" = x; then
+		echo "* `date '+%H:%M:%S'` $pscnt processes"
+	else
+		echo "* `date '+%H:%M:%S'` Processes ($pscnt): $pslist"
+	fi
+}
+
+# Sync.
+# Rationale: sometimes buggy root processes can
+# hang the system when killed (X for example may have problems
+# with restoring text mode on a poorly supported hardware).
+# These are bugs and must be fixed, but until then users will lose
+# dirty data on shutdown! Let's make that less likely.
+sync &
+
+# Send SIGTERMs. If list of processes changes, proceed slower.
+# If it has stabilised (all who wanted to, exited), proceed faster.
+showps
+i="$killcnt"
+while test "$i" -gt 0; do
+	echo "* `date '+%H:%M:%S'` Sending CONT, TERM" #, HUP"
+	# I've seen "killall5 2.86" which doesn't grok signal names!
+	killall5 -18
+	killall5 -15
+	#killall5 -1    # HUP: because interactive bash does not die on TERM...
+	# but init will reread /etc/inittab on HUP and my /etc is on non root fs!
+	# -> umounts will complain.
+	oldpslist="$pslist"
+	showps
+	if test x"$pslist" = x"$oldpslist"; then
+		i=$((i-8))
+	fi
+	i=$((i-2))
+done
+
+echo "* `date '+%H:%M:%S'` Turning off swap"
+swapoff -a
+cat /proc/swaps | grep -v ^Filename | cut -d ' ' -f1 \
+| while read -r line; do
+	test "$line" && {
+		echo swapoff "$line"
+		swapoff "$line"
+	}
+done
+
+echo "* /proc/swaps:"
+cat /proc/swaps
+echo "* /proc/mounts:"
+cat /proc/mounts
+echo "* ps -A e:"
+ps -A e
+echo "* top -bn1:"
+top -bn1

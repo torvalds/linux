@@ -1,0 +1,9 @@
+cat > foo <<EOF
+this is the first line
+this is the second line
+this is the third line
+EOF
+cut -b 1-13 -n foo > foo1
+cut -b 14- -n foo > foo2
+busybox paste -d '\0' foo1 foo2 > bar
+cmp foo bar

@@ -1,0 +1,167 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+config UDHCPD
+	bool "udhcpd"
+	default y
+	select PLATFORM_LINUX
+	help
+	udhcpd is a DHCP server geared primarily toward embedded systems,
+	while striving to be fully functional and RFC compliant.
+
+config FEATURE_UDHCPD_BASE_IP_ON_MAC
+	bool "Select IP address based on client MAC"
+	default n
+	depends on UDHCPD
+	help
+	If selected, udhcpd will base its selection of IP address to offer
+	on the client's hardware address. Otherwise udhcpd uses the next
+	consecutive free address.
+
+	This reduces the frequency of IP address changes for clients
+	which let their lease expire, and makes consecutive DHCPOFFERS
+	for the same client to (almost always) contain the same
+	IP address.
+
+config FEATURE_UDHCPD_WRITE_LEASES_EARLY
+	bool "Rewrite lease file at every new acknowledge"
+	default y
+	depends on UDHCPD
+	help
+	If selected, udhcpd will write a new file with leases every
+	time a new lease has been accepted, thus eliminating the need
+	to send SIGUSR1 for the initial writing or updating. Any timed
+	rewriting remains undisturbed.
+
+config DHCPD_LEASES_FILE
+	string "Absolute path to lease file"
+	default "/var/lib/misc/udhcpd.leases"
+	depends on UDHCPD
+	help
+	udhcpd stores addresses in a lease file. This is the absolute path
+	of the file. Normally it is safe to leave it untouched.
+
+config DUMPLEASES
+	bool "dumpleases (6.4 kb)"
+	default y
+	help
+	dumpleases displays the leases written out by the udhcpd.
+	Lease times are stored in the file by time remaining in lease, or
+	by the absolute time that it expires in seconds from epoch.
+
+config DHCPRELAY
+	bool "dhcprelay (5.8 kb)"
+	default y
+	help
+	dhcprelay listens for DHCP requests on one or more interfaces
+	and forwards these requests to a different interface or DHCP
+	server.
+
+config UDHCPC
+	bool "udhcpc"
+	default y
+	select PLATFORM_LINUX
+	help
+	udhcpc is a DHCP client geared primarily toward embedded systems,
+	while striving to be fully functional and RFC compliant.
+
+	The udhcp client negotiates a lease with the DHCP server and
+	runs a script when a lease is obtained or lost.
+
+config FEATURE_UDHCPC_ARPING
+	bool "Verify that the offered address is free, using ARP ping"
+	default y
+	depends on UDHCPC
+	help
+	If selected, udhcpc will send ARP probes and make sure
+	the offered address is really not in use by anyone. The client
+	will DHCPDECLINE the offer if the address is in use,
+	and restart the discover process.
+
+config FEATURE_UDHCPC_SANITIZEOPT
+	bool "Do not pass malformed host and domain names"
+	default y
+	depends on UDHCPC
+	help
+	If selected, udhcpc will check some options (such as option 12 -
+	hostname) and if they don't look like valid hostnames
+	(for example, if they start with dash or contain spaces),
+	they will be replaced with string "bad" when exporting
+	to the environment.
+
+config UDHCPC_DEFAULT_SCRIPT
+	string "Absolute path to config script"
+	default "/usr/share/udhcpc/default.script"
+	depends on UDHCPC || UDHCPC6
+	help
+	This script is called after udhcpc receives an answer. See
+	examples/udhcp for a working example. Normally it is safe
+	to leave this untouched.
+
+# udhcpc6 config is inserted here:
+INSERT
+
+comment "Common options for DHCP applets"
+        depends on UDHCPD || UDHCPC || UDHCPC6 || DHCPRELAY
+
+config FEATURE_UDHCP_PORT
+	bool "Enable '-P port' option for udhcpd and udhcpc"
+	default n
+	depends on UDHCPD || UDHCPC || UDHCPC6
+	help
+	At the cost of ~300 bytes, enables -P port option.
+	This feature is typically not needed.
+
+config UDHCP_DEBUG
+	int "Maximum verbosity level (0..9)"
+	default 9
+	range 0 9
+	depends on UDHCPD || UDHCPC || UDHCPC6 || DHCPRELAY
+	help
+	Verbosity can be increased with multiple -v options.
+	This option controls how high it can be cranked up.
+
+	Bigger values result in bigger code. Levels above 1
+	are very verbose and useful for debugging only.
+
+config UDHCPC_SLACK_FOR_BUGGY_SERVERS
+	int "DHCP options slack buffer size"
+	default 80
+	range 0 924
+	depends on UDHCPD || UDHCPC
+	help
+	Some buggy DHCP servers send DHCP offer packets with option
+	field larger than we expect (which might also be considered a
+	buffer overflow attempt). These packets are normally discarded.
+	If circumstances beyond your control force you to support such
+	servers, this may help. The upper limit (924) makes udhcpc accept
+	even 1500 byte packets (maximum-sized ethernet packets).
+
+	This option does not make udhcp[cd] emit non-standard
+	sized packets.
+
+	Known buggy DHCP servers:
+	3Com OfficeConnect Remote 812 ADSL Router:
+		seems to confuse maximum allowed UDP packet size with
+		maximum size of entire IP packet, and sends packets
+		which are 28 bytes too large.
+	Seednet (ISP) VDSL: sends packets 2 bytes too large.
+
+config FEATURE_UDHCP_RFC3397
+	bool "Support RFC 3397 domain search options"
+	default y
+	depends on UDHCPD || UDHCPC
+	help
+	If selected, both client and server will support passing of domain
+	search lists via option 119, specified in RFC 3397,
+	and SIP servers option 120, specified in RFC 3361.
+
+config FEATURE_UDHCP_8021Q
+	bool "Support 802.1Q VLAN parameters options"
+	default y
+	depends on UDHCPD || UDHCPC
+	help
+	If selected, both client and server will support passing of VLAN
+	ID and priority via options 132 and 133 as per 802.1Q.

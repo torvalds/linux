@@ -1,0 +1,24 @@
+#!/bin/sh
+
+user=root
+baud=38400
+delay=3
+export TERM=linux
+
+tty="/dev/${PWD##*/getty_}"
+
+if ! test -e "$tty"; then
+	exec env - sleep 32000
+fi
+
+sleep "$delay"
+
+chown "$user" "$tty" # - devfs made happy
+
+exec <"$tty" >"$tty" 2>&1
+# using . in order to be able to set env (TERM etc) in cfg
+test -x ./cfg && . ./cfg
+
+exec \
+env - "TERM=$TERM" PATH="$PATH" LOGIN_PRE_SUID_SCRIPT="$PWD/login.sh" \
+getty "$baud" "$tty" "$TERM"

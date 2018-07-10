@@ -1,0 +1,16 @@
+f() { a=A; b=B; }
+
+a=a
+b=b
+f
+echo Expected:AB Actual:$a$b
+
+a=a
+b=b
+b= f
+echo Expected:Ab Actual:$a$b
+
+a=a
+b=b
+a= b= f
+echo Expected:ab Actual:$a$b

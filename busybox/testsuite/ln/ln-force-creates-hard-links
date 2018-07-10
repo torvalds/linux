@@ -1,0 +1,5 @@
+echo file number one > file1
+echo file number two > link1
+busybox ln -f file1 link1
+test -f file1
+test -f link1

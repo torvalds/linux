@@ -1,0 +1,4 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" arg
+fi
+echo OK

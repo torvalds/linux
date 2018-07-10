@@ -1,0 +1,28 @@
+trap "echo got signal" USR1
+
+for try in 1 2 3 4 5; do
+    kill -USR1 $$
+    sleep 0.2
+    echo "sent $try signal"
+done &
+
+# Ensure "wait" has something to wait for
+sleep 2 &
+
+# Ensure we do not execute "trap" below before "kill -USR1" above
+# (was getting failure on loaded machine without this)
+sleep 0.1
+
+sleeping=true
+while $sleeping; do
+    trap
+    if wait %%; then
+        echo "sleep completed"
+        sleeping=false
+    elif [ $? = 127 ]; then
+        echo "BUG: no processes to wait for?!"
+        sleeping=false
+    else
+        echo "wait interrupted"
+    fi
+done

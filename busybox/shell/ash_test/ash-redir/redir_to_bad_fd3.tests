@@ -1,0 +1,3 @@
+# ash uses fd 10 (usually) for reading the script
+echo LOST >&3
+echo OK

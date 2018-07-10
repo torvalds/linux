@@ -1,0 +1,42 @@
+set -- abc "d e"
+
+echo 'Testing: !IFS $*'
+unset IFS; for a in $*; do echo ".$a."; done
+echo 'Testing: !IFS $@'
+unset IFS; for a in $@; do echo ".$a."; done
+echo 'Testing: !IFS "$*"'
+unset IFS; for a in "$*"; do echo ".$a."; done
+echo 'Testing: !IFS "$@"'
+unset IFS; for a in "$@"; do echo ".$a."; done
+
+echo 'Testing: IFS="" $*'
+IFS=""; for a in $*; do echo ".$a."; done
+echo 'Testing: IFS="" $@'
+IFS=""; for a in $@; do echo ".$a."; done
+echo 'Testing: IFS="" "$*"'
+IFS=""; for a in "$*"; do echo ".$a."; done
+echo 'Testing: IFS="" "$@"'
+IFS=""; for a in "$@"; do echo ".$a."; done
+
+echo 'Testing: !IFS v=$*'
+unset IFS; v=$*; echo "v='$v'"
+echo 'Testing: !IFS v=$@'
+unset IFS; v=$@; echo "v='$v'"
+echo 'Testing: !IFS v="$*"'
+unset IFS; v="$*"; echo "v='$v'"
+echo 'Testing: !IFS v="$@"'
+unset IFS; v="$@"; echo "v='$v'"
+
+echo 'Testing: IFS="" v=$*'
+IFS=""; v=$*; echo "v='$v'"
+echo 'Testing: IFS="" v=$@'
+IFS=""; v=$@; echo "v='$v'"
+echo 'Testing: IFS="" v="$*"'
+IFS=""; v="$*"; echo "v='$v'"
+echo 'Testing: IFS="" v="$@"'
+IFS=""; v="$@"; echo "v='$v'"
+
+# Note: in IFS="" v=$@ and IFS="" v="$@" cases, bash produces "abc d e"
+# We produce "abcd e"
+
+echo Finished

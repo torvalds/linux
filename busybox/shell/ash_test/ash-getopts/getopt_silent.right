@@ -1,0 +1,6 @@
+*** optstring:':ac' args:-a -b -c
+1 rc:0 var:'a' OPTIND:2 OPTARG:''
+2 rc:0 var:'?' OPTIND:3 OPTARG:'b'
+3 rc:0 var:'c' OPTIND:4 OPTARG:''
+4 rc:1 var:'?' OPTIND:4 OPTARG:''
+5 rc:1 var:'?' OPTIND:4 OPTARG:''

@@ -1,0 +1,108 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# Need this in order to not execute shell builtin
+bb="busybox "
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+testing "printf produces no further output 1" \
+	"${bb}printf '\c' foo" \
+	"" \
+	"" ""
+
+testing "printf produces no further output 2" \
+	"${bb}printf '%s\c' foo bar" \
+	"foo" \
+	"" ""
+
+testing "printf repeatedly uses pattern for each argv" \
+	"${bb}printf '%s\n' foo '$HOME'" \
+	"foo\n$HOME\n" \
+	"" ""
+
+testing "printf understands %b escaped_string" \
+	"${bb}printf '%b' 'a\tb' 'c\\d\n' 2>&1; echo \$?" \
+	"a\tbc\\d\n""0\n" \
+	"" ""
+
+testing "printf understands %d '\"x' \"'y\" \"'zTAIL\"" \
+	"${bb}printf '%d\n' '\"x' \"'y\" \"'zTAIL\" 2>&1; echo \$?" \
+	"120\n""121\n""122\n""0\n" \
+	"" ""
+
+testing "printf understands %s '\"x' \"'y\" \"'zTAIL\"" \
+	"${bb}printf '%s\n' '\"x' \"'y\" \"'zTAIL\" 2>&1; echo \$?" \
+	"\"x\n""'y\n""'zTAIL\n""0\n" \
+	"" ""
+
+testing "printf understands %23.12f" \
+	"${bb}printf '|%23.12f|\n' 5.25 2>&1; echo \$?" \
+	"|         5.250000000000|\n""0\n" \
+	"" ""
+
+testing "printf understands %*.*f" \
+	"${bb}printf '|%*.*f|\n' 23 12 5.25 2>&1; echo \$?" \
+	"|         5.250000000000|\n""0\n" \
+	"" ""
+
+testing "printf understands %*f with negative width" \
+	"${bb}printf '|%*f|\n' -23 5.25 2>&1; echo \$?" \
+	"|5.250000               |\n""0\n" \
+	"" ""
+
+testing "printf understands %.*f with negative precision" \
+	"${bb}printf '|%.*f|\n' -12 5.25 2>&1; echo \$?" \
+	"|5.250000|\n""0\n" \
+	"" ""
+
+testing "printf understands %*.*f with negative width/precision" \
+	"${bb}printf '|%*.*f|\n' -23 -12 5.25 2>&1; echo \$?" \
+	"|5.250000               |\n""0\n" \
+	"" ""
+
+testing "printf understands %zd" \
+	"${bb}printf '%zd\n' -5 2>&1; echo \$?" \
+	"-5\n""0\n" \
+	"" ""
+
+testing "printf understands %ld" \
+	"${bb}printf '%ld\n' -5 2>&1; echo \$?" \
+	"-5\n""0\n" \
+	"" ""
+
+testing "printf understands %Ld" \
+	"${bb}printf '%Ld\n' -5 2>&1; echo \$?" \
+	"-5\n""0\n" \
+	"" ""
+
+# "FIXED" now to act compatibly
+## We are "more correct" here than bash/coreutils: they happily print -2
+## as if it is a huge unsigned number
+#testing "printf handles %u -N" \
+#	"${bb}printf '%u\n' 1 -2 3 2>&1; echo \$?" \
+#	"1\n""printf: -2: invalid number\n""0\n""3\n""0\n" \
+#	"" ""
+
+testing "printf handles %d bad_input" \
+	"${bb}printf '%d\n' 1 - 2 bad 3 123bad 4 2>&1; echo \$?" \
+"1\n""printf: invalid number '-'\n""0\n"\
+"2\n""printf: invalid number 'bad'\n""0\n"\
+"3\n""printf: invalid number '123bad'\n""0\n"\
+"4\n""1\n" \
+	"" ""
+
+testing "printf aborts on bare %" \
+	"${bb}printf '%' a b c 2>&1; echo \$?" \
+	"printf: %: invalid format\n""1\n" \
+	"" ""
+
+testing "printf aborts on %r" \
+	"${bb}printf '%r' a b c 2>&1; echo \$?" \
+	"printf: %r: invalid format\n""1\n" \
+	"" ""
+
+exit $FAILCOUNT

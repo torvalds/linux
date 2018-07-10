@@ -1,0 +1,7 @@
+trap "" PIPE
+
+{
+sleep 1
+echo Cant write this - get EPIPE
+echo Ok: $? >&2
+} | { true; }

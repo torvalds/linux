@@ -1,0 +1,13 @@
+echo "Backgrounded pipes shall have their stdin redirected to /dev/null"
+
+# 1. bash does not redirect stdin to /dev/null if it is interactive.
+# hush does it always (this is allowed by standards).
+
+# 2. Failure will result in this script hanging
+
+cat & wait; echo Zero:$?
+
+# This does not work for bash! bash bug?
+cat | cat & wait; echo Zero:$?
+
+echo Done

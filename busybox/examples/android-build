@@ -1,0 +1,34 @@
+#!/bin/sh
+# Build Busybox against Android's bionic
+# Originally by Dan Fandrich
+#
+# Configure with "make android_defconfig"
+#
+# This file has been tested on Android Froyo (the lack of ttyname_r in
+# the android libc must be patched around) and Gingerbread.
+
+# Point this to the Android root directory; it's used in the defconfig CFLAGS
+export A="$HOME/android"
+
+# Android product being built
+P=zoom2
+
+# Toolchain version in use by this version of Android
+GCCVER=4.4.3
+
+export PATH="$A/prebuilt/linux-x86/toolchain/arm-eabi-$GCCVER/bin:$PATH"
+
+# Set the linker flags; compiler flags are in the defconfig file
+if grep "^CONFIG_STATIC=y" .config >/dev/null ; then
+	# Static linking
+	LDFLAGS="-static -Xlinker -z -Xlinker muldefs -nostdlib $A/out/target/product/$P/obj/lib/crtbegin_static.o $A/out/target/product/$P/obj/lib/crtend_android.o -L$A/out/target/product/$P/obj/lib -L$A/out/target/product/$P/obj/STATIC_LIBRARIES/libm_intermediates -L$A/out/target/product/$P/obj/STATIC_LIBRARIES/libc_intermediates"
+	LDLIBS="m c gcc"
+else
+	# Dynamic linking
+	LDFLAGS="-Xlinker -z -Xlinker muldefs -nostdlib -Bdynamic -Xlinker -T$A/build/core/armelf.x -Xlinker -dynamic-linker -Xlinker /system/bin/linker -Xlinker -z -Xlinker nocopyreloc -Xlinker --no-undefined $A/out/target/product/$P/obj/lib/crtbegin_dynamic.o $A/out/target/product/$P/obj/lib/crtend_android.o -L$A/out/target/product/$P/obj/lib"
+	LDLIBS="dl m c gcc"
+fi
+
+# It's possible with newer version
+# you need to use CFLAGS_busybox instead of EXTRA_LDFLAGS below:
+make EXTRA_LDFLAGS="$LDFLAGS" LDLIBS="$LDLIBS" "$@"

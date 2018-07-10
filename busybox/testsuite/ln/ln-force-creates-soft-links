@@ -1,0 +1,5 @@
+echo file number one > file1
+echo file number two > link1
+busybox ln -f -s file1 link1
+test -L link1
+test xfile1 = x`readlink link1`

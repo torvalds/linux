@@ -1,0 +1,41 @@
+Testing: !IFS $*
+.abc.
+.d.
+.e.
+Testing: !IFS $@
+.abc.
+.d.
+.e.
+Testing: !IFS "$*"
+.abc d e.
+Testing: !IFS "$@"
+.abc.
+.d e.
+Testing: IFS="" $*
+.abc.
+.d e.
+Testing: IFS="" $@
+.abc.
+.d e.
+Testing: IFS="" "$*"
+.abcd e.
+Testing: IFS="" "$@"
+.abc.
+.d e.
+Testing: !IFS v=$*
+v='abc d e'
+Testing: !IFS v=$@
+v='abc d e'
+Testing: !IFS v="$*"
+v='abc d e'
+Testing: !IFS v="$@"
+v='abc d e'
+Testing: IFS="" v=$*
+v='abcd e'
+Testing: IFS="" v=$@
+v='abcd e'
+Testing: IFS="" v="$*"
+v='abcd e'
+Testing: IFS="" v="$@"
+v='abcd e'
+Finished

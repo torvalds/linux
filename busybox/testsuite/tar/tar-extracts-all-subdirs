@@ -1,0 +1,12 @@
+# FEATURE: CONFIG_FEATURE_TAR_CREATE
+mkdir -p foo/{1,2,3}
+mkdir -p foo/1/{10,11}
+mkdir -p foo/1/10/{100,101,102}
+tar cf foo.tar -C foo .
+rm -rf foo/*
+busybox tar xf foo.tar -C foo ./1/10
+find foo | sort >logfile.bb
+rm -rf foo/*
+tar xf foo.tar -C foo ./1/10
+find foo | sort >logfile.gnu
+diff -u logfile.gnu logfile.bb

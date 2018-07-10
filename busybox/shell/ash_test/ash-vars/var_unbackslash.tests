@@ -1,0 +1,23 @@
+# Test for correct handling of backslashes
+a=qwerty
+
+b=-$a-\t-\\-\"-\`-\--\z-\*-\?-
+echo b1=$b
+echo "b1=$b"
+b="-$a-\t-\\-\"-\`-\--\z-\*-\?-"
+echo b2=$b
+echo "b2=$b"
+b='-$a-\t-\\-\"-\`-\--\z-\*-\?-'
+echo b3=$b
+echo "b3=$b"
+
+c=$b
+echo "c=$c"
+c=${b}
+echo "c=$c"
+c="$b"
+echo "c=$c"
+c="${b}"
+echo "c=$c"
+
+echo "Done: $?"

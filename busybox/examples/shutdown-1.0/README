@@ -1,0 +1,30 @@
+# Replaces traditional overdesigned shutdown mechanism.
+#
+# No communication with init is necessary:
+# just ask all processes to exit.
+# Then unmount everything. Then reboot or power off.
+
+# Install /sbin/ symlinks named halt, reboot, poweroff
+# (and also possibly shutdown) to e.g.
+# /app/shutdown-1.0/script/shutdown:
+#
+ln -s /app/shutdown-1.0/script/shutdown /sbin/halt
+ln -s /app/shutdown-1.0/script/shutdown /sbin/reboot
+ln -s /app/shutdown-1.0/script/shutdown /sbin/poweroff
+#
+# shutdown spawns do_shutdown in new session, redirected to /dev/null,
+# tells user that shutdown is in progress, and sleeps
+# (for cosmetic reasons: do not confuse user by letting him
+# type more commands in this terminal).
+#
+# do_shutdown tries to switch to a VT console.
+# Then, (only if -r) it spawns a hardshutdown child, to reboot
+# unconditionally in 30 seconds if something later goes seriously bad.
+# Then it runs stop_tasks, writing to /var/log/reboot/YYYYMMDDhhmmss.log,
+# then it runs stop_storage.
+# Then it commands kernel to halt/reboot/poweroff, if requested.
+# Then it sleeps forever.
+#
+# Build the hardshutdown binary:
+#
+cd script && ./hardshutdown.make.sh

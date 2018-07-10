@@ -1,0 +1,4 @@
+$ECHO -ne "abc\ndef\n123\n" >input
+$ECHO -ne "def\n123\n" >logfile.ok
+busybox tail -n 2 input > logfile.bb
+cmp logfile.ok logfile.bb

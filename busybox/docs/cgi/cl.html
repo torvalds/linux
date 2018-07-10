@@ -1,0 +1,46 @@
+<html><head><title>CGI Command line options</title></head><body><h1><img alt="" src="cl_files/CGIlogo.gif"> CGI Command line options</h1>
+<hr> <p>
+
+</p><h2>Specification</h2>
+
+The command line is only used in the case of an ISINDEX query. It is
+not used in the case of an HTML form or any as yet undefined query
+type. The server should search the query information (the <code>QUERY_STRING</code> environment variable) for a non-encoded
+= character to determine if the command line is to be used, if it
+finds one, the command line is not to be used. This trusts the clients
+to encode the = sign in ISINDEX queries, a practice which was
+considered safe at the time of the design of this specification. <p>
+
+For example, use the <a href="http://hoohoo.ncsa.uiuc.edu/cgi-bin/finger">finger script</a> and the ISINDEX interface to look up "httpd".  You will see that the script will call itself with <code>/cgi-bin/finger?httpd</code> and will actually execute "finger httpd" on the command line and output the results to you.
+</p><p>
+If the server does find a "=" in the <code>QUERY_STRING</code>,
+then the command line will not be used, and no decoding will be
+performed. The query then remains intact for processing by an
+appropriate FORM submission decoder.
+Again, as an example, use <a href="http://hoohoo.ncsa.uiuc.edu/cgi-bin/finger?httpd=name">this hyperlink</a> to submit <code>"httpd=name"</code> to the finger script.  Since this <code>QUERY_STRING</code>
+contained an unencoded "=", nothing was decoded, the script didn't know
+it was being submitted a valid query, and just gave you the default
+finger form.
+</p><p>
+If the server finds that it cannot send the string due to internal
+limitations (such as exec() or /bin/sh command line restrictions) the
+server should include NO command line information and provide the
+non-decoded query information in the environment
+variable <a href="http://hoohoo.ncsa.uiuc.edu/cgi/env.html#query"><code>QUERY_STRING</code></a>. </p><p>
+</p><hr>
+<h2>Examples</h2>
+
+Examples of the command line usage are much better <a href="http://hoohoo.ncsa.uiuc.edu/cgi/examples.html">demonstrated</a> than explained. For these
+examples, pay close attention to the script output which says what
+argc and argv are. <p>
+
+</p><hr>
+
+<a href="http://hoohoo.ncsa.uiuc.edu/cgi/interface.html"><img alt="[Back]" src="cl_files/back.gif">Return to the
+interface specification</a> <p>
+
+CGI - Common Gateway Interface
+</p><address><a href="http://hoohoo.ncsa.uiuc.edu/cgi/mailtocgi.html">cgi@ncsa.uiuc.edu</a></address>
+
+
+</body></html>

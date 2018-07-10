@@ -1,0 +1,142 @@
+Building:
+=========
+
+The BusyBox build process is similar to the Linux kernel build:
+
+  make menuconfig     # This creates a file called ".config"
+  make                # This creates the "busybox" executable
+  make install        # or make CONFIG_PREFIX=/path/from/root install
+
+The full list of configuration and install options is available by typing:
+
+  make help
+
+Quick Start:
+============
+
+The easy way to try out BusyBox for the first time, without having to install
+it, is to enable all features and then use "standalone shell" mode with a
+blank command $PATH.
+
+To enable all features, use "make defconfig", which produces the largest
+general-purpose configuration.  It's allyesconfig minus debugging options,
+optional packaging choices, and a few special-purpose features requiring
+extra configuration to use.  Then enable "standalone shell" feature:
+
+  make defconfig
+  make menuconfig
+  # select Busybox Settings
+  #   then General Configuration
+  #     then exec prefers applets
+  #   exit back to top level menu
+  #   select Shells
+  #     then Standalone shell
+  #   exit back to top level menu
+  # exit and save new configuration
+  #   OR
+  # use these commands to modify .config directly:
+  sed -e 's/.*FEATURE_PREFER_APPLETS.*/CONFIG_FEATURE_PREFER_APPLETS=y/' -i .config
+  sed -e 's/.*FEATURE_SH_STANDALONE.*/CONFIG_FEATURE_SH_STANDALONE=y/' -i .config
+  make
+  PATH= ./busybox ash
+
+Standalone shell mode causes busybox's built-in command shell to run
+any built-in busybox applets directly, without looking for external
+programs by that name.  Supplying an empty command path (as above) means
+the only commands busybox can find are the built-in ones.
+
+Note that the standalone shell requires CONFIG_BUSYBOX_EXEC_PATH
+to be set appropriately, depending on whether or not /proc/self/exe is
+available. If you do not have /proc, then point that config option
+to the location of your busybox binary, usually /bin/busybox.
+Another solution is to patch the kernel (see
+examples/linux-*_proc_self_exe.patch) to make exec("/proc/self/exe")
+always work.
+
+Configuring Busybox:
+====================
+
+Busybox is optimized for size, but enabling the full set of functionality
+still results in a fairly large executable -- more than 1 megabyte when
+statically linked.  To save space, busybox can be configured with only the
+set of applets needed for each environment.  The minimal configuration, with
+all applets disabled, produces a 4k executable.  (It's useless, but very small.)
+
+The manual configurator "make menuconfig" modifies the existing configuration.
+(For systems without ncurses, try "make config" instead.) The two most
+interesting starting configurations are "make allnoconfig" (to start with
+everything disabled and add just what you need), and "make defconfig" (to
+start with everything enabled and remove what you don't need).  If menuconfig
+is run without an existing configuration, make defconfig will run first to
+create a known starting point.
+
+Other starting configurations (mostly used for testing purposes) include
+"make allbareconfig" (enables all applets but disables all optional features),
+"make allyesconfig" (enables absolutely everything including debug features),
+and "make randconfig" (produce a random configuration).  The configs/ directory
+contains a number of additional configuration files ending in _defconfig which
+are useful in specific cases.  "make help" will list them.
+
+Configuring BusyBox produces a file ".config", which can be saved for future
+use.  Run "make oldconfig" to bring a .config file from an older version of
+busybox up to date.
+
+Installing Busybox:
+===================
+
+Busybox is a single executable that can behave like many different commands,
+and BusyBox uses the name it was invoked under to determine the desired
+behavior.  (Try "mv busybox ls" and then "./ls -l".)
+
+Installing busybox consists of creating symlinks (or hardlinks) to the busybox
+binary for each applet enabled in busybox, and making sure these symlinks are
+in the shell's command $PATH.  Running "make install" creates these symlinks,
+or "make install-hardlinks" creates hardlinks instead (useful on systems with
+a limited number of inodes).  This install process uses the file
+"busybox.links" (created by make), which contains the list of enabled applets
+and the path at which to install them.
+
+Installing links to busybox is not always necessary.  The special applet name
+"busybox" (or with any optional suffix, such as "busybox-static") uses the
+first argument to determine which applet to behave as, for example
+"./busybox cat LICENSE".  (Running the busybox applet with no arguments gives
+a list of all enabled applets.) The standalone shell can also call busybox
+applets without links to busybox under other names in the filesystem.  You can
+also configure a standalone install capability into the busybox base applet,
+and then install such links at runtime with one of "busybox --install" (for
+hardlinks) or "busybox --install -s" (for symlinks).
+
+If you enabled the busybox shared library feature (libbusybox.so) and want
+to run tests without installing, set your LD_LIBRARY_PATH accordingly when
+running the executable:
+
+  LD_LIBRARY_PATH=`pwd` ./busybox
+
+Building out-of-tree:
+=====================
+
+By default, the BusyBox build puts its temporary files in the source tree.
+Building from a read-only source tree, or building multiple configurations from
+the same source directory, requires the ability to put the temporary files
+somewhere else.
+
+To build out of tree, cd to an empty directory and configure busybox from there:
+
+  make KBUILD_SRC=/path/to/source -f /path/to/source/Makefile defconfig
+  make
+  make install
+
+Alternately, use the O=$BUILDPATH option (with an absolute path) during the
+configuration step, as in:
+
+  make O=/some/empty/directory allyesconfig
+  cd /some/empty/directory
+  make
+  make CONFIG_PREFIX=. install
+
+More Information:
+=================
+
+Se also the busybox FAQ, under the questions "How can I get started using
+BusyBox" and "How do I build a BusyBox-based system?"  The BusyBox FAQ is
+available from http://www.busybox.net/FAQ.html

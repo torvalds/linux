@@ -1,0 +1,4 @@
+hush: syntax error: unexpected )
+Done:2
+hush: can't open 'does_not_exist': No such file or directory
+Done:1

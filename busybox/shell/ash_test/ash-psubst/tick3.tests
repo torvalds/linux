@@ -1,0 +1,14 @@
+test "$CONFIG_FEATURE_FANCY_ECHO" = "y" || exit 77
+
+TEST=Q
+# \` is special
+echo `echo '\'TEST\`echo ZZ\`BEST`
+# \$ and \\ are special
+echo `echo \\$TEST`
+echo `echo \$TEST`
+echo a`echo \\\\b`c
+
+# \" is not special if in unquoted `cmd` (passed verbatim WITH \),
+# but is special in quoted one
+echo `echo 11'-$a-\t-\\-\"-\`-\--\z-\*-\?-'22` "`echo 33'-$a-\t-\\-\"-\`-\--\z-\*-\?-'44`"
+echo done:$?

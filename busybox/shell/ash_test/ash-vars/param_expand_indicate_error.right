@@ -1,0 +1,43 @@
+SHELL: line 1: syntax error: bad substitution
+1
+0
+====
+_
+SHELL: line 1: 1: parameter not set
+SHELL: line 1: 1: parameter not set or null
+SHELL: line 1: 1: message1
+SHELL: line 1: 1: message1
+SHELL: line 1: 1: unset!
+SHELL: line 1: 1: null or unset!
+====
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+====
+_
+SHELL: line 1: f: parameter not set
+SHELL: line 1: f: parameter not set or null
+SHELL: line 1: f: message3
+SHELL: line 1: f: message3
+SHELL: line 1: f: unset!
+SHELL: line 1: f: null or unset!
+====
+_
+_
+SHELL: line 1: f: parameter not set or null
+_
+SHELL: line 1: f: message4
+_
+SHELL: line 1: f: null or unset!
+====
+_fff
+_fff
+_fff
+_fff
+_fff
+_fff
+_fff

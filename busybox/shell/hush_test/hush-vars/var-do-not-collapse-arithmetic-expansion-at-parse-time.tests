@@ -1,0 +1,3 @@
+unset a
+echo $((3 + ${a:=$((4 + 5))}))
+echo $a

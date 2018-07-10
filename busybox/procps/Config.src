@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Process Utilities"
+
+INSERT
+
+config FEATURE_SHOW_THREADS
+	bool "Support thread display in ps/pstree/top"
+	default y
+	depends on PS || TOP || PSTREE
+	help
+	Enables the ps -T option, showing of threads in pstree,
+	and 'h' command in top.
+
+endmenu

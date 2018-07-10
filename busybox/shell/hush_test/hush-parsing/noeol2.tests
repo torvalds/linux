@@ -1,0 +1,7 @@
+# last line has no EOL!
+if true
+then
+  echo 1
+else
+  echo 2
+fi

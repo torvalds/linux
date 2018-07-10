@@ -1,0 +1,4 @@
+test x"$SKIP_INTERNET_TESTS" != x"" && exit
+
+busybox wget -q -O foo http://www.google.com/
+test -s foo

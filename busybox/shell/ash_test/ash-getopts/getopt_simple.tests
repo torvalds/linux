@@ -1,0 +1,75 @@
+# Simple usage cases for getopts.
+#
+# OPTIND is either not touched at all (first loop with getopts,
+# relying on shell startup init), or getopts state is reset
+# before new loop with "unset OPTIND", "OPTIND=1" or "OPTIND=0".
+#
+# Each option is a separate argument (no "-abc"). This conceptually
+# needs only $OPTIND to hold getopts state.
+#
+# We check that loop does not stop on unknown option (sets "?"),
+# stops on _first_ non-option argument.
+
+echo "*** no OPTIND, optstring:'ab' args:-a -b c"
+var=QWERTY
+while getopts "ab" var -a -b c; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+# unfortunately, "rc:0" is shown since while's overall exitcode is "success"
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# Resetting behavior =1
+echo "*** OPTIND=1, optstring:'ab' args:-a -b c"
+OPTIND=1
+while getopts "ab" var -a -b c; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# Resetting behavior =0
+echo "*** OPTIND=0, optstring:'ab' args:-a -b c"
+OPTIND=0
+while getopts "ab" var -a -b c; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# Resetting behavior "unset"
+echo "*** unset OPTIND, optstring:'ab' args:-a -b c"
+unset OPTIND
+while getopts "ab" var -a -b c; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# What is the final exitcode?
+echo "*** optstring:'ab' args:-a -b c"
+unset OPTIND
+getopts "ab" var -a -b c; echo "1 rc:$? var:'$var' OPTIND:$OPTIND"
+getopts "ab" var -a -b c; echo "2 rc:$? var:'$var' OPTIND:$OPTIND"
+getopts "ab" var -a -b c; echo "3 rc:$? var:'$var' OPTIND:$OPTIND"
+
+# Where would it stop? c or -c?
+echo "*** unset OPTIND, optstring:'ab' args:-a c -c -b d"
+unset OPTIND
+while getopts "ab" var -a c -c -b d; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# What happens on unknown option?
+echo "*** unset OPTIND, optstring:'ab' args:-a -c -b d"
+unset OPTIND
+while getopts "ab" var -a -c -b d; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"
+
+# ORTERR=0 suppresses error message?
+echo "*** unset OPTIND, OPTERR=0, optstring:'ab' args:-a -c -b d"
+unset OPTIND
+OPTERR=0
+while getopts "ab" var -a -c -b d; do
+	echo "var:'$var' OPTIND:$OPTIND"
+done
+echo "exited: rc:$? var:'$var' OPTIND:$OPTIND"

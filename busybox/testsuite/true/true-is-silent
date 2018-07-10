@@ -1,0 +1,1 @@
+busybox true 2>&1 | cmp - /dev/null

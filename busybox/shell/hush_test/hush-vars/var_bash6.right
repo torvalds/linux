@@ -1,0 +1,5 @@
+Expected Actual
+a*z    : a*z
+z      : z
+a1z a2z: a1z a2z
+z      : z

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Copyright 2018 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "command" "result" "infile" "stdin"
+testing 'hexdump -C with four NULs' \
+	'hexdump -C' \
+	"\
+00000000  00 00 00 00                                       |....|
+00000004
+" \
+	'' \
+	'\0\0\0\0'
+
+exit $FAILCOUNT

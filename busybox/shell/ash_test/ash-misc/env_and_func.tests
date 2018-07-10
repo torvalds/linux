@@ -1,0 +1,8 @@
+var=old
+f() { echo "var=$var"; }
+# bash: POSIXLY_CORRECT behavior is to "leak" new variable values
+# out of function invocations (similar to "special builtins" behavior);
+# but in "bash mode", they don't leak.
+# hush does not "leak" values. ash does.
+var=val f
+echo "var=$var"

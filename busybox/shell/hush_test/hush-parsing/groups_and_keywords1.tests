@@ -1,0 +1,10 @@
+echo "Semicolons after } can be omitted 1:"
+if { echo foo; } then { echo bar; } fi
+
+echo "Semicolons after } can be omitted 2:"
+while { echo foo; } do { echo bar; break; } done
+
+echo "Semicolons after fi can be omitted:"
+while if echo foo; then echo bar; fi do echo baz; break; done
+
+echo Done:$?

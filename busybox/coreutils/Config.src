@@ -1,0 +1,40 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Coreutils"
+
+INSERT
+
+comment "Common options"
+
+config FEATURE_VERBOSE
+	bool "Support verbose options (usually -v) for various applets"
+	default y
+	help
+	Enable cp -v, rm -v and similar messages.
+	Also enables long option (--verbose) if it exists.
+	Without this option, -v is accepted but ignored.
+
+comment "Common options for cp and mv"
+	depends on CP || MV
+
+config FEATURE_PRESERVE_HARDLINKS
+	bool "Preserve hard links"
+	default y
+	depends on CP || MV
+	help
+	Allow cp and mv to preserve hard links.
+
+comment "Common options for df, du, ls"
+	depends on DF || DU || LS
+
+config FEATURE_HUMAN_READABLE
+	bool "Support human readable output (example 13k, 23M, 235G)"
+	default y
+	depends on DF || DU || LS
+	help
+	Allow df, du, and ls to have human readable output.
+
+endmenu

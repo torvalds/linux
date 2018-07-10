@@ -1,0 +1,44 @@
+# ==========================================================================
+# Build system
+# ==========================================================================
+
+help:
+	@echo 'Cleaning:'
+	@echo '  clean			- delete temporary files created by build'
+	@echo '  distclean		- delete all non-source files (including .config)'
+	@echo '  doc-clean		- delete all generated documentation'
+	@echo
+	@echo 'Build:'
+	@echo '  all			- Executable and documentation'
+	@echo '  busybox		- the swiss-army executable'
+	@echo '  doc			- docs/BusyBox.{txt,html,1}'
+	@echo '  html			- create html-based cross-reference'
+	@echo
+	@echo 'Configuration:'
+	@echo '  allnoconfig		- disable all symbols in .config'
+	@echo '  allyesconfig		- enable all symbols in .config (see defconfig)'
+	@echo '  config		- text based configurator (of last resort)'
+	@echo '  defconfig		- set .config to largest generic configuration'
+	@echo '  menuconfig		- interactive curses-based configurator'
+	@echo '  oldconfig		- resolve any unresolved symbols in .config'
+	@$(if $(boards), \
+		$(foreach b, $(boards), \
+		printf "  %-21s - Build for %s\\n" $(b) $(subst _defconfig,,$(b));) \
+		echo '')
+	@echo
+	@echo 'Installation:'
+	@echo '  install		- install busybox into CONFIG_PREFIX'
+	@echo '  uninstall'
+	@echo
+	@echo 'Development:'
+	@echo '  baseline		- create busybox_old for bloatcheck.'
+	@echo '  bloatcheck		- show size difference between old and new versions'
+	@echo '  check			- run the test suite for all applets'
+	@echo '  checkhelp		- check for missing help-entries in Config.in'
+	@echo '  randconfig		- generate a random configuration'
+	@echo '  release		- create a distribution tarball'
+	@echo '  sizes			- show size of all enabled busybox symbols'
+	@echo '  objsizes		- show size of each .o object built'
+	@echo '  bigdata		- show data objects, biggest first'
+	@echo '  stksizes		- show stack users, biggest first'
+	@echo

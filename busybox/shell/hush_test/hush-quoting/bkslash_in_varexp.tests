@@ -1,0 +1,16 @@
+x='a]'
+#
+# \] is not a valid escape for ] in set glob expression.
+# Glob sets have no escaping at all:
+# ] can be in a set if it is the first char: []abc],
+# dash can be in a set if it is first or last: [abc-],
+# [ and \ need no protections at all: [a[b\c] is a valid set of 5 chars.
+#
+# bash-4.3.43 misinterprets [a\]] as "set of 'a' or ']'".
+# Correct interpretation is "set of 'a' or '\', followed by ']'".
+#
+echo Nothing:${x#[a\]]}
+echo Nothing:"${x#[a\]]}"
+echo Nothing:${x%[a\]]}
+echo Nothing:"${x%[a\]]}"
+echo Ok:$?

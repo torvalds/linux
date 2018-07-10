@@ -1,0 +1,713 @@
+Busybox Style Guide
+===================
+
+This document describes the coding style conventions used in Busybox. If you
+add a new file to Busybox or are editing an existing file, please format your
+code according to this style. If you are the maintainer of a file that does
+not follow these guidelines, please -- at your own convenience -- modify the
+file(s) you maintain to bring them into conformance with this style guide.
+Please note that this is a low priority task.
+
+To help you format the whitespace of your programs, an ".indent.pro" file is
+included in the main Busybox source directory that contains option flags to
+format code as per this style guide. This way you can run GNU indent on your
+files by typing 'indent myfile.c myfile.h' and it will magically apply all the
+right formatting rules to your file. Please _do_not_ run this on all the files
+in the directory, just your own.
+
+
+
+Declaration Order
+-----------------
+
+Here is the preferred order in which code should be laid out in a file:
+
+ - commented program name and one-line description
+ - commented author name and email address(es)
+ - commented GPL boilerplate
+ - commented longer description / notes for the program (if needed)
+ - #includes of .h files with angle brackets (<>) around them
+ - #includes of .h files with quotes ("") around them
+ - #defines (if any, note the section below titled "Avoid the Preprocessor")
+ - const and global variables
+ - function declarations (if necessary)
+ - function implementations
+
+
+
+Whitespace and Formatting
+-------------------------
+
+This is everybody's favorite flame topic so let's get it out of the way right
+up front.
+
+
+Tabs vs. Spaces in Line Indentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The preference in Busybox is to indent lines with tabs. Do not indent lines
+with spaces and do not indents lines using a mixture of tabs and spaces. (The
+indentation style in the Apache and Postfix source does this sort of thing:
+\s\s\s\sif (expr) {\n\tstmt; --ick.) The only exception to this rule is
+multi-line comments that use an asterisk at the beginning of each line, i.e.:
+
+	\t/*
+	\t * This is a block comment.
+	\t * Note that it has multiple lines
+	\t * and that the beginning of each line has a tab plus a space
+	\t * except for the opening '/*' line where the slash
+	\t * is used instead of a space.
+	\t */
+
+Furthermore, The preference is that tabs be set to display at four spaces
+wide, but the beauty of using only tabs (and not spaces) at the beginning of
+lines is that you can set your editor to display tabs at *whatever* number of
+spaces is desired and the code will still look fine.
+
+
+Operator Spacing
+~~~~~~~~~~~~~~~~
+
+Put spaces between terms and operators. Example:
+
+	Don't do this:
+
+		for(i=0;i<num_items;i++){
+
+	Do this instead:
+
+		for (i = 0; i < num_items; i++) {
+
+	While it extends the line a bit longer, the spaced version is more
+	readable. An allowable exception to this rule is the situation where
+	excluding the spacing makes it more obvious that we are dealing with a
+	single term (even if it is a compound term) such as:
+
+		if (str[idx] == '/' && str[idx-1] != '\\')
+
+	or
+
+		if ((argc-1) - (optind+1) > 0)
+
+
+Bracket Spacing
+~~~~~~~~~~~~~~~
+
+If an opening bracket starts a function, it should be on the
+next line with no spacing before it. However, if a bracket follows an opening
+control block, it should be on the same line with a single space (not a tab)
+between it and the opening control block statement. Examples:
+
+	Don't do this:
+
+		while (!done)
+		{
+
+		do
+		{
+
+	Don't do this either:
+
+		while (!done){
+
+		do{
+
+	And for heaven's sake, don't do this:
+
+		while (!done)
+		  {
+
+		do
+		  {
+
+	Do this instead:
+
+		while (!done) {
+
+		do {
+
+If you have long logic statements that need to be wrapped, then uncuddling
+the bracket to improve readability is allowed. Generally, this style makes
+it easier for reader to notice that 2nd and following lines are still
+inside 'if':
+
+		if (some_really_long_checks && some_other_really_long_checks
+		 && some_more_really_long_checks
+		 && even_more_of_long_checks
+		) {
+			do_foo_now;
+
+Spacing around Parentheses
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Put a space between C keywords and left parens, but not between function names
+and the left paren that starts it's parameter list (whether it is being
+declared or called). Examples:
+
+	Don't do this:
+
+		while(foo) {
+		for(i = 0; i < n; i++) {
+
+	Do this instead:
+
+		while (foo) {
+		for (i = 0; i < n; i++) {
+
+	But do functions like this:
+
+		static int my_func(int foo, char bar)
+		...
+		baz = my_func(1, 2);
+
+Also, don't put a space between the left paren and the first term, nor between
+the last arg and the right paren.
+
+	Don't do this:
+
+		if ( x < 1 )
+		strcmp( thisstr, thatstr )
+
+	Do this instead:
+
+		if (x < 1)
+		strcmp(thisstr, thatstr)
+
+
+Cuddled Elses
+~~~~~~~~~~~~~
+
+Also, please "cuddle" your else statements by putting the else keyword on the
+same line after the right bracket that closes an 'if' statement.
+
+	Don't do this:
+
+	if (foo) {
+		stmt;
+	}
+	else {
+		stmt;
+	}
+
+	Do this instead:
+
+	if (foo) {
+		stmt;
+	} else {
+		stmt;
+	}
+
+The exception to this rule is if you want to include a comment before the else
+block. Example:
+
+	if (foo) {
+		stmts...
+	}
+	/* otherwise, we're just kidding ourselves, so re-frob the input */
+	else {
+		other_stmts...
+	}
+
+
+Labels
+~~~~~~
+
+Labels should start at the beginning of the line, not indented to the block
+level (because they do not "belong" to block scope, only to whole function).
+
+	if (foo) {
+		stmt;
+ label:
+		stmt2;
+		stmt;
+	}
+
+(Putting label at position 1 prevents diff -p from confusing label for function
+name, but it's not a policy of busybox project to enforce such a minor detail).
+
+
+
+Variable and Function Names
+---------------------------
+
+Use the K&R style with names in all lower-case and underscores occasionally
+used to separate words (e.g., "variable_name" and "numchars" are both
+acceptable). Using underscores makes variable and function names more readable
+because it looks like whitespace; using lower-case is easy on the eyes.
+
+	Frowned upon:
+
+		hitList
+		TotalChars
+		szFileName
+		pf_Nfol_TriState
+
+	Preferred:
+
+		hit_list
+		total_chars
+		file_name
+		sensible_name
+
+Exceptions:
+
+ - Enums, macros, and constant variables are occasionally written in all
+   upper-case with words optionally separated by underscores (i.e. FIFO_TYPE,
+   ISBLKDEV()).
+
+ - Nobody is going to get mad at you for using 'pvar' as the name of a
+   variable that is a pointer to 'var'.
+
+
+Converting to K&R
+~~~~~~~~~~~~~~~~~
+
+The Busybox codebase is very much a mixture of code gathered from a variety of
+sources. This explains why the current codebase contains such a hodge-podge of
+different naming styles (Java, Pascal, K&R, just-plain-weird, etc.). The K&R
+guideline explained above should therefore be used on new files that are added
+to the repository. Furthermore, the maintainer of an existing file that uses
+alternate naming conventions should, at his own convenience, convert those
+names over to K&R style. Converting variable names is a very low priority
+task.
+
+If you want to do a search-and-replace of a single variable name in different
+files, you can do the following in the busybox directory:
+
+	$ perl -pi -e 's/\bOldVar\b/new_var/g' *.[ch]
+
+If you want to convert all the non-K&R vars in your file all at once, follow
+these steps:
+
+ - In the busybox directory type 'examples/mk2knr.pl files-to-convert'. This
+   does not do the actual conversion, rather, it generates a script called
+   'convertme.pl' that shows what will be converted, giving you a chance to
+   review the changes beforehand.
+
+ - Review the 'convertme.pl' script that gets generated in the busybox
+   directory and remove / edit any of the substitutions in there. Please
+   especially check for false positives (strings that should not be
+   converted).
+
+ - Type './convertme.pl same-files-as-before' to perform the actual
+   conversion.
+
+ - Compile and see if everything still works.
+
+Please be aware of changes that have cascading effects into other files. For
+example, if you're changing the name of something in, say utility.c, you
+should probably run 'examples/mk2knr.pl utility.c' at first, but when you run
+the 'convertme.pl' script you should run it on _all_ files like so:
+'./convertme.pl *.[ch]'.
+
+
+
+Avoid The Preprocessor
+----------------------
+
+At best, the preprocessor is a necessary evil, helping us account for platform
+and architecture differences. Using the preprocessor unnecessarily is just
+plain evil.
+
+
+The Folly of #define
+~~~~~~~~~~~~~~~~~~~~
+
+Use 'const <type> var' for declaring constants.
+
+	Don't do this:
+
+		#define CONST 80
+
+	Do this instead, when the variable is in a header file and will be used in
+	several source files:
+
+		enum { CONST = 80 };
+
+Although enum may look ugly to some people, it is better for code size.
+With "const int" compiler may fail to optimize it out and will reserve
+a real storage in rodata for it! (Hopefully, newer gcc will get better
+at it...).  With "define", you have slight risk of polluting namespace
+(#define doesn't allow you to redefine the name in the inner scopes),
+and complex "define" are evaluated each time they used, not once
+at declarations like enums. Also, the preprocessor does _no_ type checking
+whatsoever, making it much more error prone.
+
+
+The Folly of Macros
+~~~~~~~~~~~~~~~~~~~
+
+Use 'static inline' instead of a macro.
+
+	Don't do this:
+
+		#define mini_func(param1, param2) (param1 << param2)
+
+	Do this instead:
+
+		static inline int mini_func(int param1, param2)
+		{
+			return (param1 << param2);
+		}
+
+Static inline functions are greatly preferred over macros. They provide type
+safety, have no length limitations, no formatting limitations, have an actual
+return value, and under gcc they are as cheap as macros. Besides, really long
+macros with backslashes at the end of each line are ugly as sin.
+
+
+The Folly of #ifdef
+~~~~~~~~~~~~~~~~~~~
+
+Code cluttered with ifdefs is difficult to read and maintain. Don't do it.
+Instead, put your ifdefs at the top of your .c file (or in a header), and
+conditionally define 'static inline' functions, (or *maybe* macros), which are
+used in the code.
+
+	Don't do this:
+
+		ret = my_func(bar, baz);
+		if (!ret)
+			return -1;
+		#ifdef CONFIG_FEATURE_FUNKY
+			maybe_do_funky_stuff(bar, baz);
+		#endif
+
+	Do this instead:
+
+	(in .h header file)
+
+		#if ENABLE_FEATURE_FUNKY
+		static inline void maybe_do_funky_stuff(int bar, int baz)
+		{
+			/* lotsa code in here */
+		}
+		#else
+		static inline void maybe_do_funky_stuff(int bar, int baz) {}
+		#endif
+
+	(in the .c source file)
+
+		ret = my_func(bar, baz);
+		if (!ret)
+			return -1;
+		maybe_do_funky_stuff(bar, baz);
+
+The great thing about this approach is that the compiler will optimize away
+the "no-op" case (the empty function) when the feature is turned off.
+
+Note also the use of the word 'maybe' in the function name to indicate
+conditional execution.
+
+
+
+Notes on Strings
+----------------
+
+Strings in C can get a little thorny. Here's some guidelines for dealing with
+strings in Busybox. (There is surely more that could be added to this
+section.)
+
+
+String Files
+~~~~~~~~~~~~
+
+Put all help/usage messages in usage.c. Put other strings in messages.c.
+Putting these strings into their own file is a calculated decision designed to
+confine spelling errors to a single place and aid internationalization
+efforts, if needed. (Side Note: we might want to use a single file - maybe
+called 'strings.c' - instead of two, food for thought).
+
+
+Testing String Equivalence
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There's a right way and a wrong way to test for string equivalence with
+strcmp():
+
+	The wrong way:
+
+		if (!strcmp(string, "foo")) {
+			...
+
+	The right way:
+
+		if (strcmp(string, "foo") == 0){
+			...
+
+The use of the "equals" (==) operator in the latter example makes it much more
+obvious that you are testing for equivalence. The former example with the
+"not" (!) operator makes it look like you are testing for an error. In a more
+perfect world, we would have a streq() function in the string library, but
+that ain't the world we're living in.
+
+
+Avoid Dangerous String Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Unfortunately, the way C handles strings makes them prone to overruns when
+certain library functions are (mis)used. The following table  offers a summary
+of some of the more notorious troublemakers:
+
+function     overflows                  preferred
+-------------------------------------------------
+strcpy       dest string                safe_strncpy
+strncpy      may fail to 0-terminate dst safe_strncpy
+strcat       dest string                strncat
+gets         string it gets             fgets
+getwd        buf string                 getcwd
+[v]sprintf   str buffer                 [v]snprintf
+realpath     path buffer                use with pathconf
+[vf]scanf    its arguments              just avoid it
+
+
+The above is by no means a complete list. Be careful out there.
+
+
+
+Avoid Big Static Buffers
+------------------------
+
+First, some background to put this discussion in context: static buffers look
+like this in code:
+
+	/* in a .c file outside any functions */
+	static char buffer[BUFSIZ]; /* happily used by any function in this file,
+	                                but ick! big! */
+
+The problem with these is that any time any busybox app is run, you pay a
+memory penalty for this buffer, even if the applet that uses said buffer is
+not run. This can be fixed, thusly:
+
+	static char *buffer;
+	...
+	other_func()
+	{
+		strcpy(buffer, lotsa_chars); /* happily uses global *buffer */
+	...
+	foo_main()
+	{
+		buffer = xmalloc(sizeof(char)*BUFSIZ);
+	...
+
+However, this approach trades bss segment for text segment. Rather than
+mallocing the buffers (and thus growing the text size), buffers can be
+declared on the stack in the *_main() function and made available globally by
+assigning them to a global pointer thusly:
+
+	static char *pbuffer;
+	...
+	other_func()
+	{
+		strcpy(pbuffer, lotsa_chars); /* happily uses global *pbuffer */
+	...
+	foo_main()
+	{
+		char *buffer[BUFSIZ]; /* declared locally, on stack */
+		pbuffer = buffer;     /* but available globally */
+	...
+
+This last approach has some advantages (low code size, space not used until
+it's needed), but can be a problem in some low resource machines that have
+very limited stack space (e.g., uCLinux).
+
+A macro is declared in busybox.h that implements compile-time selection
+between xmalloc() and stack creation, so you can code the line in question as
+
+		RESERVE_CONFIG_BUFFER(buffer, BUFSIZ);
+
+and the right thing will happen, based on your configuration.
+
+Another relatively new trick of similar nature is explained
+in keep_data_small.txt.
+
+
+
+Miscellaneous Coding Guidelines
+-------------------------------
+
+The following are important items that don't fit into any of the above
+sections.
+
+
+Model Busybox Applets After GNU Counterparts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When in doubt about the proper behavior of a Busybox program (output,
+formatting, options, etc.), model it after the equivalent GNU program.
+Doesn't matter how that program behaves on some other flavor of *NIX; doesn't
+matter what the POSIX standard says or doesn't say, just model Busybox
+programs after their GNU counterparts and it will make life easier on (nearly)
+everyone.
+
+The only time we deviate from emulating the GNU behavior is when:
+
+	- We are deliberately not supporting a feature (such as a command line
+	  switch)
+	- Emulating the GNU behavior is prohibitively expensive (lots more code
+	  would be required, lots more memory would be used, etc.)
+	- The difference is minor or cosmetic
+
+A note on the 'cosmetic' case: output differences might be considered
+cosmetic, but if the output is significant enough to break other scripts that
+use the output, it should really be fixed.
+
+
+Scope
+~~~~~
+
+If a const variable is used only in a single source file, put it in the source
+file and not in a header file. Likewise, if a const variable is used in only
+one function, do not make it global to the file. Instead, declare it inside
+the function body. Bottom line: Make a conscious effort to limit declarations
+to the smallest scope possible.
+
+Inside applet files, all functions should be declared static so as to keep the
+global name space clean. The only exception to this rule is the "applet_main"
+function which must be declared extern.
+
+If you write a function that performs a task that could be useful outside the
+immediate file, turn it into a general-purpose function with no ties to any
+applet and put it in the utility.c file instead.
+
+
+Brackets Are Your Friends
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Please use brackets on all if and else statements, even if it is only one
+line. Example:
+
+	Don't do this:
+
+		if (foo)
+			stmt1;
+		stmt2
+		stmt3;
+
+	Do this instead:
+
+		if (foo) {
+			stmt1;
+		}
+		stmt2
+		stmt3;
+
+The "bracketless" approach is error prone because someday you might add a line
+like this:
+
+		if (foo)
+			stmt1;
+			new_line();
+		stmt2;
+		stmt3;
+
+And the resulting behavior of your program would totally bewilder you. (Don't
+laugh, it happens to us all.) Remember folks, this is C, not Python.
+
+
+Function Declarations
+~~~~~~~~~~~~~~~~~~~~~
+
+Do not use old-style function declarations that declare variable types between
+the parameter list and opening bracket. Example:
+
+	Don't do this:
+
+		int foo(parm1, parm2)
+			char parm1;
+			float parm2;
+		{
+			....
+
+	Do this instead:
+
+		int foo(char parm1, float parm2)
+		{
+			....
+
+The only time you would ever need to use the old declaration syntax is to
+support ancient, antediluvian compilers. To our good fortune, we have access
+to more modern compilers and the old declaration syntax is neither necessary
+nor desired.
+
+
+Emphasizing Logical Blocks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Organization and readability are improved by putting extra newlines around
+blocks of code that perform a single task. These are typically blocks that
+begin with a C keyword, but not always.
+
+Furthermore, you should put a single comment (not necessarily one line, just
+one comment) before the block, rather than commenting each and every line.
+There is an optimal amount of commenting that a program can have; you can
+comment too much as well as too little.
+
+A picture is really worth a thousand words here, the following example
+illustrates how to emphasize logical blocks:
+
+	while (line = xmalloc_fgets(fp)) {
+
+		/* eat the newline, if any */
+		chomp(line);
+
+		/* ignore blank lines */
+		if (strlen(file_to_act_on) == 0) {
+			continue;
+		}
+
+		/* if the search string is in this line, print it,
+		 * unless we were told to be quiet */
+		if (strstr(line, search) && !be_quiet) {
+			puts(line);
+		}
+
+		/* clean up */
+		free(line);
+	}
+
+
+Processing Options with getopt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your applet needs to process command-line switches, please use getopt32() to
+do so. Numerous examples can be seen in many of the existing applets, but
+basically it boils down to two things: at the top of the .c file, have this
+line in the midst of your #includes, if you need to parse long options:
+
+	#include <getopt.h>
+
+Then have long options defined:
+
+	static const char <applet>_longopts[] ALIGN1 =
+		"list\0"    No_argument "t"
+		"extract\0" No_argument "x"
+	;
+
+And a code block similar to the following near the top of your applet_main()
+routine:
+
+	char *str_b;
+
+	opt_complementary = "cryptic_string";
+	applet_long_options = <applet>_longopts; /* if you have them */
+	opt = getopt32(argc, argv, "ab:c", &str_b);
+	if (opt & 1) {
+		handle_option_a();
+	}
+	if (opt & 2) {
+		handle_option_b(str_b);
+	}
+	if (opt & 4) {
+		handle_option_c();
+	}
+
+If your applet takes no options (such as 'init'), there should be a line
+somewhere in the file reads:
+
+	/* no options, no getopt */
+
+That way, when people go grepping to see which applets need to be converted to
+use getopt, they won't get false positives.
+
+For more info and examples, examine getopt32.c, tar.c, wget.c etc.

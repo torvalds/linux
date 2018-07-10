@@ -1,0 +1,8 @@
+.1 abc d e f.
+.1.
+.abc.
+.d e f.
+.-1 abc d e f-.
+.-1.
+.abc.
+.d e f-.

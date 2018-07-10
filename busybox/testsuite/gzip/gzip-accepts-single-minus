@@ -1,0 +1,1 @@
+echo foo | busybox gzip - >/dev/null

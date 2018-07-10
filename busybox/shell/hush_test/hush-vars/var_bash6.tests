@@ -1,0 +1,9 @@
+# This testcase checks globbing correctness in ${v/a/b}
+
+>a1z; >a2z;
+          echo 'Expected' 'Actual'
+v='a bz'; echo 'a*z    :' "${v/a*z/a*z}"
+v='a bz'; echo 'z      :' "${v/a*z/\z}"
+v='a bz'; echo 'a1z a2z:' ${v/a*z/a*z}
+v='a bz'; echo 'z      :' ${v/a*z/\z}
+rm a1z a2z

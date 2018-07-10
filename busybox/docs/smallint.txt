@@ -1,0 +1,39 @@
+        smalluint i = index_in_str_array(params, name) + 1;
+        if (i == 0)
+                return 0;
+        if (!(i == 4 || i == 5))
+                i |= 0x80;
+
+        return i;
+
+I think that this optimization is wrong.
+index_in_str_array returns int. At best, compiler will use it as-is.
+At worst, compiler will try to make sure that it is properly cast
+into a byte, which probably results in "n = n & 0xff" on many architectures.
+
+You save nothing on space here because i is not stored on-stack,
+gcc will keep it in register. And even if it *is* stored,
+it is *stack* storage, which is cheap (unlike data/bss).
+
+small[u]ints are useful _mostly_ for:
+
+(a) flag variables
+    (a1) global flag variables - make data/bss smaller
+    (a2) local flag variables - "a = 5", "a |= 0x40" are smaller
+         for bytes than for full integers.
+            Example:
+            on i386, there is no widening constant store instruction
+            for some types of address modes, thus
+            movl $0x0,(%eax) is "c7 00 00 00 00 00"
+            movb $0x0,(%eax) is "c6 00 00"
+(b) small integer structure members, when you have many such
+    structures allocated,
+    or when these are global objects of this structure type
+
+small[u]ints are *NOT* useful for:
+
+(a) function parameters and return values -
+    they are pushed on-stack or stored in registers, bytes here are *harder*
+    to deal with than ints
+(b) "computational" variables - "a++", "a = b*3 + 7" may take more code to do
+    on bytes than on ints on some architectires.

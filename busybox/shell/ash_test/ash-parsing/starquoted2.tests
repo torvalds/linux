@@ -1,0 +1,19 @@
+if test $# != 0; then
+    exec "$THIS_SH" "$0"
+fi
+
+# No params!
+for a in "$*"; do echo Should be printed; done
+for a in "$@"; do echo Should not be printed; done
+# Yes, believe it or not, bash is mesmerized by "$@" and stops
+# treating "" as "this word cannot be expanded to nothing,
+# but must be at least null string". Now it can be expanded to nothing.
+for a in "$@"""; do echo Would not be printed by bash; done
+for a in """$@"; do echo Would not be printed by bash; done
+for a in """$@"''"$@"''; do echo Would not be printed by bash; done
+for a in ""; do echo Should be printed; done
+
+# Bug 207: "$@" expands to nothing, and we erroneously glob "%s\n" twice:
+printf 'Empty:%s\n' "$@"
+printf "Empty:%s\n" "$@"
+printf "Empty:%s\\n" "$@"

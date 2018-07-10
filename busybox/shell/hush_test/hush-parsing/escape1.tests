@@ -1,0 +1,6 @@
+test "$CONFIG_FEATURE_FANCY_ECHO" = "y" || exit 77
+
+echo "\\"
+echo a"\\"b
+echo '\\'
+echo c'\\'d

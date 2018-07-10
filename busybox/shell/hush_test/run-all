@@ -1,0 +1,111 @@
+#!/bin/sh
+
+unset LANG LANGUAGE
+unset LC_COLLATE
+unset LC_CTYPE
+unset LC_MONETARY
+unset LC_MESSAGES
+unset LC_NUMERIC
+unset LC_TIME
+unset LC_ALL
+
+TOPDIR=`pwd`
+
+if test ! -x hush; then
+	if test ! -x ../../busybox; then
+		echo "Can't run tests. Put hush binary into this directory (`pwd`)"
+		exit 1
+	fi
+	echo "No ./hush - creating a link to ../../busybox"
+	ln -s ../../busybox hush
+fi
+if test ! -f .config; then
+	if test ! -f ../../.config; then
+		echo "Missing .config file"
+		exit 1
+	fi
+	cp ../../.config . || exit 1
+fi
+
+eval $(sed -e '/^#/d' -e '/^$/d' -e 's:^:export :' .config)
+
+PATH="`pwd`:$PATH" # for hush and recho/zecho/printenv
+export PATH
+
+THIS_SH="`pwd`/hush"
+export THIS_SH
+
+do_test()
+{
+	test -d "$1" || return 0
+	d=${d%/}
+#	echo Running tests in directory "$1"
+	# $1 but with / replaced by # so that it can be used as filename part
+	noslash=`echo "$1" | sed 's:/:#:g'`
+	(
+	tret=0
+	cd "$1" || { echo "cannot cd $1!"; exit 1; }
+	for x in run-*; do
+		test -f "$x" || continue
+		case "$x" in
+			"$0"|run-minimal|run-gprof) ;;
+			*.orig|*~) ;;
+			#*) echo $x ; sh $x ;;
+			*)
+			echo -n "$1/$x:"
+			sh "$x" >"$TOPDIR/$noslash-$x.fail" 2>&1 && \
+			{ { echo " ok"; rm "$TOPDIR/$noslash-$x.fail"; } || echo " fail"; }
+			;;
+		esac
+	done
+	# Many bash run-XXX scripts just do this,
+	# no point in duplication it all over the place
+	for x in *.tests; do
+		test -x "$x" || continue
+		name="${x%%.tests}"
+		test -f "$name.right" || continue
+#		echo Running test: "$x"
+		echo -n "$1/$x:"
+		(
+			"$THIS_SH" "./$x" >"$name.xx" 2>&1
+			r=$?
+			# filter C library differences
+			sed -i \
+				-e "/: invalid option /s:'::g" \
+				"$name.xx"
+			test $r -eq 77 && rm -f "$TOPDIR/$noslash-$x.fail" && exit 77
+			diff -u "$name.xx" "$name.right" >"$TOPDIR/$noslash-$x.fail" \
+			&& rm -f "$name.xx" "$TOPDIR/$noslash-$x.fail"
+		)
+		case $? in
+			0)  echo " ok";;
+			77) echo " skip (feature disabled)";;
+			*)  echo " fail ($?)"; tret=1;;
+		esac
+	done
+	exit ${tret}
+	)
+}
+
+# Main part of this script
+# Usage: run-all [directories]
+
+ret=0
+
+if [ $# -lt 1 ]; then
+	# All sub directories
+	modules=`ls -d hush-*`
+
+	for module in $modules; do
+		do_test $module || ret=1
+	done
+else
+	while [ $# -ge 1 ]; do
+	if [ -d $1 ]; then
+		do_test $1 || ret=1
+	fi
+	shift
+	done
+fi
+
+exit ${ret}

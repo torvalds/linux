@@ -1,0 +1,14 @@
+# ><[0]
+echo Ok | { sleep 0.1; read -t 0 reply; echo ">$reply<[$?]"; }
+
+# This would not be deterministic: returns 0 "data exists" if EOF is seen
+# (true terminated) - because EOF is considered to be data (read will not block),
+# else returns 1 "no data".
+## ><[????]
+#true | { read -t 0 reply; echo ">$reply<[$?]"; }
+
+# ><[0]
+true | { sleep 0.1; read -t 0 reply; echo ">$reply<[$?]"; }
+
+# ><[1]
+sleep 0.2 | { read -p IGNORED_PROMPT -t 0 reply; echo ">$reply<[$?]"; }

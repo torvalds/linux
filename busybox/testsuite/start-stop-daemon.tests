@@ -1,0 +1,19 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "cmd" "expected result" "file input" "stdin"
+
+testing "start-stop-daemon -x without -a" \
+	'start-stop-daemon -S -x true 2>&1; echo $?' \
+	"0\n" \
+	"" ""
+
+testing "start-stop-daemon -a without -x" \
+	'start-stop-daemon -S -a false 2>&1; echo $?' \
+	"1\n" \
+	"" ""
+
+exit $FAILCOUNT

@@ -1,0 +1,52 @@
+#
+# Kbuild ignores
+#
+.*
+*.o
+*.o.*
+*.a
+*.s
+Kbuild
+Config.in
+
+#
+# Never ignore these
+#
+!.gitignore
+
+#
+# Normal output
+#
+/busybox
+/busybox_old
+/busybox_unstripped*
+
+#
+# Backups / patches
+#
+*~
+*.orig
+*.rej
+/*.patch
+
+#
+# debugging stuff
+#
+core
+.gdb_history
+.gdbinit
+
+#
+# testing output
+#
+/busybox.links
+/runtest-tempdir-links
+/testsuite/echo-ne
+
+#
+# cscope output
+#
+cscope.files
+cscope.in.out
+cscope.out
+cscope.po.out

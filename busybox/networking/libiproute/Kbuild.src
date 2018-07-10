@@ -1,0 +1,83 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+#
+
+lib-y:=
+
+INSERT
+
+lib-$(CONFIG_SLATTACH) += \
+	utils.o
+
+lib-$(CONFIG_TC) += \
+	libnetlink.o \
+	ll_map.o \
+	ll_proto.o \
+	utils.o
+
+lib-$(CONFIG_IP) += \
+	ip_parse_common_args.o \
+	libnetlink.o \
+	ll_addr.o \
+	ll_map.o \
+	ll_proto.o \
+	ll_types.o \
+	rt_names.o \
+	rtm_map.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_ADDRESS) += \
+	ip_parse_common_args.o \
+	ipaddress.o \
+	libnetlink.o \
+	ll_addr.o \
+	ll_map.o \
+	ll_types.o \
+	rt_names.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_LINK) += \
+	ip_parse_common_args.o \
+	ipaddress.o \
+	iplink.o \
+	libnetlink.o \
+	ll_addr.o \
+	ll_map.o \
+	ll_types.o \
+	rt_names.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_ROUTE) += \
+	ip_parse_common_args.o \
+	iproute.o \
+	libnetlink.o \
+	ll_map.o \
+	rt_names.o \
+	rtm_map.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_TUNNEL) += \
+	ip_parse_common_args.o \
+	iptunnel.o \
+	rt_names.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_RULE) += \
+	ip_parse_common_args.o \
+	iprule.o \
+	libnetlink.o \
+	rt_names.o \
+	rtm_map.o \
+	utils.o
+
+lib-$(CONFIG_FEATURE_IP_NEIGH) += \
+	ip_parse_common_args.o \
+	ipneigh.o \
+	libnetlink.o \
+	ll_addr.o \
+	ll_map.o \
+	rt_names.o \
+	utils.o

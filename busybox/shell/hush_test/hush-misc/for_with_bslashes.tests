@@ -1,0 +1,6 @@
+# last word contains ^C character.
+for a in 'a' 'b\c' 'b\\c' 'b"c' "b'c" 'b$c' 'b`true`c' 'b#c'
+do
+    echo $a
+done
+echo Zero:$?

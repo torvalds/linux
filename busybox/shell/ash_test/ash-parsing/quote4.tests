@@ -1,0 +1,2 @@
+a_b='a b'
+echo "$a_b"

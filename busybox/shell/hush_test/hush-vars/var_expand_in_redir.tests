@@ -1,0 +1,13 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" abc "d e"
+fi
+
+echo TEST1 >"$1.out"
+echo TEST2 >"$2.out"
+# bash says: "$@.out": ambiguous redirect
+# ash handles it as if it is '$*' - we do the same
+echo TEST3 >"$@.out"
+
+cat abc.out "d e.out" "abc d e.out"
+
+rm abc.out "d e.out" "abc d e.out"

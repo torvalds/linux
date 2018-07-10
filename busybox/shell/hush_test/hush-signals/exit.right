@@ -1,0 +1,12 @@
+cow
+moo
+Traps1:
+trap -- 'exitfunc' EXIT
+Traps2:
+trap -- 'echo Should not run' EXIT
+Check1: 42
+Traps1:
+trap -- 'exitfunc' EXIT
+Traps2:
+trap -- 'echo Should not run' EXIT
+Check2: 42

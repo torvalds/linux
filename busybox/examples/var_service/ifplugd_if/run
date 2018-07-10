@@ -1,0 +1,49 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+pwd="$PWD"
+
+if="${PWD##*/ifplugd_}"
+
+echo "* Upping iface $if"
+ip link set dev "$if" up
+
+echo "* Starting ifplugd on $if [$$]"
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid root \
+ifplugd -aqlns -t3 -u8 -d8 -i "$if" -r "$pwd/ifplugd_handler"
+
+# We use -t3 to wake ifplugd up less often.
+# If after three tests (3*3=9 > 8) link state seen to be different,
+# the handler will be called.
+# IOW: short link losses will be ignored, longer ones
+# will trigger DHCP reconfiguration and such (see handler code).
+
+# -l makes ifplugd run either "up" or "down" script on startup.
+# For example, if wired eth cable is unplugged, this stops dhcp service
+# from pointlessly trying to get a lease.
+# -q means that stopping monitoring does not stop dhcp/zcip/etc:
+# presumably, admin decided to control them manually.
+
+#-a       Don't up interface automatically
+#-p       Don't run "up" script on startup
+#-q       Don't run "down" script on exit
+#-l       Always run script on startup
+#-n       Do not daemonize
+#-s       Do not log to syslog
+#-t SECS  Poll time in seconds
+#-u SECS  Delay before running script after link up
+#-d SECS  Delay after link down
+#-i IFACE Interface
+#-M       Monitor creation/destruction of interface (otherwise it must exist)
+#-r PROG  Script to run
+#-x ARG   Extra argument for script
+#-I       Don't exit on nonzero exit code from script
+#-f/-F    Treat link detection error as link down/link up (otherwise exit on error)
+#-m MODE  API mode (mii, priv, ethtool, wlan, auto)
+#-k       Kill running daemon

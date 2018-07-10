@@ -1,0 +1,265 @@
+		Keeping data small
+
+When many applets are compiled into busybox, all rw data and
+bss for each applet are concatenated. Including those from libc,
+if static busybox is built. When busybox is started, _all_ this data
+is allocated, not just that one part for selected applet.
+
+What "allocated" exactly means, depends on arch.
+On NOMMU it's probably bites the most, actually using real
+RAM for rwdata and bss. On i386, bss is lazily allocated
+by COWed zero pages. Not sure about rwdata - also COW?
+
+In order to keep busybox NOMMU and small-mem systems friendly
+we should avoid large global data in our applets, and should
+minimize usage of libc functions which implicitly use
+such structures.
+
+Small experiment to measure "parasitic" bbox memory consumption:
+here we start 1000 "busybox sleep 10" in parallel.
+busybox binary is practically allyesconfig static one,
+built against uclibc. Run on x86-64 machine with 64-bit kernel:
+
+bash-3.2# nmeter '%t %c %m %p %[pn]'
+23:17:28 .......... 168M    0  147
+23:17:29 .......... 168M    0  147
+23:17:30 U......... 168M    1  147
+23:17:31 SU........ 181M  244  391
+23:17:32 SSSSUUU... 223M  757 1147
+23:17:33 UUU....... 223M    0 1147
+23:17:34 U......... 223M    1 1147
+23:17:35 .......... 223M    0 1147
+23:17:36 .......... 223M    0 1147
+23:17:37 S......... 223M    0 1147
+23:17:38 .......... 223M    1 1147
+23:17:39 .......... 223M    0 1147
+23:17:40 .......... 223M    0 1147
+23:17:41 .......... 210M    0  906
+23:17:42 .......... 168M    1  147
+23:17:43 .......... 168M    0  147
+
+This requires 55M of memory. Thus 1 trivial busybox applet
+takes 55k of memory on 64-bit x86 kernel.
+
+On 32-bit kernel we need ~26k per applet.
+
+Script:
+
+i=1000; while test $i != 0; do
+        echo -n .
+        busybox sleep 30 &
+        i=$((i - 1))
+done
+echo
+wait
+
+(Data from NOMMU arches are sought. Provide 'size busybox' output too)
+
+
+		Example 1
+
+One example how to reduce global data usage is in
+archival/libarchive/decompress_gunzip.c:
+
+/* This is somewhat complex-looking arrangement, but it allows
+ * to place decompressor state either in bss or in
+ * malloc'ed space simply by changing #defines below.
+ * Sizes on i386:
+ * text    data     bss     dec     hex
+ * 5256       0     108    5364    14f4 - bss
+ * 4915       0       0    4915    1333 - malloc
+ */
+#define STATE_IN_BSS 0
+#define STATE_IN_MALLOC 1
+
+(see the rest of the file to get the idea)
+
+This example completely eliminates globals in that module.
+Required memory is allocated in unpack_gz_stream() [its main module]
+and then passed down to all subroutines which need to access 'globals'
+as a parameter.
+
+
+		Example 2
+
+In case you don't want to pass this additional parameter everywhere,
+take a look at archival/gzip.c. Here all global data is replaced by
+single global pointer (ptr_to_globals) to allocated storage.
+
+In order to not duplicate ptr_to_globals in every applet, you can
+reuse single common one. It is defined in libbb/ptr_to_globals.c
+as struct globals *const ptr_to_globals, but the struct globals is
+NOT defined in libbb.h. You first define your own struct:
+
+struct globals { int a; char buf[1000]; };
+
+and then declare that ptr_to_globals is a pointer to it:
+
+#define G (*ptr_to_globals)
+
+ptr_to_globals is declared as constant pointer.
+This helps gcc understand that it won't change, resulting in noticeably
+smaller code. In order to assign it, use SET_PTR_TO_GLOBALS macro:
+
+	SET_PTR_TO_GLOBALS(xzalloc(sizeof(G)));
+
+Typically it is done in <applet>_main(). Another variation is
+to use stack:
+
+int <applet>_main(...)
+{
+#undef G
+	struct globals G;
+	memset(&G, 0, sizeof(G));
+	SET_PTR_TO_GLOBALS(&G);
+
+Now you can reference "globals" by G.a, G.buf and so on, in any function.
+
+
+		bb_common_bufsiz1
+
+There is one big common buffer in bss - bb_common_bufsiz1. It is a much
+earlier mechanism to reduce bss usage. Each applet can use it for
+its needs. Library functions are prohibited from using it.
+
+'G.' trick can be done using bb_common_bufsiz1 instead of malloced buffer:
+
+#define G (*(struct globals*)&bb_common_bufsiz1)
+
+Be careful, though, and use it only if globals fit into bb_common_bufsiz1.
+Since bb_common_bufsiz1 is BUFSIZ + 1 bytes long and BUFSIZ can change
+from one libc to another, you have to add compile-time check for it:
+
+if (sizeof(struct globals) > sizeof(bb_common_bufsiz1))
+	BUG_<applet>_globals_too_big();
+
+
+		Drawbacks
+
+You have to initialize it by hand. xzalloc() can be helpful in clearing
+allocated storage to 0, but anything more must be done by hand.
+
+All global variables are prefixed by 'G.' now. If this makes code
+less readable, use #defines:
+
+#define dev_fd (G.dev_fd)
+#define sector (G.sector)
+
+
+		Finding non-shared duplicated strings
+
+strings busybox | sort | uniq -c | sort -nr
+
+
+		gcc's data alignment problem
+
+The following attribute added in vi.c:
+
+static int tabstop;
+static struct termios term_orig __attribute__ ((aligned (4)));
+static struct termios term_vi __attribute__ ((aligned (4)));
+
+reduces bss size by 32 bytes, because gcc sometimes aligns structures to
+ridiculously large values. asm output diff for above example:
+
+ tabstop:
+        .zero   4
+        .section        .bss.term_orig,"aw",@nobits
+-       .align 32
++       .align 4
+        .type   term_orig, @object
+        .size   term_orig, 60
+ term_orig:
+        .zero   60
+        .section        .bss.term_vi,"aw",@nobits
+-       .align 32
++       .align 4
+        .type   term_vi, @object
+        .size   term_vi, 60
+
+gcc doesn't seem to have options for altering this behaviour.
+
+gcc 3.4.3 and 4.1.1 tested:
+char c = 1;
+// gcc aligns to 32 bytes if sizeof(struct) >= 32
+struct {
+    int a,b,c,d;
+    int i1,i2,i3;
+} s28 = { 1 };    // struct will be aligned to 4 bytes
+struct {
+    int a,b,c,d;
+    int i1,i2,i3,i4;
+} s32 = { 1 };    // struct will be aligned to 32 bytes
+// same for arrays
+char vc31[31] = { 1 }; // unaligned
+char vc32[32] = { 1 }; // aligned to 32 bytes
+
+-fpack-struct=1 reduces alignment of s28 to 1 (but probably
+will break layout of many libc structs) but s32 and vc32
+are still aligned to 32 bytes.
+
+I will try to cook up a patch to add a gcc option for disabling it.
+Meanwhile, this is where it can be disabled in gcc source:
+
+gcc/config/i386/i386.c
+int
+ix86_data_alignment (tree type, int align)
+{
+#if 0
+  if (AGGREGATE_TYPE_P (type)
+       && TYPE_SIZE (type)
+       && TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
+       && (TREE_INT_CST_LOW (TYPE_SIZE (type)) >= 256
+           || TREE_INT_CST_HIGH (TYPE_SIZE (type))) && align < 256)
+    return 256;
+#endif
+
+Result (non-static busybox built against glibc):
+
+# size /usr/srcdevel/bbox/fix/busybox.t0/busybox busybox
+   text    data     bss     dec     hex filename
+ 634416    2736   23856  661008   a1610 busybox
+ 632580    2672   22944  658196   a0b14 busybox_noalign
+
+
+
+		Keeping code small
+
+Use scripts/bloat-o-meter to check whether introduced changes
+didn't generate unnecessary bloat. This script needs unstripped binaries
+to generate a detailed report. To automate this, just use
+"make bloatcheck". It requires busybox_old binary to be present,
+use "make baseline" to generate it from unmodified source, or
+copy busybox_unstripped to busybox_old before modifying sources
+and rebuilding.
+
+Set CONFIG_EXTRA_CFLAGS="-fno-inline-functions-called-once",
+produce "make bloatcheck", see the biggest auto-inlined functions.
+Now, set CONFIG_EXTRA_CFLAGS back to "", but add NOINLINE
+to some of these functions. In 1.16.x timeframe, the results were
+(annotated "make bloatcheck" output):
+
+function             old     new   delta
+expand_vars_to_list    -    1712   +1712 win
+lzo1x_optimize         -    1429   +1429 win
+arith_apply            -    1326   +1326 win
+read_interfaces        -    1163   +1163 loss, leave w/o NOINLINE
+logdir_open            -    1148   +1148 win
+check_deps             -    1148   +1148 loss
+rewrite                -    1039   +1039 win
+run_pipe             358    1396   +1038 win
+write_status_file      -    1029   +1029 almost the same, leave w/o NOINLINE
+dump_identity          -     987    +987 win
+mainQSort3             -     921    +921 win
+parse_one_line         -     916    +916 loss
+summarize              -     897    +897 almost the same
+do_shm                 -     884    +884 win
+cpio_o                 -     863    +863 win
+subCommand             -     841    +841 loss
+receive                -     834    +834 loss
+
+855 bytes saved in total.
+
+scripts/mkdiff_obj_bloat may be useful to automate this process: run
+"scripts/mkdiff_obj_bloat NORMALLY_BUILT_TREE FORCED_NOINLINE_TREE"
+and select modules which shrank.

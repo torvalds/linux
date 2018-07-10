@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Readlink tests.
+# Copyright 2006 by Natanael Copa <n@tanael.org>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+TESTDIR=readlink_testdir
+TESTFILE="$TESTDIR/testfile"
+TESTLINK="testlink"
+FAILLINK="$TESTDIR/$TESTDIR/testlink"
+
+# create the dir and test files
+mkdir -p "./$TESTDIR"
+touch "./$TESTFILE"
+ln -s "./$TESTFILE" "./$TESTLINK"
+
+testing "readlink on a file" "readlink ./$TESTFILE" "" "" ""
+testing "readlink on a link" "readlink ./$TESTLINK" "./$TESTFILE\n" "" ""
+
+optional FEATURE_READLINK_FOLLOW
+
+# shell's $PWD may leave symlinks unresolved.
+# "pwd" may be a built-in and have the same problem.
+# External pwd _can't_ have that problem (current dir on Unix is physical).
+pwd=`which pwd`
+pwd=`$pwd`
+testing "readlink -f on a file" "readlink -f ./$TESTFILE" "$pwd/$TESTFILE\n" "" ""
+testing "readlink -f on a link" "readlink -f ./$TESTLINK" "$pwd/$TESTFILE\n" "" ""
+testing "readlink -f on an invalid link" "readlink -f ./$FAILLINK" "" "" ""
+testing "readlink -f on a weird dir" "readlink -f $TESTDIR/../$TESTFILE" "$pwd/$TESTFILE\n" "" ""
+
+
+# clean up
+rm -r "$TESTLINK" "$TESTDIR"
+
+exit $((FAILCOUNT <= 255 ? FAILCOUNT : 255))

@@ -1,0 +1,9 @@
+i=0
+while test $i != 2; do
+    f() { echo First $i; }
+    f
+    f() { echo Second $i; }
+    f
+    : $((i++))
+done
+echo Done

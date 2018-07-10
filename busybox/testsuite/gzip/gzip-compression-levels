@@ -1,0 +1,5 @@
+# FEATURE: CONFIG_FEATURE_GZIP_LEVELS
+
+level1=$(busybox gzip -c -1 $(which busybox) | wc -c)
+level9=$(busybox gzip -c -9 $(which busybox) | wc -c)
+test $level1 -gt $level9

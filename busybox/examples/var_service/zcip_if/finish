@@ -1,0 +1,13 @@
+#!/bin/sh
+# executed when service is taken down
+
+service=${PWD##*/}
+file_ipconf="$service.ipconf"
+dir_ipconf="/var/run/service/fw"
+
+# Reconfigure network with this interface disabled
+echo "Finish: deconfiguring"
+rm "env.out"
+rm "$file_ipconf"
+rm "$dir_ipconf/$file_ipconf"
+svc -u fw

@@ -1,0 +1,134 @@
+unset LANG
+unset LANGUAGE
+unset LC_TIME
+unset LC_ALL
+
+dt=`busybox date -d 1:2 +%T`
+test x"$dt" = x"01:02:00"
+
+dt=`busybox date -d 1:2:3 +%T`
+test x"$dt" = x"01:02:03"
+
+host_date=/bin/date
+
+# date (GNU coreutils) 6.10 reports:
+#	date: invalid date '1.2-3:4'
+# busybox 1.11.0.svn date reports:
+#	date: invalid date '1/2 3:4'
+
+# TODO: (1) compare with strings, not "host date"
+# (2) implement d/m[/y] hh:mm[:ss] fmt in date applet
+#hdt=`$host_date -d '1/2 3:4'`
+#dt=`busybox date -d 1.2-3:4`
+#test x"$hdt" = x"$dt"
+
+#hdt=`$host_date -d '1/2 3:4:5'`
+#dt=`busybox date -d 1.2-3:4:5`
+#test x"$hdt" = x"$dt"
+
+#hdt=`$host_date -d '1/2/1999 3:4'`
+#dt=`busybox date -d 1999.1.2-3:4`
+#test x"$hdt" = x"$dt"
+
+#hdt=`$host_date -d '1/2/1999 3:4:5'`
+#dt=`busybox date -d 1999.1.2-3:4:5`
+#test x"$hdt" = x"$dt"
+
+hdt=`$host_date -d '1999-1-2 3:4:5'`
+dt=`busybox date -d '1999-1-2 3:4:5'`
+test x"$hdt" = x"$dt"
+
+# Avoiding using week day in this evaluation, as it's mostly different every year
+# date (GNU coreutils) 6.10 reports:
+#	date: invalid date '01231133'
+#dt=`busybox date -d 01231133 +%c`
+#dt=`echo "$dt" | cut -b5-19`
+#test x"$dt" = x"Jan 23 11:33:00"
+
+# date (GNU coreutils) 6.10 reports:
+#	date: invalid date '012311332000'
+dt=`busybox date -d 200001231133 +%c`
+test x"$dt" = x"Sun Jan 23 11:33:00 2000"
+
+# date (GNU coreutils) 6.10 reports:
+#	date: invalid date '012311332000'
+dt=`busybox date -d 200001231133.30 +%c`
+test x"$dt" = x"Sun Jan 23 11:33:30 2000"
+
+lcbbd="LC_ALL=C busybox date"
+wd=$(eval $lcbbd +%a)		# weekday name
+mn=$(eval $lcbbd +%b)		# month name
+dm=$(eval $lcbbd +%e)		# day of month, space padded
+h=$(eval $lcbbd +%H)		# hour, zero padded
+m=$(eval $lcbbd +%M)		# minute, zero padded
+s=$(eval $lcbbd +%S)		# second, zero padded
+z=$(eval $lcbbd -u +%Z)		# time zone abbreviation
+y=$(eval $lcbbd +%Y)		# year
+
+res=OK
+case $wd in
+	Sun)
+		;;
+	Mon)
+		;;
+	Tue)
+		;;
+	Wed)
+		;;
+	Thu)
+		;;
+	Fri)
+		;;
+	Sat)
+		;;
+	*)
+		res=BAD
+		;;
+esac
+
+case $mn in
+	Jan)
+		;;
+	Feb)
+		;;
+	Mar)
+		;;
+	Apr)
+		;;
+	May)
+		;;
+	Jun)
+		;;
+	Jul)
+		;;
+	Aug)
+		;;
+	Sep)
+		;;
+	Oct)
+		;;
+	Nov)
+		;;
+	Dec)
+		;;
+	*)
+		res=BAD
+		;;
+esac
+
+dm=${dm# *}
+[ $dm -ge 1 ] && [ $dm -le 31 ] || res=BAD
+h=${h#0}
+[ $h -ge 0 ] && [ $h -le 23 ] || res=BAD
+m=${m#0}
+[ $m -ge 0 ] && [ $m -le 59 ] || res=BAD
+s=${s#0}
+[ $s -ge 0 ] && [ $s -le 59 ] || res=BAD
+[ $z = UTC ] || res=BAD
+[ $y -ge 1970 ] || res=BAD
+
+test x"$res" = xOK
+
+# This should error out (by showing usage text). Testing for that
+dt=`busybox date -d 012311332000.30 %+c 2>&1 | head -n 1`
+test x"${dt##BusyBox * multi-call binary*}" = x""

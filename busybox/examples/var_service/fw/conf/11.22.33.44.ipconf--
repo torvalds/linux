@@ -1,0 +1,10 @@
+#!/bin/sh
+# If we have simple static address...
+#
+let cfg=cfg+1
+if[$cfg]=if
+ip[$cfg]=11.22.33.44
+ipmask[$cfg]=11.22.33.44/24
+gw[$cfg]=11.22.33.1
+net[$cfg]=0/0
+dns[$cfg]='11.22.33.2 11.22.33.3'

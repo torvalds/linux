@@ -1,0 +1,2 @@
+for if in do done then; do echo $if; done
+echo OK: $?

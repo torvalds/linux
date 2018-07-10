@@ -1,0 +1,14 @@
+# check that first assignment has proper effect on second one
+
+(
+a=a A=$a
+echo a=$a A=$A
+)
+(a=a A=$a; echo a=$a A=$A)
+(a=a A=$a echo a=$a A=$A)
+(a=a A=$a /bin/echo a=$a A=$A)
+
+f() { echo a=$a A=$A; }
+
+(a=a A=$a f)
+(a=a A=$a; f)

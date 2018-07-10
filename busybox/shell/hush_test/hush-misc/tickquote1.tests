@@ -1,0 +1,2 @@
+# UNFIXED BUG: hush does not parse embedded `cmd` at embedding document parse time
+echo _`"pwd`_

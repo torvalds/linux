@@ -1,0 +1,5 @@
+hush: syntax error: unterminated ${name}
+line2
+Ok1:0
+hush: syntax error: unterminated '
+Ok2:1

@@ -1,0 +1,93 @@
+# "Check many leaks" test #2
+# Cramming all kinds of weird commands in here.
+# As you find leaks, please create separate, small test
+# for each leak.
+# Narrowing down the leak using this large test may be difficult.
+# It is intended to be a blanket "is everything ok?" test
+
+echo "Warm up"
+local_var="local val"
+export dev_null="/dev/null"
+>$dev_null
+echo hi1 $local_var `echo ho` >>/dev/null
+echo hi2 $local_var </dev/null | echo 2>&- | cat 1<>/dev/null
+{ echo hi4 $local_var `echo ho` 1<>/dev/null; }
+( echo hi4 $local_var `echo ho` 1<>/dev/null )
+if echo $local_var; false
+    then echo not run
+    elif false <$dev_null
+    then none
+    else cat 0<>$dev_null 1<>"$dev_null"
+fi >>/dev/null
+{
+    if echo $local_var; then cat <<HERE
+Hi cat
+HERE
+    fi >>/dev/null
+} 1<>/dev/null
+while { echo $dev_null >>$dev_null; }; do cat <"$dev_null"; break; done
+( until { echo $dev_null >>$dev_null | false; }; do cat <"$dev_null"; break; done ) <$dev_null
+f() { echo $1; }
+f >/dev/null
+
+memleak
+
+echo "Measuring memory leak..."
+# Please copy the entire block from above verbatim
+local_var="local val"
+export dev_null="/dev/null"
+>$dev_null
+echo hi1 $local_var `echo ho` >>/dev/null
+echo hi2 $local_var </dev/null | echo 2>&- | cat 1<>/dev/null
+{ echo hi4 $local_var `echo ho` 1<>/dev/null; }
+( echo hi4 $local_var `echo ho` 1<>/dev/null )
+if echo $local_var; false
+    then echo not run
+    elif false <$dev_null
+    then none
+    else cat 0<>$dev_null 1<>"$dev_null"
+fi >>/dev/null
+{
+    if echo $local_var; then cat <<HERE
+Hi cat
+HERE
+    fi >>/dev/null
+} 1<>/dev/null
+while { echo $dev_null >>$dev_null; }; do cat <"$dev_null"; break; done
+( until { echo $dev_null >>$dev_null | false; }; do cat <"$dev_null"; break; done ) <$dev_null
+f() { echo $1; }
+f >/dev/null
+
+# And same again
+
+local_var="local val"
+export dev_null="/dev/null"
+>$dev_null
+echo hi1 $local_var `echo ho` >>/dev/null
+echo hi2 $local_var </dev/null | echo 2>&- | cat 1<>/dev/null
+{ echo hi4 $local_var `echo ho` 1<>/dev/null; }
+( echo hi4 $local_var `echo ho` 1<>/dev/null )
+if echo $local_var; false
+    then echo not run
+    elif false <$dev_null
+    then none
+    else cat 0<>$dev_null 1<>"$dev_null"
+fi >>/dev/null
+{
+    if echo $local_var; then cat <<HERE
+Hi cat
+HERE
+    fi >>/dev/null
+} 1<>/dev/null
+while { echo $dev_null >>$dev_null; }; do cat <"$dev_null"; break; done
+( until { echo $dev_null >>$dev_null | false; }; do cat <"$dev_null"; break; done ) <$dev_null
+f() { echo $1; }
+f >/dev/null
+
+memleak
+kb=$?
+if test $kb -le 4; then
+    echo Ok #$kb
+else
+    echo "Bad: $kb kb (or more) leaked"
+fi

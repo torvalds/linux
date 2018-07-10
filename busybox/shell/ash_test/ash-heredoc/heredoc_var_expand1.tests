@@ -1,0 +1,11 @@
+x='*'
+
+cat <<- EOF
+	${x#'*'}
+EOF
+echo Ok1:$?
+
+cat <<EOF
+${x#'*'}
+EOF
+echo Ok2:$?

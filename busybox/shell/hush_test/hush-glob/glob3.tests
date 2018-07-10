@@ -1,0 +1,2 @@
+echo "glob3.test"*
+echo "./glob3.test"*

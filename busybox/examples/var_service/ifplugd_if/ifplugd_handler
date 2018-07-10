@@ -1,0 +1,20 @@
+#!/bin/sh
+# parameters:
+# $1: interface
+# $2: state
+
+if test x"$2" = x"down"; then
+	echo "Downing dhcp_$1"
+	svc -d "dhcp_$1"
+	echo "Downing zcip_$1"
+	svc -d "zcip_$1"
+fi
+if test x"$2" = x"up"; then
+	echo "Upping dhcp_$1"
+	svc -u "dhcp_$1"
+	echo "Upping zcip_$1"
+	svc -u "zcip_$1"
+fi
+# Parent ifplugd exits if we exit with nonzero.
+# Do not startle it:
+exit 0

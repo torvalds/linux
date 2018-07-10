@@ -1,0 +1,18 @@
+a() {
+	(exit 2)
+	echo a:$?
+	(kill -s USR1 $$; echo b:$?; exit 3)
+	echo c:$?	# does not execute
+	(exit 4)
+}
+
+trap "echo Trap; return" USR1
+a
+
+echo d:$?
+# It's debatable what is the correct value above.
+# Does 'return' in trap see $? == 2 or $? == 3?
+# IOW: after (kill..), does shell first wait for its completion
+# and sets $?, then checks pending signals and runs a trap handler,
+# or does it first check pending signals and runs handler?
+# hush does the former, and prints 3.

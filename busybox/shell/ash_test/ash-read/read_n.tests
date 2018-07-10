@@ -1,0 +1,3 @@
+echo 'test' | (read reply; echo "$reply")
+echo 'test' | (read -n 3 reply; echo "$reply")
+echo 'test' | (read -n3 reply; echo "$reply")

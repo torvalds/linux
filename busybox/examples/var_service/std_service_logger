@@ -1,0 +1,32 @@
+#!/bin/sh
+
+user=logger
+
+exec >/dev/null 2>&1
+
+service="${PWD%/log}"
+service="${service##*/}"
+logdir="/var/log/service/$service"
+
+mkdir -p "$logdir"
+chown -R "$user": "$logdir"
+chmod -R go-rwxst,u+rwX "$logdir"
+# TODO: if "$logdir/config" does not exist,
+# based on service's preferences, write some setup in it:
+# e.g. smaller nNUM directive ("I'm not that important,
+# save 2 rather than default 10 one-megabyte log files")
+
+# Convenience symlink in this log/ directory:
+rm logdir
+ln -s "$logdir" logdir
+
+# Make current dir accessible to logger:
+chmod a+rX .
+
+args=""
+test "$LOG_NOTIMESTAMP" || args="-tt"
+
+exec \
+env - PATH="$PATH" \
+chpst -u "$user" -m $((20 * 1024*1024)) \
+svlogd $args "$logdir"

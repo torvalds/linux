@@ -1,0 +1,4 @@
+# reject invalid vars
+"$THIS_SH" -c 'echo ${1q}'
+"$THIS_SH" -c 'echo ${&}'
+#"$THIS_SH" -c 'echo ${$}' -- this is valid as it's the same as $$

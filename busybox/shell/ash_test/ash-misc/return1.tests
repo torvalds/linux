@@ -1,0 +1,4 @@
+echo "true && return; echo Should not be printed" >return_sourced
+. ./return_sourced
+rm return_sourced
+echo Ok:$?

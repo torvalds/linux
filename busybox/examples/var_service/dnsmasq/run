@@ -1,0 +1,12 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+echo "* Starting dnsmasq"
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid root \
+dnsmasq -C dnsmasq.conf

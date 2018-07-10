@@ -1,0 +1,23 @@
+# cat is an external program, variable should not leak out of it.
+# this currently fails with CONFIG_FEATURE_SH_NOFORK=y
+VAR=''
+VAR=val0 cat /dev/null
+echo "should be empty: '$VAR'"
+
+# true is a regular builtin, variable should not leak out of it.
+VAR=''
+VAR=val1 true
+echo "should be empty: '$VAR'"
+
+# ash follows the "special builtin leaks variables" rule here:
+# exec is a special builtin. (bash does not do it)
+VAR=''
+VAR=val2 exec 2>&1
+echo "should be not empty: '$VAR'"
+
+# ash follows the "function call is a special builtin" rule here
+# (bash does not do it)
+f() { true; }
+VAR=''
+VAR=val3 f
+echo "should be not empty: '$VAR'"

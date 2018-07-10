@@ -1,0 +1,8 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" 1 abc 'd e f'
+fi
+
+for a in "$*"; do echo ".$a."; done
+for a in "$@"; do echo ".$a."; done
+for a in "-$*-"; do echo ".$a."; done
+for a in "-$@-"; do echo ".$a."; done

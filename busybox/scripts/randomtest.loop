@@ -1,0 +1,72 @@
+#!/bin/sh
+
+run_testsuite=false
+run_testsuite=true
+
+run_single_test=false
+run_single_test=true
+
+test -d "$1" || { echo "'$1' is not a directory"; exit 1; }
+test -x "$1/scripts/randomtest" || { echo "No scripts/randomtest in '$1'"; exit 1; }
+
+export LIBC="uclibc"
+export CROSS_COMPILER_PREFIX="i686-"
+export MAKEOPTS="-j9"
+
+cnt=0
+fail=0
+while sleep 1; do
+	echo "Passes: $cnt Failures: $fail"
+	dir="test.$$"
+	while test -e "$dir" -o -e "failed.$dir"; do
+		dir="test.$$.$RANDOM"
+	done
+	echo "Running randconfig test in $dir..."
+	if ! "$1/scripts/randomtest" "$1" "$dir" >/dev/null; then
+		mv -- "$dir" "failed.$dir"
+		echo "Failed build in: failed.$dir"
+		exit 1 # you may comment this out...
+		let fail++
+		continue
+	fi
+	if $run_testsuite; then
+		(
+			cd -- "$dir/testsuite" || exit 1
+			echo "Running testsuite in $dir..."
+			SKIP_KNOWN_BUGS=1 SKIP_INTERNET_TESTS=1 ./runtest -v >runtest.log 2>&1
+		)
+		if test $? != 0; then
+			echo "Failed runtest in $dir"
+			grep ^FAIL -- "$dir/testsuite/runtest.log"
+			exit 1 # you may comment this out...
+			let fail++
+			continue
+		fi
+		tail -n10 -- "$dir/testsuite/runtest.log"
+	fi
+	if $run_single_test; then
+		(
+			cd -- "$dir" || exit 1
+			echo "Running make_single_applets.sh in $dir..."
+
+			if grep -q '# CONFIG_FEATURE_TFTP_GET is not set' .config \
+			&& grep -q '# CONFIG_FEATURE_TFTP_PUT is not set' .config \
+			; then
+				# If both off, tftp[d] is ifdefed out and test fails.
+				# Enable one:
+				sed 's/# CONFIG_FEATURE_TFTP_GET is not set/CONFIG_FEATURE_TFTP_GET=y/' -i .config
+			fi
+
+			./make_single_applets.sh
+		)
+		if test $? != 0; then
+			echo "Failed make_single_applets.sh in $dir"
+			exit 1 # you may comment this out...
+			let fail++
+			continue
+		fi
+	fi
+	grep -i 'warning:' "$dir/make.log"
+	rm -rf -- "$dir"
+	let cnt++
+done

@@ -1,0 +1,22 @@
+# This test shows a very special handling of export and local
+# builtins by bash.
+
+v="a=aa0 b=bb0"
+# only 1st arg should be expanded in multiple words
+export $v c=$v
+echo $a $b
+echo $c
+
+# only 1st arg should be expanded in multiple words
+export `echo a=aa1 b=bb1` c=`echo a=aa1 b=bb1`
+echo $a $b
+echo $c
+
+>zz=zz
+>zzz=zzz
+# only 1st arg should be globbed
+export zzz* zz=*
+env | grep ^zz | sort
+rm -rf zz=zz zzz=zzz
+
+echo Done

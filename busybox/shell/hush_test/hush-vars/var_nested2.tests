@@ -1,0 +1,2 @@
+# the bug was easier to trigger in one-liner form
+a=a; b=b; f() { a=A; b=B; }; a= f; echo $a$b

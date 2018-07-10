@@ -1,0 +1,4 @@
+# shell's $PWD may leave symlinks unresolved.
+# "pwd" may be a built-in and have the same problem.
+# External pwd _can't_ have that problem (current dir on Unix is physical).
+test "$(`which pwd`)" = "$(busybox pwd)"

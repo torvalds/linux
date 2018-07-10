@@ -1,0 +1,180 @@
+Building a Busybox Boot Floppy
+==============================
+
+This document describes how to buid a boot floppy using the following
+components:
+
+ - Linux Kernel (http://www.kernel.org)
+ - uClibc: C library (http://www.uclibc.org/)
+ - Busybox: Unix utilities (http://busybox.net/)
+ - Syslinux: bootloader (http://syslinux.zytor.com)
+
+It is based heavily on a paper presented by Erik Andersen at the 2001 Embedded
+Systems Conference.
+
+
+
+Building The Software Components
+--------------------------------
+
+Detailed instructions on how to build Busybox, uClibc, or a working Linux
+kernel are beyond the scope of this document. The following guidelines will
+help though:
+
+	- Stock Busybox from CVS or a tarball will work with no modifications to
+	  any files. Just extract and go.
+	- Ditto uClibc.
+	- Your Linux kernel must include support for initrd or else the floppy
+	  won't be able to mount it's root file system.
+
+If you require further information on building Busybox uClibc or Linux, please
+refer to the web pages and documentation for those individual programs.
+
+
+
+Making a Root File System
+-------------------------
+
+The following steps will create a root file system.
+
+ - Create an empty file that you can format as a filesystem:
+
+	dd if=/dev/zero of=rootfs bs=1k count=4000
+
+ - Set up the rootfs file we just created to be used as a loop device (may not
+   be necessary)
+
+	losetup /dev/loop0 rootfs
+
+ - Format the rootfs file with a filesystem:
+
+	mkfs.ext2 -F -i 2000 rootfs
+
+ - Mount the file on a mountpoint so we can place files in it:
+
+	mkdir loop
+	mount -o loop rootfs loop/
+
+	(you will probably need to be root to do this)
+
+ - Copy on the C library, the dynamic linking library, and other necessary
+   libraries. For this example, we copy the following files from the uClibc
+   tree:
+
+	mkdir loop/lib
+	(chdir to uClibc directory)
+	cp -a libc.so* uClibc*.so \
+		ld.so-1/d-link/ld-linux-uclibc.so* \
+		ld.so-1/libdl/libdl.so* \
+		crypt/libcrypt.so* \
+		(path to)loop/lib
+
+ - Install the Busybox binary and accompanying symlinks:
+
+	(chdir to busybox directory)
+	make CONFIG_PREFIX=(path to)loop/ install
+
+ - Make device files in /dev:
+
+	This can be done by running the 'mkdevs.sh' script. If you want the gory
+	details, you can read the script.
+
+ - Make necessary files in /etc:
+
+	For this, just cp -a the etc/ directory onto rootfs. Again, if you want
+	all the details, you can just look at the files in the dir.
+
+ - Unmount the rootfs from the mountpoint:
+
+	umount loop
+
+ - Compress it:
+
+	gzip -9 rootfs
+
+
+Making a SYSLINUX boot floppy
+-----------------------------
+
+The following steps will create the boot floppy.
+
+Note: You will need to have the mtools package installed beforehand.
+
+ - Insert a floppy in the drive and format it with an MSDOS filesystem:
+
+	mformat a:
+
+	(if the system doesn't know what device 'a:' is, look at /etc/mtools.conf)
+
+ - Run syslinux on the floppy:
+
+	syslinux -s /dev/fd0
+
+	(the -s stands for "safe, slow, and stupid" and should work better with
+	buggy BIOSes; it can be omitted)
+
+ - Put on a syslinux.cfg file:
+
+	mcopy syslinux.cfg a:
+
+	(more on syslinux.cfg below)
+
+ - Copy the root file system you made onto the MSDOS formatted floppy
+
+	mcopy rootfs.gz a:
+
+ - Build a linux kernel and copy it onto the disk with the filename 'linux'
+
+	mcopy bzImage a:linux
+
+
+Sample syslinux.cfg
+~~~~~~~~~~~~~~~~~~~
+
+The following simple syslinux.cfg file should work. You can tweak it if you
+like.
+
+----begin-syslinux.cfg---------------
+DEFAULT linux
+APPEND initrd=rootfs.gz root=/dev/ram0
+TIMEOUT 10
+PROMPT 1
+----end-syslinux.cfg---------------
+
+Some changes you could make to syslinux.cfg:
+
+ - This value is the number seconds it will wait before booting. You can set
+   the timeout to 0 (or omit) to boot instantly, or you can set it as high as
+   10 to wait awhile.
+
+ - PROMPT can be set to 0 to disable the 'boot:' prompt.
+
+ - you can add this line to display the contents of a file as a welcome
+   message:
+
+	DISPLAY display.txt
+
+
+
+Additional Resources
+--------------------
+
+Other useful information on making a Linux bootfloppy is available at the
+following URLs:
+
+http://www.linuxdoc.org/HOWTO/Bootdisk-HOWTO/index.html
+http://www.linux-embedded.com/howto/Embedded-Linux-Howto.html
+http://linux-embedded.org/howto/LFS-HOWTO.html
+http://linux-embedded.org/pmhowto.html
+http://recycle.lbl.gov/~ldoolitt/embedded/ (Larry Doolittle's stuff)
+
+
+
+Possible TODOs
+--------------
+
+The following features that we might want to add later:
+
+ - support for additional filesystems besides ext2, i.e. minix
+ - different libc, static vs dynamic loading
+ - maybe using an alternate bootloader

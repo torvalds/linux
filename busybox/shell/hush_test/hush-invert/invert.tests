@@ -1,0 +1,19 @@
+# tests of return value inversion
+# placeholder for future expansion
+
+# user subshells (...) did this wrong in bash versions before 2.04
+
+! ( echo hello | grep h >/dev/null 2>&1 ); echo $?
+! echo hello | grep h >/dev/null 2>&1 ; echo $?
+
+! true ; echo $?
+! false; echo $?
+
+! (false) ; echo $?
+! (true); echo $?
+
+! true | false ; echo $?
+! false | true ; echo $?
+
+! (true | false) ; echo $?
+! (false | true) ; echo $?

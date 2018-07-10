@@ -1,0 +1,43 @@
+hush: syntax error: unterminated ${name}
+1
+0
+====
+_
+hush: 1: parameter null or not set
+hush: 1: parameter null or not set
+hush: 1: message1
+hush: 1: message1
+hush: 1: unset!
+hush: 1: null or unset!
+====
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+_aaaa
+====
+_
+hush: f: parameter null or not set
+hush: f: parameter null or not set
+hush: f: message3
+hush: f: message3
+hush: f: unset!
+hush: f: null or unset!
+====
+_
+_
+hush: f: parameter null or not set
+_
+hush: f: message4
+_
+hush: f: null or unset!
+====
+_fff
+_fff
+_fff
+_fff
+_fff
+_fff
+_fff

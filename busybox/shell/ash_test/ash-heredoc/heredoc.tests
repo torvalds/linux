@@ -1,0 +1,94 @@
+# check order and content of multiple here docs
+
+cat << EOF1 << EOF2
+hi
+EOF1
+there
+EOF2
+
+while read line1; do
+	read line2 <&3
+	echo $line1 - $line2
+done <<EOF1 3<<EOF2
+one
+two
+three
+EOF1
+alpha
+beta
+gamma
+EOF2
+
+
+# check quoted here-doc is protected
+
+a=foo
+cat << 'EOF'
+hi\
+there$a
+stuff
+EOF
+
+# check that quoted here-documents don't have \newline processing done
+
+cat << 'EOF'
+hi\
+there
+EO\
+F
+EOF
+true
+
+# check that \newline is removed at start of here-doc
+cat << EO\
+F
+hi
+EOF
+
+#ash# # check that \newline removal works for here-doc delimiter
+#ash# cat << EOF
+#ash# hi
+#ash# EO\
+#ash# F
+
+# check operation of tab removal in here documents
+cat <<- EOF
+	tab 1
+	tab 2
+	tab 3
+	EOF
+
+# check appending of text to file from here document
+rm -f /tmp/bash-zzz
+cat > /tmp/bash-zzz << EOF
+abc
+EOF
+cat >> /tmp/bash-zzz << EOF
+def ghi
+jkl mno
+EOF
+cat /tmp/bash-zzz
+rm -f /tmp/bash-zzz
+
+# make sure command printing puts the here-document as the last redirection
+# on the line, and the function export code preserves syntactic correctness
+fff()
+{
+  ed /tmp/foo <<ENDOFINPUT >/dev/null
+/^name/d
+w
+q
+ENDOFINPUT
+aa=1
+}
+
+type fff
+#ash# export -f fff
+#ash# ${THIS_SH} -c 'type fff'
+
+# check that end of file delimits a here-document
+# THIS MUST BE LAST!
+
+cat << EOF
+hi
+there

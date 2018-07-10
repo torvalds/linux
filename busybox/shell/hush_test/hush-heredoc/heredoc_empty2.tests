@@ -1,0 +1,14 @@
+unset a
+
+# Heredoc with empty delimiter
+cat <<- ""
+	OK1
+
+echo Ok:$?
+
+# Heredoc with empty delimiter
+cat <<- ""
+	OK2
+	
+
+echo Ok:$?

@@ -1,0 +1,3 @@
+touch foo
+busybox cp foo bar
+cmp foo bar

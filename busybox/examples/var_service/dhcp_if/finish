@@ -1,0 +1,17 @@
+#!/bin/sh
+# executed when service is taken down ("sv d .")
+
+service=${PWD##*/}
+file_ipconf="$service.ipconf"
+file_ntpconf="$service.ntpconf"
+dir_ipconf="/var/run/service/fw"
+dir_ntpconf="/var/run/service/ntpd"
+
+# Reconfigure network with this interface disabled
+echo "Finish: deconfiguring"
+rm "env.out"
+rm "$file_ipconf"
+rm "$file_ntpconf"
+rm "$dir_ipconf/$file_ipconf"
+rm "$dir_ntpconf/$file_ntpconf"
+svc -u fw

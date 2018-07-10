@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+echo "* Starting inetd [$$]"
+exec \
+env - PATH="$PATH" \
+softlimit \
+inetd -f -e "$PWD/inetd.conf"
+
+# inetd [-f] [-q len] [conf]
+# -f      Run in foreground
+# -e      Log to stderr (default is syslog)
+# -q N    Set the size of the socket listen queue to N
+#         (default: 128)

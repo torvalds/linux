@@ -1,0 +1,20 @@
+# FEATURE: CONFIG_UNEXPAND
+
+rm -f foo bar
+$ECHO -e "\ty" | expand -t 3 ../../busybox > foo
+$ECHO -e "\ty" | busybox unexpand -t 3 ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi
+rm -f foo bar
+$ECHO -e "\ty\tx" | expand -it 3 ../../busybox > foo
+$ECHO -e "\ty\tx" | busybox unexpand -it 3 ../../busybox > bar
+set +e
+test ! -f foo -a -f bar
+if [ $? = 0 ] ; then
+	set -e
+	diff -q foo bar
+fi

@@ -1,0 +1,5 @@
+This directory contains examples of applets implemented as shell scripts.
+
+So far these scripts are not hooked to the build system and are not
+installed by "make install". If you want to use them,
+you need to install them by hand.

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# SUSv3 compliant seq tests.
+# Copyright 2006 by Rob Landley <rob@landley.net>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+# AUDIT: Full SUSv3 coverage (except internationalization).
+
+. ./testing.sh
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+# Test exit status
+
+testing "seq (exit with error)" "seq 2> /dev/null || echo yes" "yes\n" "" ""
+testing "seq (exit with error)" "seq 1 2 3 4 2> /dev/null || echo yes" \
+	"yes\n" "" ""
+testing "seq one argument" "seq 3" "1\n2\n3\n" "" ""
+testing "seq two arguments" "seq 5 7" "5\n6\n7\n" "" ""
+testing "seq two arguments reversed" "seq 7 5" "" "" ""
+testing "seq two arguments equal" "seq 3 3" "3\n" "" ""
+testing "seq two arguments equal, arbitrary negative step" "seq 1 -15 1" \
+	"1\n" "" ""
+testing "seq two arguments equal, arbitrary positive step" "seq 1 +15 1" \
+	"1\n" "" ""
+testing "seq count up by 2" "seq 4 2 8" "4\n6\n8\n" "" ""
+testing "seq count down by 2" "seq 8 -2 4" "8\n6\n4\n" "" ""
+testing "seq count wrong way #1" "seq 4 -2 8" "" "" ""
+testing "seq count wrong way #2" "seq 8 2 4" "" "" ""
+testing "seq count by .3" "seq 3 .3 4" "3.0\n3.3\n3.6\n3.9\n" "" ""
+testing "seq count by .30" "seq 3 .30 4" "3.00\n3.30\n3.60\n3.90\n" "" ""
+testing "seq count by .30 to 4.000" "seq 3 .30 4.000" "3.00\n3.30\n3.60\n3.90\n" "" ""
+testing "seq count by -.9" "seq .7 -.9 -2.2" "0.7\n-0.2\n-1.1\n-2.0\n" "" ""
+testing "seq count by zero" "seq 4 0 8 | head -n 10" "4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n" "" ""
+
+testing "seq one argument with padding" "seq -w 003" "001\n002\n003\n" "" ""
+testing "seq two arguments with padding" "seq -w 005 7" "005\n006\n007\n" "" ""
+testing "seq count down by 3 with padding" "seq -w 8 -3 04" "08\n05\n" "" ""
+# Looks like a bug in coreutils 6.10: it uses width one less than needed
+# These tests contain the expected "fixed" output
+testing "seq count by .3 with padding 1" "seq -w 09 .3 11" "09.0\n09.3\n09.6\n09.9\n10.2\n10.5\n10.8\n" "" ""
+testing "seq count by .3 with padding 2" "seq -w 03 .3 0004" "0003.0\n0003.3\n0003.6\n0003.9\n" "" ""
+
+exit $FAILCOUNT

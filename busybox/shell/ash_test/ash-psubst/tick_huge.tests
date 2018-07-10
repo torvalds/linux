@@ -1,0 +1,7 @@
+# This creates 120k file
+yes "123456789 123456789 123456789 123456789" | head -3000 >>"$0.tmp"
+
+echo "`cat $0.tmp`" | md5sum
+rm "$0.tmp"
+yes "123456789 123456789 123456789 123456789" | head -3000 | md5sum
+echo End

@@ -1,0 +1,21 @@
+# The bug here was triggered by:
+# * performing pathname expansion because we see [
+# * replace operator did not escape \ in replace string
+
+IP=192.168.0.1
+
+rm -f '192.168.0.1['
+echo "${IP//./\\.}"
+echo "${IP//./\\.}"'[' # bug was here
+echo "${IP//./\\.}["   # bug was here
+echo "${IP//./\\\\.}[" # bug was here
+echo "192\.168\.0\.1["
+
+echo >'192.168.0.1['
+echo "${IP//./\\.}"
+echo "${IP//./\\.}"'[' # bug was here
+echo "${IP//./\\.}["   # bug was here
+echo "${IP//./\\\\.}[" # bug was here
+echo "192\.168\.0\.1["
+
+rm -f '192.168.0.1['

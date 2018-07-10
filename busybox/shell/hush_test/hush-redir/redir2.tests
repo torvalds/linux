@@ -1,0 +1,5 @@
+# ash once couldn't redirect above fd#9
+exec 1>/dev/null
+(echo LOST1 >&22) 22>&1
+(echo LOST2 >&22) 22>&1
+(echo OK >&22) 22>&2

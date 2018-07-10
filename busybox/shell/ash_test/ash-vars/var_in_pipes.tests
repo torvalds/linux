@@ -1,0 +1,7 @@
+b=1 env | grep ^b=
+true | b=2 env | grep ^b=
+a=1 true | b=3 env | grep ^b=
+
+(b=4 env) | grep ^b=
+(true | b=5 env) | grep ^b=
+(a=1 true | b=6 env) | grep ^b=

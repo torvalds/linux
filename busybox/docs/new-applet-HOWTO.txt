@@ -1,0 +1,207 @@
+How to Add a New Applet to BusyBox
+==================================
+
+This document details the steps you must take to add a new applet to BusyBox.
+
+Credits:
+Matt Kraai - initial writeup
+Mark Whitley - the remix
+Thomas Lundquist - trying to keep it updated
+
+When doing this you should consider using the latest git HEAD.
+This is a good thing if you plan to getting it committed into mainline.
+
+Initial Write
+-------------
+
+First, write your applet.  Be sure to include copyright information at the top,
+such as who you stole the code from and so forth. Also include the mini-GPL
+boilerplate and Config.in/Kbuild/usage/applet.h snippets (more on that below
+in this document). Be sure to name the main function <applet>_main instead
+of main. And be sure to put it in <applet>.c. Make sure to #include "libbb.h"
+as the first include file in your applet.
+
+For a new applet mu, here is the code that would go in mu.c:
+
+(libbb.h already includes most usual header files. You do not need
+#include <stdio.h> etc...)
+
+
+----begin example code------
+
+/* vi: set sw=4 ts=4: */
+/*
+ * Mini mu implementation for busybox
+ *
+ * Copyright (C) [YEAR] by [YOUR NAME] <YOUR EMAIL>
+ *
+ * Licensed under GPLv2, see file LICENSE in this source tree.
+ */
+
+#include "libbb.h"
+#include "other.h"
+
+//config:config MU
+//config:	bool "MU"
+//config:	default y
+//config:	help
+//config:	  Returns an indeterminate value.
+
+//kbuild:lib-$(CONFIG_MU) += mu.o
+//applet:IF_MU(APPLET(mu, BB_DIR_USR_BIN, BB_SUID_DROP))
+
+//usage:#define mu_trivial_usage
+//usage:	"[-abcde] FILE..."
+//usage:#define mu_full_usage
+//usage:	"Returns an indeterminate value\n"
+//usage:     "\n	-a	First function"
+//usage:     "\n	-b	Second function"
+
+int mu_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+int mu_main(int argc, char **argv)
+{
+	int fd;
+	ssize_t n;
+	char mu;
+
+	fd = xopen("/dev/random", O_RDONLY);
+
+	if ((n = safe_read(fd, &mu, 1)) < 1)
+		bb_perror_msg_and_die("/dev/random");
+
+	return mu;
+}
+
+----end example code------
+
+
+Coding Style
+------------
+
+Before you submit your applet for inclusion in BusyBox, (or better yet, before
+you _write_ your applet) please read through the style guide in the docs
+directory and make your program compliant.
+
+
+Some Words on libbb
+-------------------
+
+As you are writing your applet, please be aware of the body of pre-existing
+useful functions in libbb. Use these instead of reinventing the wheel.
+
+Additionally, if you have any useful, general-purpose functions in your
+applet that could be useful in other applets, consider putting them in libbb.
+
+And it may be possible that some of the other applets uses functions you
+could use. If so, you have to rip the function out of the applet and make
+a libbb function out of it.
+
+Adding a libbb function:
+------------------------
+
+Make a new file named <function_name>.c
+
+----start example code------
+
+#include "libbb.h"
+#include "other.h"
+
+//kbuild:lib-y += function.o
+
+int function(char *a)
+{
+	return *a;
+}
+
+----end example code------
+
+Remember about the kbuild snippet.
+
+You should also try to find a suitable place in include/libbb.h for
+the function declaration. If not, add it somewhere anyway, with or without
+ifdefs to include or not.
+
+You can look at libbb/Config.src and try to find out if the function is
+tunable and add it there if it is.
+
+
+Kbuild/Config.in/usage/applets.h snippets in .c files
+-----------------------------------------------------
+
+The old way of adding new applets was to put all the information needed by the
+configuration and build system into appropriate files (namely: Kbuild.src and
+Config.src in new applet's directory) and to add the applet declaration and
+usage info text to include/applets.src.h and include/usage.src.h respectively.
+
+Since the scripts/gen_build_files.sh script had been introduced, the preferred
+way is to have all these declarations contained within the applet .c files.
+
+Every line intended to be processed by gen_build_files.sh should start as a
+comment without any preceding whitespaces and be followed by an appropriate
+keyword - kbuild, config, usage or applet - and a colon, just like shown in the
+first example above.
+
+
+Placement / Directory
+---------------------
+
+Find the appropriate directory for your new applet.
+
+Add the config snippet to the .c file:
+
+//config:config MU
+//config:	bool "MU"
+//config:	default y
+//config:	help
+//config:	Returns an indeterminate value.
+
+Add the kbuild snippet to the .c file:
+
+//kbuild:lib-$(CONFIG_MU) += mu.o
+
+
+Usage String(s)
+---------------
+
+Next, add usage information for your applet to the .c file.
+This should look like the following:
+
+//usage:#define mu_trivial_usage
+//usage:	"[-abcde] FILE..."
+//usage:#define mu_full_usage "\n\n"
+//usage:	"Returns an indeterminate value"
+//usage:     "\n"
+//usage:     "\n	-a	First function"
+//usage:     "\n	-b	Second function"
+//usage:	...
+
+If your program supports flags, the flags should be mentioned on the first
+line ([-abcde]) and a detailed description of each flag should go in the
+mu_full_usage section, one flag per line.
+
+
+Header Files
+------------
+
+Finally add the applet declaration snippet. Be sure to read the top of
+applets.src.h before adding your applet - it contains important info
+on applet macros and conventions.
+
+//applet:IF_MU(APPLET(mu, BB_DIR_USR_BIN, BB_SUID_DROP))
+
+
+The Grand Announcement
+----------------------
+
+Then create a diff by adding the new files to git (remember your libbb files)
+	git add <where you put it>/mu.c
+eventually also:
+	git add libbb/function.c
+then
+	git commit
+	git format-patch HEAD^
+and send it to the mailing list:
+	busybox@busybox.net
+	http://busybox.net/mailman/listinfo/busybox
+
+Sending patches as attachments is preferred, but not required.

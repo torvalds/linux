@@ -1,0 +1,1 @@
+test $($ECHO -e "f1\tf2\tf3" | busybox cut -f 2) = f2

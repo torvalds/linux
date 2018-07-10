@@ -1,0 +1,5 @@
+echo "Testing multiple redirections to same fd"
+# bug was making us lose fd #1 after this:
+echo Hello >/dev/null 1>&2
+echo Done1
+echo Done2 >&2

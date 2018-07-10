@@ -1,0 +1,11 @@
+x="tmp11:tmp22"
+
+# Bug was incorrectly expanding variables in >redir
+echo "${x%:*}" >"${x%:*}"
+echo tmp1*
+rm tmp1*
+
+# Also try unquoted
+echo "${x%:*}" >${x%:*}
+echo tmp1*
+rm tmp1*

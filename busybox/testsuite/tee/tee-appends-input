@@ -1,0 +1,5 @@
+echo i\'m a little teapot >foo
+cp foo bar
+echo i\'m a little teapot >>foo
+echo i\'m a little teapot | busybox tee -a bar >/dev/null
+cmp foo bar

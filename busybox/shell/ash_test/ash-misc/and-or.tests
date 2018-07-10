@@ -1,0 +1,34 @@
+false || echo a1
+false && echo a2
+true || echo a3
+true && echo a4
+
+false || echo b1 || echo b2
+false || echo b3 && echo b4
+false && echo b5 || echo b6
+false && echo b7 && echo b8
+
+true || echo c1 || echo c2
+true || echo c3 && echo c4
+true && echo c5 || echo c6
+true && echo c7 && echo c8
+
+false || false || echo ff1
+false || false && echo ff2
+false && false || echo ff3
+false && false && echo ff4
+
+false || true || echo ft1
+false || true && echo ft2
+false && true || echo ft3
+false && true && echo ft4
+
+true || false || echo tf1
+true || false && echo tf2
+true && false || echo tf3
+true && false && echo tf4
+
+true || true || echo tt1
+true || true && echo tt2
+true && true || echo tt3
+true && true && echo tt4

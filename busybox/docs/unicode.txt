@@ -1,0 +1,71 @@
+	Unicode support in busybox
+
+There are several scenarios where we need to handle unicode
+correctly.
+
+	Shell input
+
+We want to correctly handle input of unicode characters.
+There are several problems with it. Just handling input
+as sequence of bytes would break any editing. This was fixed
+and now lineedit operates on the array of wchar_t's.
+But we also need to handle the following problematic moments:
+
+* It is unreasonable to expect that output device supports
+  _any_ unicode chars. Perhaps we need to avoid printing
+  those chars which are not supported by output device.
+  Examples: chars which are not present in the font,
+  chars which are not assigned in unicode,
+  combining chars (especially trying to combine bad pairs:
+  a_chinese_symbol + "combining grave accent" = ??!)
+
+* We need to account for the fact that unicode chars have
+  different widths: 0 for combining chars, 1 for usual,
+  2 for ideograms (are there 3+ wide chars?).
+
+* Bidirectional handling. If user wants to echo a phrase
+  in Hebrew, he types: echo "srettel werbeH"
+
+	Editors (vi, ed)
+
+This case is a bit similar to "shell input", but unlike shell,
+editors may encounter many more unexpected unicode sequences
+(try to load a random binary file...), and they need to preserve
+them, unlike shell which can afford to drop bogus input.
+
+	more, less
+
+Need to correctly display any input file. Ideally, with
+ASCII/unicode/filtered_unicode option or keyboard switch.
+Note: need to handle tabs and backspaces specially
+(bksp is for manpage compat).
+
+	cut, fold, watch
+
+May need ability to cut unicode string to specified number of wchars
+and/or to specified screen width. Need to handle tabs specially.
+
+	sed, awk, grep
+
+Handle unicode-aware regexp match
+
+	ls (multi-column display)
+
+ls will fail to line up columnar output if it will not account
+for character widths (and maybe filter out some of them, see
+above). OTOH, non-columnar views (ls -1, ls -l, ls | car)
+should NOT filter out bad unicode (but need to filter out
+control chars (coreutils does that). Note that unlike more/less,
+tabs and backspaces need not special handling.
+
+	top, ps
+
+Need to perform filtering similar to ls.
+
+	Filename display (in error messages and elsewhere)
+
+Need to perform filtering similar to ls.
+
+
+TODO: write an email to Asmus Freytag (asmus@unicode.org),
+author of http://unicode.org/reports/tr11/

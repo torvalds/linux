@@ -1,0 +1,29 @@
+# Open Group Base Specifications Issue 7:
+# """
+# If an unknown option is met, VAR shall be set to "?". In this case,
+# if the first character in optstring is ":", OPTARG shall be set
+# to the option character found, but no output shall be written
+# to standard error; otherwise, the shell variable OPTARG shall be
+# unset and a diagnostic message shall be written to standard error."
+# ...
+# If an option-argument is missing:
+# If the first character of optstring is ":", VAR shall be set to ":"
+# and OPTARG shall be set to the option character found.
+# """
+
+(
+
+echo "*** optstring:':ac' args:-a -b -c"
+getopts ":ac" var -a -b -c; echo "1 rc:$? var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+getopts ":ac" var -a -b -c; echo "2 rc:$? var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+getopts ":ac" var -a -b -c; echo "3 rc:$? var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+getopts ":ac" var -a -b -c; echo "4 rc:$? var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+# Previous line should result in "rc:1", which is normally treated
+# in getopts loops as exit condition.
+# Nevertheless, let's verify that calling it yet another time doesn't do
+# anything weird:
+getopts ":ac" var -a -b -c; echo "5 rc:$? var:'$var' OPTIND:$OPTIND OPTARG:'$OPTARG'"
+
+) 2>&1 \
+| sed	-e 's/ unrecognized option: / invalid option -- /' \
+	-e 's/ illegal option -- / invalid option -- /' \

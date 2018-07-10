@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Processes current directory recursively:
+# printf("abc\n") -> puts("abc"). Beware of fprintf etc...
+
+# BTW, gcc 4.1.2 already does the same! Can't believe it...
+
+grep -lr 'printf\([^%%]*\\n"\)' . | grep '.[ch]$' | xargs -n1 \
+    sed -e 's/\([^A-Za-z0-9_]\)printf(\( *"[^%]*\)\\n")/\1puts(\2")/' -i

@@ -1,0 +1,84 @@
+# first try some invalid patterns
+# do all of these in subshells since it's supposed to error out
+# (set argv0 to "SHELL" to avoid "/path/to/shell: blah" in error messages)
+export var=0123456789
+"$THIS_SH" -c 'echo ${:}' SHELL
+"$THIS_SH" -c 'echo ${::}' SHELL
+"$THIS_SH" -c 'echo ${:1}' SHELL
+"$THIS_SH" -c 'echo ${::1}' SHELL
+
+#this also is not valid in bash, hush accepts it:
+"$THIS_SH" -c 'echo ${var:}' SHELL
+
+# then some funky ones
+"$THIS_SH" -c 'echo ${?:0}' SHELL
+
+# now some valid ones
+set --; echo "1    =|${1}|"
+set --; echo "1:1  =|${1:1}|"
+set --; echo "1:1:2=|${1:1:2}|"
+set --; echo "1::2 =|${1::2}|"
+set --; echo "1:1: =|${1:1:}|"
+set --; echo "1::  =|${1::}|"
+
+set -- 0123; echo "1    =|${1}|"
+set -- 0123; echo "1:1  =|${1:1}|"
+set -- 0123; echo "1:1:2=|${1:1:2}|"
+set -- 0123; echo "1::2 =|${1::2}|"
+set -- 0123; echo "1:1: =|${1:1:}|"
+set -- 0123; echo "1::  =|${1::}|"
+
+unset f; echo "f    =|$f|"
+unset f; echo "f:1  =|${f:1}|"
+unset f; echo "f:1:2=|${f:1:2}|"
+unset f; echo "f::2 =|${f::2}|"
+unset f; echo "f:1: =|${f:1:}|"
+unset f; echo "f::  =|${f::}|"
+
+f=; echo "f    =|$f|"
+f=; echo "f:1  =|${f:1}|"
+f=; echo "f:1:2=|${f:1:2}|"
+f=; echo "f::2 =|${f::2}|"
+f=; echo "f:1: =|${f:1:}|"
+f=; echo "f::  =|${f::}|"
+
+f=a; echo "f    =|$f|"
+f=a; echo "f:1  =|${f:1}|"
+f=a; echo "f:1:2=|${f:1:2}|"
+f=a; echo "f::2 =|${f::2}|"
+f=a; echo "f:1: =|${f:1:}|"
+f=a; echo "f::  =|${f::}|"
+
+f=0123456789; echo "f    =|$f|"
+f=0123456789; echo "f:1  =|${f:1}|"
+f=0123456789; echo "f:1:2=|${f:1:2}|"
+f=0123456789; echo "f::2 =|${f::2}|"
+f=0123456789; echo "f:1: =|${f:1:}|"
+f=0123456789; echo "f::  =|${f::}|"
+
+echo "Substrings from special vars"
+echo '?    '"=|$?|"
+echo '?:1  '"=|${?:1}|"
+echo '?:1:2'"=|${?:1:2}|"
+echo '?::2 '"=|${?::2}|"
+echo '?:1: '"=|${?:1:}|"
+echo '?::  '"=|${?::}|"
+set -- 1 2 3 4 5 6 7 8 9 10 11
+echo '#    '"=|$#|"
+echo '#:1  '"=|${#:1}|"
+echo '#:1:2'"=|${#:1:2}|"
+echo '#::2 '"=|${#::2}|"
+echo '#:1: '"=|${#:1:}|"
+echo '#::  '"=|${#::}|"
+
+echo "Substrings with expressions"
+f=01234567; echo 'f            '"=|$f|"
+f=01234567; echo 'f:1+1:2+2    '"=|${f:1+1:2+2}|"
+f=01234567; echo 'f:-1:2+2     '"=|${f:-1:2+2}|"
+f=01234567; echo 'f:1:f        '"=|${f:1:f}|"
+f=01234567; echo 'f:1:$f       '"=|${f:1:$f}|"
+f=01234567; echo 'f:1:${f}     '"=|${f:1:${f}}|"
+f=01234567; echo 'f:1:${f:3:1} '"=|${f:1:${f:3:1}}|"
+f=01234567; echo 'f:1:1`echo 1`'"=|${f:1:`echo 1`}|"
+
+echo Done

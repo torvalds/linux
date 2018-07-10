@@ -1,0 +1,21 @@
+echo new group
+echo 0;  { :; }
+echo 1;  { : ;}
+echo 2; ({ :; })
+echo 3; ({ : ;})
+echo 4;  ( :  )
+echo 5;  ( :; )
+echo 6;  ( : ;)
+# not sure if POSIX requires these, but bash accepts them ...
+#echo 7; {( :  )}
+#echo 8; {( :; )}
+#echo 9; {( : ;)}
+
+echo new group
+#echo 0;  {(:);}
+
+echo new group
+echo 0;  (:)
+echo 1;  (:;)
+echo 2;  (:);
+echo 3;  (:;);

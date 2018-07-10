@@ -1,0 +1,1 @@
+set -- a ""; space=" "; printf "<%s>\n" "$@"$space

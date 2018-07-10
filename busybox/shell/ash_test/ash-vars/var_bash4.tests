@@ -1,0 +1,81 @@
+# This testcase demonstrates that backslashes are treated differently
+# in 1st and 2nd parts of ${var/search/repl}:
+# if quoted ("${var/search/repl}"), and repl contains \a (a non-special char),
+# the backslash in repl stays; if unquoted, backslash is removed.
+# But search part does not act like that: \a is always converted to just a,
+# even in quotes.
+#
+# bash4 (and probably bash3 too): "Quoted:" results are different from
+# unquoted expansions - they have a backslash before z.
+#
+# The difference only exists if repl is a literal. If it is a variable:
+# ${v/.../$s}, then all backslashes are preserved in both cases.
+
+v='a*b\*c'
+echo 'Source:       ' "$v"
+echo 'Replace str:  ' '_\\_\z_'
+
+echo 'Pattern:      ' 'single backslash and star: "replace literal star"'
+echo 'Unquoted:     ' ${v/\*/_\\_\z_}
+r=${v/\*/_\\_\z_}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\*/_\\_\z_}"
+r="${v/\*/_\\_\z_}"
+echo 'Quoted =:     ' "$r"
+
+echo 'Pattern:      ' 'double backslash and star: "replace backslash and everything after it"'
+echo 'Unquoted:     '  ${v/\\*/_\\_\z_}
+r=${v/\\*/_\\_\z_}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\\*/_\\_\z_}"
+r="${v/\\*/_\\_\z_}"
+echo 'Quoted =:     ' "$r"
+
+echo
+
+v='a\bc'
+echo 'Source:       ' "$v"
+echo 'Replace str:  ' '_\\_\z_'
+
+echo 'Pattern:      ' 'single backslash and b: "replace b"'
+echo 'Unquoted:     '  ${v/\b/_\\_\z_}
+r=${v/\b/_\\_\z_}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\b/_\\_\z_}"
+r="${v/\b/_\\_\z_}"
+echo 'Quoted =:     ' "$r"
+
+echo 'Pattern:      ' 'double backslash and b: "replace backslash and b"'
+echo 'Unquoted:     '  ${v/\\b/_\\_\z_}
+r=${v/\\b/_\\_\z_}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\\b/_\\_\z_}"
+r="${v/\\b/_\\_\z_}"
+echo 'Quoted =:     ' "$r"
+
+echo
+
+v='a\bc'
+s='_\\_\z_'
+echo 'Source:       ' "$v"
+echo 'Replace str:  ' "$s" '(as variable $s)'
+
+echo 'Pattern:      ' 'single backslash and b: "replace b"'
+echo 'Unquoted:     '  ${v/\b/$s}
+r=${v/\b/$s}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\b/$s}"
+r="${v/\b/$s}"
+echo 'Quoted =:     ' "$r"
+
+echo 'Pattern:      ' 'double backslash and b: "replace backslash and b"'
+echo 'Unquoted:     '  ${v/\\b/$s}
+r=${v/\\b/$s}
+echo 'Unquoted =:   ' "$r"
+echo 'Quoted:       ' "${v/\\b/$s}"
+r="${v/\\b/$s}"
+echo 'Quoted =:     ' "$r"
+
+echo
+
+echo Done: $?

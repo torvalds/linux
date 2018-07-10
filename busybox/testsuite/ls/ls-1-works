@@ -1,0 +1,6 @@
+# FEATURE: CONFIG_FEATURE_LS_SORTFILES
+
+[ -n "$d" ] || d=..
+LC_ALL=C ls -1 "$d" > logfile.gnu
+LC_ALL=C busybox ls -1 "$d" > logfile.bb
+diff -ubw logfile.gnu logfile.bb

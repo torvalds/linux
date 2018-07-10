@@ -1,0 +1,21 @@
+#!/bin/sh
+echo "\
+# This file is automagically regenerated
+# Note! /etc/nsswitch.conf may override this!
+
+# For loopbacking
+127.0.0.1 localhost
+
+# Our local IPs"
+
+hostname=`hostname`
+test "$hostname" || hostname=localhost
+domain=`(. /boot.conf; echo "$DNSDOMAINNAME")`
+test "$domain" && hostname="$hostname $hostname.$domain"
+
+ip -o a l \
+| grep -F 'inet ' \
+| sed -e 's/^.*inet //' -e 's:[ /].*$: '"$hostname"':'
+
+echo
+echo "# End of /etc/hosts"

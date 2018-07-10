@@ -1,0 +1,10 @@
+>ZVAR=z.tmp
+>z.tmp
+ZVAR=*.tmp echo ZVAR=*.tmp "ZVAR=*.tmp" "ZVAR=[z].tmp"
+ZVAR=*.tmp /bin/echo ZVAR=*.tmp "ZVAR=*.tmp" "ZVAR=[z].tmp"
+ZVAR=*.tmp
+echo "$ZVAR"
+echo $ZVAR
+echo ZVAR=*.tmp "ZVAR=*.tmp" "ZVAR=[z].tmp"
+/bin/echo ZVAR=*.tmp "ZVAR=*.tmp" "ZVAR=[z].tmp"
+rm ZVAR=z.tmp z.tmp

@@ -1,0 +1,150 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+test x"`id -u`" = x"0" || {
+	echo "SKIPPED: makedevs (must be root to test this)"
+	exit 0
+}
+
+unset LANG
+unset LC_COLLATE
+unset LC_ALL
+
+# ls -ln is showing date. Need to remove that, it's variable
+# sed: (1) "maj, min" -> "maj,min" (2) coalesce spaces
+# cut: remove date
+FILTER_LS="sed -e 's/,  */,/g' -e 's/  */ /g' | cut -d' ' -f 1-5,9-"
+# cut: remove size+date
+FILTER_LS2="sed -e 's/,  */,/g' -e 's/  */ /g' | cut -d' ' -f 1-4,9-"
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+rm -rf makedevs.testdir
+mkdir makedevs.testdir
+
+optional FEATURE_MAKEDEVS_TABLE FEATURE_FIND_NOT FEATURE_FIND_TYPE FEATURE_LS_RECURSIVE FEATURE_LS_SORTFILES FEATURE_LS_TIMESTAMPS
+testing "makedevs -d ../makedevs.device_table.txt ." \
+	"(cd makedevs.testdir && makedevs -d ../makedevs.device_table.txt . 2>&1);
+	find makedevs.testdir ! -type d | sort | xargs ls -lnR | $FILTER_LS" \
+"\
+rootdir=.
+table='../makedevs.device_table.txt'
+crw-rw-rw- 1 0 0 5,1 makedevs.testdir/dev/console
+crw-r----- 1 0 5 29,0 makedevs.testdir/dev/fb0
+crw-r----- 1 0 5 29,32 makedevs.testdir/dev/fb1
+crw-r----- 1 0 5 29,64 makedevs.testdir/dev/fb2
+crw-r----- 1 0 5 29,96 makedevs.testdir/dev/fb3
+brw-r----- 1 0 0 3,0 makedevs.testdir/dev/hda
+brw-r----- 1 0 0 3,1 makedevs.testdir/dev/hda1
+brw-r----- 1 0 0 3,10 makedevs.testdir/dev/hda10
+brw-r----- 1 0 0 3,11 makedevs.testdir/dev/hda11
+brw-r----- 1 0 0 3,12 makedevs.testdir/dev/hda12
+brw-r----- 1 0 0 3,13 makedevs.testdir/dev/hda13
+brw-r----- 1 0 0 3,14 makedevs.testdir/dev/hda14
+brw-r----- 1 0 0 3,15 makedevs.testdir/dev/hda15
+brw-r----- 1 0 0 3,2 makedevs.testdir/dev/hda2
+brw-r----- 1 0 0 3,3 makedevs.testdir/dev/hda3
+brw-r----- 1 0 0 3,4 makedevs.testdir/dev/hda4
+brw-r----- 1 0 0 3,5 makedevs.testdir/dev/hda5
+brw-r----- 1 0 0 3,6 makedevs.testdir/dev/hda6
+brw-r----- 1 0 0 3,7 makedevs.testdir/dev/hda7
+brw-r----- 1 0 0 3,8 makedevs.testdir/dev/hda8
+brw-r----- 1 0 0 3,9 makedevs.testdir/dev/hda9
+brw-r----- 1 0 0 3,64 makedevs.testdir/dev/hdb
+brw-r----- 1 0 0 3,65 makedevs.testdir/dev/hdb1
+brw-r----- 1 0 0 3,74 makedevs.testdir/dev/hdb10
+brw-r----- 1 0 0 3,75 makedevs.testdir/dev/hdb11
+brw-r----- 1 0 0 3,76 makedevs.testdir/dev/hdb12
+brw-r----- 1 0 0 3,77 makedevs.testdir/dev/hdb13
+brw-r----- 1 0 0 3,78 makedevs.testdir/dev/hdb14
+brw-r----- 1 0 0 3,79 makedevs.testdir/dev/hdb15
+brw-r----- 1 0 0 3,66 makedevs.testdir/dev/hdb2
+brw-r----- 1 0 0 3,67 makedevs.testdir/dev/hdb3
+brw-r----- 1 0 0 3,68 makedevs.testdir/dev/hdb4
+brw-r----- 1 0 0 3,69 makedevs.testdir/dev/hdb5
+brw-r----- 1 0 0 3,70 makedevs.testdir/dev/hdb6
+brw-r----- 1 0 0 3,71 makedevs.testdir/dev/hdb7
+brw-r----- 1 0 0 3,72 makedevs.testdir/dev/hdb8
+brw-r----- 1 0 0 3,73 makedevs.testdir/dev/hdb9
+crw-rw---- 1 0 0 13,64 makedevs.testdir/dev/input/event0
+crw-rw---- 1 0 0 13,65 makedevs.testdir/dev/input/event1
+crw-rw---- 1 0 0 13,66 makedevs.testdir/dev/input/event2
+crw-rw---- 1 0 0 13,67 makedevs.testdir/dev/input/event3
+crw-r----- 1 0 0 13,63 makedevs.testdir/dev/input/mice
+crw-rw---- 1 0 0 13,32 makedevs.testdir/dev/input/mouse0
+crw-rw---- 1 0 0 13,33 makedevs.testdir/dev/input/mouse1
+crw-rw---- 1 0 0 13,34 makedevs.testdir/dev/input/mouse2
+crw-rw---- 1 0 0 13,35 makedevs.testdir/dev/input/mouse3
+crw-r----- 1 0 0 1,2 makedevs.testdir/dev/kmem
+brw-r----- 1 0 0 7,0 makedevs.testdir/dev/loop0
+brw-r----- 1 0 0 7,1 makedevs.testdir/dev/loop1
+crw-r----- 1 0 0 1,1 makedevs.testdir/dev/mem
+crw-r----- 1 0 0 90,0 makedevs.testdir/dev/mtd0
+crw-r----- 1 0 0 90,2 makedevs.testdir/dev/mtd1
+crw-r----- 1 0 0 90,4 makedevs.testdir/dev/mtd2
+crw-r----- 1 0 0 90,6 makedevs.testdir/dev/mtd3
+brw-r----- 1 0 0 31,0 makedevs.testdir/dev/mtdblock0
+brw-r----- 1 0 0 31,1 makedevs.testdir/dev/mtdblock1
+brw-r----- 1 0 0 31,2 makedevs.testdir/dev/mtdblock2
+brw-r----- 1 0 0 31,3 makedevs.testdir/dev/mtdblock3
+crw-rw---- 1 0 0 10,200 makedevs.testdir/dev/net/tun
+crw-rw-rw- 1 0 0 1,3 makedevs.testdir/dev/null
+crw-rw-rw- 1 0 0 10,1 makedevs.testdir/dev/psaux
+crw-rw-rw- 1 0 0 5,2 makedevs.testdir/dev/ptmx
+crw-rw-rw- 1 0 0 2,0 makedevs.testdir/dev/ptyp0
+crw-rw-rw- 1 0 0 2,1 makedevs.testdir/dev/ptyp1
+crw-rw-rw- 1 0 0 2,2 makedevs.testdir/dev/ptyp2
+crw-rw-rw- 1 0 0 2,3 makedevs.testdir/dev/ptyp3
+crw-rw-rw- 1 0 0 2,4 makedevs.testdir/dev/ptyp4
+crw-rw-rw- 1 0 0 2,5 makedevs.testdir/dev/ptyp5
+crw-rw-rw- 1 0 0 2,6 makedevs.testdir/dev/ptyp6
+crw-rw-rw- 1 0 0 2,7 makedevs.testdir/dev/ptyp7
+crw-rw-rw- 1 0 0 2,8 makedevs.testdir/dev/ptyp8
+crw-rw-rw- 1 0 0 2,9 makedevs.testdir/dev/ptyp9
+brw-r----- 1 0 0 1,1 makedevs.testdir/dev/ram
+brw-r----- 1 0 0 1,0 makedevs.testdir/dev/ram0
+brw-r----- 1 0 0 1,1 makedevs.testdir/dev/ram1
+brw-r----- 1 0 0 1,2 makedevs.testdir/dev/ram2
+brw-r----- 1 0 0 1,3 makedevs.testdir/dev/ram3
+crw-rw-rw- 1 0 0 1,8 makedevs.testdir/dev/random
+crw-r----- 1 0 0 10,135 makedevs.testdir/dev/rtc
+crw-rw-rw- 1 0 0 5,0 makedevs.testdir/dev/tty
+crw-rw-rw- 1 0 0 4,0 makedevs.testdir/dev/tty0
+crw-rw-rw- 1 0 0 4,1 makedevs.testdir/dev/tty1
+crw-rw-rw- 1 0 0 4,2 makedevs.testdir/dev/tty2
+crw-rw-rw- 1 0 0 4,3 makedevs.testdir/dev/tty3
+crw-rw-rw- 1 0 0 4,4 makedevs.testdir/dev/tty4
+crw-rw-rw- 1 0 0 4,5 makedevs.testdir/dev/tty5
+crw-rw-rw- 1 0 0 4,6 makedevs.testdir/dev/tty6
+crw-rw-rw- 1 0 0 4,7 makedevs.testdir/dev/tty7
+crw-rw-rw- 1 0 0 57,0 makedevs.testdir/dev/ttyP0
+crw-rw-rw- 1 0 0 57,1 makedevs.testdir/dev/ttyP1
+crw-rw-rw- 1 0 0 57,2 makedevs.testdir/dev/ttyP2
+crw-rw-rw- 1 0 0 57,3 makedevs.testdir/dev/ttyP3
+crw-rw-rw- 1 0 0 4,64 makedevs.testdir/dev/ttyS0
+crw-rw-rw- 1 0 0 4,65 makedevs.testdir/dev/ttyS1
+crw-rw-rw- 1 0 0 4,66 makedevs.testdir/dev/ttyS2
+crw-rw-rw- 1 0 0 4,67 makedevs.testdir/dev/ttyS3
+crw-rw-rw- 1 0 0 3,0 makedevs.testdir/dev/ttyp0
+crw-rw-rw- 1 0 0 3,1 makedevs.testdir/dev/ttyp1
+crw-rw-rw- 1 0 0 3,2 makedevs.testdir/dev/ttyp2
+crw-rw-rw- 1 0 0 3,3 makedevs.testdir/dev/ttyp3
+crw-rw-rw- 1 0 0 3,4 makedevs.testdir/dev/ttyp4
+crw-rw-rw- 1 0 0 3,5 makedevs.testdir/dev/ttyp5
+crw-rw-rw- 1 0 0 3,6 makedevs.testdir/dev/ttyp6
+crw-rw-rw- 1 0 0 3,7 makedevs.testdir/dev/ttyp7
+crw-rw-rw- 1 0 0 3,8 makedevs.testdir/dev/ttyp8
+crw-rw-rw- 1 0 0 3,9 makedevs.testdir/dev/ttyp9
+crw-rw-rw- 1 0 0 1,9 makedevs.testdir/dev/urandom
+crw-rw-rw- 1 0 0 1,5 makedevs.testdir/dev/zero
+" \
+	"" ""
+SKIP=
+
+# clean up
+rm -rf makedevs.testdir
+
+exit $FAILCOUNT

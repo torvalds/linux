@@ -1,0 +1,3 @@
+./groups_and_keywords2.tests: eval: line 1: syntax error: unexpected ")"
+Fail:2
+./groups_and_keywords2.tests: line 8: syntax error: unexpected ")"

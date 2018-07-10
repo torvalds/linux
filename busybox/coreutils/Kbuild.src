@@ -1,0 +1,18 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2005 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+libs-y			+= libcoreutils/
+
+lib-y:=
+
+INSERT
+
+lib-$(CONFIG_MORE)          += cat.o   # more uses it if stdout isn't a tty
+lib-$(CONFIG_LESS)          += cat.o   # less too
+lib-$(CONFIG_CRONTAB)       += cat.o   # crontab -l
+lib-$(CONFIG_ADDUSER)       += chown.o # used by adduser
+lib-$(CONFIG_ADDGROUP)      += chown.o # used by addgroup
+lib-$(CONFIG_FTPD)          += ls.o    # used by ftpd

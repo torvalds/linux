@@ -1,0 +1,4 @@
+true
+false; echo `echo $?`
+true
+{ false; echo `echo $?`; }

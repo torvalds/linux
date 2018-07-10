@@ -1,0 +1,11 @@
+x=1
+until test "$x" = 4; do echo $x; x=4; done
+
+# We had a bug in multi-line form
+x=1
+until test "$x" = 4; do
+        echo $x
+        x=4
+done
+
+echo Ok:$?

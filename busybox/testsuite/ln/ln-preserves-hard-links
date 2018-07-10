@@ -1,0 +1,8 @@
+echo file number one > file1
+echo file number two > link1
+set +e
+busybox ln file1 link1
+if [ $? != 0 ] ; then
+	exit 0;
+fi
+exit 1;

@@ -1,0 +1,10 @@
+# Each of these should show only four lines:
+# fds 0,1,2 are stdio; fd 3 is open by opendir() in ls.
+# This test detects bugs where redirects leave stray open fds.
+
+ls -1 /proc/self/fd | wc -l
+ls -1 /proc/self/fd >/proc/self/fd/1 | wc -l
+ls -1 /proc/self/fd >/proc/self/fd/1 2>&1 | wc -l
+echo "`ls -1 /proc/self/fd `" | wc -l
+echo "`ls -1 /proc/self/fd >/proc/self/fd/1 `" | wc -l
+echo "`ls -1 /proc/self/fd >/proc/self/fd/1 2>&1 `" | wc -l

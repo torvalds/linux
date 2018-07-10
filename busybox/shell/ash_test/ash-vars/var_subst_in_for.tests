@@ -1,0 +1,40 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" abc "d e"
+fi
+
+echo 'Testing: in x y z'
+for a in x y z; do echo ".$a."; done
+
+echo 'Testing: in u $empty v'
+empty=''
+for a in u $empty v; do echo ".$a."; done
+
+echo 'Testing: in u " $empty" v'
+empty=''
+for a in u " $empty" v; do echo ".$a."; done
+
+echo 'Testing: in u $empty $empty$a v'
+a='a'
+for a in u $empty $empty$a v; do echo ".$a."; done
+
+echo 'Testing: in $a_b'
+a_b='a b'
+for a in $a_b; do echo ".$a."; done
+
+echo 'Testing: in $*'
+for a in $*; do echo ".$a."; done
+
+echo 'Testing: in $@'
+for a in $@; do echo ".$a."; done
+
+echo 'Testing: in -$*-'
+for a in -$*-; do echo ".$a."; done
+
+echo 'Testing: in -$@-'
+for a in -$@-; do echo ".$a."; done
+
+echo 'Testing: in $a_b -$a_b-'
+a_b='a b'
+for a in $a_b -$a_b-; do echo ".$a."; done
+
+echo Finished

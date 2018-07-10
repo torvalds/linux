@@ -1,0 +1,61 @@
+# do all of these in subshells since it's supposed to error out
+# (set argv0 to "SHELL" to avoid "/path/to/shell: blah" in error messages)
+
+# first try some invalid patterns
+#"$THIS_SH" -c 'echo ${?}' SHELL -- this is valid as it's the same as $?
+"$THIS_SH" -c 'echo ${:?}' SHELL
+
+# then some funky ones
+# note: bash prints 1 - treats it as "length of $#"
+"$THIS_SH" -c 'echo ${#?}' SHELL
+# bash prints 0
+"$THIS_SH" -c 'echo ${#:?}' SHELL
+
+# now some valid ones
+export msg_unset="unset!"
+export msg_null_or_unset="null or unset!"
+
+echo ====
+"$THIS_SH" -c 'set --; echo _$1' SHELL
+"$THIS_SH" -c 'set --; echo _${1?}' SHELL
+"$THIS_SH" -c 'set --; echo _${1:?}' SHELL
+"$THIS_SH" -c 'set --; echo _${1?message1}' SHELL
+"$THIS_SH" -c 'set --; echo _${1:?message1}' SHELL
+"$THIS_SH" -c 'set --; echo _${1?$msg_unset}' SHELL
+"$THIS_SH" -c 'set --; echo _${1:?$msg_null_or_unset}' SHELL
+
+echo ====
+"$THIS_SH" -c 'set -- aaaa; echo _$1' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1?}' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1:?}' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1?word}' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1:?word}' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1?$msg_unset}' SHELL
+"$THIS_SH" -c 'set -- aaaa; echo _${1:?$msg_null_or_unset}' SHELL
+
+echo ====
+"$THIS_SH" -c 'unset f; echo _$f' SHELL
+"$THIS_SH" -c 'unset f; echo _${f?}' SHELL
+"$THIS_SH" -c 'unset f; echo _${f:?}' SHELL
+"$THIS_SH" -c 'unset f; echo _${f?message3}' SHELL
+"$THIS_SH" -c 'unset f; echo _${f:?message3}' SHELL
+"$THIS_SH" -c 'unset f; echo _${f?$msg_unset}' SHELL
+"$THIS_SH" -c 'unset f; echo _${f:?$msg_null_or_unset}' SHELL
+
+echo ====
+"$THIS_SH" -c 'f=; echo _$f' SHELL
+"$THIS_SH" -c 'f=; echo _${f?}' SHELL
+"$THIS_SH" -c 'f=; echo _${f:?}' SHELL
+"$THIS_SH" -c 'f=; echo _${f?word}' SHELL
+"$THIS_SH" -c 'f=; echo _${f:?message4}' SHELL
+"$THIS_SH" -c 'f=; echo _${f?$msg_unset}' SHELL
+"$THIS_SH" -c 'f=; echo _${f:?$msg_null_or_unset}' SHELL
+
+echo ====
+"$THIS_SH" -c 'f=fff; echo _$f' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f?}' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f:?}' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f?word}' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f:?word}' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f?$msg_unset}' SHELL
+"$THIS_SH" -c 'f=fff; echo _${f:?$msg_null_or_unset}' SHELL

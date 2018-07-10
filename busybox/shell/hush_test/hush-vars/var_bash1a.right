@@ -1,0 +1,6 @@
+parameter     'abcdef'
+varoffset2    'cdef'
+varoffset-2   'ef'
+literal '2'   'cdef'
+literal '-2'  'abcdef'
+literal ' -2' 'ef'

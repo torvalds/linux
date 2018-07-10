@@ -1,0 +1,22 @@
+# Exitcode 0 (`` has no exitcode, but assignment has):
+true;  a=``; echo $?
+false; a=``; echo $?
+true;  a=$(); echo $?
+false; a=$(); echo $?
+# Exitcode 2 (`cmd` expansion sets exitcode after assignment set it to 0):
+true;  a=`exit 2`; echo $?
+false; a=`exit 2`; echo $?
+true;  a=$(exit 2); echo $?
+false; a=$(exit 2); echo $?
+# Exitcode 1 (redirect sets exitcode to 1 on error after them):
+true;  a=`` >/does/not/exist; echo $?
+false; a=`` >/does/not/exist; echo $?
+true;  a=$() >/does/not/exist; echo $?
+false; a=$() >/does/not/exist; echo $?
+true;  a=`exit 2` >/does/not/exist; echo $?
+false; a=`exit 2` >/does/not/exist; echo $?
+true;  a=$(exit 2) >/does/not/exist; echo $?
+false; a=$(exit 2) >/does/not/exist; echo $?
+# ...and assignment still happens despite redirect error:
+true;  a=$(echo b) >/does/not/exist; echo $?
+echo "Done: a=$a"

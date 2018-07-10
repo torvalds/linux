@@ -1,0 +1,183 @@
+#!/bin/sh
+
+# SUSv3 compliant mount and umount tests.
+# Copyright 2005 by Rob Landley <rob@landley.net>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+if [ -z "$TESTDIR" ]
+then
+  echo 'Need $TESTDIR'
+  exit 1
+fi
+
+cd "$TESTDIR"
+
+. testing.sh
+
+# If we aren't PID 1, barf.
+
+#if [ $$ -ne 1 ]
+#then
+#  echo "SKIPPED: mount test requires emulation environment"
+#  exit 0
+#fi
+
+# Run tests within the chroot environment.
+dochroot bash rm ls ln cat ps mknod mkdir dd grep cmp diff tail \
+	mkfs.ext2 mkfs.vfat mount umount losetup wc << EOF
+#!/bin/bash
+
+. /testing.sh
+
+mknod /dev/loop0 b 7 0
+mknod /dev/loop1 b 7 1
+
+# We need /proc to do much.  Make sure we can mount it explicitly.
+
+testing "mount no proc [GNUFAIL]" "mount 2> /dev/null || echo yes" "yes\n" "" ""
+testing "mount /proc" "mount -t proc /proc /proc && ls -d /proc/1" \
+	"/proc/1\n" "" ""
+
+# Make sure the last thing in the list is /proc
+
+testing "mount list1" "mount | tail -n 1" "/proc on /proc type proc (rw)\n" \
+	"" ""
+
+
+# Create an ext2 image
+
+mkdir -p images/{ext2.dir,vfat.dir,test1,test2,test3}
+dd if=/dev/zero of=images/ext2.img bs=1M count=1 2> /dev/null
+mkfs.ext2 -F -b 1024 images/ext2.img > /dev/null 2> /dev/null
+dd if=/dev/zero of=images/vfat.img bs=1M count=1 2> /dev/null
+mkfs.vfat images/vfat.img > /dev/null
+
+# Test mount it
+
+testing "mount vfat image (explicitly autodetect type)" \
+	"mount -t auto images/vfat.img images/vfat.dir && mount | tail -n 1 | grep -o 'vfat.dir type vfat'" \
+	"vfat.dir type vfat\n" "" ""
+testing "mount ext2 image (autodetect type)" \
+	"mount images/ext2.img images/ext2.dir 2> /dev/null && mount | tail -n 1" \
+	"/dev/loop1 on /images/ext2.dir type ext2 (rw)\n" "" ""
+testing "mount remount ext2 image noatime" \
+	"mount -o remount,noatime images/ext2.dir && mount | tail -n 1" \
+	"/dev/loop1 on /images/ext2.dir type ext2 (rw,noatime)\n" "" ""
+testing "mount remount ext2 image ro remembers noatime" \
+	"mount -o remount,ro images/ext2.dir && mount | tail -n 1" \
+	"/dev/loop1 on /images/ext2.dir type ext2 (ro,noatime)\n" "" ""
+
+umount -d images/vfat.dir
+umount -d images/ext2.dir
+
+testing "mount umount freed loop device" \
+	"mount images/ext2.img images/ext2.dir && mount | tail -n 1" \
+	"/dev/loop0 on /images/ext2.dir type ext2 (rw)\n" "" ""
+
+testing "mount block device" \
+	"mount -t ext2 /dev/loop0 images/test1 && mount | tail -n 1" \
+	"/dev/loop0 on /images/test1 type ext2 (rw)\n" "" ""
+
+umount -d images/ext2.dir images/test1
+
+testing "mount remount nonexistent directory" \
+	"mount -o remount,noatime images/ext2.dir 2> /dev/null || echo yes" \
+	"yes\n" "" ""
+
+# Fun with mount -a
+
+testing "mount -a no fstab" "mount -a 2>/dev/null || echo yes" "yes\n" "" ""
+
+umount /proc
+
+# The first field is space delimited, the rest tabs.
+
+cat > /etc/fstab << FSTAB
+/proc             /proc			proc	defaults	0	0
+# Autodetect loop, and provide flags with commas in them.
+/images/ext2.img  /images/ext2.dir	ext2	noatime,nodev	0	0
+# autodetect filesystem, flags without commas.
+/images/vfat.img  /images/vfat.dir	auto	ro		0	0
+# A block device
+/dev/loop2        /images/test1		auto	defaults	0	0
+# tmpfs, filesystem specific flag.
+walrus		  /images/test2		tmpfs	size=42		0	0
+# Autodetect a bind mount.
+/images/test2     /images/test3		auto	defaults	0	0
+FSTAB
+
+# Put something on loop2.
+mknod /dev/loop2 b 7 2
+cat images/ext2.img > images/ext2-2.img
+losetup /dev/loop2 images/ext2-2.img
+
+testing "mount -a" "mount -a && echo hello > /images/test2/abc && cat /images/test3/abc && (mount | wc -l)" "hello\n8\n" "" ""
+
+testing "umount -a" "umount -a && ls /proc" "" "" ""
+
+#/bin/bash < /dev/tty > /dev/tty 2> /dev/tty
+mknod /dev/console c 5 1
+/bin/bash < /dev/console > /dev/console 2> /dev/console
+EOF
+
+exit 0
+
+# Run some tests
+
+losetup nonexistent device (should return error 2)
+losetup unbound loop device (should return error 1)
+losetup bind file to loop device
+losetup bound loop device (display)  (should return error 0)
+losetup filename (error)
+losetup nofile (file not found)
+losetup -d
+losetup bind with offset
+losetup -f (print first loop device)
+losetup -f filename (associate file with first loop device)
+losetup -o (past end of file) -f filename
+
+mount -a
+  with multiple entries in fstab
+  with duplicate entries in fstab
+  with relative paths in fstab
+  with user entries in fstab
+mount -o async,sync,atime,noatime,dev,nodev,exec,noexec,loop,suid,nosuid,remount,ro,rw,bind,move
+mount -r
+mount -o rw -r
+mount -w -o ro
+mount -t auto
+
+mount with relative path in fstab
+mount block device
+mount char device
+mount file (autoloop)
+mount directory (autobind)
+
+
+testing "umount with no /proc"
+testing "umount curdir"
+
+# The basic tests.  These should work even with the small busybox.
+
+testing "sort" "input" "a\nb\nc\n" "c\na\nb\n" ""
+testing "sort #2" "input" "010\n1\n3\n" "3\n1\n010\n" ""
+testing "sort stdin" "" "a\nb\nc\n" "" "b\na\nc\n"
+testing "sort numeric" "-n input" "1\n3\n010\n" "3\n1\n010\n" ""
+testing "sort reverse" "-r input" "wook\nwalrus\npoint\npabst\naargh\n" \
+	"point\nwook\npabst\naargh\nwalrus\n" ""
+
+optional FEATURE_MOUNT_LOOP
+testing "umount -D"
+
+optional FEATURE_MTAB_SUPPORT
+optional FEATURE_MOUNT_NFS
+# No idea what to test here.
+
+optional UMOUNT
+optional FEATURE_UMOUNT_ALL
+testing "umount -a"
+testing "umount -r"
+testing "umount -l"
+testing "umount -f"
+
+exit $FAILCOUNT

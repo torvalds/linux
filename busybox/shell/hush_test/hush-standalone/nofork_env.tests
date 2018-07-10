@@ -1,0 +1,15 @@
+# ash had a bug where NOFORKed applet (env/printenv) was not seeing new exported variables
+
+(export ZVAR=1; printenv) | grep ^ZVAR=
+(ZVAR=2 printenv) | grep ^ZVAR=
+
+(export ZVAR=3; env) | grep ^ZVAR=
+(ZVAR=4 env) | grep ^ZVAR=
+
+export ZVAR=5; printenv | grep ^ZVAR=
+ZVAR=6 printenv | grep ^ZVAR=
+
+export ZVAR=7; env | grep ^ZVAR=
+ZVAR=8 env | grep ^ZVAR=
+
+echo Ok:$?

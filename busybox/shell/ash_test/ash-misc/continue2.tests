@@ -1,0 +1,3 @@
+e=''
+(while test $e && exit 1; true; do e=1; continue; done)
+echo Ok:$?

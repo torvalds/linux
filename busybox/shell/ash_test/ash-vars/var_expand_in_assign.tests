@@ -1,0 +1,15 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" abc "d e"
+fi
+
+space=' '
+echo .$space.
+
+a=$*
+echo .$a.
+a=$@
+echo .$a.
+a="$*"
+echo .$a.
+a="$@"
+echo .$a.

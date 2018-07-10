@@ -1,0 +1,4 @@
+#!/bin/sh
+cat /etc/nologin.txt 2>/dev/null || echo "This account is not available"
+sleep 5
+exit 1

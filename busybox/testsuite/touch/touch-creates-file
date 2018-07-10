@@ -1,0 +1,2 @@
+busybox touch foo
+test -f foo

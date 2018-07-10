@@ -1,0 +1,28 @@
+echo "Warm up"
+i=1
+while test $i != 9; do
+    `true`
+    : $((i++))
+done
+
+memleak
+
+echo "Measuring memory leak..."
+i=1
+while test $i != 199; do
+    `true`
+    : $((i++))
+done
+i=1
+while test $i != 199; do
+    `true`
+    : $((i++))
+done
+
+memleak
+kb=$?
+if test $kb -le 4; then
+    echo Ok #$kb
+else
+    echo "Bad: $kb kb (or more) leaked"
+fi

@@ -1,0 +1,15 @@
+# Chars above 0x7f are used as special codes.
+# 0x81 is CTLESC (see ash.c).
+# The bug was that quoting and unquoting of them
+# was out of sync for redirect filenames.
+
+# Subcase when redirect filename is specified in a variable.
+
+>unicode.sh
+printf 'v=uni\x81code\n' >>unicode.sh
+printf 'echo Ok >"$v"\n' >>unicode.sh
+printf 'cat uni\x81code\n' >>unicode.sh
+printf 'cat uni?code\n' >>unicode.sh
+. ./unicode.sh
+rm uni*code*
+echo Done

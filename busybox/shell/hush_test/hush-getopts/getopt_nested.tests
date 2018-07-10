@@ -1,0 +1,21 @@
+# Test that there is no interference of getopt()
+# in getopts and unset.
+# It's unclear what "correct" OPTIND values should be
+# for "b" and "c" results from "-bc": 2? 3?
+# What we focus on here is that all options are reported
+# correct number of times and in correct sequence.
+
+(
+
+loop=99
+while getopts "abc" var -a -bc -abc -def -a; do
+    echo "var:$var" #OPTIND:$OPTIND
+    # this may use getopt():
+    unset -ff func
+    test $((--loop)) = 0 && break  # BUG if this triggers
+done
+echo "End: var:$var OPTIND:$OPTIND"
+
+) 2>&1 \
+| sed   -e 's/ unrecognized option: / invalid option -- /' \
+        -e 's/ illegal option -- / invalid option -- /' \

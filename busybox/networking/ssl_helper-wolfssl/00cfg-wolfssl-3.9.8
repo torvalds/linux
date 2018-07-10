@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# How to configure & build a static wolfssl library
+# suitable for static build of ssl_helper.
+
+export CC="i686-gcc"
+export CFLAGS="\
+-Os \
+-static \
+-fomit-frame-pointer \
+-falign-functions=1 -falign-labels=1 -falign-loops=1 -falign-jumps=1 \
+-ffunction-sections -fdata-sections \
+"
+
+{
+
+./configure \
+	--host="i686" \
+	--enable-static \
+	--enable-singlethreaded \
+	--disable-shared \
+\
+	C_EXTRA_FLAGS="-DWOLFSSL_STATIC_RSA" \
+|| exit $?
+
+# The second group of options was added when "vanilla" config did not work.
+# A good tool to debug problems is to try wolfssl's client tool, e.g.:
+# examples/client/client -h www.google.com -p 443 -d -x
+#
+# configure has many other options, see ./configure --help
+#	--enable-ecc \
+#	--enable-sni \
+#
+# Also consult "wolfSSL - Embedded SSL Library Product Support Forums"
+# for recent report of users having problems connecting.
+
+make
+
+} 2>&1 | tee "$0.log"

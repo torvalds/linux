@@ -1,0 +1,62 @@
+#!/bin/sh
+# Copyright 2009 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+testing "fold -s" "fold -w 7 -s" \
+        "123456\n\t\nasdf" \
+        "" \
+        "123456\tasdf" \
+
+testing "fold -w1" "fold -w1" \
+	"q\nq\n \nw\n \ne\ne\ne\n \nr\n \nt\nt\nt\nt\n \ny" \
+	"" \
+	"qq w eee r tttt y" \
+
+testing "fold with NULs" "fold -sw22" \
+	"\
+The NUL is here:>\0< \n\
+and another one is \n\
+here:>\0< - they must \n\
+be preserved
+" \
+	"" \
+	"The NUL is here:>\0< and another one \
+is here:>\0< - they must be preserved
+" \
+
+# The text was taken from English and Ukrainian wikipedia pages
+test x"$CONFIG_UNICODE_SUPPORT" = x"y" \
+&& test x"$CONFIG_UNICODE_USING_LOCALE" != x"y" \
+&& testing "fold -sw66 with unicode input" "fold -sw66" \
+	"\
+The Andromeda Galaxy (pronounced /ænˈdrɒmədə/, also known as \n\
+Messier 31, M31, or NGC224; often referred to as the Great \n\
+Andromeda Nebula in older texts) is a spiral galaxy approximately \n\
+2,500,000 light-years (1.58×10^11 AU) away in the constellation \n\
+Andromeda. It is the nearest spiral galaxy to our own, the Milky \n\
+Way.\n\
+Галактика або Туманність Андромеди (також відома як M31 за \n\
+каталогом Мессьє та NGC224 за Новим загальним каталогом) — \n\
+спіральна галактика, що знаходиться на відстані приблизно у 2,5 \n\
+мільйони світлових років від нашої планети у сузір'ї Андромеди. \n\
+На початку ХХІ ст. в центрі галактики виявлено чорну дірку." \
+	"" \
+	"\
+The Andromeda Galaxy (pronounced /ænˈdrɒmədə/, also known as \
+Messier 31, M31, or NGC224; often referred to as the Great \
+Andromeda Nebula in older texts) is a spiral galaxy approximately \
+2,500,000 light-years (1.58×10^11 AU) away in the constellation \
+Andromeda. It is the nearest spiral galaxy to our own, the Milky \
+Way.
+Галактика або Туманність Андромеди (також відома як M31 за \
+каталогом Мессьє та NGC224 за Новим загальним каталогом) — \
+спіральна галактика, що знаходиться на відстані приблизно у 2,5 \
+мільйони світлових років від нашої планети у сузір'ї Андромеди. \
+На початку ХХІ ст. в центрі галактики виявлено чорну дірку."
+
+exit $FAILCOUNT

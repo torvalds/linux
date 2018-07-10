@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# unit test for sum.
+# Copyright 2007 by Bernhard Reutner-Fischer
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+# AUDIT: Unit tests for sum
+
+. ./testing.sh
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+testing "sum -r file doesn't print file's name" \
+        "sum -r '$0' | grep -c '$0' && echo wrongly_printed_filename || echo yes" \
+	"0\nyes\n" "" ""
+testing "sum -r file file does print both names" \
+        "sum -r '$0' '$0' | grep -c '$0' && echo yes || echo wrongly_omitted_filename" \
+	"2\nyes\n" "" ""
+testing "sum -s file does print file's name" \
+        "sum -s '$0' | grep -c '$0' && echo yes || echo wrongly_omitted_filename" \
+	"1\nyes\n" "" ""
+exit $FAILCOUNT

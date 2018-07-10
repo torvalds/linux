@@ -1,0 +1,7 @@
+{abc}
+{
+}
+./brace1.tests: line 4: {cmd: not found
+./brace1.tests: line 5: {: not found
+./brace1.tests: line 6: {: not found
+Done: 127

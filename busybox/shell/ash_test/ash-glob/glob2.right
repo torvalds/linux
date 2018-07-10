@@ -1,0 +1,18 @@
+Expected Actual
+Z\*    : Z\*
+Z*     : Z*
+Z\f    : Z\f
+Z\*    : Z\*
+
+Z\z    : Z\z
+Zz     : Zz
+Z\z    : Z\z
+Z\z    : Z\z
+
+Z\     : Z\
+Z\     : Z\
+
+Z\f Zf : Z\f Zf
+Z\f Zf : Z\f Zf
+
+Done: 0

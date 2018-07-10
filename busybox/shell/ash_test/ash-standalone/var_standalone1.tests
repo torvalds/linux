@@ -1,0 +1,2 @@
+VAR=42 $THIS_SH -c 'unset VAR; env | grep ^VAR'
+echo Done: $?

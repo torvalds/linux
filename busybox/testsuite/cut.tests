@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Copyright 2007 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+testing "cut '-' (stdin) and multi file handling" \
+	"cut -d' ' -f2 - input" \
+	"over\n""quick\n" \
+	"the quick brown fox\n" \
+	"jumps over the lazy dog\n" \
+
+exit $FAILCOUNT

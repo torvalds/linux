@@ -1,0 +1,1 @@
+test "$(echo I WANT | busybox dd 2>/dev/null)" = "I WANT"

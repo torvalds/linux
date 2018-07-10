@@ -1,0 +1,11 @@
+a=A
+f() {
+	local a
+	# the above line unsets $a
+	echo "A2:'$a'"
+	unset a
+	echo "A3:'$a'"
+}
+echo "A1:'$a'"
+f
+echo "A4:'$a'"

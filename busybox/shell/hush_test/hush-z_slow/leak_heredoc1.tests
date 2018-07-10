@@ -1,0 +1,34 @@
+echo "Warm up"
+i=1
+while test $i != 99; do
+    : <<HERE
+Hello $i `echo builtin_$i`
+HERE
+    : $((i++))
+done
+
+memleak
+
+echo "Measuring memory leak..."
+i=1
+while test $i != 99; do
+    : <<HERE
+Hello $i `echo builtin_$i`
+HERE
+    : $((i++))
+done
+i=1
+while test $i != 99; do
+    : <<HERE
+Hello $i `echo builtin_$i`
+HERE
+    : $((i++))
+done
+
+memleak
+kb=$?
+if test $kb -le 4; then
+    echo Ok #$kb
+else
+    echo "Bad: $kb kb (or more) leaked"
+fi

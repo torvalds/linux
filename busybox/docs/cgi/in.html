@@ -1,0 +1,33 @@
+<html><head><title>CGI Script input</title></head><body><h1><img alt="" src="in_files/CGIlogo.gif"> CGI Script Input</h1>
+<hr>
+
+<h2>Specification</h2>
+
+For requests which have information attached after the header, such as
+HTTP POST or PUT, the information will be sent to the script on stdin.
+<p>
+
+The server will send <a href="http://hoohoo.ncsa.uiuc.edu/cgi/env.html#cl">CONTENT_LENGTH</a> bytes on
+this file descriptor. Remember that it will give the <a href="http://hoohoo.ncsa.uiuc.edu/cgi/env.html#ct">CONTENT_TYPE</a> of the data as well. The server is
+in no way obligated to send end-of-file after the script reads
+<code>CONTENT_LENGTH</code> bytes. </p><p>
+</p><hr>
+<h2>Example</h2>
+
+Let's take a form with METHOD="POST" as an example. Let's say the form
+results are 7 bytes encoded, and look like <code>a=b&amp;b=c</code>.
+<p>
+
+In this case, the server will set CONTENT_LENGTH to 7 and CONTENT_TYPE
+to application/x-www-form-urlencoded. The first byte on the script's
+standard input will be "a", followed by the rest of the encoded string.</p><p>
+
+</p><hr>
+
+<a href="http://hoohoo.ncsa.uiuc.edu/cgi/interface.html"><img alt="[Back]" src="in_files/back.gif">Return to the
+interface specification</a> <p>
+
+CGI - Common Gateway Interface
+</p><address><a href="http://hoohoo.ncsa.uiuc.edu/cgi/mailtocgi.html">cgi@ncsa.uiuc.edu</a></address>
+
+</body></html>

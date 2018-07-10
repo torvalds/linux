@@ -1,0 +1,10 @@
++ var1=val
++ var2='one two'
++ true '%s\n' one 'two '"'"'three' four
++ this=command
++ 'this=command'
+./mode_x.tests: line 10: this=command: not found
++ true
++ true
++ 'if' true
+./mode_x.tests: line 14: if: not found

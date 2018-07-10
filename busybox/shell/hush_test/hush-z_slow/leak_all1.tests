@@ -1,0 +1,148 @@
+# "Check many leaks" test #1
+# Cramming all kinds of weird commands in here.
+# As you find leaks, please create separate, small test
+# for each leak.
+# Narrowing down the leak using this large test may be difficult.
+# It is intended to be a blanket "is everything ok?" test
+
+echo "Warm up"
+i=1
+l=1
+t=1
+export t
+while test $i != 99; do
+    t=value1_$i; t=value2_$i true; t=value3_$i /bin/true; t=value4_$i exec 1>&1
+    { t=value3_$i /bin/true; } </dev/null
+    if true; t=valueA_$i false >>/dev/null; true; then
+	: << HERE >/dev/null; true <<HERE
+Hello builtin :
+HERE
+Hello $i true
+HERE
+    elif false; then
+	true; echo Doesnt run
+    else
+	{ true; }; echo Doesnt run too >>/foo/bar
+    fi
+    { : /bin/*; }
+    unset var
+    echo >/dev/null ${var#}
+    echo >/dev/null ${var##}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%}
+    echo >/dev/null ${var%%}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    var=
+    echo >/dev/null ${var#}
+    echo >/dev/null ${var##}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%}
+    echo >/dev/null ${var%%}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    var=ababcdcd
+    echo >/dev/null ${var#ab}
+    echo >/dev/null ${var##ab}
+    echo >/dev/null ${var#a*b}
+    echo >/dev/null ${var##a*b}
+    echo >/dev/null ${var#?}
+    echo >/dev/null ${var##?}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%cd}
+    echo >/dev/null ${var%%cd}
+    echo >/dev/null ${var%c*d}
+    echo >/dev/null ${var%%c*d}
+    echo >/dev/null ${var%?}
+    echo >/dev/null ${var%%?}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    set -- par1_$i par2_$i par3_$i par4_$i
+    trap "echo trap$i" WINCH
+    f() { true; true; true; true; true; true; true; true; }
+    f() { true; true; true; true; true; true; true; true; echo $1; }
+    i=iii$i t=ttt$i z=zzz$i f >/dev/null
+    : $((i++))
+done
+unset i l t
+unset -f f
+
+memleak
+
+echo "Measuring memory leak..."
+# Please copy the entire block from above verbatim
+i=1
+l=1
+t=1
+export t
+while test $i != 99; do
+    t=value1_$i; t=value2_$i true; t=value3_$i /bin/true; t=value4_$i exec 1>&1
+    { t=value3_$i /bin/true; } </dev/null
+    if true; t=valueA_$i false >>/dev/null; true; then
+	: << HERE >/dev/null; true <<HERE
+Hello builtin :
+HERE
+Hello $i true
+HERE
+    elif false; then
+	true; echo Doesnt run
+    else
+	{ true; }; echo Doesnt run too >>/foo/bar
+    fi
+    { : /bin/*; }
+    unset var
+    echo >/dev/null ${var#}
+    echo >/dev/null ${var##}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%}
+    echo >/dev/null ${var%%}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    var=
+    echo >/dev/null ${var#}
+    echo >/dev/null ${var##}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%}
+    echo >/dev/null ${var%%}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    var=ababcdcd
+    echo >/dev/null ${var#ab}
+    echo >/dev/null ${var##ab}
+    echo >/dev/null ${var#a*b}
+    echo >/dev/null ${var##a*b}
+    echo >/dev/null ${var#?}
+    echo >/dev/null ${var##?}
+    echo >/dev/null ${var#*}
+    echo >/dev/null ${var##*}
+    echo >/dev/null ${var%cd}
+    echo >/dev/null ${var%%cd}
+    echo >/dev/null ${var%c*d}
+    echo >/dev/null ${var%%c*d}
+    echo >/dev/null ${var%?}
+    echo >/dev/null ${var%%?}
+    echo >/dev/null ${var%*}
+    echo >/dev/null ${var%%*}
+    set -- par1_$i par2_$i par3_$i par4_$i
+    trap "echo trap$i" WINCH
+    f() { true; true; true; true; true; true; true; true; }
+    f() { true; true; true; true; true; true; true; true; echo $1; }
+    i=iii$i t=ttt$i z=zzz$i f >/dev/null
+    : $((i++))
+done
+unset i l t
+unset -f f
+
+
+memleak
+kb=$?
+if test $kb -le 4; then
+    echo Ok #$kb
+else
+    echo "Bad: $kb kb leaked"
+fi

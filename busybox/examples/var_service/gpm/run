@@ -1,0 +1,15 @@
+#!/bin/sh
+
+exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+user=root
+options="-D -2 -m /dev/psaux -t ps2"
+#options="-D -2 -m /dev/ttyS0 -t bare"
+
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid "$user" \
+gpm $options

@@ -1,0 +1,37 @@
+# place holder for future alias testing
+#ash# shopt -s expand_aliases
+
+# alias/unalias tests originally in builtins.tests
+
+unalias -a
+# this should return success, according to POSIX.2
+alias
+echo alias: $?
+alias foo=bar
+unalias foo
+# this had better return success, according to POSIX.2
+alias
+echo alias: $?
+
+# bug in all versions through bash-2.05b
+
+unalias qfoo qbar qbaz quux 2>/dev/null
+
+alias qfoo=qbar
+alias qbar=qbaz
+alias qbaz=quux
+alias quux=qfoo
+
+qfoo
+
+unalias qfoo qbar qbaz quux
+
+unalias -a
+
+alias foo='echo '
+alias bar=baz
+alias baz=quux
+
+foo bar
+
+unalias foo bar baz

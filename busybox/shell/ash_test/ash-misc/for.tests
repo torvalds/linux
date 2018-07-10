@@ -1,0 +1,5 @@
+for i
+in OK
+do
+	echo $i
+done

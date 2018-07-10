@@ -1,0 +1,143 @@
+	NOEXEC and NOFORK applets.
+
+Unix shells traditionally execute some commands internally in the attempt
+to dramatically speed up execution. It will be slow as hell if for every
+"echo blah" shell will fork and exec /bin/echo. To this end, shells
+have to _reimplement_ these commands internally.
+
+Busybox is unique in this regard because it already is a collection
+of reimplemented Unix commands, and we can do the same trick
+for speeding up busybox shells, and more. NOEXEC and NOFORK applets
+are exactly those applets which are eligible for these tricks.
+
+Applet will be subject to NOFORK/NOEXEC tricks only if it is marked
+as such in applets.src.h or in their inline "//applet:" directives.
+
+In C, if you want to call a program and wait for it, use
+spawn_and_wait(argv), BB_EXECVP(prog,argv) or BB_EXECLP(prog,argv0,...).
+They check whether program name is an applet name and optionally
+do NOFORK/NOEXEC thing depending on configuration.
+
+
+	Relevant CONFIG options
+
+FEATURE_PREFER_APPLETS
+  Globally enables NOFORK/NOEXEC tricks for such programs as xargs
+  and find:
+  BB_EXECVP(cmd, argv) will try to exec /proc/self/exe
+  if command's name matches some applet name;
+  spawn_and_wait(argv) will do NOFORK/NOEXEC tricks
+
+//TODO: the above two things probably should have separate options?
+
+FEATURE_SH_STANDALONE
+  shells will try to exec /proc/self/exe if command's name matches
+  some applet name; shells will do NOEXEC trick on NOEXEC applets
+
+//TODO: split (same as for PREFER_APPLETS)
+
+FEATURE_SH_NOFORK
+  shells will do NOFORK trick on NOFORK applets
+
+NB: shell builtins use these tricks regardless of FEATURE_SH_STANDALONE,
+FEATURE_PREFER_APPLETS or FEATURE_SH_NOFORK. In effect, builtins
+are "always NOFORK".
+
+
+	NOEXEC
+
+NOEXEC applet should work correctly if another applet forks and then
+executes exit(<applet>_main(argc,argv)) in the child. The rules
+roughly are:
+
+* do not expect shared global variables/buffers to be in their
+  "initialized" state. Examples: xfunc_error_retval can be != 1,
+  bb_common_bufsiz1 can be scribbled over, ...
+  (although usually xfunc_error_retval's state is not a problem).
+* do not expect that stdio wasn't used before. Calling set[v]buf()
+  can be disastrous.
+* ...
+
+NOEXEC applets save only one half of fork+exec overhead.
+NOEXEC trick is disabled for NOMMU build.
+
+
+	NOFORK
+
+NOFORK applet should work correctly if another applet simply runs
+<applet>_main(argc,argv) and then continues with its business.
+xargs, find, shells do it (grep for "spawn_and_wait" and
+"run_nofork_applet" to find more users).
+
+This poses much more serious limitations on what applet can do:
+
+* all NOEXEC limitations apply.
+* do not run for a long time or wait for user input:
+  hush shell only handles signals (like ^C) after you return
+  from APPLET_main().
+* do not ever exit() or exec().
+  - xfuncs are okay. They are using special trick to return
+    to the caller applet instead of dying when they detect "x" condition.
+  - you may "exit" to caller applet by calling xfunc_die(). Return value
+    is taken from xfunc_error_retval.
+  - fflush_stdout_and_exit(n) is ok to use.
+* do not use shared global data, or save/restore shared global data
+  (e.g. bb_common_bufsiz1) prior to returning.
+  - getopt32() is ok to use. You do not need to save/restore option_mask32,
+    xfunc_error_retval, and logmode - it is already done by core code.
+* if you allocate memory, you can use xmalloc() only on the very first
+  allocation. All other allocations should use malloc[_or_warn]().
+  After first allocation, you cannot use any xfuncs.
+  Otherwise, failing xfunc will return to caller applet
+  without freeing malloced data!
+* the same applies to other resources, such as open fds: no xfuncs after
+  acquiring them!
+* All allocated data, opened files, signal handlers, termios settings
+  etc should be freed/closed/restored prior to return.
+
+Currently, ash shell signal handling is implemented in a way that signals
+have non-SA_RESTARTed handlers. This means that system calls can
+return EINTR. An example of such problem is "yes" applet:
+it is implemented so that it has a writing loop, this loop is exited on
+any write error, and in the case of user pressing ^C the error was EINTR.
+The problem is, the error causes stdout FILE* object to get into error
+state, needing clearerr() - or else subsequent shell output will also
+not work. ("yes" has been downgraded to NOEXEC, since hush signal handling
+does not have this problem - which makes "yes" to not exit on ^C (bug).
+But stray EINTRs can be seen in any NOFORK under ash, until ash is fixed).
+
+NOFORK applets give the most of speed advantage, but are trickiest
+to implement. In order to minimize amount of bugs and maintenance,
+prime candidates for NOFORK-ification are those applets which
+are small and easy to audit, and those which are more likely to be
+frequently executed from shell/find/xargs, particularly in shell
+script loops. Applets which mess with signal handlers, termios etc
+are probably not worth the effort.
+
+Applets which must be interruptible by ^C in shells can not be NOFORKs.
+
+Any NOFORK applet is also a NOEXEC applet.
+
+
+	Calling NOFORK applets
+
+API to call NOFORK applets is two functions:
+
+	run_nofork_applet(appno, argv)
+	spawn_and_wait(argv) // only if FEATURE_PREFER_APPLETS=y
+
+First one is directly used by shells if FEATURE_SH_NOFORK=y.
+Second one is used by many applets, but main users are xargs and find.
+It itself calls run_nofork_applet(), if argv[0] is a name
+of a NOFORK applet.
+
+run_nofork_applet() saves/inits/restores option parsing, xfunc_error_retval,
+logmode, applet_name. Thus, for example, caller does not need to worry about
+option_mask32 getting trashed.
+
+
+	Calling NOEXEC applets
+
+It's the same trusty spawn_and_wait(argv). If FEATURE_PREFER_APPLETS=y,
+it does NOEXEC trick. It resets xfunc_error_retval = 1 and
+logmode = LOGMODE_STDIO in the child.

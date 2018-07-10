@@ -1,0 +1,38 @@
+#!/bin/sh
+# Copyright 2010 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+testing "cal 2000" "cal 1 2000" "\
+    January 2000
+Su Mo Tu We Th Fr Sa
+                   1
+ 2  3  4  5  6  7  8
+ 9 10 11 12 13 14 15
+16 17 18 19 20 21 22
+23 24 25 26 27 28 29
+30 31
+" "" ""
+
+test x"$CONFIG_LOCALE_SUPPORT" = x"y" \
+&& test x"$CONFIG_UNICODE_SUPPORT" = x"y" \
+&& test x"$CONFIG_LAST_SUPPORTED_WCHAR" = x"0" \
+&& test x"$CONFIG_UNICODE_WIDE_WCHARS" = x"y" \
+&& test x"$CONFIG_STATIC" != x"y" \
+&& test x"$CONFIG_CROSS_COMPILER_PREFIX" = x"" \
+&& testing "unicode cal 2000" "LANG=zh_TW.utf8 cal 1 2000" "\
+    一月 2000
+日 一 二 三 四 五 六
+                   1
+ 2  3  4  5  6  7  8
+ 9 10 11 12 13 14 15
+16 17 18 19 20 21 22
+23 24 25 26 27 28 29
+30 31
+" "" ""
+
+exit $FAILCOUNT

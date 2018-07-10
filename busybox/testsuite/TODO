@@ -1,0 +1,26 @@
+This testsuite is quite obviously a work in progress.  As such,
+there are a number of good extensions.  If you are looking for
+something to do, feel free to tackle one or more of the following:
+
+Moving to the new format.
+	The old way was "lots of little tests files in a directory", which
+	doesn't interact well with source control systems.  The new test
+	format is command.tests files that use testing.sh.
+
+Every busybox applet needs a corresponding applet.tests.
+
+Full SUSv3 test suite.
+	Let's make the Linux Test Project jealous, shall we?  Don't just
+	audit programs for standards compliance, _prove_ it with a regression
+	test harness.
+
+	http://www.opengroup.org/onlinepubs/009695399/utilities/
+
+Some tests need root access.
+	It's hard to test things like mount or init as a normal user.
+	Possibly User Mode Linux could be used for this, or perhaps
+	Erik's buildroot.
+
+libbb unit testing
+	Being able to test the functions of libbb individually may
+	help to prevent regressions.

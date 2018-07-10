@@ -1,0 +1,4 @@
+# Should show no masked signals in both cases.
+# We had a bug where SIGQUIT was masked on exec.
+grep SigIgn: /proc/self/status
+exec grep SigIgn: /proc/self/status

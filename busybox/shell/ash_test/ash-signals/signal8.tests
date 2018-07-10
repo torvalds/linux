@@ -1,0 +1,18 @@
+"$THIS_SH" -c '
+exit_func() {
+    echo "Removing traps"
+    trap - EXIT TERM INT
+    echo "End of exit_func"
+}
+set -e
+trap exit_func EXIT TERM INT
+sleep 2
+exit 77
+' &
+
+sleep 1
+# BUG: ash kills -PGRP, but in non-interactive shell we do not create pgrps!
+# In this case, bash kills by PID, not PGRP.
+kill -TERM %1
+wait
+echo Done: $?

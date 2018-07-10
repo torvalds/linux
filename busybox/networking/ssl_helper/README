@@ -1,0 +1,16 @@
+Build instructions:
+
+* Unpack matrixssl-3-4-2-open.tgz.
+* Build it: "make"
+* Drop this directory into matrixssl-3-4-2-open/ssl_helper
+* Run ssl_helper.sh to compile and link the helper
+
+Usage: "ssl_helper -d <FILE_DESCRIPTOR>" where FILE_DESCRIPTOR is open to the peer.
+
+In bash, you can do it this way:
+$ ssl_helper -d3 3<>/dev/tcp/HOST/PORT
+
+Stdin will be SSL-encrypted and sent to FILE_DESCRIPTOR.
+Data from FILE_DESCRIPTOR will be decrypted and sent to stdout.
+
+The plan is to adapt it for wget https helper, and for ssl support in nc.

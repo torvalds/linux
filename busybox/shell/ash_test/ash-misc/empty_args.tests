@@ -1,0 +1,9 @@
+echo Null 0th arg:
+""
+echo $?
+echo Null 1st arg:
+# printf without args would print usage info
+printf ""
+echo $?
+echo Null arg in exec:
+exec printf ""

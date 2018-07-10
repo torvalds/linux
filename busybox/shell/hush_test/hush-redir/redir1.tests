@@ -1,0 +1,40 @@
+rm shell_test_$$ 2>/dev/null
+var=bad
+>shell_test_$$ var=ok
+echo "Test 0:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null
+var=bad
+var=ok >shell_test_$$
+echo "Test 1:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null
+var=ok
+true | var=bad >shell_test_$$
+echo "Test 2:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null
+var=bad
+{ var=ok >shell_test_$$; }
+echo "Test 3:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null
+var=ok
+{ var=bad >shell_test_$$; } &
+# cant use usleep as it isnt standard in $PATH --
+# we fail when testing busybox compiled solely as "hush"
+wait
+echo "Test 4:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null
+var=ok
+( var=bad >shell_test_$$ )
+echo "Test 5:  var:$var"
+test -f shell_test_$$ && echo "File created:ok"
+
+rm shell_test_$$ 2>/dev/null

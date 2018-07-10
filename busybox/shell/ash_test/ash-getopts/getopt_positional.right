@@ -1,0 +1,6 @@
+*** no OPTIND, optstring:'we' args:-q -w -e r -t -y
+Illegal option -q
+var:'?' OPTIND:2
+var:'w' OPTIND:3
+var:'e' OPTIND:4
+exited: var:'?' OPTIND:4

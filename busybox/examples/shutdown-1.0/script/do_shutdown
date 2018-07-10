@@ -1,0 +1,54 @@
+#!/bin/sh
+# We are called with stdin/out/err = /dev/null
+
+resetgracetime=60
+
+logfile="/var/log/reboot/`date '+%Y%m%d%H%M%S'`.log"
+mkdir -p /var/log/reboot
+
+PATH=/sbin:/bin
+
+say() {
+	printf "\r%s\n\r" "$*"
+}
+
+# Since there is a potential for various fuckups during umount,
+# we start delayed hard reboot here which will forcibly
+# reboot hung box in a remote datacenter a thousand miles away ;)
+if test "$1" = "-r"; then
+	./hardshutdown -r "$resetgracetime" &
+fi
+
+# Now, (try to) switch away from X and open a console. I've seen reboots
+# hung on open("/dev/console"), therefore we do it _after_ hardshutdown
+exec >/dev/console 2>&1
+
+if test "$1" = "-r"; then
+	say "* `date '+%H:%M:%S'` Scheduled hard reboot in $resetgracetime seconds"
+fi
+
+say "* `date '+%H:%M:%S'` Stopping tasks (see /var/log/reboot/* files)"
+# log reboot event to file. %Y%m%d%H%M%S: YYYYMMDDHHMMSS
+./stop_tasks >"$logfile" 2>&1
+
+# Dying X tends to leave us at semi-random vt. Try to fix that,
+# but if it doesn't work, proceed anyway.
+exec >/dev/null 2>&1
+chvt 1 & sleep 1
+exec >/dev/console 2>&1
+
+command -v ctrlaltdel >/dev/null && {
+	say "* `date '+%H:%M:%S'` Setting Ctrl-Alt-Del to 'hard'"
+	ctrlaltdel hard
+}
+
+say "* `date '+%H:%M:%S'` Stopping storage devices"
+# we can't log this: we are about to unmount everything!
+./stop_storage "$@"
+
+# If we have cmdline params, start hardshutdown with them
+test "$*" && ./hardshutdown "$@"
+
+# Just sleep endlessly...
+say "* `date '+%H:%M:%S'` You may now power off or press Ctrl-Alt-Del to reboot"
+while true; do sleep 32000; done

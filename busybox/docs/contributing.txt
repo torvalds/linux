@@ -1,0 +1,439 @@
+Contributing To Busybox
+=======================
+
+This document describes what you need to do to contribute to Busybox, where
+you can help, guidelines on testing, and how to submit a well-formed patch
+that is more likely to be accepted.
+
+The Busybox home page is at: http://busybox.net/
+
+
+
+Pre-Contribution Checklist
+--------------------------
+
+So you want to contribute to Busybox, eh? Great, wonderful, glad you want to
+help. However, before you dive in, headlong and hotfoot, there are some things
+you need to do:
+
+
+Checkout the Latest Code
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a necessary first step. Please do not try to work with the last
+released version, as there is a good chance that somebody has already fixed
+the bug you found. Somebody might have even added the feature you had in mind.
+Don't make your work obsolete before you start!
+
+For information on how to check out Busybox development tree, please look at the
+following links:
+
+	http://busybox.net/source.html
+
+
+Read the Mailing List
+~~~~~~~~~~~~~~~~~~~~~
+
+No one is required to read the entire archives of the mailing list, but you
+should at least read up on what people have been talking about lately. If
+you've recently discovered a problem, chances are somebody else has too. If
+you're the first to discover a problem, post a message and let the rest of us
+know.
+
+Archives can be found here:
+
+	http://busybox.net/lists/busybox/
+
+If you have a serious interest in Busybox, i.e., you are using it day-to-day or
+as part of an embedded project, it would be a good idea to join the mailing
+list.
+
+A web-based sign-up form can be found here:
+
+	http://busybox.net/mailman/listinfo/busybox
+
+
+Coordinate with the Applet Maintainer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some (not all) of the applets in Busybox are "owned" by a maintainer who has
+put significant effort into it and is probably more familiar with it than
+others. To find the maintainer of an applet, look at the top of the .c file
+for a name following the word 'Copyright' or 'Written by' or 'Maintainer'.
+
+Before plunging ahead, it's a good idea to send a message to the mailing list
+that says: "Hey, I was thinking about adding the 'transmogrify' feature to the
+'foo' applet.  Would this be useful? Is anyone else working on it?" You might
+want to CC the maintainer (if any) with your question.
+
+
+
+Areas Where You Can Help
+------------------------
+
+Busybox can always use improvement! If you're looking for ways to help, there
+are a variety of areas where you could help.
+
+
+What Busybox Doesn't Need
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before listing the areas where you _can_ help, it's worthwhile to mention the
+areas where you shouldn't bother. While Busybox strives to be the "Swiss Army
+Knife" of embedded Linux, there are some applets that will not be accepted:
+
+ - Any filesystem manipulation tools: Busybox is filesystem independent and
+   we do not want to start adding mkfs/fsck tools for every (or any)
+   filesystem under the sun. (fsck_minix.c and mkfs_minix.c are living on
+   borrowed time.) There are far too many of these tools out there.  Use
+   the upstream version.  Rationale: bugs in these tools can destroy
+   vast amounts of data.  Keeping up with filesystem format development
+   is impractical (especially in the area of keeping fsck tool safe
+   and up-to-date).
+
+ - Any disk, device, or media-specific tools: Use the -utils or -tools package
+   that was designed for your device; don't try to shoehorn them into Busybox.
+
+ - Any architecture specific tools: Busybox is (or should be) architecture
+   independent. Do not send us tools that cannot be used across multiple
+   platforms / arches.
+
+
+Bug Reporting
+~~~~~~~~~~~~~
+
+If you find bugs, please submit a detailed bug report to the busybox mailing
+list at busybox@busybox.net.  A well-written bug report should include a
+transcript of a shell session that demonstrates the bad behavior and enables
+anyone else to duplicate the bug on their own machine. The following is such
+an example:
+
+    To: busybox@busybox.net
+    From: diligent@testing.linux.org
+    Subject: /bin/date doesn't work
+
+    Package: busybox
+    Version: 1.00
+
+    When I execute Busybox 'date' it produces unexpected results.
+    With GNU date I get the following output:
+
+	$ date
+	Wed Mar 21 14:19:41 MST 2001
+
+    But when I use BusyBox date I get this instead:
+
+	$ date
+	Illegal instruction
+
+    I am using Debian unstable, kernel version 2.4.19-rmk1 on an Netwinder,
+    and the latest uClibc from CVS.
+
+	-Diligent
+
+Note the careful description and use of examples showing not only what BusyBox
+does, but also a counter example showing what an equivalent GNU app does.  Bug
+reports lacking such detail may never be fixed...  Thanks for understanding.
+
+
+
+Write Documentation
+~~~~~~~~~~~~~~~~~~~
+
+Chances are, documentation in Busybox is either missing or needs improvement.
+Either way, help is welcome.
+
+Work is being done to automatically generate documentation from sources,
+especially from the usage.h file. If you want to correct the documentation,
+please make changes to the pre-generation parts, rather than the generated
+documentation. [More to come on this later...]
+
+It is preferred that modifications to documentation be submitted in patch
+format (more on this below), but we're a little more lenient when it comes to
+docs. You could, for example, just say "after the listing of the mount
+options, the following example would be helpful..."
+
+
+Consult Existing Sources
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+For a quick listing of "needs work" spots in the sources, cd into the Busybox
+directory and run the following:
+
+	for i in TODO FIXME XXX; do find -name '*.[ch]'|xargs grep $i; done
+
+This will show all of the trouble spots or 'questionable' code. Pick a spot,
+any spot, these are all invitations for you to contribute.
+
+
+Add a New Applet
+~~~~~~~~~~~~~~~~
+
+If you want to add a new applet to Busybox, we'd love to see it. However,
+before you write any code, please ask beforehand on the mailing list something
+like "Do you think applet 'foo' would be useful in Busybox?" or "Would you
+guys accept applet 'foo' into Busybox if I were to write it?" If the answer is
+"no" by the folks on the mailing list, then you've saved yourself some time.
+Conversely, you could get some positive responses from folks who might be
+interested in helping you implement it, or can recommend the best approach.
+Perhaps most importantly, this is your way of calling "dibs" on something and
+avoiding duplication of effort.
+
+Also, before you write a line of code, please read the 'new-applet-HOWTO.txt'
+file in the docs/ directory.
+
+
+Janitorial Work
+~~~~~~~~~~~~~~~
+
+These are dirty jobs, but somebody's gotta do 'em.
+
+ - Security audits:
+   http://www.securityfocus.com/popups/forums/secprog/intro.shtml
+
+ - Synthetic code removal: http://www.perl.com/pub/2000/06/commify.html - This
+   is very Perl-specific, but the advice given in here applies equally well to
+   C.
+
+ - C library function use audits: Verifying that functions are being used
+   properly (called with the right args), replacing unsafe library functions
+   with safer versions, making sure return codes are being checked, etc.
+
+ - Where appropriate, replace preprocessor defined macros and values with
+   compile-time equivalents.
+
+ - Style guide compliance. See: docs/style-guide.txt
+
+ - Add testcases to tests/testcases.
+
+ - Makefile improvements:
+   http://www.canb.auug.org.au/~millerp/rmch/recu-make-cons-harm.html
+   (I think the recursive problems are pretty much taken care of at this point, non?)
+
+ - "Ten Commandments" compliance: (this is a "maybe", certainly not as
+   important as any of the previous items.)
+    http://www.lysator.liu.se/c/ten-commandments.html
+
+Other useful links:
+
+ - the comp.lang.c FAQ: http://home.datacomm.ch/t_wolf/tw/c/index.html#Sources
+
+
+
+Submitting Patches To Busybox
+-----------------------------
+
+Here are some guidelines on how to submit a patch to Busybox.
+
+
+Making A Patch
+~~~~~~~~~~~~~~
+
+If you've got anonymous Git access set up, making a patch is simple. Just make
+sure you're in the busybox/ directory and type:
+
+	git diff -b -w > mychanges.patch
+
+You can send the resulting .patch file to the mailing list with a description
+of what it does. (But not before you test it! See the next section for some
+guidelines.) It is preferred that patches be sent as attachments, but it is
+not required.
+
+Also, feel free to help test other people's patches and reply to them with
+comments. You can apply a patch by saving it into your busybox/ directory and
+typing:
+
+	patch -p1 < mychanges.patch
+
+Then you can recompile, see if it runs, test if it works as advertised, and
+post your findings to the mailing list.
+
+NOTE: Please do not include extraneous or irrelevant changes in your patches.
+Please do not try to "bundle" two patches together into one. Make single,
+discreet changes on a per-patch basis. Sometimes you need to make a patch that
+touches code in many places, but these kind of patches are rare and should be
+coordinated with a maintainer.
+
+
+Testing Guidelines
+~~~~~~~~~~~~~~~~~~
+
+It's considered good form to test your new feature before you submit a patch
+to the mailing list, and especially before you push a change to Git. Here
+are some guidelines on how to test your changes.
+
+ - Always test Busybox applets against GNU counterparts and make sure the
+   behavior / output is identical between the two.
+
+ - Try several different permutations and combinations of the features you're
+   adding (i.e., different combinations of command-line switches) and make sure
+   they all work; make sure one feature does not interfere with another.
+
+ - Make sure you test compiling against the source both with the feature
+   turned on and turned off in Config.h and make sure Busybox compiles cleanly
+   both ways.
+
+ - Run the multibuild.pl script in the tests directory and make sure
+   everything checks out OK. (Do this from within the busybox/ directory by
+   typing: 'tests/multibuild.pl'.)
+
+
+Making Sure Your Patch Doesn't Get Lost
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you don't want your patch to be lost or forgotten, send it to the busybox
+mailing list with a subject line something like this:
+
+	[PATCH] - Adds "transmogrify" feature to "foo"
+
+In the body, you should have a pseudo-header that looks like the following:
+
+    Package: busybox
+    Version: v1.01pre (or whatever the current version is)
+    Severity: wishlist
+
+The remainder of the body should read along these lines:
+
+	This patch adds the "transmogrify" feature to the "foo" applet. I have
+	tested this on [arch] system(s) and it works. I have tested it against the
+	GNU counterparts and the outputs are identical. I have run the scripts in
+	the 'tests' directory and nothing breaks.
+
+
+
+Improving Your Chances of Patch Acceptance
+------------------------------------------
+
+Even after you send a brilliant patch to the mailing list, sometimes it can go
+unnoticed, un-replied-to, and sometimes (sigh) even lost. This is an
+unfortunate fact of life, but there are steps you can take to help your patch
+get noticed and convince a maintainer that it should be added:
+
+
+Be Succinct
+~~~~~~~~~~~
+
+A patch that includes small, isolated, obvious changes is more likely to be
+accepted than a patch that touches code in lots of different places or makes
+sweeping, dubious changes.
+
+
+Back It Up
+~~~~~~~~~~
+
+Hard facts on why your patch is better than the existing code will go a long
+way toward convincing maintainers that your patch should be included.
+Specifically, patches are more likely to be accepted if they are provably more
+correct, smaller, faster, simpler, or more maintainable than the existing
+code.
+
+Conversely, any patch that is supported with nothing more than "I think this
+would be cool" or "this patch is good because I say it is and I've got a Phd
+in Computer Science" will likely be ignored.
+
+
+Follow The Style Guide
+~~~~~~~~~~~~~~~~~~~~~~
+
+It's considered good form to abide by the established coding style used in a
+project; Busybox is no exception. We have gone so far as to delineate the
+"elements of Busybox style" in the file docs/style-guide.txt. Please follow
+them.
+
+
+Work With Someone Else
+~~~~~~~~~~~~~~~~~~~~~~
+
+Working on a patch in isolation is less effective than working with someone
+else for a variety of reasons. If another Busybox user is interested in what
+you're doing, then it's two (or more) voices instead of one that can petition
+for inclusion of the patch. You'll also have more people that can test your
+changes, or even offer suggestions on better approaches you could take.
+
+Getting other folks interested follows as a natural course if you've received
+responses from queries to applet maintainer or positive responses from folks
+on the mailing list.
+
+We've made strident efforts to put a useful "collaboration" infrastructure in
+place in the form of mailing lists, the bug tracking system, and Git. Please
+use these resources.
+
+
+Send Patches to the Bug Tracking System
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This was mentioned above in the "Making Sure Your Patch Doesn't Get Lost"
+section, but it is worth mentioning again. A patch sent to the mailing list
+might be unnoticed and forgotten. A patch sent to the bug tracking system will
+be stored and closely connected to the bug it fixes.
+
+
+Be Polite
+~~~~~~~~~
+
+The old saying "You'll catch more flies with honey than you will with vinegar"
+applies when submitting patches to the mailing list for approval. The way you
+present your patch is sometimes just as important as the actual patch itself
+(if not more so). Being rude to the maintainers is not an effective way to
+convince them that your patch should be included; it will likely have the
+opposite effect.
+
+
+
+Pushing Changes to Git
+----------------------
+
+If you submit several patches that demonstrate that you are a skilled and wise
+coder, you may be invited to become a committer, thus enabling you to push
+changes directly to Git. This is nice because you don't have to wait for
+someone else to push your change for you, you can just do it yourself.
+
+But note that this is a privilege that comes with some responsibilities. You
+should test your changes before you push them. You should also talk to an
+applet maintainer before you make any kind of sweeping changes to somebody
+else's code. Big changes should still go to the mailing list first. Remember,
+being wise, polite, and discreet is more important than being clever.
+
+For more information on Git push access, see:
+
+	http://busybox.net/developer.html
+
+
+When To Push
+~~~~~~~~~~~~
+
+Generally, you should feel free to push a change if:
+
+ - Your changes are small and don't touch many files
+ - You are fixing a bug
+ - Somebody has told you that it's okay
+ - It's obviously the Right Thing
+
+The more of the above are true, the better it is to just push a change
+directly to Git.
+
+
+When Not To Push
+~~~~~~~~~~~~~~~~
+
+Even if you have push access, you should probably still post a patch to the
+mailing list if:
+
+ - Your changes are broad and touch many different files
+ - You are adding a feature
+ - Your changes are speculative or experimental (i.e., trying a new algorithm)
+ - You are not the maintainer and your changes make the maintainer cringe
+
+The more of the above are true, the better it is to post a patch to the
+mailing list instead of pushing.
+
+
+
+Final Words
+-----------
+
+If all of this seems complicated, don't panic, it's really not that tough. If
+you're having difficulty following some of the steps outlined in this
+document don't worry, the folks on the Busybox mailing list are a fairly
+good-natured bunch and will work with you to help get your patches into shape
+or help you make contributions.

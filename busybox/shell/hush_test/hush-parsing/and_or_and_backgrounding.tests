@@ -1,0 +1,30 @@
+# According to this doc, && || have higher precedence than ; &.
+# See example below.
+# Precedence of ; is not a problem in practice. Precedence of & is.
+#
+#http://www.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html
+#
+#2.9.3 Lists
+#
+#An AND-OR list is a sequence of one or more pipelines separated by
+#the operators "&&" and "||" .
+#
+#A list is a sequence of one or more AND-OR lists separated by the operators
+#';' and '&' and optionally terminated by ';', '&', or <newline>.
+#
+#The operators "&&" and "||" shall have equal precedence and shall be
+#evaluated with left associativity. For example, both of the following
+#commands write solely bar to standard output:
+#
+#    false && echo foo || echo bar
+#    true || echo foo && echo bar
+#
+#A ';' or <newline> terminator shall cause the preceding AND-OR list
+#to be executed sequentially; an '&' shall cause asynchronous execution
+#of the preceding AND-OR list.
+
+echo First && sleep 0.2 && echo Third &
+sleep 0.1
+echo Second
+wait
+echo Done

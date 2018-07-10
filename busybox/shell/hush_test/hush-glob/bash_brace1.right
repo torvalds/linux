@@ -1,0 +1,4 @@
+bash_brace1.tests
+*{b,b}race1.t*
+bash_brace1.tests bash_brace1.tests
+Done: 0

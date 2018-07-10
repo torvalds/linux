@@ -1,0 +1,10 @@
+#!/bin/bash
+# Mostly redundant except when you need dns[]=your_static_dns_srv
+#
+let cfg=cfg+1
+if[$cfg]=lo
+ip[$cfg]=127.0.0.1
+ipmask[$cfg]=127.0.0.1/8
+gw[$cfg]=''
+net[$cfg]=''
+#dns[$cfg]=127.0.0.1

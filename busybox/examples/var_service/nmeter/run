@@ -1,0 +1,20 @@
+#!/bin/sh
+
+exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+# Since per-process /proc/net/ (-> /proc/self/net/) appeared,
+# we need to be root
+user="root"
+tty="/dev/tty9"
+cmd="nmeter '%t %c x %x p%p f %f b %b m %m if%[nif]'"
+
+chmod -R a+X . # or else env will moan
+chown "$user": "$tty" # devfs made happy
+
+eval exec \
+env - PATH="$PATH" \
+setuidgid "$user" \
+<"$tty" >"$tty" 2>&1 \
+$cmd

@@ -1,0 +1,12 @@
+cond=true
+while $cond; do
+    echo A
+    if test "$cond" = true; then
+	cond='echo TRUE'
+    else
+	cond=false
+    fi
+    while true; do echo AA; continue 2; echo BB; done
+    echo B
+done
+echo OK:$?

@@ -1,0 +1,3 @@
+
+This boot floppy is made with Busybox, uClibc, and the Linux kernel.
+Hit RETURN to boot or enter boot parameters at the prompt below.

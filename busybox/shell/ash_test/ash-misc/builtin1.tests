@@ -1,0 +1,6 @@
+# builtins, unlike keywords like "while", can be constructed
+# with substitutions
+VARIABLE=export
+$VARIABLE VARIABLE
+env | grep ^VARIABLE
+echo OK:$?

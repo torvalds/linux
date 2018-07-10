@@ -1,0 +1,3 @@
+# FEATURE: CONFIG_FEATURE_FANCY_ECHO
+
+test "`busybox echo -ne '\0041z' | od -t x1 | head -n 1`" = "0000000 21 7a"

@@ -1,0 +1,257 @@
+# Usage: $SHELL ifs.sh
+#
+# This script generates 6856 tests for the set(1) and read(1)
+# builtins w.r.t. IFS whitespace and non-whitespace characters.
+# Each failed test produces one line on the standard output that
+# contains the test along with the expected and actual results.
+# The last output line contains the test result counts.  ordered>0
+# are the number of tests where IFS=": " produced different results
+# than IFS=" :".  If a test fails the same way for IFS=": " and
+# IFS=" :" then the second output line is suppressed.
+
+TESTS=6856
+
+ksh_read=0
+echo 1 | read ksh_read
+ksh_arith=0
+eval '((ksh_arith+=1))' 2>/dev/null
+
+failed=0
+ordered=0
+passed=0
+
+split()
+{
+	i=$1 s=$2 r=$3 S='' R=''
+	for ifs in ': ' ' :'
+	do	IFS=$ifs
+		set x $i
+		shift
+		IFS=' '
+		g="[$#]"
+		while	:
+		do	case $# in
+			0)	break ;;
+			esac
+			g="$g($1)"
+			shift
+		done
+		case $g in
+		"$s")	case $ksh_arith in
+			1)	((passed+=1)) ;;
+			*)	passed=`expr $passed + 1` ;;
+			esac
+			case $S in
+			'')	S=$g
+				;;
+			"$g")	;;
+			*)	case $ksh_arith in
+				1)	((ordered+=1)) ;;
+				*)	ordered=`expr $ordered + 1` ;;
+				esac
+				;;
+			esac
+			;;
+		"$S")	case $ksh_arith in
+			1)	((failed+=1)) ;;
+			*)	failed=`expr $failed + 1` ;;
+			esac
+			;;
+		*)	case $ksh_arith in
+			1)	((failed+=1)) ;;
+			*)	failed=`expr $failed + 1` ;;
+			esac
+			case $s in
+			"$S")	;;
+			?0*)	echo "IFS=\"$ifs\"; x=\"$i\"; set x \$x; shift; echo \"[\$#]\" # expected \"$s\" got \"$g\"" ;;
+			?1*)	echo "IFS=\"$ifs\"; x=\"$i\"; set x \$x; shift; echo \"[\$#](\$1)\" # expected \"$s\" got \"$g\"" ;;
+			?2*)	echo "IFS=\"$ifs\"; x=\"$i\"; set x \$x; shift; echo \"[\$#](\$1)(\$2)\" # expected \"$s\" got \"$g\"" ;;
+			?3*)	echo "IFS=\"$ifs\"; x=\"$i\"; set x \$x; shift; echo \"[\$#](\$1)(\$2)(\$3)\" # expected \"$s\" got \"$g\"" ;;
+			*)	echo TEST ERROR i="'$i'" s="'$s'" ;;
+			esac
+			case $S in
+			'')	S=$g
+				;;
+			"$g")	;;
+			*)	case $ksh_arith in
+				1)	((ordered+=1)) ;;
+				*)	ordered=`expr $ordered + 1` ;;
+				esac
+				;;
+			esac
+		esac
+		case $ksh_read in
+		1)	echo "$i" | IFS=$ifs read x y; g="($x)($y)" ;;
+		*)	g=`export ifs; echo "$i" | ( IFS=$ifs; read x y; echo "($x)($y)" )` ;;
+		esac
+		case $g in
+		"$r")	case $ksh_arith in
+			1)	((passed+=1)) ;;
+			*)	passed=`expr $passed + 1` ;;
+			esac
+			case $R in
+			'')	R=$g
+				;;
+			"$g")	;;
+			*)	case $ksh_arith in
+				1)	((ordered+=1)) ;;
+				*)	ordered=`expr $ordered + 1` ;;
+				esac
+				;;
+			esac
+			;;
+		"$R")	case $ksh_arith in
+			1)	((failed+=1)) ;;
+			*)	failed=`expr $failed + 1` ;;
+			esac
+			;;
+		*)	case $ksh_arith in
+			1)	((failed+=1)) ;;
+			*)	failed=`expr $failed + 1` ;;
+			esac
+			case $r in
+			"$R")	;;
+			*)	echo "echo \"$i\" | ( IFS=\"$ifs\" read x y; echo \"(\$x)(\$y)\" ) # expected \"$r\" got \"$g\"" ;;
+			esac
+			case $R in
+			'')	R=$g
+				;;
+			"$g")	;;
+			*)	case $ksh_arith in
+				1)	((ordered+=1)) ;;
+				*)	ordered=`expr $ordered + 1` ;;
+				esac
+				;;
+			esac
+			;;
+		esac
+	done
+}
+
+for str in 	\
+	'-'	\
+	'a'	\
+	'- -'	\
+	'- a'	\
+	'a -'	\
+	'a b'	\
+	'- - -'	\
+	'- - a'	\
+	'- a -'	\
+	'- a b'	\
+	'a - -'	\
+	'a - b'	\
+	'a b -'	\
+	'a b c'	\
+
+do
+	IFS=' '
+	set x $str
+
+	shift
+	case $# in
+	0)	continue ;;
+	esac
+
+	f1=$1
+	case $f1 in
+	'-')	f1='' ;;
+	esac
+
+	shift
+	case $# in
+	0)	for d0 in '' ' '
+		do
+			for d1 in '' ' ' ':' ' :' ': ' ' : '
+			do
+				case $f1$d1 in
+				'')	split "$d0$f1$d1" "[0]" "()()" ;;
+				' ')	;;
+				*)	split "$d0$f1$d1" "[1]($f1)" "($f1)()" ;;
+				esac
+			done
+		done
+		continue
+		;;
+	esac
+	f2=$1
+	case $f2 in
+	'-')	f2='' ;;
+	esac
+
+	shift
+	case $# in
+	0)	for d0 in '' ' '
+		do
+			for d1 in ' ' ':' ' :' ': ' ' : '
+			do
+				case ' ' in
+				$f1$d1|$d1$f2)	continue ;;
+				esac
+				for d2 in '' ' ' ':' ' :' ': ' ' : '
+				do
+					case $f2$d2 in
+					'')	split "$d0$f1$d1$f2$d2" "[1]($f1)" "($f1)()" ;;
+					' ')	;;
+					*)	split "$d0$f1$d1$f2$d2" "[2]($f1)($f2)" "($f1)($f2)" ;;
+					esac
+				done
+			done
+		done
+		continue
+		;;
+	esac
+	f3=$1
+	case $f3 in
+	'-')	f3='' ;;
+	esac
+
+	shift
+	case $# in
+	0)	for d0 in '' ' '
+		do
+			for d1 in ':' ' :' ': ' ' : '
+			do
+				case ' ' in
+				$f1$d1|$d1$f2)	continue ;;
+				esac
+				for d2 in ' ' ':' ' :' ': ' ' : '
+				do
+					case $f2$d2 in
+					' ')	continue ;;
+					esac
+					case ' ' in
+					$f2$d2|$d2$f3)	continue ;;
+					esac
+					for d3 in '' ' ' ':' ' :' ': ' ' : '
+					do
+						case $f3$d3 in
+						'')	split "$d0$f1$d1$f2$d2$f3$d3" "[2]($f1)($f2)" "($f1)($f2)" ;;
+						' ')	;;
+						*)	x=$f2$d2$f3$d3
+							x=${x# } #was x=${x#' '} hush needs fixing for this to work
+							x=${x% } #was x=${x%' '}
+							split "$d0$f1$d1$f2$d2$f3$d3" "[3]($f1)($f2)($f3)" "($f1)($x)"
+							;;
+						esac
+					done
+				done
+			done
+		done
+		continue
+		;;
+	esac
+done
+case $ksh_arith in
+1)	((tests=passed+failed)) ;;
+*)	tests=`expr $passed + $failed` ;;
+esac
+case $ordered in
+0)	ordered="" ;;
+*)	ordered=" ordered $ordered" ;;
+esac
+case $tests in
+$TESTS)	fatal="" ;;
+*)	fatal=" -- fundamental IFS error -- $TESTS tests expected"
+esac
+echo "# tests $tests passed $passed failed $failed$ordered$fatal"

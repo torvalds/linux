@@ -1,0 +1,2 @@
+busybox mkdir -p foo/bar
+test -d foo -a -d foo/bar

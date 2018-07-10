@@ -1,0 +1,4 @@
+mkdir bar
+touch bar/baz
+busybox cp -R bar foo
+test -f foo/baz

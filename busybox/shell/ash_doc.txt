@@ -1,0 +1,122 @@
+	Wait + signals
+
+We had some bugs here which are hard to test in testsuite.
+
+Bug 1280 (http://busybox.net/bugs/view.php?id=1280):
+was misbehaving in interactive ash. Correct behavior:
+
+$ sleep 20 &
+$ wait
+^C
+$ wait
+^C
+$ wait
+^C
+...
+
+
+Bug 1984 (http://busybox.net/bugs/view.php?id=1984):
+traps were not triggering:
+
+trap_handler_usr () {
+    echo trap usr
+}
+trap_handler_int () {
+    echo trap int
+}
+trap trap_handler_usr USR1
+trap trap_handler_int INT
+sleep 3600 &
+echo "Please do: kill -USR1 $$"
+echo "or: kill -INT $$"
+while true; do wait; echo wait interrupted; done
+
+
+Bug 189 (https://bugs.busybox.net/show_bug.cgi?id=189)
+
+func() {
+    sleep 1
+}
+while (true); do
+    func
+    echo Looping
+done
+
+^C was observed to make ash processes geometrically multiply (!) instead
+of exiting. (true) in subshell does not seem to matter, as another user
+reports the same with:
+
+trap "echo USR1" USR1
+while true; do
+    echo Sleeping
+    sleep 5
+done
+
+Compat note.
+Bash version 3.2.0(1) exits this script at the receipt of SIGINT
+_only_ if it had two last children die from it.
+The following trace was obtained while periodically running
+"killall -SIGINT sleep; sleep 0.1; kill -SIGINT <bash_PID>":
+
+23:48:32.376707 clone(...) = 13528
+23:48:32.388706 waitpid(-1, 0xffc832ec, 0) = ? ERESTARTSYS (To be restarted)
+23:48:32.459761 --- SIGINT (Interrupt) @ 0 (0) ---
+    kill -SIGINT <bash_PID> is ignored, back to waiting:
+23:48:32.463706 waitpid(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0) = 13528
+    sleep exited with 0
+23:48:37.377557 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:37.378451 clone(...) = 13538
+23:48:37.390708 waitpid(-1, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGINT}], 0) = 13538
+    sleep was killed by "killall -SIGINT sleep"
+23:48:38.523944 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:38.524861 clone(...) = 13542
+23:48:38.538706 waitpid(-1, 0xffc832ec, 0) = ? ERESTARTSYS (To be restarted)
+23:48:38.624761 --- SIGINT (Interrupt) @ 0 (0) ---
+    kill -SIGINT <bash_PID> is ignored, back to waiting:
+23:48:38.628706 waitpid(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0) = 13542
+    sleep exited with 0
+23:48:43.525674 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:43.526563 clone(...) = 13545
+23:48:43.538709 waitpid(-1, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGINT}], 0) = 13545
+    sleep was killed by "killall -SIGINT sleep"
+23:48:44.466848 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:44.467735 clone(...) = 13549
+23:48:44.481706 waitpid(-1, 0xffc832ec, 0) = ? ERESTARTSYS (To be restarted)
+23:48:44.567757 --- SIGINT (Interrupt) @ 0 (0) ---
+    kill -SIGINT <bash_PID> is ignored, back to waiting:
+23:48:44.571706 waitpid(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0) = 13549
+    sleep exited with 0
+23:48:49.468553 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:49.469445 clone(...) = 13551
+23:48:49.481708 waitpid(-1, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGINT}], 0) = 13551
+    sleep was killed by "killall -SIGINT sleep"
+23:48:50.515837 --- SIGCHLD (Child exited) @ 0 (0) ---
+23:48:50.516718 clone(...) = 13555
+23:48:50.530706 waitpid(-1, 0xffc832ec, 0) = ? ERESTARTSYS (To be restarted)
+23:48:50.615761 --- SIGINT (Interrupt) @ 0 (0) ---
+    kill -SIGINT <bash_PID> is ignored, back to waiting:
+23:48:50.619705 waitpid(-1, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGINT}], 0) = 13555
+    sleep was killed by "killall -SIGINT sleep".
+    This is the second one in a row. Kill ourself:
+23:48:51.504604 kill(13515, SIGINT)     = 0
+23:48:51.504689 --- SIGINT (Interrupt) @ 0 (0) ---
+23:48:51.504915 +++ killed by SIGINT +++
+
+As long as there is at least one "sleep 5" which exited successfully
+(not killed by SIGINT), bash continues. This is not documented anywhere
+AFAIKS.
+
+Why keyboard ^C acts differently?
+
+00:08:07.655985 clone(...) = 14270
+00:08:07.669707 waitpid(-1, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0) = 14270
+00:08:12.656872 --- SIGCHLD (Child exited) @ 0 (0) ---
+00:08:12.657743 clone(...) = 14273
+00:08:12.671708 waitpid(-1, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGINT}], 0) = 14273
+00:08:13.810778 --- SIGINT (Interrupt) @ 0 (0) ---
+00:08:13.818705 kill(14269, SIGINT)     = 0
+00:08:13.820103 --- SIGINT (Interrupt) @ 0 (0) ---
+00:08:13.820925 +++ killed by SIGINT +++
+
+Perhaps because at the moment bash got SIGINT it had no children?
+(it did not manage to spawn new sleep yet, see the trace)

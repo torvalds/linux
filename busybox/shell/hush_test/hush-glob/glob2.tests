@@ -1,0 +1,27 @@
+# This test demonstrates that in unquoted $v, backslashes expand by this rule:
+# \z -> \\\z; \<eol> -> \\<eol> (for any z, special or not),
+# and subsequently globbing converts \\ to \ and treats \z as literal z
+# even if it is a special char.
+
+>'Zf'
+>'Z\f'
+	echo 'Expected' 'Actual'
+v='\*'; echo 'Z\*    :' Z$v
+        echo 'Z*     :' Z\*
+        echo 'Z\f    :' Z\\*
+        echo 'Z\*    :' Z\\\*  # NB! only this matches Z$v output
+echo
+v='\z'; echo 'Z\z    :' Z$v
+        echo 'Zz     :' Z\z
+        echo 'Z\z    :' Z\\z
+        echo 'Z\z    :' Z\\\z
+echo
+v='\';  echo 'Z\     :' Z$v
+        echo 'Z\     :' Z\\
+echo
+v='*';  echo 'Z\f Zf :' Z$v
+        echo 'Z\f Zf :' Z*
+echo
+
+rm 'Z\f' 'Zf'
+echo Done: $?

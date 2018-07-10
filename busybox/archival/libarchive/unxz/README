@@ -1,0 +1,135 @@
+
+XZ Embedded
+===========
+
+    XZ Embedded is a relatively small, limited implementation of the .xz
+    file format. Currently only decoding is implemented.
+
+    XZ Embedded was written for use in the Linux kernel, but the code can
+    be easily used in other environments too, including regular userspace
+    applications. See userspace/xzminidec.c for an example program.
+
+    This README contains information that is useful only when the copy
+    of XZ Embedded isn't part of the Linux kernel tree. You should also
+    read linux/Documentation/xz.txt even if you aren't using XZ Embedded
+    as part of Linux; information in that file is not repeated in this
+    README.
+
+Compiling the Linux kernel module
+
+    The xz_dec module depends on crc32 module, so make sure that you have
+    it enabled (CONFIG_CRC32).
+
+    Building the xz_dec and xz_dec_test modules without support for BCJ
+    filters:
+
+        cd linux/lib/xz
+        make -C /path/to/kernel/source \
+                KCPPFLAGS=-I"$(pwd)/../../include" M="$(pwd)" \
+                CONFIG_XZ_DEC=m CONFIG_XZ_DEC_TEST=m
+
+    Building the xz_dec and xz_dec_test modules with support for BCJ
+    filters:
+
+        cd linux/lib/xz
+        make -C /path/to/kernel/source \
+                KCPPFLAGS=-I"$(pwd)/../../include" M="$(pwd)" \
+                CONFIG_XZ_DEC=m CONFIG_XZ_DEC_TEST=m CONFIG_XZ_DEC_BCJ=y \
+                CONFIG_XZ_DEC_X86=y CONFIG_XZ_DEC_POWERPC=y \
+                CONFIG_XZ_DEC_IA64=y CONFIG_XZ_DEC_ARM=y \
+                CONFIG_XZ_DEC_ARMTHUMB=y CONFIG_XZ_DEC_SPARC=y
+
+    If you want only one or a few of the BCJ filters, omit the appropriate
+    variables. CONFIG_XZ_DEC_BCJ=y is always required to build the support
+    code shared between all BCJ filters.
+
+    Most people don't need the xz_dec_test module. You can skip building
+    it by omitting CONFIG_XZ_DEC_TEST=m from the make command line.
+
+Compiler requirements
+
+    XZ Embedded should compile as either GNU-C89 (used in the Linux
+    kernel) or with any C99 compiler. Getting the code to compile with
+    non-GNU C89 compiler or a C++ compiler should be quite easy as
+    long as there is a data type for unsigned 64-bit integer (or the
+    code is modified not to support large files, which needs some more
+    care than just using 32-bit integer instead of 64-bit).
+
+    If you use GCC, try to use a recent version. For example, on x86-32,
+    xz_dec_lzma2.c compiled with GCC 3.3.6 is 15-25 % slower than when
+    compiled with GCC 4.3.3.
+
+Embedding into userspace applications
+
+    To embed the XZ decoder, copy the following files into a single
+    directory in your source code tree:
+
+        linux/include/linux/xz.h
+        linux/lib/xz/xz_crc32.c
+        linux/lib/xz/xz_dec_lzma2.c
+        linux/lib/xz/xz_dec_stream.c
+        linux/lib/xz/xz_lzma2.h
+        linux/lib/xz/xz_private.h
+        linux/lib/xz/xz_stream.h
+        userspace/xz_config.h
+
+    Alternatively, xz.h may be placed into a different directory but then
+    that directory must be in the compiler include path when compiling
+    the .c files.
+
+    Your code should use only the functions declared in xz.h. The rest of
+    the .h files are meant only for internal use in XZ Embedded.
+
+    You may want to modify xz_config.h to be more suitable for your build
+    environment. Probably you should at least skim through it even if the
+    default file works as is.
+
+BCJ filter support
+
+    If you want support for one or more BCJ filters, you need to copy also
+    linux/lib/xz/xz_dec_bcj.c into your application, and use appropriate
+    #defines in xz_config.h or in compiler flags. You don't need these
+    #defines in the code that just uses XZ Embedded via xz.h, but having
+    them always #defined doesn't hurt either.
+
+        #define             Instruction set     BCJ filter endianness
+        XZ_DEC_X86          x86-32 or x86-64    Little endian only
+        XZ_DEC_POWERPC      PowerPC             Big endian only
+        XZ_DEC_IA64         Itanium (IA-64)     Big or little endian
+        XZ_DEC_ARM          ARM                 Little endian only
+        XZ_DEC_ARMTHUMB     ARM-Thumb           Little endian only
+        XZ_DEC_SPARC        SPARC               Big or little endian
+
+    While some architectures are (partially) bi-endian, the endianness
+    setting doesn't change the endianness of the instructions on all
+    architectures. That's why Itanium and SPARC filters work for both big
+    and little endian executables (Itanium has little endian instructions
+    and SPARC has big endian instructions).
+
+    There currently is no filter for little endian PowerPC or big endian
+    ARM or ARM-Thumb. Implementing filters for them can be considered if
+    there is a need for such filters in real-world applications.
+
+Notes about shared libraries
+
+    If you are including XZ Embedded into a shared library, you very
+    probably should rename the xz_* functions to prevent symbol
+    conflicts in case your library is linked against some other library
+    or application that also has XZ Embedded in it (which may even be
+    a different version of XZ Embedded). TODO: Provide an easy way
+    to do this.
+
+    Please don't create a shared library of XZ Embedded itself unless
+    it is fine to rebuild everything depending on that shared library
+    everytime you upgrade to a newer version of XZ Embedded. There are
+    no API or ABI stability guarantees between different versions of
+    XZ Embedded.
+
+Specifying the calling convention
+
+    XZ_FUNC macro was included to support declaring functions with __init
+    in Linux. Outside Linux, it can be used to specify the calling
+    convention on systems that support multiple calling conventions.
+    For example, on Windows, you may make all functions use the stdcall
+    calling convention by defining XZ_FUNC=__stdcall when building and
+    using the functions from XZ Embedded.

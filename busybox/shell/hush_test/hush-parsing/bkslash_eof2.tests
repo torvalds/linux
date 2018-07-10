@@ -1,0 +1,4 @@
+printf 'echo "unterminated string\\' >test.tmp.sh
+. ./test.tmp.sh
+echo One:$?
+rm -f test.tmp.sh

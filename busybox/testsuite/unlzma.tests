@@ -1,0 +1,21 @@
+#!/bin/sh
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+# Damaged encrypted streams
+testing "unlzma (bad archive 1)" \
+	"unlzma <unlzma_issue_1.lzma >/dev/null; echo \$?" \
+"1
+" "" ""
+
+# Damaged encrypted streams
+testing "unlzma (bad archive 2)" \
+	"unlzma <unlzma_issue_2.lzma >/dev/null; echo \$?" \
+"1
+" "" ""
+
+exit $FAILCOUNT

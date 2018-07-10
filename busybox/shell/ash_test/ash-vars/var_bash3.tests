@@ -1,0 +1,41 @@
+a='abc'
+r=${a//b/\041#}
+echo 1 $r
+echo 2 ${a//b/\041#}
+echo 3 "${a//b/\041#}"
+
+a='abc'
+r=${a//b/\\041#}
+echo 4 $r
+echo 5 ${a//b/\\041#}
+echo 6 "${a//b/\\041#}"
+
+a='abc'
+b='\041#'
+r=${a//b/$b}
+echo 7 $r
+echo 8 ${a//b/$b}
+echo 9 "${a//b/$b}"
+
+a='abc'
+b='\'
+r="${a//b/$b}"
+echo 10 $r
+echo 11 ${a//b/$b}
+echo 12 "${a//b/$b}"
+
+a='abc'
+b='\\'
+r="${a//b/$b}"
+echo 13 $r
+echo 14 ${a//b/$b}
+echo 15 "${a//b/$b}"
+
+a='abc'
+b='\t'
+r="${a//b/$b}"
+echo 16 $r
+echo 17 ${a//b/$b}
+echo 18 "${a//b/$b}"
+echo 19 ${a//b/\t}
+echo 20 "${a//b/\t}"

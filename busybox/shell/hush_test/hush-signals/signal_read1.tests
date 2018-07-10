@@ -1,0 +1,5 @@
+(sleep 1; kill -HUP $$) &
+trap 'echo "Got HUP:$?"; exit' HUP
+while true; do
+	read ignored
+done

@@ -1,0 +1,4 @@
+x='\\\\'
+printf Nothing:'%s\n' ${x#'\\\\'}
+printf Nothing:'%s\n' "${x#'\\\\'}"
+echo Ok:$?

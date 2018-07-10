@@ -1,0 +1,6 @@
+touch foo bar
+tar cf foo.tar foo bar
+rm foo bar
+busybox tar -xf foo.tar
+test -f foo
+test -f bar

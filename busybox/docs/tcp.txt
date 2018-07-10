@@ -1,0 +1,93 @@
+	Some less-widely known details of TCP connections.
+
+	Properly closing the connection.
+
+After this code sequence:
+
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    connect(sock, &remote, sizeof(remote));
+    write(sock, buffer, 1000000);
+
+a large block of data is only buffered by kernel, it can't be sent all at once.
+What will happen if we close the socket?
+
+"A host MAY implement a 'half-duplex' TCP close sequence, so that
+ an application that has called close() cannot continue to read
+ data from the connection. If such a host issues a close() call
+ while received data is still pending in TCP, or if new data is
+ received after close() is called, its TCP SHOULD send a RST
+ to show that data was lost."
+
+IOW: if we just close(sock) now, kernel can reset the TCP connection
+(send RST packet).
+
+This is problematic for two reasons: it discards some not-yet sent
+data, and it may be reported as error, not EOF, on peer's side.
+
+What can be done about it?
+
+Solution #1: block until sending is done:
+
+    /* When enabled, a close(2) or shutdown(2) will not return until
+     * all queued messages for the socket have been successfully sent
+     * or the linger timeout has been reached.
+     */
+    struct linger {
+	int l_onoff;    /* linger active */
+	int l_linger;   /* how many seconds to linger for */
+    } linger;
+    linger.l_onoff = 1;
+    linger.l_linger = SOME_NUM;
+    setsockopt(sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+    close(sock);
+
+Solution #2: tell kernel that you are done sending.
+This makes kernel send FIN after all data is written:
+
+    shutdown(sock, SHUT_WR);
+    close(sock);
+
+However, experiments on Linux 3.9.4 show that kernel can return from
+shutdown() and from close() before all data is sent,
+and if peer sends any data to us after this, kernel still responds with
+RST before all our data is sent.
+
+In practice the protocol in use often does not allow peer to send
+such data to us, in which case this solution is acceptable.
+
+Solution #3: if you know that peer is going to close its end after it sees
+our FIN (as EOF), it might be a good idea to perform a read after shutdown().
+When read finishes with 0-sized result, we conclude that peer received all
+the data, saw EOF, and closed its end.
+
+However, this incurs small performance penalty (we run for a longer time)
+and requires safeguards (nonblocking reads, timeouts etc) against
+malicious peers which don't close the connection.
+
+Solutions #1 and #2 can be combined:
+
+    /* ...set up struct linger... then: */
+    setsockopt(sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+    shutdown(sock, SHUT_WR);
+    /* At this point, kernel sent FIN packet, not RST, to the peer, */
+    /* even if there is buffered read data from the peer. */
+    close(sock);
+
+	Defeating Nagle.
+
+Method #1: manually control whether partial sends are allowed:
+
+This prevents partially filled packets being sent:
+
+    int state = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
+
+and this forces last, partially filled packet (if any) to be sent:
+
+    int state = 0;
+    setsockopt(fd, IPPROTO_TCP, TCP_CORK, &state, sizeof(state));
+
+Method #2: make any write to immediately send data, even if it's partial:
+
+    int state = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &state, sizeof(state));

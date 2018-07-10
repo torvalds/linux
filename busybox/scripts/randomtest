@@ -1,0 +1,137 @@
+#!/bin/sh
+
+# If not specified in environment...
+if ! test "$LIBC"; then
+	# Select which libc to build against
+	LIBC="glibc"
+	LIBC="uclibc"
+fi
+# x86 32-bit:
+#CROSS_COMPILER_PREFIX="i486-linux-uclibc-"
+# My system has strange prefix for x86 64-bit uclibc:
+#CROSS_COMPILER_PREFIX="x86_64-pc-linux-gnu-"
+
+if test $# -lt 2 || ! test -d "$1" || test -e "$2"; then
+	echo "Usage: $0 SRC_DIR TMP_DIR"
+	echo
+	echo "SRC_DIR will be copied to TMP_DIR directory."
+	echo "Then a random build will be performed."
+	echo
+	echo "Useful variables:"
+	echo "\$LIBC, \$CROSS_COMPILER_PREFIX, \$MAKEOPTS"
+	exit 1
+fi
+
+cp -dpr -- "$1" "$2" || { echo "copy error"; exit 1; }
+cd -- "$2" || { echo "cd $dir error"; exit 1; }
+
+# Generate random config
+make randconfig >/dev/null || { echo "randconfig error"; exit 1; }
+
+# Tweak resulting config
+cat .config \
+| grep -v CONFIG_DEBUG_PESSIMIZE \
+| grep -v CONFIG_WERROR \
+| grep -v CONFIG_CROSS_COMPILER_PREFIX \
+| grep -v CONFIG_SELINUX \
+| grep -v CONFIG_EFENCE \
+| grep -v CONFIG_DMALLOC \
+\
+| grep -v CONFIG_RFKILL \
+>.config.new
+mv .config.new .config
+echo '# CONFIG_DEBUG_PESSIMIZE is not set' >>.config
+echo '# CONFIG_WERROR is not set' >>.config
+echo "CONFIG_CROSS_COMPILER_PREFIX=\"${CROSS_COMPILER_PREFIX}\"" >>.config
+echo '# CONFIG_SELINUX is not set' >>.config
+echo '# CONFIG_EFENCE is not set' >>.config
+echo '# CONFIG_DMALLOC is not set' >>.config
+echo '# CONFIG_RFKILL is not set' >>.config
+
+# If glibc, don't build static
+if test x"$LIBC" = x"glibc"; then
+	cat .config \
+	| grep -v CONFIG_STATIC \
+	| grep -v CONFIG_FEATURE_LIBBUSYBOX_STATIC \
+	\
+	| grep -v CONFIG_FEATURE_2_4_MODULES \
+	| grep -v CONFIG_FEATURE_USE_BSS_TAIL \
+	| grep -v CONFIG_DEBUG_SANITIZE \
+	| grep -v CONFIG_FEATURE_MOUNT_NFS \
+	| grep -v CONFIG_FEATURE_INETD_RPC \
+	>.config.new
+	mv .config.new .config
+	echo '# CONFIG_STATIC is not set' >>.config
+	echo '# CONFIG_FEATURE_LIBBUSYBOX_STATIC is not set' >>.config
+	# newer glibc (at least 2.23) no longer supply query_module() ABI.
+	# People who target 2.4 kernels would likely use older glibc (and older bbox).
+	echo '# CONFIG_FEATURE_2_4_MODULES is not set' >>.config
+	echo '# CONFIG_FEATURE_USE_BSS_TAIL is not set' >>.config
+	echo '# CONFIG_DEBUG_SANITIZE is not set' >>.config
+	# 2018: current glibc versions no longer include rpc/rpc.h
+	echo '# CONFIG_FEATURE_MOUNT_NFS is not set' >>.config
+	echo '# CONFIG_FEATURE_INETD_RPC is not set' >>.config
+fi
+
+# If uclibc, build static, and remove some things
+# likely to not work on uclibc.
+if test x"$LIBC" = x"uclibc"; then
+	cat .config \
+	| grep -v CONFIG_STATIC \
+	| grep -v CONFIG_BUILD_LIBBUSYBOX \
+	| grep -v CONFIG_PIE \
+	\
+	| grep -v CONFIG_FEATURE_2_4_MODULES \
+	| grep -v CONFIG_FEATURE_SYNC_FANCY \
+	| grep -v CONFIG_FEATURE_TOUCH_NODEREF \
+	| grep -v CONFIG_NANDWRITE \
+	| grep -v CONFIG_NANDDUMP \
+	| grep -v CONFIG_BLKDISCARD \
+	| grep -v CONFIG_NSENTER \
+	| grep -v CONFIG_UNSHARE \
+	| grep -v CONFIG_FALLOCATE \
+	| grep -v CONFIG_UDHCPC6 \
+	| grep -v CONFIG_NSLOOKUP \
+	| grep -v CONFIG_ASH_INTERNAL_GLOB \
+	>.config.new
+	mv .config.new .config
+	echo 'CONFIG_STATIC=y' >>.config
+	echo '# CONFIG_BUILD_LIBBUSYBOX is not set' >>.config
+	echo '# CONFIG_PIE is not set' >>.config
+	echo '# CONFIG_FEATURE_2_4_MODULES is not set' >>.config
+	echo '# CONFIG_FEATURE_SYNC_FANCY is not set' >>.config
+	echo '# CONFIG_FEATURE_TOUCH_NODEREF is not set' >>.config
+	# My uclibc installation does not support some needed APIs...
+	echo '# CONFIG_NANDWRITE is not set' >>.config
+	echo '# CONFIG_NANDDUMP is not set' >>.config
+	echo '# CONFIG_BLKDISCARD is not set' >>.config
+	echo '# CONFIG_NSENTER is not set' >>.config
+	echo '# CONFIG_UNSHARE is not set' >>.config
+	echo '# CONFIG_FALLOCATE is not set' >>.config
+	echo '# CONFIG_UDHCPC6 is not set' >>.config
+	echo '# CONFIG_NSLOOKUP is not set' >>.config
+	echo 'CONFIG_ASH_INTERNAL_GLOB=y' >>.config
+fi
+
+# If STATIC, remove some things.
+# PAM with static linking is probably pointless
+# (but I need to try - now I don't have libpam.a on my system, only libpam.so)
+if grep -q "^CONFIG_STATIC=y" .config; then
+	cat .config \
+	| grep -v CONFIG_PAM \
+	>.config.new
+	mv .config.new .config
+	echo '# CONFIG_PAM is not set' >>.config
+fi
+
+# Regenerate .config with default answers for yanked-off options
+# (most of default answers are "no").
+{ yes "" | make oldconfig >/dev/null; } || { echo "oldconfig error"; exit 1; }
+
+# Build!
+nice -n 10 make $MAKEOPTS 2>&1 | tee make.log
+grep 'Rerun make' make.log \
+&& nice -n 10 make $MAKEOPTS 2>&1 | tee -a make.log
+
+# Return exitcode 1 if busybox executable does not exist
+test -x busybox

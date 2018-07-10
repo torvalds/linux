@@ -1,0 +1,11 @@
+hush: can't open '/cant/be/created': No such file or directory
+First
+One:1 v1:[]
+hush: can't open '/cant/be/created': No such file or directory
+Second
+One:1 v2:[]
+Third
+Zero:0 v3:[]
+Fourth
+Zero:0 v4:[]
+Zero:0 v5:[1]

@@ -1,0 +1,8 @@
+$THIS_SH -c 'echo 3&'
+d=`date`
+while test "`date`" = "$d"; do true; done
+d1=`date`
+$THIS_SH -c 'sleep 1&'
+d2=`date`
+test "$d1" = "$d2" || echo BAD
+echo End

@@ -1,0 +1,143 @@
+2008-07-14
+
+	Command parsing
+
+Command parsing results in a list of "pipe" structures.
+This list correspond not only to usual "pipe1 || pipe2 && pipe3"
+lists, but it also controls execution of if, while, etc statements.
+Every such statement is a list for hush. List consists of pipes.
+
+struct pipe fields:
+  smallint res_word - "none" for normal commands,
+                      "if" for if condition etc
+  struct child_prog progs[] - array of commands in pipe
+  smallint followup - how this pipe is related to next: is it
+                      "pipe; pipe", "pipe & pipe" "pipe && pipe",
+                      "pipe || pipe"?
+
+Blocks of commands { pipe; pipe; } and (pipe; pipe) are represented
+as one pipe struct with one progs[0] element which is a "group" -
+struct child_prog can contain a list of pipes. Sometimes these
+"groups" are created implicitly, e.g. every control
+statement (if, while, etc) sits inside its own group.
+
+res_word controls statement execution. Examples:
+
+"echo Hello" -
+pipe 0 res_word=NONE followup=SEQ prog[0] 'echo' 'Hello'
+pipe 1 res_word=NONE followup=SEQ
+
+"echo foo || echo bar" -
+pipe 0 res_word=NONE followup=OR  prog[0] 'echo' 'foo'
+pipe 1 res_word=NONE followup=SEQ prog[0] 'echo' 'bar'
+pipe 2 res_word=NONE followup=SEQ
+
+"if true; then echo Hello; true; fi" -
+res_word=NONE followup=SEQ
+ prog 0 group {}:
+  pipe 0 res_word=IF followup=SEQ prog[0] 'true'
+  pipe 1 res_word=THEN followup=SEQ prog[0] 'echo' 'Hello'
+  pipe 2 res_word=THEN followup=SEQ prog[0] 'true'
+  pipe 3 res_word=FI followup=SEQ
+  pipe 4 res_word=NONE followup=(null)
+pipe 1 res_word=NONE followup=SEQ
+
+Above you see that if is a list, and it sits in a {} group
+implicitly created by hush. Also note two THEN res_word's -
+it is explained below.
+
+"if true; then { echo Hello; true; }; fi" -
+pipe 0 res_word=NONE followup=SEQ
+ prog 0 group {}:
+  pipe 0 res_word=IF followup=SEQ prog[0] 'true'
+  pipe 1 res_word=THEN followup=SEQ
+   prog 0 group {}:
+    pipe 0 res_word=NONE followup=SEQ prog[0] 'echo' 'Hello'
+    pipe 1 res_word=NONE followup=SEQ prog[0] 'true'
+    pipe 2 res_word=NONE followup=SEQ
+  pipe 2 res_word=NONE followup=(null)
+pipe 1 res_word=NONE followup=SEQ
+
+"for v in a b; do echo $v; true; done" -
+pipe 0 res_word=NONE followup=SEQ
+ prog 0 group {}:
+  pipe 0 res_word=FOR followup=SEQ prog[0] 'v'
+  pipe 1 res_word=IN followup=SEQ prog[0] 'a' 'b'
+  pipe 2 res_word=DO followup=SEQ prog[0] 'echo' '$v'
+  pipe 3 res_word=DO followup=SEQ prog[0] 'true'
+  pipe 4 res_word=DONE followup=SEQ
+  pipe 5 res_word=NONE followup=(null)
+pipe 1 res_word=NONE followup=SEQ
+
+Note how "THEN" and "DO" does not just mark the first pipe,
+it "sticks" to all pipes in the body. This is used when
+hush executes parsed pipes.
+
+Dummy trailing pipes with no commands are artifacts of imperfect
+parsing algorithm - done_pipe() appends new pipe struct beforehand
+and last one ends up empty and unused.
+
+"for" and "case" statements (ab)use progs[] to keep their data
+instead of argv vector progs[] usually do. "for" keyword is forcing
+pipe termination after first word, which makes hush see
+"for v in..." as "for v; in...". "case" keyword does the same.
+Other judiciuosly placed hacks make hush see
+"case word in a) cmd1;; b) cmd2;; esac" as if it was
+"case word; match a; cmd; match b; cmd2; esac"
+("match" is a fictitious keyword here):
+
+"case word in a) cmd1;; b) cmd2; esac" -
+pipe 0 res_word=NONE followup=1 SEQ
+ prog 0 group {}:
+  pipe 0 res_word=CASE followup=SEQ prog[0] 'word'
+  pipe 1 res_word=MATCH followup=SEQ prog[0] 'a'
+  pipe 2 res_word=CASEI followup=SEQ prog[0] 'cmd1'
+  pipe 3 res_word=MATCH followup=SEQ prog[0] 'b'
+  pipe 4 res_word=CASEI followup=SEQ prog[0] 'cmd2'
+  pipe 5 res_word=CASEI followup=SEQ prog[0] 'cmd3'
+  pipe 6 res_word=ESAC followup=SEQ
+  pipe 7 res_word=NONE followup=(null)
+pipe 1 res_word=NONE followup=SEQ
+
+
+2008-01
+
+	Command execution
+
+/* callsite: process_command_subs */
+generate_stream_from_list(struct pipe *head) - handles `cmds`
+  create UNIX pipe
+  [v]fork
+  child:
+  redirect pipe output to stdout
+  _exit(run_list(head));   /* leaks memory */
+  parent:
+  return UNIX pipe's output fd
+  /* head is freed by the caller */
+
+/* callsite: parse_and_run_stream */
+run_and_free_list(struct pipe *)
+  run_list(struct pipe *)
+  free_pipe_list(struct pipe *)
+
+/* callsites: generate_stream_from_list, run_and_free_list, pseudo_exec, run_pipe */
+run_list(struct pipe *) - handles "cmd; cmd2 && cmd3", while/for/do loops
+  run_pipe - for every pipe in list
+
+/* callsite: run_list */
+run_pipe - runs "cmd1 | cmd2 | cmd3 [&]"
+  run_list - used if only one cmd and it is of the form "{cmds;}"
+  forks for every cmd if more than one cmd or if & is there
+  pseudo_exec - runs each "cmdN" (handles builtins etc)
+
+/* callsite: run_pipe */
+pseudo_exec - runs "cmd" (handles builtins etc)
+  exec - execs external programs
+  run_list - used if cmdN is "(cmds)" or "{cmds;}"
+  /* problem: putenv's malloced strings into environ -
+  ** with vfork they will leak into parent process
+  */
+  /* problem with ENABLE_FEATURE_SH_STANDALONE:
+  ** run_applet_no_and_exit(a, argv) uses exit - this can interfere
+  ** with vfork - switch to _exit there?
+  */

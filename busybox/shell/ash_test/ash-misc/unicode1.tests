@@ -1,0 +1,13 @@
+LANG=en_US.UTF-8
+
+# A combining character U+300
+a=`printf "\xcc\x80"`
+# Should print 1
+echo ${#a}
+
+# A Japanese katakana character U+30a3
+a=`printf "\xe3\x82\xa3"`
+# Should print 1
+echo ${#a}
+
+echo Ok

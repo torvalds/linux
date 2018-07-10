@@ -1,0 +1,50 @@
+Busybox unit test framework
+===========================
+
+This document describes what you need to do to write test cases using the
+Busybox unit test framework.
+
+
+Building unit tests
+-------------------
+
+The framework and all tests are built as a regular Busybox applet if option
+CONFIG_UNIT_TEST (found in General Configuration -> Debugging Options) is set.
+
+
+Writing test cases
+------------------
+
+Unit testing interface can be found in include/bbunit.h.
+
+Tests can be placed in any .c file in Busybox tree - preferably right next to
+the functions they test. Test cases should be enclosed within an #if, and
+should start with BBUNIT_DEFINE_TEST macro and end with BBUNIT_ENDTEST within
+the test curly brackets. If an assertion fails the test ends immediately, ie.
+the following assertions will not be reached. Any code placed after
+BBUNIT_ENDTEST is executed regardless of the test result. Here's an example:
+
+#if ENABLE_UNIT_TEST
+
+BBUNIT_DEFINE_TEST(test_name)
+{
+	int *i;
+
+	i = malloc(sizeof(int));
+	BBUNIT_ASSERT_NOTNULL(i);
+	*i = 2;
+	BBUNIT_ASSERT_EQ((*i)*(*i), 4);
+
+	BBUNIT_ENDTEST;
+
+	free(i);
+}
+
+#endif /* ENABLE_UNIT_TEST */
+
+
+Running the unit test suite
+---------------------------
+
+To run the tests you can either directly run 'busybox unit' or use 'make test'
+to run both the unit tests (if compiled) and regular test suite.

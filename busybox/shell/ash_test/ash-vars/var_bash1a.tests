@@ -1,0 +1,11 @@
+parameter=abcdef
+offset=2
+noffset=-2
+echo "parameter     '${parameter}'"
+echo "varoffset2    '${parameter:${offset}}'"
+echo "varoffset-2   '${parameter:${noffset}}'"
+echo "literal '2'   '${parameter:2}'"
+# This is not interpreted as ${VAR:POS{:LEN}},
+# but as ${VAR:=WORD} - if VAR is unset or null, substitute WORD
+echo "literal '-2'  '${parameter:-2}'"
+echo "literal ' -2' '${parameter: -2}'"

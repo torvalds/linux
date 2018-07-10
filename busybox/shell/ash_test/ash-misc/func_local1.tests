@@ -1,0 +1,5 @@
+export z=z
+f() { local z=a; env | grep ^z; }
+f
+env | grep ^z
+echo Done

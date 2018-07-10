@@ -1,0 +1,14 @@
+# Makefile for busybox
+#
+# Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
+#
+# Licensed under GPLv2 or later, see file LICENSE in this source tree.
+
+lib-y:=
+
+INSERT
+lib-$(CONFIG_MKFIFO)	+= getopt_mk_fifo_nod.o
+lib-$(CONFIG_MKNOD)	+= getopt_mk_fifo_nod.o
+lib-$(CONFIG_INSTALL)	+= cp_mv_stat.o
+lib-$(CONFIG_CP)	+= cp_mv_stat.o
+lib-$(CONFIG_MV)	+= cp_mv_stat.o

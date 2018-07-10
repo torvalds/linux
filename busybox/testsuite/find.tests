@@ -1,0 +1,76 @@
+#!/bin/sh
+
+# Copyright 2014 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "command" "result" "infile" "stdin"
+
+mkdir -p find.tempdir
+touch find.tempdir/testfile
+
+optional FEATURE_FIND_TYPE
+testing "find -type f" \
+	"cd find.tempdir && find -type f 2>&1" \
+	"./testfile\n" \
+	"" ""
+SKIP=
+optional FEATURE_FIND_EXEC
+testing "find -exec exitcode 1" \
+	"cd find.tempdir && find testfile -exec true {} \; 2>&1; echo \$?" \
+	"0\n" \
+	"" ""
+SKIP=
+optional FEATURE_FIND_EXEC_PLUS
+testing "find -exec exitcode 2" \
+	"cd find.tempdir && find testfile -exec true {} + 2>&1; echo \$?" \
+	"0\n" \
+	"" ""
+SKIP=
+# Surprisingly, "-exec false ;" results in exitcode 0! "-exec false +" is different!!!
+optional FEATURE_FIND_EXEC
+testing "find -exec exitcode 3" \
+	"cd find.tempdir && find testfile -exec false {} \; 2>&1; echo \$?" \
+	"0\n" \
+	"" ""
+SKIP=
+optional FEATURE_FIND_EXEC_PLUS
+testing "find -exec exitcode 4" \
+	"cd find.tempdir && find testfile -exec false {} + 2>&1; echo \$?" \
+	"1\n" \
+	"" ""
+SKIP=
+optional FEATURE_FIND_MAXDEPTH
+testing "find / -maxdepth 0 -name /" \
+	"find / -maxdepth 0 -name /" \
+	"/\n" \
+	"" ""
+testing "find // -maxdepth 0 -name /" \
+	"find // -maxdepth 0 -name /" \
+	"//\n" \
+	"" ""
+testing "find / -maxdepth 0 -name //" \
+	"find / -maxdepth 0 -name //" \
+	"" \
+	"" ""
+testing "find // -maxdepth 0 -name //" \
+	"find // -maxdepth 0 -name //" \
+	"" \
+	"" ""
+SKIP=
+
+testing "find ./// -name ." \
+	"find ./// -name ." \
+	".///\n" \
+	"" ""
+testing "find ./// -name .///" \
+	"find ./// -name .///" \
+	"" \
+	"" ""
+
+# testing "description" "command" "result" "infile" "stdin"
+
+rm -rf find.tempdir
+
+exit $FAILCOUNT

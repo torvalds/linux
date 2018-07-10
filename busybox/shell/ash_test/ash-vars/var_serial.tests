@@ -1,0 +1,22 @@
+a=a
+
+b=b
+c=c
+# Second assignment depends on the first:
+b=$a c=$b
+echo Assignments only: c=$c
+
+b=b
+c=c
+b=$a c=$b "$THIS_SH" -c 'echo Assignments and a command: c=$c'
+
+b=b
+c=c
+b=$a c=$b eval 'echo Assignments and a builtin: c=$c'
+
+b=b
+c=c
+f() { echo Assignments and a function: c=$c; }
+b=$a c=$b f
+
+echo Done

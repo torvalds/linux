@@ -1,0 +1,81 @@
+#!/bin/sh
+# Do unmount/remount-ro. Wait.
+# KILL everybody. Wait.
+# Repeat.
+
+umountcnt=2
+writeout=0	# increase if your kernel doesn ot guarantee writes to complete
+
+# No /usr - we are expecting all binaries to be accessible
+# from root fs alone
+PATH=/sbin:/bin
+
+say() {
+	printf "\r%s\n\r" "$*"
+}
+
+showps() {
+	# sleep 1 ensures that xargs will have time to start up
+	# this makes pslist less prone to random jitter
+	pslist=`{ sleep 1; ps -A -o comm=; } | sort | xargs`
+	pscnt=$(( `say "$pslist" | wc -w` + 0 ))
+	if test x"$VERBOSE" = x; then
+		say "* `date '+%H:%M:%S'` $pscnt processes"
+	else
+		say "* `date '+%H:%M:%S'` Processes ($pscnt): $pslist"
+	fi
+}
+
+say "<*> `date '+%Y-%m-%d %H:%M:%S'` Executing '$0 $*'"
+
+showps
+
+i="$umountcnt"
+while test "$i" -gt 0; do
+	say "* `date '+%H:%M:%S'` Unmounting filesystems"
+	umount -a -n -r -f
+	# In case we unmounted proc...
+	test -e /proc/version || mount -t proc none /proc
+	# Remounting / RO isn't necessary when /etc/mtab is linked to /proc/mounts:
+	# already done. But let's be more paranoid here...
+	say "* `date '+%H:%M:%S'` Remounting root filesystem read-only"
+	mount -n -o remount,ro /
+	say "* `date '+%H:%M:%S'` Freeing loop devices"
+	for a in /dev/loop*; do
+		test -b "$a" && losetup -d "$a"
+	done
+	say "* `date '+%H:%M:%S'` Syncing"
+	sync
+	say "* `date '+%H:%M:%S'` Executing: killall5 -KILL"
+	killall5 -9
+	showps
+	i=$((i-1))
+done
+
+say "* `date '+%H:%M:%S'` Filesystem status (/proc/mounts)"
+cat /proc/mounts \
+| {
+	bad=false
+	while read dev mntpoint fstype opt n1 n2; do
+		case "$fstype" in
+		( proc | sysfs | usbfs | devpts | rpc_pipefs | binfmt_misc | autofs | rootfs | tmpfs | ramfs )
+			say "$dev $mntpoint $fstype $opt $n1 $n2"
+			continue
+			;;
+		esac
+		if test "${opt:0:2}" = "rw"; then
+			say "$dev $mntpoint $fstype $opt $n1 $n2 - RW!"
+			bad=true
+		else
+			say "$dev $mntpoint $fstype $opt $n1 $n2"
+		fi
+	done
+	if $bad; then
+		say "ERROR: we have filesystems mounted RW! Press <Enter> (^J)..."
+		read junk </dev/console
+		#sh </dev/console >&0 2>&0 # debug
+	fi
+}
+
+# Disk cache writeout
+sleep "$writeout"

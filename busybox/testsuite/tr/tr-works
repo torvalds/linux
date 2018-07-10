@@ -1,0 +1,28 @@
+# FEATURE: CONFIG_FEATURE_TR_CLASSES
+
+run_tr ()
+{
+	$ECHO -n "echo '$1' | tr '$2' '$3': "
+	echo "$1" | $bb tr "$2" "$3"
+	echo
+}
+tr_test ()
+{
+	run_tr "cbaab"		abc 		zyx
+	run_tr "TESTING A B C" 	'[A-Z]' 	'[a-z]'
+	run_tr "abc[]" 		"a[b" 		AXB
+	run_tr abc		'[:alpha:]' 	A-ZA-Z
+	run_tr abc56		'[:alnum:]' 	A-ZA-Zxxxxxxxxxx
+	run_tr 012		'[:digit:]' 	abcdefghi
+	run_tr abc56		'[:lower:]' 	'[:upper:]'
+	run_tr " 	"	'[:space:]' 	12345
+	run_tr " 	"	'[:blank:]' 	12
+	run_tr 'a b'		'[= =]' 	X
+	run_tr "[:"		'[:' 		ab
+	run_tr " 	.,:"	'[:punct:]'	12
+	run_tr " 	.,:"	'[:cntrl:]'	12
+}
+
+bb=        tr_test > logfile.gnu
+bb=busybox tr_test > logfile.bb
+diff -u logfile.gnu logfile.bb

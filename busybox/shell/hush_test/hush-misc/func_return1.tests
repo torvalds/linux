@@ -1,0 +1,11 @@
+f1() {
+	while return 2; do :; done
+}
+f1
+echo Two:$?
+
+f2() {
+	while :; do return 2; done
+}
+f2
+echo Two:$?

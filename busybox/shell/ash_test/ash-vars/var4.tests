@@ -1,0 +1,1 @@
+X=usbdev1.2 X=${X#usbdev} B=${X%%.*} D=${X#*.}; echo bus/usb/$B/$D

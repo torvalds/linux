@@ -1,0 +1,4 @@
+# TODO: gnu date doesn't accept '2000.11.22-11:22:33' format,
+# but accepts '2000-11-22 11:22:33'. We must follow.
+test x"01/01/99" = x"`busybox date -d 1999.01.01-11:22:33 '+%d/%m/%y'`"
+test x"22/11/00" = x"`busybox date -d 2000.11.22-11:22:33 '+%d/%m/%y'`"

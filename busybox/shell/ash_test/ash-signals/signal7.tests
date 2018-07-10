@@ -1,0 +1,18 @@
+bug() {
+	trap : exit
+	# Bug was causing sh to be run in subshell,
+	# as if this line is replaced with (sh -c ...; exit $?) &
+	# here:
+	sh -c 'echo REAL_CHILD=$$' &
+	echo PARENTS_IDEA_OF_CHILD=$!
+	wait  # make sure bkgd shell completes
+}
+
+bug | {
+while read varval; do
+	eval $varval
+done
+test x"$REAL_CHILD" != x"" \
+&& test x"$REAL_CHILD" = x"$PARENTS_IDEA_OF_CHILD"
+echo "Bug detected: $?"
+}

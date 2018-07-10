@@ -1,0 +1,4 @@
+eval 'cat <<- NOT
+test
+NOT'
+echo OK:$?

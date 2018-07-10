@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# This script finds applets with multiple uses of bb_common_bufsiz1
+# (== possible bugs).
+# Currently (2007-06-04) reports 3 false positives:
+# ./coreutils/diff.c:7
+# ./loginutils/getty.c:2
+# ./util-linux/mount.c:5
+
+find -name '*.c' \
+| while read name; do
+    grep -Hc bb_common_bufsiz1 "$name"
+done | grep -v ':[01]$'

@@ -1,0 +1,6 @@
+export aaa1="'''"
+export aaa2=''
+export aaa3="'''"'abc'
+export aaa4='def'"'''"
+export aaa5="'''"'abc'"'''"'def'"'''"
+Done

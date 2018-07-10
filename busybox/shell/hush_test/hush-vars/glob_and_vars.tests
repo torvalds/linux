@@ -1,0 +1,2 @@
+v=.
+echo $v/glob_and_vars.[tr]*

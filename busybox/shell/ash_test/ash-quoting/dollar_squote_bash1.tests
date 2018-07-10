@@ -1,0 +1,8 @@
+echo $'a\tb'
+echo "$'a\tb'"
+echo $'a\nb' $'c\nd''ef'
+echo $'a\'b' $'c\"d' $'e\\f'
+echo $'a\63b' $'c\063b' $'e\0633f'
+echo $'a\80b' $'c\608b'
+echo $'a\x33b' $'c\x330b'
+echo $'x\x9y'

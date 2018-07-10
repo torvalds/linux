@@ -1,0 +1,9 @@
+true;  a=1; echo Zero1:$?
+false; a=1; echo Zero2:$?
+false || a=1; echo Zero3:$?
+
+false || x=$? y=`echo $?`; echo Zero4:$? x:$x y:$y
+false || x=$? y=`echo $?; exit 3`; echo Three:$? x:$x y:$y
+
+#ash sets z=1 instead of z=3. disabled for now
+#false || x=$? y=`echo $?; exit 3` z=`echo $?`; echo x:$x y:$y z:$z

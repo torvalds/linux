@@ -1,0 +1,14 @@
+#!/bin/sh
+
+b=`basename $PWD`
+test "${b#busybox}" != "$b" || { echo "Must be run in busybox tree"; exit 1; }
+
+cd ..
+cp -pPR "$b" busybox.$$.test_tree
+cd busybox.$$.test_tree
+make defconfig
+make $MAKEOPTS
+make clean
+cd ..
+diff -urp "$b" busybox.$$.test_tree >busybox.$$.test_tree.diff
+cat busybox.$$.test_tree.diff

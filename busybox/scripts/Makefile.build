@@ -1,0 +1,344 @@
+# ==========================================================================
+# Building
+# ==========================================================================
+
+src := $(obj)
+
+PHONY := __build
+__build:
+
+# Read .config if it exist, otherwise ignore
+-include .config
+
+include scripts/Kbuild.include
+
+# The filename Kbuild has precedence over Makefile
+# bbox: we also try to include Kbuild file in obj tree first
+kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+include $(if $(wildcard $(src)/Kbuild), $(src)/Kbuild, \
+		$(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, \
+			$(kbuild-dir)/Makefile \
+		) \
+	)
+
+include scripts/Makefile.lib
+
+ifdef host-progs
+ifneq ($(hostprogs-y),$(host-progs))
+$(warning kbuild: $(obj)/Makefile - Usage of host-progs is deprecated. Please replace with hostprogs-y!)
+hostprogs-y += $(host-progs)
+endif
+endif
+
+# Do not include host rules unles needed
+ifneq ($(hostprogs-y)$(hostprogs-m),)
+include scripts/Makefile.host
+endif
+
+ifneq ($(KBUILD_SRC),)
+# Create output directory if not already present
+_dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
+
+# Create directories for object files if directory does not exist
+# Needed when obj-y := dir/file.o syntax is used
+_dummy := $(foreach d,$(obj-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
+endif
+
+
+ifdef EXTRA_TARGETS
+$(warning kbuild: $(obj)/Makefile - Usage of EXTRA_TARGETS is obsolete in 2.6. Please fix!)
+endif
+
+ifdef build-targets
+$(warning kbuild: $(obj)/Makefile - Usage of build-targets is obsolete in 2.6. Please fix!)
+endif
+
+ifdef export-objs
+$(warning kbuild: $(obj)/Makefile - Usage of export-objs is obsolete in 2.6. Please fix!)
+endif
+
+ifdef O_TARGET
+$(warning kbuild: $(obj)/Makefile - Usage of O_TARGET := $(O_TARGET) is obsolete in 2.6. Please fix!)
+endif
+
+ifdef L_TARGET
+$(error kbuild: $(obj)/Makefile - Use of L_TARGET is replaced by lib-y in 2.6. Please fix!)
+endif
+
+ifdef list-multi
+$(warning kbuild: $(obj)/Makefile - list-multi := $(list-multi) is obsolete in 2.6. Please fix!)
+endif
+
+ifndef obj
+$(warning kbuild: Makefile.build is included improperly)
+endif
+
+# ===========================================================================
+
+ifneq ($(strip $(lib-y) $(lib-m) $(lib-n) $(lib-)),)
+lib-target := $(obj)/lib.a
+endif
+
+ifneq ($(strip $(obj-y) $(obj-m) $(obj-n) $(obj-) $(lib-target)),)
+builtin-target := $(obj)/built-in.o
+endif
+
+# We keep a list of all modules in $(MODVERDIR)
+
+__build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
+	 $(if $(KBUILD_MODULES),$(obj-m)) \
+	 $(subdir-ym) $(always)
+	@:
+
+# Linus' kernel sanity checking tool
+ifneq ($(KBUILD_CHECKSRC),0)
+  ifeq ($(KBUILD_CHECKSRC),2)
+    quiet_cmd_force_checksrc = CHECK   $<
+          cmd_force_checksrc = $(CHECK) $(CHECKFLAGS) $(c_flags) $< ;
+  else
+      quiet_cmd_checksrc     = CHECK   $<
+            cmd_checksrc     = $(CHECK) $(CHECKFLAGS) $(c_flags) $< ;
+  endif
+endif
+
+
+# Compile C sources (.c)
+# ---------------------------------------------------------------------------
+
+# Default is built-in, unless we know otherwise
+modkern_cflags := $(CFLAGS_KERNEL)
+quiet_modtag := $(empty)   $(empty)
+
+$(real-objs-m)        : modkern_cflags := $(CFLAGS_MODULE)
+$(real-objs-m:.o=.i)  : modkern_cflags := $(CFLAGS_MODULE)
+$(real-objs-m:.o=.s)  : modkern_cflags := $(CFLAGS_MODULE)
+$(real-objs-m:.o=.lst): modkern_cflags := $(CFLAGS_MODULE)
+
+$(real-objs-m)        : quiet_modtag := [M]
+$(real-objs-m:.o=.i)  : quiet_modtag := [M]
+$(real-objs-m:.o=.s)  : quiet_modtag := [M]
+$(real-objs-m:.o=.lst): quiet_modtag := [M]
+
+$(obj-m)              : quiet_modtag := [M]
+
+# Default for not multi-part modules
+modname = $(*F)
+
+$(multi-objs-m)         : modname = $(modname-multi)
+$(multi-objs-m:.o=.i)   : modname = $(modname-multi)
+$(multi-objs-m:.o=.s)   : modname = $(modname-multi)
+$(multi-objs-m:.o=.lst) : modname = $(modname-multi)
+$(multi-objs-y)         : modname = $(modname-multi)
+$(multi-objs-y:.o=.i)   : modname = $(modname-multi)
+$(multi-objs-y:.o=.s)   : modname = $(modname-multi)
+$(multi-objs-y:.o=.lst) : modname = $(modname-multi)
+
+quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
+cmd_cc_s_c       = $(CC) $(c_flags) -fverbose-asm -S -o $@ $<
+
+%.s: %.c FORCE
+	$(call if_changed_dep,cc_s_c)
+
+quiet_cmd_cc_i_c = CPP $(quiet_modtag) $@
+cmd_cc_i_c       = $(CPP) $(c_flags)   -o $@ $<
+
+%.i: %.c FORCE
+	$(call if_changed_dep,cc_i_c)
+
+# C (.c) files
+# The C file is compiled and updated dependency information is generated.
+# (See cmd_cc_o_c + relevant part of rule_cc_o_c)
+
+quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
+
+ifndef CONFIG_MODVERSIONS
+cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
+
+else
+# When module versioning is enabled the following steps are executed:
+# o compile a .tmp_<file>.o from <file>.c
+# o if .tmp_<file>.o doesn't contain a __ksymtab version, i.e. does
+#   not export symbols, we just rename .tmp_<file>.o to <file>.o and
+#   are done.
+# o otherwise, we calculate symbol versions using the good old
+#   genksyms on the preprocessed source and postprocess them in a way
+#   that they are usable as a linker script
+# o generate <file>.o from .tmp_<file>.o using the linker to
+#   replace the unresolved symbols __crc_exported_symbol with
+#   the actual value of the checksum generated by genksyms
+
+cmd_cc_o_c = $(CC) $(c_flags) -c -o $(@D)/.tmp_$(@F) $<
+cmd_modversions =							\
+	if $(OBJDUMP) -h $(@D)/.tmp_$(@F) | grep -q __ksymtab; then	\
+		$(CPP) -D__GENKSYMS__ $(c_flags) $<			\
+		| $(GENKSYMS) -a $(ARCH)				\
+		> $(@D)/.tmp_$(@F:.o=.ver);				\
+									\
+		$(LD) $(LDFLAGS) -r -o $@ $(@D)/.tmp_$(@F) 		\
+			-T $(@D)/.tmp_$(@F:.o=.ver);			\
+		rm -f $(@D)/.tmp_$(@F) $(@D)/.tmp_$(@F:.o=.ver);	\
+	else								\
+		mv -f $(@D)/.tmp_$(@F) $@;				\
+	fi;
+endif
+
+define rule_cc_o_c
+	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
+	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
+	$(cmd_modversions)						  \
+	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' > $(@D)/.$(@F).tmp;  \
+	rm -f $(depfile);						  \
+	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd
+endef
+
+# Built-in and composite module parts
+
+%.o: %.c FORCE
+	$(call cmd,force_checksrc)
+	$(call if_changed_rule,cc_o_c)
+
+# Single-part modules are special since we need to mark them in $(MODVERDIR)
+
+$(single-used-m): %.o: %.c FORCE
+	$(call cmd,force_checksrc)
+	$(call if_changed_rule,cc_o_c)
+	@{ echo $(@:.o=.ko); echo $@; } > $(MODVERDIR)/$(@F:.o=.mod)
+
+quiet_cmd_cc_lst_c = MKLST   $@
+      cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
+		     $(CONFIG_SHELL) $(srctree)/scripts/makelst $*.o \
+				     System.map $(OBJDUMP) > $@
+
+%.lst: %.c FORCE
+	$(call if_changed_dep,cc_lst_c)
+
+# Compile assembler sources (.S)
+# ---------------------------------------------------------------------------
+
+modkern_aflags := $(AFLAGS_KERNEL)
+
+$(real-objs-m)      : modkern_aflags := $(AFLAGS_MODULE)
+$(real-objs-m:.o=.s): modkern_aflags := $(AFLAGS_MODULE)
+
+quiet_cmd_as_s_S = CPP $(quiet_modtag) $@
+cmd_as_s_S       = $(CPP) $(a_flags)   -o $@ $<
+
+%.s: %.S FORCE
+	$(call if_changed_dep,as_s_S)
+
+quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
+cmd_as_o_S       = $(CC) $(a_flags) -c -o $@ $<
+
+%.o: %.S FORCE
+	$(call if_changed_dep,as_o_S)
+
+targets += $(real-objs-y) $(real-objs-m) $(lib-y)
+targets += $(extra-y) $(MAKECMDGOALS) $(always)
+
+# Linker scripts preprocessor (.lds.S -> .lds)
+# ---------------------------------------------------------------------------
+quiet_cmd_cpp_lds_S = LDS     $@
+      cmd_cpp_lds_S = $(CPP) $(cpp_flags) -D__ASSEMBLY__ -o $@ $<
+
+%.lds: %.lds.S FORCE
+	$(call if_changed_dep,cpp_lds_S)
+
+# Build the compiled-in targets
+# ---------------------------------------------------------------------------
+
+# To build objects in subdirs, we need to descend into the directories
+$(sort $(subdir-obj-y)): $(subdir-ym) ;
+
+#
+# Rule to compile a set of .o files into one .o file
+#
+ifdef builtin-target
+quiet_cmd_link_o_target = LD      $@
+# If the list of objects to link is empty, just create an empty built-in.o
+# -nostdlib is added to make "make LD=gcc ..." work (some people use that)
+cmd_link_o_target = $(if $(strip $(obj-y)),\
+		$(LD) -nostdlib $(ld_flags) -r -o $@ $(filter $(obj-y), $^),\
+		rm -f $@; $(AR) rcs $@)
+
+$(builtin-target): $(obj-y) FORCE
+	$(call if_changed,link_o_target)
+
+targets += $(builtin-target)
+endif # builtin-target
+
+#
+# Rule to compile a set of .o files into one .a file
+#
+ifdef lib-target
+quiet_cmd_link_l_target = AR      $@
+cmd_link_l_target = rm -f $@; $(AR) $(EXTRA_ARFLAGS) rcs $@ $(lib-y)
+
+$(lib-target): $(lib-y) FORCE
+	$(call if_changed,link_l_target)
+
+targets += $(lib-target)
+endif
+
+#
+# Rule to link composite objects
+#
+#  Composite objects are specified in kbuild makefile as follows:
+#    <composite-object>-objs := <list of .o files>
+#  or
+#    <composite-object>-y    := <list of .o files>
+link_multi_deps =                     \
+$(filter $(addprefix $(obj)/,         \
+$($(subst $(obj)/,,$(@:.o=-objs)))    \
+$($(subst $(obj)/,,$(@:.o=-y)))), $^)
+
+quiet_cmd_link_multi-y = LD      $@
+cmd_link_multi-y = $(LD) $(ld_flags) -r -o $@ $(link_multi_deps)
+
+quiet_cmd_link_multi-m = LD [M]  $@
+cmd_link_multi-m = $(LD) $(ld_flags) $(LDFLAGS_MODULE) -o $@ $(link_multi_deps)
+
+# We would rather have a list of rules like
+# 	foo.o: $(foo-objs)
+# but that's not so easy, so we rather make all composite objects depend
+# on the set of all their parts
+$(multi-used-y) : %.o: $(multi-objs-y) FORCE
+	$(call if_changed,link_multi-y)
+
+$(multi-used-m) : %.o: $(multi-objs-m) FORCE
+	$(call if_changed,link_multi-m)
+	@{ echo $(@:.o=.ko); echo $(link_multi_deps); } > $(MODVERDIR)/$(@F:.o=.mod)
+
+targets += $(multi-used-y) $(multi-used-m)
+
+
+# Descending
+# ---------------------------------------------------------------------------
+
+PHONY += $(subdir-ym)
+$(subdir-ym):
+	$(Q)$(MAKE) $(build)=$@
+
+# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# ---------------------------------------------------------------------------
+
+PHONY += FORCE
+
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+  include $(cmd_files)
+endif
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

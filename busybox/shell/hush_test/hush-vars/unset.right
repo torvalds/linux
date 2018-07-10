@@ -1,0 +1,18 @@
+0
+unset: invalid option -- m
+1
+0
+___
+0 f g
+0 g
+0
+___
+0 f g
+0
+0 f g
+0
+___
+hush: VAR_RO: readonly variable
+1 f g
+hush: VAR_RO: readonly variable
+1

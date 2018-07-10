@@ -1,0 +1,24 @@
+#!/bin/sh
+# convert:
+
+#interface=eth1
+#ip=169.254.x.y
+
+# into:
+
+#let cfg=cfg+1
+#if[$cfg]=...; ip[$cfg]=...; ipmask[$cfg]=.../...; gw[$cfg]=...; net[$cfg]=... dns[$cfg]=...
+
+exec >/dev/null
+#exec >"$0.out"  # debug
+exec 2>&1
+
+test "$interface" || exit 1
+test "$ip" || exit 1
+
+{
+echo "let cfg=cfg+1"
+test "$interface"	&& echo "if[\$cfg]='$interface'"
+test "$ip"		&& echo "ip[\$cfg]='$ip'"
+test "$ip"		&& echo "ipmask[\$cfg]='$ip/16'"
+} >"$1"

@@ -1,0 +1,82 @@
+http://www.opengroup.org/onlinepubs/9699919799/
+Open Group Base Specifications Issue 7
+
+
+http://www.opengroup.org/onlinepubs/9699919799/utilities/V3_chap01.html
+Shell & Utilities
+
+It says that any of the standard utilities may be implemented
+as a regular shell built-in. It gives a list of utilities which
+are usually implemented that way (and some of them can only
+be implemented as built-ins, like "alias"):
+
+alias
+bg
+cd
+command
+false
+fc
+fg
+getopts
+jobs
+kill
+newgrp
+pwd
+read
+true
+umask
+unalias
+wait
+
+
+http://www.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html
+Shell Command Language
+
+It says that shell must implement special built-ins. Special built-ins
+differ from regular ones by the fact that variable assignments
+done on special builtin are *PRESERVED*. That is,
+
+VAR=VAL special_builtin; echo $VAR
+
+should print VAL.
+
+(Another distinction is that an error in special built-in should
+abort the shell, but this is not such a critical difference,
+and moreover, at least bash's "set" does not follow this rule,
+which is even codified in autoconf configure logic now...)
+
+List of special builtins:
+
+. file
+: [argument...]
+break [n]
+continue [n]
+eval [argument...]
+exec [command [argument...]]
+exit [n]
+export name[=word]...
+export -p
+readonly name[=word]...
+readonly -p
+return [n]
+set [-abCefhmnuvx] [-o option] [argument...]
+set [+abCefhmnuvx] [+o option] [argument...]
+set -- [argument...]
+set -o
+set +o
+shift [n]
+times
+trap n [condition...]
+trap [action condition...]
+unset [-fv] name...
+
+In practice, no one uses this obscure feature - none of these builtins
+gives any special reasons to play such dirty tricks.
+
+However. This section also says that *function invocation* should act
+similar to special built-in. That is, variable assignments
+done on function invocation should be preserved after function invocation.
+
+This is significant: it is not unthinkable to want to run a function
+with some variables set to special values. But because of the above,
+it does not work: variable will "leak" out of the function.

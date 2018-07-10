@@ -1,0 +1,204 @@
+#!/bin/sh
+
+# Copyright 2005 by Rob Landley <rob@landley.net>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+# AUDIT:
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+# Test exit status
+
+testing "grep (exit with error)" "grep nonexistent 2> /dev/null ; echo \$?" \
+	"1\n" "" ""
+testing "grep (exit success)" "grep grep '$0' > /dev/null 2>&1 ; echo \$?" "0\n" \
+	"" ""
+# Test various data sources and destinations
+
+testing "grep (default to stdin)" "grep two" "two\n" "" \
+	"one\ntwo\nthree\nthree\nthree\n"
+testing "grep - (specify stdin)" "grep two -" "two\n" "" \
+	"one\ntwo\nthree\nthree\nthree\n"
+testing "grep input (specify file)" "grep two input" "two\n" \
+	"one\ntwo\nthree\nthree\nthree\n" ""
+
+# GNU grep 2.5.3 outputs a new line character after the located string
+# even if there is no new line character in the input
+testing "grep (no newline at EOL)" "grep bug input" "bug\n" "bug" ""
+
+>empty
+testing "grep two files" "grep two input empty 2>/dev/null" \
+	"input:two\n" "one\ntwo\nthree\nthree\nthree\n" ""
+rm empty
+
+testing "grep - infile (specify stdin and file)" "grep two - input" \
+	"(standard input):two\ninput:two\n" "one\ntwo\nthree\n" \
+	"one\ntwo\ntoo\nthree\nthree\n"
+
+# Check if we see the correct return value if both stdin and non-existing file
+# are given.
+testing "grep - nofile (specify stdin and nonexisting file)" \
+	"grep two - nonexistent 2> /dev/null ; echo \$?" \
+	"(standard input):two\n(standard input):two\n2\n" \
+	"" "one\ntwo\ntwo\nthree\nthree\nthree\n"
+testing "grep -q - nofile (specify stdin and nonexisting file, no match)" \
+	"grep -q nomatch - nonexistent 2> /dev/null ; echo \$?" \
+	"2\n" "" "one\ntwo\ntwo\nthree\nthree\nthree\n"
+# SUSv3: If the -q option is specified, the exit status shall be zero
+#        if an input line is selected, even if an error was detected.
+testing "grep -q - nofile (specify stdin and nonexisting file, match)" \
+	"grep -q two - nonexistent ; echo \$?" \
+	"0\n" "" "one\ntwo\ntwo\nthree\nthree\nthree\n"
+
+# Test various command line options
+# -s no error messages
+testing "grep -s nofile (nonexisting file, no match)" \
+	"grep -s nomatch nonexistent ; echo \$?" "2\n" "" ""
+testing "grep -s nofile - (stdin and nonexisting file, match)" \
+	"grep -s domatch nonexistent - ; echo \$?" \
+	"(standard input):domatch\n2\n" "" "nomatch\ndomatch\nend\n"
+
+optional EXTRA_COMPAT
+testing "grep handles NUL in files" "grep -a foo input" "\0foo\n" "\0foo\n\n" ""
+testing "grep handles NUL on stdin" "grep -a foo" "\0foo\n" "" "\0foo\n\n"
+
+testing "grep matches NUL" "grep . input > /dev/null 2>&1 ; echo \$?" \
+	"0\n" "\0\n" ""
+SKIP=
+
+# -e regex
+testing "grep handles multiple regexps" "grep -e one -e two input ; echo \$?" \
+	"one\ntwo\n0\n" "one\ntwo\n" ""
+testing "grep -F handles multiple expessions" "grep -F -e one -e two input ; echo \$?" \
+	"one\ntwo\n0\n" "one\ntwo\n" ""
+testing "grep -F handles -i" "grep -F -i foo input ; echo \$?" \
+	"FOO\n0\n" "FOO\n" ""
+
+# -f file/-
+testing "grep can read regexps from stdin" "grep -f - input ; echo \$?" \
+	"two\nthree\n0\n" "tw\ntwo\nthree\n" "tw.\nthr\n"
+
+# -x (whole line match)
+testing "grep -x (full match)" "grep -x foo input ; echo \$?" \
+	"foo\n0\n" "foo\n" ""
+testing "grep -x (partial match 1)" "grep -x foo input ; echo \$?" \
+	"1\n" "foo bar\n" ""
+testing "grep -x (partial match 2)" "grep -x foo input ; echo \$?" \
+	"1\n" "bar foo\n" ""
+testing "grep -x -F (full match)" "grep -x -F foo input ; echo \$?" \
+	"foo\n0\n" "foo\n" ""
+testing "grep -x -F (partial match 1)" "grep -x -F foo input ; echo \$?" \
+	"1\n" "foo bar\n" ""
+testing "grep -x -F (partial match 2)" "grep -x -F foo input ; echo \$?" \
+	"1\n" "bar foo\n" ""
+
+optional EGREP
+testing "grep -E supports extended regexps" "grep -E fo+" "foo\n" "" \
+	"b\ar\nfoo\nbaz"
+testing "grep is also egrep" "egrep foo" "foo\n" "" "foo\nbar\n"
+testing "egrep is not case insensitive" \
+	"egrep foo ; [ \$? -ne 0 ] && echo yes" "yes\n" "" "FOO\n"
+testing "grep -E -o prints all matches" \
+	"grep -E -o '([[:xdigit:]]{2}[:-]){5}[[:xdigit:]]{2}'" \
+	"00:19:3E:00:AA:5E\n00:1D:60:3D:3A:FB\n00:22:43:49:FB:AA\n" \
+	"" "00:19:3E:00:AA:5E 00:1D:60:3D:3A:FB 00:22:43:49:FB:AA\n"
+SKIP=
+
+testing "grep -o does not loop forever" \
+	'grep -o "[^/]*$"' \
+	"test\n" \
+	"" "/var/test\n"
+testing "grep -o does not loop forever on zero-length match" \
+	'grep -o "" | head -n1' \
+	"" \
+	"" "test\n"
+
+testing "grep -f EMPTY_FILE" \
+	"grep -f input" \
+	"" \
+	"" \
+	"test\n"
+
+testing "grep -v -f EMPTY_FILE" \
+	"grep -v -f input" \
+	"test\n" \
+	"" \
+	"test\n"
+
+testing "grep -Fw matches only words" \
+	"grep -Fw foo input" \
+	"" \
+	"foop\n" \
+	""
+
+testing "grep -Fw doesn't stop on 1st mismatch" \
+	"grep -Fw foo input" \
+	"foop foo\n" \
+	"foop foo\n" \
+	""
+
+testing "grep -w doesn't stop on 1st mismatch" \
+	"grep -w foo input" \
+	"foop foo\n" \
+	"foop foo\n" \
+	""
+
+testing "grep -w ^str doesn't match str not at the beginning" \
+	"grep -w ^str input" \
+	"" \
+	"strstr\n" \
+	""
+
+testing "grep -w ^ doesn't hang" \
+	"grep -w ^ input" \
+	"" \
+	"anything\n" \
+	""
+
+testing "grep -w word doesn't match wordword" \
+	"grep -w word input" \
+	"" \
+	"wordword\n" \
+	""
+
+testing "grep -F -w w doesn't match ww" \
+	"grep -F -w w input" \
+	"" \
+	"ww\n" \
+	""
+
+testing "grep -w word match second word" \
+	"grep -w word input" \
+	"bword,word\n""wordb,word\n""bwordb,word\n" \
+	"bword,word\n""wordb,word\n""bwordb,word\n" \
+	""
+
+# -r on symlink to dir should recurse into dir
+mkdir -p grep.testdir/foo
+echo bar > grep.testdir/foo/file
+ln -s foo grep.testdir/symfoo
+testing "grep -r on symlink to dir" \
+	"grep -r . grep.testdir/symfoo" \
+	"grep.testdir/symfoo/file:bar\n" \
+	"" ""
+rm -Rf grep.testdir
+
+# But -r on dir/symlink_to_dir should not recurse into symlink_to_dir
+mkdir -p grep.testdir/foo
+echo bar > grep.testdir/foo/file
+ln -s foo grep.testdir/symfoo
+testing "grep -r on dir/symlink to dir" \
+	"grep -r . grep.testdir" \
+	"grep.testdir/foo/file:bar\n" \
+	"" ""
+rm -Rf grep.testdir
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+exit $FAILCOUNT

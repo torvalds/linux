@@ -1,0 +1,28 @@
+function f() { echo $1; }
+f 1
+
+function f() ( echo $1; )
+f 2
+
+function f() ( echo $1 )
+f 3
+
+function f() for i in 1 2 3; do
+	echo $i
+done
+f
+
+function f { echo $1; }
+f 1
+
+# the next two don't work
+#function f ( echo $1; )
+f 2
+
+#function f ( echo $1 )
+f 3
+
+function f for i in 1 2 3; do
+	echo $i
+done
+f

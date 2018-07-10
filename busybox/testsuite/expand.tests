@@ -1,0 +1,24 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+testing "expand" \
+	"expand" \
+	"        12345678        12345678\n" \
+	"" \
+	"\t12345678\t12345678\n"
+
+test x"$CONFIG_UNICODE_SUPPORT" = x"y" \
+&& test x"$CONFIG_UNICODE_USING_LOCALE" != x"y" \
+&& testing "expand with unicode characher 0x394" \
+	"expand" \
+	"Δ       12345ΔΔΔ        12345678\n" \
+	"" \
+	"Δ\t12345ΔΔΔ\t12345678\n"
+
+exit $FAILCOUNT

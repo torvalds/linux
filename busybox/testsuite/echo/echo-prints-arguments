@@ -1,0 +1,1 @@
+test "`busybox echo foo bar`" = "foo bar"

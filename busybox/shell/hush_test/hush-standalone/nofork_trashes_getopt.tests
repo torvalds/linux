@@ -1,0 +1,6 @@
+# In this test, rm is NOFORK and it modifies getopt internal state
+rm -f non_existent_file
+# Subsequent hexdump is run as NOEXEC, and thus still uses this state
+hexdump </dev/null
+# Did hexdump segfault etc?
+echo $?

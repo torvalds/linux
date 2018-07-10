@@ -1,0 +1,26 @@
+*** optstring:'ac' args:-a -b -c -d e
+1 rc:0 var:'a' OPTIND:2 OPTARG:''
+Illegal option -b
+2 rc:0 var:'?' OPTIND:3 OPTARG:''
+3 rc:0 var:'c' OPTIND:4 OPTARG:''
+Illegal option -d
+4 rc:0 var:'?' OPTIND:5 OPTARG:''
+5 rc:1 var:'?' OPTIND:5 OPTARG:''
+
+*** optstring:'ac' args:-a -b -c -d e
+1 rc:0 var:'a' OPTIND:2 OPTARG:''
+Illegal option -b
+2 rc:0 var:'?' OPTIND:3 OPTARG:''
+3 rc:0 var:'c' OPTIND:4 OPTARG:''
+Illegal option -d
+4 rc:0 var:'?' OPTIND:5 OPTARG:''
+5 rc:1 var:'?' OPTIND:5 OPTARG:''
+
+*** optstring:'ac' args:-a -b -c -d e
+1 rc:0 var:'a' OPTIND:2 OPTARG:''
+Illegal option -b
+2 rc:0 var:'?' OPTIND:3 OPTARG:''
+3 rc:0 var:'c' OPTIND:4 OPTARG:''
+Illegal option -d
+4 rc:0 var:'?' OPTIND:5 OPTARG:''
+5 rc:1 var:'?' OPTIND:5 OPTARG:''

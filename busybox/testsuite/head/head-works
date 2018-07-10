@@ -1,0 +1,4 @@
+[ -n "$d" ] || d=..
+head "$d/README" > logfile.gnu
+busybox head "$d/README" > logfile.bb
+cmp logfile.gnu logfile.bb

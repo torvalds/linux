@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# Copyright 2007 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+# Need to call 'busybox test', otherwise shell builtin is used
+
+testing "test: should be false (1)" \
+	"busybox test; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test '': should be false (1)" \
+	"busybox test ''; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test !: should be true (0)" \
+	"busybox test !; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test a: should be true (0)" \
+	"busybox test a; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test --help: should be true (0)" \
+	"busybox test --help; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test -f: should be true (0)" \
+	"busybox test -f; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test ! -f: should be false (1)" \
+	"busybox test ! -f; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test a = a: should be true (0)" \
+	"busybox test a = a; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test -lt = -gt: should be false (1)" \
+	"busybox test -lt = -gt; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test a -a !: should be true (0)" \
+	"busybox test a -a !; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test -f = a -o b: should be true (0)" \
+	"busybox test -f = a -o b; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test ! a = b -a ! c = c: should be false (1)" \
+	"busybox test ! a = b -a ! c = c; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test ! a = b -a ! c = d: should be true (0)" \
+	"busybox test ! a = b -a ! c = d; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test '!' = '!': should be true (0)" \
+	"busybox test '!' = '!'; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test '(' = '(': should be true (0)" \
+	"busybox test '(' = '('; echo \$?" \
+	"0\n" \
+	"" ""
+
+testing "test '!' '!' = '!': should be false (1)" \
+	"busybox test '!' '!' = '!'; echo \$?" \
+	"1\n" \
+	"" ""
+
+testing "test '!' '(' = '(': should be false (1)" \
+	"busybox test '!' '(' = '('; echo \$?" \
+	"1\n" \
+	"" ""
+
+exit $FAILCOUNT

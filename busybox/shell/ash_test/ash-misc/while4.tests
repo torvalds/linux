@@ -1,0 +1,6 @@
+false
+while false && echo Not reached; do
+    echo BUG
+    break
+done
+echo Ok:$?

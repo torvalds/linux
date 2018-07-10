@@ -1,0 +1,11 @@
+# Test cases where { cmd } does not require semicolon after "cmd"
+(exit 2); { { true; } }
+echo Zero:$?
+(exit 2); {(true)}
+echo Zero:$?
+(exit 2); { true | { true; } }
+echo Zero:$?
+(exit 2); { while false; do :; done }
+echo Zero:$?
+(exit 2); { case a in b) ;; esac }
+echo Zero:$?

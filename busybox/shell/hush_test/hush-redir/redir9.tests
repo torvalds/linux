@@ -1,0 +1,4 @@
+echo Ok >file.tmp
+cat 0<>file.tmp
+echo Done:$?
+rm file.tmp

@@ -1,0 +1,3 @@
+touch foo
+busybox rm foo
+test ! -f foo

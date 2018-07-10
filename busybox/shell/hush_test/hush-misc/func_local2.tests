@@ -1,0 +1,7 @@
+x=1
+f() { echo $x; local x=$((x+1)); echo $x; }
+g() { f; echo $x; f; local x=$((x+1)); f; echo $x; f; }
+f
+g
+echo $x
+echo Done

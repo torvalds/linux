@@ -1,0 +1,1 @@
+x=0; f() { local x=1; echo $x; local x; echo $x; unset x; echo $x; local x; echo $x; }; f; echo $x

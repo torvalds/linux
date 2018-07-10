@@ -1,0 +1,3 @@
+#! /bin/sh
+
+/bin/mount -a

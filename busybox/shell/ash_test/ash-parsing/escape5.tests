@@ -1,0 +1,7 @@
+v="a\nb\nc\n"
+echo "$v"
+printf "$v"
+v='a\nb\nc\n'
+echo "$v"
+printf "$v"
+echo Done

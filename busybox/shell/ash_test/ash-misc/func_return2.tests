@@ -1,0 +1,6 @@
+f1() { return 2; }
+f1
+echo Two:$?
+false
+true | f1
+echo Two:$?

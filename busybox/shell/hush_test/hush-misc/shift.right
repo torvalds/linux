@@ -1,0 +1,6 @@
+./shift.tests abc d e
+./shift.tests d e 123
+./shift.tests d e 123
+./shift.tests
+./shift.tests
+./shift.tests

@@ -1,0 +1,2 @@
+echo I WANT >foo
+test "$(busybox dd if=foo 2>/dev/null)" = "I WANT"

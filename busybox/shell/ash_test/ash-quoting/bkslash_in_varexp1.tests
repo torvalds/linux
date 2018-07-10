@@ -1,0 +1,6 @@
+x=a
+echo Nothing:${x#[]a]}
+echo Nothing:"${x#[]a]}"
+echo Nothing:${x%[]a]}
+echo Nothing:"${x%[]a]}"
+echo Ok:$?

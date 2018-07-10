@@ -1,0 +1,26 @@
+#!/bin/sh
+
+if test x"$TERM" = x"" -o x"$TERM" = x"unknown"; then
+	TERM="linux"
+	echo "* Setting TERM='$TERM'"
+fi
+export TERM
+
+ttyname=`tty`
+ttybase="${ttyname%%[0123456789]*}"     # strip numeric tail
+
+if test x"$ttybase" = x"/dev/vc/" -o x"$ttybase" = x"/dev/tty"; then
+	echo "* Activating font map"
+	echo -ne "\033(K" >"$ttyname"
+
+	echo "* Loading screen font"
+	setfont \
+		-C "$ttyname" \
+		-m "$PWD/koi8r_to_uni.trans" \
+		"$PWD/alt08x16+unimap.fnt" \
+	|| echo "setfont exit code: $?"
+
+	echo "* Loading keymap"
+	loadkeys "$PWD/unicode_cyrillic.keymap" \
+	|| echo "loadkeys exit code: $?"
+fi

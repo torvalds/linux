@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Copyright 2009 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "arguments" "result" "infile" "stdin"
+
+testing "tr does not treat [] in [a-z] as special" \
+	"tr '[q-z]' '_Q-Z+'" \
+	"_QWe+" "" "[qwe]"
+
+testing "tr understands 0-9A-F" \
+	"tr -cd '[0-9A-F]'" \
+	"19AF" "" "19AFH\n"
+
+optional FEATURE_TR_CLASSES
+testing "tr understands [:xdigit:]" \
+	"tr -cd '[:xdigit:]'" \
+	"19AF" "" "19AFH\n"
+SKIP=
+
+optional FEATURE_TR_CLASSES
+testing "tr does not stop after [:digit:]" \
+	"tr '[:digit:]y-z' 111111111123" \
+	"111abcx23\n" "" "789abcxyz\n"
+SKIP=
+
+optional FEATURE_TR_CLASSES
+testing "tr has correct xdigit sequence" \
+	"tr '[:xdigit:]Gg' 1111111151242222333330xX" \
+	"#1111111151242222x333330X\n" "" \
+	"#0123456789ABCDEFGabcdefg\n"
+SKIP=
+
+exit $FAILCOUNT

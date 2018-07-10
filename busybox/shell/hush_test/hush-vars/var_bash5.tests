@@ -1,0 +1,29 @@
+# This testcase checks whether slashes in ${v/a/b} are parsed before
+# or after expansions
+
+v='a/b/c'
+s='b/c'
+r='e/f'
+echo "1 ${v/$s}"
+echo "2 ${v/$s/d}"
+echo "3 ${v/$s/$r}"
+
+v='a\b\c'
+s='b\\c'
+r='e\f'
+echo "4 ${v/$s}"
+echo "5 ${v/$s/d}"
+echo "6 ${v/$s/$r}"
+
+v='a\\b\\c'
+s='b\\\\c'
+r='e\\f'
+echo "7 ${v/$s}"
+echo "8 ${v/$s/d}"
+echo "9 ${v/$s/$r}"
+
+v='a-$a-\t-\\-\"-\`-\--\z-\*-\?-b'
+s='-$a-\\t-\\\\-\\"-\\`-\\--\\z-\\\*-\\\?-'
+echo "a ${v/$s}"
+
+echo Done: $?

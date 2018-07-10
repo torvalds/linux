@@ -1,0 +1,4 @@
+./signal4.tests: trap: line 3: BADNAME: invalid signal specification
+1
+Trapped
+Ok

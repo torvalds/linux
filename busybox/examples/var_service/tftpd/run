@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#exec >/dev/null
+exec 2>&1
+exec </dev/null
+
+user=root # for bind to port 69
+
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid "$user" \
+udpsvd -v -c 10 -l localhost \
+  0 69 \
+tftpd /pub/tftpd_root

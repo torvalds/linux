@@ -1,0 +1,2 @@
+./redir_to_bad_fd255.tests: line 2: 255: Bad file descriptor
+OK

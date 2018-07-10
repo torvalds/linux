@@ -1,0 +1,9 @@
+if test $# = 0; then
+    exec "$THIS_SH" "$0" 'param_glob.t*'
+    echo NOT SHOWN
+    exit
+fi
+echo $*
+echo $@
+echo "$*"
+echo "$@"

@@ -1,0 +1,20 @@
+#!/bin/sh
+
+exec 2>&1
+exec </dev/null
+
+pwd="$PWD"
+
+if="${PWD##*/zcip_}"
+
+echo "* Upping iface $if"
+ip link set dev "$if" up
+
+echo "* Starting zcip"
+exec \
+env - PATH="$PATH" \
+softlimit \
+setuidgid root \
+zcip -fvv \
+    "$if" \
+    "$pwd/zcip_handler"

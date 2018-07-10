@@ -1,0 +1,6 @@
+# FEATURE: CONFIG_FEATURE_XARGS_SUPPORT_ZERO_TERM
+
+[ -n "$d" ] || d=..
+find "$d" -name \*works -type f -print0 | xargs -0 md5sum > logfile.gnu
+find "$d" -name \*works -type f -print0 | busybox xargs -0 md5sum > logfile.bb
+diff -u logfile.gnu logfile.bb

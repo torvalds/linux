@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Must not find us alive
+{ sleep 2; kill -9 $$; } 2>/dev/null &
+
+sleep 1 &
+PID=$!
+
+# We must exit the loop in one second.
+# We had bug 5304: builtins never waited for exited children
+while kill -0 $PID >/dev/null 2>&1; do
+    true
+done
+echo Ok

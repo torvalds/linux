@@ -1,0 +1,3 @@
+echo foo > foo
+tar cf foo.tar foo
+cat foo.tar | busybox tar Ox | cmp foo -

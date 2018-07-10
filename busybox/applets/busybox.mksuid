@@ -1,0 +1,54 @@
+#!/bin/sh
+# Make list of configuration variables regarding suid handling
+
+# input $1: full path to autoconf.h
+# input $2: full path to applets.h
+# input $3: full path to .config
+# output (stdout): list of CONFIG_ that do or may require suid
+
+# If the environment variable SUID is not set or set to DROP,
+# lists all config options that do not require suid permissions.
+# Otherwise, lists all config options for applets that DO or MAY require
+# suid permissions.
+
+# Maintainer: Bernhard Reutner-Fischer
+
+export LC_ALL=POSIX
+export LC_CTYPE=POSIX
+
+CONFIG_H=${1:-include/autoconf.h}
+APPLETS_H=${2:-include/applets.h}
+DOT_CONFIG=${3:-.config}
+
+case ${SUID:-DROP} in
+[dD][rR][oO][pP]) USE="DROP" ;;
+*) USE="suid" ;;
+esac
+
+$HOSTCC -E -DMAKE_SUID -include $CONFIG_H $APPLETS_H |
+  awk -v USE=${USE} '
+    /^SUID[ \t]/{
+      if (USE == "DROP") {
+        if ($2 != "BB_SUID_DROP") next
+      } else {
+        if ($2 == "BB_SUID_DROP") next
+      }
+      cfg = $NF
+      gsub("\"", "", cfg)
+      cfg = substr(cfg, 8)
+      s[i++] = "CONFIG_" cfg
+      s[i++] = "CONFIG_FEATURE_" cfg "_.*"
+    }
+    END{
+      while (getline < ARGV[2]) {
+        for (j in s) {
+          if ($0 ~ "^" s[j] "=y$") {
+            sub(/=.*/, "")
+            print
+            if (s[j] !~ /\*$/) delete s[j] # can drop this applet now
+          }
+        }
+      }
+    }
+' - $DOT_CONFIG
+

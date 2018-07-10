@@ -1,0 +1,10 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "System Logging Utilities"
+
+INSERT
+
+endmenu

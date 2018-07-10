@@ -1,0 +1,15 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+config VOLUMEID
+	bool #No description makes it a hidden option
+	default n
+
+menu "Filesystem/Volume identification"
+	depends on VOLUMEID
+
+INSERT
+
+endmenu

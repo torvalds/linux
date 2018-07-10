@@ -1,0 +1,9 @@
+# Redirections are not globbed.
+# bash:
+# if run as "sh", they are not globbed, but
+# if run as "bash", they are!
+>z.tmp
+echo TEST >?.tmp
+echo 'z.tmp:' `cat 'z.tmp'`
+echo '?.tmp:' `cat '?.tmp'`
+rm 'z.tmp' '?.tmp'

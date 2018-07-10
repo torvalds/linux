@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd log/logdir || exit 1
+cat @* current | grep -v -eolder -esending -esockets -e'reply from.*offset' -executing | $PAGER

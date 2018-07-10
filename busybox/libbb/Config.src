@@ -1,0 +1,399 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+comment "Library Tuning"
+
+INSERT
+
+choice
+	prompt "Buffer allocation policy"
+	default FEATURE_BUFFERS_USE_MALLOC
+	help
+	There are 3 ways busybox can handle buffer allocations:
+	- Use malloc. This costs code size for the call to xmalloc.
+	- Put them on stack. For some very small machines with limited stack
+	space, this can be deadly. For most folks, this works just fine.
+	- Put them in BSS. This works beautifully for computers with a real
+	MMU (and OS support), but wastes runtime RAM for uCLinux. This
+	behavior was the only one available for versions 0.48 and earlier.
+
+config FEATURE_BUFFERS_USE_MALLOC
+	bool "Allocate with Malloc"
+
+config FEATURE_BUFFERS_GO_ON_STACK
+	bool "Allocate on the Stack"
+
+config FEATURE_BUFFERS_GO_IN_BSS
+	bool "Allocate in the .bss section"
+
+endchoice
+
+config PASSWORD_MINLEN
+	int "Minimum password length"
+	default 6
+	range 5 32
+	help
+	Minimum allowable password length.
+
+config MD5_SMALL
+	int "MD5: Trade bytes for speed (0:fast, 3:slow)"
+	default 1  # all "fast or small" options default to small
+	range 0 3
+	help
+	Trade binary size versus speed for the md5sum algorithm.
+	Approximate values running uClibc and hashing
+	linux-2.4.4.tar.bz2 were:
+	value               user times (sec)  text size (386)
+	0 (fastest)         1.1                6144
+	1                   1.4                5392
+	2                   3.0                5088
+	3 (smallest)        5.1                4912
+
+config SHA3_SMALL
+	int "SHA3: Trade bytes for speed (0:fast, 1:slow)"
+	default 1  # all "fast or small" options default to small
+	range 0 1
+	help
+	Trade binary size versus speed for the sha3sum algorithm.
+	SHA3_SMALL=0 compared to SHA3_SMALL=1 (approximate):
+	64-bit x86: +270 bytes of code, 45% faster
+	32-bit x86: +450 bytes of code, 75% faster
+
+config FEATURE_FAST_TOP
+	bool "Faster /proc scanning code (+100 bytes)"
+	default n  # all "fast or small" options default to small
+	help
+	This option makes top and ps ~20% faster (or 20% less CPU hungry),
+	but code size is slightly bigger.
+
+config FEATURE_ETC_NETWORKS
+	bool "Support /etc/networks"
+	default n
+	help
+	Enable support for network names in /etc/networks. This is
+	a rarely used feature which allows you to use names
+	instead of IP/mask pairs in route command.
+
+config FEATURE_ETC_SERVICES
+	bool "Consult /etc/services even for well-known ports"
+	default n
+	help
+	Look up e.g. "telnet" and "http" in /etc/services file
+	instead of assuming ports 23 and 80.
+	This is almost never necessary (everybody uses standard ports),
+	and it makes sense to avoid reading this file.
+	If you disable this option, in the cases where port is explicitly
+	specified as a service name (e.g. "telnet HOST PORTNAME"),
+	it will still be looked up in /etc/services.
+
+config FEATURE_EDITING
+	bool "Command line editing"
+	default y
+	help
+	Enable line editing (mainly for shell command line).
+
+config FEATURE_EDITING_MAX_LEN
+	int "Maximum length of input"
+	range 128 8192
+	default 1024
+	depends on FEATURE_EDITING
+	help
+	Line editing code uses on-stack buffers for storage.
+	You may want to decrease this parameter if your target machine
+	benefits from smaller stack usage.
+
+config FEATURE_EDITING_VI
+	bool "vi-style line editing commands"
+	default n
+	depends on FEATURE_EDITING
+	help
+	Enable vi-style line editing. In shells, this mode can be
+	turned on and off with "set -o vi" and "set +o vi".
+
+config FEATURE_EDITING_HISTORY
+	int "History size"
+	# Don't allow way too big values here, code uses fixed "char *history[N]" struct member
+	range 0 9999
+	default 255
+	depends on FEATURE_EDITING
+	help
+	Specify command history size (0 - disable).
+
+config FEATURE_EDITING_SAVEHISTORY
+	bool "History saving"
+	default y
+	depends on FEATURE_EDITING
+	help
+	Enable history saving in shells.
+
+config FEATURE_EDITING_SAVE_ON_EXIT
+	bool "Save history on shell exit, not after every command"
+	default n
+	depends on FEATURE_EDITING_SAVEHISTORY
+	help
+	Save history on shell exit, not after every command.
+
+config FEATURE_REVERSE_SEARCH
+	bool "Reverse history search"
+	default y
+	depends on FEATURE_EDITING
+	help
+	Enable readline-like Ctrl-R combination for reverse history search.
+	Increases code by about 0.5k.
+
+config FEATURE_TAB_COMPLETION
+	bool "Tab completion"
+	default y
+	depends on FEATURE_EDITING
+
+config FEATURE_USERNAME_COMPLETION
+	bool "Username completion"
+	default y
+	depends on FEATURE_TAB_COMPLETION
+
+config FEATURE_EDITING_FANCY_PROMPT
+	bool "Fancy shell prompts"
+	default y
+	depends on FEATURE_EDITING
+	help
+	Setting this option allows for prompts to use things like \w and
+	\$ and escape codes.
+
+config FEATURE_EDITING_WINCH
+	bool "Enable automatic tracking of window size changes"
+	default y
+	depends on FEATURE_EDITING
+
+config FEATURE_EDITING_ASK_TERMINAL
+	bool "Query cursor position from terminal"
+	default n
+	depends on FEATURE_EDITING
+	help
+	Allow usage of "ESC [ 6 n" sequence. Terminal answers back with
+	current cursor position. This information is used to make line
+	editing more robust in some cases.
+	If you are not sure whether your terminals respond to this code
+	correctly, or want to save on code size (about 400 bytes),
+	then do not turn this option on.
+
+config LOCALE_SUPPORT
+	bool "Enable locale support (system needs locale for this to work)"
+	default n
+	help
+	Enable this if your system has locale support and you would like
+	busybox to support locale settings.
+
+config UNICODE_SUPPORT
+	bool "Support Unicode"
+	default y
+	help
+	This makes various applets aware that one byte is not
+	one character on screen.
+
+	Busybox aims to eventually work correctly with Unicode displays.
+	Any older encodings are not guaranteed to work.
+	Probably by the time when busybox will be fully Unicode-clean,
+	other encodings will be mainly of historic interest.
+
+config UNICODE_USING_LOCALE
+	bool "Use libc routines for Unicode (else uses internal ones)"
+	default n
+	depends on UNICODE_SUPPORT && LOCALE_SUPPORT
+	help
+	With this option on, Unicode support is implemented using libc
+	routines. Otherwise, internal implementation is used.
+	Internal implementation is smaller.
+
+config FEATURE_CHECK_UNICODE_IN_ENV
+	bool "Check $LC_ALL, $LC_CTYPE and $LANG environment variables"
+	default n
+	depends on UNICODE_SUPPORT && !UNICODE_USING_LOCALE
+	help
+	With this option on, Unicode support is activated
+	only if locale-related variables have the value of the form
+	"xxxx.utf8"
+
+	Otherwise, Unicode support will be always enabled and active.
+
+config SUBST_WCHAR
+	int "Character code to substitute unprintable characters with"
+	depends on UNICODE_SUPPORT
+	default 63
+	help
+	Typical values are 63 for '?' (works with any output device),
+	30 for ASCII substitute control code,
+	65533 (0xfffd) for Unicode replacement character.
+
+config LAST_SUPPORTED_WCHAR
+	int "Range of supported Unicode characters"
+	depends on UNICODE_SUPPORT
+	default 767
+	help
+	Any character with Unicode value bigger than this is assumed
+	to be non-printable on output device. Many applets replace
+	such characters with substitution character.
+
+	The idea is that many valid printable Unicode chars
+	nevertheless are not displayed correctly. Think about
+	combining charachers, double-wide hieroglyphs, obscure
+	characters in dozens of ancient scripts...
+	Many terminals, terminal emulators, xterms etc will fail
+	to handle them correctly. Choose the smallest value
+	which suits your needs.
+
+	Typical values are:
+	126 - ASCII only
+	767 (0x2ff) - there are no combining chars in [0..767] range
+			(the range includes Latin 1, Latin Ext. A and B),
+			code is ~700 bytes smaller for this case.
+	4351 (0x10ff) - there are no double-wide chars in [0..4351] range,
+			code is ~300 bytes smaller for this case.
+	12799 (0x31ff) - nearly all non-ideographic characters are
+			available in [0..12799] range, including
+			East Asian scripts like katakana, hiragana, hangul,
+			bopomofo...
+	0 - off, any valid printable Unicode character will be printed.
+
+config UNICODE_COMBINING_WCHARS
+	bool "Allow zero-width Unicode characters on output"
+	default n
+	depends on UNICODE_SUPPORT
+	help
+	With this option off, any Unicode char with width of 0
+	is substituted on output.
+
+config UNICODE_WIDE_WCHARS
+	bool "Allow wide Unicode characters on output"
+	default n
+	depends on UNICODE_SUPPORT
+	help
+	With this option off, any Unicode char with width > 1
+	is substituted on output.
+
+config UNICODE_BIDI_SUPPORT
+	bool "Bidirectional character-aware line input"
+	default n
+	depends on UNICODE_SUPPORT && !UNICODE_USING_LOCALE
+	help
+	With this option on, right-to-left Unicode characters
+	are treated differently on input (e.g. cursor movement).
+
+config UNICODE_NEUTRAL_TABLE
+	bool "In bidi input, support non-ASCII neutral chars too"
+	default n
+	depends on UNICODE_BIDI_SUPPORT
+	help
+	In most cases it's enough to treat only ASCII non-letters
+	(i.e. punctuation, numbers and space) as characters
+	with neutral directionality.
+	With this option on, more extensive (and bigger) table
+	of neutral chars will be used.
+
+config UNICODE_PRESERVE_BROKEN
+	bool "Make it possible to enter sequences of chars which are not Unicode"
+	default n
+	depends on UNICODE_SUPPORT
+	help
+	With this option on, on line-editing input (such as used by shells)
+	invalid UTF-8 bytes are not substituted with the selected
+	substitution character.
+	For example, this means that entering 'l', 's', ' ', 0xff, [Enter]
+	at shell prompt will list file named 0xff (single char name
+	with char value 255), not file named '?'.
+
+config FEATURE_NON_POSIX_CP
+	bool "Non-POSIX, but safer, copying to special nodes"
+	default y
+	help
+	With this option, "cp file symlink" will delete symlink
+	and create a regular file. This does not conform to POSIX,
+	but prevents a symlink attack.
+	Similarly, "cp file device" will not send file's data
+	to the device. (To do that, use "cat file >device")
+
+config FEATURE_VERBOSE_CP_MESSAGE
+	bool "Give more precise messages when copy fails (cp, mv etc)"
+	default n
+	help
+	Error messages with this feature enabled:
+
+	$ cp file /does_not_exist/file
+	cp: cannot create '/does_not_exist/file': Path does not exist
+	$ cp file /vmlinuz/file
+	cp: cannot stat '/vmlinuz/file': Path has non-directory component
+
+	If this feature is not enabled, they will be, respectively:
+
+	cp: cannot create '/does_not_exist/file': No such file or directory
+	cp: cannot stat '/vmlinuz/file': Not a directory
+
+	This will cost you ~60 bytes.
+
+config FEATURE_USE_SENDFILE
+	bool "Use sendfile system call"
+	default y
+	select PLATFORM_LINUX
+	help
+	When enabled, busybox will use the kernel sendfile() function
+	instead of read/write loops to copy data between file descriptors
+	(for example, cp command does this a lot).
+	If sendfile() doesn't work, copying code falls back to read/write
+	loop. sendfile() was originally implemented for faster I/O
+	from files to sockets, but since Linux 2.6.33 it was extended
+	to work for many more file types.
+
+config FEATURE_COPYBUF_KB
+	int "Copy buffer size, in kilobytes"
+	range 1 1024
+	default 4
+	help
+	Size of buffer used by cp, mv, install, wget etc.
+	Buffers which are 4 kb or less will be allocated on stack.
+	Bigger buffers will be allocated with mmap, with fallback to 4 kb
+	stack buffer if mmap fails.
+
+config FEATURE_SKIP_ROOTFS
+	bool "Skip rootfs in mount table"
+	default y
+	help
+	Ignore rootfs entry in mount table.
+
+	In Linux, kernel has a special filesystem, rootfs, which is initially
+	mounted on /. It contains initramfs data, if kernel is configured
+	to have one. Usually, another file system is mounted over / early
+	in boot process, and therefore most tools which manipulate
+	mount table, such as df, will skip rootfs entry.
+
+	However, some systems do not mount anything on /.
+	If you need to configure busybox for one of these systems,
+	you may find it useful to turn this option off to make df show
+	initramfs statistics.
+
+	Otherwise, choose Y.
+
+config MONOTONIC_SYSCALL
+	bool "Use clock_gettime(CLOCK_MONOTONIC) syscall"
+	default y
+	select PLATFORM_LINUX
+	help
+	Use clock_gettime(CLOCK_MONOTONIC) syscall for measuring
+	time intervals (time, ping, traceroute etc need this).
+	Probably requires Linux 2.6+. If not selected, gettimeofday
+	will be used instead (which gives wrong results if date/time
+	is reset).
+
+config IOCTL_HEX2STR_ERROR
+	bool "Use ioctl names rather than hex values in error messages"
+	default y
+	help
+	Use ioctl names rather than hex values in error messages
+	(e.g. VT_DISALLOCATE rather than 0x5608). If disabled this
+	saves about 1400 bytes.
+
+config FEATURE_HWIB
+	bool "Support infiniband HW"
+	default y
+	help
+	Support for printing infiniband addresses in network applets.

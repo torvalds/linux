@@ -1,0 +1,25 @@
+mkdir dirtest
+     >dirtest/z.tmp
+
+echo */z.tmp
+echo */z.*
+echo */?.*
+echo */z*p
+echo d*r*e*t/z*p
+echo *"/z.t"mp
+echo */z"."*
+echo *"/z"*"p"
+echo "d"*r*e*t"/"z*p
+echo
+echo \*/z.tmp
+echo "*"/z.*
+echo */"?".*
+echo */z"*p"
+echo d*r*e\*t/z*p
+echo *"\\/z.t"mp
+echo */z".*"
+echo *"/z"\*"p"
+echo "d*"r*e*t"/"z*p
+
+rm dirtest/z.tmp
+rmdir dirtest

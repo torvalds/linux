@@ -1,0 +1,4 @@
+touch foo
+ln foo bar
+busybox mv bar baz
+test ! -f bar -a -f baz

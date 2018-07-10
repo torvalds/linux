@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# Note that there is no provision to prevent several copies of the script
+# to be run in quick succession. In fact, it happens rather often
+# if initial syncronization results in a step.
+# You will see "step" and then "stratum" script runs, sometimes
+# as close as only 0.002 seconds apart.
+#
+# Script should be ready to deal with this.
+
+dt=`date '+%Y-%m-%d %H:%M:%S'`
+
+echo "`tail -n 199 -- "$0.log" 2>/dev/null`" >"$0.log.$$"
+
+if test x"$1" = x"unsync" \
+; then
+	# No replies for our NTP requests were seen for some time.
+	#
+	# Among more mundate cases like network outages, this happens
+	# if we ran for a LONG time (days) and ntp server's IP has changed.
+	# ntpd has no code to re-resolve peers' addresses to IPs,
+	# we need to help it:
+	#
+	echo "$dt: $1"\
+		"syncronization lost, restarting ntpd"\
+		>>"$0.log.$$"
+	mv -- "$0.log.$$" "$0.log"
+	kill $PPID
+	exit
+fi
+
+if test x"$stratum" != x"" \
+&& test x"$poll_interval" != x"" \
+&& test 4 -ge "$stratum" \
+&& test 128 -le "$poll_interval" \
+; then
+	echo "$dt: $1"\
+		"freq_drift_ppm=$freq_drift_ppm"\
+		"offset=$offset"\
+		"stratum=$stratum"\
+		"poll_interval=$poll_interval,"\
+		"setting hardware clock"\
+		>>"$0.log.$$"
+	mv -- "$0.log.$$" "$0.log"
+	exec hwclock --systohc
+fi
+
+echo "$dt: $1"\
+	"freq_drift_ppm=$freq_drift_ppm"\
+	"offset=$offset"\
+	"stratum=$stratum"\
+	"poll_interval=$poll_interval"\
+	>>"$0.log.$$"
+mv -- "$0.log.$$" "$0.log"

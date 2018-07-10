@@ -1,0 +1,10 @@
+test 1: .a. .b. .c.
+test 2: .a. .b. .c.
+test 3: .a. .. .b,c.
+test 4: .a. .. .b,c.
+test 5: .a. .. .c.
+test 6: .a. .. .c. .d.
+test 7: .a. .. .b,c,d  ,  ,.
+test 8: .. .a. .b. .c.
+test 9: .a. .b. .c. ..
+test A: .. .a. .. .b. .c.

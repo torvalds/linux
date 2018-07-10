@@ -1,0 +1,2 @@
+hush: invalid number '1q'
+hush: syntax error: unterminated ${name}

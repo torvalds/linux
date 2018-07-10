@@ -1,0 +1,5 @@
+export VAR7=VAL
+env | grep ^VAR7=
+echo $?
+VAR8=VAL env | grep ^VAR8=
+echo $?

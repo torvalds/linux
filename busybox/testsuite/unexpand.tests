@@ -1,0 +1,39 @@
+#!/bin/sh
+# Copyright 2008 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+test -f "$bindir/.config" && . "$bindir/.config"
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+testing "unexpand case 1" "unexpand" \
+	"\t12345678\n" "" "        12345678\n" \
+
+testing "unexpand case 2" "unexpand" \
+	"\t 12345678\n" "" "         12345678\n" \
+
+testing "unexpand case 3" "unexpand" \
+	"\t  12345678\n" "" "          12345678\n" \
+
+testing "unexpand case 4" "unexpand" \
+	"\t12345678\n" "" "       \t12345678\n" \
+
+testing "unexpand case 5" "unexpand" \
+	"\t12345678\n" "" "      \t12345678\n" \
+
+testing "unexpand case 6" "unexpand" \
+	"\t12345678\n" "" "     \t12345678\n" \
+
+testing "unexpand case 7" "unexpand" \
+	"123\t 45678\n" "" "123 \t 45678\n" \
+
+testing "unexpand case 8" "unexpand" \
+	"a b\n" "" "a b\n" \
+
+test x"$CONFIG_UNICODE_SUPPORT" = x"y" \
+&& test x"$CONFIG_UNICODE_USING_LOCALE" != x"y" \
+&& testing "unexpand with unicode characher 0x394" "unexpand" \
+	"1ΔΔΔ5\t99999\n" "" "1ΔΔΔ5   99999\n"
+
+exit $FAILCOUNT

@@ -1,0 +1,11 @@
+Semicolons after } can be omitted 1:
+foo
+bar
+Semicolons after } can be omitted 2:
+foo
+bar
+Semicolons after fi can be omitted:
+foo
+bar
+baz
+Done:0

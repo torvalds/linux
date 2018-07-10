@@ -1,0 +1,349 @@
+#!/bin/sh
+
+# Copyright 2007 by Denys Vlasenko <vda.linux@googlemail.com>
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "description" "command" "result" "infile" "stdin"
+
+testing "awk -F case 0" "awk -F '[#]' '{ print NF }'" ""    "" ""
+testing "awk -F case 1" "awk -F '[#]' '{ print NF }'" "0\n" "" "\n"
+testing "awk -F case 2" "awk -F '[#]' '{ print NF }'" "2\n" "" "#\n"
+testing "awk -F case 3" "awk -F '[#]' '{ print NF }'" "3\n" "" "#abc#\n"
+testing "awk -F case 4" "awk -F '[#]' '{ print NF }'" "3\n" "" "#abc#zz\n"
+testing "awk -F case 5" "awk -F '[#]' '{ print NF }'" "4\n" "" "#abc##zz\n"
+testing "awk -F case 6" "awk -F '[#]' '{ print NF }'" "4\n" "" "z#abc##zz\n"
+testing "awk -F case 7" "awk -F '[#]' '{ print NF }'" "5\n" "" "z##abc##zz\n"
+
+# conditions and operators
+testing "awk if operator == "  "awk 'BEGIN{if(23==23) print \"foo\"}'" "foo\n" "" ""
+testing "awk if operator != "  "awk 'BEGIN{if(23!=23) print \"bar\"}'" ""      "" ""
+testing "awk if operator >= "  "awk 'BEGIN{if(23>=23) print \"foo\"}'" "foo\n" "" ""
+testing "awk if operator < "   "awk 'BEGIN{if(2 < 13) print \"foo\"}'" "foo\n" "" ""
+testing "awk if string == "    "awk 'BEGIN{if(\"a\"==\"ab\") print \"bar\"}'" "" "" ""
+
+# 4294967295 = 0xffffffff
+testing "awk bitwise op"  "awk '{ print or(4294967295,1) }'" "4294967295\n" "" "\n"
+
+# we were testing for a non-empty body when deciding if a function was
+# defined or not. The testcase below caused:
+# awk: cmd. line:8: Call to undefined function
+prg='
+function empty_fun(count) {
+  # empty
+}
+END {
+  i=1
+  print "L" i "\n"
+  empty_fun(i + i + ++i)
+  print "L" i "\n"
+}'
+testing "awk handles empty function f(arg){}" \
+	"awk '$prg'" \
+	"L1\n\nL2\n\n" \
+	"" ""
+
+prg='
+function outer_fun() {
+  return 1
+}
+END {
+  i=1
+  print "L" i "\n"
+  i += outer_fun()
+  print "L" i "\n"
+}'
+testing "awk properly handles function from other scope" \
+	"awk '$prg'" \
+	"L1\n\nL2\n\n" \
+	"" ""
+
+prg='
+END {
+  i=1
+  print "L" i "\n"
+  i + trigger_error_fun()
+  print "L" i "\n"
+}'
+testing "awk properly handles undefined function" \
+	"awk '$prg' 2>&1" \
+	"L1\n\nawk: cmd. line:5: Call to undefined function\n" \
+	"" ""
+
+
+optional DESKTOP
+testing "awk hex const 1" "awk '{ print or(0xffffffff,1) }'" "4294967295\n" "" "\n"
+testing "awk hex const 2" "awk '{ print or(0x80000000,1) }'" "2147483649\n" "" "\n"
+testing "awk oct const"   "awk '{ print or(01234,1) }'"      "669\n"         "" "\n"
+SKIP=
+
+# check that "hex/oct integer" heuristic doesn't kick in on 00NN.NNN
+testing "awk floating const with leading zeroes" \
+	"awk '{ printf \"%f %f\n\", \"000.123\", \"009.123\" }'" \
+	"0.123000 9.123000\n" \
+	"" "\n"
+
+# long field seps requiring regex
+testing "awk long field sep" "awk -F-- '{ print NF, length(\$NF), \$NF }'" \
+	"2 0 \n3 0 \n4 0 \n5 0 \n" \
+	"" \
+	"a--\na--b--\na--b--c--\na--b--c--d--"
+
+testing "awk -F handles escapes" "awk -F'\\x21' '{print \$1}'" \
+	"a\n" \
+	"" \
+	"a!b\n"
+
+# '@(samp|code|file)\{' is an invalid extended regex (unmatched '{'),
+# but gawk 3.1.5 does not bail out on it.
+testing "awk gsub falls back to non-extended-regex" \
+	"awk 'gsub(\"@(samp|code|file)\{\",\"\");'; echo \$?" "0\n" "" "Hi\n"
+
+optional TAR BUNZIP2 FEATURE_SEAMLESS_BZ2
+test x"$SKIP" != x"1" && tar xjf awk_t1.tar.bz2
+testing "awk 'gcc build bug'" \
+	"awk -f awk_t1_opt-functions.awk -f awk_t1_opth-gen.awk <awk_t1_input | md5sum" \
+	"f842e256461a5ab1ec60b58d16f1114f  -\n" \
+	"" ""
+rm -rf awk_t1_* 2>/dev/null
+SKIP=
+
+Q='":"'
+
+testing "awk NF in BEGIN" \
+	"awk 'BEGIN { print ${Q} NF ${Q} \$0 ${Q} \$1 ${Q} \$2 ${Q} }'" \
+	":0::::\n" \
+	"" ""
+
+prg='
+function b(tmp) {
+	tmp = 0;
+	print "" tmp; #this line causes the bug
+	return tmp;
+}
+function c(tmpc) {
+	tmpc = b(); return tmpc;
+}
+BEGIN {
+	print (c() ? "string" : "number");
+}'
+testing "awk string cast (bug 725)" \
+	"awk '$prg'" \
+	"0\nnumber\n" \
+	"" ""
+
+testing "awk handles whitespace before array subscript" \
+	"awk 'BEGIN { arr [3] = 1; print arr [3] }'" "1\n" "" ""
+
+# GNU awk 3.1.5's "print ERRNO" prints "No such file or directory" instead of "2",
+# do we need to emulate that as well?
+testing "awk handles non-existing file correctly" \
+	"awk 'BEGIN { getline line <\"doesnt_exist\"; print ERRNO; ERRNO=0; close(\"doesnt_exist\"); print ERRNO; print \"Ok\" }'" \
+	"2\n0\nOk\n" "" ""
+
+prg='
+BEGIN {
+  u["a"]=1
+  u["b"]=1
+  u["c"]=1
+  v["d"]=1
+  v["e"]=1
+  v["f"]=1
+  for (l in u) {
+    print "outer1", l;
+    for (l in v) {
+      print " inner", l;
+    }
+    print "outer2", l;
+  }
+  print "end", l;
+  l="a"
+  exit;
+}'
+testing "awk nested loops with the same variable" \
+	"awk '$prg'" \
+	"\
+outer1 a
+ inner d
+ inner e
+ inner f
+outer2 f
+outer1 b
+ inner d
+ inner e
+ inner f
+outer2 f
+outer1 c
+ inner d
+ inner e
+ inner f
+outer2 f
+end f
+" \
+	"" ""
+
+prg='
+BEGIN {
+  u["a"]=1
+  u["b"]=1
+  u["c"]=1
+  v["d"]=1
+  v["e"]=1
+  v["f"]=1
+  for (l in u) {
+    print "outer1", l;
+    for (l in v) {
+      print " inner", l;
+      break;
+    }
+    print "outer2", l;
+  }
+  print "end", l;
+  l="a"
+  exit;
+}'
+# It's not just buggy, it enters infinite loop. Thus disabled
+false && test x"$SKIP_KNOWN_BUGS" = x"" && testing "awk nested loops with the same variable and break" \
+	"awk '$prg'" \
+	"\
+outer1 a
+ inner d
+outer2 d
+outer1 b
+ inner d
+outer2 d
+outer1 c
+ inner d
+outer2 d
+end d
+" \
+	"" ""
+
+prg='
+function f() {
+  for (l in v) {
+    print " inner", l;
+    return;
+  }
+}
+
+BEGIN {
+  u["a"]=1
+  u["b"]=1
+  u["c"]=1
+  v["d"]=1
+  v["e"]=1
+  v["f"]=1
+  for (l in u) {
+    print "outer1", l;
+    f();
+    print "outer2", l;
+  }
+  print "end", l;
+  l="a"
+  exit;
+}'
+# It's not just buggy, it enters infinite loop. Thus disabled
+false && test x"$SKIP_KNOWN_BUGS" = x"" && testing "awk nested loops with the same variable and return" \
+	"awk '$prg'" \
+	"\
+outer1 a
+ inner d
+outer2 d
+outer1 b
+ inner d
+outer2 d
+outer1 c
+ inner d
+outer2 d
+end d
+" \
+	"" ""
+
+prg='
+BEGIN{
+cnt = 0
+a[cnt] = "zeroth"
+a[++cnt] = "first"
+delete a[cnt--]
+print cnt
+print "[0]:" a[0]
+print "[1]:" a[1]
+}'
+testing "awk 'delete a[v--]' evaluates v-- once" \
+	"awk '$prg'" \
+	"\
+0
+[0]:zeroth
+[1]:
+" \
+	"" ""
+
+testing "awk handles empty ()" \
+	"awk 'BEGIN {print()}' 2>&1" "awk: cmd. line:1: Empty sequence\n" "" ""
+
+testing "awk FS assignment" "awk '{FS=\":\"; print \$1}'" \
+	"a:b\ne\n" \
+	"" \
+	"a:b c:d\ne:f g:h"
+
+optional FEATURE_AWK_LIBM
+testing "awk large integer" \
+	"awk 'BEGIN{n=(2^31)-1; print n, int(n), n%1, ++n, int(n), n%1}'" \
+	"2147483647 2147483647 0 2147483648 2147483648 0\n" \
+	"" ""
+SKIP=
+
+testing "awk length(array)" \
+	"awk 'BEGIN{ A[1]=2; A[\"qwe\"]=\"asd\"; print length(A)}'" \
+	"2\n" \
+	"" ""
+
+testing "awk length()" \
+	"awk '{print length; print length(); print length(\"qwe\"); print length(99+9)}'" \
+	"3\n3\n3\n3\n" \
+	"" "qwe"
+
+testing "awk -f and ARGC" \
+	"awk -f - input" \
+	"re\n2\n" \
+	"do re mi\n" \
+	'{print $2; print ARGC;}' \
+
+optional FEATURE_AWK_GNU_EXTENSIONS
+testing "awk -e and ARGC" \
+	"awk -e '{print \$2; print ARGC;}' input" \
+	"re\n2\n" \
+	"do re mi\n" \
+	""
+SKIP=
+
+# The examples are in fact not valid awk programs (break/continue
+# can only be used inside loops).
+# But we do accept them outside of loops.
+# We had a bug with misparsing "break ; else" sequence.
+# Test that *that* bug is fixed, using simplest possible scripts:
+testing "awk break" \
+	"awk -f - 2>&1; echo \$?" \
+	"0\n" \
+	"" \
+	'BEGIN { if (1) break; else a = 1 }'
+testing "awk continue" \
+	"awk -f - 2>&1; echo \$?" \
+	"0\n" \
+	"" \
+	'BEGIN { if (1) continue; else a = 1 }'
+
+testing "awk handles invalid for loop" \
+    "awk '{ for() }' 2>&1" "awk: cmd. line:1: Unexpected token\n" "" ""
+
+# testing "description" "command" "result" "infile" "stdin"
+testing 'awk negative field access' \
+	'awk 2>&1 -- '\''{ $(-1) }'\' \
+	"awk: cmd. line:1: Access to negative field\n" \
+	'' \
+	'anything'
+
+
+exit $FAILCOUNT

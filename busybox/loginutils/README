@@ -1,0 +1,70 @@
+	Getty
+
+??? Should getty open tty with or without O_NONBLOCK?
+For serial lines, it means "should getty wait for Carrier Detect pin?"
+I checked other getties:
+
+- agetty always uses O_NONBLOCK
+- mgetty uses O_NONBLOCK unless run with -b, or as "getty"
+
+??? If we decided to use O_NONBLOCK (perhaps optionally with -b),
+when getty should send -I INITSTR data to tty? After open succeeds?
+What if we also want to initialize *modem* with some AT commands?
+
+??? Should we check/create /var/lock/LCK..ttyPFX lockfiles?
+
+??? mgetty opens tty but does NOT lock it, then waits for input via
+select/poll, and when input is available, it checks lock file.
+If it exists, mgetty exits (it assumes someone else uses the line).
+If no, it creates the file (lock the tty). Sounds like a good algorithm
+to use if we are called with -w...
+
+Getty should establish a new session and process group, and ensure
+that tty is a ctty.
+
+??? Should getty ensure that other processes which might have opened
+fds to this tty be disconnected? agetty has a -R option which makes
+agetty call vhangup() after tty is opened. (Then agetty opens it again,
+since it probably vhangup'ed its own fd too).
+
+Getty should leave the tty in approximately the same state as "stty sane"
+before it execs login program. Minor things we do conditionally are:
+	c_iflag |= ICRNL; // if '\r' was used to end username
+
+??? mgetty uses per-tty file to ignore connects, /etc/nologin.ttyxx -
+is it useful?
+
+It should be possible to run "getty 0 -" from a shell prompt.
+[This currently doesn't work from interactive shell since setsid()
+fails in process group leader. The workaround is to run it as a child
+of something. sh -c 'getty - 0; true' usually works. Should we fix this?]
+It should leave tty in a sane state when it exits (Ctrl-D, -t SEC timeout):
+echo should be on, speed, control chars properly set, etc.
+(However, it can't restore ctty. The symptom is that "</dev/tty"
+fails in the parent shell after getty exits: /dev/tty can't be opened).
+
+Getty should write LOGIN_PROCESS utmp record before it starts waiting
+for username to be entered.
+
+	Login
+
+Login should not try to set up tty parameters - apart from switching echo
+off while entering password, and switching it back on after.
+
+Login should not leave "echo off" state when it times out reading password
+or otherwise terminates (Ctrl-C, Ctrl-D etc).
+
+??? Should login establish a new session and/or process group, and ensure
+that tty is a ctty? Without this, running login directly (not via getty)
+from e.g. initscript will usually result with a login session without
+ctty and without session/pgrp properly created...
+
+It should be possible to run "login [USER]" from a shell prompt,
+and it should work (not block/die/error out).
+Similarly to getty, it should leave tty in the sane state when it exits.
+
+??? Should login write LOGIN_PROCESS utmp record before it starts waiting
+for username/password to be entered?
+
+Login should write USER_PROCESS utmp record just before it is about
+to exec user's shell.

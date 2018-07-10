@@ -1,0 +1,3 @@
+# Test that "continue" does affect exitcode (sets to 0)
+e=''
+while echo $?; test $e && exit; true; do e=1; false; continue; done

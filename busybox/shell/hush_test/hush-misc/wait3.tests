@@ -1,0 +1,3 @@
+sleep 2 & (sleep 1;exit 3) & wait $!
+echo $?
+jobs

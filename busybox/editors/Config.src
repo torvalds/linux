@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see docs/Kconfig-language.txt.
+#
+
+menu "Editors"
+
+INSERT
+
+config FEATURE_ALLOW_EXEC
+	bool "Allow vi and awk to execute shell commands"
+	default y
+	depends on VI || AWK
+	help
+	Enables vi and awk features which allow user to execute
+	shell commands (using system() C call).
+
+endmenu

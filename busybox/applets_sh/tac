@@ -1,0 +1,7 @@
+#!/bin/sh
+# TODO: use getopt to avoid parsing options as filenames,
+# and to support -- and --help
+for i in "$@"
+do
+sed -e '1!G;h;$!d' "$i"
+done

@@ -1,0 +1,7 @@
+unset a
+readonly a=A
+
+# external commands and builtins should behave the same:
+(exit 42); a=Z echo "Visible:$?"
+echo
+(exit 42); a=Z env echo "Visible:$?"

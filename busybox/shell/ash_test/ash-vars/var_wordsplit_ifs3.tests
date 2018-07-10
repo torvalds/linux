@@ -1,0 +1,5 @@
+a="q w e r t y"
+for v in ${a%y}; do echo Unquoted%:"<$v>"; done
+for v in ${a#q}; do echo Unquoted#:"<$v>"; done
+for v in "${a%y}"; do echo Quoted%:"<$v>"; done
+for v in "${a#q}"; do echo Quoted#:"<$v>"; done

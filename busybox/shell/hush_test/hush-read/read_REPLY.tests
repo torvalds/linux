@@ -1,0 +1,5 @@
+echo '  \abc1  d\ef  ' | ( read         ; echo "test 1: |$REPLY|" )
+echo '  \abc2  d\ef  ' | ( read -r      ; echo "test 2: |$REPLY|" )
+echo '  \abc3  d\ef  ' | ( read    REPLY; echo "test 3: |$REPLY|" )
+echo '  \abc4  d\ef  ' | ( read -r REPLY; echo "test 4: |$REPLY|" )
+echo Done

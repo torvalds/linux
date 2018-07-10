@@ -1,0 +1,3 @@
+#!/bin/sh
+
+. ./md5sum.tests sha1sum d41337e834377140ae7f98460d71d908598ef04f

@@ -1,0 +1,13 @@
+echo "`echo Ok1 #comment is ignored`"
+echo `echo Ok2 #comment is ignored`
+#
+# Surprisingly, bash does not handle comments in $()
+# the same way as in ``. "#" causes the rest of the line, _including_ )",
+# to be ignored. These lines would cause an error:
+#echo "$(echo Ok3 #comment is ignored)"
+#echo $(echo Ok4 #comment is ignored)
+#
+echo "$(echo Ok5 #comment is ignored
+)"
+echo $(echo Ok6 #comment is ignored
+)

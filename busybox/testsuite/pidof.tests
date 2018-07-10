@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# pidof tests.
+# Copyright 2005 by Bernhard Reutner-Fischer
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+# AUDIT:
+
+. ./testing.sh
+
+# testing "test name" "options" "expected result" "file input" "stdin"
+
+testing "pidof (exit with error)" \
+	"pidof veryunlikelyoccuringbinaryname ; echo \$?" "1\n" "" ""
+testing "pidof (exit with success)" "pidof pidof > /dev/null; echo \$?" \
+	"0\n" "" ""
+# We can get away with this because it says #!/bin/sh up top.
+
+testing "pidof this" "pidof pidof.tests | grep -o -w $$" "$$\n" "" ""
+
+test x"`cat /proc/1/comm`" = x"init" && {
+optional FEATURE_PIDOF_SINGLE
+testing "pidof -s" "pidof -s init" "1\n" "" ""
+SKIP=
+}
+
+test x"`cat /proc/1/comm`" = x"init" && {
+optional FEATURE_PIDOF_OMIT FEATURE_PIDOF_SINGLE
+# This test fails now because process name matching logic has changed,
+# but new logic is not "wrong" either... see find_pid_by_name.c comments
+#testing "pidof -o %PPID" "pidof -o %PPID pidof.tests | grep -o -w $$" "" "" ""
+testing "pidof -o %PPID NOP" "pidof -o %PPID -s init" "1\n" "" ""
+SKIP=
+}
+
+optional FEATURE_PIDOF_OMIT
+testing "pidof -o init" "pidof -o 1 init | grep -o -w 1" "" "" ""
+SKIP=
+
+exit $FAILCOUNT

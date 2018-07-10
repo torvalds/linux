@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# Tests for unzip.
+# Copyright 2006 Rob Landley <rob@landley.net>
+# Copyright 2006 Glenn McGrath
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# testing "test name" "commands" "expected result" "file input" "stdin"
+#   file input will be file called "input"
+#   test can create a file "actual" instead of writing to stdout
+
+# Create a scratch directory
+
+mkdir temp
+cd temp || exit $?
+
+# Create test file to work with.
+
+mkdir foo
+touch foo/bar
+zip foo.zip foo foo/bar > /dev/null
+rm -f foo/bar
+rmdir foo
+
+# Test that unzipping just foo doesn't create bar.
+testing "unzip (subdir only)" "unzip -q foo.zip foo/ && test -d foo && test ! -f foo/bar && echo yes" "yes\n" "" ""
+
+rmdir foo
+rm foo.zip
+
+# File containing some damaged encrypted stream
+optional FEATURE_UNZIP_CDF
+testing "unzip (bad archive)" "uudecode; unzip bad.zip 2>&1; echo \$?" \
+"Archive:  bad.zip
+  inflating: ]3j½r«IK-%Ix
+unzip: corrupted data
+unzip: inflate error
+1
+" \
+"" "\
+begin-base64 644 bad.zip
+UEsDBBQAAgkIAAAAIQA5AAAANwAAADwAAAAQAAcAXTNqwr1ywqtJGxJLLSVJ
+eCkBD0AdKBk8JzQsIj01JC0/ORJQSwMEFAECCAAAAAAhADoAAAAPAAAANgAA
+AAwAAQASw73Ct1DCokohPXQiNjoUNTUiHRwgLT4WHlBLAQIQABQAAggIAAAA
+oQA5AAAANwAAADwAAAAQQAcADAAAACwAMgCAAAAAAABdM2rCvXLCq0kbEkst
+JUl4KQEPQB0oGSY4Cz4QNgEnJSYIPVBLAQIAABQAAggAAAAAIQAqAAAADwAA
+BDYAAAAMAAEADQAAADIADQAAAEEAAAASw73Ct1DKokohPXQiNzA+FAI1HCcW
+NzITNFBLBQUKAC4JAA04Cw0EOhZQSwUGAQAABAIAAgCZAAAAeQAAAAIALhM=
+====
+"
+SKIP=
+
+rm -f *
+
+optional FEATURE_UNZIP_LZMA
+testing "unzip (archive with corrupted lzma 1)" "unzip -p ../unzip_bad_lzma_1.zip 2>&1; echo \$?" \
+"unzip: removing leading '/' from member names
+unzip: corrupted data
+unzip: inflate error
+1
+" \
+"" ""
+SKIP=
+
+rm -f *
+
+optional FEATURE_UNZIP_LZMA
+testing "unzip (archive with corrupted lzma 2)" "unzip -p ../unzip_bad_lzma_2.zip 2>&1; echo \$?" \
+"unzip: removing leading '/' from member names
+unzip: corrupted data
+unzip: inflate error
+1
+" \
+"" ""
+SKIP=
+
+rm -f *
+
+# Clean up scratch directory.
+
+cd ..
+rm -rf temp
+
+exit $FAILCOUNT

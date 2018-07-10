@@ -1,0 +1,1 @@
+test `busybox echo word | wc -c` -eq 5

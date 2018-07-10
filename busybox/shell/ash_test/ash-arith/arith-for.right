@@ -1,0 +1,74 @@
+0
+1
+2
+0
+1
+2
+0
+1
+2
+0
+2
+4
+fx is a function
+fx ()
+{
+    i=0;
+    for ((1; i < 3; i++ ))
+    do
+        echo $i;
+    done;
+    for ((i=0; 1; i++ ))
+    do
+        if (( i >= 3 )); then
+            break;
+        fi;
+        echo $i;
+    done;
+    for ((i=0; i<3; 1))
+    do
+        echo $i;
+        (( i++ ));
+    done;
+    i=0;
+    for ((1; 1; 1))
+    do
+        if (( i > 2 )); then
+            break;
+        fi;
+        echo $i;
+        (( i++ ));
+    done;
+    i=0;
+    for ((1; 1; 1))
+    do
+        if (( i > 2 )); then
+            break;
+        fi;
+        echo $i;
+        (( i++ ));
+    done
+}
+0
+1
+2
+0
+1
+2
+0
+1
+2
+0
+1
+2
+0
+1
+2
+./arith-for.tests: line 77: syntax error: arithmetic expression required
+./arith-for.tests: line 77: syntax error: `(( i=0; "i < 3" ))'
+2
+./arith-for.tests: line 83: syntax error: `;' unexpected
+./arith-for.tests: line 83: syntax error: `(( i=0; i < 3; i++; 7 ))'
+2
+20
+20

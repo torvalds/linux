@@ -1,0 +1,5 @@
+#!/bin/sh
+
+trap "echo Trapped" BADNAME TERM; echo $?
+kill $$
+echo Ok

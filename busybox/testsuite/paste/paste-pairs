@@ -1,0 +1,16 @@
+cat > foo <<EOF
+foo1
+bar1
+foo2
+bar2
+foo3
+EOF
+
+cat > bar <<EOF
+foo1	bar1
+foo2	bar2
+foo3
+EOF
+
+busybox paste -s -d "\t\n" foo > baz
+cmp bar baz

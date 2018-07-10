@@ -1,0 +1,12 @@
+# syntax error should return status 2
+cat >test.sh <<EOF
+)
+EOF
+chmod +x test.sh
+$THIS_SH ./test.sh
+echo Done:$?
+rm -f test.sh
+
+# redirection error with special builtin should return status 1
+(eval cat <does_not_exist)
+echo Done:$?

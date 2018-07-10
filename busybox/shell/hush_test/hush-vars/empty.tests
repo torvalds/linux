@@ -1,0 +1,5 @@
+e=
+
+echo a b c d e f 1 2 3 4 5 6 7 8 9 0 A B C D E F
+echo a $e b $e c $e d $e e $e f $e 1 $e 2 $e 3 $e 4 $e 5 $e 6 $e 7 $e 8 $e 9 $e 0 $e A $e B $e C $e D $e E $e F
+echo $e a $e b $e c $e d $e e $e f $e 1 $e 2 $e 3 $e 4 $e 5 $e 6 $e 7 $e 8 $e 9 $e 0 $e A $e B $e C $e D $e E $e F

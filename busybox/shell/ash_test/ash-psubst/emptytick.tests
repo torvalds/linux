@@ -1,0 +1,16 @@
+true;  ``; echo $?
+false; ``; echo $?
+true;  `""`; echo $?
+false; `""`; echo $?
+true;  `     `; echo $?
+false; `     `; echo $?
+
+true;  $(); echo $?
+false; $(); echo $?
+true;  $(""); echo $?
+false; $(""); echo $?
+true;  $(     ); echo $?
+false; $(     ); echo $?
+
+exec ''; echo $?
+echo Not reached

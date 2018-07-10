@@ -1,0 +1,7 @@
+readonly bla=123
+# Bare "eval bla=123" should abort ("eval" is a special builtin):
+(eval bla=123 2>/dev/null; echo BUG)
+echo Fail:$?
+# "command BLTIN" disables "special-ness", should not abort:
+command eval bla=123 2>/dev/null
+echo Fail:$?

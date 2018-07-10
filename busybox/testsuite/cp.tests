@@ -1,0 +1,206 @@
+#!/bin/sh
+# Copyright 2010 by Denys Vlasenko
+# Licensed under GPLv2, see file LICENSE in this source tree.
+
+. ./testing.sh
+
+# Opening quote in "omitting directory 'dir'" message:
+sq='`'  # GNU cp: `
+sq="'"  # bbox cp: '
+
+rm -rf cp.testdir >/dev/null
+
+mkdir cp.testdir
+mkdir cp.testdir/dir
+> cp.testdir/dir/file
+ln -s file cp.testdir/dir/file_symlink
+
+> cp.testdir/file
+ln -s file cp.testdir/file_symlink
+ln -s dir cp.testdir/dir_symlink
+
+
+# testing "test name" "command" "expected result" "file input" "stdin"
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp" '\
+cd cp.testdir || exit 1; cp * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file         && test   -f file             || echo BAD: file
+test ! -L file_symlink && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir          && test ! -e dir              || echo BAD: dir
+test ! -L dir_symlink  && test ! -e dir_symlink      || echo BAD: dir_symlink
+' "\
+cp: omitting directory ${sq}dir'
+cp: omitting directory ${sq}dir_symlink'
+1
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -d" '\
+cd cp.testdir || exit 1; cp -d * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file         && test   -f file             || echo BAD: file
+test   -L file_symlink && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir          && test ! -e dir              || echo BAD: dir
+test   -L dir_symlink  && test ! -e dir_symlink      || echo BAD: dir_symlink
+' "\
+cp: omitting directory ${sq}dir'
+1
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -P" '\
+cd cp.testdir || exit 1; cp -P * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file         && test   -f file             || echo BAD: file
+test   -L file_symlink && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir          && test ! -e dir              || echo BAD: dir
+test   -L dir_symlink  && test ! -e dir_symlink      || echo BAD: dir_symlink
+' "\
+cp: omitting directory ${sq}dir'
+1
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -L" '\
+cd cp.testdir || exit 1; cp -L * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file         && test   -f file             || echo BAD: file
+test ! -L file_symlink && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir          && test ! -e dir              || echo BAD: dir
+test ! -L dir_symlink  && test ! -e dir_symlink      || echo BAD: dir_symlink
+' "\
+cp: omitting directory ${sq}dir'
+cp: omitting directory ${sq}dir_symlink'
+1
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -H" '\
+cd cp.testdir || exit 1; cp -H * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file         && test   -f file             || echo BAD: file
+test ! -L file_symlink && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir          && test ! -e dir              || echo BAD: dir
+test ! -L dir_symlink  && test ! -e dir_symlink      || echo BAD: dir_symlink
+' "\
+cp: omitting directory ${sq}dir'
+cp: omitting directory ${sq}dir_symlink'
+1
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -R" '\
+cd cp.testdir || exit 1; cp -R * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test   -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test   -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test   -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -Rd" '\
+cd cp.testdir || exit 1; cp -Rd * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test   -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test   -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test   -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -RP" '\
+cd cp.testdir || exit 1; cp -RP * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test   -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test   -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test   -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -RL" '\
+cd cp.testdir || exit 1; cp -RL * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test ! -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test ! -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test ! -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+# GNU coreutils 7.2 says:
+# cp: will not create hard link `../cp.testdir2/dir_symlink' to directory `../cp.testdir2/dir'
+test x"$SKIP_KNOWN_BUGS" = x"" && \
+testing "cp -RH" '\
+cd cp.testdir || exit 1; cp -RH * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test ! -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test ! -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test   -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+# GNU coreutils 7.2 says:
+# cp: will not create hard link `../cp.testdir2/dir_symlink' to directory `../cp.testdir2/dir'
+test x"$SKIP_KNOWN_BUGS" = x"" && \
+testing "cp -RHP" '\
+cd cp.testdir || exit 1; cp -RHP * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test ! -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test ! -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test   -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+testing "cp -RHL" '\
+cd cp.testdir || exit 1; cp -RHL * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test ! -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test ! -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test ! -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+rm -rf cp.testdir2 >/dev/null && mkdir cp.testdir2 || exit 1
+# Wow! "cp -RLH" is not the same as "cp -RHL" (prev test)!
+# GNU coreutils 7.2 says:
+# cp: will not create hard link `../cp.testdir2/dir_symlink' to directory `../cp.testdir2/dir'
+test x"$SKIP_KNOWN_BUGS" = x"" && \
+testing "cp -RLH" '\
+cd cp.testdir || exit 1; cp -RLH * ../cp.testdir2 2>&1; echo $?; cd ../cp.testdir2 || exit 1
+test ! -L file             && test   -f file             || echo BAD: file
+test ! -L file_symlink     && test   -f file_symlink     || echo BAD: file_symlink
+test ! -L dir              && test   -d dir              || echo BAD: dir
+test ! -L dir_symlink      && test   -d dir_symlink      || echo BAD: dir_symlink
+test ! -L dir/file         && test   -f dir/file         || echo BAD: dir/file
+test ! -L dir/file_symlink && test   -f dir/file_symlink || echo BAD: dir/file_symlink
+' "\
+0
+" "" ""
+
+
+# Clean up
+rm -rf cp.testdir cp.testdir2 2>/dev/null
+
+exit $FAILCOUNT
