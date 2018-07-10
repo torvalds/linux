@@ -736,20 +736,29 @@ static int __mark_rodata_ro(void *unused)
 	return 0;
 }
 
+static int kernel_set_to_readonly __read_mostly;
+
 void mark_rodata_ro(void)
 {
+	kernel_set_to_readonly = 1;
 	stop_machine(__mark_rodata_ro, NULL, NULL);
 	debug_checkwx();
 }
 
 void set_kernel_text_rw(void)
 {
+	if (!kernel_set_to_readonly)
+		return;
+
 	set_section_perms(ro_perms, ARRAY_SIZE(ro_perms), false,
 				current->active_mm);
 }
 
 void set_kernel_text_ro(void)
 {
+	if (!kernel_set_to_readonly)
+		return;
+
 	set_section_perms(ro_perms, ARRAY_SIZE(ro_perms), true,
 				current->active_mm);
 }
