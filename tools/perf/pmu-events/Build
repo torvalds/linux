@@ -1,7 +1,7 @@
 hostprogs := jevents
 
 jevents-y	+= json.o jsmn.o jevents.o
-CHOSTFLAGS_jevents.o	= -I$(srctree)/tools/include
+HOSTCFLAGS_jevents.o	= -I$(srctree)/tools/include
 pmu-events-y	+= pmu-events.o
 JDIR		=  pmu-events/arch/$(SRCARCH)
 JSON		=  $(shell [ -d $(JDIR) ] &&				\
