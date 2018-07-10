@@ -798,7 +798,7 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	struct ttm_object_file *tfile =
 		vmw_fpriv((struct drm_file *)filp->private_data)->tfile;
 
-	return vmw_user_dmabuf_verify_access(bo, tfile);
+	return vmw_user_bo_verify_access(bo, tfile);
 }
 
 static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
@@ -852,7 +852,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
 			    bool evict,
 			    struct ttm_mem_reg *mem)
 {
-	vmw_resource_move_notify(bo, mem);
+	vmw_bo_move_notify(bo, mem);
 	vmw_query_move_notify(bo, mem);
 }
 
@@ -864,7 +864,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
-	vmw_resource_swap_notify(bo);
+	vmw_bo_swap_notify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 

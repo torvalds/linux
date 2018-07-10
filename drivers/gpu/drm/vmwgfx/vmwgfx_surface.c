@@ -468,7 +468,7 @@ static int vmw_legacy_srf_dma(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -842,12 +842,12 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (dev_priv->has_mob && req->shareable) {
 		uint32_t backup_handle;
 
-		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
-					    res->backup_size,
-					    true,
-					    &backup_handle,
-					    &res->backup,
-					    &user_srf->backup_base);
+		ret = vmw_user_bo_alloc(dev_priv, tfile,
+					res->backup_size,
+					true,
+					&backup_handle,
+					&res->backup,
+					&user_srf->backup_base);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
@@ -1072,7 +1072,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd2->header.size = cmd_len;
 		cmd2->body.sid = srf->res.id;
 		cmd2->body.surfaceFlags = srf->flags;
-		cmd2->body.format = cpu_to_le32(srf->format);
+		cmd2->body.format = srf->format;
 		cmd2->body.numMipLevels = srf->mip_levels[0];
 		cmd2->body.multisampleCount = srf->multisample_count;
 		cmd2->body.autogenFilter = srf->autogen_filter;
@@ -1085,7 +1085,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd->header.size = cmd_len;
 		cmd->body.sid = srf->res.id;
 		cmd->body.surfaceFlags = srf->flags;
-		cmd->body.format = cpu_to_le32(srf->format);
+		cmd->body.format = srf->format;
 		cmd->body.numMipLevels = srf->mip_levels[0];
 		cmd->body.multisampleCount = srf->multisample_count;
 		cmd->body.autogenFilter = srf->autogen_filter;
@@ -1210,7 +1210,7 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -1317,14 +1317,14 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 
 	if (req->buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
-					     &res->backup,
-					     &user_srf->backup_base);
+		ret = vmw_user_bo_lookup(tfile, req->buffer_handle,
+					 &res->backup,
+					 &user_srf->backup_base);
 		if (ret == 0) {
 			if (res->backup->base.num_pages * PAGE_SIZE <
 			    res->backup_size) {
 				DRM_ERROR("Surface backup buffer is too small.\n");
-				vmw_dmabuf_unreference(&res->backup);
+				vmw_bo_unreference(&res->backup);
 				ret = -EINVAL;
 				goto out_unlock;
 			} else {
@@ -1332,13 +1332,13 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 			}
 		}
 	} else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
-		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
-					    res->backup_size,
-					    req->drm_surface_flags &
-					    drm_vmw_surface_flag_shareable,
-					    &backup_handle,
-					    &res->backup,
-					    &user_srf->backup_base);
+		ret = vmw_user_bo_alloc(dev_priv, tfile,
+					res->backup_size,
+					req->drm_surface_flags &
+					drm_vmw_surface_flag_shareable,
+					&backup_handle,
+					&res->backup,
+					&user_srf->backup_base);
 
 	if (unlikely(ret != 0)) {
 		vmw_resource_unreference(&res);
@@ -1414,8 +1414,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
-	ret = vmw_user_dmabuf_reference(tfile, srf->res.backup,
-					&backup_handle);
+	ret = vmw_user_bo_reference(tfile, srf->res.backup, &backup_handle);
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	if (unlikely(ret != 0)) {

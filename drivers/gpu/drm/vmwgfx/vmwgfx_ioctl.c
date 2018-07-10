@@ -377,8 +377,8 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 	}
 
 	vfb = vmw_framebuffer_to_vfb(fb);
-	if (!vfb->dmabuf) {
-		DRM_ERROR("Framebuffer not dmabuf backed.\n");
+	if (!vfb->bo) {
+		DRM_ERROR("Framebuffer not buffer backed.\n");
 		ret = -EINVAL;
 		goto out_no_ttm_lock;
 	}

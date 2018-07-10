@@ -673,8 +673,34 @@ SVGASignedPoint;
  * SVGA_CAP_GBOBJECTS --
  *    Enable guest-backed objects and surfaces.
  *
- * SVGA_CAP_CMD_BUFFERS_3 --
- *    Enable support for command buffers in a mob.
+ * SVGA_CAP_DX --
+ *    Enable support for DX commands, and command buffers in a mob.
+ *
+ * SVGA_CAP_HP_CMD_QUEUE --
+ *    Enable support for the high priority command queue, and the
+ *    ScreenCopy command.
+ *
+ * SVGA_CAP_NO_BB_RESTRICTION --
+ *    Allow ScreenTargets to be defined without regard to the 32-bpp
+ *    bounding-box memory restrictions. ie:
+ *
+ *    The summed memory usage of all screens (assuming they were defined as
+ *    32-bpp) must always be less than the value of the
+ *    SVGA_REG_MAX_PRIMARY_MEM register.
+ *
+ *    If this cap is not present, the 32-bpp bounding box around all screens
+ *    must additionally be under the value of the SVGA_REG_MAX_PRIMARY_MEM
+ *    register.
+ *
+ *    If the cap is present, the bounding box restriction is lifted (and only
+ *    the screen-sum limit applies).
+ *
+ *    (Note that this is a slight lie... there is still a sanity limit on any
+ *     dimension of the topology to be less than SVGA_SCREEN_ROOT_LIMIT, even
+ *     when SVGA_CAP_NO_BB_RESTRICTION is present, but that should be
+ *     large enough to express any possible topology without holes between
+ *     monitors.)
+ *
  */
 
 #define SVGA_CAP_NONE               0x00000000
@@ -700,6 +726,7 @@ SVGASignedPoint;
 #define SVGA_CAP_GBOBJECTS          0x08000000
 #define SVGA_CAP_DX                 0x10000000
 #define SVGA_CAP_HP_CMD_QUEUE       0x20000000
+#define SVGA_CAP_NO_BB_RESTRICTION  0x40000000
 
 #define SVGA_CAP_CMD_RESERVED       0x80000000
 

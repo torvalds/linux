@@ -153,9 +153,9 @@
 static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
+	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_bo_alloc_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
-	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
+	VMW_IOCTL_DEF(VMW_UNREF_DMABUF, vmw_bo_unref_ioctl,
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CURSOR_BYPASS,
 		      vmw_kms_cursor_bypass_ioctl,
@@ -219,7 +219,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      vmw_gb_surface_reference_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_SYNCCPU,
-		      vmw_user_dmabuf_synccpu_ioctl,
+		      vmw_user_bo_synccpu_ioctl,
 		      DRM_RENDER_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_EXTENDED_CONTEXT,
 		      vmw_extended_context_define_ioctl,
@@ -321,7 +321,7 @@ static void vmw_print_capabilities(uint32_t capabilities)
 static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 {
 	int ret;
-	struct vmw_dma_buffer *vbo;
+	struct vmw_buffer_object *vbo;
 	struct ttm_bo_kmap_obj map;
 	volatile SVGA3dQueryResult *result;
 	bool dummy;
@@ -335,9 +335,9 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (!vbo)
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(dev_priv, vbo, PAGE_SIZE,
-			      &vmw_sys_ne_placement, false,
-			      &vmw_dmabuf_bo_free);
+	ret = vmw_bo_init(dev_priv, vbo, PAGE_SIZE,
+			  &vmw_sys_ne_placement, false,
+			  &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -358,7 +358,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Dummy query buffer map failed.\n");
-		vmw_dmabuf_unreference(&vbo);
+		vmw_bo_unreference(&vbo);
 	} else
 		dev_priv->dummy_query_bo = vbo;
 
@@ -460,7 +460,7 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 
 	BUG_ON(dev_priv->pinned_bo != NULL);
 
-	vmw_dmabuf_unreference(&dev_priv->dummy_query_bo);
+	vmw_bo_unreference(&dev_priv->dummy_query_bo);
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 
@@ -644,6 +644,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
+	mutex_init(&dev_priv->requested_layout_mutex);
 	mutex_init(&dev_priv->global_kms_state_mutex);
 	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
