@@ -1790,7 +1790,7 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 		"<<< st_mtime_sec=%lld st_mtime_nsec=%lld\n"
 		"<<< st_ctime_sec=%lld st_ctime_nsec=%lld\n"
 		"<<< st_btime_sec=%lld st_btime_nsec=%lld\n"
-		"<<< st_gen=%lld st_data_version=%lld",
+		"<<< st_gen=%lld st_data_version=%lld\n",
 		ret->st_result_mask, ret->qid.type, ret->qid.path,
 		ret->qid.version, ret->st_mode, ret->st_nlink,
 		from_kuid(&init_user_ns, ret->st_uid),
