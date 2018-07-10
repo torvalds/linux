@@ -35,6 +35,7 @@
 #include "sdma0/sdma0_4_1_offset.h"
 
 MODULE_FIRMWARE("amdgpu/raven_asd.bin");
+MODULE_FIRMWARE("amdgpu/picasso_asd.bin");
 
 static int
 psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *type)
@@ -118,6 +119,9 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		chip_name = "raven";
+		break;
+	case CHIP_PICASSO:
+		chip_name = "picasso";
 		break;
 	default: BUG();
 	}
