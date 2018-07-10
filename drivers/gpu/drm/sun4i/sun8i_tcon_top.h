@@ -26,6 +26,7 @@
 struct sun8i_tcon_top {
 	struct clk			*bus;
 	struct clk_hw_onecell_data	*clk_data;
+	void __iomem			*regs;
 	struct reset_control		*rst;
 
 	/*
@@ -36,5 +37,8 @@ struct sun8i_tcon_top {
 };
 
 extern const struct of_device_id sun8i_tcon_top_of_table[];
+
+int sun8i_tcon_top_set_hdmi_src(struct device *dev, int tcon);
+int sun8i_tcon_top_de_config(struct device *dev, int mixer, int tcon);
 
 #endif /* _SUN8I_TCON_TOP_H_ */
