@@ -665,14 +665,9 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 	int idx;
 
 	for (idx = 0; idx < armpmu->num_events; idx++) {
-		/*
-		 * If the counter is not used skip it, there is no
-		 * need of stopping/restarting it.
-		 */
-		if (!test_bit(idx, hw_events->used_mask))
-			continue;
-
 		event = hw_events->events[idx];
+		if (!event)
+			continue;
 
 		switch (cmd) {
 		case CPU_PM_ENTER:
