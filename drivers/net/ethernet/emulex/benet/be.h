@@ -436,10 +436,10 @@ struct be_port_resources {
 #define be_is_os2bmc_enabled(adapter) (adapter->flags & BE_FLAGS_OS2BMC)
 
 struct rss_info {
-	u64 rss_flags;
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
 	u8 rss_queue[RSS_INDIR_TABLE_LEN];
 	u8 rss_hkey[RSS_HASH_KEY_LEN];
+	u64 rss_flags;
 };
 
 #define BE_INVALID_DIE_TEMP	0xFF
