@@ -1244,6 +1244,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 				     u64 hole_start, u64 hole_end,
 				     unsigned long end_time))
 {
+	const u64 limit = totalram_pages << PAGE_SHIFT;
 	struct i915_gem_context *ctx;
 	struct i915_hw_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
@@ -1256,7 +1257,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 	ppgtt = ctx->ppgtt;
 	GEM_BUG_ON(!ppgtt);
 
-	err = func(i915, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
+	err = func(i915, &ppgtt->vm, 0, min(ppgtt->vm.total, limit), end_time);
 
 	mock_context_close(ctx);
 	return err;
