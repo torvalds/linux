@@ -451,6 +451,11 @@
 				clocks = <&clks IMX5_CLK_IIM_GATE>;
 			};
 
+			tigerp: tigerp@83fa0000 {
+				compatible = "fsl,imx51-tigerp";
+				reg = <0x83fa0000 0x28>;
+			};
+
 			owire: owire@83fa4000 {
 				compatible = "fsl,imx51-owire", "fsl,imx21-owire";
 				reg = <0x83fa4000 0x4000>;
