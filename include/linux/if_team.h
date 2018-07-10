@@ -89,6 +89,19 @@ static inline bool team_port_txable(struct team_port *port)
 	return port->linkup && team_port_enabled(port);
 }
 
+static inline bool team_port_dev_txable(const struct net_device *port_dev)
+{
+	struct team_port *port;
+	bool txable;
+
+	rcu_read_lock();
+	port = team_port_get_rcu(port_dev);
+	txable = port ? team_port_txable(port) : false;
+	rcu_read_unlock();
+
+	return txable;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static inline void team_netpoll_send_skb(struct team_port *port,
 					 struct sk_buff *skb)
