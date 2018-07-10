@@ -621,7 +621,7 @@ static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 
 	def  = data  = RREG32_SOC15(MMHUB, 0, mmATC_L2_MISC_CG);
 
-	if (adev->asic_type != CHIP_RAVEN) {
+	if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO) {
 		def1 = data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
 		def2 = data2 = RREG32_SOC15(MMHUB, 0, mmDAGB1_CNTL_MISC2);
 	} else
@@ -637,7 +637,7 @@ static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 		           DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
 		           DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK);
 
-		if (adev->asic_type != CHIP_RAVEN)
+		if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO)
 			data2 &= ~(DAGB1_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
 			           DAGB1_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
 			           DAGB1_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
@@ -654,7 +654,7 @@ static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 			  DAGB0_CNTL_MISC2__DISABLE_TLBWR_CG_MASK |
 			  DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK);
 
-		if (adev->asic_type != CHIP_RAVEN)
+		if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO)
 			data2 |= (DAGB1_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
 			          DAGB1_CNTL_MISC2__DISABLE_WRRET_CG_MASK |
 			          DAGB1_CNTL_MISC2__DISABLE_RDREQ_CG_MASK |
@@ -667,13 +667,13 @@ static void mmhub_v1_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 		WREG32_SOC15(MMHUB, 0, mmATC_L2_MISC_CG, data);
 
 	if (def1 != data1) {
-		if (adev->asic_type != CHIP_RAVEN)
+		if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO)
 			WREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2, data1);
 		else
 			WREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_RV, data1);
 	}
 
-	if (adev->asic_type != CHIP_RAVEN && def2 != data2)
+	if (adev->asic_type != CHIP_RAVEN && adev->asic_type != CHIP_PICASSO && def2 != data2)
 		WREG32_SOC15(MMHUB, 0, mmDAGB1_CNTL_MISC2, data2);
 }
 
@@ -737,6 +737,7 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_PICASSO:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		athub_update_medium_grain_clock_gating(adev,
