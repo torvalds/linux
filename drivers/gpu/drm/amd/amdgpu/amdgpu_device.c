@@ -62,6 +62,7 @@
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -1335,6 +1336,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 		chip_name = "raven";
 		break;
+	case CHIP_PICASSO:
+		chip_name = "picasso";
+		break;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
@@ -1460,7 +1464,8 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
-		if (adev->asic_type == CHIP_RAVEN)
+	case CHIP_PICASSO:
+		if ((adev->asic_type == CHIP_RAVEN) || (adev->asic_type == CHIP_PICASSO))
 			adev->family = AMDGPU_FAMILY_RV;
 		else
 			adev->family = AMDGPU_FAMILY_AI;
