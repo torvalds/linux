@@ -186,11 +186,11 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 struct be_eq_obj {
 	struct be_queue_info q;
 
+	struct be_adapter *adapter;
+	struct napi_struct napi;
 	u8 idx;			/* array index */
 	u8 msix_idx;
 	u16 spurious_intr;
-	struct napi_struct napi;
-	struct be_adapter *adapter;
 	cpumask_var_t  affinity_mask;
 } ____cacheline_aligned_in_smp;
 
