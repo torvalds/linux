@@ -1206,7 +1206,7 @@ static int pp_notify_smu_enable_pwe(void *handle)
 	struct pp_hwmgr *hwmgr = handle;
 
 	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;;
+		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->smus_notify_pwe == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
