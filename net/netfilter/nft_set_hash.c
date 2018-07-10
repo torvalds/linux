@@ -359,6 +359,7 @@ static void nft_rhash_destroy(const struct nft_set *set)
 	struct nft_rhash *priv = nft_set_priv(set);
 
 	cancel_delayed_work_sync(&priv->gc_work);
+	rcu_barrier();
 	rhashtable_free_and_destroy(&priv->ht, nft_rhash_elem_destroy,
 				    (void *)set);
 }
