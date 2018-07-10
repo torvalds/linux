@@ -80,6 +80,7 @@ static void __init imx51_dt_init(void)
 	imx51_ipu_mipi_setup();
 	imx_src_init();
 	imx51_m4if_setup();
+	imx5_pmu_init();
 	imx_aips_allow_unprivileged_access("fsl,imx51-aipstz");
 }
 
