@@ -830,7 +830,7 @@ try:
     check_extack_nsim(err, "program loaded with different flags.", args)
     ret, _, err = sim.unset_xdp("", force=True,
                                 fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
+    fail(ret == 0, "Removed program with a bad mode")
     check_extack_nsim(err, "program loaded with different flags.", args)
 
     start_test("Test MTU restrictions...")
