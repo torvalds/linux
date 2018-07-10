@@ -921,7 +921,7 @@ struct file *dentry_open(const struct path *path, int flags,
 	/* We must always pass in a valid mount pointer. */
 	BUG_ON(!path->mnt);
 
-	f = get_empty_filp();
+	f = alloc_empty_file(cred);
 	if (!IS_ERR(f)) {
 		f->f_flags = flags;
 		error = vfs_open(path, f, cred);

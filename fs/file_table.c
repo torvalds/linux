@@ -101,9 +101,8 @@ int proc_nr_files(struct ctl_table *table, int write,
  * done, you will imbalance int the mount's writer count
  * and a warning at __fput() time.
  */
-struct file *get_empty_filp(void)
+struct file *alloc_empty_file(const struct cred *cred)
 {
-	const struct cred *cred = current_cred();
 	static long old_max;
 	struct file *f;
 	int error;
@@ -161,7 +160,7 @@ struct file *alloc_file(const struct path *path, int flags,
 {
 	struct file *file;
 
-	file = get_empty_filp();
+	file = alloc_empty_file(current_cred());
 	if (IS_ERR(file))
 		return file;
 
