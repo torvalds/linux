@@ -699,9 +699,9 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
 		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
 	/* HT ralated element */
-	tmp_ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
+	tmp_ht_cap_buf = (u8 *)&ieee->pHTInfo->SelfHTCap;
 	tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
-	tmp_ht_info_buf = (u8 *)&(ieee->pHTInfo->SelfHTInfo);
+	tmp_ht_info_buf = (u8 *)&ieee->pHTInfo->SelfHTInfo;
 	tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
 	HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len, encrypt);
 	HTConstructInfoElement(ieee, tmp_ht_info_buf, &tmp_ht_info_len, encrypt);
@@ -973,7 +973,7 @@ ieee80211_association_req(struct ieee80211_network *beacon,
 
 	/* Include High Throuput capability && Realtek proprietary */
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT) {
-		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
+		ht_cap_buf = (u8 *)&ieee->pHTInfo->SelfHTCap;
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt);
 		if (ieee->pHTInfo->bCurrentRT2RTAggregation) {
@@ -1413,7 +1413,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 					    ieee->current_network.bssht.bdSupportHT) {
 /*WB, 2008.09.09:bCurrentHTSupport and bEnableHT two flags are going to put together to check whether we are in HT now, so needn't to check bEnableHT flags here. That's is to say we will set to HT support whenever joined AP has the ability to support HT. And whether we are in HT or not, please check bCurrentHTSupport&&bEnableHT now please.*/
 					//	ieee->pHTInfo->bCurrentHTSupport = true;
-						HTResetSelfAndSavePeerSetting(ieee, &(ieee->current_network));
+						HTResetSelfAndSavePeerSetting(ieee, &ieee->current_network);
 					} else {
 						ieee->pHTInfo->bCurrentHTSupport = false;
 					}
