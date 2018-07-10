@@ -114,7 +114,10 @@ static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 			dev_consume_skb_any(skb);
 			dev_dbg(cpts->dev, "match tx timestamp mtype %u seqid %04x\n",
 				mtype, seqid);
-		} else if (time_after(jiffies, skb_cb->tmo)) {
+			break;
+		}
+
+		if (time_after(jiffies, skb_cb->tmo)) {
 			/* timeout any expired skbs over 1s */
 			dev_dbg(cpts->dev,
 				"expiring tx timestamp mtype %u seqid %04x\n",
