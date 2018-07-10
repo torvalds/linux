@@ -4060,6 +4060,8 @@
 			This parameter controls whether the Speculative Store
 			Bypass optimization is used.
 
+			On x86 the options are:
+
 			on      - Unconditionally disable Speculative Store Bypass
 			off     - Unconditionally enable Speculative Store Bypass
 			auto    - Kernel detects whether the CPU model contains an
@@ -4075,11 +4077,19 @@
 			seccomp - Same as "prctl" above, but all seccomp threads
 				  will disable SSB unless they explicitly opt out.
 
-			Not specifying this option is equivalent to
-			spec_store_bypass_disable=auto.
-
 			Default mitigations:
 			X86:	If CONFIG_SECCOMP=y "seccomp", otherwise "prctl"
+
+			On powerpc the options are:
+
+			on,auto - On Power8 and Power9 insert a store-forwarding
+				  barrier on kernel entry and exit. On Power7
+				  perform a software flush on kernel entry and
+				  exit.
+			off	- No action.
+
+			Not specifying this option is equivalent to
+			spec_store_bypass_disable=auto.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
