@@ -217,7 +217,6 @@ struct be_tx_stats {
 	u64 tx_vxlan_offload_pkts;
 	u64 tx_reqs;
 	u64 tx_compl;
-	ulong tx_jiffies;
 	u32 tx_stops;
 	u32 tx_drv_drops;	/* pkts dropped by driver */
 	/* the error counters are described in be_ethtool.c */
