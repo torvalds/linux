@@ -191,9 +191,6 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 				ret = -EBUSY;
 				break;
 			}
-			/* Break if SDA is high */
-			if (bri->get_sda && bri->get_sda(adap))
-				break;
 		}
 
 		val = !val;
@@ -209,22 +206,13 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 		if (bri->set_sda)
 			bri->set_sda(adap, val);
 		ndelay(RECOVERY_NDELAY / 2);
-	}
 
-	/* check if recovery actually succeeded */
-	if (bri->get_sda && !bri->get_sda(adap))
-		ret = -EBUSY;
-
-	/* If all went well, send STOP for a sane bus state. */
-	if (ret == 0 && bri->set_sda) {
-		bri->set_scl(adap, 0);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_sda(adap, 0);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_scl(adap, 1);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_sda(adap, 1);
-		ndelay(RECOVERY_NDELAY / 2);
+		/* Break if SDA is high */
+		if (val && bri->get_sda) {
+			ret = bri->get_sda(adap) ? 0 : -EBUSY;
+			if (ret == 0)
+				break;
+		}
 	}
 
 	if (bri->unprepare_recovery)
