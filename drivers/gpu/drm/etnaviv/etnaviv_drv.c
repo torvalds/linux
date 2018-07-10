@@ -78,8 +78,8 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 				gpu->lastctx = NULL;
 			mutex_unlock(&gpu->lock);
 
-			drm_sched_entity_fini(&gpu->sched,
-					      &ctx->sched_entity[i]);
+			drm_sched_entity_destroy(&gpu->sched,
+						&ctx->sched_entity[i]);
 		}
 	}
 

@@ -1578,7 +1578,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_up_hyst = 0;
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
-	data->current_profile_setting.bupdate_sclk = 1;
+	data->current_profile_setting.bupdate_mclk = 1;
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
@@ -3183,7 +3183,7 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 	performance_level->pcie_gen = get_pcie_gen_support(data->pcie_gen_cap,
 			state_entry->ucPCIEGenLow);
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
-			state_entry->ucPCIELaneHigh);
+			state_entry->ucPCIELaneLow);
 
 	performance_level = &(smu7_power_state->performance_levels
 			[smu7_power_state->performance_level_count++]);
@@ -5044,7 +5044,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_fan_control_mode = smu7_get_fan_control_mode,
 	.force_clock_level = smu7_force_clock_level,
 	.print_clock_levels = smu7_print_clock_levels,
-	.enable_per_cu_power_gating = smu7_enable_per_cu_power_gating,
+	.powergate_gfx = smu7_powergate_gfx,
 	.get_sclk_od = smu7_get_sclk_od,
 	.set_sclk_od = smu7_set_sclk_od,
 	.get_mclk_od = smu7_get_mclk_od,

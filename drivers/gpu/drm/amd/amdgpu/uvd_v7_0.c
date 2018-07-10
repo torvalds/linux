@@ -491,7 +491,7 @@ static int uvd_v7_0_sw_fini(void *handle)
 		return r;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
-		drm_sched_entity_fini(&adev->uvd.inst[j].ring_enc[0].sched, &adev->uvd.inst[j].entity_enc);
+		drm_sched_entity_destroy(&adev->uvd.inst[j].ring_enc[0].sched, &adev->uvd.inst[j].entity_enc);
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);

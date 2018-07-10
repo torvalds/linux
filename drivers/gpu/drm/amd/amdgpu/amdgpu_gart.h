@@ -37,6 +37,8 @@ struct amdgpu_bo;
 #define AMDGPU_GPU_PAGE_SHIFT 12
 #define AMDGPU_GPU_PAGE_ALIGN(a) (((a) + AMDGPU_GPU_PAGE_MASK) & ~AMDGPU_GPU_PAGE_MASK)
 
+#define AMDGPU_GPU_PAGES_IN_CPU_PAGE (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE)
+
 struct amdgpu_gart {
 	u64				table_addr;
 	struct amdgpu_bo		*robj;

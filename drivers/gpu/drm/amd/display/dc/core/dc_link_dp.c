@@ -3,6 +3,7 @@
 #include "dc.h"
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
+#include "opp.h"
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
@@ -1999,7 +2000,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 {
 	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
 	union device_service_irq device_service_clear = { { 0 } };
-	enum dc_status result = DDC_RESULT_UNKNOWN;
+	enum dc_status result;
 	bool status = false;
 	/* For use cases related to down stream connection status change,
 	 * PSR and device auto test, refer to function handle_sst_hpd_irq
@@ -2511,8 +2512,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
 	}
 	break;
@@ -2524,8 +2525,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
 	}

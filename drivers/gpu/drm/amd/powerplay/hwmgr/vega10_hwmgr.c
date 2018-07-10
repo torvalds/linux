@@ -55,12 +55,6 @@
 
 static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
-#define MEM_FREQ_LOW_LATENCY        25000
-#define MEM_FREQ_HIGH_LATENCY       80000
-#define MEM_LATENCY_HIGH            245
-#define MEM_LATENCY_LOW             35
-#define MEM_LATENCY_ERR             0xFFFF
-
 #define mmDF_CS_AON0_DramBaseAddress0                                                                  0x0044
 #define mmDF_CS_AON0_DramBaseAddress0_BASE_IDX                                                         0
 
@@ -3223,7 +3217,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		/* Find the lowest MCLK frequency that is within
 		 * the tolerable latency defined in DAL
 		 */
-		latency = 0;
+		latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 		for (i = 0; i < data->mclk_latency_table.count; i++) {
 			if ((data->mclk_latency_table.entries[i].latency <= latency) &&
 				(data->mclk_latency_table.entries[i].frequency >=
@@ -4064,26 +4058,15 @@ static void vega10_get_sclks(struct pp_hwmgr *hwmgr,
 			table_info->vdd_dep_on_sclk;
 	uint32_t i;
 
+	clocks->num_levels = 0;
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
 			clocks->data[clocks->num_levels].clocks_in_khz =
-					dep_table->entries[i].clk;
+					dep_table->entries[i].clk * 10;
 			clocks->num_levels++;
 		}
 	}
 
-}
-
-static uint32_t vega10_get_mem_latency(struct pp_hwmgr *hwmgr,
-		uint32_t clock)
-{
-	if (clock >= MEM_FREQ_LOW_LATENCY &&
-			clock < MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_HIGH;
-	else if (clock >= MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_LOW;
-	else
-		return MEM_LATENCY_ERR;
 }
 
 static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
@@ -4094,26 +4077,22 @@ static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
 			table_info->vdd_dep_on_mclk;
 	struct vega10_hwmgr *data = hwmgr->backend;
+	uint32_t j = 0;
 	uint32_t i;
-
-	clocks->num_levels = 0;
-	data->mclk_latency_table.count = 0;
 
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
-			clocks->data[clocks->num_levels].clocks_in_khz =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].frequency =
-					dep_table->entries[i].clk;
-			clocks->data[clocks->num_levels].latency_in_us =
-			data->mclk_latency_table.entries
-			[data->mclk_latency_table.count].latency =
-					vega10_get_mem_latency(hwmgr,
-						dep_table->entries[i].clk);
-			clocks->num_levels++;
-			data->mclk_latency_table.count++;
+
+			clocks->data[j].clocks_in_khz =
+						dep_table->entries[i].clk * 10;
+			data->mclk_latency_table.entries[j].frequency =
+							dep_table->entries[i].clk;
+			clocks->data[j].latency_in_us =
+				data->mclk_latency_table.entries[j].latency = 25;
+			j++;
 		}
 	}
+	clocks->num_levels = data->mclk_latency_table.count = j;
 }
 
 static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
@@ -4126,7 +4105,7 @@ static void vega10_get_dcefclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4142,7 +4121,7 @@ static void vega10_get_socclocks(struct pp_hwmgr *hwmgr,
 	uint32_t i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk * 10;
 		clocks->data[i].latency_in_us = 0;
 		clocks->num_levels++;
 	}
@@ -4202,7 +4181,7 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	}
 
 	for (i = 0; i < dep_table->count; i++) {
-		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk;
+		clocks->data[i].clocks_in_khz = dep_table->entries[i].clk  * 10;
 		clocks->data[i].voltage_in_mv = (uint32_t)(table_info->vddc_lookup_table->
 				entries[dep_table->entries[i].vddInd].us_vdd);
 		clocks->num_levels++;
@@ -4215,9 +4194,10 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 }
 
 static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
-		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+							void *clock_range)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
+	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges = clock_range;
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	int result = 0;
 

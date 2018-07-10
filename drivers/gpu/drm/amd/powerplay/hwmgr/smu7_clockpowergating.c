@@ -416,7 +416,7 @@ int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
  * Powerplay will only control the static per CU Power Gating.
  * Dynamic per CU Power Gating will be done in gfx.
  */
-int smu7_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
+int smu7_powergate_gfx(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 

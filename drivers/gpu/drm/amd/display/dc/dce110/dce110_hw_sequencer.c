@@ -1475,7 +1475,7 @@ static void power_down_controllers(struct dc *dc)
 {
 	int i;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		dc->res_pool->timing_generators[i]->funcs->disable_crtc(
 				dc->res_pool->timing_generators[i]);
 	}
@@ -1515,12 +1515,13 @@ static void disable_vga_and_power_gate_all_controllers(
 	struct timing_generator *tg;
 	struct dc_context *ctx = dc->ctx;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->disable_vga)
 			tg->funcs->disable_vga(tg);
-
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		/* Enable CLOCK gating for each pipe BEFORE controller
 		 * powergating. */
 		enable_display_pipe_clock_gating(ctx,
@@ -1663,7 +1664,7 @@ static void dce110_set_displaymarks(
 	}
 }
 
-static void set_safe_displaymarks(
+void dce110_set_safe_displaymarks(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool)
 {
@@ -1755,22 +1756,14 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 }
 
 /* unit: in_khz before mode set, get pixel clock from context. ASIC register
- * may not be programmed yet.
- * TODO: after mode set, pre_mode_set = false,
- * may read PLL register to get pixel clock
+ * may not be programmed yet
  */
 static uint32_t get_max_pixel_clock_for_all_paths(
 	struct dc *dc,
-	struct dc_state *context,
-	bool pre_mode_set)
+	struct dc_state *context)
 {
 	uint32_t max_pix_clk = 0;
 	int i;
-
-	if (!pre_mode_set) {
-		/* TODO: read ASIC register to get pixel clock */
-		ASSERT(0);
-	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -1787,92 +1780,7 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
 	}
 
-	if (max_pix_clk == 0)
-		ASSERT(0);
-
 	return max_pix_clk;
-}
-
-/*
- * Find clock state based on clock requested. if clock value is 0, simply
- * set clock state as requested without finding clock state by clock value
- */
-
-static void apply_min_clocks(
-	struct dc *dc,
-	struct dc_state *context,
-	enum dm_pp_clocks_state *clocks_state,
-	bool pre_mode_set)
-{
-	struct state_dependent_clocks req_clocks = {0};
-
-	if (!pre_mode_set) {
-		/* set clock_state without verification */
-		if (context->dis_clk->funcs->set_min_clocks_state) {
-			context->dis_clk->funcs->set_min_clocks_state(
-						context->dis_clk, *clocks_state);
-			return;
-		}
-
-		/* TODO: This is incorrect. Figure out how to fix. */
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
-				context->dis_clk->cur_clocks_value.dispclk_in_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_PIXELCLK,
-				context->dis_clk->cur_clocks_value.max_pixelclk_in_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
-				context->dis_clk->cur_clocks_value.max_non_dp_phyclk_in_khz,
-				pre_mode_set,
-				false);
-		return;
-	}
-
-	/* get the required state based on state dependent clocks:
-	 * display clock and pixel clock
-	 */
-	req_clocks.display_clk_khz = context->bw.dce.dispclk_khz;
-
-	req_clocks.pixel_clk_khz = get_max_pixel_clock_for_all_paths(
-			dc, context, true);
-
-	if (context->dis_clk->funcs->get_required_clocks_state) {
-		*clocks_state = context->dis_clk->funcs->get_required_clocks_state(
-				context->dis_clk, &req_clocks);
-		context->dis_clk->funcs->set_min_clocks_state(
-			context->dis_clk, *clocks_state);
-	} else {
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
-				req_clocks.display_clk_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_PIXELCLK,
-				req_clocks.pixel_clk_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
-				req_clocks.pixel_clk_khz,
-				pre_mode_set,
-				false);
-	}
 }
 
 /*
@@ -2093,7 +2001,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
-	enum dm_pp_clocks_state clocks_state = DM_PP_CLOCKS_STATE_INVALID;
 
 	/* Reset old context */
 	/* look up the targets that have been removed since last commit */
@@ -2127,54 +2034,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 				PIPE_GATING_CONTROL_DISABLE);
 	}
 
-	set_safe_displaymarks(&context->res_ctx, dc->res_pool);
-
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
-
-	/*TODO: when pplib works*/
-	apply_min_clocks(dc, context, &clocks_state, true);
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
-		if (context->bw.dcn.calc_clk.fclk_khz
-				> dc->current_state->bw.dcn.cur_clk.fclk_khz) {
-			struct dm_pp_clock_for_voltage_req clock;
-
-			clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-			clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
-			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-			dc->current_state->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
-			context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
-		}
-		if (context->bw.dcn.calc_clk.dcfclk_khz
-				> dc->current_state->bw.dcn.cur_clk.dcfclk_khz) {
-			struct dm_pp_clock_for_voltage_req clock;
-
-			clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-			clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
-			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-			dc->current_state->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
-			context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
-		}
-		if (context->bw.dcn.calc_clk.dispclk_khz
-				> dc->current_state->bw.dcn.cur_clk.dispclk_khz) {
-			dc->res_pool->display_clock->funcs->set_clock(
-					dc->res_pool->display_clock,
-					context->bw.dcn.calc_clk.dispclk_khz);
-			dc->current_state->bw.dcn.cur_clk.dispclk_khz =
-					context->bw.dcn.calc_clk.dispclk_khz;
-			context->bw.dcn.cur_clk.dispclk_khz =
-					context->bw.dcn.calc_clk.dispclk_khz;
-		}
-	} else
-#endif
-	if (context->bw.dce.dispclk_khz
-			> dc->current_state->bw.dce.dispclk_khz) {
-		dc->res_pool->display_clock->funcs->set_clock(
-				dc->res_pool->display_clock,
-				context->bw.dce.dispclk_khz * 115 / 100);
-	}
 
 	dce110_setup_audio_dto(dc, context);
 
@@ -2203,9 +2064,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (DC_OK != status)
 			return status;
 	}
-
-	/* to save power */
-	apply_min_clocks(dc, context, &clocks_state, false);
 
 	dcb->funcs->set_scratch_critical_state(dcb, false);
 
@@ -2694,15 +2552,20 @@ static void dce110_set_bandwidth(
 		struct dc_state *context,
 		bool decrease_allowed)
 {
-	dce110_set_displaymarks(dc, context);
+	struct dc_clocks req_clks;
 
-	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_state->bw.dce.dispclk_khz) {
-		dc->res_pool->display_clock->funcs->set_clock(
-				dc->res_pool->display_clock,
-				context->bw.dce.dispclk_khz * 115 / 100);
-		dc->current_state->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
-	}
+	req_clks.dispclk_khz = context->bw.dce.dispclk_khz * 115 / 100;
+	req_clks.phyclk_khz = get_max_pixel_clock_for_all_paths(dc, context);
 
+	if (decrease_allowed)
+		dce110_set_displaymarks(dc, context);
+	else
+		dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+
+	dc->res_pool->dccg->funcs->update_clocks(
+			dc->res_pool->dccg,
+			&req_clks,
+			decrease_allowed);
 	pplib_apply_display_requirements(dc, context);
 }
 

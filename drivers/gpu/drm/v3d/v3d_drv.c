@@ -151,7 +151,7 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	enum v3d_queue q;
 
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_entity_fini(&v3d->queue[q].sched,
+		drm_sched_entity_destroy(&v3d->queue[q].sched,
 				      &v3d_priv->sched_entity[q]);
 	}
 

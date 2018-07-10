@@ -471,8 +471,8 @@ void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
 						RENG_EXECUTE_ON_REG_UPDATE, 1);
 		WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
 
-		if (adev->powerplay.pp_funcs->set_mmhub_powergating_by_smu)
-			amdgpu_dpm_set_mmhub_powergating_by_smu(adev);
+		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GMC, true);
 
 	} else {
 		pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,

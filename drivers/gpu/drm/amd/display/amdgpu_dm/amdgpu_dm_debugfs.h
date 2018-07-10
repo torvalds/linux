@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,13 +23,12 @@
  *
  */
 
-#ifndef __SOC_BOUNDING_BOX_H__
-#define __SOC_BOUNDING_BOX_H__
+#ifndef __AMDGPU_DM_DEBUGFS_H__
+#define __AMDGPU_DM_DEBUGFS_H__
 
-#include "dml_common_defs.h"
+#include "amdgpu.h"
+#include "amdgpu_dm.h"
 
-void dml_socbb_set_latencies(soc_bounding_box_st *to_box, soc_bounding_box_st *from_box);
-voltage_scaling_st dml_socbb_voltage_scaling(const soc_bounding_box_st *box, enum voltage_state voltage);
-double dml_socbb_return_bw_mhz(soc_bounding_box_st *box, enum voltage_state voltage);
+int connector_debugfs_init(struct amdgpu_dm_connector *connector);
 
 #endif

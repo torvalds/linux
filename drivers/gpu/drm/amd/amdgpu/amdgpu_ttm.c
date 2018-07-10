@@ -162,7 +162,7 @@ error_mem:
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
-		drm_sched_entity_fini(adev->mman.entity.sched,
+		drm_sched_entity_destroy(adev->mman.entity.sched,
 				      &adev->mman.entity);
 		mutex_destroy(&adev->mman.gtt_window_lock);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);

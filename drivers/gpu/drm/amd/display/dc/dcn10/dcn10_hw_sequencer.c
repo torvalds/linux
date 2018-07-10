@@ -337,13 +337,13 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
 		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
-			dc->current_state->bw.dcn.calc_clk.dcfclk_khz,
-			dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			dc->current_state->bw.dcn.calc_clk.dispclk_khz,
-			dc->current_state->bw.dcn.calc_clk.dppclk_khz,
-			dc->current_state->bw.dcn.calc_clk.max_supported_dppclk_khz,
-			dc->current_state->bw.dcn.calc_clk.fclk_khz,
-			dc->current_state->bw.dcn.calc_clk.socclk_khz);
+			dc->current_state->bw.dcn.clk.dcfclk_khz,
+			dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
+			dc->current_state->bw.dcn.clk.dispclk_khz,
+			dc->current_state->bw.dcn.clk.dppclk_khz,
+			dc->current_state->bw.dcn.clk.max_supported_dppclk_khz,
+			dc->current_state->bw.dcn.clk.fclk_khz,
+			dc->current_state->bw.dcn.clk.socclk_khz);
 
 	log_mpc_crc(dc);
 
@@ -415,6 +415,8 @@ static void dpp_pg_control(
 
 	if (hws->ctx->dc->debug.disable_dpp_power_gate)
 		return;
+	if (REG(DOMAIN1_PG_CONFIG) == 0)
+		return;
 
 	switch (dpp_inst) {
 	case 0: /* DPP0 */
@@ -464,6 +466,8 @@ static void hubp_pg_control(
 	uint32_t pwr_status = power_on ? 0 : 2;
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
+		return;
+	if (REG(DOMAIN0_PG_CONFIG) == 0)
 		return;
 
 	switch (hubp_inst) {
@@ -865,7 +869,8 @@ void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
+	if (opp != NULL)
+		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
@@ -1010,7 +1015,7 @@ static void dcn10_init_hw(struct dc *dc)
 	/* Reset all MPCC muxes */
 	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
@@ -1343,10 +1348,11 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 
 	DC_SYNC_INFO("Setting up\n");
 	for (i = 0; i < group_size; i++)
-		grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
-				grouped_pipes[i]->stream_res.tg,
-				grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
-				&grouped_pipes[i]->stream->triggered_crtc_reset);
+		if (grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset)
+			grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
+					grouped_pipes[i]->stream_res.tg,
+					grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
+					&grouped_pipes[i]->stream->triggered_crtc_reset);
 
 	DC_SYNC_INFO("Waiting for trigger\n");
 
@@ -1952,18 +1958,17 @@ static void update_dchubp_dpp(
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
-		bool should_divided_by_2 = context->bw.dcn.calc_clk.dppclk_khz <=
-				context->bw.dcn.cur_clk.dispclk_khz / 2;
+		bool should_divided_by_2 = context->bw.dcn.clk.dppclk_khz <=
+				dc->res_pool->dccg->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
 				should_divided_by_2,
 				true);
 
-		dc->current_state->bw.dcn.cur_clk.dppclk_khz =
-				should_divided_by_2 ?
-				context->bw.dcn.cur_clk.dispclk_khz / 2 :
-				context->bw.dcn.cur_clk.dispclk_khz;
+		dc->res_pool->dccg->clks.dppclk_khz = should_divided_by_2 ?
+						dc->res_pool->dccg->clks.dispclk_khz / 2 :
+							dc->res_pool->dccg->clks.dispclk_khz;
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
@@ -2153,12 +2158,12 @@ static void dcn10_pplib_apply_display_requirements(
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
-	pp_display_cfg->min_engine_clock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = context->bw.dcn.cur_clk.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfclock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = context->bw.dcn.cur_clk.dispclk_khz;
+	pp_display_cfg->min_engine_clock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
+	pp_display_cfg->min_memory_clock_khz = dc->res_pool->dccg->clks.fclk_khz;
+	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_dcfclock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
+	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
 	dce110_fill_display_configs(context, pp_display_cfg);
 
 	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
@@ -2220,8 +2225,6 @@ static void dcn10_apply_ctx_for_surface(
 	int i;
 	struct timing_generator *tg;
 	bool removed_pipe[4] = { false };
-	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
-	bool program_water_mark = false;
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -2269,8 +2272,7 @@ static void dcn10_apply_ctx_for_surface(
 			hwss1_plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
 
-			DC_LOG_DC(
-					"Reset mpcc for pipe %d\n",
+			DC_LOG_DC("Reset mpcc for pipe %d\n",
 					old_pipe_ctx->pipe_idx);
 		}
 	}
@@ -2283,248 +2285,41 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == stream &&
-				pipe_ctx->plane_state &&
-			pipe_ctx->plane_state->update_flags.bits.full_update)
-			program_water_mark = true;
-
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])
-			dcn10_disable_plane(dc, old_pipe_ctx);
-	}
+			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
-	if (program_water_mark) {
-		if (dc->debug.sanity_checks) {
-			/* pstate stuck check after watermark update */
-			dcn10_verify_allow_pstate_change_high(dc);
-		}
-
-		/* watermark is for all pipes */
-		hubbub1_program_watermarks(dc->res_pool->hubbub,
-				&context->bw.dcn.watermarks, ref_clk_mhz);
-
-		if (dc->debug.sanity_checks) {
-			/* pstate stuck check after watermark update */
-			dcn10_verify_allow_pstate_change_high(dc);
-		}
-	}
-/*	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\n============== Watermark parameters ==============\n"
-			"a.urgent_ns: %d \n"
-			"a.cstate_enter_plus_exit: %d \n"
-			"a.cstate_exit: %d \n"
-			"a.pstate_change: %d \n"
-			"a.pte_meta_urgent: %d \n"
-			"b.urgent_ns: %d \n"
-			"b.cstate_enter_plus_exit: %d \n"
-			"b.cstate_exit: %d \n"
-			"b.pstate_change: %d \n"
-			"b.pte_meta_urgent: %d \n",
-			context->bw.dcn.watermarks.a.urgent_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.a.pte_meta_urgent_ns,
-			context->bw.dcn.watermarks.b.urgent_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.b.pte_meta_urgent_ns
-			);
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\nc.urgent_ns: %d \n"
-			"c.cstate_enter_plus_exit: %d \n"
-			"c.cstate_exit: %d \n"
-			"c.pstate_change: %d \n"
-			"c.pte_meta_urgent: %d \n"
-			"d.urgent_ns: %d \n"
-			"d.cstate_enter_plus_exit: %d \n"
-			"d.cstate_exit: %d \n"
-			"d.pstate_change: %d \n"
-			"d.pte_meta_urgent: %d \n"
-			"========================================================\n",
-			context->bw.dcn.watermarks.c.urgent_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.c.pte_meta_urgent_ns,
-			context->bw.dcn.watermarks.d.urgent_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
-			);
-*/
-}
-
-static inline bool should_set_clock(bool decrease_allowed, int calc_clk, int cur_clk)
-{
-	return ((decrease_allowed && calc_clk < cur_clk) || calc_clk > cur_clk);
-}
-
-static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
-{
-	bool request_dpp_div = context->bw.dcn.calc_clk.dispclk_khz >
-			context->bw.dcn.calc_clk.dppclk_khz;
-	bool dispclk_increase = context->bw.dcn.calc_clk.dispclk_khz >
-			context->bw.dcn.cur_clk.dispclk_khz;
-	int disp_clk_threshold = context->bw.dcn.calc_clk.max_supported_dppclk_khz;
-	bool cur_dpp_div = context->bw.dcn.cur_clk.dispclk_khz >
-			context->bw.dcn.cur_clk.dppclk_khz;
-
-	/* increase clock, looking for div is 0 for current, request div is 1*/
-	if (dispclk_increase) {
-		/* already divided by 2, no need to reach target clk with 2 steps*/
-		if (cur_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-
-		/* request disp clk is lower than maximum supported dpp clk,
-		 * no need to reach target clk with two steps.
-		 */
-		if (context->bw.dcn.calc_clk.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-
-		/* target dpp clk not request divided by 2, still within threshold */
-		if (!request_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-
-	} else {
-		/* decrease clock, looking for current dppclk divided by 2,
-		 * request dppclk not divided by 2.
-		 */
-
-		/* current dpp clk not divided by 2, no need to ramp*/
-		if (!cur_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-
-		/* current disp clk is lower than current maximum dpp clk,
-		 * no need to ramp
-		 */
-		if (context->bw.dcn.cur_clk.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-
-		/* request dpp clk need to be divided by 2 */
-		if (request_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
-	}
-
-	return disp_clk_threshold;
-}
-
-static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
-{
-	int i;
-	bool request_dpp_div = context->bw.dcn.calc_clk.dispclk_khz >
-				context->bw.dcn.calc_clk.dppclk_khz;
-
-	int dispclk_to_dpp_threshold = determine_dppclk_threshold(dc, context);
-
-	/* set disp clk to dpp clk threshold */
-	dc->res_pool->display_clock->funcs->set_clock(
-			dc->res_pool->display_clock,
-			dispclk_to_dpp_threshold);
-
-	/* update request dpp clk division option */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->plane_state)
-			continue;
-
-		pipe_ctx->plane_res.dpp->funcs->dpp_dppclk_control(
-				pipe_ctx->plane_res.dpp,
-				request_dpp_div,
-				true);
-	}
-
-	/* If target clk not same as dppclk threshold, set to target clock */
-	if (dispclk_to_dpp_threshold != context->bw.dcn.calc_clk.dispclk_khz) {
-		dc->res_pool->display_clock->funcs->set_clock(
-				dc->res_pool->display_clock,
-				context->bw.dcn.calc_clk.dispclk_khz);
-	}
-
-	context->bw.dcn.cur_clk.dispclk_khz =
-			context->bw.dcn.calc_clk.dispclk_khz;
-	context->bw.dcn.cur_clk.dppclk_khz =
-			context->bw.dcn.calc_clk.dppclk_khz;
-	context->bw.dcn.cur_clk.max_supported_dppclk_khz =
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz;
+	if (dc->hwseq->wa.DEGVIDCN10_254)
+		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
 
 static void dcn10_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
-		bool decrease_allowed)
+		bool safe_to_lower)
 {
-	struct pp_smu_display_requirement_rv *smu_req_cur =
-			&dc->res_pool->pp_smu_req;
-	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-
-	if (dc->debug.sanity_checks) {
+	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
+
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		if (context->stream_count == 0)
+			context->bw.dcn.clk.phyclk_khz = 0;
+
+		dc->res_pool->dccg->funcs->update_clocks(
+				dc->res_pool->dccg,
+				&context->bw.dcn.clk,
+				safe_to_lower);
+
+		dcn10_pplib_apply_display_requirements(dc, context);
 	}
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		return;
+	hubbub1_program_watermarks(dc->res_pool->hubbub,
+			&context->bw.dcn.watermarks,
+			dc->res_pool->ref_clock_inKhz / 1000,
+			true);
 
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.dcfclk_khz,
-			dc->current_state->bw.dcn.cur_clk.dcfclk_khz)) {
-		context->bw.dcn.cur_clk.dcfclk_khz =
-				context->bw.dcn.calc_clk.dcfclk_khz;
-		smu_req.hard_min_dcefclk_khz =
-				context->bw.dcn.calc_clk.dcfclk_khz;
-	}
-
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			dc->current_state->bw.dcn.cur_clk.dcfclk_deep_sleep_khz)) {
-		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
-				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
-	}
-
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.fclk_khz,
-			dc->current_state->bw.dcn.cur_clk.fclk_khz)) {
-		context->bw.dcn.cur_clk.fclk_khz =
-				context->bw.dcn.calc_clk.fclk_khz;
-		smu_req.hard_min_fclk_khz = context->bw.dcn.calc_clk.fclk_khz;
-	}
-
-	smu_req.display_count = context->stream_count;
-
-	if (pp_smu->set_display_requirement)
-		pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-
-	*smu_req_cur = smu_req;
-
-	/* make sure dcf clk is before dpp clk to
-	 * make sure we have enough voltage to run dpp clk
-	 */
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.dispclk_khz,
-			dc->current_state->bw.dcn.cur_clk.dispclk_khz)) {
-
-		ramp_up_dispclk_with_dpp(dc, context);
-	}
-
-	dcn10_pplib_apply_display_requirements(dc, context);
-
-	if (dc->debug.sanity_checks) {
+	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
-	}
-
-	/* need to fix this function.  not doing the right thing here */
 }
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
@@ -2707,8 +2502,14 @@ static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 static void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 {
-	if (hws->ctx->dc->res_pool->hubbub != NULL)
-		hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+	if (hws->ctx->dc->res_pool->hubbub != NULL) {
+		struct hubp *hubp = hws->ctx->dc->res_pool->hubps[0];
+
+		if (hubp->funcs->hubp_update_dchub)
+			hubp->funcs->hubp_update_dchub(hubp, dh_data);
+		else
+			hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+	}
 }
 
 static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)

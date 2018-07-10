@@ -191,7 +191,6 @@ error:
 /**
  * amdgpu_gem_map_attach - &dma_buf_ops.attach implementation
  * @dma_buf: shared DMA buffer
- * @target_dev: target device
  * @attach: DMA-buf attachment
  *
  * Makes sure that the shared DMA buffer can be accessed by the target device.

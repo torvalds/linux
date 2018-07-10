@@ -166,7 +166,7 @@ void hubp1_program_size_and_rotation(
 	/* Program data and meta surface pitch (calculation from addrlib)
 	 * 444 or 420 luma
 	 */
-	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN && format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END) {
 		ASSERT(plane_size->video.chroma_pitch != 0);
 		/* Chroma pitch zero can cause system hang! */
 

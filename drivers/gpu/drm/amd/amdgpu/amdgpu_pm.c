@@ -918,6 +918,36 @@ fail:
 	return -EINVAL;
 }
 
+/**
+ * DOC: busy_percent
+ *
+ * The amdgpu driver provides a sysfs API for reading how busy the GPU
+ * is as a percentage.  The file gpu_busy_percent is used for this.
+ * The SMU firmware computes a percentage of load based on the
+ * aggregate activity level in the IP cores.
+ */
+static ssize_t amdgpu_get_busy_percent(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int r, value, size = sizeof(value);
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+		return -EINVAL;
+
+	/* read the IP busy sensor */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD,
+				   (void *)&value, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, amdgpu_get_dpm_state, amdgpu_set_dpm_state);
 static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
 		   amdgpu_get_dpm_forced_performance_level,
@@ -951,6 +981,8 @@ static DEVICE_ATTR(pp_power_profile_mode, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_od_clk_voltage, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_od_clk_voltage,
 		amdgpu_set_pp_od_clk_voltage);
+static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
+		amdgpu_get_busy_percent, NULL);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -1697,10 +1729,10 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_uvd) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable UVD */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_uvd(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
@@ -1719,10 +1751,10 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_vce) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable VCE */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_vce(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_VCE, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
@@ -1854,6 +1886,13 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_od_clk_voltage\n");
 		return ret;
 	}
+	ret = device_create_file(adev->dev,
+			&dev_attr_gpu_busy_percent);
+	if (ret) {
+		DRM_ERROR("failed to create device file	"
+				"gpu_busy_level\n");
+		return ret;
+	}
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -1889,6 +1928,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 			&dev_attr_pp_power_profile_mode);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_od_clk_voltage);
+	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
@@ -1919,7 +1959,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 		if (!amdgpu_device_has_dc_support(adev)) {
 			mutex_lock(&adev->pm.mutex);
 			amdgpu_dpm_get_active_displays(adev);
-			adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtcs;
+			adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
 			adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
 			adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
 			/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */

@@ -314,17 +314,17 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					(adev->pdev->revision == 0x81) ||
 					(adev->pdev->device == 0x665f)) {
 					info->is_kicker = true;
-					strcpy(fw_name, "radeon/bonaire_k_smc.bin");
+					strcpy(fw_name, "amdgpu/bonaire_k_smc.bin");
 				} else {
-					strcpy(fw_name, "radeon/bonaire_smc.bin");
+					strcpy(fw_name, "amdgpu/bonaire_smc.bin");
 				}
 				break;
 			case CHIP_HAWAII:
 				if (adev->pdev->revision == 0x80) {
 					info->is_kicker = true;
-					strcpy(fw_name, "radeon/hawaii_k_smc.bin");
+					strcpy(fw_name, "amdgpu/hawaii_k_smc.bin");
 				} else {
-					strcpy(fw_name, "radeon/hawaii_smc.bin");
+					strcpy(fw_name, "amdgpu/hawaii_smc.bin");
 				}
 				break;
 			case CHIP_TOPAZ:

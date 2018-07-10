@@ -33,6 +33,7 @@
 #include "dc_link_dp.h"
 #include "dc_link_ddc.h"
 #include "link_hwss.h"
+#include "opp.h"
 
 #include "link_encoder.h"
 #include "hw_sequencer.h"
@@ -1284,29 +1285,15 @@ static enum dc_status enable_link_dp(
 		max_link_rate = LINK_RATE_HIGH3;
 
 	if (link_settings.link_rate == max_link_rate) {
-		if (state->dis_clk->funcs->set_min_clocks_state) {
-			if (state->dis_clk->cur_min_clks_state < DM_PP_CLOCKS_STATE_NOMINAL)
-				state->dis_clk->funcs->set_min_clocks_state(
-					state->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
-		} else {
-			uint32_t dp_phyclk_in_khz;
-			const struct clocks_value clocks_value =
-					state->dis_clk->cur_clocks_value;
+		struct dc_clocks clocks = state->bw.dcn.clk;
 
-			/* 27mhz = 27000000hz= 27000khz */
-			dp_phyclk_in_khz = link_settings.link_rate * 27000;
+		/* dce/dcn compat, do not update dispclk */
+		clocks.dispclk_khz = 0;
+		/* 27mhz = 27000000hz= 27000khz */
+		clocks.phyclk_khz = link_settings.link_rate * 27000;
 
-			if (((clocks_value.max_non_dp_phyclk_in_khz != 0) &&
-				(dp_phyclk_in_khz > clocks_value.max_non_dp_phyclk_in_khz)) ||
-				(dp_phyclk_in_khz > clocks_value.max_dp_phyclk_in_khz)) {
-				state->dis_clk->funcs->apply_clock_voltage_request(
-						state->dis_clk,
-						DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
-						dp_phyclk_in_khz,
-						false,
-						true);
-			}
-		}
+		state->dis_clk->funcs->update_clocks(
+				state->dis_clk, &clocks, false);
 	}
 
 	dp_enable_link_phy(
@@ -2396,9 +2383,10 @@ void core_link_enable_stream(
 	core_dc->hwss.enable_audio_stream(pipe_ctx);
 
 	/* turn off otg test pattern if enable */
-	pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
-			CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-			COLOR_DEPTH_UNDEFINED);
+	if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+				COLOR_DEPTH_UNDEFINED);
 
 	core_dc->hwss.enable_stream(pipe_ctx);
 

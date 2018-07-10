@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.47"
+#define DC_VER "3.1.52"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -186,6 +186,10 @@ enum wm_report_mode {
 	WM_REPORT_OVERRIDE = 1,
 };
 
+/*
+ * For any clocks that may differ per pipe
+ * only the max is stored in this structure
+ */
 struct dc_clocks {
 	int dispclk_khz;
 	int max_supported_dppclk_khz;
@@ -194,6 +198,7 @@ struct dc_clocks {
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
+	int phyclk_khz;
 };
 
 struct dc_debug {
@@ -228,6 +233,7 @@ struct dc_debug {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	bool optimized_watermark;
 	int always_scale;
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
