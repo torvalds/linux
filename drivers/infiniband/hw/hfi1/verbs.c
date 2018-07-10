@@ -1884,7 +1884,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->process_mad = hfi1_process_mad;
 	ibdev->get_dev_fw_str = hfi1_get_dev_fw_str;
 
-	strncpy(ibdev->node_desc, init_utsname()->nodename,
+	strlcpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
 
 	/*
