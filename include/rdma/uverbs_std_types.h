@@ -46,39 +46,43 @@ static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(vo
 }
 #endif
 
-static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
-					    bool write,
-					    struct ib_uverbs_file *ufile,
-					    int id)
-{
-	return rdma_lookup_get_uobject(type, ufile, id, write);
-}
+/* Returns _id, or causes a compile error if _id is not a u32.
+ *
+ * The uobj APIs should only be used with the write based uAPI to access
+ * object IDs. The write API must use a u32 for the object handle, which is
+ * checked by this macro.
+ */
+#define _uobj_check_id(_id) ((_id) * typecheck(u32, _id))
 
 #define uobj_get_type(_object) UVERBS_OBJECT(_object).type_attrs
 
 #define uobj_get_read(_type, _id, _ufile)                                      \
-	__uobj_get(uobj_get_type(_type), false, _ufile, _id)
+	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
+				_uobj_check_id(_id), false)
 
-static inline void *_uobj_get_obj_read(const struct uverbs_obj_type *type,
-				       int id, struct ib_uverbs_file *ufile)
+#define ufd_get_read(_type, _fdnum, _ufile)                                    \
+	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
+				(_fdnum)*typecheck(s32, _fdnum), false)
+
+static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 {
-	struct ib_uobject *uobj = __uobj_get(type, false, ufile, id);
-
 	if (IS_ERR(uobj))
 		return NULL;
 	return uobj->object;
 }
 #define uobj_get_obj_read(_object, _type, _id, _ufile)                         \
-	((struct ib_##_object *)_uobj_get_obj_read(uobj_get_type(_type), _id,  \
-						   _ufile))
+	((struct ib_##_object *)_uobj_get_obj_read(                            \
+		uobj_get_read(_type, _id, _ufile)))
 
 #define uobj_get_write(_type, _id, _ufile)                                     \
-	__uobj_get(uobj_get_type(_type), true, _ufile, _id)
+	rdma_lookup_get_uobject(uobj_get_type(_type), _ufile,                  \
+				_uobj_check_id(_id), true)
 
-int __uobj_perform_destroy(const struct uverbs_obj_type *type, int id,
+int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 			   struct ib_uverbs_file *ufile, int success_res);
 #define uobj_perform_destroy(_type, _id, _ufile, _success_res)                 \
-	__uobj_perform_destroy(uobj_get_type(_type), _id, _ufile, _success_res)
+	__uobj_perform_destroy(uobj_get_type(_type), _uobj_check_id(_id),      \
+			       _ufile, _success_res)
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
 {

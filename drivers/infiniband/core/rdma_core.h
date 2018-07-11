@@ -86,7 +86,7 @@ void uverbs_close_fd(struct file *f);
 struct ib_uobject *
 uverbs_get_uobject_from_file(const struct uverbs_obj_type *type_attrs,
 			     struct ib_uverbs_file *ufile,
-			     enum uverbs_obj_access access, int id);
+			     enum uverbs_obj_access access, s64 id);
 
 /*
  * Note that certain finalize stages could return a status:

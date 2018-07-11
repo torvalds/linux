@@ -77,7 +77,7 @@ struct uverbs_obj_type_class {
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,
-					 struct ib_uverbs_file *ufile, int id,
+					 struct ib_uverbs_file *ufile, s64 id,
 					 bool exclusive);
 	void (*lookup_put)(struct ib_uobject *uobj, bool exclusive);
 	/*
@@ -121,7 +121,7 @@ struct uverbs_obj_idr_type {
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 					   struct ib_uverbs_file *ufile,
-					   int id, bool exclusive);
+					   s64 id, bool exclusive);
 void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 					    struct ib_uverbs_file *ufile);

@@ -136,15 +136,11 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		break;
 
 	case UVERBS_ATTR_TYPE_IDR:
-		if (uattr->data >> 32)
-			return -EINVAL;
-	/* fall through */
 	case UVERBS_ATTR_TYPE_FD:
 		if (uattr->attr_data.reserved)
 			return -EINVAL;
 
-		if (uattr->len != 0 || !ufile->ucontext ||
-		    uattr->data > INT_MAX)
+		if (uattr->len != 0 || !ufile->ucontext)
 			return -EINVAL;
 
 		o_attr = &e->obj_attr;
@@ -152,17 +148,23 @@ static int uverbs_process_attr(struct ib_uverbs_file *ufile,
 		if (!object)
 			return -EINVAL;
 
+		/*
+		 * The type of uattr->data is u64 for UVERBS_ATTR_TYPE_IDR and
+		 * s64 for UVERBS_ATTR_TYPE_FD. We can cast the u64 to s64
+		 * here without caring about truncation as we know that the
+		 * IDR implementation today rejects negative IDs
+		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
 					object->type_attrs,
 					ufile,
 					spec->u.obj.access,
-					(int)uattr->data);
+					uattr->data_s64);
 
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
-			u64 id = o_attr->uobject->id;
+			s64 id = o_attr->uobject->id;
 
 			/* Copy the allocated id to the user-space */
 			if (put_user(id, &e->uattr->data)) {

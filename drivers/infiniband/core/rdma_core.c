@@ -133,7 +133,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
  * returns success_res on success (negative errno on failure). For use by
  * callers that do not need the uobj.
  */
-int __uobj_perform_destroy(const struct uverbs_obj_type *type, int id,
+int __uobj_perform_destroy(const struct uverbs_obj_type *type, u32 id,
 			   struct ib_uverbs_file *ufile, int success_res)
 {
 	struct ib_uobject *uobj;
@@ -212,13 +212,17 @@ static void uverbs_idr_remove_uobj(struct ib_uobject *uobj)
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
 static struct ib_uobject *
 lookup_get_idr_uobject(const struct uverbs_obj_type *type,
-		       struct ib_uverbs_file *ufile, int id, bool exclusive)
+		       struct ib_uverbs_file *ufile, s64 id, bool exclusive)
 {
 	struct ib_uobject *uobj;
+	unsigned long idrno = id;
+
+	if (id < 0 || id > ULONG_MAX)
+		return ERR_PTR(-EINVAL);
 
 	rcu_read_lock();
 	/* object won't be released as we're protected in rcu */
-	uobj = idr_find(&ufile->idr, id);
+	uobj = idr_find(&ufile->idr, idrno);
 	if (!uobj) {
 		uobj = ERR_PTR(-ENOENT);
 		goto free;
@@ -240,17 +244,21 @@ free:
 
 static struct ib_uobject *lookup_get_fd_uobject(const struct uverbs_obj_type *type,
 						struct ib_uverbs_file *ufile,
-						int id, bool exclusive)
+						s64 id, bool exclusive)
 {
 	struct file *f;
 	struct ib_uobject *uobject;
+	int fdno = id;
 	const struct uverbs_obj_fd_type *fd_type =
 		container_of(type, struct uverbs_obj_fd_type, type);
+
+	if (fdno != id)
+		return ERR_PTR(-EINVAL);
 
 	if (exclusive)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	f = fget(id);
+	f = fget(fdno);
 	if (!f)
 		return ERR_PTR(-EBADF);
 
@@ -270,7 +278,7 @@ static struct ib_uobject *lookup_get_fd_uobject(const struct uverbs_obj_type *ty
 }
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
-					   struct ib_uverbs_file *ufile, int id,
+					   struct ib_uverbs_file *ufile, s64 id,
 					   bool exclusive)
 {
 	struct ib_uobject *uobj;
@@ -725,7 +733,7 @@ EXPORT_SYMBOL(uverbs_fd_class);
 struct ib_uobject *
 uverbs_get_uobject_from_file(const struct uverbs_obj_type *type_attrs,
 			     struct ib_uverbs_file *ufile,
-			     enum uverbs_obj_access access, int id)
+			     enum uverbs_obj_access access, s64 id)
 {
 	switch (access) {
 	case UVERBS_ACCESS_READ:

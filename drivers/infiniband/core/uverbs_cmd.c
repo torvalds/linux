@@ -48,10 +48,10 @@
 #include "core_priv.h"
 
 static struct ib_uverbs_completion_event_file *
-ib_uverbs_lookup_comp_file(int fd, struct ib_uverbs_file *ufile)
+_ib_uverbs_lookup_comp_file(s32 fd, struct ib_uverbs_file *ufile)
 {
-	struct ib_uobject *uobj = uobj_get_read(UVERBS_OBJECT_COMP_CHANNEL,
-						fd, ufile);
+	struct ib_uobject *uobj = ufd_get_read(UVERBS_OBJECT_COMP_CHANNEL,
+					       fd, ufile);
 
 	if (IS_ERR(uobj))
 		return (void *)uobj;
@@ -62,6 +62,8 @@ ib_uverbs_lookup_comp_file(int fd, struct ib_uverbs_file *ufile)
 	return container_of(uobj, struct ib_uverbs_completion_event_file,
 			    uobj);
 }
+#define ib_uverbs_lookup_comp_file(_fd, _ufile)                                \
+	_ib_uverbs_lookup_comp_file((_fd)*typecheck(s32, _fd), _ufile)
 
 ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 			      struct ib_device *ib_dev,
