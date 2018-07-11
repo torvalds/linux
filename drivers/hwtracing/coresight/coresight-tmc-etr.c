@@ -9,6 +9,7 @@
 #include <linux/iommu.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include "coresight-catu.h"
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
@@ -701,6 +702,48 @@ static const struct etr_buf_operations etr_sg_buf_ops = {
 	.get_data = tmc_etr_get_data_sg_buf,
 };
 
+/*
+ * TMC ETR could be connected to a CATU device, which can provide address
+ * translation service. This is represented by the Output port of the TMC
+ * (ETR) connected to the input port of the CATU.
+ *
+ * Returns	: coresight_device ptr for the CATU device if a CATU is found.
+ *		: NULL otherwise.
+ */
+static inline struct coresight_device *
+tmc_etr_get_catu_device(struct tmc_drvdata *drvdata)
+{
+	int i;
+	struct coresight_device *tmp, *etr = drvdata->csdev;
+
+	if (!IS_ENABLED(CONFIG_CORESIGHT_CATU))
+		return NULL;
+
+	for (i = 0; i < etr->nr_outport; i++) {
+		tmp = etr->conns[i].child_dev;
+		if (tmp && coresight_is_catu_device(tmp))
+			return tmp;
+	}
+
+	return NULL;
+}
+
+static inline void tmc_etr_enable_catu(struct tmc_drvdata *drvdata)
+{
+	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
+
+	if (catu && helper_ops(catu)->enable)
+		helper_ops(catu)->enable(catu, NULL);
+}
+
+static inline void tmc_etr_disable_catu(struct tmc_drvdata *drvdata)
+{
+	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
+
+	if (catu && helper_ops(catu)->disable)
+		helper_ops(catu)->disable(catu, NULL);
+}
+
 static const struct etr_buf_operations *etr_buf_ops[] = {
 	[ETR_MODE_FLAT] = &etr_flat_buf_ops,
 	[ETR_MODE_ETR_SG] = &etr_sg_buf_ops,
@@ -844,6 +887,12 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	u32 axictl, sts;
 	struct etr_buf *etr_buf = drvdata->etr_buf;
 
+	/*
+	 * If this ETR is connected to a CATU, enable it before we turn
+	 * this on
+	 */
+	tmc_etr_enable_catu(drvdata);
+
 	CS_UNLOCK(drvdata->base);
 
 	/* Wait for TMCSReady bit to be set */
@@ -952,6 +1001,9 @@ static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 	tmc_disable_hw(drvdata);
 
 	CS_LOCK(drvdata->base);
+
+	/* Disable CATU device if this ETR is connected to one */
+	tmc_etr_disable_catu(drvdata);
 }
 
 static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)

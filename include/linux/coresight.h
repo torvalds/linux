@@ -65,6 +65,7 @@ enum coresight_dev_subtype_source {
 
 enum coresight_dev_subtype_helper {
 	CORESIGHT_DEV_SUBTYPE_HELPER_NONE,
+	CORESIGHT_DEV_SUBTYPE_HELPER_CATU,
 };
 
 /**
