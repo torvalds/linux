@@ -9,8 +9,8 @@
  * - We use the mean latency over the 100ms window.  This is because writes can
  *   be particularly fast, which could give us a false sense of the impact of
  *   other workloads on our protected workload.
- * - By default there's no throttling, we set the queue_depth to INT_MAX so that
- *   we can have as many outstanding bio's as we're allowed to.  Only at
+ * - By default there's no throttling, we set the queue_depth to UINT_MAX so
+ *   that we can have as many outstanding bio's as we're allowed to.  Only at
  *   throttle time do we pay attention to the actual queue depth.
  *
  * The hierarchy works like the cpu controller does, we track the latency at
@@ -361,7 +361,7 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	/* We're back to the default cookie, unthrottle all the things. */
 	if (cur_cookie == DEFAULT_SCALE_COOKIE) {
 		blkcg_clear_delay(lat_to_blkg(iolat));
-		iolat->rq_depth.max_depth = INT_MAX;
+		iolat->rq_depth.max_depth = UINT_MAX;
 		wake_up_all(&iolat->rq_wait.wait);
 		return;
 	}
@@ -434,7 +434,7 @@ static void iolatency_record_time(struct iolatency_grp *iolat,
 	 * We don't want to count issue_as_root bio's in the cgroups latency
 	 * statistics as it could skew the numbers downwards.
 	 */
-	if (unlikely(issue_as_root && iolat->rq_depth.max_depth != (u64)-1)) {
+	if (unlikely(issue_as_root && iolat->rq_depth.max_depth != UINT_MAX)) {
 		u64 sub = iolat->min_lat_nsec;
 		if (req_time < sub)
 			blkcg_add_delay(lat_to_blkg(iolat), now, sub - req_time);
@@ -816,7 +816,7 @@ static size_t iolatency_pd_stat(struct blkg_policy_data *pd, char *buf,
 	struct iolatency_grp *iolat = pd_to_lat(pd);
 	unsigned long long avg_lat = div64_u64(iolat->total_lat_avg, NSEC_PER_USEC);
 
-	if (iolat->rq_depth.max_depth == (u64)-1)
+	if (iolat->rq_depth.max_depth == UINT_MAX)
 		return scnprintf(buf, size, " depth=max avg_lat=%llu",
 				 avg_lat);
 
@@ -859,7 +859,7 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 	rq_wait_init(&iolat->rq_wait);
 	spin_lock_init(&iolat->child_lat.lock);
 	iolat->rq_depth.queue_depth = blk_queue_depth(blkg->q);
-	iolat->rq_depth.max_depth = INT_MAX;
+	iolat->rq_depth.max_depth = UINT_MAX;
 	iolat->rq_depth.default_depth = iolat->rq_depth.queue_depth;
 	iolat->blkiolat = blkiolat;
 	iolat->cur_win_nsec = 100 * NSEC_PER_MSEC;
