@@ -294,24 +294,6 @@ struct rx_desc_819x_usb {
 	u32                 Reserved2;
 };
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-typedef struct _rx_desc_819x_usb_aggr_subframe {
-	/* DOWRD 0 */
-	u16			Length:14;
-	u16			CRC32:1;
-	u16			ICV:1;
-	u8			Offset;
-	u8			RxDrvInfoSize;
-	/* DOWRD 1 */
-	u8			Shift:2;
-	u8			PHYStatus:1;
-	u8			SWDec:1;
-	u8			Reserved1:4;
-	u8			Reserved2;
-	u16			Reserved3;
-} rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
-#endif
-
 typedef struct rx_drvinfo_819x_usb {
 	/* DWORD 0 */
 	u16                 Reserved1:12;
