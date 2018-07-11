@@ -475,8 +475,8 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 {
 	struct tasklet_hrtimer *thr = container_of(me, struct tasklet_hrtimer, timer);
 	struct xfrm_state *x = container_of(thr, struct xfrm_state, mtimer);
-	unsigned long now = get_seconds();
-	long next = LONG_MAX;
+	time64_t now = ktime_get_real_seconds();
+	time64_t next = TIME64_MAX;
 	int warn = 0;
 	int err = 0;
 
@@ -537,7 +537,7 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 	if (warn)
 		km_state_expired(x, 0, 0);
 resched:
-	if (next != LONG_MAX) {
+	if (next != TIME64_MAX) {
 		tasklet_hrtimer_start(&x->mtimer, ktime_set(next, 0), HRTIMER_MODE_REL);
 	}
 
@@ -577,7 +577,7 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		tasklet_hrtimer_init(&x->mtimer, xfrm_timer_handler,
 					CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
 		timer_setup(&x->rtimer, xfrm_replay_timer_handler, 0);
-		x->curlft.add_time = get_seconds();
+		x->curlft.add_time = ktime_get_real_seconds();
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;
 		x->lft.hard_byte_limit = XFRM_INF;
@@ -1588,7 +1588,7 @@ EXPORT_SYMBOL(xfrm_state_update);
 int xfrm_state_check_expire(struct xfrm_state *x)
 {
 	if (!x->curlft.use_time)
-		x->curlft.use_time = get_seconds();
+		x->curlft.use_time = ktime_get_real_seconds();
 
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
