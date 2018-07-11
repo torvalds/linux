@@ -684,7 +684,7 @@ static void lio_sync_octeon_time(struct work_struct *work)
 	lt = (struct lio_time *)sc->virtdptr;
 
 	/* Get time of the day */
-	getnstimeofday64(&ts);
+	ktime_get_real_ts64(&ts);
 	lt->sec = ts.tv_sec;
 	lt->nsec = ts.tv_nsec;
 	octeon_swap_8B_data((u64 *)lt, (sizeof(struct lio_time)) / 8);
