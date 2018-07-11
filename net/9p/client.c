@@ -914,13 +914,11 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	p9_debug(P9_DEBUG_FID, "clnt %p\n", clnt);
 	fid = kmalloc(sizeof(struct p9_fid), GFP_KERNEL);
 	if (!fid)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	ret = p9_idpool_get(clnt->fidpool);
-	if (ret < 0) {
-		ret = -ENOSPC;
+	if (ret < 0)
 		goto error;
-	}
 	fid->fid = ret;
 
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
@@ -936,7 +934,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 
 error:
 	kfree(fid);
-	return ERR_PTR(ret);
+	return NULL;
 }
 
 static void p9_fid_destroy(struct p9_fid *fid)
@@ -1138,9 +1136,8 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 	p9_debug(P9_DEBUG_9P, ">>> TATTACH afid %d uname %s aname %s\n",
 		 afid ? afid->fid : -1, uname, aname);
 	fid = p9_fid_create(clnt);
-	if (IS_ERR(fid)) {
-		err = PTR_ERR(fid);
-		fid = NULL;
+	if (!fid) {
+		err = -ENOMEM;
 		goto error;
 	}
 	fid->uid = n_uname;
@@ -1189,9 +1186,8 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
 	clnt = oldfid->clnt;
 	if (clone) {
 		fid = p9_fid_create(clnt);
-		if (IS_ERR(fid)) {
-			err = PTR_ERR(fid);
-			fid = NULL;
+		if (!fid) {
+			err = -ENOMEM;
 			goto error;
 		}
 
@@ -2019,9 +2015,8 @@ struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
 	err = 0;
 	clnt = file_fid->clnt;
 	attr_fid = p9_fid_create(clnt);
-	if (IS_ERR(attr_fid)) {
-		err = PTR_ERR(attr_fid);
-		attr_fid = NULL;
+	if (!attr_fid) {
+		err = -ENOMEM;
 		goto error;
 	}
 	p9_debug(P9_DEBUG_9P,
