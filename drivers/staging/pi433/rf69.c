@@ -525,22 +525,34 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 dio_number, u8 value)
 
 	switch (dio_number) {
 	case 0:
-		mask = MASK_DIO0; shift = SHIFT_DIO0; dio_addr = REG_DIOMAPPING1;
+		mask = MASK_DIO0;
+		shift = SHIFT_DIO0;
+		dio_addr = REG_DIOMAPPING1;
 		break;
 	case 1:
-		mask = MASK_DIO1; shift = SHIFT_DIO1; dio_addr = REG_DIOMAPPING1;
+		mask = MASK_DIO1;
+		shift = SHIFT_DIO1;
+		dio_addr = REG_DIOMAPPING1;
 		break;
 	case 2:
-		mask = MASK_DIO2; shift = SHIFT_DIO2; dio_addr = REG_DIOMAPPING1;
+		mask = MASK_DIO2;
+		shift = SHIFT_DIO2;
+		dio_addr = REG_DIOMAPPING1;
 		break;
 	case 3:
-		mask = MASK_DIO3; shift = SHIFT_DIO3; dio_addr = REG_DIOMAPPING1;
+		mask = MASK_DIO3;
+		shift = SHIFT_DIO3;
+		dio_addr = REG_DIOMAPPING1;
 		break;
 	case 4:
-		mask = MASK_DIO4; shift = SHIFT_DIO4; dio_addr = REG_DIOMAPPING2;
+		mask = MASK_DIO4;
+		shift = SHIFT_DIO4;
+		dio_addr = REG_DIOMAPPING2;
 		break;
 	case 5:
-		mask = MASK_DIO5; shift = SHIFT_DIO5; dio_addr = REG_DIOMAPPING2;
+		mask = MASK_DIO5;
+		shift = SHIFT_DIO5;
+		dio_addr = REG_DIOMAPPING2;
 		break;
 	default:
 	dev_dbg(&spi->dev, "set: illegal input param");
