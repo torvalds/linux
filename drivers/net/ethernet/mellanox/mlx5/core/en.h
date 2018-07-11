@@ -912,16 +912,11 @@ void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);
 void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
 		     u64 *buf);
-int mlx5e_ethtool_get_flow(struct mlx5e_priv *priv, struct ethtool_rxnfc *info,
-			   int location);
-int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
-				struct ethtool_rxnfc *info, u32 *rule_locs);
-int mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
-			       struct ethtool_rx_flow_spec *fs);
-int mlx5e_ethtool_flow_remove(struct mlx5e_priv *priv,
-			      int location);
 void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv);
 void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv);
+int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd);
+int mlx5e_get_rxnfc(struct net_device *dev,
+		    struct ethtool_rxnfc *info, u32 *rule_locs);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr);

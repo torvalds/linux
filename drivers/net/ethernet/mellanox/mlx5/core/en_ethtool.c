@@ -969,33 +969,6 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	return 0;
 }
 
-static int mlx5e_get_rxnfc(struct net_device *netdev,
-			   struct ethtool_rxnfc *info, u32 *rule_locs)
-{
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	int err = 0;
-
-	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = priv->channels.params.num_channels;
-		break;
-	case ETHTOOL_GRXCLSRLCNT:
-		info->rule_cnt = priv->fs.ethtool.tot_num_rules;
-		break;
-	case ETHTOOL_GRXCLSRULE:
-		err = mlx5e_ethtool_get_flow(priv, info, info->fs.location);
-		break;
-	case ETHTOOL_GRXCLSRLALL:
-		err = mlx5e_ethtool_get_all_flows(priv, info, rule_locs);
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	return err;
-}
-
 #define MLX5E_PFC_PREVEN_AUTO_TOUT_MSEC		100
 #define MLX5E_PFC_PREVEN_TOUT_MAX_MSEC		8000
 #define MLX5E_PFC_PREVEN_MINOR_PRECENT		85
@@ -1606,26 +1579,6 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 	return priv->channels.params.pflags;
 }
 
-static int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
-{
-	int err = 0;
-	struct mlx5e_priv *priv = netdev_priv(dev);
-
-	switch (cmd->cmd) {
-	case ETHTOOL_SRXCLSRLINS:
-		err = mlx5e_ethtool_flow_replace(priv, &cmd->fs);
-		break;
-	case ETHTOOL_SRXCLSRLDEL:
-		err = mlx5e_ethtool_flow_remove(priv, cmd->fs.location);
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	return err;
-}
-
 int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
 			       struct ethtool_flash *flash)
 {
@@ -1696,5 +1649,4 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.self_test         = mlx5e_self_test,
 	.get_msglevel      = mlx5e_get_msglevel,
 	.set_msglevel      = mlx5e_set_msglevel,
-
 };
