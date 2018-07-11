@@ -295,6 +295,17 @@ config NET_SCH_FQ_CODEL
 
 	  If unsure, say N.
 
+config NET_SCH_CAKE
+	tristate "Common Applications Kept Enhanced (CAKE)"
+	help
+	  Say Y here if you want to use the Common Applications Kept Enhanced
+          (CAKE) queue management algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_cake.
+
+	  If unsure, say N.
+
 config NET_SCH_FQ
 	tristate "Fair Queue"
 	help
