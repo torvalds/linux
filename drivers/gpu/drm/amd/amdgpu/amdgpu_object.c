@@ -917,7 +917,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
 		adev->vram_pin_size += amdgpu_bo_size(bo);
-		adev->invisible_pin_size += amdgpu_vram_mgr_bo_invisible_size(bo);
+		adev->visible_pin_size += amdgpu_vram_mgr_bo_visible_size(bo);
 	} else if (domain == AMDGPU_GEM_DOMAIN_GTT) {
 		adev->gart_pin_size += amdgpu_bo_size(bo);
 	}
@@ -969,7 +969,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 
 	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
 		adev->vram_pin_size -= amdgpu_bo_size(bo);
-		adev->invisible_pin_size -= amdgpu_vram_mgr_bo_invisible_size(bo);
+		adev->visible_pin_size -= amdgpu_vram_mgr_bo_visible_size(bo);
 	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
 		adev->gart_pin_size -= amdgpu_bo_size(bo);
 	}
