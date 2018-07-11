@@ -401,26 +401,57 @@ static int gmac_setup_phy(struct net_device *netdev)
 	return 0;
 }
 
-static int gmac_pick_rx_max_len(int max_l3_len)
+/* The maximum frame length is not logically enumerated in the
+ * hardware, so we do a table lookup to find the applicable max
+ * frame length.
+ */
+struct gmac_max_framelen {
+	unsigned int max_l3_len;
+	u8 val;
+};
+
+static const struct gmac_max_framelen gmac_maxlens[] = {
+	{
+		.max_l3_len = 1518,
+		.val = CONFIG0_MAXLEN_1518,
+	},
+	{
+		.max_l3_len = 1522,
+		.val = CONFIG0_MAXLEN_1522,
+	},
+	{
+		.max_l3_len = 1536,
+		.val = CONFIG0_MAXLEN_1536,
+	},
+	{
+		.max_l3_len = 1542,
+		.val = CONFIG0_MAXLEN_1542,
+	},
+	{
+		.max_l3_len = 9212,
+		.val = CONFIG0_MAXLEN_9k,
+	},
+	{
+		.max_l3_len = 10236,
+		.val = CONFIG0_MAXLEN_10k,
+	},
+};
+
+static int gmac_pick_rx_max_len(unsigned int max_l3_len)
 {
-	/* index = CONFIG_MAXLEN_XXX values */
-	static const int max_len[8] = {
-		1536, 1518, 1522, 1542,
-		9212, 10236, 1518, 1518
-	};
-	int i, n = 5;
+	const struct gmac_max_framelen *maxlen;
+	int maxtot;
+	int i;
 
-	max_l3_len += ETH_HLEN + VLAN_HLEN;
+	maxtot = max_l3_len + ETH_HLEN + VLAN_HLEN;
 
-	if (max_l3_len > max_len[n])
-		return -1;
-
-	for (i = 0; i < 5; i++) {
-		if (max_len[i] >= max_l3_len && max_len[i] < max_len[n])
-			n = i;
+	for (i = 0; i < ARRAY_SIZE(gmac_maxlens); i++) {
+		maxlen = &gmac_maxlens[i];
+		if (maxtot <= maxlen->max_l3_len)
+			return maxlen->val;
 	}
 
-	return n;
+	return -1;
 }
 
 static int gmac_init(struct net_device *netdev)
