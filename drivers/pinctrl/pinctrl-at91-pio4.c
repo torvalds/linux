@@ -971,10 +971,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "unable to get atmel pinctrl resource\n");
-		return -EINVAL;
-	}
 	atmel_pioctrl->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(atmel_pioctrl->reg_base))
 		return -EINVAL;
