@@ -1,5 +1,4 @@
-TEST_GEN_PROGS := copy_first_unaligned paste_unaligned \
-	paste_last_unaligned alignment_handler
+TEST_GEN_PROGS := copy_first_unaligned alignment_handler
 
 include ../../lib.mk
 
