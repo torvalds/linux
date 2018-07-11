@@ -44,15 +44,15 @@ static const struct {
 		__INIT_HELD(rcu_read_lock_held)
 	},
 	[RCU_SCHED_SYNC] = {
-		.sync = synchronize_sched,
-		.call = call_rcu_sched,
-		.wait = rcu_barrier_sched,
+		.sync = synchronize_rcu,
+		.call = call_rcu,
+		.wait = rcu_barrier,
 		__INIT_HELD(rcu_read_lock_sched_held)
 	},
 	[RCU_BH_SYNC] = {
-		.sync = synchronize_rcu_bh,
-		.call = call_rcu_bh,
-		.wait = rcu_barrier_bh,
+		.sync = synchronize_rcu,
+		.call = call_rcu,
+		.wait = rcu_barrier,
 		__INIT_HELD(rcu_read_lock_bh_held)
 	},
 };
