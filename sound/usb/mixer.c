@@ -675,16 +675,16 @@ static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iter
 		if (term_only)
 			return 0;
 		switch (iterm->type >> 16) {
-		case UAC_SELECTOR_UNIT:
+		case UAC3_SELECTOR_UNIT:
 			strcpy(name, "Selector");
 			return 8;
-		case UAC1_PROCESSING_UNIT:
+		case UAC3_PROCESSING_UNIT:
 			strcpy(name, "Process Unit");
 			return 12;
-		case UAC1_EXTENSION_UNIT:
+		case UAC3_EXTENSION_UNIT:
 			strcpy(name, "Ext Unit");
 			return 8;
-		case UAC_MIXER_UNIT:
+		case UAC3_MIXER_UNIT:
 			strcpy(name, "Mixer");
 			return 5;
 		default:
@@ -832,7 +832,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC_MIXER_UNIT: {
 				struct uac_mixer_unit_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_MIXER_UNIT << 16; /* virtual type */
 				term->channels = uac_mixer_unit_bNrChannels(d);
 				term->chconfig = uac_mixer_unit_wChannelConfig(d, protocol);
 				term->name = uac_mixer_unit_iMixer(d);
@@ -845,15 +845,23 @@ static int check_input_term(struct mixer_build *state, int id,
 				err = check_input_term(state, d->baSourceID[0], term);
 				if (err < 0)
 					return err;
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_SELECTOR_UNIT << 16; /* virtual type */
 				term->id = id;
 				term->name = uac_selector_unit_iSelector(d);
 				return 0;
 			}
 			case UAC1_PROCESSING_UNIT:
+			/* UAC2_EFFECT_UNIT */
+				if (protocol == UAC_VERSION_1)
+					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
+				else /* UAC_VERSION_2 */
+					term->type = UAC3_EFFECT_UNIT << 16; /* virtual type */
 			case UAC1_EXTENSION_UNIT:
 			/* UAC2_PROCESSING_UNIT_V2 */
-			/* UAC2_EFFECT_UNIT */
+				if (protocol == UAC_VERSION_1 && !term->type)
+					term->type = UAC3_EXTENSION_UNIT << 16; /* virtual type */
+				else if (protocol == UAC_VERSION_2 && !term->type)
+					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
 			case UAC2_EXTENSION_UNIT_V2: {
 				struct uac_processing_unit_descriptor *d = p1;
 
@@ -869,7 +877,9 @@ static int check_input_term(struct mixer_build *state, int id,
 					id = d->baSourceID[0];
 					break; /* continue to parse */
 				}
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				if (!term->type)
+					term->type = UAC3_EXTENSION_UNIT << 16; /* virtual type */
+
 				term->channels = uac_processing_unit_bNrChannels(d);
 				term->chconfig = uac_processing_unit_wChannelConfig(d, protocol);
 				term->name = uac_processing_unit_iProcessing(d, protocol);
@@ -878,7 +888,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC2_CLOCK_SOURCE: {
 				struct uac_clock_source_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_CLOCK_SOURCE << 16; /* virtual type */
 				term->id = id;
 				term->name = d->iClockSource;
 				return 0;
@@ -923,7 +933,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC3_CLOCK_SOURCE: {
 				struct uac3_clock_source_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_CLOCK_SOURCE << 16; /* virtual type */
 				term->id = id;
 				term->name = le16_to_cpu(d->wClockSourceStr);
 				return 0;
@@ -936,7 +946,7 @@ static int check_input_term(struct mixer_build *state, int id,
 					return err;
 
 				term->channels = err;
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_MIXER_UNIT << 16; /* virtual type */
 
 				return 0;
 			}
@@ -947,7 +957,7 @@ static int check_input_term(struct mixer_build *state, int id,
 				err = check_input_term(state, d->baSourceID[0], term);
 				if (err < 0)
 					return err;
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_SELECTOR_UNIT << 16; /* virtual type */
 				term->id = id;
 				term->name = 0; /* TODO: UAC3 Class-specific strings */
 
@@ -964,7 +974,7 @@ static int check_input_term(struct mixer_build *state, int id,
 				if (err < 0)
 					return err;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
 				term->id = id;
 				term->name = 0; /* TODO: UAC3 Class-specific strings */
 
