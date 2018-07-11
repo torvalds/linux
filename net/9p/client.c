@@ -448,7 +448,7 @@ void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 
 	/*
 	 * This barrier is needed to make sure any change made to req before
-	 * the other thread wakes up will indeed be seen by the waiting side.
+	 * the status change is visible to another thread
 	 */
 	smp_wmb();
 	req->status = status;
