@@ -1073,6 +1073,8 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	emit(ARM_CMP_R(r_index, tmp[1]), ctx);
 	_emit(ARM_COND_CS, ARM_B(jmp_offset), ctx);
 
+	/* tmp2[1] = index */
+
 	/* if (tail_call_cnt > MAX_TAIL_CALL_CNT)
 	 *	goto out;
 	 * tail_call_cnt++;
@@ -1093,9 +1095,8 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	 */
 	BUILD_BUG_ON(imm8m(offsetof(struct bpf_array, ptrs)) < 0);
 	off = imm8m(offsetof(struct bpf_array, ptrs));
-	r_array = arm_bpf_get_reg32(r2[1], tmp2[1], ctx);
+	r_array = arm_bpf_get_reg32(r2[1], tmp2[0], ctx);
 	emit(ARM_ADD_I(tmp[1], r_array, off), ctx);
-	r_index = arm_bpf_get_reg32(r3[1], tmp2[1], ctx);
 	emit(ARM_LDR_R_SI(tmp[1], tmp[1], r_index, SRTYPE_ASL, 2), ctx);
 	emit(ARM_CMP_I(tmp[1], 0), ctx);
 	_emit(ARM_COND_EQ, ARM_B(jmp_offset), ctx);
