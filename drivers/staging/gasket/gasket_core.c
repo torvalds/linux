@@ -1610,7 +1610,6 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	bool is_coherent_region;
 	const struct gasket_driver_desc *driver_desc;
 	struct gasket_dev *gasket_dev = (struct gasket_dev *)filp->private_data;
-	struct gasket_bar_data *bar_data;
 	const struct gasket_bar_desc *bar_desc;
 	struct gasket_mappable_region *map_regions = NULL;
 	int num_map_regions = 0;
@@ -1673,8 +1672,6 @@ static int gasket_mmap(struct file *filp, struct vm_area_struct *vma)
 	 * Subtract the base of the bar from the raw offset to get the
 	 * memory location within the bar to map.
 	 */
-	bar_data = &gasket_dev->bar_data[bar_index];
-
 	bar_desc = &driver_desc->bar_descriptions[bar_index];
 	permissions = bar_desc->permissions;
 	if (!gasket_mmap_has_permissions(gasket_dev, vma, permissions)) {
