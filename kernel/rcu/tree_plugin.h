@@ -1993,7 +1993,7 @@ static bool rcu_nocb_cpu_needs_barrier(int cpu)
 	 * There needs to be a barrier before this function is called,
 	 * but associated with a prior determination that no more
 	 * callbacks would be posted.  In the worst case, the first
-	 * barrier in _rcu_barrier() suffices (but the caller cannot
+	 * barrier in rcu_barrier() suffices (but the caller cannot
 	 * necessarily rely on this, not a substitute for the caller
 	 * getting the concurrency design right!).  There must also be
 	 * a barrier between the following load an posting of a callback

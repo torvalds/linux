@@ -2747,7 +2747,7 @@ static void rcu_leak_callback(struct rcu_head *rhp)
 /*
  * Helper function for call_rcu() and friends.  The cpu argument will
  * normally be -1, indicating "currently running CPU".  It may specify
- * a CPU only if that CPU is a no-CBs CPU.  Currently, only _rcu_barrier()
+ * a CPU only if that CPU is a no-CBs CPU.  Currently, only rcu_barrier()
  * is expected to specify a CPU.
  */
 static void
@@ -2981,27 +2981,27 @@ static bool rcu_cpu_has_callbacks(bool *all_lazy)
 }
 
 /*
- * Helper function for _rcu_barrier() tracing.  If tracing is disabled,
+ * Helper function for rcu_barrier() tracing.  If tracing is disabled,
  * the compiler is expected to optimize this away.
  */
-static void _rcu_barrier_trace(const char *s, int cpu, unsigned long done)
+static void rcu_barrier_trace(const char *s, int cpu, unsigned long done)
 {
 	trace_rcu_barrier(rcu_state.name, s, cpu,
 			  atomic_read(&rcu_state.barrier_cpu_count), done);
 }
 
 /*
- * RCU callback function for _rcu_barrier().  If we are last, wake
- * up the task executing _rcu_barrier().
+ * RCU callback function for rcu_barrier().  If we are last, wake
+ * up the task executing rcu_barrier().
  */
 static void rcu_barrier_callback(struct rcu_head *rhp)
 {
 	if (atomic_dec_and_test(&rcu_state.barrier_cpu_count)) {
-		_rcu_barrier_trace(TPS("LastCB"), -1,
+		rcu_barrier_trace(TPS("LastCB"), -1,
 				   rcu_state.barrier_sequence);
 		complete(&rcu_state.barrier_completion);
 	} else {
-		_rcu_barrier_trace(TPS("CB"), -1, rcu_state.barrier_sequence);
+		rcu_barrier_trace(TPS("CB"), -1, rcu_state.barrier_sequence);
 	}
 }
 
@@ -3012,33 +3012,40 @@ static void rcu_barrier_func(void *unused)
 {
 	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
 
-	_rcu_barrier_trace(TPS("IRQ"), -1, rcu_state.barrier_sequence);
+	rcu_barrier_trace(TPS("IRQ"), -1, rcu_state.barrier_sequence);
 	rdp->barrier_head.func = rcu_barrier_callback;
 	debug_rcu_head_queue(&rdp->barrier_head);
 	if (rcu_segcblist_entrain(&rdp->cblist, &rdp->barrier_head, 0)) {
 		atomic_inc(&rcu_state.barrier_cpu_count);
 	} else {
 		debug_rcu_head_unqueue(&rdp->barrier_head);
-		_rcu_barrier_trace(TPS("IRQNQ"), -1,
+		rcu_barrier_trace(TPS("IRQNQ"), -1,
 				   rcu_state.barrier_sequence);
 	}
 }
 
-/* Orchestrate an RCU barrier, waiting for all RCU callbacks to complete.  */
-static void _rcu_barrier(void)
+/**
+ * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
+ *
+ * Note that this primitive does not necessarily wait for an RCU grace period
+ * to complete.  For example, if there are no RCU callbacks queued anywhere
+ * in the system, then rcu_barrier() is within its rights to return
+ * immediately, without waiting for anything, much less an RCU grace period.
+ */
+void rcu_barrier(void)
 {
 	int cpu;
 	struct rcu_data *rdp;
 	unsigned long s = rcu_seq_snap(&rcu_state.barrier_sequence);
 
-	_rcu_barrier_trace(TPS("Begin"), -1, s);
+	rcu_barrier_trace(TPS("Begin"), -1, s);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
 	mutex_lock(&rcu_state.barrier_mutex);
 
 	/* Did someone else do our work for us? */
 	if (rcu_seq_done(&rcu_state.barrier_sequence, s)) {
-		_rcu_barrier_trace(TPS("EarlyExit"), -1,
+		rcu_barrier_trace(TPS("EarlyExit"), -1,
 				   rcu_state.barrier_sequence);
 		smp_mb(); /* caller's subsequent code after above check. */
 		mutex_unlock(&rcu_state.barrier_mutex);
@@ -3047,7 +3054,7 @@ static void _rcu_barrier(void)
 
 	/* Mark the start of the barrier operation. */
 	rcu_seq_start(&rcu_state.barrier_sequence);
-	_rcu_barrier_trace(TPS("Inc1"), -1, rcu_state.barrier_sequence);
+	rcu_barrier_trace(TPS("Inc1"), -1, rcu_state.barrier_sequence);
 
 	/*
 	 * Initialize the count to one rather than to zero in order to
@@ -3070,10 +3077,10 @@ static void _rcu_barrier(void)
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		if (rcu_is_nocb_cpu(cpu)) {
 			if (!rcu_nocb_cpu_needs_barrier(cpu)) {
-				_rcu_barrier_trace(TPS("OfflineNoCB"), cpu,
+				rcu_barrier_trace(TPS("OfflineNoCB"), cpu,
 						   rcu_state.barrier_sequence);
 			} else {
-				_rcu_barrier_trace(TPS("OnlineNoCB"), cpu,
+				rcu_barrier_trace(TPS("OnlineNoCB"), cpu,
 						   rcu_state.barrier_sequence);
 				smp_mb__before_atomic();
 				atomic_inc(&rcu_state.barrier_cpu_count);
@@ -3081,11 +3088,11 @@ static void _rcu_barrier(void)
 					   rcu_barrier_callback, cpu, 0);
 			}
 		} else if (rcu_segcblist_n_cbs(&rdp->cblist)) {
-			_rcu_barrier_trace(TPS("OnlineQ"), cpu,
+			rcu_barrier_trace(TPS("OnlineQ"), cpu,
 					   rcu_state.barrier_sequence);
 			smp_call_function_single(cpu, rcu_barrier_func, NULL, 1);
 		} else {
-			_rcu_barrier_trace(TPS("OnlineNQ"), cpu,
+			rcu_barrier_trace(TPS("OnlineNQ"), cpu,
 					   rcu_state.barrier_sequence);
 		}
 	}
@@ -3102,24 +3109,11 @@ static void _rcu_barrier(void)
 	wait_for_completion(&rcu_state.barrier_completion);
 
 	/* Mark the end of the barrier operation. */
-	_rcu_barrier_trace(TPS("Inc2"), -1, rcu_state.barrier_sequence);
+	rcu_barrier_trace(TPS("Inc2"), -1, rcu_state.barrier_sequence);
 	rcu_seq_end(&rcu_state.barrier_sequence);
 
 	/* Other rcu_barrier() invocations can now safely proceed. */
 	mutex_unlock(&rcu_state.barrier_mutex);
-}
-
-/**
- * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
- *
- * Note that this primitive does not necessarily wait for an RCU grace period
- * to complete.  For example, if there are no RCU callbacks queued anywhere
- * in the system, then rcu_barrier() is within its rights to return
- * immediately, without waiting for anything, much less an RCU grace period.
- */
-void rcu_barrier(void)
-{
-	_rcu_barrier();
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
