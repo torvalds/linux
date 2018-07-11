@@ -92,8 +92,6 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 			     drvdata->settings->max_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
 			     drvdata->settings->max_y, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0,
-			     drvdata->settings->max_fingers, 0, 0);
 	input_set_abs_params(input, ABS_TOOL_WIDTH, 0,
 			     drvdata->settings->max_w, 0, 0);
 
