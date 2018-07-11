@@ -31,8 +31,6 @@ struct elan_touchpad_settings {
 	u8 max_fingers;
 	u16 max_x;
 	u16 max_y;
-	u8 max_area_x;
-	u8 max_area_y;
 	u8 max_w;
 	int usb_bInterfaceNumber;
 };
@@ -390,8 +388,6 @@ static const struct elan_touchpad_settings hp_x2_10_touchpad_data = {
 	.max_fingers = 5,
 	.max_x = 2930,
 	.max_y = 1250,
-	.max_area_x = 15,
-	.max_area_y = 15,
 	.max_w = 255,
 	.usb_bInterfaceNumber = 1,
 };
