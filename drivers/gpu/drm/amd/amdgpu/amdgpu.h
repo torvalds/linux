@@ -1589,9 +1589,9 @@ struct amdgpu_device {
 	DECLARE_HASHTABLE(mn_hash, 7);
 
 	/* tracking pinned memory */
-	u64 vram_pin_size;
-	u64 visible_pin_size;
-	u64 gart_pin_size;
+	atomic64_t vram_pin_size;
+	atomic64_t visible_pin_size;
+	atomic64_t gart_pin_size;
 
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
