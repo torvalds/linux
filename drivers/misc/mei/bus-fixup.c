@@ -181,7 +181,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	ret = 0;
 	bytes_recv = __mei_cl_recv(cldev->cl, buf, sizeof(buf), 0,
 				   MKHI_RCV_TIMEOUT);
-	if (bytes_recv < MKHI_FWVER_LEN(1)) {
+	if (bytes_recv < 0 || bytes_recv < MKHI_FWVER_LEN(1)) {
 		/*
 		 * Should be at least one version block,
 		 * error out if nothing found
