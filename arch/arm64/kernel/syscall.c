@@ -8,8 +8,10 @@
 #include <linux/syscalls.h>
 
 #include <asm/daifflags.h>
+#include <asm/fpsimd.h>
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
+#include <asm/unistd.h>
 
 long compat_arm_syscall(struct pt_regs *regs);
 
@@ -58,8 +60,8 @@ static inline bool has_syscall_work(unsigned long flags)
 int syscall_trace_enter(struct pt_regs *regs);
 void syscall_trace_exit(struct pt_regs *regs);
 
-asmlinkage void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
-			       const syscall_fn_t syscall_table[])
+static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+			   const syscall_fn_t syscall_table[])
 {
 	unsigned long flags = current_thread_info()->flags;
 
@@ -96,3 +98,34 @@ asmlinkage void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 trace_exit:
 	syscall_trace_exit(regs);
 }
+
+static inline void sve_user_discard(void)
+{
+	if (!system_supports_sve())
+		return;
+
+	clear_thread_flag(TIF_SVE);
+
+	/*
+	 * task_fpsimd_load() won't be called to update CPACR_EL1 in
+	 * ret_to_user unless TIF_FOREIGN_FPSTATE is still set, which only
+	 * happens if a context switch or kernel_neon_begin() or context
+	 * modification (sigreturn, ptrace) intervenes.
+	 * So, ensure that CPACR_EL1 is already correct for the fast-path case.
+	 */
+	sve_user_disable();
+}
+
+asmlinkage void el0_svc_handler(struct pt_regs *regs)
+{
+	sve_user_discard();
+	el0_svc_common(regs, regs->regs[8], __NR_syscalls, sys_call_table);
+}
+
+#ifdef CONFIG_COMPAT
+asmlinkage void el0_svc_compat_handler(struct pt_regs *regs)
+{
+	el0_svc_common(regs, regs->regs[7], __NR_compat_syscalls,
+		       compat_sys_call_table);
+}
+#endif

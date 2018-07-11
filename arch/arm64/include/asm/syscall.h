@@ -26,6 +26,10 @@ typedef long (*syscall_fn_t)(unsigned long, unsigned long,
 
 extern const syscall_fn_t sys_call_table[];
 
+#ifdef CONFIG_COMPAT
+extern const syscall_fn_t compat_sys_call_table[];
+#endif
+
 static inline int syscall_get_nr(struct task_struct *task,
 				 struct pt_regs *regs)
 {
