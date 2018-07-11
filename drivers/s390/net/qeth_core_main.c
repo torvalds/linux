@@ -1537,8 +1537,6 @@ static void qeth_determine_card_type(struct qeth_card *card)
 	card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	card->info.type = CARD_RDEV(card)->id.driver_info;
 	card->qdio.no_out_queues = QETH_MAX_QUEUES;
-	if (card->info.type == QETH_CARD_TYPE_IQD)
-		card->info.is_multicast_different = 0x0103;
 	qeth_update_from_chp_desc(card);
 }
 
@@ -3777,14 +3775,10 @@ static inline int qeth_cut_iqd_prio(struct qeth_card *card, int queue_num)
  * Note: Function assumes that we have 4 outbound queues.
  */
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
-			int ipv, int cast_type)
+			    int ipv)
 {
 	__be16 *tci;
 	u8 tos;
-
-	if (cast_type && card->info.is_multicast_different)
-		return card->info.is_multicast_different &
-			(card->qdio.no_out_queues - 1);
 
 	switch (card->qdio.do_prio_queueing) {
 	case QETH_PRIO_Q_ING_TOS:

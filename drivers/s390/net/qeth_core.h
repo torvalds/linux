@@ -661,7 +661,6 @@ struct qeth_card_info {
 	int portno;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
-	int is_multicast_different;
 	int initial_mtu;
 	int max_mtu;
 	int broadcast_capable;
@@ -934,6 +933,19 @@ static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
 						 data, QETH_PROT_IPV6);
 }
 
+int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
+			    int ipv);
+static inline struct qeth_qdio_out_q *qeth_get_tx_queue(struct qeth_card *card,
+							struct sk_buff *skb,
+							int ipv, int cast_type)
+{
+	if (IS_IQD(card) && cast_type != RTN_UNICAST)
+		return card->qdio.out_qs[card->qdio.no_out_queues - 1];
+	if (!card->qdio.do_prio_queueing)
+		return card->qdio.out_qs[card->qdio.default_out_queue];
+	return card->qdio.out_qs[qeth_get_priority_queue(card, skb, ipv)];
+}
+
 extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
 extern const struct attribute_group *qeth_generic_attr_groups[];
@@ -1001,7 +1013,6 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
 int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
-int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
 			 int extra_elems, int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);

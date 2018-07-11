@@ -185,12 +185,12 @@ static void qeth_l2_del_all_macs(struct qeth_card *card)
 static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	if (card->info.type == QETH_CARD_TYPE_OSN)
-		return RTN_UNSPEC;
+		return RTN_UNICAST;
 	if (is_broadcast_ether_addr(skb->data))
 		return RTN_BROADCAST;
 	if (is_multicast_ether_addr(skb->data))
 		return RTN_MULTICAST;
-	return RTN_UNSPEC;
+	return RTN_UNICAST;
 }
 
 static void qeth_l2_fill_header(struct qeth_hdr *hdr, struct sk_buff *skb,
@@ -768,17 +768,12 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int tx_bytes = skb->len;
 	int rc;
 
-	if (card->qdio.do_prio_queueing || (cast_type &&
-					card->info.is_multicast_different))
-		queue = card->qdio.out_qs[qeth_get_priority_queue(card, skb,
-					ipv, cast_type)];
-	else
-		queue = card->qdio.out_qs[card->qdio.default_out_queue];
-
 	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
 	}
+
+	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
 
 	if (card->options.performance_stats) {
 		card->perf_stats.outbound_cnt++;

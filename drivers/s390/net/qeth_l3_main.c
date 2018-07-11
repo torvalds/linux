@@ -1978,17 +1978,17 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))
 			return cast_type;
-		return RTN_UNSPEC;
+		return RTN_UNICAST;
 	}
 	rcu_read_unlock();
 
 	/* no neighbour (eg AF_PACKET), fall back to target's IP address ... */
 	if (be16_to_cpu(skb->protocol) == ETH_P_IPV6)
 		return ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ?
-				RTN_MULTICAST : RTN_UNSPEC;
+				RTN_MULTICAST : RTN_UNICAST;
 	else if (be16_to_cpu(skb->protocol) == ETH_P_IP)
 		return ipv4_is_multicast(ip_hdr(skb)->daddr) ?
-				RTN_MULTICAST : RTN_UNSPEC;
+				RTN_MULTICAST : RTN_UNICAST;
 
 	/* ... and MAC address */
 	if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, skb->dev->broadcast))
@@ -1997,7 +1997,7 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 		return RTN_MULTICAST;
 
 	/* default to unicast */
-	return RTN_UNSPEC;
+	return RTN_UNICAST;
 }
 
 static void qeth_l3_fill_af_iucv_hdr(struct qeth_card *card,
@@ -2168,11 +2168,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	struct sk_buff *new_skb = NULL;
 	int ipv = qeth_get_ip_version(skb);
 	int cast_type = qeth_l3_get_cast_type(skb);
-	struct qeth_qdio_out_q *queue =
-		card->qdio.out_qs[card->qdio.do_prio_queueing
-			|| (cast_type && card->info.is_multicast_different) ?
-			qeth_get_priority_queue(card, skb, ipv, cast_type) :
-			card->qdio.default_out_queue];
+	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
 	unsigned int hd_len = 0;
 	bool use_tso;
@@ -2194,6 +2190,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if ((cast_type == RTN_BROADCAST) &&
 	    (card->info.broadcast_capable == 0))
 		goto tx_drop;
+
+	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
 
 	if (card->options.performance_stats) {
 		card->perf_stats.outbound_cnt++;
