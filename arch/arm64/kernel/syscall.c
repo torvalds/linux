@@ -15,6 +15,8 @@
 
 long compat_arm_syscall(struct pt_regs *regs);
 
+long sys_ni_syscall(void);
+
 asmlinkage long do_ni_syscall(struct pt_regs *regs)
 {
 #ifdef CONFIG_COMPAT
@@ -31,8 +33,7 @@ asmlinkage long do_ni_syscall(struct pt_regs *regs)
 
 static long __invoke_syscall(struct pt_regs *regs, syscall_fn_t syscall_fn)
 {
-	return syscall_fn(regs->regs[0], regs->regs[1], regs->regs[2],
-			  regs->regs[3], regs->regs[4], regs->regs[5]);
+	return syscall_fn(regs);
 }
 
 static void invoke_syscall(struct pt_regs *regs, unsigned int scno,
