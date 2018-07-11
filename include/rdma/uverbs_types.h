@@ -73,7 +73,7 @@ struct uverbs_obj_type_class {
 	 */
 	struct ib_uobject *(*alloc_begin)(const struct uverbs_obj_type *type,
 					  struct ib_uverbs_file *ufile);
-	void (*alloc_commit)(struct ib_uobject *uobj);
+	int (*alloc_commit)(struct ib_uobject *uobj);
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,

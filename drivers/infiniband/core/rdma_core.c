@@ -328,11 +328,8 @@ uobj_put:
 static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *type,
 						 struct ib_uverbs_file *ufile)
 {
-	const struct uverbs_obj_fd_type *fd_type =
-		container_of(type, struct uverbs_obj_fd_type, type);
 	int new_fd;
 	struct ib_uobject *uobj;
-	struct file *filp;
 
 	new_fd = get_unused_fd_flags(O_CLOEXEC);
 	if (new_fd < 0)
@@ -344,28 +341,8 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 		return uobj;
 	}
 
-	/*
-	 * The kref for uobj is moved into filp->private data and put in
-	 * uverbs_close_fd(). Once anon_inode_getfile() succeeds
-	 * uverbs_close_fd() must be guaranteed to be called from the provided
-	 * fops release callback. We piggyback our kref of uobj on the stack
-	 * with the lifetime of the struct file.
-	 */
-	filp = anon_inode_getfile(fd_type->name,
-				  fd_type->fops,
-				  uobj,
-				  fd_type->flags);
-	if (IS_ERR(filp)) {
-		put_unused_fd(new_fd);
-		uverbs_uobject_put(uobj);
-		return (void *)filp;
-	}
-
 	uobj->id = new_fd;
-	uobj->object = filp;
 	uobj->ufile = ufile;
-	/* Matching put will be done in uverbs_close_fd() */
-	kref_get(&ufile->ref);
 
 	return uobj;
 }
@@ -407,12 +384,10 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 
 static void alloc_abort_fd_uobject(struct ib_uobject *uobj)
 {
-	struct file *filp = uobj->object;
-	int id = uobj->id;
+	put_unused_fd(uobj->id);
 
-	/* Unsuccessful NEW */
-	fput(filp);
-	put_unused_fd(id);
+	/* Pairs with the kref from alloc_begin_idr_uobject */
+	uverbs_uobject_put(uobj);
 }
 
 static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
@@ -500,7 +475,7 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 	return ret;
 }
 
-static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
+static int alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
 
@@ -514,11 +489,34 @@ static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 	 */
 	WARN_ON(idr_replace(&ufile->idr, uobj, uobj->id));
 	spin_unlock(&ufile->idr_lock);
+
+	return 0;
 }
 
-static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
+static int alloc_commit_fd_uobject(struct ib_uobject *uobj)
 {
+	const struct uverbs_obj_fd_type *fd_type =
+		container_of(uobj->type, struct uverbs_obj_fd_type, type);
 	int fd = uobj->id;
+	struct file *filp;
+
+	/*
+	 * The kref for uobj is moved into filp->private data and put in
+	 * uverbs_close_fd(). Once alloc_commit() succeeds uverbs_close_fd()
+	 * must be guaranteed to be called from the provided fops release
+	 * callback.
+	 */
+	filp = anon_inode_getfile(fd_type->name,
+				  fd_type->fops,
+				  uobj,
+				  fd_type->flags);
+	if (IS_ERR(filp))
+		return PTR_ERR(filp);
+
+	uobj->object = filp;
+
+	/* Matching put will be done in uverbs_close_fd() */
+	kref_get(&uobj->ufile->ref);
 
 	/* This shouldn't be used anymore. Use the file object instead */
 	uobj->id = 0;
@@ -527,7 +525,9 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 	 * NOTE: Once we install the file we loose ownership of our kref on
 	 * uobj. It will be put by uverbs_close_fd()
 	 */
-	fd_install(fd, uobj->object);
+	fd_install(fd, filp);
+
+	return 0;
 }
 
 /*
@@ -538,11 +538,10 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
+	int ret;
 
 	/* Cleanup is running. Calling this should have been impossible */
 	if (!down_read_trylock(&ufile->hw_destroy_rwsem)) {
-		int ret;
-
 		WARN(true, "ib_uverbs: Cleanup is running while allocating an uobject\n");
 		ret = uobj->type->type_class->remove_commit(uobj,
 							    RDMA_REMOVE_DURING_CLEANUP);
@@ -552,9 +551,18 @@ int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 		return ret;
 	}
 
-	/* matches atomic_set(-1) in alloc_uobj */
 	assert_uverbs_usecnt(uobj, true);
-	atomic_set(&uobj->usecnt, 0);
+
+	/* alloc_commit consumes the uobj kref */
+	ret = uobj->type->type_class->alloc_commit(uobj);
+	if (ret) {
+		if (uobj->type->type_class->remove_commit(
+			    uobj, RDMA_REMOVE_DURING_CLEANUP))
+			pr_warn("ib_uverbs: cleanup of idr object %d failed\n",
+				uobj->id);
+		up_read(&ufile->hw_destroy_rwsem);
+		return ret;
+	}
 
 	/* kref is held so long as the uobj is on the uobj list. */
 	uverbs_uobject_get(uobj);
@@ -562,8 +570,9 @@ int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	list_add(&uobj->list, &ufile->uobjects);
 	spin_unlock_irq(&ufile->uobjects_lock);
 
-	/* alloc_commit consumes the uobj kref */
-	uobj->type->type_class->alloc_commit(uobj);
+	/* matches atomic_set(-1) in alloc_uobj */
+	atomic_set(&uobj->usecnt, 0);
+
 	up_read(&ufile->hw_destroy_rwsem);
 
 	return 0;
