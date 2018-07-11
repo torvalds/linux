@@ -1,7 +1,7 @@
 /*
  * R-Car Gen3 Clock Pulse Generator
  *
- * Copyright (C) 2015-2016 Glider bvba
+ * Copyright (C) 2015-2018 Glider bvba
  *
  * Based on clk-rcar-gen3.c
  *
@@ -30,6 +30,8 @@
 #define CPG_PLL0CR		0x00d8
 #define CPG_PLL2CR		0x002c
 #define CPG_PLL4CR		0x01f4
+
+#define CPG_RCKCR_CKSEL	BIT(15)	/* RCLK Clock Source Select */
 
 struct cpg_simple_notifier {
 	struct notifier_block nb;
@@ -444,7 +446,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	unsigned int div = 1;
 	u32 value;
 
-	parent = clks[core->parent & 0xffff];	/* CLK_TYPE_PE uses high bits */
+	parent = clks[core->parent & 0xffff];	/* some types use high bits */
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -524,7 +526,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 			if (clk_get_rate(clks[cpg_clk_extalr])) {
 				parent = clks[cpg_clk_extalr];
-				value |= BIT(15);
+				value |= CPG_RCKCR_CKSEL;
 			}
 
 			writel(value, csn->reg);
@@ -568,6 +570,21 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 		 * Clock combining OSC EXTAL predivider and a fixed divider
 		 */
 		div = cpg_pll_config->osc_prediv * core->div;
+		break;
+
+	case CLK_TYPE_GEN3_RCKSEL:
+		/*
+		 * Clock selectable between two parents and two fixed dividers
+		 * using RCKCR.CKSEL
+		 */
+		if (readl(base + CPG_RCKCR) & CPG_RCKCR_CKSEL) {
+			div = core->div & 0xffff;
+		} else {
+			parent = clks[core->parent >> 16];
+			if (IS_ERR(parent))
+				return ERR_CAST(parent);
+			div = core->div >> 16;
+		}
 		break;
 
 	default:
