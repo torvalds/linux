@@ -102,9 +102,14 @@ static inline int __must_check uobj_remove_commit(struct ib_uobject *uobj)
 	return rdma_remove_commit_uobject(uobj);
 }
 
-static inline void uobj_alloc_commit(struct ib_uobject *uobj)
+static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj,
+						 int success_res)
 {
-	rdma_alloc_commit_uobject(uobj);
+	int ret = rdma_alloc_commit_uobject(uobj);
+
+	if (ret)
+		return ret;
+	return success_res;
 }
 
 static inline void uobj_alloc_abort(struct ib_uobject *uobj)

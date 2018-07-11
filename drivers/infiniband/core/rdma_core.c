@@ -532,9 +532,10 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 
 /*
  * In all cases rdma_alloc_commit_uobject() consumes the kref to uobj and the
- * caller can no longer assume uobj is valid.
+ * caller can no longer assume uobj is valid. If this function fails it
+ * destroys the uboject, including the attached HW object.
  */
-int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
+int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
 
