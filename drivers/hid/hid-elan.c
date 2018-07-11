@@ -470,6 +470,8 @@ static void elan_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id elan_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2),
+	  .driver_data = ELAN_HAS_LED },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER),
 	  .driver_data = ELAN_HAS_LED },
 	{ }
