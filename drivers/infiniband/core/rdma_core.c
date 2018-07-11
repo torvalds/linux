@@ -163,6 +163,7 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 	 */
 	uobj->ufile = ufile;
 	uobj->context = ufile->ucontext;
+	INIT_LIST_HEAD(&uobj->list);
 	uobj->type = type;
 	/*
 	 * Allocated objects start out as write locked to deny any other
@@ -196,17 +197,6 @@ static int idr_add_uobj(struct ib_uobject *uobj)
 	idr_preload_end();
 
 	return ret < 0 ? ret : 0;
-}
-
-/*
- * It only removes it from the uobjects list, uverbs_uobject_put() is still
- * required.
- */
-static void uverbs_idr_remove_uobj(struct ib_uobject *uobj)
-{
-	spin_lock(&uobj->ufile->idr_lock);
-	idr_remove(&uobj->ufile->idr, uobj->id);
-	spin_unlock(&uobj->ufile->idr_lock);
 }
 
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
@@ -329,7 +319,9 @@ static struct ib_uobject *alloc_begin_idr_uobject(const struct uverbs_obj_type *
 	return uobj;
 
 idr_remove:
-	uverbs_idr_remove_uobj(uobj);
+	spin_lock(&ufile->idr_lock);
+	idr_remove(&ufile->idr, uobj->id);
+	spin_unlock(&ufile->idr_lock);
 uobj_put:
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
@@ -354,6 +346,13 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 		return uobj;
 	}
 
+	/*
+	 * The kref for uobj is moved into filp->private data and put in
+	 * uverbs_close_fd(). Once anon_inode_getfile() succeeds
+	 * uverbs_close_fd() must be guaranteed to be called from the provided
+	 * fops release callback. We piggyback our kref of uobj on the stack
+	 * with the lifetime of the struct file.
+	 */
 	filp = anon_inode_getfile(fd_type->name,
 				  fd_type->fops,
 				  uobj,
@@ -367,7 +366,7 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 	uobj->id = new_fd;
 	uobj->object = filp;
 	uobj->ufile = ufile;
-	INIT_LIST_HEAD(&uobj->list);
+	/* Matching put will be done in uverbs_close_fd() */
 	kref_get(&ufile->ref);
 
 	return uobj;
@@ -397,7 +396,13 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 
 	ib_rdmacg_uncharge(&uobj->cg_obj, uobj->context->device,
 			   RDMACG_RESOURCE_HCA_OBJECT);
-	uverbs_idr_remove_uobj(uobj);
+
+	spin_lock(&uobj->ufile->idr_lock);
+	idr_remove(&uobj->ufile->idr, uobj->id);
+	spin_unlock(&uobj->ufile->idr_lock);
+
+	/* Matches the kref in alloc_commit_idr_uobject */
+	uverbs_uobject_put(uobj);
 
 	return ret;
 }
@@ -451,24 +456,25 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 		return 0;
 
 	ret = uobj->type->type_class->remove_commit(uobj, why);
-	if (ib_is_destroy_retryable(ret, why, uobj)) {
-		/* We couldn't remove the object, so just unlock the uobject */
-		atomic_set(&uobj->usecnt, 0);
-		uobj->type->type_class->lookup_put(uobj, true);
-	} else {
-		uobj->object = NULL;
+	if (ib_is_destroy_retryable(ret, why, uobj))
+		return ret;
 
-		mutex_lock(&ufile->uobjects_lock);
-		list_del(&uobj->list);
-		mutex_unlock(&ufile->uobjects_lock);
-		/* put the ref we took when we created the object */
-		uverbs_uobject_put(uobj);
-	}
+	uobj->object = NULL;
+
+	mutex_lock(&ufile->uobjects_lock);
+	list_del(&uobj->list);
+	mutex_unlock(&ufile->uobjects_lock);
+	/* Pairs with the get in rdma_alloc_commit_uobject() */
+	uverbs_uobject_put(uobj);
 
 	return ret;
 }
 
-/* This is called only for user requested DESTROY reasons */
+/* This is called only for user requested DESTROY reasons
+ * rdma_lookup_get_uobject(exclusive=true) must have been called to get uobj,
+ * and after this returns the corresponding put has been done, and the kref
+ * for uobj has been consumed.
+ */
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 {
 	int ret;
@@ -519,9 +525,6 @@ static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 	/* This shouldn't be used anymore. Use the file object instead */
 	uobj->id = 0;
 
-	/* Get another reference as we export this to the fops */
-	uverbs_uobject_get(uobj);
-
 	/*
 	 * NOTE: Once we install the file we loose ownership of our kref on
 	 * uobj. It will be put by uverbs_close_fd()
@@ -554,6 +557,8 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	assert_uverbs_usecnt(uobj, true);
 	atomic_set(&uobj->usecnt, 0);
 
+	/* kref is held so long as the uobj is on the uobj list. */
+	uverbs_uobject_get(uobj);
 	mutex_lock(&ufile->uobjects_lock);
 	list_add(&uobj->list, &ufile->uobjects);
 	mutex_unlock(&ufile->uobjects_lock);
@@ -567,12 +572,22 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 
 static void alloc_abort_idr_uobject(struct ib_uobject *uobj)
 {
-	uverbs_idr_remove_uobj(uobj);
 	ib_rdmacg_uncharge(&uobj->cg_obj, uobj->context->device,
 			   RDMACG_RESOURCE_HCA_OBJECT);
+
+	spin_lock(&uobj->ufile->idr_lock);
+	/* The value of the handle in the IDR is NULL at this point. */
+	idr_remove(&uobj->ufile->idr, uobj->id);
+	spin_unlock(&uobj->ufile->idr_lock);
+
+	/* Pairs with the kref from alloc_begin_idr_uobject */
 	uverbs_uobject_put(uobj);
 }
 
+/*
+ * This consumes the kref for uobj. It is up to the caller to unwind the HW
+ * object and anything else connected to uobj before calling this.
+ */
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj)
 {
 	uobj->type->type_class->alloc_abort(uobj);
@@ -605,6 +620,7 @@ void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive)
 	else
 		atomic_set(&uobj->usecnt, 0);
 
+	/* Pairs with the kref obtained by type->lookup_get */
 	uverbs_uobject_put(uobj);
 }
 
@@ -658,6 +674,7 @@ void uverbs_close_fd(struct file *f)
 	struct kref *uverbs_file_ref = &uobj->ufile->ref;
 
 	_uverbs_close_fd(uobj);
+	/* Pairs with filp->private_data in alloc_begin_fd_uobject */
 	uverbs_uobject_put(uobj);
 	kref_put(uverbs_file_ref, ib_uverbs_release_file);
 }
@@ -700,7 +717,7 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 				obj->id, err);
 
 		list_del(&obj->list);
-		/* put the ref we took when we created the object */
+		/* Pairs with the get in rdma_alloc_commit_uobject() */
 		uverbs_uobject_put(obj);
 		ret = 0;
 	}
