@@ -2376,25 +2376,49 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 			cval->master_readonly = 1;
 
 		/* get min/max values */
-		if (type == UAC_PROCESS_UP_DOWNMIX && cval->control == UAC_UD_MODE_SELECT) {
-			__u8 *control_spec = uac_processing_unit_specific(desc, state->mixer->protocol);
-			/* FIXME: hard-coded */
-			cval->min = 1;
-			cval->max = control_spec[0];
-			cval->res = 1;
-			cval->initialized = 1;
-		} else {
-			if (type == USB_XU_CLOCK_RATE) {
-				/*
-				 * E-Mu USB 0404/0202/TrackerPre/0204
-				 * samplerate control quirk
-				 */
-				cval->min = 0;
-				cval->max = 5;
+		switch (type) {
+		case UAC_PROCESS_UP_DOWNMIX: {
+			bool mode_sel = false;
+
+			switch (state->mixer->protocol) {
+			case UAC_VERSION_1:
+			case UAC_VERSION_2:
+			default:
+				if (cval->control == UAC_UD_MODE_SELECT)
+					mode_sel = true;
+				break;
+			case UAC_VERSION_3:
+				if (cval->control == UAC3_UD_MODE_SELECT)
+					mode_sel = true;
+				break;
+			}
+
+			if (mode_sel) {
+				__u8 *control_spec = uac_processing_unit_specific(desc,
+								state->mixer->protocol);
+				cval->min = 1;
+				cval->max = control_spec[0];
 				cval->res = 1;
 				cval->initialized = 1;
-			} else
-				get_min_max(cval, valinfo->min_value);
+				break;
+			}
+
+			get_min_max(cval, valinfo->min_value);
+			break;
+		}
+		case USB_XU_CLOCK_RATE:
+			/*
+			 * E-Mu USB 0404/0202/TrackerPre/0204
+			 * samplerate control quirk
+			 */
+			cval->min = 0;
+			cval->max = 5;
+			cval->res = 1;
+			cval->initialized = 1;
+			break;
+		default:
+			get_min_max(cval, valinfo->min_value);
+			break;
 		}
 
 		kctl = snd_ctl_new1(&mixer_procunit_ctl, cval);
