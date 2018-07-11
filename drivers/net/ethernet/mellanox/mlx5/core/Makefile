@@ -15,7 +15,9 @@ mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o \
 
 mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 		en_tx.o en_rx.o en_dim.o en_txrx.o en/xdp.o en_stats.o \
-		en_arfs.o en_fs_ethtool.o en_selftest.o en/port.o lib/vxlan.o
+		en_arfs.o en_selftest.o en/port.o lib/vxlan.o
+
+mlx5_core-$(CONFIG_MLX5_EN_RXNFC) += en_fs_ethtool.o
 
 mlx5_core-$(CONFIG_MLX5_MPFS) += lib/mpfs.o
 

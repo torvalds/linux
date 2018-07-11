@@ -52,6 +52,7 @@
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
+#include "en/fs.h"
 
 struct page_pool;
 
@@ -746,24 +747,11 @@ enum {
 	MLX5E_TC_TTC_FT_LEVEL,
 };
 
-struct mlx5e_ethtool_table {
-	struct mlx5_flow_table *ft;
-	int                    num_rules;
-};
-
-#define ETHTOOL_NUM_L3_L4_FTS 7
-#define ETHTOOL_NUM_L2_FTS 4
-
-struct mlx5e_ethtool_steering {
-	struct mlx5e_ethtool_table      l3_l4_ft[ETHTOOL_NUM_L3_L4_FTS];
-	struct mlx5e_ethtool_table      l2_ft[ETHTOOL_NUM_L2_FTS];
-	struct list_head                rules;
-	int                             tot_num_rules;
-};
-
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
+#ifdef CONFIG_MLX5_EN_RXNFC
 	struct mlx5e_ethtool_steering   ethtool;
+#endif
 	struct mlx5e_tc_table           tc;
 	struct mlx5e_vlan_table         vlan;
 	struct mlx5e_l2_table           l2;
@@ -912,11 +900,6 @@ void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);
 void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
 		     u64 *buf);
-void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv);
-void mlx5e_ethtool_cleanup_steering(struct mlx5e_priv *priv);
-int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd);
-int mlx5e_get_rxnfc(struct net_device *dev,
-		    struct ethtool_rxnfc *info, u32 *rule_locs);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr);
