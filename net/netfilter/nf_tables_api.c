@@ -455,8 +455,40 @@ __nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 	return NULL;
 }
 
+/*
+ * Loading a module requires dropping mutex that guards the
+ * transaction.
+ * We first need to abort any pending transactions as once
+ * mutex is unlocked a different client could start a new
+ * transaction.  It must not see any 'future generation'
+ * changes * as these changes will never happen.
+ */
+#ifdef CONFIG_MODULES
+static int __nf_tables_abort(struct net *net);
+
+static void nft_request_module(struct net *net, const char *fmt, ...)
+{
+	char module_name[MODULE_NAME_LEN];
+	va_list args;
+	int ret;
+
+	__nf_tables_abort(net);
+
+	va_start(args, fmt);
+	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
+	va_end(args);
+	if (WARN(ret >= MODULE_NAME_LEN, "truncated: '%s' (len %d)", module_name, ret))
+		return;
+
+	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+	request_module("%s", module_name);
+	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+}
+#endif
+
 static const struct nft_chain_type *
-nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family, bool autoload)
+nf_tables_chain_type_lookup(struct net *net, const struct nlattr *nla,
+			    u8 family, bool autoload)
 {
 	const struct nft_chain_type *type;
 
@@ -465,10 +497,8 @@ nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family, bool autoload)
 		return type;
 #ifdef CONFIG_MODULES
 	if (autoload) {
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-chain-%u-%.*s", family,
-			       nla_len(nla), (const char *)nla_data(nla));
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(net, "nft-chain-%u-%.*s", family,
+				   nla_len(nla), (const char *)nla_data(nla));
 		type = __nf_tables_chain_type_lookup(nla, family);
 		if (type != NULL)
 			return ERR_PTR(-EAGAIN);
@@ -1412,7 +1442,7 @@ static int nft_chain_parse_hook(struct net *net,
 
 	type = chain_type[family][NFT_CHAIN_T_DEFAULT];
 	if (nla[NFTA_CHAIN_TYPE]) {
-		type = nf_tables_chain_type_lookup(nla[NFTA_CHAIN_TYPE],
+		type = nf_tables_chain_type_lookup(net, nla[NFTA_CHAIN_TYPE],
 						   family, create);
 		if (IS_ERR(type))
 			return PTR_ERR(type);
@@ -1875,7 +1905,8 @@ static const struct nft_expr_type *__nft_expr_type_get(u8 family,
 	return NULL;
 }
 
-static const struct nft_expr_type *nft_expr_type_get(u8 family,
+static const struct nft_expr_type *nft_expr_type_get(struct net *net,
+						     u8 family,
 						     struct nlattr *nla)
 {
 	const struct nft_expr_type *type;
@@ -1889,17 +1920,13 @@ static const struct nft_expr_type *nft_expr_type_get(u8 family,
 
 #ifdef CONFIG_MODULES
 	if (type == NULL) {
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-expr-%u-%.*s", family,
-			       nla_len(nla), (char *)nla_data(nla));
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(net, "nft-expr-%u-%.*s", family,
+				   nla_len(nla), (char *)nla_data(nla));
 		if (__nft_expr_type_get(family, nla))
 			return ERR_PTR(-EAGAIN);
 
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-expr-%.*s",
-			       nla_len(nla), (char *)nla_data(nla));
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(net, "nft-expr-%.*s",
+				   nla_len(nla), (char *)nla_data(nla));
 		if (__nft_expr_type_get(family, nla))
 			return ERR_PTR(-EAGAIN);
 	}
@@ -1968,7 +1995,7 @@ static int nf_tables_expr_parse(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	type = nft_expr_type_get(ctx->family, tb[NFTA_EXPR_NAME]);
+	type = nft_expr_type_get(ctx->net, ctx->family, tb[NFTA_EXPR_NAME]);
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
@@ -2744,9 +2771,7 @@ nft_select_set_ops(const struct nft_ctx *ctx,
 
 #ifdef CONFIG_MODULES
 	if (list_empty(&nf_tables_set_types)) {
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-set");
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(ctx->net, "nft-set");
 		if (!list_empty(&nf_tables_set_types))
 			return ERR_PTR(-EAGAIN);
 	}
@@ -4779,7 +4804,8 @@ static const struct nft_object_type *__nft_obj_type_get(u32 objtype)
 	return NULL;
 }
 
-static const struct nft_object_type *nft_obj_type_get(u32 objtype)
+static const struct nft_object_type *
+nft_obj_type_get(struct net *net, u32 objtype)
 {
 	const struct nft_object_type *type;
 
@@ -4789,9 +4815,7 @@ static const struct nft_object_type *nft_obj_type_get(u32 objtype)
 
 #ifdef CONFIG_MODULES
 	if (type == NULL) {
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-obj-%u", objtype);
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(net, "nft-obj-%u", objtype);
 		if (__nft_obj_type_get(objtype))
 			return ERR_PTR(-EAGAIN);
 	}
@@ -4843,7 +4867,7 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 
 	nft_ctx_init(&ctx, net, skb, nlh, family, table, NULL, nla);
 
-	type = nft_obj_type_get(objtype);
+	type = nft_obj_type_get(net, objtype);
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
@@ -5339,7 +5363,8 @@ static const struct nf_flowtable_type *__nft_flowtable_type_get(u8 family)
 	return NULL;
 }
 
-static const struct nf_flowtable_type *nft_flowtable_type_get(u8 family)
+static const struct nf_flowtable_type *
+nft_flowtable_type_get(struct net *net, u8 family)
 {
 	const struct nf_flowtable_type *type;
 
@@ -5349,9 +5374,7 @@ static const struct nf_flowtable_type *nft_flowtable_type_get(u8 family)
 
 #ifdef CONFIG_MODULES
 	if (type == NULL) {
-		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nf-flowtable-%u", family);
-		nfnl_lock(NFNL_SUBSYS_NFTABLES);
+		nft_request_module(net, "nf-flowtable-%u", family);
 		if (__nft_flowtable_type_get(family))
 			return ERR_PTR(-EAGAIN);
 	}
@@ -5431,7 +5454,7 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 		goto err1;
 	}
 
-	type = nft_flowtable_type_get(family);
+	type = nft_flowtable_type_get(net, family);
 	if (IS_ERR(type)) {
 		err = PTR_ERR(type);
 		goto err2;
