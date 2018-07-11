@@ -23,16 +23,16 @@
 #define ELAN_MT_FIRST_FINGER	0x82
 #define ELAN_MT_SECOND_FINGER	0x83
 #define ELAN_INPUT_REPORT_SIZE	8
+#define ELAN_MAX_FINGERS	5
 #define ELAN_MAX_PRESSURE	255
+#define ELAN_TP_USB_INTF	1
 
 #define ELAN_MUTE_LED_REPORT	0xBC
 #define ELAN_LED_REPORT_SIZE	8
 
 struct elan_touchpad_settings {
-	u8 max_fingers;
 	u16 max_x;
 	u16 max_y;
-	int usb_bInterfaceNumber;
 };
 
 struct elan_drvdata {
@@ -46,9 +46,8 @@ struct elan_drvdata {
 static int is_not_elan_touchpad(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct elan_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	return (intf->altsetting->desc.bInterfaceNumber != drvdata->settings->usb_bInterfaceNumber);
+	return (intf->altsetting->desc.bInterfaceNumber != ELAN_TP_USB_INTF);
 }
 
 static int elan_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -98,8 +97,7 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	__set_bit(BTN_LEFT, input->keybit);
 	__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
-	ret = input_mt_init_slots(input, drvdata->settings->max_fingers,
-				  INPUT_MT_POINTER);
+	ret = input_mt_init_slots(input, ELAN_MAX_FINGERS, INPUT_MT_POINTER);
 	if (ret) {
 		hid_err(hdev, "Failed to init elan MT slots: %d\n", ret);
 		return ret;
@@ -181,7 +179,7 @@ static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
 	 */
 
 	if (data[0] == ELAN_SINGLE_FINGER) {
-		for (i = 0; i < drvdata->settings->max_fingers; i++) {
+		for (i = 0; i < ELAN_MAX_FINGERS; i++) {
 			if (data[2] & BIT(i + 3))
 				elan_report_mt_slot(drvdata, data + 3, i);
 			else
@@ -208,7 +206,7 @@ static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
 		if (prev_report[0] != ELAN_MT_FIRST_FINGER)
 			return;
 
-		for (i = 0; i < drvdata->settings->max_fingers; i++) {
+		for (i = 0; i < ELAN_MAX_FINGERS; i++) {
 			if (prev_report[2] & BIT(i + 3)) {
 				if (!first) {
 					first = 1;
@@ -385,10 +383,8 @@ static void elan_remove(struct hid_device *hdev)
 }
 
 static const struct elan_touchpad_settings hp_x2_10_touchpad_data = {
-	.max_fingers = 5,
 	.max_x = 2930,
 	.max_y = 1250,
-	.usb_bInterfaceNumber = 1,
 };
 
 static const struct hid_device_id elan_devices[] = {
