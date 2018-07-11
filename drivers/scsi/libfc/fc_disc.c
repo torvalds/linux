@@ -62,20 +62,16 @@ static void fc_disc_restart(struct fc_disc *);
  */
 static void fc_disc_stop_rports(struct fc_disc *disc)
 {
-	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 
-	lport = fc_disc_lport(disc);
-	lockdep_assert_held(&lport->lp_mutex);
+	lockdep_assert_held(&disc->disc_mutex);
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
+	list_for_each_entry(rdata, &disc->rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
 			fc_rport_logoff(rdata);
 			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
-	rcu_read_unlock();
 }
 
 /**
@@ -699,7 +695,9 @@ static void fc_disc_stop(struct fc_lport *lport)
 
 	if (disc->pending)
 		cancel_delayed_work_sync(&disc->disc_work);
+	mutex_lock(&disc->disc_mutex);
 	fc_disc_stop_rports(disc);
+	mutex_unlock(&disc->disc_mutex);
 }
 
 /**
