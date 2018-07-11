@@ -19,10 +19,13 @@
 
 #include "hid-ids.h"
 
+#define ELAN_MT_I2C		0x5d
 #define ELAN_SINGLE_FINGER	0x81
 #define ELAN_MT_FIRST_FINGER	0x82
 #define ELAN_MT_SECOND_FINGER	0x83
 #define ELAN_INPUT_REPORT_SIZE	8
+#define ELAN_I2C_REPORT_SIZE	32
+#define ELAN_FINGER_DATA_LEN	5
 #define ELAN_MAX_FINGERS	5
 #define ELAN_MAX_PRESSURE	255
 #define ELAN_TP_USB_INTF	1
@@ -51,9 +54,14 @@ struct elan_drvdata {
 
 static int is_not_elan_touchpad(struct hid_device *hdev)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	if (hdev->bus == BUS_USB) {
+		struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 
-	return (intf->altsetting->desc.bInterfaceNumber != ELAN_TP_USB_INTF);
+		return (intf->altsetting->desc.bInterfaceNumber !=
+			ELAN_TP_USB_INTF);
+	}
+
+	return 0;
 }
 
 static int elan_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -65,7 +73,8 @@ static int elan_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	if (field->report->id == ELAN_SINGLE_FINGER ||
 	    field->report->id == ELAN_MT_FIRST_FINGER ||
-	    field->report->id == ELAN_MT_SECOND_FINGER)
+	    field->report->id == ELAN_MT_SECOND_FINGER ||
+	    field->report->id == ELAN_MT_I2C)
 		return -1;
 
 	return 0;
@@ -224,7 +233,7 @@ static void elan_report_mt_slot(struct elan_drvdata *drvdata, u8 *data,
 	}
 }
 
-static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
+static void elan_usb_report_input(struct elan_drvdata *drvdata, u8 *data)
 {
 	int i;
 	struct input_dev *input = drvdata->input;
@@ -311,6 +320,46 @@ static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
 	input_sync(input);
 }
 
+static void elan_i2c_report_input(struct elan_drvdata *drvdata, u8 *data)
+{
+	struct input_dev *input = drvdata->input;
+	u8 *finger_data;
+	int i;
+
+	/*
+	 * Elan MT touchpads in i2c mode send finger data in the same format
+	 * as in USB mode, but then with all fingers in a single packet.
+	 *
+	 * packet structure for ELAN_MT_I2C:
+	 *
+	 * byte     1: 1   0   0   1   1   1   0   1   // 0x5d
+	 * byte     2: f5  f4  f3  f2  f1  0   0   L
+	 * byte     3: x12 x11 x10 x9  0?  y11 y10 y9
+	 * byte     4: x8  x7  x6  x5  x4  x3  x2  x1
+	 * byte     5: y8  y7  y6  y5  y4  y3  y2  y1
+	 * byte     6: sy4 sy3 sy2 sy1 sx4 sx3 sx2 sx1
+	 * byte     7: p8  p7  p6  p5  p4  p3  p2  p1
+	 * byte  8-12: Same as byte 3-7 for second finger down
+	 * byte 13-17: Same as byte 3-7 for third finger down
+	 * byte 18-22: Same as byte 3-7 for fourth finger down
+	 * byte 23-27: Same as byte 3-7 for fifth finger down
+	 */
+
+	finger_data = data + 2;
+	for (i = 0; i < ELAN_MAX_FINGERS; i++) {
+		if (data[1] & BIT(i + 3)) {
+			elan_report_mt_slot(drvdata, finger_data, i);
+			finger_data += ELAN_FINGER_DATA_LEN;
+		} else {
+			elan_report_mt_slot(drvdata, NULL, i);
+		}
+	}
+
+	input_report_key(input, BTN_LEFT, data[1] & 0x01);
+	input_mt_sync_frame(input);
+	input_sync(input);
+}
+
 static int elan_raw_event(struct hid_device *hdev,
 			  struct hid_report *report, u8 *data, int size)
 {
@@ -323,9 +372,14 @@ static int elan_raw_event(struct hid_device *hdev,
 	    data[0] == ELAN_MT_FIRST_FINGER ||
 	    data[0] == ELAN_MT_SECOND_FINGER) {
 		if (size == ELAN_INPUT_REPORT_SIZE) {
-			elan_report_input(drvdata, data);
+			elan_usb_report_input(drvdata, data);
 			return 1;
 		}
+	}
+
+	if (data[0] == ELAN_MT_I2C && size == ELAN_I2C_REPORT_SIZE) {
+		elan_i2c_report_input(drvdata, data);
+		return 1;
 	}
 
 	return 0;
@@ -474,6 +528,7 @@ static const struct hid_device_id elan_devices[] = {
 	  .driver_data = ELAN_HAS_LED },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER),
 	  .driver_data = ELAN_HAS_LED },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_TOSHIBA_CLICK_L9W) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, elan_devices);
