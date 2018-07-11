@@ -279,7 +279,7 @@ struct rtl8192_rx_info {
 	u8 out_pipe;
 };
 
-typedef struct rx_desc_819x_usb {
+struct rx_desc_819x_usb {
 	/* DOWRD 0 */
 	u16                 Length:14;
 	u16                 CRC32:1;
@@ -292,7 +292,7 @@ typedef struct rx_desc_819x_usb {
 
 	/* DWORD 1 */
 	u32                 Reserved2;
-} rx_desc_819x_usb, *prx_desc_819x_usb;
+};
 
 #ifdef USB_RX_AGGREGATION_SUPPORT
 typedef struct _rx_desc_819x_usb_aggr_subframe {

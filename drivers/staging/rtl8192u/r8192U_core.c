@@ -739,7 +739,7 @@ static void rtl8192_rx_isr(struct urb *urb);
 
 static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 {
-	return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
+	return (sizeof(struct rx_desc_819x_usb) + pstats->RxDrvInfoSize
 		+ pstats->RxBufShift);
 }
 
@@ -4633,7 +4633,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	rx_drvinfo_819x_usb  *driver_info = NULL;
 
 	/* Get Rx Descriptor Information */
-	rx_desc_819x_usb *desc = (rx_desc_819x_usb *)skb->data;
+	struct rx_desc_819x_usb *desc = (struct rx_desc_819x_usb *)skb->data;
 
 	stats->Length = desc->Length;
 	stats->RxDrvInfoSize = desc->RxDrvInfoSize;
@@ -4659,7 +4659,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	if (stats->RxDrvInfoSize != 0) {
 		driver_info = (rx_drvinfo_819x_usb *)(
 				skb->data
-				+ sizeof(rx_desc_819x_usb)
+				+ sizeof(struct rx_desc_819x_usb)
 				+ stats->RxBufShift
 			      );
 		/* unit: 0.5M */
@@ -4704,7 +4704,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 				 driver_info->FirstAGGR, driver_info->PartAggr);
 	}
 
-	skb_pull(skb, sizeof(rx_desc_819x_usb));
+	skb_pull(skb, sizeof(struct rx_desc_819x_usb));
 	/* Get Total offset of MPDU Frame Body */
 	if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0) {
 		stats->bShift = 1;
@@ -4733,7 +4733,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 	bool unicast_packet = false;
 
 	/* 20 is for ps-poll */
-	if ((skb->len >= (20 + sizeof(rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
+	if ((skb->len >= (20 + sizeof(struct rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
 		/* first packet should not contain Rx aggregation header */
 		query_rxdesc_status(skb, &stats, false);
 		/* TODO */
@@ -4809,7 +4809,7 @@ static void rtl819xusb_process_received_packet(
 static void query_rx_cmdpkt_desc_status(struct sk_buff *skb,
 					struct ieee80211_rx_stats *stats)
 {
-	rx_desc_819x_usb *desc = (rx_desc_819x_usb *)skb->data;
+	struct rx_desc_819x_usb *desc = (struct rx_desc_819x_usb *)skb->data;
 
 	/* Get Rx Descriptor Information */
 	stats->virtual_address = (u8 *)skb->data;
@@ -4835,7 +4835,7 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 		.freq = IEEE80211_24GHZ_BAND,
 	};
 
-	if ((skb->len >= (20 + sizeof(rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
+	if ((skb->len >= (20 + sizeof(struct rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
 		query_rx_cmdpkt_desc_status(skb, &stats);
 		/* prfd->queue_id = 1; */
 
