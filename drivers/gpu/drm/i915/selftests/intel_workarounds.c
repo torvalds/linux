@@ -6,6 +6,7 @@
 
 #include "../i915_selftest.h"
 
+#include "igt_wedge_me.h"
 #include "mock_context.h"
 
 static struct drm_i915_gem_object *
@@ -111,6 +112,7 @@ static int check_whitelist(const struct whitelist *w,
 			   struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *results;
+	struct igt_wedge_me wedge;
 	u32 *vaddr;
 	int err;
 	int i;
@@ -119,7 +121,11 @@ static int check_whitelist(const struct whitelist *w,
 	if (IS_ERR(results))
 		return PTR_ERR(results);
 
-	err = i915_gem_object_set_to_cpu_domain(results, false);
+	err = 0;
+	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
+		err = i915_gem_object_set_to_cpu_domain(results, false);
+	if (i915_terminally_wedged(&ctx->i915->gpu_error))
+		err = -EIO;
 	if (err)
 		goto out_put;
 
