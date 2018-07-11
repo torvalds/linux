@@ -350,6 +350,8 @@ replay:
 		return kfree_skb(skb);
 	}
 
+	nfnl_unlock(subsys_id);
+
 	while (skb->len >= nlmsg_total_size(0)) {
 		int msglen, type;
 
@@ -471,13 +473,8 @@ ack:
 	}
 done:
 	if (status & NFNL_BATCH_REPLAY) {
-		const struct nfnetlink_subsystem *ss2;
-
-		ss2 = nfnl_dereference_protected(subsys_id);
-		if (ss2 == ss)
-			ss->abort(net, oskb);
+		ss->abort(net, oskb);
 		nfnl_err_reset(&err_list);
-		nfnl_unlock(subsys_id);
 		kfree_skb(skb);
 		module_put(ss->owner);
 		goto replay;
@@ -497,7 +494,6 @@ done:
 		ss->cleanup(net);
 
 	nfnl_err_deliver(&err_list, oskb);
-	nfnl_unlock(subsys_id);
 	kfree_skb(skb);
 	module_put(ss->owner);
 }

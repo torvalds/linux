@@ -118,6 +118,8 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	u64 timeout;
 	int err;
 
+	lockdep_assert_held(&ctx->net->nft.commit_mutex);
+
 	if (tb[NFTA_DYNSET_SET_NAME] == NULL ||
 	    tb[NFTA_DYNSET_OP] == NULL ||
 	    tb[NFTA_DYNSET_SREG_KEY] == NULL)
