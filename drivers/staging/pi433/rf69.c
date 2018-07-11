@@ -128,9 +128,13 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 	return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
 				   mode_map[mode]);
 
-	// we are using packet mode, so this check is not really needed
-	// but waiting for mode ready is necessary when going from sleep because the FIFO may not be immediately available from previous mode
-	//while (_mode == RF69_MODE_SLEEP && (READ_REG(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
+	/*
+	 * we are using packet mode, so this check is not really needed
+	 * but waiting for mode ready is necessary when going from sleep
+	 * because the FIFO may not be immediately available from previous mode
+	 * while (_mode == RF69_MODE_SLEEP && (READ_REG(REG_IRQFLAGS1) &
+		  RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
+	 */
 }
 
 int rf69_set_data_mode(struct spi_device *spi, u8 data_mode)

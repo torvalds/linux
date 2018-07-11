@@ -826,11 +826,15 @@ pi433_write(struct file *filp, const char __user *buf,
 	instance = filp->private_data;
 	device = instance->device;
 
-	/* check, whether internal buffer (tx thread) is big enough for requested size */
+	/*
+	 * check, whether internal buffer (tx thread) is big enough
+	 * for requested size
+	 */
 	if (count > MAX_MSG_SIZE)
 		return -EMSGSIZE;
 
-	/* write the following sequence into fifo:
+	/*
+	 * write the following sequence into fifo:
 	 * - tx_cfg
 	 * - size of message
 	 * - message
@@ -1116,7 +1120,10 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup spi parameters */
 	spi->mode = 0x00;
 	spi->bits_per_word = 8;
-	/* spi->max_speed_hz = 10000000;  1MHz already set by device tree overlay */
+	/*
+	 * spi->max_speed_hz = 10000000;
+	 * 1MHz already set by device tree overlay
+	 */
 
 	retval = spi_setup(spi);
 	if (retval) {
