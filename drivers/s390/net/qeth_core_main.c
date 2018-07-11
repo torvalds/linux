@@ -5848,31 +5848,13 @@ static int qeth_core_restore(struct ccwgroup_device *gdev)
 	return 0;
 }
 
-static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
-	.driver = {
-		.owner = THIS_MODULE,
-		.name = "qeth",
-	},
-	.ccw_driver = &qeth_ccw_driver,
-	.setup = qeth_core_probe_device,
-	.remove = qeth_core_remove_device,
-	.set_online = qeth_core_set_online,
-	.set_offline = qeth_core_set_offline,
-	.shutdown = qeth_core_shutdown,
-	.prepare = NULL,
-	.complete = NULL,
-	.freeze = qeth_core_freeze,
-	.thaw = qeth_core_thaw,
-	.restore = qeth_core_restore,
-};
-
 static ssize_t group_store(struct device_driver *ddrv, const char *buf,
 			   size_t count)
 {
 	int err;
 
-	err = ccwgroup_create_dev(qeth_core_root_dev,
-				  &qeth_core_ccwgroup_driver, 3, buf);
+	err = ccwgroup_create_dev(qeth_core_root_dev, to_ccwgroupdrv(ddrv), 3,
+				  buf);
 
 	return err ? err : count;
 }
@@ -5888,6 +5870,25 @@ static struct attribute_group qeth_drv_attr_group = {
 static const struct attribute_group *qeth_drv_attr_groups[] = {
 	&qeth_drv_attr_group,
 	NULL,
+};
+
+static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
+	.driver = {
+		.groups = qeth_drv_attr_groups,
+		.owner = THIS_MODULE,
+		.name = "qeth",
+	},
+	.ccw_driver = &qeth_ccw_driver,
+	.setup = qeth_core_probe_device,
+	.remove = qeth_core_remove_device,
+	.set_online = qeth_core_set_online,
+	.set_offline = qeth_core_set_offline,
+	.shutdown = qeth_core_shutdown,
+	.prepare = NULL,
+	.complete = NULL,
+	.freeze = qeth_core_freeze,
+	.thaw = qeth_core_thaw,
+	.restore = qeth_core_restore,
 };
 
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -6581,7 +6582,6 @@ static int __init qeth_core_init(void)
 	rc = ccw_driver_register(&qeth_ccw_driver);
 	if (rc)
 		goto ccw_err;
-	qeth_core_ccwgroup_driver.driver.groups = qeth_drv_attr_groups;
 	rc = ccwgroup_driver_register(&qeth_core_ccwgroup_driver);
 	if (rc)
 		goto ccwgroup_err;
