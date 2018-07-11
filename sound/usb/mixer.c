@@ -2300,8 +2300,16 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 	for (valinfo = info->values; valinfo->control; valinfo++) {
 		__u8 *controls = uac_processing_unit_bmControls(desc, state->mixer->protocol);
 
-		if (!(controls[valinfo->control / 8] & (1 << ((valinfo->control % 8) - 1))))
-			continue;
+		if (state->mixer->protocol == UAC_VERSION_1) {
+			if (!(controls[valinfo->control / 8] &
+					(1 << ((valinfo->control % 8) - 1))))
+				continue;
+		} else { /* UAC_VERSION_2/3 */
+			if (!uac_v2v3_control_is_readable(controls[valinfo->control / 8],
+							  valinfo->control))
+				continue;
+		}
+
 		map = find_map(state->map, unitid, valinfo->control);
 		if (check_ignored_ctl(map))
 			continue;
@@ -2312,6 +2320,11 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 		cval->control = valinfo->control;
 		cval->val_type = valinfo->val_type;
 		cval->channels = 1;
+
+		if (state->mixer->protocol > UAC_VERSION_1 &&
+		    !uac_v2v3_control_is_writeable(controls[valinfo->control / 8],
+						   valinfo->control))
+			cval->master_readonly = 1;
 
 		/* get min/max values */
 		if (type == UAC_PROCESS_UP_DOWNMIX && cval->control == UAC_UD_MODE_SELECT) {
