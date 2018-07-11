@@ -188,6 +188,10 @@
 #define ARM_LDR_R(rt, rn, rm)	(ARM_INST_LDR_R | ARM_INST_LDST__U \
 				 | (rt) << 12 | (rn) << 16 \
 				 | (rm))
+#define ARM_LDR_R_SI(rt, rn, rm, type, imm) \
+				(ARM_INST_LDR_R | ARM_INST_LDST__U \
+				 | (rt) << 12 | (rn) << 16 \
+				 | (imm) << 7 | (type) << 5 | (rm))
 #define ARM_LDRB_R(rt, rn, rm)	(ARM_INST_LDRB_R | ARM_INST_LDST__U \
 				 | (rt) << 12 | (rn) << 16 \
 				 | (rm))
