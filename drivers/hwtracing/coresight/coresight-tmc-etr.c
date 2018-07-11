@@ -58,6 +58,40 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
+/*
+ * Return the available trace data in the buffer @pos, with a maximum
+ * limit of @len, also updating the @bufpp on where to find it.
+ */
+ssize_t tmc_etr_get_sysfs_trace(struct tmc_drvdata *drvdata,
+				loff_t pos, size_t len, char **bufpp)
+{
+	ssize_t actual = len;
+	char *bufp = drvdata->buf + pos;
+	char *bufend = (char *)(drvdata->vaddr + drvdata->size);
+
+	/* Adjust the len to available size @pos */
+	if (pos + actual > drvdata->len)
+		actual = drvdata->len - pos;
+
+	if (actual <= 0)
+		return actual;
+
+	/*
+	 * Since we use a circular buffer, with trace data starting
+	 * @drvdata->buf, possibly anywhere in the buffer @drvdata->vaddr,
+	 * wrap the current @pos to within the buffer.
+	 */
+	if (bufp >= bufend)
+		bufp -= drvdata->size;
+	/*
+	 * For simplicity, avoid copying over a wrapped around buffer.
+	 */
+	if ((bufp + actual) > bufend)
+		actual = bufend - bufp;
+	*bufpp = bufp;
+	return actual;
+}
+
 static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 {
 	const u32 *barrier;

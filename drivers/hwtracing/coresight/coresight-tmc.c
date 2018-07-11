@@ -123,35 +123,40 @@ static int tmc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static inline ssize_t tmc_get_sysfs_trace(struct tmc_drvdata *drvdata,
+					  loff_t pos, size_t len, char **bufpp)
+{
+	switch (drvdata->config_type) {
+	case TMC_CONFIG_TYPE_ETB:
+	case TMC_CONFIG_TYPE_ETF:
+		return tmc_etb_get_sysfs_trace(drvdata, pos, len, bufpp);
+	case TMC_CONFIG_TYPE_ETR:
+		return tmc_etr_get_sysfs_trace(drvdata, pos, len, bufpp);
+	}
+
+	return -EINVAL;
+}
+
 static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 			loff_t *ppos)
 {
+	char *bufp;
+	ssize_t actual;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
 						   struct tmc_drvdata, miscdev);
-	char *bufp = drvdata->buf + *ppos;
+	actual = tmc_get_sysfs_trace(drvdata, *ppos, len, &bufp);
+	if (actual <= 0)
+		return 0;
 
-	if (*ppos + len > drvdata->len)
-		len = drvdata->len - *ppos;
-
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		if (bufp == (char *)(drvdata->vaddr + drvdata->size))
-			bufp = drvdata->vaddr;
-		else if (bufp > (char *)(drvdata->vaddr + drvdata->size))
-			bufp -= drvdata->size;
-		if ((bufp + len) > (char *)(drvdata->vaddr + drvdata->size))
-			len = (char *)(drvdata->vaddr + drvdata->size) - bufp;
-	}
-
-	if (copy_to_user(data, bufp, len)) {
+	if (copy_to_user(data, bufp, actual)) {
 		dev_dbg(drvdata->dev, "%s: copy_to_user failed\n", __func__);
 		return -EFAULT;
 	}
 
-	*ppos += len;
+	*ppos += actual;
+	dev_dbg(drvdata->dev, "%zu bytes copied\n", actual);
 
-	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
-		__func__, len, (int)(drvdata->len - *ppos));
-	return len;
+	return actual;
 }
 
 static int tmc_release(struct inode *inode, struct file *file)

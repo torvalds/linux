@@ -109,6 +109,24 @@ static void tmc_etf_disable_hw(struct tmc_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
+/*
+ * Return the available trace data in the buffer from @pos, with
+ * a maximum limit of @len, updating the @bufpp on where to
+ * find it.
+ */
+ssize_t tmc_etb_get_sysfs_trace(struct tmc_drvdata *drvdata,
+				loff_t pos, size_t len, char **bufpp)
+{
+	ssize_t actual = len;
+
+	/* Adjust the len to available size @pos */
+	if (pos + actual > drvdata->len)
+		actual = drvdata->len - pos;
+	if (actual > 0)
+		*bufpp = drvdata->buf + pos;
+	return actual;
+}
+
 static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 {
 	int ret = 0;
