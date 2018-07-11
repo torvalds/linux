@@ -240,7 +240,7 @@ struct tx_desc_cmd_819x_usb {
 	u32	Reserved8;
 };
 
-typedef struct _tx_fwinfo_819x_usb {
+struct tx_fwinfo_819x_usb {
 	/* DOWRD 0 */
 	u8	TxRate:7;
 	u8	CtsEnable:1;
@@ -271,7 +271,7 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	TxAGCSign:1;
 	u32	Tx_INFO_RSVD:6;
 	u32	PacketID:13;
-} tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
+};
 
 struct rtl8192_rx_info {
 	struct urb *urb;
@@ -342,7 +342,7 @@ typedef struct rx_drvinfo_819x_usb {
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
 #define	USB_HWDESC_HEADER_LEN		sizeof(struct tx_desc_819x_usb)
-#define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
+#define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(struct tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 #define MAX_TRANSMIT_BUFFER_SIZE			32000

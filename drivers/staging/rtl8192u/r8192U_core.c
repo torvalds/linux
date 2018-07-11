@@ -1463,8 +1463,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	struct tx_desc_819x_usb *tx_desc = (struct tx_desc_819x_usb *)skb->data;
-	tx_fwinfo_819x_usb *tx_fwinfo =
-		(tx_fwinfo_819x_usb *)(skb->data + USB_HWDESC_HEADER_LEN);
+	struct tx_fwinfo_819x_usb *tx_fwinfo =
+		(struct tx_fwinfo_819x_usb *)(skb->data + USB_HWDESC_HEADER_LEN);
 	struct usb_device *udev = priv->udev;
 	int pend;
 	int status;
@@ -1489,7 +1489,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	/* Fill Tx firmware info */
-	memset(tx_fwinfo, 0, sizeof(tx_fwinfo_819x_usb));
+	memset(tx_fwinfo, 0, sizeof(struct tx_fwinfo_819x_usb));
 	/* DWORD 0 */
 	tx_fwinfo->TxHT = (tcb_desc->data_rate & 0x80) ? 1 : 0;
 	tx_fwinfo->TxRate = MRateToHwRate8190Pci(tcb_desc->data_rate);
@@ -1539,7 +1539,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	/* DWORD 0 */
 	tx_desc->LINIP = 0;
 	tx_desc->CmdInit = 1;
-	tx_desc->Offset =  sizeof(tx_fwinfo_819x_usb) + 8;
+	tx_desc->Offset =  sizeof(struct tx_fwinfo_819x_usb) + 8;
 	tx_desc->PktSize = (skb->len - TX_PACKET_SHIFT_BYTES) & 0xffff;
 
 	/*DWORD 1*/
@@ -1570,7 +1570,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	tx_desc->QueueSelect = MapHwQueueToFirmwareQueue(tcb_desc->queue_index);
-	tx_desc->TxFWInfoSize =  sizeof(tx_fwinfo_819x_usb);
+	tx_desc->TxFWInfoSize =  sizeof(struct tx_fwinfo_819x_usb);
 
 	tx_desc->DISFB = tcb_desc->bTxDisableRateFallBack;
 	tx_desc->USERATE = tcb_desc->bTxUseDriverAssingedRate;
