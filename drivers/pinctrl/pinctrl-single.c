@@ -1071,8 +1071,8 @@ free_pingroups:
 	*num_maps = 1;
 free_function:
 	pinmux_generic_remove_function(pcs->pctl, fsel);
-	mutex_unlock(&pcs->mutex);
 free_pins:
+	mutex_unlock(&pcs->mutex);
 	devm_kfree(pcs->dev, pins);
 
 free_vals:
@@ -1211,8 +1211,8 @@ free_pingroups:
 	*num_maps = 1;
 free_function:
 	pinmux_generic_remove_function(pcs->pctl, fsel);
-	mutex_unlock(&pcs->mutex);
 free_pins:
+	mutex_unlock(&pcs->mutex);
 	devm_kfree(pcs->dev, pins);
 
 free_vals:
