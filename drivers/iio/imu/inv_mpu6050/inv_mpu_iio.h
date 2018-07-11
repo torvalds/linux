@@ -71,6 +71,7 @@ struct inv_mpu6050_reg_map {
 enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
+	INV_MPU6515,
 	INV_MPU6000,
 	INV_MPU9150,
 	INV_MPU9250,
@@ -256,6 +257,7 @@ struct inv_mpu6050_state {
 #define INV_MPU9150_WHOAMI_VALUE		0x68
 #define INV_MPU9250_WHOAMI_VALUE		0x71
 #define INV_MPU9255_WHOAMI_VALUE		0x73
+#define INV_MPU6515_WHOAMI_VALUE		0x74
 #define INV_ICM20608_WHOAMI_VALUE		0xAF
 
 /* scan element definition */
