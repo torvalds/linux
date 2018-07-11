@@ -896,26 +896,6 @@ el0_error_naked:
 	b	ret_to_user
 ENDPROC(el0_error)
 
-
-/*
- * This is the fast syscall return path.  We do as little as possible here,
- * and this includes saving x0 back into the kernel stack.
- */
-ret_fast_syscall:
-	disable_daif
-#ifndef CONFIG_DEBUG_RSEQ
-	ldr	x1, [tsk, #TSK_TI_FLAGS]	// re-check for syscall tracing
-	and	x2, x1, #_TIF_SYSCALL_WORK
-	cbnz	x2, ret_fast_syscall_trace
-	and	x2, x1, #_TIF_WORK_MASK
-	cbnz	x2, work_pending
-	enable_step_tsk x1, x2
-	kernel_exit 0
-#endif
-ret_fast_syscall_trace:
-	enable_daif
-	b	__sys_trace_return_skipped	// we already saved x0
-
 /*
  * Ok, we need to do extra processing, enter the slow path.
  */
@@ -971,44 +951,13 @@ alternative_else_nop_endif
 #endif
 
 el0_svc_naked:					// compat entry point
-	stp	x0, xscno, [sp, #S_ORIG_X0]	// save the original x0 and syscall number
-	enable_daif
-	ct_user_exit 1
-
-	tst	x16, #_TIF_SYSCALL_WORK		// check for syscall hooks
-	b.ne	__sys_trace
 	mov	x0, sp
 	mov	w1, wscno
 	mov	w2, wsc_nr
 	mov	x3, stbl
-	bl	invoke_syscall
-	b	ret_fast_syscall
-ENDPROC(el0_svc)
-
-	/*
-	 * This is the really slow path.  We're going to be doing context
-	 * switches, and waiting for our parent to respond.
-	 */
-__sys_trace:
-	cmp     wscno, #NO_SYSCALL		// user-issued syscall(-1)?
-	b.ne	1f
-	mov	x0, #-ENOSYS			// set default errno if so
-	str	x0, [sp, #S_X0]
-1:	mov	x0, sp
-	bl	syscall_trace_enter
-	cmp	w0, #NO_SYSCALL			// skip the syscall?
-	b.eq	__sys_trace_return_skipped
-
-	mov	x0, sp
-	mov	w1, wscno
-	mov	w2, wsc_nr
-	mov	x3, stbl
-	bl	invoke_syscall
-
-__sys_trace_return_skipped:
-	mov	x0, sp
-	bl	syscall_trace_exit
+	bl	el0_svc_common
 	b	ret_to_user
+ENDPROC(el0_svc)
 
 	.popsection				// .entry.text
 
