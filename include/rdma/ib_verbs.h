@@ -1425,14 +1425,16 @@ struct ib_recv_wr {
 };
 
 enum ib_access_flags {
-	IB_ACCESS_LOCAL_WRITE	= 1,
-	IB_ACCESS_REMOTE_WRITE	= (1<<1),
-	IB_ACCESS_REMOTE_READ	= (1<<2),
-	IB_ACCESS_REMOTE_ATOMIC	= (1<<3),
-	IB_ACCESS_MW_BIND	= (1<<4),
-	IB_ZERO_BASED		= (1<<5),
-	IB_ACCESS_ON_DEMAND     = (1<<6),
-	IB_ACCESS_HUGETLB	= (1<<7),
+	IB_ACCESS_LOCAL_WRITE = IB_UVERBS_ACCESS_LOCAL_WRITE,
+	IB_ACCESS_REMOTE_WRITE = IB_UVERBS_ACCESS_REMOTE_WRITE,
+	IB_ACCESS_REMOTE_READ = IB_UVERBS_ACCESS_REMOTE_READ,
+	IB_ACCESS_REMOTE_ATOMIC = IB_UVERBS_ACCESS_REMOTE_ATOMIC,
+	IB_ACCESS_MW_BIND = IB_UVERBS_ACCESS_MW_BIND,
+	IB_ZERO_BASED = IB_UVERBS_ACCESS_ZERO_BASED,
+	IB_ACCESS_ON_DEMAND = IB_UVERBS_ACCESS_ON_DEMAND,
+	IB_ACCESS_HUGETLB = IB_UVERBS_ACCESS_HUGETLB,
+
+	IB_ACCESS_SUPPORTED = ((IB_ACCESS_HUGETLB << 1) - 1)
 };
 
 /*
@@ -2221,11 +2223,6 @@ struct ib_counters {
 	struct ib_uobject	*uobject;
 	/* num of objects attached */
 	atomic_t	usecnt;
-};
-
-enum ib_read_counters_flags {
-	/* prefer read values from driver cache */
-	IB_READ_COUNTERS_ATTR_PREFER_CACHED = 1 << 0,
 };
 
 struct ib_counters_read_attr {

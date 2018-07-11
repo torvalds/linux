@@ -40,6 +40,17 @@
 #define RDMA_UAPI_PTR(_type, _name)	__aligned_u64 _name
 #endif
 
+enum ib_uverbs_access_flags {
+	IB_UVERBS_ACCESS_LOCAL_WRITE = 1 << 0,
+	IB_UVERBS_ACCESS_REMOTE_WRITE = 1 << 1,
+	IB_UVERBS_ACCESS_REMOTE_READ = 1 << 2,
+	IB_UVERBS_ACCESS_REMOTE_ATOMIC = 1 << 3,
+	IB_UVERBS_ACCESS_MW_BIND = 1 << 4,
+	IB_UVERBS_ACCESS_ZERO_BASED = 1 << 5,
+	IB_UVERBS_ACCESS_ON_DEMAND = 1 << 6,
+	IB_UVERBS_ACCESS_HUGETLB = 1 << 7,
+};
+
 enum ib_uverbs_query_port_cap_flags {
 	IB_UVERBS_PCF_SM = 1 << 1,
 	IB_UVERBS_PCF_NOTICE_SUP = 1 << 2,
@@ -139,6 +150,11 @@ struct ib_uverbs_flow_action_esp {
 	__u32		tfc_pad;
 	__u32		flags;
 	__aligned_u64	hard_limit_pkts;
+};
+
+enum ib_uverbs_read_counters_flags {
+	/* prefer read values from driver cache */
+	IB_UVERBS_READ_COUNTERS_PREFER_CACHED = 1 << 0,
 };
 
 #endif
