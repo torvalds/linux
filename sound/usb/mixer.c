@@ -953,6 +953,23 @@ static int check_input_term(struct mixer_build *state, int id,
 
 				return 0;
 			}
+			case UAC3_PROCESSING_UNIT: {
+				struct uac_processing_unit_descriptor *d = p1;
+
+				if (!d->bNrInPins)
+					return -EINVAL;
+
+				/* call recursively to retrieve the channel info */
+				err = check_input_term(state, d->baSourceID[0], term);
+				if (err < 0)
+					return err;
+
+				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->id = id;
+				term->name = 0; /* TODO: UAC3 Class-specific strings */
+
+				return 0;
+			}
 			default:
 				return -ENODEV;
 			}
@@ -2180,6 +2197,11 @@ struct procunit_info {
 	struct procunit_value_info *values;
 };
 
+static struct procunit_value_info undefined_proc_info[] = {
+	{ 0x00, "Control Undefined", 0 },
+	{ 0 }
+};
+
 static struct procunit_value_info updown_proc_info[] = {
 	{ UAC_UD_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
@@ -2228,6 +2250,23 @@ static struct procunit_info procunits[] = {
 	{ UAC_PROCESS_DYN_RANGE_COMP, "DCR", dcr_proc_info },
 	{ 0 },
 };
+
+static struct procunit_value_info uac3_updown_proc_info[] = {
+	{ UAC3_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
+	{ 0 }
+};
+static struct procunit_value_info uac3_stereo_ext_proc_info[] = {
+	{ UAC3_EXT_WIDTH_CONTROL, "Width Control", USB_MIXER_U8 },
+	{ 0 }
+};
+
+static struct procunit_info uac3_procunits[] = {
+	{ UAC3_PROCESS_UP_DOWNMIX, "Up Down", uac3_updown_proc_info },
+	{ UAC3_PROCESS_STEREO_EXTENDER, "3D Stereo Extender", uac3_stereo_ext_proc_info },
+	{ UAC3_PROCESS_MULTI_FUNCTION, "Multi-Function", undefined_proc_info },
+	{ 0 },
+};
+
 /*
  * predefined data for extension units
  */
@@ -2388,8 +2427,16 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 static int parse_audio_processing_unit(struct mixer_build *state, int unitid,
 				       void *raw_desc)
 {
-	return build_audio_procunit(state, unitid, raw_desc,
-				    procunits, "Processing Unit");
+	switch (state->mixer->protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return build_audio_procunit(state, unitid, raw_desc,
+				procunits, "Processing Unit");
+	case UAC_VERSION_3:
+		return build_audio_procunit(state, unitid, raw_desc,
+				uac3_procunits, "Processing Unit");
+	}
 }
 
 static int parse_audio_extension_unit(struct mixer_build *state, int unitid,

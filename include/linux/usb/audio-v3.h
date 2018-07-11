@@ -387,6 +387,12 @@ struct uac3_interrupt_data_msg {
 #define UAC3_CONNECTORS			0x0f
 #define UAC3_POWER_DOMAIN		0x10
 
+/* A.20 PROCESSING UNIT PROCESS TYPES */
+#define UAC3_PROCESS_UNDEFINED		0x00
+#define UAC3_PROCESS_UP_DOWNMIX		0x01
+#define UAC3_PROCESS_STEREO_EXTENDER	0x02
+#define UAC3_PROCESS_MULTI_FUNCTION	0x03
+
 /* A.22 AUDIO CLASS-SPECIFIC REQUEST CODES */
 /* see audio-v2.h for the rest, which is identical to v2 */
 #define UAC3_CS_REQ_INTEN			0x04
@@ -405,6 +411,15 @@ struct uac3_interrupt_data_msg {
 #define UAC3_TE_UNDERFLOW			0x03
 #define UAC3_TE_OVERFLOW			0x04
 #define UAC3_TE_LATENCY 			0x05
+
+/* A.23.10 PROCESSING UNITS CONTROL SELECTROS */
+
+/* Up/Down Mixer */
+#define UAC3_UD_MODE_SELECT			0x01
+
+/* Stereo Extender */
+#define UAC3_EXT_WIDTH_CONTROL			0x01
+
 
 /* BADD predefined Unit/Terminal values */
 #define UAC3_BADD_IT_ID1	1  /* Input Terminal ID1: bTerminalID = 1 */
