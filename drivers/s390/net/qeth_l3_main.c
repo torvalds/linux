@@ -2000,19 +2000,18 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 	return RTN_UNICAST;
 }
 
-static void qeth_l3_fill_af_iucv_hdr(struct qeth_card *card,
-		struct qeth_hdr *hdr, struct sk_buff *skb)
+static void qeth_l3_fill_af_iucv_hdr(struct qeth_hdr *hdr, struct sk_buff *skb,
+				     unsigned int data_len)
 {
 	char daddr[16];
 	struct af_iucv_trans_hdr *iucv_hdr;
 
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
-	hdr->hdr.l3.ext_flags = 0;
-	hdr->hdr.l3.length = skb->len - ETH_HLEN;
+	hdr->hdr.l3.length = data_len;
 	hdr->hdr.l3.flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
 
-	iucv_hdr = (struct af_iucv_trans_hdr *) (skb->data + ETH_HLEN);
+	iucv_hdr = (struct af_iucv_trans_hdr *)(skb_mac_header(skb) + ETH_HLEN);
 	memset(daddr, 0, sizeof(daddr));
 	daddr[0] = 0xfe;
 	daddr[1] = 0x80;
@@ -2156,63 +2155,122 @@ static int qeth_l3_get_elements_no_tso(struct qeth_card *card,
 	return elements;
 }
 
+static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
+				struct qeth_qdio_out_q *queue, int ipv,
+				int cast_type)
+{
+	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
+	unsigned int frame_len, nr_frags;
+	unsigned char eth_hdr[ETH_HLEN];
+	unsigned int hdr_elements = 0;
+	struct qeth_hdr *hdr = NULL;
+	unsigned int hd_len = 0;
+	int push_len, rc;
+
+	/* compress skb to fit into one IO buffer: */
+	if (!qeth_get_elements_no(card, skb, 0, 0)) {
+		rc = skb_linearize(skb);
+
+		if (card->options.performance_stats) {
+			if (rc)
+				card->perf_stats.tx_linfail++;
+			else
+				card->perf_stats.tx_lin++;
+		}
+		if (rc)
+			return rc;
+	}
+
+	/* re-use the L2 header area for the HW header: */
+	rc = skb_cow_head(skb, hw_hdr_len - ETH_HLEN);
+	if (rc)
+		return rc;
+	skb_copy_from_linear_data(skb, eth_hdr, ETH_HLEN);
+	skb_pull(skb, ETH_HLEN);
+	frame_len = skb->len;
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	push_len = qeth_push_hdr(skb, &hdr, hw_hdr_len);
+	if (push_len < 0)
+		return push_len;
+	if (!push_len) {
+		/* hdr was added discontiguous from skb->data */
+		hd_len = hw_hdr_len;
+		hdr_elements = 1;
+	}
+
+	if (!qeth_get_elements_no(card, skb, hdr_elements, 0)) {
+		rc = -E2BIG;
+		goto out;
+	}
+
+	if (skb->protocol == htons(ETH_P_AF_IUCV))
+		qeth_l3_fill_af_iucv_hdr(hdr, skb, frame_len);
+	else
+		qeth_l3_fill_header(card, hdr, skb, ipv, cast_type, frame_len);
+
+	rc = qeth_do_send_packet_fast(queue, skb, hdr, 0, hd_len);
+out:
+	if (!rc) {
+		if (card->options.performance_stats && nr_frags) {
+			card->perf_stats.sg_skbs_sent++;
+			/* nr_frags + skb->data */
+			card->perf_stats.sg_frags_sent += nr_frags + 1;
+		}
+	} else {
+		if (!push_len)
+			kmem_cache_free(qeth_core_header_cache, hdr);
+		if (rc == -EBUSY) {
+			/* roll back to ETH header */
+			skb_pull(skb, push_len);
+			skb_push(skb, ETH_HLEN);
+			skb_copy_to_linear_data(skb, eth_hdr, ETH_HLEN);
+		}
+	}
+	return rc;
+}
+
 static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 			struct qeth_qdio_out_q *queue, int ipv, int cast_type)
 {
-	int rc;
+	unsigned int hd_len, nr_frags;
+	int elements, len, rc;
 	__be16 *tag;
 	struct qeth_hdr *hdr = NULL;
 	int hdr_elements = 0;
-	int elements;
 	struct sk_buff *new_skb = NULL;
 	int tx_bytes = skb->len;
-	unsigned int hd_len = 0;
 	bool use_tso;
-	int data_offset = -1;
-	unsigned int nr_frags;
 
 	/* Ignore segment size from skb_is_gso(), 1 page is always used. */
 	use_tso = skb_is_gso(skb) &&
 		  (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4);
 
-	if (card->info.type == QETH_CARD_TYPE_IQD) {
-		new_skb = skb;
-		data_offset = ETH_HLEN;
-		hd_len = sizeof(*hdr);
-		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
-		if (!hdr)
-			return -ENOMEM;
-		hdr_elements++;
-	} else {
-		/* create a clone with writeable headroom */
-		new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso)
-					+ VLAN_HLEN);
-		if (!new_skb)
-			return -ENOMEM;
+	/* create a clone with writeable headroom */
+	new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso) +
+					    VLAN_HLEN);
+	if (!new_skb)
+		return -ENOMEM;
 
-		if (ipv == 4) {
-			skb_pull(new_skb, ETH_HLEN);
-		}
-
-		if (ipv != 4 && skb_vlan_tag_present(new_skb)) {
-			skb_push(new_skb, VLAN_HLEN);
-			skb_copy_to_linear_data(new_skb, new_skb->data + 4, 4);
-			skb_copy_to_linear_data_offset(new_skb, 4,
-				new_skb->data + 8, 4);
-			skb_copy_to_linear_data_offset(new_skb, 8,
-				new_skb->data + 12, 4);
-			tag = (__be16 *)(new_skb->data + 12);
-			*tag = cpu_to_be16(ETH_P_8021Q);
-			*(tag + 1) = cpu_to_be16(skb_vlan_tag_get(new_skb));
-		}
+	if (ipv == 4) {
+		skb_pull(new_skb, ETH_HLEN);
+	} else if (skb_vlan_tag_present(new_skb)) {
+		skb_push(new_skb, VLAN_HLEN);
+		skb_copy_to_linear_data(new_skb, new_skb->data + 4, 4);
+		skb_copy_to_linear_data_offset(new_skb, 4,
+					       new_skb->data + 8, 4);
+		skb_copy_to_linear_data_offset(new_skb, 8,
+					       new_skb->data + 12, 4);
+		tag = (__be16 *)(new_skb->data + 12);
+		*tag = cpu_to_be16(ETH_P_8021Q);
+		*(tag + 1) = cpu_to_be16(skb_vlan_tag_get(new_skb));
 	}
 
 	/* fix hardware limitation: as long as we do not have sbal
 	 * chaining we can not send long frag lists
 	 */
-	if ((card->info.type != QETH_CARD_TYPE_IQD) &&
-	    ((use_tso && !qeth_l3_get_elements_no_tso(card, new_skb, 1)) ||
-	     (!use_tso && !qeth_get_elements_no(card, new_skb, 0, 0)))) {
+	if ((use_tso && !qeth_l3_get_elements_no_tso(card, new_skb, 1)) ||
+	    (!use_tso && !qeth_get_elements_no(card, new_skb, 0, 0))) {
 		rc = skb_linearize(new_skb);
 
 		if (card->options.performance_stats) {
@@ -2234,20 +2292,9 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 		qeth_tso_fill_header(card, hdr, new_skb);
 		hdr_elements++;
 	} else {
-		if (data_offset < 0) {
-			hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
-			qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type,
-					    new_skb->len -
-					    sizeof(struct qeth_hdr));
-		} else {
-			if (be16_to_cpu(new_skb->protocol) == ETH_P_AF_IUCV)
-				qeth_l3_fill_af_iucv_hdr(card, hdr, new_skb);
-			else {
-				qeth_l3_fill_header(card, hdr, new_skb, ipv,
-						    cast_type,
-						    new_skb->len - data_offset);
-			}
-		}
+		hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
+		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type,
+				    new_skb->len - sizeof(struct qeth_hdr));
 
 		if (new_skb->ip_summed == CHECKSUM_PARTIAL) {
 			qeth_tx_csum(new_skb, &hdr->hdr.l3.ext_flags, ipv);
@@ -2258,34 +2305,28 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 
 	elements = use_tso ?
 		   qeth_l3_get_elements_no_tso(card, new_skb, hdr_elements) :
-		   qeth_get_elements_no(card, new_skb, hdr_elements,
-					(data_offset > 0) ? data_offset : 0);
+		   qeth_get_elements_no(card, new_skb, hdr_elements, 0);
 	if (!elements) {
 		rc = -E2BIG;
 		goto out;
 	}
 	elements += hdr_elements;
 
-	if (card->info.type != QETH_CARD_TYPE_IQD) {
-		int len;
-		if (use_tso) {
-			hd_len = sizeof(struct qeth_hdr_tso) +
-				 ip_hdrlen(new_skb) + tcp_hdrlen(new_skb);
-			len = hd_len;
-		} else {
-			len = sizeof(struct qeth_hdr_layer3);
-		}
+	if (use_tso) {
+		hd_len = sizeof(struct qeth_hdr_tso) +
+			 ip_hdrlen(new_skb) + tcp_hdrlen(new_skb);
+		len = hd_len;
+	} else {
+		hd_len = 0;
+		len = sizeof(struct qeth_hdr_layer3);
+	}
 
-		if (qeth_hdr_chk_and_bounce(new_skb, &hdr, len)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len,
-					 hd_len, elements);
-	} else
-		rc = qeth_do_send_packet_fast(queue, new_skb, hdr, data_offset,
-					      hd_len);
-
+	if (qeth_hdr_chk_and_bounce(new_skb, &hdr, len)) {
+		rc = -EINVAL;
+		goto out;
+	}
+	rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len, hd_len,
+				 elements);
 out:
 	if (!rc) {
 		if (new_skb != skb)
@@ -2304,8 +2345,6 @@ out:
 	} else {
 		if (new_skb != skb)
 			dev_kfree_skb_any(new_skb);
-		if (data_offset >= 0)
-			kmem_cache_free(qeth_core_header_cache, hdr);
 	}
 	return rc;
 }
@@ -2345,7 +2384,10 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	}
 	netif_stop_queue(dev);
 
-	rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
+	if (IS_IQD(card))
+		rc = qeth_l3_xmit_offload(card, skb, queue, ipv, cast_type);
+	else
+		rc = qeth_l3_xmit(card, skb, queue, ipv, cast_type);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -2503,9 +2545,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 			card->dev->dev_id = card->info.unique_id & 0xffff;
 
-		card->dev->hw_features |= NETIF_F_SG;
-		card->dev->vlan_features |= NETIF_F_SG;
-
 		if (!card->info.guestlan) {
 			card->dev->features |= NETIF_F_SG;
 			card->dev->hw_features |= NETIF_F_TSO |
@@ -2524,7 +2563,10 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		if (!card->dev)
 			return -ENODEV;
 		card->dev->flags |= IFF_NOARP;
+		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		card->dev->netdev_ops = &qeth_l3_netdev_ops;
+		card->dev->needed_headroom = sizeof(struct qeth_hdr) - ETH_HLEN;
+
 		rc = qeth_l3_iqd_read_initial_mac(card);
 		if (rc)
 			return rc;
@@ -2543,6 +2585,9 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;
+	card->dev->hw_features |= NETIF_F_SG;
+	card->dev->vlan_features |= NETIF_F_SG;
+
 	netif_keep_dst(card->dev);
 	if (card->dev->hw_features & NETIF_F_TSO)
 		netif_set_gso_max_size(card->dev,
