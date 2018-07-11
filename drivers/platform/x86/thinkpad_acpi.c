@@ -335,6 +335,7 @@ static struct {
 	u32 second_fan:1;
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
+	u32 battery_force_primary:1;
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
 	u32 platform_drv_attrs_registered:1;
@@ -343,7 +344,6 @@ static struct {
 	u32 sensors_pdev_attrs_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
-	u32 battery:1;
 } tp_features;
 
 static struct {
@@ -468,6 +468,12 @@ do {									\
 #define TPACPI_Q_LNV(__id1, __id2, __quirk)	\
 	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
 	  .bios = TPID(__id1, __id2),		\
+	  .ec = TPACPI_MATCH_ANY,		\
+	  .quirks = (__quirk) }
+
+#define TPACPI_Q_LNV3(__id1, __id2, __id3, __quirk) \
+	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	  .bios = TPID3(__id1, __id2, __id3),	\
 	  .ec = TPACPI_MATCH_ANY,		\
 	  .quirks = (__quirk) }
 
@@ -9423,7 +9429,8 @@ static int tpacpi_battery_probe(int battery)
 static int tpacpi_battery_get_id(const char *battery_name)
 {
 
-	if (strcmp(battery_name, "BAT0") == 0)
+	if (strcmp(battery_name, "BAT0") == 0 ||
+	    tp_features.battery_force_primary)
 		return BAT_PRIMARY;
 	if (strcmp(battery_name, "BAT1") == 0)
 		return BAT_SECONDARY;
@@ -9599,8 +9606,20 @@ static struct acpi_battery_hook battery_hook = {
 
 /* Subdriver init/exit */
 
+static const struct tpacpi_quirk battery_quirk_table[] __initconst = {
+	/*
+	 * Individual addressing is broken on models that expose the
+	 * primary battery as BAT1.
+	 */
+	TPACPI_Q_LNV3('R', '0', 'C', true), /* Thinkpad 13 */
+};
+
 static int __init tpacpi_battery_init(struct ibm_init_struct *ibm)
 {
+	tp_features.battery_force_primary = tpacpi_check_quirks(
+					battery_quirk_table,
+					ARRAY_SIZE(battery_quirk_table));
+
 	battery_hook_register(&battery_hook);
 	return 0;
 }
