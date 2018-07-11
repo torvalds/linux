@@ -706,13 +706,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(struct ib_device *ib_d
 				   struct ib_uverbs_file *file,
 				   struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN);
 	int cmd_out_len =  uverbs_attr_get_len(attrs,
 					MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT);
 	void *cmd_out;
-	struct ib_uobject *uobj;
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_HANDLE);
+	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	struct devx_obj *obj;
 	int err;
 
@@ -739,7 +740,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(struct ib_device *ib_d
 	if (err)
 		goto cmd_free;
 
-	uobj = uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_HANDLE);
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
 	devx_obj_build_destroy_cmd(cmd_in, cmd_out, obj->dinbox, &obj->dinlen, &obj->obj_id);
@@ -763,13 +763,13 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(struct ib_device *ib_d
 				   struct ib_uverbs_file *file,
 				   struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
 					MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT);
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE);
+	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct devx_obj *obj = uobj->object;
 	void *cmd_out;
 	int err;
 
@@ -779,7 +779,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(struct ib_device *ib_d
 	if (!devx_is_obj_modify_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(uobj->object, cmd_in))
+	if (!devx_is_valid_obj_id(obj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
@@ -787,7 +787,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(struct ib_device *ib_d
 		return -ENOMEM;
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
-	err = mlx5_cmd_exec(dev->mdev, cmd_in,
+	err = mlx5_cmd_exec(obj->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
@@ -805,13 +805,13 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(struct ib_device *ib_de
 				   struct ib_uverbs_file *file,
 				   struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
 	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN);
 	int cmd_out_len = uverbs_attr_get_len(attrs,
 					      MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT);
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 							  MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE);
+	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct devx_obj *obj = uobj->object;
 	void *cmd_out;
 	int err;
 
@@ -821,7 +821,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(struct ib_device *ib_de
 	if (!devx_is_obj_query_cmd(cmd_in))
 		return -EINVAL;
 
-	if (!devx_is_valid_obj_id(uobj->object, cmd_in))
+	if (!devx_is_valid_obj_id(obj, cmd_in))
 		return -EINVAL;
 
 	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
@@ -829,7 +829,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(struct ib_device *ib_de
 		return -ENOMEM;
 
 	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
-	err = mlx5_cmd_exec(dev->mdev, cmd_in,
+	err = mlx5_cmd_exec(obj->mdev, cmd_in,
 			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN),
 			    cmd_out, cmd_out_len);
 	if (err)
@@ -920,18 +920,18 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(struct ib_device *ib_dev
 				 struct ib_uverbs_file *file,
 				 struct uverbs_attr_bundle *attrs)
 {
-	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
-	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
 	struct devx_umem_reg_cmd cmd;
 	struct devx_umem *obj;
-	struct ib_uobject *uobj;
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE);
 	u32 obj_id;
+	struct mlx5_ib_ucontext *c = to_mucontext(uobj->context);
+	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
 	int err;
 
 	if (!c->devx_uid)
 		return -EPERM;
 
-	uobj = uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE);
 	obj = kzalloc(sizeof(struct devx_umem), GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
