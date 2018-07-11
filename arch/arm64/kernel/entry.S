@@ -903,7 +903,6 @@ ENDPROC(el0_error)
  */
 ret_fast_syscall:
 	disable_daif
-	str	x0, [sp, #S_X0]			// returned x0
 #ifndef CONFIG_DEBUG_RSEQ
 	ldr	x1, [tsk, #TSK_TI_FLAGS]	// re-check for syscall tracing
 	and	x2, x1, #_TIF_SYSCALL_WORK
@@ -978,15 +977,11 @@ el0_svc_naked:					// compat entry point
 
 	tst	x16, #_TIF_SYSCALL_WORK		// check for syscall hooks
 	b.ne	__sys_trace
-	cmp     wscno, wsc_nr			// check upper syscall limit
-	b.hs	ni_sys
-	mask_nospec64 xscno, xsc_nr, x19	// enforce bounds for syscall number
-	ldr	x16, [stbl, xscno, lsl #3]	// address in the syscall table
-	blr	x16				// call sys_* routine
-	b	ret_fast_syscall
-ni_sys:
 	mov	x0, sp
-	bl	do_ni_syscall
+	mov	w1, wscno
+	mov	w2, wsc_nr
+	mov	x3, stbl
+	bl	invoke_syscall
 	b	ret_fast_syscall
 ENDPROC(el0_svc)
 
@@ -1003,28 +998,17 @@ __sys_trace:
 	bl	syscall_trace_enter
 	cmp	w0, #NO_SYSCALL			// skip the syscall?
 	b.eq	__sys_trace_return_skipped
-	mov	wscno, w0			// syscall number (possibly new)
-	mov	x1, sp				// pointer to regs
-	cmp	wscno, wsc_nr			// check upper syscall limit
-	b.hs	__ni_sys_trace
-	ldp	x0, x1, [sp]			// restore the syscall args
-	ldp	x2, x3, [sp, #S_X2]
-	ldp	x4, x5, [sp, #S_X4]
-	ldp	x6, x7, [sp, #S_X6]
-	ldr	x16, [stbl, xscno, lsl #3]	// address in the syscall table
-	blr	x16				// call sys_* routine
 
-__sys_trace_return:
-	str	x0, [sp, #S_X0]			// save returned x0
+	mov	x0, sp
+	mov	w1, wscno
+	mov	w2, wsc_nr
+	mov	x3, stbl
+	bl	invoke_syscall
+
 __sys_trace_return_skipped:
 	mov	x0, sp
 	bl	syscall_trace_exit
 	b	ret_to_user
-
-__ni_sys_trace:
-	mov	x0, sp
-	bl	do_ni_syscall
-	b	__sys_trace_return
 
 	.popsection				// .entry.text
 
