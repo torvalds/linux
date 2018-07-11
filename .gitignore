@@ -7,6 +7,7 @@
 # command after changing this file, to see if there are
 # any tracked files which get ignored after the change.
 #
+busybox/_install/*
 linux*.si4project/
 # Normal rules (sorted alphabetically)
 #

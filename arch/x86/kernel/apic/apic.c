@@ -527,12 +527,12 @@ static struct clock_event_device lapic_clockevent = {
 					  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
 					  | CLOCK_EVT_FEAT_DUMMY,
 	.shift				= 32,
-	.set_state_shutdown		= lapic_timer_shutdown,
+	.set_state_shutdown		= lapic_timer_shutdown,	/* 屏蔽 all dev's IRQ */
 	.set_state_periodic		= lapic_timer_set_periodic,
 	.set_state_oneshot		= lapic_timer_set_oneshot,
 	.set_state_oneshot_stopped	= lapic_timer_shutdown,
-	.set_next_event			= lapic_next_event,
-	.broadcast			= lapic_timer_broadcast,
+	.set_next_event			= lapic_next_event,		/* oneshot模式timer中断下次到来的时间间隔 */
+	.broadcast			= lapic_timer_broadcast,	/* 广播"本CPU中断"到其它CPUs */
 	.rating				= 100,
 	.irq				= -1,
 };

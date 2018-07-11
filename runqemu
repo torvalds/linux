@@ -1,0 +1,2 @@
+#!/bin/bash
+qemu-system-x86_64 -kernel $1 -initrd $2 -append "root=/dev/ram rdinit=sbin/init noapic"
