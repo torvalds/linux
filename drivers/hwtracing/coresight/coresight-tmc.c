@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/property.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
@@ -296,6 +297,12 @@ const struct attribute_group *coresight_tmc_groups[] = {
 	NULL,
 };
 
+static inline bool tmc_etr_can_use_sg(struct tmc_drvdata *drvdata)
+{
+	return fwnode_property_present(drvdata->dev->fwnode,
+				       "arm,scatter-gather");
+}
+
 /* Detect and initialise the capabilities of a TMC ETR */
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
@@ -305,7 +312,7 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
 
-	if (!(devid & TMC_DEVID_NOSCAT))
+	if (!(devid & TMC_DEVID_NOSCAT) && tmc_etr_can_use_sg(drvdata))
 		tmc_etr_set_cap(drvdata, TMC_ETR_SG);
 
 	/* Check if the AXI address width is available */

@@ -86,6 +86,8 @@ its hardware characteristcs.
 	* arm,buffer-size: size of contiguous buffer space for TMC ETR
 	 (embedded trace router)
 
+	* arm,scatter-gather: boolean. Indicates that the TMC-ETR can safely
+	  use the SG mode on this system.
 
 Example:
 
