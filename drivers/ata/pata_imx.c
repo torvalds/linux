@@ -102,7 +102,7 @@ static struct scsi_host_template pata_imx_sht = {
 
 static struct ata_port_operations pata_imx_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.sff_data_xfer		= ata_sff_data_xfer_noirq,
+	.sff_data_xfer		= ata_sff_data_xfer32,
 	.cable_detect		= ata_cable_unknown,
 	.set_piomode		= pata_imx_set_piomode,
 };

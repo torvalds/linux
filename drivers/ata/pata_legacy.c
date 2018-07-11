@@ -246,12 +246,12 @@ static const struct ata_port_operations legacy_base_port_ops = {
 
 static struct ata_port_operations simple_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer32,
 };
 
 static struct ata_port_operations legacy_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer32,
 	.set_mode	= legacy_set_mode,
 };
 
@@ -341,7 +341,7 @@ static unsigned int pdc_data_xfer_vlb(struct ata_queued_cmd *qc,
 		}
 		local_irq_restore(flags);
 	} else
-		buflen = ata_sff_data_xfer_noirq(qc, buf, buflen, rw);
+		buflen = ata_sff_data_xfer32(qc, buf, buflen, rw);
 
 	return buflen;
 }
