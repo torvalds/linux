@@ -183,7 +183,7 @@ struct hdmi_spec {
 	hda_nid_t vendor_nid;
 };
 
-#ifdef CONFIG_SND_HDA_I915
+#ifdef CONFIG_SND_HDA_COMPONENT
 static inline bool codec_has_acomp(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -2288,7 +2288,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	int pin_idx, pcm_idx;
 
 	if (codec_has_acomp(codec))
-		snd_hdac_i915_register_notifier(&codec->bus->core, NULL);
+		snd_hdac_acomp_register_notifier(&codec->bus->core, NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2471,6 +2471,38 @@ static void haswell_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 
+/* There is a fixed mapping between audio pin node and display port.
+ * on SNB, IVY, HSW, BSW, SKL, BXT, KBL:
+ * Pin Widget 5 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 6 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 7 - PORT D (port = 3 in i915 driver)
+ *
+ * on VLV, ILK:
+ * Pin Widget 4 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 5 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 6 - PORT D (port = 3 in i915 driver)
+ */
+static int intel_base_nid(struct hda_codec *codec)
+{
+	switch (codec->core.vendor_id) {
+	case 0x80860054: /* ILK */
+	case 0x80862804: /* ILK */
+	case 0x80862882: /* VLV */
+		return 4;
+	default:
+		return 5;
+	}
+}
+
+static int intel_pin2port(void *audio_ptr, int pin_nid)
+{
+	int base_nid = intel_base_nid(audio_ptr);
+
+	if (WARN_ON(pin_nid < base_nid || pin_nid >= base_nid + 3))
+		return -1;
+	return pin_nid - base_nid + 1; /* intel port is 1-based */
+}
+
 static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
 {
 	struct hda_codec *codec = audio_ptr;
@@ -2481,16 +2513,7 @@ static void intel_pin_eld_notify(void *audio_ptr, int port, int pipe)
 	if (port < 1 || port > 3)
 		return;
 
-	switch (codec->core.vendor_id) {
-	case 0x80860054: /* ILK */
-	case 0x80862804: /* ILK */
-	case 0x80862882: /* VLV */
-		pin_nid = port + 0x03;
-		break;
-	default:
-		pin_nid = port + 0x04;
-		break;
-	}
+	pin_nid = port + intel_base_nid(codec) - 1; /* intel port is 1-based */
 
 	/* skip notification during system suspend (but not in runtime PM);
 	 * the state will be updated at resume
@@ -2517,8 +2540,9 @@ static void register_i915_notifier(struct hda_codec *codec)
 	 * We need make sure audio_ptr is really setup
 	 */
 	wmb();
+	spec->drm_audio_ops.pin2port = intel_pin2port;
 	spec->drm_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-	snd_hdac_i915_register_notifier(&codec->bus->core,
+	snd_hdac_acomp_register_notifier(&codec->bus->core,
 					&spec->drm_audio_ops);
 }
 

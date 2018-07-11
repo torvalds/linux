@@ -23,6 +23,7 @@ config DRM_I915
 	select SYNC_FILE
 	select IOSF_MBI
 	select CRC32
+	select SND_HDA_I915 if SND_HDA_CORE
 	help
 	  Choose this option if you have a system that has "Intel Graphics
 	  Media Accelerator" or "HD Graphics" integrated graphics,

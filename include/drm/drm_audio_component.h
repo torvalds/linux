@@ -4,6 +4,8 @@
 #ifndef _DRM_AUDIO_COMPONENT_H_
 #define _DRM_AUDIO_COMPONENT_H_
 
+struct drm_audio_component;
+
 /**
  * struct drm_audio_component_ops - Ops implemented by DRM driver, called by hda driver
  */
@@ -72,6 +74,27 @@ struct drm_audio_component_audio_ops {
 	 * mode).
 	 */
 	void (*pin_eld_notify)(void *audio_ptr, int port, int pipe);
+	/**
+	 * @pin2port: Check and convert from pin node to port number
+	 *
+	 * Called by HDA driver to check and convert from the pin widget node
+	 * number to a port number in the graphics side.
+	 */
+	int (*pin2port)(void *audio_ptr, int pin);
+	/**
+	 * @master_bind: (Optional) component master bind callback
+	 *
+	 * Called at binding master component, for HDA codec-specific
+	 * handling of dynamic binding.
+	 */
+	int (*master_bind)(struct device *dev, struct drm_audio_component *);
+	/**
+	 * @master_unbind: (Optional) component master unbind callback
+	 *
+	 * Called at unbinding master component, for HDA codec-specific
+	 * handling of dynamic unbinding.
+	 */
+	void (*master_unbind)(struct device *dev, struct drm_audio_component *);
 };
 
 /**
