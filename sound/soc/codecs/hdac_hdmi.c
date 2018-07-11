@@ -1583,7 +1583,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 
 }
 
-static struct i915_audio_component_audio_ops aops = {
+static struct drm_audio_component_audio_ops aops = {
 	.pin_eld_notify	= hdac_hdmi_eld_notify_cb,
 };
 

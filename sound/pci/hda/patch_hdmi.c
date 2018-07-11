@@ -177,7 +177,7 @@ struct hdmi_spec {
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
-	struct i915_audio_component_audio_ops i915_audio_ops;
+	struct drm_audio_component_audio_ops drm_audio_ops;
 
 	struct hdac_chmap chmap;
 	hda_nid_t vendor_nid;
@@ -2511,14 +2511,14 @@ static void register_i915_notifier(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 
 	spec->use_acomp_notifier = true;
-	spec->i915_audio_ops.audio_ptr = codec;
+	spec->drm_audio_ops.audio_ptr = codec;
 	/* intel_audio_codec_enable() or intel_audio_codec_disable()
 	 * will call pin_eld_notify with using audio_ptr pointer
 	 * We need make sure audio_ptr is really setup
 	 */
 	wmb();
-	spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-	snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
+	spec->drm_audio_ops.pin_eld_notify = intel_pin_eld_notify;
+	snd_hdac_i915_register_notifier(&spec->drm_audio_ops);
 }
 
 /* setup_stream ops override for HSW+ */

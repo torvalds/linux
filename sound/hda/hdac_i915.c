@@ -16,13 +16,13 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/component.h>
-#include <drm/i915_component.h>
+#include <drm/drm_audio_component.h>
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 
-static struct i915_audio_component *hdac_acomp;
+static struct drm_audio_component *hdac_acomp;
 
 /**
  * snd_hdac_set_codec_wakeup - Enable / disable HDMI/DP codec wakeup
@@ -39,7 +39,7 @@ static struct i915_audio_component *hdac_acomp;
  */
 int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 {
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 
 	if (!acomp || !acomp->ops)
 		return -ENODEV;
@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_set_codec_wakeup);
  */
 int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 {
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 
 	if (!acomp || !acomp->ops)
 		return -ENODEV;
@@ -83,14 +83,14 @@ int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 		enable ? "enable" : "disable");
 
 	if (enable) {
-		if (!bus->i915_power_refcount++) {
+		if (!bus->drm_power_refcount++) {
 			acomp->ops->get_power(acomp->dev);
 			snd_hdac_set_codec_wakeup(bus, true);
 			snd_hdac_set_codec_wakeup(bus, false);
 		}
 	} else {
-		WARN_ON(!bus->i915_power_refcount);
-		if (!--bus->i915_power_refcount)
+		WARN_ON(!bus->drm_power_refcount);
+		if (!--bus->drm_power_refcount)
 			acomp->ops->put_power(acomp->dev);
 	}
 
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_display_power);
  */
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 	struct pci_dev *pci = to_pci_dev(bus->dev);
 	int cdclk_freq;
 	unsigned int bclk_m, bclk_n;
@@ -206,7 +206,7 @@ int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
 			     int dev_id, int rate)
 {
 	struct hdac_bus *bus = codec->bus;
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
@@ -244,7 +244,7 @@ int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
 			   bool *audio_enabled, char *buffer, int max_bytes)
 {
 	struct hdac_bus *bus = codec->bus;
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
@@ -262,7 +262,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);
 
 static int hdac_component_master_bind(struct device *dev)
 {
-	struct i915_audio_component *acomp = hdac_acomp;
+	struct drm_audio_component *acomp = hdac_acomp;
 	int ret;
 
 	ret = component_bind_all(dev, acomp);
@@ -294,7 +294,7 @@ out_unbind:
 
 static void hdac_component_master_unbind(struct device *dev)
 {
-	struct i915_audio_component *acomp = hdac_acomp;
+	struct drm_audio_component *acomp = hdac_acomp;
 
 	module_put(acomp->ops->owner);
 	component_unbind_all(dev, acomp);
@@ -323,7 +323,7 @@ static int hdac_component_master_match(struct device *dev, void *data)
  *
  * Returns zero for success or a negative error code.
  */
-int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
+int snd_hdac_i915_register_notifier(const struct drm_audio_component_audio_ops *aops)
 {
 	if (!hdac_acomp)
 		return -ENODEV;
@@ -361,7 +361,8 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 {
 	struct component_match *match = NULL;
 	struct device *dev = bus->dev;
-	struct i915_audio_component *acomp;
+	struct i915_audio_component *i915_acomp;
+	struct drm_audio_component *acomp;
 	int ret;
 
 	if (WARN_ON(hdac_acomp))
@@ -370,9 +371,10 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	if (!i915_gfx_present())
 		return -ENODEV;
 
-	acomp = kzalloc(sizeof(*acomp), GFP_KERNEL);
-	if (!acomp)
+	i915_acomp = kzalloc(sizeof(*i915_acomp), GFP_KERNEL);
+	if (!i915_acomp)
 		return -ENOMEM;
+	acomp = &i915_acomp->base;
 	bus->audio_component = acomp;
 	hdac_acomp = acomp;
 
@@ -421,13 +423,13 @@ EXPORT_SYMBOL_GPL(snd_hdac_i915_init);
 int snd_hdac_i915_exit(struct hdac_bus *bus)
 {
 	struct device *dev = bus->dev;
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 
 	if (!acomp)
 		return 0;
 
-	WARN_ON(bus->i915_power_refcount);
-	if (bus->i915_power_refcount > 0 && acomp->ops)
+	WARN_ON(bus->drm_power_refcount);
+	if (bus->drm_power_refcount > 0 && acomp->ops)
 		acomp->ops->put_power(acomp->dev);
 
 	component_master_del(dev, &hdac_component_master_ops);
