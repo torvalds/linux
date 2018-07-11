@@ -1106,7 +1106,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv 		*phtpriv = &pmlmepriv->htpriv;
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (phtpriv->ht_option == false)
@@ -1189,7 +1189,7 @@ void HT_info_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv 		*phtpriv = &pmlmepriv->htpriv;
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (phtpriv->ht_option == false)
@@ -1341,7 +1341,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	bssid = rtw_zmalloc(sizeof(struct wlan_bssid_ex));
-	if (bssid == NULL) {
+	if (!bssid) {
 		DBG_871X("%s rtw_zmalloc fail !!!\n", __func__);
 		return true;
 	}
@@ -1416,7 +1416,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 
 	/* checking SSID */
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _SSID_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
-	if (p == NULL) {
+	if (!p) {
 		DBG_871X("%s marc: cannot find SSID for survey event\n", __func__);
 		hidden_ssid = true;
 	} else {
@@ -1879,7 +1879,7 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	pIE = (struct ndis_80211_var_ie *)rtw_get_ie(pvar_ie, _SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
-	if (pIE == NULL)
+	if (!pIE)
 		return _FAIL;
 
 	memcpy(pmlmeinfo->FW_sta_info[cam_idx].SupportedRates, pIE->data, ie_len);
@@ -2219,9 +2219,9 @@ void rtw_get_current_ip_address(struct adapter *padapter, u8 *pcurrentip)
 
 	if ((pmlmeinfo->state & WIFI_FW_LINKING_STATE) ||
 			pmlmeinfo->state & WIFI_FW_AP_STATE) {
-		if (my_ip_ptr != NULL) {
+		if (my_ip_ptr) {
 			struct in_ifaddr *my_ifa_list = my_ip_ptr->ifa_list;
-			if (my_ifa_list != NULL) {
+			if (my_ifa_list) {
 				ipaddress[0] = my_ifa_list->ifa_address & 0xFF;
 				ipaddress[1] = (my_ifa_list->ifa_address >> 8) & 0xFF;
 				ipaddress[2] = (my_ifa_list->ifa_address >> 16) & 0xFF;
