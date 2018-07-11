@@ -298,7 +298,7 @@ SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 		if (tick_nohz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
-			synchronize_sched();
+			synchronize_rcu();
 		return 0;
 	case MEMBARRIER_CMD_GLOBAL_EXPEDITED:
 		return membarrier_global_expedited();
