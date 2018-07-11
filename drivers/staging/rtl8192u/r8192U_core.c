@@ -1462,7 +1462,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tx_desc_819x_usb *tx_desc = (tx_desc_819x_usb *)skb->data;
+	struct tx_desc_819x_usb *tx_desc = (struct tx_desc_819x_usb *)skb->data;
 	tx_fwinfo_819x_usb *tx_fwinfo =
 		(tx_fwinfo_819x_usb *)(skb->data + USB_HWDESC_HEADER_LEN);
 	struct usb_device *udev = priv->udev;
@@ -1535,7 +1535,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	/* Fill Tx descriptor */
-	memset(tx_desc, 0, sizeof(tx_desc_819x_usb));
+	memset(tx_desc, 0, sizeof(struct tx_desc_819x_usb));
 	/* DWORD 0 */
 	tx_desc->LINIP = 0;
 	tx_desc->CmdInit = 1;

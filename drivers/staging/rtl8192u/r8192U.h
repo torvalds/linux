@@ -177,7 +177,7 @@ extern u32 rt_global_debug_component;
 #define	CCK_Table_length	12
 
 /* For rtl819x */
-typedef struct _tx_desc_819x_usb {
+struct tx_desc_819x_usb {
 	/* DWORD 0 */
 	u16	PktSize;
 	u8	Offset;
@@ -213,7 +213,7 @@ typedef struct _tx_desc_819x_usb {
 	u32	Reserved5;
 	u32	Reserved6;
 	u32	Reserved7;
-} tx_desc_819x_usb, *ptx_desc_819x_usb;
+};
 
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 typedef struct _tx_desc_819x_usb_aggr_subframe {
@@ -371,7 +371,7 @@ typedef struct rx_drvinfo_819x_usb {
 #define MAX_FIRMWARE_INFORMATION_SIZE   32
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
-#define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
+#define	USB_HWDESC_HEADER_LEN		sizeof(struct tx_desc_819x_usb)
 #define TX_PACKET_SHIFT_BYTES		(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
