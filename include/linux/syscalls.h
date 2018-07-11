@@ -11,6 +11,7 @@
 #ifndef _LINUX_SYSCALLS_H
 #define _LINUX_SYSCALLS_H
 
+struct __aio_sigset;
 struct epoll_event;
 struct iattr;
 struct inode;

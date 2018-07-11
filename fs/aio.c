@@ -2042,6 +2042,11 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 	return ret;
 }
 
+struct __aio_sigset {
+	const sigset_t __user	*sigmask;
+	size_t		sigsetsize;
+};
+
 SYSCALL_DEFINE6(io_pgetevents,
 		aio_context_t, ctx_id,
 		long, min_nr,
