@@ -78,7 +78,6 @@ EXPORT_SYMBOL(drm_client_close);
 int drm_client_new(struct drm_device *dev, struct drm_client_dev *client,
 		   const char *name, const struct drm_client_funcs *funcs)
 {
-	bool registered;
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET) ||
@@ -97,21 +96,13 @@ int drm_client_new(struct drm_device *dev, struct drm_client_dev *client,
 		goto err_put_module;
 
 	mutex_lock(&dev->clientlist_mutex);
-	registered = dev->registered;
-	if (registered)
-		list_add(&client->list, &dev->clientlist);
+	list_add(&client->list, &dev->clientlist);
 	mutex_unlock(&dev->clientlist_mutex);
-	if (!registered) {
-		ret = -ENODEV;
-		goto err_close;
-	}
 
 	drm_dev_get(dev);
 
 	return 0;
 
-err_close:
-	drm_client_close(client);
 err_put_module:
 	if (funcs)
 		module_put(funcs->owner);
