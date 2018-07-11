@@ -220,7 +220,7 @@ static const struct of_device_id sun8i_dw_hdmi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sun8i_dw_hdmi_dt_ids);
 
-struct platform_driver sun8i_dw_hdmi_pltfm_driver = {
+static struct platform_driver sun8i_dw_hdmi_pltfm_driver = {
 	.probe  = sun8i_dw_hdmi_probe,
 	.remove = sun8i_dw_hdmi_remove,
 	.driver = {
