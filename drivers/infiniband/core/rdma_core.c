@@ -439,12 +439,17 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 	struct ib_uverbs_file *ufile = uobj->ufile;
 	int ret;
 
+	if (!uobj->object)
+		return 0;
+
 	ret = uobj->type->type_class->remove_commit(uobj, why);
 	if (ib_is_destroy_retryable(ret, why, uobj)) {
 		/* We couldn't remove the object, so just unlock the uobject */
 		atomic_set(&uobj->usecnt, 0);
 		uobj->type->type_class->lookup_put(uobj, true);
 	} else {
+		uobj->object = NULL;
+
 		mutex_lock(&ufile->uobjects_lock);
 		list_del(&uobj->list);
 		mutex_unlock(&ufile->uobjects_lock);
@@ -459,34 +464,12 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 {
 	int ret;
-	struct ib_uverbs_file *ufile = uobj->ufile;
 
-	/* put the ref count we took at lookup_get */
-	uverbs_uobject_put(uobj);
-	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
-		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
-		return 0;
-	}
-	assert_uverbs_usecnt(uobj, true);
-	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_DESTROY);
-
-	up_read(&ufile->cleanup_rwsem);
+	ret = rdma_explicit_destroy(uobj);
+	/* Pairs with the lookup_get done by the caller */
+	rdma_lookup_put_uobject(uobj, true);
 	return ret;
 }
-
-static int null_obj_type_class_remove_commit(struct ib_uobject *uobj,
-					     enum rdma_remove_reason why)
-{
-	return 0;
-}
-
-static const struct uverbs_obj_type null_obj_type = {
-	.type_class = &((const struct uverbs_obj_type_class){
-			.remove_commit = null_obj_type_class_remove_commit,
-			/* be cautious */
-			.needs_kfree_rcu = true}),
-};
 
 int rdma_explicit_destroy(struct ib_uobject *uobject)
 {
@@ -499,14 +482,8 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 		return 0;
 	}
 	assert_uverbs_usecnt(uobject, true);
-	ret = uobject->type->type_class->remove_commit(uobject,
-						       RDMA_REMOVE_DESTROY);
-	if (ret)
-		goto out;
+	ret = _rdma_remove_commit_uobject(uobject, RDMA_REMOVE_DESTROY);
 
-	uobject->type = &null_obj_type;
-
-out:
 	up_read(&ufile->cleanup_rwsem);
 	return ret;
 }
