@@ -1,7 +1,5 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
-- Use SPDX tags to show the license of the file, and no more "boiler-plate"
-  license text is needed.
 - Remove static function declarations.
 - Document sysfs files with Documentation/ABI/ entries.
 - Use misc interface instead of major number for driver version description.
