@@ -43,13 +43,13 @@ struct goldfish_audio {
 	wait_queue_head_t wait;
 
 	char *buffer_virt;		/* combined buffer virtual address */
-	unsigned long buffer_phys;      /* combined buffer physical address */
+	unsigned long buffer_phys;	/* combined buffer physical address */
 
 	char *write_buffer1;		/* write buffer 1 virtual address */
 	char *write_buffer2;		/* write buffer 2 virtual address */
 	char *read_buffer;		/* read buffer virtual address */
 	int buffer_status;
-	int read_supported;         /* true if we have audio input support */
+	int read_supported;	/* true if we have audio input support */
 };
 
 /*
@@ -57,9 +57,9 @@ struct goldfish_audio {
  *  Having two read buffers facilitate stereo -> mono conversion.
  *  Having two write buffers facilitate interleaved IO.
  */
-#define READ_BUFFER_SIZE        16384
-#define WRITE_BUFFER_SIZE       16384
-#define COMBINED_BUFFER_SIZE    ((2 * READ_BUFFER_SIZE) + \
+#define READ_BUFFER_SIZE	16384
+#define WRITE_BUFFER_SIZE	16384
+#define COMBINED_BUFFER_SIZE	((2 * READ_BUFFER_SIZE) + \
 					(2 * WRITE_BUFFER_SIZE))
 
 /*
@@ -99,9 +99,9 @@ enum {
 	/* this bit set when it is safe to write more bytes to the buffer */
 	AUDIO_INT_WRITE_BUFFER_1_EMPTY	= 1U << 0,
 	AUDIO_INT_WRITE_BUFFER_2_EMPTY	= 1U << 1,
-	AUDIO_INT_READ_BUFFER_FULL      = 1U << 2,
+	AUDIO_INT_READ_BUFFER_FULL	= 1U << 2,
 
-	AUDIO_INT_MASK                  = AUDIO_INT_WRITE_BUFFER_1_EMPTY |
+	AUDIO_INT_MASK			= AUDIO_INT_WRITE_BUFFER_1_EMPTY |
 					  AUDIO_INT_WRITE_BUFFER_2_EMPTY |
 					  AUDIO_INT_READ_BUFFER_FULL,
 };
