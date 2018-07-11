@@ -139,8 +139,7 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_RST,
 					    RST_RESERVED_BITS | val);
 
-	if (host->data && host->data->flags & MMC_DATA_READ)
-		clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
+	clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
 
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 }
@@ -164,17 +163,14 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 		goto force_pio;
 
 	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
-	if (!IS_ALIGNED(sg_dma_address(sg), 8)) {
-		dma_unmap_sg(&host->pdev->dev, sg, host->sg_len,
-			     mmc_get_dma_dir(data));
-		goto force_pio;
-	}
+	if (!IS_ALIGNED(sg_dma_address(sg), 8))
+		goto force_pio_with_unmap;
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
 		if (test_bit(SDHI_INTERNAL_DMAC_ONE_RX_ONLY, &global_flags) &&
 		    test_and_set_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags))
-			goto force_pio;
+			goto force_pio_with_unmap;
 	} else {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH0;
 	}
@@ -188,6 +184,9 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 					    sg_dma_address(sg));
 
 	return;
+
+force_pio_with_unmap:
+	dma_unmap_sg(&host->pdev->dev, sg, host->sg_len, mmc_get_dma_dir(data));
 
 force_pio:
 	host->force_pio = true;
