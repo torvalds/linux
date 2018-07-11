@@ -38,10 +38,10 @@ static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 {
 	struct tcf_skbedit *d = to_skbedit(a);
 
-	spin_lock(&d->tcf_lock);
 	tcf_lastuse_update(&d->tcf_tm);
-	bstats_update(&d->tcf_bstats, skb);
+	bstats_cpu_update(this_cpu_ptr(d->common.cpu_bstats), skb);
 
+	spin_lock(&d->tcf_lock);
 	if (d->flags & SKBEDIT_F_PRIORITY)
 		skb->priority = d->priority;
 	if (d->flags & SKBEDIT_F_INHERITDSFIELD) {
@@ -77,8 +77,8 @@ static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 	return d->tcf_action;
 
 err:
-	d->tcf_qstats.drops++;
 	spin_unlock(&d->tcf_lock);
+	qstats_drop_inc(this_cpu_ptr(d->common.cpu_qstats));
 	return TC_ACT_SHOT;
 }
 
@@ -169,7 +169,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_skbedit_ops, bind, false);
+				     &act_skbedit_ops, bind, true);
 		if (ret) {
 			tcf_idr_cleanup(tn, parm->index);
 			return ret;
