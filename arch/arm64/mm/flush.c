@@ -66,6 +66,7 @@ void __sync_icache_dcache(pte_t pte)
 		sync_icache_aliases(page_address(page),
 				    PAGE_SIZE << compound_order(page));
 }
+EXPORT_SYMBOL_GPL(__sync_icache_dcache);
 
 /*
  * This function is called when a page has been modified by the kernel. Mark
