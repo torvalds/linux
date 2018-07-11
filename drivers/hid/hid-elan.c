@@ -23,6 +23,7 @@
 #define ELAN_MT_FIRST_FINGER	0x82
 #define ELAN_MT_SECOND_FINGER	0x83
 #define ELAN_INPUT_REPORT_SIZE	8
+#define ELAN_MAX_PRESSURE	255
 
 #define ELAN_MUTE_LED_REPORT	0xBC
 #define ELAN_LED_REPORT_SIZE	8
@@ -31,7 +32,6 @@ struct elan_touchpad_settings {
 	u8 max_fingers;
 	u16 max_x;
 	u16 max_y;
-	u8 max_w;
 	int usb_bInterfaceNumber;
 };
 
@@ -92,8 +92,8 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 			     drvdata->settings->max_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
 			     drvdata->settings->max_y, 0, 0);
-	input_set_abs_params(input, ABS_TOOL_WIDTH, 0,
-			     drvdata->settings->max_w, 0, 0);
+	input_set_abs_params(input, ABS_MT_PRESSURE, 0, ELAN_MAX_PRESSURE,
+			     0, 0);
 
 	__set_bit(BTN_LEFT, input->keybit);
 	__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
@@ -122,7 +122,7 @@ static void elan_report_mt_slot(struct elan_drvdata *drvdata, u8 *data,
 				unsigned int slot_num)
 {
 	struct input_dev *input = drvdata->input;
-	int x, y, w;
+	int x, y, p;
 
 	bool active = !!data;
 
@@ -132,11 +132,11 @@ static void elan_report_mt_slot(struct elan_drvdata *drvdata, u8 *data,
 		x = ((data[0] & 0xF0) << 4) | data[1];
 		y = drvdata->settings->max_y -
 		    (((data[0] & 0x07) << 8) | data[2]);
-		w = data[4];
+		p = data[4];
 
 		input_report_abs(input, ABS_MT_POSITION_X, x);
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
-		input_report_abs(input, ABS_TOOL_WIDTH, w);
+		input_report_abs(input, ABS_MT_PRESSURE, p);
 	}
 }
 
@@ -158,7 +158,7 @@ static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
 	 * byte 5: x8  x7  x6  x5  x4  x3  x2  x1
 	 * byte 6: y8  y7  y6  y5  y4  y3  y2  y1
 	 * byte 7: sy4 sy3 sy2 sy1 sx4 sx3 sx2 sx1
-	 * byte 8: w8  w7  w6  w5  w4  w3  w2  w1
+	 * byte 8: p8  p7  p6  p5  p4  p3  p2  p1
 	 *
 	 * packet structure for ELAN_MT_SECOND_FINGER:
 	 *
@@ -167,15 +167,17 @@ static void elan_report_input(struct elan_drvdata *drvdata, u8 *data)
 	 * byte 3: x8  x7  x6  x5  x4  x3  x2  x1
 	 * byte 4: y8  y7  y6  y5  y4  y3  y2  y1
 	 * byte 5: sy4 sy3 sy2 sy1 sx4 sx3 sx2 sx1
-	 * byte 6: w8  w7  w6  w5  w4  w3  w2  w1
+	 * byte 6: p8  p7  p6  p5  p4  p3  p2  p1
 	 * byte 7: 0   0   0   0   0   0   0   0
 	 * byte 8: 0   0   0   0   0   0   0   0
 	 *
 	 * f5-f1: finger touch bits
 	 * L: clickpad button
-	 * sy / sx: not sure yet, but this looks like rectangular
-	 * area for finger
-	 * w: looks like finger width
+	 * sy / sx: finger width / height expressed in traces, the total number
+	 *          of traces can be queried by doing a HID_REQ_SET_REPORT
+	 *          { 0x0d, 0x05, 0x03, 0x05, 0x01 } followed by a GET, in the
+	 *          returned buf, buf[3]=no-x-traces, buf[4]=no-y-traces.
+	 * p: pressure
 	 */
 
 	if (data[0] == ELAN_SINGLE_FINGER) {
@@ -386,7 +388,6 @@ static const struct elan_touchpad_settings hp_x2_10_touchpad_data = {
 	.max_fingers = 5,
 	.max_x = 2930,
 	.max_y = 1250,
-	.max_w = 255,
 	.usb_bInterfaceNumber = 1,
 };
 
