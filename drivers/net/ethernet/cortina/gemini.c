@@ -1789,7 +1789,10 @@ static int gmac_open(struct net_device *netdev)
 	phy_start(netdev->phydev);
 
 	err = geth_resize_freeq(port);
-	if (err) {
+	/* It's fine if it's just busy, the other port has set up
+	 * the freeq in that case.
+	 */
+	if (err && (err != -EBUSY)) {
 		netdev_err(netdev, "could not resize freeq\n");
 		goto err_stop_phy;
 	}
