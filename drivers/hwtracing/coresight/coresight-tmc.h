@@ -125,6 +125,7 @@ enum tmc_mem_intf_width {
 
 enum etr_mode {
 	ETR_MODE_FLAT,		/* Uses contiguous flat buffer */
+	ETR_MODE_ETR_SG,	/* Uses in-built TMC ETR SG mechanism */
 };
 
 struct etr_buf_operations;
