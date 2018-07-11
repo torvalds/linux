@@ -28,6 +28,11 @@
 #define catu_dbg(x, ...) do {} while (0)
 #endif
 
+struct catu_etr_buf {
+	struct tmc_sg_table *catu_table;
+	dma_addr_t sladdr;
+};
+
 /*
  * CATU uses a page size of 4KB for page tables as well as data pages.
  * Each 64bit entry in the table has the following format.
@@ -92,6 +97,9 @@ typedef u64 cate_t;
 #define CATU_VALID_ENTRY(addr) \
 	(((cate_t)(addr) & CATU_ADDR_MASK) | CATU_ENTRY_VALID)
 #define CATU_ENTRY_ADDR(entry)	((cate_t)(entry) & ~((cate_t)CATU_ENTRY_VALID))
+
+/* CATU expects the INADDR to be aligned to 1M. */
+#define CATU_DEFAULT_INADDR	(1ULL << 20)
 
 /*
  * catu_get_table : Retrieve the table pointers for the given @offset
@@ -246,7 +254,7 @@ catu_populate_table(struct tmc_sg_table *catu_table)
 	tmc_sg_table_sync_table(catu_table);
 }
 
-static struct tmc_sg_table __maybe_unused *
+static struct tmc_sg_table *
 catu_init_sg_table(struct device *catu_dev, int node,
 		   ssize_t size, void **pages)
 {
@@ -270,6 +278,91 @@ catu_init_sg_table(struct device *catu_dev, int node,
 	catu_dump_table(catu_table);
 	return catu_table;
 }
+
+static void catu_free_etr_buf(struct etr_buf *etr_buf)
+{
+	struct catu_etr_buf *catu_buf;
+
+	if (!etr_buf || etr_buf->mode != ETR_MODE_CATU || !etr_buf->private)
+		return;
+
+	catu_buf = etr_buf->private;
+	tmc_free_sg_table(catu_buf->catu_table);
+	kfree(catu_buf);
+}
+
+static ssize_t catu_get_data_etr_buf(struct etr_buf *etr_buf, u64 offset,
+				     size_t len, char **bufpp)
+{
+	struct catu_etr_buf *catu_buf = etr_buf->private;
+
+	return tmc_sg_table_get_data(catu_buf->catu_table, offset, len, bufpp);
+}
+
+static void catu_sync_etr_buf(struct etr_buf *etr_buf, u64 rrp, u64 rwp)
+{
+	struct catu_etr_buf *catu_buf = etr_buf->private;
+	struct tmc_sg_table *catu_table = catu_buf->catu_table;
+	u64 r_offset, w_offset;
+
+	/*
+	 * ETR started off at etr_buf->hwaddr. Convert the RRP/RWP to
+	 * offsets within the trace buffer.
+	 */
+	r_offset = rrp - etr_buf->hwaddr;
+	w_offset = rwp - etr_buf->hwaddr;
+
+	if (!etr_buf->full) {
+		etr_buf->len = w_offset - r_offset;
+		if (w_offset < r_offset)
+			etr_buf->len += etr_buf->size;
+	} else {
+		etr_buf->len = etr_buf->size;
+	}
+
+	etr_buf->offset = r_offset;
+	tmc_sg_table_sync_data_range(catu_table, r_offset, etr_buf->len);
+}
+
+static int catu_alloc_etr_buf(struct tmc_drvdata *tmc_drvdata,
+			      struct etr_buf *etr_buf, int node, void **pages)
+{
+	struct coresight_device *csdev;
+	struct device *catu_dev;
+	struct tmc_sg_table *catu_table;
+	struct catu_etr_buf *catu_buf;
+
+	csdev = tmc_etr_get_catu_device(tmc_drvdata);
+	if (!csdev)
+		return -ENODEV;
+	catu_dev = csdev->dev.parent;
+	catu_buf = kzalloc(sizeof(*catu_buf), GFP_KERNEL);
+	if (!catu_buf)
+		return -ENOMEM;
+
+	catu_table = catu_init_sg_table(catu_dev, node, etr_buf->size, pages);
+	if (IS_ERR(catu_table)) {
+		kfree(catu_buf);
+		return PTR_ERR(catu_table);
+	}
+
+	etr_buf->mode = ETR_MODE_CATU;
+	etr_buf->private = catu_buf;
+	etr_buf->hwaddr = CATU_DEFAULT_INADDR;
+
+	catu_buf->catu_table = catu_table;
+	/* Get the table base address */
+	catu_buf->sladdr = catu_table->table_daddr;
+
+	return 0;
+}
+
+const struct etr_buf_operations etr_catu_buf_ops = {
+	.alloc = catu_alloc_etr_buf,
+	.free = catu_free_etr_buf,
+	.sync = catu_sync_etr_buf,
+	.get_data = catu_get_data_etr_buf,
+};
 
 coresight_simple_reg32(struct catu_drvdata, devid, CORESIGHT_DEVID);
 coresight_simple_reg32(struct catu_drvdata, control, CATU_CONTROL);
@@ -311,9 +404,10 @@ static inline int catu_wait_for_ready(struct catu_drvdata *drvdata)
 				 CATU_STATUS, CATU_STATUS_READY, 1);
 }
 
-static int catu_enable_hw(struct catu_drvdata *drvdata, void *__unused)
+static int catu_enable_hw(struct catu_drvdata *drvdata, void *data)
 {
-	u32 control;
+	u32 control, mode;
+	struct etr_buf *etr_buf = data;
 
 	if (catu_wait_for_ready(drvdata))
 		dev_warn(drvdata->dev, "Timeout while waiting for READY\n");
@@ -325,9 +419,27 @@ static int catu_enable_hw(struct catu_drvdata *drvdata, void *__unused)
 	}
 
 	control |= BIT(CATU_CONTROL_ENABLE);
-	catu_write_mode(drvdata, CATU_MODE_PASS_THROUGH);
+
+	if (etr_buf && etr_buf->mode == ETR_MODE_CATU) {
+		struct catu_etr_buf *catu_buf = etr_buf->private;
+
+		mode = CATU_MODE_TRANSLATE;
+		catu_write_axictrl(drvdata, CATU_OS_AXICTRL);
+		catu_write_sladdr(drvdata, catu_buf->sladdr);
+		catu_write_inaddr(drvdata, CATU_DEFAULT_INADDR);
+	} else {
+		mode = CATU_MODE_PASS_THROUGH;
+		catu_write_sladdr(drvdata, 0);
+		catu_write_inaddr(drvdata, 0);
+	}
+
+	catu_write_irqen(drvdata, 0);
+	catu_write_mode(drvdata, mode);
 	catu_write_control(drvdata, control);
-	dev_dbg(drvdata->dev, "Enabled in Pass through mode\n");
+	dev_dbg(drvdata->dev, "Enabled in %s mode\n",
+		(mode == CATU_MODE_PASS_THROUGH) ?
+		"Pass through" :
+		"Translate");
 	return 0;
 }
 

@@ -126,6 +126,7 @@ enum tmc_mem_intf_width {
 enum etr_mode {
 	ETR_MODE_FLAT,		/* Uses contiguous flat buffer */
 	ETR_MODE_ETR_SG,	/* Uses in-built TMC ETR SG mechanism */
+	ETR_MODE_CATU,		/* Use SG mechanism in CATU */
 };
 
 struct etr_buf_operations;
@@ -302,5 +303,7 @@ tmc_sg_table_buf_size(struct tmc_sg_table *sg_table)
 {
 	return sg_table->data_pages.nr_pages << PAGE_SHIFT;
 }
+
+struct coresight_device *tmc_etr_get_catu_device(struct tmc_drvdata *drvdata);
 
 #endif

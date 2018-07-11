@@ -710,7 +710,7 @@ static const struct etr_buf_operations etr_sg_buf_ops = {
  * Returns	: coresight_device ptr for the CATU device if a CATU is found.
  *		: NULL otherwise.
  */
-static inline struct coresight_device *
+struct coresight_device *
 tmc_etr_get_catu_device(struct tmc_drvdata *drvdata)
 {
 	int i;
@@ -733,7 +733,7 @@ static inline void tmc_etr_enable_catu(struct tmc_drvdata *drvdata)
 	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
 
 	if (catu && helper_ops(catu)->enable)
-		helper_ops(catu)->enable(catu, NULL);
+		helper_ops(catu)->enable(catu, drvdata->etr_buf);
 }
 
 static inline void tmc_etr_disable_catu(struct tmc_drvdata *drvdata)
@@ -741,12 +741,13 @@ static inline void tmc_etr_disable_catu(struct tmc_drvdata *drvdata)
 	struct coresight_device *catu = tmc_etr_get_catu_device(drvdata);
 
 	if (catu && helper_ops(catu)->disable)
-		helper_ops(catu)->disable(catu, NULL);
+		helper_ops(catu)->disable(catu, drvdata->etr_buf);
 }
 
 static const struct etr_buf_operations *etr_buf_ops[] = {
 	[ETR_MODE_FLAT] = &etr_flat_buf_ops,
 	[ETR_MODE_ETR_SG] = &etr_sg_buf_ops,
+	[ETR_MODE_CATU] = &etr_catu_buf_ops,
 };
 
 static inline int tmc_etr_mode_alloc_buf(int mode,
@@ -754,12 +755,15 @@ static inline int tmc_etr_mode_alloc_buf(int mode,
 					 struct etr_buf *etr_buf, int node,
 					 void **pages)
 {
-	int rc;
+	int rc = -EINVAL;
 
 	switch (mode) {
 	case ETR_MODE_FLAT:
 	case ETR_MODE_ETR_SG:
-		rc = etr_buf_ops[mode]->alloc(drvdata, etr_buf, node, pages);
+	case ETR_MODE_CATU:
+		if (etr_buf_ops[mode]->alloc)
+			rc = etr_buf_ops[mode]->alloc(drvdata, etr_buf,
+						      node, pages);
 		if (!rc)
 			etr_buf->ops = etr_buf_ops[mode];
 		return rc;
@@ -782,10 +786,14 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 {
 	int rc = -ENOMEM;
 	bool has_etr_sg, has_iommu;
+	bool has_sg, has_catu;
 	struct etr_buf *etr_buf;
 
 	has_etr_sg = tmc_etr_has_cap(drvdata, TMC_ETR_SG);
 	has_iommu = iommu_get_domain_for_dev(drvdata->dev);
+	has_catu = !!tmc_etr_get_catu_device(drvdata);
+
+	has_sg = has_catu || has_etr_sg;
 
 	etr_buf = kzalloc(sizeof(*etr_buf), GFP_KERNEL);
 	if (!etr_buf)
@@ -806,17 +814,22 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 	 *
 	 */
 	if (!pages &&
-	    (!has_etr_sg || has_iommu || size < SZ_1M))
+	    (!has_sg || has_iommu || size < SZ_1M))
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_FLAT, drvdata,
 					    etr_buf, node, pages);
 	if (rc && has_etr_sg)
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_ETR_SG, drvdata,
+					    etr_buf, node, pages);
+	if (rc && has_catu)
+		rc = tmc_etr_mode_alloc_buf(ETR_MODE_CATU, drvdata,
 					    etr_buf, node, pages);
 	if (rc) {
 		kfree(etr_buf);
 		return ERR_PTR(rc);
 	}
 
+	dev_dbg(drvdata->dev, "allocated buffer of size %ldKB in mode %d\n",
+		(unsigned long)size >> 10, etr_buf->mode);
 	return etr_buf;
 }
 
