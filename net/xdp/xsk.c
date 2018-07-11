@@ -218,9 +218,6 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 	struct sk_buff *skb;
 	int err = 0;
 
-	if (unlikely(!xs->tx))
-		return -ENOBUFS;
-
 	mutex_lock(&xs->mutex);
 
 	while (xskq_peek_desc(xs->tx, &desc)) {
@@ -296,6 +293,8 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -ENXIO;
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
+	if (unlikely(!xs->tx))
+		return -ENOBUFS;
 	if (need_wait)
 		return -EOPNOTSUPP;
 
