@@ -334,11 +334,12 @@ struct rx_drvinfo_819x_usb {
 /* Octets for crc32 (FCS, ICV) */
 #define scrclng					4
 
-typedef enum rf_optype {
+enum rf_op_type {
 	RF_OP_By_SW_3wire = 0,
 	RF_OP_By_FW,
 	RF_OP_MAX
-} rf_op_type;
+};
+
 /* 8190 Loopback Mode definition */
 typedef enum _rtl819xUsb_loopback {
 	RTL819xU_NO_LOOPBACK = 0,
@@ -894,7 +895,7 @@ typedef struct r8192_priv {
 	u8      slot_time;
 	bool	bDcut;
 	bool bCurrentRxAggrEnable;
-	u8 Rf_Mode;	/* For Firmware RF -R/W switch */
+	enum rf_op_type Rf_Mode;	/* For Firmware RF -R/W switch */
 	prt_firmware		pFirmware;
 	rtl819xUsb_loopback_e	LoopbackMode;
 	u16 EEPROMTxPowerDiff;
