@@ -144,7 +144,7 @@ struct crypt_config {
 	struct workqueue_struct *io_queue;
 	struct workqueue_struct *crypt_queue;
 
-	wait_queue_head_t write_thread_wait;
+	spinlock_t write_thread_lock;
 	struct task_struct *write_thread;
 	struct rb_root write_tree;
 
@@ -1620,36 +1620,31 @@ static int dmcrypt_write(void *data)
 		struct rb_root write_tree;
 		struct blk_plug plug;
 
-		DECLARE_WAITQUEUE(wait, current);
-
-		spin_lock_irq(&cc->write_thread_wait.lock);
+		spin_lock_irq(&cc->write_thread_lock);
 continue_locked:
 
 		if (!RB_EMPTY_ROOT(&cc->write_tree))
 			goto pop_from_list;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		__add_wait_queue(&cc->write_thread_wait, &wait);
 
-		spin_unlock_irq(&cc->write_thread_wait.lock);
+		spin_unlock_irq(&cc->write_thread_lock);
 
 		if (unlikely(kthread_should_stop())) {
 			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&cc->write_thread_wait, &wait);
 			break;
 		}
 
 		schedule();
 
 		set_current_state(TASK_RUNNING);
-		spin_lock_irq(&cc->write_thread_wait.lock);
-		__remove_wait_queue(&cc->write_thread_wait, &wait);
+		spin_lock_irq(&cc->write_thread_lock);
 		goto continue_locked;
 
 pop_from_list:
 		write_tree = cc->write_tree;
 		cc->write_tree = RB_ROOT;
-		spin_unlock_irq(&cc->write_thread_wait.lock);
+		spin_unlock_irq(&cc->write_thread_lock);
 
 		BUG_ON(rb_parent(write_tree.rb_node));
 
@@ -1693,7 +1688,9 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 		return;
 	}
 
-	spin_lock_irqsave(&cc->write_thread_wait.lock, flags);
+	spin_lock_irqsave(&cc->write_thread_lock, flags);
+	if (RB_EMPTY_ROOT(&cc->write_tree))
+		wake_up_process(cc->write_thread);
 	rbp = &cc->write_tree.rb_node;
 	parent = NULL;
 	sector = io->sector;
@@ -1706,9 +1703,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	}
 	rb_link_node(&io->rb_node, parent, rbp);
 	rb_insert_color(&io->rb_node, &cc->write_tree);
-
-	wake_up_locked(&cc->write_thread_wait);
-	spin_unlock_irqrestore(&cc->write_thread_wait.lock, flags);
+	spin_unlock_irqrestore(&cc->write_thread_lock, flags);
 }
 
 static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
@@ -2831,7 +2826,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	init_waitqueue_head(&cc->write_thread_wait);
+	spin_lock_init(&cc->write_thread_lock);
 	cc->write_tree = RB_ROOT;
 
 	cc->write_thread = kthread_create(dmcrypt_write, cc, "dmcrypt_write");
