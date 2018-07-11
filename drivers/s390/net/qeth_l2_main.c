@@ -26,7 +26,6 @@
 
 static int qeth_l2_set_offline(struct ccwgroup_device *);
 static int qeth_l2_stop(struct net_device *);
-static void qeth_l2_set_rx_mode(struct net_device *);
 static void qeth_bridgeport_query_support(struct qeth_card *card);
 static void qeth_bridge_state_change(struct qeth_card *card,
 					struct qeth_ipa_cmd *cmd);
@@ -344,7 +343,6 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 		rc = qeth_l2_send_setdelvlan(card, vid, IPA_CMD_DELVLAN);
 		kfree(tmpid);
 	}
-	qeth_l2_set_rx_mode(card->dev);
 	return rc;
 }
 
@@ -1125,13 +1123,12 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		if (recovery_mode &&
 		    card->info.type != QETH_CARD_TYPE_OSN) {
 			__qeth_l2_open(card->dev);
+			qeth_l2_set_rx_mode(card->dev);
 		} else {
 			rtnl_lock();
 			dev_open(card->dev);
 			rtnl_unlock();
 		}
-		/* this also sets saved unicast addresses */
-		qeth_l2_set_rx_mode(card->dev);
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
