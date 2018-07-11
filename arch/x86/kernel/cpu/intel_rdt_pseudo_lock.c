@@ -1254,19 +1254,10 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		goto out_cstates;
 	}
 
-	if (!IS_ERR_OR_NULL(debugfs_resctrl)) {
-		plr->debugfs_dir = debugfs_create_dir(rdtgrp->kn->name,
-						      debugfs_resctrl);
-		if (!IS_ERR_OR_NULL(plr->debugfs_dir))
-			debugfs_create_file("pseudo_lock_measure", 0200,
-					    plr->debugfs_dir, rdtgrp,
-					    &pseudo_measure_fops);
-	}
-
 	ret = pseudo_lock_minor_get(&new_minor);
 	if (ret < 0) {
 		rdt_last_cmd_puts("unable to obtain a new minor number\n");
-		goto out_debugfs;
+		goto out_cstates;
 	}
 
 	/*
@@ -1275,10 +1266,19 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	 *
 	 * The mutex has to be released temporarily to avoid a potential
 	 * deadlock with the mm->mmap_sem semaphore which is obtained in
-	 * the device_create() callpath below as well as before the mmap()
-	 * callback is called.
+	 * the device_create() and debugfs_create_dir() callpath below
+	 * as well as before the mmap() callback is called.
 	 */
 	mutex_unlock(&rdtgroup_mutex);
+
+	if (!IS_ERR_OR_NULL(debugfs_resctrl)) {
+		plr->debugfs_dir = debugfs_create_dir(rdtgrp->kn->name,
+						      debugfs_resctrl);
+		if (!IS_ERR_OR_NULL(plr->debugfs_dir))
+			debugfs_create_file("pseudo_lock_measure", 0200,
+					    plr->debugfs_dir, rdtgrp,
+					    &pseudo_measure_fops);
+	}
 
 	dev = device_create(pseudo_lock_class, NULL,
 			    MKDEV(pseudo_lock_major, new_minor),
@@ -1290,7 +1290,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		ret = PTR_ERR(dev);
 		rdt_last_cmd_printf("failed to create character device: %d\n",
 				    ret);
-		goto out_minor;
+		goto out_debugfs;
 	}
 
 	/* We released the mutex - check if group was removed while we did so */
@@ -1311,10 +1311,9 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 out_device:
 	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, new_minor));
-out_minor:
-	pseudo_lock_minor_release(new_minor);
 out_debugfs:
 	debugfs_remove_recursive(plr->debugfs_dir);
+	pseudo_lock_minor_release(new_minor);
 out_cstates:
 	pseudo_lock_cstates_relax(plr);
 out_region:
