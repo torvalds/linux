@@ -641,6 +641,174 @@
         ]
     },
     {
+        "id": "4f20",
+        "name": "Add tunnel_key action with a single geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "e33d",
+        "name": "Add tunnel_key action with multiple geneve options parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "0778",
+        "name": "Add tunnel_key action with invalid class geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 824212:80:00880022 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 824212:80:00880022.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "4ae8",
+        "name": "Add tunnel_key action with invalid type geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:4224:00880022 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:4224:00880022.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "4039",
+        "name": "Add tunnel_key action with short data length geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "26a6",
+        "name": "Add tunnel_key action with non-multiple of 4 data length geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288428822 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288428822.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "f44d",
+        "name": "Add tunnel_key action with incomplete geneve options parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42: index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
         "id": "7afc",
         "name": "Replace tunnel_key set action with all parameters",
         "category": [
