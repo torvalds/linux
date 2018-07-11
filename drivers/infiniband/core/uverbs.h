@@ -136,9 +136,9 @@ struct ib_uverbs_completion_event_file {
 
 struct ib_uverbs_file {
 	struct kref				ref;
-	struct mutex				mutex;
-	struct mutex                            cleanup_mutex; /* protect cleanup */
 	struct ib_uverbs_device		       *device;
+	/* Protects writing to ucontext */
+	struct mutex				ucontext_lock;
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
 	struct ib_uverbs_async_event_file       *async_file;
@@ -154,8 +154,6 @@ struct ib_uverbs_file {
 	struct rw_semaphore	hw_destroy_rwsem;
 	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
-
-	enum rdma_remove_reason cleanup_reason;
 
 	struct idr		idr;
 	/* spinlock protects write access to idr */

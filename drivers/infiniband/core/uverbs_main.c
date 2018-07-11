@@ -41,8 +41,6 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/anon_inodes.h>
@@ -225,21 +223,6 @@ void ib_uverbs_detach_umcast(struct ib_qp *qp,
 		list_del(&mcast->list);
 		kfree(mcast);
 	}
-}
-
-static int ib_uverbs_cleanup_ufile(struct ib_uverbs_file *file,
-				   bool device_removed)
-{
-	struct ib_ucontext *context = file->ucontext;
-
-	context->closing = 1;
-	uverbs_cleanup_ufile(file, device_removed);
-	put_pid(context->tgid);
-
-	ib_rdmacg_uncharge(&context->cg_obj, context->device,
-			   RDMACG_RESOURCE_HCA_HANDLE);
-
-	return context->device->dealloc_ucontext(context);
 }
 
 static void ib_uverbs_comp_dev(struct ib_uverbs_device *dev)
@@ -886,8 +869,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	spin_lock_init(&file->idr_lock);
 	idr_init(&file->idr);
 	kref_init(&file->ref);
-	mutex_init(&file->mutex);
-	mutex_init(&file->cleanup_mutex);
+	mutex_init(&file->ucontext_lock);
 
 	spin_lock_init(&file->uobjects_lock);
 	INIT_LIST_HEAD(&file->uobjects);
@@ -917,12 +899,7 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
 
-	mutex_lock(&file->cleanup_mutex);
-	if (file->ucontext) {
-		ib_uverbs_cleanup_ufile(file, false);
-		file->ucontext = NULL;
-	}
-	mutex_unlock(&file->cleanup_mutex);
+	uverbs_destroy_ufile_hw(file, RDMA_REMOVE_CLOSE);
 	idr_destroy(&file->idr);
 
 	mutex_lock(&file->device->lists_mutex);
@@ -1109,44 +1086,6 @@ err:
 	return;
 }
 
-static void ib_uverbs_disassociate_ucontext(struct ib_ucontext *ibcontext)
-{
-	struct ib_device *ib_dev = ibcontext->device;
-	struct task_struct *owning_process  = NULL;
-	struct mm_struct   *owning_mm       = NULL;
-
-	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
-	if (!owning_process)
-		return;
-
-	owning_mm = get_task_mm(owning_process);
-	if (!owning_mm) {
-		pr_info("no mm, disassociate ucontext is pending task termination\n");
-		while (1) {
-			put_task_struct(owning_process);
-			usleep_range(1000, 2000);
-			owning_process = get_pid_task(ibcontext->tgid,
-						      PIDTYPE_PID);
-			if (!owning_process ||
-			    owning_process->state == TASK_DEAD) {
-				pr_info("disassociate ucontext done, task was terminated\n");
-				/* in case task was dead need to release the
-				 * task struct.
-				 */
-				if (owning_process)
-					put_task_struct(owning_process);
-				return;
-			}
-		}
-	}
-
-	down_write(&owning_mm->mmap_sem);
-	ib_dev->disassociate_ucontext(ibcontext);
-	up_write(&owning_mm->mmap_sem);
-	mmput(owning_mm);
-	put_task_struct(owning_process);
-}
-
 static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 					struct ib_device *ib_dev)
 {
@@ -1162,39 +1101,24 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 
 	mutex_lock(&uverbs_dev->lists_mutex);
 	while (!list_empty(&uverbs_dev->uverbs_file_list)) {
-		struct ib_ucontext *ucontext;
 		file = list_first_entry(&uverbs_dev->uverbs_file_list,
 					struct ib_uverbs_file, list);
 		file->is_closed = 1;
 		list_del(&file->list);
 		kref_get(&file->ref);
+
+		/* We must release the mutex before going ahead and calling
+		 * uverbs_cleanup_ufile, as it might end up indirectly calling
+		 * uverbs_close, for example due to freeing the resources (e.g
+		 * mmput).
+		 */
 		mutex_unlock(&uverbs_dev->lists_mutex);
 
-
-		mutex_lock(&file->cleanup_mutex);
-		ucontext = file->ucontext;
-		file->ucontext = NULL;
-		mutex_unlock(&file->cleanup_mutex);
-
-		/* At this point ib_uverbs_close cannot be running
-		 * ib_uverbs_cleanup_ufile
-		 */
-		if (ucontext) {
-			/* We must release the mutex before going ahead and
-			 * calling disassociate_ucontext. disassociate_ucontext
-			 * might end up indirectly calling uverbs_close,
-			 * for example due to freeing the resources
-			 * (e.g mmput).
-			 */
-			ib_uverbs_event_handler(&file->event_handler, &event);
-			ib_uverbs_disassociate_ucontext(ucontext);
-			mutex_lock(&file->cleanup_mutex);
-			ib_uverbs_cleanup_ufile(file, true);
-			mutex_unlock(&file->cleanup_mutex);
-		}
+		ib_uverbs_event_handler(&file->event_handler, &event);
+		uverbs_destroy_ufile_hw(file, RDMA_REMOVE_DRIVER_REMOVE);
+		kref_put(&file->ref, ib_uverbs_release_file);
 
 		mutex_lock(&uverbs_dev->lists_mutex);
-		kref_put(&file->ref, ib_uverbs_release_file);
 	}
 
 	while (!list_empty(&uverbs_dev->uverbs_events_file_list)) {

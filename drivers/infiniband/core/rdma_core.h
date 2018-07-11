@@ -49,7 +49,8 @@ const struct uverbs_object_spec *uverbs_get_object(struct ib_uverbs_file *ufile,
 const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_spec *object,
 						   uint16_t method);
 
-void uverbs_cleanup_ufile(struct ib_uverbs_file *ufile, bool device_removed);
+void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
+			     enum rdma_remove_reason reason);
 
 /*
  * uverbs_uobject_get is called in order to increase the reference count on

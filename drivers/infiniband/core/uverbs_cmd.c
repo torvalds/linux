@@ -84,7 +84,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	mutex_lock(&file->mutex);
+	mutex_lock(&file->ucontext_lock);
 
 	if (file->ucontext) {
 		ret = -EINVAL;
@@ -150,7 +150,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 
 	fd_install(resp.async_fd, filp);
 
-	mutex_unlock(&file->mutex);
+	mutex_unlock(&file->ucontext_lock);
 
 	return in_len;
 
@@ -169,7 +169,7 @@ err_alloc:
 	ib_rdmacg_uncharge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
 
 err:
-	mutex_unlock(&file->mutex);
+	mutex_unlock(&file->ucontext_lock);
 	return ret;
 }
 

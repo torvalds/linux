@@ -32,6 +32,7 @@
 
 #include <linux/file.h>
 #include <linux/anon_inodes.h>
+#include <linux/sched/mm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
 #include <linux/rcupdate.h>
@@ -284,11 +285,8 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 	}
 
 	ret = uverbs_try_lock_object(uobj, exclusive);
-	if (ret) {
-		WARN(uobj->ufile->cleanup_reason,
-		     "ib_uverbs: Trying to lookup_get while cleanup context\n");
+	if (ret)
 		goto free;
-	}
 
 	return uobj;
 free:
@@ -694,6 +692,71 @@ void uverbs_close_fd(struct file *f)
 	uverbs_uobject_put(uobj);
 }
 
+static void ufile_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+	struct ib_device *ib_dev = ibcontext->device;
+	struct task_struct *owning_process  = NULL;
+	struct mm_struct   *owning_mm       = NULL;
+
+	owning_process = get_pid_task(ibcontext->tgid, PIDTYPE_PID);
+	if (!owning_process)
+		return;
+
+	owning_mm = get_task_mm(owning_process);
+	if (!owning_mm) {
+		pr_info("no mm, disassociate ucontext is pending task termination\n");
+		while (1) {
+			put_task_struct(owning_process);
+			usleep_range(1000, 2000);
+			owning_process = get_pid_task(ibcontext->tgid,
+						      PIDTYPE_PID);
+			if (!owning_process ||
+			    owning_process->state == TASK_DEAD) {
+				pr_info("disassociate ucontext done, task was terminated\n");
+				/* in case task was dead need to release the
+				 * task struct.
+				 */
+				if (owning_process)
+					put_task_struct(owning_process);
+				return;
+			}
+		}
+	}
+
+	down_write(&owning_mm->mmap_sem);
+	ib_dev->disassociate_ucontext(ibcontext);
+	up_write(&owning_mm->mmap_sem);
+	mmput(owning_mm);
+	put_task_struct(owning_process);
+}
+
+/*
+ * Drop the ucontext off the ufile and completely disconnect it from the
+ * ib_device
+ */
+static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
+				   enum rdma_remove_reason reason)
+{
+	struct ib_ucontext *ucontext = ufile->ucontext;
+	int ret;
+
+	if (reason == RDMA_REMOVE_DRIVER_REMOVE)
+		ufile_disassociate_ucontext(ucontext);
+
+	put_pid(ucontext->tgid);
+	ib_rdmacg_uncharge(&ucontext->cg_obj, ucontext->device,
+			   RDMACG_RESOURCE_HCA_HANDLE);
+
+	/*
+	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
+	 * the error return.
+	 */
+	ret = ucontext->device->dealloc_ucontext(ufile->ucontext);
+	WARN_ON(ret);
+
+	ufile->ucontext = NULL;
+}
+
 static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 				  enum rdma_remove_reason reason)
 {
@@ -710,7 +773,6 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 	 * We take and release the lock per traversal in order to let
 	 * other threads (which might still use the FDs) chance to run.
 	 */
-	ufile->cleanup_reason = reason;
 	list_for_each_entry_safe(obj, next_obj, &ufile->uobjects, list) {
 		/*
 		 * if we hit this WARN_ON, that means we are
@@ -738,18 +800,43 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 	return ret;
 }
 
-void uverbs_cleanup_ufile(struct ib_uverbs_file *ufile, bool device_removed)
+/*
+ * Destroy the uncontext and every uobject associated with it. If called with
+ * reason != RDMA_REMOVE_CLOSE this will not return until the destruction has
+ * been completed and ufile->ucontext is NULL.
+ *
+ * This is internally locked and can be called in parallel from multiple
+ * contexts.
+ */
+void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
+			     enum rdma_remove_reason reason)
 {
-	enum rdma_remove_reason reason = device_removed ?
-					RDMA_REMOVE_DRIVER_REMOVE :
-					RDMA_REMOVE_CLOSE;
+	if (reason == RDMA_REMOVE_CLOSE) {
+		/*
+		 * During destruction we might trigger something that
+		 * synchronously calls release on any file descriptor. For
+		 * this reason all paths that come from file_operations
+		 * release must use try_lock. They can progress knowing that
+		 * there is an ongoing uverbs_destroy_ufile_hw that will clean
+		 * up the driver resources.
+		 */
+		if (!mutex_trylock(&ufile->ucontext_lock))
+			return;
+
+	} else {
+		mutex_lock(&ufile->ucontext_lock);
+	}
+
+	down_write(&ufile->hw_destroy_rwsem);
 
 	/*
-	 * Waits for all remove_commit and alloc_commit to finish. Logically, We
-	 * want to hold this forever as the context is going to be destroyed,
-	 * but we'll release it since it causes a "held lock freed" BUG message.
+	 * If a ucontext was never created then we can't have any uobjects to
+	 * cleanup, nothing to do.
 	 */
-	down_write(&ufile->hw_destroy_rwsem);
+	if (!ufile->ucontext)
+		goto done;
+
+	ufile->ucontext->closing = true;
 	ufile->ucontext->cleanup_retryable = true;
 	while (!list_empty(&ufile->uobjects))
 		if (__uverbs_cleanup_ufile(ufile, reason)) {
@@ -764,7 +851,11 @@ void uverbs_cleanup_ufile(struct ib_uverbs_file *ufile, bool device_removed)
 	if (!list_empty(&ufile->uobjects))
 		__uverbs_cleanup_ufile(ufile, reason);
 
+	ufile_destroy_ucontext(ufile, reason);
+
+done:
 	up_write(&ufile->hw_destroy_rwsem);
+	mutex_unlock(&ufile->ucontext_lock);
 }
 
 const struct uverbs_obj_type_class uverbs_fd_class = {
