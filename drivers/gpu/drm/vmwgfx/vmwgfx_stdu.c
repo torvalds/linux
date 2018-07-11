@@ -30,7 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-
+#include <drm/drm_damage_helper.h>
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -92,6 +92,10 @@ struct vmw_stdu_surface_copy {
 	SVGA3dCmdSurfaceCopy body;
 };
 
+struct vmw_stdu_update_gb_image {
+	SVGA3dCmdHeader header;
+	SVGA3dCmdUpdateGBImage body;
+};
 
 /**
  * struct vmw_screen_target_display_unit
@@ -1256,7 +1260,183 @@ out_srf_unref:
 	return ret;
 }
 
+static uint32_t
+vmw_stdu_surface_fifo_size_same_display(struct vmw_du_update_plane *update,
+					uint32_t num_hits)
+{
+	struct vmw_framebuffer_surface *vfbs;
+	uint32_t size = 0;
 
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	if (vfbs->is_bo_proxy)
+		size += sizeof(struct vmw_stdu_update_gb_image) * num_hits;
+
+	size += sizeof(struct vmw_stdu_update);
+
+	return size;
+}
+
+static uint32_t vmw_stdu_surface_fifo_size(struct vmw_du_update_plane *update,
+					   uint32_t num_hits)
+{
+	struct vmw_framebuffer_surface *vfbs;
+	uint32_t size = 0;
+
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	if (vfbs->is_bo_proxy)
+		size += sizeof(struct vmw_stdu_update_gb_image) * num_hits;
+
+	size += sizeof(struct vmw_stdu_surface_copy) + sizeof(SVGA3dCopyBox) *
+		num_hits + sizeof(struct vmw_stdu_update);
+
+	return size;
+}
+
+static uint32_t
+vmw_stdu_surface_update_proxy(struct vmw_du_update_plane *update, void *cmd)
+{
+	struct vmw_framebuffer_surface *vfbs;
+	struct drm_plane_state *state = update->plane->state;
+	struct drm_plane_state *old_state = update->old_state;
+	struct vmw_stdu_update_gb_image *cmd_update = cmd;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect clip;
+	uint32_t copy_size = 0;
+
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	/*
+	 * proxy surface is special where a buffer object type fb is wrapped
+	 * in a surface and need an update gb image command to sync with device.
+	 */
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &clip) {
+		SVGA3dBox *box = &cmd_update->body.box;
+
+		cmd_update->header.id = SVGA_3D_CMD_UPDATE_GB_IMAGE;
+		cmd_update->header.size = sizeof(cmd_update->body);
+		cmd_update->body.image.sid = vfbs->surface->res.id;
+		cmd_update->body.image.face = 0;
+		cmd_update->body.image.mipmap = 0;
+
+		box->x = clip.x1;
+		box->y = clip.y1;
+		box->z = 0;
+		box->w = drm_rect_width(&clip);
+		box->h = drm_rect_height(&clip);
+		box->d = 1;
+
+		copy_size += sizeof(*cmd_update);
+		cmd_update++;
+	}
+
+	return copy_size;
+}
+
+static uint32_t
+vmw_stdu_surface_populate_copy(struct vmw_du_update_plane  *update, void *cmd,
+			       uint32_t num_hits)
+{
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer_surface *vfbs;
+	struct vmw_stdu_surface_copy *cmd_copy = cmd;
+
+	stdu = container_of(update->du, typeof(*stdu), base);
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	cmd_copy->header.id = SVGA_3D_CMD_SURFACE_COPY;
+	cmd_copy->header.size = sizeof(cmd_copy->body) + sizeof(SVGA3dCopyBox) *
+		num_hits;
+	cmd_copy->body.src.sid = vfbs->surface->res.id;
+	cmd_copy->body.dest.sid = stdu->display_srf->res.id;
+
+	return sizeof(*cmd_copy);
+}
+
+static uint32_t
+vmw_stdu_surface_populate_clip(struct vmw_du_update_plane  *update, void *cmd,
+			       struct drm_rect *clip, uint32_t fb_x,
+			       uint32_t fb_y)
+{
+	struct SVGA3dCopyBox *box = cmd;
+
+	box->srcx = fb_x;
+	box->srcy = fb_y;
+	box->srcz = 0;
+	box->x = clip->x1;
+	box->y = clip->y1;
+	box->z = 0;
+	box->w = drm_rect_width(clip);
+	box->h = drm_rect_height(clip);
+	box->d = 1;
+
+	return sizeof(*box);
+}
+
+static uint32_t
+vmw_stdu_surface_populate_update(struct vmw_du_update_plane  *update, void *cmd,
+				 struct drm_rect *bb)
+{
+	vmw_stdu_populate_update(cmd, update->du->unit, bb->x1, bb->x2, bb->y1,
+				 bb->y2);
+
+	return sizeof(struct vmw_stdu_update);
+}
+
+/**
+ * vmw_stdu_plane_update_surface - Update display unit for surface backed fb
+ * @dev_priv: Device private
+ * @plane: Plane state
+ * @old_state: Old plane state
+ * @vfb: Framebuffer which is blitted to display unit
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
+					 struct drm_plane *plane,
+					 struct drm_plane_state *old_state,
+					 struct vmw_framebuffer *vfb,
+					 struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane srf_update;
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer_surface *vfbs;
+
+	stdu = vmw_crtc_to_stdu(plane->state->crtc);
+	vfbs = container_of(vfb, typeof(*vfbs), base);
+
+	memset(&srf_update, 0, sizeof(struct vmw_du_update_plane));
+	srf_update.plane = plane;
+	srf_update.old_state = old_state;
+	srf_update.dev_priv = dev_priv;
+	srf_update.du = vmw_crtc_to_du(plane->state->crtc);
+	srf_update.vfb = vfb;
+	srf_update.out_fence = out_fence;
+	srf_update.mutex = &dev_priv->cmdbuf_mutex;
+	srf_update.cpu_blit = false;
+	srf_update.intr = true;
+
+	if (vfbs->is_bo_proxy)
+		srf_update.post_prepare = vmw_stdu_surface_update_proxy;
+
+	if (vfbs->surface->res.id != stdu->display_srf->res.id) {
+		srf_update.calc_fifo_size = vmw_stdu_surface_fifo_size;
+		srf_update.pre_clip = vmw_stdu_surface_populate_copy;
+		srf_update.clip = vmw_stdu_surface_populate_clip;
+	} else {
+		srf_update.calc_fifo_size =
+			vmw_stdu_surface_fifo_size_same_display;
+	}
+
+	srf_update.post_clip = vmw_stdu_surface_populate_update;
+
+	return vmw_du_helper_plane_update(&srf_update);
+}
 
 /**
  * vmw_stdu_primary_plane_atomic_update - formally switches STDU to new plane
