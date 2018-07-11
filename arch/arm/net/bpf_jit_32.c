@@ -47,27 +47,27 @@
  * The callee saved registers depends on whether frame pointers are enabled.
  * With frame pointers (to be compliant with the ABI):
  *
- *                                high
- * original ARM_SP =>     +------------------+ \
- *                        |        pc        | |
- * current ARM_FP =>      +------------------+ } callee saved registers
- *                        |r4-r8,r10,fp,ip,lr| |
- *                        +------------------+ /
- *                                low
+ *                              high
+ * original ARM_SP =>     +--------------+ \
+ *                        |      pc      | |
+ * current ARM_FP =>      +--------------+ } callee saved registers
+ *                        |r4-r9,fp,ip,lr| |
+ *                        +--------------+ /
+ *                              low
  *
  * Without frame pointers:
  *
- *                                high
- * original ARM_SP =>     +------------------+
- *                        | r4-r8,r10,fp,lr  | callee saved registers
- * current ARM_FP =>      +------------------+
- *                                low
+ *                              high
+ * original ARM_SP =>     +--------------+
+ *                        |  r4-r9,fp,lr | callee saved registers
+ * current ARM_FP =>      +--------------+
+ *                              low
  *
  * When popping registers off the stack at the end of a BPF function, we
  * reference them via the current ARM_FP register.
  */
 #define CALLEE_MASK	(1 << ARM_R4 | 1 << ARM_R5 | 1 << ARM_R6 | \
-			 1 << ARM_R7 | 1 << ARM_R8 | 1 << ARM_R10 | \
+			 1 << ARM_R7 | 1 << ARM_R8 | 1 << ARM_R9 | \
 			 1 << ARM_FP)
 #define CALLEE_PUSH_MASK (CALLEE_MASK | 1 << ARM_LR)
 #define CALLEE_POP_MASK  (CALLEE_MASK | 1 << ARM_PC)
@@ -157,7 +157,7 @@ static const s8 bpf2a32[][2] = {
 	 * for constant blindings and others.
 	 */
 	[TMP_REG_1] = {ARM_R7, ARM_R6},
-	[TMP_REG_2] = {ARM_R10, ARM_R8},
+	[TMP_REG_2] = {ARM_R9, ARM_R8},
 	/* Tail call count. Stored on stack scratch space. */
 	[TCALL_CNT] = {STACK_OFFSET(BPF_TC_HI), STACK_OFFSET(BPF_TC_LO)},
 	/* temporary register for blinding constants.
