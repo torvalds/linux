@@ -6,8 +6,276 @@
 
 #include <linux/coresight.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
+
+/*
+ * tmc_pages_get_offset:  Go through all the pages in the tmc_pages
+ * and map the device address @addr to an offset within the virtual
+ * contiguous buffer.
+ */
+static long
+tmc_pages_get_offset(struct tmc_pages *tmc_pages, dma_addr_t addr)
+{
+	int i;
+	dma_addr_t page_start;
+
+	for (i = 0; i < tmc_pages->nr_pages; i++) {
+		page_start = tmc_pages->daddrs[i];
+		if (addr >= page_start && addr < (page_start + PAGE_SIZE))
+			return i * PAGE_SIZE + (addr - page_start);
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * tmc_pages_free : Unmap and free the pages used by tmc_pages.
+ * If the pages were not allocated in tmc_pages_alloc(), we would
+ * simply drop the refcount.
+ */
+static void tmc_pages_free(struct tmc_pages *tmc_pages,
+			   struct device *dev, enum dma_data_direction dir)
+{
+	int i;
+
+	for (i = 0; i < tmc_pages->nr_pages; i++) {
+		if (tmc_pages->daddrs && tmc_pages->daddrs[i])
+			dma_unmap_page(dev, tmc_pages->daddrs[i],
+					 PAGE_SIZE, dir);
+		if (tmc_pages->pages && tmc_pages->pages[i])
+			__free_page(tmc_pages->pages[i]);
+	}
+
+	kfree(tmc_pages->pages);
+	kfree(tmc_pages->daddrs);
+	tmc_pages->pages = NULL;
+	tmc_pages->daddrs = NULL;
+	tmc_pages->nr_pages = 0;
+}
+
+/*
+ * tmc_pages_alloc : Allocate and map pages for a given @tmc_pages.
+ * If @pages is not NULL, the list of page virtual addresses are
+ * used as the data pages. The pages are then dma_map'ed for @dev
+ * with dma_direction @dir.
+ *
+ * Returns 0 upon success, else the error number.
+ */
+static int tmc_pages_alloc(struct tmc_pages *tmc_pages,
+			   struct device *dev, int node,
+			   enum dma_data_direction dir, void **pages)
+{
+	int i, nr_pages;
+	dma_addr_t paddr;
+	struct page *page;
+
+	nr_pages = tmc_pages->nr_pages;
+	tmc_pages->daddrs = kcalloc(nr_pages, sizeof(*tmc_pages->daddrs),
+					 GFP_KERNEL);
+	if (!tmc_pages->daddrs)
+		return -ENOMEM;
+	tmc_pages->pages = kcalloc(nr_pages, sizeof(*tmc_pages->pages),
+					 GFP_KERNEL);
+	if (!tmc_pages->pages) {
+		kfree(tmc_pages->daddrs);
+		tmc_pages->daddrs = NULL;
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_pages; i++) {
+		if (pages && pages[i]) {
+			page = virt_to_page(pages[i]);
+			/* Hold a refcount on the page */
+			get_page(page);
+		} else {
+			page = alloc_pages_node(node,
+						GFP_KERNEL | __GFP_ZERO, 0);
+		}
+		paddr = dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+		if (dma_mapping_error(dev, paddr))
+			goto err;
+		tmc_pages->daddrs[i] = paddr;
+		tmc_pages->pages[i] = page;
+	}
+	return 0;
+err:
+	tmc_pages_free(tmc_pages, dev, dir);
+	return -ENOMEM;
+}
+
+static inline long
+tmc_sg_get_data_page_offset(struct tmc_sg_table *sg_table, dma_addr_t addr)
+{
+	return tmc_pages_get_offset(&sg_table->data_pages, addr);
+}
+
+static inline void tmc_free_table_pages(struct tmc_sg_table *sg_table)
+{
+	if (sg_table->table_vaddr)
+		vunmap(sg_table->table_vaddr);
+	tmc_pages_free(&sg_table->table_pages, sg_table->dev, DMA_TO_DEVICE);
+}
+
+static void tmc_free_data_pages(struct tmc_sg_table *sg_table)
+{
+	if (sg_table->data_vaddr)
+		vunmap(sg_table->data_vaddr);
+	tmc_pages_free(&sg_table->data_pages, sg_table->dev, DMA_FROM_DEVICE);
+}
+
+void tmc_free_sg_table(struct tmc_sg_table *sg_table)
+{
+	tmc_free_table_pages(sg_table);
+	tmc_free_data_pages(sg_table);
+}
+
+/*
+ * Alloc pages for the table. Since this will be used by the device,
+ * allocate the pages closer to the device (i.e, dev_to_node(dev)
+ * rather than the CPU node).
+ */
+static int tmc_alloc_table_pages(struct tmc_sg_table *sg_table)
+{
+	int rc;
+	struct tmc_pages *table_pages = &sg_table->table_pages;
+
+	rc = tmc_pages_alloc(table_pages, sg_table->dev,
+			     dev_to_node(sg_table->dev),
+			     DMA_TO_DEVICE, NULL);
+	if (rc)
+		return rc;
+	sg_table->table_vaddr = vmap(table_pages->pages,
+				     table_pages->nr_pages,
+				     VM_MAP,
+				     PAGE_KERNEL);
+	if (!sg_table->table_vaddr)
+		rc = -ENOMEM;
+	else
+		sg_table->table_daddr = table_pages->daddrs[0];
+	return rc;
+}
+
+static int tmc_alloc_data_pages(struct tmc_sg_table *sg_table, void **pages)
+{
+	int rc;
+
+	/* Allocate data pages on the node requested by the caller */
+	rc = tmc_pages_alloc(&sg_table->data_pages,
+			     sg_table->dev, sg_table->node,
+			     DMA_FROM_DEVICE, pages);
+	if (!rc) {
+		sg_table->data_vaddr = vmap(sg_table->data_pages.pages,
+					    sg_table->data_pages.nr_pages,
+					    VM_MAP,
+					    PAGE_KERNEL);
+		if (!sg_table->data_vaddr)
+			rc = -ENOMEM;
+	}
+	return rc;
+}
+
+/*
+ * tmc_alloc_sg_table: Allocate and setup dma pages for the TMC SG table
+ * and data buffers. TMC writes to the data buffers and reads from the SG
+ * Table pages.
+ *
+ * @dev		- Device to which page should be DMA mapped.
+ * @node	- Numa node for mem allocations
+ * @nr_tpages	- Number of pages for the table entries.
+ * @nr_dpages	- Number of pages for Data buffer.
+ * @pages	- Optional list of virtual address of pages.
+ */
+struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
+					int node,
+					int nr_tpages,
+					int nr_dpages,
+					void **pages)
+{
+	long rc;
+	struct tmc_sg_table *sg_table;
+
+	sg_table = kzalloc(sizeof(*sg_table), GFP_KERNEL);
+	if (!sg_table)
+		return ERR_PTR(-ENOMEM);
+	sg_table->data_pages.nr_pages = nr_dpages;
+	sg_table->table_pages.nr_pages = nr_tpages;
+	sg_table->node = node;
+	sg_table->dev = dev;
+
+	rc  = tmc_alloc_data_pages(sg_table, pages);
+	if (!rc)
+		rc = tmc_alloc_table_pages(sg_table);
+	if (rc) {
+		tmc_free_sg_table(sg_table);
+		kfree(sg_table);
+		return ERR_PTR(rc);
+	}
+
+	return sg_table;
+}
+
+/*
+ * tmc_sg_table_sync_data_range: Sync the data buffer written
+ * by the device from @offset upto a @size bytes.
+ */
+void tmc_sg_table_sync_data_range(struct tmc_sg_table *table,
+				  u64 offset, u64 size)
+{
+	int i, index, start;
+	int npages = DIV_ROUND_UP(size, PAGE_SIZE);
+	struct device *dev = table->dev;
+	struct tmc_pages *data = &table->data_pages;
+
+	start = offset >> PAGE_SHIFT;
+	for (i = start; i < (start + npages); i++) {
+		index = i % data->nr_pages;
+		dma_sync_single_for_cpu(dev, data->daddrs[index],
+					PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+}
+
+/* tmc_sg_sync_table: Sync the page table */
+void tmc_sg_table_sync_table(struct tmc_sg_table *sg_table)
+{
+	int i;
+	struct device *dev = sg_table->dev;
+	struct tmc_pages *table_pages = &sg_table->table_pages;
+
+	for (i = 0; i < table_pages->nr_pages; i++)
+		dma_sync_single_for_device(dev, table_pages->daddrs[i],
+					   PAGE_SIZE, DMA_TO_DEVICE);
+}
+
+/*
+ * tmc_sg_table_get_data: Get the buffer pointer for data @offset
+ * in the SG buffer. The @bufpp is updated to point to the buffer.
+ * Returns :
+ *	the length of linear data available at @offset.
+ *	or
+ *	<= 0 if no data is available.
+ */
+ssize_t tmc_sg_table_get_data(struct tmc_sg_table *sg_table,
+			      u64 offset, size_t len, char **bufpp)
+{
+	size_t size;
+	int pg_idx = offset >> PAGE_SHIFT;
+	int pg_offset = offset & (PAGE_SIZE - 1);
+	struct tmc_pages *data_pages = &sg_table->data_pages;
+
+	size = tmc_sg_table_buf_size(sg_table);
+	if (offset >= size)
+		return -EINVAL;
+
+	/* Make sure we don't go beyond the end */
+	len = (len < (size - offset)) ? len : size - offset;
+	/* Respect the page boundaries */
+	len = (len < (PAGE_SIZE - pg_offset)) ? len : (PAGE_SIZE - pg_offset);
+	if (len > 0)
+		*bufpp = page_address(data_pages->pages[pg_idx]) + pg_offset;
+	return len;
+}
 
 static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {

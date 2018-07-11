@@ -7,6 +7,7 @@
 #ifndef _CORESIGHT_TMC_H
 #define _CORESIGHT_TMC_H
 
+#include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
 
 #define TMC_RSZ			0x004
@@ -160,6 +161,38 @@ struct tmc_drvdata {
 	u32			etr_caps;
 };
 
+/**
+ * struct tmc_pages - Collection of pages used for SG.
+ * @nr_pages:		Number of pages in the list.
+ * @daddrs:		Array of DMA'able page address.
+ * @pages:		Array pages for the buffer.
+ */
+struct tmc_pages {
+	int nr_pages;
+	dma_addr_t	*daddrs;
+	struct page	**pages;
+};
+
+/*
+ * struct tmc_sg_table - Generic SG table for TMC
+ * @dev:		Device for DMA allocations
+ * @table_vaddr:	Contiguous Virtual address for PageTable
+ * @data_vaddr:		Contiguous Virtual address for Data Buffer
+ * @table_daddr:	DMA address of the PageTable base
+ * @node:		Node for Page allocations
+ * @table_pages:	List of pages & dma address for Table
+ * @data_pages:		List of pages & dma address for Data
+ */
+struct tmc_sg_table {
+	struct device *dev;
+	void *table_vaddr;
+	void *data_vaddr;
+	dma_addr_t table_daddr;
+	int node;
+	struct tmc_pages table_pages;
+	struct tmc_pages data_pages;
+};
+
 /* Generic functions */
 void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata);
 void tmc_flush_and_stop(struct tmc_drvdata *drvdata);
@@ -213,6 +246,23 @@ static inline void tmc_etr_set_cap(struct tmc_drvdata *drvdata, u32 cap)
 static inline bool tmc_etr_has_cap(struct tmc_drvdata *drvdata, u32 cap)
 {
 	return !!(drvdata->etr_caps & cap);
+}
+
+struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
+					int node,
+					int nr_tpages,
+					int nr_dpages,
+					void **pages);
+void tmc_free_sg_table(struct tmc_sg_table *sg_table);
+void tmc_sg_table_sync_table(struct tmc_sg_table *sg_table);
+void tmc_sg_table_sync_data_range(struct tmc_sg_table *table,
+				  u64 offset, u64 size);
+ssize_t tmc_sg_table_get_data(struct tmc_sg_table *sg_table,
+			      u64 offset, size_t len, char **bufpp);
+static inline unsigned long
+tmc_sg_table_buf_size(struct tmc_sg_table *sg_table)
+{
+	return sg_table->data_pages.nr_pages << PAGE_SHIFT;
 }
 
 #endif
