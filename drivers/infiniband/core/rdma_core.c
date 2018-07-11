@@ -498,24 +498,41 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
-	spin_lock(&uobj->ufile->idr_lock);
+	struct ib_uverbs_file *ufile = uobj->ufile;
+
+	spin_lock(&ufile->idr_lock);
 	/*
 	 * We already allocated this IDR with a NULL object, so
 	 * this shouldn't fail.
+	 *
+	 * NOTE: Once we set the IDR we loose ownership of our kref on uobj.
+	 * It will be put by remove_commit_idr_uobject()
 	 */
-	WARN_ON(idr_replace(&uobj->ufile->idr, uobj, uobj->id));
-	spin_unlock(&uobj->ufile->idr_lock);
+	WARN_ON(idr_replace(&ufile->idr, uobj, uobj->id));
+	spin_unlock(&ufile->idr_lock);
 }
 
 static void alloc_commit_fd_uobject(struct ib_uobject *uobj)
 {
-	fd_install(uobj->id, uobj->object);
+	int fd = uobj->id;
+
 	/* This shouldn't be used anymore. Use the file object instead */
 	uobj->id = 0;
+
 	/* Get another reference as we export this to the fops */
 	uverbs_uobject_get(uobj);
+
+	/*
+	 * NOTE: Once we install the file we loose ownership of our kref on
+	 * uobj. It will be put by uverbs_close_fd()
+	 */
+	fd_install(fd, uobj->object);
 }
 
+/*
+ * In all cases rdma_alloc_commit_uobject() consumes the kref to uobj and the
+ * caller can no longer assume uobj is valid.
+ */
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
@@ -541,6 +558,7 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	list_add(&uobj->list, &ufile->uobjects);
 	mutex_unlock(&ufile->uobjects_lock);
 
+	/* alloc_commit consumes the uobj kref */
 	uobj->type->type_class->alloc_commit(uobj);
 	up_read(&ufile->cleanup_rwsem);
 
