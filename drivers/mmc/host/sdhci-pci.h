@@ -61,6 +61,8 @@
 #define PCI_VENDOR_ID_ARASAN		0x16e6
 #define PCI_DEVICE_ID_ARASAN_PHY_EMMC	0x0670
 
+#define PCI_DEVICE_ID_SYNOPSYS_DWC_MSHC 0xc202
+
 /*
  * PCI device class and mask
  */
@@ -184,5 +186,6 @@ int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip);
 #endif
 
 extern const struct sdhci_pci_fixes sdhci_arasan;
+extern const struct sdhci_pci_fixes sdhci_snps;
 
 #endif /* __SDHCI_PCI_H */
