@@ -42,7 +42,8 @@ static u8 rf69_read_reg(struct spi_device *spi, u8 addr)
 
 #ifdef DEBUG_VALUES
 	if (retval < 0)
-		/* should never happen, since we already checked,
+		/*
+		 * should never happen, since we already checked,
 		 * that module is connected. Therefore no error
 		 * handling, just an optional error message...
 		 */
@@ -66,7 +67,8 @@ static int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
 
 #ifdef DEBUG_VALUES
 	if (retval < 0)
-		/* should never happen, since we already checked,
+		/*
+		 * should never happen, since we already checked,
 		 * that module is connected. Therefore no error
 		 * handling, just an optional error message...
 		 */
@@ -576,8 +578,10 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 		return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_SYNC_ADDRESS_MATCH);
 	case fifo_full:
 		return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_FULL);
-/*	case fifo_not_empty:
- *		return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY); */
+/*
+ *	case fifo_not_empty:
+ *		return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY);
+ */
 	case fifo_empty:
 		return !(rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY);
 	case fifo_level_below_threshold:
@@ -773,7 +777,8 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 	if (retval)
 		return retval;
 
-	/* access the fifo to activate new threshold
+	/*
+	 * access the fifo to activate new threshold
 	 * retval (mis-) used as buffer here
 	 */
 	return rf69_read_fifo(spi, (u8 *)&retval, 1);

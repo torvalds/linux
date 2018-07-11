@@ -66,10 +66,12 @@ static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
 
 static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
 
-/* tx config is instance specific
+/*
+ * tx config is instance specific
  * so with each open a new tx config struct is needed
  */
-/* rx config is device specific
+/*
+ * rx config is device specific
  * so we have just one rx config, ebedded in device struct
  */
 struct pi433_device {
@@ -584,7 +586,8 @@ pi433_tx_thread(void *data)
 		if (kthread_should_stop())
 			return 0;
 
-		/* get data from fifo in the following order:
+		/*
+		 * get data from fifo in the following order:
 		 * - tx_cfg
 		 * - size of message
 		 * - message
@@ -639,7 +642,8 @@ pi433_tx_thread(void *data)
 		dev_dbg(device->dev,
 			"read %d message byte(s) from fifo queue.", retval);
 
-		/* if rx is active, we need to interrupt the waiting for
+		/*
+		 * if rx is active, we need to interrupt the waiting for
 		 * incoming telegrams, to be able to send something.
 		 * We are only allowed, if currently no reception takes
 		 * place otherwise we need to  wait for the incoming telegram
@@ -649,14 +653,16 @@ pi433_tx_thread(void *data)
 					 !device->rx_active ||
 					  device->interrupt_rx_allowed);
 
-		/* prevent race conditions
+		/*
+		 * prevent race conditions
 		 * irq will be reenabled after tx config is set
 		 */
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
 		if (device->rx_active && !rx_interrupted) {
-			/* rx is currently waiting for a telegram;
+			/*
+			 * rx is currently waiting for a telegram;
 			 * we need to set the radio module to standby
 			 */
 			retval = rf69_set_mode(device->spi, standby);
@@ -1097,7 +1103,8 @@ static void pi433_free_minor(struct pi433_device *dev)
 
 static const struct file_operations pi433_fops = {
 	.owner =	THIS_MODULE,
-	/* REVISIT switch to aio primitives, so that userspace
+	/*
+	 * REVISIT switch to aio primitives, so that userspace
 	 * gets more complete API coverage.  It'll simplify things
 	 * too, except for the locking.
 	 */
@@ -1316,7 +1323,8 @@ static struct spi_driver pi433_spi_driver = {
 	.probe =	pi433_probe,
 	.remove =	pi433_remove,
 
-	/* NOTE:  suspend/resume methods are not necessary here.
+	/*
+	 * NOTE:  suspend/resume methods are not necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -1329,13 +1337,15 @@ static int __init pi433_init(void)
 {
 	int status;
 
-	/* If MAX_MSG_SIZE is smaller then FIFO_SIZE, the driver won't
+	/*
+	 * If MAX_MSG_SIZE is smaller then FIFO_SIZE, the driver won't
 	 * work stable - risk of buffer overflow
 	 */
 	if (MAX_MSG_SIZE < FIFO_SIZE)
 		return -EINVAL;
 
-	/* Claim device numbers.  Then register a class
+	/*
+	 * Claim device numbers.  Then register a class
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * Last, register the driver which manages those device numbers.
 	 */
