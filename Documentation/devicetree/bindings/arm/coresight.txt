@@ -84,7 +84,8 @@ its hardware characteristcs.
 * Optional property for TMC:
 
 	* arm,buffer-size: size of contiguous buffer space for TMC ETR
-	 (embedded trace router)
+	  (embedded trace router). This property is obsolete. The buffer size
+	  can be configured dynamically via buffer_size property in sysfs.
 
 	* arm,scatter-gather: boolean. Indicates that the TMC-ETR can safely
 	  use the SG mode on this system.
