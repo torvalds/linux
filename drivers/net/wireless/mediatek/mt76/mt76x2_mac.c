@@ -854,3 +854,33 @@ void mt76x2_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 }
+
+void mt76x2_mac_set_tx_protection(struct mt76x2_dev *dev, u32 val)
+{
+	u32 data = 0;
+
+	if (val != ~0)
+		data = FIELD_PREP(MT_PROT_CFG_CTRL, 1) |
+		       MT_PROT_CFG_RTS_THRESH;
+
+	mt76_rmw_field(dev, MT_TX_RTS_CFG, MT_TX_RTS_CFG_THRESH, val);
+
+	mt76_rmw(dev, MT_CCK_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_OFDM_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_MM20_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_MM40_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_GF20_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_GF40_PROT_CFG,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_TX_PROT_CFG6,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_TX_PROT_CFG7,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+	mt76_rmw(dev, MT_TX_PROT_CFG8,
+		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
+}
