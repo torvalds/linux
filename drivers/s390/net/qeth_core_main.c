@@ -473,7 +473,6 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 	if (forced_cleanup && (atomic_read(&(q->bufs[bidx]->state)) ==
 					QETH_QDIO_BUF_HANDLED_DELAYED)) {
 		/* for recovery situations */
-		q->bufs[bidx]->aob = q->bufstates[bidx].aob;
 		qeth_init_qdio_out_buf(q, bidx);
 		QETH_CARD_TEXT(q->card, 2, "clprecov");
 	}
@@ -510,7 +509,6 @@ static void qeth_qdio_handle_aob(struct qeth_card *card,
 	}
 	qeth_notify_skbs(buffer->q, buffer, notification);
 
-	buffer->aob = NULL;
 	/* Free dangling allocations. The attached skbs are handled by
 	 * qeth_cleanup_handled_pending().
 	 */
@@ -2478,7 +2476,6 @@ static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *q, int bidx)
 	skb_queue_head_init(&newbuf->skb_list);
 	lockdep_set_class(&newbuf->skb_list.lock, &qdio_out_skb_queue_key);
 	newbuf->q = q;
-	newbuf->aob = NULL;
 	newbuf->next_pending = q->bufs[bidx];
 	atomic_set(&newbuf->state, QETH_QDIO_BUF_EMPTY);
 	q->bufs[bidx] = newbuf;
@@ -3735,11 +3732,7 @@ static void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 				qeth_notify_skbs(queue, buffer,
 						 TX_NOTIFY_PENDING);
 			}
-			buffer->aob = queue->bufstates[bidx].aob;
 			QETH_CARD_TEXT_(queue->card, 5, "pel%d", bidx);
-			QETH_CARD_TEXT(queue->card, 5, "aob");
-			QETH_CARD_TEXT_(queue->card, 5, "%lx",
-					virt_to_phys(buffer->aob));
 
 			/* prepare the queue slot for re-use: */
 			qeth_scrub_qdio_buffer(buffer->buffer,

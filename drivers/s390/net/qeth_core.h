@@ -465,7 +465,6 @@ struct qeth_qdio_out_buffer {
 	struct sk_buff_head skb_list;
 	int is_header[QDIO_MAX_ELEMENTS_PER_BUFFER];
 
-	struct qaob *aob;
 	struct qeth_qdio_out_q *q;
 	struct qeth_qdio_out_buffer *next_pending;
 };
