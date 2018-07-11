@@ -2288,7 +2288,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	int pin_idx, pcm_idx;
 
 	if (codec_has_acomp(codec))
-		snd_hdac_i915_register_notifier(NULL);
+		snd_hdac_i915_register_notifier(&codec->bus->core, NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -2518,7 +2518,8 @@ static void register_i915_notifier(struct hda_codec *codec)
 	 */
 	wmb();
 	spec->drm_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-	snd_hdac_i915_register_notifier(&spec->drm_audio_ops);
+	snd_hdac_i915_register_notifier(&codec->bus->core,
+					&spec->drm_audio_ops);
 }
 
 /* setup_stream ops override for HSW+ */

@@ -22,7 +22,14 @@
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 
-static struct drm_audio_component *hdac_acomp;
+static void hdac_acomp_release(struct device *dev, void *res)
+{
+}
+
+static struct drm_audio_component *hdac_get_acomp(struct device *dev)
+{
+	return devres_find(dev, hdac_acomp_release, NULL, NULL);
+}
 
 /**
  * snd_hdac_set_codec_wakeup - Enable / disable HDMI/DP codec wakeup
@@ -262,7 +269,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);
 
 static int hdac_component_master_bind(struct device *dev)
 {
-	struct drm_audio_component *acomp = hdac_acomp;
+	struct drm_audio_component *acomp = hdac_get_acomp(dev);
 	int ret;
 
 	ret = component_bind_all(dev, acomp);
@@ -294,7 +301,7 @@ out_unbind:
 
 static void hdac_component_master_unbind(struct device *dev)
 {
-	struct drm_audio_component *acomp = hdac_acomp;
+	struct drm_audio_component *acomp = hdac_get_acomp(dev);
 
 	module_put(acomp->ops->owner);
 	component_unbind_all(dev, acomp);
@@ -314,6 +321,7 @@ static int hdac_component_master_match(struct device *dev, void *data)
 
 /**
  * snd_hdac_i915_register_notifier - Register i915 audio component ops
+ * @bus: HDA core bus
  * @aops: i915 audio component ops
  *
  * This function is supposed to be used only by a HD-audio controller
@@ -323,12 +331,13 @@ static int hdac_component_master_match(struct device *dev, void *data)
  *
  * Returns zero for success or a negative error code.
  */
-int snd_hdac_i915_register_notifier(const struct drm_audio_component_audio_ops *aops)
+int snd_hdac_i915_register_notifier(struct hdac_bus *bus,
+				    const struct drm_audio_component_audio_ops *aops)
 {
-	if (!hdac_acomp)
+	if (!bus->audio_component)
 		return -ENODEV;
 
-	hdac_acomp->audio_ops = aops;
+	bus->audio_component->audio_ops = aops;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
@@ -365,18 +374,19 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	struct drm_audio_component *acomp;
 	int ret;
 
-	if (WARN_ON(hdac_acomp))
+	if (WARN_ON(hdac_get_acomp(dev)))
 		return -EBUSY;
 
 	if (!i915_gfx_present())
 		return -ENODEV;
 
-	i915_acomp = kzalloc(sizeof(*i915_acomp), GFP_KERNEL);
+	i915_acomp = devres_alloc(hdac_acomp_release, sizeof(*i915_acomp),
+				  GFP_KERNEL);
 	if (!i915_acomp)
 		return -ENOMEM;
 	acomp = &i915_acomp->base;
 	bus->audio_component = acomp;
-	hdac_acomp = acomp;
+	devres_add(dev, acomp);
 
 	component_match_add(dev, &match, hdac_component_master_match, bus);
 	ret = component_master_add_with_match(dev, &hdac_component_master_ops,
@@ -400,9 +410,8 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 out_master_del:
 	component_master_del(dev, &hdac_component_master_ops);
 out_err:
-	kfree(acomp);
 	bus->audio_component = NULL;
-	hdac_acomp = NULL;
+	devres_destroy(dev, hdac_acomp_release, NULL, NULL);
 	dev_info(dev, "failed to add i915 component master (%d)\n", ret);
 
 	return ret;
@@ -434,9 +443,8 @@ int snd_hdac_i915_exit(struct hdac_bus *bus)
 
 	component_master_del(dev, &hdac_component_master_ops);
 
-	kfree(acomp);
 	bus->audio_component = NULL;
-	hdac_acomp = NULL;
+	devres_destroy(dev, hdac_acomp_release, NULL, NULL);
 
 	return 0;
 }

@@ -17,7 +17,8 @@ int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
 			   bool *audio_enabled, char *buffer, int max_bytes);
 int snd_hdac_i915_init(struct hdac_bus *bus);
 int snd_hdac_i915_exit(struct hdac_bus *bus);
-int snd_hdac_i915_register_notifier(const struct drm_audio_component_audio_ops *);
+int snd_hdac_i915_register_notifier(struct hdac_bus *bus,
+				    const struct drm_audio_component_audio_ops *ops);
 #else
 static inline int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 {
@@ -49,7 +50,8 @@ static inline int snd_hdac_i915_exit(struct hdac_bus *bus)
 {
 	return 0;
 }
-static inline int snd_hdac_i915_register_notifier(const struct drm_audio_component_audio_ops *ops)
+static inline int snd_hdac_i915_register_notifier(struct hdac_bus *bus,
+						  const struct drm_audio_component_audio_ops *ops)
 {
 	return -ENODEV;
 }
