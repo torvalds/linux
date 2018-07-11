@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm/platform.h>
 
 static void do_cache_op(phys_addr_t paddr, size_t size,
 			void (*fn)(unsigned long, unsigned long))
@@ -84,6 +85,58 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 	}
 }
 
+#ifdef CONFIG_MMU
+bool platform_vaddr_cached(const void *p)
+{
+	unsigned long addr = (unsigned long)p;
+
+	return addr >= XCHAL_KSEG_CACHED_VADDR &&
+	       addr - XCHAL_KSEG_CACHED_VADDR < XCHAL_KSEG_SIZE;
+}
+
+bool platform_vaddr_uncached(const void *p)
+{
+	unsigned long addr = (unsigned long)p;
+
+	return addr >= XCHAL_KSEG_BYPASS_VADDR &&
+	       addr - XCHAL_KSEG_BYPASS_VADDR < XCHAL_KSEG_SIZE;
+}
+
+void *platform_vaddr_to_uncached(void *p)
+{
+	return p + XCHAL_KSEG_BYPASS_VADDR - XCHAL_KSEG_CACHED_VADDR;
+}
+
+void *platform_vaddr_to_cached(void *p)
+{
+	return p + XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
+}
+#else
+bool __attribute__((weak)) platform_vaddr_cached(const void *p)
+{
+	WARN_ONCE(1, "Default %s implementation is used\n", __func__);
+	return true;
+}
+
+bool __attribute__((weak)) platform_vaddr_uncached(const void *p)
+{
+	WARN_ONCE(1, "Default %s implementation is used\n", __func__);
+	return false;
+}
+
+void __attribute__((weak)) *platform_vaddr_to_uncached(void *p)
+{
+	WARN_ONCE(1, "Default %s implementation is used\n", __func__);
+	return p;
+}
+
+void __attribute__((weak)) *platform_vaddr_to_cached(void *p)
+{
+	WARN_ONCE(1, "Default %s implementation is used\n", __func__);
+	return p;
+}
+#endif
+
 /*
  * Note: We assume that the full memory space is always mapped to 'kseg'
  *	 Otherwise we have to use page attributes (not implemented).
@@ -92,8 +145,6 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		gfp_t flag, unsigned long attrs)
 {
-	unsigned long ret;
-	unsigned long uncached;
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct page *page = NULL;
 
@@ -134,29 +185,21 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		return p;
 	}
 #endif
-	ret = (unsigned long)page_address(page);
-	BUG_ON(ret < XCHAL_KSEG_CACHED_VADDR ||
-	       ret > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
-
-	uncached = ret + XCHAL_KSEG_BYPASS_VADDR - XCHAL_KSEG_CACHED_VADDR;
-	__invalidate_dcache_range(ret, size);
-
-	return (void *)uncached;
+	BUG_ON(!platform_vaddr_cached(page_address(page)));
+	__invalidate_dcache_range((unsigned long)page_address(page), size);
+	return platform_vaddr_to_uncached(page_address(page));
 }
 
 void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long addr = (unsigned long)vaddr;
 	struct page *page;
 
 	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
 		page = vaddr;
-	} else if (addr >= XCHAL_KSEG_BYPASS_VADDR &&
-		   addr - XCHAL_KSEG_BYPASS_VADDR < XCHAL_KSEG_SIZE) {
-		addr += XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
-		page = virt_to_page(addr);
+	} else if (platform_vaddr_uncached(vaddr)) {
+		page = virt_to_page(platform_vaddr_to_cached(vaddr));
 	} else {
 #ifdef CONFIG_MMU
 		dma_common_free_remap(vaddr, size, VM_MAP);

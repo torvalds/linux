@@ -66,6 +66,7 @@
 #define FIRST_USER_ADDRESS	0UL
 #define FIRST_USER_PGD_NR	(FIRST_USER_ADDRESS >> PGDIR_SHIFT)
 
+#ifdef CONFIG_MMU
 /*
  * Virtual memory area. We keep a distance to other memory regions to be
  * on the safe side. We also use this area for cache aliasing.
@@ -78,6 +79,13 @@
 #define TLBTEMP_SIZE		(2 * DCACHE_WAY_SIZE)
 #else
 #define TLBTEMP_SIZE		ICACHE_WAY_SIZE
+#endif
+
+#else
+
+#define VMALLOC_START		__XTENSA_UL_CONST(0)
+#define VMALLOC_END		__XTENSA_UL_CONST(0xffffffff)
+
 #endif
 
 /*
