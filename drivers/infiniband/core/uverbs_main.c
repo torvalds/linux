@@ -889,9 +889,9 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	mutex_init(&file->mutex);
 	mutex_init(&file->cleanup_mutex);
 
-	mutex_init(&file->uobjects_lock);
+	spin_lock_init(&file->uobjects_lock);
 	INIT_LIST_HEAD(&file->uobjects);
-	init_rwsem(&file->cleanup_rwsem);
+	init_rwsem(&file->hw_destroy_rwsem);
 
 	filp->private_data = file;
 	kobject_get(&dev->kobj);

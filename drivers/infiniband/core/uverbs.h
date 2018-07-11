@@ -145,12 +145,16 @@ struct ib_uverbs_file {
 	struct list_head			list;
 	int					is_closed;
 
-	/* locking the uobjects_list */
-	struct mutex		uobjects_lock;
+	/*
+	 * To access the uobjects list hw_destroy_rwsem must be held for write
+	 * OR hw_destroy_rwsem held for read AND uobjects_lock held.
+	 * hw_destroy_rwsem should be called across any destruction of the HW
+	 * object of an associated uobject.
+	 */
+	struct rw_semaphore	hw_destroy_rwsem;
+	spinlock_t		uobjects_lock;
 	struct list_head	uobjects;
 
-	/* protects cleanup process from other actions */
-	struct rw_semaphore	cleanup_rwsem;
 	enum rdma_remove_reason cleanup_reason;
 
 	struct idr		idr;

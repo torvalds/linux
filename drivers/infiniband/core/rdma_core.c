@@ -461,9 +461,9 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 
 	uobj->object = NULL;
 
-	mutex_lock(&ufile->uobjects_lock);
+	spin_lock_irq(&ufile->uobjects_lock);
 	list_del(&uobj->list);
-	mutex_unlock(&ufile->uobjects_lock);
+	spin_unlock_irq(&ufile->uobjects_lock);
 	/* Pairs with the get in rdma_alloc_commit_uobject() */
 	uverbs_uobject_put(uobj);
 
@@ -491,14 +491,14 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 	struct ib_uverbs_file *ufile = uobject->ufile;
 
 	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
+	if (!down_read_trylock(&ufile->hw_destroy_rwsem)) {
 		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
 		return 0;
 	}
 	assert_uverbs_usecnt(uobject, true);
 	ret = _rdma_remove_commit_uobject(uobject, RDMA_REMOVE_DESTROY);
 
-	up_read(&ufile->cleanup_rwsem);
+	up_read(&ufile->hw_destroy_rwsem);
 	return ret;
 }
 
@@ -541,7 +541,7 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	struct ib_uverbs_file *ufile = uobj->ufile;
 
 	/* Cleanup is running. Calling this should have been impossible */
-	if (!down_read_trylock(&ufile->cleanup_rwsem)) {
+	if (!down_read_trylock(&ufile->hw_destroy_rwsem)) {
 		int ret;
 
 		WARN(true, "ib_uverbs: Cleanup is running while allocating an uobject\n");
@@ -559,13 +559,13 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 
 	/* kref is held so long as the uobj is on the uobj list. */
 	uverbs_uobject_get(uobj);
-	mutex_lock(&ufile->uobjects_lock);
+	spin_lock_irq(&ufile->uobjects_lock);
 	list_add(&uobj->list, &ufile->uobjects);
-	mutex_unlock(&ufile->uobjects_lock);
+	spin_unlock_irq(&ufile->uobjects_lock);
 
 	/* alloc_commit consumes the uobj kref */
 	uobj->type->type_class->alloc_commit(uobj);
-	up_read(&ufile->cleanup_rwsem);
+	up_read(&ufile->hw_destroy_rwsem);
 
 	return 0;
 }
@@ -681,9 +681,9 @@ void uverbs_close_fd(struct file *f)
 	struct ib_uobject *uobj = f->private_data;
 	struct ib_uverbs_file *ufile = uobj->ufile;
 
-	if (down_read_trylock(&ufile->cleanup_rwsem)) {
+	if (down_read_trylock(&ufile->hw_destroy_rwsem)) {
 		_uverbs_close_fd(uobj);
-		up_read(&ufile->cleanup_rwsem);
+		up_read(&ufile->hw_destroy_rwsem);
 	}
 
 	uobj->object = NULL;
@@ -710,7 +710,6 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 	 * We take and release the lock per traversal in order to let
 	 * other threads (which might still use the FDs) chance to run.
 	 */
-	mutex_lock(&ufile->uobjects_lock);
 	ufile->cleanup_reason = reason;
 	list_for_each_entry_safe(obj, next_obj, &ufile->uobjects, list) {
 		/*
@@ -736,7 +735,6 @@ static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 		uverbs_uobject_put(obj);
 		ret = 0;
 	}
-	mutex_unlock(&ufile->uobjects_lock);
 	return ret;
 }
 
@@ -751,7 +749,7 @@ void uverbs_cleanup_ufile(struct ib_uverbs_file *ufile, bool device_removed)
 	 * want to hold this forever as the context is going to be destroyed,
 	 * but we'll release it since it causes a "held lock freed" BUG message.
 	 */
-	down_write(&ufile->cleanup_rwsem);
+	down_write(&ufile->hw_destroy_rwsem);
 	ufile->ucontext->cleanup_retryable = true;
 	while (!list_empty(&ufile->uobjects))
 		if (__uverbs_cleanup_ufile(ufile, reason)) {
@@ -766,7 +764,7 @@ void uverbs_cleanup_ufile(struct ib_uverbs_file *ufile, bool device_removed)
 	if (!list_empty(&ufile->uobjects))
 		__uverbs_cleanup_ufile(ufile, reason);
 
-	up_write(&ufile->cleanup_rwsem);
+	up_write(&ufile->hw_destroy_rwsem);
 }
 
 const struct uverbs_obj_type_class uverbs_fd_class = {
