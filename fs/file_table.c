@@ -101,7 +101,7 @@ int proc_nr_files(struct ctl_table *table, int write,
  * done, you will imbalance int the mount's writer count
  * and a warning at __fput() time.
  */
-struct file *alloc_empty_file(const struct cred *cred)
+struct file *alloc_empty_file(int flags, const struct cred *cred)
 {
 	static long old_max;
 	struct file *f;
@@ -135,6 +135,8 @@ struct file *alloc_empty_file(const struct cred *cred)
 	spin_lock_init(&f->f_lock);
 	mutex_init(&f->f_pos_lock);
 	eventpoll_init_file(f);
+	f->f_flags = flags;
+	f->f_mode = OPEN_FMODE(flags);
 	/* f->f_version: 0 */
 	percpu_counter_inc(&nr_files);
 	return f;
@@ -160,12 +162,10 @@ struct file *alloc_file(const struct path *path, int flags,
 {
 	struct file *file;
 
-	file = alloc_empty_file(current_cred());
+	file = alloc_empty_file(flags, current_cred());
 	if (IS_ERR(file))
 		return file;
 
-	file->f_mode = OPEN_FMODE(flags);
-	file->f_flags = flags;
 	file->f_path = *path;
 	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;

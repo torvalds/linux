@@ -742,9 +742,6 @@ static int do_dentry_open(struct file *f,
 	static const struct file_operations empty_fops = {};
 	int error;
 
-	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
-				FMODE_PREAD | FMODE_PWRITE;
-
 	path_get(&f->f_path);
 	f->f_inode = inode;
 	f->f_mapping = inode->i_mapping;
@@ -788,6 +785,8 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
+	/* normally all 3 are set; ->open() can clear them if needed */
+	f->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
 	if (!open)
 		open = f->f_op->open;
 	if (open) {
@@ -921,9 +920,8 @@ struct file *dentry_open(const struct path *path, int flags,
 	/* We must always pass in a valid mount pointer. */
 	BUG_ON(!path->mnt);
 
-	f = alloc_empty_file(cred);
+	f = alloc_empty_file(flags, cred);
 	if (!IS_ERR(f)) {
-		f->f_flags = flags;
 		error = vfs_open(path, f, cred);
 		if (!error) {
 			/* from now on we need fput() to dispose of f */

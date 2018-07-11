@@ -3513,11 +3513,9 @@ static struct file *path_openat(struct nameidata *nd,
 	int opened = 0;
 	int error;
 
-	file = alloc_empty_file(current_cred());
+	file = alloc_empty_file(op->open_flag, current_cred());
 	if (IS_ERR(file))
 		return file;
-
-	file->f_flags = op->open_flag;
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(nd, flags, op, file, &opened);
