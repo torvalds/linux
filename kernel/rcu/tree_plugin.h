@@ -978,9 +978,7 @@ void rcu_all_qs(void)
 		rcu_momentary_dyntick_idle();
 		local_irq_restore(flags);
 	}
-	if (unlikely(raw_cpu_read(rcu_data.cpu_no_qs.b.exp)))
-		rcu_qs();
-	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
+	rcu_qs();
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 	preempt_enable();
 }
@@ -1000,7 +998,6 @@ void rcu_note_context_switch(bool preempt)
 	this_cpu_write(rcu_dynticks.rcu_urgent_qs, false);
 	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_need_heavy_qs)))
 		rcu_momentary_dyntick_idle();
-	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
 	if (!preempt)
 		rcu_tasks_qs(current);
 out:

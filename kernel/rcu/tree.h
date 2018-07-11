@@ -42,7 +42,6 @@ struct rcu_dynticks {
 	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
 	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
-	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
 	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	bool all_lazy;		    /* Are all CPU's CBs lazy? */
@@ -188,8 +187,6 @@ struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
 	unsigned long	gp_seq_needed;	/* Track rsp->rcu_gp_seq_needed ctr. */
-	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
-					/*  for rcu_all_qs() invocations. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
