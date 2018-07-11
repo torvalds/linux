@@ -881,7 +881,7 @@ static int gasket_perform_mapping(
 			u64 off =
 				(u64)host_addr -
 				(u64)pg_tbl->coherent_pages[0].user_virt;
-			ptes[i].page = 0;
+			ptes[i].page = NULL;
 			ptes[i].offset = offset;
 			ptes[i].dma_addr = pg_tbl->coherent_pages[0].paddr +
 					   off + i * PAGE_SIZE;
@@ -1740,7 +1740,7 @@ int gasket_free_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 				  gasket_dev->coherent_buffer.virt_base,
 				  gasket_dev->coherent_buffer.phys_base);
 		gasket_dev->coherent_buffer.length_bytes = 0;
-		gasket_dev->coherent_buffer.virt_base = 0;
+		gasket_dev->coherent_buffer.virt_base = NULL;
 		gasket_dev->coherent_buffer.phys_base = 0;
 	}
 	return 0;
@@ -1765,7 +1765,7 @@ void gasket_free_coherent_memory_all(
 				  gasket_dev->coherent_buffer.virt_base,
 				  gasket_dev->coherent_buffer.phys_base);
 		gasket_dev->coherent_buffer.length_bytes = 0;
-		gasket_dev->coherent_buffer.virt_base = 0;
+		gasket_dev->coherent_buffer.virt_base = NULL;
 		gasket_dev->coherent_buffer.phys_base = 0;
 	}
 }
