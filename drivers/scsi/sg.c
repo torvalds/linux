@@ -1103,15 +1103,6 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 	case SCSI_IOCTL_SEND_COMMAND:
 		if (atomic_read(&sdp->detaching))
 			return -ENODEV;
-		if (read_only) {
-			unsigned char opcode = WRITE_6;
-			Scsi_Ioctl_Command __user *siocp = p;
-
-			if (copy_from_user(&opcode, siocp->data, 1))
-				return -EFAULT;
-			if (sg_allow_access(filp, &opcode))
-				return -EPERM;
-		}
 		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
