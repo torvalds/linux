@@ -1249,6 +1249,7 @@ static int pi433_probe(struct spi_device *spi)
 					     device->minor);
 	if (IS_ERR(device->tx_task_struct)) {
 		dev_dbg(device->dev, "start of send thread failed");
+		retval = PTR_ERR(device->tx_task_struct);
 		goto send_thread_failed;
 	}
 
