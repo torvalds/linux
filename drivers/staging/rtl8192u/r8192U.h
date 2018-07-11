@@ -213,7 +213,7 @@ struct tx_desc_819x_usb {
 	u32	Reserved7;
 };
 
-typedef struct _tx_desc_cmd_819x_usb {
+struct tx_desc_cmd_819x_usb {
 	/* DWORD 0 */
 	u16	Reserved0;
 	u8	Reserved1;
@@ -238,7 +238,7 @@ typedef struct _tx_desc_cmd_819x_usb {
 	u32	Reserved6;
 	u32	Reserved7;
 	u32	Reserved8;
-} tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
+};
 
 typedef struct _tx_fwinfo_819x_usb {
 	/* DOWRD 0 */
