@@ -25,7 +25,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
+
 #include <asm/cpufeature.h>
+#include <asm/syscall.h>
 
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			 unsigned long prot, unsigned long flags,
@@ -52,13 +54,13 @@ asmlinkage long sys_rt_sigreturn(void);
 #define sys_personality		sys_arm64_personality
 
 #undef __SYSCALL
-#define __SYSCALL(nr, sym)	[nr] = sym,
+#define __SYSCALL(nr, sym)	[nr] = (syscall_fn_t)sym,
 
 /*
  * The sys_call_table array must be 4K aligned to be accessible from
  * kernel/entry.S.
  */
-void * const sys_call_table[__NR_syscalls] __aligned(4096) = {
-	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
+const syscall_fn_t sys_call_table[__NR_syscalls] __aligned(4096) = {
+	[0 ... __NR_syscalls - 1] = (syscall_fn_t)sys_ni_syscall,
 #include <asm/unistd.h>
 };
