@@ -172,7 +172,6 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	struct hns_roce_v2_ud_send_wqe *ud_sq_wqe;
 	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe;
 	struct hns_roce_qp *qp = to_hr_qp(ibqp);
-	struct hns_roce_v2_wqe_data_seg *dseg;
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_v2_db sq_db;
 	unsigned int sge_ind = 0;
@@ -485,7 +484,6 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			}
 
 			wqe += sizeof(struct hns_roce_v2_rc_send_wqe);
-			dseg = wqe;
 
 			ret = set_rwqe_data_seg(ibqp, wr, rc_sq_wqe, wqe,
 						&sge_ind, bad_wr);
