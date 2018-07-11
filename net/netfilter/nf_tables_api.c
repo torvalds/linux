@@ -6603,6 +6603,7 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.abort		= nf_tables_abort,
 	.cleanup	= nf_tables_cleanup,
 	.valid_genid	= nf_tables_valid_genid,
+	.owner		= THIS_MODULE,
 };
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,
