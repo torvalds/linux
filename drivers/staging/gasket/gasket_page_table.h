@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Gasket Page Table functionality. This file describes the address
  * translation/paging functionality supported by the Gasket driver framework.
  * As much as possible, internal details are hidden to simplify use -

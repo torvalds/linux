@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Gasket generic driver. Defines the set of data types and functions necessary
  * to define a driver using the Gasket generic driver framework.
  *

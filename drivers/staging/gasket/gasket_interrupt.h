@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Gasket common interrupt module. Defines functions for enabling
  * eventfd-triggered interrupts between a Gasket device and a host process.

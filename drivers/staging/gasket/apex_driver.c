@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Driver for the Apex chip.
  *
  * Copyright (C) 2018 Google, Inc.

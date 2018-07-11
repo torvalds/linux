@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Set of common sysfs utilities.
  *
  * Copyright (C) 2018 Google, Inc.

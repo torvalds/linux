@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Common Gasket device kernel and user space declarations.
  *
  * Copyright (C) 2018 Google, Inc.

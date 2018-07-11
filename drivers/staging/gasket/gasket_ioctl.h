@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2018 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public

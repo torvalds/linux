@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Implementation of Gasket page table support.
  *
  * Copyright (C) 2018 Google, Inc.

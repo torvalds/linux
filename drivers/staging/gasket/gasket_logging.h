@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Common logging utilities for the Gasket driver framework.
  *
  * Copyright (C) 2018 Google, Inc.
