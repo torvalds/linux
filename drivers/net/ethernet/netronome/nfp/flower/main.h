@@ -73,7 +73,7 @@ struct nfp_app;
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
-	struct timespec64 *last_used;
+	ktime_t *last_used;
 	u8 init_unallocated;
 };
 
