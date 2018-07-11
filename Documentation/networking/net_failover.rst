@@ -36,37 +36,39 @@ feature on the virtio-net interface and assign the same MAC address to both
 virtio-net and VF interfaces.
 
 Here is an example XML snippet that shows such configuration.
+::
 
- <interface type='network'>
-   <mac address='52:54:00:00:12:53'/>
-   <source network='enp66s0f0_br'/>
-   <target dev='tap01'/>
-   <model type='virtio'/>
-   <driver name='vhost' queues='4'/>
-   <link state='down'/>
-   <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
- </interface>
- <interface type='hostdev' managed='yes'>
-   <mac address='52:54:00:00:12:53'/>
-   <source>
-     <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>
-   </source>
-   <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
- </interface>
+  <interface type='network'>
+    <mac address='52:54:00:00:12:53'/>
+    <source network='enp66s0f0_br'/>
+    <target dev='tap01'/>
+    <model type='virtio'/>
+    <driver name='vhost' queues='4'/>
+    <link state='down'/>
+    <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
+  </interface>
+  <interface type='hostdev' managed='yes'>
+    <mac address='52:54:00:00:12:53'/>
+    <source>
+      <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>
+    </source>
+    <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
+  </interface>
 
 Booting a VM with the above configuration will result in the following 3
 netdevs created in the VM.
+::
 
-4: ens10: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
-    link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.12.53/24 brd 192.168.12.255 scope global dynamic ens10
-       valid_lft 42482sec preferred_lft 42482sec
-    inet6 fe80::97d8:db2:8c10:b6d6/64 scope link
-       valid_lft forever preferred_lft forever
-5: ens10nsby: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master ens10 state UP group default qlen 1000
-    link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
-7: ens11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master ens10 state UP group default qlen 1000
-    link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
+  4: ens10: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+      link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
+      inet 192.168.12.53/24 brd 192.168.12.255 scope global dynamic ens10
+         valid_lft 42482sec preferred_lft 42482sec
+      inet6 fe80::97d8:db2:8c10:b6d6/64 scope link
+         valid_lft forever preferred_lft forever
+  5: ens10nsby: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master ens10 state UP group default qlen 1000
+      link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
+  7: ens11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master ens10 state UP group default qlen 1000
+      link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
 
 ens10 is the 'failover' master netdev, ens10nsby and ens11 are the slave
 'standby' and 'primary' netdevs respectively.
@@ -80,37 +82,38 @@ the paravirtual datapath when the VF is unplugged.
 
 Here is a sample script that shows the steps to initiate live migration on
 the source hypervisor.
+::
 
-# cat vf_xml
-<interface type='hostdev' managed='yes'>
-  <mac address='52:54:00:00:12:53'/>
-  <source>
-    <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>
-  </source>
-  <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
-</interface>
+  # cat vf_xml
+  <interface type='hostdev' managed='yes'>
+    <mac address='52:54:00:00:12:53'/>
+    <source>
+      <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>
+    </source>
+    <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
+  </interface>
 
-# Source Hypervisor
-#!/bin/bash
+  # Source Hypervisor
+  #!/bin/bash
 
-DOMAIN=fedora27-tap01
-PF=enp66s0f0
-VF_NUM=5
-TAP_IF=tap01
-VF_XML=
+  DOMAIN=fedora27-tap01
+  PF=enp66s0f0
+  VF_NUM=5
+  TAP_IF=tap01
+  VF_XML=
 
-MAC=52:54:00:00:12:53
-ZERO_MAC=00:00:00:00:00:00
+  MAC=52:54:00:00:12:53
+  ZERO_MAC=00:00:00:00:00:00
 
-virsh domif-setlink $DOMAIN $TAP_IF up
-bridge fdb del $MAC dev $PF master
-virsh detach-device $DOMAIN $VF_XML
-ip link set $PF vf $VF_NUM mac $ZERO_MAC
+  virsh domif-setlink $DOMAIN $TAP_IF up
+  bridge fdb del $MAC dev $PF master
+  virsh detach-device $DOMAIN $VF_XML
+  ip link set $PF vf $VF_NUM mac $ZERO_MAC
 
-virsh migrate --live $DOMAIN qemu+ssh://$REMOTE_HOST/system
+  virsh migrate --live $DOMAIN qemu+ssh://$REMOTE_HOST/system
 
-# Destination Hypervisor
-#!/bin/bash
+  # Destination Hypervisor
+  #!/bin/bash
 
-virsh attach-device $DOMAIN $VF_XML
-virsh domif-setlink $DOMAIN $TAP_IF down
+  virsh attach-device $DOMAIN $VF_XML
+  virsh domif-setlink $DOMAIN $TAP_IF down
