@@ -156,7 +156,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 
 				*sptr = kmalloc(len + 1, GFP_NOFS);
 				if (*sptr == NULL) {
-					errcode = -EFAULT;
+					errcode = -ENOMEM;
 					break;
 				}
 				if (pdu_read(pdu, *sptr, len)) {
