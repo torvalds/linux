@@ -343,29 +343,6 @@ static int vega12_set_tools_address(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-#if 0 /* tentatively remove */
-static int vega12_verify_smc_interface(struct pp_hwmgr *hwmgr)
-{
-	uint32_t smc_driver_if_version;
-
-	PP_ASSERT_WITH_CODE(!vega12_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetDriverIfVersion),
-			"Attempt to get SMC IF Version Number Failed!",
-			return -EINVAL);
-	vega12_read_arg_from_smc(hwmgr, &smc_driver_if_version);
-
-	if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION) {
-		pr_err("Your firmware(0x%x) doesn't match \
-			SMU9_DRIVER_IF_VERSION(0x%x). \
-			Please update your firmware!\n",
-			smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#endif
-
 static int vega12_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_smumgr *priv;
@@ -516,12 +493,6 @@ static int vega12_start_smu(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(vega12_is_smc_ram_running(hwmgr),
 			"SMC is not running!",
 			return -EINVAL);
-
-#if 0 /* tentatively remove */
-	PP_ASSERT_WITH_CODE(!vega12_verify_smc_interface(hwmgr),
-			"Failed to verify SMC interface!",
-			return -EINVAL);
-#endif
 
 	vega12_set_tools_address(hwmgr);
 
