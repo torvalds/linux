@@ -145,6 +145,12 @@ static void nvmet_file_execute_rw(struct nvmet_req *req)
 		return;
 	}
 
+	pos = le64_to_cpu(req->cmd->rw.slba) << req->ns->blksize_shift;
+	if (unlikely(pos + req->data_len > req->ns->size)) {
+		nvmet_req_complete(req, NVME_SC_LBA_RANGE | NVME_SC_DNR);
+		return;
+	}
+
 	if (nr_bvec > NVMET_MAX_INLINE_BIOVEC)
 		req->f.bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
 				GFP_KERNEL);
@@ -159,8 +165,6 @@ static void nvmet_file_execute_rw(struct nvmet_req *req)
 		if (nr_bvec > NVMET_MAX_MPOOL_BVEC)
 			is_sync = true;
 	}
-
-	pos = le64_to_cpu(req->cmd->rw.slba) << req->ns->blksize_shift;
 
 	memset(&req->f.iocb, 0, sizeof(struct kiocb));
 	for_each_sg_page(req->sg, &sg_pg_iter, req->sg_cnt, 0) {
@@ -236,8 +240,14 @@ static void nvmet_file_execute_discard(struct nvmet_req *req)
 					sizeof(range));
 		if (ret)
 			break;
+
 		offset = le64_to_cpu(range.slba) << req->ns->blksize_shift;
 		len = le32_to_cpu(range.nlb) << req->ns->blksize_shift;
+		if (offset + len > req->ns->size) {
+			ret = NVME_SC_LBA_RANGE | NVME_SC_DNR;
+			break;
+		}
+
 		if (vfs_fallocate(req->ns->file, mode, offset, len)) {
 			ret = NVME_SC_INTERNAL | NVME_SC_DNR;
 			break;
@@ -282,6 +292,11 @@ static void nvmet_file_write_zeroes_work(struct work_struct *w)
 	offset = le64_to_cpu(write_zeroes->slba) << req->ns->blksize_shift;
 	len = (((sector_t)le16_to_cpu(write_zeroes->length) + 1) <<
 			req->ns->blksize_shift);
+
+	if (unlikely(offset + len > req->ns->size)) {
+		nvmet_req_complete(req, NVME_SC_LBA_RANGE | NVME_SC_DNR);
+		return;
+	}
 
 	ret = vfs_fallocate(req->ns->file, mode, offset, len);
 	nvmet_req_complete(req, ret < 0 ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
