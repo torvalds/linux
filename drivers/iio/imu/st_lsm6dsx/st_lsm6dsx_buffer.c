@@ -298,8 +298,11 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	err = regmap_bulk_read(hw->regmap,
 			       hw->settings->fifo_ops.fifo_diff.addr,
 			       &fifo_status, sizeof(fifo_status));
-	if (err < 0)
+	if (err < 0) {
+		dev_err(hw->dev, "failed to read fifo status (err=%d)\n",
+			err);
 		return err;
+	}
 
 	if (fifo_status & cpu_to_le16(ST_LSM6DSX_FIFO_EMPTY_MASK))
 		return 0;
@@ -313,8 +316,12 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
 		err = st_lsm6dsx_read_block(hw, hw->buff, pattern_len);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(hw->dev,
+				"failed to read pattern from fifo (err=%d)\n",
+				err);
 			return err;
+		}
 
 		/*
 		 * Data are written to the FIFO with a specific pattern
@@ -385,8 +392,11 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 
 	if (unlikely(reset_ts)) {
 		err = st_lsm6dsx_reset_hw_ts(hw);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(hw->dev, "failed to reset hw ts (err=%d)\n",
+				err);
 			return err;
+		}
 	}
 	return read_len;
 }
