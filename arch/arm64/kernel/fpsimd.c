@@ -159,16 +159,6 @@ static void sve_free(struct task_struct *task)
 	__sve_free(task);
 }
 
-static void sve_user_disable(void)
-{
-	sysreg_clear_set(cpacr_el1, CPACR_EL1_ZEN_EL0EN, 0);
-}
-
-static void sve_user_enable(void)
-{
-	sysreg_clear_set(cpacr_el1, 0, CPACR_EL1_ZEN_EL0EN);
-}
-
 /*
  * TIF_SVE controls whether a task can use SVE without trapping while
  * in userspace, and also the way a task's FPSIMD/SVE state is stored
