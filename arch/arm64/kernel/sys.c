@@ -56,11 +56,7 @@ asmlinkage long sys_rt_sigreturn(void);
 #undef __SYSCALL
 #define __SYSCALL(nr, sym)	[nr] = (syscall_fn_t)sym,
 
-/*
- * The sys_call_table array must be 4K aligned to be accessible from
- * kernel/entry.S.
- */
-const syscall_fn_t sys_call_table[__NR_syscalls] __aligned(4096) = {
+const syscall_fn_t sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls - 1] = (syscall_fn_t)sys_ni_syscall,
 #include <asm/unistd.h>
 };
