@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
