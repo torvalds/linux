@@ -233,15 +233,10 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		if (xskq_reserve_addr(xs->umem->cq))
 			goto out;
 
-		len = desc.len;
-		if (unlikely(len > xs->dev->mtu)) {
-			err = -EMSGSIZE;
-			goto out;
-		}
-
 		if (xs->queue_id >= xs->dev->real_num_tx_queues)
 			goto out;
 
+		len = desc.len;
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
 		if (unlikely(!skb)) {
 			err = -EAGAIN;
