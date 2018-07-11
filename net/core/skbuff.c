@@ -828,6 +828,8 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	n->cloned = 1;
 	n->nohdr = 0;
 	n->peeked = 0;
+	if (skb->pfmemalloc)
+		n->pfmemalloc = 1;
 	n->destructor = NULL;
 	C(tail);
 	C(end);
