@@ -27,20 +27,22 @@
 #define ELAN_MAX_PRESSURE	255
 #define ELAN_TP_USB_INTF	1
 
+#define ELAN_FEATURE_REPORT	0x0d
+#define ELAN_FEATURE_SIZE	5
+#define ELAN_PARAM_MAX_X	6
+#define ELAN_PARAM_MAX_Y	7
+#define ELAN_PARAM_RES		8
+
 #define ELAN_MUTE_LED_REPORT	0xBC
 #define ELAN_LED_REPORT_SIZE	8
-
-struct elan_touchpad_settings {
-	u16 max_x;
-	u16 max_y;
-};
 
 struct elan_drvdata {
 	struct input_dev *input;
 	u8 prev_report[ELAN_INPUT_REPORT_SIZE];
 	struct led_classdev mute_led;
 	u8 mute_led_state;
-	struct elan_touchpad_settings *settings;
+	u16 max_x;
+	u16 max_y;
 };
 
 static int is_not_elan_touchpad(struct hid_device *hdev)
@@ -65,6 +67,63 @@ static int elan_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
+static int elan_get_device_param(struct hid_device *hdev,
+				 unsigned char *dmabuf, unsigned char param)
+{
+	int ret;
+
+	dmabuf[0] = ELAN_FEATURE_REPORT;
+	dmabuf[1] = 0x05;
+	dmabuf[2] = 0x03;
+	dmabuf[3] = param;
+	dmabuf[4] = 0x01;
+
+	ret = hid_hw_raw_request(hdev, ELAN_FEATURE_REPORT, dmabuf,
+				 ELAN_FEATURE_SIZE, HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
+	if (ret != ELAN_FEATURE_SIZE) {
+		hid_err(hdev, "Set report error for parm %d: %d\n", param, ret);
+		return ret;
+	}
+
+	ret = hid_hw_raw_request(hdev, ELAN_FEATURE_REPORT, dmabuf,
+				 ELAN_FEATURE_SIZE, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+	if (ret != ELAN_FEATURE_SIZE) {
+		hid_err(hdev, "Get report error for parm %d: %d\n", param, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int elan_get_device_params(struct hid_device *hdev)
+{
+	struct elan_drvdata *drvdata = hid_get_drvdata(hdev);
+	unsigned char *dmabuf;
+	int ret;
+
+	dmabuf = kmalloc(ELAN_FEATURE_SIZE, GFP_KERNEL);
+	if (!dmabuf)
+		return -ENOMEM;
+
+	ret = elan_get_device_param(hdev, dmabuf, ELAN_PARAM_MAX_X);
+	if (ret)
+		goto err;
+
+	drvdata->max_x = (dmabuf[4] << 8) | dmabuf[3];
+
+	ret = elan_get_device_param(hdev, dmabuf, ELAN_PARAM_MAX_Y);
+	if (ret)
+		goto err;
+
+	drvdata->max_y = (dmabuf[4] << 8) | dmabuf[3];
+
+err:
+	kfree(dmabuf);
+	return ret;
+}
+
 static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 {
 	int ret;
@@ -73,6 +132,10 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 	if (is_not_elan_touchpad(hdev))
 		return 0;
+
+	ret = elan_get_device_params(hdev);
+	if (ret)
+		return ret;
 
 	input = devm_input_allocate_device(&hdev->dev);
 	if (!input)
@@ -87,10 +150,10 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	input->id.version = hdev->version;
 	input->dev.parent = &hdev->dev;
 
-	input_set_abs_params(input, ABS_MT_POSITION_X, 0,
-			     drvdata->settings->max_x, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
-			     drvdata->settings->max_y, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X, 0, drvdata->max_x,
+			     0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, drvdata->max_y,
+			     0, 0);
 	input_set_abs_params(input, ABS_MT_PRESSURE, 0, ELAN_MAX_PRESSURE,
 			     0, 0);
 
@@ -128,7 +191,7 @@ static void elan_report_mt_slot(struct elan_drvdata *drvdata, u8 *data,
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, active);
 	if (active) {
 		x = ((data[0] & 0xF0) << 4) | data[1];
-		y = drvdata->settings->max_y -
+		y = drvdata->max_y -
 		    (((data[0] & 0x07) << 8) | data[2]);
 		p = data[4];
 
@@ -339,7 +402,6 @@ static int elan_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (!drvdata)
 		return -ENOMEM;
 
-	drvdata->settings = (struct elan_touchpad_settings *)id->driver_data;
 	hid_set_drvdata(hdev, drvdata);
 
 	ret = hid_parse(hdev);
@@ -382,17 +444,10 @@ static void elan_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static const struct elan_touchpad_settings hp_x2_10_touchpad_data = {
-	.max_x = 2930,
-	.max_y = 1250,
-};
-
 static const struct hid_device_id elan_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER),
-		(kernel_ulong_t)&hp_x2_10_touchpad_data},
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER) },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(hid, elan_devices);
 
 static struct hid_driver elan_driver = {
