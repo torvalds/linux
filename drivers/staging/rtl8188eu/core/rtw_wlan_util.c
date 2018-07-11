@@ -1308,7 +1308,6 @@ void update_tx_basic_rate(struct adapter *padapter, u8 wirelessmode)
 	else
 		memcpy(supported_rates, rtw_basic_rate_ofdm, 3);
 
-
 	if (wirelessmode & WIRELESS_11B)
 		update_mgnt_tx_rate(padapter, IEEE80211_CCK_RATE_1MB);
 	else
