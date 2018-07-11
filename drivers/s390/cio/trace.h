@@ -349,16 +349,30 @@ TRACE_EVENT(s390_cio_stcrw,
 	TP_STRUCT__entry(
 		__field_struct(struct crw, crw)
 		__field(int, cc)
+		__field(u8, slct)
+		__field(u8, oflw)
+		__field(u8, chn)
+		__field(u8, rsc)
+		__field(u8, anc)
+		__field(u8, erc)
+		__field(u16, rsid)
 	),
 	TP_fast_assign(
 		__entry->crw = *crw;
 		__entry->cc = cc;
+		__entry->slct = crw->slct;
+		__entry->oflw = crw->oflw;
+		__entry->chn = crw->chn;
+		__entry->rsc = crw->rsc;
+		__entry->anc = crw->anc;
+		__entry->erc = crw->erc;
+		__entry->rsid = crw->rsid;
 	),
 	TP_printk("cc=%d slct=%d oflw=%d chn=%d rsc=%d anc=%d erc=0x%x "
 		  "rsid=0x%x",
-		  __entry->cc, __entry->crw.slct, __entry->crw.oflw,
-		  __entry->crw.chn, __entry->crw.rsc,  __entry->crw.anc,
-		  __entry->crw.erc, __entry->crw.rsid
+		  __entry->cc, __entry->slct, __entry->oflw,
+		  __entry->chn, __entry->rsc,  __entry->anc,
+		  __entry->erc, __entry->rsid
 	)
 );
 
