@@ -36,6 +36,8 @@
 #define ELAN_MUTE_LED_REPORT	0xBC
 #define ELAN_LED_REPORT_SIZE	8
 
+#define ELAN_HAS_LED		BIT(0)
+
 struct elan_drvdata {
 	struct input_dev *input;
 	u8 prev_report[ELAN_INPUT_REPORT_SIZE];
@@ -450,9 +452,11 @@ static int elan_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret)
 		goto err;
 
-	ret = elan_init_mute_led(hdev);
-	if (ret)
-		goto err;
+	if (id->driver_data & ELAN_HAS_LED) {
+		ret = elan_init_mute_led(hdev);
+		if (ret)
+			goto err;
+	}
 
 	return 0;
 err:
@@ -466,7 +470,8 @@ static void elan_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id elan_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELAN, USB_DEVICE_ID_HP_X2_10_COVER),
+	  .driver_data = ELAN_HAS_LED },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, elan_devices);
