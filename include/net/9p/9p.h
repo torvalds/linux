@@ -561,15 +561,7 @@ struct p9_fcall {
 	u8 *sdata;
 };
 
-struct p9_idpool;
-
 int p9_errstr2errno(char *errstr, int len);
-
-struct p9_idpool *p9_idpool_create(void);
-void p9_idpool_destroy(struct p9_idpool *);
-int p9_idpool_get(struct p9_idpool *p);
-void p9_idpool_put(int id, struct p9_idpool *p);
-int p9_idpool_check(int id, struct p9_idpool *p);
 
 int p9_error_init(void);
 int p9_trans_fd_init(void);
