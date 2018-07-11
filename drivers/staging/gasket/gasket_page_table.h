@@ -1,20 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Gasket Page Table functionality. This file describes the address
+/*
+ * Gasket Page Table functionality. This file describes the address
  * translation/paging functionality supported by the Gasket driver framework.
  * As much as possible, internal details are hidden to simplify use -
  * all calls are thread-safe (protected by an internal mutex) except where
  * indicated otherwise.
  *
  * Copyright (C) 2018 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __GASKET_ADDR_TRNSL_H__
