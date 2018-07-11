@@ -1851,8 +1851,8 @@ static int bcm_sysport_open(struct net_device *dev)
 	if (!priv->is_lite)
 		priv->crc_fwd = !!(umac_readl(priv, UMAC_CMD) & CMD_CRC_FWD);
 	else
-		priv->crc_fwd = !!(gib_readl(priv, GIB_CONTROL) &
-				   GIB_FCS_STRIP);
+		priv->crc_fwd = !((gib_readl(priv, GIB_CONTROL) &
+				  GIB_FCS_STRIP) >> GIB_FCS_STRIP_SHIFT);
 
 	phydev = of_phy_connect(dev, priv->phy_dn, bcm_sysport_adj_link,
 				0, priv->phy_interface);
