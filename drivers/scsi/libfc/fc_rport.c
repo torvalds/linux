@@ -1835,7 +1835,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	struct fc_seq_els_data rjt_data;
 	u32 sid;
 
-	lockdep_assert_held(&rdata->rp_mutex);
+	lockdep_assert_held(&lport->lp_mutex);
 
 	sid = fc_frame_sid(fp);
 
