@@ -239,6 +239,34 @@ static int16_t imm8m(u32 x)
 	return -1;
 }
 
+static u32 arm_bpf_ldst_imm12(u32 op, u8 rt, u8 rn, s16 imm12)
+{
+	op |= rt << 12 | rn << 16;
+	if (imm12 >= 0)
+		op |= ARM_INST_LDST__U;
+	else
+		imm12 = -imm12;
+	return op | (imm12 & 0xfff);
+}
+
+static u32 arm_bpf_ldst_imm8(u32 op, u8 rt, u8 rn, s16 imm8)
+{
+	op |= rt << 12 | rn << 16;
+	if (imm8 >= 0)
+		op |= ARM_INST_LDST__U;
+	else
+		imm8 = -imm8;
+	return op | (imm8 & 0xf0) << 4 | (imm8 & 0x0f);
+}
+
+#define ARM_LDR_I(rt, rn, off)	arm_bpf_ldst_imm12(ARM_INST_LDR_I, rt, rn, off)
+#define ARM_LDRB_I(rt, rn, off)	arm_bpf_ldst_imm12(ARM_INST_LDRB_I, rt, rn, off)
+#define ARM_LDRH_I(rt, rn, off)	arm_bpf_ldst_imm8(ARM_INST_LDRH_I, rt, rn, off)
+
+#define ARM_STR_I(rt, rn, off)	arm_bpf_ldst_imm12(ARM_INST_STR_I, rt, rn, off)
+#define ARM_STRB_I(rt, rn, off)	arm_bpf_ldst_imm12(ARM_INST_STRB_I, rt, rn, off)
+#define ARM_STRH_I(rt, rn, off)	arm_bpf_ldst_imm8(ARM_INST_STRH_I, rt, rn, off)
+
 /*
  * Initializes the JIT space with undefined instructions.
  */
