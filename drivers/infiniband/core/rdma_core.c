@@ -650,33 +650,48 @@ EXPORT_SYMBOL(uverbs_idr_class);
 
 static void _uverbs_close_fd(struct ib_uobject *uobj)
 {
-	struct ib_uverbs_file *ufile = uobj->ufile;
 	int ret;
 
-	mutex_lock(&ufile->cleanup_mutex);
+	/*
+	 * uobject was already cleaned up, remove_commit_fd_uobject
+	 * sets this
+	 */
+	if (!uobj->context)
+		return;
 
-	/* uobject was either already cleaned up or is cleaned up right now anyway */
-	if (!uobj->context ||
-	    !down_read_trylock(&ufile->cleanup_rwsem))
-		goto unlock;
+	/*
+	 * lookup_get_fd_uobject holds the kref on the struct file any time a
+	 * FD uobj is locked, which prevents this release method from being
+	 * invoked. Meaning we can always get the write lock here, or we have
+	 * a kernel bug. If so dangle the pointers and bail.
+	 */
+	ret = uverbs_try_lock_object(uobj, true);
+	if (WARN(ret, "uverbs_close_fd() racing with lookup_get_fd_uobject()"))
+		return;
 
 	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_CLOSE);
-	up_read(&ufile->cleanup_rwsem);
 	if (ret)
-		pr_warn("uverbs: unable to clean up uobject file in uverbs_close_fd.\n");
-unlock:
-	mutex_unlock(&ufile->cleanup_mutex);
+		pr_warn("Unable to clean up uobject file in %s\n", __func__);
+
+	atomic_set(&uobj->usecnt, 0);
 }
 
 void uverbs_close_fd(struct file *f)
 {
 	struct ib_uobject *uobj = f->private_data;
-	struct kref *uverbs_file_ref = &uobj->ufile->ref;
+	struct ib_uverbs_file *ufile = uobj->ufile;
 
-	_uverbs_close_fd(uobj);
+	if (down_read_trylock(&ufile->cleanup_rwsem)) {
+		_uverbs_close_fd(uobj);
+		up_read(&ufile->cleanup_rwsem);
+	}
+
+	uobj->object = NULL;
+	/* Matches the get in alloc_begin_fd_uobject */
+	kref_put(&ufile->ref, ib_uverbs_release_file);
+
 	/* Pairs with filp->private_data in alloc_begin_fd_uobject */
 	uverbs_uobject_put(uobj);
-	kref_put(uverbs_file_ref, ib_uverbs_release_file);
 }
 
 static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
