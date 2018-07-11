@@ -909,30 +909,29 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 {
 	int ret;
 	struct p9_fid *fid;
-	unsigned long flags;
 
 	p9_debug(P9_DEBUG_FID, "clnt %p\n", clnt);
 	fid = kmalloc(sizeof(struct p9_fid), GFP_KERNEL);
 	if (!fid)
 		return NULL;
 
-	ret = p9_idpool_get(clnt->fidpool);
-	if (ret < 0)
-		goto error;
-	fid->fid = ret;
-
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
 	fid->mode = -1;
 	fid->uid = current_fsuid();
 	fid->clnt = clnt;
 	fid->rdir = NULL;
-	spin_lock_irqsave(&clnt->lock, flags);
-	list_add(&fid->flist, &clnt->fidlist);
-	spin_unlock_irqrestore(&clnt->lock, flags);
+	fid->fid = 0;
 
-	return fid;
+	idr_preload(GFP_KERNEL);
+	spin_lock_irq(&clnt->lock);
+	ret = idr_alloc_u32(&clnt->fids, fid, &fid->fid, P9_NOFID - 1,
+			    GFP_NOWAIT);
+	spin_unlock_irq(&clnt->lock);
+	idr_preload_end();
 
-error:
+	if (!ret)
+		return fid;
+
 	kfree(fid);
 	return NULL;
 }
@@ -944,9 +943,8 @@ static void p9_fid_destroy(struct p9_fid *fid)
 
 	p9_debug(P9_DEBUG_FID, "fid %d\n", fid->fid);
 	clnt = fid->clnt;
-	p9_idpool_put(fid->fid, clnt->fidpool);
 	spin_lock_irqsave(&clnt->lock, flags);
-	list_del(&fid->flist);
+	idr_remove(&clnt->fids, fid->fid);
 	spin_unlock_irqrestore(&clnt->lock, flags);
 	kfree(fid->rdir);
 	kfree(fid);
@@ -1029,7 +1027,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	memcpy(clnt->name, client_id, strlen(client_id) + 1);
 
 	spin_lock_init(&clnt->lock);
-	INIT_LIST_HEAD(&clnt->fidlist);
+	idr_init(&clnt->fids);
 
 	err = p9_tag_init(clnt);
 	if (err < 0)
@@ -1049,18 +1047,12 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		goto destroy_tagpool;
 	}
 
-	clnt->fidpool = p9_idpool_create();
-	if (IS_ERR(clnt->fidpool)) {
-		err = PTR_ERR(clnt->fidpool);
-		goto put_trans;
-	}
-
 	p9_debug(P9_DEBUG_MUX, "clnt %p trans %p msize %d protocol %d\n",
 		 clnt, clnt->trans_mod, clnt->msize, clnt->proto_version);
 
 	err = clnt->trans_mod->create(clnt, dev_name, options);
 	if (err)
-		goto destroy_fidpool;
+		goto put_trans;
 
 	if (clnt->msize > clnt->trans_mod->maxsize)
 		clnt->msize = clnt->trans_mod->maxsize;
@@ -1073,8 +1065,6 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 close_trans:
 	clnt->trans_mod->close(clnt);
-destroy_fidpool:
-	p9_idpool_destroy(clnt->fidpool);
 put_trans:
 	v9fs_put_trans(clnt->trans_mod);
 destroy_tagpool:
@@ -1087,7 +1077,8 @@ EXPORT_SYMBOL(p9_client_create);
 
 void p9_client_destroy(struct p9_client *clnt)
 {
-	struct p9_fid *fid, *fidptr;
+	struct p9_fid *fid;
+	int id;
 
 	p9_debug(P9_DEBUG_MUX, "clnt %p\n", clnt);
 
@@ -1096,13 +1087,10 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	v9fs_put_trans(clnt->trans_mod);
 
-	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist) {
+	idr_for_each_entry(&clnt->fids, fid, id) {
 		pr_info("Found fid %d not clunked\n", fid->fid);
 		p9_fid_destroy(fid);
 	}
-
-	if (clnt->fidpool)
-		p9_idpool_destroy(clnt->fidpool);
 
 	p9_tag_cleanup(clnt);
 
