@@ -331,13 +331,13 @@ replay:
 		}
 	}
 
-	if (!ss->commit || !ss->abort) {
+	if (!ss->valid_genid || !ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
 		return kfree_skb(skb);
 	}
 
-	if (genid && ss->valid_genid && !ss->valid_genid(net, genid)) {
+	if (!ss->valid_genid(net, genid)) {
 		nfnl_unlock(subsys_id);
 		netlink_ack(oskb, nlh, -ERESTART, NULL);
 		return kfree_skb(skb);

@@ -6591,7 +6591,7 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 
 static bool nf_tables_valid_genid(struct net *net, u32 genid)
 {
-	return net->nft.base_seq == genid;
+	return genid == 0 || net->nft.base_seq == genid;
 }
 
 static const struct nfnetlink_subsystem nf_tables_subsys = {
