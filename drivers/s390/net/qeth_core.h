@@ -983,7 +983,6 @@ int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  void *);
 struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 			enum qeth_ipa_cmds, enum qeth_prot_versions);
-int qeth_query_setadapterparms(struct qeth_card *);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
@@ -1009,10 +1008,6 @@ int qeth_query_switch_attributes(struct qeth_card *card,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
-int qeth_bridgeport_query_ports(struct qeth_card *card,
-	enum qeth_sbp_roles *role, enum qeth_sbp_states *state);
-int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
-int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
 int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
 			 int extra_elems, int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);
@@ -1036,7 +1031,6 @@ int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_hdr_chk_and_bounce(struct sk_buff *, struct qeth_hdr **, int);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
-int qeth_query_ipassists(struct qeth_card *, enum qeth_prot_versions prot);
 void qeth_trace_features(struct qeth_card *);
 void qeth_close_dev(struct qeth_card *);
 int qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *, __u16,

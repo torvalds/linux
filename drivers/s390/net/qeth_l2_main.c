@@ -1869,7 +1869,6 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 		return rc;
 	return qeth_bridgeport_makerc(card, &cbctl, IPA_SBP_QUERY_BRIDGE_PORTS);
 }
-EXPORT_SYMBOL_GPL(qeth_bridgeport_query_ports);
 
 static int qeth_bridgeport_set_cb(struct qeth_card *card,
 	struct qeth_reply *reply, unsigned long data)
@@ -2017,7 +2016,6 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 		rc = qdio_pnso_brinfo(schid, 0, &response, NULL, NULL);
 	return qeth_anset_makerc(card, rc, response);
 }
-EXPORT_SYMBOL_GPL(qeth_bridgeport_an_set);
 
 static bool qeth_bridgeport_is_in_use(struct qeth_card *card)
 {
