@@ -33,7 +33,101 @@
 #include <drm/drm_encoder.h>
 #include "vmwgfx_drv.h"
 
+/**
+ * struct vmw_du_update_plane - Closure structure for vmw_du_helper_plane_update
+ * @plane: Plane which is being updated.
+ * @old_state: Old state of plane.
+ * @dev_priv: Device private.
+ * @du: Display unit on which to update the plane.
+ * @vfb: Framebuffer which is blitted to display unit.
+ * @out_fence: Out fence for resource finish.
+ * @mutex: The mutex used to protect resource reservation.
+ * @cpu_blit: True if need cpu blit.
+ * @intr: Whether to perform waits interruptible if possible.
+ *
+ * This structure loosely represent the set of operations needed to perform a
+ * plane update on a display unit. Implementer will define that functionality
+ * according to the function callbacks for this structure. In brief it involves
+ * surface/buffer object validation, populate FIFO commands and command
+ * submission to the device.
+ */
+struct vmw_du_update_plane {
+	/**
+	 * @calc_fifo_size: Calculate fifo size.
+	 *
+	 * Determine fifo size for the commands needed for update. The number of
+	 * damage clips on display unit @num_hits will be passed to allocate
+	 * sufficient fifo space.
+	 *
+	 * Return: Fifo size needed
+	 */
+	uint32_t (*calc_fifo_size)(struct vmw_du_update_plane *update,
+				   uint32_t num_hits);
 
+	/**
+	 * @post_prepare: Populate fifo for resource preparation.
+	 *
+	 * Some surface resource or buffer object need some extra cmd submission
+	 * like update GB image for proxy surface and define a GMRFB for screen
+	 * object. That should should be done here as this callback will be
+	 * called after FIFO allocation with the address of command buufer.
+	 *
+	 * This callback is optional.
+	 *
+	 * Return: Size of commands populated to command buffer.
+	 */
+	uint32_t (*post_prepare)(struct vmw_du_update_plane *update, void *cmd);
+
+	/**
+	 * @pre_clip: Populate fifo before clip.
+	 *
+	 * This is where pre clip related command should be populated like
+	 * surface copy/DMA, etc.
+	 *
+	 * This callback is optional.
+	 *
+	 * Return: Size of commands populated to command buffer.
+	 */
+	uint32_t (*pre_clip)(struct vmw_du_update_plane *update, void *cmd,
+			     uint32_t num_hits);
+
+	/**
+	 * @clip: Populate fifo for clip.
+	 *
+	 * This is where to populate clips for surface copy/dma or blit commands
+	 * if needed. This will be called times have damage in display unit,
+	 * which is one if doing full update. @clip is the damage in destination
+	 * coordinates which is crtc/DU and @src_x, @src_y is damage clip src in
+	 * framebuffer coordinate.
+	 *
+	 * This callback is optional.
+	 *
+	 * Return: Size of commands populated to command buffer.
+	 */
+	uint32_t (*clip)(struct vmw_du_update_plane *update, void *cmd,
+			 struct drm_rect *clip, uint32_t src_x, uint32_t src_y);
+
+	/**
+	 * @post_clip: Populate fifo after clip.
+	 *
+	 * This is where to populate display unit update commands or blit
+	 * commands.
+	 *
+	 * Return: Size of commands populated to command buffer.
+	 */
+	uint32_t (*post_clip)(struct vmw_du_update_plane *update, void *cmd,
+				    struct drm_rect *bb);
+
+	struct drm_plane *plane;
+	struct drm_plane_state *old_state;
+	struct vmw_private *dev_priv;
+	struct vmw_display_unit *du;
+	struct vmw_framebuffer *vfb;
+	struct vmw_fence_obj **out_fence;
+	struct mutex *mutex;
+	bool cpu_blit;
+	bool intr;
+};
 
 /**
  * struct vmw_kms_dirty - closure structure for the vmw_kms_helper_dirty
@@ -458,4 +552,21 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 
 int vmw_kms_set_config(struct drm_mode_set *set,
 		       struct drm_modeset_acquire_ctx *ctx);
+
+int vmw_du_helper_plane_update(struct vmw_du_update_plane *update);
+
+/**
+ * vmw_du_translate_to_crtc - Translate a rect from framebuffer to crtc
+ * @state: Plane state.
+ * @r: Rectangle to translate.
+ */
+static inline void vmw_du_translate_to_crtc(struct drm_plane_state *state,
+					    struct drm_rect *r)
+{
+	int translate_crtc_x = -((state->src_x >> 16) - state->crtc_x);
+	int translate_crtc_y = -((state->src_y >> 16) - state->crtc_y);
+
+	drm_rect_translate(r, translate_crtc_x, translate_crtc_y);
+}
+
 #endif

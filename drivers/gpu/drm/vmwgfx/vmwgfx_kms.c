@@ -30,6 +30,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_damage_helper.h>
 
 /* Might need a hrtimer here? */
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
@@ -2934,4 +2935,125 @@ int vmw_kms_resume(struct drm_device *dev)
 void vmw_kms_lost_device(struct drm_device *dev)
 {
 	drm_atomic_helper_shutdown(dev);
+}
+
+/**
+ * vmw_du_helper_plane_update - Helper to do plane update on a display unit.
+ * @update: The closure structure.
+ *
+ * Call this helper after setting callbacks in &vmw_du_update_plane to do plane
+ * update on display unit.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
+{
+	struct drm_plane_state *state = update->plane->state;
+	struct drm_plane_state *old_state = update->old_state;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect clip;
+	struct drm_rect bb;
+	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
+	uint32_t reserved_size = 0;
+	uint32_t submit_size = 0;
+	uint32_t curr_size = 0;
+	uint32_t num_hits = 0;
+	void *cmd_start;
+	char *cmd_next;
+	int ret;
+
+	/*
+	 * Iterate in advance to check if really need plane update and find the
+	 * number of clips that actually are in plane src for fifo allocation.
+	 */
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &clip)
+		num_hits++;
+
+	if (num_hits == 0)
+		return 0;
+
+	if (update->vfb->bo) {
+		struct vmw_framebuffer_bo *vfbbo =
+			container_of(update->vfb, typeof(*vfbbo), base);
+
+		ret = vmw_validation_add_bo(&val_ctx, vfbbo->buffer, false,
+					    update->cpu_blit);
+	} else {
+		struct vmw_framebuffer_surface *vfbs =
+			container_of(update->vfb, typeof(*vfbs), base);
+
+		ret = vmw_validation_add_resource(&val_ctx, &vfbs->surface->res,
+						  0, NULL, NULL);
+	}
+
+	if (ret)
+		return ret;
+
+	ret = vmw_validation_prepare(&val_ctx, update->mutex, update->intr);
+	if (ret)
+		goto out_unref;
+
+	reserved_size = update->calc_fifo_size(update, num_hits);
+	cmd_start = vmw_fifo_reserve(update->dev_priv, reserved_size);
+	if (!cmd_start) {
+		ret = -ENOMEM;
+		goto out_revert;
+	}
+
+	cmd_next = cmd_start;
+
+	if (update->post_prepare) {
+		curr_size = update->post_prepare(update, cmd_next);
+		cmd_next += curr_size;
+		submit_size += curr_size;
+	}
+
+	if (update->pre_clip) {
+		curr_size = update->pre_clip(update, cmd_next, num_hits);
+		cmd_next += curr_size;
+		submit_size += curr_size;
+	}
+
+	bb.x1 = INT_MAX;
+	bb.y1 = INT_MAX;
+	bb.x2 = INT_MIN;
+	bb.y2 = INT_MIN;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &clip) {
+		uint32_t fb_x = clip.x1;
+		uint32_t fb_y = clip.y1;
+
+		vmw_du_translate_to_crtc(state, &clip);
+		if (update->clip) {
+			curr_size = update->clip(update, cmd_next, &clip, fb_x,
+						 fb_y);
+			cmd_next += curr_size;
+			submit_size += curr_size;
+		}
+		bb.x1 = min_t(int, bb.x1, clip.x1);
+		bb.y1 = min_t(int, bb.y1, clip.y1);
+		bb.x2 = max_t(int, bb.x2, clip.x2);
+		bb.y2 = max_t(int, bb.y2, clip.y2);
+	}
+
+	curr_size = update->post_clip(update, cmd_next, &bb);
+	submit_size += curr_size;
+
+	if (reserved_size < submit_size)
+		submit_size = 0;
+
+	vmw_fifo_commit(update->dev_priv, submit_size);
+
+	vmw_kms_helper_validation_finish(update->dev_priv, NULL, &val_ctx,
+					 update->out_fence, NULL);
+	return ret;
+
+out_revert:
+	vmw_validation_revert(&val_ctx);
+
+out_unref:
+	vmw_validation_unref_lists(&val_ctx);
+	return ret;
 }
