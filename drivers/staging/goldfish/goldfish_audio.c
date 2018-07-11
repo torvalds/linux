@@ -38,6 +38,7 @@ MODULE_VERSION("1.0");
 struct goldfish_audio {
 	char __iomem *reg_base;
 	int irq;
+
 	/* lock protects access to buffer_status and to device registers */
 	spinlock_t lock;
 	wait_queue_head_t wait;
