@@ -43,6 +43,8 @@ struct elan_drvdata {
 	u8 mute_led_state;
 	u16 max_x;
 	u16 max_y;
+	u16 res_x;
+	u16 res_y;
 };
 
 static int is_not_elan_touchpad(struct hid_device *hdev)
@@ -97,6 +99,15 @@ static int elan_get_device_param(struct hid_device *hdev,
 	return 0;
 }
 
+static unsigned int elan_convert_res(char val)
+{
+	/*
+	 * (value from firmware) * 10 + 790 = dpi
+	 * dpi * 10 / 254 = dots/mm
+	 */
+	return (val * 10 + 790) * 10 / 254;
+}
+
 static int elan_get_device_params(struct hid_device *hdev)
 {
 	struct elan_drvdata *drvdata = hid_get_drvdata(hdev);
@@ -118,6 +129,13 @@ static int elan_get_device_params(struct hid_device *hdev)
 		goto err;
 
 	drvdata->max_y = (dmabuf[4] << 8) | dmabuf[3];
+
+	ret = elan_get_device_param(hdev, dmabuf, ELAN_PARAM_RES);
+	if (ret)
+		goto err;
+
+	drvdata->res_x = elan_convert_res(dmabuf[3]);
+	drvdata->res_y = elan_convert_res(dmabuf[4]);
 
 err:
 	kfree(dmabuf);
@@ -165,6 +183,9 @@ static int elan_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		hid_err(hdev, "Failed to init elan MT slots: %d\n", ret);
 		return ret;
 	}
+
+	input_abs_set_res(input, ABS_X, drvdata->res_x);
+	input_abs_set_res(input, ABS_Y, drvdata->res_y);
 
 	ret = input_register_device(input);
 	if (ret) {
