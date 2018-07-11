@@ -244,10 +244,8 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			goto out;
 		}
 
-		if (xs->queue_id >= xs->dev->real_num_tx_queues) {
-			err = -ENXIO;
+		if (xs->queue_id >= xs->dev->real_num_tx_queues)
 			goto out;
-		}
 
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
 		if (unlikely(!skb)) {
