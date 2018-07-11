@@ -1768,6 +1768,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	if (iwl_mvm_has_tlc_offload(mvm))
 		iwl_mvm_rs_add_sta(mvm, mvm_sta);
 
+	iwl_mvm_toggle_tx_ant(mvm, &mvm_sta->tx_ant);
+
 update_fw:
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, sta_update, sta_flags);
 	if (ret)
