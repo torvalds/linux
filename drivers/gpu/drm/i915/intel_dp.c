@@ -2830,10 +2830,6 @@ static void vlv_disable_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *old_crtc_state,
 			   const struct drm_connector_state *old_conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
-	intel_psr_disable(intel_dp, old_crtc_state);
-
 	intel_disable_dp(encoder, old_crtc_state, old_conn_state);
 }
 
@@ -3046,10 +3042,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *pipe_config,
 			  const struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
 	intel_edp_backlight_on(pipe_config, conn_state);
-	intel_psr_enable(intel_dp, pipe_config);
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder,
