@@ -260,7 +260,7 @@ __SYSCALL(117, sys_ni_syscall)
 #define __NR_fsync 118
 __SYSCALL(__NR_fsync, sys_fsync)
 #define __NR_sigreturn 119
-__SYSCALL(__NR_sigreturn, compat_sys_sigreturn_wrapper)
+__SYSCALL(__NR_sigreturn, compat_sys_sigreturn)
 #define __NR_clone 120
 __SYSCALL(__NR_clone, sys_clone)
 #define __NR_setdomainname 121
@@ -368,7 +368,7 @@ __SYSCALL(__NR_getresgid, sys_getresgid16)
 #define __NR_prctl 172
 __SYSCALL(__NR_prctl, sys_prctl)
 #define __NR_rt_sigreturn 173
-__SYSCALL(__NR_rt_sigreturn, compat_sys_rt_sigreturn_wrapper)
+__SYSCALL(__NR_rt_sigreturn, compat_sys_rt_sigreturn)
 #define __NR_rt_sigaction 174
 __SYSCALL(__NR_rt_sigaction, compat_sys_rt_sigaction)
 #define __NR_rt_sigprocmask 175

@@ -1140,14 +1140,6 @@ __entry_tramp_data_start:
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
 /*
- * Special system call wrappers.
- */
-ENTRY(sys_rt_sigreturn_wrapper)
-	mov	x0, sp
-	b	sys_rt_sigreturn
-ENDPROC(sys_rt_sigreturn_wrapper)
-
-/*
  * Register switch for AArch64. The callee-saved registers need to be saved
  * and restored. On entry:
  *   x0 = previous task_struct (must be preserved across the switch)

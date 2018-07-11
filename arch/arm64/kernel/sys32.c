@@ -25,8 +25,8 @@
 #include <linux/compiler.h>
 #include <linux/syscalls.h>
 
-asmlinkage long compat_sys_sigreturn_wrapper(void);
-asmlinkage long compat_sys_rt_sigreturn_wrapper(void);
+asmlinkage long compat_sys_sigreturn(void);
+asmlinkage long compat_sys_rt_sigreturn(void);
 asmlinkage long compat_sys_statfs64_wrapper(void);
 asmlinkage long compat_sys_fstatfs64_wrapper(void);
 asmlinkage long compat_sys_pread64_wrapper(void);

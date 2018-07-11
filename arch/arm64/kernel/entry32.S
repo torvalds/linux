@@ -30,16 +30,6 @@
  * System call wrappers for the AArch32 compatibility layer.
  */
 
-ENTRY(compat_sys_sigreturn_wrapper)
-	mov	x0, sp
-	b	compat_sys_sigreturn
-ENDPROC(compat_sys_sigreturn_wrapper)
-
-ENTRY(compat_sys_rt_sigreturn_wrapper)
-	mov	x0, sp
-	b	compat_sys_rt_sigreturn
-ENDPROC(compat_sys_rt_sigreturn_wrapper)
-
 ENTRY(compat_sys_statfs64_wrapper)
 	mov	w3, #84
 	cmp	w1, #88
