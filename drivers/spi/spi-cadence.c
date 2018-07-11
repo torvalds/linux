@@ -739,7 +739,7 @@ static int __maybe_unused cnds_runtime_resume(struct device *dev)
 	ret = clk_prepare_enable(xspi->ref_clk);
 	if (ret) {
 		dev_err(dev, "Cannot enable device clock.\n");
-		clk_disable(xspi->pclk);
+		clk_disable_unprepare(xspi->pclk);
 		return ret;
 	}
 	return 0;
