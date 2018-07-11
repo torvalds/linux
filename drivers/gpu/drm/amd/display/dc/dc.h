@@ -258,6 +258,7 @@ struct dc_debug {
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
 	bool hdmi20_disable;
+	bool skip_detection_link_training;
 
 	struct {
 		uint32_t ltFailCount;

@@ -760,7 +760,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				 */
 
 				/* deal with non-mst cases */
-				dp_hbr_verify_link_cap(link, &link->reported_link_cap);
+				dp_verify_link_cap(link, &link->reported_link_cap);
 			}
 
 			/* HDMI-DVI Dongle */

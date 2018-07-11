@@ -1086,7 +1086,7 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
-bool dp_hbr_verify_link_cap(
+bool dp_verify_link_cap(
 	struct dc_link *link,
 	struct dc_link_settings *known_limit_link_setting)
 {
@@ -1100,6 +1100,11 @@ bool dp_hbr_verify_link_cap(
 	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
+
+	if (link->dc->debug.skip_detection_link_training) {
+		link->verified_link_cap = *known_limit_link_setting;
+		return true;
+	}
 
 	success = false;
 	skip_link_training = false;
