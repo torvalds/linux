@@ -4495,6 +4495,9 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
 
+	/* Handle CEC interrupts, if any */
+	drm_dp_cec_irq(&intel_dp->aux);
+
 	/* defer to the hotplug work for link retraining if needed */
 	if (intel_dp_needs_link_retrain(intel_dp))
 		return false;
@@ -4809,6 +4812,7 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	intel_connector->detect_edid = edid;
 
 	intel_dp->has_audio = drm_detect_monitor_audio(edid);
+	drm_dp_cec_set_edid(&intel_dp->aux, edid);
 }
 
 static void
@@ -4816,6 +4820,7 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 {
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 
+	drm_dp_cec_unset_edid(&intel_dp->aux);
 	kfree(intel_connector->detect_edid);
 	intel_connector->detect_edid = NULL;
 
@@ -5004,6 +5009,7 @@ static int
 intel_dp_connector_register(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct drm_device *dev = connector->dev;
 	int ret;
 
 	ret = intel_connector_register(connector);
@@ -5016,13 +5022,20 @@ intel_dp_connector_register(struct drm_connector *connector)
 		      intel_dp->aux.name, connector->kdev->kobj.name);
 
 	intel_dp->aux.dev = connector->kdev;
-	return drm_dp_aux_register(&intel_dp->aux);
+	ret = drm_dp_aux_register(&intel_dp->aux);
+	if (!ret)
+		drm_dp_cec_register_connector(&intel_dp->aux,
+					      connector->name, dev->dev);
+	return ret;
 }
 
 static void
 intel_dp_connector_unregister(struct drm_connector *connector)
 {
-	drm_dp_aux_unregister(&intel_attached_dp(connector)->aux);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	drm_dp_cec_unregister_connector(&intel_dp->aux);
+	drm_dp_aux_unregister(&intel_dp->aux);
 	intel_connector_unregister(connector);
 }
 
