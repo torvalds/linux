@@ -668,6 +668,10 @@
 	status = "okay";
 };
 
+&wdog1 {
+	status = "disabled";
+};
+
 &iomuxc {
 	pinctrl_ampgpio: ampgpiogrp {
 		fsl,pins = <
