@@ -42,6 +42,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
+#include <tools/libc_compat.h>
 
 #include "json_writer.h"
 
@@ -50,6 +51,21 @@
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
 #define BAD_ARG()	({ p_err("what is '%s'?", *argv); -1; })
+#define GET_ARG()	({ argc--; *argv++; })
+#define REQ_ARGS(cnt)							\
+	({								\
+		int _cnt = (cnt);					\
+		bool _res;						\
+									\
+		if (argc < _cnt) {					\
+			p_err("'%s' needs at least %d arguments, %d found", \
+			      argv[-1], _cnt, argc);			\
+			_res = false;					\
+		} else {						\
+			_res = true;					\
+		}							\
+		_res;							\
+	})
 
 #define ERR_MAX_LEN	1024
 
@@ -59,6 +75,8 @@
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
 	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
+#define HELP_SPEC_MAP							\
+	"MAP := { id MAP_ID | pinned FILE }"
 
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -120,6 +138,7 @@ int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
+int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
