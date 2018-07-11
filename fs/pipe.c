@@ -760,16 +760,17 @@ int create_pipe_files(struct file **res, int flags)
 
 	d_instantiate(path.dentry, inode);
 
-	f = alloc_file(&path, FMODE_WRITE, &pipefifo_fops);
+	f = alloc_file(&path, O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
+			&pipefifo_fops);
 	if (IS_ERR(f)) {
 		err = PTR_ERR(f);
 		goto err_dentry;
 	}
 
-	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 	f->private_data = inode->i_pipe;
 
-	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
+	res[0] = alloc_file(&path, O_RDONLY | (flags & O_NONBLOCK),
+			&pipefifo_fops);
 	if (IS_ERR(res[0])) {
 		put_pipe_info(inode, inode->i_pipe);
 		fput(f);
@@ -778,7 +779,6 @@ int create_pipe_files(struct file **res, int flags)
 
 	path_get(&path);
 	res[0]->private_data = inode->i_pipe;
-	res[0]->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	res[1] = f;
 	return 0;
 

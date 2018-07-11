@@ -1375,8 +1375,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	inode->i_size = size;
 	clear_nlink(inode);
 
-	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
-			&hugetlbfs_file_operations);
+	file = alloc_file(&path, O_RDWR, &hugetlbfs_file_operations);
 	if (IS_ERR(file))
 		goto out_dentry; /* inode is already attached */
 

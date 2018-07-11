@@ -102,12 +102,11 @@ static struct file *cxl_getfile(const char *name,
 	path.mnt = mntget(cxl_vfs_mount);
 	d_instantiate(path.dentry, inode);
 
-	file = alloc_file(&path, OPEN_FMODE(flags), fops);
+	file = alloc_file(&path, flags & (O_ACCMODE | O_NONBLOCK), fops);
 	if (IS_ERR(file)) {
 		path_put(&path);
 		goto err_fs;
 	}
-	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->private_data = priv;
 
 	return file;
