@@ -227,7 +227,7 @@ struct xfrm_state {
 	long		saved_tmo;
 
 	/* Last used time */
-	unsigned long		lastused;
+	time64_t		lastused;
 
 	struct page_frag xfrag;
 
