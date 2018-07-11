@@ -113,7 +113,7 @@ enum p9_req_status_t {
 struct p9_req_t {
 	int status;
 	int t_err;
-	wait_queue_head_t *wq;
+	wait_queue_head_t wq;
 	struct p9_fcall *tc;
 	struct p9_fcall *rc;
 	void *aux;

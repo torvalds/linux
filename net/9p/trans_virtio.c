@@ -490,7 +490,7 @@ req_retry_pinned:
 	virtqueue_kick(chan->vq);
 	spin_unlock_irqrestore(&chan->lock, flags);
 	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
-	err = wait_event_killable(*req->wq, req->status >= REQ_STATUS_RCVD);
+	err = wait_event_killable(req->wq, req->status >= REQ_STATUS_RCVD);
 	/*
 	 * Non kernel buffers are pinned, unpin them
 	 */

@@ -283,8 +283,9 @@ p9_tag_alloc(struct p9_client *c, u16 tag, unsigned int max_size)
 				return ERR_PTR(-ENOMEM);
 			}
 			for (col = 0; col < P9_ROW_MAXTAG; col++) {
-				c->reqs[row][col].status = REQ_STATUS_IDLE;
-				c->reqs[row][col].tc = NULL;
+				req = &c->reqs[row][col];
+				req->status = REQ_STATUS_IDLE;
+				init_waitqueue_head(&req->wq);
 			}
 			c->max_tag += P9_ROW_MAXTAG;
 		}
@@ -294,13 +295,6 @@ p9_tag_alloc(struct p9_client *c, u16 tag, unsigned int max_size)
 	col = tag % P9_ROW_MAXTAG;
 
 	req = &c->reqs[row][col];
-	if (!req->wq) {
-		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_NOFS);
-		if (!req->wq)
-			goto grow_failed;
-		init_waitqueue_head(req->wq);
-	}
-
 	if (!req->tc)
 		req->tc = p9_fcall_alloc(alloc_msize);
 	if (!req->rc)
@@ -320,9 +314,7 @@ grow_failed:
 	pr_err("Couldn't grow tag array\n");
 	kfree(req->tc);
 	kfree(req->rc);
-	kfree(req->wq);
 	req->tc = req->rc = NULL;
-	req->wq = NULL;
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -410,7 +402,6 @@ static void p9_tag_cleanup(struct p9_client *c)
 	/* free requests associated with tags */
 	for (row = 0; row < (c->max_tag/P9_ROW_MAXTAG); row++) {
 		for (col = 0; col < P9_ROW_MAXTAG; col++) {
-			kfree(c->reqs[row][col].wq);
 			kfree(c->reqs[row][col].tc);
 			kfree(c->reqs[row][col].rc);
 		}
@@ -453,7 +444,7 @@ void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 	smp_wmb();
 	req->status = status;
 
-	wake_up(req->wq);
+	wake_up(&req->wq);
 	p9_debug(P9_DEBUG_MUX, "wakeup: %d\n", req->tc->tag);
 }
 EXPORT_SYMBOL(p9_client_cb);
@@ -774,7 +765,7 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 	}
 again:
 	/* Wait for the response */
-	err = wait_event_killable(*req->wq, req->status >= REQ_STATUS_RCVD);
+	err = wait_event_killable(req->wq, req->status >= REQ_STATUS_RCVD);
 
 	/*
 	 * Make sure our req is coherent with regard to updates in other
