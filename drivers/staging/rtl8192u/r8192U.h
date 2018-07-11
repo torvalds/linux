@@ -294,7 +294,7 @@ struct rx_desc_819x_usb {
 	u32                 Reserved2;
 };
 
-typedef struct rx_drvinfo_819x_usb {
+struct rx_drvinfo_819x_usb {
 	/* DWORD 0 */
 	u16                 Reserved1:12;
 	u16                 PartAggr:1;
@@ -315,7 +315,7 @@ typedef struct rx_drvinfo_819x_usb {
 	/* DWORD 1 */
 	u32                  TSFL;
 
-} rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
+};
 
 /* Support till 64 bit bus width OS */
 #define MAX_DEV_ADDR_SIZE		8

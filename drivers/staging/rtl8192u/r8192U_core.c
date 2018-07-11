@@ -4194,7 +4194,7 @@ static inline bool rx_hal_is_cck_rate(struct rx_drvinfo_819x_usb *pdrvinfo)
 
 static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 				      struct ieee80211_rx_stats *pstats,
-				      rx_drvinfo_819x_usb  *pdrvinfo,
+				      struct rx_drvinfo_819x_usb  *pdrvinfo,
 				      struct ieee80211_rx_stats *precord_stats,
 				      bool bpacket_match_bssid,
 				      bool bpacket_toself,
@@ -4231,7 +4231,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 	prxpkt = (u8 *)pdrvinfo;
 
 	/* Move pointer to the 16th bytes. Phy status start address. */
-	prxpkt += sizeof(rx_drvinfo_819x_usb);
+	prxpkt += sizeof(struct rx_drvinfo_819x_usb);
 
 	/* Initial the cck and ofdm buffer pointer */
 	pcck_buf = (phy_sts_cck_819xusb_t *)prxpkt;
@@ -4431,7 +4431,7 @@ static void rtl8192_record_rxdesc_forlateruse(
 
 static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 					  struct ieee80211_rx_stats *pstats,
-					  rx_drvinfo_819x_usb  *pdrvinfo)
+					  struct rx_drvinfo_819x_usb  *pdrvinfo)
 {
 	/* TODO: We must only check packet for current MAC address.
 	 * Not finish
@@ -4630,7 +4630,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	struct rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
 	struct net_device *dev = info->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	rx_drvinfo_819x_usb  *driver_info = NULL;
+	struct rx_drvinfo_819x_usb  *driver_info = NULL;
 
 	/* Get Rx Descriptor Information */
 	struct rx_desc_819x_usb *desc = (struct rx_desc_819x_usb *)skb->data;
@@ -4657,7 +4657,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	 * Driver info are written to the RxBuffer following rx desc
 	 */
 	if (stats->RxDrvInfoSize != 0) {
-		driver_info = (rx_drvinfo_819x_usb *)(
+		driver_info = (struct rx_drvinfo_819x_usb *)(
 				skb->data
 				+ sizeof(struct rx_desc_819x_usb)
 				+ stats->RxBufShift
