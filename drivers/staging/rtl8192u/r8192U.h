@@ -213,31 +213,6 @@ struct tx_desc_819x_usb {
 	u32	Reserved7;
 };
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-typedef struct _tx_desc_819x_usb_aggr_subframe {
-	/* DWORD 0 */
-	u16	PktSize;
-	u8	Offset;
-	u8	TxFWInfoSize;
-
-	/* DWORD 1 */
-	u8	RATid:3;
-	u8	DISFB:1;
-	u8	USERATE:1;
-	u8	MOREFRAG:1;
-	u8	NoEnc:1;
-	u8	PIFS:1;
-	u8	QueueSelect:5;
-	u8	NoACM:1;
-	u8	Reserved1:2;
-	u8	SecCAMID:5;
-	u8	SecDescAssign:1;
-	u8	SecType:2;
-	u8	PacketID:7;
-	u8	OWN:1;
-} tx_desc_819x_usb_aggr_subframe, *ptx_desc_819x_usb_aggr_subframe;
-#endif
-
 typedef struct _tx_desc_cmd_819x_usb {
 	/* DWORD 0 */
 	u16	Reserved0;
@@ -373,9 +348,6 @@ typedef struct rx_drvinfo_819x_usb {
 #define MAX_TRANSMIT_BUFFER_SIZE			32000
 #else
 #define MAX_TRANSMIT_BUFFER_SIZE			8000
-#endif
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-#define TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES (sizeof(tx_desc_819x_usb_aggr_subframe) + sizeof(tx_fwinfo_819x_usb))
 #endif
 /* Octets for crc32 (FCS, ICV) */
 #define scrclng					4
