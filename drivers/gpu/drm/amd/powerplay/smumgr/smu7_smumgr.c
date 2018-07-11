@@ -422,7 +422,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 			   + UCODE_ID_CP_MEC_JT2_MASK;
 	}
 
-	toc = (struct SMU_DRAMData_TOC *)smu_data->header;
+	toc = (struct SMU_DRAMData_TOC *)smu_data->header_buffer.kaddr;
 	toc->structure_version = 1;
 
 	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
@@ -591,7 +591,6 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 	if (r)
 		return -EINVAL;
 
-	smu_data->header = smu_data->header_buffer.kaddr;
 	smu_data->header_buffer.mc_addr = mc_addr;
 
 	if (!hwmgr->not_vf)

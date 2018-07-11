@@ -37,8 +37,6 @@ struct smu7_buffer_entry {
 };
 
 struct smu7_smumgr {
-	uint8_t *header;
-	uint8_t *mec_image;
 	struct smu7_buffer_entry smu_buffer;
 	struct smu7_buffer_entry header_buffer;
 
