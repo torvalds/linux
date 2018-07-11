@@ -802,7 +802,6 @@ struct vcpu_vmx {
 #endif
 		int           gs_ldt_reload_needed;
 		int           fs_reload_needed;
-		u64           msr_host_bndcfgs;
 	} host_state;
 	struct {
 		int vm86_active;
@@ -2630,8 +2629,6 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	vmcs_writel(HOST_FS_BASE, segment_base(vmx->host_state.fs_sel));
 	vmcs_writel(HOST_GS_BASE, segment_base(vmx->host_state.gs_sel));
 #endif
-	if (boot_cpu_has(X86_FEATURE_MPX))
-		rdmsrl(MSR_IA32_BNDCFGS, vmx->host_state.msr_host_bndcfgs);
 	for (i = 0; i < vmx->save_nmsrs; ++i)
 		kvm_set_shared_msr(vmx->guest_msrs[i].index,
 				   vmx->guest_msrs[i].data,
@@ -2669,8 +2666,6 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
-	if (vmx->host_state.msr_host_bndcfgs)
-		wrmsrl(MSR_IA32_BNDCFGS, vmx->host_state.msr_host_bndcfgs);
 	load_fixmap_gdt(raw_smp_processor_id());
 }
 
@@ -7502,6 +7497,7 @@ static void vmx_enable_tdp(void)
 
 static __init int hardware_setup(void)
 {
+	unsigned long host_bndcfgs;
 	int r = -ENOMEM, i;
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
@@ -7525,6 +7521,11 @@ static __init int hardware_setup(void)
 
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
+
+	if (boot_cpu_has(X86_FEATURE_MPX)) {
+		rdmsrl(MSR_IA32_BNDCFGS, host_bndcfgs);
+		WARN_ONCE(host_bndcfgs, "KVM: BNDCFGS in host will be lost");
+	}
 
 	if (!cpu_has_vmx_vpid() || !cpu_has_vmx_invvpid() ||
 		!(cpu_has_vmx_invvpid_single() || cpu_has_vmx_invvpid_global()))
