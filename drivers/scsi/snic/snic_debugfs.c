@@ -200,7 +200,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 {
 	struct snic *snic = (struct snic *) sfp->private;
 	struct snic_stats *stats = &snic->s_stats;
-	struct timespec last_isr_tms, last_ack_tms;
+	struct timespec64 last_isr_tms, last_ack_tms;
 	u64 maxio_tm;
 	int i;
 
@@ -312,12 +312,12 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "\t\t Other Statistics\n"
 		   "\n---------------------------------------------\n");
 
-	jiffies_to_timespec(stats->misc.last_isr_time, &last_isr_tms);
-	jiffies_to_timespec(stats->misc.last_ack_time, &last_ack_tms);
+	jiffies_to_timespec64(stats->misc.last_isr_time, &last_isr_tms);
+	jiffies_to_timespec64(stats->misc.last_ack_time, &last_ack_tms);
 
 	seq_printf(sfp,
-		   "Last ISR Time               : %llu (%8lu.%8lu)\n"
-		   "Last Ack Time               : %llu (%8lu.%8lu)\n"
+		   "Last ISR Time               : %llu (%8llu.%09lu)\n"
+		   "Last Ack Time               : %llu (%8llu.%09lu)\n"
 		   "Ack ISRs                    : %llu\n"
 		   "IO Cmpl ISRs                : %llu\n"
 		   "Err Notify ISRs             : %llu\n"
