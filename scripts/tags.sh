@@ -245,7 +245,7 @@ exuberant()
 {
 	setup_regex exuberant asm c
 	all_target_sources | xargs $1 -a                        \
-	-I __initdata,__exitdata,__initconst,			\
+	-I __initdata,__exitdata,__initconst,__ro_after_init	\
 	-I __initdata_memblock					\
 	-I __refdata,__attribute,__maybe_unused,__always_unused \
 	-I __acquires,__releases,__deprecated			\
