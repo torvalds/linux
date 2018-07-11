@@ -6,9 +6,17 @@
 
 #include <linux/coresight.h>
 #include <linux/dma-mapping.h>
+#include <linux/iommu.h>
 #include <linux/slab.h>
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
+
+struct etr_flat_buf {
+	struct device	*dev;
+	dma_addr_t	daddr;
+	void		*vaddr;
+	size_t		size;
+};
 
 /*
  * The TMC ETR SG has a page size of 4K. The SG table contains pointers
@@ -540,16 +548,207 @@ tmc_init_etr_sg_table(struct device *dev, int node,
 	return etr_table;
 }
 
+/*
+ * tmc_etr_alloc_flat_buf: Allocate a contiguous DMA buffer.
+ */
+static int tmc_etr_alloc_flat_buf(struct tmc_drvdata *drvdata,
+				  struct etr_buf *etr_buf, int node,
+				  void **pages)
+{
+	struct etr_flat_buf *flat_buf;
+
+	/* We cannot reuse existing pages for flat buf */
+	if (pages)
+		return -EINVAL;
+
+	flat_buf = kzalloc(sizeof(*flat_buf), GFP_KERNEL);
+	if (!flat_buf)
+		return -ENOMEM;
+
+	flat_buf->vaddr = dma_alloc_coherent(drvdata->dev, etr_buf->size,
+					     &flat_buf->daddr, GFP_KERNEL);
+	if (!flat_buf->vaddr) {
+		kfree(flat_buf);
+		return -ENOMEM;
+	}
+
+	flat_buf->size = etr_buf->size;
+	flat_buf->dev = drvdata->dev;
+	etr_buf->hwaddr = flat_buf->daddr;
+	etr_buf->mode = ETR_MODE_FLAT;
+	etr_buf->private = flat_buf;
+	return 0;
+}
+
+static void tmc_etr_free_flat_buf(struct etr_buf *etr_buf)
+{
+	struct etr_flat_buf *flat_buf = etr_buf->private;
+
+	if (flat_buf && flat_buf->daddr)
+		dma_free_coherent(flat_buf->dev, flat_buf->size,
+				  flat_buf->vaddr, flat_buf->daddr);
+	kfree(flat_buf);
+}
+
+static void tmc_etr_sync_flat_buf(struct etr_buf *etr_buf, u64 rrp, u64 rwp)
+{
+	/*
+	 * Adjust the buffer to point to the beginning of the trace data
+	 * and update the available trace data.
+	 */
+	etr_buf->offset = rrp - etr_buf->hwaddr;
+	if (etr_buf->full)
+		etr_buf->len = etr_buf->size;
+	else
+		etr_buf->len = rwp - rrp;
+}
+
+static ssize_t tmc_etr_get_data_flat_buf(struct etr_buf *etr_buf,
+					 u64 offset, size_t len, char **bufpp)
+{
+	struct etr_flat_buf *flat_buf = etr_buf->private;
+
+	*bufpp = (char *)flat_buf->vaddr + offset;
+	/*
+	 * tmc_etr_buf_get_data already adjusts the length to handle
+	 * buffer wrapping around.
+	 */
+	return len;
+}
+
+static const struct etr_buf_operations etr_flat_buf_ops = {
+	.alloc = tmc_etr_alloc_flat_buf,
+	.free = tmc_etr_free_flat_buf,
+	.sync = tmc_etr_sync_flat_buf,
+	.get_data = tmc_etr_get_data_flat_buf,
+};
+
+static const struct etr_buf_operations *etr_buf_ops[] = {
+	[ETR_MODE_FLAT] = &etr_flat_buf_ops,
+};
+
+static inline int tmc_etr_mode_alloc_buf(int mode,
+					 struct tmc_drvdata *drvdata,
+					 struct etr_buf *etr_buf, int node,
+					 void **pages)
+{
+	int rc;
+
+	switch (mode) {
+	case ETR_MODE_FLAT:
+		rc = etr_buf_ops[mode]->alloc(drvdata, etr_buf, node, pages);
+		if (!rc)
+			etr_buf->ops = etr_buf_ops[mode];
+		return rc;
+	default:
+		return -EINVAL;
+	}
+}
+
+/*
+ * tmc_alloc_etr_buf: Allocate a buffer use by ETR.
+ * @drvdata	: ETR device details.
+ * @size	: size of the requested buffer.
+ * @flags	: Required properties for the buffer.
+ * @node	: Node for memory allocations.
+ * @pages	: An optional list of pages.
+ */
+static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
+					 ssize_t size, int flags,
+					 int node, void **pages)
+{
+	int rc = 0;
+	struct etr_buf *etr_buf;
+
+	etr_buf = kzalloc(sizeof(*etr_buf), GFP_KERNEL);
+	if (!etr_buf)
+		return ERR_PTR(-ENOMEM);
+
+	etr_buf->size = size;
+
+	rc = tmc_etr_mode_alloc_buf(ETR_MODE_FLAT, drvdata,
+				    etr_buf, node, pages);
+	if (rc) {
+		kfree(etr_buf);
+		return ERR_PTR(rc);
+	}
+
+	return etr_buf;
+}
+
+static void tmc_free_etr_buf(struct etr_buf *etr_buf)
+{
+	WARN_ON(!etr_buf->ops || !etr_buf->ops->free);
+	etr_buf->ops->free(etr_buf);
+	kfree(etr_buf);
+}
+
+/*
+ * tmc_etr_buf_get_data: Get the pointer the trace data at @offset
+ * with a maximum of @len bytes.
+ * Returns: The size of the linear data available @pos, with *bufpp
+ * updated to point to the buffer.
+ */
+static ssize_t tmc_etr_buf_get_data(struct etr_buf *etr_buf,
+				    u64 offset, size_t len, char **bufpp)
+{
+	/* Adjust the length to limit this transaction to end of buffer */
+	len = (len < (etr_buf->size - offset)) ? len : etr_buf->size - offset;
+
+	return etr_buf->ops->get_data(etr_buf, (u64)offset, len, bufpp);
+}
+
+static inline s64
+tmc_etr_buf_insert_barrier_packet(struct etr_buf *etr_buf, u64 offset)
+{
+	ssize_t len;
+	char *bufp;
+
+	len = tmc_etr_buf_get_data(etr_buf, offset,
+				   CORESIGHT_BARRIER_PKT_SIZE, &bufp);
+	if (WARN_ON(len <= CORESIGHT_BARRIER_PKT_SIZE))
+		return -EINVAL;
+	coresight_insert_barrier_packet(bufp);
+	return offset + CORESIGHT_BARRIER_PKT_SIZE;
+}
+
+/*
+ * tmc_sync_etr_buf: Sync the trace buffer availability with drvdata.
+ * Makes sure the trace data is synced to the memory for consumption.
+ * @etr_buf->offset will hold the offset to the beginning of the trace data
+ * within the buffer, with @etr_buf->len bytes to consume.
+ */
+static void tmc_sync_etr_buf(struct tmc_drvdata *drvdata)
+{
+	struct etr_buf *etr_buf = drvdata->etr_buf;
+	u64 rrp, rwp;
+	u32 status;
+
+	rrp = tmc_read_rrp(drvdata);
+	rwp = tmc_read_rwp(drvdata);
+	status = readl_relaxed(drvdata->base + TMC_STS);
+	etr_buf->full = status & TMC_STS_FULL;
+
+	WARN_ON(!etr_buf->ops || !etr_buf->ops->sync);
+
+	etr_buf->ops->sync(etr_buf, rrp, rwp);
+
+	/* Insert barrier packets at the beginning, if there was an overflow */
+	if (etr_buf->full)
+		tmc_etr_buf_insert_barrier_packet(etr_buf, etr_buf->offset);
+}
+
 static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
 	u32 axictl, sts;
+	struct etr_buf *etr_buf = drvdata->etr_buf;
 
 	CS_UNLOCK(drvdata->base);
 
 	/* Wait for TMCSReady bit to be set */
 	tmc_wait_for_tmcready(drvdata);
 
-	writel_relaxed(drvdata->size / 4, drvdata->base + TMC_RSZ);
+	writel_relaxed(etr_buf->size / 4, drvdata->base + TMC_RSZ);
 	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
 
 	axictl = readl_relaxed(drvdata->base + TMC_AXICTL);
@@ -563,15 +762,15 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	}
 
 	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
-	tmc_write_dba(drvdata, drvdata->paddr);
+	tmc_write_dba(drvdata, etr_buf->hwaddr);
 	/*
 	 * If the TMC pointers must be programmed before the session,
 	 * we have to set it properly (i.e, RRP/RWP to base address and
 	 * STS to "not full").
 	 */
 	if (tmc_etr_has_cap(drvdata, TMC_ETR_SAVE_RESTORE)) {
-		tmc_write_rrp(drvdata, drvdata->paddr);
-		tmc_write_rwp(drvdata, drvdata->paddr);
+		tmc_write_rrp(drvdata, etr_buf->hwaddr);
+		tmc_write_rwp(drvdata, etr_buf->hwaddr);
 		sts = readl_relaxed(drvdata->base + TMC_STS) & ~TMC_STS_FULL;
 		writel_relaxed(sts, drvdata->base + TMC_STS);
 	}
@@ -587,59 +786,48 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 }
 
 /*
- * Return the available trace data in the buffer @pos, with a maximum
- * limit of @len, also updating the @bufpp on where to find it.
+ * Return the available trace data in the buffer (starts at etr_buf->offset,
+ * limited by etr_buf->len) from @pos, with a maximum limit of @len,
+ * also updating the @bufpp on where to find it. Since the trace data
+ * starts at anywhere in the buffer, depending on the RRP, we adjust the
+ * @len returned to handle buffer wrapping around.
  */
 ssize_t tmc_etr_get_sysfs_trace(struct tmc_drvdata *drvdata,
 				loff_t pos, size_t len, char **bufpp)
 {
+	s64 offset;
 	ssize_t actual = len;
-	char *bufp = drvdata->buf + pos;
-	char *bufend = (char *)(drvdata->vaddr + drvdata->size);
+	struct etr_buf *etr_buf = drvdata->etr_buf;
 
-	/* Adjust the len to available size @pos */
-	if (pos + actual > drvdata->len)
-		actual = drvdata->len - pos;
-
+	if (pos + actual > etr_buf->len)
+		actual = etr_buf->len - pos;
 	if (actual <= 0)
 		return actual;
 
-	/*
-	 * Since we use a circular buffer, with trace data starting
-	 * @drvdata->buf, possibly anywhere in the buffer @drvdata->vaddr,
-	 * wrap the current @pos to within the buffer.
-	 */
-	if (bufp >= bufend)
-		bufp -= drvdata->size;
-	/*
-	 * For simplicity, avoid copying over a wrapped around buffer.
-	 */
-	if ((bufp + actual) > bufend)
-		actual = bufend - bufp;
-	*bufpp = bufp;
-	return actual;
+	/* Compute the offset from which we read the data */
+	offset = etr_buf->offset + pos;
+	if (offset >= etr_buf->size)
+		offset -= etr_buf->size;
+	return tmc_etr_buf_get_data(etr_buf, offset, actual, bufpp);
 }
 
-static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
+static struct etr_buf *
+tmc_etr_setup_sysfs_buf(struct tmc_drvdata *drvdata)
 {
-	u32 val;
-	u64 rwp;
+	return tmc_alloc_etr_buf(drvdata, drvdata->size,
+				 0, cpu_to_node(0), NULL);
+}
 
-	rwp = tmc_read_rwp(drvdata);
-	val = readl_relaxed(drvdata->base + TMC_STS);
+static void
+tmc_etr_free_sysfs_buf(struct etr_buf *buf)
+{
+	if (buf)
+		tmc_free_etr_buf(buf);
+}
 
-	/*
-	 * Adjust the buffer to point to the beginning of the trace data
-	 * and update the available trace data.
-	 */
-	if (val & TMC_STS_FULL) {
-		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
-		drvdata->len = drvdata->size;
-		coresight_insert_barrier_packet(drvdata->buf);
-	} else {
-		drvdata->buf = drvdata->vaddr;
-		drvdata->len = rwp - drvdata->paddr;
-	}
+static void tmc_etr_sync_sysfs_buf(struct tmc_drvdata *drvdata)
+{
+	tmc_sync_etr_buf(drvdata);
 }
 
 static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
@@ -652,7 +840,8 @@ static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 	 * read before the TMC is disabled.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS)
-		tmc_etr_dump_hw(drvdata);
+		tmc_etr_sync_sysfs_buf(drvdata);
+
 	tmc_disable_hw(drvdata);
 
 	CS_LOCK(drvdata->base);
@@ -661,35 +850,32 @@ static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 {
 	int ret = 0;
-	bool used = false;
 	unsigned long flags;
-	void __iomem *vaddr = NULL;
-	dma_addr_t paddr = 0;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	struct etr_buf *new_buf = NULL, *free_buf = NULL;
 
 	/*
-	 * If we don't have a buffer release the lock and allocate memory.
-	 * Otherwise keep the lock and move along.
+	 * If we are enabling the ETR from disabled state, we need to make
+	 * sure we have a buffer with the right size. The etr_buf is not reset
+	 * immediately after we stop the tracing in SYSFS mode as we wait for
+	 * the user to collect the data. We may be able to reuse the existing
+	 * buffer, provided the size matches. Any allocation has to be done
+	 * with the lock released.
 	 */
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (!drvdata->vaddr) {
+	if (!drvdata->etr_buf || (drvdata->etr_buf->size != drvdata->size)) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-		/*
-		 * Contiguous  memory can't be allocated while a spinlock is
-		 * held.  As such allocate memory here and free it if a buffer
-		 * has already been allocated (from a previous session).
-		 */
-		vaddr = dma_alloc_coherent(drvdata->dev, drvdata->size,
-					   &paddr, GFP_KERNEL);
-		if (!vaddr)
-			return -ENOMEM;
+		/* Allocate memory with the locks released */
+		free_buf = new_buf = tmc_etr_setup_sysfs_buf(drvdata);
+		if (IS_ERR(new_buf))
+			return PTR_ERR(new_buf);
 
 		/* Let's try again */
 		spin_lock_irqsave(&drvdata->spinlock, flags);
 	}
 
-	if (drvdata->reading) {
+	if (drvdata->reading || drvdata->mode == CS_MODE_PERF) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -697,21 +883,19 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 	/*
 	 * In sysFS mode we can have multiple writers per sink.  Since this
 	 * sink is already enabled no memory is needed and the HW need not be
-	 * touched.
+	 * touched, even if the buffer size has changed.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS)
 		goto out;
 
 	/*
-	 * If drvdata::vaddr == NULL, use the memory allocated above.
-	 * Otherwise a buffer still exists from a previous session, so
-	 * simply use that.
+	 * If we don't have a buffer or it doesn't match the requested size,
+	 * use the buffer allocated above. Otherwise reuse the existing buffer.
 	 */
-	if (drvdata->vaddr == NULL) {
-		used = true;
-		drvdata->vaddr = vaddr;
-		drvdata->paddr = paddr;
-		drvdata->buf = drvdata->vaddr;
+	if (!drvdata->etr_buf ||
+	    (new_buf && drvdata->etr_buf->size != new_buf->size)) {
+		free_buf = drvdata->etr_buf;
+		drvdata->etr_buf = new_buf;
 	}
 
 	drvdata->mode = CS_MODE_SYSFS;
@@ -720,8 +904,8 @@ out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free memory outside the spinlock if need be */
-	if (!used && vaddr)
-		dma_free_coherent(drvdata->dev, drvdata->size, vaddr, paddr);
+	if (free_buf)
+		tmc_etr_free_sysfs_buf(free_buf);
 
 	if (!ret)
 		dev_info(drvdata->dev, "TMC-ETR enabled\n");
@@ -800,8 +984,8 @@ int tmc_read_prepare_etr(struct tmc_drvdata *drvdata)
 		goto out;
 	}
 
-	/* If drvdata::buf is NULL the trace data has been read already */
-	if (drvdata->buf == NULL) {
+	/* If drvdata::etr_buf is NULL the trace data has been read already */
+	if (drvdata->etr_buf == NULL) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -820,8 +1004,7 @@ out:
 int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 {
 	unsigned long flags;
-	dma_addr_t paddr;
-	void __iomem *vaddr = NULL;
+	struct etr_buf *etr_buf = NULL;
 
 	/* config types are set a boot time and never change */
 	if (WARN_ON_ONCE(drvdata->config_type != TMC_CONFIG_TYPE_ETR))
@@ -842,17 +1025,16 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		 * The ETR is not tracing and the buffer was just read.
 		 * As such prepare to free the trace buffer.
 		 */
-		vaddr = drvdata->vaddr;
-		paddr = drvdata->paddr;
-		drvdata->buf = drvdata->vaddr = NULL;
+		etr_buf =  drvdata->etr_buf;
+		drvdata->etr_buf = NULL;
 	}
 
 	drvdata->reading = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free allocated memory out side of the spinlock */
-	if (vaddr)
-		dma_free_coherent(drvdata->dev, drvdata->size, vaddr, paddr);
+	if (etr_buf)
+		tmc_free_etr_buf(etr_buf);
 
 	return 0;
 }

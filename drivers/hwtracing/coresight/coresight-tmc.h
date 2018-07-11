@@ -123,6 +123,34 @@ enum tmc_mem_intf_width {
 #define CORESIGHT_SOC_600_ETR_CAPS	\
 	(TMC_ETR_SAVE_RESTORE | TMC_ETR_AXI_ARCACHE)
 
+enum etr_mode {
+	ETR_MODE_FLAT,		/* Uses contiguous flat buffer */
+};
+
+struct etr_buf_operations;
+
+/**
+ * struct etr_buf - Details of the buffer used by ETR
+ * @mode	: Mode of the ETR buffer, contiguous, Scatter Gather etc.
+ * @full	: Trace data overflow
+ * @size	: Size of the buffer.
+ * @hwaddr	: Address to be programmed in the TMC:DBA{LO,HI}
+ * @offset	: Offset of the trace data in the buffer for consumption.
+ * @len		: Available trace data @buf (may round up to the beginning).
+ * @ops		: ETR buffer operations for the mode.
+ * @private	: Backend specific information for the buf
+ */
+struct etr_buf {
+	enum etr_mode			mode;
+	bool				full;
+	ssize_t				size;
+	dma_addr_t			hwaddr;
+	unsigned long			offset;
+	s64				len;
+	const struct etr_buf_operations	*ops;
+	void				*private;
+};
+
 /**
  * struct tmc_drvdata - specifics associated to an TMC component
  * @base:	memory mapped base address for this component.
@@ -130,11 +158,10 @@ enum tmc_mem_intf_width {
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.tmc" entry.
  * @spinlock:	only one at a time pls.
- * @buf:	area of memory where trace data get sent.
- * @paddr:	DMA start location in RAM.
- * @vaddr:	virtual representation of @paddr.
- * @size:	trace buffer size.
- * @len:	size of the available trace.
+ * @buf:	Snapshot of the trace data for ETF/ETB.
+ * @etr_buf:	details of buffer used in TMC-ETR
+ * @len:	size of the available trace for ETF/ETB.
+ * @size:	trace buffer size for this TMC (common for all modes).
  * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
@@ -149,16 +176,26 @@ struct tmc_drvdata {
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
 	bool			reading;
-	char			*buf;
-	dma_addr_t		paddr;
-	void __iomem		*vaddr;
-	u32			size;
+	union {
+		char		*buf;		/* TMC ETB */
+		struct etr_buf	*etr_buf;	/* TMC ETR */
+	};
 	u32			len;
+	u32			size;
 	u32			mode;
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 	u32			etr_caps;
+};
+
+struct etr_buf_operations {
+	int (*alloc)(struct tmc_drvdata *drvdata, struct etr_buf *etr_buf,
+		     int node, void **pages);
+	void (*sync)(struct etr_buf *etr_buf, u64 rrp, u64 rwp);
+	ssize_t (*get_data)(struct etr_buf *etr_buf, u64 offset, size_t len,
+			    char **bufpp);
+	void (*free)(struct etr_buf *etr_buf);
 };
 
 /**
