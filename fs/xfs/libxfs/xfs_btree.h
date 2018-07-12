@@ -209,7 +209,6 @@ typedef struct xfs_btree_cur
 	union {
 		struct {			/* needed for BNO, CNT, INO */
 			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
-			struct xfs_defer_ops *dfops;	/* deferred updates */
 			xfs_agnumber_t	agno;	/* ag number */
 			union xfs_btree_cur_private	priv;
 		} a;

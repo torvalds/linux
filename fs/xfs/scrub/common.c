@@ -499,7 +499,7 @@ xfs_scrub_ag_btcur_init(
 	/* Set up a refcountbt cursor for cross-referencing. */
 	if (sa->agf_bp && xfs_sb_version_hasreflink(&mp->m_sb)) {
 		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, agno, NULL);
+				sa->agf_bp, agno);
 		if (!sa->refc_cur)
 			goto err;
 	}
