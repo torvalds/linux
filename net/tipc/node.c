@@ -363,6 +363,8 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *n, *temp_node;
+	struct tipc_link *l;
+	int bearer_id;
 	int i;
 
 	spin_lock_bh(&tn->node_list_lock);
@@ -370,6 +372,11 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 	if (n) {
 		/* Same node may come back with new capabilities */
 		n->capabilities = capabilities;
+		for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
+			l = n->links[bearer_id].link;
+			if (l)
+				tipc_link_update_caps(l, capabilities);
+		}
 		goto exit;
 	}
 	n = kzalloc(sizeof(*n), GFP_ATOMIC);
@@ -1533,7 +1540,7 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
  * tipc_node_check_state - check and if necessary update node state
  * @skb: TIPC packet
  * @bearer_id: identity of bearer delivering the packet
- * Returns true if state is ok, otherwise consumes buffer and returns false
+ * Returns true if state and msg are ok, otherwise false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 				  int bearer_id, struct sk_buff_head *xmitq)
@@ -1566,6 +1573,9 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 			break;
 		}
 	}
+
+	if (!tipc_link_validate_msg(l, hdr))
+		return false;
 
 	/* Check and update node accesibility if applicable */
 	if (state == SELF_UP_PEER_COMING) {
