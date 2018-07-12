@@ -3,6 +3,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_encoder.h>
 
 static const u32 vkms_formats[] = {
@@ -21,11 +22,33 @@ struct vkms_device {
 	struct vkms_output output;
 };
 
+struct vkms_gem_object {
+	struct drm_gem_object gem;
+	struct mutex pages_lock; /* Page lock used in page fault handler */
+	struct page **pages;
+};
+
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor);
 
 int vkms_output_init(struct vkms_device *vkmsdev);
 
 struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev);
+
+/* Gem stuff */
+struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
+				       struct drm_file *file,
+				       u32 *handle,
+				       u64 size);
+
+int vkms_gem_fault(struct vm_fault *vmf);
+
+int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
+		     struct drm_mode_create_dumb *args);
+
+int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
+		  u32 handle, u64 *offset);
+
+void vkms_gem_free_object(struct drm_gem_object *obj);
 
 #endif /* _VKMS_DRV_H_ */
