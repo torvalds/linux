@@ -971,16 +971,6 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		/* For new platforms let's respect VBT back again */
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
 
-	/* Override link_standby x link_off defaults */
-	if (i915_modparams.enable_psr == 2 && !dev_priv->psr.link_standby) {
-		DRM_DEBUG_KMS("PSR: Forcing link standby\n");
-		dev_priv->psr.link_standby = true;
-	}
-	if (i915_modparams.enable_psr == 3 && dev_priv->psr.link_standby) {
-		DRM_DEBUG_KMS("PSR: Forcing main link off\n");
-		dev_priv->psr.link_standby = false;
-	}
-
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
 }

@@ -92,7 +92,7 @@ i915_param_named_unsafe(enable_ppgtt, int, 0400,
 
 i915_param_named_unsafe(enable_psr, int, 0600,
 	"Enable PSR "
-	"(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
+	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
 i915_param_named_unsafe(alpha_support, bool, 0400,
