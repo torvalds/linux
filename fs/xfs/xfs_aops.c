@@ -373,7 +373,6 @@ xfs_map_blocks(
 	ssize_t			count = i_blocksize(inode);
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	int			error = 0;
-	int			bmapi_flags = XFS_BMAPI_ENTIRE;
 	int			nimaps = 1;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -393,8 +392,6 @@ xfs_map_blocks(
 		return 0;
 
 	ASSERT(type != XFS_IO_COW);
-	if (type == XFS_IO_UNWRITTEN)
-		bmapi_flags |= XFS_BMAPI_IGSTATE;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
@@ -406,7 +403,7 @@ xfs_map_blocks(
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
-				imap, &nimaps, bmapi_flags);
+				imap, &nimaps, XFS_BMAPI_ENTIRE);
 	/*
 	 * Truncate an overwrite extent if there's a pending CoW
 	 * reservation before the end of this extent.  This forces us
