@@ -70,7 +70,6 @@ xfs_refcountbt_alloc_block(
 	args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.fsbno = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno,
 			xfs_refc_block(args.mp));
-	args.firstblock = args.fsbno;
 	xfs_rmap_ag_owner(&args.oinfo, XFS_RMAP_OWN_REFC);
 	args.minlen = args.maxlen = args.prod = 1;
 	args.resv = XFS_AG_RESV_METADATA;

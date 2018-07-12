@@ -208,7 +208,6 @@ xfs_bmbt_alloc_block(
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
 	args.fsbno = cur->bc_tp->t_firstblock;
-	args.firstblock = args.fsbno;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, cur->bc_private.b.ip->i_ino,
 			cur->bc_private.b.whichfork);
 

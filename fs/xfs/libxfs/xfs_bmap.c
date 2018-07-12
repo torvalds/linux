@@ -697,7 +697,6 @@ xfs_bmap_extents_to_btree(
 	args.tp = tp;
 	args.mp = mp;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, ip->i_ino, whichfork);
-	args.firstblock = tp->t_firstblock;
 	if (tp->t_firstblock == NULLFSBLOCK) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
@@ -845,7 +844,6 @@ xfs_bmap_local_to_extents(
 	args.tp = tp;
 	args.mp = ip->i_mount;
 	xfs_rmap_ino_owner(&args.oinfo, ip->i_ino, whichfork, 0);
-	args.firstblock = tp->t_firstblock;
 	/*
 	 * Allocate a block.  We know we need only one, since the
 	 * file currently fits in an inode.
@@ -3445,7 +3443,6 @@ xfs_bmap_btalloc(
 
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = min(ap->length, mp->m_ag_max_usable);
-	args.firstblock = ap->tp->t_firstblock;
 	blen = 0;
 	if (nullfb) {
 		/*

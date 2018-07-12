@@ -1590,7 +1590,7 @@ DECLARE_EVENT_CLASS(xfs_alloc_class,
 		__entry->wasfromfl = args->wasfromfl;
 		__entry->resv = args->resv;
 		__entry->datatype = args->datatype;
-		__entry->firstblock = args->firstblock;
+		__entry->firstblock = args->tp->t_firstblock;
 	),
 	TP_printk("dev %d:%d agno %u agbno %u minlen %u maxlen %u mod %u "
 		  "prod %u minleft %u total %u alignment %u minalignslop %u "
