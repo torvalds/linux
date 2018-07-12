@@ -1001,6 +1001,10 @@ static int rockchip_init_temp_opp_table(struct thermal_opp_info *info)
 		if ((opp->u_volt + delta_volt) <= info->max_volt) {
 			info->opp_table[i].low_temp_volt =
 				opp->u_volt + delta_volt;
+			if (info->opp_table[i].low_temp_volt <
+			    info->low_temp_min_volt)
+				info->opp_table[i].low_temp_volt =
+					info->low_temp_min_volt;
 			if (!reach_max_volt)
 				info->low_limit = opp->rate;
 			if (info->opp_table[i].low_temp_volt == info->max_volt)
@@ -1061,6 +1065,8 @@ rockchip_register_thermal_notifier(struct device *dev,
 		info->low_temp = INT_MIN;
 	rockchip_get_sel_table(np, "rockchip,low-temp-adjust-volt",
 			       &info->low_temp_table);
+	of_property_read_u32(np, "rockchip,low-temp-min-volt",
+			     &info->low_temp_min_volt);
 	if (of_property_read_u32(np, "rockchip,high-temp", &info->high_temp))
 		info->high_temp = INT_MAX;
 	if (of_property_read_u32(np, "rockchip,high-temp-max-volt",
@@ -1078,7 +1084,8 @@ rockchip_register_thermal_notifier(struct device *dev,
 		goto info_free;
 	}
 
-	if (!info->low_temp_table && !info->low_limit && !info->high_limit)
+	if (!info->low_temp_table && !info->low_temp_min_volt &&
+	    !info->low_limit && !info->high_limit)
 		goto info_free;
 
 	srcu_notifier_chain_register(&tz->thermal_notifier_list,

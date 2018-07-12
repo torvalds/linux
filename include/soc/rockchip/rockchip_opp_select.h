@@ -40,6 +40,7 @@ struct thermal_opp_info {
 	int high_temp;
 	int temp_hysteresis;
 	int max_volt;
+	int low_temp_min_volt;
 	int high_temp_max_volt;
 	bool is_low_temp;
 	bool is_high_temp;
