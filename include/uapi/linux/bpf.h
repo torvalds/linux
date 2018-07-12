@@ -2555,6 +2555,9 @@ enum {
 					 * Arg1: old_state
 					 * Arg2: new_state
 					 */
+	BPF_SOCK_OPS_TCP_LISTEN_CB,	/* Called on listen(2), right after
+					 * socket transition to LISTEN state.
+					 */
 };
 
 /* List of TCP states. There is a build check in net/ipv4/tcp.c to detect
