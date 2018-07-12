@@ -888,7 +888,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *device_name, *opts, *orig, *p;
-	struct btrfs_fs_devices *fs_devices = NULL;
+	struct btrfs_device *device = NULL;
 	int error = 0;
 
 	lockdep_assert_held(&uuid_mutex);
@@ -918,11 +918,13 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 				error = -ENOMEM;
 				goto out;
 			}
-			error = btrfs_scan_one_device(device_name,
-					flags, holder, &fs_devices);
+			device = btrfs_scan_one_device(device_name, flags,
+					holder);
 			kfree(device_name);
-			if (error)
+			if (IS_ERR(device)) {
+				error = PTR_ERR(device);
 				goto out;
+			}
 		}
 	}
 
@@ -1518,6 +1520,7 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
+	struct btrfs_device *device = NULL;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	struct btrfs_fs_info *fs_info = NULL;
 	struct security_mnt_opts new_sec_opts;
@@ -1561,12 +1564,14 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		goto error_fs_info;
 	}
 
-	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
-	if (error) {
+	device = btrfs_scan_one_device(device_name, mode, fs_type);
+	if (IS_ERR(device)) {
 		mutex_unlock(&uuid_mutex);
+		error = PTR_ERR(device);
 		goto error_fs_info;
 	}
 
+	fs_devices = device->fs_devices;
 	fs_info->fs_devices = fs_devices;
 
 	error = btrfs_open_devices(fs_devices, mode, fs_type);
@@ -2227,7 +2232,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	struct btrfs_ioctl_vol_args *vol;
-	struct btrfs_fs_devices *fs_devices;
+	struct btrfs_device *device = NULL;
 	int ret = -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -2240,19 +2245,22 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
 		mutex_lock(&uuid_mutex);
-		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
-					    &btrfs_root_fs_type, &fs_devices);
+		device = btrfs_scan_one_device(vol->name, FMODE_READ,
+					       &btrfs_root_fs_type);
+		ret = PTR_ERR_OR_ZERO(device);
 		mutex_unlock(&uuid_mutex);
 		break;
 	case BTRFS_IOC_DEVICES_READY:
 		mutex_lock(&uuid_mutex);
-		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
-					    &btrfs_root_fs_type, &fs_devices);
-		if (ret) {
+		device = btrfs_scan_one_device(vol->name, FMODE_READ,
+					       &btrfs_root_fs_type);
+		if (IS_ERR(device)) {
 			mutex_unlock(&uuid_mutex);
+			ret = PTR_ERR(device);
 			break;
 		}
-		ret = !(fs_devices->num_devices == fs_devices->total_devices);
+		ret = !(device->fs_devices->num_devices ==
+			device->fs_devices->total_devices);
 		mutex_unlock(&uuid_mutex);
 		break;
 	case BTRFS_IOC_GET_SUPPORTED_FEATURES:

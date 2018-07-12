@@ -1213,15 +1213,14 @@ static int btrfs_read_disk_super(struct block_device *bdev, u64 bytenr,
  * and we are not allowed to call set_blocksize during the scan. The superblock
  * is read via pagecache
  */
-int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
-			  struct btrfs_fs_devices **fs_devices_ret)
+struct btrfs_device *btrfs_scan_one_device(const char *path, fmode_t flags,
+					   void *holder)
 {
 	struct btrfs_super_block *disk_super;
 	bool new_device_added = false;
-	struct btrfs_device *device;
+	struct btrfs_device *device = NULL;
 	struct block_device *bdev;
 	struct page *page;
-	int ret = 0;
 	u64 bytenr;
 
 	lockdep_assert_held(&uuid_mutex);
@@ -1237,18 +1236,15 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	bdev = blkdev_get_by_path(path, flags, holder);
 	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+		return ERR_CAST(bdev);
 
 	if (btrfs_read_disk_super(bdev, bytenr, &page, &disk_super)) {
-		ret = -EINVAL;
+		device = ERR_PTR(-EINVAL);
 		goto error_bdev_put;
 	}
 
 	device = device_list_add(path, disk_super, &new_device_added);
-	if (IS_ERR(device)) {
-		ret = PTR_ERR(device);
-	} else {
-		*fs_devices_ret = device->fs_devices;
+	if (!IS_ERR(device)) {
 		if (new_device_added)
 			btrfs_free_stale_devices(path, device);
 	}
@@ -1258,7 +1254,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 error_bdev_put:
 	blkdev_put(bdev, flags);
 
-	return ret;
+	return device;
 }
 
 static int contains_pending_extent(struct btrfs_transaction *transaction,
