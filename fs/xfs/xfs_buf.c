@@ -757,11 +757,7 @@ _xfs_buf_read(
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
-	if (flags & XBF_ASYNC) {
-		xfs_buf_submit(bp);
-		return 0;
-	}
-	return xfs_buf_submit_wait(bp);
+	return xfs_buf_submit(bp);
 }
 
 xfs_buf_t *
@@ -846,7 +842,7 @@ xfs_buf_read_uncached(
 	bp->b_flags |= XBF_READ;
 	bp->b_ops = ops;
 
-	xfs_buf_submit_wait(bp);
+	xfs_buf_submit(bp);
 	if (bp->b_error) {
 		int	error = bp->b_error;
 		xfs_buf_relse(bp);
@@ -1249,7 +1245,7 @@ xfs_bwrite(
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
 			 XBF_WRITE_FAIL | XBF_DONE);
 
-	error = xfs_buf_submit_wait(bp);
+	error = xfs_buf_submit(bp);
 	if (error) {
 		xfs_force_shutdown(bp->b_target->bt_mount,
 				   SHUTDOWN_META_IO_ERROR);
@@ -1459,7 +1455,7 @@ _xfs_buf_ioapply(
  * itself.
  */
 static int
-__xfs_buf_submit(
+__xfs_buf_submit_common(
 	struct xfs_buf	*bp)
 {
 	trace_xfs_buf_submit(bp, _RET_IP_);
@@ -1505,32 +1501,6 @@ __xfs_buf_submit(
 	return 0;
 }
 
-void
-xfs_buf_submit(
-	struct xfs_buf	*bp)
-{
-	int		error;
-
-	ASSERT(bp->b_flags & XBF_ASYNC);
-
-	/*
-	 * The caller's reference is released during I/O completion.
-	 * This occurs some time after the last b_io_remaining reference is
-	 * released, so after we drop our Io reference we have to have some
-	 * other reference to ensure the buffer doesn't go away from underneath
-	 * us. Take a direct reference to ensure we have safe access to the
-	 * buffer until we are finished with it.
-	 */
-	xfs_buf_hold(bp);
-
-	error = __xfs_buf_submit(bp);
-	if (error)
-		xfs_buf_ioend(bp);
-
-	/* Note: it is not safe to reference bp now we've dropped our ref */
-	xfs_buf_rele(bp);
-}
-
 /*
  * Wait for I/O completion of a sync buffer and return the I/O error code.
  */
@@ -1538,6 +1508,8 @@ static int
 xfs_buf_iowait(
 	struct xfs_buf	*bp)
 {
+	ASSERT(!(bp->b_flags & XBF_ASYNC));
+
 	trace_xfs_buf_iowait(bp, _RET_IP_);
 	wait_for_completion(&bp->b_iowait);
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
@@ -1549,30 +1521,33 @@ xfs_buf_iowait(
  * Synchronous buffer IO submission path, read or write.
  */
 int
-xfs_buf_submit_wait(
-	struct xfs_buf	*bp)
+__xfs_buf_submit(
+	struct xfs_buf	*bp,
+	bool		wait)
 {
 	int		error;
 
-	ASSERT(!(bp->b_flags & XBF_ASYNC));
-
 	/*
-	 * For synchronous IO, the IO does not inherit the submitters reference
-	 * count, nor the buffer lock. Hence we cannot release the reference we
-	 * are about to take until we've waited for all IO completion to occur,
-	 * including any xfs_buf_ioend_async() work that may be pending.
+	 * Grab a reference so the buffer does not go away underneath us. For
+	 * async buffers, I/O completion drops the callers reference, which
+	 * could occur before submission returns.
 	 */
 	xfs_buf_hold(bp);
 
-	error = __xfs_buf_submit(bp);
-	if (error)
+	error = __xfs_buf_submit_common(bp);
+	if (error) {
+		if (bp->b_flags & XBF_ASYNC)
+			xfs_buf_ioend(bp);
 		goto out;
-	error = xfs_buf_iowait(bp);
+	}
 
+	if (wait)
+		error = xfs_buf_iowait(bp);
 out:
 	/*
-	 * all done now, we can release the hold that keeps the buffer
-	 * referenced for the entire IO.
+	 * Release the hold that keeps the buffer referenced for the entire
+	 * I/O. Note that if the buffer is async, it is not safe to reference
+	 * after this release.
 	 */
 	xfs_buf_rele(bp);
 	return error;
@@ -2026,12 +2001,11 @@ xfs_buf_delwri_submit_buffers(
 		if (wait_list) {
 			bp->b_flags &= ~XBF_ASYNC;
 			list_move_tail(&bp->b_list, wait_list);
-			__xfs_buf_submit(bp);
 		} else {
 			bp->b_flags |= XBF_ASYNC;
 			list_del_init(&bp->b_list);
-			xfs_buf_submit(bp);
 		}
+		__xfs_buf_submit(bp, false);
 	}
 	blk_finish_plug(&plug);
 
