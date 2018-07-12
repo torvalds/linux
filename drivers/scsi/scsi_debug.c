@@ -5790,11 +5790,13 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 fini:
 	if (F_DELAY_OVERR & flags)
 		return schedule_resp(scp, devip, errsts, pfp, 0, 0);
-	else if ((sdebug_jdelay || sdebug_ndelay) && (flags & F_LONG_DELAY)) {
+	else if ((flags & F_LONG_DELAY) && (sdebug_jdelay > 0 ||
+					    sdebug_ndelay > 10000)) {
 		/*
-		 * If any delay is active, for F_SSU_DELAY want at least 1
-		 * second and if sdebug_jdelay>0 want a long delay of that
-		 * many seconds; for F_SYNC_DELAY want 1/20 of that.
+		 * Skip long delays if ndelay <= 10 microseconds. Otherwise
+		 * for Start Stop Unit (SSU) want at least 1 second delay and
+		 * if sdebug_jdelay>1 want a long delay of that many seconds.
+		 * For Synchronize Cache want 1/20 of SSU's delay.
 		 */
 		int jdelay = (sdebug_jdelay < 2) ? 1 : sdebug_jdelay;
 		int denom = (flags & F_SYNC_DELAY) ? 20 : 1;
