@@ -118,7 +118,7 @@ xfs_trans_dup(
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
 	tp->t_rtx_res = tp->t_rtx_res_used;
 	ntp->t_pflags = tp->t_pflags;
-	ntp->t_agfl_dfops = tp->t_agfl_dfops;
+	ntp->t_dfops = tp->t_dfops;
 
 	xfs_trans_dup_dqinfo(tp, ntp);
 
@@ -914,8 +914,8 @@ __xfs_trans_commit(
 	int			error = 0;
 	int			sync = tp->t_flags & XFS_TRANS_SYNC;
 
-	ASSERT(!tp->t_agfl_dfops ||
-	       !xfs_defer_has_unfinished_work(tp->t_agfl_dfops) || regrant);
+	ASSERT(!tp->t_dfops ||
+	       !xfs_defer_has_unfinished_work(tp->t_dfops) || regrant);
 
 	trace_xfs_trans_commit(tp, _RET_IP_);
 

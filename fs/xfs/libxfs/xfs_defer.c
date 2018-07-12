@@ -350,9 +350,9 @@ xfs_defer_finish(
 	 * Note that this code can go away once all dfops users attach to the
 	 * associated tp.
 	 */
-	ASSERT(!(*tp)->t_agfl_dfops || ((*tp)->t_agfl_dfops == dop));
-	orig_dop = (*tp)->t_agfl_dfops;
-	(*tp)->t_agfl_dfops = dop;
+	ASSERT(!(*tp)->t_dfops || ((*tp)->t_dfops == dop));
+	orig_dop = (*tp)->t_dfops;
+	(*tp)->t_dfops = dop;
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
@@ -425,7 +425,7 @@ xfs_defer_finish(
 	}
 
 out:
-	(*tp)->t_agfl_dfops = orig_dop;
+	(*tp)->t_dfops = orig_dop;
 	if (error)
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
 	else
