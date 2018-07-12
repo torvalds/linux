@@ -599,9 +599,20 @@ static inline void emit_a32_mov_i(const s8 dst, const u32 val,
 	}
 }
 
+static void emit_a32_mov_i64(const s8 dst[], u64 val, struct jit_ctx *ctx)
+{
+	const s8 *tmp = bpf2a32[TMP_REG_1];
+	const s8 *rd = is_stacked(dst_lo) ? tmp : dst;
+
+	emit_mov_i(rd[1], (u32)val, ctx);
+	emit_mov_i(rd[0], val >> 32, ctx);
+
+	arm_bpf_put_reg64(dst, rd, ctx);
+}
+
 /* Sign extended move */
-static inline void emit_a32_mov_i64(const bool is64, const s8 dst[],
-				  const u32 val, struct jit_ctx *ctx) {
+static inline void emit_a32_mov_se_i64(const bool is64, const s8 dst[],
+				       const u32 val, struct jit_ctx *ctx) {
 	u32 hi = 0;
 
 	if (is64 && (val & (1<<31)))
@@ -1309,7 +1320,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			break;
 		case BPF_K:
 			/* Sign-extend immediate value to destination reg */
-			emit_a32_mov_i64(is64, dst, imm, ctx);
+			emit_a32_mov_se_i64(is64, dst, imm, ctx);
 			break;
 		}
 		break;
@@ -1358,7 +1369,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			 * value into temporary reg and then it would be
 			 * safe to do the operation on it.
 			 */
-			emit_a32_mov_i64(is64, tmp2, imm, ctx);
+			emit_a32_mov_se_i64(is64, tmp2, imm, ctx);
 			emit_a32_alu_r64(is64, dst, tmp2, ctx, BPF_OP(code));
 			break;
 		}
@@ -1454,7 +1465,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			 * reg then it would be safe to do the operation
 			 * on it.
 			 */
-			emit_a32_mov_i64(is64, tmp2, imm, ctx);
+			emit_a32_mov_se_i64(is64, tmp2, imm, ctx);
 			emit_a32_mul_r64(dst, tmp2, ctx);
 			break;
 		}
@@ -1506,12 +1517,9 @@ exit:
 	/* dst = imm64 */
 	case BPF_LD | BPF_IMM | BPF_DW:
 	{
-		const struct bpf_insn insn1 = insn[1];
-		u32 hi, lo = imm;
+		u64 val = (u32)imm | (u64)insn[1].imm << 32;
 
-		hi = insn1.imm;
-		emit_a32_mov_i(dst_lo, lo, ctx);
-		emit_a32_mov_i(dst_hi, hi, ctx);
+		emit_a32_mov_i64(dst, val, ctx);
 
 		return 1;
 	}
@@ -1531,7 +1539,7 @@ exit:
 		switch (BPF_SIZE(code)) {
 		case BPF_DW:
 			/* Sign-extend immediate value into temp reg */
-			emit_a32_mov_i64(true, tmp2, imm, ctx);
+			emit_a32_mov_se_i64(true, tmp2, imm, ctx);
 			emit_str_r(dst_lo, tmp2[1], off, ctx, BPF_W);
 			emit_str_r(dst_lo, tmp2[0], off+4, ctx, BPF_W);
 			break;
@@ -1620,7 +1628,7 @@ exit:
 		rm = tmp2[0];
 		rn = tmp2[1];
 		/* Sign-extend immediate value */
-		emit_a32_mov_i64(true, tmp2, imm, ctx);
+		emit_a32_mov_se_i64(true, tmp2, imm, ctx);
 go_jmp:
 		/* Setup destination register */
 		rd = arm_bpf_get_reg64(dst, tmp, ctx);
