@@ -214,7 +214,6 @@ typedef struct xfs_btree_cur
 		} a;
 		struct {			/* needed for BMAP */
 			struct xfs_inode *ip;	/* pointer to our inode */
-			xfs_fsblock_t	firstblock;	/* 1st blk allocated */
 			int		allocated;	/* count of alloced */
 			short		forksize;	/* fork's inode space */
 			char		whichfork;	/* data or attr fork */

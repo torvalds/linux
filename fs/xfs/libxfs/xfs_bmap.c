@@ -688,7 +688,6 @@ xfs_bmap_extents_to_btree(
 	 * Need a cursor.  Can't allocate until bb_level is filled in.
 	 */
 	cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-	cur->bc_private.b.firstblock = tp->t_firstblock;
 	cur->bc_private.b.flags = wasdel ? XFS_BTCUR_BPRV_WASDEL : 0;
 	/*
 	 * Convert to a btree with two levels, one record in root.
@@ -732,7 +731,7 @@ xfs_bmap_extents_to_btree(
 	 */
 	ASSERT(tp->t_firstblock == NULLFSBLOCK ||
 	       args.agno >= XFS_FSB_TO_AGNO(mp, tp->t_firstblock));
-	tp->t_firstblock = cur->bc_private.b.firstblock = args.fsbno;
+	tp->t_firstblock = args.fsbno;
 	cur->bc_private.b.allocated++;
 	ip->i_d.di_nblocks++;
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
@@ -925,7 +924,6 @@ xfs_bmap_add_attrfork_btree(
 		*flags |= XFS_ILOG_DBROOT;
 	else {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, XFS_DATA_FORK);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		error = xfs_bmbt_lookup_first(cur, &stat);
 		if (error)
 			goto error0;
@@ -937,7 +935,6 @@ xfs_bmap_add_attrfork_btree(
 			xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 			return -ENOSPC;
 		}
-		tp->t_firstblock = cur->bc_private.b.firstblock;
 		cur->bc_private.b.allocated = 0;
 		xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	}
@@ -4058,14 +4055,10 @@ xfs_bmapi_allocate(
 	if (error)
 		return error;
 
-	if (bma->cur)
-		bma->cur->bc_private.b.firstblock = bma->tp->t_firstblock;
 	if (bma->blkno == NULLFSBLOCK)
 		return 0;
-	if ((ifp->if_flags & XFS_IFBROOT) && !bma->cur) {
+	if ((ifp->if_flags & XFS_IFBROOT) && !bma->cur)
 		bma->cur = xfs_bmbt_init_cursor(mp, bma->tp, bma->ip, whichfork);
-		bma->cur->bc_private.b.firstblock = bma->tp->t_firstblock;
-	}
 	/*
 	 * Bump the number of extents we've allocated
 	 * in this call.
@@ -4151,7 +4144,6 @@ xfs_bmapi_convert_unwritten(
 	if ((ifp->if_flags & XFS_IFBROOT) && !bma->cur) {
 		bma->cur = xfs_bmbt_init_cursor(bma->ip->i_mount, bma->tp,
 					bma->ip, whichfork);
-		bma->cur->bc_private.b.firstblock = bma->tp->t_firstblock;
 	}
 	mval->br_state = (mval->br_state == XFS_EXT_UNWRITTEN)
 				? XFS_EXT_NORM : XFS_EXT_UNWRITTEN;
@@ -4458,13 +4450,6 @@ error0:
 		xfs_trans_log_inode(tp, ip, bma.logflags);
 
 	if (bma.cur) {
-		if (!error) {
-			ASSERT(tp->t_firstblock == NULLFSBLOCK ||
-			       XFS_FSB_TO_AGNO(mp, tp->t_firstblock) <=
-			       XFS_FSB_TO_AGNO(mp,
-				       bma.cur->bc_private.b.firstblock));
-			tp->t_firstblock = bma.cur->bc_private.b.firstblock;
-		}
 		xfs_btree_del_cursor(bma.cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 	}
@@ -4528,7 +4513,6 @@ xfs_bmapi_remap(
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -5189,7 +5173,6 @@ __xfs_bunmapi(
 	if (ifp->if_flags & XFS_IFBROOT) {
 		ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE);
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 	} else
 		cur = NULL;
@@ -5457,10 +5440,8 @@ error0:
 	if (logflags)
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (cur) {
-		if (!error) {
-			tp->t_firstblock = cur->bc_private.b.firstblock;
+		if (!error)
 			cur->bc_private.b.allocated = 0;
-		}
 		xfs_btree_del_cursor(cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 	}
@@ -5676,7 +5657,6 @@ xfs_bmap_collapse_extents(
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -5796,7 +5776,6 @@ xfs_bmap_insert_extents(
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 	}
 
@@ -5918,7 +5897,6 @@ xfs_bmap_split_extent_at(
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 		error = xfs_bmbt_lookup_eq(cur, &got, &i);
 		if (error)
