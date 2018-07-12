@@ -178,7 +178,8 @@ static uint gasket_ioctl_check_permissions(struct file *filp, uint cmd)
 	alive = (gasket_dev->status == GASKET_STATUS_ALIVE);
 	if (!alive) {
 		gasket_nodev_error(
-			"gasket_ioctl_check_permissions alive %d status %d.",
+			"%s alive %d status %d.",
+			__func__,
 			alive, gasket_dev->status);
 	}
 

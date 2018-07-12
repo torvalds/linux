@@ -932,7 +932,7 @@ static int gasket_enable_dev(
 		} else {
 			gasket_log_error(
 				gasket_dev,
-				"gasket_enable_dev with no physical device!!");
+				"%s with no physical device!!", __func__);
 			WARN_ON(1);
 			ddev = NULL;
 		}
@@ -2100,8 +2100,9 @@ int gasket_wait_sync(
 		if (diff_nanosec > timeout_ns) {
 			gasket_log_error(
 				gasket_dev,
-				"gasket_wait_sync timeout: reg %llx count %x "
+				"%s timeout: reg %llx count %x "
 				"dma %lld ns\n",
+				__func__,
 				offset, count, diff_nanosec);
 			return -1;
 		}
@@ -2141,7 +2142,8 @@ int gasket_wait_with_reschedule(
 	if (retries == max_retries) {
 		gasket_log_error(
 			gasket_dev,
-			"gasket_wait_with_reschedule timeout: reg %llx timeout (%llu ms)",
+			"%s timeout: reg %llx timeout (%llu ms)",
+			__func__,
 			offset, max_retries * delay_ms);
 		return -EINVAL;
 	}

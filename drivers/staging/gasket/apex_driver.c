@@ -420,8 +420,9 @@ static int apex_device_cleanup(struct gasket_dev *gasket_dev)
 
 	gasket_log_info(
 		gasket_dev,
-		"apex_device_cleanup 0x%p hib_error 0x%llx scalar_error "
+		"%s 0x%p hib_error 0x%llx scalar_error "
 		"0x%llx.",
+		__func__,
 		gasket_dev, hib_error, scalar_error);
 
 	if (allow_power_save)
@@ -449,7 +450,7 @@ static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 		/* We are not in reset - toggle the reset bit so as to force
 		 * re-init of custom block
 		 */
-		gasket_log_debug(gasket_dev, "apex_reset: toggle reset.");
+		gasket_log_debug(gasket_dev, "%s: toggle reset.", __func__);
 
 		ret = apex_enter_reset(gasket_dev, type);
 		if (ret)
@@ -673,7 +674,7 @@ static long apex_clock_gating(struct gasket_dev *gasket_dev, ulong arg)
 			return -EFAULT;
 
 		gasket_log_error(
-			gasket_dev, "apex_clock_gating %llu", ibuf.enable);
+			gasket_dev, "%s %llu", __func__, ibuf.enable);
 
 		if (ibuf.enable) {
 			/* Quiesce AXI, gate GCB clock. */

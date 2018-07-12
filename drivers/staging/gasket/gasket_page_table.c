@@ -445,8 +445,9 @@ int gasket_page_table_map(
 	mutex_unlock(&pg_tbl->mutex);
 
 	gasket_nodev_debug(
-		"gasket_page_table_map done: ha %llx daddr %llx num %d, "
+		"%s done: ha %llx daddr %llx num %d, "
 		"ret %d\n",
+		__func__,
 		(unsigned long long)host_addr,
 		(unsigned long long)dev_addr, num_pages, ret);
 	return ret;
@@ -869,7 +870,7 @@ static int gasket_perform_mapping(
 	for (i = 0; i < num_pages; i++) {
 		page_addr = host_addr + i * PAGE_SIZE;
 		offset = page_addr & (PAGE_SIZE - 1);
-		gasket_nodev_debug("gasket_perform_mapping i %d\n", i);
+		gasket_nodev_debug("%s i %d\n", __func__, i);
 		if (is_coherent(pg_tbl, host_addr)) {
 			u64 off =
 				(u64)host_addr -
@@ -907,17 +908,19 @@ static int gasket_perform_mapping(
 			}
 
 			gasket_nodev_debug(
-				"    gasket_perform_mapping dev %p "
+				"%s dev %p "
 				"i %d pte %p pfn %p -> mapped %llx\n",
+				__func__,
 				pg_tbl->device, i, &ptes[i],
 				(void *)page_to_pfn(page),
 				(unsigned long long)ptes[i].dma_addr);
 
 			if (ptes[i].dma_addr == -1) {
 				gasket_nodev_error(
-					"gasket_perform_mapping i %d"
+					"%s i %d"
 					" -> fail to map page %llx "
 					"[pfn %p ohys %p]\n",
+					__func__,
 					i,
 					(unsigned long long)ptes[i].dma_addr,
 					(void *)page_to_pfn(page),
@@ -1623,7 +1626,7 @@ int gasket_set_user_virt(
 	pg_tbl = gasket_dev->page_table[0];
 	if (!pg_tbl) {
 		gasket_nodev_error(
-			"gasket_set_user_virt: invalid page table index");
+			"%s: invalid page table index", __func__);
 		return 0;
 	}
 	for (j = 0; j < num_pages; j++) {
