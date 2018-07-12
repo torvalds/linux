@@ -180,9 +180,10 @@ enum cache_policy {
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
-				const uint32_t *ih_ring_entry);
+			const uint32_t *ih_ring_entry, uint32_t *patched_ihre,
+			bool *patched_flag);
 	void (*interrupt_wq)(struct kfd_dev *dev,
-				const uint32_t *ih_ring_entry);
+			const uint32_t *ih_ring_entry);
 };
 
 struct kfd_device_info {
@@ -806,7 +807,9 @@ int kfd_interrupt_init(struct kfd_dev *dev);
 void kfd_interrupt_exit(struct kfd_dev *dev);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
-bool interrupt_is_wanted(struct kfd_dev *dev, const uint32_t *ih_ring_entry);
+bool interrupt_is_wanted(struct kfd_dev *dev,
+				const uint32_t *ih_ring_entry,
+				uint32_t *patched_ihre, bool *flag);
 
 /* Power Management */
 void kgd2kfd_suspend(struct kfd_dev *kfd);

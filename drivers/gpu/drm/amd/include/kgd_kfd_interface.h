@@ -276,6 +276,10 @@ struct tile_config {
  * faults. On GFXv9 VM fault information is fully contained in the IH
  * packet and this function is not needed.
  *
+ * @read_vmid_from_vmfault_reg: On Hawaii the VMID is not set in the
+ * IH ring entry. This function allows the KFD ISR to get the VMID
+ * from the fault status register as early as possible.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -394,6 +398,7 @@ struct kfd2kgd_calls {
 
 	int (*get_vm_fault_info)(struct kgd_dev *kgd,
 			struct kfd_vm_fault_info *info);
+	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
 };
 
 /**

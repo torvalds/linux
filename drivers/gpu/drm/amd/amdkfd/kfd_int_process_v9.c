@@ -26,7 +26,9 @@
 
 
 static bool event_interrupt_isr_v9(struct kfd_dev *dev,
-					const uint32_t *ih_ring_entry)
+					const uint32_t *ih_ring_entry,
+					uint32_t *patched_ihre,
+					bool *patched_flag)
 {
 	uint16_t source_id, client_id, pasid, vmid;
 	const uint32_t *data = ih_ring_entry;

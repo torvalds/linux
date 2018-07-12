@@ -145,6 +145,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint32_t page_table_base);
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
 static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid);
+static uint32_t read_vmid_from_vmfault_reg(struct kgd_dev *kgd);
 
 /* Because of REG_GET_FIELD() being used, we put this function in the
  * asic specific file.
@@ -216,7 +217,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.invalidate_tlbs = invalidate_tlbs,
 	.invalidate_tlbs_vmid = invalidate_tlbs_vmid,
 	.submit_ib = amdgpu_amdkfd_submit_ib,
-	.get_vm_fault_info = amdgpu_amdkfd_gpuvm_get_vm_fault_info
+	.get_vm_fault_info = amdgpu_amdkfd_gpuvm_get_vm_fault_info,
+	.read_vmid_from_vmfault_reg = read_vmid_from_vmfault_reg
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
@@ -911,4 +913,20 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 	RREG32(mmVM_INVALIDATE_RESPONSE);
 	return 0;
+}
+
+ /**
+  * read_vmid_from_vmfault_reg - read vmid from register
+  *
+  * adev: amdgpu_device pointer
+  * @vmid: vmid pointer
+  * read vmid from register (CIK).
+  */
+static uint32_t read_vmid_from_vmfault_reg(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+
+	uint32_t status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
+
+	return REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS, VMID);
 }
