@@ -717,10 +717,15 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
-int intel_psr_wait_for_idle(struct drm_i915_private *dev_priv)
+int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg;
 	u32 mask;
+
+	if (!new_crtc_state->has_psr)
+		return 0;
 
 	/*
 	 * The sole user right now is intel_pipe_update_start(),
