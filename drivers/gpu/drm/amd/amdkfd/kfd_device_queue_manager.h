@@ -26,6 +26,8 @@
 
 #include <linux/rwsem.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/sched/mm.h>
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 
@@ -173,8 +175,9 @@ struct device_queue_manager {
 	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
 	struct kfd_dev		*dev;
-	struct mutex		lock;
+	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
+	unsigned int		saved_flags;
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
@@ -217,6 +220,21 @@ static inline unsigned int
 get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 {
 	return (pdd->lds_base >> 60) & 0x0E;
+}
+
+/* The DQM lock can be taken in MMU notifiers. Make sure no reclaim-FS
+ * happens while holding this lock anywhere to prevent deadlocks when
+ * an MMU notifier runs in reclaim-FS context.
+ */
+static inline void dqm_lock(struct device_queue_manager *dqm)
+{
+	mutex_lock(&dqm->lock_hidden);
+	dqm->saved_flags = memalloc_nofs_save();
+}
+static inline void dqm_unlock(struct device_queue_manager *dqm)
+{
+	memalloc_nofs_restore(dqm->saved_flags);
+	mutex_unlock(&dqm->lock_hidden);
 }
 
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */
