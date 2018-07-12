@@ -370,9 +370,10 @@ xfs_map_blocks(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			count = i_blocksize(inode);
-	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset), end_fsb;
+	xfs_fileoff_t		offset_fsb, end_fsb;
 	struct xfs_bmbt_irec	imap;
 	int			whichfork = XFS_DATA_FORK;
+	struct xfs_iext_cursor	icur;
 	int			error = 0;
 	int			nimaps = 1;
 
@@ -384,8 +385,18 @@ xfs_map_blocks(
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 
+	if (offset > mp->m_super->s_maxbytes - count)
+		count = mp->m_super->s_maxbytes - offset;
+	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
+	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+
+	/*
+	 * Check if this is offset is covered by a COW extents, and if yes use
+	 * it directly instead of looking up anything in the data fork.
+	 */
 	if (xfs_is_reflink_inode(ip) &&
-	    xfs_reflink_find_cow_mapping(ip, offset, &imap)) {
+	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap) &&
+	    imap.br_startoff <= offset_fsb) {
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		/*
 		 * Truncate can race with writeback since writeback doesn't
@@ -420,10 +431,6 @@ xfs_map_blocks(
 	 * offset.  This will convert delayed allocations (including COW ones)
 	 * into real extents.
 	 */
-	if (offset > mp->m_super->s_maxbytes - count)
-		count = mp->m_super->s_maxbytes - offset;
-	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
-	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 				&imap, &nimaps, XFS_BMAPI_ENTIRE);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);

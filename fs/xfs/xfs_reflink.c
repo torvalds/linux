@@ -471,36 +471,6 @@ out:
 }
 
 /*
- * Find the CoW reservation for a given byte offset of a file.
- */
-bool
-xfs_reflink_find_cow_mapping(
-	struct xfs_inode		*ip,
-	xfs_off_t			offset,
-	struct xfs_bmbt_irec		*imap)
-{
-	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	xfs_fileoff_t			offset_fsb;
-	struct xfs_bmbt_irec		got;
-	struct xfs_iext_cursor		icur;
-
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
-
-	if (!xfs_is_reflink_inode(ip))
-		return false;
-	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
-	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got))
-		return false;
-	if (got.br_startoff > offset_fsb)
-		return false;
-
-	trace_xfs_reflink_find_cow_mapping(ip, offset, 1, XFS_IO_OVERWRITE,
-			&got);
-	*imap = got;
-	return true;
-}
-
-/*
  * Cancel CoW reservations for some block range of an inode.
  *
  * If cancel_real is true this function cancels all COW fork extents for the
