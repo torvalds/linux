@@ -243,6 +243,26 @@ int amdgpu_amdkfd_resume(struct amdgpu_device *adev)
 	return r;
 }
 
+int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->pre_reset(adev->kfd);
+
+	return r;
+}
+
+int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->kfd)
+		r = kgd2kfd->post_reset(adev->kfd);
+
+	return r;
+}
+
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
 			void **cpu_ptr)

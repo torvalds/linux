@@ -126,6 +126,10 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 
+int amdgpu_amdkfd_pre_reset(struct amdgpu_device *adev);
+
+int amdgpu_amdkfd_post_reset(struct amdgpu_device *adev);
+
 /* Shared API */
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
