@@ -55,7 +55,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	 * instead of sub-allocation function.
 	 */
 	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
+		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 		if (!*mqd_mem_obj)
 			return -ENOMEM;
 		retval = kfd->kfd2kgd->init_gtt_mem_allocation(kfd->kgd,
@@ -393,7 +393,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	mqd = kzalloc(sizeof(*mqd), GFP_NOIO);
+	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
 	if (!mqd)
 		return NULL;
 

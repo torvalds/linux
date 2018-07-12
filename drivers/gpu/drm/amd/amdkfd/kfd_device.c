@@ -739,8 +739,8 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 	if (size > kfd->gtt_sa_num_of_chunks * kfd->gtt_sa_chunk_size)
 		return -ENOMEM;
 
-	*mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
-	if ((*mem_obj) == NULL)
+	*mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!(*mem_obj))
 		return -ENOMEM;
 
 	pr_debug("Allocated mem_obj = %p for size = %d\n", *mem_obj, size);
