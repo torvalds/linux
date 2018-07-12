@@ -613,12 +613,11 @@ static void emit_a32_mov_i64(const s8 dst[], u64 val, struct jit_ctx *ctx)
 /* Sign extended move */
 static inline void emit_a32_mov_se_i64(const bool is64, const s8 dst[],
 				       const u32 val, struct jit_ctx *ctx) {
-	u32 hi = 0;
+	u64 val64 = val;
 
 	if (is64 && (val & (1<<31)))
-		hi = (u32)~0;
-	emit_a32_mov_i(dst_lo, val, ctx);
-	emit_a32_mov_i(dst_hi, hi, ctx);
+		val64 |= 0xffffffff00000000ULL;
+	emit_a32_mov_i64(dst, val64, ctx);
 }
 
 static inline void emit_a32_add_r(const u8 dst, const u8 src,
