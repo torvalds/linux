@@ -2671,6 +2671,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME,
 		.type = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+		.name = DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME,
+		.type = DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
