@@ -194,6 +194,7 @@ static void sbefifo_dump_ffdc(struct device *dev, const __be32 *ffdc,
 		}
 		dev_warn(dev, "+-------------------------------------------+\n");
 	}
+	mutex_unlock(&sbefifo_ffdc_mutex);
 }
 
 int sbefifo_parse_status(struct device *dev, u16 cmd, __be32 *response,
@@ -519,9 +520,10 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *response)
 {
 	struct device *dev = &sbefifo->fsi_dev->dev;
-	u32 data, status, eot_set;
+	u32 status, eot_set;
 	unsigned long timeout;
 	bool overflow = false;
+	__be32 data;
 	size_t len;
 	int rc;
 
@@ -619,7 +621,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
         struct kvec ffdc_iov;
 	__be32 *ffdc;
 	size_t ffdc_sz;
-	u32 cmd[2];
+	__be32 cmd[2];
 	int rc;
 
 	sbefifo->async_ffdc = false;
@@ -629,7 +631,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
 		return;
 	}
         ffdc_iov.iov_base = ffdc;
-	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;;
+	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;
         iov_iter_kvec(&ffdc_iter, WRITE | ITER_KVEC, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
 	cmd[0] = cpu_to_be32(2);
 	cmd[1] = cpu_to_be32(SBEFIFO_CMD_GET_SBE_FFDC);
@@ -704,13 +706,16 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
 int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 		   __be32 *response, size_t *resp_len)
 {
-	struct sbefifo *sbefifo = dev_get_drvdata(dev);
+	struct sbefifo *sbefifo;
         struct iov_iter resp_iter;
         struct kvec resp_iov;
 	size_t rbytes;
 	int rc;
 
-	if (!dev || !sbefifo)
+	if (!dev)
+		return -ENODEV;
+	sbefifo = dev_get_drvdata(dev);
+	if (!sbefifo)
 		return -ENODEV;
 	if (WARN_ON_ONCE(sbefifo->magic != SBEFIFO_MAGIC))
 		return -ENODEV;

@@ -81,6 +81,8 @@ struct fsi_slave {
 	int			id;
 	int			link;
 	uint32_t		size;	/* size of slave address space */
+	u8			t_send_delay;
+	u8			t_echo_delay;
 };
 
 #define to_fsi_master(d) container_of(d, struct fsi_master, dev)
@@ -190,7 +192,7 @@ static int fsi_slave_calc_addr(struct fsi_slave *slave, uint32_t *addrp,
 static int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 {
 	struct fsi_master *master = slave->master;
-	uint32_t irq, stat;
+	__be32 irq, stat;
 	int rc, link;
 	uint8_t id;
 
@@ -215,7 +217,53 @@ static int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 			&irq, sizeof(irq));
 }
 
-static int fsi_slave_set_smode(struct fsi_master *master, int link, int id);
+/* Encode slave local bus echo delay */
+static inline uint32_t fsi_smode_echodly(int x)
+{
+	return (x & FSI_SMODE_ED_MASK) << FSI_SMODE_ED_SHIFT;
+}
+
+/* Encode slave local bus send delay */
+static inline uint32_t fsi_smode_senddly(int x)
+{
+	return (x & FSI_SMODE_SD_MASK) << FSI_SMODE_SD_SHIFT;
+}
+
+/* Encode slave local bus clock rate ratio */
+static inline uint32_t fsi_smode_lbcrr(int x)
+{
+	return (x & FSI_SMODE_LBCRR_MASK) << FSI_SMODE_LBCRR_SHIFT;
+}
+
+/* Encode slave ID */
+static inline uint32_t fsi_smode_sid(int x)
+{
+	return (x & FSI_SMODE_SID_MASK) << FSI_SMODE_SID_SHIFT;
+}
+
+static uint32_t fsi_slave_smode(int id, u8 t_senddly, u8 t_echodly)
+{
+	return FSI_SMODE_WSC | FSI_SMODE_ECRC
+		| fsi_smode_sid(id)
+		| fsi_smode_echodly(t_echodly - 1) | fsi_smode_senddly(t_senddly - 1)
+		| fsi_smode_lbcrr(0x8);
+}
+
+static int fsi_slave_set_smode(struct fsi_slave *slave)
+{
+	uint32_t smode;
+	__be32 data;
+
+	/* set our smode register with the slave ID field to 0; this enables
+	 * extended slave addressing
+	 */
+	smode = fsi_slave_smode(slave->id, slave->t_send_delay, slave->t_echo_delay);
+	data = cpu_to_be32(smode);
+
+	return fsi_master_write(slave->master, slave->link, slave->id,
+				FSI_SLAVE_BASE + FSI_SMODE,
+				&data, sizeof(data));
+}
 
 static int fsi_slave_handle_error(struct fsi_slave *slave, bool write,
 				  uint32_t addr, size_t size)
@@ -223,7 +271,7 @@ static int fsi_slave_handle_error(struct fsi_slave *slave, bool write,
 	struct fsi_master *master = slave->master;
 	int rc, link;
 	uint32_t reg;
-	uint8_t id;
+	uint8_t id, send_delay, echo_delay;
 
 	if (discard_errors)
 		return -1;
@@ -254,14 +302,25 @@ static int fsi_slave_handle_error(struct fsi_slave *slave, bool write,
 		}
 	}
 
+	send_delay = slave->t_send_delay;
+	echo_delay = slave->t_echo_delay;
+
 	/* getting serious, reset the slave via BREAK */
 	rc = fsi_master_break(master, link);
 	if (rc)
 		return rc;
 
-	rc = fsi_slave_set_smode(master, link, id);
+	slave->t_send_delay = send_delay;
+	slave->t_echo_delay = echo_delay;
+
+	rc = fsi_slave_set_smode(slave);
 	if (rc)
 		return rc;
+
+	if (master->link_config)
+		master->link_config(master, link,
+				    slave->t_send_delay,
+				    slave->t_echo_delay);
 
 	return fsi_slave_report_and_clear_errors(slave);
 }
@@ -390,7 +449,6 @@ static struct device_node *fsi_device_find_of_node(struct fsi_device *dev)
 static int fsi_slave_scan(struct fsi_slave *slave)
 {
 	uint32_t engine_addr;
-	uint32_t conf;
 	int rc, i;
 
 	/*
@@ -404,15 +462,17 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 	for (i = 2; i < engine_page_size / sizeof(uint32_t); i++) {
 		uint8_t slots, version, type, crc;
 		struct fsi_device *dev;
+		uint32_t conf;
+		__be32 data;
 
-		rc = fsi_slave_read(slave, (i + 1) * sizeof(conf),
-				&conf, sizeof(conf));
+		rc = fsi_slave_read(slave, (i + 1) * sizeof(data),
+				&data, sizeof(data));
 		if (rc) {
 			dev_warn(&slave->dev,
 				"error reading slave registers\n");
 			return -1;
 		}
-		conf = be32_to_cpu(conf);
+		conf = be32_to_cpu(data);
 
 		crc = crc4(0, conf, 32);
 		if (crc) {
@@ -562,52 +622,6 @@ static const struct bin_attribute fsi_slave_term_attr = {
 	.write = fsi_slave_sysfs_term_write,
 };
 
-/* Encode slave local bus echo delay */
-static inline uint32_t fsi_smode_echodly(int x)
-{
-	return (x & FSI_SMODE_ED_MASK) << FSI_SMODE_ED_SHIFT;
-}
-
-/* Encode slave local bus send delay */
-static inline uint32_t fsi_smode_senddly(int x)
-{
-	return (x & FSI_SMODE_SD_MASK) << FSI_SMODE_SD_SHIFT;
-}
-
-/* Encode slave local bus clock rate ratio */
-static inline uint32_t fsi_smode_lbcrr(int x)
-{
-	return (x & FSI_SMODE_LBCRR_MASK) << FSI_SMODE_LBCRR_SHIFT;
-}
-
-/* Encode slave ID */
-static inline uint32_t fsi_smode_sid(int x)
-{
-	return (x & FSI_SMODE_SID_MASK) << FSI_SMODE_SID_SHIFT;
-}
-
-static uint32_t fsi_slave_smode(int id)
-{
-	return FSI_SMODE_WSC | FSI_SMODE_ECRC
-		| fsi_smode_sid(id)
-		| fsi_smode_echodly(0xf) | fsi_smode_senddly(0xf)
-		| fsi_smode_lbcrr(0x8);
-}
-
-static int fsi_slave_set_smode(struct fsi_master *master, int link, int id)
-{
-	uint32_t smode;
-
-	/* set our smode register with the slave ID field to 0; this enables
-	 * extended slave addressing
-	 */
-	smode = fsi_slave_smode(id);
-	smode = cpu_to_be32(smode);
-
-	return fsi_master_write(master, link, id, FSI_SLAVE_BASE + FSI_SMODE,
-			&smode, sizeof(smode));
-}
-
 static void fsi_slave_release(struct device *dev)
 {
 	struct fsi_slave *slave = to_fsi_slave(dev);
@@ -659,11 +673,56 @@ static struct device_node *fsi_slave_find_of_node(struct fsi_master *master,
 	return NULL;
 }
 
+static ssize_t slave_send_echo_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct fsi_slave *slave = to_fsi_slave(dev);
+
+	return sprintf(buf, "%u\n", slave->t_send_delay);
+}
+
+static ssize_t slave_send_echo_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fsi_slave *slave = to_fsi_slave(dev);
+	struct fsi_master *master = slave->master;
+	unsigned long val;
+	int rc;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < 1 || val > 16)
+		return -EINVAL;
+
+	if (!master->link_config)
+		return -ENXIO;
+
+	/* Current HW mandates that send and echo delay are identical */
+	slave->t_send_delay = val;
+	slave->t_echo_delay = val;
+
+	rc = fsi_slave_set_smode(slave);
+	if (rc < 0)
+		return rc;
+	if (master->link_config)
+		master->link_config(master, slave->link,
+				    slave->t_send_delay,
+				    slave->t_echo_delay);
+
+	return count;
+}
+
+static DEVICE_ATTR(send_echo_delays, 0600,
+		   slave_send_echo_show, slave_send_echo_store);
+
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
-	uint32_t chip_id, llmode;
+	uint32_t chip_id;
 	struct fsi_slave *slave;
 	uint8_t crc;
+	__be32 data, llmode;
 	int rc;
 
 	/* Currently, we only support single slaves on a link, and use the
@@ -672,13 +731,13 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	if (id != 0)
 		return -EINVAL;
 
-	rc = fsi_master_read(master, link, id, 0, &chip_id, sizeof(chip_id));
+	rc = fsi_master_read(master, link, id, 0, &data, sizeof(data));
 	if (rc) {
 		dev_dbg(&master->dev, "can't read slave %02x:%02x %d\n",
 				link, id, rc);
 		return -ENODEV;
 	}
-	chip_id = be32_to_cpu(chip_id);
+	chip_id = be32_to_cpu(data);
 
 	crc = crc4(0, chip_id, 32);
 	if (crc) {
@@ -689,14 +748,6 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 
 	dev_dbg(&master->dev, "fsi: found chip %08x at %02x:%02x:%02x\n",
 			chip_id, master->idx, link, id);
-
-	rc = fsi_slave_set_smode(master, link, id);
-	if (rc) {
-		dev_warn(&master->dev,
-				"can't set smode on slave:%02x:%02x %d\n",
-				link, id, rc);
-		return -ENODEV;
-	}
 
 	/* If we're behind a master that doesn't provide a self-running bus
 	 * clock, put the slave into async mode
@@ -726,6 +777,21 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	slave->link = link;
 	slave->id = id;
 	slave->size = FSI_SLAVE_SIZE_23b;
+	slave->t_send_delay = 16;
+	slave->t_echo_delay = 16;
+
+	rc = fsi_slave_set_smode(slave);
+	if (rc) {
+		dev_warn(&master->dev,
+				"can't set smode on slave:%02x:%02x %d\n",
+				link, id, rc);
+		kfree(slave);
+		return -ENODEV;
+	}
+	if (master->link_config)
+		master->link_config(master, link,
+				    slave->t_send_delay,
+				    slave->t_echo_delay);
 
 	dev_set_name(&slave->dev, "slave@%02x:%02x", link, id);
 	rc = device_register(&slave->dev);
@@ -743,6 +809,10 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	rc = device_create_bin_file(&slave->dev, &fsi_slave_term_attr);
 	if (rc)
 		dev_warn(&slave->dev, "failed to create term attr: %d\n", rc);
+
+	rc = device_create_file(&slave->dev, &dev_attr_send_echo_delays);
+	if (rc)
+		dev_warn(&slave->dev, "failed to create delay attr: %d\n", rc);
 
 	rc = fsi_slave_scan(slave);
 	if (rc)
@@ -814,12 +884,16 @@ static int fsi_master_link_enable(struct fsi_master *master, int link)
  */
 static int fsi_master_break(struct fsi_master *master, int link)
 {
+	int rc = 0;
+
 	trace_fsi_master_break(master, link);
 
 	if (master->send_break)
-		return master->send_break(master, link);
+		rc = master->send_break(master, link);
+	if (master->link_config)
+		master->link_config(master, link, 16, 16);
 
-	return 0;
+	return rc;
 }
 
 static int fsi_master_scan(struct fsi_master *master)
@@ -903,9 +977,6 @@ int fsi_master_register(struct fsi_master *master)
 	int rc;
 	struct device_node *np;
 
-	if (!master)
-		return -EINVAL;
-
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
 	dev_set_name(&master->dev, "fsi%d", master->idx);
 
@@ -917,14 +988,14 @@ int fsi_master_register(struct fsi_master *master)
 
 	rc = device_create_file(&master->dev, &dev_attr_rescan);
 	if (rc) {
-		device_unregister(&master->dev);
+		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
 
 	rc = device_create_file(&master->dev, &dev_attr_break);
 	if (rc) {
-		device_unregister(&master->dev);
+		device_del(&master->dev);
 		ida_simple_remove(&master_ida, master->idx);
 		return rc;
 	}
