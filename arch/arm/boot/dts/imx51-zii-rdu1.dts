@@ -565,6 +565,10 @@
 	remote-endpoint = <&display_in>;
 };
 
+&pmu {
+	secure-reg-access;
+};
+
 &ssi2 {
 	status = "okay";
 };
