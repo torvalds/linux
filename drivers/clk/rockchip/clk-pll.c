@@ -57,6 +57,8 @@ struct rockchip_clk_pll {
 	struct rockchip_clk_provider *ctx;
 
 	bool			boost_enabled;
+	u32			boost_backup_pll_usage;
+	unsigned long		boost_backup_pll_rate;
 	unsigned long		boost_low_rate;
 	unsigned long		boost_high_rate;
 	struct regmap		*boost;
@@ -1581,10 +1583,12 @@ void rockchip_boost_init(struct clk_hw *hw)
 					   BOOST_BACKUP_PLL_SHIFT));
 	}
 	if (!of_property_read_u32(np, "rockchip,boost-backup-pll-usage",
-				  &value)) {
-		pr_debug("boost-backup-pll-usage=0x%x\n", value);
+				  &pll->boost_backup_pll_usage)) {
+		pr_debug("boost-backup-pll-usage=0x%x\n",
+			 pll->boost_backup_pll_usage);
 		regmap_write(pll->boost, BOOST_CLK_CON,
-			     HIWORD_UPDATE(value, BOOST_BACKUP_PLL_USAGE_MASK,
+			     HIWORD_UPDATE(pll->boost_backup_pll_usage,
+					   BOOST_BACKUP_PLL_USAGE_MASK,
 					   BOOST_BACKUP_PLL_USAGE_SHIFT));
 	}
 	if (!of_property_read_u32(np, "rockchip,boost-switch-threshold",
@@ -1672,6 +1676,33 @@ void rockchip_boost_disable_recovery_sw(struct clk_hw *hw)
 	regmap_write(pll->boost, BOOST_BOOST_CON,
 		     HIWORD_UPDATE(0, BOOST_SW_CTRL_MASK,
 				   BOOST_SW_CTRL_SHIFT));
+}
+
+void rockchip_boost_add_core_div(struct clk_hw *hw, unsigned long prate)
+{
+	struct rockchip_clk_pll *pll;
+	unsigned int div;
+
+	if (!hw)
+		return;
+	pll = to_rockchip_clk_pll(hw);
+	if (!pll->boost_enabled || pll->boost_backup_pll_rate == prate)
+		return;
+
+	/* todo */
+	if (pll->boost_backup_pll_usage == BOOST_BACKUP_PLL_USAGE_TARGET)
+		return;
+	/*
+	 * cpu clock rate should be less than or equal to
+	 * low rate when change pll rate in boost module
+	 */
+	if (pll->boost_low_rate && prate > pll->boost_low_rate) {
+		div =  DIV_ROUND_UP(prate, pll->boost_low_rate) - 1;
+		regmap_write(pll->boost, BOOST_CLK_CON,
+			     HIWORD_UPDATE(div, BOOST_CORE_DIV_MASK,
+					   BOOST_CORE_DIV_SHIFT));
+		pll->boost_backup_pll_rate = prate;
+	}
 }
 
 #ifdef CONFIG_DEBUG_FS
