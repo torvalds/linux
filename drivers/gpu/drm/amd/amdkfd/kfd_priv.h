@@ -815,6 +815,10 @@ bool interrupt_is_wanted(struct kfd_dev *dev,
 void kgd2kfd_suspend(struct kfd_dev *kfd);
 int kgd2kfd_resume(struct kfd_dev *kfd);
 
+/* GPU reset */
+int kgd2kfd_pre_reset(struct kfd_dev *kfd);
+int kgd2kfd_post_reset(struct kfd_dev *kfd);
+
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);
 

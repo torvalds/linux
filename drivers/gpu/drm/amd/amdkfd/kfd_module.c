@@ -47,6 +47,8 @@ static const struct kgd2kfd_calls kgd2kfd = {
 	.resume_mm	= kgd2kfd_resume_mm,
 	.schedule_evict_and_restore_process =
 			  kgd2kfd_schedule_evict_and_restore_process,
+	.pre_reset	= kgd2kfd_pre_reset,
+	.post_reset	= kgd2kfd_post_reset,
 };
 
 int sched_policy = KFD_SCHED_POLICY_HWS;

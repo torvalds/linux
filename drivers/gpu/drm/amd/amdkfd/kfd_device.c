@@ -514,6 +514,16 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	kfree(kfd);
 }
 
+int kgd2kfd_pre_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+int kgd2kfd_post_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
 	if (!kfd->init_complete)
