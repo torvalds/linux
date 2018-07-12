@@ -5014,6 +5014,12 @@ static int mvpp2_probe(struct platform_device *pdev)
 			(unsigned long)of_device_get_match_data(&pdev->dev);
 	}
 
+	/* multi queue mode isn't supported on PPV2.1, fallback to single
+	 * mode
+	 */
+	if (priv->hw_version == MVPP21)
+		queue_mode = MVPP2_QDIST_SINGLE_MODE;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
