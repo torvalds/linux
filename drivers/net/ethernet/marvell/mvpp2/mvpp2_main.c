@@ -3373,9 +3373,6 @@ static int mvpp2_open(struct net_device *dev)
 
 	mvpp2_start_dev(port);
 
-	if (mvpp22_rss_is_supported())
-		mvpp22_init_rss(port);
-
 	/* Start hardware statistics gathering */
 	queue_delayed_work(priv->stats_queue, &port->stats_work,
 			   MVPP2_MIB_COUNTERS_STATS_DELAY);
@@ -4152,6 +4149,9 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	/* Port's classifier configuration */
 	mvpp2_cls_oversize_rxq_set(port);
 	mvpp2_cls_port_config(port);
+
+	if (mvpp22_rss_is_supported())
+		mvpp22_rss_port_init(port);
 
 	/* Provide an initial Rx packet size */
 	port->pkt_size = MVPP2_RX_PKT_SIZE(port->dev->mtu);
