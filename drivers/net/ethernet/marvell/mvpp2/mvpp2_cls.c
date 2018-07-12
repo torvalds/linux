@@ -107,6 +107,20 @@ void mvpp2_cls_oversize_rxq_set(struct mvpp2_port *port)
 	mvpp2_write(port->priv, MVPP2_CLS_SWFWD_PCTRL_REG, val);
 }
 
+void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table)
+{
+	struct mvpp2 *priv = port->priv;
+	int i;
+
+	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
+		u32 sel = MVPP22_RSS_INDEX_TABLE(table) |
+			  MVPP22_RSS_INDEX_TABLE_ENTRY(i);
+		mvpp2_write(priv, MVPP22_RSS_INDEX, sel);
+
+		mvpp2_write(priv, MVPP22_RSS_TABLE_ENTRY, port->indir[i]);
+	}
+}
+
 void mvpp22_init_rss(struct mvpp2_port *port)
 {
 	struct mvpp2 *priv = port->priv;
@@ -129,12 +143,8 @@ void mvpp22_init_rss(struct mvpp2_port *port)
 	/* Configure the first table to evenly distribute the packets across
 	 * real Rx Queues. The table entries map a hash to a port Rx Queue.
 	 */
-	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
-		u32 sel = MVPP22_RSS_INDEX_TABLE(port->id) |
-			  MVPP22_RSS_INDEX_TABLE_ENTRY(i);
-		mvpp2_write(priv, MVPP22_RSS_INDEX, sel);
+	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++)
+		port->indir[i] = ethtool_rxfh_indir_default(i, port->nrxqs);
 
-		mvpp2_write(priv, MVPP22_RSS_TABLE_ENTRY, i % port->nrxqs);
-	}
-
+	mvpp22_rss_fill_table(port, port->id);
 }

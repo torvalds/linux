@@ -3821,6 +3821,71 @@ static int mvpp2_ethtool_set_link_ksettings(struct net_device *dev,
 	return phylink_ethtool_ksettings_set(port->phylink, cmd);
 }
 
+static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
+				   struct ethtool_rxnfc *info, u32 *rules)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!mvpp22_rss_is_supported())
+		return -EOPNOTSUPP;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = port->nrxqs;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static u32 mvpp2_ethtool_get_rxfh_indir_size(struct net_device *dev)
+{
+	return mvpp22_rss_is_supported() ? MVPP22_RSS_TABLE_ENTRIES : 0;
+}
+
+static int mvpp2_ethtool_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+				  u8 *hfunc)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!mvpp22_rss_is_supported())
+		return -EOPNOTSUPP;
+
+	if (indir)
+		memcpy(indir, port->indir,
+		       ARRAY_SIZE(port->indir) * sizeof(port->indir[0]));
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_CRC32;
+
+	return 0;
+}
+
+static int mvpp2_ethtool_set_rxfh(struct net_device *dev, const u32 *indir,
+				  const u8 *key, const u8 hfunc)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!mvpp22_rss_is_supported())
+		return -EOPNOTSUPP;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_CRC32)
+		return -EOPNOTSUPP;
+
+	if (key)
+		return -EOPNOTSUPP;
+
+	if (indir) {
+		memcpy(port->indir, indir,
+		       ARRAY_SIZE(port->indir) * sizeof(port->indir[0]));
+		mvpp22_rss_fill_table(port, port->id);
+	}
+
+	return 0;
+}
+
 /* Device ops */
 
 static const struct net_device_ops mvpp2_netdev_ops = {
@@ -3852,6 +3917,11 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.set_pauseparam		= mvpp2_ethtool_set_pause_param,
 	.get_link_ksettings	= mvpp2_ethtool_get_link_ksettings,
 	.set_link_ksettings	= mvpp2_ethtool_set_link_ksettings,
+	.get_rxnfc		= mvpp2_ethtool_get_rxnfc,
+	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
+	.get_rxfh		= mvpp2_ethtool_get_rxfh,
+	.set_rxfh		= mvpp2_ethtool_set_rxfh,
+
 };
 
 /* Used for PPv2.1, or PPv2.2 with the old Device Tree binding that

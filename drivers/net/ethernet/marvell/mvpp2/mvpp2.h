@@ -801,6 +801,9 @@ struct mvpp2_port {
 	bool has_tx_irqs;
 
 	u32 tx_time_coal;
+
+	/* RSS indirection table */
+	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the

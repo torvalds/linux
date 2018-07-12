@@ -32,6 +32,8 @@ struct mvpp2_cls_lookup_entry {
 	u32 data;
 };
 
+void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table);
+
 void mvpp22_init_rss(struct mvpp2_port *port);
 
 void mvpp2_cls_init(struct mvpp2 *priv);
