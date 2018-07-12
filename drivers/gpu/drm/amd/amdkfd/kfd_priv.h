@@ -995,6 +995,10 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data);
 int kfd_debugfs_rls_by_device(struct seq_file *m, void *data);
 int pm_debugfs_runlist(struct seq_file *m, void *data);
 
+int kfd_debugfs_hang_hws(struct kfd_dev *dev);
+int pm_debugfs_hang_hws(struct packet_manager *pm);
+int dqm_debugfs_execute_queues(struct device_queue_manager *dqm);
+
 #else
 
 static inline void kfd_debugfs_init(void) {}
