@@ -975,9 +975,13 @@ int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
 				struct kfd_vm_fault_info *info);
 
+void kfd_signal_reset_event(struct kfd_dev *dev);
+
 void kfd_flush_tlb(struct kfd_process_device *pdd);
 
 int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
+
+bool kfd_is_locked(void);
 
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)

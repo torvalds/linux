@@ -1000,3 +1000,30 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
 	mutex_unlock(&p->event_mutex);
 	kfd_unref_process(p);
 }
+
+void kfd_signal_reset_event(struct kfd_dev *dev)
+{
+	struct kfd_hsa_hw_exception_data hw_exception_data;
+	struct kfd_process *p;
+	struct kfd_event *ev;
+	unsigned int temp;
+	uint32_t id, idx;
+
+	/* Whole gpu reset caused by GPU hang and memory is lost */
+	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
+	hw_exception_data.gpu_id = dev->id;
+	hw_exception_data.memory_lost = 1;
+
+	idx = srcu_read_lock(&kfd_processes_srcu);
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		mutex_lock(&p->event_mutex);
+		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+		idr_for_each_entry_continue(&p->event_idr, ev, id)
+			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				ev->hw_exception_data = hw_exception_data;
+				set_event(ev);
+			}
+		mutex_unlock(&p->event_mutex);
+	}
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+}

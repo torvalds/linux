@@ -30,7 +30,13 @@
 #include "kfd_iommu.h"
 
 #define MQD_SIZE_ALIGNED 768
-static atomic_t kfd_device_suspended = ATOMIC_INIT(0);
+
+/*
+ * kfd_locked is used to lock the kfd driver during suspend or reset
+ * once locked, kfd driver will stop any further GPU execution.
+ * create process (open) will return -EAGAIN.
+ */
+static atomic_t kfd_locked = ATOMIC_INIT(0);
 
 #ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
@@ -516,12 +522,43 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 int kgd2kfd_pre_reset(struct kfd_dev *kfd)
 {
+	if (!kfd->init_complete)
+		return 0;
+	kgd2kfd_suspend(kfd);
+
+	/* hold dqm->lock to prevent further execution*/
+	dqm_lock(kfd->dqm);
+
+	kfd_signal_reset_event(kfd);
 	return 0;
 }
 
+/*
+ * Fix me. KFD won't be able to resume existing process for now.
+ * We will keep all existing process in a evicted state and
+ * wait the process to be terminated.
+ */
+
 int kgd2kfd_post_reset(struct kfd_dev *kfd)
 {
+	int ret, count;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	dqm_unlock(kfd->dqm);
+
+	ret = kfd_resume(kfd);
+	if (ret)
+		return ret;
+	count = atomic_dec_return(&kfd_locked);
+	WARN_ONCE(count != 0, "KFD reset ref. error");
 	return 0;
+}
+
+bool kfd_is_locked(void)
+{
+	return  (atomic_read(&kfd_locked) > 0);
 }
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
@@ -530,7 +567,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 		return;
 
 	/* For first KFD device suspend all the KFD processes */
-	if (atomic_inc_return(&kfd_device_suspended) == 1)
+	if (atomic_inc_return(&kfd_locked) == 1)
 		kfd_suspend_all_processes();
 
 	kfd->dqm->ops.stop(kfd->dqm);
@@ -549,7 +586,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 	if (ret)
 		return ret;
 
-	count = atomic_dec_return(&kfd_device_suspended);
+	count = atomic_dec_return(&kfd_locked);
 	WARN_ONCE(count < 0, "KFD suspend / resume ref. error");
 	if (count == 0)
 		ret = kfd_resume_all_processes();
