@@ -867,6 +867,9 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	int vmid;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
 
+	if (adev->in_gpu_reset)
+		return -EIO;
+
 	if (ring->ready)
 		return invalidate_tlbs_with_kiq(adev, pasid);
 

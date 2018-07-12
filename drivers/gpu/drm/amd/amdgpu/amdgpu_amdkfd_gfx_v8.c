@@ -846,6 +846,9 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	int vmid;
 	unsigned int tmp;
 
+	if (adev->in_gpu_reset)
+		return -EIO;
+
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
 			continue;
