@@ -5143,26 +5143,26 @@ done:
  */
 int						/* error */
 __xfs_bunmapi(
-	xfs_trans_t		*tp,		/* transaction pointer */
+	struct xfs_trans	*tp,		/* transaction pointer */
 	struct xfs_inode	*ip,		/* incore inode */
 	xfs_fileoff_t		start,		/* first file offset deleted */
 	xfs_filblks_t		*rlen,		/* i/o: amount remaining */
 	int			flags,		/* misc flags */
 	xfs_extnum_t		nexts,		/* number of extents max */
-	xfs_fsblock_t		*firstblock,	/* first allocated block
+	xfs_fsblock_t		*firstblock)	/* first allocated block
 						   controls a.g. for allocs */
-	struct xfs_defer_ops	*dfops)		/* i/o: deferred updates */
 {
-	xfs_btree_cur_t		*cur;		/* bmap btree cursor */
-	xfs_bmbt_irec_t		del;		/* extent being deleted */
+	struct xfs_defer_ops	*dfops = tp ? tp->t_dfops : NULL;
+	struct xfs_btree_cur	*cur;		/* bmap btree cursor */
+	struct xfs_bmbt_irec	del;		/* extent being deleted */
 	int			error;		/* error return value */
 	xfs_extnum_t		extno;		/* extent number in list */
-	xfs_bmbt_irec_t		got;		/* current extent record */
+	struct xfs_bmbt_irec	got;		/* current extent record */
 	xfs_ifork_t		*ifp;		/* inode fork pointer */
 	int			isrt;		/* freeing in rt area */
 	int			logflags;	/* transaction logging flags */
 	xfs_extlen_t		mod;		/* rt extent offset */
-	xfs_mount_t		*mp;		/* mount structure */
+	struct xfs_mount	*mp;		/* mount structure */
 	int			tmp_logflags;	/* partial logging flags */
 	int			wasdel;		/* was a delayed alloc extent */
 	int			whichfork;	/* data or attribute fork */
@@ -5516,13 +5516,11 @@ xfs_bunmapi(
 	int			flags,
 	xfs_extnum_t		nexts,
 	xfs_fsblock_t		*firstblock,
-	struct xfs_defer_ops	*dfops,
 	int			*done)
 {
 	int			error;
 
-	error = __xfs_bunmapi(tp, ip, bno, &len, flags, nexts, firstblock,
-			dfops);
+	error = __xfs_bunmapi(tp, ip, bno, &len, flags, nexts, firstblock);
 	*done = (len == 0);
 	return error;
 }
@@ -6193,7 +6191,7 @@ xfs_bmap_finish_one(
 		break;
 	case XFS_BMAP_UNMAP:
 		error = __xfs_bunmapi(tp, ip, startoff, blockcount,
-				XFS_BMAPI_REMAP, 1, &firstfsb, dfops);
+				XFS_BMAPI_REMAP, 1, &firstfsb);
 		break;
 	default:
 		ASSERT(0);

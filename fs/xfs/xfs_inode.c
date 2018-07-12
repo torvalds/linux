@@ -1588,7 +1588,7 @@ xfs_itruncate_extents_flags(
 		tp->t_dfops = &dfops;
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &first_block,
-				    tp->t_dfops, &done);
+				    &done);
 		if (error)
 			goto out_bmap_cancel;
 

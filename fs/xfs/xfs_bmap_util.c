@@ -1046,7 +1046,7 @@ xfs_unmap_extent(
 	xfs_defer_init(&dfops, &firstfsb);
 	tp->t_dfops = &dfops;
 	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
-			tp->t_dfops, done);
+			    done);
 	if (error)
 		goto out_bmap_cancel;
 

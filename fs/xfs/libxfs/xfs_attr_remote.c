@@ -629,7 +629,7 @@ xfs_attr_rmtval_remove(
 		xfs_defer_init(args->trans->t_dfops, args->firstblock);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
 				    XFS_BMAPI_ATTRFORK, 1, args->firstblock,
-				    args->trans->t_dfops, &done);
+				    &done);
 		if (error)
 			goto out_defer_cancel;
 		xfs_defer_ijoin(args->trans->t_dfops, args->dp);
