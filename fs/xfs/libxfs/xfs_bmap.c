@@ -2031,7 +2031,6 @@ xfs_bmap_add_extent_unwritten_real(
 	struct xfs_iext_cursor	*icur,
 	xfs_btree_cur_t		**curp,	/* if *curp is null, not a btree */
 	xfs_bmbt_irec_t		*new,	/* new data to add to file extents */
-	xfs_fsblock_t		*first,	/* pointer to firstblock variable */
 	int			*logflagsp) /* inode logging flags */
 {
 	xfs_btree_cur_t		*cur;	/* btree cursor */
@@ -2473,8 +2472,8 @@ xfs_bmap_add_extent_unwritten_real(
 		int	tmp_logflags;	/* partial log flag return val */
 
 		ASSERT(cur == NULL);
-		error = xfs_bmap_extents_to_btree(tp, ip, first, &cur, 0,
-				&tmp_logflags, whichfork);
+		error = xfs_bmap_extents_to_btree(tp, ip, &tp->t_firstblock,
+				&cur, 0, &tmp_logflags, whichfork);
 		*logflagsp |= tmp_logflags;
 		if (error)
 			goto done;
@@ -2645,7 +2644,6 @@ xfs_bmap_add_extent_hole_real(
 	struct xfs_iext_cursor	*icur,
 	struct xfs_btree_cur	**curp,
 	struct xfs_bmbt_irec	*new,
-	xfs_fsblock_t		*first,
 	int			*logflagsp,
 	int			flags)
 {
@@ -2837,8 +2835,8 @@ xfs_bmap_add_extent_hole_real(
 		int	tmp_logflags;	/* partial log flag return val */
 
 		ASSERT(cur == NULL);
-		error = xfs_bmap_extents_to_btree(tp, ip, first, curp, 0,
-				&tmp_logflags, whichfork);
+		error = xfs_bmap_extents_to_btree(tp, ip, &tp->t_firstblock,
+				curp, 0, &tmp_logflags, whichfork);
 		*logflagsp |= tmp_logflags;
 		cur = *curp;
 		if (error)
@@ -4107,8 +4105,7 @@ xfs_bmapi_allocate(
 	else
 		error = xfs_bmap_add_extent_hole_real(bma->tp, bma->ip,
 				whichfork, &bma->icur, &bma->cur, &bma->got,
-				&bma->tp->t_firstblock, &bma->logflags,
-				bma->flags);
+				&bma->logflags, bma->flags);
 
 	bma->logflags |= tmp_logflags;
 	if (error)
@@ -4176,8 +4173,7 @@ xfs_bmapi_convert_unwritten(
 	}
 
 	error = xfs_bmap_add_extent_unwritten_real(bma->tp, bma->ip, whichfork,
-			&bma->icur, &bma->cur, mval, &bma->tp->t_firstblock,
-			&tmp_logflags);
+			&bma->icur, &bma->cur, mval, &tmp_logflags);
 	/*
 	 * Log the inode core unconditionally in the unwritten extent conversion
 	 * path because the conversion might not have done so (e.g., if the
@@ -4550,7 +4546,7 @@ xfs_bmapi_remap(
 		got.br_state = XFS_EXT_NORM;
 
 	error = xfs_bmap_add_extent_hole_real(tp, ip, whichfork, &icur,
-			&cur, &got, &tp->t_firstblock, &logflags, flags);
+			&cur, &got, &logflags, flags);
 	if (error)
 		goto error0;
 
@@ -5314,7 +5310,7 @@ __xfs_bunmapi(
 			del.br_state = XFS_EXT_UNWRITTEN;
 			error = xfs_bmap_add_extent_unwritten_real(tp, ip,
 					whichfork, &icur, &cur, &del,
-					&tp->t_firstblock, &logflags);
+					&logflags);
 			if (error)
 				goto error0;
 			goto nodelete;
@@ -5371,8 +5367,7 @@ __xfs_bunmapi(
 				prev.br_state = XFS_EXT_UNWRITTEN;
 				error = xfs_bmap_add_extent_unwritten_real(tp,
 						ip, whichfork, &icur, &cur,
-						&prev, &tp->t_firstblock,
-						&logflags);
+						&prev, &logflags);
 				if (error)
 					goto error0;
 				goto nodelete;
@@ -5381,8 +5376,7 @@ __xfs_bunmapi(
 				del.br_state = XFS_EXT_UNWRITTEN;
 				error = xfs_bmap_add_extent_unwritten_real(tp,
 						ip, whichfork, &icur, &cur,
-						&del, &tp->t_firstblock,
-						&logflags);
+						&del, &logflags);
 				if (error)
 					goto error0;
 				goto nodelete;
