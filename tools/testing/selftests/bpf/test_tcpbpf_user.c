@@ -1,25 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <signal.h>
 #include <string.h>
-#include <assert.h>
-#include <linux/perf_event.h>
-#include <linux/ptrace.h>
 #include <linux/bpf.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
-#include "bpf_util.h"
+
 #include "bpf_rlimit.h"
-#include <linux/perf_event.h>
+#include "bpf_util.h"
+#include "cgroup_helpers.h"
+
 #include "test_tcpbpf.h"
 
 static int bpf_find_map(const char *test, struct bpf_object *obj,
@@ -35,42 +28,32 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 	return bpf_map__fd(map);
 }
 
-#define SYSTEM(CMD)						\
-	do {							\
-		if (system(CMD)) {				\
-			printf("system(%s) FAILS!\n", CMD);	\
-		}						\
-	} while (0)
-
 int main(int argc, char **argv)
 {
 	const char *file = "test_tcpbpf_kern.o";
 	struct tcpbpf_globals g = {0};
-	int cg_fd, prog_fd, map_fd;
+	const char *cg_path = "/foo";
 	bool debug_flag = false;
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
-	char cmd[100], *dir;
-	struct stat buffer;
+	int prog_fd, map_fd;
+	int cg_fd = -1;
 	__u32 key = 0;
-	int pid;
 	int rv;
 
 	if (argc > 1 && strcmp(argv[1], "-d") == 0)
 		debug_flag = true;
 
-	dir = "/tmp/cgroupv2/foo";
+	if (setup_cgroup_environment())
+		goto err;
 
-	if (stat(dir, &buffer) != 0) {
-		SYSTEM("mkdir -p /tmp/cgroupv2");
-		SYSTEM("mount -t cgroup2 none /tmp/cgroupv2");
-		SYSTEM("mkdir -p /tmp/cgroupv2/foo");
-	}
-	pid = (int) getpid();
-	sprintf(cmd, "echo %d >> /tmp/cgroupv2/foo/cgroup.procs", pid);
-	SYSTEM(cmd);
+	cg_fd = create_and_get_cgroup(cg_path);
+	if (!cg_fd)
+		goto err;
 
-	cg_fd = open(dir, O_DIRECTORY, O_RDONLY);
+	if (join_cgroup(cg_path))
+		goto err;
+
 	if (bpf_prog_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
 		printf("FAILED: load_bpf_file failed for: %s\n", file);
 		goto err;
@@ -83,7 +66,10 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	SYSTEM("./tcp_server.py");
+	if (system("./tcp_server.py")) {
+		printf("FAILED: TCP server\n");
+		goto err;
+	}
 
 	map_fd = bpf_find_map(__func__, obj, "global_map");
 	if (map_fd < 0)
@@ -123,6 +109,7 @@ int main(int argc, char **argv)
 	error = 0;
 err:
 	bpf_prog_detach(cg_fd, BPF_CGROUP_SOCK_OPS);
+	close(cg_fd);
+	cleanup_cgroup_environment();
 	return error;
-
 }
