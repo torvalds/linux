@@ -1860,7 +1860,7 @@ MODULE_ALIAS_FS("xfs");
 STATIC int __init
 xfs_init_zones(void)
 {
-	if (bioset_init(&xfs_ioend_bioset, 4 * MAX_BUF_PER_PAGE,
+	if (bioset_init(&xfs_ioend_bioset, 4 * (PAGE_SIZE / SECTOR_SIZE),
 			offsetof(struct xfs_ioend, io_inline_bio),
 			BIOSET_NEED_BVECS))
 		goto out;
