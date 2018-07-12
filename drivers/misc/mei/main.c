@@ -137,7 +137,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	struct mei_device *dev;
 	struct mei_cl_cb *cb = NULL;
 	bool nonblock = !!(file->f_flags & O_NONBLOCK);
-	int rets;
+	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -170,7 +170,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	rets = mei_cl_read_start(cl, length, file);
 	if (rets && rets != -EBUSY) {
-		cl_dbg(dev, cl, "mei start read failure status = %d\n", rets);
+		cl_dbg(dev, cl, "mei start read failure status = %zd\n", rets);
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ copy_buffer:
 	/* now copy the data to user space */
 	if (cb->status) {
 		rets = cb->status;
-		cl_dbg(dev, cl, "read operation failed %d\n", rets);
+		cl_dbg(dev, cl, "read operation failed %zd\n", rets);
 		goto free;
 	}
 
@@ -236,7 +236,7 @@ free:
 	*offset = 0;
 
 out:
-	cl_dbg(dev, cl, "end mei read rets = %d\n", rets);
+	cl_dbg(dev, cl, "end mei read rets = %zd\n", rets);
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
@@ -256,7 +256,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_cl_cb *cb;
 	struct mei_device *dev;
-	int rets;
+	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;

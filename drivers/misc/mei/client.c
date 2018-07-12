@@ -1644,13 +1644,13 @@ err:
  *
  * Return: number of bytes sent on success, <0 on failure.
  */
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
+ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
-	int size;
-	int rets;
+	size_t len;
+	ssize_t rets;
 	bool blocking;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -1662,15 +1662,15 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	dev = cl->dev;
 
 	buf = &cb->buf;
-	size = buf->size;
+	len = buf->size;
 	blocking = cb->blocking;
 
-	cl_dbg(dev, cl, "size=%d\n", size);
+	cl_dbg(dev, cl, "len=%zd\n", len);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);
-		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		cl_err(dev, cl, "rpm: get failed %zd\n", rets);
 		goto free;
 	}
 
@@ -1689,21 +1689,21 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
-		rets = size;
+		rets = len;
 		goto out;
 	}
 	if (!mei_hbuf_acquire(dev)) {
 		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
-		rets = size;
+		rets = len;
 		goto out;
 	}
 
 	/* Check for a maximum length */
-	if (size > mei_hbuf_max_len(dev)) {
+	if (len > mei_hbuf_max_len(dev)) {
 		mei_hdr.length = mei_hbuf_max_len(dev);
 		mei_hdr.msg_complete = 0;
 	} else {
-		mei_hdr.length = size;
+		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	}
 
@@ -1745,7 +1745,7 @@ out:
 		}
 	}
 
-	rets = size;
+	rets = len;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
