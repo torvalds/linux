@@ -865,8 +865,10 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	ret = mei_cl_send_disconnect(cl, cb);
@@ -1054,12 +1056,15 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int rets;
 
 	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
 
 	if (mei_cl_is_other_connecting(cl))
 		return 0;
 
-	if (slots < msg_slots)
+	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
+
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	rets = mei_cl_send_connect(cl, cb);
@@ -1296,8 +1301,10 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
 
-	if (slots < msg_slots)
+	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
 	request = mei_cl_notify_fop2req(cb->fop_type);
@@ -1573,6 +1580,9 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	slots = mei_hbuf_empty_slots(dev);
+	if (slots < 0)
+		return -EOVERFLOW;
+
 	len = buf->size - cb->buf_idx;
 	msg_slots = mei_data2slots(len);
 
@@ -1581,11 +1591,11 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	mei_hdr.reserved = 0;
 	mei_hdr.internal = cb->internal;
 
-	if (slots >= msg_slots) {
+	if ((u32)slots >= msg_slots) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
 	/* Split the message only if we can write the whole host buffer */
-	} else if (slots == dev->hbuf_depth) {
+	} else if ((u32)slots == dev->hbuf_depth) {
 		msg_slots = slots;
 		len = (slots * sizeof(u32)) - sizeof(struct mei_msg_hdr);
 		mei_hdr.length = len;

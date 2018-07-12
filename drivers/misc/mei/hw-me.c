@@ -540,8 +540,11 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 	empty_slots = mei_hbuf_empty_slots(dev);
 	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
 
+	if (empty_slots < 0)
+		return -EOVERFLOW;
+
 	dw_cnt = mei_data2slots(length);
-	if (empty_slots < 0 || dw_cnt > empty_slots)
+	if (dw_cnt > (u32)empty_slots)
 		return -EMSGSIZE;
 
 	mei_me_hcbww_write(dev, *((u32 *) header));
