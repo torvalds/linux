@@ -561,6 +561,12 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		nsim_bpf_destroy_prog(bpf->offload.prog);
 		return 0;
 	case XDP_QUERY_PROG:
+		if (ns->xdp_prog_mode != XDP_ATTACHED_DRV)
+			return 0;
+		return xdp_attachment_query(&ns->xdp, bpf);
+	case XDP_QUERY_PROG_HW:
+		if (ns->xdp_prog_mode != XDP_ATTACHED_HW)
+			return 0;
 		return xdp_attachment_query(&ns->xdp, bpf);
 	case XDP_SETUP_PROG:
 		err = nsim_setup_prog_checks(ns, bpf);

@@ -7582,21 +7582,19 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 }
 EXPORT_SYMBOL(dev_change_proto_down);
 
-void __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
-		     struct netdev_bpf *xdp)
-{
-	memset(xdp, 0, sizeof(*xdp));
-	xdp->command = XDP_QUERY_PROG;
-
-	/* Query must always succeed. */
-	WARN_ON(bpf_op(dev, xdp) < 0);
-}
-
-static bool __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op)
+u32 __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
+		    enum bpf_netdev_command cmd)
 {
 	struct netdev_bpf xdp;
 
-	__dev_xdp_query(dev, bpf_op, &xdp);
+	if (!bpf_op)
+		return 0;
+
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = cmd;
+
+	/* Query must always succeed. */
+	WARN_ON(bpf_op(dev, &xdp) < 0 && cmd == XDP_QUERY_PROG);
 
 	return xdp.prog_id;
 }
@@ -7632,12 +7630,19 @@ static void dev_xdp_uninstall(struct net_device *dev)
 	if (!ndo_bpf)
 		return;
 
-	__dev_xdp_query(dev, ndo_bpf, &xdp);
-	if (!xdp.prog_id)
-		return;
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_QUERY_PROG;
+	WARN_ON(ndo_bpf(dev, &xdp));
+	if (xdp.prog_id)
+		WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags,
+					NULL));
 
-	/* Program removal should always succeed */
-	WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags, NULL));
+	/* Remove HW offload */
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_QUERY_PROG_HW;
+	if (!ndo_bpf(dev, &xdp) && xdp.prog_id)
+		WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags,
+					NULL));
 }
 
 /**
@@ -7653,11 +7658,14 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, u32 flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	enum bpf_netdev_command query;
 	struct bpf_prog *prog = NULL;
 	bpf_op_t bpf_op, bpf_chk;
 	int err;
 
 	ASSERT_RTNL();
+
+	query = flags & XDP_FLAGS_HW_MODE ? XDP_QUERY_PROG_HW : XDP_QUERY_PROG;
 
 	bpf_op = bpf_chk = ops->ndo_bpf;
 	if (!bpf_op && (flags & (XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE)))
@@ -7668,10 +7676,11 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		bpf_chk = generic_xdp_install;
 
 	if (fd >= 0) {
-		if (bpf_chk && __dev_xdp_attached(dev, bpf_chk))
+		if (__dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG) ||
+		    __dev_xdp_query(dev, bpf_chk, XDP_QUERY_PROG_HW))
 			return -EEXIST;
 		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_attached(dev, bpf_op))
+		    __dev_xdp_query(dev, bpf_op, query))
 			return -EBUSY;
 
 		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,

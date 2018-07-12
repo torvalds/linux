@@ -3453,6 +3453,12 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 	case XDP_SETUP_PROG_HW:
 		return nfp_net_xdp_setup(nn, xdp);
 	case XDP_QUERY_PROG:
+		if (nn->dp.bpf_offload_xdp)
+			return 0;
+		return xdp_attachment_query(&nn->xdp, xdp);
+	case XDP_QUERY_PROG_HW:
+		if (!nn->dp.bpf_offload_xdp)
+			return 0;
 		return xdp_attachment_query(&nn->xdp, xdp);
 	default:
 		return nfp_app_bpf(nn->app, nn, xdp);
