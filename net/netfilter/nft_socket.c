@@ -43,7 +43,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 		}
 
 	if (!sk) {
-		nft_reg_store8(dest, 0);
+		regs->verdict.code = NFT_BREAK;
 		return;
 	}
 
