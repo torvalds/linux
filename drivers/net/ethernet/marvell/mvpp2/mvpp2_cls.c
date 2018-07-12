@@ -128,7 +128,7 @@ void mvpp22_init_rss(struct mvpp2_port *port)
 	}
 
 	/* Configure the first table to evenly distribute the packets across
-	 * real Rx Queues. The table entries map a hash to an port Rx Queue.
+	 * real Rx Queues. The table entries map a hash to a port Rx Queue.
 	 */
 	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
 		u32 sel = MVPP22_RSS_INDEX_TABLE(0) |
