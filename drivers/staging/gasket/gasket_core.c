@@ -1347,9 +1347,9 @@ static bool gasket_mm_get_mapping_addrs(
 	*virt_offset = 0;
 	if (bar_offset + requested_length < range_start) {
 		/*
-		* If the requested region is completely below the range,
-		* there is nothing to map.
-		*/
+		 * If the requested region is completely below the range,
+		 * there is nothing to map.
+		 */
 		return false;
 	} else if (bar_offset <= range_start) {
 		/* If the bar offset is below this range's start
@@ -1507,7 +1507,7 @@ fail:
  * Calculates the offset where the VMA range begins in its containing BAR.
  * The offset is written into bar_offset on success.
  * Returns zero on success, anything else on error.
-*/
+ */
 static int gasket_mm_vma_bar_offset(
 	const struct gasket_dev *gasket_dev, const struct vm_area_struct *vma,
 	ulong *bar_offset)
