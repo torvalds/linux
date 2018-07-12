@@ -823,15 +823,15 @@ xfs_writepage_map(
 	struct xfs_ioend	*ioend, *next;
 	struct buffer_head	*bh, *head;
 	ssize_t			len = i_blocksize(inode);
-	uint64_t		offset;	/* file offset of page */
+	uint64_t		file_offset;	/* file offset of page */
 	int			error = 0;
 	int			count = 0;
 	unsigned int		new_type;
 
 	bh = head = page_buffers(page);
-	offset = page_offset(page);
+	file_offset = page_offset(page);
 	do {
-		if (offset >= end_offset)
+		if (file_offset >= end_offset)
 			break;
 
 		/*
@@ -863,7 +863,7 @@ xfs_writepage_map(
 		 * If we already have a valid COW mapping keep using it.
 		 */
 		if (wpc->io_type == XFS_IO_COW &&
-		    xfs_imap_valid(inode, &wpc->imap, offset)) {
+		    xfs_imap_valid(inode, &wpc->imap, file_offset)) {
 			wpc->imap_valid = true;
 			new_type = XFS_IO_COW;
 		}
@@ -875,7 +875,7 @@ xfs_writepage_map(
 
 		if (wpc->imap_valid)
 			wpc->imap_valid = xfs_imap_valid(inode, &wpc->imap,
-							 offset);
+							 file_offset);
 
 		/*
 		 * COW fork blocks can overlap data fork blocks even if the
@@ -886,11 +886,11 @@ xfs_writepage_map(
 		if (!wpc->imap_valid ||
 		    (xfs_is_reflink_inode(XFS_I(inode)) &&
 		     wpc->io_type != XFS_IO_COW)) {
-			error = xfs_map_blocks(wpc, inode, offset);
+			error = xfs_map_blocks(wpc, inode, file_offset);
 			if (error)
 				goto out;
 			wpc->imap_valid = xfs_imap_valid(inode, &wpc->imap,
-							 offset);
+							 file_offset);
 		}
 
 		if (!wpc->imap_valid || wpc->io_type == XFS_IO_HOLE)
@@ -898,10 +898,10 @@ xfs_writepage_map(
 
 		lock_buffer(bh);
 		if (wpc->io_type != XFS_IO_OVERWRITE)
-			xfs_map_at_offset(inode, bh, &wpc->imap, offset);
-		xfs_add_to_ioend(inode, bh, offset, wpc, wbc, &submit_list);
+			xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
+		xfs_add_to_ioend(inode, bh, file_offset, wpc, wbc, &submit_list);
 		count++;
-	} while (offset += len, ((bh = bh->b_this_page) != head));
+	} while (file_offset += len, ((bh = bh->b_this_page) != head));
 
 	ASSERT(wpc->ioend || list_empty(&submit_list));
 
