@@ -3149,6 +3149,111 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 	kfree(param_item);
 }
 
+static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
+				  enum devlink_command cmd, u32 portid,
+				  u32 seq, int flags,
+				  struct devlink_region *region)
+{
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	err = devlink_nl_put_handle(msg, devlink);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME, region->name);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_SIZE,
+				region->size,
+				DEVLINK_ATTR_PAD);
+	if (err)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+static int devlink_nl_cmd_region_get_doit(struct sk_buff *skb,
+					  struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_region *region;
+	const char *region_name;
+	struct sk_buff *msg;
+	int err;
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_NAME])
+		return -EINVAL;
+
+	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		return -EINVAL;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_region_fill(msg, devlink, DEVLINK_CMD_REGION_GET,
+				     info->snd_portid, info->snd_seq, 0,
+				     region);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_region_get_dumpit(struct sk_buff *msg,
+					    struct netlink_callback *cb)
+{
+	struct devlink_region *region;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(region, &devlink->region_list, list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_region_fill(msg, devlink,
+						     DEVLINK_CMD_REGION_GET,
+						     NETLINK_CB(cb->skb).portid,
+						     cb->nlh->nlmsg_seq,
+						     NLM_F_MULTI, region);
+			if (err) {
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+	cb->args[0] = idx;
+	return msg->len;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3172,6 +3277,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PARAM_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_PARAM_TYPE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
+	[DEVLINK_ATTR_REGION_NAME] = { .type = NLA_NUL_STRING },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -3366,6 +3472,14 @@ static const struct genl_ops devlink_nl_ops[] = {
 	{
 		.cmd = DEVLINK_CMD_PARAM_SET,
 		.doit = devlink_nl_cmd_param_set_doit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_GET,
+		.doit = devlink_nl_cmd_region_get_doit,
+		.dumpit = devlink_nl_cmd_region_get_dumpit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,

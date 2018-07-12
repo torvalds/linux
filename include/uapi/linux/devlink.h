@@ -83,6 +83,9 @@ enum devlink_command {
 	DEVLINK_CMD_PARAM_NEW,
 	DEVLINK_CMD_PARAM_DEL,
 
+	DEVLINK_CMD_REGION_GET,
+	DEVLINK_CMD_REGION_SET,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -261,6 +264,9 @@ enum devlink_attr {
 	DEVLINK_ATTR_PARAM_VALUE,		/* nested */
 	DEVLINK_ATTR_PARAM_VALUE_DATA,		/* dynamic */
 	DEVLINK_ATTR_PARAM_VALUE_CMODE,		/* u8 */
+
+	DEVLINK_ATTR_REGION_NAME,               /* string */
+	DEVLINK_ATTR_REGION_SIZE,               /* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
