@@ -926,10 +926,12 @@ static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 	if (ret)
 		return ret;
 
-	if (f_pdata->use_direct_mode)
+	if (f_pdata->use_direct_mode) {
 		memcpy_toio(cqspi->ahb_base + to, buf, len);
-	else
+		ret = cqspi_wait_idle(cqspi);
+	} else {
 		ret = cqspi_indirect_write_execute(nor, to, buf, len);
+	}
 	if (ret)
 		return ret;
 
