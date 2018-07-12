@@ -11,11 +11,28 @@ Additional compatible strings:
 - Adapteva Parallella board
   "adapteva,parallella"
 
+- Avnet MicroZed board
+  "avnet,zynq-microzed"
+  "xlnx,zynq-microzed"
+
+- Avnet ZedBoard board
+  "avnet,zynq-zed"
+  "xlnx,zynq-zed"
+
+- Digilent Zybo board
+  "digilent,zynq-zybo"
+
 - Digilent Zybo Z7 board
   "digilent,zynq-zybo-z7"
 
 - Xilinx CC108 internal board
   "xlnx,zynq-cc108"
+
+- Xilinx ZC702 internal board
+  "xlnx,zynq-zc702"
+
+- Xilinx ZC706 internal board
+  "xlnx,zynq-zc706"
 
 - Xilinx ZC770 internal board, with different FMC cards
   "xlnx,zynq-zc770-xm010"
