@@ -47,6 +47,17 @@ enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 };
 
+struct kfd_vm_fault_info {
+	uint64_t	page_addr;
+	uint32_t	vmid;
+	uint32_t	mc_id;
+	uint32_t	status;
+	bool		prot_valid;
+	bool		prot_read;
+	bool		prot_write;
+	bool		prot_exec;
+};
+
 struct kfd_cu_info {
 	uint32_t num_shader_engines;
 	uint32_t num_shader_arrays_per_engine;
@@ -259,6 +270,12 @@ struct tile_config {
  * IB to the corresponding ring (ring type). The IB is executed with the
  * specified VMID in a user mode context.
  *
+ * @get_vm_fault_info: Return information about a recent VM fault on
+ * GFXv7 and v8. If multiple VM faults occurred since the last call of
+ * this function, it will return information about the first of those
+ * faults. On GFXv9 VM fault information is fully contained in the IH
+ * packet and this function is not needed.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -374,6 +391,9 @@ struct kfd2kgd_calls {
 	int (*submit_ib)(struct kgd_dev *kgd, enum kgd_engine_type engine,
 			uint32_t vmid, uint64_t gpu_addr,
 			uint32_t *ib_cmd, uint32_t ib_len);
+
+	int (*get_vm_fault_info)(struct kgd_dev *kgd,
+			struct kfd_vm_fault_info *info);
 };
 
 /**

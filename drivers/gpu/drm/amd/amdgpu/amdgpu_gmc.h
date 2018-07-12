@@ -105,6 +105,8 @@ struct amdgpu_gmc {
 	/* protects concurrent invalidation */
 	spinlock_t		invalidate_lock;
 	bool			translate_further;
+	struct kfd_vm_fault_info *vm_fault_info;
+	atomic_t		vm_fault_info_updated;
 
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 };

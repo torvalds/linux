@@ -1621,6 +1621,20 @@ bo_reserve_failed:
 	return ret;
 }
 
+int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
+					      struct kfd_vm_fault_info *mem)
+{
+	struct amdgpu_device *adev;
+
+	adev = (struct amdgpu_device *)kgd;
+	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
+		*mem = *adev->gmc.vm_fault_info;
+		mb();
+		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+	}
+	return 0;
+}
+
 /* Evict a userptr BO by stopping the queues if necessary
  *
  * Runs in MMU notifier, may be in RECLAIM_FS context. This means it

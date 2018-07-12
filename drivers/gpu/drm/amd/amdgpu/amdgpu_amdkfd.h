@@ -183,6 +183,9 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_dev *kgd,
 int amdgpu_amdkfd_gpuvm_restore_process_bos(void *process_info,
 					    struct dma_fence **ef);
 
+int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
+					      struct kfd_vm_fault_info *info);
+
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo);
 
