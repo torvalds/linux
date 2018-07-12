@@ -452,6 +452,7 @@ xfs_cui_recover(
 			mp->m_refc_maxlevels * 2, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
+	tp->t_dfops = dfops;
 	cudp = xfs_trans_get_cud(tp, cuip);
 
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
@@ -514,11 +515,18 @@ xfs_cui_recover(
 
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	set_bit(XFS_CUI_RECOVERED, &cuip->cui_flags);
+	/*
+	 * Recovery finishes all deferred ops once intent processing is
+	 * complete. Reset the trans reference because commit expects a finished
+	 * dfops or none at all.
+	 */
+	tp->t_dfops = NULL;
 	error = xfs_trans_commit(tp);
 	return error;
 
 abort_error:
 	xfs_refcount_finish_one_cleanup(tp, rcur, error);
+	tp->t_dfops = NULL;
 	xfs_trans_cancel(tp);
 	return error;
 }
