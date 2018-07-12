@@ -3388,6 +3388,181 @@ static int devlink_nl_cmd_region_del(struct sk_buff *skb,
 	return 0;
 }
 
+static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
+						 struct devlink *devlink,
+						 u8 *chunk, u32 chunk_size,
+						 u64 addr)
+{
+	struct nlattr *chunk_attr;
+	int err;
+
+	chunk_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_CHUNK);
+	if (!chunk_attr)
+		return -EINVAL;
+
+	err = nla_put(msg, DEVLINK_ATTR_REGION_CHUNK_DATA, chunk_size, chunk);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_CHUNK_ADDR, addr,
+				DEVLINK_ATTR_PAD);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(msg, chunk_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, chunk_attr);
+	return err;
+}
+
+#define DEVLINK_REGION_READ_CHUNK_SIZE 256
+
+static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
+						struct devlink *devlink,
+						struct devlink_region *region,
+						struct nlattr **attrs,
+						u64 start_offset,
+						u64 end_offset,
+						bool dump,
+						u64 *new_offset)
+{
+	struct devlink_snapshot *snapshot;
+	u64 curr_offset = start_offset;
+	u32 snapshot_id;
+	int err = 0;
+
+	*new_offset = start_offset;
+
+	snapshot_id = nla_get_u32(attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+	if (!snapshot)
+		return -EINVAL;
+
+	if (end_offset > snapshot->data_len || dump)
+		end_offset = snapshot->data_len;
+
+	while (curr_offset < end_offset) {
+		u32 data_size;
+		u8 *data;
+
+		if (end_offset - curr_offset < DEVLINK_REGION_READ_CHUNK_SIZE)
+			data_size = end_offset - curr_offset;
+		else
+			data_size = DEVLINK_REGION_READ_CHUNK_SIZE;
+
+		data = &snapshot->data[curr_offset];
+		err = devlink_nl_cmd_region_read_chunk_fill(skb, devlink,
+							    data, data_size,
+							    curr_offset);
+		if (err)
+			break;
+
+		curr_offset += data_size;
+	}
+	*new_offset = curr_offset;
+
+	return err;
+}
+
+static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
+					     struct netlink_callback *cb)
+{
+	u64 ret_offset, start_offset, end_offset = 0;
+	struct nlattr *attrs[DEVLINK_ATTR_MAX + 1];
+	const struct genl_ops *ops = cb->data;
+	struct devlink_region *region;
+	struct nlattr *chunks_attr;
+	const char *region_name;
+	struct devlink *devlink;
+	bool dump = true;
+	void *hdr;
+	int err;
+
+	start_offset = *((u64 *)&cb->args[0]);
+
+	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + devlink_nl_family.hdrsize,
+			  attrs, DEVLINK_ATTR_MAX, ops->policy, NULL);
+	if (err)
+		goto out;
+
+	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
+	if (IS_ERR(devlink))
+		goto out;
+
+	mutex_lock(&devlink_mutex);
+	mutex_lock(&devlink->lock);
+
+	if (!attrs[DEVLINK_ATTR_REGION_NAME] ||
+	    !attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID])
+		goto out_unlock;
+
+	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		goto out_unlock;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &devlink_nl_family, NLM_F_ACK | NLM_F_MULTI,
+			  DEVLINK_CMD_REGION_READ);
+	if (!hdr)
+		goto out_unlock;
+
+	err = devlink_nl_put_handle(skb, devlink);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(skb, DEVLINK_ATTR_REGION_NAME, region_name);
+	if (err)
+		goto nla_put_failure;
+
+	chunks_attr = nla_nest_start(skb, DEVLINK_ATTR_REGION_CHUNKS);
+	if (!chunks_attr)
+		goto nla_put_failure;
+
+	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
+	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
+		if (!start_offset)
+			start_offset =
+				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+
+		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
+		dump = false;
+	}
+
+	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
+						   region, attrs,
+						   start_offset,
+						   end_offset, dump,
+						   &ret_offset);
+
+	if (err && err != -EMSGSIZE)
+		goto nla_put_failure;
+
+	/* Check if there was any progress done to prevent infinite loop */
+	if (ret_offset == start_offset)
+		goto nla_put_failure;
+
+	*((u64 *)&cb->args[0]) = ret_offset;
+
+	nla_nest_end(skb, chunks_attr);
+	genlmsg_end(skb, hdr);
+	mutex_unlock(&devlink->lock);
+	mutex_unlock(&devlink_mutex);
+
+	return skb->len;
+
+nla_put_failure:
+	genlmsg_cancel(skb, hdr);
+out_unlock:
+	mutex_unlock(&devlink->lock);
+	mutex_unlock(&devlink_mutex);
+out:
+	return 0;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3622,6 +3797,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 	{
 		.cmd = DEVLINK_CMD_REGION_DEL,
 		.doit = devlink_nl_cmd_region_del,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_READ,
+		.dumpit = devlink_nl_cmd_region_read_dumpit,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,

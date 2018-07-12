@@ -87,6 +87,7 @@ enum devlink_command {
 	DEVLINK_CMD_REGION_SET,
 	DEVLINK_CMD_REGION_NEW,
 	DEVLINK_CMD_REGION_DEL,
+	DEVLINK_CMD_REGION_READ,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
@@ -272,6 +273,12 @@ enum devlink_attr {
 	DEVLINK_ATTR_REGION_SNAPSHOTS,          /* nested */
 	DEVLINK_ATTR_REGION_SNAPSHOT,           /* nested */
 	DEVLINK_ATTR_REGION_SNAPSHOT_ID,        /* u32 */
+
+	DEVLINK_ATTR_REGION_CHUNKS,             /* nested */
+	DEVLINK_ATTR_REGION_CHUNK,              /* nested */
+	DEVLINK_ATTR_REGION_CHUNK_DATA,         /* binary */
+	DEVLINK_ATTR_REGION_CHUNK_ADDR,         /* u64 */
+	DEVLINK_ATTR_REGION_CHUNK_LEN,          /* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
