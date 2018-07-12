@@ -3236,6 +3236,58 @@ nla_put_failure:
 	return err;
 }
 
+static void devlink_nl_region_notify(struct devlink_region *region,
+				     struct devlink_snapshot *snapshot,
+				     enum devlink_command cmd)
+{
+	struct devlink *devlink = region->devlink;
+	struct sk_buff *msg;
+	void *hdr;
+	int err;
+
+	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = genlmsg_put(msg, 0, 0, &devlink_nl_family, 0, cmd);
+	if (!hdr)
+		goto out_free_msg;
+
+	err = devlink_nl_put_handle(msg, devlink);
+	if (err)
+		goto out_cancel_msg;
+
+	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME,
+			     region->name);
+	if (err)
+		goto out_cancel_msg;
+
+	if (snapshot) {
+		err = nla_put_u32(msg, DEVLINK_ATTR_REGION_SNAPSHOT_ID,
+				  snapshot->id);
+		if (err)
+			goto out_cancel_msg;
+	} else {
+		err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_SIZE,
+					region->size, DEVLINK_ATTR_PAD);
+		if (err)
+			goto out_cancel_msg;
+	}
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+
+	return;
+
+out_cancel_msg:
+	genlmsg_cancel(msg, hdr);
+out_free_msg:
+	nlmsg_free(msg);
+}
+
 static int devlink_nl_cmd_region_get_doit(struct sk_buff *skb,
 					  struct genl_info *info)
 {
@@ -3307,6 +3359,35 @@ out:
 	return msg->len;
 }
 
+static int devlink_nl_cmd_region_del(struct sk_buff *skb,
+				     struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_snapshot *snapshot;
+	struct devlink_region *region;
+	const char *region_name;
+	u32 snapshot_id;
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_NAME] ||
+	    !info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID])
+		return -EINVAL;
+
+	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
+	snapshot_id = nla_get_u32(info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		return -EINVAL;
+
+	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+	if (!snapshot)
+		return -EINVAL;
+
+	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_DEL);
+	devlink_region_snapshot_del(snapshot);
+	return 0;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3331,6 +3412,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PARAM_TYPE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_REGION_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_REGION_SNAPSHOT_ID] = { .type = NLA_U32 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -3533,6 +3615,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.cmd = DEVLINK_CMD_REGION_GET,
 		.doit = devlink_nl_cmd_region_get_doit,
 		.dumpit = devlink_nl_cmd_region_get_dumpit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_DEL,
+		.doit = devlink_nl_cmd_region_del,
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
@@ -4363,6 +4452,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 	region->size = region_size;
 	INIT_LIST_HEAD(&region->snapshot_list);
 	list_add_tail(&region->list, &devlink->region_list);
+	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
 	mutex_unlock(&devlink->lock);
 	return region;
@@ -4390,6 +4480,8 @@ void devlink_region_destroy(struct devlink_region *region)
 		devlink_region_snapshot_del(snapshot);
 
 	list_del(&region->list);
+
+	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
 	mutex_unlock(&devlink->lock);
 	kfree(region);
 }
@@ -4467,6 +4559,7 @@ int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
 
 	region->cur_snapshots++;
 
+	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_NEW);
 	mutex_unlock(&devlink->lock);
 	return 0;
 

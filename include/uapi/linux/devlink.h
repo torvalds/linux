@@ -85,6 +85,8 @@ enum devlink_command {
 
 	DEVLINK_CMD_REGION_GET,
 	DEVLINK_CMD_REGION_SET,
+	DEVLINK_CMD_REGION_NEW,
+	DEVLINK_CMD_REGION_DEL,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
