@@ -336,6 +336,15 @@ struct devlink_region {
 	u64 size;
 };
 
+struct devlink_snapshot {
+	struct list_head list;
+	struct devlink_region *region;
+	devlink_snapshot_data_dest_t *data_destructor;
+	u64 data_len;
+	u8 *data;
+	u32 id;
+};
+
 static struct devlink_region *
 devlink_region_get_by_name(struct devlink *devlink, const char *region_name)
 {
@@ -346,6 +355,26 @@ devlink_region_get_by_name(struct devlink *devlink, const char *region_name)
 			return region;
 
 	return NULL;
+}
+
+static struct devlink_snapshot *
+devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
+{
+	struct devlink_snapshot *snapshot;
+
+	list_for_each_entry(snapshot, &region->snapshot_list, list)
+		if (snapshot->id == id)
+			return snapshot;
+
+	return NULL;
+}
+
+static void devlink_region_snapshot_del(struct devlink_snapshot *snapshot)
+{
+	snapshot->region->cur_snapshots--;
+	list_del(&snapshot->list);
+	(*snapshot->data_destructor)(snapshot->data);
+	kfree(snapshot);
 }
 
 #define DEVLINK_NL_FLAG_NEED_DEVLINK	BIT(0)
@@ -4185,8 +4214,14 @@ EXPORT_SYMBOL_GPL(devlink_region_create);
 void devlink_region_destroy(struct devlink_region *region)
 {
 	struct devlink *devlink = region->devlink;
+	struct devlink_snapshot *snapshot, *ts;
 
 	mutex_lock(&devlink->lock);
+
+	/* Free all snapshots of region */
+	list_for_each_entry_safe(snapshot, ts, &region->snapshot_list, list)
+		devlink_region_snapshot_del(snapshot);
+
 	list_del(&region->list);
 	mutex_unlock(&devlink->lock);
 	kfree(region);
@@ -4213,6 +4248,66 @@ u32 devlink_region_shapshot_id_get(struct devlink *devlink)
 	return id;
 }
 EXPORT_SYMBOL_GPL(devlink_region_shapshot_id_get);
+
+/**
+ *	devlink_region_snapshot_create - create a new snapshot
+ *	This will add a new snapshot of a region. The snapshot
+ *	will be stored on the region struct and can be accessed
+ *	from devlink. This is useful for future	analyses of snapshots.
+ *	Multiple snapshots can be created on a region.
+ *	The @snapshot_id should be obtained using the getter function.
+ *
+ *	@devlink_region: devlink region of the snapshot
+ *	@data_len: size of snapshot data
+ *	@data: snapshot data
+ *	@snapshot_id: snapshot id to be created
+ *	@data_destructor: pointer to destructor function to free data
+ */
+int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+				   u8 *data, u32 snapshot_id,
+				   devlink_snapshot_data_dest_t *data_destructor)
+{
+	struct devlink *devlink = region->devlink;
+	struct devlink_snapshot *snapshot;
+	int err;
+
+	mutex_lock(&devlink->lock);
+
+	/* check if region can hold one more snapshot */
+	if (region->cur_snapshots == region->max_snapshots) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_KERNEL);
+	if (!snapshot) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	snapshot->id = snapshot_id;
+	snapshot->region = region;
+	snapshot->data = data;
+	snapshot->data_len = data_len;
+	snapshot->data_destructor = data_destructor;
+
+	list_add_tail(&snapshot->list, &region->snapshot_list);
+
+	region->cur_snapshots++;
+
+	mutex_unlock(&devlink->lock);
+	return 0;
+
+unlock:
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_region_snapshot_create);
 
 static int __init devlink_module_init(void)
 {

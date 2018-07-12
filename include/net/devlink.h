@@ -401,6 +401,8 @@ enum devlink_param_generic_id {
 
 struct devlink_region;
 
+typedef void devlink_snapshot_data_dest_t(const void *data);
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -553,6 +555,9 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 					     u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
 u32 devlink_region_shapshot_id_get(struct devlink *devlink);
+int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+				   u8 *data, u32 snapshot_id,
+				   devlink_snapshot_data_dest_t *data_destructor);
 
 #else
 
@@ -796,6 +801,14 @@ devlink_region_destroy(struct devlink_region *region)
 
 static inline u32
 devlink_region_shapshot_id_get(struct devlink *devlink)
+{
+	return 0;
+}
+
+static inline int
+devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+			       u8 *data, u32 snapshot_id,
+			       devlink_snapshot_data_dest_t *data_destructor)
 {
 	return 0;
 }
