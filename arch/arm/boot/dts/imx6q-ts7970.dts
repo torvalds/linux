@@ -47,6 +47,11 @@
 / {
 	model = "Technologic Systems i.MX6 Quad TS-7970 (Default Device Tree)";
 	compatible = "technologic,imx6q-ts7970", "fsl,imx6q";
+
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
 };
 
 &sata {

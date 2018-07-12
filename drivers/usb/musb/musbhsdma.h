@@ -6,8 +6,6 @@
  * Copyright (C) 2005-2007 by Texas Instruments
  */
 
-#ifndef CONFIG_BLACKFIN
-
 #define MUSB_HSDMA_BASE		0x200
 #define MUSB_HSDMA_INTR		(MUSB_HSDMA_BASE + 0)
 #define MUSB_HSDMA_CONTROL		0x4
@@ -34,68 +32,6 @@
 	musb_writel(mbase, \
 		    MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_COUNT), \
 		    len)
-#else
-
-#define MUSB_HSDMA_BASE		0x400
-#define MUSB_HSDMA_INTR		(MUSB_HSDMA_BASE + 0)
-#define MUSB_HSDMA_CONTROL		0x04
-#define MUSB_HSDMA_ADDR_LOW		0x08
-#define MUSB_HSDMA_ADDR_HIGH		0x0C
-#define MUSB_HSDMA_COUNT_LOW		0x10
-#define MUSB_HSDMA_COUNT_HIGH		0x14
-
-#define MUSB_HSDMA_CHANNEL_OFFSET(_bchannel, _offset)		\
-		(MUSB_HSDMA_BASE + (_bchannel * 0x20) + _offset)
-
-static inline u32 musb_read_hsdma_addr(void __iomem *mbase, u8 bchannel)
-{
-	u32 addr = musb_readw(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_ADDR_HIGH));
-
-	addr = addr << 16;
-
-	addr |= musb_readw(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_ADDR_LOW));
-
-	return addr;
-}
-
-static inline void musb_write_hsdma_addr(void __iomem *mbase,
-				u8 bchannel, dma_addr_t dma_addr)
-{
-	musb_writew(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_ADDR_LOW),
-		dma_addr);
-	musb_writew(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_ADDR_HIGH),
-		(dma_addr >> 16));
-}
-
-static inline u32 musb_read_hsdma_count(void __iomem *mbase, u8 bchannel)
-{
-	u32 count = musb_readw(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_COUNT_HIGH));
-
-	count = count << 16;
-
-	count |= musb_readw(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_COUNT_LOW));
-
-	return count;
-}
-
-static inline void musb_write_hsdma_count(void __iomem *mbase,
-				u8 bchannel, u32 len)
-{
-	musb_writew(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_COUNT_LOW),len);
-	musb_writew(mbase,
-		MUSB_HSDMA_CHANNEL_OFFSET(bchannel, MUSB_HSDMA_COUNT_HIGH),
-		(len >> 16));
-}
-
-#endif /* CONFIG_BLACKFIN */
-
 /* control register (16-bit): */
 #define MUSB_HSDMA_ENABLE_SHIFT		0
 #define MUSB_HSDMA_TRANSMIT_SHIFT	1

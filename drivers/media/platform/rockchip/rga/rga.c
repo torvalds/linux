@@ -207,7 +207,7 @@ static int rga_setup_ctrls(struct rga_ctx *ctx)
 	return 0;
 }
 
-struct rga_fmt formats[] = {
+static struct rga_fmt formats[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_ARGB32,
 		.color_swap = RGA_COLOR_RB_SWAP,

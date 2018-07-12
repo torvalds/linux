@@ -49,7 +49,7 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include <plat/counter-32k.h>
-#include <plat/dmtimer.h>
+#include <clocksource/timer-ti-dm.h>
 #include "omap-pm.h"
 
 #include "soc.h"

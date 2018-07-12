@@ -301,8 +301,12 @@ static int ad7192_setup(struct ad7192_state *st,
 	if (pdata->unipolar_en)
 		st->conf |= AD7192_CONF_UNIPOLAR;
 
-	if (pdata->burnout_curr_en)
+	if (pdata->burnout_curr_en && pdata->buf_en && !pdata->chop_en) {
 		st->conf |= AD7192_CONF_BURN;
+	} else if (pdata->burnout_curr_en) {
+		dev_warn(&st->sd.spi->dev,
+			 "Can't enable burnout currents: see CHOP or buffer\n");
+	}
 
 	ret = ad_sd_write_reg(&st->sd, AD7192_REG_MODE, 3, st->mode);
 	if (ret)

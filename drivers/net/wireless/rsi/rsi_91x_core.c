@@ -17,6 +17,7 @@
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
 #include "rsi_hal.h"
+#include "rsi_coex.h"
 
 /**
  * rsi_determine_min_weight_queue() - This function determines the queue with
@@ -301,14 +302,23 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			mutex_unlock(&common->tx_lock);
 			break;
 		}
-
-		if (q_num == MGMT_SOFT_Q) {
-			status = rsi_send_mgmt_pkt(common, skb);
-		} else if (q_num == MGMT_BEACON_Q) {
+		if (q_num == MGMT_BEACON_Q) {
 			status = rsi_send_pkt_to_bus(common, skb);
 			dev_kfree_skb(skb);
 		} else {
-			status = rsi_send_data_pkt(common, skb);
+#ifdef CONFIG_RSI_COEX
+			if (common->coex_mode > 1) {
+				status = rsi_coex_send_pkt(common, skb,
+							   RSI_WLAN_Q);
+			} else {
+#endif
+				if (q_num == MGMT_SOFT_Q)
+					status = rsi_send_mgmt_pkt(common, skb);
+				else
+					status = rsi_send_data_pkt(common, skb);
+#ifdef CONFIG_RSI_COEX
+			}
+#endif
 		}
 
 		if (status) {

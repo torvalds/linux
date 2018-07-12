@@ -36,7 +36,7 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 {
 	struct resource res;
 	struct device_node *dma_channel_np, *dma_np;
-	const u32 *iprop;
+	const __be32 *iprop;
 	int ret;
 
 	dma_channel_np = of_parse_phandle(ssi_np, name, 0);

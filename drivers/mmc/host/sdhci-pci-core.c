@@ -41,18 +41,25 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host);
 static int sdhci_pci_init_wakeup(struct sdhci_pci_chip *chip)
 {
 	mmc_pm_flag_t pm_flags = 0;
+	bool cap_cd_wake = false;
 	int i;
 
 	for (i = 0; i < chip->num_slots; i++) {
 		struct sdhci_pci_slot *slot = chip->slots[i];
 
-		if (slot)
+		if (slot) {
 			pm_flags |= slot->host->mmc->pm_flags;
+			if (slot->host->mmc->caps & MMC_CAP_CD_WAKE)
+				cap_cd_wake = true;
+		}
 	}
 
-	return device_set_wakeup_enable(&chip->pdev->dev,
-					(pm_flags & MMC_PM_KEEP_POWER) &&
-					(pm_flags & MMC_PM_WAKE_SDIO_IRQ));
+	if ((pm_flags & MMC_PM_KEEP_POWER) && (pm_flags & MMC_PM_WAKE_SDIO_IRQ))
+		return device_wakeup_enable(&chip->pdev->dev);
+	else if (!cap_cd_wake)
+		return device_wakeup_disable(&chip->pdev->dev);
+
+	return 0;
 }
 
 static int sdhci_pci_suspend_host(struct sdhci_pci_chip *chip)
@@ -76,6 +83,9 @@ static int sdhci_pci_suspend_host(struct sdhci_pci_chip *chip)
 		ret = sdhci_suspend_host(host);
 		if (ret)
 			goto err_pci_suspend;
+
+		if (device_may_wakeup(&chip->pdev->dev))
+			mmc_gpio_set_cd_wake(host->mmc, true);
 	}
 
 	return 0;
@@ -99,6 +109,8 @@ int sdhci_pci_resume_host(struct sdhci_pci_chip *chip)
 		ret = sdhci_resume_host(slot->host);
 		if (ret)
 			return ret;
+
+		mmc_gpio_set_cd_wake(slot->host->mmc, false);
 	}
 
 	return 0;
@@ -712,26 +724,8 @@ static int glk_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	return ret;
 }
 
-static void glk_cqe_enable(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	u32 reg;
-
-	/*
-	 * CQE gets stuck if it sees Buffer Read Enable bit set, which can be
-	 * the case after tuning, so ensure the buffer is drained.
-	 */
-	reg = sdhci_readl(host, SDHCI_PRESENT_STATE);
-	while (reg & SDHCI_DATA_AVAILABLE) {
-		sdhci_readl(host, SDHCI_BUFFER);
-		reg = sdhci_readl(host, SDHCI_PRESENT_STATE);
-	}
-
-	sdhci_cqe_enable(mmc);
-}
-
 static const struct cqhci_host_ops glk_cqhci_ops = {
-	.enable		= glk_cqe_enable,
+	.enable		= sdhci_cqe_enable,
 	.disable	= sdhci_cqe_disable,
 	.dumpregs	= sdhci_pci_dumpregs,
 };
@@ -1318,7 +1312,7 @@ static void amd_enable_manual_tuning(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, AMD_SD_MISC_CONTROL, val);
 }
 
-static int amd_execute_tuning(struct sdhci_host *host, u32 opcode)
+static int amd_execute_tuning_hs200(struct sdhci_host *host, u32 opcode)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	struct pci_dev *pdev = slot->chip->pdev;
@@ -1357,6 +1351,27 @@ static int amd_execute_tuning(struct sdhci_host *host, u32 opcode)
 	return 0;
 }
 
+static int amd_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	/* AMD requires custom HS200 tuning */
+	if (host->timing == MMC_TIMING_MMC_HS200)
+		return amd_execute_tuning_hs200(host, opcode);
+
+	/* Otherwise perform standard SDHCI tuning */
+	return sdhci_execute_tuning(mmc, opcode);
+}
+
+static int amd_probe_slot(struct sdhci_pci_slot *slot)
+{
+	struct mmc_host_ops *ops = &slot->host->mmc_host_ops;
+
+	ops->execute_tuning = amd_execute_tuning;
+
+	return 0;
+}
+
 static int amd_probe(struct sdhci_pci_chip *chip)
 {
 	struct pci_dev	*smbus_dev;
@@ -1391,12 +1406,12 @@ static const struct sdhci_ops amd_sdhci_pci_ops = {
 	.set_bus_width			= sdhci_set_bus_width,
 	.reset				= sdhci_reset,
 	.set_uhs_signaling		= sdhci_set_uhs_signaling,
-	.platform_execute_tuning	= amd_execute_tuning,
 };
 
 static const struct sdhci_pci_fixes sdhci_amd = {
 	.probe		= amd_probe,
 	.ops		= &amd_sdhci_pci_ops,
+	.probe_slot	= amd_probe_slot,
 };
 
 static const struct pci_device_id pci_ids[] = {
@@ -1715,6 +1730,9 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	if (device_can_wakeup(&pdev->dev))
 		host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+
+	if (host->mmc->caps & MMC_CAP_CD_WAKE)
+		device_init_wakeup(&pdev->dev, true);
 
 	if (slot->cd_idx >= 0) {
 		ret = mmc_gpiod_request_cd(host->mmc, NULL, slot->cd_idx,

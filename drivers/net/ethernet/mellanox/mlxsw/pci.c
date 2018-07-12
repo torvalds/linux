@@ -1015,16 +1015,14 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 }
 
 static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
-				     struct mlxsw_res *res,
-				     u8 query_enabled)
+				     struct mlxsw_res *res)
 {
 	int index, i;
 	u64 data;
 	u16 id;
 	int err;
 
-	/* Not all the versions support resources query */
-	if (!query_enabled)
+	if (!res)
 		return 0;
 
 	mlxsw_cmd_mbox_zero(mbox);
@@ -1164,7 +1162,7 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_adaptive_routing_group_cap_set(
 			mbox, profile->adaptive_routing_group_cap);
 	}
-	if (MLXSW_RES_VALID(res, KVD_SIZE)) {
+	if (profile->used_kvd_sizes && MLXSW_RES_VALID(res, KVD_SIZE)) {
 		err = mlxsw_pci_profile_get_kvd_sizes(mlxsw_pci, profile, res);
 		if (err)
 			return err;
@@ -1376,8 +1374,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_boardinfo;
 
-	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res,
-					profile->resource_query_enable);
+	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res);
 	if (err)
 		goto err_query_resources;
 
@@ -1519,8 +1516,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 			      u8 *p_status)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
-	dma_addr_t in_mapaddr = mlxsw_pci->cmd.in_mbox.mapaddr;
-	dma_addr_t out_mapaddr = mlxsw_pci->cmd.out_mbox.mapaddr;
+	dma_addr_t in_mapaddr = 0, out_mapaddr = 0;
 	bool evreq = mlxsw_pci->cmd.nopoll;
 	unsigned long timeout = msecs_to_jiffies(MLXSW_PCI_CIR_TIMEOUT_MSECS);
 	bool *p_wait_done = &mlxsw_pci->cmd.wait_done;
@@ -1532,11 +1528,15 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	if (err)
 		return err;
 
-	if (in_mbox)
+	if (in_mbox) {
 		memcpy(mlxsw_pci->cmd.in_mbox.buf, in_mbox, in_mbox_size);
+		in_mapaddr = mlxsw_pci->cmd.in_mbox.mapaddr;
+	}
 	mlxsw_pci_write32(mlxsw_pci, CIR_IN_PARAM_HI, upper_32_bits(in_mapaddr));
 	mlxsw_pci_write32(mlxsw_pci, CIR_IN_PARAM_LO, lower_32_bits(in_mapaddr));
 
+	if (out_mbox)
+		out_mapaddr = mlxsw_pci->cmd.out_mbox.mapaddr;
 	mlxsw_pci_write32(mlxsw_pci, CIR_OUT_PARAM_HI, upper_32_bits(out_mapaddr));
 	mlxsw_pci_write32(mlxsw_pci, CIR_OUT_PARAM_LO, lower_32_bits(out_mapaddr));
 

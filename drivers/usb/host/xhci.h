@@ -922,6 +922,8 @@ struct xhci_virt_ep {
 #define EP_HAS_STREAMS		(1 << 4)
 /* Transitioning the endpoint to not using streams, don't enqueue URBs */
 #define EP_GETTING_NO_STREAMS	(1 << 5)
+#define EP_HARD_CLEAR_TOGGLE	(1 << 6)
+#define EP_SOFT_CLEAR_TOGGLE	(1 << 7)
 	/* ----  Related to URB cancellation ---- */
 	struct list_head	cancelled_td_list;
 	/* Watchdog timer for stop endpoint command to cancel URBs */
@@ -1727,8 +1729,9 @@ struct xhci_hcd {
 	int		page_shift;
 	/* msi-x vectors */
 	int		msix_count;
-	/* optional clock */
+	/* optional clocks */
 	struct clk		*clk;
+	struct clk		*reg_clk;
 	/* data structures */
 	struct xhci_device_context_array *dcbaa;
 	struct xhci_ring	*cmd_ring;
@@ -1827,6 +1830,7 @@ struct xhci_hcd {
 #define XHCI_ASMEDIA_MODIFY_FLOWCONTROL	(1 << 28)
 #define XHCI_HW_LPM_DISABLE	(1 << 29)
 #define XHCI_SUSPEND_DELAY	(1 << 30)
+#define XHCI_INTEL_USB_ROLE_SW	(1 << 31)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -2022,6 +2026,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 void xhci_init_driver(struct hc_driver *drv,
 		      const struct xhci_driver_overrides *over);
 int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id);
+int xhci_ext_cap_init(struct xhci_hcd *xhci);
 
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup);
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated);

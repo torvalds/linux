@@ -124,8 +124,9 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 }
 
 static int ad7150_read_event_config(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir)
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir)
 {
 	int ret;
 	u8 threshtype;

@@ -11,6 +11,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/proc_ns.h>
+#include <linux/refcount.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/binfmts.h>
@@ -36,7 +37,7 @@ struct proc_dir_entry {
 	 * negative -> it's going away RSN
 	 */
 	atomic_t in_use;
-	atomic_t count;		/* use count */
+	refcount_t refcnt;
 	struct list_head pde_openers;	/* who did ->open, but not ->release */
 	/* protects ->pde_openers and all struct pde_opener instances */
 	spinlock_t pde_unload_lock;
@@ -50,12 +51,21 @@ struct proc_dir_entry {
 	kgid_t gid;
 	loff_t size;
 	struct proc_dir_entry *parent;
-	struct rb_root_cached subdir;
+	struct rb_root subdir;
 	struct rb_node subdir_node;
+	char *name;
 	umode_t mode;
 	u8 namelen;
-	char name[];
+#ifdef CONFIG_64BIT
+#define SIZEOF_PDE_INLINE_NAME	(192-139)
+#else
+#define SIZEOF_PDE_INLINE_NAME	(128-87)
+#endif
+	char inline_name[SIZEOF_PDE_INLINE_NAME];
 } __randomize_layout;
+
+extern struct kmem_cache *proc_dir_entry_cache;
+void pde_free(struct proc_dir_entry *pde);
 
 union proc_op {
 	int (*proc_get_link)(struct dentry *, struct path *);
@@ -159,7 +169,7 @@ int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {
-	atomic_inc(&pde->count);
+	refcount_inc(&pde->refcnt);
 	return pde;
 }
 extern void pde_put(struct proc_dir_entry *);
@@ -177,12 +187,12 @@ struct pde_opener {
 	struct list_head lh;
 	bool closing;
 	struct completion *c;
-};
+} __randomize_layout;
 extern const struct inode_operations proc_link_inode_operations;
 
 extern const struct inode_operations proc_pid_link_inode_operations;
 
-extern void proc_init_inodecache(void);
+void proc_init_kmemcache(void);
 void set_proc_pid_nlink(void);
 extern struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
 extern int proc_fill_super(struct super_block *, void *data, int flags);

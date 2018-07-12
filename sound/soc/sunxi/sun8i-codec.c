@@ -184,7 +184,7 @@ static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
 
 static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct sun8i_codec *scodec = snd_soc_codec_get_drvdata(dai->codec);
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(dai->component);
 	u32 value;
 
 	/* clock masters */
@@ -304,7 +304,7 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct sun8i_codec *scodec = snd_soc_codec_get_drvdata(dai->codec);
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(dai->component);
 	int sample_rate;
 	u8 bclk_div;
 
@@ -500,13 +500,15 @@ static struct snd_soc_dai_driver sun8i_codec_dai = {
 	.ops = &sun8i_codec_dai_ops,
 };
 
-static const struct snd_soc_codec_driver sun8i_soc_codec = {
-	.component_driver = {
-		.dapm_widgets		= sun8i_codec_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(sun8i_codec_dapm_widgets),
-		.dapm_routes		= sun8i_codec_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(sun8i_codec_dapm_routes),
-	},
+static const struct snd_soc_component_driver sun8i_soc_component = {
+	.dapm_widgets		= sun8i_codec_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sun8i_codec_dapm_widgets),
+	.dapm_routes		= sun8i_codec_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(sun8i_codec_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sun8i_codec_regmap_config = {
@@ -566,7 +568,7 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	ret = snd_soc_register_codec(&pdev->dev, &sun8i_soc_codec,
+	ret = devm_snd_soc_register_component(&pdev->dev, &sun8i_soc_component,
 				     &sun8i_codec_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register codec\n");
@@ -594,7 +596,6 @@ static int sun8i_codec_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		sun8i_codec_runtime_suspend(&pdev->dev);
 
-	snd_soc_unregister_codec(&pdev->dev);
 	clk_disable_unprepare(scodec->clk_module);
 	clk_disable_unprepare(scodec->clk_bus);
 

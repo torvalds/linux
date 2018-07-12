@@ -727,10 +727,6 @@ static struct snd_soc_dai_driver siu_i2s_dai = {
 	.ops = &siu_dai_ops,
 };
 
-static const struct snd_soc_component_driver siu_i2s_component = {
-	.name		= "siu-i2s",
-};
-
 static int siu_probe(struct platform_device *pdev)
 {
 	const struct firmware *fw_entry;
@@ -786,12 +782,8 @@ static int siu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	/* register using ARRAY version so we can keep dai name */
-	ret = devm_snd_soc_register_component(&pdev->dev, &siu_i2s_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &siu_component,
 					      &siu_i2s_dai, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_snd_soc_register_platform(&pdev->dev, &siu_platform);
 	if (ret < 0)
 		return ret;
 

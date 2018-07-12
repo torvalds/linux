@@ -24,6 +24,64 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-tag.h"
 
+static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
+{
+	if (stat->nr_samples) {
+		seq_printf(m, "samples=%d, mean=%lld, min=%llu, max=%llu",
+			   stat->nr_samples, stat->mean, stat->min, stat->max);
+	} else {
+		seq_puts(m, "samples=0");
+	}
+}
+
+static int queue_poll_stat_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	int bucket;
+
+	for (bucket = 0; bucket < BLK_MQ_POLL_STATS_BKTS/2; bucket++) {
+		seq_printf(m, "read  (%d Bytes): ", 1 << (9+bucket));
+		print_stat(m, &q->poll_stat[2*bucket]);
+		seq_puts(m, "\n");
+
+		seq_printf(m, "write (%d Bytes): ",  1 << (9+bucket));
+		print_stat(m, &q->poll_stat[2*bucket+1]);
+		seq_puts(m, "\n");
+	}
+	return 0;
+}
+
+static void *queue_requeue_list_start(struct seq_file *m, loff_t *pos)
+	__acquires(&q->requeue_lock)
+{
+	struct request_queue *q = m->private;
+
+	spin_lock_irq(&q->requeue_lock);
+	return seq_list_start(&q->requeue_list, *pos);
+}
+
+static void *queue_requeue_list_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct request_queue *q = m->private;
+
+	return seq_list_next(v, &q->requeue_list, pos);
+}
+
+static void queue_requeue_list_stop(struct seq_file *m, void *v)
+	__releases(&q->requeue_lock)
+{
+	struct request_queue *q = m->private;
+
+	spin_unlock_irq(&q->requeue_lock);
+}
+
+static const struct seq_operations queue_requeue_list_seq_ops = {
+	.start	= queue_requeue_list_start,
+	.next	= queue_requeue_list_next,
+	.stop	= queue_requeue_list_stop,
+	.show	= blk_mq_debugfs_rq_show,
+};
+
 static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 			  const char *const *flag_name, int flag_name_count)
 {
@@ -125,16 +183,6 @@ inval:
 	return count;
 }
 
-static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
-{
-	if (stat->nr_samples) {
-		seq_printf(m, "samples=%d, mean=%lld, min=%llu, max=%llu",
-			   stat->nr_samples, stat->mean, stat->min, stat->max);
-	} else {
-		seq_puts(m, "samples=0");
-	}
-}
-
 static int queue_write_hint_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
@@ -158,29 +206,35 @@ static ssize_t queue_write_hint_store(void *data, const char __user *buf,
 	return count;
 }
 
-static int queue_poll_stat_show(void *data, struct seq_file *m)
+static int queue_zone_wlock_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
-	int bucket;
+	unsigned int i;
 
-	for (bucket = 0; bucket < BLK_MQ_POLL_STATS_BKTS/2; bucket++) {
-		seq_printf(m, "read  (%d Bytes): ", 1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket]);
-		seq_puts(m, "\n");
+	if (!q->seq_zones_wlock)
+		return 0;
 
-		seq_printf(m, "write (%d Bytes): ",  1 << (9+bucket));
-		print_stat(m, &q->poll_stat[2*bucket+1]);
-		seq_puts(m, "\n");
-	}
+	for (i = 0; i < blk_queue_nr_zones(q); i++)
+		if (test_bit(i, q->seq_zones_wlock))
+			seq_printf(m, "%u\n", i);
+
 	return 0;
 }
+
+static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
+	{ "poll_stat", 0400, queue_poll_stat_show },
+	{ "requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops },
+	{ "state", 0600, queue_state_show, queue_state_write },
+	{ "write_hints", 0600, queue_write_hint_show, queue_write_hint_store },
+	{ "zone_wlock", 0400, queue_zone_wlock_show, NULL },
+	{ },
+};
 
 #define HCTX_STATE_NAME(name) [BLK_MQ_S_##name] = #name
 static const char *const hctx_state_name[] = {
 	HCTX_STATE_NAME(STOPPED),
 	HCTX_STATE_NAME(TAG_ACTIVE),
 	HCTX_STATE_NAME(SCHED_RESTART),
-	HCTX_STATE_NAME(START_ON_RUN),
 };
 #undef HCTX_STATE_NAME
 
@@ -295,6 +349,20 @@ static const char *const rqf_name[] = {
 };
 #undef RQF_NAME
 
+static const char *const blk_mq_rq_state_name_array[] = {
+	[MQ_RQ_IDLE]		= "idle",
+	[MQ_RQ_IN_FLIGHT]	= "in_flight",
+	[MQ_RQ_COMPLETE]	= "complete",
+};
+
+static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
+{
+	if (WARN_ON_ONCE((unsigned int)rq_state >
+			 ARRAY_SIZE(blk_mq_rq_state_name_array)))
+		return "(?)";
+	return blk_mq_rq_state_name_array[rq_state];
+}
+
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
@@ -311,7 +379,7 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
-	seq_printf(m, ", complete=%d", blk_rq_is_complete(rq));
+	seq_printf(m, ", .state=%s", blk_mq_rq_state_name(blk_mq_rq_state(rq)));
 	seq_printf(m, ", .tag=%d, .internal_tag=%d", rq->tag,
 		   rq->internal_tag);
 	if (mq_ops->show_rq)
@@ -326,37 +394,6 @@ int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	return __blk_mq_debugfs_rq_show(m, list_entry_rq(v));
 }
 EXPORT_SYMBOL_GPL(blk_mq_debugfs_rq_show);
-
-static void *queue_requeue_list_start(struct seq_file *m, loff_t *pos)
-	__acquires(&q->requeue_lock)
-{
-	struct request_queue *q = m->private;
-
-	spin_lock_irq(&q->requeue_lock);
-	return seq_list_start(&q->requeue_list, *pos);
-}
-
-static void *queue_requeue_list_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	struct request_queue *q = m->private;
-
-	return seq_list_next(v, &q->requeue_list, pos);
-}
-
-static void queue_requeue_list_stop(struct seq_file *m, void *v)
-	__releases(&q->requeue_lock)
-{
-	struct request_queue *q = m->private;
-
-	spin_unlock_irq(&q->requeue_lock);
-}
-
-static const struct seq_operations queue_requeue_list_seq_ops = {
-	.start	= queue_requeue_list_start,
-	.next	= queue_requeue_list_next,
-	.stop	= queue_requeue_list_stop,
-	.show	= blk_mq_debugfs_rq_show,
-};
 
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
 	__acquires(&hctx->lock)
@@ -745,14 +782,6 @@ static const struct file_operations blk_mq_debugfs_fops = {
 	.write		= blk_mq_debugfs_write,
 	.llseek		= seq_lseek,
 	.release	= blk_mq_debugfs_release,
-};
-
-static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
-	{"poll_stat", 0400, queue_poll_stat_show},
-	{"requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops},
-	{"state", 0600, queue_state_show, queue_state_write},
-	{"write_hints", 0600, queue_write_hint_show, queue_write_hint_store},
-	{},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {

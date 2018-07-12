@@ -731,7 +731,7 @@ static char *nodename_from_path(const char *ppath, const char *cpath)
 
 	plen = strlen(ppath);
 
-	if (!strneq(ppath, cpath, plen))
+	if (!strstarts(cpath, ppath))
 		die("Path \"%s\" is not valid as a child of \"%s\"\n",
 		    cpath, ppath);
 

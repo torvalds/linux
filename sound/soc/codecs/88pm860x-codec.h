@@ -88,9 +88,9 @@
 #define PM860X_SHORT_LINEOUT		(1 << 4)
 #define PM860X_DET_MASK			0x1F
 
-extern int pm860x_hs_jack_detect(struct snd_soc_codec *, struct snd_soc_jack *,
+extern int pm860x_hs_jack_detect(struct snd_soc_component *, struct snd_soc_jack *,
 				 int, int, int, int);
-extern int pm860x_mic_jack_detect(struct snd_soc_codec *, struct snd_soc_jack *,
+extern int pm860x_mic_jack_detect(struct snd_soc_component *, struct snd_soc_jack *,
 				  int);
 
 #endif	/* __88PM860X_H */

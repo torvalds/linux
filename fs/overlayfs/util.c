@@ -47,13 +47,29 @@ struct super_block *ovl_same_sb(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 
-	return ofs->same_sb;
+	if (!ofs->numlowerfs)
+		return ofs->upper_mnt->mnt_sb;
+	else if (ofs->numlowerfs == 1 && !ofs->upper_mnt)
+		return ofs->lower_fs[0].sb;
+	else
+		return NULL;
 }
 
-bool ovl_can_decode_fh(struct super_block *sb)
+/*
+ * Check if underlying fs supports file handles and try to determine encoding
+ * type, in order to deduce maximum inode number used by fs.
+ *
+ * Return 0 if file handles are not supported.
+ * Return 1 (FILEID_INO32_GEN) if fs uses the default 32bit inode encoding.
+ * Return -1 if fs uses a non default encoding with unknown inode size.
+ */
+int ovl_can_decode_fh(struct super_block *sb)
 {
-	return (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
-		!uuid_is_null(&sb->s_uuid));
+	if (!sb->s_export_op || !sb->s_export_op->fh_to_dentry ||
+	    uuid_is_null(&sb->s_uuid))
+		return 0;
+
+	return sb->s_export_op->encode_fh ? -1 : FILEID_INO32_GEN;
 }
 
 struct dentry *ovl_indexdir(struct super_block *sb)
@@ -172,6 +188,13 @@ struct dentry *ovl_dentry_lower(struct dentry *dentry)
 	return oe->numlower ? oe->lowerstack[0].dentry : NULL;
 }
 
+struct ovl_layer *ovl_layer_lower(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	return oe->numlower ? oe->lowerstack[0].layer : NULL;
+}
+
 struct dentry *ovl_dentry_real(struct dentry *dentry)
 {
 	return ovl_dentry_upper(dentry) ?: ovl_dentry_lower(dentry);
@@ -279,12 +302,16 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
 		    struct dentry *lowerdentry)
 {
+	struct inode *realinode = d_inode(upperdentry ?: lowerdentry);
+
 	if (upperdentry)
 		OVL_I(inode)->__upperdentry = upperdentry;
 	if (lowerdentry)
 		OVL_I(inode)->lower = igrab(d_inode(lowerdentry));
 
-	ovl_copyattr(d_inode(upperdentry ?: lowerdentry), inode);
+	ovl_copyattr(realinode, inode);
+	if (!inode->i_ino)
+		inode->i_ino = realinode->i_ino;
 }
 
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
@@ -299,6 +326,8 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 	smp_wmb();
 	OVL_I(inode)->__upperdentry = upperdentry;
 	if (inode_unhashed(inode)) {
+		if (!inode->i_ino)
+			inode->i_ino = upperinode->i_ino;
 		inode->i_private = upperinode;
 		__insert_inode_hash(inode, (unsigned long) upperinode);
 	}

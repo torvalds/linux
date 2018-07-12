@@ -210,10 +210,10 @@
 			reg = <4>;
 		};
 
-		port@5 {
-			ethernet = <&amac0>;
+		port@8 {
+			ethernet = <&amac2>;
 			label = "cpu";
-			reg = <5>;
+			reg = <8>;
 			fixed-link {
 				speed = <1000>;
 				full-duplex;

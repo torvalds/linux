@@ -245,6 +245,7 @@ static int debug_status_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_status);
 
 static int debug_dmem_show(struct seq_file *s, void *v)
 {
@@ -266,6 +267,7 @@ static int debug_dmem_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_dmem);
 
 static int debug_etd_show(struct seq_file *s, void *v)
 {
@@ -334,6 +336,7 @@ static int debug_etd_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_etd);
 
 static void debug_statistics_show_one(struct seq_file *s,
 	const char *name, struct debug_stats *stats)
@@ -368,6 +371,7 @@ static int debug_statistics_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_statistics);
 
 static void debug_isoc_show_one(struct seq_file *s,
 	const char *name, int index, 	struct debug_isoc_trace *trace)
@@ -409,66 +413,7 @@ static int debug_isoc_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int debug_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_status_show, inode->i_private);
-}
-
-static int debug_dmem_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_dmem_show, inode->i_private);
-}
-
-static int debug_etd_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_etd_show, inode->i_private);
-}
-
-static int debug_statistics_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_statistics_show, inode->i_private);
-}
-
-static int debug_isoc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_isoc_show, inode->i_private);
-}
-
-static const struct file_operations debug_status_fops = {
-	.open = debug_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_dmem_fops = {
-	.open = debug_dmem_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_etd_fops = {
-	.open = debug_etd_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_statistics_fops = {
-	.open = debug_statistics_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_isoc_fops = {
-	.open = debug_isoc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debug_isoc);
 
 static void create_debug_files(struct imx21 *imx21)
 {

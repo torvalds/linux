@@ -128,7 +128,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(vfs_truncate);
 
-static long do_sys_truncate(const char __user *pathname, loff_t length)
+long do_sys_truncate(const char __user *pathname, loff_t length)
 {
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 	struct path path;
@@ -162,7 +162,7 @@ COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path, compat_off_t, length
 }
 #endif
 
-static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	struct inode *inode;
 	struct dentry *dentry;
@@ -333,7 +333,7 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 }
 EXPORT_SYMBOL_GPL(vfs_fallocate);
 
-SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+int ksys_fallocate(int fd, int mode, loff_t offset, loff_t len)
 {
 	struct fd f = fdget(fd);
 	int error = -EBADF;
@@ -345,12 +345,17 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
 	return error;
 }
 
+SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+{
+	return ksys_fallocate(fd, mode, offset, len);
+}
+
 /*
  * access() needs to use the real uid/gid, not the effective uid/gid.
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
-SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+long do_faccessat(int dfd, const char __user *filename, int mode)
 {
 	const struct cred *old_cred;
 	struct cred *override_cred;
@@ -426,12 +431,17 @@ out:
 	return res;
 }
 
-SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
+SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
-	return sys_faccessat(AT_FDCWD, filename, mode);
+	return do_faccessat(dfd, filename, mode);
 }
 
-SYSCALL_DEFINE1(chdir, const char __user *, filename)
+SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
+{
+	return do_faccessat(AT_FDCWD, filename, mode);
+}
+
+int ksys_chdir(const char __user *filename)
 {
 	struct path path;
 	int error;
@@ -457,6 +467,11 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE1(chdir, const char __user *, filename)
+{
+	return ksys_chdir(filename);
+}
+
 SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
 	struct fd f = fdget_raw(fd);
@@ -479,7 +494,7 @@ out:
 	return error;
 }
 
-SYSCALL_DEFINE1(chroot, const char __user *, filename)
+int ksys_chroot(const char __user *filename)
 {
 	struct path path;
 	int error;
@@ -512,6 +527,11 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE1(chroot, const char __user *, filename)
+{
+	return ksys_chroot(filename);
+}
+
 static int chmod_common(const struct path *path, umode_t mode)
 {
 	struct inode *inode = path->dentry->d_inode;
@@ -541,7 +561,7 @@ out_unlock:
 	return error;
 }
 
-SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
+int ksys_fchmod(unsigned int fd, umode_t mode)
 {
 	struct fd f = fdget(fd);
 	int err = -EBADF;
@@ -554,7 +574,12 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	return err;
 }
 
-SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, umode_t, mode)
+SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
+{
+	return ksys_fchmod(fd, mode);
+}
+
+int do_fchmodat(int dfd, const char __user *filename, umode_t mode)
 {
 	struct path path;
 	int error;
@@ -572,9 +597,15 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename,
+		umode_t, mode)
+{
+	return do_fchmodat(dfd, filename, mode);
+}
+
 SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 {
-	return sys_fchmodat(AT_FDCWD, filename, mode);
+	return do_fchmodat(AT_FDCWD, filename, mode);
 }
 
 static int chown_common(const struct path *path, uid_t user, gid_t group)
@@ -619,8 +650,8 @@ retry_deleg:
 	return error;
 }
 
-SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
-		gid_t, group, int, flag)
+int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
+		int flag)
 {
 	struct path path;
 	int error = -EINVAL;
@@ -651,18 +682,24 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
+		gid_t, group, int, flag)
+{
+	return do_fchownat(dfd, filename, user, group, flag);
+}
+
 SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 {
-	return sys_fchownat(AT_FDCWD, filename, user, group, 0);
+	return do_fchownat(AT_FDCWD, filename, user, group, 0);
 }
 
 SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group)
 {
-	return sys_fchownat(AT_FDCWD, filename, user, group,
-			    AT_SYMLINK_NOFOLLOW);
+	return do_fchownat(AT_FDCWD, filename, user, group,
+			   AT_SYMLINK_NOFOLLOW);
 }
 
-SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
+int ksys_fchown(unsigned int fd, uid_t user, gid_t group)
 {
 	struct fd f = fdget(fd);
 	int error = -EBADF;
@@ -680,6 +717,11 @@ out_fput:
 	fdput(f);
 out:
 	return error;
+}
+
+SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
+{
+	return ksys_fchown(fd, user, group);
 }
 
 int open_check_o_direct(struct file *f)
@@ -1114,7 +1156,7 @@ COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, fla
  */
 SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
 {
-	return sys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
+	return ksys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
 }
 
 #endif
@@ -1163,7 +1205,6 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 
 	return retval;
 }
-EXPORT_SYMBOL(sys_close);
 
 /*
  * This routine simulates a hangup on the tty, to arrange that users

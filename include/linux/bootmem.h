@@ -364,15 +364,6 @@ static inline void __init memblock_free_late(
 }
 #endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
 
-#ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
-extern void *alloc_remap(int nid, unsigned long size);
-#else
-static inline void *alloc_remap(int nid, unsigned long size)
-{
-	return NULL;
-}
-#endif /* CONFIG_HAVE_ARCH_ALLOC_REMAP */
-
 extern void *alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,
 				     unsigned long numentries,

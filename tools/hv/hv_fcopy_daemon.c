@@ -21,15 +21,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <errno.h>
 #include <linux/hyperv.h>
+#include <linux/limits.h>
 #include <syslog.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <getopt.h>
 
 static int target_fd;
-static char target_fname[W_MAX_PATH];
+static char target_fname[PATH_MAX];
 static unsigned long long filesize;
 
 static int hv_start_fcopy(struct hv_start_fcopy *smsg)

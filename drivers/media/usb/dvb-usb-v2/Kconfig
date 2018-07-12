@@ -15,7 +15,8 @@ config DVB_USB_V2
 
 config DVB_USB_AF9015
 	tristate "Afatech AF9015 DVB-T USB2.0 support"
-	depends on DVB_USB_V2
+	depends on DVB_USB_V2 && I2C_MUX
+	select REGMAP
 	select DVB_AF9013
 	select DVB_PLL              if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2060   if MEDIA_SUBDRV_AUTOSELECT

@@ -14,6 +14,7 @@
  ******************************************************************************/
 #define _RTW_MLME_C_
 
+#include <linux/etherdevice.h>
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <linux/jiffies.h>
@@ -2109,7 +2110,7 @@ int rtw_select_roaming_candidate(struct mlme_priv *mlme)
 		mlme->roam_network = candidate;
 
 		if (!memcmp(candidate->network.MacAddress, mlme->roam_tgt_addr, ETH_ALEN))
-			memset(mlme->roam_tgt_addr, 0, ETH_ALEN);
+			eth_zero_addr(mlme->roam_tgt_addr);
 	}
 
 	ret = _SUCCESS;

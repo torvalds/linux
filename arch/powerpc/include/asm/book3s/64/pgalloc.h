@@ -80,8 +80,18 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	pgd = kmem_cache_alloc(PGT_CACHE(PGD_INDEX_SIZE),
 			       pgtable_gfp_flags(mm, GFP_KERNEL));
+	/*
+	 * With hugetlb, we don't clear the second half of the page table.
+	 * If we share the same slab cache with the pmd or pud level table,
+	 * we need to make sure we zero out the full table on alloc.
+	 * With 4K we don't store slot in the second half. Hence we don't
+	 * need to do this for 4k.
+	 */
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_PPC_64K_PAGES) && \
+	((H_PGD_INDEX_SIZE == H_PUD_CACHE_INDEX) ||		     \
+	 (H_PGD_INDEX_SIZE == H_PMD_CACHE_INDEX))
 	memset(pgd, 0, PGD_TABLE_SIZE);
-
+#endif
 	return pgd;
 }
 

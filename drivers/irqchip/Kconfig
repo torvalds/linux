@@ -51,6 +51,12 @@ config ARM_GIC_V3_ITS_PCI
 	depends on PCI_MSI
 	default ARM_GIC_V3_ITS
 
+config ARM_GIC_V3_ITS_FSL_MC
+	bool
+	depends on ARM_GIC_V3_ITS
+	depends on FSL_MC_BUS
+	default ARM_GIC_V3_ITS
+
 config ARM_NVIC
 	bool
 	select IRQ_DOMAIN
@@ -286,6 +292,11 @@ config IRQ_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
 
+config MSCC_OCELOT_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
 config MVEBU_GICP
 	bool
 
@@ -350,5 +361,14 @@ config GOLDFISH_PIC
        help
          Say yes here to enable Goldfish interrupt controller driver used
          for Goldfish based virtual platforms.
+
+config QCOM_PDC
+	bool "QCOM PDC"
+	depends on ARCH_QCOM
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Power Domain Controller driver to manage and configure wakeup
+	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
 endmenu

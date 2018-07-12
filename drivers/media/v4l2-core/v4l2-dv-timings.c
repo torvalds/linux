@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * v4l2-dv-timings - dv-timings helper functions
  *
  * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
 
 #include <linux/module.h>
@@ -27,6 +14,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
 #include <linux/math64.h>
+#include <linux/hdmi.h>
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("V4L2 DV Timings Helper Functions");
@@ -814,3 +802,143 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 	return aspect;
 }
 EXPORT_SYMBOL_GPL(v4l2_calc_aspect_ratio);
+
+/** v4l2_hdmi_rx_colorimetry - determine HDMI colorimetry information
+ *	based on various InfoFrames.
+ * @avi: the AVI InfoFrame
+ * @hdmi: the HDMI Vendor InfoFrame, may be NULL
+ * @height: the frame height
+ *
+ * Determines the HDMI colorimetry information, i.e. how the HDMI
+ * pixel color data should be interpreted.
+ *
+ * Note that some of the newer features (DCI-P3, HDR) are not yet
+ * implemented: the hdmi.h header needs to be updated to the HDMI 2.0
+ * and CTA-861-G standards.
+ */
+struct v4l2_hdmi_colorimetry
+v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
+			 const struct hdmi_vendor_infoframe *hdmi,
+			 unsigned int height)
+{
+	struct v4l2_hdmi_colorimetry c = {
+		V4L2_COLORSPACE_SRGB,
+		V4L2_YCBCR_ENC_DEFAULT,
+		V4L2_QUANTIZATION_FULL_RANGE,
+		V4L2_XFER_FUNC_SRGB
+	};
+	bool is_ce = avi->video_code || (hdmi && hdmi->vic);
+	bool is_sdtv = height <= 576;
+	bool default_is_lim_range_rgb = avi->video_code > 1;
+
+	switch (avi->colorspace) {
+	case HDMI_COLORSPACE_RGB:
+		/* RGB pixel encoding */
+		switch (avi->colorimetry) {
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->extended_colorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB:
+				c.colorspace = V4L2_COLORSPACE_ADOBERGB;
+				c.xfer_func = V4L2_XFER_FUNC_ADOBERGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		switch (avi->quantization_range) {
+		case HDMI_QUANTIZATION_RANGE_LIMITED:
+			c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		case HDMI_QUANTIZATION_RANGE_FULL:
+			break;
+		default:
+			if (default_is_lim_range_rgb)
+				c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+			break;
+		}
+		break;
+
+	default:
+		/* YCbCr pixel encoding */
+		c.quantization = V4L2_QUANTIZATION_LIM_RANGE;
+		switch (avi->colorimetry) {
+		case HDMI_COLORIMETRY_NONE:
+			if (!is_ce)
+				break;
+			if (is_sdtv) {
+				c.colorspace = V4L2_COLORSPACE_SMPTE170M;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			} else {
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			}
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_601:
+			c.colorspace = V4L2_COLORSPACE_SMPTE170M;
+			c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_ITU_709:
+			c.colorspace = V4L2_COLORSPACE_REC709;
+			c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+			c.xfer_func = V4L2_XFER_FUNC_709;
+			break;
+		case HDMI_COLORIMETRY_EXTENDED:
+			switch (avi->extended_colorimetry) {
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_601:
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_XV709;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_XV_YCC_709:
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_XV601;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_S_YCC_601:
+				c.colorspace = V4L2_COLORSPACE_SRGB;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				c.xfer_func = V4L2_XFER_FUNC_SRGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601:
+				c.colorspace = V4L2_COLORSPACE_ADOBERGB;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_601;
+				c.xfer_func = V4L2_XFER_FUNC_ADOBERGB;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			case HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM:
+				c.colorspace = V4L2_COLORSPACE_BT2020;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_BT2020_CONST_LUM;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			default: /* fall back to ITU_709 */
+				c.colorspace = V4L2_COLORSPACE_REC709;
+				c.ycbcr_enc = V4L2_YCBCR_ENC_709;
+				c.xfer_func = V4L2_XFER_FUNC_709;
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		/*
+		 * YCC Quantization Range signaling is more-or-less broken,
+		 * let's just ignore this.
+		 */
+		break;
+	}
+	return c;
+}
+EXPORT_SYMBOL_GPL(v4l2_hdmi_rx_colorimetry);

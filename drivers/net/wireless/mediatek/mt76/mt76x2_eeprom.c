@@ -222,11 +222,10 @@ static int
 mt76x2_eeprom_load(struct mt76x2_dev *dev)
 {
 	void *efuse;
-	int len = MT7662_EEPROM_SIZE;
 	bool found;
 	int ret;
 
-	ret = mt76_eeprom_init(&dev->mt76, len);
+	ret = mt76_eeprom_init(&dev->mt76, MT7662_EEPROM_SIZE);
 	if (ret < 0)
 		return ret;
 
@@ -234,14 +233,15 @@ mt76x2_eeprom_load(struct mt76x2_dev *dev)
 	if (found)
 		found = !mt76x2_check_eeprom(dev);
 
-	dev->mt76.otp.data = devm_kzalloc(dev->mt76.dev, len, GFP_KERNEL);
-	dev->mt76.otp.size = len;
+	dev->mt76.otp.data = devm_kzalloc(dev->mt76.dev, MT7662_EEPROM_SIZE,
+					  GFP_KERNEL);
+	dev->mt76.otp.size = MT7662_EEPROM_SIZE;
 	if (!dev->mt76.otp.data)
 		return -ENOMEM;
 
 	efuse = dev->mt76.otp.data;
 
-	if (mt76x2_get_efuse_data(dev, efuse, len))
+	if (mt76x2_get_efuse_data(dev, efuse, MT7662_EEPROM_SIZE))
 		goto out;
 
 	if (found) {
@@ -249,7 +249,7 @@ mt76x2_eeprom_load(struct mt76x2_dev *dev)
 	} else {
 		/* FIXME: check if efuse data is complete */
 		found = true;
-		memcpy(dev->mt76.eeprom.data, efuse, len);
+		memcpy(dev->mt76.eeprom.data, efuse, MT7662_EEPROM_SIZE);
 	}
 
 out:

@@ -273,18 +273,16 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 {
 	struct device *_dev = &pdev->dev;
 	struct ax_drvdata *dd;
-	struct parport *pp = NULL;
+	struct parport *pp;
 	struct resource *res;
 	unsigned long size;
 	int spacing;
 	int irq;
 	int ret;
 
-	dd = kzalloc(sizeof(struct ax_drvdata), GFP_KERNEL);
-	if (dd == NULL) {
-		dev_err(_dev, "no memory for private data\n");
+	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	if (!dd)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {

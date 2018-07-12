@@ -460,21 +460,12 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	ret = cpufreq_table_validate_and_show(policy, freq_table);
-	if (ret) {
-		pr_err("%s: invalid frequency table: %d\n", __func__, ret);
-		goto out_free_cpufreq_table;
-	}
-
 	cpumask_copy(policy->cpus, &info->cpus);
+	policy->freq_table = freq_table;
 	policy->driver_data = info;
 	policy->clk = info->cpu_clk;
 
 	return 0;
-
-out_free_cpufreq_table:
-	dev_pm_opp_free_cpufreq_table(info->cpu_dev, &freq_table);
-	return ret;
 }
 
 static int mtk_cpufreq_exit(struct cpufreq_policy *policy)
@@ -578,7 +569,7 @@ static int __init mtk_cpufreq_driver_init(void)
 	match = of_match_node(mtk_cpufreq_machines, np);
 	of_node_put(np);
 	if (!match) {
-		pr_warn("Machine is not compatible with mtk-cpufreq\n");
+		pr_debug("Machine is not compatible with mtk-cpufreq\n");
 		return -ENODEV;
 	}
 

@@ -310,24 +310,6 @@ reprocess:
 	return LDLM_ITER_CONTINUE;
 }
 
-struct ldlm_flock_wait_data {
-	struct ldlm_lock *fwd_lock;
-};
-
-static void
-ldlm_flock_interrupted_wait(void *data)
-{
-	struct ldlm_lock *lock;
-
-	lock = ((struct ldlm_flock_wait_data *)data)->fwd_lock;
-
-	lock_res_and_lock(lock);
-
-	/* client side - set flag to prevent lock from being put on LRU list */
-	ldlm_set_cbpending(lock);
-	unlock_res_and_lock(lock);
-}
-
 /**
  * Flock completion callback function.
  *
@@ -342,8 +324,6 @@ int
 ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 {
 	struct file_lock		*getlk = lock->l_ast_data;
-	struct ldlm_flock_wait_data	fwd;
-	struct l_wait_info		lwi;
 	int				rc = 0;
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT2, 4);
@@ -372,13 +352,17 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 	LDLM_DEBUG(lock,
 		   "client-side enqueue returned a blocked lock, sleeping");
-	fwd.fwd_lock = lock;
-	lwi = LWI_TIMEOUT_INTR(0, NULL, ldlm_flock_interrupted_wait, &fwd);
 
 	/* Go to sleep until the lock is granted. */
-	rc = l_wait_event(lock->l_waitq, is_granted_or_cancelled(lock), &lwi);
+	rc = l_wait_event_abortable(lock->l_waitq, is_granted_or_cancelled(lock));
 
 	if (rc) {
+		lock_res_and_lock(lock);
+
+		/* client side - set flag to prevent lock from being put on LRU list */
+		ldlm_set_cbpending(lock);
+		unlock_res_and_lock(lock);
+
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
 		return rc;

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -556,6 +556,10 @@ lpfc_init_link(struct lpfc_hba * phba,
 		case LPFC_USER_LINK_SPEED_32G:
 			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
 			mb->un.varInitLnk.link_speed = LINK_SPEED_32G;
+			break;
+		case LPFC_USER_LINK_SPEED_64G:
+			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
+			mb->un.varInitLnk.link_speed = LINK_SPEED_64G;
 			break;
 		case LPFC_USER_LINK_SPEED_AUTO:
 		default:
@@ -2170,10 +2174,8 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	/* Only FC supports upd bit */
 	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
 	    (vport->fc_flag & FC_VFI_REGISTERED) &&
-	    (!phba->fc_topology_changed)) {
-		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
+	    (!phba->fc_topology_changed))
 		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
-	}
 
 	bf_set(lpfc_reg_vfi_bbcr, reg_vfi, 0);
 	bf_set(lpfc_reg_vfi_bbscn, reg_vfi, 0);

@@ -157,11 +157,12 @@ config SERIAL_8250_CS
 	  If unsure, say N.
 
 config SERIAL_8250_MEN_MCB
-	tristate "MEN Z125 UART device support"
+	tristate "MEN MCB UART device support"
 	depends on MCB && SERIAL_8250
 	help
 	  This enables support for FPGA based UARTs found on many MEN
-	  boards. This driver enables support for the Z125 UARTs.
+	  boards. This driver enables support for the 16z025, 16z057
+	  and 16z125 UARTs.
 
 	  To compile this driver as a module, chose M here: the
 	  module will be called 8250_men_mcb.

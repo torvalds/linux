@@ -175,19 +175,11 @@ static int powernv_flash_erase(struct mtd_info *mtd, struct erase_info *erase)
 {
 	int rc;
 
-	erase->state = MTD_ERASING;
-
-	/* todo: register our own notifier to do a true async implementation */
 	rc =  powernv_flash_async_op(mtd, FLASH_OP_ERASE, erase->addr,
 			erase->len, NULL, NULL);
-
-	if (rc) {
+	if (rc)
 		erase->fail_addr = erase->addr;
-		erase->state = MTD_ERASE_FAILED;
-	} else {
-		erase->state = MTD_ERASE_DONE;
-	}
-	mtd_erase_callback(erase);
+
 	return rc;
 }
 

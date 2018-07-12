@@ -48,19 +48,6 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 							int crtc,
 							enum amdgpu_interrupt_state state);
 
-/**
- * dce_virtual_vblank_wait - vblank wait asic callback.
- *
- * @adev: amdgpu_device pointer
- * @crtc: crtc to wait for vblank on
- *
- * Wait for vblank on the requested crtc (evergreen+).
- */
-static void dce_virtual_vblank_wait(struct amdgpu_device *adev, int crtc)
-{
-	return;
-}
-
 static u32 dce_virtual_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 {
 	return 0;
@@ -130,9 +117,9 @@ static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 	.cursor_set2 = NULL,
 	.cursor_move = NULL,
 	.gamma_set = dce_virtual_crtc_gamma_set,
-	.set_config = amdgpu_crtc_set_config,
+	.set_config = amdgpu_display_crtc_set_config,
 	.destroy = dce_virtual_crtc_destroy,
-	.page_flip_target = amdgpu_crtc_page_flip_target,
+	.page_flip_target = amdgpu_display_crtc_page_flip_target,
 };
 
 static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -149,7 +136,8 @@ static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 		amdgpu_crtc->enabled = true;
 		/* Make sure VBLANK interrupts are still enabled */
-		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
+		type = amdgpu_display_crtc_idx_to_irq_type(adev,
+						amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		drm_crtc_vblank_on(crtc);
 		break;
@@ -406,9 +394,9 @@ static int dce_virtual_sw_init(void *handle)
 	adev->ddev->mode_config.preferred_depth = 24;
 	adev->ddev->mode_config.prefer_shadow = 1;
 
-	adev->ddev->mode_config.fb_base = adev->mc.aper_base;
+	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
 
-	r = amdgpu_modeset_create_props(adev);
+	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;
 
@@ -485,6 +473,7 @@ static int dce_virtual_hw_init(void *handle)
 		/* no DCE */
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 		break;
 	default:
 		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
@@ -653,7 +642,6 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.bandwidth_update = &dce_virtual_bandwidth_update,
 	.vblank_get_counter = &dce_virtual_vblank_get_counter,
-	.vblank_wait = &dce_virtual_vblank_wait,
 	.backlight_set_level = NULL,
 	.backlight_get_level = NULL,
 	.hpd_sense = &dce_virtual_hpd_sense,

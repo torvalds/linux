@@ -268,6 +268,7 @@ struct sunxi_mmc_cfg {
 };
 
 struct sunxi_mmc_host {
+	struct device *dev;
 	struct mmc_host	*mmc;
 	struct reset_control *reset;
 	const struct sunxi_mmc_cfg *cfg;
@@ -1165,6 +1166,80 @@ static const struct of_device_id sunxi_mmc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sunxi_mmc_of_match);
 
+static int sunxi_mmc_enable(struct sunxi_mmc_host *host)
+{
+	int ret;
+
+	if (!IS_ERR(host->reset)) {
+		ret = reset_control_reset(host->reset);
+		if (ret) {
+			dev_err(host->dev, "Couldn't reset the MMC controller (%d)\n",
+				ret);
+			return ret;
+		}
+	}
+
+	ret = clk_prepare_enable(host->clk_ahb);
+	if (ret) {
+		dev_err(host->dev, "Couldn't enable the bus clocks (%d)\n", ret);
+		goto error_assert_reset;
+	}
+
+	ret = clk_prepare_enable(host->clk_mmc);
+	if (ret) {
+		dev_err(host->dev, "Enable mmc clk err %d\n", ret);
+		goto error_disable_clk_ahb;
+	}
+
+	ret = clk_prepare_enable(host->clk_output);
+	if (ret) {
+		dev_err(host->dev, "Enable output clk err %d\n", ret);
+		goto error_disable_clk_mmc;
+	}
+
+	ret = clk_prepare_enable(host->clk_sample);
+	if (ret) {
+		dev_err(host->dev, "Enable sample clk err %d\n", ret);
+		goto error_disable_clk_output;
+	}
+
+	/*
+	 * Sometimes the controller asserts the irq on boot for some reason,
+	 * make sure the controller is in a sane state before enabling irqs.
+	 */
+	ret = sunxi_mmc_reset_host(host);
+	if (ret)
+		goto error_disable_clk_sample;
+
+	return 0;
+
+error_disable_clk_sample:
+	clk_disable_unprepare(host->clk_sample);
+error_disable_clk_output:
+	clk_disable_unprepare(host->clk_output);
+error_disable_clk_mmc:
+	clk_disable_unprepare(host->clk_mmc);
+error_disable_clk_ahb:
+	clk_disable_unprepare(host->clk_ahb);
+error_assert_reset:
+	if (!IS_ERR(host->reset))
+		reset_control_assert(host->reset);
+	return ret;
+}
+
+static void sunxi_mmc_disable(struct sunxi_mmc_host *host)
+{
+	sunxi_mmc_reset_host(host);
+
+	clk_disable_unprepare(host->clk_sample);
+	clk_disable_unprepare(host->clk_output);
+	clk_disable_unprepare(host->clk_mmc);
+	clk_disable_unprepare(host->clk_ahb);
+
+	if (!IS_ERR(host->reset))
+		reset_control_assert(host->reset);
+}
+
 static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 				      struct platform_device *pdev)
 {
@@ -1214,66 +1289,21 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 	if (PTR_ERR(host->reset) == -EPROBE_DEFER)
 		return PTR_ERR(host->reset);
 
-	ret = clk_prepare_enable(host->clk_ahb);
-	if (ret) {
-		dev_err(&pdev->dev, "Enable ahb clk err %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(host->clk_mmc);
-	if (ret) {
-		dev_err(&pdev->dev, "Enable mmc clk err %d\n", ret);
-		goto error_disable_clk_ahb;
-	}
-
-	ret = clk_prepare_enable(host->clk_output);
-	if (ret) {
-		dev_err(&pdev->dev, "Enable output clk err %d\n", ret);
-		goto error_disable_clk_mmc;
-	}
-
-	ret = clk_prepare_enable(host->clk_sample);
-	if (ret) {
-		dev_err(&pdev->dev, "Enable sample clk err %d\n", ret);
-		goto error_disable_clk_output;
-	}
-
-	if (!IS_ERR(host->reset)) {
-		ret = reset_control_reset(host->reset);
-		if (ret) {
-			dev_err(&pdev->dev, "reset err %d\n", ret);
-			goto error_disable_clk_sample;
-		}
-	}
-
-	/*
-	 * Sometimes the controller asserts the irq on boot for some reason,
-	 * make sure the controller is in a sane state before enabling irqs.
-	 */
-	ret = sunxi_mmc_reset_host(host);
+	ret = sunxi_mmc_enable(host);
 	if (ret)
-		goto error_assert_reset;
+		return ret;
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq <= 0) {
 		ret = -EINVAL;
-		goto error_assert_reset;
+		goto error_disable_mmc;
 	}
 
 	return devm_request_threaded_irq(&pdev->dev, host->irq, sunxi_mmc_irq,
 			sunxi_mmc_handle_manual_stop, 0, "sunxi-mmc", host);
 
-error_assert_reset:
-	if (!IS_ERR(host->reset))
-		reset_control_assert(host->reset);
-error_disable_clk_sample:
-	clk_disable_unprepare(host->clk_sample);
-error_disable_clk_output:
-	clk_disable_unprepare(host->clk_output);
-error_disable_clk_mmc:
-	clk_disable_unprepare(host->clk_mmc);
-error_disable_clk_ahb:
-	clk_disable_unprepare(host->clk_ahb);
+error_disable_mmc:
+	sunxi_mmc_disable(host);
 	return ret;
 }
 
@@ -1288,8 +1318,10 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "mmc alloc host failed\n");
 		return -ENOMEM;
 	}
+	platform_set_drvdata(pdev, mmc);
 
 	host = mmc_priv(mmc);
+	host->dev = &pdev->dev;
 	host->mmc = mmc;
 	spin_lock_init(&host->lock);
 
@@ -1353,7 +1385,6 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		goto error_free_dma;
 
 	dev_info(&pdev->dev, "base:0x%p irq:%u\n", host->reg_base, host->irq);
-	platform_set_drvdata(pdev, mmc);
 	return 0;
 
 error_free_dma:
@@ -1370,16 +1401,7 @@ static int sunxi_mmc_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 	disable_irq(host->irq);
-	sunxi_mmc_reset_host(host);
-
-	if (!IS_ERR(host->reset))
-		reset_control_assert(host->reset);
-
-	clk_disable_unprepare(host->clk_sample);
-	clk_disable_unprepare(host->clk_output);
-	clk_disable_unprepare(host->clk_mmc);
-	clk_disable_unprepare(host->clk_ahb);
-
+	sunxi_mmc_disable(host);
 	dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 	mmc_free_host(mmc);
 

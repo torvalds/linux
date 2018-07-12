@@ -9,6 +9,7 @@ Required properties:
 	- "socionext,uniphier-pxs2-ave4" : for PXs2 SoC
 	- "socionext,uniphier-ld11-ave4" : for LD11 SoC
 	- "socionext,uniphier-ld20-ave4" : for LD20 SoC
+	- "socionext,uniphier-pxs3-ave4" : for PXs3 SoC
  - reg: Address where registers are mapped and size of region.
  - interrupts: Should contain the MAC interrupt.
  - phy-mode: See ethernet.txt in the same directory. Allow to choose

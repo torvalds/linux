@@ -7,6 +7,7 @@
  *	    Alan Cox (alan@lxorguk.ukuu.org.uk)
  *	    Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
+ *   Audio Class 3.0 support by Ruslan Bilovol <ruslan.bilovol@gmail.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -44,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/audio-v2.h>
+#include <linux/usb/audio-v3.h>
 #include <linux/module.h>
 
 #include <sound/control.h>
@@ -281,7 +283,8 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		break;
 	}
 
-	case UAC_VERSION_2: {
+	case UAC_VERSION_2:
+	case UAC_VERSION_3: {
 		struct usb_interface_assoc_descriptor *assoc =
 			usb_ifnum_to_if(dev, ctrlif)->intf_assoc;
 
@@ -301,7 +304,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		}
 
 		if (!assoc) {
-			dev_err(&dev->dev, "Audio class v2 interfaces need an interface association\n");
+			dev_err(&dev->dev, "Audio class v2/v3 interfaces need an interface association\n");
 			return -EINVAL;
 		}
 

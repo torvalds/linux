@@ -2447,7 +2447,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 		/* ---- card 0x88---------------------------------- */
 	[BTTV_BOARD_ACORP_Y878F] = {
-		/* Mauro Carvalho Chehab <mchehab@infradead.org> */
+		/* Mauro Carvalho Chehab <mchehab@kernel.org> */
 		.name		= "Acorp Y878F",
 		.video_inputs	= 3,
 		/* .audio_inputs= 1, */
@@ -2688,7 +2688,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 	[BTTV_BOARD_ENLTV_FM_2] = {
 		/* Encore TV Tuner Pro ENL TV-FM-2
-		   Mauro Carvalho Chehab <mchehab@infradead.org */
+		   Mauro Carvalho Chehab <mchehab@kernel.org> */
 		.name           = "Encore ENL TV-FM-2",
 		.video_inputs   = 3,
 		/* .audio_inputs= 1, */

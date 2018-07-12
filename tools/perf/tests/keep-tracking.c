@@ -27,18 +27,23 @@
 static int find_comm(struct perf_evlist *evlist, const char *comm)
 {
 	union perf_event *event;
+	struct perf_mmap *md;
 	int i, found;
 
 	found = 0;
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+		md = &evlist->mmap[i];
+		if (perf_mmap__read_init(md) < 0)
+			continue;
+		while ((event = perf_mmap__read_event(md)) != NULL) {
 			if (event->header.type == PERF_RECORD_COMM &&
 			    (pid_t)event->comm.pid == getpid() &&
 			    (pid_t)event->comm.tid == getpid() &&
 			    strcmp(event->comm.comm, comm) == 0)
 				found += 1;
-			perf_evlist__mmap_consume(evlist, i);
+			perf_mmap__consume(md);
 		}
+		perf_mmap__read_done(md);
 	}
 	return found;
 }

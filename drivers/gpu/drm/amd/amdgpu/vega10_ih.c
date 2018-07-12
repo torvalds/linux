@@ -245,8 +245,8 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	 * some faults get cleared.
 	 */
 	switch (dw0 & 0xff) {
-	case AMDGPU_IH_CLIENTID_VMC:
-	case AMDGPU_IH_CLIENTID_UTCL2:
+	case SOC15_IH_CLIENTID_VMC:
+	case SOC15_IH_CLIENTID_UTCL2:
 		break;
 	default:
 		/* Not a VM fault */
@@ -333,7 +333,7 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
 	entry->vmid_src = (dw[0] >> 31);
 	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
 	entry->timestamp_src = dw[2] >> 31;
-	entry->pas_id = dw[3] & 0xffff;
+	entry->pasid = dw[3] & 0xffff;
 	entry->pasid_src = dw[3] >> 31;
 	entry->src_data[0] = dw[4];
 	entry->src_data[1] = dw[5];

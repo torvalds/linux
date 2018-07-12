@@ -443,7 +443,7 @@ cleanup:
 			ret = -EFAULT;
 			goto cleanup;
 		}
-		if (copy_to_user((void __user *) (unsigned long) ti->tidmap,
+		if (copy_to_user(u64_to_user_ptr(ti->tidmap),
 				 tidmap, sizeof(tidmap))) {
 			ret = -EFAULT;
 			goto cleanup;
@@ -490,7 +490,7 @@ static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
 		goto done;
 	}
 
-	if (copy_from_user(tidmap, (void __user *)(unsigned long)ti->tidmap,
+	if (copy_from_user(tidmap, u64_to_user_ptr(ti->tidmap),
 			   sizeof(tidmap))) {
 		ret = -EFAULT;
 		goto done;
@@ -2168,8 +2168,8 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 		ret = qib_do_user_init(fp, &cmd.cmd.user_info);
 		if (ret)
 			goto bail;
-		ret = qib_get_base_info(fp, (void __user *) (unsigned long)
-					cmd.cmd.user_info.spu_base_info,
+		ret = qib_get_base_info(fp, u64_to_user_ptr(
+					  cmd.cmd.user_info.spu_base_info),
 					cmd.cmd.user_info.spu_base_info_size);
 		break;
 

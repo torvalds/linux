@@ -310,7 +310,7 @@ static int autofs_dev_ioctl_closemount(struct file *fp,
 				       struct autofs_sb_info *sbi,
 				       struct autofs_dev_ioctl *param)
 {
-	return sys_close(param->ioctlfd);
+	return ksys_close(param->ioctlfd);
 }
 
 /*

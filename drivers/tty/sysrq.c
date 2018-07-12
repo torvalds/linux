@@ -660,7 +660,7 @@ static void sysrq_do_reset(struct timer_list *t)
 
 	state->reset_requested = true;
 
-	sys_sync();
+	ksys_sync();
 	kernel_restart(NULL);
 }
 

@@ -382,8 +382,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (!dev->dev.dma_mask)
 		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	retval = dma_set_coherent_mask(&dev->dev, DMA_BIT_MASK(32));
-	if (retval)
+	if (retval) {
+		dev_err(&dev->dev, "can't set coherent DMA mask: %d\n", retval);
 		return retval;
+	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
@@ -425,13 +427,20 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	 * Reset before dwc2_get_hwparams() then it could get power-on real
 	 * reset value form registers.
 	 */
-	dwc2_core_reset_and_force_dr_mode(hsotg);
+	retval = dwc2_core_reset(hsotg, false);
+	if (retval)
+		goto error;
 
 	/* Detect config values from hardware */
 	retval = dwc2_get_hwparams(hsotg);
 	if (retval)
 		goto error;
 
+	/*
+	 * For OTG cores, set the force mode bits to reflect the value
+	 * of dr_mode. Force mode bits should not be touched at any
+	 * other time after this.
+	 */
 	dwc2_force_dr_mode(hsotg);
 
 	retval = dwc2_init_params(hsotg);
@@ -439,7 +448,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		goto error;
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
-		retval = dwc2_gadget_init(hsotg, hsotg->irq);
+		retval = dwc2_gadget_init(hsotg);
 		if (retval)
 			goto error;
 		hsotg->gadget_enabled = 1;
@@ -456,6 +465,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, hsotg);
+	hsotg->hibernated = 0;
 
 	dwc2_debugfs_init(hsotg);
 

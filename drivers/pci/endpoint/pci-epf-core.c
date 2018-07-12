@@ -98,6 +98,8 @@ void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar)
 
 	epf->bar[bar].phys_addr = 0;
 	epf->bar[bar].size = 0;
+	epf->bar[bar].barno = 0;
+	epf->bar[bar].flags = 0;
 }
 EXPORT_SYMBOL_GPL(pci_epf_free_space);
 
@@ -126,6 +128,8 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar)
 
 	epf->bar[bar].phys_addr = phys_addr;
 	epf->bar[bar].size = size;
+	epf->bar[bar].barno = bar;
+	epf->bar[bar].flags = PCI_BASE_ADDRESS_SPACE_MEMORY;
 
 	return space;
 }
@@ -200,29 +204,17 @@ struct pci_epf *pci_epf_create(const char *name)
 	int ret;
 	struct pci_epf *epf;
 	struct device *dev;
-	char *func_name;
-	char *buf;
+	int len;
 
 	epf = kzalloc(sizeof(*epf), GFP_KERNEL);
-	if (!epf) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!epf)
+		return ERR_PTR(-ENOMEM);
 
-	buf = kstrdup(name, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto free_epf;
-	}
-
-	func_name = buf;
-	buf = strchrnul(buf, '.');
-	*buf = '\0';
-
-	epf->name = kstrdup(func_name, GFP_KERNEL);
+	len = strchrnul(name, '.') - name;
+	epf->name = kstrndup(name, len, GFP_KERNEL);
 	if (!epf->name) {
-		ret = -ENOMEM;
-		goto free_func_name;
+		kfree(epf);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	dev = &epf->dev;
@@ -231,28 +223,18 @@ struct pci_epf *pci_epf_create(const char *name)
 	dev->type = &pci_epf_type;
 
 	ret = dev_set_name(dev, "%s", name);
-	if (ret)
-		goto put_dev;
+	if (ret) {
+		put_device(dev);
+		return ERR_PTR(ret);
+	}
 
 	ret = device_add(dev);
-	if (ret)
-		goto put_dev;
+	if (ret) {
+		put_device(dev);
+		return ERR_PTR(ret);
+	}
 
-	kfree(func_name);
 	return epf;
-
-put_dev:
-	put_device(dev);
-	kfree(epf->name);
-
-free_func_name:
-	kfree(func_name);
-
-free_epf:
-	kfree(epf);
-
-err_ret:
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(pci_epf_create);
 

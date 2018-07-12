@@ -1577,15 +1577,13 @@ out:
 
 
 static int ipx_getname(struct socket *sock, struct sockaddr *uaddr,
-			int *uaddr_len, int peer)
+			int peer)
 {
 	struct ipx_address *addr;
 	struct sockaddr_ipx sipx;
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
 	int rc;
-
-	*uaddr_len = sizeof(struct sockaddr_ipx);
 
 	lock_sock(sk);
 	if (peer) {
@@ -1620,7 +1618,7 @@ static int ipx_getname(struct socket *sock, struct sockaddr *uaddr,
 	sipx.sipx_zero	 = 0;
 	memcpy(uaddr, &sipx, sizeof(sipx));
 
-	rc = 0;
+	rc = sizeof(struct sockaddr_ipx);
 out:
 	release_sock(sk);
 	return rc;

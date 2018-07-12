@@ -54,7 +54,6 @@ struct iproc_msi;
  * @reg_offsets: register offsets
  * @base: PCIe host controller I/O register base
  * @base_addr: PCIe host controller register base physical address
- * @sysdata: Per PCI controller data (ARM-specific)
  * @root_bus: pointer to root bus
  * @phy: optional PHY device that controls the Serdes
  * @map_irq: function callback to map interrupts
@@ -80,9 +79,6 @@ struct iproc_pcie {
 	u16 *reg_offsets;
 	void __iomem *base;
 	phys_addr_t base_addr;
-#ifdef CONFIG_ARM
-	struct pci_sys_data sysdata;
-#endif
 	struct resource mem;
 	struct pci_bus *root_bus;
 	struct phy *phy;

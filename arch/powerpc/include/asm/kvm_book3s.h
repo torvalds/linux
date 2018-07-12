@@ -96,6 +96,7 @@ struct kvmppc_vcore {
 	struct kvm_vcpu *runner;
 	struct kvm *kvm;
 	u64 tb_offset;		/* guest timebase - host timebase */
+	u64 tb_offset_applied;	/* timebase offset currently in force */
 	ulong lpcr;
 	u32 arch_compat;
 	ulong pcr;
@@ -240,6 +241,10 @@ extern void kvmppc_harvest_vpa_dirty(struct kvmppc_vpa *vpa,
 extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 			unsigned long mask);
 extern void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr);
+
+extern int kvmhv_p9_tm_emulation_early(struct kvm_vcpu *vcpu);
+extern int kvmhv_p9_tm_emulation(struct kvm_vcpu *vcpu);
+extern void kvmhv_emulate_tm_rollback(struct kvm_vcpu *vcpu);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);

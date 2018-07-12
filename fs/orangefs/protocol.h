@@ -5,11 +5,6 @@
 #include <linux/slab.h>
 #include <linux/ioctl.h>
 
-/* pvfs2-config.h ***********************************************************/
-#define ORANGEFS_VERSION_MAJOR 2
-#define ORANGEFS_VERSION_MINOR 9
-#define ORANGEFS_VERSION_SUB 0
-
 /* khandle stuff  ***********************************************************/
 
 /*
@@ -70,16 +65,6 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 }
 
 /* pvfs2-types.h ************************************************************/
-typedef __u32 ORANGEFS_uid;
-typedef __u32 ORANGEFS_gid;
-typedef __s32 ORANGEFS_fs_id;
-typedef __u32 ORANGEFS_permissions;
-typedef __u64 ORANGEFS_time;
-typedef __s64 ORANGEFS_size;
-typedef __u64 ORANGEFS_flags;
-typedef __u64 ORANGEFS_ds_position;
-typedef __s32 ORANGEFS_error;
-typedef __s64 ORANGEFS_offset;
 
 #define ORANGEFS_SUPER_MAGIC 0x20030528
 
@@ -145,7 +130,6 @@ typedef __s64 ORANGEFS_offset;
 #define ORANGEFS_APPEND_FL    FS_APPEND_FL
 #define ORANGEFS_NOATIME_FL   FS_NOATIME_FL
 #define ORANGEFS_MIRROR_FL    0x01000000ULL
-#define ORANGEFS_O_EXECUTE (1 << 0)
 #define ORANGEFS_FS_ID_NULL       ((__s32)0)
 #define ORANGEFS_ATTR_SYS_UID                   (1 << 0)
 #define ORANGEFS_ATTR_SYS_GID                   (1 << 1)
@@ -228,35 +212,6 @@ enum orangefs_ds_type {
 	ORANGEFS_TYPE_DIRDATA = (1 << 4),
 	ORANGEFS_TYPE_INTERNAL = (1 << 5)	/* for the server's private use */
 };
-
-/*
- * ORANGEFS_certificate simply stores a buffer with the buffer size.
- * The buffer can be converted to an OpenSSL X509 struct for use.
- */
-struct ORANGEFS_certificate {
-	__u32 buf_size;
-	unsigned char *buf;
-};
-
-/*
- * A credential identifies a user and is signed by the client/user
- * private key.
- */
-struct ORANGEFS_credential {
-	__u32 userid;	/* user id */
-	__u32 num_groups;	/* length of group_array */
-	__u32 *group_array;	/* groups for which the user is a member */
-	char *issuer;		/* alias of the issuing server */
-	__u64 timeout;	/* seconds after epoch to time out */
-	__u32 sig_size;	/* length of the signature in bytes */
-	unsigned char *signature;	/* digital signature */
-	struct ORANGEFS_certificate certificate;	/* user certificate buffer */
-};
-#define extra_size_ORANGEFS_credential (ORANGEFS_REQ_LIMIT_GROUPS	*	\
-				    sizeof(__u32)		+	\
-				    ORANGEFS_REQ_LIMIT_ISSUER	+	\
-				    ORANGEFS_REQ_LIMIT_SIGNATURE	+	\
-				    extra_size_ORANGEFS_certificate)
 
 /* This structure is used by the VFS-client interaction alone */
 struct ORANGEFS_keyval_pair {

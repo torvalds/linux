@@ -414,19 +414,13 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
    while (len)
 	 {
 		if (!erase_block (addr))
-		  {
-			 instr->state = MTD_ERASE_FAILED;
 			 return (-EIO);
-		  }
 
 		addr += mtd->eraseregions[i].erasesize;
 		len -= mtd->eraseregions[i].erasesize;
 
 		if (addr == mtd->eraseregions[i].offset + (mtd->eraseregions[i].erasesize * mtd->eraseregions[i].numblocks)) i++;
 	 }
-
-   instr->state = MTD_ERASE_DONE;
-   mtd_erase_callback(instr);
 
    return (0);
 }

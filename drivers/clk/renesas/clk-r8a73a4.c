@@ -71,7 +71,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 
 
 	if (!strcmp(name, "main")) {
-		u32 ckscr = clk_readl(cpg->reg + CPG_CKSCR);
+		u32 ckscr = readl(cpg->reg + CPG_CKSCR);
 
 		switch ((ckscr >> 28) & 3) {
 		case 0:	/* extal1 */
@@ -95,14 +95,14 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = clk_readl(cpg->reg + CPG_PLL0CR);
+		u32 value = readl(cpg->reg + CPG_PLL0CR);
 
 		parent_name = "main";
 		mult = ((value >> 24) & 0x7f) + 1;
 		if (value & BIT(20))
 			div = 2;
 	} else if (!strcmp(name, "pll1")) {
-		u32 value = clk_readl(cpg->reg + CPG_PLL1CR);
+		u32 value = readl(cpg->reg + CPG_PLL1CR);
 
 		parent_name = "main";
 		/* XXX: enable bit? */
@@ -125,7 +125,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 		default:
 			return ERR_PTR(-EINVAL);
 		}
-		value = clk_readl(cpg->reg + cr);
+		value = readl(cpg->reg + cr);
 		switch ((value >> 5) & 7) {
 		case 0:
 			parent_name = "main";
@@ -161,8 +161,7 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 			shift = 0;
 		}
 		div *= 32;
-		mult = 0x20 - ((clk_readl(cpg->reg + CPG_FRQCRC) >> shift)
-		       & 0x1f);
+		mult = 0x20 - ((readl(cpg->reg + CPG_FRQCRC) >> shift) & 0x1f);
 	} else {
 		struct div4_clk *c;
 

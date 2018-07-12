@@ -39,6 +39,7 @@ extern int cifsFYI;
 #else
 #define NOISY 0
 #endif
+#define ONCE 8
 
 /*
  *	debug ON
@@ -46,19 +47,28 @@ extern int cifsFYI;
  */
 #ifdef CONFIG_CIFS_DEBUG
 
-__printf(1, 2) void cifs_vfs_err(const char *fmt, ...);
-
 /* information message: e.g., configuration, major event */
-#define cifs_dbg(type, fmt, ...)					\
-do {									\
-	if (type == FYI && cifsFYI & CIFS_INFO) {			\
-		pr_debug_ratelimited("%s: "				\
-			    fmt, __FILE__, ##__VA_ARGS__);		\
-	} else if (type == VFS) {					\
-		cifs_vfs_err(fmt, ##__VA_ARGS__);			\
-	} else if (type == NOISY && type != 0) {			\
-		pr_debug_ratelimited(fmt, ##__VA_ARGS__);		\
-	}								\
+#define cifs_dbg_func(ratefunc, type, fmt, ...)			\
+do {								\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
+		pr_debug_ ## ratefunc("%s: "			\
+				fmt, __FILE__, ##__VA_ARGS__);	\
+	} else if ((type) & VFS) {				\
+		pr_err_ ## ratefunc("CIFS VFS: "		\
+				 fmt, ##__VA_ARGS__);		\
+	} else if ((type) & NOISY && (NOISY != 0)) {		\
+		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);	\
+	}							\
+} while (0)
+
+#define cifs_dbg(type, fmt, ...) \
+do {							\
+	if ((type) & ONCE)				\
+		cifs_dbg_func(once,			\
+			 type, fmt, ##__VA_ARGS__);	\
+	else						\
+		cifs_dbg_func(ratelimited,		\
+			type, fmt, ##__VA_ARGS__);	\
 } while (0)
 
 /*

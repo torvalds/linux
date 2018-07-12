@@ -171,7 +171,9 @@ void nfp_net_pci_remove(struct nfp_pf *pf);
 int nfp_hwmon_register(struct nfp_pf *pf);
 void nfp_hwmon_unregister(struct nfp_pf *pf);
 
-void nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port);
+void
+nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
+		     struct nfp_port *port);
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 

@@ -10,7 +10,7 @@
  *	2 of the License, or (at your option) any later version.
  *
  * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk> (version 1)
- *              Mauro Carvalho Chehab <mchehab@infradead.org> (version 2)
+ *              Mauro Carvalho Chehab <mchehab@kernel.org> (version 2)
  *
  * Fixes:	20000516  Claudio Matsuoka <claudio@conectiva.com>
  *		- Added procfs support
@@ -939,10 +939,14 @@ int __video_register_device(struct video_device *vdev,
 #endif
 	vdev->minor = i + minor_offset;
 	vdev->num = nr;
-	devnode_set(vdev);
 
 	/* Should not happen since we thought this minor was free */
-	WARN_ON(video_device[vdev->minor] != NULL);
+	if (WARN_ON(video_device[vdev->minor])) {
+		mutex_unlock(&videodev_lock);
+		printk(KERN_ERR "video_device not empty!\n");
+		return -ENFILE;
+	}
+	devnode_set(vdev);
 	vdev->index = get_index(vdev);
 	video_device[vdev->minor] = vdev;
 	mutex_unlock(&videodev_lock);
@@ -1068,7 +1072,7 @@ static void __exit videodev_exit(void)
 subsys_initcall(videodev_init);
 module_exit(videodev_exit)
 
-MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_DESCRIPTION("Device registrar for Video4Linux drivers v2");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(VIDEO_MAJOR);

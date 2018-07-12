@@ -40,7 +40,7 @@ xfs_ail_check(
 {
 	xfs_log_item_t	*prev_lip;
 
-	if (list_empty(&ailp->xa_ail))
+	if (list_empty(&ailp->ail_head))
 		return;
 
 	/*
@@ -48,11 +48,11 @@ xfs_ail_check(
 	 */
 	ASSERT((lip->li_flags & XFS_LI_IN_AIL) != 0);
 	prev_lip = list_entry(lip->li_ail.prev, xfs_log_item_t, li_ail);
-	if (&prev_lip->li_ail != &ailp->xa_ail)
+	if (&prev_lip->li_ail != &ailp->ail_head)
 		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
 
 	prev_lip = list_entry(lip->li_ail.next, xfs_log_item_t, li_ail);
-	if (&prev_lip->li_ail != &ailp->xa_ail)
+	if (&prev_lip->li_ail != &ailp->ail_head)
 		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) >= 0);
 
 
@@ -69,10 +69,10 @@ static xfs_log_item_t *
 xfs_ail_max(
 	struct xfs_ail  *ailp)
 {
-	if (list_empty(&ailp->xa_ail))
+	if (list_empty(&ailp->ail_head))
 		return NULL;
 
-	return list_entry(ailp->xa_ail.prev, xfs_log_item_t, li_ail);
+	return list_entry(ailp->ail_head.prev, xfs_log_item_t, li_ail);
 }
 
 /*
@@ -84,7 +84,7 @@ xfs_ail_next(
 	struct xfs_ail  *ailp,
 	xfs_log_item_t  *lip)
 {
-	if (lip->li_ail.next == &ailp->xa_ail)
+	if (lip->li_ail.next == &ailp->ail_head)
 		return NULL;
 
 	return list_first_entry(&lip->li_ail, xfs_log_item_t, li_ail);
@@ -105,11 +105,11 @@ xfs_ail_min_lsn(
 	xfs_lsn_t	lsn = 0;
 	xfs_log_item_t	*lip;
 
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_ail_min(ailp);
 	if (lip)
 		lsn = lip->li_lsn;
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return lsn;
 }
@@ -124,11 +124,11 @@ xfs_ail_max_lsn(
 	xfs_lsn_t       lsn = 0;
 	xfs_log_item_t  *lip;
 
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_ail_max(ailp);
 	if (lip)
 		lsn = lip->li_lsn;
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return lsn;
 }
@@ -146,7 +146,7 @@ xfs_trans_ail_cursor_init(
 	struct xfs_ail_cursor	*cur)
 {
 	cur->item = NULL;
-	list_add_tail(&cur->list, &ailp->xa_cursors);
+	list_add_tail(&cur->list, &ailp->ail_cursors);
 }
 
 /*
@@ -194,7 +194,7 @@ xfs_trans_ail_cursor_clear(
 {
 	struct xfs_ail_cursor	*cur;
 
-	list_for_each_entry(cur, &ailp->xa_cursors, list) {
+	list_for_each_entry(cur, &ailp->ail_cursors, list) {
 		if (cur->item == lip)
 			cur->item = (struct xfs_log_item *)
 					((uintptr_t)cur->item | 1);
@@ -222,7 +222,7 @@ xfs_trans_ail_cursor_first(
 		goto out;
 	}
 
-	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
+	list_for_each_entry(lip, &ailp->ail_head, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
 			goto out;
 	}
@@ -241,7 +241,7 @@ __xfs_trans_ail_cursor_last(
 {
 	xfs_log_item_t		*lip;
 
-	list_for_each_entry_reverse(lip, &ailp->xa_ail, li_ail) {
+	list_for_each_entry_reverse(lip, &ailp->ail_head, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) <= 0)
 			return lip;
 	}
@@ -310,7 +310,7 @@ xfs_ail_splice(
 	if (lip)
 		list_splice(list, &lip->li_ail);
 	else
-		list_splice(list, &ailp->xa_ail);
+		list_splice(list, &ailp->ail_head);
 }
 
 /*
@@ -335,17 +335,17 @@ xfsaild_push_item(
 	 * If log item pinning is enabled, skip the push and track the item as
 	 * pinned. This can help induce head-behind-tail conditions.
 	 */
-	if (XFS_TEST_ERROR(false, ailp->xa_mount, XFS_ERRTAG_LOG_ITEM_PIN))
+	if (XFS_TEST_ERROR(false, ailp->ail_mount, XFS_ERRTAG_LOG_ITEM_PIN))
 		return XFS_ITEM_PINNED;
 
-	return lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
+	return lip->li_ops->iop_push(lip, &ailp->ail_buf_list);
 }
 
 static long
 xfsaild_push(
 	struct xfs_ail		*ailp)
 {
-	xfs_mount_t		*mp = ailp->xa_mount;
+	xfs_mount_t		*mp = ailp->ail_mount;
 	struct xfs_ail_cursor	cur;
 	xfs_log_item_t		*lip;
 	xfs_lsn_t		lsn;
@@ -360,30 +360,30 @@ xfsaild_push(
 	 * buffers the last time we ran, force the log first and wait for it
 	 * before pushing again.
 	 */
-	if (ailp->xa_log_flush && ailp->xa_last_pushed_lsn == 0 &&
-	    (!list_empty_careful(&ailp->xa_buf_list) ||
+	if (ailp->ail_log_flush && ailp->ail_last_pushed_lsn == 0 &&
+	    (!list_empty_careful(&ailp->ail_buf_list) ||
 	     xfs_ail_min_lsn(ailp))) {
-		ailp->xa_log_flush = 0;
+		ailp->ail_log_flush = 0;
 
 		XFS_STATS_INC(mp, xs_push_ail_flush);
 		xfs_log_force(mp, XFS_LOG_SYNC);
 	}
 
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 
-	/* barrier matches the xa_target update in xfs_ail_push() */
+	/* barrier matches the ail_target update in xfs_ail_push() */
 	smp_rmb();
-	target = ailp->xa_target;
-	ailp->xa_target_prev = target;
+	target = ailp->ail_target;
+	ailp->ail_target_prev = target;
 
-	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->xa_last_pushed_lsn);
+	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->ail_last_pushed_lsn);
 	if (!lip) {
 		/*
 		 * If the AIL is empty or our push has reached the end we are
 		 * done now.
 		 */
 		xfs_trans_ail_cursor_done(&cur);
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 		goto out_done;
 	}
 
@@ -404,7 +404,7 @@ xfsaild_push(
 			XFS_STATS_INC(mp, xs_push_ail_success);
 			trace_xfs_ail_push(lip);
 
-			ailp->xa_last_pushed_lsn = lsn;
+			ailp->ail_last_pushed_lsn = lsn;
 			break;
 
 		case XFS_ITEM_FLUSHING:
@@ -423,7 +423,7 @@ xfsaild_push(
 			trace_xfs_ail_flushing(lip);
 
 			flushing++;
-			ailp->xa_last_pushed_lsn = lsn;
+			ailp->ail_last_pushed_lsn = lsn;
 			break;
 
 		case XFS_ITEM_PINNED:
@@ -431,7 +431,7 @@ xfsaild_push(
 			trace_xfs_ail_pinned(lip);
 
 			stuck++;
-			ailp->xa_log_flush++;
+			ailp->ail_log_flush++;
 			break;
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(mp, xs_push_ail_locked);
@@ -468,10 +468,10 @@ xfsaild_push(
 		lsn = lip->li_lsn;
 	}
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
-	if (xfs_buf_delwri_submit_nowait(&ailp->xa_buf_list))
-		ailp->xa_log_flush++;
+	if (xfs_buf_delwri_submit_nowait(&ailp->ail_buf_list))
+		ailp->ail_log_flush++;
 
 	if (!count || XFS_LSN_CMP(lsn, target) >= 0) {
 out_done:
@@ -481,7 +481,7 @@ out_done:
 		 * AIL before we start the next scan from the start of the AIL.
 		 */
 		tout = 50;
-		ailp->xa_last_pushed_lsn = 0;
+		ailp->ail_last_pushed_lsn = 0;
 	} else if (((stuck + flushing) * 100) / count > 90) {
 		/*
 		 * Either there is a lot of contention on the AIL or we are
@@ -494,7 +494,7 @@ out_done:
 		 * the restart to issue a log force to unpin the stuck items.
 		 */
 		tout = 20;
-		ailp->xa_last_pushed_lsn = 0;
+		ailp->ail_last_pushed_lsn = 0;
 	} else {
 		/*
 		 * Assume we have more work to do in a short while.
@@ -536,26 +536,26 @@ xfsaild(
 			break;
 		}
 
-		spin_lock(&ailp->xa_lock);
+		spin_lock(&ailp->ail_lock);
 
 		/*
 		 * Idle if the AIL is empty and we are not racing with a target
 		 * update. We check the AIL after we set the task to a sleep
-		 * state to guarantee that we either catch an xa_target update
+		 * state to guarantee that we either catch an ail_target update
 		 * or that a wake_up resets the state to TASK_RUNNING.
 		 * Otherwise, we run the risk of sleeping indefinitely.
 		 *
-		 * The barrier matches the xa_target update in xfs_ail_push().
+		 * The barrier matches the ail_target update in xfs_ail_push().
 		 */
 		smp_rmb();
 		if (!xfs_ail_min(ailp) &&
-		    ailp->xa_target == ailp->xa_target_prev) {
-			spin_unlock(&ailp->xa_lock);
+		    ailp->ail_target == ailp->ail_target_prev) {
+			spin_unlock(&ailp->ail_lock);
 			freezable_schedule();
 			tout = 0;
 			continue;
 		}
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 
 		if (tout)
 			freezable_schedule_timeout(msecs_to_jiffies(tout));
@@ -592,8 +592,8 @@ xfs_ail_push(
 	xfs_log_item_t	*lip;
 
 	lip = xfs_ail_min(ailp);
-	if (!lip || XFS_FORCED_SHUTDOWN(ailp->xa_mount) ||
-	    XFS_LSN_CMP(threshold_lsn, ailp->xa_target) <= 0)
+	if (!lip || XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
+	    XFS_LSN_CMP(threshold_lsn, ailp->ail_target) <= 0)
 		return;
 
 	/*
@@ -601,10 +601,10 @@ xfs_ail_push(
 	 * the XFS_AIL_PUSHING_BIT.
 	 */
 	smp_wmb();
-	xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
+	xfs_trans_ail_copy_lsn(ailp, &ailp->ail_target, &threshold_lsn);
 	smp_wmb();
 
-	wake_up_process(ailp->xa_task);
+	wake_up_process(ailp->ail_task);
 }
 
 /*
@@ -630,18 +630,18 @@ xfs_ail_push_all_sync(
 	struct xfs_log_item	*lip;
 	DEFINE_WAIT(wait);
 
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	while ((lip = xfs_ail_max(ailp)) != NULL) {
-		prepare_to_wait(&ailp->xa_empty, &wait, TASK_UNINTERRUPTIBLE);
-		ailp->xa_target = lip->li_lsn;
-		wake_up_process(ailp->xa_task);
-		spin_unlock(&ailp->xa_lock);
+		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
+		ailp->ail_target = lip->li_lsn;
+		wake_up_process(ailp->ail_task);
+		spin_unlock(&ailp->ail_lock);
 		schedule();
-		spin_lock(&ailp->xa_lock);
+		spin_lock(&ailp->ail_lock);
 	}
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
-	finish_wait(&ailp->xa_empty, &wait);
+	finish_wait(&ailp->ail_empty, &wait);
 }
 
 /*
@@ -672,7 +672,7 @@ xfs_trans_ail_update_bulk(
 	struct xfs_ail_cursor	*cur,
 	struct xfs_log_item	**log_items,
 	int			nr_items,
-	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
+	xfs_lsn_t		lsn) __releases(ailp->ail_lock)
 {
 	xfs_log_item_t		*mlip;
 	int			mlip_changed = 0;
@@ -705,13 +705,13 @@ xfs_trans_ail_update_bulk(
 		xfs_ail_splice(ailp, cur, &tmp, lsn);
 
 	if (mlip_changed) {
-		if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
-			xlog_assign_tail_lsn_locked(ailp->xa_mount);
-		spin_unlock(&ailp->xa_lock);
+		if (!XFS_FORCED_SHUTDOWN(ailp->ail_mount))
+			xlog_assign_tail_lsn_locked(ailp->ail_mount);
+		spin_unlock(&ailp->ail_lock);
 
-		xfs_log_space_wake(ailp->xa_mount);
+		xfs_log_space_wake(ailp->ail_mount);
 	} else {
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 	}
 }
 
@@ -756,13 +756,13 @@ void
 xfs_trans_ail_delete(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip,
-	int			shutdown_type) __releases(ailp->xa_lock)
+	int			shutdown_type) __releases(ailp->ail_lock)
 {
-	struct xfs_mount	*mp = ailp->xa_mount;
+	struct xfs_mount	*mp = ailp->ail_mount;
 	bool			mlip_changed;
 
 	if (!(lip->li_flags & XFS_LI_IN_AIL)) {
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
 	"%s: attempting to delete a log item that is not in the AIL",
@@ -776,13 +776,13 @@ xfs_trans_ail_delete(
 	if (mlip_changed) {
 		if (!XFS_FORCED_SHUTDOWN(mp))
 			xlog_assign_tail_lsn_locked(mp);
-		if (list_empty(&ailp->xa_ail))
-			wake_up_all(&ailp->xa_empty);
+		if (list_empty(&ailp->ail_head))
+			wake_up_all(&ailp->ail_empty);
 	}
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	if (mlip_changed)
-		xfs_log_space_wake(ailp->xa_mount);
+		xfs_log_space_wake(ailp->ail_mount);
 }
 
 int
@@ -795,16 +795,16 @@ xfs_trans_ail_init(
 	if (!ailp)
 		return -ENOMEM;
 
-	ailp->xa_mount = mp;
-	INIT_LIST_HEAD(&ailp->xa_ail);
-	INIT_LIST_HEAD(&ailp->xa_cursors);
-	spin_lock_init(&ailp->xa_lock);
-	INIT_LIST_HEAD(&ailp->xa_buf_list);
-	init_waitqueue_head(&ailp->xa_empty);
+	ailp->ail_mount = mp;
+	INIT_LIST_HEAD(&ailp->ail_head);
+	INIT_LIST_HEAD(&ailp->ail_cursors);
+	spin_lock_init(&ailp->ail_lock);
+	INIT_LIST_HEAD(&ailp->ail_buf_list);
+	init_waitqueue_head(&ailp->ail_empty);
 
-	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
-			ailp->xa_mount->m_fsname);
-	if (IS_ERR(ailp->xa_task))
+	ailp->ail_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
+			ailp->ail_mount->m_fsname);
+	if (IS_ERR(ailp->ail_task))
 		goto out_free_ailp;
 
 	mp->m_ail = ailp;
@@ -821,6 +821,6 @@ xfs_trans_ail_destroy(
 {
 	struct xfs_ail	*ailp = mp->m_ail;
 
-	kthread_stop(ailp->xa_task);
+	kthread_stop(ailp->ail_task);
 	kmem_free(ailp);
 }

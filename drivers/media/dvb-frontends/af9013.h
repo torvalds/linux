@@ -38,13 +38,9 @@
  * @api_version: Firmware API version.
  * @gpio: GPIOs.
  * @get_dvb_frontend: Get DVB frontend callback.
- *
- * AF9013/5 GPIOs (mostly guessed):
- *   * demod#1-gpio#0 - set demod#2 i2c-addr for dual devices
- *   * demod#1-gpio#1 - xtal setting (?)
- *   * demod#1-gpio#3 - tuner#1
- *   * demod#2-gpio#0 - tuner#2
- *   * demod#2-gpio#1 - xtal setting (?)
+ * @get_i2c_adapter: Get I2C adapter.
+ * @pid_filter_ctrl: Control PID filter.
+ * @pid_filter: Set PID to PID filter.
  */
 struct af9013_platform_data {
 	/*
@@ -84,36 +80,18 @@ struct af9013_platform_data {
 	u8 gpio[4];
 
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
-
-/* private: For legacy media attach wrapper. Do not set value. */
-	bool attach_in_use;
-	u8 i2c_addr;
-	u32 clock;
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 };
 
-#define af9013_config       af9013_platform_data
-#define AF9013_TS_USB       AF9013_TS_MODE_USB
-#define AF9013_TS_PARALLEL  AF9013_TS_MODE_PARALLEL
-#define AF9013_TS_SERIAL    AF9013_TS_MODE_SERIAL
-
-#if IS_REACHABLE(CONFIG_DVB_AF9013)
-/**
- * Attach an af9013 demod
- *
- * @config: pointer to &struct af9013_config with demod configuration.
- * @i2c: i2c adapter to use.
- *
- * return: FE pointer on success, NULL on failure.
+/*
+ * AF9013/5 GPIOs (mostly guessed)
+ * demod#1-gpio#0 - set demod#2 i2c-addr for dual devices
+ * demod#1-gpio#1 - xtal setting (?)
+ * demod#1-gpio#3 - tuner#1
+ * demod#2-gpio#0 - tuner#2
+ * demod#2-gpio#1 - xtal setting (?)
  */
-extern struct dvb_frontend *af9013_attach(const struct af9013_config *config,
-	struct i2c_adapter *i2c);
-#else
-static inline struct dvb_frontend *af9013_attach(
-const struct af9013_config *config, struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif /* CONFIG_DVB_AF9013 */
 
 #endif /* AF9013_H */

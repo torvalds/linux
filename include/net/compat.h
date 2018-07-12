@@ -44,17 +44,6 @@ int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
 int get_compat_msghdr(struct msghdr *, struct compat_msghdr __user *,
 		      struct sockaddr __user **, struct iovec **);
 struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval);
-asmlinkage long compat_sys_sendmsg(int, struct compat_msghdr __user *,
-				   unsigned int);
-asmlinkage long compat_sys_sendmmsg(int, struct compat_mmsghdr __user *,
-				    unsigned int, unsigned int);
-asmlinkage long compat_sys_recvmsg(int, struct compat_msghdr __user *,
-				   unsigned int);
-asmlinkage long compat_sys_recvmmsg(int, struct compat_mmsghdr __user *,
-				    unsigned int, unsigned int,
-				    struct compat_timespec __user *);
-asmlinkage long compat_sys_getsockopt(int, int, int, char __user *,
-				      int __user *);
 int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 
 int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *,

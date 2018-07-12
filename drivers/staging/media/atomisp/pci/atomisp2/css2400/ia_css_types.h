@@ -370,51 +370,19 @@ struct ia_css_shading_info {
 	} info;
 };
 
-#ifndef ISP2401
-
 /* Default Shading Correction information of Shading Correction Type 1. */
 #define DEFAULT_SHADING_INFO_TYPE_1 \
-{ \
-	IA_CSS_SHADING_CORRECTION_TYPE_1,	/* type */ \
-	{					/* info */ \
-		{ \
-			0,	/* enable */ \
-			0,	/* num_hor_grids */ \
-			0,	/* num_ver_grids */ \
-			0,	/* bqs_per_grid_cell */ \
-			1,	/* bayer_scale_hor_ratio_in */ \
-			1,	/* bayer_scale_hor_ratio_out */ \
-			1,	/* bayer_scale_ver_ratio_in */ \
-			1,	/* bayer_scale_ver_ratio_out */ \
-			0,	/* sc_bayer_origin_x_bqs_on_shading_table */ \
-			0	/* sc_bayer_origin_y_bqs_on_shading_table */ \
+(struct ia_css_shading_info) { \
+	.type = IA_CSS_SHADING_CORRECTION_TYPE_1, \
+	.info = { \
+		.type_1 = { \
+			.bayer_scale_hor_ratio_in	= 1, \
+			.bayer_scale_hor_ratio_out	= 1, \
+			.bayer_scale_ver_ratio_in	= 1, \
+			.bayer_scale_ver_ratio_out	= 1, \
 		} \
 	} \
 }
-
-#else
-
-/* Default Shading Correction information of Shading Correction Type 1. */
-#define DEFAULT_SHADING_INFO_TYPE_1 \
-{ \
-	IA_CSS_SHADING_CORRECTION_TYPE_1,	/* type */ \
-	{					/* info */ \
-		{ \
-			0,			/* num_hor_grids */ \
-			0,			/* num_ver_grids */ \
-			0,			/* bqs_per_grid_cell */ \
-			1,			/* bayer_scale_hor_ratio_in */ \
-			1,			/* bayer_scale_hor_ratio_out */ \
-			1,			/* bayer_scale_ver_ratio_in */ \
-			1,			/* bayer_scale_ver_ratio_out */ \
-			{0, 0},			/* isp_input_sensor_data_res_bqs */ \
-			{0, 0},			/* sensor_data_res_bqs */ \
-			{0, 0}			/* sensor_data_origin_bqs_on_sctbl */ \
-		} \
-	} \
-}
-
-#endif
 
 /* Default Shading Correction information. */
 #define DEFAULT_SHADING_INFO	DEFAULT_SHADING_INFO_TYPE_1
@@ -438,12 +406,9 @@ struct ia_css_grid_info {
 
 /* defaults for ia_css_grid_info structs */
 #define DEFAULT_GRID_INFO \
-{ \
-	0,				/* isp_in_width */ \
-	0,				/* isp_in_height */ \
-	DEFAULT_3A_GRID_INFO,		/* s3a_grid */ \
-	DEFAULT_DVS_GRID_INFO,		/* dvs_grid */ \
-	IA_CSS_VAMEM_TYPE_1		/* vamem_type */ \
+(struct ia_css_grid_info) { \
+	.dvs_grid	= DEFAULT_DVS_GRID_INFO, \
+	.vamem_type	= IA_CSS_VAMEM_TYPE_1 \
 }
 
 /* Morphing table, used for geometric distortion and chromatic abberration
@@ -534,11 +499,8 @@ struct ia_css_capture_config {
 
 /* default settings for ia_css_capture_config structs */
 #define DEFAULT_CAPTURE_CONFIG \
-{ \
-	IA_CSS_CAPTURE_MODE_PRIMARY,	/* mode (capture) */ \
-	false,				/* enable_xnr */ \
-	false,				/* enable_raw_output */ \
-	false				/* enable_capture_pp_bli */ \
+(struct ia_css_capture_config) { \
+	.mode	= IA_CSS_CAPTURE_MODE_PRIMARY, \
 }
 
 

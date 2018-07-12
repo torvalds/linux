@@ -697,10 +697,9 @@ static int hsc_probe(struct device *dev)
 	int i;
 
 	cl_data = kzalloc(sizeof(*cl_data), GFP_KERNEL);
-	if (!cl_data) {
-		dev_err(dev, "Could not allocate hsc_client_data\n");
+	if (!cl_data)
 		return -ENOMEM;
-	}
+
 	hsc_baseminor = HSC_BASEMINOR(hsi_id(cl), hsi_port_id(cl));
 	if (!hsc_major) {
 		ret = alloc_chrdev_region(&hsc_dev, hsc_baseminor,

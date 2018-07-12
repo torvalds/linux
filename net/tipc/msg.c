@@ -580,7 +580,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg = buf_msg(skb);
 	if (msg_reroute_cnt(msg))
 		return false;
-	dnode = addr_domain(net, msg_lookup_scope(msg));
+	dnode = tipc_scope2node(net, msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(net, msg_nametype(msg),
 				       msg_nameinst(msg), &dnode);
 	if (!dport)

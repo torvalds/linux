@@ -23,6 +23,5 @@
 extern const struct regmap_config pcm179x_regmap_config;
 
 int pcm179x_common_init(struct device *dev, struct regmap *regmap);
-int pcm179x_common_exit(struct device *dev);
 
 #endif

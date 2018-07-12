@@ -13,6 +13,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 
 /*
  * This is commented-out for now.
@@ -176,6 +177,15 @@
 			compatible = "nintendo,hollywood-gpio";
 			reg = <0x0d8000c0 0x40>;
 			gpio-controller;
+			ngpios = <24>;
+
+			gpio-line-names =
+				"POWER", "SHUTDOWN", "FAN", "DC_DC",
+				"DI_SPIN", "SLOT_LED", "EJECT_BTN", "SLOT_IN",
+				"SENSOR_BAR", "DO_EJECT", "EEP_CS", "EEP_CLK",
+				"EEP_MOSI", "EEP_MISO", "AVE_SCL", "AVE_SDA",
+				"DEBUG0", "DEBUG1", "DEBUG2", "DEBUG3",
+				"DEBUG4", "DEBUG5", "DEBUG6", "DEBUG7";
 
 			/*
 			 * This is commented out while a standard binding
@@ -212,6 +222,17 @@
 			compatible = "nintendo,hollywood-di";
 			reg = <0x0d806000 0x40>;
 			interrupts = <2>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		/* This is the blue LED in the disk drive slot */
+		drive-slot {
+			label = "wii:blue:drive_slot";
+			gpios = <&GPIO 5 GPIO_ACTIVE_HIGH>;
+			panic-indicator;
 		};
 	};
 };

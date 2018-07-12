@@ -1255,14 +1255,14 @@ fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 		else
 			intp->freq[d] = stv0900_get_tuner_freq(fe);
 
-		if (ABS(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
+		if (abs(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
 			range = STV0900_RANGEOK;
-		else if (ABS(offsetFreq) <=
+		else if (abs(offsetFreq) <=
 				(stv0900_carrier_width(result->symbol_rate,
 						result->rolloff) / 2000))
 			range = STV0900_RANGEOK;
 
-	} else if (ABS(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
+	} else if (abs(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
 		range = STV0900_RANGEOK;
 
 	dprintk("%s: range %d\n", __func__, range);

@@ -940,13 +940,13 @@ failed:
 }
 
 /**
- * gfs2_set_page_dirty - Page dirtying function
+ * jdata_set_page_dirty - Page dirtying function
  * @page: The page to dirty
  *
  * Returns: 1 if it dirtyed the page, or 0 otherwise
  */
  
-static int gfs2_set_page_dirty(struct page *page)
+static int jdata_set_page_dirty(struct page *page)
 {
 	SetPageChecked(page);
 	return __set_page_dirty_buffers(page);
@@ -1214,7 +1214,7 @@ static const struct address_space_operations gfs2_ordered_aops = {
 	.readpages = gfs2_readpages,
 	.write_begin = gfs2_write_begin,
 	.write_end = gfs2_write_end,
-	.set_page_dirty = gfs2_set_page_dirty,
+	.set_page_dirty = __set_page_dirty_buffers,
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
@@ -1231,7 +1231,7 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.readpages = gfs2_readpages,
 	.write_begin = gfs2_write_begin,
 	.write_end = gfs2_write_end,
-	.set_page_dirty = gfs2_set_page_dirty,
+	.set_page_dirty = jdata_set_page_dirty,
 	.bmap = gfs2_bmap,
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,

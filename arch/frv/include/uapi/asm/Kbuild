@@ -1,5 +1,0 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += siginfo.h
-generic-y += bpf_perf_event.h

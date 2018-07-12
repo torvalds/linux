@@ -1259,6 +1259,7 @@ static void __exit usb_exit(void)
 	if (usb_disabled())
 		return;
 
+	usb_release_quirk_list();
 	usb_deregister_device_driver(&usb_generic_driver);
 	usb_major_cleanup();
 	usb_deregister(&usbfs_driver);

@@ -19,14 +19,17 @@ config DRM_RCAR_DW_HDMI
 	  Enable support for R-Car Gen3 internal HDMI encoder.
 
 config DRM_RCAR_LVDS
-	bool "R-Car DU LVDS Encoder Support"
-	depends on DRM_RCAR_DU
+	tristate "R-Car DU LVDS Encoder Support"
+	depends on DRM && DRM_BRIDGE && OF
 	select DRM_PANEL
+	select OF_FLATTREE
+	select OF_OVERLAY
 	help
 	  Enable support for the R-Car Display Unit embedded LVDS encoders.
 
 config DRM_RCAR_VSP
-	bool "R-Car DU VSP Compositor Support"
+	bool "R-Car DU VSP Compositor Support" if ARM
+	default y if ARM64
 	depends on DRM_RCAR_DU
 	depends on VIDEO_RENESAS_VSP1=y || (VIDEO_RENESAS_VSP1 && DRM_RCAR_DU=m)
 	help

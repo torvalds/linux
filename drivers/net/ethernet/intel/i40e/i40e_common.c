@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
@@ -1208,6 +1209,29 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 	return media;
 }
 
+/**
+ * i40e_poll_globr - Poll for Global Reset completion
+ * @hw: pointer to the hardware structure
+ * @retry_limit: how many times to retry before failure
+ **/
+static i40e_status i40e_poll_globr(struct i40e_hw *hw,
+				   u32 retry_limit)
+{
+	u32 cnt, reg = 0;
+
+	for (cnt = 0; cnt < retry_limit; cnt++) {
+		reg = rd32(hw, I40E_GLGEN_RSTAT);
+		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
+			return 0;
+		msleep(100);
+	}
+
+	hw_dbg(hw, "Global reset failed.\n");
+	hw_dbg(hw, "I40E_GLGEN_RSTAT = 0x%x\n", reg);
+
+	return I40E_ERR_RESET_FAILED;
+}
+
 #define I40E_PF_RESET_WAIT_COUNT_A0	200
 #define I40E_PF_RESET_WAIT_COUNT	200
 /**
@@ -1284,14 +1308,14 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 			if (!(reg & I40E_PFGEN_CTRL_PFSWR_MASK))
 				break;
 			reg2 = rd32(hw, I40E_GLGEN_RSTAT);
-			if (reg2 & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
-				hw_dbg(hw, "Core reset upcoming. Skipping PF reset request.\n");
-				hw_dbg(hw, "I40E_GLGEN_RSTAT = 0x%x\n", reg2);
-				return I40E_ERR_NOT_READY;
-			}
+			if (reg2 & I40E_GLGEN_RSTAT_DEVSTATE_MASK)
+				break;
 			usleep_range(1000, 2000);
 		}
-		if (reg & I40E_PFGEN_CTRL_PFSWR_MASK) {
+		if (reg2 & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
+			if (i40e_poll_globr(hw, grst_del))
+				return I40E_ERR_RESET_FAILED;
+		} else if (reg & I40E_PFGEN_CTRL_PFSWR_MASK) {
 			hw_dbg(hw, "PF reset polling failed to complete.\n");
 			return I40E_ERR_RESET_FAILED;
 		}
@@ -2415,6 +2439,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  * i40e_aq_set_switch_config
  * @hw: pointer to the hardware structure
  * @flags: bit flag values to set
+ * @mode: cloud filter mode
  * @valid_flags: which bit flags to set
  * @mode: cloud filter mode
  * @cmd_details: pointer to command details structure or NULL
@@ -3200,9 +3225,10 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	u32 valid_functions, num_functions;
 	u32 number, logical_id, phys_id;
 	struct i40e_hw_capabilities *p;
+	u16 id, ocp_cfg_word0;
+	i40e_status status;
 	u8 major_rev;
 	u32 i = 0;
-	u16 id;
 
 	cap = (struct i40e_aqc_list_capabilities_element_resp *) buff;
 
@@ -3387,6 +3413,26 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		i40e_aq_debug_read_register(hw, port_cfg_reg, &port_cfg, NULL);
 		if (!(port_cfg & I40E_PRTGEN_CNF_PORT_DIS_MASK))
 			hw->num_ports++;
+	}
+
+	/* OCP cards case: if a mezz is removed the Ethernet port is at
+	 * disabled state in PRTGEN_CNF register. Additional NVM read is
+	 * needed in order to check if we are dealing with OCP card.
+	 * Those cards have 4 PFs at minimum, so using PRTGEN_CNF for counting
+	 * physical ports results in wrong partition id calculation and thus
+	 * not supporting WoL.
+	 */
+	if (hw->mac.type == I40E_MAC_X722) {
+		if (!i40e_acquire_nvm(hw, I40E_RESOURCE_READ)) {
+			status = i40e_aq_read_nvm(hw, I40E_SR_EMP_MODULE_PTR,
+						  2 * I40E_SR_OCP_CFG_WORD0,
+						  sizeof(ocp_cfg_word0),
+						  &ocp_cfg_word0, true, NULL);
+			if (!status &&
+			    (ocp_cfg_word0 & I40E_SR_OCP_ENABLED))
+				hw->num_ports = 4;
+			i40e_release_nvm(hw);
+		}
 	}
 
 	valid_functions = p->valid_functions;
@@ -5531,7 +5577,7 @@ i40e_aq_add_cloud_filters(struct i40e_hw *hw, u16 seid,
  * function.
  *
  **/
-i40e_status
+enum i40e_status_code
 i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			     struct i40e_aqc_cloud_filters_element_bb *filters,
 			     u8 filter_count)
@@ -5625,7 +5671,7 @@ i40e_aq_rem_cloud_filters(struct i40e_hw *hw, u16 seid,
  * function.
  *
  **/
-i40e_status
+enum i40e_status_code
 i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			     struct i40e_aqc_cloud_filters_element_bb *filters,
 			     u8 filter_count)

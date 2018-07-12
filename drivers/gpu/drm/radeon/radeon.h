@@ -2387,6 +2387,7 @@ struct radeon_device {
 	struct radeon_dummy_page	dummy_page;
 	bool				shutdown;
 	bool				need_dma32;
+	bool				need_swiotlb;
 	bool				accel_working;
 	bool				fastfb_working; /* IGP feature*/
 	bool				needs_reset, in_reset;

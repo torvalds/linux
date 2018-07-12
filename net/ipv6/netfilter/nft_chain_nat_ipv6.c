@@ -65,7 +65,17 @@ static unsigned int nft_nat_ipv6_local_fn(void *priv,
 	return nf_nat_ipv6_local_fn(priv, skb, state, nft_nat_do_chain);
 }
 
-static const struct nf_chain_type nft_chain_nat_ipv6 = {
+static int nft_nat_ipv6_init(struct nft_ctx *ctx)
+{
+	return nf_ct_netns_get(ctx->net, ctx->family);
+}
+
+static void nft_nat_ipv6_free(struct nft_ctx *ctx)
+{
+	nf_ct_netns_put(ctx->net, ctx->family);
+}
+
+static const struct nft_chain_type nft_chain_nat_ipv6 = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
 	.family		= NFPROTO_IPV6,
@@ -80,15 +90,13 @@ static const struct nf_chain_type nft_chain_nat_ipv6 = {
 		[NF_INET_LOCAL_OUT]	= nft_nat_ipv6_local_fn,
 		[NF_INET_LOCAL_IN]	= nft_nat_ipv6_fn,
 	},
+	.init		= nft_nat_ipv6_init,
+	.free		= nft_nat_ipv6_free,
 };
 
 static int __init nft_chain_nat_ipv6_init(void)
 {
-	int err;
-
-	err = nft_register_chain_type(&nft_chain_nat_ipv6);
-	if (err < 0)
-		return err;
+	nft_register_chain_type(&nft_chain_nat_ipv6);
 
 	return 0;
 }

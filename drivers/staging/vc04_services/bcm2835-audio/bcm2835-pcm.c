@@ -209,6 +209,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	 */
 	if (alsa_stream->running) {
 		int err;
+
 		err = bcm2835_audio_stop(alsa_stream);
 		alsa_stream->running = 0;
 		if (err)
@@ -278,7 +279,8 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/* notify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
-	 * https://github.com/raspberrypi/linux/issues/528) */
+	 * https://github.com/raspberrypi/linux/issues/528)
+	 */
 	if (chip->spdif_status & IEC958_AES0_NONAUDIO)
 		channels = 0;
 	else
@@ -412,7 +414,7 @@ static int snd_bcm2835_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 	int ret = snd_pcm_lib_ioctl(substream, cmd, arg);
 
 	audio_info(" .. substream=%p, cmd=%d, arg=%p (%x) ret=%d\n", substream,
-		cmd, arg, arg ? *(unsigned *) arg : 0, ret);
+		cmd, arg, arg ? *(unsigned int *)arg : 0, ret);
 	return ret;
 }
 

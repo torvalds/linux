@@ -27,7 +27,8 @@ lock-class.
 State
 -----
 
-The validator tracks lock-class usage history into 4n + 1 separate state bits:
+The validator tracks lock-class usage history into 4 * nSTATEs + 1 separate
+state bits:
 
 - 'ever held in STATE context'
 - 'ever held as readlock in STATE context'
@@ -37,7 +38,6 @@ The validator tracks lock-class usage history into 4n + 1 separate state bits:
 Where STATE can be either one of (kernel/locking/lockdep_states.h)
  - hardirq
  - softirq
- - reclaim_fs
 
 - 'ever used'                                       [ == !unused        ]
 
@@ -168,6 +168,53 @@ separate (sub)class for the purposes of validation.
 Note: When changing code to use the _nested() primitives, be careful and
 check really thoroughly that the hierarchy is correctly mapped; otherwise
 you can get false positives or false negatives.
+
+Annotations
+-----------
+
+Two constructs can be used to annotate and check where and if certain locks
+must be held: lockdep_assert_held*(&lock) and lockdep_*pin_lock(&lock).
+
+As the name suggests, lockdep_assert_held* family of macros assert that a
+particular lock is held at a certain time (and generate a WARN() otherwise).
+This annotation is largely used all over the kernel, e.g. kernel/sched/
+core.c
+
+  void update_rq_clock(struct rq *rq)
+  {
+	s64 delta;
+
+	lockdep_assert_held(&rq->lock);
+	[...]
+  }
+
+where holding rq->lock is required to safely update a rq's clock.
+
+The other family of macros is lockdep_*pin_lock(), which is admittedly only
+used for rq->lock ATM. Despite their limited adoption these annotations
+generate a WARN() if the lock of interest is "accidentally" unlocked. This turns
+out to be especially helpful to debug code with callbacks, where an upper
+layer assumes a lock remains taken, but a lower layer thinks it can maybe drop
+and reacquire the lock ("unwittingly" introducing races). lockdep_pin_lock()
+returns a 'struct pin_cookie' that is then used by lockdep_unpin_lock() to check
+that nobody tampered with the lock, e.g. kernel/sched/sched.h
+
+  static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
+  {
+	rf->cookie = lockdep_pin_lock(&rq->lock);
+	[...]
+  }
+
+  static inline void rq_unpin_lock(struct rq *rq, struct rq_flags *rf)
+  {
+	[...]
+	lockdep_unpin_lock(&rq->lock, rf->cookie);
+  }
+
+While comments about locking requirements might provide useful information,
+the runtime checks performed by annotations are invaluable when debugging
+locking problems and they carry the same level of details when inspecting
+code.  Always prefer annotations when in doubt!
 
 Proof of 100% correctness:
 --------------------------

@@ -554,6 +554,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			   NL80211_FEATURE_USERSPACE_MPM |
 			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_FILS_STA);
+	wiphy_ext_feature_set(wiphy,
+			      NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211);
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -930,8 +932,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			             IEEE80211_HT_CAP_SM_PS_SHIFT;
 	}
 
-	/* if low-level driver supports AP, we also support VLAN */
-	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
+	/* if low-level driver supports AP, we also support VLAN.
+	 * drivers advertising SW_CRYPTO_CONTROL should enable AP_VLAN
+	 * based on their support to transmit SW encrypted packets.
+	 */
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP) &&
+	    !ieee80211_hw_check(&local->hw, SW_CRYPTO_CONTROL)) {
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP_VLAN);
 		hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_AP_VLAN);
 	}

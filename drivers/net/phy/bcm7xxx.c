@@ -65,10 +65,10 @@ struct bcm7xxx_phy_priv {
 static void r_rc_cal_reset(struct phy_device *phydev)
 {
 	/* Reset R_CAL/RC_CAL Engine */
-	bcm_phy_write_exp(phydev, 0x00b0, 0x0010);
+	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0010);
 
 	/* Disable Reset R_AL/RC_CAL Engine */
-	bcm_phy_write_exp(phydev, 0x00b0, 0x0000);
+	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0000);
 }
 
 static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
@@ -565,7 +565,7 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 	if (ret)
 		return ret;
 
-	/* Disable EEE advertisment since this prevents the PHY
+	/* Disable EEE advertisement since this prevents the PHY
 	 * from successfully linking up, trigger auto-negotiation restart
 	 * to let the MAC decide what to do.
 	 */

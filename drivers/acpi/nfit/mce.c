@@ -51,9 +51,8 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 			if ((spa->address + spa->length - 1) < mce->addr)
 				continue;
 			found_match = 1;
-			dev_dbg(dev, "%s: addr in SPA %d (0x%llx, 0x%llx)\n",
-				__func__, spa->range_index, spa->address,
-				spa->length);
+			dev_dbg(dev, "addr in SPA %d (0x%llx, 0x%llx)\n",
+				spa->range_index, spa->address, spa->length);
 			/*
 			 * We can break at the first match because we're going
 			 * to rescan all the SPA ranges. There shouldn't be any

@@ -62,6 +62,13 @@ static struct facility_def facility_defs[] = {
 		}
 	},
 	{
+		/*
+		 * FACILITIES_KVM contains the list of facilities that are part
+		 * of the default facility mask and list that are passed to the
+		 * initial CPU model. If no CPU model is used, this, together
+		 * with the non-hypervisor managed bits, is the maximum list of
+		 * guest facilities supported by KVM.
+		 */
 		.name = "FACILITIES_KVM",
 		.bits = (int[]){
 			0,  /* N3 instructions */
@@ -86,6 +93,19 @@ static struct facility_def facility_defs[] = {
 			131, /* enhanced-SOP 2 and side-effect */
 			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
+			-1  /* END */
+		}
+	},
+	{
+		/*
+		 * FACILITIES_KVM_CPUMODEL contains the list of facilities
+		 * that can be enabled by CPU model code if the host supports
+		 * it. These facilities are not passed to the guest without
+		 * CPU model support.
+		 */
+
+		.name = "FACILITIES_KVM_CPUMODEL",
+		.bits = (int[]){
 			-1  /* END */
 		}
 	},

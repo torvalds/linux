@@ -123,8 +123,8 @@ int smp_generic_kick_cpu(int nr)
 	 * cpu_start field to become non-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
-	if (!paca[nr].cpu_start) {
-		paca[nr].cpu_start = 1;
+	if (!paca_ptrs[nr]->cpu_start) {
+		paca_ptrs[nr]->cpu_start = 1;
 		smp_mb();
 		return 0;
 	}
@@ -565,20 +565,64 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 }
 #endif
 
+#ifdef CONFIG_NMI_IPI
+static void nmi_stop_this_cpu(struct pt_regs *regs)
+{
+	/*
+	 * This is a special case because it never returns, so the NMI IPI
+	 * handling would never mark it as done, which makes any later
+	 * smp_send_nmi_ipi() call spin forever. Mark it done now.
+	 *
+	 * IRQs are already hard disabled by the smp_handle_nmi_ipi.
+	 */
+	nmi_ipi_lock();
+	nmi_ipi_busy_count--;
+	nmi_ipi_unlock();
+
+	/* Remove this CPU */
+	set_cpu_online(smp_processor_id(), false);
+
+	spin_begin();
+	while (1)
+		spin_cpu_relax();
+}
+
+void smp_send_stop(void)
+{
+	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, nmi_stop_this_cpu, 1000000);
+}
+
+#else /* CONFIG_NMI_IPI */
+
 static void stop_this_cpu(void *dummy)
 {
 	/* Remove this CPU */
 	set_cpu_online(smp_processor_id(), false);
 
-	local_irq_disable();
+	hard_irq_disable();
+	spin_begin();
 	while (1)
-		;
+		spin_cpu_relax();
 }
 
 void smp_send_stop(void)
 {
+	static bool stopped = false;
+
+	/*
+	 * Prevent waiting on csd lock from a previous smp_send_stop.
+	 * This is racy, but in general callers try to do the right
+	 * thing and only fire off one smp_send_stop (e.g., see
+	 * kernel/panic.c)
+	 */
+	if (stopped)
+		return;
+
+	stopped = true;
+
 	smp_call_function(stop_this_cpu, NULL, 0);
 }
+#endif /* CONFIG_NMI_IPI */
 
 struct thread_info *current_set[NR_CPUS];
 
@@ -657,7 +701,7 @@ void smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
-	paca[boot_cpuid].__current = current;
+	paca_ptrs[boot_cpuid]->__current = current;
 #endif
 	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = task_thread_info(current);
@@ -748,8 +792,8 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	struct thread_info *ti = task_thread_info(idle);
 
 #ifdef CONFIG_PPC64
-	paca[cpu].__current = idle;
-	paca[cpu].kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
+	paca_ptrs[cpu]->__current = idle;
+	paca_ptrs[cpu]->kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
 #endif
 	ti->cpu = cpu;
 	secondary_ti = current_set[cpu] = ti;

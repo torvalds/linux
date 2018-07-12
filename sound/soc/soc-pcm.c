@@ -1392,11 +1392,17 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *be;
 	int i;
 
+	dev_dbg(card->dev, "ASoC: find BE for widget %s\n", widget->name);
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		list_for_each_entry(be, &card->rtd_list, list) {
 
 			if (!be->dai_link->no_pcm)
 				continue;
+
+			dev_dbg(card->dev, "ASoC: try BE : %s\n",
+				be->cpu_dai->playback_widget ?
+				be->cpu_dai->playback_widget->name : "(not set)");
 
 			if (be->cpu_dai->playback_widget == widget)
 				return be;
@@ -1414,6 +1420,10 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 			if (!be->dai_link->no_pcm)
 				continue;
 
+			dev_dbg(card->dev, "ASoC: try BE %s\n",
+				be->cpu_dai->capture_widget ?
+				be->cpu_dai->capture_widget->name : "(not set)");
+
 			if (be->cpu_dai->capture_widget == widget)
 				return be;
 
@@ -1425,6 +1435,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 		}
 	}
 
+	/* dai link name and stream name set correctly ? */
 	dev_err(card->dev, "ASoC: can't get %s BE for %s\n",
 		stream ? "capture" : "playback", widget->name);
 	return NULL;

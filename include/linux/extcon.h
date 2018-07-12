@@ -230,6 +230,7 @@ extern void devm_extcon_unregister_notifier_all(struct device *dev,
  * Following APIs get the extcon_dev from devicetree or by through extcon name.
  */
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
+extern struct extcon_dev *extcon_find_edev_by_node(struct device_node *node);
 extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 						     int index);
 
@@ -279,6 +280,11 @@ static inline  void devm_extcon_unregister_notifier(struct device *dev,
 				struct notifier_block *nb) { }
 
 static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
 {
 	return ERR_PTR(-ENODEV);
 }

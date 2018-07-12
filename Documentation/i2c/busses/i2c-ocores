@@ -2,7 +2,7 @@ Kernel driver i2c-ocores
 
 Supported adapters:
   * OpenCores.org I2C controller by Richard Herveille (see datasheet link)
-    Datasheet: http://www.opencores.org/projects.cgi/web/i2c/overview
+    https://opencores.org/project/i2c/overview
 
 Author: Peter Korsgaard <jacmet@sunsite.dk>
 

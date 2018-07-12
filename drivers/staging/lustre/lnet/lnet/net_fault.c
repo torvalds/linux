@@ -315,9 +315,8 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
 				rule->dr_time_base = now;
 
 			rule->dr_drop_time = rule->dr_time_base +
-				cfs_time_seconds(
-					prandom_u32_max(attr->u.drop.da_interval));
-			rule->dr_time_base += cfs_time_seconds(attr->u.drop.da_interval);
+				prandom_u32_max(attr->u.drop.da_interval) * HZ;
+			rule->dr_time_base += attr->u.drop.da_interval * HZ;
 
 			CDEBUG(D_NET, "Drop Rule %s->%s: next drop : %lu\n",
 			       libcfs_nid2str(attr->fa_src),
@@ -440,8 +439,7 @@ static struct delay_daemon_data	delay_dd;
 static unsigned long
 round_timeout(unsigned long timeout)
 {
-	return cfs_time_seconds((unsigned int)
-			cfs_duration_sec(cfs_time_sub(timeout, 0)) + 1);
+	return (unsigned int)rounddown(timeout, HZ) + HZ;
 }
 
 static void
@@ -483,10 +481,8 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 				rule->dl_time_base = now;
 
 			rule->dl_delay_time = rule->dl_time_base +
-				cfs_time_seconds(
-					prandom_u32_max(
-						attr->u.delay.la_interval));
-			rule->dl_time_base += cfs_time_seconds(attr->u.delay.la_interval);
+				prandom_u32_max(attr->u.delay.la_interval) * HZ;
+			rule->dl_time_base += attr->u.delay.la_interval * HZ;
 
 			CDEBUG(D_NET, "Delay Rule %s->%s: next delay : %lu\n",
 			       libcfs_nid2str(attr->fa_src),

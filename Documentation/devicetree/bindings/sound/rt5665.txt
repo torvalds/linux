@@ -1,10 +1,10 @@
-RT5665/RT5666/RT5668 audio CODEC
+RT5665/RT5666 audio CODEC
 
 This device supports I2C only.
 
 Required properties:
 
-- compatible : One of "realtek,rt5665", "realtek,rt5666" or "realtek,rt5668".
+- compatible : One of "realtek,rt5665", "realtek,rt5666".
 
 - reg : The I2C address of the device.
 

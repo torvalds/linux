@@ -28,6 +28,15 @@ config KEYSTONE_NAVIGATOR_DMA
 
 	  If unsure, say N.
 
+config AMX3_PM
+	tristate "AMx3 Power Management"
+	depends on SOC_AM33XX || SOC_AM43XX
+	depends on WKUP_M3_IPC && TI_EMIF_SRAM && SRAM
+	help
+	  Enable power management on AM335x and AM437x. Required for suspend to mem
+	  and standby states on both AM335x and AM437x platforms and for deeper cpuidle
+	  c-states on AM335x.
+
 config WKUP_M3_IPC
 	tristate "TI AMx3 Wkup-M3 IPC Driver"
 	depends on WKUP_M3_RPROC

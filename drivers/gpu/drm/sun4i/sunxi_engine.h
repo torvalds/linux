@@ -12,16 +12,106 @@
 
 struct drm_plane;
 struct drm_device;
+struct drm_crtc_state;
 
 struct sunxi_engine;
 
+/**
+ * struct sunxi_engine_ops - helper operations for sunXi engines
+ *
+ * These hooks are used by the common part of the DRM driver to
+ * implement the proper behaviour.
+ */
 struct sunxi_engine_ops {
+	/**
+	 * @atomic_begin:
+	 *
+	 * This callback allows to prepare our engine for an atomic
+	 * update. This is mirroring the
+	 * &drm_crtc_helper_funcs.atomic_begin callback, so any
+	 * documentation there applies.
+	 *
+	 * This function is optional.
+	 */
+	void (*atomic_begin)(struct sunxi_engine *engine,
+			     struct drm_crtc_state *old_state);
+
+	/**
+	 * @atomic_check:
+	 *
+	 * This callback allows to validate plane-update related CRTC
+	 * constraints specific to engines. This is mirroring the
+	 * &drm_crtc_helper_funcs.atomic_check callback, so any
+	 * documentation there applies.
+	 *
+	 * This function is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code.
+	 */
+	int (*atomic_check)(struct sunxi_engine *engine,
+			    struct drm_crtc_state *state);
+
+	/**
+	 * @commit:
+	 *
+	 * This callback will trigger the hardware switch to commit
+	 * the new configuration that has been setup during the next
+	 * vblank period.
+	 *
+	 * This function is optional.
+	 */
 	void (*commit)(struct sunxi_engine *engine);
+
+	/**
+	 * @layers_init:
+	 *
+	 * This callback is used to allocate, initialize and register
+	 * the layers supported by that engine.
+	 *
+	 * This function is mandatory.
+	 *
+	 * RETURNS:
+	 *
+	 * The array of struct drm_plane backing the layers, or an
+	 * error pointer on failure.
+	 */
 	struct drm_plane **(*layers_init)(struct drm_device *drm,
 					  struct sunxi_engine *engine);
 
+	/**
+	 * @apply_color_correction:
+	 *
+	 * This callback will enable the color correction in the
+	 * engine. This is useful only for the composite output.
+	 *
+	 * This function is optional.
+	 */
 	void (*apply_color_correction)(struct sunxi_engine *engine);
+
+	/**
+	 * @disable_color_correction:
+	 *
+	 * This callback will stop the color correction in the
+	 * engine. This is useful only for the composite output.
+	 *
+	 * This function is optional.
+	 */
 	void (*disable_color_correction)(struct sunxi_engine *engine);
+
+	/**
+	 * @vblank_quirk:
+	 *
+	 * This callback is used to implement engine-specific
+	 * behaviour part of the VBLANK event. It is run with all the
+	 * constraints of an interrupt (can't sleep, all local
+	 * interrupts disabled) and therefore should be as fast as
+	 * possible.
+	 *
+	 * This function is optional.
+	 */
+	void (*vblank_quirk)(struct sunxi_engine *engine);
 };
 
 /**

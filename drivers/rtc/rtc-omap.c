@@ -273,9 +273,6 @@ static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 /* this hardware doesn't support "don't care" alarm fields */
 static int tm2bcd(struct rtc_time *tm)
 {
-	if (rtc_valid_tm(tm) != 0)
-		return -EINVAL;
-
 	tm->tm_sec = bin2bcd(tm->tm_sec);
 	tm->tm_min = bin2bcd(tm->tm_min);
 	tm->tm_hour = bin2bcd(tm->tm_hour);
@@ -850,7 +847,6 @@ static int omap_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc->ops = &omap_rtc_ops;
 	omap_rtc_nvmem_config.priv = rtc;
-	rtc->rtc->nvmem_config = &omap_rtc_nvmem_config;
 
 	/* handle periodic and alarm irqs */
 	ret = devm_request_irq(&pdev->dev, rtc->irq_timer, rtc_irq, 0,
@@ -885,6 +881,8 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)
 		goto err;
+
+	rtc_nvmem_register(rtc->rtc, &omap_rtc_nvmem_config);
 
 	return 0;
 

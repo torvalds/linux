@@ -27,6 +27,7 @@
 
 #include <linux/list.h>
 #include <asm/sync_bitops.h>
+#include <asm/hyperv-tlfs.h>
 #include <linux/atomic.h>
 #include <linux/hyperv.h>
 #include <linux/interrupt.h>
@@ -57,7 +58,9 @@ union hv_timer_config {
 		u64 periodic:1;
 		u64 lazy:1;
 		u64 auto_enable:1;
-		u64 reserved_z0:12;
+		u64 apic_vector:8;
+		u64 direct_mode:1;
+		u64 reserved_z0:3;
 		u64 sintx:4;
 		u64 reserved_z1:44;
 	};

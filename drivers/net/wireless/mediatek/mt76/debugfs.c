@@ -64,13 +64,13 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 	if (!dir)
 		return NULL;
 
-	debugfs_create_u8("led_pin", S_IRUSR | S_IWUSR, dir, &dev->led_pin);
-	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
-	debugfs_create_file_unsafe("regval", S_IRUSR | S_IWUSR, dir, dev,
+	debugfs_create_u8("led_pin", 0600, dir, &dev->led_pin);
+	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);
+	debugfs_create_file_unsafe("regval", 0600, dir, dev,
 				   &fops_regval);
-	debugfs_create_blob("eeprom", S_IRUSR, dir, &dev->eeprom);
+	debugfs_create_blob("eeprom", 0400, dir, &dev->eeprom);
 	if (dev->otp.data)
-		debugfs_create_blob("otp", S_IRUSR, dir, &dev->otp);
+		debugfs_create_blob("otp", 0400, dir, &dev->otp);
 	debugfs_create_devm_seqfile(dev->dev, "queues", dir, mt76_queues_read);
 
 	return dir;

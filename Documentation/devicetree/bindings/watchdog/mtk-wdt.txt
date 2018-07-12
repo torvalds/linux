@@ -11,9 +11,13 @@ Required properties:
 
 - reg : Specifies base physical address and size of the registers.
 
+Optional properties:
+- timeout-sec: contains the watchdog timeout in seconds.
+
 Example:
 
 wdt: watchdog@10000000 {
 	compatible = "mediatek,mt6589-wdt";
 	reg = <0x10000000 0x18>;
+	timeout-sec = <10>;
 };

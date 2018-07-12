@@ -34,7 +34,8 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 				      struct rxrpc_backlog *b,
 				      rxrpc_notify_rx_t notify_rx,
 				      rxrpc_user_attach_call_t user_attach_call,
-				      unsigned long user_call_ID, gfp_t gfp)
+				      unsigned long user_call_ID, gfp_t gfp,
+				      unsigned int debug_id)
 {
 	const void *here = __builtin_return_address(0);
 	struct rxrpc_call *call;
@@ -94,7 +95,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	/* Now it gets complicated, because calls get registered with the
 	 * socket here, particularly if a user ID is preassigned by the user.
 	 */
-	call = rxrpc_alloc_call(rx, gfp);
+	call = rxrpc_alloc_call(rx, gfp, debug_id);
 	if (!call)
 		return -ENOMEM;
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
@@ -137,6 +138,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
+	rxnet = call->rxnet;
 	write_lock(&rxnet->call_lock);
 	list_add_tail(&call->link, &rxnet->calls);
 	write_unlock(&rxnet->call_lock);
@@ -174,7 +176,8 @@ int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
 	if (rx->discard_new_call)
 		return 0;
 
-	while (rxrpc_service_prealloc_one(rx, b, NULL, NULL, 0, gfp) == 0)
+	while (rxrpc_service_prealloc_one(rx, b, NULL, NULL, 0, gfp,
+					  atomic_inc_return(&rxrpc_debug_id)) == 0)
 		;
 
 	return 0;
@@ -216,6 +219,8 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		list_del(&conn->proc_link);
 		write_unlock(&rxnet->conn_lock);
 		kfree(conn);
+		if (atomic_dec_and_test(&rxnet->nr_conns))
+			wake_up_var(&rxnet->nr_conns);
 		tail = (tail + 1) & (size - 1);
 	}
 
@@ -223,7 +228,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	tail = b->call_backlog_tail;
 	while (CIRC_CNT(head, tail, size) > 0) {
 		struct rxrpc_call *call = b->call_backlog[tail];
-		call->socket = rx;
+		rcu_assign_pointer(call->socket, rx);
 		if (rx->discard_new_call) {
 			_debug("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
@@ -293,8 +298,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		b->conn_backlog[conn_tail] = NULL;
 		smp_store_release(&b->conn_backlog_tail,
 				  (conn_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
-		rxrpc_get_local(local);
-		conn->params.local = local;
+		conn->params.local = rxrpc_get_local(local);
 		conn->params.peer = peer;
 		rxrpc_see_connection(conn);
 		rxrpc_new_incoming_connection(rx, conn, skb);
@@ -347,7 +351,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 		   service_id == rx->second_service))
 		goto found_service;
 
-	trace_rxrpc_abort("INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_INVALID_OPERATION, EOPNOTSUPP);
 	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
 	skb->priority = RX_INVALID_OPERATION;
@@ -358,7 +362,7 @@ found_service:
 	spin_lock(&rx->incoming_lock);
 	if (rx->sk.sk_state == RXRPC_SERVER_LISTEN_DISABLED ||
 	    rx->sk.sk_state == RXRPC_CLOSE) {
-		trace_rxrpc_abort("CLS", sp->hdr.cid, sp->hdr.callNumber,
+		trace_rxrpc_abort(0, "CLS", sp->hdr.cid, sp->hdr.callNumber,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
 		skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
 		skb->priority = RX_INVALID_OPERATION;
@@ -454,6 +458,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 				     unsigned long user_call_ID,
 				     rxrpc_notify_rx_t notify_rx)
 	__releases(&rx->sk.sk_lock.slock)
+	__acquires(call->user_mutex)
 {
 	struct rxrpc_call *call;
 	struct rb_node *parent, **pp;
@@ -635,6 +640,7 @@ out_discard:
  * @user_attach_call: Func to attach call to user_call_ID
  * @user_call_ID: The tag to attach to the preallocated call
  * @gfp: The allocation conditions.
+ * @debug_id: The tracing debug ID.
  *
  * Charge up the socket with preallocated calls, each with a user ID.  A
  * function should be provided to effect the attachment from the user's side.
@@ -645,7 +651,8 @@ out_discard:
 int rxrpc_kernel_charge_accept(struct socket *sock,
 			       rxrpc_notify_rx_t notify_rx,
 			       rxrpc_user_attach_call_t user_attach_call,
-			       unsigned long user_call_ID, gfp_t gfp)
+			       unsigned long user_call_ID, gfp_t gfp,
+			       unsigned int debug_id)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	struct rxrpc_backlog *b = rx->backlog;
@@ -655,6 +662,6 @@ int rxrpc_kernel_charge_accept(struct socket *sock,
 
 	return rxrpc_service_prealloc_one(rx, b, notify_rx,
 					  user_attach_call, user_call_ID,
-					  gfp);
+					  gfp, debug_id);
 }
 EXPORT_SYMBOL(rxrpc_kernel_charge_accept);

@@ -55,24 +55,123 @@ static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 	return err;
 }
 
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
 {
-	int err;
 	u8 cmode;
+	int err;
 
 	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
-	if (err)
-		return err;
+	if (err) {
+		dev_err(chip->dev, "failed to read cmode\n");
+		return false;
+	}
 
 	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASE_X) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X) ||
-	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII)) {
+	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII))
+		return true;
+
+	return false;
+}
+
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+{
+	int err;
+
+	if (mv88e6352_port_has_serdes(chip, port)) {
 		err = mv88e6352_serdes_power_set(chip, on);
 		if (err < 0)
 			return err;
 	}
 
 	return 0;
+}
+
+struct mv88e6352_serdes_hw_stat {
+	char string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int reg;
+};
+
+static struct mv88e6352_serdes_hw_stat mv88e6352_serdes_hw_stats[] = {
+	{ "serdes_fibre_rx_error", 16, 21 },
+	{ "serdes_PRBS_error", 32, 24 },
+};
+
+int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6352_port_has_serdes(chip, port))
+		return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
+
+	return 0;
+}
+
+int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
+				 int port, uint8_t *data)
+{
+	struct mv88e6352_serdes_hw_stat *stat;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
+		stat = &mv88e6352_serdes_hw_stats[i];
+		memcpy(data + i * ETH_GSTRING_LEN, stat->string,
+		       ETH_GSTRING_LEN);
+	}
+	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
+}
+
+static uint64_t mv88e6352_serdes_get_stat(struct mv88e6xxx_chip *chip,
+					  struct mv88e6352_serdes_hw_stat *stat)
+{
+	u64 val = 0;
+	u16 reg;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, stat->reg, &reg);
+	if (err) {
+		dev_err(chip->dev, "failed to read statistic\n");
+		return 0;
+	}
+
+	val = reg;
+
+	if (stat->sizeof_stat == 32) {
+		err = mv88e6352_serdes_read(chip, stat->reg + 1, &reg);
+		if (err) {
+			dev_err(chip->dev, "failed to read statistic\n");
+			return 0;
+		}
+		val = val << 16 | reg;
+	}
+
+	return val;
+}
+
+int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
+			       uint64_t *data)
+{
+	struct mv88e6xxx_port *mv88e6xxx_port = &chip->ports[port];
+	struct mv88e6352_serdes_hw_stat *stat;
+	u64 value;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return 0;
+
+	BUILD_BUG_ON(ARRAY_SIZE(mv88e6352_serdes_hw_stats) >
+		     ARRAY_SIZE(mv88e6xxx_port->serdes_stats));
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
+		stat = &mv88e6352_serdes_hw_stats[i];
+		value = mv88e6352_serdes_get_stat(chip, stat);
+		mv88e6xxx_port->serdes_stats[i] += value;
+		data[i] = mv88e6xxx_port->serdes_stats[i];
+	}
+
+	return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
 }
 
 /* Set the power on/off for 10GBASE-R and 10GBASE-X4/X2 */

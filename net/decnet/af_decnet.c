@@ -1180,13 +1180,11 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
 }
 
 
-static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len,int peer)
+static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int peer)
 {
 	struct sockaddr_dn *sa = (struct sockaddr_dn *)uaddr;
 	struct sock *sk = sock->sk;
 	struct dn_scp *scp = DN_SK(sk);
-
-	*uaddr_len = sizeof(struct sockaddr_dn);
 
 	lock_sock(sk);
 
@@ -1205,7 +1203,7 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 
 	release_sock(sk);
 
-	return 0;
+	return sizeof(struct sockaddr_dn);
 }
 
 
@@ -2385,7 +2383,7 @@ static int __init decnet_init(void)
 	dev_add_pack(&dn_dix_packet_type);
 	register_netdevice_notifier(&dn_dev_notifier);
 
-	proc_create("decnet", S_IRUGO, init_net.proc_net, &dn_socket_seq_fops);
+	proc_create("decnet", 0444, init_net.proc_net, &dn_socket_seq_fops);
 	dn_register_sysctl();
 out:
 	return rc;

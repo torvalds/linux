@@ -383,6 +383,7 @@ void mei_device_init(struct mei_device *dev,
 	INIT_LIST_HEAD(&dev->write_waiting_list);
 	INIT_LIST_HEAD(&dev->ctrl_wr_list);
 	INIT_LIST_HEAD(&dev->ctrl_rd_list);
+	dev->tx_queue_limit = MEI_TX_QUEUE_LIMIT_DEFAULT;
 
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	INIT_WORK(&dev->reset_work, mei_reset_work);

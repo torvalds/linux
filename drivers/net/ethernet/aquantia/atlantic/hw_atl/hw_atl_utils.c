@@ -48,6 +48,8 @@
 #define FORCE_FLASHLESS 0
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
+static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
+				      enum hal_atl_utils_fw_state_e state);
 
 int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 {
@@ -246,6 +248,20 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 	}
 
 	self->rbl_enabled = (boot_exit_code != 0);
+
+	/* FW 1.x may bootup in an invalid POWER state (WOL feature).
+	 * We should work around this by forcing its state back to DEINIT
+	 */
+	if (!hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
+				    aq_hw_read_reg(self,
+						   HW_ATL_MPI_FW_VERSION))) {
+		int err = 0;
+
+		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
+		AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR) &
+			       HW_ATL_MPI_STATE_MSK) == MPI_DEINIT,
+			       10, 1000U);
+	}
 
 	if (self->rbl_enabled)
 		return hw_atl_utils_soft_reset_rbl(self);
@@ -505,7 +521,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
+static int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 {
 	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 

@@ -1756,8 +1756,7 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 
 	level = write ? DLM_LOCK_EX : DLM_LOCK_PR;
 
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres, level, 0,
-				    0);
+	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1796,7 +1795,7 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 	     write ? "EXMODE" : "PRMODE");
 
 	if (!ocfs2_mount_local(osb))
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 /*
@@ -1816,8 +1815,7 @@ int ocfs2_open_lock(struct inode *inode)
 
 	lockres = &OCFS2_I(inode)->ip_open_lockres;
 
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
-				    DLM_LOCK_PR, 0, 0);
+	status = ocfs2_cluster_lock(osb, lockres, DLM_LOCK_PR, 0, 0);
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1854,8 +1852,7 @@ int ocfs2_try_open_lock(struct inode *inode, int write)
 	 * other nodes and the -EAGAIN will indicate to the caller that
 	 * this inode is still in use.
 	 */
-	status = ocfs2_cluster_lock(OCFS2_SB(inode->i_sb), lockres,
-				    level, DLM_LKF_NOQUEUE, 0);
+	status = ocfs2_cluster_lock(osb, lockres, level, DLM_LKF_NOQUEUE, 0);
 
 out:
 	return status;
@@ -1876,11 +1873,9 @@ void ocfs2_open_unlock(struct inode *inode)
 		goto out;
 
 	if(lockres->l_ro_holders)
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
-				     DLM_LOCK_PR);
+		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_PR);
 	if(lockres->l_ex_holders)
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres,
-				     DLM_LOCK_EX);
+		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 
 out:
 	return;
@@ -2601,9 +2596,9 @@ void ocfs2_inode_unlock(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     ex ? "EXMODE" : "PRMODE");
 
-	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)) &&
+	if (!ocfs2_is_hard_readonly(osb) &&
 	    !ocfs2_mount_local(osb))
-		ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 /*
@@ -3537,7 +3532,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 	 * On DLM_LKF_VALBLK, fsdlm behaves differently with o2cb. It always
 	 * expects DLM_LKF_VALBLK being set if the LKB has LVB, so that
 	 * we can recover correctly from node failure. Otherwise, we may get
-	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
+	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
 	 */
 	if (!ocfs2_is_o2cb_active() &&
 	    lockres->l_ops->flags & LOCK_TYPE_USES_LVB)

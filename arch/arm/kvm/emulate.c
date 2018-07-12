@@ -142,7 +142,7 @@ unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 /*
  * Return the SPSR for the current mode of the virtual CPU.
  */
-unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
+unsigned long *__vcpu_spsr(struct kvm_vcpu *vcpu)
 {
 	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 	switch (mode) {
@@ -174,5 +174,5 @@ unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
  */
 void kvm_inject_vabt(struct kvm_vcpu *vcpu)
 {
-	vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) | HCR_VA);
+	*vcpu_hcr(vcpu) |= HCR_VA;
 }

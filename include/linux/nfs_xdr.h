@@ -1590,11 +1590,13 @@ struct nfs_rpc_ops {
 			    unsigned int);
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int);
-	int	(*remove)  (struct inode *, const struct qstr *);
-	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
+	int	(*remove)  (struct inode *, struct dentry *);
+	void	(*unlink_setup)  (struct rpc_message *, struct dentry *);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
 	int	(*unlink_done) (struct rpc_task *, struct inode *);
-	void	(*rename_setup)  (struct rpc_message *msg, struct inode *dir);
+	void	(*rename_setup)  (struct rpc_message *msg,
+			struct dentry *old_dentry,
+			struct dentry *new_dentry);
 	void	(*rename_rpc_prepare)(struct rpc_task *task, struct nfs_renamedata *);
 	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);
 	int	(*link)    (struct inode *, struct inode *, const struct qstr *);
@@ -1633,7 +1635,6 @@ struct nfs_rpc_ops {
 				struct iattr *iattr,
 				int *);
 	int (*have_delegation)(struct inode *, fmode_t);
-	int (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *(*init_client) (struct nfs_client *,
 				const struct nfs_client_initdata *);

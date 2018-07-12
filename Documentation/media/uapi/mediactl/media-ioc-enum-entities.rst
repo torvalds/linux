@@ -89,7 +89,7 @@ id's until they get an error.
 
        -
        -
-       -  Entity type, see :ref:`media-entity-type` for details.
+       -  Entity type, see :ref:`media-entity-functions` for details.
 
     -  .. row 4
 
@@ -144,9 +144,20 @@ id's until they get an error.
 
     -  .. row 9
 
-       -  union
+       -  __u32
+
+       -  ``reserved[4]``
+
+       -
+       -
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
     -  .. row 10
+
+       -  union
+
+    -  .. row 11
 
        -
        -  struct
@@ -156,7 +167,7 @@ id's until they get an error.
        -
        -  Valid for (sub-)devices that create a single device node.
 
-    -  .. row 11
+    -  .. row 12
 
        -
        -
@@ -166,7 +177,7 @@ id's until they get an error.
 
        -  Device node major number.
 
-    -  .. row 12
+    -  .. row 13
 
        -
        -
@@ -176,7 +187,7 @@ id's until they get an error.
 
        -  Device node minor number.
 
-    -  .. row 13
+    -  .. row 14
 
        -
        -  __u8

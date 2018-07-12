@@ -89,10 +89,10 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			return true ^ invert;
 	}
 
+	memset(&flow, 0, sizeof(flow));
 	flow.flowi4_iif = LOOPBACK_IFINDEX;
 	flow.daddr = iph->saddr;
 	flow.saddr = rpfilter_get_saddr(iph->daddr);
-	flow.flowi4_oif = 0;
 	flow.flowi4_mark = info->flags & XT_RPFILTER_VALID_MARK ? skb->mark : 0;
 	flow.flowi4_tos = RT_TOS(iph->tos);
 	flow.flowi4_scope = RT_SCOPE_UNIVERSE;

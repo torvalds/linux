@@ -473,7 +473,7 @@ nomem:
 		tinfo->tidcnt = tididx;
 		tinfo->length = mapped_pages * PAGE_SIZE;
 
-		if (copy_to_user((void __user *)(unsigned long)tinfo->tidlist,
+		if (copy_to_user(u64_to_user_ptr(tinfo->tidlist),
 				 tidlist, sizeof(tidlist[0]) * tididx)) {
 			/*
 			 * On failure to copy to the user level, we need to undo
@@ -513,7 +513,7 @@ int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
 	if (unlikely(tinfo->tidcnt > fd->tid_used))
 		return -EINVAL;
 
-	tidinfo = memdup_user((void __user *)(unsigned long)tinfo->tidlist,
+	tidinfo = memdup_user(u64_to_user_ptr(tinfo->tidlist),
 			      sizeof(tidinfo[0]) * tinfo->tidcnt);
 	if (IS_ERR(tidinfo))
 		return PTR_ERR(tidinfo);

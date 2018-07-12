@@ -45,6 +45,7 @@
 #include <linux/mlx5/transobj.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/mlx5-abi.h>
+#include <rdma/uverbs_ioctl.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -108,6 +109,16 @@ enum {
 	MLX5_IB_INVALID_BFREG		= BIT(31),
 };
 
+enum {
+	MLX5_MAX_MEMIC_PAGES = 0x100,
+	MLX5_MEMIC_ALLOC_SIZE_MASK = 0x3f,
+};
+
+enum {
+	MLX5_MEMIC_BASE_ALIGN	= 6,
+	MLX5_MEMIC_BASE_SIZE	= 1 << MLX5_MEMIC_BASE_ALIGN,
+};
+
 struct mlx5_ib_vma_private_data {
 	struct list_head list;
 	struct vm_area_struct *vma;
@@ -130,10 +141,8 @@ struct mlx5_ib_ucontext {
 	/* protect vma_private_list add/del */
 	struct mutex		vma_private_list_mutex;
 
-	unsigned long		upd_xlt_page;
-	/* protect ODP/KSM */
-	struct mutex		upd_xlt_page_mutex;
 	u64			lib_caps;
+	DECLARE_BITMAP(dm_pages, MLX5_MAX_MEMIC_PAGES);
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -155,6 +164,7 @@ struct mlx5_ib_pd {
 
 #define MLX5_IB_NUM_FLOW_FT		(MLX5_IB_FLOW_LEFTOVERS_PRIO + 1)
 #define MLX5_IB_NUM_SNIFFER_FTS		2
+#define MLX5_IB_NUM_EGRESS_FTS		1
 struct mlx5_ib_flow_prio {
 	struct mlx5_flow_table		*flow_table;
 	unsigned int			refcount;
@@ -170,6 +180,7 @@ struct mlx5_ib_flow_handler {
 struct mlx5_ib_flow_db {
 	struct mlx5_ib_flow_prio	prios[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	sniffer[MLX5_IB_NUM_SNIFFER_FTS];
+	struct mlx5_ib_flow_prio	egress[MLX5_IB_NUM_EGRESS_FTS];
 	struct mlx5_flow_table		*lag_demux_ft;
 	/* Protect flow steering bypass flow tables
 	 * when add/del flow rules.
@@ -343,6 +354,7 @@ struct mlx5_ib_sq {
 	struct mlx5_ib_wq	*sq;
 	struct mlx5_ib_ubuffer  ubuffer;
 	struct mlx5_db		*doorbell;
+	struct mlx5_flow_handle	*flow_rule;
 	u32			tisn;
 	u8			state;
 };
@@ -371,7 +383,7 @@ struct mlx5_ib_qp {
 		struct mlx5_ib_rss_qp rss_qp;
 		struct mlx5_ib_dct dct;
 	};
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 
 	struct mlx5_db		db;
 	struct mlx5_ib_wq	rq;
@@ -405,7 +417,7 @@ struct mlx5_ib_qp {
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
-	u32			rate_limit;
+	struct mlx5_rate_limit	rl;
 	u32                     underlay_qpn;
 	bool			tunnel_offload_en;
 	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
@@ -413,7 +425,7 @@ struct mlx5_ib_qp {
 };
 
 struct mlx5_ib_cq_buf {
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf_ctrl fbc;
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
@@ -495,7 +507,7 @@ struct mlx5_ib_wc {
 struct mlx5_ib_srq {
 	struct ib_srq		ibsrq;
 	struct mlx5_core_srq	msrq;
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 	struct mlx5_db		db;
 	u64		       *wrid;
 	/* protect SRQ hanlding
@@ -521,7 +533,18 @@ enum mlx5_ib_mtt_access_flags {
 	MLX5_IB_MTT_WRITE = (1 << 1),
 };
 
+struct mlx5_ib_dm {
+	struct ib_dm		ibdm;
+	phys_addr_t		dev_addr;
+};
+
 #define MLX5_IB_MTT_PRESENT (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE)
+
+#define MLX5_IB_DM_ALLOWED_ACCESS (IB_ACCESS_LOCAL_WRITE   |\
+				   IB_ACCESS_REMOTE_WRITE  |\
+				   IB_ACCESS_REMOTE_READ   |\
+				   IB_ACCESS_REMOTE_ATOMIC |\
+				   IB_ZERO_BASED)
 
 struct mlx5_ib_mr {
 	struct ib_mr		ibmr;
@@ -731,7 +754,9 @@ struct mlx5_ib_delay_drop {
 
 enum mlx5_ib_stages {
 	MLX5_IB_STAGE_INIT,
+	MLX5_IB_STAGE_FLOW_DB,
 	MLX5_IB_STAGE_CAPS,
+	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
 	MLX5_IB_STAGE_ODP,
@@ -740,10 +765,12 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_UAR,
 	MLX5_IB_STAGE_BFREG,
 	MLX5_IB_STAGE_PRE_IB_REG_UMR,
+	MLX5_IB_STAGE_SPECS,
 	MLX5_IB_STAGE_IB_REG,
 	MLX5_IB_STAGE_POST_IB_REG_UMR,
 	MLX5_IB_STAGE_DELAY_DROP,
 	MLX5_IB_STAGE_CLASS_ATTR,
+	MLX5_IB_STAGE_REP_REG,
 	MLX5_IB_STAGE_MAX,
 };
 
@@ -768,6 +795,22 @@ struct mlx5_ib_multiport_info {
 	u32 mdev_refcnt;
 	bool is_master;
 	bool unaffiliate;
+};
+
+struct mlx5_ib_flow_action {
+	struct ib_flow_action		ib_action;
+	union {
+		struct {
+			u64			    ib_flags;
+			struct mlx5_accel_esp_xfrm *ctx;
+		} esp_aes_gcm;
+	};
+};
+
+struct mlx5_memic {
+	struct mlx5_core_dev *dev;
+	spinlock_t		memic_lock;
+	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
 };
 
 struct mlx5_ib_dev {
@@ -798,7 +841,7 @@ struct mlx5_ib_dev {
 	struct srcu_struct      mr_srcu;
 	u32			null_mkey;
 #endif
-	struct mlx5_ib_flow_db	flow_db;
+	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head	qp_list;
@@ -808,6 +851,7 @@ struct mlx5_ib_dev {
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
 	const struct mlx5_ib_profile	*profile;
+	struct mlx5_eswitch_rep		*rep;
 
 	/* protect the user_td */
 	struct mutex		lb_mutex;
@@ -815,6 +859,7 @@ struct mlx5_ib_dev {
 	u8			umr_fence;
 	struct list_head	ib_dev_list;
 	u64			sys_image_guid;
+	struct mlx5_memic	memic;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -882,6 +927,11 @@ static inline struct mlx5_ib_srq *to_mibsrq(struct mlx5_core_srq *msrq)
 	return container_of(msrq, struct mlx5_ib_srq, msrq);
 }
 
+static inline struct mlx5_ib_dm *to_mdm(struct ib_dm *ibdm)
+{
+	return container_of(ibdm, struct mlx5_ib_dm, ibdm);
+}
+
 static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct mlx5_ib_mr, ibmr);
@@ -890,6 +940,12 @@ static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
 {
 	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
+}
+
+static inline struct mlx5_ib_flow_action *
+to_mflow_act(struct ib_flow_action *ibact)
+{
+	return container_of(ibact, struct mlx5_ib_flow_action, ib_action);
 }
 
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
@@ -1020,7 +1076,14 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 						      struct ib_udata *udata);
 int mlx5_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 bool mlx5_ib_dc_atomic_is_supported(struct mlx5_ib_dev *dev);
-
+struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
+			       struct ib_ucontext *context,
+			       struct ib_dm_alloc_attr *attr,
+			       struct uverbs_attr_bundle *attrs);
+int mlx5_ib_dealloc_dm(struct ib_dm *ibdm);
+struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
+				struct ib_dm_mr_attr *attr,
+				struct uverbs_attr_bundle *attrs);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev);
@@ -1049,6 +1112,31 @@ static inline void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 					 int flags) {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
+
+/* Needed for rep profile */
+int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_flow_db_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
+void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
+		      const struct mlx5_ib_profile *profile,
+		      int stage);
+void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
+		    const struct mlx5_ib_profile *profile);
 
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
 			  u8 port, struct ifla_vf_info *info);
@@ -1190,5 +1278,8 @@ static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
 {
 	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
 }
+
+unsigned long mlx5_ib_get_xlt_emergency_page(void);
+void mlx5_ib_put_xlt_emergency_page(void);
 
 #endif /* MLX5_IB_H */

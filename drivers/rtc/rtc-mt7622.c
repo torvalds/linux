@@ -232,7 +232,7 @@ static int mtk_rtc_gettime(struct device *dev, struct rtc_time *tm)
 
 	mtk_rtc_get_alarm_or_time(hw, tm, MTK_TC);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mtk_rtc_settime(struct device *dev, struct rtc_time *tm)
@@ -307,6 +307,7 @@ static const struct of_device_id mtk_rtc_match[] = {
 	{ .compatible = "mediatek,soc-rtc" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mtk_rtc_match);
 
 static int mtk_rtc_probe(struct platform_device *pdev)
 {

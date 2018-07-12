@@ -1,3 +1,4 @@
 sizes.h
 vmlinux
 vmlinux.lds
+vmlinux.bin.full

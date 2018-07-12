@@ -46,13 +46,13 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 }
 
 void *
-kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+kmem_alloc_large(size_t size, xfs_km_flags_t flags)
 {
 	unsigned nofs_flag = 0;
 	void	*ptr;
 	gfp_t	lflags;
 
-	ptr = kmem_zalloc(size, flags | KM_MAYFAIL);
+	ptr = kmem_alloc(size, flags | KM_MAYFAIL);
 	if (ptr)
 		return ptr;
 
@@ -67,7 +67,7 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
 		nofs_flag = memalloc_nofs_save();
 
 	lflags = kmem_flags_convert(flags);
-	ptr = __vmalloc(size, lflags | __GFP_ZERO, PAGE_KERNEL);
+	ptr = __vmalloc(size, lflags, PAGE_KERNEL);
 
 	if (flags & KM_NOFS)
 		memalloc_nofs_restore(nofs_flag);

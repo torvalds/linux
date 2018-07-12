@@ -47,9 +47,6 @@ cflags-$(CONFIG_MARCH_Z14_TUNE)		+= -mtune=z14
 
 cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 
-#KBUILD_IMAGE is necessary for make rpm
-KBUILD_IMAGE	:=arch/s390/boot/image
-
 #
 # Prevent tail-call optimizations, to get clearer backtraces:
 #
@@ -84,7 +81,7 @@ ifdef CONFIG_EXPOLINE
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk
     CC_FLAGS_EXPOLINE += -mindirect-branch-table
     export CC_FLAGS_EXPOLINE
-    cflags-y += $(CC_FLAGS_EXPOLINE)
+    cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
   endif
 endif
 
@@ -125,6 +122,9 @@ syscalls	:= arch/s390/kernel/syscalls
 tools		:= arch/s390/tools
 
 all: image bzImage
+
+#KBUILD_IMAGE is necessary for packaging targets like rpm-pkg, deb-pkg...
+KBUILD_IMAGE	:= $(boot)/bzImage
 
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@

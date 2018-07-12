@@ -77,12 +77,18 @@ static inline void rcu_seq_start(unsigned long *sp)
 	WARN_ON_ONCE(rcu_seq_state(*sp) != 1);
 }
 
+/* Compute the end-of-grace-period value for the specified sequence number. */
+static inline unsigned long rcu_seq_endval(unsigned long *sp)
+{
+	return (*sp | RCU_SEQ_STATE_MASK) + 1;
+}
+
 /* Adjust sequence number for end of update-side operation. */
 static inline void rcu_seq_end(unsigned long *sp)
 {
 	smp_mb(); /* Ensure update-side operation before counter increment. */
 	WARN_ON_ONCE(!rcu_seq_state(*sp));
-	WRITE_ONCE(*sp, (*sp | RCU_SEQ_STATE_MASK) + 1);
+	WRITE_ONCE(*sp, rcu_seq_endval(sp));
 }
 
 /* Take a snapshot of the update side's sequence number. */
@@ -295,9 +301,19 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
  * Iterate over all possible CPUs in a leaf RCU node.
  */
 #define for_each_leaf_node_possible_cpu(rnp, cpu) \
-	for ((cpu) = cpumask_next(rnp->grplo - 1, cpu_possible_mask); \
-	     cpu <= rnp->grphi; \
-	     cpu = cpumask_next((cpu), cpu_possible_mask))
+	for ((cpu) = cpumask_next((rnp)->grplo - 1, cpu_possible_mask); \
+	     (cpu) <= rnp->grphi; \
+	     (cpu) = cpumask_next((cpu), cpu_possible_mask))
+
+/*
+ * Iterate over all CPUs in a leaf RCU node's specified mask.
+ */
+#define rcu_find_next_bit(rnp, cpu, mask) \
+	((rnp)->grplo + find_next_bit(&(mask), BITS_PER_LONG, (cpu)))
+#define for_each_leaf_node_cpu_mask(rnp, cpu, mask) \
+	for ((cpu) = rcu_find_next_bit((rnp), 0, (mask)); \
+	     (cpu) <= rnp->grphi; \
+	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
 
 /*
  * Wrappers for the rcu_node::lock acquire and release.
@@ -337,7 +353,7 @@ do {									\
 } while (0)
 
 #define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
-	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)
 
 #define raw_spin_trylock_rcu_node(p)					\
 ({									\
@@ -348,6 +364,9 @@ do {									\
 	___locked;							\
 })
 
+#define raw_lockdep_assert_held_rcu_node(p)				\
+	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
+
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
 #ifdef CONFIG_TINY_RCU
@@ -356,23 +375,19 @@ static inline bool rcu_gp_is_normal(void) { return true; }
 static inline bool rcu_gp_is_expedited(void) { return false; }
 static inline void rcu_expedite_gp(void) { }
 static inline void rcu_unexpedite_gp(void) { }
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
 void rcupdate_announce_bootup_oddness(void);
+void rcu_request_urgent_qs_task(struct task_struct *t);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #define RCU_SCHEDULER_INACTIVE	0
 #define RCU_SCHEDULER_INIT	1
 #define RCU_SCHEDULER_RUNNING	2
-
-#ifdef CONFIG_TINY_RCU
-static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
-#else /* #ifdef CONFIG_TINY_RCU */
-void rcu_request_urgent_qs_task(struct task_struct *t);
-#endif /* #else #ifdef CONFIG_TINY_RCU */
 
 enum rcutorture_type {
 	RCU_FLAVOR,
@@ -470,6 +485,7 @@ void show_rcu_gp_kthreads(void);
 void rcu_force_quiescent_state(void);
 void rcu_bh_force_quiescent_state(void);
 void rcu_sched_force_quiescent_state(void);
+extern struct workqueue_struct *rcu_gp_wq;
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_NOCB_CPU

@@ -183,7 +183,7 @@ static u16 slim_slicesize(int code)
 		0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7
 	};
 
-	clamp(code, 1, (int)ARRAY_SIZE(sizetocode));
+	code = clamp(code, 1, (int)ARRAY_SIZE(sizetocode));
 
 	return sizetocode[code - 1];
 }

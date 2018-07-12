@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utxfinit - External interfaces for ACPICA initialization
  *
- *****************************************************************************/
-
-/*
  * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -245,41 +211,29 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
-#ifdef ACPI_EXEC_APP
 	/*
-	 * This call implements the "initialization file" option for acpi_exec.
-	 * This is the precise point that we want to perform the overrides.
-	 */
-	ae_do_object_overrides();
-#endif
-
-	/*
-	 * Execute any module-level code that was detected during the table load
-	 * phase. Although illegal since ACPI 2.0, there are many machines that
-	 * contain this type of code. Each block of detected executable AML code
-	 * outside of any control method is wrapped with a temporary control
-	 * method object and placed on a global list. The methods on this list
-	 * are executed below.
+	 * This case handles the legacy option that groups all module-level
+	 * code blocks together and defers execution until all of the tables
+	 * are loaded. Execute all of these blocks at this time.
+	 * Execute any module-level code that was detected during the table
+	 * load phase.
 	 *
-	 * This case executes the module-level code for all tables only after
-	 * all of the tables have been loaded. It is a legacy option and is
-	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
+	 * Note: this option is deprecated and will be eliminated in the
+	 * future. Use of this option can cause problems with AML code that
+	 * depends upon in-order immediate execution of module-level code.
 	 */
-	if (!acpi_gbl_parse_table_as_term_list
-	    && acpi_gbl_group_module_level_code) {
-		acpi_ns_exec_module_code_list();
+	acpi_ns_exec_module_code_list();
 
-		/*
-		 * Initialize the objects that remain uninitialized. This
-		 * runs the executable AML that may be part of the
-		 * declaration of these objects:
-		 * operation_regions, buffer_fields, Buffers, and Packages.
-		 */
-		if (!(flags & ACPI_NO_OBJECT_INIT)) {
-			status = acpi_ns_initialize_objects();
-			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
-			}
+	/*
+	 * Initialize the objects that remain uninitialized. This
+	 * runs the executable AML that may be part of the
+	 * declaration of these objects:
+	 * operation_regions, buffer_fields, Buffers, and Packages.
+	 */
+	if (!(flags & ACPI_NO_OBJECT_INIT)) {
+		status = acpi_ns_initialize_objects();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 

@@ -709,6 +709,11 @@ The vmbus device regions are mapped into uio device resources:
     3) Network receive buffer region
     4) Network send buffer region
 
+If a subchannel is created by a request to host, then the uio_hv_generic
+device driver will create a sysfs binary file for the per-channel ring buffer.
+For example:
+	/sys/bus/vmbus/devices/3811fe4d-0fa0-4b62-981a-74fc1084c757/channels/21/ring
+
 Further information
 ===================
 

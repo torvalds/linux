@@ -13,16 +13,22 @@ int call_fib_notifier(struct notifier_block *nb, struct net *net,
 		      enum fib_event_type event_type,
 		      struct fib_notifier_info *info)
 {
+	int err;
+
 	info->net = net;
-	return nb->notifier_call(nb, event_type, info);
+	err = nb->notifier_call(nb, event_type, info);
+	return notifier_to_errno(err);
 }
 EXPORT_SYMBOL(call_fib_notifier);
 
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info)
 {
+	int err;
+
 	info->net = net;
-	return atomic_notifier_call_chain(&fib_chain, event_type, info);
+	err = atomic_notifier_call_chain(&fib_chain, event_type, info);
+	return notifier_to_errno(err);
 }
 EXPORT_SYMBOL(call_fib_notifiers);
 
@@ -33,6 +39,7 @@ static unsigned int fib_seq_sum(void)
 	struct net *net;
 
 	rtnl_lock();
+	down_read(&net_rwsem);
 	for_each_net(net) {
 		rcu_read_lock();
 		list_for_each_entry_rcu(ops, &net->fib_notifier_ops, list) {
@@ -43,6 +50,7 @@ static unsigned int fib_seq_sum(void)
 		}
 		rcu_read_unlock();
 	}
+	up_read(&net_rwsem);
 	rtnl_unlock();
 
 	return fib_seq;

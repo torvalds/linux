@@ -104,7 +104,8 @@ extern void *__unflatten_device_tree(const void *blob,
  * own the devtree lock or work on detached trees only.
  */
 struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags);
-__printf(2, 3) struct device_node *__of_node_dup(const struct device_node *np, const char *fmt, ...);
+struct device_node *__of_node_dup(const struct device_node *np,
+				  const char *full_name);
 
 struct device_node *__of_find_node_by_path(struct device_node *parent,
 						const char *path);
@@ -130,6 +131,9 @@ extern void __of_detach_node_sysfs(struct device_node *np);
 
 extern void __of_sysfs_remove_bin_file(struct device_node *np,
 				       struct property *prop);
+
+/* illegal phandle value (set when unresolved) */
+#define OF_PHANDLE_ILLEGAL	0xdeadbeef
 
 /* iterators for transactions, used for overlays */
 /* forward iterator */

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -145,6 +145,7 @@ struct lpfc_rqb {
 struct lpfc_queue {
 	struct list_head list;
 	struct list_head wq_list;
+	struct list_head wqfull_list;
 	enum lpfc_sli4_queue_type type;
 	enum lpfc_sli4_queue_subtype subtype;
 	struct lpfc_hba *phba;
@@ -173,10 +174,16 @@ struct lpfc_queue {
 #define LPFC_EXPANDED_PAGE_SIZE	16384
 #define LPFC_DEFAULT_PAGE_SIZE	4096
 	uint16_t chann;		/* IO channel this queue is associated with */
-	uint16_t db_format;
+	uint8_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
+	uint8_t q_flag;
+#define HBA_NVMET_WQFULL	0x1 /* We hit WQ Full condition for NVMET */
 	void __iomem *db_regaddr;
+	uint16_t dpp_enable;
+	uint16_t dpp_id;
+	void __iomem *dpp_regaddr;
+
 	/* For q stats */
 	uint32_t q_cnt_1;
 	uint32_t q_cnt_2;
@@ -209,6 +216,7 @@ struct lpfc_queue {
 	struct work_struct spwork;
 
 	uint64_t isr_timestamp;
+	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
@@ -479,11 +487,18 @@ struct lpfc_pc_sli4_params {
 	uint8_t mqv;
 	uint8_t wqv;
 	uint8_t rqv;
+	uint8_t eqav;
+	uint8_t cqav;
 	uint8_t wqsize;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
 	uint8_t wqpcnt;
 };
+
+#define LPFC_CQ_4K_PAGE_SZ	0x1
+#define LPFC_CQ_16K_PAGE_SZ	0x4
+#define LPFC_WQ_4K_PAGE_SZ	0x1
+#define LPFC_WQ_16K_PAGE_SZ	0x4
 
 struct lpfc_iov {
 	uint32_t pf_number;
@@ -516,11 +531,17 @@ struct lpfc_vector_map_info {
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR0, config space registers */
+					   * config space registers
+					   */
 	void __iomem *ctrl_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR1, control registers */
+					   * control registers
+					   */
 	void __iomem *drbl_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR2, doorbell registers */
+					   * doorbell registers
+					   */
+	void __iomem *dpp_regs_memmap_p;  /* Kernel memory mapped address for
+					   * dpp registers
+					   */
 	union {
 		struct {
 			/* IF Type 0, BAR 0 PCI cfg space reg mem map */
@@ -561,7 +582,8 @@ struct lpfc_sli4_hba {
 	/* IF type 0, BAR 0 and if type 2, BAR 0 doorbell register memory map */
 	void __iomem *RQDBregaddr;	/* RQ_DOORBELL register */
 	void __iomem *WQDBregaddr;	/* WQ_DOORBELL register */
-	void __iomem *EQCQDBregaddr;	/* EQCQ_DOORBELL register */
+	void __iomem *CQDBregaddr;	/* CQ_DOORBELL register */
+	void __iomem *EQDBregaddr;	/* EQ_DOORBELL register */
 	void __iomem *MQDBregaddr;	/* MQ_DOORBELL register */
 	void __iomem *BMBXregaddr;	/* BootStrap MBX register */
 
@@ -573,6 +595,10 @@ struct lpfc_sli4_hba {
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct lpfc_bbscn_params bbscn_params;
 	struct lpfc_hba_eq_hdl *hba_eq_hdl; /* HBA per-WQ handle */
+
+	void (*sli4_eq_clr_intr)(struct lpfc_queue *q);
+	uint32_t (*sli4_eq_release)(struct lpfc_queue *q, bool arm);
+	uint32_t (*sli4_cq_release)(struct lpfc_queue *q, bool arm);
 
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue **hba_eq;  /* Event queues for HBA */
@@ -840,8 +866,12 @@ void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
 int lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba);
 int lpfc_sli4_init_vpi(struct lpfc_vport *);
+inline void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
+inline void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
+uint32_t lpfc_sli4_if6_cq_release(struct lpfc_queue *q, bool arm);
+uint32_t lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);
 int lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *, uint16_t);
 int lpfc_sli4_fcf_rr_read_fcf_rec(struct lpfc_hba *, uint16_t);

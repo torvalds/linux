@@ -161,8 +161,11 @@ int msm_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	if (priv->kms->funcs->debugfs_init)
+	if (priv->kms->funcs->debugfs_init) {
 		ret = priv->kms->funcs->debugfs_init(priv->kms, minor);
+		if (ret)
+			return ret;
+	}
 
 	return ret;
 }

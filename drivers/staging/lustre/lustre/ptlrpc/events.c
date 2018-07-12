@@ -490,8 +490,6 @@ int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
 
 static void ptlrpc_ni_fini(void)
 {
-	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
 	int rc;
 	int retries;
 
@@ -515,10 +513,7 @@ static void ptlrpc_ni_fini(void)
 			if (retries != 0)
 				CWARN("Event queue still busy\n");
 
-			/* Wait for a bit */
-			init_waitqueue_head(&waitq);
-			lwi = LWI_TIMEOUT(cfs_time_seconds(2), NULL, NULL);
-			l_wait_event(waitq, 0, &lwi);
+			schedule_timeout_uninterruptible(2 * HZ);
 			break;
 		}
 	}

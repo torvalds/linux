@@ -8,7 +8,8 @@ Required properties:
  - compatible: compatible list, contains:
 	       "qcom,ipq8074-qmp-pcie-phy" for PCIe phy on IPQ8074
 	       "qcom,msm8996-qmp-pcie-phy" for 14nm PCIe phy on msm8996,
-	       "qcom,msm8996-qmp-usb3-phy" for 14nm USB3 phy on msm8996.
+	       "qcom,msm8996-qmp-usb3-phy" for 14nm USB3 phy on msm8996,
+	       "qcom,qmp-v3-usb3-phy" for USB3 QMP V3 phy.
 
  - reg: offset and length of register set for PHY's common serdes block.
 
@@ -25,10 +26,13 @@ Required properties:
  - clock-names: "cfg_ahb" for phy config clock,
 		"aux" for phy aux clock,
 		"ref" for 19.2 MHz ref clk,
+		"com_aux" for phy common block aux clock,
 		For "qcom,msm8996-qmp-pcie-phy" must contain:
 			"aux", "cfg_ahb", "ref".
 		For "qcom,msm8996-qmp-usb3-phy" must contain:
 			"aux", "cfg_ahb", "ref".
+		For "qcom,qmp-v3-usb3-phy" must contain:
+			"aux", "cfg_ahb", "ref", "com_aux".
 
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.

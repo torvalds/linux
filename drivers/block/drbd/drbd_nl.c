@@ -1212,10 +1212,10 @@ static void decide_on_discard_support(struct drbd_device *device,
 		 * topology on all peers. */
 		blk_queue_discard_granularity(q, 512);
 		q->limits.max_discard_sectors = drbd_max_discard_sectors(connection);
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 		q->limits.max_write_zeroes_sectors = drbd_max_discard_sectors(connection);
 	} else {
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
+		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
 		blk_queue_discard_granularity(q, 0);
 		q->limits.max_discard_sectors = 0;
 		q->limits.max_write_zeroes_sectors = 0;

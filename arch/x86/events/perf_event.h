@@ -520,6 +520,7 @@ struct x86_pmu {
 	void		(*disable)(struct perf_event *);
 	void		(*add)(struct perf_event *);
 	void		(*del)(struct perf_event *);
+	void		(*read)(struct perf_event *event);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
@@ -557,7 +558,7 @@ struct x86_pmu {
 	struct x86_pmu_quirk *quirks;
 	int		perfctr_second_write;
 	bool		late_ack;
-	unsigned	(*limit_period)(struct perf_event *event, unsigned l);
+	u64		(*limit_period)(struct perf_event *event, u64 l);
 
 	/*
 	 * sysfs attrs
@@ -922,6 +923,8 @@ void intel_pmu_pebs_enable_all(void);
 void intel_pmu_pebs_disable_all(void);
 
 void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in);
+
+void intel_pmu_auto_reload_read(struct perf_event *event);
 
 void intel_ds_init(void);
 

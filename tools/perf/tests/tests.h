@@ -58,6 +58,7 @@ int test__hists_link(struct test *test, int subtest);
 int test__python_use(struct test *test, int subtest);
 int test__bp_signal(struct test *test, int subtest);
 int test__bp_signal_overflow(struct test *test, int subtest);
+int test__bp_accounting(struct test *test, int subtest);
 int test__task_exit(struct test *test, int subtest);
 int test__mem(struct test *test, int subtest);
 int test__sw_clock_freq(struct test *test, int subtest);
@@ -102,6 +103,7 @@ int test__clang(struct test *test, int subtest);
 const char *test__clang_subtest_get_desc(int subtest);
 int test__clang_subtest_get_nr(void);
 int test__unit_number__scnprint(struct test *test, int subtest);
+int test__mem2node(struct test *t, int subtest);
 
 bool test__bp_signal_is_supported(void);
 

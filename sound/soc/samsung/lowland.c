@@ -37,10 +37,10 @@ static struct snd_soc_jack_pin lowland_headset_pins[] = {
 
 static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 	int ret;
 
-	ret = snd_soc_codec_set_sysclk(codec, WM5100_CLK_SYSCLK,
+	ret = snd_soc_component_set_sysclk(component, WM5100_CLK_SYSCLK,
 				       WM5100_CLKSRC_MCLK1, MCLK1_RATE,
 				       SND_SOC_CLOCK_IN);
 	if (ret < 0) {
@@ -49,7 +49,7 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Clock OPCLK, used by the other audio components. */
-	ret = snd_soc_codec_set_sysclk(codec, WM5100_CLK_OPCLK, 0,
+	ret = snd_soc_component_set_sysclk(component, WM5100_CLK_OPCLK, 0,
 				       CLKOUT_RATE, 0);
 	if (ret < 0) {
 		pr_err("Failed to set OPCLK rate: %d\n", ret);
@@ -63,19 +63,19 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	wm5100_detect(codec, &lowland_headset);
+	wm5100_detect(component, &lowland_headset);
 
 	return 0;
 }
 
 static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	snd_soc_dapm_nc_pin(&rtd->card->dapm, "LINEOUT");
 
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
+	return snd_soc_component_set_sysclk(component, WM9081_SYSCLK_MCLK, 0,
 					CLKOUT_RATE, 0);
 }
 

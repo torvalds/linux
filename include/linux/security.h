@@ -36,7 +36,6 @@ struct linux_binprm;
 struct cred;
 struct rlimit;
 struct siginfo;
-struct sem_array;
 struct sembuf;
 struct kern_ipc_perm;
 struct audit_context;
@@ -50,9 +49,7 @@ struct qstr;
 struct iattr;
 struct fown_struct;
 struct file_operations;
-struct shmid_kernel;
 struct msg_msg;
-struct msg_queue;
 struct xattr;
 struct xfrm_sec_ctx;
 struct mm_struct;
@@ -115,6 +112,7 @@ struct xfrm_policy;
 struct xfrm_state;
 struct xfrm_user_sec_ctx;
 struct seq_file;
+struct sctp_endpoint;
 
 #ifdef CONFIG_MMU
 extern unsigned long mmap_min_addr;
@@ -324,6 +322,7 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
 void security_transfer_creds(struct cred *new, const struct cred *old);
+void security_cred_getsecid(const struct cred *c, u32 *secid);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
 int security_kernel_module_request(char *kmod_name);
@@ -347,7 +346,7 @@ int security_task_setscheduler(struct task_struct *p);
 int security_task_getscheduler(struct task_struct *p);
 int security_task_movememory(struct task_struct *p);
 int security_task_kill(struct task_struct *p, struct siginfo *info,
-			int sig, u32 secid);
+			int sig, const struct cred *cred);
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			unsigned long arg4, unsigned long arg5);
 void security_task_to_inode(struct task_struct *p, struct inode *inode);
@@ -355,24 +354,24 @@ int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag);
 void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid);
 int security_msg_msg_alloc(struct msg_msg *msg);
 void security_msg_msg_free(struct msg_msg *msg);
-int security_msg_queue_alloc(struct msg_queue *msq);
-void security_msg_queue_free(struct msg_queue *msq);
-int security_msg_queue_associate(struct msg_queue *msq, int msqflg);
-int security_msg_queue_msgctl(struct msg_queue *msq, int cmd);
-int security_msg_queue_msgsnd(struct msg_queue *msq,
+int security_msg_queue_alloc(struct kern_ipc_perm *msq);
+void security_msg_queue_free(struct kern_ipc_perm *msq);
+int security_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg);
+int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd);
+int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 			      struct msg_msg *msg, int msqflg);
-int security_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+int security_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			      struct task_struct *target, long type, int mode);
-int security_shm_alloc(struct shmid_kernel *shp);
-void security_shm_free(struct shmid_kernel *shp);
-int security_shm_associate(struct shmid_kernel *shp, int shmflg);
-int security_shm_shmctl(struct shmid_kernel *shp, int cmd);
-int security_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr, int shmflg);
-int security_sem_alloc(struct sem_array *sma);
-void security_sem_free(struct sem_array *sma);
-int security_sem_associate(struct sem_array *sma, int semflg);
-int security_sem_semctl(struct sem_array *sma, int cmd);
-int security_sem_semop(struct sem_array *sma, struct sembuf *sops,
+int security_shm_alloc(struct kern_ipc_perm *shp);
+void security_shm_free(struct kern_ipc_perm *shp);
+int security_shm_associate(struct kern_ipc_perm *shp, int shmflg);
+int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd);
+int security_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr, int shmflg);
+int security_sem_alloc(struct kern_ipc_perm *sma);
+void security_sem_free(struct kern_ipc_perm *sma);
+int security_sem_associate(struct kern_ipc_perm *sma, int semflg);
+int security_sem_semctl(struct kern_ipc_perm *sma, int cmd);
+int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			unsigned nsops, int alter);
 void security_d_instantiate(struct dentry *dentry, struct inode *inode);
 int security_getprocattr(struct task_struct *p, char *name, char **value);
@@ -1010,7 +1009,7 @@ static inline int security_task_movememory(struct task_struct *p)
 
 static inline int security_task_kill(struct task_struct *p,
 				     struct siginfo *info, int sig,
-				     u32 secid)
+				     const struct cred *cred)
 {
 	return 0;
 }
@@ -1045,32 +1044,32 @@ static inline int security_msg_msg_alloc(struct msg_msg *msg)
 static inline void security_msg_msg_free(struct msg_msg *msg)
 { }
 
-static inline int security_msg_queue_alloc(struct msg_queue *msq)
+static inline int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 {
 	return 0;
 }
 
-static inline void security_msg_queue_free(struct msg_queue *msq)
+static inline void security_msg_queue_free(struct kern_ipc_perm *msq)
 { }
 
-static inline int security_msg_queue_associate(struct msg_queue *msq,
+static inline int security_msg_queue_associate(struct kern_ipc_perm *msq,
 					       int msqflg)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+static inline int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgsnd(struct msg_queue *msq,
+static inline int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 					    struct msg_msg *msg, int msqflg)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgrcv(struct msg_queue *msq,
+static inline int security_msg_queue_msgrcv(struct kern_ipc_perm *msq,
 					    struct msg_msg *msg,
 					    struct task_struct *target,
 					    long type, int mode)
@@ -1078,50 +1077,50 @@ static inline int security_msg_queue_msgrcv(struct msg_queue *msq,
 	return 0;
 }
 
-static inline int security_shm_alloc(struct shmid_kernel *shp)
+static inline int security_shm_alloc(struct kern_ipc_perm *shp)
 {
 	return 0;
 }
 
-static inline void security_shm_free(struct shmid_kernel *shp)
+static inline void security_shm_free(struct kern_ipc_perm *shp)
 { }
 
-static inline int security_shm_associate(struct shmid_kernel *shp,
+static inline int security_shm_associate(struct kern_ipc_perm *shp,
 					 int shmflg)
 {
 	return 0;
 }
 
-static inline int security_shm_shmctl(struct shmid_kernel *shp, int cmd)
+static inline int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
 	return 0;
 }
 
-static inline int security_shm_shmat(struct shmid_kernel *shp,
+static inline int security_shm_shmat(struct kern_ipc_perm *shp,
 				     char __user *shmaddr, int shmflg)
 {
 	return 0;
 }
 
-static inline int security_sem_alloc(struct sem_array *sma)
+static inline int security_sem_alloc(struct kern_ipc_perm *sma)
 {
 	return 0;
 }
 
-static inline void security_sem_free(struct sem_array *sma)
+static inline void security_sem_free(struct kern_ipc_perm *sma)
 { }
 
-static inline int security_sem_associate(struct sem_array *sma, int semflg)
+static inline int security_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	return 0;
 }
 
-static inline int security_sem_semctl(struct sem_array *sma, int cmd)
+static inline int security_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	return 0;
 }
 
-static inline int security_sem_semop(struct sem_array *sma,
+static inline int security_sem_semop(struct kern_ipc_perm *sma,
 				     struct sembuf *sops, unsigned nsops,
 				     int alter)
 {
@@ -1229,6 +1228,11 @@ int security_tun_dev_create(void);
 int security_tun_dev_attach_queue(void *security);
 int security_tun_dev_attach(struct sock *sk, void *security);
 int security_tun_dev_open(void *security);
+int security_sctp_assoc_request(struct sctp_endpoint *ep, struct sk_buff *skb);
+int security_sctp_bind_connect(struct sock *sk, int optname,
+			       struct sockaddr *address, int addrlen);
+void security_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
+			    struct sock *newsk);
 
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct sock *sock,
@@ -1420,6 +1424,25 @@ static inline int security_tun_dev_attach(struct sock *sk, void *security)
 static inline int security_tun_dev_open(void *security)
 {
 	return 0;
+}
+
+static inline int security_sctp_assoc_request(struct sctp_endpoint *ep,
+					      struct sk_buff *skb)
+{
+	return 0;
+}
+
+static inline int security_sctp_bind_connect(struct sock *sk, int optname,
+					     struct sockaddr *address,
+					     int addrlen)
+{
+	return 0;
+}
+
+static inline void security_sctp_sk_clone(struct sctp_endpoint *ep,
+					  struct sock *sk,
+					  struct sock *newsk)
+{
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 

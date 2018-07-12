@@ -62,8 +62,10 @@ struct sctp_auth_bytes {
 /* Definition for a shared key, weather endpoint or association */
 struct sctp_shared_key {
 	struct list_head key_list;
-	__u16 key_id;
 	struct sctp_auth_bytes *key;
+	refcount_t refcnt;
+	__u16 key_id;
+	__u8 deactivated;
 };
 
 #define key_for_each(__key, __list_head) \
@@ -103,21 +105,22 @@ int sctp_auth_send_cid(enum sctp_cid chunk,
 int sctp_auth_recv_cid(enum sctp_cid chunk,
 		       const struct sctp_association *asoc);
 void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
-			    struct sk_buff *skb,
-			    struct sctp_auth_chunk *auth, gfp_t gfp);
+			      struct sk_buff *skb, struct sctp_auth_chunk *auth,
+			      struct sctp_shared_key *ep_key, gfp_t gfp);
+void sctp_auth_shkey_release(struct sctp_shared_key *sh_key);
+void sctp_auth_shkey_hold(struct sctp_shared_key *sh_key);
 
 /* API Helpers */
 int sctp_auth_ep_add_chunkid(struct sctp_endpoint *ep, __u8 chunk_id);
 int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 			    struct sctp_hmacalgo *hmacs);
-int sctp_auth_set_key(struct sctp_endpoint *ep,
-		      struct sctp_association *asoc,
+int sctp_auth_set_key(struct sctp_endpoint *ep, struct sctp_association *asoc,
 		      struct sctp_authkey *auth_key);
 int sctp_auth_set_active_key(struct sctp_endpoint *ep,
-		      struct sctp_association *asoc,
-		      __u16 key_id);
+			     struct sctp_association *asoc, __u16 key_id);
 int sctp_auth_del_key_id(struct sctp_endpoint *ep,
-		      struct sctp_association *asoc,
-		      __u16 key_id);
+			 struct sctp_association *asoc, __u16 key_id);
+int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
+			   struct sctp_association *asoc, __u16 key_id);
 
 #endif

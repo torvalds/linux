@@ -159,9 +159,8 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 		if ((ret < 0) || (ret >= ST_ACCEL_MAX))
 			return -ENODEV;
 
-		strncpy(client->name, st_accel_id_table[ret].name,
+		strlcpy(client->name, st_accel_id_table[ret].name,
 				sizeof(client->name));
-		client->name[sizeof(client->name) - 1] = '\0';
 	} else if (!id)
 		return -ENODEV;
 

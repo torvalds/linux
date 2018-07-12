@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STRATO AG 2013.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
+
 #include <linux/uuid.h>
 #include <asm/unaligned.h>
 #include "ctree.h"
@@ -282,7 +270,7 @@ int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 
 again_search_slot:
-	ret = btrfs_search_forward(root, &key, path, 0);
+	ret = btrfs_search_forward(root, &key, path, BTRFS_OLDEST_GENERATION);
 	if (ret) {
 		if (ret > 0)
 			ret = 0;

@@ -27,19 +27,6 @@
 #ifndef _ADV748X_H_
 #define _ADV748X_H_
 
-/* I2C slave addresses */
-#define ADV748X_I2C_IO			0x70	/* IO Map */
-#define ADV748X_I2C_DPLL		0x26	/* DPLL Map */
-#define ADV748X_I2C_CP			0x22	/* CP Map */
-#define ADV748X_I2C_HDMI		0x34	/* HDMI Map */
-#define ADV748X_I2C_EDID		0x36	/* EDID Map */
-#define ADV748X_I2C_REPEATER		0x32	/* HDMI RX Repeater Map */
-#define ADV748X_I2C_INFOFRAME		0x31	/* HDMI RX InfoFrame Map */
-#define ADV748X_I2C_CEC			0x41	/* CEC Map */
-#define ADV748X_I2C_SDP			0x79	/* SDP Map */
-#define ADV748X_I2C_TXB			0x48	/* CSI-TXB Map */
-#define ADV748X_I2C_TXA			0x4a	/* CSI-TXA Map */
-
 enum adv748x_page {
 	ADV748X_PAGE_IO,
 	ADV748X_PAGE_DPLL,
@@ -48,6 +35,7 @@ enum adv748x_page {
 	ADV748X_PAGE_EDID,
 	ADV748X_PAGE_REPEATER,
 	ADV748X_PAGE_INFOFRAME,
+	ADV748X_PAGE_CBUS,
 	ADV748X_PAGE_CEC,
 	ADV748X_PAGE_SDP,
 	ADV748X_PAGE_TXB,

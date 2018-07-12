@@ -33,22 +33,17 @@ struct ia_css_preview_settings {
 	/* 2401 only for these two - do we in fact use them for anything real */
 	struct ia_css_frame *delay_frames[MAX_NUM_DELAY_FRAMES];
 	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
-	
+
 	struct ia_css_pipe *copy_pipe;
 	struct ia_css_pipe *capture_pipe;
 	struct ia_css_pipe *acc_pipe;
 };
 
 #define IA_CSS_DEFAULT_PREVIEW_SETTINGS \
-{ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* copy_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* preview_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* vf_pp_binary */\
-	{ NULL },			/* dvs_frames */ \
-	{ NULL },			/* tnr_frames */ \
-	NULL,				/* copy_pipe */\
-	NULL,				/* capture_pipe */\
-	NULL,				/* acc_pipe */\
+(struct ia_css_preview_settings) { \
+	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.preview_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
 struct ia_css_capture_settings {
@@ -70,20 +65,15 @@ struct ia_css_capture_settings {
 };
 
 #define IA_CSS_DEFAULT_CAPTURE_SETTINGS \
-{ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* copy_binary */\
-	{IA_CSS_BINARY_DEFAULT_SETTINGS},	/* primary_binary */\
-	0,				/* num_primary_stage */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* pre_isp_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* anr_gdc_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* post_isp_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* capture_pp_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* vf_pp_binary */\
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* capture_ldc_binary */\
-	NULL,				/* yuv_scaler_binary */ \
-	{ NULL },			/* delay_frames[ref_frames] */ \
-	NULL,				/* is_output_stage */ \
-	0,				/* num_yuv_scaler */ \
+(struct ia_css_capture_settings) { \
+	.copy_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.primary_binary		= {IA_CSS_BINARY_DEFAULT_SETTINGS}, \
+	.pre_isp_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.anr_gdc_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.post_isp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.capture_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.vf_pp_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.capture_ldc_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
 struct ia_css_video_settings {
@@ -105,18 +95,10 @@ struct ia_css_video_settings {
 };
 
 #define IA_CSS_DEFAULT_VIDEO_SETTINGS \
-{ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* copy_binary */ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* video_binary */ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,	/* vf_pp_binary */ \
-	NULL,				/* yuv_scaler_binary */ \
-	{ NULL },			/* delay_frames */ \
-	{ NULL },			/* tnr_frames */ \
-	NULL,				/* vf_pp_in_frame */ \
-	NULL,				/* copy_pipe */ \
-	NULL,				/* capture_pipe */ \
-	NULL,				/* is_output_stage */ \
-	0,				/* num_yuv_scaler */ \
+(struct ia_css_video_settings) { \
+	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.video_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
+	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
 struct ia_css_yuvpp_settings {
@@ -130,14 +112,8 @@ struct ia_css_yuvpp_settings {
 };
 
 #define IA_CSS_DEFAULT_YUVPP_SETTINGS \
-{ \
-	IA_CSS_BINARY_DEFAULT_SETTINGS,		/* copy_binary */ \
-	NULL,					/* yuv_scaler_binary */ \
-	NULL,					/* vf_pp_binary */ \
-	NULL,					/* is_output_stage */ \
-	0,					/* num_yuv_scaler */ \
-	0,					/* num_vf_pp */ \
-	0,					/* num_output */ \
+(struct ia_css_yuvpp_settings) { \
+	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
 struct osys_object;
@@ -185,35 +161,26 @@ struct ia_css_pipe {
 };
 
 #define IA_CSS_DEFAULT_PIPE \
-{ \
-	false,					/* stop_requested */ \
-	DEFAULT_PIPE_CONFIG,			/* config */ \
-	DEFAULT_PIPE_EXTRA_CONFIG,		/* extra_config */ \
-	DEFAULT_PIPE_INFO,			/* info */ \
-	IA_CSS_PIPE_ID_ACC,			/* mode (pipe_id) */ \
-	NULL,					/* shading_table */ \
-	DEFAULT_PIPELINE,			/* pipeline */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* output_info */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* bds_output_info */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* vf_output_info */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* out_yuv_ds_input_info */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* vf_yuv_ds_input_info */ \
-	NULL,					/* output_stage */ \
-	NULL,					/* vf_stage */ \
-	SH_CSS_BDS_FACTOR_1_00,			/* required_bds_factor */ \
-	1,					/* dvs_frame_delay */ \
-	0,					/* num_invalid_frames */ \
-	{true},					/* enable_viewfinder */ \
-	NULL,					/* stream */ \
-	DEFAULT_FRAME,				/* in_frame_struct */ \
-	DEFAULT_FRAME,				/* out_frame_struct */ \
-	DEFAULT_FRAME,				/* vf_frame_struct */ \
-	{ NULL },				/* continuous_frames */ \
-	{ NULL },				/* cont_md_buffers */ \
-	{ IA_CSS_DEFAULT_PREVIEW_SETTINGS },	/* pipe_settings */ \
-	0,					/* scaler_pp_lut */ \
-	NULL,					/* osys object */ \
-	PIPE_ENTRY_EMPTY_TOKEN,			/* pipe_num */\
+(struct ia_css_pipe) { \
+	.config			= DEFAULT_PIPE_CONFIG, \
+	.info			= DEFAULT_PIPE_INFO, \
+	.mode			= IA_CSS_PIPE_ID_ACC, /* (pipe_id) */ \
+	.pipeline		= DEFAULT_PIPELINE, \
+	.output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.bds_output_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.vf_output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.out_yuv_ds_input_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.vf_yuv_ds_input_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.required_bds_factor	= SH_CSS_BDS_FACTOR_1_00, \
+	.dvs_frame_delay	= 1, \
+	.enable_viewfinder	= {true}, \
+	.in_frame_struct	= DEFAULT_FRAME, \
+	.out_frame_struct	= DEFAULT_FRAME, \
+	.vf_frame_struct	= DEFAULT_FRAME, \
+	.pipe_settings		= { \
+		.preview = IA_CSS_DEFAULT_PREVIEW_SETTINGS \
+	}, \
+	.pipe_num		= PIPE_ENTRY_EMPTY_TOKEN, \
 }
 
 void ia_css_pipe_map_queue(struct ia_css_pipe *pipe, bool map);

@@ -68,10 +68,12 @@ config HTS221
 config HTS221_I2C
 	tristate
 	depends on HTS221
+	select REGMAP_I2C
 
 config HTS221_SPI
 	tristate
 	depends on HTS221
+	select REGMAP_SPI
 
 config HTU21
 	tristate "Measurement Specialties HTU21 humidity & temperature sensor"

@@ -85,8 +85,4 @@ int hashtab_map(struct hashtab *h,
 /* Fill info with some hash table statistics */
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
 
-/* Use kmem_cache for hashtab_node */
-void hashtab_cache_init(void);
-void hashtab_cache_destroy(void);
-
 #endif	/* _SS_HASHTAB_H */

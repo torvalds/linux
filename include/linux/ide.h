@@ -25,15 +25,10 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
-#if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
-# define SUPPORT_VLB_SYNC 0
-#else
-# define SUPPORT_VLB_SYNC 1
-#endif
-
 /*
  * Probably not wise to fiddle with these
  */
+#define SUPPORT_VLB_SYNC 1
 #define IDE_DEFAULT_MAX_FAILURES	1
 #define ERROR_MAX	8	/* Max read/write errors per sector */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
@@ -165,7 +160,6 @@ struct ide_io_ports {
  */
 #define PARTN_BITS	6	/* number of minor dev bits for partitions */
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
-#define SECTOR_SIZE	512
 
 /*
  * Timeouts for various operations:

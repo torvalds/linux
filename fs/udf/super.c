@@ -64,14 +64,13 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 
-#define VDS_POS_PRIMARY_VOL_DESC	0
-#define VDS_POS_UNALLOC_SPACE_DESC	1
-#define VDS_POS_LOGICAL_VOL_DESC	2
-#define VDS_POS_PARTITION_DESC		3
-#define VDS_POS_IMP_USE_VOL_DESC	4
-#define VDS_POS_VOL_DESC_PTR		5
-#define VDS_POS_TERMINATING_DESC	6
-#define VDS_POS_LENGTH			7
+enum {
+	VDS_POS_PRIMARY_VOL_DESC,
+	VDS_POS_UNALLOC_SPACE_DESC,
+	VDS_POS_LOGICAL_VOL_DESC,
+	VDS_POS_IMP_USE_VOL_DESC,
+	VDS_POS_LENGTH
+};
 
 #define VSD_FIRST_SECTOR_OFFSET		32768
 #define VSD_MAX_SECTOR_OFFSET		0x800000
@@ -223,10 +222,6 @@ struct udf_options {
 	unsigned int session;
 	unsigned int lastblock;
 	unsigned int anchor;
-	unsigned int volume;
-	unsigned short partition;
-	unsigned int fileset;
-	unsigned int rootdir;
 	unsigned int flags;
 	umode_t umask;
 	kgid_t gid;
@@ -349,12 +344,8 @@ static int udf_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",shortad");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_FORGET))
 		seq_puts(seq, ",uid=forget");
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_IGNORE))
-		seq_puts(seq, ",uid=ignore");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_FORGET))
 		seq_puts(seq, ",gid=forget");
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_IGNORE))
-		seq_puts(seq, ",gid=ignore");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET))
 		seq_printf(seq, ",uid=%u", from_kuid(&init_user_ns, sbi->s_uid));
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
@@ -371,10 +362,6 @@ static int udf_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",lastblock=%u", sbi->s_last_block);
 	if (sbi->s_anchor != 0)
 		seq_printf(seq, ",anchor=%u", sbi->s_anchor);
-	/*
-	 * volume, partition, fileset and rootdir seem to be ignored
-	 * currently
-	 */
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8))
 		seq_puts(seq, ",utf8");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP) && sbi->s_nls_map)
@@ -487,14 +474,9 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	int option;
 
 	uopt->novrs = 0;
-	uopt->partition = 0xFFFF;
 	uopt->session = 0xFFFFFFFF;
 	uopt->lastblock = 0;
 	uopt->anchor = 0;
-	uopt->volume = 0xFFFFFFFF;
-	uopt->rootdir = 0xFFFFFFFF;
-	uopt->fileset = 0xFFFFFFFF;
-	uopt->nls_map = NULL;
 
 	if (!options)
 		return 1;
@@ -582,42 +564,30 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 			uopt->anchor = option;
 			break;
 		case Opt_volume:
-			if (match_int(args, &option))
-				return 0;
-			uopt->volume = option;
-			break;
 		case Opt_partition:
-			if (match_int(args, &option))
-				return 0;
-			uopt->partition = option;
-			break;
 		case Opt_fileset:
-			if (match_int(args, &option))
-				return 0;
-			uopt->fileset = option;
-			break;
 		case Opt_rootdir:
-			if (match_int(args, &option))
-				return 0;
-			uopt->rootdir = option;
+			/* Ignored (never implemented properly) */
 			break;
 		case Opt_utf8:
 			uopt->flags |= (1 << UDF_FLAG_UTF8);
 			break;
 #ifdef CONFIG_UDF_NLS
 		case Opt_iocharset:
-			uopt->nls_map = load_nls(args[0].from);
-			uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
+			if (!remount) {
+				if (uopt->nls_map)
+					unload_nls(uopt->nls_map);
+				uopt->nls_map = load_nls(args[0].from);
+				uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
+			}
 			break;
 #endif
-		case Opt_uignore:
-			uopt->flags |= (1 << UDF_FLAG_UID_IGNORE);
-			break;
 		case Opt_uforget:
 			uopt->flags |= (1 << UDF_FLAG_UID_FORGET);
 			break;
+		case Opt_uignore:
 		case Opt_gignore:
-			uopt->flags |= (1 << UDF_FLAG_GID_IGNORE);
+			/* These options are superseeded by uid=<number> */
 			break;
 		case Opt_gforget:
 			uopt->flags |= (1 << UDF_FLAG_GID_FORGET);
@@ -660,6 +630,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	uopt.umask = sbi->s_umask;
 	uopt.fmode = sbi->s_fmode;
 	uopt.dmode = sbi->s_dmode;
+	uopt.nls_map = NULL;
 
 	if (!udf_parse_options(options, &uopt, true))
 		return -EINVAL;
@@ -1592,6 +1563,60 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
 	sbi->s_lvid_bh = NULL;
 }
 
+/*
+ * Step for reallocation of table of partition descriptor sequence numbers.
+ * Must be power of 2.
+ */
+#define PART_DESC_ALLOC_STEP 32
+
+struct desc_seq_scan_data {
+	struct udf_vds_record vds[VDS_POS_LENGTH];
+	unsigned int size_part_descs;
+	struct udf_vds_record *part_descs_loc;
+};
+
+static struct udf_vds_record *handle_partition_descriptor(
+				struct buffer_head *bh,
+				struct desc_seq_scan_data *data)
+{
+	struct partitionDesc *desc = (struct partitionDesc *)bh->b_data;
+	int partnum;
+
+	partnum = le16_to_cpu(desc->partitionNumber);
+	if (partnum >= data->size_part_descs) {
+		struct udf_vds_record *new_loc;
+		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
+
+		new_loc = kzalloc(sizeof(*new_loc) * new_size, GFP_KERNEL);
+		if (!new_loc)
+			return ERR_PTR(-ENOMEM);
+		memcpy(new_loc, data->part_descs_loc,
+		       data->size_part_descs * sizeof(*new_loc));
+		kfree(data->part_descs_loc);
+		data->part_descs_loc = new_loc;
+		data->size_part_descs = new_size;
+	}
+	return &(data->part_descs_loc[partnum]);
+}
+
+
+static struct udf_vds_record *get_volume_descriptor_record(uint16_t ident,
+		struct buffer_head *bh, struct desc_seq_scan_data *data)
+{
+	switch (ident) {
+	case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
+		return &(data->vds[VDS_POS_PRIMARY_VOL_DESC]);
+	case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
+		return &(data->vds[VDS_POS_IMP_USE_VOL_DESC]);
+	case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
+		return &(data->vds[VDS_POS_LOGICAL_VOL_DESC]);
+	case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
+		return &(data->vds[VDS_POS_UNALLOC_SPACE_DESC]);
+	case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
+		return handle_partition_descriptor(bh, data);
+	}
+	return NULL;
+}
 
 /*
  * Process a main/reserve volume descriptor sequence.
@@ -1608,18 +1633,23 @@ static noinline int udf_process_sequence(
 		struct kernel_lb_addr *fileset)
 {
 	struct buffer_head *bh = NULL;
-	struct udf_vds_record vds[VDS_POS_LENGTH];
 	struct udf_vds_record *curr;
 	struct generic_desc *gd;
 	struct volDescPtr *vdp;
 	bool done = false;
 	uint32_t vdsn;
 	uint16_t ident;
-	long next_s = 0, next_e = 0;
 	int ret;
 	unsigned int indirections = 0;
+	struct desc_seq_scan_data data;
+	unsigned int i;
 
-	memset(vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
+	memset(data.vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
+	data.size_part_descs = PART_DESC_ALLOC_STEP;
+	data.part_descs_loc = kzalloc(sizeof(*data.part_descs_loc) *
+					data.size_part_descs, GFP_KERNEL);
+	if (!data.part_descs_loc)
+		return -ENOMEM;
 
 	/*
 	 * Read the main descriptor sequence and find which descriptors
@@ -1628,79 +1658,51 @@ static noinline int udf_process_sequence(
 	for (; (!done && block <= lastblock); block++) {
 
 		bh = udf_read_tagged(sb, block, block, &ident);
-		if (!bh) {
-			udf_err(sb,
-				"Block %llu of volume descriptor sequence is corrupted or we could not read it\n",
-				(unsigned long long)block);
-			return -EAGAIN;
-		}
+		if (!bh)
+			break;
 
 		/* Process each descriptor (ISO 13346 3/8.3-8.4) */
 		gd = (struct generic_desc *)bh->b_data;
 		vdsn = le32_to_cpu(gd->volDescSeqNum);
 		switch (ident) {
-		case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
-			curr = &vds[VDS_POS_PRIMARY_VOL_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
-			break;
 		case TAG_IDENT_VDP: /* ISO 13346 3/10.3 */
-			curr = &vds[VDS_POS_VOL_DESC_PTR];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
+			if (++indirections > UDF_MAX_TD_NESTING) {
+				udf_err(sb, "too many Volume Descriptor "
+					"Pointers (max %u supported)\n",
+					UDF_MAX_TD_NESTING);
+				brelse(bh);
+				return -EIO;
+			}
 
-				vdp = (struct volDescPtr *)bh->b_data;
-				next_s = le32_to_cpu(
-					vdp->nextVolDescSeqExt.extLocation);
-				next_e = le32_to_cpu(
-					vdp->nextVolDescSeqExt.extLength);
-				next_e = next_e >> sb->s_blocksize_bits;
-				next_e += next_s;
-			}
+			vdp = (struct volDescPtr *)bh->b_data;
+			block = le32_to_cpu(vdp->nextVolDescSeqExt.extLocation);
+			lastblock = le32_to_cpu(
+				vdp->nextVolDescSeqExt.extLength) >>
+				sb->s_blocksize_bits;
+			lastblock += block - 1;
+			/* For loop is going to increment 'block' again */
+			block--;
 			break;
+		case TAG_IDENT_PVD: /* ISO 13346 3/10.1 */
 		case TAG_IDENT_IUVD: /* ISO 13346 3/10.4 */
-			curr = &vds[VDS_POS_IMP_USE_VOL_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
-			break;
-		case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
-			curr = &vds[VDS_POS_PARTITION_DESC];
-			if (!curr->block)
-				curr->block = block;
-			break;
 		case TAG_IDENT_LVD: /* ISO 13346 3/10.6 */
-			curr = &vds[VDS_POS_LOGICAL_VOL_DESC];
-			if (vdsn >= curr->volDescSeqNum) {
-				curr->volDescSeqNum = vdsn;
-				curr->block = block;
-			}
-			break;
 		case TAG_IDENT_USD: /* ISO 13346 3/10.8 */
-			curr = &vds[VDS_POS_UNALLOC_SPACE_DESC];
+		case TAG_IDENT_PD: /* ISO 13346 3/10.5 */
+			curr = get_volume_descriptor_record(ident, bh, &data);
+			if (IS_ERR(curr)) {
+				brelse(bh);
+				return PTR_ERR(curr);
+			}
+			/* Descriptor we don't care about? */
+			if (!curr)
+				break;
 			if (vdsn >= curr->volDescSeqNum) {
 				curr->volDescSeqNum = vdsn;
 				curr->block = block;
 			}
 			break;
 		case TAG_IDENT_TD: /* ISO 13346 3/10.9 */
-			if (++indirections > UDF_MAX_TD_NESTING) {
-				udf_err(sb, "too many TDs (max %u supported)\n", UDF_MAX_TD_NESTING);
-				brelse(bh);
-				return -EIO;
-			}
-
-			vds[VDS_POS_TERMINATING_DESC].block = block;
-			if (next_e) {
-				block = next_s;
-				lastblock = next_e;
-				next_s = next_e = 0;
-			} else
-				done = true;
+			done = true;
 			break;
 		}
 		brelse(bh);
@@ -1709,31 +1711,27 @@ static noinline int udf_process_sequence(
 	 * Now read interesting descriptors again and process them
 	 * in a suitable order
 	 */
-	if (!vds[VDS_POS_PRIMARY_VOL_DESC].block) {
+	if (!data.vds[VDS_POS_PRIMARY_VOL_DESC].block) {
 		udf_err(sb, "Primary Volume Descriptor not found!\n");
 		return -EAGAIN;
 	}
-	ret = udf_load_pvoldesc(sb, vds[VDS_POS_PRIMARY_VOL_DESC].block);
+	ret = udf_load_pvoldesc(sb, data.vds[VDS_POS_PRIMARY_VOL_DESC].block);
 	if (ret < 0)
 		return ret;
 
-	if (vds[VDS_POS_LOGICAL_VOL_DESC].block) {
+	if (data.vds[VDS_POS_LOGICAL_VOL_DESC].block) {
 		ret = udf_load_logicalvol(sb,
-					  vds[VDS_POS_LOGICAL_VOL_DESC].block,
-					  fileset);
+				data.vds[VDS_POS_LOGICAL_VOL_DESC].block,
+				fileset);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (vds[VDS_POS_PARTITION_DESC].block) {
-		/*
-		 * We rescan the whole descriptor sequence to find
-		 * partition descriptor blocks and process them.
-		 */
-		for (block = vds[VDS_POS_PARTITION_DESC].block;
-		     block < vds[VDS_POS_TERMINATING_DESC].block;
-		     block++) {
-			ret = udf_load_partdesc(sb, block);
+	/* Now handle prevailing Partition Descriptors */
+	for (i = 0; i < data.size_part_descs; i++) {
+		if (data.part_descs_loc[i].block) {
+			ret = udf_load_partdesc(sb,
+						data.part_descs_loc[i].block);
 			if (ret < 0)
 				return ret;
 		}
@@ -1760,13 +1758,13 @@ static int udf_load_sequence(struct super_block *sb, struct buffer_head *bh,
 	main_s = le32_to_cpu(anchor->mainVolDescSeqExt.extLocation);
 	main_e = le32_to_cpu(anchor->mainVolDescSeqExt.extLength);
 	main_e = main_e >> sb->s_blocksize_bits;
-	main_e += main_s;
+	main_e += main_s - 1;
 
 	/* Locate the reserve sequence */
 	reserve_s = le32_to_cpu(anchor->reserveVolDescSeqExt.extLocation);
 	reserve_e = le32_to_cpu(anchor->reserveVolDescSeqExt.extLength);
 	reserve_e = reserve_e >> sb->s_blocksize_bits;
-	reserve_e += reserve_s;
+	reserve_e += reserve_s - 1;
 
 	/* Process the main & reserve sequences */
 	/* responsible for finding the PartitionDesc(s) */
@@ -1994,7 +1992,10 @@ static void udf_open_lvid(struct super_block *sb)
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	ktime_get_real_ts(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
-	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
+	if (le32_to_cpu(lvid->integrityType) == LVID_INTEGRITY_TYPE_CLOSE)
+		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
+	else
+		UDF_SET_FLAG(sb, UDF_FLAG_INCONSISTENT);
 
 	lvid->descTag.descCRC = cpu_to_le16(
 		crc_itu_t(0, (char *)lvid + sizeof(struct tag),
@@ -2034,7 +2035,8 @@ static void udf_close_lvid(struct super_block *sb)
 		lvidiu->minUDFReadRev = cpu_to_le16(sbi->s_udfrev);
 	if (sbi->s_udfrev > le16_to_cpu(lvidiu->minUDFWriteRev))
 		lvidiu->minUDFWriteRev = cpu_to_le16(sbi->s_udfrev);
-	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
+	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_INCONSISTENT))
+		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
 
 	lvid->descTag.descCRC = cpu_to_le16(
 			crc_itu_t(0, (char *)lvid + sizeof(struct tag),
@@ -2091,11 +2093,13 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	bool lvid_open = false;
 
 	uopt.flags = (1 << UDF_FLAG_USE_AD_IN_ICB) | (1 << UDF_FLAG_STRICT);
-	uopt.uid = INVALID_UID;
-	uopt.gid = INVALID_GID;
+	/* By default we'll use overflow[ug]id when UDF inode [ug]id == -1 */
+	uopt.uid = make_kuid(current_user_ns(), overflowuid);
+	uopt.gid = make_kgid(current_user_ns(), overflowgid);
 	uopt.umask = 0;
 	uopt.fmode = UDF_INVALID_MODE;
 	uopt.dmode = UDF_INVALID_MODE;
+	uopt.nls_map = NULL;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -2276,8 +2280,8 @@ error_out:
 	iput(sbi->s_vat_inode);
 parse_options_failure:
 #ifdef CONFIG_UDF_NLS
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
-		unload_nls(sbi->s_nls_map);
+	if (uopt.nls_map)
+		unload_nls(uopt.nls_map);
 #endif
 	if (lvid_open)
 		udf_close_lvid(sb);

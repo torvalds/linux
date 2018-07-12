@@ -294,10 +294,10 @@ struct obdo;
 
 void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj);
 
-#define OBT(dev)	(dev)->obd_type
-#define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->op
-#define MDP(dev, op)    (dev)->obd_type->typ_md_ops->op
-#define CTXTP(ctxt, op) (ctxt)->loc_logops->lop_##op
+#define OBT(dev)	((dev)->obd_type)
+#define OBP(dev, op)    ((dev)->obd_type->typ_dt_ops->op)
+#define MDP(dev, op)    ((dev)->obd_type->typ_md_ops->op)
+#define CTXTP(ctxt, op) ((ctxt)->loc_logops->lop_##op)
 
 /*
  * Ensure obd_setup: used for cleanup which must be called

@@ -57,7 +57,7 @@ extern struct tty_driver *console_driver;
  */
 
 #ifdef CONFIG_X86
-#include <linux/syscalls.h>
+#include <asm/syscalls.h>
 #endif
 
 static void complete_change_console(struct vc_data *vc);
@@ -420,12 +420,12 @@ int vt_ioctl(struct tty_struct *tty,
 			ret = -EINVAL;
 			break;
 		}
-		ret = sys_ioperm(arg, 1, (cmd == KDADDIO)) ? -ENXIO : 0;
+		ret = ksys_ioperm(arg, 1, (cmd == KDADDIO)) ? -ENXIO : 0;
 		break;
 
 	case KDENABIO:
 	case KDDISABIO:
-		ret = sys_ioperm(GPFIRST, GPNUM,
+		ret = ksys_ioperm(GPFIRST, GPNUM,
 				  (cmd == KDENABIO)) ? -ENXIO : 0;
 		break;
 #endif

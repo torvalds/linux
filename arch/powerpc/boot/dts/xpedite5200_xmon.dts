@@ -503,6 +503,6 @@
 
 	/* Needed for dtbImage boot wrapper compatibility */
 	chosen {
-		linux,stdout-path = &serial0;
+		stdout-path = &serial0;
 	};
 };

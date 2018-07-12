@@ -539,18 +539,21 @@ static irqreturn_t mv88e6xxx_g1_vtu_prob_irq_thread_fn(int irq, void *dev_id)
 	if (err)
 		goto out;
 
-	mutex_unlock(&chip->reg_lock);
-
 	spid = val & MV88E6XXX_G1_VTU_OP_SPID_MASK;
 
 	if (val & MV88E6XXX_G1_VTU_OP_MEMBER_VIOLATION) {
 		dev_err_ratelimited(chip->dev, "VTU member violation for vid %d, source port %d\n",
 				    entry.vid, spid);
+		chip->ports[spid].vtu_member_violation++;
 	}
 
-	if (val & MV88E6XXX_G1_VTU_OP_MISS_VIOLATION)
-		dev_err_ratelimited(chip->dev, "VTU miss violation for vid %d, source port %d\n",
+	if (val & MV88E6XXX_G1_VTU_OP_MISS_VIOLATION) {
+		dev_dbg_ratelimited(chip->dev, "VTU miss violation for vid %d, source port %d\n",
 				    entry.vid, spid);
+		chip->ports[spid].vtu_miss_violation++;
+	}
+
+	mutex_unlock(&chip->reg_lock);
 
 	return IRQ_HANDLED;
 

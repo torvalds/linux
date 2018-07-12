@@ -1311,11 +1311,11 @@ DEFINE_OCFS2_FILE_OPS(ocfs2_file_release);
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_sync_file);
 
-DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_write);
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_write_iter);
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_write);
 
-DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_read);
+DEFINE_OCFS2_FILE_OPS(ocfs2_file_read_iter);
 
 DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_truncate_file);
 
@@ -1467,7 +1467,7 @@ TRACE_EVENT(ocfs2_prepare_inode_for_write,
 		  __entry->saved_pos, __entry->count, __entry->wait)
 );
 
-DEFINE_OCFS2_INT_EVENT(generic_file_aio_read_ret);
+DEFINE_OCFS2_INT_EVENT(generic_file_read_iter_ret);
 
 /* End of trace events for fs/ocfs2/file.c. */
 

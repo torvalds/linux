@@ -168,8 +168,8 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
 
-	if (rl_reg > 0 && !tqp_vector->tx_group.gl_adapt_enable &&
-	    !tqp_vector->rx_group.gl_adapt_enable)
+	if (rl_reg > 0 && !tqp_vector->tx_group.coal.gl_adapt_enable &&
+	    !tqp_vector->rx_group.coal.gl_adapt_enable)
 		/* According to the hardware, the range of rl_reg is
 		 * 0-59 and the unit is 4.
 		 */
@@ -205,23 +205,30 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	 */
 
 	/* Default: enable interrupt coalescing self-adaptive and GL */
-	tqp_vector->tx_group.gl_adapt_enable = 1;
-	tqp_vector->rx_group.gl_adapt_enable = 1;
+	tqp_vector->tx_group.coal.gl_adapt_enable = 1;
+	tqp_vector->rx_group.coal.gl_adapt_enable = 1;
 
-	tqp_vector->tx_group.int_gl = HNS3_INT_GL_50K;
-	tqp_vector->rx_group.int_gl = HNS3_INT_GL_50K;
-
-	hns3_set_vector_coalesce_tx_gl(tqp_vector,
-				       tqp_vector->tx_group.int_gl);
-	hns3_set_vector_coalesce_rx_gl(tqp_vector,
-				       tqp_vector->rx_group.int_gl);
+	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
+	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
 
 	/* Default: disable RL */
 	h->kinfo.int_rl_setting = 0;
-	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
 
-	tqp_vector->rx_group.flow_level = HNS3_FLOW_LOW;
-	tqp_vector->tx_group.flow_level = HNS3_FLOW_LOW;
+	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
+	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
+	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
+}
+
+static void hns3_vector_gl_rl_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
+				      struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+
+	hns3_set_vector_coalesce_tx_gl(tqp_vector,
+				       tqp_vector->tx_group.coal.int_gl);
+	hns3_set_vector_coalesce_rx_gl(tqp_vector,
+				       tqp_vector->rx_group.coal.int_gl);
+	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
 }
 
 static int hns3_nic_set_real_num_queue(struct net_device *netdev)
@@ -247,6 +254,16 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+static u16 hns3_get_max_available_channels(struct hnae3_handle *h)
+{
+	u16 free_tqps, max_rss_size, max_tqps;
+
+	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
+	max_tqps = h->kinfo.num_tc * max_rss_size;
+
+	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
 }
 
 static int hns3_nic_net_up(struct net_device *netdev)
@@ -303,7 +320,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		return ret;
 	}
 
-	priv->last_reset_time = jiffies;
+	priv->ae_handle->last_reset_time = jiffies;
 	return 0;
 }
 
@@ -747,7 +764,7 @@ static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 {
 	/* Config bd buffer end */
 	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_BDTYPE_M,
-		       HNS3_TXD_BDTYPE_M, 0);
+		       HNS3_TXD_BDTYPE_S, 0);
 	hnae_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, !!frag_end);
 	hnae_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1);
 	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 0);
@@ -1104,7 +1121,7 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 	if (!mac_addr || !is_valid_ether_addr((const u8 *)mac_addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data);
+	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data, false);
 	if (ret) {
 		netdev_err(netdev, "set_mac_address fail, ret=%d!\n", ret);
 		return ret;
@@ -1388,10 +1405,14 @@ static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, false);
+
+	if (!ret)
+		set_bit(vid, priv->active_vlans);
 
 	return ret;
 }
@@ -1400,12 +1421,30 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, true);
 
+	if (!ret)
+		clear_bit(vid, priv->active_vlans);
+
 	return ret;
+}
+
+static void hns3_restore_vlan(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	u16 vid;
+	int ret;
+
+	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
+		ret = hns3_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
+		if (ret)
+			netdev_warn(netdev, "Restore vlan: %d filter, ret:%d\n",
+				    vid, ret);
+	}
 }
 
 static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
@@ -1504,7 +1543,6 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 static void hns3_nic_net_timeout(struct net_device *ndev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	unsigned long last_reset_time = priv->last_reset_time;
 	struct hnae3_handle *h = priv->ae_handle;
 
 	if (!hns3_get_tx_timeo_queue_info(ndev))
@@ -1512,24 +1550,12 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	priv->tx_timeout_count++;
 
-	/* This timeout is far away enough from last timeout,
-	 * if timeout again,set the reset type to PF reset
-	 */
-	if (time_after(jiffies, (last_reset_time + 20 * HZ)))
-		priv->reset_level = HNAE3_FUNC_RESET;
-
-	/* Don't do any new action before the next timeout */
-	else if (time_before(jiffies, (last_reset_time + ndev->watchdog_timeo)))
+	if (time_before(jiffies, (h->last_reset_time + ndev->watchdog_timeo)))
 		return;
 
-	priv->last_reset_time = jiffies;
-
+	/* request the reset */
 	if (h->ae_algo->ops->reset_event)
-		h->ae_algo->ops->reset_event(h, priv->reset_level);
-
-	priv->reset_level++;
-	if (priv->reset_level > HNAE3_GLOBAL_RESET)
-		priv->reset_level = HNAE3_GLOBAL_RESET;
+		h->ae_algo->ops->reset_event(h);
 }
 
 static const struct net_device_ops hns3_nic_netdev_ops = {
@@ -1588,10 +1614,6 @@ static void hns3_remove(struct pci_dev *pdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
-
-	devm_kfree(&pdev->dev, ae_dev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver hns3_driver = {
@@ -2064,15 +2086,13 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	desc = &ring->desc[ring->next_to_clean];
 	size = le16_to_cpu(desc->rx.size);
 
-	if (twobufs) {
-		truesize = hnae_buf_size(ring);
-	} else {
-		truesize = ALIGN(size, L1_CACHE_BYTES);
+	truesize = hnae_buf_size(ring);
+
+	if (!twobufs)
 		last_offset = hnae_page_size(ring) - hnae_buf_size(ring);
-	}
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize - pull_len);
+			size - pull_len, truesize);
 
 	 /* Avoid re-using remote pages,flag default unreuse */
 	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
@@ -2369,20 +2389,20 @@ out:
 
 static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 {
-#define HNS3_RX_ULTRA_PACKET_RATE 40000
+	struct hns3_enet_tqp_vector *tqp_vector =
+					ring_group->ring->tqp_vector;
 	enum hns3_flow_level_range new_flow_level;
-	struct hns3_enet_tqp_vector *tqp_vector;
-	int packets_per_secs;
-	int bytes_per_usecs;
+	int packets_per_msecs;
+	int bytes_per_msecs;
+	u32 time_passed_ms;
 	u16 new_int_gl;
-	int usecs;
 
-	if (!ring_group->int_gl)
+	if (!ring_group->coal.int_gl || !tqp_vector->last_jiffies)
 		return false;
 
 	if (ring_group->total_packets == 0) {
-		ring_group->int_gl = HNS3_INT_GL_50K;
-		ring_group->flow_level = HNS3_FLOW_LOW;
+		ring_group->coal.int_gl = HNS3_INT_GL_50K;
+		ring_group->coal.flow_level = HNS3_FLOW_LOW;
 		return true;
 	}
 
@@ -2392,35 +2412,46 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	 * 20-1249MB/s high      (18000 ints/s)
 	 * > 40000pps  ultra     (8000 ints/s)
 	 */
-	new_flow_level = ring_group->flow_level;
-	new_int_gl = ring_group->int_gl;
-	tqp_vector = ring_group->ring->tqp_vector;
-	usecs = (ring_group->int_gl << 1);
-	bytes_per_usecs = ring_group->total_bytes / usecs;
-	/* 1000000 microseconds */
-	packets_per_secs = ring_group->total_packets * 1000000 / usecs;
+	new_flow_level = ring_group->coal.flow_level;
+	new_int_gl = ring_group->coal.int_gl;
+	time_passed_ms =
+		jiffies_to_msecs(jiffies - tqp_vector->last_jiffies);
+
+	if (!time_passed_ms)
+		return false;
+
+	do_div(ring_group->total_packets, time_passed_ms);
+	packets_per_msecs = ring_group->total_packets;
+
+	do_div(ring_group->total_bytes, time_passed_ms);
+	bytes_per_msecs = ring_group->total_bytes;
+
+#define HNS3_RX_LOW_BYTE_RATE 10000
+#define HNS3_RX_MID_BYTE_RATE 20000
 
 	switch (new_flow_level) {
 	case HNS3_FLOW_LOW:
-		if (bytes_per_usecs > 10)
+		if (bytes_per_msecs > HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	case HNS3_FLOW_MID:
-		if (bytes_per_usecs > 20)
+		if (bytes_per_msecs > HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_HIGH;
-		else if (bytes_per_usecs <= 10)
+		else if (bytes_per_msecs <= HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_LOW;
 		break;
 	case HNS3_FLOW_HIGH:
 	case HNS3_FLOW_ULTRA:
 	default:
-		if (bytes_per_usecs <= 20)
+		if (bytes_per_msecs <= HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	}
 
-	if ((packets_per_secs > HNS3_RX_ULTRA_PACKET_RATE) &&
-	    (&tqp_vector->rx_group == ring_group))
+#define HNS3_RX_ULTRA_PACKET_RATE 40
+
+	if (packets_per_msecs > HNS3_RX_ULTRA_PACKET_RATE &&
+	    &tqp_vector->rx_group == ring_group)
 		new_flow_level = HNS3_FLOW_ULTRA;
 
 	switch (new_flow_level) {
@@ -2442,9 +2473,9 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 
 	ring_group->total_bytes = 0;
 	ring_group->total_packets = 0;
-	ring_group->flow_level = new_flow_level;
-	if (new_int_gl != ring_group->int_gl) {
-		ring_group->int_gl = new_int_gl;
+	ring_group->coal.flow_level = new_flow_level;
+	if (new_int_gl != ring_group->coal.int_gl) {
+		ring_group->coal.int_gl = new_int_gl;
 		return true;
 	}
 	return false;
@@ -2456,19 +2487,27 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
 	bool rx_update, tx_update;
 
-	if (rx_group->gl_adapt_enable) {
+	if (tqp_vector->int_adapt_down > 0) {
+		tqp_vector->int_adapt_down--;
+		return;
+	}
+
+	if (rx_group->coal.gl_adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
 		if (rx_update)
 			hns3_set_vector_coalesce_rx_gl(tqp_vector,
-						       rx_group->int_gl);
+						       rx_group->coal.int_gl);
 	}
 
-	if (tx_group->gl_adapt_enable) {
+	if (tx_group->coal.gl_adapt_enable) {
 		tx_update = hns3_get_new_int_gl(&tqp_vector->tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
-						       tx_group->int_gl);
+						       tx_group->coal.int_gl);
 	}
+
+	tqp_vector->last_jiffies = jiffies;
+	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 }
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
@@ -2615,6 +2654,65 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
+	int ret = 0;
+	u16 i;
+
+	for (i = 0; i < priv->vector_num; i++) {
+		tqp_vector = &priv->tqp_vector[i];
+		hns3_vector_gl_rl_init_hw(tqp_vector, priv);
+		tqp_vector->num_tqps = 0;
+	}
+
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		u16 vector_i = i % priv->vector_num;
+		u16 tqp_num = h->kinfo.num_tqps;
+
+		tqp_vector = &priv->tqp_vector[vector_i];
+
+		hns3_add_ring_to_group(&tqp_vector->tx_group,
+				       priv->ring_data[i].ring);
+
+		hns3_add_ring_to_group(&tqp_vector->rx_group,
+				       priv->ring_data[i + tqp_num].ring);
+
+		priv->ring_data[i].ring->tqp_vector = tqp_vector;
+		priv->ring_data[i + tqp_num].ring->tqp_vector = tqp_vector;
+		tqp_vector->num_tqps++;
+	}
+
+	for (i = 0; i < priv->vector_num; i++) {
+		tqp_vector = &priv->tqp_vector[i];
+
+		tqp_vector->rx_group.total_bytes = 0;
+		tqp_vector->rx_group.total_packets = 0;
+		tqp_vector->tx_group.total_bytes = 0;
+		tqp_vector->tx_group.total_packets = 0;
+		tqp_vector->handle = h;
+
+		ret = hns3_get_vector_ring_chain(tqp_vector,
+						 &vector_ring_chain);
+		if (ret)
+			return ret;
+
+		ret = h->ae_algo->ops->map_ring_to_vector(h,
+			tqp_vector->vector_irq, &vector_ring_chain);
+
+		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
+
+		if (ret)
+			return ret;
+
+		netif_napi_add(priv->netdev, &tqp_vector->napi,
+			       hns3_nic_common_poll, NAPI_POLL_WEIGHT);
+	}
+
+	return 0;
+}
+
+static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	struct hns3_enet_tqp_vector *tqp_vector;
 	struct hnae3_vector_info *vector;
 	struct pci_dev *pdev = h->pdev;
 	u16 tqp_num = h->kinfo.num_tqps;
@@ -2636,53 +2734,17 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	priv->tqp_vector = (struct hns3_enet_tqp_vector *)
 		devm_kcalloc(&pdev->dev, vector_num, sizeof(*priv->tqp_vector),
 			     GFP_KERNEL);
-	if (!priv->tqp_vector)
-		return -ENOMEM;
-
-	for (i = 0; i < tqp_num; i++) {
-		u16 vector_i = i % vector_num;
-
-		tqp_vector = &priv->tqp_vector[vector_i];
-
-		hns3_add_ring_to_group(&tqp_vector->tx_group,
-				       priv->ring_data[i].ring);
-
-		hns3_add_ring_to_group(&tqp_vector->rx_group,
-				       priv->ring_data[i + tqp_num].ring);
-
-		tqp_vector->idx = vector_i;
-		tqp_vector->mask_addr = vector[vector_i].io_addr;
-		tqp_vector->vector_irq = vector[vector_i].vector;
-		tqp_vector->num_tqps++;
-
-		priv->ring_data[i].ring->tqp_vector = tqp_vector;
-		priv->ring_data[i + tqp_num].ring->tqp_vector = tqp_vector;
+	if (!priv->tqp_vector) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	for (i = 0; i < vector_num; i++) {
+	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
-
-		tqp_vector->rx_group.total_bytes = 0;
-		tqp_vector->rx_group.total_packets = 0;
-		tqp_vector->tx_group.total_bytes = 0;
-		tqp_vector->tx_group.total_packets = 0;
+		tqp_vector->idx = i;
+		tqp_vector->mask_addr = vector[i].io_addr;
+		tqp_vector->vector_irq = vector[i].vector;
 		hns3_vector_gl_rl_init(tqp_vector, priv);
-		tqp_vector->handle = h;
-
-		ret = hns3_get_vector_ring_chain(tqp_vector,
-						 &vector_ring_chain);
-		if (ret)
-			goto out;
-
-		ret = h->ae_algo->ops->map_ring_to_vector(h,
-			tqp_vector->vector_irq, &vector_ring_chain);
-		if (ret)
-			goto out;
-
-		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
-
-		netif_napi_add(priv->netdev, &tqp_vector->napi,
-			       hns3_nic_common_poll, NAPI_POLL_WEIGHT);
 	}
 
 out:
@@ -2690,12 +2752,17 @@ out:
 	return ret;
 }
 
+static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
+{
+	group->ring = NULL;
+	group->count = 0;
+}
+
 static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
 	struct hnae3_ring_chain_node vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
-	struct pci_dev *pdev = h->pdev;
 	int i, ret;
 
 	for (i = 0; i < priv->vector_num; i++) {
@@ -2711,6 +2778,10 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		if (ret)
 			return ret;
 
+		ret = h->ae_algo->ops->put_vector(h, tqp_vector->vector_irq);
+		if (ret)
+			return ret;
+
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
 		if (priv->tqp_vector[i].irq_init_flag == HNS3_VECTOR_INITED) {
@@ -2722,12 +2793,30 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 		}
 
 		priv->ring_data[i].ring->irq_init_flag = HNS3_VECTOR_NOT_INITED;
-
+		hns3_clear_ring_group(&tqp_vector->rx_group);
+		hns3_clear_ring_group(&tqp_vector->tx_group);
 		netif_napi_del(&priv->tqp_vector[i].napi);
 	}
 
-	devm_kfree(&pdev->dev, priv->tqp_vector);
+	return 0;
+}
 
+static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	struct pci_dev *pdev = h->pdev;
+	int i, ret;
+
+	for (i = 0; i < priv->vector_num; i++) {
+		struct hns3_enet_tqp_vector *tqp_vector;
+
+		tqp_vector = &priv->tqp_vector[i];
+		ret = h->ae_algo->ops->put_vector(h, tqp_vector->vector_irq);
+		if (ret)
+			return ret;
+	}
+
+	devm_kfree(&pdev->dev, priv->tqp_vector);
 	return 0;
 }
 
@@ -2957,13 +3046,8 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 			h->ae_algo->ops->reset_queue(h, i);
 
 		hns3_fini_ring(priv->ring_data[i].ring);
-		devm_kfree(priv->dev, priv->ring_data[i].ring);
 		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
-		devm_kfree(priv->dev,
-			   priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
-	devm_kfree(priv->dev, priv->ring_data);
-
 	return 0;
 }
 
@@ -2987,7 +3071,7 @@ static void hns3_init_mac_addr(struct net_device *netdev)
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
-		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr);
+		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr, true);
 
 }
 
@@ -3013,7 +3097,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	int ret;
 
 	netdev = alloc_etherdev_mq(sizeof(struct hns3_nic_priv),
-				   handle->kinfo.num_tqps);
+				   hns3_get_max_available_channels(handle));
 	if (!netdev)
 		return -ENOMEM;
 
@@ -3021,8 +3105,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->dev = &pdev->dev;
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
-	priv->last_reset_time = jiffies;
-	priv->reset_level = HNAE3_FUNC_RESET;
+	priv->ae_handle->reset_level = HNAE3_NONE_RESET;
+	priv->ae_handle->last_reset_time = jiffies;
 	priv->tx_timeout_count = 0;
 
 	handle->kinfo.netdev = netdev;
@@ -3046,6 +3130,12 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	if (ret) {
 		ret = -ENOMEM;
 		goto out_get_ring_cfg;
+	}
+
+	ret = hns3_nic_alloc_vector_data(priv);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_alloc_vector_data;
 	}
 
 	ret = hns3_nic_init_vector_data(priv);
@@ -3076,8 +3166,10 @@ static int hns3_client_init(struct hnae3_handle *handle)
 out_reg_netdev_fail:
 out_init_ring_data:
 	(void)hns3_nic_uninit_vector_data(priv);
-	priv->ring_data = NULL;
 out_init_vector_data:
+	hns3_nic_dealloc_vector_data(priv);
+out_alloc_vector_data:
+	priv->ring_data = NULL;
 out_get_ring_cfg:
 	priv->ae_handle = NULL;
 	free_netdev(netdev);
@@ -3097,9 +3189,15 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	if (ret)
 		netdev_err(netdev, "uninit vector error\n");
 
+	ret = hns3_nic_dealloc_vector_data(priv);
+	if (ret)
+		netdev_err(netdev, "dealloc vector error\n");
+
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
+
+	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
 
@@ -3240,7 +3338,6 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
 
 	if (netif_running(kinfo->netdev)) {
@@ -3250,8 +3347,7 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 				   "hns net up fail, ret=%d!\n", ret);
 			return ret;
 		}
-
-		priv->last_reset_time = jiffies;
+		handle->last_reset_time = jiffies;
 	}
 
 	return ret;
@@ -3263,10 +3359,13 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	priv->reset_level = 1;
 	hns3_init_mac_addr(netdev);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
+
+	/* Hardware table is only clear when pf resets */
+	if (!(handle->flags & HNAE3_SUPPORT_VF))
+		hns3_restore_vlan(netdev);
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
@@ -3306,6 +3405,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
 
+	hns3_put_ring_config(priv);
+
 	priv->ring_data = NULL;
 
 	return ret;
@@ -3336,18 +3437,24 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
-static u16 hns3_get_max_available_channels(struct net_device *netdev)
+static void hns3_restore_coal(struct hns3_nic_priv *priv,
+			      struct hns3_enet_coalesce *tx,
+			      struct hns3_enet_coalesce *rx)
 {
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u16 free_tqps, max_rss_size, max_tqps;
+	u16 vector_num = priv->vector_num;
+	int i;
 
-	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
-	max_tqps = h->kinfo.num_tc * max_rss_size;
-
-	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
+	for (i = 0; i < vector_num; i++) {
+		memcpy(&priv->tqp_vector[i].tx_group.coal, tx,
+		       sizeof(struct hns3_enet_coalesce));
+		memcpy(&priv->tqp_vector[i].rx_group.coal, rx,
+		       sizeof(struct hns3_enet_coalesce));
+	}
 }
 
-static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
+static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num,
+			       struct hns3_enet_coalesce *tx,
+			       struct hns3_enet_coalesce *rx)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3360,6 +3467,12 @@ static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
 	ret = hns3_get_ring_config(priv);
 	if (ret)
 		return ret;
+
+	ret = hns3_nic_alloc_vector_data(priv);
+	if (ret)
+		goto err_alloc_vector;
+
+	hns3_restore_coal(priv, tx, rx);
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
@@ -3375,6 +3488,8 @@ err_put_ring:
 	hns3_put_ring_config(priv);
 err_uninit_vector:
 	hns3_nic_uninit_vector_data(priv);
+err_alloc_vector:
+	hns3_nic_dealloc_vector_data(priv);
 	return ret;
 }
 
@@ -3389,6 +3504,7 @@ int hns3_set_channels(struct net_device *netdev,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct hns3_enet_coalesce tx_coal, rx_coal;
 	bool if_running = netif_running(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
@@ -3397,12 +3513,12 @@ int hns3_set_channels(struct net_device *netdev,
 	if (ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	if (new_tqp_num > hns3_get_max_available_channels(netdev) ||
+	if (new_tqp_num > hns3_get_max_available_channels(h) ||
 	    new_tqp_num < kinfo->num_tc) {
 		dev_err(&netdev->dev,
 			"Change tqps fail, the tqp range is from %d to %d",
 			kinfo->num_tc,
-			hns3_get_max_available_channels(netdev));
+			hns3_get_max_available_channels(h));
 		return -EINVAL;
 	}
 
@@ -3411,7 +3527,7 @@ int hns3_set_channels(struct net_device *netdev,
 		return 0;
 
 	if (if_running)
-		dev_close(netdev);
+		hns3_nic_net_stop(netdev);
 
 	hns3_clear_all_ring(h);
 
@@ -3422,12 +3538,26 @@ int hns3_set_channels(struct net_device *netdev,
 		goto open_netdev;
 	}
 
+	/* Changing the tqp num may also change the vector num,
+	 * ethtool only support setting and querying one coal
+	 * configuation for now, so save the vector 0' coal
+	 * configuation here in order to restore it.
+	 */
+	memcpy(&tx_coal, &priv->tqp_vector[0].tx_group.coal,
+	       sizeof(struct hns3_enet_coalesce));
+	memcpy(&rx_coal, &priv->tqp_vector[0].rx_group.coal,
+	       sizeof(struct hns3_enet_coalesce));
+
+	hns3_nic_dealloc_vector_data(priv);
+
 	hns3_uninit_all_ring(priv);
+	hns3_put_ring_config(priv);
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
+	ret = hns3_modify_tqp_num(netdev, new_tqp_num, &tx_coal, &rx_coal);
 	if (ret) {
-		ret = hns3_modify_tqp_num(netdev, org_tqp_num);
+		ret = hns3_modify_tqp_num(netdev, org_tqp_num,
+					  &tx_coal, &rx_coal);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,
@@ -3440,7 +3570,7 @@ int hns3_set_channels(struct net_device *netdev,
 
 open_netdev:
 	if (if_running)
-		dev_open(netdev);
+		hns3_nic_net_open(netdev);
 
 	return ret;
 }

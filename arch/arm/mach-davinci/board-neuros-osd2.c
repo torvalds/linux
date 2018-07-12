@@ -227,9 +227,8 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
 	.init_irq	= davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm644x_init_time,
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

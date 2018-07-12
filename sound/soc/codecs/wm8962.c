@@ -55,7 +55,7 @@ static const char *wm8962_supply_names[WM8962_NUM_SUPPLIES] = {
 struct wm8962_priv {
 	struct wm8962_pdata pdata;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
 	int sysclk;
 	int sysclk_rate;
@@ -1475,55 +1475,55 @@ static const DECLARE_TLV_DB_RANGE(classd_tlv,
 );
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
-static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
+static int wm8962_dsp2_write_config(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
 	return regcache_sync_region(wm8962->regmap,
 				    WM8962_HDBASS_AI_1, WM8962_MAX_REGISTER);
 }
 
-static int wm8962_dsp2_set_enable(struct snd_soc_codec *codec, u16 val)
+static int wm8962_dsp2_set_enable(struct snd_soc_component *component, u16 val)
 {
-	u16 adcl = snd_soc_read(codec, WM8962_LEFT_ADC_VOLUME);
-	u16 adcr = snd_soc_read(codec, WM8962_RIGHT_ADC_VOLUME);
-	u16 dac = snd_soc_read(codec, WM8962_ADC_DAC_CONTROL_1);
+	u16 adcl = snd_soc_component_read32(component, WM8962_LEFT_ADC_VOLUME);
+	u16 adcr = snd_soc_component_read32(component, WM8962_RIGHT_ADC_VOLUME);
+	u16 dac = snd_soc_component_read32(component, WM8962_ADC_DAC_CONTROL_1);
 
 	/* Mute the ADCs and DACs */
-	snd_soc_write(codec, WM8962_LEFT_ADC_VOLUME, 0);
-	snd_soc_write(codec, WM8962_RIGHT_ADC_VOLUME, WM8962_ADC_VU);
-	snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
+	snd_soc_component_write(component, WM8962_LEFT_ADC_VOLUME, 0);
+	snd_soc_component_write(component, WM8962_RIGHT_ADC_VOLUME, WM8962_ADC_VU);
+	snd_soc_component_update_bits(component, WM8962_ADC_DAC_CONTROL_1,
 			    WM8962_DAC_MUTE, WM8962_DAC_MUTE);
 
-	snd_soc_write(codec, WM8962_SOUNDSTAGE_ENABLES_0, val);
+	snd_soc_component_write(component, WM8962_SOUNDSTAGE_ENABLES_0, val);
 
 	/* Restore the ADCs and DACs */
-	snd_soc_write(codec, WM8962_LEFT_ADC_VOLUME, adcl);
-	snd_soc_write(codec, WM8962_RIGHT_ADC_VOLUME, adcr);
-	snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
+	snd_soc_component_write(component, WM8962_LEFT_ADC_VOLUME, adcl);
+	snd_soc_component_write(component, WM8962_RIGHT_ADC_VOLUME, adcr);
+	snd_soc_component_update_bits(component, WM8962_ADC_DAC_CONTROL_1,
 			    WM8962_DAC_MUTE, dac);
 
 	return 0;
 }
 
-static int wm8962_dsp2_start(struct snd_soc_codec *codec)
+static int wm8962_dsp2_start(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
-	wm8962_dsp2_write_config(codec);
+	wm8962_dsp2_write_config(component);
 
-	snd_soc_write(codec, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_RUNR);
+	snd_soc_component_write(component, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_RUNR);
 
-	wm8962_dsp2_set_enable(codec, wm8962->dsp2_ena);
+	wm8962_dsp2_set_enable(component, wm8962->dsp2_ena);
 
 	return 0;
 }
 
-static int wm8962_dsp2_stop(struct snd_soc_codec *codec)
+static int wm8962_dsp2_stop(struct snd_soc_component *component)
 {
-	wm8962_dsp2_set_enable(codec, 0);
+	wm8962_dsp2_set_enable(component, 0);
 
-	snd_soc_write(codec, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_STOP);
+	snd_soc_component_write(component, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_STOP);
 
 	return 0;
 }
@@ -1550,8 +1550,8 @@ static int wm8962_dsp2_ena_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	int shift = kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = !!(wm8962->dsp2_ena & 1 << shift);
 
@@ -1562,11 +1562,11 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	int shift = kcontrol->private_value;
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int old = wm8962->dsp2_ena;
 	int ret = 0;
-	int dsp2_running = snd_soc_read(codec, WM8962_DSP2_POWER_MANAGEMENT) &
+	int dsp2_running = snd_soc_component_read32(component, WM8962_DSP2_POWER_MANAGEMENT) &
 		WM8962_DSP2_ENA;
 
 	mutex_lock(&wm8962->dsp2_ena_lock);
@@ -1583,9 +1583,9 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 
 	if (dsp2_running) {
 		if (wm8962->dsp2_ena)
-			wm8962_dsp2_set_enable(codec, wm8962->dsp2_ena);
+			wm8962_dsp2_set_enable(component, wm8962->dsp2_ena);
 		else
-			wm8962_dsp2_stop(codec);
+			wm8962_dsp2_stop(component);
 	}
 
 out:
@@ -1600,7 +1600,7 @@ out:
 static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int ret;
 
 	/* Apply the update (if any) */
@@ -1609,17 +1609,17 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	ret = snd_soc_read(codec, WM8962_PWR_MGMT_2);
+	ret = snd_soc_component_read32(component, WM8962_PWR_MGMT_2);
 	if (ret & WM8962_HPOUTL_PGA_ENA) {
-		snd_soc_write(codec, WM8962_HPOUTL_VOLUME,
-			      snd_soc_read(codec, WM8962_HPOUTL_VOLUME));
+		snd_soc_component_write(component, WM8962_HPOUTL_VOLUME,
+			      snd_soc_component_read32(component, WM8962_HPOUTL_VOLUME));
 		return 1;
 	}
 
 	/* ...otherwise the right.  The VU is stereo. */
 	if (ret & WM8962_HPOUTR_PGA_ENA)
-		snd_soc_write(codec, WM8962_HPOUTR_VOLUME,
-			      snd_soc_read(codec, WM8962_HPOUTR_VOLUME));
+		snd_soc_component_write(component, WM8962_HPOUTR_VOLUME,
+			      snd_soc_component_read32(component, WM8962_HPOUTR_VOLUME));
 
 	return 1;
 }
@@ -1630,7 +1630,7 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int ret;
 
 	/* Apply the update (if any) */
@@ -1639,17 +1639,17 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	ret = snd_soc_read(codec, WM8962_PWR_MGMT_2);
+	ret = snd_soc_component_read32(component, WM8962_PWR_MGMT_2);
 	if (ret & WM8962_SPKOUTL_PGA_ENA) {
-		snd_soc_write(codec, WM8962_SPKOUTL_VOLUME,
-			      snd_soc_read(codec, WM8962_SPKOUTL_VOLUME));
+		snd_soc_component_write(component, WM8962_SPKOUTL_VOLUME,
+			      snd_soc_component_read32(component, WM8962_SPKOUTL_VOLUME));
 		return 1;
 	}
 
 	/* ...otherwise the right.  The VU is stereo. */
 	if (ret & WM8962_SPKOUTR_PGA_ENA)
-		snd_soc_write(codec, WM8962_SPKOUTR_VOLUME,
-			      snd_soc_read(codec, WM8962_SPKOUTR_VOLUME));
+		snd_soc_component_write(component, WM8962_SPKOUTR_VOLUME,
+			      snd_soc_component_read32(component, WM8962_SPKOUTR_VOLUME));
 
 	return 1;
 }
@@ -1863,7 +1863,7 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 static int hp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	int timeout;
 	int reg;
 	int expected = (WM8962_DCS_STARTUP_DONE_HP1L |
@@ -1871,17 +1871,17 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_ENA | WM8962_HP1R_ENA,
 				    WM8962_HP1L_ENA | WM8962_HP1R_ENA);
 		udelay(20);
 
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_ENA_DLY | WM8962_HP1R_ENA_DLY,
 				    WM8962_HP1L_ENA_DLY | WM8962_HP1R_ENA_DLY);
 
 		/* Start the DC servo */
-		snd_soc_update_bits(codec, WM8962_DC_SERVO_1,
+		snd_soc_component_update_bits(component, WM8962_DC_SERVO_1,
 				    WM8962_HP1L_DCS_ENA | WM8962_HP1R_DCS_ENA |
 				    WM8962_HP1L_DCS_STARTUP |
 				    WM8962_HP1R_DCS_STARTUP,
@@ -1893,30 +1893,30 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		timeout = 0;
 		do {
 			msleep(1);
-			reg = snd_soc_read(codec, WM8962_DC_SERVO_6);
+			reg = snd_soc_component_read32(component, WM8962_DC_SERVO_6);
 			if (reg < 0) {
-				dev_err(codec->dev,
+				dev_err(component->dev,
 					"Failed to read DCS status: %d\n",
 					reg);
 				continue;
 			}
-			dev_dbg(codec->dev, "DCS status: %x\n", reg);
+			dev_dbg(component->dev, "DCS status: %x\n", reg);
 		} while (++timeout < 200 && (reg & expected) != expected);
 
 		if ((reg & expected) != expected)
-			dev_err(codec->dev, "DC servo timed out\n");
+			dev_err(component->dev, "DC servo timed out\n");
 		else
-			dev_dbg(codec->dev, "DC servo complete after %dms\n",
+			dev_dbg(component->dev, "DC servo complete after %dms\n",
 				timeout);
 
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_ENA_OUTP |
 				    WM8962_HP1R_ENA_OUTP,
 				    WM8962_HP1L_ENA_OUTP |
 				    WM8962_HP1R_ENA_OUTP);
 		udelay(20);
 
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_RMV_SHORT |
 				    WM8962_HP1R_RMV_SHORT,
 				    WM8962_HP1L_RMV_SHORT |
@@ -1924,19 +1924,19 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_RMV_SHORT |
 				    WM8962_HP1R_RMV_SHORT, 0);
 
 		udelay(20);
 
-		snd_soc_update_bits(codec, WM8962_DC_SERVO_1,
+		snd_soc_component_update_bits(component, WM8962_DC_SERVO_1,
 				    WM8962_HP1L_DCS_ENA | WM8962_HP1R_DCS_ENA |
 				    WM8962_HP1L_DCS_STARTUP |
 				    WM8962_HP1R_DCS_STARTUP,
 				    0);
 
-		snd_soc_update_bits(codec, WM8962_ANALOGUE_HP_0,
+		snd_soc_component_update_bits(component, WM8962_ANALOGUE_HP_0,
 				    WM8962_HP1L_ENA | WM8962_HP1R_ENA |
 				    WM8962_HP1L_ENA_DLY | WM8962_HP1R_ENA_DLY |
 				    WM8962_HP1L_ENA_OUTP |
@@ -1957,7 +1957,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	int reg;
 
 	switch (w->shift) {
@@ -1980,7 +1980,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		return snd_soc_write(codec, reg, snd_soc_read(codec, reg));
+		return snd_soc_component_write(component, reg, snd_soc_component_read32(component, reg));
 	default:
 		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
@@ -1990,18 +1990,18 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 static int dsp2_event(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (wm8962->dsp2_ena)
-			wm8962_dsp2_start(codec);
+			wm8962_dsp2_start(component);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		if (wm8962->dsp2_ena)
-			wm8962_dsp2_stop(codec);
+			wm8962_dsp2_stop(component);
 		break;
 
 	default:
@@ -2354,19 +2354,19 @@ static const struct snd_soc_dapm_route wm8962_spk_stereo_intercon[] = {
 	{ "SPKOUTR", NULL, "SPKOUTR Output" },
 };
 
-static int wm8962_add_widgets(struct snd_soc_codec *codec)
+static int wm8962_add_widgets(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	struct wm8962_pdata *pdata = &wm8962->pdata;
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
-	snd_soc_add_codec_controls(codec, wm8962_snd_controls,
+	snd_soc_add_component_controls(component, wm8962_snd_controls,
 			     ARRAY_SIZE(wm8962_snd_controls));
 	if (pdata->spk_mono)
-		snd_soc_add_codec_controls(codec, wm8962_spk_mono_controls,
+		snd_soc_add_component_controls(component, wm8962_spk_mono_controls,
 				     ARRAY_SIZE(wm8962_spk_mono_controls));
 	else
-		snd_soc_add_codec_controls(codec, wm8962_spk_stereo_controls,
+		snd_soc_add_component_controls(component, wm8962_spk_stereo_controls,
 				     ARRAY_SIZE(wm8962_spk_stereo_controls));
 
 
@@ -2403,21 +2403,21 @@ static const int sysclk_rates[] = {
 	64, 128, 192, 256, 384, 512, 768, 1024, 1408, 1536, 3072, 6144
 };
 
-static void wm8962_configure_bclk(struct snd_soc_codec *codec)
+static void wm8962_configure_bclk(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int dspclk, i;
 	int clocking2 = 0;
 	int clocking4 = 0;
 	int aif2 = 0;
 
 	if (!wm8962->sysclk_rate) {
-		dev_dbg(codec->dev, "No SYSCLK configured\n");
+		dev_dbg(component->dev, "No SYSCLK configured\n");
 		return;
 	}
 
 	if (!wm8962->bclk || !wm8962->lrclk) {
-		dev_dbg(codec->dev, "No audio clocks configured\n");
+		dev_dbg(component->dev, "No audio clocks configured\n");
 		return;
 	}
 
@@ -2429,32 +2429,32 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 	}
 
 	if (i == ARRAY_SIZE(sysclk_rates)) {
-		dev_err(codec->dev, "Unsupported sysclk ratio %d\n",
+		dev_err(component->dev, "Unsupported sysclk ratio %d\n",
 			wm8962->sysclk_rate / wm8962->lrclk);
 		return;
 	}
 
-	dev_dbg(codec->dev, "Selected sysclk ratio %d\n", sysclk_rates[i]);
+	dev_dbg(component->dev, "Selected sysclk ratio %d\n", sysclk_rates[i]);
 
-	snd_soc_update_bits(codec, WM8962_CLOCKING_4,
+	snd_soc_component_update_bits(component, WM8962_CLOCKING_4,
 			    WM8962_SYSCLK_RATE_MASK, clocking4);
 
 	/* DSPCLK_DIV can be only generated correctly after enabling SYSCLK.
 	 * So we here provisionally enable it and then disable it afterward
 	 * if current bias_level hasn't reached SND_SOC_BIAS_ON.
 	 */
-	if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_ON)
-		snd_soc_update_bits(codec, WM8962_CLOCKING2,
+	if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON)
+		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
 				WM8962_SYSCLK_ENA_MASK, WM8962_SYSCLK_ENA);
 
-	dspclk = snd_soc_read(codec, WM8962_CLOCKING1);
+	dspclk = snd_soc_component_read32(component, WM8962_CLOCKING1);
 
-	if (snd_soc_codec_get_bias_level(codec) != SND_SOC_BIAS_ON)
-		snd_soc_update_bits(codec, WM8962_CLOCKING2,
+	if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON)
+		snd_soc_component_update_bits(component, WM8962_CLOCKING2,
 				WM8962_SYSCLK_ENA_MASK, 0);
 
 	if (dspclk < 0) {
-		dev_err(codec->dev, "Failed to read DSPCLK: %d\n", dspclk);
+		dev_err(component->dev, "Failed to read DSPCLK: %d\n", dspclk);
 		return;
 	}
 
@@ -2470,11 +2470,11 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 		dspclk = wm8962->sysclk_rate / 4;
 		break;
 	default:
-		dev_warn(codec->dev, "Unknown DSPCLK divisor read back\n");
+		dev_warn(component->dev, "Unknown DSPCLK divisor read back\n");
 		dspclk = wm8962->sysclk_rate;
 	}
 
-	dev_dbg(codec->dev, "DSPCLK is %dHz, BCLK %d\n", dspclk, wm8962->bclk);
+	dev_dbg(component->dev, "DSPCLK is %dHz, BCLK %d\n", dspclk, wm8962->bclk);
 
 	/* We're expecting an exact match */
 	for (i = 0; i < ARRAY_SIZE(bclk_divs); i++) {
@@ -2482,29 +2482,29 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 			continue;
 
 		if (dspclk / bclk_divs[i] == wm8962->bclk) {
-			dev_dbg(codec->dev, "Selected BCLK_DIV %d for %dHz\n",
+			dev_dbg(component->dev, "Selected BCLK_DIV %d for %dHz\n",
 				bclk_divs[i], wm8962->bclk);
 			clocking2 |= i;
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(bclk_divs)) {
-		dev_err(codec->dev, "Unsupported BCLK ratio %d\n",
+		dev_err(component->dev, "Unsupported BCLK ratio %d\n",
 			dspclk / wm8962->bclk);
 		return;
 	}
 
 	aif2 |= wm8962->bclk / wm8962->lrclk;
-	dev_dbg(codec->dev, "Selected LRCLK divisor %d for %dHz\n",
+	dev_dbg(component->dev, "Selected LRCLK divisor %d for %dHz\n",
 		wm8962->bclk / wm8962->lrclk, wm8962->lrclk);
 
-	snd_soc_update_bits(codec, WM8962_CLOCKING2,
+	snd_soc_component_update_bits(component, WM8962_CLOCKING2,
 			    WM8962_BCLK_DIV_MASK, clocking2);
-	snd_soc_update_bits(codec, WM8962_AUDIO_INTERFACE_2,
+	snd_soc_component_update_bits(component, WM8962_AUDIO_INTERFACE_2,
 			    WM8962_AIF_RATE_MASK, aif2);
 }
 
-static int wm8962_set_bias_level(struct snd_soc_codec *codec,
+static int wm8962_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
@@ -2513,18 +2513,18 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VMID 2*50k */
-		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
+		snd_soc_component_update_bits(component, WM8962_PWR_MGMT_1,
 				    WM8962_VMID_SEL_MASK, 0x80);
 
-		wm8962_configure_bclk(codec);
+		wm8962_configure_bclk(component);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		/* VMID 2*250k */
-		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
+		snd_soc_component_update_bits(component, WM8962_PWR_MGMT_1,
 				    WM8962_VMID_SEL_MASK, 0x100);
 
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 			msleep(100);
 		break;
 
@@ -2556,8 +2556,8 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int i;
 	int aif0 = 0;
 	int adctl3 = 0;
@@ -2575,7 +2575,7 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 	if (i == ARRAY_SIZE(sr_vals)) {
-		dev_err(codec->dev, "Unsupported rate %dHz\n", wm8962->lrclk);
+		dev_err(component->dev, "Unsupported rate %dHz\n", wm8962->lrclk);
 		return -EINVAL;
 	}
 
@@ -2598,17 +2598,17 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, WM8962_AUDIO_INTERFACE_0,
+	snd_soc_component_update_bits(component, WM8962_AUDIO_INTERFACE_0,
 			    WM8962_WL_MASK, aif0);
-	snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_3,
+	snd_soc_component_update_bits(component, WM8962_ADDITIONAL_CONTROL_3,
 			    WM8962_SAMPLE_RATE_INT_MODE |
 			    WM8962_SAMPLE_RATE_MASK, adctl3);
 
-	dev_dbg(codec->dev, "hw_params set BCLK %dHz LRCLK %dHz\n",
+	dev_dbg(component->dev, "hw_params set BCLK %dHz LRCLK %dHz\n",
 		wm8962->bclk, wm8962->lrclk);
 
-	if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
-		wm8962_configure_bclk(codec);
+	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON)
+		wm8962_configure_bclk(component);
 
 	return 0;
 }
@@ -2616,8 +2616,8 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 				 unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int src;
 
 	switch (clk_id) {
@@ -2633,7 +2633,7 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, WM8962_CLOCKING2, WM8962_SYSCLK_SRC_MASK,
+	snd_soc_component_update_bits(component, WM8962_CLOCKING2, WM8962_SYSCLK_SRC_MASK,
 			    src);
 
 	wm8962->sysclk_rate = freq;
@@ -2643,7 +2643,7 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	int aif0 = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -2699,7 +2699,7 @@ static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, WM8962_AUDIO_INTERFACE_0,
+	snd_soc_component_update_bits(component, WM8962_AUDIO_INTERFACE_0,
 			    WM8962_FMT_MASK | WM8962_BCLK_INV | WM8962_MSTR |
 			    WM8962_LRCLK_INV, aif0);
 
@@ -2809,10 +2809,10 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
+static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	struct _fll_div fll_div;
 	unsigned long timeout;
 	int ret;
@@ -2824,15 +2824,15 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		return 0;
 
 	if (Fout == 0) {
-		dev_dbg(codec->dev, "FLL disabled\n");
+		dev_dbg(component->dev, "FLL disabled\n");
 
 		wm8962->fll_fref = 0;
 		wm8962->fll_fout = 0;
 
-		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+		snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1,
 				    WM8962_FLL_ENA, 0);
 
-		pm_runtime_put(codec->dev);
+		pm_runtime_put(component->dev);
 
 		return 0;
 	}
@@ -2842,7 +2842,7 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		return ret;
 
 	/* Parameters good, disable so we can reprogram */
-	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1, WM8962_FLL_ENA, 0);
+	snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1, WM8962_FLL_ENA, 0);
 
 	switch (fll_id) {
 	case WM8962_FLL_MCLK:
@@ -2851,13 +2851,13 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		fll1 |= (fll_id - 1) << WM8962_FLL_REFCLK_SRC_SHIFT;
 		break;
 	case WM8962_FLL_INT:
-		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+		snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1,
 				    WM8962_FLL_OSC_ENA, WM8962_FLL_OSC_ENA);
-		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_5,
+		snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_5,
 				    WM8962_FLL_FRC_NCO, WM8962_FLL_FRC_NCO);
 		break;
 	default:
-		dev_err(codec->dev, "Unknown FLL source %d\n", ret);
+		dev_err(component->dev, "Unknown FLL source %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -2865,34 +2865,34 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		fll1 |= WM8962_FLL_FRAC;
 
 	/* Stop the FLL while we reconfigure */
-	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1, WM8962_FLL_ENA, 0);
+	snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1, WM8962_FLL_ENA, 0);
 
-	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_2,
+	snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_2,
 			    WM8962_FLL_OUTDIV_MASK |
 			    WM8962_FLL_REFCLK_DIV_MASK,
 			    (fll_div.fll_outdiv << WM8962_FLL_OUTDIV_SHIFT) |
 			    (fll_div.fll_refclk_div));
 
-	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_3,
+	snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_3,
 			    WM8962_FLL_FRATIO_MASK, fll_div.fll_fratio);
 
-	snd_soc_write(codec, WM8962_FLL_CONTROL_6, fll_div.theta);
-	snd_soc_write(codec, WM8962_FLL_CONTROL_7, fll_div.lambda);
-	snd_soc_write(codec, WM8962_FLL_CONTROL_8, fll_div.n);
+	snd_soc_component_write(component, WM8962_FLL_CONTROL_6, fll_div.theta);
+	snd_soc_component_write(component, WM8962_FLL_CONTROL_7, fll_div.lambda);
+	snd_soc_component_write(component, WM8962_FLL_CONTROL_8, fll_div.n);
 
 	reinit_completion(&wm8962->fll_lock);
 
-	ret = pm_runtime_get_sync(codec->dev);
+	ret = pm_runtime_get_sync(component->dev);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to resume device: %d\n", ret);
+		dev_err(component->dev, "Failed to resume device: %d\n", ret);
 		return ret;
 	}
 
-	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+	snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
 			    WM8962_FLL_ENA, fll1 | WM8962_FLL_ENA);
 
-	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
+	dev_dbg(component->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
 
 	/* This should be a massive overestimate but go even
 	 * higher if we'll error out
@@ -2906,10 +2906,10 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 					      timeout);
 
 	if (timeout == 0 && wm8962->irq) {
-		dev_err(codec->dev, "FLL lock timed out");
-		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+		dev_err(component->dev, "FLL lock timed out");
+		snd_soc_component_update_bits(component, WM8962_FLL_CONTROL_1,
 				    WM8962_FLL_ENA, 0);
-		pm_runtime_put(codec->dev);
+		pm_runtime_put(component->dev);
 		return -ETIMEDOUT;
 	}
 
@@ -2922,7 +2922,7 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 static int wm8962_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	int val, ret;
 
 	if (mute)
@@ -2934,12 +2934,12 @@ static int wm8962_mute(struct snd_soc_dai *dai, int mute)
 	 * The DAC mute bit is mirrored in two registers, update both to keep
 	 * the register cache consistent.
 	 */
-	ret = snd_soc_update_bits(codec, WM8962_CLASS_D_CONTROL_1,
+	ret = snd_soc_component_update_bits(component, WM8962_CLASS_D_CONTROL_1,
 				  WM8962_DAC_MUTE_ALT, val);
 	if (ret < 0)
 		return ret;
 
-	return snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
+	return snd_soc_component_update_bits(component, WM8962_ADC_DAC_CONTROL_1,
 				   WM8962_DAC_MUTE, val);
 }
 
@@ -2981,12 +2981,12 @@ static void wm8962_mic_work(struct work_struct *work)
 	struct wm8962_priv *wm8962 = container_of(work,
 						  struct wm8962_priv,
 						  mic_work.work);
-	struct snd_soc_codec *codec = wm8962->codec;
+	struct snd_soc_component *component = wm8962->component;
 	int status = 0;
 	int irq_pol = 0;
 	int reg;
 
-	reg = snd_soc_read(codec, WM8962_ADDITIONAL_CONTROL_4);
+	reg = snd_soc_component_read32(component, WM8962_ADDITIONAL_CONTROL_4);
 
 	if (reg & WM8962_MICDET_STS) {
 		status |= SND_JACK_MICROPHONE;
@@ -3001,7 +3001,7 @@ static void wm8962_mic_work(struct work_struct *work)
 	snd_soc_jack_report(wm8962->jack, status,
 			    SND_JACK_MICROPHONE | SND_JACK_BTN_0);
 
-	snd_soc_update_bits(codec, WM8962_MICINT_SOURCE_POL,
+	snd_soc_component_update_bits(component, WM8962_MICINT_SOURCE_POL,
 			    WM8962_MICSCD_IRQ_POL |
 			    WM8962_MICD_IRQ_POL, irq_pol);
 }
@@ -3099,7 +3099,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 /**
  * wm8962_mic_detect - Enable microphone detection via the WM8962 IRQ
  *
- * @codec:  WM8962 codec
+ * @component:  WM8962 component
  * @jack:   jack to report detection events on
  *
  * Enable microphone detection via IRQ on the WM8962.  If GPIOs are
@@ -3109,10 +3109,10 @@ static irqreturn_t wm8962_irq(int irq, void *data)
  *
  * If no jack is supplied detection will be disabled.
  */
-int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
+int wm8962_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int irq_mask, enable;
 
 	wm8962->jack = jack;
@@ -3124,9 +3124,9 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 		enable = 0;
 	}
 
-	snd_soc_update_bits(codec, WM8962_INTERRUPT_STATUS_2_MASK,
+	snd_soc_component_update_bits(component, WM8962_INTERRUPT_STATUS_2_MASK,
 			    WM8962_MICD_EINT | WM8962_MICSCD_EINT, irq_mask);
-	snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_4,
+	snd_soc_component_update_bits(component, WM8962_ADDITIONAL_CONTROL_4,
 			    WM8962_MICDET_ENA, enable);
 
 	/* Send an initial empty report */
@@ -3157,8 +3157,8 @@ static void wm8962_beep_work(struct work_struct *work)
 {
 	struct wm8962_priv *wm8962 =
 		container_of(work, struct wm8962_priv, beep_work);
-	struct snd_soc_codec *codec = wm8962->codec;
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = wm8962->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int i;
 	int reg = 0;
 	int best = 0;
@@ -3170,18 +3170,18 @@ static void wm8962_beep_work(struct work_struct *work)
 				best = i;
 		}
 
-		dev_dbg(codec->dev, "Set beep rate %dHz for requested %dHz\n",
+		dev_dbg(component->dev, "Set beep rate %dHz for requested %dHz\n",
 			beep_rates[best], wm8962->beep_rate);
 
 		reg = WM8962_BEEP_ENA | (best << WM8962_BEEP_RATE_SHIFT);
 
 		snd_soc_dapm_enable_pin(dapm, "Beep");
 	} else {
-		dev_dbg(codec->dev, "Disabling beep\n");
+		dev_dbg(component->dev, "Disabling beep\n");
 		snd_soc_dapm_disable_pin(dapm, "Beep");
 	}
 
-	snd_soc_update_bits(codec, WM8962_BEEP_GENERATOR_1,
+	snd_soc_component_update_bits(component, WM8962_BEEP_GENERATOR_1,
 			    WM8962_BEEP_ENA | WM8962_BEEP_RATE_MASK, reg);
 
 	snd_soc_dapm_sync(dapm);
@@ -3193,10 +3193,10 @@ static void wm8962_beep_work(struct work_struct *work)
 static int wm8962_beep_event(struct input_dev *dev, unsigned int type,
 			     unsigned int code, int hz)
 {
-	struct snd_soc_codec *codec = input_get_drvdata(dev);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = input_get_drvdata(dev);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "Beep event %x %x\n", code, hz);
+	dev_dbg(component->dev, "Beep event %x %x\n", code, hz);
 
 	switch (code) {
 	case SND_BELL:
@@ -3233,14 +3233,14 @@ static ssize_t wm8962_beep_set(struct device *dev,
 
 static DEVICE_ATTR(beep, 0200, NULL, wm8962_beep_set);
 
-static void wm8962_init_beep(struct snd_soc_codec *codec)
+static void wm8962_init_beep(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	wm8962->beep = devm_input_allocate_device(codec->dev);
+	wm8962->beep = devm_input_allocate_device(component->dev);
 	if (!wm8962->beep) {
-		dev_err(codec->dev, "Failed to allocate beep device\n");
+		dev_err(component->dev, "Failed to allocate beep device\n");
 		return;
 	}
 
@@ -3248,37 +3248,37 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 	wm8962->beep_rate = 0;
 
 	wm8962->beep->name = "WM8962 Beep Generator";
-	wm8962->beep->phys = dev_name(codec->dev);
+	wm8962->beep->phys = dev_name(component->dev);
 	wm8962->beep->id.bustype = BUS_I2C;
 
 	wm8962->beep->evbit[0] = BIT_MASK(EV_SND);
 	wm8962->beep->sndbit[0] = BIT_MASK(SND_BELL) | BIT_MASK(SND_TONE);
 	wm8962->beep->event = wm8962_beep_event;
-	wm8962->beep->dev.parent = codec->dev;
-	input_set_drvdata(wm8962->beep, codec);
+	wm8962->beep->dev.parent = component->dev;
+	input_set_drvdata(wm8962->beep, component);
 
 	ret = input_register_device(wm8962->beep);
 	if (ret != 0) {
 		wm8962->beep = NULL;
-		dev_err(codec->dev, "Failed to register beep device\n");
+		dev_err(component->dev, "Failed to register beep device\n");
 	}
 
-	ret = device_create_file(codec->dev, &dev_attr_beep);
+	ret = device_create_file(component->dev, &dev_attr_beep);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to create keyclick file: %d\n",
+		dev_err(component->dev, "Failed to create keyclick file: %d\n",
 			ret);
 	}
 }
 
-static void wm8962_free_beep(struct snd_soc_codec *codec)
+static void wm8962_free_beep(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
-	device_remove_file(codec->dev, &dev_attr_beep);
+	device_remove_file(component->dev, &dev_attr_beep);
 	cancel_work_sync(&wm8962->beep_work);
 	wm8962->beep = NULL;
 
-	snd_soc_update_bits(codec, WM8962_BEEP_GENERATOR_1, WM8962_BEEP_ENA,0);
+	snd_soc_component_update_bits(component, WM8962_BEEP_GENERATOR_1, WM8962_BEEP_ENA,0);
 }
 
 static void wm8962_set_gpio_mode(struct wm8962_priv *wm8962, int gpio)
@@ -3333,9 +3333,9 @@ static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
 static void wm8962_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct wm8962_priv *wm8962 = gpiochip_get_data(chip);
-	struct snd_soc_codec *codec = wm8962->codec;
+	struct snd_soc_component *component = wm8962->component;
 
-	snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
+	snd_soc_component_update_bits(component, WM8962_GPIO_BASE + offset,
 			    WM8962_GP2_LVL, !!value << WM8962_GP2_LVL_SHIFT);
 }
 
@@ -3343,13 +3343,13 @@ static int wm8962_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
 	struct wm8962_priv *wm8962 = gpiochip_get_data(chip);
-	struct snd_soc_codec *codec = wm8962->codec;
+	struct snd_soc_component *component = wm8962->component;
 	int ret, val;
 
 	/* Force function 1 (logic output) */
 	val = (1 << WM8962_GP2_FN_SHIFT) | (value << WM8962_GP2_LVL_SHIFT);
 
-	ret = snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
+	ret = snd_soc_component_update_bits(component, WM8962_GPIO_BASE + offset,
 				  WM8962_GP2_FN_MASK | WM8962_GP2_LVL, val);
 	if (ret < 0)
 		return ret;
@@ -3366,15 +3366,15 @@ static const struct gpio_chip wm8962_template_chip = {
 	.can_sleep		= 1,
 };
 
-static void wm8962_init_gpio(struct snd_soc_codec *codec)
+static void wm8962_init_gpio(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	struct wm8962_pdata *pdata = &wm8962->pdata;
 	int ret;
 
 	wm8962->gpio_chip = wm8962_template_chip;
 	wm8962->gpio_chip.ngpio = WM8962_MAX_GPIO;
-	wm8962->gpio_chip.parent = codec->dev;
+	wm8962->gpio_chip.parent = component->dev;
 
 	if (pdata->gpio_base)
 		wm8962->gpio_chip.base = pdata->gpio_base;
@@ -3383,34 +3383,34 @@ static void wm8962_init_gpio(struct snd_soc_codec *codec)
 
 	ret = gpiochip_add_data(&wm8962->gpio_chip, wm8962);
 	if (ret != 0)
-		dev_err(codec->dev, "Failed to add GPIOs: %d\n", ret);
+		dev_err(component->dev, "Failed to add GPIOs: %d\n", ret);
 }
 
-static void wm8962_free_gpio(struct snd_soc_codec *codec)
+static void wm8962_free_gpio(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 
 	gpiochip_remove(&wm8962->gpio_chip);
 }
 #else
-static void wm8962_init_gpio(struct snd_soc_codec *codec)
+static void wm8962_init_gpio(struct snd_soc_component *component)
 {
 }
 
-static void wm8962_free_gpio(struct snd_soc_codec *codec)
+static void wm8962_free_gpio(struct snd_soc_component *component)
 {
 }
 #endif
 
-static int wm8962_probe(struct snd_soc_codec *codec)
+static int wm8962_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int ret;
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int i;
 	bool dmicclk, dmicdat;
 
-	wm8962->codec = codec;
+	wm8962->component = component;
 
 	wm8962->disable_nb[0].notifier_call = wm8962_regulator_event_0;
 	wm8962->disable_nb[1].notifier_call = wm8962_regulator_event_1;
@@ -3426,19 +3426,19 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 		ret = regulator_register_notifier(wm8962->supplies[i].consumer,
 						  &wm8962->disable_nb[i]);
 		if (ret != 0) {
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Failed to register regulator notifier: %d\n",
 				ret);
 		}
 	}
 
-	wm8962_add_widgets(codec);
+	wm8962_add_widgets(component);
 
 	/* Save boards having to disable DMIC when not in use */
 	dmicclk = false;
 	dmicdat = false;
 	for (i = 0; i < WM8962_MAX_GPIO; i++) {
-		switch (snd_soc_read(codec, WM8962_GPIO_BASE + i)
+		switch (snd_soc_component_read32(component, WM8962_GPIO_BASE + i)
 			& WM8962_GP2_FN_MASK) {
 		case WM8962_GPIO_FN_DMICCLK:
 			dmicclk = true;
@@ -3451,40 +3451,40 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 		}
 	}
 	if (!dmicclk || !dmicdat) {
-		dev_dbg(codec->dev, "DMIC not in use, disabling\n");
+		dev_dbg(component->dev, "DMIC not in use, disabling\n");
 		snd_soc_dapm_nc_pin(dapm, "DMICDAT");
 	}
 	if (dmicclk != dmicdat)
-		dev_warn(codec->dev, "DMIC GPIOs partially configured\n");
+		dev_warn(component->dev, "DMIC GPIOs partially configured\n");
 
-	wm8962_init_beep(codec);
-	wm8962_init_gpio(codec);
+	wm8962_init_beep(component);
+	wm8962_init_gpio(component);
 
 	return 0;
 }
 
-static int wm8962_remove(struct snd_soc_codec *codec)
+static void wm8962_remove(struct snd_soc_component *component)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	cancel_delayed_work_sync(&wm8962->mic_work);
 
-	wm8962_free_gpio(codec);
-	wm8962_free_beep(codec);
+	wm8962_free_gpio(component);
+	wm8962_free_beep(component);
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		regulator_unregister_notifier(wm8962->supplies[i].consumer,
 					      &wm8962->disable_nb[i]);
-
-	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
-	.probe =	wm8962_probe,
-	.remove =	wm8962_remove,
-	.set_bias_level = wm8962_set_bias_level,
-	.set_pll = wm8962_set_fll,
-	.idle_bias_off = true,
+static const struct snd_soc_component_driver soc_component_dev_wm8962 = {
+	.probe			= wm8962_probe,
+	.remove			= wm8962_remove,
+	.set_bias_level		= wm8962_set_bias_level,
+	.set_pll		= wm8962_set_fll,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /* Improve power consumption for IN4 DC measurement mode */
@@ -3751,8 +3751,8 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	pm_runtime_enable(&i2c->dev);
 	pm_request_idle(&i2c->dev);
 
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_wm8962, &wm8962_dai, 1);
 	if (ret < 0)
 		goto err_pm_runtime;
 
@@ -3773,7 +3773,6 @@ err:
 
 static int wm8962_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&client->dev);
 	pm_runtime_disable(&client->dev);
 	return 0;
 }

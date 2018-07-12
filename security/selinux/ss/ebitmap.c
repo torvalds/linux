@@ -523,14 +523,9 @@ int ebitmap_write(struct ebitmap *e, void *fp)
 	return 0;
 }
 
-void ebitmap_cache_init(void)
+void __init ebitmap_cache_init(void)
 {
 	ebitmap_node_cachep = kmem_cache_create("ebitmap_node",
 							sizeof(struct ebitmap_node),
 							0, SLAB_PANIC, NULL);
-}
-
-void ebitmap_cache_destroy(void)
-{
-	kmem_cache_destroy(ebitmap_node_cachep);
 }

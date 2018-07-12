@@ -6,8 +6,9 @@
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <linux/mm.h>
 #include <linux/sysctl.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
@@ -365,4 +366,294 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 	(*batch)->tables[(*batch)->nr++] = table;
 	if ((*batch)->nr == MAX_TABLE_BATCH)
 		tlb_flush_mmu(tlb);
+}
+
+/*
+ * Base infrastructure required to generate basic asces, region, segment,
+ * and page tables that do not make use of enhanced features like EDAT1.
+ */
+
+static struct kmem_cache *base_pgt_cache;
+
+static unsigned long base_pgt_alloc(void)
+{
+	u64 *table;
+
+	table = kmem_cache_alloc(base_pgt_cache, GFP_KERNEL);
+	if (table)
+		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
+	return (unsigned long) table;
+}
+
+static void base_pgt_free(unsigned long table)
+{
+	kmem_cache_free(base_pgt_cache, (void *) table);
+}
+
+static unsigned long base_crst_alloc(unsigned long val)
+{
+	unsigned long table;
+
+	table =	 __get_free_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
+	if (table)
+		crst_table_init((unsigned long *)table, val);
+	return table;
+}
+
+static void base_crst_free(unsigned long table)
+{
+	free_pages(table, CRST_ALLOC_ORDER);
+}
+
+#define BASE_ADDR_END_FUNC(NAME, SIZE)					\
+static inline unsigned long base_##NAME##_addr_end(unsigned long addr,	\
+						   unsigned long end)	\
+{									\
+	unsigned long next = (addr + (SIZE)) & ~((SIZE) - 1);		\
+									\
+	return (next - 1) < (end - 1) ? next : end;			\
+}
+
+BASE_ADDR_END_FUNC(page,    _PAGE_SIZE)
+BASE_ADDR_END_FUNC(segment, _SEGMENT_SIZE)
+BASE_ADDR_END_FUNC(region3, _REGION3_SIZE)
+BASE_ADDR_END_FUNC(region2, _REGION2_SIZE)
+BASE_ADDR_END_FUNC(region1, _REGION1_SIZE)
+
+static inline unsigned long base_lra(unsigned long address)
+{
+	unsigned long real;
+
+	asm volatile(
+		"	lra	%0,0(%1)\n"
+		: "=d" (real) : "a" (address) : "cc");
+	return real;
+}
+
+static int base_page_walk(unsigned long origin, unsigned long addr,
+			  unsigned long end, int alloc)
+{
+	unsigned long *pte, next;
+
+	if (!alloc)
+		return 0;
+	pte = (unsigned long *) origin;
+	pte += (addr & _PAGE_INDEX) >> _PAGE_SHIFT;
+	do {
+		next = base_page_addr_end(addr, end);
+		*pte = base_lra(addr);
+	} while (pte++, addr = next, addr < end);
+	return 0;
+}
+
+static int base_segment_walk(unsigned long origin, unsigned long addr,
+			     unsigned long end, int alloc)
+{
+	unsigned long *ste, next, table;
+	int rc;
+
+	ste = (unsigned long *) origin;
+	ste += (addr & _SEGMENT_INDEX) >> _SEGMENT_SHIFT;
+	do {
+		next = base_segment_addr_end(addr, end);
+		if (*ste & _SEGMENT_ENTRY_INVALID) {
+			if (!alloc)
+				continue;
+			table = base_pgt_alloc();
+			if (!table)
+				return -ENOMEM;
+			*ste = table | _SEGMENT_ENTRY;
+		}
+		table = *ste & _SEGMENT_ENTRY_ORIGIN;
+		rc = base_page_walk(table, addr, next, alloc);
+		if (rc)
+			return rc;
+		if (!alloc)
+			base_pgt_free(table);
+		cond_resched();
+	} while (ste++, addr = next, addr < end);
+	return 0;
+}
+
+static int base_region3_walk(unsigned long origin, unsigned long addr,
+			     unsigned long end, int alloc)
+{
+	unsigned long *rtte, next, table;
+	int rc;
+
+	rtte = (unsigned long *) origin;
+	rtte += (addr & _REGION3_INDEX) >> _REGION3_SHIFT;
+	do {
+		next = base_region3_addr_end(addr, end);
+		if (*rtte & _REGION_ENTRY_INVALID) {
+			if (!alloc)
+				continue;
+			table = base_crst_alloc(_SEGMENT_ENTRY_EMPTY);
+			if (!table)
+				return -ENOMEM;
+			*rtte = table | _REGION3_ENTRY;
+		}
+		table = *rtte & _REGION_ENTRY_ORIGIN;
+		rc = base_segment_walk(table, addr, next, alloc);
+		if (rc)
+			return rc;
+		if (!alloc)
+			base_crst_free(table);
+	} while (rtte++, addr = next, addr < end);
+	return 0;
+}
+
+static int base_region2_walk(unsigned long origin, unsigned long addr,
+			     unsigned long end, int alloc)
+{
+	unsigned long *rste, next, table;
+	int rc;
+
+	rste = (unsigned long *) origin;
+	rste += (addr & _REGION2_INDEX) >> _REGION2_SHIFT;
+	do {
+		next = base_region2_addr_end(addr, end);
+		if (*rste & _REGION_ENTRY_INVALID) {
+			if (!alloc)
+				continue;
+			table = base_crst_alloc(_REGION3_ENTRY_EMPTY);
+			if (!table)
+				return -ENOMEM;
+			*rste = table | _REGION2_ENTRY;
+		}
+		table = *rste & _REGION_ENTRY_ORIGIN;
+		rc = base_region3_walk(table, addr, next, alloc);
+		if (rc)
+			return rc;
+		if (!alloc)
+			base_crst_free(table);
+	} while (rste++, addr = next, addr < end);
+	return 0;
+}
+
+static int base_region1_walk(unsigned long origin, unsigned long addr,
+			     unsigned long end, int alloc)
+{
+	unsigned long *rfte, next, table;
+	int rc;
+
+	rfte = (unsigned long *) origin;
+	rfte += (addr & _REGION1_INDEX) >> _REGION1_SHIFT;
+	do {
+		next = base_region1_addr_end(addr, end);
+		if (*rfte & _REGION_ENTRY_INVALID) {
+			if (!alloc)
+				continue;
+			table = base_crst_alloc(_REGION2_ENTRY_EMPTY);
+			if (!table)
+				return -ENOMEM;
+			*rfte = table | _REGION1_ENTRY;
+		}
+		table = *rfte & _REGION_ENTRY_ORIGIN;
+		rc = base_region2_walk(table, addr, next, alloc);
+		if (rc)
+			return rc;
+		if (!alloc)
+			base_crst_free(table);
+	} while (rfte++, addr = next, addr < end);
+	return 0;
+}
+
+/**
+ * base_asce_free - free asce and tables returned from base_asce_alloc()
+ * @asce: asce to be freed
+ *
+ * Frees all region, segment, and page tables that were allocated with a
+ * corresponding base_asce_alloc() call.
+ */
+void base_asce_free(unsigned long asce)
+{
+	unsigned long table = asce & _ASCE_ORIGIN;
+
+	if (!asce)
+		return;
+	switch (asce & _ASCE_TYPE_MASK) {
+	case _ASCE_TYPE_SEGMENT:
+		base_segment_walk(table, 0, _REGION3_SIZE, 0);
+		break;
+	case _ASCE_TYPE_REGION3:
+		base_region3_walk(table, 0, _REGION2_SIZE, 0);
+		break;
+	case _ASCE_TYPE_REGION2:
+		base_region2_walk(table, 0, _REGION1_SIZE, 0);
+		break;
+	case _ASCE_TYPE_REGION1:
+		base_region1_walk(table, 0, -_PAGE_SIZE, 0);
+		break;
+	}
+	base_crst_free(table);
+}
+
+static int base_pgt_cache_init(void)
+{
+	static DEFINE_MUTEX(base_pgt_cache_mutex);
+	unsigned long sz = _PAGE_TABLE_SIZE;
+
+	if (base_pgt_cache)
+		return 0;
+	mutex_lock(&base_pgt_cache_mutex);
+	if (!base_pgt_cache)
+		base_pgt_cache = kmem_cache_create("base_pgt", sz, sz, 0, NULL);
+	mutex_unlock(&base_pgt_cache_mutex);
+	return base_pgt_cache ? 0 : -ENOMEM;
+}
+
+/**
+ * base_asce_alloc - create kernel mapping without enhanced DAT features
+ * @addr: virtual start address of kernel mapping
+ * @num_pages: number of consecutive pages
+ *
+ * Generate an asce, including all required region, segment and page tables,
+ * that can be used to access the virtual kernel mapping. The difference is
+ * that the returned asce does not make use of any enhanced DAT features like
+ * e.g. large pages. This is required for some I/O functions that pass an
+ * asce, like e.g. some service call requests.
+ *
+ * Note: the returned asce may NEVER be attached to any cpu. It may only be
+ *	 used for I/O requests. tlb entries that might result because the
+ *	 asce was attached to a cpu won't be cleared.
+ */
+unsigned long base_asce_alloc(unsigned long addr, unsigned long num_pages)
+{
+	unsigned long asce, table, end;
+	int rc;
+
+	if (base_pgt_cache_init())
+		return 0;
+	end = addr + num_pages * PAGE_SIZE;
+	if (end <= _REGION3_SIZE) {
+		table = base_crst_alloc(_SEGMENT_ENTRY_EMPTY);
+		if (!table)
+			return 0;
+		rc = base_segment_walk(table, addr, end, 1);
+		asce = table | _ASCE_TYPE_SEGMENT | _ASCE_TABLE_LENGTH;
+	} else if (end <= _REGION2_SIZE) {
+		table = base_crst_alloc(_REGION3_ENTRY_EMPTY);
+		if (!table)
+			return 0;
+		rc = base_region3_walk(table, addr, end, 1);
+		asce = table | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+	} else if (end <= _REGION1_SIZE) {
+		table = base_crst_alloc(_REGION2_ENTRY_EMPTY);
+		if (!table)
+			return 0;
+		rc = base_region2_walk(table, addr, end, 1);
+		asce = table | _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
+	} else {
+		table = base_crst_alloc(_REGION1_ENTRY_EMPTY);
+		if (!table)
+			return 0;
+		rc = base_region1_walk(table, addr, end, 1);
+		asce = table | _ASCE_TYPE_REGION1 | _ASCE_TABLE_LENGTH;
+	}
+	if (rc) {
+		base_asce_free(asce);
+		asce = 0;
+	}
+	return asce;
 }

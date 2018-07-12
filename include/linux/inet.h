@@ -59,5 +59,6 @@ extern int in6_pton(const char *src, int srclen, u8 *dst, int delim, const char 
 
 extern int inet_pton_with_scope(struct net *net, unsigned short af,
 		const char *src, const char *port, struct sockaddr_storage *addr);
+extern bool inet_addr_is_any(struct sockaddr *addr);
 
 #endif	/* _LINUX_INET_H */

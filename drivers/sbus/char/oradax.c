@@ -3,7 +3,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -880,7 +880,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	dax_dbg("args: ccb_buf_len=%ld, idx=%d", count, idx);
 
 	/* for given index and length, verify ca_buf range exists */
-	if (idx + nccbs >= DAX_CA_ELEMS) {
+	if (idx < 0 || idx > (DAX_CA_ELEMS - nccbs)) {
 		ctx->result.exec.status = DAX_SUBMIT_ERR_NO_CA_AVAIL;
 		return 0;
 	}

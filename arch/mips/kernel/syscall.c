@@ -63,7 +63,8 @@ SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
 {
 	if (offset & ~PAGE_MASK)
 		return -EINVAL;
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       offset >> PAGE_SHIFT);
 }
 
 SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
@@ -73,7 +74,8 @@ SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
 	if (pgoff & (~PAGE_MASK >> 12))
 		return -EINVAL;
 
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT-12));
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT - 12));
 }
 
 save_static_function(sys_fork);

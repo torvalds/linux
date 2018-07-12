@@ -36,8 +36,10 @@ enum {
 	NFS_DELEGATION_TEST_EXPIRED,
 };
 
-int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
-void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
+int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred,
+		fmode_t type, const nfs4_stateid *stateid, unsigned long pagemod_limit);
+void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
+		fmode_t type, const nfs4_stateid *stateid, unsigned long pagemod_limit);
 int nfs4_inode_return_delegation(struct inode *inode);
 int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
 void nfs_inode_return_delegation_noreclaim(struct inode *inode);
@@ -70,6 +72,7 @@ int nfs4_check_delegation(struct inode *inode, fmode_t flags);
 bool nfs4_delegation_flush_on_close(const struct inode *inode);
 void nfs_inode_find_delegation_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid);
+int nfs4_inode_make_writeable(struct inode *inode);
 
 #endif
 

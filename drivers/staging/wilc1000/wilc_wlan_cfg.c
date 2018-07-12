@@ -221,7 +221,8 @@ static int wilc_wlan_cfg_set_word(u8 *frame, u32 offset, u16 id, u32 val32)
 	return 8;
 }
 
-static int wilc_wlan_cfg_set_str(u8 *frame, u32 offset, u16 id, u8 *str, u32 size)
+static int wilc_wlan_cfg_set_str(u8 *frame, u32 offset, u16 id, u8 *str,
+				 u32 size)
 {
 	u8 *buf;
 
@@ -483,20 +484,21 @@ int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 		} while (1);
 	} else if (type == CFG_STR_CMD) {
 		do {
-			if (g_cfg_str[i].id == WID_NIL)
+			u32 id = g_cfg_str[i].id;
+
+			if (id == WID_NIL)
 				break;
 
-			if (g_cfg_str[i].id == wid) {
+			if (id == wid) {
 				u32 size = g_cfg_str[i].str[0] |
 						(g_cfg_str[i].str[1] << 8);
 
 				if (buffer_size >= size) {
-					if (g_cfg_str[i].id == WID_SITE_SURVEY_RESULTS)	{
+					if (id == WID_SITE_SURVEY_RESULTS) {
 						static int toggle;
 
 						i += toggle;
 						toggle ^= 1;
-
 					}
 					memcpy(buffer,  &g_cfg_str[i].str[2],
 					       size);
@@ -523,9 +525,12 @@ int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
 	frame += 4;
 	size -= 4;
 
-	/**
-	 *      The  valid types of response messages are 'R' (Response), 'I' (Information), and 'N' (Network Information)
-	 **/
+	/*
+	 * The valid types of response messages are
+	 * 'R' (Response),
+	 * 'I' (Information), and
+	 * 'N' (Network Information)
+	 */
 
 	switch (msg_type) {
 	case 'R':

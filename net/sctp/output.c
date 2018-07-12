@@ -69,7 +69,11 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 
 static void sctp_packet_reset(struct sctp_packet *packet)
 {
+	/* sctp_packet_transmit() relies on this to reset size to the
+	 * current overhead after sending packets.
+	 */
 	packet->size = packet->overhead;
+
 	packet->has_cookie_echo = 0;
 	packet->has_sack = 0;
 	packet->has_data = 0;
@@ -87,6 +91,7 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
 	struct sock *sk;
+	size_t overhead = sizeof(struct ipv6hdr) + sizeof(struct sctphdr);
 
 	pr_debug("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
 	packet->vtag = vtag;
@@ -95,10 +100,22 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 	if (!sctp_packet_empty(packet))
 		return;
 
-	/* set packet max_size with pathmtu */
+	/* set packet max_size with pathmtu, then calculate overhead */
 	packet->max_size = tp->pathmtu;
-	if (!asoc)
+	if (asoc) {
+		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
+		struct sctp_af *af = sp->pf->af;
+
+		overhead = af->net_header_len +
+			   af->ip_options_len(asoc->base.sk);
+		overhead += sizeof(struct sctphdr);
+		packet->overhead = overhead;
+		packet->size = overhead;
+	} else {
+		packet->overhead = overhead;
+		packet->size = overhead;
 		return;
+	}
 
 	/* update dst or transport pathmtu if in need */
 	sk = asoc->base.sk;
@@ -140,23 +157,14 @@ void sctp_packet_init(struct sctp_packet *packet,
 		      struct sctp_transport *transport,
 		      __u16 sport, __u16 dport)
 {
-	struct sctp_association *asoc = transport->asoc;
-	size_t overhead;
-
 	pr_debug("%s: packet:%p transport:%p\n", __func__, packet, transport);
 
 	packet->transport = transport;
 	packet->source_port = sport;
 	packet->destination_port = dport;
 	INIT_LIST_HEAD(&packet->chunk_list);
-	if (asoc) {
-		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-		overhead = sp->pf->af->net_header_len;
-	} else {
-		overhead = sizeof(struct ipv6hdr);
-	}
-	overhead += sizeof(struct sctphdr);
-	packet->overhead = overhead;
+	/* The overhead will be calculated by sctp_packet_config() */
+	packet->overhead = 0;
 	sctp_packet_reset(packet);
 	packet->vtag = 0;
 }
@@ -241,9 +249,12 @@ static enum sctp_xmit sctp_packet_bundle_auth(struct sctp_packet *pkt,
 	if (!chunk->auth)
 		return retval;
 
-	auth = sctp_make_auth(asoc);
+	auth = sctp_make_auth(asoc, chunk->shkey->key_id);
 	if (!auth)
 		return retval;
+
+	auth->shkey = chunk->shkey;
+	sctp_auth_shkey_hold(auth->shkey);
 
 	retval = __sctp_packet_append_chunk(pkt, auth);
 
@@ -490,7 +501,8 @@ merge:
 		}
 
 		if (auth) {
-			sctp_auth_calculate_hmac(tp->asoc, nskb, auth, gfp);
+			sctp_auth_calculate_hmac(tp->asoc, nskb, auth,
+						 packet->auth->shkey, gfp);
 			/* free auth if no more chunks, or add it back */
 			if (list_empty(&packet->chunk_list))
 				sctp_chunk_free(packet->auth);
@@ -769,6 +781,16 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 {
 	enum sctp_xmit retval = SCTP_XMIT_OK;
 	size_t psize, pmtu, maxsize;
+
+	/* Don't bundle in this packet if this chunk's auth key doesn't
+	 * match other chunks already enqueued on this packet. Also,
+	 * don't bundle the chunk with auth key if other chunks in this
+	 * packet don't have auth key.
+	 */
+	if ((packet->auth && chunk->shkey != packet->auth->shkey) ||
+	    (!packet->auth && chunk->shkey &&
+	     chunk->chunk_hdr->type != SCTP_CID_AUTH))
+		return SCTP_XMIT_PMTU_FULL;
 
 	psize = packet->size;
 	if (packet->transport->asoc)

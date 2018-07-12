@@ -223,6 +223,7 @@
 			gpclk2_gpio43: gpclk2_gpio43 {
 				brcm,pins = <43>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
+				brcm,pull = <BCM2835_PUD_OFF>;
 			};
 
 			i2c0_gpio0: i2c0_gpio0 {
@@ -252,7 +253,7 @@
 
 			jtag_gpio4: jtag_gpio4 {
 				brcm,pins = <4 5 6 12 13>;
-				brcm,function = <BCM2835_FSEL_ALT4>;
+				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
 			jtag_gpio22: jtag_gpio22 {
 				brcm,pins = <22 23 24 25 26 27>;
@@ -335,10 +336,12 @@
 			uart0_ctsrts_gpio30: uart0_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
+				brcm,pull = <BCM2835_PUD_UP BCM2835_PUD_OFF>;
 			};
 			uart0_gpio32: uart0_gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
+				brcm,pull = <BCM2835_PUD_OFF BCM2835_PUD_UP>;
 			};
 			uart0_gpio36: uart0_gpio36 {
 				brcm,pins = <36 37>;
@@ -397,8 +400,8 @@
 
 		i2s: i2s@7e203000 {
 			compatible = "brcm,bcm2835-i2s";
-			reg = <0x7e203000 0x20>,
-			      <0x7e101098 0x02>;
+			reg = <0x7e203000 0x24>;
+			clocks = <&clocks BCM2835_CLOCK_PCM>;
 
 			dmas = <&dma 2>,
 			       <&dma 3>;
@@ -436,6 +439,17 @@
 			compatible = "brcm,bcm2835-pixelvalve1";
 			reg = <0x7e207000 0x100>;
 			interrupts = <2 14>; /* pwa1 */
+		};
+
+		dpi: dpi@7e208000 {
+			compatible = "brcm,bcm2835-dpi";
+			reg = <0x7e208000 0x8c>;
+			clocks = <&clocks BCM2835_CLOCK_VPU>,
+				 <&clocks BCM2835_CLOCK_DPI>;
+			clock-names = "core", "pixel";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		dsi0: dsi@7e209000 {

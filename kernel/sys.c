@@ -61,6 +61,8 @@
 #include <linux/uidgid.h>
 #include <linux/cred.h>
 
+#include <linux/nospec.h>
+
 #include <linux/kmsg_dump.h>
 /* Move somewhere else to avoid recompiling? */
 #include <generated/utsrelease.h>
@@ -68,6 +70,11 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
+
+/* Hardening for Spectre-v1 */
+#include <linux/nospec.h>
+
+#include "uid16.h"
 
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a, b)	(-EINVAL)
@@ -340,7 +347,7 @@ out_unlock:
  *      operations (as far as semantic preservation is concerned).
  */
 #ifdef CONFIG_MULTIUSER
-SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
+long __sys_setregid(gid_t rgid, gid_t egid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -392,12 +399,17 @@ error:
 	return retval;
 }
 
+SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
+{
+	return __sys_setregid(rgid, egid);
+}
+
 /*
  * setgid() is implemented like SysV w/ SAVED_IDS
  *
  * SMP: Same implicit races as above.
  */
-SYSCALL_DEFINE1(setgid, gid_t, gid)
+long __sys_setgid(gid_t gid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -427,6 +439,11 @@ SYSCALL_DEFINE1(setgid, gid_t, gid)
 error:
 	abort_creds(new);
 	return retval;
+}
+
+SYSCALL_DEFINE1(setgid, gid_t, gid)
+{
+	return __sys_setgid(gid);
 }
 
 /*
@@ -473,7 +490,7 @@ static int set_user(struct cred *new)
  * 100% compatible with BSD.  A program which uses just setuid() will be
  * 100% compatible with POSIX with saved IDs.
  */
-SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
+long __sys_setreuid(uid_t ruid, uid_t euid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -533,6 +550,11 @@ error:
 	return retval;
 }
 
+SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
+{
+	return __sys_setreuid(ruid, euid);
+}
+
 /*
  * setuid() is implemented like SysV with SAVED_IDS
  *
@@ -544,7 +566,7 @@ error:
  * will allow a root program to temporarily drop privileges and be able to
  * regain them by swapping the real and effective uid.
  */
-SYSCALL_DEFINE1(setuid, uid_t, uid)
+long __sys_setuid(uid_t uid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -586,12 +608,17 @@ error:
 	return retval;
 }
 
+SYSCALL_DEFINE1(setuid, uid_t, uid)
+{
+	return __sys_setuid(uid);
+}
+
 
 /*
  * This function implements a generic ability to update ruid, euid,
  * and suid.  This allows you to implement the 4.4 compatible seteuid().
  */
-SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
+long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -656,6 +683,11 @@ error:
 	return retval;
 }
 
+SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
+{
+	return __sys_setresuid(ruid, euid, suid);
+}
+
 SYSCALL_DEFINE3(getresuid, uid_t __user *, ruidp, uid_t __user *, euidp, uid_t __user *, suidp)
 {
 	const struct cred *cred = current_cred();
@@ -678,7 +710,7 @@ SYSCALL_DEFINE3(getresuid, uid_t __user *, ruidp, uid_t __user *, euidp, uid_t _
 /*
  * Same as above, but for rgid, egid, sgid.
  */
-SYSCALL_DEFINE3(setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
+long __sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 {
 	struct user_namespace *ns = current_user_ns();
 	const struct cred *old;
@@ -730,6 +762,11 @@ error:
 	return retval;
 }
 
+SYSCALL_DEFINE3(setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
+{
+	return __sys_setresgid(rgid, egid, sgid);
+}
+
 SYSCALL_DEFINE3(getresgid, gid_t __user *, rgidp, gid_t __user *, egidp, gid_t __user *, sgidp)
 {
 	const struct cred *cred = current_cred();
@@ -757,7 +794,7 @@ SYSCALL_DEFINE3(getresgid, gid_t __user *, rgidp, gid_t __user *, egidp, gid_t _
  * whatever uid it wants to). It normally shadows "euid", except when
  * explicitly set by setfsuid() or for access..
  */
-SYSCALL_DEFINE1(setfsuid, uid_t, uid)
+long __sys_setfsuid(uid_t uid)
 {
 	const struct cred *old;
 	struct cred *new;
@@ -793,10 +830,15 @@ change_okay:
 	return old_fsuid;
 }
 
+SYSCALL_DEFINE1(setfsuid, uid_t, uid)
+{
+	return __sys_setfsuid(uid);
+}
+
 /*
  * Samma på svenska..
  */
-SYSCALL_DEFINE1(setfsgid, gid_t, gid)
+long __sys_setfsgid(gid_t gid)
 {
 	const struct cred *old;
 	struct cred *new;
@@ -829,6 +871,11 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
 change_okay:
 	commit_creds(new);
 	return old_fsgid;
+}
+
+SYSCALL_DEFINE1(setfsgid, gid_t, gid)
+{
+	return __sys_setfsgid(gid);
 }
 #endif /* CONFIG_MULTIUSER */
 
@@ -1027,7 +1074,7 @@ out:
 	return err;
 }
 
-SYSCALL_DEFINE1(getpgid, pid_t, pid)
+static int do_getpgid(pid_t pid)
 {
 	struct task_struct *p;
 	struct pid *grp;
@@ -1055,11 +1102,16 @@ out:
 	return retval;
 }
 
+SYSCALL_DEFINE1(getpgid, pid_t, pid)
+{
+	return do_getpgid(pid);
+}
+
 #ifdef __ARCH_WANT_SYS_GETPGRP
 
 SYSCALL_DEFINE0(getpgrp)
 {
-	return sys_getpgid(0);
+	return do_getpgid(0);
 }
 
 #endif
@@ -1103,7 +1155,7 @@ static void set_special_pids(struct pid *pid)
 		change_pid(curr, PIDTYPE_PGID, pid);
 }
 
-SYSCALL_DEFINE0(setsid)
+int ksys_setsid(void)
 {
 	struct task_struct *group_leader = current->group_leader;
 	struct pid *sid = task_pid(group_leader);
@@ -1134,6 +1186,11 @@ out:
 		sched_autogroup_create_attach(group_leader);
 	}
 	return err;
+}
+
+SYSCALL_DEFINE0(setsid)
+{
+	return ksys_setsid();
 }
 
 DECLARE_RWSEM(uts_sem);
@@ -1399,6 +1456,7 @@ SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
 
+	resource = array_index_nospec(resource, RLIM_NLIMITS);
 	task_lock(current->group_leader);
 	x = current->signal->rlim[resource];
 	task_unlock(current->group_leader);
@@ -1418,6 +1476,7 @@ COMPAT_SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
 
+	resource = array_index_nospec(resource, RLIM_NLIMITS);
 	task_lock(current->group_leader);
 	r = current->signal->rlim[resource];
 	task_unlock(current->group_leader);
@@ -2190,6 +2249,17 @@ static int propagate_has_child_subreaper(struct task_struct *p, void *data)
 	return 1;
 }
 
+int __weak arch_prctl_spec_ctrl_get(struct task_struct *t, unsigned long which)
+{
+	return -EINVAL;
+}
+
+int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
+				    unsigned long ctrl)
+{
+	return -EINVAL;
+}
+
 SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
 {
@@ -2397,6 +2467,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		break;
 	case PR_SVE_GET_VL:
 		error = SVE_GET_VL();
+		break;
+	case PR_GET_SPECULATION_CTRL:
+		if (arg3 || arg4 || arg5)
+			return -EINVAL;
+		error = arch_prctl_spec_ctrl_get(me, arg2);
+		break;
+	case PR_SET_SPECULATION_CTRL:
+		if (arg4 || arg5)
+			return -EINVAL;
+		error = arch_prctl_spec_ctrl_set(me, arg2, arg3);
 		break;
 	default:
 		error = -EINVAL;

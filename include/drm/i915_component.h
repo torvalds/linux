@@ -26,9 +26,8 @@
 
 /* MAX_PORT is the number of port
  * It must be sync with I915_MAX_PORTS defined i915_drv.h
- * 5 should be enough as only HSW, BDW, SKL need such fix.
  */
-#define MAX_PORTS 5
+#define MAX_PORTS 6
 
 /**
  * struct i915_audio_component_ops - Ops implemented by i915 driver, called by hda driver

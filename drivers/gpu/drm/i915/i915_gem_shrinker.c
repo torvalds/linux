@@ -175,7 +175,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
 
 	trace_i915_gem_shrink(i915, target, flags);
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
 
 	/*
 	 * Unbinding of objects will require HW access; Let us not wake the
@@ -267,7 +267,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	if (flags & I915_SHRINK_BOUND)
 		intel_runtime_pm_put(i915);
 
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
 
 	shrinker_unlock(i915, unlock);
 

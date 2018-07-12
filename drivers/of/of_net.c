@@ -7,6 +7,7 @@
  */
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/export.h>
@@ -80,3 +81,42 @@ const void *of_get_mac_address(struct device_node *np)
 	return of_get_mac_addr(np, "address");
 }
 EXPORT_SYMBOL(of_get_mac_address);
+
+/**
+ * Obtain the MAC address from an nvmem provider named 'mac-address' through
+ * device tree.
+ * On success, copies the new address into memory pointed to by addr and
+ * returns 0. Returns a negative error code otherwise.
+ * @np:		Device tree node containing the nvmem-cells phandle
+ * @addr:	Pointer to receive the MAC address using ether_addr_copy()
+ */
+int of_get_nvmem_mac_address(struct device_node *np, void *addr)
+{
+	struct nvmem_cell *cell;
+	const void *mac;
+	size_t len;
+	int ret;
+
+	cell = of_nvmem_cell_get(np, "mac-address");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	mac = nvmem_cell_read(cell, &len);
+
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(mac))
+		return PTR_ERR(mac);
+
+	if (len < ETH_ALEN || !is_valid_ether_addr(mac)) {
+		ret = -EINVAL;
+	} else {
+		ether_addr_copy(addr, mac);
+		ret = 0;
+	}
+
+	kfree(mac);
+
+	return ret;
+}
+EXPORT_SYMBOL(of_get_nvmem_mac_address);

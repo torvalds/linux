@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, 2016-2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,12 +17,6 @@
 #define RMNET_DFLT_PACKET_SIZE     1500
 #define RMNET_NEEDED_HEADROOM      16
 #define RMNET_TX_QUEUE_LEN         1000
-
-/* Constants */
-#define RMNET_INGRESS_FORMAT_DEAGGREGATION      BIT(0)
-#define RMNET_INGRESS_FORMAT_MAP_COMMANDS       BIT(1)
-#define RMNET_INGRESS_FORMAT_MAP_CKSUMV4        BIT(2)
-#define RMNET_EGRESS_FORMAT_MAP_CKSUMV4         BIT(3)
 
 /* Replace skb->dev to a virtual rmnet device and pass up the stack */
 #define RMNET_EPMODE_VND (1)

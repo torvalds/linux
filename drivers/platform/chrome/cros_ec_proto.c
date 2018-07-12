@@ -91,6 +91,8 @@ static int send_command(struct cros_ec_device *ec_dev,
 			usleep_range(10000, 11000);
 
 			ret = (*xfer_fxn)(ec_dev, status_msg);
+			if (ret == -EAGAIN)
+				continue;
 			if (ret < 0)
 				break;
 

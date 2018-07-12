@@ -140,7 +140,6 @@ struct	_vcs_dpi_ip_params_st	{
 	unsigned int	max_hscl_taps;
 	unsigned int	max_vscl_taps;
 	unsigned int	xfc_supported;
-	unsigned int	ptoi_supported;
 	unsigned int	xfc_fill_constant_bytes;
 	double	dispclk_ramp_margin_percent;
 	double	xfc_fill_bw_overhead_percent;

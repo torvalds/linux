@@ -470,7 +470,11 @@ typedef void (*dma_async_tx_callback_result)(void *dma_async_param,
 				const struct dmaengine_result *result);
 
 struct dmaengine_unmap_data {
+#if IS_ENABLED(CONFIG_DMA_ENGINE_RAID)
+	u16 map_cnt;
+#else
 	u8 map_cnt;
+#endif
 	u8 to_cnt;
 	u8 from_cnt;
 	u8 bidi_cnt;

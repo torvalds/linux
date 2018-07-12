@@ -108,7 +108,8 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 		enum i2c_mot_mode mot,
 		uint32_t address,
 		uint8_t *data,
-		uint32_t len);
+		uint32_t len,
+		uint32_t *read);
 
 enum ddc_result dal_ddc_service_write_dpcd_data(
 		struct ddc_service *ddc,

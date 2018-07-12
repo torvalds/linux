@@ -178,8 +178,8 @@ huge_pages_object(struct drm_i915_private *i915,
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &huge_page_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_NONE;
 
 	obj->mm.page_mask = page_mask;
@@ -329,8 +329,8 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 	else
 		i915_gem_object_init(obj, &fake_ops);
 
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->write_domain = I915_GEM_DOMAIN_CPU;
+	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->cache_level = I915_CACHE_NONE;
 
 	return obj;
@@ -964,7 +964,7 @@ static int gpu_write(struct i915_vma *vma,
 		     u32 dword,
 		     u32 value)
 {
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct i915_vma *batch;
 	int flags = 0;
 	int err;
@@ -975,7 +975,7 @@ static int gpu_write(struct i915_vma *vma,
 	if (err)
 		return err;
 
-	rq = i915_gem_request_alloc(engine, ctx);
+	rq = i915_request_alloc(engine, ctx);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
@@ -1003,7 +1003,7 @@ static int gpu_write(struct i915_vma *vma,
 	reservation_object_unlock(vma->resv);
 
 err_request:
-	__i915_add_request(rq, err == 0);
+	__i915_request_add(rq, err == 0);
 
 	return err;
 }

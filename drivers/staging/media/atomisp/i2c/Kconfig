@@ -28,18 +28,6 @@ config VIDEO_ATOMISP_GC2235
 
 	 It currently only works with the atomisp driver.
 
-config VIDEO_ATOMISP_OV8858
-       tristate "Omnivision ov8858 sensor support"
-	depends on ACPI
-       depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
-       ---help---
-	 This is a Video4Linux2 sensor-level driver for the Omnivision
-	 ov8858 RAW sensor.
-
-	 OV8858 is a 8M raw sensor.
-
-	 It currently only works with the atomisp driver.
-
 config VIDEO_ATOMISP_MSRLIST_HELPER
        tristate "Helper library to load, parse and apply large register lists."
        depends on I2C

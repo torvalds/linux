@@ -92,6 +92,8 @@ struct amdgpu_bo {
 		struct list_head	mn_list;
 		struct list_head	shadow_list;
 	};
+
+	struct kgd_mem                  *kfd_bo;
 };
 
 static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
@@ -201,13 +203,11 @@ static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
 	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
-int amdgpu_bo_create(struct amdgpu_device *adev,
-			    unsigned long size, int byte_align,
-			    bool kernel, u32 domain, u64 flags,
-			    struct sg_table *sg,
-			    struct reservation_object *resv,
-			    uint64_t init_value,
-			    struct amdgpu_bo **bo_ptr);
+int amdgpu_bo_create(struct amdgpu_device *adev, unsigned long size,
+		     int byte_align, u32 domain,
+		     u64 flags, enum ttm_bo_type type,
+		     struct reservation_object *resv,
+		     struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,
 			      u32 domain, struct amdgpu_bo **bo_ptr,
@@ -282,8 +282,6 @@ void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
 				      struct amdgpu_sa_manager *sa_manager);
 int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
 				      struct amdgpu_sa_manager *sa_manager);
-int amdgpu_sa_bo_manager_suspend(struct amdgpu_device *adev,
-					struct amdgpu_sa_manager *sa_manager);
 int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     struct amdgpu_sa_bo **sa_bo,
 		     unsigned size, unsigned align);

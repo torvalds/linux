@@ -71,10 +71,11 @@
 /* CPP address to retrieve the data from */
 #define NSP_BUFFER		0x10
 #define   NSP_BUFFER_CPP	GENMASK_ULL(63, 40)
-#define   NSP_BUFFER_PCIE	GENMASK_ULL(39, 38)
-#define   NSP_BUFFER_ADDRESS	GENMASK_ULL(37, 0)
+#define   NSP_BUFFER_ADDRESS	GENMASK_ULL(39, 0)
 
 #define NSP_DFLT_BUFFER		0x18
+#define   NSP_DFLT_BUFFER_CPP	GENMASK_ULL(63, 40)
+#define   NSP_DFLT_BUFFER_ADDRESS	GENMASK_ULL(39, 0)
 
 #define NSP_DFLT_BUFFER_CONFIG	0x20
 #define   NSP_DFLT_BUFFER_SIZE_MB	GENMASK_ULL(7, 0)
@@ -280,8 +281,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg, u32 nsp_cpp, u64 addr,
 		if ((*reg & mask) == val)
 			return 0;
 
-		if (msleep_interruptible(25))
-			return -ERESTARTSYS;
+		msleep(25);
 
 		if (time_after(start_time, wait_until))
 			return -ETIMEDOUT;
@@ -427,8 +427,8 @@ __nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 	if (err < 0)
 		return err;
 
-	cpp_id = FIELD_GET(NSP_BUFFER_CPP, reg) << 8;
-	cpp_buf = FIELD_GET(NSP_BUFFER_ADDRESS, reg);
+	cpp_id = FIELD_GET(NSP_DFLT_BUFFER_CPP, reg) << 8;
+	cpp_buf = FIELD_GET(NSP_DFLT_BUFFER_ADDRESS, reg);
 
 	if (in_buf && in_size) {
 		err = nfp_cpp_write(cpp, cpp_id, cpp_buf, in_buf, in_size);

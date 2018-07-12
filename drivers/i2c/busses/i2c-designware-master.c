@@ -163,7 +163,7 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
 			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
 		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
-	} else {
+	} else if (dev->sda_hold_time) {
 		dev_warn(dev->dev,
 			"Hardware too old to adjust SDA hold time.\n");
 	}
@@ -209,7 +209,10 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	i2c_dw_disable_int(dev);
 
 	/* Enable the adapter */
-	__i2c_dw_enable_and_wait(dev, true);
+	__i2c_dw_enable(dev, true);
+
+	/* Dummy read to avoid the register getting stuck on Bay Trail */
+	dw_readl(dev, DW_IC_ENABLE_STATUS);
 
 	/* Clear and enable interrupts */
 	dw_readl(dev, DW_IC_CLR_INTR);

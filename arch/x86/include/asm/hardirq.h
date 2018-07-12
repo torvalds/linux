@@ -40,6 +40,7 @@ typedef struct {
 #endif
 #if IS_ENABLED(CONFIG_HYPERV)
 	unsigned int irq_hv_reenlightenment_count;
+	unsigned int hyperv_stimer0_count;
 #endif
 } ____cacheline_aligned irq_cpustat_t;
 

@@ -15,7 +15,9 @@ config CLK_RENESAS
 	select CLK_R8A7794 if ARCH_R8A7794
 	select CLK_R8A7795 if ARCH_R8A7795
 	select CLK_R8A7796 if ARCH_R8A7796
+	select CLK_R8A77965 if ARCH_R8A77965
 	select CLK_R8A77970 if ARCH_R8A77970
+	select CLK_R8A77980 if ARCH_R8A77980
 	select CLK_R8A77995 if ARCH_R8A77995
 	select CLK_SH73A0 if ARCH_SH73A0
 
@@ -24,12 +26,13 @@ if CLK_RENESAS
 config CLK_RENESAS_LEGACY
 	bool "Legacy DT clock support"
 	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792 || CLK_R8A7794
-	default y
 	help
 	  Enable backward compatibility with old device trees describing a
 	  hierarchical representation of the various CPG and MSTP clocks.
 
 	  Say Y if you want your kernel to work with old DTBs.
+	  It is safe to say N if you use the DTS that is supplied with the
+	  current kernel source tree.
 
 # SoC
 config CLK_EMEV2
@@ -96,8 +99,16 @@ config CLK_R8A7796
 	bool "R-Car M3-W clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
+config CLK_R8A77965
+	bool "R-Car M3-N clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
 config CLK_R8A77970
 	bool "R-Car V3M clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A77980
+	bool "R-Car V3H clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
 config CLK_R8A77995

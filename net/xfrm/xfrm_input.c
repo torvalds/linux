@@ -9,6 +9,7 @@
  */
 
 #include <linux/bottom_half.h>
+#include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -37,7 +38,7 @@ struct xfrm_trans_cb {
 
 #define XFRM_TRANS_SKB_CB(__skb) ((struct xfrm_trans_cb *)&((__skb)->cb[0]))
 
-static struct kmem_cache *secpath_cachep __read_mostly;
+static struct kmem_cache *secpath_cachep __ro_after_init;
 
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo const __rcu *xfrm_input_afinfo[AF_INET6 + 1];

@@ -37,7 +37,7 @@
 #include "addr.h"
 #include "group.h"
 #include "bcast.h"
-#include "server.h"
+#include "topsrv.h"
 #include "msg.h"
 #include "socket.h"
 #include "node.h"

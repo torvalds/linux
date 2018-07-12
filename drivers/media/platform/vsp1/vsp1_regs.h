@@ -225,7 +225,7 @@
 #define VI6_RPF_MULT_ALPHA_P_MMD_RATIO	(1 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_IMAGE	(2 << 8)
 #define VI6_RPF_MULT_ALPHA_P_MMD_BOTH	(3 << 8)
-#define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff < 0)
+#define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff << 0)
 #define VI6_RPF_MULT_ALPHA_RATIO_SHIFT	0
 
 /* -----------------------------------------------------------------------------
@@ -693,6 +693,11 @@
 #define VI6_LIF_CSBTH_LBTH_MASK		(0x7ff << 0)
 #define VI6_LIF_CSBTH_LBTH_SHIFT	0
 
+#define VI6_LIF_LBA			0x3b0c
+#define VI6_LIF_LBA_LBA0		(1 << 31)
+#define VI6_LIF_LBA_LBA1_MASK		(0xfff << 16)
+#define VI6_LIF_LBA_LBA1_SHIFT		16
+
 /* -----------------------------------------------------------------------------
  * Security Control Registers
  */
@@ -705,6 +710,7 @@
  */
 
 #define VI6_IP_VERSION			0x3f00
+#define VI6_IP_VERSION_MASK		(0xffff << 0)
 #define VI6_IP_VERSION_MODEL_MASK	(0xff << 8)
 #define VI6_IP_VERSION_MODEL_VSPS_H2	(0x09 << 8)
 #define VI6_IP_VERSION_MODEL_VSPR_H2	(0x0a << 8)

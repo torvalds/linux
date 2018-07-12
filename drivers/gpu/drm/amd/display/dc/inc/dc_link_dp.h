@@ -53,7 +53,7 @@ bool perform_link_training_with_retries(
 
 bool is_mst_supported(struct dc_link *link);
 
-void detect_dp_sink_caps(struct dc_link *link);
+bool detect_dp_sink_caps(struct dc_link *link);
 
 void detect_edp_sink_caps(struct dc_link *link);
 

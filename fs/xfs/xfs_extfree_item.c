@@ -51,6 +51,24 @@ xfs_efi_item_free(
 }
 
 /*
+ * Freeing the efi requires that we remove it from the AIL if it has already
+ * been placed there. However, the EFI may not yet have been placed in the AIL
+ * when called by xfs_efi_release() from EFD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the EFI.
+ */
+void
+xfs_efi_release(
+	struct xfs_efi_log_item	*efip)
+{
+	ASSERT(atomic_read(&efip->efi_refcount) > 0);
+	if (atomic_dec_and_test(&efip->efi_refcount)) {
+		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_efi_item_free(efip);
+	}
+}
+
+/*
  * This returns the number of iovecs needed to log the given efi item.
  * We only need 1 iovec for an efi item.  It just logs the efi_log_format
  * structure.
@@ -151,7 +169,7 @@ xfs_efi_item_unlock(
 	struct xfs_log_item	*lip)
 {
 	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_efi_item_free(EFI_ITEM(lip));
+		xfs_efi_release(EFI_ITEM(lip));
 }
 
 /*
@@ -277,24 +295,6 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 		return 0;
 	}
 	return -EFSCORRUPTED;
-}
-
-/*
- * Freeing the efi requires that we remove it from the AIL if it has already
- * been placed there. However, the EFI may not yet have been placed in the AIL
- * when called by xfs_efi_release() from EFD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the EFI.
- */
-void
-xfs_efi_release(
-	struct xfs_efi_log_item	*efip)
-{
-	ASSERT(atomic_read(&efip->efi_refcount) > 0);
-	if (atomic_dec_and_test(&efip->efi_refcount)) {
-		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_efi_item_free(efip);
-	}
 }
 
 static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)

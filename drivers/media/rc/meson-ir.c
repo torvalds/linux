@@ -97,8 +97,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 	status = readl_relaxed(ir->reg + IR_DEC_STATUS);
 	rawir.pulse = !!(status & STATUS_IR_DEC_IN);
 
-	ir_raw_event_store(ir->rc, &rawir);
-	ir_raw_event_handle(ir->rc);
+	ir_raw_event_store_with_timeout(ir->rc, &rawir);
 
 	spin_unlock(&ir->lock);
 
@@ -145,7 +144,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
-	ir->rc->timeout = MS_TO_NS(200);
+	ir->rc->min_timeout = 1;
+	ir->rc->timeout = IR_DEFAULT_TIMEOUT;
+	ir->rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	ir->rc->driver_name = DRIVER_NAME;
 
 	spin_lock_init(&ir->lock);

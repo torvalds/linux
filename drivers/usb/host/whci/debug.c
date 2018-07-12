@@ -72,7 +72,7 @@ static void qset_print(struct seq_file *s, struct whc_qset *qset)
 	}
 }
 
-static int di_print(struct seq_file *s, void *p)
+static int di_show(struct seq_file *s, void *p)
 {
 	struct whc *whc = s->private;
 	int d;
@@ -91,8 +91,9 @@ static int di_print(struct seq_file *s, void *p)
 	}
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(di);
 
-static int asl_print(struct seq_file *s, void *p)
+static int asl_show(struct seq_file *s, void *p)
 {
 	struct whc *whc = s->private;
 	struct whc_qset *qset;
@@ -103,8 +104,9 @@ static int asl_print(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(asl);
 
-static int pzl_print(struct seq_file *s, void *p)
+static int pzl_show(struct seq_file *s, void *p)
 {
 	struct whc *whc = s->private;
 	struct whc_qset *qset;
@@ -118,45 +120,7 @@ static int pzl_print(struct seq_file *s, void *p)
 	}
 	return 0;
 }
-
-static int di_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, di_print, inode->i_private);
-}
-
-static int asl_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, asl_print, inode->i_private);
-}
-
-static int pzl_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pzl_print, inode->i_private);
-}
-
-static const struct file_operations di_fops = {
-	.open    = di_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
-
-static const struct file_operations asl_fops = {
-	.open    = asl_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
-
-static const struct file_operations pzl_fops = {
-	.open    = pzl_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(pzl);
 
 void whc_dbg_init(struct whc *whc)
 {

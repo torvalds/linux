@@ -233,10 +233,8 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "failed to allocate private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	ddev = drm_dev_alloc(ddrv, dev);
 	if (IS_ERR(ddev))

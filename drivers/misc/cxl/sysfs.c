@@ -62,8 +62,29 @@ static ssize_t psl_timebase_synced_show(struct device *device,
 					char *buf)
 {
 	struct cxl *adapter = to_cxl_adapter(device);
+	u64 psl_tb, delta;
 
+	/* Recompute the status only in native mode */
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		psl_tb = adapter->native->sl_ops->timebase_read(adapter);
+		delta = abs(mftb() - psl_tb);
+
+		/* CORE TB and PSL TB difference <= 16usecs ? */
+		adapter->psl_timebase_synced = (tb_to_ns(delta) < 16000) ? true : false;
+		pr_devel("PSL timebase %s - delta: 0x%016llx\n",
+			 (tb_to_ns(delta) < 16000) ? "synchronized" :
+			 "not synchronized", tb_to_ns(delta));
+	}
 	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->psl_timebase_synced);
+}
+
+static ssize_t tunneled_ops_supported_show(struct device *device,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->tunneled_ops_supported);
 }
 
 static ssize_t reset_adapter_store(struct device *device,
@@ -171,6 +192,7 @@ static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
 	__ATTR_RO(psl_timebase_synced),
+	__ATTR_RO(tunneled_ops_supported),
 	__ATTR_RW(load_image_on_perst),
 	__ATTR_RW(perst_reloads_same_image),
 	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),

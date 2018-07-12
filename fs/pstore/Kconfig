@@ -1,5 +1,6 @@
 config PSTORE
 	tristate "Persistent store support"
+	select CRYPTO if PSTORE_COMPRESS
 	default n
 	help
 	   This option enables generic access to platform level
@@ -12,34 +13,88 @@ config PSTORE
 	   If you don't have a platform persistent store driver,
 	   say N.
 
-choice
-        prompt "Choose compression algorithm"
-        depends on PSTORE
-        default PSTORE_ZLIB_COMPRESS
-        help
-          This option chooses compression algorithm.
-
-config PSTORE_ZLIB_COMPRESS
-        bool "ZLIB"
-        select ZLIB_DEFLATE
-        select ZLIB_INFLATE
-        help
-          This option enables ZLIB compression algorithm support.
+config PSTORE_DEFLATE_COMPRESS
+	tristate "DEFLATE (ZLIB) compression"
+	default y
+	depends on PSTORE
+	select CRYPTO_DEFLATE
+	help
+	  This option enables DEFLATE (also known as ZLIB) compression
+	  algorithm support.
 
 config PSTORE_LZO_COMPRESS
-        bool "LZO"
-        select LZO_COMPRESS
-        select LZO_DECOMPRESS
-        help
-          This option enables LZO compression algorithm support.
+	tristate "LZO compression"
+	depends on PSTORE
+	select CRYPTO_LZO
+	help
+	  This option enables LZO compression algorithm support.
 
 config PSTORE_LZ4_COMPRESS
-        bool "LZ4"
-        select LZ4_COMPRESS
-        select LZ4_DECOMPRESS
-        help
-          This option enables LZ4 compression algorithm support.
+	tristate "LZ4 compression"
+	depends on PSTORE
+	select CRYPTO_LZ4
+	help
+	  This option enables LZ4 compression algorithm support.
+
+config PSTORE_LZ4HC_COMPRESS
+	tristate "LZ4HC compression"
+	depends on PSTORE
+	select CRYPTO_LZ4HC
+	help
+	  This option enables LZ4HC (high compression) mode algorithm.
+
+config PSTORE_842_COMPRESS
+	bool "842 compression"
+	depends on PSTORE
+	select CRYPTO_842
+	help
+	  This option enables 842 compression algorithm support.
+
+config PSTORE_COMPRESS
+	def_bool y
+	depends on PSTORE
+	depends on PSTORE_DEFLATE_COMPRESS || PSTORE_LZO_COMPRESS ||	\
+		   PSTORE_LZ4_COMPRESS || PSTORE_LZ4HC_COMPRESS ||	\
+		   PSTORE_842_COMPRESS
+
+choice
+	prompt "Default pstore compression algorithm"
+	depends on PSTORE_COMPRESS
+	help
+	  This option chooses the default active compression algorithm.
+	  This change be changed at boot with "pstore.compress=..." on
+	  the kernel command line.
+
+	  Currently, pstore has support for 5 compression algorithms:
+	  deflate, lzo, lz4, lz4hc and 842.
+
+	  The default compression algorithm is deflate.
+
+	config PSTORE_DEFLATE_COMPRESS_DEFAULT
+		bool "deflate" if PSTORE_DEFLATE_COMPRESS
+
+	config PSTORE_LZO_COMPRESS_DEFAULT
+		bool "lzo" if PSTORE_LZO_COMPRESS
+
+	config PSTORE_LZ4_COMPRESS_DEFAULT
+		bool "lz4" if PSTORE_LZ4_COMPRESS
+
+	config PSTORE_LZ4HC_COMPRESS_DEFAULT
+		bool "lz4hc" if PSTORE_LZ4HC_COMPRESS
+
+	config PSTORE_842_COMPRESS_DEFAULT
+		bool "842" if PSTORE_842_COMPRESS
+
 endchoice
+
+config PSTORE_COMPRESS_DEFAULT
+	string
+	depends on PSTORE_COMPRESS
+	default "deflate" if PSTORE_DEFLATE_COMPRESS_DEFAULT
+	default "lzo" if PSTORE_LZO_COMPRESS_DEFAULT
+	default "lz4" if PSTORE_LZ4_COMPRESS_DEFAULT
+	default "lz4hc" if PSTORE_LZ4HC_COMPRESS_DEFAULT
+	default "842" if PSTORE_842_COMPRESS_DEFAULT
 
 config PSTORE_CONSOLE
 	bool "Log kernel console messages"

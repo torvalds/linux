@@ -114,7 +114,6 @@ enum ds_type {
 #	define RX8025_BIT_XST		0x20
 
 struct ds1307 {
-	struct nvmem_config	nvmem_cfg;
 	enum ds_type		type;
 	unsigned long		flags;
 #define HAS_NVRAM	0		/* bit 0 == sysfs file active */
@@ -438,8 +437,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		t->tm_hour, t->tm_mday,
 		t->tm_mon, t->tm_year, t->tm_wday);
 
-	/* initial clock setting can be undefined */
-	return rtc_valid_tm(t);
+	return 0;
 }
 
 static int ds1307_set_time(struct device *dev, struct rtc_time *t)
@@ -1696,23 +1694,25 @@ read_rtc:
 		}
 	}
 
-	if (chip->nvram_size) {
-		ds1307->nvmem_cfg.name = "ds1307_nvram";
-		ds1307->nvmem_cfg.word_size = 1;
-		ds1307->nvmem_cfg.stride = 1;
-		ds1307->nvmem_cfg.size = chip->nvram_size;
-		ds1307->nvmem_cfg.reg_read = ds1307_nvram_read;
-		ds1307->nvmem_cfg.reg_write = ds1307_nvram_write;
-		ds1307->nvmem_cfg.priv = ds1307;
-
-		ds1307->rtc->nvmem_config = &ds1307->nvmem_cfg;
-		ds1307->rtc->nvram_old_abi = true;
-	}
-
 	ds1307->rtc->ops = chip->rtc_ops ?: &ds13xx_rtc_ops;
 	err = rtc_register_device(ds1307->rtc);
 	if (err)
 		return err;
+
+	if (chip->nvram_size) {
+		struct nvmem_config nvmem_cfg = {
+			.name = "ds1307_nvram",
+			.word_size = 1,
+			.stride = 1,
+			.size = chip->nvram_size,
+			.reg_read = ds1307_nvram_read,
+			.reg_write = ds1307_nvram_write,
+			.priv = ds1307,
+		};
+
+		ds1307->rtc->nvram_old_abi = true;
+		rtc_nvmem_register(ds1307->rtc, &nvmem_cfg);
+	}
 
 	ds1307_hwmon_register(ds1307);
 	ds1307_clks_register(ds1307);

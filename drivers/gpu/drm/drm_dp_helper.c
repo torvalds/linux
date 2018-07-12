@@ -146,6 +146,8 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 		return DP_LINK_BW_2_7;
 	case 540000:
 		return DP_LINK_BW_5_4;
+	case 810000:
+		return DP_LINK_BW_8_1;
 	}
 }
 EXPORT_SYMBOL(drm_dp_link_rate_to_bw_code);
@@ -161,6 +163,8 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 		return 270000;
 	case DP_LINK_BW_5_4:
 		return 540000;
+	case DP_LINK_BW_8_1:
+		return 810000;
 	}
 }
 EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
@@ -1141,6 +1145,7 @@ int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
 	static const u16 psr_setup_time_us[] = {
 		PSR_SETUP_TIME(330),
 		PSR_SETUP_TIME(275),
+		PSR_SETUP_TIME(220),
 		PSR_SETUP_TIME(165),
 		PSR_SETUP_TIME(110),
 		PSR_SETUP_TIME(55),

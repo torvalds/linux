@@ -11,7 +11,7 @@ Contents:
  - Proc filesystem.
  - The cell database.
  - Security.
- - Examples.
+ - The @sys substitution.
 
 
 ========
@@ -230,3 +230,29 @@ If a file is opened with a particular key and then the file descriptor is
 passed to a process that doesn't have that key (perhaps over an AF_UNIX
 socket), then the operations on the file will be made with key that was used to
 open the file.
+
+
+=====================
+THE @SYS SUBSTITUTION
+=====================
+
+The list of up to 16 @sys substitutions for the current network namespace can
+be configured by writing a list to /proc/fs/afs/sysname:
+
+	[root@andromeda ~]# echo foo amd64_linux_26 >/proc/fs/afs/sysname
+
+or cleared entirely by writing an empty list:
+
+	[root@andromeda ~]# echo >/proc/fs/afs/sysname
+
+The current list for current network namespace can be retrieved by:
+
+	[root@andromeda ~]# cat /proc/fs/afs/sysname
+	foo
+	amd64_linux_26
+
+When @sys is being substituted for, each element of the list is tried in the
+order given.
+
+By default, the list will contain one item that conforms to the pattern
+"<arch>_linux_26", amd64 being the name for x86_64.

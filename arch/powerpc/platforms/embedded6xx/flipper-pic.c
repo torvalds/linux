@@ -132,7 +132,7 @@ static void __flipper_quiesce(void __iomem *io_base)
 	out_be32(io_base + FLIPPER_ICR, 0xffffffff);
 }
 
-struct irq_domain * __init flipper_pic_init(struct device_node *np)
+static struct irq_domain * __init flipper_pic_init(struct device_node *np)
 {
 	struct device_node *pi;
 	struct irq_domain *irq_domain = NULL;

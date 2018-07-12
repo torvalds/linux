@@ -722,6 +722,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	free_mr->mr_free_pd = to_hr_pd(pd);
 	free_mr->mr_free_pd->ibpd.device  = &hr_dev->ib_dev;
 	free_mr->mr_free_pd->ibpd.uobject = NULL;
+	free_mr->mr_free_pd->ibpd.__internal_mr = NULL;
 	atomic_set(&free_mr->mr_free_pd->ibpd.usecnt, 0);
 
 	attr.qp_access_flags	= IB_ACCESS_REMOTE_WRITE;
@@ -1036,7 +1037,7 @@ static void hns_roce_v1_mr_free_work_fn(struct work_struct *work)
 
 	do {
 		ret = hns_roce_v1_poll_cq(&mr_free_cq->ib_cq, ne, wc);
-		if (ret < 0) {
+		if (ret < 0 && hr_qp) {
 			dev_err(dev,
 			   "(qp:0x%lx) starts, Poll cqe failed(%d) for mr 0x%x free! Remain %d cqe\n",
 			   hr_qp->qpn, ret, hr_mr->key, ne);
@@ -1687,13 +1688,13 @@ static int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 	roce_set_field(val, ROCEE_MB6_ROCEE_MB_TOKEN_M,
 		       ROCEE_MB6_ROCEE_MB_TOKEN_S, token);
 
-	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
-	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
-	__raw_writel(cpu_to_le32(in_modifier), hcr + 4);
+	writeq(in_param, hcr + 0);
+	writeq(out_param, hcr + 2);
+	writel(in_modifier, hcr + 4);
 	/* Memory barrier */
 	wmb();
 
-	__raw_writel(cpu_to_le32(val), hcr + 5);
+	writel(val, hcr + 5);
 
 	mmiowb();
 

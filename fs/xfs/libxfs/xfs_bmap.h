@@ -228,7 +228,7 @@ void	xfs_bmap_del_extent_cow(struct xfs_inode *ip,
 uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_collapse_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
-		bool *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock,
+		bool *done, xfs_fsblock_t *firstblock,
 		struct xfs_defer_ops *dfops);
 int	xfs_bmap_insert_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
@@ -273,5 +273,8 @@ static inline int xfs_bmap_fork_to_state(int whichfork)
 		return 0;
 	}
 }
+
+xfs_failaddr_t xfs_bmap_validate_extent(struct xfs_inode *ip, int whichfork,
+		struct xfs_bmbt_irec *irec);
 
 #endif	/* __XFS_BMAP_H__ */

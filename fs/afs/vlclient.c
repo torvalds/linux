@@ -23,7 +23,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
 	bool new_only = false;
-	u32 tmp, nr_servers;
+	u32 tmp, nr_servers, vlflags;
 	int i, ret;
 
 	_enter("");
@@ -55,6 +55,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 			new_only = true;
 	}
 
+	vlflags = ntohl(uvldb->flags);
 	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
@@ -64,12 +65,13 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		if (tmp & AFS_VLSF_DONTUSE ||
 		    (new_only && !(tmp & AFS_VLSF_NEWREPSITE)))
 			continue;
-		if (tmp & AFS_VLSF_RWVOL)
+		if (tmp & AFS_VLSF_RWVOL) {
 			entry->fs_mask[i] |= AFS_VOL_VTM_RW;
+			if (vlflags & AFS_VLF_BACKEXISTS)
+				entry->fs_mask[i] |= AFS_VOL_VTM_BAK;
+		}
 		if (tmp & AFS_VLSF_ROVOL)
 			entry->fs_mask[i] |= AFS_VOL_VTM_RO;
-		if (tmp & AFS_VLSF_BACKVOL)
-			entry->fs_mask[i] |= AFS_VOL_VTM_BAK;
 		if (!entry->fs_mask[i])
 			continue;
 
@@ -89,15 +91,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	for (i = 0; i < AFS_MAXTYPES; i++)
 		entry->vid[i] = ntohl(uvldb->volumeId[i]);
 
-	tmp = ntohl(uvldb->flags);
-	if (tmp & AFS_VLF_RWEXISTS)
+	if (vlflags & AFS_VLF_RWEXISTS)
 		__set_bit(AFS_VLDB_HAS_RW, &entry->flags);
-	if (tmp & AFS_VLF_ROEXISTS)
+	if (vlflags & AFS_VLF_ROEXISTS)
 		__set_bit(AFS_VLDB_HAS_RO, &entry->flags);
-	if (tmp & AFS_VLF_BACKEXISTS)
+	if (vlflags & AFS_VLF_BACKEXISTS)
 		__set_bit(AFS_VLDB_HAS_BAK, &entry->flags);
 
-	if (!(tmp & (AFS_VLF_RWEXISTS | AFS_VLF_ROEXISTS | AFS_VLF_BACKEXISTS))) {
+	if (!(vlflags & (AFS_VLF_RWEXISTS | AFS_VLF_ROEXISTS | AFS_VLF_BACKEXISTS))) {
 		entry->error = -ENOMEDIUM;
 		__set_bit(AFS_VLDB_QUERY_ERROR, &entry->flags);
 	}
@@ -303,7 +304,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	r->uuid.clock_seq_hi_and_reserved 	= htonl(u->clock_seq_hi_and_reserved);
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
-		r->uuid.node[i] = ntohl(u->node[i]);
+		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
@@ -450,7 +451,7 @@ again:
 		call->count2	= ntohl(*bp); /* Type or next count */
 
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
 		if (!alist)
@@ -474,7 +475,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		size += sizeof(__be32);
@@ -487,24 +488,24 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of
 		 * volEndpoints if no more fsEndpoints.
 		 */
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 
 		call->offset = 0;
 		call->count--;
@@ -517,7 +518,7 @@ again:
 		if (!call->count)
 			goto end;
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		call->unmarshall = 3;
 
@@ -531,7 +532,7 @@ again:
 			return ret;
 
 		bp = call->buffer;
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 		call->offset = 0;
 		call->unmarshall = 4;
 
@@ -545,7 +546,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		if (call->count > 1)
@@ -558,16 +559,16 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of
@@ -576,7 +577,7 @@ again:
 		call->offset = 0;
 		call->count--;
 		if (call->count > 0) {
-			call->count2 = htonl(*bp++);
+			call->count2 = ntohl(*bp++);
 			goto again;
 		}
 

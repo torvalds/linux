@@ -171,4 +171,13 @@ irqreturn_t vbg_core_isr(int irq, void *dev_id);
 
 void vbg_linux_mouse_event(struct vbg_dev *gdev);
 
+/* Private (non exported) functions form vboxguest_utils.c */
+void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type);
+void vbg_req_free(void *req, size_t len);
+int vbg_req_perform(struct vbg_dev *gdev, void *req);
+int vbg_hgcm_call32(
+	struct vbg_dev *gdev, u32 client_id, u32 function, u32 timeout_ms,
+	struct vmmdev_hgcm_function_parameter32 *parm32, u32 parm_count,
+	int *vbox_status);
+
 #endif

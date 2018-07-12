@@ -22,6 +22,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
 #include <linux/compiler.h>
+#include <linux/context_tracking.h>
 #include <linux/mm_types.h>
 
 #include <asm/udbg.h>
@@ -339,4 +340,111 @@ void slb_initialize(void)
 				     mmu_kernel_ssize, lflags, KSTACK_INDEX);
 
 	asm volatile("isync":::"memory");
+}
+
+static void insert_slb_entry(unsigned long vsid, unsigned long ea,
+			     int bpsize, int ssize)
+{
+	unsigned long flags, vsid_data, esid_data;
+	enum slb_index index;
+	int slb_cache_index;
+
+	/*
+	 * We are irq disabled, hence should be safe to access PACA.
+	 */
+	index = get_paca()->stab_rr;
+
+	/*
+	 * simple round-robin replacement of slb starting at SLB_NUM_BOLTED.
+	 */
+	if (index < (mmu_slb_size - 1))
+		index++;
+	else
+		index = SLB_NUM_BOLTED;
+
+	get_paca()->stab_rr = index;
+
+	flags = SLB_VSID_USER | mmu_psize_defs[bpsize].sllp;
+	vsid_data = (vsid << slb_vsid_shift(ssize)) | flags |
+		    ((unsigned long) ssize << SLB_VSID_SSIZE_SHIFT);
+	esid_data = mk_esid_data(ea, ssize, index);
+
+	asm volatile("slbmte %0, %1" : : "r" (vsid_data), "r" (esid_data)
+		     : "memory");
+
+	/*
+	 * Now update slb cache entries
+	 */
+	slb_cache_index = get_paca()->slb_cache_ptr;
+	if (slb_cache_index < SLB_CACHE_ENTRIES) {
+		/*
+		 * We have space in slb cache for optimized switch_slb().
+		 * Top 36 bits from esid_data as per ISA
+		 */
+		get_paca()->slb_cache[slb_cache_index++] = esid_data >> 28;
+		get_paca()->slb_cache_ptr++;
+	} else {
+		/*
+		 * Our cache is full and the current cache content strictly
+		 * doesn't indicate the active SLB conents. Bump the ptr
+		 * so that switch_slb() will ignore the cache.
+		 */
+		get_paca()->slb_cache_ptr = SLB_CACHE_ENTRIES + 1;
+	}
+}
+
+static void handle_multi_context_slb_miss(int context_id, unsigned long ea)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long vsid;
+	int bpsize;
+
+	/*
+	 * We are always above 1TB, hence use high user segment size.
+	 */
+	vsid = get_vsid(context_id, ea, mmu_highuser_ssize);
+	bpsize = get_slice_psize(mm, ea);
+	insert_slb_entry(vsid, ea, bpsize, mmu_highuser_ssize);
+}
+
+void slb_miss_large_addr(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+	unsigned long ea = regs->dar;
+	int context;
+
+	if (REGION_ID(ea) != USER_REGION_ID)
+		goto slb_bad_addr;
+
+	/*
+	 * Are we beyound what the page table layout supports ?
+	 */
+	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+		goto slb_bad_addr;
+
+	/* Lower address should have been handled by asm code */
+	if (ea < (1UL << MAX_EA_BITS_PER_CONTEXT))
+		goto slb_bad_addr;
+
+	/*
+	 * consider this as bad access if we take a SLB miss
+	 * on an address above addr limit.
+	 */
+	if (ea >= current->mm->context.slb_addr_limit)
+		goto slb_bad_addr;
+
+	context = get_ea_context(&current->mm->context, ea);
+	if (!context)
+		goto slb_bad_addr;
+
+	handle_multi_context_slb_miss(context, ea);
+	exception_exit(prev_state);
+	return;
+
+slb_bad_addr:
+	if (user_mode(regs))
+		_exception(SIGSEGV, regs, SEGV_BNDERR, ea);
+	else
+		bad_page_fault(regs, ea, SIGSEGV);
+	exception_exit(prev_state);
 }

@@ -80,7 +80,7 @@ xfs_scrub_walk_agfl(
 	}
 
 	/* first to the end */
-	for (i = flfirst; i < XFS_AGFL_SIZE(mp); i++) {
+	for (i = flfirst; i < xfs_agfl_size(mp); i++) {
 		error = fn(sc, be32_to_cpu(agfl_bno[i]), priv);
 		if (error)
 			return error;
@@ -664,7 +664,7 @@ xfs_scrub_agf(
 	if (agfl_last > agfl_first)
 		fl_count = agfl_last - agfl_first + 1;
 	else
-		fl_count = XFS_AGFL_SIZE(mp) - agfl_first + agfl_last + 1;
+		fl_count = xfs_agfl_size(mp) - agfl_first + agfl_last + 1;
 	if (agfl_count != 0 && fl_count != agfl_count)
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
 
@@ -791,7 +791,7 @@ xfs_scrub_agfl(
 	/* Allocate buffer to ensure uniqueness of AGFL entries. */
 	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 	agflcount = be32_to_cpu(agf->agf_flcount);
-	if (agflcount > XFS_AGFL_SIZE(sc->mp)) {
+	if (agflcount > xfs_agfl_size(sc->mp)) {
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
 		goto out;
 	}

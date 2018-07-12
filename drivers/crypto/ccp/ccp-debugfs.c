@@ -278,7 +278,7 @@ static const struct file_operations ccp_debugfs_stats_ops = {
 };
 
 static struct dentry *ccp_debugfs_dir;
-static DEFINE_RWLOCK(ccp_debugfs_lock);
+static DEFINE_MUTEX(ccp_debugfs_lock);
 
 #define	MAX_NAME_LEN	20
 
@@ -290,16 +290,15 @@ void ccp5_debugfs_setup(struct ccp_device *ccp)
 	struct dentry *debugfs_stats;
 	struct dentry *debugfs_q_instance;
 	struct dentry *debugfs_q_stats;
-	unsigned long flags;
 	int i;
 
 	if (!debugfs_initialized())
 		return;
 
-	write_lock_irqsave(&ccp_debugfs_lock, flags);
+	mutex_lock(&ccp_debugfs_lock);
 	if (!ccp_debugfs_dir)
 		ccp_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	write_unlock_irqrestore(&ccp_debugfs_lock, flags);
+	mutex_unlock(&ccp_debugfs_lock);
 	if (!ccp_debugfs_dir)
 		return;
 

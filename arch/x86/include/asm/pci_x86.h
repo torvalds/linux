@@ -151,6 +151,8 @@ extern int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 			       phys_addr_t addr);
 extern int pci_mmconfig_delete(u16 seg, u8 start, u8 end);
 extern struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus);
+extern struct pci_mmcfg_region *__init pci_mmconfig_add(int segment, int start,
+							int end, u64 addr);
 
 extern struct list_head pci_mmcfg_list;
 

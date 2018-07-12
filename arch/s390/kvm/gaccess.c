@@ -1050,8 +1050,7 @@ shadow_r2t:
 		rc = gmap_shadow_r2t(sg, saddr, rfte.val, *fake);
 		if (rc)
 			return rc;
-		/* fallthrough */
-	}
+	} /* fallthrough */
 	case ASCE_TYPE_REGION2: {
 		union region2_table_entry rste;
 
@@ -1077,8 +1076,7 @@ shadow_r3t:
 		rc = gmap_shadow_r3t(sg, saddr, rste.val, *fake);
 		if (rc)
 			return rc;
-		/* fallthrough */
-	}
+	} /* fallthrough */
 	case ASCE_TYPE_REGION3: {
 		union region3_table_entry rtte;
 
@@ -1113,8 +1111,7 @@ shadow_sgt:
 		rc = gmap_shadow_sgt(sg, saddr, rtte.val, *fake);
 		if (rc)
 			return rc;
-		/* fallthrough */
-	}
+	} /* fallthrough */
 	case ASCE_TYPE_SEGMENT: {
 		union segment_table_entry ste;
 

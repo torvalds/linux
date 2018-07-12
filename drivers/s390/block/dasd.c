@@ -3034,7 +3034,8 @@ static blk_status_t do_dasd_request(struct blk_mq_hw_ctx *hctx,
 	cqr->callback_data = req;
 	cqr->status = DASD_CQR_FILLED;
 	cqr->dq = dq;
-	req->completion_data = cqr;
+	*((struct dasd_ccw_req **) blk_mq_rq_to_pdu(req)) = cqr;
+
 	blk_mq_start_request(req);
 	spin_lock(&block->queue_lock);
 	list_add_tail(&cqr->blocklist, &block->ccw_queue);
@@ -3058,12 +3059,13 @@ out:
  */
 enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 {
-	struct dasd_ccw_req *cqr = req->completion_data;
 	struct dasd_block *block = req->q->queuedata;
 	struct dasd_device *device;
+	struct dasd_ccw_req *cqr;
 	unsigned long flags;
 	int rc = 0;
 
+	cqr = *((struct dasd_ccw_req **) blk_mq_rq_to_pdu(req));
 	if (!cqr)
 		return BLK_EH_NOT_HANDLED;
 
@@ -3169,6 +3171,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	int rc;
 
 	block->tag_set.ops = &dasd_mq_ops;
+	block->tag_set.cmd_size = sizeof(struct dasd_ccw_req *);
 	block->tag_set.nr_hw_queues = DASD_NR_HW_QUEUES;
 	block->tag_set.queue_depth = DASD_MAX_LCU_DEV * DASD_REQ_PER_DEV;
 	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
@@ -3208,7 +3211,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	} else {
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	q->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(q, logical_block_size);
 	blk_queue_max_hw_sectors(q, max);
@@ -3231,7 +3234,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 
 		blk_queue_max_discard_sectors(q, max_discard_sectors);
 		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	}
 }
 
@@ -3918,8 +3921,13 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 			cqr = refers;
 		}
 
-		if (cqr->block)
-			list_del_init(&cqr->blocklist);
+		/*
+		 * _dasd_requeue_request already checked for a valid
+		 * blockdevice, no need to check again
+		 * all erp requests (cqr->refers) have a cqr->block
+		 * pointer copy from the original cqr
+		 */
+		list_del_init(&cqr->blocklist);
 		cqr->block->base->discipline->free_cp(
 			cqr, (struct request *) cqr->callback_data);
 	}

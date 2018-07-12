@@ -291,13 +291,10 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
-	ring->rx_info = vzalloc_node(tmp, node);
+	ring->rx_info = kvzalloc_node(tmp, GFP_KERNEL, node);
 	if (!ring->rx_info) {
-		ring->rx_info = vzalloc(tmp);
-		if (!ring->rx_info) {
-			err = -ENOMEM;
-			goto err_xdp_info;
-		}
+		err = -ENOMEM;
+		goto err_xdp_info;
 	}
 
 	en_dbg(DRV, priv, "Allocated rx_info ring at addr:%p size:%d\n",
@@ -318,7 +315,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	return 0;
 
 err_info:
-	vfree(ring->rx_info);
+	kvfree(ring->rx_info);
 	ring->rx_info = NULL;
 err_xdp_info:
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
@@ -447,7 +444,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 		bpf_prog_put(old_prog);
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
-	vfree(ring->rx_info);
+	kvfree(ring->rx_info);
 	ring->rx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
@@ -649,6 +646,12 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 	return get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+#define MLX4_CQE_STATUS_IP_ANY (MLX4_CQE_STATUS_IPV4 | MLX4_CQE_STATUS_IPV6)
+#else
+#define MLX4_CQE_STATUS_IP_ANY (MLX4_CQE_STATUS_IPV4)
+#endif
+
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -662,11 +665,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	int polled = 0;
 	int index;
 
-	if (unlikely(!priv->port_up))
+	if (unlikely(!priv->port_up || budget <= 0))
 		return 0;
-
-	if (unlikely(budget <= 0))
-		return polled;
 
 	ring = priv->rx_ring[cq_ring];
 
@@ -821,13 +821,11 @@ xdp_drop_no_cnt:
 		skb_record_rx_queue(skb, cq_ring);
 
 		if (likely(dev->features & NETIF_F_RXCSUM)) {
-			if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
-						      MLX4_CQE_STATUS_UDP)) {
+			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
+						       MLX4_CQE_STATUS_UDP)) &&
+			    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
+			    cqe->checksum == cpu_to_be16(0xffff)) {
 				bool l2_tunnel;
-
-				if (!((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
-				      cqe->checksum == cpu_to_be16(0xffff)))
-					goto csum_none;
 
 				l2_tunnel = (dev->hw_enc_features & NETIF_F_RXCSUM) &&
 					(cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_L2_TUNNEL));
@@ -838,12 +836,7 @@ xdp_drop_no_cnt:
 				ring->csum_ok++;
 			} else {
 				if (!(priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
-				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
-#if IS_ENABLED(CONFIG_IPV6)
-								 MLX4_CQE_STATUS_IPV6))))
-#else
-								 0))))
-#endif
+				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IP_ANY))))
 					goto csum_none;
 				if (check_csum(cqe, skb, va, dev->features))
 					goto csum_none;

@@ -336,18 +336,7 @@ static struct pci_driver cavium_ptp_driver = {
 	.remove = cavium_ptp_remove,
 };
 
-static int __init cavium_ptp_init_module(void)
-{
-	return pci_register_driver(&cavium_ptp_driver);
-}
-
-static void __exit cavium_ptp_cleanup_module(void)
-{
-	pci_unregister_driver(&cavium_ptp_driver);
-}
-
-module_init(cavium_ptp_init_module);
-module_exit(cavium_ptp_cleanup_module);
+module_pci_driver(cavium_ptp_driver);
 
 MODULE_DESCRIPTION(DRV_NAME);
 MODULE_AUTHOR("Cavium Networks <support@cavium.com>");

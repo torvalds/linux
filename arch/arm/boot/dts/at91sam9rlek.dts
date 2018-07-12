@@ -1,7 +1,8 @@
 /*
  * at91sam9rlek.dts - Device Tree file for Atmel at91sam9rl reference board
  *
- *  Copyright (C) 2014  Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *  Copyright (C) 2014 Microchip
+ *  Alexandre Belloni <alexandre.belloni@free-electrons.com>
  *
  * Licensed under GPLv2 only
  */

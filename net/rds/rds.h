@@ -356,6 +356,30 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 #define RDS_MSG_PAGEVEC		7
 #define RDS_MSG_FLUSH		8
 
+struct rds_znotifier {
+	struct mmpin		z_mmp;
+	u32			z_cookie;
+};
+
+struct rds_msg_zcopy_info {
+	struct list_head rs_zcookie_next;
+	union {
+		struct rds_znotifier znotif;
+		struct rds_zcopy_cookies zcookies;
+	};
+};
+
+struct rds_msg_zcopy_queue {
+	struct list_head zcookie_head;
+	spinlock_t lock; /* protects zcookie_head queue */
+};
+
+static inline void rds_message_zcopy_queue_init(struct rds_msg_zcopy_queue *q)
+{
+	spin_lock_init(&q->lock);
+	INIT_LIST_HEAD(&q->zcookie_head);
+}
+
 struct rds_message {
 	refcount_t		m_refcount;
 	struct list_head	m_sock_item;
@@ -436,6 +460,7 @@ struct rds_message {
 			unsigned int		op_count;
 			unsigned int		op_dmasg;
 			unsigned int		op_dmaoff;
+			struct rds_znotifier	*op_mmp_znotifier;
 			struct scatterlist	*op_sg;
 		} data;
 	};
@@ -589,6 +614,7 @@ struct rds_sock {
 	/* Socket receive path trace points*/
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
+	struct rds_msg_zcopy_queue rs_zcookie_queue;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -709,6 +735,7 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
 			  struct rds_info_lengths *lens,
 			  int (*visitor)(struct rds_connection *, void *),
+			  u64 *buffer,
 			  size_t item_len);
 
 __printf(2, 3)
@@ -771,7 +798,8 @@ rds_conn_connecting(struct rds_connection *conn)
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
 struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
-int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from);
+int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
+			       bool zcopy);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 				 __be16 dport, u64 seq);
@@ -786,6 +814,7 @@ void rds_message_addref(struct rds_message *rm);
 void rds_message_put(struct rds_message *rm);
 void rds_message_wait(struct rds_message *rm);
 void rds_message_unmapped(struct rds_message *rm);
+void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *info);
 
 static inline void rds_message_make_checksum(struct rds_header *hdr)
 {

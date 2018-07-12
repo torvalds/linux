@@ -172,4 +172,7 @@
 #define mmROM_SW_DATA_64                                                                               0x006d
 #define mmROM_SW_DATA_64_BASE_IDX                                                                      0
 
+#define mmSMUSVI0_PLANE0_CURRENTVID_BASE_IDX                                                           0
+#define mmSMUSVI0_PLANE0_CURRENTVID                                                                    0x0013
+
 #endif

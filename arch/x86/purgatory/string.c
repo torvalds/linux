@@ -10,4 +10,16 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#include <linux/types.h>
+
 #include "../boot/string.c"
+
+void *memcpy(void *dst, const void *src, size_t len)
+{
+	return __builtin_memcpy(dst, src, len);
+}
+
+void *memset(void *dst, int c, size_t len)
+{
+	return __builtin_memset(dst, c, len);
+}

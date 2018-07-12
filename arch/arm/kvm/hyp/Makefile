@@ -9,7 +9,6 @@ KVM=../../../../virt/kvm
 
 CFLAGS_ARMV7VE		   :=$(call cc-option, -march=armv7ve)
 
-obj-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/hyp/vgic-v2-sr.o
 obj-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/hyp/vgic-v3-sr.o
 obj-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/hyp/timer-sr.o
 

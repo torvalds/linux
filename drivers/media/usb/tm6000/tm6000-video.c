@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
 //
-// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
 // Copyright (c) 2007 Michel Ludwig <michel.ludwig@gmail.com>
 //	- Fixed module load/unload
@@ -1346,9 +1346,8 @@ static int __tm6000_open(struct file *file)
 	fh->width = dev->width;
 	fh->height = dev->height;
 
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, dev->vidq=0x%08lx\n",
-			(unsigned long)fh, (unsigned long)dev,
-			(unsigned long)&dev->vidq);
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=%p, dev=%p, dev->vidq=%p\n",
+		fh, dev, &dev->vidq);
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty queued=%d\n",
 		list_empty(&dev->vidq.queued));
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty active=%d\n",

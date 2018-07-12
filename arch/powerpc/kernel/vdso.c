@@ -99,26 +99,28 @@ static struct vdso_patch_def vdso_patches[] = {
 		CPU_FTR_COHERENT_ICACHE, CPU_FTR_COHERENT_ICACHE,
 		"__kernel_sync_dicache", "__kernel_sync_dicache_p5"
 	},
+#ifdef CONFIG_PPC32
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_gettimeofday", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_clock_gettime", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_clock_getres", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_get_tbfreq", NULL
 	},
 	{
-		CPU_FTR_USE_TB, 0,
+		CPU_FTR_USE_RTC, CPU_FTR_USE_RTC,
 		"__kernel_time", NULL
 	},
+#endif
 };
 
 /*

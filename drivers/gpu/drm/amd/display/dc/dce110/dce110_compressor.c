@@ -34,6 +34,8 @@
 
 #include "dce110_compressor.h"
 
+#define DC_LOGGER \
+		cp110->base.ctx->logger
 #define DCP_REG(reg)\
 	(reg + cp110->offsets.dcp_offset)
 #define DMIF_REG(reg)\
@@ -100,6 +102,43 @@ static uint32_t align_to_chunks_number_per_line(uint32_t pixels)
 	return 256 * ((pixels + 255) / 256);
 }
 
+static void reset_lb_on_vblank(struct dc_context *ctx)
+{
+	uint32_t value, frame_count;
+	uint32_t retry = 0;
+	uint32_t status_pos =
+			dm_read_reg(ctx, mmCRTC_STATUS_POSITION);
+
+
+	/* Only if CRTC is enabled and counter is moving we wait for one frame. */
+	if (status_pos != dm_read_reg(ctx, mmCRTC_STATUS_POSITION)) {
+		/* Resetting LB on VBlank */
+		value = dm_read_reg(ctx, mmLB_SYNC_RESET_SEL);
+		set_reg_field_value(value, 3, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL);
+		set_reg_field_value(value, 1, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL2);
+		dm_write_reg(ctx, mmLB_SYNC_RESET_SEL, value);
+
+		frame_count = dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT);
+
+
+		for (retry = 100; retry > 0; retry--) {
+			if (frame_count != dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT))
+				break;
+			msleep(1);
+		}
+		if (!retry)
+			dm_error("Frame count did not increase for 100ms.\n");
+
+		/* Resetting LB on VBlank */
+		value = dm_read_reg(ctx, mmLB_SYNC_RESET_SEL);
+		set_reg_field_value(value, 2, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL);
+		set_reg_field_value(value, 0, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL2);
+		dm_write_reg(ctx, mmLB_SYNC_RESET_SEL, value);
+
+	}
+
+}
+
 static void wait_for_fbc_state_changed(
 	struct dce110_compressor *cp110,
 	bool enabled)
@@ -120,14 +159,10 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 10) {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
-			"%s: wait counter exceeded, changes to HW not applied",
+		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW not applied",
 			__func__);
 	} else {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_SYNC,
-			"FBC status changed to %d", enabled);
+		DC_LOG_SYNC("FBC status changed to %d", enabled);
 	}
 
 
@@ -234,19 +269,23 @@ void dce110_compressor_disable_fbc(struct compressor *compressor)
 {
 	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
 
-	if (compressor->options.bits.FBC_SUPPORT &&
-		dce110_compressor_is_fbc_enabled_in_hw(compressor, NULL)) {
-		uint32_t reg_data;
-		/* Turn off compression */
-		reg_data = dm_read_reg(compressor->ctx, mmFBC_CNTL);
-		set_reg_field_value(reg_data, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
-		dm_write_reg(compressor->ctx, mmFBC_CNTL, reg_data);
+	if (compressor->options.bits.FBC_SUPPORT) {
+		if (dce110_compressor_is_fbc_enabled_in_hw(compressor, NULL)) {
+			uint32_t reg_data;
+			/* Turn off compression */
+			reg_data = dm_read_reg(compressor->ctx, mmFBC_CNTL);
+			set_reg_field_value(reg_data, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
+			dm_write_reg(compressor->ctx, mmFBC_CNTL, reg_data);
 
-		/* Reset enum controller_id to undefined */
-		compressor->attached_inst = 0;
-		compressor->is_enabled = false;
+			/* Reset enum controller_id to undefined */
+			compressor->attached_inst = 0;
+			compressor->is_enabled = false;
 
-		wait_for_fbc_state_changed(cp110, false);
+			wait_for_fbc_state_changed(cp110, false);
+		}
+
+		/* Sync line buffer  - dce100/110 only*/
+		reset_lb_on_vblank(compressor->ctx);
 	}
 }
 
@@ -310,9 +349,7 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	if (compressor->min_compress_ratio == FBC_COMPRESS_RATIO_1TO1)
 		fbc_pitch = fbc_pitch / 8;
 	else
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
-			"%s: Unexpected DCE11 compression ratio",
+		DC_LOG_WARNING("%s: Unexpected DCE11 compression ratio",
 			__func__);
 
 	/* Clear content first. */

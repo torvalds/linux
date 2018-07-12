@@ -145,6 +145,11 @@ SECTIONS
 		*(.pause_3insn_patch)
 		__pause_3insn_patch_end = .;
 	}
+	.sun_m7_1insn_patch : {
+		__sun_m7_1insn_patch = .;
+		*(.sun_m7_1insn_patch)
+		__sun_m7_1insn_patch_end = .;
+	}
 	.sun_m7_2insn_patch : {
 		__sun_m7_2insn_patch = .;
 		*(.sun_m7_2insn_patch)

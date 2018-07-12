@@ -4,6 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -797,7 +798,6 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-	u8 *qc;
 	int tid;
 
 	/*
@@ -844,9 +844,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 
 	/* include per-STA, per-TID sequence counter */
-
-	qc = ieee80211_get_qos_ctl(hdr);
-	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+	tid = ieee80211_get_tid(hdr);
 	tx->sta->tx_stats.msdu[tid]++;
 
 	hdr->seq_ctrl = ieee80211_tx_next_seq(tx->sta, tid);
@@ -1138,7 +1136,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 	}
 
 	/* reset session timer */
-	if (reset_agg_timer && tid_tx->timeout)
+	if (reset_agg_timer)
 		tid_tx->last_tx = jiffies;
 
 	return queued;
@@ -1158,7 +1156,6 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int tid;
-	u8 *qc;
 
 	memset(tx, 0, sizeof(*tx));
 	tx->skb = skb;
@@ -1198,8 +1195,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	    !ieee80211_hw_check(&local->hw, TX_AMPDU_SETUP_IN_HW)) {
 		struct tid_ampdu_tx *tid_tx;
 
-		qc = ieee80211_get_qos_ctl(hdr);
-		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+		tid = ieee80211_get_tid(hdr);
 
 		tid_tx = rcu_dereference(tx->sta->ampdu_mlme.tid_tx[tid]);
 		if (tid_tx) {
@@ -1921,7 +1917,7 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr;
 	int headroom;
 	bool may_encrypt;
 
@@ -4761,4 +4757,50 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	IEEE80211_SKB_CB(skb)->band = band;
 	ieee80211_xmit(sdata, NULL, skb);
 	local_bh_enable();
+}
+
+int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
+			      const u8 *buf, size_t len,
+			      const u8 *dest, __be16 proto, bool unencrypted)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ethhdr *ehdr;
+	u32 flags;
+
+	/* Only accept CONTROL_PORT_PROTOCOL configured in CONNECT/ASSOCIATE
+	 * or Pre-Authentication
+	 */
+	if (proto != sdata->control_port_protocol &&
+	    proto != cpu_to_be16(ETH_P_PREAUTH))
+		return -EINVAL;
+
+	if (unencrypted)
+		flags = IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	else
+		flags = 0;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+			    sizeof(struct ethhdr) + len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom + sizeof(struct ethhdr));
+
+	skb_put_data(skb, buf, len);
+
+	ehdr = skb_push(skb, sizeof(struct ethhdr));
+	memcpy(ehdr->h_dest, dest, ETH_ALEN);
+	memcpy(ehdr->h_source, sdata->vif.addr, ETH_ALEN);
+	ehdr->h_proto = proto;
+
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_802_3);
+	skb_reset_network_header(skb);
+	skb_reset_mac_header(skb);
+
+	__ieee80211_subif_start_xmit(skb, skb->dev, flags);
+
+	return 0;
 }

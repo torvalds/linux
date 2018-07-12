@@ -160,6 +160,13 @@ bool mlxsw_sp_acl_block_disabled(struct mlxsw_sp_acl_block *block)
 	return block->disable_count;
 }
 
+static bool
+mlxsw_sp_acl_ruleset_is_singular(const struct mlxsw_sp_acl_ruleset *ruleset)
+{
+	/* We hold a reference on ruleset ourselves */
+	return ruleset->ref_count == 2;
+}
+
 static int
 mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_block *block,
@@ -341,21 +348,8 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ht_insert;
 
-	if (!chain_index) {
-		/* We only need ruleset with chain index 0, the implicit one,
-		 * to be directly bound to device. The rest of the rulesets
-		 * are bound by "Goto action set".
-		 */
-		err = mlxsw_sp_acl_ruleset_block_bind(mlxsw_sp, ruleset, block);
-		if (err)
-			goto err_ruleset_bind;
-	}
-
 	return ruleset;
 
-err_ruleset_bind:
-	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
-			       mlxsw_sp_acl_ruleset_ht_params);
 err_ht_insert:
 	ops->ruleset_del(mlxsw_sp, ruleset->priv);
 err_ops_ruleset_add:
@@ -369,12 +363,8 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_ruleset *ruleset)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
-	struct mlxsw_sp_acl_block *block = ruleset->ht_key.block;
-	u32 chain_index = ruleset->ht_key.chain_index;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
-	if (!chain_index)
-		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset, block);
 	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
 			       mlxsw_sp_acl_ruleset_ht_params);
 	ops->ruleset_del(mlxsw_sp, ruleset->priv);
@@ -577,7 +567,6 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 				  struct net_device *out_dev)
 {
 	struct mlxsw_sp_acl_block_binding *binding;
-	struct mlxsw_sp_port *out_port;
 	struct mlxsw_sp_port *in_port;
 
 	if (!list_is_singular(&block->binding_list))
@@ -586,16 +575,10 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_acl_block_binding, list);
 	in_port = binding->mlxsw_sp_port;
-	if (!mlxsw_sp_port_dev_check(out_dev))
-		return -EINVAL;
-
-	out_port = netdev_priv(out_dev);
-	if (out_port->mlxsw_sp != mlxsw_sp)
-		return -EINVAL;
 
 	return mlxsw_afa_block_append_mirror(rulei->act_block,
 					     in_port->local_port,
-					     out_port->local_port,
+					     out_dev,
 					     binding->ingress);
 }
 
@@ -700,10 +683,25 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_insert;
 
+	if (!ruleset->ht_key.chain_index &&
+	    mlxsw_sp_acl_ruleset_is_singular(ruleset)) {
+		/* We only need ruleset with chain index 0, the implicit
+		 * one, to be directly bound to device. The rest of the
+		 * rulesets are bound by "Goto action set".
+		 */
+		err = mlxsw_sp_acl_ruleset_block_bind(mlxsw_sp, ruleset,
+						      ruleset->ht_key.block);
+		if (err)
+			goto err_ruleset_block_bind;
+	}
+
 	list_add_tail(&rule->list, &mlxsw_sp->acl->rules);
 	ruleset->ht_key.block->rule_count++;
 	return 0;
 
+err_ruleset_block_bind:
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+			       mlxsw_sp_acl_rule_ht_params);
 err_rhashtable_insert:
 	ops->rule_del(mlxsw_sp, rule->priv);
 	return err;
@@ -717,6 +715,10 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset->ht_key.block->rule_count--;
 	list_del(&rule->list);
+	if (!ruleset->ht_key.chain_index &&
+	    mlxsw_sp_acl_ruleset_is_singular(ruleset))
+		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset,
+						  ruleset->ht_key.block);
 	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);

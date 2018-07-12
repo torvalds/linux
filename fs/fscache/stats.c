@@ -21,7 +21,6 @@
 atomic_t fscache_n_op_pend;
 atomic_t fscache_n_op_run;
 atomic_t fscache_n_op_enqueue;
-atomic_t fscache_n_op_requeue;
 atomic_t fscache_n_op_deferred_release;
 atomic_t fscache_n_op_initialised;
 atomic_t fscache_n_op_release;

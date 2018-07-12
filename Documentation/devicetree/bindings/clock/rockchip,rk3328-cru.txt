@@ -32,6 +32,7 @@ clock-output-names:
  - "clkin_i2s" - external I2S clock - optional,
  - "gmac_clkin" - external GMAC clock - optional
  - "phy_50m_out" - output clock of the pll in the mac phy
+ - "hdmi_phy" - output clock of the hdmi phy pll - optional
 
 Example: Clock controller node:
 

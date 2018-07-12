@@ -68,25 +68,27 @@ typedef struct dasd_information2_t {
 #define DASD_FORMAT_CDL  2
 /*
  * values to be used for dasd_information_t.features
- * 0x00: default features
- * 0x01: readonly (ro)
- * 0x02: use diag discipline (diag)
- * 0x04: set the device initially online (internal use only)
- * 0x08: enable ERP related logging
- * 0x10: allow I/O to fail on lost paths
- * 0x20: allow I/O to fail when a lock was stolen
- * 0x40: give access to raw eckd data
- * 0x80: enable discard support
+ * 0x100: default features
+ * 0x001: readonly (ro)
+ * 0x002: use diag discipline (diag)
+ * 0x004: set the device initially online (internal use only)
+ * 0x008: enable ERP related logging
+ * 0x010: allow I/O to fail on lost paths
+ * 0x020: allow I/O to fail when a lock was stolen
+ * 0x040: give access to raw eckd data
+ * 0x080: enable discard support
+ * 0x100: enable autodisable for IFCC errors (default)
  */
-#define DASD_FEATURE_DEFAULT	     0x00
-#define DASD_FEATURE_READONLY	     0x01
-#define DASD_FEATURE_USEDIAG	     0x02
-#define DASD_FEATURE_INITIAL_ONLINE  0x04
-#define DASD_FEATURE_ERPLOG	     0x08
-#define DASD_FEATURE_FAILFAST	     0x10
-#define DASD_FEATURE_FAILONSLCK      0x20
-#define DASD_FEATURE_USERAW	     0x40
-#define DASD_FEATURE_DISCARD	     0x80
+#define DASD_FEATURE_READONLY	      0x001
+#define DASD_FEATURE_USEDIAG	      0x002
+#define DASD_FEATURE_INITIAL_ONLINE   0x004
+#define DASD_FEATURE_ERPLOG	      0x008
+#define DASD_FEATURE_FAILFAST	      0x010
+#define DASD_FEATURE_FAILONSLCK       0x020
+#define DASD_FEATURE_USERAW	      0x040
+#define DASD_FEATURE_DISCARD	      0x080
+#define DASD_FEATURE_PATH_AUTODISABLE 0x100
+#define DASD_FEATURE_DEFAULT	      DASD_FEATURE_PATH_AUTODISABLE
 
 #define DASD_PARTN_BITS 2
 

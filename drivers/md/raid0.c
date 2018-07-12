@@ -399,9 +399,9 @@ static int raid0_run(struct mddev *mddev)
 				discard_supported = true;
 		}
 		if (!discard_supported)
-			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+			blk_queue_flag_clear(QUEUE_FLAG_DISCARD, mddev->queue);
 		else
-			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+			blk_queue_flag_set(QUEUE_FLAG_DISCARD, mddev->queue);
 	}
 
 	/* calculate array device size */

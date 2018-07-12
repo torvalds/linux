@@ -118,6 +118,9 @@ struct skl_sst {
 	struct skl_d0i3_data d0i3;
 
 	const struct skl_dsp_ops *dsp_ops;
+
+	/* Callback to update dynamic clock and power gating registers */
+	void (*clock_power_gating)(struct device *dev, bool enable);
 };
 
 struct skl_ipc_init_instance_msg {

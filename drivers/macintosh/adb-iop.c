@@ -53,13 +53,13 @@ static void adb_iop_poll(void);
 static int adb_iop_reset_bus(void);
 
 struct adb_driver adb_iop_driver = {
-	"ISM IOP",
-	adb_iop_probe,
-	adb_iop_init,
-	adb_iop_send_request,
-	adb_iop_autopoll,
-	adb_iop_poll,
-	adb_iop_reset_bus
+	.name         = "ISM IOP",
+	.probe        = adb_iop_probe,
+	.init         = adb_iop_init,
+	.send_request = adb_iop_send_request,
+	.autopoll     = adb_iop_autopoll,
+	.poll         = adb_iop_poll,
+	.reset_bus    = adb_iop_reset_bus
 };
 
 static void adb_iop_end_req(struct adb_request *req, int state)

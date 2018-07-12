@@ -274,7 +274,7 @@ static int rcar_drif_alloc_dmachannels(struct rcar_drif_sdr *sdr)
 {
 	struct dma_slave_config dma_cfg;
 	unsigned int i;
-	int ret = -ENODEV;
+	int ret;
 
 	for_each_rcar_drif_channel(i, &sdr->cur_ch_mask) {
 		struct rcar_drif *ch = sdr->ch[i];
@@ -282,6 +282,7 @@ static int rcar_drif_alloc_dmachannels(struct rcar_drif_sdr *sdr)
 		ch->dmach = dma_request_slave_channel(&ch->pdev->dev, "rx");
 		if (!ch->dmach) {
 			rdrif_err(sdr, "ch%u: dma channel req failed\n", i);
+			ret = -ENODEV;
 			goto dmach_error;
 		}
 

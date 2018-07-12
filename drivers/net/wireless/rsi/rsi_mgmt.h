@@ -57,12 +57,14 @@
 #define WOW_PATTERN_SIZE 256
 
 /* Receive Frame Types */
+#define RSI_RX_DESC_MSG_TYPE_OFFSET	2
 #define TA_CONFIRM_TYPE                 0x01
 #define RX_DOT11_MGMT                   0x02
 #define TX_STATUS_IND                   0x04
 #define BEACON_EVENT_IND		0x08
 #define PROBEREQ_CONFIRM                2
 #define CARD_READY_IND                  0x00
+#define SLEEP_NOTIFY_IND                0x06
 
 #define RSI_DELETE_PEER                 0x0
 #define RSI_ADD_PEER                    0x1
@@ -638,6 +640,7 @@ static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
 	*addr = cpu_to_le16(len | ((qno & 7) << 12));
 }
 
+int rsi_handle_card_ready(struct rsi_common *common, u8 *msg);
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
 int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
 			     u8 *mac_addr, u8 vap_id, u8 vap_status);

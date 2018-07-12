@@ -201,7 +201,7 @@ enum {
 			 phy_state == BE_PHY_UNQUALIFIED ||	\
 			 phy_state == BE_PHY_UNCERTIFIED)
 
-extern  char *be_misconfig_evt_port_state[];
+extern const  char * const be_misconfig_evt_port_state[];
 
 /* async event indicating misconfigured port */
 struct be_async_event_misconfig_port {

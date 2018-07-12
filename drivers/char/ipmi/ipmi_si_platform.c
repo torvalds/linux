@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_si_platform.c
  *
@@ -50,14 +51,6 @@ MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the"
 #endif
 
 #ifdef CONFIG_ACPI
-
-/*
- * Once we get an ACPI failure, we don't try any more, because we go
- * through the tables sequentially.  Once we don't find a table, there
- * are no more.
- */
-static int acpi_failure;
-
 /* For GPE-type interrupts. */
 static u32 ipmi_acpi_gpe(acpi_handle gpe_device,
 	u32 gpe_number, void *context)
@@ -100,146 +93,6 @@ static int acpi_gpe_irq_setup(struct si_sm_io *io)
 		ipmi_irq_finish_setup(io);
 		dev_info(io->dev, "Using ACPI GPE %d\n", io->irq);
 		return 0;
-	}
-}
-
-/*
- * Defined at
- * http://h21007.www2.hp.com/portal/download/files/unprot/hpspmi.pdf
- */
-struct SPMITable {
-	s8	Signature[4];
-	u32	Length;
-	u8	Revision;
-	u8	Checksum;
-	s8	OEMID[6];
-	s8	OEMTableID[8];
-	s8	OEMRevision[4];
-	s8	CreatorID[4];
-	s8	CreatorRevision[4];
-	u8	InterfaceType;
-	u8	IPMIlegacy;
-	s16	SpecificationRevision;
-
-	/*
-	 * Bit 0 - SCI interrupt supported
-	 * Bit 1 - I/O APIC/SAPIC
-	 */
-	u8	InterruptType;
-
-	/*
-	 * If bit 0 of InterruptType is set, then this is the SCI
-	 * interrupt in the GPEx_STS register.
-	 */
-	u8	GPE;
-
-	s16	Reserved;
-
-	/*
-	 * If bit 1 of InterruptType is set, then this is the I/O
-	 * APIC/SAPIC interrupt.
-	 */
-	u32	GlobalSystemInterrupt;
-
-	/* The actual register address. */
-	struct acpi_generic_address addr;
-
-	u8	UID[4];
-
-	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
-};
-
-static int try_init_spmi(struct SPMITable *spmi)
-{
-	struct si_sm_io io;
-
-	if (spmi->IPMIlegacy != 1) {
-		pr_info(PFX "Bad SPMI legacy %d\n", spmi->IPMIlegacy);
-		return -ENODEV;
-	}
-
-	memset(&io, 0, sizeof(io));
-	io.addr_source = SI_SPMI;
-	pr_info(PFX "probing via SPMI\n");
-
-	/* Figure out the interface type. */
-	switch (spmi->InterfaceType) {
-	case 1:	/* KCS */
-		io.si_type = SI_KCS;
-		break;
-	case 2:	/* SMIC */
-		io.si_type = SI_SMIC;
-		break;
-	case 3:	/* BT */
-		io.si_type = SI_BT;
-		break;
-	case 4: /* SSIF, just ignore */
-		return -EIO;
-	default:
-		pr_info(PFX "Unknown ACPI/SPMI SI type %d\n",
-			spmi->InterfaceType);
-		return -EIO;
-	}
-
-	if (spmi->InterruptType & 1) {
-		/* We've got a GPE interrupt. */
-		io.irq = spmi->GPE;
-		io.irq_setup = acpi_gpe_irq_setup;
-	} else if (spmi->InterruptType & 2) {
-		/* We've got an APIC/SAPIC interrupt. */
-		io.irq = spmi->GlobalSystemInterrupt;
-		io.irq_setup = ipmi_std_irq_setup;
-	} else {
-		/* Use the default interrupt setting. */
-		io.irq = 0;
-		io.irq_setup = NULL;
-	}
-
-	if (spmi->addr.bit_width) {
-		/* A (hopefully) properly formed register bit width. */
-		io.regspacing = spmi->addr.bit_width / 8;
-	} else {
-		io.regspacing = DEFAULT_REGSPACING;
-	}
-	io.regsize = io.regspacing;
-	io.regshift = spmi->addr.bit_offset;
-
-	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		io.addr_type = IPMI_MEM_ADDR_SPACE;
-	} else if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
-		io.addr_type = IPMI_IO_ADDR_SPACE;
-	} else {
-		pr_warn(PFX "Unknown ACPI I/O Address type\n");
-		return -EIO;
-	}
-	io.addr_data = spmi->addr.address;
-
-	pr_info("ipmi_si: SPMI: %s %#lx regsize %d spacing %d irq %d\n",
-		(io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
-		io.addr_data, io.regsize, io.regspacing, io.irq);
-
-	return ipmi_si_add_smi(&io);
-}
-
-static void spmi_find_bmc(void)
-{
-	acpi_status      status;
-	struct SPMITable *spmi;
-	int              i;
-
-	if (acpi_disabled)
-		return;
-
-	if (acpi_failure)
-		return;
-
-	for (i = 0; ; i++) {
-		status = acpi_get_table(ACPI_SIG_SPMI, i+1,
-					(struct acpi_table_header **)&spmi);
-		if (status != AE_OK)
-			return;
-
-		try_init_spmi(spmi);
 	}
 }
 #endif
@@ -579,12 +432,6 @@ void ipmi_si_platform_init(void)
 	int rv = platform_driver_register(&ipmi_platform_driver);
 	if (rv)
 		pr_err(PFX "Unable to register driver: %d\n", rv);
-
-#ifdef CONFIG_ACPI
-	if (si_tryacpi)
-		spmi_find_bmc();
-#endif
-
 }
 
 void ipmi_si_platform_shutdown(void)

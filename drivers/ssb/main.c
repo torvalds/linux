@@ -522,7 +522,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 			/* Set dev to NULL to not unregister
 			 * dev on error unwinding. */
 			sdev->dev = NULL;
-			kfree(devwrap);
+			put_device(dev);
 			goto error;
 		}
 		dev_idx++;
@@ -1116,7 +1116,7 @@ static bool ssb_dma_translation_special_bit(struct ssb_device *dev)
 			chip_id == 43231 || chip_id == 43222);
 	}
 
-	return 0;
+	return false;
 }
 
 u32 ssb_dma_translation(struct ssb_device *dev)

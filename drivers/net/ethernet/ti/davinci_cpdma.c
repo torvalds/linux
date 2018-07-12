@@ -1164,7 +1164,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		outlen -= CPDMA_DESC_CRC_LEN;
 
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
-			    CPDMA_DESC_PORT_MASK);
+			    CPDMA_DESC_PORT_MASK | CPDMA_RX_VLAN_ENCAP);
 
 	chan->head = desc_from_phys(pool, desc_read(desc, hw_next));
 	chan_write(chan, cp, desc_dma);

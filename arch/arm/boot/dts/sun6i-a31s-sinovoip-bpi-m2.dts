@@ -120,8 +120,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bpi_m2>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 0 4 GPIO_ACTIVE_HIGH>; /* PA4 */
-	cd-inverted;
+	cd-gpios = <&pio 0 4 GPIO_ACTIVE_LOW>; /* PA4 */
 	status = "okay";
 };
 

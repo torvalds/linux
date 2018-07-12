@@ -53,17 +53,17 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 
 /* GEM Object Creation and Deletion */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
-		union omap_gem_size gsize, uint32_t flags);
+		union omap_gem_size gsize, u32 flags);
 struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 		struct sg_table *sgt);
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		union omap_gem_size gsize, uint32_t flags, uint32_t *handle);
+		union omap_gem_size gsize, u32 flags, u32 *handle);
 void omap_gem_free_object(struct drm_gem_object *obj);
 void *omap_gem_vaddr(struct drm_gem_object *obj);
 
 /* Dumb Buffers Interface */
 int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle, uint64_t *offset);
+		u32 handle, u64 *offset);
 int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 		struct drm_mode_create_dumb *args);
 
@@ -71,7 +71,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		struct vm_area_struct *vma);
-uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
+u64 omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
 
 /* PRIME Interface */
@@ -81,7 +81,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 
 int omap_gem_fault(struct vm_fault *vmf);
-int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll);
+int omap_gem_roll(struct drm_gem_object *obj, u32 roll);
 void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff);
 void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 		enum dma_data_direction dir);
@@ -91,9 +91,9 @@ int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		bool remap);
 int omap_gem_put_pages(struct drm_gem_object *obj);
 
-uint32_t omap_gem_flags(struct drm_gem_object *obj);
-int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, uint32_t orient,
+u32 omap_gem_flags(struct drm_gem_object *obj);
+int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
 		int x, int y, dma_addr_t *dma_addr);
-int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient);
+int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient);
 
 #endif /* __OMAPDRM_GEM_H__ */

@@ -909,8 +909,8 @@ enum nft_rt_attributes {
  * @NFT_CT_EXPIRATION: relative conntrack expiration time in ms
  * @NFT_CT_HELPER: connection tracking helper assigned to conntrack
  * @NFT_CT_L3PROTOCOL: conntrack layer 3 protocol
- * @NFT_CT_SRC: conntrack layer 3 protocol source (IPv4/IPv6 address)
- * @NFT_CT_DST: conntrack layer 3 protocol destination (IPv4/IPv6 address)
+ * @NFT_CT_SRC: conntrack layer 3 protocol source (IPv4/IPv6 address, deprecated)
+ * @NFT_CT_DST: conntrack layer 3 protocol destination (IPv4/IPv6 address, deprecated)
  * @NFT_CT_PROTOCOL: conntrack layer 4 protocol
  * @NFT_CT_PROTO_SRC: conntrack layer 4 protocol source
  * @NFT_CT_PROTO_DST: conntrack layer 4 protocol destination
@@ -920,6 +920,10 @@ enum nft_rt_attributes {
  * @NFT_CT_AVGPKT: conntrack average bytes per packet
  * @NFT_CT_ZONE: conntrack zone
  * @NFT_CT_EVENTMASK: ctnetlink events to be generated for this conntrack
+ * @NFT_CT_SRC_IP: conntrack layer 3 protocol source (IPv4 address)
+ * @NFT_CT_DST_IP: conntrack layer 3 protocol destination (IPv4 address)
+ * @NFT_CT_SRC_IP6: conntrack layer 3 protocol source (IPv6 address)
+ * @NFT_CT_DST_IP6: conntrack layer 3 protocol destination (IPv6 address)
  */
 enum nft_ct_keys {
 	NFT_CT_STATE,
@@ -941,6 +945,10 @@ enum nft_ct_keys {
 	NFT_CT_AVGPKT,
 	NFT_CT_ZONE,
 	NFT_CT_EVENTMASK,
+	NFT_CT_SRC_IP,
+	NFT_CT_DST_IP,
+	NFT_CT_SRC_IP6,
+	NFT_CT_DST_IP6,
 };
 
 /**

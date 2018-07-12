@@ -877,15 +877,6 @@ static int kvm_unmap_rmapp(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return 0;
 }
 
-int kvm_unmap_hva_hv(struct kvm *kvm, unsigned long hva)
-{
-	hva_handler_fn handler;
-
-	handler = kvm_is_radix(kvm) ? kvm_unmap_radix : kvm_unmap_rmapp;
-	kvm_handle_hva(kvm, hva, handler);
-	return 0;
-}
-
 int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start, unsigned long end)
 {
 	hva_handler_fn handler;

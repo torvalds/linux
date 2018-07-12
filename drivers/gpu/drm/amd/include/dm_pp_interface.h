@@ -23,7 +23,7 @@
 #ifndef _DM_PP_INTERFACE_
 #define _DM_PP_INTERFACE_
 
-#define PP_MAX_CLOCK_LEVELS 8
+#define PP_MAX_CLOCK_LEVELS 16
 
 enum amd_pp_display_config_type{
 	AMD_PP_DisplayConfigType_None = 0,

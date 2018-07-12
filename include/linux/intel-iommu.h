@@ -209,12 +209,12 @@
 #define DMA_FECTL_IM (((u32)1) << 31)
 
 /* FSTS_REG */
-#define DMA_FSTS_PPF ((u32)2)
-#define DMA_FSTS_PFO ((u32)1)
-#define DMA_FSTS_IQE (1 << 4)
-#define DMA_FSTS_ICE (1 << 5)
-#define DMA_FSTS_ITE (1 << 6)
-#define DMA_FSTS_PRO (1 << 7)
+#define DMA_FSTS_PFO (1 << 0) /* Primary Fault Overflow */
+#define DMA_FSTS_PPF (1 << 1) /* Primary Pending Fault */
+#define DMA_FSTS_IQE (1 << 4) /* Invalidation Queue Error */
+#define DMA_FSTS_ICE (1 << 5) /* Invalidation Completion Error */
+#define DMA_FSTS_ITE (1 << 6) /* Invalidation Time-out Error */
+#define DMA_FSTS_PRO (1 << 7) /* Page Request Overflow */
 #define dma_fsts_fault_record_index(s) (((s) >> 8) & 0xff)
 
 /* FRCD_REG, 32 bits access */

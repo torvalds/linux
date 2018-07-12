@@ -197,17 +197,14 @@ ptlrpcd_select_pc(struct ptlrpc_request *req)
 static int ptlrpcd_steal_rqset(struct ptlrpc_request_set *des,
 			       struct ptlrpc_request_set *src)
 {
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *tmp;
 	int rc = 0;
 
 	spin_lock(&src->set_new_req_lock);
 	if (likely(!list_empty(&src->set_new_requests))) {
-		list_for_each_safe(pos, tmp, &src->set_new_requests) {
-			req = list_entry(pos, struct ptlrpc_request,
-					 rq_set_chain);
+		list_for_each_entry_safe(req, tmp, &src->set_new_requests, rq_set_chain)
 			req->rq_set = des;
-		}
+
 		list_splice_init(&src->set_new_requests, &des->set_requests);
 		rc = atomic_read(&src->set_new_count);
 		atomic_add(rc, &des->set_remaining);
@@ -230,12 +227,13 @@ void ptlrpcd_add_req(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (req->rq_invalid_rqset) {
-		struct l_wait_info lwi = LWI_TIMEOUT(cfs_time_seconds(5),
-						     back_to_sleep, NULL);
-
 		req->rq_invalid_rqset = 0;
 		spin_unlock(&req->rq_lock);
-		l_wait_event(req->rq_set_waitq, !req->rq_set, &lwi);
+		if (wait_event_idle_timeout(req->rq_set_waitq,
+					    !req->rq_set,
+					    5 * HZ) == 0)
+			wait_event_idle(req->rq_set_waitq,
+					!req->rq_set);
 	} else if (req->rq_set) {
 		/* If we have a valid "rq_set", just reuse it to avoid double
 		 * linked.
@@ -272,8 +270,7 @@ static inline void ptlrpc_reqset_get(struct ptlrpc_request_set *set)
  */
 static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 {
-	struct list_head *tmp, *pos;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req, *tmp;
 	struct ptlrpc_request_set *set = pc->pc_set;
 	int rc = 0;
 	int rc2;
@@ -319,8 +316,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 	/* NB: ptlrpc_check_set has already moved completed request at the
 	 * head of seq::set_requests
 	 */
-	list_for_each_safe(pos, tmp, &set->set_requests) {
-		req = list_entry(pos, struct ptlrpc_request, rq_set_chain);
+	list_for_each_entry_safe(req, tmp, &set->set_requests, rq_set_chain) {
 		if (req->rq_phase != RQ_PHASE_COMPLETE)
 			break;
 
@@ -434,16 +430,17 @@ static int ptlrpcd(void *arg)
 	 * new_req_list and ptlrpcd_check() moves them into the set.
 	 */
 	do {
-		struct l_wait_info lwi;
 		int timeout;
 
 		timeout = ptlrpc_set_next_timeout(set);
-		lwi = LWI_TIMEOUT(cfs_time_seconds(timeout ? timeout : 1),
-				  ptlrpc_expired_set, set);
 
 		lu_context_enter(&env.le_ctx);
 		lu_context_enter(env.le_ses);
-		l_wait_event(set->set_waitq, ptlrpcd_check(&env, pc), &lwi);
+		if (wait_event_idle_timeout(set->set_waitq,
+					    ptlrpcd_check(&env, pc),
+					    (timeout ? timeout : 1) * HZ) == 0)
+			ptlrpc_expired_set(set);
+
 		lu_context_exit(&env.le_ctx);
 		lu_context_exit(env.le_ses);
 

@@ -697,6 +697,314 @@ union meson_hdmi_venc_mode meson_hdmi_encp_mode_1080p60 = {
 	},
 };
 
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_640x480_60 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 0x31f,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 0x90,
+		.havon_end = 0x30f,
+		.vavon_bline = 0x23,
+		.vavon_eline = 0x202,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 0x60,
+		.vso_begin = 0x1e,
+		.vso_end = 0x32,
+		.vso_bline = 0,
+		.vso_eline = 2,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 0x20c,
+	},
+};
+
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_800x600_60 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 0x41f,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 0xD8,
+		.havon_end = 0x3f7,
+		.vavon_bline = 0x1b,
+		.vavon_eline = 0x272,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 0x80,
+		.vso_begin = 0x1e,
+		.vso_end = 0x32,
+		.vso_bline = 0,
+		.vso_eline = 4,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 0x273,
+	},
+};
+
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_1024x768_60 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 1343,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 296,
+		.havon_end = 1319,
+		.vavon_bline = 35,
+		.vavon_eline = 802,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 136,
+		.vso_begin = 30,
+		.vso_end = 50,
+		.vso_bline = 0,
+		.vso_eline = 6,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 805,
+	},
+};
+
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_1152x864_75 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 0x63f,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 0x180,
+		.havon_end = 0x5ff,
+		.vavon_bline = 0x23,
+		.vavon_eline = 0x382,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 0x80,
+		.vso_begin = 0x1e,
+		.vso_end = 0x32,
+		.vso_bline = 0,
+		.vso_eline = 3,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 0x383,
+	},
+};
+
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_1280x1024_60 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 0x697,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 0x168,
+		.havon_end = 0x667,
+		.vavon_bline = 0x29,
+		.vavon_eline = 0x428,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 0x70,
+		.vso_begin = 0x1e,
+		.vso_end = 0x32,
+		.vso_bline = 0,
+		.vso_eline = 3,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 0x429,
+	},
+};
+
+union meson_hdmi_venc_mode meson_hdmi_encp_mode_1600x1200_60 = {
+	.encp = {
+		.dvi_settings = 0x21,
+		.video_mode = 0x4040,
+		.video_mode_adv = 0x18,
+		/* video_prog_mode */
+		/* video_sync_mode */
+		/* video_yc_dly */
+		/* video_rgb_ctrl */
+		/* video_filt_ctrl */
+		/* video_ofld_voav_ofst */
+		/* yfp1_htime */
+		/* yfp2_htime */
+		.max_pxcnt = 0x86f,
+		/* hspuls_begin */
+		/* hspuls_end */
+		/* hspuls_switch */
+		/* vspuls_begin */
+		/* vspuls_end */
+		/* vspuls_bline */
+		/* vspuls_eline */
+		.havon_begin = 0x1f0,
+		.havon_end = 0x82f,
+		.vavon_bline = 0x31,
+		.vavon_eline = 0x4e0,
+		/* eqpuls_begin */
+		/* eqpuls_end */
+		/* eqpuls_bline */
+		/* eqpuls_eline */
+		.hso_begin = 0,
+		.hso_end = 0xc0,
+		.vso_begin = 0x1e,
+		.vso_end = 0x32,
+		.vso_bline = 0,
+		.vso_eline = 3,
+		.vso_eline_present = true,
+		/* sy_val */
+		/* sy2_val */
+		.max_lncnt = 0x4e1,
+	},
+};
+
+struct meson_hdmi_venc_dmt_mode {
+	struct drm_display_mode drm_mode;
+	union meson_hdmi_venc_mode *mode;
+} meson_hdmi_venc_dmt_modes[] = {
+	/* 640x480@60Hz */
+	{
+		{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
+		  752, 800, 0, 480, 490, 492, 525, 0,
+		  DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
+		&meson_hdmi_encp_mode_640x480_60,
+	},
+	/* 800x600@60Hz */
+	{
+		{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
+		  968, 1056, 0, 600, 601, 605, 628, 0,
+		  DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
+		&meson_hdmi_encp_mode_800x600_60,
+	},
+	/* 1024x768@60Hz */
+	{
+		{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 65000, 1024,
+		  1048, 1184, 1344, 0, 768, 771, 777, 806, 0,
+		  DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
+		&meson_hdmi_encp_mode_1024x768_60,
+	},
+	/* 1152x864@75Hz */
+	{
+		{ DRM_MODE("1152x864", DRM_MODE_TYPE_DRIVER, 108000, 1152,
+		  1216, 1344, 1600, 0, 864, 865, 868, 900, 0,
+		  DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
+		&meson_hdmi_encp_mode_1152x864_75,
+	},
+	/* 1280x1024@60Hz */
+	{
+		{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 108000, 1280,
+		  1328, 1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
+		  DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
+		&meson_hdmi_encp_mode_1280x1024_60,
+	},
+	/* 1600x1200@60Hz */
+	{
+		{ DRM_MODE("1600x1200", DRM_MODE_TYPE_DRIVER, 162000, 1600,
+		  1664, 1856, 2160, 0, 1200, 1201, 1204, 1250, 0,
+		  DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
+		&meson_hdmi_encp_mode_1600x1200_60,
+	},
+	/* 1920x1080@60Hz */
+	{
+		{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920,
+		  2008, 2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
+		  DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
+		&meson_hdmi_encp_mode_1080p60
+	},
+	{ }, /* sentinel */
+};
+
 struct meson_hdmi_venc_vic_mode {
 	unsigned int vic;
 	union meson_hdmi_venc_mode *mode;
@@ -736,6 +1044,20 @@ static unsigned long modulo(unsigned long a, unsigned long b)
 		return a;
 }
 
+bool meson_venc_hdmi_supported_mode(const struct drm_display_mode *mode)
+{
+	struct meson_hdmi_venc_dmt_mode *vmode = meson_hdmi_venc_dmt_modes;
+
+	while (vmode->mode) {
+		if (drm_mode_equal(&vmode->drm_mode, mode))
+			return true;
+		vmode++;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(meson_venc_hdmi_supported_mode);
+
 bool meson_venc_hdmi_supported_vic(int vic)
 {
 	struct meson_hdmi_venc_vic_mode *vmode = meson_hdmi_venc_vic_modes;
@@ -749,6 +1071,20 @@ bool meson_venc_hdmi_supported_vic(int vic)
 	return false;
 }
 EXPORT_SYMBOL_GPL(meson_venc_hdmi_supported_vic);
+
+static union meson_hdmi_venc_mode
+*meson_venc_hdmi_get_dmt_vmode(const struct drm_display_mode *mode)
+{
+	struct meson_hdmi_venc_dmt_mode *vmode = meson_hdmi_venc_dmt_modes;
+
+	while (vmode->mode) {
+		if (drm_mode_equal(&vmode->drm_mode, mode))
+			return vmode->mode;
+		vmode++;
+	}
+
+	return NULL;
+}
 
 static union meson_hdmi_venc_mode *meson_venc_hdmi_get_vic_vmode(int vic)
 {
@@ -811,10 +1147,13 @@ void meson_venc_hdmi_mode_set(struct meson_drm *priv, int vic,
 	unsigned int sof_lines;
 	unsigned int vsync_lines;
 
-	vmode = meson_venc_hdmi_get_vic_vmode(vic);
+	if (meson_venc_hdmi_supported_vic(vic))
+		vmode = meson_venc_hdmi_get_vic_vmode(vic);
+	else
+		vmode = meson_venc_hdmi_get_dmt_vmode(mode);
 	if (!vmode) {
-		dev_err(priv->dev, "%s: Fatal Error, unsupported vic %d\n",
-			__func__, vic);
+		dev_err(priv->dev, "%s: Fatal Error, unsupported mode "
+			DRM_MODE_FMT "\n", __func__, DRM_MODE_ARG(mode));
 		return;
 	}
 
@@ -864,7 +1203,7 @@ void meson_venc_hdmi_mode_set(struct meson_drm *priv, int vic,
 		hsync_pixels_venc *= 2;
 
 	/* Disable VDACs */
-	writel_bits_relaxed(0x1f, 0x1f,
+	writel_bits_relaxed(0xff, 0xff,
 			priv->io_base + _REG(VENC_VDAC_SETTING));
 
 	writel_relaxed(0, priv->io_base + _REG(ENCI_VIDEO_EN));

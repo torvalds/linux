@@ -1587,11 +1587,11 @@ int io_thread(void *arg)
 
 		do {
 			res = os_write_file(kernel_fd, ((char *) io_req_buffer) + written, n);
-			if (res > 0) {
+			if (res >= 0) {
 				written += res;
 			} else {
 				if (res != -EAGAIN) {
-					printk("io_thread - read failed, fd = %d, "
+					printk("io_thread - write failed, fd = %d, "
 					       "err = %d\n", kernel_fd, -n);
 				}
 			}

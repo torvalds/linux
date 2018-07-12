@@ -206,9 +206,9 @@ inline void flush_dcache_page_impl(struct page *page)
 #ifdef DCACHE_ALIASING_POSSIBLE
 	__flush_dcache_page(page_address(page),
 			    ((tlb_type == spitfire) &&
-			     page_mapping(page) != NULL));
+			     page_mapping_file(page) != NULL));
 #else
-	if (page_mapping(page) != NULL &&
+	if (page_mapping_file(page) != NULL &&
 	    tlb_type == spitfire)
 		__flush_icache_page(__pa(page_address(page)));
 #endif
@@ -490,7 +490,7 @@ void flush_dcache_page(struct page *page)
 
 	this_cpu = get_cpu();
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 	if (mapping && !mapping_mapped(mapping)) {
 		int dirty = test_bit(PG_dcache_dirty, &page->flags);
 		if (dirty) {
@@ -3160,3 +3160,72 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		do_flush_tlb_kernel_range(start, end);
 	}
 }
+
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
+{
+	char *vfrom, *vto;
+
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
+	copy_user_page(vto, vfrom, vaddr, to);
+	kunmap_atomic(vto);
+	kunmap_atomic(vfrom);
+
+	/* If this page has ADI enabled, copy over any ADI tags
+	 * as well
+	 */
+	if (vma->vm_flags & VM_SPARC_ADI) {
+		unsigned long pfrom, pto, i, adi_tag;
+
+		pfrom = page_to_phys(from);
+		pto = page_to_phys(to);
+
+		for (i = pfrom; i < (pfrom + PAGE_SIZE); i += adi_blksize()) {
+			asm volatile("ldxa [%1] %2, %0\n\t"
+					: "=r" (adi_tag)
+					:  "r" (i), "i" (ASI_MCD_REAL));
+			asm volatile("stxa %0, [%1] %2\n\t"
+					:
+					: "r" (adi_tag), "r" (pto),
+					  "i" (ASI_MCD_REAL));
+			pto += adi_blksize();
+		}
+		asm volatile("membar #Sync\n\t");
+	}
+}
+EXPORT_SYMBOL(copy_user_highpage);
+
+void copy_highpage(struct page *to, struct page *from)
+{
+	char *vfrom, *vto;
+
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
+	copy_page(vto, vfrom);
+	kunmap_atomic(vto);
+	kunmap_atomic(vfrom);
+
+	/* If this platform is ADI enabled, copy any ADI tags
+	 * as well
+	 */
+	if (adi_capable()) {
+		unsigned long pfrom, pto, i, adi_tag;
+
+		pfrom = page_to_phys(from);
+		pto = page_to_phys(to);
+
+		for (i = pfrom; i < (pfrom + PAGE_SIZE); i += adi_blksize()) {
+			asm volatile("ldxa [%1] %2, %0\n\t"
+					: "=r" (adi_tag)
+					:  "r" (i), "i" (ASI_MCD_REAL));
+			asm volatile("stxa %0, [%1] %2\n\t"
+					:
+					: "r" (adi_tag), "r" (pto),
+					  "i" (ASI_MCD_REAL));
+			pto += adi_blksize();
+		}
+		asm volatile("membar #Sync\n\t");
+	}
+}
+EXPORT_SYMBOL(copy_highpage);

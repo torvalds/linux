@@ -171,6 +171,7 @@ void dma_fence_release(struct kref *kref)
 
 	trace_dma_fence_destroy(fence);
 
+	/* Failed to signal before release, could be a refcounting issue */
 	WARN_ON(!list_empty(&fence->cb_list));
 
 	if (fence->ops->release)

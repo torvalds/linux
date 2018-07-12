@@ -428,10 +428,8 @@ static int __init imx6_pm_get_base(struct imx6_pm_base *base,
 	int ret = 0;
 
 	node = of_find_compatible_node(NULL, NULL, compat);
-	if (!node) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!node)
+		return -ENODEV;
 
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret)
@@ -444,7 +442,6 @@ static int __init imx6_pm_get_base(struct imx6_pm_base *base,
 
 put_node:
 	of_node_put(node);
-out:
 	return ret;
 }
 

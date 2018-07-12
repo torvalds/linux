@@ -748,7 +748,6 @@ xfs_qm_qino_alloc(
 {
 	xfs_trans_t	*tp;
 	int		error;
-	int		committed;
 	bool		need_alloc = true;
 
 	*ip = NULL;
@@ -788,8 +787,7 @@ xfs_qm_qino_alloc(
 		return error;
 
 	if (need_alloc) {
-		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, ip,
-				&committed);
+		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, ip);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;

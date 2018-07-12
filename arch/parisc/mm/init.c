@@ -516,7 +516,7 @@ static void __init map_pages(unsigned long start_vaddr,
 	}
 }
 
-void free_initmem(void)
+void __ref free_initmem(void)
 {
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;

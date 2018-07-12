@@ -136,7 +136,7 @@ struct out_csc_color_matrix {
 enum opp_regamma {
 	OPP_REGAMMA_BYPASS = 0,
 	OPP_REGAMMA_SRGB,
-	OPP_REGAMMA_3_6,
+	OPP_REGAMMA_XVYCC,
 	OPP_REGAMMA_USER
 };
 

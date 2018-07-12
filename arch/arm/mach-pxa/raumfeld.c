@@ -346,11 +346,9 @@ static struct mtd_partition raumfeld_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data raumfeld_nand_info = {
-	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.num_cs		= 1,
-	.parts[0]	= raumfeld_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(raumfeld_nand_partitions),
+	.parts		= raumfeld_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(raumfeld_nand_partitions),
 };
 
 /**
@@ -378,9 +376,9 @@ static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
 };
 
 static const struct property_entry raumfeld_rotary_properties[] __initconst = {
-	PROPERTY_ENTRY_INTEGER("rotary-encoder,steps-per-period", u32, 24),
-	PROPERTY_ENTRY_INTEGER("linux,axis",			  u32, REL_X),
-	PROPERTY_ENTRY_INTEGER("rotary-encoder,relative_axis",	  u32, 1),
+	PROPERTY_ENTRY_U32("rotary-encoder,steps-per-period", 24),
+	PROPERTY_ENTRY_U32("linux,axis",		      REL_X),
+	PROPERTY_ENTRY_U32("rotary-encoder,relative_axis",    1),
 	{ },
 };
 
@@ -646,9 +644,6 @@ static void __init raumfeld_lcd_init(void)
  */
 
 static struct spi_gpio_platform_data raumfeld_spi_platform_data = {
-	.sck		= GPIO_SPI_CLK,
-	.mosi		= GPIO_SPI_MOSI,
-	.miso		= GPIO_SPI_MISO,
 	.num_chipselect	= 3,
 };
 
@@ -658,6 +653,25 @@ static struct platform_device raumfeld_spi_device = {
 	.dev 	= {
 		.platform_data	= &raumfeld_spi_platform_data,
 	}
+};
+
+static struct gpiod_lookup_table raumfeld_spi_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("gpio-0", GPIO_SPI_CLK,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-0", GPIO_SPI_MOSI,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-0", GPIO_SPI_MISO,
+			    "miso", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-0", GPIO_SPDIF_CS,
+				"cs", 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-0", GPIO_ACCEL_CS,
+				"cs", 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-0", GPIO_MCLK_DAC_CS,
+				"cs", 2, GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct lis3lv02d_platform_data lis3_pdata = {
@@ -680,7 +694,6 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 	.max_speed_hz	= 10000,		\
 	.bus_num	= 0,			\
 	.chip_select	= 0,			\
-	.controller_data = (void *) GPIO_SPDIF_CS,	\
 }
 
 #define SPI_LIS3	\
@@ -689,7 +702,6 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 	.max_speed_hz	= 1000000,		\
 	.bus_num	= 0,			\
 	.chip_select	= 1,			\
-	.controller_data = (void *) GPIO_ACCEL_CS,	\
 	.platform_data	= &lis3_pdata,		\
 	.irq		= PXA_GPIO_TO_IRQ(GPIO_ACCEL_IRQ),	\
 }
@@ -700,7 +712,6 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 	.max_speed_hz	= 1000000,		\
 	.bus_num	= 0,			\
 	.chip_select	= 2,			\
-	.controller_data = (void *) GPIO_MCLK_DAC_CS,	\
 }
 
 static struct spi_board_info connector_spi_devices[] __initdata = {
@@ -1066,6 +1077,7 @@ static void __init raumfeld_common_init(void)
 	else
 		gpio_direction_output(GPIO_SHUTDOWN_SUPPLY, 0);
 
+	gpiod_add_lookup_table(&raumfeld_spi_gpiod_table);
 	platform_add_devices(ARRAY_AND_SIZE(raumfeld_common_devices));
 	i2c_register_board_info(1, &raumfeld_pwri2c_board_info, 1);
 }

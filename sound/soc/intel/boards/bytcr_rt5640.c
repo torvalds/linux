@@ -444,14 +444,14 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
-	struct snd_soc_codec *codec = runtime->codec;
+	struct snd_soc_component *component = runtime->codec_dai->component;
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
 	int ret;
 
 	card->dapm.idle_bias_off = true;
 
-	rt5640_sel_asrc_clk_src(codec,
+	rt5640_sel_asrc_clk_src(component,
 				RT5640_DA_STEREO_FILTER |
 				RT5640_DA_MONO_L_FILTER	|
 				RT5640_DA_MONO_R_FILTER	|
@@ -522,12 +522,12 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 
 	if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC) {
-		snd_soc_update_bits(codec,  RT5640_IN1_IN2, RT5640_IN_DF1,
+		snd_soc_component_update_bits(component,  RT5640_IN1_IN2, RT5640_IN_DF1,
 				    RT5640_IN_DF1);
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN) {
-		ret = rt5640_dmic_enable(codec, 0, 0);
+		ret = rt5640_dmic_enable(component, 0, 0);
 		if (ret)
 			return ret;
 	}

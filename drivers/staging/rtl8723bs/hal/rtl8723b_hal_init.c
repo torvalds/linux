@@ -433,13 +433,12 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		goto exit;
 	}
 
-	pFirmware->szFwBuffer = kzalloc(fw->size, GFP_KERNEL);
+	pFirmware->szFwBuffer = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (!pFirmware->szFwBuffer) {
 		rtStatus = _FAIL;
 		goto exit;
 	}
 
-	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
 	pFirmware->ulFwLength = fw->size;
 	release_firmware(fw);
 	if (pFirmware->ulFwLength > FW_8723B_SIZE) {

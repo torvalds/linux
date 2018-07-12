@@ -263,9 +263,6 @@ retry:
 		new_skb = skb_copy_expand(rx_skb, 0, rx_size - rx_skb->len,
 					  GFP_KERNEL);
 		if (new_skb == NULL) {
-			if (printk_ratelimit())
-				dev_err(dev, "RX: Can't reallocate skb to %d; "
-					"RX dropped\n", rx_size);
 			kfree_skb(rx_skb);
 			rx_skb = NULL;
 			goto out;	/* drop it...*/

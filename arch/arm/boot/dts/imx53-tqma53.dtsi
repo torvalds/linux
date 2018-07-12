@@ -16,7 +16,7 @@
 	model = "TQ TQMa53";
 	compatible = "tq,tqma53", "fsl,imx53";
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x40000000>; /* Up to 1GiB */
 	};
 

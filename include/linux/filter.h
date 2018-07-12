@@ -20,7 +20,6 @@
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
 
-#include <net/xdp.h>
 #include <net/sch_generic.h>
 
 #include <uapi/linux/filter.h>
@@ -30,6 +29,7 @@ struct sk_buff;
 struct sock;
 struct seccomp_data;
 struct bpf_prog_aux;
+struct xdp_rxq_info;
 
 /* ArgX, context and stack frame pointer register positions. Note,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
@@ -372,7 +372,7 @@ struct bpf_prog_aux;
 
 #define BPF_LDST_BYTES(insn)					\
 	({							\
-		const int __size = bpf_size_to_bytes(BPF_SIZE(insn->code)); \
+		const int __size = bpf_size_to_bytes(BPF_SIZE((insn)->code)); \
 		WARN_ON(__size < 0);				\
 		__size;						\
 	})
@@ -469,6 +469,7 @@ struct bpf_prog {
 				is_func:1,	/* program is a bpf function */
 				kprobe_override:1; /* Do we override a kprobe? */
 	enum bpf_prog_type	type;		/* Type of BPF program */
+	enum bpf_attach_type	expected_attach_type; /* For some prog types */
 	u32			len;		/* Number of filter blocks */
 	u32			jited_len;	/* Size of jited insns in bytes */
 	u8			tag[BPF_TAG_SIZE];
@@ -505,6 +506,24 @@ struct xdp_buff {
 	void *data_meta;
 	void *data_hard_start;
 	struct xdp_rxq_info *rxq;
+};
+
+struct sk_msg_buff {
+	void *data;
+	void *data_end;
+	__u32 apply_bytes;
+	__u32 cork_bytes;
+	int sg_copybreak;
+	int sg_start;
+	int sg_curr;
+	int sg_end;
+	struct scatterlist sg_data[MAX_SKB_FRAGS];
+	bool sg_copy[MAX_SKB_FRAGS];
+	__u32 key;
+	__u32 flags;
+	struct bpf_map *map;
+	struct sk_buff *skb;
+	struct list_head list;
 };
 
 /* Compute the linear packet data range [data, data_end) which
@@ -771,6 +790,7 @@ xdp_data_meta_unsupported(const struct xdp_buff *xdp)
 void bpf_warn_invalid_xdp_action(u32 act);
 
 struct sock *do_sk_redirect_map(struct sk_buff *skb);
+struct sock *do_msg_redirect_map(struct sk_msg_buff *md);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;
@@ -1000,6 +1020,16 @@ static inline int bpf_tell_extensions(void)
 {
 	return SKF_AD_MAX;
 }
+
+struct bpf_sock_addr_kern {
+	struct sock *sk;
+	struct sockaddr *uaddr;
+	/* Temporary "register" to make indirect stores to nested structures
+	 * defined above. We need three registers to make such a store, but
+	 * only two (src and dst) are available at convert_ctx_access time
+	 */
+	u64 tmp_reg;
+};
 
 struct bpf_sock_ops_kern {
 	struct	sock *sk;

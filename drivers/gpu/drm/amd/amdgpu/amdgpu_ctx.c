@@ -419,9 +419,11 @@ int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id)
 
 	if (other) {
 		signed long r;
-		r = dma_fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
+		r = dma_fence_wait(other, true);
 		if (r < 0) {
-			DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+			if (r != -ERESTARTSYS)
+				DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+
 			return r;
 		}
 	}

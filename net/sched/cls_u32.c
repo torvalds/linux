@@ -489,6 +489,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 				RCU_INIT_POINTER(*kp, key->next);
 
 				tcf_unbind_filter(tp, &key->res);
+				idr_remove(&ht->handle_idr, key->handle);
 				tcf_exts_get_net(&key->exts);
 				call_rcu(&key->rcu, u32_delete_key_freepf_rcu);
 				return 0;

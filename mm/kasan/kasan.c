@@ -323,9 +323,9 @@ void kasan_free_pages(struct page *page, unsigned int order)
  * Adaptive redzone policy taken from the userspace AddressSanitizer runtime.
  * For larger allocations larger redzones are used.
  */
-static size_t optimal_redzone(size_t object_size)
+static unsigned int optimal_redzone(unsigned int object_size)
 {
-	int rz =
+	return
 		object_size <= 64        - 16   ? 16 :
 		object_size <= 128       - 32   ? 32 :
 		object_size <= 512       - 64   ? 64 :
@@ -333,14 +333,13 @@ static size_t optimal_redzone(size_t object_size)
 		object_size <= (1 << 14) - 256  ? 256 :
 		object_size <= (1 << 15) - 512  ? 512 :
 		object_size <= (1 << 16) - 1024 ? 1024 : 2048;
-	return rz;
 }
 
-void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 			slab_flags_t *flags)
 {
+	unsigned int orig_size = *size;
 	int redzone_adjust;
-	int orig_size = *size;
 
 	/* Add alloc meta. */
 	cache->kasan_info.alloc_meta_offset = *size;
@@ -358,7 +357,8 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
 	if (redzone_adjust > 0)
 		*size += redzone_adjust;
 
-	*size = min(KMALLOC_MAX_SIZE, max(*size, cache->object_size +
+	*size = min_t(unsigned int, KMALLOC_MAX_SIZE,
+			max(*size, cache->object_size +
 					optimal_redzone(cache->object_size)));
 
 	/*
@@ -382,7 +382,8 @@ void kasan_cache_shrink(struct kmem_cache *cache)
 
 void kasan_cache_shutdown(struct kmem_cache *cache)
 {
-	quarantine_remove_cache(cache);
+	if (!__kmem_cache_empty(cache))
+		quarantine_remove_cache(cache);
 }
 
 size_t kasan_metadata_size(struct kmem_cache *cache)
@@ -791,6 +792,40 @@ DEFINE_ASAN_SET_SHADOW(f5);
 DEFINE_ASAN_SET_SHADOW(f8);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+static bool shadow_mapped(unsigned long addr)
+{
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	if (pgd_none(*pgd))
+		return false;
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d))
+		return false;
+	pud = pud_offset(p4d, addr);
+	if (pud_none(*pud))
+		return false;
+
+	/*
+	 * We can't use pud_large() or pud_huge(), the first one is
+	 * arch-specific, the last one depends on HUGETLB_PAGE.  So let's abuse
+	 * pud_bad(), if pud is bad then it's bad because it's huge.
+	 */
+	if (pud_bad(*pud))
+		return true;
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return false;
+
+	if (pmd_bad(*pmd))
+		return true;
+	pte = pte_offset_kernel(pmd, addr);
+	return !pte_none(*pte);
+}
+
 static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 			unsigned long action, void *data)
 {
@@ -812,6 +847,14 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 	case MEM_GOING_ONLINE: {
 		void *ret;
 
+		/*
+		 * If shadow is mapped already than it must have been mapped
+		 * during the boot. This could happen if we onlining previously
+		 * offlined memory.
+		 */
+		if (shadow_mapped(shadow_start))
+			return NOTIFY_OK;
+
 		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
 					shadow_end, GFP_KERNEL,
 					PAGE_KERNEL, VM_NO_GUARD,
@@ -823,8 +866,26 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 		kmemleak_ignore(ret);
 		return NOTIFY_OK;
 	}
-	case MEM_OFFLINE:
-		vfree((void *)shadow_start);
+	case MEM_CANCEL_ONLINE:
+	case MEM_OFFLINE: {
+		struct vm_struct *vm;
+
+		/*
+		 * shadow_start was either mapped during boot by kasan_init()
+		 * or during memory online by __vmalloc_node_range().
+		 * In the latter case we can use vfree() to free shadow.
+		 * Non-NULL result of the find_vm_area() will tell us if
+		 * that was the second case.
+		 *
+		 * Currently it's not possible to free shadow mapped
+		 * during boot by kasan_init(). It's because the code
+		 * to do that hasn't been written yet. So we'll just
+		 * leak the memory.
+		 */
+		vm = find_vm_area((void *)shadow_start);
+		if (vm)
+			vfree((void *)shadow_start);
+	}
 	}
 
 	return NOTIFY_OK;
@@ -837,5 +898,5 @@ static int __init kasan_memhotplug_init(void)
 	return 0;
 }
 
-module_init(kasan_memhotplug_init);
+core_initcall(kasan_memhotplug_init);
 #endif

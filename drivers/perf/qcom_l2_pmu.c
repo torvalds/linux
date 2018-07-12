@@ -534,14 +534,14 @@ static int l2_cache_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry)
+	for_each_sibling_event(sibling, event->group_leader) {
 		if (sibling->pmu != event->pmu &&
 		    !is_software_event(sibling)) {
 			dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
 				 "Can't create mixed PMU group\n");
 			return -EINVAL;
 		}
+	}
 
 	cluster = get_cluster_pmu(l2cache_pmu, event->cpu);
 	if (!cluster) {
@@ -571,8 +571,7 @@ static int l2_cache_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry) {
+	for_each_sibling_event(sibling, event->group_leader) {
 		if ((sibling != event) &&
 		    !is_software_event(sibling) &&
 		    (L2_EVT_GROUP(sibling->attr.config) ==

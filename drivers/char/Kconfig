@@ -66,34 +66,6 @@ config TTY_PRINTK
 
 	  If unsure, say N.
 
-config BFIN_OTP
-	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF51x || BF52x || BF54x)
-	default y
-	help
-	  If you say Y here, you will get support for a character device
-	  interface into the One Time Programmable memory pages that are
-	  stored on the Blackfin processor.  This will not get you access
-	  to the secure memory pages however.  You will need to write your
-	  own secure code and reader for that.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called bfin-otp.
-
-	  If unsure, it is safe to say Y.
-
-config BFIN_OTP_WRITE_ENABLE
-	bool "Enable writing support of OTP pages"
-	depends on BFIN_OTP
-	default n
-	help
-	  If you say Y here, you will enable support for writing of the
-	  OTP pages.  This is dangerous by nature as you can only program
-	  the pages once, so only enable this option when you actually
-	  need it so as to not inadvertently clobber data.
-
-	  If unsure, say N.
-
 config PRINTER
 	tristate "Parallel printer support"
 	depends on PARPORT
@@ -264,7 +236,7 @@ source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || (ARM && RTC_DRV_CMOS) || GENERIC_NVRAM
+	depends on ATARI || X86 || GENERIC_NVRAM
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
@@ -345,15 +317,6 @@ config JS_RTC
 config EFI_RTC
 	bool "EFI Real Time Clock Services"
 	depends on IA64
-
-config DS1302
-	tristate "DS1302 RTC support"
-	depends on M32R && (PLAT_M32700UT || PLAT_OPSPUT)
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 121 and minor number 0 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
 
 endif # RTC_LIB
 
@@ -574,17 +537,6 @@ config DEVPORT
 	  device is similar to /dev/mem, but for I/O ports.
 
 source "drivers/s390/char/Kconfig"
-
-config TILE_SROM
-	tristate "Character-device access via hypervisor to the Tilera SPI ROM"
-	depends on TILE
-	default y
-	---help---
-	  This device provides character-level read-write access
-	  to the SROM, typically via the "0", "1", and "2" devices
-	  in /dev/srom/.  The Tilera hypervisor makes the flash
-	  device appear much like a simple EEPROM, and knows
-	  how to partition a single ROM for multiple purposes.
 
 source "drivers/char/xillybus/Kconfig"
 

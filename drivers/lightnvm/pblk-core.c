@@ -44,11 +44,12 @@ static void pblk_line_mark_bb(struct work_struct *work)
 }
 
 static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
-			 struct ppa_addr *ppa)
+			 struct ppa_addr ppa_addr)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	int pos = pblk_ppa_to_pos(geo, *ppa);
+	struct ppa_addr *ppa;
+	int pos = pblk_ppa_to_pos(geo, ppa_addr);
 
 	pr_debug("pblk: erase failed: line:%d, pos:%d\n", line->id, pos);
 	atomic_long_inc(&pblk->erase_failed);
@@ -58,26 +59,38 @@ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 		pr_err("pblk: attempted to erase bb: line:%d, pos:%d\n",
 							line->id, pos);
 
+	/* Not necessary to mark bad blocks on 2.0 spec. */
+	if (geo->version == NVM_OCSSD_SPEC_20)
+		return;
+
+	ppa = kmalloc(sizeof(struct ppa_addr), GFP_ATOMIC);
+	if (!ppa)
+		return;
+
+	*ppa = ppa_addr;
 	pblk_gen_run_ws(pblk, NULL, ppa, pblk_line_mark_bb,
 						GFP_ATOMIC, pblk->bb_wq);
 }
 
 static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
 {
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct nvm_chk_meta *chunk;
 	struct pblk_line *line;
+	int pos;
 
 	line = &pblk->lines[pblk_ppa_to_line(rqd->ppa_addr)];
+	pos = pblk_ppa_to_pos(geo, rqd->ppa_addr);
+	chunk = &line->chks[pos];
+
 	atomic_dec(&line->left_seblks);
 
 	if (rqd->error) {
-		struct ppa_addr *ppa;
-
-		ppa = kmalloc(sizeof(struct ppa_addr), GFP_ATOMIC);
-		if (!ppa)
-			return;
-
-		*ppa = rqd->ppa_addr;
-		pblk_mark_bb(pblk, line, ppa);
+		chunk->state = NVM_CHK_ST_OFFLINE;
+		pblk_mark_bb(pblk, line, rqd->ppa_addr);
+	} else {
+		chunk->state = NVM_CHK_ST_FREE;
 	}
 
 	atomic_dec(&pblk->inflight_io);
@@ -90,6 +103,49 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 
 	__pblk_end_io_erase(pblk, rqd);
 	mempool_free(rqd, pblk->e_rq_pool);
+}
+
+/*
+ * Get information for all chunks from the device.
+ *
+ * The caller is responsible for freeing the returned structure
+ */
+struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct nvm_chk_meta *meta;
+	struct ppa_addr ppa;
+	unsigned long len;
+	int ret;
+
+	ppa.ppa = 0;
+
+	len = geo->all_chunks * sizeof(*meta);
+	meta = kzalloc(len, GFP_KERNEL);
+	if (!meta)
+		return ERR_PTR(-ENOMEM);
+
+	ret = nvm_get_chunk_meta(dev, meta, ppa, geo->all_chunks);
+	if (ret) {
+		kfree(meta);
+		return ERR_PTR(-EIO);
+	}
+
+	return meta;
+}
+
+struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
+					      struct nvm_chk_meta *meta,
+					      struct ppa_addr ppa)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int ch_off = ppa.m.grp * geo->num_chk * geo->num_lun;
+	int lun_off = ppa.m.pu * geo->num_chk;
+	int chk_off = ppa.m.chk;
+
+	return meta + ch_off + lun_off + chk_off;
 }
 
 void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
@@ -613,7 +669,7 @@ next_rq:
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len,
 					l_mg->emeta_alloc_type, GFP_KERNEL);
@@ -722,7 +778,7 @@ u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line)
 	if (bit >= lm->blk_per_line)
 		return -1;
 
-	return bit * geo->sec_per_pl;
+	return bit * geo->ws_opt;
 }
 
 static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
@@ -885,7 +941,7 @@ int pblk_line_erase(struct pblk *pblk, struct pblk_line *line)
 		}
 
 		ppa = pblk->luns[bit].bppa; /* set ch and lun */
-		ppa.g.blk = line->id;
+		ppa.a.blk = line->id;
 
 		atomic_dec(&line->left_eblks);
 		WARN_ON(test_and_set_bit(bit, line->erase_bitmap));
@@ -975,7 +1031,8 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 	memcpy(smeta_buf->header.uuid, pblk->instance_uuid, 16);
 	smeta_buf->header.id = cpu_to_le32(line->id);
 	smeta_buf->header.type = cpu_to_le16(line->type);
-	smeta_buf->header.version = SMETA_VERSION;
+	smeta_buf->header.version_major = SMETA_VERSION_MAJOR;
+	smeta_buf->header.version_minor = SMETA_VERSION_MINOR;
 
 	/* Start metadata */
 	smeta_buf->seq_nr = cpu_to_le64(line->seq_nr);
@@ -998,6 +1055,12 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 	/* End metadata */
 	memcpy(&emeta_buf->header, &smeta_buf->header,
 						sizeof(struct line_header));
+
+	emeta_buf->header.version_major = EMETA_VERSION_MAJOR;
+	emeta_buf->header.version_minor = EMETA_VERSION_MINOR;
+	emeta_buf->header.crc = cpu_to_le32(
+			pblk_calc_meta_header_crc(pblk, &emeta_buf->header));
+
 	emeta_buf->seq_nr = cpu_to_le64(line->seq_nr);
 	emeta_buf->nr_lbas = cpu_to_le64(line->sec_in_line);
 	emeta_buf->nr_valid_lbas = cpu_to_le64(0);
@@ -1018,28 +1081,26 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	int nr_bb = 0;
 	u64 off;
 	int bit = -1;
+	int emeta_secs;
 
 	line->sec_in_line = lm->sec_per_line;
 
 	/* Capture bad block information on line mapping bitmaps */
 	while ((bit = find_next_bit(line->blk_bitmap, lm->blk_per_line,
 					bit + 1)) < lm->blk_per_line) {
-		off = bit * geo->sec_per_pl;
+		off = bit * geo->ws_opt;
 		bitmap_shift_left(l_mg->bb_aux, l_mg->bb_template, off,
 							lm->sec_per_line);
 		bitmap_or(line->map_bitmap, line->map_bitmap, l_mg->bb_aux,
 							lm->sec_per_line);
-		line->sec_in_line -= geo->sec_per_chk;
-		if (bit >= lm->emeta_bb)
-			nr_bb++;
+		line->sec_in_line -= geo->clba;
 	}
 
 	/* Mark smeta metadata sectors as bad sectors */
 	bit = find_first_zero_bit(line->blk_bitmap, lm->blk_per_line);
-	off = bit * geo->sec_per_pl;
+	off = bit * geo->ws_opt;
 	bitmap_set(line->map_bitmap, off, lm->smeta_sec);
 	line->sec_in_line -= lm->smeta_sec;
 	line->smeta_ssec = off;
@@ -1055,18 +1116,18 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	/* Mark emeta metadata sectors as bad sectors. We need to consider bad
 	 * blocks to make sure that there are enough sectors to store emeta
 	 */
-	off = lm->sec_per_line - lm->emeta_sec[0];
-	bitmap_set(line->invalid_bitmap, off, lm->emeta_sec[0]);
-	while (nr_bb) {
-		off -= geo->sec_per_pl;
+	emeta_secs = lm->emeta_sec[0];
+	off = lm->sec_per_line;
+	while (emeta_secs) {
+		off -= geo->ws_opt;
 		if (!test_bit(off, line->invalid_bitmap)) {
-			bitmap_set(line->invalid_bitmap, off, geo->sec_per_pl);
-			nr_bb--;
+			bitmap_set(line->invalid_bitmap, off, geo->ws_opt);
+			emeta_secs -= geo->ws_opt;
 		}
 	}
 
-	line->sec_in_line -= lm->emeta_sec[0];
 	line->emeta_ssec = off;
+	line->sec_in_line -= lm->emeta_sec[0];
 	line->nr_valid_lbas = 0;
 	line->left_msecs = line->sec_in_line;
 	*line->vsc = cpu_to_le32(line->sec_in_line);
@@ -1086,10 +1147,34 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	return 1;
 }
 
+static int pblk_prepare_new_line(struct pblk *pblk, struct pblk_line *line)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int blk_to_erase = atomic_read(&line->blk_in_line);
+	int i;
+
+	for (i = 0; i < lm->blk_per_line; i++) {
+		struct pblk_lun *rlun = &pblk->luns[i];
+		int pos = pblk_ppa_to_pos(geo, rlun->bppa);
+		int state = line->chks[pos].state;
+
+		/* Free chunks should not be erased */
+		if (state & NVM_CHK_ST_FREE) {
+			set_bit(pblk_ppa_to_pos(geo, rlun->bppa),
+							line->erase_bitmap);
+			blk_to_erase--;
+		}
+	}
+
+	return blk_to_erase;
+}
+
 static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
-	int blk_in_line = atomic_read(&line->blk_in_line);
+	int blk_to_erase;
 
 	line->map_bitmap = kzalloc(lm->sec_bitmap_len, GFP_ATOMIC);
 	if (!line->map_bitmap)
@@ -1102,7 +1187,21 @@ static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 		return -ENOMEM;
 	}
 
+	/* Bad blocks do not need to be erased */
+	bitmap_copy(line->erase_bitmap, line->blk_bitmap, lm->blk_per_line);
+
 	spin_lock(&line->lock);
+
+	/* If we have not written to this line, we need to mark up free chunks
+	 * as already erased
+	 */
+	if (line->state == PBLK_LINESTATE_NEW) {
+		blk_to_erase = pblk_prepare_new_line(pblk, line);
+		line->state = PBLK_LINESTATE_FREE;
+	} else {
+		blk_to_erase = atomic_read(&line->blk_in_line);
+	}
+
 	if (line->state != PBLK_LINESTATE_FREE) {
 		kfree(line->map_bitmap);
 		kfree(line->invalid_bitmap);
@@ -1114,14 +1213,11 @@ static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 
 	line->state = PBLK_LINESTATE_OPEN;
 
-	atomic_set(&line->left_eblks, blk_in_line);
-	atomic_set(&line->left_seblks, blk_in_line);
+	atomic_set(&line->left_eblks, blk_to_erase);
+	atomic_set(&line->left_seblks, blk_to_erase);
 
 	line->meta_distance = lm->meta_distance;
 	spin_unlock(&line->lock);
-
-	/* Bad blocks do not need to be erased */
-	bitmap_copy(line->erase_bitmap, line->blk_bitmap, lm->blk_per_line);
 
 	kref_init(&line->ref);
 
@@ -1399,13 +1495,6 @@ struct pblk_line *pblk_line_replace_data(struct pblk *pblk)
 	l_mg->data_line = new;
 
 	spin_lock(&l_mg->free_lock);
-	if (pblk->state != PBLK_STATE_RUNNING) {
-		l_mg->data_line = NULL;
-		l_mg->data_next = NULL;
-		spin_unlock(&l_mg->free_lock);
-		goto out;
-	}
-
 	pblk_line_setup_metadata(new, l_mg, &pblk->lm);
 	spin_unlock(&l_mg->free_lock);
 
@@ -1585,12 +1674,14 @@ static void pblk_line_should_sync_meta(struct pblk *pblk)
 
 void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 {
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct list_head *move_list;
+	int i;
 
 #ifdef CONFIG_NVM_DEBUG
-	struct pblk_line_meta *lm = &pblk->lm;
-
 	WARN(!bitmap_full(line->map_bitmap, lm->sec_per_line),
 				"pblk: corrupt closed line %d\n", line->id);
 #endif
@@ -1612,6 +1703,15 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 	line->smeta = NULL;
 	line->emeta = NULL;
 
+	for (i = 0; i < lm->blk_per_line; i++) {
+		struct pblk_lun *rlun = &pblk->luns[i];
+		int pos = pblk_ppa_to_pos(geo, rlun->bppa);
+		int state = line->chks[pos].state;
+
+		if (!(state & NVM_CHK_ST_OFFLINE))
+			state = NVM_CHK_ST_CLOSED;
+	}
+
 	spin_unlock(&line->lock);
 	spin_unlock(&l_mg->gc_lock);
 }
@@ -1622,10 +1722,15 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_emeta *emeta = line->emeta;
 	struct line_emeta *emeta_buf = emeta->buf;
+	struct wa_counters *wa = emeta_to_wa(lm, emeta_buf);
 
 	/* No need for exact vsc value; avoid a big line lock and take aprox. */
 	memcpy(emeta_to_vsc(pblk, emeta_buf), l_mg->vsc_list, lm->vsc_list_len);
 	memcpy(emeta_to_bb(emeta_buf), line->blk_bitmap, lm->blk_bitmap_len);
+
+	wa->user = cpu_to_le64(atomic64_read(&pblk->user_wa));
+	wa->pad = cpu_to_le64(atomic64_read(&pblk->pad_wa));
+	wa->gc = cpu_to_le64(atomic64_read(&pblk->gc_wa));
 
 	emeta_buf->nr_valid_lbas = cpu_to_le64(line->nr_valid_lbas);
 	emeta_buf->crc = cpu_to_le32(pblk_calc_emeta_crc(pblk, emeta_buf));
@@ -1680,8 +1785,8 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
-				ppa_list[0].g.ch != ppa_list[i].g.ch);
+		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
+				ppa_list[0].a.ch != ppa_list[i].a.ch);
 #endif
 
 	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
@@ -1725,8 +1830,8 @@ void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
-				ppa_list[0].g.ch != ppa_list[i].g.ch);
+		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
+				ppa_list[0].a.ch != ppa_list[i].a.ch);
 #endif
 
 	rlun = &pblk->luns[pos];
@@ -1739,10 +1844,10 @@ void pblk_up_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_lun *rlun;
-	int nr_luns = geo->all_luns;
+	int num_lun = geo->all_luns;
 	int bit = -1;
 
-	while ((bit = find_next_bit(lun_bitmap, nr_luns, bit + 1)) < nr_luns) {
+	while ((bit = find_next_bit(lun_bitmap, num_lun, bit + 1)) < num_lun) {
 		rlun = &pblk->luns[bit];
 		up(&rlun->wr_sem);
 	}
@@ -1829,6 +1934,7 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 #endif
 	/* Invalidate and discard padded entries */
 	if (lba == ADDR_EMPTY) {
+		atomic64_inc(&pblk->pad_wa);
 #ifdef CONFIG_NVM_DEBUG
 		atomic_long_inc(&pblk->padded_wb);
 #endif

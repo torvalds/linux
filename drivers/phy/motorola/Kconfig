@@ -10,3 +10,11 @@ config PHY_CPCAP_USB
 	help
 	  Enable this for USB to work on Motorola phones and tablets
 	  such as Droid 4.
+
+config PHY_MAPPHONE_MDM6600
+	tristate "Motorola Mapphone MDM6600 modem USB PHY driver"
+	depends on OF && USB_SUPPORT
+	select GENERIC_PHY
+	help
+	  Enable this for MDM6600 USB modem to work on Motorola phones
+	  and tablets such as Droid 4.

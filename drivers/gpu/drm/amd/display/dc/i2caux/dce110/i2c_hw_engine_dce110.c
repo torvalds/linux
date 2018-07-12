@@ -48,6 +48,8 @@
 /*
  * This unit
  */
+#define DC_LOGGER \
+		hw_engine->base.base.base.ctx->logger
 
 enum dc_i2c_status {
 	DC_I2C_STATUS__DC_I2C_STATUS_IDLE,
@@ -525,9 +527,7 @@ static void construct(
 	REG_GET(MICROSECOND_TIME_BASE_DIV, XTAL_REF_DIV, &xtal_ref_div);
 
 	if (xtal_ref_div == 0) {
-		dm_logger_write(
-				hw_engine->base.base.base.ctx->logger, LOG_WARNING,
-				"Invalid base timer divider\n",
+		DC_LOG_WARNING("Invalid base timer divider\n",
 				__func__);
 		xtal_ref_div = 2;
 	}

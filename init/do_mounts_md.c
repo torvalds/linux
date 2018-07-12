@@ -181,17 +181,17 @@ static void __init md_setup_drive(void)
 			partitioned ? "_d" : "", minor,
 			md_setup_args[ent].device_names);
 
-		fd = sys_open(name, 0, 0);
+		fd = ksys_open(name, 0, 0);
 		if (fd < 0) {
 			printk(KERN_ERR "md: open failed - cannot start "
 					"array %s\n", name);
 			continue;
 		}
-		if (sys_ioctl(fd, SET_ARRAY_INFO, 0) == -EBUSY) {
+		if (ksys_ioctl(fd, SET_ARRAY_INFO, 0) == -EBUSY) {
 			printk(KERN_WARNING
 			       "md: Ignoring md=%d, already autodetected. (Use raid=noautodetect)\n",
 			       minor);
-			sys_close(fd);
+			ksys_close(fd);
 			continue;
 		}
 
@@ -210,7 +210,7 @@ static void __init md_setup_drive(void)
 			ainfo.state = (1 << MD_SB_CLEAN);
 			ainfo.layout = 0;
 			ainfo.chunk_size = md_setup_args[ent].chunk;
-			err = sys_ioctl(fd, SET_ARRAY_INFO, (long)&ainfo);
+			err = ksys_ioctl(fd, SET_ARRAY_INFO, (long)&ainfo);
 			for (i = 0; !err && i <= MD_SB_DISKS; i++) {
 				dev = devices[i];
 				if (!dev)
@@ -220,7 +220,8 @@ static void __init md_setup_drive(void)
 				dinfo.state = (1<<MD_DISK_ACTIVE)|(1<<MD_DISK_SYNC);
 				dinfo.major = MAJOR(dev);
 				dinfo.minor = MINOR(dev);
-				err = sys_ioctl(fd, ADD_NEW_DISK, (long)&dinfo);
+				err = ksys_ioctl(fd, ADD_NEW_DISK,
+						 (long)&dinfo);
 			}
 		} else {
 			/* persistent */
@@ -230,11 +231,11 @@ static void __init md_setup_drive(void)
 					break;
 				dinfo.major = MAJOR(dev);
 				dinfo.minor = MINOR(dev);
-				sys_ioctl(fd, ADD_NEW_DISK, (long)&dinfo);
+				ksys_ioctl(fd, ADD_NEW_DISK, (long)&dinfo);
 			}
 		}
 		if (!err)
-			err = sys_ioctl(fd, RUN_ARRAY, 0);
+			err = ksys_ioctl(fd, RUN_ARRAY, 0);
 		if (err)
 			printk(KERN_WARNING "md: starting md%d failed\n", minor);
 		else {
@@ -243,11 +244,11 @@ static void __init md_setup_drive(void)
 			 * boot a kernel with devfs compiled in from partitioned md
 			 * array without it
 			 */
-			sys_close(fd);
-			fd = sys_open(name, 0, 0);
-			sys_ioctl(fd, BLKRRPART, 0);
+			ksys_close(fd);
+			fd = ksys_open(name, 0, 0);
+			ksys_ioctl(fd, BLKRRPART, 0);
 		}
-		sys_close(fd);
+		ksys_close(fd);
 	}
 }
 
@@ -294,10 +295,10 @@ static void __init autodetect_raid(void)
 
 	wait_for_device_probe();
 
-	fd = sys_open("/dev/md0", 0, 0);
+	fd = ksys_open("/dev/md0", 0, 0);
 	if (fd >= 0) {
-		sys_ioctl(fd, RAID_AUTORUN, raid_autopart);
-		sys_close(fd);
+		ksys_ioctl(fd, RAID_AUTORUN, raid_autopart);
+		ksys_close(fd);
 	}
 }
 

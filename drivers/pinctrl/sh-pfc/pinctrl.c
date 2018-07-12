@@ -75,7 +75,7 @@ static int sh_pfc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 				unsigned offset)
 {
-	seq_printf(s, "%s", DRV_NAME);
+	seq_puts(s, DRV_NAME);
 }
 
 #ifdef CONFIG_OF

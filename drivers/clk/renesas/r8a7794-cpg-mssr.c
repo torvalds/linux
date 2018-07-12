@@ -121,6 +121,7 @@ static const struct mssr_mod_clk r8a7794_mod_clks[] __initconst = {
 	DEF_MOD("cmt1",			 329,	R8A7794_CLK_R),
 	DEF_MOD("usbhs-dmac0",		 330,	R8A7794_CLK_HP),
 	DEF_MOD("usbhs-dmac1",		 331,	R8A7794_CLK_HP),
+	DEF_MOD("rwdt",			 402,	R8A7794_CLK_R),
 	DEF_MOD("irqc",			 407,	R8A7794_CLK_CP),
 	DEF_MOD("intc-sys",		 408,	R8A7794_CLK_ZS),
 	DEF_MOD("audio-dmac0",		 502,	R8A7794_CLK_HP),
@@ -190,6 +191,7 @@ static const struct mssr_mod_clk r8a7794_mod_clks[] __initconst = {
 };
 
 static const unsigned int r8a7794_crit_mod_clks[] __initconst = {
+	MOD_CLK_ID(402),	/* RWDT */
 	MOD_CLK_ID(408),	/* INTC-SYS (GIC) */
 };
 

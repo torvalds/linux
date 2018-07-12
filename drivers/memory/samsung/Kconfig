@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SAMSUNG_MC
 	bool "Samsung Exynos Memory Controller support" if COMPILE_TEST
 	help

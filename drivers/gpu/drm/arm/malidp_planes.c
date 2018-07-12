@@ -35,6 +35,9 @@
 #define   LAYER_COMP_MASK		(0x3 << 12)
 #define   LAYER_COMP_PIXEL		(0x3 << 12)
 #define   LAYER_COMP_PLANE		(0x2 << 12)
+#define   LAYER_ALPHA_OFFSET		(16)
+#define   LAYER_ALPHA_MASK		(0xff)
+#define   LAYER_ALPHA(x)		(((x) & LAYER_ALPHA_MASK) << LAYER_ALPHA_OFFSET)
 #define MALIDP_LAYER_COMPOSE		0x008
 #define MALIDP_LAYER_SIZE		0x00c
 #define   LAYER_H_VAL(x)		(((x) & 0x1fff) << 0)
@@ -56,12 +59,8 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
-	if (mp->base.fb)
-		drm_framebuffer_put(mp->base.fb);
-
-	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
-	devm_kfree(plane->dev->dev, mp);
+	kfree(mp);
 }
 
 /*
@@ -141,22 +140,27 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	struct drm_crtc_state *crtc_state =
 		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
 	struct malidp_crtc_state *mc;
-	struct drm_rect clip = { 0 };
 	u32 src_w, src_h;
 	int ret;
 
 	if (!crtc_state)
 		return -EINVAL;
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	mc = to_malidp_crtc_state(crtc_state);
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  0, INT_MAX, true, true);
 	if (ret)
 		return ret;
 
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	if (state->rotation & MALIDP_ROTATED_MASK) {
+		src_w = state->src_h >> 16;
+		src_h = state->src_w >> 16;
+	} else {
+		src_w = state->src_w >> 16;
+		src_h = state->src_h >> 16;
+	}
+
 	if ((state->crtc_w == src_w) && (state->crtc_h == src_h)) {
 		/* Scaling not necessary for this plane. */
 		mc->scaled_planes_mask &= ~(mp->layer->id);
@@ -165,8 +169,6 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 
 	if (mp->layer->id & (DE_SMART | DE_GRAPHICS2))
 		return -EINVAL;
-
-	mc = to_malidp_crtc_state(crtc_state);
 
 	mc->scaled_planes_mask |= mp->layer->id;
 	/* Defer scaling requirements calculation to the crtc check. */
@@ -178,6 +180,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	bool rotated = state->rotation & MALIDP_ROTATED_MASK;
 	struct drm_framebuffer *fb;
 	int i, ret;
 
@@ -194,7 +197,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	ms->n_planes = fb->format->num_planes;
 	for (i = 0; i < ms->n_planes; i++) {
-		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
+		u8 alignment = malidp_hw_get_pitch_align(mp->hwdev, rotated);
+		if (fb->pitches[i] & (alignment - 1)) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
@@ -262,6 +266,60 @@ static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
 				mp->layer->stride_offset + i * 4);
 }
 
+static const s16
+malidp_yuv2rgb_coeffs[][DRM_COLOR_RANGE_MAX][MALIDP_COLORADJ_NUM_COEFFS] = {
+	[DRM_COLOR_YCBCR_BT601][DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		1192,    0, 1634,
+		1192, -401, -832,
+		1192, 2066,    0,
+		  64,  512,  512
+	},
+	[DRM_COLOR_YCBCR_BT601][DRM_COLOR_YCBCR_FULL_RANGE] = {
+		1024,    0, 1436,
+		1024, -352, -731,
+		1024, 1815,    0,
+		   0,  512,  512
+	},
+	[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		1192,    0, 1836,
+		1192, -218, -546,
+		1192, 2163,    0,
+		  64,  512,  512
+	},
+	[DRM_COLOR_YCBCR_BT709][DRM_COLOR_YCBCR_FULL_RANGE] = {
+		1024,    0, 1613,
+		1024, -192, -479,
+		1024, 1900,    0,
+		   0,  512,  512
+	},
+	[DRM_COLOR_YCBCR_BT2020][DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+		1024,    0, 1476,
+		1024, -165, -572,
+		1024, 1884,    0,
+		   0,  512,  512
+	},
+	[DRM_COLOR_YCBCR_BT2020][DRM_COLOR_YCBCR_FULL_RANGE] = {
+		1024,    0, 1510,
+		1024, -168, -585,
+		1024, 1927,    0,
+		   0,  512,  512
+	}
+};
+
+static void malidp_de_set_color_encoding(struct malidp_plane *plane,
+					 enum drm_color_encoding enc,
+					 enum drm_color_range range)
+{
+	unsigned int i;
+
+	for (i = 0; i < MALIDP_COLORADJ_NUM_COEFFS; i++) {
+		/* coefficients are signed, two's complement values */
+		malidp_hw_write(plane->hwdev, malidp_yuv2rgb_coeffs[enc][range][i],
+				plane->layer->base + plane->layer->yuv2rgb_offset +
+				i * 4);
+	}
+}
+
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
@@ -269,6 +327,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
+	bool format_has_alpha = plane->state->fb->format->has_alpha;
 
 	mp = to_malidp_plane(plane);
 
@@ -291,6 +350,11 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	}
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
 				    plane->state->fb->pitches);
+
+	if ((plane->state->color_encoding != old_state->color_encoding) ||
+	    (plane->state->color_range != old_state->color_range))
+		malidp_de_set_color_encoding(mp, plane->state->color_encoding,
+					     plane->state->color_range);
 
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
 			mp->layer->base + MALIDP_LAYER_SIZE);
@@ -320,12 +384,25 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	if (plane->state->rotation & DRM_MODE_REFLECT_Y)
 		val |= LAYER_V_FLIP;
 
-	/*
-	 * always enable pixel alpha blending until we have a way to change
-	 * blend modes
-	 */
 	val &= ~LAYER_COMP_MASK;
-	val |= LAYER_COMP_PIXEL;
+	if (format_has_alpha) {
+
+		/*
+		 * always enable pixel alpha blending until we have a way
+		 * to change blend modes
+		 */
+		val |= LAYER_COMP_PIXEL;
+	} else {
+
+		/*
+		 * do not enable pixel alpha blending as the color channel
+		 * does not have any alpha information
+		 */
+		val |= LAYER_COMP_PLANE;
+
+		/* Set layer alpha coefficient to 0xff ie fully opaque */
+		val |= LAYER_ALPHA(0xff);
+	}
 
 	val &= ~LAYER_FLOWCFG(LAYER_FLOWCFG_MASK);
 	if (plane->state->crtc) {
@@ -420,6 +497,26 @@ int malidp_de_planes_init(struct drm_device *drm)
 		drm_plane_create_rotation_property(&plane->base, DRM_MODE_ROTATE_0, flags);
 		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,
 				plane->layer->base + MALIDP_LAYER_COMPOSE);
+
+		/* Attach the YUV->RGB property only to video layers */
+		if (id & (DE_VIDEO1 | DE_VIDEO2)) {
+			/* default encoding for YUV->RGB is BT601 NARROW */
+			enum drm_color_encoding enc = DRM_COLOR_YCBCR_BT601;
+			enum drm_color_range range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+
+			ret = drm_plane_create_color_properties(&plane->base,
+					BIT(DRM_COLOR_YCBCR_BT601) | \
+					BIT(DRM_COLOR_YCBCR_BT709) | \
+					BIT(DRM_COLOR_YCBCR_BT2020),
+					BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) | \
+					BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					enc, range);
+			if (!ret)
+				/* program the HW registers */
+				malidp_de_set_color_encoding(plane, enc, range);
+			else
+				DRM_WARN("Failed to create video layer %d color properties\n", id);
+		}
 	}
 
 	kfree(formats);
@@ -427,18 +524,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 	return 0;
 
 cleanup:
-	malidp_de_planes_destroy(drm);
 	kfree(formats);
 
 	return ret;
-}
-
-void malidp_de_planes_destroy(struct drm_device *drm)
-{
-	struct drm_plane *p, *pt;
-
-	list_for_each_entry_safe(p, pt, &drm->mode_config.plane_list, head) {
-		drm_plane_cleanup(p);
-		kfree(p);
-	}
 }

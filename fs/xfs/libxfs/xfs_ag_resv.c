@@ -95,13 +95,13 @@ xfs_ag_resv_critical(
 
 	switch (type) {
 	case XFS_AG_RESV_METADATA:
-		avail = pag->pagf_freeblks - pag->pag_agfl_resv.ar_reserved;
+		avail = pag->pagf_freeblks - pag->pag_rmapbt_resv.ar_reserved;
 		orig = pag->pag_meta_resv.ar_asked;
 		break;
-	case XFS_AG_RESV_AGFL:
+	case XFS_AG_RESV_RMAPBT:
 		avail = pag->pagf_freeblks + pag->pagf_flcount -
 			pag->pag_meta_resv.ar_reserved;
-		orig = pag->pag_agfl_resv.ar_asked;
+		orig = pag->pag_rmapbt_resv.ar_asked;
 		break;
 	default:
 		ASSERT(0);
@@ -126,10 +126,10 @@ xfs_ag_resv_needed(
 {
 	xfs_extlen_t			len;
 
-	len = pag->pag_meta_resv.ar_reserved + pag->pag_agfl_resv.ar_reserved;
+	len = pag->pag_meta_resv.ar_reserved + pag->pag_rmapbt_resv.ar_reserved;
 	switch (type) {
 	case XFS_AG_RESV_METADATA:
-	case XFS_AG_RESV_AGFL:
+	case XFS_AG_RESV_RMAPBT:
 		len -= xfs_perag_resv(pag, type)->ar_reserved;
 		break;
 	case XFS_AG_RESV_NONE:
@@ -160,10 +160,11 @@ __xfs_ag_resv_free(
 	if (pag->pag_agno == 0)
 		pag->pag_mount->m_ag_max_usable += resv->ar_asked;
 	/*
-	 * AGFL blocks are always considered "free", so whatever
-	 * was reserved at mount time must be given back at umount.
+	 * RMAPBT blocks come from the AGFL and AGFL blocks are always
+	 * considered "free", so whatever was reserved at mount time must be
+	 * given back at umount.
 	 */
-	if (type == XFS_AG_RESV_AGFL)
+	if (type == XFS_AG_RESV_RMAPBT)
 		oldresv = resv->ar_orig_reserved;
 	else
 		oldresv = resv->ar_reserved;
@@ -185,7 +186,7 @@ xfs_ag_resv_free(
 	int				error;
 	int				err2;
 
-	error = __xfs_ag_resv_free(pag, XFS_AG_RESV_AGFL);
+	error = __xfs_ag_resv_free(pag, XFS_AG_RESV_RMAPBT);
 	err2 = __xfs_ag_resv_free(pag, XFS_AG_RESV_METADATA);
 	if (err2 && !error)
 		error = err2;
@@ -284,15 +285,15 @@ xfs_ag_resv_init(
 		}
 	}
 
-	/* Create the AGFL metadata reservation */
-	if (pag->pag_agfl_resv.ar_asked == 0) {
+	/* Create the RMAPBT metadata reservation */
+	if (pag->pag_rmapbt_resv.ar_asked == 0) {
 		ask = used = 0;
 
 		error = xfs_rmapbt_calc_reserves(mp, agno, &ask, &used);
 		if (error)
 			goto out;
 
-		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_AGFL, ask, used);
+		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_RMAPBT, ask, used);
 		if (error)
 			goto out;
 	}
@@ -304,7 +305,7 @@ xfs_ag_resv_init(
 		return error;
 
 	ASSERT(xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
-	       xfs_perag_resv(pag, XFS_AG_RESV_AGFL)->ar_reserved <=
+	       xfs_perag_resv(pag, XFS_AG_RESV_RMAPBT)->ar_reserved <=
 	       pag->pagf_freeblks + pag->pagf_flcount);
 #endif
 out:
@@ -325,8 +326,10 @@ xfs_ag_resv_alloc_extent(
 	trace_xfs_ag_resv_alloc_extent(pag, type, args->len);
 
 	switch (type) {
-	case XFS_AG_RESV_METADATA:
 	case XFS_AG_RESV_AGFL:
+		return;
+	case XFS_AG_RESV_METADATA:
+	case XFS_AG_RESV_RMAPBT:
 		resv = xfs_perag_resv(pag, type);
 		break;
 	default:
@@ -341,7 +344,7 @@ xfs_ag_resv_alloc_extent(
 
 	len = min_t(xfs_extlen_t, args->len, resv->ar_reserved);
 	resv->ar_reserved -= len;
-	if (type == XFS_AG_RESV_AGFL)
+	if (type == XFS_AG_RESV_RMAPBT)
 		return;
 	/* Allocations of reserved blocks only need on-disk sb updates... */
 	xfs_trans_mod_sb(args->tp, XFS_TRANS_SB_RES_FDBLOCKS, -(int64_t)len);
@@ -365,8 +368,10 @@ xfs_ag_resv_free_extent(
 	trace_xfs_ag_resv_free_extent(pag, type, len);
 
 	switch (type) {
-	case XFS_AG_RESV_METADATA:
 	case XFS_AG_RESV_AGFL:
+		return;
+	case XFS_AG_RESV_METADATA:
+	case XFS_AG_RESV_RMAPBT:
 		resv = xfs_perag_resv(pag, type);
 		break;
 	default:
@@ -379,7 +384,7 @@ xfs_ag_resv_free_extent(
 
 	leftover = min_t(xfs_extlen_t, len, resv->ar_asked - resv->ar_reserved);
 	resv->ar_reserved += leftover;
-	if (type == XFS_AG_RESV_AGFL)
+	if (type == XFS_AG_RESV_RMAPBT)
 		return;
 	/* Freeing into the reserved pool only requires on-disk update... */
 	xfs_trans_mod_sb(tp, XFS_TRANS_SB_RES_FDBLOCKS, len);

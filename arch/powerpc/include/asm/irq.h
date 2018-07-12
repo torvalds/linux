@@ -66,6 +66,7 @@ extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
 extern void call_do_irq(struct pt_regs *regs, struct thread_info *tp);
 extern void do_IRQ(struct pt_regs *regs);
+extern void __init init_IRQ(void);
 extern void __do_irq(struct pt_regs *regs);
 
 int irq_choose_cpu(const struct cpumask *mask);

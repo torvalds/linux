@@ -200,7 +200,7 @@ acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
 {
 	struct acpi_madt_local_x2apic *processor = NULL;
 #ifdef CONFIG_X86_X2APIC
-	int apic_id;
+	u32 apic_id;
 	u8 enabled;
 #endif
 
@@ -215,6 +215,10 @@ acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
 	apic_id = processor->local_apic_id;
 	enabled = processor->lapic_flags & ACPI_MADT_ENABLED;
 
+	/* Ignore invalid ID */
+	if (apic_id == 0xffffffff)
+		return 0;
+
 	/*
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
@@ -222,10 +226,13 @@ acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
 	 * to not preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
-	if (!apic->apic_id_valid(apic_id) && enabled)
-		printk(KERN_WARNING PREFIX "x2apic entry ignored\n");
-	else
-		acpi_register_lapic(apic_id, processor->uid, enabled);
+	if (!apic->apic_id_valid(apic_id)) {
+		if (enabled)
+			pr_warn(PREFIX "x2apic entry ignored\n");
+		return 0;
+	}
+
+	acpi_register_lapic(apic_id, processor->uid, enabled);
 #else
 	printk(KERN_WARNING PREFIX "x2apic entry ignored\n");
 #endif
@@ -1376,17 +1383,21 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
  *
  * We initialize the Hardware-reduced ACPI model here:
  */
+void __init acpi_generic_reduced_hw_init(void)
+{
+	/*
+	 * Override x86_init functions and bypass legacy PIC in
+	 * hardware reduced ACPI mode.
+	 */
+	x86_init.timers.timer_init	= x86_init_noop;
+	x86_init.irqs.pre_vector_init	= x86_init_noop;
+	legacy_pic			= &null_legacy_pic;
+}
+
 static void __init acpi_reduced_hw_init(void)
 {
-	if (acpi_gbl_reduced_hardware) {
-		/*
-		 * Override x86_init functions and bypass legacy pic
-		 * in Hardware-reduced ACPI mode
-		 */
-		x86_init.timers.timer_init	= x86_init_noop;
-		x86_init.irqs.pre_vector_init	= x86_init_noop;
-		legacy_pic			= &null_legacy_pic;
-	}
+	if (acpi_gbl_reduced_hardware)
+		x86_init.acpi.reduced_hw_early_init();
 }
 
 /*

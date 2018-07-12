@@ -606,6 +606,139 @@ err:
 	return -EINVAL;
 }
 
+static const char *mock_name(struct dma_fence *fence)
+{
+	return "mock";
+}
+
+static bool mock_enable_signaling(struct dma_fence *fence)
+{
+	return true;
+}
+
+static const struct dma_fence_ops mock_fence_ops = {
+	.get_driver_name = mock_name,
+	.get_timeline_name = mock_name,
+	.enable_signaling = mock_enable_signaling,
+	.wait = dma_fence_default_wait,
+	.release = dma_fence_free,
+};
+
+static DEFINE_SPINLOCK(mock_fence_lock);
+
+static struct dma_fence *alloc_dma_fence(void)
+{
+	struct dma_fence *dma;
+
+	dma = kmalloc(sizeof(*dma), GFP_KERNEL);
+	if (dma)
+		dma_fence_init(dma, &mock_fence_ops, &mock_fence_lock, 0, 0);
+
+	return dma;
+}
+
+static struct i915_sw_fence *
+wrap_dma_fence(struct dma_fence *dma, unsigned long delay)
+{
+	struct i915_sw_fence *fence;
+	int err;
+
+	fence = alloc_fence();
+	if (!fence)
+		return ERR_PTR(-ENOMEM);
+
+	err = i915_sw_fence_await_dma_fence(fence, dma, delay, GFP_NOWAIT);
+	i915_sw_fence_commit(fence);
+	if (err < 0) {
+		free_fence(fence);
+		return ERR_PTR(err);
+	}
+
+	return fence;
+}
+
+static int test_dma_fence(void *arg)
+{
+	struct i915_sw_fence *timeout = NULL, *not = NULL;
+	unsigned long delay = i915_selftest.timeout_jiffies;
+	unsigned long end, sleep;
+	struct dma_fence *dma;
+	int err;
+
+	dma = alloc_dma_fence();
+	if (!dma)
+		return -ENOMEM;
+
+	timeout = wrap_dma_fence(dma, delay);
+	if (IS_ERR(timeout)) {
+		err = PTR_ERR(timeout);
+		goto err;
+	}
+
+	not = wrap_dma_fence(dma, 0);
+	if (IS_ERR(not)) {
+		err = PTR_ERR(not);
+		goto err;
+	}
+
+	err = -EINVAL;
+	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(not)) {
+		pr_err("Fences immediately signaled\n");
+		goto err;
+	}
+
+	/* We round the timeout for the fence up to the next second */
+	end = round_jiffies_up(jiffies + delay);
+
+	sleep = jiffies_to_usecs(delay) / 3;
+	usleep_range(sleep, 2 * sleep);
+	if (time_after(jiffies, end)) {
+		pr_debug("Slept too long, delay=%lu, (target=%lu, now=%lu) skipping\n",
+			 delay, end, jiffies);
+		goto skip;
+	}
+
+	if (i915_sw_fence_done(timeout) || i915_sw_fence_done(not)) {
+		pr_err("Fences signaled too early\n");
+		goto err;
+	}
+
+	if (!wait_event_timeout(timeout->wait,
+				i915_sw_fence_done(timeout),
+				2 * (end - jiffies) + 1)) {
+		pr_err("Timeout fence unsignaled!\n");
+		goto err;
+	}
+
+	if (i915_sw_fence_done(not)) {
+		pr_err("No timeout fence signaled!\n");
+		goto err;
+	}
+
+skip:
+	dma_fence_signal(dma);
+
+	if (!i915_sw_fence_done(timeout) || !i915_sw_fence_done(not)) {
+		pr_err("Fences unsignaled\n");
+		goto err;
+	}
+
+	free_fence(not);
+	free_fence(timeout);
+	dma_fence_put(dma);
+
+	return 0;
+
+err:
+	dma_fence_signal(dma);
+	if (!IS_ERR_OR_NULL(timeout))
+		free_fence(timeout);
+	if (!IS_ERR_OR_NULL(not))
+		free_fence(not);
+	dma_fence_put(dma);
+	return err;
+}
+
 int i915_sw_fence_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -618,6 +751,7 @@ int i915_sw_fence_mock_selftests(void)
 		SUBTEST(test_chain),
 		SUBTEST(test_ipc),
 		SUBTEST(test_timer),
+		SUBTEST(test_dma_fence),
 	};
 
 	return i915_subtests(tests, NULL);

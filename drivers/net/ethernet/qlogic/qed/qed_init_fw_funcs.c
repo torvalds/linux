@@ -467,12 +467,11 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 		u16 *p_first_tx_pq_id;
 
 		ext_voq = qed_get_ext_voq(p_hwfn,
-					  p_params->port_id,
+					  pq_params[i].port_id,
 					  tc_id,
 					  p_params->max_phys_tcs_per_port);
 		is_vf_pq = (i >= p_params->num_pf_pqs);
-		rl_valid = pq_params[i].rl_valid &&
-			   pq_params[i].vport_id < max_qm_global_rls;
+		rl_valid = pq_params[i].rl_valid > 0;
 
 		/* Update first Tx PQ of VPORT/TC */
 		vport_id_in_pf = pq_params[i].vport_id - p_params->start_vport;
@@ -494,10 +493,11 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 		}
 
 		/* Check RL ID */
-		if (pq_params[i].rl_valid && pq_params[i].vport_id >=
-		    max_qm_global_rls)
+		if (rl_valid && pq_params[i].vport_id >= max_qm_global_rls) {
 			DP_NOTICE(p_hwfn,
 				  "Invalid VPORT ID for rate limiter configuration\n");
+			rl_valid = false;
+		}
 
 		/* Prepare PQ map entry */
 		QM_INIT_TX_PQ_MAP(p_hwfn,
@@ -528,7 +528,7 @@ static void qed_tx_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 			pq_info = PQ_INFO_ELEMENT(*p_first_tx_pq_id,
 						  p_params->pf_id,
 						  tc_id,
-						  p_params->port_id,
+						  pq_params[i].port_id,
 						  rl_valid ? 1 : 0,
 						  rl_valid ?
 						  pq_params[i].vport_id : 0);
@@ -603,6 +603,7 @@ static void qed_other_pq_map_rt_init(struct qed_hwfn *p_hwfn,
  * Return -1 on error.
  */
 static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
+
 			      struct qed_qm_pf_rt_init_params *p_params)
 {
 	u16 num_tx_pqs = p_params->num_pf_pqs + p_params->num_vf_pqs;
@@ -619,7 +620,7 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 
 	for (i = 0; i < num_tx_pqs; i++) {
 		ext_voq = qed_get_ext_voq(p_hwfn,
-					  p_params->port_id,
+					  pq_params[i].port_id,
 					  pq_params[i].tc_id,
 					  p_params->max_phys_tcs_per_port);
 		crd_reg_offset =
@@ -1020,7 +1021,8 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 		*__p_var = (*__p_var & ~BIT(__offset)) | \
 			   ((enable) ? BIT(__offset) : 0); \
 	} while (0)
-#define PRS_ETH_TUNN_FIC_FORMAT	-188897008
+#define PRS_ETH_TUNN_OUTPUT_FORMAT        -188897008
+#define PRS_ETH_OUTPUT_FORMAT             -46832
 
 void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt, u16 dest_port)
@@ -1046,11 +1048,15 @@ void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
 	shift = PRS_REG_ENCAPSULATION_TYPE_EN_VXLAN_ENABLE_SHIFT;
 	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, shift, vxlan_enable);
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
-	if (reg_val)
-		qed_wr(p_hwfn,
-		       p_ptt,
-		       PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
-		       (u32)PRS_ETH_TUNN_FIC_FORMAT);
+	if (reg_val) {
+		reg_val =
+		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
+
+		/* Update output  only if tunnel blocks not included. */
+		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
+			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
+			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
+	}
 
 	/* Update NIG register */
 	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
@@ -1077,11 +1083,15 @@ void qed_set_gre_enable(struct qed_hwfn *p_hwfn,
 	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GRE_ENABLE_SHIFT;
 	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, shift, ip_gre_enable);
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
-	if (reg_val)
-		qed_wr(p_hwfn,
-		       p_ptt,
-		       PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
-		       (u32)PRS_ETH_TUNN_FIC_FORMAT);
+	if (reg_val) {
+		reg_val =
+		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
+
+		/* Update output  only if tunnel blocks not included. */
+		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
+			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
+			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
+	}
 
 	/* Update NIG register */
 	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
@@ -1126,11 +1136,15 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GENEVE_ENABLE_SHIFT;
 	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, shift, ip_geneve_enable);
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
-	if (reg_val)
-		qed_wr(p_hwfn,
-		       p_ptt,
-		       PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
-		       (u32)PRS_ETH_TUNN_FIC_FORMAT);
+	if (reg_val) {
+		reg_val =
+		    qed_rd(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2);
+
+		/* Update output  only if tunnel blocks not included. */
+		if (reg_val == (u32)PRS_ETH_OUTPUT_FORMAT)
+			qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
+			       (u32)PRS_ETH_TUNN_OUTPUT_FORMAT);
+	}
 
 	/* Update NIG register */
 	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_ETH_ENABLE,
@@ -1150,6 +1164,38 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	       p_ptt,
 	       DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN_K2_E5,
 	       ip_geneve_enable ? 1 : 0);
+}
+
+#define PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET   4
+#define PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT      -927094512
+
+void qed_set_vxlan_no_l2_enable(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt, bool enable)
+{
+	u32 reg_val, cfg_mask;
+
+	/* read PRS config register */
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_MSG_INFO);
+
+	/* set VXLAN_NO_L2_ENABLE mask */
+	cfg_mask = BIT(PRS_ETH_VXLAN_NO_L2_ENABLE_OFFSET);
+
+	if (enable) {
+		/* set VXLAN_NO_L2_ENABLE flag */
+		reg_val |= cfg_mask;
+
+		/* update PRS FIC  register */
+		qed_wr(p_hwfn,
+		       p_ptt,
+		       PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
+		       (u32)PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT);
+	} else {
+		/* clear VXLAN_NO_L2_ENABLE flag */
+		reg_val &= ~cfg_mask;
+	}
+
+	/* write PRS config register */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_MSG_INFO, reg_val);
 }
 
 #define T_ETH_PACKET_ACTION_GFT_EVENTID  23
@@ -1268,6 +1314,10 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	ram_line_lo = 0;
 	ram_line_hi = 0;
 
+	/* Tunnel type */
+	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
+	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
+
 	if (profile_type == GFT_PROFILE_TYPE_4_TUPLE) {
 		SET_FIELD(ram_line_hi, GFT_RAM_LINE_DST_IP, 1);
 		SET_FIELD(ram_line_hi, GFT_RAM_LINE_SRC_IP, 1);
@@ -1279,9 +1329,14 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		SET_FIELD(ram_line_hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_DST_PORT, 1);
-	} else if (profile_type == GFT_PROFILE_TYPE_IP_DST_PORT) {
+	} else if (profile_type == GFT_PROFILE_TYPE_IP_DST_ADDR) {
 		SET_FIELD(ram_line_hi, GFT_RAM_LINE_DST_IP, 1);
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
+	} else if (profile_type == GFT_PROFILE_TYPE_IP_SRC_ADDR) {
+		SET_FIELD(ram_line_hi, GFT_RAM_LINE_SRC_IP, 1);
+		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
+	} else if (profile_type == GFT_PROFILE_TYPE_TUNNEL_TYPE) {
+		SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
 	}
 
 	qed_wr(p_hwfn,

@@ -251,6 +251,20 @@ config I40EVF
 	  will be called i40evf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
 
+config ICE
+	tristate "Intel(R) Ethernet Connection E800 Series Support"
+	default n
+	depends on PCI_MSI
+	---help---
+	  This driver supports Intel(R) Ethernet Connection E800 Series of
+	  devices.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide that can be located at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ice.
+
 config FM10K
 	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
 	default n

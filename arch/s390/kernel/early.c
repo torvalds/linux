@@ -67,7 +67,7 @@ static noinline __init void init_kernel_storage_key(void)
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
-	end_pfn = PFN_UP(__pa(&_end));
+	end_pfn = PFN_UP(__pa(_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
@@ -242,8 +242,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(40))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 		__ctl_set_bit(0, 55);
@@ -344,16 +342,6 @@ static __init void memmove_early(void *dst, const void *src, size_t n)
 	S390_lowcore.program_new_psw = old;
 }
 
-static __init noinline void ipl_save_parameters(void)
-{
-	void *src, *dst;
-
-	src = (void *)(unsigned long) S390_lowcore.ipl_parmblock_ptr;
-	dst = (void *) IPL_PARMBLOCK_ORIGIN;
-	memmove_early(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
-}
-
 static __init noinline void rescue_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -423,10 +411,8 @@ static void __init setup_boot_command_line(void)
 void __init startup_init(void)
 {
 	reset_tod_clock();
-	ipl_save_parameters();
 	rescue_initrd();
 	clear_bss_section();
-	ipl_verify_parameters();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
@@ -434,7 +420,7 @@ void __init startup_init(void)
 	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
-	ipl_update_parameters();
+	ipl_store_parameters();
 	setup_boot_command_line();
 	detect_diag9c();
 	detect_diag44();

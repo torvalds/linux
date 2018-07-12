@@ -6,13 +6,13 @@ Supported chips:
     Prefix: 'sht21'
     Addresses scanned: none
     Datasheet: Publicly available at the Sensirion website
-    http://www.sensirion.com/en/pdf/product_information/Datasheet-humidity-sensor-SHT21.pdf
+    http://www.sensirion.com/file/datasheet_sht21
 
   * Sensirion SHT25
-    Prefix: 'sht21'
+    Prefix: 'sht25'
     Addresses scanned: none
     Datasheet: Publicly available at the Sensirion website
-    http://www.sensirion.com/en/pdf/product_information/Datasheet-humidity-sensor-SHT25.pdf
+    http://www.sensirion.com/file/datasheet_sht25
 
 Author:
   Urs Fleisch <urs.fleisch@sensirion.com>

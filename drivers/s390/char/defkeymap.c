@@ -9,7 +9,9 @@
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
 
-u_short plain_map[NR_KEYS] = {
+#include "keyboard.h"
+
+u_short ebc_plain_map[NR_KEYS] = {
 	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,
 	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,
 	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,	0xf000,
@@ -85,12 +87,12 @@ static u_short shift_ctrl_map[NR_KEYS] = {
 	0xf20a,	0xf108,	0xf200,	0xf200,	0xf200,	0xf200,	0xf200,	0xf200,
 };
 
-ushort *key_maps[MAX_NR_KEYMAPS] = {
-	plain_map, shift_map, NULL, NULL,
+ushort *ebc_key_maps[MAX_NR_KEYMAPS] = {
+	ebc_plain_map, shift_map, NULL, NULL,
 	ctrl_map, shift_ctrl_map, NULL,
 };
 
-unsigned int keymap_count = 4;
+unsigned int ebc_keymap_count = 4;
 
 
 /*
@@ -99,7 +101,7 @@ unsigned int keymap_count = 4;
  * the default and allocate dynamically in chunks of 512 bytes.
  */
 
-char func_buf[] = {
+char ebc_func_buf[] = {
 	'\033', '[', '[', 'A', 0, 
 	'\033', '[', '[', 'B', 0, 
 	'\033', '[', '[', 'C', 0, 
@@ -123,37 +125,37 @@ char func_buf[] = {
 };
 
 
-char *funcbufptr = func_buf;
-int funcbufsize = sizeof(func_buf);
-int funcbufleft = 0;          /* space left */
+char *ebc_funcbufptr = ebc_func_buf;
+int ebc_funcbufsize = sizeof(ebc_func_buf);
+int ebc_funcbufleft;		/* space left */
 
-char *func_table[MAX_NR_FUNC] = {
-	func_buf + 0,
-	func_buf + 5,
-	func_buf + 10,
-	func_buf + 15,
-	func_buf + 20,
-	func_buf + 25,
-	func_buf + 31,
-	func_buf + 37,
-	func_buf + 43,
-	func_buf + 49,
-	func_buf + 55,
-	func_buf + 61,
-	func_buf + 67,
-	func_buf + 73,
-	func_buf + 79,
-	func_buf + 85,
-	func_buf + 91,
-	func_buf + 97,
-	func_buf + 103,
-	func_buf + 109,
+char *ebc_func_table[MAX_NR_FUNC] = {
+	ebc_func_buf + 0,
+	ebc_func_buf + 5,
+	ebc_func_buf + 10,
+	ebc_func_buf + 15,
+	ebc_func_buf + 20,
+	ebc_func_buf + 25,
+	ebc_func_buf + 31,
+	ebc_func_buf + 37,
+	ebc_func_buf + 43,
+	ebc_func_buf + 49,
+	ebc_func_buf + 55,
+	ebc_func_buf + 61,
+	ebc_func_buf + 67,
+	ebc_func_buf + 73,
+	ebc_func_buf + 79,
+	ebc_func_buf + 85,
+	ebc_func_buf + 91,
+	ebc_func_buf + 97,
+	ebc_func_buf + 103,
+	ebc_func_buf + 109,
 	NULL,
 };
 
-struct kbdiacruc accent_table[MAX_DIACR] = {
+struct kbdiacruc ebc_accent_table[MAX_DIACR] = {
 	{'^', 'c', 0003},	{'^', 'd', 0004},
 	{'^', 'z', 0032},	{'^', 0012, 0000},
 };
 
-unsigned int accent_table_size = 4;
+unsigned int ebc_accent_table_size = 4;

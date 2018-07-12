@@ -297,7 +297,12 @@ static bool access_error(bool is_write, bool is_exec,
 
 	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
 		return true;
-
+	/*
+	 * We should ideally do the vma pkey access check here. But in the
+	 * fault path, handle_mm_fault() also does the same check. To avoid
+	 * these multiple checks, we skip it here and handle access error due
+	 * to pkeys later.
+	 */
 	return false;
 }
 
@@ -518,25 +523,16 @@ good_area:
 
 #ifdef CONFIG_PPC_MEM_KEYS
 	/*
-	 * if the HPTE is not hashed, hardware will not detect
-	 * a key fault. Lets check if we failed because of a
-	 * software detected key fault.
+	 * we skipped checking for access error due to key earlier.
+	 * Check that using handle_mm_fault error return.
 	 */
 	if (unlikely(fault & VM_FAULT_SIGSEGV) &&
-		!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
-			is_exec, 0)) {
-		/*
-		 * The PGD-PDT...PMD-PTE tree may not have been fully setup.
-		 * Hence we cannot walk the tree to locate the PTE, to locate
-		 * the key. Hence let's use vma_pkey() to get the key; instead
-		 * of get_mm_addr_key().
-		 */
+		!arch_vma_access_permitted(vma, is_write, is_exec, 0)) {
+
 		int pkey = vma_pkey(vma);
 
-		if (likely(pkey)) {
-			up_read(&mm->mmap_sem);
-			return bad_key_fault_exception(regs, address, pkey);
-		}
+		up_read(&mm->mmap_sem);
+		return bad_key_fault_exception(regs, address, pkey);
 	}
 #endif /* CONFIG_PPC_MEM_KEYS */
 

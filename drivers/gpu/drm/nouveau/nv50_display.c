@@ -232,8 +232,6 @@ struct nv50_wndw_atom {
 	struct drm_plane_state state;
 	u8 interval;
 
-	struct drm_rect clip;
-
 	struct {
 		u32  handle;
 		u16  offset:12;
@@ -848,10 +846,6 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	int ret;
 
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
-	asyw->clip.x1 = 0;
-	asyw->clip.y1 = 0;
-	asyw->clip.x2 = asyh->state.mode.hdisplay;
-	asyw->clip.y2 = asyh->state.mode.vdisplay;
 
 	asyw->image.w = fb->base.width;
 	asyw->image.h = fb->base.height;
@@ -1152,7 +1146,6 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  &asyw->clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -1442,7 +1435,6 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		return -EINVAL;
 
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  &asyw->clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);
@@ -3272,10 +3264,11 @@ nv50_mstm_destroy_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_connector_unregister(&mstc->connector);
 
-	drm_modeset_lock_all(drm->dev);
 	drm_fb_helper_remove_one_connector(&drm->fbcon->helper, &mstc->connector);
+
+	drm_modeset_lock(&drm->dev->mode_config.connection_mutex, NULL);
 	mstc->port = NULL;
-	drm_modeset_unlock_all(drm->dev);
+	drm_modeset_unlock(&drm->dev->mode_config.connection_mutex);
 
 	drm_connector_unreference(&mstc->connector);
 }
@@ -3285,9 +3278,7 @@ nv50_mstm_register_connector(struct drm_connector *connector)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 
-	drm_modeset_lock_all(drm->dev);
 	drm_fb_helper_add_one_connector(&drm->fbcon->helper, connector);
-	drm_modeset_unlock_all(drm->dev);
 
 	drm_connector_register(connector);
 }

@@ -573,9 +573,40 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		ksz9031_of_load_skew_values(phydev, of_node,
 				MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
 				tx_data_skews, 4);
+
+		/* Silicon Errata Sheet (DS80000691D or DS80000692D):
+		 * When the device links in the 1000BASE-T slave mode only,
+		 * the optional 125MHz reference output clock (CLK125_NDO)
+		 * has wide duty cycle variation.
+		 *
+		 * The optional CLK125_NDO clock does not meet the RGMII
+		 * 45/55 percent (min/max) duty cycle requirement and therefore
+		 * cannot be used directly by the MAC side for clocking
+		 * applications that have setup/hold time requirements on
+		 * rising and falling clock edges.
+		 *
+		 * Workaround:
+		 * Force the phy to be the master to receive a stable clock
+		 * which meets the duty cycle requirement.
+		 */
+		if (of_property_read_bool(of_node, "micrel,force-master")) {
+			result = phy_read(phydev, MII_CTRL1000);
+			if (result < 0)
+				goto err_force_master;
+
+			/* enable master mode, config & prefer master */
+			result |= CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER;
+			result = phy_write(phydev, MII_CTRL1000, result);
+			if (result < 0)
+				goto err_force_master;
+		}
 	}
 
 	return ksz9031_center_flp_timing(phydev);
+
+err_force_master:
+	phydev_err(phydev, "failed to force the phy to master mode\n");
+	return result;
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06

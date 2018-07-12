@@ -27,7 +27,7 @@
  * BUGS:
  *   - card unmutes if you change frequency
  *
- * (c) 2006, 2007 by Mauro Carvalho Chehab <mchehab@infradead.org>:
+ * (c) 2006, 2007 by Mauro Carvalho Chehab <mchehab@kernel.org>:
  *	- Conversion to V4L2 API
  *      - Uses video_ioctl2 for parsing and to add debug support
  */

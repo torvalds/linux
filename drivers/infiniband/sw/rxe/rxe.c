@@ -78,7 +78,7 @@ void rxe_release(struct kref *kref)
 }
 
 /* initialize rxe device parameters */
-static int rxe_init_device_param(struct rxe_dev *rxe)
+static void rxe_init_device_param(struct rxe_dev *rxe)
 {
 	rxe->max_inline_data			= RXE_MAX_INLINE_DATA;
 
@@ -122,8 +122,6 @@ static int rxe_init_device_param(struct rxe_dev *rxe)
 	rxe->attr.local_ca_ack_delay		= RXE_LOCAL_CA_ACK_DELAY;
 
 	rxe->max_ucontext			= RXE_MAX_UCONTEXT;
-
-	return 0;
 }
 
 /* initialize port attributes */

@@ -61,6 +61,10 @@
 	status = "okay";
 };
 
+&watchdog {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };
@@ -142,5 +146,9 @@
 };
 
 &mspi {
+	status = "okay";
+};
+
+&waketimer {
 	status = "okay";
 };

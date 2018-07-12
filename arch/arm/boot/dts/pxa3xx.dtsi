@@ -117,15 +117,15 @@
 			status = "disabled";
 		};
 
-		nand0: nand@43100000 {
-			compatible = "marvell,pxa3xx-nand";
+		nand_controller: nand-controller@43100000 {
+			compatible = "marvell,pxa3xx-nand-controller";
 			reg = <0x43100000 90>;
 			interrupts = <45>;
 			clocks = <&clks CLK_NAND>;
 			dmas = <&pdma 97 3>;
 			dma-names = "data";
 			#address-cells = <1>;
-			#size-cells = <1>;	
+			#size-cells = <0>;
 			status = "disabled";
 		};
 

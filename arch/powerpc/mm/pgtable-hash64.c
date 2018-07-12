@@ -24,6 +24,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/thp.h>
 
+#if H_PGTABLE_RANGE > (USER_VSID_RANGE * (TASK_SIZE_USER64 / TASK_CONTEXT_SIZE))
+#warning Limited user VSID range means pagetable space is wasted
+#endif
+
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
  * vmemmap is the starting address of the virtual address space where
@@ -320,7 +324,7 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 
 	if (!is_kernel_addr(addr)) {
 		ssize = user_segment_size(addr);
-		vsid = get_vsid(mm->context.id, addr, ssize);
+		vsid = get_user_vsid(&mm->context, addr, ssize);
 		WARN_ON(vsid == 0);
 	} else {
 		vsid = get_kernel_vsid(addr, mmu_kernel_ssize);

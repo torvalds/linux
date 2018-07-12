@@ -26,8 +26,6 @@ struct nouveau_bo {
 
 	struct list_head vma_list;
 
-	struct nouveau_cli *cli;
-
 	unsigned contig:1;
 	unsigned page:5;
 	unsigned kind:8;

@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 /* Kaiomy TVnPC U2
-   Mauro Carvalho Chehab <mchehab@infradead.org>
+   Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 static struct rc_map_table kaiomy[] = {

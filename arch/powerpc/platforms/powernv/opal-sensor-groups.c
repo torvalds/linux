@@ -166,13 +166,13 @@ void __init opal_sensor_groups_init(void)
 		if (!nr_attrs)
 			continue;
 
-		sgs[i].sgattrs = kcalloc(nr_attrs, sizeof(struct sg_attr),
+		sgs[i].sgattrs = kcalloc(nr_attrs, sizeof(*sgs[i].sgattrs),
 					 GFP_KERNEL);
 		if (!sgs[i].sgattrs)
 			goto out_sgs_sgattrs;
 
 		sgs[i].sg.attrs = kcalloc(nr_attrs + 1,
-					  sizeof(struct attribute *),
+					  sizeof(*sgs[i].sg.attrs),
 					  GFP_KERNEL);
 
 		if (!sgs[i].sg.attrs) {

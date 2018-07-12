@@ -201,10 +201,12 @@ struct drm_msm_gem_submit_bo {
 #define MSM_SUBMIT_NO_IMPLICIT   0x80000000 /* disable implicit sync */
 #define MSM_SUBMIT_FENCE_FD_IN   0x40000000 /* enable input fence_fd */
 #define MSM_SUBMIT_FENCE_FD_OUT  0x20000000 /* enable output fence_fd */
+#define MSM_SUBMIT_SUDO          0x10000000 /* run submitted cmds from RB */
 #define MSM_SUBMIT_FLAGS                ( \
 		MSM_SUBMIT_NO_IMPLICIT   | \
 		MSM_SUBMIT_FENCE_FD_IN   | \
 		MSM_SUBMIT_FENCE_FD_OUT  | \
+		MSM_SUBMIT_SUDO          | \
 		0)
 
 /* Each cmdstream submit consists of a table of buffers involved, and

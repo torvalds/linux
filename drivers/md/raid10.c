@@ -1845,7 +1845,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		break;
 	}
 	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, mddev->queue);
 
 	print_conf(conf);
 	return err;
@@ -3846,10 +3846,10 @@ static int raid10_run(struct mddev *mddev)
 
 	if (mddev->queue) {
 		if (discard_supported)
-			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
+			blk_queue_flag_set(QUEUE_FLAG_DISCARD,
 						mddev->queue);
 		else
-			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD,
+			blk_queue_flag_clear(QUEUE_FLAG_DISCARD,
 						  mddev->queue);
 	}
 	/* need to check that every block has at least one working mirror */

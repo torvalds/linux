@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/sysfs.h>
 #include <linux/phy_fixed.h>
+#include <linux/ptp_classify.h>
 #include <linux/gpio/consumer.h>
 #include <linux/etherdevice.h>
 
@@ -122,6 +123,38 @@ struct net_device *dsa_dev_to_net_device(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 
+/* Determine if we should defer delivery of skb until we have a rx timestamp.
+ *
+ * Called from dsa_switch_rcv. For now, this will only work if tagging is
+ * enabled on the switch. Normally the MAC driver would retrieve the hardware
+ * timestamp when it reads the packet out of the hardware. However in a DSA
+ * switch, the DSA driver owning the interface to which the packet is
+ * delivered is never notified unless we do so here.
+ */
+static bool dsa_skb_defer_rx_timestamp(struct dsa_slave_priv *p,
+				       struct sk_buff *skb)
+{
+	struct dsa_switch *ds = p->dp->ds;
+	unsigned int type;
+
+	if (skb_headroom(skb) < ETH_HLEN)
+		return false;
+
+	__skb_push(skb, ETH_HLEN);
+
+	type = ptp_classify_raw(skb);
+
+	__skb_pull(skb, ETH_HLEN);
+
+	if (type == PTP_CLASS_NONE)
+		return false;
+
+	if (likely(ds->ops->port_rxtstamp))
+		return ds->ops->port_rxtstamp(ds, p->dp->index, skb, type);
+
+	return false;
+}
+
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *unused)
 {
@@ -156,6 +189,9 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	s->rx_packets++;
 	s->rx_bytes += skb->len;
 	u64_stats_update_end(&s->syncp);
+
+	if (dsa_skb_defer_rx_timestamp(p, skb))
+		return 0;
 
 	netif_receive_skb(skb);
 

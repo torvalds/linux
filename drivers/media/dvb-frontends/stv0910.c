@@ -1673,15 +1673,15 @@ static int send_master_cmd(struct dvb_frontend *fe,
 			   struct dvb_diseqc_master_cmd *cmd)
 {
 	struct stv *state = fe->demodulator_priv;
-	u16 offs = state->nr ? 0x40 : 0;
 	int i;
 
-	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3E);
+	SET_FIELD(DISEQC_MODE, 2);
+	SET_FIELD(DIS_PRECHARGE, 1);
 	for (i = 0; i < cmd->msg_len; i++) {
 		wait_dis(state, 0x40, 0x00);
-		write_reg(state, RSTV0910_P1_DISTXFIFO + offs, cmd->msg[i]);
+		SET_REG(DISTXFIFO, cmd->msg[i]);
 	}
-	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3A);
+	SET_FIELD(DIS_PRECHARGE, 0);
 	wait_dis(state, 0x20, 0x20);
 	return 0;
 }
@@ -1689,19 +1689,20 @@ static int send_master_cmd(struct dvb_frontend *fe,
 static int send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
 	struct stv *state = fe->demodulator_priv;
-	u16 offs = state->nr ? 0x40 : 0;
 	u8 value;
 
 	if (burst == SEC_MINI_A) {
-		write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3F);
+		SET_FIELD(DISEQC_MODE, 3);
 		value = 0x00;
 	} else {
-		write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3E);
+		SET_FIELD(DISEQC_MODE, 2);
 		value = 0xFF;
 	}
+
+	SET_FIELD(DIS_PRECHARGE, 1);
 	wait_dis(state, 0x40, 0x00);
-	write_reg(state, RSTV0910_P1_DISTXFIFO + offs, value);
-	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3A);
+	SET_REG(DISTXFIFO, value);
+	SET_FIELD(DIS_PRECHARGE, 0);
 	wait_dis(state, 0x20, 0x20);
 
 	return 0;

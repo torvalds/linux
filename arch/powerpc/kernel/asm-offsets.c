@@ -221,12 +221,17 @@ int main(void)
 	OFFSET(PACA_EXMC, paca_struct, exmc);
 	OFFSET(PACA_EXSLB, paca_struct, exslb);
 	OFFSET(PACA_EXNMI, paca_struct, exnmi);
+#ifdef CONFIG_PPC_PSERIES
 	OFFSET(PACALPPACAPTR, paca_struct, lppaca_ptr);
+#endif
 	OFFSET(PACA_SLBSHADOWPTR, paca_struct, slb_shadow_ptr);
 	OFFSET(SLBSHADOW_STACKVSID, slb_shadow, save_area[SLB_NUM_BOLTED - 1].vsid);
 	OFFSET(SLBSHADOW_STACKESID, slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid);
 	OFFSET(SLBSHADOW_SAVEAREA, slb_shadow, save_area);
 	OFFSET(LPPACA_PMCINUSE, lppaca, pmcregs_in_use);
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	OFFSET(PACA_PMCINUSE, paca_struct, pmcregs_in_use);
+#endif
 	OFFSET(LPPACA_DTLIDX, lppaca, dtl_idx);
 	OFFSET(LPPACA_YIELDCOUNT, lppaca, yield_count);
 	OFFSET(PACA_DTL_RIDX, paca_struct, dtl_ridx);
@@ -557,6 +562,7 @@ int main(void)
 	OFFSET(VCORE_NAPPING_THREADS, kvmppc_vcore, napping_threads);
 	OFFSET(VCORE_KVM, kvmppc_vcore, kvm);
 	OFFSET(VCORE_TB_OFFSET, kvmppc_vcore, tb_offset);
+	OFFSET(VCORE_TB_OFFSET_APPL, kvmppc_vcore, tb_offset_applied);
 	OFFSET(VCORE_LPCR, kvmppc_vcore, lpcr);
 	OFFSET(VCORE_PCR, kvmppc_vcore, pcr);
 	OFFSET(VCORE_DPDES, kvmppc_vcore, dpdes);
@@ -568,6 +574,7 @@ int main(void)
 	OFFSET(VCPU_TFHAR, kvm_vcpu, arch.tfhar);
 	OFFSET(VCPU_TFIAR, kvm_vcpu, arch.tfiar);
 	OFFSET(VCPU_TEXASR, kvm_vcpu, arch.texasr);
+	OFFSET(VCPU_ORIG_TEXASR, kvm_vcpu, arch.orig_texasr);
 	OFFSET(VCPU_GPR_TM, kvm_vcpu, arch.gpr_tm);
 	OFFSET(VCPU_FPRS_TM, kvm_vcpu, arch.fp_tm.fpr);
 	OFFSET(VCPU_VRS_TM, kvm_vcpu, arch.vr_tm.vr);
@@ -650,6 +657,7 @@ int main(void)
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
 	HSTATE_FIELD(HSTATE_TID, tid);
+	HSTATE_FIELD(HSTATE_FAKE_SUSPEND, fake_suspend);
 	HSTATE_FIELD(HSTATE_MMCR0, host_mmcr[0]);
 	HSTATE_FIELD(HSTATE_MMCR1, host_mmcr[1]);
 	HSTATE_FIELD(HSTATE_MMCRA, host_mmcr[2]);
@@ -759,6 +767,7 @@ int main(void)
 	OFFSET(PACA_SUBCORE_SIBLING_MASK, paca_struct, subcore_sibling_mask);
 	OFFSET(PACA_SIBLING_PACA_PTRS, paca_struct, thread_sibling_pacas);
 	OFFSET(PACA_REQ_PSSCR, paca_struct, requested_psscr);
+	OFFSET(PACA_DONT_STOP, paca_struct, dont_stop);
 #define STOP_SPR(x, f)	OFFSET(x, paca_struct, stop_sprs.f)
 	STOP_SPR(STOP_PID, pid);
 	STOP_SPR(STOP_LDBAR, ldbar);

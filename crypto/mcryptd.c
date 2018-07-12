@@ -367,7 +367,7 @@ static void mcryptd_hash_update(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_update(&rctx->areq);
+	err = crypto_ahash_update(&rctx->areq);
 	if (err) {
 		req->base.complete = rctx->complete;
 		goto out;
@@ -394,7 +394,7 @@ static void mcryptd_hash_final(struct crypto_async_request *req_async, int err)
 		goto out;
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_final(&rctx->areq);
+	err = crypto_ahash_final(&rctx->areq);
 	if (err) {
 		req->base.complete = rctx->complete;
 		goto out;
@@ -420,7 +420,7 @@ static void mcryptd_hash_finup(struct crypto_async_request *req_async, int err)
 	if (unlikely(err == -EINPROGRESS))
 		goto out;
 	rctx->out = req->result;
-	err = ahash_mcryptd_finup(&rctx->areq);
+	err = crypto_ahash_finup(&rctx->areq);
 
 	if (err) {
 		req->base.complete = rctx->complete;
@@ -455,7 +455,7 @@ static void mcryptd_hash_digest(struct crypto_async_request *req_async, int err)
 						rctx->complete, req_async);
 
 	rctx->out = req->result;
-	err = ahash_mcryptd_digest(desc);
+	err = crypto_ahash_init(desc) ?: crypto_ahash_finup(desc);
 
 out:
 	local_bh_disable();
@@ -611,32 +611,6 @@ struct mcryptd_ahash *mcryptd_alloc_ahash(const char *alg_name,
 	return __mcryptd_ahash_cast(tfm);
 }
 EXPORT_SYMBOL_GPL(mcryptd_alloc_ahash);
-
-int ahash_mcryptd_digest(struct ahash_request *desc)
-{
-	return crypto_ahash_init(desc) ?: ahash_mcryptd_finup(desc);
-}
-
-int ahash_mcryptd_update(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_update(desc);
-}
-
-int ahash_mcryptd_finup(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_finup(desc);
-}
-
-int ahash_mcryptd_final(struct ahash_request *desc)
-{
-	/* alignment is to be done by multi-buffer crypto algorithm if needed */
-
-	return crypto_ahash_final(desc);
-}
 
 struct crypto_ahash *mcryptd_ahash_child(struct mcryptd_ahash *tfm)
 {

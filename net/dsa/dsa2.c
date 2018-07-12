@@ -258,11 +258,13 @@ static void dsa_tree_teardown_default_cpu(struct dsa_switch_tree *dst)
 static int dsa_port_setup(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
-	int err;
+	int err = 0;
 
 	memset(&dp->devlink_port, 0, sizeof(dp->devlink_port));
 
-	err = devlink_port_register(ds->devlink, &dp->devlink_port, dp->index);
+	if (dp->type != DSA_PORT_TYPE_UNUSED)
+		err = devlink_port_register(ds->devlink, &dp->devlink_port,
+					    dp->index);
 	if (err)
 		return err;
 
@@ -293,7 +295,8 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 static void dsa_port_teardown(struct dsa_port *dp)
 {
-	devlink_port_unregister(&dp->devlink_port);
+	if (dp->type != DSA_PORT_TYPE_UNUSED)
+		devlink_port_unregister(&dp->devlink_port);
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:

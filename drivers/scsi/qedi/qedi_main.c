@@ -2300,8 +2300,8 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	qedi_dbg_host_init(&qedi->dbg_ctx, &qedi_debugfs_ops,
-			   &qedi_dbg_fops);
+	qedi_dbg_host_init(&qedi->dbg_ctx, qedi_debugfs_ops,
+			   qedi_dbg_fops);
 #endif
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
 		  "QLogic FastLinQ iSCSI Module qedi %s, FW %d.%d.%d.%d\n",

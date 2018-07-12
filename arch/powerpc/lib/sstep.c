@@ -280,7 +280,7 @@ static nokprobe_inline int read_mem_aligned(unsigned long *dest,
  * Copy from userspace to a buffer, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static int nokprobe_inline copy_mem_in(u8 *dest, unsigned long ea, int nb,
+static nokprobe_inline int copy_mem_in(u8 *dest, unsigned long ea, int nb,
 				       struct pt_regs *regs)
 {
 	int err = 0;
@@ -385,7 +385,7 @@ static nokprobe_inline int write_mem_aligned(unsigned long val,
  * Copy from a buffer to userspace, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static int nokprobe_inline copy_mem_out(u8 *dest, unsigned long ea, int nb,
+static nokprobe_inline int copy_mem_out(u8 *dest, unsigned long ea, int nb,
 					struct pt_regs *regs)
 {
 	int err = 0;

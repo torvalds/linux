@@ -46,6 +46,7 @@
 #include <linux/security.h>
 #include <linux/iomap.h>
 #include <linux/slab.h>
+#include <linux/iversion.h>
 
 /*
  * Directories have different lock order w.r.t. mmap_sem compared to regular
@@ -176,7 +177,7 @@ xfs_generic_create(
 	if (!tmpfile) {
 		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	} else {
-		error = xfs_create_tmpfile(XFS_I(dir), dentry, mode, &ip);
+		error = xfs_create_tmpfile(XFS_I(dir), mode, &ip);
 	}
 	if (unlikely(error))
 		goto out_free_acl;
@@ -874,7 +875,9 @@ xfs_setattr_size(
 	 * truncate.
 	 */
 	if (newsize > oldsize) {
-		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
+		trace_xfs_zero_eof(ip, oldsize, newsize - oldsize);
+		error = iomap_zero_range(inode, oldsize, newsize - oldsize,
+				&did_zeroing, &xfs_iomap_ops);
 	} else {
 		error = iomap_truncate_page(inode, newsize, &did_zeroing,
 				&xfs_iomap_ops);
@@ -1052,10 +1055,20 @@ xfs_vn_update_time(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	int			log_flags = XFS_ILOG_TIMESTAMP;
 	struct xfs_trans	*tp;
 	int			error;
 
 	trace_xfs_update_time(ip);
+
+	if (inode->i_sb->s_flags & SB_LAZYTIME) {
+		if (!((flags & S_VERSION) &&
+		      inode_maybe_inc_iversion(inode, false)))
+			return generic_update_time(inode, now, flags);
+
+		/* Capture the iversion update that just occurred */
+		log_flags |= XFS_ILOG_CORE;
+	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
 	if (error)
@@ -1070,7 +1083,7 @@ xfs_vn_update_time(
 		inode->i_atime = *now;
 
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
+	xfs_trans_log_inode(tp, ip, log_flags);
 	return xfs_trans_commit(tp);
 }
 
@@ -1272,7 +1285,10 @@ xfs_setup_iops(
 	case S_IFREG:
 		inode->i_op = &xfs_inode_operations;
 		inode->i_fop = &xfs_file_operations;
-		inode->i_mapping->a_ops = &xfs_address_space_operations;
+		if (IS_DAX(inode))
+			inode->i_mapping->a_ops = &xfs_dax_aops;
+		else
+			inode->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	case S_IFDIR:
 		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))

@@ -68,6 +68,14 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
+
+	usbotg_hs_phy: usb-phy {
+		#phy-cells = <0>;
+		compatible = "usb-nop-xceiv";
+		clocks = <&rcc USB1ULPI_CK>;
+		clock-names = "main_clk";
+	};
+
 };
 
 &adc_12 {
@@ -84,9 +92,21 @@
 	clock-frequency = <25000000>;
 };
 
+&rtc {
+	status = "okay";
+};
+
 &usart1 {
 	pinctrl-0 = <&usart1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
+&usbotg_hs {
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
+	phys = <&usbotg_hs_phy>;
+	phy-names = "usb2-phy";
+	dr_mode = "otg";
+	status = "okay";
+};

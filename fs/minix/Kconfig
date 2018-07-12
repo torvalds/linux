@@ -18,7 +18,7 @@ config MINIX_FS
 
 config MINIX_FS_NATIVE_ENDIAN
 	def_bool MINIX_FS
-	depends on M32R || MICROBLAZE || MIPS || S390 || SUPERH || SPARC || XTENSA || (M68K && !MMU)
+	depends on MICROBLAZE || MIPS || S390 || SUPERH || SPARC || XTENSA || (M68K && !MMU)
 
 config MINIX_FS_BIG_ENDIAN_16BIT_INDEXED
 	def_bool MINIX_FS

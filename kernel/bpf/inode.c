@@ -178,6 +178,9 @@ static int bpf_mkmap(struct dentry *dentry, umode_t mode, void *arg)
 static struct dentry *
 bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 {
+	/* Dots in names (e.g. "/sys/fs/bpf/foo.bar") are reserved for future
+	 * extensions.
+	 */
 	if (strchr(dentry->d_name.name, '.'))
 		return ERR_PTR(-EPERM);
 

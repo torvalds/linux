@@ -681,7 +681,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 			   drift & ~VC4_HDMI_FIFO_CTL_RECENTER);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,
 			   drift | VC4_HDMI_FIFO_CTL_RECENTER);
-		udelay(1000);
+		usleep_range(1000, 1100);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,
 			   drift & ~VC4_HDMI_FIFO_CTL_RECENTER);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,
@@ -995,15 +995,17 @@ static const struct snd_soc_dapm_route vc4_hdmi_audio_routes[] = {
 	{ "TX", NULL, "Playback" },
 };
 
-static const struct snd_soc_codec_driver vc4_hdmi_audio_codec_drv = {
-	.component_driver = {
-		.controls = vc4_hdmi_audio_controls,
-		.num_controls = ARRAY_SIZE(vc4_hdmi_audio_controls),
-		.dapm_widgets = vc4_hdmi_audio_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(vc4_hdmi_audio_widgets),
-		.dapm_routes = vc4_hdmi_audio_routes,
-		.num_dapm_routes = ARRAY_SIZE(vc4_hdmi_audio_routes),
-	},
+static const struct snd_soc_component_driver vc4_hdmi_audio_component_drv = {
+	.controls		= vc4_hdmi_audio_controls,
+	.num_controls		= ARRAY_SIZE(vc4_hdmi_audio_controls),
+	.dapm_widgets		= vc4_hdmi_audio_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(vc4_hdmi_audio_widgets),
+	.dapm_routes		= vc4_hdmi_audio_routes,
+	.num_dapm_routes	= ARRAY_SIZE(vc4_hdmi_audio_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops vc4_hdmi_audio_dai_ops = {
@@ -1101,11 +1103,11 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 		return ret;
 	}
 
-	/* register codec and codec dai */
-	ret = snd_soc_register_codec(dev, &vc4_hdmi_audio_codec_drv,
+	/* register component and codec dai */
+	ret = devm_snd_soc_register_component(dev, &vc4_hdmi_audio_component_drv,
 				     &vc4_hdmi_audio_codec_dai_drv, 1);
 	if (ret) {
-		dev_err(dev, "Could not register codec: %d\n", ret);
+		dev_err(dev, "Could not register component: %d\n", ret);
 		return ret;
 	}
 
@@ -1130,29 +1132,11 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 	 */
 	snd_soc_card_set_drvdata(card, hdmi);
 	ret = devm_snd_soc_register_card(dev, card);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Could not register sound card: %d\n", ret);
-		goto unregister_codec;
-	}
-
-	return 0;
-
-unregister_codec:
-	snd_soc_unregister_codec(dev);
 
 	return ret;
-}
 
-static void vc4_hdmi_audio_cleanup(struct vc4_hdmi *hdmi)
-{
-	struct device *dev = &hdmi->pdev->dev;
-
-	/*
-	 * If drvdata is not set this means the audio card was not
-	 * registered, just skip codec unregistration in this case.
-	 */
-	if (dev_get_drvdata(dev))
-		snd_soc_unregister_codec(dev);
 }
 
 #ifdef CONFIG_DRM_VC4_HDMI_CEC
@@ -1480,7 +1464,6 @@ static void vc4_hdmi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = drm->dev_private;
 	struct vc4_hdmi *hdmi = vc4->hdmi;
 
-	vc4_hdmi_audio_cleanup(hdmi);
 	cec_unregister_adapter(hdmi->cec_adap);
 	vc4_hdmi_connector_destroy(hdmi->connector);
 	vc4_hdmi_encoder_destroy(hdmi->encoder);

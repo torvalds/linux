@@ -36,6 +36,7 @@
 #define _MLXSW_CORE_ACL_FLEX_ACTIONS_H
 
 #include <linux/types.h>
+#include <linux/netdevice.h>
 
 struct mlxsw_afa;
 struct mlxsw_afa_block;
@@ -48,9 +49,10 @@ struct mlxsw_afa_ops {
 	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
 	int (*counter_index_get)(void *priv, unsigned int *p_counter_index);
 	void (*counter_index_put)(void *priv, unsigned int counter_index);
-	int (*mirror_add)(void *priv, u8 locol_in_port, u8 local_out_port,
+	int (*mirror_add)(void *priv, u8 local_in_port,
+			  const struct net_device *out_dev,
 			  bool ingress, int *p_span_id);
-	void (*mirror_del)(void *priv, u8 locol_in_port, u8 local_out_port,
+	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
 			   bool ingress);
 };
 
@@ -71,7 +73,8 @@ int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id);
 int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
-				  u8 local_in_port, u8 local_out_port,
+				  u8 local_in_port,
+				  const struct net_device *out_dev,
 				  bool ingress);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port);

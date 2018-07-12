@@ -51,9 +51,9 @@
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 /* RPC/RDMA parameters */
-unsigned int svcrdma_ord = RPCRDMA_ORD;
+unsigned int svcrdma_ord = 16;	/* historical default */
 static unsigned int min_ord = 1;
-static unsigned int max_ord = 4096;
+static unsigned int max_ord = 255;
 unsigned int svcrdma_max_requests = RPCRDMA_MAX_REQUESTS;
 unsigned int svcrdma_max_bc_requests = RPCRDMA_MAX_BC_REQUESTS;
 static unsigned int min_max_requests = 4;

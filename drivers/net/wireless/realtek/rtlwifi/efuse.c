@@ -50,6 +50,11 @@ static const struct efuse_map RTL8712_SDIO_EFUSE_TABLE[] = {
 	{11, 0, 0, 28}
 };
 
+static const struct rtl_efuse_ops efuse_ops = {
+	.efuse_onebyte_read = efuse_one_byte_read,
+	.efuse_logical_map_read = efuse_shadow_read,
+};
+
 static void efuse_shadow_read_1byte(struct ieee80211_hw *hw, u16 offset,
 				    u8 *value);
 static void efuse_shadow_read_2byte(struct ieee80211_hw *hw, u16 offset,
@@ -1364,3 +1369,11 @@ void rtl_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
 	*pfwlen = fwlen;
 }
 EXPORT_SYMBOL_GPL(rtl_fill_dummy);
+
+void rtl_efuse_ops_init(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtlpriv->efuse.efuse_ops = &efuse_ops;
+}
+EXPORT_SYMBOL_GPL(rtl_efuse_ops_init);

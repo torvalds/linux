@@ -101,7 +101,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	trace_ocfs2_file_open(inode, file, file->f_path.dentry,
-			      (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			      (unsigned long long)oi->ip_blkno,
 			      file->f_path.dentry->d_name.len,
 			      file->f_path.dentry->d_name.name, mode);
 
@@ -116,7 +116,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	/* Check that the inode hasn't been wiped from disk by another
 	 * node. If it hasn't then we're safe as long as we hold the
 	 * spin lock until our increment of open count. */
-	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
+	if (oi->ip_flags & OCFS2_INODE_DELETED) {
 		spin_unlock(&oi->ip_lock);
 
 		status = -ENOENT;
@@ -190,7 +190,7 @@ static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
 	bool needs_barrier = false;
 
 	trace_ocfs2_sync_file(inode, file, file->f_path.dentry,
-			      OCFS2_I(inode)->ip_blkno,
+			      oi->ip_blkno,
 			      file->f_path.dentry->d_name.len,
 			      file->f_path.dentry->d_name.name,
 			      (unsigned long long)datasync);
@@ -296,7 +296,7 @@ int ocfs2_update_inode_atime(struct inode *inode,
 	ocfs2_journal_dirty(handle, bh);
 
 out_commit:
-	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+	ocfs2_commit_trans(osb, handle);
 out:
 	return ret;
 }
@@ -2257,7 +2257,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	int direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
 	int nowait = iocb->ki_flags & IOCB_NOWAIT ? 1 : 0;
 
-	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
+	trace_ocfs2_file_write_iter(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
 		file->f_path.dentry->d_name.len,
 		file->f_path.dentry->d_name.name,
@@ -2405,7 +2405,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	int direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
 	int nowait = iocb->ki_flags & IOCB_NOWAIT ? 1 : 0;
 
-	trace_ocfs2_file_aio_read(inode, filp, filp->f_path.dentry,
+	trace_ocfs2_file_read_iter(inode, filp, filp->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
 			filp->f_path.dentry->d_name.len,
 			filp->f_path.dentry->d_name.name,
@@ -2448,7 +2448,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	 *
 	 * Take and drop the meta data lock to update inode fields
 	 * like i_size. This allows the checks down below
-	 * generic_file_aio_read() a chance of actually working.
+	 * generic_file_read_iter() a chance of actually working.
 	 */
 	ret = ocfs2_inode_lock_atime(inode, filp->f_path.mnt, &lock_level,
 				     !nowait);
@@ -2460,7 +2460,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	ocfs2_inode_unlock(inode, lock_level);
 
 	ret = generic_file_read_iter(iocb, to);
-	trace_generic_file_aio_read_ret(ret);
+	trace_generic_file_read_iter_ret(ret);
 
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));

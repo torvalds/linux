@@ -530,11 +530,6 @@
     "BriefDescription": "Counts all Icache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch"
   },
   {,
-    "EventCode": "0x4003C",
-    "EventName": "PM_DISP_HELD_SYNC_HOLD",
-    "BriefDescription": "Cycles in which dispatch is held because of a synchronizing instruction in the pipeline"
-  },
-  {,
     "EventCode": "0x3003C",
     "EventName": "PM_CMPLU_STALL_NESTED_TEND",
     "BriefDescription": "Completion stall because the ISU is updating the TEXASR to keep track of the nested tend and decrement the TEXASR nested level. This is a short delay"

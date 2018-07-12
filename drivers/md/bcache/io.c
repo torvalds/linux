@@ -38,7 +38,7 @@ void __bch_submit_bbio(struct bio *bio, struct cache_set *c)
 	bio_set_dev(bio, PTR_CACHE(c, &b->key, 0)->bdev);
 
 	b->submit_time_us = local_clock_us();
-	closure_bio_submit(bio, bio->bi_private);
+	closure_bio_submit(c, bio, bio->bi_private);
 }
 
 void bch_submit_bbio(struct bio *bio, struct cache_set *c,
@@ -50,6 +50,19 @@ void bch_submit_bbio(struct bio *bio, struct cache_set *c,
 }
 
 /* IO errors */
+void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
+{
+	unsigned errors;
+
+	WARN_ONCE(!dc, "NULL pointer of struct cached_dev");
+
+	errors = atomic_add_return(1, &dc->io_errors);
+	if (errors < dc->error_limit)
+		pr_err("%s: IO error on backing device, unrecoverable",
+			dc->backing_dev_name);
+	else
+		bch_cached_dev_error(dc);
+}
 
 void bch_count_io_errors(struct cache *ca,
 			 blk_status_t error,
@@ -91,19 +104,18 @@ void bch_count_io_errors(struct cache *ca,
 	}
 
 	if (error) {
-		char buf[BDEVNAME_SIZE];
 		unsigned errors = atomic_add_return(1 << IO_ERROR_SHIFT,
 						    &ca->io_errors);
 		errors >>= IO_ERROR_SHIFT;
 
 		if (errors < ca->set->error_limit)
 			pr_err("%s: IO error on %s%s",
-			       bdevname(ca->bdev, buf), m,
+			       ca->cache_dev_name, m,
 			       is_read ? ", recovering." : ".");
 		else
 			bch_cache_set_error(ca->set,
 					    "%s: too many IO errors %s",
-					    bdevname(ca->bdev, buf), m);
+					    ca->cache_dev_name, m);
 	}
 }
 

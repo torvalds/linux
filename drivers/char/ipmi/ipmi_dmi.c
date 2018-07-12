@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * A hack to create a platform device from a DMI entry.  This will
  * allow autoloading of the IPMI drive based on SMBIOS entries.
@@ -28,15 +28,6 @@ struct ipmi_dmi_info {
 static struct ipmi_dmi_info *ipmi_dmi_infos;
 
 static int ipmi_dmi_nr __initdata;
-
-#define set_prop_entry(_p_, _name_, type, val)	\
-do {					\
-	struct property_entry *_p = &_p_;	\
-	_p->name = _name_;			\
-	_p->length = sizeof(type);		\
-	_p->is_string = false;			\
-	_p->value.type##_data = val;		\
-} while(0)
 
 static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 					 u32 flags,
@@ -85,9 +76,10 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 	}
 
 	if (si_type != SI_TYPE_INVALID)
-		set_prop_entry(p[pidx++], "ipmi-type", u8, si_type);
-	set_prop_entry(p[pidx++], "slave-addr", u8, slave_addr);
-	set_prop_entry(p[pidx++], "addr-source", u8, SI_SMBIOS);
+		p[pidx++] = PROPERTY_ENTRY_U8("ipmi-type", si_type);
+
+	p[pidx++] = PROPERTY_ENTRY_U8("slave-addr", slave_addr);
+	p[pidx++] = PROPERTY_ENTRY_U8("addr-source", SI_SMBIOS);
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -112,7 +104,7 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		goto err;
 
 	if (type == IPMI_DMI_TYPE_SSIF) {
-		set_prop_entry(p[pidx++], "i2c-addr", u16, base_addr);
+		p[pidx++] = PROPERTY_ENTRY_U16("i2c-addr", base_addr);
 		goto add_properties;
 	}
 

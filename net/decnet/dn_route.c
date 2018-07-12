@@ -1918,7 +1918,7 @@ void __init dn_route_init(void)
 
 	dn_dst_ops.gc_thresh = (dn_rt_hash_mask + 1);
 
-	proc_create("decnet_cache", S_IRUGO, init_net.proc_net,
+	proc_create("decnet_cache", 0444, init_net.proc_net,
 		    &dn_rt_cache_seq_fops);
 
 #ifdef CONFIG_DECNET_ROUTER

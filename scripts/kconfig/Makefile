@@ -3,7 +3,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config silentoldconfig update-po-config \
+PHONY += xconfig gconfig menuconfig config syncconfig update-po-config \
 	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
@@ -36,24 +36,22 @@ nconfig: $(obj)/nconf
 
 # This has become an internal implementation detail and is now deprecated
 # for external use.
-silentoldconfig: $(obj)/conf
+syncconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
-	$(Q)test -e include/generated/autoksyms.h || \
-	    touch   include/generated/autoksyms.h
 	$< $(silent) --$@ $(Kconfig)
 
-localyesconfig localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
+localyesconfig localmodconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
-	$(Q)perl $< --$@ $(srctree) $(Kconfig) > .tmp.config
+	$(Q)perl $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 					\
 			cmp -s .tmp.config .config ||			\
 			(mv -f .config .config.old.1;			\
 			 mv -f .tmp.config .config;			\
-			 $(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
+			 $< $(silent) --oldconfig $(Kconfig);		\
 			 mv -f .config.old.1 .config.old)		\
 	else								\
 			mv -f .tmp.config .config;			\
-			$(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
+			$< $(silent) --oldconfig $(Kconfig);		\
 	fi
 	$(Q)rm -f .tmp.config
 
@@ -88,7 +86,7 @@ PHONY += $(simple-targets)
 $(simple-targets): $(obj)/conf
 	$< $(silent) --$@ $(Kconfig)
 
-PHONY += oldnoconfig savedefconfig defconfig
+PHONY += oldnoconfig silentoldconfig savedefconfig defconfig
 
 # oldnoconfig is an alias of olddefconfig, because people already are dependent
 # on its behavior (sets new symbols to their default value but not 'n') with the
@@ -96,6 +94,13 @@ PHONY += oldnoconfig savedefconfig defconfig
 oldnoconfig: olddefconfig
 	@echo "  WARNING: \"oldnoconfig\" target will be removed after Linux 4.19"
 	@echo "            Please use \"olddefconfig\" instead, which is an alias."
+
+# We do not expect manual invokcation of "silentoldcofig" (or "syncconfig").
+silentoldconfig: syncconfig
+	@echo "  WARNING: \"silentoldconfig\" has been renamed to \"syncconfig\""
+	@echo "            and is now an internal implementation detail."
+	@echo "            What you want is probably \"oldconfig\"."
+	@echo "            \"silentoldconfig\" will be removed after Linux 4.19"
 
 savedefconfig: $(obj)/conf
 	$< $(silent) --$@=defconfig $(Kconfig)
@@ -134,6 +139,14 @@ xenconfig: xen.config
 PHONY += tinyconfig
 tinyconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile allnoconfig tiny.config
+
+# CHECK: -o cache_dir=<path> working?
+PHONY += testconfig
+testconfig: $(obj)/conf
+	$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
+	-o cache_dir=$(abspath $(obj)/tests/.cache) \
+	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
+clean-dirs += tests/.cache
 
 # Help text used by make help
 help:
@@ -194,9 +207,9 @@ gconf-objs	:= gconf.o zconf.tab.o
 
 hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
-targets		+= zconf.tab.c zconf.lex.c
+targets		+= zconf.lex.c
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
-clean-files	+= zconf.tab.c zconf.lex.c gconf.glade.h
+clean-files	+= gconf.glade.h
 clean-files     += config.pot linux.pot
 
 # Check that we have the required ncurses stuff installed for lxdialog (menuconfig)

@@ -351,4 +351,14 @@ config JOYSTICK_PSXPAD_SPI_FF
 
 	  To drive rumble motor a dedicated power supply is required.
 
+config JOYSTICK_PXRC
+	tristate "PhoenixRC Flight Controller Adapter"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use the PhoenixRC Flight Controller Adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxrc.
+
 endif

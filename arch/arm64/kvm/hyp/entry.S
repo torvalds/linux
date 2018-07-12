@@ -62,9 +62,6 @@ ENTRY(__guest_enter)
 	// Store the host regs
 	save_callee_saved_regs x1
 
-	// Store host_ctxt and vcpu for use at exit time
-	stp	x1, x0, [sp, #-16]!
-
 	add	x18, x0, #VCPU_CONTEXT
 
 	// Restore guest regs x0-x17
@@ -118,8 +115,7 @@ ENTRY(__guest_exit)
 	// Store the guest regs x19-x29, lr
 	save_callee_saved_regs x1
 
-	// Restore the host_ctxt from the stack
-	ldr	x2, [sp], #16
+	get_host_ctxt	x2, x3
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2
@@ -213,15 +209,3 @@ alternative_endif
 
 	eret
 ENDPROC(__fpsimd_guest_restore)
-
-ENTRY(__qcom_hyp_sanitize_btac_predictors)
-	/**
-	 * Call SMC64 with Silicon provider serviceID 23<<8 (0xc2001700)
-	 * 0xC2000000-0xC200FFFF: assigned to SiP Service Calls
-	 * b15-b0: contains SiP functionID
-	 */
-	movz    x0, #0x1700
-	movk    x0, #0xc200, lsl #16
-	smc     #0
-	ret
-ENDPROC(__qcom_hyp_sanitize_btac_predictors)

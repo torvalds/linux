@@ -63,7 +63,7 @@
 };
 
 &clk_hse {
-	clock-frequency = <125000000>;
+	clock-frequency = <25000000>;
 };
 
 &usart2 {

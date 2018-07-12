@@ -295,7 +295,6 @@ static int jr3_pci_open(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
-	dev_dbg(dev->class_dev, "jr3_pci_open\n");
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;

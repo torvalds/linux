@@ -118,6 +118,8 @@ enum hnae3_reset_notify_type {
 };
 
 enum hnae3_reset_type {
+	HNAE3_VF_RESET,
+	HNAE3_VF_FULL_RESET,
 	HNAE3_FUNC_RESET,
 	HNAE3_CORE_RESET,
 	HNAE3_GLOBAL_RESET,
@@ -265,6 +267,8 @@ struct hnae3_ae_dev {
  *   Get tc size of handle
  * get_vector()
  *   Get vector number and vector information
+ * put_vector()
+ *   Put the vector in hdev
  * map_ring_to_vector()
  *   Map rings to vector
  * unmap_ring_from_vector()
@@ -336,7 +340,8 @@ struct hnae3_ae_ops {
 				   u32 *tx_usecs_high, u32 *rx_usecs_high);
 
 	void (*get_mac_addr)(struct hnae3_handle *handle, u8 *p);
-	int (*set_mac_addr)(struct hnae3_handle *handle, void *p);
+	int (*set_mac_addr)(struct hnae3_handle *handle, void *p,
+			    bool is_first);
 	int (*add_uc_addr)(struct hnae3_handle *handle,
 			   const unsigned char *addr);
 	int (*rm_uc_addr)(struct hnae3_handle *handle,
@@ -375,6 +380,7 @@ struct hnae3_ae_ops {
 
 	int (*get_vector)(struct hnae3_handle *handle, u16 vector_num,
 			  struct hnae3_vector_info *vector_info);
+	int (*put_vector)(struct hnae3_handle *handle, int vector_num);
 	int (*map_ring_to_vector)(struct hnae3_handle *handle,
 				  int vector_num,
 				  struct hnae3_ring_chain_node *vr_chain);
@@ -396,8 +402,7 @@ struct hnae3_ae_ops {
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
 	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
-	void (*reset_event)(struct hnae3_handle *handle,
-			    enum hnae3_reset_type reset);
+	void (*reset_event)(struct hnae3_handle *handle);
 	void (*get_channels)(struct hnae3_handle *handle,
 			     struct ethtool_channels *ch);
 	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
@@ -407,6 +412,10 @@ struct hnae3_ae_ops {
 				 u32 *flowctrl_adv);
 	int (*set_led_id)(struct hnae3_handle *handle,
 			  enum ethtool_phys_id_state status);
+	void (*get_link_mode)(struct hnae3_handle *handle,
+			      unsigned long *supported,
+			      unsigned long *advertising);
+	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
 };
 
 struct hnae3_dcb_ops {
@@ -486,6 +495,9 @@ struct hnae3_handle {
 	void *priv;
 	struct hnae3_ae_algo *ae_algo;  /* the class who provides this handle */
 	u64 flags; /* Indicate the capabilities for this handle*/
+
+	unsigned long last_reset_time;
+	enum hnae3_reset_type reset_level;
 
 	union {
 		struct net_device *netdev; /* first member */

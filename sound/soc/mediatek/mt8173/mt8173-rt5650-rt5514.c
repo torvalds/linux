@@ -82,10 +82,10 @@ static struct snd_soc_jack mt8173_rt5650_rt5514_jack;
 static int mt8173_rt5650_rt5514_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_codec *codec = runtime->codec_dais[0]->codec;
+	struct snd_soc_component *component = runtime->codec_dais[0]->component;
 	int ret;
 
-	rt5645_sel_asrc_clk_src(codec,
+	rt5645_sel_asrc_clk_src(component,
 				RT5645_DA_STEREO_FILTER |
 				RT5645_AD_STEREO_FILTER,
 				RT5645_CLK_SEL_I2S1_ASRC);
@@ -101,7 +101,7 @@ static int mt8173_rt5650_rt5514_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	return rt5645_set_jack_detect(codec,
+	return rt5645_set_jack_detect(component,
 				      &mt8173_rt5650_rt5514_jack,
 				      &mt8173_rt5650_rt5514_jack,
 				      &mt8173_rt5650_rt5514_jack);

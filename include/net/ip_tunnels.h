@@ -180,8 +180,10 @@ struct tnl_ptk_info {
 
 struct ip_tunnel_net {
 	struct net_device *fb_tunnel_dev;
+	struct rtnl_link_ops *rtnl_link_ops;
 	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
 	struct ip_tunnel __rcu *collect_md_tun;
+	int type;
 };
 
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
@@ -253,6 +255,22 @@ static inline __be32 tunnel_id_to_key32(__be64 tun_id)
 }
 
 #ifdef CONFIG_INET
+
+static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
+				       int proto,
+				       __be32 daddr, __be32 saddr,
+				       __be32 key, __u8 tos, int oif,
+				       __u32 mark)
+{
+	memset(fl4, 0, sizeof(*fl4));
+	fl4->flowi4_oif = oif;
+	fl4->daddr = daddr;
+	fl4->saddr = saddr;
+	fl4->flowi4_tos = tos;
+	fl4->flowi4_proto = proto;
+	fl4->fl4_gre_key = key;
+	fl4->flowi4_mark = mark;
+}
 
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);

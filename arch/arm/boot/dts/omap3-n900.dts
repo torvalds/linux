@@ -673,6 +673,7 @@
 	bq27200: bq27200@55 {
 		compatible = "ti,bq27200";
 		reg = <0x55>;
+		power-supplies = <&bq24150a>;
 	};
 
 	/* Stereo headphone amplifier */

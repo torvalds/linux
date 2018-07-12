@@ -164,4 +164,13 @@ void mod_freesync_pre_update_plane_addresses(struct mod_freesync *mod_freesync,
 		struct dc_stream_state **streams, int num_streams,
 		unsigned int curr_time_stamp);
 
+void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
+		struct dc_stream_state **streams, int num_streams,
+		unsigned int *v_total_min, unsigned int *v_total_max,
+		unsigned int *event_triggers,
+		unsigned int *window_min, unsigned int *window_max,
+		unsigned int *lfc_mid_point_in_us,
+		unsigned int *inserted_frames,
+		unsigned int *inserted_duration_in_us);
+
 #endif

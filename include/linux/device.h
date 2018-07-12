@@ -256,6 +256,9 @@ enum probe_type {
  *		automatically.
  * @pm:		Power management operations of the device which matched
  *		this driver.
+ * @coredump:	Called when sysfs entry is written to. The device driver
+ *		is expected to call the dev_coredump API resulting in a
+ *		uevent.
  * @p:		Driver core's private data, no one other than the driver
  *		core can touch this.
  *
@@ -287,7 +290,7 @@ struct device_driver {
 	const struct attribute_group **groups;
 
 	const struct dev_pm_ops *pm;
-	int (*coredump) (struct device *dev);
+	void (*coredump) (struct device *dev);
 
 	struct driver_private *p;
 };
@@ -730,6 +733,28 @@ struct device_dma_parameters {
 };
 
 /**
+ * struct device_connection - Device Connection Descriptor
+ * @endpoint: The names of the two devices connected together
+ * @id: Unique identifier for the connection
+ * @list: List head, private, for internal use only
+ */
+struct device_connection {
+	const char		*endpoint[2];
+	const char		*id;
+	struct list_head	list;
+};
+
+void *device_connection_find_match(struct device *dev, const char *con_id,
+				void *data,
+				void *(*match)(struct device_connection *con,
+					       int ep, void *data));
+
+struct device *device_connection_find(struct device *dev, const char *con_id);
+
+void device_connection_add(struct device_connection *con);
+void device_connection_remove(struct device_connection *con);
+
+/**
  * enum device_link_state - Device link states.
  * @DL_STATE_NONE: The presence of the drivers is not being tracked.
  * @DL_STATE_DORMANT: None of the supplier/consumer drivers is present.
@@ -769,6 +794,7 @@ enum device_link_state {
  * @status: The state of the link (with respect to the presence of drivers).
  * @flags: Link flags.
  * @rpm_active: Whether or not the consumer device is runtime-PM-active.
+ * @kref: Count repeated addition of the same link.
  * @rcu_head: An RCU head to use for deferred execution of SRCU callbacks.
  */
 struct device_link {
@@ -779,6 +805,7 @@ struct device_link {
 	enum device_link_state status;
 	u32 flags;
 	bool rpm_active;
+	struct kref kref;
 #ifdef CONFIG_SRCU
 	struct rcu_head rcu_head;
 #endif

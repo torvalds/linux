@@ -15,6 +15,8 @@ sctp-y := sm_statetable.o sm_statefuns.o sm_sideeffect.o \
 	  offload.o stream_sched.o stream_sched_prio.o \
 	  stream_sched_rr.o stream_interleave.o
 
+sctp_diag-y := diag.o
+
 sctp-$(CONFIG_SCTP_DBG_OBJCNT) += objcnt.o
 sctp-$(CONFIG_PROC_FS) += proc.o
 sctp-$(CONFIG_SYSCTL) += sysctl.o

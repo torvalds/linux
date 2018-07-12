@@ -428,7 +428,6 @@ static void dlfb_compress_hline(
 	const uint16_t *pixel = *pixel_start_ptr;
 	uint32_t dev_addr  = *device_address_ptr;
 	uint8_t *cmd = *command_buffer_ptr;
-	const int bpp = 2;
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
@@ -441,9 +440,9 @@ static void dlfb_compress_hline(
 
 		*cmd++ = 0xAF;
 		*cmd++ = 0x6B;
-		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
-		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
-		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
+		*cmd++ = dev_addr >> 16;
+		*cmd++ = dev_addr >> 8;
+		*cmd++ = dev_addr;
 
 		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
 		cmd_pixel_start = pixel;
@@ -453,15 +452,15 @@ static void dlfb_compress_hline(
 
 		cmd_pixel_end = pixel + min(MAX_CMD_PIXELS + 1,
 			min((int)(pixel_end - pixel),
-			    (int)(cmd_buffer_end - cmd) / bpp));
+			    (int)(cmd_buffer_end - cmd) / BPP));
 
-		prefetch_range((void *) pixel, (cmd_pixel_end - pixel) * bpp);
+		prefetch_range((void *) pixel, (cmd_pixel_end - pixel) * BPP);
 
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
 
-			*(uint16_t *)cmd = cpu_to_be16p(pixel);
-			cmd += 2;
+			*cmd++ = *pixel >> 8;
+			*cmd++ = *pixel;
 			pixel++;
 
 			if (unlikely((pixel < cmd_pixel_end) &&
@@ -490,7 +489,7 @@ static void dlfb_compress_hline(
 		}
 
 		*cmd_pixels_count_byte = (pixel - cmd_pixel_start) & 0xFF;
-		dev_addr += (pixel - cmd_pixel_start) * bpp;
+		dev_addr += (pixel - cmd_pixel_start) * BPP;
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
@@ -1136,7 +1135,6 @@ static struct fb_ops dlfb_ops = {
  */
 static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info)
 {
-	int retval = -ENOMEM;
 	int old_len = info->fix.smem_len;
 	int new_len;
 	unsigned char *old_fb = info->screen_base;
@@ -1152,7 +1150,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 		new_fb = vmalloc(new_len);
 		if (!new_fb) {
 			dev_err(info->dev, "Virtual framebuffer alloc failed\n");
-			goto error;
+			return -ENOMEM;
 		}
 
 		if (info->screen_base) {
@@ -1181,11 +1179,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 			dlfb->backing_buffer = new_back;
 		}
 	}
-
-	retval = 0;
-
-error:
-	return retval;
+	return 0;
 }
 
 /*
@@ -1531,15 +1525,16 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 			u8 length;
 			u16 key;
 
-			key = le16_to_cpu(*((u16 *) desc));
-			desc += sizeof(u16);
-			length = *desc;
-			desc++;
+			key = *desc++;
+			key |= (u16)*desc++ << 8;
+			length = *desc++;
 
 			switch (key) {
 			case 0x0200: { /* max_area */
-				u32 max_area;
-				max_area = le32_to_cpu(*((u32 *)desc));
+				u32 max_area = *desc++;
+				max_area |= (u32)*desc++ << 8;
+				max_area |= (u32)*desc++ << 16;
+				max_area |= (u32)*desc++ << 24;
 				dev_warn(&intf->dev,
 					 "DL chip limited to %d pixel modes\n",
 					 max_area);

@@ -199,6 +199,10 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"rx_xdp_drop",
 	"rx_xdp_tx",
 	"rx_xdp_tx_full",
+
+	/* phy statistics */
+	"rx_packets_phy", "rx_bytes_phy",
+	"tx_packets_phy", "tx_bytes_phy",
 };
 
 static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {
@@ -411,6 +415,10 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&priv->xdp_stats)[i];
 
+	for (i = 0; i < NUM_PHY_STATS; i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] = ((unsigned long *)&priv->phy_stats)[i];
+
 	for (i = 0; i < priv->tx_ring_num[TX]; i++) {
 		data[index++] = priv->tx_ring[TX][i]->packets;
 		data[index++] = priv->tx_ring[TX][i]->bytes;
@@ -485,6 +493,12 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				       main_strings[strings]);
 
 		for (i = 0; i < NUM_XDP_STATS; i++, strings++,
+		     bitmap_iterator_inc(&it))
+			if (bitmap_iterator_test(&it))
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+				       main_strings[strings]);
+
+		for (i = 0; i < NUM_PHY_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
 				strcpy(data + (index++) * ETH_GSTRING_LEN,
@@ -1012,6 +1026,22 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 
 	if (!coal->tx_max_coalesced_frames_irq)
 		return -EINVAL;
+
+	if (coal->tx_coalesce_usecs > MLX4_EN_MAX_COAL_TIME ||
+	    coal->rx_coalesce_usecs > MLX4_EN_MAX_COAL_TIME ||
+	    coal->rx_coalesce_usecs_low > MLX4_EN_MAX_COAL_TIME ||
+	    coal->rx_coalesce_usecs_high > MLX4_EN_MAX_COAL_TIME) {
+		netdev_info(dev, "%s: maximum coalesce time supported is %d usecs\n",
+			    __func__, MLX4_EN_MAX_COAL_TIME);
+		return -ERANGE;
+	}
+
+	if (coal->tx_max_coalesced_frames > MLX4_EN_MAX_COAL_PKTS ||
+	    coal->rx_max_coalesced_frames > MLX4_EN_MAX_COAL_PKTS) {
+		netdev_info(dev, "%s: maximum coalesced frames supported is %d\n",
+			    __func__, MLX4_EN_MAX_COAL_PKTS);
+		return -ERANGE;
+	}
 
 	priv->rx_frames = (coal->rx_max_coalesced_frames ==
 			   MLX4_EN_AUTO_CONF) ?

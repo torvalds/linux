@@ -122,26 +122,26 @@ static struct snd_soc_dai_driver pistachio_internal_dac_dais[] = {
 	},
 };
 
-static int pistachio_internal_dac_codec_probe(struct snd_soc_codec *codec)
+static int pistachio_internal_dac_codec_probe(struct snd_soc_component *component)
 {
-	struct pistachio_internal_dac *dac = snd_soc_codec_get_drvdata(codec);
+	struct pistachio_internal_dac *dac = snd_soc_component_get_drvdata(component);
 
-	snd_soc_codec_init_regmap(codec, dac->regmap);
+	snd_soc_component_init_regmap(component, dac->regmap);
 
 	return 0;
 }
 
-static const struct snd_soc_codec_driver pistachio_internal_dac_driver = {
-	.probe = pistachio_internal_dac_codec_probe,
-	.idle_bias_off = true,
-	.component_driver = {
-		.controls		= pistachio_internal_dac_snd_controls,
-		.num_controls		= ARRAY_SIZE(pistachio_internal_dac_snd_controls),
-		.dapm_widgets		= pistachio_internal_dac_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(pistachio_internal_dac_widgets),
-		.dapm_routes		= pistachio_internal_dac_routes,
-		.num_dapm_routes	= ARRAY_SIZE(pistachio_internal_dac_routes),
-	},
+static const struct snd_soc_component_driver pistachio_internal_dac_driver = {
+	.probe			= pistachio_internal_dac_codec_probe,
+	.controls		= pistachio_internal_dac_snd_controls,
+	.num_controls		= ARRAY_SIZE(pistachio_internal_dac_snd_controls),
+	.dapm_widgets		= pistachio_internal_dac_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pistachio_internal_dac_widgets),
+	.dapm_routes		= pistachio_internal_dac_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pistachio_internal_dac_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int pistachio_internal_dac_probe(struct platform_device *pdev)
@@ -202,11 +202,12 @@ static int pistachio_internal_dac_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
-	ret = snd_soc_register_codec(dev, &pistachio_internal_dac_driver,
+	ret = devm_snd_soc_register_component(dev,
+			&pistachio_internal_dac_driver,
 			pistachio_internal_dac_dais,
 			ARRAY_SIZE(pistachio_internal_dac_dais));
 	if (ret) {
-		dev_err(dev, "failed to register codec: %d\n", ret);
+		dev_err(dev, "failed to register component: %d\n", ret);
 		goto err_pwr;
 	}
 
@@ -225,7 +226,6 @@ static int pistachio_internal_dac_remove(struct platform_device *pdev)
 {
 	struct pistachio_internal_dac *dac = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pistachio_internal_dac_pwr_off(dac);
 	regulator_disable(dac->supply);

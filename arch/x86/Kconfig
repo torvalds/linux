@@ -29,6 +29,7 @@ config X86_64
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
 	select X86_DEV_DMA_OPS
+	select ARCH_HAS_SYSCALL_WRAPPER
 
 #
 # Arch settings
@@ -51,10 +52,10 @@ config X86
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
+	select ARCH_HAS_FILTER_PGPROT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_KCOV			if X86_64
-	select ARCH_HAS_PHYS_TO_DMA
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_REFCOUNT
@@ -83,6 +84,7 @@ config X86
 	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	select CLOCKSOURCE_WATCHDOG
 	select DCACHE_WORD_ACCESS
+	select DMA_DIRECT_OPS
 	select EDAC_ATOMIC_SCRUB
 	select EDAC_SUPPORT
 	select GENERIC_CLOCKEVENTS
@@ -272,6 +274,9 @@ config ARCH_HAS_CPU_RELAX
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
+config ARCH_HAS_FILTER_PGPROT
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
@@ -392,17 +397,6 @@ config X86_FEATURE_NAMES
 	  making those few kernel messages show numeric feature bits instead.
 
 	  If in doubt, say Y.
-
-config X86_FAST_FEATURE_TESTS
-	bool "Fast CPU feature tests" if EMBEDDED
-	default y
-	---help---
-	  Some fast-paths in the kernel depend on the capabilities of the CPU.
-	  Say Y here for the kernel to patch in the appropriate code at runtime
-	  based on the capabilities of the CPU. The infrastructure for patching
-	  code at runtime takes up some additional space; space-constrained
-	  embedded systems may wish to say N here to produce smaller, slightly
-	  slower code.
 
 config X86_X2APIC
 	bool "Support x2apic"
@@ -691,6 +685,7 @@ config X86_SUPPORTS_MEMORY_FAILURE
 config STA2X11
 	bool "STA2X11 Companion Chip Support"
 	depends on X86_32_NON_STANDARD && PCI
+	select ARCH_HAS_PHYS_TO_DMA
 	select X86_DEV_DMA_OPS
 	select X86_DMA_REMAP
 	select SWIOTLB
@@ -1306,7 +1301,7 @@ config MICROCODE
 	  the Linux kernel.
 
 	  The preferred method to load microcode from a detached initrd is described
-	  in Documentation/x86/early-microcode.txt. For that you need to enable
+	  in Documentation/x86/microcode.txt. For that you need to enable
 	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
 	  initrd for microcode blobs.
 
@@ -1472,6 +1467,8 @@ config X86_PAE
 
 config X86_5LEVEL
 	bool "Enable 5-level page tables support"
+	select DYNAMIC_MEMORY_LAYOUT
+	select SPARSEMEM_VMEMMAP
 	depends on X86_64
 	---help---
 	  5-level paging enables access to larger address space:
@@ -1480,8 +1477,8 @@ config X86_5LEVEL
 
 	  It will be supported by future Intel CPUs.
 
-	  Note: a kernel with this option enabled can only be booted
-	  on machines that support the feature.
+	  A kernel with the option enabled can be booted on machines that
+	  support 4- or 5-level paging.
 
 	  See Documentation/x86/x86_64/5level-paging.txt for more
 	  information.
@@ -1605,10 +1602,6 @@ config NODES_SHIFT
 config ARCH_HAVE_MEMORY_PRESENT
 	def_bool y
 	depends on X86_32 && DISCONTIGMEM
-
-config NEED_NODE_MEMMAP_SIZE
-	def_bool y
-	depends on X86_32 && (DISCONTIGMEM || SPARSEMEM)
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -2020,6 +2013,9 @@ config KEXEC_FILE
 	  for kernel and initramfs as opposed to list of segments as
 	  accepted by previous system call.
 
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool KEXEC_FILE
+
 config KEXEC_VERIFY_SIG
 	bool "Verify kernel signature during kexec_file_load() syscall"
 	depends on KEXEC_FILE
@@ -2185,10 +2181,17 @@ config PHYSICAL_ALIGN
 
 	  Don't change this unless you know what you are doing.
 
+config DYNAMIC_MEMORY_LAYOUT
+	bool
+	---help---
+	  This option makes base addresses of vmalloc and vmemmap as well as
+	  __PAGE_OFFSET movable during boot.
+
 config RANDOMIZE_MEMORY
 	bool "Randomize the kernel memory sections"
 	depends on X86_64
 	depends on RANDOMIZE_BASE
+	select DYNAMIC_MEMORY_LAYOUT
 	default RANDOMIZE_BASE
 	---help---
 	   Randomizes the base virtual address of kernel memory sections
@@ -2632,8 +2635,10 @@ config PCI_DIRECT
 	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY || PCI_GOOLPC || PCI_GOMMCONFIG))
 
 config PCI_MMCONFIG
-	def_bool y
-	depends on X86_32 && PCI && (ACPI || SFI) && (PCI_GOMMCONFIG || PCI_GOANY)
+	bool "Support mmconfig PCI config space access" if X86_64
+	default y
+	depends on PCI && (ACPI || SFI || JAILHOUSE_GUEST)
+	depends on X86_64 || (PCI_GOANY || PCI_GOMMCONFIG)
 
 config PCI_OLPC
 	def_bool y
@@ -2648,9 +2653,9 @@ config PCI_DOMAINS
 	def_bool y
 	depends on PCI
 
-config PCI_MMCONFIG
-	bool "Support mmconfig PCI config space access"
-	depends on X86_64 && PCI && ACPI
+config MMCONF_FAM10H
+	def_bool y
+	depends on X86_64 && PCI_MMCONFIG && ACPI
 
 config PCI_CNB20LE_QUIRK
 	bool "Read CNB20LE Host Bridge Windows" if EXPERT
@@ -2668,11 +2673,13 @@ config PCI_CNB20LE_QUIRK
 source "drivers/pci/Kconfig"
 
 config ISA_BUS
-	bool "ISA-style bus support on modern systems" if EXPERT
-	select ISA_BUS_API
+	bool "ISA bus support on modern systems" if EXPERT
 	help
-	  Enables ISA-style drivers on modern systems. This is necessary to
-	  support PC/104 devices on X86_64 platforms.
+	  Expose ISA bus device drivers and options available for selection and
+	  configuration. Enable this option if your target machine has an ISA
+	  bus. ISA is an older system, displaced by PCI and newer bus
+	  architectures -- if your target machine is modern, it probably does
+	  not have an ISA bus.
 
 	  If unsure, say N.
 
@@ -2761,11 +2768,9 @@ config OLPC_XO1_RTC
 
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
-	depends on OLPC && OLPC_XO1_PM
+	depends on OLPC && OLPC_XO1_PM && GPIO_CS5535=y
 	depends on INPUT=y
 	select POWER_SUPPLY
-	select GPIO_CS5535
-	select MFD_CORE
 	---help---
 	  Add support for SCI-based features of the OLPC XO-1 laptop:
 	   - EC-driven system wakeups

@@ -718,6 +718,3 @@ http://www.maximintegrated.com/app-notes/index.mvp/id/1822
 
 Texas Instruments USB Configuration Wiki Page:
 http://processors.wiki.ti.com/index.php/Usbgeneralpage
-
-Analog Devices Blackfin MUSB Configuration:
-http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:drivers:musb

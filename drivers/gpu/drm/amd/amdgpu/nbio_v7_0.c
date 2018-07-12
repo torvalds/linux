@@ -53,9 +53,14 @@ static void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev)
+static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev,
+				struct amdgpu_ring *ring)
 {
-	WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL), 0);
 }
 
 static u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev)
@@ -203,7 +208,7 @@ static void nbio_v7_0_ih_control(struct amdgpu_device *adev)
 	u32 interrupt_cntl;
 
 	/* setup interrupt control */
-	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page.addr >> 8);
+	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 	interrupt_cntl = RREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL);
 	/* INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN

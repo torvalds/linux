@@ -14,7 +14,10 @@ Required properties:
 - #address-cells: shall be set to 1. Encode the NAND CS.
 - #size-cells: shall be set to 0.
 - interrupts: shall define the NAND controller interrupt.
-- clocks: shall reference the NAND controller clock.
+- clocks: shall reference the NAND controller clocks, the second one is
+  is only needed for the Armada 7K/8K SoCs
+- clock-names: mandatory if there is a second clock, in this case there
+  should be one clock named "core" and another one named "reg"
 - marvell,system-controller: Set to retrieve the syscon node that handles
   NAND controller related registers (only required with the
   "marvell,armada-8k-nand[-controller]" compatibles).

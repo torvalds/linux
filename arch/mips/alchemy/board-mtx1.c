@@ -145,7 +145,7 @@ static struct platform_device mtx1_wdt = {
 	.resource = mtx1_wdt_res,
 };
 
-static struct gpio_led default_leds[] = {
+static const struct gpio_led default_leds[] = {
 	{
 		.name	= "mtx1:green",
 		.gpio = 211,

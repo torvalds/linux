@@ -1370,19 +1370,18 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			 * In device-mapper, we specify things in sectors, but
 			 * MD records this value in kB
 			 */
-			value /= 2;
-			if (value > COUNTER_MAX) {
+			if (value < 0 || value / 2 > COUNTER_MAX) {
 				rs->ti->error = "Max write-behind limit out of range";
 				return -EINVAL;
 			}
 
-			rs->md.bitmap_info.max_write_behind = value;
+			rs->md.bitmap_info.max_write_behind = value / 2;
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP))) {
 			if (test_and_set_bit(__CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags)) {
 				rs->ti->error = "Only one daemon_sleep argument pair allowed";
 				return -EINVAL;
 			}
-			if (!value || (value > MAX_SCHEDULE_TIMEOUT)) {
+			if (value < 0) {
 				rs->ti->error = "daemon sleep period out of range";
 				return -EINVAL;
 			}
@@ -1424,27 +1423,33 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
+			if (value < 0) {
+				rs->ti->error = "Bogus stripe cache entries value";
+				return -EINVAL;
+			}
 			rs->stripe_cache_entries = value;
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MIN_RECOVERY_RATE))) {
 			if (test_and_set_bit(__CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one min_recovery_rate argument pair allowed";
 				return -EINVAL;
 			}
-			if (value > INT_MAX) {
+
+			if (value < 0) {
 				rs->ti->error = "min_recovery_rate out of range";
 				return -EINVAL;
 			}
-			rs->md.sync_speed_min = (int)value;
+			rs->md.sync_speed_min = value;
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE))) {
 			if (test_and_set_bit(__CTR_FLAG_MAX_RECOVERY_RATE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one max_recovery_rate argument pair allowed";
 				return -EINVAL;
 			}
-			if (value > INT_MAX) {
+
+			if (value < 0) {
 				rs->ti->error = "max_recovery_rate out of range";
 				return -EINVAL;
 			}
-			rs->md.sync_speed_max = (int)value;
+			rs->md.sync_speed_max = value;
 		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_REGION_SIZE))) {
 			if (test_and_set_bit(__CTR_FLAG_REGION_SIZE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one region_size argument pair allowed";
@@ -1487,6 +1492,12 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 
 	if (write_mostly >= rs->md.raid_disks) {
 		rs->ti->error = "Can't set all raid1 devices to write_mostly";
+		return -EINVAL;
+	}
+
+	if (rs->md.sync_speed_max &&
+	    rs->md.sync_speed_min > rs->md.sync_speed_max) {
+		rs->ti->error = "Bogus recovery rates";
 		return -EINVAL;
 	}
 
@@ -3408,7 +3419,8 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 		set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
 	} else {
-		if (!test_bit(MD_RECOVERY_INTR, &recovery) &&
+		if (!test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags) &&
+		    !test_bit(MD_RECOVERY_INTR, &recovery) &&
 		    (test_bit(MD_RECOVERY_NEEDED, &recovery) ||
 		     test_bit(MD_RECOVERY_RESHAPE, &recovery) ||
 		     test_bit(MD_RECOVERY_RUNNING, &recovery)))
@@ -3663,7 +3675,8 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int raid_message(struct dm_target *ti, unsigned int argc, char **argv)
+static int raid_message(struct dm_target *ti, unsigned int argc, char **argv,
+			char *result, unsigned maxlen)
 {
 	struct raid_set *rs = ti->private;
 	struct mddev *mddev = &rs->md;

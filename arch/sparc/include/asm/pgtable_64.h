@@ -19,6 +19,7 @@
 #include <asm/types.h>
 #include <asm/spitfire.h>
 #include <asm/asi.h>
+#include <asm/adi.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 
@@ -164,6 +165,8 @@ bool kern_addr_valid(unsigned long addr);
 #define _PAGE_E_4V	  _AC(0x0000000000000800,UL) /* side-Effect          */
 #define _PAGE_CP_4V	  _AC(0x0000000000000400,UL) /* Cacheable in P-Cache */
 #define _PAGE_CV_4V	  _AC(0x0000000000000200,UL) /* Cacheable in V-Cache */
+/* Bit 9 is used to enable MCD corruption detection instead on M7 */
+#define _PAGE_MCD_4V      _AC(0x0000000000000200,UL) /* Memory Corruption    */
 #define _PAGE_P_4V	  _AC(0x0000000000000100,UL) /* Privileged Page      */
 #define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
 #define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
@@ -601,6 +604,18 @@ static inline pte_t pte_mkyoung(pte_t pte)
 static inline pte_t pte_mkspecial(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_SPECIAL;
+	return pte;
+}
+
+static inline pte_t pte_mkmcd(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_MCD_4V;
+	return pte;
+}
+
+static inline pte_t pte_mknotmcd(pte_t pte)
+{
+	pte_val(pte) &= ~_PAGE_MCD_4V;
 	return pte;
 }
 
@@ -1045,6 +1060,39 @@ int page_in_phys_avail(unsigned long paddr);
 
 int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
 		    unsigned long, pgprot_t);
+
+void adi_restore_tags(struct mm_struct *mm, struct vm_area_struct *vma,
+		      unsigned long addr, pte_t pte);
+
+int adi_save_tags(struct mm_struct *mm, struct vm_area_struct *vma,
+		  unsigned long addr, pte_t oldpte);
+
+#define __HAVE_ARCH_DO_SWAP_PAGE
+static inline void arch_do_swap_page(struct mm_struct *mm,
+				     struct vm_area_struct *vma,
+				     unsigned long addr,
+				     pte_t pte, pte_t oldpte)
+{
+	/* If this is a new page being mapped in, there can be no
+	 * ADI tags stored away for this page. Skip looking for
+	 * stored tags
+	 */
+	if (pte_none(oldpte))
+		return;
+
+	if (adi_state.enabled && (pte_val(pte) & _PAGE_MCD_4V))
+		adi_restore_tags(mm, vma, addr, pte);
+}
+
+#define __HAVE_ARCH_UNMAP_ONE
+static inline int arch_unmap_one(struct mm_struct *mm,
+				 struct vm_area_struct *vma,
+				 unsigned long addr, pte_t oldpte)
+{
+	if (adi_state.enabled && (pte_val(oldpte) & _PAGE_MCD_4V))
+		return adi_save_tags(mm, vma, addr, oldpte);
+	return 0;
+}
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 				     unsigned long from, unsigned long pfn,

@@ -1019,8 +1019,8 @@ EXPORT_SYMBOL(cxgb4_ring_tx_db);
 void cxgb4_inline_tx_skb(const struct sk_buff *skb,
 			 const struct sge_txq *q, void *pos)
 {
-	u64 *p;
 	int left = (void *)q->stat - pos;
+	u64 *p;
 
 	if (likely(skb->len <= left)) {
 		if (likely(!skb->data_len))
@@ -1735,15 +1735,13 @@ static void txq_stop_maperr(struct sge_uld_txq *q)
 /**
  *	ofldtxq_stop - stop an offload Tx queue that has become full
  *	@q: the queue to stop
- *	@skb: the packet causing the queue to become full
+ *	@wr: the Work Request causing the queue to become full
  *
  *	Stops an offload Tx queue that has become full and modifies the packet
  *	being written to request a wakeup.
  */
-static void ofldtxq_stop(struct sge_uld_txq *q, struct sk_buff *skb)
+static void ofldtxq_stop(struct sge_uld_txq *q, struct fw_wr_hdr *wr)
 {
-	struct fw_wr_hdr *wr = (struct fw_wr_hdr *)skb->data;
-
 	wr->lo |= htonl(FW_WR_EQUEQ_F | FW_WR_EQUIQ_F);
 	q->q.stops++;
 	q->full = 1;
@@ -1804,7 +1802,7 @@ static void service_ofldq(struct sge_uld_txq *q)
 		credits = txq_avail(&q->q) - ndesc;
 		BUG_ON(credits < 0);
 		if (unlikely(credits < TXQ_STOP_THRES))
-			ofldtxq_stop(q, skb);
+			ofldtxq_stop(q, (struct fw_wr_hdr *)skb->data);
 
 		pos = (u64 *)&q->q.desc[q->q.pidx];
 		if (is_ofld_imm(skb))
@@ -2004,6 +2002,103 @@ int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb)
 	return t4_ofld_send(netdev2adap(dev), skb);
 }
 EXPORT_SYMBOL(cxgb4_ofld_send);
+
+static void *inline_tx_header(const void *src,
+			      const struct sge_txq *q,
+			      void *pos, int length)
+{
+	int left = (void *)q->stat - pos;
+	u64 *p;
+
+	if (likely(length <= left)) {
+		memcpy(pos, src, length);
+		pos += length;
+	} else {
+		memcpy(pos, src, left);
+		memcpy(q->desc, src + left, length - left);
+		pos = (void *)q->desc + (length - left);
+	}
+	/* 0-pad to multiple of 16 */
+	p = PTR_ALIGN(pos, 8);
+	if ((uintptr_t)p & 8) {
+		*p = 0;
+		return p + 1;
+	}
+	return p;
+}
+
+/**
+ *      ofld_xmit_direct - copy a WR into offload queue
+ *      @q: the Tx offload queue
+ *      @src: location of WR
+ *      @len: WR length
+ *
+ *      Copy an immediate WR into an uncontended SGE offload queue.
+ */
+static int ofld_xmit_direct(struct sge_uld_txq *q, const void *src,
+			    unsigned int len)
+{
+	unsigned int ndesc;
+	int credits;
+	u64 *pos;
+
+	/* Use the lower limit as the cut-off */
+	if (len > MAX_IMM_OFLD_TX_DATA_WR_LEN) {
+		WARN_ON(1);
+		return NET_XMIT_DROP;
+	}
+
+	/* Don't return NET_XMIT_CN here as the current
+	 * implementation doesn't queue the request
+	 * using an skb when the following conditions not met
+	 */
+	if (!spin_trylock(&q->sendq.lock))
+		return NET_XMIT_DROP;
+
+	if (q->full || !skb_queue_empty(&q->sendq) ||
+	    q->service_ofldq_running) {
+		spin_unlock(&q->sendq.lock);
+		return NET_XMIT_DROP;
+	}
+	ndesc = flits_to_desc(DIV_ROUND_UP(len, 8));
+	credits = txq_avail(&q->q) - ndesc;
+	pos = (u64 *)&q->q.desc[q->q.pidx];
+
+	/* ofldtxq_stop modifies WR header in-situ */
+	inline_tx_header(src, &q->q, pos, len);
+	if (unlikely(credits < TXQ_STOP_THRES))
+		ofldtxq_stop(q, (struct fw_wr_hdr *)pos);
+	txq_advance(&q->q, ndesc);
+	cxgb4_ring_tx_db(q->adap, &q->q, ndesc);
+
+	spin_unlock(&q->sendq.lock);
+	return NET_XMIT_SUCCESS;
+}
+
+int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,
+		       const void *src, unsigned int len)
+{
+	struct sge_uld_txq_info *txq_info;
+	struct sge_uld_txq *txq;
+	struct adapter *adap;
+	int ret;
+
+	adap = netdev2adap(dev);
+
+	local_bh_disable();
+	txq_info = adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+	if (unlikely(!txq_info)) {
+		WARN_ON(true);
+		local_bh_enable();
+		return NET_XMIT_DROP;
+	}
+	txq = &txq_info->uldtxq[idx];
+
+	ret = ofld_xmit_direct(txq, src, len);
+	local_bh_enable();
+	return net_xmit_eval(ret);
+}
+EXPORT_SYMBOL(cxgb4_immdata_send);
 
 /**
  *	t4_crypto_send - send crypto packet

@@ -46,6 +46,7 @@
 /* state transition timeouts */
 #define QTN_FW_DL_TIMEOUT_MS	3000
 #define QTN_FW_QLINK_TIMEOUT_MS	30000
+#define QTN_EP_RESET_WAIT_MS	1000
 
 #define PCIE_HDP_INT_RX_BITS (0		\
 	| PCIE_HDP_INT_EP_TXDMA		\

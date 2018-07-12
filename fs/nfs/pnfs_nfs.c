@@ -245,7 +245,7 @@ pnfs_generic_commit_cancel_empty_pagelist(struct list_head *pages,
 {
 	if (list_empty(pages)) {
 		if (atomic_dec_and_test(&cinfo->mds->rpcs_out))
-			wake_up_atomic_t(&cinfo->mds->rpcs_out);
+			wake_up_var(&cinfo->mds->rpcs_out);
 		/* don't call nfs_commitdata_release - it tries to put
 		 * the open_context which is not acquired until nfs_init_commit
 		 * which has not been called on @data */

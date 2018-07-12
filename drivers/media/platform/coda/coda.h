@@ -28,7 +28,7 @@
 
 #include "coda_regs.h"
 
-#define CODA_MAX_FRAMEBUFFERS	17
+#define CODA_MAX_FRAMEBUFFERS	19
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
 
 enum {
@@ -43,6 +43,7 @@ enum coda_inst_type {
 
 enum coda_product {
 	CODA_DX6 = 0xf001,
+	CODA_HX4 = 0xf00a,
 	CODA_7541 = 0xf012,
 	CODA_960 = 0xf020,
 };

@@ -41,7 +41,7 @@ u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
 
 u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
 {
-	return wq->sz_m1 + 1;
+	return wq->fbc.sz_m1 + 1;
 }
 
 u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq)
@@ -62,7 +62,7 @@ static u32 mlx5_wq_qp_get_byte_size(struct mlx5_wq_qp *wq)
 
 static u32 mlx5_cqwq_get_byte_size(struct mlx5_cqwq *wq)
 {
-	return mlx5_cqwq_get_size(wq) << wq->log_stride;
+	return mlx5_cqwq_get_size(wq) << wq->fbc.log_stride;
 }
 
 static u32 mlx5_wq_ll_get_byte_size(struct mlx5_wq_ll *wq)
@@ -92,7 +92,7 @@ int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		goto err_db_free;
 	}
 
-	wq->buf = wq_ctrl->buf.direct.buf;
+	wq->buf = wq_ctrl->buf.frags->buf;
 	wq->db  = wq_ctrl->db.db;
 
 	wq_ctrl->mdev = mdev;
@@ -130,7 +130,7 @@ int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		goto err_db_free;
 	}
 
-	wq->rq.buf = wq_ctrl->buf.direct.buf;
+	wq->rq.buf = wq_ctrl->buf.frags->buf;
 	wq->sq.buf = wq->rq.buf + mlx5_wq_cyc_get_byte_size(&wq->rq);
 	wq->rq.db  = &wq_ctrl->db.db[MLX5_RCV_DBR];
 	wq->sq.db  = &wq_ctrl->db.db[MLX5_SND_DBR];
@@ -151,11 +151,7 @@ int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 {
 	int err;
 
-	wq->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
-	wq->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
-	wq->sz_m1	= (1 << wq->log_sz) - 1;
-	wq->log_frag_strides = PAGE_SHIFT - wq->log_stride;
-	wq->frag_sz_m1	= (1 << wq->log_frag_strides) - 1;
+	mlx5_core_init_cq_frag_buf(&wq->fbc, cqc);
 
 	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
 	if (err) {
@@ -172,7 +168,7 @@ int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		goto err_db_free;
 	}
 
-	wq->frag_buf = wq_ctrl->frag_buf;
+	wq->fbc.frag_buf = wq_ctrl->frag_buf;
 	wq->db  = wq_ctrl->db.db;
 
 	wq_ctrl->mdev = mdev;
@@ -209,7 +205,7 @@ int mlx5_wq_ll_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		goto err_db_free;
 	}
 
-	wq->buf = wq_ctrl->buf.direct.buf;
+	wq->buf = wq_ctrl->buf.frags->buf;
 	wq->db  = wq_ctrl->db.db;
 
 	for (i = 0; i < wq->sz_m1; i++) {

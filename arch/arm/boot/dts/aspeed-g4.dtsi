@@ -167,6 +167,7 @@
 				reg-shift = <2>;
 				interrupts = <9>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
+				resets = <&lpc_reset 4>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -238,6 +239,7 @@
 					lpc_ctrl: lpc-ctrl@0 {
 						compatible = "aspeed,ast2400-lpc-ctrl";
 						reg = <0x0 0x80>;
+						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
 						status = "disabled";
 					};
 
@@ -252,6 +254,19 @@
 						compatible = "aspeed,ast2400-lhc";
 						reg = <0x20 0x24 0x48 0x8>;
 					};
+
+					lpc_reset: reset-controller@18 {
+						compatible = "aspeed,ast2400-lpc-reset";
+						reg = <0x18 0x4>;
+						#reset-cells = <1>;
+					};
+
+					ibt: ibt@c0  {
+						compatible = "aspeed,ast2400-ibt-bmc";
+						reg = <0xc0 0x18>;
+						interrupts = <8>;
+						status = "disabled";
+					};
 				};
 			};
 
@@ -261,6 +276,7 @@
 				reg-shift = <2>;
 				interrupts = <32>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
+				resets = <&lpc_reset 5>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -271,6 +287,7 @@
 				reg-shift = <2>;
 				interrupts = <33>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
+				resets = <&lpc_reset 6>;
 				no-loopback-test;
 				status = "disabled";
 			};
@@ -281,6 +298,7 @@
 				reg-shift = <2>;
 				interrupts = <34>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
+				resets = <&lpc_reset 7>;
 				no-loopback-test;
 				status = "disabled";
 			};

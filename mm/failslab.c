@@ -14,7 +14,7 @@ static struct {
 	.cache_filter = false,
 };
 
-bool should_failslab(struct kmem_cache *s, gfp_t gfpflags)
+bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 {
 	/* No fault-injection for bootstrap cache */
 	if (unlikely(s == kmem_cache))

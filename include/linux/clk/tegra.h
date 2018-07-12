@@ -128,5 +128,6 @@ extern void tegra210_sata_pll_hw_sequence_start(void);
 extern void tegra210_set_sata_pll_seq_sw(bool state);
 extern void tegra210_put_utmipll_in_iddq(void);
 extern void tegra210_put_utmipll_out_iddq(void);
+extern int tegra210_clk_handle_mbist_war(unsigned int id);
 
 #endif /* __LINUX_CLK_TEGRA_H_ */

@@ -202,7 +202,7 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc(buf_size, KM_SLEEP|KM_NOFS);
+			lv = kmem_alloc_large(buf_size, KM_SLEEP | KM_NOFS);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -848,7 +848,7 @@ restart:
 	/* attach all the transactions w/ busy extents to iclog */
 	ctx->log_cb.cb_func = xlog_cil_committed;
 	ctx->log_cb.cb_arg = ctx;
-	error = xfs_log_notify(log->l_mp, commit_iclog, &ctx->log_cb);
+	error = xfs_log_notify(commit_iclog, &ctx->log_cb);
 	if (error)
 		goto out_abort;
 

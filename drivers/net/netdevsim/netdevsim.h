@@ -64,6 +64,9 @@ struct netdevsim {
 
 	bool bpf_map_accept;
 	struct list_head bpf_bound_maps;
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+	struct devlink *devlink;
+#endif
 };
 
 extern struct dentry *nsim_ddir;
@@ -100,6 +103,47 @@ nsim_bpf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 			   void *cb_priv)
 {
 	return -EOPNOTSUPP;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+enum nsim_resource_id {
+	NSIM_RESOURCE_NONE,   /* DEVLINK_RESOURCE_ID_PARENT_TOP */
+	NSIM_RESOURCE_IPV4,
+	NSIM_RESOURCE_IPV4_FIB,
+	NSIM_RESOURCE_IPV4_FIB_RULES,
+	NSIM_RESOURCE_IPV6,
+	NSIM_RESOURCE_IPV6_FIB,
+	NSIM_RESOURCE_IPV6_FIB_RULES,
+};
+
+int nsim_devlink_setup(struct netdevsim *ns);
+void nsim_devlink_teardown(struct netdevsim *ns);
+
+int nsim_devlink_init(void);
+void nsim_devlink_exit(void);
+
+int nsim_fib_init(void);
+void nsim_fib_exit(void);
+u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
+int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val);
+#else
+static inline int nsim_devlink_setup(struct netdevsim *ns)
+{
+	return 0;
+}
+
+static inline void nsim_devlink_teardown(struct netdevsim *ns)
+{
+}
+
+static inline int nsim_devlink_init(void)
+{
+	return 0;
+}
+
+static inline void nsim_devlink_exit(void)
+{
 }
 #endif
 

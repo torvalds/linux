@@ -140,12 +140,10 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 void __init pci_acpi_crs_quirks(void)
 {
-	int year;
+	int year = dmi_get_bios_year();
 
-	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008) {
-		if (iomem_resource.end <= 0xffffffff)
-			pci_use_crs = false;
-	}
+	if (year >= 0 && year < 2008 && iomem_resource.end <= 0xffffffff)
+		pci_use_crs = false;
 
 	dmi_check_system(pci_crs_quirks);
 

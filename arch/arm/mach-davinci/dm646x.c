@@ -39,12 +39,6 @@
 #define VSCLKDIS_MASK		(BIT_MASK(11) | BIT_MASK(10) | BIT_MASK(9) |\
 					BIT_MASK(8))
 
-/*
- * Device specific clocks
- */
-#define DM646X_REF_FREQ		27000000
-#define DM646X_AUX_FREQ		24000000
-
 #define DM646X_EMAC_BASE		0x01c80000
 #define DM646X_EMAC_MDIO_BASE		(DM646X_EMAC_BASE + 0x4000)
 #define DM646X_EMAC_CNTRL_OFFSET	0x0000
@@ -64,13 +58,12 @@ static struct pll_data pll2_data = {
 
 static struct clk ref_clk = {
 	.name = "ref_clk",
-	.rate = DM646X_REF_FREQ,
-	.set_rate = davinci_simple_set_rate,
+	/* rate is initialized in dm646x_init_time() */
 };
 
 static struct clk aux_clkin = {
 	.name = "aux_clkin",
-	.rate = DM646X_AUX_FREQ,
+	/* rate is initialized in dm646x_init_time() */
 };
 
 static struct clk pll1_clk = {
@@ -495,7 +488,8 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_DM646X_MCASP0TXINT]        = 7,
 	[IRQ_DM646X_MCASP0RXINT]        = 7,
 	[IRQ_DM646X_RESERVED_3]         = 7,
-	[IRQ_DM646X_MCASP1TXINT]        = 7,    /* clockevent */
+	[IRQ_DM646X_MCASP1TXINT]        = 7,
+	[IRQ_TINT0_TINT12]              = 7,    /* clockevent */
 	[IRQ_TINT0_TINT34]              = 7,    /* clocksource */
 	[IRQ_TINT1_TINT12]              = 7,    /* DSP timer */
 	[IRQ_TINT1_TINT34]              = 7,    /* system tick */
@@ -888,7 +882,6 @@ static const struct davinci_soc_info davinci_soc_info_dm646x = {
 	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm646x_ids,
 	.ids_num		= ARRAY_SIZE(dm646x_ids),
-	.cpu_clks		= dm646x_clks,
 	.psc_bases		= dm646x_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm646x_psc_bases),
 	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
@@ -956,7 +949,15 @@ void __init dm646x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm646x);
 	davinci_map_sysmod();
-	davinci_clk_init(davinci_soc_info_dm646x.cpu_clks);
+}
+
+void __init dm646x_init_time(unsigned long ref_clk_rate,
+			     unsigned long aux_clkin_rate)
+{
+	ref_clk.rate = ref_clk_rate;
+	aux_clkin.rate = aux_clkin_rate;
+	davinci_clk_init(dm646x_clks);
+	davinci_timer_init();
 }
 
 static int __init dm646x_init_devices(void)

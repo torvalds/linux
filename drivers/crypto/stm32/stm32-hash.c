@@ -122,6 +122,7 @@ enum stm32_hash_data_format {
 #define HASH_DMA_THRESHOLD		50
 
 struct stm32_hash_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct stm32_hash_dev	*hdev;
 	unsigned long		flags;
 
@@ -626,7 +627,7 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 			writesl(hdev->io_base + HASH_DIN, buffer,
 				DIV_ROUND_UP(ncp, sizeof(u32)));
 		}
-		stm32_hash_set_nblw(hdev, DIV_ROUND_UP(ncp, sizeof(u32)));
+		stm32_hash_set_nblw(hdev, ncp);
 		reg = stm32_hash_read(hdev, HASH_STR);
 		reg |= HASH_STR_DCAL;
 		stm32_hash_write(hdev, HASH_STR, reg);
@@ -743,13 +744,15 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 	struct ahash_request *req = hdev->req;
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
 	int err;
+	int buflen = rctx->bufcnt;
+
+	rctx->bufcnt = 0;
 
 	if (!(rctx->flags & HASH_FLAGS_CPU))
 		err = stm32_hash_dma_send(hdev);
 	else
-		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, rctx->bufcnt, 1);
+		err = stm32_hash_xmit_cpu(hdev, rctx->buffer, buflen, 1);
 
-	rctx->bufcnt = 0;
 
 	return err;
 }
@@ -828,15 +831,19 @@ static int stm32_hash_hw_init(struct stm32_hash_dev *hdev,
 	return 0;
 }
 
+static int stm32_hash_one_request(struct crypto_engine *engine, void *areq);
+static int stm32_hash_prepare_req(struct crypto_engine *engine, void *areq);
+
 static int stm32_hash_handle_queue(struct stm32_hash_dev *hdev,
 				   struct ahash_request *req)
 {
 	return crypto_transfer_hash_request_to_engine(hdev->engine, req);
 }
 
-static int stm32_hash_prepare_req(struct crypto_engine *engine,
-				  struct ahash_request *req)
+static int stm32_hash_prepare_req(struct crypto_engine *engine, void *areq)
 {
+	struct ahash_request *req = container_of(areq, struct ahash_request,
+						 base);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_request_ctx *rctx;
@@ -854,9 +861,10 @@ static int stm32_hash_prepare_req(struct crypto_engine *engine,
 	return stm32_hash_hw_init(hdev, rctx);
 }
 
-static int stm32_hash_one_request(struct crypto_engine *engine,
-				  struct ahash_request *req)
+static int stm32_hash_one_request(struct crypto_engine *engine, void *areq)
 {
+	struct ahash_request *req = container_of(areq, struct ahash_request,
+						 base);
 	struct stm32_hash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
 	struct stm32_hash_dev *hdev = stm32_hash_find_dev(ctx);
 	struct stm32_hash_request_ctx *rctx;
@@ -1033,6 +1041,9 @@ static int stm32_hash_cra_init_algs(struct crypto_tfm *tfm,
 	if (algs_hmac_name)
 		ctx->flags |= HASH_FLAGS_HMAC;
 
+	ctx->enginectx.op.do_one_request = stm32_hash_one_request;
+	ctx->enginectx.op.prepare_request = stm32_hash_prepare_req;
+	ctx->enginectx.op.unprepare_request = NULL;
 	return 0;
 }
 
@@ -1096,6 +1107,8 @@ static irqreturn_t stm32_hash_irq_handler(int irq, void *dev_id)
 		reg &= ~HASH_SR_OUTPUT_READY;
 		stm32_hash_write(hdev, HASH_SR, reg);
 		hdev->flags |= HASH_FLAGS_OUTPUT_READY;
+		/* Disable IT*/
+		stm32_hash_write(hdev, HASH_IMR, 0);
 		return IRQ_WAKE_THREAD;
 	}
 
@@ -1404,18 +1417,19 @@ MODULE_DEVICE_TABLE(of, stm32_hash_of_match);
 static int stm32_hash_get_of_match(struct stm32_hash_dev *hdev,
 				   struct device *dev)
 {
-	int err;
-
 	hdev->pdata = of_device_get_match_data(dev);
 	if (!hdev->pdata) {
 		dev_err(dev, "no compatible OF match\n");
 		return -EINVAL;
 	}
 
-	err = of_property_read_u32(dev->of_node, "dma-maxburst",
-				   &hdev->dma_maxburst);
+	if (of_property_read_u32(dev->of_node, "dma-maxburst",
+				 &hdev->dma_maxburst)) {
+		dev_info(dev, "dma-maxburst not specified, using 0\n");
+		hdev->dma_maxburst = 0;
+	}
 
-	return err;
+	return 0;
 }
 
 static int stm32_hash_probe(struct platform_device *pdev)
@@ -1492,9 +1506,6 @@ static int stm32_hash_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_engine;
 	}
-
-	hdev->engine->prepare_hash_request = stm32_hash_prepare_req;
-	hdev->engine->hash_one_request = stm32_hash_one_request;
 
 	ret = crypto_engine_start(hdev->engine);
 	if (ret)

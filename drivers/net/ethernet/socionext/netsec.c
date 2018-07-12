@@ -1674,8 +1674,8 @@ static int netsec_probe(struct platform_device *pdev)
 	if (ret)
 		goto unreg_napi;
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
-		dev_warn(&pdev->dev, "Failed to enable 64-bit DMA\n");
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40)))
+		dev_warn(&pdev->dev, "Failed to set DMA mask\n");
 
 	ret = register_netdev(ndev);
 	if (ret) {

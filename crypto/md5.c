@@ -32,23 +32,6 @@ const u8 md5_zero_message_hash[MD5_DIGEST_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(md5_zero_message_hash);
 
-/* XXX: this stuff can be optimized */
-static inline void le32_to_cpu_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		__le32_to_cpus(buf);
-		buf++;
-	}
-}
-
-static inline void cpu_to_le32_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		__cpu_to_le32s(buf);
-		buf++;
-	}
-}
-
 #define F1(x, y, z)	(z ^ (x & (y ^ z)))
 #define F2(x, y, z)	F1(z, x, y)
 #define F3(x, y, z)	(x ^ y ^ z)

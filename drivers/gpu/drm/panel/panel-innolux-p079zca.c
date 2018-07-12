@@ -45,8 +45,7 @@ static int innolux_panel_disable(struct drm_panel *panel)
 	if (!innolux->enabled)
 		return 0;
 
-	innolux->backlight->props.power = FB_BLANK_POWERDOWN;
-	backlight_update_status(innolux->backlight);
+	backlight_disable(innolux->backlight);
 
 	err = mipi_dsi_dcs_set_display_off(innolux->link);
 	if (err < 0)
@@ -151,8 +150,7 @@ static int innolux_panel_enable(struct drm_panel *panel)
 	if (innolux->enabled)
 		return 0;
 
-	innolux->backlight->props.power = FB_BLANK_UNBLANK;
-	ret = backlight_update_status(innolux->backlight);
+	ret = backlight_enable(innolux->backlight);
 	if (ret) {
 		DRM_DEV_ERROR(panel->drm->dev,
 			      "Failed to enable backlight %d\n", ret);
@@ -217,7 +215,6 @@ MODULE_DEVICE_TABLE(of, innolux_of_match);
 static int innolux_panel_add(struct innolux_panel *innolux)
 {
 	struct device *dev = &innolux->link->dev;
-	struct device_node *np;
 	int err;
 
 	innolux->supply = devm_regulator_get(dev, "power");
@@ -232,37 +229,22 @@ static int innolux_panel_add(struct innolux_panel *innolux)
 		innolux->enable_gpio = NULL;
 	}
 
-	np = of_parse_phandle(dev->of_node, "backlight", 0);
-	if (np) {
-		innolux->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
+	innolux->backlight = devm_of_find_backlight(dev);
 
-		if (!innolux->backlight)
-			return -EPROBE_DEFER;
-	}
+	if (IS_ERR(innolux->backlight))
+		return PTR_ERR(innolux->backlight);
 
 	drm_panel_init(&innolux->base);
 	innolux->base.funcs = &innolux_panel_funcs;
 	innolux->base.dev = &innolux->link->dev;
 
-	err = drm_panel_add(&innolux->base);
-	if (err < 0)
-		goto put_backlight;
-
-	return 0;
-
-put_backlight:
-	put_device(&innolux->backlight->dev);
-
-	return err;
+	return drm_panel_add(&innolux->base);
 }
 
 static void innolux_panel_del(struct innolux_panel *innolux)
 {
 	if (innolux->base.dev)
 		drm_panel_remove(&innolux->base);
-
-	put_device(&innolux->backlight->dev);
 }
 
 static int innolux_panel_probe(struct mipi_dsi_device *dsi)

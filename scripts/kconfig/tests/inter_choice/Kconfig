@@ -1,0 +1,23 @@
+config MODULES
+	def_bool y
+	option modules
+
+choice
+	prompt "Choice"
+
+config CHOICE_VAL0
+	tristate "Choice 0"
+
+config CHOIVE_VAL1
+	tristate "Choice 1"
+
+endchoice
+
+choice
+	prompt "Another choice"
+	depends on CHOICE_VAL0
+
+config DUMMY
+	bool "dummy"
+
+endchoice

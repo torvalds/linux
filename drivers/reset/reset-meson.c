@@ -124,39 +124,27 @@ static int meson_reset_deassert(struct reset_controller_dev *rcdev,
 	return meson_reset_level(rcdev, id, false);
 }
 
-static const struct reset_control_ops meson_reset_meson8_ops = {
-	.reset		= meson_reset_reset,
-};
-
-static const struct reset_control_ops meson_reset_gx_ops = {
+static const struct reset_control_ops meson_reset_ops = {
 	.reset		= meson_reset_reset,
 	.assert		= meson_reset_assert,
 	.deassert	= meson_reset_deassert,
 };
 
 static const struct of_device_id meson_reset_dt_ids[] = {
-	 { .compatible = "amlogic,meson8b-reset",
-	   .data = &meson_reset_meson8_ops, },
-	 { .compatible = "amlogic,meson-gxbb-reset",
-	   .data = &meson_reset_gx_ops, },
-	 { .compatible = "amlogic,meson-axg-reset",
-	   .data = &meson_reset_gx_ops, },
+	 { .compatible = "amlogic,meson8b-reset" },
+	 { .compatible = "amlogic,meson-gxbb-reset" },
+	 { .compatible = "amlogic,meson-axg-reset" },
 	 { /* sentinel */ },
 };
 
 static int meson_reset_probe(struct platform_device *pdev)
 {
-	const struct reset_control_ops *ops;
 	struct meson_reset *data;
 	struct resource *res;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	ops = of_device_get_match_data(&pdev->dev);
-	if (!ops)
-		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->reg_base = devm_ioremap_resource(&pdev->dev, res);
@@ -169,7 +157,7 @@ static int meson_reset_probe(struct platform_device *pdev)
 
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = REG_COUNT * BITS_PER_REG;
-	data->rcdev.ops = ops;
+	data->rcdev.ops = &meson_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
 	return devm_reset_controller_register(&pdev->dev, &data->rcdev);

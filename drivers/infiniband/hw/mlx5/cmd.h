@@ -33,6 +33,7 @@
 #ifndef MLX5_IB_CMD_H
 #define MLX5_IB_CMD_H
 
+#include "mlx5_ib.h"
 #include <linux/kernel.h>
 #include <linux/mlx5/driver.h>
 
@@ -41,4 +42,7 @@ int mlx5_cmd_query_cong_params(struct mlx5_core_dev *dev, int cong_point,
 			       void *out, int out_size);
 int mlx5_cmd_modify_cong_params(struct mlx5_core_dev *mdev,
 				void *in, int in_size);
+int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
+			 u64 length, u32 alignment);
+int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length);
 #endif /* MLX5_IB_CMD_H */

@@ -21,7 +21,7 @@ If there is no debug info in the object, then annotated assembly is displayed.
 OPTIONS
 -------
 -i::
---input=::
+--input=<file>::
         Input file name. (default: perf.data unless stdin is a fifo)
 
 -d::
@@ -55,6 +55,9 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname.
 
+--ignore-vmlinux::
+	Ignore vmlinux files.
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel.
@@ -69,7 +72,9 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
---stdio-color::
+--stdio2:: Use the stdio2 interface, non-interactive, uses the TUI formatting.
+
+--stdio-color=<mode>::
 	'always', 'never' or 'auto', allowing configuring color output
 	via the command line, in addition to via "color.ui" .perfconfig.
 	Use '--stdio-color always' to generate color even when redirecting
@@ -84,7 +89,7 @@ OPTIONS
 --gtk:: Use the GTK interface.
 
 -C::
---cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
+--cpu=<cpu>:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.

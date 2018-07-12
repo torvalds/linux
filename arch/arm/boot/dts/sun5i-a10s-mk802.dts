@@ -92,8 +92,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_mk802>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
-	cd-inverted;
+	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
 	status = "okay";
 };
 

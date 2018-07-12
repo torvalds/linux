@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -25,7 +25,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2018.0"
+#define BATADV_SOURCE_VERSION "2018.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -331,11 +331,13 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *
  * Return: true when x is a predecessor of y, false otherwise
  */
-#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
-				 typeof(y)_d2 = (y); \
-				 typeof(x)_dummy = (_d1 - _d2); \
-				 (void)(&_d1 == &_d2); \
-				 _dummy > batadv_smallest_signed_int(_dummy); })
+#define batadv_seq_before(x, y) ({ \
+	typeof(x)_d1 = (x); \
+	typeof(y)_d2 = (y); \
+	typeof(x)_dummy = (_d1 - _d2); \
+	(void)(&_d1 == &_d2); \
+	_dummy > batadv_smallest_signed_int(_dummy); \
+})
 
 /**
  * batadv_seq_after() - Checks if a sequence number x is a successor of y

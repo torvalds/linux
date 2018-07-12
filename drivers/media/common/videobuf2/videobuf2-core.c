@@ -1696,6 +1696,15 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	for (i = 0; i < q->num_buffers; ++i) {
 		struct vb2_buffer *vb = q->bufs[i];
 
+		if (vb->state == VB2_BUF_STATE_PREPARED ||
+		    vb->state == VB2_BUF_STATE_QUEUED) {
+			unsigned int plane;
+
+			for (plane = 0; plane < vb->num_planes; ++plane)
+				call_void_memop(vb, finish,
+						vb->planes[plane].mem_priv);
+		}
+
 		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
 			vb->state = VB2_BUF_STATE_PREPARED;
 			call_void_vb_qop(vb, buf_finish, vb);

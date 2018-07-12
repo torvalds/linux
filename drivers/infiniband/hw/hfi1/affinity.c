@@ -412,7 +412,6 @@ static void hfi1_cleanup_sdma_notifier(struct hfi1_msix_entry *msix)
 static int get_irq_affinity(struct hfi1_devdata *dd,
 			    struct hfi1_msix_entry *msix)
 {
-	int ret;
 	cpumask_var_t diff;
 	struct hfi1_affinity_node *entry;
 	struct cpu_mask_set *set = NULL;
@@ -423,10 +422,6 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 
 	extra[0] = '\0';
 	cpumask_clear(&msix->mask);
-
-	ret = zalloc_cpumask_var(&diff, GFP_KERNEL);
-	if (!ret)
-		return -ENOMEM;
 
 	entry = node_affinity_lookup(dd->node);
 
@@ -458,6 +453,9 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 	 * finds its CPU here.
 	 */
 	if (cpu == -1 && set) {
+		if (!zalloc_cpumask_var(&diff, GFP_KERNEL))
+			return -ENOMEM;
+
 		if (cpumask_equal(&set->mask, &set->used)) {
 			/*
 			 * We've used up all the CPUs, bump up the generation
@@ -469,6 +467,8 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 		cpumask_andnot(diff, &set->mask, &set->used);
 		cpu = cpumask_first(diff);
 		cpumask_set_cpu(cpu, &set->used);
+
+		free_cpumask_var(diff);
 	}
 
 	cpumask_set_cpu(cpu, &msix->mask);
@@ -482,7 +482,6 @@ static int get_irq_affinity(struct hfi1_devdata *dd,
 		hfi1_setup_sdma_notifier(msix);
 	}
 
-	free_cpumask_var(diff);
 	return 0;
 }
 

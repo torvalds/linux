@@ -1700,7 +1700,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"s626_ai_cmd: Another ai_cmd is running\n");
+			"%s: Another ai_cmd is running\n", __func__);
 		return -EBUSY;
 	}
 	/* disable interrupt */
@@ -2268,10 +2268,10 @@ static int s626_initialize(struct comedi_device *dev)
 	 */
 	{
 		struct comedi_subdevice *s = dev->read_subdev;
-		uint8_t poll_list;
-		uint16_t adc_data;
-		uint16_t start_val;
-		uint16_t index;
+		u8 poll_list;
+		u16 adc_data;
+		u16 start_val;
+		u16 index;
 		unsigned int data[16];
 
 		/* Create a simple polling list for analog input channel 0 */

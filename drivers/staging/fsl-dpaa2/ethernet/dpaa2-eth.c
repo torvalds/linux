@@ -39,7 +39,7 @@
 #include <linux/kthread.h>
 #include <linux/iommu.h>
 
-#include "../../fsl-mc/include/mc.h"
+#include <linux/fsl/mc.h>
 #include "dpaa2-eth.h"
 
 /* CREATE_TRACE_POINTS only needs to be defined once. Other dpa files
@@ -324,7 +324,7 @@ static int consume_frames(struct dpaa2_eth_channel *ch)
 		}
 
 		fd = dpaa2_dq_fd(dq);
-		fq = (struct dpaa2_eth_fq *)dpaa2_dq_fqd_ctx(dq);
+		fq = (struct dpaa2_eth_fq *)(uintptr_t)dpaa2_dq_fqd_ctx(dq);
 		fq->stats.frames++;
 
 		fq->consume(priv, ch, fd, &ch->napi, fq->flowid);
@@ -373,13 +373,15 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 
 	/* Prepare the HW SGT structure */
 	sgt_buf_size = priv->tx_data_offset +
-		       sizeof(struct dpaa2_sg_entry) * (1 + num_dma_bufs);
-	sgt_buf = kzalloc(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN, GFP_ATOMIC);
+		       sizeof(struct dpaa2_sg_entry) *  num_dma_bufs;
+	sgt_buf = netdev_alloc_frag(sgt_buf_size + DPAA2_ETH_TX_BUF_ALIGN);
 	if (unlikely(!sgt_buf)) {
 		err = -ENOMEM;
 		goto sgt_buf_alloc_failed;
 	}
 	sgt_buf = PTR_ALIGN(sgt_buf, DPAA2_ETH_TX_BUF_ALIGN);
+	memset(sgt_buf, 0, sgt_buf_size);
+
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
 
 	/* Fill in the HW SGT structure.
@@ -404,7 +406,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	swa->skb = skb;
 	swa->scl = scl;
 	swa->num_sg = num_sg;
-	swa->num_dma_bufs = num_dma_bufs;
+	swa->sgt_size = sgt_buf_size;
 
 	/* Separately map the SGT buffer */
 	addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
@@ -421,7 +423,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	return 0;
 
 dma_map_single_failed:
-	kfree(sgt_buf);
+	skb_free_frag(sgt_buf);
 sgt_buf_alloc_failed:
 	dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
 dma_map_sg_failed:
@@ -487,9 +489,6 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	dma_addr_t fd_addr;
 	struct sk_buff **skbh, *skb;
 	unsigned char *buffer_start;
-	int unmap_size;
-	struct scatterlist *scl;
-	int num_sg, num_dma_bufs;
 	struct dpaa2_eth_swa *swa;
 	u8 fd_format = dpaa2_fd_get_format(fd);
 
@@ -508,26 +507,22 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	} else if (fd_format == dpaa2_fd_sg) {
 		swa = (struct dpaa2_eth_swa *)skbh;
 		skb = swa->skb;
-		scl = swa->scl;
-		num_sg = swa->num_sg;
-		num_dma_bufs = swa->num_dma_bufs;
 
 		/* Unmap the scatterlist */
-		dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
-		kfree(scl);
+		dma_unmap_sg(dev, swa->scl, swa->num_sg, DMA_BIDIRECTIONAL);
+		kfree(swa->scl);
 
 		/* Unmap the SGT buffer */
-		unmap_size = priv->tx_data_offset +
-		       sizeof(struct dpaa2_sg_entry) * (1 + num_dma_bufs);
-		dma_unmap_single(dev, fd_addr, unmap_size, DMA_BIDIRECTIONAL);
+		dma_unmap_single(dev, fd_addr, swa->sgt_size,
+				 DMA_BIDIRECTIONAL);
 	} else {
 		netdev_dbg(priv->net_dev, "Invalid FD format\n");
 		return;
 	}
 
-	/* Free SGT buffer kmalloc'ed on tx */
+	/* Free SGT buffer allocated on tx */
 	if (fd_format != dpaa2_fd_single)
-		kfree(skbh);
+		skb_free_frag(skbh);
 
 	/* Move on with skb release */
 	dev_kfree_skb(skb);
@@ -1844,6 +1839,21 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 		return err;
 	}
 
+	/* Check if we can work with this DPNI object */
+	err = dpni_get_api_version(priv->mc_io, 0, &priv->dpni_ver_major,
+				   &priv->dpni_ver_minor);
+	if (err) {
+		dev_err(dev, "dpni_get_api_version() failed\n");
+		goto close;
+	}
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_VER_MAJOR, DPNI_VER_MINOR) < 0) {
+		dev_err(dev, "DPNI version %u.%u not supported, need >= %u.%u\n",
+			priv->dpni_ver_major, priv->dpni_ver_minor,
+			DPNI_VER_MAJOR, DPNI_VER_MINOR);
+		err = -ENOTSUPP;
+		goto close;
+	}
+
 	ls_dev->mc_io = priv->mc_io;
 	ls_dev->mc_handle = priv->mc_token;
 
@@ -1863,7 +1873,6 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	err = set_buffer_layout(priv);
 	if (err)
 		goto close;
-
 
 	return 0;
 
@@ -1906,7 +1915,7 @@ static int setup_rx_flow(struct dpaa2_eth_priv *priv,
 	queue.destination.id = fq->channel->dpcon_id;
 	queue.destination.type = DPNI_DEST_DPCON;
 	queue.destination.priority = 1;
-	queue.user_context = (u64)fq;
+	queue.user_context = (u64)(uintptr_t)fq;
 	err = dpni_set_queue(priv->mc_io, 0, priv->mc_token,
 			     DPNI_QUEUE_RX, 0, fq->flowid,
 			     DPNI_QUEUE_OPT_USER_CTX | DPNI_QUEUE_OPT_DEST,
@@ -1958,7 +1967,7 @@ static int setup_tx_flow(struct dpaa2_eth_priv *priv,
 	queue.destination.id = fq->channel->dpcon_id;
 	queue.destination.type = DPNI_DEST_DPCON;
 	queue.destination.priority = 0;
-	queue.user_context = (u64)fq;
+	queue.user_context = (u64)(uintptr_t)fq;
 	err = dpni_set_queue(priv->mc_io, 0, priv->mc_token,
 			     DPNI_QUEUE_TX_CONFIRM, 0, fq->flowid,
 			     DPNI_QUEUE_OPT_USER_CTX | DPNI_QUEUE_OPT_DEST,
@@ -2316,11 +2325,6 @@ static int poll_link_state(void *arg)
 	return 0;
 }
 
-static irqreturn_t dpni_irq0_handler(int irq_num, void *arg)
-{
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 {
 	u32 status = ~0;
@@ -2355,8 +2359,7 @@ static int setup_irqs(struct fsl_mc_device *ls_dev)
 
 	irq = ls_dev->irqs[0];
 	err = devm_request_threaded_irq(&ls_dev->dev, irq->msi_desc->irq,
-					dpni_irq0_handler,
-					dpni_irq0_handler_thread,
+					NULL, dpni_irq0_handler_thread,
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(&ls_dev->dev), &ls_dev->dev);
 	if (err < 0) {
@@ -2440,7 +2443,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	err = fsl_mc_portal_allocate(dpni_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
 				     &priv->mc_io);
 	if (err) {
-		dev_err(dev, "MC portal allocation failed\n");
+		if (err == -ENXIO)
+			err = -EPROBE_DEFER;
+		else
+			dev_err(dev, "MC portal allocation failed\n");
 		goto err_portal_alloc;
 	}
 
@@ -2552,7 +2558,6 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	priv = netdev_priv(net_dev);
 
 	unregister_netdev(net_dev);
-	dev_info(net_dev->dev.parent, "Removed interface %s\n", net_dev->name);
 
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
@@ -2572,6 +2577,8 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 
 	dev_set_drvdata(dev, NULL);
 	free_netdev(net_dev);
+
+	dev_dbg(net_dev->dev.parent, "Removed interface %s\n", net_dev->name);
 
 	return 0;
 }

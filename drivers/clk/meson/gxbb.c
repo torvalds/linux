@@ -19,107 +19,18 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
+#include <linux/regmap.h>
 
 #include "clkc.h"
 #include "gxbb.h"
+#include "clk-regmap.h"
 
 static DEFINE_SPINLOCK(meson_clk_lock);
-
-static const struct pll_rate_table sys_pll_rate_table[] = {
-	PLL_RATE(24000000, 56, 1, 2),
-	PLL_RATE(48000000, 64, 1, 2),
-	PLL_RATE(72000000, 72, 1, 2),
-	PLL_RATE(96000000, 64, 1, 2),
-	PLL_RATE(120000000, 80, 1, 2),
-	PLL_RATE(144000000, 96, 1, 2),
-	PLL_RATE(168000000, 56, 1, 1),
-	PLL_RATE(192000000, 64, 1, 1),
-	PLL_RATE(216000000, 72, 1, 1),
-	PLL_RATE(240000000, 80, 1, 1),
-	PLL_RATE(264000000, 88, 1, 1),
-	PLL_RATE(288000000, 96, 1, 1),
-	PLL_RATE(312000000, 52, 1, 2),
-	PLL_RATE(336000000, 56, 1, 2),
-	PLL_RATE(360000000, 60, 1, 2),
-	PLL_RATE(384000000, 64, 1, 2),
-	PLL_RATE(408000000, 68, 1, 2),
-	PLL_RATE(432000000, 72, 1, 2),
-	PLL_RATE(456000000, 76, 1, 2),
-	PLL_RATE(480000000, 80, 1, 2),
-	PLL_RATE(504000000, 84, 1, 2),
-	PLL_RATE(528000000, 88, 1, 2),
-	PLL_RATE(552000000, 92, 1, 2),
-	PLL_RATE(576000000, 96, 1, 2),
-	PLL_RATE(600000000, 50, 1, 1),
-	PLL_RATE(624000000, 52, 1, 1),
-	PLL_RATE(648000000, 54, 1, 1),
-	PLL_RATE(672000000, 56, 1, 1),
-	PLL_RATE(696000000, 58, 1, 1),
-	PLL_RATE(720000000, 60, 1, 1),
-	PLL_RATE(744000000, 62, 1, 1),
-	PLL_RATE(768000000, 64, 1, 1),
-	PLL_RATE(792000000, 66, 1, 1),
-	PLL_RATE(816000000, 68, 1, 1),
-	PLL_RATE(840000000, 70, 1, 1),
-	PLL_RATE(864000000, 72, 1, 1),
-	PLL_RATE(888000000, 74, 1, 1),
-	PLL_RATE(912000000, 76, 1, 1),
-	PLL_RATE(936000000, 78, 1, 1),
-	PLL_RATE(960000000, 80, 1, 1),
-	PLL_RATE(984000000, 82, 1, 1),
-	PLL_RATE(1008000000, 84, 1, 1),
-	PLL_RATE(1032000000, 86, 1, 1),
-	PLL_RATE(1056000000, 88, 1, 1),
-	PLL_RATE(1080000000, 90, 1, 1),
-	PLL_RATE(1104000000, 92, 1, 1),
-	PLL_RATE(1128000000, 94, 1, 1),
-	PLL_RATE(1152000000, 96, 1, 1),
-	PLL_RATE(1176000000, 98, 1, 1),
-	PLL_RATE(1200000000, 50, 1, 0),
-	PLL_RATE(1224000000, 51, 1, 0),
-	PLL_RATE(1248000000, 52, 1, 0),
-	PLL_RATE(1272000000, 53, 1, 0),
-	PLL_RATE(1296000000, 54, 1, 0),
-	PLL_RATE(1320000000, 55, 1, 0),
-	PLL_RATE(1344000000, 56, 1, 0),
-	PLL_RATE(1368000000, 57, 1, 0),
-	PLL_RATE(1392000000, 58, 1, 0),
-	PLL_RATE(1416000000, 59, 1, 0),
-	PLL_RATE(1440000000, 60, 1, 0),
-	PLL_RATE(1464000000, 61, 1, 0),
-	PLL_RATE(1488000000, 62, 1, 0),
-	PLL_RATE(1512000000, 63, 1, 0),
-	PLL_RATE(1536000000, 64, 1, 0),
-	PLL_RATE(1560000000, 65, 1, 0),
-	PLL_RATE(1584000000, 66, 1, 0),
-	PLL_RATE(1608000000, 67, 1, 0),
-	PLL_RATE(1632000000, 68, 1, 0),
-	PLL_RATE(1656000000, 68, 1, 0),
-	PLL_RATE(1680000000, 68, 1, 0),
-	PLL_RATE(1704000000, 68, 1, 0),
-	PLL_RATE(1728000000, 69, 1, 0),
-	PLL_RATE(1752000000, 69, 1, 0),
-	PLL_RATE(1776000000, 69, 1, 0),
-	PLL_RATE(1800000000, 69, 1, 0),
-	PLL_RATE(1824000000, 70, 1, 0),
-	PLL_RATE(1848000000, 70, 1, 0),
-	PLL_RATE(1872000000, 70, 1, 0),
-	PLL_RATE(1896000000, 70, 1, 0),
-	PLL_RATE(1920000000, 71, 1, 0),
-	PLL_RATE(1944000000, 71, 1, 0),
-	PLL_RATE(1968000000, 71, 1, 0),
-	PLL_RATE(1992000000, 71, 1, 0),
-	PLL_RATE(2016000000, 72, 1, 0),
-	PLL_RATE(2040000000, 72, 1, 0),
-	PLL_RATE(2064000000, 72, 1, 0),
-	PLL_RATE(2088000000, 72, 1, 0),
-	PLL_RATE(2112000000, 73, 1, 0),
-	{ /* sentinel */ },
-};
 
 static const struct pll_rate_table gxbb_gp0_pll_rate_table[] = {
 	PLL_RATE(96000000, 32, 1, 3),
@@ -278,23 +189,39 @@ static const struct pll_rate_table gxl_gp0_pll_rate_table[] = {
 	{ /* sentinel */ },
 };
 
-static struct meson_clk_pll gxbb_fixed_pll = {
-	.m = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_fixed_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_MPLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -304,33 +231,118 @@ static struct meson_clk_pll gxbb_fixed_pll = {
 	},
 };
 
-static struct meson_clk_pll gxbb_hdmi_pll = {
-	.m = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_fixed_factor gxbb_hdmi_pll_pre_mult = {
+	.mult = 2,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll_pre_mult",
+		.ops = &clk_fixed_factor_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
 	},
-	.n = {
-		.reg_off = HHI_HDMI_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
+};
+
+static struct clk_regmap gxbb_hdmi_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.frac = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.od = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.od2 = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 22,
+			.width   = 2,
+		},
+		.od3 = {
+			.reg_off = HHI_HDMI_PLL_CNTL2,
+			.shift   = 18,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 28,
+			.width   = 1,
+		},
 	},
-	.frac = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 0,
-		.width   = 12,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll",
+		.ops = &meson_clk_pll_ro_ops,
+		.parent_names = (const char *[]){ "hdmi_pll_pre_mult" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE,
 	},
-	.od = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 16,
-		.width   = 2,
+};
+
+static struct clk_regmap gxl_hdmi_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.frac = {
+			/*
+			 * On gxl, there is a register shift due to
+			 * HHI_HDMI_PLL_CNTL1 which does not exist on gxbb,
+			 * so we compute the register offset based on the PLL
+			 * base to get it right
+			 */
+			.reg_off = HHI_HDMI_PLL_CNTL + 4,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.od = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 21,
+			.width   = 2,
+		},
+		.od2 = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 23,
+			.width   = 2,
+		},
+		.od3 = {
+			.reg_off = HHI_HDMI_PLL_CNTL + 8,
+			.shift   = 19,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_HDMI_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.od2 = {
-		.reg_off = HHI_HDMI_PLL_CNTL2,
-		.shift   = 22,
-		.width   = 2,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -340,25 +352,34 @@ static struct meson_clk_pll gxbb_hdmi_pll = {
 	},
 };
 
-static struct meson_clk_pll gxbb_sys_pll = {
-	.m = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_sys_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 10,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
 	},
-	.n = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_SYS_PLL_CNTL,
-		.shift   = 10,
-		.width   = 2,
-	},
-	.rate_table = sys_pll_rate_table,
-	.rate_count = ARRAY_SIZE(sys_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
 		.ops = &meson_clk_pll_ro_ops,
@@ -368,38 +389,44 @@ static struct meson_clk_pll gxbb_sys_pll = {
 	},
 };
 
-struct pll_params_table gxbb_gp0_params_table[] = {
-	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x6a000228),
-	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0x69c80000),
-	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a5590c4),
-	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0x0000500d),
+static const struct reg_sequence gxbb_gp0_init_regs[] = {
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x69c80000 },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a5590c4 },
+	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x0000500d },
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x4a000228 },
 };
 
-static struct meson_clk_pll gxbb_gp0_pll = {
-	.m = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxbb_gp0_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.l = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = gxbb_gp0_pll_rate_table,
+		.init_regs = gxbb_gp0_init_regs,
+		.init_count = ARRAY_SIZE(gxbb_gp0_init_regs),
 	},
-	.n = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.params = {
-		.params_table = gxbb_gp0_params_table,
-		.params_count =	ARRAY_SIZE(gxbb_gp0_params_table),
-		.no_init_reset = true,
-		.clear_reset_for_lock = true,
-	},
-	.rate_table = gxbb_gp0_pll_rate_table,
-	.rate_count = ARRAY_SIZE(gxbb_gp0_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
@@ -409,40 +436,51 @@ static struct meson_clk_pll gxbb_gp0_pll = {
 	},
 };
 
-struct pll_params_table gxl_gp0_params_table[] = {
-	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x40010250),
-	PLL_PARAM(HHI_GP0_PLL_CNTL1, 0xc084a000),
-	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0xb75020be),
-	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a59a288),
-	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0xc000004d),
-	PLL_PARAM(HHI_GP0_PLL_CNTL5, 0x00078000),
+static const struct reg_sequence gxl_gp0_init_regs[] = {
+	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084b000 },
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
+	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0xc000004d },
+	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x00078000 },
+	{ .reg = HHI_GP0_PLL_CNTL,	.def = 0x40010250 },
 };
 
-static struct meson_clk_pll gxl_gp0_pll = {
-	.m = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 0,
-		.width   = 9,
+static struct clk_regmap gxl_gp0_pll = {
+	.data = &(struct meson_clk_pll_data){
+		.m = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 16,
+			.width   = 2,
+		},
+		.frac = {
+			.reg_off = HHI_GP0_PLL_CNTL1,
+			.shift   = 0,
+			.width   = 10,
+		},
+		.l = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_GP0_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = gxl_gp0_pll_rate_table,
+		.init_regs = gxl_gp0_init_regs,
+		.init_count = ARRAY_SIZE(gxl_gp0_init_regs),
 	},
-	.n = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 9,
-		.width   = 5,
-	},
-	.od = {
-		.reg_off = HHI_GP0_PLL_CNTL,
-		.shift   = 16,
-		.width   = 2,
-	},
-	.params = {
-		.params_table = gxl_gp0_params_table,
-		.params_count =	ARRAY_SIZE(gxl_gp0_params_table),
-		.no_init_reset = true,
-		.reset_lock_loop = true,
-	},
-	.rate_table = gxl_gp0_pll_rate_table,
-	.rate_count = ARRAY_SIZE(gxl_gp0_pll_rate_table),
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
@@ -452,161 +490,267 @@ static struct meson_clk_pll gxl_gp0_pll = {
 	},
 };
 
-static struct clk_fixed_factor gxbb_fclk_div2 = {
+static struct clk_fixed_factor gxbb_fclk_div2_div = {
 	.mult = 1,
 	.div = 2,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div2",
+		.name = "fclk_div2_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor gxbb_fclk_div3 = {
+static struct clk_regmap gxbb_fclk_div2 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div2",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div2_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor gxbb_fclk_div3_div = {
 	.mult = 1,
 	.div = 3,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div3",
+		.name = "fclk_div3_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor gxbb_fclk_div4 = {
+static struct clk_regmap gxbb_fclk_div3 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 28,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div3",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div3_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor gxbb_fclk_div4_div = {
 	.mult = 1,
 	.div = 4,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div4",
+		.name = "fclk_div4_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor gxbb_fclk_div5 = {
+static struct clk_regmap gxbb_fclk_div4 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 29,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div4",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div4_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor gxbb_fclk_div5_div = {
 	.mult = 1,
 	.div = 5,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div5",
+		.name = "fclk_div5_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_fixed_factor gxbb_fclk_div7 = {
+static struct clk_regmap gxbb_fclk_div5 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div5",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div5_div" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor gxbb_fclk_div7_div = {
 	.mult = 1,
 	.div = 7,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div7",
+		.name = "fclk_div7_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll0 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_fclk_div7 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL6,
+		.bit_idx = 31,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 15,
-		.width	 = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "fclk_div7",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "fclk_div7_div" },
+		.num_parents = 1,
 	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 16,
-		.width   = 9,
+};
+
+static struct clk_regmap gxbb_mpll_prediv = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPLL_CNTL5,
+		.shift = 12,
+		.width = 1,
 	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL7,
-		.shift   = 14,
-		.width	 = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll_prediv",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
 	},
-	.ssen = {
-		.reg_off = HHI_MPLL_CNTL,
-		.shift   = 25,
-		.width	 = 1,
+};
+
+static struct clk_regmap gxbb_mpll0_div = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL7,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.ssen = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 25,
+			.width	 = 1,
+		},
+		.lock = &meson_clk_lock,
 	},
-	.lock = &meson_clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll0_div",
+		.ops = &meson_clk_mpll_ops,
+		.parent_names = (const char *[]){ "mpll_prediv" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap gxbb_mpll0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL7,
+		.bit_idx = 14,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll0_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_mpll1_div = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL8,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.lock = &meson_clk_lock,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll1 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_mpll1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL8,
+		.bit_idx = 14,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL8,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll1_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap gxbb_mpll2_div = {
+	.data = &(struct meson_clk_mpll_data){
+		.sdm = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 0,
+			.width   = 14,
+		},
+		.sdm_en = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 15,
+			.width	 = 1,
+		},
+		.n2 = {
+			.reg_off = HHI_MPLL_CNTL9,
+			.shift   = 16,
+			.width   = 9,
+		},
+		.lock = &meson_clk_lock,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.parent_names = (const char *[]){ "mpll_prediv" },
 		.num_parents = 1,
 	},
 };
 
-static struct meson_clk_mpll gxbb_mpll2 = {
-	.sdm = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 0,
-		.width   = 14,
+static struct clk_regmap gxbb_mpll2 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPLL_CNTL9,
+		.bit_idx = 14,
 	},
-	.sdm_en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 15,
-		.width	 = 1,
-	},
-	.n2 = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 16,
-		.width   = 9,
-	},
-	.en = {
-		.reg_off = HHI_MPLL_CNTL9,
-		.shift   = 14,
-		.width	 = 1,
-	},
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
-		.ops = &meson_clk_mpll_ops,
-		.parent_names = (const char *[]){ "fixed_pll" },
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mpll2_div" },
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
-
-/*
- * FIXME The legacy composite clocks (e.g. clk81) are both PLL post-dividers
- * and should be modeled with their respective PLLs via the forthcoming
- * coordinated clock rates feature
- */
 
 static u32 mux_table_clk81[]	= { 0, 2, 3, 4, 5, 6, 7 };
 static const char * const clk81_parent_names[] = {
@@ -614,16 +758,16 @@ static const char * const clk81_parent_names[] = {
 	"fclk_div3", "fclk_div5"
 };
 
-static struct clk_mux gxbb_mpeg_clk_sel = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 12,
-	.flags = CLK_MUX_READ_ONLY,
-	.table = mux_table_clk81,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mpeg_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 12,
+		.table = mux_table_clk81,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_sel",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_regmap_mux_ro_ops,
 		/*
 		 * bits 14:12 selects from 8 possible parents:
 		 * xtal, 1'b0 (wtf), fclk_div7, mpll_clkout1, mpll_clkout2,
@@ -631,72 +775,75 @@ static struct clk_mux gxbb_mpeg_clk_sel = {
 		 */
 		.parent_names = clk81_parent_names,
 		.num_parents = ARRAY_SIZE(clk81_parent_names),
-		.flags = (CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED),
 	},
 };
 
-static struct clk_divider gxbb_mpeg_clk_div = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mpeg_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mpeg_clk_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ro_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_sel" },
 		.num_parents = 1,
-		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),
 	},
 };
 
-/* the mother of dragons^W gates */
-static struct clk_gate gxbb_clk81 = {
-	.reg = (void *)HHI_MPEG_CLK_CNTL,
-	.bit_idx = 7,
-	.lock = &meson_clk_lock,
+/* the mother of dragons gates */
+static struct clk_regmap gxbb_clk81 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MPEG_CLK_CNTL,
+		.bit_idx = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "clk81",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "mpeg_clk_div" },
 		.num_parents = 1,
-		.flags = (CLK_SET_RATE_PARENT | CLK_IS_CRITICAL),
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
-static struct clk_mux gxbb_sar_adc_clk_sel = {
-	.reg = (void *)HHI_SAR_CLK_CNTL,
-	.mask = 0x3,
-	.shift = 9,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sar_adc_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SAR_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sar_adc_clk_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/* NOTE: The datasheet doesn't list the parents for bit 10 */
 		.parent_names = (const char *[]){ "xtal", "clk81", },
 		.num_parents = 2,
 	},
 };
 
-static struct clk_divider gxbb_sar_adc_clk_div = {
-	.reg = (void *)HHI_SAR_CLK_CNTL,
-	.shift = 0,
-	.width = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sar_adc_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SAR_CLK_CNTL,
+		.shift = 0,
+		.width = 8,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sar_adc_clk_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "sar_adc_clk_sel" },
 		.num_parents = 1,
 	},
 };
 
-static struct clk_gate gxbb_sar_adc_clk = {
-	.reg = (void *)HHI_SAR_CLK_CNTL,
-	.bit_idx = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sar_adc_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SAR_CLK_CNTL,
+		.bit_idx = 8,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sar_adc_clk",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sar_adc_clk_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -708,21 +855,20 @@ static struct clk_gate gxbb_sar_adc_clk = {
  * muxed by a glitch-free switch.
  */
 
-static u32 mux_table_mali_0_1[] = {0, 1, 2, 3, 4, 5, 6, 7};
 static const char * const gxbb_mali_0_1_parent_names[] = {
 	"xtal", "gp0_pll", "mpll2", "mpll1", "fclk_div7",
 	"fclk_div4", "fclk_div3", "fclk_div5"
 };
 
-static struct clk_mux gxbb_mali_0_sel = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 9,
-	.table = mux_table_mali_0_1,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 10:9 selects from 8 possible parents:
 		 * xtal, gp0_pll, mpll2, mpll1, fclk_div7,
@@ -734,42 +880,44 @@ static struct clk_mux gxbb_mali_0_sel = {
 	},
 };
 
-static struct clk_divider gxbb_mali_0_div = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "mali_0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
-static struct clk_gate gxbb_mali_0 = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.bit_idx = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.bit_idx = 8,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "mali_0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_mux gxbb_mali_1_sel = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 25,
-	.table = mux_table_mali_0_1,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_1_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 10:9 selects from 8 possible parents:
 		 * xtal, gp0_pll, mpll2, mpll1, fclk_div7,
@@ -781,77 +929,79 @@ static struct clk_mux gxbb_mali_1_sel = {
 	},
 };
 
-static struct clk_divider gxbb_mali_1_div = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.shift = 16,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_1_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "mali_1_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
-static struct clk_gate gxbb_mali_1 = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.bit_idx = 24,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.bit_idx = 24,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali_1",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "mali_1_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static u32 mux_table_mali[] = {0, 1};
 static const char * const gxbb_mali_parent_names[] = {
 	"mali_0", "mali_1"
 };
 
-static struct clk_mux gxbb_mali = {
-	.reg = (void *)HHI_MALI_CLK_CNTL,
-	.mask = 1,
-	.shift = 31,
-	.table = mux_table_mali,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_mali = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mali",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = gxbb_mali_parent_names,
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
-static struct clk_mux gxbb_cts_amclk_sel = {
-	.reg = (void *) HHI_AUD_CLK_CNTL,
-	.mask = 0x3,
-	.shift = 9,
-	/* Default parent unknown (register reset value: 0) */
-	.table = (u32[]){ 1, 2, 3 },
-	.lock = &meson_clk_lock,
-		.hw.init = &(struct clk_init_data){
+static struct clk_regmap gxbb_cts_amclk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+		.table = (u32[]){ 1, 2, 3 },
+	},
+	.hw.init = &(struct clk_init_data){
 		.name = "cts_amclk_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = (const char *[]){ "mpll0", "mpll1", "mpll2" },
 		.num_parents = 3,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct meson_clk_audio_divider gxbb_cts_amclk_div = {
-	.div = {
-		.reg_off = HHI_AUD_CLK_CNTL,
-		.shift   = 0,
-		.width   = 8,
+static struct clk_regmap gxbb_cts_amclk_div = {
+	.data = &(struct meson_clk_audio_div_data){
+		.div = {
+			.reg_off = HHI_AUD_CLK_CNTL,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
 	},
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
-	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_amclk_div",
 		.ops = &meson_clk_audio_divider_ops,
@@ -861,71 +1011,75 @@ static struct meson_clk_audio_divider gxbb_cts_amclk_div = {
 	},
 };
 
-static struct clk_gate gxbb_cts_amclk = {
-	.reg = (void *) HHI_AUD_CLK_CNTL,
-	.bit_idx = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_cts_amclk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_AUD_CLK_CNTL,
+		.bit_idx = 8,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_amclk",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "cts_amclk_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_mux gxbb_cts_mclk_i958_sel = {
-	.reg = (void *)HHI_AUD_CLK_CNTL2,
-	.mask = 0x3,
-	.shift = 25,
-	/* Default parent unknown (register reset value: 0) */
-	.table = (u32[]){ 1, 2, 3 },
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_cts_mclk_i958_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.mask = 0x3,
+		.shift = 25,
+		.table = (u32[]){ 1, 2, 3 },
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_mclk_i958_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = (const char *[]){ "mpll0", "mpll1", "mpll2" },
 		.num_parents = 3,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_divider gxbb_cts_mclk_i958_div = {
-	.reg = (void *)HHI_AUD_CLK_CNTL2,
-	.shift = 16,
-	.width = 8,
-	.lock = &meson_clk_lock,
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
+static struct clk_regmap gxbb_cts_mclk_i958_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.shift = 16,
+		.width = 8,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_mclk_i958_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "cts_mclk_i958_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_cts_mclk_i958 = {
-	.reg = (void *)HHI_AUD_CLK_CNTL2,
-	.bit_idx = 24,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_cts_mclk_i958 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.bit_idx = 24,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_mclk_i958",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "cts_mclk_i958_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_mux gxbb_cts_i958 = {
-	.reg = (void *)HHI_AUD_CLK_CNTL2,
-	.mask = 0x1,
-	.shift = 27,
-	.lock = &meson_clk_lock,
-		.hw.init = &(struct clk_init_data){
+static struct clk_regmap gxbb_cts_i958 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.mask = 0x1,
+		.shift = 27,
+		},
+	.hw.init = &(struct clk_init_data){
 		.name = "cts_i958",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = (const char *[]){ "cts_amclk", "cts_mclk_i958" },
 		.num_parents = 2,
 		/*
@@ -936,27 +1090,29 @@ static struct clk_mux gxbb_cts_i958 = {
 	},
 };
 
-static struct clk_divider gxbb_32k_clk_div = {
-	.reg = (void *)HHI_32K_CLK_CNTL,
-	.shift = 0,
-	.width = 14,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_32k_clk_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_32K_CLK_CNTL,
+		.shift = 0,
+		.width = 14,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "32k_clk_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "32k_clk_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_DIVIDER_ROUND_CLOSEST,
 	},
 };
 
-static struct clk_gate gxbb_32k_clk = {
-	.reg = (void *)HHI_32K_CLK_CNTL,
-	.bit_idx = 15,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_32k_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_32K_CLK_CNTL,
+		.bit_idx = 15,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "32k_clk",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "32k_clk_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -967,14 +1123,15 @@ static const char * const gxbb_32k_clk_parent_names[] = {
 	"xtal", "cts_slow_oscin", "fclk_div3", "fclk_div5"
 };
 
-static struct clk_mux gxbb_32k_clk_sel = {
-	.reg = (void *)HHI_32K_CLK_CNTL,
-	.mask = 0x3,
-	.shift = 16,
-	.lock = &meson_clk_lock,
-		.hw.init = &(struct clk_init_data){
+static struct clk_regmap gxbb_32k_clk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_32K_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 16,
+		},
+	.hw.init = &(struct clk_init_data){
 		.name = "32k_clk_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = gxbb_32k_clk_parent_names,
 		.num_parents = 4,
 		.flags = CLK_SET_RATE_PARENT,
@@ -993,42 +1150,45 @@ static const char * const gxbb_sd_emmc_clk0_parent_names[] = {
 };
 
 /* SDIO clock */
-static struct clk_mux gxbb_sd_emmc_a_clk0_sel = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 9,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_a_clk0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_a_clk0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = gxbb_sd_emmc_clk0_parent_names,
 		.num_parents = ARRAY_SIZE(gxbb_sd_emmc_clk0_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_divider gxbb_sd_emmc_a_clk0_div = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
+static struct clk_regmap gxbb_sd_emmc_a_clk0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_a_clk0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "sd_emmc_a_clk0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_sd_emmc_a_clk0 = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.bit_idx = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_a_clk0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.bit_idx = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_a_clk0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_a_clk0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1036,42 +1196,45 @@ static struct clk_gate gxbb_sd_emmc_a_clk0 = {
 };
 
 /* SDcard clock */
-static struct clk_mux gxbb_sd_emmc_b_clk0_sel = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 25,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_b_clk0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_b_clk0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = gxbb_sd_emmc_clk0_parent_names,
 		.num_parents = ARRAY_SIZE(gxbb_sd_emmc_clk0_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_divider gxbb_sd_emmc_b_clk0_div = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.shift = 16,
-	.width = 7,
-	.lock = &meson_clk_lock,
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
+static struct clk_regmap gxbb_sd_emmc_b_clk0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_b_clk0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "sd_emmc_b_clk0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_sd_emmc_b_clk0 = {
-	.reg = (void *)HHI_SD_EMMC_CLK_CNTL,
-	.bit_idx = 23,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_b_clk0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SD_EMMC_CLK_CNTL,
+		.bit_idx = 23,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_b_clk0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_b_clk0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1079,42 +1242,45 @@ static struct clk_gate gxbb_sd_emmc_b_clk0 = {
 };
 
 /* EMMC/NAND clock */
-static struct clk_mux gxbb_sd_emmc_c_clk0_sel = {
-	.reg = (void *)HHI_NAND_CLK_CNTL,
-	.mask = 0x7,
-	.shift = 9,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_c_clk0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_c_clk0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_names = gxbb_sd_emmc_clk0_parent_names,
 		.num_parents = ARRAY_SIZE(gxbb_sd_emmc_clk0_parent_names),
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_divider gxbb_sd_emmc_c_clk0_div = {
-	.reg = (void *)HHI_NAND_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
-	.flags = CLK_DIVIDER_ROUND_CLOSEST,
+static struct clk_regmap gxbb_sd_emmc_c_clk0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_c_clk0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "sd_emmc_c_clk0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_sd_emmc_c_clk0 = {
-	.reg = (void *)HHI_NAND_CLK_CNTL,
-	.bit_idx = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_sd_emmc_c_clk0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_NAND_CLK_CNTL,
+		.bit_idx = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_c_clk0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_c_clk0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1123,20 +1289,19 @@ static struct clk_gate gxbb_sd_emmc_c_clk0 = {
 
 /* VPU Clock */
 
-static u32 mux_table_vpu[] = {0, 1, 2, 3};
 static const char * const gxbb_vpu_parent_names[] = {
 	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"
 };
 
-static struct clk_mux gxbb_vpu_0_sel = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.mask = 0x3,
-	.shift = 9,
-	.lock = &meson_clk_lock,
-	.table = mux_table_vpu,
+static struct clk_regmap gxbb_vpu_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 9:10 selects from 4 possible parents:
 		 * fclk_div4, fclk_div3, fclk_div5, fclk_div7,
@@ -1147,42 +1312,44 @@ static struct clk_mux gxbb_vpu_0_sel = {
 	},
 };
 
-static struct clk_divider gxbb_vpu_0_div = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vpu_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "vpu_0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_vpu_0 = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.bit_idx = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vpu_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.bit_idx = 8,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vpu_0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "vpu_0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
-static struct clk_mux gxbb_vpu_1_sel = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.mask = 0x3,
-	.shift = 25,
-	.lock = &meson_clk_lock,
-	.table = mux_table_vpu,
+static struct clk_regmap gxbb_vpu_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_1_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 25:26 selects from 4 possible parents:
 		 * fclk_div4, fclk_div3, fclk_div5, fclk_div7,
@@ -1193,41 +1360,44 @@ static struct clk_mux gxbb_vpu_1_sel = {
 	},
 };
 
-static struct clk_divider gxbb_vpu_1_div = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.shift = 16,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vpu_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_1_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "vpu_1_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_vpu_1 = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.bit_idx = 24,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vpu_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.bit_idx = 24,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vpu_1",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "vpu_1_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
-static struct clk_mux gxbb_vpu = {
-	.reg = (void *)HHI_VPU_CLK_CNTL,
-	.mask = 1,
-	.shift = 31,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vpu = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bit 31 selects from 2 possible parents:
 		 * vpu_0 or vpu_1
@@ -1240,20 +1410,19 @@ static struct clk_mux gxbb_vpu = {
 
 /* VAPB Clock */
 
-static u32 mux_table_vapb[] = {0, 1, 2, 3};
 static const char * const gxbb_vapb_parent_names[] = {
 	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"
 };
 
-static struct clk_mux gxbb_vapb_0_sel = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.mask = 0x3,
-	.shift = 9,
-	.lock = &meson_clk_lock,
-	.table = mux_table_vapb,
+static struct clk_regmap gxbb_vapb_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_0_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 9:10 selects from 4 possible parents:
 		 * fclk_div4, fclk_div3, fclk_div5, fclk_div7,
@@ -1264,42 +1433,44 @@ static struct clk_mux gxbb_vapb_0_sel = {
 	},
 };
 
-static struct clk_divider gxbb_vapb_0_div = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.shift = 0,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_0_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "vapb_0_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_vapb_0 = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.bit_idx = 8,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 8,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vapb_0",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "vapb_0_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
-static struct clk_mux gxbb_vapb_1_sel = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.mask = 0x3,
-	.shift = 25,
-	.lock = &meson_clk_lock,
-	.table = mux_table_vapb,
+static struct clk_regmap gxbb_vapb_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_1_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bits 25:26 selects from 4 possible parents:
 		 * fclk_div4, fclk_div3, fclk_div5, fclk_div7,
@@ -1310,41 +1481,44 @@ static struct clk_mux gxbb_vapb_1_sel = {
 	},
 };
 
-static struct clk_divider gxbb_vapb_1_div = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.shift = 16,
-	.width = 7,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_1_div",
-		.ops = &clk_divider_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_names = (const char *[]){ "vapb_1_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_gate gxbb_vapb_1 = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.bit_idx = 24,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 24,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vapb_1",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "vapb_1_div" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
-static struct clk_mux gxbb_vapb_sel = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.mask = 1,
-	.shift = 31,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vapb_sel",
-		.ops = &clk_mux_ops,
+		.ops = &clk_regmap_mux_ops,
 		/*
 		 * bit 31 selects from 2 possible parents:
 		 * vapb_0 or vapb_1
@@ -1355,13 +1529,14 @@ static struct clk_mux gxbb_vapb_sel = {
 	},
 };
 
-static struct clk_gate gxbb_vapb = {
-	.reg = (void *)HHI_VAPBCLK_CNTL,
-	.bit_idx = 30,
-	.lock = &meson_clk_lock,
+static struct clk_regmap gxbb_vapb = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 30,
+	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vapb",
-		.ops = &clk_gate_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "vapb_sel" },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
@@ -1601,6 +1776,16 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_VAPB_1]		    = &gxbb_vapb_1.hw,
 		[CLKID_VAPB_SEL]	    = &gxbb_vapb_sel.hw,
 		[CLKID_VAPB]		    = &gxbb_vapb.hw,
+		[CLKID_HDMI_PLL_PRE_MULT]   = &gxbb_hdmi_pll_pre_mult.hw,
+		[CLKID_MPLL0_DIV]	    = &gxbb_mpll0_div.hw,
+		[CLKID_MPLL1_DIV]	    = &gxbb_mpll1_div.hw,
+		[CLKID_MPLL2_DIV]	    = &gxbb_mpll2_div.hw,
+		[CLKID_MPLL_PREDIV]	    = &gxbb_mpll_prediv.hw,
+		[CLKID_FCLK_DIV2_DIV]	    = &gxbb_fclk_div2_div.hw,
+		[CLKID_FCLK_DIV3_DIV]	    = &gxbb_fclk_div3_div.hw,
+		[CLKID_FCLK_DIV4_DIV]	    = &gxbb_fclk_div4_div.hw,
+		[CLKID_FCLK_DIV5_DIV]	    = &gxbb_fclk_div5_div.hw,
+		[CLKID_FCLK_DIV7_DIV]	    = &gxbb_fclk_div7_div.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -1609,7 +1794,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 	.hws = {
 		[CLKID_SYS_PLL]		    = &gxbb_sys_pll.hw,
-		[CLKID_HDMI_PLL]	    = &gxbb_hdmi_pll.hw,
+		[CLKID_HDMI_PLL]	    = &gxl_hdmi_pll.hw,
 		[CLKID_FIXED_PLL]	    = &gxbb_fixed_pll.hw,
 		[CLKID_FCLK_DIV2]	    = &gxbb_fclk_div2.hw,
 		[CLKID_FCLK_DIV3]	    = &gxbb_fclk_div3.hw,
@@ -1748,34 +1933,31 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_VAPB_1]		    = &gxbb_vapb_1.hw,
 		[CLKID_VAPB_SEL]	    = &gxbb_vapb_sel.hw,
 		[CLKID_VAPB]		    = &gxbb_vapb.hw,
+		[CLKID_MPLL0_DIV]	    = &gxbb_mpll0_div.hw,
+		[CLKID_MPLL1_DIV]	    = &gxbb_mpll1_div.hw,
+		[CLKID_MPLL2_DIV]	    = &gxbb_mpll2_div.hw,
+		[CLKID_MPLL_PREDIV]	    = &gxbb_mpll_prediv.hw,
+		[CLKID_FCLK_DIV2_DIV]	    = &gxbb_fclk_div2_div.hw,
+		[CLKID_FCLK_DIV3_DIV]	    = &gxbb_fclk_div3_div.hw,
+		[CLKID_FCLK_DIV4_DIV]	    = &gxbb_fclk_div4_div.hw,
+		[CLKID_FCLK_DIV5_DIV]	    = &gxbb_fclk_div5_div.hw,
+		[CLKID_FCLK_DIV7_DIV]	    = &gxbb_fclk_div7_div.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
 };
 
-/* Convenience tables to populate base addresses in .probe */
-
-static struct meson_clk_pll *const gxbb_clk_plls[] = {
-	&gxbb_fixed_pll,
-	&gxbb_hdmi_pll,
-	&gxbb_sys_pll,
+static struct clk_regmap *const gxbb_clk_regmaps[] = {
 	&gxbb_gp0_pll,
-};
-
-static struct meson_clk_pll *const gxl_clk_plls[] = {
-	&gxbb_fixed_pll,
 	&gxbb_hdmi_pll,
-	&gxbb_sys_pll,
+};
+
+static struct clk_regmap *const gxl_clk_regmaps[] = {
 	&gxl_gp0_pll,
+	&gxl_hdmi_pll,
 };
 
-static struct meson_clk_mpll *const gxbb_clk_mplls[] = {
-	&gxbb_mpll0,
-	&gxbb_mpll1,
-	&gxbb_mpll2,
-};
-
-static struct clk_gate *const gxbb_clk_gates[] = {
+static struct clk_regmap *const gx_clk_regmaps[] = {
 	&gxbb_clk81,
 	&gxbb_ddr,
 	&gxbb_dos,
@@ -1872,9 +2054,19 @@ static struct clk_gate *const gxbb_clk_gates[] = {
 	&gxbb_vapb_0,
 	&gxbb_vapb_1,
 	&gxbb_vapb,
-};
-
-static struct clk_mux *const gxbb_clk_muxes[] = {
+	&gxbb_mpeg_clk_div,
+	&gxbb_sar_adc_clk_div,
+	&gxbb_mali_0_div,
+	&gxbb_mali_1_div,
+	&gxbb_cts_mclk_i958_div,
+	&gxbb_32k_clk_div,
+	&gxbb_sd_emmc_a_clk0_div,
+	&gxbb_sd_emmc_b_clk0_div,
+	&gxbb_sd_emmc_c_clk0_div,
+	&gxbb_vpu_0_div,
+	&gxbb_vpu_1_div,
+	&gxbb_vapb_0_div,
+	&gxbb_vapb_1_div,
 	&gxbb_mpeg_clk_sel,
 	&gxbb_sar_adc_clk_sel,
 	&gxbb_mali_0_sel,
@@ -1893,73 +2085,38 @@ static struct clk_mux *const gxbb_clk_muxes[] = {
 	&gxbb_vapb_0_sel,
 	&gxbb_vapb_1_sel,
 	&gxbb_vapb_sel,
-};
-
-static struct clk_divider *const gxbb_clk_dividers[] = {
-	&gxbb_mpeg_clk_div,
-	&gxbb_sar_adc_clk_div,
-	&gxbb_mali_0_div,
-	&gxbb_mali_1_div,
-	&gxbb_cts_mclk_i958_div,
-	&gxbb_32k_clk_div,
-	&gxbb_sd_emmc_a_clk0_div,
-	&gxbb_sd_emmc_b_clk0_div,
-	&gxbb_sd_emmc_c_clk0_div,
-	&gxbb_vpu_0_div,
-	&gxbb_vpu_1_div,
-	&gxbb_vapb_0_div,
-	&gxbb_vapb_1_div,
-};
-
-static struct meson_clk_audio_divider *const gxbb_audio_dividers[] = {
+	&gxbb_mpll0,
+	&gxbb_mpll1,
+	&gxbb_mpll2,
+	&gxbb_mpll0_div,
+	&gxbb_mpll1_div,
+	&gxbb_mpll2_div,
 	&gxbb_cts_amclk_div,
+	&gxbb_fixed_pll,
+	&gxbb_sys_pll,
+	&gxbb_mpll_prediv,
+	&gxbb_fclk_div2,
+	&gxbb_fclk_div3,
+	&gxbb_fclk_div4,
+	&gxbb_fclk_div5,
+	&gxbb_fclk_div7,
 };
 
 struct clkc_data {
-	struct clk_gate *const *clk_gates;
-	unsigned int clk_gates_count;
-	struct meson_clk_mpll *const *clk_mplls;
-	unsigned int clk_mplls_count;
-	struct meson_clk_pll *const *clk_plls;
-	unsigned int clk_plls_count;
-	struct clk_mux *const *clk_muxes;
-	unsigned int clk_muxes_count;
-	struct clk_divider *const *clk_dividers;
-	unsigned int clk_dividers_count;
-	struct meson_clk_audio_divider *const *clk_audio_dividers;
-	unsigned int clk_audio_dividers_count;
+	struct clk_regmap *const *regmap_clks;
+	unsigned int regmap_clks_count;
 	struct clk_hw_onecell_data *hw_onecell_data;
 };
 
 static const struct clkc_data gxbb_clkc_data = {
-	.clk_gates = gxbb_clk_gates,
-	.clk_gates_count = ARRAY_SIZE(gxbb_clk_gates),
-	.clk_mplls = gxbb_clk_mplls,
-	.clk_mplls_count = ARRAY_SIZE(gxbb_clk_mplls),
-	.clk_plls = gxbb_clk_plls,
-	.clk_plls_count = ARRAY_SIZE(gxbb_clk_plls),
-	.clk_muxes = gxbb_clk_muxes,
-	.clk_muxes_count = ARRAY_SIZE(gxbb_clk_muxes),
-	.clk_dividers = gxbb_clk_dividers,
-	.clk_dividers_count = ARRAY_SIZE(gxbb_clk_dividers),
-	.clk_audio_dividers = gxbb_audio_dividers,
-	.clk_audio_dividers_count = ARRAY_SIZE(gxbb_audio_dividers),
+	.regmap_clks = gxbb_clk_regmaps,
+	.regmap_clks_count = ARRAY_SIZE(gxbb_clk_regmaps),
 	.hw_onecell_data = &gxbb_hw_onecell_data,
 };
 
 static const struct clkc_data gxl_clkc_data = {
-	.clk_gates = gxbb_clk_gates,
-	.clk_gates_count = ARRAY_SIZE(gxbb_clk_gates),
-	.clk_mplls = gxbb_clk_mplls,
-	.clk_mplls_count = ARRAY_SIZE(gxbb_clk_mplls),
-	.clk_plls = gxl_clk_plls,
-	.clk_plls_count = ARRAY_SIZE(gxl_clk_plls),
-	.clk_muxes = gxbb_clk_muxes,
-	.clk_muxes_count = ARRAY_SIZE(gxbb_clk_muxes),
-	.clk_dividers = gxbb_clk_dividers,
-	.clk_dividers_count = ARRAY_SIZE(gxbb_clk_dividers),
-	.clk_audio_dividers = gxbb_audio_dividers,
-	.clk_audio_dividers_count = ARRAY_SIZE(gxbb_audio_dividers),
+	.regmap_clks = gxl_clk_regmaps,
+	.regmap_clks_count = ARRAY_SIZE(gxl_clk_regmaps),
 	.hw_onecell_data = &gxl_hw_onecell_data,
 };
 
@@ -1969,71 +2126,79 @@ static const struct of_device_id clkc_match_table[] = {
 	{},
 };
 
+static const struct regmap_config clkc_regmap_config = {
+	.reg_bits       = 32,
+	.val_bits       = 32,
+	.reg_stride     = 4,
+};
+
 static int gxbb_clkc_probe(struct platform_device *pdev)
 {
 	const struct clkc_data *clkc_data;
+	struct resource *res;
 	void __iomem *clk_base;
-	int ret, clkid, i;
+	struct regmap *map;
+	int ret, i;
 	struct device *dev = &pdev->dev;
 
-	clkc_data = of_device_get_match_data(&pdev->dev);
+	clkc_data = of_device_get_match_data(dev);
 	if (!clkc_data)
 		return -EINVAL;
 
-	/*  Generic clocks and PLLs */
-	clk_base = of_iomap(dev->of_node, 0);
-	if (!clk_base) {
-		pr_err("%s: Unable to map clk base\n", __func__);
-		return -ENXIO;
+	/* Get the hhi system controller node if available */
+	map = syscon_node_to_regmap(of_get_parent(dev->of_node));
+	if (IS_ERR(map)) {
+		dev_err(dev,
+			"failed to get HHI regmap - Trying obsolete regs\n");
+
+		/*
+		 * FIXME: HHI registers should be accessed through
+		 * the appropriate system controller. This is required because
+		 * there is more than just clocks in this register space
+		 *
+		 * This fallback method is only provided temporarily until
+		 * all the platform DTs are properly using the syscon node
+		 */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -EINVAL;
+
+		clk_base = devm_ioremap(dev, res->start, resource_size(res));
+		if (!clk_base) {
+			dev_err(dev, "Unable to map clk base\n");
+			return -ENXIO;
+		}
+
+		map = devm_regmap_init_mmio(dev, clk_base,
+					    &clkc_regmap_config);
+		if (IS_ERR(map))
+			return PTR_ERR(map);
 	}
 
-	/* Populate base address for PLLs */
-	for (i = 0; i < clkc_data->clk_plls_count; i++)
-		clkc_data->clk_plls[i]->base = clk_base;
+	/* Populate regmap for the common regmap backed clocks */
+	for (i = 0; i < ARRAY_SIZE(gx_clk_regmaps); i++)
+		gx_clk_regmaps[i]->map = map;
 
-	/* Populate base address for MPLLs */
-	for (i = 0; i < clkc_data->clk_mplls_count; i++)
-		clkc_data->clk_mplls[i]->base = clk_base;
+	/* Populate regmap for soc specific clocks */
+	for (i = 0; i < clkc_data->regmap_clks_count; i++)
+		clkc_data->regmap_clks[i]->map = map;
 
-	/* Populate base address for gates */
-	for (i = 0; i < clkc_data->clk_gates_count; i++)
-		clkc_data->clk_gates[i]->reg = clk_base +
-			(u64)clkc_data->clk_gates[i]->reg;
-
-	/* Populate base address for muxes */
-	for (i = 0; i < clkc_data->clk_muxes_count; i++)
-		clkc_data->clk_muxes[i]->reg = clk_base +
-			(u64)clkc_data->clk_muxes[i]->reg;
-
-	/* Populate base address for dividers */
-	for (i = 0; i < clkc_data->clk_dividers_count; i++)
-		clkc_data->clk_dividers[i]->reg = clk_base +
-			(u64)clkc_data->clk_dividers[i]->reg;
-
-	/* Populate base address for the audio dividers */
-	for (i = 0; i < clkc_data->clk_audio_dividers_count; i++)
-		clkc_data->clk_audio_dividers[i]->base = clk_base;
-
-	/*
-	 * register all clks
-	 */
-	for (clkid = 0; clkid < clkc_data->hw_onecell_data->num; clkid++) {
+	/* Register all clks */
+	for (i = 0; i < clkc_data->hw_onecell_data->num; i++) {
 		/* array might be sparse */
-		if (!clkc_data->hw_onecell_data->hws[clkid])
+		if (!clkc_data->hw_onecell_data->hws[i])
 			continue;
 
 		ret = devm_clk_hw_register(dev,
-					clkc_data->hw_onecell_data->hws[clkid]);
-		if (ret)
-			goto iounmap;
+					   clkc_data->hw_onecell_data->hws[i]);
+		if (ret) {
+			dev_err(dev, "Clock registration failed\n");
+			return ret;
+		}
 	}
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
-			clkc_data->hw_onecell_data);
-
-iounmap:
-	iounmap(clk_base);
-	return ret;
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   clkc_data->hw_onecell_data);
 }
 
 static struct platform_driver gxbb_driver = {

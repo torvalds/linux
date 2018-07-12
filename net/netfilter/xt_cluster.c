@@ -60,13 +60,6 @@ xt_cluster_hash(const struct nf_conn *ct,
 }
 
 static inline bool
-xt_cluster_ipv6_is_multicast(const struct in6_addr *addr)
-{
-	__be32 st = addr->s6_addr32[0];
-	return ((st & htonl(0xFF000000)) == htonl(0xFF000000));
-}
-
-static inline bool
 xt_cluster_is_multicast_addr(const struct sk_buff *skb, u_int8_t family)
 {
 	bool is_multicast = false;
@@ -76,8 +69,7 @@ xt_cluster_is_multicast_addr(const struct sk_buff *skb, u_int8_t family)
 		is_multicast = ipv4_is_multicast(ip_hdr(skb)->daddr);
 		break;
 	case NFPROTO_IPV6:
-		is_multicast =
-			xt_cluster_ipv6_is_multicast(&ipv6_hdr(skb)->daddr);
+		is_multicast = ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr);
 		break;
 	default:
 		WARN_ON(1);

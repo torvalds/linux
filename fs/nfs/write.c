@@ -231,6 +231,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	if (i_size >= end)
 		goto out;
 	i_size_write(inode, end);
+	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
 out:
 	spin_unlock(&inode->i_lock);
@@ -1562,8 +1563,11 @@ static int nfs_writeback_done(struct rpc_task *task,
 	}
 
 	/* Deal with the suid/sgid bit corner case */
-	if (nfs_should_remove_suid(inode))
-		nfs_mark_for_revalidate(inode);
+	if (nfs_should_remove_suid(inode)) {
+		spin_lock(&inode->i_lock);
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_OTHER;
+		spin_unlock(&inode->i_lock);
+	}
 	return 0;
 }
 
@@ -1620,8 +1624,8 @@ static void nfs_writeback_result(struct rpc_task *task,
 
 static int wait_on_commit(struct nfs_mds_commit_info *cinfo)
 {
-	return wait_on_atomic_t(&cinfo->rpcs_out,
-			nfs_wait_atomic_killable, TASK_KILLABLE);
+	return wait_var_event_killable(&cinfo->rpcs_out,
+				       !atomic_read(&cinfo->rpcs_out));
 }
 
 static void nfs_commit_begin(struct nfs_mds_commit_info *cinfo)
@@ -1632,7 +1636,7 @@ static void nfs_commit_begin(struct nfs_mds_commit_info *cinfo)
 static void nfs_commit_end(struct nfs_mds_commit_info *cinfo)
 {
 	if (atomic_dec_and_test(&cinfo->rpcs_out))
-		wake_up_atomic_t(&cinfo->rpcs_out);
+		wake_up_var(&cinfo->rpcs_out);
 }
 
 void nfs_commitdata_release(struct nfs_commit_data *data)

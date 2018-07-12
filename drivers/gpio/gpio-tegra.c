@@ -506,7 +506,7 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-static int dbg_gpio_show(struct seq_file *s, void *unused)
+static int tegra_dbg_gpio_show(struct seq_file *s, void *unused)
 {
 	struct tegra_gpio_info *tgi = s->private;
 	unsigned int i, j;
@@ -530,22 +530,12 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dbg_gpio_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dbg_gpio_show, inode->i_private);
-}
-
-static const struct file_operations debug_fops = {
-	.open		= dbg_gpio_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(tegra_dbg_gpio);
 
 static void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
 {
 	(void) debugfs_create_file("tegra_gpio", 0444,
-					NULL, tgi, &debug_fops);
+				   NULL, tgi, &tegra_dbg_gpio_fops);
 }
 
 #else

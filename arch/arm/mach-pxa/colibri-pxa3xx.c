@@ -110,7 +110,7 @@ void __init colibri_pxa3xx_init_lcd(int bl_pin)
 }
 #endif
 
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 static struct mtd_partition colibri_nand_partitions[] = {
 	{
 		.name        = "bootloader",
@@ -138,11 +138,9 @@ static struct mtd_partition colibri_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data colibri_nand_info = {
-	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.num_cs		= 1,
-	.parts[0]	= colibri_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(colibri_nand_partitions),
+	.parts		= colibri_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(colibri_nand_partitions),
 };
 
 void __init colibri_pxa3xx_init_nand(void)

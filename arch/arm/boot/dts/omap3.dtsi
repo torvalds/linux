@@ -557,6 +557,7 @@
 			dma-names = "tx", "rx";
 			clocks = <&mcbsp4_fck>;
 			clock-names = "fck";
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 

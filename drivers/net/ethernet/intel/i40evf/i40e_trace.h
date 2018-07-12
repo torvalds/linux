@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
  *
  * Intel(R) 40-10 Gigabit Ethernet Virtual Function Driver

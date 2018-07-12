@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -305,14 +305,10 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 
 static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
 {
-	unsigned long timeout = 2000;
-	do {
-		if ((readl(reg) & mask) == result)
-			return 0;
-		udelay(1);
-		timeout--;
-	} while (timeout);
-	return -1;
+	u32 tmp;
+
+	return readl_poll_timeout(reg, tmp, (tmp & mask) == result,
+				  2000, 6000);
 }
 
 static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)

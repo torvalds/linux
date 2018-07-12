@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
+#include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
 #include "mmsch_v1_0.h"
@@ -419,7 +420,7 @@ static int vce_v4_0_sw_init(void *handle)
 	unsigned size;
 	int r, i;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCE0, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCE0, 167, &adev->vce.irq);
 	if (r)
 		return r;
 
@@ -964,40 +965,33 @@ static void vce_v4_0_ring_insert_end(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, VCE_CMD_END);
 }
 
+static void vce_v4_0_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
+				   uint32_t val, uint32_t mask)
+{
+	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
+	amdgpu_ring_write(ring,	reg << 2);
+	amdgpu_ring_write(ring, mask);
+	amdgpu_ring_write(ring, val);
+}
+
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vmid, uint64_t pd_addr)
+				   unsigned int vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
-	unsigned eng = ring->vm_inv_eng;
 
-	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
+	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
+	/* wait for reg writes */
+	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2,
+			       lower_32_bits(pd_addr), 0xffffffff);
+}
+
+static void vce_v4_0_emit_wreg(struct amdgpu_ring *ring,
+			       uint32_t reg, uint32_t val)
+{
 	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
-
-	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
-	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, 0xffffffff);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->vm_inv_eng0_req + eng) << 2);
-	amdgpu_ring_write(ring, req);
-
-	/* wait for flush */
-	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
-	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
-	amdgpu_ring_write(ring, 1 << vmid);
-	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_ring_write(ring,	reg << 2);
+	amdgpu_ring_write(ring, val);
 }
 
 static int vce_v4_0_set_interrupt_state(struct amdgpu_device *adev,
@@ -1069,7 +1063,9 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.set_wptr = vce_v4_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
-		17 + /* vce_v4_0_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 4 +
+		4 + /* vce_v4_0_emit_vm_flush */
 		5 + 5 + /* amdgpu_vce_ring_emit_fence x2 vm fence */
 		1, /* vce_v4_0_ring_insert_end */
 	.emit_ib_size = 5, /* vce_v4_0_ring_emit_ib */
@@ -1083,6 +1079,8 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.emit_wreg = vce_v4_0_emit_wreg,
+	.emit_reg_wait = vce_v4_0_emit_reg_wait,
 };
 
 static void vce_v4_0_set_ring_funcs(struct amdgpu_device *adev)

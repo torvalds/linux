@@ -138,7 +138,6 @@ typedef struct xfs_mount {
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 	struct mutex		m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
-	uint			m_dmevmask;	/* DMI events for this FS */
 	uint64_t		m_flags;	/* global mount flags */
 	bool			m_inotbt_nores; /* no per-AG finobt resv. */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
@@ -326,8 +325,9 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 /* per-AG block reservation data structures*/
 enum xfs_ag_resv_type {
 	XFS_AG_RESV_NONE = 0,
-	XFS_AG_RESV_METADATA,
 	XFS_AG_RESV_AGFL,
+	XFS_AG_RESV_METADATA,
+	XFS_AG_RESV_RMAPBT,
 };
 
 struct xfs_ag_resv {
@@ -353,6 +353,7 @@ typedef struct xfs_perag {
 	char		pagi_inodeok;	/* The agi is ok for inodes */
 	uint8_t		pagf_levels[XFS_BTNUM_AGF];
 					/* # of levels in bno & cnt btree */
+	bool		pagf_agflreset; /* agfl requires reset before use */
 	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
@@ -391,8 +392,8 @@ typedef struct xfs_perag {
 
 	/* Blocks reserved for all kinds of metadata. */
 	struct xfs_ag_resv	pag_meta_resv;
-	/* Blocks reserved for just AGFL-based metadata. */
-	struct xfs_ag_resv	pag_agfl_resv;
+	/* Blocks reserved for the reverse mapping btree. */
+	struct xfs_ag_resv	pag_rmapbt_resv;
 
 	/* reference count */
 	uint8_t			pagf_refcount_level;
@@ -406,8 +407,8 @@ xfs_perag_resv(
 	switch (type) {
 	case XFS_AG_RESV_METADATA:
 		return &pag->pag_meta_resv;
-	case XFS_AG_RESV_AGFL:
-		return &pag->pag_agfl_resv;
+	case XFS_AG_RESV_RMAPBT:
+		return &pag->pag_rmapbt_resv;
 	default:
 		return NULL;
 	}

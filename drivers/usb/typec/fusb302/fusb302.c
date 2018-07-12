@@ -199,7 +199,7 @@ static void fusb302_log(struct fusb302_chip *chip, const char *fmt, ...)
 	va_end(args);
 }
 
-static int fusb302_seq_show(struct seq_file *s, void *v)
+static int fusb302_debug_show(struct seq_file *s, void *v)
 {
 	struct fusb302_chip *chip = (struct fusb302_chip *)s->private;
 	int tail;
@@ -216,18 +216,7 @@ static int fusb302_seq_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int fusb302_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fusb302_seq_show, inode->i_private);
-}
-
-static const struct file_operations fusb302_debug_operations = {
-	.open		= fusb302_debug_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
 
 static struct dentry *rootdir;
 
@@ -242,7 +231,7 @@ static int fusb302_debugfs_init(struct fusb302_chip *chip)
 
 	chip->dentry = debugfs_create_file(dev_name(chip->dev),
 					   S_IFREG | 0444, rootdir,
-					   chip, &fusb302_debug_operations);
+					   chip, &fusb302_debug_fops);
 
 	return 0;
 }
@@ -1230,6 +1219,7 @@ static const struct tcpc_config fusb302_tcpc_config = {
 	.max_snk_mw = 15000,
 	.operating_snk_mw = 2500,
 	.type = TYPEC_PORT_DRP,
+	.data = TYPEC_PORT_DRD,
 	.default_role = TYPEC_SINK,
 	.alt_modes = NULL,
 };
@@ -1249,7 +1239,6 @@ static void init_tcpc_dev(struct tcpc_dev *fusb302_tcpc_dev)
 	fusb302_tcpc_dev->set_roles = tcpm_set_roles;
 	fusb302_tcpc_dev->start_drp_toggling = tcpm_start_drp_toggling;
 	fusb302_tcpc_dev->pd_transmit = tcpm_pd_transmit;
-	fusb302_tcpc_dev->mux = NULL;
 }
 
 static const char * const cc_polarity_name[] = {

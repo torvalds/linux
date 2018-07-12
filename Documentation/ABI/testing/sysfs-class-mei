@@ -45,3 +45,12 @@ Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display the driver HBM protocol version.
 
 		The HBM protocol version supported by the driver.
+
+What:		/sys/class/mei/meiN/tx_queue_limit
+Date:		Jan 2018
+KernelVersion:	4.16
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Configure tx queue limit
+
+		Set maximal number of pending writes
+		per opened session.

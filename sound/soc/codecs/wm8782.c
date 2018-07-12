@@ -50,25 +50,21 @@ static struct snd_soc_dai_driver wm8782_dai = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8782 = {
-	.component_driver = {
-		.dapm_widgets		= wm8782_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8782_dapm_widgets),
-		.dapm_routes		= wm8782_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm8782_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8782 = {
+	.dapm_widgets		= wm8782_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8782_dapm_widgets),
+	.dapm_routes		= wm8782_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm8782_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8782_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_wm8782, &wm8782_dai, 1);
-}
-
-static int wm8782_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_wm8782, &wm8782_dai, 1);
 }
 
 static struct platform_driver wm8782_codec_driver = {
@@ -76,7 +72,6 @@ static struct platform_driver wm8782_codec_driver = {
 		.name = "wm8782",
 	},
 	.probe = wm8782_probe,
-	.remove = wm8782_remove,
 };
 
 module_platform_driver(wm8782_codec_driver);

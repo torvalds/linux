@@ -136,8 +136,9 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = 0;
 	policy->cur = clock_tick;
+	policy->freq_table = table;
 
-	return cpufreq_table_validate_and_show(policy, table);
+	return 0;
 }
 
 static int us3_freq_cpu_exit(struct cpufreq_policy *policy)

@@ -1,0 +1,291 @@
+[
+    {
+        "id": "2002",
+        "name": "Add valid connmark action with defaults",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action connmark",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 pipe",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "56a5",
+        "name": "Add valid connmark action with control pass",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark pass index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 1",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 pass.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "7c66",
+        "name": "Add valid connmark action with control drop",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark drop index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 100",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 drop.*index 100 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "a913",
+        "name": "Add valid connmark action with control pipe",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark pipe index 455",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 455",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 pipe.*index 455 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "bdd8",
+        "name": "Add valid connmark action with control reclassify",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark reclassify index 7",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action connmark",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 reclassify.*index 7 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "b8be",
+        "name": "Add valid connmark action with control continue",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark continue index 17",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action connmark",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 continue.*index 17 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "d8a6",
+        "name": "Add valid connmark action with control jump",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark jump 10 index 17",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action connmark",
+        "matchPattern": "action order [0-9]+:  connmark zone 0 jump 10.*index 17 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "aae8",
+        "name": "Add valid connmark action with zone argument",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark zone 100 pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 1",
+        "matchPattern": "action order [0-9]+:  connmark zone 100 pipe.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "2f0b",
+        "name": "Add valid connmark action with invalid zone argument",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark zone 65536 reclassify index 21",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action connmark index 1",
+        "matchPattern": "action order [0-9]+:  connmark zone 65536 reclassify.*index 21 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "9305",
+        "name": "Add connmark action with unsupported argument",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark zone 655 unsupp_arg pass index 2",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action connmark index 2",
+        "matchPattern": "action order [0-9]+:  connmark zone 655 unsupp_arg pass.*index 2 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "71ca",
+        "name": "Add valid connmark action and replace it",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action connmark zone 777 pass index 555"
+        ],
+        "cmdUnderTest": "$TC actions replace action connmark zone 555 reclassify index 555",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 555",
+        "matchPattern": "action order [0-9]+:  connmark zone 555 reclassify.*index 555 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    },
+    {
+        "id": "5f8f",
+        "name": "Add valid connmark action with cookie",
+        "category": [
+            "actions",
+            "connmark"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action connmark",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action connmark zone 555 pipe index 5 cookie aabbccddeeff112233445566778800a1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action connmark index 5",
+        "matchPattern": "action order [0-9]+:  connmark zone 555 pipe.*index 5 ref.*cookie aabbccddeeff112233445566778800a1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action connmark"
+        ]
+    }
+]

@@ -2158,6 +2158,7 @@ static int bcm63xx_usbd_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(bcm63xx_usbd_dbg);
 
 /*
  * bcm63xx_iudma_dbg_show - Show IUDMA status and descriptors.
@@ -2238,33 +2239,7 @@ static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int bcm63xx_usbd_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bcm63xx_usbd_dbg_show, inode->i_private);
-}
-
-static int bcm63xx_iudma_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bcm63xx_iudma_dbg_show, inode->i_private);
-}
-
-static const struct file_operations usbd_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= bcm63xx_usbd_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations iudma_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= bcm63xx_iudma_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
+DEFINE_SHOW_ATTRIBUTE(bcm63xx_iudma_dbg);
 
 /**
  * bcm63xx_udc_init_debugfs - Create debugfs entries.
@@ -2282,11 +2257,11 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 		goto err_root;
 
 	usbd = debugfs_create_file("usbd", 0400, root, udc,
-			&usbd_dbg_fops);
+			&bcm63xx_usbd_dbg_fops);
 	if (!usbd)
 		goto err_usbd;
 	iudma = debugfs_create_file("iudma", 0400, root, udc,
-			&iudma_dbg_fops);
+			&bcm63xx_iudma_dbg_fops);
 	if (!iudma)
 		goto err_iudma;
 

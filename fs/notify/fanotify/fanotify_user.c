@@ -757,7 +757,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.user = user;
 	atomic_inc(&user->fanotify_listeners);
 
-	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL);
+	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL);
 	if (unlikely(!oevent)) {
 		fd = -ENOMEM;
 		goto out_destroy_group;
@@ -820,9 +820,8 @@ out_destroy_group:
 	return fd;
 }
 
-SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
-			      __u64, mask, int, dfd,
-			      const char  __user *, pathname)
+static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
+			    int dfd, const char  __user *pathname)
 {
 	struct inode *inode = NULL;
 	struct vfsmount *mnt = NULL;
@@ -928,13 +927,20 @@ fput_and_out:
 	return ret;
 }
 
+SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
+			      __u64, mask, int, dfd,
+			      const char  __user *, pathname)
+{
+	return do_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
+}
+
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE6(fanotify_mark,
 				int, fanotify_fd, unsigned int, flags,
 				__u32, mask0, __u32, mask1, int, dfd,
 				const char  __user *, pathname)
 {
-	return sys_fanotify_mark(fanotify_fd, flags,
+	return do_fanotify_mark(fanotify_fd, flags,
 #ifdef __BIG_ENDIAN
 				((__u64)mask0 << 32) | mask1,
 #else

@@ -1,201 +1,59 @@
-Including kernel-doc comments
-=============================
-
-The Linux kernel source files may contain structured documentation comments, or
-kernel-doc comments to describe the functions and types and design of the
-code. The documentation comments may be included to any of the reStructuredText
-documents using a dedicated kernel-doc Sphinx directive extension.
-
-The kernel-doc directive is of the format::
-
-  .. kernel-doc:: source
-     :option:
-
-The *source* is the path to a source file, relative to the kernel source
-tree. The following directive options are supported:
-
-export: *[source-pattern ...]*
-  Include documentation for all functions in *source* that have been exported
-  using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either in *source* or in any
-  of the files specified by *source-pattern*.
-
-  The *source-pattern* is useful when the kernel-doc comments have been placed
-  in header files, while ``EXPORT_SYMBOL`` and ``EXPORT_SYMBOL_GPL`` are next to
-  the function definitions.
-
-  Examples::
-
-    .. kernel-doc:: lib/bitmap.c
-       :export:
-
-    .. kernel-doc:: include/net/mac80211.h
-       :export: net/mac80211/*.c
-
-internal: *[source-pattern ...]*
-  Include documentation for all functions and types in *source* that have
-  **not** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
-  in *source* or in any of the files specified by *source-pattern*.
-
-  Example::
-
-    .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
-       :internal:
-
-doc: *title*
-  Include documentation for the ``DOC:`` paragraph identified by *title* in
-  *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
-  is only used as an identifier for the paragraph, and is not included in the
-  output. Please make sure to have an appropriate heading in the enclosing
-  reStructuredText document.
-
-  Example::
-
-    .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
-       :doc: High Definition Audio over HDMI and Display Port
-
-functions: *function* *[...]*
-  Include documentation for each *function* in *source*.
-
-  Example::
-
-    .. kernel-doc:: lib/bitmap.c
-       :functions: bitmap_parselist bitmap_parselist_user
-
-Without options, the kernel-doc directive includes all documentation comments
-from the source file.
-
-The kernel-doc extension is included in the kernel source tree, at
-``Documentation/sphinx/kerneldoc.py``. Internally, it uses the
-``scripts/kernel-doc`` script to extract the documentation comments from the
-source.
-
-.. _kernel_doc:
-
 Writing kernel-doc comments
 ===========================
 
-In order to provide embedded, "C" friendly, easy to maintain, but consistent and
-extractable overview, function and type documentation, the Linux kernel has
-adopted a consistent style for documentation comments. The format for this
-documentation is called the kernel-doc format, described below. This style
-embeds the documentation within the source files, using a few simple conventions
-for adding documentation paragraphs and documenting functions and their
-parameters, structures and unions and their members, enumerations, and typedefs.
+The Linux kernel source files may contain structured documentation
+comments in the kernel-doc format to describe the functions, types
+and design of the code. It is easier to keep documentation up-to-date
+when it is embedded in source files.
 
-.. note:: The kernel-doc format is deceptively similar to gtk-doc or Doxygen,
-   yet distinctively different, for historical reasons. The kernel source
-   contains tens of thousands of kernel-doc comments. Please stick to the style
-   described here.
+.. note:: The kernel-doc format is deceptively similar to javadoc,
+   gtk-doc or Doxygen, yet distinctively different, for historical
+   reasons. The kernel source contains tens of thousands of kernel-doc
+   comments. Please stick to the style described here.
 
-The ``scripts/kernel-doc`` script is used by the Sphinx kernel-doc extension in
-the documentation build to extract this embedded documentation into the various
-HTML, PDF, and other format documents.
+The kernel-doc structure is extracted from the comments, and proper
+`Sphinx C Domain`_ function and type descriptions with anchors are
+generated from them. The descriptions are filtered for special kernel-doc
+highlights and cross-references. See below for details.
 
-In order to provide good documentation of kernel functions and data structures,
-please use the following conventions to format your kernel-doc comments in the
-Linux kernel source.
+.. _Sphinx C Domain: http://www.sphinx-doc.org/en/stable/domains.html
+
+Every function that is exported to loadable modules using
+``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` should have a kernel-doc
+comment. Functions and data structures in header files which are intended
+to be used by modules should also have kernel-doc comments.
+
+It is good practice to also provide kernel-doc formatted documentation
+for functions externally visible to other kernel files (not marked
+``static``). We also recommend providing kernel-doc formatted
+documentation for private (file ``static``) routines, for consistency of
+kernel source code layout. This is lower priority and at the discretion
+of the maintainer of that kernel source file.
 
 How to format kernel-doc comments
 ---------------------------------
 
-The opening comment mark ``/**`` is reserved for kernel-doc comments. Only
-comments so marked will be considered by the ``kernel-doc`` tool. Use it only
-for comment blocks that contain kernel-doc formatted comments. The usual ``*/``
-should be used as the closing comment marker. The lines in between should be
-prefixed by `` * `` (space star space).
+The opening comment mark ``/**`` is used for kernel-doc comments. The
+``kernel-doc`` tool will extract comments marked this way. The rest of
+the comment is formatted like a normal multi-line comment with a column
+of asterisks on the left side, closing with ``*/`` on a line by itself.
 
-The function and type kernel-doc comments should be placed just before the
-function or type being described. The overview kernel-doc comments may be freely
-placed at the top indentation level.
+The function and type kernel-doc comments should be placed just before
+the function or type being described in order to maximise the chance
+that somebody changing the code will also change the documentation. The
+overview kernel-doc comments may be placed anywhere at the top indentation
+level.
 
-Example kernel-doc function comment::
+Running the ``kernel-doc`` tool with increased verbosity and without actual
+output generation may be used to verify proper formatting of the
+documentation comments. For example::
 
-  /**
-   * foobar() - Brief description of foobar.
-   * @argument1: Description of parameter argument1 of foobar.
-   * @argument2: Description of parameter argument2 of foobar.
-   *
-   * Longer description of foobar.
-   *
-   * Return: Description of return value of foobar.
-   */
-  int foobar(int argument1, char *argument2)
+	scripts/kernel-doc -v -none drivers/foo/bar.c
 
-The format is similar for documentation for structures, enums, paragraphs,
-etc. See the sections below for specific details of each type.
+The documentation format is verified by the kernel build when it is
+requested to perform extra gcc checks::
 
-The kernel-doc structure is extracted from the comments, and proper `Sphinx C
-Domain`_ function and type descriptions with anchors are generated for them. The
-descriptions are filtered for special kernel-doc highlights and
-cross-references. See below for details.
-
-.. _Sphinx C Domain: http://www.sphinx-doc.org/en/stable/domains.html
-
-
-Parameters and member arguments
--------------------------------
-
-The kernel-doc function comments describe each parameter to the function and
-function typedefs or each member of struct/union, in order, with the
-``@argument:`` descriptions. For each non-private member argument, one
-``@argument`` definition is needed.
-
-The ``@argument:`` descriptions begin on the very next line following
-the opening brief function description line, with no intervening blank
-comment lines.
-
-The ``@argument:`` descriptions may span multiple lines.
-
-.. note::
-
-   If the ``@argument`` description has multiple lines, the continuation
-   of the description should be starting exactly at the same column as
-   the previous line, e. g.::
-
-      * @argument: some long description
-      *       that continues on next lines
-
-   or::
-
-      * @argument:
-      *		some long description
-      *		that continues on next lines
-
-If a function or typedef parameter argument is ``...`` (e. g. a variable
-number of arguments), its description should be listed in kernel-doc
-notation as::
-
-      * @...: description
-
-Private members
-~~~~~~~~~~~~~~~
-
-Inside a struct or union description, you can use the ``private:`` and
-``public:`` comment tags. Structure fields that are inside a ``private:``
-area are not listed in the generated output documentation.
-
-The ``private:`` and ``public:`` tags must begin immediately following a
-``/*`` comment marker.  They may optionally include comments between the
-``:`` and the ending ``*/`` marker.
-
-Example::
-
-  /**
-   * struct my_struct - short description
-   * @a: first member
-   * @b: second member
-   * @d: fourth member
-   *
-   * Longer description
-   */
-  struct my_struct {
-      int a;
-      int b;
-  /* private: internal use only */
-      int c;
-  /* public: the next one is public */
-      int d;
-  };
+	make W=n
 
 Function documentation
 ----------------------
@@ -216,6 +74,9 @@ The general format of a function and function-like macro kernel-doc comment is::
    *
    * The longer description may have multiple paragraphs.
    *
+   * Context: Describes whether the function can sleep, what locks it takes,
+   *          releases, or expects to be held. It can extend over multiple
+   *          lines.
    * Return: Describe the return value of foobar.
    *
    * The return value description can also have multiple paragraphs, and should
@@ -225,6 +86,52 @@ The general format of a function and function-like macro kernel-doc comment is::
 The brief description following the function name may span multiple lines, and
 ends with an argument description, a blank comment line, or the end of the
 comment block.
+
+Function parameters
+~~~~~~~~~~~~~~~~~~~
+
+Each function argument should be described in order, immediately following
+the short function description.  Do not leave a blank line between the
+function description and the arguments, nor between the arguments.
+
+Each ``@argument:`` description may span multiple lines.
+
+.. note::
+
+   If the ``@argument`` description has multiple lines, the continuation
+   of the description should start at the same column as the previous line::
+
+      * @argument: some long description
+      *            that continues on next lines
+
+   or::
+
+      * @argument:
+      *		some long description
+      *		that continues on next lines
+
+If a function has a variable number of arguments, its description should
+be written in kernel-doc notation as::
+
+      * @...: description
+
+Function context
+~~~~~~~~~~~~~~~~
+
+The context in which a function can be called should be described in a
+section named ``Context``. This should include whether the function
+sleeps or can be called from interrupt context, as well as what locks
+it takes, releases and expects to be held by its caller.
+
+Examples::
+
+  * Context: Any context.
+  * Context: Any context. Takes and releases the RCU lock.
+  * Context: Any context. Expects <lock> to be held by caller.
+  * Context: Process context. May sleep if @gfp flags permit.
+  * Context: Process context. Takes and releases <mutex>.
+  * Context: Softirq or process context. Takes and releases <lock>, BH-safe.
+  * Context: Interrupt context.
 
 Return values
 ~~~~~~~~~~~~~
@@ -255,7 +162,7 @@ named ``Return``.
 
   #) If the descriptive text you provide has lines that begin with
      some phrase followed by a colon, each of those phrases will be taken
-     as a new section heading, with probably won't produce the desired
+     as a new section heading, which probably won't produce the desired
      effect.
 
 Structure, union, and enumeration documentation
@@ -265,68 +172,143 @@ The general format of a struct, union, and enum kernel-doc comment is::
 
   /**
    * struct struct_name - Brief description.
-   * @argument: Description of member member_name.
+   * @member1: Description of member1.
+   * @member2: Description of member2.
+   *           One can provide multiple line descriptions
+   *           for members.
    *
    * Description of the structure.
    */
 
-On the above, ``struct`` is used to mean structs. You can also use ``union``
-and ``enum``  to describe unions and enums. ``argument`` is used
-to mean struct and union member names as well as enumerations in an enum.
+You can replace the ``struct`` in the above example with ``union`` or
+``enum``  to describe unions or enums. ``member`` is used to mean struct
+and union member names as well as enumerations in an enum.
 
-The brief description following the structure name may span multiple lines, and
-ends with a member description, a blank comment line, or the end of the
-comment block.
+The brief description following the structure name may span multiple
+lines, and ends with a member description, a blank comment line, or the
+end of the comment block.
 
-The kernel-doc data structure comments describe each member of the structure,
-in order, with the member descriptions.
+Members
+~~~~~~~
+
+Members of structs, unions and enums should be documented the same way
+as function parameters; they immediately succeed the short description
+and may be multi-line.
+
+Inside a struct or union description, you can use the ``private:`` and
+``public:`` comment tags. Structure fields that are inside a ``private:``
+area are not listed in the generated output documentation.
+
+The ``private:`` and ``public:`` tags must begin immediately following a
+``/*`` comment marker. They may optionally include comments between the
+``:`` and the ending ``*/`` marker.
+
+Example::
+
+  /**
+   * struct my_struct - short description
+   * @a: first member
+   * @b: second member
+   * @d: fourth member
+   *
+   * Longer description
+   */
+  struct my_struct {
+      int a;
+      int b;
+  /* private: internal use only */
+      int c;
+  /* public: the next one is public */
+      int d;
+  };
 
 Nested structs/unions
 ~~~~~~~~~~~~~~~~~~~~~
 
-It is possible to document nested structs unions, like::
+It is possible to document nested structs and unions, like::
 
       /**
        * struct nested_foobar - a struct with nested unions and structs
-       * @arg1: - first argument of anonymous union/anonymous struct
-       * @arg2: - second argument of anonymous union/anonymous struct
-       * @arg3: - third argument of anonymous union/anonymous struct
-       * @arg4: - fourth argument of anonymous union/anonymous struct
-       * @bar.st1.arg1 - first argument of struct st1 on union bar
-       * @bar.st1.arg2 - second argument of struct st1 on union bar
-       * @bar.st2.arg1 - first argument of struct st2 on union bar
-       * @bar.st2.arg2 - second argument of struct st2 on union bar
+       * @memb1: first member of anonymous union/anonymous struct
+       * @memb2: second member of anonymous union/anonymous struct
+       * @memb3: third member of anonymous union/anonymous struct
+       * @memb4: fourth member of anonymous union/anonymous struct
+       * @bar: non-anonymous union
+       * @bar.st1: struct st1 inside @bar
+       * @bar.st2: struct st2 inside @bar
+       * @bar.st1.memb1: first member of struct st1 on union bar
+       * @bar.st1.memb2: second member of struct st1 on union bar
+       * @bar.st2.memb1: first member of struct st2 on union bar
+       * @bar.st2.memb2: second member of struct st2 on union bar
+       */
       struct nested_foobar {
         /* Anonymous union/struct*/
         union {
           struct {
-            int arg1;
-            int arg2;
-	  }
+            int memb1;
+            int memb2;
+        }
           struct {
-            void *arg3;
-            int arg4;
-	  }
-	}
-	union {
+            void *memb3;
+            int memb4;
+          }
+        }
+        union {
           struct {
-            int arg1;
-            int arg2;
-	  } st1;
+            int memb1;
+            int memb2;
+          } st1;
           struct {
-            void *arg1;
-            int arg2;
-	  } st2;
-	} bar;
+            void *memb1;
+            int memb2;
+          } st2;
+        } bar;
       };
 
 .. note::
 
    #) When documenting nested structs or unions, if the struct/union ``foo``
-      is named, the argument ``bar`` inside it should be documented as
+      is named, the member ``bar`` inside it should be documented as
       ``@foo.bar:``
-   #) When the nested struct/union is anonymous, the argument ``bar`` on it
+   #) When the nested struct/union is anonymous, the member ``bar`` in it
       should be documented as ``@bar:``
+
+In-line member documentation comments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The structure members may also be documented in-line within the definition.
+There are two styles, single-line comments where both the opening ``/**`` and
+closing ``*/`` are on the same line, and multi-line comments where they are each
+on a line of their own, like all other kernel-doc comments::
+
+  /**
+   * struct foo - Brief description.
+   * @foo: The Foo member.
+   */
+  struct foo {
+        int foo;
+        /**
+         * @bar: The Bar member.
+         */
+        int bar;
+        /**
+         * @baz: The Baz member.
+         *
+         * Here, the member description may contain several paragraphs.
+         */
+        int baz;
+        union {
+                /** @foobar: Single line description. */
+                int foobar;
+        };
+        /** @bar2: Description for struct @bar2 inside @foo */
+        struct {
+                /**
+                 * @bar2.barbar: Description for @barbar inside @foo.bar2
+                 */
+                int barbar;
+        } bar2;
+  };
 
 Typedef documentation
 ---------------------
@@ -347,9 +329,11 @@ Typedefs with function prototypes can also be documented::
    * @arg2: description of arg2
    *
    * Description of the type.
+   *
+   * Context: Locking context.
+   * Return: Meaning of the return value.
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
-
 
 Highlights and cross-references
 -------------------------------
@@ -422,37 +406,6 @@ cross-references.
 
 For further details, please refer to the `Sphinx C Domain`_ documentation.
 
-
-
-In-line member documentation comments
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The structure members may also be documented in-line within the definition.
-There are two styles, single-line comments where both the opening ``/**`` and
-closing ``*/`` are on the same line, and multi-line comments where they are each
-on a line of their own, like all other kernel-doc comments::
-
-  /**
-   * struct foo - Brief description.
-   * @foo: The Foo member.
-   */
-  struct foo {
-        int foo;
-        /**
-         * @bar: The Bar member.
-         */
-        int bar;
-        /**
-         * @baz: The Baz member.
-         *
-         * Here, the member description may contain several paragraphs.
-         */
-        int baz;
-        /** @foobar: Single line description. */
-        int foobar;
-  }
-
-
 Overview documentation comments
 -------------------------------
 
@@ -482,53 +435,81 @@ The title following ``DOC:`` acts as a heading within the source file, but also
 as an identifier for extracting the documentation comment. Thus, the title must
 be unique within the file.
 
-Recommendations
----------------
+Including kernel-doc comments
+=============================
 
-We definitely need kernel-doc formatted documentation for functions that are
-exported to loadable modules using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL``.
+The documentation comments may be included in any of the reStructuredText
+documents using a dedicated kernel-doc Sphinx directive extension.
 
-We also look to provide kernel-doc formatted documentation for functions
-externally visible to other kernel files (not marked "static").
+The kernel-doc directive is of the format::
 
-We also recommend providing kernel-doc formatted documentation for private (file
-"static") routines, for consistency of kernel source code layout. But this is
-lower priority and at the discretion of the MAINTAINER of that kernel source
-file.
+  .. kernel-doc:: source
+     :option:
 
-Data structures visible in kernel include files should also be documented using
-kernel-doc formatted comments.
+The *source* is the path to a source file, relative to the kernel source
+tree. The following directive options are supported:
+
+export: *[source-pattern ...]*
+  Include documentation for all functions in *source* that have been exported
+  using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either in *source* or in any
+  of the files specified by *source-pattern*.
+
+  The *source-pattern* is useful when the kernel-doc comments have been placed
+  in header files, while ``EXPORT_SYMBOL`` and ``EXPORT_SYMBOL_GPL`` are next to
+  the function definitions.
+
+  Examples::
+
+    .. kernel-doc:: lib/bitmap.c
+       :export:
+
+    .. kernel-doc:: include/net/mac80211.h
+       :export: net/mac80211/*.c
+
+internal: *[source-pattern ...]*
+  Include documentation for all functions and types in *source* that have
+  **not** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
+  in *source* or in any of the files specified by *source-pattern*.
+
+  Example::
+
+    .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+       :internal:
+
+doc: *title*
+  Include documentation for the ``DOC:`` paragraph identified by *title* in
+  *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
+  is only used as an identifier for the paragraph, and is not included in the
+  output. Please make sure to have an appropriate heading in the enclosing
+  reStructuredText document.
+
+  Example::
+
+    .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+       :doc: High Definition Audio over HDMI and Display Port
+
+functions: *function* *[...]*
+  Include documentation for each *function* in *source*.
+
+  Example::
+
+    .. kernel-doc:: lib/bitmap.c
+       :functions: bitmap_parselist bitmap_parselist_user
+
+Without options, the kernel-doc directive includes all documentation comments
+from the source file.
+
+The kernel-doc extension is included in the kernel source tree, at
+``Documentation/sphinx/kerneldoc.py``. Internally, it uses the
+``scripts/kernel-doc`` script to extract the documentation comments from the
+source.
+
+.. _kernel_doc:
 
 How to use kernel-doc to generate man pages
 -------------------------------------------
 
 If you just want to use kernel-doc to generate man pages you can do this
-from the Kernel git tree::
+from the kernel git tree::
 
-  $ scripts/kernel-doc -man $(git grep -l '/\*\*' |grep -v Documentation/) | ./split-man.pl /tmp/man
-
-Using the small ``split-man.pl`` script below::
-
-
-  #!/usr/bin/perl
-
-  if ($#ARGV < 0) {
-     die "where do I put the results?\n";
-  }
-
-  mkdir $ARGV[0],0777;
-  $state = 0;
-  while (<STDIN>) {
-      if (/^\.TH \"[^\"]*\" 9 \"([^\"]*)\"/) {
-	if ($state == 1) { close OUT }
-	$state = 1;
-	$fn = "$ARGV[0]/$1.9";
-	print STDERR "Creating $fn\n";
-	open OUT, ">$fn" or die "can't open $fn: $!\n";
-	print OUT $_;
-      } elsif ($state != 0) {
-	print OUT $_;
-      }
-  }
-
-  close OUT;
+  $ scripts/kernel-doc -man $(git grep -l '/\*\*' -- :^Documentation :^tools) | scripts/split-man.pl /tmp/man

@@ -442,8 +442,7 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int flakey_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 {
 	struct flakey_c *fc = ti->private;
 

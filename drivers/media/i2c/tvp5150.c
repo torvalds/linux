@@ -2,7 +2,7 @@
 //
 // tvp5150 - Texas Instruments TVP5150A/AM1 and TVP5151 video decoder driver
 //
-// Copyright (c) 2005,2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+// Copyright (c) 2005,2006 Mauro Carvalho Chehab <mchehab@kernel.org>
 
 #include <dt-bindings/media/tvp5150.h>
 #include <linux/i2c.h>

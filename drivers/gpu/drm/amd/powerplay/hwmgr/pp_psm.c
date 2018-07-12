@@ -35,15 +35,20 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 	int size;
 
 	if (hwmgr->hwmgr_func->get_num_of_pp_table_entries == NULL)
-		return -EINVAL;
+		return 0;
 
 	if (hwmgr->hwmgr_func->get_power_state_size == NULL)
-		return -EINVAL;
+		return 0;
 
 	hwmgr->num_ps = table_entries = hwmgr->hwmgr_func->get_num_of_pp_table_entries(hwmgr);
 
 	hwmgr->ps_size = size = hwmgr->hwmgr_func->get_power_state_size(hwmgr) +
 					  sizeof(struct pp_power_state);
+
+	if (table_entries == 0 || size == 0) {
+		pr_warn("Please check whether power state management is suppported on this asic\n");
+		return 0;
+	}
 
 	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
 	if (hwmgr->ps == NULL)
@@ -90,6 +95,9 @@ int psm_fini_power_state_table(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr == NULL)
 		return -EINVAL;
+
+	if (!hwmgr->ps)
+		return 0;
 
 	kfree(hwmgr->current_ps);
 	kfree(hwmgr->request_ps);
@@ -167,6 +175,9 @@ int psm_set_boot_states(struct pp_hwmgr *hwmgr)
 	unsigned long state_id;
 	int ret = -EINVAL;
 
+	if (!hwmgr->ps)
+		return 0;
+
 	if (!psm_get_state_by_classification(hwmgr, PP_StateClassificationFlag_Boot,
 					&state_id))
 		ret = psm_set_states(hwmgr, state_id);
@@ -178,6 +189,9 @@ int psm_set_performance_states(struct pp_hwmgr *hwmgr)
 {
 	unsigned long state_id;
 	int ret = -EINVAL;
+
+	if (!hwmgr->ps)
+		return 0;
 
 	if (!psm_get_ui_state(hwmgr, PP_StateUILabel_Performance,
 					&state_id))
@@ -192,6 +206,9 @@ int psm_set_user_performance_state(struct pp_hwmgr *hwmgr,
 {
 	int table_entries;
 	int i;
+
+	if (!hwmgr->ps)
+		return 0;
 
 	table_entries = hwmgr->num_ps;
 	*state = hwmgr->ps;
@@ -214,17 +231,12 @@ restart_search:
 	return -EINVAL;
 }
 
-int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
+static void power_state_management(struct pp_hwmgr *hwmgr,
 						struct pp_power_state *new_ps)
 {
 	struct pp_power_state *pcurrent;
 	struct pp_power_state *requested;
 	bool equal;
-
-	if (skip)
-		return 0;
-
-	phm_display_configuration_changed(hwmgr);
 
 	if (new_ps != NULL)
 		requested = new_ps;
@@ -242,12 +254,35 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 		phm_set_power_state(hwmgr, &pcurrent->hardware, &requested->hardware);
 		memcpy(hwmgr->current_ps, hwmgr->request_ps, hwmgr->ps_size);
 	}
+}
+
+int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
+						struct pp_power_state *new_ps)
+{
+	uint32_t index;
+	long workload;
+
+	if (skip)
+		return 0;
+
+	phm_display_configuration_changed(hwmgr);
+
+	if (hwmgr->ps)
+		power_state_management(hwmgr, new_ps);
 
 	phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+
 	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
 		hwmgr->dpm_level = hwmgr->request_dpm_level;
 
-	phm_reset_power_profile_state(hwmgr);
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		index = fls(hwmgr->workload_mask);
+		index = index > 0 && index <= Workload_Policy_Max ? index - 1 : 0;
+		workload = hwmgr->workload_setting[index];
+
+		if (hwmgr->power_profile_mode != workload && hwmgr->hwmgr_func->set_power_profile_mode)
+			hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, &workload, 0);
+	}
 
 	return 0;
 }

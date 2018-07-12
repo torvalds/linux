@@ -399,7 +399,7 @@ void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 }
 EXPORT_SYMBOL_GPL(idma_reg_addr_init);
 
-static const struct snd_soc_platform_driver asoc_idma_platform = {
+static const struct snd_soc_component_driver asoc_idma_platform = {
 	.ops = &idma_ops,
 	.pcm_new = idma_new,
 	.pcm_free = idma_free,
@@ -411,7 +411,8 @@ static int asoc_idma_platform_probe(struct platform_device *pdev)
 	if (idma_irq < 0)
 		return idma_irq;
 
-	return devm_snd_soc_register_platform(&pdev->dev, &asoc_idma_platform);
+	return devm_snd_soc_register_component(&pdev->dev, &asoc_idma_platform,
+					       NULL, 0);
 }
 
 static struct platform_driver asoc_idma_driver = {

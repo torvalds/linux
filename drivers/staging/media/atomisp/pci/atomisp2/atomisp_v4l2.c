@@ -1137,7 +1137,6 @@ static int init_atomisp_wdts(struct atomisp_device *isp)
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
-		asd = &isp->asd[i];
 #ifndef ISP2401
 		timer_setup(&asd->wdt, atomisp_wdt, 0);
 #else

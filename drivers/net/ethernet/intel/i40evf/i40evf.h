@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
@@ -52,7 +53,10 @@
 #include <linux/socket.h>
 #include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
+#include <net/pkt_cls.h>
 #include <net/udp.h>
+#include <net/tc_act/tc_gact.h>
+#include <net/tc_act/tc_mirred.h>
 
 #include "i40e_type.h"
 #include <linux/avf/virtchnl.h>
@@ -106,6 +110,7 @@ struct i40e_vsi {
 
 #define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
 #define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
+#define I40EVF_MBPS_DIVISOR	125000 /* divisor to convert to Mbps */
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -117,9 +122,8 @@ struct i40e_q_vector {
 	struct i40e_ring_container rx;
 	struct i40e_ring_container tx;
 	u32 ring_mask;
+	u8 itr_countdown;	/* when 0 should adjust adaptive ITR */
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
-#define ITR_COUNTDOWN_START 100
-	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	u16 v_idx;		/* index in the vsi->q_vector array. */
 	u16 reg_idx;		/* register index of the interrupt */
 	char name[IFNAMSIZ + 15];
@@ -169,6 +173,28 @@ struct i40evf_vlan_filter {
 	bool add;		/* filter needs to be added */
 };
 
+#define I40EVF_MAX_TRAFFIC_CLASS	4
+/* State of traffic class creation */
+enum i40evf_tc_state_t {
+	__I40EVF_TC_INVALID, /* no traffic class, default state */
+	__I40EVF_TC_RUNNING, /* traffic classes have been created */
+};
+
+/* channel info */
+struct i40evf_channel_config {
+	struct virtchnl_channel_info ch_info[I40EVF_MAX_TRAFFIC_CLASS];
+	enum i40evf_tc_state_t state;
+	u8 total_qps;
+};
+
+/* State of cloud filter */
+enum i40evf_cloud_filter_state_t {
+	__I40EVF_CF_INVALID,	 /* cloud filter not added */
+	__I40EVF_CF_ADD_PENDING, /* cloud filter pending add by the PF */
+	__I40EVF_CF_DEL_PENDING, /* cloud filter pending del by the PF */
+	__I40EVF_CF_ACTIVE,	 /* cloud filter is active */
+};
+
 /* Driver state. The order of these is important! */
 enum i40evf_state_t {
 	__I40EVF_STARTUP,		/* driver loaded, probe complete */
@@ -188,6 +214,36 @@ enum i40evf_critical_section_t {
 	__I40EVF_IN_CRITICAL_TASK,	/* cannot be interrupted */
 	__I40EVF_IN_CLIENT_TASK,
 	__I40EVF_IN_REMOVE_TASK,	/* device being removed */
+};
+
+#define I40EVF_CLOUD_FIELD_OMAC		0x01
+#define I40EVF_CLOUD_FIELD_IMAC		0x02
+#define I40EVF_CLOUD_FIELD_IVLAN	0x04
+#define I40EVF_CLOUD_FIELD_TEN_ID	0x08
+#define I40EVF_CLOUD_FIELD_IIP		0x10
+
+#define I40EVF_CF_FLAGS_OMAC	I40EVF_CLOUD_FIELD_OMAC
+#define I40EVF_CF_FLAGS_IMAC	I40EVF_CLOUD_FIELD_IMAC
+#define I40EVF_CF_FLAGS_IMAC_IVLAN	(I40EVF_CLOUD_FIELD_IMAC |\
+					 I40EVF_CLOUD_FIELD_IVLAN)
+#define I40EVF_CF_FLAGS_IMAC_TEN_ID	(I40EVF_CLOUD_FIELD_IMAC |\
+					 I40EVF_CLOUD_FIELD_TEN_ID)
+#define I40EVF_CF_FLAGS_OMAC_TEN_ID_IMAC	(I40EVF_CLOUD_FIELD_OMAC |\
+						 I40EVF_CLOUD_FIELD_IMAC |\
+						 I40EVF_CLOUD_FIELD_TEN_ID)
+#define I40EVF_CF_FLAGS_IMAC_IVLAN_TEN_ID	(I40EVF_CLOUD_FIELD_IMAC |\
+						 I40EVF_CLOUD_FIELD_IVLAN |\
+						 I40EVF_CLOUD_FIELD_TEN_ID)
+#define I40EVF_CF_FLAGS_IIP	I40E_CLOUD_FIELD_IIP
+
+/* bookkeeping of cloud filters */
+struct i40evf_cloud_filter {
+	enum i40evf_cloud_filter_state_t state;
+	struct list_head list;
+	struct virtchnl_filter f;
+	unsigned long cookie;
+	bool del;		/* filter needs to be deleted */
+	bool add;		/* filter needs to be added */
 };
 
 /* board specific private data structure */
@@ -225,13 +281,10 @@ struct i40evf_adapter {
 
 	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED		BIT(0)
-#define I40EVF_FLAG_IMIR_ENABLED		BIT(1)
-#define I40EVF_FLAG_MQ_CAPABLE			BIT(2)
 #define I40EVF_FLAG_PF_COMMS_FAILED		BIT(3)
 #define I40EVF_FLAG_RESET_PENDING		BIT(4)
 #define I40EVF_FLAG_RESET_NEEDED		BIT(5)
 #define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(6)
-#define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(7)
 #define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(8)
 #define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(9)
 #define I40EVF_FLAG_CLIENT_NEEDS_OPEN		BIT(10)
@@ -241,6 +294,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_ALLMULTI_ON			BIT(14)
 #define I40EVF_FLAG_LEGACY_RX			BIT(15)
 #define I40EVF_FLAG_REINIT_ITR_NEEDED		BIT(16)
+#define I40EVF_FLAG_QUEUES_DISABLED		BIT(17)
 /* duplicates for common code */
 #define I40E_FLAG_DCB_ENABLED			0
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
@@ -269,6 +323,10 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
 #define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
 #define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
+#define I40EVF_FLAG_AQ_ENABLE_CHANNELS		BIT(21)
+#define I40EVF_FLAG_AQ_DISABLE_CHANNELS		BIT(22)
+#define I40EVF_FLAG_AQ_ADD_CLOUD_FILTER		BIT(23)
+#define I40EVF_FLAG_AQ_DEL_CLOUD_FILTER		BIT(24)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -314,6 +372,13 @@ struct i40evf_adapter {
 	u16 rss_lut_size;
 	u8 *rss_key;
 	u8 *rss_lut;
+	/* ADQ related members */
+	struct i40evf_channel_config ch_config;
+	u8 num_tc;
+	struct list_head cloud_filter_list;
+	/* lock to protest access to the cloud filter list */
+	spinlock_t cloud_filter_list_lock;
+	u16 num_cloud_filters;
 };
 
 
@@ -380,4 +445,8 @@ void i40evf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len);
 void i40evf_notify_client_l2_params(struct i40e_vsi *vsi);
 void i40evf_notify_client_open(struct i40e_vsi *vsi);
 void i40evf_notify_client_close(struct i40e_vsi *vsi, bool reset);
+void i40evf_enable_channels(struct i40evf_adapter *adapter);
+void i40evf_disable_channels(struct i40evf_adapter *adapter);
+void i40evf_add_cloud_filter(struct i40evf_adapter *adapter);
+void i40evf_del_cloud_filter(struct i40evf_adapter *adapter);
 #endif /* _I40EVF_H_ */

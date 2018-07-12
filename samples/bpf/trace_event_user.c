@@ -215,6 +215,17 @@ static void test_bpf_perf_event(void)
 		/* Intel Instruction Retired */
 		.config = 0xc0,
 	};
+	struct perf_event_attr attr_type_raw_lock_load = {
+		.sample_freq = SAMPLE_FREQ,
+		.freq = 1,
+		.type = PERF_TYPE_RAW,
+		/* Intel MEM_UOPS_RETIRED.LOCK_LOADS */
+		.config = 0x21d0,
+		/* Request to record lock address from PEBS */
+		.sample_type = PERF_SAMPLE_ADDR,
+		/* Record address value requires precise event */
+		.precise_ip = 2,
+	};
 
 	printf("Test HW_CPU_CYCLES\n");
 	test_perf_event_all_cpu(&attr_type_hw);
@@ -235,6 +246,10 @@ static void test_bpf_perf_event(void)
 	printf("Test Instruction Retired\n");
 	test_perf_event_all_cpu(&attr_type_raw);
 	test_perf_event_task(&attr_type_raw);
+
+	printf("Test Lock Load\n");
+	test_perf_event_all_cpu(&attr_type_raw_lock_load);
+	test_perf_event_task(&attr_type_raw_lock_load);
 
 	printf("*** PASS ***\n");
 }

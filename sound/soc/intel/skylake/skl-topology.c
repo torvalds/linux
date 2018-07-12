@@ -94,8 +94,12 @@ void skl_tplg_d0i3_put(struct skl *skl, enum d0i3_capability caps)
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
  * ignore. This helpers checks if the SKL driver handles this widget type
  */
-static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w)
+static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w,
+				  struct device *dev)
 {
+	if (w->dapm->dev != dev)
+		return false;
+
 	switch (w->id) {
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_dai_in:
@@ -826,7 +830,7 @@ static int skl_fill_sink_instance_id(struct skl_sst *ctx, u32 *params,
 	if (mcfg->m_type == SKL_MODULE_TYPE_KPB) {
 		struct skl_kpb_params *kpb_params =
 				(struct skl_kpb_params *)params;
-		struct skl_mod_inst_map *inst = kpb_params->map;
+		struct skl_mod_inst_map *inst = kpb_params->u.map;
 
 		for (i = 0; i < kpb_params->num_modules; i++) {
 			pvt_id = skl_get_pvt_instance_id_map(ctx, inst->mod_id,
@@ -911,6 +915,87 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int skl_get_module_id(struct skl_sst *ctx, uuid_le *uuid)
+{
+	struct uuid_module *module;
+
+	list_for_each_entry(module, &ctx->uuid_list, list) {
+		if (uuid_le_cmp(*uuid, module->uuid) == 0)
+			return module->id;
+	}
+
+	return -EINVAL;
+}
+
+static int skl_tplg_find_moduleid_from_uuid(struct skl *skl,
+					const struct snd_kcontrol_new *k)
+{
+	struct soc_bytes_ext *sb = (void *) k->private_value;
+	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
+	struct skl_kpb_params *uuid_params, *params;
+	struct hdac_bus *bus = ebus_to_hbus(skl_to_ebus(skl));
+	int i, size, module_id;
+
+	if (bc->set_params == SKL_PARAM_BIND && bc->max) {
+		uuid_params = (struct skl_kpb_params *)bc->params;
+		size = uuid_params->num_modules *
+			sizeof(struct skl_mod_inst_map) +
+			sizeof(uuid_params->num_modules);
+
+		params = devm_kzalloc(bus->dev, size, GFP_KERNEL);
+		if (!params)
+			return -ENOMEM;
+
+		params->num_modules = uuid_params->num_modules;
+
+		for (i = 0; i < uuid_params->num_modules; i++) {
+			module_id = skl_get_module_id(skl->skl_sst,
+				&uuid_params->u.map_uuid[i].mod_uuid);
+			if (module_id < 0) {
+				devm_kfree(bus->dev, params);
+				return -EINVAL;
+			}
+
+			params->u.map[i].mod_id = module_id;
+			params->u.map[i].inst_id =
+				uuid_params->u.map_uuid[i].inst_id;
+		}
+
+		devm_kfree(bus->dev, bc->params);
+		bc->params = (char *)params;
+		bc->max = size;
+	}
+
+	return 0;
+}
+
+/*
+ * Retrieve the module id from UUID mentioned in the
+ * post bind params
+ */
+void skl_tplg_add_moduleid_in_bind_params(struct skl *skl,
+				struct snd_soc_dapm_widget *w)
+{
+	struct skl_module_cfg *mconfig = w->priv;
+	int i;
+
+	/*
+	 * Post bind params are used for only for KPB
+	 * to set copier instances to drain the data
+	 * in fast mode
+	 */
+	if (mconfig->m_type != SKL_MODULE_TYPE_KPB)
+		return;
+
+	for (i = 0; i < w->num_kcontrols; i++)
+		if ((w->kcontrol_news[i].access &
+			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) &&
+			(skl_tplg_find_moduleid_from_uuid(skl,
+			&w->kcontrol_news[i]) < 0))
+			dev_err(skl->skl_sst->dev,
+				"%s: invalid kpb post bind params\n",
+				__func__);
+}
 
 static int skl_tplg_module_add_deferred_bind(struct skl *skl,
 	struct skl_module_cfg *src, struct skl_module_cfg *dst)
@@ -969,7 +1054,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 
 		next_sink = p->sink;
 
-		if (!is_skl_dsp_widget_type(p->sink))
+		if (!is_skl_dsp_widget_type(p->sink, ctx->dev))
 			return skl_tplg_bind_sinks(p->sink, skl, src_w, src_mconfig);
 
 		/*
@@ -978,7 +1063,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		 * they are ones used for SKL so check that first
 		 */
 		if ((p->sink->priv != NULL) &&
-					is_skl_dsp_widget_type(p->sink)) {
+				is_skl_dsp_widget_type(p->sink, ctx->dev)) {
 
 			sink = p->sink;
 			sink_mconfig = sink->priv;
@@ -1092,7 +1177,7 @@ static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
 		 * ones used for SKL so check that first
 		 */
 		if ((p->source->priv != NULL) &&
-					is_skl_dsp_widget_type(p->source)) {
+				is_skl_dsp_widget_type(p->source, ctx->dev)) {
 			return p->source;
 		}
 	}
@@ -1654,7 +1739,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 		w = dai->playback_widget;
 		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->connect && p->sink->power &&
-					!is_skl_dsp_widget_type(p->sink))
+				!is_skl_dsp_widget_type(p->sink, dai->dev))
 				continue;
 
 			if (p->sink->priv) {
@@ -1667,7 +1752,7 @@ skl_tplg_fe_get_cpr_module(struct snd_soc_dai *dai, int stream)
 		w = dai->capture_widget;
 		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->connect && p->source->power &&
-					!is_skl_dsp_widget_type(p->source))
+				!is_skl_dsp_widget_type(p->source, dai->dev))
 				continue;
 
 			if (p->source->priv) {
@@ -1819,7 +1904,7 @@ static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
 	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_source_path(w, p) {
-		if (p->connect && is_skl_dsp_widget_type(p->source) &&
+		if (p->connect && is_skl_dsp_widget_type(p->source, dai->dev) &&
 						p->source->priv) {
 
 			ret = skl_tplg_be_fill_pipe_params(dai,
@@ -1844,7 +1929,7 @@ static int skl_tplg_be_set_sink_pipe_params(struct snd_soc_dai *dai,
 	int ret = -EIO;
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
-		if (p->connect && is_skl_dsp_widget_type(p->sink) &&
+		if (p->connect && is_skl_dsp_widget_type(p->sink, dai->dev) &&
 						p->sink->priv) {
 
 			ret = skl_tplg_be_fill_pipe_params(dai,
@@ -2710,15 +2795,15 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 	return 0;
 }
 
-static void skl_clear_pin_config(struct snd_soc_platform *platform,
+static void skl_clear_pin_config(struct snd_soc_component *component,
 				struct snd_soc_dapm_widget *w)
 {
 	int i;
 	struct skl_module_cfg *mconfig;
 	struct skl_pipe *pipe;
 
-	if (!strncmp(w->dapm->component->name, platform->component.name,
-					strlen(platform->component.name))) {
+	if (!strncmp(w->dapm->component->name, component->name,
+					strlen(component->name))) {
 		mconfig = w->priv;
 		pipe = mconfig->pipe;
 		for (i = 0; i < mconfig->module->max_input_pins; i++) {
@@ -2737,14 +2822,14 @@ static void skl_clear_pin_config(struct snd_soc_platform *platform,
 void skl_cleanup_resources(struct skl *skl)
 {
 	struct skl_sst *ctx = skl->skl_sst;
-	struct snd_soc_platform *soc_platform = skl->platform;
+	struct snd_soc_component *soc_component = skl->component;
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_card *card;
 
-	if (soc_platform == NULL)
+	if (soc_component == NULL)
 		return;
 
-	card = soc_platform->component.card;
+	card = soc_component->card;
 	if (!card || !card->instantiated)
 		return;
 
@@ -2752,8 +2837,8 @@ void skl_cleanup_resources(struct skl *skl)
 	skl->resource.mcps = 0;
 
 	list_for_each_entry(w, &card->widgets, list) {
-		if (is_skl_dsp_widget_type(w) && (w->priv != NULL))
-			skl_clear_pin_config(soc_platform, w);
+		if (is_skl_dsp_widget_type(w, ctx->dev) && w->priv != NULL)
+			skl_clear_pin_config(soc_component, w);
 	}
 
 	skl_clear_module_cnt(ctx->dsp);
@@ -3400,19 +3485,19 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
  * widgets in a pipelines, so this helper - skl_tplg_create_pipe_widget_list()
  * helps to get the SKL type widgets in that pipeline
  */
-static int skl_tplg_create_pipe_widget_list(struct snd_soc_platform *platform)
+static int skl_tplg_create_pipe_widget_list(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_widget *w;
 	struct skl_module_cfg *mcfg = NULL;
 	struct skl_pipe_module *p_module = NULL;
 	struct skl_pipe *pipe;
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
-		if (is_skl_dsp_widget_type(w) && w->priv != NULL) {
+	list_for_each_entry(w, &component->card->widgets, list) {
+		if (is_skl_dsp_widget_type(w, component->dev) && w->priv) {
 			mcfg = w->priv;
 			pipe = mcfg->pipe;
 
-			p_module = devm_kzalloc(platform->dev,
+			p_module = devm_kzalloc(component->dev,
 						sizeof(*p_module), GFP_KERNEL);
 			if (!p_module)
 				return -ENOMEM;
@@ -3455,7 +3540,7 @@ static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
 /*
  * SKL topology init routine
  */
-int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
+int skl_tplg_init(struct snd_soc_component *component, struct hdac_ext_bus *ebus)
 {
 	int ret;
 	const struct firmware *fw;
@@ -3479,7 +3564,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 * The complete tplg for SKL is loaded as index 0, we don't use
 	 * any other index
 	 */
-	ret = snd_soc_tplg_component_load(&platform->component,
+	ret = snd_soc_tplg_component_load(component,
 					&skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
@@ -3491,7 +3576,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
 
 	skl->tplg = fw;
-	ret = skl_tplg_create_pipe_widget_list(platform);
+	ret = skl_tplg_create_pipe_widget_list(component);
 	if (ret < 0)
 		return ret;
 

@@ -82,6 +82,13 @@ config PINCTRL_IMX6SL
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
 
+config PINCTRL_IMX6SLL
+	bool "IMX6SLL pinctrl driver"
+	depends on SOC_IMX6SLL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sll pinctrl driver
+
 config PINCTRL_IMX6SX
 	bool "IMX6SX pinctrl driver"
 	depends on SOC_IMX6SX

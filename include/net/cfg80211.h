@@ -6,6 +6,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -646,6 +647,8 @@ struct survey_info {
  *	allowed through even on unauthorized ports
  * @control_port_no_encrypt: TRUE to prevent encryption of control port
  *	protocol frames.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  * @wep_keys: static WEP keys, if not NULL points to an array of
  *	CFG80211_MAX_WEP_KEYS WEP keys
  * @wep_tx_key: key index (0..3) of the default TX static WEP key
@@ -661,6 +664,7 @@ struct cfg80211_crypto_settings {
 	bool control_port;
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
+	bool control_port_over_nl80211;
 	struct key_params *wep_keys;
 	int wep_tx_key;
 	const u8 *psk;
@@ -1147,6 +1151,7 @@ struct cfg80211_tid_stats {
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
  * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
  *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
+ * @ack_signal: signal strength (in dBm) of the last ACK frame.
  */
 struct station_info {
 	u64 filled;
@@ -1191,6 +1196,7 @@ struct station_info {
 	u64 rx_duration;
 	u8 rx_beacon_signal_avg;
 	struct cfg80211_tid_stats pertid[IEEE80211_NUM_TIDS + 1];
+	s8 ack_signal;
 };
 
 #if IS_ENABLED(CONFIG_CFG80211)
@@ -1448,6 +1454,8 @@ struct mesh_config {
  * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
  *	changes the channel when a radar is detected. This is required
  *	to operate on DFS channels.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -1470,6 +1478,7 @@ struct mesh_setup {
 	u32 basic_rates;
 	struct cfg80211_bitrate_mask beacon_rate;
 	bool userspace_handles_dfs;
+	bool control_port_over_nl80211;
 };
 
 /**
@@ -1905,11 +1914,16 @@ struct cfg80211_auth_request {
  * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
  * @ASSOC_REQ_DISABLE_VHT:  Disable VHT
  * @ASSOC_REQ_USE_RRM: Declare RRM capability in this association
+ * @CONNECT_REQ_EXTERNAL_AUTH_SUPPORT: User space indicates external
+ *	authentication capability. Drivers can offload authentication to
+ *	userspace if this flag is set. Only applicable for cfg80211_connect()
+ *	request (connect callback).
  */
 enum cfg80211_assoc_req_flags {
-	ASSOC_REQ_DISABLE_HT		= BIT(0),
-	ASSOC_REQ_DISABLE_VHT		= BIT(1),
-	ASSOC_REQ_USE_RRM		= BIT(2),
+	ASSOC_REQ_DISABLE_HT			= BIT(0),
+	ASSOC_REQ_DISABLE_VHT			= BIT(1),
+	ASSOC_REQ_USE_RRM			= BIT(2),
+	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT	= BIT(3),
 };
 
 /**
@@ -2023,6 +2037,8 @@ struct cfg80211_disassoc_request {
  *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
  *	required to assume that the port is unauthorized until authorized by
  *	user space. Otherwise, port is marked authorized by default.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
  *	changes the channel when a radar is detected. This is required
  *	to operate on DFS channels.
@@ -2046,6 +2062,7 @@ struct cfg80211_ibss_params {
 	bool channel_fixed;
 	bool privacy;
 	bool control_port;
+	bool control_port_over_nl80211;
 	bool userspace_handles_dfs;
 	int mcast_rate[NUM_NL80211_BANDS];
 	struct ieee80211_ht_cap ht_capa;
@@ -2601,6 +2618,33 @@ struct cfg80211_pmk_conf {
 };
 
 /**
+ * struct cfg80211_external_auth_params - Trigger External authentication.
+ *
+ * Commonly used across the external auth request and event interfaces.
+ *
+ * @action: action type / trigger for external authentication. Only significant
+ *	for the authentication request event interface (driver to user space).
+ * @bssid: BSSID of the peer with which the authentication has
+ *	to happen. Used by both the authentication request event and
+ *	authentication response command interface.
+ * @ssid: SSID of the AP.  Used by both the authentication request event and
+ *	authentication response command interface.
+ * @key_mgmt_suite: AKM suite of the respective authentication. Used by the
+ *	authentication request event interface.
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful authentication,
+ *	use %WLAN_STATUS_UNSPECIFIED_FAILURE if user space cannot give you
+ *	the real status code for failures. Used only for the authentication
+ *	response command interface (user space to driver).
+ */
+struct cfg80211_external_auth_params {
+	enum nl80211_external_auth_action action;
+	u8 bssid[ETH_ALEN] __aligned(2);
+	struct cfg80211_ssid ssid;
+	unsigned int key_mgmt_suite;
+	u16 status;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -2923,6 +2967,12 @@ struct cfg80211_pmk_conf {
  *	(invoked with the wireless_dev mutex held)
  * @del_pmk: delete the previously configured PMK for the given authenticator.
  *	(invoked with the wireless_dev mutex held)
+ *
+ * @external_auth: indicates result of offloaded authentication processing from
+ *     user space
+ *
+ * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
+ *	tells the driver that the frame should not be encrypted.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3216,6 +3266,14 @@ struct cfg80211_ops {
 			   const struct cfg80211_pmk_conf *conf);
 	int	(*del_pmk)(struct wiphy *wiphy, struct net_device *dev,
 			   const u8 *aa);
+	int     (*external_auth)(struct wiphy *wiphy, struct net_device *dev,
+				 struct cfg80211_external_auth_params *params);
+
+	int	(*tx_control_port)(struct wiphy *wiphy,
+				   struct net_device *dev,
+				   const u8 *buf, size_t len,
+				   const u8 *dest, const __be16 proto,
+				   const bool noencrypt);
 };
 
 /*
@@ -3514,6 +3572,35 @@ enum wiphy_vendor_command_flags {
 	WIPHY_VENDOR_CMD_NEED_WDEV = BIT(0),
 	WIPHY_VENDOR_CMD_NEED_NETDEV = BIT(1),
 	WIPHY_VENDOR_CMD_NEED_RUNNING = BIT(2),
+};
+
+/**
+ * enum wiphy_opmode_flag - Station's ht/vht operation mode information flags
+ *
+ * @STA_OPMODE_MAX_BW_CHANGED: Max Bandwidth changed
+ * @STA_OPMODE_SMPS_MODE_CHANGED: SMPS mode changed
+ * @STA_OPMODE_N_SS_CHANGED: max N_SS (number of spatial streams) changed
+ *
+ */
+enum wiphy_opmode_flag {
+	STA_OPMODE_MAX_BW_CHANGED	= BIT(0),
+	STA_OPMODE_SMPS_MODE_CHANGED	= BIT(1),
+	STA_OPMODE_N_SS_CHANGED		= BIT(2),
+};
+
+/**
+ * struct sta_opmode_info - Station's ht/vht operation mode information
+ * @changed: contains value from &enum wiphy_opmode_flag
+ * @smps_mode: New SMPS mode value from &enum nl80211_smps_mode of a station
+ * @bw: new max bandwidth value from &enum nl80211_chan_width of a station
+ * @rx_nss: new rx_nss value of a station
+ */
+
+struct sta_opmode_info {
+	u32 changed;
+	enum nl80211_smps_mode smps_mode;
+	enum nl80211_chan_width bw;
+	u8 rx_nss;
 };
 
 /**
@@ -4342,10 +4429,12 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  *	of it being pushed into the SKB
  * @addr: the device MAC address
  * @iftype: the virtual interface type
+ * @data_offset: offset of payload after the 802.11 header
  * Return: 0 on success. Non-zero on error.
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
-				  const u8 *addr, enum nl80211_iftype iftype);
+				  const u8 *addr, enum nl80211_iftype iftype,
+				  u8 data_offset);
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
@@ -4357,7 +4446,7 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 					 enum nl80211_iftype iftype)
 {
-	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype);
+	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0);
 }
 
 /**
@@ -4586,6 +4675,33 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
  * proper string representation.
  */
 const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
+
+/**
+ * DOC: Internal regulatory db functions
+ *
+ */
+
+/**
+ * reg_query_regdb_wmm -  Query internal regulatory db for wmm rule
+ * Regulatory self-managed driver can use it to proactively
+ *
+ * @alpha2: the ISO/IEC 3166 alpha2 wmm rule to be queried.
+ * @freq: the freqency(in MHz) to be queried.
+ * @ptr: pointer where the regdb wmm data is to be stored (or %NULL if
+ *	irrelevant). This can be used later for deduplication.
+ * @rule: pointer to store the wmm rule from the regulatory db.
+ *
+ * Self-managed wireless drivers can use this function to  query
+ * the internal regulatory database to check whether the given
+ * ISO/IEC 3166 alpha2 country and freq have wmm rule limitations.
+ *
+ * Drivers should check the return value, its possible you can get
+ * an -ENODATA.
+ *
+ * Return: 0 on success. -ENODATA.
+ */
+int reg_query_regdb_wmm(char *alpha2, int freq, u32 *ptr,
+			struct ieee80211_wmm_rule *rule);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification
@@ -5624,6 +5740,28 @@ void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 
 
 /**
+ * cfg80211_rx_control_port - notification about a received control port frame
+ * @dev: The device the frame matched to
+ * @buf: control port frame
+ * @len: length of the frame data
+ * @addr: The peer from which the frame was received
+ * @proto: frame protocol, typically PAE or Pre-authentication
+ * @unencrypted: Whether the frame was received unencrypted
+ *
+ * This function is used to inform userspace about a received control port
+ * frame.  It should only be used if userspace indicated it wants to receive
+ * control port frames over nl80211.
+ *
+ * The frame is the data portion of the 802.3 or 802.11 data frame with all
+ * network layer headers removed (e.g. the raw EAPoL frame).
+ *
+ * Return: %true if the frame was passed to userspace
+ */
+bool cfg80211_rx_control_port(struct net_device *dev,
+			      const u8 *buf, size_t len,
+			      const u8 *addr, u16 proto, bool unencrypted);
+
+/**
  * cfg80211_cqm_rssi_notify - connection quality monitoring rssi event
  * @dev: network device
  * @rssi_event: the triggered RSSI event
@@ -5683,6 +5821,20 @@ void cfg80211_cqm_beacon_loss_notify(struct net_device *dev, gfp_t gfp);
  */
 void cfg80211_radar_event(struct wiphy *wiphy,
 			  struct cfg80211_chan_def *chandef, gfp_t gfp);
+
+/**
+ * cfg80211_sta_opmode_change_notify - STA's ht/vht operation mode change event
+ * @dev: network device
+ * @mac: MAC address of a station which opmode got modified
+ * @sta_opmode: station's current opmode value
+ * @gfp: context flags
+ *
+ * Driver should call this function when station's opmode modified via action
+ * frame.
+ */
+void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
+				       struct sta_opmode_info *sta_opmode,
+				       gfp_t gfp);
 
 /**
  * cfg80211_cac_event - Channel availability check (CAC) event
@@ -5758,10 +5910,13 @@ bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
  * @addr: the address of the peer
  * @cookie: the cookie filled in @probe_client previously
  * @acked: indicates whether probe was acked or not
+ * @ack_signal: signal strength (in dBm) of the ACK frame.
+ * @is_valid_ack_signal: indicates the ack_signal is valid or not.
  * @gfp: allocation flags
  */
 void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
-			   u64 cookie, bool acked, gfp_t gfp);
+			   u64 cookie, bool acked, s32 ack_signal,
+			   bool is_valid_ack_signal, gfp_t gfp);
 
 /**
  * cfg80211_report_obss_beacon - report beacon from other APs
@@ -6201,6 +6356,17 @@ void cfg80211_nan_func_terminated(struct wireless_dev *wdev,
 
 /* ethtool helper */
 void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);
+
+/**
+ * cfg80211_external_auth_request - userspace request for authentication
+ * @netdev: network device
+ * @params: External authentication parameters
+ * @gfp: allocation flags
+ * Returns: 0 on success, < 0 on error
+ */
+int cfg80211_external_auth_request(struct net_device *netdev,
+				   struct cfg80211_external_auth_params *params,
+				   gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

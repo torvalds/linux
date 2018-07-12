@@ -29,6 +29,7 @@
 
 #define QCOM_RPM_MISC_CLK_TYPE				0x306b6c63
 #define QCOM_RPM_SCALING_ENABLE_ID			0x2
+#define QCOM_RPM_XO_MODE_ON				0x2
 
 #define DEFINE_CLK_RPM(_platform, _name, _active, r_id)			      \
 	static struct clk_rpm _platform##_##_active;			      \
@@ -52,6 +53,18 @@
 			.ops = &clk_rpm_ops,				      \
 			.name = #_active,				      \
 			.parent_names = (const char *[]){ "pxo_board" },      \
+			.num_parents = 1,				      \
+		},							      \
+	}
+
+#define DEFINE_CLK_RPM_XO_BUFFER(_platform, _name, _active, offset)	      \
+	static struct clk_rpm _platform##_##_name = {			      \
+		.rpm_clk_id = QCOM_RPM_CXO_BUFFERS,			      \
+		.xo_offset = (offset),					      \
+		.hw.init = &(struct clk_init_data){			      \
+			.ops = &clk_rpm_xo_ops,			      \
+			.name = #_name,					      \
+			.parent_names = (const char *[]){ "cxo_board" },      \
 			.num_parents = 1,				      \
 		},							      \
 	}
@@ -126,8 +139,11 @@
 
 #define to_clk_rpm(_hw) container_of(_hw, struct clk_rpm, hw)
 
+struct rpm_cc;
+
 struct clk_rpm {
 	const int rpm_clk_id;
+	const int xo_offset;
 	const bool active_only;
 	unsigned long rate;
 	bool enabled;
@@ -135,12 +151,15 @@ struct clk_rpm {
 	struct clk_rpm *peer;
 	struct clk_hw hw;
 	struct qcom_rpm *rpm;
+	struct rpm_cc *rpm_cc;
 };
 
 struct rpm_cc {
 	struct qcom_rpm *rpm;
 	struct clk_rpm **clks;
 	size_t num_clks;
+	u32 xo_buffer_value;
+	struct mutex xo_lock;
 };
 
 struct rpm_clk_desc {
@@ -159,7 +178,8 @@ static int clk_rpm_handoff(struct clk_rpm *r)
 	 * The vendor tree simply reads the status for this
 	 * RPM clock.
 	 */
-	if (r->rpm_clk_id == QCOM_RPM_PLL_4)
+	if (r->rpm_clk_id == QCOM_RPM_PLL_4 ||
+		r->rpm_clk_id == QCOM_RPM_CXO_BUFFERS)
 		return 0;
 
 	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE,
@@ -288,6 +308,46 @@ out:
 	mutex_unlock(&rpm_clk_lock);
 }
 
+static int clk_rpm_xo_prepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	struct rpm_cc *rcc = r->rpm_cc;
+	int ret, clk_id = r->rpm_clk_id;
+	u32 value;
+
+	mutex_lock(&rcc->xo_lock);
+
+	value = rcc->xo_buffer_value | (QCOM_RPM_XO_MODE_ON << r->xo_offset);
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE, clk_id, &value, 1);
+	if (!ret) {
+		r->enabled = true;
+		rcc->xo_buffer_value = value;
+	}
+
+	mutex_unlock(&rcc->xo_lock);
+
+	return ret;
+}
+
+static void clk_rpm_xo_unprepare(struct clk_hw *hw)
+{
+	struct clk_rpm *r = to_clk_rpm(hw);
+	struct rpm_cc *rcc = r->rpm_cc;
+	int ret, clk_id = r->rpm_clk_id;
+	u32 value;
+
+	mutex_lock(&rcc->xo_lock);
+
+	value = rcc->xo_buffer_value & ~(QCOM_RPM_XO_MODE_ON << r->xo_offset);
+	ret = qcom_rpm_write(r->rpm, QCOM_RPM_ACTIVE_STATE, clk_id, &value, 1);
+	if (!ret) {
+		r->enabled = false;
+		rcc->xo_buffer_value = value;
+	}
+
+	mutex_unlock(&rcc->xo_lock);
+}
+
 static int clk_rpm_fixed_prepare(struct clk_hw *hw)
 {
 	struct clk_rpm *r = to_clk_rpm(hw);
@@ -378,6 +438,11 @@ static unsigned long clk_rpm_recalc_rate(struct clk_hw *hw,
 	return r->rate;
 }
 
+static const struct clk_ops clk_rpm_xo_ops = {
+	.prepare	= clk_rpm_xo_prepare,
+	.unprepare	= clk_rpm_xo_unprepare,
+};
+
 static const struct clk_ops clk_rpm_fixed_ops = {
 	.prepare	= clk_rpm_fixed_prepare,
 	.unprepare	= clk_rpm_fixed_unprepare,
@@ -449,6 +514,11 @@ DEFINE_CLK_RPM(apq8064, mmfpb_clk, mmfpb_a_clk, QCOM_RPM_MMFPB_CLK);
 DEFINE_CLK_RPM(apq8064, sfab_clk, sfab_a_clk, QCOM_RPM_SYS_FABRIC_CLK);
 DEFINE_CLK_RPM(apq8064, sfpb_clk, sfpb_a_clk, QCOM_RPM_SFPB_CLK);
 DEFINE_CLK_RPM(apq8064, qdss_clk, qdss_a_clk, QCOM_RPM_QDSS_CLK);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d0_clk, xo_d0_a_clk, 0);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_d1_clk, xo_d1_a_clk, 8);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a0_clk, xo_a0_a_clk, 16);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a1_clk, xo_a1_a_clk, 24);
+DEFINE_CLK_RPM_XO_BUFFER(apq8064, xo_a2_clk, xo_a2_a_clk, 28);
 
 static struct clk_rpm *apq8064_clks[] = {
 	[RPM_APPS_FABRIC_CLK] = &apq8064_afab_clk,
@@ -469,6 +539,11 @@ static struct clk_rpm *apq8064_clks[] = {
 	[RPM_SFPB_A_CLK] = &apq8064_sfpb_a_clk,
 	[RPM_QDSS_CLK] = &apq8064_qdss_clk,
 	[RPM_QDSS_A_CLK] = &apq8064_qdss_a_clk,
+	[RPM_XO_D0] = &apq8064_xo_d0_clk,
+	[RPM_XO_D1] = &apq8064_xo_d1_clk,
+	[RPM_XO_A0] = &apq8064_xo_a0_clk,
+	[RPM_XO_A1] = &apq8064_xo_a1_clk,
+	[RPM_XO_A2] = &apq8064_xo_a2_clk,
 };
 
 static const struct rpm_clk_desc rpm_clk_apq8064 = {
@@ -526,12 +601,14 @@ static int rpm_clk_probe(struct platform_device *pdev)
 
 	rcc->clks = rpm_clks;
 	rcc->num_clks = num_clks;
+	mutex_init(&rcc->xo_lock);
 
 	for (i = 0; i < num_clks; i++) {
 		if (!rpm_clks[i])
 			continue;
 
 		rpm_clks[i]->rpm = rpm;
+		rpm_clks[i]->rpm_cc = rcc;
 
 		ret = clk_rpm_handoff(rpm_clks[i]);
 		if (ret)

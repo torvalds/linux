@@ -709,7 +709,7 @@ void sas_resume_sata(struct asd_sas_port *port)
 }
 
 /**
- * sas_discover_sata -- discover an STP/SATA domain device
+ * sas_discover_sata - discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
  *
  * Devices directly attached to a HA port, have no parents.  All other

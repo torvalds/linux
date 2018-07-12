@@ -75,7 +75,7 @@ static const struct snd_soc_dapm_route ttc_audio_map[] = {
 
 static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	/* Headset jack detection */
 	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE |
@@ -86,9 +86,9 @@ static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 			      ARRAY_SIZE(mic_jack_pins));
 
 	/* headphone, microphone detection & headset short detection */
-	pm860x_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADPHONE,
+	pm860x_hs_jack_detect(component, &hs_jack, SND_JACK_HEADPHONE,
 			      SND_JACK_BTN_0, SND_JACK_BTN_1, SND_JACK_BTN_2);
-	pm860x_mic_jack_detect(codec, &hs_jack, SND_JACK_MICROPHONE);
+	pm860x_mic_jack_detect(component, &hs_jack, SND_JACK_MICROPHONE);
 
 	return 0;
 }

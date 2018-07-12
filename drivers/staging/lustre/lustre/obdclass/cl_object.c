@@ -495,7 +495,7 @@ static struct cache_stats cl_env_stats = {
 int cl_site_stats_print(const struct cl_site *site, struct seq_file *m)
 {
 	size_t i;
-	static const char *pstate[] = {
+	static const char * const pstate[] = {
 		[CPS_CACHED]  = "c",
 		[CPS_OWNED]   = "o",
 		[CPS_PAGEOUT] = "w",

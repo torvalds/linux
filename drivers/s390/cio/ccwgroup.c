@@ -323,6 +323,9 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	struct ccw_dev_id dev_id;
 	int rc, i;
 
+	if (num_devices < 1)
+		return -EINVAL;
+
 	gdev = kzalloc(sizeof(*gdev) + num_devices * sizeof(gdev->cdev[0]),
 		       GFP_KERNEL);
 	if (!gdev)
@@ -375,7 +378,7 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 		goto error;
 	}
 	/* Check if the devices are bound to the required ccw driver. */
-	if (gdev->count && gdrv && gdrv->ccw_driver &&
+	if (gdrv && gdrv->ccw_driver &&
 	    gdev->cdev[0]->drv != gdrv->ccw_driver) {
 		rc = -EINVAL;
 		goto error;

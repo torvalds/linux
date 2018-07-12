@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * v4l2-tpg-core.c - Test Pattern Generator
  *
@@ -5,19 +6,6 @@
  * vivi.c source for the copyright information of those functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/module.h>
@@ -1155,13 +1143,13 @@ static void gen_twopix(struct tpg_data *tpg,
 	case V4L2_PIX_FMT_NV24:
 		buf[0][offset] = r_y_h;
 		buf[1][2 * offset] = g_u_s;
-		buf[1][2 * offset + 1] = b_v;
+		buf[1][(2 * offset + 1) % 8] = b_v;
 		break;
 
 	case V4L2_PIX_FMT_NV42:
 		buf[0][offset] = r_y_h;
 		buf[1][2 * offset] = b_v;
-		buf[1][2 * offset + 1] = g_u_s;
+		buf[1][(2 * offset + 1) % 8] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_YUYV:

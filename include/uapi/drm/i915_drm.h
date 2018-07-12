@@ -318,6 +318,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_PERF_OPEN		0x36
 #define DRM_I915_PERF_ADD_CONFIG	0x37
 #define DRM_I915_PERF_REMOVE_CONFIG	0x38
+#define DRM_I915_QUERY			0x39
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -375,6 +376,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
 #define DRM_IOCTL_I915_PERF_ADD_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_ADD_CONFIG, struct drm_i915_perf_oa_config)
 #define DRM_IOCTL_I915_PERF_REMOVE_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_REMOVE_CONFIG, __u64)
+#define DRM_IOCTL_I915_QUERY			DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_QUERY, struct drm_i915_query)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -1358,7 +1360,9 @@ struct drm_intel_overlay_attrs {
  * active on a given plane.
  */
 
-#define I915_SET_COLORKEY_NONE		(1<<0) /* disable color key matching */
+#define I915_SET_COLORKEY_NONE		(1<<0) /* Deprecated. Instead set
+						* flags==0 to disable colorkeying.
+						*/
 #define I915_SET_COLORKEY_DESTINATION	(1<<1)
 #define I915_SET_COLORKEY_SOURCE	(1<<2)
 struct drm_intel_sprite_colorkey {
@@ -1604,13 +1608,113 @@ struct drm_i915_perf_oa_config {
 	__u32 n_flex_regs;
 
 	/*
-	 * These fields are pointers to tuples of u32 values (register
-	 * address, value). For example the expected length of the buffer
-	 * pointed by mux_regs_ptr is (2 * sizeof(u32) * n_mux_regs).
+	 * These fields are pointers to tuples of u32 values (register address,
+	 * value). For example the expected length of the buffer pointed by
+	 * mux_regs_ptr is (2 * sizeof(u32) * n_mux_regs).
 	 */
 	__u64 mux_regs_ptr;
 	__u64 boolean_regs_ptr;
 	__u64 flex_regs_ptr;
+};
+
+struct drm_i915_query_item {
+	__u64 query_id;
+#define DRM_I915_QUERY_TOPOLOGY_INFO    1
+
+	/*
+	 * When set to zero by userspace, this is filled with the size of the
+	 * data to be written at the data_ptr pointer. The kernel sets this
+	 * value to a negative value to signal an error on a particular query
+	 * item.
+	 */
+	__s32 length;
+
+	/*
+	 * Unused for now. Must be cleared to zero.
+	 */
+	__u32 flags;
+
+	/*
+	 * Data will be written at the location pointed by data_ptr when the
+	 * value of length matches the length of the data to be written by the
+	 * kernel.
+	 */
+	__u64 data_ptr;
+};
+
+struct drm_i915_query {
+	__u32 num_items;
+
+	/*
+	 * Unused for now. Must be cleared to zero.
+	 */
+	__u32 flags;
+
+	/*
+	 * This points to an array of num_items drm_i915_query_item structures.
+	 */
+	__u64 items_ptr;
+};
+
+/*
+ * Data written by the kernel with query DRM_I915_QUERY_TOPOLOGY_INFO :
+ *
+ * data: contains the 3 pieces of information :
+ *
+ * - the slice mask with one bit per slice telling whether a slice is
+ *   available. The availability of slice X can be queried with the following
+ *   formula :
+ *
+ *           (data[X / 8] >> (X % 8)) & 1
+ *
+ * - the subslice mask for each slice with one bit per subslice telling
+ *   whether a subslice is available. The availability of subslice Y in slice
+ *   X can be queried with the following formula :
+ *
+ *           (data[subslice_offset +
+ *                 X * subslice_stride +
+ *                 Y / 8] >> (Y % 8)) & 1
+ *
+ * - the EU mask for each subslice in each slice with one bit per EU telling
+ *   whether an EU is available. The availability of EU Z in subslice Y in
+ *   slice X can be queried with the following formula :
+ *
+ *           (data[eu_offset +
+ *                 (X * max_subslices + Y) * eu_stride +
+ *                 Z / 8] >> (Z % 8)) & 1
+ */
+struct drm_i915_query_topology_info {
+	/*
+	 * Unused for now. Must be cleared to zero.
+	 */
+	__u16 flags;
+
+	__u16 max_slices;
+	__u16 max_subslices;
+	__u16 max_eus_per_subslice;
+
+	/*
+	 * Offset in data[] at which the subslice masks are stored.
+	 */
+	__u16 subslice_offset;
+
+	/*
+	 * Stride at which each of the subslice masks for each slice are
+	 * stored.
+	 */
+	__u16 subslice_stride;
+
+	/*
+	 * Offset in data[] at which the EU masks are stored.
+	 */
+	__u16 eu_offset;
+
+	/*
+	 * Stride at which each of the EU masks for each subslice are stored.
+	 */
+	__u16 eu_stride;
+
+	__u8 data[];
 };
 
 #if defined(__cplusplus)

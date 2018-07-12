@@ -304,7 +304,9 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	if (gf.ret)
 		return gf.ret;
 
-	return cpufreq_table_validate_and_show(policy, speedstep_freqs);
+	policy->freq_table = speedstep_freqs;
+
+	return 0;
 }
 
 

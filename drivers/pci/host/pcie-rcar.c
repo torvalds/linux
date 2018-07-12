@@ -435,7 +435,7 @@ static void rcar_pcie_force_speedup(struct rcar_pcie *pcie)
 		}
 
 		msleep(1);
-	};
+	}
 
 	dev_err(dev, "Speed change timed out\n");
 

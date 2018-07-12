@@ -132,7 +132,7 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 		ret = -ENOMEM;
 		goto out_free_timer;
 	}
-	info->timer->attr.attr.mode = S_IRUGO;
+	info->timer->attr.attr.mode = 0444;
 	info->timer->attr.show = idletimer_tg_show;
 
 	ret = sysfs_create_file(idletimer_tg_kobj, &info->timer->attr.attr);

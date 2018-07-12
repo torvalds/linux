@@ -41,7 +41,8 @@
 
 #define CTX \
 	clk_src->base.ctx
-
+#define DC_LOGGER \
+	calc_pll_cs->ctx->logger
 #undef FN
 #define FN(reg_name, field_name) \
 	clk_src->cs_shift->field_name, clk_src->cs_mask->field_name
@@ -288,7 +289,7 @@ static uint32_t calculate_pixel_clock_pll_dividers(
 	uint32_t max_ref_divider;
 
 	if (pll_settings->adjusted_pix_clk == 0) {
-		dm_logger_write(calc_pll_cs->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"%s Bad requested pixel clock", __func__);
 		return MAX_PLL_CALC_ERROR;
 	}
@@ -349,13 +350,13 @@ static uint32_t calculate_pixel_clock_pll_dividers(
  *  ## SVS Wed 15 Jul 2009 */
 
 	if (min_post_divider > max_post_divider) {
-		dm_logger_write(calc_pll_cs->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"%s Post divider range is invalid", __func__);
 		return MAX_PLL_CALC_ERROR;
 	}
 
 	if (min_ref_divider > max_ref_divider) {
-		dm_logger_write(calc_pll_cs->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"%s Reference divider range is invalid", __func__);
 		return MAX_PLL_CALC_ERROR;
 	}
@@ -466,7 +467,7 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 {
 	uint32_t field = 0;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
-
+	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
 	/* Check if reference clock is external (not pcie/xtalin)
 	* HW Dce80 spec:
 	* 00 - PCIE_REFCLK, 01 - XTALIN,    02 - GENERICA,    03 - GENERICB
@@ -493,7 +494,7 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 	if (!pll_adjust_pix_clk(clk_src, pix_clk_params, pll_settings)) {
 		/* Should never happen, ASSERT and fill up values to be able
 		 * to continue. */
-		dm_logger_write(clk_src->base.ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"%s: Failed to adjust pixel clock!!", __func__);
 		pll_settings->actual_pix_clk =
 				pix_clk_params->requested_pix_clk;
@@ -556,11 +557,12 @@ static uint32_t dce110_get_pix_clk_dividers(
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(cs);
+	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
 
 	if (pix_clk_params == NULL || pll_settings == NULL
 			|| pix_clk_params->requested_pix_clk == 0) {
-		dm_logger_write(clk_src->base.ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
 		return pll_calc_error;
 	}
@@ -908,18 +910,8 @@ static bool dce110_program_pix_clk(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-		unsigned dp_dto_ref_kHz = 600000;
-		/* DPREF clock from FPGA TODO: Does FPGA have this value? */
+		unsigned dp_dto_ref_kHz = 700000;
 		unsigned clock_kHz = pll_settings->actual_pix_clk;
-
-		/* For faster simulation, if mode pixe clock less than 290MHz,
-		 * pixel clock can be hard coded to 290Mhz. For 4K mode, pixel clock
-		 * is greater than 500Mhz, need real pixel clock
-		 * clock_kHz = 290000;
-		 */
-		/* TODO: un-hardcode when we can set display clock properly*/
-		/*clock_kHz = pix_clk_params->requested_pix_clk;*/
-		clock_kHz = 290000;
 
 		/* Set DTO values: phase = target clock, modulo = reference clock */
 		REG_WRITE(PHASE[inst], clock_kHz);
@@ -1062,14 +1054,14 @@ static void get_ss_info_from_atombios(
 	struct spread_spectrum_info *ss_info_cur;
 	struct spread_spectrum_data *ss_data_cur;
 	uint32_t i;
-
+	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
 	if (ss_entries_num == NULL) {
-		dm_logger_write(clk_src->base.ctx->logger, LOG_SYNC,
+		DC_LOG_SYNC(
 			"Invalid entry !!!\n");
 		return;
 	}
 	if (spread_spectrum_data == NULL) {
-		dm_logger_write(clk_src->base.ctx->logger, LOG_SYNC,
+		DC_LOG_SYNC(
 			"Invalid array pointer!!!\n");
 		return;
 	}
@@ -1114,7 +1106,7 @@ static void get_ss_info_from_atombios(
 		++i, ++ss_info_cur, ++ss_data_cur) {
 
 		if (ss_info_cur->type.STEP_AND_DELAY_INFO != false) {
-			dm_logger_write(clk_src->base.ctx->logger, LOG_SYNC,
+			DC_LOG_SYNC(
 				"Invalid ATOMBIOS SS Table!!!\n");
 			goto out_free_data;
 		}
@@ -1124,9 +1116,9 @@ static void get_ss_info_from_atombios(
 		if (as_signal == AS_SIGNAL_TYPE_HDMI
 				&& ss_info_cur->spread_spectrum_percentage > 6){
 			/* invalid input, do nothing */
-			dm_logger_write(clk_src->base.ctx->logger, LOG_SYNC,
+			DC_LOG_SYNC(
 				"Invalid SS percentage ");
-			dm_logger_write(clk_src->base.ctx->logger, LOG_SYNC,
+			DC_LOG_SYNC(
 				"for HDMI in ATOMBIOS info Table!!!\n");
 			continue;
 		}
@@ -1238,12 +1230,12 @@ static bool calc_pll_max_vco_construct(
 	if (init_data->num_fract_fb_divider_decimal_point == 0 ||
 		init_data->num_fract_fb_divider_decimal_point_precision >
 				init_data->num_fract_fb_divider_decimal_point) {
-		dm_logger_write(calc_pll_cs->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"The dec point num or precision is incorrect!");
 		return false;
 	}
 	if (init_data->num_fract_fb_divider_decimal_point_precision == 0) {
-		dm_logger_write(calc_pll_cs->ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 			"Incorrect fract feedback divider precision num!");
 		return false;
 	}

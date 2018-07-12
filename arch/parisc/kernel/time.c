@@ -174,7 +174,7 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 
 	/* we treat tod_sec as unsigned, so this can work until year 2106 */
 	rtc_time64_to_tm(tod_data.tod_sec, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
@@ -205,7 +205,7 @@ static int __init rtc_init(void)
 device_initcall(rtc_init);
 #endif
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	static struct pdc_tod tod_data;
 	if (pdc_tod_read(&tod_data) == 0) {

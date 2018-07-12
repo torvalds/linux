@@ -51,7 +51,7 @@
 	model = "Technexion Pico i.MX6UL Board";
 	compatible = "technexion,imx6ul-pico-hobbit", "fsl,imx6ul";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x10000000>;
 	};
 

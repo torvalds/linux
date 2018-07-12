@@ -25,13 +25,31 @@
 		.align			32
 __handle_preemption:
 		call			SCHEDULE_USER
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
+661:		 wrpr			%g0, RTRAP_PSTATE, %pstate
+		/* If userspace is using ADI, it could potentially pass
+		 * a pointer with version tag embedded in it. To maintain
+		 * the ADI security, we must re-enable PSTATE.mcde before
+		 * we continue execution in the kernel for another thread.
+		 */
+		.section .sun_m7_1insn_patch, "ax"
+		.word	661b
+		 wrpr			%g0, RTRAP_PSTATE|PSTATE_MCDE, %pstate
+		.previous
 		ba,pt			%xcc, __handle_preemption_continue
 		 wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 
 __handle_user_windows:
 		call			fault_in_user_windows
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
+661:		 wrpr			%g0, RTRAP_PSTATE, %pstate
+		/* If userspace is using ADI, it could potentially pass
+		 * a pointer with version tag embedded in it. To maintain
+		 * the ADI security, we must re-enable PSTATE.mcde before
+		 * we continue execution in the kernel for another thread.
+		 */
+		.section .sun_m7_1insn_patch, "ax"
+		.word	661b
+		 wrpr			%g0, RTRAP_PSTATE|PSTATE_MCDE, %pstate
+		.previous
 		ba,pt			%xcc, __handle_preemption_continue
 		 wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 
@@ -48,7 +66,16 @@ __handle_signal:
 		add			%sp, PTREGS_OFF, %o0
 		mov			%l0, %o2
 		call			do_notify_resume
-		 wrpr			%g0, RTRAP_PSTATE, %pstate
+661:		 wrpr			%g0, RTRAP_PSTATE, %pstate
+		/* If userspace is using ADI, it could potentially pass
+		 * a pointer with version tag embedded in it. To maintain
+		 * the ADI security, we must re-enable PSTATE.mcde before
+		 * we continue execution in the kernel for another thread.
+		 */
+		.section .sun_m7_1insn_patch, "ax"
+		.word	661b
+		 wrpr			%g0, RTRAP_PSTATE|PSTATE_MCDE, %pstate
+		.previous
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 
 		/* Signal delivery can modify pt_regs tstate, so we must

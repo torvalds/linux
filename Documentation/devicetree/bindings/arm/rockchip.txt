@@ -50,6 +50,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "firefly,firefly-rk3399", "rockchip,rk3399";
 
+- Firefly roc-rk3328-cc board:
+    Required root node properties:
+      - compatible = "firefly,roc-rk3328-cc", "rockchip,rk3328";
+
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
       - compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
@@ -181,9 +185,17 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
 
+- Rockchip RK3399 Sapphire board standalone:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
+
 - Rockchip RK3399 Sapphire Excavator board:
     Required root node properties:
       - compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
+
+- Theobroma Systems RK3368-uQ7 Haikou Baseboard:
+    Required root node properties:
+      - compatible = "tsd,rk3368-uq7-haikou", "rockchip,rk3368";
 
 - Theobroma Systems RK3399-Q7 Haikou Baseboard:
     Required root node properties:

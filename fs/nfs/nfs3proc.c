@@ -138,8 +138,11 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		msg.rpc_cred = nfs_file_cred(sattr->ia_file);
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	if (status == 0)
+	if (status == 0) {
+		if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_ACL)
+			nfs_zap_acl_cache(inode);
 		nfs_setattr_update_inode(inode, sattr, fattr);
+	}
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
@@ -383,11 +386,11 @@ out:
 }
 
 static int
-nfs3_proc_remove(struct inode *dir, const struct qstr *name)
+nfs3_proc_remove(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
-		.name = *name,
+		.name = dentry->d_name,
 	};
 	struct nfs_removeres res;
 	struct rpc_message msg = {
@@ -397,7 +400,7 @@ nfs3_proc_remove(struct inode *dir, const struct qstr *name)
 	};
 	int status = -ENOMEM;
 
-	dprintk("NFS call  remove %s\n", name->name);
+	dprintk("NFS call  remove %pd2\n", dentry);
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
 		goto out;
@@ -411,7 +414,7 @@ out:
 }
 
 static void
-nfs3_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
+nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_REMOVE];
 }
@@ -433,7 +436,9 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 }
 
 static void
-nfs3_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
+nfs3_proc_rename_setup(struct rpc_message *msg,
+		struct dentry *old_dentry,
+		struct dentry *new_dentry)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_RENAME];
 }
@@ -908,12 +913,6 @@ static int nfs3_have_delegation(struct inode *inode, fmode_t flags)
 	return 0;
 }
 
-static int nfs3_return_delegation(struct inode *inode)
-{
-	nfs_wb_all(inode);
-	return 0;
-}
-
 static const struct inode_operations nfs3_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
@@ -990,7 +989,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.clear_acl_cache = forget_all_cached_acls,
 	.close_context	= nfs_close_context,
 	.have_delegation = nfs3_have_delegation,
-	.return_delegation = nfs3_return_delegation,
 	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,

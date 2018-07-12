@@ -25,6 +25,7 @@
 struct imx_hdmi {
 	struct device *dev;
 	struct drm_encoder encoder;
+	struct dw_hdmi *hdmi;
 	struct regmap *regmap;
 };
 
@@ -239,14 +240,18 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	ret = dw_hdmi_bind(pdev, encoder, plat_data);
+	platform_set_drvdata(pdev, hdmi);
+
+	hdmi->hdmi = dw_hdmi_bind(pdev, encoder, plat_data);
 
 	/*
 	 * If dw_hdmi_bind() fails we'll never call dw_hdmi_unbind(),
 	 * which would have called the encoder cleanup.  Do it manually.
 	 */
-	if (ret)
+	if (IS_ERR(hdmi->hdmi)) {
+		ret = PTR_ERR(hdmi->hdmi);
 		drm_encoder_cleanup(encoder);
+	}
 
 	return ret;
 }
@@ -254,7 +259,9 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 static void dw_hdmi_imx_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
-	return dw_hdmi_unbind(dev);
+	struct imx_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_unbind(hdmi->hdmi);
 }
 
 static const struct component_ops dw_hdmi_imx_ops = {

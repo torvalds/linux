@@ -351,7 +351,7 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 		if (pmu_alias_info_file(name))
 			continue;
 
-		snprintf(path, PATH_MAX, "%s/%s", dir, name);
+		scnprintf(path, PATH_MAX, "%s/%s", dir, name);
 
 		file = fopen(path, "r");
 		if (!file) {
@@ -539,9 +539,10 @@ static bool pmu_is_uncore(const char *name)
 
 /*
  *  PMU CORE devices have different name other than cpu in sysfs on some
- *  platforms. looking for possible sysfs files to identify as core device.
+ *  platforms.
+ *  Looking for possible sysfs files to identify the arm core device.
  */
-static int is_pmu_core(const char *name)
+static int is_arm_pmu_core(const char *name)
 {
 	struct stat st;
 	char path[PATH_MAX];
@@ -550,16 +551,16 @@ static int is_pmu_core(const char *name)
 	if (!sysfs)
 		return 0;
 
-	/* Look for cpu sysfs (x86 and others) */
-	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/cpu", sysfs);
-	if ((stat(path, &st) == 0) &&
-			(strncmp(name, "cpu", strlen("cpu")) == 0))
-		return 1;
-
 	/* Look for cpu sysfs (specific to arm) */
 	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/cpus",
 				sysfs, name);
 	if (stat(path, &st) == 0)
+		return 1;
+
+	/* Look for cpu sysfs (specific to s390) */
+	scnprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s",
+		  sysfs, name);
+	if (stat(path, &st) == 0 && !strncmp(name, "cpum_", 5))
 		return 1;
 
 	return 0;
@@ -574,6 +575,34 @@ static int is_pmu_core(const char *name)
 char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 {
 	return NULL;
+}
+
+/* Return zero when the cpuid from the mapfile.csv matches the
+ * cpuid string generated on this platform.
+ * Otherwise return non-zero.
+ */
+int strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
+{
+	regex_t re;
+	regmatch_t pmatch[1];
+	int match;
+
+	if (regcomp(&re, mapcpuid, REG_EXTENDED) != 0) {
+		/* Warn unable to generate match particular string. */
+		pr_info("Invalid regular expression %s\n", mapcpuid);
+		return 1;
+	}
+
+	match = !regexec(&re, cpuid, 1, pmatch, 0);
+	regfree(&re);
+	if (match) {
+		size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
+
+		/* Verify the entire string matched. */
+		if (match_len == strlen(cpuid))
+			return 0;
+	}
+	return 1;
 }
 
 static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
@@ -610,31 +639,14 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 
 	i = 0;
 	for (;;) {
-		regex_t re;
-		regmatch_t pmatch[1];
-		int match;
-
 		map = &pmu_events_map[i++];
 		if (!map->table) {
 			map = NULL;
 			break;
 		}
 
-		if (regcomp(&re, map->cpuid, REG_EXTENDED) != 0) {
-			/* Warn unable to generate match particular string. */
-			pr_info("Invalid regular expression %s\n", map->cpuid);
+		if (!strcmp_cpuid_str(map->cpuid, cpuid))
 			break;
-		}
-
-		match = !regexec(&re, cpuid, 1, pmatch, 0);
-		regfree(&re);
-		if (match) {
-			size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
-
-			/* Verify the entire string matched. */
-			if (match_len == strlen(cpuid))
-				break;
-		}
 	}
 	free(cpuid);
 	return map;
@@ -651,6 +663,7 @@ static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
 	const char *name = pmu->name;
+	const char *pname;
 
 	map = perf_pmu__find_map(pmu);
 	if (!map)
@@ -669,11 +682,9 @@ static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 			break;
 		}
 
-		if (!is_pmu_core(name)) {
-			/* check for uncore devices */
-			if (pe->pmu == NULL)
-				continue;
-			if (strncmp(pe->pmu, name, strlen(pe->pmu)))
+		if (!is_arm_pmu_core(name)) {
+			pname = pe->pmu ? pe->pmu : "cpu";
+			if (strncmp(pname, name, strlen(pname)))
 				continue;
 		}
 

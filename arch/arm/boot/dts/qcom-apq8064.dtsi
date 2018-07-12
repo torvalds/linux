@@ -316,6 +316,23 @@
 		};
 	};
 
+
+	/*
+	 * These channels from the ADC are simply hardware monitors.
+	 * That is why the ADC is referred to as "HKADC" - HouseKeeping
+	 * ADC.
+	 */
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&xoadc 0x00 0x01>, /* Battery */
+			    <&xoadc 0x00 0x02>, /* DC in (charger) */
+			    <&xoadc 0x00 0x04>, /* VPH the main system voltage */
+			    <&xoadc 0x00 0x0b>, /* Die temperature */
+			    <&xoadc 0x00 0x0c>, /* Reference voltage 1.25V */
+			    <&xoadc 0x00 0x0d>, /* Reference voltage 0.625V */
+			    <&xoadc 0x00 0x0e>; /* Charger temperature */
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -769,6 +786,52 @@
 					interrupts = <50 1>, <51 1>;
 					debounce = <15625>;
 					pull-up;
+				};
+
+				xoadc: xoadc@197 {
+					compatible = "qcom,pm8921-adc";
+					reg = <197>;
+					interrupts-extended = <&pmicintc 78 IRQ_TYPE_EDGE_RISING>;
+					#address-cells = <2>;
+					#size-cells = <0>;
+					#io-channel-cells = <2>;
+
+					vcoin: adc-channel@00 {
+						reg = <0x00 0x00>;
+					};
+					vbat: adc-channel@01 {
+						reg = <0x00 0x01>;
+					};
+					dcin: adc-channel@02 {
+						reg = <0x00 0x02>;
+					};
+					vph_pwr: adc-channel@04 {
+						reg = <0x00 0x04>;
+					};
+					batt_therm: adc-channel@08 {
+						reg = <0x00 0x08>;
+					};
+					batt_id: adc-channel@09 {
+						reg = <0x00 0x09>;
+					};
+					usb_vbus: adc-channel@0a {
+						reg = <0x00 0x0a>;
+					};
+					die_temp: adc-channel@0b {
+						reg = <0x00 0x0b>;
+					};
+					ref_625mv: adc-channel@0c {
+						reg = <0x00 0x0c>;
+					};
+					ref_1250mv: adc-channel@0d {
+						reg = <0x00 0x0d>;
+					};
+					chg_temp: adc-channel@0e {
+						reg = <0x00 0x0e>;
+					};
+					ref_muxoff: adc-channel@0f {
+						reg = <0x00 0x0f>;
+					};
 				};
 			};
 		};

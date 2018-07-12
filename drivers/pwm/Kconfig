@@ -43,7 +43,7 @@ config PWM_AB8500
 
 config PWM_ATMEL
 	tristate "Atmel PWM support"
-	depends on ARCH_AT91 || AVR32
+	depends on ARCH_AT91
 	help
 	  Generic PWM framework driver for Atmel SoC.
 
@@ -112,15 +112,6 @@ config PWM_BERLIN
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-berlin.
-
-config PWM_BFIN
-	tristate "Blackfin PWM support"
-	depends on BFIN_GPTIMERS
-	help
-	  Generic PWM framework driver for Blackfin.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-bfin.
 
 config PWM_BRCMSTB
 	tristate "Broadcom STB PWM support"
@@ -209,10 +200,10 @@ config PWM_IMX
 	  will be called pwm-imx.
 
 config PWM_JZ4740
-	tristate "Ingenic JZ4740 PWM support"
-	depends on MACH_JZ4740
+	tristate "Ingenic JZ47xx PWM support"
+	depends on MACH_INGENIC
 	help
-	  Generic PWM framework driver for Ingenic JZ4740 based
+	  Generic PWM framework driver for Ingenic JZ47xx based
 	  machines.
 
 	  To compile this driver as a module, choose M here: the module

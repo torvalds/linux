@@ -276,4 +276,10 @@ void dce110_tg_set_colors(struct timing_generator *tg,
 bool dce110_arm_vert_intr(
 		struct timing_generator *tg, uint8_t width);
 
+bool dce110_configure_crc(struct timing_generator *tg,
+			  const struct crc_params *params);
+
+bool dce110_get_crc(struct timing_generator *tg,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
+
 #endif /* __DC_TIMING_GENERATOR_DCE110_H__ */

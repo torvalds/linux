@@ -401,7 +401,6 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL) {
 		err = -ENOMEM;
-		dev_err(&pdev->dev, "failed to allocate memory\n");
 		goto err_free_tc;
 	}
 

@@ -118,18 +118,4 @@ extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_inode *ip,
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_inode *, int);
 
-/*
- * Check that the extent does not contain an invalid unwritten extent flag.
- */
-static inline bool xfs_bmbt_validate_extent(struct xfs_mount *mp, int whichfork,
-		struct xfs_bmbt_irec *irec)
-{
-	if (irec->br_state == XFS_EXT_NORM)
-		return true;
-	if (whichfork == XFS_DATA_FORK &&
-	    xfs_sb_version_hasextflgbit(&mp->m_sb))
-		return true;
-	return false;
-}
-
 #endif	/* __XFS_BMAP_BTREE_H__ */

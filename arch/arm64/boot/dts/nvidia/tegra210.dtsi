@@ -798,6 +798,22 @@
 		#iommu-cells = <1>;
 	};
 
+	sata@70020000 {
+		compatible = "nvidia,tegra210-ahci";
+		reg = <0x0 0x70027000 0x0 0x2000>, /* AHCI */
+		      <0x0 0x70020000 0x0 0x7000>, /* SATA */
+		      <0x0 0x70001100 0x0 0x1000>; /* SATA AUX */
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA210_CLK_SATA>,
+			 <&tegra_car TEGRA210_CLK_SATA_OOB>;
+		clock-names = "sata", "sata-oob";
+		resets = <&tegra_car 124>,
+			 <&tegra_car 123>,
+			 <&tegra_car 129>;
+		reset-names = "sata", "sata-oob", "sata-cold";
+		status = "disabled";
+	};
+
 	hda@70030000 {
 		compatible = "nvidia,tegra210-hda", "nvidia,tegra30-hda";
 		reg = <0x0 0x70030000 0x0 0x10000>;

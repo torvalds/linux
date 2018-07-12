@@ -180,6 +180,7 @@ int mt76x2_eeprom_init(struct mt76x2_dev *dev);
 int mt76x2_apply_calibration_data(struct mt76x2_dev *dev, int channel);
 void mt76x2_set_tx_ackto(struct mt76x2_dev *dev);
 
+void mt76x2_phy_set_antenna(struct mt76x2_dev *dev);
 int mt76x2_phy_start(struct mt76x2_dev *dev);
 int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 			 struct cfg80211_chan_def *chandef);

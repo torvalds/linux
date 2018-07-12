@@ -474,7 +474,7 @@ int __init atm_proc_init(void)
 	for (e = atm_proc_ents; e->name; e++) {
 		struct proc_dir_entry *dirent;
 
-		dirent = proc_create(e->name, S_IRUGO,
+		dirent = proc_create(e->name, 0444,
 				     atm_proc_root, e->proc_fops);
 		if (!dirent)
 			goto err_out_remove;

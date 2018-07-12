@@ -1,0 +1,54 @@
+#!/bin/sh
+# description: event trigger - test synthetic event create remove
+do_reset() {
+    reset_trigger
+    echo > set_event
+    clear_trace
+}
+
+fail() { #msg
+    do_reset
+    echo $1
+    exit_fail
+}
+
+if [ ! -f set_event ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+if [ ! -f synthetic_events ]; then
+    echo "synthetic event is not supported"
+    exit_unsupported
+fi
+
+clear_synthetic_events
+reset_tracer
+do_reset
+
+echo "Test create synthetic event"
+
+echo 'wakeup_latency  u64 lat pid_t pid char comm[16]' > synthetic_events
+if [ ! -d events/synthetic/wakeup_latency ]; then
+    fail "Failed to create wakeup_latency synthetic event"
+fi
+
+reset_trigger
+
+echo "Test create synthetic event with an error"
+echo 'wakeup_latency  u64 lat pid_t pid char' > synthetic_events > /dev/null
+if [ -d events/synthetic/wakeup_latency ]; then
+    fail "Created wakeup_latency synthetic event with an invalid format"
+fi
+
+reset_trigger
+
+echo "Test remove synthetic event"
+echo '!wakeup_latency  u64 lat pid_t pid char comm[16]' > synthetic_events
+if [ -d events/synthetic/wakeup_latency ]; then
+    fail "Failed to delete wakeup_latency synthetic event"
+fi
+
+do_reset
+
+exit 0

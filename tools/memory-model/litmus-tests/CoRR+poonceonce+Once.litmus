@@ -1,0 +1,26 @@
+C CoRR+poonceonce+Once
+
+(*
+ * Result: Never
+ *
+ * Test of read-read coherence, that is, whether or not two successive
+ * reads from the same variable are ordered.
+ *)
+
+{}
+
+P0(int *x)
+{
+	WRITE_ONCE(*x, 1);
+}
+
+P1(int *x)
+{
+	int r0;
+	int r1;
+
+	r0 = READ_ONCE(*x);
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ 1:r1=0)

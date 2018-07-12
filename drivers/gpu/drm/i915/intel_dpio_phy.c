@@ -147,7 +147,7 @@ struct bxt_ddi_phy_info {
 	 */
 	struct {
 		/**
-		 * @port: which port maps to this channel.
+		 * @channel.port: which port maps to this channel.
 		 */
 		enum port port;
 	} channel[2];

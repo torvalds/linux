@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel(R) Trace Hub data structures
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_TH_H__
@@ -50,9 +42,11 @@ struct intel_th_output {
 /**
  * struct intel_th_drvdata - describes hardware capabilities and quirks
  * @tscu_enable:	device needs SW to enable time stamping unit
+ * @host_mode_only:	device can only operate in 'host debugger' mode
  */
 struct intel_th_drvdata {
-	unsigned int	tscu_enable        : 1;
+	unsigned int	tscu_enable        : 1,
+			host_mode_only     : 1;
 };
 
 #define INTEL_TH_CAP(_th, _cap) ((_th)->drvdata ? (_th)->drvdata->_cap : 0)

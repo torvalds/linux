@@ -209,7 +209,7 @@ static inline int clk_prepare(struct clk *clk)
 	return 0;
 }
 
-static inline int clk_bulk_prepare(int num_clks, struct clk_bulk_data *clks)
+static inline int __must_check clk_bulk_prepare(int num_clks, struct clk_bulk_data *clks)
 {
 	might_sleep();
 	return 0;
@@ -603,8 +603,8 @@ static inline struct clk *clk_get(struct device *dev, const char *id)
 	return NULL;
 }
 
-static inline int clk_bulk_get(struct device *dev, int num_clks,
-			       struct clk_bulk_data *clks)
+static inline int __must_check clk_bulk_get(struct device *dev, int num_clks,
+					    struct clk_bulk_data *clks)
 {
 	return 0;
 }
@@ -614,8 +614,8 @@ static inline struct clk *devm_clk_get(struct device *dev, const char *id)
 	return NULL;
 }
 
-static inline int devm_clk_bulk_get(struct device *dev, int num_clks,
-				    struct clk_bulk_data *clks)
+static inline int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
+						 struct clk_bulk_data *clks)
 {
 	return 0;
 }
@@ -645,7 +645,7 @@ static inline int clk_enable(struct clk *clk)
 	return 0;
 }
 
-static inline int clk_bulk_enable(int num_clks, struct clk_bulk_data *clks)
+static inline int __must_check clk_bulk_enable(int num_clks, struct clk_bulk_data *clks)
 {
 	return 0;
 }
@@ -719,8 +719,8 @@ static inline void clk_disable_unprepare(struct clk *clk)
 	clk_unprepare(clk);
 }
 
-static inline int clk_bulk_prepare_enable(int num_clks,
-					  struct clk_bulk_data *clks)
+static inline int __must_check clk_bulk_prepare_enable(int num_clks,
+					struct clk_bulk_data *clks)
 {
 	int ret;
 

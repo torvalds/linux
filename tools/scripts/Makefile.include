@@ -120,3 +120,5 @@ ifneq ($(silent),1)
 	QUIET_UNINST   = @printf '  UNINST   %s\n' $1;
   endif
 endif
+
+pound := \#

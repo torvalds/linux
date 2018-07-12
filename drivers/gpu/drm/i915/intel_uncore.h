@@ -37,17 +37,28 @@ enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
 	FW_DOMAIN_ID_BLITTER,
 	FW_DOMAIN_ID_MEDIA,
+	FW_DOMAIN_ID_MEDIA_VDBOX0,
+	FW_DOMAIN_ID_MEDIA_VDBOX1,
+	FW_DOMAIN_ID_MEDIA_VDBOX2,
+	FW_DOMAIN_ID_MEDIA_VDBOX3,
+	FW_DOMAIN_ID_MEDIA_VEBOX0,
+	FW_DOMAIN_ID_MEDIA_VEBOX1,
 
 	FW_DOMAIN_ID_COUNT
 };
 
 enum forcewake_domains {
-	FORCEWAKE_RENDER = BIT(FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER = BIT(FW_DOMAIN_ID_BLITTER),
-	FORCEWAKE_MEDIA	= BIT(FW_DOMAIN_ID_MEDIA),
-	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
-			 FORCEWAKE_BLITTER |
-			 FORCEWAKE_MEDIA)
+	FORCEWAKE_RENDER	= BIT(FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_BLITTER	= BIT(FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_MEDIA		= BIT(FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_MEDIA_VDBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX0),
+	FORCEWAKE_MEDIA_VDBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX1),
+	FORCEWAKE_MEDIA_VDBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX2),
+	FORCEWAKE_MEDIA_VDBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX3),
+	FORCEWAKE_MEDIA_VEBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX0),
+	FORCEWAKE_MEDIA_VEBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX1),
+
+	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1
 };
 
 struct intel_uncore_funcs {
@@ -163,11 +174,23 @@ void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv);
 void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv);
 
+int __intel_wait_for_register(struct drm_i915_private *dev_priv,
+			      i915_reg_t reg,
+			      u32 mask,
+			      u32 value,
+			      unsigned int fast_timeout_us,
+			      unsigned int slow_timeout_ms,
+			      u32 *out_value);
+static inline
 int intel_wait_for_register(struct drm_i915_private *dev_priv,
 			    i915_reg_t reg,
 			    u32 mask,
 			    u32 value,
-			    unsigned int timeout_ms);
+			    unsigned int timeout_ms)
+{
+	return __intel_wait_for_register(dev_priv, reg, mask, value, 2,
+					 timeout_ms, NULL);
+}
 int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 				 i915_reg_t reg,
 				 u32 mask,
@@ -185,5 +208,10 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 	return __intel_wait_for_register_fw(dev_priv, reg, mask, value,
 					    2, timeout_ms, NULL);
 }
+
+#define raw_reg_read(base, reg) \
+	readl(base + i915_mmio_reg_offset(reg))
+#define raw_reg_write(base, reg, value) \
+	writel(value, base + i915_mmio_reg_offset(reg))
 
 #endif /* !__INTEL_UNCORE_H__ */

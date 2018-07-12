@@ -16,8 +16,9 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include <linux/mfd/janz.h>
 
@@ -33,9 +34,9 @@
 #define MASTER_INT_CTL		0x00
 #define MASTER_CONF_CTL		0x01
 
-#define CONF_PAE		(1 << 2)
-#define CONF_PBE		(1 << 7)
-#define CONF_PCE		(1 << 4)
+#define CONF_PAE		BIT(2)
+#define CONF_PBE		BIT(7)
+#define CONF_PCE		BIT(4)
 
 struct ttl_control_regs {
 	__be16 portc;
@@ -74,7 +75,7 @@ static int ttl_get_value(struct gpio_chip *gpio, unsigned offset)
 	}
 
 	spin_lock(&mod->lock);
-	ret = *shadow & (1 << offset);
+	ret = *shadow & BIT(offset);
 	spin_unlock(&mod->lock);
 	return !!ret;
 }
@@ -100,9 +101,9 @@ static void ttl_set_value(struct gpio_chip *gpio, unsigned offset, int value)
 
 	spin_lock(&mod->lock);
 	if (value)
-		*shadow |= (1 << offset);
+		*shadow |= BIT(offset);
 	else
-		*shadow &= ~(1 << offset);
+		*shadow &= ~BIT(offset);
 
 	iowrite16be(*shadow, port);
 	spin_unlock(&mod->lock);

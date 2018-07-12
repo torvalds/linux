@@ -21,8 +21,8 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* PC22 periph B with pullup */
-							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_NONE>;		/* PC23 periph B */
+							<AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {

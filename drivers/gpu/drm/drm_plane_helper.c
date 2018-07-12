@@ -106,7 +106,6 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
  * @fb: framebuffer to flip onto plane
  * @src: source coordinates in 16.16 fixed point
  * @dst: integer destination coordinates
- * @clip: integer clipping coordinates
  * @rotation: plane rotation
  * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
  * @max_scale: maximum @src:@dest scaling factor in 16.16 fixed point
@@ -131,7 +130,6 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 				  struct drm_framebuffer *fb,
 				  struct drm_rect *src,
 				  struct drm_rect *dst,
-				  const struct drm_rect *clip,
 				  unsigned int rotation,
 				  int min_scale,
 				  int max_scale,
@@ -157,11 +155,12 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 	struct drm_crtc_state crtc_state = {
 		.crtc = crtc,
 		.enable = crtc->enabled,
+		.mode = crtc->mode,
 	};
 	int ret;
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state, &crtc_state,
-						  clip, min_scale, max_scale,
+						  min_scale, max_scale,
 						  can_position,
 						  can_update_disabled);
 	if (ret)
@@ -239,16 +238,12 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		.x2 = crtc_x + crtc_w,
 		.y2 = crtc_y + crtc_h,
 	};
-	const struct drm_rect clip = {
-		.x2 = crtc->mode.hdisplay,
-		.y2 = crtc->mode.vdisplay,
-	};
 	struct drm_connector **connector_list;
 	int num_connectors, ret;
 	bool visible;
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    &src, &dest, &clip,
+					    &src, &dest,
 					    DRM_MODE_ROTATE_0,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,

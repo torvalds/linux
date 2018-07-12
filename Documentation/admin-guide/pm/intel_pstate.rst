@@ -145,7 +145,7 @@ feature enabled.]
 
 In this mode ``intel_pstate`` registers utilization update callbacks with the
 CPU scheduler in order to run a P-state selection algorithm, either
-``powersave`` or ``performance``, depending on the ``scaling_cur_freq`` policy
+``powersave`` or ``performance``, depending on the ``scaling_governor`` policy
 setting in ``sysfs``.  The current CPU frequency information to be made
 available from the ``scaling_cur_freq`` policy attribute in ``sysfs`` is
 periodically updated by those utilization update callbacks too.

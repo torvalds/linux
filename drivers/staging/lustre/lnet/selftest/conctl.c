@@ -648,14 +648,10 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 		return -EINVAL;
 
 	if (args->lstio_tes_param) {
-		param = kmalloc(args->lstio_tes_param_len, GFP_KERNEL);
-		if (!param)
-			goto out;
-		if (copy_from_user(param, args->lstio_tes_param,
-				   args->lstio_tes_param_len)) {
-			rc = -EFAULT;
-			goto out;
-		}
+		param = memdup_user(args->lstio_tes_param,
+				    args->lstio_tes_param_len);
+		if (IS_ERR(param))
+			return PTR_ERR(param);
 	}
 
 	rc = -EFAULT;
@@ -674,7 +670,7 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 			     args->lstio_tes_param_len,
 			     &ret, args->lstio_tes_resultp);
 
-	if (ret)
+	if (!rc && ret)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
 				   sizeof(ret))) ? -EFAULT : 0;
 out:

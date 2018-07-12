@@ -99,7 +99,6 @@ static inline void invalidate_dcache_range(unsigned long start,
 #ifdef CONFIG_PPC64
 extern void flush_dcache_range(unsigned long start, unsigned long stop);
 extern void flush_inval_dcache_range(unsigned long start, unsigned long stop);
-extern void flush_dcache_phys_range(unsigned long start, unsigned long stop);
 #endif
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \

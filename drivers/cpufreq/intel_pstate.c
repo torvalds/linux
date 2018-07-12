@@ -26,7 +26,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
 #include <linux/acpi.h>
 #include <linux/vmalloc.h>
 #include <trace/events/power.h>

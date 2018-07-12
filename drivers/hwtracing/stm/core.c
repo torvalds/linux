@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * System Trace Module (STM) infrastructure
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * STM class implements generic infrastructure for  System Trace Module devices
  * as defined in MIPI STPv2 specification.
@@ -27,6 +19,7 @@
 #include <linux/stm.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include "stm.h"
 
 #include <uapi/linux/stm.h>
@@ -682,7 +675,7 @@ static void stm_device_release(struct device *dev)
 {
 	struct stm_device *stm = to_stm_device(dev);
 
-	kfree(stm);
+	vfree(stm);
 }
 
 int stm_register_device(struct device *parent, struct stm_data *stm_data,
@@ -699,7 +692,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 		return -EINVAL;
 
 	nmasters = stm_data->sw_end - stm_data->sw_start + 1;
-	stm = kzalloc(sizeof(*stm) + nmasters * sizeof(void *), GFP_KERNEL);
+	stm = vzalloc(sizeof(*stm) + nmasters * sizeof(void *));
 	if (!stm)
 		return -ENOMEM;
 
@@ -752,7 +745,7 @@ err_device:
 	/* matches device_initialize() above */
 	put_device(&stm->dev);
 err_free:
-	kfree(stm);
+	vfree(stm);
 
 	return err;
 }

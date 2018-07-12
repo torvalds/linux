@@ -1864,7 +1864,7 @@ megasas_set_nvme_device_properties(struct scsi_device *sdev, u32 max_io_size)
 
 	blk_queue_max_hw_sectors(sdev->request_queue, (max_io_size / 512));
 
-	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, sdev->request_queue);
+	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, sdev->request_queue);
 	blk_queue_virt_boundary(sdev->request_queue, mr_nvme_pg_size - 1);
 }
 
@@ -4022,7 +4022,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 
 		cmd = instance->cmd_list[i];
 
-		cmd->frame = dma_pool_alloc(instance->frame_dma_pool,
+		cmd->frame = dma_pool_zalloc(instance->frame_dma_pool,
 					    GFP_KERNEL, &cmd->frame_phys_addr);
 
 		cmd->sense = dma_pool_alloc(instance->sense_dma_pool,
@@ -4038,7 +4038,6 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 			return -ENOMEM;
 		}
 
-		memset(cmd->frame, 0, instance->mfi_frame_size);
 		cmd->frame->io.context = cpu_to_le32(cmd->index);
 		cmd->frame->io.pad_0 = 0;
 		if ((instance->adapter_type == MFI_SERIES) && reset_devices)

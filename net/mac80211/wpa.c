@@ -340,7 +340,7 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 	a4_included = ieee80211_has_a4(hdr->frame_control);
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		qos_tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		qos_tid = ieee80211_get_tid(hdr);
 	else
 		qos_tid = 0;
 
@@ -601,8 +601,7 @@ static void gcmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *j_0, u8 *aad)
 	aad[23] = 0;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		qos_tid = *ieee80211_get_qos_ctl(hdr) &
-			IEEE80211_QOS_CTL_TID_MASK;
+		qos_tid = ieee80211_get_tid(hdr);
 	else
 		qos_tid = 0;
 
@@ -867,8 +866,7 @@ ieee80211_crypto_cs_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		qos_tid = *ieee80211_get_qos_ctl(hdr) &
-				IEEE80211_QOS_CTL_TID_MASK;
+		qos_tid = ieee80211_get_tid(hdr);
 	else
 		qos_tid = 0;
 

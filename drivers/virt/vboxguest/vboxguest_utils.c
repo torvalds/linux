@@ -65,8 +65,9 @@ VBG_LOG(vbg_debug, pr_debug);
 void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type)
 {
 	struct vmmdev_request_header *req;
+	int order = get_order(PAGE_ALIGN(len));
 
-	req = kmalloc(len, GFP_KERNEL | __GFP_DMA32);
+	req = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 	if (!req)
 		return NULL;
 
@@ -80,6 +81,14 @@ void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type)
 	req->reserved2 = 0;
 
 	return req;
+}
+
+void vbg_req_free(void *req, size_t len)
+{
+	if (!req)
+		return;
+
+	free_pages((unsigned long)req, get_order(PAGE_ALIGN(len)));
 }
 
 /* Note this function returns a VBox status code, not a negative errno!! */
@@ -137,7 +146,7 @@ int vbg_hgcm_connect(struct vbg_dev *gdev,
 		rc = hgcm_connect->header.result;
 	}
 
-	kfree(hgcm_connect);
+	vbg_req_free(hgcm_connect, sizeof(*hgcm_connect));
 
 	*vbox_status = rc;
 	return 0;
@@ -166,7 +175,7 @@ int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status)
 	if (rc >= 0)
 		rc = hgcm_disconnect->header.result;
 
-	kfree(hgcm_disconnect);
+	vbg_req_free(hgcm_disconnect, sizeof(*hgcm_disconnect));
 
 	*vbox_status = rc;
 	return 0;
@@ -623,7 +632,7 @@ int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
 	}
 
 	if (!leak_it)
-		kfree(call);
+		vbg_req_free(call, size);
 
 free_bounce_bufs:
 	if (bounce_bufs) {

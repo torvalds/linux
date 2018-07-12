@@ -40,6 +40,7 @@
 #include <asm/fpsimd.h>
 #include <asm/ptrace.h>
 #include <asm/signal32.h>
+#include <asm/traps.h>
 #include <asm/vdso.h>
 
 /*
@@ -179,7 +180,7 @@ static void __user *apply_user_offset(
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
 	struct user_fpsimd_state const *fpsimd =
-		&current->thread.fpsimd_state.user_fpsimd;
+		&current->thread.uw.fpsimd_state;
 	int err;
 
 	/* copy the FP and status/control registers */
@@ -565,11 +566,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->regs[0];
 
 badframe:
-	if (show_unhandled_signals)
-		pr_info_ratelimited("%s[%d]: bad frame in %s: pc=%08llx sp=%08llx\n",
-				    current->comm, task_pid_nr(current), __func__,
-				    regs->pc, regs->sp);
-	force_sig(SIGSEGV, current);
+	arm64_notify_segfault(regs->sp);
 	return 0;
 }
 

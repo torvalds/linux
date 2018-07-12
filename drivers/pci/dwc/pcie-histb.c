@@ -61,6 +61,7 @@ struct histb_pcie {
 	struct reset_control *bus_reset;
 	void __iomem *ctrl;
 	int reset_gpio;
+	struct regulator *vpcie;
 };
 
 static u32 histb_pcie_readl(struct histb_pcie *histb_pcie, u32 reg)
@@ -207,13 +208,6 @@ static struct dw_pcie_host_ops histb_pcie_host_ops = {
 	.host_init = histb_pcie_host_init,
 };
 
-static irqreturn_t histb_pcie_msi_irq_handler(int irq, void *arg)
-{
-	struct pcie_port *pp = arg;
-
-	return dw_handle_msi_irq(pp);
-}
-
 static void histb_pcie_host_disable(struct histb_pcie *hipcie)
 {
 	reset_control_assert(hipcie->soft_reset);
@@ -227,6 +221,9 @@ static void histb_pcie_host_disable(struct histb_pcie *hipcie)
 
 	if (gpio_is_valid(hipcie->reset_gpio))
 		gpio_set_value_cansleep(hipcie->reset_gpio, 0);
+
+	if (hipcie->vpcie)
+		regulator_disable(hipcie->vpcie);
 }
 
 static int histb_pcie_host_enable(struct pcie_port *pp)
@@ -237,6 +234,14 @@ static int histb_pcie_host_enable(struct pcie_port *pp)
 	int ret;
 
 	/* power on PCIe device if have */
+	if (hipcie->vpcie) {
+		ret = regulator_enable(hipcie->vpcie);
+		if (ret) {
+			dev_err(dev, "failed to enable regulator: %d\n", ret);
+			return ret;
+		}
+	}
+
 	if (gpio_is_valid(hipcie->reset_gpio))
 		gpio_set_value_cansleep(hipcie->reset_gpio, 1);
 
@@ -276,13 +281,14 @@ static int histb_pcie_host_enable(struct pcie_port *pp)
 	return 0;
 
 err_aux_clk:
-	clk_disable_unprepare(hipcie->aux_clk);
-err_pipe_clk:
 	clk_disable_unprepare(hipcie->pipe_clk);
-err_sys_clk:
+err_pipe_clk:
 	clk_disable_unprepare(hipcie->sys_clk);
-err_bus_clk:
+err_sys_clk:
 	clk_disable_unprepare(hipcie->bus_clk);
+err_bus_clk:
+	if (hipcie->vpcie)
+		regulator_disable(hipcie->vpcie);
 
 	return ret;
 }
@@ -330,6 +336,13 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pci->dbi_base)) {
 		dev_err(dev, "cannot get rc-dbi base\n");
 		return PTR_ERR(pci->dbi_base);
+	}
+
+	hipcie->vpcie = devm_regulator_get_optional(dev, "vpcie");
+	if (IS_ERR(hipcie->vpcie)) {
+		if (PTR_ERR(hipcie->vpcie) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		hipcie->vpcie = NULL;
 	}
 
 	hipcie->reset_gpio = of_get_named_gpio_flags(np,
@@ -392,14 +405,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		if (pp->msi_irq < 0) {
 			dev_err(dev, "Failed to get MSI IRQ\n");
 			return pp->msi_irq;
-		}
-
-		ret = devm_request_irq(dev, pp->msi_irq,
-				       histb_pcie_msi_irq_handler,
-				       IRQF_SHARED, "histb-pcie-msi", pp);
-		if (ret) {
-			dev_err(dev, "cannot request MSI IRQ\n");
-			return ret;
 		}
 	}
 

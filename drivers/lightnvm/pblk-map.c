@@ -65,6 +65,8 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			lba_list[paddr] = cpu_to_le64(w_ctx->lba);
 			if (lba_list[paddr] != addr_empty)
 				line->nr_valid_lbas++;
+			else
+				atomic64_inc(&pblk->pad_wa);
 		} else {
 			lba_list[paddr] = meta_list[i].lba = addr_empty;
 			__pblk_map_invalidate(pblk, line, paddr);
@@ -125,7 +127,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			atomic_dec(&e_line->left_eblks);
 
 			*erase_ppa = rqd->ppa_list[i];
-			erase_ppa->g.blk = e_line->id;
+			erase_ppa->a.blk = e_line->id;
 
 			spin_unlock(&e_line->lock);
 
@@ -166,6 +168,6 @@ retry:
 		set_bit(bit, e_line->erase_bitmap);
 		atomic_dec(&e_line->left_eblks);
 		*erase_ppa = pblk->luns[bit].bppa; /* set ch and lun */
-		erase_ppa->g.blk = e_line->id;
+		erase_ppa->a.blk = e_line->id;
 	}
 }

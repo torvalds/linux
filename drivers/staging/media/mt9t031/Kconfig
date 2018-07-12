@@ -1,0 +1,11 @@
+config SOC_CAMERA_IMX074
+	tristate "imx074 support (DEPRECATED)"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports IMX074 cameras from Sony
+
+config SOC_CAMERA_MT9T031
+	tristate "mt9t031 support (DEPRECATED)"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9T031 cameras from Micron.

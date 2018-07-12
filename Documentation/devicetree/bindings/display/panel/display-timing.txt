@@ -80,6 +80,11 @@ The parameters are defined as:
   |          |        v                            |          |       |
   +----------+-------------------------------------+----------+-------+
 
+Note: In addition to being used as subnode(s) of display-timings, the timing
+      subnode may also be used on its own. This is appropriate if only one mode
+      need be conveyed. In this case, the node should be named 'panel-timing'.
+
+
 Example:
 
 	display-timings {

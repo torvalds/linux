@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pcie/aer/aerdrv.c
- *
- * This file implements the AER root port service driver. The driver will
- * register an irq handler. When root port triggers an AER interrupt, the irq
- * handler will collect root port status and schedule a work.
+ * Implement the AER root port service driver. The driver registers an IRQ
+ * handler. When a root port triggers an AER interrupt, the IRQ handler
+ * collects root port status and schedules work.
  *
  * Copyright (C) 2006 Intel Corp.
  *	Tom Long Nguyen (tom.l.nguyen@intel.com)
  *	Zhang Yanmin (yanmin.zhang@intel.com)
- *
  */
 
 #include <linux/pci.h>
@@ -21,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/pcieport_if.h>
 #include <linux/slab.h>
 
 #include "aerdrv.h"

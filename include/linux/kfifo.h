@@ -41,11 +41,11 @@
  */
 
 /*
- * Note about locking : There is no locking required until only * one reader
- * and one writer is using the fifo and no kfifo_reset() will be * called
- *  kfifo_reset_out() can be safely used, until it will be only called
+ * Note about locking: There is no locking required until only one reader
+ * and one writer is using the fifo and no kfifo_reset() will be called.
+ * kfifo_reset_out() can be safely used, until it will be only called
  * in the reader thread.
- *  For multiple writer and one reader there is only a need to lock the writer.
+ * For multiple writer and one reader there is only a need to lock the writer.
  * And vice versa for only one writer and multiple reader there is only a need
  * to lock the reader.
  */

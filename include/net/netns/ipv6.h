@@ -28,6 +28,7 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_gc_elasticity;
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
+	int multipath_hash_policy;
 	int flowlabel_consistency;
 	int auto_flowlabels;
 	int icmpv6_time;
@@ -71,7 +72,8 @@ struct netns_ipv6 {
 	unsigned int		 ip6_rt_gc_expire;
 	unsigned long		 ip6_rt_last_gc;
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
-	bool			 fib6_has_custom_rules;
+	unsigned int		fib6_rules_require_fldissect;
+	bool			fib6_has_custom_rules;
 	struct rt6_info         *ip6_prohibit_entry;
 	struct rt6_info         *ip6_blk_hole_entry;
 	struct fib6_table       *fib6_local_tbl;
@@ -84,7 +86,7 @@ struct netns_ipv6 {
 	struct sock		*mc_autojoin_sk;
 #ifdef CONFIG_IPV6_MROUTE
 #ifndef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
-	struct mr6_table	*mrt6;
+	struct mr_table		*mrt6;
 #else
 	struct list_head	mr6_tables;
 	struct fib_rules_ops	*mr6_rules_ops;
@@ -94,6 +96,8 @@ struct netns_ipv6 {
 	atomic_t		fib6_sernum;
 	struct seg6_pernet_data *seg6_data;
 	struct fib_notifier_ops	*notifier_ops;
+	struct fib_notifier_ops	*ip6mr_notifier_ops;
+	unsigned int ipmr_seq; /* protected by rtnl_mutex */
 	struct {
 		struct hlist_head head;
 		spinlock_t	lock;

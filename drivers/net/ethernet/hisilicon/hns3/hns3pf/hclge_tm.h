@@ -109,6 +109,10 @@ struct hclge_cfg_pause_param_cmd {
 	__le16 pause_trans_time;
 };
 
+struct hclge_pfc_stats_cmd {
+	__le64 pkt_num[3];
+};
+
 struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
 };
@@ -129,5 +133,7 @@ int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
 int hclge_tm_map_cfg(struct hclge_dev *hdev);
 int hclge_tm_init_hw(struct hclge_dev *hdev);
 int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);
-int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
+int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
+int hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats);
+int hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats);
 #endif

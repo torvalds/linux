@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pci-sysfs.c
- *
  * (C) Copyright 2002-2004 Greg Kroah-Hartman <greg@kroah.com>
  * (C) Copyright 2002-2004 IBM Corp.
  * (C) Copyright 2003 Matthew Wilcox
@@ -12,7 +10,6 @@
  * File attributes for PCI devices
  *
  * Modeled after usb's driverfs.c
- *
  */
 
 
@@ -158,45 +155,18 @@ static DEVICE_ATTR_RO(resource);
 static ssize_t max_link_speed_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	u32 linkcap;
-	int err;
-	const char *speed;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	err = pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &linkcap);
-	if (err)
-		return -EINVAL;
-
-	switch (linkcap & PCI_EXP_LNKCAP_SLS) {
-	case PCI_EXP_LNKCAP_SLS_8_0GB:
-		speed = "8 GT/s";
-		break;
-	case PCI_EXP_LNKCAP_SLS_5_0GB:
-		speed = "5 GT/s";
-		break;
-	case PCI_EXP_LNKCAP_SLS_2_5GB:
-		speed = "2.5 GT/s";
-		break;
-	default:
-		speed = "Unknown speed";
-	}
-
-	return sprintf(buf, "%s\n", speed);
+	return sprintf(buf, "%s\n", PCIE_SPEED2STR(pcie_get_speed_cap(pdev)));
 }
 static DEVICE_ATTR_RO(max_link_speed);
 
 static ssize_t max_link_width_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	u32 linkcap;
-	int err;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	err = pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &linkcap);
-	if (err)
-		return -EINVAL;
-
-	return sprintf(buf, "%u\n", (linkcap & PCI_EXP_LNKCAP_MLW) >> 4);
+	return sprintf(buf, "%u\n", pcie_get_width_cap(pdev));
 }
 static DEVICE_ATTR_RO(max_link_width);
 
@@ -213,6 +183,9 @@ static ssize_t current_link_speed_show(struct device *dev,
 		return -EINVAL;
 
 	switch (linkstat & PCI_EXP_LNKSTA_CLS) {
+	case PCI_EXP_LNKSTA_CLS_16_0GB:
+		speed = "16 GT/s";
+		break;
 	case PCI_EXP_LNKSTA_CLS_8_0GB:
 		speed = "8 GT/s";
 		break;
@@ -982,38 +955,6 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static ssize_t read_vpd_attr(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t off, size_t count)
-{
-	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
-
-	return pci_read_vpd(dev, off, count, buf);
-}
-
-static ssize_t write_vpd_attr(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr, char *buf,
-			      loff_t off, size_t count)
-{
-	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
-
-	return pci_write_vpd(dev, off, count, buf);
-}
-
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
@@ -1517,46 +1458,20 @@ static struct device_attribute reset_attr = __ATTR(reset, 0200, NULL, reset_stor
 static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 {
 	int retval;
-	struct bin_attribute *attr;
 
-	/* If the device has VPD, try to expose it in sysfs. */
-	if (dev->vpd) {
-		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-		if (!attr)
-			return -ENOMEM;
-
-		sysfs_bin_attr_init(attr);
-		attr->size = 0;
-		attr->attr.name = "vpd";
-		attr->attr.mode = S_IRUSR | S_IWUSR;
-		attr->read = read_vpd_attr;
-		attr->write = write_vpd_attr;
-		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
-		if (retval) {
-			kfree(attr);
-			return retval;
-		}
-		dev->vpd->attr = attr;
-	}
-
-	/* Active State Power Management */
+	pcie_vpd_create_sysfs_dev_files(dev);
 	pcie_aspm_create_sysfs_dev_files(dev);
 
-	if (!pci_probe_reset_function(dev)) {
+	if (dev->reset_fn) {
 		retval = device_create_file(&dev->dev, &reset_attr);
 		if (retval)
 			goto error;
-		dev->reset_fn = 1;
 	}
 	return 0;
 
 error:
 	pcie_aspm_remove_sysfs_dev_files(dev);
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-
+	pcie_vpd_remove_sysfs_dev_files(dev);
 	return retval;
 }
 
@@ -1630,11 +1545,7 @@ err:
 
 static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
 {
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-
+	pcie_vpd_remove_sysfs_dev_files(dev);
 	pcie_aspm_remove_sysfs_dev_files(dev);
 	if (dev->reset_fn) {
 		device_remove_file(&dev->dev, &reset_attr);

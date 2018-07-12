@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Intel(R) Ethernet Switch Host Interface Driver
  * Copyright(c) 2013 - 2017 Intel Corporation.
  *

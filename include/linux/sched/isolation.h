@@ -12,6 +12,7 @@ enum hk_flags {
 	HK_FLAG_SCHED		= (1 << 3),
 	HK_FLAG_TICK		= (1 << 4),
 	HK_FLAG_DOMAIN		= (1 << 5),
+	HK_FLAG_WQ		= (1 << 6),
 };
 
 #ifdef CONFIG_CPU_ISOLATION

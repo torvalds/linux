@@ -14,6 +14,8 @@
 #ifndef __CPU_SH7786_H__
 #define __CPU_SH7786_H__
 
+#include <linux/io.h>
+
 enum {
 	/* PA */
 	GPIO_PA7, GPIO_PA6, GPIO_PA5, GPIO_PA4,
@@ -130,5 +132,10 @@ enum {
 	/* INTC */
 	GPIO_FN_IRL7, GPIO_FN_IRL6, GPIO_FN_IRL5, GPIO_FN_IRL4,
 };
+
+static inline u32 sh7786_mm_sel(void)
+{
+	return __raw_readl(0xFC400020) & 0x7;
+}
 
 #endif /* __CPU_SH7786_H__ */

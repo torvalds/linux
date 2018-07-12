@@ -125,6 +125,17 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_CHT_BSW_NAU8824_MACH
+	tristate "Cherrytrail & Braswell with NAU88L24 codec"
+	depends on X86_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_ACPI
+	select SND_SOC_NAU8824
+	help
+	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+	  platforms with NAU88L24 audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_BYT_CHT_DA7213_MACH
 	tristate "Baytrail & Cherrytrail with DA7212/7213 codec"
 	depends on X86_INTEL_LPSS && I2C && ACPI
@@ -256,6 +267,20 @@ config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
           create an alsa sound card for RT5663 + RT5514 + MAX98927.
           Say Y or m if you have such a device. This is a recommended option.
           If unsure select "N".
+
+config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
+	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_DA7219
+	select SND_SOC_MAX98357A
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+	help
+	  This adds support for ASoC Onboard Codec I2S machine driver. This will
+	  create an alsa sound card for DA7219 + MAX98357A I2S audio codec.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 endif ## SND_SOC_INTEL_SKYLAKE
 
 endif ## SND_SOC_INTEL_MACH

@@ -66,7 +66,6 @@
 #define PCNET_RDC_TIMEOUT (2*HZ/100)	/* Max wait in jiffies for Tx RDC */
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
-static u32 pcnet_msg_enable;
 
 /*====================================================================*/
 
@@ -556,7 +555,6 @@ static int pcnet_config(struct pcmcia_device *link)
     int start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     struct hw_info *local_hw_info;
-    struct ei_device *ei_local;
 
     dev_dbg(&link->dev, "pcnet_config\n");
 
@@ -606,8 +604,6 @@ static int pcnet_config(struct pcmcia_device *link)
 	mii_phy_probe(dev);
 
     SET_NETDEV_DEV(dev, &link->dev);
-    ei_local = netdev_priv(dev);
-    ei_local->msg_enable = pcnet_msg_enable;
 
     if (register_netdev(dev) != 0) {
 	pr_notice("register_netdev() failed\n");

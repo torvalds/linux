@@ -338,6 +338,7 @@ struct sdma_channel {
 	unsigned int			chn_real_count;
 	struct tasklet_struct		tasklet;
 	struct imx_dma_data		data;
+	bool				enabled;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -596,7 +597,14 @@ static int sdma_config_ownership(struct sdma_channel *sdmac,
 
 static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 {
+	unsigned long flags;
+	struct sdma_channel *sdmac = &sdma->channel[channel];
+
 	writel(BIT(channel), sdma->regs + SDMA_H_START);
+
+	spin_lock_irqsave(&sdmac->lock, flags);
+	sdmac->enabled = true;
+	spin_unlock_irqrestore(&sdmac->lock, flags);
 }
 
 /*
@@ -685,6 +693,14 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 	struct sdma_buffer_descriptor *bd;
 	int error = 0;
 	enum dma_status	old_status = sdmac->status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sdmac->lock, flags);
+	if (!sdmac->enabled) {
+		spin_unlock_irqrestore(&sdmac->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&sdmac->lock, flags);
 
 	/*
 	 * loop mode. Iterate over descriptors, re-setup them and
@@ -938,9 +954,14 @@ static int sdma_disable_channel(struct dma_chan *chan)
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int channel = sdmac->channel;
+	unsigned long flags;
 
 	writel_relaxed(BIT(channel), sdma->regs + SDMA_H_STATSTOP);
 	sdmac->status = DMA_ERROR;
+
+	spin_lock_irqsave(&sdmac->lock, flags);
+	sdmac->enabled = false;
+	spin_unlock_irqrestore(&sdmac->lock, flags);
 
 	return 0;
 }

@@ -46,6 +46,7 @@
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8-gpio.h>
 #include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
+#include <dt-bindings/reset/amlogic,meson8b-reset.h>
 #include "meson.dtsi"
 
 / {
@@ -185,6 +186,12 @@
 		#reset-cells = <1>;
 		compatible = "amlogic,meson8-clkc";
 		reg = <0x8000 0x4>, <0x4000 0x460>;
+	};
+
+	reset: reset-controller@4404 {
+		compatible = "amlogic,meson8b-reset";
+		reg = <0x4404 0x9c>;
+		#reset-cells = <1>;
 	};
 
 	analog_top: analog-top@81a8 {
@@ -383,10 +390,12 @@
 	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
 	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
 };
 
 &usb1_phy {
 	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
 };

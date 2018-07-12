@@ -1239,17 +1239,38 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 	wdev_lock(wdev);
 
 	if (wdev->conn_owner_nlportid) {
-		/*
-		 * Use disconnect_bssid if still connecting and ops->disconnect
-		 * not implemented.  Otherwise we can use cfg80211_disconnect.
-		 */
-		if (rdev->ops->disconnect || wdev->current_bss)
-			cfg80211_disconnect(rdev, wdev->netdev,
-					    WLAN_REASON_DEAUTH_LEAVING, true);
-		else
-			cfg80211_mlme_deauth(rdev, wdev->netdev,
-					     wdev->disconnect_bssid, NULL, 0,
-					     WLAN_REASON_DEAUTH_LEAVING, false);
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_leave_ibss(rdev, wdev->netdev, false);
+			break;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			cfg80211_stop_ap(rdev, wdev->netdev, false);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			cfg80211_leave_mesh(rdev, wdev->netdev);
+			break;
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_P2P_CLIENT:
+			/*
+			 * Use disconnect_bssid if still connecting and
+			 * ops->disconnect not implemented.  Otherwise we can
+			 * use cfg80211_disconnect.
+			 */
+			if (rdev->ops->disconnect || wdev->current_bss)
+				cfg80211_disconnect(rdev, wdev->netdev,
+						    WLAN_REASON_DEAUTH_LEAVING,
+						    true);
+			else
+				cfg80211_mlme_deauth(rdev, wdev->netdev,
+						     wdev->disconnect_bssid,
+						     NULL, 0,
+						     WLAN_REASON_DEAUTH_LEAVING,
+						     false);
+			break;
+		default:
+			break;
+		}
 	}
 
 	wdev_unlock(wdev);

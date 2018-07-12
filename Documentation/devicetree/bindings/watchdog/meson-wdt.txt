@@ -9,9 +9,13 @@ Required properties:
 	"amlogic,meson8m2-wdt" and "amlogic,meson8b-wdt" on Meson8m2 SoCs
 - reg : Specifies base physical address and size of the registers.
 
+Optional properties:
+- timeout-sec: contains the watchdog timeout in seconds.
+
 Example:
 
 wdt: watchdog@c1109900 {
 	compatible = "amlogic,meson6-wdt";
 	reg = <0xc1109900 0x8>;
+	timeout-sec = <10>;
 };

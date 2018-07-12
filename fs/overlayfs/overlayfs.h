@@ -202,7 +202,7 @@ void ovl_drop_write(struct dentry *dentry);
 struct dentry *ovl_workdir(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
 struct super_block *ovl_same_sb(struct super_block *sb);
-bool ovl_can_decode_fh(struct super_block *sb);
+int ovl_can_decode_fh(struct super_block *sb);
 struct dentry *ovl_indexdir(struct super_block *sb);
 bool ovl_index_all(struct super_block *sb);
 bool ovl_verify_lower(struct super_block *sb);
@@ -215,6 +215,7 @@ void ovl_path_lower(struct dentry *dentry, struct path *path);
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
+struct ovl_layer *ovl_layer_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct dentry *ovl_i_dentry_upper(struct inode *inode);
 struct inode *ovl_inode_upper(struct inode *inode);
@@ -263,11 +264,19 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_IMPURE);
 }
 
+static inline unsigned int ovl_xino_bits(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->xino_bits;
+}
+
 
 /* namei.c */
 int ovl_check_fh_len(struct ovl_fh *fh, int fh_len);
-struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt);
-int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
+struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
+				  bool connected);
+int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 			struct dentry *upperdentry, struct ovl_path **stackp);
 int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 		      struct dentry *real, bool is_upper, bool set);
@@ -329,7 +338,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
 struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
 			       bool is_upper);
 struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
-			    struct dentry *lowerdentry, struct dentry *index,
+			    struct ovl_path *lowerpath, struct dentry *index,
 			    unsigned int numlower);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
@@ -361,7 +370,7 @@ int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
-struct ovl_fh *ovl_encode_fh(struct dentry *real, bool is_upper);
+struct ovl_fh *ovl_encode_real_fh(struct dentry *real, bool is_upper);
 int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 		   struct dentry *upper);
 

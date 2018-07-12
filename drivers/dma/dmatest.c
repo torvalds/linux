@@ -74,7 +74,11 @@ MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 
 static bool noverify;
 module_param(noverify, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(noverify, "Disable random data setup and verification");
+MODULE_PARM_DESC(noverify, "Disable data verification (default: verify)");
+
+static bool norandom;
+module_param(norandom, bool, 0644);
+MODULE_PARM_DESC(norandom, "Disable random offset setup (default: random)");
 
 static bool verbose;
 module_param(verbose, bool, S_IRUGO | S_IWUSR);
@@ -103,6 +107,7 @@ struct dmatest_params {
 	unsigned int	pq_sources;
 	int		timeout;
 	bool		noverify;
+	bool		norandom;
 };
 
 /**
@@ -575,7 +580,7 @@ static int dmatest_func(void *data)
 			break;
 		}
 
-		if (params->noverify)
+		if (params->norandom)
 			len = params->buf_size;
 		else
 			len = dmatest_random() % params->buf_size + 1;
@@ -586,17 +591,19 @@ static int dmatest_func(void *data)
 
 		total_len += len;
 
-		if (params->noverify) {
+		if (params->norandom) {
 			src_off = 0;
 			dst_off = 0;
 		} else {
-			start = ktime_get();
 			src_off = dmatest_random() % (params->buf_size - len + 1);
 			dst_off = dmatest_random() % (params->buf_size - len + 1);
 
 			src_off = (src_off >> align) << align;
 			dst_off = (dst_off >> align) << align;
+		}
 
+		if (!params->noverify) {
+			start = ktime_get();
 			dmatest_init_srcs(thread->srcs, src_off, len,
 					  params->buf_size, is_memset);
 			dmatest_init_dsts(thread->dsts, dst_off, len,
@@ -975,6 +982,7 @@ static void run_threaded_test(struct dmatest_info *info)
 	params->pq_sources = pq_sources;
 	params->timeout = timeout;
 	params->noverify = noverify;
+	params->norandom = norandom;
 
 	request_channels(info, DMA_MEMCPY);
 	request_channels(info, DMA_MEMSET);

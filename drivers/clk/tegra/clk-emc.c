@@ -515,7 +515,7 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 
 	init.name = "emc";
 	init.ops = &tegra_clk_emc_ops;
-	init.flags = 0;
+	init.flags = CLK_IS_CRITICAL;
 	init.parent_names = emc_parent_clk_names;
 	init.num_parents = ARRAY_SIZE(emc_parent_clk_names);
 

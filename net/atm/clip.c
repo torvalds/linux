@@ -893,7 +893,7 @@ static int __init atm_clip_init(void)
 	{
 		struct proc_dir_entry *p;
 
-		p = proc_create("arp", S_IRUGO, atm_proc_root, &arp_seq_fops);
+		p = proc_create("arp", 0444, atm_proc_root, &arp_seq_fops);
 		if (!p) {
 			pr_err("Unable to initialize /proc/net/atm/arp\n");
 			atm_clip_exit_noproc();

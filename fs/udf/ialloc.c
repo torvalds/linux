@@ -104,6 +104,10 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 	}
 
 	inode_init_owner(inode, dir, mode);
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET))
+		inode->i_uid = sbi->s_uid;
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
+		inode->i_gid = sbi->s_gid;
 
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =

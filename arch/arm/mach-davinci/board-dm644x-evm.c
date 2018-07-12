@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
+#include <linux/platform_data/gpio-davinci.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
@@ -596,12 +597,15 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	},
 };
 
+#define DM644X_I2C_SDA_PIN	GPIO_TO_PIN(2, 12)
+#define DM644X_I2C_SCL_PIN	GPIO_TO_PIN(2, 11)
+
 static struct gpiod_lookup_table i2c_recovery_gpiod_table = {
-	.dev_id = "i2c_davinci",
+	.dev_id = "i2c_davinci.1",
 	.table = {
-		GPIO_LOOKUP("davinci_gpio", 44, "sda",
+		GPIO_LOOKUP("davinci_gpio.0", DM644X_I2C_SDA_PIN, "sda",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
-		GPIO_LOOKUP("davinci_gpio", 43, "scl",
+		GPIO_LOOKUP("davinci_gpio.0", DM644X_I2C_SCL_PIN, "scl",
 			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 	},
 };
@@ -828,9 +832,8 @@ MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	.atag_offset  = 0x100,
 	.map_io	      = davinci_evm_map_io,
 	.init_irq     = davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm644x_init_time,
 	.init_machine = davinci_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

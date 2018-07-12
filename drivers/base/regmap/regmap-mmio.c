@@ -28,6 +28,8 @@
 struct regmap_mmio_context {
 	void __iomem *regs;
 	unsigned val_bytes;
+
+	bool attached_clk;
 	struct clk *clk;
 
 	void (*reg_write)(struct regmap_mmio_context *ctx,
@@ -362,5 +364,27 @@ struct regmap *__devm_regmap_init_mmio_clk(struct device *dev,
 				  lock_key, lock_name);
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_mmio_clk);
+
+int regmap_mmio_attach_clk(struct regmap *map, struct clk *clk)
+{
+	struct regmap_mmio_context *ctx = map->bus_context;
+
+	ctx->clk = clk;
+	ctx->attached_clk = true;
+
+	return clk_prepare(ctx->clk);
+}
+EXPORT_SYMBOL_GPL(regmap_mmio_attach_clk);
+
+void regmap_mmio_detach_clk(struct regmap *map)
+{
+	struct regmap_mmio_context *ctx = map->bus_context;
+
+	clk_unprepare(ctx->clk);
+
+	ctx->attached_clk = false;
+	ctx->clk = NULL;
+}
+EXPORT_SYMBOL_GPL(regmap_mmio_detach_clk);
 
 MODULE_LICENSE("GPL v2");

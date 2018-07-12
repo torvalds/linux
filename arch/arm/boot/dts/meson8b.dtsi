@@ -152,7 +152,7 @@
 
 	reset: reset-controller@4404 {
 		compatible = "amlogic,meson8b-reset";
-		reg = <0x4404 0x20>;
+		reg = <0x4404 0x9c>;
 		#reset-cells = <1>;
 	};
 
@@ -183,7 +183,36 @@
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_cbus 0 0 130>;
+			gpio-ranges = <&pinctrl_cbus 0 0 83>;
+		};
+
+		eth_rgmii_pins: eth-rgmii {
+			mux {
+				groups = "eth_tx_clk",
+					 "eth_tx_en",
+					 "eth_txd1_0",
+					 "eth_txd1_1",
+					 "eth_txd0_0",
+					 "eth_txd0_1",
+					 "eth_rx_clk",
+					 "eth_rx_dv",
+					 "eth_rxd1",
+					 "eth_rxd0",
+					 "eth_mdio_en",
+					 "eth_mdc",
+					 "eth_ref_clk",
+					 "eth_txd2",
+					 "eth_txd3";
+				function = "ethernet";
+			};
+		};
+
+		sd_b_pins: sd-b {
+			mux {
+				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
+					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
+				function = "sd_b";
+			};
 		};
 	};
 };
@@ -203,8 +232,18 @@
 };
 
 &ethmac {
-	clocks = <&clkc CLKID_ETH>;
-	clock-names = "stmmaceth";
+	compatible = "amlogic,meson8b-dwmac", "snps,dwmac-3.70a", "snps,dwmac";
+
+	reg = <0xc9410000 0x10000
+	       0xc1108140 0x4>;
+
+	clocks = <&clkc CLKID_ETH>,
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_MPLL2>;
+	clock-names = "stmmaceth", "clkin0", "clkin1";
+
+	resets = <&reset RESET_ETHERNET>;
+	reset-names = "stmmaceth";
 };
 
 &gpio_intc {
@@ -217,6 +256,18 @@
 	compatible = "amlogic,meson8b-rng", "amlogic,meson-rng";
 	clocks = <&clkc CLKID_RNG0>;
 	clock-names = "core";
+};
+
+&i2c_AO {
+	clocks = <&clkc CLKID_CLK81>;
+};
+
+&i2c_A {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_I2C>;
 };
 
 &L2 {
