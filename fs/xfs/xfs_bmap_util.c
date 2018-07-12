@@ -1570,7 +1570,6 @@ xfs_swap_extent_rmap(
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
 	xfs_filblks_t			count_fsb;
-	xfs_fsblock_t			firstfsb;
 	int				error;
 	xfs_filblks_t			ilen;
 	xfs_filblks_t			rlen;
@@ -1606,7 +1605,7 @@ xfs_swap_extent_rmap(
 
 		/* Unmap the old blocks in the source file. */
 		while (tirec.br_blockcount) {
-			xfs_defer_init(tp, tp->t_dfops, &firstfsb);
+			xfs_defer_init(tp, tp->t_dfops, &tp->t_firstblock);
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &tirec);
 
 			/* Read extent from the source file */
@@ -1848,7 +1847,6 @@ xfs_swap_extents(
 	struct xfs_ifork	*cowfp;
 	uint64_t		f;
 	int			resblks = 0;
-	xfs_fsblock_t		firstfsb;
 
 	/*
 	 * Lock the inodes against other IO, page faults and truncate to
@@ -1911,7 +1909,7 @@ xfs_swap_extents(
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
 	if (error)
 		goto out_unlock;
-	xfs_defer_init(tp, &dfops, &firstfsb);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 
 	/*
 	 * Lock and join the inodes to the tansaction so that transaction commit
