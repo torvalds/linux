@@ -853,6 +853,7 @@ struct mlx4_vf_dev {
 };
 
 struct mlx4_fw_crdump {
+	bool snapshot_enable;
 	struct devlink_region *region_crspace;
 	struct devlink_region *region_fw_health;
 };

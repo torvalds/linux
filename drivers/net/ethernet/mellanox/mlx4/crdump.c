@@ -158,6 +158,7 @@ static void mlx4_crdump_collect_fw_health(struct mlx4_dev *dev,
 int mlx4_crdump_collect(struct mlx4_dev *dev)
 {
 	struct devlink *devlink = priv_to_devlink(mlx4_priv(dev));
+	struct mlx4_fw_crdump *crdump = &dev->persist->crdump;
 	struct pci_dev *pdev = dev->persist->pdev;
 	unsigned long cr_res_size;
 	u8 __iomem *cr_space;
@@ -165,6 +166,11 @@ int mlx4_crdump_collect(struct mlx4_dev *dev)
 
 	if (!dev->caps.health_buffer_addrs) {
 		mlx4_info(dev, "crdump: FW doesn't support health buffer access, skipping\n");
+		return 0;
+	}
+
+	if (!crdump->snapshot_enable) {
+		mlx4_info(dev, "crdump: devlink snapshot disabled, skipping\n");
 		return 0;
 	}
 
@@ -196,6 +202,8 @@ int mlx4_crdump_init(struct mlx4_dev *dev)
 	struct devlink *devlink = priv_to_devlink(mlx4_priv(dev));
 	struct mlx4_fw_crdump *crdump = &dev->persist->crdump;
 	struct pci_dev *pdev = dev->persist->pdev;
+
+	crdump->snapshot_enable = false;
 
 	/* Create cr-space region */
 	crdump->region_crspace =
