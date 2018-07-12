@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +15,42 @@
 #include "cgroup_helpers.h"
 
 #include "test_tcpbpf.h"
+
+#define EXPECT_EQ(expected, actual, fmt)			\
+	do {							\
+		if ((expected) != (actual)) {			\
+			printf("  Value of: " #actual "\n"	\
+			       "    Actual: %" fmt "\n"		\
+			       "  Expected: %" fmt "\n",	\
+			       (actual), (expected));		\
+			goto err;				\
+		}						\
+	} while (0)
+
+int verify_result(const struct tcpbpf_globals *result)
+{
+	__u32 expected_events;
+
+	expected_events = ((1 << BPF_SOCK_OPS_TIMEOUT_INIT) |
+			   (1 << BPF_SOCK_OPS_RWND_INIT) |
+			   (1 << BPF_SOCK_OPS_TCP_CONNECT_CB) |
+			   (1 << BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB) |
+			   (1 << BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB) |
+			   (1 << BPF_SOCK_OPS_NEEDS_ECN) |
+			   (1 << BPF_SOCK_OPS_STATE_CB));
+
+	EXPECT_EQ(expected_events, result->event_map, "#" PRIx32);
+	EXPECT_EQ(501ULL, result->bytes_received, "llu");
+	EXPECT_EQ(1002ULL, result->bytes_acked, "llu");
+	EXPECT_EQ(1, result->data_segs_in, PRIu32);
+	EXPECT_EQ(1, result->data_segs_out, PRIu32);
+	EXPECT_EQ(0x80, result->bad_cb_test_rv, PRIu32);
+	EXPECT_EQ(0, result->good_cb_test_rv, PRIu32);
+
+	return 0;
+err:
+	return -1;
+}
 
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
@@ -33,16 +70,12 @@ int main(int argc, char **argv)
 	const char *file = "test_tcpbpf_kern.o";
 	struct tcpbpf_globals g = {0};
 	const char *cg_path = "/foo";
-	bool debug_flag = false;
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	int prog_fd, map_fd;
 	int cg_fd = -1;
 	__u32 key = 0;
 	int rv;
-
-	if (argc > 1 && strcmp(argv[1], "-d") == 0)
-		debug_flag = true;
 
 	if (setup_cgroup_environment())
 		goto err;
@@ -81,30 +114,11 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	if (g.bytes_received != 501 || g.bytes_acked != 1002 ||
-	    g.data_segs_in != 1 || g.data_segs_out != 1 ||
-	    (g.event_map ^ 0x47e) != 0 || g.bad_cb_test_rv != 0x80 ||
-		g.good_cb_test_rv != 0) {
+	if (verify_result(&g)) {
 		printf("FAILED: Wrong stats\n");
-		if (debug_flag) {
-			printf("\n");
-			printf("bytes_received: %d (expecting 501)\n",
-			       (int)g.bytes_received);
-			printf("bytes_acked:    %d (expecting 1002)\n",
-			       (int)g.bytes_acked);
-			printf("data_segs_in:   %d (expecting 1)\n",
-			       g.data_segs_in);
-			printf("data_segs_out:  %d (expecting 1)\n",
-			       g.data_segs_out);
-			printf("event_map:      0x%x (at least 0x47e)\n",
-			       g.event_map);
-			printf("bad_cb_test_rv: 0x%x (expecting 0x80)\n",
-			       g.bad_cb_test_rv);
-			printf("good_cb_test_rv:0x%x (expecting 0)\n",
-			       g.good_cb_test_rv);
-		}
 		goto err;
 	}
+
 	printf("PASSED!\n");
 	error = 0;
 err:
