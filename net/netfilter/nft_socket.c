@@ -54,6 +54,14 @@ static void nft_socket_eval(const struct nft_expr *expr,
 	case NFT_SOCKET_TRANSPARENT:
 		nft_reg_store8(dest, inet_sk_transparent(sk));
 		break;
+	case NFT_SOCKET_MARK:
+		if (sk_fullsock(sk)) {
+			*dest = sk->sk_mark;
+		} else {
+			regs->verdict.code = NFT_BREAK;
+			return;
+		}
+		break;
 	default:
 		WARN_ON(1);
 		regs->verdict.code = NFT_BREAK;
@@ -90,6 +98,9 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 	switch(priv->key) {
 	case NFT_SOCKET_TRANSPARENT:
 		len = sizeof(u8);
+		break;
+	case NFT_SOCKET_MARK:
+		len = sizeof(u32);
 		break;
 	default:
 		return -EOPNOTSUPP;
