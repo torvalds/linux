@@ -4193,6 +4193,27 @@ void devlink_region_destroy(struct devlink_region *region)
 }
 EXPORT_SYMBOL_GPL(devlink_region_destroy);
 
+/**
+ *	devlink_region_shapshot_id_get - get snapshot ID
+ *
+ *	This callback should be called when adding a new snapshot,
+ *	Driver should use the same id for multiple snapshots taken
+ *	on multiple regions at the same time/by the same trigger.
+ *
+ *	@devlink: devlink
+ */
+u32 devlink_region_shapshot_id_get(struct devlink *devlink)
+{
+	u32 id;
+
+	mutex_lock(&devlink->lock);
+	id = ++devlink->snapshot_id;
+	mutex_unlock(&devlink->lock);
+
+	return id;
+}
+EXPORT_SYMBOL_GPL(devlink_region_shapshot_id_get);
+
 static int __init devlink_module_init(void)
 {
 	return genl_register_family(&devlink_nl_family);
