@@ -563,7 +563,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	 * due to the unavailability of time-travelling equipment.
 	 */
 	if (c->fmt_version > UBIFS_FORMAT_VERSION) {
-		ubifs_assert(!c->ro_media || c->ro_mount);
+		ubifs_assert(c, !c->ro_media || c->ro_mount);
 		if (!c->ro_mount ||
 		    c->ro_compat_version > UBIFS_RO_COMPAT_VERSION) {
 			ubifs_err(c, "on-flash format version is w%d/r%d, but software only supports up to version w%d/r%d",
@@ -705,9 +705,9 @@ static int fixup_leb(struct ubifs_info *c, int lnum, int len)
 {
 	int err;
 
-	ubifs_assert(len >= 0);
-	ubifs_assert(len % c->min_io_size == 0);
-	ubifs_assert(len < c->leb_size);
+	ubifs_assert(c, len >= 0);
+	ubifs_assert(c, len % c->min_io_size == 0);
+	ubifs_assert(c, len < c->leb_size);
 
 	if (len == 0) {
 		dbg_mnt("unmap empty LEB %d", lnum);
@@ -817,8 +817,8 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	int err;
 	struct ubifs_sb_node *sup;
 
-	ubifs_assert(c->space_fixup);
-	ubifs_assert(!c->ro_mount);
+	ubifs_assert(c, c->space_fixup);
+	ubifs_assert(c, !c->ro_mount);
 
 	ubifs_msg(c, "start fixing up free space");
 

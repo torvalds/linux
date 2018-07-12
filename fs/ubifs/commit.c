@@ -91,9 +91,9 @@ static int nothing_to_commit(struct ubifs_info *c)
 	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags))
 		return 0;
 
-	ubifs_assert(atomic_long_read(&c->dirty_zn_cnt) == 0);
-	ubifs_assert(c->dirty_pn_cnt == 0);
-	ubifs_assert(c->dirty_nn_cnt == 0);
+	ubifs_assert(c, atomic_long_read(&c->dirty_zn_cnt) == 0);
+	ubifs_assert(c, c->dirty_pn_cnt == 0);
+	ubifs_assert(c, c->dirty_nn_cnt == 0);
 
 	return 1;
 }
@@ -113,7 +113,7 @@ static int do_commit(struct ubifs_info *c)
 	struct ubifs_lp_stats lst;
 
 	dbg_cmt("start");
-	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(c, !c->ro_media && !c->ro_mount);
 
 	if (c->ro_error) {
 		err = -EROFS;
