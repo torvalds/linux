@@ -1,0 +1,16 @@
+config LEGACY_ENERGY_MODEL_DT
+	bool "Legacy DT-based Energy Model of CPUs"
+	default n
+	help
+	  The Energy Aware Scheduler (EAS) used to rely on Energy Models
+	  (EMs) statically defined in the Device Tree. More recent
+	  versions of EAS now rely on the EM framework to get the power
+	  costs of CPUs.
+
+	  This driver reads old-style static EMs in DT and feeds them in
+	  the EM framework, hence enabling to use EAS on platforms with
+	  old DT files. Since EAS now uses only the active costs of CPUs,
+	  the cluster-related costs and idle-costs of the old EM are
+	  ignored.
+
+	  If in doubt, say N.
