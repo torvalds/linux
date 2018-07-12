@@ -5878,8 +5878,7 @@ STATIC int
 xfs_bmap_split_extent_at(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
-	xfs_fileoff_t		split_fsb,
-	xfs_fsblock_t		*firstfsb)
+	xfs_fileoff_t		split_fsb)
 {
 	int				whichfork = XFS_DATA_FORK;
 	struct xfs_btree_cur		*cur = NULL;
@@ -5928,7 +5927,7 @@ xfs_bmap_split_extent_at(
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
-		cur->bc_private.b.firstblock = *firstfsb;
+		cur->bc_private.b.firstblock = tp->t_firstblock;
 		cur->bc_private.b.flags = 0;
 		error = xfs_bmbt_lookup_eq(cur, &got, &i);
 		if (error)
@@ -5972,8 +5971,8 @@ xfs_bmap_split_extent_at(
 		int tmp_logflags; /* partial log flag return val */
 
 		ASSERT(cur == NULL);
-		error = xfs_bmap_extents_to_btree(tp, ip, firstfsb, &cur, 0,
-				&tmp_logflags, whichfork);
+		error = xfs_bmap_extents_to_btree(tp, ip, &tp->t_firstblock,
+				&cur, 0, &tmp_logflags, whichfork);
 		logflags |= tmp_logflags;
 	}
 
@@ -5997,20 +5996,18 @@ xfs_bmap_split_extent(
 	struct xfs_mount        *mp = ip->i_mount;
 	struct xfs_trans        *tp;
 	struct xfs_defer_ops    dfops;
-	xfs_fsblock_t           firstfsb;
 	int                     error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write,
 			XFS_DIOSTRAT_SPACE_RES(mp, 0), 0, 0, &tp);
 	if (error)
 		return error;
-	xfs_defer_init(tp, &dfops, &firstfsb);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-	error = xfs_bmap_split_extent_at(tp, ip, split_fsb,
-					 &firstfsb);
+	error = xfs_bmap_split_extent_at(tp, ip, split_fsb);
 	if (error)
 		goto out;
 
