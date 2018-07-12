@@ -109,10 +109,16 @@ void mvpp2_cls_oversize_rxq_set(struct mvpp2_port *port)
 
 static inline u32 mvpp22_rxfh_indir(struct mvpp2_port *port, u32 rxq)
 {
-	int nrxqs, cpus = num_possible_cpus();
+	int nrxqs, cpu, cpus = num_possible_cpus();
 
 	/* Number of RXQs per CPU */
 	nrxqs = port->nrxqs / cpus;
+
+	/* CPU that will handle this rx queue */
+	cpu = rxq / nrxqs;
+
+	if (!cpu_online(cpu))
+		return port->first_rxq;
 
 	/* Indirection to better distribute the paquets on the CPUs when
 	 * configuring the RSS queues.
