@@ -183,8 +183,8 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 	.en_multiple_tx_fifo = -1,
 	.dev_tx_fifo_size = {
 			     /* dev_tx_fifo_size */
-			     0x100,
 			     0x80,
+			     0x100,
 			     0x80,
 			     0x60,
 			     0x10,
