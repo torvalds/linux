@@ -819,10 +819,6 @@ enum bpf_netdev_command {
 	 */
 	XDP_SETUP_PROG,
 	XDP_SETUP_PROG_HW,
-	/* Check if a bpf program is set on the device.  The callee should
-	 * set @prog_attached to one of XDP_ATTACHED_* values, note that "true"
-	 * is equivalent to XDP_ATTACHED_DRV.
-	 */
 	XDP_QUERY_PROG,
 	/* BPF program for offload callbacks, invoked at program load time. */
 	BPF_OFFLOAD_VERIFIER_PREP,
@@ -849,7 +845,6 @@ struct netdev_bpf {
 		};
 		/* XDP_QUERY_PROG */
 		struct {
-			u8 prog_attached;
 			u32 prog_id;
 			/* flags with which program was installed */
 			u32 prog_flags;

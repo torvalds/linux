@@ -4926,7 +4926,6 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 		break;
 
 	case XDP_QUERY_PROG:
-		xdp->prog_attached = !!old;
 		xdp->prog_id = old ? old->aux->id : 0;
 		break;
 
@@ -7593,13 +7592,13 @@ void __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
 	WARN_ON(bpf_op(dev, xdp) < 0);
 }
 
-static u8 __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op)
+static bool __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op)
 {
 	struct netdev_bpf xdp;
 
 	__dev_xdp_query(dev, bpf_op, &xdp);
 
-	return xdp.prog_attached;
+	return xdp.prog_id;
 }
 
 static int dev_xdp_install(struct net_device *dev, bpf_op_t bpf_op,
@@ -7634,7 +7633,7 @@ static void dev_xdp_uninstall(struct net_device *dev)
 		return;
 
 	__dev_xdp_query(dev, ndo_bpf, &xdp);
-	if (xdp.prog_attached == XDP_ATTACHED_NONE)
+	if (!xdp.prog_id)
 		return;
 
 	/* Program removal should always succeed */

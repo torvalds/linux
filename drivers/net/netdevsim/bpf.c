@@ -567,7 +567,6 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		nsim_bpf_destroy_prog(bpf->offload.prog);
 		return 0;
 	case XDP_QUERY_PROG:
-		bpf->prog_attached = ns->xdp_prog_mode;
 		bpf->prog_id = ns->xdp_prog ? ns->xdp_prog->aux->id : 0;
 		bpf->prog_flags = ns->xdp_prog ? ns->xdp_flags : 0;
 		return 0;

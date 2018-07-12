@@ -4192,7 +4192,6 @@ static int mlx5e_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		return mlx5e_xdp_set(dev, xdp->prog);
 	case XDP_QUERY_PROG:
 		xdp->prog_id = mlx5e_xdp_query(dev);
-		xdp->prog_attached = !!xdp->prog_id;
 		return 0;
 	default:
 		return -EINVAL;
