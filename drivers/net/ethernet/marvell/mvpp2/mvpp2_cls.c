@@ -12,6 +12,7 @@
 
 #include "mvpp2.h"
 #include "mvpp2_cls.h"
+#include "mvpp2_prs.h"
 
 /* Update classification flow table registers */
 static void mvpp2_cls_flow_write(struct mvpp2 *priv,
@@ -32,6 +33,151 @@ static void mvpp2_cls_lookup_write(struct mvpp2 *priv,
 	val = (le->way << MVPP2_CLS_LKP_INDEX_WAY_OFFS) | le->lkpid;
 	mvpp2_write(priv, MVPP2_CLS_LKP_INDEX_REG, val);
 	mvpp2_write(priv, MVPP2_CLS_LKP_TBL_REG, le->data);
+}
+
+static void mvpp2_cls_flow_eng_set(struct mvpp2_cls_flow_entry *fe,
+				   int engine)
+{
+	fe->data[0] &= ~MVPP2_CLS_FLOW_TBL0_ENG(MVPP2_CLS_FLOW_TBL0_ENG_MASK);
+	fe->data[0] |= MVPP2_CLS_FLOW_TBL0_ENG(engine);
+}
+
+static void mvpp2_cls_flow_port_id_sel(struct mvpp2_cls_flow_entry *fe,
+				       bool from_packet)
+{
+	if (from_packet)
+		fe->data[0] |= MVPP2_CLS_FLOW_TBL0_PORT_ID_SEL;
+	else
+		fe->data[0] &= ~MVPP2_CLS_FLOW_TBL0_PORT_ID_SEL;
+}
+
+static void mvpp2_cls_flow_seq_set(struct mvpp2_cls_flow_entry *fe, u32 seq)
+{
+	fe->data[1] &= ~MVPP2_CLS_FLOW_TBL1_SEQ(MVPP2_CLS_FLOW_TBL1_SEQ_MASK);
+	fe->data[1] |= MVPP2_CLS_FLOW_TBL1_SEQ(seq);
+}
+
+static void mvpp2_cls_flow_last_set(struct mvpp2_cls_flow_entry *fe,
+				    bool is_last)
+{
+	fe->data[0] &= ~MVPP2_CLS_FLOW_TBL0_LAST;
+	fe->data[0] |= !!is_last;
+}
+
+static void mvpp2_cls_flow_pri_set(struct mvpp2_cls_flow_entry *fe, int prio)
+{
+	fe->data[1] &= ~MVPP2_CLS_FLOW_TBL1_PRIO(MVPP2_CLS_FLOW_TBL1_PRIO_MASK);
+	fe->data[1] |= MVPP2_CLS_FLOW_TBL1_PRIO(prio);
+}
+
+static void mvpp2_cls_flow_port_add(struct mvpp2_cls_flow_entry *fe,
+				    u32 port)
+{
+	fe->data[0] |= MVPP2_CLS_FLOW_TBL0_PORT_ID(port);
+}
+
+/* Initialize the Lookup Id table entry for the given flow */
+static void mvpp2_cls_flow_lkp_init(struct mvpp2 *priv, int port_id)
+{
+	struct mvpp2_cls_lookup_entry le;
+
+	le.way = 0;
+	le.lkpid = port_id;
+
+	/* The default RxQ for this port is set in the C2 lookup */
+	le.data = 0;
+
+	le.data |= MVPP2_CLS_LKP_FLOW_PTR(port_id);
+	le.data |= MVPP2_CLS_LKP_TBL_LOOKUP_EN_MASK;
+
+	mvpp2_cls_lookup_write(priv, &le);
+}
+
+/* Initialize the flow table entries for the given flow */
+static void mvpp2_cls_flow_init(struct mvpp2 *priv, int port_id)
+{
+	struct mvpp2_cls_flow_entry fe;
+	int i;
+
+	/* C2 lookup */
+	memset(&fe, 0, sizeof(fe));
+	fe.index = port_id;
+
+	mvpp2_cls_flow_eng_set(&fe, MVPP22_CLS_ENGINE_C2);
+	mvpp2_cls_flow_port_id_sel(&fe, true);
+	mvpp2_cls_flow_last_set(&fe, 1);
+	mvpp2_cls_flow_pri_set(&fe, 0);
+	mvpp2_cls_flow_seq_set(&fe, MVPP2_CLS_FLOW_SEQ_LAST);
+
+	/* Add all ports */
+	for (i = 0; i < MVPP2_MAX_PORTS; i++)
+		mvpp2_cls_flow_port_add(&fe, BIT(i));
+
+	mvpp2_cls_flow_write(priv, &fe);
+}
+
+static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
+{
+	int i;
+
+	for (i = 0; i < MVPP2_MAX_PORTS; i++) {
+		mvpp2_cls_flow_lkp_init(priv, i);
+		mvpp2_cls_flow_init(priv, i);
+	}
+}
+
+static void mvpp2_cls_c2_write(struct mvpp2 *priv,
+			       struct mvpp2_cls_c2_entry *c2)
+{
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_IDX, c2->index);
+
+	/* Write TCAM */
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA0, c2->tcam[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA1, c2->tcam[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA2, c2->tcam[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA3, c2->tcam[3]);
+	mvpp2_write(priv, MVPP22_CLS_C2_TCAM_DATA4, c2->tcam[4]);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ACT, c2->act);
+
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR0, c2->attr[0]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR1, c2->attr[1]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR2, c2->attr[2]);
+	mvpp2_write(priv, MVPP22_CLS_C2_ATTR3, c2->attr[3]);
+}
+
+static void mvpp2_port_c2_cls_init(struct mvpp2_port *port)
+{
+	struct mvpp2_cls_c2_entry c2;
+	u8 qh, ql, pmap;
+
+	memset(&c2, 0, sizeof(c2));
+
+	c2.index = MVPP22_CLS_C2_RSS_ENTRY(port->id);
+
+	pmap = BIT(port->id);
+	c2.tcam[4] = MVPP22_CLS_C2_PORT_ID(pmap);
+	c2.tcam[4] |= MVPP22_CLS_C2_TCAM_EN(MVPP22_CLS_C2_PORT_ID(pmap));
+
+	/* Update RSS status after matching this entry */
+	c2.act = MVPP22_CLS_C2_ACT_RSS_EN(MVPP22_C2_UPD_LOCK);
+
+	/* Mark packet as "forwarded to software", needed for RSS */
+	c2.act |= MVPP22_CLS_C2_ACT_FWD(MVPP22_C2_FWD_SW_LOCK);
+
+	/* Configure the default rx queue : Update Queue Low and Queue High, but
+	 * don't lock, since the rx queue selection might be overridden by RSS
+	 */
+	c2.act |= MVPP22_CLS_C2_ACT_QHIGH(MVPP22_C2_UPD) |
+		   MVPP22_CLS_C2_ACT_QLOW(MVPP22_C2_UPD);
+
+	qh = (port->first_rxq >> 3) & MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+	ql = port->first_rxq & MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+
+	c2.attr[0] = MVPP22_CLS_C2_ATTR0_QHIGH(qh) |
+		      MVPP22_CLS_C2_ATTR0_QLOW(ql);
+
+	mvpp2_cls_c2_write(port->priv, &c2);
 }
 
 /* Classifier default initialization */
@@ -61,6 +207,8 @@ void mvpp2_cls_init(struct mvpp2 *priv)
 		le.way = 1;
 		mvpp2_cls_lookup_write(priv, &le);
 	}
+
+	mvpp2_cls_port_init_flows(priv);
 }
 
 void mvpp2_cls_port_config(struct mvpp2_port *port)
@@ -89,6 +237,8 @@ void mvpp2_cls_port_config(struct mvpp2_port *port)
 
 	/* Update lookup ID table entry */
 	mvpp2_cls_lookup_write(port->priv, &le);
+
+	mvpp2_port_c2_cls_init(port);
 }
 
 /* Set CPU queue number for oversize packets */
