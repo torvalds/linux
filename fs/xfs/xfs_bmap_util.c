@@ -1024,7 +1024,6 @@ xfs_unmap_extent(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		firstfsb;
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 	int			error;
 
@@ -1042,9 +1041,9 @@ xfs_unmap_extent(
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(tp, &dfops, &firstfsb);
-	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
-			    done);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2,
+			    &tp->t_firstblock, done);
 	if (error)
 		goto out_bmap_cancel;
 

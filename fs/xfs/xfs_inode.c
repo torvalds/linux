@@ -1543,7 +1543,6 @@ xfs_itruncate_extents_flags(
 	struct xfs_trans	*tp = *tpp;
 	struct xfs_defer_ops	*odfops = tp->t_dfops;
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		first_unmap_block;
 	xfs_fileoff_t		last_block;
 	xfs_filblks_t		unmap_len;
@@ -1580,9 +1579,9 @@ xfs_itruncate_extents_flags(
 	ASSERT(first_unmap_block < last_block);
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
-		xfs_defer_init(tp, &dfops, &first_block);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
-				    XFS_ITRUNC_MAX_EXTENTS, &first_block,
+				    XFS_ITRUNC_MAX_EXTENTS, &tp->t_firstblock,
 				    &done);
 		if (error)
 			goto out_bmap_cancel;

@@ -627,7 +627,6 @@ xfs_reflink_end_cow(
 	struct xfs_trans		*tp;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
-	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
 	int				error;
 	unsigned int			resblks;
@@ -695,10 +694,10 @@ xfs_reflink_end_cow(
 			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
-		xfs_defer_init(tp, &dfops, &firstfsb);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		rlen = del.br_blockcount;
 		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1,
-				&firstfsb);
+				&tp->t_firstblock);
 		if (error)
 			goto out_defer;
 
@@ -1002,7 +1001,6 @@ xfs_reflink_remap_extent(
 	struct xfs_mount	*mp = ip->i_mount;
 	bool			real_extent = xfs_bmap_is_real_extent(irec);
 	struct xfs_trans	*tp;
-	xfs_fsblock_t		firstfsb;
 	unsigned int		resblks;
 	struct xfs_defer_ops	dfops;
 	struct xfs_bmbt_irec	uirec;
@@ -1045,8 +1043,9 @@ xfs_reflink_remap_extent(
 	/* Unmap the old blocks in the data fork. */
 	rlen = unmap_len;
 	while (rlen) {
-		xfs_defer_init(tp, &dfops, &firstfsb);
-		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1, &firstfsb);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1,
+				      &tp->t_firstblock);
 		if (error)
 			goto out_defer;
 

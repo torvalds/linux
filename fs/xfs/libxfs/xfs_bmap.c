@@ -6132,17 +6132,9 @@ xfs_bmap_finish_one(
 	xfs_filblks_t			*blockcount,
 	xfs_exntst_t			state)
 {
-	xfs_fsblock_t			firstfsb;
 	int				error = 0;
 
-	/*
-	 * firstfsb is tied to the transaction lifetime and is used to
-	 * ensure correct AG locking order and schedule work item
-	 * continuations.  XFS_BUI_MAX_FAST_EXTENTS (== 1) restricts us
-	 * to only making one bmap call per transaction, so it should
-	 * be safe to have it as a local variable here.
-	 */
-	firstfsb = NULLFSBLOCK;
+	ASSERT(tp->t_firstblock == NULLFSBLOCK);
 
 	trace_xfs_bmap_deferred(tp->t_mountp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, startblock), type,
@@ -6165,7 +6157,7 @@ xfs_bmap_finish_one(
 		break;
 	case XFS_BMAP_UNMAP:
 		error = __xfs_bunmapi(tp, ip, startoff, blockcount,
-				XFS_BMAPI_REMAP, 1, &firstfsb);
+				XFS_BMAPI_REMAP, 1, &tp->t_firstblock);
 		break;
 	default:
 		ASSERT(0);

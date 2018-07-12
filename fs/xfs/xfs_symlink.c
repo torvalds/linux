@@ -400,7 +400,6 @@ xfs_inactive_symlink_rmt(
 	xfs_buf_t	*bp;
 	int		done;
 	int		error;
-	xfs_fsblock_t	first_block;
 	struct xfs_defer_ops	dfops;
 	int		i;
 	xfs_mount_t	*mp;
@@ -440,7 +439,7 @@ xfs_inactive_symlink_rmt(
 	 * Find the block(s) so we can inval and unmap them.
 	 */
 	done = 0;
-	xfs_defer_init(tp, &dfops, &first_block);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 	nmaps = ARRAY_SIZE(mval);
 	error = xfs_bmapi_read(ip, 0, xfs_symlink_blocks(mp, size),
 				mval, &nmaps, 0);
@@ -462,7 +461,8 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Unmap the dead block(s) to the dfops.
 	 */
-	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps, &first_block, &done);
+	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps, &tp->t_firstblock,
+			    &done);
 	if (error)
 		goto error_bmap_cancel;
 	ASSERT(done);
