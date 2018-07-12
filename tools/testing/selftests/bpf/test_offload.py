@@ -339,6 +339,11 @@ class NetdevSim:
         self.dfs = DebugfsDir(self.dfs_dir)
         return self.dfs
 
+    def dfs_read(self, f):
+        path = os.path.join(self.dfs_dir, f)
+        _, data = cmd('cat %s' % (path))
+        return data.strip()
+
     def dfs_num_bound_progs(self):
         path = os.path.join(self.dfs_dir, "bpf_bound_progs")
         _, progs = cmd('ls %s' % (path))
@@ -814,6 +819,10 @@ try:
          "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
+    ret, _, err = sim.set_xdp(obj, "generic", force=True,
+                              fail=False, include_stderr=True)
+    fail(ret == 0, "Replaced XDP program with a program in different mode")
+    fail(err.count("File exists") != 1, "Replaced driver XDP with generic")
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
@@ -882,6 +891,60 @@ try:
     check_extack_nsim(err, "xdpoffload of non-bound program.", args)
     rm(pin_file)
     bpftool_prog_list_wait(expected=0)
+
+    start_test("Test multi-attachment XDP - attach...")
+    sim.set_xdp(obj, "offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+    fail("prog" not in xdp, "Base program not reported in single program mode")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with one program")
+
+    sim.set_xdp(obj, "")
+    two_xdps = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded2 = sim.dfs_read("bpf_offloaded_id")
+
+    fail(two_xdps["mode"] != 4, "Bad mode reported with multiple programs")
+    fail("prog" in two_xdps, "Base program reported in multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(two_xdps["attached"]) != 2,
+         "Wrong attached program count with two programs")
+    fail(two_xdps["attached"][0]["prog"]["id"] ==
+         two_xdps["attached"][1]["prog"]["id"],
+         "offloaded and drv programs have the same id")
+    fail(offloaded != offloaded2,
+         "offload ID changed after loading driver program")
+
+    start_test("Test multi-attachment XDP - replace...")
+    ret, _, err = sim.set_xdp(obj, "offload", fail=False, include_stderr=True)
+    fail(err.count("busy") != 1, "Replaced one of programs without -force")
+
+    start_test("Test multi-attachment XDP - detach...")
+    ret, _, err = sim.unset_xdp("drv", force=True,
+                                fail=False, include_stderr=True)
+    fail(ret == 0, "Removed program with a bad mode")
+    check_extack(err, "program loaded with different flags.", args)
+
+    sim.unset_xdp("offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+
+    fail(xdp["mode"] != 1, "Bad mode reported after multiple programs")
+    fail("prog" not in xdp,
+         "Base program not reported after multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with remaining programs")
+    fail(offloaded != "0", "offload ID reported with only driver program left")
+
+    start_test("Test multi-attachment XDP - device remove...")
+    sim.set_xdp(obj, "offload")
+    sim.remove()
+
+    sim = NetdevSim()
+    sim.set_ethtool_tc_offloads(True)
 
     start_test("Test mixing of TC and XDP...")
     sim.tc_add_ingress()
