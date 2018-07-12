@@ -268,6 +268,8 @@ struct intel_gvt_mmio {
 #define F_CMD_ACCESSED	(1 << 5)
 /* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
+/* This reg is saved/restored in context */
+#define F_IN_CTX	(1 << 7)
 
 	struct gvt_mmio_block *mmio_block;
 	unsigned int num_mmio_block;
@@ -637,6 +639,33 @@ static inline bool intel_gvt_mmio_has_mode_mask(
 			struct intel_gvt *gvt, unsigned int offset)
 {
 	return gvt->mmio.mmio_attribute[offset >> 2] & F_MODE_MASK;
+}
+
+/**
+ * intel_gvt_mmio_is_in_ctx - check if a MMIO has in-ctx mask
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if a MMIO has a in-context mask, false if it isn't.
+ *
+ */
+static inline bool intel_gvt_mmio_is_in_ctx(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_IN_CTX;
+}
+
+/**
+ * intel_gvt_mmio_set_in_ctx - mask a MMIO in logical context
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_in_ctx(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
 }
 
 int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);

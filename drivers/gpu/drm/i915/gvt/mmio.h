@@ -98,4 +98,6 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
 int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 			   void *pdata, unsigned int bytes, bool is_read);
 
+int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+				  void *p_data, unsigned int bytes);
 #endif
