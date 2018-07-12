@@ -219,14 +219,12 @@ void	xfs_bmap_del_extent_cow(struct xfs_inode *ip,
 uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_collapse_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
-		bool *done, xfs_fsblock_t *firstblock,
-		struct xfs_defer_ops *dfops);
+		bool *done, xfs_fsblock_t *firstblock);
 int	xfs_bmap_can_insert_extents(struct xfs_inode *ip, xfs_fileoff_t off,
 		xfs_fileoff_t shift);
 int	xfs_bmap_insert_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
-		bool *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock,
-		struct xfs_defer_ops *dfops);
+		bool *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock);
 int	xfs_bmap_split_extent(struct xfs_inode *ip, xfs_fileoff_t split_offset);
 int	xfs_bmapi_reserve_delalloc(struct xfs_inode *ip, int whichfork,
 		xfs_fileoff_t off, xfs_filblks_t len, xfs_filblks_t prealloc,

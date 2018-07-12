@@ -1348,12 +1348,13 @@ xfs_collapse_file_space(
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 		xfs_defer_init(&dfops, &first_block);
+		tp->t_dfops = &dfops;
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, &first_block, &dfops);
+				&done, &first_block);
 		if (error)
 			goto out_bmap_cancel;
 
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
@@ -1362,7 +1363,7 @@ xfs_collapse_file_space(
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;
@@ -1427,12 +1428,13 @@ xfs_insert_file_space(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		xfs_defer_init(&dfops, &first_block);
+		tp->t_dfops = &dfops;
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops);
+				&done, stop_fsb, &first_block);
 		if (error)
 			goto out_bmap_cancel;
 
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
@@ -1441,7 +1443,7 @@ xfs_insert_file_space(
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	xfs_trans_cancel(tp);
 	return error;
 }
