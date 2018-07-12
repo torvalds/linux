@@ -12738,7 +12738,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 * down.
 	 */
 	INIT_WORK(&state->commit_work, intel_atomic_cleanup_work);
-	schedule_work(&state->commit_work);
+	queue_work(system_highpri_wq, &state->commit_work);
 }
 
 static void intel_atomic_commit_work(struct work_struct *work)
