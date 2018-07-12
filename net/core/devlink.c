@@ -326,6 +326,28 @@ devlink_sb_tc_index_get_from_info(struct devlink_sb *devlink_sb,
 						  pool_type, p_tc_index);
 }
 
+struct devlink_region {
+	struct devlink *devlink;
+	struct list_head list;
+	const char *name;
+	struct list_head snapshot_list;
+	u32 max_snapshots;
+	u32 cur_snapshots;
+	u64 size;
+};
+
+static struct devlink_region *
+devlink_region_get_by_name(struct devlink *devlink, const char *region_name)
+{
+	struct devlink_region *region;
+
+	list_for_each_entry(region, &devlink->region_list, list)
+		if (!strcmp(region->name, region_name))
+			return region;
+
+	return NULL;
+}
+
 #define DEVLINK_NL_FLAG_NEED_DEVLINK	BIT(0)
 #define DEVLINK_NL_FLAG_NEED_PORT	BIT(1)
 #define DEVLINK_NL_FLAG_NEED_SB		BIT(2)
@@ -3358,6 +3380,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD_RCU(&devlink->dpipe_table_list);
 	INIT_LIST_HEAD(&devlink->resource_list);
 	INIT_LIST_HEAD(&devlink->param_list);
+	INIT_LIST_HEAD(&devlink->region_list);
 	mutex_init(&devlink->lock);
 	return devlink;
 }
@@ -4108,6 +4131,67 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
+
+/**
+ *	devlink_region_create - create a new address region
+ *
+ *	@devlink: devlink
+ *	@region_name: region name
+ *	@region_max_snapshots: Maximum supported number of snapshots for region
+ *	@region_size: size of region
+ */
+struct devlink_region *devlink_region_create(struct devlink *devlink,
+					     const char *region_name,
+					     u32 region_max_snapshots,
+					     u64 region_size)
+{
+	struct devlink_region *region;
+	int err = 0;
+
+	mutex_lock(&devlink->lock);
+
+	if (devlink_region_get_by_name(devlink, region_name)) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	if (!region) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	region->devlink = devlink;
+	region->max_snapshots = region_max_snapshots;
+	region->name = region_name;
+	region->size = region_size;
+	INIT_LIST_HEAD(&region->snapshot_list);
+	list_add_tail(&region->list, &devlink->region_list);
+
+	mutex_unlock(&devlink->lock);
+	return region;
+
+unlock:
+	mutex_unlock(&devlink->lock);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(devlink_region_create);
+
+/**
+ *	devlink_region_destroy - destroy address region
+ *
+ *	@region: devlink region to destroy
+ */
+void devlink_region_destroy(struct devlink_region *region)
+{
+	struct devlink *devlink = region->devlink;
+
+	mutex_lock(&devlink->lock);
+	list_del(&region->list);
+	mutex_unlock(&devlink->lock);
+	kfree(region);
+}
+EXPORT_SYMBOL_GPL(devlink_region_destroy);
 
 static int __init devlink_module_init(void)
 {

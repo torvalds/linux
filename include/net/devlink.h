@@ -28,6 +28,7 @@ struct devlink {
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
 	struct list_head param_list;
+	struct list_head region_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -397,6 +398,8 @@ enum devlink_param_generic_id {
 	.validate = _validate,						\
 }
 
+struct devlink_region;
+
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -543,6 +546,11 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+struct devlink_region *devlink_region_create(struct devlink *devlink,
+					     const char *region_name,
+					     u32 region_max_snapshots,
+					     u64 region_size);
+void devlink_region_destroy(struct devlink_region *region);
 
 #else
 
@@ -767,6 +775,20 @@ devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 
 static inline void
 devlink_param_value_changed(struct devlink *devlink, u32 param_id)
+{
+}
+
+static inline struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const char *region_name,
+		      u32 region_max_snapshots,
+		      u64 region_size)
+{
+	return NULL;
+}
+
+static inline void
+devlink_region_destroy(struct devlink_region *region)
 {
 }
 
