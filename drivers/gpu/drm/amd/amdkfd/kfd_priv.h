@@ -144,6 +144,11 @@ extern int ignore_crat;
  */
 extern int vega10_noretry;
 
+/*
+ * Halt if HWS hang is detected
+ */
+extern int halt_if_hws_hang;
+
 /**
  * enum kfd_sched_policy
  *

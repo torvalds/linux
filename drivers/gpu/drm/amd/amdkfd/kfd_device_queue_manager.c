@@ -1217,6 +1217,13 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 	while (*fence_addr != fence_value) {
 		if (time_after(jiffies, end_jiffies)) {
 			pr_err("qcm fence wait loop timeout expired\n");
+			/* In HWS case, this is used to halt the driver thread
+			 * in order not to mess up CP states before doing
+			 * scandumps for FW debugging.
+			 */
+			while (halt_if_hws_hang)
+				schedule();
+
 			return -ETIME;
 		}
 		schedule();

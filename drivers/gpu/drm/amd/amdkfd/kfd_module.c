@@ -92,6 +92,10 @@ MODULE_PARM_DESC(noretry,
 
 static int amdkfd_init_completed;
 
+int halt_if_hws_hang;
+module_param(halt_if_hws_hang, int, 0644);
+MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
+
 int kgd2kfd_init(unsigned int interface_version,
 		const struct kgd2kfd_calls **g2f)
 {
