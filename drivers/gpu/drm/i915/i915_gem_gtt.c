@@ -1662,8 +1662,12 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 		1ULL << 48 :
 		1ULL << 32;
 
-	/* From bdw, there is support for read-only pages in the PPGTT */
-	ppgtt->vm.has_read_only = true;
+	/*
+	 * From bdw, there is support for read-only pages in the PPGTT.
+	 *
+	 * XXX GVT is not honouring the lack of RW in the PTE bits.
+	 */
+	ppgtt->vm.has_read_only = !intel_vgpu_active(i915);
 
 	i915_address_space_init(&ppgtt->vm, i915);
 
