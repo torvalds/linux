@@ -22,6 +22,15 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		ld4 {
+			label = "zynq-zybo-z7:green:ld4";
+			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
 	usb_phy0: phy0 {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
