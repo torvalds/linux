@@ -62,6 +62,18 @@ enum mvpp2_cls_engine {
 #define MVPP22_CLS_HEK_IP6_5T	(MVPP22_CLS_HEK_IP6_2T | \
 				 MVPP22_CLS_HEK_L4_OPTS)
 
+enum mvpp2_cls_field_id {
+	MVPP22_CLS_FIELD_MAC_DA = 0x03,
+	MVPP22_CLS_FIELD_VLAN = 0x06,
+	MVPP22_CLS_FIELD_L3_PROTO = 0x0f,
+	MVPP22_CLS_FIELD_IP4SA = 0x10,
+	MVPP22_CLS_FIELD_IP4DA = 0x11,
+	MVPP22_CLS_FIELD_IP6SA = 0x17,
+	MVPP22_CLS_FIELD_IP6DA = 0x1a,
+	MVPP22_CLS_FIELD_L4SIP = 0x1d,
+	MVPP22_CLS_FIELD_L4DIP = 0x1e,
+};
+
 enum mvpp2_cls_flow_seq {
 	MVPP2_CLS_FLOW_SEQ_NORMAL = 0,
 	MVPP2_CLS_FLOW_SEQ_FIRST1,
@@ -187,6 +199,9 @@ struct mvpp2_cls_lookup_entry {
 void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table);
 
 void mvpp22_rss_port_init(struct mvpp2_port *port);
+
+void mvpp22_rss_enable(struct mvpp2_port *port);
+void mvpp22_rss_disable(struct mvpp2_port *port);
 
 void mvpp2_cls_init(struct mvpp2 *priv);
 
