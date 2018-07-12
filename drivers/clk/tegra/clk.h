@@ -706,6 +706,32 @@ struct clk *tegra_clk_register_super_clk(const char *name,
 		const char * const *parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
 		spinlock_t *lock);
+
+/**
+ * struct tegra_sdmmc_mux - switch divider with Low Jitter inputs for SDMMC
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register controlling mux and divider
+ * @flags:	hardware-specific flags
+ * @lock:	optional register lock
+ * @gate:	gate clock
+ * @gate_ops:	gate clock ops
+ */
+struct tegra_sdmmc_mux {
+	struct clk_hw		hw;
+	void __iomem		*reg;
+	spinlock_t		*lock;
+	const struct clk_ops	*gate_ops;
+	struct tegra_clk_periph_gate	gate;
+	u8			div_flags;
+};
+
+#define to_clk_sdmmc_mux(_hw) container_of(_hw, struct tegra_sdmmc_mux, hw)
+
+struct clk *tegra_clk_register_sdmmc_mux_div(const char *name,
+		void __iomem *clk_base, u32 offset, u32 clk_num, u8 div_flags,
+		unsigned long flags, void *lock);
+
 /**
  * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
