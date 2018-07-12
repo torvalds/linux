@@ -29,11 +29,11 @@ static inline unsigned long ffz(unsigned long word)
 
 	result = -1;
 	__asm__("1:\n\t"
-		"shlr.l %2\n\t"
+		"shlr.l %1\n\t"
 		"adds #1,%0\n\t"
 		"bcs 1b"
-		: "=r"(result)
-		: "0"(result), "r"(word));
+		: "=r"(result),"=r"(word)
+		: "0"(result), "1"(word));
 	return result;
 }
 
@@ -162,11 +162,11 @@ static inline unsigned long __ffs(unsigned long word)
 
 	result = -1;
 	__asm__("1:\n\t"
-		"shlr.l %2\n\t"
+		"shlr.l %1\n\t"
 		"adds #1,%0\n\t"
 		"bcc 1b"
-		: "=r" (result)
-		: "0"(result), "r"(word));
+		: "=r" (result),"=r"(word)
+		: "0"(result), "1"(word));
 	return result;
 }
 
