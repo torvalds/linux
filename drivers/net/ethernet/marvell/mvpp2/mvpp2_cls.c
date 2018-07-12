@@ -123,7 +123,7 @@ void mvpp22_init_rss(struct mvpp2_port *port)
 	 */
 	for (i = 0; i < MVPP2_CLS_RX_QUEUES; i++) {
 		mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_QUEUE(i));
-		mvpp2_write(priv, MVPP22_RSS_TABLE,
+		mvpp2_write(priv, MVPP22_RXQ2RSS_TABLE,
 			    MVPP22_RSS_TABLE_POINTER(0));
 	}
 

@@ -73,9 +73,9 @@
 #define     MVPP22_RSS_INDEX_TABLE_ENTRY(idx)	(idx)
 #define     MVPP22_RSS_INDEX_TABLE(idx)		((idx) << 8)
 #define     MVPP22_RSS_INDEX_QUEUE(idx)		((idx) << 16)
-#define MVPP22_RSS_TABLE_ENTRY			0x1508
-#define MVPP22_RSS_TABLE			0x1510
+#define MVPP22_RXQ2RSS_TABLE			0x1504
 #define     MVPP22_RSS_TABLE_POINTER(p)		(p)
+#define MVPP22_RSS_TABLE_ENTRY			0x1508
 #define MVPP22_RSS_WIDTH			0x150c
 
 /* Classifier Registers */
