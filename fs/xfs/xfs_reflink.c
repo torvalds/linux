@@ -424,7 +424,7 @@ retry:
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 	nimaps = 1;
 
 	/* Allocate the entire reservation as unwritten blocks. */
@@ -511,7 +511,7 @@ xfs_reflink_cancel_cow_blocks(
 			if (error)
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
-			xfs_defer_init(*tpp, &dfops, &(*tpp)->t_firstblock);
+			xfs_defer_init(*tpp, &dfops);
 
 			/* Free the CoW orphan record. */
 			error = xfs_refcount_free_cow_extent(ip->i_mount,
@@ -693,7 +693,7 @@ xfs_reflink_end_cow(
 			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
-		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+		xfs_defer_init(tp, &dfops);
 		rlen = del.br_blockcount;
 		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1);
 		if (error)
@@ -1041,7 +1041,7 @@ xfs_reflink_remap_extent(
 	/* Unmap the old blocks in the data fork. */
 	rlen = unmap_len;
 	while (rlen) {
-		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+		xfs_defer_init(tp, &dfops);
 		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1);
 		if (error)
 			goto out_defer;

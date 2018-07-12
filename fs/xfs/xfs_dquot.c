@@ -295,7 +295,7 @@ xfs_dquot_disk_alloc(
 
 	trace_xfs_dqalloc(dqp);
 
-	xfs_defer_init(tp, tp->t_dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, tp->t_dfops);
 
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
@@ -546,7 +546,7 @@ xfs_qm_dqread_alloc(
 			XFS_QM_DQALLOC_SPACE_RES(mp), 0, 0, &tp);
 	if (error)
 		goto err;
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	error = xfs_dquot_disk_alloc(&tp, dqp, &bp);
 	if (error)

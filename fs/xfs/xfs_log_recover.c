@@ -4890,7 +4890,6 @@ xlog_recover_process_intents(
 	struct xfs_ail_cursor	cur;
 	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
-	xfs_fsblock_t		firstfsb;
 	int			error = 0;
 #if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
@@ -4902,7 +4901,7 @@ xlog_recover_process_intents(
 #if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 #endif
-	xfs_defer_init(NULL, &dfops, &firstfsb);
+	xfs_defer_init(NULL, &dfops);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.

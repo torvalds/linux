@@ -480,8 +480,7 @@ xfs_attr_rmtval_set(
 		 * extent and then crash then the block may not contain the
 		 * correct metadata after log recovery occurs.
 		 */
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		nmap = 1;
 		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
 				  blkcnt, XFS_BMAPI_ATTRFORK, args->total, &map,
@@ -523,8 +522,7 @@ xfs_attr_rmtval_set(
 
 		ASSERT(blkcnt > 0);
 
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		nmap = 1;
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)lblkno,
 				       blkcnt, &map, &nmap,
@@ -628,8 +626,7 @@ xfs_attr_rmtval_remove(
 	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
 				    XFS_BMAPI_ATTRFORK, 1, &done);
 		if (error)

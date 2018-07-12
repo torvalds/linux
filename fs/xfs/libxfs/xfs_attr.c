@@ -251,7 +251,7 @@ xfs_attr_set(
 			rsvd ? XFS_TRANS_RESERVE : 0, &args.trans);
 	if (error)
 		return error;
-	xfs_defer_init(args.trans, &dfops, &args.trans->t_firstblock);
+	xfs_defer_init(args.trans, &dfops);
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(args.trans, dp, args.total, 0,
@@ -422,7 +422,7 @@ xfs_attr_remove(
 			&args.trans);
 	if (error)
 		return error;
-	xfs_defer_init(args.trans, &dfops, &args.trans->t_firstblock);
+	xfs_defer_init(args.trans, &dfops);
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	/*
@@ -593,8 +593,7 @@ xfs_attr_leaf_addname(
 		 * Commit that transaction so that the node_addname() call
 		 * can manage its own transactions.
 		 */
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		error = xfs_attr3_leaf_to_node(args);
 		if (error)
 			goto out_defer_cancel;
@@ -683,8 +682,7 @@ xfs_attr_leaf_addname(
 		 * If the result is small enough, shrink it all into the inode.
 		 */
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
-			xfs_defer_init(args->trans, args->trans->t_dfops,
-				       &args->trans->t_firstblock);
+			xfs_defer_init(args->trans, args->trans->t_dfops);
 			error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
 			/* bp is gone due to xfs_da_shrink_inode */
 			if (error)
@@ -749,8 +747,7 @@ xfs_attr_leaf_removename(
 	 * If the result is small enough, shrink it all into the inode.
 	 */
 	if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
 		/* bp is gone due to xfs_da_shrink_inode */
 		if (error)
@@ -879,8 +876,7 @@ restart:
 			 */
 			xfs_da_state_free(state);
 			state = NULL;
-			xfs_defer_init(args->trans, args->trans->t_dfops,
-				       &args->trans->t_firstblock);
+			xfs_defer_init(args->trans, args->trans->t_dfops);
 			error = xfs_attr3_leaf_to_node(args);
 			if (error)
 				goto out_defer_cancel;
@@ -907,8 +903,7 @@ restart:
 		 * in the index/blkno/rmtblkno/rmtblkcnt fields and
 		 * in the index2/blkno2/rmtblkno2/rmtblkcnt2 fields.
 		 */
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		error = xfs_da3_split(state);
 		if (error)
 			goto out_defer_cancel;
@@ -1006,8 +1001,7 @@ restart:
 		 * Check to see if the tree needs to be collapsed.
 		 */
 		if (retval && (state->path.active > 1)) {
-			xfs_defer_init(args->trans, args->trans->t_dfops,
-				       &args->trans->t_firstblock);
+			xfs_defer_init(args->trans, args->trans->t_dfops);
 			error = xfs_da3_join(state);
 			if (error)
 				goto out_defer_cancel;
@@ -1132,8 +1126,7 @@ xfs_attr_node_removename(
 	 * Check to see if the tree needs to be collapsed.
 	 */
 	if (retval && (state->path.active > 1)) {
-		xfs_defer_init(args->trans, args->trans->t_dfops,
-			       &args->trans->t_firstblock);
+		xfs_defer_init(args->trans, args->trans->t_dfops);
 		error = xfs_da3_join(state);
 		if (error)
 			goto out_defer_cancel;
@@ -1165,8 +1158,7 @@ xfs_attr_node_removename(
 			goto out;
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
-			xfs_defer_init(args->trans, args->trans->t_dfops,
-				       &args->trans->t_firstblock);
+			xfs_defer_init(args->trans, args->trans->t_dfops);
 			error = xfs_attr3_leaf_to_shortform(bp, args, forkoff);
 			/* bp is gone due to xfs_da_shrink_inode */
 			if (error)

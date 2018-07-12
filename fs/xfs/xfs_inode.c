@@ -1194,7 +1194,7 @@ xfs_create(
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	/*
 	 * Reserve disk quota and the inode.
@@ -1448,7 +1448,7 @@ xfs_link(
 			goto error_return;
 	}
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	/*
 	 * Handle initial link state of O_TMPFILE inode
@@ -1579,7 +1579,7 @@ xfs_itruncate_extents_flags(
 	ASSERT(first_unmap_block < last_block);
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
-		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+		xfs_defer_init(tp, &dfops);
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &done);
 		if (error)
@@ -1808,7 +1808,7 @@ xfs_inactive_ifree(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 	error = xfs_ifree(tp, ip);
 	if (error) {
 		/*
@@ -2651,7 +2651,7 @@ xfs_remove(
 	if (error)
 		goto out_trans_cancel;
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino, resblks);
 	if (error) {
 		ASSERT(error != -ENOENT);
@@ -3008,7 +3008,7 @@ xfs_rename(
 		goto out_trans_cancel;
 	}
 
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	/* RENAME_EXCHANGE is unique from here on. */
 	if (flags & RENAME_EXCHANGE)

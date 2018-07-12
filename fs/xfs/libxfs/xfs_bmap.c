@@ -1038,7 +1038,7 @@ xfs_bmap_add_attrfork(
 			rsvd ? XFS_TRANS_RESERVE : 0, &tp);
 	if (error)
 		return error;
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(tp, ip, blks, 0, rsvd ?
@@ -5968,7 +5968,7 @@ xfs_bmap_split_extent(
 			XFS_DIOSTRAT_SPACE_RES(mp, 0), 0, 0, &tp);
 	if (error)
 		return error;
-	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
+	xfs_defer_init(tp, &dfops);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);

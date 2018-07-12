@@ -63,8 +63,7 @@ void xfs_defer_add(struct xfs_defer_ops *dop, enum xfs_defer_ops_type type,
 		struct list_head *h);
 int xfs_defer_finish(struct xfs_trans **tp, struct xfs_defer_ops *dop);
 void xfs_defer_cancel(struct xfs_defer_ops *dop);
-void xfs_defer_init(struct xfs_trans *tp, struct xfs_defer_ops *dop,
-		    xfs_fsblock_t *fbp);
+void xfs_defer_init(struct xfs_trans *tp, struct xfs_defer_ops *dop);
 bool xfs_defer_has_unfinished_work(struct xfs_defer_ops *dop);
 int xfs_defer_ijoin(struct xfs_defer_ops *dop, struct xfs_inode *ip);
 int xfs_defer_bjoin(struct xfs_defer_ops *dop, struct xfs_buf *bp);

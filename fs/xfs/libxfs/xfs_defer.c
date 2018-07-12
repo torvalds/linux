@@ -524,16 +524,15 @@ xfs_defer_init_op_type(
 void
 xfs_defer_init(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
-	xfs_fsblock_t			*fbp)
+	struct xfs_defer_ops		*dop)
 {
 	struct xfs_mount		*mp = NULL;
 
 	memset(dop, 0, sizeof(struct xfs_defer_ops));
-	*fbp = NULLFSBLOCK;
 	INIT_LIST_HEAD(&dop->dop_intake);
 	INIT_LIST_HEAD(&dop->dop_pending);
 	if (tp) {
+		ASSERT(tp->t_firstblock == NULLFSBLOCK);
 		tp->t_dfops = dop;
 		mp = tp->t_mountp;
 	}
