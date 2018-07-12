@@ -3993,8 +3993,8 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	    MVPP2_MAX_PORTS * priv->max_port_rxqs)
 		return -EINVAL;
 
-	if (port->nrxqs % 4 || (port->nrxqs > priv->max_port_rxqs) ||
-	    (port->ntxqs > MVPP2_MAX_TXQ))
+	if (port->nrxqs % MVPP2_DEFAULT_RXQ ||
+	    port->nrxqs > priv->max_port_rxqs || port->ntxqs > MVPP2_MAX_TXQ)
 		return -EINVAL;
 
 	/* Disable port */
