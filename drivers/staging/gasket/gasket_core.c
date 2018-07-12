@@ -1895,7 +1895,8 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 EXPORT_SYMBOL(gasket_reset_nolock);
 
 gasket_ioctl_permissions_cb_t gasket_get_ioctl_permissions_cb(
-	struct gasket_dev *gasket_dev) {
+	struct gasket_dev *gasket_dev)
+{
 	return gasket_dev->internal_desc->driver_desc->ioctl_permissions_cb;
 }
 EXPORT_SYMBOL(gasket_get_ioctl_permissions_cb);
