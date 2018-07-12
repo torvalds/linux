@@ -821,7 +821,7 @@ try:
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test XDP prog remove with bad flags...")
     ret, _, err = sim.unset_xdp("offload", force=True,
@@ -831,7 +831,7 @@ try:
     ret, _, err = sim.unset_xdp("", force=True,
                                 fail=False, include_stderr=True)
     fail(ret == 0, "Removed program with a bad mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test MTU restrictions...")
     ret, _ = sim.set_mtu(9000, fail=False)

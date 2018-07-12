@@ -199,10 +199,8 @@ static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 {
 	int err;
 
-	if (ns->xdp_prog && (bpf->flags ^ ns->xdp_flags) & XDP_FLAGS_MODES) {
-		NSIM_EA(bpf->extack, "program loaded with different flags");
+	if (!xdp_attachment_flags_ok(&ns->xdp, bpf))
 		return -EBUSY;
-	}
 
 	if (bpf->command == XDP_SETUP_PROG && !ns->bpf_xdpdrv_accept) {
 		NSIM_EA(bpf->extack, "driver XDP disabled in DebugFS");
@@ -219,11 +217,7 @@ static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 			return err;
 	}
 
-	if (ns->xdp_prog)
-		bpf_prog_put(ns->xdp_prog);
-
-	ns->xdp_prog = bpf->prog;
-	ns->xdp_flags = bpf->flags;
+	xdp_attachment_setup(&ns->xdp, bpf);
 
 	if (!bpf->prog)
 		ns->xdp_prog_mode = XDP_ATTACHED_NONE;
@@ -567,9 +561,7 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		nsim_bpf_destroy_prog(bpf->offload.prog);
 		return 0;
 	case XDP_QUERY_PROG:
-		bpf->prog_id = ns->xdp_prog ? ns->xdp_prog->aux->id : 0;
-		bpf->prog_flags = ns->xdp_prog ? ns->xdp_flags : 0;
-		return 0;
+		return xdp_attachment_query(&ns->xdp, bpf);
 	case XDP_SETUP_PROG:
 		err = nsim_setup_prog_checks(ns, bpf);
 		if (err)
@@ -636,6 +628,6 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 {
 	WARN_ON(!list_empty(&ns->bpf_bound_progs));
 	WARN_ON(!list_empty(&ns->bpf_bound_maps));
-	WARN_ON(ns->xdp_prog);
+	WARN_ON(ns->xdp.prog);
 	WARN_ON(ns->bpf_offloaded);
 }

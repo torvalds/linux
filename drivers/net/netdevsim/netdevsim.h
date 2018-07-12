@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
 
@@ -67,9 +68,8 @@ struct netdevsim {
 	struct bpf_prog	*bpf_offloaded;
 	u32 bpf_offloaded_id;
 
-	u32 xdp_flags;
+	struct xdp_attachment_info xdp;
 	int xdp_prog_mode;
-	struct bpf_prog	*xdp_prog;
 
 	u32 prog_id_gen;
 

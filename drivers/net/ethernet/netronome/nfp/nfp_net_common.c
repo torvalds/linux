@@ -3417,34 +3417,29 @@ nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
 	return nfp_net_ring_reconfig(nn, dp, extack);
 }
 
-static int
-nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog, u32 flags,
-		  struct netlink_ext_ack *extack)
+static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_bpf *bpf)
 {
 	struct bpf_prog *drv_prog, *offload_prog;
 	int err;
 
-	if (nn->xdp_prog && (flags ^ nn->xdp_flags) & XDP_FLAGS_MODES)
+	if (!xdp_attachment_flags_ok(&nn->xdp, bpf))
 		return -EBUSY;
 
 	/* Load both when no flags set to allow easy activation of driver path
 	 * when program is replaced by one which can't be offloaded.
 	 */
-	drv_prog     = flags & XDP_FLAGS_HW_MODE  ? NULL : prog;
-	offload_prog = flags & XDP_FLAGS_DRV_MODE ? NULL : prog;
+	drv_prog     = bpf->flags & XDP_FLAGS_HW_MODE  ? NULL : bpf->prog;
+	offload_prog = bpf->flags & XDP_FLAGS_DRV_MODE ? NULL : bpf->prog;
 
-	err = nfp_net_xdp_setup_drv(nn, drv_prog, extack);
+	err = nfp_net_xdp_setup_drv(nn, drv_prog, bpf->extack);
 	if (err)
 		return err;
 
-	err = nfp_app_xdp_offload(nn->app, nn, offload_prog, extack);
-	if (err && flags & XDP_FLAGS_HW_MODE)
+	err = nfp_app_xdp_offload(nn->app, nn, offload_prog, bpf->extack);
+	if (err && bpf->flags & XDP_FLAGS_HW_MODE)
 		return err;
 
-	if (nn->xdp_prog)
-		bpf_prog_put(nn->xdp_prog);
-	nn->xdp_prog = prog;
-	nn->xdp_flags = flags;
+	xdp_attachment_setup(&nn->xdp, bpf);
 
 	return 0;
 }
@@ -3456,12 +3451,9 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 	case XDP_SETUP_PROG_HW:
-		return nfp_net_xdp_setup(nn, xdp->prog, xdp->flags,
-					 xdp->extack);
+		return nfp_net_xdp_setup(nn, xdp);
 	case XDP_QUERY_PROG:
-		xdp->prog_id = nn->xdp_prog ? nn->xdp_prog->aux->id : 0;
-		xdp->prog_flags = nn->xdp_prog ? nn->xdp_flags : 0;
-		return 0;
+		return xdp_attachment_query(&nn->xdp, xdp);
 	default:
 		return nfp_app_bpf(nn->app, nn, xdp);
 	}

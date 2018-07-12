@@ -553,8 +553,7 @@ struct nfp_net_dp {
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
- * @xdp_flags:		Flags with which XDP prog was loaded
- * @xdp_prog:		XDP prog (for ctrl path, both DRV and HW modes)
+ * @xdp:		Information about the attached XDP program
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
@@ -610,8 +609,7 @@ struct nfp_net {
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
 
-	u32 xdp_flags;
-	struct bpf_prog *xdp_prog;
+	struct xdp_attachment_info xdp;
 
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
