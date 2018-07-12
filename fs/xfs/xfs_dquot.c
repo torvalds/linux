@@ -540,14 +540,13 @@ xfs_qm_dqread_alloc(
 	struct xfs_trans	*tp;
 	struct xfs_defer_ops	dfops;
 	struct xfs_buf		*bp;
-	xfs_fsblock_t		firstblock;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_dqalloc,
 			XFS_QM_DQALLOC_SPACE_RES(mp), 0, 0, &tp);
 	if (error)
 		goto err;
-	xfs_defer_init(tp, &dfops, &firstblock);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 
 	error = xfs_dquot_disk_alloc(&tp, dqp, &bp);
 	if (error)
