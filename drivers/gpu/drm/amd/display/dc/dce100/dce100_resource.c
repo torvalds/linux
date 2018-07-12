@@ -919,7 +919,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
-
+	dc->caps.disable_dp_clk_share = true;
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.timing_generators[i] =
 			dce100_timing_generator_create(
