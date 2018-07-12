@@ -39,6 +39,7 @@ struct smu7_buffer_entry {
 struct smu7_smumgr {
 	struct smu7_buffer_entry smu_buffer;
 	struct smu7_buffer_entry header_buffer;
+	struct SMU_DRAMData_TOC *toc;
 
 	uint32_t                             soft_regs_start;
 	uint32_t                             dpm_table_start;
