@@ -267,7 +267,6 @@ struct drm_i915_gem_object {
 	union {
 		struct i915_gem_userptr {
 			uintptr_t ptr;
-			unsigned read_only :1;
 
 			struct i915_mm_struct *mm;
 			struct i915_mmu_object *mmu_object;

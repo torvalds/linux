@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
 
-		if (!obj->userptr.read_only)
+		if (!i915_gem_object_is_readonly(obj))
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
@@ -643,7 +643,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 		if (pvec) /* defer to worker if malloc fails */
 			pinned = __get_user_pages_fast(obj->userptr.ptr,
 						       num_pages,
-						       !obj->userptr.read_only,
+						       !i915_gem_object_is_readonly(obj),
 						       pvec);
 	}
 
@@ -789,10 +789,15 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {
-		/* On almost all of the current hw, we cannot tell the GPU that a
-		 * page is readonly, so this is just a placeholder in the uAPI.
+		struct i915_hw_ppgtt *ppgtt;
+
+		/*
+		 * On almost all of the older hw, we cannot tell the GPU that
+		 * a page is readonly.
 		 */
-		return -ENODEV;
+		ppgtt = dev_priv->kernel_context->ppgtt;
+		if (!ppgtt || !ppgtt->vm.has_read_only)
+			return -ENODEV;
 	}
 
 	obj = i915_gem_object_alloc(dev_priv);
@@ -806,7 +811,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
 	obj->userptr.ptr = args->user_ptr;
-	obj->userptr.read_only = !!(args->flags & I915_USERPTR_READ_ONLY);
+	if (args->flags & I915_USERPTR_READ_ONLY)
+		i915_gem_object_set_readonly(obj);
 
 	/* And keep a pointer to the current->mm for resolving the user pages
 	 * at binding. This means that we need to hook into the mmu_notifier
