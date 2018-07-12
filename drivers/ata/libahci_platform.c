@@ -607,7 +607,7 @@ static void ahci_host_stop(struct ata_host *host)
 
 /**
  * ahci_platform_shutdown - Disable interrupts and stop DMA for host ports
- * @dev: platform device pointer for the host
+ * @pdev: platform device pointer for the host
  *
  * This function is called during system shutdown and performs the minimal
  * deconfiguration required to ensure that an ahci_platform host cannot
