@@ -1041,8 +1041,7 @@ xfs_unmap_extent(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
-	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2,
-			    &tp->t_firstblock, done);
+	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, done);
 	if (error)
 		goto out_bmap_cancel;
 

@@ -696,8 +696,7 @@ xfs_reflink_end_cow(
 		/* Unmap the old blocks in the data fork. */
 		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		rlen = del.br_blockcount;
-		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1,
-				&tp->t_firstblock);
+		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1);
 		if (error)
 			goto out_defer;
 
@@ -1044,8 +1043,7 @@ xfs_reflink_remap_extent(
 	rlen = unmap_len;
 	while (rlen) {
 		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
-		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1,
-				      &tp->t_firstblock);
+		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1);
 		if (error)
 			goto out_defer;
 

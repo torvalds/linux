@@ -460,8 +460,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Unmap the dead block(s) to the dfops.
 	 */
-	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps, &tp->t_firstblock,
-			    &done);
+	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps, &done);
 	if (error)
 		goto error_bmap_cancel;
 	ASSERT(done);

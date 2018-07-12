@@ -656,8 +656,7 @@ xfs_dir2_shrink_inode(
 	da = xfs_dir2_db_to_da(args->geo, db);
 
 	/* Unmap the fsblock(s). */
-	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
-			    &tp->t_firstblock, &done);
+	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0, &done);
 	if (error) {
 		/*
 		 * ENOSPC actually can happen if we're in a removename with no
