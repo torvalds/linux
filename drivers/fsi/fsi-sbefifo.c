@@ -706,13 +706,16 @@ static int __sbefifo_submit(struct sbefifo *sbefifo,
 int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 		   __be32 *response, size_t *resp_len)
 {
-	struct sbefifo *sbefifo = dev_get_drvdata(dev);
+	struct sbefifo *sbefifo;
         struct iov_iter resp_iter;
         struct kvec resp_iov;
 	size_t rbytes;
 	int rc;
 
-	if (!dev || !sbefifo)
+	if (!dev)
+		return -ENODEV;
+	sbefifo = dev_get_drvdata(dev);
+	if (!sbefifo)
 		return -ENODEV;
 	if (WARN_ON_ONCE(sbefifo->magic != SBEFIFO_MAGIC))
 		return -ENODEV;
