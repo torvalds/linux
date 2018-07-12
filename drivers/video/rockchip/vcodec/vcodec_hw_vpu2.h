@@ -54,9 +54,9 @@
 #define VPU2_DEC_STREAM_ERROR_BIT	BIT(12)
 #define VPU2_DEC_TIMEOUT_BIT		BIT(13)
 #define VPU2_DEC_ERR_MASK		(VPU2_DEC_BUS_ERROR_BIT \
-					|VPU2_DEC_BUFFER_EMPTY_BIT \
-					|VPU2_DEC_STREAM_ERROR_BIT \
-					|VPU2_DEC_TIMEOUT_BIT)
+					| VPU2_DEC_BUFFER_EMPTY_BIT \
+					| VPU2_DEC_STREAM_ERROR_BIT \
+					| VPU2_DEC_TIMEOUT_BIT)
 
 #define VPU2_PP_INTERRUPT_REGISTER	40
 #define VPU2_PP_INTERRUPT_BIT		BIT(0)
@@ -73,8 +73,8 @@
 #define VPU2_ENC_BUFFER_FULL_BIT	BIT(5)
 #define VPU2_ENC_TIMEOUT_BIT		BIT(6)
 #define VPU2_ENC_ERR_MASK		(VPU2_ENC_BUS_ERROR_BIT \
-					|VPU2_ENC_BUFFER_FULL_BIT \
-					|VPU2_ENC_TIMEOUT_BIT)
+					| VPU2_ENC_BUFFER_FULL_BIT \
+					| VPU2_ENC_TIMEOUT_BIT)
 
 static const enum FORMAT_TYPE vpu2_dec_fmt_tbl[] = {
 	[0]  = FMT_H264D,
@@ -251,28 +251,28 @@ DEF_FMT_TRANS_TBL(vpu2_default_enc,
 );
 
 const struct vpu_trans_info trans_vpu2[FMT_TYPE_BUTT] = {
-	SETUP_FMT_TBL(FMT_JPEGD , vpu2_jpegd),
-	SETUP_FMT_TBL(FMT_H263D , vpu2_default_dec),
-	SETUP_FMT_TBL(FMT_H264D , vpu2_h264d),
+	SETUP_FMT_TBL(FMT_JPEGD, vpu2_jpegd),
+	SETUP_FMT_TBL(FMT_H263D, vpu2_default_dec),
+	SETUP_FMT_TBL(FMT_H264D, vpu2_h264d),
 	EMPTY_FMT_TBL(FMT_H265D),
 
 	SETUP_FMT_TBL(FMT_MPEG1D, vpu2_default_dec),
 	SETUP_FMT_TBL(FMT_MPEG2D, vpu2_default_dec),
 	SETUP_FMT_TBL(FMT_MPEG4D, vpu2_default_dec),
 
-	SETUP_FMT_TBL(FMT_VP6D  , vpu2_vp6d),
-	SETUP_FMT_TBL(FMT_VP7D  , vpu2_default_dec),
-	SETUP_FMT_TBL(FMT_VP8D  , vpu2_vp8d),
+	SETUP_FMT_TBL(FMT_VP6D, vpu2_vp6d),
+	SETUP_FMT_TBL(FMT_VP7D, vpu2_default_dec),
+	SETUP_FMT_TBL(FMT_VP8D, vpu2_vp8d),
 	EMPTY_FMT_TBL(FMT_VP9D),
 
-	SETUP_FMT_TBL(FMT_PP    , vpu2_default_pp),
+	SETUP_FMT_TBL(FMT_PP, vpu2_default_pp),
 
-	SETUP_FMT_TBL(FMT_VC1D  , vpu2_vc1d),
-	SETUP_FMT_TBL(FMT_AVSD  , vpu2_default_dec),
+	SETUP_FMT_TBL(FMT_VC1D, vpu2_vc1d),
+	SETUP_FMT_TBL(FMT_AVSD, vpu2_default_dec),
 
-	SETUP_FMT_TBL(FMT_JPEGE , vpu2_default_enc),
-	SETUP_FMT_TBL(FMT_H264E , vpu2_default_enc),
-	SETUP_FMT_TBL(FMT_VP8E  , vpu2_default_enc),
+	SETUP_FMT_TBL(FMT_JPEGE, vpu2_default_enc),
+	SETUP_FMT_TBL(FMT_H264E, vpu2_default_enc),
+	SETUP_FMT_TBL(FMT_VP8E, vpu2_default_enc),
 };
 
 #endif

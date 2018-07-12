@@ -31,7 +31,6 @@
 #define REG_NUM_ENC_4831		(164)
 #define REG_SIZE_ENC_4831		(0x400)
 
-
 /* enable and gating register */
 #define VPU_REG_EN_ENC			14
 #define VPU_REG_ENC_GATE		2
@@ -58,9 +57,9 @@
 #define VPU_DEC_SLICE_DONE_BIT		BIT(17)
 #define VPU_DEC_TIMEOUT_BIT		BIT(18)
 #define VPU_DEC_ERR_MASK		(VPU_DEC_BUS_ERROR_BIT \
-					|VPU_DEC_BUFFER_EMPTY_BIT \
-					|VPU_DEC_STREAM_ERROR_BIT \
-					|VPU_DEC_TIMEOUT_BIT)
+					| VPU_DEC_BUFFER_EMPTY_BIT \
+					| VPU_DEC_STREAM_ERROR_BIT \
+					| VPU_DEC_TIMEOUT_BIT)
 
 #define VPU_PP_INTERRUPT_REGISTER	60
 #define VPU_PP_PIPELINE_MODE_BIT	BIT(1)
@@ -76,8 +75,8 @@
 #define VPU_ENC_BUFFER_FULL_BIT		BIT(5)
 #define VPU_ENC_TIMEOUT_BIT		BIT(6)
 #define VPU_ENC_ERR_MASK		(VPU_ENC_BUS_ERROR_BIT \
-					|VPU_ENC_BUFFER_FULL_BIT \
-					|VPU_ENC_TIMEOUT_BIT)
+					| VPU_ENC_BUFFER_FULL_BIT \
+					| VPU_ENC_TIMEOUT_BIT)
 
 static const enum FORMAT_TYPE vpu_dec_fmt_tbl[] = {
 	[0]  = FMT_H264D,
