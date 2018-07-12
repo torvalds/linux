@@ -204,7 +204,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 			return err;
 	}
 
-	/* Currently applicable only to VLV */
+	/* Applicable to VLV, and gen8+ */
 	pte_flags = 0;
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
@@ -1044,10 +1044,11 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 			      struct i915_page_directory_pointer *pdp,
 			      struct sgt_dma *iter,
 			      struct gen8_insert_pte *idx,
-			      enum i915_cache_level cache_level)
+			      enum i915_cache_level cache_level,
+			      u32 flags)
 {
 	struct i915_page_directory *pd;
-	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, 0);
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
 	gen8_pte_t *vaddr;
 	bool ret;
 
@@ -1098,14 +1099,14 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 				   struct i915_vma *vma,
 				   enum i915_cache_level cache_level,
-				   u32 unused)
+				   u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = sgt_dma(vma);
 	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
 	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
-				      cache_level);
+				      cache_level, flags);
 
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
 }
@@ -1113,9 +1114,10 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 					   struct i915_page_directory_pointer **pdps,
 					   struct sgt_dma *iter,
-					   enum i915_cache_level cache_level)
+					   enum i915_cache_level cache_level,
+					   u32 flags)
 {
-	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, 0);
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
 	u64 start = vma->node.start;
 	dma_addr_t rem = iter->sg->length;
 
@@ -1231,19 +1233,21 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
 				   struct i915_vma *vma,
 				   enum i915_cache_level cache_level,
-				   u32 unused)
+				   u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = sgt_dma(vma);
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
 
 	if (vma->page_sizes.sg > I915_GTT_PAGE_SIZE) {
-		gen8_ppgtt_insert_huge_entries(vma, pdps, &iter, cache_level);
+		gen8_ppgtt_insert_huge_entries(vma, pdps, &iter, cache_level,
+					       flags);
 	} else {
 		struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
 		while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++],
-						     &iter, &idx, cache_level))
+						     &iter, &idx, cache_level,
+						     flags))
 			GEM_BUG_ON(idx.pml4e >= GEN8_PML4ES_PER_PML4);
 
 		vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
@@ -1657,6 +1661,9 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.total = USES_FULL_48BIT_PPGTT(i915) ?
 		1ULL << 48 :
 		1ULL << 32;
+
+	/* From bdw, there is support for read-only pages in the PPGTT */
+	ppgtt->vm.has_read_only = true;
 
 	i915_address_space_init(&ppgtt->vm, i915);
 
@@ -2472,13 +2479,16 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct i915_vma *vma,
 				     enum i915_cache_level level,
-				     u32 unused)
+				     u32 flags)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct sgt_iter sgt_iter;
 	gen8_pte_t __iomem *gtt_entries;
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, level, 0);
 	dma_addr_t addr;
+
+	/* The GTT does not support read-only mappings */
+	GEM_BUG_ON(flags & PTE_READ_ONLY);
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
 	gtt_entries += vma->node.start >> PAGE_SHIFT;
@@ -2606,13 +2616,14 @@ struct insert_entries {
 	struct i915_address_space *vm;
 	struct i915_vma *vma;
 	enum i915_cache_level level;
+	u32 flags;
 };
 
 static int bxt_vtd_ggtt_insert_entries__cb(void *_arg)
 {
 	struct insert_entries *arg = _arg;
 
-	gen8_ggtt_insert_entries(arg->vm, arg->vma, arg->level, 0);
+	gen8_ggtt_insert_entries(arg->vm, arg->vma, arg->level, arg->flags);
 	bxt_vtd_ggtt_wa(arg->vm);
 
 	return 0;
@@ -2621,9 +2632,9 @@ static int bxt_vtd_ggtt_insert_entries__cb(void *_arg)
 static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
 					     struct i915_vma *vma,
 					     enum i915_cache_level level,
-					     u32 unused)
+					     u32 flags)
 {
-	struct insert_entries arg = { vm, vma, level };
+	struct insert_entries arg = { vm, vma, level, flags };
 
 	stop_machine(bxt_vtd_ggtt_insert_entries__cb, &arg, NULL);
 }
@@ -2714,7 +2725,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags;
 
-	/* Currently applicable only to VLV */
+	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
 	pte_flags = 0;
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
@@ -3594,6 +3605,10 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_address_space_init(&ggtt->vm, dev_priv);
+
+	/* Only VLV supports read-only GGTT mappings */
+	ggtt->vm.has_read_only = IS_VALLEYVIEW(dev_priv);
+
 	if (!HAS_LLC(dev_priv) && !USES_PPGTT(dev_priv))
 		ggtt->vm.mm.color_adjust = i915_gtt_color_adjust;
 	mutex_unlock(&dev_priv->drm.struct_mutex);

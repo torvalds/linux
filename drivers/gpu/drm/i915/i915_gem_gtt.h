@@ -331,7 +331,12 @@ struct i915_address_space {
 	struct list_head unbound_list;
 
 	struct pagestash free_pages;
-	bool pt_kmap_wc;
+
+	/* Some systems require uncached updates of the page directories */
+	bool pt_kmap_wc:1;
+
+	/* Some systems support read-only mappings for GGTT and/or PPGTT */
+	bool has_read_only:1;
 
 	/* FIXME: Need a more generic return type */
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
