@@ -152,7 +152,6 @@ xfs_iomap_write_direct(
 	xfs_fileoff_t	offset_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_filblks_t	count_fsb, resaligned;
-	xfs_fsblock_t	firstfsb;
 	xfs_extlen_t	extsz;
 	int		nimaps;
 	int		quota_flag;
@@ -254,10 +253,10 @@ xfs_iomap_write_direct(
 	 * From this point onwards we overwrite the imap pointer that the
 	 * caller gave to us.
 	 */
-	xfs_defer_init(tp, &dfops, &firstfsb);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-				bmapi_flags, &firstfsb, resblks, imap,
+				bmapi_flags, &tp->t_firstblock, resblks, imap,
 				&nimaps);
 	if (error)
 		goto out_bmap_cancel;
@@ -665,7 +664,6 @@ xfs_iomap_write_allocate(
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	offset_fsb, last_block;
 	xfs_fileoff_t	end_fsb, map_start_fsb;
-	xfs_fsblock_t	first_block;
 	struct xfs_defer_ops	dfops;
 	xfs_filblks_t	count_fsb;
 	xfs_trans_t	*tp;
@@ -716,7 +714,7 @@ xfs_iomap_write_allocate(
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			xfs_trans_ijoin(tp, ip, 0);
 
-			xfs_defer_init(tp, &dfops, &first_block);
+			xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 
 			/*
 			 * it is possible that the extents have changed since
@@ -770,8 +768,9 @@ xfs_iomap_write_allocate(
 			 * pointer that the caller gave to us.
 			 */
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
-						count_fsb, flags, &first_block,
-						nres, imap, &nimaps);
+						count_fsb, flags,
+						&tp->t_firstblock, nres, imap,
+						&nimaps);
 			if (error)
 				goto trans_cancel;
 
@@ -827,7 +826,6 @@ xfs_iomap_write_unwritten(
 	xfs_fileoff_t	offset_fsb;
 	xfs_filblks_t	count_fsb;
 	xfs_filblks_t	numblks_fsb;
-	xfs_fsblock_t	firstfsb;
 	int		nimaps;
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap;
@@ -876,11 +874,11 @@ xfs_iomap_write_unwritten(
 		/*
 		 * Modify the unwritten extent state of the buffer.
 		 */
-		xfs_defer_init(tp, &dfops, &firstfsb);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-					XFS_BMAPI_CONVERT, &firstfsb, resblks,
-					&imap, &nimaps);
+					XFS_BMAPI_CONVERT, &tp->t_firstblock,
+					resblks, &imap, &nimaps);
 		if (error)
 			goto error_on_bmapi_transaction;
 

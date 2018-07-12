@@ -761,7 +761,6 @@ xfs_growfs_rt_alloc(
 	struct xfs_buf		*bp;	/* temporary buffer for zeroing */
 	xfs_daddr_t		d;		/* disk block address */
 	int			error;		/* error return value */
-	xfs_fsblock_t		firstblock;/* first block allocated in xaction */
 	struct xfs_defer_ops	dfops;		/* list of freed blocks */
 	xfs_fsblock_t		fsbno;		/* filesystem block for bno */
 	struct xfs_bmbt_irec	map;		/* block map output */
@@ -787,13 +786,13 @@ xfs_growfs_rt_alloc(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(tp, &dfops, &firstblock);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		/*
 		 * Allocate blocks to the bitmap file.
 		 */
 		nmap = 1;
 		error = xfs_bmapi_write(tp, ip, oblocks, nblocks - oblocks,
-					XFS_BMAPI_METADATA, &firstblock,
+					XFS_BMAPI_METADATA, &tp->t_firstblock,
 					resblks, &map, &nmap);
 		if (!error && nmap < 1)
 			error = -ENOSPC;

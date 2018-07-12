@@ -366,7 +366,6 @@ xfs_reflink_allocate_cow(
 	struct xfs_bmbt_irec	got;
 	struct xfs_defer_ops	dfops;
 	struct xfs_trans	*tp = NULL;
-	xfs_fsblock_t		first_block;
 	int			nimaps, error = 0;
 	bool			trimmed;
 	xfs_filblks_t		resaligned;
@@ -425,13 +424,13 @@ retry:
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(tp, &dfops, &first_block);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 	nimaps = 1;
 
 	/* Allocate the entire reservation as unwritten blocks. */
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
-			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC, &first_block,
-			resblks, imap, &nimaps);
+			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC,
+			&tp->t_firstblock, resblks, imap, &nimaps);
 	if (error)
 		goto out_bmap_cancel;
 

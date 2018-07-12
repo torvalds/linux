@@ -290,13 +290,12 @@ xfs_dquot_disk_alloc(
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*bp;
 	struct xfs_inode	*quotip = xfs_quota_inode(mp, dqp->dq_flags);
-	xfs_fsblock_t		firstblock;
 	int			nmaps = 1;
 	int			error;
 
 	trace_xfs_dqalloc(dqp);
 
-	xfs_defer_init(tp, tp->t_dfops, &firstblock);
+	xfs_defer_init(tp, tp->t_dfops, &tp->t_firstblock);
 
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
@@ -312,7 +311,7 @@ xfs_dquot_disk_alloc(
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	error = xfs_bmapi_write(tp, quotip, dqp->q_fileoffset,
 			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
-			&firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
+			&tp->t_firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
 			&map, &nmaps);
 	if (error)
 		goto error0;

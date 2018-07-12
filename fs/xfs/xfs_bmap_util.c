@@ -873,7 +873,6 @@ xfs_alloc_file_space(
 	xfs_filblks_t		allocatesize_fsb;
 	xfs_extlen_t		extsz, temp;
 	xfs_fileoff_t		startoffset_fsb;
-	xfs_fsblock_t		firstfsb;
 	int			nimaps;
 	int			quota_flag;
 	int			rt;
@@ -972,10 +971,11 @@ xfs_alloc_file_space(
 
 		xfs_trans_ijoin(tp, ip, 0);
 
-		xfs_defer_init(tp, &dfops, &firstfsb);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
-					allocatesize_fsb, alloc_type, &firstfsb,
-					resblks, imapp, &nimaps);
+					allocatesize_fsb, alloc_type,
+					&tp->t_firstblock, resblks, imapp,
+					&nimaps);
 		if (error)
 			goto error0;
 
