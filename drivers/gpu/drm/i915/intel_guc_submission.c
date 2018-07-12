@@ -910,8 +910,12 @@ static void guc_clients_doorbell_fini(struct intel_guc *guc)
 		__update_doorbell_desc(guc->preempt_client,
 				       GUC_DOORBELL_INVALID);
 	}
-	__destroy_doorbell(guc->execbuf_client);
-	__update_doorbell_desc(guc->execbuf_client, GUC_DOORBELL_INVALID);
+
+	if (guc->execbuf_client) {
+		__destroy_doorbell(guc->execbuf_client);
+		__update_doorbell_desc(guc->execbuf_client,
+				       GUC_DOORBELL_INVALID);
+	}
 }
 
 /**
