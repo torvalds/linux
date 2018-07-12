@@ -254,6 +254,8 @@ xfs_attr_set(
 			rsvd ? XFS_TRANS_RESERVE : 0, &args.trans);
 	if (error)
 		return error;
+	xfs_defer_init(&dfops, &firstblock);
+	args.trans->t_dfops = &dfops;
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(args.trans, dp, args.total, 0,
@@ -315,7 +317,6 @@ xfs_attr_set(
 		 * It won't fit in the shortform, transform to a leaf block.
 		 * GROT: another possible req'mt for a double-split btree op.
 		 */
-		xfs_defer_init(args.dfops, args.firstblock);
 		error = xfs_attr_shortform_to_leaf(&args, &leaf_bp);
 		if (error)
 			goto out_defer_cancel;
@@ -325,9 +326,9 @@ xfs_attr_set(
 		 * buffer and run into problems with the write verifier.
 		 */
 		xfs_trans_bhold(args.trans, leaf_bp);
-		xfs_defer_bjoin(args.dfops, leaf_bp);
-		xfs_defer_ijoin(args.dfops, dp);
-		error = xfs_defer_finish(&args.trans, args.dfops);
+		xfs_defer_bjoin(&dfops, leaf_bp);
+		xfs_defer_ijoin(&dfops, dp);
+		error = xfs_defer_finish(&args.trans, &dfops);
 		if (error)
 			goto out_defer_cancel;
 
@@ -429,6 +430,8 @@ xfs_attr_remove(
 			&args.trans);
 	if (error)
 		return error;
+	xfs_defer_init(&dfops, &firstblock);
+	args.trans->t_dfops = &dfops;
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	/*
