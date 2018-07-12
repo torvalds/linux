@@ -272,7 +272,6 @@ xfs_dir_createname(
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
-	args->firstblock = &tp->t_firstblock;
 	args->op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	if (!inum)
 		args->op_flags |= XFS_DA_OP_JUSTCHECK;
@@ -439,7 +438,6 @@ xfs_dir_removename(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = ino;
 	args->dp = dp;
-	args->firstblock = &tp->t_firstblock;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -502,7 +500,6 @@ xfs_dir_replace(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = inum;
 	args->dp = dp;
-	args->firstblock = &tp->t_firstblock;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -660,7 +657,7 @@ xfs_dir2_shrink_inode(
 
 	/* Unmap the fsblock(s). */
 	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
-			    args->firstblock, &done);
+			    &tp->t_firstblock, &done);
 	if (error) {
 		/*
 		 * ENOSPC actually can happen if we're in a removename with no

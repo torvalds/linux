@@ -1000,7 +1000,6 @@ xfs_bmap_add_attrfork_local(
 		memset(&dargs, 0, sizeof(dargs));
 		dargs.geo = ip->i_mount->m_dir_geo;
 		dargs.dp = ip;
-		dargs.firstblock = &tp->t_firstblock;
 		dargs.total = dargs.geo->fsbcount;
 		dargs.whichfork = XFS_DATA_FORK;
 		dargs.trans = tp;
