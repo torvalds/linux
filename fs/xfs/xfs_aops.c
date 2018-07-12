@@ -863,10 +863,8 @@ xfs_writepage_map(
 		 * meaningless for holes (!mapped && uptodate), so skip
 		 * buffers covering holes here.
 		 */
-		if (!buffer_mapped(bh) && buffer_uptodate(bh)) {
-			wpc->imap_valid = false;
+		if (!buffer_mapped(bh) && buffer_uptodate(bh))
 			continue;
-		}
 
 		if (buffer_unwritten(bh))
 			new_type = XFS_IO_UNWRITTEN;
@@ -879,11 +877,8 @@ xfs_writepage_map(
 				ASSERT(buffer_mapped(bh));
 			/*
 			 * This buffer is not uptodate and will not be
-			 * written to disk.  Ensure that we will put any
-			 * subsequent writeable buffers into a new
-			 * ioend.
+			 * written to disk.
 			 */
-			wpc->imap_valid = false;
 			continue;
 		}
 
