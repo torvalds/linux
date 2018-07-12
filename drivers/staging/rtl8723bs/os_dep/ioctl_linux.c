@@ -79,38 +79,6 @@ void rtw_indicate_wx_disassoc_event(struct adapter *padapter)
 	eth_zero_addr(wrqu.ap_addr.sa_data);
 }
 
-/*
-uint	rtw_is_cckrates_included(u8 *rate)
-{
-		u32 i = 0;
-
-		while (rate[i]!= 0)
-		{
-			if  ((((rate[i]) & 0x7f) == 2)	|| (((rate[i]) & 0x7f) == 4) ||
-			(((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22))
-			return true;
-			i++;
-		}
-
-		return false;
-}
-
-uint	rtw_is_cckratesonly_included(u8 *rate)
-{
-	u32 i = 0;
-
-	while (rate[i]!= 0)
-	{
-			if  ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-				(((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
-			return false;
-			i++;
-	}
-
-	return true;
-}
-*/
-
 static char *translate_scan(struct adapter *padapter,
 				struct iw_request_info* info, struct wlan_network *pnetwork,
 				char *start, char *stop)
