@@ -13,14 +13,13 @@
 #ifndef _MVPP2_CLS_H_
 #define _MVPP2_CLS_H_
 
+#include "mvpp2.h"
+
 /* Classifier constants */
 #define MVPP2_CLS_FLOWS_TBL_SIZE	512
 #define MVPP2_CLS_FLOWS_TBL_DATA_WORDS	3
 #define MVPP2_CLS_LKP_TBL_SIZE		64
 #define MVPP2_CLS_RX_QUEUES		256
-
-/* RSS constants */
-#define MVPP22_RSS_TABLE_ENTRIES	32
 
 struct mvpp2_cls_flow_entry {
 	u32 index;

@@ -557,6 +557,9 @@
 #define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
 #define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
 
+/* RSS constants */
+#define MVPP22_RSS_TABLE_ENTRIES	32
+
 /* IPv6 max L3 address size */
 #define MVPP2_MAX_L3_ADDR_SIZE		16
 
