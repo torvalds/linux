@@ -759,18 +759,6 @@ i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
 	adapter->lock_ops->unlock_bus(adapter, flags);
 }
 
-static inline void
-i2c_lock_adapter(struct i2c_adapter *adapter)
-{
-	i2c_lock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
-}
-
-static inline void
-i2c_unlock_adapter(struct i2c_adapter *adapter)
-{
-	i2c_unlock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
-}
-
 /*flags for the client struct: */
 #define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
 #define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
