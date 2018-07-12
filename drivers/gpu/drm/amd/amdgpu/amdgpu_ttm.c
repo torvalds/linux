@@ -104,8 +104,6 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
-	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	int r;
 
 	/* ensure reference is false in case init fails */
@@ -138,21 +136,10 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->mman.gtt_window_lock);
 
-	ring = adev->mman.buffer_funcs_ring;
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-	r = drm_sched_entity_init(&ring->sched, &adev->mman.entity,
-				  rq, NULL);
-	if (r) {
-		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
-		goto error_entity;
-	}
-
 	adev->mman.mem_global_referenced = true;
 
 	return 0;
 
-error_entity:
-	drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 error_bo:
 	drm_global_item_unref(&adev->mman.mem_global_ref);
 error_mem:
@@ -162,8 +149,6 @@ error_mem:
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
-		drm_sched_entity_destroy(adev->mman.entity.sched,
-				      &adev->mman.entity);
 		mutex_destroy(&adev->mman.gtt_window_lock);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 		drm_global_item_unref(&adev->mman.mem_global_ref);
@@ -1921,9 +1906,29 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 {
 	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	uint64_t size;
+	int r;
 
-	if (!adev->mman.initialized || adev->in_gpu_reset)
+	if (!adev->mman.initialized || adev->in_gpu_reset ||
+	    adev->mman.buffer_funcs_enabled == enable)
 		return;
+
+	if (enable) {
+		struct amdgpu_ring *ring;
+		struct drm_sched_rq *rq;
+
+		ring = adev->mman.buffer_funcs_ring;
+		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+		r = drm_sched_entity_init(&ring->sched, &adev->mman.entity,
+					  rq, NULL);
+		if (r) {
+			DRM_ERROR("Failed setting up TTM BO move entity (%d)\n",
+				  r);
+			return;
+		}
+	} else {
+		drm_sched_entity_destroy(adev->mman.entity.sched,
+					 &adev->mman.entity);
+	}
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
 	if (enable)
