@@ -32,6 +32,7 @@
 /* Offsets for the DesignWare specific registers */
 #define DW_UART_USR	0x1f /* UART Status Register */
 #define DW_UART_DLF	0xc0 /* Divisor Latch Fraction Register */
+#define DW_UART_RFL	0x21 /* UART Receive Fifo Level Register */
 #define DW_UART_CPR	0xf4 /* Component Parameter Register */
 #define DW_UART_UCV	0xf8 /* UART Component Version */
 
@@ -257,7 +258,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 {
 	struct dw8250_data *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
-	unsigned int status;
+	unsigned int status, usr, rfl;
 	unsigned long flags;
 
 	/*
@@ -269,9 +270,10 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 */
 	if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
 		spin_lock_irqsave(&p->lock, flags);
+		usr = p->serial_in(p, d->usr_reg);
 		status = p->serial_in(p, UART_LSR);
-
-		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
+		rfl = p->serial_in(p, DW_UART_RFL);
+		if (!(status & (UART_LSR_DR | UART_LSR_BI)) && !(usr & 0x1) && (rfl == 0))
 			(void) p->serial_in(p, UART_RX);
 
 		spin_unlock_irqrestore(&p->lock, flags);
