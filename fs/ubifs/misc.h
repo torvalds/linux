@@ -287,4 +287,6 @@ static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
 	return lnum;
 }
 
+const char *ubifs_assert_action_name(struct ubifs_info *c);
+
 #endif /* __UBIFS_MISC_H__ */

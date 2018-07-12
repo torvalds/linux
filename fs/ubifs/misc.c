@@ -56,3 +56,14 @@ void ubifs_warn(const struct ubifs_info *c, const char *fmt, ...)
 
 	va_end(args);
 }
+
+static char *assert_names[] = {
+	[ASSACT_REPORT] = "report",
+	[ASSACT_RO] = "read-only",
+	[ASSACT_PANIC] = "panic",
+};
+
+const char *ubifs_assert_action_name(struct ubifs_info *c)
+{
+	return assert_names[c->assert_action];
+}
