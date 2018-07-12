@@ -8,6 +8,9 @@ Required root node properties:
 
 Additional compatible strings:
 
+- Digilent Zybo Z7 board
+  "digilent,zynq-zybo-z7"
+
 - Xilinx CC108 internal board
   "xlnx,zynq-cc108"
 
@@ -16,9 +19,6 @@ Additional compatible strings:
   "xlnx,zynq-zc770-xm011"
   "xlnx,zynq-zc770-xm012"
   "xlnx,zynq-zc770-xm013"
-
-- Digilent Zybo Z7 board
-  "digilent,zynq-zybo-z7"
 
 ---------------------------------------------------------------
 
