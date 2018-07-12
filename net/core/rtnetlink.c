@@ -964,7 +964,8 @@ static size_t rtnl_xdp_size(void)
 {
 	size_t xdp_size = nla_total_size(0) +	/* nest IFLA_XDP */
 			  nla_total_size(1) +	/* XDP_ATTACHED */
-			  nla_total_size(4);	/* XDP_PROG_ID */
+			  nla_total_size(4) +	/* XDP_PROG_ID */
+			  nla_total_size(4);	/* XDP_<mode>_PROG_ID */
 
 	return xdp_size;
 }
@@ -1378,21 +1379,42 @@ static u8 rtnl_xdp_attached_mode(struct net_device *dev, u32 *prog_id)
 
 static int rtnl_xdp_fill(struct sk_buff *skb, struct net_device *dev)
 {
+	u32 prog_attr, prog_id;
 	struct nlattr *xdp;
-	u32 prog_id;
 	int err;
+	u8 mode;
 
 	xdp = nla_nest_start(skb, IFLA_XDP);
 	if (!xdp)
 		return -EMSGSIZE;
 
-	err = nla_put_u8(skb, IFLA_XDP_ATTACHED,
-			 rtnl_xdp_attached_mode(dev, &prog_id));
+	mode = rtnl_xdp_attached_mode(dev, &prog_id);
+	err = nla_put_u8(skb, IFLA_XDP_ATTACHED, mode);
 	if (err)
 		goto err_cancel;
 
 	if (prog_id) {
 		err = nla_put_u32(skb, IFLA_XDP_PROG_ID, prog_id);
+		if (err)
+			goto err_cancel;
+
+		switch (mode) {
+		case XDP_ATTACHED_DRV:
+			prog_attr = IFLA_XDP_DRV_PROG_ID;
+			break;
+		case XDP_ATTACHED_SKB:
+			prog_attr = IFLA_XDP_SKB_PROG_ID;
+			break;
+		case XDP_ATTACHED_HW:
+			prog_attr = IFLA_XDP_HW_PROG_ID;
+			break;
+		case XDP_ATTACHED_NONE:
+		default:
+			err = -EINVAL;
+			goto err_cancel;
+		}
+
+		err = nla_put_u32(skb, prog_attr, prog_id);
 		if (err)
 			goto err_cancel;
 	}
