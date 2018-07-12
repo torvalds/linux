@@ -467,6 +467,14 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
+static int phy_config_aneg(struct phy_device *phydev)
+{
+	if (phydev->drv->config_aneg)
+		return phydev->drv->config_aneg(phydev);
+	else
+		return genphy_config_aneg(phydev);
+}
+
 /**
  * phy_start_aneg_priv - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
@@ -493,10 +501,7 @@ static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
 	/* Invalidate LP advertising flags */
 	phydev->lp_advertising = 0;
 
-	if (phydev->drv->config_aneg)
-		err = phydev->drv->config_aneg(phydev);
-	else
-		err = genphy_config_aneg(phydev);
+	err = phy_config_aneg(phydev);
 	if (err < 0)
 		goto out_unlock;
 
