@@ -716,11 +716,30 @@ static inline void emit_a32_alu_r(const s8 dst, const s8 src,
 static inline void emit_a32_alu_r64(const bool is64, const s8 dst[],
 				  const s8 src[], struct jit_ctx *ctx,
 				  const u8 op) {
-	emit_a32_alu_r(dst_lo, src_lo, ctx, is64, false, op);
-	if (is64)
-		emit_a32_alu_r(dst_hi, src_hi, ctx, is64, true, op);
-	else
-		emit_a32_mov_i(dst_hi, 0, ctx);
+	const s8 *tmp = bpf2a32[TMP_REG_1];
+	const s8 *tmp2 = bpf2a32[TMP_REG_2];
+	const s8 *rd;
+
+	rd = arm_bpf_get_reg64(dst, tmp, ctx);
+	if (is64) {
+		const s8 *rs;
+
+		rs = arm_bpf_get_reg64(src, tmp2, ctx);
+
+		/* ALU operation */
+		emit_alu_r(rd[1], rs[1], true, false, op, ctx);
+		emit_alu_r(rd[0], rs[0], true, true, op, ctx);
+	} else {
+		s8 rs;
+
+		rs = arm_bpf_get_reg32(src_lo, tmp2[1], ctx);
+
+		/* ALU operation */
+		emit_alu_r(rd[1], rs, true, false, op, ctx);
+		emit_a32_mov_i(rd[0], 0, ctx);
+	}
+
+	arm_bpf_put_reg64(dst, rd, ctx);
 }
 
 /* dst = src (4 bytes)*/
