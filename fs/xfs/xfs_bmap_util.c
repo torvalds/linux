@@ -702,16 +702,15 @@ xfs_bmap_punch_delalloc_range(
 	struct xfs_iext_cursor	icur;
 	int			error = 0;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
 		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
 		if (error)
-			return error;
+			goto out_unlock;
 	}
 
 	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
-		return 0;
+		goto out_unlock;
 
 	while (got.br_startoff + got.br_blockcount > start_fsb) {
 		del = got;
@@ -735,6 +734,8 @@ xfs_bmap_punch_delalloc_range(
 			break;
 	}
 
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 
