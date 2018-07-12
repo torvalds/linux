@@ -1482,7 +1482,7 @@ mpt3sas_scsih_scsi_lookup_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 		scmd = scsi_host_find_tag(ioc->shost, unique_tag);
 		if (scmd) {
 			st = scsi_cmd_priv(scmd);
-			if (st->cb_idx == 0xFF)
+			if (st->cb_idx == 0xFF || st->smid == 0)
 				scmd = NULL;
 		}
 	}
