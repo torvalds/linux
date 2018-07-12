@@ -134,7 +134,8 @@ static void dctcp_ce_state_0_to_1(struct sock *sk)
 	/* State has changed from CE=0 to CE=1 and delayed
 	 * ACK has not sent yet.
 	 */
-	if (!ca->ce_state && ca->delayed_ack_reserved) {
+	if (!ca->ce_state &&
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER) {
 		u32 tmp_rcv_nxt;
 
 		/* Save current rcv_nxt. */
@@ -164,7 +165,8 @@ static void dctcp_ce_state_1_to_0(struct sock *sk)
 	/* State has changed from CE=1 to CE=0 and delayed
 	 * ACK has not sent yet.
 	 */
-	if (ca->ce_state && ca->delayed_ack_reserved) {
+	if (ca->ce_state &&
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER) {
 		u32 tmp_rcv_nxt;
 
 		/* Save current rcv_nxt. */
