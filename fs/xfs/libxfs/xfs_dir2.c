@@ -243,7 +243,6 @@ xfs_dir_createname(
 	struct xfs_inode	*dp,
 	struct xfs_name		*name,
 	xfs_ino_t		inum,		/* new entry inode number */
-	xfs_fsblock_t		*first,		/* bmap's firstblock */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -251,7 +250,6 @@ xfs_dir_createname(
 	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(tp->t_dfops || !first);
 
 	if (inum) {
 		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
@@ -274,7 +272,7 @@ xfs_dir_createname(
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
-	args->firstblock = first;
+	args->firstblock = &tp->t_firstblock;
 	args->op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	if (!inum)
 		args->op_flags |= XFS_DA_OP_JUSTCHECK;
@@ -420,7 +418,6 @@ xfs_dir_removename(
 	struct xfs_inode	*dp,
 	struct xfs_name		*name,
 	xfs_ino_t		ino,
-	xfs_fsblock_t		*first,		/* bmap's firstblock */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -442,7 +439,7 @@ xfs_dir_removename(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = ino;
 	args->dp = dp;
-	args->firstblock = first;
+	args->firstblock = &tp->t_firstblock;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -481,7 +478,6 @@ xfs_dir_replace(
 	struct xfs_inode	*dp,
 	struct xfs_name		*name,		/* name of entry to replace */
 	xfs_ino_t		inum,		/* new inode number */
-	xfs_fsblock_t		*first,		/* bmap's firstblock */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -506,7 +502,7 @@ xfs_dir_replace(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = inum;
 	args->dp = dp;
-	args->firstblock = first;
+	args->firstblock = &tp->t_firstblock;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -545,7 +541,7 @@ xfs_dir_canenter(
 	xfs_inode_t	*dp,
 	struct xfs_name	*name)		/* name of entry to add */
 {
-	return xfs_dir_createname(tp, dp, name, 0, NULL, 0);
+	return xfs_dir_createname(tp, dp, name, 0, 0);
 }
 
 /*

@@ -1223,7 +1223,7 @@ xfs_create(
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	unlock_dp_on_error = false;
 
-	error = xfs_dir_createname(tp, dp, name, ip->i_ino, &tp->t_firstblock,
+	error = xfs_dir_createname(tp, dp, name, ip->i_ino,
 				   resblks ?
 					resblks - XFS_IALLOC_SPACE_RES(mp) : 0);
 	if (error) {
@@ -1460,7 +1460,7 @@ xfs_link(
 	}
 
 	error = xfs_dir_createname(tp, tdp, target_name, sip->i_ino,
-				   &tp->t_firstblock, resblks);
+				   resblks);
 	if (error)
 		goto error_return;
 	xfs_trans_ichgtime(tp, tdp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -2655,8 +2655,7 @@ xfs_remove(
 		goto out_trans_cancel;
 
 	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
-	error = xfs_dir_removename(tp, dp, name, ip->i_ino, &tp->t_firstblock,
-				   resblks);
+	error = xfs_dir_removename(tp, dp, name, ip->i_ino, resblks);
 	if (error) {
 		ASSERT(error != -ENOENT);
 		goto out_bmap_cancel;
@@ -2788,14 +2787,12 @@ xfs_cross_rename(
 	int		dp2_flags = 0;
 
 	/* Swap inode number for dirent in first parent */
-	error = xfs_dir_replace(tp, dp1, name1, ip2->i_ino, &tp->t_firstblock,
-				spaceres);
+	error = xfs_dir_replace(tp, dp1, name1, ip2->i_ino, spaceres);
 	if (error)
 		goto out_trans_abort;
 
 	/* Swap inode number for dirent in second parent */
-	error = xfs_dir_replace(tp, dp2, name2, ip1->i_ino, &tp->t_firstblock,
-				spaceres);
+	error = xfs_dir_replace(tp, dp2, name2, ip1->i_ino, spaceres);
 	if (error)
 		goto out_trans_abort;
 
@@ -2809,8 +2806,7 @@ xfs_cross_rename(
 
 		if (S_ISDIR(VFS_I(ip2)->i_mode)) {
 			error = xfs_dir_replace(tp, ip2, &xfs_name_dotdot,
-						dp1->i_ino, &tp->t_firstblock,
-						spaceres);
+						dp1->i_ino, spaceres);
 			if (error)
 				goto out_trans_abort;
 
@@ -2836,8 +2832,7 @@ xfs_cross_rename(
 
 		if (S_ISDIR(VFS_I(ip1)->i_mode)) {
 			error = xfs_dir_replace(tp, ip1, &xfs_name_dotdot,
-						dp2->i_ino, &tp->t_firstblock,
-						spaceres);
+						dp2->i_ino, spaceres);
 			if (error)
 				goto out_trans_abort;
 
@@ -3043,8 +3038,7 @@ xfs_rename(
 		 * to account for the ".." reference from the new entry.
 		 */
 		error = xfs_dir_createname(tp, target_dp, target_name,
-					   src_ip->i_ino, &tp->t_firstblock,
-					   spaceres);
+					   src_ip->i_ino, spaceres);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -3083,8 +3077,7 @@ xfs_rename(
 		 * name at the destination directory, remove it first.
 		 */
 		error = xfs_dir_replace(tp, target_dp, target_name,
-					src_ip->i_ino, &tp->t_firstblock,
-					spaceres);
+					src_ip->i_ino, spaceres);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -3118,8 +3111,7 @@ xfs_rename(
 		 * directory.
 		 */
 		error = xfs_dir_replace(tp, src_ip, &xfs_name_dotdot,
-					target_dp->i_ino, &tp->t_firstblock,
-					spaceres);
+					target_dp->i_ino, spaceres);
 		ASSERT(error != -EEXIST);
 		if (error)
 			goto out_bmap_cancel;
@@ -3158,10 +3150,10 @@ xfs_rename(
 	 */
 	if (wip) {
 		error = xfs_dir_replace(tp, src_dp, src_name, wip->i_ino,
-					&tp->t_firstblock, spaceres);
+					spaceres);
 	} else
 		error = xfs_dir_removename(tp, src_dp, src_name, src_ip->i_ino,
-					   &tp->t_firstblock, spaceres);
+					   spaceres);
 	if (error)
 		goto out_bmap_cancel;
 
