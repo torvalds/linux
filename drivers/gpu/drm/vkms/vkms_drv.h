@@ -6,6 +6,15 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_encoder.h>
 
+#define XRES_MIN    32
+#define YRES_MIN    32
+
+#define XRES_DEF  1024
+#define YRES_DEF   768
+
+#define XRES_MAX  8192
+#define YRES_MAX  8192
+
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };

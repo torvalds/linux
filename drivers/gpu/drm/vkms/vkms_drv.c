@@ -17,12 +17,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-#define XRES_MIN    32
-#define YRES_MIN    32
-
-#define XRES_MAX  8192
-#define YRES_MAX  8192
-
 static struct vkms_device *vkms_device;
 
 static const struct file_operations vkms_driver_fops = {
