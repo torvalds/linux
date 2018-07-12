@@ -1580,7 +1580,8 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	/* we can use hardcoded curve for plain SRGB TF */
 	if (input_tf->type == TF_TYPE_PREDEFINED &&
 			input_tf->tf == TRANSFER_FUNCTION_SRGB &&
-			(!mapUserRamp && ramp->type == GAMMA_RGB_256))
+			(!mapUserRamp &&
+			(ramp->type == GAMMA_RGB_256 || ramp->num_entries == 0)))
 		return true;
 
 	input_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
