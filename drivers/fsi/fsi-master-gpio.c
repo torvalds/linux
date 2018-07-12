@@ -23,26 +23,28 @@
 #define	FSI_BREAK_CLOCKS	256	/* Number of clocks to issue break */
 #define	FSI_POST_BREAK_CLOCKS	16000	/* Number clocks to set up cfam */
 #define	FSI_INIT_CLOCKS		5000	/* Clock out any old data */
-#define	FSI_GPIO_DPOLL_CLOCKS	50      /* < 21 will cause slave to hang */
-#define	FSI_GPIO_EPOLL_CLOCKS	50      /* Number of clocks for E_POLL retry */
+#define	FSI_MASTER_DPOLL_CLOCKS	50      /* < 21 will cause slave to hang */
+#define	FSI_MASTER_EPOLL_CLOCKS	50      /* Number of clocks for E_POLL retry */
+
 #define FSI_CRC_ERR_RETRIES	10
 
-#define	FSI_GPIO_CMD_DPOLL      0x2
-#define	FSI_GPIO_CMD_EPOLL      0x3
-#define	FSI_GPIO_CMD_TERM	0x3f
-#define FSI_GPIO_CMD_ABS_AR	0x4
-#define FSI_GPIO_CMD_REL_AR	0x5
-#define FSI_GPIO_CMD_SAME_AR	0x3	/* but only a 2-bit opcode... */
+#define	FSI_CMD_DPOLL		0x2
+#define	FSI_CMD_EPOLL		0x3
+#define	FSI_CMD_TERM		0x3f
+#define FSI_CMD_ABS_AR		0x4
+#define FSI_CMD_REL_AR		0x5
+#define FSI_CMD_SAME_AR		0x3	/* but only a 2-bit opcode... */
 
 /* Slave responses */
-#define	FSI_GPIO_RESP_ACK	0	/* Success */
-#define	FSI_GPIO_RESP_BUSY	1	/* Slave busy */
-#define	FSI_GPIO_RESP_ERRA	2	/* Any (misc) Error */
-#define	FSI_GPIO_RESP_ERRC	3	/* Slave reports master CRC error */
+#define	FSI_RESP_ACK		0	/* Success */
+#define	FSI_RESP_BUSY		1	/* Slave busy */
+#define	FSI_RESP_ERRA		2	/* Any (misc) Error */
+#define	FSI_RESP_ERRC		3	/* Slave reports master CRC error */
 
-#define	FSI_GPIO_MAX_BUSY	200
-#define	FSI_GPIO_MTOE_COUNT	1000
-#define	FSI_GPIO_CRC_SIZE	4
+#define	FSI_MASTER_MAX_BUSY	200
+
+#define	FSI_MASTER_MTOE_COUNT	1000
+#define	FSI_CRC_SIZE		4
 
 #define LAST_ADDR_INVALID		0x1
 
@@ -279,19 +281,19 @@ static void build_ar_command(struct fsi_master_gpio *master,
 		/* we still address the byte offset within the word */
 		addr_bits = 2;
 		opcode_bits = 2;
-		opcode = FSI_GPIO_CMD_SAME_AR;
+		opcode = FSI_CMD_SAME_AR;
 		trace_fsi_master_gpio_cmd_same_addr(master);
 
 	} else if (check_relative_address(master, id, addr, &rel_addr)) {
 		/* 8 bits plus sign */
 		addr_bits = 9;
 		addr = rel_addr;
-		opcode = FSI_GPIO_CMD_REL_AR;
+		opcode = FSI_CMD_REL_AR;
 		trace_fsi_master_gpio_cmd_rel_addr(master, rel_addr);
 
 	} else {
 		addr_bits = 21;
-		opcode = FSI_GPIO_CMD_ABS_AR;
+		opcode = FSI_CMD_ABS_AR;
 		trace_fsi_master_gpio_cmd_abs_addr(master, addr);
 	}
 
@@ -327,7 +329,7 @@ static void build_dpoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 	cmd->msg = 0;
 
 	msg_push_bits(cmd, slave_id, 2);
-	msg_push_bits(cmd, FSI_GPIO_CMD_DPOLL, 3);
+	msg_push_bits(cmd, FSI_CMD_DPOLL, 3);
 	msg_push_crc(cmd);
 }
 
@@ -337,7 +339,7 @@ static void build_epoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 	cmd->msg = 0;
 
 	msg_push_bits(cmd, slave_id, 2);
-	msg_push_bits(cmd, FSI_GPIO_CMD_EPOLL, 3);
+	msg_push_bits(cmd, FSI_CMD_EPOLL, 3);
 	msg_push_crc(cmd);
 }
 
@@ -347,7 +349,7 @@ static void build_term_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 	cmd->msg = 0;
 
 	msg_push_bits(cmd, slave_id, 2);
-	msg_push_bits(cmd, FSI_GPIO_CMD_TERM, 6);
+	msg_push_bits(cmd, FSI_CMD_TERM, 6);
 	msg_push_crc(cmd);
 }
 
@@ -369,14 +371,14 @@ static int read_one_response(struct fsi_master_gpio *master,
 	local_irq_save(flags);
 
 	/* wait for the start bit */
-	for (i = 0; i < FSI_GPIO_MTOE_COUNT; i++) {
+	for (i = 0; i < FSI_MASTER_MTOE_COUNT; i++) {
 		msg.bits = 0;
 		msg.msg = 0;
 		serial_in(master, &msg, 1);
 		if (msg.msg)
 			break;
 	}
-	if (i == FSI_GPIO_MTOE_COUNT) {
+	if (i == FSI_MASTER_MTOE_COUNT) {
 		dev_dbg(master->dev,
 			"Master time out waiting for response\n");
 		local_irq_restore(flags);
@@ -392,11 +394,11 @@ static int read_one_response(struct fsi_master_gpio *master,
 	tag = msg.msg & 0x3;
 
 	/* If we have an ACK and we're expecting data, clock the data in too */
-	if (tag == FSI_GPIO_RESP_ACK && data_size)
+	if (tag == FSI_RESP_ACK && data_size)
 		serial_in(master, &msg, data_size * 8);
 
 	/* read CRC */
-	serial_in(master, &msg, FSI_GPIO_CRC_SIZE);
+	serial_in(master, &msg, FSI_CRC_SIZE);
 
 	local_irq_restore(flags);
 
@@ -439,7 +441,7 @@ static int issue_term(struct fsi_master_gpio *master, uint8_t slave)
 		dev_err(master->dev,
 				"TERM failed; lost communication with slave\n");
 		return -EIO;
-	} else if (tag != FSI_GPIO_RESP_ACK) {
+	} else if (tag != FSI_RESP_ACK) {
 		dev_err(master->dev, "TERM failed; response %d\n", tag);
 		return -EIO;
 	}
@@ -475,7 +477,7 @@ retry:
 		trace_fsi_master_gpio_crc_rsp_error(master);
 		build_epoll_command(&cmd, slave);
 		local_irq_save(flags);
-		clock_zeros(master, FSI_GPIO_EPOLL_CLOCKS);
+		clock_zeros(master, FSI_MASTER_EPOLL_CLOCKS);
 		serial_out(master, &cmd);
 		echo_delay(master);
 		local_irq_restore(flags);
@@ -484,7 +486,7 @@ retry:
 		goto fail;
 
 	switch (tag) {
-	case FSI_GPIO_RESP_ACK:
+	case FSI_RESP_ACK:
 		if (size && data) {
 			uint64_t val = response.msg;
 			/* clear crc & mask */
@@ -497,16 +499,16 @@ retry:
 			}
 		}
 		break;
-	case FSI_GPIO_RESP_BUSY:
+	case FSI_RESP_BUSY:
 		/*
 		 * Its necessary to clock slave before issuing
 		 * d-poll, not indicated in the hardware protocol
 		 * spec. < 20 clocks causes slave to hang, 21 ok.
 		 */
-		if (busy_count++ < FSI_GPIO_MAX_BUSY) {
+		if (busy_count++ < FSI_MASTER_MAX_BUSY) {
 			build_dpoll_command(&cmd, slave);
 			local_irq_save(flags);
-			clock_zeros(master, FSI_GPIO_DPOLL_CLOCKS);
+			clock_zeros(master, FSI_MASTER_DPOLL_CLOCKS);
 			serial_out(master, &cmd);
 			echo_delay(master);
 			local_irq_restore(flags);
@@ -515,17 +517,17 @@ retry:
 		dev_warn(master->dev,
 			"ERR slave is stuck in busy state, issuing TERM\n");
 		local_irq_save(flags);
-		clock_zeros(master, FSI_GPIO_DPOLL_CLOCKS);
+		clock_zeros(master, FSI_MASTER_DPOLL_CLOCKS);
 		local_irq_restore(flags);
 		issue_term(master, slave);
 		rc = -EIO;
 		break;
 
-	case FSI_GPIO_RESP_ERRA:
+	case FSI_RESP_ERRA:
 		dev_dbg(master->dev, "ERRA received: 0x%x\n", (int)response.msg);
 		rc = -EIO;
 		break;
-	case FSI_GPIO_RESP_ERRC:
+	case FSI_RESP_ERRC:
 		dev_dbg(master->dev, "ERRC received: 0x%x\n", (int)response.msg);
 		trace_fsi_master_gpio_crc_cmd_error(master);
 		rc = -EAGAIN;
