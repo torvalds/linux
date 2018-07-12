@@ -218,7 +218,9 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 	if (buffer->gem)
 		drm_gem_object_put_unlocked(buffer->gem);
 
-	drm_mode_destroy_dumb(dev, buffer->handle, buffer->client->file);
+	if (buffer->handle)
+		drm_mode_destroy_dumb(dev, buffer->handle, buffer->client->file);
+
 	kfree(buffer);
 }
 
@@ -243,7 +245,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 	dumb_args.bpp = drm_format_plane_cpp(format, 0) * 8;
 	ret = drm_mode_create_dumb(dev, &dumb_args, client->file);
 	if (ret)
-		goto err_free;
+		goto err_delete;
 
 	buffer->handle = dumb_args.handle;
 	buffer->pitch = dumb_args.pitch;
@@ -276,8 +278,6 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 
 err_delete:
 	drm_client_buffer_delete(buffer);
-err_free:
-	kfree(buffer);
 
 	return ERR_PTR(ret);
 }
