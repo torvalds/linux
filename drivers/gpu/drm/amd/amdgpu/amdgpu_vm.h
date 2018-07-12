@@ -265,10 +265,9 @@ struct amdgpu_vm_manager {
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* vm pte handling */
-	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
-	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
-	unsigned				vm_pte_num_rings;
-	atomic_t				vm_pte_next_ring;
+	const struct amdgpu_vm_pte_funcs	*vm_pte_funcs;
+	struct drm_sched_rq			*vm_pte_rqs[AMDGPU_MAX_RINGS];
+	unsigned				vm_pte_num_rqs;
 
 	/* partial resident texture handling */
 	spinlock_t				prt_lock;

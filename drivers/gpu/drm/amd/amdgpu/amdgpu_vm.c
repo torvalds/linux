@@ -2569,9 +2569,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	struct amdgpu_bo *root;
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT(adev) * 8);
-	unsigned ring_instance;
-	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	unsigned long size;
 	uint64_t flags;
 	int r, i;
@@ -2587,12 +2584,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	INIT_LIST_HEAD(&vm->freed);
 
 	/* create scheduler entity for page table updates */
-
-	ring_instance = atomic_inc_return(&adev->vm_manager.vm_pte_next_ring);
-	ring_instance %= adev->vm_manager.vm_pte_num_rings;
-	ring = adev->vm_manager.vm_pte_rings[ring_instance];
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-	r = drm_sched_entity_init(&vm->entity, &rq, 1, NULL);
+	r = drm_sched_entity_init(&vm->entity, adev->vm_manager.vm_pte_rqs,
+				  adev->vm_manager.vm_pte_num_rqs, NULL);
 	if (r)
 		return r;
 
@@ -2901,7 +2894,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		adev->vm_manager.seqno[i] = 0;
 
-	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
 
