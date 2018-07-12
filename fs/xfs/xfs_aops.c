@@ -375,7 +375,6 @@ xfs_map_blocks(
 	int			whichfork = XFS_DATA_FORK;
 	struct xfs_iext_cursor	icur;
 	int			error = 0;
-	int			nimaps = 1;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
@@ -431,23 +430,15 @@ xfs_map_blocks(
 	 * offset.  This will convert delayed allocations (including COW ones)
 	 * into real extents.
 	 */
-	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
-				&imap, &nimaps, XFS_BMAPI_ENTIRE);
+	if (!xfs_iext_lookup_extent(ip, &ip->i_df, offset_fsb, &icur, &imap))
+		imap.br_startoff = end_fsb;	/* fake a hole past EOF */
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	if (error)
-		return error;
 
-	if (!nimaps) {
-		/*
-		 * Lookup returns no match? Beyond eof? regardless,
-		 * return it as a hole so we don't write it
-		 */
+	if (imap.br_startoff > offset_fsb) {
+		/* landed in a hole or beyond EOF */
+		imap.br_blockcount = imap.br_startoff - offset_fsb;
 		imap.br_startoff = offset_fsb;
-		imap.br_blockcount = end_fsb - offset_fsb;
 		imap.br_startblock = HOLESTARTBLOCK;
-		wpc->io_type = XFS_IO_HOLE;
-	} else if (imap.br_startblock == HOLESTARTBLOCK) {
-		/* landed in a hole */
 		wpc->io_type = XFS_IO_HOLE;
 	} else {
 		if (isnullstartblock(imap.br_startblock)) {
