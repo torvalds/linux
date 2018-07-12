@@ -5275,6 +5275,8 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 			     struct ixgbe_fwd_adapter *accel)
 {
+	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
+	int num_tc = netdev_get_num_tc(adapter->netdev);
 	struct net_device *vdev = accel->netdev;
 	int i, baseq, err;
 
@@ -5285,6 +5287,11 @@ static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 
 	accel->rx_base_queue = baseq;
 	accel->tx_base_queue = baseq;
+
+	/* record configuration for macvlan interface in vdev */
+	for (i = 0; i < num_tc; i++)
+		netdev_bind_sb_channel_queue(adapter->netdev, vdev,
+					     i, rss_i, baseq + (rss_i * i));
 
 	for (i = 0; i < adapter->num_rx_queues_per_pool; i++)
 		adapter->rx_ring[baseq + i]->netdev = vdev;
@@ -5309,6 +5316,10 @@ static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 		adapter->rx_ring[baseq + i]->netdev = NULL;
 
 	netdev_err(vdev, "L2FW offload disabled due to L2 filter error\n");
+
+	/* unbind the queues and drop the subordinate channel config */
+	netdev_unbind_sb_channel(adapter->netdev, vdev);
+	netdev_set_sb_channel(vdev, 0);
 
 	clear_bit(accel->pool, adapter->fwd_bitmask);
 	kfree(accel);
@@ -8197,25 +8208,25 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 					      input, common, ring->queue_index);
 }
 
+#ifdef IXGBE_FCOE
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
-			      void *accel_priv, select_queue_fallback_t fallback)
+			      struct net_device *sb_dev,
+			      select_queue_fallback_t fallback)
 {
-	struct ixgbe_fwd_adapter *fwd_adapter = accel_priv;
 	struct ixgbe_adapter *adapter;
-	int txq;
-#ifdef IXGBE_FCOE
 	struct ixgbe_ring_feature *f;
-#endif
+	int txq;
 
-	if (fwd_adapter) {
-		adapter = netdev_priv(dev);
-		txq = reciprocal_scale(skb_get_hash(skb),
-				       adapter->num_rx_queues_per_pool);
+	if (sb_dev) {
+		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
+		struct net_device *vdev = sb_dev;
 
-		return txq + fwd_adapter->tx_base_queue;
+		txq = vdev->tc_to_txq[tc].offset;
+		txq += reciprocal_scale(skb_get_hash(skb),
+					vdev->tc_to_txq[tc].count);
+
+		return txq;
 	}
-
-#ifdef IXGBE_FCOE
 
 	/*
 	 * only execute the code below if protocol is FCoE
@@ -8226,11 +8237,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 	case htons(ETH_P_FIP):
 		adapter = netdev_priv(dev);
 
-		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+		if (!sb_dev && (adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 			break;
 		/* fall through */
 	default:
-		return fallback(dev, skb);
+		return fallback(dev, skb, sb_dev);
 	}
 
 	f = &adapter->ring_feature[RING_F_FCOE];
@@ -8242,11 +8253,9 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 		txq -= f->indices;
 
 	return txq + f->offset;
-#else
-	return fallback(dev, skb);
-#endif
 }
 
+#endif
 static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
 			       struct xdp_frame *xdpf)
 {
@@ -8766,6 +8775,11 @@ static int ixgbe_reassign_macvlan_pool(struct net_device *vdev, void *data)
 	/* if we cannot find a free pool then disable the offload */
 	netdev_err(vdev, "L2FW offload disabled due to lack of queue resources\n");
 	macvlan_release_l2fw_offload(vdev);
+
+	/* unbind the queues and drop the subordinate channel config */
+	netdev_unbind_sb_channel(adapter->netdev, vdev);
+	netdev_set_sb_channel(vdev, 0);
+
 	kfree(accel);
 
 	return 0;
@@ -9769,6 +9783,13 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	if (!macvlan_supports_dest_filter(vdev))
 		return ERR_PTR(-EMEDIUMTYPE);
 
+	/* We need to lock down the macvlan to be a single queue device so that
+	 * we can reuse the tc_to_txq field in the macvlan netdev to represent
+	 * the queue mapping to our netdev.
+	 */
+	if (netif_is_multiqueue(vdev))
+		return ERR_PTR(-ERANGE);
+
 	pool = find_first_zero_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
 	if (pool == adapter->num_rx_pools) {
 		u16 used_pools = adapter->num_vfs + adapter->num_rx_pools;
@@ -9825,6 +9846,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 		return ERR_PTR(-ENOMEM);
 
 	set_bit(pool, adapter->fwd_bitmask);
+	netdev_set_sb_channel(vdev, pool);
 	accel->pool = pool;
 	accel->netdev = vdev;
 
@@ -9865,6 +9887,10 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 			napi_synchronize(&qv->napi);
 		ring->netdev = NULL;
 	}
+
+	/* unbind the queues and drop the subordinate channel config */
+	netdev_unbind_sb_channel(pdev, accel->netdev);
+	netdev_set_sb_channel(accel->netdev, 0);
 
 	clear_bit(accel->pool, adapter->fwd_bitmask);
 	kfree(accel);
@@ -10026,7 +10052,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
 	.ndo_start_xmit		= ixgbe_xmit_frame,
-	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_set_rx_mode	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbe_set_mac,
@@ -10049,6 +10074,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
 #ifdef IXGBE_FCOE
+	.ndo_select_queue	= ixgbe_select_queue,
 	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
 	.ndo_fcoe_ddp_target = ixgbe_fcoe_ddp_target,
 	.ndo_fcoe_ddp_done = ixgbe_fcoe_ddp_put,
