@@ -312,8 +312,7 @@ xfs_reflink_convert_cow_extent(
 	struct xfs_inode		*ip,
 	struct xfs_bmbt_irec		*imap,
 	xfs_fileoff_t			offset_fsb,
-	xfs_filblks_t			count_fsb,
-	struct xfs_defer_ops		*dfops)
+	xfs_filblks_t			count_fsb)
 {
 	xfs_fsblock_t			first_block = NULLFSBLOCK;
 	int				nimaps = 1;
@@ -327,7 +326,7 @@ xfs_reflink_convert_cow_extent(
 		return 0;
 	return xfs_bmapi_write(NULL, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT, &first_block,
-			0, imap, &nimaps, dfops);
+			0, imap, &nimaps, NULL);
 }
 
 /* Convert all of the unwritten CoW extents in a file's range to real ones. */
@@ -342,7 +341,6 @@ xfs_reflink_convert_cow(
 	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
 	xfs_filblks_t		count_fsb = end_fsb - offset_fsb;
 	struct xfs_bmbt_irec	imap;
-	struct xfs_defer_ops	dfops;
 	xfs_fsblock_t		first_block = NULLFSBLOCK;
 	int			nimaps = 1, error = 0;
 
@@ -352,7 +350,7 @@ xfs_reflink_convert_cow(
 	error = xfs_bmapi_write(NULL, ip, offset_fsb, count_fsb,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT |
 			XFS_BMAPI_CONVERT_ONLY, &first_block, 0, &imap, &nimaps,
-			&dfops);
+			NULL);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
@@ -458,8 +456,7 @@ retry:
 	if (nimaps == 0)
 		return -ENOSPC;
 convert:
-	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb,
-			&dfops);
+	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb);
 out_bmap_cancel:
 	xfs_defer_cancel(&dfops);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)resblks, 0,
