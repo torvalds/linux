@@ -2366,7 +2366,7 @@ static int netdev_init(struct net_device *net_dev)
 	/* Set MTU upper limit; lower limit is 68B (default value) */
 	net_dev->max_mtu = DPAA2_ETH_MAX_MTU;
 	err = dpni_set_max_frame_length(priv->mc_io, 0, priv->mc_token,
-					(u16)DPAA2_ETH_MFL);
+					DPAA2_ETH_MFL);
 	if (err) {
 		dev_err(dev, "dpni_set_max_frame_length() failed\n");
 		return err;
