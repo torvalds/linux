@@ -115,23 +115,22 @@ void mvpp22_init_rss(struct mvpp2_port *port)
 	/* Set the table width: replace the whole classifier Rx queue number
 	 * with the ones configured in RSS table entries.
 	 */
-	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_TABLE(0));
+	mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_TABLE(port->id));
 	mvpp2_write(priv, MVPP22_RSS_WIDTH, 8);
 
-	/* Loop through the classifier Rx Queues and map them to a RSS table.
-	 * Map them all to the first table (0) by default.
+	/* The default RxQ is used as a key to select the RSS table to use.
+	 * We use one RSS table per port.
 	 */
-	for (i = 0; i < MVPP2_CLS_RX_QUEUES; i++) {
-		mvpp2_write(priv, MVPP22_RSS_INDEX, MVPP22_RSS_INDEX_QUEUE(i));
-		mvpp2_write(priv, MVPP22_RXQ2RSS_TABLE,
-			    MVPP22_RSS_TABLE_POINTER(0));
-	}
+	mvpp2_write(priv, MVPP22_RSS_INDEX,
+		    MVPP22_RSS_INDEX_QUEUE(port->first_rxq));
+	mvpp2_write(priv, MVPP22_RXQ2RSS_TABLE,
+		    MVPP22_RSS_TABLE_POINTER(port->id));
 
 	/* Configure the first table to evenly distribute the packets across
 	 * real Rx Queues. The table entries map a hash to a port Rx Queue.
 	 */
 	for (i = 0; i < MVPP22_RSS_TABLE_ENTRIES; i++) {
-		u32 sel = MVPP22_RSS_INDEX_TABLE(0) |
+		u32 sel = MVPP22_RSS_INDEX_TABLE(port->id) |
 			  MVPP22_RSS_INDEX_TABLE_ENTRY(i);
 		mvpp2_write(priv, MVPP22_RSS_INDEX, sel);
 
