@@ -1772,7 +1772,6 @@ xfs_inactive_ifree(
 	struct xfs_inode *ip)
 {
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
@@ -1809,7 +1808,7 @@ xfs_inactive_ifree(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(tp, &dfops, &first_block);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 	error = xfs_ifree(tp, ip);
 	if (error) {
 		/*
