@@ -279,6 +279,7 @@ static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc816, 0x001fffff },
 	{ 0x001cc910, 0x001fffff },
 	{ 0x001cc912, 0x001fffff },
+	{ 0x001cc913, 0x001fffff },
 	{ 0x001cc914, 0x001fffff },
 	{ 0x001cc915, 0x001fffff },
 	{ 0x001cc916, 0x001fffff },
