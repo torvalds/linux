@@ -59,7 +59,6 @@ static unsigned int __init get_extal_freq(void)
 
 void __init rcar_gen2_timer_init(void)
 {
-#ifdef CONFIG_ARM_ARCH_TIMER
 	void __iomem *base;
 	u32 freq;
 
@@ -101,7 +100,6 @@ void __init rcar_gen2_timer_init(void)
 	}
 
 	iounmap(base);
-#endif /* CONFIG_ARM_ARCH_TIMER */
 
 	of_clk_init(NULL);
 	timer_probe();
@@ -187,7 +185,6 @@ static const char * const rcar_gen2_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(RCAR_GEN2_DT, "Generic R-Car Gen2 (Flattened Device Tree)")
-	.init_early	= shmobile_init_delay,
 	.init_late	= shmobile_init_late,
 	.init_time	= rcar_gen2_timer_init,
 	.reserve	= rcar_gen2_reserve,
@@ -202,7 +199,6 @@ static const char * const rz_g1_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(RZ_G1_DT, "Generic RZ/G1 (Flattened Device Tree)")
-	.init_early	= shmobile_init_delay,
 	.init_late	= shmobile_init_late,
 	.init_time	= rcar_gen2_timer_init,
 	.reserve	= rcar_gen2_reserve,

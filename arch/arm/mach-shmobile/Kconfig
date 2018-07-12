@@ -15,6 +15,7 @@ config ARCH_RCAR_GEN1
 
 config ARCH_RCAR_GEN2
 	bool
+	select HAVE_ARM_ARCH_TIMER
 	select PM
 	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
@@ -58,6 +59,7 @@ config ARCH_R8A73A4
 	bool "R-Mobile APE6 (R8A73A40)"
 	select ARCH_RMOBILE
 	select ARM_ERRATA_798181 if SMP
+	select HAVE_ARM_ARCH_TIMER
 	select RENESAS_IRQC
 
 config ARCH_R8A7740
