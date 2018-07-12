@@ -1343,7 +1343,7 @@ xfs_collapse_file_space(
 
 		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, &tp->t_firstblock);
+				&done);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1421,7 +1421,7 @@ xfs_insert_file_space(
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &tp->t_firstblock);
+				&done, stop_fsb);
 		if (error)
 			goto out_bmap_cancel;
 
