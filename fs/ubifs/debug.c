@@ -3081,6 +3081,28 @@ void dbg_debugfs_exit(void)
 		debugfs_remove_recursive(dfs_rootdir);
 }
 
+void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
+			 const char *file, int line)
+{
+	ubifs_err(c, "UBIFS assert failed: %s, in %s:%u", expr, file, line);
+
+	switch (c->assert_action) {
+		case ASSACT_PANIC:
+		BUG();
+		break;
+
+		case ASSACT_RO:
+		ubifs_ro_mode(c, -EINVAL);
+		break;
+
+		case ASSACT_REPORT:
+		default:
+		dump_stack();
+		break;
+
+	}
+}
+
 /**
  * ubifs_debugging_init - initialize UBIFS debugging.
  * @c: UBIFS file-system description object

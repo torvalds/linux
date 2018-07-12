@@ -258,6 +258,18 @@ enum {
 	LEB_RETAINED,
 };
 
+/*
+ * Action taken upon a failed ubifs_assert().
+ * @ASSACT_REPORT: just report the failed assertion
+ * @ASSACT_RO: switch to read-only mode
+ * @ASSACT_PANIC: call BUG() and possible panic the kernel
+ */
+enum {
+	ASSACT_REPORT = 0,
+	ASSACT_RO,
+	ASSACT_PANIC,
+};
+
 /**
  * struct ubifs_old_idx - index node obsoleted since last commit start.
  * @rb: rb-tree node
@@ -1015,6 +1027,7 @@ struct ubifs_debug_info;
  * @bulk_read: enable bulk-reads
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
  * @rw_incompat: the media is not R/W compatible
+ * @assert_action: action to take when a ubifs_assert() fails
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -1256,6 +1269,7 @@ struct ubifs_info {
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
 	unsigned int rw_incompat:1;
+	unsigned int assert_action:2;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
