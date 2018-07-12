@@ -54,7 +54,7 @@ static void skl_update_pci_byte(struct pci_dev *pci, unsigned int reg,
 
 static void skl_init_pci(struct skl *skl)
 {
-	struct hdac_ext_bus *ebus = &skl->ebus;
+	struct hdac_bus *bus = skl_to_bus(skl);
 
 	/*
 	 * Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
@@ -63,7 +63,7 @@ static void skl_init_pci(struct skl *skl)
 	 * codecs.
 	 * The PCI register TCSEL is defined in the Intel manuals.
 	 */
-	dev_dbg(ebus_to_hbus(ebus)->dev, "Clearing TCSEL\n");
+	dev_dbg(bus->dev, "Clearing TCSEL\n");
 	skl_update_pci_byte(skl->pci, AZX_PCIREG_TCSEL, 0x07, 0);
 }
 
@@ -103,8 +103,7 @@ static void skl_enable_miscbdcge(struct device *dev, bool enable)
 static void skl_clock_power_gating(struct device *dev, bool enable)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
 	u32 val;
 
 	/* Update PDCGE bit of CGCTL register */
@@ -127,7 +126,6 @@ static void skl_clock_power_gating(struct device *dev, bool enable)
  */
 static int skl_init_chip(struct hdac_bus *bus, bool full_reset)
 {
-	struct hdac_ext_bus *ebus = hbus_to_ebus(bus);
 	struct hdac_ext_link *hlink;
 	int ret;
 
@@ -135,7 +133,7 @@ static int skl_init_chip(struct hdac_bus *bus, bool full_reset)
 	ret = snd_hdac_bus_init_chip(bus, full_reset);
 
 	/* Reset stream-to-link mapping */
-	list_for_each_entry(hlink, &ebus->hlink_list, list)
+	list_for_each_entry(hlink, &bus->hlink_list, list)
 		bus->io_ops->reg_writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 
 	skl_enable_miscbdcge(bus->dev, true);
@@ -146,8 +144,7 @@ static int skl_init_chip(struct hdac_bus *bus, bool full_reset)
 void skl_update_d0i3c(struct device *dev, bool enable)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
 	u8 reg;
 	int timeout = 50;
 
@@ -197,8 +194,7 @@ static void skl_stream_update(struct hdac_bus *bus, struct hdac_stream *hstr)
 
 static irqreturn_t skl_interrupt(int irq, void *dev_id)
 {
-	struct hdac_ext_bus *ebus = dev_id;
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = dev_id;
 	u32 status;
 
 	if (!pm_runtime_active(bus->dev))
@@ -227,8 +223,7 @@ static irqreturn_t skl_interrupt(int irq, void *dev_id)
 
 static irqreturn_t skl_threaded_handler(int irq, void *dev_id)
 {
-	struct hdac_ext_bus *ebus = dev_id;
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = dev_id;
 	u32 status;
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
@@ -238,16 +233,15 @@ static irqreturn_t skl_threaded_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int skl_acquire_irq(struct hdac_ext_bus *ebus, int do_disconnect)
+static int skl_acquire_irq(struct hdac_bus *bus, int do_disconnect)
 {
-	struct skl *skl = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl = bus_to_skl(bus);
 	int ret;
 
 	ret = request_threaded_irq(skl->pci->irq, skl_interrupt,
 			skl_threaded_handler,
 			IRQF_SHARED,
-			KBUILD_MODNAME, ebus);
+			KBUILD_MODNAME, bus);
 	if (ret) {
 		dev_err(bus->dev,
 			"unable to grab IRQ %d, disabling device\n",
@@ -264,21 +258,20 @@ static int skl_acquire_irq(struct hdac_ext_bus *ebus, int do_disconnect)
 static int skl_suspend_late(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct skl *skl = bus_to_skl(bus);
 
 	return skl_suspend_late_dsp(skl);
 }
 
 #ifdef CONFIG_PM
-static int _skl_suspend(struct hdac_ext_bus *ebus)
+static int _skl_suspend(struct hdac_bus *bus)
 {
-	struct skl *skl = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl = bus_to_skl(bus);
 	struct pci_dev *pci = to_pci_dev(bus->dev);
 	int ret;
 
-	snd_hdac_ext_bus_link_power_down_all(ebus);
+	snd_hdac_ext_bus_link_power_down_all(bus);
 
 	ret = skl_suspend_dsp(skl);
 	if (ret < 0)
@@ -295,10 +288,9 @@ static int _skl_suspend(struct hdac_ext_bus *ebus)
 	return 0;
 }
 
-static int _skl_resume(struct hdac_ext_bus *ebus)
+static int _skl_resume(struct hdac_bus *bus)
 {
-	struct skl *skl = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl = bus_to_skl(bus);
 
 	skl_init_pci(skl);
 	skl_init_chip(bus, true);
@@ -314,9 +306,8 @@ static int _skl_resume(struct hdac_ext_bus *ebus)
 static int skl_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct skl *skl  = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct skl *skl  = bus_to_skl(bus);
 	int ret = 0;
 
 	/*
@@ -325,15 +316,15 @@ static int skl_suspend(struct device *dev)
 	 */
 	if (skl->supend_active) {
 		/* turn off the links and stop the CORB/RIRB DMA if it is On */
-		snd_hdac_ext_bus_link_power_down_all(ebus);
+		snd_hdac_ext_bus_link_power_down_all(bus);
 
-		if (ebus->cmd_dma_state)
-			snd_hdac_bus_stop_cmd_io(&ebus->bus);
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(bus);
 
 		enable_irq_wake(bus->irq);
 		pci_save_state(pci);
 	} else {
-		ret = _skl_suspend(ebus);
+		ret = _skl_suspend(bus);
 		if (ret < 0)
 			return ret;
 		skl->skl_sst->fw_loaded = false;
@@ -352,9 +343,8 @@ static int skl_suspend(struct device *dev)
 static int skl_resume(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct skl *skl  = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct skl *skl  = bus_to_skl(bus);
 	struct hdac_ext_link *hlink = NULL;
 	int ret;
 
@@ -374,32 +364,32 @@ static int skl_resume(struct device *dev)
 	 */
 	if (skl->supend_active) {
 		pci_restore_state(pci);
-		snd_hdac_ext_bus_link_power_up_all(ebus);
+		snd_hdac_ext_bus_link_power_up_all(bus);
 		disable_irq_wake(bus->irq);
 		/*
 		 * turn On the links which are On before active suspend
 		 * and start the CORB/RIRB DMA if On before
 		 * active suspend.
 		 */
-		list_for_each_entry(hlink, &ebus->hlink_list, list) {
+		list_for_each_entry(hlink, &bus->hlink_list, list) {
 			if (hlink->ref_count)
 				snd_hdac_ext_bus_link_power_up(hlink);
 		}
 
-		if (ebus->cmd_dma_state)
-			snd_hdac_bus_init_cmd_io(&ebus->bus);
 		ret = 0;
+		if (bus->cmd_dma_state)
+			snd_hdac_bus_init_cmd_io(bus);
 	} else {
-		ret = _skl_resume(ebus);
+		ret = _skl_resume(bus);
 
 		/* turn off the links which are off before suspend */
-		list_for_each_entry(hlink, &ebus->hlink_list, list) {
+		list_for_each_entry(hlink, &bus->hlink_list, list) {
 			if (!hlink->ref_count)
 				snd_hdac_ext_bus_link_power_down(hlink);
 		}
 
-		if (!ebus->cmd_dma_state)
-			snd_hdac_bus_stop_cmd_io(&ebus->bus);
+		if (!bus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(bus);
 	}
 
 	return ret;
@@ -410,23 +400,21 @@ static int skl_resume(struct device *dev)
 static int skl_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
 
-	return _skl_suspend(ebus);
+	return _skl_suspend(bus);
 }
 
 static int skl_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
 
-	return _skl_resume(ebus);
+	return _skl_resume(bus);
 }
 #endif /* CONFIG_PM */
 
@@ -439,20 +427,19 @@ static const struct dev_pm_ops skl_pm = {
 /*
  * destructor
  */
-static int skl_free(struct hdac_ext_bus *ebus)
+static int skl_free(struct hdac_bus *bus)
 {
-	struct skl *skl  = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl  = bus_to_skl(bus);
 
 	skl->init_done = 0; /* to be sure */
 
-	snd_hdac_ext_stop_streams(ebus);
+	snd_hdac_ext_stop_streams(bus);
 
 	if (bus->irq >= 0)
-		free_irq(bus->irq, (void *)ebus);
+		free_irq(bus->irq, (void *)bus);
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(ebus);
-	snd_hdac_link_free_all(ebus);
+	snd_hdac_stream_free_all(bus);
+	snd_hdac_link_free_all(bus);
 
 	if (bus->remap_addr)
 		iounmap(bus->remap_addr);
@@ -460,11 +447,11 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	pci_release_regions(skl->pci);
 	pci_disable_device(skl->pci);
 
-	snd_hdac_ext_bus_exit(ebus);
+	snd_hdac_ext_bus_exit(bus);
 
 	cancel_work_sync(&skl->probe_work);
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_i915_exit(&ebus->bus);
+		snd_hdac_i915_exit(bus);
 
 	return 0;
 }
@@ -488,8 +475,8 @@ static struct skl_ssp_clk skl_ssp_clks[] = {
 
 static int skl_find_machine(struct skl *skl, void *driver_data)
 {
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct snd_soc_acpi_mach *mach = driver_data;
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
 	struct skl_machine_pdata *pdata;
 
 	mach = snd_soc_acpi_find_machine(mach);
@@ -510,7 +497,7 @@ static int skl_find_machine(struct skl *skl, void *driver_data)
 
 static int skl_machine_device_register(struct skl *skl)
 {
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct snd_soc_acpi_mach *mach = skl->mach;
 	struct platform_device *pdev;
 	int ret;
@@ -544,7 +531,7 @@ static void skl_machine_device_unregister(struct skl *skl)
 
 static int skl_dmic_device_register(struct skl *skl)
 {
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct platform_device *pdev;
 	int ret;
 
@@ -643,12 +630,13 @@ static void skl_clock_device_unregister(struct skl *skl)
 /*
  * Probe the given codec address
  */
-static int probe_codec(struct hdac_ext_bus *ebus, int addr)
+static int probe_codec(struct hdac_bus *bus, int addr)
 {
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res = -1;
+	struct skl *skl = bus_to_skl(bus);
+	struct hdac_device *hdev;
 
 	mutex_lock(&bus->cmd_mutex);
 	snd_hdac_bus_send_cmd(bus, cmd);
@@ -658,13 +646,16 @@ static int probe_codec(struct hdac_ext_bus *ebus, int addr)
 		return -EIO;
 	dev_dbg(bus->dev, "codec #%d probed OK\n", addr);
 
-	return snd_hdac_ext_bus_device_init(ebus, addr);
+	hdev = devm_kzalloc(&skl->pci->dev, sizeof(*hdev), GFP_KERNEL);
+	if (!hdev)
+		return -ENOMEM;
+
+	return snd_hdac_ext_bus_device_init(bus, addr, hdev);
 }
 
 /* Codec initialization */
-static void skl_codec_create(struct hdac_ext_bus *ebus)
+static void skl_codec_create(struct hdac_bus *bus)
 {
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int c, max_slots;
 
 	max_slots = HDA_MAX_CODECS;
@@ -672,7 +663,7 @@ static void skl_codec_create(struct hdac_ext_bus *ebus)
 	/* First try to probe all given codec slots */
 	for (c = 0; c < max_slots; c++) {
 		if ((bus->codec_mask & (1 << c))) {
-			if (probe_codec(ebus, c) < 0) {
+			if (probe_codec(bus, c) < 0) {
 				/*
 				 * Some BIOSen give you wrong codec addresses
 				 * that don't exist
@@ -722,8 +713,7 @@ static int skl_i915_init(struct hdac_bus *bus)
 static void skl_probe_work(struct work_struct *work)
 {
 	struct skl *skl = container_of(work, struct skl, probe_work);
-	struct hdac_ext_bus *ebus = &skl->ebus;
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = skl_to_bus(skl);
 	struct hdac_ext_link *hlink = NULL;
 	int err;
 
@@ -744,7 +734,7 @@ static void skl_probe_work(struct work_struct *work)
 		dev_info(bus->dev, "no hda codecs found!\n");
 
 	/* create codec instances */
-	skl_codec_create(ebus);
+	skl_codec_create(bus);
 
 	/* register platform dai and controls */
 	err = skl_platform_register(bus->dev);
@@ -773,8 +763,8 @@ static void skl_probe_work(struct work_struct *work)
 	/*
 	 * we are done probing so decrement link counts
 	 */
-	list_for_each_entry(hlink, &ebus->hlink_list, list)
-		snd_hdac_ext_bus_link_put(ebus, hlink);
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		snd_hdac_ext_bus_link_put(bus, hlink);
 
 	/* configure PM */
 	pm_runtime_put_noidle(bus->dev);
@@ -796,7 +786,7 @@ static int skl_create(struct pci_dev *pci,
 		      struct skl **rskl)
 {
 	struct skl *skl;
-	struct hdac_ext_bus *ebus;
+	struct hdac_bus *bus;
 
 	int err;
 
@@ -811,23 +801,22 @@ static int skl_create(struct pci_dev *pci,
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
-	ebus = &skl->ebus;
-	snd_hdac_ext_bus_init(ebus, &pci->dev, &bus_core_ops, io_ops);
-	ebus->bus.use_posbuf = 1;
+
+	bus = skl_to_bus(skl);
+	snd_hdac_ext_bus_init(bus, &pci->dev, &bus_core_ops, io_ops, NULL);
+	bus->use_posbuf = 1;
 	skl->pci = pci;
 	INIT_WORK(&skl->probe_work, skl_probe_work);
-
-	ebus->bus.bdl_pos_adj = 0;
+	bus->bdl_pos_adj = 0;
 
 	*rskl = skl;
 
 	return 0;
 }
 
-static int skl_first_init(struct hdac_ext_bus *ebus)
+static int skl_first_init(struct hdac_bus *bus)
 {
-	struct skl *skl = ebus_to_skl(ebus);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl = bus_to_skl(bus);
 	struct pci_dev *pci = skl->pci;
 	int err;
 	unsigned short gcap;
@@ -848,7 +837,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 
 	snd_hdac_bus_parse_capabilities(bus);
 
-	if (skl_acquire_irq(ebus, 0) < 0)
+	if (skl_acquire_irq(bus, 0) < 0)
 		return -EBUSY;
 
 	pci_set_master(pci);
@@ -872,14 +861,14 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	if (!pb_streams && !cp_streams)
 		return -EIO;
 
-	ebus->num_streams = cp_streams + pb_streams;
+	bus->num_streams = cp_streams + pb_streams;
 
 	/* initialize streams */
 	snd_hdac_ext_stream_init_all
-		(ebus, 0, cp_streams, SNDRV_PCM_STREAM_CAPTURE);
+		(bus, 0, cp_streams, SNDRV_PCM_STREAM_CAPTURE);
 	start_idx = cp_streams;
 	snd_hdac_ext_stream_init_all
-		(ebus, start_idx, pb_streams, SNDRV_PCM_STREAM_PLAYBACK);
+		(bus, start_idx, pb_streams, SNDRV_PCM_STREAM_PLAYBACK);
 
 	err = snd_hdac_bus_alloc_stream_pages(bus);
 	if (err < 0)
@@ -895,7 +884,6 @@ static int skl_probe(struct pci_dev *pci,
 		     const struct pci_device_id *pci_id)
 {
 	struct skl *skl;
-	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
 	int err;
 
@@ -904,10 +892,9 @@ static int skl_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	ebus = &skl->ebus;
-	bus = ebus_to_hbus(ebus);
+	bus = skl_to_bus(skl);
 
-	err = skl_first_init(ebus);
+	err = skl_first_init(bus);
 	if (err < 0)
 		goto out_free;
 
@@ -928,7 +915,7 @@ static int skl_probe(struct pci_dev *pci,
 
 	skl_nhlt_update_topology_bin(skl);
 
-	pci_set_drvdata(skl->pci, ebus);
+	pci_set_drvdata(skl->pci, bus);
 
 	skl_dmic_data.dmic_num = skl_get_dmic_geo(skl);
 
@@ -952,7 +939,7 @@ static int skl_probe(struct pci_dev *pci,
 		skl->skl_sst->clock_power_gating = skl_clock_power_gating;
 	}
 	if (bus->mlcap)
-		snd_hdac_ext_bus_get_ml_capabilities(ebus);
+		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
 	snd_hdac_bus_stop_chip(bus);
 
@@ -972,31 +959,30 @@ out_clk_free:
 out_nhlt_free:
 	skl_nhlt_free(skl->nhlt);
 out_free:
-	skl_free(ebus);
+	skl_free(bus);
 
 	return err;
 }
 
 static void skl_shutdown(struct pci_dev *pci)
 {
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
 	struct hdac_stream *s;
 	struct hdac_ext_stream *stream;
 	struct skl *skl;
 
-	if (ebus == NULL)
+	if (!bus)
 		return;
 
-	skl = ebus_to_skl(ebus);
+	skl = bus_to_skl(bus);
 
 	if (!skl->init_done)
 		return;
 
-	snd_hdac_ext_stop_streams(ebus);
+	snd_hdac_ext_stop_streams(bus);
 	list_for_each_entry(s, &bus->stream_list, list) {
 		stream = stream_to_hdac_ext_stream(s);
-		snd_hdac_ext_stream_decouple(ebus, stream, false);
+		snd_hdac_ext_stream_decouple(bus, stream, false);
 	}
 
 	snd_hdac_bus_stop_chip(bus);
@@ -1004,15 +990,15 @@ static void skl_shutdown(struct pci_dev *pci)
 
 static void skl_remove(struct pci_dev *pci)
 {
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = pci_get_drvdata(pci);
+	struct skl *skl = bus_to_skl(bus);
 
 	release_firmware(skl->tplg);
 
 	pm_runtime_get_noresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
-	snd_hdac_ext_bus_device_remove(ebus);
+	snd_hdac_ext_bus_device_remove(bus);
 
 	skl->debugfs = NULL;
 	skl_platform_unregister(&pci->dev);
@@ -1022,7 +1008,7 @@ static void skl_remove(struct pci_dev *pci)
 	skl_clock_device_unregister(skl);
 	skl_nhlt_remove_sysfs(skl);
 	skl_nhlt_free(skl->nhlt);
-	skl_free(ebus);
+	skl_free(bus);
 	dev_set_drvdata(&pci->dev, NULL);
 }
 
