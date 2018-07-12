@@ -4212,12 +4212,6 @@ xfs_bmapi_convert_unwritten(
  * extent state if necessary.  Details behaviour is controlled by the flags
  * parameter.  Only allocates blocks from a single allocation group, to avoid
  * locking problems.
- *
- * The returned value in "firstblock" from the first call in a transaction
- * must be remembered and presented to subsequent calls in "firstblock".
- * An upper bound for the number of blocks to be allocated is supplied to
- * the first call in "total"; if no allocation group has that many free
- * blocks then the call will fail (return NULLFSBLOCK in "firstblock").
  */
 int
 xfs_bmapi_write(
@@ -4226,8 +4220,6 @@ xfs_bmapi_write(
 	xfs_fileoff_t		bno,		/* starting file offs. mapped */
 	xfs_filblks_t		len,		/* length to map in file */
 	int			flags,		/* XFS_BMAPI_... */
-	xfs_fsblock_t		*firstblock,	/* first allocated block
-						   controls a.g. for allocs */
 	xfs_extlen_t		total,		/* total blocks needed */
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
 	int			*nmap)		/* i/o: mval size/count */
@@ -4294,7 +4286,7 @@ xfs_bmapi_write(
 
 	XFS_STATS_INC(mp, xs_blk_mapw);
 
-	if (!tp || *firstblock == NULLFSBLOCK) {
+	if (!tp || tp->t_firstblock == NULLFSBLOCK) {
 		if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE)
 			bma.minleft = be16_to_cpu(ifp->if_broot->bb_level) + 1;
 		else
@@ -4321,7 +4313,7 @@ xfs_bmapi_write(
 	bma.ip = ip;
 	bma.total = total;
 	bma.datatype = 0;
-	bma.firstblock = firstblock;
+	bma.firstblock = &tp->t_firstblock;
 	ASSERT(!tp || tp->t_dfops);
 
 	while (bno < end && n < *nmap) {
@@ -4474,11 +4466,11 @@ error0:
 
 	if (bma.cur) {
 		if (!error) {
-			ASSERT(*firstblock == NULLFSBLOCK ||
-			       XFS_FSB_TO_AGNO(mp, *firstblock) <=
+			ASSERT(tp->t_firstblock == NULLFSBLOCK ||
+			       XFS_FSB_TO_AGNO(mp, tp->t_firstblock) <=
 			       XFS_FSB_TO_AGNO(mp,
 				       bma.cur->bc_private.b.firstblock));
-			*firstblock = bma.cur->bc_private.b.firstblock;
+			tp->t_firstblock = bma.cur->bc_private.b.firstblock;
 		}
 		xfs_btree_del_cursor(bma.cur,
 			error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);

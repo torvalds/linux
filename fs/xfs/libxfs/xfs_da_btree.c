@@ -2061,7 +2061,7 @@ xfs_da_grow_inode_int(
 	nmap = 1;
 	error = xfs_bmapi_write(tp, dp, *bno, count,
 			xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA|XFS_BMAPI_CONTIG,
-			&tp->t_firstblock, args->total, &map, &nmap);
+			args->total, &map, &nmap);
 	if (error)
 		return error;
 
@@ -2083,8 +2083,7 @@ xfs_da_grow_inode_int(
 			c = (int)(*bno + count - b);
 			error = xfs_bmapi_write(tp, dp, b, c,
 					xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
-					&tp->t_firstblock, args->total,
-					&mapp[mapi], &nmap);
+					args->total, &mapp[mapi], &nmap);
 			if (error)
 				goto out_free_map;
 			if (nmap < 1)

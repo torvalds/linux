@@ -288,8 +288,7 @@ xfs_symlink(
 		nmaps = XFS_SYMLINK_MAPS;
 
 		error = xfs_bmapi_write(tp, ip, first_fsb, fs_blocks,
-				  XFS_BMAPI_METADATA, &tp->t_firstblock,
-				  resblks, mval, &nmaps);
+				  XFS_BMAPI_METADATA, resblks, mval, &nmaps);
 		if (error)
 			goto out_bmap_cancel;
 
