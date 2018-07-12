@@ -341,8 +341,6 @@ static int apex_add_dev_cb(struct gasket_dev *gasket_dev)
 	ulong page_table_ready, msix_table_ready;
 	int retries = 0;
 
-	gasket_log_error(gasket_dev, "apex_add_dev_cb.");
-
 	apex_reset(gasket_dev, 0);
 
 	while (retries < APEX_RESET_RETRY) {
@@ -447,8 +445,6 @@ static int apex_reset(struct gasket_dev *gasket_dev, uint type)
 	if (bypass_top_level)
 		return 0;
 
-	gasket_log_debug(gasket_dev, "apex_reset.");
-
 	if (!is_gcb_in_reset(gasket_dev)) {
 		/* We are not in reset - toggle the reset bit so as to force
 		 * re-init of custom block
@@ -471,8 +467,6 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 {
 	if (bypass_top_level)
 		return 0;
-
-	gasket_log_debug(gasket_dev, "apex_enter_reset.");
 
 	/*
 	 * Software reset:
@@ -533,8 +527,6 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 
 	if (bypass_top_level)
 		return 0;
-
-	gasket_log_debug(gasket_dev, "apex_quit_reset.");
 
 	/*
 	 * Disable sleep mode:
