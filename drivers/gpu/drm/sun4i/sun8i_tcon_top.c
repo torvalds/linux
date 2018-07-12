@@ -99,7 +99,7 @@ static struct clk_hw *sun8i_tcon_top_register_gate(struct device *dev,
 
 	index = of_property_match_string(dev->of_node, "clock-names", parent);
 	if (index < 0)
-		return index;
+		return ERR_PTR(index);
 
 	parent_name = of_clk_get_parent_name(dev->of_node, index);
 
