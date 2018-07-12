@@ -35,6 +35,14 @@ config MLX5_CORE_EN
 	---help---
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
 
+config MLX5_EN_ARFS
+	bool "Mellanox MLX5 ethernet accelerated receive flow steering (ARFS) support"
+	depends on MLX5_CORE_EN && RFS_ACCEL
+	default y
+	---help---
+	  Mellanox MLX5 ethernet hardware-accelerated receive flow steering support,
+	  Enables ethernet netdevice arfs support and ntuple filtering.
+
 config MLX5_EN_RXNFC
 	bool "Mellanox MLX5 ethernet rx nfc flow steering support"
 	depends on MLX5_CORE_EN

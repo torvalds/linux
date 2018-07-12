@@ -3624,7 +3624,7 @@ unlock:
 	return err;
 }
 
-#ifdef CONFIG_RFS_ACCEL
+#ifdef CONFIG_MLX5_EN_ARFS
 static int set_feature_arfs(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -3679,7 +3679,7 @@ static int mlx5e_set_features(struct net_device *netdev,
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_RXALL, set_feature_rx_all);
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_RXFCS, set_feature_rx_fcs);
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_VLAN_CTAG_RX, set_feature_rx_vlan);
-#ifdef CONFIG_RFS_ACCEL
+#ifdef CONFIG_MLX5_EN_ARFS
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_NTUPLE, set_feature_arfs);
 #endif
 
@@ -4348,12 +4348,12 @@ static const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_udp_tunnel_add      = mlx5e_add_vxlan_port,
 	.ndo_udp_tunnel_del      = mlx5e_del_vxlan_port,
 	.ndo_features_check      = mlx5e_features_check,
-#ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
-#endif
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
 	.ndo_bpf		 = mlx5e_xdp,
 	.ndo_xdp_xmit            = mlx5e_xdp_xmit,
+#ifdef CONFIG_MLX5_EN_ARFS
+	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller     = mlx5e_netpoll,
 #endif
@@ -4703,7 +4703,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	    FT_CAP(identified_miss_table_mode) &&
 	    FT_CAP(flow_table_modify)) {
 		netdev->hw_features      |= NETIF_F_HW_TC;
-#ifdef CONFIG_RFS_ACCEL
+#ifdef CONFIG_MLX5_EN_ARFS
 		netdev->hw_features	 |= NETIF_F_NTUPLE;
 #endif
 	}
@@ -4947,7 +4947,7 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 		return NULL;
 	}
 
-#ifdef CONFIG_RFS_ACCEL
+#ifdef CONFIG_MLX5_EN_ARFS
 	netdev->rx_cpu_rmap = mdev->rmap;
 #endif
 

@@ -660,12 +660,6 @@ struct mlx5e_l2_rule {
 	struct mlx5_flow_handle *rule;
 };
 
-struct mlx5e_flow_table {
-	int num_groups;
-	struct mlx5_flow_table *t;
-	struct mlx5_flow_group **g;
-};
-
 #define MLX5E_L2_ADDR_HASH_SIZE BIT(BITS_PER_BYTE)
 
 struct mlx5e_tc_table {
@@ -708,38 +702,15 @@ struct mlx5e_ttc_table {
 	struct mlx5_flow_handle  *tunnel_rules[MLX5E_NUM_TUNNEL_TT];
 };
 
-#define ARFS_HASH_SHIFT BITS_PER_BYTE
-#define ARFS_HASH_SIZE BIT(BITS_PER_BYTE)
-struct arfs_table {
-	struct mlx5e_flow_table  ft;
-	struct mlx5_flow_handle	 *default_rule;
-	struct hlist_head	 rules_hash[ARFS_HASH_SIZE];
-};
-
-enum  arfs_type {
-	ARFS_IPV4_TCP,
-	ARFS_IPV6_TCP,
-	ARFS_IPV4_UDP,
-	ARFS_IPV6_UDP,
-	ARFS_NUM_TYPES,
-};
-
-struct mlx5e_arfs_tables {
-	struct arfs_table arfs_tables[ARFS_NUM_TYPES];
-	/* Protect aRFS rules list */
-	spinlock_t                     arfs_lock;
-	struct list_head               rules;
-	int                            last_filter_id;
-	struct workqueue_struct        *wq;
-};
-
 /* NIC prio FTS */
 enum {
 	MLX5E_VLAN_FT_LEVEL = 0,
 	MLX5E_L2_FT_LEVEL,
 	MLX5E_TTC_FT_LEVEL,
 	MLX5E_INNER_TTC_FT_LEVEL,
+#ifdef CONFIG_MLX5_EN_ARFS
 	MLX5E_ARFS_FT_LEVEL
+#endif
 };
 
 enum {
@@ -757,7 +728,9 @@ struct mlx5e_flow_steering {
 	struct mlx5e_l2_table           l2;
 	struct mlx5e_ttc_table          ttc;
 	struct mlx5e_ttc_table          inner_ttc;
+#ifdef CONFIG_MLX5_EN_ARFS
 	struct mlx5e_arfs_tables        arfs;
+#endif
 };
 
 struct mlx5e_rqt {
@@ -1026,32 +999,6 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
 void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
 void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
 void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
-#endif
-
-#ifndef CONFIG_RFS_ACCEL
-static inline int mlx5e_arfs_create_tables(struct mlx5e_priv *priv)
-{
-	return 0;
-}
-
-static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
-
-static inline int mlx5e_arfs_enable(struct mlx5e_priv *priv)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int mlx5e_arfs_disable(struct mlx5e_priv *priv)
-{
-	return -EOPNOTSUPP;
-}
-#else
-int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);
-void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv);
-int mlx5e_arfs_enable(struct mlx5e_priv *priv);
-int mlx5e_arfs_disable(struct mlx5e_priv *priv);
-int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
-			u16 rxq_index, u32 flow_id);
 #endif
 
 int mlx5e_create_tir(struct mlx5_core_dev *mdev,
