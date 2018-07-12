@@ -641,6 +641,9 @@ static void srcu_funnel_exp_start(struct srcu_struct *sp, struct srcu_node *snp,
  * period s.  Losers must either ensure that their desired grace-period
  * number is recorded on at least their leaf srcu_node structure, or they
  * must take steps to invoke their own callbacks.
+ *
+ * Note that this function also does the work of srcu_funnel_exp_start(),
+ * in some cases by directly invoking it.
  */
 static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 				 unsigned long s, bool do_norm)
@@ -823,17 +826,17 @@ static void srcu_leak_callback(struct rcu_head *rhp)
  * more than one CPU, this means that when "func()" is invoked, each CPU
  * is guaranteed to have executed a full memory barrier since the end of
  * its last corresponding SRCU read-side critical section whose beginning
- * preceded the call to call_rcu().  It also means that each CPU executing
+ * preceded the call to call_srcu().  It also means that each CPU executing
  * an SRCU read-side critical section that continues beyond the start of
- * "func()" must have executed a memory barrier after the call_rcu()
+ * "func()" must have executed a memory barrier after the call_srcu()
  * but before the beginning of that SRCU read-side critical section.
  * Note that these guarantees include CPUs that are offline, idle, or
  * executing in user mode, as well as CPUs that are executing in the kernel.
  *
- * Furthermore, if CPU A invoked call_rcu() and CPU B invoked the
+ * Furthermore, if CPU A invoked call_srcu() and CPU B invoked the
  * resulting SRCU callback function "func()", then both CPU A and CPU
  * B are guaranteed to execute a full memory barrier during the time
- * interval between the call to call_rcu() and the invocation of "func()".
+ * interval between the call to call_srcu() and the invocation of "func()".
  * This guarantee applies even if CPU A and CPU B are the same CPU (but
  * again only if the system has more than one CPU).
  *
@@ -1268,11 +1271,11 @@ void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
 		unsigned long l0, l1;
 		unsigned long u0, u1;
 		long c0, c1;
-		struct srcu_data *counts;
+		struct srcu_data *sdp;
 
-		counts = per_cpu_ptr(sp->sda, cpu);
-		u0 = counts->srcu_unlock_count[!idx];
-		u1 = counts->srcu_unlock_count[idx];
+		sdp = per_cpu_ptr(sp->sda, cpu);
+		u0 = sdp->srcu_unlock_count[!idx];
+		u1 = sdp->srcu_unlock_count[idx];
 
 		/*
 		 * Make sure that a lock is always counted if the corresponding
@@ -1280,12 +1283,13 @@ void srcu_torture_stats_print(struct srcu_struct *sp, char *tt, char *tf)
 		 */
 		smp_rmb();
 
-		l0 = counts->srcu_lock_count[!idx];
-		l1 = counts->srcu_lock_count[idx];
+		l0 = sdp->srcu_lock_count[!idx];
+		l1 = sdp->srcu_lock_count[idx];
 
 		c0 = l0 - u0;
 		c1 = l1 - u1;
-		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
+		pr_cont(" %d(%ld,%ld %1p)",
+			cpu, c0, c1, rcu_segcblist_head(&sdp->srcu_cblist));
 		s0 += c0;
 		s1 += c1;
 	}

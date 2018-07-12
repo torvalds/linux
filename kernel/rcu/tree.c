@@ -1368,7 +1368,6 @@ static inline void panic_on_rcu_stall(void)
 static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 {
 	int cpu;
-	long delta;
 	unsigned long flags;
 	unsigned long gpa;
 	unsigned long j;
@@ -1380,18 +1379,6 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 	rcu_stall_kick_kthreads(rsp);
 	if (rcu_cpu_stall_suppress)
 		return;
-
-	/* Only let one CPU complain about others per time interval. */
-
-	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	delta = jiffies - READ_ONCE(rsp->jiffies_stall);
-	if (delta < RCU_STALL_RAT_DELAY || !rcu_gp_in_progress(rsp)) {
-		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-		return;
-	}
-	WRITE_ONCE(rsp->jiffies_stall,
-		   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
-	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 
 	/*
 	 * OK, time to rat on our buddy...
@@ -1441,6 +1428,10 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 			sched_show_task(current);
 		}
 	}
+	/* Rewrite if needed in case of slow consoles. */
+	if (ULONG_CMP_GE(jiffies, READ_ONCE(rsp->jiffies_stall)))
+		WRITE_ONCE(rsp->jiffies_stall,
+			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 
 	rcu_check_gp_kthread_starvation(rsp);
 
@@ -1485,6 +1476,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	rcu_dump_cpu_stacks(rsp);
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	/* Rewrite if needed in case of slow consoles. */
 	if (ULONG_CMP_GE(jiffies, READ_ONCE(rsp->jiffies_stall)))
 		WRITE_ONCE(rsp->jiffies_stall,
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
@@ -1508,6 +1500,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	unsigned long gpnum;
 	unsigned long gps;
 	unsigned long j;
+	unsigned long jn;
 	unsigned long js;
 	struct rcu_node *rnp;
 
@@ -1546,14 +1539,17 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	    ULONG_CMP_GE(gps, js))
 		return; /* No stall or GP completed since entering function. */
 	rnp = rdp->mynode;
+	jn = jiffies + 3 * rcu_jiffies_till_stall_check() + 3;
 	if (rcu_gp_in_progress(rsp) &&
-	    (READ_ONCE(rnp->qsmask) & rdp->grpmask)) {
+	    (READ_ONCE(rnp->qsmask) & rdp->grpmask) &&
+	    cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
 
 	} else if (rcu_gp_in_progress(rsp) &&
-		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY)) {
+		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
+		   cmpxchg(&rsp->jiffies_stall, js, jn) == js) {
 
 		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(rsp, gpnum);
@@ -1685,6 +1681,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	}
 	trace_rcu_this_gp(rnp_root, rdp, c, TPS("Startedroot"));
 	WRITE_ONCE(rsp->gp_flags, rsp->gp_flags | RCU_GP_FLAG_INIT);
+	rsp->gp_req_activity = jiffies;
 	if (!rsp->gp_kthread) {
 		trace_rcu_this_gp(rnp_root, rdp, c, TPS("NoGPkthread"));
 		goto unlock_out;
@@ -2084,7 +2081,8 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	 */
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		raw_spin_lock_irq_rcu_node(rnp);
-		WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp));
+		if (WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp)))
+			dump_blkd_tasks(rnp, 10);
 		WARN_ON_ONCE(rnp->qsmask);
 		WRITE_ONCE(rnp->completed, rsp->gpnum);
 		rdp = this_cpu_ptr(rsp->rda);
@@ -2116,10 +2114,12 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	/* Advance CBs to reduce false positives below. */
 	if (!rcu_accelerate_cbs(rsp, rnp, rdp) && needgp) {
 		WRITE_ONCE(rsp->gp_flags, RCU_GP_FLAG_INIT);
+		rsp->gp_req_activity = jiffies;
 		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
 				       TPS("newreq"));
+	} else {
+		WRITE_ONCE(rsp->gp_flags, rsp->gp_flags & RCU_GP_FLAG_INIT);
 	}
-	WRITE_ONCE(rsp->gp_flags, rsp->gp_flags & RCU_GP_FLAG_INIT);
 	raw_spin_unlock_irq_rcu_node(rnp);
 }
 
@@ -2294,6 +2294,7 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 			return;
 		}
+		rnp->completedqs = rnp->gpnum;
 		mask = rnp->grpmask;
 		if (rnp->parent == NULL) {
 
@@ -2747,6 +2748,65 @@ static void force_quiescent_state(struct rcu_state *rsp)
 }
 
 /*
+ * This function checks for grace-period requests that fail to motivate
+ * RCU to come out of its idle mode.
+ */
+static void
+rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
+			 struct rcu_data *rdp)
+{
+	unsigned long flags;
+	unsigned long j;
+	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	static atomic_t warned = ATOMIC_INIT(0);
+
+	if (!IS_ENABLED(CONFIG_PROVE_RCU) ||
+	    rcu_gp_in_progress(rsp) || !need_any_future_gp(rcu_get_root(rsp)))
+		return;
+	j = jiffies; /* Expensive access, and in common case don't get here. */
+	if (time_before(j, READ_ONCE(rsp->gp_req_activity) + HZ) ||
+	    time_before(j, READ_ONCE(rsp->gp_activity) + HZ) ||
+	    atomic_read(&warned))
+		return;
+
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	j = jiffies;
+	if (rcu_gp_in_progress(rsp) || !need_any_future_gp(rcu_get_root(rsp)) ||
+	    time_before(j, READ_ONCE(rsp->gp_req_activity) + HZ) ||
+	    time_before(j, READ_ONCE(rsp->gp_activity) + HZ) ||
+	    atomic_read(&warned)) {
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
+	}
+	/* Hold onto the leaf lock to make others see warned==1. */
+
+	if (rnp_root != rnp)
+		raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
+	j = jiffies;
+	if (rcu_gp_in_progress(rsp) || !need_any_future_gp(rcu_get_root(rsp)) ||
+	    time_before(j, rsp->gp_req_activity + HZ) ||
+	    time_before(j, rsp->gp_activity + HZ) ||
+	    atomic_xchg(&warned, 1)) {
+		raw_spin_unlock_rcu_node(rnp_root); /* irqs remain disabled. */
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
+	}
+	pr_alert("%s: g%lu %d%d%d%d gar:%lu ga:%lu f%#x %s->state:%#lx\n",
+		 __func__, READ_ONCE(rsp->gpnum),
+		 need_future_gp_element(rcu_get_root(rsp), 0),
+		 need_future_gp_element(rcu_get_root(rsp), 1),
+		 need_future_gp_element(rcu_get_root(rsp), 2),
+		 need_future_gp_element(rcu_get_root(rsp), 3),
+		 j - rsp->gp_req_activity, j - rsp->gp_activity,
+		 rsp->gp_flags, rsp->name,
+		 rsp->gp_kthread ? rsp->gp_kthread->state : 0x1ffffL);
+	WARN_ON(1);
+	if (rnp_root != rnp)
+		raw_spin_unlock_rcu_node(rnp_root);
+	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+}
+
+/*
  * This does the RCU core processing work for the specified rcu_state
  * and rcu_data structures.  This may be called only from the CPU to
  * whom the rdp belongs.
@@ -2757,7 +2817,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	unsigned long flags;
 	bool needwake;
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
-	struct rcu_node *rnp;
+	struct rcu_node *rnp = rdp->mynode;
 
 	WARN_ON_ONCE(!rdp->beenonline);
 
@@ -2771,7 +2831,6 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 		if (rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL)) {
 			local_irq_restore(flags);
 		} else {
-			rnp = rdp->mynode;
 			raw_spin_lock_rcu_node(rnp); /* irqs disabled. */
 			needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -2779,6 +2838,8 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 				rcu_gp_kthread_wake(rsp);
 		}
 	}
+
+	rcu_check_gp_start_stall(rsp, rnp, rdp);
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
@@ -3930,6 +3991,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 						   &rcu_fqs_class[i], fqs[i]);
 			rnp->gpnum = rsp->gpnum;
 			rnp->completed = rsp->completed;
+			rnp->completedqs = rsp->completed;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
 			rnp->grplo = j * cpustride;
