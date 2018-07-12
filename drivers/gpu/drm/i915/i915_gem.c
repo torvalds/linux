@@ -2012,6 +2012,10 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	pgoff_t page_offset;
 	int ret;
 
+	/* Sanity check that we allow writing into this object */
+	if (i915_gem_object_is_readonly(obj) && write)
+		return VM_FAULT_SIGBUS;
+
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = (vmf->address - area->vm_start) >> PAGE_SHIFT;
 

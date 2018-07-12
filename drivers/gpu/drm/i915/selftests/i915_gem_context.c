@@ -487,7 +487,8 @@ static int igt_ctx_readonly(void *arg)
 					goto out_unlock;
 				}
 
-				obj->gt_ro = prandom_u32_state(&prng);
+				if (prandom_u32_state(&prng) & 1)
+					i915_gem_object_set_readonly(obj);
 			}
 
 			intel_runtime_pm_get(i915);
@@ -518,7 +519,7 @@ static int igt_ctx_readonly(void *arg)
 		unsigned int num_writes;
 
 		num_writes = rem;
-		if (obj->gt_ro)
+		if (i915_gem_object_is_readonly(obj))
 			num_writes = 0;
 
 		err = cpu_check(obj, num_writes);
