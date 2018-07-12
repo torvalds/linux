@@ -203,6 +203,9 @@ void mvpp22_rss_port_init(struct mvpp2_port *port);
 void mvpp22_rss_enable(struct mvpp2_port *port);
 void mvpp22_rss_disable(struct mvpp2_port *port);
 
+int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info);
+int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info);
+
 void mvpp2_cls_init(struct mvpp2 *priv);
 
 void mvpp2_cls_port_config(struct mvpp2_port *port);

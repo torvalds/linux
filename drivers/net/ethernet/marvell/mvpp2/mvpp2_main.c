@@ -3829,11 +3829,15 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 				   struct ethtool_rxnfc *info, u32 *rules)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
+	int ret = 0;
 
 	if (!mvpp22_rss_is_supported())
 		return -EOPNOTSUPP;
 
 	switch (info->cmd) {
+	case ETHTOOL_GRXFH:
+		ret = mvpp2_ethtool_rxfh_get(port, info);
+		break;
 	case ETHTOOL_GRXRINGS:
 		info->data = port->nrxqs;
 		break;
@@ -3841,7 +3845,26 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 		return -ENOTSUPP;
 	}
 
-	return 0;
+	return ret;
+}
+
+static int mvpp2_ethtool_set_rxnfc(struct net_device *dev,
+				   struct ethtool_rxnfc *info)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	int ret = 0;
+
+	if (!mvpp22_rss_is_supported())
+		return -EOPNOTSUPP;
+
+	switch (info->cmd) {
+	case ETHTOOL_SRXFH:
+		ret = mvpp2_ethtool_rxfh_set(port, info);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return ret;
 }
 
 static u32 mvpp2_ethtool_get_rxfh_indir_size(struct net_device *dev)
@@ -3922,6 +3945,7 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_link_ksettings	= mvpp2_ethtool_get_link_ksettings,
 	.set_link_ksettings	= mvpp2_ethtool_set_link_ksettings,
 	.get_rxnfc		= mvpp2_ethtool_get_rxnfc,
+	.set_rxnfc		= mvpp2_ethtool_set_rxnfc,
 	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
 	.get_rxfh		= mvpp2_ethtool_get_rxfh,
 	.set_rxfh		= mvpp2_ethtool_set_rxfh,

@@ -663,6 +663,35 @@ u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe)
 	return hash_opts;
 }
 
+/* Returns the hash opts for this flow. There are several classifier flows
+ * for one traffic flow, this returns an aggregation of all configurations.
+ */
+static u16 mvpp2_port_rss_hash_opts_get(struct mvpp2_port *port, int flow_type)
+{
+	struct mvpp2_cls_flow_entry fe;
+	struct mvpp2_cls_flow *flow;
+	int i, flow_index;
+	u16 hash_opts = 0;
+
+	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+		flow = mvpp2_cls_flow_get(i);
+		if (!flow)
+			return 0;
+
+		if (flow->flow_type != flow_type)
+			continue;
+
+		flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(port->id,
+							flow->flow_id);
+
+		mvpp2_cls_flow_read(port->priv, flow_index, &fe);
+
+		hash_opts |= mvpp2_flow_get_hek_fields(&fe);
+	}
+
+	return hash_opts;
+}
+
 static void mvpp2_cls_port_init_flows(struct mvpp2 *priv)
 {
 	struct mvpp2_cls_flow *flow;
@@ -895,6 +924,81 @@ void mvpp22_rss_fill_table(struct mvpp2_port *port, u32 table)
 		mvpp2_write(priv, MVPP22_RSS_TABLE_ENTRY,
 			    mvpp22_rxfh_indir(port, port->indir[i]));
 	}
+}
+
+int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info)
+{
+	u16 hash_opts = 0;
+
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		if (info->data & RXH_L4_B_0_1)
+			hash_opts |= MVPP22_CLS_HEK_OPT_L4SIP;
+		if (info->data & RXH_L4_B_2_3)
+			hash_opts |= MVPP22_CLS_HEK_OPT_L4DIP;
+		/* Fallthrough */
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		if (info->data & RXH_L2DA)
+			hash_opts |= MVPP22_CLS_HEK_OPT_MAC_DA;
+		if (info->data & RXH_VLAN)
+			hash_opts |= MVPP22_CLS_HEK_OPT_VLAN;
+		if (info->data & RXH_L3_PROTO)
+			hash_opts |= MVPP22_CLS_HEK_OPT_L3_PROTO;
+		if (info->data & RXH_IP_SRC)
+			hash_opts |= (MVPP22_CLS_HEK_OPT_IP4SA |
+				     MVPP22_CLS_HEK_OPT_IP6SA);
+		if (info->data & RXH_IP_DST)
+			hash_opts |= (MVPP22_CLS_HEK_OPT_IP4DA |
+				     MVPP22_CLS_HEK_OPT_IP6DA);
+		break;
+	default: return -EOPNOTSUPP;
+	}
+
+	return mvpp2_port_rss_hash_opts_set(port, info->flow_type, hash_opts);
+}
+
+int mvpp2_ethtool_rxfh_get(struct mvpp2_port *port, struct ethtool_rxnfc *info)
+{
+	unsigned long hash_opts;
+	int i;
+
+	hash_opts = mvpp2_port_rss_hash_opts_get(port, info->flow_type);
+	info->data = 0;
+
+	for_each_set_bit(i, &hash_opts, MVPP22_CLS_HEK_N_FIELDS) {
+		switch (BIT(i)) {
+		case MVPP22_CLS_HEK_OPT_MAC_DA:
+			info->data |= RXH_L2DA;
+			break;
+		case MVPP22_CLS_HEK_OPT_VLAN:
+			info->data |= RXH_VLAN;
+			break;
+		case MVPP22_CLS_HEK_OPT_L3_PROTO:
+			info->data |= RXH_L3_PROTO;
+			break;
+		case MVPP22_CLS_HEK_OPT_IP4SA:
+		case MVPP22_CLS_HEK_OPT_IP6SA:
+			info->data |= RXH_IP_SRC;
+			break;
+		case MVPP22_CLS_HEK_OPT_IP4DA:
+		case MVPP22_CLS_HEK_OPT_IP6DA:
+			info->data |= RXH_IP_DST;
+			break;
+		case MVPP22_CLS_HEK_OPT_L4SIP:
+			info->data |= RXH_L4_B_0_1;
+			break;
+		case MVPP22_CLS_HEK_OPT_L4DIP:
+			info->data |= RXH_L4_B_2_3;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 void mvpp22_rss_port_init(struct mvpp2_port *port)
