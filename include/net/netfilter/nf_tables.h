@@ -150,6 +150,7 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	@portid: netlink portID of the original message
  *	@seq: netlink sequence number
  *	@family: protocol family
+ *	@level: depth of the chains
  *	@report: notify via unicast netlink message
  */
 struct nft_ctx {
@@ -160,6 +161,7 @@ struct nft_ctx {
 	u32				portid;
 	u32				seq;
 	u8				family;
+	u8				level;
 	bool				report;
 };
 
@@ -865,7 +867,6 @@ enum nft_chain_flags {
  *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@use: number of jump references to this chain
- *	@level: length of longest path to this chain
  *	@flags: bitmask of enum nft_chain_flags
  *	@name: name of the chain
  */
@@ -878,7 +879,6 @@ struct nft_chain {
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
-	u16				level;
 	u8				flags:6,
 					genmask:2;
 	char				*name;

@@ -75,6 +75,7 @@ static void nft_ctx_init(struct nft_ctx *ctx,
 {
 	ctx->net	= net;
 	ctx->family	= family;
+	ctx->level	= 0;
 	ctx->table	= table;
 	ctx->chain	= chain;
 	ctx->nla   	= nla;
@@ -2383,6 +2384,9 @@ int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain)
 	const struct nft_data *data;
 	struct nft_rule *rule;
 	int err;
+
+	if (ctx->level == NFT_JUMP_STACK_SIZE)
+		return -EMLINK;
 
 	list_for_each_entry(rule, &chain->rules, list) {
 		if (!nft_is_active_next(ctx->net, rule))
@@ -6837,13 +6841,6 @@ int nft_validate_register_store(const struct nft_ctx *ctx,
 			err = nf_tables_check_loops(ctx, data->verdict.chain);
 			if (err < 0)
 				return err;
-
-			if (ctx->chain->level + 1 >
-			    data->verdict.chain->level) {
-				if (ctx->chain->level + 1 == NFT_JUMP_STACK_SIZE)
-					return -EMLINK;
-				data->verdict.chain->level = ctx->chain->level + 1;
-			}
 		}
 
 		return 0;
