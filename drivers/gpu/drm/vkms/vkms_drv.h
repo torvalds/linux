@@ -5,6 +5,7 @@
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_encoder.h>
+#include <linux/hrtimer.h>
 
 #define XRES_MIN    32
 #define YRES_MIN    32
@@ -23,6 +24,9 @@ struct vkms_output {
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_connector connector;
+	struct hrtimer vblank_hrtimer;
+	ktime_t period_ns;
+	struct drm_pending_vblank_event *event;
 };
 
 struct vkms_device {
@@ -37,8 +41,19 @@ struct vkms_gem_object {
 	struct page **pages;
 };
 
+#define drm_crtc_to_vkms_output(target) \
+	container_of(target, struct vkms_output, crtc)
+
+#define drm_device_to_vkms_device(target) \
+	container_of(target, struct vkms_device, drm)
+
+/* CRTC */
 int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor);
+
+bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
+			       int *max_error, ktime_t *vblank_time,
+			       bool in_vblank_irq);
 
 int vkms_output_init(struct vkms_device *vkmsdev);
 

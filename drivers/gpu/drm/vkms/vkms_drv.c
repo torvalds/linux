@@ -54,6 +54,7 @@ static struct drm_driver vkms_driver = {
 	.dumb_map_offset	= vkms_dumb_map,
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
+	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
@@ -97,6 +98,14 @@ static int __init vkms_init(void)
 		platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(vkms_device->platform)) {
 		ret = PTR_ERR(vkms_device->platform);
+		goto out_fini;
+	}
+
+	vkms_device->drm.irq_enabled = true;
+
+	ret = drm_vblank_init(&vkms_device->drm, 1);
+	if (ret) {
+		DRM_ERROR("Failed to vblank\n");
 		goto out_fini;
 	}
 
