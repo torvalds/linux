@@ -236,12 +236,12 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf,
 }
 static DRIVER_ATTR_IGNORE_LOCKDEP(bind, S_IWUSR, NULL, bind_store);
 
-static ssize_t show_drivers_autoprobe(struct bus_type *bus, char *buf)
+static ssize_t drivers_autoprobe_show(struct bus_type *bus, char *buf)
 {
 	return sprintf(buf, "%d\n", bus->p->drivers_autoprobe);
 }
 
-static ssize_t store_drivers_autoprobe(struct bus_type *bus,
+static ssize_t drivers_autoprobe_store(struct bus_type *bus,
 				       const char *buf, size_t count)
 {
 	if (buf[0] == '0')
@@ -251,7 +251,7 @@ static ssize_t store_drivers_autoprobe(struct bus_type *bus,
 	return count;
 }
 
-static ssize_t store_drivers_probe(struct bus_type *bus,
+static ssize_t drivers_probe_store(struct bus_type *bus,
 				   const char *buf, size_t count)
 {
 	struct device *dev;
@@ -586,9 +586,8 @@ static void remove_bind_files(struct device_driver *drv)
 	driver_remove_file(drv, &driver_attr_unbind);
 }
 
-static BUS_ATTR(drivers_probe, S_IWUSR, NULL, store_drivers_probe);
-static BUS_ATTR(drivers_autoprobe, S_IWUSR | S_IRUGO,
-		show_drivers_autoprobe, store_drivers_autoprobe);
+static BUS_ATTR_WO(drivers_probe);
+static BUS_ATTR_RW(drivers_autoprobe);
 
 static int add_probe_files(struct bus_type *bus)
 {
