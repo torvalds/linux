@@ -925,6 +925,24 @@ struct file *dentry_open(const struct path *path, int flags,
 }
 EXPORT_SYMBOL(dentry_open);
 
+struct file *open_with_fake_path(const struct path *path, int flags,
+				struct inode *inode, const struct cred *cred)
+{
+	struct file *f = alloc_empty_file(flags, cred);
+	if (!IS_ERR(f)) {
+		int error;
+
+		f->f_path = *path;
+		error = do_dentry_open(f, inode, NULL);
+		if (error) {
+			fput(f);
+			f = ERR_PTR(error);
+		}
+	}
+	return f;
+}
+EXPORT_SYMBOL(open_with_fake_path);
+
 static inline int build_open_flags(int flags, umode_t mode, struct open_flags *op)
 {
 	int lookup_flags = 0;
