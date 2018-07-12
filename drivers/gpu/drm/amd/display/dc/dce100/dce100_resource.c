@@ -678,9 +678,22 @@ bool dce100_validate_bandwidth(
 	struct dc  *dc,
 	struct dc_state *context)
 {
-	/* TODO implement when needed but for now hardcode max value*/
-	context->bw.dce.dispclk_khz = 681000;
-	context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER;
+	int i;
+	bool at_least_one_pipe = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			at_least_one_pipe = true;
+	}
+
+	if (at_least_one_pipe) {
+		/* TODO implement when needed but for now hardcode max value*/
+		context->bw.dce.dispclk_khz = 681000;
+		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER;
+	} else {
+		context->bw.dce.dispclk_khz = 0;
+		context->bw.dce.yclk_khz = 0;
+	}
 
 	return true;
 }
