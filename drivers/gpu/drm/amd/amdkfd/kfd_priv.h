@@ -838,6 +838,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
+int kfd_process_vm_fault(struct device_queue_manager *dqm, unsigned int pasid);
 
 /* Process Queue Manager */
 struct process_queue_node {
@@ -963,6 +964,9 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
+
+void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
+				struct kfd_vm_fault_info *info);
 
 void kfd_flush_tlb(struct kfd_process_device *pdd);
 

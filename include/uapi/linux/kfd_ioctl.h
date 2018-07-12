@@ -219,7 +219,7 @@ struct kfd_memory_exception_failure {
 	__u32 NotPresent;	/* Page not present or supervisor privilege */
 	__u32 ReadOnly;	/* Write access to a read-only page */
 	__u32 NoExecute;	/* Execute access to a page marked NX */
-	__u32 pad;
+	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
 /* memory exception data*/
