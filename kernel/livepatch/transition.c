@@ -310,13 +310,6 @@ static bool klp_try_switch_task(struct task_struct *task)
 		return true;
 
 	/*
-	 * For arches which don't have reliable stack traces, we have to rely
-	 * on other methods (e.g., switching tasks at kernel exit).
-	 */
-	if (!klp_have_reliable_stack())
-		return false;
-
-	/*
 	 * Now try to check the stack for any to-be-patched or to-be-unpatched
 	 * functions.  If all goes well, switch the task to the target patch
 	 * state.
