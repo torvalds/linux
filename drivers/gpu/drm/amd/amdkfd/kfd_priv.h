@@ -73,7 +73,7 @@
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
- * the radeon driver to a fixed hqd slot, here are the fixed HIQ hqd slot
+ * the amdgpu driver to a fixed hqd slot, here are the fixed HIQ hqd slot
  * definitions for Kaveri. In Kaveri only the first ME queues participates
  * in the cp scheduling taking that in mind we set the HIQ slot in the
  * second ME.

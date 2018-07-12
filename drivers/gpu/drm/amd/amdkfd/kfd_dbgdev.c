@@ -38,7 +38,6 @@
 #include "kfd_dbgmgr.h"
 #include "kfd_dbgdev.h"
 #include "kfd_device_queue_manager.h"
-#include "../../radeon/cik_reg.h"
 
 static void dbgdev_address_watch_disable_nodiq(struct kfd_dev *dev)
 {
