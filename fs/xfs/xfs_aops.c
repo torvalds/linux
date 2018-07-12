@@ -442,19 +442,19 @@ xfs_map_blocks(
 	} else if (imap.br_startblock == HOLESTARTBLOCK) {
 		/* landed in a hole */
 		wpc->io_type = XFS_IO_HOLE;
+	} else {
+		if (isnullstartblock(imap.br_startblock)) {
+			/* got a delalloc extent */
+			wpc->io_type = XFS_IO_DELALLOC;
+			goto allocate_blocks;
+		}
+
+		if (imap.br_state == XFS_EXT_UNWRITTEN)
+			wpc->io_type = XFS_IO_UNWRITTEN;
+		else
+			wpc->io_type = XFS_IO_OVERWRITE;
 	}
 
-	if (wpc->io_type == XFS_IO_DELALLOC &&
-	    (!nimaps || isnullstartblock(imap.br_startblock)))
-		goto allocate_blocks;
-
-#ifdef DEBUG
-	if (wpc->io_type == XFS_IO_UNWRITTEN) {
-		ASSERT(nimaps);
-		ASSERT(imap.br_startblock != HOLESTARTBLOCK);
-		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-	}
-#endif
 	wpc->imap = imap;
 	trace_xfs_map_blocks_found(ip, offset, count, wpc->io_type, &imap);
 	return 0;
@@ -735,6 +735,14 @@ xfs_map_at_offset(
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
 	clear_buffer_unwritten(bh);
+
+	/*
+	 * If this is a realtime file, data may be on a different device.
+	 * to that pointed to from the buffer_head b_bdev currently. We can't
+	 * trust that the bufferhead has a already been mapped correctly, so
+	 * set the bdev now.
+	 */
+	bh->b_bdev = xfs_find_bdev_for_inode(inode);
 }
 
 STATIC void
@@ -821,56 +829,33 @@ xfs_writepage_map(
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
-	struct buffer_head	*bh, *head;
+	struct buffer_head	*bh;
 	ssize_t			len = i_blocksize(inode);
 	uint64_t		file_offset;	/* file offset of page */
+	unsigned		poffset;	/* offset into page */
 	int			error = 0;
 	int			count = 0;
-	unsigned int		new_type;
 
-	bh = head = page_buffers(page);
+	/*
+	 * Walk the blocks on the page, and if we run off the end of the current
+	 * map or find the current map invalid, grab a new one.  We only use
+	 * bufferheads here to check per-block state - they no longer control
+	 * the iteration through the page. This allows us to replace the
+	 * bufferhead with some other state tracking mechanism in future.
+	 */
 	file_offset = page_offset(page);
-	do {
+	bh = page_buffers(page);
+	for (poffset = 0;
+	     poffset < PAGE_SIZE;
+	     poffset += len, file_offset += len, bh = bh->b_this_page) {
+		/* past the range we are writing, so nothing more to write. */
 		if (file_offset >= end_offset)
 			break;
 
-		/*
-		 * set_page_dirty dirties all buffers in a page, independent
-		 * of their state.  The dirty state however is entirely
-		 * meaningless for holes (!mapped && uptodate), so skip
-		 * buffers covering holes here.
-		 */
-		if (!buffer_mapped(bh) && buffer_uptodate(bh))
-			continue;
-
-		if (buffer_unwritten(bh))
-			new_type = XFS_IO_UNWRITTEN;
-		else if (buffer_delay(bh))
-			new_type = XFS_IO_DELALLOC;
-		else if (buffer_uptodate(bh))
-			new_type = XFS_IO_OVERWRITE;
-		else {
+		if (!buffer_uptodate(bh)) {
 			if (PageUptodate(page))
 				ASSERT(buffer_mapped(bh));
-			/*
-			 * This buffer is not uptodate and will not be
-			 * written to disk.
-			 */
 			continue;
-		}
-
-		/*
-		 * If we already have a valid COW mapping keep using it.
-		 */
-		if (wpc->io_type == XFS_IO_COW &&
-		    xfs_imap_valid(inode, &wpc->imap, file_offset)) {
-			wpc->imap_valid = true;
-			new_type = XFS_IO_COW;
-		}
-
-		if (wpc->io_type != new_type) {
-			wpc->io_type = new_type;
-			wpc->imap_valid = false;
 		}
 
 		if (wpc->imap_valid)
@@ -897,11 +882,10 @@ xfs_writepage_map(
 			continue;
 
 		lock_buffer(bh);
-		if (wpc->io_type != XFS_IO_OVERWRITE)
-			xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
+		xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
 		xfs_add_to_ioend(inode, bh, file_offset, wpc, wbc, &submit_list);
 		count++;
-	} while (file_offset += len, ((bh = bh->b_this_page) != head));
+	}
 
 	ASSERT(wpc->ioend || list_empty(&submit_list));
 
