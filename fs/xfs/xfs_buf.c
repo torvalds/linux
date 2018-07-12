@@ -1458,22 +1458,20 @@ _xfs_buf_ioapply(
  * a call to this function unless the caller holds an additional reference
  * itself.
  */
-void
-xfs_buf_submit(
+static int
+__xfs_buf_submit(
 	struct xfs_buf	*bp)
 {
 	trace_xfs_buf_submit(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
-	ASSERT(bp->b_flags & XBF_ASYNC);
 
 	/* on shutdown we stale and complete the buffer immediately */
 	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
-		xfs_buf_ioend(bp);
-		return;
+		return -EIO;
 	}
 
 	if (bp->b_flags & XBF_WRITE)
@@ -1481,6 +1479,39 @@ xfs_buf_submit(
 
 	/* clear the internal error state to avoid spurious errors */
 	bp->b_io_error = 0;
+
+	/*
+	 * Set the count to 1 initially, this will stop an I/O completion
+	 * callout which happens before we have started all the I/O from calling
+	 * xfs_buf_ioend too early.
+	 */
+	atomic_set(&bp->b_io_remaining, 1);
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_ioacct_inc(bp);
+	_xfs_buf_ioapply(bp);
+
+	/*
+	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
+	 * reference we took above. If we drop it to zero, run completion so
+	 * that we don't return to the caller with completion still pending.
+	 */
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
+			xfs_buf_ioend(bp);
+		else
+			xfs_buf_ioend_async(bp);
+	}
+
+	return 0;
+}
+
+void
+xfs_buf_submit(
+	struct xfs_buf	*bp)
+{
+	int		error;
+
+	ASSERT(bp->b_flags & XBF_ASYNC);
 
 	/*
 	 * The caller's reference is released during I/O completion.
@@ -1492,29 +1523,12 @@ xfs_buf_submit(
 	 */
 	xfs_buf_hold(bp);
 
-	/*
-	 * Set the count to 1 initially, this will stop an I/O completion
-	 * callout which happens before we have started all the I/O from calling
-	 * xfs_buf_ioend too early.
-	 */
-	atomic_set(&bp->b_io_remaining, 1);
-	xfs_buf_ioacct_inc(bp);
-	_xfs_buf_ioapply(bp);
+	error = __xfs_buf_submit(bp);
+	if (error)
+		xfs_buf_ioend(bp);
 
-	/*
-	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
-	 * reference we took above. If we drop it to zero, run completion so
-	 * that we don't return to the caller with completion still pending.
-	 */
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
-		if (bp->b_error)
-			xfs_buf_ioend(bp);
-		else
-			xfs_buf_ioend_async(bp);
-	}
-
-	xfs_buf_rele(bp);
 	/* Note: it is not safe to reference bp now we've dropped our ref */
+	xfs_buf_rele(bp);
 }
 
 /*
@@ -1526,22 +1540,7 @@ xfs_buf_submit_wait(
 {
 	int		error;
 
-	trace_xfs_buf_submit_wait(bp, _RET_IP_);
-
-	ASSERT(!(bp->b_flags & (_XBF_DELWRI_Q | XBF_ASYNC)));
-
-	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
-		xfs_buf_ioerror(bp, -EIO);
-		xfs_buf_stale(bp);
-		bp->b_flags &= ~XBF_DONE;
-		return -EIO;
-	}
-
-	if (bp->b_flags & XBF_WRITE)
-		xfs_buf_wait_unpin(bp);
-
-	/* clear the internal error state to avoid spurious errors */
-	bp->b_io_error = 0;
+	ASSERT(!(bp->b_flags & XBF_ASYNC));
 
 	/*
 	 * For synchronous IO, the IO does not inherit the submitters reference
@@ -1551,20 +1550,9 @@ xfs_buf_submit_wait(
 	 */
 	xfs_buf_hold(bp);
 
-	/*
-	 * Set the count to 1 initially, this will stop an I/O completion
-	 * callout which happens before we have started all the I/O from calling
-	 * xfs_buf_ioend too early.
-	 */
-	atomic_set(&bp->b_io_remaining, 1);
-	_xfs_buf_ioapply(bp);
-
-	/*
-	 * make sure we run completion synchronously if it raced with us and is
-	 * already complete.
-	 */
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
-		xfs_buf_ioend(bp);
+	error = __xfs_buf_submit(bp);
+	if (error)
+		goto out;
 
 	/* wait for completion before gathering the error from the buffer */
 	trace_xfs_buf_iowait(bp, _RET_IP_);
@@ -1572,6 +1560,7 @@ xfs_buf_submit_wait(
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
 	error = bp->b_error;
 
+out:
 	/*
 	 * all done now, we can release the hold that keeps the buffer
 	 * referenced for the entire IO.
