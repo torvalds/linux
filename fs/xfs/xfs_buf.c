@@ -1449,15 +1449,34 @@ _xfs_buf_ioapply(
 }
 
 /*
- * Asynchronous IO submission path. This transfers the buffer lock ownership and
- * the current reference to the IO. It is not safe to reference the buffer after
- * a call to this function unless the caller holds an additional reference
- * itself.
+ * Wait for I/O completion of a sync buffer and return the I/O error code.
  */
 static int
-__xfs_buf_submit_common(
+xfs_buf_iowait(
 	struct xfs_buf	*bp)
 {
+	ASSERT(!(bp->b_flags & XBF_ASYNC));
+
+	trace_xfs_buf_iowait(bp, _RET_IP_);
+	wait_for_completion(&bp->b_iowait);
+	trace_xfs_buf_iowait_done(bp, _RET_IP_);
+
+	return bp->b_error;
+}
+
+/*
+ * Buffer I/O submission path, read or write. Asynchronous submission transfers
+ * the buffer lock ownership and the current reference to the IO. It is not
+ * safe to reference the buffer after a call to this function unless the caller
+ * holds an additional reference itself.
+ */
+int
+__xfs_buf_submit(
+	struct xfs_buf	*bp,
+	bool		wait)
+{
+	int		error = 0;
+
 	trace_xfs_buf_submit(bp, _RET_IP_);
 
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
@@ -1467,8 +1486,17 @@ __xfs_buf_submit_common(
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
+		if (bp->b_flags & XBF_ASYNC)
+			xfs_buf_ioend(bp);
 		return -EIO;
 	}
+
+	/*
+	 * Grab a reference so the buffer does not go away underneath us. For
+	 * async buffers, I/O completion drops the callers reference, which
+	 * could occur before submission returns.
+	 */
+	xfs_buf_hold(bp);
 
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
@@ -1498,52 +1526,9 @@ __xfs_buf_submit_common(
 			xfs_buf_ioend_async(bp);
 	}
 
-	return 0;
-}
-
-/*
- * Wait for I/O completion of a sync buffer and return the I/O error code.
- */
-static int
-xfs_buf_iowait(
-	struct xfs_buf	*bp)
-{
-	ASSERT(!(bp->b_flags & XBF_ASYNC));
-
-	trace_xfs_buf_iowait(bp, _RET_IP_);
-	wait_for_completion(&bp->b_iowait);
-	trace_xfs_buf_iowait_done(bp, _RET_IP_);
-
-	return bp->b_error;
-}
-
-/*
- * Synchronous buffer IO submission path, read or write.
- */
-int
-__xfs_buf_submit(
-	struct xfs_buf	*bp,
-	bool		wait)
-{
-	int		error;
-
-	/*
-	 * Grab a reference so the buffer does not go away underneath us. For
-	 * async buffers, I/O completion drops the callers reference, which
-	 * could occur before submission returns.
-	 */
-	xfs_buf_hold(bp);
-
-	error = __xfs_buf_submit_common(bp);
-	if (error) {
-		if (bp->b_flags & XBF_ASYNC)
-			xfs_buf_ioend(bp);
-		goto out;
-	}
-
 	if (wait)
 		error = xfs_buf_iowait(bp);
-out:
+
 	/*
 	 * Release the hold that keeps the buffer referenced for the entire
 	 * I/O. Note that if the buffer is async, it is not safe to reference
