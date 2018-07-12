@@ -313,7 +313,7 @@ xfs_dquot_disk_alloc(
 	error = xfs_bmapi_write(tp, quotip, dqp->q_fileoffset,
 			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
 			&firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
-			&map, &nmaps, tp->t_dfops);
+			&map, &nmaps);
 	if (error)
 		goto error0;
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);

@@ -484,8 +484,7 @@ xfs_attr_rmtval_set(
 		nmap = 1;
 		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
 				  blkcnt, XFS_BMAPI_ATTRFORK, args->firstblock,
-				  args->total, &map, &nmap,
-				  args->trans->t_dfops);
+				  args->total, &map, &nmap);
 		if (error)
 			goto out_defer_cancel;
 		xfs_defer_ijoin(args->trans->t_dfops, dp);

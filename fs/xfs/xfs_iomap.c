@@ -259,7 +259,7 @@ xfs_iomap_write_direct(
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 				bmapi_flags, &firstfsb, resblks, imap,
-				&nimaps, tp->t_dfops);
+				&nimaps);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -773,8 +773,7 @@ xfs_iomap_write_allocate(
 			 */
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
 						count_fsb, flags, &first_block,
-						nres, imap, &nimaps,
-						tp->t_dfops);
+						nres, imap, &nimaps);
 			if (error)
 				goto trans_cancel;
 
@@ -884,7 +883,7 @@ xfs_iomap_write_unwritten(
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 					XFS_BMAPI_CONVERT, &firstfsb, resblks,
-					&imap, &nimaps, tp->t_dfops);
+					&imap, &nimaps);
 		if (error)
 			goto error_on_bmapi_transaction;
 

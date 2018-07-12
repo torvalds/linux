@@ -976,7 +976,7 @@ xfs_alloc_file_space(
 		tp->t_dfops = &dfops;
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
-					resblks, imapp, &nimaps, tp->t_dfops);
+					resblks, imapp, &nimaps);
 		if (error)
 			goto error0;
 

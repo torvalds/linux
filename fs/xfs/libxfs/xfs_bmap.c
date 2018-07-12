@@ -4245,8 +4245,7 @@ xfs_bmapi_write(
 						   controls a.g. for allocs */
 	xfs_extlen_t		total,		/* total blocks needed */
 	struct xfs_bmbt_irec	*mval,		/* output: map values */
-	int			*nmap,		/* i/o: mval size/count */
-	struct xfs_defer_ops	*dfops)		/* i/o: list extents to free */
+	int			*nmap)		/* i/o: mval size/count */
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp;
@@ -4337,7 +4336,7 @@ xfs_bmapi_write(
 	bma.ip = ip;
 	bma.total = total;
 	bma.datatype = 0;
-	bma.dfops = dfops;
+	bma.dfops = tp ? tp->t_dfops : NULL;
 	bma.firstblock = firstblock;
 
 	while (bno < end && n < *nmap) {
@@ -4414,8 +4413,9 @@ xfs_bmapi_write(
 			 * the refcount btree for orphan recovery.
 			 */
 			if (whichfork == XFS_COW_FORK) {
-				error = xfs_refcount_alloc_cow_extent(mp, dfops,
-						bma.blkno, bma.length);
+				error = xfs_refcount_alloc_cow_extent(mp,
+						tp->t_dfops, bma.blkno,
+						bma.length);
 				if (error)
 					goto error0;
 			}

@@ -326,7 +326,7 @@ xfs_reflink_convert_cow_extent(
 		return 0;
 	return xfs_bmapi_write(NULL, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT, &first_block,
-			0, imap, &nimaps, NULL);
+			0, imap, &nimaps);
 }
 
 /* Convert all of the unwritten CoW extents in a file's range to real ones. */
@@ -349,8 +349,8 @@ xfs_reflink_convert_cow(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	error = xfs_bmapi_write(NULL, ip, offset_fsb, count_fsb,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT |
-			XFS_BMAPI_CONVERT_ONLY, &first_block, 0, &imap, &nimaps,
-			NULL);
+			XFS_BMAPI_CONVERT_ONLY, &first_block, 0, &imap,
+			&nimaps);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
@@ -435,7 +435,7 @@ retry:
 	/* Allocate the entire reservation as unwritten blocks. */
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC, &first_block,
-			resblks, imap, &nimaps, tp->t_dfops);
+			resblks, imap, &nimaps);
 	if (error)
 		goto out_bmap_cancel;
 
