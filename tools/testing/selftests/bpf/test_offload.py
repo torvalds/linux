@@ -814,20 +814,12 @@ try:
          "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
-    ret, _, err = sim.set_xdp(obj, "offload", force=True,
-                              fail=False, include_stderr=True)
-    fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
     check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test XDP prog remove with bad flags...")
-    ret, _, err = sim.unset_xdp("offload", force=True,
-                                fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
     ret, _, err = sim.unset_xdp("", force=True,
                                 fail=False, include_stderr=True)
     fail(ret == 0, "Removed program with a bad mode")

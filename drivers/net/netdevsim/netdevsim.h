@@ -69,7 +69,7 @@ struct netdevsim {
 	u32 bpf_offloaded_id;
 
 	struct xdp_attachment_info xdp;
-	int xdp_prog_mode;
+	struct xdp_attachment_info xdp_hw;
 
 	u32 prog_id_gen;
 
