@@ -747,18 +747,18 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
  */
 int
 xfs_attr_shortform_to_leaf(
-	struct xfs_da_args	*args,
-	struct xfs_buf		**leaf_bp)
+	struct xfs_da_args		*args,
+	struct xfs_buf			**leaf_bp)
 {
-	xfs_inode_t *dp;
-	xfs_attr_shortform_t *sf;
-	xfs_attr_sf_entry_t *sfe;
-	xfs_da_args_t nargs;
-	char *tmpbuffer;
-	int error, i, size;
-	xfs_dablk_t blkno;
-	struct xfs_buf *bp;
-	xfs_ifork_t *ifp;
+	struct xfs_inode		*dp;
+	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_entry	*sfe;
+	struct xfs_da_args		nargs;
+	char				*tmpbuffer;
+	int				error, i, size;
+	xfs_dablk_t			blkno;
+	struct xfs_buf			*bp;
+	struct xfs_ifork		*ifp;
 
 	trace_xfs_attr_sf_to_leaf(args);
 
@@ -803,7 +803,6 @@ xfs_attr_shortform_to_leaf(
 	nargs.dp = dp;
 	nargs.geo = args->geo;
 	nargs.firstblock = args->firstblock;
-	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
@@ -1007,7 +1006,6 @@ xfs_attr3_leaf_to_shortform(
 	nargs.geo = args->geo;
 	nargs.dp = dp;
 	nargs.firstblock = args->firstblock;
-	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;

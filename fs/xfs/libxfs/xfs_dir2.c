@@ -239,8 +239,8 @@ xfs_dir_init(
  */
 int
 xfs_dir_createname(
-	xfs_trans_t		*tp,
-	xfs_inode_t		*dp,
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
 	struct xfs_name		*name,
 	xfs_ino_t		inum,		/* new entry inode number */
 	xfs_fsblock_t		*first,		/* bmap's firstblock */
@@ -274,7 +274,6 @@ xfs_dir_createname(
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
-	args->dfops = tp->t_dfops;
 	args->firstblock = first;
 	args->op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	if (!inum)
@@ -417,16 +416,16 @@ out_free:
  */
 int
 xfs_dir_removename(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,
-	xfs_ino_t	ino,
-	xfs_fsblock_t	*first,		/* bmap's firstblock */
-	xfs_extlen_t	total)		/* bmap's total block count */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	struct xfs_name		*name,
+	xfs_ino_t		ino,
+	xfs_fsblock_t		*first,		/* bmap's firstblock */
+	xfs_extlen_t		total)		/* bmap's total block count */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	ASSERT(tp->t_dfops);
@@ -447,7 +446,6 @@ xfs_dir_removename(
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
-	args->dfops = tp->t_dfops;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_removename(args);
@@ -479,16 +477,16 @@ out_free:
  */
 int
 xfs_dir_replace(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,		/* name of entry to replace */
-	xfs_ino_t	inum,		/* new inode number */
-	xfs_fsblock_t	*first,		/* bmap's firstblock */
-	xfs_extlen_t	total)		/* bmap's total block count */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	struct xfs_name		*name,		/* name of entry to replace */
+	xfs_ino_t		inum,		/* new inode number */
+	xfs_fsblock_t		*first,		/* bmap's firstblock */
+	xfs_extlen_t		total)		/* bmap's total block count */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	ASSERT(tp->t_dfops);
@@ -512,7 +510,6 @@ xfs_dir_replace(
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
-	args->dfops = tp->t_dfops;
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_replace(args);
@@ -646,17 +643,17 @@ xfs_dir2_isleaf(
  */
 int
 xfs_dir2_shrink_inode(
-	xfs_da_args_t	*args,
-	xfs_dir2_db_t	db,
-	struct xfs_buf	*bp)
+	struct xfs_da_args	*args,
+	xfs_dir2_db_t		db,
+	struct xfs_buf		*bp)
 {
-	xfs_fileoff_t	bno;		/* directory file offset */
-	xfs_dablk_t	da;		/* directory file offset */
-	int		done;		/* bunmap is finished */
-	xfs_inode_t	*dp;
-	int		error;
-	xfs_mount_t	*mp;
-	xfs_trans_t	*tp;
+	xfs_fileoff_t		bno;		/* directory file offset */
+	xfs_dablk_t		da;		/* directory file offset */
+	int			done;		/* bunmap is finished */
+	struct xfs_inode	*dp;
+	int			error;
+	struct xfs_mount	*mp;
+	struct xfs_trans	*tp;
 
 	trace_xfs_dir2_shrink_inode(args, db);
 
@@ -667,7 +664,7 @@ xfs_dir2_shrink_inode(
 
 	/* Unmap the fsblock(s). */
 	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
-			    args->firstblock, args->dfops, &done);
+			    args->firstblock, args->trans->t_dfops, &done);
 	if (error) {
 		/*
 		 * ENOSPC actually can happen if we're in a removename with no

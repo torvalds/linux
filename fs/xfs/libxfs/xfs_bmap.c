@@ -1007,7 +1007,6 @@ xfs_bmap_add_attrfork_local(
 		dargs.geo = ip->i_mount->m_dir_geo;
 		dargs.dp = ip;
 		dargs.firstblock = firstblock;
-		dargs.dfops = tp->t_dfops;
 		dargs.total = dargs.geo->fsbcount;
 		dargs.whichfork = XFS_DATA_FORK;
 		dargs.trans = tp;
