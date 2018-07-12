@@ -255,17 +255,18 @@ xfs_iomap_write_direct(
 	 * caller gave to us.
 	 */
 	xfs_defer_init(&dfops, &firstfsb);
+	tp->t_dfops = &dfops;
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 				bmapi_flags, &firstfsb, resblks, imap,
-				&nimaps, &dfops);
+				&nimaps, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
 	/*
 	 * Complete the transaction
 	 */
-	error = xfs_defer_finish(&tp, &dfops);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -289,7 +290,7 @@ out_unlock:
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
@@ -717,6 +718,7 @@ xfs_iomap_write_allocate(
 			xfs_trans_ijoin(tp, ip, 0);
 
 			xfs_defer_init(&dfops, &first_block);
+			tp->t_dfops = &dfops;
 
 			/*
 			 * it is possible that the extents have changed since
@@ -772,11 +774,11 @@ xfs_iomap_write_allocate(
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
 						count_fsb, flags, &first_block,
 						nres, imap, &nimaps,
-						&dfops);
+						tp->t_dfops);
 			if (error)
 				goto trans_cancel;
 
-			error = xfs_defer_finish(&tp, &dfops);
+			error = xfs_defer_finish(&tp, tp->t_dfops);
 			if (error)
 				goto trans_cancel;
 
@@ -810,7 +812,7 @@ xfs_iomap_write_allocate(
 	}
 
 trans_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	xfs_trans_cancel(tp);
 error0:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -878,10 +880,11 @@ xfs_iomap_write_unwritten(
 		 * Modify the unwritten extent state of the buffer.
 		 */
 		xfs_defer_init(&dfops, &firstfsb);
+		tp->t_dfops = &dfops;
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 					XFS_BMAPI_CONVERT, &firstfsb, resblks,
-					&imap, &nimaps, &dfops);
+					&imap, &nimaps, tp->t_dfops);
 		if (error)
 			goto error_on_bmapi_transaction;
 
@@ -901,7 +904,7 @@ xfs_iomap_write_unwritten(
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		}
 
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto error_on_bmapi_transaction;
 
@@ -928,7 +931,7 @@ xfs_iomap_write_unwritten(
 	return 0;
 
 error_on_bmapi_transaction:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;

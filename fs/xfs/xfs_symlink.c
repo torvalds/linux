@@ -291,7 +291,7 @@ xfs_symlink(
 
 		error = xfs_bmapi_write(tp, ip, first_fsb, fs_blocks,
 				  XFS_BMAPI_METADATA, &first_block, resblks,
-				  mval, &nmaps, &dfops);
+				  mval, &nmaps, tp->t_dfops);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -354,7 +354,7 @@ xfs_symlink(
 		xfs_trans_set_sync(tp);
 	}
 
-	error = xfs_defer_finish(&tp, &dfops);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -370,7 +370,7 @@ xfs_symlink(
 	return 0;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 out_release_inode:

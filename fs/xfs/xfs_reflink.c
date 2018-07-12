@@ -429,19 +429,20 @@ retry:
 	xfs_trans_ijoin(tp, ip, 0);
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_dfops = &dfops;
 	nimaps = 1;
 
 	/* Allocate the entire reservation as unwritten blocks. */
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC, &first_block,
-			resblks, imap, &nimaps, &dfops);
+			resblks, imap, &nimaps, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
 	xfs_inode_set_cowblocks_tag(ip);
 
 	/* Finish up. */
-	error = xfs_defer_finish(&tp, &dfops);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -458,7 +459,7 @@ retry:
 convert:
 	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb);
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)resblks, 0,
 			XFS_QMOPT_RES_REGBLKS);
 out:

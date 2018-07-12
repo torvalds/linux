@@ -973,16 +973,17 @@ xfs_alloc_file_space(
 		xfs_trans_ijoin(tp, ip, 0);
 
 		xfs_defer_init(&dfops, &firstfsb);
+		tp->t_dfops = &dfops;
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
-					resblks, imapp, &nimaps, &dfops);
+					resblks, imapp, &nimaps, tp->t_dfops);
 		if (error)
 			goto error0;
 
 		/*
 		 * Complete the transaction
 		 */
-		error = xfs_defer_finish(&tp, &dfops);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto error0;
 
