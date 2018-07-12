@@ -66,7 +66,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 #define MVPP2_QDIST_SINGLE_MODE	0
 #define MVPP2_QDIST_MULTI_MODE	1
 
-static int queue_mode = MVPP2_QDIST_SINGLE_MODE;
+static int queue_mode = MVPP2_QDIST_MULTI_MODE;
 
 module_param(queue_mode, int, 0444);
 MODULE_PARM_DESC(queue_mode, "Set queue_mode (single=0, multi=1)");
