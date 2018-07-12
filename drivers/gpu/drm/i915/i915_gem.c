@@ -1627,6 +1627,12 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		goto err;
 	}
 
+	/* Writes not allowed into this read-only object */
+	if (i915_gem_object_is_readonly(obj)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
 
 	ret = -ENODEV;
