@@ -1545,6 +1545,7 @@ xfs_itruncate_extents_flags(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
+	struct xfs_defer_ops	*odfops = tp->t_dfops;
 	struct xfs_defer_ops	dfops;
 	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		first_unmap_block;
@@ -1584,9 +1585,10 @@ xfs_itruncate_extents_flags(
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
 		xfs_defer_init(&dfops, &first_block);
+		tp->t_dfops = &dfops;
 		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
 				    XFS_ITRUNC_MAX_EXTENTS, &first_block,
-				    &dfops, &done);
+				    tp->t_dfops, &done);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1594,8 +1596,8 @@ xfs_itruncate_extents_flags(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		xfs_defer_ijoin(&dfops, ip);
-		error = xfs_defer_finish(&tp, &dfops);
+		xfs_defer_ijoin(tp->t_dfops, ip);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1623,6 +1625,8 @@ xfs_itruncate_extents_flags(
 	trace_xfs_itruncate_extents_end(ip, new_size);
 
 out:
+	/* ->t_dfops points to local stack, don't leak it! */
+	tp->t_dfops = odfops;
 	*tpp = tp;
 	return error;
 out_bmap_cancel:
@@ -1631,7 +1635,7 @@ out_bmap_cancel:
 	 * the transaction can be properly aborted.  We just need to make sure
 	 * we're not holding any resources that we were not when we came in.
 	 */
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 	goto out;
 }
 

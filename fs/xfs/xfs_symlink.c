@@ -444,6 +444,7 @@ xfs_inactive_symlink_rmt(
 	 */
 	done = 0;
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_dfops = &dfops;
 	nmaps = ARRAY_SIZE(mval);
 	error = xfs_bmapi_read(ip, 0, xfs_symlink_blocks(mp, size),
 				mval, &nmaps, 0);
@@ -466,15 +467,15 @@ xfs_inactive_symlink_rmt(
 	 * Unmap the dead block(s) to the dfops.
 	 */
 	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps,
-			    &first_block, &dfops, &done);
+			    &first_block, tp->t_dfops, &done);
 	if (error)
 		goto error_bmap_cancel;
 	ASSERT(done);
 	/*
 	 * Commit the first transaction.  This logs the EFI and the inode.
 	 */
-	xfs_defer_ijoin(&dfops, ip);
-	error = xfs_defer_finish(&tp, &dfops);
+	xfs_defer_ijoin(tp->t_dfops, ip);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto error_bmap_cancel;
 
@@ -499,7 +500,7 @@ xfs_inactive_symlink_rmt(
 	return 0;
 
 error_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 error_trans_cancel:
 	xfs_trans_cancel(tp);
 error_unlock:

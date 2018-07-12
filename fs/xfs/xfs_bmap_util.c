@@ -1044,13 +1044,14 @@ xfs_unmap_extent(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	xfs_defer_init(&dfops, &firstfsb);
+	tp->t_dfops = &dfops;
 	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
-			&dfops, done);
+			tp->t_dfops, done);
 	if (error)
 		goto out_bmap_cancel;
 
-	xfs_defer_ijoin(&dfops, ip);
-	error = xfs_defer_finish(&tp, &dfops);
+	xfs_defer_ijoin(tp->t_dfops, ip);
+	error = xfs_defer_finish(&tp, tp->t_dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -1060,7 +1061,7 @@ out_unlock:
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	goto out_unlock;

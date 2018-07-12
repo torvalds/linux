@@ -700,9 +700,10 @@ xfs_reflink_end_cow(
 
 		/* Unmap the old blocks in the data fork. */
 		xfs_defer_init(&dfops, &firstfsb);
+		tp->t_dfops = &dfops;
 		rlen = del.br_blockcount;
 		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1,
-				&firstfsb, &dfops);
+				&firstfsb, tp->t_dfops);
 		if (error)
 			goto out_defer;
 
@@ -714,13 +715,14 @@ xfs_reflink_end_cow(
 		trace_xfs_reflink_cow_remap(ip, &del);
 
 		/* Free the CoW orphan record. */
-		error = xfs_refcount_free_cow_extent(tp->t_mountp, &dfops,
+		error = xfs_refcount_free_cow_extent(tp->t_mountp, tp->t_dfops,
 				del.br_startblock, del.br_blockcount);
 		if (error)
 			goto out_defer;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(tp->t_mountp, &dfops, ip, &del);
+		error = xfs_bmap_map_extent(tp->t_mountp, tp->t_dfops, ip,
+					    &del);
 		if (error)
 			goto out_defer;
 
@@ -731,8 +733,8 @@ xfs_reflink_end_cow(
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
-		xfs_defer_ijoin(&dfops, ip);
-		error = xfs_defer_finish(&tp, &dfops);
+		xfs_defer_ijoin(tp->t_dfops, ip);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto out_defer;
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
@@ -750,7 +752,7 @@ prev_extent:
 	return 0;
 
 out_defer:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -1049,8 +1051,9 @@ xfs_reflink_remap_extent(
 	rlen = unmap_len;
 	while (rlen) {
 		xfs_defer_init(&dfops, &firstfsb);
+		tp->t_dfops = &dfops;
 		error = __xfs_bunmapi(tp, ip, destoff, &rlen, 0, 1,
-				&firstfsb, &dfops);
+				&firstfsb, tp->t_dfops);
 		if (error)
 			goto out_defer;
 
@@ -1071,12 +1074,12 @@ xfs_reflink_remap_extent(
 				uirec.br_blockcount, uirec.br_startblock);
 
 		/* Update the refcount tree */
-		error = xfs_refcount_increase_extent(mp, &dfops, &uirec);
+		error = xfs_refcount_increase_extent(mp, tp->t_dfops, &uirec);
 		if (error)
 			goto out_defer;
 
 		/* Map the new blocks into the data fork. */
-		error = xfs_bmap_map_extent(mp, &dfops, ip, &uirec);
+		error = xfs_bmap_map_extent(mp, tp->t_dfops, ip, &uirec);
 		if (error)
 			goto out_defer;
 
@@ -1097,8 +1100,8 @@ xfs_reflink_remap_extent(
 
 next_extent:
 		/* Process all the deferred stuff. */
-		xfs_defer_ijoin(&dfops, ip);
-		error = xfs_defer_finish(&tp, &dfops);
+		xfs_defer_ijoin(tp->t_dfops, ip);
+		error = xfs_defer_finish(&tp, tp->t_dfops);
 		if (error)
 			goto out_defer;
 	}
@@ -1110,7 +1113,7 @@ next_extent:
 	return 0;
 
 out_defer:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp->t_dfops);
 out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
