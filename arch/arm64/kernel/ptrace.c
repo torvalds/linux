@@ -1631,7 +1631,7 @@ static void tracehook_report_syscall(struct pt_regs *regs,
 	regs->regs[regno] = saved_reg;
 }
 
-asmlinkage int syscall_trace_enter(struct pt_regs *regs)
+int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
@@ -1649,7 +1649,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	return regs->syscallno;
 }
 
-asmlinkage void syscall_trace_exit(struct pt_regs *regs)
+void syscall_trace_exit(struct pt_regs *regs)
 {
 	audit_syscall_exit(regs);
 
