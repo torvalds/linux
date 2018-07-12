@@ -37,7 +37,8 @@ int verify_result(const struct tcpbpf_globals *result)
 			   (1 << BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB) |
 			   (1 << BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB) |
 			   (1 << BPF_SOCK_OPS_NEEDS_ECN) |
-			   (1 << BPF_SOCK_OPS_STATE_CB));
+			   (1 << BPF_SOCK_OPS_STATE_CB) |
+			   (1 << BPF_SOCK_OPS_TCP_LISTEN_CB));
 
 	EXPECT_EQ(expected_events, result->event_map, "#" PRIx32);
 	EXPECT_EQ(501ULL, result->bytes_received, "llu");
@@ -46,6 +47,7 @@ int verify_result(const struct tcpbpf_globals *result)
 	EXPECT_EQ(1, result->data_segs_out, PRIu32);
 	EXPECT_EQ(0x80, result->bad_cb_test_rv, PRIu32);
 	EXPECT_EQ(0, result->good_cb_test_rv, PRIu32);
+	EXPECT_EQ(1, result->num_listen, PRIu32);
 
 	return 0;
 err:
