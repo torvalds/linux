@@ -267,6 +267,9 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_REGION_NAME,               /* string */
 	DEVLINK_ATTR_REGION_SIZE,               /* u64 */
+	DEVLINK_ATTR_REGION_SNAPSHOTS,          /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT,           /* nested */
+	DEVLINK_ATTR_REGION_SNAPSHOT_ID,        /* u32 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

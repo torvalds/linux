@@ -3149,6 +3149,55 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 	kfree(param_item);
 }
 
+static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
+					     struct devlink *devlink,
+					     struct devlink_snapshot *snapshot)
+{
+	struct nlattr *snap_attr;
+	int err;
+
+	snap_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
+	if (!snap_attr)
+		return -EINVAL;
+
+	err = nla_put_u32(msg, DEVLINK_ATTR_REGION_SNAPSHOT_ID, snapshot->id);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(msg, snap_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, snap_attr);
+	return err;
+}
+
+static int devlink_nl_region_snapshots_id_put(struct sk_buff *msg,
+					      struct devlink *devlink,
+					      struct devlink_region *region)
+{
+	struct devlink_snapshot *snapshot;
+	struct nlattr *snapshots_attr;
+	int err;
+
+	snapshots_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_SNAPSHOTS);
+	if (!snapshots_attr)
+		return -EINVAL;
+
+	list_for_each_entry(snapshot, &region->snapshot_list, list) {
+		err = devlink_nl_region_snapshot_id_put(msg, devlink, snapshot);
+		if (err)
+			goto nla_put_failure;
+	}
+
+	nla_nest_end(msg, snapshots_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, snapshots_attr);
+	return err;
+}
+
 static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
 				  enum devlink_command cmd, u32 portid,
 				  u32 seq, int flags,
@@ -3172,6 +3221,10 @@ static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
 	err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_SIZE,
 				region->size,
 				DEVLINK_ATTR_PAD);
+	if (err)
+		goto nla_put_failure;
+
+	err = devlink_nl_region_snapshots_id_put(msg, devlink, region);
 	if (err)
 		goto nla_put_failure;
 
