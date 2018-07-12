@@ -1710,8 +1710,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			}
 		}
 
-		if (xdp_prog && !(rxd->rxd.flags & PCIE_DESC_RX_BPF &&
-				  dp->bpf_offload_xdp) && !meta.portid) {
+		if (xdp_prog && !meta.portid) {
 			void *orig_data = rxbuf->frag + pkt_off;
 			unsigned int dma_off;
 			int act;
@@ -3393,14 +3392,18 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 		nfp_net_set_vxlan_port(nn, idx, 0);
 }
 
-static int
-nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
-		      struct netlink_ext_ack *extack)
+static int nfp_net_xdp_setup_drv(struct nfp_net *nn, struct netdev_bpf *bpf)
 {
+	struct bpf_prog *prog = bpf->prog;
 	struct nfp_net_dp *dp;
+	int err;
+
+	if (!xdp_attachment_flags_ok(&nn->xdp, bpf))
+		return -EBUSY;
 
 	if (!prog == !nn->dp.xdp_prog) {
 		WRITE_ONCE(nn->dp.xdp_prog, prog);
+		xdp_attachment_setup(&nn->xdp, bpf);
 		return 0;
 	}
 
@@ -3414,33 +3417,26 @@ nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
 	dp->rx_dma_off = prog ? XDP_PACKET_HEADROOM - nn->dp.rx_offset : 0;
 
 	/* We need RX reconfig to remap the buffers (BIDIR vs FROM_DEV) */
-	return nfp_net_ring_reconfig(nn, dp, extack);
-}
-
-static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_bpf *bpf)
-{
-	struct bpf_prog *drv_prog, *offload_prog;
-	int err;
-
-	if (!xdp_attachment_flags_ok(&nn->xdp, bpf))
-		return -EBUSY;
-
-	/* Load both when no flags set to allow easy activation of driver path
-	 * when program is replaced by one which can't be offloaded.
-	 */
-	drv_prog     = bpf->flags & XDP_FLAGS_HW_MODE  ? NULL : bpf->prog;
-	offload_prog = bpf->flags & XDP_FLAGS_DRV_MODE ? NULL : bpf->prog;
-
-	err = nfp_net_xdp_setup_drv(nn, drv_prog, bpf->extack);
+	err = nfp_net_ring_reconfig(nn, dp, bpf->extack);
 	if (err)
 		return err;
 
-	err = nfp_app_xdp_offload(nn->app, nn, offload_prog, bpf->extack);
-	if (err && bpf->flags & XDP_FLAGS_HW_MODE)
+	xdp_attachment_setup(&nn->xdp, bpf);
+	return 0;
+}
+
+static int nfp_net_xdp_setup_hw(struct nfp_net *nn, struct netdev_bpf *bpf)
+{
+	int err;
+
+	if (!xdp_attachment_flags_ok(&nn->xdp_hw, bpf))
+		return -EBUSY;
+
+	err = nfp_app_xdp_offload(nn->app, nn, bpf->prog, bpf->extack);
+	if (err)
 		return err;
 
-	xdp_attachment_setup(&nn->xdp, bpf);
-
+	xdp_attachment_setup(&nn->xdp_hw, bpf);
 	return 0;
 }
 
@@ -3450,16 +3446,13 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
+		return nfp_net_xdp_setup_drv(nn, xdp);
 	case XDP_SETUP_PROG_HW:
-		return nfp_net_xdp_setup(nn, xdp);
+		return nfp_net_xdp_setup_hw(nn, xdp);
 	case XDP_QUERY_PROG:
-		if (nn->dp.bpf_offload_xdp)
-			return 0;
 		return xdp_attachment_query(&nn->xdp, xdp);
 	case XDP_QUERY_PROG_HW:
-		if (!nn->dp.bpf_offload_xdp)
-			return 0;
-		return xdp_attachment_query(&nn->xdp, xdp);
+		return xdp_attachment_query(&nn->xdp_hw, xdp);
 	default:
 		return nfp_app_bpf(nn->app, nn, xdp);
 	}
