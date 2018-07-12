@@ -523,6 +523,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
 	dev->caps.wol_port[1]          = dev_cap->wol_port[1];
 	dev->caps.wol_port[2]          = dev_cap->wol_port[2];
+	dev->caps.health_buffer_addrs  = dev_cap->health_buffer_addrs;
 
 	/* Save uar page shift */
 	if (!mlx4_is_slave(dev)) {
