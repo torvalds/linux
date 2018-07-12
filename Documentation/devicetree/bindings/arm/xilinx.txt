@@ -8,6 +8,9 @@ Required root node properties:
 
 Additional compatible strings:
 
+- Adapteva Parallella board
+  "adapteva,parallella"
+
 - Digilent Zybo Z7 board
   "digilent,zynq-zybo-z7"
 
