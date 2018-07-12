@@ -387,7 +387,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 	struct process_queue_node *pqn;
 	struct queue *q;
 	enum KFD_MQD_TYPE mqd_type;
-	struct mqd_manager *mqd_manager;
+	struct mqd_manager *mqd_mgr;
 	int r = 0;
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
@@ -410,11 +410,11 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 					   q->properties.type, q->device->id);
 				continue;
 			}
-			mqd_manager = q->device->dqm->ops.get_mqd_manager(
+			mqd_mgr = q->device->dqm->ops.get_mqd_manager(
 				q->device->dqm, mqd_type);
 		} else if (pqn->kq) {
 			q = pqn->kq->queue;
-			mqd_manager = pqn->kq->mqd;
+			mqd_mgr = pqn->kq->mqd_mgr;
 			switch (q->properties.type) {
 			case KFD_QUEUE_TYPE_DIQ:
 				seq_printf(m, "  DIQ on device %x\n",
@@ -434,7 +434,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			continue;
 		}
 
-		r = mqd_manager->debugfs_show_mqd(m, q->mqd);
+		r = mqd_mgr->debugfs_show_mqd(m, q->mqd);
 		if (r != 0)
 			break;
 	}
