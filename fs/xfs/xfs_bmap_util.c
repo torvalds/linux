@@ -1311,7 +1311,6 @@ xfs_collapse_file_space(
 	struct xfs_trans	*tp;
 	int			error;
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
@@ -1344,9 +1343,9 @@ xfs_collapse_file_space(
 			goto out_trans_cancel;
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(tp, &dfops, &first_block);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, &first_block);
+				&done, &tp->t_firstblock);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1387,7 +1386,6 @@ xfs_insert_file_space(
 	struct xfs_trans	*tp;
 	int			error;
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, offset);
 	xfs_fileoff_t		next_fsb = NULLFSBLOCK;
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
@@ -1423,9 +1421,9 @@ xfs_insert_file_space(
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-		xfs_defer_init(tp, &dfops, &first_block);
+		xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block);
+				&done, stop_fsb, &tp->t_firstblock);
 		if (error)
 			goto out_bmap_cancel;
 
