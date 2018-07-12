@@ -1128,7 +1128,8 @@ static void guc_clients_destroy(struct intel_guc *guc)
 		guc_client_free(client);
 
 	client = fetch_and_zero(&guc->execbuf_client);
-	guc_client_free(client);
+	if (client)
+		guc_client_free(client);
 }
 
 /*
