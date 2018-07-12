@@ -523,12 +523,19 @@ xfs_defer_init_op_type(
 /* Initialize a deferred operation. */
 void
 xfs_defer_init(
+	struct xfs_trans		*tp,
 	struct xfs_defer_ops		*dop,
 	xfs_fsblock_t			*fbp)
 {
+	struct xfs_mount		*mp = NULL;
+
 	memset(dop, 0, sizeof(struct xfs_defer_ops));
 	*fbp = NULLFSBLOCK;
 	INIT_LIST_HEAD(&dop->dop_intake);
 	INIT_LIST_HEAD(&dop->dop_pending);
-	trace_xfs_defer_init(NULL, dop, _RET_IP_);
+	if (tp) {
+		tp->t_dfops = dop;
+		mp = tp->t_mountp;
+	}
+	trace_xfs_defer_init(mp, dop, _RET_IP_);
 }

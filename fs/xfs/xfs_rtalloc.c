@@ -787,8 +787,7 @@ xfs_growfs_rt_alloc(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(&dfops, &firstblock);
-		tp->t_dfops = &dfops;
+		xfs_defer_init(tp, &dfops, &firstblock);
 		/*
 		 * Allocate blocks to the bitmap file.
 		 */

@@ -246,8 +246,7 @@ xfs_symlink(
 	 * Initialize the bmap freelist prior to calling either
 	 * bmapi or the directory create code.
 	 */
-	xfs_defer_init(&dfops, &first_block);
-	tp->t_dfops = &dfops;
+	xfs_defer_init(tp, &dfops, &first_block);
 
 	/*
 	 * Allocate an inode for the symlink.
@@ -443,8 +442,7 @@ xfs_inactive_symlink_rmt(
 	 * Find the block(s) so we can inval and unmap them.
 	 */
 	done = 0;
-	xfs_defer_init(&dfops, &first_block);
-	tp->t_dfops = &dfops;
+	xfs_defer_init(tp, &dfops, &first_block);
 	nmaps = ARRAY_SIZE(mval);
 	error = xfs_bmapi_read(ip, 0, xfs_symlink_blocks(mp, size),
 				mval, &nmaps, 0);

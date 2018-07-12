@@ -4902,7 +4902,7 @@ xlog_recover_process_intents(
 #if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 #endif
-	xfs_defer_init(&dfops, &firstfsb);
+	xfs_defer_init(NULL, &dfops, &firstfsb);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.

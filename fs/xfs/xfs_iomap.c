@@ -254,8 +254,7 @@ xfs_iomap_write_direct(
 	 * From this point onwards we overwrite the imap pointer that the
 	 * caller gave to us.
 	 */
-	xfs_defer_init(&dfops, &firstfsb);
-	tp->t_dfops = &dfops;
+	xfs_defer_init(tp, &dfops, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 				bmapi_flags, &firstfsb, resblks, imap,
@@ -717,8 +716,7 @@ xfs_iomap_write_allocate(
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			xfs_trans_ijoin(tp, ip, 0);
 
-			xfs_defer_init(&dfops, &first_block);
-			tp->t_dfops = &dfops;
+			xfs_defer_init(tp, &dfops, &first_block);
 
 			/*
 			 * it is possible that the extents have changed since
@@ -878,8 +876,7 @@ xfs_iomap_write_unwritten(
 		/*
 		 * Modify the unwritten extent state of the buffer.
 		 */
-		xfs_defer_init(&dfops, &firstfsb);
-		tp->t_dfops = &dfops;
+		xfs_defer_init(tp, &dfops, &firstfsb);
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 					XFS_BMAPI_CONVERT, &firstfsb, resblks,

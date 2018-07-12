@@ -972,8 +972,7 @@ xfs_alloc_file_space(
 
 		xfs_trans_ijoin(tp, ip, 0);
 
-		xfs_defer_init(&dfops, &firstfsb);
-		tp->t_dfops = &dfops;
+		xfs_defer_init(tp, &dfops, &firstfsb);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
 					resblks, imapp, &nimaps);
@@ -1043,8 +1042,7 @@ xfs_unmap_extent(
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(&dfops, &firstfsb);
-	tp->t_dfops = &dfops;
+	xfs_defer_init(tp, &dfops, &firstfsb);
 	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
 			    done);
 	if (error)
@@ -1347,8 +1345,7 @@ xfs_collapse_file_space(
 			goto out_trans_cancel;
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(&dfops, &first_block);
-		tp->t_dfops = &dfops;
+		xfs_defer_init(tp, &dfops, &first_block);
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
 				&done, &first_block);
 		if (error)
@@ -1427,8 +1424,7 @@ xfs_insert_file_space(
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-		xfs_defer_init(&dfops, &first_block);
-		tp->t_dfops = &dfops;
+		xfs_defer_init(tp, &dfops, &first_block);
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
 				&done, stop_fsb, &first_block);
 		if (error)
@@ -1615,7 +1611,7 @@ xfs_swap_extent_rmap(
 
 		/* Unmap the old blocks in the source file. */
 		while (tirec.br_blockcount) {
-			xfs_defer_init(tp->t_dfops, &firstfsb);
+			xfs_defer_init(tp, tp->t_dfops, &firstfsb);
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &tirec);
 
 			/* Read extent from the source file */
@@ -1920,8 +1916,7 @@ xfs_swap_extents(
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
 	if (error)
 		goto out_unlock;
-	xfs_defer_init(&dfops, &firstfsb);
-	tp->t_dfops = &dfops;
+	xfs_defer_init(tp, &dfops, &firstfsb);
 
 	/*
 	 * Lock and join the inodes to the tansaction so that transaction commit
