@@ -126,26 +126,26 @@ static char *translate_scan(struct adapter *padapter,
 
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	if ((rtw_is_cckratesonly_included((u8 *)&pnetwork->network.SupportedRates)) == true) {
-		if (ht_cap == true)
+	if (rtw_is_cckratesonly_included((u8 *)&pnetwork->network.SupportedRates)) {
+		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 		snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	} else if ((rtw_is_cckrates_included((u8 *)&pnetwork->network.SupportedRates)) == true) {
-		if (ht_cap == true)
+	} else if (rtw_is_cckrates_included((u8 *)&pnetwork->network.SupportedRates)) {
+		if (ht_cap)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bg");
 	} else {
 		if (pnetwork->network.Configuration.DSConfig > 14) {
-			if (vht_cap == true)
+			if (vht_cap)
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11AC");
-			else if (ht_cap == true)
+			else if (ht_cap)
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11an");
 			else
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11a");
 		} else {
-			if (ht_cap == true)
+			if (ht_cap)
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11gn");
 			else
 				snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11g");
@@ -785,26 +785,26 @@ static int rtw_wx_get_name(struct net_device *dev,
 
 		prates = &pcur_bss->SupportedRates;
 
-		if (rtw_is_cckratesonly_included((u8 *)prates) == true) {
-			if (ht_cap == true)
+		if (rtw_is_cckratesonly_included((u8 *)prates)) {
+			if (ht_cap)
 				snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11bn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11b");
-		} else if ((rtw_is_cckrates_included((u8 *)prates)) == true) {
-			if (ht_cap == true)
+		} else if (rtw_is_cckrates_included((u8 *)prates)) {
+			if (ht_cap)
 				snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11bgn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11bg");
 		} else {
 			if (pcur_bss->Configuration.DSConfig > 14) {
-				if (vht_cap == true)
+				if (vht_cap)
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11AC");
-				else if (ht_cap == true)
+				else if (ht_cap)
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11an");
 				else
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11a");
 			} else {
-				if (ht_cap == true)
+				if (ht_cap)
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11gn");
 				else
 					snprintf(wrqu->name, IFNAMSIZ, "IEEE 802.11g");
