@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _VEGA12_SMUMANAGER_H_
-#define _VEGA12_SMUMANAGER_H_
+#ifndef _SMU9_SMUMANAGER_H_
+#define _SMU9_SMUMANAGER_H_
 
-#include "hwmgr.h"
-#include "vega12/smu9_driver_if.h"
-#include "vega12_hwmgr.h"
-
-struct smu_table_entry {
-	uint32_t version;
-	uint32_t size;
-	uint64_t mc_addr;
-	void *table;
-	struct amdgpu_bo *handle;
-};
-
-struct smu_table_array {
-	struct smu_table_entry entry[TABLE_COUNT];
-};
-
-struct vega12_smumgr {
-	struct smu_table_array            smu_tables;
-};
-
-#define SMU_FEATURES_LOW_MASK        0x00000000FFFFFFFF
-#define SMU_FEATURES_LOW_SHIFT       0
-#define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
-#define SMU_FEATURES_HIGH_SHIFT      32
-
-int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
-int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
-int vega12_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint64_t feature_mask);
-int vega12_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
-		uint64_t *features_enabled);
+bool smu9_is_smc_ram_running(struct pp_hwmgr *hwmgr);
+int smu9_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
+int smu9_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+					uint16_t msg, uint32_t parameter);
+int smu9_get_argument(struct pp_hwmgr *hwmgr);
 
 #endif
-
