@@ -396,6 +396,10 @@
 	status = "okay";
 };
 
+&pmu {
+	secure-reg-access;
+};
+
 &ssi2 {
 	status = "okay";
 };
