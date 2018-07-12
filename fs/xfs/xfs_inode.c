@@ -1814,7 +1814,7 @@ xfs_inactive_ifree(
 
 	xfs_defer_init(&dfops, &first_block);
 	tp->t_dfops = &dfops;
-	error = xfs_ifree(tp, ip, &dfops);
+	error = xfs_ifree(tp, ip);
 	if (error) {
 		/*
 		 * If we fail to free the inode, shut down.  The cancel
@@ -2445,9 +2445,8 @@ xfs_ifree_local_data(
  */
 int
 xfs_ifree(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
-	struct xfs_defer_ops	*dfops)
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip)
 {
 	int			error;
 	struct xfs_icluster	xic = { 0 };
@@ -2466,7 +2465,7 @@ xfs_ifree(
 	if (error)
 		return error;
 
-	error = xfs_difree(tp, ip->i_ino, dfops, &xic);
+	error = xfs_difree(tp, ip->i_ino, &xic);
 	if (error)
 		return error;
 
