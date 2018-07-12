@@ -483,7 +483,6 @@ xfs_reflink_cancel_cow_blocks(
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec		got, del;
 	struct xfs_iext_cursor		icur;
-	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
 	struct xfs_defer_ops		*odfops = (*tpp)->t_dfops;
 	int				error = 0;
@@ -512,7 +511,7 @@ xfs_reflink_cancel_cow_blocks(
 			if (error)
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
-			xfs_defer_init(*tpp, &dfops, &firstfsb);
+			xfs_defer_init(*tpp, &dfops, &(*tpp)->t_firstblock);
 
 			/* Free the CoW orphan record. */
 			error = xfs_refcount_free_cow_extent(ip->i_mount,
