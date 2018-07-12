@@ -68,7 +68,7 @@ static int smu10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu10_read_arg_from_smc(struct pp_hwmgr *hwmgr)
+static uint32_t smu10_read_arg_from_smc(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 

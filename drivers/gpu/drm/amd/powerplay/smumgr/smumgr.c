@@ -96,7 +96,7 @@ int smum_process_firmware_header(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smum_get_argument(struct pp_hwmgr *hwmgr)
+uint32_t smum_get_argument(struct pp_hwmgr *hwmgr)
 {
 	if (NULL != hwmgr->smumgr_funcs->get_argument)
 		return hwmgr->smumgr_funcs->get_argument(hwmgr);

@@ -142,7 +142,7 @@ int smu9_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int smu9_get_argument(struct pp_hwmgr *hwmgr)
+uint32_t smu9_get_argument(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
