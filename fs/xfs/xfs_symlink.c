@@ -164,7 +164,6 @@ xfs_symlink(
 	int			error = 0;
 	int			pathlen;
 	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	bool                    unlock_dp_on_error = false;
 	xfs_fileoff_t		first_fsb;
 	xfs_filblks_t		fs_blocks;
@@ -246,7 +245,7 @@ xfs_symlink(
 	 * Initialize the bmap freelist prior to calling either
 	 * bmapi or the directory create code.
 	 */
-	xfs_defer_init(tp, &dfops, &first_block);
+	xfs_defer_init(tp, &dfops, &tp->t_firstblock);
 
 	/*
 	 * Allocate an inode for the symlink.
@@ -289,8 +288,8 @@ xfs_symlink(
 		nmaps = XFS_SYMLINK_MAPS;
 
 		error = xfs_bmapi_write(tp, ip, first_fsb, fs_blocks,
-				  XFS_BMAPI_METADATA, &first_block, resblks,
-				  mval, &nmaps);
+				  XFS_BMAPI_METADATA, &tp->t_firstblock,
+				  resblks, mval, &nmaps);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -338,7 +337,7 @@ xfs_symlink(
 	 * Create the directory entry for the symlink.
 	 */
 	error = xfs_dir_createname(tp, dp, link_name, ip->i_ino,
-				   &first_block, resblks);
+				   &tp->t_firstblock, resblks);
 	if (error)
 		goto out_bmap_cancel;
 	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
