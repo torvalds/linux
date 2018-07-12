@@ -219,6 +219,8 @@ static void ast_vhub_ep0_do_send(struct ast_vhub_ep *ep,
 	if (chunk && req->req.buf)
 		memcpy(ep->buf, req->req.buf + req->req.actual, chunk);
 
+	vhub_dma_workaround(ep->buf);
+
 	/* Remember chunk size and trigger send */
 	reg = VHUB_EP0_SET_TX_LEN(chunk);
 	writel(reg, ep->ep0.ctlstat);
