@@ -333,7 +333,7 @@ static int owl_pin_config_set(struct pinctrl_dev *pctrldev,
 	unsigned long flags;
 	unsigned int param;
 	u32 reg, bit, width, arg;
-	int ret, i;
+	int ret = 0, i;
 
 	info = &pctrl->soc->padinfo[pin];
 

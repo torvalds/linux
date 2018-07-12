@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	lib/dma-virt.c
- *
  * DMA operations that map to virtual addresses without flushing memory.
  */
 #include <linux/export.h>

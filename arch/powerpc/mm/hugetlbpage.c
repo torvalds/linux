@@ -337,7 +337,8 @@ static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshif
 	if (shift >= pdshift)
 		hugepd_free(tlb, hugepte);
 	else
-		pgtable_free_tlb(tlb, hugepte, pdshift - shift);
+		pgtable_free_tlb(tlb, hugepte,
+				 get_hugepd_cache_index(pdshift - shift));
 }
 
 static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,

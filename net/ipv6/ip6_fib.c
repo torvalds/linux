@@ -167,8 +167,9 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	return f6i;
 }
 
-void fib6_info_destroy(struct fib6_info *f6i)
+void fib6_info_destroy_rcu(struct rcu_head *head)
 {
+	struct fib6_info *f6i = container_of(head, struct fib6_info, rcu);
 	struct rt6_exception_bucket *bucket;
 	struct dst_metrics *m;
 
@@ -206,7 +207,7 @@ void fib6_info_destroy(struct fib6_info *f6i)
 
 	kfree(f6i);
 }
-EXPORT_SYMBOL_GPL(fib6_info_destroy);
+EXPORT_SYMBOL_GPL(fib6_info_destroy_rcu);
 
 static struct fib6_node *node_alloc(struct net *net)
 {

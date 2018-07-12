@@ -123,7 +123,11 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	denali->clk_x_rate = clk_get_rate(dt->clk);
+	/*
+	 * Hardcode the clock rate for the backward compatibility.
+	 * This works for both SOCFPGA and UniPhier.
+	 */
+	denali->clk_x_rate = 200000000;
 
 	ret = denali_init(denali);
 	if (ret)

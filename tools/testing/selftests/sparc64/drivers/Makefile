@@ -1,4 +1,4 @@
-
+# SPDX-License-Identifier: GPL-2.0
 INCLUDEDIR := -I.
 CFLAGS := $(CFLAGS) $(INCLUDEDIR) -Wall -O2 -g
 

@@ -55,6 +55,7 @@ struct socfpga_dwmac {
 	struct	device *dev;
 	struct regmap *sys_mgr_base_addr;
 	struct reset_control *stmmac_rst;
+	struct reset_control *stmmac_ocp_rst;
 	void __iomem *splitter_base;
 	bool f2h_ptp_ref_clk;
 	struct tse_pcs pcs;
@@ -262,8 +263,8 @@ static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 
 	/* Assert reset to the enet controller before changing the phy mode */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
+	reset_control_assert(dwmac->stmmac_ocp_rst);
+	reset_control_assert(dwmac->stmmac_rst);
 
 	regmap_read(sys_mgr_base_addr, reg_offset, &ctrl);
 	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << reg_shift);
@@ -288,8 +289,8 @@ static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 	/* Deassert reset for the phy configuration to be sampled by
 	 * the enet controller, and operation to start in requested mode
 	 */
-	if (dwmac->stmmac_rst)
-		reset_control_deassert(dwmac->stmmac_rst);
+	reset_control_deassert(dwmac->stmmac_ocp_rst);
+	reset_control_deassert(dwmac->stmmac_rst);
 	if (phymode == PHY_INTERFACE_MODE_SGMII) {
 		if (tse_pcs_init(dwmac->pcs.tse_pcs_base, &dwmac->pcs) != 0) {
 			dev_err(dwmac->dev, "Unable to initialize TSE PCS");
@@ -323,6 +324,15 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_remove_config_dt;
 	}
+
+	dwmac->stmmac_ocp_rst = devm_reset_control_get_optional(dev, "stmmaceth-ocp");
+	if (IS_ERR(dwmac->stmmac_ocp_rst)) {
+		ret = PTR_ERR(dwmac->stmmac_ocp_rst);
+		dev_err(dev, "error getting reset control of ocp %d\n", ret);
+		goto err_remove_config_dt;
+	}
+
+	reset_control_deassert(dwmac->stmmac_ocp_rst);
 
 	ret = socfpga_dwmac_parse_data(dwmac, dev);
 	if (ret) {
