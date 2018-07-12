@@ -493,7 +493,7 @@
 		};
 
 		prcmu: prcmu@80157000 {
-			compatible = "stericsson,db8500-prcmu";
+			compatible = "stericsson,db8500-prcmu", "syscon";
 			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x1000>;
 			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
