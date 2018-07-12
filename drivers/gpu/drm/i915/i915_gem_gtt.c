@@ -244,10 +244,13 @@ static void clear_pages(struct i915_vma *vma)
 }
 
 static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
-				  enum i915_cache_level level)
+				  enum i915_cache_level level,
+				  u32 flags)
 {
-	gen8_pte_t pte = _PAGE_PRESENT | _PAGE_RW;
-	pte |= addr;
+	gen8_pte_t pte = addr | _PAGE_PRESENT | _PAGE_RW;
+
+	if (unlikely(flags & PTE_READ_ONLY))
+		pte &= ~_PAGE_RW;
 
 	switch (level) {
 	case I915_CACHE_NONE:
@@ -721,7 +724,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 			       struct i915_page_table *pt)
 {
 	fill_px(vm, pt,
-		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC));
+		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0));
 }
 
 static void gen6_initialize_pt(struct gen6_hw_ppgtt *ppgtt,
@@ -869,7 +872,7 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 	unsigned int pte = gen8_pte_index(start);
 	unsigned int pte_end = pte + num_entries;
 	const gen8_pte_t scratch_pte =
-		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC);
+		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 	gen8_pte_t *vaddr;
 
 	GEM_BUG_ON(num_entries > pt->used_ptes);
@@ -1044,7 +1047,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 			      enum i915_cache_level cache_level)
 {
 	struct i915_page_directory *pd;
-	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level);
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, 0);
 	gen8_pte_t *vaddr;
 	bool ret;
 
@@ -1112,7 +1115,7 @@ static void gen8_ppgtt_insert_huge_entries(struct i915_vma *vma,
 					   struct sgt_dma *iter,
 					   enum i915_cache_level cache_level)
 {
-	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level);
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, 0);
 	u64 start = vma->node.start;
 	dma_addr_t rem = iter->sg->length;
 
@@ -1578,7 +1581,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 {
 	struct i915_address_space *vm = &ppgtt->vm;
 	const gen8_pte_t scratch_pte =
-		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC);
+		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 	u64 start = 0, length = ppgtt->vm.total;
 
 	if (use_4lvl(vm)) {
@@ -2461,7 +2464,7 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 	gen8_pte_t __iomem *pte =
 		(gen8_pte_t __iomem *)ggtt->gsm + (offset >> PAGE_SHIFT);
 
-	gen8_set_pte(pte, gen8_pte_encode(addr, level));
+	gen8_set_pte(pte, gen8_pte_encode(addr, level, 0));
 
 	ggtt->invalidate(vm->i915);
 }
@@ -2474,7 +2477,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct sgt_iter sgt_iter;
 	gen8_pte_t __iomem *gtt_entries;
-	const gen8_pte_t pte_encode = gen8_pte_encode(0, level);
+	const gen8_pte_t pte_encode = gen8_pte_encode(0, level, 0);
 	dma_addr_t addr;
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
@@ -2542,7 +2545,7 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	const gen8_pte_t scratch_pte =
-		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC);
+		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 	gen8_pte_t __iomem *gtt_base =
 		(gen8_pte_t __iomem *)ggtt->gsm + first_entry;
 	const int max_entries = ggtt_total_entries(ggtt) - first_entry;
