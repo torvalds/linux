@@ -228,7 +228,8 @@ static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
 
-	if (timing == MMC_TIMING_UHS_DDR50)
+	if (timing == MMC_TIMING_UHS_DDR50 ||
+	    timing == MMC_TIMING_MMC_DDR52)
 		tegra_host->ddr_signaling = true;
 
 	sdhci_set_uhs_signaling(host, timing);
