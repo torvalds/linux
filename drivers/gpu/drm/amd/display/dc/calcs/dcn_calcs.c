@@ -676,7 +676,7 @@ static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 }
 
 static void hack_bounding_box(struct dcn_bw_internal_vars *v,
-		struct dc_debug *dbg,
+		struct dc_debug_options *dbg,
 		struct dc_state *context)
 {
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)

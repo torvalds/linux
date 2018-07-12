@@ -404,7 +404,7 @@ static const struct resource_caps res_cap = {
 		.num_pll = 6,
 };
 
-static const struct dc_debug debug_defaults = {
+static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
 };
 

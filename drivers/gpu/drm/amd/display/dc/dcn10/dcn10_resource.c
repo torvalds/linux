@@ -502,7 +502,7 @@ static const struct resource_caps res_cap = {
 		.num_pll = 4,
 };
 
-static const struct dc_debug debug_defaults_drv = {
+static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
@@ -530,7 +530,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.max_downscale_src_width = 3840,
 };
 
-static const struct dc_debug debug_defaults_diags = {
+static const struct dc_debug_options debug_defaults_diags = {
 		.disable_dmcu = true,
 		.force_abm_enable = false,
 		.timing_trace = true,
