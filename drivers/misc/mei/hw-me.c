@@ -530,9 +530,9 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 {
 	unsigned long rem;
 	unsigned long length = header->length;
+	unsigned long i;
 	u32 *reg_buf = (u32 *)buf;
 	u32 dw_cnt;
-	int i;
 	int empty_slots;
 
 	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
