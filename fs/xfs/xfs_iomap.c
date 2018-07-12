@@ -1032,7 +1032,8 @@ xfs_file_iomap_begin(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	iomap->flags |= IOMAP_F_BUFFER_HEAD;
+	if (i_blocksize(inode) < PAGE_SIZE)
+		iomap->flags |= IOMAP_F_BUFFER_HEAD;
 
 	if (((flags & (IOMAP_WRITE | IOMAP_DIRECT)) == IOMAP_WRITE) &&
 			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {

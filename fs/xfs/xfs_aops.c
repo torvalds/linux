@@ -79,6 +79,19 @@ xfs_find_daxdev_for_inode(
 		return mp->m_ddev_targp->bt_daxdev;
 }
 
+static void
+xfs_finish_page_writeback(
+	struct inode		*inode,
+	struct bio_vec		*bvec,
+	int			error)
+{
+	if (error) {
+		SetPageError(bvec->bv_page);
+		mapping_set_error(inode->i_mapping, -EIO);
+	}
+	end_page_writeback(bvec->bv_page);
+}
+
 /*
  * We're now finished for good with this page.  Update the page state via the
  * associated buffer_heads, paying attention to the start and end offsets that
@@ -91,7 +104,7 @@ xfs_find_daxdev_for_inode(
  * and buffers potentially freed after every call to end_buffer_async_write.
  */
 static void
-xfs_finish_page_writeback(
+xfs_finish_buffer_writeback(
 	struct inode		*inode,
 	struct bio_vec		*bvec,
 	int			error)
@@ -166,9 +179,12 @@ xfs_destroy_ioend(
 			next = bio->bi_private;
 
 		/* walk each page on bio, ending page IO on them */
-		bio_for_each_segment_all(bvec, bio, i)
-			xfs_finish_page_writeback(inode, bvec, error);
-
+		bio_for_each_segment_all(bvec, bio, i) {
+			if (page_has_buffers(bvec->bv_page))
+				xfs_finish_buffer_writeback(inode, bvec, error);
+			else
+				xfs_finish_page_writeback(inode, bvec, error);
+		}
 		bio_put(bio);
 	}
 
@@ -792,12 +808,15 @@ xfs_writepage_map(
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
-	struct buffer_head	*bh;
+	struct buffer_head	*bh = NULL;
 	ssize_t			len = i_blocksize(inode);
 	uint64_t		file_offset;	/* file offset of page */
 	unsigned		poffset;	/* offset into page */
 	int			error = 0;
 	int			count = 0;
+
+	if (page_has_buffers(page))
+		bh = page_buffers(page);
 
 	/*
 	 * Walk the blocks on the page, and if we run off the end of the current
@@ -806,28 +825,34 @@ xfs_writepage_map(
 	 * the iteration through the page. This allows us to replace the
 	 * bufferhead with some other state tracking mechanism in future.
 	 */
-	file_offset = page_offset(page);
-	bh = page_buffers(page);
-	for (poffset = 0;
+	for (poffset = 0, file_offset = page_offset(page);
 	     poffset < PAGE_SIZE;
-	     poffset += len, file_offset += len, bh = bh->b_this_page) {
+	     poffset += len, file_offset += len) {
 		/* past the range we are writing, so nothing more to write. */
 		if (file_offset >= end_offset)
 			break;
 
-		if (!buffer_uptodate(bh)) {
+		if (bh && !buffer_uptodate(bh)) {
 			if (PageUptodate(page))
 				ASSERT(buffer_mapped(bh));
+			bh = bh->b_this_page;
 			continue;
 		}
 
 		error = xfs_map_blocks(wpc, inode, file_offset);
 		if (error)
 			break;
-		if (wpc->io_type == XFS_IO_HOLE)
-			continue;
 
-		xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
+		if (wpc->io_type == XFS_IO_HOLE) {
+			if (bh)
+				bh = bh->b_this_page;
+			continue;
+		}
+
+		if (bh) {
+			xfs_map_at_offset(inode, bh, &wpc->imap, file_offset);
+			bh = bh->b_this_page;
+		}
 		xfs_add_to_ioend(inode, file_offset, page, wpc, wbc,
 				&submit_list);
 		count++;
@@ -924,8 +949,6 @@ xfs_do_writepage(
 	pgoff_t                 end_index;
 
 	trace_xfs_writepage(inode, page, 0, 0);
-
-	ASSERT(page_has_buffers(page));
 
 	/*
 	 * Refuse to write the page out if we are called from reclaim context.
