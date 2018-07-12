@@ -325,7 +325,15 @@ static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-		   SDHCI_QUIRK2_BROKEN_HS200,
+		   SDHCI_QUIRK2_BROKEN_HS200 |
+		   /*
+		    * Auto-CMD23 leads to "Got command interrupt 0x00010000 even
+		    * though no command operation was in progress."
+		    *
+		    * The exact reason is unknown, as the same hardware seems
+		    * to support Auto CMD23 on a downstream 3.1 kernel.
+		    */
+		   SDHCI_QUIRK2_ACMD23_BROKEN,
 	.ops  = &tegra_sdhci_ops,
 };
 
