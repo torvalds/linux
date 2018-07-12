@@ -118,7 +118,7 @@ static int join_cgroup_from_top(char *cgroup_path)
  *
  * On success, it returns 0, otherwise on failure it returns 1.
  */
-int join_cgroup(char *path)
+int join_cgroup(const char *path)
 {
 	char cgroup_path[PATH_MAX + 1];
 
@@ -158,7 +158,7 @@ void cleanup_cgroup_environment(void)
  * On success, it returns the file descriptor. On failure it returns 0.
  * If there is a failure, it prints the error to stderr.
  */
-int create_and_get_cgroup(char *path)
+int create_and_get_cgroup(const char *path)
 {
 	char cgroup_path[PATH_MAX + 1];
 	int fd;
@@ -186,7 +186,7 @@ int create_and_get_cgroup(char *path)
  * which is an invalid cgroup id.
  * If there is a failure, it prints the error to stderr.
  */
-unsigned long long get_cgroup_id(char *path)
+unsigned long long get_cgroup_id(const char *path)
 {
 	int dirfd, err, flags, mount_id, fhsize;
 	union {
