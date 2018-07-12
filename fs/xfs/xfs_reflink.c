@@ -490,6 +490,7 @@ xfs_reflink_cancel_cow_blocks(
 	struct xfs_iext_cursor		icur;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
+	struct xfs_defer_ops		*odfops = (*tpp)->t_dfops;
 	int				error = 0;
 
 	if (!xfs_is_reflink_inode(ip))
@@ -517,23 +518,24 @@ xfs_reflink_cancel_cow_blocks(
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
 			xfs_defer_init(&dfops, &firstfsb);
+			(*tpp)->t_dfops = &dfops;
 
 			/* Free the CoW orphan record. */
 			error = xfs_refcount_free_cow_extent(ip->i_mount,
-					&dfops, del.br_startblock,
+					(*tpp)->t_dfops, del.br_startblock,
 					del.br_blockcount);
 			if (error)
 				break;
 
-			xfs_bmap_add_free(ip->i_mount, &dfops,
+			xfs_bmap_add_free(ip->i_mount, (*tpp)->t_dfops,
 					del.br_startblock, del.br_blockcount,
 					NULL);
 
 			/* Roll the transaction */
-			xfs_defer_ijoin(&dfops, ip);
-			error = xfs_defer_finish(tpp, &dfops);
+			xfs_defer_ijoin((*tpp)->t_dfops, ip);
+			error = xfs_defer_finish(tpp, (*tpp)->t_dfops);
 			if (error) {
-				xfs_defer_cancel(&dfops);
+				xfs_defer_cancel((*tpp)->t_dfops);
 				break;
 			}
 
@@ -558,7 +560,7 @@ next_extent:
 	/* clear tag if cow fork is emptied */
 	if (!ifp->if_bytes)
 		xfs_inode_clear_cowblocks_tag(ip);
-
+	(*tpp)->t_dfops = odfops;
 	return error;
 }
 
