@@ -128,6 +128,8 @@ struct n_tty_data {
 	struct mutex output_lock;
 };
 
+#define MASK(x) ((x) & (N_TTY_BUF_SIZE - 1))
+
 static inline size_t read_cnt(struct n_tty_data *ldata)
 {
 	return ldata->read_head - ldata->read_tail;
@@ -145,6 +147,7 @@ static inline unsigned char *read_buf_addr(struct n_tty_data *ldata, size_t i)
 
 static inline unsigned char echo_buf(struct n_tty_data *ldata, size_t i)
 {
+	smp_rmb(); /* Matches smp_wmb() in add_echo_byte(). */
 	return ldata->echo_buf[i & (N_TTY_BUF_SIZE - 1)];
 }
 
@@ -322,9 +325,7 @@ static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
 static void reset_buffer_flags(struct n_tty_data *ldata)
 {
 	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
-	ldata->echo_head = ldata->echo_tail = ldata->echo_commit = 0;
 	ldata->commit_head = 0;
-	ldata->echo_mark = 0;
 	ldata->line_start = 0;
 
 	ldata->erasing = 0;
@@ -645,12 +646,19 @@ static size_t __process_echoes(struct tty_struct *tty)
 	old_space = space = tty_write_room(tty);
 
 	tail = ldata->echo_tail;
-	while (ldata->echo_commit != tail) {
+	while (MASK(ldata->echo_commit) != MASK(tail)) {
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
 			unsigned char op;
 			int no_space_left = 0;
 
+			/*
+			 * Since add_echo_byte() is called without holding
+			 * output_lock, we might see only portion of multi-byte
+			 * operation.
+			 */
+			if (MASK(ldata->echo_commit) == MASK(tail + 1))
+				goto not_yet_stored;
 			/*
 			 * If the buffer byte is the start of a multi-byte
 			 * operation, get the next byte, which is either the
@@ -662,6 +670,8 @@ static size_t __process_echoes(struct tty_struct *tty)
 				unsigned int num_chars, num_bs;
 
 			case ECHO_OP_ERASE_TAB:
+				if (MASK(ldata->echo_commit) == MASK(tail + 2))
+					goto not_yet_stored;
 				num_chars = echo_buf(ldata, tail + 2);
 
 				/*
@@ -756,7 +766,8 @@ static size_t __process_echoes(struct tty_struct *tty)
 	/* If the echo buffer is nearly full (so that the possibility exists
 	 * of echo overrun before the next commit), then discard enough
 	 * data at the tail to prevent a subsequent overrun */
-	while (ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
+	while (ldata->echo_commit > tail &&
+	       ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
 		if (echo_buf(ldata, tail) == ECHO_OP_START) {
 			if (echo_buf(ldata, tail + 1) == ECHO_OP_ERASE_TAB)
 				tail += 3;
@@ -766,6 +777,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			tail++;
 	}
 
+ not_yet_stored:
 	ldata->echo_tail = tail;
 	return old_space - space;
 }
@@ -776,6 +788,7 @@ static void commit_echoes(struct tty_struct *tty)
 	size_t nr, old, echoed;
 	size_t head;
 
+	mutex_lock(&ldata->output_lock);
 	head = ldata->echo_head;
 	ldata->echo_mark = head;
 	old = ldata->echo_commit - ldata->echo_tail;
@@ -784,10 +797,12 @@ static void commit_echoes(struct tty_struct *tty)
 	 * is over the threshold (and try again each time another
 	 * block is accumulated) */
 	nr = head - ldata->echo_tail;
-	if (nr < ECHO_COMMIT_WATERMARK || (nr % ECHO_BLOCK > old % ECHO_BLOCK))
+	if (nr < ECHO_COMMIT_WATERMARK ||
+	    (nr % ECHO_BLOCK > old % ECHO_BLOCK)) {
+		mutex_unlock(&ldata->output_lock);
 		return;
+	}
 
-	mutex_lock(&ldata->output_lock);
 	ldata->echo_commit = head;
 	echoed = __process_echoes(tty);
 	mutex_unlock(&ldata->output_lock);
@@ -838,7 +853,9 @@ static void flush_echoes(struct tty_struct *tty)
 
 static inline void add_echo_byte(unsigned char c, struct n_tty_data *ldata)
 {
-	*echo_buf_addr(ldata, ldata->echo_head++) = c;
+	*echo_buf_addr(ldata, ldata->echo_head) = c;
+	smp_wmb(); /* Matches smp_rmb() in echo_buf(). */
+	ldata->echo_head++;
 }
 
 /**
@@ -1006,14 +1023,15 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 	}
 
 	seen_alnums = 0;
-	while (ldata->read_head != ldata->canon_head) {
+	while (MASK(ldata->read_head) != MASK(ldata->canon_head)) {
 		head = ldata->read_head;
 
 		/* erase a single possibly multibyte character */
 		do {
 			head--;
 			c = read_buf(ldata, head);
-		} while (is_continuation(c, tty) && head != ldata->canon_head);
+		} while (is_continuation(c, tty) &&
+			 MASK(head) != MASK(ldata->canon_head));
 
 		/* do not partially erase */
 		if (is_continuation(c, tty))
@@ -1055,7 +1073,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				 * This info is used to go back the correct
 				 * number of columns.
 				 */
-				while (tail != ldata->canon_head) {
+				while (MASK(tail) != MASK(ldata->canon_head)) {
 					tail--;
 					c = read_buf(ldata, tail);
 					if (c == '\t') {
@@ -1332,7 +1350,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 			finish_erasing(ldata);
 			echo_char(c, tty);
 			echo_char_raw('\n', ldata);
-			while (tail != ldata->read_head) {
+			while (MASK(tail) != MASK(ldata->read_head)) {
 				echo_char(read_buf(ldata, tail), tty);
 				tail++;
 			}
@@ -1917,31 +1935,22 @@ static int n_tty_open(struct tty_struct *tty)
 	struct n_tty_data *ldata;
 
 	/* Currently a malloc failure here can panic */
-	ldata = vmalloc(sizeof(*ldata));
+	ldata = vzalloc(sizeof(*ldata));
 	if (!ldata)
-		goto err;
+		return -ENOMEM;
 
 	ldata->overrun_time = jiffies;
 	mutex_init(&ldata->atomic_read_lock);
 	mutex_init(&ldata->output_lock);
 
 	tty->disc_data = ldata;
-	reset_buffer_flags(tty->disc_data);
-	ldata->column = 0;
-	ldata->canon_column = 0;
 	ldata->minimum_to_wake = 1;
-	ldata->num_overrun = 0;
-	ldata->no_room = 0;
-	ldata->lnext = 0;
 	tty->closing = 0;
 	/* indicate buffer work may resume */
 	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	n_tty_set_termios(tty, NULL);
 	tty_unthrottle(tty);
-
 	return 0;
-err:
-	return -ENOMEM;
 }
 
 static inline int input_available_p(struct tty_struct *tty, int poll)
@@ -2479,7 +2488,7 @@ static unsigned long inq_canon(struct n_tty_data *ldata)
 	tail = ldata->read_tail;
 	nr = head - tail;
 	/* Skip EOF-chars.. */
-	while (head != tail) {
+	while (MASK(head) != MASK(tail)) {
 		if (test_bit(tail & (N_TTY_BUF_SIZE - 1), ldata->read_flags) &&
 		    read_buf(ldata, tail) == __DISABLED_CHAR)
 			nr--;
