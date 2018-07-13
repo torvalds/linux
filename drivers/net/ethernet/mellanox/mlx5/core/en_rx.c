@@ -1547,7 +1547,7 @@ void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		mlx5e_free_rx_wqe(rq, wi);
 		goto wq_cyc_pop;
 	}
-	skb = mlx5e_ipsec_handle_rx_skb(rq->netdev, skb);
+	skb = mlx5e_ipsec_handle_rx_skb(rq->netdev, skb, &cqe_bcnt);
 	if (unlikely(!skb)) {
 		mlx5e_free_rx_wqe(rq, wi);
 		goto wq_cyc_pop;

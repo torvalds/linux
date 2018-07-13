@@ -364,6 +364,7 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 	}
 
 	remove_metadata_hdr(skb);
+	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 
 	return skb;
 }
