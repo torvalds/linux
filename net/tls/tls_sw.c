@@ -654,16 +654,25 @@ static struct sk_buff *tls_wait_data(struct sock *sk, int flags,
 }
 
 static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
-			      struct scatterlist *sgout)
+			      struct scatterlist *sgout, bool *zc)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct strp_msg *rxm = strp_msg(skb);
 	int err = 0;
 
-	err = decrypt_skb(sk, skb, sgout);
+#ifdef CONFIG_TLS_DEVICE
+	err = tls_device_decrypted(sk, skb);
 	if (err < 0)
 		return err;
+#endif
+	if (!ctx->decrypted) {
+		err = decrypt_skb(sk, skb, sgout);
+		if (err < 0)
+			return err;
+	} else {
+		*zc = false;
+	}
 
 	rxm->offset += tls_ctx->rx.prepend_size;
 	rxm->full_len -= tls_ctx->rx.overhead_size;
@@ -820,7 +829,7 @@ int tls_sw_recvmsg(struct sock *sk,
 				if (err < 0)
 					goto fallback_to_reg_recv;
 
-				err = decrypt_skb_update(sk, skb, sgin);
+				err = decrypt_skb_update(sk, skb, sgin, &zc);
 				for (; pages > 0; pages--)
 					put_page(sg_page(&sgin[pages]));
 				if (err < 0) {
@@ -829,7 +838,7 @@ int tls_sw_recvmsg(struct sock *sk,
 				}
 			} else {
 fallback_to_reg_recv:
-				err = decrypt_skb_update(sk, skb, NULL);
+				err = decrypt_skb_update(sk, skb, NULL, &zc);
 				if (err < 0) {
 					tls_err_abort(sk, EBADMSG);
 					goto recv_end;
@@ -884,6 +893,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	int err = 0;
 	long timeo;
 	int chunk;
+	bool zc;
 
 	lock_sock(sk);
 
@@ -900,7 +910,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	}
 
 	if (!ctx->decrypted) {
-		err = decrypt_skb_update(sk, skb, NULL);
+		err = decrypt_skb_update(sk, skb, NULL, &zc);
 
 		if (err < 0) {
 			tls_err_abort(sk, EBADMSG);
@@ -989,6 +999,10 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 		goto read_failure;
 	}
 
+#ifdef CONFIG_TLS_DEVICE
+	handle_device_resync(strp->sk, TCP_SKB_CB(skb)->seq + rxm->offset,
+			     *(u64*)tls_ctx->rx.rec_seq);
+#endif
 	return data_len + TLS_HEADER_SIZE;
 
 read_failure:

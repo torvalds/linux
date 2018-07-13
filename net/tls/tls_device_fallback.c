@@ -413,6 +413,7 @@ struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 
 	return tls_sw_fallback(sk, skb);
 }
+EXPORT_SYMBOL_GPL(tls_validate_xmit_skb);
 
 int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,
