@@ -1436,8 +1436,6 @@ enum blk_default_limits {
 	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
 };
 
-#define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
-
 static inline unsigned long queue_segment_boundary(struct request_queue *q)
 {
 	return q->limits.seg_boundary_mask;
