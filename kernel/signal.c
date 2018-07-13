@@ -1274,7 +1274,8 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 /*
  * send signal info to all the members of a group
  */
-int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
+int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
+			enum pid_type type)
 {
 	int ret;
 
@@ -1301,7 +1302,7 @@ int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 	success = 0;
 	retval = -ESRCH;
 	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
-		int err = group_send_sig_info(sig, info, p);
+		int err = group_send_sig_info(sig, info, p, PIDTYPE_PGID);
 		success |= !err;
 		retval = err;
 	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
@@ -1317,7 +1318,7 @@ int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 		rcu_read_lock();
 		p = pid_task(pid, PIDTYPE_PID);
 		if (p)
-			error = group_send_sig_info(sig, info, p);
+			error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
 		rcu_read_unlock();
 		if (likely(!p || error != -ESRCH))
 			return error;
@@ -1420,7 +1421,8 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		for_each_process(p) {
 			if (task_pid_vnr(p) > 1 &&
 					!same_thread_group(p, current)) {
-				int err = group_send_sig_info(sig, info, p);
+				int err = group_send_sig_info(sig, info, p,
+							      PIDTYPE_MAX);
 				++count;
 				if (err != -EPERM)
 					retval = err;
