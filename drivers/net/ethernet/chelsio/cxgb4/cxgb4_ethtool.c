@@ -628,13 +628,10 @@ static int get_link_ksettings(struct net_device *dev,
 	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lpacaps,
 		       link_ksettings->link_modes.lp_advertising);
 
-	if (netif_carrier_ok(dev)) {
-		base->speed = pi->link_cfg.speed;
-		base->duplex = DUPLEX_FULL;
-	} else {
-		base->speed = SPEED_UNKNOWN;
-		base->duplex = DUPLEX_UNKNOWN;
-	}
+	base->speed = (netif_carrier_ok(dev)
+		       ? pi->link_cfg.speed
+		       : SPEED_UNKNOWN);
+	base->duplex = DUPLEX_FULL;
 
 	if (pi->link_cfg.fc & PAUSE_RX) {
 		if (pi->link_cfg.fc & PAUSE_TX) {
