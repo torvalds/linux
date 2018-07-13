@@ -58,6 +58,8 @@
 #define RK3399_HDMI_LCDC_SEL		BIT(6)
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
+#define RK_HDMI_COLORIMETRY_BT2020	(HDMI_COLORIMETRY_EXTENDED + \
+					 HDMI_EXTENDED_COLORIMETRY_BT2020)
 
 /**
  * struct rockchip_hdmi_chip_data - splite the grf setting of kind of chips
@@ -621,7 +623,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	if ((*eotf > TRADITIONAL_GAMMA_HDR &&
 	     conn_state->connector->hdr_sink_metadata.hdmi_type1.eotf &
 	     BIT(*eotf)) || (hdmi->colorimetry ==
-	     HDMI_EXTENDED_COLORIMETRY_BT2020 && info->hdmi.colorimetry &
+	     RK_HDMI_COLORIMETRY_BT2020 && info->hdmi.colorimetry &
 	     (BIT(6) | BIT(7))))
 		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
 	else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
@@ -809,8 +811,7 @@ static const struct drm_prop_enum_list quant_range_enum_list[] = {
 
 static const struct drm_prop_enum_list colorimetry_enum_list[] = {
 	{ HDMI_COLORIMETRY_NONE, "None" },
-	{ HDMI_COLORIMETRY_EXTENDED + HDMI_EXTENDED_COLORIMETRY_BT2020,
-	  "ITU_2020" },
+	{ RK_HDMI_COLORIMETRY_BT2020, "ITU_2020" },
 };
 
 static void
