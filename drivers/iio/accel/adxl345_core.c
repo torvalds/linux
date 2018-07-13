@@ -56,9 +56,16 @@
  */
 static const int adxl345_uscale = 38300;
 
+/*
+ * The Datasheet lists a resolution of Resolution is ~49 mg per LSB. That's
+ * ~480mm/s**2 per LSB.
+ */
+static const int adxl375_uscale = 480000;
+
 struct adxl345_data {
 	struct regmap *regmap;
 	u8 data_range;
+	enum adxl345_device_type type;
 };
 
 #define ADXL345_CHANNEL(index, axis) {					\
@@ -105,7 +112,14 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
-		*val2 = adxl345_uscale;
+		switch (data->type) {
+		case ADXL345:
+			*val2 = adxl345_uscale;
+			break;
+		case ADXL375:
+			*val2 = adxl375_uscale;
+			break;
+		}
 
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -198,7 +212,7 @@ static const struct iio_info adxl345_info = {
 };
 
 int adxl345_core_probe(struct device *dev, struct regmap *regmap,
-		       const char *name)
+		       enum adxl345_device_type type, const char *name)
 {
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
@@ -224,6 +238,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
+	data->type = type;
 	/* Enable full-resolution mode */
 	data->data_range = ADXL345_DATA_FORMAT_FULL_RES;
 
