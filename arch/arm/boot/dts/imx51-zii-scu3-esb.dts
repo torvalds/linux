@@ -221,6 +221,8 @@
 			interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_switch>;
 
 			ports {
 				#address-cells = <1>;
@@ -423,6 +425,12 @@
 		fsl,pins = <
 			MX51_PAD_GPIO1_4__GPIO1_4		0x85
 			MX51_PAD_GPIO1_8__GPIO1_8		0xe5
+		>;
+	};
+
+	pinctrl_switch: switchgrp {
+		fsl,pins = <
+			MX51_PAD_AUD3_BB_CK__GPIO4_20		0xc5
 		>;
 	};
 
