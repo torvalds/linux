@@ -48,7 +48,8 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			   struct drm_file *filp,
 			   struct amdgpu_ctx *ctx)
 {
-	unsigned i, j;
+	struct drm_sched_rq *sdma_rqs[AMDGPU_MAX_RINGS];
+	unsigned i, j, num_sdma_rqs;
 	int r;
 
 	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_MAX)
@@ -80,18 +81,34 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	ctx->init_priority = priority;
 	ctx->override_priority = DRM_SCHED_PRIORITY_UNSET;
 
-	/* create context entity for each ring */
+	num_sdma_rqs = 0;
 	for (i = 0; i < adev->num_rings; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		struct drm_sched_rq *rq;
 
 		rq = &ring->sched.sched_rq[priority];
+		if (ring->funcs->type == AMDGPU_RING_TYPE_SDMA)
+			sdma_rqs[num_sdma_rqs++] = rq;
+	}
+
+	/* create context entity for each ring */
+	for (i = 0; i < adev->num_rings; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
 
 		if (ring == &adev->gfx.kiq.ring)
 			continue;
 
-		r = drm_sched_entity_init(&ctx->rings[i].entity,
-					  &rq, 1, &ctx->guilty);
+		if (ring->funcs->type == AMDGPU_RING_TYPE_SDMA) {
+			r = drm_sched_entity_init(&ctx->rings[i].entity,
+						  sdma_rqs, num_sdma_rqs,
+						  &ctx->guilty);
+		} else {
+			struct drm_sched_rq *rq;
+
+			rq = &ring->sched.sched_rq[priority];
+			r = drm_sched_entity_init(&ctx->rings[i].entity,
+						  &rq, 1, &ctx->guilty);
+		}
 		if (r)
 			goto failed;
 	}
