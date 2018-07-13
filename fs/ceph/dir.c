@@ -1397,7 +1397,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 				" rfiles:   %20lld\n"
 				" rsubdirs: %20lld\n"
 				"rbytes:    %20lld\n"
-				"rctime:    %10ld.%09ld\n",
+				"rctime:    %10lld.%09ld\n",
 				ci->i_files + ci->i_subdirs,
 				ci->i_files,
 				ci->i_subdirs,
@@ -1405,8 +1405,8 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 				ci->i_rfiles,
 				ci->i_rsubdirs,
 				ci->i_rbytes,
-				(long)ci->i_rctime.tv_sec,
-				(long)ci->i_rctime.tv_nsec);
+				ci->i_rctime.tv_sec,
+				ci->i_rctime.tv_nsec);
 	}
 
 	if (*ppos >= dfi->dir_info_len)

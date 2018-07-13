@@ -193,7 +193,7 @@ struct ceph_cap_snap {
 	u64 xattr_version;
 
 	u64 size;
-	struct timespec mtime, atime, ctime;
+	struct timespec64 mtime, atime, ctime;
 	u64 time_warp_seq;
 	u64 truncate_size;
 	u32 truncate_seq;
@@ -307,7 +307,7 @@ struct ceph_inode_info {
 	char *i_symlink;
 
 	/* for dirs */
-	struct timespec i_rctime;
+	struct timespec64 i_rctime;
 	u64 i_rbytes, i_rfiles, i_rsubdirs;
 	u64 i_files, i_subdirs;
 
@@ -857,8 +857,9 @@ extern struct inode *ceph_get_snapdir(struct inode *parent);
 extern int ceph_fill_file_size(struct inode *inode, int issued,
 			       u32 truncate_seq, u64 truncate_size, u64 size);
 extern void ceph_fill_file_time(struct inode *inode, int issued,
-				u64 time_warp_seq, struct timespec *ctime,
-				struct timespec *mtime, struct timespec *atime);
+				u64 time_warp_seq, struct timespec64 *ctime,
+				struct timespec64 *mtime,
+				struct timespec64 *atime);
 extern int ceph_fill_trace(struct super_block *sb,
 			   struct ceph_mds_request *req);
 extern int ceph_readdir_prepopulate(struct ceph_mds_request *req,

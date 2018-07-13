@@ -1125,7 +1125,7 @@ struct cap_msg_args {
 	u64			flush_tid, oldest_flush_tid, size, max_size;
 	u64			xattr_version;
 	struct ceph_buffer	*xattr_buf;
-	struct timespec		atime, mtime, ctime;
+	struct timespec64	atime, mtime, ctime;
 	int			op, caps, wanted, dirty;
 	u32			seq, issue_seq, mseq, time_warp_seq;
 	u32			flags;
@@ -1146,7 +1146,7 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	struct ceph_msg *msg;
 	void *p;
 	size_t extra_len;
-	struct timespec zerotime = {0};
+	struct timespec64 zerotime = {0};
 	struct ceph_osd_client *osdc = &arg->session->s_mdsc->fsc->client->osdc;
 
 	dout("send_cap_msg %s %llx %llx caps %s wanted %s dirty %s"
@@ -1186,9 +1186,9 @@ static int send_cap_msg(struct cap_msg_args *arg)
 
 	fc->size = cpu_to_le64(arg->size);
 	fc->max_size = cpu_to_le64(arg->max_size);
-	ceph_encode_timespec(&fc->mtime, &arg->mtime);
-	ceph_encode_timespec(&fc->atime, &arg->atime);
-	ceph_encode_timespec(&fc->ctime, &arg->ctime);
+	ceph_encode_timespec64(&fc->mtime, &arg->mtime);
+	ceph_encode_timespec64(&fc->atime, &arg->atime);
+	ceph_encode_timespec64(&fc->ctime, &arg->ctime);
 	fc->time_warp_seq = cpu_to_le32(arg->time_warp_seq);
 
 	fc->uid = cpu_to_le32(from_kuid(&init_user_ns, arg->uid));
@@ -1237,7 +1237,7 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	 * We just zero these out for now, as the MDS ignores them unless
 	 * the requisite feature flags are set (which we don't do yet).
 	 */
-	ceph_encode_timespec(p, &zerotime);
+	ceph_encode_timespec64(p, &zerotime);
 	p += sizeof(struct ceph_timespec);
 	ceph_encode_64(&p, 0);
 
@@ -1360,9 +1360,9 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		arg.xattr_buf = NULL;
 	}
 
-	arg.mtime = timespec64_to_timespec(inode->i_mtime);
-	arg.atime = timespec64_to_timespec(inode->i_atime);
-	arg.ctime = timespec64_to_timespec(inode->i_ctime);
+	arg.mtime = inode->i_mtime;
+	arg.atime = inode->i_atime;
+	arg.ctime = inode->i_ctime;
 
 	arg.op = op;
 	arg.caps = cap->implemented;
@@ -3148,11 +3148,11 @@ static void handle_cap_grant(struct inode *inode,
 	}
 
 	if (newcaps & CEPH_CAP_ANY_RD) {
-		struct timespec mtime, atime, ctime;
+		struct timespec64 mtime, atime, ctime;
 		/* ctime/mtime/atime? */
-		ceph_decode_timespec(&mtime, &grant->mtime);
-		ceph_decode_timespec(&atime, &grant->atime);
-		ceph_decode_timespec(&ctime, &grant->ctime);
+		ceph_decode_timespec64(&mtime, &grant->mtime);
+		ceph_decode_timespec64(&atime, &grant->atime);
+		ceph_decode_timespec64(&ctime, &grant->ctime);
 		ceph_fill_file_time(inode, extra_info->issued,
 				    le32_to_cpu(grant->time_warp_seq),
 				    &ctime, &mtime, &atime);
