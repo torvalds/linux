@@ -347,7 +347,7 @@ static inline void pmdp_idte_local(struct mm_struct *mm,
 			    mm->context.asce, IDTE_LOCAL);
 	else
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_LOCAL);
-	if (mm_has_pgste(mm))
+	if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 		gmap_pmdp_idte_local(mm, addr);
 }
 
@@ -357,15 +357,15 @@ static inline void pmdp_idte_global(struct mm_struct *mm,
 	if (MACHINE_HAS_TLB_GUEST) {
 		__pmdp_idte(addr, pmdp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
-		if (mm_has_pgste(mm))
+		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
 	} else if (MACHINE_HAS_IDTE) {
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_GLOBAL);
-		if (mm_has_pgste(mm))
+		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
 	} else {
 		__pmdp_csp(pmdp);
-		if (mm_has_pgste(mm))
+		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_csp(mm, addr);
 	}
 }
