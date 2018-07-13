@@ -85,7 +85,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 	__le32 tmp_le32;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	/* Some functions called from here depend on the @c->key_len filed */
 	c->key_len = UBIFS_SK_LEN;
@@ -301,8 +301,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 	ino->creat_sqnum = cpu_to_le64(++c->max_sqnum);
 	ino->nlink = cpu_to_le32(2);
 
-	ktime_get_real_ts(&ts);
-	ts = timespec_trunc(ts, DEFAULT_TIME_GRAN);
+	ktime_get_real_ts64(&ts);
+	ts = timespec64_trunc(ts, DEFAULT_TIME_GRAN);
 	tmp_le64 = cpu_to_le64(ts.tv_sec);
 	ino->atime_sec   = tmp_le64;
 	ino->ctime_sec   = tmp_le64;

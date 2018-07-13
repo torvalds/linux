@@ -1365,11 +1365,10 @@ out:
  * granularity, they are not updated. This is an optimization.
  */
 static inline int mctime_update_needed(const struct inode *inode,
-				       const struct timespec *now)
+				       const struct timespec64 *now)
 {
-	struct timespec64 now64 = timespec_to_timespec64(*now);
-	if (!timespec64_equal(&inode->i_mtime, &now64) ||
-	    !timespec64_equal(&inode->i_ctime, &now64))
+	if (!timespec64_equal(&inode->i_mtime, now) ||
+	    !timespec64_equal(&inode->i_ctime, now))
 		return 1;
 	return 0;
 }
@@ -1425,7 +1424,7 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
  */
 static int update_mctime(struct inode *inode)
 {
-	struct timespec now = timespec64_to_timespec(current_time(inode));
+	struct timespec64 now = current_time(inode);
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
@@ -1519,7 +1518,7 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
-	struct timespec now = timespec64_to_timespec(current_time(inode));
+	struct timespec64 now = current_time(inode);
 	struct ubifs_budget_req req = { .new_page = 1 };
 	int err, update_time;
 
