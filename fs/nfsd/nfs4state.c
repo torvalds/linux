@@ -6322,7 +6322,7 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 		return status;
 	}
 
-	inode = file_inode(filp);
+	inode = locks_inode(filp);
 	flctx = inode->i_flctx;
 
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
