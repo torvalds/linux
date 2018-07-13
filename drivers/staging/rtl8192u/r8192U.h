@@ -15,8 +15,8 @@
  * project Authors.
  */
 
-#ifndef R819xU_H
-#define R819xU_H
+#ifndef R8192U_H
+#define R8192U_H
 
 #include <linux/compiler.h>
 #include <linux/module.h>
