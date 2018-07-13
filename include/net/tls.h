@@ -223,6 +223,7 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 void tls_sw_close(struct sock *sk, long timeout);
 void tls_sw_free_resources_tx(struct sock *sk);
 void tls_sw_free_resources_rx(struct sock *sk);
+void tls_sw_release_resources_rx(struct sock *sk);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int nonblock, int flags, int *addr_len);
 unsigned int tls_sw_poll(struct file *file, struct socket *sock,
