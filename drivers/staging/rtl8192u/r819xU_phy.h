@@ -7,7 +7,7 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-enum SwChnlCmdID {
+enum switch_chan_cmd_id {
 	CmdID_End,
 	CmdID_SetTxPowerLevel,
 	CmdID_BBRegWrite10,
@@ -20,7 +20,7 @@ enum SwChnlCmdID {
 /* -----------------------Define structure---------------------- */
 /* 1. Switch channel related */
 struct SwChnlCmd {
-	enum SwChnlCmdID	CmdID;
+	enum switch_chan_cmd_id	CmdID;
 	u32		        Para1;
 	u32		        Para2;
 	u32		        msDelay;

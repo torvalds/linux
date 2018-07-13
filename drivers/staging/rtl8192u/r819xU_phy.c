@@ -1219,7 +1219,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
  * input:     SwChnlCmd      *CmdTable    //table to be set
  *            u32            CmdTableIdx  //variable index in table to be set
  *            u32            CmdTableSz   //table size
- *            SwChnlCmdID    CmdID        //command ID to set
+ *            switch_chan_cmd_id    CmdID        //command ID to set
  *            u32            Para1
  *            u32            Para2
  *            u32            msDelay
@@ -1228,7 +1228,7 @@ bool rtl8192_SetRFPowerState(struct net_device *dev,
  * notice:
  ******************************************************************************/
 static u8 rtl8192_phy_SetSwChnlCmdArray(struct SwChnlCmd *CmdTable, u32 CmdTableIdx,
-					u32 CmdTableSz, enum SwChnlCmdID CmdID,
+					u32 CmdTableSz, enum switch_chan_cmd_id CmdID,
 					u32 Para1, u32 Para2, u32 msDelay)
 {
 	struct SwChnlCmd *pCmd;
