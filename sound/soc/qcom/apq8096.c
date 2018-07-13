@@ -129,17 +129,18 @@ err:
 	return ret;
 }
 
-static int apq8096_bind(struct device *dev)
+static int apq8096_platform_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
 
-	component_bind_all(dev, card);
 	card->dev = dev;
+	card->auto_bind = true;
 	dev_set_drvdata(dev, card);
 	ret = apq8096_sbc_parse_of(card);
 	if (ret) {
@@ -154,82 +155,18 @@ static int apq8096_bind(struct device *dev)
 	return 0;
 
 err:
-	component_unbind_all(dev, card);
 	kfree(card);
 	return ret;
 }
 
-static void apq8096_unbind(struct device *dev)
-{
-	struct snd_soc_card *card = dev_get_drvdata(dev);
-
-	snd_soc_unregister_card(card);
-	component_unbind_all(dev, card);
-	kfree(card->dai_link);
-	kfree(card);
-}
-
-static const struct component_master_ops apq8096_ops = {
-	.bind = apq8096_bind,
-	.unbind = apq8096_unbind,
-};
-
-static int apq8016_compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
-static void apq8016_release_of(struct device *dev, void *data)
-{
-	of_node_put(data);
-}
-
-static int add_audio_components(struct device *dev,
-				struct component_match **matchptr)
-{
-	struct device_node *np, *platform, *cpu, *node, *dai_node;
-
-	node = dev->of_node;
-
-	for_each_child_of_node(node, np) {
-		cpu = of_get_child_by_name(np, "cpu");
-		if (cpu) {
-			dai_node = of_parse_phandle(cpu, "sound-dai", 0);
-			of_node_get(dai_node);
-			component_match_add_release(dev, matchptr,
-						    apq8016_release_of,
-						    apq8016_compare_of,
-						    dai_node);
-		}
-
-		platform = of_get_child_by_name(np, "platform");
-		if (platform) {
-			dai_node = of_parse_phandle(platform, "sound-dai", 0);
-			component_match_add_release(dev, matchptr,
-						    apq8016_release_of,
-						    apq8016_compare_of,
-						    dai_node);
-		}
-	}
-
-	return 0;
-}
-
-static int apq8096_platform_probe(struct platform_device *pdev)
-{
-	struct component_match *match = NULL;
-	int ret;
-
-	ret = add_audio_components(&pdev->dev, &match);
-	if (ret)
-		return ret;
-
-	return component_master_add_with_match(&pdev->dev, &apq8096_ops, match);
-}
-
 static int apq8096_platform_remove(struct platform_device *pdev)
 {
-	component_master_del(&pdev->dev, &apq8096_ops);
+	struct snd_soc_card *card = dev_get_drvdata(&pdev->dev);
+
+	card->auto_bind = false;
+	snd_soc_unregister_card(card);
+	kfree(card->dai_link);
+	kfree(card);
 
 	return 0;
 }
