@@ -218,9 +218,6 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 	struct sk_buff *skb;
 	int err = 0;
 
-	if (unlikely(!xs->tx))
-		return -ENOBUFS;
-
 	mutex_lock(&xs->mutex);
 
 	while (xskq_peek_desc(xs->tx, &desc)) {
@@ -233,22 +230,13 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			goto out;
 		}
 
-		if (xskq_reserve_addr(xs->umem->cq)) {
-			err = -EAGAIN;
+		if (xskq_reserve_addr(xs->umem->cq))
 			goto out;
-		}
+
+		if (xs->queue_id >= xs->dev->real_num_tx_queues)
+			goto out;
 
 		len = desc.len;
-		if (unlikely(len > xs->dev->mtu)) {
-			err = -EMSGSIZE;
-			goto out;
-		}
-
-		if (xs->queue_id >= xs->dev->real_num_tx_queues) {
-			err = -ENXIO;
-			goto out;
-		}
-
 		skb = sock_alloc_send_skb(sk, len, 1, &err);
 		if (unlikely(!skb)) {
 			err = -EAGAIN;
@@ -300,6 +288,8 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 		return -ENXIO;
 	if (unlikely(!(xs->dev->flags & IFF_UP)))
 		return -ENETDOWN;
+	if (unlikely(!xs->tx))
+		return -ENOBUFS;
 	if (need_wait)
 		return -EOPNOTSUPP;
 
