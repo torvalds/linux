@@ -1213,7 +1213,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	bool dummy;
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		nv_connector = nouveau_connector(connector);
 		if (nv_connector->index == index) {
 			drm_connector_list_iter_end(&conn_iter);
