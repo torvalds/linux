@@ -1020,12 +1020,11 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 static int __init ntp_tick_adj_setup(char *str)
 {
-	int rc = kstrtol(str, 0, (long *)&ntp_tick_adj);
-
+	int rc = kstrtos64(str, 0, &ntp_tick_adj);
 	if (rc)
 		return rc;
-	ntp_tick_adj <<= NTP_SCALE_SHIFT;
 
+	ntp_tick_adj <<= NTP_SCALE_SHIFT;
 	return 1;
 }
 
