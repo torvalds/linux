@@ -2553,6 +2553,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 {
 	pmd_t *pmd = (pmd_t *)pte;
 	unsigned long start, end;
+	struct page *page = pmd_page(*pmd);
 
 	/*
 	 * The write check makes sure we do not set a key on shared
@@ -2567,6 +2568,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 	start = pmd_val(*pmd) & HPAGE_MASK;
 	end = start + HPAGE_SIZE - 1;
 	__storage_key_init_range(start, end);
+	set_bit(PG_arch_1, &page->flags);
 	return 0;
 }
 
