@@ -1183,7 +1183,7 @@ static void of_q6afe_parse_dai_data(struct device *dev,
 		int id, i, num_lines;
 
 		ret = of_property_read_u32(node, "reg", &id);
-		if (ret || id > AFE_PORT_MAX) {
+		if (ret || id < 0 || id >= AFE_PORT_MAX) {
 			dev_err(dev, "valid dai id not found:%d\n", ret);
 			continue;
 		}
