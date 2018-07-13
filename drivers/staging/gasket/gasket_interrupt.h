@@ -129,18 +129,6 @@ struct msix_entry *gasket_interrupt_get_msix_entries(
 	struct gasket_interrupt_data *interrupt_data);
 
 /*
- * Get a pointer to data's eventfd contexts.
- * @data: The interrupt data from which to extract.
- *
- * Returns the internal pointer to data's eventfd contexts.
- *
- * This function exists for backwards compatibility with older drivers.
- * No new uses should be written.
- */
-struct eventfd_ctx **gasket_interrupt_get_eventfd_ctxs(
-	struct gasket_interrupt_data *interrupt_data);
-
-/*
  * Get the health of the interrupt subsystem.
  * @gasket_dev: The Gasket device struct.
  *
