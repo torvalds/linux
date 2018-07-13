@@ -70,7 +70,7 @@ static int __init tk_debug_sleep_time_init(void)
 }
 late_initcall(tk_debug_sleep_time_init);
 
-void tk_debug_account_sleep_time(struct timespec64 *t)
+void tk_debug_account_sleep_time(const struct timespec64 *t)
 {
 	/* Cap bin index so we don't overflow the array */
 	int bin = min(fls(t->tv_sec), NUM_BINS-1);

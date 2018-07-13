@@ -105,7 +105,7 @@ static inline void tk_normalize_xtime(struct timekeeper *tk)
 	}
 }
 
-static inline struct timespec64 tk_xtime(struct timekeeper *tk)
+static inline struct timespec64 tk_xtime(const struct timekeeper *tk)
 {
 	struct timespec64 ts;
 
@@ -162,7 +162,7 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
  * a read of the fast-timekeeper tkrs (which is protected by its own locking
  * and update logic).
  */
-static inline u64 tk_clock_read(struct tk_read_base *tkr)
+static inline u64 tk_clock_read(const struct tk_read_base *tkr)
 {
 	struct clocksource *clock = READ_ONCE(tkr->clock);
 
@@ -211,7 +211,7 @@ static void timekeeping_check_update(struct timekeeper *tk, u64 offset)
 	}
 }
 
-static inline u64 timekeeping_get_delta(struct tk_read_base *tkr)
+static inline u64 timekeeping_get_delta(const struct tk_read_base *tkr)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	u64 now, last, mask, max, delta;
@@ -255,7 +255,7 @@ static inline u64 timekeeping_get_delta(struct tk_read_base *tkr)
 static inline void timekeeping_check_update(struct timekeeper *tk, u64 offset)
 {
 }
-static inline u64 timekeeping_get_delta(struct tk_read_base *tkr)
+static inline u64 timekeeping_get_delta(const struct tk_read_base *tkr)
 {
 	u64 cycle_now, delta;
 
@@ -352,7 +352,7 @@ u32 (*arch_gettimeoffset)(void) = default_arch_gettimeoffset;
 static inline u32 arch_gettimeoffset(void) { return 0; }
 #endif
 
-static inline u64 timekeeping_delta_to_ns(struct tk_read_base *tkr, u64 delta)
+static inline u64 timekeeping_delta_to_ns(const struct tk_read_base *tkr, u64 delta)
 {
 	u64 nsec;
 
@@ -363,7 +363,7 @@ static inline u64 timekeeping_delta_to_ns(struct tk_read_base *tkr, u64 delta)
 	return nsec + arch_gettimeoffset();
 }
 
-static inline u64 timekeeping_get_ns(struct tk_read_base *tkr)
+static inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
 {
 	u64 delta;
 
@@ -371,7 +371,7 @@ static inline u64 timekeeping_get_ns(struct tk_read_base *tkr)
 	return timekeeping_delta_to_ns(tkr, delta);
 }
 
-static inline u64 timekeeping_cycles_to_ns(struct tk_read_base *tkr, u64 cycles)
+static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
 {
 	u64 delta;
 
@@ -394,7 +394,8 @@ static inline u64 timekeeping_cycles_to_ns(struct tk_read_base *tkr, u64 cycles)
  * slightly wrong timestamp (a few nanoseconds). See
  * @ktime_get_mono_fast_ns.
  */
-static void update_fast_timekeeper(struct tk_read_base *tkr, struct tk_fast *tkf)
+static void update_fast_timekeeper(const struct tk_read_base *tkr,
+				   struct tk_fast *tkf)
 {
 	struct tk_read_base *base = tkf->base;
 
@@ -549,10 +550,10 @@ EXPORT_SYMBOL_GPL(ktime_get_real_fast_ns);
  * number of cycles every time until timekeeping is resumed at which time the
  * proper readout base for the fast timekeeper will be restored automatically.
  */
-static void halt_fast_timekeeper(struct timekeeper *tk)
+static void halt_fast_timekeeper(const struct timekeeper *tk)
 {
 	static struct tk_read_base tkr_dummy;
-	struct tk_read_base *tkr = &tk->tkr_mono;
+	const struct tk_read_base *tkr = &tk->tkr_mono;
 
 	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
 	cycles_at_suspend = tk_clock_read(tkr);
@@ -1277,7 +1278,7 @@ EXPORT_SYMBOL(do_settimeofday64);
  *
  * Adds or subtracts an offset value from the current time.
  */
-static int timekeeping_inject_offset(struct timespec64 *ts)
+static int timekeeping_inject_offset(const struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;
@@ -1585,7 +1586,7 @@ static struct timespec64 timekeeping_suspend_time;
  * adds the sleep offset to the timekeeping variables.
  */
 static void __timekeeping_inject_sleeptime(struct timekeeper *tk,
-					   struct timespec64 *delta)
+					   const struct timespec64 *delta)
 {
 	if (!timespec64_valid_strict(delta)) {
 		printk_deferred(KERN_WARNING
@@ -1646,7 +1647,7 @@ bool timekeeping_rtc_skipsuspend(void)
  * This function should only be called by rtc_resume(), and allows
  * a suspend offset to be injected into the timekeeping values.
  */
-void timekeeping_inject_sleeptime64(struct timespec64 *delta)
+void timekeeping_inject_sleeptime64(const struct timespec64 *delta)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;
@@ -2240,7 +2241,7 @@ ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
 /**
  * timekeeping_validate_timex - Ensures the timex is ok for use in do_adjtimex
  */
-static int timekeeping_validate_timex(struct timex *txc)
+static int timekeeping_validate_timex(const struct timex *txc)
 {
 	if (txc->modes & ADJ_ADJTIME) {
 		/* singleshot must not be used with any other mode bits */

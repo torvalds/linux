@@ -642,7 +642,7 @@ void ntp_notify_cmos_timer(void)
 /*
  * Propagate a new txc->status value into the NTP state:
  */
-static inline void process_adj_status(struct timex *txc)
+static inline void process_adj_status(const struct timex *txc)
 {
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		time_state = TIME_OK;
@@ -665,7 +665,7 @@ static inline void process_adj_status(struct timex *txc)
 }
 
 
-static inline void process_adjtimex_modes(struct timex *txc, s32 *time_tai)
+static inline void process_adjtimex_modes(const struct timex *txc, s32 *time_tai)
 {
 	if (txc->modes & ADJ_STATUS)
 		process_adj_status(txc);
@@ -716,7 +716,7 @@ static inline void process_adjtimex_modes(struct timex *txc, s32 *time_tai)
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(struct timex *txc, struct timespec64 *ts, s32 *time_tai)
+int __do_adjtimex(struct timex *txc, const struct timespec64 *ts, s32 *time_tai)
 {
 	int result;
 
