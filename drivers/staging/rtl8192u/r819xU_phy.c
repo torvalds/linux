@@ -1387,7 +1387,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			write_nic_word(dev, CurrentCmd->Para1,
 				       (u16)CurrentCmd->Para2);
 			break;
-		case CmdID_WritePortUchar:
+		case CMD_ID_WRITE_PORT_UCHAR:
 			write_nic_byte(dev, CurrentCmd->Para1,
 				       (u8)CurrentCmd->Para2);
 			break;
