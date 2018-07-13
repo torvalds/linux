@@ -194,7 +194,7 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 	u64 paddr;
 	int line_id;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a device address */
 	BUG_ON(pblk_addr_in_cache(ppa));
 	BUG_ON(pblk_ppa_empty(ppa));
@@ -430,7 +430,7 @@ void pblk_discard(struct pblk *pblk, struct bio *bio)
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	atomic_long_inc(&pblk->write_failed);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pblk_print_failed_rqd(pblk, rqd, rqd->error);
 #endif
 }
@@ -454,7 +454,7 @@ void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd)
 	default:
 		pr_err("pblk: unknown read error:%d\n", rqd->error);
 	}
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pblk_print_failed_rqd(pblk, rqd, rqd->error);
 #endif
 }
@@ -470,7 +470,7 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 	atomic_inc(&pblk->inflight_io);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if (pblk_check_io(pblk, rqd))
 		return NVM_IO_ERR;
 #endif
@@ -484,7 +484,7 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 
 	atomic_inc(&pblk->inflight_io);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	if (pblk_check_io(pblk, rqd))
 		return NVM_IO_ERR;
 #endif
@@ -1726,7 +1726,7 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 	struct list_head *move_list;
 	int i;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	WARN(!bitmap_full(line->map_bitmap, lm->sec_per_line),
 				"pblk: corrupt closed line %d\n", line->id);
 #endif
@@ -1856,7 +1856,7 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 	 * Only send one inflight I/O per LUN. Since we map at a page
 	 * granurality, all ppas in the I/O will map to the same LUN
 	 */
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
@@ -1901,7 +1901,7 @@ void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
 	struct pblk_lun *rlun;
 	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
@@ -1951,7 +1951,7 @@ void pblk_update_map(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 void pblk_update_map_cache(struct pblk *pblk, sector_t lba, struct ppa_addr ppa)
 {
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
 	BUG_ON(!pblk_addr_in_cache(ppa));
 	BUG_ON(pblk_rb_pos_oob(&pblk->rwb, pblk_addr_to_cacheline(ppa)));
@@ -1966,7 +1966,7 @@ int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa_new,
 	struct ppa_addr ppa_l2p, ppa_gc;
 	int ret = 1;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a cache address */
 	BUG_ON(!pblk_addr_in_cache(ppa_new));
 	BUG_ON(pblk_rb_pos_oob(&pblk->rwb, pblk_addr_to_cacheline(ppa_new)));
@@ -2003,14 +2003,14 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 {
 	struct ppa_addr ppa_l2p;
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a device address */
 	BUG_ON(pblk_addr_in_cache(ppa_mapped));
 #endif
 	/* Invalidate and discard padded entries */
 	if (lba == ADDR_EMPTY) {
 		atomic64_inc(&pblk->pad_wa);
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 		atomic_long_inc(&pblk->padded_wb);
 #endif
 		if (!pblk_ppa_empty(ppa_mapped))
@@ -2036,7 +2036,7 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 		goto out;
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	WARN_ON(!pblk_addr_in_cache(ppa_l2p) && !pblk_ppa_empty(ppa_l2p));
 #endif
 

@@ -67,7 +67,7 @@ retry:
 
 	atomic64_add(nr_entries, &pblk->user_wa);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(nr_entries, &pblk->inflight_writes);
 	atomic_long_add(nr_entries, &pblk->req_writes);
 #endif
@@ -123,7 +123,7 @@ retry:
 
 	atomic64_add(valid_entries, &pblk->gc_wa);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(valid_entries, &pblk->inflight_writes);
 	atomic_long_add(valid_entries, &pblk->recov_gc_writes);
 #endif

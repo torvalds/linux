@@ -91,7 +91,7 @@ static size_t pblk_trans_map_size(struct pblk *pblk)
 	return entry_size * pblk->rl.nr_secs;
 }
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 static u32 pblk_l2p_crc(struct pblk *pblk)
 {
 	size_t map_size;
@@ -122,7 +122,7 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 		}
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pr_info("pblk init: L2P CRC: %x\n", pblk_l2p_crc(pblk));
 #endif
 
@@ -1166,7 +1166,7 @@ static void pblk_exit(void *private, bool graceful)
 	pblk_gc_exit(pblk, graceful);
 	pblk_tear_down(pblk, graceful);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pr_info("pblk exit: L2P CRC: %x\n", pblk_l2p_crc(pblk));
 #endif
 
@@ -1217,7 +1217,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_set(&pblk->inflight_writes, 0);
 	atomic_long_set(&pblk->padded_writes, 0);
 	atomic_long_set(&pblk->padded_wb, 0);

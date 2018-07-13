@@ -522,7 +522,7 @@ static int pblk_gc_reader_ts(void *data)
 		io_schedule();
 	}
 
-#ifdef CONFIG_NVM_DEBUG
+#ifdef CONFIG_NVM_PBLK_DEBUG
 	pr_info("pblk: flushing gc pipeline, %d lines left\n",
 		atomic_read(&gc->pipeline_gc));
 #endif
