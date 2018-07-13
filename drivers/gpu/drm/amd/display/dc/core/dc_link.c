@@ -60,7 +60,14 @@
 
 enum {
 	LINK_RATE_REF_FREQ_IN_MHZ = 27,
-	PEAK_FACTOR_X1000 = 1006
+	PEAK_FACTOR_X1000 = 1006,
+	/*
+	* Some receivers fail to train on first try and are good
+	* on subsequent tries. 2 retries should be plenty. If we
+	* don't have a successful training then we don't expect to
+	* ever get one.
+	*/
+	LINK_TRAINING_MAX_VERIFY_RETRY = 2
 };
 
 /*******************************************************************************
@@ -760,7 +767,16 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				 */
 
 				/* deal with non-mst cases */
-				dp_verify_link_cap(link, &link->reported_link_cap);
+				for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
+					int fail_count = 0;
+
+					dp_verify_link_cap(link,
+							  &link->reported_link_cap,
+							  &fail_count);
+
+					if (fail_count == 0)
+						break;
+				}
 			}
 
 			/* HDMI-DVI Dongle */

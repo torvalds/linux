@@ -1088,7 +1088,8 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 
 bool dp_verify_link_cap(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting)
+	struct dc_link_settings *known_limit_link_setting,
+	int *fail_count)
 {
 	struct dc_link_settings max_link_cap = {0};
 	struct dc_link_settings cur_link_setting = {0};
@@ -1160,6 +1161,8 @@ bool dp_verify_link_cap(
 							skip_video_pattern);
 			if (status == LINK_TRAINING_SUCCESS)
 				success = true;
+			else
+				(*fail_count)++;
 		}
 
 		if (success)

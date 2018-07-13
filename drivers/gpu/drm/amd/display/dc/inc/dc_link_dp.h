@@ -35,7 +35,8 @@ struct dc_link_settings;
 
 bool dp_verify_link_cap(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting);
+	struct dc_link_settings *known_limit_link_setting,
+	int *fail_count);
 
 bool dp_validate_mode_timing(
 	struct dc_link *link,
