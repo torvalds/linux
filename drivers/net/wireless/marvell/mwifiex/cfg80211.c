@@ -2322,7 +2322,8 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (priv->scan_block)
 		priv->scan_block = false;
 
-	if (adapter->surprise_removed || adapter->is_cmd_timedout) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags) ||
+	    test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: Ignore connection.\t"
 			    "Card removed or FW in bad state\n",

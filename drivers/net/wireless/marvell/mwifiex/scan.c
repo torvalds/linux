@@ -1495,7 +1495,8 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 		return -EBUSY;
 	}
 
-	if (adapter->surprise_removed || adapter->is_cmd_timedout) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags) ||
+	    test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Ignore scan. Card removed or firmware in bad state\n");
 		return -EFAULT;

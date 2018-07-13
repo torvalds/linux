@@ -233,7 +233,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->event_received = false;
 	adapter->data_received = false;
 
-	adapter->surprise_removed = false;
+	clear_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags);
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 
@@ -270,7 +270,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 
-	adapter->is_hs_configured = false;
+	clear_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
 	adapter->hs_cfg.conditions = cpu_to_le32(HS_CFG_COND_DEF);
 	adapter->hs_cfg.gpio = HS_CFG_GPIO_DEF;
 	adapter->hs_cfg.gap = HS_CFG_GAP_DEF;

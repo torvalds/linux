@@ -181,7 +181,8 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		atomic_dec(&card->rx_data_urb_pending);
 
 	if (recv_length) {
-		if (urb->status || (adapter->surprise_removed)) {
+		if (urb->status ||
+		    test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "URB status is failed: %d\n", urb->status);
 			/* Do not free skb in case of command ep */
@@ -218,10 +219,10 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 				dev_kfree_skb_any(skb);
 		}
 	} else if (urb->status) {
-		if (!adapter->is_suspended) {
+		if (!test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 			mwifiex_dbg(adapter, FATAL,
 				    "Card is removed: %d\n", urb->status);
-			adapter->surprise_removed = true;
+			set_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags);
 		}
 		dev_kfree_skb_any(skb);
 		return;
@@ -529,7 +530,7 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	}
 
-	if (unlikely(adapter->is_suspended))
+	if (unlikely(test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)))
 		mwifiex_dbg(adapter, WARN,
 			    "Device already suspended\n");
 
@@ -537,19 +538,19 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (!mwifiex_enable_hs(adapter)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cmd: failed to suspend\n");
-		adapter->hs_enabling = false;
+		clear_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags);
 		return -EFAULT;
 	}
 
 
-	/* 'is_suspended' flag indicates device is suspended.
+	/* 'MWIFIEX_IS_SUSPENDED' bit indicates device is suspended.
 	 * It must be set here before the usb_kill_urb() calls. Reason
 	 * is in the complete handlers, urb->status(= -ENOENT) and
 	 * this flag is used in combination to distinguish between a
 	 * 'suspended' state and a 'disconnect' one.
 	 */
-	adapter->is_suspended = true;
-	adapter->hs_enabling = false;
+	set_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
+	clear_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags);
 
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
@@ -593,7 +594,7 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	}
 	adapter = card->adapter;
 
-	if (unlikely(!adapter->is_suspended)) {
+	if (unlikely(!test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags))) {
 		mwifiex_dbg(adapter, WARN,
 			    "Device already resumed\n");
 		return 0;
@@ -602,7 +603,7 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	/* Indicate device resumed. The netdev queue will be resumed only
 	 * after the urbs have been re-submitted
 	 */
-	adapter->is_suspended = false;
+	clear_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
 
 	if (!atomic_read(&card->rx_data_urb_pending))
 		for (i = 0; i < MWIFIEX_RX_DATA_URB; i++)
@@ -1158,13 +1159,13 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	unsigned long flags;
 	int idx, ret;
 
-	if (adapter->is_suspended) {
+	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: not allowed while suspended\n", __func__);
 		return -1;
 	}
 
-	if (adapter->surprise_removed) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR, "%s: device removed\n", __func__);
 		return -1;
 	}
