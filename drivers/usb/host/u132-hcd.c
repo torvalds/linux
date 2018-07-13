@@ -3062,7 +3062,6 @@ static int u132_probe(struct platform_device *pdev)
 	int retval;
 	u32 control;
 	u32 rh_a = -1;
-	u32 num_ports;
 
 	msleep(100);
 	if (u132_exiting > 0)
@@ -3077,7 +3076,6 @@ static int u132_probe(struct platform_device *pdev)
 	retval = ftdi_read_pcimem(pdev, roothub.a, &rh_a);
 	if (retval)
 		return retval;
-	num_ports = rh_a & RH_A_NDP;	/* refuse to confuse usbcore */
 	if (pdev->dev.dma_mask)
 		return -EINVAL;
 
