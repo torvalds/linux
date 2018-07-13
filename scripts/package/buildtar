@@ -105,6 +105,14 @@ case "${ARCH}" in
 			cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 		fi
 		;;
+	arm64)
+		for i in Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo ; do
+			if [ -f "${objtree}/arch/arm64/boot/${i}" ] ; then
+				cp -v -- "${objtree}/arch/arm64/boot/${i}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+				break
+			fi
+		done
+		;;
 	*)
 		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
 		echo "" >&2
