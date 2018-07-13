@@ -69,11 +69,13 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
  *
  * Initializes a scheduler runqueue.
  */
-static void drm_sched_rq_init(struct drm_sched_rq *rq)
+static void drm_sched_rq_init(struct drm_gpu_scheduler *sched,
+			      struct drm_sched_rq *rq)
 {
 	spin_lock_init(&rq->lock);
 	INIT_LIST_HEAD(&rq->entities);
 	rq->current_entity = NULL;
+	rq->sched = sched;
 }
 
 /**
@@ -926,7 +928,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	sched->timeout = timeout;
 	sched->hang_limit = hang_limit;
 	for (i = DRM_SCHED_PRIORITY_MIN; i < DRM_SCHED_PRIORITY_MAX; i++)
-		drm_sched_rq_init(&sched->sched_rq[i]);
+		drm_sched_rq_init(sched, &sched->sched_rq[i]);
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);
