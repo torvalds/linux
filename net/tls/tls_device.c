@@ -52,9 +52,8 @@ static DEFINE_SPINLOCK(tls_device_lock);
 
 static void tls_device_free_ctx(struct tls_context *ctx)
 {
-	struct tls_offload_context *offload_ctx = tls_offload_ctx(ctx);
+	kfree(tls_offload_ctx_tx(ctx));
 
-	kfree(offload_ctx);
 	kfree(ctx);
 }
 
@@ -125,7 +124,7 @@ static void destroy_record(struct tls_record_info *record)
 	kfree(record);
 }
 
-static void delete_all_records(struct tls_offload_context *offload_ctx)
+static void delete_all_records(struct tls_offload_context_tx *offload_ctx)
 {
 	struct tls_record_info *info, *temp;
 
@@ -141,14 +140,14 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_record_info *info, *temp;
-	struct tls_offload_context *ctx;
+	struct tls_offload_context_tx *ctx;
 	u64 deleted_records = 0;
 	unsigned long flags;
 
 	if (!tls_ctx)
 		return;
 
-	ctx = tls_offload_ctx(tls_ctx);
+	ctx = tls_offload_ctx_tx(tls_ctx);
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	info = ctx->retransmit_hint;
@@ -179,7 +178,7 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
 void tls_device_sk_destruct(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_offload_context *ctx = tls_offload_ctx(tls_ctx);
+	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 
 	if (ctx->open_record)
 		destroy_record(ctx->open_record);
@@ -219,7 +218,7 @@ static void tls_append_frag(struct tls_record_info *record,
 
 static int tls_push_record(struct sock *sk,
 			   struct tls_context *ctx,
-			   struct tls_offload_context *offload_ctx,
+			   struct tls_offload_context_tx *offload_ctx,
 			   struct tls_record_info *record,
 			   struct page_frag *pfrag,
 			   int flags,
@@ -264,7 +263,7 @@ static int tls_push_record(struct sock *sk,
 	return tls_push_sg(sk, ctx, offload_ctx->sg_tx_data, 0, flags);
 }
 
-static int tls_create_new_record(struct tls_offload_context *offload_ctx,
+static int tls_create_new_record(struct tls_offload_context_tx *offload_ctx,
 				 struct page_frag *pfrag,
 				 size_t prepend_size)
 {
@@ -290,7 +289,7 @@ static int tls_create_new_record(struct tls_offload_context *offload_ctx,
 }
 
 static int tls_do_allocation(struct sock *sk,
-			     struct tls_offload_context *offload_ctx,
+			     struct tls_offload_context_tx *offload_ctx,
 			     struct page_frag *pfrag,
 			     size_t prepend_size)
 {
@@ -324,7 +323,7 @@ static int tls_push_data(struct sock *sk,
 			 unsigned char record_type)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_offload_context *ctx = tls_offload_ctx(tls_ctx);
+	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int tls_push_record_flags = flags | MSG_SENDPAGE_NOTLAST;
 	int more = flags & (MSG_SENDPAGE_NOTLAST | MSG_MORE);
 	struct tls_record_info *record = ctx->open_record;
@@ -477,7 +476,7 @@ out:
 	return rc;
 }
 
-struct tls_record_info *tls_get_record(struct tls_offload_context *context,
+struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				       u32 seq, u64 *p_record_sn)
 {
 	u64 record_sn = context->hint_record_sn;
@@ -524,7 +523,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
 	u16 nonce_size, tag_size, iv_size, rec_seq_size;
 	struct tls_record_info *start_marker_record;
-	struct tls_offload_context *offload_ctx;
+	struct tls_offload_context_tx *offload_ctx;
 	struct tls_crypto_info *crypto_info;
 	struct net_device *netdev;
 	char *iv, *rec_seq;
@@ -546,7 +545,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto out;
 	}
 
-	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE, GFP_KERNEL);
+	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
 	if (!offload_ctx) {
 		rc = -ENOMEM;
 		goto free_marker_record;

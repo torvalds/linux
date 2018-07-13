@@ -128,7 +128,7 @@ struct tls_record_info {
 	skb_frag_t frags[MAX_SKB_FRAGS];
 };
 
-struct tls_offload_context {
+struct tls_offload_context_tx {
 	struct crypto_aead *aead_send;
 	spinlock_t lock;	/* protects records list */
 	struct list_head records_list;
@@ -147,8 +147,8 @@ struct tls_offload_context {
 #define TLS_DRIVER_STATE_SIZE (max_t(size_t, 8, sizeof(void *)))
 };
 
-#define TLS_OFFLOAD_CONTEXT_SIZE                                               \
-	(ALIGN(sizeof(struct tls_offload_context), sizeof(void *)) +           \
+#define TLS_OFFLOAD_CONTEXT_SIZE_TX                                            \
+	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
 	 TLS_DRIVER_STATE_SIZE)
 
 enum {
@@ -239,7 +239,7 @@ void tls_device_sk_destruct(struct sock *sk);
 void tls_device_init(void);
 void tls_device_cleanup(void);
 
-struct tls_record_info *tls_get_record(struct tls_offload_context *context,
+struct tls_record_info *tls_get_record(struct tls_offload_context_tx *context,
 				       u32 seq, u64 *p_record_sn);
 
 static inline bool tls_record_is_start_marker(struct tls_record_info *rec)
@@ -380,10 +380,10 @@ static inline struct tls_sw_context_tx *tls_sw_ctx_tx(
 	return (struct tls_sw_context_tx *)tls_ctx->priv_ctx_tx;
 }
 
-static inline struct tls_offload_context *tls_offload_ctx(
-		const struct tls_context *tls_ctx)
+static inline struct tls_offload_context_tx *
+tls_offload_ctx_tx(const struct tls_context *tls_ctx)
 {
-	return (struct tls_offload_context *)tls_ctx->priv_ctx_tx;
+	return (struct tls_offload_context_tx *)tls_ctx->priv_ctx_tx;
 }
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
@@ -396,7 +396,7 @@ struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 				      struct sk_buff *skb);
 
 int tls_sw_fallback_init(struct sock *sk,
-			 struct tls_offload_context *offload_ctx,
+			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info);
 
 #endif /* _TLS_OFFLOAD_H */
