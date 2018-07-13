@@ -193,19 +193,13 @@ extern const ulong vmx_return;
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
 
-/* These MUST be in sync with vmentry_l1d_param order. */
-enum vmx_l1d_flush_state {
-	VMENTER_L1D_FLUSH_NEVER,
-	VMENTER_L1D_FLUSH_COND,
-	VMENTER_L1D_FLUSH_ALWAYS,
-};
-
 static enum vmx_l1d_flush_state __read_mostly vmentry_l1d_flush = VMENTER_L1D_FLUSH_COND;
 
 static const struct {
 	const char *option;
 	enum vmx_l1d_flush_state cmd;
 } vmentry_l1d_param[] = {
+	{"auto",	VMENTER_L1D_FLUSH_AUTO},
 	{"never",	VMENTER_L1D_FLUSH_NEVER},
 	{"cond",	VMENTER_L1D_FLUSH_COND},
 	{"always",	VMENTER_L1D_FLUSH_ALWAYS},
@@ -13235,8 +13229,12 @@ static int __init vmx_setup_l1d_flush(void)
 {
 	struct page *page;
 
+	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+		return 0;
+
+	l1tf_vmx_mitigation = vmentry_l1d_flush;
+
 	if (vmentry_l1d_flush == VMENTER_L1D_FLUSH_NEVER ||
-	    !boot_cpu_has_bug(X86_BUG_L1TF) ||
 	    vmx_l1d_use_msr_save_list())
 		return 0;
 
@@ -13251,12 +13249,14 @@ static int __init vmx_setup_l1d_flush(void)
 	return 0;
 }
 
-static void vmx_free_l1d_flush_pages(void)
+static void vmx_cleanup_l1d_flush(void)
 {
 	if (vmx_l1d_flush_pages) {
 		free_pages((unsigned long)vmx_l1d_flush_pages, L1D_CACHE_ORDER);
 		vmx_l1d_flush_pages = NULL;
 	}
+	/* Restore state so sysfs ignores VMX */
+	l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_AUTO;
 }
 
 static int __init vmx_init(void)
@@ -13299,7 +13299,7 @@ static int __init vmx_init(void)
 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
 		     __alignof__(struct vcpu_vmx), THIS_MODULE);
 	if (r) {
-		vmx_free_l1d_flush_pages();
+		vmx_cleanup_l1d_flush();
 		return r;
 	}
 
@@ -13343,7 +13343,7 @@ static void __exit vmx_exit(void)
 		static_branch_disable(&enable_evmcs);
 	}
 #endif
-	vmx_free_l1d_flush_pages();
+	vmx_cleanup_l1d_flush();
 }
 
 module_init(vmx_init)

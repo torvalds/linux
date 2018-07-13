@@ -22,6 +22,7 @@
 #include <asm/processor-flags.h>
 #include <asm/fpu/internal.h>
 #include <asm/msr.h>
+#include <asm/vmx.h>
 #include <asm/paravirt.h>
 #include <asm/alternative.h>
 #include <asm/pgtable.h>
@@ -657,6 +658,12 @@ void x86_spec_ctrl_setup_ap(void)
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"L1TF: " fmt
+
+#if IS_ENABLED(CONFIG_KVM_INTEL)
+enum vmx_l1d_flush_state l1tf_vmx_mitigation __ro_after_init = VMENTER_L1D_FLUSH_AUTO;
+EXPORT_SYMBOL_GPL(l1tf_vmx_mitigation);
+#endif
+
 static void __init l1tf_select_mitigation(void)
 {
 	u64 half_pa;
@@ -686,6 +693,32 @@ static void __init l1tf_select_mitigation(void)
 
 #ifdef CONFIG_SYSFS
 
+#define L1TF_DEFAULT_MSG "Mitigation: PTE Inversion"
+
+#if IS_ENABLED(CONFIG_KVM_INTEL)
+static const char *l1tf_vmx_states[] = {
+	[VMENTER_L1D_FLUSH_AUTO]	= "auto",
+	[VMENTER_L1D_FLUSH_NEVER]	= "vulnerable",
+	[VMENTER_L1D_FLUSH_COND]	= "conditional cache flushes",
+	[VMENTER_L1D_FLUSH_ALWAYS]	= "cache flushes",
+};
+
+static ssize_t l1tf_show_state(char *buf)
+{
+	if (l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_AUTO)
+		return sprintf(buf, "%s\n", L1TF_DEFAULT_MSG);
+
+	return sprintf(buf, "%s; VMX: SMT %s, L1D %s\n", L1TF_DEFAULT_MSG,
+		       cpu_smt_control == CPU_SMT_ENABLED ? "vulnerable" : "disabled",
+		       l1tf_vmx_states[l1tf_vmx_mitigation]);
+}
+#else
+static ssize_t l1tf_show_state(char *buf)
+{
+	return sprintf(buf, "%s\n", L1TF_DEFAULT_MSG);
+}
+#endif
+
 static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr,
 			       char *buf, unsigned int bug)
 {
@@ -713,9 +746,8 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 
 	case X86_BUG_L1TF:
 		if (boot_cpu_has(X86_FEATURE_L1TF_PTEINV))
-			return sprintf(buf, "Mitigation: Page Table Inversion\n");
+			return l1tf_show_state(buf);
 		break;
-
 	default:
 		break;
 	}
