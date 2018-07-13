@@ -333,6 +333,7 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 
 	if (race_fault()) {
 		ret = -EINTR;
+		trans_restart(" (race)");
 		goto out;
 	}
 
@@ -456,7 +457,12 @@ retry:
 	cycle_gc_lock = false;
 
 	trans_for_each_entry(trans, i) {
+		unsigned old_locks_want = i->iter->locks_want;
+		unsigned old_uptodate = i->iter->uptodate;
+
 		if (!bch2_btree_iter_upgrade(i->iter, 1, true)) {
+			trans_restart(" (failed upgrade, locks_want %u uptodate %u)",
+				      old_locks_want, old_uptodate);
 			ret = -EINTR;
 			goto err;
 		}
@@ -529,8 +535,10 @@ err:
 		 * don't care if we got ENOSPC because we told split it
 		 * couldn't block:
 		 */
-		if (!ret || (flags & BTREE_INSERT_NOUNLOCK))
+		if (!ret || (flags & BTREE_INSERT_NOUNLOCK)) {
+			trans_restart(" (split)");
 			ret = -EINTR;
+		}
 	}
 
 	if (cycle_gc_lock) {
@@ -545,13 +553,16 @@ err:
 	}
 
 	if (ret == -EINTR) {
-		if (flags & BTREE_INSERT_NOUNLOCK)
+		if (flags & BTREE_INSERT_NOUNLOCK) {
+			trans_restart(" (can't unlock)");
 			goto out;
+		}
 
 		trans_for_each_entry(trans, i) {
 			int ret2 = bch2_btree_iter_traverse(i->iter);
 			if (ret2) {
 				ret = ret2;
+				trans_restart(" (traverse)");
 				goto out;
 			}
 
@@ -564,6 +575,8 @@ err:
 		 */
 		if (!(flags & BTREE_INSERT_ATOMIC))
 			goto retry;
+
+		trans_restart(" (atomic)");
 	}
 
 	goto out;

@@ -269,6 +269,7 @@ struct btree_insert_entry {
 
 struct btree_trans {
 	struct bch_fs		*c;
+	size_t			nr_restarts;
 
 	u8			nr_iters;
 	u8			iters_live;

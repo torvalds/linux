@@ -263,6 +263,9 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 
 	if (ret)
 		__btree_node_lock_type(c, b, type);
+	else
+		trans_restart();
+
 	return ret;
 }
 
@@ -1646,7 +1649,12 @@ static int btree_trans_realloc_iters(struct btree_trans *trans)
 
 	btree_trans_verify(trans);
 
-	return trans->iters_live ? -EINTR : 0;
+	if (trans->iters_live) {
+		trans_restart();
+		return -EINTR;
+	}
+
+	return 0;
 }
 
 int bch2_trans_preload_iters(struct btree_trans *trans)
@@ -1759,8 +1767,10 @@ void *bch2_trans_kmalloc(struct btree_trans *trans,
 		trans->mem = new_mem;
 		trans->mem_bytes = new_bytes;
 
-		if (old_bytes)
+		if (old_bytes) {
+			trans_restart();
 			return ERR_PTR(-EINTR);
+		}
 	}
 
 	ret = trans->mem + trans->mem_top;
@@ -1787,7 +1797,7 @@ int bch2_trans_unlock(struct btree_trans *trans)
 	return ret;
 }
 
-void bch2_trans_begin(struct btree_trans *trans)
+void __bch2_trans_begin(struct btree_trans *trans)
 {
 	unsigned idx;
 
@@ -1801,10 +1811,8 @@ void bch2_trans_begin(struct btree_trans *trans)
 	 * further (allocated an iter with a higher idx) than where the iter
 	 * was originally allocated:
 	 */
-	if (!trans->iters_live)
-		return;
-
 	while (trans->iters_linked &&
+	       trans->iters_live &&
 	       (idx = __fls(trans->iters_linked)) >
 	       __fls(trans->iters_live)) {
 		trans->iters_linked ^= 1 << idx;
@@ -1821,6 +1829,7 @@ void bch2_trans_begin(struct btree_trans *trans)
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c)
 {
 	trans->c		= c;
+	trans->nr_restarts	= 0;
 	trans->nr_iters		= 0;
 	trans->iters_live	= 0;
 	trans->iters_linked	= 0;
