@@ -33,7 +33,7 @@ static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
 	struct amdgpu_job *job = to_amdgpu_job(s_job);
 
-	DRM_ERROR("ring %s timeout, last signaled seq=%u, last emitted seq=%u\n",
+	DRM_ERROR("ring %s timeout, signaled seq=%u, emitted seq=%u\n",
 		  job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
 		  ring->fence_drv.sync_seq);
 
@@ -166,16 +166,17 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->sched);
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
+	struct dma_fence *fence;
 	bool explicit = false;
 	int r;
-	struct dma_fence *fence = amdgpu_sync_get_fence(&job->sync, &explicit);
 
+	fence = amdgpu_sync_get_fence(&job->sync, &explicit);
 	if (fence && explicit) {
 		if (drm_sched_dependency_optimized(fence, s_entity)) {
 			r = amdgpu_sync_fence(ring->adev, &job->sched_sync,
 					      fence, false);
 			if (r)
-				DRM_ERROR("Error adding fence to sync (%d)\n", r);
+				DRM_ERROR("Error adding fence (%d)\n", r);
 		}
 	}
 
@@ -199,10 +200,6 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 	struct amdgpu_job *job;
 	int r;
 
-	if (!sched_job) {
-		DRM_ERROR("job is null\n");
-		return NULL;
-	}
 	job = to_amdgpu_job(sched_job);
 	finished = &job->base.s_fence->finished;
 
