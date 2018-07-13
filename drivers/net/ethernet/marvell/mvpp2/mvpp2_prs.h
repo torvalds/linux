@@ -9,13 +9,14 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
-
-#include "mvpp2.h"
-
 #ifndef _MVPP2_PRS_H_
 #define _MVPP2_PRS_H_
+
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/platform_device.h>
+
+#include "mvpp2.h"
 
 /* Parser constants */
 #define MVPP2_PRS_TCAM_SRAM_SIZE	256
@@ -223,6 +224,10 @@
 #define MVPP2_PRS_RI_UDF7_IP6_LITE		BIT(29)
 #define MVPP2_PRS_RI_DROP_MASK			0x80000000
 
+#define MVPP2_PRS_IP_MASK			(MVPP2_PRS_RI_L3_PROTO_MASK | \
+						MVPP2_PRS_RI_IP_FRAG_MASK | \
+						MVPP2_PRS_RI_L4_PROTO_MASK)
+
 /* Sram additional info bits assignment */
 #define MVPP2_PRS_IPV4_DIP_AI_BIT		BIT(0)
 #define MVPP2_PRS_IPV6_NO_EXT_AI_BIT		BIT(0)
@@ -270,6 +275,11 @@ struct mvpp2_prs_entry {
 	u32 sram[MVPP2_PRS_SRAM_WORDS];
 };
 
+struct mvpp2_prs_result_info {
+	u32 ri;
+	u32 ri_mask;
+};
+
 struct mvpp2_prs_shadow {
 	bool valid;
 	bool finish;
@@ -290,6 +300,8 @@ int mvpp2_prs_default_init(struct platform_device *pdev, struct mvpp2 *priv);
 int mvpp2_prs_mac_da_accept(struct mvpp2_port *port, const u8 *da, bool add);
 
 int mvpp2_prs_tag_mode_set(struct mvpp2 *priv, int port, int type);
+
+int mvpp2_prs_add_flow(struct mvpp2 *priv, int flow, u32 ri, u32 ri_mask);
 
 int mvpp2_prs_def_flow(struct mvpp2_port *port);
 

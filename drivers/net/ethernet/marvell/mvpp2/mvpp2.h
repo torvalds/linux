@@ -73,9 +73,9 @@
 #define     MVPP22_RSS_INDEX_TABLE_ENTRY(idx)	(idx)
 #define     MVPP22_RSS_INDEX_TABLE(idx)		((idx) << 8)
 #define     MVPP22_RSS_INDEX_QUEUE(idx)		((idx) << 16)
-#define MVPP22_RSS_TABLE_ENTRY			0x1508
-#define MVPP22_RSS_TABLE			0x1510
+#define MVPP22_RXQ2RSS_TABLE			0x1504
 #define     MVPP22_RSS_TABLE_POINTER(p)		(p)
+#define MVPP22_RSS_TABLE_ENTRY			0x1508
 #define MVPP22_RSS_WIDTH			0x150c
 
 /* Classifier Registers */
@@ -87,17 +87,57 @@
 #define     MVPP2_CLS_LKP_INDEX_WAY_OFFS	6
 #define MVPP2_CLS_LKP_TBL_REG			0x1818
 #define     MVPP2_CLS_LKP_TBL_RXQ_MASK		0xff
+#define     MVPP2_CLS_LKP_FLOW_PTR(flow)	((flow) << 16)
 #define     MVPP2_CLS_LKP_TBL_LOOKUP_EN_MASK	BIT(25)
 #define MVPP2_CLS_FLOW_INDEX_REG		0x1820
 #define MVPP2_CLS_FLOW_TBL0_REG			0x1824
+#define     MVPP2_CLS_FLOW_TBL0_LAST		BIT(0)
+#define     MVPP2_CLS_FLOW_TBL0_ENG_MASK	0x7
+#define     MVPP2_CLS_FLOW_TBL0_OFFS		1
+#define     MVPP2_CLS_FLOW_TBL0_ENG(x)		((x) << 1)
+#define     MVPP2_CLS_FLOW_TBL0_PORT_ID_MASK	0xff
+#define     MVPP2_CLS_FLOW_TBL0_PORT_ID(port)	((port) << 4)
+#define     MVPP2_CLS_FLOW_TBL0_PORT_ID_SEL	BIT(23)
 #define MVPP2_CLS_FLOW_TBL1_REG			0x1828
+#define     MVPP2_CLS_FLOW_TBL1_N_FIELDS_MASK	0x7
+#define     MVPP2_CLS_FLOW_TBL1_N_FIELDS(x)	(x)
+#define     MVPP2_CLS_FLOW_TBL1_PRIO_MASK	0x3f
+#define     MVPP2_CLS_FLOW_TBL1_PRIO(x)		((x) << 9)
+#define     MVPP2_CLS_FLOW_TBL1_SEQ_MASK	0x7
+#define     MVPP2_CLS_FLOW_TBL1_SEQ(x)		((x) << 15)
 #define MVPP2_CLS_FLOW_TBL2_REG			0x182c
+#define     MVPP2_CLS_FLOW_TBL2_FLD_MASK	0x3f
+#define     MVPP2_CLS_FLOW_TBL2_FLD_OFFS(n)	((n) * 6)
+#define     MVPP2_CLS_FLOW_TBL2_FLD(n, x)	((x) << ((n) * 6))
 #define MVPP2_CLS_OVERSIZE_RXQ_LOW_REG(port)	(0x1980 + ((port) * 4))
 #define     MVPP2_CLS_OVERSIZE_RXQ_LOW_BITS	3
 #define     MVPP2_CLS_OVERSIZE_RXQ_LOW_MASK	0x7
 #define MVPP2_CLS_SWFWD_P2HQ_REG(port)		(0x19b0 + ((port) * 4))
 #define MVPP2_CLS_SWFWD_PCTRL_REG		0x19d0
 #define     MVPP2_CLS_SWFWD_PCTRL_MASK(port)	(1 << (port))
+
+/* Classifier C2 engine Registers */
+#define MVPP22_CLS_C2_TCAM_IDX			0x1b00
+#define MVPP22_CLS_C2_TCAM_DATA0		0x1b10
+#define MVPP22_CLS_C2_TCAM_DATA1		0x1b14
+#define MVPP22_CLS_C2_TCAM_DATA2		0x1b18
+#define MVPP22_CLS_C2_TCAM_DATA3		0x1b1c
+#define MVPP22_CLS_C2_TCAM_DATA4		0x1b20
+#define     MVPP22_CLS_C2_PORT_ID(port)		((port) << 8)
+#define MVPP22_CLS_C2_ACT			0x1b60
+#define     MVPP22_CLS_C2_ACT_RSS_EN(act)	(((act) & 0x3) << 19)
+#define     MVPP22_CLS_C2_ACT_FWD(act)		(((act) & 0x7) << 13)
+#define     MVPP22_CLS_C2_ACT_QHIGH(act)	(((act) & 0x3) << 11)
+#define     MVPP22_CLS_C2_ACT_QLOW(act)		(((act) & 0x3) << 9)
+#define MVPP22_CLS_C2_ATTR0			0x1b64
+#define     MVPP22_CLS_C2_ATTR0_QHIGH(qh)	(((qh) & 0x1f) << 24)
+#define     MVPP22_CLS_C2_ATTR0_QHIGH_MASK	0x1f
+#define     MVPP22_CLS_C2_ATTR0_QLOW(ql)	(((ql) & 0x7) << 21)
+#define     MVPP22_CLS_C2_ATTR0_QLOW_MASK	0x7
+#define MVPP22_CLS_C2_ATTR1			0x1b68
+#define MVPP22_CLS_C2_ATTR2			0x1b6c
+#define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)
+#define MVPP22_CLS_C2_ATTR3			0x1b70
 
 /* Descriptor Manager Top Registers */
 #define MVPP2_RXQ_NUM_REG			0x2040
@@ -500,7 +540,7 @@
 #define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
 
 /* Dfault number of RXQs in use */
-#define MVPP2_DEFAULT_RXQ		4
+#define MVPP2_DEFAULT_RXQ		1
 
 /* Max number of Rx descriptors */
 #define MVPP2_MAX_RXD_MAX		1024
@@ -556,6 +596,9 @@
 #define MVPP2_BIT_TO_BYTE(bit)		((bit) / 8)
 #define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
 #define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
+
+/* RSS constants */
+#define MVPP22_RSS_TABLE_ENTRIES	32
 
 /* IPv6 max L3 address size */
 #define MVPP2_MAX_L3_ADDR_SIZE		16
@@ -798,6 +841,9 @@ struct mvpp2_port {
 	bool has_tx_irqs;
 
 	u32 tx_time_coal;
+
+	/* RSS indirection table */
+	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the
