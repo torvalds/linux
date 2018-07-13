@@ -3012,13 +3012,6 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 			  bp->hwrm_cmd_resp_dma_addr);
 
 	bp->hwrm_cmd_resp_addr = NULL;
-	if (bp->hwrm_dbg_resp_addr) {
-		dma_free_coherent(&pdev->dev, HWRM_DBG_REG_BUF_SIZE,
-				  bp->hwrm_dbg_resp_addr,
-				  bp->hwrm_dbg_resp_dma_addr);
-
-		bp->hwrm_dbg_resp_addr = NULL;
-	}
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -3030,12 +3023,6 @@ static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
 						   GFP_KERNEL);
 	if (!bp->hwrm_cmd_resp_addr)
 		return -ENOMEM;
-	bp->hwrm_dbg_resp_addr = dma_alloc_coherent(&pdev->dev,
-						    HWRM_DBG_REG_BUF_SIZE,
-						    &bp->hwrm_dbg_resp_dma_addr,
-						    GFP_KERNEL);
-	if (!bp->hwrm_dbg_resp_addr)
-		netdev_warn(bp->dev, "fail to alloc debug register dma mem\n");
 
 	return 0;
 }

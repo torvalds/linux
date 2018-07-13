@@ -1287,9 +1287,6 @@ struct bnxt {
 	dma_addr_t		hwrm_short_cmd_req_dma_addr;
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
-	void			*hwrm_dbg_resp_addr;
-	dma_addr_t		hwrm_dbg_resp_dma_addr;
-#define HWRM_DBG_REG_BUF_SIZE	128
 
 	struct rx_port_stats	*hw_rx_port_stats;
 	struct tx_port_stats	*hw_tx_port_stats;
