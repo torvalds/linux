@@ -989,16 +989,18 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
-		struct intel_engine_execlists *execlists = &engine->execlists;
+		struct tasklet_struct *t = &engine->execlists.tasklet;
 
 		local_bh_disable();
-		if (tasklet_trylock(&execlists->tasklet)) {
-			execlists->tasklet.func(execlists->tasklet.data);
-			tasklet_unlock(&execlists->tasklet);
+		if (tasklet_trylock(t)) {
+			/* Must wait for any GPU reset in progress. */
+			if (__tasklet_is_enabled(t))
+				t->func(t->data);
+			tasklet_unlock(t);
 		}
 		local_bh_enable();
 
-		if (READ_ONCE(execlists->active))
+		if (READ_ONCE(engine->execlists.active))
 			return false;
 	}
 
