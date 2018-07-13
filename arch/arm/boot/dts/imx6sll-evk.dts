@@ -74,7 +74,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_lcd>;
 		regulator-name = "lcd-pwr";
-		gpio = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -289,7 +289,7 @@
 
 	pinctrl_reg_lcd: reglcdgrp {
 		fsl,pins = <
-			MX6SLL_PAD_ECSPI1_SCLK__GPIO4_IO08 0x17059
+			MX6SLL_PAD_KEY_ROW5__GPIO4_IO03 0x17059
 		>;
 	};
 
