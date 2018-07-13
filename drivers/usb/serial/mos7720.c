@@ -1527,8 +1527,6 @@ static void change_port_settings(struct tty_struct *tty,
 	struct usb_serial *serial;
 	int baud;
 	unsigned cflag;
-	unsigned iflag;
-	__u8 mask = 0xff;
 	__u8 lData;
 	__u8 lParity;
 	__u8 lStop;
@@ -1552,23 +1550,19 @@ static void change_port_settings(struct tty_struct *tty,
 	lParity = 0x00;	/* No parity */
 
 	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
 	switch (cflag & CSIZE) {
 	case CS5:
 		lData = UART_LCR_WLEN5;
-		mask = 0x1f;
 		break;
 
 	case CS6:
 		lData = UART_LCR_WLEN6;
-		mask = 0x3f;
 		break;
 
 	case CS7:
 		lData = UART_LCR_WLEN7;
-		mask = 0x7f;
 		break;
 	default:
 	case CS8:
@@ -1686,10 +1680,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	int status;
-	struct usb_serial *serial;
 	struct moschip_port *mos7720_port;
-
-	serial = port->serial;
 
 	mos7720_port = usb_get_serial_port_data(port);
 
