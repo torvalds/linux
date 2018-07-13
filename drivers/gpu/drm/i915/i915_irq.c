@@ -263,9 +263,9 @@ static u32
 gen11_gt_engine_identity(struct drm_i915_private * const i915,
 			 const unsigned int bank, const unsigned int bit);
 
-bool gen11_reset_one_iir(struct drm_i915_private * const i915,
-			 const unsigned int bank,
-			 const unsigned int bit)
+static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
+				const unsigned int bank,
+				const unsigned int bit)
 {
 	void __iomem * const regs = i915->regs;
 	u32 dw;
