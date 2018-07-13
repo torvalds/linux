@@ -330,8 +330,12 @@ static int tls_update_resync_sn(struct net_device *netdev,
 						netdev->ifindex, 0);
 #endif
 	}
-	if (!sk || sk->sk_state == TCP_TIME_WAIT)
+	if (!sk || sk->sk_state == TCP_TIME_WAIT) {
+		struct mlx5e_priv *priv = netdev_priv(netdev);
+
+		atomic64_inc(&priv->tls->sw_stats.rx_tls_drop_resync_request);
 		goto out;
+	}
 
 	skb->sk = sk;
 	skb->destructor = sock_edemux;
@@ -349,6 +353,7 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 	struct ethhdr *old_eth;
 	struct ethhdr *new_eth;
 	__be16 *ethtype;
+	struct mlx5e_priv *priv;
 
 	/* Detect inline metadata */
 	if (skb->len < ETH_HLEN + MLX5E_METADATA_ETHER_LEN)
@@ -365,9 +370,13 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 		break;
 	case SYNDROM_RESYNC_REQUEST:
 		tls_update_resync_sn(netdev, skb, mdata);
+		priv = netdev_priv(netdev);
+		atomic64_inc(&priv->tls->sw_stats.rx_tls_resync_request);
 		break;
 	case SYNDROM_AUTH_FAILED:
 		/* Authentication failure will be observed and verified by kTLS */
+		priv = netdev_priv(netdev);
+		atomic64_inc(&priv->tls->sw_stats.rx_tls_auth_fail);
 		break;
 	default:
 		/* Bypass the metadata header to others */

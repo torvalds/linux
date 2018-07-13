@@ -169,7 +169,10 @@ static void mlx5e_tls_resync_rx(struct net_device *netdev, struct sock *sk,
 
 	rx_ctx = mlx5e_get_tls_rx_context(tls_ctx);
 
+	netdev_info(netdev, "resyncing seq %d rcd %lld\n", seq,
+		    be64_to_cpu(rcd_sn));
 	mlx5_accel_tls_resync_rx(priv->mdev, rx_ctx->handle, seq, rcd_sn);
+	atomic64_inc(&priv->tls->sw_stats.rx_tls_resync_reply);
 }
 
 static const struct tlsdev_ops mlx5e_tls_ops = {
