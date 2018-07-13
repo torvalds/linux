@@ -17,9 +17,6 @@ struct gasket_sysfs_mapping {
 	 */
 	struct device *device;
 
-	/* Legacy device struct, if used by this mapping's driver. */
-	struct device *legacy_device;
-
 	/* The Gasket descriptor for this device. */
 	struct gasket_dev *gasket_dev;
 
@@ -75,8 +72,7 @@ static struct gasket_sysfs_mapping *get_mapping(struct device *device)
 
 	for (i = 0; i < GASKET_SYSFS_NUM_MAPPINGS; i++) {
 		mutex_lock(&dev_mappings[i].mutex);
-		if (dev_mappings[i].device == device ||
-		    dev_mappings[i].legacy_device == device) {
+		if (dev_mappings[i].device == device) {
 			kref_get(&dev_mappings[i].refcount);
 			mutex_unlock(&dev_mappings[i].mutex);
 			return &dev_mappings[i];
@@ -105,7 +101,6 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	int num_files_to_remove = 0;
 	struct device_attribute *files_to_remove;
 	struct device *device;
-	struct device *legacy_device;
 
 	if (!mapping) {
 		gasket_nodev_info("Mapping should not be NULL.");
@@ -126,7 +121,6 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 		 * sysfs nodes are removed outside the lock.
 		 */
 		device = mapping->device;
-		legacy_device = mapping->legacy_device;
 		num_files_to_remove = mapping->attribute_count;
 		files_to_remove = kcalloc(num_files_to_remove,
 					  sizeof(*files_to_remove),
@@ -143,12 +137,8 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	mutex_unlock(&mapping->mutex);
 
 	if (num_files_to_remove != 0) {
-		for (i = 0; i < num_files_to_remove; ++i) {
+		for (i = 0; i < num_files_to_remove; ++i)
 			device_remove_file(device, &files_to_remove[i]);
-			if (legacy_device)
-				device_remove_file(
-					legacy_device, &files_to_remove[i]);
-		}
 		kfree(files_to_remove);
 	}
 }
@@ -280,21 +270,6 @@ int gasket_sysfs_create_entries(
 			mutex_unlock(&mapping->mutex);
 			put_mapping(mapping);
 			return ret;
-		}
-
-		if (mapping->legacy_device) {
-			ret = device_create_file(mapping->legacy_device,
-						 &attrs[i].attr);
-			if (ret) {
-				gasket_log_error(
-					mapping->gasket_dev,
-					"Unable to create legacy sysfs entries;"
-					" rc: %d",
-					ret);
-				mutex_unlock(&mapping->mutex);
-				put_mapping(mapping);
-				return ret;
-			}
 		}
 
 		mapping->attributes[mapping->attribute_count] = attrs[i];
