@@ -800,8 +800,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 		goto err;
 
 	if (pdata->parts)
-		ret = mtd_device_parse_register(mtd, NULL, NULL,
-					pdata->parts, pdata->nr_parts);
+		ret = mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
 	else
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret < 0)

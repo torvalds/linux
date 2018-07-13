@@ -802,8 +802,8 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 
 		mtdinfo->name = set->name;
 
-		return mtd_device_parse_register(mtdinfo, NULL, NULL,
-					 set->partitions, set->nr_partitions);
+		return mtd_device_register(mtdinfo, set->partitions,
+					   set->nr_partitions);
 	}
 
 	return -ENODEV;

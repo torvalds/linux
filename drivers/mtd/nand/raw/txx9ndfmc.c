@@ -366,7 +366,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		}
 		mtd->name = txx9_priv->mtdname;
 
-		mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
+		mtd_device_register(mtd, NULL, 0);
 		drvdata->mtds[i] = mtd;
 	}
 
