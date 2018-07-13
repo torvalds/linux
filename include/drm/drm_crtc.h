@@ -746,6 +746,22 @@ struct drm_crtc_funcs {
 	 */
 	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
 			      size_t *values_cnt);
+	/**
+	 * @verify_crc_source:
+	 *
+	 * verifies the source of CRC checksums of frames before setting the
+	 * source for CRC and during crc open. Source parameter can be NULL
+	 * while disabling crc source.
+	 *
+	 * This callback is optional if the driver does not support any CRC
+	 * generation functionality.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
+	int (*verify_crc_source)(struct drm_crtc *crtc, const char *source,
+				 size_t *values_cnt);
 
 	/**
 	 * @atomic_print_state:
