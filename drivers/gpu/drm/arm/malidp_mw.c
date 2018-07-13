@@ -73,7 +73,7 @@ static void malidp_mw_connector_reset(struct drm_connector *connector)
 static enum drm_connector_status
 malidp_mw_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_disconnected;
+	return connector_status_connected;
 }
 
 static void malidp_mw_connector_destroy(struct drm_connector *connector)
