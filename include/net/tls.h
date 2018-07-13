@@ -390,6 +390,8 @@ int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
 void tls_register_device(struct tls_device *device);
 void tls_unregister_device(struct tls_device *device);
+int decrypt_skb(struct sock *sk, struct sk_buff *skb,
+		struct scatterlist *sgout);
 
 struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 				      struct net_device *dev,
