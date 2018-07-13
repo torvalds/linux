@@ -196,7 +196,8 @@ extern const ulong vmx_return;
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
 
-static enum vmx_l1d_flush_state __read_mostly vmentry_l1d_flush = VMENTER_L1D_FLUSH_COND;
+/* Storage for pre module init parameter parsing */
+static enum vmx_l1d_flush_state __read_mostly vmentry_l1d_flush_param = VMENTER_L1D_FLUSH_AUTO;
 
 static const struct {
 	const char *option;
@@ -208,33 +209,85 @@ static const struct {
 	{"always",	VMENTER_L1D_FLUSH_ALWAYS},
 };
 
-static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
+#define L1D_CACHE_ORDER 4
+static void *vmx_l1d_flush_pages;
+
+static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
+{
+	struct page *page;
+
+	/* If set to 'auto' select 'cond' */
+	if (l1tf == VMENTER_L1D_FLUSH_AUTO)
+		l1tf = VMENTER_L1D_FLUSH_COND;
+
+	if (!enable_ept) {
+		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_EPT_DISABLED;
+		return 0;
+	}
+
+	if (l1tf != VMENTER_L1D_FLUSH_NEVER && !vmx_l1d_flush_pages &&
+	    !boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
+		page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
+		if (!page)
+			return -ENOMEM;
+		vmx_l1d_flush_pages = page_address(page);
+	}
+
+	l1tf_vmx_mitigation = l1tf;
+
+	if (l1tf != VMENTER_L1D_FLUSH_NEVER)
+		static_branch_enable(&vmx_l1d_should_flush);
+	return 0;
+}
+
+static int vmentry_l1d_flush_parse(const char *s)
 {
 	unsigned int i;
 
-	if (!s)
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(vmentry_l1d_param); i++) {
-		if (!strcmp(s, vmentry_l1d_param[i].option)) {
-			vmentry_l1d_flush = vmentry_l1d_param[i].cmd;
-			return 0;
+	if (s) {
+		for (i = 0; i < ARRAY_SIZE(vmentry_l1d_param); i++) {
+			if (!strcmp(s, vmentry_l1d_param[i].option))
+				return vmentry_l1d_param[i].cmd;
 		}
 	}
-
 	return -EINVAL;
+}
+
+static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
+{
+	int l1tf;
+
+	if (!boot_cpu_has(X86_BUG_L1TF))
+		return 0;
+
+	l1tf = vmentry_l1d_flush_parse(s);
+	if (l1tf < 0)
+		return l1tf;
+
+	/*
+	 * Has vmx_init() run already? If not then this is the pre init
+	 * parameter parsing. In that case just store the value and let
+	 * vmx_init() do the proper setup after enable_ept has been
+	 * established.
+	 */
+	if (l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_AUTO) {
+		vmentry_l1d_flush_param = l1tf;
+		return 0;
+	}
+
+	return vmx_setup_l1d_flush(l1tf);
 }
 
 static int vmentry_l1d_flush_get(char *s, const struct kernel_param *kp)
 {
-	return sprintf(s, "%s\n", vmentry_l1d_param[vmentry_l1d_flush].option);
+	return sprintf(s, "%s\n", vmentry_l1d_param[l1tf_vmx_mitigation].option);
 }
 
 static const struct kernel_param_ops vmentry_l1d_flush_ops = {
 	.set = vmentry_l1d_flush_set,
 	.get = vmentry_l1d_flush_get,
 };
-module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, &vmentry_l1d_flush, S_IRUGO);
+module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, NULL, S_IRUGO);
 
 #define NR_AUTOLOAD_MSRS 8
 
@@ -9083,7 +9136,7 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 	 * it. The flush bit gets set again either from vcpu_run() or from
 	 * one of the unsafe VMEXIT handlers.
 	 */
-	always = vmentry_l1d_flush == VMENTER_L1D_FLUSH_ALWAYS;
+	always = l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_ALWAYS;
 	vcpu->arch.l1tf_flush_l1d = always;
 
 	vcpu->stat.l1d_flush++;
@@ -12495,34 +12548,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.setup_mce = vmx_setup_mce,
 };
 
-static int __init vmx_setup_l1d_flush(void)
-{
-	struct page *page;
-
-	if (!boot_cpu_has_bug(X86_BUG_L1TF))
-		return 0;
-
-	if (!enable_ept) {
-		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_EPT_DISABLED;
-		return 0;
-	}
-
-	l1tf_vmx_mitigation = vmentry_l1d_flush;
-
-	if (vmentry_l1d_flush == VMENTER_L1D_FLUSH_NEVER)
-		return 0;
-
-	if (!boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
-		page = alloc_pages(GFP_KERNEL, L1D_CACHE_ORDER);
-		if (!page)
-			return -ENOMEM;
-		vmx_l1d_flush_pages = page_address(page);
-	}
-
-	static_branch_enable(&vmx_l1d_should_flush);
-	return 0;
-}
-
 static void vmx_cleanup_l1d_flush(void)
 {
 	if (vmx_l1d_flush_pages) {
@@ -12557,12 +12582,18 @@ static int __init vmx_init(void)
 		return r;
 
 	/*
-	 * Must be called after kvm_init() so enable_ept is properly set up
+	 * Must be called after kvm_init() so enable_ept is properly set
+	 * up. Hand the parameter mitigation value in which was stored in
+	 * the pre module init parser. If no parameter was given, it will
+	 * contain 'auto' which will be turned into the default 'cond'
+	 * mitigation mode.
 	 */
-	r = vmx_setup_l1d_flush();
-	if (r) {
-		vmx_exit();
-		return r;
+	if (boot_cpu_has(X86_BUG_L1TF)) {
+		r = vmx_setup_l1d_flush(vmentry_l1d_flush_param);
+		if (r) {
+			vmx_exit();
+			return r;
+		}
 	}
 
 #ifdef CONFIG_KEXEC_CORE
