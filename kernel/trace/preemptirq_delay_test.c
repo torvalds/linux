@@ -34,7 +34,7 @@ static void busy_wait(ulong time)
 	} while (ktime_to_ns(ktime_sub(end, start)) < (time * 1000));
 }
 
-int preemptirq_delay_run(void *data)
+static int preemptirq_delay_run(void *data)
 {
 	unsigned long flags;
 
