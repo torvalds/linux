@@ -19,12 +19,12 @@ enum SwChnlCmdID {
 
 /* -----------------------Define structure---------------------- */
 /* 1. Switch channel related */
-typedef struct _SwChnlCmd {
+struct SwChnlCmd {
 	enum SwChnlCmdID	CmdID;
 	u32		        Para1;
 	u32		        Para2;
 	u32		        msDelay;
-} __packed SwChnlCmd;
+} __packed;
 
 extern u32 rtl819XMACPHY_Array_PG[];
 extern u32 rtl819XPHY_REG_1T2RArray[];
