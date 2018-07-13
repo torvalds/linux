@@ -124,7 +124,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 				dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
 					 prop);
 				ret = -EINVAL;
-				goto err_dispose;
+				goto err_unprepare;
 			}
 		}
 		port->flags |= UPF_IOREMAP;
