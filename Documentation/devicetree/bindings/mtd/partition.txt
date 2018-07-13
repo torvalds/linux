@@ -14,6 +14,13 @@ method is used for a given flash device. To describe the method there should be
 a subnode of the flash device that is named 'partitions'. It must have a
 'compatible' property, which is used to identify the method to use.
 
+When a single partition is represented with a DT node (it depends on a used
+format) it may also be described using above rules ('compatible' and optionally
+some extra properties / subnodes). It allows describing more complex,
+hierarchical (multi-level) layouts and should be used if there is some
+significant relation between partitions or some partition internally uses
+another partitioning method.
+
 Available bindings are listed in the "partitions" subdirectory.
 
 
@@ -106,6 +113,45 @@ flash@2 {
 		partition@200000000 {
 			label = "filesystem #2";
 			reg = <0x2 0x00000000 0x1 0x00000000>;
+		};
+	};
+};
+
+flash@3 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x000000 0x100000>;
+			read-only;
+		};
+
+		firmware@100000 {
+			label = "firmware";
+			reg = <0x100000 0xe00000>;
+			compatible = "brcm,trx";
+		};
+
+		calibration@f00000 {
+			label = "calibration";
+			reg = <0xf00000 0x100000>;
+			compatible = "fixed-partitions";
+			ranges = <0 0xf00000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "wifi0";
+				reg = <0x000000 0x080000>;
+			};
+
+			partition@80000 {
+				label = "wifi1";
+				reg = <0x080000 0x080000>;
+			};
 		};
 	};
 };
