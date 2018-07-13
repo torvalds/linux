@@ -7,7 +7,7 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-typedef enum _SwChnlCmdID {
+enum SwChnlCmdID {
 	CmdID_End,
 	CmdID_SetTxPowerLevel,
 	CmdID_BBRegWrite10,
@@ -15,15 +15,15 @@ typedef enum _SwChnlCmdID {
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
 	CmdID_RF_WriteReg,
-} SwChnlCmdID;
+};
 
 /* -----------------------Define structure---------------------- */
 /* 1. Switch channel related */
 typedef struct _SwChnlCmd {
-	SwChnlCmdID	CmdID;
-	u32		Para1;
-	u32		Para2;
-	u32		msDelay;
+	enum SwChnlCmdID	CmdID;
+	u32		        Para1;
+	u32		        Para2;
+	u32		        msDelay;
 } __packed SwChnlCmd;
 
 extern u32 rtl819XMACPHY_Array_PG[];
