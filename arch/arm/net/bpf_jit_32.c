@@ -599,15 +599,25 @@ static inline void emit_a32_mov_i(const s8 dst, const u32 val,
 	}
 }
 
+static void emit_a32_mov_i64(const s8 dst[], u64 val, struct jit_ctx *ctx)
+{
+	const s8 *tmp = bpf2a32[TMP_REG_1];
+	const s8 *rd = is_stacked(dst_lo) ? tmp : dst;
+
+	emit_mov_i(rd[1], (u32)val, ctx);
+	emit_mov_i(rd[0], val >> 32, ctx);
+
+	arm_bpf_put_reg64(dst, rd, ctx);
+}
+
 /* Sign extended move */
-static inline void emit_a32_mov_i64(const bool is64, const s8 dst[],
-				  const u32 val, struct jit_ctx *ctx) {
-	u32 hi = 0;
+static inline void emit_a32_mov_se_i64(const bool is64, const s8 dst[],
+				       const u32 val, struct jit_ctx *ctx) {
+	u64 val64 = val;
 
 	if (is64 && (val & (1<<31)))
-		hi = (u32)~0;
-	emit_a32_mov_i(dst_lo, val, ctx);
-	emit_a32_mov_i(dst_hi, hi, ctx);
+		val64 |= 0xffffffff00000000ULL;
+	emit_a32_mov_i64(dst, val64, ctx);
 }
 
 static inline void emit_a32_add_r(const u8 dst, const u8 src,
@@ -706,11 +716,30 @@ static inline void emit_a32_alu_r(const s8 dst, const s8 src,
 static inline void emit_a32_alu_r64(const bool is64, const s8 dst[],
 				  const s8 src[], struct jit_ctx *ctx,
 				  const u8 op) {
-	emit_a32_alu_r(dst_lo, src_lo, ctx, is64, false, op);
-	if (is64)
-		emit_a32_alu_r(dst_hi, src_hi, ctx, is64, true, op);
-	else
-		emit_a32_mov_i(dst_hi, 0, ctx);
+	const s8 *tmp = bpf2a32[TMP_REG_1];
+	const s8 *tmp2 = bpf2a32[TMP_REG_2];
+	const s8 *rd;
+
+	rd = arm_bpf_get_reg64(dst, tmp, ctx);
+	if (is64) {
+		const s8 *rs;
+
+		rs = arm_bpf_get_reg64(src, tmp2, ctx);
+
+		/* ALU operation */
+		emit_alu_r(rd[1], rs[1], true, false, op, ctx);
+		emit_alu_r(rd[0], rs[0], true, true, op, ctx);
+	} else {
+		s8 rs;
+
+		rs = arm_bpf_get_reg32(src_lo, tmp2[1], ctx);
+
+		/* ALU operation */
+		emit_alu_r(rd[1], rs, true, false, op, ctx);
+		emit_a32_mov_i(rd[0], 0, ctx);
+	}
+
+	arm_bpf_put_reg64(dst, rd, ctx);
 }
 
 /* dst = src (4 bytes)*/
@@ -965,29 +994,42 @@ static inline void emit_a32_mul_r64(const s8 dst[], const s8 src[],
 }
 
 /* *(size *)(dst + off) = src */
-static inline void emit_str_r(const s8 dst, const s8 src,
-			      const s32 off, struct jit_ctx *ctx, const u8 sz){
+static inline void emit_str_r(const s8 dst, const s8 src[],
+			      s32 off, struct jit_ctx *ctx, const u8 sz){
 	const s8 *tmp = bpf2a32[TMP_REG_1];
+	s32 off_max;
 	s8 rd;
 
 	rd = arm_bpf_get_reg32(dst, tmp[1], ctx);
-	if (off) {
+
+	if (sz == BPF_H)
+		off_max = 0xff;
+	else
+		off_max = 0xfff;
+
+	if (off < 0 || off > off_max) {
 		emit_a32_mov_i(tmp[0], off, ctx);
-		emit(ARM_ADD_R(tmp[0], rd, tmp[0]), ctx);
+		emit(ARM_ADD_R(tmp[0], tmp[0], rd), ctx);
 		rd = tmp[0];
+		off = 0;
 	}
 	switch (sz) {
-	case BPF_W:
-		/* Store a Word */
-		emit(ARM_STR_I(src, rd, 0), ctx);
+	case BPF_B:
+		/* Store a Byte */
+		emit(ARM_STRB_I(src_lo, rd, off), ctx);
 		break;
 	case BPF_H:
 		/* Store a HalfWord */
-		emit(ARM_STRH_I(src, rd, 0), ctx);
+		emit(ARM_STRH_I(src_lo, rd, off), ctx);
 		break;
-	case BPF_B:
-		/* Store a Byte */
-		emit(ARM_STRB_I(src, rd, 0), ctx);
+	case BPF_W:
+		/* Store a Word */
+		emit(ARM_STR_I(src_lo, rd, off), ctx);
+		break;
+	case BPF_DW:
+		/* Store a Double Word */
+		emit(ARM_STR_I(src_lo, rd, off), ctx);
+		emit(ARM_STR_I(src_hi, rd, off + 4), ctx);
 		break;
 	}
 }
@@ -1309,7 +1351,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			break;
 		case BPF_K:
 			/* Sign-extend immediate value to destination reg */
-			emit_a32_mov_i64(is64, dst, imm, ctx);
+			emit_a32_mov_se_i64(is64, dst, imm, ctx);
 			break;
 		}
 		break;
@@ -1358,7 +1400,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			 * value into temporary reg and then it would be
 			 * safe to do the operation on it.
 			 */
-			emit_a32_mov_i64(is64, tmp2, imm, ctx);
+			emit_a32_mov_se_i64(is64, tmp2, imm, ctx);
 			emit_a32_alu_r64(is64, dst, tmp2, ctx, BPF_OP(code));
 			break;
 		}
@@ -1454,7 +1496,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			 * reg then it would be safe to do the operation
 			 * on it.
 			 */
-			emit_a32_mov_i64(is64, tmp2, imm, ctx);
+			emit_a32_mov_se_i64(is64, tmp2, imm, ctx);
 			emit_a32_mul_r64(dst, tmp2, ctx);
 			break;
 		}
@@ -1506,12 +1548,9 @@ exit:
 	/* dst = imm64 */
 	case BPF_LD | BPF_IMM | BPF_DW:
 	{
-		const struct bpf_insn insn1 = insn[1];
-		u32 hi, lo = imm;
+		u64 val = (u32)imm | (u64)insn[1].imm << 32;
 
-		hi = insn1.imm;
-		emit_a32_mov_i(dst_lo, lo, ctx);
-		emit_a32_mov_i(dst_hi, hi, ctx);
+		emit_a32_mov_i64(dst, val, ctx);
 
 		return 1;
 	}
@@ -1531,17 +1570,15 @@ exit:
 		switch (BPF_SIZE(code)) {
 		case BPF_DW:
 			/* Sign-extend immediate value into temp reg */
-			emit_a32_mov_i64(true, tmp2, imm, ctx);
-			emit_str_r(dst_lo, tmp2[1], off, ctx, BPF_W);
-			emit_str_r(dst_lo, tmp2[0], off+4, ctx, BPF_W);
+			emit_a32_mov_se_i64(true, tmp2, imm, ctx);
 			break;
 		case BPF_W:
 		case BPF_H:
 		case BPF_B:
 			emit_a32_mov_i(tmp2[1], imm, ctx);
-			emit_str_r(dst_lo, tmp2[1], off, ctx, BPF_SIZE(code));
 			break;
 		}
+		emit_str_r(dst_lo, tmp2, off, ctx, BPF_SIZE(code));
 		break;
 	/* STX XADD: lock *(u32 *)(dst + off) += src */
 	case BPF_STX | BPF_XADD | BPF_W:
@@ -1553,20 +1590,9 @@ exit:
 	case BPF_STX | BPF_MEM | BPF_H:
 	case BPF_STX | BPF_MEM | BPF_B:
 	case BPF_STX | BPF_MEM | BPF_DW:
-	{
-		u8 sz = BPF_SIZE(code);
-
 		rs = arm_bpf_get_reg64(src, tmp2, ctx);
-
-		/* Store the value */
-		if (BPF_SIZE(code) == BPF_DW) {
-			emit_str_r(dst_lo, rs[1], off, ctx, BPF_W);
-			emit_str_r(dst_lo, rs[0], off+4, ctx, BPF_W);
-		} else {
-			emit_str_r(dst_lo, rs[1], off, ctx, sz);
-		}
+		emit_str_r(dst_lo, rs, off, ctx, BPF_SIZE(code));
 		break;
-	}
 	/* PC += off if dst == src */
 	/* PC += off if dst > src */
 	/* PC += off if dst >= src */
@@ -1620,7 +1646,7 @@ exit:
 		rm = tmp2[0];
 		rn = tmp2[1];
 		/* Sign-extend immediate value */
-		emit_a32_mov_i64(true, tmp2, imm, ctx);
+		emit_a32_mov_se_i64(true, tmp2, imm, ctx);
 go_jmp:
 		/* Setup destination register */
 		rd = arm_bpf_get_reg64(dst, tmp, ctx);
