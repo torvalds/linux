@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	if (argc > 3)
 		filter_id = atoi(argv[3]);
 
-	if (filter_id > prog_cnt) {
+	if (filter_id >= prog_cnt) {
 		printf("Invalid program id; program not found in file\n");
 		return EXIT_FAILURE;
 	}
