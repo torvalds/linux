@@ -25,7 +25,7 @@
 
 #include <net/ieee802154_netdev.h>
 #include <net/6lowpan.h>
-#include <net/ipv6.h>
+#include <net/ipv6_frag.h>
 #include <net/inet_frag.h>
 
 #include "6lowpan_i.h"

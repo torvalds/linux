@@ -26,6 +26,7 @@
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <net/ipv6_frag.h>
 
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <linux/netfilter/nf_nat.h>
