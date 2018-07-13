@@ -1466,7 +1466,7 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
 	osd_req->r_flags = CEPH_OSD_FLAG_WRITE;
-	ktime_get_real_ts(&osd_req->r_mtime);
+	ktime_get_real_ts64(&osd_req->r_mtime);
 	osd_req->r_data_offset = obj_request->ex.oe_off;
 }
 
