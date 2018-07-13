@@ -44,6 +44,7 @@
 #include "en_rep.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/ipsec_rxtx.h"
+#include "en_accel/tls_rxtx.h"
 #include "lib/clock.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
@@ -797,6 +798,11 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	struct net_device *netdev = rq->netdev;
 
 	skb->mac_len = ETH_HLEN;
+
+#ifdef CONFIG_MLX5_EN_TLS
+	mlx5e_tls_handle_rx_skb(netdev, skb, &cqe_bcnt);
+#endif
+
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);
 		skb_shinfo(skb)->gso_size = DIV_ROUND_UP(cqe_bcnt, lro_num_seg);

@@ -33,6 +33,12 @@
 
 #include "en_accel/tls.h"
 #include "en_accel/tls_rxtx.h"
+#include <net/inet6_hashtables.h>
+#include <linux/ipv6.h>
+
+#define SYNDROM_DECRYPTED  0x30
+#define SYNDROM_RESYNC_REQUEST 0x31
+#define SYNDROM_AUTH_FAILED 0x32
 
 #define SYNDROME_OFFLOAD_REQUIRED 32
 #define SYNDROME_SYNC 33
@@ -44,10 +50,26 @@ struct sync_info {
 	skb_frag_t frags[MAX_SKB_FRAGS];
 };
 
-struct mlx5e_tls_metadata {
+struct recv_metadata_content {
+	u8 syndrome;
+	u8 reserved;
+	__be32 sync_seq;
+} __packed;
+
+struct send_metadata_content {
 	/* One byte of syndrome followed by 3 bytes of swid */
 	__be32 syndrome_swid;
 	__be16 first_seq;
+} __packed;
+
+struct mlx5e_tls_metadata {
+	union {
+		/* from fpga to host */
+		struct recv_metadata_content recv;
+		/* from host to fpga */
+		struct send_metadata_content send;
+		unsigned char raw[6];
+	} __packed content;
 	/* packet type ID field	*/
 	__be16 ethertype;
 } __packed;
@@ -68,7 +90,8 @@ static int mlx5e_tls_add_metadata(struct sk_buff *skb, __be32 swid)
 		2 * ETH_ALEN);
 
 	eth->h_proto = cpu_to_be16(MLX5E_METADATA_ETHER_TYPE);
-	pet->syndrome_swid = htonl(SYNDROME_OFFLOAD_REQUIRED << 24) | swid;
+	pet->content.send.syndrome_swid =
+		htonl(SYNDROME_OFFLOAD_REQUIRED << 24) | swid;
 
 	return 0;
 }
@@ -149,7 +172,7 @@ static void mlx5e_tls_complete_sync_skb(struct sk_buff *skb,
 
 	pet = (struct mlx5e_tls_metadata *)(nskb->data + sizeof(struct ethhdr));
 	memcpy(pet, &syndrome, sizeof(syndrome));
-	pet->first_seq = htons(tcp_seq);
+	pet->content.send.first_seq = htons(tcp_seq);
 
 	/* MLX5 devices don't care about the checksum partial start, offset
 	 * and pseudo header
@@ -275,4 +298,87 @@ struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
 	context->expected_seq = skb_seq + datalen;
 out:
 	return skb;
+}
+
+static int tls_update_resync_sn(struct net_device *netdev,
+				struct sk_buff *skb,
+				struct mlx5e_tls_metadata *mdata)
+{
+	struct sock *sk = NULL;
+	struct iphdr *iph;
+	struct tcphdr *th;
+	__be32 seq;
+
+	if (mdata->ethertype != htons(ETH_P_IP))
+		return -EINVAL;
+
+	iph = (struct iphdr *)(mdata + 1);
+
+	th = ((void *)iph) + iph->ihl * 4;
+
+	if (iph->version == 4) {
+		sk = inet_lookup_established(dev_net(netdev), &tcp_hashinfo,
+					     iph->saddr, th->source, iph->daddr,
+					     th->dest, netdev->ifindex);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		struct ipv6hdr *ipv6h = (struct ipv6hdr *)iph;
+
+		sk = __inet6_lookup_established(dev_net(netdev), &tcp_hashinfo,
+						&ipv6h->saddr, th->source,
+						&ipv6h->daddr, th->dest,
+						netdev->ifindex, 0);
+#endif
+	}
+	if (!sk || sk->sk_state == TCP_TIME_WAIT)
+		goto out;
+
+	skb->sk = sk;
+	skb->destructor = sock_edemux;
+
+	memcpy(&seq, &mdata->content.recv.sync_seq, sizeof(seq));
+	tls_offload_rx_resync_request(sk, seq);
+out:
+	return 0;
+}
+
+void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
+			     u32 *cqe_bcnt)
+{
+	struct mlx5e_tls_metadata *mdata;
+	struct ethhdr *old_eth;
+	struct ethhdr *new_eth;
+	__be16 *ethtype;
+
+	/* Detect inline metadata */
+	if (skb->len < ETH_HLEN + MLX5E_METADATA_ETHER_LEN)
+		return;
+	ethtype = (__be16 *)(skb->data + ETH_ALEN * 2);
+	if (*ethtype != cpu_to_be16(MLX5E_METADATA_ETHER_TYPE))
+		return;
+
+	/* Use the metadata */
+	mdata = (struct mlx5e_tls_metadata *)(skb->data + ETH_HLEN);
+	switch (mdata->content.recv.syndrome) {
+	case SYNDROM_DECRYPTED:
+		skb->decrypted = 1;
+		break;
+	case SYNDROM_RESYNC_REQUEST:
+		tls_update_resync_sn(netdev, skb, mdata);
+		break;
+	case SYNDROM_AUTH_FAILED:
+		/* Authentication failure will be observed and verified by kTLS */
+		break;
+	default:
+		/* Bypass the metadata header to others */
+		return;
+	}
+
+	/* Remove the metadata from the buffer */
+	old_eth = (struct ethhdr *)skb->data;
+	new_eth = (struct ethhdr *)(skb->data + MLX5E_METADATA_ETHER_LEN);
+	memmove(new_eth, old_eth, 2 * ETH_ALEN);
+	/* Ethertype is already in its new place */
+	skb_pull_inline(skb, MLX5E_METADATA_ETHER_LEN);
+	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 }
