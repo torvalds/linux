@@ -25,8 +25,8 @@
  *
  * * Writeback connectors don't provide a way to output visually to the user.
  *
- * * Writeback connectors should always report as "disconnected" (so that
- *   clients which don't understand them will ignore them).
+ * * Writeback connectors are visible to userspace only when the client sets
+ *   DRM_CLIENT_CAP_WRITEBACK_CONNECTORS.
  *
  * * Writeback connectors don't have EDID.
  *
