@@ -203,6 +203,7 @@ struct kfd_device_info {
 	bool supports_cwsr;
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
+	unsigned int num_sdma_engines;
 };
 
 struct kfd_mem_obj {

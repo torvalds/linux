@@ -101,6 +101,17 @@ unsigned int get_pipes_per_mec(struct device_queue_manager *dqm)
 	return dqm->dev->shared_resources.num_pipe_per_mec;
 }
 
+static unsigned int get_num_sdma_engines(struct device_queue_manager *dqm)
+{
+	return dqm->dev->device_info->num_sdma_engines;
+}
+
+unsigned int get_num_sdma_queues(struct device_queue_manager *dqm)
+{
+	return dqm->dev->device_info->num_sdma_engines
+			* KFD_SDMA_QUEUES_PER_ENGINE;
+}
+
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
@@ -855,7 +866,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	}
 
 	dqm->vmid_bitmap = (1 << dqm->dev->vm_info.vmid_num_kfd) - 1;
-	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
+	dqm->sdma_bitmap = (1 << get_num_sdma_queues(dqm)) - 1;
 
 	return 0;
 }
@@ -903,7 +914,7 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 static void deallocate_sdma_queue(struct device_queue_manager *dqm,
 				unsigned int sdma_queue_id)
 {
-	if (sdma_queue_id >= CIK_SDMA_QUEUES)
+	if (sdma_queue_id >= get_num_sdma_queues(dqm))
 		return;
 	dqm->sdma_bitmap |= (1 << sdma_queue_id);
 }
@@ -923,8 +934,8 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		return retval;
 
-	q->properties.sdma_queue_id = q->sdma_id / CIK_SDMA_QUEUES_PER_ENGINE;
-	q->properties.sdma_engine_id = q->sdma_id % CIK_SDMA_QUEUES_PER_ENGINE;
+	q->properties.sdma_queue_id = q->sdma_id / get_num_sdma_engines(dqm);
+	q->properties.sdma_engine_id = q->sdma_id % get_num_sdma_engines(dqm);
 
 	retval = allocate_doorbell(qpd, q);
 	if (retval)
@@ -1011,7 +1022,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->queue_count = dqm->processes_count = 0;
 	dqm->sdma_queue_count = 0;
 	dqm->active_runlist = false;
-	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
+	dqm->sdma_bitmap = (1 << get_num_sdma_queues(dqm)) - 1;
 
 	INIT_WORK(&dqm->hw_exception_work, kfd_process_hw_exception);
 
@@ -1142,9 +1153,9 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		if (retval)
 			goto out_unlock;
 		q->properties.sdma_queue_id =
-			q->sdma_id / CIK_SDMA_QUEUES_PER_ENGINE;
+			q->sdma_id / get_num_sdma_engines(dqm);
 		q->properties.sdma_engine_id =
-			q->sdma_id % CIK_SDMA_QUEUES_PER_ENGINE;
+			q->sdma_id % get_num_sdma_engines(dqm);
 	}
 
 	retval = allocate_doorbell(qpd, q);
@@ -1791,8 +1802,8 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 		}
 	}
 
-	for (pipe = 0; pipe < CIK_SDMA_ENGINE_NUM; pipe++) {
-		for (queue = 0; queue < CIK_SDMA_QUEUES_PER_ENGINE; queue++) {
+	for (pipe = 0; pipe < get_num_sdma_engines(dqm); pipe++) {
+		for (queue = 0; queue < KFD_SDMA_QUEUES_PER_ENGINE; queue++) {
 			r = dqm->dev->kfd2kgd->hqd_sdma_dump(
 				dqm->dev->kgd, pipe, queue, &dump, &n_regs);
 			if (r)
