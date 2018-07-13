@@ -172,6 +172,10 @@ static int nested;
 module_param(nested, int, S_IRUGO);
 MODULE_PARM_DESC(nested, "Nested virtualization support");
 
+/* allow 1m huge page guest backing, if !nested */
+static int hpage;
+module_param(hpage, int, 0444);
+MODULE_PARM_DESC(hpage, "1m huge page backing support");
 
 /*
  * For now we handle at most 16 double words as this is what the s390 base
@@ -475,6 +479,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_AIS_MIGRATION:
 		r = 1;
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		r = 0;
+		if (hpage)
+			r = 1;
+		break;
 	case KVM_CAP_S390_MEM_OP:
 		r = MEM_OP_MAX_SIZE;
 		break;
@@ -678,6 +687,27 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_GS %s",
 			 r ? "(not available)" : "(success)");
 		break;
+	case KVM_CAP_S390_HPAGE_1M:
+		mutex_lock(&kvm->lock);
+		if (kvm->created_vcpus)
+			r = -EBUSY;
+		else if (!hpage || kvm->arch.use_cmma)
+			r = -EINVAL;
+		else {
+			r = 0;
+			kvm->mm->context.allow_gmap_hpage_1m = 1;
+			/*
+			 * We might have to create fake 4k page
+			 * tables. To avoid that the hardware works on
+			 * stale PGSTEs, we emulate these instructions.
+			 */
+			kvm->arch.use_skf = 0;
+			kvm->arch.use_pfmfi = 0;
+		}
+		mutex_unlock(&kvm->lock);
+		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_HPAGE %s",
+			 r ? "(not available)" : "(success)");
+		break;
 	case KVM_CAP_S390_USER_STSI:
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_STSI");
 		kvm->arch.user_stsi = 1;
@@ -725,10 +755,13 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (!sclp.has_cmma)
 			break;
 
-		ret = -EBUSY;
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CMMA support");
 		mutex_lock(&kvm->lock);
-		if (!kvm->created_vcpus) {
+		if (kvm->created_vcpus)
+			ret = -EBUSY;
+		else if (kvm->mm->context.allow_gmap_hpage_1m)
+			ret = -EINVAL;
+		else {
 			kvm->arch.use_cmma = 1;
 			/* Not compatible with cmma. */
 			kvm->arch.use_pfmfi = 0;
@@ -4100,6 +4133,11 @@ static int __init kvm_s390_init(void)
 	if (!sclp.has_sief2) {
 		pr_info("SIE not available\n");
 		return -ENODEV;
+	}
+
+	if (nested && hpage) {
+		pr_info("nested (vSIE) and hpage (huge page backing) can currently not be activated concurrently");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < 16; i++)
