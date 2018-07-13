@@ -73,7 +73,7 @@ static int mlx5e_tls_add_metadata(struct sk_buff *skb, __be32 swid)
 	return 0;
 }
 
-static int mlx5e_tls_get_sync_data(struct mlx5e_tls_offload_context *context,
+static int mlx5e_tls_get_sync_data(struct mlx5e_tls_offload_context_tx *context,
 				   u32 tcp_seq, struct sync_info *info)
 {
 	int remaining, i = 0, ret = -EINVAL;
@@ -161,7 +161,7 @@ static void mlx5e_tls_complete_sync_skb(struct sk_buff *skb,
 }
 
 static struct sk_buff *
-mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context *context,
+mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context_tx *context,
 		     struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     struct mlx5e_tx_wqe **wqe,
 		     u16 *pi,
@@ -239,7 +239,7 @@ struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
 					u16 *pi)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_tls_offload_context *context;
+	struct mlx5e_tls_offload_context_tx *context;
 	struct tls_context *tls_ctx;
 	u32 expected_seq;
 	int datalen;

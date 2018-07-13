@@ -123,7 +123,7 @@ static int mlx5e_tls_add(struct net_device *netdev, struct sock *sk,
 		goto free_flow;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		struct mlx5e_tls_offload_context *tx_ctx =
+		struct mlx5e_tls_offload_context_tx *tx_ctx =
 		    mlx5e_get_tls_tx_context(tls_ctx);
 		u32 swid;
 

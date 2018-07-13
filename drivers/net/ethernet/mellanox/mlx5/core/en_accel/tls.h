@@ -49,19 +49,19 @@ struct mlx5e_tls {
 	struct mlx5e_tls_sw_stats sw_stats;
 };
 
-struct mlx5e_tls_offload_context {
+struct mlx5e_tls_offload_context_tx {
 	struct tls_offload_context_tx base;
 	u32 expected_seq;
 	__be32 swid;
 };
 
-static inline struct mlx5e_tls_offload_context *
+static inline struct mlx5e_tls_offload_context_tx *
 mlx5e_get_tls_tx_context(struct tls_context *tls_ctx)
 {
-	BUILD_BUG_ON(sizeof(struct mlx5e_tls_offload_context) >
+	BUILD_BUG_ON(sizeof(struct mlx5e_tls_offload_context_tx) >
 		     TLS_OFFLOAD_CONTEXT_SIZE_TX);
 	return container_of(tls_offload_ctx_tx(tls_ctx),
-			    struct mlx5e_tls_offload_context,
+			    struct mlx5e_tls_offload_context_tx,
 			    base);
 }
 
