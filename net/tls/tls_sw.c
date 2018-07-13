@@ -1081,28 +1081,38 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	}
 
 	if (tx) {
-		sw_ctx_tx = kzalloc(sizeof(*sw_ctx_tx), GFP_KERNEL);
-		if (!sw_ctx_tx) {
-			rc = -ENOMEM;
-			goto out;
+		if (!ctx->priv_ctx_tx) {
+			sw_ctx_tx = kzalloc(sizeof(*sw_ctx_tx), GFP_KERNEL);
+			if (!sw_ctx_tx) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			ctx->priv_ctx_tx = sw_ctx_tx;
+		} else {
+			sw_ctx_tx =
+				(struct tls_sw_context_tx *)ctx->priv_ctx_tx;
 		}
-		crypto_init_wait(&sw_ctx_tx->async_wait);
-		ctx->priv_ctx_tx = sw_ctx_tx;
 	} else {
-		sw_ctx_rx = kzalloc(sizeof(*sw_ctx_rx), GFP_KERNEL);
-		if (!sw_ctx_rx) {
-			rc = -ENOMEM;
-			goto out;
+		if (!ctx->priv_ctx_rx) {
+			sw_ctx_rx = kzalloc(sizeof(*sw_ctx_rx), GFP_KERNEL);
+			if (!sw_ctx_rx) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			ctx->priv_ctx_rx = sw_ctx_rx;
+		} else {
+			sw_ctx_rx =
+				(struct tls_sw_context_rx *)ctx->priv_ctx_rx;
 		}
-		crypto_init_wait(&sw_ctx_rx->async_wait);
-		ctx->priv_ctx_rx = sw_ctx_rx;
 	}
 
 	if (tx) {
+		crypto_init_wait(&sw_ctx_tx->async_wait);
 		crypto_info = &ctx->crypto_send;
 		cctx = &ctx->tx;
 		aead = &sw_ctx_tx->aead_send;
 	} else {
+		crypto_init_wait(&sw_ctx_rx->async_wait);
 		crypto_info = &ctx->crypto_recv;
 		cctx = &ctx->rx;
 		aead = &sw_ctx_rx->aead_recv;
