@@ -13,7 +13,7 @@ enum switch_chan_cmd_id {
 	CMD_ID_WRITE_PORT_ULONG,
 	CMD_ID_WRITE_PORT_USHORT,
 	CMD_ID_WRITE_PORT_UCHAR,
-	CmdID_RF_WriteReg,
+	CMD_ID_RF_WRITE_REG,
 };
 
 /* -----------------------Define structure---------------------- */
