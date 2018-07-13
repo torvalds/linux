@@ -873,6 +873,10 @@ start_here:
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 
+	lis	r6, swapper_pg_dir@ha
+	tophys(r6,r6)
+	mtspr	SPRN_M_TW, r6
+
 	bl	early_init	/* We have to do this with MMU on */
 
 /*
@@ -893,9 +897,6 @@ start_here:
 	 * init's THREAD like the context switch code does, but this is
 	 * easier......until someone changes init's static structures.
 	 */
-	lis	r6, swapper_pg_dir@ha
-	tophys(r6,r6)
-	mtspr	SPRN_M_TW, r6
 	lis	r4,2f@h
 	ori	r4,r4,2f@l
 	tophys(r4,r4)
