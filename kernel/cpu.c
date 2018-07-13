@@ -361,6 +361,16 @@ void __init cpu_smt_disable(bool force)
 	}
 }
 
+/*
+ * The decision whether SMT is supported can only be done after the full
+ * CPU identification. Called from architecture code.
+ */
+void __init cpu_smt_check_topology(void)
+{
+	if (!topology_smt_supported())
+		cpu_smt_control = CPU_SMT_NOT_SUPPORTED;
+}
+
 static int __init smt_cmdline_disable(char *str)
 {
 	cpu_smt_disable(str && !strcmp(str, "force"));
@@ -2115,9 +2125,6 @@ static const struct attribute_group cpuhp_smt_attr_group = {
 
 static int __init cpu_smt_state_init(void)
 {
-	if (!topology_smt_supported())
-		cpu_smt_control = CPU_SMT_NOT_SUPPORTED;
-
 	return sysfs_create_group(&cpu_subsys.dev_root->kobj,
 				  &cpuhp_smt_attr_group);
 }
