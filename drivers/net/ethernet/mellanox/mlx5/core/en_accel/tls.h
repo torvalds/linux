@@ -65,6 +65,21 @@ mlx5e_get_tls_tx_context(struct tls_context *tls_ctx)
 			    base);
 }
 
+struct mlx5e_tls_offload_context_rx {
+	struct tls_offload_context_rx base;
+	__be32 handle;
+};
+
+static inline struct mlx5e_tls_offload_context_rx *
+mlx5e_get_tls_rx_context(struct tls_context *tls_ctx)
+{
+	BUILD_BUG_ON(sizeof(struct mlx5e_tls_offload_context_rx) >
+		     TLS_OFFLOAD_CONTEXT_SIZE_RX);
+	return container_of(tls_offload_ctx_rx(tls_ctx),
+			    struct mlx5e_tls_offload_context_rx,
+			    base);
+}
+
 void mlx5e_tls_build_netdev(struct mlx5e_priv *priv);
 int mlx5e_tls_init(struct mlx5e_priv *priv);
 void mlx5e_tls_cleanup(struct mlx5e_priv *priv);
