@@ -559,4 +559,6 @@ void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev);
 
+int btrfs_bg_type_to_factor(u64 flags);
+
 #endif

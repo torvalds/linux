@@ -7292,3 +7292,14 @@ void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info)
 		fs_devices = fs_devices->seed;
 	}
 }
+
+/*
+ * Multiplicity factor for simple profiles: DUP, RAID1-like and RAID10.
+ */
+int btrfs_bg_type_to_factor(u64 flags)
+{
+	if (flags & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
+		     BTRFS_BLOCK_GROUP_RAID10))
+		return 2;
+	return 1;
+}
