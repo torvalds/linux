@@ -66,26 +66,19 @@ nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 		    struct bpf_prog *prog, struct netlink_ext_ack *extack)
 {
 	bool running, xdp_running;
-	int ret;
 
 	if (!nfp_net_ebpf_capable(nn))
 		return -EINVAL;
 
 	running = nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
-	xdp_running = running && nn->dp.bpf_offload_xdp;
+	xdp_running = running && nn->xdp_hw.prog;
 
 	if (!prog && !xdp_running)
 		return 0;
 	if (prog && running && !xdp_running)
 		return -EBUSY;
 
-	ret = nfp_net_bpf_offload(nn, prog, running, extack);
-	/* Stop offload if replace not possible */
-	if (ret)
-		return ret;
-
-	nn->dp.bpf_offload_xdp = !!prog;
-	return ret;
+	return nfp_net_bpf_offload(nn, prog, running, extack);
 }
 
 static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)

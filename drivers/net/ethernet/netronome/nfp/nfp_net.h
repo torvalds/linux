@@ -485,7 +485,6 @@ struct nfp_stat_pair {
  * @dev:		Backpointer to struct device
  * @netdev:		Backpointer to net_device structure
  * @is_vf:		Is the driver attached to a VF?
- * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @chained_metadata_format:  Firemware will use new metadata format
  * @rx_dma_dir:		Mapping direction for RX buffers
  * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
@@ -510,7 +509,6 @@ struct nfp_net_dp {
 	struct net_device *netdev;
 
 	u8 is_vf:1;
-	u8 bpf_offload_xdp:1;
 	u8 chained_metadata_format:1;
 
 	u8 rx_dma_dir;
@@ -553,8 +551,8 @@ struct nfp_net_dp {
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
- * @xdp_flags:		Flags with which XDP prog was loaded
- * @xdp_prog:		XDP prog (for ctrl path, both DRV and HW modes)
+ * @xdp:		Information about the driver XDP program
+ * @xdp_hw:		Information about the HW XDP program
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
@@ -610,8 +608,8 @@ struct nfp_net {
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
 
-	u32 xdp_flags;
-	struct bpf_prog *xdp_prog;
+	struct xdp_attachment_info xdp;
+	struct xdp_attachment_info xdp_hw;
 
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
