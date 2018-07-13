@@ -1132,9 +1132,28 @@ static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 
 	return ret;
 }
+
+static int
+vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
+			   size_t *values_cnt)
+{
+	if (source_name && strcmp(source_name, "auto") != 0)
+		return -EINVAL;
+
+	*values_cnt = 3;
+	return 0;
+}
+
 #else
 static int vop_crtc_set_crc_source(struct drm_crtc *crtc,
 				   const char *source_name, size_t *values_cnt)
+{
+	return -ENODEV;
+}
+
+static int
+vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
+			   size_t *values_cnt)
 {
 	return -ENODEV;
 }
@@ -1150,6 +1169,7 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.set_crc_source = vop_crtc_set_crc_source,
+	.verify_crc_source = vop_crtc_verify_crc_source,
 };
 
 static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)
