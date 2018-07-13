@@ -131,7 +131,7 @@ static bool __read_mostly enable_preemption_timer = 1;
 module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 #endif
 
-#define KVM_GUEST_CR0_MASK (X86_CR0_NW | X86_CR0_CD)
+#define KVM_VM_CR0_ALWAYS_OFF (X86_CR0_NW | X86_CR0_CD)
 #define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR0_NE
 #define KVM_VM_CR0_ALWAYS_ON				\
 	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | 	\
@@ -5260,7 +5260,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long hw_cr0;
 
-	hw_cr0 = (cr0 & ~KVM_GUEST_CR0_MASK);
+	hw_cr0 = (cr0 & ~KVM_VM_CR0_ALWAYS_OFF);
 	if (enable_unrestricted_guest)
 		hw_cr0 |= KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST;
 	else {
