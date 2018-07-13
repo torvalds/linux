@@ -119,7 +119,7 @@ qxl_pci_remove(struct pci_dev *pdev)
 
 	dev->dev_private = NULL;
 	kfree(qdev);
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 
 static const struct file_operations qxl_fops = {
