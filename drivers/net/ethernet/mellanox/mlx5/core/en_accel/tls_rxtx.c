@@ -33,6 +33,8 @@
 
 #include "en_accel/tls.h"
 #include "en_accel/tls_rxtx.h"
+#include "accel/accel.h"
+
 #include <net/inet6_hashtables.h>
 #include <linux/ipv6.h>
 
@@ -350,16 +352,9 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 			     u32 *cqe_bcnt)
 {
 	struct mlx5e_tls_metadata *mdata;
-	struct ethhdr *old_eth;
-	struct ethhdr *new_eth;
-	__be16 *ethtype;
 	struct mlx5e_priv *priv;
 
-	/* Detect inline metadata */
-	if (skb->len < ETH_HLEN + MLX5E_METADATA_ETHER_LEN)
-		return;
-	ethtype = (__be16 *)(skb->data + ETH_ALEN * 2);
-	if (*ethtype != cpu_to_be16(MLX5E_METADATA_ETHER_TYPE))
+	if (!is_metadata_hdr_valid(skb))
 		return;
 
 	/* Use the metadata */
@@ -383,11 +378,6 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 		return;
 	}
 
-	/* Remove the metadata from the buffer */
-	old_eth = (struct ethhdr *)skb->data;
-	new_eth = (struct ethhdr *)(skb->data + MLX5E_METADATA_ETHER_LEN);
-	memmove(new_eth, old_eth, 2 * ETH_ALEN);
-	/* Ethertype is already in its new place */
-	skb_pull_inline(skb, MLX5E_METADATA_ETHER_LEN);
+	remove_metadata_hdr(skb);
 	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 }
