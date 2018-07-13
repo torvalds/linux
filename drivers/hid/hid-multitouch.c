@@ -736,6 +736,13 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 				cls->name == MT_CLS_WIN_8_DUAL) &&
 				field->application == HID_DG_TOUCHPAD)
 				app->quirks |= MT_QUIRK_CONFIDENCE;
+
+			if (app->quirks & MT_QUIRK_CONFIDENCE)
+				input_set_abs_params(hi->input,
+						     ABS_MT_TOOL_TYPE,
+						     MT_TOOL_FINGER,
+						     MT_TOOL_PALM, 0, 0);
+
 			MT_STORE_FIELD(confidence_state);
 			return 1;
 		case HID_DG_TIPSWITCH:
@@ -958,10 +965,12 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 	if (quirks & MT_QUIRK_HOVERING)
 		inrange_state = *slot->inrange_state;
 
-	active = (*slot->tip_state || inrange_state) && confidence_state;
+	active = *slot->tip_state || inrange_state;
 
 	if (app->application == HID_GD_SYSTEM_MULTIAXIS)
 		tool = MT_TOOL_DIAL;
+	else if (unlikely(!confidence_state))
+		tool = MT_TOOL_PALM;
 
 	input_mt_slot(input, slotnum);
 	input_mt_report_slot_state(input, tool, active);
@@ -993,11 +1002,11 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 			orientation = -azimuth;
 		}
 
-		/*
-		 * divided by two to match visual scale of touch
-		 * for devices with this quirk
-		 */
 		if (quirks & MT_QUIRK_TOUCH_SIZE_SCALING) {
+			/*
+			 * divided by two to match visual scale of touch
+			 * for devices with this quirk
+			 */
 			major = major >> 1;
 			minor = minor >> 1;
 		}
