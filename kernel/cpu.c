@@ -347,13 +347,23 @@ EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 enum cpuhp_smt_control cpu_smt_control __read_mostly = CPU_SMT_ENABLED;
 EXPORT_SYMBOL_GPL(cpu_smt_control);
 
-static int __init smt_cmdline_disable(char *str)
+void __init cpu_smt_disable(bool force)
 {
-	cpu_smt_control = CPU_SMT_DISABLED;
-	if (str && !strcmp(str, "force")) {
+	if (cpu_smt_control == CPU_SMT_FORCE_DISABLED ||
+		cpu_smt_control == CPU_SMT_NOT_SUPPORTED)
+		return;
+
+	if (force) {
 		pr_info("SMT: Force disabled\n");
 		cpu_smt_control = CPU_SMT_FORCE_DISABLED;
+	} else {
+		cpu_smt_control = CPU_SMT_DISABLED;
 	}
+}
+
+static int __init smt_cmdline_disable(char *str)
+{
+	cpu_smt_disable(str && !strcmp(str, "force"));
 	return 0;
 }
 early_param("nosmt", smt_cmdline_disable);

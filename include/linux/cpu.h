@@ -177,8 +177,10 @@ enum cpuhp_smt_control {
 
 #if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_SMT)
 extern enum cpuhp_smt_control cpu_smt_control;
+extern void cpu_smt_disable(bool force);
 #else
 # define cpu_smt_control		(CPU_SMT_ENABLED)
+static inline void cpu_smt_disable(bool force) { }
 #endif
 
 #endif /* _LINUX_CPU_H_ */
