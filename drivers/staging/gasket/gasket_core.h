@@ -699,11 +699,6 @@ const struct gasket_driver_desc *gasket_get_driver_desc(struct gasket_dev *dev);
 /* Get the device structure for a given device. */
 struct device *gasket_get_device(struct gasket_dev *dev);
 
-/* Helper function, Synchronous waits on a given set of bits. */
-int gasket_wait_sync(
-	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,
-	u64 timeout_ns);
-
 /* Helper function, Asynchronous waits on a given set of bits. */
 int gasket_wait_with_reschedule(
 	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,

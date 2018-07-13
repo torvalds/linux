@@ -2068,51 +2068,6 @@ struct device *gasket_get_device(struct gasket_dev *dev)
 }
 
 /**
- * Synchronously waits on device.
- * @gasket_dev: Device struct.
- * @bar: Bar
- * @offset: Register offset
- * @mask: Register mask
- * @val: Expected value
- * @timeout_ns: Timeout in nanoseconds
- *
- * Description: Busy waits for a specific combination of bits to be set
- * on a Gasket register.
- **/
-int gasket_wait_sync(
-	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,
-	u64 timeout_ns)
-{
-	u64 reg;
-	struct timespec start_time, cur_time;
-	u64 diff_nanosec;
-	int count = 0;
-
-	reg = gasket_dev_read_64(gasket_dev, bar, offset);
-	start_time = current_kernel_time();
-	while ((reg & mask) != val) {
-		count++;
-		cur_time = current_kernel_time();
-		diff_nanosec = (u64)(cur_time.tv_sec - start_time.tv_sec) *
-				       1000000000LL +
-			       (u64)(cur_time.tv_nsec) -
-			       (u64)(start_time.tv_nsec);
-		if (diff_nanosec > timeout_ns) {
-			gasket_log_error(
-				gasket_dev,
-				"%s timeout: reg %llx count %x "
-				"dma %lld ns\n",
-				__func__,
-				offset, count, diff_nanosec);
-			return -1;
-		}
-		reg = gasket_dev_read_64(gasket_dev, bar, offset);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(gasket_wait_sync);
-
-/**
  * Asynchronously waits on device.
  * @gasket_dev: Device struct.
  * @bar: Bar
