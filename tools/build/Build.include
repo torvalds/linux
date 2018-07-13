@@ -63,8 +63,8 @@ dep-cmd = $(if $(wildcard $(fixdep)),                                           
            $(fixdep) $(depfile) $@ '$(make-cmd)' > $(dot-target).tmp;           \
            rm -f $(depfile);                                                    \
            mv -f $(dot-target).tmp $(dot-target).cmd,                           \
-           printf '\# cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
-           printf '\# using basic dep data\n\n' >> $(dot-target).cmd;           \
+           printf '$(pound) cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
+           printf '$(pound) using basic dep data\n\n' >> $(dot-target).cmd;           \
            cat $(depfile) >> $(dot-target).cmd;                                 \
            printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
 
@@ -98,4 +98,4 @@ cxx_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CXXFLAGS) -D"BUILD_STR(s)=\#s" $(CXX
 ###
 ## HOSTCC C flags
 
-host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CHOSTFLAGS) -D"BUILD_STR(s)=\#s" $(CHOSTFLAGS_$(basetarget).o) $(CHOSTFLAGS_$(obj))
+host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(HOSTCFLAGS) -D"BUILD_STR(s)=\#s" $(HOSTCFLAGS_$(basetarget).o) $(HOSTCFLAGS_$(obj))
