@@ -13,12 +13,13 @@
 #include <linux/errno.h>
 #include <linux/serial_reg.h>
 #include <asm/addrspace.h>
+#include <asm/setup.h>
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ar933x_uart.h>
 
-static void (*_prom_putchar) (unsigned char);
+static void (*_prom_putchar)(char);
 
 static inline void prom_putchar_wait(void __iomem *reg, u32 mask, u32 val)
 {
@@ -33,27 +34,28 @@ static inline void prom_putchar_wait(void __iomem *reg, u32 mask, u32 val)
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static void prom_putchar_ar71xx(unsigned char ch)
+static void prom_putchar_ar71xx(char ch)
 {
 	void __iomem *base = (void __iomem *)(KSEG1ADDR(AR71XX_UART_BASE));
 
 	prom_putchar_wait(base + UART_LSR * 4, BOTH_EMPTY, BOTH_EMPTY);
-	__raw_writel(ch, base + UART_TX * 4);
+	__raw_writel((unsigned char)ch, base + UART_TX * 4);
 	prom_putchar_wait(base + UART_LSR * 4, BOTH_EMPTY, BOTH_EMPTY);
 }
 
-static void prom_putchar_ar933x(unsigned char ch)
+static void prom_putchar_ar933x(char ch)
 {
 	void __iomem *base = (void __iomem *)(KSEG1ADDR(AR933X_UART_BASE));
 
 	prom_putchar_wait(base + AR933X_UART_DATA_REG, AR933X_UART_DATA_TX_CSR,
 			  AR933X_UART_DATA_TX_CSR);
-	__raw_writel(AR933X_UART_DATA_TX_CSR | ch, base + AR933X_UART_DATA_REG);
+	__raw_writel(AR933X_UART_DATA_TX_CSR | (unsigned char)ch,
+		     base + AR933X_UART_DATA_REG);
 	prom_putchar_wait(base + AR933X_UART_DATA_REG, AR933X_UART_DATA_TX_CSR,
 			  AR933X_UART_DATA_TX_CSR);
 }
 
-static void prom_putchar_dummy(unsigned char ch)
+static void prom_putchar_dummy(char ch)
 {
 	/* nothing to do */
 }
@@ -92,7 +94,7 @@ static void prom_putchar_init(void)
 	}
 }
 
-void prom_putchar(unsigned char ch)
+void prom_putchar(char ch)
 {
 	if (!_prom_putchar)
 		prom_putchar_init();

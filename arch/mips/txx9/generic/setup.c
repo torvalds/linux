@@ -32,6 +32,7 @@
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9tmr.h>

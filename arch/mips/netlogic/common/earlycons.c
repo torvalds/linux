@@ -36,6 +36,7 @@
 #include <linux/serial_reg.h>
 
 #include <asm/mipsregs.h>
+#include <asm/setup.h>
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
 
