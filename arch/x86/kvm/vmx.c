@@ -5708,16 +5708,6 @@ static void ept_set_mmio_spte_mask(void)
 				   VMX_EPT_MISCONFIG_WX_VALUE);
 }
 
-static bool vmx_l1d_use_msr_save_list(void)
-{
-	if (!enable_ept || !boot_cpu_has_bug(X86_BUG_L1TF) ||
-	    static_cpu_has(X86_FEATURE_HYPERVISOR) ||
-	    !static_cpu_has(X86_FEATURE_FLUSH_L1D))
-		return false;
-
-	return vmentry_l1d_flush == VMENTER_L1D_FLUSH_ALWAYS;
-}
-
 #define VMX_XSS_EXIT_BITMAP 0
 /*
  * Sets up the vmcs for emulated real mode.
@@ -6065,12 +6055,6 @@ static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 			vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
 					GUEST_INTR_STATE_NMI);
 	}
-	/*
-	 * If flushing the L1D cache on every VMENTER is enforced and the
-	 * MSR is available, use the MSR save list.
-	 */
-	if (vmx_l1d_use_msr_save_list())
-		add_atomic_switch_msr(vmx, MSR_IA32_FLUSH_CMD, L1D_FLUSH, 0, true);
 }
 
 static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
@@ -9092,26 +9076,14 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 	bool always;
 
 	/*
-	 * This code is only executed when:
-	 * - the flush mode is 'cond'
-	 * - the flush mode is 'always' and the flush MSR is not
-	 *   available
+	 * This code is only executed when the the flush mode is 'cond' or
+	 * 'always'
 	 *
-	 * If the CPU has the flush MSR then clear the flush bit because
-	 * 'always' mode is handled via the MSR save list.
-	 *
-	 * If the MSR is not avaibable then act depending on the mitigation
-	 * mode: If 'flush always', keep the flush bit set, otherwise clear
-	 * it.
-	 *
-	 * The flush bit gets set again either from vcpu_run() or from one
-	 * of the unsafe VMEXIT handlers.
+	 * If 'flush always', keep the flush bit set, otherwise clear
+	 * it. The flush bit gets set again either from vcpu_run() or from
+	 * one of the unsafe VMEXIT handlers.
 	 */
-	if (static_cpu_has(X86_FEATURE_FLUSH_L1D))
-		always = false;
-	else
-		always = vmentry_l1d_flush == VMENTER_L1D_FLUSH_ALWAYS;
-
+	always = vmentry_l1d_flush == VMENTER_L1D_FLUSH_ALWAYS;
 	vcpu->arch.l1tf_flush_l1d = always;
 
 	vcpu->stat.l1d_flush++;
@@ -12532,8 +12504,7 @@ static int __init vmx_setup_l1d_flush(void)
 
 	l1tf_vmx_mitigation = vmentry_l1d_flush;
 
-	if (vmentry_l1d_flush == VMENTER_L1D_FLUSH_NEVER ||
-	    vmx_l1d_use_msr_save_list())
+	if (vmentry_l1d_flush == VMENTER_L1D_FLUSH_NEVER)
 		return 0;
 
 	if (!boot_cpu_has(X86_FEATURE_FLUSH_L1D)) {
