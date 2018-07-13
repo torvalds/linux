@@ -692,11 +692,11 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 			     struct amdgpu_bo *bo, unsigned offset)
 {
 	struct amdgpu_device *adev = ctx->parser->adev;
+	uint32_t ip_instance = ctx->parser->ring->me;
 	int32_t *msg, msg_type, handle;
 	void *ptr;
 	long r;
 	int i;
-	uint32_t ip_instance = ctx->parser->job->ring->me;
 
 	if (offset & 0x3F) {
 		DRM_ERROR("UVD(%d) messages must be 64 byte aligned!\n", ip_instance);

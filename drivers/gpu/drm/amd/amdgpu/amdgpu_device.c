@@ -3253,7 +3253,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 		kthread_park(ring->sched.thread);
 
-		if (job && job->ring->idx != i)
+		if (job && job->base.sched == &ring->sched)
 			continue;
 
 		drm_sched_hw_job_reset(&ring->sched, &job->base);
@@ -3277,7 +3277,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		 * or all rings (in the case @job is NULL)
 		 * after above amdgpu_reset accomplished
 		 */
-		if ((!job || job->ring->idx == i) && !r)
+		if ((!job || job->base.sched == &ring->sched) && !r)
 			drm_sched_job_recovery(&ring->sched);
 
 		kthread_unpark(ring->sched.thread);

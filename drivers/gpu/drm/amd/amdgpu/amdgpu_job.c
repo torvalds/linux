@@ -30,12 +30,12 @@
 
 static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
-	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
+	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
+	struct amdgpu_job *job = to_amdgpu_job(s_job);
 
 	DRM_ERROR("ring %s timeout, last signaled seq=%u, last emitted seq=%u\n",
-		  job->base.sched->name,
-		  atomic_read(&job->ring->fence_drv.last_seq),
-		  job->ring->fence_drv.sync_seq);
+		  job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
+		  ring->fence_drv.sync_seq);
 
 	amdgpu_device_gpu_recover(job->adev, job, false);
 }
@@ -98,9 +98,10 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 
 static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 {
-	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
+	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
+	struct amdgpu_job *job = to_amdgpu_job(s_job);
 
-	amdgpu_ring_priority_put(job->ring, s_job->s_priority);
+	amdgpu_ring_priority_put(ring, s_job->s_priority);
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
 	amdgpu_sync_free(&job->sched_sync);
@@ -120,6 +121,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 		      void *owner, struct dma_fence **f)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(entity->sched);
 	int r;
 
 	if (!f)
@@ -130,10 +132,9 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 		return r;
 
 	job->owner = owner;
-	job->ring = to_amdgpu_ring(entity->sched);
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
-	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
+	amdgpu_ring_priority_get(ring, job->base.s_priority);
 	drm_sched_entity_push_job(&job->base, entity);
 
 	return 0;
@@ -142,6 +143,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 					       struct drm_sched_entity *s_entity)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(s_entity->sched);
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 	bool explicit = false;
@@ -157,8 +159,6 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 	}
 
 	while (fence == NULL && vm && !job->vmid) {
-		struct amdgpu_ring *ring = job->ring;
-
 		r = amdgpu_vmid_grab(vm, ring, &job->sync,
 				     &job->base.s_fence->finished,
 				     job);
@@ -173,6 +173,7 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 
 static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(sched_job->sched);
 	struct dma_fence *fence = NULL, *finished;
 	struct amdgpu_device *adev;
 	struct amdgpu_job *job;
@@ -196,7 +197,7 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 	if (finished->error < 0) {
 		DRM_INFO("Skip scheduling IBs!\n");
 	} else {
-		r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job,
+		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs, job,
 				       &fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);

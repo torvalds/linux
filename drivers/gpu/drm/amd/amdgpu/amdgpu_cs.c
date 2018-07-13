@@ -912,11 +912,11 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
-	struct amdgpu_ring *ring = p->job->ring;
+	struct amdgpu_ring *ring = p->ring;
 	int r;
 
 	/* Only for UVD/VCE VM emulation */
-	if (p->job->ring->funcs->parse_cs) {
+	if (p->ring->funcs->parse_cs) {
 		unsigned i, j;
 
 		for (i = 0, j = 0; i < p->nchunks && j < p->job->num_ibs; i++) {
@@ -1030,10 +1030,10 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			}
 		}
 
-		if (parser->job->ring && parser->job->ring != ring)
+		if (parser->ring && parser->ring != ring)
 			return -EINVAL;
 
-		parser->job->ring = ring;
+		parser->ring = ring;
 
 		r =  amdgpu_ib_get(adev, vm,
 					ring->funcs->parse_cs ? chunk_ib->ib_bytes : 0,
@@ -1052,11 +1052,11 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 	/* UVD & VCE fw doesn't support user fences */
 	if (parser->job->uf_addr && (
-	    parser->job->ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
-	    parser->job->ring->funcs->type == AMDGPU_RING_TYPE_VCE))
+	    parser->ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
+	    parser->ring->funcs->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
 
-	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->job->ring->idx);
+	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->ring->idx);
 }
 
 static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
@@ -1207,7 +1207,7 @@ static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
-	struct amdgpu_ring *ring = p->job->ring;
+	struct amdgpu_ring *ring = p->ring;
 	struct drm_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
 	struct amdgpu_job *job;
 	unsigned i;
@@ -1256,7 +1256,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->uf_sequence = seq;
 
 	amdgpu_job_free_resources(job);
-	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
+	amdgpu_ring_priority_get(p->ring, job->base.s_priority);
 
 	trace_amdgpu_cs_ioctl(job);
 	drm_sched_entity_push_job(&job->base, entity);

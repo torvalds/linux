@@ -1027,6 +1027,7 @@ struct amdgpu_cs_parser {
 
 	/* scheduler job object */
 	struct amdgpu_job	*job;
+	struct amdgpu_ring	*ring;
 
 	/* buffer objects */
 	struct ww_acquire_ctx		ticket;
