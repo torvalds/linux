@@ -266,8 +266,8 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 		ring = &adev->uvd.inst[j].ring;
 		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst[j].entity,
-					  rq, NULL);
+		r = drm_sched_entity_init(&adev->uvd.inst[j].entity, &rq,
+					  1, NULL);
 		if (r != 0) {
 			DRM_ERROR("Failed setting up UVD(%d) run queue.\n", j);
 			return r;

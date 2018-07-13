@@ -2564,8 +2564,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	ring_instance %= adev->vm_manager.vm_pte_num_rings;
 	ring = adev->vm_manager.vm_pte_rings[ring_instance];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-	r = drm_sched_entity_init(&ring->sched, &vm->entity,
-				  rq, NULL);
+	r = drm_sched_entity_init(&vm->entity, &rq, 1, NULL);
 	if (r)
 		return r;
 

@@ -432,8 +432,8 @@ static int uvd_v7_0_sw_init(void *handle)
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		ring = &adev->uvd.inst[j].ring_enc[0];
 		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&ring->sched, &adev->uvd.inst[j].entity_enc,
-					  rq, NULL);
+		r = drm_sched_entity_init(&adev->uvd.inst[j].entity_enc,
+					  &rq, 1, NULL);
 		if (r) {
 			DRM_ERROR("(%d)Failed setting up UVD ENC run queue.\n", j);
 			return r;

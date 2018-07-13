@@ -282,9 +282,9 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const char *name);
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 
-int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
-			  struct drm_sched_entity *entity,
-			  struct drm_sched_rq *rq,
+int drm_sched_entity_init(struct drm_sched_entity *entity,
+			  struct drm_sched_rq **rq_list,
+			  unsigned int num_rq_list,
 			  atomic_t *guilty);
 long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity, long timeout);
