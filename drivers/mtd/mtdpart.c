@@ -322,22 +322,6 @@ static inline void free_partition(struct mtd_part *p)
 	kfree(p);
 }
 
-/**
- * mtd_parse_part - parse MTD partition looking for subpartitions
- *
- * @slave: part that is supposed to be a container and should be parsed
- * @types: NULL-terminated array with names of partition parsers to try
- *
- * Some partitions are kind of containers with extra subpartitions (volumes).
- * There can be various formats of such containers. This function tries to use
- * specified parsers to analyze given partition and registers found
- * subpartitions on success.
- */
-static int mtd_parse_part(struct mtd_part *slave, const char *const *types)
-{
-	return parse_mtd_partitions(&slave->mtd, types, NULL);
-}
-
 static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			const struct mtd_partition *part, int partno,
 			uint64_t cur_offset)
@@ -735,8 +719,8 @@ int add_mtd_partitions(struct mtd_info *master,
 
 		add_mtd_device(&slave->mtd);
 		mtd_add_partition_attrs(slave);
-		if (parts[i].types)
-			mtd_parse_part(slave, parts[i].types);
+		/* Look for subpartitions */
+		parse_mtd_partitions(&slave->mtd, parts[i].types, NULL);
 
 		cur_offset = slave->offset + slave->mtd.size;
 	}
@@ -812,6 +796,12 @@ static const char * const default_mtd_part_types[] = {
 	NULL
 };
 
+/* Check DT only when looking for subpartitions. */
+static const char * const default_subpartition_types[] = {
+	"ofpart",
+	NULL
+};
+
 static int mtd_part_do_parse(struct mtd_part_parser *parser,
 			     struct mtd_info *master,
 			     struct mtd_partitions *pparts,
@@ -882,7 +872,9 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	const char *fixed = "fixed-partitions";
 	int ret, err = 0;
 
-	np = of_get_child_by_name(mtd_get_of_node(master), "partitions");
+	np = mtd_get_of_node(master);
+	if (!mtd_is_partition(master))
+		np = of_get_child_by_name(np, "partitions");
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		parser = mtd_part_get_compatible_parser(compat);
 		if (!parser)
@@ -945,7 +937,8 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 	int ret, err = 0;
 
 	if (!types)
-		types = default_mtd_part_types;
+		types = mtd_is_partition(master) ? default_subpartition_types :
+			default_mtd_part_types;
 
 	for ( ; *types; types++) {
 		/*
