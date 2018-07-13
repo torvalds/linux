@@ -496,6 +496,33 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 				   MAY_READ, func, 0);
 }
 
+/**
+ * ima_load_data - appraise decision based on policy
+ * @id: kernel load data caller identifier
+ *
+ * Callers of this LSM hook can not measure, appraise, or audit the
+ * data provided by userspace.  Enforce policy rules requring a file
+ * signature (eg. kexec'ed kernel image).
+ *
+ * For permission return 0, otherwise return -EACCES.
+ */
+int ima_load_data(enum kernel_load_data_id id)
+{
+	if ((ima_appraise & IMA_APPRAISE_ENFORCE) != IMA_APPRAISE_ENFORCE)
+		return 0;
+
+	switch (id) {
+	case LOADING_KEXEC_IMAGE:
+		if (ima_appraise & IMA_APPRAISE_KEXEC) {
+			pr_err("impossible to appraise a kernel image without a file descriptor; try using kexec_file_load syscall.\n");
+			return -EACCES;	/* INTEGRITY_UNKNOWN */
+		}
+	default:
+		break;
+	}
+	return 0;
+}
+
 static int __init init_ima(void)
 {
 	int error;
