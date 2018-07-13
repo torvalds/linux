@@ -229,7 +229,7 @@ struct ceph_mds_request {
 	int r_fmode;        /* file mode, if expecting cap */
 	kuid_t r_uid;
 	kgid_t r_gid;
-	struct timespec r_stamp;
+	struct timespec64 r_stamp;
 
 	/* for choosing which mds to send this request to */
 	int r_direct_mode;

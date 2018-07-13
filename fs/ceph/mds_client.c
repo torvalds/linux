@@ -1799,8 +1799,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 
 	ktime_get_coarse_real_ts64(&ts);
-	req->r_stamp = timespec64_to_timespec(timespec64_trunc(ts,
-						mdsc->fsc->sb->s_time_gran));
+	req->r_stamp = timespec64_trunc(ts, mdsc->fsc->sb->s_time_gran);
 
 	req->r_op = op;
 	req->r_direct_mode = mode;
@@ -2097,7 +2096,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	/* time stamp */
 	{
 		struct ceph_timespec ts;
-		ceph_encode_timespec(&ts, &req->r_stamp);
+		ceph_encode_timespec64(&ts, &req->r_stamp);
 		ceph_encode_copy(&p, &ts, sizeof(ts));
 	}
 
@@ -2190,7 +2189,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 		p = msg->front.iov_base + req->r_request_release_offset;
 		{
 			struct ceph_timespec ts;
-			ceph_encode_timespec(&ts, &req->r_stamp);
+			ceph_encode_timespec64(&ts, &req->r_stamp);
 			ceph_encode_copy(&p, &ts, sizeof(ts));
 		}
 
