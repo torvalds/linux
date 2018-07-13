@@ -8,7 +8,7 @@
 #define MAX_POSTCMD_CNT 16
 
 enum switch_chan_cmd_id {
-	CmdID_End,
+	CMD_ID_END,
 	CmdID_SetTxPowerLevel,
 	CmdID_BBRegWrite10,
 	CmdID_WritePortUlong,

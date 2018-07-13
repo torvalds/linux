@@ -1295,13 +1295,13 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				      MAX_PRECMD_CNT, CmdID_SetTxPowerLevel,
 				      0, 0, 0);
 	rtl8192_phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++,
-				      MAX_PRECMD_CNT, CmdID_End, 0, 0, 0);
+				      MAX_PRECMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <2> Fill up post common command. */
 	PostCommonCmdCnt = 0;
 
 	rtl8192_phy_SetSwChnlCmdArray(PostCommonCmd, PostCommonCmdCnt++,
-				      MAX_POSTCMD_CNT, CmdID_End, 0, 0, 0);
+				      MAX_POSTCMD_CNT, CMD_ID_END, 0, 0, 0);
 
 	/* <3> Fill up RF dependent command. */
 	RfDependCmdCnt = 0;
@@ -1321,7 +1321,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					      10);
 		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
 					      MAX_RFDEPENDCMD_CNT,
-					      CmdID_End, 0, 0, 0);
+					      CMD_ID_END, 0, 0, 0);
 		break;
 
 	case RF_8256:
@@ -1338,7 +1338,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					      rZebra1_Channel, channel, 10);
 		rtl8192_phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++,
 					      MAX_RFDEPENDCMD_CNT,
-					      CmdID_End, 0, 0, 0);
+					      CMD_ID_END, 0, 0, 0);
 		break;
 
 	case RF_8258:
@@ -1363,7 +1363,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			break;
 		}
 
-		if (CurrentCmd->CmdID == CmdID_End) {
+		if (CurrentCmd->CmdID == CMD_ID_END) {
 			if ((*stage) == 2) {
 				(*delay) = CurrentCmd->msDelay;
 				return true;
