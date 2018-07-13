@@ -1074,7 +1074,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		if (r)
 			goto err_free;
 
-		r = amdgpu_job_submit(job, ring, &adev->uvd.inst[ring->me].entity,
+		r = amdgpu_job_submit(job, &adev->uvd.inst[ring->me].entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err_free;

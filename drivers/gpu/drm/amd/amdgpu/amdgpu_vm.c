@@ -425,8 +425,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
+	r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_UNDEFINED,
+			      &fence);
 	if (r)
 		goto error_free;
 
@@ -1120,8 +1120,8 @@ restart:
 		amdgpu_sync_resv(adev, &job->sync, root->tbo.resv,
 				 AMDGPU_FENCE_OWNER_VM, false);
 		WARN_ON(params.ib->length_dw > ndw);
-		r = amdgpu_job_submit(job, ring, &vm->entity,
-				      AMDGPU_FENCE_OWNER_VM, &fence);
+		r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_VM,
+				      &fence);
 		if (r)
 			goto error;
 
@@ -1485,8 +1485,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	amdgpu_ring_pad_ib(ring, params.ib);
 	WARN_ON(params.ib->length_dw > ndw);
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_VM, &f);
+	r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error_free;
 

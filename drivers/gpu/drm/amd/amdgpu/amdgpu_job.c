@@ -117,21 +117,20 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	kfree(job);
 }
 
-int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct drm_sched_entity *entity, void *owner,
-		      struct dma_fence **f)
+int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
+		      void *owner, struct dma_fence **f)
 {
 	int r;
-	job->ring = ring;
 
 	if (!f)
 		return -EINVAL;
 
-	r = drm_sched_job_init(&job->base, &ring->sched, entity, owner);
+	r = drm_sched_job_init(&job->base, entity->sched, entity, owner);
 	if (r)
 		return r;
 
 	job->owner = owner;
+	job->ring = to_amdgpu_ring(entity->sched);
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	amdgpu_ring_priority_get(job->ring, job->base.s_priority);

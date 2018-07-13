@@ -44,6 +44,8 @@
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
 #define AMDGPU_FENCE_FLAG_TC_WB_ONLY    (1 << 2)
 
+#define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
+
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX,
 	AMDGPU_RING_TYPE_COMPUTE,

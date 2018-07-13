@@ -539,7 +539,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 		amdgpu_job_free(job);
 	} else {
-		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
 		if (r)
 			goto err;

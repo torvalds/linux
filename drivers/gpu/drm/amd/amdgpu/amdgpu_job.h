@@ -67,7 +67,6 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 
 void amdgpu_job_free_resources(struct amdgpu_job *job);
 void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct drm_sched_entity *entity, void *owner,
-		      struct dma_fence **f);
+int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
+		      void *owner, struct dma_fence **f);
 #endif
