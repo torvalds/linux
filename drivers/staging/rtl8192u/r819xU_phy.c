@@ -1292,7 +1292,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 	/* <1> Fill up pre common command. */
 	PreCommonCmdCnt = 0;
 	rtl8192_phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++,
-				      MAX_PRECMD_CNT, CmdID_SetTxPowerLevel,
+				      MAX_PRECMD_CNT, CMD_ID_SET_TX_PWR_LEVEL,
 				      0, 0, 0);
 	rtl8192_phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++,
 				      MAX_PRECMD_CNT, CMD_ID_END, 0, 0, 0);
@@ -1374,7 +1374,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		}
 
 		switch (CurrentCmd->CmdID) {
-		case CmdID_SetTxPowerLevel:
+		case CMD_ID_SET_TX_PWR_LEVEL:
 			if (priv->card_8192_version == (u8)VERSION_819xU_A)
 				/* consider it later! */
 				rtl8192_SetTxPowerLevel(dev, channel);
