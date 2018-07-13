@@ -167,10 +167,6 @@ struct gasket_sysfs_attribute *gasket_sysfs_get_attr(
 void gasket_sysfs_put_attr(
 	struct device *device, struct gasket_sysfs_attribute *attr);
 
-/* Display a register as a sysfs node. */
-ssize_t gasket_sysfs_register_show(
-	struct device *device, struct device_attribute *attr, char *buf);
-
 /*
  * Write to a register sysfs node.
  * @buf: NULL-terminated data being written.

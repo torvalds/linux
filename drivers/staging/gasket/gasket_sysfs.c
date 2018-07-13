@@ -396,44 +396,6 @@ void gasket_sysfs_put_attr(
 }
 EXPORT_SYMBOL(gasket_sysfs_put_attr);
 
-ssize_t gasket_sysfs_register_show(
-	struct device *device, struct device_attribute *attr, char *buf)
-{
-	ulong reg_address, reg_bar, reg_value;
-	struct gasket_sysfs_mapping *mapping;
-	struct gasket_dev *gasket_dev;
-	struct gasket_sysfs_attribute *gasket_attr;
-
-	mapping = get_mapping(device);
-	if (!mapping) {
-		gasket_nodev_info("Device driver may have been removed.");
-		return 0;
-	}
-
-	gasket_dev = mapping->gasket_dev;
-	if (!gasket_dev) {
-		gasket_nodev_error(
-			"No sysfs mapping found for device 0x%p", device);
-		put_mapping(mapping);
-		return 0;
-	}
-
-	gasket_attr = gasket_sysfs_get_attr(device, attr);
-	if (!gasket_attr) {
-		put_mapping(mapping);
-		return 0;
-	}
-
-	reg_address = gasket_attr->data.bar_address.offset;
-	reg_bar = gasket_attr->data.bar_address.bar;
-	reg_value = gasket_dev_read_64(gasket_dev, reg_bar, reg_address);
-
-	gasket_sysfs_put_attr(device, gasket_attr);
-	put_mapping(mapping);
-	return snprintf(buf, PAGE_SIZE, "0x%lX\n", reg_value);
-}
-EXPORT_SYMBOL(gasket_sysfs_register_show);
-
 ssize_t gasket_sysfs_register_store(
 	struct device *device, struct device_attribute *attr, const char *buf,
 	size_t count)
