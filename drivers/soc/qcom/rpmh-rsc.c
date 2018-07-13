@@ -108,8 +108,6 @@ static int tcs_invalidate(struct rsc_drv *drv, int type)
 	struct tcs_group *tcs;
 
 	tcs = get_tcs_of_type(drv, type);
-	if (IS_ERR(tcs))
-		return PTR_ERR(tcs);
 
 	spin_lock(&tcs->lock);
 	if (bitmap_empty(tcs->slots, MAX_TCS_SLOTS)) {
@@ -175,9 +173,9 @@ static struct tcs_group *get_tcs_for_msg(struct rsc_drv *drv,
 	 * TCSes before making an active state request.
 	 */
 	tcs = get_tcs_of_type(drv, type);
-	if (msg->state == RPMH_ACTIVE_ONLY_STATE && IS_ERR(tcs)) {
+	if (msg->state == RPMH_ACTIVE_ONLY_STATE && !tcs->num_tcs) {
 		tcs = get_tcs_of_type(drv, WAKE_TCS);
-		if (!IS_ERR(tcs)) {
+		if (tcs->num_tcs) {
 			ret = rpmh_rsc_invalidate(drv);
 			if (ret)
 				return ERR_PTR(ret);
