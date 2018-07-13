@@ -504,18 +504,6 @@ int gasket_interrupt_clear_eventfd(
 	return 0;
 }
 
-int gasket_interrupt_trigger_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt)
-{
-	struct eventfd_ctx *ctx = interrupt_data->eventfd_ctxs[interrupt];
-
-	if (!ctx)
-		return -EINVAL;
-
-	eventfd_signal(ctx, 1);
-	return 0;
-}
-
 struct msix_entry *gasket_interrupt_get_msix_entries(
 	struct gasket_interrupt_data *interrupt_data)
 {

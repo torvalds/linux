@@ -102,19 +102,6 @@ int gasket_interrupt_clear_eventfd(
 	struct gasket_interrupt_data *interrupt_data, int interrupt);
 
 /*
- * Signals the eventfd associated with interrupt.
- * @data: Pointer to device interrupt data.
- * @interrupt: The device interrupt to signal for.
- *
- * Simulates a device interrupt by signaling the eventfd associated with
- * interrupt, if any.
- * Returns 0 if the eventfd was successfully triggered, a negative error code
- * otherwise (if, for example, no eventfd was associated with interrupt).
- */
-int gasket_interrupt_trigger_eventfd(
-	struct gasket_interrupt_data *interrupt_data, int interrupt);
-
-/*
  * The below functions exist for backwards compatibility.
  * No new uses should be written.
  */
