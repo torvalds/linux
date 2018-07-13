@@ -932,13 +932,24 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	up_read(&mm->mmap_sem);
 	mmput(mm);
 
-	mutex_lock(&p->event_mutex);
+	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
+			memory_exception_data.failure.NotPresent,
+			memory_exception_data.failure.NoExecute,
+			memory_exception_data.failure.ReadOnly);
 
-	/* Lookup events by type and signal them */
-	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
-			&memory_exception_data);
+	/* Workaround on Raven to not kill the process when memory is freed
+	 * before IOMMU is able to finish processing all the excessive PPRs
+	 */
+	if (dev->device_info->asic_family != CHIP_RAVEN) {
+		mutex_lock(&p->event_mutex);
 
-	mutex_unlock(&p->event_mutex);
+		/* Lookup events by type and signal them */
+		lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
+				&memory_exception_data);
+
+		mutex_unlock(&p->event_mutex);
+	}
+
 	kfd_unref_process(p);
 }
 #endif /* KFD_SUPPORT_IOMMU_V2 */
