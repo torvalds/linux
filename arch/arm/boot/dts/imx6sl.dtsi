@@ -949,5 +949,25 @@
 				status = "disabled";
 			};
 		};
+
+		gpu_2d: gpu@2200000 {
+			compatible = "vivante,gc";
+			reg = <0x02200000 0x4000>;
+			interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6SL_CLK_MMDC_ROOT>,
+				 <&clks IMX6SL_CLK_GPU2D_OVG>;
+			clock-names = "bus", "core";
+			power-domains = <&pd_pu>;
+		};
+
+		gpu_vg: gpu@2204000 {
+			compatible = "vivante,gc";
+			reg = <0x02204000 0x4000>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6SL_CLK_MMDC_ROOT>,
+				 <&clks IMX6SL_CLK_GPU2D_OVG>;
+			clock-names = "bus", "core";
+			power-domains = <&pd_pu>;
+		};
 	};
 };
