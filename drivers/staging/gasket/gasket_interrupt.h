@@ -106,16 +106,6 @@ int gasket_interrupt_clear_eventfd(
  * No new uses should be written.
  */
 /*
- * Retrieve a pointer to data's MSI-X
- * entries.
- * @data: The interrupt data from which to extract.
- *
- * Returns the internal pointer to data's MSI-X entries.
- */
-struct msix_entry *gasket_interrupt_get_msix_entries(
-	struct gasket_interrupt_data *interrupt_data);
-
-/*
  * Get the health of the interrupt subsystem.
  * @gasket_dev: The Gasket device struct.
  *

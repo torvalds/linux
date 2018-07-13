@@ -504,12 +504,6 @@ int gasket_interrupt_clear_eventfd(
 	return 0;
 }
 
-struct msix_entry *gasket_interrupt_get_msix_entries(
-	struct gasket_interrupt_data *interrupt_data)
-{
-	return interrupt_data->msix_entries;
-}
-
 static ssize_t interrupt_sysfs_show(
 	struct device *device, struct device_attribute *attr, char *buf)
 {
