@@ -1056,6 +1056,11 @@ int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 }
 EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
 
+int security_kernel_load_data(enum kernel_load_data_id id)
+{
+	return call_int_hook(kernel_load_data, 0, id);
+}
+
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
