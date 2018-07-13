@@ -140,6 +140,21 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 	return 0;
 }
 
+int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
+			     struct dma_fence **fence)
+{
+	int r;
+
+	job->base.sched = &ring->sched;
+	r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs, NULL, fence);
+	job->fence = dma_fence_get(*fence);
+	if (r)
+		return r;
+
+	amdgpu_job_free(job);
+	return 0;
+}
+
 static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 					       struct drm_sched_entity *s_entity)
 {

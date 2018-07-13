@@ -250,12 +250,10 @@ static int uvd_v7_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -313,19 +311,13 @@ int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
-		if (r)
-			goto err;
-
-		amdgpu_job_free(job);
-	} else {
+	if (direct)
+		r = amdgpu_job_submit_direct(job, ring, &f);
+	else
 		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-		if (r)
-			goto err;
-	}
+	if (r)
+		goto err;
 
 	if (fence)
 		*fence = dma_fence_get(f);

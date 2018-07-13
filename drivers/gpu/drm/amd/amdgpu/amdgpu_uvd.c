@@ -1062,12 +1062,9 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		if (r < 0)
 			goto err_free;
 
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
+		r = amdgpu_job_submit_direct(job, ring, &f);
 		if (r)
 			goto err_free;
-
-		amdgpu_job_free(job);
 	} else {
 		r = amdgpu_sync_resv(adev, &job->sync, bo->tbo.resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED, false);
