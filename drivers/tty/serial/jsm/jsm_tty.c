@@ -430,7 +430,6 @@ int jsm_uart_port_init(struct jsm_board *brd)
 {
 	int i, rc;
 	unsigned int line;
-	struct jsm_channel *ch;
 
 	if (!brd)
 		return -ENXIO;
@@ -444,7 +443,7 @@ int jsm_uart_port_init(struct jsm_board *brd)
 	brd->nasync = brd->maxports;
 
 	/* Set up channel variables */
-	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
+	for (i = 0; i < brd->nasync; i++) {
 
 		if (!brd->channels[i])
 			continue;
