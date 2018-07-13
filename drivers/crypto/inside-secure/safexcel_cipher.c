@@ -378,7 +378,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct safexcel_command_desc *cdesc;
-	struct safexcel_result_desc *rdesc, *first_rdesc;
+	struct safexcel_result_desc *rdesc, *first_rdesc = NULL;
 	struct scatterlist *sg;
 	unsigned int totlen = cryptlen + assoclen;
 	int nr_src, nr_dst, n_cdesc = 0, n_rdesc = 0, queued = totlen;
