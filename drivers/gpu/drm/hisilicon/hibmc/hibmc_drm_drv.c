@@ -373,7 +373,7 @@ err_unload:
 err_disable:
 	pci_disable_device(pdev);
 err_free:
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 
 	return ret;
 }
@@ -384,7 +384,7 @@ static void hibmc_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	hibmc_unload(dev);
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 
 static struct pci_device_id hibmc_pci_table[] = {
