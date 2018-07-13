@@ -78,15 +78,6 @@ struct gasket_sysfs_attribute {
 		.attr = __ATTR(_name, S_IRUGO, _show_function, NULL),          \
 		.data.attr_type = _attr_type                                   \
 	}
-#define GASKET_SYSFS_REG(_name, _offset, _bar)                                 \
-	{                                                                      \
-		.attr = __ATTR(_name, S_IRUGO, gasket_sysfs_register_show,     \
-			NULL),                                                 \
-		.data.bar_address = {                                          \
-			.bar = _bar,                                           \
-			.offset = _offset                                      \
-		}                                                              \
-	}
 
 /* Initializes the Gasket sysfs subsystem.
  *
