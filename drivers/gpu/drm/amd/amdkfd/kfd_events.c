@@ -911,22 +911,18 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	memory_exception_data.failure.NotPresent = 1;
 	memory_exception_data.failure.NoExecute = 0;
 	memory_exception_data.failure.ReadOnly = 0;
-	if (vma) {
-		if (vma->vm_start > address) {
-			memory_exception_data.failure.NotPresent = 1;
-			memory_exception_data.failure.NoExecute = 0;
+	if (vma && address >= vma->vm_start) {
+		memory_exception_data.failure.NotPresent = 0;
+
+		if (is_write_requested && !(vma->vm_flags & VM_WRITE))
+			memory_exception_data.failure.ReadOnly = 1;
+		else
 			memory_exception_data.failure.ReadOnly = 0;
-		} else {
-			memory_exception_data.failure.NotPresent = 0;
-			if (is_write_requested && !(vma->vm_flags & VM_WRITE))
-				memory_exception_data.failure.ReadOnly = 1;
-			else
-				memory_exception_data.failure.ReadOnly = 0;
-			if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
-				memory_exception_data.failure.NoExecute = 1;
-			else
-				memory_exception_data.failure.NoExecute = 0;
-		}
+
+		if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
+			memory_exception_data.failure.NoExecute = 1;
+		else
+			memory_exception_data.failure.NoExecute = 0;
 	}
 
 	up_read(&mm->mmap_sem);
