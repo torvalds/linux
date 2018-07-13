@@ -188,6 +188,33 @@ struct dma_buf_ops {
 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
 
 	/**
+	 * @begin_cpu_access_umapped:
+	 *
+	 * This is called as a result of the DMA_BUF_IOCTL_SYNC IOCTL being
+	 * called with the DMA_BUF_SYNC_START and DMA_BUF_SYNC_USER_MAPPED flags
+	 * set. It allows the exporter to ensure that the mmap(ed) portions of
+	 * the buffer are available for cpu access - the exporter might need to
+	 * allocate or swap-in and pin the backing storage.
+	 * The exporter also needs to ensure that cpu access is
+	 * coherent for the access direction. The direction can be used by the
+	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * direction (read instead of write) might return stale or even bogus
+	 * data (e.g. when the exporter needs to copy the data to temporary
+	 * storage).
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. This can for
+	 * example fail when the backing storage can't be allocated. Can also
+	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
+	 * needs to be restarted.
+	 */
+	int (*begin_cpu_access_umapped)(struct dma_buf *dmabuf,
+					enum dma_data_direction);
+
+	/**
 	 * @begin_cpu_access_partial:
 	 *
 	 * This is called from dma_buf_begin_cpu_access_partial() and allows the
@@ -240,6 +267,28 @@ struct dma_buf_ops {
 	 * to be restarted.
 	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
+
+	/**
+	 * @end_cpu_access_umapped:
+	 *
+	 * This is called as result a of the DMA_BUF_IOCTL_SYNC IOCTL being
+	 * called with the DMA_BUF_SYNC_END and DMA_BUF_SYNC_USER_MAPPED flags
+	 * set. The exporter can use to limit cache flushing to only those parts
+	 * of the buffer which are mmap(ed) and to unpin any resources pinned in
+	 * @begin_cpu_access_umapped.
+	 * The result of any dma_buf kmap calls after end_cpu_access_umapped is
+	 * undefined.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. Can return
+	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
+	 * to be restarted.
+	 */
+	int (*end_cpu_access_umapped)(struct dma_buf *dmabuf,
+				      enum dma_data_direction);
 
 	/**
 	 * @end_cpu_access_partial:

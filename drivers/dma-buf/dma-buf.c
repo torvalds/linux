@@ -360,12 +360,19 @@ out_unlock:
 	return ret;
 }
 
+static int dma_buf_begin_cpu_access_umapped(struct dma_buf *dmabuf,
+					    enum dma_data_direction direction);
+
+
+static int dma_buf_end_cpu_access_umapped(struct dma_buf *dmabuf,
+					  enum dma_data_direction direction);
+
 static long dma_buf_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct dma_buf *dmabuf;
 	struct dma_buf_sync sync;
-	enum dma_data_direction direction;
+	enum dma_data_direction dir;
 	int ret;
 
 	dmabuf = file->private_data;
@@ -380,22 +387,30 @@ static long dma_buf_ioctl(struct file *file,
 
 		switch (sync.flags & DMA_BUF_SYNC_RW) {
 		case DMA_BUF_SYNC_READ:
-			direction = DMA_FROM_DEVICE;
+			dir = DMA_FROM_DEVICE;
 			break;
 		case DMA_BUF_SYNC_WRITE:
-			direction = DMA_TO_DEVICE;
+			dir = DMA_TO_DEVICE;
 			break;
 		case DMA_BUF_SYNC_RW:
-			direction = DMA_BIDIRECTIONAL;
+			dir = DMA_BIDIRECTIONAL;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		if (sync.flags & DMA_BUF_SYNC_END)
-			ret = dma_buf_end_cpu_access(dmabuf, direction);
+			if (sync.flags & DMA_BUF_SYNC_USER_MAPPED)
+				ret = dma_buf_end_cpu_access_umapped(dmabuf,
+								     dir);
+			else
+				ret = dma_buf_end_cpu_access(dmabuf, dir);
 		else
-			ret = dma_buf_begin_cpu_access(dmabuf, direction);
+			if (sync.flags & DMA_BUF_SYNC_USER_MAPPED)
+				ret = dma_buf_begin_cpu_access_umapped(dmabuf,
+								       dir);
+			else
+				ret = dma_buf_begin_cpu_access(dmabuf, dir);
 
 		return ret;
 
@@ -862,7 +877,8 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
  *       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
  *       want (with the new data being consumed by say the GPU or the scanout
- *       device)
+ *       device). Optionally SYNC_USER_MAPPED can be set to restrict cache
+ *       maintenance to only the parts of the buffer which are mmap(ed).
  *     - munmap once you don't need the buffer any more
  *
  *    For correctness and optimal performance, it is always required to use
@@ -949,6 +965,27 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
 
+static int dma_buf_begin_cpu_access_umapped(struct dma_buf *dmabuf,
+			     enum dma_data_direction direction)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf))
+		return -EINVAL;
+
+	if (dmabuf->ops->begin_cpu_access_umapped)
+		ret = dmabuf->ops->begin_cpu_access_umapped(dmabuf, direction);
+
+	/* Ensure that all fences are waited upon - but we first allow
+	 * the native handler the chance to do so more efficiently if it
+	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 */
+	if (ret == 0)
+		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
+
+	return ret;
+}
+
 int dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 				     enum dma_data_direction direction,
 				     unsigned int offset, unsigned int len)
@@ -998,6 +1035,19 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
+
+static int dma_buf_end_cpu_access_umapped(struct dma_buf *dmabuf,
+			   enum dma_data_direction direction)
+{
+	int ret = 0;
+
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->end_cpu_access_umapped)
+		ret = dmabuf->ops->end_cpu_access_umapped(dmabuf, direction);
+
+	return ret;
+}
 
 int dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 				   enum dma_data_direction direction,

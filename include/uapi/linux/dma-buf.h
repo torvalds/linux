@@ -32,8 +32,10 @@ struct dma_buf_sync {
 #define DMA_BUF_SYNC_RW        (DMA_BUF_SYNC_READ | DMA_BUF_SYNC_WRITE)
 #define DMA_BUF_SYNC_START     (0 << 2)
 #define DMA_BUF_SYNC_END       (1 << 2)
+#define DMA_BUF_SYNC_USER_MAPPED       (1 << 3)
+
 #define DMA_BUF_SYNC_VALID_FLAGS_MASK \
-	(DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END)
+	(DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END | DMA_BUF_SYNC_USER_MAPPED)
 
 #define DMA_BUF_NAME_LEN	32
 
