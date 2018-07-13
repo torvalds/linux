@@ -1,4 +1,9 @@
-Marvell Berlin SoC Family Device Tree Bindings
+Synaptics SoC Device Tree Bindings
+
+According to https://www.synaptics.com/company/news/conexant-marvell
+Synaptics has acquired the Multimedia Solutions Business of Marvell, so
+berlin SoCs are now Synaptics' SoCs now.
+
 ---------------------------------------------------------------
 
 Work in progress statement:
@@ -12,6 +17,10 @@ Please refer to Documentation/devicetree/bindings/ABI.txt for a definition of a
 stable binding/ABI.
 
 ---------------------------------------------------------------
+
+Boards with the Synaptics AS370 SoC shall have the following properties:
+  Required root node property:
+    compatible: "syna,as370"
 
 Boards with a SoC of the Marvell Berlin family, e.g. Armada 1500
 shall have the following properties:
