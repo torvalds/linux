@@ -2221,6 +2221,131 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 }
 EXPORT_SYMBOL_GPL(ptep_notify);
 
+static void pmdp_notify_gmap(struct gmap *gmap, pmd_t *pmdp,
+			     unsigned long gaddr)
+{
+	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	gmap_call_notifier(gmap, gaddr, gaddr + HPAGE_SIZE - 1);
+}
+
+static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
+			    int purge)
+{
+	pmd_t *pmdp;
+	struct gmap *gmap;
+	unsigned long gaddr;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
+		spin_lock(&gmap->guest_table_lock);
+		pmdp = (pmd_t *)radix_tree_delete(&gmap->host_to_guest,
+						  vmaddr >> PMD_SHIFT);
+		if (pmdp) {
+			gaddr = __gmap_segment_gaddr((unsigned long *)pmdp);
+			pmdp_notify_gmap(gmap, pmdp, gaddr);
+			WARN_ON(pmd_val(*pmdp) & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			if (purge)
+				__pmdp_csp(pmdp);
+			pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+		}
+		spin_unlock(&gmap->guest_table_lock);
+	}
+	rcu_read_unlock();
+}
+
+/**
+ * gmap_pmdp_invalidate - invalidate all affected guest pmd entries without
+ *                        flushing
+ * @mm: pointer to the process mm_struct
+ * @vmaddr: virtual address in the process address space
+ */
+void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr)
+{
+	gmap_pmdp_clear(mm, vmaddr, 0);
+}
+EXPORT_SYMBOL_GPL(gmap_pmdp_invalidate);
+
+/**
+ * gmap_pmdp_csp - csp all affected guest pmd entries
+ * @mm: pointer to the process mm_struct
+ * @vmaddr: virtual address in the process address space
+ */
+void gmap_pmdp_csp(struct mm_struct *mm, unsigned long vmaddr)
+{
+	gmap_pmdp_clear(mm, vmaddr, 1);
+}
+EXPORT_SYMBOL_GPL(gmap_pmdp_csp);
+
+/**
+ * gmap_pmdp_idte_local - invalidate and clear a guest pmd entry
+ * @mm: pointer to the process mm_struct
+ * @vmaddr: virtual address in the process address space
+ */
+void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr)
+{
+	unsigned long *entry, gaddr;
+	struct gmap *gmap;
+	pmd_t *pmdp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
+		spin_lock(&gmap->guest_table_lock);
+		entry = radix_tree_delete(&gmap->host_to_guest,
+					  vmaddr >> PMD_SHIFT);
+		if (entry) {
+			pmdp = (pmd_t *)entry;
+			gaddr = __gmap_segment_gaddr(entry);
+			pmdp_notify_gmap(gmap, pmdp, gaddr);
+			WARN_ON(*entry & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			if (MACHINE_HAS_TLB_GUEST)
+				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
+					    gmap->asce, IDTE_LOCAL);
+			else if (MACHINE_HAS_IDTE)
+				__pmdp_idte(gaddr, pmdp, 0, 0, IDTE_LOCAL);
+			*entry = _SEGMENT_ENTRY_EMPTY;
+		}
+		spin_unlock(&gmap->guest_table_lock);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(gmap_pmdp_idte_local);
+
+/**
+ * gmap_pmdp_idte_global - invalidate and clear a guest pmd entry
+ * @mm: pointer to the process mm_struct
+ * @vmaddr: virtual address in the process address space
+ */
+void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
+{
+	unsigned long *entry, gaddr;
+	struct gmap *gmap;
+	pmd_t *pmdp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
+		spin_lock(&gmap->guest_table_lock);
+		entry = radix_tree_delete(&gmap->host_to_guest,
+					  vmaddr >> PMD_SHIFT);
+		if (entry) {
+			pmdp = (pmd_t *)entry;
+			gaddr = __gmap_segment_gaddr(entry);
+			pmdp_notify_gmap(gmap, pmdp, gaddr);
+			WARN_ON(*entry & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			if (MACHINE_HAS_TLB_GUEST)
+				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
+					    gmap->asce, IDTE_GLOBAL);
+			else if (MACHINE_HAS_IDTE)
+				__pmdp_idte(gaddr, pmdp, 0, 0, IDTE_GLOBAL);
+			else
+				__pmdp_csp(pmdp);
+			*entry = _SEGMENT_ENTRY_EMPTY;
+		}
+		spin_unlock(&gmap->guest_table_lock);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(gmap_pmdp_idte_global);
+
 static inline void thp_split_mm(struct mm_struct *mm)
 {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

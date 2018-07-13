@@ -1118,6 +1118,10 @@ int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
 int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
 int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			unsigned long *oldpte, unsigned long *oldpgste);
+void gmap_pmdp_csp(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
 /*
  * Certain architectures need to do special things when PTEs

@@ -347,18 +347,27 @@ static inline void pmdp_idte_local(struct mm_struct *mm,
 			    mm->context.asce, IDTE_LOCAL);
 	else
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_LOCAL);
+	if (mm_has_pgste(mm))
+		gmap_pmdp_idte_local(mm, addr);
 }
 
 static inline void pmdp_idte_global(struct mm_struct *mm,
 				    unsigned long addr, pmd_t *pmdp)
 {
-	if (MACHINE_HAS_TLB_GUEST)
+	if (MACHINE_HAS_TLB_GUEST) {
 		__pmdp_idte(addr, pmdp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
-	else if (MACHINE_HAS_IDTE)
+		if (mm_has_pgste(mm))
+			gmap_pmdp_idte_global(mm, addr);
+	} else if (MACHINE_HAS_IDTE) {
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_GLOBAL);
-	else
+		if (mm_has_pgste(mm))
+			gmap_pmdp_idte_global(mm, addr);
+	} else {
 		__pmdp_csp(pmdp);
+		if (mm_has_pgste(mm))
+			gmap_pmdp_csp(mm, addr);
+	}
 }
 
 static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
@@ -392,6 +401,8 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 			  cpumask_of(smp_processor_id()))) {
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
+		if (mm_has_pgste(mm))
+			gmap_pmdp_invalidate(mm, addr);
 	} else {
 		pmdp_idte_global(mm, addr, pmdp);
 	}
