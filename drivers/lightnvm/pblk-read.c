@@ -121,9 +121,9 @@ static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct ppa_addr *p;
 
 			p = (nr_lbas == 1) ? &rqd->ppa_list[i] : &rqd->ppa_addr;
-			print_ppa(&pblk->dev->geo, p, "seq", i);
+			print_ppa(pblk, p, "seq", i);
 #endif
-			pr_err("pblk: corrupted read LBA (%llu/%llu)\n",
+			pblk_err(pblk, "corrupted read LBA (%llu/%llu)\n",
 							lba, (u64)blba + i);
 			WARN_ON(1);
 		}
@@ -154,9 +154,9 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 			int nr_ppas = rqd->nr_ppas;
 
 			p = (nr_ppas == 1) ? &rqd->ppa_list[j] : &rqd->ppa_addr;
-			print_ppa(&pblk->dev->geo, p, "seq", j);
+			print_ppa(pblk, p, "seq", j);
 #endif
-			pr_err("pblk: corrupted read LBA (%llu/%llu)\n",
+			pblk_err(pblk, "corrupted read LBA (%llu/%llu)\n",
 								lba, meta_lba);
 			WARN_ON(1);
 		}
@@ -256,7 +256,7 @@ static int pblk_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 		goto fail_add_pages;
 
 	if (nr_holes != new_bio->bi_vcnt) {
-		pr_err("pblk: malformed bio\n");
+		pblk_err(pblk, "malformed bio\n");
 		goto fail;
 	}
 
@@ -279,7 +279,7 @@ static int pblk_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 	ret = pblk_submit_io_sync(pblk, rqd);
 	if (ret) {
 		bio_put(rqd->bio);
-		pr_err("pblk: sync read IO submission failed\n");
+		pblk_err(pblk, "sync read IO submission failed\n");
 		goto fail;
 	}
 
@@ -346,7 +346,7 @@ fail:
 	/* Free allocated pages in new bio */
 	pblk_bio_free_pages(pblk, new_bio, 0, new_bio->bi_vcnt);
 fail_add_pages:
-	pr_err("pblk: failed to perform partial read\n");
+	pblk_err(pblk, "failed to perform partial read\n");
 	__pblk_end_io_read(pblk, rqd, false);
 	return NVM_IO_ERR;
 }
@@ -436,7 +436,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
 							&rqd->dma_meta_list);
 	if (!rqd->meta_list) {
-		pr_err("pblk: not able to allocate ppa list\n");
+		pblk_err(pblk, "not able to allocate ppa list\n");
 		goto fail_rqd_free;
 	}
 
@@ -462,14 +462,14 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		/* Clone read bio to deal with read errors internally */
 		int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
 		if (!int_bio) {
-			pr_err("pblk: could not clone read bio\n");
+			pblk_err(pblk, "could not clone read bio\n");
 			goto fail_end_io;
 		}
 
 		rqd->bio = int_bio;
 
 		if (pblk_submit_io(pblk, rqd)) {
-			pr_err("pblk: read IO submission failed\n");
+			pblk_err(pblk, "read IO submission failed\n");
 			ret = NVM_IO_ERR;
 			goto fail_end_io;
 		}
@@ -595,7 +595,8 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	bio = pblk_bio_map_addr(pblk, gc_rq->data, gc_rq->secs_to_gc, data_len,
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
-		pr_err("pblk: could not allocate GC bio (%lu)\n", PTR_ERR(bio));
+		pblk_err(pblk, "could not allocate GC bio (%lu)\n",
+				PTR_ERR(bio));
 		goto err_free_dma;
 	}
 
@@ -609,7 +610,7 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 
 	if (pblk_submit_io_sync(pblk, &rqd)) {
 		ret = -EIO;
-		pr_err("pblk: GC read request failed\n");
+		pblk_err(pblk, "GC read request failed\n");
 		goto err_free_bio;
 	}
 

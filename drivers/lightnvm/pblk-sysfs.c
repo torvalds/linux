@@ -268,7 +268,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	spin_unlock(&l_mg->free_lock);
 
 	if (nr_free_lines != free_line_cnt)
-		pr_err("pblk: corrupted free line list:%d/%d\n",
+		pblk_err(pblk, "corrupted free line list:%d/%d\n",
 						nr_free_lines, free_line_cnt);
 
 	sz = snprintf(page, PAGE_SIZE - sz,
@@ -697,8 +697,7 @@ int pblk_sysfs_init(struct gendisk *tdisk)
 					kobject_get(&parent_dev->kobj),
 					"%s", "pblk");
 	if (ret) {
-		pr_err("pblk: could not register %s/pblk\n",
-						tdisk->disk_name);
+		pblk_err(pblk, "could not register\n");
 		return ret;
 	}
 

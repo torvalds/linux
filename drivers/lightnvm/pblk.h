@@ -703,6 +703,15 @@ struct pblk_line_ws {
 #define pblk_g_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_g_ctx))
 #define pblk_w_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_c_ctx))
 
+#define pblk_err(pblk, fmt, ...)			\
+	pr_err("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_info(pblk, fmt, ...)			\
+	pr_info("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_warn(pblk, fmt, ...)			\
+	pr_warn("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_debug(pblk, fmt, ...)			\
+	pr_debug("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+
 /*
  * pblk ring buffer operations
  */
@@ -1280,19 +1289,21 @@ static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
 }
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
-static inline void print_ppa(struct nvm_geo *geo, struct ppa_addr *p,
+static inline void print_ppa(struct pblk *pblk, struct ppa_addr *p,
 			     char *msg, int error)
 {
+	struct nvm_geo *geo = &pblk->dev->geo;
+
 	if (p->c.is_cached) {
-		pr_err("ppa: (%s: %x) cache line: %llu\n",
+		pblk_err(pblk, "ppa: (%s: %x) cache line: %llu\n",
 				msg, error, (u64)p->c.line);
 	} else if (geo->version == NVM_OCSSD_SPEC_12) {
-		pr_err("ppa: (%s: %x):ch:%d,lun:%d,blk:%d,pg:%d,pl:%d,sec:%d\n",
+		pblk_err(pblk, "ppa: (%s: %x):ch:%d,lun:%d,blk:%d,pg:%d,pl:%d,sec:%d\n",
 			msg, error,
 			p->g.ch, p->g.lun, p->g.blk,
 			p->g.pg, p->g.pl, p->g.sec);
 	} else {
-		pr_err("ppa: (%s: %x):ch:%d,lun:%d,chk:%d,sec:%d\n",
+		pblk_err(pblk, "ppa: (%s: %x):ch:%d,lun:%d,chk:%d,sec:%d\n",
 			msg, error,
 			p->m.grp, p->m.pu, p->m.chk, p->m.sec);
 	}
@@ -1304,16 +1315,16 @@ static inline void pblk_print_failed_rqd(struct pblk *pblk, struct nvm_rq *rqd,
 	int bit = -1;
 
 	if (rqd->nr_ppas ==  1) {
-		print_ppa(&pblk->dev->geo, &rqd->ppa_addr, "rqd", error);
+		print_ppa(pblk, &rqd->ppa_addr, "rqd", error);
 		return;
 	}
 
 	while ((bit = find_next_bit((void *)&rqd->ppa_status, rqd->nr_ppas,
 						bit + 1)) < rqd->nr_ppas) {
-		print_ppa(&pblk->dev->geo, &rqd->ppa_list[bit], "rqd", error);
+		print_ppa(pblk, &rqd->ppa_list[bit], "rqd", error);
 	}
 
-	pr_err("error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
+	pblk_err(pblk, "error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
 }
 
 static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
@@ -1344,7 +1355,7 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				continue;
 		}
 
-		print_ppa(geo, ppa, "boundary", i);
+		print_ppa(tgt_dev->q->queuedata, ppa, "boundary", i);
 
 		return 1;
 	}
@@ -1374,7 +1385,7 @@ static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 			spin_lock(&line->lock);
 			if (line->state != PBLK_LINESTATE_OPEN) {
-				pr_err("pblk: bad ppa: line:%d,state:%d\n",
+				pblk_err(pblk, "bad ppa: line:%d,state:%d\n",
 							line->id, line->state);
 				WARN_ON(1);
 				spin_unlock(&line->lock);

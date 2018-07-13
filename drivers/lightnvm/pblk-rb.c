@@ -547,7 +547,7 @@ try:
 
 		page = virt_to_page(entry->data);
 		if (!page) {
-			pr_err("pblk: could not allocate write bio page\n");
+			pblk_err(pblk, "could not allocate write bio page\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -557,7 +557,7 @@ try:
 
 		if (bio_add_pc_page(q, bio, page, rb->seg_size, 0) !=
 								rb->seg_size) {
-			pr_err("pblk: could not add page to write bio\n");
+			pblk_err(pblk, "could not add page to write bio\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
@@ -576,14 +576,14 @@ try:
 
 	if (pad) {
 		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, pad)) {
-			pr_err("pblk: could not pad page in write bio\n");
+			pblk_err(pblk, "could not pad page in write bio\n");
 			return NVM_IO_ERR;
 		}
 
 		if (pad < pblk->min_write_pgs)
 			atomic64_inc(&pblk->pad_dist[pad - 1]);
 		else
-			pr_warn("pblk: padding more than min. sectors\n");
+			pblk_warn(pblk, "padding more than min. sectors\n");
 
 		atomic64_add(pad, &pblk->pad_wa);
 	}
