@@ -10,7 +10,7 @@
 enum switch_chan_cmd_id {
 	CMD_ID_END,
 	CMD_ID_SET_TX_PWR_LEVEL,
-	CmdID_WritePortUlong,
+	CMD_ID_WRITE_PORT_ULONG,
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
 	CmdID_RF_WriteReg,

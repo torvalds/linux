@@ -1379,7 +1379,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 				/* consider it later! */
 				rtl8192_SetTxPowerLevel(dev, channel);
 			break;
-		case CmdID_WritePortUlong:
+		case CMD_ID_WRITE_PORT_ULONG:
 			write_nic_dword(dev, CurrentCmd->Para1,
 					CurrentCmd->Para2);
 			break;
