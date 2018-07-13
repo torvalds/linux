@@ -13,14 +13,15 @@ mlx5_core-$(CONFIG_MLX5_ACCEL) += accel/ipsec.o accel/tls.o
 mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o \
 		fpga/ipsec.o fpga/tls.o
 
+mlx5_core-$(CONFIG_MLX5_MPFS)  += lib/mpfs.o
+mlx5_core-$(CONFIG_VXLAN) += lib/vxlan.o
+
 mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 		en_tx.o en_rx.o en_dim.o en_txrx.o en/xdp.o en_stats.o \
-		en_selftest.o en/port.o lib/vxlan.o
+		en_selftest.o en/port.o
 
 mlx5_core-$(CONFIG_MLX5_EN_ARFS)  += en_arfs.o
 mlx5_core-$(CONFIG_MLX5_EN_RXNFC) += en_fs_ethtool.o
-
-mlx5_core-$(CONFIG_MLX5_MPFS) += lib/mpfs.o
 
 mlx5_core-$(CONFIG_MLX5_ESWITCH) += eswitch.o eswitch_offloads.o en_rep.o en_tc.o
 

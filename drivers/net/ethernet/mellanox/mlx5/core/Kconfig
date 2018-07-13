@@ -7,6 +7,7 @@ config MLX5_CORE
 	depends on MAY_USE_DEVLINK
 	depends on PCI
 	imply PTP_1588_CLOCK
+	imply VXLAN
 	default n
 	---help---
 	  Core driver for low level functionality of the ConnectX-4 and
