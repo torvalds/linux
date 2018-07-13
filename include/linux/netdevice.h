@@ -308,9 +308,14 @@ struct gro_list {
 };
 
 /*
- * Structure for NAPI scheduling similar to tasklet but with weighting
+ * size of gro hash buckets, must less than bit number of
+ * napi_struct::gro_bitmask
  */
 #define GRO_HASH_BUCKETS	8
+
+/*
+ * Structure for NAPI scheduling similar to tasklet but with weighting
+ */
 struct napi_struct {
 	/* The poll_list must only be managed by the entity which
 	 * changes the state of the NAPI_STATE_SCHED bit.  This means
@@ -322,7 +327,7 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
-	unsigned int		gro_count;
+	unsigned long		gro_bitmask;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
 	int			poll_owner;
