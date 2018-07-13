@@ -2896,11 +2896,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
 
-	if ((hwmgr->smu_version == 0x001c2c00) ||
-			(hwmgr->smu_version == 0x001c2d00))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
-
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 
