@@ -132,7 +132,6 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		return r;
 
 	job->owner = owner;
-	job->fence_ctx = entity->fence_context;
 	*f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
