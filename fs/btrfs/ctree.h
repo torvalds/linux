@@ -84,6 +84,14 @@ static const int btrfs_csum_sizes[] = { 4 };
 
 #define BTRFS_DIRTY_METADATA_THRESH	SZ_32M
 
+/*
+ * Use large batch size to reduce overhead of metadata updates.  On the reader
+ * side, we only read it when we are close to ENOSPC and the read overhead is
+ * mostly related to the number of CPUs, so it is OK to use arbitrary large
+ * value here.
+ */
+#define BTRFS_TOTAL_BYTES_PINNED_BATCH	SZ_128M
+
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 

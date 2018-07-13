@@ -755,7 +755,8 @@ static void add_pinned_bytes(struct btrfs_fs_info *fs_info, s64 num_bytes,
 
 	space_info = __find_space_info(fs_info, flags);
 	ASSERT(space_info);
-	percpu_counter_add(&space_info->total_bytes_pinned, num_bytes);
+	percpu_counter_add_batch(&space_info->total_bytes_pinned, num_bytes,
+		    BTRFS_TOTAL_BYTES_PINNED_BATCH);
 }
 
 /*
@@ -2473,8 +2474,9 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 			flags = BTRFS_BLOCK_GROUP_METADATA;
 		space_info = __find_space_info(fs_info, flags);
 		ASSERT(space_info);
-		percpu_counter_add(&space_info->total_bytes_pinned,
-				   -head->num_bytes);
+		percpu_counter_add_batch(&space_info->total_bytes_pinned,
+				   -head->num_bytes,
+				   BTRFS_TOTAL_BYTES_PINNED_BATCH);
 
 		if (head->is_data) {
 			spin_lock(&delayed_refs->lock);
@@ -4178,9 +4180,10 @@ again:
 		 * allocation, and no removed chunk in current transaction,
 		 * don't bother committing the transaction.
 		 */
-		have_pinned_space = percpu_counter_compare(
+		have_pinned_space = __percpu_counter_compare(
 			&data_sinfo->total_bytes_pinned,
-			used + bytes - data_sinfo->total_bytes);
+			used + bytes - data_sinfo->total_bytes,
+			BTRFS_TOTAL_BYTES_PINNED_BATCH);
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
@@ -4782,8 +4785,9 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	/* See if there is enough pinned space to make this reservation */
-	if (percpu_counter_compare(&space_info->total_bytes_pinned,
-				   bytes) >= 0)
+	if (__percpu_counter_compare(&space_info->total_bytes_pinned,
+				   bytes,
+				   BTRFS_TOTAL_BYTES_PINNED_BATCH) >= 0)
 		goto commit;
 
 	/*
@@ -4800,8 +4804,9 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 		bytes -= delayed_rsv->size;
 	spin_unlock(&delayed_rsv->lock);
 
-	if (percpu_counter_compare(&space_info->total_bytes_pinned,
-				   bytes) < 0) {
+	if (__percpu_counter_compare(&space_info->total_bytes_pinned,
+				   bytes,
+				   BTRFS_TOTAL_BYTES_PINNED_BATCH) < 0) {
 		return -ENOSPC;
 	}
 
@@ -6138,8 +6143,9 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			trace_btrfs_space_reservation(info, "pinned",
 						      cache->space_info->flags,
 						      num_bytes, 1);
-			percpu_counter_add(&cache->space_info->total_bytes_pinned,
-					   num_bytes);
+			percpu_counter_add_batch(&cache->space_info->total_bytes_pinned,
+					   num_bytes,
+					   BTRFS_TOTAL_BYTES_PINNED_BATCH);
 			set_extent_dirty(info->pinned_extents,
 					 bytenr, bytenr + num_bytes - 1,
 					 GFP_NOFS | __GFP_NOFAIL);
@@ -6217,7 +6223,8 @@ static int pin_down_extent(struct btrfs_fs_info *fs_info,
 
 	trace_btrfs_space_reservation(fs_info, "pinned",
 				      cache->space_info->flags, num_bytes, 1);
-	percpu_counter_add(&cache->space_info->total_bytes_pinned, num_bytes);
+	percpu_counter_add_batch(&cache->space_info->total_bytes_pinned,
+		    num_bytes, BTRFS_TOTAL_BYTES_PINNED_BATCH);
 	set_extent_dirty(fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
 	return 0;
@@ -6581,7 +6588,8 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 		trace_btrfs_space_reservation(fs_info, "pinned",
 					      space_info->flags, len, 0);
 		space_info->max_extent_size = 0;
-		percpu_counter_add(&space_info->total_bytes_pinned, -len);
+		percpu_counter_add_batch(&space_info->total_bytes_pinned,
+			    -len, BTRFS_TOTAL_BYTES_PINNED_BATCH);
 		if (cache->ro) {
 			space_info->bytes_readonly += len;
 			readonly = true;
@@ -10603,8 +10611,9 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		space_info->bytes_pinned -= block_group->pinned;
 		space_info->bytes_readonly += block_group->pinned;
-		percpu_counter_add(&space_info->total_bytes_pinned,
-				   -block_group->pinned);
+		percpu_counter_add_batch(&space_info->total_bytes_pinned,
+				   -block_group->pinned,
+				   BTRFS_TOTAL_BYTES_PINNED_BATCH);
 		block_group->pinned = 0;
 
 		spin_unlock(&block_group->lock);
