@@ -662,12 +662,10 @@ static struct request *nvme_nvm_alloc_request(struct request_queue *q,
 
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
-	if (rqd->bio) {
+	if (rqd->bio)
 		blk_init_request_from_bio(rq, rqd->bio);
-	} else {
+	else
 		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
-		rq->__data_len = 0;
-	}
 
 	return rq;
 }
