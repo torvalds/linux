@@ -1184,7 +1184,8 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 	guc_clients_destroy(guc);
 	WARN_ON(!guc_verify_doorbells(guc));
 
-	guc_stage_desc_pool_destroy(guc);
+	if (guc->stage_desc_pool)
+		guc_stage_desc_pool_destroy(guc);
 }
 
 static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
