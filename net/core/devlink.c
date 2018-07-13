@@ -326,6 +326,57 @@ devlink_sb_tc_index_get_from_info(struct devlink_sb *devlink_sb,
 						  pool_type, p_tc_index);
 }
 
+struct devlink_region {
+	struct devlink *devlink;
+	struct list_head list;
+	const char *name;
+	struct list_head snapshot_list;
+	u32 max_snapshots;
+	u32 cur_snapshots;
+	u64 size;
+};
+
+struct devlink_snapshot {
+	struct list_head list;
+	struct devlink_region *region;
+	devlink_snapshot_data_dest_t *data_destructor;
+	u64 data_len;
+	u8 *data;
+	u32 id;
+};
+
+static struct devlink_region *
+devlink_region_get_by_name(struct devlink *devlink, const char *region_name)
+{
+	struct devlink_region *region;
+
+	list_for_each_entry(region, &devlink->region_list, list)
+		if (!strcmp(region->name, region_name))
+			return region;
+
+	return NULL;
+}
+
+static struct devlink_snapshot *
+devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
+{
+	struct devlink_snapshot *snapshot;
+
+	list_for_each_entry(snapshot, &region->snapshot_list, list)
+		if (snapshot->id == id)
+			return snapshot;
+
+	return NULL;
+}
+
+static void devlink_region_snapshot_del(struct devlink_snapshot *snapshot)
+{
+	snapshot->region->cur_snapshots--;
+	list_del(&snapshot->list);
+	(*snapshot->data_destructor)(snapshot->data);
+	kfree(snapshot);
+}
+
 #define DEVLINK_NL_FLAG_NEED_DEVLINK	BIT(0)
 #define DEVLINK_NL_FLAG_NEED_PORT	BIT(1)
 #define DEVLINK_NL_FLAG_NEED_SB		BIT(2)
@@ -2620,6 +2671,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME,
 		.type = DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+		.name = DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME,
+		.type = DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
@@ -3098,6 +3154,420 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 	kfree(param_item);
 }
 
+static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
+					     struct devlink *devlink,
+					     struct devlink_snapshot *snapshot)
+{
+	struct nlattr *snap_attr;
+	int err;
+
+	snap_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
+	if (!snap_attr)
+		return -EINVAL;
+
+	err = nla_put_u32(msg, DEVLINK_ATTR_REGION_SNAPSHOT_ID, snapshot->id);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(msg, snap_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, snap_attr);
+	return err;
+}
+
+static int devlink_nl_region_snapshots_id_put(struct sk_buff *msg,
+					      struct devlink *devlink,
+					      struct devlink_region *region)
+{
+	struct devlink_snapshot *snapshot;
+	struct nlattr *snapshots_attr;
+	int err;
+
+	snapshots_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_SNAPSHOTS);
+	if (!snapshots_attr)
+		return -EINVAL;
+
+	list_for_each_entry(snapshot, &region->snapshot_list, list) {
+		err = devlink_nl_region_snapshot_id_put(msg, devlink, snapshot);
+		if (err)
+			goto nla_put_failure;
+	}
+
+	nla_nest_end(msg, snapshots_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, snapshots_attr);
+	return err;
+}
+
+static int devlink_nl_region_fill(struct sk_buff *msg, struct devlink *devlink,
+				  enum devlink_command cmd, u32 portid,
+				  u32 seq, int flags,
+				  struct devlink_region *region)
+{
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	err = devlink_nl_put_handle(msg, devlink);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME, region->name);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_SIZE,
+				region->size,
+				DEVLINK_ATTR_PAD);
+	if (err)
+		goto nla_put_failure;
+
+	err = devlink_nl_region_snapshots_id_put(msg, devlink, region);
+	if (err)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+static void devlink_nl_region_notify(struct devlink_region *region,
+				     struct devlink_snapshot *snapshot,
+				     enum devlink_command cmd)
+{
+	struct devlink *devlink = region->devlink;
+	struct sk_buff *msg;
+	void *hdr;
+	int err;
+
+	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = genlmsg_put(msg, 0, 0, &devlink_nl_family, 0, cmd);
+	if (!hdr)
+		goto out_free_msg;
+
+	err = devlink_nl_put_handle(msg, devlink);
+	if (err)
+		goto out_cancel_msg;
+
+	err = nla_put_string(msg, DEVLINK_ATTR_REGION_NAME,
+			     region->name);
+	if (err)
+		goto out_cancel_msg;
+
+	if (snapshot) {
+		err = nla_put_u32(msg, DEVLINK_ATTR_REGION_SNAPSHOT_ID,
+				  snapshot->id);
+		if (err)
+			goto out_cancel_msg;
+	} else {
+		err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_SIZE,
+					region->size, DEVLINK_ATTR_PAD);
+		if (err)
+			goto out_cancel_msg;
+	}
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+
+	return;
+
+out_cancel_msg:
+	genlmsg_cancel(msg, hdr);
+out_free_msg:
+	nlmsg_free(msg);
+}
+
+static int devlink_nl_cmd_region_get_doit(struct sk_buff *skb,
+					  struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_region *region;
+	const char *region_name;
+	struct sk_buff *msg;
+	int err;
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_NAME])
+		return -EINVAL;
+
+	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		return -EINVAL;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_region_fill(msg, devlink, DEVLINK_CMD_REGION_GET,
+				     info->snd_portid, info->snd_seq, 0,
+				     region);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_region_get_dumpit(struct sk_buff *msg,
+					    struct netlink_callback *cb)
+{
+	struct devlink_region *region;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			continue;
+
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(region, &devlink->region_list, list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_region_fill(msg, devlink,
+						     DEVLINK_CMD_REGION_GET,
+						     NETLINK_CB(cb->skb).portid,
+						     cb->nlh->nlmsg_seq,
+						     NLM_F_MULTI, region);
+			if (err) {
+				mutex_unlock(&devlink->lock);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+	cb->args[0] = idx;
+	return msg->len;
+}
+
+static int devlink_nl_cmd_region_del(struct sk_buff *skb,
+				     struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_snapshot *snapshot;
+	struct devlink_region *region;
+	const char *region_name;
+	u32 snapshot_id;
+
+	if (!info->attrs[DEVLINK_ATTR_REGION_NAME] ||
+	    !info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID])
+		return -EINVAL;
+
+	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
+	snapshot_id = nla_get_u32(info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		return -EINVAL;
+
+	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+	if (!snapshot)
+		return -EINVAL;
+
+	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_DEL);
+	devlink_region_snapshot_del(snapshot);
+	return 0;
+}
+
+static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
+						 struct devlink *devlink,
+						 u8 *chunk, u32 chunk_size,
+						 u64 addr)
+{
+	struct nlattr *chunk_attr;
+	int err;
+
+	chunk_attr = nla_nest_start(msg, DEVLINK_ATTR_REGION_CHUNK);
+	if (!chunk_attr)
+		return -EINVAL;
+
+	err = nla_put(msg, DEVLINK_ATTR_REGION_CHUNK_DATA, chunk_size, chunk);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_u64_64bit(msg, DEVLINK_ATTR_REGION_CHUNK_ADDR, addr,
+				DEVLINK_ATTR_PAD);
+	if (err)
+		goto nla_put_failure;
+
+	nla_nest_end(msg, chunk_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, chunk_attr);
+	return err;
+}
+
+#define DEVLINK_REGION_READ_CHUNK_SIZE 256
+
+static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
+						struct devlink *devlink,
+						struct devlink_region *region,
+						struct nlattr **attrs,
+						u64 start_offset,
+						u64 end_offset,
+						bool dump,
+						u64 *new_offset)
+{
+	struct devlink_snapshot *snapshot;
+	u64 curr_offset = start_offset;
+	u32 snapshot_id;
+	int err = 0;
+
+	*new_offset = start_offset;
+
+	snapshot_id = nla_get_u32(attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
+	if (!snapshot)
+		return -EINVAL;
+
+	if (end_offset > snapshot->data_len || dump)
+		end_offset = snapshot->data_len;
+
+	while (curr_offset < end_offset) {
+		u32 data_size;
+		u8 *data;
+
+		if (end_offset - curr_offset < DEVLINK_REGION_READ_CHUNK_SIZE)
+			data_size = end_offset - curr_offset;
+		else
+			data_size = DEVLINK_REGION_READ_CHUNK_SIZE;
+
+		data = &snapshot->data[curr_offset];
+		err = devlink_nl_cmd_region_read_chunk_fill(skb, devlink,
+							    data, data_size,
+							    curr_offset);
+		if (err)
+			break;
+
+		curr_offset += data_size;
+	}
+	*new_offset = curr_offset;
+
+	return err;
+}
+
+static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
+					     struct netlink_callback *cb)
+{
+	u64 ret_offset, start_offset, end_offset = 0;
+	struct nlattr *attrs[DEVLINK_ATTR_MAX + 1];
+	const struct genl_ops *ops = cb->data;
+	struct devlink_region *region;
+	struct nlattr *chunks_attr;
+	const char *region_name;
+	struct devlink *devlink;
+	bool dump = true;
+	void *hdr;
+	int err;
+
+	start_offset = *((u64 *)&cb->args[0]);
+
+	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + devlink_nl_family.hdrsize,
+			  attrs, DEVLINK_ATTR_MAX, ops->policy, NULL);
+	if (err)
+		goto out;
+
+	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
+	if (IS_ERR(devlink))
+		goto out;
+
+	mutex_lock(&devlink_mutex);
+	mutex_lock(&devlink->lock);
+
+	if (!attrs[DEVLINK_ATTR_REGION_NAME] ||
+	    !attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID])
+		goto out_unlock;
+
+	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
+	region = devlink_region_get_by_name(devlink, region_name);
+	if (!region)
+		goto out_unlock;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &devlink_nl_family, NLM_F_ACK | NLM_F_MULTI,
+			  DEVLINK_CMD_REGION_READ);
+	if (!hdr)
+		goto out_unlock;
+
+	err = devlink_nl_put_handle(skb, devlink);
+	if (err)
+		goto nla_put_failure;
+
+	err = nla_put_string(skb, DEVLINK_ATTR_REGION_NAME, region_name);
+	if (err)
+		goto nla_put_failure;
+
+	chunks_attr = nla_nest_start(skb, DEVLINK_ATTR_REGION_CHUNKS);
+	if (!chunks_attr)
+		goto nla_put_failure;
+
+	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
+	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
+		if (!start_offset)
+			start_offset =
+				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+
+		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
+		dump = false;
+	}
+
+	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
+						   region, attrs,
+						   start_offset,
+						   end_offset, dump,
+						   &ret_offset);
+
+	if (err && err != -EMSGSIZE)
+		goto nla_put_failure;
+
+	/* Check if there was any progress done to prevent infinite loop */
+	if (ret_offset == start_offset)
+		goto nla_put_failure;
+
+	*((u64 *)&cb->args[0]) = ret_offset;
+
+	nla_nest_end(skb, chunks_attr);
+	genlmsg_end(skb, hdr);
+	mutex_unlock(&devlink->lock);
+	mutex_unlock(&devlink_mutex);
+
+	return skb->len;
+
+nla_put_failure:
+	genlmsg_cancel(skb, hdr);
+out_unlock:
+	mutex_unlock(&devlink->lock);
+	mutex_unlock(&devlink_mutex);
+out:
+	return 0;
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -3121,6 +3591,8 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PARAM_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_PARAM_TYPE] = { .type = NLA_U8 },
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = { .type = NLA_U8 },
+	[DEVLINK_ATTR_REGION_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_REGION_SNAPSHOT_ID] = { .type = NLA_U32 },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -3319,6 +3791,28 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
+	{
+		.cmd = DEVLINK_CMD_REGION_GET,
+		.doit = devlink_nl_cmd_region_get_doit,
+		.dumpit = devlink_nl_cmd_region_get_dumpit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_DEL,
+		.doit = devlink_nl_cmd_region_del,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_REGION_READ,
+		.dumpit = devlink_nl_cmd_region_read_dumpit,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
 };
 
 static struct genl_family devlink_nl_family __ro_after_init = {
@@ -3358,6 +3852,7 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 	INIT_LIST_HEAD_RCU(&devlink->dpipe_table_list);
 	INIT_LIST_HEAD(&devlink->resource_list);
 	INIT_LIST_HEAD(&devlink->param_list);
+	INIT_LIST_HEAD(&devlink->region_list);
 	mutex_init(&devlink->lock);
 	return devlink;
 }
@@ -4108,6 +4603,158 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
+
+/**
+ *	devlink_region_create - create a new address region
+ *
+ *	@devlink: devlink
+ *	@region_name: region name
+ *	@region_max_snapshots: Maximum supported number of snapshots for region
+ *	@region_size: size of region
+ */
+struct devlink_region *devlink_region_create(struct devlink *devlink,
+					     const char *region_name,
+					     u32 region_max_snapshots,
+					     u64 region_size)
+{
+	struct devlink_region *region;
+	int err = 0;
+
+	mutex_lock(&devlink->lock);
+
+	if (devlink_region_get_by_name(devlink, region_name)) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	if (!region) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	region->devlink = devlink;
+	region->max_snapshots = region_max_snapshots;
+	region->name = region_name;
+	region->size = region_size;
+	INIT_LIST_HEAD(&region->snapshot_list);
+	list_add_tail(&region->list, &devlink->region_list);
+	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+
+	mutex_unlock(&devlink->lock);
+	return region;
+
+unlock:
+	mutex_unlock(&devlink->lock);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(devlink_region_create);
+
+/**
+ *	devlink_region_destroy - destroy address region
+ *
+ *	@region: devlink region to destroy
+ */
+void devlink_region_destroy(struct devlink_region *region)
+{
+	struct devlink *devlink = region->devlink;
+	struct devlink_snapshot *snapshot, *ts;
+
+	mutex_lock(&devlink->lock);
+
+	/* Free all snapshots of region */
+	list_for_each_entry_safe(snapshot, ts, &region->snapshot_list, list)
+		devlink_region_snapshot_del(snapshot);
+
+	list_del(&region->list);
+
+	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
+	mutex_unlock(&devlink->lock);
+	kfree(region);
+}
+EXPORT_SYMBOL_GPL(devlink_region_destroy);
+
+/**
+ *	devlink_region_shapshot_id_get - get snapshot ID
+ *
+ *	This callback should be called when adding a new snapshot,
+ *	Driver should use the same id for multiple snapshots taken
+ *	on multiple regions at the same time/by the same trigger.
+ *
+ *	@devlink: devlink
+ */
+u32 devlink_region_shapshot_id_get(struct devlink *devlink)
+{
+	u32 id;
+
+	mutex_lock(&devlink->lock);
+	id = ++devlink->snapshot_id;
+	mutex_unlock(&devlink->lock);
+
+	return id;
+}
+EXPORT_SYMBOL_GPL(devlink_region_shapshot_id_get);
+
+/**
+ *	devlink_region_snapshot_create - create a new snapshot
+ *	This will add a new snapshot of a region. The snapshot
+ *	will be stored on the region struct and can be accessed
+ *	from devlink. This is useful for future	analyses of snapshots.
+ *	Multiple snapshots can be created on a region.
+ *	The @snapshot_id should be obtained using the getter function.
+ *
+ *	@devlink_region: devlink region of the snapshot
+ *	@data_len: size of snapshot data
+ *	@data: snapshot data
+ *	@snapshot_id: snapshot id to be created
+ *	@data_destructor: pointer to destructor function to free data
+ */
+int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+				   u8 *data, u32 snapshot_id,
+				   devlink_snapshot_data_dest_t *data_destructor)
+{
+	struct devlink *devlink = region->devlink;
+	struct devlink_snapshot *snapshot;
+	int err;
+
+	mutex_lock(&devlink->lock);
+
+	/* check if region can hold one more snapshot */
+	if (region->cur_snapshots == region->max_snapshots) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
+		err = -EEXIST;
+		goto unlock;
+	}
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_KERNEL);
+	if (!snapshot) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	snapshot->id = snapshot_id;
+	snapshot->region = region;
+	snapshot->data = data;
+	snapshot->data_len = data_len;
+	snapshot->data_destructor = data_destructor;
+
+	list_add_tail(&snapshot->list, &region->snapshot_list);
+
+	region->cur_snapshots++;
+
+	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_NEW);
+	mutex_unlock(&devlink->lock);
+	return 0;
+
+unlock:
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_region_snapshot_create);
 
 static int __init devlink_module_init(void)
 {

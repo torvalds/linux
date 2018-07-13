@@ -28,6 +28,8 @@ struct devlink {
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
 	struct list_head param_list;
+	struct list_head region_list;
+	u32 snapshot_id;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -359,6 +361,7 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
 	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
+	DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -373,6 +376,9 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME "enable_sriov"
 #define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME "region_snapshot_enable"
+#define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -396,6 +402,10 @@ enum devlink_param_generic_id {
 	.set = _set,							\
 	.validate = _validate,						\
 }
+
+struct devlink_region;
+
+typedef void devlink_snapshot_data_dest_t(const void *data);
 
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
@@ -543,6 +553,15 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+struct devlink_region *devlink_region_create(struct devlink *devlink,
+					     const char *region_name,
+					     u32 region_max_snapshots,
+					     u64 region_size);
+void devlink_region_destroy(struct devlink_region *region);
+u32 devlink_region_shapshot_id_get(struct devlink *devlink);
+int devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+				   u8 *data, u32 snapshot_id,
+				   devlink_snapshot_data_dest_t *data_destructor);
 
 #else
 
@@ -768,6 +787,34 @@ devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 static inline void
 devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 {
+}
+
+static inline struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const char *region_name,
+		      u32 region_max_snapshots,
+		      u64 region_size)
+{
+	return NULL;
+}
+
+static inline void
+devlink_region_destroy(struct devlink_region *region)
+{
+}
+
+static inline u32
+devlink_region_shapshot_id_get(struct devlink *devlink)
+{
+	return 0;
+}
+
+static inline int
+devlink_region_snapshot_create(struct devlink_region *region, u64 data_len,
+			       u8 *data, u32 snapshot_id,
+			       devlink_snapshot_data_dest_t *data_destructor)
+{
+	return 0;
 }
 
 #endif

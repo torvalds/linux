@@ -178,10 +178,12 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 
 	dev = persist->dev;
 	mlx4_err(dev, "device is going to be reset\n");
-	if (mlx4_is_slave(dev))
+	if (mlx4_is_slave(dev)) {
 		err = mlx4_reset_slave(dev);
-	else
+	} else {
+		mlx4_crdump_collect(dev);
 		err = mlx4_reset_master(dev);
+	}
 
 	if (!err) {
 		mlx4_err(dev, "device was reset successfully\n");

@@ -191,6 +191,26 @@ static int mlx4_devlink_ierr_reset_set(struct devlink *devlink, u32 id,
 	return 0;
 }
 
+static int mlx4_devlink_crdump_snapshot_get(struct devlink *devlink, u32 id,
+					    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+
+	ctx->val.vbool = dev->persist->crdump.snapshot_enable;
+	return 0;
+}
+
+static int mlx4_devlink_crdump_snapshot_set(struct devlink *devlink, u32 id,
+					    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+
+	dev->persist->crdump.snapshot_enable = ctx->val.vbool;
+	return 0;
+}
+
 static int
 mlx4_devlink_max_macs_validate(struct devlink *devlink, u32 id,
 			       union devlink_param_value val,
@@ -224,6 +244,11 @@ static const struct devlink_param mlx4_devlink_params[] = {
 	DEVLINK_PARAM_GENERIC(MAX_MACS,
 			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
 			      NULL, NULL, mlx4_devlink_max_macs_validate),
+	DEVLINK_PARAM_GENERIC(REGION_SNAPSHOT,
+			      BIT(DEVLINK_PARAM_CMODE_RUNTIME) |
+			      BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
+			      mlx4_devlink_crdump_snapshot_get,
+			      mlx4_devlink_crdump_snapshot_set, NULL),
 	DEVLINK_PARAM_DRIVER(MLX4_DEVLINK_PARAM_ID_ENABLE_64B_CQE_EQE,
 			     "enable_64b_cqe_eqe", DEVLINK_PARAM_TYPE_BOOL,
 			     BIT(DEVLINK_PARAM_CMODE_DRIVERINIT),
@@ -269,6 +294,11 @@ static void mlx4_devlink_set_params_init_values(struct devlink *devlink)
 	value.vbool = enable_4k_uar;
 	mlx4_devlink_set_init_value(devlink,
 				    MLX4_DEVLINK_PARAM_ID_ENABLE_4K_UAR,
+				    value);
+
+	value.vbool = false;
+	mlx4_devlink_set_init_value(devlink,
+				    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
 				    value);
 }
 
@@ -523,6 +553,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
 	dev->caps.wol_port[1]          = dev_cap->wol_port[1];
 	dev->caps.wol_port[2]          = dev_cap->wol_port[2];
+	dev->caps.health_buffer_addrs  = dev_cap->health_buffer_addrs;
 
 	/* Save uar page shift */
 	if (!mlx4_is_slave(dev)) {
@@ -3806,9 +3837,13 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 		}
 	}
 
-	err = mlx4_catas_init(&priv->dev);
+	err = mlx4_crdump_init(&priv->dev);
 	if (err)
 		goto err_release_regions;
+
+	err = mlx4_catas_init(&priv->dev);
+	if (err)
+		goto err_crdump;
 
 	err = mlx4_load_one(pdev, pci_dev_data, total_vfs, nvfs, priv, 0);
 	if (err)
@@ -3818,6 +3853,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 
 err_catas:
 	mlx4_catas_end(&priv->dev);
+
+err_crdump:
+	mlx4_crdump_end(&priv->dev);
 
 err_release_regions:
 	pci_release_regions(pdev);
@@ -3854,6 +3892,9 @@ static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
 
 static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
 {
+	struct mlx4_priv *priv = devlink_priv(devlink);
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_fw_crdump *crdump = &dev->persist->crdump;
 	union devlink_param_value saved_value;
 	int err;
 
@@ -3881,6 +3922,14 @@ static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
 						 &saved_value);
 	if (!err)
 		enable_4k_uar = saved_value.vbool;
+	err = devlink_param_driverinit_value_get(devlink,
+						 DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+						 &saved_value);
+	if (!err && crdump->snapshot_enable != saved_value.vbool) {
+		crdump->snapshot_enable = saved_value.vbool;
+		devlink_param_value_changed(devlink,
+					    DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT);
+	}
 }
 
 static int mlx4_devlink_reload(struct devlink *devlink,
@@ -4080,6 +4129,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	else
 		mlx4_info(dev, "%s: interface is down\n", __func__);
 	mlx4_catas_end(dev);
+	mlx4_crdump_end(dev);
 	if (dev->flags & MLX4_FLAG_SRIOV && !active_vfs) {
 		mlx4_warn(dev, "Disabling SR-IOV\n");
 		pci_disable_sriov(pdev);
