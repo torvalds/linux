@@ -2539,17 +2539,43 @@ EXPORT_SYMBOL_GPL(s390_enable_sie);
  * Enable storage key handling from now on and initialize the storage
  * keys with the default key.
  */
-static int __s390_enable_skey(pte_t *pte, unsigned long addr,
-			      unsigned long next, struct mm_walk *walk)
+static int __s390_enable_skey_pte(pte_t *pte, unsigned long addr,
+				  unsigned long next, struct mm_walk *walk)
 {
 	/* Clear storage key */
 	ptep_zap_key(walk->mm, addr, pte);
 	return 0;
 }
 
+static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
+				      unsigned long hmask, unsigned long next,
+				      struct mm_walk *walk)
+{
+	pmd_t *pmd = (pmd_t *)pte;
+	unsigned long start, end;
+
+	/*
+	 * The write check makes sure we do not set a key on shared
+	 * memory. This is needed as the walker does not differentiate
+	 * between actual guest memory and the process executable or
+	 * shared libraries.
+	 */
+	if (pmd_val(*pmd) & _SEGMENT_ENTRY_INVALID ||
+	    !(pmd_val(*pmd) & _SEGMENT_ENTRY_WRITE))
+		return 0;
+
+	start = pmd_val(*pmd) & HPAGE_MASK;
+	end = start + HPAGE_SIZE - 1;
+	__storage_key_init_range(start, end);
+	return 0;
+}
+
 int s390_enable_skey(void)
 {
-	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
+	struct mm_walk walk = {
+		.hugetlb_entry = __s390_enable_skey_hugetlb,
+		.pte_entry = __s390_enable_skey_pte,
+	};
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	int rc = 0;
