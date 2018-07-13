@@ -213,6 +213,12 @@
 	};
 };
 
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
@@ -379,6 +385,12 @@
 		fsl,pins = <
 			MX6SLL_PAD_I2C1_SCL__I2C1_SCL	 0x4001b8b1
 			MX6SLL_PAD_I2C1_SDA__I2C1_SDA	 0x4001b8b1
+		>;
+	};
+
+	pinctrl_pwm1: pmw1grp {
+		fsl,pins = <
+			MX6SLL_PAD_PWM1__PWM1_OUT   0x110b0
 		>;
 	};
 };
