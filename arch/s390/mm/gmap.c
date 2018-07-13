@@ -596,10 +596,15 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	if (*table == _SEGMENT_ENTRY_EMPTY) {
 		rc = radix_tree_insert(&gmap->host_to_guest,
 				       vmaddr >> PMD_SHIFT, table);
-		if (!rc)
-			*table = pmd_val(*pmd);
-	} else
-		rc = 0;
+		if (!rc) {
+			if (pmd_large(*pmd)) {
+				*table = pmd_val(*pmd) &
+					_SEGMENT_ENTRY_HARDWARE_BITS_LARGE;
+			} else
+				*table = pmd_val(*pmd) &
+					_SEGMENT_ENTRY_HARDWARE_BITS;
+		}
+	}
 	spin_unlock(&gmap->guest_table_lock);
 	spin_unlock(ptl);
 	radix_tree_preload_end();
