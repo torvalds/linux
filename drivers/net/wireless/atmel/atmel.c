@@ -1399,6 +1399,7 @@ static int atmel_validate_channel(struct atmel_private *priv, int channel)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 static int atmel_proc_show(struct seq_file *m, void *v)
 {
 	struct atmel_private *priv = m->private;
@@ -1481,6 +1482,7 @@ static int atmel_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "Current state:\t\t%s\n", s);
 	return 0;
 }
+#endif
 
 static const struct net_device_ops atmel_netdev_ops = {
 	.ndo_open 		= atmel_open,
