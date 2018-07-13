@@ -70,6 +70,21 @@ static const struct kfd_device_info carrizo_device_info = {
 	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
 };
+
+static const struct kfd_device_info raven_device_info = {
+	.asic_family = CHIP_RAVEN,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = true,
+	.needs_pci_atomics = true,
+	.num_sdma_engines = 1,
+};
 #endif
 
 static const struct kfd_device_info hawaii_device_info = {
@@ -259,6 +274,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x9875, &carrizo_device_info },	/* Carrizo */
 	{ 0x9876, &carrizo_device_info },	/* Carrizo */
 	{ 0x9877, &carrizo_device_info },	/* Carrizo */
+	{ 0x15DD, &raven_device_info },		/* Raven */
 #endif
 	{ 0x67A0, &hawaii_device_info },	/* Hawaii */
 	{ 0x67A1, &hawaii_device_info },	/* Hawaii */
