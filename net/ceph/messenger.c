@@ -1417,11 +1417,11 @@ static void prepare_write_keepalive(struct ceph_connection *con)
 	dout("prepare_write_keepalive %p\n", con);
 	con_out_kvec_reset(con);
 	if (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2) {
-		struct timespec now;
+		struct timespec64 now;
 
-		ktime_get_real_ts(&now);
+		ktime_get_real_ts64(&now);
 		con_out_kvec_add(con, sizeof(tag_keepalive2), &tag_keepalive2);
-		ceph_encode_timespec(&con->out_temp_keepalive2, &now);
+		ceph_encode_timespec64(&con->out_temp_keepalive2, &now);
 		con_out_kvec_add(con, sizeof(con->out_temp_keepalive2),
 				 &con->out_temp_keepalive2);
 	} else {
@@ -2555,7 +2555,7 @@ static int read_keepalive_ack(struct ceph_connection *con)
 	int ret = read_partial(con, size, size, &ceph_ts);
 	if (ret <= 0)
 		return ret;
-	ceph_decode_timespec(&con->last_keepalive_ack, &ceph_ts);
+	ceph_decode_timespec64(&con->last_keepalive_ack, &ceph_ts);
 	prepare_read_tag(con);
 	return 1;
 }
@@ -3223,12 +3223,12 @@ bool ceph_con_keepalive_expired(struct ceph_connection *con,
 {
 	if (interval > 0 &&
 	    (con->peer_features & CEPH_FEATURE_MSGR_KEEPALIVE2)) {
-		struct timespec now;
-		struct timespec ts;
-		ktime_get_real_ts(&now);
-		jiffies_to_timespec(interval, &ts);
-		ts = timespec_add(con->last_keepalive_ack, ts);
-		return timespec_compare(&now, &ts) >= 0;
+		struct timespec64 now;
+		struct timespec64 ts;
+		ktime_get_real_ts64(&now);
+		jiffies_to_timespec64(interval, &ts);
+		ts = timespec64_add(con->last_keepalive_ack, ts);
+		return timespec64_compare(&now, &ts) >= 0;
 	}
 	return false;
 }
