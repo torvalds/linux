@@ -2897,7 +2897,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 			 */
 			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter,
-					     (RF90_RADIO_PATH_E)eRFPath,
+					     (enum RF90_RADIO_PATH_E)eRFPath,
 					     0x4, 0xC00, 0x0);
 		} else if (pMgntInfo->RfOffReason > RF_CHANGE_BY_PS) {
 			/* H/W or S/W RF OFF before sleep. */
@@ -2923,7 +2923,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 			 */
 			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter,
-					     (RF90_RADIO_PATH_E)eRFPath,
+					     (enum RF90_RADIO_PATH_E)eRFPath,
 					     0x4, 0xC00, 0x0);
 		}
 	}

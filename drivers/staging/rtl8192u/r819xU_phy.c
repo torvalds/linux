@@ -108,11 +108,13 @@ u32 rtl8192_QueryBBReg(struct net_device *dev, u32 reg_addr, u32 bitmask)
 	return (reg & bitmask) >> bitshift;
 }
 
-static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
+static u32 phy_FwRFSerialRead(struct net_device *dev,
+			      enum RF90_RADIO_PATH_E eRFPath,
 			      u32 offset);
 
 static void phy_FwRFSerialWrite(struct net_device *dev,
-				RF90_RADIO_PATH_E eRFPath, u32  offset,
+				enum RF90_RADIO_PATH_E eRFPath,
+				u32  offset,
 				u32  data);
 
 /******************************************************************************
@@ -130,7 +132,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
  *            ---need more spec for this information.
  ******************************************************************************/
 static u32 rtl8192_phy_RFSerialRead(struct net_device *dev,
-				    RF90_RADIO_PATH_E eRFPath, u32 offset)
+				    enum RF90_RADIO_PATH_E eRFPath, u32 offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 ret = 0;
@@ -215,7 +217,8 @@ static u32 rtl8192_phy_RFSerialRead(struct net_device *dev,
  * ---------------------------------------------------------------------------
  *****************************************************************************/
 static void rtl8192_phy_RFSerialWrite(struct net_device *dev,
-				      RF90_RADIO_PATH_E eRFPath, u32 offset,
+				      enum RF90_RADIO_PATH_E eRFPath,
+				      u32 offset,
 				      u32 data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -279,7 +282,8 @@ static void rtl8192_phy_RFSerialWrite(struct net_device *dev,
  * return:    none
  * notice:
  *****************************************************************************/
-void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
+void rtl8192_phy_SetRFReg(struct net_device *dev,
+			  enum RF90_RADIO_PATH_E eRFPath,
 			  u32 reg_addr, u32 bitmask, u32 data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -327,7 +331,8 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  * return:    u32               data     //the readback register value
  * notice:
  *****************************************************************************/
-u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
+u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
+			   enum RF90_RADIO_PATH_E eRFPath,
 			   u32 reg_addr, u32 bitmask)
 {
 	u32 reg, bitshift;
@@ -357,7 +362,8 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  * return:    u32
  * notice:
  ****************************************************************************/
-static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
+static u32 phy_FwRFSerialRead(struct net_device *dev,
+			      enum RF90_RADIO_PATH_E eRFPath,
 			      u32 offset)
 {
 	u32		reg = 0;
@@ -422,7 +428,8 @@ static u32 phy_FwRFSerialRead(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
  * notice:
  ****************************************************************************/
 static void phy_FwRFSerialWrite(struct net_device *dev,
-				RF90_RADIO_PATH_E eRFPath, u32 offset, u32 data)
+				enum RF90_RADIO_PATH_E eRFPath,
+				u32 offset, u32 data)
 {
 	u8	time = 0;
 	u32	tmp;
@@ -696,7 +703,7 @@ static void rtl8192_InitBBRFRegDef(struct net_device *dev)
  * notice:    This function may be removed in the ASIC
  ******************************************************************************/
 u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, enum HW90_BLOCK_E CheckBlock,
-			    RF90_RADIO_PATH_E eRFPath)
+			    enum RF90_RADIO_PATH_E eRFPath)
 {
 	u8 ret = 0;
 	u32 i, CheckTimes = 4, reg = 0;
@@ -791,7 +798,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	     eCheckItem <= HW90_BLOCK_PHY1; eCheckItem++) {
 		/* don't care RF path */
 		status = rtl8192_phy_checkBBAndRF(dev, (enum HW90_BLOCK_E)eCheckItem,
-						  (RF90_RADIO_PATH_E)0);
+						  (enum RF90_RADIO_PATH_E)0);
 		if (status != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
 				 "PHY_RF8256_Config(): Check PHY%d Fail!!\n",
@@ -969,7 +976,7 @@ void rtl8192_phy_updateInitGain(struct net_device *dev)
  * notice:    Delay may be required for RF configuration
  *****************************************************************************/
 u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
-				      RF90_RADIO_PATH_E	eRFPath)
+				      enum RF90_RADIO_PATH_E	eRFPath)
 {
 
 	int i;
@@ -1387,7 +1394,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 		case CmdID_RF_WriteReg:
 			for (eRFPath = 0; eRFPath < RF90_PATH_MAX; eRFPath++) {
 				rtl8192_phy_SetRFReg(dev,
-						     (RF90_RADIO_PATH_E)eRFPath,
+						     (enum RF90_RADIO_PATH_E)eRFPath,
 						     CurrentCmd->Para1,
 						     bZebra1_ChannelNum,
 						     CurrentCmd->Para2);
