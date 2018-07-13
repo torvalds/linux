@@ -578,6 +578,7 @@ enum vmx_l1d_flush_state {
 	VMENTER_L1D_FLUSH_NEVER,
 	VMENTER_L1D_FLUSH_COND,
 	VMENTER_L1D_FLUSH_ALWAYS,
+	VMENTER_L1D_FLUSH_EPT_DISABLED,
 };
 
 extern enum vmx_l1d_flush_state l1tf_vmx_mitigation;
