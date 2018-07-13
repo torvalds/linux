@@ -4,7 +4,6 @@
 
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/component.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -1395,11 +1394,12 @@ static void of_q6afe_parse_dai_data(struct device *dev,
 	}
 }
 
-static int q6afe_dai_bind(struct device *dev, struct device *master, void *data)
+static int q6afe_dai_dev_probe(struct platform_device *pdev)
 {
 	struct q6afe_dai_data *dai_data;
+	struct device *dev = &pdev->dev;
 
-	dai_data = kzalloc(sizeof(*dai_data), GFP_KERNEL);
+	dai_data = devm_kzalloc(dev, sizeof(*dai_data), GFP_KERNEL);
 	if (!dai_data)
 		return -ENOMEM;
 
@@ -1407,33 +1407,8 @@ static int q6afe_dai_bind(struct device *dev, struct device *master, void *data)
 
 	of_q6afe_parse_dai_data(dev, dai_data);
 
-	return snd_soc_register_component(dev, &q6afe_dai_component,
+	return devm_snd_soc_register_component(dev, &q6afe_dai_component,
 					  q6afe_dais, ARRAY_SIZE(q6afe_dais));
-}
-
-static void q6afe_dai_unbind(struct device *dev, struct device *master,
-			     void *data)
-{
-	struct q6afe_dai_data *dai_data = dev_get_drvdata(dev);
-
-	snd_soc_unregister_component(dev);
-	kfree(dai_data);
-}
-
-static const struct component_ops q6afe_dai_comp_ops = {
-	.bind   = q6afe_dai_bind,
-	.unbind = q6afe_dai_unbind,
-};
-
-static int q6afe_dai_dev_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &q6afe_dai_comp_ops);
-}
-
-static int q6afe_dai_dev_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &q6afe_dai_comp_ops);
-	return 0;
 }
 
 static const struct of_device_id q6afe_dai_device_id[] = {
@@ -1448,7 +1423,6 @@ static struct platform_driver q6afe_dai_platform_driver = {
 		.of_match_table = of_match_ptr(q6afe_dai_device_id),
 	},
 	.probe = q6afe_dai_dev_probe,
-	.remove = q6afe_dai_dev_remove,
 };
 module_platform_driver(q6afe_dai_platform_driver);
 
