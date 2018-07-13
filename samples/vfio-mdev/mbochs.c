@@ -178,6 +178,8 @@ static const char *vbe_name(u32 index)
 	return "(invalid)";
 }
 
+static struct page *__mbochs_get_page(struct mdev_state *mdev_state,
+				      pgoff_t pgoff);
 static struct page *mbochs_get_page(struct mdev_state *mdev_state,
 				    pgoff_t pgoff);
 
@@ -394,7 +396,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, char *buf, size_t count,
 		   MBOCHS_MEMORY_BAR_OFFSET + mdev_state->memsize) {
 		pos -= MBOCHS_MMIO_BAR_OFFSET;
 		poff = pos & ~PAGE_MASK;
-		pg = mbochs_get_page(mdev_state, pos >> PAGE_SHIFT);
+		pg = __mbochs_get_page(mdev_state, pos >> PAGE_SHIFT);
 		map = kmap(pg);
 		if (is_write)
 			memcpy(map + poff, buf, count);
