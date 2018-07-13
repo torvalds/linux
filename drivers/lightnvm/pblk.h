@@ -608,9 +608,6 @@ struct pblk {
 
 	int min_write_pgs; /* Minimum amount of pages required by controller */
 	int max_write_pgs; /* Maximum amount of pages supported by controller */
-	int pgs_in_buffer; /* Number of pages that need to be held in buffer to
-			    * guarantee successful reads.
-			    */
 
 	sector_t capacity; /* Device capacity when bad blocks are subtracted */
 

@@ -179,11 +179,14 @@ static int pblk_rwb_init(struct pblk *pblk)
 	struct pblk_rb_entry *entries;
 	unsigned long nr_entries, buffer_size;
 	unsigned int power_size, power_seg_sz;
+	int pgs_in_buffer;
 
-	if (write_buffer_size && (write_buffer_size > pblk->pgs_in_buffer))
+	pgs_in_buffer = max(geo->mw_cunits, geo->ws_opt) * geo->all_luns;
+
+	if (write_buffer_size && (write_buffer_size > pgs_in_buffer))
 		buffer_size = write_buffer_size;
 	else
-		buffer_size = pblk->pgs_in_buffer;
+		buffer_size = pgs_in_buffer;
 
 	nr_entries = pblk_rb_calculate_size(buffer_size);
 
@@ -365,8 +368,6 @@ static int pblk_core_init(struct pblk *pblk)
 
 	atomic64_set(&pblk->nr_flush, 0);
 	pblk->nr_flush_rst = 0;
-
-	pblk->pgs_in_buffer = geo->mw_cunits * geo->all_luns;
 
 	pblk->min_write_pgs = geo->ws_opt * (geo->csecs / PAGE_SIZE);
 	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
