@@ -60,7 +60,7 @@ struct tms;
 struct utimbuf;
 struct mq_attr;
 struct compat_stat;
-struct compat_timeval;
+struct old_timeval32;
 struct robust_list_head;
 struct getcpu_cache;
 struct old_linux_dirent;

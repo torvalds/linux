@@ -13,6 +13,31 @@
 
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
+typedef s32		old_time32_t;
+
+struct old_timespec32 {
+	old_time32_t	tv_sec;
+	s32		tv_nsec;
+};
+
+struct old_timeval32 {
+	old_time32_t	tv_sec;
+	s32		tv_usec;
+};
+
+struct old_itimerspec32 {
+	struct old_timespec32 it_interval;
+	struct old_timespec32 it_value;
+};
+
+extern int get_old_timespec32(struct timespec64 *, const void __user *);
+extern int put_old_timespec32(const struct timespec64 *, void __user *);
+extern int get_old_itimerspec32(struct itimerspec64 *its,
+			const struct old_itimerspec32 __user *uits);
+extern int put_old_itimerspec32(const struct itimerspec64 *its,
+			struct old_itimerspec32 __user *uits);
+
+
 #if __BITS_PER_LONG == 64
 
 /* timespec64 is defined as timespec here */
@@ -183,18 +208,17 @@ extern struct timeval ns_to_timeval(const s64 nsec);
 extern struct __kernel_old_timeval ns_to_kernel_old_timeval(s64 nsec);
 
 /*
- * New aliases for compat time functions. These will be used to replace
- * the compat code so it can be shared between 32-bit and 64-bit builds
- * both of which provide compatibility with old 32-bit tasks.
+ * Old names for the 32-bit time_t interfaces, these will be removed
+ * when everything uses the new names.
  */
-#define old_time32_t		compat_time_t
-#define old_timeval32		compat_timeval
-#define old_timespec32		compat_timespec
-#define old_itimerspec32	compat_itimerspec
-#define ns_to_old_timeval32	ns_to_compat_timeval
-#define get_old_itimerspec32	get_compat_itimerspec64
-#define put_old_itimerspec32	put_compat_itimerspec64
-#define get_old_timespec32	compat_get_timespec64
-#define put_old_timespec32	compat_put_timespec64
+#define compat_time_t		old_time32_t
+#define compat_timeval		old_timeval32
+#define compat_timespec		old_timespec32
+#define compat_itimerspec	old_itimerspec32
+#define ns_to_compat_timeval	ns_to_old_timeval32
+#define get_compat_itimerspec64	get_old_itimerspec32
+#define put_compat_itimerspec64	put_old_itimerspec32
+#define compat_get_timespec64	get_old_timespec32
+#define compat_put_timespec64	put_old_timespec32
 
 #endif

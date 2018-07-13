@@ -48,11 +48,11 @@ struct compat_stat {
 	u16			st_reserved2;	/* old st_gid */
 	compat_dev_t		st_rdev;
 	compat_off_t		st_size;
-	compat_time_t		st_atime;
+	old_time32_t		st_atime;
 	u32			st_atime_nsec;
-	compat_time_t		st_mtime;
+	old_time32_t		st_mtime;
 	u32			st_mtime_nsec;
-	compat_time_t		st_ctime;
+	old_time32_t		st_ctime;
 	u32			st_ctime_nsec;
 	s32			st_blksize;
 	s32			st_blocks;

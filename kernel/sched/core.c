@@ -5257,13 +5257,13 @@ SYSCALL_DEFINE2(sched_rr_get_interval, pid_t, pid,
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
 		       compat_pid_t, pid,
-		       struct compat_timespec __user *, interval)
+		       struct old_timespec32 __user *, interval)
 {
 	struct timespec64 t;
 	int retval = sched_rr_get_interval(pid, &t);
 
 	if (retval == 0)
-		retval = compat_put_timespec64(&t, interval);
+		retval = put_old_timespec32(&t, interval);
 	return retval;
 }
 #endif

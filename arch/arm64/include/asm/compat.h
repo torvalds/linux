@@ -86,11 +86,11 @@ struct compat_stat {
 	compat_off_t	st_size;
 	compat_off_t	st_blksize;
 	compat_off_t	st_blocks;
-	compat_time_t	st_atime;
+	old_time32_t	st_atime;
 	compat_ulong_t	st_atime_nsec;
-	compat_time_t	st_mtime;
+	old_time32_t	st_mtime;
 	compat_ulong_t	st_mtime_nsec;
-	compat_time_t	st_ctime;
+	old_time32_t	st_ctime;
 	compat_ulong_t	st_ctime_nsec;
 	compat_ulong_t	__unused4[2];
 };

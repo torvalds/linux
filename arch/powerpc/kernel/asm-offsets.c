@@ -387,12 +387,12 @@ int main(void)
 	OFFSET(CFG_SYSCALL_MAP64, vdso_data, syscall_map_64);
 	OFFSET(TVAL64_TV_SEC, timeval, tv_sec);
 	OFFSET(TVAL64_TV_USEC, timeval, tv_usec);
-	OFFSET(TVAL32_TV_SEC, compat_timeval, tv_sec);
-	OFFSET(TVAL32_TV_USEC, compat_timeval, tv_usec);
+	OFFSET(TVAL32_TV_SEC, old_timeval32, tv_sec);
+	OFFSET(TVAL32_TV_USEC, old_timeval32, tv_usec);
 	OFFSET(TSPC64_TV_SEC, timespec, tv_sec);
 	OFFSET(TSPC64_TV_NSEC, timespec, tv_nsec);
-	OFFSET(TSPC32_TV_SEC, compat_timespec, tv_sec);
-	OFFSET(TSPC32_TV_NSEC, compat_timespec, tv_nsec);
+	OFFSET(TSPC32_TV_SEC, old_timespec32, tv_sec);
+	OFFSET(TSPC32_TV_NSEC, old_timespec32, tv_nsec);
 #else
 	OFFSET(TVAL32_TV_SEC, timeval, tv_sec);
 	OFFSET(TVAL32_TV_USEC, timeval, tv_usec);

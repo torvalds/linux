@@ -59,11 +59,11 @@ struct compat_stat {
 	s32		st_pad2[2];
 	compat_off_t	st_size;
 	s32		st_pad3;
-	compat_time_t	st_atime;
+	old_time32_t	st_atime;
 	s32		st_atime_nsec;
-	compat_time_t	st_mtime;
+	old_time32_t	st_mtime;
 	s32		st_mtime_nsec;
-	compat_time_t	st_ctime;
+	old_time32_t	st_ctime;
 	s32		st_ctime_nsec;
 	s32		st_blksize;
 	s32		st_blocks;

@@ -1660,7 +1660,7 @@ int nanosleep_copyout(struct restart_block *restart, struct timespec64 *ts)
 	switch(restart->nanosleep.type) {
 #ifdef CONFIG_COMPAT_32BIT_TIME
 	case TT_COMPAT:
-		if (compat_put_timespec64(ts, restart->nanosleep.compat_rmtp))
+		if (put_old_timespec32(ts, restart->nanosleep.compat_rmtp))
 			return -EFAULT;
 		break;
 #endif
@@ -1780,12 +1780,12 @@ SYSCALL_DEFINE2(nanosleep, struct __kernel_timespec __user *, rqtp,
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
 
-COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
-		       struct compat_timespec __user *, rmtp)
+COMPAT_SYSCALL_DEFINE2(nanosleep, struct old_timespec32 __user *, rqtp,
+		       struct old_timespec32 __user *, rmtp)
 {
 	struct timespec64 tu;
 
-	if (compat_get_timespec64(&tu, rqtp))
+	if (get_old_timespec32(&tu, rqtp))
 		return -EFAULT;
 
 	if (!timespec64_valid(&tu))
