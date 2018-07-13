@@ -73,6 +73,7 @@
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
+#include "amdgpu_job.h"
 
 /*
  * Modules parameters.
@@ -600,17 +601,6 @@ struct amdgpu_ib {
 
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
-int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job, struct amdgpu_vm *vm);
-int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-			     struct amdgpu_job **job);
-
-void amdgpu_job_free_resources(struct amdgpu_job *job);
-void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct drm_sched_entity *entity, void *owner,
-		      struct dma_fence **f);
-
 /*
  * Queue manager
  */
@@ -1057,40 +1047,6 @@ struct amdgpu_cs_parser {
 	unsigned num_post_dep_syncobjs;
 	struct drm_syncobj **post_dep_syncobjs;
 };
-
-#define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
-#define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
-#define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
-
-struct amdgpu_job {
-	struct drm_sched_job    base;
-	struct amdgpu_device	*adev;
-	struct amdgpu_vm	*vm;
-	struct amdgpu_ring	*ring;
-	struct amdgpu_sync	sync;
-	struct amdgpu_sync	sched_sync;
-	struct amdgpu_ib	*ibs;
-	struct dma_fence	*fence; /* the hw fence */
-	uint32_t		preamble_status;
-	uint32_t		num_ibs;
-	void			*owner;
-	uint64_t		fence_ctx; /* the fence_context this job uses */
-	bool                    vm_needs_flush;
-	uint64_t		vm_pd_addr;
-	unsigned		vmid;
-	unsigned		pasid;
-	uint32_t		gds_base, gds_size;
-	uint32_t		gws_base, gws_size;
-	uint32_t		oa_base, oa_size;
-	uint32_t		vram_lost_counter;
-
-	/* user fence handling */
-	uint64_t		uf_addr;
-	uint64_t		uf_sequence;
-
-};
-#define to_amdgpu_job(sched_job)		\
-		container_of((sched_job), struct amdgpu_job, base)
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
 				      uint32_t ib_idx, int idx)
