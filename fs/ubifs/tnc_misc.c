@@ -435,7 +435,7 @@ struct ubifs_znode *ubifs_load_znode(struct ubifs_info *c,
 
 	zbr->znode = znode;
 	znode->parent = parent;
-	znode->time = get_seconds();
+	znode->time = ktime_get_seconds();
 	znode->iip = iip;
 
 	return znode;

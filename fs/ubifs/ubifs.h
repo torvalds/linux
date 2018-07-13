@@ -758,7 +758,7 @@ struct ubifs_znode {
 	struct ubifs_znode *parent;
 	struct ubifs_znode *cnext;
 	unsigned long flags;
-	unsigned long time;
+	time64_t time;
 	int level;
 	int child_cnt;
 	int iip;

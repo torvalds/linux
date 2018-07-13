@@ -1179,7 +1179,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int err, exact;
 	struct ubifs_znode *znode;
-	unsigned long time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
 	dbg_tnck(key, "search key ");
 	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
@@ -1315,7 +1315,7 @@ static int lookup_level0_dirty(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int err, exact;
 	struct ubifs_znode *znode;
-	unsigned long time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
 	dbg_tnck(key, "search and dirty key ");
 

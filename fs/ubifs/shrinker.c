@@ -71,7 +71,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 {
 	int total_freed = 0;
 	struct ubifs_znode *znode, *zprev;
-	int time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
 	ubifs_assert(mutex_is_locked(&c->umount_mutex));
 	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
