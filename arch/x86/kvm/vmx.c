@@ -234,12 +234,15 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 
 	l1tf_vmx_mitigation = l1tf;
 
-	if (l1tf == VMENTER_L1D_FLUSH_NEVER)
-		return 0;
+	if (l1tf != VMENTER_L1D_FLUSH_NEVER)
+		static_branch_enable(&vmx_l1d_should_flush);
+	else
+		static_branch_disable(&vmx_l1d_should_flush);
 
-	static_branch_enable(&vmx_l1d_should_flush);
 	if (l1tf == VMENTER_L1D_FLUSH_ALWAYS)
 		static_branch_enable(&vmx_l1d_flush_always);
+	else
+		static_branch_disable(&vmx_l1d_flush_always);
 	return 0;
 }
 
@@ -249,7 +252,7 @@ static int vmentry_l1d_flush_parse(const char *s)
 
 	if (s) {
 		for (i = 0; i < ARRAY_SIZE(vmentry_l1d_param); i++) {
-			if (!strcmp(s, vmentry_l1d_param[i].option))
+			if (sysfs_streq(s, vmentry_l1d_param[i].option))
 				return vmentry_l1d_param[i].cmd;
 		}
 	}
@@ -293,7 +296,7 @@ static const struct kernel_param_ops vmentry_l1d_flush_ops = {
 	.set = vmentry_l1d_flush_set,
 	.get = vmentry_l1d_flush_get,
 };
-module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, NULL, S_IRUGO);
+module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, NULL, 0644);
 
 struct kvm_vmx {
 	struct kvm kvm;
