@@ -1745,7 +1745,7 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
 	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 
-	if (!nvmebuf || !phba->targetport) {
+	if (!phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6154 LS Drop IO x%x\n", oxid);
 		oxid = 0;
@@ -1770,8 +1770,7 @@ dropit:
 		lpfc_nvmeio_data(phba, "NVMET LS  DROP: "
 				 "xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
-		if (nvmebuf)
-			lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		return;
 	}
 	ctxp->phba = phba;
@@ -1814,8 +1813,7 @@ dropit:
 			ctxp->oxid, rc);
 
 	/* We assume a rcv'ed cmd ALWAYs fits into 1 buffer */
-	if (nvmebuf)
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 
 	atomic_inc(&tgtp->xmt_ls_abort);
 	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, sid, oxid);
