@@ -665,7 +665,8 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	/*
 	 * Model touchscreens providing buttons as touchpads.
 	 */
-	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
+	if (field->application == HID_DG_TOUCHSCREEN &&
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
 		app->mt_flags |= INPUT_MT_POINTER;
 		td->inputmode_value = MT_INPUTMODE_TOUCHPAD;
 	}
@@ -691,6 +692,19 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			}
 
 			set_abs(hi->input, code, field, cls->sn_move);
+
+			/*
+			 * A system multi-axis that exports X and Y has a high
+			 * chance of being used directly on a surface
+			 */
+			if (field->application == HID_GD_SYSTEM_MULTIAXIS) {
+				__set_bit(INPUT_PROP_DIRECT,
+					  hi->input->propbit);
+				input_set_abs_params(hi->input,
+						     ABS_MT_TOOL_TYPE,
+						     MT_TOOL_DIAL,
+						     MT_TOOL_DIAL, 0, 0);
+			}
 
 			return 1;
 		case HID_GD_Y:
@@ -725,7 +739,9 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			MT_STORE_FIELD(confidence_state);
 			return 1;
 		case HID_DG_TIPSWITCH:
-			input_set_capability(hi->input, EV_KEY, BTN_TOUCH);
+			if (field->application != HID_GD_SYSTEM_MULTIAXIS)
+				input_set_capability(hi->input,
+						     EV_KEY, BTN_TOUCH);
 			MT_STORE_FIELD(tip_state);
 			return 1;
 		case HID_DG_CONTACTID:
@@ -802,6 +818,10 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		    field->application == HID_DG_TOUCHPAD &&
 		    (usage->hid & HID_USAGE) > 1)
 			code--;
+
+		if (field->application == HID_GD_SYSTEM_MULTIAXIS)
+			code = BTN_0  + ((usage->hid - 1) & HID_USAGE);
+
 		hid_map_usage(hi, usage, bit, max, EV_KEY, code);
 		input_set_capability(hi->input, EV_KEY, code);
 		return 1;
@@ -899,6 +919,7 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 	bool inrange_state = false;
 	int active;
 	int slotnum;
+	int tool = MT_TOOL_FINGER;
 
 	if (!slot)
 		return -EINVAL;
@@ -939,8 +960,11 @@ static int mt_process_slot(struct mt_device *td, struct input_dev *input,
 
 	active = (*slot->tip_state || inrange_state) && confidence_state;
 
+	if (app->application == HID_GD_SYSTEM_MULTIAXIS)
+		tool = MT_TOOL_DIAL;
+
 	input_mt_slot(input, slotnum);
-	input_mt_report_slot_state(input, MT_TOOL_FINGER, active);
+	input_mt_report_slot_state(input, tool, active);
 	if (active) {
 		/* this finger is in proximity of the sensor */
 		int wide = (*slot->w > *slot->h);
@@ -1203,6 +1227,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	    field->application != HID_GD_SYSTEM_CONTROL &&
 	    field->application != HID_CP_CONSUMER_CONTROL &&
 	    field->application != HID_GD_WIRELESS_RADIO_CTLS &&
+	    field->application != HID_GD_SYSTEM_MULTIAXIS &&
 	    !(field->application == HID_VD_ASUS_CUSTOM_MEDIA_KEYS &&
 	      application->quirks & MT_QUIRK_ASUS_CUSTOM_UP))
 		return -1;
@@ -1230,9 +1255,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 	}
 
-	if (rdata->is_mt_collection &&
-	    (field->application == HID_DG_TOUCHSCREEN ||
-	     field->application == HID_DG_TOUCHPAD))
+	if (rdata->is_mt_collection)
 		return mt_touch_input_mapping(hdev, hi, field, usage, bit, max,
 					      application);
 
@@ -1244,15 +1267,11 @@ static int mt_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	/*
-	 * some egalax touchscreens have "application == HID_DG_TOUCHSCREEN"
-	 * for the stylus.
-	 */
-	if (field->physical == HID_DG_STYLUS)
-		return 0;
+	struct mt_device *td = hid_get_drvdata(hdev);
+	struct mt_report_data *rdata;
 
-	if (field->application == HID_DG_TOUCHSCREEN ||
-	    field->application == HID_DG_TOUCHPAD) {
+	rdata = mt_find_report_data(td, field->report);
+	if (rdata && rdata->is_mt_collection) {
 		/* We own these mappings, tell hid-input to ignore them */
 		return -1;
 	}
@@ -1460,6 +1479,7 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		case HID_GD_SYSTEM_CONTROL:
 		case HID_CP_CONSUMER_CONTROL:
 		case HID_GD_WIRELESS_RADIO_CTLS:
+		case HID_GD_SYSTEM_MULTIAXIS:
 			/* already handled by hid core */
 			break;
 		case HID_DG_TOUCHSCREEN:
