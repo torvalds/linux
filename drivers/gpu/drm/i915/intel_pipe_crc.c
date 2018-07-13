@@ -1001,6 +1001,13 @@ intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 		return ivb_crc_source_valid(dev_priv, source);
 }
 
+const char *const *intel_crtc_get_crc_sources(struct drm_crtc *crtc,
+					      size_t *count)
+{
+	*count = ARRAY_SIZE(pipe_crc_sources);
+	return pipe_crc_sources;
+}
+
 int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 				 size_t *values_cnt)
 {
