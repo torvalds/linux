@@ -275,6 +275,7 @@ static int
 mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 		 int nsgs, int len, int sglen)
 {
+	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	struct urb *urb = buf->urb;
 	int i;
 
@@ -283,7 +284,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 		void *data;
 		int offset;
 
-		data = netdev_alloc_frag(len);
+		data = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 		if (!data)
 			break;
 
@@ -550,10 +551,18 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 static void mt76u_free_rx(struct mt76_dev *dev)
 {
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+	struct page *page;
 	int i;
 
 	for (i = 0; i < q->ndesc; i++)
 		mt76u_buf_free(&q->entry[i].ubuf);
+
+	if (!q->rx_page.va)
+		return;
+
+	page = virt_to_page(q->rx_page.va);
+	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
+	memset(&q->rx_page, 0, sizeof(q->rx_page));
 }
 
 static void mt76u_stop_rx(struct mt76_dev *dev)
