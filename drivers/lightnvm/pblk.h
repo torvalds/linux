@@ -119,6 +119,16 @@ struct pblk_g_ctx {
 	u64 lba;
 };
 
+/* partial read context */
+struct pblk_pr_ctx {
+	struct bio *orig_bio;
+	DECLARE_BITMAP(bitmap, NVM_MAX_VLBA);
+	unsigned int orig_nr_secs;
+	unsigned int bio_init_idx;
+	void *ppa_ptr;
+	dma_addr_t dma_ppa_list;
+};
+
 /* Pad context */
 struct pblk_pad_rq {
 	struct pblk *pblk;
