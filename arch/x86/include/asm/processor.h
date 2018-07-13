@@ -982,4 +982,16 @@ bool xen_set_default_idle(void);
 void stop_this_cpu(void *dummy);
 void df_debug(struct pt_regs *regs, long error_code);
 void microcode_check(void);
+
+enum l1tf_mitigations {
+	L1TF_MITIGATION_OFF,
+	L1TF_MITIGATION_FLUSH_NOWARN,
+	L1TF_MITIGATION_FLUSH,
+	L1TF_MITIGATION_FLUSH_NOSMT,
+	L1TF_MITIGATION_FULL,
+	L1TF_MITIGATION_FULL_FORCE
+};
+
+extern enum l1tf_mitigations l1tf_mitigation;
+
 #endif /* _ASM_X86_PROCESSOR_H */

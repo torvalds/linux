@@ -71,9 +71,6 @@ static const struct x86_cpu_id vmx_cpu_id[] = {
 };
 MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
 
-static bool __read_mostly nosmt;
-module_param(nosmt, bool, S_IRUGO);
-
 static bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
@@ -215,13 +212,29 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 {
 	struct page *page;
 
-	/* If set to 'auto' select 'cond' */
-	if (l1tf == VMENTER_L1D_FLUSH_AUTO)
-		l1tf = VMENTER_L1D_FLUSH_COND;
-
 	if (!enable_ept) {
 		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_EPT_DISABLED;
 		return 0;
+	}
+
+	/* If set to auto use the default l1tf mitigation method */
+	if (l1tf == VMENTER_L1D_FLUSH_AUTO) {
+		switch (l1tf_mitigation) {
+		case L1TF_MITIGATION_OFF:
+			l1tf = VMENTER_L1D_FLUSH_NEVER;
+			break;
+		case L1TF_MITIGATION_FLUSH_NOWARN:
+		case L1TF_MITIGATION_FLUSH:
+		case L1TF_MITIGATION_FLUSH_NOSMT:
+			l1tf = VMENTER_L1D_FLUSH_COND;
+			break;
+		case L1TF_MITIGATION_FULL:
+		case L1TF_MITIGATION_FULL_FORCE:
+			l1tf = VMENTER_L1D_FLUSH_ALWAYS;
+			break;
+		}
+	} else if (l1tf_mitigation == L1TF_MITIGATION_FULL_FORCE) {
+		l1tf = VMENTER_L1D_FLUSH_ALWAYS;
 	}
 
 	if (l1tf != VMENTER_L1D_FLUSH_NEVER && !vmx_l1d_flush_pages &&
@@ -10571,19 +10584,36 @@ free_vcpu:
 	return ERR_PTR(err);
 }
 
-#define L1TF_MSG "SMT enabled with L1TF CPU bug present. Refer to CVE-2018-3620 for details.\n"
+#define L1TF_MSG_SMT "L1TF CPU bug present and SMT on, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
+#define L1TF_MSG_L1D "L1TF CPU bug present and virtualization mitigation disabled, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
 
 static int vmx_vm_init(struct kvm *kvm)
 {
 	if (!ple_gap)
 		kvm->arch.pause_in_guest = true;
 
-	if (boot_cpu_has(X86_BUG_L1TF) && cpu_smt_control == CPU_SMT_ENABLED) {
-		if (nosmt) {
-			pr_err(L1TF_MSG);
-			return -EOPNOTSUPP;
+	if (boot_cpu_has(X86_BUG_L1TF) && enable_ept) {
+		switch (l1tf_mitigation) {
+		case L1TF_MITIGATION_OFF:
+		case L1TF_MITIGATION_FLUSH_NOWARN:
+			/* 'I explicitly don't care' is set */
+			break;
+		case L1TF_MITIGATION_FLUSH:
+		case L1TF_MITIGATION_FLUSH_NOSMT:
+		case L1TF_MITIGATION_FULL:
+			/*
+			 * Warn upon starting the first VM in a potentially
+			 * insecure environment.
+			 */
+			if (cpu_smt_control == CPU_SMT_ENABLED)
+				pr_warn_once(L1TF_MSG_SMT);
+			if (l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_NEVER)
+				pr_warn_once(L1TF_MSG_L1D);
+			break;
+		case L1TF_MITIGATION_FULL_FORCE:
+			/* Flush is enforced */
+			break;
 		}
-		pr_warn(L1TF_MSG);
 	}
 	return 0;
 }
