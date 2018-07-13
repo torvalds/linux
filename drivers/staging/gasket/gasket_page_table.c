@@ -640,17 +640,6 @@ uint gasket_page_table_num_simple_entries(struct gasket_page_table *pg_tbl)
 EXPORT_SYMBOL(gasket_page_table_num_simple_entries);
 
 /* See gasket_page_table.h for description. */
-uint gasket_page_table_num_extended_entries(struct gasket_page_table *pg_tbl)
-{
-	if (!pg_tbl) {
-		gasket_nodev_error("Passed a null page table.");
-		return 0;
-	}
-
-	return pg_tbl->num_extended_entries;
-}
-EXPORT_SYMBOL(gasket_page_table_num_extended_entries);
-
 uint gasket_page_table_num_active_pages(struct gasket_page_table *pg_tbl)
 {
 	if (!pg_tbl) {

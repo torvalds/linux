@@ -202,13 +202,6 @@ uint gasket_page_table_num_entries(struct gasket_page_table *page_table);
 uint gasket_page_table_num_simple_entries(struct gasket_page_table *page_table);
 
 /*
- * Gets the number of extended entries.
- * @page_table: Gasket page table pointer.
- */
-uint gasket_page_table_num_extended_entries(
-	struct gasket_page_table *page_table);
-
-/*
  * Gets the number of actively pinned pages.
  * @page_table: Gasket page table pointer.
  */
