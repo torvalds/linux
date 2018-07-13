@@ -191,12 +191,7 @@ static void cmm_set_timer(void)
 			del_timer(&cmm_timer);
 		return;
 	}
-	if (timer_pending(&cmm_timer)) {
-		if (mod_timer(&cmm_timer, jiffies + cmm_timeout_seconds*HZ))
-			return;
-	}
-	cmm_timer.expires = jiffies + cmm_timeout_seconds*HZ;
-	add_timer(&cmm_timer);
+	mod_timer(&cmm_timer, jiffies + cmm_timeout_seconds * HZ);
 }
 
 static void cmm_timer_fn(struct timer_list *unused)
