@@ -493,6 +493,9 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	for (q_no = srn; q_no < ern; q_no++) {
 		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
 
+		/* clear IPTR */
+		reg_val &= ~CN23XX_PKT_OUTPUT_CTL_IPTR;
+
 		/* set DPTR */
 		reg_val |= CN23XX_PKT_OUTPUT_CTL_DPTR;
 
