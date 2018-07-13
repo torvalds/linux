@@ -150,15 +150,4 @@ struct eventfd_ctx **gasket_interrupt_get_eventfd_ctxs(
 
 int gasket_interrupt_system_status(struct gasket_dev *gasket_dev);
 
-/*
- * Masks interrupts and de-register the handler.
- * After an interrupt pause it is not guaranteed that the chip registers will
- * be accessible anymore, since the chip may be in a power save mode,
- * which means that the interrupt handler (if it were to happen) may not
- * have a way to clear the interrupt condition.
- * @gasket_dev: The Gasket device struct
- * @enable_pause: Whether to pause or unpause the interrupts.
- */
-void gasket_interrupt_pause(struct gasket_dev *gasket_dev, int enable_pause);
-
 #endif

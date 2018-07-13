@@ -426,24 +426,6 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 }
 
 /* See gasket_interrupt.h for description. */
-void gasket_interrupt_pause(struct gasket_dev *gasket_dev, int enable_pause)
-{
-	WARN_ON(!gasket_dev);
-
-	if (!gasket_dev->interrupt_data)
-		return; /* nothing to do */
-
-	if (gasket_dev->interrupt_data->type == PCI_MSI ||
-	    gasket_dev->interrupt_data->type == PCI_MSIX) {
-		/* Nothing to be done for MSI/MSIX just yet. */
-	}
-
-	if (gasket_dev->interrupt_data->type == PLATFORM_WIRE) {
-		/* Nothing to be done for PLATFORM_WIRE */
-	}
-}
-EXPORT_SYMBOL(gasket_interrupt_pause);
-
 void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev)
 {
 	struct gasket_interrupt_data *interrupt_data =
