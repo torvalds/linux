@@ -597,7 +597,6 @@
 	non-removable;
 	broken-cd;
 	cap-power-off-card;
-	keep-power-in-suspend;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_pmx_func
 		     &sdio_clk_cfg_func
