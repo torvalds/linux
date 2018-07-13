@@ -65,14 +65,20 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct nouveau_connector *nv_connector = NULL;
 	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder && connector->encoder->crtc == crtc)
-			return nouveau_connector(connector);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->encoder && connector->encoder->crtc == crtc) {
+			nv_connector = nouveau_connector(connector);
+			break;
+		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
-	return NULL;
+	return nv_connector;
 }
 
 struct drm_connector *
