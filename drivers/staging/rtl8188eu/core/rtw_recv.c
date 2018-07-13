@@ -952,8 +952,7 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 			if (!memcmp(padapter->eeprompriv.mac_addr,
 				    GetAddr1Ptr(precv_frame->pkt->data), ETH_ALEN))
 				psta->sta_stats.rx_probersp_pkts++;
-			else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->pkt->data)) ||
-				 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->pkt->data)))
+			else if (is_multicast_ether_addr(GetAddr1Ptr(precv_frame->pkt->data)))
 				psta->sta_stats.rx_probersp_bm_pkts++;
 			else
 				psta->sta_stats.rx_probersp_uo_pkts++;
