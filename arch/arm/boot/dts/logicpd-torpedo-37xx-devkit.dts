@@ -48,7 +48,7 @@
 		compatible = "ti,wl1283";
 		reg = <2>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>; /* gpio 152 */
+		interrupts = <24 IRQ_TYPE_EDGE_RISING>; /* gpio 152 */
 		ref-clock-frequency = <26000000>;
 		tcxo-clock-frequency = <26000000>;
 	};

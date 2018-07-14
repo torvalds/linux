@@ -690,7 +690,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>; /* gpio 31 */
+		interrupts = <31 IRQ_TYPE_EDGE_RISING>; /* gpio 31 */
 		ref-clock-frequency = <38400000>;
 	};
 };

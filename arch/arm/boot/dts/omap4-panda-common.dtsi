@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <dt-bindings/input/input.h>
 #include "elpida_ecb240abacn.dtsi"
 
 / {
@@ -40,6 +41,21 @@
 			label = "pandaboard::status2";
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
+		};
+	};
+
+	gpio_keys: gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <
+			&button_pins
+		>;
+
+		buttonS2 {
+			label = "button S2";
+			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;	/* gpio_121 */
+			linux,code = <BTN_0>;
+			wakeup-source;
 		};
 	};
 
@@ -357,6 +373,12 @@
 			OMAP4_IOPAD(0x152, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat3.sdmmc5_dat3 */
 		>;
 	};
+
+	button_pins: pinmux_button_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x114, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpio_121 */
+		>;
+	};
 };
 
 &omap4_pmx_wkup {
@@ -464,7 +486,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>; /* gpio 53 */
+		interrupts = <21 IRQ_TYPE_EDGE_RISING>; /* gpio 53 */
 		ref-clock-frequency = <38400000>;
 	};
 };

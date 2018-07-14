@@ -36,6 +36,8 @@
 			label = "button0";
 			linux,code = <BTN_0>;
 			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;	/* gpio_121 */
+			/* Value above 7.95ms for no GPIO hardware debounce */
+			debounce-interval = <10>;
 			wakeup-source;
 		};
 	};
@@ -140,7 +142,7 @@
 	ethernet@gpmc {
 		reg = <5 0 0xff>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;		/* gpio_44 */
+		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;	/* gpio_44 */
 
 		phy-mode = "mii";
 

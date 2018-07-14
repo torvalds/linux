@@ -20,6 +20,11 @@
 		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
 	};
 
+	extcon_usb2: extcon_usb2 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pcf_gpio_21 2 GPIO_ACTIVE_HIGH>;
+	};
+
 	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "DRA7xx-EVM";
@@ -198,8 +203,13 @@
 	extcon = <&extcon_usb1>;
 };
 
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
+};
+
 &usb2 {
 	dr_mode = "host";
+	extcon = <&extcon_usb2>;
 };
 
 &atl {

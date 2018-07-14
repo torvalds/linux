@@ -395,8 +395,13 @@
 	dr_mode = "host";
 };
 
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
+};
+
 &usb2 {
-	dr_mode = "peripheral";
+	extcon = <&extcon_usb2>;
+	dr_mode = "otg";
 };
 
 &mmc1 {

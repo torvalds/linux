@@ -57,10 +57,6 @@
 	};
 };
 
-&omap_dwc3_2 {
-	extcon = <&extcon_usb2>;
-};
-
 &extcon_usb2 {
 	id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 	vbus-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
