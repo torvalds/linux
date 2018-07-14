@@ -58,6 +58,8 @@
 		pinctrl-0 = <&pcie_drv>;
 		regulator-boot-on;
 		regulator-name = "vcc3v3_pcie";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc3v3_sys>;
 	};
 
