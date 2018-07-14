@@ -28,6 +28,33 @@ struct mvpp2_dbgfs_port_flow_entry {
 	struct mvpp2_dbgfs_flow_entry *dbg_fe;
 };
 
+static int mvpp2_dbgfs_flow_flt_hits_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_flow_entry *entry = s->private;
+	int id = MVPP2_FLOW_C2_ENTRY(entry->flow);
+
+	u32 hits = mvpp2_cls_flow_hits(entry->priv, id);
+
+	seq_printf(s, "%u\n", hits);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_flt_hits);
+
+static int mvpp2_dbgfs_flow_dec_hits_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_flow_entry *entry = s->private;
+
+	u32 hits = mvpp2_cls_lookup_hits(entry->priv, entry->flow);
+
+	seq_printf(s, "%u\n", hits);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_dec_hits);
+
 static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_flow_entry *entry = s->private;
@@ -173,6 +200,21 @@ static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
 }
 
 DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_engine);
+
+static int mvpp2_dbgfs_flow_c2_hits_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_port *port = s->private;
+	u32 hits;
+
+	hits = mvpp2_cls_c2_hit_count(port->priv,
+				      MVPP22_CLS_C2_RSS_ENTRY(port->id));
+
+	seq_printf(s, "%u\n", hits);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_hits);
 
 static int mvpp2_dbgfs_flow_c2_rxq_show(struct seq_file *s, void *unused)
 {
@@ -484,6 +526,12 @@ static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
 	entry->flow = flow;
 	entry->priv = priv;
 
+	debugfs_create_file("flow_hits", 0444, flow_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_flt_hits_fops);
+
+	debugfs_create_file("dec_hits", 0444, flow_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_dec_hits_fops);
+
 	debugfs_create_file("type", 0444, flow_entry_dir, entry,
 			    &mvpp2_dbgfs_flow_type_fops);
 
@@ -599,6 +647,9 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 
 	debugfs_create_file("vid_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_vid_fops);
+
+	debugfs_create_file("c2_hits", 0444, port_dir, port,
+			    &mvpp2_dbgfs_flow_c2_hits_fops);
 
 	debugfs_create_file("default_rxq", 0444, port_dir, port,
 			    &mvpp2_dbgfs_flow_c2_rxq_fops);

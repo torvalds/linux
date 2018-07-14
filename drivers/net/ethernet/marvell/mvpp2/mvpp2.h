@@ -124,6 +124,7 @@
 #define MVPP22_CLS_C2_TCAM_DATA3		0x1b1c
 #define MVPP22_CLS_C2_TCAM_DATA4		0x1b20
 #define     MVPP22_CLS_C2_PORT_ID(port)		((port) << 8)
+#define MVPP22_CLS_C2_HIT_CTR			0x1b50
 #define MVPP22_CLS_C2_ACT			0x1b60
 #define     MVPP22_CLS_C2_ACT_RSS_EN(act)	(((act) & 0x3) << 19)
 #define     MVPP22_CLS_C2_ACT_FWD(act)		(((act) & 0x7) << 13)
@@ -317,6 +318,11 @@
 #define     MVPP22_BM_ADDR_HIGH_PHYS_RLS_MASK	0xff
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK	0xff00
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT	8
+
+/* Hit counters registers */
+#define MVPP2_CTRS_IDX				0x7040
+#define MVPP2_CLS_DEC_TBL_HIT_CTR		0x7700
+#define MVPP2_CLS_FLOW_TBL_HIT_CTR		0x7704
 
 /* TX Scheduler registers */
 #define MVPP2_TXP_SCHED_PORT_INDEX_REG		0x8000
