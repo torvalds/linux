@@ -462,10 +462,8 @@ static void __init xen_init_cpuid_mask(void)
 
 static void __init xen_init_capabilities(void)
 {
-	if (xen_pv_domain()) {
-		setup_clear_cpu_cap(X86_BUG_SYSRET_SS_ATTRS);
+	if (xen_pv_domain())
 		setup_force_cpu_cap(X86_FEATURE_XENPV);
-	}
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
