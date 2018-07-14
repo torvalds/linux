@@ -168,6 +168,25 @@ static void armada_drm_update_gamma(struct drm_crtc *crtc)
 	}
 }
 
+static enum drm_mode_status armada_drm_crtc_mode_valid(struct drm_crtc *crtc,
+	const struct drm_display_mode *mode)
+{
+	if (mode->vscan > 1)
+		return MODE_NO_VSCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_HSKEW)
+		return MODE_H_ILLEGAL;
+
+	if (mode->flags & (DRM_MODE_FLAG_BCAST | DRM_MODE_FLAG_PIXMUX |
+			   DRM_MODE_FLAG_CLKDIV2))
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
 /* The mode_config.mutex will be held for this call */
 static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	const struct drm_display_mode *mode, struct drm_display_mode *adj)
@@ -499,6 +518,7 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
+	.mode_valid	= armada_drm_crtc_mode_valid,
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
 	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
 	.atomic_check	= armada_drm_crtc_atomic_check,
