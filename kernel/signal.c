@@ -895,7 +895,7 @@ static inline int wants_signal(int sig, struct task_struct *p)
 	return task_curr(p) || !signal_pending(p);
 }
 
-static void complete_signal(int sig, struct task_struct *p, int group)
+static void complete_signal(int sig, struct task_struct *p, enum pid_type type)
 {
 	struct signal_struct *signal = p->signal;
 	struct task_struct *t;
@@ -908,7 +908,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 	 */
 	if (wants_signal(sig, p))
 		t = p;
-	else if (!group || thread_group_empty(p))
+	else if ((type == PIDTYPE_PID) || thread_group_empty(p))
 		/*
 		 * There is just one thread and it does not need to be woken.
 		 * It will dequeue unblocked signals before it runs again.
@@ -1096,7 +1096,7 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 out_set:
 	signalfd_notify(t, sig);
 	sigaddset(&pending->signal, sig);
-	complete_signal(sig, t, type != PIDTYPE_PID);
+	complete_signal(sig, t, type);
 ret:
 	trace_signal_generate(sig, info, t, type != PIDTYPE_PID, result);
 	return ret;
@@ -1704,7 +1704,7 @@ int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
 	pending = (type != PIDTYPE_PID) ? &t->signal->shared_pending : &t->pending;
 	list_add_tail(&q->list, &pending->list);
 	sigaddset(&pending->signal, sig);
-	complete_signal(sig, t, type != PIDTYPE_PID);
+	complete_signal(sig, t, type);
 	result = TRACE_SIGNAL_DELIVERED;
 out:
 	trace_signal_generate(sig, &q->info, t, type != PIDTYPE_PID, result);
