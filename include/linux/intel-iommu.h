@@ -476,6 +476,7 @@ struct intel_iommu {
 struct device_domain_info {
 	struct list_head link;	/* link to domain siblings */
 	struct list_head global; /* link to global list */
+	struct list_head table;	/* link to pasid table */
 	u8 bus;			/* PCI bus number */
 	u8 devfn;		/* PCI devfn number */
 	u16 pfsid;		/* SRIOV physical function source ID */
@@ -489,6 +490,7 @@ struct device_domain_info {
 	struct device *dev; /* it's NULL for PCIe-to-PCI bridge */
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
+	struct pasid_table *pasid_table; /* pasid table */
 };
 
 static inline void __iommu_flush_cache(
