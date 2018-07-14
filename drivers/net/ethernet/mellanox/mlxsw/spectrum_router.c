@@ -6449,6 +6449,46 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static bool mlxsw_sp_rif_macvlan_is_vrrp4(const u8 *mac)
+{
+	u8 vrrp4[ETH_ALEN] = { 0x00, 0x00, 0x5e, 0x00, 0x01, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
+
+	return ether_addr_equal_masked(mac, vrrp4, mask);
+}
+
+static bool mlxsw_sp_rif_macvlan_is_vrrp6(const u8 *mac)
+{
+	u8 vrrp6[ETH_ALEN] = { 0x00, 0x00, 0x5e, 0x00, 0x02, 0x00 };
+	u8 mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
+
+	return ether_addr_equal_masked(mac, vrrp6, mask);
+}
+
+static int mlxsw_sp_rif_vrrp_op(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
+				const u8 *mac, bool adding)
+{
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	u8 vrrp_id = adding ? mac[5] : 0;
+	int err;
+
+	if (!mlxsw_sp_rif_macvlan_is_vrrp4(mac) &&
+	    !mlxsw_sp_rif_macvlan_is_vrrp6(mac))
+		return 0;
+
+	mlxsw_reg_ritr_rif_pack(ritr_pl, rif_index);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+	if (err)
+		return err;
+
+	if (mlxsw_sp_rif_macvlan_is_vrrp4(mac))
+		mlxsw_reg_ritr_if_vrrp_id_ipv4_set(ritr_pl, vrrp_id);
+	else
+		mlxsw_reg_ritr_if_vrrp_id_ipv6_set(ritr_pl, vrrp_id);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
 static int mlxsw_sp_rif_macvlan_add(struct mlxsw_sp *mlxsw_sp,
 				    const struct net_device *macvlan_dev,
 				    struct netlink_ext_ack *extack)
@@ -6468,6 +6508,11 @@ static int mlxsw_sp_rif_macvlan_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
+	err = mlxsw_sp_rif_vrrp_op(mlxsw_sp, rif->rif_index,
+				   macvlan_dev->dev_addr, true);
+	if (err)
+		goto err_rif_vrrp_add;
+
 	/* Make sure the bridge driver does not have this MAC pointing at
 	 * some other port.
 	 */
@@ -6475,6 +6520,11 @@ static int mlxsw_sp_rif_macvlan_add(struct mlxsw_sp *mlxsw_sp,
 		rif->ops->fdb_del(rif, macvlan_dev->dev_addr);
 
 	return 0;
+
+err_rif_vrrp_add:
+	mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
+			    mlxsw_sp_fid_index(rif->fid), false);
+	return err;
 }
 
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
@@ -6489,6 +6539,8 @@ void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 	 */
 	if (!rif)
 		return;
+	mlxsw_sp_rif_vrrp_op(mlxsw_sp, rif->rif_index, macvlan_dev->dev_addr,
+			     false);
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, macvlan_dev->dev_addr,
 			    mlxsw_sp_fid_index(rif->fid), false);
 }
