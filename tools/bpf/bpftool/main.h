@@ -150,4 +150,19 @@ unsigned int get_page_size(void);
 unsigned int get_possible_cpus(void);
 const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
 
+struct btf_dumper {
+	const struct btf *btf;
+	json_writer_t *jw;
+	bool is_plain_text;
+};
+
+/* btf_dumper_type - print data along with type information
+ * @d: an instance containing context for dumping types
+ * @type_id: index in btf->types array. this points to the type to be dumped
+ * @data: pointer the actual data, i.e. the values to be printed
+ *
+ * Returns zero on success and negative error code otherwise
+ */
+int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
+		    const void *data);
 #endif
