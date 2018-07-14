@@ -1576,12 +1576,6 @@ void cpu_init(void)
 }
 #endif
 
-inline bool __static_cpu_has(u16 bit)
-{
-	return boot_cpu_has(bit);
-}
-EXPORT_SYMBOL_GPL(__static_cpu_has);
-
 static void bsp_resume(void)
 {
 	if (this_cpu->c_bsp_resume)
