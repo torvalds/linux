@@ -225,19 +225,6 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
 
-/* xstate instruction fault handler: */
-#define xstate_fault(__err)		\
-					\
-	".section .fixup,\"ax\"\n"	\
-					\
-	"3:  movl $-2,%[_err]\n"	\
-	"    jmp  2b\n"			\
-					\
-	".previous\n"			\
-					\
-	_ASM_EXTABLE(1b, 3b)		\
-	: [_err] "=r" (__err)
-
 #define XSTATE_OP(op, st, lmask, hmask, err)				\
 	asm volatile("1:" op "\n\t"					\
 		     "xor %[err], %[err]\n"				\
@@ -251,6 +238,54 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
+/*
+ * If XSAVES is enabled, it replaces XSAVEOPT because it supports a compact
+ * format and supervisor states in addition to modified optimization in
+ * XSAVEOPT.
+ *
+ * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
+ * supports modified optimization which is not supported by XSAVE.
+ *
+ * We use XSAVE as a fallback.
+ *
+ * The 661 label is defined in the ALTERNATIVE* macros as the address of the
+ * original instruction which gets replaced. We need to use it here as the
+ * address of the instruction where we might get an exception at.
+ */
+#define XSTATE_XSAVE(st, lmask, hmask, err)				\
+	asm volatile(ALTERNATIVE_2(XSAVE,				\
+				   XSAVEOPT, X86_FEATURE_XSAVEOPT,	\
+				   XSAVES,   X86_FEATURE_XSAVES)	\
+		     "\n"						\
+		     "xor %[err], %[err]\n"				\
+		     "3:\n"						\
+		     ".pushsection .fixup,\"ax\"\n"			\
+		     "4: movl $-2, %[err]\n"				\
+		     "jmp 3b\n"						\
+		     ".popsection\n"					\
+		     _ASM_EXTABLE(661b, 4b)				\
+		     : [err] "=r" (err)					\
+		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : "memory")
+
+/*
+ * Use XRSTORS to restore context if it is enabled. XRSTORS supports compact
+ * XSAVE area format.
+ */
+#define XSTATE_XRESTORE(st, lmask, hmask, err)				\
+	asm volatile(ALTERNATIVE(XRSTOR,				\
+				 XRSTORS, X86_FEATURE_XSAVES)		\
+		     "\n"						\
+		     "xor %[err], %[err]\n"				\
+		     "3:\n"						\
+		     ".pushsection .fixup,\"ax\"\n"			\
+		     "4: movl $-2, %[err]\n"				\
+		     "jmp 3b\n"						\
+		     ".popsection\n"					\
+		     _ASM_EXTABLE(661b, 4b)				\
+		     : [err] "=r" (err)					\
+		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : "memory")
 
 /*
  * This function is called only during boot time when x86 caps are not set
@@ -304,33 +339,11 @@ static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
 	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
 	WARN_ON(!alternatives_patched);
 
-	/*
-	 * If xsaves is enabled, xsaves replaces xsaveopt because
-	 * it supports compact format and supervisor states in addition to
-	 * modified optimization in xsaveopt.
-	 *
-	 * Otherwise, if xsaveopt is enabled, xsaveopt replaces xsave
-	 * because xsaveopt supports modified optimization which is not
-	 * supported by xsave.
-	 *
-	 * If none of xsaves and xsaveopt is enabled, use xsave.
-	 */
-	alternative_input_2(
-		"1:"XSAVE,
-		XSAVEOPT,
-		X86_FEATURE_XSAVEOPT,
-		XSAVES,
-		X86_FEATURE_XSAVES,
-		[xstate] "D" (xstate), "a" (lmask), "d" (hmask) :
-		"memory");
-	asm volatile("2:\n\t"
-		     xstate_fault(err)
-		     : "0" (err)
-		     : "memory");
+	XSTATE_XSAVE(xstate, lmask, hmask, err);
 
 	/* We should never fault when copying to a kernel buffer: */
 	WARN_ON_FPU(err);
@@ -343,23 +356,9 @@ static inline void copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
-	/*
-	 * Use xrstors to restore context if it is enabled. xrstors supports
-	 * compacted format of xsave area which is not supported by xrstor.
-	 */
-	alternative_input(
-		"1: " XRSTOR,
-		XRSTORS,
-		X86_FEATURE_XSAVES,
-		"D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-		: "memory");
-
-	asm volatile("2:\n"
-		     xstate_fault(err)
-		     : "0" (err)
-		     : "memory");
+	XSTATE_XRESTORE(xstate, lmask, hmask, err);
 
 	/* We should never fault when copying from a kernel buffer: */
 	WARN_ON_FPU(err);
