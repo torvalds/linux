@@ -88,8 +88,7 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
  * is not relevant.
  */
 #define cpu_feature_enabled(bit)	\
-	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 :	\
-	 cpu_has(&boot_cpu_data, bit))
+	(__builtin_constant_p(bit) && DISABLED_MASK_BIT_SET(bit) ? 0 : static_cpu_has(bit))
 
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
