@@ -444,3 +444,9 @@
 &extcon_usb2 {
 	vbus-gpio = <&pcf_lcd 15 GPIO_ACTIVE_HIGH>;
 };
+
+&m_can0 {
+	can-transceiver {
+		max-bitrate = <5000000>;
+	};
+};
