@@ -132,8 +132,10 @@
 #define MVPP22_CLS_C2_ATTR0			0x1b64
 #define     MVPP22_CLS_C2_ATTR0_QHIGH(qh)	(((qh) & 0x1f) << 24)
 #define     MVPP22_CLS_C2_ATTR0_QHIGH_MASK	0x1f
+#define     MVPP22_CLS_C2_ATTR0_QHIGH_OFFS	24
 #define     MVPP22_CLS_C2_ATTR0_QLOW(ql)	(((ql) & 0x7) << 21)
 #define     MVPP22_CLS_C2_ATTR0_QLOW_MASK	0x7
+#define     MVPP22_CLS_C2_ATTR0_QLOW_OFFS	21
 #define MVPP22_CLS_C2_ATTR1			0x1b68
 #define MVPP22_CLS_C2_ATTR2			0x1b6c
 #define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)

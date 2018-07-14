@@ -11,11 +11,206 @@
 
 #include "mvpp2.h"
 #include "mvpp2_prs.h"
+#include "mvpp2_cls.h"
 
 struct mvpp2_dbgfs_prs_entry {
 	int tid;
 	struct mvpp2 *priv;
 };
+
+struct mvpp2_dbgfs_flow_entry {
+	int flow;
+	struct mvpp2 *priv;
+};
+
+struct mvpp2_dbgfs_port_flow_entry {
+	struct mvpp2_port *port;
+	struct mvpp2_dbgfs_flow_entry *dbg_fe;
+};
+
+static int mvpp2_dbgfs_flow_type_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_flow_entry *entry = s->private;
+	struct mvpp2_cls_flow *f;
+	const char *flow_name;
+
+	f = mvpp2_cls_flow_get(entry->flow);
+	if (!f)
+		return -EINVAL;
+
+	switch (f->flow_type) {
+	case IPV4_FLOW:
+		flow_name = "ipv4";
+		break;
+	case IPV6_FLOW:
+		flow_name = "ipv6";
+		break;
+	case TCP_V4_FLOW:
+		flow_name = "tcp4";
+		break;
+	case TCP_V6_FLOW:
+		flow_name = "tcp6";
+		break;
+	case UDP_V4_FLOW:
+		flow_name = "udp4";
+		break;
+	case UDP_V6_FLOW:
+		flow_name = "udp6";
+		break;
+	default:
+		flow_name = "other";
+	}
+
+	seq_printf(s, "%s\n", flow_name);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_flow_type_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mvpp2_dbgfs_flow_type_show, inode->i_private);
+}
+
+static int mvpp2_dbgfs_flow_type_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct mvpp2_dbgfs_flow_entry *flow_entry = seq->private;
+
+	kfree(flow_entry);
+	return single_release(inode, file);
+}
+
+static const struct file_operations mvpp2_dbgfs_flow_type_fops = {
+	.open = mvpp2_dbgfs_flow_type_open,
+	.read = seq_read,
+	.release = mvpp2_dbgfs_flow_type_release,
+};
+
+static int mvpp2_dbgfs_flow_id_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_flow_entry *entry = s->private;
+	struct mvpp2_cls_flow *f;
+
+	f = mvpp2_cls_flow_get(entry->flow);
+	if (!f)
+		return -EINVAL;
+
+	seq_printf(s, "%d\n", f->flow_id);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_id);
+
+static int mvpp2_dbgfs_port_flow_hash_opt_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
+	struct mvpp2_port *port = entry->port;
+	struct mvpp2_cls_flow_entry fe;
+	struct mvpp2_cls_flow *f;
+	int flow_index;
+	u16 hash_opts;
+
+	f = mvpp2_cls_flow_get(entry->dbg_fe->flow);
+	if (!f)
+		return -EINVAL;
+
+	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+
+	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
+
+	hash_opts = mvpp2_flow_get_hek_fields(&fe);
+
+	seq_printf(s, "0x%04x\n", hash_opts);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_port_flow_hash_opt_open(struct inode *inode,
+					       struct file *file)
+{
+	return single_open(file, mvpp2_dbgfs_port_flow_hash_opt_show,
+			   inode->i_private);
+}
+
+static int mvpp2_dbgfs_port_flow_hash_opt_release(struct inode *inode,
+						  struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct mvpp2_dbgfs_port_flow_entry *flow_entry = seq->private;
+
+	kfree(flow_entry);
+	return single_release(inode, file);
+}
+
+static const struct file_operations mvpp2_dbgfs_port_flow_hash_opt_fops = {
+	.open = mvpp2_dbgfs_port_flow_hash_opt_open,
+	.read = seq_read,
+	.release = mvpp2_dbgfs_port_flow_hash_opt_release,
+};
+
+static int mvpp2_dbgfs_port_flow_engine_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_port_flow_entry *entry = s->private;
+	struct mvpp2_port *port = entry->port;
+	struct mvpp2_cls_flow_entry fe;
+	struct mvpp2_cls_flow *f;
+	int flow_index, engine;
+
+	f = mvpp2_cls_flow_get(entry->dbg_fe->flow);
+	if (!f)
+		return -EINVAL;
+
+	flow_index = MVPP2_PORT_FLOW_HASH_ENTRY(entry->port->id, f->flow_id);
+
+	mvpp2_cls_flow_read(port->priv, flow_index, &fe);
+
+	engine = mvpp2_cls_flow_eng_get(&fe);
+
+	seq_printf(s, "%d\n", engine);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_port_flow_engine);
+
+static int mvpp2_dbgfs_flow_c2_rxq_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_port *port = s->private;
+	struct mvpp2_cls_c2_entry c2;
+	u8 qh, ql;
+
+	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+
+	qh = (c2.attr[0] >> MVPP22_CLS_C2_ATTR0_QHIGH_OFFS) &
+	     MVPP22_CLS_C2_ATTR0_QHIGH_MASK;
+
+	ql = (c2.attr[0] >> MVPP22_CLS_C2_ATTR0_QLOW_OFFS) &
+	     MVPP22_CLS_C2_ATTR0_QLOW_MASK;
+
+	seq_printf(s, "%d\n", (qh << 3 | ql));
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_rxq);
+
+static int mvpp2_dbgfs_flow_c2_enable_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_port *port = s->private;
+	struct mvpp2_cls_c2_entry c2;
+	int enabled;
+
+	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
+
+	enabled = !!(c2.attr[2] | MVPP22_CLS_C2_ATTR2_RSS_EN);
+
+	seq_printf(s, "%d\n", enabled);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_flow_c2_enable);
 
 static int mvpp2_dbgfs_port_vid_show(struct seq_file *s, void *unused)
 {
@@ -239,6 +434,90 @@ static const struct file_operations mvpp2_dbgfs_prs_valid_fops = {
 	.release = mvpp2_dbgfs_prs_valid_release,
 };
 
+static int mvpp2_dbgfs_flow_port_init(struct dentry *parent,
+				      struct mvpp2_port *port,
+				      struct mvpp2_dbgfs_flow_entry *entry)
+{
+	struct mvpp2_dbgfs_port_flow_entry *port_entry;
+	struct dentry *port_dir;
+
+	port_dir = debugfs_create_dir(port->dev->name, parent);
+	if (IS_ERR(port_dir))
+		return PTR_ERR(port_dir);
+
+	/* This will be freed by 'hash_opts' release op */
+	port_entry = kmalloc(sizeof(*port_entry), GFP_KERNEL);
+	if (!port_entry)
+		return -ENOMEM;
+
+	port_entry->port = port;
+	port_entry->dbg_fe = entry;
+
+	debugfs_create_file("hash_opts", 0444, port_dir, port_entry,
+			    &mvpp2_dbgfs_port_flow_hash_opt_fops);
+
+	debugfs_create_file("engine", 0444, port_dir, port_entry,
+			    &mvpp2_dbgfs_port_flow_engine_fops);
+
+	return 0;
+}
+
+static int mvpp2_dbgfs_flow_entry_init(struct dentry *parent,
+				       struct mvpp2 *priv, int flow)
+{
+	struct mvpp2_dbgfs_flow_entry *entry;
+	struct dentry *flow_entry_dir;
+	char flow_entry_name[10];
+	int i, ret;
+
+	sprintf(flow_entry_name, "%02d", flow);
+
+	flow_entry_dir = debugfs_create_dir(flow_entry_name, parent);
+	if (!flow_entry_dir)
+		return -ENOMEM;
+
+	/* This will be freed by 'type' release op */
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	entry->flow = flow;
+	entry->priv = priv;
+
+	debugfs_create_file("type", 0444, flow_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_type_fops);
+
+	debugfs_create_file("id", 0444, flow_entry_dir, entry,
+			    &mvpp2_dbgfs_flow_id_fops);
+
+	/* Create entry for each port */
+	for (i = 0; i < priv->port_count; i++) {
+		ret = mvpp2_dbgfs_flow_port_init(flow_entry_dir,
+						 priv->port_list[i], entry);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int mvpp2_dbgfs_flow_init(struct dentry *parent, struct mvpp2 *priv)
+{
+	struct dentry *flow_dir;
+	int i, ret;
+
+	flow_dir = debugfs_create_dir("flows", parent);
+	if (!flow_dir)
+		return -ENOMEM;
+
+	for (i = 0; i < MVPP2_N_FLOWS; i++) {
+		ret = mvpp2_dbgfs_flow_entry_init(flow_dir, priv, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 				      struct mvpp2 *priv, int tid)
 {
@@ -321,6 +600,12 @@ static int mvpp2_dbgfs_port_init(struct dentry *parent,
 	debugfs_create_file("vid_filter", 0444, port_dir, port,
 			    &mvpp2_dbgfs_port_vid_fops);
 
+	debugfs_create_file("default_rxq", 0444, port_dir, port,
+			    &mvpp2_dbgfs_flow_c2_rxq_fops);
+
+	debugfs_create_file("rss_enable", 0444, port_dir, port,
+			    &mvpp2_dbgfs_flow_c2_enable_fops);
+
 	return 0;
 }
 
@@ -356,6 +641,10 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name)
 		if (ret)
 			goto err;
 	}
+
+	ret = mvpp2_dbgfs_flow_init(mvpp2_dir, priv);
+	if (ret)
+		goto err;
 
 	return;
 err:

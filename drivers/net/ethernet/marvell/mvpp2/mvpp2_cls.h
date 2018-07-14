@@ -209,4 +209,19 @@ void mvpp2_cls_port_config(struct mvpp2_port *port);
 
 void mvpp2_cls_oversize_rxq_set(struct mvpp2_port *port);
 
+int mvpp2_cls_flow_eng_get(struct mvpp2_cls_flow_entry *fe);
+
+u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe);
+
+struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
+
+void mvpp2_cls_flow_read(struct mvpp2 *priv, int index,
+			 struct mvpp2_cls_flow_entry *fe);
+
+void mvpp2_cls_lookup_read(struct mvpp2 *priv, int lkpid, int way,
+			   struct mvpp2_cls_lookup_entry *le);
+
+void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
+		       struct mvpp2_cls_c2_entry *c2);
+
 #endif
