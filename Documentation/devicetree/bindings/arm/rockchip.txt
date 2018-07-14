@@ -119,6 +119,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "rockchip,rk3326-863-lp3-v10", "rockchip,rk3326";
 
+- Rockchip RK3326 86v board:
+    Required root node properties:
+      - compatible = "rockchip,rk3326-86v-v10", "rockchip,rk3326";
+
 - Rockchip RK3326 evb board:
     Required root node properties:
       - compatible = "rockchip,rk3326-evb-lp3-v10", "rockchip,rk3326";
