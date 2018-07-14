@@ -131,17 +131,16 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
  * fast paths and boot_cpu_has() otherwise!
  */
 
-#if __GNUC__ >= 4 && defined(CONFIG_X86_FAST_FEATURE_TESTS)
+#if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
 extern bool __static_cpu_has(u16 bit);
 
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().
- * These are only valid after alternatives have run, but will statically
- * patch the target code for additional performance.
+ * These will statically patch the target code for additional
+ * performance.
  */
 static __always_inline __pure bool _static_cpu_has(u16 bit)
 {
-#ifdef CC_HAVE_ASM_GOTO
 		asm_volatile_goto("1: jmp %l[t_dynamic]\n"
 			 "2:\n"
 			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
@@ -174,45 +173,6 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 		return false;
 	t_dynamic:
 		return __static_cpu_has(bit);
-#else
-		u8 flag;
-		/* Open-coded due to __stringify() in ALTERNATIVE() */
-		asm volatile("1: movb $2,%0\n"
-			     "2:\n"
-			     ".section .altinstructions,\"a\"\n"
-			     " .long 1b - .\n"		/* src offset */
-			     " .long 3f - .\n"		/* repl offset */
-			     " .word %P2\n"		/* always replace */
-			     " .byte 2b - 1b\n"		/* source len */
-			     " .byte 4f - 3f\n"		/* replacement len */
-			     " .byte 0\n"		/* pad len */
-			     ".previous\n"
-			     ".section .discard,\"aw\",@progbits\n"
-			     " .byte 0xff + (4f-3f) - (2b-1b)\n" /* size check */
-			     ".previous\n"
-			     ".section .altinstr_replacement,\"ax\"\n"
-			     "3: movb $0,%0\n"
-			     "4:\n"
-			     ".previous\n"
-			     ".section .altinstructions,\"a\"\n"
-			     " .long 1b - .\n"		/* src offset */
-			     " .long 5f - .\n"		/* repl offset */
-			     " .word %P1\n"		/* feature bit */
-			     " .byte 4b - 3b\n"		/* src len */
-			     " .byte 6f - 5f\n"		/* repl len */
-			     " .byte 0\n"		/* pad len */
-			     ".previous\n"
-			     ".section .discard,\"aw\",@progbits\n"
-			     " .byte 0xff + (6f-5f) - (4b-3b)\n" /* size check */
-			     ".previous\n"
-			     ".section .altinstr_replacement,\"ax\"\n"
-			     "5: movb $1,%0\n"
-			     "6:\n"
-			     ".previous\n"
-			     : "=qm" (flag)
-			     : "i" (bit), "i" (X86_FEATURE_ALWAYS));
-		return (flag == 2 ? __static_cpu_has(bit) : flag);
-#endif /* CC_HAVE_ASM_GOTO */
 }
 
 #define static_cpu_has(bit)					\
@@ -223,7 +183,8 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 )
 #else
 /*
- * gcc 3.x is too stupid to do the static test; fall back to dynamic.
+ * Fall back to dynamic for gcc versions which don't support asm goto. Should be
+ * a minority now anyway.
  */
 #define static_cpu_has(bit)		boot_cpu_has(bit)
 #endif
