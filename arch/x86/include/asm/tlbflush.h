@@ -111,6 +111,16 @@ static inline void cr4_clear_bits(unsigned long mask)
 	}
 }
 
+static inline void cr4_toggle_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	cr4 ^= mask;
+	this_cpu_write(cpu_tlbstate.cr4, cr4);
+	__write_cr4(cr4);
+}
+
 /* Read the CR4 shadow. */
 static inline unsigned long cr4_read_shadow(void)
 {

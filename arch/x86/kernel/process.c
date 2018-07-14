@@ -130,11 +130,6 @@ void flush_thread(void)
 	fpu__clear(&tsk->thread.fpu);
 }
 
-static void hard_disable_TSC(void)
-{
-	cr4_set_bits(X86_CR4_TSD);
-}
-
 void disable_TSC(void)
 {
 	preempt_disable();
@@ -143,13 +138,8 @@ void disable_TSC(void)
 		 * Must flip the CPU state synchronously with
 		 * TIF_NOTSC in the current running context.
 		 */
-		hard_disable_TSC();
+		cr4_set_bits(X86_CR4_TSD);
 	preempt_enable();
-}
-
-static void hard_enable_TSC(void)
-{
-	cr4_clear_bits(X86_CR4_TSD);
 }
 
 static void enable_TSC(void)
@@ -160,7 +150,7 @@ static void enable_TSC(void)
 		 * Must flip the CPU state synchronously with
 		 * TIF_NOTSC in the current running context.
 		 */
-		hard_enable_TSC();
+		cr4_clear_bits(X86_CR4_TSD);
 	preempt_enable();
 }
 
@@ -234,12 +224,8 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	}
 
-	if ((tifp ^ tifn) & _TIF_NOTSC) {
-		if (tifn & _TIF_NOTSC)
-			hard_disable_TSC();
-		else
-			hard_enable_TSC();
-	}
+	if ((tifp ^ tifn) & _TIF_NOTSC)
+		cr4_toggle_bits(X86_CR4_TSD);
 }
 
 /*
