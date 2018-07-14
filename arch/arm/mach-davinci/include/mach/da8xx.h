@@ -89,9 +89,11 @@ extern unsigned int da850_max_speed;
 
 void da830_init(void);
 void da830_init_time(void);
+void da830_register_clocks(void);
 
 void da850_init(void);
 void da850_init_time(void);
+void da850_register_clocks(void);
 
 int da830_register_edma(struct edma_rsv_info *rsv);
 int da850_register_edma(struct edma_rsv_info *rsv[2]);
@@ -101,9 +103,7 @@ int da8xx_register_watchdog(void);
 int da8xx_register_usb_phy(void);
 int da8xx_register_usb20(unsigned mA, unsigned potpgt);
 int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
-int da8xx_register_usb_refclkin(int rate);
-int da8xx_register_usb20_phy_clk(bool use_usb_refclkin);
-int da8xx_register_usb11_phy_clk(bool use_usb_refclkin);
+int da8xx_register_usb_phy_clocks(void);
 int da850_register_sata_refclk(int rate);
 int da8xx_register_emac(void);
 int da8xx_register_uio_pruss(void);

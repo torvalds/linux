@@ -14,6 +14,7 @@
 
 #include "psc.h"
 
+LPSC_CLKDEV1(aemif_clkdev,	NULL,	"ti-aemif");
 LPSC_CLKDEV1(spi0_clkdev,	NULL,	"spi_davinci.0");
 LPSC_CLKDEV1(mmcsd_clkdev,	NULL,	"da830-mmc.0");
 LPSC_CLKDEV1(uart0_clkdev,	NULL,	"serial8250.0");
@@ -22,7 +23,7 @@ static const struct davinci_lpsc_clk_info da830_psc0_info[] = {
 	LPSC(0,  0, tpcc,     pll0_sysclk2, NULL,         LPSC_ALWAYS_ENABLED),
 	LPSC(1,  0, tptc0,    pll0_sysclk2, NULL,         LPSC_ALWAYS_ENABLED),
 	LPSC(2,  0, tptc1,    pll0_sysclk2, NULL,         LPSC_ALWAYS_ENABLED),
-	LPSC(3,  0, aemif,    pll0_sysclk3, NULL,         LPSC_ALWAYS_ENABLED),
+	LPSC(3,  0, aemif,    pll0_sysclk3, aemif_clkdev, LPSC_ALWAYS_ENABLED),
 	LPSC(4,  0, spi0,     pll0_sysclk2, spi0_clkdev,  0),
 	LPSC(5,  0, mmcsd,    pll0_sysclk2, mmcsd_clkdev, 0),
 	LPSC(6,  0, aintc,    pll0_sysclk4, NULL,         LPSC_ALWAYS_ENABLED),
