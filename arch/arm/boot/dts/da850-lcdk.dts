@@ -123,6 +123,10 @@
 	};
 };
 
+&ref_clk {
+	clock-frequency = <24000000>;
+};
+
 &pmx_core {
 	status = "okay";
 
@@ -173,6 +177,11 @@
 
 &gpio {
 	status = "okay";
+};
+
+&sata_refclk {
+	status = "okay";
+	clock-frequency = <100000000>;
 };
 
 &sata {
