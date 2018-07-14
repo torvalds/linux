@@ -254,6 +254,9 @@ static __init int fakelb_init_module(void)
 {
 	ieee802154fake_dev = platform_device_register_simple(
 			     "ieee802154fakelb", -1, NULL, 0);
+
+	pr_warn("fakelb driver is marked as deprecated, please use mac802154_hwsim!\n");
+
 	return platform_driver_register(&ieee802154fake_driver);
 }
 
