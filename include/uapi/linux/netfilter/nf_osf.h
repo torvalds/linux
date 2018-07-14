@@ -16,9 +16,14 @@
 
 #define NF_OSF_TTL_TRUE			0	/* True ip and fingerprint TTL comparison */
 
+/* Check if ip TTL is less than fingerprint one */
+#define NF_OSF_TTL_LESS			1
+
 /* Do not compare ip and fingerprint TTL at all */
 #define NF_OSF_TTL_NOCHECK		2
 
+#define NF_OSF_FLAGMASK		(NF_OSF_GENRE | NF_OSF_TTL | \
+				 NF_OSF_LOG | NF_OSF_INVERT)
 /* Wildcard MSS (kind of).
  * It is used to implement a state machine for the different wildcard values
  * of the MSS and window sizes.
@@ -81,6 +86,12 @@ enum iana_options {
 
 	/* Others are not used in the current OSF */
 	OSFOPT_EMPTY = 255,
+};
+
+enum nf_osf_attr_type {
+	OSF_ATTR_UNSPEC,
+	OSF_ATTR_FINGER,
+	OSF_ATTR_MAX,
 };
 
 #endif /* _NF_OSF_H */
