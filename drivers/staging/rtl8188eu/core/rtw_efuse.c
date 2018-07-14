@@ -29,12 +29,12 @@ enum{
  *				and disable LDO 2.5V.
  */
 
-void efuse_power_switch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
+void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 {
 	u8 tempval;
 	u16	tmpV16;
 
-	if (PwrState) {
+	if (pwrstate) {
 		usb_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
 		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid */
@@ -57,7 +57,7 @@ void efuse_power_switch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
 			usb_write16(pAdapter, REG_SYS_CLKR, tmpV16);
 		}
 
-		if (bWrite) {
+		if (write) {
 			/*  Enable LDO 2.5V before read/write action */
 			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
 			tempval &= 0x0F;
@@ -67,7 +67,7 @@ void efuse_power_switch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
 	} else {
 		usb_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
 
-		if (bWrite) {
+		if (write) {
 			/*  Disable LDO 2.5V after read/write action */
 			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
 			usb_write8(pAdapter, EFUSE_TEST+3, (tempval & 0x7F));
