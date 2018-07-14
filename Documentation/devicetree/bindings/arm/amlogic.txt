@@ -90,6 +90,7 @@ Board compatible values (alphabetically, grouped by SoC):
   - "amlogic,p241" (Meson gxl s805x)
 
   - "amlogic,p281" (Meson gxl s905w)
+  - "oranth,tx3-mini" (Meson gxl s905w)
 
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)
