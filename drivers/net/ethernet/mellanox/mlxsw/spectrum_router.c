@@ -6692,7 +6692,10 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(l3_dev);
 	int err = 0;
 
-	if (!mlxsw_sp)
+	/* We do not create a RIF for a macvlan, but only use it to
+	 * direct more MAC addresses to the router.
+	 */
+	if (!mlxsw_sp || netif_is_macvlan(l3_dev))
 		return 0;
 
 	switch (event) {

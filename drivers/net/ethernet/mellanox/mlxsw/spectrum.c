@@ -4420,7 +4420,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		if (!is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
-		    !netif_is_ovs_master(upper_dev)) {
+		    !netif_is_ovs_master(upper_dev) &&
+		    !netif_is_macvlan(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
@@ -4445,6 +4446,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev))) {
 			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on a LAG port");
 			return -EINVAL;
+		}
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, lower_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
 		}
 		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Master device is an OVS master and this device has a VLAN");
@@ -4568,8 +4574,9 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!netif_is_bridge_master(upper_dev)) {
-			NL_SET_ERR_MSG_MOD(extack, "VLAN devices only support bridge and VRF uppers");
+		if (!netif_is_bridge_master(upper_dev) &&
+		    !netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
 		if (!info->linking)
@@ -4580,6 +4587,11 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 							  upper_dev))) {
 			NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a device that already has an upper device is not supported");
 			return -EINVAL;
+		}
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
 		}
 		break;
 	case NETDEV_CHANGEUPPER:
@@ -4643,6 +4655,59 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
+					   unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(br_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (!is_vlan_dev(upper_dev) && !netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EOPNOTSUPP;
+		}
+		if (!info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
+		}
+		break;
+	case NETDEV_CHANGEUPPER:
+		break;
+	}
+
+	return 0;
+}
+
+static int mlxsw_sp_netdevice_macvlan_event(struct net_device *macvlan_dev,
+					    unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(macvlan_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+
+	if (!mlxsw_sp || event != NETDEV_PRECHANGEUPPER)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	/* VRF enslavement is handled in mlxsw_sp_netdevice_vrf_event() */
+	NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+
+	return -EOPNOTSUPP;
+}
+
 static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
 {
 	struct netdev_notifier_changeupper_info *info = ptr;
@@ -4684,6 +4749,10 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 		err = mlxsw_sp_netdevice_lag_event(dev, event, ptr);
 	else if (is_vlan_dev(dev))
 		err = mlxsw_sp_netdevice_vlan_event(dev, event, ptr);
+	else if (netif_is_bridge_master(dev))
+		err = mlxsw_sp_netdevice_bridge_event(dev, event, ptr);
+	else if (netif_is_macvlan(dev))
+		err = mlxsw_sp_netdevice_macvlan_event(dev, event, ptr);
 
 	return notifier_from_errno(err);
 }
