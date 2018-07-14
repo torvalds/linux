@@ -918,10 +918,11 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 
 static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 {
-	int result, old_present = acpi_battery_present(battery);
-	result = acpi_battery_get_status(battery);
+	int result = acpi_battery_get_status(battery);
+
 	if (result)
 		return result;
+
 	if (!acpi_battery_present(battery)) {
 		sysfs_remove_battery(battery);
 		battery->update_time = 0;
@@ -931,8 +932,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	if (resume)
 		return 0;
 
-	if (!battery->update_time ||
-	    old_present != acpi_battery_present(battery)) {
+	if (!battery->update_time) {
 		result = acpi_battery_get_info(battery);
 		if (result)
 			return result;
