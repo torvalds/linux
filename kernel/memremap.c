@@ -339,7 +339,6 @@ void __put_devmap_managed_page(struct page *page)
 		__ClearPageActive(page);
 		__ClearPageWaiters(page);
 
-		page->mapping = NULL;
 		mem_cgroup_uncharge(page);
 
 		page->pgmap->page_free(page, page->pgmap->data);
