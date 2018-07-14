@@ -4353,6 +4353,20 @@ MLXSW_ITEM32(reg, ritr, if_swid, 0x08, 24, 8);
  */
 MLXSW_ITEM_BUF(reg, ritr, if_mac, 0x12, 6);
 
+/* reg_ritr_if_vrrp_id_ipv6
+ * VRRP ID for IPv6
+ * Note: Reserved for RIF types other than VLAN, FID and Sub-port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, if_vrrp_id_ipv6, 0x1C, 8, 8);
+
+/* reg_ritr_if_vrrp_id_ipv4
+ * VRRP ID for IPv4
+ * Note: Reserved for RIF types other than VLAN, FID and Sub-port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, if_vrrp_id_ipv4, 0x1C, 0, 8);
+
 /* VLAN Interface */
 
 /* reg_ritr_vlan_if_vid
