@@ -801,6 +801,83 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
 
+int armada_crtc_select_clock(struct armada_crtc *dcrtc,
+			     struct armada_clk_result *res,
+			     const struct armada_clocking_params *params,
+			     struct clk *clks[], size_t num_clks,
+			     unsigned long desired_khz)
+{
+	unsigned long desired_hz = desired_khz * 1000;
+	unsigned long desired_clk_hz;	// requested clk input
+	unsigned long real_clk_hz;	// actual clk input
+	unsigned long real_hz;		// actual pixel clk
+	unsigned long permillage;
+	struct clk *clk;
+	u32 div;
+	int i;
+
+	DRM_DEBUG_KMS("[CRTC:%u:%s] desired clock=%luHz\n",
+		      dcrtc->crtc.base.id, dcrtc->crtc.name, desired_hz);
+
+	for (i = 0; i < num_clks; i++) {
+		clk = clks[i];
+		if (!clk)
+			continue;
+
+		if (params->settable & BIT(i)) {
+			real_clk_hz = clk_round_rate(clk, desired_hz);
+			desired_clk_hz = desired_hz;
+		} else {
+			real_clk_hz = clk_get_rate(clk);
+			desired_clk_hz = real_clk_hz;
+		}
+
+		/* If the clock can do exactly the desired rate, we're done */
+		if (real_clk_hz == desired_hz) {
+			real_hz = real_clk_hz;
+			div = 1;
+			goto found;
+		}
+
+		/* Calculate the divider - if invalid, we can't do this rate */
+		div = DIV_ROUND_CLOSEST(real_clk_hz, desired_hz);
+		if (div == 0 || div > params->div_max)
+			continue;
+
+		/* Calculate the actual rate - HDMI requires -0.6%..+0.5% */
+		real_hz = DIV_ROUND_CLOSEST(real_clk_hz, div);
+
+		DRM_DEBUG_KMS("[CRTC:%u:%s] clk=%u %luHz div=%u real=%luHz\n",
+			dcrtc->crtc.base.id, dcrtc->crtc.name,
+			i, real_clk_hz, div, real_hz);
+
+		/* Avoid repeated division */
+		if (real_hz < desired_hz) {
+			permillage = real_hz / desired_khz;
+			if (permillage < params->permillage_min)
+				continue;
+		} else {
+			permillage = DIV_ROUND_UP(real_hz, desired_khz);
+			if (permillage > params->permillage_max)
+				continue;
+		}
+		goto found;
+	}
+
+	return -ERANGE;
+
+found:
+	DRM_DEBUG_KMS("[CRTC:%u:%s] selected clk=%u %luHz div=%u real=%luHz\n",
+		dcrtc->crtc.base.id, dcrtc->crtc.name,
+		i, real_clk_hz, div, real_hz);
+
+	res->desired_clk_hz = desired_clk_hz;
+	res->clk = clk;
+	res->div = div;
+
+	return i;
+}
+
 static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
 	struct device_node *port)
@@ -827,7 +904,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	dcrtc->variant = variant;
 	dcrtc->base = base;
 	dcrtc->num = drm->mode_config.num_crtc;
-	dcrtc->clk = ERR_PTR(-EINVAL);
 	dcrtc->cfg_dumb_ctrl = DUMB24_RGB888_0;
 	dcrtc->spu_iopad_ctrl = CFG_VSCALE_LN_EN | CFG_IOPAD_DUMB24;
 	spin_lock_init(&dcrtc->irq_lock);
