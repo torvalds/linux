@@ -17,6 +17,11 @@
 
 #define BTF_MAX_NR_TYPES 65535
 
+#define IS_MODIFIER(k) (((k) == BTF_KIND_TYPEDEF) || \
+		((k) == BTF_KIND_VOLATILE) || \
+		((k) == BTF_KIND_CONST) || \
+		((k) == BTF_KIND_RESTRICT))
+
 static struct btf_type btf_void;
 
 struct btf {
@@ -32,14 +37,6 @@ struct btf {
 	uint32_t data_size;
 	int fd;
 };
-
-static const char *btf_name_by_offset(const struct btf *btf, uint32_t offset)
-{
-	if (offset < btf->hdr->str_len)
-		return &btf->strings[offset];
-	else
-		return NULL;
-}
 
 static int btf_add_type(struct btf *btf, struct btf_type *t)
 {
@@ -190,15 +187,6 @@ static int btf_parse_type_sec(struct btf *btf, btf_print_fn_t err_log)
 	return 0;
 }
 
-static const struct btf_type *btf_type_by_id(const struct btf *btf,
-					     uint32_t type_id)
-{
-	if (type_id > btf->nr_types)
-		return NULL;
-
-	return btf->types[type_id];
-}
-
 static bool btf_type_is_void(const struct btf_type *t)
 {
 	return t == &btf_void || BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
@@ -234,7 +222,7 @@ int64_t btf__resolve_size(const struct btf *btf, uint32_t type_id)
 	int64_t size = -1;
 	int i;
 
-	t = btf_type_by_id(btf, type_id);
+	t = btf__type_by_id(btf, type_id);
 	for (i = 0; i < MAX_RESOLVE_DEPTH && !btf_type_is_void_or_null(t);
 	     i++) {
 		size = btf_type_size(t);
@@ -259,7 +247,7 @@ int64_t btf__resolve_size(const struct btf *btf, uint32_t type_id)
 			return -EINVAL;
 		}
 
-		t = btf_type_by_id(btf, type_id);
+		t = btf__type_by_id(btf, type_id);
 	}
 
 	if (size < 0)
@@ -271,6 +259,26 @@ int64_t btf__resolve_size(const struct btf *btf, uint32_t type_id)
 	return nelems * size;
 }
 
+int btf__resolve_type(const struct btf *btf, __u32 type_id)
+{
+	const struct btf_type *t;
+	int depth = 0;
+
+	t = btf__type_by_id(btf, type_id);
+	while (depth < MAX_RESOLVE_DEPTH &&
+	       !btf_type_is_void_or_null(t) &&
+	       IS_MODIFIER(BTF_INFO_KIND(t->info))) {
+		type_id = t->type;
+		t = btf__type_by_id(btf, type_id);
+		depth++;
+	}
+
+	if (depth == MAX_RESOLVE_DEPTH || btf_type_is_void_or_null(t))
+		return -EINVAL;
+
+	return type_id;
+}
+
 int32_t btf__find_by_name(const struct btf *btf, const char *type_name)
 {
 	uint32_t i;
@@ -280,7 +288,7 @@ int32_t btf__find_by_name(const struct btf *btf, const char *type_name)
 
 	for (i = 1; i <= btf->nr_types; i++) {
 		const struct btf_type *t = btf->types[i];
-		const char *name = btf_name_by_offset(btf, t->name_off);
+		const char *name = btf__name_by_offset(btf, t->name_off);
 
 		if (name && !strcmp(type_name, name))
 			return i;
@@ -370,4 +378,21 @@ done:
 int btf__fd(const struct btf *btf)
 {
 	return btf->fd;
+}
+
+const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
+{
+	if (offset < btf->hdr->str_len)
+		return &btf->strings[offset];
+	else
+		return NULL;
+}
+
+const struct btf_type *btf__type_by_id(const struct btf *btf,
+				       __u32 type_id)
+{
+	if (type_id > btf->nr_types)
+		return NULL;
+
+	return btf->types[type_id];
 }
