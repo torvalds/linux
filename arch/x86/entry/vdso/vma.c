@@ -20,6 +20,7 @@
 #include <asm/page.h>
 #include <asm/hpet.h>
 #include <asm/desc.h>
+#include <asm/cpufeature.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;

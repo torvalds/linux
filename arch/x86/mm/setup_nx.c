@@ -4,6 +4,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/proto.h>
+#include <asm/cpufeature.h>
 
 static int disable_nx;
 

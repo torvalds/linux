@@ -1,6 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <asm/msr.h>
 #include "cpu.h"
 

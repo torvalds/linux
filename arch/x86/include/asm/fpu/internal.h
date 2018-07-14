@@ -17,6 +17,7 @@
 #include <asm/user.h>
 #include <asm/fpu/api.h>
 #include <asm/fpu/xstate.h>
+#include <asm/cpufeature.h>
 
 /*
  * High level FPU state handling functions:
