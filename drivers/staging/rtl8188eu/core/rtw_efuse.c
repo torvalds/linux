@@ -59,18 +59,18 @@ void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 
 		if (write) {
 			/*  Enable LDO 2.5V before read/write action */
-			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
+			tempval = usb_read8(pAdapter, EFUSE_TEST + 3);
 			tempval &= 0x0F;
 			tempval |= (VOLTAGE_V25 << 4);
-			usb_write8(pAdapter, EFUSE_TEST+3, (tempval | 0x80));
+			usb_write8(pAdapter, EFUSE_TEST + 3, (tempval | 0x80));
 		}
 	} else {
 		usb_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_OFF);
 
 		if (write) {
 			/*  Disable LDO 2.5V after read/write action */
-			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
-			usb_write8(pAdapter, EFUSE_TEST+3, (tempval & 0x7F));
+			tempval = usb_read8(pAdapter, EFUSE_TEST + 3);
+			usb_write8(pAdapter, EFUSE_TEST + 3, (tempval & 0x7F));
 		}
 	}
 }
