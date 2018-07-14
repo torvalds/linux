@@ -27,15 +27,33 @@
 	};
 
 	cbb {
+		ethernet@2490000 {
+			status = "okay";
+
+			phy-reset-gpios = <&gpio TEGRA194_MAIN_GPIO(G, 5) GPIO_ACTIVE_LOW>;
+			phy-handle = <&phy>;
+			phy-mode = "rgmii";
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy: phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c22";
+					reg = <0x0>;
+					interrupt-parent = <&gpio>;
+					interrupts = <TEGRA194_MAIN_GPIO(G, 4) IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+		};
+
 		serial@3110000 {
 			status = "okay";
 		};
 
 		/* SDMMC1 (SD/MMC) */
 		sdhci@3400000 {
-/*
 			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(A, 0) GPIO_ACTIVE_LOW>;
-*/
 		};
 
 		/* SDMMC4 (eMMC) */
