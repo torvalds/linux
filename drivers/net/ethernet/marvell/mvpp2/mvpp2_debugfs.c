@@ -192,6 +192,22 @@ static int mvpp2_dbgfs_prs_sram_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_prs_sram);
 
+static int mvpp2_dbgfs_prs_hits_show(struct seq_file *s, void *unused)
+{
+	struct mvpp2_dbgfs_prs_entry *entry = s->private;
+	int val;
+
+	val = mvpp2_prs_hits(entry->priv, entry->tid);
+	if (val < 0)
+		return val;
+
+	seq_printf(s, "%d\n", val);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mvpp2_dbgfs_prs_hits);
+
 static int mvpp2_dbgfs_prs_valid_show(struct seq_file *s, void *unused)
 {
 	struct mvpp2_dbgfs_prs_entry *entry = s->private;
@@ -262,6 +278,9 @@ static int mvpp2_dbgfs_prs_entry_init(struct dentry *parent,
 
 	debugfs_create_file("header_data", 0644, prs_entry_dir, entry,
 			    &mvpp2_dbgfs_prs_hdata_fops);
+
+	debugfs_create_file("hits", 0444, prs_entry_dir, entry,
+			    &mvpp2_dbgfs_prs_hits_fops);
 
 	return 0;
 }

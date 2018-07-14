@@ -328,4 +328,6 @@ void mvpp2_prs_mac_del_all(struct mvpp2_port *port);
 
 int mvpp2_prs_update_mac_da(struct net_device *dev, const u8 *da);
 
+int mvpp2_prs_hits(struct mvpp2 *priv, int index);
+
 #endif
