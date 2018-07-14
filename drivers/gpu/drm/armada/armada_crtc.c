@@ -171,6 +171,8 @@ static void armada_drm_update_gamma(struct drm_crtc *crtc)
 static enum drm_mode_status armada_drm_crtc_mode_valid(struct drm_crtc *crtc,
 	const struct drm_display_mode *mode)
 {
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+
 	if (mode->vscan > 1)
 		return MODE_NO_VSCAN;
 
@@ -179,6 +181,11 @@ static enum drm_mode_status armada_drm_crtc_mode_valid(struct drm_crtc *crtc,
 
 	if (mode->flags & DRM_MODE_FLAG_HSKEW)
 		return MODE_H_ILLEGAL;
+
+	/* We can't do interlaced modes if we don't have the SPU_ADV_REG */
+	if (!dcrtc->variant->has_spu_adv_reg &&
+	    mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return MODE_NO_INTERLACE;
 
 	if (mode->flags & (DRM_MODE_FLAG_BCAST | DRM_MODE_FLAG_PIXMUX |
 			   DRM_MODE_FLAG_CLKDIV2))
@@ -194,17 +201,19 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	int ret;
 
-	/* We can't do interlaced modes if we don't have the SPU_ADV_REG */
-	if (!dcrtc->variant->has_spu_adv_reg &&
-	    adj->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
-
 	/*
 	 * Set CRTC modesetting parameters for the adjusted mode.  This is
 	 * applied after the connectors, bridges, and encoders have fixed up
 	 * this mode, as described above drm_atomic_helper_check_modeset().
 	 */
 	drm_mode_set_crtcinfo(adj, CRTC_INTERLACE_HALVE_V);
+
+	/*
+	 * Validate the adjusted mode in case an encoder/bridge has set
+	 * something we don't support.
+	 */
+	if (armada_drm_crtc_mode_valid(crtc, adj) != MODE_OK)
+		return false;
 
 	/* Check whether the display mode is possible */
 	ret = dcrtc->variant->compute_clock(dcrtc, adj, NULL);
