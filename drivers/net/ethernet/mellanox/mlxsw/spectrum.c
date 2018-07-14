@@ -4490,6 +4490,9 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 				err = mlxsw_sp_port_ovs_join(mlxsw_sp_port);
 			else
 				mlxsw_sp_port_ovs_leave(mlxsw_sp_port);
+		} else if (netif_is_macvlan(upper_dev)) {
+			if (!info->linking)
+				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		}
 		break;
 	}
@@ -4606,6 +4609,9 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 				mlxsw_sp_port_bridge_leave(mlxsw_sp_port,
 							   vlan_dev,
 							   upper_dev);
+		} else if (netif_is_macvlan(upper_dev)) {
+			if (!info->linking)
+				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
@@ -4684,6 +4690,11 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		}
 		break;
 	case NETDEV_CHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev))
+			mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		break;
 	}
 
