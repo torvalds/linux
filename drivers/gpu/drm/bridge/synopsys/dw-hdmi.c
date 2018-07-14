@@ -2569,6 +2569,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	struct drm_display_mode *mode;
 	const u8 def_modes[6] = {4, 16, 31, 19, 17, 2};
+	struct drm_display_info *info = &connector->display_info;
 	int i, ret = 0;
 
 	if (!hdmi->ddc)
@@ -2600,6 +2601,10 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 				ret++;
 			}
 		}
+		info->edid_hdmi_dc_modes = 0;
+		info->hdmi.y420_dc_modes = 0;
+		info->color_formats = 0;
+
 		dev_info(hdmi->dev, "failed to get edid\n");
 	}
 
