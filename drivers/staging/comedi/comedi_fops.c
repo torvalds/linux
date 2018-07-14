@@ -79,8 +79,8 @@ MODULE_PARM_DESC(comedi_default_buf_size_kb,
 		 "default asynchronous buffer size in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB) ")");
 
-unsigned int comedi_default_buf_maxsize_kb
-	= CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
+unsigned int comedi_default_buf_maxsize_kb =
+	CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
 module_param(comedi_default_buf_maxsize_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
 		 "default maximum size of asynchronous buffer in KiB (default "
