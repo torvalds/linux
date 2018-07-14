@@ -38,7 +38,7 @@ struct pasid_state_entry {
 	u64 val;
 };
 
-int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
+int intel_svm_init(struct intel_iommu *iommu)
 {
 	struct page *pages;
 	int order;
@@ -63,15 +63,6 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 		iommu->pasid_max = 0x20000;
 
 	order = get_order(sizeof(struct pasid_entry) * iommu->pasid_max);
-	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!pages) {
-		pr_warn("IOMMU: %s: Failed to allocate PASID table\n",
-			iommu->name);
-		return -ENOMEM;
-	}
-	iommu->pasid_table = page_address(pages);
-	pr_info("%s: Allocated order %d PASID table.\n", iommu->name, order);
-
 	if (ecap_dis(iommu->ecap)) {
 		/* Just making it explicit... */
 		BUILD_BUG_ON(sizeof(struct pasid_entry) != sizeof(struct pasid_state_entry));
@@ -86,14 +77,10 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 	return 0;
 }
 
-int intel_svm_free_pasid_tables(struct intel_iommu *iommu)
+int intel_svm_exit(struct intel_iommu *iommu)
 {
 	int order = get_order(sizeof(struct pasid_entry) * iommu->pasid_max);
 
-	if (iommu->pasid_table) {
-		free_pages((unsigned long)iommu->pasid_table, order);
-		iommu->pasid_table = NULL;
-	}
 	if (iommu->pasid_state_table) {
 		free_pages((unsigned long)iommu->pasid_state_table, order);
 		iommu->pasid_state_table = NULL;

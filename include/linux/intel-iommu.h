@@ -453,7 +453,6 @@ struct intel_iommu {
 	 * devices away to userspace processes (e.g. for DPDK) and don't
 	 * want to trust that userspace will use *only* the PASID it was
 	 * told to. But while it's all driver-arbitrated, we're fine. */
-	struct pasid_entry *pasid_table;
 	struct pasid_state_entry *pasid_state_table;
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
@@ -526,8 +525,8 @@ int for_each_device_domain(int (*fn)(struct device_domain_info *info,
 				     void *data), void *data);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-extern int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu);
-extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
+int intel_svm_init(struct intel_iommu *iommu);
+int intel_svm_exit(struct intel_iommu *iommu);
 extern int intel_svm_enable_prq(struct intel_iommu *iommu);
 extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 

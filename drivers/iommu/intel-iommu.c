@@ -1756,7 +1756,7 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 	if (pasid_enabled(iommu)) {
 		if (ecap_prs(iommu->ecap))
 			intel_svm_finish_prq(iommu);
-		intel_svm_free_pasid_tables(iommu);
+		intel_svm_exit(iommu);
 	}
 #endif
 }
@@ -3337,7 +3337,7 @@ static int __init init_dmars(void)
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
 		if (pasid_enabled(iommu))
-			intel_svm_alloc_pasid_tables(iommu);
+			intel_svm_init(iommu);
 #endif
 	}
 
@@ -4300,7 +4300,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 	if (pasid_enabled(iommu))
-		intel_svm_alloc_pasid_tables(iommu);
+		intel_svm_init(iommu);
 #endif
 
 	if (dmaru->ignored) {
