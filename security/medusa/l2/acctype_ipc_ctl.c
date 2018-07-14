@@ -10,7 +10,7 @@
 struct ipc_ctl_access {
 	MEDUSA_ACCESS_HEADER;
 	unsigned int ipc_class;
-	int cmd;
+	int cmd;	/* operation to be performed */
 };
 
 MED_ATTRS(ipc_ctl_access) {

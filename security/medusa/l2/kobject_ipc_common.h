@@ -13,22 +13,23 @@
  * medusa_ipc_perm - struct holding relevant entries from 'kern_ipc_perm' (see linux/ipc.h)
  */
 struct medusa_ipc_perm {
-	bool        deleted;
-	int     id;
-	key_t       key;
-	kuid_t      uid;
- 	kgid_t      gid;
-	kuid_t      cuid;
-	kgid_t      cgid;
-	umode_t     mode;
-	unsigned long   seq;
+	bool	deleted;	/* helper to sort out IPC_RMID races */
+	int	id;		/* IPC object id based on seq number */
+	key_t	key;		/* IPC V identifier; key supplied to semget() */
+	kuid_t	uid;		/* effective UID of owner */
+	kgid_t	gid;		/* effective GID of owner */
+	kuid_t	cuid;		/* effective UID of creator */
+	kgid_t	cgid;		/* effective GID of creator */
+	umode_t	mode;		/* permissions */
+	unsigned long	seq;	/* sequence number used to generate IPC id */
+	refcount_t refcount;	/* count of in-use references to IPC object */
 };
 
 /**
  * ipc_kobject - kobject structure for System V IPC: sem, msg, shm
  *
  * @ipc_class - type of System V IPC (sem, or msg, or shm)
- * @
+ * @ipc_perm - copy of relevant entries from kernel IPC permission structure
  */
 struct ipc_kobject {	
 	unsigned int ipc_class;

@@ -13,8 +13,8 @@ struct ipc_msgrcv_access {
 	size_t m_ts;	/* msg text size; see 'struct msg_msg' in include/linux/msg.h */
 	/* TODO char m_text[???]; send also message text? */
 	pid_t target; /* TODO: namespaces implementation??? */
-	long type;
-	int mode;
+	long type;	/* type of requested message */
+	int mode;	/* operational flags */
 	unsigned int ipc_class;
 };
 

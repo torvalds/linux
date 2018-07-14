@@ -20,6 +20,7 @@ static struct ipc_kobject storage;
 		(to)->cuid = (from)->cuid; \
 		(to)->cgid = (from)->cgid; \
 		(to)->seq = (from)->seq; \
+		(to)->refcount = (from)->refcount; \
 	} while(0);
 
 MED_ATTRS(ipc_kobject) {
@@ -33,6 +34,7 @@ MED_ATTRS(ipc_kobject) {
 	MED_ATTR_RO	(ipc_kobject, ipc_perm.cgid, "cgid", MED_UNSIGNED),
 	MED_ATTR	(ipc_kobject, ipc_perm.mode, "mode", MED_UNSIGNED),
 	MED_ATTR_RO	(ipc_kobject, ipc_perm.seq, "seq", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.refcount, "refcount", MED_UNSIGNED),
 	MED_ATTR_OBJECT (ipc_kobject),
 	MED_ATTR_END
 };
@@ -138,11 +140,9 @@ medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 	//if (!ipc_rcu_getref(ipcp))
 	//	goto out_rcu_unlock;
 	ipc_lock_object(ipcp);
-	printk("MEdusa update before kobj2kern\n");
 	// update kernel structure	
 	retval = ipc_kobj2kern(ipc_kobj, ipcp);
 
-	printk("MEdusa update after kobj2kern %d\n", retval);
 	ipc_unlock_object(ipcp);
 	//ipc_rcu_putref(ipcp, ipc_rcu_free);	
 out_rcu_unlock:

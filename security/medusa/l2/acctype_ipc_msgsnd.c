@@ -12,7 +12,7 @@ struct ipc_msgsnd_access {
 	long m_type;	/* message type;  see 'struct msg_msg' in include/linux/msg.h */
 	size_t m_ts;	/* msg text size; see 'struct msg_msg' in include/linux/msg.h */
 	/* TODO char m_text[???]; send also message text? */
-	int msgflg;
+	int msgflg;	/* operational flags */
 	unsigned int ipc_class;
 };
 
