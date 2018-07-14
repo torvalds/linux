@@ -11,7 +11,6 @@
 #include <rtw_efuse.h>
 #include <fw.h>
 #include <rtl8188e_hal.h>
-#include <rtl8188e_led.h>
 #include <rtw_iol.h>
 #include <phy.h>
 
