@@ -325,6 +325,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			if (retval != -ETIME)
 				goto err_destroy_queue;
 		}
+		kfree(pqn->q->properties.cu_mask);
+		pqn->q->properties.cu_mask = NULL;
 		uninit_queue(pqn->q);
 	}
 
@@ -356,6 +358,34 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	pqn->q->properties.queue_size = p->queue_size;
 	pqn->q->properties.queue_percent = p->queue_percent;
 	pqn->q->properties.priority = p->priority;
+
+	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
+							pqn->q);
+	if (retval != 0)
+		return retval;
+
+	return 0;
+}
+
+int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
+			struct queue_properties *p)
+{
+	int retval;
+	struct process_queue_node *pqn;
+
+	pqn = get_queue_by_qid(pqm, qid);
+	if (!pqn) {
+		pr_debug("No queue %d exists for update operation\n", qid);
+		return -EFAULT;
+	}
+
+	/* Free the old CU mask memory if it is already allocated, then
+	 * allocate memory for the new CU mask.
+	 */
+	kfree(pqn->q->properties.cu_mask);
+
+	pqn->q->properties.cu_mask_count = p->cu_mask_count;
+	pqn->q->properties.cu_mask = p->cu_mask;
 
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
 							pqn->q);

@@ -422,6 +422,9 @@ struct queue_properties {
 	uint32_t ctl_stack_size;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
+	/* Relevant for CU */
+	uint32_t cu_mask_count; /* Must be a multiple of 32 */
+	uint32_t *cu_mask;
 };
 
 /**
@@ -871,6 +874,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    unsigned int *qid);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
+			struct queue_properties *p);
+int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);

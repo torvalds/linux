@@ -392,6 +392,61 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	return retval;
 }
 
+static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
+					void *data)
+{
+	int retval;
+	const int max_num_cus = 1024;
+	struct kfd_ioctl_set_cu_mask_args *args = data;
+	struct queue_properties properties;
+	uint32_t __user *cu_mask_ptr = (uint32_t __user *)args->cu_mask_ptr;
+	size_t cu_mask_size = sizeof(uint32_t) * (args->num_cu_mask / 32);
+
+	if ((args->num_cu_mask % 32) != 0) {
+		pr_debug("num_cu_mask 0x%x must be a multiple of 32",
+				args->num_cu_mask);
+		return -EINVAL;
+	}
+
+	properties.cu_mask_count = args->num_cu_mask;
+	if (properties.cu_mask_count == 0) {
+		pr_debug("CU mask cannot be 0");
+		return -EINVAL;
+	}
+
+	/* To prevent an unreasonably large CU mask size, set an arbitrary
+	 * limit of max_num_cus bits.  We can then just drop any CU mask bits
+	 * past max_num_cus bits and just use the first max_num_cus bits.
+	 */
+	if (properties.cu_mask_count > max_num_cus) {
+		pr_debug("CU mask cannot be greater than 1024 bits");
+		properties.cu_mask_count = max_num_cus;
+		cu_mask_size = sizeof(uint32_t) * (max_num_cus/32);
+	}
+
+	properties.cu_mask = kzalloc(cu_mask_size, GFP_KERNEL);
+	if (!properties.cu_mask)
+		return -ENOMEM;
+
+	retval = copy_from_user(properties.cu_mask, cu_mask_ptr, cu_mask_size);
+	if (retval) {
+		pr_debug("Could not copy CU mask from userspace");
+		kfree(properties.cu_mask);
+		return -EFAULT;
+	}
+
+	mutex_lock(&p->mutex);
+
+	retval = pqm_set_cu_mask(&p->pqm, args->queue_id, &properties);
+
+	mutex_unlock(&p->mutex);
+
+	if (retval)
+		kfree(properties.cu_mask);
+
+	return retval;
+}
+
 static int kfd_ioctl_set_memory_policy(struct file *filep,
 					struct kfd_process *p, void *data)
 {
@@ -1556,6 +1611,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU,
 			kfd_ioctl_unmap_memory_from_gpu, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_CU_MASK,
+			kfd_ioctl_set_cu_mask, 0),
 
 };
 
