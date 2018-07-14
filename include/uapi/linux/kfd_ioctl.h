@@ -76,6 +76,12 @@ struct kfd_ioctl_update_queue_args {
 	__u32 queue_priority;	/* to KFD */
 };
 
+struct kfd_ioctl_set_cu_mask_args {
+	__u32 queue_id;		/* to KFD */
+	__u32 num_cu_mask;		/* to KFD */
+	__u64 cu_mask_ptr;		/* to KFD */
+};
+
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
 #define KFD_IOC_CACHE_POLICY_COHERENT 0
 #define KFD_IOC_CACHE_POLICY_NONCOHERENT 1
@@ -466,7 +472,10 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 #define AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU	\
 		AMDKFD_IOWR(0x19, struct kfd_ioctl_unmap_memory_from_gpu_args)
 
+#define AMDKFD_IOC_SET_CU_MASK		\
+		AMDKFD_IOW(0x1A, struct kfd_ioctl_set_cu_mask_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1A
+#define AMDKFD_COMMAND_END		0x1B
 
 #endif
