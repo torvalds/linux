@@ -55,6 +55,24 @@ struct rkisp1_isp_readout_work {
 	struct vb2_buffer *vb;
 };
 
+struct rkisp1_stats_ops {
+	void (*get_awb_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_aec_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_afc_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_hst_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_bls_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
+};
+
+struct rkisp1_stats_config {
+	const int ae_mean_max;
+	const int hist_bin_n_max;
+};
+
 /*
  * struct rkisp1_isp_stats_vdev - ISP Statistics device
  *
@@ -73,6 +91,9 @@ struct rkisp1_isp_stats_vdev {
 
 	struct workqueue_struct *readout_wq;
 	struct mutex wq_lock;
+
+	struct rkisp1_stats_ops *ops;
+	struct rkisp1_stats_config *config;
 };
 
 int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris);

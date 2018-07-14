@@ -12,7 +12,7 @@ config VIDEO_ROCKCHIP_ISP1
 	  Support for ISP1 on the rockchip SoC.
 
 config VIDEO_ROCKCHIP_ISP_DPHY_SY
-	tristate "Rockchip Image Signal Processing v1 Unit driver"
+	tristate "Rockchip Image Signal Processing v1 Dphy driver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	default n

@@ -38,6 +38,62 @@
 #include <linux/rkisp1-config.h>
 #include "common.h"
 
+struct rkisp1_isp_params_vdev;
+struct rkisp1_isp_params_ops {
+	void (*dpcc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			    const struct cifisp_dpcc_config *arg);
+	void (*bls_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_bls_config *arg);
+	void (*lsc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_lsc_config *arg);
+	void (*lsc_matrix_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				  const struct cifisp_lsc_config *pconfig);
+	void (*flt_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_flt_config *arg);
+	void (*bdm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_bdm_config *arg);
+	void (*sdg_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_sdg_config *arg);
+	void (*goc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_goc_config *arg);
+	void (*ctk_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_ctk_config *arg);
+	void (*ctk_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+			   bool en);
+	void (*awb_meas_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				const struct cifisp_awb_meas_config *arg);
+	void (*awb_meas_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+				const struct cifisp_awb_meas_config *arg,
+				bool en);
+	void (*awb_gain_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				const struct cifisp_awb_gain_config *arg);
+	void (*aec_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_aec_config *arg);
+	void (*cproc_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			     const struct cifisp_cproc_config *arg);
+	void (*hst_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_hst_config *arg);
+	void (*hst_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_hst_config *arg, bool en);
+	void (*afm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_afc_config *arg);
+	void (*ie_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			  const struct cifisp_ie_config *arg);
+	void (*ie_enable)(struct rkisp1_isp_params_vdev *params_vdev,
+			  bool en);
+	void (*csm_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   bool full_range);
+	void (*dpf_config)(struct rkisp1_isp_params_vdev *params_vdev,
+			   const struct cifisp_dpf_config *arg);
+	void (*dpf_strength_config)(struct rkisp1_isp_params_vdev *params_vdev,
+				    const struct cifisp_dpf_strength_config *arg);
+};
+
+struct rkisp1_isp_params_config {
+	const int gamma_out_max_samples;
+	const int hst_weight_grids_size;
+};
+
 /*
  * struct rkisp1_isp_subdev - ISP input parameters device
  *
@@ -57,6 +113,9 @@ struct rkisp1_isp_params_vdev {
 
 	enum v4l2_quantization quantization;
 	enum rkisp1_fmt_raw_pat_type raw_type;
+
+	struct rkisp1_isp_params_ops *ops;
+	struct rkisp1_isp_params_config *config;
 };
 
 /* config params before ISP streaming */

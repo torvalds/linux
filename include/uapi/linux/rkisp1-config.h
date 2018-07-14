@@ -32,8 +32,8 @@
 #define CIFISP_CTK_COEFF_MAX            0x100
 #define CIFISP_CTK_OFFSET_MAX           0x800
 
-#define CIFISP_AE_MEAN_MAX              25
-#define CIFISP_HIST_BIN_N_MAX           16
+#define CIFISP_AE_MEAN_MAX              81
+#define CIFISP_HIST_BIN_N_MAX           32
 #define CIFISP_AFM_MAX_WINDOWS          3
 #define CIFISP_DEGAMMA_CURVE_SIZE       17
 
@@ -69,7 +69,7 @@
  * Gamma out
  */
 /* Maximum number of color samples supported */
-#define CIFISP_GAMMA_OUT_MAX_SAMPLES       17
+#define CIFISP_GAMMA_OUT_MAX_SAMPLES       34
 
 /*
  * Lens shade correction
@@ -87,7 +87,7 @@
  * Histogram calculation
  */
 /* Last 3 values unused. */
-#define CIFISP_HISTOGRAM_WEIGHT_GRIDS_SIZE 28
+#define CIFISP_HISTOGRAM_WEIGHT_GRIDS_SIZE 81
 
 /*
  * Defect Pixel Cluster Correction
@@ -723,7 +723,7 @@ struct cifisp_af_stat {
  * with ISP_HIST_XXX
  */
 struct cifisp_hist_stat {
-	unsigned short hist_bins[CIFISP_HIST_BIN_N_MAX];
+	unsigned int hist_bins[CIFISP_HIST_BIN_N_MAX];
 } __attribute__ ((packed));
 
 /**
