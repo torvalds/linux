@@ -294,6 +294,15 @@ struct mvpp2_prs_shadow {
 
 int mvpp2_prs_default_init(struct platform_device *pdev, struct mvpp2 *priv);
 
+int mvpp2_prs_init_from_hw(struct mvpp2 *priv, struct mvpp2_prs_entry *pe,
+			   int tid);
+
+unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe);
+
+void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
+				  unsigned int offs, unsigned char *byte,
+				  unsigned char *enable);
+
 int mvpp2_prs_mac_da_accept(struct mvpp2_port *port, const u8 *da, bool add);
 
 int mvpp2_prs_tag_mode_set(struct mvpp2 *priv, int port, int type);

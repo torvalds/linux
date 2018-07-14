@@ -5289,6 +5289,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_port_probe;
 	}
 
+	mvpp2_dbgfs_init(priv, pdev->name);
+
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
@@ -5321,6 +5323,8 @@ static int mvpp2_remove(struct platform_device *pdev)
 	struct fwnode_handle *fwnode = pdev->dev.fwnode;
 	struct fwnode_handle *port_fwnode;
 	int i = 0;
+
+	mvpp2_dbgfs_cleanup(priv);
 
 	flush_workqueue(priv->stats_queue);
 	destroy_workqueue(priv->stats_queue);

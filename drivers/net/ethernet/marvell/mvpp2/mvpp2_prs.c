@@ -43,8 +43,8 @@ static int mvpp2_prs_hw_write(struct mvpp2 *priv, struct mvpp2_prs_entry *pe)
 }
 
 /* Initialize tcam entry from hw */
-static int mvpp2_prs_init_from_hw(struct mvpp2 *priv,
-				  struct mvpp2_prs_entry *pe, int tid)
+int mvpp2_prs_init_from_hw(struct mvpp2 *priv, struct mvpp2_prs_entry *pe,
+			   int tid)
 {
 	int i;
 
@@ -126,7 +126,7 @@ static void mvpp2_prs_tcam_port_map_set(struct mvpp2_prs_entry *pe,
 }
 
 /* Obtain port map from tcam sw entry */
-static unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe)
+unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe)
 {
 	return (~pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] >> 24) & MVPP2_PRS_PORT_MASK;
 }
@@ -145,9 +145,9 @@ static void mvpp2_prs_tcam_data_byte_set(struct mvpp2_prs_entry *pe,
 }
 
 /* Get byte of data and its enable bits from tcam sw entry */
-static void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
-					 unsigned int offs, unsigned char *byte,
-					 unsigned char *enable)
+void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
+				  unsigned int offs, unsigned char *byte,
+				  unsigned char *enable)
 {
 	int pos = MVPP2_PRS_BYTE_IN_WORD(offs) * BITS_PER_BYTE;
 

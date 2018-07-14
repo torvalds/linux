@@ -746,6 +746,9 @@ struct mvpp2 {
 	/* Workqueue to gather hardware statistics */
 	char queue_name[30];
 	struct workqueue_struct *stats_queue;
+
+	/* Debugfs root entry */
+	struct dentry *dbgfs_dir;
 };
 
 struct mvpp2_pcpu_stats {
@@ -1088,5 +1091,9 @@ u32 mvpp2_percpu_read(struct mvpp2 *priv, int cpu, u32 offset);
 
 void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, int cpu, u32 offset,
 				u32 data);
+
+void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name);
+
+void mvpp2_dbgfs_cleanup(struct mvpp2 *priv);
 
 #endif
