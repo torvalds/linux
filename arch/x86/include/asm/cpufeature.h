@@ -127,103 +127,19 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_osxsave		boot_cpu_has(X86_FEATURE_OSXSAVE)
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
 /*
- * Do not add any more of those clumsy macros - use static_cpu_has_safe() for
+ * Do not add any more of those clumsy macros - use static_cpu_has() for
  * fast paths and boot_cpu_has() otherwise!
  */
 
 #if __GNUC__ >= 4 && defined(CONFIG_X86_FAST_FEATURE_TESTS)
-extern void warn_pre_alternatives(void);
-extern bool __static_cpu_has_safe(u16 bit);
+extern bool __static_cpu_has(u16 bit);
 
 /*
  * Static testing of CPU features.  Used the same as boot_cpu_has().
  * These are only valid after alternatives have run, but will statically
  * patch the target code for additional performance.
  */
-static __always_inline __pure bool __static_cpu_has(u16 bit)
-{
-#ifdef CC_HAVE_ASM_GOTO
-
-#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
-
-		/*
-		 * Catch too early usage of this before alternatives
-		 * have run.
-		 */
-		asm_volatile_goto("1: jmp %l[t_warn]\n"
-			 "2:\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"
-			 " .long 0\n"		/* no replacement */
-			 " .word %P0\n"		/* 1: do replace */
-			 " .byte 2b - 1b\n"	/* source len */
-			 " .byte 0\n"		/* replacement len */
-			 " .byte 0\n"		/* pad len */
-			 ".previous\n"
-			 /* skipping size check since replacement size = 0 */
-			 : : "i" (X86_FEATURE_ALWAYS) : : t_warn);
-
-#endif
-
-		asm_volatile_goto("1: jmp %l[t_no]\n"
-			 "2:\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"
-			 " .long 0\n"		/* no replacement */
-			 " .word %P0\n"		/* feature bit */
-			 " .byte 2b - 1b\n"	/* source len */
-			 " .byte 0\n"		/* replacement len */
-			 " .byte 0\n"		/* pad len */
-			 ".previous\n"
-			 /* skipping size check since replacement size = 0 */
-			 : : "i" (bit) : : t_no);
-		return true;
-	t_no:
-		return false;
-
-#ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
-	t_warn:
-		warn_pre_alternatives();
-		return false;
-#endif
-
-#else /* CC_HAVE_ASM_GOTO */
-
-		u8 flag;
-		/* Open-coded due to __stringify() in ALTERNATIVE() */
-		asm volatile("1: movb $0,%0\n"
-			     "2:\n"
-			     ".section .altinstructions,\"a\"\n"
-			     " .long 1b - .\n"
-			     " .long 3f - .\n"
-			     " .word %P1\n"		/* feature bit */
-			     " .byte 2b - 1b\n"		/* source len */
-			     " .byte 4f - 3f\n"		/* replacement len */
-			     " .byte 0\n"		/* pad len */
-			     ".previous\n"
-			     ".section .discard,\"aw\",@progbits\n"
-			     " .byte 0xff + (4f-3f) - (2b-1b)\n" /* size check */
-			     ".previous\n"
-			     ".section .altinstr_replacement,\"ax\"\n"
-			     "3: movb $1,%0\n"
-			     "4:\n"
-			     ".previous\n"
-			     : "=qm" (flag) : "i" (bit));
-		return flag;
-
-#endif /* CC_HAVE_ASM_GOTO */
-}
-
-#define static_cpu_has(bit)					\
-(								\
-	__builtin_constant_p(boot_cpu_has(bit)) ?		\
-		boot_cpu_has(bit) :				\
-	__builtin_constant_p(bit) ?				\
-		__static_cpu_has(bit) :				\
-		boot_cpu_has(bit)				\
-)
-
-static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
+static __always_inline __pure bool _static_cpu_has(u16 bit)
 {
 #ifdef CC_HAVE_ASM_GOTO
 		asm_volatile_goto("1: jmp %l[t_dynamic]\n"
@@ -257,7 +173,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 	t_no:
 		return false;
 	t_dynamic:
-		return __static_cpu_has_safe(bit);
+		return __static_cpu_has(bit);
 #else
 		u8 flag;
 		/* Open-coded due to __stringify() in ALTERNATIVE() */
@@ -295,22 +211,21 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 			     ".previous\n"
 			     : "=qm" (flag)
 			     : "i" (bit), "i" (X86_FEATURE_ALWAYS));
-		return (flag == 2 ? __static_cpu_has_safe(bit) : flag);
+		return (flag == 2 ? __static_cpu_has(bit) : flag);
 #endif /* CC_HAVE_ASM_GOTO */
 }
 
-#define static_cpu_has_safe(bit)				\
+#define static_cpu_has(bit)					\
 (								\
 	__builtin_constant_p(boot_cpu_has(bit)) ?		\
 		boot_cpu_has(bit) :				\
-		_static_cpu_has_safe(bit)			\
+		_static_cpu_has(bit)				\
 )
 #else
 /*
  * gcc 3.x is too stupid to do the static test; fall back to dynamic.
  */
 #define static_cpu_has(bit)		boot_cpu_has(bit)
-#define static_cpu_has_safe(bit)	boot_cpu_has(bit)
 #endif
 
 #define cpu_has_bug(c, bit)		cpu_has(c, (bit))
@@ -318,7 +233,6 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 #define clear_cpu_bug(c, bit)		clear_cpu_cap(c, (bit))
 
 #define static_cpu_has_bug(bit)		static_cpu_has((bit))
-#define static_cpu_has_bug_safe(bit)	static_cpu_has_safe((bit))
 #define boot_cpu_has_bug(bit)		cpu_has_bug(&boot_cpu_data, (bit))
 
 #define MAX_CPU_FEATURES		(NCAPINTS * 32)

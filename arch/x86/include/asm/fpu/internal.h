@@ -64,17 +64,17 @@ static __always_inline __pure bool use_eager_fpu(void)
 
 static __always_inline __pure bool use_xsaveopt(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVEOPT);
+	return static_cpu_has(X86_FEATURE_XSAVEOPT);
 }
 
 static __always_inline __pure bool use_xsave(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVE);
+	return static_cpu_has(X86_FEATURE_XSAVE);
 }
 
 static __always_inline __pure bool use_fxsr(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_FXSR);
+	return static_cpu_has(X86_FEATURE_FXSR);
 }
 
 /*
@@ -301,7 +301,7 @@ static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (static_cpu_has_safe(X86_FEATURE_XSAVES))
+	if (static_cpu_has(X86_FEATURE_XSAVES))
 		XSTATE_OP(XSAVES, xstate, lmask, hmask, err);
 	else
 		XSTATE_OP(XSAVE, xstate, lmask, hmask, err);
@@ -323,7 +323,7 @@ static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (static_cpu_has_safe(X86_FEATURE_XSAVES))
+	if (static_cpu_has(X86_FEATURE_XSAVES))
 		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
 	else
 		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
@@ -461,7 +461,7 @@ static inline void copy_kernel_to_fpregs(union fpregs_state *fpstate)
 	 * pending. Clear the x87 state here by setting it to fixed values.
 	 * "m" is a random variable that should be in L1.
 	 */
-	if (unlikely(static_cpu_has_bug_safe(X86_BUG_FXSAVE_LEAK))) {
+	if (unlikely(static_cpu_has_bug(X86_BUG_FXSAVE_LEAK))) {
 		asm volatile(
 			"fnclex\n\t"
 			"emms\n\t"
