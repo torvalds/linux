@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/tegra20-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
+#include <dt-bindings/memory/tegra20-mc.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-
-#include "skeleton.dtsi"
 
 / {
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&lic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
 
 	iram@40000000 {
 		compatible = "mmio-sram";
@@ -282,7 +288,8 @@
 			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
 		interrupt-names = "sync-token", "bsev", "sxe";
 		clocks = <&tegra_car TEGRA20_CLK_VDE>;
-		resets = <&tegra_car 61>;
+		reset-names = "vde", "mc";
+		resets = <&tegra_car 61>, <&mc TEGRA20_MC_RESET_VDE>;
 	};
 
 	apbmisc@70000800 {
@@ -422,6 +429,21 @@
 		clock-names = "gmi";
 		resets = <&tegra_car 42>;
 		reset-names = "gmi";
+		status = "disabled";
+	};
+
+	nand-controller@70008000 {
+		compatible = "nvidia,tegra20-nand";
+		reg = <0x70008000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA20_CLK_NDFLASH>;
+		clock-names = "nand";
+		resets = <&tegra_car 13>;
+		reset-names = "nand";
+		assigned-clocks = <&tegra_car TEGRA20_CLK_NDFLASH>;
+		assigned-clock-rates = <150000000>;
 		status = "disabled";
 	};
 
@@ -593,11 +615,12 @@
 		clock-names = "pclk", "clk32k_in";
 	};
 
-	memory-controller@7000f000 {
+	mc: memory-controller@7000f000 {
 		compatible = "nvidia,tegra20-mc";
 		reg = <0x7000f000 0x024
 		       0x7000f03c 0x3c4>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		#reset-cells = <1>;
 	};
 
 	iommu@7000f024 {

@@ -15,7 +15,7 @@
 	compatible = "toradex,apalis-tk1-v1.2", "toradex,apalis-tk1",
 		     "nvidia,tegra124";
 
-	memory {
+	memory@80000000 {
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
