@@ -10406,6 +10406,7 @@ F:	arch/arm/plat-omap/
 F:	arch/arm/configs/omap1_defconfig
 F:	drivers/i2c/busses/i2c-omap.c
 F:	include/linux/platform_data/i2c-omap.h
+F:	include/linux/platform_data/ams-delta-fiq.h
 
 OMAP2+ SUPPORT
 M:	Tony Lindgren <tony@atomide.com>

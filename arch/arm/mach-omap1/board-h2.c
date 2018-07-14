@@ -274,7 +274,7 @@ static struct platform_device h2_kp_device = {
 	.resource	= h2_kp_resources,
 };
 
-static struct gpio_led h2_gpio_led_pins[] = {
+static const struct gpio_led h2_gpio_led_pins[] = {
 	{
 		.name		= "h2:red",
 		.default_trigger = "heartbeat",

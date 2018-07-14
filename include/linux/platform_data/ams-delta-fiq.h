@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 /*
- * arch/arm/mach-omap1/include/ams-delta-fiq.h
+ * include/linux/platform_data/ams-delta-fiq.h
  *
  * Taken from the original Amstrad modifications to fiq.h
  *
@@ -11,24 +13,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __AMS_DELTA_FIQ_H
-#define __AMS_DELTA_FIQ_H
-
-#include <mach/irqs.h>
-
-/*
- * Interrupt number used for passing control from FIQ to IRQ.
- * IRQ12, described as reserved, has been selected.
- */
-#define INT_DEFERRED_FIQ	INT_1510_RES12
-/*
- * Base address of an interrupt handler that the INT_DEFERRED_FIQ belongs to.
- */
-#if (INT_DEFERRED_FIQ < IH2_BASE)
-#define DEFERRED_FIQ_IH_BASE	OMAP_IH1_BASE
-#else
-#define DEFERRED_FIQ_IH_BASE	OMAP_IH2_BASE
-#endif
+#ifndef __LINUX_PLATFORM_DATA_AMS_DELTA_FIQ_H
+#define __LINUX_PLATFORM_DATA_AMS_DELTA_FIQ_H
 
 /*
  * These are the offsets from the beginning of the fiq_buffer. They are put here
@@ -68,12 +54,5 @@
 #define FIQ_CNT_INT_15		29
 
 #define FIQ_CIRC_BUFF		30      /*Start of circular buffer */
-
-#ifndef __ASSEMBLER__
-extern unsigned int fiq_buffer[];
-extern unsigned char qwerty_fiqin_start, qwerty_fiqin_end;
-
-extern void __init ams_delta_init_fiq(void);
-#endif
 
 #endif
