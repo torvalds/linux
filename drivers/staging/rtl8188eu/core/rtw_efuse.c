@@ -22,14 +22,14 @@ enum{
 	};
 
 /*
- * Function:	Efuse_PowerSwitch
+ * Function:	efuse_power_switch
  *
  * Overview:	When we want to enable write operation, we should change to
  *				pwr on state. When we stop write, we should switch to 500k mode
  *				and disable LDO 2.5V.
  */
 
-void Efuse_PowerSwitch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
+void efuse_power_switch(struct adapter *pAdapter, u8 bWrite, u8 PwrState)
 {
 	u8 tempval;
 	u16	tmpV16;
@@ -896,11 +896,11 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
  */
 static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
-	Efuse_PowerSwitch(pAdapter, false, true);
+	efuse_power_switch(pAdapter, false, true);
 
 	efuse_ReadEFuse(pAdapter, efuseType, 0, EFUSE_MAP_LEN_88E, Efuse);
 
-	Efuse_PowerSwitch(pAdapter, false, false);
+	efuse_power_switch(pAdapter, false, false);
 }
 
 /*
