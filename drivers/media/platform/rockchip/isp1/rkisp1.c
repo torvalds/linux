@@ -691,7 +691,7 @@ static int rkisp1_isp_sd_get_fmt(struct v4l2_subdev *sd,
 		*mf = isp_sd->in_frm;
 	} else if (fmt->pad == RKISP1_ISP_PAD_SOURCE_PATH) {
 		/* format of source pad */
-		*mf = isp_sd->in_frm;
+		mf->code = isp_sd->out_fmt.mbus_code;
 		/* window size of source pad */
 		mf->width = isp_sd->out_crop.width;
 		mf->height = isp_sd->out_crop.height;
