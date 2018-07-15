@@ -172,6 +172,9 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 		iclose = 0;
 #endif
 	termios->c_cflag &= ~CBAUD;
+#ifdef IBSHIFT
+	termios->c_cflag &= ~(CBAUD << IBSHIFT);
+#endif
 
 	/*
 	 *	Our goal is to find a close match to the standard baud rate
