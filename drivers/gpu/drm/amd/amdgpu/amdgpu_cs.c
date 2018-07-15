@@ -927,6 +927,10 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 		r = amdgpu_bo_vm_update_pte(p);
 		if (r)
 			return r;
+
+		r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+		if (r)
+			return r;
 	}
 
 	return amdgpu_cs_sync_rings(p);
