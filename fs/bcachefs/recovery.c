@@ -256,6 +256,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (ret)
 		goto err;
 
+	if (!test_bit(BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags)) {
+		mutex_lock(&c->sb_lock);
+		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
+		mutex_unlock(&c->sb_lock);
+	}
+
 	if (enabled_qtypes(c)) {
 		bch_verbose(c, "reading quotas:");
 		ret = bch2_fs_quota_read(c);
@@ -366,6 +372,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);

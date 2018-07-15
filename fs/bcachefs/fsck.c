@@ -954,6 +954,23 @@ static int check_inode_nlink(struct bch_fs *c,
 		return 0;
 	}
 
+	if (!link->count &&
+	    !(u->bi_flags & BCH_INODE_UNLINKED) &&
+	    (c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+		if (fsck_err(c, "unreachable inode %llu not marked as unlinked (type %u)",
+			     u->bi_inum, mode_to_type(u->bi_mode)) ==
+		    FSCK_ERR_IGNORE)
+			return 0;
+
+		ret = reattach_inode(c, lostfound_inode, u->bi_inum);
+		if (ret)
+			return ret;
+
+		link->count = 1;
+		real_i_nlink = nlink_bias(u->bi_mode) + link->dir_count;
+		goto set_i_nlink;
+	}
+
 	if (i_nlink < link->count) {
 		if (fsck_err(c, "inode %llu i_link too small (%u < %u, type %i)",
 			     u->bi_inum, i_nlink, link->count,
@@ -966,6 +983,16 @@ static int check_inode_nlink(struct bch_fs *c,
 	    c->sb.clean) {
 		if (fsck_err(c, "filesystem marked clean, "
 			     "but inode %llu has wrong i_nlink "
+			     "(type %u i_nlink %u, should be %u)",
+			     u->bi_inum, mode_to_type(u->bi_mode),
+			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
+			return 0;
+		goto set_i_nlink;
+	}
+
+	if (i_nlink != real_i_nlink &&
+	    (c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK))) {
+		if (fsck_err(c, "inode %llu has wrong i_nlink "
 			     "(type %u i_nlink %u, should be %u)",
 			     u->bi_inum, mode_to_type(u->bi_mode),
 			     i_nlink, real_i_nlink) == FSCK_ERR_IGNORE)
@@ -1299,7 +1326,8 @@ int bch2_fsck(struct bch_fs *c)
 	if (!c->opts.nofsck)
 		return bch2_fsck_full(c);
 
-	if (!c->sb.clean)
+	if (!c->sb.clean &&
+	    !(c->sb.features & (1 << BCH_FEATURE_ATOMIC_NLINK)))
 		return bch2_fsck_inode_nlink(c);
 
 	return bch2_fsck_walk_inodes_only(c);

@@ -132,8 +132,9 @@ print:
 
 	mutex_unlock(&c->fsck_error_lock);
 
-	if (fix)
-		set_bit(BCH_FS_FSCK_FIXED_ERRORS, &c->flags);
+	set_bit(fix
+		? BCH_FS_FSCK_FIXED_ERRORS
+		: BCH_FS_FSCK_UNFIXED_ERRORS, &c->flags);
 
 	return fix				? FSCK_ERR_FIX
 		: flags & FSCK_CAN_IGNORE	? FSCK_ERR_IGNORE
