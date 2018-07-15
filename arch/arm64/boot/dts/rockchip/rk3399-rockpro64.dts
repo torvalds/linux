@@ -15,6 +15,7 @@
 	compatible = "pine64,rockpro64", "rockchip,rk3399";
 
 	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff1a0000";
 		stdout-path = "serial2:1500000n8";
 	};
 
