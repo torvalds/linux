@@ -3365,6 +3365,7 @@ MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 
 enum mlxsw_reg_ppcnt_grp {
 	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
+	MLXSW_REG_PPCNT_RFC_2819_CNT = 0x2,
 	MLXSW_REG_PPCNT_EXT_CNT = 0x5,
 	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
 	MLXSW_REG_PPCNT_TC_CNT = 0x11,
@@ -3522,6 +3523,68 @@ MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
  */
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
+
+/* Ethernet RFC 2819 Counter Group */
+
+/* reg_ppcnt_ether_stats_pkts64octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts64octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x58, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts65to127octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts65to127octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts128to255octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts128to255octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts256to511octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts256to511octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts512to1023octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts512to1023octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x78, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts1024to1518octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts1024to1518octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x80, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts1519to2047octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts1519to2047octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x88, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts2048to4095octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts2048to4095octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts4096to8191octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts4096to8191octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x98, 0, 64);
+
+/* reg_ppcnt_ether_stats_pkts8192to10239octets
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts8192to10239octets,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0xA0, 0, 64);
 
 /* Ethernet Extended Counter Group Counters */
 
