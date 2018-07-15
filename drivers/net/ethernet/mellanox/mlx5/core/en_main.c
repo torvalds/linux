@@ -491,7 +491,6 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->channel = c;
 	rq->ix      = c->ix;
 	rq->mdev    = mdev;
-	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->stats   = &c->priv->channel_stats[c->ix].rq;
 
 	rq->xdp_prog = params->xdp_prog ? bpf_prog_inc(params->xdp_prog) : NULL;
@@ -969,16 +968,16 @@ static void mlx5e_close_rq(struct mlx5e_rq *rq)
 
 static void mlx5e_free_xdpsq_db(struct mlx5e_xdpsq *sq)
 {
-	kvfree(sq->db.di);
+	kvfree(sq->db.xdpi);
 }
 
 static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
-	sq->db.di = kvzalloc_node(array_size(wq_sz, sizeof(*sq->db.di)),
-				  GFP_KERNEL, numa);
-	if (!sq->db.di) {
+	sq->db.xdpi = kvzalloc_node(array_size(wq_sz, sizeof(*sq->db.xdpi)),
+				    GFP_KERNEL, numa);
+	if (!sq->db.xdpi) {
 		mlx5e_free_xdpsq_db(sq);
 		return -ENOMEM;
 	}
@@ -1001,6 +1000,7 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 	sq->channel   = c;
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
+	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);

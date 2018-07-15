@@ -395,6 +395,17 @@ struct mlx5e_txqsq {
 	} recover;
 } ____cacheline_aligned_in_smp;
 
+struct mlx5e_dma_info {
+	struct page     *page;
+	dma_addr_t      addr;
+};
+
+struct mlx5e_xdp_info {
+	struct xdp_frame      *xdpf;
+	dma_addr_t            dma_addr;
+	struct mlx5e_dma_info di;
+};
+
 struct mlx5e_xdpsq {
 	/* data path */
 
@@ -406,7 +417,7 @@ struct mlx5e_xdpsq {
 
 	/* write@xmit, read@completion */
 	struct {
-		struct mlx5e_dma_info     *di;
+		struct mlx5e_xdp_info     *xdpi;
 		bool                       doorbell;
 		bool                       redirect_flush;
 	} db;
@@ -419,6 +430,7 @@ struct mlx5e_xdpsq {
 	__be32                     mkey_be;
 	u8                         min_inline_mode;
 	unsigned long              state;
+	unsigned int               hw_mtu;
 
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
@@ -454,11 +466,6 @@ mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 {
 	return (mlx5_wq_cyc_ctr2ix(wq, cc - pc) >= n) || (cc == pc);
 }
-
-struct mlx5e_dma_info {
-	struct page	*page;
-	dma_addr_t	addr;
-};
 
 struct mlx5e_wqe_frag_info {
 	struct mlx5e_dma_info *di;
@@ -562,7 +569,6 @@ struct mlx5e_rq {
 
 	/* XDP */
 	struct bpf_prog       *xdp_prog;
-	unsigned int           hw_mtu;
 	struct mlx5e_xdpsq     xdpsq;
 	DECLARE_BITMAP(flags, 8);
 	struct page_pool      *page_pool;
