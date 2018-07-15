@@ -310,8 +310,11 @@ int mei_irq_read_handler(struct mei_device *dev,
 	if (&cl->link == &dev->file_list) {
 		/* A message for not connected fixed address clients
 		 * should be silently discarded
+		 * On power down client may be force cleaned,
+		 * silently discard such messages
 		 */
-		if (hdr_is_fixed(mei_hdr)) {
+		if (hdr_is_fixed(mei_hdr) ||
+		    dev->dev_state == MEI_DEV_POWER_DOWN) {
 			mei_irq_discard_msg(dev, mei_hdr);
 			ret = 0;
 			goto reset_slots;

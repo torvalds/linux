@@ -277,12 +277,6 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 	l.addi  r3,r1,0                    // pt_regs
 	/* r4 set be EXCEPTION_HANDLE */   // effective address of fault
 
-	/*
-	 * __PHX__: TODO
-	 *
-	 * all this can be written much simpler. look at
-	 * DTLB miss handler in the CONFIG_GUARD_PROTECTED_CORE part
-	 */
 #ifdef CONFIG_OPENRISC_NO_SPR_SR_DSX
 	l.lwz   r6,PT_PC(r3)               // address of an offending insn
 	l.lwz   r6,0(r6)                   // instruction that caused pf
@@ -314,7 +308,7 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 
 #else
 
-	l.lwz   r6,PT_SR(r3)               // SR
+	l.mfspr r6,r0,SPR_SR               // SR
 	l.andi  r6,r6,SPR_SR_DSX           // check for delay slot exception
 	l.sfne  r6,r0                      // exception happened in delay slot
 	l.bnf   7f
