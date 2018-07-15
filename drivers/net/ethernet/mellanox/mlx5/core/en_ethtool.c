@@ -135,6 +135,13 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT);
 }
 
+static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
+	"rx_cqe_moder",
+	"tx_cqe_moder",
+	"rx_cqe_compress",
+	"rx_striding_rq",
+};
+
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
 	int i, num_stats = 0;
