@@ -2823,16 +2823,17 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_REPAIR:
 		if (!tcp_can_repair_sock(sk))
 			err = -EPERM;
-		/* 1 for normal repair, 2 for no window probes */
-		else if (val == 1 || val == 2) {
-			tp->repair = val;
+		else if (val == TCP_REPAIR_ON) {
+			tp->repair = 1;
 			sk->sk_reuse = SK_FORCE_REUSE;
 			tp->repair_queue = TCP_NO_QUEUE;
-		} else if (val == 0) {
+		} else if (val == TCP_REPAIR_OFF) {
 			tp->repair = 0;
 			sk->sk_reuse = SK_NO_REUSE;
-			if (tp->repair == 1)
-				tcp_send_window_probe(sk);
+			tcp_send_window_probe(sk);
+		} else if (val == TCP_REPAIR_OFF_NO_WP) {
+			tp->repair = 0;
+			sk->sk_reuse = SK_NO_REUSE;
 		} else
 			err = -EINVAL;
 
