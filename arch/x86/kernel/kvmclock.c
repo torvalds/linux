@@ -319,6 +319,8 @@ void __init kvmclock_init(void)
 	printk(KERN_INFO "kvm-clock: Using msrs %x and %x",
 		msr_kvm_system_time, msr_kvm_wall_clock);
 
+	pvclock_set_pvti_cpu0_va(hv_clock);
+
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
 		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
 
@@ -366,13 +368,10 @@ int __init kvm_setup_vsyscall_timeinfo(void)
 	vcpu_time = &hv_clock[cpu].pvti;
 	flags = pvclock_read_flags(vcpu_time);
 
-	if (!(flags & PVCLOCK_TSC_STABLE_BIT)) {
-		put_cpu();
-		return 1;
-	}
-
-	pvclock_set_pvti_cpu0_va(hv_clock);
 	put_cpu();
+
+	if (!(flags & PVCLOCK_TSC_STABLE_BIT))
+		return 1;
 
 	kvm_clock.archdata.vclock_mode = VCLOCK_PVCLOCK;
 #endif
