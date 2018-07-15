@@ -32,6 +32,7 @@
 
 #include <linux/irq.h>
 #include "en.h"
+#include "en/xdp.h"
 
 static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
 {

@@ -47,6 +47,7 @@
 #include "accel/tls.h"
 #include "vxlan.h"
 #include "en/port.h"
+#include "en/xdp.h"
 
 struct mlx5e_rq_param {
 	u32			rqc[MLX5_ST_SZ_DW(rqc)];
