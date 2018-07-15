@@ -35,6 +35,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,9 +67,8 @@ void kernel_syms_load(struct dump_data *dd)
 	while (!feof(fp)) {
 		if (!fgets(buff, sizeof(buff), fp))
 			break;
-		tmp = realloc(dd->sym_mapping,
-			      (dd->sym_count + 1) *
-			      sizeof(*dd->sym_mapping));
+		tmp = reallocarray(dd->sym_mapping, dd->sym_count + 1,
+				   sizeof(*dd->sym_mapping));
 		if (!tmp) {
 out:
 			free(dd->sym_mapping);

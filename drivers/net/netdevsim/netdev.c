@@ -228,8 +228,7 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	if (ns->xdp_prog_mode == XDP_ATTACHED_DRV &&
-	    new_mtu > NSIM_XDP_MAX_MTU)
+	if (ns->xdp.prog && new_mtu > NSIM_XDP_MAX_MTU)
 		return -EBUSY;
 
 	dev->mtu = new_mtu;

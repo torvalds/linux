@@ -96,14 +96,21 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 			if (!gp)
 				break;
 			g = *gp;
-			g.total_retrans = skops->total_retrans;
-			g.data_segs_in = skops->data_segs_in;
-			g.data_segs_out = skops->data_segs_out;
-			g.bytes_received = skops->bytes_received;
-			g.bytes_acked = skops->bytes_acked;
+			if (skops->args[0] == BPF_TCP_LISTEN) {
+				g.num_listen++;
+			} else {
+				g.total_retrans = skops->total_retrans;
+				g.data_segs_in = skops->data_segs_in;
+				g.data_segs_out = skops->data_segs_out;
+				g.bytes_received = skops->bytes_received;
+				g.bytes_acked = skops->bytes_acked;
+			}
 			bpf_map_update_elem(&global_map, &key, &g,
 					    BPF_ANY);
 		}
+		break;
+	case BPF_SOCK_OPS_TCP_LISTEN_CB:
+		bpf_sock_ops_cb_flags_set(skops, BPF_SOCK_OPS_STATE_CB_FLAG);
 		break;
 	default:
 		rv = -1;

@@ -92,7 +92,7 @@ static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
 
 static bool nsim_xdp_offload_active(struct netdevsim *ns)
 {
-	return ns->xdp_prog_mode == XDP_ATTACHED_HW;
+	return ns->xdp_hw.prog;
 }
 
 static void nsim_prog_set_loaded(struct bpf_prog *prog, bool loaded)
@@ -195,14 +195,14 @@ static int nsim_xdp_offload_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 	return nsim_bpf_offload(ns, bpf->prog, nsim_xdp_offload_active(ns));
 }
 
-static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
+static int
+nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
+		  struct xdp_attachment_info *xdp)
 {
 	int err;
 
-	if (ns->xdp_prog && (bpf->flags ^ ns->xdp_flags) & XDP_FLAGS_MODES) {
-		NSIM_EA(bpf->extack, "program loaded with different flags");
+	if (!xdp_attachment_flags_ok(xdp, bpf))
 		return -EBUSY;
-	}
 
 	if (bpf->command == XDP_SETUP_PROG && !ns->bpf_xdpdrv_accept) {
 		NSIM_EA(bpf->extack, "driver XDP disabled in DebugFS");
@@ -219,18 +219,7 @@ static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 			return err;
 	}
 
-	if (ns->xdp_prog)
-		bpf_prog_put(ns->xdp_prog);
-
-	ns->xdp_prog = bpf->prog;
-	ns->xdp_flags = bpf->flags;
-
-	if (!bpf->prog)
-		ns->xdp_prog_mode = XDP_ATTACHED_NONE;
-	else if (bpf->command == XDP_SETUP_PROG)
-		ns->xdp_prog_mode = XDP_ATTACHED_DRV;
-	else
-		ns->xdp_prog_mode = XDP_ATTACHED_HW;
+	xdp_attachment_setup(xdp, bpf);
 
 	return 0;
 }
@@ -289,10 +278,6 @@ static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 	if (ns->netdev->mtu > NSIM_XDP_MAX_MTU) {
 		NSIM_EA(bpf->extack, "MTU too large w/ XDP enabled");
 		return -EINVAL;
-	}
-	if (nsim_xdp_offload_active(ns)) {
-		NSIM_EA(bpf->extack, "xdp offload active, can't load drv prog");
-		return -EBUSY;
 	}
 	return 0;
 }
@@ -567,22 +552,21 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		nsim_bpf_destroy_prog(bpf->offload.prog);
 		return 0;
 	case XDP_QUERY_PROG:
-		bpf->prog_attached = ns->xdp_prog_mode;
-		bpf->prog_id = ns->xdp_prog ? ns->xdp_prog->aux->id : 0;
-		bpf->prog_flags = ns->xdp_prog ? ns->xdp_flags : 0;
-		return 0;
+		return xdp_attachment_query(&ns->xdp, bpf);
+	case XDP_QUERY_PROG_HW:
+		return xdp_attachment_query(&ns->xdp_hw, bpf);
 	case XDP_SETUP_PROG:
 		err = nsim_setup_prog_checks(ns, bpf);
 		if (err)
 			return err;
 
-		return nsim_xdp_set_prog(ns, bpf);
+		return nsim_xdp_set_prog(ns, bpf, &ns->xdp);
 	case XDP_SETUP_PROG_HW:
 		err = nsim_setup_prog_hw_checks(ns, bpf);
 		if (err)
 			return err;
 
-		return nsim_xdp_set_prog(ns, bpf);
+		return nsim_xdp_set_prog(ns, bpf, &ns->xdp_hw);
 	case BPF_OFFLOAD_MAP_ALLOC:
 		if (!ns->bpf_map_accept)
 			return -EOPNOTSUPP;
@@ -637,6 +621,7 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 {
 	WARN_ON(!list_empty(&ns->bpf_bound_progs));
 	WARN_ON(!list_empty(&ns->bpf_bound_maps));
-	WARN_ON(ns->xdp_prog);
+	WARN_ON(ns->xdp.prog);
+	WARN_ON(ns->xdp_hw.prog);
 	WARN_ON(ns->bpf_offloaded);
 }

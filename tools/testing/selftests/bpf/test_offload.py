@@ -339,6 +339,11 @@ class NetdevSim:
         self.dfs = DebugfsDir(self.dfs_dir)
         return self.dfs
 
+    def dfs_read(self, f):
+        path = os.path.join(self.dfs_dir, f)
+        _, data = cmd('cat %s' % (path))
+        return data.strip()
+
     def dfs_num_bound_progs(self):
         path = os.path.join(self.dfs_dir, "bpf_bound_progs")
         _, progs = cmd('ls %s' % (path))
@@ -547,11 +552,11 @@ def check_extack(output, reference, args):
     if skip_extack:
         return
     lines = output.split("\n")
-    comp = len(lines) >= 2 and lines[1] == reference
+    comp = len(lines) >= 2 and lines[1] == 'Error: ' + reference
     fail(not comp, "Missing or incorrect netlink extack message")
 
 def check_extack_nsim(output, reference, args):
-    check_extack(output, "Error: netdevsim: " + reference, args)
+    check_extack(output, "netdevsim: " + reference, args)
 
 def check_no_extack(res, needle):
     fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
@@ -654,7 +659,7 @@ try:
     ret, _, err = sim.cls_bpf_add_filter(obj, skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "TC filter loaded without enabling TC offloads")
-    check_extack(err, "Error: TC offload is disabled on net device.", args)
+    check_extack(err, "TC offload is disabled on net device.", args)
     sim.wait_for_flush()
 
     sim.set_ethtool_tc_offloads(True)
@@ -694,7 +699,7 @@ try:
                                          skip_sw=True,
                                          fail=False, include_stderr=True)
     fail(ret == 0, "Offloaded a filter to chain other than 0")
-    check_extack(err, "Error: Driver supports only offload of chain 0.", args)
+    check_extack(err, "Driver supports only offload of chain 0.", args)
     sim.tc_flush_filters()
 
     start_test("Test TC replace...")
@@ -814,24 +819,20 @@ try:
          "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
-    ret, _, err = sim.set_xdp(obj, "offload", force=True,
+    ret, _, err = sim.set_xdp(obj, "generic", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    fail(err.count("File exists") != 1, "Replaced driver XDP with generic")
     ret, _, err = sim.set_xdp(obj, "", force=True,
                               fail=False, include_stderr=True)
     fail(ret == 0, "Replaced XDP program with a program in different mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test XDP prog remove with bad flags...")
-    ret, _, err = sim.unset_xdp("offload", force=True,
-                                fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
     ret, _, err = sim.unset_xdp("", force=True,
                                 fail=False, include_stderr=True)
-    fail(ret == 0, "Removed program with a bad mode mode")
-    check_extack_nsim(err, "program loaded with different flags.", args)
+    fail(ret == 0, "Removed program with a bad mode")
+    check_extack(err, "program loaded with different flags.", args)
 
     start_test("Test MTU restrictions...")
     ret, _ = sim.set_mtu(9000, fail=False)
@@ -890,6 +891,60 @@ try:
     check_extack_nsim(err, "xdpoffload of non-bound program.", args)
     rm(pin_file)
     bpftool_prog_list_wait(expected=0)
+
+    start_test("Test multi-attachment XDP - attach...")
+    sim.set_xdp(obj, "offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+    fail("prog" not in xdp, "Base program not reported in single program mode")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with one program")
+
+    sim.set_xdp(obj, "")
+    two_xdps = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded2 = sim.dfs_read("bpf_offloaded_id")
+
+    fail(two_xdps["mode"] != 4, "Bad mode reported with multiple programs")
+    fail("prog" in two_xdps, "Base program reported in multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(two_xdps["attached"]) != 2,
+         "Wrong attached program count with two programs")
+    fail(two_xdps["attached"][0]["prog"]["id"] ==
+         two_xdps["attached"][1]["prog"]["id"],
+         "offloaded and drv programs have the same id")
+    fail(offloaded != offloaded2,
+         "offload ID changed after loading driver program")
+
+    start_test("Test multi-attachment XDP - replace...")
+    ret, _, err = sim.set_xdp(obj, "offload", fail=False, include_stderr=True)
+    fail(err.count("busy") != 1, "Replaced one of programs without -force")
+
+    start_test("Test multi-attachment XDP - detach...")
+    ret, _, err = sim.unset_xdp("drv", force=True,
+                                fail=False, include_stderr=True)
+    fail(ret == 0, "Removed program with a bad mode")
+    check_extack(err, "program loaded with different flags.", args)
+
+    sim.unset_xdp("offload")
+    xdp = sim.ip_link_show(xdp=True)["xdp"]
+    offloaded = sim.dfs_read("bpf_offloaded_id")
+
+    fail(xdp["mode"] != 1, "Bad mode reported after multiple programs")
+    fail("prog" not in xdp,
+         "Base program not reported after multi program mode")
+    fail(xdp["attached"][0] not in two_xdps["attached"],
+         "Offload program not reported after driver activated")
+    fail(len(ipl["xdp"]["attached"]) != 1,
+         "Wrong attached program count with remaining programs")
+    fail(offloaded != "0", "offload ID reported with only driver program left")
+
+    start_test("Test multi-attachment XDP - device remove...")
+    sim.set_xdp(obj, "offload")
+    sim.remove()
+
+    sim = NetdevSim()
+    sim.set_ethtool_tc_offloads(True)
 
     start_test("Test mixing of TC and XDP...")
     sim.tc_add_ingress()
