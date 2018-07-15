@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree file for ITian Square One SQ201 NAS
+ * Device Tree file for the Storm Semiconductor SL93512R_BRD
+ * Gemini reference design, also initially called
+ * "Gemini324 EV-Board" before Storm acquired Storlink Semiconductor.
+ * The series were later acquired by Cortina Systems.
  */
 
 /dts-v1/;
@@ -9,23 +12,33 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "ITian Square One SQ201";
-	compatible = "itian,sq201", "cortina,gemini";
+	model = "Storlink Semiconductor Gemini324 EV-Board / Storm Semiconductor SL93512R_BRD";
+	compatible = "storlink,gemini324", "storm,sl93512r", "cortina,gemini";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory@0 { /* 128 MB */
+	memory@0 {
+		/* 64 MB Samsung K4H511638B */
 		device_type = "memory";
-		reg = <0x00000000 0x8000000>;
+		reg = <0x00000000 0x4000000>;
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8";
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait";
 		stdout-path = &uart0;
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
+
+		button-wps {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_WPS_BUTTON>;
+			label = "WPS";
+			/* Conflict with NAND flash */
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+		};
 
 		button-setup {
 			debounce-interval = <50>;
@@ -39,19 +52,19 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led-green-info {
-			label = "sq201:green:info";
-			/* Conflict with parallel flash */
-			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		led-green-harddisk {
+			label = "sq201:green:harddisk";
+			/* Conflict with LCD (no problem) */
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "disk-activity";
+		};
+		led-green-wireless {
+			label = "sq201:green:wireless";
+			/* Conflict with NAND flash CE0 (no problem) */
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
-		};
-		led-green-usb {
-			label = "sq201:green:usb";
-			/* Conflict with parallel and NAND flash */
-			gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "usb-host";
 		};
 	};
 
@@ -81,7 +94,7 @@
 		num-chipselects = <1>;
 
 		switch@0 {
-			compatible = "vitesse,vsc7395";
+			compatible = "vitesse,vsc7385";
 			reg = <0>;
 			/* Specified for 2.5 MHz or below */
 			spi-max-frequency = <2500000>;
@@ -126,26 +139,18 @@
 
 	soc {
 		flash@30000000 {
-			/*
-			 * Flash access can be enabled, with the side effect
-			 * of disabling access to GPIO LED on GPIO0[20] which
-			 * reuse one of the parallel flash chip select lines.
-			 * Also the default firmware on the machine has the
-			 * problem that since it uses the flash, the two LEDS
-			 * on the right become numb.
-			 */
-			/* status = "okay"; */
+			status = "okay";
 			/* 16MB of flash */
 			reg = <0x30000000 0x01000000>;
 
 			partition@0 {
-				label = "RedBoot";
-				reg = <0x00000000 0x00120000>;
+				label = "BOOT";
+				reg = <0x00000000 0x00020000>;
 				read-only;
 			};
 			partition@120000 {
-				label = "Kernel";
-				reg = <0x00120000 0x00200000>;
+				label = "Kern";
+				reg = <0x00020000 0x00300000>;
 			};
 			partition@320000 {
 				label = "Ramdisk";
@@ -175,23 +180,22 @@
 		syscon: syscon@40000000 {
 			pinctrl {
 				/*
-				 * gpio0fgrp cover line 18 used by reset button
-				 * gpio0ggrp cover line 20 used by info LED
+				 * gpio0egrp cover line 16 used by HD LED
+				 * gpio0fgrp cover line 17, 18 used by wireless LED and reset button
 				 * gpio0hgrp cover line 21, 22 used by MDIO for Marvell PHY
 				 * gpio0kgrp cover line 31 used by USB LED
 				 */
 				gpio0_default_pins: pinctrl-gpio0 {
 					mux {
 						function = "gpio0";
-						groups = "gpio0fgrp",
-						"gpio0ggrp",
-						"gpio0hgrp",
-						"gpio0kgrp";
+						groups = "gpio0egrp",
+						"gpio0fgrp",
+						"gpio0hgrp";
 					};
 				};
 				/*
-				 * gpio0dgrp cover lines used by the SPI
-				 * to the Vitesse G5x chip.
+				 * gpio1dgrp cover lines used by SPI for
+				 * the Vitesse chip (28-31)
 				 */
 				gpio1_default_pins: pinctrl-gpio1 {
 					mux {
@@ -204,60 +208,60 @@
 						function = "gmii";
 						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
 					};
-					/* Settings come from memory dump in PLATO */
+					/* Control pad skew comes from sl_switch.c in the vendor code */
 					conf0 {
-						pins = "V8 GMAC0 RXDV";
-						skew-delay = <0>;
+						pins = "P10 GMAC1 TXC";
+						skew-delay = <5>;
 					};
 					conf1 {
-						pins = "Y7 GMAC0 RXC";
-						skew-delay = <15>;
+						pins = "V11 GMAC1 TXEN";
+						skew-delay = <7>;
 					};
 					conf2 {
-						pins = "T8 GMAC0 TXEN";
-						skew-delay = <7>;
-					};
-					conf3 {
-						pins = "U8 GMAC0 TXC";
-						skew-delay = <10>;
-					};
-					conf4 {
-						pins = "T10 GMAC1 RXDV";
-						skew-delay = <7>;
-					};
-					conf5 {
-						pins = "Y11 GMAC1 RXC";
+						pins = "T11 GMAC1 RXC";
 						skew-delay = <8>;
 					};
-					conf6 {
-						pins = "W11 GMAC1 TXEN";
+					conf3 {
+						pins = "U11 GMAC1 RXDV";
 						skew-delay = <7>;
 					};
+					conf4 {
+						pins = "V7 GMAC0 TXC";
+						skew-delay = <10>;
+					};
+					conf5 {
+						pins = "P8 GMAC0 TXEN";
+						skew-delay = <7>; /* 5 at another place? */
+					};
+					conf6 {
+						pins = "T8 GMAC0 RXC";
+						skew-delay = <15>;
+					};
 					conf7 {
-						pins = "V11 GMAC1 TXC";
-						skew-delay = <5>;
+						pins = "R8 GMAC0 RXDV";
+						skew-delay = <0>;
 					};
 					conf8 {
 						/* The data lines all have default skew */
-						pins = "W8 GMAC0 RXD0", "V9 GMAC0 RXD1",
-						       "Y8 GMAC0 RXD2", "U9 GMAC0 RXD3",
-						       "T7 GMAC0 TXD0", "U6 GMAC0 TXD1",
-						       "V7 GMAC0 TXD2", "U7 GMAC0 TXD3",
-						       "Y12 GMAC1 RXD0", "V12 GMAC1 RXD1",
-						       "T11 GMAC1 RXD2", "W12 GMAC1 RXD3",
-						       "U10 GMAC1 TXD0", "Y10 GMAC1 TXD1",
-						       "W10 GMAC1 TXD2", "T9 GMAC1 TXD3";
+						pins = "U8 GMAC0 RXD0", "V8 GMAC0 RXD1",
+						       "P9 GMAC0 RXD2", "R9 GMAC0 RXD3",
+						       "R11 GMAC1 RXD0", "P11 GMAC1 RXD1",
+						       "V12 GMAC1 RXD2", "U12 GMAC1 RXD3",
+						       "R10 GMAC1 TXD0", "T10 GMAC1 TXD1",
+						       "U10 GMAC1 TXD2", "V10 GMAC1 TXD3";
 						skew-delay = <7>;
 					};
-					/* Set up drive strength on GMAC0 and GMAC1 to 16 mA */
+					/* Appears in sl351x_gmac.c in the vendor code */
 					conf9 {
-						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
-						drive-strength = <16>;
+						pins = "U7 GMAC0 TXD0", "T7 GMAC0 TXD1",
+						       "R7 GMAC0 TXD2", "P7 GMAC0 TXD3";
+						skew-delay = <5>;
 					};
 				};
 			};
 		};
 
+		/* Both interfaces brought out on SATA connectors */
 		sata: sata@46000000 {
 			cortina,gemini-ata-muxmode = <0>;
 			cortina,gemini-enable-sata-bridge;
@@ -314,6 +318,10 @@
 		};
 
 		ata@63000000 {
+			status = "okay";
+		};
+
+		ata@63400000 {
 			status = "okay";
 		};
 	};
