@@ -181,7 +181,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	ret = 0;
 	bytes_recv = __mei_cl_recv(cldev->cl, buf, sizeof(buf), 0,
 				   MKHI_RCV_TIMEOUT);
-	if (bytes_recv < 0 || bytes_recv < MKHI_FWVER_LEN(1)) {
+	if (bytes_recv < 0 || (size_t)bytes_recv < MKHI_FWVER_LEN(1)) {
 		/*
 		 * Should be at least one version block,
 		 * error out if nothing found
@@ -193,7 +193,7 @@ static int mei_fwver(struct mei_cl_device *cldev)
 	fwver = (struct mkhi_fw_ver *)req->data;
 	memset(cldev->bus->fw_ver, 0, sizeof(cldev->bus->fw_ver));
 	for (i = 0; i < MEI_MAX_FW_VER_BLOCKS; i++) {
-		if (bytes_recv < MKHI_FWVER_LEN(i + 1))
+		if ((size_t)bytes_recv < MKHI_FWVER_LEN(i + 1))
 			break;
 		dev_dbg(&cldev->dev, "FW version%d %d:%d.%d.%d.%d\n",
 			i, fwver->ver[i].platform,
@@ -341,7 +341,7 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 
 	ret = 0;
 	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, 0, 0);
-	if (bytes_recv < 0 || bytes_recv < if_version_length) {
+	if (bytes_recv < 0 || (size_t)bytes_recv < if_version_length) {
 		dev_err(bus->dev, "Could not read IF version\n");
 		ret = -EIO;
 		goto err;
