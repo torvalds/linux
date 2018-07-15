@@ -76,7 +76,7 @@
 			};
 		};
 
-		ffuart: uart@40100000 {
+		ffuart: serial@40100000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40100000 0x30>;
 			interrupts = <22>;
@@ -84,7 +84,7 @@
 			status = "disabled";
 		};
 
-		btuart: uart@40200000 {
+		btuart: serial@40200000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40200000 0x30>;
 			interrupts = <21>;
@@ -92,7 +92,7 @@
 			status = "disabled";
 		};
 
-		stuart: uart@40700000 {
+		stuart: serial@40700000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x40700000 0x30>;
 			interrupts = <20>;
@@ -100,7 +100,7 @@
 			status = "disabled";
 		};
 
-		hwuart: uart@41100000 {
+		hwuart: serial@41100000 {
 			compatible = "mrvl,pxa-uart";
 			reg = <0x41100000 0x30>;
 			interrupts = <7>;
