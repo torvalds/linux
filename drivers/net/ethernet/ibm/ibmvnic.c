@@ -1827,8 +1827,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 		rc = ibmvnic_login(netdev);
 		if (rc) {
-			adapter->state = VNIC_PROBED;
-			return 0;
+			adapter->state = reset_state;
+			return rc;
 		}
 
 		if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM ||
