@@ -10,10 +10,10 @@
 #define TCLAS_NUM		4
 
 /*  This define the Tx/Rx directions */
-typedef enum _TR_SELECT {
+enum tr_select {
 	TX_DIR = 0,
 	RX_DIR = 1,
-} TR_SELECT, *PTR_SELECT;
+};
 
 typedef struct _TS_COMMON_INFO {
 	struct list_head		List;

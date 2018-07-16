@@ -174,7 +174,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
  *function:  construct DELBA frame
  *   input:  u8*		dst	//DELBA frame's destination
  *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
- *	     TR_SELECT	        TxRxSelect  //TX RX direction
+ *	     enum tr_select	TxRxSelect  //TX RX direction
  *	     u16		ReasonCode  //status code.
  *  output:  none
  *  return:  sk_buff*		skb     //return constructed skb to xmit
@@ -183,7 +183,7 @@ static struct sk_buff *ieee80211_DELBA(
 	struct ieee80211_device  *ieee,
 	u8		         *dst,
 	PBA_RECORD		 pBA,
-	TR_SELECT		 TxRxSelect,
+	enum tr_select		 TxRxSelect,
 	u16			 ReasonCode
 	)
 {
@@ -290,14 +290,14 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
  *function: send ADDBARSP frame out
  *   input:  u8*		dst	//DELBA frame's destination
  *	     PBA_RECORD		pBA	//BA_RECORD entry which stores the necessary information for BA
- *	     TR_SELECT          TxRxSelect //TX or RX
+ *	     enum tr_select     TxRxSelect //TX or RX
  *	     u16		ReasonCode //DEL ReasonCode
  *  output:  none
  *  notice: If any possible, please hide pBA in ieee. And temporarily use Manage Queue as softmac_mgmt_xmit() usually does
  ********************************************************************************************************************/
 
 static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
-				 PBA_RECORD pBA, TR_SELECT TxRxSelect,
+				 PBA_RECORD pBA, enum tr_select TxRxSelect,
 				 u16 ReasonCode)
 {
 	struct sk_buff *skb;
@@ -638,7 +638,7 @@ TsInitAddBA(
 }
 
 void
-TsInitDelBA(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect)
+TsInitDelBA(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
 		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;

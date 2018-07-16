@@ -204,7 +204,7 @@ static void AdmitTS(struct ieee80211_device *ieee,
 
 static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
 					   u8 *Addr, u8 TID,
-					   TR_SELECT TxRxSelect)
+					   enum tr_select TxRxSelect)
 {
 	//DIRECTION_VALUE	dir;
 	u8	dir;
@@ -291,7 +291,7 @@ bool GetTs(
 	PTS_COMMON_INFO			*ppTS,
 	u8				*Addr,
 	u8				TID,
-	TR_SELECT			TxRxSelect,  //Rx:1, Tx:0
+	enum tr_select			TxRxSelect,  //Rx:1, Tx:0
 	bool				bAddNewTs
 	)
 {
@@ -408,7 +408,7 @@ bool GetTs(
 }
 
 static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
-			  TR_SELECT TxRxSelect)
+			  enum tr_select TxRxSelect)
 {
 	//u32 flags = 0;
 	unsigned long flags = 0;
