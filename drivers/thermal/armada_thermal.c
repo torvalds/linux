@@ -329,13 +329,6 @@ static int armada_read_sensor(struct armada_thermal_priv *priv, int *temp)
 	u32 reg, div;
 	s64 sample, b, m;
 
-	/* Valid check */
-	if (priv->data->is_valid && !priv->data->is_valid(priv)) {
-		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
-		return -EIO;
-	}
-
 	regmap_read(priv->syscon, priv->data->syscon_status_off, &reg);
 	reg = (reg >> priv->data->temp_shift) & priv->data->temp_mask;
 	if (priv->data->signed_sample)
@@ -362,6 +355,13 @@ static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 {
 	struct armada_thermal_priv *priv = thermal->devdata;
 	int ret;
+
+	/* Valid check */
+	if (priv->data->is_valid && !priv->data->is_valid(priv)) {
+		dev_err(priv->dev,
+			"Temperature sensor reading not valid\n");
+		return -EIO;
+	}
 
 	/* Do the actual reading */
 	ret = armada_read_sensor(priv, temp);
