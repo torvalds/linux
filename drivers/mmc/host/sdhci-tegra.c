@@ -210,9 +210,24 @@ static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (!clock)
 		return sdhci_set_clock(host, clock);
 
+	/*
+	 * In DDR50/52 modes the Tegra SDHCI controllers require the SDHCI
+	 * divider to be configured to divided the host clock by two. The SDHCI
+	 * clock divider is calculated as part of sdhci_set_clock() by
+	 * sdhci_calc_clk(). The divider is calculated from host->max_clk and
+	 * the requested clock rate.
+	 *
+	 * By setting the host->max_clk to clock * 2 the divider calculation
+	 * will always result in the correct value for DDR50/52 modes,
+	 * regardless of clock rate rounding, which may happen if the value
+	 * from clk_get_rate() is used.
+	 */
 	host_clk = tegra_host->ddr_signaling ? clock * 2 : clock;
 	clk_set_rate(pltfm_host->clk, host_clk);
-	host->max_clk = clk_get_rate(pltfm_host->clk);
+	if (tegra_host->ddr_signaling)
+		host->max_clk = host_clk;
+	else
+		host->max_clk = clk_get_rate(pltfm_host->clk);
 
 	sdhci_set_clock(host, clock);
 
