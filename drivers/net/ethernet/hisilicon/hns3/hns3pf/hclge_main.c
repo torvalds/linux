@@ -2819,7 +2819,10 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 
 static void hclge_reset(struct hclge_dev *hdev)
 {
+	struct hnae3_handle *handle;
+
 	/* perform reset of the stack & ae device for a client */
+	handle = &hdev->vport[0].nic;
 	rtnl_lock();
 	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
 
@@ -2836,6 +2839,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 	}
 
 	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	handle->last_reset_time = jiffies;
 	rtnl_unlock();
 }
 
@@ -2849,8 +2853,13 @@ static void hclge_reset_event(struct hnae3_handle *handle)
 	 * know this if last reset request did not occur very recently (watchdog
 	 * timer = 5*HZ, let us check after sufficiently large time, say 4*5*Hz)
 	 * In case of new request we reset the "reset level" to PF reset.
+	 * And if it is a repeat reset request of the most recent one then we
+	 * want to make sure we throttle the reset request. Therefore, we will
+	 * not allow it again before 3*HZ times.
 	 */
-	if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
+	if (time_before(jiffies, (handle->last_reset_time + 3 * HZ)))
+		return;
+	else if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
 		handle->reset_level = HNAE3_FUNC_RESET;
 
 	dev_info(&hdev->pdev->dev, "received reset event , reset type is %d",
@@ -2862,8 +2871,6 @@ static void hclge_reset_event(struct hnae3_handle *handle)
 
 	if (handle->reset_level < HNAE3_GLOBAL_RESET)
 		handle->reset_level++;
-
-	handle->last_reset_time = jiffies;
 }
 
 static void hclge_reset_subtask(struct hclge_dev *hdev)
