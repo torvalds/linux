@@ -1,3 +1,4 @@
+==============================================================
 Linux* Base Driver for the Intel(R) PRO/100 Family of Adapters
 ==============================================================
 
@@ -86,83 +87,84 @@ Event Log Message Level:  The driver uses the message level flag to log events
 Additional Configurations
 =========================
 
-  Configuring the Driver on Different Distributions
-  -------------------------------------------------
+Configuring the Driver on Different Distributions
+-------------------------------------------------
 
-  Configuring a network driver to load properly when the system is started is
-  distribution dependent. Typically, the configuration process involves adding
-  an alias line to /etc/modprobe.d/*.conf as well as editing other system
-  startup scripts and/or configuration files.  Many popular Linux
-  distributions ship with tools to make these changes for you. To learn the
-  proper way to configure a network device for your system, refer to your
-  distribution documentation.  If during this process you are asked for the
-  driver or module name, the name for the Linux Base Driver for the Intel
-  PRO/100 Family of Adapters is e100.
+Configuring a network driver to load properly when the system is started
+is distribution dependent.  Typically, the configuration process involves
+adding an alias line to /etc/modprobe.d/*.conf as well as editing other
+system startup scripts and/or configuration files.  Many popular Linux
+distributions ship with tools to make these changes for you.  To learn
+the proper way to configure a network device for your system, refer to
+your distribution documentation.  If during this process you are asked
+for the driver or module name, the name for the Linux Base Driver for
+the Intel PRO/100 Family of Adapters is e100.
 
-  As an example, if you install the e100 driver for two PRO/100 adapters
-  (eth0 and eth1), add the following to a configuration file in /etc/modprobe.d/
+As an example, if you install the e100 driver for two PRO/100 adapters
+(eth0 and eth1), add the following to a configuration file in
+/etc/modprobe.d/::
 
        alias eth0 e100
        alias eth1 e100
 
-  Viewing Link Messages
-  ---------------------
-  In order to see link messages and other Intel driver information on your
-  console, you must set the dmesg level up to six. This can be done by
-  entering the following on the command line before loading the e100 driver::
+Viewing Link Messages
+---------------------
+
+In order to see link messages and other Intel driver information on your
+console, you must set the dmesg level up to six.  This can be done by
+entering the following on the command line before loading the e100
+driver::
 
        dmesg -n 6
 
-  If you wish to see all messages issued by the driver, including debug
-  messages, set the dmesg level to eight.
+If you wish to see all messages issued by the driver, including debug
+messages, set the dmesg level to eight.
 
-  NOTE: This setting is not saved across reboots.
+NOTE: This setting is not saved across reboots.
 
+ethtool
+-------
 
-  ethtool
-  -------
+The driver utilizes the ethtool interface for driver configuration and
+diagnostics, as well as displaying statistical information.  The ethtool
+version 1.6 or later is required for this functionality.
 
-  The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  The ethtool
-  version 1.6 or later is required for this functionality.
+The latest release of ethtool can be found from
+https://www.kernel.org/pub/software/network/ethtool/
 
-  The latest release of ethtool can be found from
-  https://www.kernel.org/pub/software/network/ethtool/
+Enabling Wake on LAN* (WoL)
+---------------------------
+WoL is provided through the ethtool* utility.  For instructions on
+enabling WoL with ethtool, refer to the ethtool man page.  WoL will be
+enabled on the system during the next shut down or reboot.  For this
+driver version, in order to enable WoL, the e100 driver must be loaded
+when shutting down or rebooting the system.
 
-  Enabling Wake on LAN* (WoL)
-  ---------------------------
-  WoL is provided through the ethtool* utility.  For instructions on enabling
-  WoL with ethtool, refer to the ethtool man page.
+NAPI
+----
 
-  WoL will be enabled on the system during the next shut down or reboot. For
-  this driver version, in order to enable WoL, the e100 driver must be
-  loaded when shutting down or rebooting the system.
+NAPI (Rx polling mode) is supported in the e100 driver.
 
-  NAPI
-  ----
+See https://wiki.linuxfoundation.org/networking/napi for more
+information on NAPI.
 
-  NAPI (Rx polling mode) is supported in the e100 driver.
+Multiple Interfaces on Same Ethernet Broadcast Network
+------------------------------------------------------
 
-  See https://wiki.linuxfoundation.org/networking/napi for more information
-  on NAPI.
+Due to the default ARP behavior on Linux, it is not possible to have one
+system on two IP networks in the same Ethernet broadcast domain
+(non-partitioned switch) behave as expected.  All Ethernet interfaces
+will respond to IP traffic for any IP address assigned to the system.
+This results in unbalanced receive traffic.
 
-  Multiple Interfaces on Same Ethernet Broadcast Network
-  ------------------------------------------------------
+If you have multiple interfaces in a server, either turn on ARP
+filtering by
 
-  Due to the default ARP behavior on Linux, it is not possible to have
-  one system on two IP networks in the same Ethernet broadcast domain
-  (non-partitioned switch) behave as expected. All Ethernet interfaces
-  will respond to IP traffic for any IP address assigned to the system.
-  This results in unbalanced receive traffic.
+(1) entering:: echo 1 > /proc/sys/net/ipv4/conf/all/arp_filter
+    (this only works if your kernel's version is higher than 2.4.5), or
 
-  If you have multiple interfaces in a server, either turn on ARP
-  filtering by
-
-  (1) entering:: echo 1 > /proc/sys/net/ipv4/conf/all/arp_filter
-      (this only works if your kernel's version is higher than 2.4.5), or
-
-  (2) installing the interfaces in separate broadcast domains (either
-      in different switches or in a switch partitioned to VLANs).
+(2) installing the interfaces in separate broadcast domains (either
+    in different switches or in a switch partitioned to VLANs).
 
 
 Support

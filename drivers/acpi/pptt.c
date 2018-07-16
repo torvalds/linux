@@ -481,8 +481,14 @@ static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 	if (cpu_node) {
 		cpu_node = acpi_find_processor_package_id(table, cpu_node,
 							  level, flag);
-		/* Only the first level has a guaranteed id */
-		if (level == 0)
+		/*
+		 * As per specification if the processor structure represents
+		 * an actual processor, then ACPI processor ID must be valid.
+		 * For processor containers ACPI_PPTT_ACPI_PROCESSOR_ID_VALID
+		 * should be set if the UID is valid
+		 */
+		if (level == 0 ||
+		    cpu_node->flags & ACPI_PPTT_ACPI_PROCESSOR_ID_VALID)
 			return cpu_node->acpi_processor_id;
 		return ACPI_PTR_DIFF(cpu_node, table);
 	}

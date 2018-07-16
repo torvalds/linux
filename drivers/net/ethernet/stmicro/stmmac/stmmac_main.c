@@ -1804,6 +1804,8 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 
 		stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan,
 				rxfifosz, qmode);
+		stmmac_set_dma_bfsize(priv, priv->ioaddr, priv->dma_buf_sz,
+				chan);
 	}
 
 	for (chan = 0; chan < tx_channels_count; chan++) {

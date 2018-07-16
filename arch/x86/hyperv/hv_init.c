@@ -265,7 +265,7 @@ void __init hyperv_init(void)
 {
 	u64 guest_id, required_msrs;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
-	int cpuhp;
+	int cpuhp, i;
 
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
 		return;
@@ -292,6 +292,9 @@ void __init hyperv_init(void)
 				    GFP_KERNEL);
 	if (!hv_vp_index)
 		return;
+
+	for (i = 0; i < num_possible_cpus(); i++)
+		hv_vp_index[i] = VP_INVAL;
 
 	hv_vp_assist_page = kcalloc(num_possible_cpus(),
 				    sizeof(*hv_vp_assist_page), GFP_KERNEL);

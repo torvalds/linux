@@ -300,7 +300,7 @@ static inline int in_delay_slot(struct pt_regs *regs)
 		return 0;
 	}
 #else
-	return regs->sr & SPR_SR_DSX;
+	return mfspr(SPR_SR) & SPR_SR_DSX;
 #endif
 }
 
