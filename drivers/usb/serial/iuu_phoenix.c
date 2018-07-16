@@ -58,7 +58,6 @@ struct iuu_private {
 	u8 *buf;		/* used for initialize speed */
 	u8 len;
 	int vcc;		/* vcc (either 3 or 5 V) */
-	u32 baud;
 	u32 boost;
 	u32 clk;
 };
@@ -991,7 +990,6 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (boost < 100)
 		boost = 100;
 	priv->boost = boost;
-	priv->baud = baud;
 	switch (clockmode) {
 	case 2:		/*  3.680 Mhz */
 		priv->clk = IUU_CLK_3680000;
