@@ -260,6 +260,29 @@ static void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 	pci_write_config_dword(chip->pdev, O2_SD_MISC_CTRL4, scratch_32);
 }
 
+static void sdhci_pci_o2_enable_msi(struct sdhci_pci_chip *chip,
+				    struct sdhci_host *host)
+{
+	int ret;
+
+	ret = pci_find_capability(chip->pdev, PCI_CAP_ID_MSI);
+	if (!ret) {
+		pr_info("%s: unsupport msi, use INTx irq\n",
+			mmc_hostname(host->mmc));
+		return;
+	}
+
+	ret = pci_alloc_irq_vectors(chip->pdev, 1, 1,
+				    PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	if (ret < 0) {
+		pr_err("%s: enable PCI MSI failed, err=%d\n",
+		       mmc_hostname(host->mmc), ret);
+		return;
+	}
+
+	host->irq = pci_irq_vector(chip->pdev, 0);
+}
+
 int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_pci_chip *chip;
@@ -278,6 +301,8 @@ int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 		reg = sdhci_readl(host, O2_SD_VENDOR_SETTING);
 		if (reg & 0x1)
 			host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
+
+		sdhci_pci_o2_enable_msi(chip, host);
 
 		if (chip->pdev->device == PCI_DEVICE_ID_O2_SEABIRD0) {
 			ret = pci_read_config_dword(chip->pdev,
