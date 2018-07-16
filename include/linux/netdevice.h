@@ -903,6 +903,8 @@ struct tlsdev_ops {
 	void (*tls_dev_del)(struct net_device *netdev,
 			    struct tls_context *ctx,
 			    enum tls_offload_ctx_dir direction);
+	void (*tls_dev_resync_rx)(struct net_device *netdev,
+				  struct sock *sk, u32 seq, u64 rcd_sn);
 };
 #endif
 
