@@ -51,12 +51,10 @@
 #define CONTROL0_TSEN_TC_TRIM_MASK	0x7
 #define CONTROL0_TSEN_TC_TRIM_VAL	0x3
 
-/* TSEN refers to the temperature sensors within the AP */
 #define CONTROL0_TSEN_START		BIT(0)
 #define CONTROL0_TSEN_RESET		BIT(1)
 #define CONTROL0_TSEN_ENABLE		BIT(2)
 
-/* EXT_TSEN refers to the external temperature sensors, out of the AP */
 #define CONTROL1_EXT_TSEN_SW_RESET	BIT(7)
 #define CONTROL1_EXT_TSEN_HW_RESETn	BIT(8)
 
