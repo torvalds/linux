@@ -163,26 +163,26 @@ Required properties:
 
 Example:
 
-cpm_syscon0: system-controller@440000 {
+CP110_LABEL(syscon0): system-controller@440000 {
 	compatible = "syscon", "simple-mfd";
 	reg = <0x440000 0x1000>;
 
-	cpm_clk: clock {
+	CP110_LABEL(clk): clock {
 		compatible = "marvell,cp110-clock";
 		#clock-cells = <2>;
 	};
 
-	cpm_pinctrl: pinctrl {
+	CP110_LABEL(pinctrl): pinctrl {
 		compatible = "marvell,armada-8k-cpm-pinctrl";
 	};
 
-	cpm_gpio1: gpio@100 {
+	CP110_LABEL(gpio1): gpio@100 {
 		compatible = "marvell,armada-8k-gpio";
 		offset = <0x100>;
 		ngpios = <32>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		gpio-ranges = <&cpm_pinctrl 0 0 32>;
+		gpio-ranges = <&CP110_LABEL(pinctrl) 0 0 32>;
 	};
 
 };
