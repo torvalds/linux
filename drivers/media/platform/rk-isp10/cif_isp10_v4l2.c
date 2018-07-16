@@ -1333,6 +1333,8 @@ static long v4l2_default_ioctl(struct file *file, void *fh,
 			       bool valid_prio, unsigned int cmd, void *arg)
 {
 	int ret = -EINVAL;
+	u32 h_offs;
+	u32 v_offs;
 	struct vb2_queue *queue = to_vb2_queue(file);
 	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
 
@@ -1369,6 +1371,19 @@ static long v4l2_default_ioctl(struct file *file, void *fh,
 			dev->config.isp_config.output.width;
 		p_mode_data->isp_output_height =
 			dev->config.isp_config.output.height;
+		if (p_mode_data->isp_output_width == 0 ||
+		    p_mode_data->isp_output_height == 0) {
+			ret = cif_isp10_calc_isp_cropping(dev,
+				&p_mode_data->isp_output_width,
+				&p_mode_data->isp_output_height,
+				&h_offs,
+				&v_offs);
+			if (IS_ERR_VALUE(ret)) {
+				cif_isp10_pltfrm_pr_err(dev->dev,
+					"failed to get isp_output data\n");
+				return ret;
+			}
+		}
 	} else if (cmd == RK_VIDIOC_CAMERA_MODULEINFO) {
 		struct camera_module_info_s *p_camera_module =
 		(struct camera_module_info_s *)arg;

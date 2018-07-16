@@ -5843,6 +5843,9 @@ int cif_isp10_init(
 		dev->config.isp_config.si_enable = false;
 		dev->config.isp_config.ie_config.effect =
 			CIF_ISP10_IE_NONE;
+
+		memset(&dev->config.isp_config.output, 0,
+			sizeof(dev->config.isp_config.output));
 	}
 
 	if (stream_ids & CIF_ISP10_STREAM_SP)
