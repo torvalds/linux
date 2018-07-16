@@ -303,4 +303,14 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 
 #define tlb_migrate_finish(mm) do {} while (0)
 
+/*
+ * Used to flush the TLB when page tables are removed, when lazy
+ * TLB mode may cause a CPU to retain intermediate translations
+ * pointing to about-to-be-freed page table memory.
+ */
+#ifndef HAVE_TLB_FLUSH_REMOVE_TABLES
+#define tlb_flush_remove_tables(mm) do {} while (0)
+#define tlb_flush_remove_tables_local(mm) do {} while (0)
+#endif
+
 #endif /* _ASM_GENERIC__TLB_H */

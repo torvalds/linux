@@ -646,6 +646,33 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	put_cpu();
 }
 
+void tlb_flush_remove_tables_local(void *arg)
+{
+	struct mm_struct *mm = arg;
+
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == mm &&
+			this_cpu_read(cpu_tlbstate.is_lazy)) {
+		/*
+		 * We're in lazy mode.  We need to at least flush our
+		 * paging-structure cache to avoid speculatively reading
+		 * garbage into our TLB.  Since switching to init_mm is barely
+		 * slower than a minimal flush, just switch to init_mm.
+		 */
+		switch_mm_irqs_off(NULL, &init_mm, NULL);
+	}
+}
+
+void tlb_flush_remove_tables(struct mm_struct *mm)
+{
+	int cpu = get_cpu();
+	/*
+	 * XXX: this really only needs to be called for CPUs in lazy TLB mode.
+	 */
+	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+		smp_call_function_many(mm_cpumask(mm), tlb_flush_remove_tables_local, (void *)mm, 1);
+
+	put_cpu();
+}
 
 static void do_flush_tlb_all(void *info)
 {

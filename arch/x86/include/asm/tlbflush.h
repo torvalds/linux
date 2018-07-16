@@ -554,4 +554,9 @@ extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 	native_flush_tlb_others(mask, info)
 #endif
 
+extern void tlb_flush_remove_tables(struct mm_struct *mm);
+extern void tlb_flush_remove_tables_local(void *arg);
+
+#define HAVE_TLB_FLUSH_REMOVE_TABLES
+
 #endif /* _ASM_X86_TLBFLUSH_H */
