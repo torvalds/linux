@@ -329,6 +329,12 @@ static void dw_hdmi_set_vclk(struct meson_dw_hdmi *dw_hdmi,
 
 	vclk_freq = mode->clock;
 
+	if (!vic) {
+		meson_vclk_setup(priv, MESON_VCLK_TARGET_DMT, vclk_freq,
+				 vclk_freq, vclk_freq, false);
+		return;
+	}
+
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		vclk_freq *= 2;
 
@@ -542,10 +548,12 @@ static enum drm_mode_status
 dw_hdmi_mode_valid(struct drm_connector *connector,
 		   const struct drm_display_mode *mode)
 {
+	struct meson_drm *priv = connector->dev->dev_private;
 	unsigned int vclk_freq;
 	unsigned int venc_freq;
 	unsigned int hdmi_freq;
 	int vic = drm_match_cea_mode(mode);
+	enum drm_mode_status status;
 
 	DRM_DEBUG_DRIVER("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x\n",
 		mode->base.id, mode->name, mode->vrefresh, mode->clock,
@@ -556,8 +564,11 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 
 	/* Check against non-VIC supported modes */
 	if (!vic) {
-		if (!meson_venc_hdmi_supported_mode(mode))
-			return MODE_BAD;
+		status = meson_venc_hdmi_supported_mode(mode);
+		if (status != MODE_OK)
+			return status;
+
+		return meson_vclk_dmt_supported_freq(priv, mode->clock);
 	/* Check against supported VIC modes */
 	} else if (!meson_venc_hdmi_supported_vic(vic))
 		return MODE_BAD;
@@ -583,16 +594,11 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	dev_dbg(connector->dev->dev, "%s: vclk:%d venc=%d hdmi=%d\n", __func__,
 		vclk_freq, venc_freq, hdmi_freq);
 
-	/* Finally filter by configurable vclk frequencies */
+	/* Finally filter by configurable vclk frequencies for VIC modes */
 	switch (vclk_freq) {
-	case 25175:
-	case 40000:
 	case 54000:
-	case 65000:
 	case 74250:
-	case 108000:
 	case 148500:
-	case 162000:
 	case 297000:
 	case 594000:
 		return MODE_OK;
