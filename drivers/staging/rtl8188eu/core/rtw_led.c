@@ -69,7 +69,6 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed)
 	INIT_WORK(&pLed->BlinkWorkItem, BlinkWorkItemCallback);
 }
 
-
 /*  */
 /*	Description: */
 /*		DeInitialize an LED_871x object. */

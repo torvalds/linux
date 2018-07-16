@@ -342,7 +342,6 @@ static void issue_beacon(struct adapter *padapter, int timeout_ms)
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-
 	fctrl = &pwlanhdr->frame_control;
 	*(fctrl) = 0;
 
@@ -585,7 +584,6 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 			pframe = rtw_set_ie(pframe, _ERPINFO_IE_, 1, &erpinfo, &pattrib->pktlen);
 		}
 
-
 		/*  EXTERNDED SUPPORTED RATE */
 		if (rate_len > 8)
 			pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_, (rate_len - 8), (cur_network->SupportedRates + 8), &pattrib->pktlen);
@@ -624,7 +622,6 @@ static int issue_probereq(struct adapter *padapter,
 	/* update attribute */
 	pattrib = &pmgntframe->attrib;
 	update_mgntframe_attrib(padapter, pattrib);
-
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
@@ -777,7 +774,6 @@ static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 	pframe += sizeof(struct ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
-
 	if (psta) {/*  for AP mode */
 #ifdef CONFIG_88EU_AP_MODE
 
@@ -786,7 +782,6 @@ static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 				myid(&(padapter->eeprompriv)));
 		ether_addr_copy(pwlanhdr->addr3,
 				myid(&(padapter->eeprompriv)));
-
 
 		/*  setting auth algo number */
 		val16 = (u16)psta->authalg;
@@ -853,7 +848,6 @@ static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 		pframe = rtw_set_fixed_ie(pframe, _AUTH_SEQ_NUM_, &le_tmp16,
 					  &pattrib->pktlen);
 
-
 		/*  setting status code... */
 		le_tmp16 = cpu_to_le16(status);
 		pframe = rtw_set_fixed_ie(pframe, _STATUS_CODE_, &le_tmp16,
@@ -881,7 +875,6 @@ static void issue_auth(struct adapter *padapter, struct sta_info *psta,
 	DBG_88E("%s\n", __func__);
 	dump_mgntframe(padapter, pmgntframe);
 }
-
 
 #ifdef CONFIG_88EU_AP_MODE
 static void issue_asocrsp(struct adapter *padapter, unsigned short status,
@@ -911,7 +904,6 @@ static void issue_asocrsp(struct adapter *padapter, unsigned short status,
 	pattrib = &pmgntframe->attrib;
 	update_mgntframe_attrib(padapter, pattrib);
 
-
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
@@ -924,7 +916,6 @@ static void issue_asocrsp(struct adapter *padapter, unsigned short status,
 	ether_addr_copy((void *)GetAddr2Ptr(pwlanhdr),
 			myid(&(padapter->eeprompriv)));
 	ether_addr_copy((void *)GetAddr3Ptr(pwlanhdr), pnetwork->MacAddress);
-
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
@@ -1115,7 +1106,6 @@ static void issue_assocreq(struct adapter *padapter)
 		goto exit; /* don't connect to AP if no joint supported rate */
 	}
 
-
 	if (bssrate_len > 8) {
 		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_, 8, bssrate, &(pattrib->pktlen));
 		pframe = rtw_set_ie(pframe, _EXT_SUPPORTEDRATES_IE_, (bssrate_len - 8), (bssrate + 8), &(pattrib->pktlen));
@@ -1260,7 +1250,6 @@ static int _issue_nulldata(struct adapter *padapter, unsigned char *da,
 exit:
 	return ret;
 }
-
 
 /* when wait_ms > 0 , this function should be called at process context */
 /* da == NULL for station mode */
@@ -1488,7 +1477,6 @@ static int _issue_deauth(struct adapter *padapter, unsigned char *da,
 				  &pattrib->pktlen);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
-
 
 	if (wait_ack) {
 		ret = dump_mgntframe_and_wait_ack(padapter, pmgntframe);
@@ -1727,9 +1715,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 	if (pmlmeinfo->bwmode_updated)
 		return;
 
-
 	DBG_88E("%s\n", __func__);
-
 
 	category = RTW_WLAN_CATEGORY_PUBLIC;
 	action = ACT_PUBLIC_BSSCOEXIST;
@@ -1764,7 +1750,6 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 	pframe = rtw_set_fixed_ie(pframe, 1, &(category), &(pattrib->pktlen));
 	pframe = rtw_set_fixed_ie(pframe, 1, &(action), &(pattrib->pktlen));
 
-
 	/*  */
 	if (pmlmepriv->num_FortyMHzIntolerant > 0) {
 		u8 iedata = 0;
@@ -1773,7 +1758,6 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 
 		pframe = rtw_set_ie(pframe, EID_BSSCoexistence,  1, &iedata, &(pattrib->pktlen));
 	}
-
 
 	/*  */
 	memset(ICS, 0, sizeof(ICS));
@@ -1831,7 +1815,6 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 			}
 		}
 	}
-
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
@@ -1935,7 +1918,6 @@ static void site_survey(struct adapter *padapter)
 		ScanType = (ch->flags & RTW_IEEE80211_CHAN_PASSIVE_SCAN) ? SCAN_PASSIVE : SCAN_ACTIVE;
 	}
 
-
 	if (survey_channel != 0) {
 		/* PAUSE 4-AC Queue when site_survey */
 		/* rtw_hal_get_hwreg(padapter, HW_VAR_TXPAUSE, (u8 *)(&val8)); */
@@ -1979,7 +1961,6 @@ static void site_survey(struct adapter *padapter)
 
 		set_survey_timer(pmlmeext, pmlmeext->chan_scan_time);
 	} else {
-
 		/*  20100721:Interrupt scan operation here. */
 		/*  For SW antenna diversity before link, it needs to switch to another antenna and scan again. */
 		/*  It compares the scan result and select better one to do connection. */
@@ -2321,7 +2302,6 @@ static void start_clnt_auth(struct adapter *padapter)
 	pmlmeinfo->link_count = 0;
 	pmlmeext->retry = 0;
 
-
 	/*  Because of AP's not receiving deauth before */
 	/*  AP may: 1)not response auth or 2)deauth us after link is complete */
 	/*  issue deauth before issuing auth to deal with the situation */
@@ -2334,7 +2314,6 @@ static void start_clnt_auth(struct adapter *padapter)
 
 	set_link_timer(pmlmeext, REAUTH_TO);
 }
-
 
 static void start_clnt_assoc(struct adapter *padapter)
 {
@@ -2957,7 +2936,6 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		ie_offset = _REASOCREQ_IE_OFFSET_;
 	}
 
-
 	if (pkt_len < IEEE80211_3ADDR_LEN + ie_offset) {
 		DBG_88E("handle_assoc(reassoc=%d) - too short payload (len=%lu)"
 		       "\n", reassoc, (unsigned long)pkt_len);
@@ -2974,7 +2952,6 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 
 	left = pkt_len - (IEEE80211_3ADDR_LEN + ie_offset);
 	pos = pframe + (IEEE80211_3ADDR_LEN + ie_offset);
-
 
 	DBG_88E("%s\n", __func__);
 
@@ -3000,7 +2977,6 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		status = _STATS_FAILURE_;
 		goto OnAssocReqFail;
 	}
-
 
 	/*  now we should check all the fields... */
 	/*  checking SSID */
@@ -3129,7 +3105,6 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 				   "use\n");
 			pstat->flags |= WLAN_STA_MAYBE_WPS;
 		}
-
 
 		/*  AP support WPA/RSN, and sta is going to do WPS, but AP is not ready */
 		/*  that the selected registrar of AP is _FLASE */
@@ -3269,8 +3244,6 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 		pstat->flags |= WLAN_STA_SHORT_PREAMBLE;
 	else
 		pstat->flags &= ~WLAN_STA_SHORT_PREAMBLE;
-
-
 
 	if (status != _STATS_SUCCESSFUL_)
 		goto OnAssocReqFail;
@@ -3492,7 +3465,6 @@ static unsigned int OnDeAuth(struct adapter *padapter,
 
 			associated_clients_update(padapter, updated);
 		}
-
 
 		return _SUCCESS;
 	} else
@@ -4089,7 +4061,6 @@ int	init_mlme_ext_priv(struct adapter *padapter)
 	pmlmeext->chan_scan_time = SURVEY_TO;
 	pmlmeext->mlmeext_init = true;
 
-
 	pmlmeext->active_keep_alive_check = true;
 
 	return _SUCCESS;
@@ -4222,7 +4193,6 @@ void report_survey_event(struct adapter *padapter,
 	pmlmeext = &padapter->mlmeextpriv;
 	pcmdpriv = &padapter->cmdpriv;
 
-
 	pcmd_obj = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
@@ -4349,9 +4319,7 @@ void report_join_res(struct adapter *padapter, int res)
 
 	DBG_88E("%s(%d)\n", __func__, res);
 
-
 	rtw_joinbss_event_prehandle(padapter, (u8 *)&pjoinbss_evt->network);
-
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 }
@@ -4397,7 +4365,6 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr,
 	pdel_sta_evt = (struct stadel_event *)(pevtcmd + sizeof(struct C2HEvent_Header));
 	ether_addr_copy((unsigned char *)(&(pdel_sta_evt->macaddr)), MacAddr);
 	memcpy((unsigned char *)(pdel_sta_evt->rsvd), (unsigned char *)(&reason), 2);
-
 
 	psta = rtw_get_stainfo(&padapter->stapriv, MacAddr);
 	if (psta)
@@ -4457,7 +4424,6 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr,
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 }
 
-
 /****************************************************************************
 
 Following are the event callback functions
@@ -4502,7 +4468,6 @@ void update_sta_info(struct adapter *padapter, struct sta_info *psta)
 	if (pmlmepriv->qospriv.qos_option)
 		psta->qos_option = true;
 
-
 	psta->state = _FW_LINKED;
 }
 
@@ -4536,7 +4501,6 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 			Update_RA_Entry(padapter, psta_bmc->mac_id);
 		}
 	}
-
 
 	/* turn on dynamic functions */
 	Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);
@@ -4642,7 +4606,6 @@ void mlmeext_sta_del_event_callback(struct adapter *padapter)
 
 		/* SelectChannel(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset); */
 		set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
-
 
 		flush_all_cam_entry(padapter);
 
@@ -4831,7 +4794,6 @@ void survey_timer_hdl(struct timer_list *t)
 		rtw_enqueue_cmd(pcmdpriv, ph2c);
 	}
 
-
 exit_survey_timer_hdl:
 	return;
 }
@@ -4923,7 +4885,6 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	/* u32	initialgain; */
 
-
 	if (pparm->InfrastructureMode == Ndis802_11APMode) {
 #ifdef CONFIG_88EU_AP_MODE
 
@@ -5001,7 +4962,6 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 		/* set MSR to nolink -> infra. mode */
 		Set_MSR(padapter, _HW_STATE_STATION_);
-
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_DISCONNECT, NULL);
 	}
@@ -5112,7 +5072,6 @@ u8 disconnect_hdl(struct adapter *padapter, unsigned char *pbuf)
 		val8 = 0;
 		rtw_hal_set_hwreg(padapter, HW_VAR_BCN_FUNC, (u8 *)(&val8));
 	}
-
 
 	/* set MSR to no link state -> infra. mode */
 	Set_MSR(padapter, _HW_STATE_STATION_);
@@ -5386,7 +5345,6 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 	u8 res = _SUCCESS;
 	int len_diff = 0;
 
-
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!ph2c) {
 		res = _FAIL;
@@ -5410,10 +5368,7 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
-
 exit:
-
-
 	return res;
 }
 
