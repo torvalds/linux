@@ -1,15 +1,15 @@
-Marvell Armada CP110 System Controller 0
-========================================
+Marvell Armada CP110 System Controller
+======================================
 
 The CP110 is one of the two core HW blocks of the Marvell Armada 7K/8K
-SoCs. It contains two sets of system control registers, System
-Controller 0 and System Controller 1. This Device Tree binding allows
-to describe the first system controller, which provides registers to
-configure various aspects of the SoC.
+SoCs. It contains system controllers, which provide several registers
+giving access to numerous features: clocks, pin-muxing and many other
+SoC configuration items. This DT binding allows to describe these
+system controllers.
 
 For the top level node:
  - compatible: must be: "syscon", "simple-mfd";
- - reg: register area of the CP110 system controller 0
+ - reg: register area of the CP110 system controller
 
 Clocks:
 -------
