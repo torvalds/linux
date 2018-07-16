@@ -675,16 +675,16 @@ static int get_term_name(struct snd_usb_audio *chip, struct usb_audio_term *iter
 		if (term_only)
 			return 0;
 		switch (iterm->type >> 16) {
-		case UAC_SELECTOR_UNIT:
+		case UAC3_SELECTOR_UNIT:
 			strcpy(name, "Selector");
 			return 8;
-		case UAC1_PROCESSING_UNIT:
+		case UAC3_PROCESSING_UNIT:
 			strcpy(name, "Process Unit");
 			return 12;
-		case UAC1_EXTENSION_UNIT:
+		case UAC3_EXTENSION_UNIT:
 			strcpy(name, "Ext Unit");
 			return 8;
-		case UAC_MIXER_UNIT:
+		case UAC3_MIXER_UNIT:
 			strcpy(name, "Mixer");
 			return 5;
 		default:
@@ -832,7 +832,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC_MIXER_UNIT: {
 				struct uac_mixer_unit_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_MIXER_UNIT << 16; /* virtual type */
 				term->channels = uac_mixer_unit_bNrChannels(d);
 				term->chconfig = uac_mixer_unit_wChannelConfig(d, protocol);
 				term->name = uac_mixer_unit_iMixer(d);
@@ -845,15 +845,23 @@ static int check_input_term(struct mixer_build *state, int id,
 				err = check_input_term(state, d->baSourceID[0], term);
 				if (err < 0)
 					return err;
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_SELECTOR_UNIT << 16; /* virtual type */
 				term->id = id;
 				term->name = uac_selector_unit_iSelector(d);
 				return 0;
 			}
 			case UAC1_PROCESSING_UNIT:
+			/* UAC2_EFFECT_UNIT */
+				if (protocol == UAC_VERSION_1)
+					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
+				else /* UAC_VERSION_2 */
+					term->type = UAC3_EFFECT_UNIT << 16; /* virtual type */
 			case UAC1_EXTENSION_UNIT:
 			/* UAC2_PROCESSING_UNIT_V2 */
-			/* UAC2_EFFECT_UNIT */
+				if (protocol == UAC_VERSION_1 && !term->type)
+					term->type = UAC3_EXTENSION_UNIT << 16; /* virtual type */
+				else if (protocol == UAC_VERSION_2 && !term->type)
+					term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
 			case UAC2_EXTENSION_UNIT_V2: {
 				struct uac_processing_unit_descriptor *d = p1;
 
@@ -869,7 +877,9 @@ static int check_input_term(struct mixer_build *state, int id,
 					id = d->baSourceID[0];
 					break; /* continue to parse */
 				}
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				if (!term->type)
+					term->type = UAC3_EXTENSION_UNIT << 16; /* virtual type */
+
 				term->channels = uac_processing_unit_bNrChannels(d);
 				term->chconfig = uac_processing_unit_wChannelConfig(d, protocol);
 				term->name = uac_processing_unit_iProcessing(d, protocol);
@@ -878,7 +888,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC2_CLOCK_SOURCE: {
 				struct uac_clock_source_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_CLOCK_SOURCE << 16; /* virtual type */
 				term->id = id;
 				term->name = d->iClockSource;
 				return 0;
@@ -923,7 +933,7 @@ static int check_input_term(struct mixer_build *state, int id,
 			case UAC3_CLOCK_SOURCE: {
 				struct uac3_clock_source_descriptor *d = p1;
 
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_CLOCK_SOURCE << 16; /* virtual type */
 				term->id = id;
 				term->name = le16_to_cpu(d->wClockSourceStr);
 				return 0;
@@ -936,7 +946,37 @@ static int check_input_term(struct mixer_build *state, int id,
 					return err;
 
 				term->channels = err;
-				term->type = d->bDescriptorSubtype << 16; /* virtual type */
+				term->type = UAC3_MIXER_UNIT << 16; /* virtual type */
+
+				return 0;
+			}
+			case UAC3_SELECTOR_UNIT:
+			case UAC3_CLOCK_SELECTOR: {
+				struct uac_selector_unit_descriptor *d = p1;
+				/* call recursively to retrieve the channel info */
+				err = check_input_term(state, d->baSourceID[0], term);
+				if (err < 0)
+					return err;
+				term->type = UAC3_SELECTOR_UNIT << 16; /* virtual type */
+				term->id = id;
+				term->name = 0; /* TODO: UAC3 Class-specific strings */
+
+				return 0;
+			}
+			case UAC3_PROCESSING_UNIT: {
+				struct uac_processing_unit_descriptor *d = p1;
+
+				if (!d->bNrInPins)
+					return -EINVAL;
+
+				/* call recursively to retrieve the channel info */
+				err = check_input_term(state, d->baSourceID[0], term);
+				if (err < 0)
+					return err;
+
+				term->type = UAC3_PROCESSING_UNIT << 16; /* virtual type */
+				term->id = id;
+				term->name = 0; /* TODO: UAC3 Class-specific strings */
 
 				return 0;
 			}
@@ -2167,6 +2207,11 @@ struct procunit_info {
 	struct procunit_value_info *values;
 };
 
+static struct procunit_value_info undefined_proc_info[] = {
+	{ 0x00, "Control Undefined", 0 },
+	{ 0 }
+};
+
 static struct procunit_value_info updown_proc_info[] = {
 	{ UAC_UD_ENABLE, "Switch", USB_MIXER_BOOLEAN },
 	{ UAC_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
@@ -2215,6 +2260,23 @@ static struct procunit_info procunits[] = {
 	{ UAC_PROCESS_DYN_RANGE_COMP, "DCR", dcr_proc_info },
 	{ 0 },
 };
+
+static struct procunit_value_info uac3_updown_proc_info[] = {
+	{ UAC3_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
+	{ 0 }
+};
+static struct procunit_value_info uac3_stereo_ext_proc_info[] = {
+	{ UAC3_EXT_WIDTH_CONTROL, "Width Control", USB_MIXER_U8 },
+	{ 0 }
+};
+
+static struct procunit_info uac3_procunits[] = {
+	{ UAC3_PROCESS_UP_DOWNMIX, "Up Down", uac3_updown_proc_info },
+	{ UAC3_PROCESS_STEREO_EXTENDER, "3D Stereo Extender", uac3_stereo_ext_proc_info },
+	{ UAC3_PROCESS_MULTI_FUNCTION, "Multi-Function", undefined_proc_info },
+	{ 0 },
+};
+
 /*
  * predefined data for extension units
  */
@@ -2287,8 +2349,16 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 	for (valinfo = info->values; valinfo->control; valinfo++) {
 		__u8 *controls = uac_processing_unit_bmControls(desc, state->mixer->protocol);
 
-		if (!(controls[valinfo->control / 8] & (1 << ((valinfo->control % 8) - 1))))
-			continue;
+		if (state->mixer->protocol == UAC_VERSION_1) {
+			if (!(controls[valinfo->control / 8] &
+					(1 << ((valinfo->control % 8) - 1))))
+				continue;
+		} else { /* UAC_VERSION_2/3 */
+			if (!uac_v2v3_control_is_readable(controls[valinfo->control / 8],
+							  valinfo->control))
+				continue;
+		}
+
 		map = find_map(state->map, unitid, valinfo->control);
 		if (check_ignored_ctl(map))
 			continue;
@@ -2300,26 +2370,55 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 		cval->val_type = valinfo->val_type;
 		cval->channels = 1;
 
+		if (state->mixer->protocol > UAC_VERSION_1 &&
+		    !uac_v2v3_control_is_writeable(controls[valinfo->control / 8],
+						   valinfo->control))
+			cval->master_readonly = 1;
+
 		/* get min/max values */
-		if (type == UAC_PROCESS_UP_DOWNMIX && cval->control == UAC_UD_MODE_SELECT) {
-			__u8 *control_spec = uac_processing_unit_specific(desc, state->mixer->protocol);
-			/* FIXME: hard-coded */
-			cval->min = 1;
-			cval->max = control_spec[0];
-			cval->res = 1;
-			cval->initialized = 1;
-		} else {
-			if (type == USB_XU_CLOCK_RATE) {
-				/*
-				 * E-Mu USB 0404/0202/TrackerPre/0204
-				 * samplerate control quirk
-				 */
-				cval->min = 0;
-				cval->max = 5;
+		switch (type) {
+		case UAC_PROCESS_UP_DOWNMIX: {
+			bool mode_sel = false;
+
+			switch (state->mixer->protocol) {
+			case UAC_VERSION_1:
+			case UAC_VERSION_2:
+			default:
+				if (cval->control == UAC_UD_MODE_SELECT)
+					mode_sel = true;
+				break;
+			case UAC_VERSION_3:
+				if (cval->control == UAC3_UD_MODE_SELECT)
+					mode_sel = true;
+				break;
+			}
+
+			if (mode_sel) {
+				__u8 *control_spec = uac_processing_unit_specific(desc,
+								state->mixer->protocol);
+				cval->min = 1;
+				cval->max = control_spec[0];
 				cval->res = 1;
 				cval->initialized = 1;
-			} else
-				get_min_max(cval, valinfo->min_value);
+				break;
+			}
+
+			get_min_max(cval, valinfo->min_value);
+			break;
+		}
+		case USB_XU_CLOCK_RATE:
+			/*
+			 * E-Mu USB 0404/0202/TrackerPre/0204
+			 * samplerate control quirk
+			 */
+			cval->min = 0;
+			cval->max = 5;
+			cval->res = 1;
+			cval->initialized = 1;
+			break;
+		default:
+			get_min_max(cval, valinfo->min_value);
+			break;
 		}
 
 		kctl = snd_ctl_new1(&mixer_procunit_ctl, cval);
@@ -2362,8 +2461,16 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 static int parse_audio_processing_unit(struct mixer_build *state, int unitid,
 				       void *raw_desc)
 {
-	return build_audio_procunit(state, unitid, raw_desc,
-				    procunits, "Processing Unit");
+	switch (state->mixer->protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return build_audio_procunit(state, unitid, raw_desc,
+				procunits, "Processing Unit");
+	case UAC_VERSION_3:
+		return build_audio_procunit(state, unitid, raw_desc,
+				uac3_procunits, "Processing Unit");
+	}
 }
 
 static int parse_audio_extension_unit(struct mixer_build *state, int unitid,
@@ -2509,11 +2616,20 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	cval->res = 1;
 	cval->initialized = 1;
 
-	if (state->mixer->protocol == UAC_VERSION_1)
+	switch (state->mixer->protocol) {
+	case UAC_VERSION_1:
+	default:
 		cval->control = 0;
-	else /* UAC_VERSION_2 */
-		cval->control = (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR) ?
-			UAC2_CX_CLOCK_SELECTOR : UAC2_SU_SELECTOR;
+		break;
+	case UAC_VERSION_2:
+	case UAC_VERSION_3:
+		if (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR ||
+		    desc->bDescriptorSubtype == UAC3_CLOCK_SELECTOR)
+			cval->control = UAC2_CX_CLOCK_SELECTOR;
+		else /* UAC2/3_SELECTOR_UNIT */
+			cval->control = UAC2_SU_SELECTOR;
+		break;
+	}
 
 	namelist = kmalloc_array(desc->bNrInPins, sizeof(char *), GFP_KERNEL);
 	if (!namelist) {
@@ -2555,12 +2671,22 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	if (!len) {
 		/* no mapping ? */
+		switch (state->mixer->protocol) {
+		case UAC_VERSION_1:
+		case UAC_VERSION_2:
+		default:
 		/* if iSelector is given, use it */
-		nameid = uac_selector_unit_iSelector(desc);
-		if (nameid)
-			len = snd_usb_copy_string_desc(state->chip, nameid,
-						       kctl->id.name,
-						       sizeof(kctl->id.name));
+			nameid = uac_selector_unit_iSelector(desc);
+			if (nameid)
+				len = snd_usb_copy_string_desc(state->chip,
+							nameid, kctl->id.name,
+							sizeof(kctl->id.name));
+			break;
+		case UAC_VERSION_3:
+			/* TODO: Class-Specific strings not yet supported */
+			break;
+		}
+
 		/* ... or pick up the terminal name at next */
 		if (!len)
 			len = get_term_name(state->chip, &state->oterm,
@@ -2570,7 +2696,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 			strlcpy(kctl->id.name, "USB", sizeof(kctl->id.name));
 
 		/* and add the proper suffix */
-		if (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR)
+		if (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR ||
+		    desc->bDescriptorSubtype == UAC3_CLOCK_SELECTOR)
 			append_ctl_name(kctl, " Clock Source");
 		else if ((state->oterm.type & 0xff00) == 0x0100)
 			append_ctl_name(kctl, " Capture Source");
@@ -2641,6 +2768,7 @@ static int parse_audio_unit(struct mixer_build *state, int unitid)
 			return parse_audio_mixer_unit(state, unitid, p1);
 		case UAC3_CLOCK_SOURCE:
 			return parse_clock_source_unit(state, unitid, p1);
+		case UAC3_SELECTOR_UNIT:
 		case UAC3_CLOCK_SELECTOR:
 			return parse_audio_selector_unit(state, unitid, p1);
 		case UAC3_FEATURE_UNIT:
