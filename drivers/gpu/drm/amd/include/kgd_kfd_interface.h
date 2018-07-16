@@ -282,6 +282,9 @@ struct tile_config {
  *
  * @gpu_recover: let kgd reset gpu after kfd detect CPC hang
  *
+ * @set_compute_idle: Indicates that compute is idle on a device. This
+ * can be used to change power profiles depending on compute activity.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -403,6 +406,8 @@ struct kfd2kgd_calls {
 	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
 
 	void (*gpu_recover)(struct kgd_dev *kgd);
+
+	void (*set_compute_idle)(struct kgd_dev *kgd, bool idle);
 };
 
 /**
