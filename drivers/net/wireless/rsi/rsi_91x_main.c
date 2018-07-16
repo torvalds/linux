@@ -331,7 +331,6 @@ struct rsi_hw *rsi_91x_init(u16 oper_mode)
 	spin_lock_init(&adapter->ps_lock);
 	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
 	init_completion(&common->wlan_init_completion);
-	common->init_done = true;
 	adapter->device_model = RSI_DEV_9113;
 	common->oper_mode = oper_mode;
 
@@ -369,6 +368,7 @@ struct rsi_hw *rsi_91x_init(u16 oper_mode)
 	}
 #endif
 
+	common->init_done = true;
 	return adapter;
 
 err:
