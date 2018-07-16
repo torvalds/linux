@@ -372,11 +372,11 @@ static bool is_sharable_clk_src(
 		return false;
 
 	if (dc_is_hdmi_signal(pipe_with_clk_src->stream->signal)
-			&& dc_is_dvi_signal(pipe->stream->signal))
+			&& dc_is_dual_link_signal(pipe->stream->signal))
 		return false;
 
 	if (dc_is_hdmi_signal(pipe->stream->signal)
-			&& dc_is_dvi_signal(pipe_with_clk_src->stream->signal))
+			&& dc_is_dual_link_signal(pipe_with_clk_src->stream->signal))
 		return false;
 
 	if (!resource_are_streams_timing_synchronizable(
