@@ -962,9 +962,6 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
 	baud = tty->termios.c_ospeed;
-	tty->termios.c_ispeed = baud;
-	/* Re-encode speed */
-	tty_encode_baud_rate(tty, baud, baud);
 
 	dev_dbg(dev, "%s - baud %d\n", __func__, baud);
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
