@@ -211,7 +211,8 @@ void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
 	if (!ring->funcs->set_priority)
 		return;
 
-	atomic_inc(&ring->num_jobs[priority]);
+	if (atomic_inc_return(&ring->num_jobs[priority]) <= 0)
+		return;
 
 	mutex_lock(&ring->priority_mutex);
 	if (priority <= ring->priority)
