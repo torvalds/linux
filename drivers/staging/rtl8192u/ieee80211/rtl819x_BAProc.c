@@ -634,7 +634,7 @@ TsInitAddBA(
 
 	ActivateBAEntry(ieee, pBA, BA_SETUP_TIMEOUT);
 
-	ieee80211_send_ADDBAReq(ieee, pTS->TsCommonInfo.Addr, pBA);
+	ieee80211_send_ADDBAReq(ieee, pTS->TsCommonInfo.addr, pBA);
 }
 
 void
@@ -646,7 +646,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 		if (TxTsDeleteBA(ieee, pTxTs))
 			ieee80211_send_DELBA(
 				ieee,
-				pTsCommonInfo->Addr,
+				pTsCommonInfo->addr,
 				(pTxTs->TxAdmittedBARecord.bValid)?(&pTxTs->TxAdmittedBARecord):(&pTxTs->TxPendingBARecord),
 				TxRxSelect,
 				DELBA_REASON_END_BA);
@@ -655,7 +655,7 @@ TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo,
 		if (RxTsDeleteBA(ieee, pRxTs))
 			ieee80211_send_DELBA(
 				ieee,
-				pTsCommonInfo->Addr,
+				pTsCommonInfo->addr,
 				&pRxTs->RxAdmittedBARecord,
 				TxRxSelect,
 				DELBA_REASON_END_BA);
@@ -683,7 +683,7 @@ void TxBaInactTimeout(struct timer_list *t)
 	TxTsDeleteBA(ieee, pTxTs);
 	ieee80211_send_DELBA(
 		ieee,
-		pTxTs->TsCommonInfo.Addr,
+		pTxTs->TsCommonInfo.addr,
 		&pTxTs->TxAdmittedBARecord,
 		TX_DIR,
 		DELBA_REASON_TIMEOUT);
@@ -697,7 +697,7 @@ void RxBaInactTimeout(struct timer_list *t)
 	RxTsDeleteBA(ieee, pRxTs);
 	ieee80211_send_DELBA(
 		ieee,
-		pRxTs->TsCommonInfo.Addr,
+		pRxTs->TsCommonInfo.addr,
 		&pRxTs->RxAdmittedBARecord,
 		RX_DIR,
 		DELBA_REASON_TIMEOUT);

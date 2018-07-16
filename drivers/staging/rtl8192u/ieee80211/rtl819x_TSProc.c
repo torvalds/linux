@@ -103,7 +103,7 @@ static void TsAddBaProcess(struct timer_list *t)
 
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
-	eth_zero_addr(pTsCommonInfo->Addr);
+	eth_zero_addr(pTsCommonInfo->addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
@@ -247,7 +247,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 			continue;
 		list_for_each_entry(pRet, psearch_list, list){
 	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
-			if (memcmp(pRet->Addr, Addr, 6) == 0)
+			if (memcmp(pRet->addr, Addr, 6) == 0)
 				if (pRet->TSpec.f.TSInfo.field.ucTSID == TID)
 					if(pRet->TSpec.f.TSInfo.field.ucDirection == dir) {
 	//					printk("Bingo! got it\n");
@@ -273,7 +273,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	if(pTsCommonInfo == NULL)
 		return;
 
-	memcpy(pTsCommonInfo->Addr, Addr, 6);
+	memcpy(pTsCommonInfo->addr, Addr, 6);
 
 	if(pTSPEC != NULL)
 		memcpy((u8 *)(&(pTsCommonInfo->TSpec)), (u8 *)pTSPEC, sizeof(TSPEC_BODY));
@@ -458,7 +458,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 
 	printk("===========>RemovePeerTS,%pM\n", Addr);
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, list) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->list);
 			list_add_tail(&pTS->list, &ieee->Tx_TS_Unused_List);
@@ -466,7 +466,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, list) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, Addr, 6) == 0) {
 			printk("====>remove Tx_TS_admin_list\n");
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->list);
@@ -475,7 +475,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, list) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->list);
 			list_add_tail(&pTS->list, &ieee->Rx_TS_Unused_List);
@@ -483,7 +483,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, list) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->list);
 			list_add_tail(&pTS->list, &ieee->Rx_TS_Unused_List);
