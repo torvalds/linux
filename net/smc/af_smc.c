@@ -1524,10 +1524,13 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 			return -EBADF;
 		return smc->clcsock->ops->ioctl(smc->clcsock, cmd, arg);
 	}
+	lock_sock(&smc->sk);
 	switch (cmd) {
 	case SIOCINQ: /* same as FIONREAD */
-		if (smc->sk.sk_state == SMC_LISTEN)
+		if (smc->sk.sk_state == SMC_LISTEN) {
+			release_sock(&smc->sk);
 			return -EINVAL;
+		}
 		if (smc->sk.sk_state == SMC_INIT ||
 		    smc->sk.sk_state == SMC_CLOSED)
 			answ = 0;
@@ -1536,8 +1539,10 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 	case SIOCOUTQ:
 		/* output queue size (not send + not acked) */
-		if (smc->sk.sk_state == SMC_LISTEN)
+		if (smc->sk.sk_state == SMC_LISTEN) {
+			release_sock(&smc->sk);
 			return -EINVAL;
+		}
 		if (smc->sk.sk_state == SMC_INIT ||
 		    smc->sk.sk_state == SMC_CLOSED)
 			answ = 0;
@@ -1547,8 +1552,10 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 	case SIOCOUTQNSD:
 		/* output queue size (not send only) */
-		if (smc->sk.sk_state == SMC_LISTEN)
+		if (smc->sk.sk_state == SMC_LISTEN) {
+			release_sock(&smc->sk);
 			return -EINVAL;
+		}
 		if (smc->sk.sk_state == SMC_INIT ||
 		    smc->sk.sk_state == SMC_CLOSED)
 			answ = 0;
@@ -1556,8 +1563,10 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 			answ = smc_tx_prepared_sends(&smc->conn);
 		break;
 	case SIOCATMARK:
-		if (smc->sk.sk_state == SMC_LISTEN)
+		if (smc->sk.sk_state == SMC_LISTEN) {
+			release_sock(&smc->sk);
 			return -EINVAL;
+		}
 		if (smc->sk.sk_state == SMC_INIT ||
 		    smc->sk.sk_state == SMC_CLOSED) {
 			answ = 0;
@@ -1573,8 +1582,10 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		}
 		break;
 	default:
+		release_sock(&smc->sk);
 		return -ENOIOCTLCMD;
 	}
+	release_sock(&smc->sk);
 
 	return put_user(answ, (int __user *)arg);
 }
