@@ -208,6 +208,7 @@ static struct variant_data variant_qcom = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_ROD,
+	.init			= qcom_variant_init,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -417,7 +418,6 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 static void mmci_dma_setup(struct mmci_host *host)
 {
 	const char *rxname, *txname;
-	struct variant_data *variant = host->variant;
 
 	host->dma_rx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
 	host->dma_tx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "tx");
@@ -465,9 +465,8 @@ static void mmci_dma_setup(struct mmci_host *host)
 			host->mmc->max_seg_size = max_seg_size;
 	}
 
-	if (variant->qcom_dml && host->dma_rx_channel && host->dma_tx_channel)
-		if (dml_hw_init(host, host->mmc->parent->of_node))
-			variant->qcom_dml = false;
+	if (host->ops && host->ops->dma_setup)
+		host->ops->dma_setup(host);
 }
 
 /*
