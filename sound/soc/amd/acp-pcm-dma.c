@@ -322,17 +322,27 @@ static void config_acp_dma(void __iomem *acp_mmio,
 			   struct audio_substream_data *rtd,
 			   u32 asic_type)
 {
+	u16 ch_acp_sysmem, ch_acp_i2s;
+
 	acp_pte_config(acp_mmio, rtd->pg, rtd->num_of_pages,
 		       rtd->pte_offset);
+
+	if (rtd->direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		ch_acp_sysmem = rtd->ch1;
+		ch_acp_i2s = rtd->ch2;
+	} else {
+		ch_acp_i2s = rtd->ch1;
+		ch_acp_sysmem = rtd->ch2;
+	}
 	/* Configure System memory <-> ACP SRAM DMA descriptors */
 	set_acp_sysmem_dma_descriptors(acp_mmio, rtd->size,
 				       rtd->direction, rtd->pte_offset,
-				       rtd->ch1, rtd->sram_bank,
+				       ch_acp_sysmem, rtd->sram_bank,
 				       rtd->dma_dscr_idx_1, asic_type);
 	/* Configure ACP SRAM <-> I2S DMA descriptors */
 	set_acp_to_i2s_dma_descriptors(acp_mmio, rtd->size,
 				       rtd->direction, rtd->sram_bank,
-				       rtd->destination, rtd->ch2,
+				       rtd->destination, ch_acp_i2s,
 				       rtd->dma_dscr_idx_2, asic_type);
 }
 
@@ -995,16 +1005,24 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
+	u16 ch_acp_sysmem, ch_acp_i2s;
 
 	if (!rtd)
 		return -EINVAL;
 
+	if (rtd->direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		ch_acp_sysmem = rtd->ch1;
+		ch_acp_i2s = rtd->ch2;
+	} else {
+		ch_acp_i2s = rtd->ch1;
+		ch_acp_sysmem = rtd->ch2;
+	}
 	config_acp_dma_channel(rtd->acp_mmio,
-			       rtd->ch1,
+			       ch_acp_sysmem,
 			       rtd->dma_dscr_idx_1,
 			       NUM_DSCRS_PER_CHANNEL, 0);
 	config_acp_dma_channel(rtd->acp_mmio,
-			       rtd->ch2,
+			       ch_acp_i2s,
 			       rtd->dma_dscr_idx_2,
 			       NUM_DSCRS_PER_CHANNEL, 0);
 	return 0;
