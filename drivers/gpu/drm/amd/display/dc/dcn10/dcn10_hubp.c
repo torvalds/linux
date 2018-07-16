@@ -485,7 +485,8 @@ void hubp1_program_surface_config(
 	union plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror)
+	bool horizontal_mirror,
+	unsigned int compat_level)
 {
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);

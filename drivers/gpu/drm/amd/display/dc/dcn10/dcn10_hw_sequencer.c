@@ -2004,6 +2004,7 @@ static void update_dchubp_dpp(
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
+	unsigned int compat_level = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	/* If request max dpp clk is lower than current dispclk, no need to
@@ -2095,7 +2096,8 @@ static void update_dchubp_dpp(
 			&size,
 			plane_state->rotation,
 			&plane_state->dcc,
-			plane_state->horizontal_mirror);
+			plane_state->horizontal_mirror,
+			compat_level);
 	}
 
 	hubp->power_gated = false;
