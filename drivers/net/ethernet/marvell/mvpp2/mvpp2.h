@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for Marvell PPv2 network controller for Armada 375 SoC.
  *
  * Copyright (C) 2014 Marvell
  *
  * Marcin Wojtas <mw@semihalf.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #ifndef _MVPP2_H_
 #define _MVPP2_H_
@@ -67,6 +64,9 @@
 #define MVPP2_PRS_SRAM_DATA_REG(idx)		(0x1204 + (idx) * 4)
 #define MVPP2_PRS_TCAM_CTRL_REG			0x1230
 #define     MVPP2_PRS_TCAM_EN_MASK		BIT(0)
+#define MVPP2_PRS_TCAM_HIT_IDX_REG		0x1240
+#define MVPP2_PRS_TCAM_HIT_CNT_REG		0x1244
+#define     MVPP2_PRS_TCAM_HIT_CNT_MASK		GENMASK(15, 0)
 
 /* RSS Registers */
 #define MVPP22_RSS_INDEX			0x1500
@@ -124,6 +124,7 @@
 #define MVPP22_CLS_C2_TCAM_DATA3		0x1b1c
 #define MVPP22_CLS_C2_TCAM_DATA4		0x1b20
 #define     MVPP22_CLS_C2_PORT_ID(port)		((port) << 8)
+#define MVPP22_CLS_C2_HIT_CTR			0x1b50
 #define MVPP22_CLS_C2_ACT			0x1b60
 #define     MVPP22_CLS_C2_ACT_RSS_EN(act)	(((act) & 0x3) << 19)
 #define     MVPP22_CLS_C2_ACT_FWD(act)		(((act) & 0x7) << 13)
@@ -132,8 +133,10 @@
 #define MVPP22_CLS_C2_ATTR0			0x1b64
 #define     MVPP22_CLS_C2_ATTR0_QHIGH(qh)	(((qh) & 0x1f) << 24)
 #define     MVPP22_CLS_C2_ATTR0_QHIGH_MASK	0x1f
+#define     MVPP22_CLS_C2_ATTR0_QHIGH_OFFS	24
 #define     MVPP22_CLS_C2_ATTR0_QLOW(ql)	(((ql) & 0x7) << 21)
 #define     MVPP22_CLS_C2_ATTR0_QLOW_MASK	0x7
+#define     MVPP22_CLS_C2_ATTR0_QLOW_OFFS	21
 #define MVPP22_CLS_C2_ATTR1			0x1b68
 #define MVPP22_CLS_C2_ATTR2			0x1b6c
 #define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)
@@ -315,6 +318,11 @@
 #define     MVPP22_BM_ADDR_HIGH_PHYS_RLS_MASK	0xff
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK	0xff00
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT	8
+
+/* Hit counters registers */
+#define MVPP2_CTRS_IDX				0x7040
+#define MVPP2_CLS_DEC_TBL_HIT_CTR		0x7700
+#define MVPP2_CLS_FLOW_TBL_HIT_CTR		0x7704
 
 /* TX Scheduler registers */
 #define MVPP2_TXP_SCHED_PORT_INDEX_REG		0x8000
@@ -749,6 +757,9 @@ struct mvpp2 {
 	/* Workqueue to gather hardware statistics */
 	char queue_name[30];
 	struct workqueue_struct *stats_queue;
+
+	/* Debugfs root entry */
+	struct dentry *dbgfs_dir;
 };
 
 struct mvpp2_pcpu_stats {
@@ -1091,5 +1102,9 @@ u32 mvpp2_percpu_read(struct mvpp2 *priv, int cpu, u32 offset);
 
 void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, int cpu, u32 offset,
 				u32 data);
+
+void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name);
+
+void mvpp2_dbgfs_cleanup(struct mvpp2 *priv);
 
 #endif

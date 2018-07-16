@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Header Parser helpers for Marvell PPv2 Network Controller
  *
  * Copyright (C) 2014 Marvell
  *
  * Marcin Wojtas <mw@semihalf.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/kernel.h>
@@ -46,8 +43,8 @@ static int mvpp2_prs_hw_write(struct mvpp2 *priv, struct mvpp2_prs_entry *pe)
 }
 
 /* Initialize tcam entry from hw */
-static int mvpp2_prs_init_from_hw(struct mvpp2 *priv,
-				  struct mvpp2_prs_entry *pe, int tid)
+int mvpp2_prs_init_from_hw(struct mvpp2 *priv, struct mvpp2_prs_entry *pe,
+			   int tid)
 {
 	int i;
 
@@ -129,7 +126,7 @@ static void mvpp2_prs_tcam_port_map_set(struct mvpp2_prs_entry *pe,
 }
 
 /* Obtain port map from tcam sw entry */
-static unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe)
+unsigned int mvpp2_prs_tcam_port_map_get(struct mvpp2_prs_entry *pe)
 {
 	return (~pe->tcam[MVPP2_PRS_TCAM_PORT_WORD] >> 24) & MVPP2_PRS_PORT_MASK;
 }
@@ -148,9 +145,9 @@ static void mvpp2_prs_tcam_data_byte_set(struct mvpp2_prs_entry *pe,
 }
 
 /* Get byte of data and its enable bits from tcam sw entry */
-static void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
-					 unsigned int offs, unsigned char *byte,
-					 unsigned char *enable)
+void mvpp2_prs_tcam_data_byte_get(struct mvpp2_prs_entry *pe,
+				  unsigned int offs, unsigned char *byte,
+				  unsigned char *enable)
 {
 	int pos = MVPP2_PRS_BYTE_IN_WORD(offs) * BITS_PER_BYTE;
 
@@ -2480,4 +2477,20 @@ int mvpp2_prs_def_flow(struct mvpp2_port *port)
 	mvpp2_prs_hw_write(port->priv, &pe);
 
 	return 0;
+}
+
+int mvpp2_prs_hits(struct mvpp2 *priv, int index)
+{
+	u32 val;
+
+	if (index > MVPP2_PRS_TCAM_SRAM_SIZE)
+		return -EINVAL;
+
+	mvpp2_write(priv, MVPP2_PRS_TCAM_HIT_IDX_REG, index);
+
+	val = mvpp2_read(priv, MVPP2_PRS_TCAM_HIT_CNT_REG);
+
+	val &= MVPP2_PRS_TCAM_HIT_CNT_MASK;
+
+	return val;
 }

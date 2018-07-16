@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * RSS and Classifier definitions for Marvell PPv2 Network Controller
  *
  * Copyright (C) 2014 Marvell
  *
  * Marcin Wojtas <mw@semihalf.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #ifndef _MVPP2_CLS_H_
@@ -211,5 +208,26 @@ void mvpp2_cls_init(struct mvpp2 *priv);
 void mvpp2_cls_port_config(struct mvpp2_port *port);
 
 void mvpp2_cls_oversize_rxq_set(struct mvpp2_port *port);
+
+int mvpp2_cls_flow_eng_get(struct mvpp2_cls_flow_entry *fe);
+
+u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe);
+
+struct mvpp2_cls_flow *mvpp2_cls_flow_get(int flow);
+
+u32 mvpp2_cls_flow_hits(struct mvpp2 *priv, int index);
+
+void mvpp2_cls_flow_read(struct mvpp2 *priv, int index,
+			 struct mvpp2_cls_flow_entry *fe);
+
+u32 mvpp2_cls_lookup_hits(struct mvpp2 *priv, int index);
+
+void mvpp2_cls_lookup_read(struct mvpp2 *priv, int lkpid, int way,
+			   struct mvpp2_cls_lookup_entry *le);
+
+u32 mvpp2_cls_c2_hit_count(struct mvpp2 *priv, int c2_index);
+
+void mvpp2_cls_c2_read(struct mvpp2 *priv, int index,
+		       struct mvpp2_cls_c2_entry *c2);
 
 #endif
