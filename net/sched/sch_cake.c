@@ -1546,7 +1546,7 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 	if (TC_H_MAJ(skb->priority) == sch->handle &&
 	    TC_H_MIN(skb->priority) > 0 &&
 	    TC_H_MIN(skb->priority) <= q->tin_cnt) {
-		tin = TC_H_MIN(skb->priority) - 1;
+		tin = q->tin_order[TC_H_MIN(skb->priority) - 1];
 
 		if (q->rate_flags & CAKE_FLAG_WASH)
 			cake_wash_diffserv(skb);
