@@ -122,6 +122,8 @@ Rockchip platforms device tree bindings
 - Rockchip RK3326 evb board:
     Required root node properties:
       - compatible = "rockchip,rk3326-evb-lp3-v10", "rockchip,rk3326";
+    Or
+      - compatible = "rockchip,rk3326-evb-lp3-v10-linux", "rockchip,rk3326";
 
 - Rockchip PX30 evb ddr3 board:
     Required root node properties:
