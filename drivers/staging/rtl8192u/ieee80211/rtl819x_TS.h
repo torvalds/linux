@@ -16,7 +16,7 @@ enum tr_select {
 };
 
 struct ts_common_info {
-	struct list_head		List;
+	struct list_head		list;
 	struct timer_list		SetupTimer;
 	struct timer_list		InactTimer;
 	u8				Addr[6];
