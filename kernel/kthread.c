@@ -177,9 +177,20 @@ void *kthread_probe_data(struct task_struct *task)
 static void __kthread_parkme(struct kthread *self)
 {
 	for (;;) {
-		set_current_state(TASK_PARKED);
+		/*
+		 * TASK_PARKED is a special state; we must serialize against
+		 * possible pending wakeups to avoid store-store collisions on
+		 * task->state.
+		 *
+		 * Such a collision might possibly result in the task state
+		 * changin from TASK_PARKED and us failing the
+		 * wait_task_inactive() in kthread_park().
+		 */
+		set_special_state(TASK_PARKED);
 		if (!test_bit(KTHREAD_SHOULD_PARK, &self->flags))
 			break;
+
+		complete_all(&self->parked);
 		schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -190,11 +201,6 @@ void kthread_parkme(void)
 	__kthread_parkme(to_kthread(current));
 }
 EXPORT_SYMBOL_GPL(kthread_parkme);
-
-void kthread_park_complete(struct task_struct *k)
-{
-	complete_all(&to_kthread(k)->parked);
-}
 
 static int kthread(void *_create)
 {
@@ -461,6 +467,9 @@ void kthread_unpark(struct task_struct *k)
 
 	reinit_completion(&kthread->parked);
 	clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
+	/*
+	 * __kthread_parkme() will either see !SHOULD_PARK or get the wakeup.
+	 */
 	wake_up_state(k, TASK_PARKED);
 }
 EXPORT_SYMBOL_GPL(kthread_unpark);
@@ -487,7 +496,16 @@ int kthread_park(struct task_struct *k)
 	set_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
 	if (k != current) {
 		wake_up_process(k);
+		/*
+		 * Wait for __kthread_parkme() to complete(), this means we
+		 * _will_ have TASK_PARKED and are about to call schedule().
+		 */
 		wait_for_completion(&kthread->parked);
+		/*
+		 * Now wait for that schedule() to complete and the task to
+		 * get scheduled out.
+		 */
+		WARN_ON_ONCE(!wait_task_inactive(k, TASK_PARKED));
 	}
 
 	return 0;
