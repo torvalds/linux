@@ -1424,6 +1424,7 @@ out_fini:
 	drm_dev_fini(&dev_priv->drm);
 out_free:
 	kfree(dev_priv);
+	pci_set_drvdata(pdev, NULL);
 	return ret;
 }
 
