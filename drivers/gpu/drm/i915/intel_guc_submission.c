@@ -628,6 +628,9 @@ static void complete_preempt_context(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
 
+	if (inject_preempt_hang(execlists))
+		return;
+
 	execlists_cancel_port_requests(execlists);
 	execlists_unwind_incomplete_requests(execlists);
 

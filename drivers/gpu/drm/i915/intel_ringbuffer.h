@@ -193,6 +193,11 @@ struct i915_priolist {
 	int priority;
 };
 
+struct st_preempt_hang {
+	struct completion completion;
+	bool inject_hang;
+};
+
 /**
  * struct intel_engine_execlists - execlist submission queue and port state
  *
@@ -333,6 +338,8 @@ struct intel_engine_execlists {
 	 * @csb_head: context status buffer head
 	 */
 	u8 csb_head;
+
+	I915_SELFTEST_DECLARE(struct st_preempt_hang preempt_hang;)
 };
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
@@ -1154,5 +1161,25 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine);
 void intel_disable_engine_stats(struct intel_engine_cs *engine);
 
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+
+static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
+{
+	if (!execlists->preempt_hang.inject_hang)
+		return false;
+
+	complete(&execlists->preempt_hang.completion);
+	return true;
+}
+
+#else
+
+static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
+{
+	return false;
+}
+
+#endif
 
 #endif /* _INTEL_RINGBUFFER_H_ */
