@@ -148,7 +148,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 		// DLS related timer will be add here in the future!!
 		timer_setup(&pTxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
 			    0);
-		timer_setup(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+		timer_setup(&pTxTS->TsCommonInfo.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
 		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
@@ -169,7 +169,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
 		timer_setup(&pRxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
 			    0);
-		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+		timer_setup(&pRxTS->TsCommonInfo.inact_timer, TsInactTimeout,
 			    0);
 		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
 			    RxBaInactTimeout, 0);
@@ -194,10 +194,10 @@ static void AdmitTS(struct ieee80211_device *ieee,
 		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->setup_timer);
-	del_timer_sync(&pTsCommonInfo->InactTimer);
+	del_timer_sync(&pTsCommonInfo->inact_timer);
 
 	if(InactTime!=0)
-		mod_timer(&pTsCommonInfo->InactTimer,
+		mod_timer(&pTsCommonInfo->inact_timer,
 			  jiffies + msecs_to_jiffies(InactTime));
 }
 
@@ -413,7 +413,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 	//u32 flags = 0;
 	unsigned long flags = 0;
 	del_timer_sync(&pTs->setup_timer);
-	del_timer_sync(&pTs->InactTimer);
+	del_timer_sync(&pTs->inact_timer);
 	TsInitDelBA(ieee, pTs, TxRxSelect);
 
 	if(TxRxSelect == RX_DIR) {
