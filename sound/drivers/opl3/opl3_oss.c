@@ -233,11 +233,8 @@ static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd,
 				  unsigned long ioarg)
 {
-	struct snd_opl3 *opl3;
-
 	if (snd_BUG_ON(!arg))
 		return -ENXIO;
-	opl3 = arg->private_data;
 	switch (cmd) {
 		case SNDCTL_FM_LOAD_INSTR:
 			snd_printk(KERN_ERR "OPL3: "
@@ -261,11 +258,8 @@ static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd,
 /* reset device */
 static int snd_opl3_reset_seq_oss(struct snd_seq_oss_arg *arg)
 {
-	struct snd_opl3 *opl3;
-
 	if (snd_BUG_ON(!arg))
 		return -ENXIO;
-	opl3 = arg->private_data;
 
 	return 0;
 }
