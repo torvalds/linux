@@ -28,6 +28,7 @@ struct qcom_rng {
 	struct mutex lock;
 	void __iomem *base;
 	struct clk *clk;
+	unsigned int skip_init;
 };
 
 struct qcom_rng_ctx {
@@ -128,7 +129,10 @@ static int qcom_rng_init(struct crypto_tfm *tfm)
 
 	ctx->rng = qcom_rng_dev;
 
-	return qcom_rng_enable(ctx->rng);
+	if (!ctx->rng->skip_init)
+		return qcom_rng_enable(ctx->rng);
+
+	return 0;
 }
 
 static struct rng_alg qcom_rng_alg = {
@@ -168,6 +172,8 @@ static int qcom_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(rng->clk))
 		return PTR_ERR(rng->clk);
 
+	rng->skip_init = (unsigned long)device_get_match_data(&pdev->dev);
+
 	qcom_rng_dev = rng;
 	ret = crypto_register_rng(&qcom_rng_alg);
 	if (ret) {
@@ -188,7 +194,8 @@ static int qcom_rng_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id qcom_rng_of_match[] = {
-	{ .compatible = "qcom,prng" },
+	{ .compatible = "qcom,prng", .data = (void *)0},
+	{ .compatible = "qcom,prng-ee", .data = (void *)1},
 	{}
 };
 MODULE_DEVICE_TABLE(of, qcom_rng_of_match);
