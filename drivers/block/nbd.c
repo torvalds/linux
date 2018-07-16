@@ -112,12 +112,15 @@ struct nbd_device {
 	struct task_struct *task_setup;
 };
 
+#define NBD_CMD_REQUEUED	1
+
 struct nbd_cmd {
 	struct nbd_device *nbd;
 	int index;
 	int cookie;
 	struct completion send_complete;
 	blk_status_t status;
+	unsigned long flags;
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -144,6 +147,14 @@ static void nbd_disconnect_and_put(struct nbd_device *nbd);
 static inline struct device *nbd_to_dev(struct nbd_device *nbd)
 {
 	return disk_to_dev(nbd->disk);
+}
+
+static void nbd_requeue_cmd(struct nbd_cmd *cmd)
+{
+	struct request *req = blk_mq_rq_from_pdu(cmd);
+
+	if (!test_and_set_bit(NBD_CMD_REQUEUED, &cmd->flags))
+		blk_mq_requeue_request(req, true);
 }
 
 static const char *nbdcmd_to_ascii(int cmd)
@@ -328,7 +339,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 					nbd_mark_nsock_dead(nbd, nsock, 1);
 				mutex_unlock(&nsock->tx_lock);
 			}
-			blk_mq_requeue_request(req, true);
+			nbd_requeue_cmd(cmd);
 			nbd_config_put(nbd);
 			return BLK_EH_NOT_HANDLED;
 		}
@@ -484,6 +495,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 				nsock->pending = req;
 				nsock->sent = sent;
 			}
+			set_bit(NBD_CMD_REQUEUED, &cmd->flags);
 			return BLK_STS_RESOURCE;
 		}
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
@@ -525,6 +537,7 @@ send_pages:
 					 */
 					nsock->pending = req;
 					nsock->sent = sent;
+					set_bit(NBD_CMD_REQUEUED, &cmd->flags);
 					return BLK_STS_RESOURCE;
 				}
 				dev_err(disk_to_dev(nbd->disk),
@@ -793,7 +806,7 @@ again:
 	 */
 	blk_mq_start_request(req);
 	if (unlikely(nsock->pending && nsock->pending != req)) {
-		blk_mq_requeue_request(req, true);
+		nbd_requeue_cmd(cmd);
 		ret = 0;
 		goto out;
 	}
@@ -806,7 +819,7 @@ again:
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
 				    "Request send failed, requeueing\n");
 		nbd_mark_nsock_dead(nbd, nsock, 1);
-		blk_mq_requeue_request(req, true);
+		nbd_requeue_cmd(cmd);
 		ret = 0;
 	}
 out:
@@ -831,6 +844,7 @@ static blk_status_t nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * done sending everything over the wire.
 	 */
 	init_completion(&cmd->send_complete);
+	clear_bit(NBD_CMD_REQUEUED, &cmd->flags);
 
 	/* We can be called directly from the user space process, which means we
 	 * could possibly have signals pending so our sendmsg will fail.  In
@@ -1446,6 +1460,7 @@ static int nbd_init_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	cmd->nbd = set->driver_data;
+	cmd->flags = 0;
 	return 0;
 }
 
