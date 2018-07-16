@@ -121,6 +121,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		.encrypted_page = NULL,
 		.io_type = FS_DATA_IO,
 	};
+	struct node_info ni;
 	int dirty, err;
 
 	if (!f2fs_exist_data(dn->inode))
@@ -129,6 +130,14 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	err = f2fs_reserve_block(dn, 0);
 	if (err)
 		return err;
+
+	err = f2fs_get_node_info(fio.sbi, dn->nid, &ni);
+	if (err) {
+		f2fs_put_dnode(dn);
+		return err;
+	}
+
+	fio.version = ni.version;
 
 	if (unlikely(dn->data_blkaddr != NEW_ADDR)) {
 		f2fs_put_dnode(dn);
@@ -690,7 +699,10 @@ int f2fs_inline_data_fiemap(struct inode *inode,
 		ilen = start + len;
 	ilen -= start;
 
-	f2fs_get_node_info(F2FS_I_SB(inode), inode->i_ino, &ni);
+	err = f2fs_get_node_info(F2FS_I_SB(inode), inode->i_ino, &ni);
+	if (err)
+		goto out;
+
 	byteaddr = (__u64)ni.blk_addr << inode->i_sb->s_blocksize_bits;
 	byteaddr += (char *)inline_data_addr(inode, ipage) -
 					(char *)F2FS_INODE(ipage);
