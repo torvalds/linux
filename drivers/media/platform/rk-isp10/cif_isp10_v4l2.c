@@ -1788,6 +1788,7 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_mp_ioctlops = {
 	.vidioc_s_ctrl = cif_isp10_v4l2_s_ctrl,
 	.vidioc_s_fmt_vid_cap = cif_isp10_v4l2_s_fmt,
 	.vidioc_g_fmt_vid_cap = cif_isp10_v4l2_g_fmt,
+	.vidioc_s_ext_ctrls = v4l2_s_ext_ctrls,
 	.vidioc_enum_fmt_vid_cap = v4l2_enum_fmt_cap,
 	.vidioc_enum_framesizes = cif_isp10_v4l2_enum_framesizes,
 	.vidioc_expbuf = vb2_ioctl_expbuf,
