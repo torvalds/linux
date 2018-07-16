@@ -1683,6 +1683,16 @@
 #define ULP_TX_LA_RDPTR_0_A 0x8ec0
 #define ULP_TX_LA_RDDATA_0_A 0x8ec4
 #define ULP_TX_LA_WRPTR_0_A 0x8ec8
+#define ULP_TX_ASIC_DEBUG_CTRL_A 0x8f70
+
+#define ULP_TX_ASIC_DEBUG_0_A 0x8f74
+#define ULP_TX_ASIC_DEBUG_1_A 0x8f78
+#define ULP_TX_ASIC_DEBUG_2_A 0x8f7c
+#define ULP_TX_ASIC_DEBUG_3_A 0x8f80
+#define ULP_TX_ASIC_DEBUG_4_A 0x8f84
+
+/* registers for module PM_RX */
+#define PM_RX_BASE_ADDR 0x8fc0
 
 #define PMRX_E_PCMD_PAR_ERROR_S    0
 #define PMRX_E_PCMD_PAR_ERROR_V(x) ((x) << PMRX_E_PCMD_PAR_ERROR_S)

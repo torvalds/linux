@@ -2586,15 +2586,24 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_ulptx_la *ulptx_la_buff;
+	struct cudbg_ver_hdr *ver_hdr;
 	u32 i, j;
 	int rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_ulptx_la),
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(struct cudbg_ver_hdr) +
+			    sizeof(struct cudbg_ulptx_la),
 			    &temp_buff);
 	if (rc)
 		return rc;
 
-	ulptx_la_buff = (struct cudbg_ulptx_la *)temp_buff.data;
+	ver_hdr = (struct cudbg_ver_hdr *)temp_buff.data;
+	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;
+	ver_hdr->revision = CUDBG_ULPTX_LA_REV;
+	ver_hdr->size = sizeof(struct cudbg_ulptx_la);
+
+	ulptx_la_buff = (struct cudbg_ulptx_la *)(temp_buff.data +
+						  sizeof(*ver_hdr));
 	for (i = 0; i < CUDBG_NUM_ULPTX; i++) {
 		ulptx_la_buff->rdptr[i] = t4_read_reg(padap,
 						      ULP_TX_LA_RDPTR_0_A +
@@ -2610,6 +2619,25 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 				t4_read_reg(padap,
 					    ULP_TX_LA_RDDATA_0_A + 0x10 * i);
 	}
+
+	for (i = 0; i < CUDBG_NUM_ULPTX_ASIC_READ; i++) {
+		t4_write_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A, 0x1);
+		ulptx_la_buff->rdptr_asic[i] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A);
+		ulptx_la_buff->rddata_asic[i][0] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_0_A);
+		ulptx_la_buff->rddata_asic[i][1] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_1_A);
+		ulptx_la_buff->rddata_asic[i][2] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_2_A);
+		ulptx_la_buff->rddata_asic[i][3] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_3_A);
+		ulptx_la_buff->rddata_asic[i][4] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_4_A);
+		ulptx_la_buff->rddata_asic[i][5] =
+				t4_read_reg(padap, PM_RX_BASE_ADDR);
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

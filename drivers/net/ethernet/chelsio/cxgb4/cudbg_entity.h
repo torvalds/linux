@@ -281,12 +281,18 @@ struct cudbg_tid_data {
 
 #define CUDBG_NUM_ULPTX 11
 #define CUDBG_NUM_ULPTX_READ 512
+#define CUDBG_NUM_ULPTX_ASIC 6
+#define CUDBG_NUM_ULPTX_ASIC_READ 128
+
+#define CUDBG_ULPTX_LA_REV 1
 
 struct cudbg_ulptx_la {
 	u32 rdptr[CUDBG_NUM_ULPTX];
 	u32 wrptr[CUDBG_NUM_ULPTX];
 	u32 rddata[CUDBG_NUM_ULPTX];
 	u32 rd_data[CUDBG_NUM_ULPTX][CUDBG_NUM_ULPTX_READ];
+	u32 rdptr_asic[CUDBG_NUM_ULPTX_ASIC_READ];
+	u32 rddata_asic[CUDBG_NUM_ULPTX_ASIC_READ][CUDBG_NUM_ULPTX_ASIC];
 };
 
 #define CUDBG_CHAC_PBT_ADDR 0x2800

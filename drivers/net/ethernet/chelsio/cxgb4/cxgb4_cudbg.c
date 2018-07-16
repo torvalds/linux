@@ -273,7 +273,8 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		}
 		break;
 	case CUDBG_ULPTX_LA:
-		len = sizeof(struct cudbg_ulptx_la);
+		len = sizeof(struct cudbg_ver_hdr) +
+		      sizeof(struct cudbg_ulptx_la);
 		break;
 	case CUDBG_UP_CIM_INDIRECT:
 		n = 0;
