@@ -811,6 +811,11 @@ static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 	WRITE_ONCE(*execlists->csb_write, execlists->csb_write_reset);
 }
 
+static void nop_submission_tasklet(unsigned long data)
+{
+	/* The driver is wedged; don't process any more events. */
+}
+
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -869,6 +874,9 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	execlists->queue_priority = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
 	GEM_BUG_ON(port_isset(execlists->port));
+
+	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
+	execlists->tasklet.func = nop_submission_tasklet;
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
