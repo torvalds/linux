@@ -466,7 +466,7 @@ void pti_clone_kernel_text(void)
  * the other set_memory.h functions.  Just extern it.
  */
 extern int set_memory_nonglobal(unsigned long addr, int numpages);
-void pti_set_kernel_image_nonglobal(void)
+static void pti_set_kernel_image_nonglobal(void)
 {
 	/*
 	 * The identity map is created with PMDs, regardless of the
