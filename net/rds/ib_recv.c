@@ -376,8 +376,6 @@ static void release_refill(struct rds_connection *conn)
  * This tries to allocate and post unused work requests after making sure that
  * they have all the allocations they need to queue received fragments into
  * sockets.
- *
- * -1 is returned if posting fails due to temporary resource exhaustion.
  */
 void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 {
