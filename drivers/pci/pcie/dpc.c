@@ -64,18 +64,12 @@ static int dpc_wait_rp_inactive(struct dpc_dev *dpc)
 	return 0;
 }
 
-static void dpc_wait_link_inactive(struct dpc_dev *dpc)
-{
-	struct pci_dev *pdev = dpc->dev->port;
-
-	pcie_wait_for_link(pdev, false);
-}
-
 static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 {
 	struct dpc_dev *dpc;
 	struct pcie_device *pciedev;
 	struct device *devdpc;
+
 	u16 cap;
 
 	/*
@@ -91,7 +85,7 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	 * Wait until the Link is inactive, then clear DPC Trigger Status
 	 * to allow the Port to leave DPC.
 	 */
-	dpc_wait_link_inactive(dpc);
+	pcie_wait_for_link(pdev, false);
 
 	if (dpc->rp_extensions && dpc_wait_rp_inactive(dpc))
 		return PCI_ERS_RESULT_DISCONNECT;
