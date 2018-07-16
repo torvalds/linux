@@ -19,6 +19,7 @@
 
 #define RKCIF_MAX_BUS_CLK	8
 #define RKCIF_MAX_SENSOR	2
+#define RKCIF_MAX_RESET	3
 
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
@@ -152,7 +153,7 @@ struct rkcif_device {
 	struct vb2_alloc_ctx		*alloc_ctx;
 	bool				iommu_en;
 	struct iommu_domain		*domain;
-	struct reset_control		*cif_rst;
+	struct reset_control		*cif_rst[RKCIF_MAX_RESET];
 
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;

@@ -23,7 +23,9 @@
 
 struct cif_match_data {
 	const char * const *clks;
-	int size;
+	const char * const *rsts;
+	int clks_num;
+	int rsts_num;
 };
 
 int rkcif_debug;
@@ -183,10 +185,27 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 	return 0;
 }
 
+static const char * const px30_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+	"pclk_cif",
+	"cif_out",
+};
+
+static const char * const px30_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_h",
+	"rst_cif_pclkin",
+};
+
 static const char * const rk3128_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
 	"sclk_cif_out",
+};
+
+static const char * const rk3128_cif_rsts[] = {
+	"rst_cif",
 };
 
 static const char * const rk3288_cif_clks[] = {
@@ -196,17 +215,36 @@ static const char * const rk3288_cif_clks[] = {
 	"cif0_out",
 };
 
+static const char * const rk3288_cif_rsts[] = {
+	"rst_cif",
+};
+
+static const struct cif_match_data px30_cif_clk_data = {
+	.clks = px30_cif_clks,
+	.clks_num = ARRAY_SIZE(px30_cif_clks),
+	.rsts = px30_cif_rsts,
+	.rsts_num = ARRAY_SIZE(px30_cif_rsts),
+};
+
 static const struct cif_match_data rk3128_cif_clk_data = {
 	.clks = rk3128_cif_clks,
-	.size = ARRAY_SIZE(rk3128_cif_clks),
+	.clks_num = ARRAY_SIZE(rk3128_cif_clks),
+	.rsts = rk3128_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rk3128_cif_rsts),
 };
 
 static const struct cif_match_data rk3288_cif_clk_data = {
 	.clks = rk3288_cif_clks,
-	.size = ARRAY_SIZE(rk3288_cif_clks),
+	.clks_num = ARRAY_SIZE(rk3288_cif_clks),
+	.rsts = rk3288_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rk3288_cif_rsts),
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
+	{
+		.compatible = "rockchip,px30-cif",
+		.data = &px30_cif_clk_data,
+	},
 	{
 		.compatible = "rockchip,rk3128-cif",
 		.data = &rk3128_cif_clk_data,
@@ -336,12 +374,18 @@ static inline bool is_iommu_enable(struct device *dev)
 
 void rkcif_soft_reset(struct rkcif_device *cif_dev)
 {
+	unsigned int i;
+
 	if (cif_dev->iommu_en)
 		rkcif_iommu_cleanup(cif_dev);
 
-	reset_control_assert(cif_dev->cif_rst);
+	for (i = 0; i < ARRAY_SIZE(cif_dev->cif_rst); i++)
+		if (cif_dev->cif_rst[i])
+			reset_control_assert(cif_dev->cif_rst[i]);
 	udelay(5);
-	reset_control_deassert(cif_dev->cif_rst);
+	for (i = 0; i < ARRAY_SIZE(cif_dev->cif_rst); i++)
+		if (cif_dev->cif_rst[i])
+			reset_control_deassert(cif_dev->cif_rst[i]);
 
 	if (cif_dev->iommu_en)
 		rkcif_iommu_init(cif_dev);
@@ -354,11 +398,14 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkcif_device *cif_dev;
-	const struct cif_match_data *clk_data;
+	const struct cif_match_data *data;
 	struct resource *res;
 	int i, ret, irq;
 
 	match = of_match_node(rkcif_plat_of_match, node);
+	if (IS_ERR(match))
+		return PTR_ERR(match);
+
 	cif_dev = devm_kzalloc(dev, sizeof(*cif_dev), GFP_KERNEL);
 	if (!cif_dev)
 		return -ENOMEM;
@@ -383,22 +430,32 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	cif_dev->irq = irq;
-	clk_data = match->data;
-	for (i = 0; i < clk_data->size; i++) {
-		struct clk *clk = devm_clk_get(dev, clk_data->clks[i]);
-
+	data = match->data;
+	if (data->clks_num > RKCIF_MAX_BUS_CLK ||
+		data->rsts_num > RKCIF_MAX_RESET) {
+		dev_err(dev, "out of range: clks(%d %d) rsts(%d %d)\n",
+			data->clks_num, RKCIF_MAX_BUS_CLK,
+			data->rsts_num, RKCIF_MAX_RESET);
+		return -EINVAL;
+	}
+	for (i = 0; i < data->clks_num; i++) {
+		struct clk *clk = devm_clk_get(dev, data->clks[i]);
 		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get %s\n", clk_data->clks[i]);
+			dev_err(dev, "failed to get %s\n", data->clks[i]);
 			return PTR_ERR(clk);
 		}
 		cif_dev->clks[i] = clk;
 	}
-	cif_dev->clk_size = clk_data->size;
+	cif_dev->clk_size = data->clks_num;
 
-	cif_dev->cif_rst = devm_reset_control_get(dev, "rst_cif");
-	if (IS_ERR(cif_dev->cif_rst)) {
-		dev_err(dev, "failed to get core cif reset controller\n");
-		return PTR_ERR(cif_dev->cif_rst);
+	for (i = 0; i < data->rsts_num; i++) {
+		struct reset_control *rst =
+			devm_reset_control_get(dev, data->rsts[i]);
+		if (IS_ERR(rst)) {
+			dev_err(dev, "failed to get %s\n", data->rsts[i]);
+			return PTR_ERR(rst);
+		}
+		cif_dev->cif_rst[i] = rst;
 	}
 
 	rkcif_stream_init(cif_dev);
