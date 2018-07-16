@@ -48,6 +48,8 @@ struct ti_msgmgr_valid_queue_desc {
  * @tx_polled:		Do I need to use polled mechanism for tx
  * @tx_poll_timeout_ms: Timeout in ms if polled
  * @valid_queues:	List of Valid queues that the processor can access
+ * @data_region_name:	Name of the proxy data region
+ * @status_region_name:	Name of the proxy status region
  * @num_valid_queues:	Number of valid queues
  *
  * This structure is used in of match data to describe how integration
@@ -63,6 +65,8 @@ struct ti_msgmgr_desc {
 	bool tx_polled;
 	int tx_poll_timeout_ms;
 	const struct ti_msgmgr_valid_queue_desc *valid_queues;
+	const char *data_region_name;
+	const char *status_region_name;
 	int num_valid_queues;
 };
 
@@ -531,6 +535,8 @@ static const struct ti_msgmgr_desc k2g_desc = {
 	.queue_count = 64,
 	.max_message_size = 64,
 	.max_messages = 128,
+	.data_region_name = "queue_proxy_region",
+	.status_region_name = "queue_state_debug_region",
 	.data_first_reg = 16,
 	.data_last_reg = 31,
 	.status_cnt_mask = Q_STATE_ENTRY_COUNT_MASK,
@@ -582,13 +588,13 @@ static int ti_msgmgr_probe(struct platform_device *pdev)
 	inst->desc = desc;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "queue_proxy_region");
+					   desc->data_region_name);
 	inst->queue_proxy_region = devm_ioremap_resource(dev, res);
 	if (IS_ERR(inst->queue_proxy_region))
 		return PTR_ERR(inst->queue_proxy_region);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "queue_state_debug_region");
+					   desc->status_region_name);
 	inst->queue_state_debug_region = devm_ioremap_resource(dev, res);
 	if (IS_ERR(inst->queue_state_debug_region))
 		return PTR_ERR(inst->queue_state_debug_region);
