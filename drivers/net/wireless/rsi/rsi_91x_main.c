@@ -122,7 +122,6 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 				       u8 extended_desc)
 {
 	struct ieee80211_tx_info *info;
-	struct skb_info *rx_params;
 	struct sk_buff *skb = NULL;
 	u8 payload_offset;
 	struct ieee80211_vif *vif;
@@ -149,10 +148,6 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	vif = rsi_get_vif(common->priv, wh->addr1);
 
 	info = IEEE80211_SKB_CB(skb);
-	rx_params = (struct skb_info *)info->driver_data;
-	rx_params->rssi = rsi_get_rssi(buffer);
-	rx_params->channel = rsi_get_connected_channel(vif);
-
 	return skb;
 }
 
