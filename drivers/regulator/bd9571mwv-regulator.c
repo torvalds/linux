@@ -185,12 +185,32 @@ static ssize_t backup_mode_store(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct bd9571mwv_reg *bdreg = dev_get_drvdata(dev);
+	unsigned int mode;
 	int ret;
 
 	if (!count)
 		return 0;
 
 	ret = kstrtobool(buf, &bdreg->bkup_mode_enabled);
+	if (ret)
+		return ret;
+
+	if (!bdreg->rstbmode_level)
+		return count;
+
+	/*
+	 * Configure DDR Backup Mode, to change the role of the accessory power
+	 * switch from a power switch to a wake-up switch, or vice versa
+	 */
+	ret = bd9571mwv_bkup_mode_read(bdreg->bd, &mode);
+	if (ret)
+		return ret;
+
+	mode &= ~BD9571MWV_BKUP_MODE_CNT_KEEPON_MASK;
+	if (bdreg->bkup_mode_enabled)
+		mode |= bdreg->bkup_mode_cnt_keepon;
+
+	ret = bd9571mwv_bkup_mode_write(bdreg->bd, mode);
 	if (ret)
 		return ret;
 
