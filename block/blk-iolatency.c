@@ -425,6 +425,12 @@ static void iolatency_record_time(struct iolatency_grp *iolat,
 	u64 start = bio_issue_time(issue);
 	u64 req_time;
 
+	/*
+	 * Have to do this so we are truncated to the correct time that our
+	 * issue is truncated to.
+	 */
+	now = __bio_issue_time(now);
+
 	if (now <= start)
 		return;
 
