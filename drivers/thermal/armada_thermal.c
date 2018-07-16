@@ -54,7 +54,12 @@
 #define CONTROL0_TSEN_START		BIT(0)
 #define CONTROL0_TSEN_RESET		BIT(1)
 #define CONTROL0_TSEN_ENABLE		BIT(2)
+#define CONTROL0_TSEN_AVG_BYPASS	BIT(6)
+#define CONTROL0_TSEN_OSR_SHIFT		24
+#define CONTROL0_TSEN_OSR_MAX		0x3
 
+#define CONTROL1_TSEN_AVG_SHIFT		0
+#define CONTROL1_TSEN_AVG_MASK		0x7
 #define CONTROL1_EXT_TSEN_SW_RESET	BIT(7)
 #define CONTROL1_EXT_TSEN_HW_RESETn	BIT(8)
 
@@ -194,6 +199,13 @@ static void armada_ap806_init(struct platform_device *pdev,
 	reg = readl_relaxed(priv->control0);
 	reg &= ~CONTROL0_TSEN_RESET;
 	reg |= CONTROL0_TSEN_START | CONTROL0_TSEN_ENABLE;
+
+	/* Sample every ~2ms */
+	reg |= CONTROL0_TSEN_OSR_MAX << CONTROL0_TSEN_OSR_SHIFT;
+
+	/* Enable average (2 samples by default) */
+	reg &= ~CONTROL0_TSEN_AVG_BYPASS;
+
 	writel(reg, priv->control0);
 
 	/* Wait the sensors to be valid or the core will warn the user */
@@ -203,7 +215,20 @@ static void armada_ap806_init(struct platform_device *pdev,
 static void armada_cp110_init(struct platform_device *pdev,
 			      struct armada_thermal_priv *priv)
 {
+	u32 reg;
+
 	armada380_init(pdev, priv);
+
+	/* Sample every ~2ms */
+	reg = readl_relaxed(priv->control0);
+	reg |= CONTROL0_TSEN_OSR_MAX << CONTROL0_TSEN_OSR_SHIFT;
+	writel(reg, priv->control0);
+
+	/* Average the output value over 2^1 = 2 samples */
+	reg = readl_relaxed(priv->control1);
+	reg &= ~CONTROL1_TSEN_AVG_MASK << CONTROL1_TSEN_AVG_SHIFT;
+	reg |= 1 << CONTROL1_TSEN_AVG_SHIFT;
+	writel(reg, priv->control1);
 }
 
 static bool armada_is_valid(struct armada_thermal_priv *priv)
