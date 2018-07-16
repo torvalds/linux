@@ -175,7 +175,6 @@ struct amdgpu_ring {
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
 	struct drm_gpu_scheduler	sched;
-	struct list_head		lru_list;
 
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
@@ -258,10 +257,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
-int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
-			int *blacklist, int num_blacklist,
-			bool lru_pipe_order, struct amdgpu_ring **ring);
-void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 						uint32_t reg0, uint32_t val0,
 						uint32_t reg1, uint32_t val1);
