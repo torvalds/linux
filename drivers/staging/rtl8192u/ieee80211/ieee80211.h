@@ -2391,7 +2391,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb);
 void TsInitAddBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTS,
 		 u8 Policy, u8 bOverwritePending);
 void TsInitDelBA(struct ieee80211_device *ieee,
-		 PTS_COMMON_INFO pTsCommonInfo, enum tr_select TxRxSelect);
+		 struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect);
 void BaSetupTimeOut(struct timer_list *t);
 void TxBaInactTimeout(struct timer_list *t);
 void RxBaInactTimeout(struct timer_list *t);
@@ -2399,7 +2399,7 @@ void ResetBaEntry(PBA_RECORD pBA);
 //function in TS.c
 bool GetTs(
 	struct ieee80211_device		*ieee,
-	PTS_COMMON_INFO                 *ppTS,
+	struct ts_common_info           **ppTS,
 	u8                              *Addr,
 	u8                              TID,
 	enum tr_select                  TxRxSelect,  //Rx:1, Tx:0

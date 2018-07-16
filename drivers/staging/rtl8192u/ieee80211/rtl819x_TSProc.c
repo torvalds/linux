@@ -101,7 +101,7 @@ static void TsAddBaProcess(struct timer_list *t)
 }
 
 
-static void ResetTsCommonInfo(PTS_COMMON_INFO pTsCommonInfo)
+static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	eth_zero_addr(pTsCommonInfo->Addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
@@ -191,7 +191,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 }
 
 static void AdmitTS(struct ieee80211_device *ieee,
-		    PTS_COMMON_INFO pTsCommonInfo, u32 InactTime)
+		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->SetupTimer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
@@ -202,15 +202,15 @@ static void AdmitTS(struct ieee80211_device *ieee,
 }
 
 
-static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
-					   u8 *Addr, u8 TID,
-					   enum tr_select TxRxSelect)
+static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
+						  u8 *Addr, u8 TID,
+						  enum tr_select TxRxSelect)
 {
 	//DIRECTION_VALUE	dir;
 	u8	dir;
 	bool				search_dir[4] = {0};
 	struct list_head		*psearch_list; //FIXME
-	PTS_COMMON_INFO	pRet = NULL;
+	struct ts_common_info	*pRet = NULL;
 	if(ieee->iw_mode == IW_MODE_MASTER) { //ap mode
 		if(TxRxSelect == TX_DIR) {
 			search_dir[DIR_DOWN] = true;
@@ -264,7 +264,7 @@ static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
 		return NULL;
 }
 
-static void MakeTSEntry(PTS_COMMON_INFO pTsCommonInfo, u8 *Addr,
+static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 			PTSPEC_BODY pTSPEC, PQOS_TCLAS pTCLAS, u8 TCLAS_Num,
 			u8 TCLAS_Proc)
 {
@@ -288,7 +288,7 @@ static void MakeTSEntry(PTS_COMMON_INFO pTsCommonInfo, u8 *Addr,
 
 bool GetTs(
 	struct ieee80211_device		*ieee,
-	PTS_COMMON_INFO			*ppTS,
+	struct ts_common_info		**ppTS,
 	u8				*Addr,
 	u8				TID,
 	enum tr_select			TxRxSelect,  //Rx:1, Tx:0
@@ -371,7 +371,7 @@ bool GetTs(
 								((TxRxSelect==TX_DIR)?DIR_UP:DIR_DOWN);
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "to add Ts\n");
 			if(!list_empty(pUnusedList)) {
-				(*ppTS) = list_entry(pUnusedList->next, TS_COMMON_INFO, List);
+				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, List);
 				list_del_init(&(*ppTS)->List);
 				if(TxRxSelect==TX_DIR) {
 					PTX_TS_RECORD tmp = container_of(*ppTS, TX_TS_RECORD, TsCommonInfo);
@@ -407,7 +407,7 @@ bool GetTs(
 	}
 }
 
-static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
+static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *pTs,
 			  enum tr_select TxRxSelect)
 {
 	//u32 flags = 0;
@@ -454,7 +454,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 
 void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 {
-	PTS_COMMON_INFO	pTS, pTmpTS;
+	struct ts_common_info	*pTS, *pTmpTS;
 
 	printk("===========>RemovePeerTS,%pM\n", Addr);
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
@@ -493,7 +493,7 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 
 void RemoveAllTS(struct ieee80211_device *ieee)
 {
-	PTS_COMMON_INFO pTS, pTmpTS;
+	struct ts_common_info *pTS, *pTmpTS;
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
 		RemoveTsEntry(ieee, pTS, TX_DIR);

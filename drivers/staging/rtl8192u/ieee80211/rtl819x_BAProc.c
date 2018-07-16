@@ -360,7 +360,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	// If there is no matched TS, reject the ADDBA request.
 	if (!GetTs(
 			ieee,
-			(PTS_COMMON_INFO *)(&pTS),
+			(struct ts_common_info **)(&pTS),
 			dst,
 			(u8)(pBaParamSet->field.TID),
 			RX_DIR,
@@ -459,7 +459,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//
 	if (!GetTs(
 			ieee,
-			(PTS_COMMON_INFO *)(&pTS),
+			(struct ts_common_info **)(&pTS),
 			dst,
 			(u8)(pBaParamSet->field.TID),
 			TX_DIR,
@@ -570,7 +570,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 		if (!GetTs(
 				ieee,
-				(PTS_COMMON_INFO *)&pRxTs,
+				(struct ts_common_info **)&pRxTs,
 				dst,
 				(u8)pDelBaParamSet->field.TID,
 				RX_DIR,
@@ -585,7 +585,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 		if (!GetTs(
 			ieee,
-			(PTS_COMMON_INFO *)&pTxTs,
+			(struct ts_common_info **)&pTxTs,
 			dst,
 			(u8)pDelBaParamSet->field.TID,
 			TX_DIR,
@@ -638,7 +638,7 @@ TsInitAddBA(
 }
 
 void
-TsInitDelBA(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, enum tr_select TxRxSelect)
+TsInitDelBA(struct ieee80211_device *ieee, struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
 		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;

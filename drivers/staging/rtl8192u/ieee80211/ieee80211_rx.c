@@ -1021,7 +1021,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): QOS ENABLE AND RECEIVE QOS DATA , we will get Ts, tid:%d\n",__func__, tid);
 		if(GetTs(
 				ieee,
-				(PTS_COMMON_INFO *) &pRxTS,
+				(struct ts_common_info **) &pRxTS,
 				hdr->addr2,
 				Frame_QoSTID((u8 *)(skb->data)),
 				RX_DIR,
@@ -1266,7 +1266,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	{
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee,(PTS_COMMON_INFO *) &pTS,hdr->addr2,TID,RX_DIR,true);
+		GetTs(ieee,(struct ts_common_info **) &pTS,hdr->addr2,TID,RX_DIR,true);
 		if (TID !=0 && TID !=3)
 		{
 			ieee->bis_any_nonbepkts = true;
