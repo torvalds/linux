@@ -2231,6 +2231,9 @@ nv50_display_create(struct drm_device *dev)
 		connector->funcs->destroy(connector);
 	}
 
+	/* Disable vblank irqs aggressively for power-saving, safe on nv50+ */
+	dev->vblank_disable_immediate = true;
+
 out:
 	if (ret)
 		nv50_display_destroy(dev);
