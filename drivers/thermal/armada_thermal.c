@@ -70,6 +70,7 @@ struct armada_thermal_priv {
 	void __iomem *status;
 	void __iomem *control0;
 	void __iomem *control1;
+	char zone_name[THERMAL_NAME_LENGTH];
 	struct armada_thermal_data *data;
 };
 
@@ -353,6 +354,37 @@ static const struct of_device_id armada_thermal_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, armada_thermal_id_table);
 
+static void armada_set_sane_name(struct platform_device *pdev,
+				 struct armada_thermal_priv *priv)
+{
+	const char *name = dev_name(&pdev->dev);
+	char *insane_char;
+
+	if (strlen(name) > THERMAL_NAME_LENGTH) {
+		/*
+		 * When inside a system controller, the device name has the
+		 * form: f06f8000.system-controller:ap-thermal so stripping
+		 * after the ':' should give us a shorter but meaningful name.
+		 */
+		name = strrchr(name, ':');
+		if (!name)
+			name = "armada_thermal";
+		else
+			name++;
+	}
+
+	/* Save the name locally */
+	strncpy(priv->zone_name, name, THERMAL_NAME_LENGTH - 1);
+	priv->zone_name[THERMAL_NAME_LENGTH - 1] = '\0';
+
+	/* Then check there are no '-' or hwmon core will complain */
+	do {
+		insane_char = strpbrk(priv->zone_name, "-");
+		if (insane_char)
+			*insane_char = '_';
+	} while (insane_char);
+}
+
 static int armada_thermal_probe(struct platform_device *pdev)
 {
 	void __iomem *control = NULL;
@@ -381,6 +413,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 
 	priv->data = (struct armada_thermal_data *)match->data;
 
+	/* Ensure device name is correct for the thermal core */
+	armada_set_sane_name(pdev, priv);
+
 	/*
 	 * Legacy DT bindings only described "control1" register (also referred
 	 * as "control MSB" on old documentation). New bindings cover
@@ -402,7 +437,7 @@ static int armada_thermal_probe(struct platform_device *pdev)
 
 	priv->data->init_sensor(pdev, priv);
 
-	thermal = thermal_zone_device_register(dev_name(&pdev->dev), 0, 0, priv,
+	thermal = thermal_zone_device_register(priv->zone_name, 0, 0, priv,
 					       &ops, NULL, 0, 0);
 	if (IS_ERR(thermal)) {
 		dev_err(&pdev->dev,
