@@ -465,9 +465,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_subvolrootid:
 		case Opt_device:
 			/*
-			 * These are parsed by btrfs_parse_subvol_options
-			 * and btrfs_parse_early_options
-			 * and can be happily ignored here.
+			 * These are parsed by btrfs_parse_subvol_options or
+			 * btrfs_parse_device_options and can be ignored here.
 			 */
 			break;
 		case Opt_nodatasum:
@@ -883,8 +882,8 @@ out:
  * All other options will be parsed on much later in the mount process and
  * only when we need to allocate a new super block.
  */
-static int btrfs_parse_early_options(const char *options, fmode_t flags,
-				     void *holder)
+static int btrfs_parse_device_options(const char *options, fmode_t flags,
+				      void *holder)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *device_name, *opts, *orig, *p;
@@ -951,7 +950,7 @@ static int btrfs_parse_subvol_options(const char *options, char **subvol_name,
 
 	/*
 	 * strsep changes the string, duplicate it because
-	 * btrfs_parse_early_options gets called later
+	 * btrfs_parse_device_options gets called later
 	 */
 	opts = kstrdup(options, GFP_KERNEL);
 	if (!opts)
@@ -1558,7 +1557,7 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	}
 
 	mutex_lock(&uuid_mutex);
-	error = btrfs_parse_early_options(data, mode, fs_type);
+	error = btrfs_parse_device_options(data, mode, fs_type);
 	if (error) {
 		mutex_unlock(&uuid_mutex);
 		goto error_fs_info;
