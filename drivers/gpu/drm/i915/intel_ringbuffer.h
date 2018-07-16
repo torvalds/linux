@@ -683,6 +683,12 @@ execlists_clear_active(struct intel_engine_execlists *execlists,
 	__clear_bit(bit, (unsigned long *)&execlists->active);
 }
 
+static inline void
+execlists_clear_all_active(struct intel_engine_execlists *execlists)
+{
+	execlists->active = 0;
+}
+
 static inline bool
 execlists_is_active(const struct intel_engine_execlists *execlists,
 		    unsigned int bit)

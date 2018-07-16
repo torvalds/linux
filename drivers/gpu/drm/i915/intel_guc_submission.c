@@ -633,8 +633,6 @@ static void complete_preempt_context(struct intel_engine_cs *engine)
 
 	wait_for_guc_preempt_report(engine);
 	intel_write_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX, 0);
-
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
 /**
