@@ -84,11 +84,6 @@
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
 		regulator-boot-on;
-
-		/* for rockchip boot on */
-		rockchip,pwm_id= <2>;
-		rockchip,pwm_voltage = <900000>;
-
 		vin-supply = <&vcc_sys>;
 	};
 
