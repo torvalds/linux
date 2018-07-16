@@ -606,7 +606,7 @@ __drm_connector_put_safe(struct drm_connector *conn)
 
 /**
  * drm_connector_list_iter_next - return next connector
- * @iter: connectr_list iterator
+ * @iter: connector_list iterator
  *
  * Returns the next connector for @iter, or NULL when the list walk has
  * completed.
