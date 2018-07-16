@@ -467,6 +467,14 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
+static int phy_config_aneg(struct phy_device *phydev)
+{
+	if (phydev->drv->config_aneg)
+		return phydev->drv->config_aneg(phydev);
+	else
+		return genphy_config_aneg(phydev);
+}
+
 /**
  * phy_start_aneg_priv - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
@@ -493,10 +501,7 @@ static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
 	/* Invalidate LP advertising flags */
 	phydev->lp_advertising = 0;
 
-	if (phydev->drv->config_aneg)
-		err = phydev->drv->config_aneg(phydev);
-	else
-		err = genphy_config_aneg(phydev);
+	err = phy_config_aneg(phydev);
 	if (err < 0)
 		goto out_unlock;
 
@@ -545,6 +550,84 @@ int phy_start_aneg(struct phy_device *phydev)
 	return phy_start_aneg_priv(phydev, true);
 }
 EXPORT_SYMBOL(phy_start_aneg);
+
+static int phy_poll_aneg_done(struct phy_device *phydev)
+{
+	unsigned int retries = 100;
+	int ret;
+
+	do {
+		msleep(100);
+		ret = phy_aneg_done(phydev);
+	} while (!ret && --retries);
+
+	if (!ret)
+		return -ETIMEDOUT;
+
+	return ret < 0 ? ret : 0;
+}
+
+/**
+ * phy_speed_down - set speed to lowest speed supported by both link partners
+ * @phydev: the phy_device struct
+ * @sync: perform action synchronously
+ *
+ * Description: Typically used to save energy when waiting for a WoL packet
+ *
+ * WARNING: Setting sync to false may cause the system being unable to suspend
+ * in case the PHY generates an interrupt when finishing the autonegotiation.
+ * This interrupt may wake up the system immediately after suspend.
+ * Therefore use sync = false only if you're sure it's safe with the respective
+ * network chip.
+ */
+int phy_speed_down(struct phy_device *phydev, bool sync)
+{
+	u32 adv = phydev->lp_advertising & phydev->supported;
+	u32 adv_old = phydev->advertising;
+	int ret;
+
+	if (phydev->autoneg != AUTONEG_ENABLE)
+		return 0;
+
+	if (adv & PHY_10BT_FEATURES)
+		phydev->advertising &= ~(PHY_100BT_FEATURES |
+					 PHY_1000BT_FEATURES);
+	else if (adv & PHY_100BT_FEATURES)
+		phydev->advertising &= ~PHY_1000BT_FEATURES;
+
+	if (phydev->advertising == adv_old)
+		return 0;
+
+	ret = phy_config_aneg(phydev);
+	if (ret)
+		return ret;
+
+	return sync ? phy_poll_aneg_done(phydev) : 0;
+}
+EXPORT_SYMBOL_GPL(phy_speed_down);
+
+/**
+ * phy_speed_up - (re)set advertised speeds to all supported speeds
+ * @phydev: the phy_device struct
+ *
+ * Description: Used to revert the effect of phy_speed_down
+ */
+int phy_speed_up(struct phy_device *phydev)
+{
+	u32 mask = PHY_10BT_FEATURES | PHY_100BT_FEATURES | PHY_1000BT_FEATURES;
+	u32 adv_old = phydev->advertising;
+
+	if (phydev->autoneg != AUTONEG_ENABLE)
+		return 0;
+
+	phydev->advertising = (adv_old & ~mask) | (phydev->supported & mask);
+
+	if (phydev->advertising == adv_old)
+		return 0;
+
+	return phy_config_aneg(phydev);
+}
+EXPORT_SYMBOL_GPL(phy_speed_up);
 
 /**
  * phy_start_machine - start PHY state machine tracking
