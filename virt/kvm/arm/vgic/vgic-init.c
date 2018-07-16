@@ -298,7 +298,7 @@ int vgic_init(struct kvm *kvm)
 
 	vgic_debug_init(kvm);
 
-	dist->implementation_rev = 0;
+	dist->implementation_rev = 1;
 	dist->initialized = true;
 
 out:
