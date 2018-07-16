@@ -1,0 +1,32 @@
+C SB+rfionceonce-poonceonces
+
+(*
+ * Result: Sometimes
+ *
+ * This litmus test demonstrates that LKMM is not fully multicopy atomic.
+ *)
+
+{}
+
+P0(int *x, int *y)
+{
+	int r1;
+	int r2;
+
+	WRITE_ONCE(*x, 1);
+	r1 = READ_ONCE(*x);
+	r2 = READ_ONCE(*y);
+}
+
+P1(int *x, int *y)
+{
+	int r3;
+	int r4;
+
+	WRITE_ONCE(*y, 1);
+	r3 = READ_ONCE(*y);
+	r4 = READ_ONCE(*x);
+}
+
+locations [0:r1; 1:r3; x; y] (* Debug aid: Print things not in "exists". *)
+exists (0:r2=0 /\ 1:r4=0)
