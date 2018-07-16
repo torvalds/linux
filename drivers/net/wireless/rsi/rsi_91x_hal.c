@@ -26,6 +26,9 @@ static struct ta_metadata metadata_flash_content[] = {
 	{"flash_content", 0x00010000},
 	{"rsi/rs9113_wlan_qspi.rps", 0x00010000},
 	{"rsi/rs9113_wlan_bt_dual_mode.rps", 0x00010000},
+	{"flash_content", 0x00010000},
+	{"rsi/rs9113_ap_bt_dual_mode.rps", 0x00010000},
+
 };
 
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
