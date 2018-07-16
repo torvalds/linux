@@ -6,6 +6,7 @@
  * Copyright (C) 2016 Intel Corp.
  */
 
+#include <linux/aer.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -161,6 +162,7 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 
 static void dpc_work(struct work_struct *work)
 {
+	struct aer_err_info info;
 	struct dpc_dev *dpc = container_of(work, struct dpc_dev, work);
 	struct pci_dev *pdev = dpc->dev->port;
 	struct device *dev = &dpc->dev->device;
@@ -185,6 +187,10 @@ static void dpc_work(struct work_struct *work)
 	/* show RP PIO error detail information */
 	if (dpc->rp_extensions && reason == 3 && ext_reason == 0)
 		dpc_process_rp_pio_error(dpc);
+	else if (reason == 0 && aer_get_device_error_info(pdev, &info)) {
+		aer_print_error(pdev, &info);
+		pci_cleanup_aer_uncorrect_error_status(pdev);
+	}
 
 	/* We configure DPC so it only triggers on ERR_FATAL */
 	pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_DPC);
