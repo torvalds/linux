@@ -18,18 +18,11 @@
  * a "bne-" instruction at the end, so an isync is enough as a acquire barrier
  * on the platform without lwsync.
  */
-#define __atomic_op_acquire(op, args...)				\
-({									\
-	typeof(op##_relaxed(args)) __ret  = op##_relaxed(args);		\
-	__asm__ __volatile__(PPC_ACQUIRE_BARRIER "" : : : "memory");	\
-	__ret;								\
-})
+#define __atomic_acquire_fence()					\
+	__asm__ __volatile__(PPC_ACQUIRE_BARRIER "" : : : "memory")
 
-#define __atomic_op_release(op, args...)				\
-({									\
-	__asm__ __volatile__(PPC_RELEASE_BARRIER "" : : : "memory");	\
-	op##_relaxed(args);						\
-})
+#define __atomic_release_fence()					\
+	__asm__ __volatile__(PPC_RELEASE_BARRIER "" : : : "memory")
 
 static __inline__ int atomic_read(const atomic_t *v)
 {

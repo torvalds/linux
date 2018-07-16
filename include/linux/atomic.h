@@ -38,40 +38,46 @@
  * barriers on top of the relaxed variant. In the case where the relaxed
  * variant is already fully ordered, no additional barriers are needed.
  *
- * Besides, if an arch has a special barrier for acquire/release, it could
- * implement its own __atomic_op_* and use the same framework for building
- * variants
- *
- * If an architecture overrides __atomic_op_acquire() it will probably want
- * to define smp_mb__after_spinlock().
+ * If an architecture overrides __atomic_acquire_fence() it will probably
+ * want to define smp_mb__after_spinlock().
  */
-#ifndef __atomic_op_acquire
+#ifndef __atomic_acquire_fence
+#define __atomic_acquire_fence		smp_mb__after_atomic
+#endif
+
+#ifndef __atomic_release_fence
+#define __atomic_release_fence		smp_mb__before_atomic
+#endif
+
+#ifndef __atomic_pre_full_fence
+#define __atomic_pre_full_fence		smp_mb__before_atomic
+#endif
+
+#ifndef __atomic_post_full_fence
+#define __atomic_post_full_fence	smp_mb__after_atomic
+#endif
+
 #define __atomic_op_acquire(op, args...)				\
 ({									\
 	typeof(op##_relaxed(args)) __ret  = op##_relaxed(args);		\
-	smp_mb__after_atomic();						\
+	__atomic_acquire_fence();					\
 	__ret;								\
 })
-#endif
 
-#ifndef __atomic_op_release
 #define __atomic_op_release(op, args...)				\
 ({									\
-	smp_mb__before_atomic();					\
+	__atomic_release_fence();					\
 	op##_relaxed(args);						\
 })
-#endif
 
-#ifndef __atomic_op_fence
 #define __atomic_op_fence(op, args...)					\
 ({									\
 	typeof(op##_relaxed(args)) __ret;				\
-	smp_mb__before_atomic();					\
+	__atomic_pre_full_fence();					\
 	__ret = op##_relaxed(args);					\
-	smp_mb__after_atomic();						\
+	__atomic_post_full_fence();					\
 	__ret;								\
 })
-#endif
 
 /* atomic_add_return_relaxed */
 #ifndef atomic_add_return_relaxed
