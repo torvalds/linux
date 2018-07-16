@@ -121,10 +121,6 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 			goto failed;
 	}
 
-	r = amdgpu_queue_mgr_init(adev, &ctx->queue_mgr);
-	if (r)
-		goto failed;
-
 	return 0;
 
 failed:
@@ -150,11 +146,70 @@ static void amdgpu_ctx_fini(struct kref *ref)
 	kfree(ctx->fences);
 	ctx->fences = NULL;
 
-	amdgpu_queue_mgr_fini(adev, &ctx->queue_mgr);
-
 	mutex_destroy(&ctx->lock);
 
 	kfree(ctx);
+}
+
+int amdgpu_ctx_get_ring(struct amdgpu_ctx *ctx,
+			u32 hw_ip, u32 instance, u32 ring,
+			struct amdgpu_ring **out_ring)
+{
+	struct amdgpu_device *adev = ctx->adev;
+	unsigned num_rings = 0;
+
+	/* Right now all IPs have only one instance - multiple rings. */
+	if (instance != 0) {
+		DRM_DEBUG("invalid ip instance: %d\n", instance);
+		return -EINVAL;
+	}
+
+	switch (hw_ip) {
+	case AMDGPU_HW_IP_GFX:
+		*out_ring = &adev->gfx.gfx_ring[ring];
+		num_rings = adev->gfx.num_gfx_rings;
+		break;
+	case AMDGPU_HW_IP_COMPUTE:
+		*out_ring = &adev->gfx.compute_ring[ring];
+		num_rings = adev->gfx.num_compute_rings;
+		break;
+	case AMDGPU_HW_IP_DMA:
+		*out_ring = &adev->sdma.instance[ring].ring;
+		num_rings = adev->sdma.num_instances;
+		break;
+	case AMDGPU_HW_IP_UVD:
+		*out_ring = &adev->uvd.inst[0].ring;
+		num_rings = adev->uvd.num_uvd_inst;
+		break;
+	case AMDGPU_HW_IP_VCE:
+		*out_ring = &adev->vce.ring[ring];
+		num_rings = adev->vce.num_rings;
+		break;
+	case AMDGPU_HW_IP_UVD_ENC:
+		*out_ring = &adev->uvd.inst[0].ring_enc[ring];
+		num_rings = adev->uvd.num_enc_rings;
+		break;
+	case AMDGPU_HW_IP_VCN_DEC:
+		*out_ring = &adev->vcn.ring_dec;
+		num_rings = 1;
+		break;
+	case AMDGPU_HW_IP_VCN_ENC:
+		*out_ring = &adev->vcn.ring_enc[ring];
+		num_rings = adev->vcn.num_enc_rings;
+		break;
+	case AMDGPU_HW_IP_VCN_JPEG:
+		*out_ring = &adev->vcn.ring_jpeg;
+		num_rings = 1;
+		break;
+	default:
+		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
+		return -EINVAL;
+	}
+
+	if (ring > num_rings)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int amdgpu_ctx_alloc(struct amdgpu_device *adev,

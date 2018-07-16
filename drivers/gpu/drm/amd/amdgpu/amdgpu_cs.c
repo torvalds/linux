@@ -1008,8 +1008,9 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 				return -EINVAL;
 		}
 
-		r = amdgpu_queue_mgr_map(adev, &parser->ctx->queue_mgr, chunk_ib->ip_type,
-					 chunk_ib->ip_instance, chunk_ib->ring, &ring);
+		r = amdgpu_ctx_get_ring(parser->ctx, chunk_ib->ip_type,
+					chunk_ib->ip_instance, chunk_ib->ring,
+					&ring);
 		if (r)
 			return r;
 
@@ -1067,10 +1068,9 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 		if (ctx == NULL)
 			return -EINVAL;
 
-		r = amdgpu_queue_mgr_map(p->adev, &ctx->queue_mgr,
-					 deps[i].ip_type,
-					 deps[i].ip_instance,
-					 deps[i].ring, &ring);
+		r = amdgpu_ctx_get_ring(ctx, deps[i].ip_type,
+					deps[i].ip_instance,
+					deps[i].ring, &ring);
 		if (r) {
 			amdgpu_ctx_put(ctx);
 			return r;
@@ -1331,7 +1331,6 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *filp)
 {
 	union drm_amdgpu_wait_cs *wait = data;
-	struct amdgpu_device *adev = dev->dev_private;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
@@ -1342,9 +1341,8 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	if (ctx == NULL)
 		return -EINVAL;
 
-	r = amdgpu_queue_mgr_map(adev, &ctx->queue_mgr,
-				 wait->in.ip_type, wait->in.ip_instance,
-				 wait->in.ring, &ring);
+	r = amdgpu_ctx_get_ring(ctx, wait->in.ip_type, wait->in.ip_instance,
+				wait->in.ring, &ring);
 	if (r) {
 		amdgpu_ctx_put(ctx);
 		return r;
@@ -1391,8 +1389,8 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 	if (ctx == NULL)
 		return ERR_PTR(-EINVAL);
 
-	r = amdgpu_queue_mgr_map(adev, &ctx->queue_mgr, user->ip_type,
-				 user->ip_instance, user->ring, &ring);
+	r = amdgpu_ctx_get_ring(ctx, user->ip_type, user->ip_instance,
+				user->ring, &ring);
 	if (r) {
 		amdgpu_ctx_put(ctx);
 		return ERR_PTR(r);

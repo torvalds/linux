@@ -478,29 +478,6 @@ struct amdgpu_ib {
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
 /*
- * Queue manager
- */
-struct amdgpu_queue_mapper {
-	int 		hw_ip;
-	struct mutex	lock;
-	/* protected by lock */
-	struct amdgpu_ring *queue_map[AMDGPU_MAX_RINGS];
-};
-
-struct amdgpu_queue_mgr {
-	struct amdgpu_queue_mapper mapper[AMDGPU_MAX_IP_NUM];
-};
-
-int amdgpu_queue_mgr_init(struct amdgpu_device *adev,
-			  struct amdgpu_queue_mgr *mgr);
-int amdgpu_queue_mgr_fini(struct amdgpu_device *adev,
-			  struct amdgpu_queue_mgr *mgr);
-int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
-			 struct amdgpu_queue_mgr *mgr,
-			 u32 hw_ip, u32 instance, u32 ring,
-			 struct amdgpu_ring **out_ring);
-
-/*
  * context related structures
  */
 
@@ -513,7 +490,6 @@ struct amdgpu_ctx_ring {
 struct amdgpu_ctx {
 	struct kref		refcount;
 	struct amdgpu_device    *adev;
-	struct amdgpu_queue_mgr queue_mgr;
 	unsigned		reset_counter;
 	unsigned        reset_counter_query;
 	uint32_t		vram_lost_counter;
@@ -537,6 +513,9 @@ struct amdgpu_ctx_mgr {
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
+int amdgpu_ctx_get_ring(struct amdgpu_ctx *ctx,
+			u32 hw_ip, u32 instance, u32 ring,
+			struct amdgpu_ring **out_ring);
 int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 			      struct dma_fence *fence, uint64_t *seq);
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
