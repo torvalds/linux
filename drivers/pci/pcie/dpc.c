@@ -108,14 +108,6 @@ static pci_ers_result_t dpc_reset_link(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-static void dpc_work(struct work_struct *work)
-{
-	struct dpc_dev *dpc = container_of(work, struct dpc_dev, work);
-	struct pci_dev *pdev = dpc->dev->port;
-
-	/* We configure DPC so it only triggers on ERR_FATAL */
-	pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_DPC);
-}
 
 static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 {
@@ -174,33 +166,21 @@ static void dpc_process_rp_pio_error(struct dpc_dev *dpc)
 	}
 }
 
-static irqreturn_t dpc_irq(int irq, void *context)
+static void dpc_work(struct work_struct *work)
 {
-	struct dpc_dev *dpc = (struct dpc_dev *)context;
+	struct dpc_dev *dpc = container_of(work, struct dpc_dev, work);
 	struct pci_dev *pdev = dpc->dev->port;
 	struct device *dev = &dpc->dev->device;
 	u16 cap = dpc->cap_pos, status, source, reason, ext_reason;
 
 	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
-
-	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || status == (u16)(~0))
-		return IRQ_NONE;
-
-	if (!(status & PCI_EXP_DPC_STATUS_TRIGGER)) {
-		pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
-				      PCI_EXP_DPC_STATUS_INTERRUPT);
-		return IRQ_HANDLED;
-	}
-
-	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID,
-			     &source);
+	pci_read_config_word(pdev, cap + PCI_EXP_DPC_SOURCE_ID, &source);
 
 	dev_info(dev, "DPC containment event, status:%#06x source:%#06x\n",
-		status, source);
+		 status, source);
 
 	reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN) >> 1;
 	ext_reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT) >> 5;
-
 	dev_warn(dev, "DPC %s detected, remove downstream devices\n",
 		 (reason == 0) ? "unmasked uncorrectable error" :
 		 (reason == 1) ? "ERR_NONFATAL" :
@@ -208,9 +188,25 @@ static irqreturn_t dpc_irq(int irq, void *context)
 		 (ext_reason == 0) ? "RP PIO error" :
 		 (ext_reason == 1) ? "software trigger" :
 				     "reserved error");
+
 	/* show RP PIO error detail information */
 	if (dpc->rp_extensions && reason == 3 && ext_reason == 0)
 		dpc_process_rp_pio_error(dpc);
+
+	/* We configure DPC so it only triggers on ERR_FATAL */
+	pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_DPC);
+}
+
+static irqreturn_t dpc_irq(int irq, void *context)
+{
+	struct dpc_dev *dpc = (struct dpc_dev *)context;
+	struct pci_dev *pdev = dpc->dev->port;
+	u16 cap = dpc->cap_pos, status;
+
+	pci_read_config_word(pdev, cap + PCI_EXP_DPC_STATUS, &status);
+
+	if (!(status & PCI_EXP_DPC_STATUS_INTERRUPT) || status == (u16)(~0))
+		return IRQ_NONE;
 
 	pci_write_config_word(pdev, cap + PCI_EXP_DPC_STATUS,
 			      PCI_EXP_DPC_STATUS_INTERRUPT);
