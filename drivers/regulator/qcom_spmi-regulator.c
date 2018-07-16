@@ -1060,7 +1060,7 @@ static irqreturn_t spmi_regulator_vs_ocp_isr(int irq, void *data)
 #define SAW3_AVS_CTL_TGGL_MASK	0x8000000
 #define SAW3_AVS_CTL_CLEAR_MASK	0x7efc00
 
-static struct regmap *saw_regmap = NULL;
+static struct regmap *saw_regmap;
 
 static void spmi_saw_set_vdd(void *data)
 {
