@@ -18,7 +18,7 @@ To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.
 Similar to the events tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via
 /sys/kernel/debug/tracing/kprobe_events, and enable it via
-/sys/kernel/debug/tracing/events/kprobes/<EVENT>/enabled.
+/sys/kernel/debug/tracing/events/kprobes/<EVENT>/enable.
 
 
 Synopsis of kprobe_events
@@ -81,9 +81,9 @@ Per-probe event filtering feature allows you to set different filter on each
 probe and gives you what arguments will be shown in trace buffer. If an event
 name is specified right after 'p:' or 'r:' in kprobe_events, it adds an event
 under tracing/events/kprobes/<EVENT>, at the directory you can see 'id',
-'enabled', 'format' and 'filter'.
+'enable', 'format' and 'filter'.
 
-enabled:
+enable:
   You can enable/disable the probe by writing 1 or 0 on it.
 
 format:
