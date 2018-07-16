@@ -311,6 +311,51 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 }
 
 /**
+ *  ti_msgmgr_queue_rx_irq_req() - RX IRQ request
+ *  @dev:	device pointer
+ *  @qinst:	Queue instance
+ *  @chan:	Channel pointer
+ */
+static int ti_msgmgr_queue_rx_irq_req(struct device *dev,
+				      struct ti_queue_inst *qinst,
+				      struct mbox_chan *chan)
+{
+	int ret = 0;
+	char of_rx_irq_name[7];
+	struct device_node *np;
+
+	snprintf(of_rx_irq_name, sizeof(of_rx_irq_name),
+		 "rx_%03d", qinst->queue_id);
+
+	/* Get the IRQ if not found */
+	if (qinst->irq < 0) {
+		np = of_node_get(dev->of_node);
+		if (!np)
+			return -ENODATA;
+		qinst->irq = of_irq_get_byname(np, of_rx_irq_name);
+		of_node_put(np);
+
+		if (qinst->irq < 0) {
+			dev_err(dev,
+				"QID %d PID %d:No IRQ[%s]: %d\n",
+				qinst->queue_id, qinst->proxy_id,
+				of_rx_irq_name, qinst->irq);
+			return qinst->irq;
+		}
+	}
+
+	/* With the expectation that the IRQ might be shared in SoC */
+	ret = request_irq(qinst->irq, ti_msgmgr_queue_rx_interrupt,
+			  IRQF_SHARED, qinst->name, chan);
+	if (ret) {
+		dev_err(dev, "Unable to get IRQ %d on %s(res=%d)\n",
+			qinst->irq, qinst->name, ret);
+	}
+
+	return ret;
+}
+
+/**
  * ti_msgmgr_queue_startup() - Startup queue
  * @chan:	Channel pointer
  *
@@ -318,19 +363,21 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
  */
 static int ti_msgmgr_queue_startup(struct mbox_chan *chan)
 {
-	struct ti_queue_inst *qinst = chan->con_priv;
 	struct device *dev = chan->mbox->dev;
+	struct ti_msgmgr_inst *inst = dev_get_drvdata(dev);
+	struct ti_queue_inst *qinst = chan->con_priv;
+	const struct ti_msgmgr_desc *d = inst->desc;
 	int ret;
 
 	if (!qinst->is_tx) {
-		/*
-		 * With the expectation that the IRQ might be shared in SoC
-		 */
-		ret = request_irq(qinst->irq, ti_msgmgr_queue_rx_interrupt,
-				  IRQF_SHARED, qinst->name, chan);
+		/* Allocate usage buffer for rx */
+		qinst->rx_buff = kzalloc(d->max_message_size, GFP_KERNEL);
+		if (!qinst->rx_buff)
+			return -ENOMEM;
+		/* Request IRQ */
+		ret = ti_msgmgr_queue_rx_irq_req(dev, qinst, chan);
 		if (ret) {
-			dev_err(dev, "Unable to get IRQ %d on %s(res=%d)\n",
-				qinst->irq, qinst->name, ret);
+			kfree(qinst->rx_buff);
 			return ret;
 		}
 	}
@@ -346,8 +393,10 @@ static void ti_msgmgr_queue_shutdown(struct mbox_chan *chan)
 {
 	struct ti_queue_inst *qinst = chan->con_priv;
 
-	if (!qinst->is_tx)
+	if (!qinst->is_tx) {
 		free_irq(qinst->irq, chan);
+		kfree(qinst->rx_buff);
+	}
 }
 
 /**
@@ -425,27 +474,6 @@ static int ti_msgmgr_queue_setup(int idx, struct device *dev,
 		 dev_name(dev), qinst->is_tx ? "tx" : "rx", qinst->queue_id,
 		 qinst->proxy_id);
 
-	if (!qinst->is_tx) {
-		char of_rx_irq_name[7];
-
-		snprintf(of_rx_irq_name, sizeof(of_rx_irq_name),
-			 "rx_%03d", qinst->queue_id);
-
-		qinst->irq = of_irq_get_byname(np, of_rx_irq_name);
-		if (qinst->irq < 0) {
-			dev_crit(dev,
-				 "[%d]QID %d PID %d:No IRQ[%s]: %d\n",
-				 idx, qinst->queue_id, qinst->proxy_id,
-				 of_rx_irq_name, qinst->irq);
-			return qinst->irq;
-		}
-		/* Allocate usage buffer for rx */
-		qinst->rx_buff = devm_kzalloc(dev,
-					      d->max_message_size, GFP_KERNEL);
-		if (!qinst->rx_buff)
-			return -ENOMEM;
-	}
-
 	qinst->queue_buff_start = inst->queue_proxy_region +
 	    Q_DATA_OFFSET(qinst->proxy_id, qinst->queue_id, d->data_first_reg);
 	qinst->queue_buff_end = inst->queue_proxy_region +
@@ -453,6 +481,9 @@ static int ti_msgmgr_queue_setup(int idx, struct device *dev,
 	qinst->queue_state = inst->queue_state_debug_region +
 	    Q_STATE_OFFSET(qinst->queue_id);
 	qinst->chan = chan;
+
+	/* Setup an error value for IRQ - Lazy allocation */
+	qinst->irq = -EINVAL;
 
 	chan->con_priv = qinst;
 
