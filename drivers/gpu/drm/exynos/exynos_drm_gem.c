@@ -143,7 +143,7 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 	DRM_DEBUG_KMS("gem handle = 0x%x\n", *handle);
 
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }
@@ -186,7 +186,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 
 	exynos_gem = to_exynos_gem(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return exynos_gem->size;
 }
@@ -329,13 +329,13 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 		return;
 	}
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	/*
 	 * decrease obj->refcount one more time because we has already
 	 * increased it at exynos_drm_gem_get_dma_addr().
 	 */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 }
 
 static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem *exynos_gem,
@@ -383,7 +383,7 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	args->flags = exynos_gem->flags;
 	args->size = exynos_gem->size;
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 }

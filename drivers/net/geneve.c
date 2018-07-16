@@ -476,7 +476,7 @@ static struct sk_buff **geneve_gro_receive(struct sock *sk,
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }

@@ -453,6 +453,7 @@ ENTRY(crypto_morus1280_avx2_enc_tail)
 	vmovdqu STATE4, (4 * 32)(%rdi)
 
 	FRAME_END
+	ret
 ENDPROC(crypto_morus1280_avx2_enc_tail)
 
 /*

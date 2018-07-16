@@ -2002,7 +2002,6 @@ int i915_gem_fault(struct vm_fault *vmf)
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 	struct i915_vma *vma;
 	pgoff_t page_offset;
-	unsigned int flags;
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
@@ -2038,27 +2037,34 @@ int i915_gem_fault(struct vm_fault *vmf)
 		goto err_unlock;
 	}
 
-	/* If the object is smaller than a couple of partial vma, it is
-	 * not worth only creating a single partial vma - we may as well
-	 * clear enough space for the full object.
-	 */
-	flags = PIN_MAPPABLE;
-	if (obj->base.size > 2 * MIN_CHUNK_PAGES << PAGE_SHIFT)
-		flags |= PIN_NONBLOCK | PIN_NONFAULT;
 
 	/* Now pin it into the GTT as needed */
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, flags);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       PIN_MAPPABLE |
+				       PIN_NONBLOCK |
+				       PIN_NONFAULT);
 	if (IS_ERR(vma)) {
 		/* Use a partial view if it is bigger than available space */
 		struct i915_ggtt_view view =
 			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
+		unsigned int flags;
 
-		/* Userspace is now writing through an untracked VMA, abandon
+		flags = PIN_MAPPABLE;
+		if (view.type == I915_GGTT_VIEW_NORMAL)
+			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
+
+		/*
+		 * Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
 		 */
 		obj->frontbuffer_ggtt_origin = ORIGIN_CPU;
 
-		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
+		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
+		if (IS_ERR(vma) && !view.type) {
+			flags = PIN_MAPPABLE;
+			view.type = I915_GGTT_VIEW_PARTIAL;
+			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
+		}
 	}
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);

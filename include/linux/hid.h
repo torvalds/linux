@@ -511,6 +511,7 @@ struct hid_output_fifo {
 #define HID_STAT_ADDED		BIT(0)
 #define HID_STAT_PARSED		BIT(1)
 #define HID_STAT_DUP_DETECTED	BIT(2)
+#define HID_STAT_REPROBED	BIT(3)
 
 struct hid_input {
 	struct list_head list;
@@ -579,7 +580,7 @@ struct hid_device {							/* device report descriptor */
 	bool battery_avoid_query;
 #endif
 
-	unsigned int status;						/* see STAT flags above */
+	unsigned long status;						/* see STAT flags above */
 	unsigned claimed;						/* Claimed by hidinput, hiddev? */
 	unsigned quirks;						/* Various quirks the device can pull on us */
 	bool io_started;						/* If IO has started */

@@ -581,7 +581,7 @@ W:	https://www.infradead.org/~dhowells/kafs/
 
 AGPGART DRIVER
 M:	David Airlie <airlied@linux.ie>
-T:	git git://people.freedesktop.org/~airlied/linux (part of drm maint)
+T:	git git://anongit.freedesktop.org/drm/drm
 S:	Maintained
 F:	drivers/char/agp/
 F:	include/linux/agp*
@@ -4468,6 +4468,7 @@ F:	Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+R:	"Rafael J. Wysocki" <rafael@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
 S:	Supported
 F:	Documentation/kobject.txt
@@ -4638,7 +4639,7 @@ F:	include/uapi/drm/vmwgfx_drm.h
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
 L:	dri-devel@lists.freedesktop.org
-T:	git git://people.freedesktop.org/~airlied/linux
+T:	git git://anongit.freedesktop.org/drm/drm
 B:	https://bugs.freedesktop.org/
 C:	irc://chat.freenode.net/dri-devel
 S:	Maintained
@@ -10232,11 +10233,13 @@ F:	sound/soc/codecs/sgtl5000*
 
 NXP TDA998X DRM DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Supported
+S:	Maintained
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-devel
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-fixes
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
+F:	include/dt-bindings/display/tda998x.h
+K:	"nxp,tda998x"
 
 NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
@@ -11854,7 +11857,7 @@ S:	Supported
 F:	arch/hexagon/
 
 QUALCOMM HIDMA DRIVER
-M:	Sinan Kaya <okaya@codeaurora.org>
+M:	Sinan Kaya <okaya@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-arm-msm@vger.kernel.org
 L:	dmaengine@vger.kernel.org

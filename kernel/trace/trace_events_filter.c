@@ -1701,6 +1701,7 @@ static void create_filter_finish(struct filter_parse_error *pe)
  * @filter_str: filter string
  * @set_str: remember @filter_str and enable detailed error in filter
  * @filterp: out param for created filter (always updated on return)
+ *           Must be a pointer that references a NULL pointer.
  *
  * Creates a filter for @call with @filter_str.  If @set_str is %true,
  * @filter_str is copied and recorded in the new filter.
@@ -1717,6 +1718,10 @@ static int create_filter(struct trace_event_call *call,
 {
 	struct filter_parse_error *pe = NULL;
 	int err;
+
+	/* filterp must point to NULL */
+	if (WARN_ON(*filterp))
+		*filterp = NULL;
 
 	err = create_filter_start(filter_string, set_str, &pe, filterp);
 	if (err)
