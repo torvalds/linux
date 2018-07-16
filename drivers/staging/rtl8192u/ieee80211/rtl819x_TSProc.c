@@ -146,7 +146,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 		pTxTS->num = count;
 		// The timers for the operation of Traffic Stream and Block Ack.
 		// DLS related timer will be add here in the future!!
-		timer_setup(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+		timer_setup(&pTxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
 			    0);
 		timer_setup(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
 			    0);
@@ -167,7 +167,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 	for(count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
-		timer_setup(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+		timer_setup(&pRxTS->TsCommonInfo.setup_timer, TsSetupTimeOut,
 			    0);
 		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
 			    0);
@@ -193,7 +193,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 static void AdmitTS(struct ieee80211_device *ieee,
 		    struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
-	del_timer_sync(&pTsCommonInfo->SetupTimer);
+	del_timer_sync(&pTsCommonInfo->setup_timer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
 
 	if(InactTime!=0)
@@ -412,7 +412,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, struct ts_common_info *
 {
 	//u32 flags = 0;
 	unsigned long flags = 0;
-	del_timer_sync(&pTs->SetupTimer);
+	del_timer_sync(&pTs->setup_timer);
 	del_timer_sync(&pTs->InactTimer);
 	TsInitDelBA(ieee, pTs, TxRxSelect);
 
