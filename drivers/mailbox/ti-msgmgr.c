@@ -42,8 +42,6 @@ struct ti_msgmgr_valid_queue_desc {
  * @queue_count:	Number of Queues
  * @max_message_size:	Message size in bytes
  * @max_messages:	Number of messages
- * @q_slices:		Number of queue engines
- * @q_proxies:		Number of queue proxies per page
  * @data_first_reg:	First data register for proxy data region
  * @data_last_reg:	Last data register for proxy data region
  * @tx_polled:		Do I need to use polled mechanism for tx
@@ -58,8 +56,6 @@ struct ti_msgmgr_desc {
 	u8 queue_count;
 	u8 max_message_size;
 	u8 max_messages;
-	u8 q_slices;
-	u8 q_proxies;
 	u8 data_first_reg;
 	u8 data_last_reg;
 	bool tx_polled;
@@ -494,8 +490,6 @@ static const struct ti_msgmgr_desc k2g_desc = {
 	.queue_count = 64,
 	.max_message_size = 64,
 	.max_messages = 128,
-	.q_slices = 1,
-	.q_proxies = 1,
 	.data_first_reg = 16,
 	.data_last_reg = 31,
 	.tx_polled = false,
