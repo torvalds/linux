@@ -2,14 +2,14 @@ Marvell Armada AP806 System Controller
 ======================================
 
 The AP806 is one of the two core HW blocks of the Marvell Armada 7K/8K
-SoCs. It contains a system controller, which provides a number
-registers giving access to numerous features: clocks, pin-muxing and
-many other SoC configuration items. This DT binding allows to describe
-this system controller.
+SoCs. It contains system controllers, which provide several registers
+giving access to numerous features: clocks, pin-muxing and many other
+SoC configuration items. This DT binding allows to describe these
+system controllers.
 
 For the top level node:
  - compatible: must be: "syscon", "simple-mfd";
-  - reg: register area of the AP806 system controller
+ - reg: register area of the AP806 system controller
 
 Clocks:
 -------
