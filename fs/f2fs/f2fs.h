@@ -69,6 +69,8 @@ extern const char *f2fs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 #endif
 
+#define MIN_ROOT_RESERVED_BLOCKS (128 * 1024 * 1024)
+
 /*
  * For mount options
  */

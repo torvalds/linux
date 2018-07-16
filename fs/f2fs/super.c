@@ -280,7 +280,8 @@ static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
 
 	/* limit is 0.2% */
 	if (test_opt(sbi, RESERVE_ROOT) &&
-			F2FS_OPTION(sbi).root_reserved_blocks > limit) {
+			F2FS_OPTION(sbi).root_reserved_blocks > limit &&
+			F2FS_OPTION(sbi).root_reserved_blocks > MIN_ROOT_RESERVED_BLOCKS) {
 		F2FS_OPTION(sbi).root_reserved_blocks = limit;
 		f2fs_info(sbi, "Reduce reserved blocks for root = %u",
 			  F2FS_OPTION(sbi).root_reserved_blocks);
