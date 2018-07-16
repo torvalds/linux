@@ -585,6 +585,17 @@ config CRYPTO_DEV_QCE
 	  hardware. To compile this driver as a module, choose M here. The
 	  module will be called qcrypto.
 
+config CRYPTO_DEV_QCOM_RNG
+	tristate "Qualcomm Random Number Generator Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select CRYPTO_RNG
+	help
+	  This driver provides support for the Random Number
+	  Generator hardware found on Qualcomm SoCs.
+
+	  To compile this driver as a module, choose M here. The
+          module will be called qcom-rng. If unsure, say N.
+
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
 	depends on PPC64 && VSX
