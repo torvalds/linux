@@ -35,13 +35,13 @@ BASIC USAGE: HERD7
 The memory model is used, in conjunction with "herd7", to exhaustively
 explore the state space of small litmus tests.
 
-For example, to run SB+mbonceonces.litmus against the memory model:
+For example, to run SB+fencembonceonces.litmus against the memory model:
 
-  $ herd7 -conf linux-kernel.cfg litmus-tests/SB+mbonceonces.litmus
+  $ herd7 -conf linux-kernel.cfg litmus-tests/SB+fencembonceonces.litmus
 
 Here is the corresponding output:
 
-  Test SB+mbonceonces Allowed
+  Test SB+fencembonceonces Allowed
   States 3
   0:r0=0; 1:r0=1;
   0:r0=1; 1:r0=0;
@@ -50,8 +50,8 @@ Here is the corresponding output:
   Witnesses
   Positive: 0 Negative: 3
   Condition exists (0:r0=0 /\ 1:r0=0)
-  Observation SB+mbonceonces Never 0 3
-  Time SB+mbonceonces 0.01
+  Observation SB+fencembonceonces Never 0 3
+  Time SB+fencembonceonces 0.01
   Hash=d66d99523e2cac6b06e66f4c995ebb48
 
 The "Positive: 0 Negative: 3" and the "Never 0 3" each indicate that
@@ -67,16 +67,16 @@ BASIC USAGE: KLITMUS7
 The "klitmus7" tool converts a litmus test into a Linux kernel module,
 which may then be loaded and run.
 
-For example, to run SB+mbonceonces.litmus against hardware:
+For example, to run SB+fencembonceonces.litmus against hardware:
 
   $ mkdir mymodules
-  $ klitmus7 -o mymodules litmus-tests/SB+mbonceonces.litmus
+  $ klitmus7 -o mymodules litmus-tests/SB+fencembonceonces.litmus
   $ cd mymodules ; make
   $ sudo sh run.sh
 
 The corresponding output includes:
 
-  Test SB+mbonceonces Allowed
+  Test SB+fencembonceonces Allowed
   Histogram (3 states)
   644580  :>0:r0=1; 1:r0=0;
   644328  :>0:r0=0; 1:r0=1;
@@ -86,8 +86,8 @@ The corresponding output includes:
   Positive: 0, Negative: 2000000
   Condition exists (0:r0=0 /\ 1:r0=0) is NOT validated
   Hash=d66d99523e2cac6b06e66f4c995ebb48
-  Observation SB+mbonceonces Never 0 2000000
-  Time SB+mbonceonces 0.16
+  Observation SB+fencembonceonces Never 0 2000000
+  Time SB+fencembonceonces 0.16
 
 The "Positive: 0 Negative: 2000000" and the "Never 0 2000000" indicate
 that during two million trials, the state specified in this litmus

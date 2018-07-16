@@ -1,4 +1,4 @@
-C S+wmbonceonce+poacquireonce
+C S+fencewmbonceonce+poacquireonce
 
 (*
  * Result: Never

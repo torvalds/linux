@@ -126,7 +126,7 @@ However, it is not necessarily the case that accesses ordered by
 locking will be seen as ordered by CPUs not holding that lock.
 Consider this example:
 
-	/* See Z6.0+pooncelock+pooncelock+pombonce.litmus. */
+	/* See Z6.0+pooncerelease+poacquirerelease+fencembonceonce.litmus. */
 	void CPU0(void)
 	{
 		spin_lock(&mylock);
@@ -292,7 +292,7 @@ and to use smp_load_acquire() instead of smp_rmb().  However, the older
 smp_wmb() and smp_rmb() APIs are still heavily used, so it is important
 to understand their use cases.  The general approach is shown below:
 
-	/* See MP+wmbonceonce+rmbonceonce.litmus. */
+	/* See MP+fencewmbonceonce+fencermbonceonce.litmus. */
 	void CPU0(void)
 	{
 		WRITE_ONCE(x, 1);
@@ -360,7 +360,7 @@ can be seen in the LB+poonceonces.litmus litmus test.
 One way of avoiding the counter-intuitive outcome is through the use of a
 control dependency paired with a full memory barrier:
 
-	/* See LB+ctrlonceonce+mbonceonce.litmus. */
+	/* See LB+fencembonceonce+ctrlonceonce.litmus. */
 	void CPU0(void)
 	{
 		r0 = READ_ONCE(x);
@@ -476,7 +476,7 @@ that one CPU first stores to one variable and then loads from a second,
 while another CPU stores to the second variable and then loads from the
 first.  Preserving order requires nothing less than full barriers:
 
-	/* See SB+mbonceonces.litmus. */
+	/* See SB+fencembonceonces.litmus. */
 	void CPU0(void)
 	{
 		WRITE_ONCE(x, 1);
