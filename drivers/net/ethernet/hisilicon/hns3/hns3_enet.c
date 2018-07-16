@@ -3436,10 +3436,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	ret = hns3_get_ring_config(priv);
-	if (ret)
-		return ret;
-
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
 		return ret;
@@ -3470,10 +3466,6 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
-
-	hns3_put_ring_config(priv);
-
-	priv->ring_data = NULL;
 
 	hns3_uninit_mac_addr(netdev);
 
