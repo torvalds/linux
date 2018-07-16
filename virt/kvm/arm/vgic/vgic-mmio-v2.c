@@ -25,19 +25,21 @@
 static unsigned long vgic_mmio_read_v2_misc(struct kvm_vcpu *vcpu,
 					    gpa_t addr, unsigned int len)
 {
+	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 	u32 value;
 
 	switch (addr & 0x0c) {
 	case GIC_DIST_CTRL:
-		value = vcpu->kvm->arch.vgic.enabled ? GICD_ENABLE : 0;
+		value = vgic->enabled ? GICD_ENABLE : 0;
 		break;
 	case GIC_DIST_CTR:
-		value = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
+		value = vgic->nr_spis + VGIC_NR_PRIVATE_IRQS;
 		value = (value >> 5) - 1;
 		value |= (atomic_read(&vcpu->kvm->online_vcpus) - 1) << 5;
 		break;
 	case GIC_DIST_IIDR:
 		value = (PRODUCT_ID_KVM << GICD_IIDR_PRODUCT_ID_SHIFT) |
+			(vgic->implementation_rev << GICD_IIDR_REVISION_SHIFT) |
 			(IMPLEMENTER_ARM << GICD_IIDR_IMPLEMENTER_SHIFT);
 		break;
 	default:
