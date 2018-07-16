@@ -747,6 +747,7 @@ config VIDEO_OV772X
 	tristate "OmniVision OV772x sensor support"
 	depends on I2C && VIDEO_V4L2
 	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_SCCB
 	---help---
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV772x camera.
