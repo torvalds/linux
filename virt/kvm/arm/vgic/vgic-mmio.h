@@ -37,8 +37,8 @@ struct vgic_register_region {
 	unsigned long (*uaccess_read)(struct kvm_vcpu *vcpu, gpa_t addr,
 				      unsigned int len);
 	union {
-		void (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
-				      unsigned int len, unsigned long val);
+		int (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
+				     unsigned int len, unsigned long val);
 		int (*uaccess_its_write)(struct kvm *kvm, struct vgic_its *its,
 					 gpa_t addr, unsigned int len,
 					 unsigned long val);
@@ -134,6 +134,9 @@ unsigned long vgic_mmio_read_rao(struct kvm_vcpu *vcpu,
 void vgic_mmio_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
 			unsigned int len, unsigned long val);
 
+int vgic_mmio_uaccess_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
+			       unsigned int len, unsigned long val);
+
 unsigned long vgic_mmio_read_enable(struct kvm_vcpu *vcpu,
 				    gpa_t addr, unsigned int len);
 
@@ -167,13 +170,13 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 			     gpa_t addr, unsigned int len,
 			     unsigned long val);
 
-void vgic_mmio_uaccess_write_cactive(struct kvm_vcpu *vcpu,
-				     gpa_t addr, unsigned int len,
-				     unsigned long val);
+int vgic_mmio_uaccess_write_cactive(struct kvm_vcpu *vcpu,
+				    gpa_t addr, unsigned int len,
+				    unsigned long val);
 
-void vgic_mmio_uaccess_write_sactive(struct kvm_vcpu *vcpu,
-				     gpa_t addr, unsigned int len,
-				     unsigned long val);
+int vgic_mmio_uaccess_write_sactive(struct kvm_vcpu *vcpu,
+				    gpa_t addr, unsigned int len,
+				    unsigned long val);
 
 unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
 				      gpa_t addr, unsigned int len);

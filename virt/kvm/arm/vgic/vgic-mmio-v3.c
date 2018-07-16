@@ -249,9 +249,9 @@ static unsigned long vgic_v3_uaccess_read_pending(struct kvm_vcpu *vcpu,
 	return value;
 }
 
-static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
-					  gpa_t addr, unsigned int len,
-					  unsigned long val)
+static int vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
+					 gpa_t addr, unsigned int len,
+					 unsigned long val)
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
@@ -276,6 +276,8 @@ static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
 
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+
+	return 0;
 }
 
 /* We want to avoid outer shareable. */
@@ -468,7 +470,7 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICPENDR,
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 1,
+		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISACTIVER,
 		vgic_mmio_read_active, vgic_mmio_write_sactive,
@@ -541,7 +543,7 @@ static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICPENDR0,
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
+		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISACTIVER0,
 		vgic_mmio_read_active, vgic_mmio_write_sactive,
