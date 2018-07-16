@@ -5,6 +5,7 @@
  *	Implements an efficient asynchronous io interface.
  *
  *	Copyright 2000, 2001, 2002 Red Hat, Inc.  All Rights Reserved.
+ *	Copyright 2018 Christoph Hellwig.
  *
  *	See ../COPYING for licensing terms.
  */
@@ -165,10 +166,21 @@ struct fsync_iocb {
 	bool			datasync;
 };
 
+struct poll_iocb {
+	struct file		*file;
+	struct wait_queue_head	*head;
+	__poll_t		events;
+	bool			woken;
+	bool			cancelled;
+	struct wait_queue_entry	wait;
+	struct work_struct	work;
+};
+
 struct aio_kiocb {
 	union {
 		struct kiocb		rw;
 		struct fsync_iocb	fsync;
+		struct poll_iocb	poll;
 	};
 
 	struct kioctx		*ki_ctx;
@@ -1601,6 +1613,169 @@ static int aio_fsync(struct fsync_iocb *req, struct iocb *iocb, bool datasync)
 	return 0;
 }
 
+static inline void aio_poll_complete(struct aio_kiocb *iocb, __poll_t mask)
+{
+	struct file *file = iocb->poll.file;
+
+	aio_complete(iocb, mangle_poll(mask), 0);
+	fput(file);
+}
+
+static void aio_poll_complete_work(struct work_struct *work)
+{
+	struct poll_iocb *req = container_of(work, struct poll_iocb, work);
+	struct aio_kiocb *iocb = container_of(req, struct aio_kiocb, poll);
+	struct poll_table_struct pt = { ._key = req->events };
+	struct kioctx *ctx = iocb->ki_ctx;
+	__poll_t mask = 0;
+
+	if (!READ_ONCE(req->cancelled))
+		mask = vfs_poll(req->file, &pt) & req->events;
+
+	/*
+	 * Note that ->ki_cancel callers also delete iocb from active_reqs after
+	 * calling ->ki_cancel.  We need the ctx_lock roundtrip here to
+	 * synchronize with them.  In the cancellation case the list_del_init
+	 * itself is not actually needed, but harmless so we keep it in to
+	 * avoid further branches in the fast path.
+	 */
+	spin_lock_irq(&ctx->ctx_lock);
+	if (!mask && !READ_ONCE(req->cancelled)) {
+		add_wait_queue(req->head, &req->wait);
+		spin_unlock_irq(&ctx->ctx_lock);
+		return;
+	}
+	list_del_init(&iocb->ki_list);
+	spin_unlock_irq(&ctx->ctx_lock);
+
+	aio_poll_complete(iocb, mask);
+}
+
+/* assumes we are called with irqs disabled */
+static int aio_poll_cancel(struct kiocb *iocb)
+{
+	struct aio_kiocb *aiocb = container_of(iocb, struct aio_kiocb, rw);
+	struct poll_iocb *req = &aiocb->poll;
+
+	spin_lock(&req->head->lock);
+	WRITE_ONCE(req->cancelled, true);
+	if (!list_empty(&req->wait.entry)) {
+		list_del_init(&req->wait.entry);
+		schedule_work(&aiocb->poll.work);
+	}
+	spin_unlock(&req->head->lock);
+
+	return 0;
+}
+
+static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
+		void *key)
+{
+	struct poll_iocb *req = container_of(wait, struct poll_iocb, wait);
+	__poll_t mask = key_to_poll(key);
+
+	req->woken = true;
+
+	/* for instances that support it check for an event match first: */
+	if (mask && !(mask & req->events))
+		return 0;
+
+	list_del_init(&req->wait.entry);
+	schedule_work(&req->work);
+	return 1;
+}
+
+struct aio_poll_table {
+	struct poll_table_struct	pt;
+	struct aio_kiocb		*iocb;
+	int				error;
+};
+
+static void
+aio_poll_queue_proc(struct file *file, struct wait_queue_head *head,
+		struct poll_table_struct *p)
+{
+	struct aio_poll_table *pt = container_of(p, struct aio_poll_table, pt);
+
+	/* multiple wait queues per file are not supported */
+	if (unlikely(pt->iocb->poll.head)) {
+		pt->error = -EINVAL;
+		return;
+	}
+
+	pt->error = 0;
+	pt->iocb->poll.head = head;
+	add_wait_queue(head, &pt->iocb->poll.wait);
+}
+
+static ssize_t aio_poll(struct aio_kiocb *aiocb, struct iocb *iocb)
+{
+	struct kioctx *ctx = aiocb->ki_ctx;
+	struct poll_iocb *req = &aiocb->poll;
+	struct aio_poll_table apt;
+	__poll_t mask;
+
+	/* reject any unknown events outside the normal event mask. */
+	if ((u16)iocb->aio_buf != iocb->aio_buf)
+		return -EINVAL;
+	/* reject fields that are not defined for poll */
+	if (iocb->aio_offset || iocb->aio_nbytes || iocb->aio_rw_flags)
+		return -EINVAL;
+
+	INIT_WORK(&req->work, aio_poll_complete_work);
+	req->events = demangle_poll(iocb->aio_buf) | EPOLLERR | EPOLLHUP;
+	req->file = fget(iocb->aio_fildes);
+	if (unlikely(!req->file))
+		return -EBADF;
+
+	apt.pt._qproc = aio_poll_queue_proc;
+	apt.pt._key = req->events;
+	apt.iocb = aiocb;
+	apt.error = -EINVAL; /* same as no support for IOCB_CMD_POLL */
+
+	/* initialized the list so that we can do list_empty checks */
+	INIT_LIST_HEAD(&req->wait.entry);
+	init_waitqueue_func_entry(&req->wait, aio_poll_wake);
+
+	/* one for removal from waitqueue, one for this function */
+	refcount_set(&aiocb->ki_refcnt, 2);
+
+	mask = vfs_poll(req->file, &apt.pt) & req->events;
+	if (unlikely(!req->head)) {
+		/* we did not manage to set up a waitqueue, done */
+		goto out;
+	}
+
+	spin_lock_irq(&ctx->ctx_lock);
+	spin_lock(&req->head->lock);
+	if (req->woken) {
+		/* wake_up context handles the rest */
+		mask = 0;
+		apt.error = 0;
+	} else if (mask || apt.error) {
+		/* if we get an error or a mask we are done */
+		WARN_ON_ONCE(list_empty(&req->wait.entry));
+		list_del_init(&req->wait.entry);
+	} else {
+		/* actually waiting for an event */
+		list_add_tail(&aiocb->ki_list, &ctx->active_reqs);
+		aiocb->ki_cancel = aio_poll_cancel;
+	}
+	spin_unlock(&req->head->lock);
+	spin_unlock_irq(&ctx->ctx_lock);
+
+out:
+	if (unlikely(apt.error)) {
+		fput(req->file);
+		return apt.error;
+	}
+
+	if (mask)
+		aio_poll_complete(aiocb, mask);
+	iocb_put(aiocb);
+	return 0;
+}
+
 static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			 bool compat)
 {
@@ -1673,6 +1848,9 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		break;
 	case IOCB_CMD_FDSYNC:
 		ret = aio_fsync(&req->fsync, &iocb, true);
+		break;
+	case IOCB_CMD_POLL:
+		ret = aio_poll(req, &iocb);
 		break;
 	default:
 		pr_debug("invalid aio operation %d\n", iocb.aio_lio_opcode);
