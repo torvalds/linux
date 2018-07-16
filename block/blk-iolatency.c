@@ -468,16 +468,6 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 	}
 	preempt_enable();
 
-	/*
-	 * Our average exceeded our window, scale up our window so we are more
-	 * accurate, but not more than the global timer.
-	 */
-	if (stat.mean > iolat->cur_win_nsec) {
-		iolat->cur_win_nsec <<= 1;
-		iolat->cur_win_nsec =
-			max_t(u64, iolat->cur_win_nsec, NSEC_PER_SEC);
-	}
-
 	parent = blkg_to_lat(blkg->parent);
 	if (!parent)
 		return;
