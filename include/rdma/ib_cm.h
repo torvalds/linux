@@ -120,6 +120,13 @@ struct ib_cm_req_event_param {
 	struct sa_path_rec	*primary_path;
 	struct sa_path_rec	*alternate_path;
 
+	/*
+	 * SGID attribute of the primary path. Currently only
+	 * useful for RoCE. Alternate path GID attributes
+	 * are not yet supported.
+	 */
+	const struct ib_gid_attr *ppath_sgid_attr;
+
 	__be64			remote_ca_guid;
 	u32			remote_qkey;
 	u32			remote_qpn;
@@ -226,6 +233,12 @@ struct ib_cm_apr_event_param {
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
 	__be64			service_id;
+
+	/*
+	 * SGID attribute of the request. Currently only
+	 * useful for RoCE.
+	 */
+	const struct ib_gid_attr *sgid_attr;
 	/* P_Key that was used by the GMP's BTH header */
 	u16			bth_pkey;
 	u8			port;
