@@ -221,6 +221,9 @@ struct vgic_dist {
 	/* Implementation revision as reported in the GICD_IIDR */
 	u32			implementation_rev;
 
+	/* Userspace can write to GICv2 IGROUPR */
+	bool			v2_groups_user_writable;
+
 	/* Do injected MSIs require an additional device ID? */
 	bool			msis_require_devid;
 
