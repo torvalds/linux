@@ -37,6 +37,13 @@
 
 #define DC_LOGGER \
 	dc->ctx->logger
+
+#define WM_SET_COUNT 4
+#define WM_A 0
+#define WM_B 1
+#define WM_C 2
+#define WM_D 3
+
 /*
  * NOTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.

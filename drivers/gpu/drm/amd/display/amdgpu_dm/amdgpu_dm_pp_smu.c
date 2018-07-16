@@ -478,7 +478,7 @@ bool dm_pp_get_static_clocks(
 void pp_rv_set_display_requirement(struct pp_smu *pp,
 		struct pp_smu_display_requirement_rv *req)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -499,7 +499,7 @@ void pp_rv_set_display_requirement(struct pp_smu *pp,
 void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -548,7 +548,7 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 {
-	struct dc_context *ctx = pp->ctx;
+	const struct dc_context *ctx = pp->dm;
 	struct amdgpu_device *adev = ctx->driver_context;
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
@@ -563,7 +563,7 @@ void dm_pp_get_funcs_rv(
 		struct dc_context *ctx,
 		struct pp_smu_funcs_rv *funcs)
 {
-	funcs->pp_smu.ctx = ctx;
+	funcs->pp_smu.dm = ctx;
 	funcs->set_display_requirement = pp_rv_set_display_requirement;
 	funcs->set_wm_ranges = pp_rv_set_wm_ranges;
 	funcs->set_pme_wa_enable = pp_rv_set_pme_wa_enable;
