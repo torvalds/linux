@@ -381,7 +381,6 @@ static int snd_sb8_capture_trigger(struct snd_pcm_substream *substream,
 irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 {
 	struct snd_pcm_substream *substream;
-	struct snd_pcm_runtime *runtime;
 
 	snd_sb_ack_8bit(chip);
 	switch (chip->mode) {
@@ -391,7 +390,6 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 		/* fallthru */
 	case SB_MODE_PLAYBACK_8:
 		substream = chip->playback_substream;
-		runtime = substream->runtime;
 		if (chip->playback_format == SB_DSP_OUTPUT)
 		    	snd_sb8_playback_trigger(substream, SNDRV_PCM_TRIGGER_START);
 		snd_pcm_period_elapsed(substream);
@@ -402,7 +400,6 @@ irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 		/* fallthru */
 	case SB_MODE_CAPTURE_8:
 		substream = chip->capture_substream;
-		runtime = substream->runtime;
 		if (chip->capture_format == SB_DSP_INPUT)
 		    	snd_sb8_capture_trigger(substream, SNDRV_PCM_TRIGGER_START);
 		snd_pcm_period_elapsed(substream);
