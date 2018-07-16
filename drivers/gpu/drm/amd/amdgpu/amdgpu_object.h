@@ -234,6 +234,9 @@ static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
 	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
+bool amdgpu_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
+void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
+
 int amdgpu_bo_create(struct amdgpu_device *adev,
 		     struct amdgpu_bo_param *bp,
 		     struct amdgpu_bo **bo_ptr);

@@ -473,7 +473,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 		if (cmd == 0x0 || cmd == 0x3) {
 			/* yes, force it into VRAM */
 			uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
-			amdgpu_ttm_placement_from_domain(bo, domain);
+			amdgpu_bo_placement_from_domain(bo, domain);
 		}
 		amdgpu_uvd_force_into_uvd_segment(bo);
 
@@ -1014,7 +1014,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	if (!ring->adev->uvd.address_64_bit) {
 		struct ttm_operation_ctx ctx = { true, false };
 
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
+		amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
 		amdgpu_uvd_force_into_uvd_segment(bo);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		if (r)
