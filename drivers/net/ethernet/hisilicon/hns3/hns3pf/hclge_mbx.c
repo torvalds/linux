@@ -104,13 +104,15 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 	}
 }
 
-/* hclge_get_ring_chain_from_mbx: get ring type & tqpid from mailbox message
+/* hclge_get_ring_chain_from_mbx: get ring type & tqp id & int_gl idx
+ * from mailbox message
  * msg[0]: opcode
  * msg[1]: <not relevant to this function>
  * msg[2]: ring_num
  * msg[3]: first ring type (TX|RX)
  * msg[4]: first tqp id
- * msg[5] ~ msg[14]: other ring type and tqp id
+ * msg[5]: first int_gl idx
+ * msg[6] ~ msg[14]: other ring type, tqp id and int_gl idx
  */
 static int hclge_get_ring_chain_from_mbx(
 			struct hclge_mbx_vf_to_pf_cmd *req,
