@@ -293,9 +293,10 @@ static void mxcmci_swap_buffers(struct mmc_data *data)
 	int i;
 
 	for_each_sg(data->sg, sg, data->sg_len, i) {
-		void *buf = kmap_atomic(sg_page(sg) + sg->offset;
+		void *buf = kmap_atomic(sg_page(sg) + sg->offset);
 		buffer_swap32(buf, sg->length);
 		kunmap_atomic(buf);
+	}
 }
 #else
 static inline void mxcmci_swap_buffers(struct mmc_data *data) {}
