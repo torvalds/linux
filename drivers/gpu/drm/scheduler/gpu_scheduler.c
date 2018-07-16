@@ -547,6 +547,11 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 	if (first) {
 		/* Add the entity to the run queue */
 		spin_lock(&entity->rq_lock);
+		if (!entity->rq) {
+			DRM_ERROR("Trying to push to a killed entity\n");
+			spin_unlock(&entity->rq_lock);
+			return;
+		}
 		drm_sched_rq_add_entity(entity->rq, entity);
 		spin_unlock(&entity->rq_lock);
 		drm_sched_wakeup(sched);
