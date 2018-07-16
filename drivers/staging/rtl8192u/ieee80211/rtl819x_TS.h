@@ -20,7 +20,7 @@ struct ts_common_info {
 	struct timer_list		setup_timer;
 	struct timer_list		inact_timer;
 	u8				addr[6];
-	TSPEC_BODY			TSpec;
+	TSPEC_BODY			t_spec;
 	QOS_TCLAS			TClass[TCLAS_NUM];
 	u8				TClasProc;
 	u8				TClasNum;
