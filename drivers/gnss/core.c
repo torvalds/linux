@@ -235,7 +235,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 	id = ida_simple_get(&gnss_minors, 0, GNSS_MINORS, GFP_KERNEL);
 	if (id < 0) {
 		kfree(gdev);
-		return ERR_PTR(id);
+		return NULL;
 	}
 
 	gdev->id = id;
@@ -270,7 +270,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 err_put_device:
 	put_device(dev);
 
-	return ERR_PTR(-ENOMEM);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(gnss_allocate_device);
 
