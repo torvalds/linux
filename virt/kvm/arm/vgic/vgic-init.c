@@ -175,10 +175,13 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu0;
 		kref_init(&irq->refcount);
-		if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
+		if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2) {
 			irq->targets = 0;
-		else
+			irq->group = 0;
+		} else {
 			irq->mpidr = 0;
+			irq->group = 1;
+		}
 	}
 	return 0;
 }
@@ -227,6 +230,18 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 			/* PPIs */
 			irq->config = VGIC_CONFIG_LEVEL;
 		}
+
+		/*
+		 * GICv3 can only be created via the KVM_DEVICE_CREATE API and
+		 * so we always know the emulation type at this point as it's
+		 * either explicitly configured as GICv3, or explicitly
+		 * configured as GICv2, or not configured yet which also
+		 * implies GICv2.
+		 */
+		if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+			irq->group = 1;
+		else
+			irq->group = 0;
 	}
 
 	if (!irqchip_in_kernel(vcpu->kvm))

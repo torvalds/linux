@@ -71,6 +71,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	kref_init(&irq->refcount);
 	irq->intid = intid;
 	irq->target_vcpu = vcpu;
+	irq->group = 1;
 
 	spin_lock_irqsave(&dist->lpi_list_lock, flags);
 
