@@ -1334,7 +1334,7 @@ static int vega12_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 	if (data->smu_features[GNLD_DPM_UCLK].enabled)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetUclkFastSwitch,
-			has_disp ? 0 : 1);
+			has_disp ? 1 : 0);
 
 	return 0;
 }
