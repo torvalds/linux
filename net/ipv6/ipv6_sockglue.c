@@ -729,8 +729,9 @@ done:
 			struct sockaddr_in6 *psin6;
 
 			psin6 = (struct sockaddr_in6 *)&greqs.gsr_group;
-			retv = ipv6_sock_mc_join(sk, greqs.gsr_interface,
-						 &psin6->sin6_addr);
+			retv = ipv6_sock_mc_join_ssm(sk, greqs.gsr_interface,
+						     &psin6->sin6_addr,
+						     MCAST_INCLUDE);
 			/* prior join w/ different source is ok */
 			if (retv && retv != -EADDRINUSE)
 				break;
