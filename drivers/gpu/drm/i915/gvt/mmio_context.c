@@ -581,7 +581,9 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 
 	for (mmio = gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {
-		if (mmio->in_context)
+		if (mmio->in_context) {
 			gvt->engine_mmio_list.ctx_mmio_count[mmio->ring_id]++;
+			intel_gvt_mmio_set_in_ctx(gvt, mmio->reg.reg);
+		}
 	}
 }
