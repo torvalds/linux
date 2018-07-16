@@ -575,13 +575,6 @@
 					};
 				};
 
-				spdif_out_a7_pins: spdif_out_a7 {
-					mux {
-						groups = "spdif_out_a7";
-						function = "spdif_out";
-					};
-				};
-
 				spdif_out_a11_pins: spdif_out_a11 {
 					mux {
 						groups = "spdif_out_a11";
