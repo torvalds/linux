@@ -81,7 +81,7 @@ Per-probe event filtering feature allows you to set different filter on each
 probe and gives you what arguments will be shown in trace buffer. If an event
 name is specified right after 'p:' or 'r:' in kprobe_events, it adds an event
 under tracing/events/kprobes/<EVENT>, at the directory you can see 'id',
-'enable', 'format' and 'filter'.
+'enable', 'format', 'filter' and 'trigger'.
 
 enable:
   You can enable/disable the probe by writing 1 or 0 on it.
@@ -95,6 +95,9 @@ filter:
 id:
   This shows the id of this probe event.
 
+trigger:
+  This allows to install trigger commands which are executed when the event is
+  hit (for details, see Documentation/trace/events.rst, section 6).
 
 Event Profiling
 ---------------
