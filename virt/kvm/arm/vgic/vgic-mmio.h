@@ -137,6 +137,12 @@ void vgic_mmio_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
 int vgic_mmio_uaccess_write_wi(struct kvm_vcpu *vcpu, gpa_t addr,
 			       unsigned int len, unsigned long val);
 
+unsigned long vgic_mmio_read_group(struct kvm_vcpu *vcpu, gpa_t addr,
+				   unsigned int len);
+
+void vgic_mmio_write_group(struct kvm_vcpu *vcpu, gpa_t addr,
+			   unsigned int len, unsigned long val);
+
 unsigned long vgic_mmio_read_enable(struct kvm_vcpu *vcpu,
 				    gpa_t addr, unsigned int len);
 

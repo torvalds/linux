@@ -26,6 +26,8 @@
  * The Revision field in the IIDR have the following meanings:
  *
  * Revision 1: Report GICv2 interrupts as group 0 instead of group 1
+ * Revision 2: Interrupt groups are guest-configurable and signaled using
+ * 	       their configured groups.
  */
 
 static unsigned long vgic_mmio_read_v2_misc(struct kvm_vcpu *vcpu,
@@ -86,6 +88,14 @@ static int vgic_mmio_uaccess_write_v2_misc(struct kvm_vcpu *vcpu,
 	}
 
 	vgic_mmio_write_v2_misc(vcpu, addr, len, val);
+	return 0;
+}
+
+static int vgic_mmio_uaccess_write_v2_group(struct kvm_vcpu *vcpu,
+					    gpa_t addr, unsigned int len,
+					    unsigned long val)
+{
+	/* Ignore writes from userspace */
 	return 0;
 }
 
@@ -386,7 +396,8 @@ static const struct vgic_register_region vgic_v2_dist_registers[] = {
 		NULL, vgic_mmio_uaccess_write_v2_misc,
 		12, VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_IGROUP,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, NULL, NULL, 1,
+		vgic_mmio_read_group, vgic_mmio_write_group,
+		NULL, vgic_mmio_uaccess_write_v2_group, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_ENABLE_SET,
 		vgic_mmio_read_enable, vgic_mmio_write_senable, NULL, NULL, 1,
