@@ -1038,7 +1038,7 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 	if (flags & LOOKUP_REVAL)
 		goto out_force;
 out:
-	return (inode->i_nlink == 0) ? -ENOENT : 0;
+	return (inode->i_nlink == 0) ? -ESTALE : 0;
 out_force:
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
