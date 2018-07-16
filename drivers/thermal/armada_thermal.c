@@ -222,9 +222,6 @@ static void armada380_init(struct platform_device *pdev,
 	reg &= ~CONTROL0_TSEN_TC_TRIM_MASK;
 	reg |= CONTROL0_TSEN_TC_TRIM_VAL;
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
-
-	/* Wait the sensors to be valid or the core will warn the user */
-	armada_wait_sensor_validity(priv);
 }
 
 static void armada_ap806_init(struct platform_device *pdev,
@@ -244,9 +241,6 @@ static void armada_ap806_init(struct platform_device *pdev,
 	reg &= ~CONTROL0_TSEN_AVG_BYPASS;
 
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
-
-	/* Wait the sensors to be valid or the core will warn the user */
-	armada_wait_sensor_validity(priv);
 }
 
 static void armada_cp110_init(struct platform_device *pdev,
@@ -651,6 +645,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 			return ret;
 
 		priv->data->init(pdev, priv);
+
+		/* Wait the sensors to be valid */
+		armada_wait_sensor_validity(priv);
 
 		tz = thermal_zone_device_register(priv->zone_name, 0, 0, priv,
 						  &legacy_ops, NULL, 0, 0);
