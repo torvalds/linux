@@ -136,12 +136,24 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nv50_disp_core_channel_dma_v0 *args = data;
+	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 
 	mutex_init(&dmac->lock);
 
-	ret = nvif_mem_init_map(&cli->mmu, NVIF_MEM_COHERENT, 0x1000,
-				&dmac->push);
+	/* Pascal added support for 47-bit physical addresses, but some
+	 * parts of EVO still only accept 40-bit PAs.
+	 *
+	 * To avoid issues on systems with large amounts of RAM, and on
+	 * systems where an IOMMU maps pages at a high address, we need
+	 * to allocate push buffers in VRAM instead.
+	 *
+	 * This appears to match NVIDIA's behaviour on Pascal.
+	 */
+	if (device->info.family == NV_DEVICE_INFO_V0_PASCAL)
+		type |= NVIF_MEM_VRAM;
+
+	ret = nvif_mem_init_map(&cli->mmu, type, 0x1000, &dmac->push);
 	if (ret)
 		return ret;
 
@@ -216,6 +228,19 @@ void
 evo_kick(u32 *push, struct nv50_dmac *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
+
+	/* Push buffer fetches are not coherent with BAR1, we need to ensure
+	 * writes have been flushed right through to VRAM before writing PUT.
+	 */
+	if (dmac->push.type & NVIF_MEM_VRAM) {
+		struct nvif_device *device = dmac->base.device;
+		nvif_wr32(&device->object, 0x070000, 0x00000001);
+		nvif_msec(device, 2000,
+			if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+				break;
+		);
+	}
+
 	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
 	mutex_unlock(&dmac->lock);
 }
