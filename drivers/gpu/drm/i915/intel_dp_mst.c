@@ -48,6 +48,9 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_LIMITED_M_N);
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
 	if (intel_dp->compliance.test_data.bpc) {
@@ -365,6 +368,9 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 
 	if (!intel_dp)
 		return MODE_ERROR;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);

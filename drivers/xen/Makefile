@@ -41,4 +41,4 @@ obj-$(CONFIG_XEN_PVCALLS_FRONTEND)	+= pvcalls-front.o
 xen-evtchn-y				:= evtchn.o
 xen-gntdev-y				:= gntdev.o
 xen-gntalloc-y				:= gntalloc.o
-xen-privcmd-y				:= privcmd.o
+xen-privcmd-y				:= privcmd.o privcmd-buf.o

@@ -645,6 +645,7 @@ ENTRY(crypto_aegis128l_aesni_enc_tail)
 	state_store0
 
 	FRAME_END
+	ret
 ENDPROC(crypto_aegis128l_aesni_enc_tail)
 
 /*

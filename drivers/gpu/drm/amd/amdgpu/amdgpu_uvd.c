@@ -130,7 +130,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	unsigned version_major, version_minor, family_id;
 	int i, j, r;
 
-	INIT_DELAYED_WORK(&adev->uvd.inst->idle_work, amdgpu_uvd_idle_work_handler);
+	INIT_DELAYED_WORK(&adev->uvd.idle_work, amdgpu_uvd_idle_work_handler);
 
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -314,11 +314,11 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	void *ptr;
 	int i, j;
 
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
+
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		if (adev->uvd.inst[j].vcpu_bo == NULL)
 			continue;
-
-		cancel_delayed_work_sync(&adev->uvd.inst[j].idle_work);
 
 		/* only valid for physical mode */
 		if (adev->asic_type < CHIP_POLARIS10) {
@@ -1145,7 +1145,7 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
-		container_of(work, struct amdgpu_device, uvd.inst->idle_work.work);
+		container_of(work, struct amdgpu_device, uvd.idle_work.work);
 	unsigned fences = 0, i, j;
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
@@ -1167,7 +1167,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 							       AMD_CG_STATE_GATE);
 		}
 	} else {
-		schedule_delayed_work(&adev->uvd.inst->idle_work, UVD_IDLE_TIMEOUT);
+		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 	}
 }
 
@@ -1179,7 +1179,7 @@ void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	set_clocks = !cancel_delayed_work_sync(&adev->uvd.inst->idle_work);
+	set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, true);
@@ -1196,7 +1196,7 @@ void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
 {
 	if (!amdgpu_sriov_vf(ring->adev))
-		schedule_delayed_work(&ring->adev->uvd.inst->idle_work, UVD_IDLE_TIMEOUT);
+		schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 }
 
 /**

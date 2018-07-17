@@ -274,8 +274,9 @@ static void crypto_morus640_decrypt_chunk(struct morus640_state *state, u8 *dst,
 		union morus640_block_in tail;
 
 		memcpy(tail.bytes, src, size);
+		memset(tail.bytes + size, 0, MORUS640_BLOCK_SIZE - size);
 
-		crypto_morus640_load_a(&m, src);
+		crypto_morus640_load_a(&m, tail.bytes);
 		crypto_morus640_core(state, &m);
 		crypto_morus640_store_a(tail.bytes, &m);
 		memset(tail.bytes + size, 0, MORUS640_BLOCK_SIZE - size);

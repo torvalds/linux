@@ -239,6 +239,7 @@ cmd_record_mcount =						\
 	     "$(CC_FLAGS_FTRACE)" ]; then			\
 		$(sub_cmd_record_mcount)			\
 	fi;
+endif # -record-mcount
 endif # CONFIG_FTRACE_MCOUNT_RECORD
 
 ifdef CONFIG_STACK_VALIDATION
@@ -261,7 +262,6 @@ endif
 ifdef CONFIG_RETPOLINE
 ifneq ($(RETPOLINE_CFLAGS),)
   objtool_args += --retpoline
-endif
 endif
 endif
 
@@ -589,8 +589,5 @@ endif
 # Some files contained in $(targets) are intermediate artifacts.
 # We never want them to be removed automatically.
 .SECONDARY: $(targets)
-
-# Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)

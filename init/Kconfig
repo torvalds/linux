@@ -1051,10 +1051,9 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	depends on HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	depends on EXPERT
 	help
-	  Select this if the architecture wants to do dead code and
-	  data elimination with the linker by compiling with
-	  -ffunction-sections -fdata-sections, and linking with
-	  --gc-sections.
+	  Enable this if you want to do dead code and data elimination with
+	  the linker by compiling with -ffunction-sections -fdata-sections,
+	  and linking with --gc-sections.
 
 	  This can reduce on disk and in-memory size of the kernel
 	  code and static data, particularly for small configs and

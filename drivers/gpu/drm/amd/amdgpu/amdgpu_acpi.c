@@ -34,6 +34,45 @@
 #include "amd_acpi.h"
 #include "atom.h"
 
+struct amdgpu_atif_notification_cfg {
+	bool enabled;
+	int command_code;
+};
+
+struct amdgpu_atif_notifications {
+	bool display_switch;
+	bool expansion_mode_change;
+	bool thermal_state;
+	bool forced_power_state;
+	bool system_power_state;
+	bool display_conf_change;
+	bool px_gfx_switch;
+	bool brightness_change;
+	bool dgpu_display_event;
+};
+
+struct amdgpu_atif_functions {
+	bool system_params;
+	bool sbios_requests;
+	bool select_active_disp;
+	bool lid_state;
+	bool get_tv_standard;
+	bool set_tv_standard;
+	bool get_panel_expansion_mode;
+	bool set_panel_expansion_mode;
+	bool temperature_change;
+	bool graphics_device_types;
+};
+
+struct amdgpu_atif {
+	acpi_handle handle;
+
+	struct amdgpu_atif_notifications notifications;
+	struct amdgpu_atif_functions functions;
+	struct amdgpu_atif_notification_cfg notification_cfg;
+	struct amdgpu_encoder *encoder_for_bl;
+};
+
 /* Call the ATIF method
  */
 /**
@@ -46,8 +85,9 @@
  * Executes the requested ATIF function (all asics).
  * Returns a pointer to the acpi output buffer.
  */
-static union acpi_object *amdgpu_atif_call(acpi_handle handle, int function,
-		struct acpi_buffer *params)
+static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
+					   int function,
+					   struct acpi_buffer *params)
 {
 	acpi_status status;
 	union acpi_object atif_arg_elements[2];
@@ -70,7 +110,8 @@ static union acpi_object *amdgpu_atif_call(acpi_handle handle, int function,
 		atif_arg_elements[1].integer.value = 0;
 	}
 
-	status = acpi_evaluate_object(handle, "ATIF", &atif_arg, &buffer);
+	status = acpi_evaluate_object(atif->handle, NULL, &atif_arg,
+				      &buffer);
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
@@ -141,15 +182,14 @@ static void amdgpu_atif_parse_functions(struct amdgpu_atif_functions *f, u32 mas
  * (all asics).
  * returns 0 on success, error on failure.
  */
-static int amdgpu_atif_verify_interface(acpi_handle handle,
-		struct amdgpu_atif *atif)
+static int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
 	struct atif_verify_interface output;
 	size_t size;
 	int err = 0;
 
-	info = amdgpu_atif_call(handle, ATIF_FUNCTION_VERIFY_INTERFACE, NULL);
+	info = amdgpu_atif_call(atif, ATIF_FUNCTION_VERIFY_INTERFACE, NULL);
 	if (!info)
 		return -EIO;
 
@@ -176,6 +216,35 @@ out:
 	return err;
 }
 
+static acpi_handle amdgpu_atif_probe_handle(acpi_handle dhandle)
+{
+	acpi_handle handle = NULL;
+	char acpi_method_name[255] = { 0 };
+	struct acpi_buffer buffer = { sizeof(acpi_method_name), acpi_method_name };
+	acpi_status status;
+
+	/* For PX/HG systems, ATIF and ATPX are in the iGPU's namespace, on dGPU only
+	 * systems, ATIF is in the dGPU's namespace.
+	 */
+	status = acpi_get_handle(dhandle, "ATIF", &handle);
+	if (ACPI_SUCCESS(status))
+		goto out;
+
+	if (amdgpu_has_atpx()) {
+		status = acpi_get_handle(amdgpu_atpx_get_dhandle(), "ATIF",
+					 &handle);
+		if (ACPI_SUCCESS(status))
+			goto out;
+	}
+
+	DRM_DEBUG_DRIVER("No ATIF handle found\n");
+	return NULL;
+out:
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+	DRM_DEBUG_DRIVER("Found ATIF handle %s\n", acpi_method_name);
+	return handle;
+}
+
 /**
  * amdgpu_atif_get_notification_params - determine notify configuration
  *
@@ -188,15 +257,16 @@ out:
  * where n is specified in the result if a notifier is used.
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_get_notification_params(acpi_handle handle,
-		struct amdgpu_atif_notification_cfg *n)
+static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
+	struct amdgpu_atif_notification_cfg *n = &atif->notification_cfg;
 	struct atif_system_params params;
 	size_t size;
 	int err = 0;
 
-	info = amdgpu_atif_call(handle, ATIF_FUNCTION_GET_SYSTEM_PARAMETERS, NULL);
+	info = amdgpu_atif_call(atif, ATIF_FUNCTION_GET_SYSTEM_PARAMETERS,
+				NULL);
 	if (!info) {
 		err = -EIO;
 		goto out;
@@ -250,14 +320,15 @@ out:
  * (all asics).
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_get_sbios_requests(acpi_handle handle,
-		struct atif_sbios_requests *req)
+static int amdgpu_atif_get_sbios_requests(struct amdgpu_atif *atif,
+					  struct atif_sbios_requests *req)
 {
 	union acpi_object *info;
 	size_t size;
 	int count = 0;
 
-	info = amdgpu_atif_call(handle, ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS, NULL);
+	info = amdgpu_atif_call(atif, ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS,
+				NULL);
 	if (!info)
 		return -EIO;
 
@@ -290,11 +361,10 @@ out:
  * Returns NOTIFY code
  */
 static int amdgpu_atif_handler(struct amdgpu_device *adev,
-			struct acpi_bus_event *event)
+			       struct acpi_bus_event *event)
 {
-	struct amdgpu_atif *atif = &adev->atif;
+	struct amdgpu_atif *atif = adev->atif;
 	struct atif_sbios_requests req;
-	acpi_handle handle;
 	int count;
 
 	DRM_DEBUG_DRIVER("event, device_class = %s, type = %#x\n",
@@ -303,14 +373,14 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
 		return NOTIFY_DONE;
 
-	if (!atif->notification_cfg.enabled ||
+	if (!atif ||
+	    !atif->notification_cfg.enabled ||
 	    event->type != atif->notification_cfg.command_code)
 		/* Not our event */
 		return NOTIFY_DONE;
 
 	/* Check pending SBIOS requests */
-	handle = ACPI_HANDLE(&adev->pdev->dev);
-	count = amdgpu_atif_get_sbios_requests(handle, &req);
+	count = amdgpu_atif_get_sbios_requests(atif, &req);
 
 	if (count <= 0)
 		return NOTIFY_DONE;
@@ -641,8 +711,8 @@ static int amdgpu_acpi_event(struct notifier_block *nb,
  */
 int amdgpu_acpi_init(struct amdgpu_device *adev)
 {
-	acpi_handle handle;
-	struct amdgpu_atif *atif = &adev->atif;
+	acpi_handle handle, atif_handle;
+	struct amdgpu_atif *atif;
 	struct amdgpu_atcs *atcs = &adev->atcs;
 	int ret;
 
@@ -658,12 +728,26 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 		DRM_DEBUG_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
 	}
 
-	/* Call the ATIF method */
-	ret = amdgpu_atif_verify_interface(handle, atif);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
+	/* Probe for ATIF, and initialize it if found */
+	atif_handle = amdgpu_atif_probe_handle(handle);
+	if (!atif_handle)
+		goto out;
+
+	atif = kzalloc(sizeof(*atif), GFP_KERNEL);
+	if (!atif) {
+		DRM_WARN("Not enough memory to initialize ATIF\n");
 		goto out;
 	}
+	atif->handle = atif_handle;
+
+	/* Call the ATIF method */
+	ret = amdgpu_atif_verify_interface(atif);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
+		kfree(atif);
+		goto out;
+	}
+	adev->atif = atif;
 
 	if (atif->notifications.brightness_change) {
 		struct drm_encoder *tmp;
@@ -693,8 +777,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 
 	if (atif->functions.system_params) {
-		ret = amdgpu_atif_get_notification_params(handle,
-				&atif->notification_cfg);
+		ret = amdgpu_atif_get_notification_params(atif);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
@@ -720,4 +803,6 @@ out:
 void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
 	unregister_acpi_notifier(&adev->acpi_nb);
+	if (adev->atif)
+		kfree(adev->atif);
 }
