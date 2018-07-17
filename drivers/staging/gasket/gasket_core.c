@@ -234,18 +234,6 @@ static inline int gasket_check_and_invoke_callback_nolock(
 }
 
 /*
- * Retrieve device-specific data via cdev pointer.
- * @cdev_ptr: Character device pointer associated with the device.
- *
- * This function returns the pointer to the device-specific data allocated in
- * add_dev_cb for the device associated with cdev_ptr.
- */
-static struct gasket_cdev_info *gasket_cdev_get_info(struct cdev *cdev_ptr)
-{
-	return container_of(cdev_ptr, struct gasket_cdev_info, cdev);
-}
-
-/*
  * Returns nonzero if the gasket_cdev_info is owned by the current thread group
  * ID.
  * @info: Device node info.
@@ -1095,12 +1083,9 @@ static int gasket_open(struct inode *inode, struct file *filp)
 	const struct gasket_driver_desc *driver_desc;
 	struct gasket_ownership *ownership;
 	char task_name[TASK_COMM_LEN];
-	struct gasket_cdev_info *dev_info = gasket_cdev_get_info(inode->i_cdev);
+	struct gasket_cdev_info *dev_info =
+	    container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
 
-	if (!dev_info) {
-		gasket_nodev_error("Unable to retrieve device data");
-		return -EINVAL;
-	}
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 	ownership = &dev_info->ownership;
@@ -1182,11 +1167,8 @@ static int gasket_release(struct inode *inode, struct file *file)
 	const struct gasket_driver_desc *driver_desc;
 	char task_name[TASK_COMM_LEN];
 	struct gasket_cdev_info *dev_info =
-		(struct gasket_cdev_info *)gasket_cdev_get_info(inode->i_cdev);
-	if (!dev_info) {
-		gasket_nodev_error("Unable to retrieve device data");
-		return -EINVAL;
-	}
+		container_of(inode->i_cdev, struct gasket_cdev_info, cdev);
+
 	gasket_dev = dev_info->gasket_dev_ptr;
 	driver_desc = gasket_dev->internal_desc->driver_desc;
 	ownership = &dev_info->ownership;
