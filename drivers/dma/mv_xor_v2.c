@@ -589,10 +589,9 @@ static void mv_xor_v2_tasklet(unsigned long data)
 			 */
 			dma_cookie_complete(&next_pending_sw_desc->async_tx);
 
+			dma_descriptor_unmap(&next_pending_sw_desc->async_tx);
 			dmaengine_desc_get_callback_invoke(
 					&next_pending_sw_desc->async_tx, NULL);
-
-			dma_descriptor_unmap(&next_pending_sw_desc->async_tx);
 		}
 
 		dma_run_dependencies(&next_pending_sw_desc->async_tx);
