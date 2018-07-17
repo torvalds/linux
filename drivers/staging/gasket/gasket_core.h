@@ -56,7 +56,7 @@ enum gasket_interrupt_type {
 
 /* Used to describe a Gasket interrupt. Contains an interrupt index, a register,
  * and packing data for that interrupt. The register and packing data
- * fields is relevant only for PCI_MSIX interrupt type and can be
+ * fields are relevant only for PCI_MSIX interrupt type and can be
  * set to 0 for everything else.
  */
 struct gasket_interrupt_desc {
