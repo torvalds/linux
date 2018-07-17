@@ -648,7 +648,7 @@ int bpf_map_offload_delete_elem(struct bpf_map *map, void *key);
 int bpf_map_offload_get_next_key(struct bpf_map *map,
 				 void *key, void *next_key);
 
-bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
+bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
 
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);

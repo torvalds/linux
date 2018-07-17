@@ -468,7 +468,7 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 	return 0;
 }
 
-bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map)
+bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map)
 {
 	struct bpf_offloaded_map *offmap;
 	struct bpf_prog_offload *offload;
