@@ -1269,6 +1269,31 @@ static void guc_submission_unpark(struct intel_engine_cs *engine)
 	intel_engine_pin_breadcrumbs_irq(engine);
 }
 
+static void guc_set_default_submission(struct intel_engine_cs *engine)
+{
+	/*
+	 * We inherit a bunch of functions from execlists that we'd like
+	 * to keep using:
+	 *
+	 *    engine->submit_request = execlists_submit_request;
+	 *    engine->cancel_requests = execlists_cancel_requests;
+	 *    engine->schedule = execlists_schedule;
+	 *
+	 * But we need to override the actual submission backend in order
+	 * to talk to the GuC.
+	 */
+	intel_execlists_set_default_submission(engine);
+
+	engine->execlists.tasklet.func = guc_submission_tasklet;
+
+	engine->park = guc_submission_park;
+	engine->unpark = guc_submission_unpark;
+
+	engine->reset.prepare = guc_reset_prepare;
+
+	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
+}
+
 int intel_guc_submission_enable(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -1307,17 +1332,8 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 	guc_interrupts_capture(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_engine_execlists * const execlists =
-			&engine->execlists;
-
-		execlists->tasklet.func = guc_submission_tasklet;
-
-		engine->reset.prepare = guc_reset_prepare;
-
-		engine->park = guc_submission_park;
-		engine->unpark = guc_submission_unpark;
-
-		engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
+		engine->set_default_submission = guc_set_default_submission;
+		engine->set_default_submission(engine);
 	}
 
 	return 0;
@@ -1331,9 +1347,6 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 
 	guc_interrupts_release(dev_priv);
 	guc_clients_doorbell_fini(guc);
-
-	/* Revert back to manual ELSP submission */
-	intel_engines_reset_default_submission(dev_priv);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
