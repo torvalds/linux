@@ -30,6 +30,13 @@ struct bpf_prog;
 struct dentry;
 struct nsim_vf_config;
 
+struct netdevsim_shared_dev {
+	unsigned int refcnt;
+	u32 switch_id;
+
+	struct dentry *ddir;
+};
+
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
 
@@ -59,7 +66,7 @@ struct netdevsim {
 	struct u64_stats_sync syncp;
 
 	struct device dev;
-	u32 switch_id;
+	struct netdevsim_shared_dev *sdev;
 
 	struct dentry *ddir;
 
@@ -93,6 +100,7 @@ struct netdevsim {
 };
 
 extern struct dentry *nsim_ddir;
+extern struct dentry *nsim_sdev_ddir;
 
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_init(struct netdevsim *ns);
