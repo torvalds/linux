@@ -488,7 +488,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 					APEX_BAR2_REG_USER_HIB_DMA_PAUSED, 1, 1,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		gasket_log_error(gasket_dev,
-				 "DMAs did not quiece within timeout (%d ms)",
+				 "DMAs did not quiesce within timeout (%d ms)",
 				 APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -EINVAL;
 	}
