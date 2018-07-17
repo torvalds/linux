@@ -1,6 +1,7 @@
 config NTB_IDT
 	tristate "IDT PCIe-switch Non-Transparent Bridge support"
 	depends on PCI
+	select HWMON
 	help
 	 This driver supports NTB of cappable IDT PCIe-switches.
 

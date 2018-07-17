@@ -47,8 +47,8 @@
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/ntb.h>
-
 
 /*
  * Macro is used to create the struct pci_device_id that matches
@@ -907,6 +907,10 @@
  * TMPSTS register fields related constants
  * @IDT_TMPSTS_TEMP_MASK:	Current temperature field mask
  * @IDT_TMPSTS_TEMP_FLD:	Current temperature field offset
+ * @IDT_TMPSTS_LTEMP_MASK:	Lowest temperature field mask
+ * @IDT_TMPSTS_LTEMP_FLD:	Lowest temperature field offset
+ * @IDT_TMPSTS_HTEMP_MASK:	Highest temperature field mask
+ * @IDT_TMPSTS_HTEMP_FLD:	Highest temperature field offset
  */
 #define IDT_TMPSTS_TEMP_MASK		0x000000FFU
 #define IDT_TMPSTS_TEMP_FLD		0
@@ -914,6 +918,20 @@
 #define IDT_TMPSTS_LTEMP_FLD		8
 #define IDT_TMPSTS_HTEMP_MASK		0x00FF0000U
 #define IDT_TMPSTS_HTEMP_FLD		16
+
+/*
+ * TMPALARM register fields related constants
+ * @IDT_TMPALARM_LTEMP_MASK:	Lowest temperature field mask
+ * @IDT_TMPALARM_LTEMP_FLD:	Lowest temperature field offset
+ * @IDT_TMPALARM_HTEMP_MASK:	Highest temperature field mask
+ * @IDT_TMPALARM_HTEMP_FLD:	Highest temperature field offset
+ * @IDT_TMPALARM_IRQ_MASK:	Alarm IRQ status mask
+ */
+#define IDT_TMPALARM_LTEMP_MASK		0x0000FF00U
+#define IDT_TMPALARM_LTEMP_FLD		8
+#define IDT_TMPALARM_HTEMP_MASK		0x00FF0000U
+#define IDT_TMPALARM_HTEMP_FLD		16
+#define IDT_TMPALARM_IRQ_MASK		0x3F000000U
 
 /*
  * TMPADJ register fields related constants
@@ -1100,6 +1118,8 @@ struct idt_ntb_peer {
  * @msg_mask_lock:	Message mask register lock
  * @gasa_lock:		GASA registers access lock
  *
+ * @hwmon_mtx:		Temperature sensor interface update mutex
+ *
  * @dbgfs_info:		DebugFS info node
  */
 struct idt_ntb_dev {
@@ -1126,6 +1146,8 @@ struct idt_ntb_dev {
 	spinlock_t db_mask_lock;
 	spinlock_t msg_mask_lock;
 	spinlock_t gasa_lock;
+
+	struct mutex hwmon_mtx;
 
 	struct dentry *dbgfs_info;
 };
