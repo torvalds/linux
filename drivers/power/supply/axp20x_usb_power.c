@@ -222,6 +222,7 @@ static int axp20x_usb_power_set_current_max(struct axp20x_usb_power *power,
 	case 100000:
 		if (power->axp20x_id == AXP221_ID)
 			return -EINVAL;
+		/* fall through */
 	case 500000:
 	case 900000:
 		val = (900000 - intval) / 400000;
