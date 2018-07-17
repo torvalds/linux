@@ -110,6 +110,8 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @bpf_dev:		BPF offload device handle
+ *
  * @tag_allocator:	bitmap of control message tags in use
  * @tag_alloc_next:	next tag bit to allocate
  * @tag_alloc_last:	next tag bit to be freed
@@ -149,6 +151,8 @@ enum pkt_vec {
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	struct bpf_offload_dev *bpf_dev;
 
 	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
 	u16 tag_alloc_next;

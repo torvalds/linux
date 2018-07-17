@@ -406,12 +406,16 @@ err_release_free:
 
 static int nfp_bpf_ndo_init(struct nfp_app *app, struct net_device *netdev)
 {
-	return bpf_offload_dev_netdev_register(netdev);
+	struct nfp_app_bpf *bpf = app->priv;
+
+	return bpf_offload_dev_netdev_register(bpf->bpf_dev, netdev);
 }
 
 static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
 {
-	bpf_offload_dev_netdev_unregister(netdev);
+	struct nfp_app_bpf *bpf = app->priv;
+
+	bpf_offload_dev_netdev_unregister(bpf->bpf_dev, netdev);
 }
 
 static int nfp_bpf_init(struct nfp_app *app)
@@ -437,6 +441,11 @@ static int nfp_bpf_init(struct nfp_app *app)
 	if (err)
 		goto err_free_neutral_maps;
 
+	bpf->bpf_dev = bpf_offload_dev_create();
+	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
+	if (err)
+		goto err_free_neutral_maps;
+
 	return 0;
 
 err_free_neutral_maps:
@@ -455,6 +464,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf = app->priv;
 
+	bpf_offload_dev_destroy(bpf->bpf_dev);
 	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
 	WARN_ON(!list_empty(&bpf->map_list));
 	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);

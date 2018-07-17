@@ -592,11 +592,16 @@ int nsim_bpf_init(struct netdevsim *ns)
 			debugfs_create_dir("bpf_bound_progs", ns->sdev->ddir);
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
+
+		ns->sdev->bpf_dev = bpf_offload_dev_create();
+		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
+		if (err)
+			return err;
 	}
 
-	err = bpf_offload_dev_netdev_register(ns->netdev);
+	err = bpf_offload_dev_netdev_register(ns->sdev->bpf_dev, ns->netdev);
 	if (err)
-		return err;
+		goto err_destroy_bdev;
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
@@ -624,6 +629,11 @@ int nsim_bpf_init(struct netdevsim *ns)
 			    &ns->bpf_map_accept);
 
 	return 0;
+
+err_destroy_bdev:
+	if (ns->sdev->refcnt == 1)
+		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
+	return err;
 }
 
 void nsim_bpf_uninit(struct netdevsim *ns)
@@ -631,10 +641,11 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 	WARN_ON(ns->xdp.prog);
 	WARN_ON(ns->xdp_hw.prog);
 	WARN_ON(ns->bpf_offloaded);
-	bpf_offload_dev_netdev_unregister(ns->netdev);
+	bpf_offload_dev_netdev_unregister(ns->sdev->bpf_dev, ns->netdev);
 
 	if (ns->sdev->refcnt == 1) {
 		WARN_ON(!list_empty(&ns->sdev->bpf_bound_progs));
 		WARN_ON(!list_empty(&ns->sdev->bpf_bound_maps));
+		bpf_offload_dev_destroy(ns->sdev->bpf_dev);
 	}
 }

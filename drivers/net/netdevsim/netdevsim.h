@@ -27,6 +27,7 @@
 #define NSIM_EA(extack, msg)	NL_SET_ERR_MSG_MOD((extack), msg)
 
 struct bpf_prog;
+struct bpf_offload_dev;
 struct dentry;
 struct nsim_vf_config;
 
@@ -35,6 +36,8 @@ struct netdevsim_shared_dev {
 	u32 switch_id;
 
 	struct dentry *ddir;
+
+	struct bpf_offload_dev *bpf_dev;
 
 	struct dentry *ddir_bpf_bound_progs;
 	u32 prog_id_gen;
