@@ -510,20 +510,21 @@ struct nand_id {
 };
 
 /**
- * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
+ * struct nand_controller - Structure used to describe a NAND controller
+ *
  * @lock:               protection lock
  * @active:		the mtd device which holds the controller currently
  * @wq:			wait queue to sleep on if a NAND operation is in
  *			progress used instead of the per chip wait queue
  *			when a hw controller is available.
  */
-struct nand_hw_control {
+struct nand_controller {
 	spinlock_t lock;
 	struct nand_chip *active;
 	wait_queue_head_t wq;
 };
 
-static inline void nand_hw_control_init(struct nand_hw_control *nfc)
+static inline void nand_controller_init(struct nand_controller *nfc)
 {
 	nfc->active = NULL;
 	spin_lock_init(&nfc->lock);
@@ -1197,7 +1198,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buf_align:		minimum buffer alignment required by a platform
- * @hwcontrol:		platform-specific hardware control structure
+ * @dummy_controller:	dummy controller implementation for drivers that can
+ *			only control a single chip
  * @erase:		[REPLACEABLE] erase function
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transferring
  *			data from array to read regs (tR).
@@ -1333,11 +1335,11 @@ struct nand_chip {
 	flstate_t state;
 
 	uint8_t *oob_poi;
-	struct nand_hw_control *controller;
+	struct nand_controller *controller;
 
 	struct nand_ecc_ctrl ecc;
 	unsigned long buf_align;
-	struct nand_hw_control hwcontrol;
+	struct nand_controller dummy_controller;
 
 	uint8_t *bbt;
 	struct nand_bbt_descr *bbt_td;

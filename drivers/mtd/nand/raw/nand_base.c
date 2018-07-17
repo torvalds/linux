@@ -5000,8 +5000,8 @@ static void nand_set_defaults(struct nand_chip *chip)
 		chip->read_buf = busw ? nand_read_buf16 : nand_read_buf;
 
 	if (!chip->controller) {
-		chip->controller = &chip->hwcontrol;
-		nand_hw_control_init(chip->controller);
+		chip->controller = &chip->dummy_controller;
+		nand_controller_init(chip->controller);
 	}
 
 	if (!chip->buf_align)

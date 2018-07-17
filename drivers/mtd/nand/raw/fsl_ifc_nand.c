@@ -51,7 +51,7 @@ struct fsl_ifc_mtd {
 
 /* overview of the fsl ifc controller */
 struct fsl_ifc_nand_ctrl {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct fsl_ifc_mtd *chips[FSL_IFC_BANK_COUNT];
 
 	void __iomem *addr;	/* Address of assigned IFC buffer	*/
@@ -1004,7 +1004,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		ifc_nand_ctrl->addr = NULL;
 		fsl_ifc_ctrl_dev->nand = ifc_nand_ctrl;
 
-		nand_hw_control_init(&ifc_nand_ctrl->controller);
+		nand_controller_init(&ifc_nand_ctrl->controller);
 	} else {
 		ifc_nand_ctrl = fsl_ifc_ctrl_dev->nand;
 	}

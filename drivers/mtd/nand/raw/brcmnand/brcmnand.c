@@ -114,7 +114,7 @@ enum {
 
 struct brcmnand_controller {
 	struct device		*dev;
-	struct nand_hw_control	controller;
+	struct nand_controller	controller;
 	void __iomem		*nand_base;
 	void __iomem		*nand_fc; /* flash cache */
 	void __iomem		*flash_dma_base;
@@ -2433,7 +2433,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 
 	init_completion(&ctrl->done);
 	init_completion(&ctrl->dma_done);
-	nand_hw_control_init(&ctrl->controller);
+	nand_controller_init(&ctrl->controller);
 	INIT_LIST_HEAD(&ctrl->host_list);
 
 	/* NAND register range */

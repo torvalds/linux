@@ -83,7 +83,7 @@
 #define MAX_CS		4
 
 struct tango_nfc {
-	struct nand_hw_control hw;
+	struct nand_controller hw;
 	void __iomem *reg_base;
 	void __iomem *mem_base;
 	void __iomem *pbus_base;
@@ -654,7 +654,7 @@ static int tango_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(nfc->chan);
 
 	platform_set_drvdata(pdev, nfc);
-	nand_hw_control_init(&nfc->hw);
+	nand_controller_init(&nfc->hw);
 	nfc->freq_kHz = clk_get_rate(clk) / 1000;
 
 	for_each_child_of_node(pdev->dev.of_node, np) {

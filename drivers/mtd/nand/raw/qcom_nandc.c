@@ -365,7 +365,7 @@ struct nandc_regs {
  *				from all connected NAND devices pagesize
  */
 struct qcom_nand_controller {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct list_head host_list;
 
 	struct device *dev;
@@ -2728,7 +2728,7 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	INIT_LIST_HEAD(&nandc->desc_list);
 	INIT_LIST_HEAD(&nandc->host_list);
 
-	nand_hw_control_init(&nandc->controller);
+	nand_controller_init(&nandc->controller);
 
 	return 0;
 }

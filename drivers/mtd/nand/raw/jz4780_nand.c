@@ -44,7 +44,7 @@ struct jz4780_nand_cs {
 struct jz4780_nand_controller {
 	struct device *dev;
 	struct jz4780_bch *bch;
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
 	int selected;
@@ -65,7 +65,8 @@ static inline struct jz4780_nand_chip *to_jz4780_nand_chip(struct mtd_info *mtd)
 	return container_of(mtd_to_nand(mtd), struct jz4780_nand_chip, chip);
 }
 
-static inline struct jz4780_nand_controller *to_jz4780_nand_controller(struct nand_hw_control *ctrl)
+static inline struct jz4780_nand_controller
+*to_jz4780_nand_controller(struct nand_controller *ctrl)
 {
 	return container_of(ctrl, struct jz4780_nand_controller, controller);
 }
@@ -368,7 +369,7 @@ static int jz4780_nand_probe(struct platform_device *pdev)
 	nfc->dev = dev;
 	nfc->num_banks = num_banks;
 
-	nand_hw_control_init(&nfc->controller);
+	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 
 	ret = jz4780_nand_init_chips(nfc, pdev);

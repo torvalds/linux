@@ -318,7 +318,7 @@ struct marvell_nfc_caps {
  * @dma_buf:		32-bit aligned buffer for DMA transfers (NFCv1 only)
  */
 struct marvell_nfc {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *core_clk;
@@ -335,7 +335,7 @@ struct marvell_nfc {
 	u8 *dma_buf;
 };
 
-static inline struct marvell_nfc *to_marvell_nfc(struct nand_hw_control *ctrl)
+static inline struct marvell_nfc *to_marvell_nfc(struct nand_controller *ctrl)
 {
 	return container_of(ctrl, struct marvell_nfc, controller);
 }
@@ -2745,7 +2745,7 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	nfc->dev = dev;
-	nand_hw_control_init(&nfc->controller);
+	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

@@ -145,7 +145,7 @@ struct mtk_nfc_clk {
 };
 
 struct mtk_nfc {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct mtk_ecc_config ecc_cfg;
 	struct mtk_nfc_clk clk;
 	struct mtk_ecc *ecc;

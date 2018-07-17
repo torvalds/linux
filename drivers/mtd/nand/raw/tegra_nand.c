@@ -164,7 +164,7 @@
 				HWSTATUS_RBSY_VALUE(NAND_STATUS_READY))
 
 struct tegra_nand_controller {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct device *dev;
 	void __iomem *regs;
 	int irq;
@@ -187,7 +187,7 @@ struct tegra_nand_chip {
 };
 
 static inline struct tegra_nand_controller *
-			to_tegra_ctrl(struct nand_hw_control *hw_ctrl)
+			to_tegra_ctrl(struct nand_controller *hw_ctrl)
 {
 	return container_of(hw_ctrl, struct tegra_nand_controller, controller);
 }
@@ -1136,7 +1136,7 @@ static int tegra_nand_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctrl->dev = &pdev->dev;
-	nand_hw_control_init(&ctrl->controller);
+	nand_controller_init(&ctrl->controller);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ctrl->regs = devm_ioremap_resource(&pdev->dev, res);

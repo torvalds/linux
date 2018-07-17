@@ -145,7 +145,7 @@ static u_char bch8_vector[] = {0xf3, 0xdb, 0x14, 0x16, 0x8b, 0xd2, 0xbe, 0xcc,
 static u_char bch4_vector[] = {0x00, 0x6b, 0x31, 0xdd, 0x41, 0xbc, 0x10};
 
 /* Shared among all NAND instances to synchronize access to the ECC Engine */
-static struct nand_hw_control omap_gpmc_controller = {
+static struct nand_controller omap_gpmc_controller = {
 	.lock = __SPIN_LOCK_UNLOCKED(omap_gpmc_controller.lock),
 	.wq = __WAIT_QUEUE_HEAD_INITIALIZER(omap_gpmc_controller.wq),
 };

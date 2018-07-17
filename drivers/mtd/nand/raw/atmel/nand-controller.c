@@ -216,7 +216,7 @@ struct atmel_nand_controller_caps {
 };
 
 struct atmel_nand_controller {
-	struct nand_hw_control base;
+	struct nand_controller base;
 	const struct atmel_nand_controller_caps *caps;
 	struct device *dev;
 	struct regmap *smc;
@@ -227,7 +227,7 @@ struct atmel_nand_controller {
 };
 
 static inline struct atmel_nand_controller *
-to_nand_controller(struct nand_hw_control *ctl)
+to_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(ctl, struct atmel_nand_controller, base);
 }
@@ -239,7 +239,7 @@ struct atmel_smc_nand_controller {
 };
 
 static inline struct atmel_smc_nand_controller *
-to_smc_nand_controller(struct nand_hw_control *ctl)
+to_smc_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(to_nand_controller(ctl),
 			    struct atmel_smc_nand_controller, base);
@@ -263,7 +263,7 @@ struct atmel_hsmc_nand_controller {
 };
 
 static inline struct atmel_hsmc_nand_controller *
-to_hsmc_nand_controller(struct nand_hw_control *ctl)
+to_hsmc_nand_controller(struct nand_controller *ctl)
 {
 	return container_of(to_nand_controller(ctl),
 			    struct atmel_hsmc_nand_controller, base);
@@ -1966,7 +1966,7 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	nand_hw_control_init(&nc->base);
+	nand_controller_init(&nc->base);
 	INIT_LIST_HEAD(&nc->chips);
 	nc->dev = dev;
 	nc->caps = caps;
