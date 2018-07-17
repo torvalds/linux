@@ -1124,7 +1124,6 @@ struct nft_flowtable {
 	u32				genmask:2,
 					use:30;
 	u64				handle;
-	char				*dev_name[NFT_FLOWTABLE_DEVICE_MAX];
 	/* runtime data below here */
 	struct nf_hook_ops		*ops ____cacheline_aligned;
 	struct nf_flowtable		data;
