@@ -218,33 +218,6 @@ static inline void init_iamr(int pkey, u8 init_bits)
 	write_iamr(old_iamr | new_iamr_bits);
 }
 
-static void pkey_status_change(int pkey, bool enable)
-{
-	u64 old_uamor;
-
-	/* Reset the AMR and IAMR bits for this key */
-	init_amr(pkey, 0x0);
-	init_iamr(pkey, 0x0);
-
-	/* Enable/disable key */
-	old_uamor = read_uamor();
-	if (enable)
-		old_uamor |= (0x3ul << pkeyshift(pkey));
-	else
-		old_uamor &= ~(0x3ul << pkeyshift(pkey));
-	write_uamor(old_uamor);
-}
-
-void __arch_activate_pkey(int pkey)
-{
-	pkey_status_change(pkey, true);
-}
-
-void __arch_deactivate_pkey(int pkey)
-{
-	pkey_status_change(pkey, false);
-}
-
 /*
  * Set the access rights in AMR IAMR and UAMOR registers for @pkey to that
  * specified in @init_val.

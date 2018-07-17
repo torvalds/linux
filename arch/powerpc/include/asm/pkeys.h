@@ -94,8 +94,6 @@ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 		__mm_pkey_is_allocated(mm, pkey));
 }
 
-extern void __arch_activate_pkey(int pkey);
-extern void __arch_deactivate_pkey(int pkey);
 /*
  * Returns a positive, 5-bit key on success, or -1 on failure.
  * Relies on the mmap_sem to protect against concurrency in mm_pkey_alloc() and
@@ -124,11 +122,6 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 	ret = ffz((u32)mm_pkey_allocation_map(mm));
 	__mm_pkey_allocated(mm, ret);
 
-	/*
-	 * Enable the key in the hardware
-	 */
-	if (ret > 0)
-		__arch_activate_pkey(ret);
 	return ret;
 }
 
@@ -140,10 +133,6 @@ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
 	if (!mm_pkey_is_allocated(mm, pkey))
 		return -EINVAL;
 
-	/*
-	 * Disable the key in the hardware
-	 */
-	__arch_deactivate_pkey(pkey);
 	__mm_pkey_free(mm, pkey);
 
 	return 0;
