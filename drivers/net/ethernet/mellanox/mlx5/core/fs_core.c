@@ -1464,7 +1464,9 @@ static bool check_conflicting_actions(u32 action1, u32 action2)
 			     MLX5_FLOW_CONTEXT_ACTION_DECAP |
 			     MLX5_FLOW_CONTEXT_ACTION_MOD_HDR  |
 			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
-			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH))
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2 |
+			     MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2))
 		return true;
 
 	return false;

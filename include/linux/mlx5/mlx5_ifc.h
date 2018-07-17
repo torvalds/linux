@@ -337,7 +337,10 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_at_9[0x1];
 	u8         pop_vlan[0x1];
 	u8         push_vlan[0x1];
-	u8         reserved_at_c[0x14];
+	u8         reserved_at_c[0x1];
+	u8         pop_vlan_2[0x1];
+	u8         push_vlan_2[0x1];
+	u8         reserved_at_f[0x11];
 
 	u8         reserved_at_20[0x2];
 	u8         log_max_ft_size[0x6];
@@ -2386,6 +2389,8 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_MOD_HDR   = 0x40,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  = 0x80,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH = 0x100,
+	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2  = 0x400,
+	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2 = 0x800,
 };
 
 struct mlx5_ifc_vlan_bits {
@@ -2416,7 +2421,9 @@ struct mlx5_ifc_flow_context_bits {
 
 	u8         modify_header_id[0x20];
 
-	u8         reserved_at_100[0x100];
+	struct mlx5_ifc_vlan_bits push_vlan_2;
+
+	u8         reserved_at_120[0xe0];
 
 	struct mlx5_ifc_fte_match_param_bits match_value;
 
