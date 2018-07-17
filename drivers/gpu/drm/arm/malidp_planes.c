@@ -52,6 +52,8 @@
 #define MALIDP550_LS_ENABLE		0x01c
 #define MALIDP550_LS_R1_IN_SIZE		0x020
 
+#define MODIFIERS_COUNT_MAX		15
+
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
  * for formats with 1- or 2-bit alpha channels.
@@ -145,6 +147,119 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tmmu_prefetch_pgsize=%d\n", ms->mmu_prefetch_pgsize);
 }
 
+bool malidp_format_mod_supported(struct drm_device *drm,
+				 u32 format, u64 modifier)
+{
+	const struct drm_format_info *info;
+	const u64 *modifiers;
+	struct malidp_drm *malidp = drm->dev_private;
+	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
+
+	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
+		return false;
+
+	/* Some pixel formats are supported without any modifier */
+	if (modifier == DRM_FORMAT_MOD_LINEAR) {
+		/*
+		 * However these pixel formats need to be supported with
+		 * modifiers only
+		 */
+		return !malidp_hw_format_is_afbc_only(format);
+	}
+
+	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
+		DRM_ERROR("Unknown modifier (not Arm)\n");
+		return false;
+	}
+
+	if (modifier &
+	    ~DRM_FORMAT_MOD_ARM_AFBC(AFBC_MOD_VALID_BITS)) {
+		DRM_DEBUG_KMS("Unsupported modifiers\n");
+		return false;
+	}
+
+	modifiers = malidp_format_modifiers;
+
+	/* SPLIT buffers must use SPARSE layout */
+	if (WARN_ON_ONCE((modifier & AFBC_SPLIT) && !(modifier & AFBC_SPARSE)))
+		return false;
+
+	/* CBR only applies to YUV formats, where YTR should be always 0 */
+	if (WARN_ON_ONCE((modifier & AFBC_CBR) && (modifier & AFBC_YTR)))
+		return false;
+
+	while (*modifiers != DRM_FORMAT_MOD_INVALID) {
+		if (*modifiers == modifier)
+			break;
+
+		modifiers++;
+	}
+
+	/* return false, if the modifier was not found */
+	if (*modifiers == DRM_FORMAT_MOD_INVALID) {
+		DRM_DEBUG_KMS("Unsupported modifier\n");
+		return false;
+	}
+
+	info = drm_format_info(format);
+
+	if (info->num_planes != 1) {
+		DRM_DEBUG_KMS("AFBC buffers expect one plane\n");
+		return false;
+	}
+
+	if (malidp_hw_format_is_linear_only(format) == true) {
+		DRM_DEBUG_KMS("Given format (0x%x) is supported is linear mode only\n",
+			      format);
+		return false;
+	}
+
+	/*
+	 * RGB formats need to provide YTR modifier and YUV formats should not
+	 * provide YTR modifier.
+	 */
+	if (!(info->is_yuv) != !!(modifier & AFBC_FORMAT_MOD_YTR)) {
+		DRM_DEBUG_KMS("AFBC_FORMAT_MOD_YTR is %s for %s formats\n",
+			      info->is_yuv ? "disallowed" : "mandatory",
+			      info->is_yuv ? "YUV" : "RGB");
+		return false;
+	}
+
+	if (modifier & AFBC_SPLIT) {
+		if (!info->is_yuv) {
+			if (drm_format_plane_cpp(format, 0) <= 2) {
+				DRM_DEBUG_KMS("RGB formats <= 16bpp are not supported with SPLIT\n");
+				return false;
+			}
+		}
+
+		if ((drm_format_horz_chroma_subsampling(format) != 1) ||
+		    (drm_format_vert_chroma_subsampling(format) != 1)) {
+			if (!(format == DRM_FORMAT_YUV420_10BIT &&
+			      (map->features & MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT))) {
+				DRM_DEBUG_KMS("Formats which are sub-sampled should never be split\n");
+				return false;
+			}
+		}
+	}
+
+	if (modifier & AFBC_CBR) {
+		if ((drm_format_horz_chroma_subsampling(format) == 1) ||
+		    (drm_format_vert_chroma_subsampling(format) == 1)) {
+			DRM_DEBUG_KMS("Formats which are not sub-sampled should not have CBR set\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool malidp_format_mod_supported_per_plane(struct drm_plane *plane,
+						  u32 format, u64 modifier)
+{
+	return malidp_format_mod_supported(plane->dev, format, modifier);
+}
+
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -153,6 +268,7 @@ static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
 	.atomic_print_state = malidp_plane_atomic_print_state,
+	.format_mod_supported = malidp_format_mod_supported_per_plane,
 };
 
 static int malidp_se_check_scaling(struct malidp_plane *mp,
@@ -406,8 +522,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	fb = state->fb;
 
 	ms->format = malidp_hw_get_format_id(&mp->hwdev->hw->map,
-					     mp->layer->id,
-					     fb->format->format);
+					     mp->layer->id, fb->format->format,
+					     !!fb->modifier);
 	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
@@ -467,6 +583,12 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		if ((fb->format->format == DRM_FORMAT_RGB888 ||
 		     fb->format->format == DRM_FORMAT_BGR888) && !(fb->modifier))
 			return -EINVAL;
+	}
+
+	/* SMART layer does not support AFBC */
+	if (mp->layer->id == DE_SMART && fb->modifier) {
+		DRM_ERROR("AFBC framebuffer not supported in SMART layer");
+		return -EINVAL;
 	}
 
 	ms->rotmem_size = 0;

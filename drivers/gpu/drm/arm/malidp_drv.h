@@ -90,6 +90,12 @@ struct malidp_crtc_state {
 int malidp_de_planes_init(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
 
+bool malidp_hw_format_is_linear_only(u32 format);
+bool malidp_hw_format_is_afbc_only(u32 format);
+
+bool malidp_format_mod_supported(struct drm_device *drm,
+				 u32 format, u64 modifier);
+
 #ifdef CONFIG_DEBUG_FS
 void malidp_error(struct malidp_drm *malidp,
 		  struct malidp_error_stats *error_stats, u32 status,

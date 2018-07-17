@@ -60,6 +60,8 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 #define MALIDP_ID(__group, __format) \
 	((((__group) & 0x7) << 3) | ((__format) & 0x7))
 
+#define AFBC_YUV_422_FORMAT_ID	MALIDP_ID(5, 1)
+
 #define MALIDP_COMMON_FORMATS \
 	/*    fourcc,   layers supporting the format,      internal id   */ \
 	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(0, 0) }, \
@@ -160,6 +162,32 @@ static const struct malidp_layer malidp650_layers[] = {
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE,
 		MALIDP550_DE_LS_R1_STRIDE, 0, MALIDP650_DE_LS_MMU_CTRL,
 		ROTATE_NONE, 0 },
+};
+
+const u64 malidp_format_modifiers[] = {
+	/* All RGB formats (except XRGB, RGBX, XBGR, BGRX) */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR),
+
+	/* All RGB formats > 16bpp (except XRGB, RGBX, XBGR, BGRX) */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_YTR | AFBC_SPARSE | AFBC_SPLIT),
+
+	/* All 8 or 10 bit YUV 444 formats. */
+	/* In DP550, 10 bit YUV 420 format also supported */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_SPARSE | AFBC_SPLIT),
+
+	/* YUV 420, 422 P1 8 bit and YUV 444 8 bit/10 bit formats */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16),
+
+	/* YUV 420, 422 P1 8, 10 bit formats */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_CBR | AFBC_SPARSE),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_SIZE_16X16 | AFBC_CBR),
+
+	/* All formats */
+	DRM_FORMAT_MOD_LINEAR,
+
+	DRM_FORMAT_MOD_INVALID
 };
 
 #define SE_N_SCALING_COEFFS	96
@@ -866,7 +894,10 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
-			.features = MALIDP_REGMAP_HAS_CLEARIRQ,
+			.features = MALIDP_REGMAP_HAS_CLEARIRQ |
+				    MALIDP_DEVICE_AFBC_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUV_420_10_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUYV_USE_422_P2,
 			.n_layers = ARRAY_SIZE(malidp550_layers),
 			.layers = malidp550_layers,
 			.de_irq_map = {
@@ -912,7 +943,9 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
-			.features = MALIDP_REGMAP_HAS_CLEARIRQ,
+			.features = MALIDP_REGMAP_HAS_CLEARIRQ |
+				    MALIDP_DEVICE_AFBC_SUPPORT_SPLIT |
+				    MALIDP_DEVICE_AFBC_YUYV_USE_422_P2,
 			.n_layers = ARRAY_SIZE(malidp650_layers),
 			.layers = malidp650_layers,
 			.de_irq_map = {
@@ -961,17 +994,70 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 };
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
-			   u8 layer_id, u32 format)
+			   u8 layer_id, u32 format, bool has_modifier)
 {
 	unsigned int i;
 
 	for (i = 0; i < map->n_pixel_formats; i++) {
 		if (((map->pixel_formats[i].layer & layer_id) == layer_id) &&
-		    (map->pixel_formats[i].format == format))
-			return map->pixel_formats[i].id;
+		    (map->pixel_formats[i].format == format)) {
+			/*
+			 * In some DP550 and DP650, DRM_FORMAT_YUYV + AFBC modifier
+			 * is supported by a different h/w format id than
+			 * DRM_FORMAT_YUYV (only).
+			 */
+			if (format == DRM_FORMAT_YUYV &&
+			    (has_modifier) &&
+			    (map->features & MALIDP_DEVICE_AFBC_YUYV_USE_422_P2))
+				return AFBC_YUV_422_FORMAT_ID;
+			else
+				return map->pixel_formats[i].id;
+		}
 	}
 
 	return MALIDP_INVALID_FORMAT_ID;
+}
+
+bool malidp_hw_format_is_linear_only(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_XYUV8888:
+	case DRM_FORMAT_XVYU2101010:
+	case DRM_FORMAT_X0L2:
+	case DRM_FORMAT_X0L0:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool malidp_hw_format_is_afbc_only(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_VUY888:
+	case DRM_FORMAT_VUY101010:
+	case DRM_FORMAT_YUV420_8BIT:
+	case DRM_FORMAT_YUV420_10BIT:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void malidp_hw_clear_irq(struct malidp_hw_device *hwdev, u8 block, u32 irq)
