@@ -886,12 +886,42 @@
 #define IDT_SWPxMSGCTL_PART_FLD		4
 
 /*
+ * TMPCTL register fields related constants
+ * @IDT_TMPCTL_LTH_MASK:	Low temperature threshold field mask
+ * @IDT_TMPCTL_LTH_FLD:		Low temperature threshold field offset
+ * @IDT_TMPCTL_MTH_MASK:	Middle temperature threshold field mask
+ * @IDT_TMPCTL_MTH_FLD:		Middle temperature threshold field offset
+ * @IDT_TMPCTL_HTH_MASK:	High temperature threshold field mask
+ * @IDT_TMPCTL_HTH_FLD:		High temperature threshold field offset
+ * @IDT_TMPCTL_PDOWN:		Temperature sensor power down
+ */
+#define IDT_TMPCTL_LTH_MASK		0x000000FFU
+#define IDT_TMPCTL_LTH_FLD		0
+#define IDT_TMPCTL_MTH_MASK		0x0000FF00U
+#define IDT_TMPCTL_MTH_FLD		8
+#define IDT_TMPCTL_HTH_MASK		0x00FF0000U
+#define IDT_TMPCTL_HTH_FLD		16
+#define IDT_TMPCTL_PDOWN		0x80000000U
+
+/*
  * TMPSTS register fields related constants
  * @IDT_TMPSTS_TEMP_MASK:	Current temperature field mask
  * @IDT_TMPSTS_TEMP_FLD:	Current temperature field offset
  */
 #define IDT_TMPSTS_TEMP_MASK		0x000000FFU
 #define IDT_TMPSTS_TEMP_FLD		0
+#define IDT_TMPSTS_LTEMP_MASK		0x0000FF00U
+#define IDT_TMPSTS_LTEMP_FLD		8
+#define IDT_TMPSTS_HTEMP_MASK		0x00FF0000U
+#define IDT_TMPSTS_HTEMP_FLD		16
+
+/*
+ * TMPADJ register fields related constants
+ * @IDT_TMPADJ_OFFSET_MASK:	Temperature value offset field mask
+ * @IDT_TMPADJ_OFFSET_FLD:	Temperature value offset field offset
+ */
+#define IDT_TMPADJ_OFFSET_MASK		0x000000FFU
+#define IDT_TMPADJ_OFFSET_FLD		0
 
 /*
  * Helper macro to get/set the corresponding field value
@@ -949,6 +979,32 @@
 #define IDT_PCIE_REGSIZE	4
 #define IDT_TRANS_ALIGN		4
 #define IDT_DIR_SIZE_ALIGN	1
+
+/*
+ * IDT PCIe-switch temperature sensor value limits
+ * @IDT_TEMP_MIN_MDEG:	Minimal integer value of temperature
+ * @IDT_TEMP_MAX_MDEG:	Maximal integer value of temperature
+ * @IDT_TEMP_MIN_OFFSET:Minimal integer value of temperature offset
+ * @IDT_TEMP_MAX_OFFSET:Maximal integer value of temperature offset
+ */
+#define IDT_TEMP_MIN_MDEG	0
+#define IDT_TEMP_MAX_MDEG	127500
+#define IDT_TEMP_MIN_OFFSET	-64000
+#define IDT_TEMP_MAX_OFFSET	63500
+
+/*
+ * Temperature sensor values enumeration
+ * @IDT_TEMP_CUR:	Current temperature
+ * @IDT_TEMP_LOW:	Lowest historical temperature
+ * @IDT_TEMP_HIGH:	Highest historical temperature
+ * @IDT_TEMP_OFFSET:	Current temperature offset
+ */
+enum idt_temp_val {
+	IDT_TEMP_CUR,
+	IDT_TEMP_LOW,
+	IDT_TEMP_HIGH,
+	IDT_TEMP_OFFSET
+};
 
 /*
  * IDT Memory Windows type. Depending on the device settings, IDT supports

@@ -1829,22 +1829,99 @@ static int idt_ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
  */
 
 /*
+ * idt_get_deg() - convert millidegree Celsius value to just degree
+ * @mdegC:	IN - millidegree Celsius value
+ *
+ * Return: Degree corresponding to the passed millidegree value
+ */
+static inline s8 idt_get_deg(long mdegC)
+{
+	return mdegC / 1000;
+}
+
+/*
+ * idt_get_frac() - retrieve 0/0.5 fraction of the millidegree Celsius value
+ * @mdegC:	IN - millidegree Celsius value
+ *
+ * Return: 0/0.5 degree fraction of the passed millidegree value
+ */
+static inline u8 idt_get_deg_frac(long mdegC)
+{
+	return (mdegC % 1000) >= 500 ? 5 : 0;
+}
+
+/*
+ * idt_get_temp_fmt() - convert millidegree Celsius value to 0:7:1 format
+ * @mdegC:	IN - millidegree Celsius value
+ *
+ * Return: 0:7:1 format acceptable by the IDT temperature sensor
+ */
+static inline u8 idt_temp_get_fmt(long mdegC)
+{
+	return (idt_get_deg(mdegC) << 1) | (idt_get_deg_frac(mdegC) ? 1 : 0);
+}
+
+/*
+ * idt_get_temp_sval() - convert temp sample to signed millidegree Celsius
+ * @data:	IN - shifted to LSB 8-bits temperature sample
+ *
+ * Return: signed millidegree Celsius
+ */
+static inline long idt_get_temp_sval(u32 data)
+{
+	return ((s8)data / 2) * 1000 + (data & 0x1 ? 500 : 0);
+}
+
+/*
+ * idt_get_temp_sval() - convert temp sample to unsigned millidegree Celsius
+ * @data:	IN - shifted to LSB 8-bits temperature sample
+ *
+ * Return: unsigned millidegree Celsius
+ */
+static inline long idt_get_temp_uval(u32 data)
+{
+	return (data / 2) * 1000 + (data & 0x1 ? 500 : 0);
+}
+
+/*
  * idt_read_temp() - read temperature from chip sensor
  * @ntb:	NTB device context.
- * @val:	OUT - integer value of temperature
- * @frac:	OUT - fraction
+ * @type:	IN - type of the temperature value to read
+ * @val:	OUT - integer value of temperature in millidegree Celsius
  */
-static void idt_read_temp(struct idt_ntb_dev *ndev, unsigned char *val,
-			  unsigned char *frac)
+static void idt_read_temp(struct idt_ntb_dev *ndev,
+			  const enum idt_temp_val type, long *val)
 {
 	u32 data;
 
-	/* Read the data from TEMP field of the TMPSTS register */
-	data = idt_sw_read(ndev, IDT_SW_TMPSTS);
-	data = GET_FIELD(TMPSTS_TEMP, data);
-	/* TEMP field has one fractional bit and seven integer bits */
-	*val = data >> 1;
-	*frac = ((data & 0x1) ? 5 : 0);
+	/* Alter the temperature field in accordance with the passed type */
+	switch (type) {
+	case IDT_TEMP_CUR:
+		data = GET_FIELD(TMPSTS_TEMP,
+				 idt_sw_read(ndev, IDT_SW_TMPSTS));
+		break;
+	case IDT_TEMP_LOW:
+		data = GET_FIELD(TMPSTS_LTEMP,
+				 idt_sw_read(ndev, IDT_SW_TMPSTS));
+		break;
+	case IDT_TEMP_HIGH:
+		data = GET_FIELD(TMPSTS_HTEMP,
+				 idt_sw_read(ndev, IDT_SW_TMPSTS));
+		break;
+	case IDT_TEMP_OFFSET:
+		/* This is the only field with signed 0:7:1 format */
+		data = GET_FIELD(TMPADJ_OFFSET,
+				 idt_sw_read(ndev, IDT_SW_TMPADJ));
+		*val = idt_get_temp_sval(data);
+		return;
+	default:
+		data = GET_FIELD(TMPSTS_TEMP,
+				 idt_sw_read(ndev, IDT_SW_TMPSTS));
+		break;
+	}
+
+	/* The rest of the fields accept unsigned 0:7:1 format */
+	*val = idt_get_temp_uval(data);
 }
 
 /*
@@ -1860,10 +1937,10 @@ static void idt_read_temp(struct idt_ntb_dev *ndev, unsigned char *val,
  */
 static void idt_temp_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
 {
-	unsigned char val, frac;
+	unsigned long mdeg;
 
 	/* Read the current temperature value */
-	idt_read_temp(ndev, &val, &frac);
+	idt_read_temp(ndev, IDT_TEMP_CUR, &mdeg);
 
 	/* Read the temperature alarm to clean the alarm status out */
 	/*(void)idt_sw_read(ndev, IDT_SW_TMPALARM);*/
@@ -1875,7 +1952,8 @@ static void idt_temp_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
 		"Temp sensor IRQ detected %#08x", ntint_sts);
 
 	/* Print temperature value to log */
-	dev_warn(&ndev->ntb.pdev->dev, "Temperature %hhu.%hhu", val, frac);
+	dev_warn(&ndev->ntb.pdev->dev, "Temperature %hhd.%hhuC",
+		idt_get_deg(mdeg), idt_get_deg_frac(mdeg));
 }
 
 /*=============================================================================
@@ -2123,9 +2201,9 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 				   size_t count, loff_t *offp)
 {
 	struct idt_ntb_dev *ndev = filp->private_data;
-	unsigned char temp, frac, idx, pidx, cnt;
+	unsigned char idx, pidx, cnt;
+	unsigned long irqflags, mdeg;
 	ssize_t ret = 0, off = 0;
-	unsigned long irqflags;
 	enum ntb_speed speed;
 	enum ntb_width width;
 	char *strbuf;
@@ -2274,9 +2352,10 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 	off += scnprintf(strbuf + off, size - off, "\n");
 
 	/* Current temperature */
-	idt_read_temp(ndev, &temp, &frac);
+	idt_read_temp(ndev, IDT_TEMP_CUR, &mdeg);
 	off += scnprintf(strbuf + off, size - off,
-		"Switch temperature\t\t- %hhu.%hhuC\n", temp, frac);
+		"Switch temperature\t\t- %hhd.%hhuC\n",
+		idt_get_deg(mdeg), idt_get_deg_frac(mdeg));
 
 	/* Copy the buffer to the User Space */
 	ret = simple_read_from_buffer(ubuf, count, offp, strbuf, off);
