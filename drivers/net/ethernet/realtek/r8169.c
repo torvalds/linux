@@ -1428,18 +1428,19 @@ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 static void rtl_link_chg_patch(struct rtl8169_private *tp)
 {
 	struct net_device *dev = tp->dev;
+	struct phy_device *phydev = dev->phydev;
 
 	if (!netif_running(dev))
 		return;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_34 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_38) {
-		if (RTL_R8(tp, PHYstatus) & _1000bpsF) {
+		if (phydev->speed == SPEED_1000) {
 			rtl_eri_write(tp, 0x1bc, ERIAR_MASK_1111, 0x00000011,
 				      ERIAR_EXGMAC);
 			rtl_eri_write(tp, 0x1dc, ERIAR_MASK_1111, 0x00000005,
 				      ERIAR_EXGMAC);
-		} else if (RTL_R8(tp, PHYstatus) & _100bps) {
+		} else if (phydev->speed == SPEED_100) {
 			rtl_eri_write(tp, 0x1bc, ERIAR_MASK_1111, 0x0000001f,
 				      ERIAR_EXGMAC);
 			rtl_eri_write(tp, 0x1dc, ERIAR_MASK_1111, 0x00000005,
@@ -1457,7 +1458,7 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 			     ERIAR_EXGMAC);
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
 		   tp->mac_version == RTL_GIGA_MAC_VER_36) {
-		if (RTL_R8(tp, PHYstatus) & _1000bpsF) {
+		if (phydev->speed == SPEED_1000) {
 			rtl_eri_write(tp, 0x1bc, ERIAR_MASK_1111, 0x00000011,
 				      ERIAR_EXGMAC);
 			rtl_eri_write(tp, 0x1dc, ERIAR_MASK_1111, 0x00000005,
@@ -1469,7 +1470,7 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 				      ERIAR_EXGMAC);
 		}
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_37) {
-		if (RTL_R8(tp, PHYstatus) & _10bps) {
+		if (phydev->speed == SPEED_10) {
 			rtl_eri_write(tp, 0x1d0, ERIAR_MASK_0011, 0x4d02,
 				      ERIAR_EXGMAC);
 			rtl_eri_write(tp, 0x1dc, ERIAR_MASK_0011, 0x0060,
