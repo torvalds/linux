@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/mm.h>
 #include <sound/rawmidi.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -128,7 +129,7 @@ static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
 		runtime->avail = 0;
 	else
 		runtime->avail = runtime->buffer_size;
-	runtime->buffer = kmalloc(runtime->buffer_size, GFP_KERNEL);
+	runtime->buffer = kvmalloc(runtime->buffer_size, GFP_KERNEL);
 	if (!runtime->buffer) {
 		kfree(runtime);
 		return -ENOMEM;
@@ -142,7 +143,7 @@ static int snd_rawmidi_runtime_free(struct snd_rawmidi_substream *substream)
 {
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
-	kfree(runtime->buffer);
+	kvfree(runtime->buffer);
 	kfree(runtime);
 	substream->runtime = NULL;
 	return 0;
@@ -654,7 +655,7 @@ static int resize_runtime_buffer(struct snd_rawmidi_runtime *runtime,
 	if (params->avail_min < 1 || params->avail_min > params->buffer_size)
 		return -EINVAL;
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = kvmalloc(params->buffer_size, GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
 		spin_lock_irq(&runtime->lock);
@@ -663,7 +664,7 @@ static int resize_runtime_buffer(struct snd_rawmidi_runtime *runtime,
 		runtime->buffer_size = params->buffer_size;
 		__reset_runtime_ptrs(runtime, is_input);
 		spin_unlock_irq(&runtime->lock);
-		kfree(oldbuf);
+		kvfree(oldbuf);
 	}
 	runtime->avail_min = params->avail_min;
 	return 0;
