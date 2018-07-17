@@ -247,16 +247,16 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
+				u8 level = (pin_reg >> ACTIVE_LEVEL_OFF) &
+						ACTIVE_LEVEL_MASK;
 				interrupt_enable = "interrupt is enabled|";
 
-				if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
-				    !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
-					active_level = "Active low|";
-				else if (pin_reg & BIT(ACTIVE_LEVEL_OFF) &&
-					 !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
+				if (level == ACTIVE_LEVEL_HIGH)
 					active_level = "Active high|";
-				else if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
-					 pin_reg & BIT(ACTIVE_LEVEL_OFF + 1))
+				else if (level == ACTIVE_LEVEL_LOW)
+					active_level = "Active low|";
+				else if (!(pin_reg & BIT(LEVEL_TRIG_OFF)) &&
+					 level == ACTIVE_LEVEL_BOTH)
 					active_level = "Active on both|";
 				else
 					active_level = "Unknown Active level|";
