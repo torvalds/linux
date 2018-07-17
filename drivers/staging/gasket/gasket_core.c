@@ -2089,9 +2089,9 @@ struct device *gasket_get_device(struct gasket_dev *dev)
  **/
 int gasket_wait_with_reschedule(
 	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,
-	u64 max_retries, u64 delay_ms)
+	uint max_retries, u64 delay_ms)
 {
-	u64 retries = 0;
+	uint retries = 0;
 	u64 tmp;
 
 	while (retries < max_retries) {

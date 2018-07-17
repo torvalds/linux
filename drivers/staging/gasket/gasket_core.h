@@ -702,6 +702,6 @@ struct device *gasket_get_device(struct gasket_dev *dev);
 /* Helper function, Asynchronous waits on a given set of bits. */
 int gasket_wait_with_reschedule(
 	struct gasket_dev *gasket_dev, int bar, u64 offset, u64 mask, u64 val,
-	u64 max_retries, u64 delay_ms);
+	uint max_retries, u64 delay_ms);
 
 #endif /* __GASKET_CORE_H__ */
