@@ -2097,18 +2097,12 @@ int gasket_wait_with_reschedule(
 	while (retries < max_retries) {
 		tmp = gasket_dev_read_64(gasket_dev, bar, offset);
 		if ((tmp & mask) == val)
-			break;
+			return 0;
 		msleep(delay_ms);
 		retries++;
 	}
-	if (retries == max_retries) {
-		gasket_log_error(
-			gasket_dev,
-			"%s timeout: reg %llx timeout (%llu ms)",
-			__func__,
-			offset, max_retries * delay_ms);
-		return -ETIMEDOUT;
-	}
-	return 0;
+	gasket_log_error(gasket_dev, "%s timeout: reg %llx timeout (%llu ms)",
+			 __func__, offset, max_retries * delay_ms);
+	return -ETIMEDOUT;
 }
 EXPORT_SYMBOL(gasket_wait_with_reschedule);
