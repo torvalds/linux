@@ -1152,7 +1152,7 @@ sub dump_struct($$) {
 	}
 
 	# Ignore other nested elements, like enums
-	$members =~ s/({[^\{\}]*})//g;
+	$members =~ s/(\{[^\{\}]*})//g;
 
 	create_parameterlist($members, ';', $file, $declaration_name);
 	check_sections($file, $declaration_name, $decl_type, $sectcheck, $struct_actual);
@@ -1176,7 +1176,7 @@ sub dump_struct($$) {
 			$declaration .= "\t" x $level;
 		}
 		$declaration .= "\t" . $clause . "\n";
-		$level++ if ($clause =~ m/({)/ && !($clause =~m/}/));
+		$level++ if ($clause =~ m/(\{)/ && !($clause =~m/}/));
 	}
 	output_declaration($declaration_name,
 			   'struct',
