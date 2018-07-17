@@ -46,9 +46,14 @@
 	status = "disabled";
 };
 
-&dummy_codec {
-	status = "disabled";
+&bluetooth_sound {
+	status = "okay";
+};
+
+&i2s_2ch_0 {
+	status = "okay";
 	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
 };
 
 &i2s_8ch_0 {
