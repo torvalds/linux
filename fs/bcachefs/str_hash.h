@@ -255,14 +255,14 @@ not_found:
 		return -ENOENT;
 
 	insert->k.p = slot->pos;
-	bch2_trans_update(trans, slot, insert, 0);
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(slot, insert));
 	return 0;
 found:
 	if (flags & BCH_HASH_SET_MUST_CREATE)
 		return -EEXIST;
 
 	insert->k.p = iter->pos;
-	bch2_trans_update(trans, iter, insert, 0);
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, insert));
 	return 0;
 }
 
@@ -297,7 +297,7 @@ static inline int bch2_hash_delete_at(struct btree_trans *trans,
 	delete->k.p = iter->pos;
 	delete->k.type = ret ? desc.whiteout_type : KEY_TYPE_DELETED;
 
-	bch2_trans_update(trans, iter, delete, 0);
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, delete));
 	return 0;
 }
 

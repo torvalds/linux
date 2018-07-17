@@ -140,8 +140,15 @@ int bch2_btree_node_update_key(struct bch_fs *, struct btree_iter *,
 
 /* new transactional interface: */
 
-void bch2_trans_update(struct btree_trans *, struct btree_iter *,
-			     struct bkey_i *, unsigned);
+static inline void
+bch2_trans_update(struct btree_trans *trans,
+		  struct btree_insert_entry entry)
+{
+	BUG_ON(trans->nr_updates >= ARRAY_SIZE(trans->updates));
+
+	trans->updates[trans->nr_updates++] = entry;
+}
+
 int bch2_trans_commit(struct btree_trans *,
 		      struct disk_reservation *,
 		      struct extent_insert_hook *,

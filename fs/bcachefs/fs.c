@@ -185,7 +185,7 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 		return PTR_ERR(inode_p);
 
 	bch2_inode_pack(inode_p, inode_u);
-	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &inode_p->inode.k_i));
 	return 0;
 }
 

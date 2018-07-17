@@ -581,26 +581,6 @@ err:
 	goto out;
 }
 
-void bch2_trans_update(struct btree_trans *trans,
-		       struct btree_iter *iter,
-		       struct bkey_i *k,
-		       unsigned extra_journal_res)
-{
-	struct btree_insert_entry *i;
-
-	BUG_ON(trans->nr_updates >= ARRAY_SIZE(trans->updates));
-
-	i = &trans->updates[trans->nr_updates++];
-
-	*i = (struct btree_insert_entry) {
-		.iter	= iter,
-		.k		= k,
-		.extra_res	= extra_journal_res,
-	};
-
-	btree_insert_entry_checks(trans->c, i);
-}
-
 int bch2_trans_commit(struct btree_trans *trans,
 		      struct disk_reservation *disk_res,
 		      struct extent_insert_hook *hook,

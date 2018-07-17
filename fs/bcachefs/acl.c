@@ -375,7 +375,7 @@ int bch2_acl_chmod(struct btree_trans *trans,
 		goto err;
 	}
 
-	bch2_trans_update(trans, iter, &new->k_i, 0);
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &new->k_i));
 	*new_acl = acl;
 	acl = NULL;
 err:
