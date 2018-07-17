@@ -2928,8 +2928,14 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 		ret = btrfs_defrag_root(root);
 		break;
 	case S_IFREG:
-		if (!(file->f_mode & FMODE_WRITE)) {
-			ret = -EINVAL;
+		/*
+		 * Note that this does not check the file descriptor for write
+		 * access. This prevents defragmenting executables that are
+		 * running and allows defrag on files open in read-only mode.
+		 */
+		if (!capable(CAP_SYS_ADMIN) &&
+		    inode_permission(inode, MAY_WRITE)) {
+			ret = -EPERM;
 			goto out;
 		}
 
