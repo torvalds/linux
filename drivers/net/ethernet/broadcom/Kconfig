@@ -61,7 +61,7 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -181,7 +181,7 @@ config BGMAC_PLATFORM
 
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
-	depends on OF
+	depends on HAS_IOMEM
 	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
