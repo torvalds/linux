@@ -1570,9 +1570,6 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
 
-	if (!desc)
-		return NULL;
-
 	mutex_lock(&desc->request_mutex);
 	chip_bus_lock(desc);
 	raw_spin_lock_irqsave(&desc->lock, flags);
