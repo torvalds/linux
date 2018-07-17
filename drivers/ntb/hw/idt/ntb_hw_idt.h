@@ -688,15 +688,14 @@
  * @IDT_NTINTMSK_DBELL:		Doorbell interrupt mask bit
  * @IDT_NTINTMSK_SEVENT:	Switch Event interrupt mask bit
  * @IDT_NTINTMSK_TMPSENSOR:	Temperature sensor interrupt mask bit
- * @IDT_NTINTMSK_ALL:		All the useful interrupts mask
+ * @IDT_NTINTMSK_ALL:		NTB-related interrupts mask
  */
 #define IDT_NTINTMSK_MSG		0x00000001U
 #define IDT_NTINTMSK_DBELL		0x00000002U
 #define IDT_NTINTMSK_SEVENT		0x00000008U
 #define IDT_NTINTMSK_TMPSENSOR		0x00000080U
 #define IDT_NTINTMSK_ALL \
-	(IDT_NTINTMSK_MSG | IDT_NTINTMSK_DBELL | \
-	 IDT_NTINTMSK_SEVENT | IDT_NTINTMSK_TMPSENSOR)
+	(IDT_NTINTMSK_MSG | IDT_NTINTMSK_DBELL | IDT_NTINTMSK_SEVENT)
 
 /*
  * NTGSIGNAL register fields related constants

@@ -2075,38 +2075,6 @@ static struct attribute *idt_temp_attrs[] = {
 ATTRIBUTE_GROUPS(idt_temp);
 
 /*
- * idt_temp_isr() - temperature sensor alarm events ISR
- * @ndev:	IDT NTB hardware driver descriptor
- * @ntint_sts:	NT-function interrupt status
- *
- * It handles events of temperature crossing alarm thresholds. Since reading
- * of TMPALARM register clears it up, the function doesn't analyze the
- * read value, instead the current temperature value just warningly printed to
- * log.
- * The method is called from PCIe ISR bottom-half routine.
- */
-static void idt_temp_isr(struct idt_ntb_dev *ndev, u32 ntint_sts)
-{
-	unsigned long mdeg;
-
-	/* Read the current temperature value */
-	idt_read_temp(ndev, IDT_TEMP_CUR, &mdeg);
-
-	/* Read the temperature alarm to clean the alarm status out */
-	/*(void)idt_sw_read(ndev, IDT_SW_TMPALARM);*/
-
-	/* Clean the corresponding interrupt bit */
-	idt_nt_write(ndev, IDT_NT_NTINTSTS, IDT_NTINTSTS_TMPSENSOR);
-
-	dev_dbg(&ndev->ntb.pdev->dev,
-		"Temp sensor IRQ detected %#08x", ntint_sts);
-
-	/* Print temperature value to log */
-	dev_warn(&ndev->ntb.pdev->dev, "Temperature %hhd.%hhuC",
-		idt_get_deg(mdeg), idt_get_deg_frac(mdeg));
-}
-
-/*
  * idt_init_temp() - initialize temperature sensor interface
  * @ndev:	IDT NTB hardware driver descriptor
  *
@@ -2188,7 +2156,7 @@ static int idt_init_isr(struct idt_ntb_dev *ndev)
 		goto err_free_vectors;
 	}
 
-	/* Unmask Message/Doorbell/SE/Temperature interrupts */
+	/* Unmask Message/Doorbell/SE interrupts */
 	ntint_mask = idt_nt_read(ndev, IDT_NT_NTINTMSK) & ~IDT_NTINTMSK_ALL;
 	idt_nt_write(ndev, IDT_NT_NTINTMSK, ntint_mask);
 
@@ -2202,7 +2170,6 @@ err_free_vectors:
 
 	return ret;
 }
-
 
 /*
  * idt_deinit_ist() - deinitialize PCIe interrupt handler
@@ -2261,12 +2228,6 @@ static irqreturn_t idt_thread_isr(int irq, void *devid)
 	/* Handle switch event interrupts */
 	if (ntint_sts & IDT_NTINTSTS_SEVENT) {
 		idt_se_isr(ndev, ntint_sts);
-		handled = true;
-	}
-
-	/* Handle temperature sensor interrupt */
-	if (ntint_sts & IDT_NTINTSTS_TMPSENSOR) {
-		idt_temp_isr(ndev, ntint_sts);
 		handled = true;
 	}
 
