@@ -14,7 +14,8 @@ DEFINE_STATIC_KEY_TRUE(pkey_disabled);
 bool pkey_execute_disable_supported;
 int  pkeys_total;		/* Total pkeys as per device tree */
 bool pkeys_devtree_defined;	/* pkey property exported by device tree */
-u32  initial_allocation_mask;	/* Bits set for reserved keys */
+u32  initial_allocation_mask;   /* Bits set for the initially allocated keys */
+u32  reserved_allocation_mask;  /* Bits set for reserved keys */
 u64  pkey_amr_mask;		/* Bits in AMR not to be touched */
 u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
 u64  pkey_uamor_mask;		/* Bits in UMOR not to be touched */
@@ -121,8 +122,8 @@ int pkey_initialize(void)
 #else
 	os_reserved = 0;
 #endif
-	initial_allocation_mask  = (0x1 << 0) | (0x1 << 1) |
-					(0x1 << execute_only_key);
+	/* Bits are in LE format. */
+	reserved_allocation_mask = (0x1 << 1) | (0x1 << execute_only_key);
 
 	/* register mask is in BE format */
 	pkey_amr_mask = ~0x0ul;
@@ -138,9 +139,10 @@ int pkey_initialize(void)
 
 	/* mark the rest of the keys as reserved and hence unavailable */
 	for (i = (pkeys_total - os_reserved); i < pkeys_total; i++) {
-		initial_allocation_mask |= (0x1 << i);
+		reserved_allocation_mask |= (0x1 << i);
 		pkey_uamor_mask &= ~(0x3ul << pkeyshift(i));
 	}
+	initial_allocation_mask = reserved_allocation_mask | (0x1 << 0);
 
 	if (unlikely((pkeys_total - os_reserved) <= execute_only_key)) {
 		/*
@@ -358,9 +360,6 @@ static bool pkey_access_permitted(int pkey, bool write, bool execute)
 {
 	int pkey_shift;
 	u64 amr;
-
-	if (!pkey)
-		return true;
 
 	if (!is_pkey_enabled(pkey))
 		return true;
