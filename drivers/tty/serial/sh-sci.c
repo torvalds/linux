@@ -1872,6 +1872,7 @@ static int sci_request_irq(struct sci_port *port)
 		}
 
 		desc = sci_irq_desc + i;
+		port->irqstr[j] = NULL;
 		if (SCIx_TEIDRI_IRQ_EXISTS(port)) {
 			/*
 			 * ERI and BRI are muxed, just register ERI and
