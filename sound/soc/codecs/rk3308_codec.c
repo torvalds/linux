@@ -588,7 +588,7 @@ static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 
 		if ((!rk3308->loopback_dacs_enabled) &&
 		    has_loopback(rk3308->loopback_grp) &&
-		    rk3308->loopback_grp == idx) {
+		    rk3308->loopback_grp == mapped_grp) {
 			/*
 			 * Ths loopback DACs are closed, and specify the
 			 * loopback ADCs.
