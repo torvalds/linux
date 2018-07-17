@@ -67,7 +67,7 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha256_state),
 	.base.cra_name		= "sha256",
 	.base.cra_driver_name	= "sha256-arm64",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 125,
 	.base.cra_blocksize	= SHA256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -79,7 +79,7 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha256_state),
 	.base.cra_name		= "sha224",
 	.base.cra_driver_name	= "sha224-arm64",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 125,
 	.base.cra_blocksize	= SHA224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };
