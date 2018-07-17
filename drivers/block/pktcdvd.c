@@ -798,7 +798,8 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 	cgc.cmd[4] = (write_speed >> 8) & 0xff;
 	cgc.cmd[5] = write_speed & 0xff;
 
-	if ((ret = pkt_generic_packet(pd, &cgc)))
+	ret = pkt_generic_packet(pd, &cgc);
+	if (ret)
 		pkt_dump_sense(pd, &cgc);
 
 	return ret;
@@ -1562,7 +1563,8 @@ static int pkt_get_disc_info(struct pktcdvd_device *pd, disc_information *di)
 	cgc.cmd[8] = cgc.buflen = 2;
 	cgc.quiet = 1;
 
-	if ((ret = pkt_generic_packet(pd, &cgc)))
+	ret = pkt_generic_packet(pd, &cgc);
+	if (ret)
 		return ret;
 
 	/* not all drives have the same disc_info length, so requeue
@@ -1591,7 +1593,8 @@ static int pkt_get_track_info(struct pktcdvd_device *pd, __u16 track, __u8 type,
 	cgc.cmd[8] = 8;
 	cgc.quiet = 1;
 
-	if ((ret = pkt_generic_packet(pd, &cgc)))
+	ret = pkt_generic_packet(pd, &cgc);
+	if (ret)
 		return ret;
 
 	cgc.buflen = be16_to_cpu(ti->track_information_length) +
@@ -1612,17 +1615,20 @@ static noinline_for_stack int pkt_get_last_written(struct pktcdvd_device *pd,
 	__u32 last_track;
 	int ret = -1;
 
-	if ((ret = pkt_get_disc_info(pd, &di)))
+	ret = pkt_get_disc_info(pd, &di);
+	if (ret)
 		return ret;
 
 	last_track = (di.last_track_msb << 8) | di.last_track_lsb;
-	if ((ret = pkt_get_track_info(pd, last_track, 1, &ti)))
+	ret = pkt_get_track_info(pd, last_track, 1, &ti);
+	if (ret)
 		return ret;
 
 	/* if this track is blank, try the previous. */
 	if (ti.blank) {
 		last_track--;
-		if ((ret = pkt_get_track_info(pd, last_track, 1, &ti)))
+		ret = pkt_get_track_info(pd, last_track, 1, &ti);
+		if (ret)
 			return ret;
 	}
 
@@ -1657,7 +1663,8 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	memset(buffer, 0, sizeof(buffer));
 	init_cdrom_command(&cgc, buffer, sizeof(*wp), CGC_DATA_READ);
 	cgc.sense = &sense;
-	if ((ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0))) {
+	ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0);
+	if (ret) {
 		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
@@ -1672,7 +1679,8 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	 */
 	init_cdrom_command(&cgc, buffer, size, CGC_DATA_READ);
 	cgc.sense = &sense;
-	if ((ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0))) {
+	ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0);
+	if (ret) {
 		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
@@ -1714,7 +1722,8 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	wp->packet_size = cpu_to_be32(pd->settings.size >> 2);
 
 	cgc.buflen = cgc.cmd[8] = size;
-	if ((ret = pkt_mode_select(pd, &cgc))) {
+	ret = pkt_mode_select(pd, &cgc);
+	if (ret) {
 		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
@@ -1819,7 +1828,8 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	memset(&di, 0, sizeof(disc_information));
 	memset(&ti, 0, sizeof(track_information));
 
-	if ((ret = pkt_get_disc_info(pd, &di))) {
+	ret = pkt_get_disc_info(pd, &di);
+	if (ret) {
 		pkt_err(pd, "failed get_disc\n");
 		return ret;
 	}
@@ -1830,7 +1840,8 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	pd->type = di.erasable ? PACKET_CDRW : PACKET_CDR;
 
 	track = 1; /* (di.last_track_msb << 8) | di.last_track_lsb; */
-	if ((ret = pkt_get_track_info(pd, track, 1, &ti))) {
+	ret = pkt_get_track_info(pd, track, 1, &ti);
+	if (ret) {
 		pkt_err(pd, "failed get_track\n");
 		return ret;
 	}
@@ -1918,7 +1929,8 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 	 */
 	cgc.quiet = 1;
 
-	if ((ret = pkt_mode_sense(pd, &cgc, GPMODE_WCACHING_PAGE, 0)))
+	ret = pkt_mode_sense(pd, &cgc, GPMODE_WCACHING_PAGE, 0);
+	if (ret)
 		return ret;
 
 	buf[pd->mode_offset + 10] |= (!!set << 2);
@@ -2093,7 +2105,8 @@ static noinline_for_stack int pkt_perform_opc(struct pktcdvd_device *pd)
 	cgc.timeout = 60*HZ;
 	cgc.cmd[0] = GPCMD_SEND_OPC;
 	cgc.cmd[1] = 1;
-	if ((ret = pkt_generic_packet(pd, &cgc)))
+	ret = pkt_generic_packet(pd, &cgc);
+	if (ret)
 		pkt_dump_sense(pd, &cgc);
 	return ret;
 }
@@ -2103,19 +2116,22 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 	int ret;
 	unsigned int write_speed, media_write_speed, read_speed;
 
-	if ((ret = pkt_probe_settings(pd))) {
+	ret = pkt_probe_settings(pd);
+	if (ret) {
 		pkt_dbg(2, pd, "failed probe\n");
 		return ret;
 	}
 
-	if ((ret = pkt_set_write_settings(pd))) {
+	ret = pkt_set_write_settings(pd);
+	if (ret) {
 		pkt_dbg(1, pd, "failed saving write settings\n");
 		return -EIO;
 	}
 
 	pkt_write_caching(pd, USE_WCACHING);
 
-	if ((ret = pkt_get_max_speed(pd, &write_speed)))
+	ret = pkt_get_max_speed(pd, &write_speed);
+	if (ret)
 		write_speed = 16 * 177;
 	switch (pd->mmc3_profile) {
 		case 0x13: /* DVD-RW */
@@ -2124,7 +2140,8 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 			pkt_dbg(1, pd, "write speed %ukB/s\n", write_speed);
 			break;
 		default:
-			if ((ret = pkt_media_speed(pd, &media_write_speed)))
+			ret = pkt_media_speed(pd, &media_write_speed);
+			if (ret)
 				media_write_speed = 16;
 			write_speed = min(write_speed, media_write_speed * 177);
 			pkt_dbg(1, pd, "write speed %ux\n", write_speed / 176);
@@ -2132,14 +2149,16 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 	}
 	read_speed = write_speed;
 
-	if ((ret = pkt_set_speed(pd, write_speed, read_speed))) {
+	ret = pkt_set_speed(pd, write_speed, read_speed);
+	if (ret) {
 		pkt_dbg(1, pd, "couldn't set write speed\n");
 		return -EIO;
 	}
 	pd->write_speed = write_speed;
 	pd->read_speed = read_speed;
 
-	if ((ret = pkt_perform_opc(pd))) {
+	ret = pkt_perform_opc(pd);
+	if (ret) {
 		pkt_dbg(1, pd, "Optimum Power Calibration failed\n");
 	}
 
@@ -2161,10 +2180,12 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 	 * so bdget() can't fail.
 	 */
 	bdget(pd->bdev->bd_dev);
-	if ((ret = blkdev_get(pd->bdev, FMODE_READ | FMODE_EXCL, pd)))
+	ret = blkdev_get(pd->bdev, FMODE_READ | FMODE_EXCL, pd);
+	if (ret)
 		goto out;
 
-	if ((ret = pkt_get_last_written(pd, &lba))) {
+	ret = pkt_get_last_written(pd, &lba);
+	if (ret) {
 		pkt_err(pd, "pkt_get_last_written failed\n");
 		goto out_putdev;
 	}
@@ -2175,7 +2196,8 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 
 	q = bdev_get_queue(pd->bdev);
 	if (write) {
-		if ((ret = pkt_open_write(pd)))
+		ret = pkt_open_write(pd);
+		if (ret)
 			goto out_putdev;
 		/*
 		 * Some CDRW drives can not handle writes larger than one packet,
@@ -2190,7 +2212,8 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 		clear_bit(PACKET_WRITABLE, &pd->flags);
 	}
 
-	if ((ret = pkt_set_segment_merging(pd, q)))
+	ret = pkt_set_segment_merging(pd, q);
+	if (ret)
 		goto out_putdev;
 
 	if (write) {
