@@ -6,6 +6,7 @@
 
 #include <linux/bitrev.h>
 #include <linux/clk.h>
+#include <linux/crc32poly.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -28,10 +29,6 @@
 #define CRC_CR_RESET            BIT(0)
 #define CRC_CR_REVERSE          (BIT(7) | BIT(6) | BIT(5))
 #define CRC_INIT_DEFAULT        0xFFFFFFFF
-
-/* Polynomial reversed */
-#define POLY_CRC32              0xEDB88320
-#define POLY_CRC32C             0x82F63B78
 
 #define CRC_AUTOSUSPEND_DELAY	50
 
@@ -69,7 +66,7 @@ static int stm32_crc32_cra_init(struct crypto_tfm *tfm)
 	struct stm32_crc_ctx *mctx = crypto_tfm_ctx(tfm);
 
 	mctx->key = CRC_INIT_DEFAULT;
-	mctx->poly = POLY_CRC32;
+	mctx->poly = CRC32_POLY_LE;
 	return 0;
 }
 
@@ -78,7 +75,7 @@ static int stm32_crc32c_cra_init(struct crypto_tfm *tfm)
 	struct stm32_crc_ctx *mctx = crypto_tfm_ctx(tfm);
 
 	mctx->key = CRC_INIT_DEFAULT;
-	mctx->poly = POLY_CRC32C;
+	mctx->poly = CRC32C_POLY_LE;
 	return 0;
 }
 
@@ -187,7 +184,7 @@ static int stm32_crc_final(struct shash_desc *desc, u8 *out)
 	struct stm32_crc_ctx *mctx = crypto_shash_ctx(desc->tfm);
 
 	/* Send computed CRC */
-	put_unaligned_le32(mctx->poly == POLY_CRC32C ?
+	put_unaligned_le32(mctx->poly == CRC32C_POLY_LE ?
 			   ~ctx->partial : ctx->partial, out);
 
 	return 0;
