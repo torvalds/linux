@@ -59,6 +59,7 @@ struct netdevsim {
 	struct u64_stats_sync syncp;
 
 	struct device dev;
+	u32 switch_id;
 
 	struct dentry *ddir;
 

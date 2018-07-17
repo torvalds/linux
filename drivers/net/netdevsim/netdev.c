@@ -22,6 +22,7 @@
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/rtnetlink.h>
+#include <net/switchdev.h>
 
 #include "netdevsim.h"
 
@@ -144,12 +145,34 @@ static struct device_type nsim_dev_type = {
 	.release = nsim_dev_release,
 };
 
+static int
+nsim_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
+		attr->u.ppid.id_len = sizeof(ns->switch_id);
+		memcpy(&attr->u.ppid.id, &ns->switch_id,
+		       attr->u.ppid.id_len);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const struct switchdev_ops nsim_switchdev_ops = {
+	.switchdev_port_attr_get	= nsim_port_attr_get,
+};
+
 static int nsim_init(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 	int err;
 
 	ns->netdev = dev;
+	ns->switch_id = nsim_dev_id;
+
 	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
@@ -166,6 +189,7 @@ static int nsim_init(struct net_device *dev)
 		goto err_bpf_uninit;
 
 	SET_NETDEV_DEV(dev, &ns->dev);
+	SWITCHDEV_SET_OPS(dev, &nsim_switchdev_ops);
 
 	err = nsim_devlink_setup(ns);
 	if (err)
