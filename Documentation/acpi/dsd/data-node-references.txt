@@ -75,6 +75,7 @@ Example
 	    })
 	}
 
+Please also see a graph example in graph.txt .
 
 References
 ----------
