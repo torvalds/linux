@@ -371,7 +371,9 @@ fail1:
 	class_destroy(internal->class);
 
 unregister_gasket_driver:
+	mutex_lock(&g_mutex);
 	g_descs[desc_idx].driver_desc = NULL;
+	mutex_unlock(&g_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_register_device);
@@ -408,7 +410,9 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 	class_destroy(internal_desc->class);
 
 	/* Finally, effectively "remove" the driver. */
+	mutex_lock(&g_mutex);
 	g_descs[desc_idx].driver_desc = NULL;
+	mutex_unlock(&g_mutex);
 
 	gasket_nodev_info("removed %s driver", driver_desc->name);
 }
