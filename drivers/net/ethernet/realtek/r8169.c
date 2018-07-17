@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
 #include <linux/in.h>
@@ -754,6 +755,7 @@ struct rtl8169_private {
 	} wk;
 
 	struct mii_if_info mii;
+	struct mii_bus *mii_bus;
 	dma_addr_t counters_phys_addr;
 	struct rtl8169_counters *counters;
 	struct rtl8169_tc_offsets tc_offset;
@@ -1444,11 +1446,6 @@ static unsigned int rtl8169_xmii_reset_pending(struct rtl8169_private *tp)
 	return rtl_readphy(tp, MII_BMCR) & BMCR_RESET;
 }
 
-static unsigned int rtl8169_xmii_link_ok(struct rtl8169_private *tp)
-{
-	return RTL_R8(tp, PHYstatus) & LinkStatus;
-}
-
 static void rtl8169_xmii_reset_enable(struct rtl8169_private *tp)
 {
 	unsigned int val;
@@ -1510,25 +1507,6 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 			rtl_eri_write(tp, 0x1d0, ERIAR_MASK_0011, 0x0000,
 				      ERIAR_EXGMAC);
 		}
-	}
-}
-
-static void rtl8169_check_link_status(struct net_device *dev,
-				      struct rtl8169_private *tp)
-{
-	struct device *d = tp_to_dev(tp);
-
-	if (rtl8169_xmii_link_ok(tp)) {
-		rtl_link_chg_patch(tp);
-		/* This is to cancel a scheduled suspend if there's one. */
-		pm_request_resume(d);
-		netif_carrier_on(dev);
-		if (net_ratelimit())
-			netif_info(tp, ifup, dev, "link up\n");
-	} else {
-		netif_carrier_off(dev);
-		netif_info(tp, ifdown, dev, "link down\n");
-		pm_runtime_idle(d);
 	}
 }
 
@@ -6221,7 +6199,6 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 	napi_enable(&tp->napi);
 	rtl_hw_start(tp);
 	netif_wake_queue(dev);
-	rtl8169_check_link_status(dev, tp);
 }
 
 static void rtl8169_tx_timeout(struct net_device *dev)
@@ -6838,7 +6815,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 		rtl8169_pcierr_interrupt(dev);
 
 	if (status & LinkChg)
-		rtl8169_check_link_status(dev, tp);
+		phy_mac_interrupt(dev->phydev);
 
 	rtl_irq_enable_all(tp);
 }
@@ -6920,9 +6897,51 @@ static void rtl8169_rx_missed(struct net_device *dev)
 	RTL_W32(tp, RxMissed, 0);
 }
 
+static void r8169_phylink_handler(struct net_device *ndev)
+{
+	struct rtl8169_private *tp = netdev_priv(ndev);
+
+	if (netif_carrier_ok(ndev)) {
+		rtl_link_chg_patch(tp);
+		pm_request_resume(&tp->pci_dev->dev);
+	} else {
+		pm_runtime_idle(&tp->pci_dev->dev);
+	}
+
+	if (net_ratelimit())
+		phy_print_status(ndev->phydev);
+}
+
+static int r8169_phy_connect(struct rtl8169_private *tp)
+{
+	struct phy_device *phydev = mdiobus_get_phy(tp->mii_bus, 0);
+	phy_interface_t phy_mode;
+	int ret;
+
+	phy_mode = tp->mii.supports_gmii ? PHY_INTERFACE_MODE_GMII :
+		   PHY_INTERFACE_MODE_MII;
+
+	ret = phy_connect_direct(tp->dev, phydev, r8169_phylink_handler,
+				 phy_mode);
+	if (ret)
+		return ret;
+
+	if (!tp->mii.supports_gmii)
+		phy_set_max_speed(phydev, SPEED_100);
+
+	/* Ensure to advertise everything, incl. pause */
+	phydev->advertising = phydev->supported;
+
+	phy_attached_info(phydev);
+
+	return 0;
+}
+
 static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+
+	phy_stop(dev->phydev);
 
 	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
@@ -6962,6 +6981,8 @@ static int rtl8169_close(struct net_device *dev)
 	rtl_unlock_work(tp);
 
 	cancel_work_sync(&tp->wk.work);
+
+	phy_disconnect(dev->phydev);
 
 	pci_free_irq(pdev, 0, tp);
 
@@ -7023,6 +7044,10 @@ static int rtl_open(struct net_device *dev)
 	if (retval < 0)
 		goto err_release_fw_2;
 
+	retval = r8169_phy_connect(tp);
+	if (retval)
+		goto err_free_irq;
+
 	rtl_lock_work(tp);
 
 	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
@@ -7038,16 +7063,17 @@ static int rtl_open(struct net_device *dev)
 	if (!rtl8169_init_counter_offsets(tp))
 		netif_warn(tp, hw, dev, "counter reset/update failed\n");
 
+	phy_start(dev->phydev);
 	netif_start_queue(dev);
 
 	rtl_unlock_work(tp);
 
 	pm_runtime_put_sync(&pdev->dev);
-
-	rtl8169_check_link_status(dev, tp);
 out:
 	return retval;
 
+err_free_irq:
+	pci_free_irq(pdev, 0, tp);
 err_release_fw_2:
 	rtl_release_firmware(tp);
 	rtl8169_rx_clear(tp);
@@ -7126,6 +7152,7 @@ static void rtl8169_net_suspend(struct net_device *dev)
 	if (!netif_running(dev))
 		return;
 
+	phy_stop(dev->phydev);
 	netif_device_detach(dev);
 	netif_stop_queue(dev);
 
@@ -7157,6 +7184,8 @@ static void __rtl8169_resume(struct net_device *dev)
 
 	rtl_pll_power_up(tp);
 	rtl8169_init_phy(dev, tp);
+
+	phy_start(tp->dev->phydev);
 
 	rtl_lock_work(tp);
 	napi_enable(&tp->napi);
@@ -7303,6 +7332,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	netif_napi_del(&tp->napi);
 
 	unregister_netdev(dev);
+	mdiobus_unregister(tp->mii_bus);
 
 	rtl_release_firmware(tp);
 
@@ -7386,6 +7416,65 @@ DECLARE_RTL_COND(rtl_link_list_ready_cond)
 DECLARE_RTL_COND(rtl_rxtx_empty_cond)
 {
 	return (RTL_R8(tp, MCU) & RXTX_EMPTY) == RXTX_EMPTY;
+}
+
+static int r8169_mdio_read_reg(struct mii_bus *mii_bus, int phyaddr, int phyreg)
+{
+	struct rtl8169_private *tp = mii_bus->priv;
+
+	if (phyaddr > 0)
+		return -ENODEV;
+
+	return rtl_readphy(tp, phyreg);
+}
+
+static int r8169_mdio_write_reg(struct mii_bus *mii_bus, int phyaddr,
+				int phyreg, u16 val)
+{
+	struct rtl8169_private *tp = mii_bus->priv;
+
+	if (phyaddr > 0)
+		return -ENODEV;
+
+	rtl_writephy(tp, phyreg, val);
+
+	return 0;
+}
+
+static int r8169_mdio_register(struct rtl8169_private *tp)
+{
+	struct pci_dev *pdev = tp->pci_dev;
+	struct phy_device *phydev;
+	struct mii_bus *new_bus;
+	int ret;
+
+	new_bus = devm_mdiobus_alloc(&pdev->dev);
+	if (!new_bus)
+		return -ENOMEM;
+
+	new_bus->name = "r8169";
+	new_bus->priv = tp;
+	new_bus->parent = &pdev->dev;
+	new_bus->irq[0] = PHY_IGNORE_INTERRUPT;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "r8169-%x",
+		 PCI_DEVID(pdev->bus->number, pdev->devfn));
+
+	new_bus->read = r8169_mdio_read_reg;
+	new_bus->write = r8169_mdio_write_reg;
+
+	ret = mdiobus_register(new_bus);
+	if (ret)
+		return ret;
+
+	phydev = mdiobus_get_phy(new_bus, 0);
+	if (!phydev) {
+		mdiobus_unregister(new_bus);
+		return -ENODEV;
+	}
+
+	tp->mii_bus = new_bus;
+
+	return 0;
 }
 
 static void rtl_hw_init_8168g(struct rtl8169_private *tp)
@@ -7644,9 +7733,13 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	rc = register_netdev(dev);
-	if (rc < 0)
+	rc = r8169_mdio_register(tp);
+	if (rc)
 		return rc;
+
+	rc = register_netdev(dev);
+	if (rc)
+		goto err_mdio_unregister;
 
 	netif_info(tp, probe, dev, "%s, %pM, XID %08x, IRQ %d\n",
 		   rtl_chip_infos[chipset].name, dev->dev_addr,
@@ -7662,12 +7755,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (r8168_check_dash(tp))
 		rtl8168_driver_start(tp);
 
-	netif_carrier_off(dev);
-
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
+
+err_mdio_unregister:
+	mdiobus_unregister(tp->mii_bus);
+	return rc;
 }
 
 static struct pci_driver rtl8169_pci_driver = {
