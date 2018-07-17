@@ -48,6 +48,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
+#include <linux/crc32poly.h>
 #include <linux/platform_device.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
@@ -2949,7 +2950,6 @@ fec_enet_close(struct net_device *ndev)
  */
 
 #define FEC_HASH_BITS	6		/* #bits in hash */
-#define CRC32_POLY	0xEDB88320
 
 static void set_multicast_list(struct net_device *ndev)
 {
@@ -2989,7 +2989,7 @@ static void set_multicast_list(struct net_device *ndev)
 			data = ha->addr[i];
 			for (bit = 0; bit < 8; bit++, data >>= 1) {
 				crc = (crc >> 1) ^
-				(((crc ^ data) & 1) ? CRC32_POLY : 0);
+				(((crc ^ data) & 1) ? CRC32_POLY_LE : 0);
 			}
 		}
 

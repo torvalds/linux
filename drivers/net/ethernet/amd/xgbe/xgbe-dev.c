@@ -119,6 +119,7 @@
 #include <linux/clk.h>
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -887,7 +888,6 @@ static int xgbe_disable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
 
 static u32 xgbe_vid_crc32_le(__le16 vid_le)
 {
-	u32 poly = 0xedb88320;	/* CRCPOLY_LE */
 	u32 crc = ~0;
 	u32 temp = 0;
 	unsigned char *data = (unsigned char *)&vid_le;
@@ -904,7 +904,7 @@ static u32 xgbe_vid_crc32_le(__le16 vid_le)
 		data_byte >>= 1;
 
 		if (temp)
-			crc ^= poly;
+			crc ^= CRC32_POLY_LE;
 	}
 
 	return crc;
