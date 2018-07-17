@@ -1543,7 +1543,7 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 	context->in_syscall = 1;
 	context->current_state  = state;
 	context->ppid       = 0;
-	ktime_get_coarse_ts64(&context->ctime);
+	ktime_get_coarse_real_ts64(&context->ctime);
 }
 
 /**

@@ -1721,7 +1721,7 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
-		ktime_get_coarse_ts64(t);
+		ktime_get_coarse_real_ts64(t);
 		*serial = audit_serial();
 	}
 }
