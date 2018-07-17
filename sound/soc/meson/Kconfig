@@ -12,4 +12,11 @@ config SND_MESON_AXG_FRDDR
 	  Select Y or M to add support for the frontend playback interfaces
 	  embedded in the Amlogic AXG SoC family
 
+config SND_MESON_AXG_TODDR
+	tristate "Amlogic AXG Capture FIFO support"
+	select SND_MESON_AXG_FIFO
+	help
+	  Select Y or M to add support for the frontend capture interfaces
+	  embedded in the Amlogic AXG SoC family
+
 endmenu
