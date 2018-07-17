@@ -1106,8 +1106,6 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	if (spi_imx->devtype_data->dynamic_burst && !spi_imx->slave_mode) {
 		u32 mask;
 
-		spi_imx->dynamic_burst = 0;
-		spi_imx->remainder = 0;
 		spi_imx->read_u32  = 1;
 
 		mask = (1 << spi_imx->bits_per_word) - 1;
