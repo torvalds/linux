@@ -144,6 +144,11 @@
 		};
 	};
 
+	rtc-fake {
+		compatible = "rtc-fake";
+		status = "okay";
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&hym8563>;
