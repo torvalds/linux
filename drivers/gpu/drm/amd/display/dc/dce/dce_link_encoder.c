@@ -930,7 +930,7 @@ void dce110_link_encoder_enable_tmds_output(
 	enum bp_result result;
 
 	/* Enable the PHY */
-
+	cntl.connector_obj_id = enc110->base.connector;
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
@@ -972,7 +972,7 @@ void dce110_link_encoder_enable_dp_output(
 	 * We need to set number of lanes manually.
 	 */
 	configure_encoder(enc110, link_settings);
-
+	cntl.connector_obj_id = enc110->base.connector;
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
