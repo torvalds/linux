@@ -244,7 +244,16 @@ static void dce120_update_dchub(
 	dh_data->dchub_info_valid = false;
 }
 
+static void dce120_set_bandwidth(
+		struct dc *dc,
+		struct dc_state *context,
+		bool decrease_allowed)
+{
+	if (context->stream_count <= 0)
+		return;
 
+	dce110_set_bandwidth(dc, context, decrease_allowed);
+}
 
 void dce120_hw_sequencer_construct(struct dc *dc)
 {
@@ -254,5 +263,6 @@ void dce120_hw_sequencer_construct(struct dc *dc)
 	dce110_hw_sequencer_construct(dc);
 	dc->hwss.enable_display_power_gating = dce120_enable_display_power_gating;
 	dc->hwss.update_dchub = dce120_update_dchub;
+	dc->hwss.set_bandwidth = dce120_set_bandwidth;
 }
 
