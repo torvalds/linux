@@ -1241,19 +1241,19 @@ static int gasket_release(struct inode *inode, struct file *file)
  * that the provided descriptor/range is of adequate size to hold the range to
  * be mapped.
  */
-static int gasket_mmap_has_permissions(
+static bool gasket_mmap_has_permissions(
 	struct gasket_dev *gasket_dev, struct vm_area_struct *vma,
 	int bar_permissions)
 {
 	int requested_permissions;
 	/* Always allow sysadmin to access. */
 	if (capable(CAP_SYS_ADMIN))
-		return 1;
+		return true;
 
 	/* Never allow non-sysadmins to access to a dead device. */
 	if (gasket_dev->status != GASKET_STATUS_ALIVE) {
 		gasket_log_info(gasket_dev, "Device is dead.");
-		return 0;
+		return false;
 	}
 
 	/* Make sure that no wrong flags are set. */
@@ -1265,7 +1265,7 @@ static int gasket_mmap_has_permissions(
 			"Attempting to map a region with requested permissions "
 			"0x%x, but region has permissions 0x%x.",
 			requested_permissions, bar_permissions);
-		return 0;
+		return false;
 	}
 
 	/* Do not allow a non-owner to write. */
@@ -1275,10 +1275,10 @@ static int gasket_mmap_has_permissions(
 			gasket_dev,
 			"Attempting to mmap a region for write without owning "
 			"device.");
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /*
