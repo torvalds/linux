@@ -207,6 +207,16 @@ config HID_CORSAIR
 	- Vengeance K90
 	- Scimitar PRO RGB
 
+config HID_COUGAR
+	tristate "Cougar devices"
+	depends on HID
+	help
+	Support for Cougar devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Cougar 500k Gaming Keyboard
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
