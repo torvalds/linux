@@ -1441,19 +1441,6 @@ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 	RTL_R8(tp, ChipCmd);
 }
 
-static unsigned int rtl8169_xmii_reset_pending(struct rtl8169_private *tp)
-{
-	return rtl_readphy(tp, MII_BMCR) & BMCR_RESET;
-}
-
-static void rtl8169_xmii_reset_enable(struct rtl8169_private *tp)
-{
-	unsigned int val;
-
-	val = rtl_readphy(tp, MII_BMCR) | BMCR_RESET;
-	rtl_writephy(tp, MII_BMCR, val & 0xffff);
-}
-
 static void rtl_link_chg_patch(struct rtl8169_private *tp)
 {
 	struct net_device *dev = tp->dev;
@@ -4252,18 +4239,6 @@ static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 		schedule_work(&tp->wk.work);
 }
 
-DECLARE_RTL_COND(rtl_phy_reset_cond)
-{
-	return rtl8169_xmii_reset_pending(tp);
-}
-
-static void rtl8169_phy_reset(struct net_device *dev,
-			      struct rtl8169_private *tp)
-{
-	rtl8169_xmii_reset_enable(tp);
-	rtl_msleep_loop_wait_low(tp, &rtl_phy_reset_cond, 1, 100);
-}
-
 static bool rtl_tbi_enabled(struct rtl8169_private *tp)
 {
 	return (tp->mac_version == RTL_GIGA_MAC_VER_01) &&
@@ -4294,7 +4269,7 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		rtl_writephy(tp, 0x0b, 0x0000); //w 0x0b 15 0 0
 	}
 
-	rtl8169_phy_reset(dev, tp);
+	genphy_soft_reset(dev->phydev);
 
 	rtl8169_set_speed(dev, AUTONEG_ENABLE, SPEED_1000, DUPLEX_FULL,
 			  ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
