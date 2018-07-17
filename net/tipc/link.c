@@ -297,11 +297,6 @@ static bool link_is_bc_rcvlink(struct tipc_link *l)
 	return ((l->bc_rcvlink == l) && !link_is_bc_sndlink(l));
 }
 
-int tipc_link_is_active(struct tipc_link *l)
-{
-	return l->active;
-}
-
 void tipc_link_set_active(struct tipc_link *l, bool active)
 {
 	l->active = active;
