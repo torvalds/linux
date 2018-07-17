@@ -2957,14 +2957,6 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 
 	nandc->props = dev_data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nandc->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(nandc->base))
-		return PTR_ERR(nandc->base);
-
-	nandc->base_phys = res->start;
-	nandc->base_dma = phys_to_dma(dev, (phys_addr_t)res->start);
-
 	nandc->core_clk = devm_clk_get(dev, "core");
 	if (IS_ERR(nandc->core_clk))
 		return PTR_ERR(nandc->core_clk);
@@ -2977,9 +2969,21 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	nandc->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(nandc->base))
+		return PTR_ERR(nandc->base);
+
+	nandc->base_phys = res->start;
+	nandc->base_dma = dma_map_resource(dev, res->start,
+					   resource_size(res),
+					   DMA_BIDIRECTIONAL, 0);
+	if (!nandc->base_dma)
+		return -ENXIO;
+
 	ret = qcom_nandc_alloc(nandc);
 	if (ret)
-		goto err_core_clk;
+		goto err_nandc_alloc;
 
 	ret = clk_prepare_enable(nandc->core_clk);
 	if (ret)
@@ -3005,6 +3009,9 @@ err_aon_clk:
 	clk_disable_unprepare(nandc->core_clk);
 err_core_clk:
 	qcom_nandc_unalloc(nandc);
+err_nandc_alloc:
+	dma_unmap_resource(dev, res->start, resource_size(res),
+			   DMA_BIDIRECTIONAL, 0);
 
 	return ret;
 }
@@ -3012,15 +3019,20 @@ err_core_clk:
 static int qcom_nandc_remove(struct platform_device *pdev)
 {
 	struct qcom_nand_controller *nandc = platform_get_drvdata(pdev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct qcom_nand_host *host;
 
 	list_for_each_entry(host, &nandc->host_list, node)
 		nand_release(nand_to_mtd(&host->chip));
 
+
 	qcom_nandc_unalloc(nandc);
 
 	clk_disable_unprepare(nandc->aon_clk);
 	clk_disable_unprepare(nandc->core_clk);
+
+	dma_unmap_resource(&pdev->dev, nandc->base_dma, resource_size(res),
+			   DMA_BIDIRECTIONAL, 0);
 
 	return 0;
 }
