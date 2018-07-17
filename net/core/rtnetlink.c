@@ -1414,14 +1414,17 @@ static int rtnl_xdp_fill(struct sk_buff *skb, struct net_device *dev)
 
 	prog_id = 0;
 	mode = XDP_ATTACHED_NONE;
-	if (rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_SKB,
-				IFLA_XDP_SKB_PROG_ID, rtnl_xdp_prog_skb))
+	err = rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_SKB,
+				  IFLA_XDP_SKB_PROG_ID, rtnl_xdp_prog_skb);
+	if (err)
 		goto err_cancel;
-	if (rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_DRV,
-				IFLA_XDP_DRV_PROG_ID, rtnl_xdp_prog_drv))
+	err = rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_DRV,
+				  IFLA_XDP_DRV_PROG_ID, rtnl_xdp_prog_drv);
+	if (err)
 		goto err_cancel;
-	if (rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_HW,
-				IFLA_XDP_HW_PROG_ID, rtnl_xdp_prog_hw))
+	err = rtnl_xdp_report_one(skb, dev, &prog_id, &mode, XDP_ATTACHED_HW,
+				  IFLA_XDP_HW_PROG_ID, rtnl_xdp_prog_hw);
+	if (err)
 		goto err_cancel;
 
 	err = nla_put_u8(skb, IFLA_XDP_ATTACHED, mode);
