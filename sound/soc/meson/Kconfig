@@ -23,6 +23,10 @@ config SND_MESON_AXG_TDM_FORMATTER
 	tristate
 	select REGMAP_MMIO
 
+config SND_MESON_AXG_TDM_INTERFACE
+	tristate
+	select SND_MESON_AXG_TDM_FORMATTER
+
 config SND_MESON_AXG_SPDIFOUT
 	tristate "Amlogic AXG SPDIF Output Support"
 	imply SND_SOC_SPDIF

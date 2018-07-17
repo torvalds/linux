@@ -71,4 +71,8 @@ static inline int axg_tdm_stream_reset(struct axg_tdm_stream *ts)
 	return axg_tdm_stream_start(ts);
 }
 
+int axg_tdm_set_tdm_slots(struct snd_soc_dai *dai, u32 *tx_mask,
+			  u32 *rx_mask, unsigned int slots,
+			  unsigned int slot_width);
+
 #endif /* _MESON_AXG_TDM_H */
