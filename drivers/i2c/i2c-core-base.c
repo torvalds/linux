@@ -190,10 +190,17 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
 
+	/*
+	 * If we can set SDA, we will always create a STOP to ensure additional
+	 * pulses will do no harm. This is achieved by letting SDA follow SCL
+	 * half a cycle later. Check the 'incomplete_write_byte' fault injector
+	 * for details.
+	 */
 	bri->set_scl(adap, scl);
+	ndelay(RECOVERY_NDELAY / 2);
 	if (bri->set_sda)
-		bri->set_sda(adap, 1);
-	ndelay(RECOVERY_NDELAY);
+		bri->set_sda(adap, scl);
+	ndelay(RECOVERY_NDELAY / 2);
 
 	/*
 	 * By this time SCL is high, as we need to give 9 falling-rising edges
@@ -211,13 +218,7 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 
 		scl = !scl;
 		bri->set_scl(adap, scl);
-
-		/*
-		 * If we can set SDA, we will always create STOP here to ensure
-		 * the additional pulses will do no harm. This is achieved by
-		 * letting SDA follow SCL half a cycle later. Check the
-		 * 'incomplete_write_byte' fault injector for details.
-		 */
+		/* Creating STOP again, see above */
 		ndelay(RECOVERY_NDELAY / 2);
 		if (bri->set_sda)
 			bri->set_sda(adap, scl);
