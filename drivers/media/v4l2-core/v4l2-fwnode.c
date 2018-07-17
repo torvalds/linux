@@ -739,7 +739,7 @@ static struct fwnode_handle *v4l2_fwnode_reference_get_int_prop(
 	const char * const *props, unsigned int nprops)
 {
 	struct fwnode_reference_args fwnode_args;
-	unsigned int *args = fwnode_args.args;
+	u64 *args = fwnode_args.args;
 	struct fwnode_handle *child;
 	int ret;
 

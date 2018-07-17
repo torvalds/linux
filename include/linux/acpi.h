@@ -1058,27 +1058,20 @@ static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 
 /* Device properties */
 
-#define MAX_ACPI_REFERENCE_ARGS	8
-struct acpi_reference_args {
-	struct acpi_device *adev;
-	size_t nargs;
-	u64 args[MAX_ACPI_REFERENCE_ARGS];
-};
-
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(const struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
 int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				const char *name, size_t index, size_t num_args,
-				struct acpi_reference_args *args);
+				struct fwnode_reference_args *args);
 
 static inline int acpi_node_get_property_reference(
 				const struct fwnode_handle *fwnode,
 				const char *name, size_t index,
-				struct acpi_reference_args *args)
+				struct fwnode_reference_args *args)
 {
 	return __acpi_node_get_property_reference(fwnode, name, index,
-		MAX_ACPI_REFERENCE_ARGS, args);
+		NR_FWNODE_REFERENCE_ARGS, args);
 }
 
 int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
@@ -1169,7 +1162,7 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 static inline int
 __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				const char *name, size_t index, size_t num_args,
-				struct acpi_reference_args *args)
+				struct fwnode_reference_args *args)
 {
 	return -ENXIO;
 }
@@ -1177,7 +1170,7 @@ __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 static inline int
 acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				 const char *name, size_t index,
-				 struct acpi_reference_args *args)
+				 struct fwnode_reference_args *args)
 {
 	return -ENXIO;
 }

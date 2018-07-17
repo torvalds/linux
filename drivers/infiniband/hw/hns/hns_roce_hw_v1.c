@@ -1435,7 +1435,7 @@ static int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool dereset)
 		}
 		fwnode = &dsaf_node->fwnode;
 	} else if (is_acpi_device_node(dev->fwnode)) {
-		struct acpi_reference_args args;
+		struct fwnode_reference_args args;
 
 		ret = acpi_node_get_property_reference(dev->fwnode,
 						       "dsaf-handle", 0, &args);
@@ -1443,7 +1443,7 @@ static int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool dereset)
 			dev_err(dev, "could not find dsaf-handle\n");
 			return ret;
 		}
-		fwnode = acpi_fwnode_handle(args.adev);
+		fwnode = args.fwnode;
 	} else {
 		dev_err(dev, "cannot read data from DT or ACPI\n");
 		return -ENXIO;
@@ -4835,16 +4835,14 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 				continue;
 			pdev = of_find_device_by_node(net_node);
 		} else if (is_acpi_device_node(dev->fwnode)) {
-			struct acpi_reference_args args;
-			struct fwnode_handle *fwnode;
+			struct fwnode_reference_args args;
 
 			ret = acpi_node_get_property_reference(dev->fwnode,
 							       "eth-handle",
 							       i, &args);
 			if (ret)
 				continue;
-			fwnode = acpi_fwnode_handle(args.adev);
-			pdev = hns_roce_find_pdev(fwnode);
+			pdev = hns_roce_find_pdev(args.fwnode);
 		} else {
 			dev_err(dev, "cannot read data from DT or ACPI\n");
 			return -ENXIO;
