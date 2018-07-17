@@ -73,7 +73,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size);
 #endif
 
-static ssize_t (*write_op[])(struct file *, char *, size_t) = {
+static ssize_t (*const write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_FO_UnlockIP] = write_unlock_ip,
 	[NFSD_FO_UnlockFS] = write_unlock_fs,
