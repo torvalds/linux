@@ -7,6 +7,7 @@ Required Properties:
 
 - compatible: should be one of the following.
     "rockchip,rv1108-spi" for rv1108 SoCs.
+    "rockchip,px30-spi", "rockchip,rk3066-spi" for px30 SoCs.
     "rockchip,rk3036-spi" for rk3036 SoCS.
     "rockchip,rk3066-spi" for rk3066 SoCs.
     "rockchip,rk3188-spi" for rk3188 SoCs.
