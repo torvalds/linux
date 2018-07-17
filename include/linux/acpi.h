@@ -1089,14 +1089,6 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child);
 struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode);
 
-struct fwnode_handle *
-acpi_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-			     struct fwnode_handle *prev);
-int acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
-				   struct fwnode_handle **remote,
-				   struct fwnode_handle **port,
-				   struct fwnode_handle **endpoint);
-
 struct acpi_probe_entry;
 typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
 						 struct acpi_probe_entry *);

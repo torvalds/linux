@@ -1033,10 +1033,10 @@ struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode)
  * @prev: Previous endpoint node or %NULL to get the first
  *
  * Looks up next endpoint ACPI firmware node below a given @fwnode. Returns
- * %NULL if there is no next endpoint, ERR_PTR() in case of error. In case
- * of success the next endpoint is returned.
+ * %NULL if there is no next endpoint or in case of error. In case of success
+ * the next endpoint is returned.
  */
-struct fwnode_handle *acpi_graph_get_next_endpoint(
+static struct fwnode_handle *acpi_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev)
 {
 	struct fwnode_handle *port = NULL;
@@ -1065,11 +1065,9 @@ struct fwnode_handle *acpi_graph_get_next_endpoint(
 			endpoint = fwnode_get_next_child_node(port, NULL);
 	}
 
-	if (endpoint) {
-		/* Endpoints must have "endpoint" property */
-		if (!fwnode_property_present(endpoint, "endpoint"))
-			return ERR_PTR(-EPROTO);
-	}
+	/* Endpoints must have "endpoint" property */
+	if (!fwnode_property_present(endpoint, "endpoint"))
+		return NULL;
 
 	return endpoint;
 }
@@ -1106,18 +1104,12 @@ static struct fwnode_handle *acpi_graph_get_child_prop_value(
 /**
  * acpi_graph_get_remote_enpoint - Parses and returns remote end of an endpoint
  * @fwnode: Endpoint firmware node pointing to a remote device
- * @parent: Firmware node of remote port parent is filled here if not %NULL
- * @port: Firmware node of remote port is filled here if not %NULL
  * @endpoint: Firmware node of remote endpoint is filled here if not %NULL
  *
- * Function parses remote end of ACPI firmware remote endpoint and fills in
- * fields requested by the caller. Returns %0 in case of success and
- * negative errno otherwise.
+ * Returns the remote endpoint corresponding to @__fwnode. NULL on error.
  */
-int acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode,
-				   struct fwnode_handle **parent,
-				   struct fwnode_handle **port,
-				   struct fwnode_handle **endpoint)
+static struct fwnode_handle *
+acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode)
 {
 	struct fwnode_handle *fwnode;
 	unsigned int port_nr, endpoint_nr;
@@ -1128,47 +1120,27 @@ int acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode,
 	ret = acpi_node_get_property_reference(__fwnode, "remote-endpoint", 0,
 					       &args);
 	if (ret)
-		return ret;
+		return NULL;
 
 	/* Ensure this is a device node. */
 	if (!is_acpi_device_node(args.fwnode))
-		return -ENODEV;
+		return NULL;
 
 	/*
 	 * Always require two arguments with the reference: port and
 	 * endpoint indices.
 	 */
 	if (args.nargs != 2)
-		return -EPROTO;
+		return NULL;
 
 	fwnode = args.fwnode;
 	port_nr = args.args[0];
 	endpoint_nr = args.args[1];
 
-	if (parent)
-		*parent = fwnode;
-
-	if (!port && !endpoint)
-		return 0;
-
 	fwnode = acpi_graph_get_child_prop_value(fwnode, "port", port_nr);
-	if (!fwnode)
-		return -EPROTO;
 
-	if (port)
-		*port = fwnode;
-
-	if (!endpoint)
-		return 0;
-
-	fwnode = acpi_graph_get_child_prop_value(fwnode, "endpoint",
-						 endpoint_nr);
-	if (!fwnode)
-		return -EPROTO;
-
-	*endpoint = fwnode;
-
-	return 0;
+	return acpi_graph_get_child_prop_value(fwnode, "endpoint",
+					       endpoint_nr);
 }
 
 static bool acpi_fwnode_device_is_available(const struct fwnode_handle *fwnode)
@@ -1233,29 +1205,6 @@ acpi_fwnode_get_reference_args(const struct fwnode_handle *fwnode,
 }
 
 static struct fwnode_handle *
-acpi_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-				    struct fwnode_handle *prev)
-{
-	struct fwnode_handle *endpoint;
-
-	endpoint = acpi_graph_get_next_endpoint(fwnode, prev);
-	if (IS_ERR(endpoint))
-		return NULL;
-
-	return endpoint;
-}
-
-static struct fwnode_handle *
-acpi_fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *endpoint = NULL;
-
-	acpi_graph_get_remote_endpoint(fwnode, NULL, NULL, &endpoint);
-
-	return endpoint;
-}
-
-static struct fwnode_handle *
 acpi_fwnode_get_parent(struct fwnode_handle *fwnode)
 {
 	return acpi_node_get_parent(fwnode);
@@ -1295,9 +1244,9 @@ acpi_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 		.get_named_child_node = acpi_fwnode_get_named_child_node, \
 		.get_reference_args = acpi_fwnode_get_reference_args,	\
 		.graph_get_next_endpoint =				\
-			acpi_fwnode_graph_get_next_endpoint,		\
+			acpi_graph_get_next_endpoint,			\
 		.graph_get_remote_endpoint =				\
-			acpi_fwnode_graph_get_remote_endpoint,		\
+			acpi_graph_get_remote_endpoint,			\
 		.graph_get_port_parent = acpi_fwnode_get_parent,	\
 		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
 	};								\
