@@ -112,8 +112,8 @@ ENTRY(at91_pm_suspend_in_sram)
 	bl	at91_sramc_self_refresh
 
 	ldr	r0, .pm_mode
-	cmp	r0, #AT91_PM_SLOW_CLOCK
-	beq	slow_clock
+	cmp	r0, #AT91_PM_ULP0
+	beq	ulp0_mode
 	cmp	r0, #AT91_PM_BACKUP
 	beq	backup_mode
 
@@ -122,8 +122,8 @@ ENTRY(at91_pm_suspend_in_sram)
 	at91_cpu_idle
 	b	exit_suspend
 
-slow_clock:
-	bl	at91_slowck_mode
+ulp0_mode:
+	bl	at91_ulp0_mode
 	b	exit_suspend
 backup_mode:
 	bl	at91_backup_mode
@@ -151,7 +151,7 @@ ENTRY(at91_backup_mode)
 	str	tmp1, [r0, #0]
 ENDPROC(at91_backup_mode)
 
-ENTRY(at91_slowck_mode)
+ENTRY(at91_ulp0_mode)
 	ldr	pmc, .pmc_base
 
 	/* Save Master clock setting */
@@ -212,7 +212,7 @@ ENTRY(at91_slowck_mode)
 	wait_mckrdy
 
 	mov	pc, lr
-ENDPROC(at91_slowck_mode)
+ENDPROC(at91_ulp0_mode)
 
 /*
  * void at91_sramc_self_refresh(unsigned int is_active)

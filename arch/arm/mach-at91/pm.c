@@ -40,15 +40,15 @@ extern void at91_pinctrl_gpio_resume(void);
 #endif
 
 static const match_table_t pm_modes __initconst = {
-	{ 0, "standby" },
-	{ AT91_PM_SLOW_CLOCK, "ulp0" },
+	{ AT91_PM_STANDBY, "standby" },
+	{ AT91_PM_ULP0, "ulp0" },
 	{ AT91_PM_BACKUP, "backup" },
 	{ -1, NULL },
 };
 
 static struct at91_pm_data pm_data = {
-	.standby_mode = 0,
-	.suspend_mode = AT91_PM_SLOW_CLOCK,
+	.standby_mode = AT91_PM_STANDBY,
+	.suspend_mode = AT91_PM_ULP0,
 };
 
 #define at91_ramc_read(id, field) \
@@ -145,7 +145,7 @@ static int at91_pm_verify_clocks(void)
  */
 int at91_suspend_entering_slow_clock(void)
 {
-	return (pm_data.mode >= AT91_PM_SLOW_CLOCK);
+	return (pm_data.mode >= AT91_PM_ULP0);
 }
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
@@ -186,7 +186,7 @@ static void at91_pm_suspend(suspend_state_t state)
  * event sources; and reduces DRAM power.  But otherwise it's identical to
  * PM_SUSPEND_ON: cpu idle, and nothing fancy done with main or cpu clocks.
  *
- * AT91_PM_SLOW_CLOCK is like STANDBY plus slow clock mode, so drivers must
+ * AT91_PM_ULP0 is like STANDBY plus slow clock mode, so drivers must
  * suspend more deeply, the master clock switches to the clk32k and turns off
  * the main oscillator
  *
@@ -204,7 +204,7 @@ static int at91_pm_enter(suspend_state_t state)
 		/*
 		 * Ensure that clocks are in a valid state.
 		 */
-		if ((pm_data.mode >= AT91_PM_SLOW_CLOCK) &&
+		if (pm_data.mode >= AT91_PM_ULP0 &&
 		    !at91_pm_verify_clocks())
 			goto error;
 
@@ -546,9 +546,9 @@ securam_fail:
 	pm_data.sfrbu = NULL;
 
 	if (pm_data.standby_mode == AT91_PM_BACKUP)
-		pm_data.standby_mode = AT91_PM_SLOW_CLOCK;
+		pm_data.standby_mode = AT91_PM_ULP0;
 	if (pm_data.suspend_mode == AT91_PM_BACKUP)
-		pm_data.suspend_mode = AT91_PM_SLOW_CLOCK;
+		pm_data.suspend_mode = AT91_PM_ULP0;
 }
 
 struct pmc_info {

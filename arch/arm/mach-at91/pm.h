@@ -21,7 +21,8 @@
 #define AT91_MEMCTRL_SDRAMC	1
 #define AT91_MEMCTRL_DDRSDR	2
 
-#define	AT91_PM_SLOW_CLOCK	0x01
+#define	AT91_PM_STANDBY		0x00
+#define AT91_PM_ULP0		0x01
 #define	AT91_PM_BACKUP		0x02
 
 #ifndef __ASSEMBLY__
