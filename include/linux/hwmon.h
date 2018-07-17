@@ -188,12 +188,16 @@ enum hwmon_power_attributes {
 	hwmon_power_cap_hyst,
 	hwmon_power_cap_max,
 	hwmon_power_cap_min,
+	hwmon_power_min,
 	hwmon_power_max,
 	hwmon_power_crit,
+	hwmon_power_lcrit,
 	hwmon_power_label,
 	hwmon_power_alarm,
 	hwmon_power_cap_alarm,
+	hwmon_power_min_alarm,
 	hwmon_power_max_alarm,
+	hwmon_power_lcrit_alarm,
 	hwmon_power_crit_alarm,
 };
 
@@ -214,12 +218,16 @@ enum hwmon_power_attributes {
 #define HWMON_P_CAP_HYST		BIT(hwmon_power_cap_hyst)
 #define HWMON_P_CAP_MAX			BIT(hwmon_power_cap_max)
 #define HWMON_P_CAP_MIN			BIT(hwmon_power_cap_min)
+#define HWMON_P_MIN			BIT(hwmon_power_min)
 #define HWMON_P_MAX			BIT(hwmon_power_max)
+#define HWMON_P_LCRIT			BIT(hwmon_power_lcrit)
 #define HWMON_P_CRIT			BIT(hwmon_power_crit)
 #define HWMON_P_LABEL			BIT(hwmon_power_label)
 #define HWMON_P_ALARM			BIT(hwmon_power_alarm)
 #define HWMON_P_CAP_ALARM		BIT(hwmon_power_cap_alarm)
+#define HWMON_P_MIN_ALARM		BIT(hwmon_power_max_alarm)
 #define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
+#define HWMON_P_LCRIT_ALARM		BIT(hwmon_power_lcrit_alarm)
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
 
 enum hwmon_energy_attributes {
