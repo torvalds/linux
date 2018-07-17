@@ -5,7 +5,7 @@ source "drivers/net/dsa/b53/Kconfig"
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
-	depends on HAS_IOMEM && NET_DSA && OF_MDIO
+	depends on HAS_IOMEM && NET_DSA
 	select NET_DSA_TAG_BRCM
 	select FIXED_PHY
 	select BCM7XXX_PHY
