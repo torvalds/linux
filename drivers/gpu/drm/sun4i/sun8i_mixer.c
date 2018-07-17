@@ -261,17 +261,6 @@ const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
 	return NULL;
 }
 
-static void sun8i_mixer_atomic_begin(struct sunxi_engine *engine,
-				     struct drm_crtc_state *old_state)
-{
-	/*
-	 * Disable all pipes at the beginning. They will be enabled
-	 * again if needed in plane update callback.
-	 */
-	regmap_update_bits(engine->regs, SUN8I_MIXER_BLEND_PIPE_CTL,
-			   SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK, 0);
-}
-
 static void sun8i_mixer_commit(struct sunxi_engine *engine)
 {
 	DRM_DEBUG_DRIVER("Committing changes\n");
@@ -323,7 +312,6 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 }
 
 static const struct sunxi_engine_ops sun8i_engine_ops = {
-	.atomic_begin	= sun8i_mixer_atomic_begin,
 	.commit		= sun8i_mixer_commit,
 	.layers_init	= sun8i_layers_init,
 };
@@ -493,6 +481,9 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	for (i = 0; i < plane_cnt; i++)
 		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(i),
 			     SUN8I_MIXER_BLEND_MODE_DEF);
+
+	regmap_update_bits(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL,
+			   SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK, 0);
 
 	return 0;
 
