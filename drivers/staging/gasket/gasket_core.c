@@ -2106,7 +2106,7 @@ int gasket_wait_with_reschedule(
 			"%s timeout: reg %llx timeout (%llu ms)",
 			__func__,
 			offset, max_retries * delay_ms);
-		return -EINVAL;
+		return -ETIMEDOUT;
 	}
 	return 0;
 }

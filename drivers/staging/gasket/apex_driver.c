@@ -490,7 +490,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 		gasket_log_error(gasket_dev,
 				 "DMAs did not quiesce within timeout (%d ms)",
 				 APEX_RESET_RETRY * APEX_RESET_DELAY);
-		return -EINVAL;
+		return -ETIMEDOUT;
 	}
 
 	/*  - Enable GCB reset (0x1 to rg_rst_gcb) */
@@ -513,7 +513,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev, uint type)
 			gasket_dev,
 			"RAM did not shut down within timeout (%d ms)",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
-		return -EINVAL;
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -562,7 +562,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 			gasket_dev,
 			"RAM did not enable within timeout (%d ms)",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
-		return -EINVAL;
+		return -ETIMEDOUT;
 	}
 
 	/*    - Wait for Reset complete. */
@@ -574,7 +574,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev, uint type)
 			gasket_dev,
 			"GCB did not leave reset within timeout (%d ms)",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
-		return -EINVAL;
+		return -ETIMEDOUT;
 	}
 
 	if (!allow_hw_clock_gating) {
