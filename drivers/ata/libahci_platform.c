@@ -271,6 +271,8 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 	for (c = 0; c < hpriv->nports; c++)
 		if (hpriv->target_pwrs && hpriv->target_pwrs[c])
 			regulator_put(hpriv->target_pwrs[c]);
+
+	kfree(hpriv->target_pwrs);
 }
 
 static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
@@ -406,7 +408,11 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		rc = -ENOMEM;
 		goto err_out;
 	}
-	hpriv->target_pwrs = devm_kcalloc(dev, hpriv->nports, sizeof(*hpriv->target_pwrs), GFP_KERNEL);
+	/*
+	 * We cannot use devm_ here, since ahci_platform_put_resources() uses
+	 * target_pwrs after devm_ have freed memory
+	 */
+	hpriv->target_pwrs = kcalloc(hpriv->nports, sizeof(*hpriv->target_pwrs), GFP_KERNEL);
 	if (!hpriv->target_pwrs) {
 		rc = -ENOMEM;
 		goto err_out;
