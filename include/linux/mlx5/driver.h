@@ -435,6 +435,7 @@ struct mlx5_core_health {
 	u32				prev;
 	int				miss_counter;
 	bool				sick;
+	u32				crdump_size;
 	/* wq spinlock to synchronize draining */
 	spinlock_t			wq_lock;
 	struct workqueue_struct	       *wq;
