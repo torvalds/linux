@@ -382,7 +382,7 @@ void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct)
 	mbox_cmd.recv_len = 0;
 	mbox_cmd.recv_status = 0;
 	mbox_cmd.fn = NULL;
-	mbox_cmd.fn_arg = 0;
+	mbox_cmd.fn_arg = NULL;
 
 	octeon_mbox_write(oct, &mbox_cmd);
 }

@@ -2906,7 +2906,7 @@ static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
 	    vfidx + 1; /* vfidx is 0 based, but vf_num (param2) is 1 based */
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
 	octnet_send_nic_ctrl_pkt(oct, &nctrl);
@@ -3065,7 +3065,7 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.param2 = linkstate;
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
 	octnet_send_nic_ctrl_pkt(oct, &nctrl);
