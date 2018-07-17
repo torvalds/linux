@@ -158,7 +158,6 @@ xfs_init_local_fork(
 	}
 
 	ifp->if_bytes = size;
-	ifp->if_real_bytes = real_size;
 	ifp->if_flags &= ~(XFS_IFEXTENTS | XFS_IFBROOT);
 	ifp->if_flags |= XFS_IFINLINE;
 }
@@ -226,7 +225,6 @@ xfs_iformat_extents(
 		return -EFSCORRUPTED;
 	}
 
-	ifp->if_real_bytes = 0;
 	ifp->if_bytes = 0;
 	ifp->if_u1.if_root = NULL;
 	ifp->if_height = 0;
@@ -317,7 +315,6 @@ xfs_iformat_btree(
 	ifp->if_flags &= ~XFS_IFEXTENTS;
 	ifp->if_flags |= XFS_IFBROOT;
 
-	ifp->if_real_bytes = 0;
 	ifp->if_bytes = 0;
 	ifp->if_u1.if_root = NULL;
 	ifp->if_height = 0;
@@ -501,7 +498,6 @@ xfs_idata_realloc(
 		 */
 		real_size = roundup(new_size, 4);
 		if (ifp->if_u1.if_data == NULL) {
-			ASSERT(ifp->if_real_bytes == 0);
 			ifp->if_u1.if_data = kmem_alloc(real_size,
 							KM_SLEEP | KM_NOFS);
 		} else {
@@ -509,15 +505,12 @@ xfs_idata_realloc(
 			 * Only do the realloc if the underlying size
 			 * is really changing.
 			 */
-			if (ifp->if_real_bytes != real_size) {
-				ifp->if_u1.if_data =
-					kmem_realloc(ifp->if_u1.if_data,
-							real_size,
-							KM_SLEEP | KM_NOFS);
-			}
+			ifp->if_u1.if_data =
+				kmem_realloc(ifp->if_u1.if_data,
+						real_size,
+						KM_SLEEP | KM_NOFS);
 		}
 	}
-	ifp->if_real_bytes = real_size;
 	ifp->if_bytes = new_size;
 	ASSERT(ifp->if_bytes <= XFS_IFORK_SIZE(ip, whichfork));
 }
@@ -543,16 +536,12 @@ xfs_idestroy_fork(
 	 */
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL) {
 		if (ifp->if_u1.if_data != NULL) {
-			ASSERT(ifp->if_real_bytes != 0);
 			kmem_free(ifp->if_u1.if_data);
 			ifp->if_u1.if_data = NULL;
-			ifp->if_real_bytes = 0;
 		}
 	} else if ((ifp->if_flags & XFS_IFEXTENTS) && ifp->if_height) {
 		xfs_iext_destroy(ifp);
 	}
-
-	ASSERT(ifp->if_real_bytes == 0);
 
 	if (whichfork == XFS_ATTR_FORK) {
 		kmem_zone_free(xfs_ifork_zone, ip->i_afp);
