@@ -398,4 +398,27 @@ devm_hwmon_device_register_with_info(struct device *dev,
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
 
+/**
+ * hwmon_is_bad_char - Is the char invalid in a hwmon name
+ * @ch: the char to be considered
+ *
+ * hwmon_is_bad_char() can be used to determine if the given character
+ * may not be used in a hwmon name.
+ *
+ * Returns true if the char is invalid, false otherwise.
+ */
+static inline bool hwmon_is_bad_char(const char ch)
+{
+	switch (ch) {
+	case '-':
+	case '*':
+	case ' ':
+	case '\t':
+	case '\n':
+		return true;
+	default:
+		return false;
+	}
+}
+
 #endif
