@@ -174,6 +174,7 @@ struct mv_xor_v2_device {
 	int desc_size;
 	unsigned int npendings;
 	unsigned int hw_queue_idx;
+	struct msi_desc *msi_desc;
 };
 
 /**
@@ -780,6 +781,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	msi_desc = first_msi_entry(&pdev->dev);
 	if (!msi_desc)
 		goto free_msi_irqs;
+	xor_dev->msi_desc = msi_desc;
 
 	ret = devm_request_irq(&pdev->dev, msi_desc->irq,
 			       mv_xor_v2_interrupt_handler, 0,
@@ -896,6 +898,8 @@ static int mv_xor_v2_remove(struct platform_device *pdev)
 	dma_free_coherent(&pdev->dev,
 			  xor_dev->desc_size * MV_XOR_V2_DESC_NUM,
 			  xor_dev->hw_desq_virt, xor_dev->hw_desq);
+
+	devm_free_irq(&pdev->dev, xor_dev->msi_desc->irq, xor_dev);
 
 	platform_msi_domain_free_irqs(&pdev->dev);
 
