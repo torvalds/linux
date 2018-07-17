@@ -37,7 +37,6 @@
 
 struct imx_drm_device {
 	struct drm_device			*drm;
-	unsigned int				pipes;
 	struct drm_atomic_state			*state;
 };
 
