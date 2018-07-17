@@ -624,6 +624,8 @@ xfs_iext_insert(
 	struct xfs_iext_leaf	*new = NULL;
 	int			nr_entries, i;
 
+	ifp->if_seq++;
+
 	if (ifp->if_height == 0)
 		xfs_iext_alloc_root(ifp, cur);
 	else if (ifp->if_height == 1)
@@ -864,6 +866,8 @@ xfs_iext_remove(
 	ASSERT(ifp->if_u1.if_root != NULL);
 	ASSERT(xfs_iext_valid(ifp, cur));
 
+	ifp->if_seq++;
+
 	nr_entries = xfs_iext_leaf_nr_entries(ifp, leaf, cur->pos) - 1;
 	for (i = cur->pos; i < nr_entries; i++)
 		leaf->recs[i] = leaf->recs[i + 1];
@@ -969,6 +973,8 @@ xfs_iext_update_extent(
 	struct xfs_bmbt_irec	*new)
 {
 	struct xfs_ifork	*ifp = xfs_iext_state_to_fork(ip, state);
+
+	ifp->if_seq++;
 
 	if (cur->pos == 0) {
 		struct xfs_bmbt_irec	old;
