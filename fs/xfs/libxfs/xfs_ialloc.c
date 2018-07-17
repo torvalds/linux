@@ -2537,7 +2537,7 @@ xfs_agi_verify(
 		return __this_address;
 
 	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
-		if (agi->agi_unlinked[i] == NULLAGINO)
+		if (agi->agi_unlinked[i] == cpu_to_be32(NULLAGINO))
 			continue;
 		if (!xfs_verify_ino(mp, be32_to_cpu(agi->agi_unlinked[i])))
 			return __this_address;

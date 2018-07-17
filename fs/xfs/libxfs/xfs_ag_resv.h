@@ -28,7 +28,7 @@ xfs_ag_resv_rmapbt_alloc(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno)
 {
-	struct xfs_alloc_arg	args = {0};
+	struct xfs_alloc_arg	args = { NULL };
 	struct xfs_perag	*pag;
 
 	args.len = 1;
