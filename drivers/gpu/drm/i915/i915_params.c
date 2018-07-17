@@ -44,10 +44,6 @@ i915_param_named(modeset, int, 0400,
 	"Use kernel modesetting [KMS] (0=disable, "
 	"1=on, -1=force vga console preference [default])");
 
-i915_param_named_unsafe(panel_ignore_lid, int, 0600,
-	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
-	"-1=force lid closed, -2=force lid open)");
-
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
 	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");
