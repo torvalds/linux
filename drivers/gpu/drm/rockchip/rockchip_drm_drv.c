@@ -184,7 +184,7 @@ err_mode_config_cleanup:
 err_free:
 	drm_dev->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 	return ret;
 }
 
@@ -204,7 +204,7 @@ static void rockchip_drm_unbind(struct device *dev)
 
 	drm_dev->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 }
 
 static const struct file_operations rockchip_drm_driver_fops = {
