@@ -15,7 +15,6 @@
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
-#include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
@@ -754,7 +753,7 @@ struct rtl8169_private {
 		struct work_struct work;
 	} wk;
 
-	struct mii_if_info mii;
+	unsigned supports_gmii:1;
 	struct mii_bus *mii_bus;
 	dma_addr_t counters_phys_addr;
 	struct rtl8169_counters *counters;
@@ -1104,21 +1103,6 @@ static void rtl_w0w1_phy(struct rtl8169_private *tp, int reg_addr, int p, int m)
 
 	val = rtl_readphy(tp, reg_addr);
 	rtl_writephy(tp, reg_addr, (val & ~m) | p);
-}
-
-static void rtl_mdio_write(struct net_device *dev, int phy_id, int location,
-			   int val)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	rtl_writephy(tp, location, val);
-}
-
-static int rtl_mdio_read(struct net_device *dev, int phy_id, int location)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	return rtl_readphy(tp, location);
 }
 
 DECLARE_RTL_COND(rtl_ephyar_cond)
@@ -2246,15 +2230,15 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 			   "unknown MAC, using family default\n");
 		tp->mac_version = default_version;
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_42) {
-		tp->mac_version = tp->mii.supports_gmii ?
+		tp->mac_version = tp->supports_gmii ?
 				  RTL_GIGA_MAC_VER_42 :
 				  RTL_GIGA_MAC_VER_43;
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_45) {
-		tp->mac_version = tp->mii.supports_gmii ?
+		tp->mac_version = tp->supports_gmii ?
 				  RTL_GIGA_MAC_VER_45 :
 				  RTL_GIGA_MAC_VER_47;
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_46) {
-		tp->mac_version = tp->mii.supports_gmii ?
+		tp->mac_version = tp->supports_gmii ?
 				  RTL_GIGA_MAC_VER_46 :
 				  RTL_GIGA_MAC_VER_48;
 	}
@@ -6686,7 +6670,7 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	phy_interface_t phy_mode;
 	int ret;
 
-	phy_mode = tp->mii.supports_gmii ? PHY_INTERFACE_MODE_GMII :
+	phy_mode = tp->supports_gmii ? PHY_INTERFACE_MODE_GMII :
 		   PHY_INTERFACE_MODE_MII;
 
 	ret = phy_connect_direct(tp->dev, phydev, r8169_phylink_handler,
@@ -6694,7 +6678,7 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	if (ret)
 		return ret;
 
-	if (!tp->mii.supports_gmii)
+	if (!tp->supports_gmii)
 		phy_set_max_speed(phydev, SPEED_100);
 
 	/* Ensure to advertise everything, incl. pause */
@@ -7305,7 +7289,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
 	struct rtl8169_private *tp;
-	struct mii_if_info *mii;
 	struct net_device *dev;
 	int chipset, region, i;
 	int rc;
@@ -7325,14 +7308,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dev = dev;
 	tp->pci_dev = pdev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
-
-	mii = &tp->mii;
-	mii->dev = dev;
-	mii->mdio_read = rtl_mdio_read;
-	mii->mdio_write = rtl_mdio_write;
-	mii->phy_id_mask = 0x1f;
-	mii->reg_num_mask = 0x1f;
-	mii->supports_gmii = cfg->has_gmii;
+	tp->supports_gmii = cfg->has_gmii;
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
