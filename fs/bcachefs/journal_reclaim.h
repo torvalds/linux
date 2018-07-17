@@ -19,6 +19,8 @@ journal_seq_pin(struct journal *j, u64 seq)
 
 void bch2_journal_pin_add(struct journal *, u64, struct journal_entry_pin *,
 			  journal_pin_flush_fn);
+void bch2_journal_pin_update(struct journal *, u64, struct journal_entry_pin *,
+			     journal_pin_flush_fn);
 void bch2_journal_pin_drop(struct journal *, struct journal_entry_pin *);
 void bch2_journal_pin_add_if_older(struct journal *,
 				  struct journal_entry_pin *,

@@ -16,6 +16,11 @@ bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
 void bch2_btree_journal_key(struct btree_insert *trans, struct btree_iter *,
 			    struct bkey_i *);
 
+void bch2_deferred_update_free(struct bch_fs *,
+			       struct deferred_update *);
+struct deferred_update *
+bch2_deferred_update_alloc(struct bch_fs *, enum btree_id, unsigned);
+
 /* Normal update interface: */
 
 struct btree_insert {
@@ -36,6 +41,13 @@ int __bch2_btree_insert_at(struct btree_insert *);
 	((struct btree_insert_entry) {					\
 		.iter		= (_iter),				\
 		.k		= (_k),					\
+	})
+
+#define BTREE_INSERT_DEFERRED(_d, _k)					\
+	((struct btree_insert_entry) {					\
+		.k		= (_k),					\
+		.d		= (_d),					\
+		.deferred	= true,					\
 	})
 
 /**

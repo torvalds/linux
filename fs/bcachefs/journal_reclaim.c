@@ -75,6 +75,25 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
+void bch2_journal_pin_update(struct journal *j, u64 seq,
+			     struct journal_entry_pin *pin,
+			     journal_pin_flush_fn flush_fn)
+{
+	spin_lock(&j->lock);
+
+	if (pin->seq != seq) {
+		__journal_pin_drop(j, pin);
+		__journal_pin_add(j, seq, pin, flush_fn);
+	} else {
+		struct journal_entry_pin_list *pin_list =
+			journal_seq_pin(j, seq);
+
+		list_move(&pin->list, &pin_list->list);
+	}
+
+	spin_unlock(&j->lock);
+}
+
 void bch2_journal_pin_add_if_older(struct journal *j,
 				  struct journal_entry_pin *src_pin,
 				  struct journal_entry_pin *pin,
