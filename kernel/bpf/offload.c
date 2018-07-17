@@ -511,22 +511,50 @@ int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 	return 0;
 }
 
-bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map)
+static bool __bpf_offload_dev_match(struct bpf_prog *prog,
+				    struct net_device *netdev)
 {
-	struct bpf_offloaded_map *offmap;
+	struct bpf_offload_netdev *ondev1, *ondev2;
 	struct bpf_prog_offload *offload;
-	bool ret;
 
 	if (!bpf_prog_is_dev_bound(prog->aux))
 		return false;
-	if (!bpf_map_is_dev_bound(map))
-		return bpf_map_offload_neutral(map);
+
+	offload = prog->aux->offload;
+	if (!offload)
+		return false;
+	if (offload->netdev == netdev)
+		return true;
+
+	ondev1 = bpf_offload_find_netdev(offload->netdev);
+	ondev2 = bpf_offload_find_netdev(netdev);
+
+	return ondev1 && ondev2 && ondev1->offdev == ondev2->offdev;
+}
+
+bool bpf_offload_dev_match(struct bpf_prog *prog, struct net_device *netdev)
+{
+	bool ret;
 
 	down_read(&bpf_devs_lock);
-	offload = prog->aux->offload;
+	ret = __bpf_offload_dev_match(prog, netdev);
+	up_read(&bpf_devs_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bpf_offload_dev_match);
+
+bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map)
+{
+	struct bpf_offloaded_map *offmap;
+	bool ret;
+
+	if (!bpf_map_is_dev_bound(map))
+		return bpf_map_offload_neutral(map);
 	offmap = map_to_offmap(map);
 
-	ret = offload && offload->netdev == offmap->netdev;
+	down_read(&bpf_devs_lock);
+	ret = __bpf_offload_dev_match(prog, offmap->netdev);
 	up_read(&bpf_devs_lock);
 
 	return ret;
