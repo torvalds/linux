@@ -8049,6 +8049,19 @@ struct mlx5_ifc_peir_reg_bits {
 	u8         error_type[0x8];
 };
 
+struct mlx5_ifc_mpegc_reg_bits {
+	u8         reserved_at_0[0x30];
+	u8         field_select[0x10];
+
+	u8         tx_overflow_sense[0x1];
+	u8         mark_cqe[0x1];
+	u8         mark_cnp[0x1];
+	u8         reserved_at_43[0x1b];
+	u8         tx_lossy_overflow_oper[0x2];
+
+	u8         reserved_at_60[0x100];
+};
+
 struct mlx5_ifc_pcam_enhanced_features_bits {
 	u8         reserved_at_0[0x6d];
 	u8         rx_icrc_encapsulated_counter[0x1];
@@ -8097,7 +8110,11 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x7b];
+	u8         reserved_at_0[0x74];
+	u8         mark_tx_action_cnp[0x1];
+	u8         mark_tx_action_cqe[0x1];
+	u8         dynamic_tx_overflow[0x1];
+	u8         reserved_at_77[0x4];
 	u8         pcie_outbound_stalled[0x1];
 	u8         tx_overflow_buffer_pkt[0x1];
 	u8         mtpps_enh_out_per_adj[0x1];
@@ -8112,7 +8129,9 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         mcqi[0x1];
 	u8         reserved_at_1f[0x1];
 
-	u8         regs_95_to_68[0x1c];
+	u8         regs_95_to_87[0x9];
+	u8         mpegc[0x1];
+	u8         regs_85_to_68[0x12];
 	u8         tracer_registers[0x4];
 
 	u8         regs_63_to_32[0x20];
