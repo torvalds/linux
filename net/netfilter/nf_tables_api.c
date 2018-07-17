@@ -6087,6 +6087,9 @@ static void nft_commit_release(struct nft_trans *trans)
 	case NFT_MSG_DELTABLE:
 		nf_tables_table_destroy(&trans->ctx);
 		break;
+	case NFT_MSG_NEWCHAIN:
+		kfree(nft_trans_chain_name(trans));
+		break;
 	case NFT_MSG_DELCHAIN:
 		nf_tables_chain_destroy(&trans->ctx);
 		break;
@@ -6316,13 +6319,15 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			nf_tables_table_notify(&trans->ctx, NFT_MSG_DELTABLE);
 			break;
 		case NFT_MSG_NEWCHAIN:
-			if (nft_trans_chain_update(trans))
+			if (nft_trans_chain_update(trans)) {
 				nft_chain_commit_update(trans);
-			else
+				nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN);
+				/* trans destroyed after rcu grace period */
+			} else {
 				nft_clear(net, trans->ctx.chain);
-
-			nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN);
-			nft_trans_destroy(trans);
+				nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN);
+				nft_trans_destroy(trans);
+			}
 			break;
 		case NFT_MSG_DELCHAIN:
 			nft_chain_del(trans->ctx.chain);
@@ -6472,7 +6477,7 @@ static int __nf_tables_abort(struct net *net)
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans)) {
 				free_percpu(nft_trans_chain_stats(trans));
-
+				kfree(nft_trans_chain_name(trans));
 				nft_trans_destroy(trans);
 			} else {
 				trans->ctx.table->use--;
