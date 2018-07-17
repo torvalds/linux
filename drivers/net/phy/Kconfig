@@ -215,6 +215,7 @@ config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
 	select MDIO_I2C
+	imply HWMON
 
 config AMD_PHY
 	tristate "AMD PHYs"
