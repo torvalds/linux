@@ -4233,6 +4233,9 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		rtl_writephy(tp, 0x0b, 0x0000); //w 0x0b 15 0 0
 	}
 
+	/* We may have called phy_speed_down before */
+	phy_speed_up(dev->phydev);
+
 	genphy_soft_reset(dev->phydev);
 
 	rtl8169_set_speed(dev, AUTONEG_ENABLE, SPEED_1000, DUPLEX_FULL,
@@ -4316,30 +4319,6 @@ static void rtl_init_mdio_ops(struct rtl8169_private *tp)
 	}
 }
 
-static void rtl_speed_down(struct rtl8169_private *tp)
-{
-	u32 adv;
-	int lpa;
-
-	rtl_writephy(tp, 0x1f, 0x0000);
-	lpa = rtl_readphy(tp, MII_LPA);
-
-	if (lpa & (LPA_10HALF | LPA_10FULL))
-		adv = ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full;
-	else if (lpa & (LPA_100HALF | LPA_100FULL))
-		adv = ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
-		      ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full;
-	else
-		adv = ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
-		      ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full |
-		      (tp->mii.supports_gmii ?
-		       ADVERTISED_1000baseT_Half |
-		       ADVERTISED_1000baseT_Full : 0);
-
-	rtl8169_set_speed(tp->dev, AUTONEG_ENABLE, SPEED_1000, DUPLEX_FULL,
-			  adv);
-}
-
 static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
@@ -4364,7 +4343,7 @@ static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
 	if (!netif_running(tp->dev) || !__rtl8169_get_wol(tp))
 		return false;
 
-	rtl_speed_down(tp);
+	phy_speed_down(tp->dev->phydev, false);
 	rtl_wol_suspend_quirk(tp);
 
 	return true;
