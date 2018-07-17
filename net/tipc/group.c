@@ -159,11 +159,6 @@ u32 tipc_group_exclude(struct tipc_group *grp)
 	return 0;
 }
 
-int tipc_group_size(struct tipc_group *grp)
-{
-	return grp->member_cnt;
-}
-
 struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 				     struct tipc_group_req *mreq,
 				     bool *group_is_open)
