@@ -1809,35 +1809,6 @@ static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 }
 
-static int rtl8169_get_link_ksettings(struct net_device *dev,
-				      struct ethtool_link_ksettings *cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	mii_ethtool_get_link_ksettings(&tp->mii, cmd);
-
-	return 0;
-}
-
-static int rtl8169_set_link_ksettings(struct net_device *dev,
-				      const struct ethtool_link_ksettings *cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int rc;
-	u32 advertising;
-
-	if (!ethtool_convert_link_mode_to_legacy_u32(&advertising,
-	    cmd->link_modes.advertising))
-		return -EINVAL;
-
-	rtl_lock_work(tp);
-	rc = rtl8169_set_speed(dev, cmd->base.autoneg, cmd->base.speed,
-			       cmd->base.duplex, advertising);
-	rtl_unlock_work(tp);
-
-	return rc;
-}
-
 static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			     void *p)
 {
@@ -2092,7 +2063,7 @@ static const struct rtl_coalesce_info *rtl_coalesce_info(struct net_device *dev)
 	const struct rtl_coalesce_info *ci;
 	int rc;
 
-	rc = rtl8169_get_link_ksettings(dev, &ecmd);
+	rc = phy_ethtool_get_link_ksettings(dev, &ecmd);
 	if (rc < 0)
 		return ERR_PTR(rc);
 
@@ -2251,8 +2222,8 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.nway_reset		= rtl8169_nway_reset,
-	.get_link_ksettings	= rtl8169_get_link_ksettings,
-	.set_link_ksettings	= rtl8169_set_link_ksettings,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
