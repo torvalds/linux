@@ -140,6 +140,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	if (unlikely(!msq))
 		return -ENOMEM;
 
+	msq->q_perm.rcu_free = msg_rcu_free;
 	msq->q_perm.mode = msgflg & S_IRWXUGO;
 	msq->q_perm.key = key;
 
