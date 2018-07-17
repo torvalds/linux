@@ -147,6 +147,8 @@ void bch2_inode_update_after_write(struct bch_fs *c,
 
 	inode->ei_inode		= *bi;
 	inode->ei_qid		= bch_qid(bi);
+
+	bch2_inode_flags_to_vfs(inode);
 }
 
 int __must_check bch2_write_inode_trans(struct btree_trans *trans,
@@ -187,10 +189,10 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 	return 0;
 }
 
-int __must_check __bch2_write_inode(struct bch_fs *c,
-				    struct bch_inode_info *inode,
-				    inode_set_fn set,
-				    void *p, unsigned fields)
+int __must_check bch2_write_inode(struct bch_fs *c,
+				  struct bch_inode_info *inode,
+				  inode_set_fn set,
+				  void *p, unsigned fields)
 {
 	struct btree_trans trans;
 	struct bch_inode_unpacked inode_u;
@@ -271,9 +273,8 @@ static int inode_update_for_create_fn(struct bch_inode_info *inode,
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_inode_unpacked *new_inode = p;
-	struct timespec64 now = current_time(&inode->v);
 
-	bi->bi_mtime = bi->bi_ctime = timespec_to_bch2_time(c, now);
+	bi->bi_mtime = bi->bi_ctime = bch2_current_time(c);
 
 	if (S_ISDIR(new_inode->bi_mode))
 		bi->bi_nlink++;
@@ -469,9 +470,8 @@ static int inode_update_for_link_fn(struct bch_inode_info *inode,
 				    void *p)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct timespec64 now = current_time(&inode->v);
 
-	bi->bi_ctime = timespec_to_bch2_time(c, now);
+	bi->bi_ctime = bch2_current_time(c);
 
 	if (bi->bi_flags & BCH_INODE_UNLINKED)
 		bi->bi_flags &= ~BCH_INODE_UNLINKED;
@@ -543,9 +543,8 @@ static int inode_update_dir_for_unlink_fn(struct bch_inode_info *inode,
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_inode_info *unlink_inode = p;
-	struct timespec64 now = current_time(&inode->v);
 
-	bi->bi_mtime = bi->bi_ctime = timespec_to_bch2_time(c, now);
+	bi->bi_mtime = bi->bi_ctime = bch2_current_time(c);
 
 	bi->bi_nlink -= S_ISDIR(unlink_inode->v.i_mode);
 
@@ -557,9 +556,8 @@ static int inode_update_for_unlink_fn(struct bch_inode_info *inode,
 				      void *p)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct timespec64 now = current_time(&inode->v);
 
-	bi->bi_ctime = timespec_to_bch2_time(c, now);
+	bi->bi_ctime = bch2_current_time(c);
 	if (bi->bi_nlink)
 		bi->bi_nlink--;
 	else
@@ -740,8 +738,6 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 {
 	struct bch_fs *c = src_vdir->i_sb->s_fs_info;
 	struct rename_info i = {
-		.now		= timespec_to_bch2_time(c,
-						current_time(src_vdir)),
 		.src_dir	= to_bch_ei(src_vdir),
 		.dst_dir	= to_bch_ei(dst_vdir),
 		.src_inode	= to_bch_ei(src_dentry->d_inode),
@@ -778,7 +774,7 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 	bch2_trans_init(&trans, c);
 retry:
 	bch2_trans_begin(&trans);
-	i.now = timespec_to_bch2_time(c, current_time(src_vdir)),
+	i.now = bch2_current_time(c);
 
 	ret   = bch2_dirent_rename(&trans,
 				   i.src_dir, &src_dentry->d_name,
@@ -1271,8 +1267,6 @@ static void bch2_vfs_inode_init(struct bch_fs *c,
 	inode->ei_quota_reserved = 0;
 	inode->ei_str_hash	= bch2_hash_info_init(c, bi);
 
-	bch2_inode_flags_to_vfs(inode);
-
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
 	switch (inode->v.i_mode & S_IFMT) {
@@ -1346,8 +1340,8 @@ static int bch2_vfs_write_inode(struct inode *vinode,
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = __bch2_write_inode(c, inode, inode_update_times_fn, NULL,
-				 ATTR_ATIME|ATTR_MTIME|ATTR_CTIME);
+	ret = bch2_write_inode(c, inode, inode_update_times_fn, NULL,
+			       ATTR_ATIME|ATTR_MTIME|ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
 
 	if (c->opts.journal_flush_disabled)

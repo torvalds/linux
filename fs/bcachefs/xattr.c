@@ -436,7 +436,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = __bch2_write_inode(c, inode, inode_opt_set_fn, &s, 0);
+	ret = bch2_write_inode(c, inode, inode_opt_set_fn, &s, 0);
 	mutex_unlock(&inode->ei_update_lock);
 
 	if (value &&

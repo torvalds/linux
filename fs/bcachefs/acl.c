@@ -286,10 +286,9 @@ static int inode_update_for_set_acl_fn(struct bch_inode_info *inode,
 				       void *p)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct timespec64 now = current_time(&inode->v);
 	umode_t mode = (unsigned long) p;
 
-	bi->bi_ctime	= timespec_to_bch2_time(c, now);
+	bi->bi_ctime	= bch2_current_time(c);
 	bi->bi_mode	= mode;
 	return 0;
 }

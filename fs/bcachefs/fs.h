@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_FS_H
 #define _BCACHEFS_FS_H
 
+#include "inode.h"
 #include "opts.h"
 #include "str_hash.h"
 #include "quota_types.h"
@@ -81,10 +82,8 @@ int __must_check bch2_write_inode_trans(struct btree_trans *,
 				struct bch_inode_info *,
 				struct bch_inode_unpacked *,
 				inode_set_fn, void *);
-int __must_check __bch2_write_inode(struct bch_fs *, struct bch_inode_info *,
-				    inode_set_fn, void *, unsigned);
-int __must_check bch2_write_inode(struct bch_fs *,
-				  struct bch_inode_info *);
+int __must_check bch2_write_inode(struct bch_fs *, struct bch_inode_info *,
+				  inode_set_fn, void *, unsigned);
 
 void bch2_vfs_exit(void);
 int bch2_vfs_init(void);
