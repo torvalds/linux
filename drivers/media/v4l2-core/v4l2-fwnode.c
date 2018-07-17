@@ -42,9 +42,66 @@ enum v4l2_fwnode_bus_type {
 	NR_OF_V4L2_FWNODE_BUS_TYPE,
 };
 
+static const struct v4l2_fwnode_bus_conv {
+	enum v4l2_fwnode_bus_type fwnode_bus_type;
+	enum v4l2_mbus_type mbus_type;
+	const char *name;
+} busses[] = {
+	{
+		V4L2_FWNODE_BUS_TYPE_GUESS,
+		V4L2_MBUS_UNKNOWN,
+		"not specified",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+		V4L2_MBUS_CSI2_CPHY,
+		"MIPI CSI-2 C-PHY",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_CSI1,
+		V4L2_MBUS_CSI1,
+		"MIPI CSI-1",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_CCP2,
+		V4L2_MBUS_CCP2,
+		"compact camera port 2",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
+		V4L2_MBUS_CSI2_DPHY,
+		"MIPI CSI-2 D-PHY",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_PARALLEL,
+		V4L2_MBUS_PARALLEL,
+		"parallel",
+	}, {
+		V4L2_FWNODE_BUS_TYPE_BT656,
+		V4L2_MBUS_BT656,
+		"Bt.656",
+	}
+};
+
+static const struct v4l2_fwnode_bus_conv *
+get_v4l2_fwnode_bus_conv_by_fwnode_bus(enum v4l2_fwnode_bus_type type)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(busses); i++)
+		if (busses[i].fwnode_bus_type == type)
+			return &busses[i];
+
+	return NULL;
+}
+
+static enum v4l2_mbus_type
+v4l2_fwnode_bus_type_to_mbus(enum v4l2_fwnode_bus_type type)
+{
+	const struct v4l2_fwnode_bus_conv *conv =
+		get_v4l2_fwnode_bus_conv_by_fwnode_bus(type);
+
+	return conv ? conv->mbus_type : V4L2_MBUS_UNKNOWN;
+}
+
 static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					       struct v4l2_fwnode_endpoint *vep,
-					       enum v4l2_fwnode_bus_type bus_type)
+					       enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false, have_data_lanes = false,
@@ -58,7 +115,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	u32 v;
 	int rval;
 
-	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY) {
+	if (bus_type == V4L2_MBUS_CSI2_DPHY) {
 		use_default_lane_mapping = true;
 
 		num_data_lanes = min_t(u32, bus->num_data_lanes,
@@ -134,7 +191,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
 
-	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY || lanes_used ||
+	if (bus_type == V4L2_MBUS_CSI2_DPHY || lanes_used ||
 	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
 		bus->flags = flags;
 		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
@@ -177,7 +234,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 static void v4l2_fwnode_endpoint_parse_parallel_bus(
 	struct fwnode_handle *fwnode, struct v4l2_fwnode_endpoint *vep,
-	enum v4l2_fwnode_bus_type bus_type)
+	enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_fwnode_bus_parallel *bus = &vep->bus.parallel;
 	unsigned int flags = 0;
@@ -250,11 +307,11 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 		else
 			vep->bus_type = V4L2_MBUS_BT656;
 		break;
-	case V4L2_FWNODE_BUS_TYPE_PARALLEL:
+	case V4L2_MBUS_PARALLEL:
 		vep->bus_type = V4L2_MBUS_PARALLEL;
 		bus->flags = flags;
 		break;
-	case V4L2_FWNODE_BUS_TYPE_BT656:
+	case V4L2_MBUS_BT656:
 		vep->bus_type = V4L2_MBUS_BT656;
 		bus->flags = flags & ~PARALLEL_MBUS_FLAGS;
 		break;
@@ -264,7 +321,7 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 static void
 v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 				    struct v4l2_fwnode_endpoint *vep,
-				    enum v4l2_fwnode_bus_type bus_type)
+				    enum v4l2_mbus_type bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
 	u32 v;
@@ -289,7 +346,7 @@ v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
 		pr_debug("clock-lanes %u\n", v);
 	}
 
-	if (bus_type == V4L2_FWNODE_BUS_TYPE_CCP2)
+	if (bus_type == V4L2_MBUS_CCP2)
 		vep->bus_type = V4L2_MBUS_CCP2;
 	else
 		vep->bus_type = V4L2_MBUS_CSI1;
@@ -299,6 +356,7 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 					struct v4l2_fwnode_endpoint *vep)
 {
 	u32 bus_type = 0;
+	enum v4l2_mbus_type mbus_type;
 	int rval;
 
 	if (vep->bus_type == V4L2_MBUS_UNKNOWN) {
@@ -317,10 +375,12 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
 
-	switch (bus_type) {
-	case V4L2_FWNODE_BUS_TYPE_GUESS:
+	mbus_type = v4l2_fwnode_bus_type_to_mbus(bus_type);
+
+	switch (mbus_type) {
+	case V4L2_MBUS_UNKNOWN:
 		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
-							   bus_type);
+							   mbus_type);
 		if (rval)
 			return rval;
 
@@ -329,26 +389,26 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 				fwnode, vep, V4L2_MBUS_UNKNOWN);
 
 		break;
-	case V4L2_FWNODE_BUS_TYPE_CCP2:
-	case V4L2_FWNODE_BUS_TYPE_CSI1:
-		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, bus_type);
+	case V4L2_MBUS_CCP2:
+	case V4L2_MBUS_CSI1:
+		v4l2_fwnode_endpoint_parse_csi1_bus(fwnode, vep, mbus_type);
 
 		break;
-	case V4L2_FWNODE_BUS_TYPE_CSI2_DPHY:
+	case V4L2_MBUS_CSI2_DPHY:
 		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
 		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
-							   bus_type);
+							   mbus_type);
 		if (rval)
 			return rval;
 
 		break;
-	case V4L2_FWNODE_BUS_TYPE_PARALLEL:
-	case V4L2_FWNODE_BUS_TYPE_BT656:
-		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep, bus_type);
+	case V4L2_MBUS_PARALLEL:
+	case V4L2_MBUS_BT656:
+		v4l2_fwnode_endpoint_parse_parallel_bus(fwnode, vep, mbus_type);
 
 		break;
 	default:
-		pr_warn("unsupported bus type %u\n", bus_type);
+		pr_warn("unsupported bus type %u\n", mbus_type);
 		return -EINVAL;
 	}
 
