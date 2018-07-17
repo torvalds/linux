@@ -325,7 +325,7 @@
 		#size-cells = <1>;
 
 		watchdog {
-			compatible = "zii,rave-sp-watchodg-legacy";
+			compatible = "zii,rave-sp-watchdog-legacy";
 		};
 
 		eeprom@a4 {
