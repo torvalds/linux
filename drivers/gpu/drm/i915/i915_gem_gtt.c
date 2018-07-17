@@ -173,12 +173,6 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
-		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
-		return 0;
-	}
-
 	if (has_full_48bit_ppgtt)
 		return 3;
 
