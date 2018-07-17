@@ -577,7 +577,8 @@ dtb-$(CONFIG_SOC_VF610) += \
 	vf610m4-cosmic.dtb \
 	vf610-twr.dtb \
 	vf610-zii-dev-rev-b.dtb \
-	vf610-zii-dev-rev-c.dtb
+	vf610-zii-dev-rev-c.dtb \
+	vf610-zii-ssmb-spu3.dtb
 dtb-$(CONFIG_ARCH_MXS) += \
 	imx23-evk.dtb \
 	imx23-olinuxino.dtb \
