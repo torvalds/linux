@@ -343,6 +343,7 @@ static const char * const hwmon_chip_attrs[] = {
 };
 
 static const char * const hwmon_temp_attr_templates[] = {
+	[hwmon_temp_enable] = "temp%d_enable",
 	[hwmon_temp_input] = "temp%d_input",
 	[hwmon_temp_type] = "temp%d_type",
 	[hwmon_temp_lcrit] = "temp%d_lcrit",
@@ -370,6 +371,7 @@ static const char * const hwmon_temp_attr_templates[] = {
 };
 
 static const char * const hwmon_in_attr_templates[] = {
+	[hwmon_in_enable] = "in%d_enable",
 	[hwmon_in_input] = "in%d_input",
 	[hwmon_in_min] = "in%d_min",
 	[hwmon_in_max] = "in%d_max",
@@ -385,10 +387,10 @@ static const char * const hwmon_in_attr_templates[] = {
 	[hwmon_in_max_alarm] = "in%d_max_alarm",
 	[hwmon_in_lcrit_alarm] = "in%d_lcrit_alarm",
 	[hwmon_in_crit_alarm] = "in%d_crit_alarm",
-	[hwmon_in_enable] = "in%d_enable",
 };
 
 static const char * const hwmon_curr_attr_templates[] = {
+	[hwmon_curr_enable] = "curr%d_enable",
 	[hwmon_curr_input] = "curr%d_input",
 	[hwmon_curr_min] = "curr%d_min",
 	[hwmon_curr_max] = "curr%d_max",
@@ -407,6 +409,7 @@ static const char * const hwmon_curr_attr_templates[] = {
 };
 
 static const char * const hwmon_power_attr_templates[] = {
+	[hwmon_power_enable] = "power%d_enable",
 	[hwmon_power_average] = "power%d_average",
 	[hwmon_power_average_interval] = "power%d_average_interval",
 	[hwmon_power_average_interval_max] = "power%d_interval_max",
@@ -438,11 +441,13 @@ static const char * const hwmon_power_attr_templates[] = {
 };
 
 static const char * const hwmon_energy_attr_templates[] = {
+	[hwmon_energy_enable] = "energy%d_enable",
 	[hwmon_energy_input] = "energy%d_input",
 	[hwmon_energy_label] = "energy%d_label",
 };
 
 static const char * const hwmon_humidity_attr_templates[] = {
+	[hwmon_humidity_enable] = "humidity%d_enable",
 	[hwmon_humidity_input] = "humidity%d_input",
 	[hwmon_humidity_label] = "humidity%d_label",
 	[hwmon_humidity_min] = "humidity%d_min",
@@ -454,6 +459,7 @@ static const char * const hwmon_humidity_attr_templates[] = {
 };
 
 static const char * const hwmon_fan_attr_templates[] = {
+	[hwmon_fan_enable] = "fan%d_enable",
 	[hwmon_fan_input] = "fan%d_input",
 	[hwmon_fan_label] = "fan%d_label",
 	[hwmon_fan_min] = "fan%d_min",
