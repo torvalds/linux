@@ -704,39 +704,13 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 /*
  * Test and reset if a guest page is dirty
  */
-bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
+bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
+		       pte_t *ptep)
 {
-	spinlock_t *ptl;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
 	pgste_t pgste;
-	pte_t *ptep;
 	pte_t pte;
 	bool dirty;
 	int nodat;
-
-	pgd = pgd_offset(mm, addr);
-	p4d = p4d_alloc(mm, pgd, addr);
-	if (!p4d)
-		return false;
-	pud = pud_alloc(mm, p4d, addr);
-	if (!pud)
-		return false;
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		return false;
-	/* We can't run guests backed by huge pages, but userspace can
-	 * still set them up and then try to migrate them without any
-	 * migration support.
-	 */
-	if (pmd_large(*pmd))
-		return true;
-
-	ptep = pte_alloc_map_lock(mm, pmd, addr, &ptl);
-	if (unlikely(!ptep))
-		return false;
 
 	pgste = pgste_get_lock(ptep);
 	dirty = !!(pgste_val(pgste) & PGSTE_UC_BIT);
@@ -753,11 +727,9 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 		*ptep = pte;
 	}
 	pgste_set_unlock(ptep, pgste);
-
-	spin_unlock(ptl);
 	return dirty;
 }
-EXPORT_SYMBOL_GPL(test_and_clear_guest_dirty);
+EXPORT_SYMBOL_GPL(ptep_test_and_clear_uc);
 
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq)

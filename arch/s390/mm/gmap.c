@@ -521,6 +521,9 @@ void gmap_unlink(struct mm_struct *mm, unsigned long *table,
 	rcu_read_unlock();
 }
 
+static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *old, pmd_t new,
+			   unsigned long gaddr);
+
 /**
  * gmap_link - set up shadow page tables to connect a host to a guest address
  * @gmap: pointer to guest mapping meta data structure
@@ -541,6 +544,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
+	u64 unprot;
 	int rc;
 
 	BUG_ON(gmap_is_shadow(gmap));
@@ -598,12 +602,19 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 				       vmaddr >> PMD_SHIFT, table);
 		if (!rc) {
 			if (pmd_large(*pmd)) {
-				*table = pmd_val(*pmd) &
-					_SEGMENT_ENTRY_HARDWARE_BITS_LARGE;
+				*table = (pmd_val(*pmd) &
+					  _SEGMENT_ENTRY_HARDWARE_BITS_LARGE)
+					| _SEGMENT_ENTRY_GMAP_UC;
 			} else
 				*table = pmd_val(*pmd) &
 					_SEGMENT_ENTRY_HARDWARE_BITS;
 		}
+	} else if (*table & _SEGMENT_ENTRY_PROTECT &&
+		   !(pmd_val(*pmd) & _SEGMENT_ENTRY_PROTECT)) {
+		unprot = (u64)*table;
+		unprot &= ~_SEGMENT_ENTRY_PROTECT;
+		unprot |= _SEGMENT_ENTRY_GMAP_UC;
+		gmap_pmdp_xchg(gmap, (pmd_t *)table, __pmd(unprot), gaddr);
 	}
 	spin_unlock(&gmap->guest_table_lock);
 	spin_unlock(ptl);
@@ -930,10 +941,22 @@ static int gmap_protect_pmd(struct gmap *gmap, unsigned long gaddr,
 {
 	int pmd_i = pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID;
 	int pmd_p = pmd_val(*pmdp) & _SEGMENT_ENTRY_PROTECT;
+	pmd_t new = *pmdp;
 
 	/* Fixup needed */
 	if ((pmd_i && (prot != PROT_NONE)) || (pmd_p && (prot == PROT_WRITE)))
 		return -EAGAIN;
+
+	if (prot == PROT_NONE && !pmd_i) {
+		pmd_val(new) |= _SEGMENT_ENTRY_INVALID;
+		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
+	}
+
+	if (prot == PROT_READ && !pmd_p) {
+		pmd_val(new) &= ~_SEGMENT_ENTRY_INVALID;
+		pmd_val(new) |= _SEGMENT_ENTRY_PROTECT;
+		gmap_pmdp_xchg(gmap, pmdp, new, gaddr);
+	}
 
 	if (bits & GMAP_NOTIFY_MPROT)
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_GMAP_IN;
@@ -2228,6 +2251,32 @@ static void pmdp_notify_gmap(struct gmap *gmap, pmd_t *pmdp,
 	gmap_call_notifier(gmap, gaddr, gaddr + HPAGE_SIZE - 1);
 }
 
+/**
+ * gmap_pmdp_xchg - exchange a gmap pmd with another
+ * @gmap: pointer to the guest address space structure
+ * @pmdp: pointer to the pmd entry
+ * @new: replacement entry
+ * @gaddr: the affected guest address
+ *
+ * This function is assumed to be called with the guest_table_lock
+ * held.
+ */
+static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
+			   unsigned long gaddr)
+{
+	gaddr &= HPAGE_MASK;
+	pmdp_notify_gmap(gmap, pmdp, gaddr);
+	pmd_val(new) &= ~_SEGMENT_ENTRY_GMAP_IN;
+	if (MACHINE_HAS_TLB_GUEST)
+		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
+			    IDTE_GLOBAL);
+	else if (MACHINE_HAS_IDTE)
+		__pmdp_idte(gaddr, (pmd_t *)pmdp, 0, 0, IDTE_GLOBAL);
+	else
+		__pmdp_csp(pmdp);
+	*pmdp = new;
+}
+
 static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 			    int purge)
 {
@@ -2243,7 +2292,8 @@ static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 		if (pmdp) {
 			gaddr = __gmap_segment_gaddr((unsigned long *)pmdp);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
-			WARN_ON(pmd_val(*pmdp) & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
+						   _SEGMENT_ENTRY_GMAP_UC));
 			if (purge)
 				__pmdp_csp(pmdp);
 			pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
@@ -2296,7 +2346,8 @@ void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr)
 			pmdp = (pmd_t *)entry;
 			gaddr = __gmap_segment_gaddr(entry);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
-			WARN_ON(*entry & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			WARN_ON(*entry & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
+					   _SEGMENT_ENTRY_GMAP_UC));
 			if (MACHINE_HAS_TLB_GUEST)
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_LOCAL);
@@ -2330,7 +2381,8 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
 			pmdp = (pmd_t *)entry;
 			gaddr = __gmap_segment_gaddr(entry);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
-			WARN_ON(*entry & ~_SEGMENT_ENTRY_HARDWARE_BITS_LARGE);
+			WARN_ON(*entry & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
+					   _SEGMENT_ENTRY_GMAP_UC));
 			if (MACHINE_HAS_TLB_GUEST)
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_GLOBAL);
@@ -2345,6 +2397,71 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(gmap_pmdp_idte_global);
+
+/**
+ * gmap_test_and_clear_dirty_pmd - test and reset segment dirty status
+ * @gmap: pointer to guest address space
+ * @pmdp: pointer to the pmd to be tested
+ * @gaddr: virtual address in the guest address space
+ *
+ * This function is assumed to be called with the guest_table_lock
+ * held.
+ */
+bool gmap_test_and_clear_dirty_pmd(struct gmap *gmap, pmd_t *pmdp,
+				   unsigned long gaddr)
+{
+	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
+		return false;
+
+	/* Already protected memory, which did not change is clean */
+	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_PROTECT &&
+	    !(pmd_val(*pmdp) & _SEGMENT_ENTRY_GMAP_UC))
+		return false;
+
+	/* Clear UC indication and reset protection */
+	pmd_val(*pmdp) &= ~_SEGMENT_ENTRY_GMAP_UC;
+	gmap_protect_pmd(gmap, gaddr, pmdp, PROT_READ, 0);
+	return true;
+}
+
+/**
+ * gmap_sync_dirty_log_pmd - set bitmap based on dirty status of segment
+ * @gmap: pointer to guest address space
+ * @bitmap: dirty bitmap for this pmd
+ * @gaddr: virtual address in the guest address space
+ * @vmaddr: virtual address in the host address space
+ *
+ * This function is assumed to be called with the guest_table_lock
+ * held.
+ */
+void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long bitmap[4],
+			     unsigned long gaddr, unsigned long vmaddr)
+{
+	int i;
+	pmd_t *pmdp;
+	pte_t *ptep;
+	spinlock_t *ptl;
+
+	pmdp = gmap_pmd_op_walk(gmap, gaddr);
+	if (!pmdp)
+		return;
+
+	if (pmd_large(*pmdp)) {
+		if (gmap_test_and_clear_dirty_pmd(gmap, pmdp, gaddr))
+			bitmap_fill(bitmap, _PAGE_ENTRIES);
+	} else {
+		for (i = 0; i < _PAGE_ENTRIES; i++, vmaddr += PAGE_SIZE) {
+			ptep = pte_alloc_map_lock(gmap->mm, pmdp, vmaddr, &ptl);
+			if (!ptep)
+				continue;
+			if (ptep_test_and_clear_uc(gmap->mm, vmaddr, ptep))
+				set_bit(i, bitmap);
+			spin_unlock(ptl);
+		}
+	}
+	gmap_pmd_op_end(gmap, pmdp);
+}
+EXPORT_SYMBOL_GPL(gmap_sync_dirty_log_pmd);
 
 static inline void thp_split_mm(struct mm_struct *mm)
 {

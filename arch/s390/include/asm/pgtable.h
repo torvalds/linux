@@ -1103,7 +1103,8 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 		    pte_t *sptep, pte_t *tptep, pte_t pte);
 void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep);
 
-bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
+bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long address,
+			    pte_t *ptep);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq);
 int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
