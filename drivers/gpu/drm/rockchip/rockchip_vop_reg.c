@@ -323,11 +323,11 @@ static const struct vop_intr rk3288_vop_intr = {
 };
 
 static const struct vop_grf_ctrl rk3288_vop_big_grf_ctrl = {
-	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 12),
+	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 13),
 };
 
 static const struct vop_grf_ctrl rk3288_vop_lit_grf_ctrl = {
-	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 14),
+	.grf_dclk_inv = VOP_REG(RK3288_GRF_SOC_CON15, 0x1, 15),
 };
 
 static const struct vop_data rk3288_vop_big = {
