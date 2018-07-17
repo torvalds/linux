@@ -4,7 +4,7 @@
  *
  *   GPL LICENSE SUMMARY
  *
- *   Copyright (C) 2016 T-Platforms All Rights Reserved.
+ *   Copyright (C) 2016-2018 T-Platforms JSC All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify it
  *   under the terms and conditions of the GNU General Public License,
@@ -1824,10 +1824,11 @@ static int idt_ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
  *                      7. Temperature sensor operations
  *
  *    IDT PCIe-switch has an embedded temperature sensor, which can be used to
- * warn a user-space of possible chip overheating. Since workload temperature
- * can be different on different platforms, temperature thresholds as well as
- * general sensor settings must be setup in the framework of BIOS/EEPROM
- * initializations. It includes the actual sensor enabling as well.
+ * check current chip core temperature. Since a workload environment can be
+ * different on different platforms, an offset and ADC/filter settings can be
+ * specified. Although the offset configuration is only exposed to the sysfs
+ * hwmon interface at the moment. The rest of the settings can be adjusted
+ * for instance by the BIOS/EEPROM firmware.
  *=============================================================================
  */
 
