@@ -810,7 +810,7 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->UclkSpreadPercent = smc_dpm_table->uclkspreadpercent;
 	ppsmc_pptable->UclkSpreadFreq = smc_dpm_table->uclkspreadfreq;
 
-	ppsmc_pptable->FclkSpreadEnabled = 0;
+	ppsmc_pptable->FclkSpreadEnabled = smc_dpm_table->fclkspreadenabled;
 	ppsmc_pptable->FclkSpreadPercent = smc_dpm_table->fclkspreadpercent;
 	ppsmc_pptable->FclkSpreadFreq = smc_dpm_table->fclkspreadfreq;
 
