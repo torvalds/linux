@@ -68,7 +68,7 @@
 #define LSM303D_DEVID			(0x49)	//chip id
 #define LSM303D_ACC_DISABLE		(0x08)
 
-#define LSM303D_RANGE			2000000
+#define LSM303D_RANGE			32768
 
 /* LSM303D */
 #define LSM303D_PRECISION		16
@@ -207,13 +207,18 @@ static int sensor_init(struct i2c_client *client)
 
 static int sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
 {
-	s64 result;
+	int result;
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
 
 	switch (sensor->devid) {
 		case LSM303D_DEVID:
 			result = ((int)high_byte << 8) | (int)low_byte;
+			if (result < LSM303D_BOUNDARY)
+				result = result * LSM303D_GRAVITY_STEP;
+			else
+				result = ~(((~result & (0x7fff >> (16 - LSM303D_PRECISION))) + 1)
+						* LSM303D_GRAVITY_STEP) + 1;
 			break;
 
 		default:
@@ -312,7 +317,7 @@ struct sensor_operate gsensor_lsm303d_ops = {
 	.precision			= LSM303D_PRECISION,
 	.ctrl_reg			= LSM303D_CTRL_REG1,
 	.int_status_reg	= LSM303D_IG_SRC1,
-	.range			= {-32768, 32768},
+	.range			= {-LSM303D_RANGE, LSM303D_RANGE},
 	.trig				= (IRQF_TRIGGER_LOW | IRQF_ONESHOT),
 	.active			= sensor_active,
 	.init				= sensor_init,
