@@ -2,11 +2,12 @@ Rockchip SoC Camera Interface
 ----------------------------------------------
 
 Rockchip CIF is a camera interface for the Rockchip series of SoCs
-like rk3288, rk312x, RV1108 to receive frame data from camera or CCIR656 encoder,
+like px30, rk3288, rk312x, RV1108 to receive frame data from camera or CCIR656 encoder,
 and transfer the data into system main memory by AXI bus.
 
 Required properties:
 - compatible: value should be one of the following
+	"rockchip,px30-cif";
 	"rockchip,rk3128-cif";
 	"rockchip,rk3288-cif";
 - reg : offset and length of the register set for the device.
@@ -36,6 +37,26 @@ two sensors work at a time, they are supposed to work asynchronously.
 
 Device node example
 -------------------
+
+	cif: cif@ff490000 {
+		compatible = "rockchip,px30-cif";
+		reg = <0x0 0xff490000 0x0 0x200>;
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CIF>, <&cru HCLK_CIF>, <&cru PCLK_CIF>, <&cru SCLK_CIF_OUT>;
+		clock-names = "aclk_cif", "hclk_cif", "pclk_cif", "cif_out";
+		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>, <&cru SRST_CIF_PCLKIN>;
+		reset-names = "rst_cif_a", "rst_cif_h", "rst_cif_pclkin";
+		power-domains = <&power PX30_PD_VI>;
+		iommus = <&vip_mmu>;
+		status = "okay";
+		port {
+			cif_in: endpoint {
+				remote-endpoint = <&gc2155_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+		};
+	};
 
 	cif: cif@1010a000 {
 		compatible = "rockchip,rk3128-cif";
