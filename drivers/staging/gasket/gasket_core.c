@@ -14,6 +14,7 @@
 #include "gasket_page_table.h"
 #include "gasket_sysfs.h"
 
+#include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/of.h>
@@ -2097,7 +2098,7 @@ int gasket_wait_with_reschedule(
 		tmp = gasket_dev_read_64(gasket_dev, bar, offset);
 		if ((tmp & mask) == val)
 			break;
-		schedule_timeout(msecs_to_jiffies(delay_ms));
+		msleep(delay_ms);
 		retries++;
 	}
 	if (retries == max_retries) {
