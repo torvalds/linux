@@ -36,20 +36,24 @@ The port and endpoint concepts are very similar to those in Devicetree
 [3]. A port represents an interface in a device, and an endpoint
 represents a connection to that interface.
 
-All port nodes are located under the device's "_DSD" node in the
-hierarchical data extension tree. The property extension related to
-each port node must contain the key "port" and an integer value which
-is the number of the port. The object it refers to should be called "PRTX",
-where "X" is the number of the port.
+All port nodes are located under the device's "_DSD" node in the hierarchical
+data extension tree. The data extension related to each port node must begin
+with "port" and must be followed by the number of the port as its key. The
+target object it refers to should be called "PRTX", where "X" is the number of
+the port. An example of such a package would be:
 
-Further on, endpoints are located under the individual port nodes. The
-first hierarchical data extension package list entry of the endpoint
-nodes must begin with "endpoint" and must be followed by the number
-of the endpoint. The object it refers to should be called "EPXY", where
-"X" is the number of the port and "Y" is the number of the endpoint.
+    Package() { "port4", PRT4 }
+
+Further on, endpoints are located under the port nodes. The hierarchical data
+extension key of the endpoint nodes must begin with "endpoint" and must be
+followed by the number of the endpoint. The object it refers to should be called
+"EPXY", where "X" is the number of the port and "Y" is the number of the
+endpoint. An example of such a package would be:
+
+    Package() { "endpoint0", EP40 }
 
 Each port node contains a property extension key "port", the value of
-which is the number of the port node. The each endpoint is similarly numbered
+which is the number of the port. Each endpoint is similarly numbered
 with a property extension key "endpoint". Port numbers must be unique within a
 device and endpoint numbers must be unique within a port.
 
