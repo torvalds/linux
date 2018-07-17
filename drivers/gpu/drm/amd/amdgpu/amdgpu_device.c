@@ -2004,7 +2004,7 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -2039,7 +2039,7 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(adev);
-			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
 			if (r)
 				return r;
 		}
@@ -3091,7 +3091,7 @@ static int amdgpu_device_handle_vram_lost(struct amdgpu_device *adev)
  * @adev: amdgpu device pointer
  *
  * attempt to do soft-reset or full-reset and reinitialize Asic
- * return 0 means successed otherwise failed
+ * return 0 means succeeded otherwise failed
  */
 static int amdgpu_device_reset(struct amdgpu_device *adev)
 {
@@ -3169,7 +3169,7 @@ out:
  * @from_hypervisor: request from hypervisor
  *
  * do VF FLR and reinitialize Asic
- * return 0 means successed otherwise failed
+ * return 0 means succeeded otherwise failed
  */
 static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 				     bool from_hypervisor)
@@ -3294,7 +3294,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		dev_info(adev->dev, "GPU reset(%d) failed\n", atomic_read(&adev->gpu_reset_counter));
 		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 	} else {
-		dev_info(adev->dev, "GPU reset(%d) successed!\n",atomic_read(&adev->gpu_reset_counter));
+		dev_info(adev->dev, "GPU reset(%d) succeeded!\n",atomic_read(&adev->gpu_reset_counter));
 	}
 
 	amdgpu_vf_error_trans_all(adev);
