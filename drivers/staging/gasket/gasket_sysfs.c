@@ -194,7 +194,7 @@ int gasket_sysfs_create_mapping(
 			"0x%p.", device);
 		put_mapping(mapping);
 		mutex_unlock(&function_mutex);
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	/* Find the first empty entry in the array. */
