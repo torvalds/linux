@@ -764,11 +764,22 @@ static void run_one_async_start(struct btrfs_work *work)
 		async->status = ret;
 }
 
+/*
+ * In order to insert checksums into the metadata in large chunks, we wait
+ * until bio submission time.   All the pages in the bio are checksummed and
+ * sums are attached onto the ordered extent record.
+ *
+ * At IO completion time the csums attached on the ordered extent record are
+ * inserted into the tree.
+ */
 static void run_one_async_done(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
+	struct inode *inode;
+	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
+	inode = async->private_data;
 
 	/* If an error occurred we just want to clean up the bio and move on */
 	if (async->status) {
@@ -777,7 +788,12 @@ static void run_one_async_done(struct btrfs_work *work)
 		return;
 	}
 
-	btrfs_submit_bio_done(async->private_data, async->bio, async->mirror_num);
+	ret = btrfs_map_bio(btrfs_sb(inode->i_sb), async->bio,
+			async->mirror_num, 1);
+	if (ret) {
+		async->bio->bi_status = ret;
+		bio_endio(async->bio);
+	}
 }
 
 static void run_one_async_free(struct btrfs_work *work)
