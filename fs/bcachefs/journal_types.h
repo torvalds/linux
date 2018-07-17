@@ -48,7 +48,7 @@ typedef void (*journal_pin_flush_fn)(struct journal *j,
 struct journal_entry_pin {
 	struct list_head		list;
 	journal_pin_flush_fn		flush;
-	struct journal_entry_pin_list	*pin_list;
+	u64				seq;
 };
 
 /* corresponds to a btree node with a blacklisted bset: */
@@ -174,6 +174,10 @@ struct journal {
 		u64 front, back, size, mask;
 		struct journal_entry_pin_list *data;
 	}			pin;
+
+	struct journal_entry_pin *flush_in_progress;
+	wait_queue_head_t	pin_flush_wait;
+
 	u64			replay_journal_seq;
 
 	struct mutex		blacklist_lock;

@@ -109,17 +109,17 @@ do {									\
 #define fifo_peek(fifo)		fifo_peek_front(fifo)
 
 #define fifo_for_each_entry(_entry, _fifo, _iter)			\
-	for (((void) (&(_iter) == &(_fifo)->front)),			\
-	     _iter = (_fifo)->front;					\
+	for (typecheck(typeof((_fifo)->front), _iter),			\
+	     (_iter) = (_fifo)->front;					\
 	     ((_iter != (_fifo)->back) &&				\
 	      (_entry = (_fifo)->data[(_iter) & (_fifo)->mask], true));	\
-	     _iter++)
+	     (_iter)++)
 
 #define fifo_for_each_entry_ptr(_ptr, _fifo, _iter)			\
-	for (((void) (&(_iter) == &(_fifo)->front)),			\
-	     _iter = (_fifo)->front;					\
+	for (typecheck(typeof((_fifo)->front), _iter),			\
+	     (_iter) = (_fifo)->front;					\
 	     ((_iter != (_fifo)->back) &&				\
 	      (_ptr = &(_fifo)->data[(_iter) & (_fifo)->mask], true));	\
-	     _iter++)
+	     (_iter)++)
 
 #endif /* _BCACHEFS_FIFO_H */

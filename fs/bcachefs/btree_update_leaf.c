@@ -111,8 +111,7 @@ static void __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 
 	btree_node_lock_type(c, b, SIX_LOCK_read);
 	bch2_btree_node_write_cond(c, b,
-			(btree_current_write(b) == w &&
-			 w->journal.pin_list == journal_seq_pin(j, seq)));
+		(btree_current_write(b) == w && w->journal.seq == seq));
 	six_unlock_read(&b->lock);
 }
 

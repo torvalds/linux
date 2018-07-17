@@ -6,18 +6,16 @@
 
 static inline bool journal_pin_active(struct journal_entry_pin *pin)
 {
-	return pin->pin_list != NULL;
+	return pin->seq != 0;
 }
 
 static inline struct journal_entry_pin_list *
 journal_seq_pin(struct journal *j, u64 seq)
 {
-	BUG_ON(seq < j->pin.front || seq >= j->pin.back);
+	EBUG_ON(seq < j->pin.front || seq >= j->pin.back);
 
 	return &j->pin.data[seq & j->pin.mask];
 }
-
-u64 bch2_journal_pin_seq(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_pin_add(struct journal *, u64, struct journal_entry_pin *,
 			  journal_pin_flush_fn);
@@ -26,6 +24,7 @@ void bch2_journal_pin_add_if_older(struct journal *,
 				  struct journal_entry_pin *,
 				  struct journal_entry_pin *,
 				  journal_pin_flush_fn);
+void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_reclaim_fast(struct journal *);
 void bch2_journal_reclaim_work(struct work_struct *);

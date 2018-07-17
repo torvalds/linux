@@ -138,8 +138,26 @@ static enum {
 		c->opts.block_size;
 	BUG_ON(j->prev_buf_sectors > j->cur_buf_sectors);
 
+	/*
+	 * We have to set last_seq here, _before_ opening a new journal entry:
+	 *
+	 * A threads may replace an old pin with a new pin on their current
+	 * journal reservation - the expectation being that the journal will
+	 * contain either what the old pin protected or what the new pin
+	 * protects.
+	 *
+	 * After the old pin is dropped journal_last_seq() won't include the old
+	 * pin, so we can only write the updated last_seq on the entry that
+	 * contains whatever the new pin protects.
+	 *
+	 * Restated, we can _not_ update last_seq for a given entry if there
+	 * could be a newer entry open with reservations/pins that have been
+	 * taken against it.
+	 *
+	 * Hence, we want update/set last_seq on the current journal entry right
+	 * before we open a new one:
+	 */
 	bch2_journal_reclaim_fast(j);
-	/* XXX: why set this here, and not in bch2_journal_write()? */
 	buf->data->last_seq	= cpu_to_le64(journal_last_seq(j));
 
 	if (journal_entry_empty(buf->data))
@@ -1022,6 +1040,7 @@ int bch2_fs_journal_init(struct journal *j)
 	init_waitqueue_head(&j->wait);
 	INIT_DELAYED_WORK(&j->write_work, journal_write_work);
 	INIT_DELAYED_WORK(&j->reclaim_work, bch2_journal_reclaim_work);
+	init_waitqueue_head(&j->pin_flush_wait);
 	mutex_init(&j->blacklist_lock);
 	INIT_LIST_HEAD(&j->seq_blacklist);
 	mutex_init(&j->reclaim_lock);
