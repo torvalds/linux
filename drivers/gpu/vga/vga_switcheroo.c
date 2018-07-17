@@ -103,9 +103,11 @@
  *	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
  *	interface is a no-op so as not to interfere with runtime pm
  * @list: client list
+ * @vga_dev: pci device, indicate which GPU is bound to current audio client
  *
  * Registered client. A client can be either a GPU or an audio device on a GPU.
- * For audio clients, the @fb_info and @active members are bogus.
+ * For audio clients, the @fb_info and @active members are bogus. For GPU
+ * clients, the @vga_dev is bogus.
  */
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
@@ -116,6 +118,7 @@ struct vga_switcheroo_client {
 	bool active;
 	bool driver_power_control;
 	struct list_head list;
+	struct pci_dev *vga_dev;
 };
 
 /*
@@ -161,9 +164,8 @@ struct vgasr_priv {
 };
 
 #define ID_BIT_AUDIO		0x100
-#define client_is_audio(c)	((c)->id & ID_BIT_AUDIO)
-#define client_is_vga(c)	((c)->id == VGA_SWITCHEROO_UNKNOWN_ID || \
-				 !client_is_audio(c))
+#define client_is_audio(c)		((c)->id & ID_BIT_AUDIO)
+#define client_is_vga(c)		(!client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
 static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
@@ -192,14 +194,29 @@ static void vga_switcheroo_enable(void)
 		vgasr_priv.handler->init();
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (client->id != VGA_SWITCHEROO_UNKNOWN_ID)
+		if (!client_is_vga(client) ||
+		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
 			continue;
+
 		ret = vgasr_priv.handler->get_client_id(client->pdev);
 		if (ret < 0)
 			return;
 
 		client->id = ret;
 	}
+
+	list_for_each_entry(client, &vgasr_priv.clients, list) {
+		if (!client_is_audio(client) ||
+		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
+			continue;
+
+		ret = vgasr_priv.handler->get_client_id(client->vga_dev);
+		if (ret < 0)
+			return;
+
+		client->id = ret | ID_BIT_AUDIO;
+	}
+
 	vga_switcheroo_debugfs_init(&vgasr_priv);
 	vgasr_priv.active = true;
 }
@@ -272,7 +289,9 @@ EXPORT_SYMBOL(vga_switcheroo_handler_flags);
 
 static int register_client(struct pci_dev *pdev,
 			   const struct vga_switcheroo_client_ops *ops,
-			   enum vga_switcheroo_client_id id, bool active,
+			   enum vga_switcheroo_client_id id,
+			   struct pci_dev *vga_dev,
+			   bool active,
 			   bool driver_power_control)
 {
 	struct vga_switcheroo_client *client;
@@ -287,6 +306,7 @@ static int register_client(struct pci_dev *pdev,
 	client->id = id;
 	client->active = active;
 	client->driver_power_control = driver_power_control;
+	client->vga_dev = vga_dev;
 
 	mutex_lock(&vgasr_mutex);
 	list_add_tail(&client->list, &vgasr_priv.clients);
@@ -319,7 +339,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   const struct vga_switcheroo_client_ops *ops,
 				   bool driver_power_control)
 {
-	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID,
+	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID, NULL,
 			       pdev == vga_default_device(),
 			       driver_power_control);
 }
@@ -329,19 +349,40 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * vga_switcheroo_register_audio_client - register audio client
  * @pdev: client pci device
  * @ops: client callbacks
- * @id: client identifier
+ * @vga_dev:  pci device which is bound to current audio client
  *
  * Register audio client (audio device on a GPU). The client is assumed
  * to use runtime PM. Beforehand, vga_switcheroo_client_probe_defer()
  * shall be called to ensure that all prerequisites are met.
  *
- * Return: 0 on success, -ENOMEM on memory allocation error.
+ * Return: 0 on success, -ENOMEM on memory allocation error, -EINVAL on getting
+ * client id error.
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			const struct vga_switcheroo_client_ops *ops,
-			enum vga_switcheroo_client_id id)
+			struct pci_dev *vga_dev)
 {
-	return register_client(pdev, ops, id | ID_BIT_AUDIO, false, true);
+	enum vga_switcheroo_client_id id = VGA_SWITCHEROO_UNKNOWN_ID;
+
+	/*
+	 * if vga_switcheroo has enabled, that mean two GPU clients and also
+	 * handler are registered. Get audio client id from bound GPU client
+	 * id directly, otherwise, set it as VGA_SWITCHEROO_UNKNOWN_ID,
+	 * it will set to correct id in later when vga_switcheroo_enable()
+	 * is called.
+	 */
+	mutex_lock(&vgasr_mutex);
+	if (vgasr_priv.active) {
+		id = vgasr_priv.handler->get_client_id(vga_dev);
+		if (id < 0) {
+			mutex_unlock(&vgasr_mutex);
+			return -EINVAL;
+		}
+	}
+	mutex_unlock(&vgasr_mutex);
+
+	return register_client(pdev, ops, id | ID_BIT_AUDIO, vga_dev,
+			       false, true);
 }
 EXPORT_SYMBOL(vga_switcheroo_register_audio_client);
 
