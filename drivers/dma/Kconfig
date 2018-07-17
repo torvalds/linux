@@ -366,7 +366,7 @@ config MV_XOR
 
 config MV_XOR_V2
 	bool "Marvell XOR engine version 2 support "
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
