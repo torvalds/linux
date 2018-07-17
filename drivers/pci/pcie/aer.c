@@ -397,6 +397,9 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 	if (!pos)
 		return -EIO;
 
+	if (pcie_aer_get_firmware_first(dev))
+		return -EIO;
+
 	/* Clear status bits for ERR_NONFATAL errors only */
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &sev);
@@ -415,6 +418,9 @@ void pci_aer_clear_fatal_status(struct pci_dev *dev)
 
 	pos = dev->aer_cap;
 	if (!pos)
+		return;
+
+	if (pcie_aer_get_firmware_first(dev))
 		return;
 
 	/* Clear status bits for ERR_FATAL errors only */
@@ -436,6 +442,9 @@ int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 
 	pos = dev->aer_cap;
 	if (!pos)
+		return -EIO;
+
+	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	port_type = pci_pcie_type(dev);
