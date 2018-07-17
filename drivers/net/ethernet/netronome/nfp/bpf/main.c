@@ -404,6 +404,16 @@ err_release_free:
 	return -EINVAL;
 }
 
+static int nfp_bpf_ndo_init(struct nfp_app *app, struct net_device *netdev)
+{
+	return bpf_offload_dev_netdev_register(netdev);
+}
+
+static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
+{
+	bpf_offload_dev_netdev_unregister(netdev);
+}
+
 static int nfp_bpf_init(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf;
@@ -465,6 +475,9 @@ const struct nfp_app_type app_bpf = {
 	.check_mtu	= nfp_bpf_check_mtu,
 
 	.extra_cap	= nfp_bpf_extra_cap,
+
+	.ndo_init	= nfp_bpf_ndo_init,
+	.ndo_uninit	= nfp_bpf_ndo_uninit,
 
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,

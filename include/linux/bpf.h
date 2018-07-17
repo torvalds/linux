@@ -650,6 +650,9 @@ int bpf_map_offload_get_next_key(struct bpf_map *map,
 
 bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
 
+int bpf_offload_dev_netdev_register(struct net_device *netdev);
+void bpf_offload_dev_netdev_unregister(struct net_device *netdev);
+
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
 

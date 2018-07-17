@@ -582,6 +582,8 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 
 int nsim_bpf_init(struct netdevsim *ns)
 {
+	int err;
+
 	if (ns->sdev->refcnt == 1) {
 		INIT_LIST_HEAD(&ns->sdev->bpf_bound_progs);
 		INIT_LIST_HEAD(&ns->sdev->bpf_bound_maps);
@@ -591,6 +593,10 @@ int nsim_bpf_init(struct netdevsim *ns)
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 	}
+
+	err = bpf_offload_dev_netdev_register(ns->netdev);
+	if (err)
+		return err;
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
@@ -625,6 +631,7 @@ void nsim_bpf_uninit(struct netdevsim *ns)
 	WARN_ON(ns->xdp.prog);
 	WARN_ON(ns->xdp_hw.prog);
 	WARN_ON(ns->bpf_offloaded);
+	bpf_offload_dev_netdev_unregister(ns->netdev);
 
 	if (ns->sdev->refcnt == 1) {
 		WARN_ON(!list_empty(&ns->sdev->bpf_bound_progs));
