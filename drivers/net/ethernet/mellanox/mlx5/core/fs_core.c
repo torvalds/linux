@@ -1825,7 +1825,7 @@ search_again_locked:
 
 	g = alloc_auto_flow_group(ft, spec);
 	if (IS_ERR(g)) {
-		rule = (void *)g;
+		rule = ERR_CAST(g);
 		up_write_ref_node(&ft->node);
 		return rule;
 	}
