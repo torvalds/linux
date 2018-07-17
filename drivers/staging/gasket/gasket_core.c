@@ -1875,9 +1875,11 @@ int gasket_reset_nolock(struct gasket_dev *gasket_dev, uint reset_type)
 
 	/* Perform a device reset of the requested type. */
 	ret = driver_desc->device_reset_cb(gasket_dev, reset_type);
-	if (ret)
+	if (ret) {
 		gasket_log_error(
 			gasket_dev, "Device reset cb returned %d.", ret);
+		return ret;
+	}
 
 	/* Reinitialize the page tables and interrupt framework. */
 	for (i = 0; i < driver_desc->num_page_tables; ++i)
