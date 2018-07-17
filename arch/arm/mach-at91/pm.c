@@ -42,6 +42,7 @@ extern void at91_pinctrl_gpio_resume(void);
 static const match_table_t pm_modes __initconst = {
 	{ AT91_PM_STANDBY, "standby" },
 	{ AT91_PM_ULP0, "ulp0" },
+	{ AT91_PM_ULP1, "ulp1" },
 	{ AT91_PM_BACKUP, "backup" },
 	{ -1, NULL },
 };
