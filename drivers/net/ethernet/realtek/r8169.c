@@ -4283,31 +4283,12 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static int rtl_xmii_ioctl(struct rtl8169_private *tp,
-			  struct mii_ioctl_data *data, int cmd)
-{
-	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = 32; /* Internal PHY */
-		return 0;
-
-	case SIOCGMIIREG:
-		data->val_out = rtl_readphy(tp, data->reg_num & 0x1f);
-		return 0;
-
-	case SIOCSMIIREG:
-		rtl_writephy(tp, data->reg_num & 0x1f, data->val_in);
-		return 0;
-	}
-	return -EOPNOTSUPP;
-}
-
 static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct mii_ioctl_data *data = if_mii(ifr);
+	if (!netif_running(dev))
+		return -ENODEV;
 
-	return netif_running(dev) ? rtl_xmii_ioctl(tp, data, cmd) : -ENODEV;
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
 static void rtl_init_mdio_ops(struct rtl8169_private *tp)
