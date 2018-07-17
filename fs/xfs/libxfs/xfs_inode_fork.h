@@ -12,7 +12,7 @@ struct xfs_dinode;
 /*
  * File incore extent information, present for each of data & attr forks.
  */
-typedef struct xfs_ifork {
+struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
 	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
@@ -22,7 +22,7 @@ typedef struct xfs_ifork {
 		void		*if_root;	/* extent tree root */
 		char		*if_data;	/* inline file data */
 	} if_u1;
-} xfs_ifork_t;
+};
 
 /*
  * Per-fork incore inode flags.

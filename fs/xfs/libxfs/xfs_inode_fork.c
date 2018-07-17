@@ -269,7 +269,7 @@ xfs_iformat_btree(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_bmdr_block_t	*dfp;
-	xfs_ifork_t		*ifp;
+	struct xfs_ifork	*ifp;
 	/* REFERENCED */
 	int			nrecs;
 	int			size;
@@ -347,7 +347,7 @@ xfs_iroot_realloc(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	int			cur_max;
-	xfs_ifork_t		*ifp;
+	struct xfs_ifork	*ifp;
 	struct xfs_btree_block	*new_broot;
 	int			new_max;
 	size_t			new_size;
@@ -503,7 +503,7 @@ xfs_idestroy_fork(
 	xfs_inode_t	*ip,
 	int		whichfork)
 {
-	xfs_ifork_t	*ifp;
+	struct xfs_ifork	*ifp;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if (ifp->if_broot != NULL) {
@@ -592,7 +592,7 @@ xfs_iflush_fork(
 	int			whichfork)
 {
 	char			*cp;
-	xfs_ifork_t		*ifp;
+	struct xfs_ifork	*ifp;
 	xfs_mount_t		*mp;
 	static const short	brootflag[2] =
 		{ XFS_ILOG_DBROOT, XFS_ILOG_ABROOT };

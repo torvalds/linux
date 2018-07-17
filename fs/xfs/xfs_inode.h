@@ -34,9 +34,9 @@ typedef struct xfs_inode {
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
-	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
-	xfs_ifork_t		*i_cowfp;	/* copy on write extents */
-	xfs_ifork_t		i_df;		/* data fork */
+	struct xfs_ifork	*i_afp;		/* attribute fork pointer */
+	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
+	struct xfs_ifork	i_df;		/* data fork */
 
 	/* operations vectors */
 	const struct xfs_dir_ops *d_ops;		/* directory ops vector */

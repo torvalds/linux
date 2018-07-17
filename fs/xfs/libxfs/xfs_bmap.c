@@ -326,7 +326,7 @@ xfs_bmap_check_leaf_extents(
 	xfs_buf_t		*bp;	/* buffer for "block" */
 	int			error;	/* error return value */
 	xfs_extnum_t		i=0, j;	/* index into the extents list */
-	xfs_ifork_t		*ifp;	/* fork structure */
+	struct xfs_ifork	*ifp;	/* fork structure */
 	int			level;	/* btree level, for checking */
 	xfs_mount_t		*mp;	/* file system mount structure */
 	__be64			*pp;	/* pointer to block address */
@@ -594,7 +594,7 @@ xfs_bmap_btree_to_extents(
 	xfs_fsblock_t		cbno;	/* child block number */
 	xfs_buf_t		*cbp;	/* child block's buffer */
 	int			error;	/* error return value */
-	xfs_ifork_t		*ifp;	/* inode fork data */
+	struct xfs_ifork	*ifp;	/* inode fork data */
 	xfs_mount_t		*mp;	/* mount point structure */
 	__be64			*pp;	/* ptr to block address */
 	struct xfs_btree_block	*rblock;/* root btree block */
@@ -817,7 +817,7 @@ xfs_bmap_local_to_extents(
 {
 	int		error = 0;
 	int		flags;		/* logging flags returned */
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
+	struct xfs_ifork *ifp;		/* inode fork pointer */
 	xfs_alloc_arg_t	args;		/* allocation arguments */
 	xfs_buf_t	*bp;		/* buffer for extent block */
 	struct xfs_bmbt_irec rec;
@@ -1471,7 +1471,7 @@ xfs_bmap_one_block(
 	xfs_inode_t	*ip,		/* incore inode */
 	int		whichfork)	/* data or attr fork */
 {
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
+	struct xfs_ifork *ifp;		/* inode fork pointer */
 	int		rval;		/* return value */
 	xfs_bmbt_irec_t	s;		/* internal version of extent */
 	struct xfs_iext_cursor icur;
@@ -1509,7 +1509,7 @@ xfs_bmap_add_extent_delay_real(
 	struct xfs_bmbt_irec	*new = &bma->got;
 	int			error;	/* error return value */
 	int			i;	/* temp state */
-	xfs_ifork_t		*ifp;	/* inode fork pointer */
+	struct xfs_ifork	*ifp;	/* inode fork pointer */
 	xfs_fileoff_t		new_endoff;	/* end offset of new entry */
 	xfs_bmbt_irec_t		r[3];	/* neighbor extent entries */
 					/* left is 0, right is 1, prev is 2 */
@@ -2018,7 +2018,7 @@ xfs_bmap_add_extent_unwritten_real(
 	xfs_btree_cur_t		*cur;	/* btree cursor */
 	int			error;	/* error return value */
 	int			i;	/* temp state */
-	xfs_ifork_t		*ifp;	/* inode fork pointer */
+	struct xfs_ifork	*ifp;	/* inode fork pointer */
 	xfs_fileoff_t		new_endoff;	/* end offset of new entry */
 	xfs_bmbt_irec_t		r[3];	/* neighbor extent entries */
 					/* left is 0, right is 1, prev is 2 */
@@ -2486,7 +2486,7 @@ xfs_bmap_add_extent_hole_delay(
 	struct xfs_iext_cursor	*icur,
 	xfs_bmbt_irec_t		*new)	/* new data to add to file extents */
 {
-	xfs_ifork_t		*ifp;	/* inode fork pointer */
+	struct xfs_ifork	*ifp;	/* inode fork pointer */
 	xfs_bmbt_irec_t		left;	/* left neighbor extent entry */
 	xfs_filblks_t		newlen=0;	/* new indirect size */
 	xfs_filblks_t		oldlen=0;	/* old indirect size */
@@ -4844,7 +4844,7 @@ xfs_bmap_del_extent_real(
 	struct xfs_bmbt_irec	got;	/* current extent entry */
 	xfs_fileoff_t		got_endoff;	/* first offset past got */
 	int			i;	/* temp state */
-	xfs_ifork_t		*ifp;	/* inode fork pointer */
+	struct xfs_ifork	*ifp;	/* inode fork pointer */
 	xfs_mount_t		*mp;	/* mount structure */
 	xfs_filblks_t		nblks;	/* quota/sb block count */
 	xfs_bmbt_irec_t		new;	/* new record to be inserted */
@@ -5092,7 +5092,7 @@ __xfs_bunmapi(
 	int			error;		/* error return value */
 	xfs_extnum_t		extno;		/* extent number in list */
 	struct xfs_bmbt_irec	got;		/* current extent record */
-	xfs_ifork_t		*ifp;		/* inode fork pointer */
+	struct xfs_ifork	*ifp;		/* inode fork pointer */
 	int			isrt;		/* freeing in rt area */
 	int			logflags;	/* transaction logging flags */
 	xfs_extlen_t		mod;		/* rt extent offset */

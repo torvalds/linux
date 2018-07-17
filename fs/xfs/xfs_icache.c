@@ -66,7 +66,7 @@ xfs_inode_alloc(
 	ip->i_cowfp = NULL;
 	ip->i_cnextents = 0;
 	ip->i_cformat = XFS_DINODE_FMT_EXTENTS;
-	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
+	memset(&ip->i_df, 0, sizeof(ip->i_df));
 	ip->i_flags = 0;
 	ip->i_delayed_blks = 0;
 	memset(&ip->i_d, 0, sizeof(ip->i_d));

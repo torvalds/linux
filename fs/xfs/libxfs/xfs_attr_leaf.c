@@ -528,7 +528,7 @@ xfs_attr_shortform_create(xfs_da_args_t *args)
 {
 	xfs_attr_sf_hdr_t *hdr;
 	xfs_inode_t *dp;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_create(args);
 
@@ -563,7 +563,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	int i, offset, size;
 	xfs_mount_t *mp;
 	xfs_inode_t *dp;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_add(args);
 
@@ -704,7 +704,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 	xfs_attr_shortform_t *sf;
 	xfs_attr_sf_entry_t *sfe;
 	int i;
-	xfs_ifork_t *ifp;
+	struct xfs_ifork *ifp;
 
 	trace_xfs_attr_sf_lookup(args);
 
