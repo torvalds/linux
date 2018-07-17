@@ -694,15 +694,19 @@ static int do_load(int argc, char **argv)
 		return -1;
 	}
 
-	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program");
-		return -1;
-	}
+	if (do_pin_fd(prog_fd, argv[1]))
+		goto err_close_obj;
 
 	if (json_output)
 		jsonw_null(json_wtr);
 
+	bpf_object__close(obj);
+
 	return 0;
+
+err_close_obj:
+	bpf_object__close(obj);
+	return -1;
 }
 
 static int do_help(int argc, char **argv)

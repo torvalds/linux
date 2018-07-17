@@ -75,7 +75,7 @@ struct uio_device {
         struct fasync_struct    *async_queue;
         wait_queue_head_t       wait;
         struct uio_info         *info;
-	spinlock_t		info_lock;
+	struct mutex		info_lock;
         struct kobject          *map_dir;
         struct kobject          *portio_dir;
 };
