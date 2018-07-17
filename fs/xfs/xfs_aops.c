@@ -338,7 +338,7 @@ xfs_map_blocks(
 	imap_valid = offset_fsb >= wpc->imap.br_startoff &&
 		     offset_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount;
 	if (imap_valid &&
-	    (!xfs_is_reflink_inode(ip) || wpc->io_type == XFS_IO_COW))
+	    (!xfs_inode_has_cow_data(ip) || wpc->io_type == XFS_IO_COW))
 		return 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -363,7 +363,7 @@ xfs_map_blocks(
 	 * Check if this is offset is covered by a COW extents, and if yes use
 	 * it directly instead of looking up anything in the data fork.
 	 */
-	if (xfs_is_reflink_inode(ip) &&
+	if (xfs_inode_has_cow_data(ip) &&
 	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap) &&
 	    imap.br_startoff <= offset_fsb) {
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);

@@ -199,6 +199,15 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 }
 
 /*
+ * Check if an inode has any data in the COW fork.  This might be often false
+ * even for inodes with the reflink flag when there is no pending COW operation.
+ */
+static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
+{
+	return ip->i_cowfp && ip->i_cowfp->if_bytes;
+}
+
+/*
  * In-core inode flags.
  */
 #define XFS_IRECLAIM		(1 << 0) /* started reclaiming this inode */

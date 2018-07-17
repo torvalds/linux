@@ -1832,7 +1832,6 @@ xfs_inactive(
 	xfs_inode_t	*ip)
 {
 	struct xfs_mount	*mp;
-	struct xfs_ifork	*cow_ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	int			error;
 	int			truncate = 0;
 
@@ -1853,7 +1852,7 @@ xfs_inactive(
 		return;
 
 	/* Try to clean out the cow blocks if there are any. */
-	if (xfs_is_reflink_inode(ip) && cow_ifp->if_bytes > 0)
+	if (xfs_inode_has_cow_data(ip))
 		xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, true);
 
 	if (VFS_I(ip)->i_nlink != 0) {

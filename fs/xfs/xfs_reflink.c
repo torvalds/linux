@@ -478,7 +478,7 @@ xfs_reflink_cancel_cow_blocks(
 	struct xfs_iext_cursor		icur;
 	int				error = 0;
 
-	if (!xfs_is_reflink_inode(ip))
+	if (!xfs_inode_has_cow_data(ip))
 		return 0;
 	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
 		return 0;
