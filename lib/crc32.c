@@ -27,6 +27,7 @@
 /* see: Documentation/crc32.txt for a description of algorithms */
 
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/sched.h>
