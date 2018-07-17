@@ -5074,6 +5074,8 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 
 		assert_kernel_context_is_current(i915);
 	}
+	i915_retire_requests(i915); /* ensure we flush after wedging */
+
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	intel_uc_suspend(i915);
