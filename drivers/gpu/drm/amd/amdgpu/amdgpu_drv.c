@@ -104,11 +104,8 @@ int amdgpu_vram_page_split = 512;
 int amdgpu_vm_update_mode = -1;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_dc = -1;
-int amdgpu_dc_log = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_no_evict = 0;
-int amdgpu_direct_gma_size = 0;
 uint amdgpu_pcie_gen_cap = 0;
 uint amdgpu_pcie_lane_cap = 0;
 uint amdgpu_cg_mask = 0xffffffff;
@@ -341,9 +338,6 @@ module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 MODULE_PARM_DESC(dc, "Display Core driver (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(dc, amdgpu_dc, int, 0444);
 
-MODULE_PARM_DESC(dc_log, "Display Core Log Level (0 = minimal (default), 1 = chatty");
-module_param_named(dc_log, amdgpu_dc_log, int, 0444);
-
 /**
  * DOC: sched_jobs (int)
  * Override the max number of jobs supported in the sw queue. The default is 32.
@@ -365,12 +359,6 @@ module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
  */
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, uint, 0444);
-
-MODULE_PARM_DESC(no_evict, "Support pinning request from user space (1 = enable, 0 = disable (default))");
-module_param_named(no_evict, amdgpu_no_evict, int, 0444);
-
-MODULE_PARM_DESC(direct_gma_size, "Direct GMA size in megabytes (max 96MB)");
-module_param_named(direct_gma_size, amdgpu_direct_gma_size, int, 0444);
 
 /**
  * DOC: pcie_gen_cap (uint)
