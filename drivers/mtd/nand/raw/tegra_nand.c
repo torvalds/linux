@@ -468,7 +468,9 @@ static void tegra_nand_select_chip(struct mtd_info *mtd, int die_nr)
 	struct tegra_nand_chip *nand = to_tegra_chip(chip);
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 
-	if (die_nr < 0 || die_nr > 1) {
+	WARN_ON(die_nr >= (int)ARRAY_SIZE(nand->cs));
+
+	if (die_nr < 0 || die_nr > 0) {
 		ctrl->cur_cs = -1;
 		return;
 	}
