@@ -4605,6 +4605,16 @@ enum {
 #define   VIDEO_DIP_ENABLE_GMP_HSW	(1 << 4)
 #define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
 
+#define  DRM_DIP_ENABLE			(1 << 28)
+#define  PSR_VSC_BIT_7_SET		(1 << 27)
+#define  VSC_SELECT_MASK		(0x3 << 26)
+#define  VSC_SELECT_SHIFT		26
+#define  VSC_DIP_HW_HEA_DATA		(0 << 26)
+#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 26)
+#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 26)
+#define  VSC_DIP_SW_HEA_DATA		(3 << 26)
+#define  VDIP_ENABLE_PPS		(1 << 24)
+
 /* Panel power sequencing */
 #define PPS_BASE			0x61200
 #define VLV_PPS_BASE			(VLV_DISPLAY_BASE + PPS_BASE)
@@ -7843,12 +7853,25 @@ enum {
 #define _HSW_VIDEO_DIP_VSC_ECC_B	0x61344
 #define _HSW_VIDEO_DIP_GCP_B		0x61210
 
+/* Icelake PPS_DATA and _ECC DIP Registers.
+ * These are available for transcoders B,C and eDP.
+ * Adding the _A so as to reuse the _MMIO_TRANS2
+ * definition, with which it offsets to the right location.
+ */
+
+#define _ICL_VIDEO_DIP_PPS_DATA_A	0x60350
+#define _ICL_VIDEO_DIP_PPS_DATA_B	0x61350
+#define _ICL_VIDEO_DIP_PPS_ECC_A	0x603D4
+#define _ICL_VIDEO_DIP_PPS_ECC_B	0x613D4
+
 #define HSW_TVIDEO_DIP_CTL(trans)		_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_CTL_A)
 #define HSW_TVIDEO_DIP_AVI_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_AVI_DATA_A + (i) * 4)
 #define HSW_TVIDEO_DIP_VS_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_VS_DATA_A + (i) * 4)
 #define HSW_TVIDEO_DIP_SPD_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_SPD_DATA_A + (i) * 4)
 #define HSW_TVIDEO_DIP_GCP(trans)		_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_GCP_A)
 #define HSW_TVIDEO_DIP_VSC_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_VSC_DATA_A + (i) * 4)
+#define ICL_VIDEO_DIP_PPS_DATA(trans, i)	_MMIO_TRANS2(trans, _ICL_VIDEO_DIP_PPS_DATA_A + (i) * 4)
+#define ICL_VIDEO_DIP_PPS_ECC(trans, i)		_MMIO_TRANS2(trans, _ICL_VIDEO_DIP_PPS_ECC_A + (i) * 4)
 
 #define _HSW_STEREO_3D_CTL_A		0x70020
 #define   S3D_ENABLE			(1 << 31)
