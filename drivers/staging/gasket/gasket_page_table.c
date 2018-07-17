@@ -347,7 +347,7 @@ int gasket_page_table_init(
 	    pg_tbl->config.mode == GASKET_PAGE_TABLE_MODE_SIMPLE) {
 		pg_tbl->num_simple_entries = total_entries;
 		pg_tbl->num_extended_entries = 0;
-		pg_tbl->extended_flag =	1ull << page_table_config->extended_bit;
+		pg_tbl->extended_flag = 1ull << page_table_config->extended_bit;
 	} else {
 		pg_tbl->num_simple_entries = 0;
 		pg_tbl->num_extended_entries = total_entries;
