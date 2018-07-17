@@ -185,7 +185,7 @@ static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
 #if CRC_LE_BITS == 1
 u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_le_generic(crc, p, len, NULL, CRCPOLY_LE);
+	return crc32_le_generic(crc, p, len, NULL, CRC32_POLY_LE);
 }
 u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 {
@@ -195,7 +195,7 @@ u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_le, CRCPOLY_LE);
+			(const u32 (*)[256])crc32table_le, CRC32_POLY_LE);
 }
 u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
 {
@@ -269,7 +269,7 @@ static u32 __attribute_const__ crc32_generic_shift(u32 crc, size_t len,
 
 u32 __attribute_const__ crc32_le_shift(u32 crc, size_t len)
 {
-	return crc32_generic_shift(crc, len, CRCPOLY_LE);
+	return crc32_generic_shift(crc, len, CRC32_POLY_LE);
 }
 
 u32 __attribute_const__ __crc32c_le_shift(u32 crc, size_t len)
@@ -331,13 +331,13 @@ static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
 #if CRC_LE_BITS == 1
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
-	return crc32_be_generic(crc, p, len, NULL, CRCPOLY_BE);
+	return crc32_be_generic(crc, p, len, NULL, CRC32_POLY_BE);
 }
 #else
 u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	return crc32_be_generic(crc, p, len,
-			(const u32 (*)[256])crc32table_be, CRCPOLY_BE);
+			(const u32 (*)[256])crc32table_be, CRC32_POLY_BE);
 }
 #endif
 EXPORT_SYMBOL(crc32_be);
