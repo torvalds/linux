@@ -335,7 +335,8 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	if (IS_ERR_OR_NULL(internal->class)) {
 		gasket_nodev_error("Cannot register %s class [ret=%ld]",
 				   driver_desc->name, PTR_ERR(internal->class));
-		return PTR_ERR(internal->class);
+		ret = PTR_ERR(internal->class);
+		goto unregister_gasket_driver;
 	}
 
 	/*
@@ -369,6 +370,7 @@ fail2:
 fail1:
 	class_destroy(internal->class);
 
+unregister_gasket_driver:
 	g_descs[desc_idx].driver_desc = NULL;
 	return ret;
 }
