@@ -565,6 +565,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-veyron-pinky.dtb \
 	rk3288-veyron-speedy.dtb \
 	rk3288-x7811-rk818-dual-dsi.dtb \
+	rk3308-dot-v10-aarch32.dtb \
 	rk3308-evb-dmic-i2s-v10-aarch32.dtb \
 	rk3308-voice-module-board-v10-aarch32.dtb \
 	rk3308-voice-module-amic-mainboard-v10-aarch32.dtb \
