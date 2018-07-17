@@ -76,7 +76,7 @@ A simple example of this is show below:
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "port0", "PRT0" },
+		    Package () { "port0", PRT0 },
 		}
 	    })
 	    Name (PRT0, Package() {
@@ -86,7 +86,7 @@ A simple example of this is show below:
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "endpoint0", "EP00" },
+		    Package () { "endpoint0", EP00 },
 		}
 	    })
 	    Name (EP00, Package() {
@@ -106,7 +106,7 @@ A simple example of this is show below:
 	    Name (_DSD, Package () {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "port4", "PRT4" },
+		    Package () { "port4", PRT4 },
 		}
 	    })
 
@@ -117,7 +117,7 @@ A simple example of this is show below:
 		},
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "endpoint0", "EP40" },
+		    Package () { "endpoint0", EP40 },
 		}
 	    })
 
@@ -151,7 +151,7 @@ References
     referenced 2016-10-04.
 
 [5] Hierarchical Data Extension UUID For _DSD.
-    <URL:http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.pdf>,
+    <URL:http://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
     referenced 2016-10-04.
 
 [6] Advanced Configuration and Power Interface Specification.
