@@ -750,10 +750,7 @@ static int cmp_dirty_idx(const struct ubifs_lprops **a,
 static void swap_dirty_idx(struct ubifs_lprops **a, struct ubifs_lprops **b,
 			   int size)
 {
-	struct ubifs_lprops *t = *a;
-
-	*a = *b;
-	*b = t;
+	swap(*a, *b);
 }
 
 /**
