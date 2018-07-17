@@ -469,8 +469,8 @@ bool dm_pp_get_static_clocks(
 		return false;
 
 	static_clk_info->max_clocks_state = pp_to_dc_powerlevel_state(pp_clk_info.max_clocks_state);
-	static_clk_info->max_mclk_khz = pp_clk_info.max_memory_clock;
-	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock;
+	static_clk_info->max_mclk_khz = pp_clk_info.max_memory_clock * 10;
+	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock * 10;
 
 	return true;
 }
