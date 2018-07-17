@@ -70,4 +70,5 @@ else
 	else
 		print_warning $nclosecalls "Reader Batch close calls in" $(($dur/60)) minute run: $i
 	fi
+	echo $nclosecalls "Reader Batch close calls in" $(($dur/60)) minute run: $i > $i/console.log.rcu.diags
 fi

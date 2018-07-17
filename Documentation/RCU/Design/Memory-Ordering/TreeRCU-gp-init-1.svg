@@ -272,13 +272,13 @@
      inkscape:window-height="1144"
      id="namedview208"
      showgrid="true"
-     inkscape:zoom="0.70710678"
-     inkscape:cx="617.89019"
-     inkscape:cy="636.57143"
-     inkscape:window-x="697"
+     inkscape:zoom="2.6330492"
+     inkscape:cx="524.82797"
+     inkscape:cy="519.31194"
+     inkscape:window-x="79"
      inkscape:window-y="28"
      inkscape:window-maximized="0"
-     inkscape:current-layer="svg2"
+     inkscape:current-layer="g3188"
      fit-margin-top="5"
      fit-margin-right="5"
      fit-margin-left="5"
@@ -305,13 +305,15 @@
      id="g3188">
     <text
        xml:space="preserve"
-       x="3305.5364"
+       x="3119.363"
        y="13255.592"
        font-style="normal"
        font-weight="bold"
        font-size="192"
        id="text202"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">rsp-&gt;gpnum++</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier"><tspan
+         style="font-size:172.87567139px"
+         id="tspan3071">rcu_seq_start(rsp-&gt;gp_seq)</tspan></text>
     <g
        id="g3107"
        transform="translate(947.90548,11584.029)">

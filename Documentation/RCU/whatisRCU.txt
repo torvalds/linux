@@ -588,6 +588,7 @@ It is extremely simple:
 	void synchronize_rcu(void)
 	{
 		write_lock(&rcu_gp_mutex);
+		smp_mb__after_spinlock();
 		write_unlock(&rcu_gp_mutex);
 	}
 
@@ -609,12 +610,15 @@ don't forget about them when submitting patches making use of RCU!]
 
 The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
 and release a global reader-writer lock.  The synchronize_rcu()
-primitive write-acquires this same lock, then immediately releases
-it.  This means that once synchronize_rcu() exits, all RCU read-side
-critical sections that were in progress before synchronize_rcu() was
-called are guaranteed to have completed -- there is no way that
-synchronize_rcu() would have been able to write-acquire the lock
-otherwise.
+primitive write-acquires this same lock, then releases it.  This means
+that once synchronize_rcu() exits, all RCU read-side critical sections
+that were in progress before synchronize_rcu() was called are guaranteed
+to have completed -- there is no way that synchronize_rcu() would have
+been able to write-acquire the lock otherwise.  The smp_mb__after_spinlock()
+promotes synchronize_rcu() to a full memory barrier in compliance with
+the "Memory-Barrier Guarantees" listed in:
+
+	Documentation/RCU/Design/Requirements/Requirements.html.
 
 It is possible to nest rcu_read_lock(), since reader-writer locks may
 be recursively acquired.  Note also that rcu_read_lock() is immune
@@ -816,11 +820,13 @@ RCU list traversal:
 	list_next_rcu
 	list_for_each_entry_rcu
 	list_for_each_entry_continue_rcu
+	list_for_each_entry_from_rcu
 	hlist_first_rcu
 	hlist_next_rcu
 	hlist_pprev_rcu
 	hlist_for_each_entry_rcu
 	hlist_for_each_entry_rcu_bh
+	hlist_for_each_entry_from_rcu
 	hlist_for_each_entry_continue_rcu
 	hlist_for_each_entry_continue_rcu_bh
 	hlist_nulls_first_rcu
