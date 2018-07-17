@@ -157,35 +157,20 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 {
 	struct btree_iter *iter;
 	struct bkey_inode_buf *inode_p;
-	struct bkey_s_c k;
-	u64 inum = inode->v.i_ino;
 	int ret;
 
-	lockdep_assert_held(&inode->ei_update_lock);
-
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS(inum, 0),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
+			POS(inode->v.i_ino, 0),
+			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	k = bch2_btree_iter_peek_slot(iter);
-	if ((ret = btree_iter_err(k)))
+	/* The btree node lock is our lock on the inode: */
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
 		return ret;
 
-	if (WARN_ONCE(k.k->type != BCH_INODE_FS,
-		      "inode %llu not found when updating", inum))
-		return -ENOENT;
-
-	ret = bch2_inode_unpack(bkey_s_c_to_inode(k), inode_u);
-	if (WARN_ONCE(ret,
-		      "error %i unpacking inode %llu", ret, inum))
-		return -ENOENT;
-
-	BUG_ON(inode_u->bi_size != inode->ei_inode.bi_size);
-
-	BUG_ON(inode_u->bi_size != inode->ei_inode.bi_size &&
-	       !(inode_u->bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-	       inode_u->bi_size > i_size_read(&inode->v));
+	*inode_u = inode->ei_inode;
 
 	if (set) {
 		ret = set(inode, inode_u, p);
@@ -505,8 +490,6 @@ static int __bch2_link(struct bch_fs *c,
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
-	lockdep_assert_held(&inode->v.i_rwsem);
-
 	bch2_trans_init(&trans, c);
 retry:
 	bch2_trans_begin(&trans);
@@ -542,6 +525,8 @@ static int bch2_link(struct dentry *old_dentry, struct inode *vdir,
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_inode_info *inode = to_bch_ei(old_dentry->d_inode);
 	int ret;
+
+	lockdep_assert_held(&inode->v.i_rwsem);
 
 	ret = __bch2_link(c, inode, dir, dentry);
 	if (unlikely(ret))

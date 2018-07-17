@@ -355,8 +355,6 @@ bchfs_extent_update_hook(struct extent_insert_hook *hook,
 		h->inode_u.bi_size = offset;
 		do_pack = true;
 
-		inode->ei_inode.bi_size = offset;
-
 		spin_lock(&inode->v.i_lock);
 		if (offset > inode->v.i_size) {
 			if (h->op->is_dio)
@@ -478,6 +476,7 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 					&hook.hook, op_journal_seq(wop),
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOUNLOCK|
 					BTREE_INSERT_USE_RESERVE,
 					BTREE_INSERT_ENTRY(extent_iter, k));
 		}
@@ -492,6 +491,9 @@ err:
 			continue;
 		if (ret)
 			break;
+
+		if (hook.need_inode_update)
+			op->inode->ei_inode = hook.inode_u;
 
 		BUG_ON(bkey_cmp(extent_iter->pos, k->k.p) < 0);
 		bch2_keylist_pop_front(keys);
