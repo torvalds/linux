@@ -998,7 +998,7 @@ static int pp_get_display_power_level(void *handle,
 static int pp_get_current_clocks(void *handle,
 		struct amd_pp_clock_info *clocks)
 {
-	struct amd_pp_simple_clock_info simple_clocks;
+	struct amd_pp_simple_clock_info simple_clocks = { 0 };
 	struct pp_clock_info hw_clocks;
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -1034,7 +1034,10 @@ static int pp_get_current_clocks(void *handle,
 	clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
 	clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
 
-	clocks->max_clocks_state = simple_clocks.level;
+	if (simple_clocks.level == 0)
+		clocks->max_clocks_state = PP_DAL_POWERLEVEL_7;
+	else
+		clocks->max_clocks_state = simple_clocks.level;
 
 	if (0 == phm_get_current_shallow_sleep_clocks(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks)) {
 		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
@@ -1136,6 +1139,8 @@ static int pp_get_display_mode_validation_clocks(void *handle,
 
 	if (!hwmgr || !hwmgr->pm_en ||!clocks)
 		return -EINVAL;
+
+	clocks->level = PP_DAL_POWERLEVEL_7;
 
 	mutex_lock(&hwmgr->smu_lock);
 
