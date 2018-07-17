@@ -93,6 +93,7 @@ enum hwmon_temp_attributes {
 #define HWMON_T_MIN_ALARM	BIT(hwmon_temp_min_alarm)
 #define HWMON_T_MAX_ALARM	BIT(hwmon_temp_max_alarm)
 #define HWMON_T_CRIT_ALARM	BIT(hwmon_temp_crit_alarm)
+#define HWMON_T_LCRIT_ALARM	BIT(hwmon_temp_lcrit_alarm)
 #define HWMON_T_EMERGENCY_ALARM	BIT(hwmon_temp_emergency_alarm)
 #define HWMON_T_FAULT		BIT(hwmon_temp_fault)
 #define HWMON_T_OFFSET		BIT(hwmon_temp_offset)
