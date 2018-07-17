@@ -651,7 +651,8 @@ xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
 	int		whichfork,
 	xfs_off_t	offset,
-	xfs_bmbt_irec_t *imap)
+	xfs_bmbt_irec_t *imap,
+	unsigned int	*cow_seq)
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	offset_fsb, last_block;
@@ -766,6 +767,8 @@ xfs_iomap_write_allocate(
 			if (error)
 				goto error0;
 
+			if (whichfork == XFS_COW_FORK)
+				*cow_seq = XFS_IFORK_PTR(ip, whichfork)->if_seq;
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		}
 

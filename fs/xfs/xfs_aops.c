@@ -29,6 +29,7 @@
 struct xfs_writepage_ctx {
 	struct xfs_bmbt_irec    imap;
 	unsigned int		io_type;
+	unsigned int		cow_seq;
 	struct xfs_ioend	*ioend;
 };
 
@@ -310,6 +311,7 @@ xfs_map_blocks(
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			count = i_blocksize(inode);
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset), end_fsb;
+	xfs_fileoff_t		cow_fsb = NULLFILEOFF;
 	struct xfs_bmbt_irec	imap;
 	int			whichfork = XFS_DATA_FORK;
 	struct xfs_iext_cursor	icur;
@@ -333,12 +335,23 @@ xfs_map_blocks(
 	 * COW fork blocks can overlap data fork blocks even if the blocks
 	 * aren't shared.  COW I/O always takes precedent, so we must always
 	 * check for overlap on reflink inodes unless the mapping is already a
-	 * COW one.
+	 * COW one, or the COW fork hasn't changed from the last time we looked
+	 * at it.
+	 *
+	 * It's safe to check the COW fork if_seq here without the ILOCK because
+	 * we've indirectly protected against concurrent updates: writeback has
+	 * the page locked, which prevents concurrent invalidations by reflink
+	 * and directio and prevents concurrent buffered writes to the same
+	 * page.  Changes to if_seq always happen under i_lock, which protects
+	 * against concurrent updates and provides a memory barrier on the way
+	 * out that ensures that we always see the current value.
 	 */
 	imap_valid = offset_fsb >= wpc->imap.br_startoff &&
 		     offset_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount;
 	if (imap_valid &&
-	    (!xfs_inode_has_cow_data(ip) || wpc->io_type == XFS_IO_COW))
+	    (!xfs_inode_has_cow_data(ip) ||
+	     wpc->io_type == XFS_IO_COW ||
+	     wpc->cow_seq == ip->i_cowfp->if_seq))
 		return 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -364,8 +377,10 @@ xfs_map_blocks(
 	 * it directly instead of looking up anything in the data fork.
 	 */
 	if (xfs_inode_has_cow_data(ip) &&
-	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap) &&
-	    imap.br_startoff <= offset_fsb) {
+	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap))
+		cow_fsb = imap.br_startoff;
+	if (cow_fsb != NULLFILEOFF && cow_fsb <= offset_fsb) {
+		wpc->cow_seq = ip->i_cowfp->if_seq;
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		/*
 		 * Truncate can race with writeback since writeback doesn't
@@ -411,6 +426,16 @@ xfs_map_blocks(
 		imap.br_startblock = HOLESTARTBLOCK;
 		wpc->io_type = XFS_IO_HOLE;
 	} else {
+		/*
+		 * Truncate to the next COW extent if there is one.  This is the
+		 * only opportunity to do this because we can skip COW fork
+		 * lookups for the subsequent blocks in the mapping; however,
+		 * the requirement to treat the COW range separately remains.
+		 */
+		if (cow_fsb != NULLFILEOFF &&
+		    cow_fsb < imap.br_startoff + imap.br_blockcount)
+			imap.br_blockcount = cow_fsb - imap.br_startoff;
+
 		if (isnullstartblock(imap.br_startblock)) {
 			/* got a delalloc extent */
 			wpc->io_type = XFS_IO_DELALLOC;
@@ -427,9 +452,12 @@ xfs_map_blocks(
 	trace_xfs_map_blocks_found(ip, offset, count, wpc->io_type, &imap);
 	return 0;
 allocate_blocks:
-	error = xfs_iomap_write_allocate(ip, whichfork, offset, &imap);
+	error = xfs_iomap_write_allocate(ip, whichfork, offset, &imap,
+			&wpc->cow_seq);
 	if (error)
 		return error;
+	ASSERT(whichfork == XFS_COW_FORK || cow_fsb == NULLFILEOFF ||
+	       imap.br_startoff + imap.br_blockcount <= cow_fsb);
 	wpc->imap = imap;
 	trace_xfs_map_blocks_alloc(ip, offset, count, wpc->io_type, &imap);
 	return 0;
