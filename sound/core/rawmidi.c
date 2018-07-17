@@ -338,22 +338,20 @@ int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 			    int mode, struct snd_rawmidi_file *rfile)
 {
 	struct snd_rawmidi *rmidi;
-	int err;
+	int err = 0;
 
 	if (snd_BUG_ON(!rfile))
 		return -EINVAL;
 
 	mutex_lock(&register_mutex);
 	rmidi = snd_rawmidi_search(card, device);
-	if (rmidi == NULL) {
-		mutex_unlock(&register_mutex);
-		return -ENODEV;
-	}
-	if (!try_module_get(rmidi->card->module)) {
-		mutex_unlock(&register_mutex);
-		return -ENXIO;
-	}
+	if (!rmidi)
+		err = -ENODEV;
+	else if (!try_module_get(rmidi->card->module))
+		err = -ENXIO;
 	mutex_unlock(&register_mutex);
+	if (err < 0)
+		return err;
 
 	mutex_lock(&rmidi->open_mutex);
 	err = rawmidi_open_priv(rmidi, subdevice, mode, rfile);
@@ -1581,26 +1579,25 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 					   &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT],
 					   SNDRV_RAWMIDI_STREAM_INPUT,
 					   input_count);
-	if (err < 0) {
-		snd_rawmidi_free(rmidi);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 	err = snd_rawmidi_alloc_substreams(rmidi,
 					   &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT],
 					   SNDRV_RAWMIDI_STREAM_OUTPUT,
 					   output_count);
-	if (err < 0) {
-		snd_rawmidi_free(rmidi);
-		return err;
-	}
+	if (err < 0)
+		goto error;
 	err = snd_device_new(card, SNDRV_DEV_RAWMIDI, rmidi, &ops);
-	if (err < 0) {
-		snd_rawmidi_free(rmidi);
-		return err;
-	}
+	if (err < 0)
+		goto error;
+
 	if (rrawmidi)
 		*rrawmidi = rmidi;
 	return 0;
+
+ error:
+	snd_rawmidi_free(rmidi);
+	return err;
 }
 EXPORT_SYMBOL(snd_rawmidi_new);
 
@@ -1660,30 +1657,27 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 
 	if (rmidi->device >= SNDRV_RAWMIDI_DEVICES)
 		return -ENOMEM;
+	err = 0;
 	mutex_lock(&register_mutex);
-	if (snd_rawmidi_search(rmidi->card, rmidi->device)) {
-		mutex_unlock(&register_mutex);
-		return -EBUSY;
-	}
-	list_add_tail(&rmidi->list, &snd_rawmidi_devices);
+	if (snd_rawmidi_search(rmidi->card, rmidi->device))
+		err = -EBUSY;
+	else
+		list_add_tail(&rmidi->list, &snd_rawmidi_devices);
 	mutex_unlock(&register_mutex);
+	if (err < 0)
+		return err;
+
 	err = snd_register_device(SNDRV_DEVICE_TYPE_RAWMIDI,
 				  rmidi->card, rmidi->device,
 				  &snd_rawmidi_f_ops, rmidi, &rmidi->dev);
 	if (err < 0) {
 		rmidi_err(rmidi, "unable to register\n");
-		mutex_lock(&register_mutex);
-		list_del(&rmidi->list);
-		mutex_unlock(&register_mutex);
-		return err;
+		goto error;
 	}
-	if (rmidi->ops && rmidi->ops->dev_register &&
-	    (err = rmidi->ops->dev_register(rmidi)) < 0) {
-		snd_unregister_device(&rmidi->dev);
-		mutex_lock(&register_mutex);
-		list_del(&rmidi->list);
-		mutex_unlock(&register_mutex);
-		return err;
+	if (rmidi->ops && rmidi->ops->dev_register) {
+		err = rmidi->ops->dev_register(rmidi);
+		if (err < 0)
+			goto error_unregister;
 	}
 #ifdef CONFIG_SND_OSSEMUL
 	rmidi->ossreg = 0;
@@ -1735,6 +1729,14 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	}
 #endif
 	return 0;
+
+ error_unregister:
+	snd_unregister_device(&rmidi->dev);
+ error:
+	mutex_lock(&register_mutex);
+	list_del(&rmidi->list);
+	mutex_unlock(&register_mutex);
+	return err;
 }
 
 static int snd_rawmidi_dev_disconnect(struct snd_device *device)
