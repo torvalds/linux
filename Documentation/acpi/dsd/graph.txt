@@ -55,7 +55,10 @@ endpoint. An example of such a package would be:
 Each port node contains a property extension key "port", the value of
 which is the number of the port. Each endpoint is similarly numbered
 with a property extension key "endpoint". Port numbers must be unique within a
-device and endpoint numbers must be unique within a port.
+device and endpoint numbers must be unique within a port. If a device object
+may only has a single port, then the number of that port shall be zero.
+Similarly, if a port may only have a single endpoint, the number of that
+endpoint shall be zero.
 
 The endpoint reference uses property extension with "remote-endpoint" property
 name followed by a reference in the same package. Such references consist of the
