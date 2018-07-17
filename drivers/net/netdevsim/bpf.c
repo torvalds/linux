@@ -238,8 +238,8 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	state->state = "verify";
 
 	/* Program id is not populated yet when we create the state. */
-	sprintf(name, "%u", ns->prog_id_gen++);
-	state->ddir = debugfs_create_dir(name, ns->ddir_bpf_bound_progs);
+	sprintf(name, "%u", ns->sdev->prog_id_gen++);
+	state->ddir = debugfs_create_dir(name, ns->sdev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
 		return -ENOMEM;
@@ -250,7 +250,7 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 			    &state->state, &nsim_bpf_string_fops);
 	debugfs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
 
-	list_add_tail(&state->l, &ns->bpf_bound_progs);
+	list_add_tail(&state->l, &ns->sdev->bpf_bound_progs);
 
 	prog->aux->offload->dev_priv = state;
 
@@ -497,7 +497,7 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 	}
 
 	offmap->dev_ops = &nsim_bpf_map_ops;
-	list_add_tail(&nmap->l, &ns->bpf_bound_maps);
+	list_add_tail(&nmap->l, &ns->sdev->bpf_bound_maps);
 
 	return 0;
 
@@ -582,8 +582,15 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 
 int nsim_bpf_init(struct netdevsim *ns)
 {
-	INIT_LIST_HEAD(&ns->bpf_bound_progs);
-	INIT_LIST_HEAD(&ns->bpf_bound_maps);
+	if (ns->sdev->refcnt == 1) {
+		INIT_LIST_HEAD(&ns->sdev->bpf_bound_progs);
+		INIT_LIST_HEAD(&ns->sdev->bpf_bound_maps);
+
+		ns->sdev->ddir_bpf_bound_progs =
+			debugfs_create_dir("bpf_bound_progs", ns->sdev->ddir);
+		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
+			return -ENOMEM;
+	}
 
 	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
@@ -593,10 +600,6 @@ int nsim_bpf_init(struct netdevsim *ns)
 			    &ns->bpf_bind_accept);
 	debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
 			   &ns->bpf_bind_verifier_delay);
-	ns->ddir_bpf_bound_progs =
-		debugfs_create_dir("bpf_bound_progs", ns->ddir);
-	if (IS_ERR_OR_NULL(ns->ddir_bpf_bound_progs))
-		return -ENOMEM;
 
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,
@@ -619,9 +622,12 @@ int nsim_bpf_init(struct netdevsim *ns)
 
 void nsim_bpf_uninit(struct netdevsim *ns)
 {
-	WARN_ON(!list_empty(&ns->bpf_bound_progs));
-	WARN_ON(!list_empty(&ns->bpf_bound_maps));
 	WARN_ON(ns->xdp.prog);
 	WARN_ON(ns->xdp_hw.prog);
 	WARN_ON(ns->bpf_offloaded);
+
+	if (ns->sdev->refcnt == 1) {
+		WARN_ON(!list_empty(&ns->sdev->bpf_bound_progs));
+		WARN_ON(!list_empty(&ns->sdev->bpf_bound_maps));
+	}
 }

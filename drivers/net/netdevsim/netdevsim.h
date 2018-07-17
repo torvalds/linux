@@ -35,6 +35,12 @@ struct netdevsim_shared_dev {
 	u32 switch_id;
 
 	struct dentry *ddir;
+
+	struct dentry *ddir_bpf_bound_progs;
+	u32 prog_id_gen;
+
+	struct list_head bpf_bound_progs;
+	struct list_head bpf_bound_maps;
 };
 
 #define NSIM_IPSEC_MAX_SA_COUNT		33
@@ -79,12 +85,8 @@ struct netdevsim {
 	struct xdp_attachment_info xdp;
 	struct xdp_attachment_info xdp_hw;
 
-	u32 prog_id_gen;
-
 	bool bpf_bind_accept;
 	u32 bpf_bind_verifier_delay;
-	struct dentry *ddir_bpf_bound_progs;
-	struct list_head bpf_bound_progs;
 
 	bool bpf_tc_accept;
 	bool bpf_tc_non_bound_accept;
@@ -92,7 +94,6 @@ struct netdevsim {
 	bool bpf_xdpoffload_accept;
 
 	bool bpf_map_accept;
-	struct list_head bpf_bound_maps;
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 	struct devlink *devlink;
 #endif

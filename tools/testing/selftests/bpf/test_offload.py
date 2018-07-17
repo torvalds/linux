@@ -314,6 +314,7 @@ class NetdevSim:
         self.ns = ""
 
         self.dfs_dir = '/sys/kernel/debug/netdevsim/%s' % (self.dev['ifname'])
+        self.sdev_dir = self.dfs_dir + '/sdev/'
         self.dfs_refresh()
 
     def __getitem__(self, key):
@@ -345,12 +346,12 @@ class NetdevSim:
         return data.strip()
 
     def dfs_num_bound_progs(self):
-        path = os.path.join(self.dfs_dir, "bpf_bound_progs")
+        path = os.path.join(self.sdev_dir, "bpf_bound_progs")
         _, progs = cmd('ls %s' % (path))
         return len(progs.split())
 
     def dfs_get_bound_progs(self, expected):
-        progs = DebugfsDir(os.path.join(self.dfs_dir, "bpf_bound_progs"))
+        progs = DebugfsDir(os.path.join(self.sdev_dir, "bpf_bound_progs"))
         if expected is not None:
             if len(progs) != expected:
                 fail(True, "%d BPF programs bound, expected %d" %
