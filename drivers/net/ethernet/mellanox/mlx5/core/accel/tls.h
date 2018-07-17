@@ -75,7 +75,7 @@ void mlx5_accel_tls_cleanup(struct mlx5_core_dev *mdev);
 
 #else
 
-static int
+static inline int
 mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			struct tls_crypto_info *crypto_info,
 			u32 start_offload_tcp_sn, u32 *p_swid,
