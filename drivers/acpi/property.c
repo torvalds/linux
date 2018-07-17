@@ -1122,9 +1122,9 @@ acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode)
 	if (ret)
 		return NULL;
 
-	/* Ensure this is a device node. */
+	/* Direct endpoint reference? */
 	if (!is_acpi_device_node(args.fwnode))
-		return NULL;
+		return args.nargs ? NULL : args.fwnode;
 
 	/*
 	 * Always require two arguments with the reference: port and
