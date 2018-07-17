@@ -476,7 +476,7 @@ static void destruct(struct dc *dc)
 	kfree(dc->bw_dceip);
 	dc->bw_dceip = NULL;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	kfree(dc->dcn_soc);
 	dc->dcn_soc = NULL;
 
@@ -492,7 +492,7 @@ static bool construct(struct dc *dc,
 	struct dc_context *dc_ctx;
 	struct bw_calcs_dceip *dc_dceip;
 	struct bw_calcs_vbios *dc_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 #endif
@@ -514,7 +514,7 @@ static bool construct(struct dc *dc,
 	}
 
 	dc->bw_vbios = dc_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	dcn_soc = kzalloc(sizeof(*dcn_soc), GFP_KERNEL);
 	if (!dcn_soc) {
 		dm_error("%s: failed to create dcn_soc\n", __func__);

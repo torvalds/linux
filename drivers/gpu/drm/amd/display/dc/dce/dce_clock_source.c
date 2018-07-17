@@ -592,7 +592,7 @@ static uint32_t dce110_get_pix_clk_dividers(
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 	case DCE_VERSION_12_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 #endif
 
@@ -909,7 +909,7 @@ static bool dce110_program_pix_clk(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 		unsigned dp_dto_ref_kHz = 700000;
@@ -982,7 +982,7 @@ static bool dce110_program_pix_clk(
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 	case DCE_VERSION_12_0:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 #endif
 

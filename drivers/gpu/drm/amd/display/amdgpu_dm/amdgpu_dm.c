@@ -60,7 +60,7 @@
 
 #include "modules/inc/mod_freesync.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "ivsrcid/irqsrcs_dcn_1_0.h"
 
 #include "dcn/dcn_1_0_offset.h"
@@ -1192,7 +1192,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	return 0;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 /* Register IRQ sources and initialize IRQ callbacks */
 static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 {
@@ -1526,7 +1526,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail;
 		}
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -1725,7 +1725,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 6;
 		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 4;

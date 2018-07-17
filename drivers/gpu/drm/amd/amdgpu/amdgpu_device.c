@@ -2200,7 +2200,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case CHIP_RAVEN:
 #endif
 		return amdgpu_dc != 0;

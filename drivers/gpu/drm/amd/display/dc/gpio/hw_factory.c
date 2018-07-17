@@ -43,7 +43,7 @@
 #include "dce80/hw_factory_dce80.h"
 #include "dce110/hw_factory_dce110.h"
 #include "dce120/hw_factory_dce120.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "dcn10/hw_factory_dcn10.h"
 #endif
 
@@ -81,7 +81,7 @@ bool dal_hw_factory_init(
 	case DCE_VERSION_12_0:
 		dal_hw_factory_dce120_init(factory);
 		return true;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 	case DCN_VERSION_1_0:
 		dal_hw_factory_dcn10_init(factory);
 		return true;
