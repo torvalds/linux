@@ -1957,7 +1957,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	pipe_lock(pipe);
 
-	bufs = kvmalloc_array(pipe->buffers, sizeof(struct pipe_buffer),
+	bufs = kvmalloc_array(pipe->nrbufs, sizeof(struct pipe_buffer),
 			      GFP_KERNEL);
 	if (!bufs) {
 		pipe_unlock(pipe);
