@@ -118,15 +118,6 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 }
 
 /*
- * These macros define how to determine which level of the page table holds
- * the hpdp.
- */
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
-#define HUGEPD_PGD_SHIFT PGDIR_SHIFT
-#define HUGEPD_PUD_SHIFT PUD_SHIFT
-#endif
-
-/*
  * At this point we do the placement change only for BOOK3S 64. This would
  * possibly work on other subarchs.
  */
@@ -174,13 +165,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 		}
 	}
 #else
-	if (pshift >= HUGEPD_PGD_SHIFT) {
+	if (pshift >= PGDIR_SHIFT) {
 		ptl = &mm->page_table_lock;
 		hpdp = (hugepd_t *)pg;
 	} else {
 		pdshift = PUD_SHIFT;
 		pu = pud_alloc(mm, pg, addr);
-		if (pshift >= HUGEPD_PUD_SHIFT) {
+		if (pshift >= PUD_SHIFT) {
 			ptl = pud_lockptr(mm, pu);
 			hpdp = (hugepd_t *)pu;
 		} else {
@@ -692,9 +683,9 @@ static int __init hugetlbpage_init(void)
 		else
 			pdshift = PMD_SHIFT;
 #else
-		if (shift < HUGEPD_PUD_SHIFT)
+		if (shift < PUD_SHIFT)
 			pdshift = PMD_SHIFT;
-		else if (shift < HUGEPD_PGD_SHIFT)
+		else if (shift < PGDIR_SHIFT)
 			pdshift = PUD_SHIFT;
 		else
 			pdshift = PGDIR_SHIFT;
