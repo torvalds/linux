@@ -928,7 +928,7 @@ EXPORT_SYMBOL(dentry_open);
 struct file *open_with_fake_path(const struct path *path, int flags,
 				struct inode *inode, const struct cred *cred)
 {
-	struct file *f = alloc_empty_file(flags, cred);
+	struct file *f = alloc_empty_file_noaccount(flags, cred);
 	if (!IS_ERR(f)) {
 		int error;
 
