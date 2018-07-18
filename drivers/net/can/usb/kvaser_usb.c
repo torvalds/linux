@@ -1,9 +1,5 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * Parts of this driver are based on the following:
+// SPDX-License-Identifier: GPL-2.0
+/* Parts of this driver are based on the following:
  *  - Kvaser linux leaf driver (version 4.78)
  *  - CAN driver for esd CAN-USB/2
  *  - Kvaser linux usbcanII driver (version 5.3)
