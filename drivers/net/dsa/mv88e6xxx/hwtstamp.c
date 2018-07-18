@@ -61,7 +61,11 @@ static int mv88e6xxx_ptp_write(struct mv88e6xxx_chip *chip, int addr,
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 			  struct ethtool_ts_info *info)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	const struct mv88e6xxx_ptp_ops *ptp_ops;
+	struct mv88e6xxx_chip *chip;
+
+	chip = ds->priv;
+	ptp_ops = chip->info->ops->ptp_ops;
 
 	if (!chip->info->ptp_support)
 		return -EOPNOTSUPP;
@@ -74,17 +78,7 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 	info->tx_types =
 		(1 << HWTSTAMP_TX_OFF) |
 		(1 << HWTSTAMP_TX_ON);
-	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ);
+	info->rx_filters = ptp_ops->rx_filters;
 
 	return 0;
 }
@@ -119,6 +113,14 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 	/* The switch supports timestamping both L2 and L4; one cannot be
 	 * disabled independently of the other.
 	 */
+
+	if (!(BIT(config->rx_filter) & ptp_ops->rx_filters)) {
+		config->rx_filter = HWTSTAMP_FILTER_NONE;
+		dev_dbg(chip->dev, "Unsupported rx_filter %d\n",
+			config->rx_filter);
+		return -ERANGE;
+	}
+
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tstamp_enable = false;

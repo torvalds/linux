@@ -503,6 +503,7 @@ struct mv88e6xxx_ptp_ops {
 	int arr0_sts_reg;
 	int arr1_sts_reg;
 	int dep_sts_reg;
+	u32 rx_filters;
 };
 
 #define STATS_TYPE_PORT		BIT(0)
