@@ -1191,6 +1191,16 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 		dev_info(dev, "phyup: phy%d link_rate=%d(sata)\n", phy_no, link_rate);
 		initial_fis = &hisi_hba->initial_fis[phy_no];
 		fis = &initial_fis->fis;
+
+		/* check ERR bit of Status Register */
+		if (fis->status & ATA_ERR) {
+			dev_warn(dev, "sata int: phy%d FIS status: 0x%x\n",
+				 phy_no, fis->status);
+			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+			res = IRQ_NONE;
+			goto end;
+		}
+
 		sas_phy->oob_mode = SATA_OOB_MODE;
 		attached_sas_addr[0] = 0x50;
 		attached_sas_addr[7] = phy_no;

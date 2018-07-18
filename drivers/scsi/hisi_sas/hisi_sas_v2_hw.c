@@ -3240,8 +3240,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	if (fis->status & ATA_ERR) {
 		dev_warn(dev, "sata int: phy%d FIS status: 0x%x\n", phy_no,
 				fis->status);
-		disable_phy_v2_hw(hisi_hba, phy_no);
-		enable_phy_v2_hw(hisi_hba, phy_no);
+		hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
 		res = IRQ_NONE;
 		goto end;
 	}
