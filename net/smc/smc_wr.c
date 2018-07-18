@@ -274,7 +274,6 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 	link->wr_reg.key = mr->rkey;
 	failed_wr = &link->wr_reg.wr;
 	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, &failed_wr);
-	WARN_ON(failed_wr != &link->wr_reg.wr);
 	if (rc)
 		return rc;
 
