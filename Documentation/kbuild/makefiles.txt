@@ -1105,6 +1105,12 @@ When kbuild executes, the following steps are followed (roughly):
 		target: source(s) FORCE
 	#WRONG!#	$(call if_changed, ld/objcopy/gzip/...)
 
+        Note: if_changed should not be used more than once per target.
+              It stores the executed command in a corresponding .cmd
+        file and multiple calls would result in overwrites and
+        unwanted results when the target is up to date and only the
+        tests on changed commands trigger execution of commands.
+
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
 
