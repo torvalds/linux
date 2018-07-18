@@ -635,7 +635,7 @@ qcaspi_netdev_open(struct net_device *dev)
 		return ret;
 	}
 
-	netif_start_queue(qca->net_dev);
+	/* SPI thread takes care of TX queue */
 
 	return 0;
 }
