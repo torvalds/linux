@@ -27,7 +27,6 @@ MODULE_DEVICE_TABLE(usb, pxrc_table);
 
 struct pxrc {
 	struct input_dev	*input;
-	struct usb_device	*udev;
 	struct usb_interface	*intf;
 	struct urb		*urb;
 	struct mutex		pm_mutex;
@@ -122,6 +121,7 @@ static void pxrc_close(struct input_dev *input)
 
 static int pxrc_usb_init(struct pxrc *pxrc)
 {
+	struct usb_device *udev = interface_to_usbdev(pxrc->intf);
 	struct usb_endpoint_descriptor *epirq;
 	unsigned int pipe;
 	int retval;
@@ -145,7 +145,7 @@ static int pxrc_usb_init(struct pxrc *pxrc)
 	}
 
 	usb_set_intfdata(pxrc->intf, pxrc);
-	usb_make_path(pxrc->udev, pxrc->phys, sizeof(pxrc->phys));
+	usb_make_path(udev, pxrc->phys, sizeof(pxrc->phys));
 	strlcat(pxrc->phys, "/input0", sizeof(pxrc->phys));
 
 	pxrc->urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -154,9 +154,9 @@ static int pxrc_usb_init(struct pxrc *pxrc)
 		goto error;
 	}
 
-	pipe = usb_rcvintpipe(pxrc->udev, pxrc->epaddr),
-	usb_fill_int_urb(pxrc->urb, pxrc->udev, pipe, pxrc->data, pxrc->bsize,
-						pxrc_usb_irq, pxrc, 1);
+	pipe = usb_rcvintpipe(udev, pxrc->epaddr),
+	usb_fill_int_urb(pxrc->urb, udev, pipe, pxrc->data, pxrc->bsize,
+			 pxrc_usb_irq, pxrc, 1);
 
 error:
 	return retval;
@@ -174,7 +174,7 @@ static int pxrc_input_init(struct pxrc *pxrc)
 
 	pxrc->input->name = "PXRC Flight Controller Adapter";
 	pxrc->input->phys = pxrc->phys;
-	usb_to_input_id(pxrc->udev, &pxrc->input->id);
+	usb_to_input_id(interface_to_usbdev(pxrc->intf), &pxrc->input->id);
 
 	pxrc->input->open = pxrc_open;
 	pxrc->input->close = pxrc_close;
@@ -204,7 +204,6 @@ static int pxrc_probe(struct usb_interface *intf,
 		return -ENOMEM;
 
 	mutex_init(&pxrc->pm_mutex);
-	pxrc->udev = usb_get_dev(interface_to_usbdev(intf));
 	pxrc->intf = intf;
 
 	retval = pxrc_usb_init(pxrc);
