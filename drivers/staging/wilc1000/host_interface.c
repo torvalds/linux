@@ -1287,7 +1287,27 @@ done:
 static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
 				       u8 *assoc_resp_info,
 				       u32 max_assoc_resp_info_len,
-				       u32 *rcvd_assoc_resp_info_len);
+				       u32 *rcvd_assoc_resp_info_len)
+{
+	s32 result;
+	struct wid wid;
+
+	wid.id = WID_ASSOC_RES_INFO;
+	wid.type = WID_STR;
+	wid.val = assoc_resp_info;
+	wid.size = max_assoc_resp_info_len;
+
+	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result) {
+		*rcvd_assoc_resp_info_len = 0;
+		netdev_err(vif->ndev, "Failed to send association response\n");
+		return -EINVAL;
+	}
+
+	*rcvd_assoc_resp_info_len = wid.size;
+	return result;
+}
 
 static inline void host_int_free_user_conn_req(struct host_if_drv *hif_drv)
 {
@@ -2976,31 +2996,6 @@ int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 		wait_for_completion(&msg->work_comp);
 
 	kfree(msg);
-	return result;
-}
-
-static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
-				       u8 *assoc_resp_info,
-				       u32 max_assoc_resp_info_len,
-				       u32 *rcvd_assoc_resp_info_len)
-{
-	s32 result = 0;
-	struct wid wid;
-
-	wid.id = WID_ASSOC_RES_INFO;
-	wid.type = WID_STR;
-	wid.val = assoc_resp_info;
-	wid.size = max_assoc_resp_info_len;
-
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result) {
-		*rcvd_assoc_resp_info_len = 0;
-		netdev_err(vif->ndev, "Failed to send association response\n");
-		return -EINVAL;
-	}
-
-	*rcvd_assoc_resp_info_len = wid.size;
 	return result;
 }
 
