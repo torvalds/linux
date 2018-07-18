@@ -2409,7 +2409,7 @@ int bnxt_re_post_send(struct ib_qp *ib_qp, struct ib_send_wr *wr,
 			default:
 				break;
 			}
-			/* Fall thru to build the wqe */
+			/* fall through */
 		case IB_WR_SEND_WITH_INV:
 			rc = bnxt_re_build_send_wqe(qp, wr, &wqe);
 			break;
