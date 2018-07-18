@@ -222,6 +222,7 @@
 #define V3D_CLE_CTNCA(n) (V3D_CLE_CT0CA + 4 * n)
 #define V3D_CLE_CT0RA                                  0x00118
 #define V3D_CLE_CT1RA                                  0x0011c
+#define V3D_CLE_CTNRA(n) (V3D_CLE_CT0RA + 4 * n)
 #define V3D_CLE_CT0LC                                  0x00120
 #define V3D_CLE_CT1LC                                  0x00124
 #define V3D_CLE_CT0PC                                  0x00128

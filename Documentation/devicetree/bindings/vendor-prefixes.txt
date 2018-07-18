@@ -86,6 +86,7 @@ cubietech	Cubietech, Ltd.
 cypress	Cypress Semiconductor Corporation
 cznic	CZ.NIC, z.s.p.o.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
+dataimage	DataImage, Inc.
 davicom	DAVICOM Semiconductor, Inc.
 delta	Delta Electronics, Inc.
 denx	Denx Software Engineering
@@ -94,6 +95,7 @@ dh	DH electronics GmbH
 digi	Digi International Inc.
 digilent	Diglent, Inc.
 dioo	Dioo Microcircuit Co., Ltd
+dlc	DLC Display Co., Ltd.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
@@ -189,6 +191,7 @@ keymile	Keymile GmbH
 khadas	Khadas
 kiebackpeter    Kieback & Peter GmbH
 kinetic Kinetic Technologies
+kingdisplay	King & Display Technology Co., Ltd.
 kingnovel	Kingnovel Technology Co., Ltd.
 koe	Kaohsiung Opto-Electronics Inc.
 kosagi	Sutajio Ko-Usagi PTE Ltd.

@@ -148,8 +148,9 @@ int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 	if (panel_node) {
 		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
 		of_node_put(panel_node);
-		if (!fsl_dev->connector.panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(fsl_dev->connector.panel))
+			return PTR_ERR(fsl_dev->connector.panel);
+
 		return fsl_dcu_attach_panel(fsl_dev, fsl_dev->connector.panel);
 	}
 

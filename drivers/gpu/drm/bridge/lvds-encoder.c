@@ -68,9 +68,9 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 
 	panel = of_drm_find_panel(panel_node);
 	of_node_put(panel_node);
-	if (!panel) {
+	if (IS_ERR(panel)) {
 		dev_dbg(&pdev->dev, "panel not found, deferring probe\n");
-		return -EPROBE_DEFER;
+		return PTR_ERR(panel);
 	}
 
 	lvds_encoder->panel_bridge =

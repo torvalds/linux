@@ -35,19 +35,7 @@ static const char *v3d_fence_get_timeline_name(struct dma_fence *fence)
 		return "v3d-render";
 }
 
-static bool v3d_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
 const struct dma_fence_ops v3d_fence_ops = {
 	.get_driver_name = v3d_fence_get_driver_name,
 	.get_timeline_name = v3d_fence_get_timeline_name,
-	.enable_signaling = v3d_fence_enable_signaling,
-	/* Each of our fences gets signaled as complete by the IRQ
-	 * handler, so we rely on the core's tracking of signaling.
-	 */
-	.signaled = NULL,
-	.wait = dma_fence_default_wait,
-	.release = dma_fence_free,
 };

@@ -1519,6 +1519,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
+	if (IS_ERR(dsi->panel))
+		dsi->panel = NULL;
+
 	if (dsi->panel) {
 		drm_panel_attach(dsi->panel, &dsi->connector);
 		dsi->connector.status = connector_status_connected;

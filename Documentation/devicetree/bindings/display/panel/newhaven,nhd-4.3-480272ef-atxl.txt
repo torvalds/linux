@@ -1,7 +1,7 @@
-Emerging Display Technology Corp. 5.7" VGA TFT LCD panel
+Newhaven Display International 480 x 272 TFT LCD panel
 
 Required properties:
-- compatible: should be "edt,et057090dhu"
+- compatible: should be "newhaven,nhd-4.3-480272ef-atxl"
 
 This binding is compatible with the simple-panel binding, which is specified
 in simple-panel.txt in this directory.

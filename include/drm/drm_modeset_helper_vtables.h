@@ -980,11 +980,15 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This hook is to be used by drivers implementing writeback connectors
 	 * that need a point when to commit the writeback job to the hardware.
+	 * The writeback_job to commit is available in
+	 * &drm_connector_state.writeback_job.
+	 *
+	 * This hook is optional.
 	 *
 	 * This callback is used by the atomic modeset helpers.
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
-			      struct drm_writeback_job *writeback_job);
+			      struct drm_connector_state *state);
 };
 
 /**

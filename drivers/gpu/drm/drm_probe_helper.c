@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_client.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
@@ -88,9 +89,9 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 			    struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	uint32_t *ids = connector->encoder_ids;
 	enum drm_mode_status ret = MODE_OK;
-	unsigned int i;
+	struct drm_encoder *encoder;
+	int i;
 
 	/* Step 1: Validate against connector */
 	ret = drm_connector_mode_valid(connector, mode);
@@ -98,12 +99,8 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 		return ret;
 
 	/* Step 2: Validate against encoders and crtcs */
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct drm_encoder *encoder = drm_encoder_find(dev, NULL, ids[i]);
+	drm_connector_for_each_possible_encoder(connector, encoder, i) {
 		struct drm_crtc *crtc;
-
-		if (!encoder)
-			continue;
 
 		ret = drm_encoder_mode_valid(encoder, mode);
 		if (ret != MODE_OK) {
@@ -563,6 +560,8 @@ void drm_kms_helper_hotplug_event(struct drm_device *dev)
 	drm_sysfs_hotplug_event(dev);
 	if (dev->mode_config.funcs->output_poll_changed)
 		dev->mode_config.funcs->output_poll_changed(dev);
+
+	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
 

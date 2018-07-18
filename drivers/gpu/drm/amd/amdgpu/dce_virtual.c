@@ -269,25 +269,18 @@ static int dce_virtual_early_init(void *handle)
 static struct drm_encoder *
 dce_virtual_encoder(struct drm_connector *connector)
 {
-	int enc_id = connector->encoder_ids[0];
 	struct drm_encoder *encoder;
 	int i;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		if (connector->encoder_ids[i] == 0)
-			break;
-
-		encoder = drm_encoder_find(connector->dev, NULL, connector->encoder_ids[i]);
-		if (!encoder)
-			continue;
-
+	drm_connector_for_each_possible_encoder(connector, encoder, i) {
 		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
 			return encoder;
 	}
 
 	/* pick the first one */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
+	drm_connector_for_each_possible_encoder(connector, encoder, i)
+		return encoder;
+
 	return NULL;
 }
 

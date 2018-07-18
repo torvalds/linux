@@ -14,45 +14,95 @@
 
 #include "sun8i_tcon_top.h"
 
-static int sun8i_tcon_top_get_connected_ep_id(struct device_node *node,
-					      int port_id)
+static bool sun8i_tcon_top_node_is_tcon_top(struct device_node *node)
 {
-	struct device_node *ep, *remote, *port;
-	struct of_endpoint endpoint;
-
-	port = of_graph_get_port_by_id(node, port_id);
-	if (!port)
-		return -ENOENT;
-
-	for_each_available_child_of_node(port, ep) {
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote)
-			continue;
-
-		if (of_device_is_available(remote)) {
-			of_graph_parse_endpoint(ep, &endpoint);
-
-			of_node_put(remote);
-
-			return endpoint.id;
-		}
-
-		of_node_put(remote);
-	}
-
-	return -ENOENT;
+	return !!of_match_node(sun8i_tcon_top_of_table, node);
 }
 
+int sun8i_tcon_top_set_hdmi_src(struct device *dev, int tcon)
+{
+	struct sun8i_tcon_top *tcon_top = dev_get_drvdata(dev);
+	unsigned long flags;
+	u32 val;
+
+	if (!sun8i_tcon_top_node_is_tcon_top(dev->of_node)) {
+		dev_err(dev, "Device is not TCON TOP!\n");
+		return -EINVAL;
+	}
+
+	if (tcon < 2 || tcon > 3) {
+		dev_err(dev, "TCON index must be 2 or 3!\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&tcon_top->reg_lock, flags);
+
+	val = readl(tcon_top->regs + TCON_TOP_GATE_SRC_REG);
+	val &= ~TCON_TOP_HDMI_SRC_MSK;
+	val |= FIELD_PREP(TCON_TOP_HDMI_SRC_MSK, tcon - 1);
+	writel(val, tcon_top->regs + TCON_TOP_GATE_SRC_REG);
+
+	spin_unlock_irqrestore(&tcon_top->reg_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(sun8i_tcon_top_set_hdmi_src);
+
+int sun8i_tcon_top_de_config(struct device *dev, int mixer, int tcon)
+{
+	struct sun8i_tcon_top *tcon_top = dev_get_drvdata(dev);
+	unsigned long flags;
+	u32 reg;
+
+	if (!sun8i_tcon_top_node_is_tcon_top(dev->of_node)) {
+		dev_err(dev, "Device is not TCON TOP!\n");
+		return -EINVAL;
+	}
+
+	if (mixer > 1) {
+		dev_err(dev, "Mixer index is too high!\n");
+		return -EINVAL;
+	}
+
+	if (tcon > 3) {
+		dev_err(dev, "TCON index is too high!\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&tcon_top->reg_lock, flags);
+
+	reg = readl(tcon_top->regs + TCON_TOP_PORT_SEL_REG);
+	if (mixer == 0) {
+		reg &= ~TCON_TOP_PORT_DE0_MSK;
+		reg |= FIELD_PREP(TCON_TOP_PORT_DE0_MSK, tcon);
+	} else {
+		reg &= ~TCON_TOP_PORT_DE1_MSK;
+		reg |= FIELD_PREP(TCON_TOP_PORT_DE1_MSK, tcon);
+	}
+	writel(reg, tcon_top->regs + TCON_TOP_PORT_SEL_REG);
+
+	spin_unlock_irqrestore(&tcon_top->reg_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(sun8i_tcon_top_de_config);
+
+
 static struct clk_hw *sun8i_tcon_top_register_gate(struct device *dev,
-						   struct clk *parent,
+						   const char *parent,
 						   void __iomem *regs,
 						   spinlock_t *lock,
 						   u8 bit, int name_index)
 {
 	const char *clk_name, *parent_name;
-	int ret;
+	int ret, index;
 
-	parent_name = __clk_get_name(parent);
+	index = of_property_match_string(dev->of_node, "clock-names", parent);
+	if (index < 0)
+		return index;
+
+	parent_name = of_clk_get_parent_name(dev->of_node, index);
+
 	ret = of_property_read_string_index(dev->of_node,
 					    "clock-output-names", name_index,
 					    &clk_name);
@@ -69,14 +119,11 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 			       void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct clk *dsi, *tcon_tv0, *tcon_tv1, *tve0, *tve1;
 	struct clk_hw_onecell_data *clk_data;
 	struct sun8i_tcon_top *tcon_top;
-	bool mixer0_unused = false;
 	struct resource *res;
 	void __iomem *regs;
-	int ret, i, id;
-	u32 val;
+	int ret, i;
 
 	tcon_top = devm_kzalloc(dev, sizeof(*tcon_top), GFP_KERNEL);
 	if (!tcon_top)
@@ -103,38 +150,9 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 		return PTR_ERR(tcon_top->bus);
 	}
 
-	dsi = devm_clk_get(dev, "dsi");
-	if (IS_ERR(dsi)) {
-		dev_err(dev, "Couldn't get the dsi clock\n");
-		return PTR_ERR(dsi);
-	}
-
-	tcon_tv0 = devm_clk_get(dev, "tcon-tv0");
-	if (IS_ERR(tcon_tv0)) {
-		dev_err(dev, "Couldn't get the tcon-tv0 clock\n");
-		return PTR_ERR(tcon_tv0);
-	}
-
-	tcon_tv1 = devm_clk_get(dev, "tcon-tv1");
-	if (IS_ERR(tcon_tv1)) {
-		dev_err(dev, "Couldn't get the tcon-tv1 clock\n");
-		return PTR_ERR(tcon_tv1);
-	}
-
-	tve0 = devm_clk_get(dev, "tve0");
-	if (IS_ERR(tve0)) {
-		dev_err(dev, "Couldn't get the tve0 clock\n");
-		return PTR_ERR(tve0);
-	}
-
-	tve1 = devm_clk_get(dev, "tve1");
-	if (IS_ERR(tve1)) {
-		dev_err(dev, "Couldn't get the tve1 clock\n");
-		return PTR_ERR(tve1);
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
+	tcon_top->regs = regs;
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -150,50 +168,6 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 		goto err_assert_reset;
 	}
 
-	val = 0;
-
-	/* check if HDMI mux output is connected */
-	if (sun8i_tcon_top_get_connected_ep_id(dev->of_node, 5) >= 0) {
-		/* find HDMI input endpoint id, if it is connected at all*/
-		id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 4);
-		if (id >= 0)
-			val = FIELD_PREP(TCON_TOP_HDMI_SRC_MSK, id + 1);
-		else
-			DRM_DEBUG_DRIVER("TCON TOP HDMI input is not connected\n");
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP HDMI output is not connected\n");
-	}
-
-	writel(val, regs + TCON_TOP_GATE_SRC_REG);
-
-	val = 0;
-
-	/* process mixer0 mux output */
-	id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 1);
-	if (id >= 0) {
-		val = FIELD_PREP(TCON_TOP_PORT_DE0_MSK, id);
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP mixer0 output is not connected\n");
-		mixer0_unused = true;
-	}
-
-	/* process mixer1 mux output */
-	id = sun8i_tcon_top_get_connected_ep_id(dev->of_node, 3);
-	if (id >= 0) {
-		val |= FIELD_PREP(TCON_TOP_PORT_DE1_MSK, id);
-
-		/*
-		 * mixer0 mux has priority over mixer1 mux. We have to
-		 * make sure mixer0 doesn't overtake TCON from mixer1.
-		 */
-		if (mixer0_unused && id == 0)
-			val |= FIELD_PREP(TCON_TOP_PORT_DE0_MSK, 1);
-	} else {
-		DRM_DEBUG_DRIVER("TCON TOP mixer1 output is not connected\n");
-	}
-
-	writel(val, regs + TCON_TOP_PORT_SEL_REG);
-
 	/*
 	 * TCON TOP has two muxes, which select parent clock for each TCON TV
 	 * channel clock. Parent could be either TCON TV or TVE clock. For now
@@ -203,17 +177,17 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	 * to TVE clock parent.
 	 */
 	clk_data->hws[CLK_TCON_TOP_TV0] =
-		sun8i_tcon_top_register_gate(dev, tcon_tv0, regs,
+		sun8i_tcon_top_register_gate(dev, "tcon-tv0", regs,
 					     &tcon_top->reg_lock,
 					     TCON_TOP_TCON_TV0_GATE, 0);
 
 	clk_data->hws[CLK_TCON_TOP_TV1] =
-		sun8i_tcon_top_register_gate(dev, tcon_tv1, regs,
+		sun8i_tcon_top_register_gate(dev, "tcon-tv1", regs,
 					     &tcon_top->reg_lock,
 					     TCON_TOP_TCON_TV1_GATE, 1);
 
 	clk_data->hws[CLK_TCON_TOP_DSI] =
-		sun8i_tcon_top_register_gate(dev, dsi, regs,
+		sun8i_tcon_top_register_gate(dev, "dsi", regs,
 					     &tcon_top->reg_lock,
 					     TCON_TOP_TCON_DSI_GATE, 2);
 

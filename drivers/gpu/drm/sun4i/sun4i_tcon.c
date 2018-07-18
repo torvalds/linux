@@ -811,6 +811,7 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 	 * remote output id. If this for some reason can't be done, 0
 	 * is used as input port id.
 	 */
+	of_node_put(port);
 	port = of_graph_get_remote_port(ep);
 	if (!of_property_read_u32(port, "reg", &reg) && reg > 0)
 		reg -= 1;

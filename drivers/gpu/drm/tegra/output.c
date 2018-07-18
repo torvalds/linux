@@ -110,8 +110,8 @@ int tegra_output_probe(struct tegra_output *output)
 	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
 	if (panel) {
 		output->panel = of_drm_find_panel(panel);
-		if (!output->panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(output->panel))
+			return PTR_ERR(output->panel);
 
 		of_node_put(panel);
 	}

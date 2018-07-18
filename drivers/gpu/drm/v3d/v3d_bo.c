@@ -227,37 +227,19 @@ v3d_set_mmap_vma_flags(struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 }
 
-int v3d_gem_fault(struct vm_fault *vmf)
+vm_fault_t v3d_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct v3d_bo *bo = to_v3d_bo(obj);
-	unsigned long pfn;
+	pfn_t pfn;
 	pgoff_t pgoff;
-	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
 	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
-	pfn = page_to_pfn(bo->pages[pgoff]);
+	pfn = __pfn_to_pfn_t(page_to_pfn(bo->pages[pgoff]), PFN_DEV);
 
-	ret = vm_insert_mixed(vma, vmf->address, __pfn_to_pfn_t(pfn, PFN_DEV));
-
-	switch (ret) {
-	case -EAGAIN:
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-	case -EBUSY:
-		/*
-		 * EBUSY is ok: this just means that another thread
-		 * already did the job.
-		 */
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_mixed(vma, vmf->address, pfn);
 }
 
 int v3d_mmap(struct file *filp, struct vm_area_struct *vma)

@@ -403,20 +403,10 @@ static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *c
 	return &intel_dp->mst_encoders[crtc->pipe]->base.base;
 }
 
-static struct drm_encoder *intel_mst_best_encoder(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_dp *intel_dp = intel_connector->mst_port;
-	if (!intel_dp)
-		return NULL;
-	return &intel_dp->mst_encoders[0]->base.base;
-}
-
 static const struct drm_connector_helper_funcs intel_dp_mst_connector_helper_funcs = {
 	.get_modes = intel_dp_mst_get_modes,
 	.mode_valid = intel_dp_mst_mode_valid,
 	.atomic_best_encoder = intel_mst_atomic_best_encoder,
-	.best_encoder = intel_mst_best_encoder,
 	.atomic_check = intel_dp_mst_atomic_check,
 };
 

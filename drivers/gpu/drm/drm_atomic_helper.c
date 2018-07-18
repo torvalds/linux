@@ -645,7 +645,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		if (ret)
 			return ret;
 
-		connectors_mask += BIT(i);
+		connectors_mask |= BIT(i);
 	}
 
 	/*
@@ -1184,10 +1184,12 @@ static void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
 		const struct drm_connector_helper_funcs *funcs;
 
 		funcs = connector->helper_private;
+		if (!funcs->atomic_commit)
+			continue;
 
 		if (new_conn_state->writeback_job && new_conn_state->writeback_job->fb) {
 			WARN_ON(connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-			funcs->atomic_commit(connector, new_conn_state->writeback_job);
+			funcs->atomic_commit(connector, new_conn_state);
 		}
 	}
 }
@@ -1448,6 +1450,8 @@ void drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
+	drm_atomic_helper_fake_vblank(old_state);
+
 	drm_atomic_helper_commit_hw_done(old_state);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
@@ -1476,6 +1480,8 @@ void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_planes(dev, old_state,
 					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
+	drm_atomic_helper_fake_vblank(old_state);
 
 	drm_atomic_helper_commit_hw_done(old_state);
 
@@ -2050,6 +2056,45 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
+
+/**
+ * drm_atomic_helper_fake_vblank - fake VBLANK events if needed
+ * @old_state: atomic state object with old state structures
+ *
+ * This function walks all CRTCs and fake VBLANK events on those with
+ * &drm_crtc_state.no_vblank set to true and &drm_crtc_state.event != NULL.
+ * The primary use of this function is writeback connectors working in oneshot
+ * mode and faking VBLANK events. In this case they only fake the VBLANK event
+ * when a job is queued, and any change to the pipeline that does not touch the
+ * connector is leading to timeouts when calling
+ * drm_atomic_helper_wait_for_vblanks() or
+ * drm_atomic_helper_wait_for_flip_done().
+ *
+ * This is part of the atomic helper support for nonblocking commits, see
+ * drm_atomic_helper_setup_commit() for an overview.
+ */
+void drm_atomic_helper_fake_vblank(struct drm_atomic_state *old_state)
+{
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		unsigned long flags;
+
+		if (!new_crtc_state->no_vblank)
+			continue;
+
+		spin_lock_irqsave(&old_state->dev->event_lock, flags);
+		if (new_crtc_state->event) {
+			drm_crtc_send_vblank_event(crtc,
+						   new_crtc_state->event);
+			new_crtc_state->event = NULL;
+		}
+		spin_unlock_irqrestore(&old_state->dev->event_lock, flags);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_fake_vblank);
 
 /**
  * drm_atomic_helper_commit_hw_done - setup possible nonblocking commit

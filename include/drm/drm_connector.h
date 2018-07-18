@@ -290,6 +290,10 @@ struct drm_display_info {
 #define DRM_BUS_FLAG_DATA_MSB_TO_LSB	(1<<4)
 /* data is transmitted LSB to MSB on the bus */
 #define DRM_BUS_FLAG_DATA_LSB_TO_MSB	(1<<5)
+/* drive sync on pos. edge */
+#define DRM_BUS_FLAG_SYNC_POSEDGE	(1<<6)
+/* drive sync on neg. edge */
+#define DRM_BUS_FLAG_SYNC_NEGEDGE	(1<<7)
 
 	/**
 	 * @bus_flags: Additional information (like pixel signal polarity) for
@@ -1187,6 +1191,9 @@ struct drm_connector *
 drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
 void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
 
+bool drm_connector_has_possible_encoder(struct drm_connector *connector,
+					struct drm_encoder *encoder);
+
 /**
  * drm_for_each_connector_iter - connector_list iterator macro
  * @connector: &struct drm_connector pointer used as cursor
@@ -1198,5 +1205,18 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))
+
+/**
+ * drm_connector_for_each_possible_encoder - iterate connector's possible encoders
+ * @connector: &struct drm_connector pointer
+ * @encoder: &struct drm_encoder pointer used as cursor
+ * @__i: int iteration cursor, for macro-internal use
+ */
+#define drm_connector_for_each_possible_encoder(connector, encoder, __i) \
+	for ((__i) = 0; (__i) < ARRAY_SIZE((connector)->encoder_ids) && \
+		     (connector)->encoder_ids[(__i)] != 0; (__i)++) \
+		for_each_if((encoder) = \
+			    drm_encoder_find((connector)->dev, NULL, \
+					     (connector)->encoder_ids[(__i)])) \
 
 #endif
