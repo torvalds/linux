@@ -42,12 +42,9 @@ struct amdgpu_uvd_inst {
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	void			*saved_bo;
-	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
-	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
 	struct amdgpu_ring	ring;
 	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
-	struct drm_sched_entity entity;
 	uint32_t                srbm_soft_reset;
 };
 
@@ -56,10 +53,13 @@ struct amdgpu_uvd {
 	unsigned		fw_version;
 	unsigned		max_handles;
 	unsigned		num_enc_rings;
-	uint8_t		num_uvd_inst;
+	uint8_t			num_uvd_inst;
 	bool			address_64_bit;
 	bool			use_ctx_buf;
-	struct amdgpu_uvd_inst		inst[AMDGPU_MAX_UVD_INSTANCES];
+	struct amdgpu_uvd_inst	inst[AMDGPU_MAX_UVD_INSTANCES];
+	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
+	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
+	struct drm_sched_entity entity;
 	struct delayed_work	idle_work;
 };
 
