@@ -85,7 +85,7 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 /* Command header size */
 #define CMD_HEADER_LEN			2
 
-/* Can message flags */
+/* CAN message flags */
 #define MSG_FLAG_ERROR_FRAME		BIT(0)
 #define MSG_FLAG_OVERRUN		BIT(1)
 #define MSG_FLAG_NERR			BIT(2)
@@ -95,7 +95,7 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 #define MSG_FLAG_TX_ACK			BIT(6)
 #define MSG_FLAG_TX_REQUEST		BIT(7)
 
-/* Can states (M16C CxSTRH register) */
+/* CAN states (M16C CxSTRH register) */
 #define M16C_STATE_BUS_RESET		BIT(0)
 #define M16C_STATE_BUS_ERROR		BIT(4)
 #define M16C_STATE_BUS_PASSIVE		BIT(5)
@@ -866,14 +866,14 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 	priv = dev->nets[es->channel];
 	stats = &priv->netdev->stats;
 
-	/* Update all of the can interface's state and error counters before
+	/* Update all of the CAN interface's state and error counters before
 	 * trying any memory allocation that can actually fail with -ENOMEM.
 	 *
-	 * We send a temporary stack-allocated error can frame to
+	 * We send a temporary stack-allocated error CAN frame to
 	 * can_change_state() for the very same reason.
 	 *
 	 * TODO: Split can_change_state() responsibility between updating the
-	 * can interface's state and counters, and the setting up of can error
+	 * CAN interface's state and counters, and the setting up of CAN error
 	 * frame ID and data to userspace. Remove stack allocation afterwards.
 	 */
 	old_state = priv->can.state;
@@ -939,7 +939,7 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 	netif_rx(skb);
 }
 
-/* For USBCAN, report error to userspace iff the channels's errors counter
+/* For USBCAN, report error to userspace if the channels's errors counter
  * has changed, or we're the only channel seeing a bus error state.
  */
 static void kvaser_usbcan_conditionally_rx_error(const struct kvaser_usb *dev,
@@ -1896,7 +1896,7 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev,
 
 	err = register_candev(netdev);
 	if (err) {
-		dev_err(&dev->intf->dev, "Failed to register can device\n");
+		dev_err(&dev->intf->dev, "Failed to register CAN device\n");
 		free_candev(netdev);
 		dev->nets[channel] = NULL;
 		return err;
