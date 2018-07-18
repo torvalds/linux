@@ -524,7 +524,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 					conn_info->resp_ies,
 					conn_info->resp_ies_len, connect_status,
 					GFP_KERNEL);
-	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF)    {
+	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
 		wilc_optaining_ip = false;
 		p2p_local_random = 0x01;
 		p2p_recv_random = 0x00;

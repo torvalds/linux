@@ -604,7 +604,7 @@ static void wilc_wlan_deinitialize(struct net_device *dev)
 		return;
 	}
 
-	if (wl->initialized)	{
+	if (wl->initialized) {
 		netdev_info(dev, "Deinitializing wilc1000...\n");
 
 		if (!wl->dev_irq_num &&

@@ -799,7 +799,7 @@ static void handle_scan(struct work_struct *work)
 	    scan_info->ch_list_len > 0) {
 		int i;
 
-		for (i = 0; i < scan_info->ch_list_len; i++)	{
+		for (i = 0; i < scan_info->ch_list_len; i++) {
 			if (scan_info->ch_freq_list[i] > 0)
 				scan_info->ch_freq_list[i] -= 1;
 		}
@@ -3337,7 +3337,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	int result = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv)	{
+	if (!hif_drv) {
 		netdev_err(vif->ndev, "hif_drv = NULL\n");
 		return -EFAULT;
 	}
@@ -3404,7 +3404,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		return;
 	hif_drv = vif->hif_drv;
 
-	if (!hif_drv || hif_drv == terminated_handle)	{
+	if (!hif_drv || hif_drv == terminated_handle) {
 		netdev_err(vif->ndev, "driver not init[%p]\n", hif_drv);
 		return;
 	}
