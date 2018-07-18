@@ -44,12 +44,12 @@ config MTD_NAND_DENALI
 	tristate
 
 config MTD_NAND_DENALI_PCI
-        tristate "Support Denali NAND controller on Intel Moorestown"
+	tristate "Support Denali NAND controller on Intel Moorestown"
 	select MTD_NAND_DENALI
 	depends on PCI
-        help
-          Enable the driver for NAND flash on Intel Moorestown, using the
-          Denali NAND controller core.
+	help
+	  Enable the driver for NAND flash on Intel Moorestown, using the
+	  Denali NAND controller core.
 
 config MTD_NAND_DENALI_DT
 	tristate "Support Denali NAND controller as a DT device"
@@ -80,7 +80,7 @@ config MTD_NAND_OMAP2
 	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-          Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
+	  Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
 	  and Keystone platforms.
 
 config MTD_NAND_OMAP_BCH
@@ -138,7 +138,7 @@ config MTD_NAND_NDFC
 	depends on 4xx
 	select MTD_NAND_ECC_SMC
 	help
-	 NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
+	  NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
 
 config MTD_NAND_S3C2410_CLKSTOP
 	bool "Samsung S3C NAND IDLE clock stop"
@@ -170,40 +170,40 @@ config MTD_NAND_DISKONCHIP
 	  these devices.
 
 config MTD_NAND_DISKONCHIP_PROBE_ADVANCED
-        bool "Advanced detection options for DiskOnChip"
-        depends on MTD_NAND_DISKONCHIP
-        help
-          This option allows you to specify nonstandard address at which to
-          probe for a DiskOnChip, or to change the detection options.  You
-          are unlikely to need any of this unless you are using LinuxBIOS.
-          Say 'N'.
+	bool "Advanced detection options for DiskOnChip"
+	depends on MTD_NAND_DISKONCHIP
+	help
+	  This option allows you to specify nonstandard address at which to
+	  probe for a DiskOnChip, or to change the detection options.  You
+	  are unlikely to need any of this unless you are using LinuxBIOS.
+	  Say 'N'.
 
 config MTD_NAND_DISKONCHIP_PROBE_ADDRESS
-        hex "Physical address of DiskOnChip" if MTD_NAND_DISKONCHIP_PROBE_ADVANCED
-        depends on MTD_NAND_DISKONCHIP
-        default "0"
-        ---help---
-        By default, the probe for DiskOnChip devices will look for a
-        DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
-        This option allows you to specify a single address at which to probe
-        for the device, which is useful if you have other devices in that
-        range which get upset when they are probed.
+	hex "Physical address of DiskOnChip" if MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+	depends on MTD_NAND_DISKONCHIP
+	default "0"
+	help
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option allows you to specify a single address at which to probe
+	  for the device, which is useful if you have other devices in that
+	  range which get upset when they are probed.
 
-        (Note that on PowerPC, the normal probe will only check at
-        0xE4000000.)
+	  (Note that on PowerPC, the normal probe will only check at
+	  0xE4000000.)
 
-        Normally, you should leave this set to zero, to allow the probe at
-        the normal addresses.
+	  Normally, you should leave this set to zero, to allow the probe at
+	  the normal addresses.
 
 config MTD_NAND_DISKONCHIP_PROBE_HIGH
-        bool "Probe high addresses"
-        depends on MTD_NAND_DISKONCHIP_PROBE_ADVANCED
-        help
-          By default, the probe for DiskOnChip devices will look for a
-          DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
-          This option changes to make it probe between 0xFFFC8000 and
-          0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
-          useful to you.  Say 'N'.
+	bool "Probe high addresses"
+	depends on MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+	help
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option changes to make it probe between 0xFFFC8000 and
+	  0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
+	  useful to you.  Say 'N'.
 
 config MTD_NAND_DISKONCHIP_BBTWRITE
 	bool "Allow BBT writes on DiskOnChip Millennium and 2000TSOP"
@@ -345,13 +345,13 @@ config MTD_NAND_NANDSIM
 	  MTD nand layer.
 
 config MTD_NAND_GPMI_NAND
-        tristate "GPMI NAND Flash Controller driver"
-        depends on MXS_DMA
-        help
-	 Enables NAND Flash support for IMX23, IMX28 or IMX6.
-	 The GPMI controller is very powerful, with the help of BCH
-	 module, it can do the hardware ECC. The GPMI supports several
-	 NAND flashs at the same time.
+	tristate "GPMI NAND Flash Controller driver"
+	depends on MXS_DMA
+	help
+	  Enables NAND Flash support for IMX23, IMX28 or IMX6.
+	  The GPMI controller is very powerful, with the help of BCH
+	  module, it can do the hardware ECC. The GPMI supports several
+	  NAND flashs at the same time.
 
 config MTD_NAND_BRCMNAND
 	tristate "Broadcom STB NAND controller"
@@ -459,9 +459,9 @@ config MTD_NAND_SH_FLCTL
 	  for NAND Flash using FLCTL.
 
 config MTD_NAND_DAVINCI
-        tristate "Support NAND on DaVinci/Keystone SoC"
-        depends on ARCH_DAVINCI || (ARCH_KEYSTONE && TI_AEMIF)
-        help
+	tristate "Support NAND on DaVinci/Keystone SoC"
+	depends on ARCH_DAVINCI || (ARCH_KEYSTONE && TI_AEMIF)
+	help
 	  Enable the driver for NAND flash chips on Texas Instruments
 	  DaVinci/Keystone processors.
 
@@ -489,7 +489,7 @@ config MTD_NAND_JZ4740
 	tristate "Support for JZ4740 SoC NAND controller"
 	depends on MACH_JZ4740
 	help
-		Enables support for NAND Flash on JZ4740 SoC based boards.
+	  Enables support for NAND Flash on JZ4740 SoC based boards.
 
 config MTD_NAND_JZ4780
 	tristate "Support for NAND on JZ4780 SoC"
