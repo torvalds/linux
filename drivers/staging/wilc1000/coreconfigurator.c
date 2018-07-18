@@ -45,49 +45,6 @@ enum sub_frame_type {
 	FRAME_SUBTYPE_FORCE_32BIT  = 0xFFFFFFFF
 };
 
-enum info_element_id {
-	ISSID               = 0,   /* Service Set Identifier         */
-	ISUPRATES           = 1,   /* Supported Rates                */
-	IFHPARMS            = 2,   /* FH parameter set               */
-	IDSPARMS            = 3,   /* DS parameter set               */
-	ICFPARMS            = 4,   /* CF parameter set               */
-	ITIM                = 5,   /* Traffic Information Map        */
-	IIBPARMS            = 6,   /* IBSS parameter set             */
-	ICOUNTRY            = 7,   /* Country element                */
-	IEDCAPARAMS         = 12,  /* EDCA parameter set             */
-	ITSPEC              = 13,  /* Traffic Specification          */
-	ITCLAS              = 14,  /* Traffic Classification         */
-	ISCHED              = 15,  /* Schedule                       */
-	ICTEXT              = 16,  /* Challenge Text                 */
-	IPOWERCONSTRAINT    = 32,  /* Power Constraint               */
-	IPOWERCAPABILITY    = 33,  /* Power Capability               */
-	ITPCREQUEST         = 34,  /* TPC Request                    */
-	ITPCREPORT          = 35,  /* TPC Report                     */
-	ISUPCHANNEL         = 36,  /* Supported channel list         */
-	ICHSWANNOUNC        = 37,  /* Channel Switch Announcement    */
-	IMEASUREMENTREQUEST = 38,  /* Measurement request            */
-	IMEASUREMENTREPORT  = 39,  /* Measurement report             */
-	IQUIET              = 40,  /* Quiet element Info             */
-	IIBSSDFS            = 41,  /* IBSS DFS                       */
-	IERPINFO            = 42,  /* ERP Information                */
-	ITSDELAY            = 43,  /* TS Delay                       */
-	ITCLASPROCESS       = 44,  /* TCLAS Processing               */
-	IHTCAP              = 45,  /* HT Capabilities                */
-	IQOSCAP             = 46,  /* QoS Capability                 */
-	IRSNELEMENT         = 48,  /* RSN Information Element        */
-	IEXSUPRATES         = 50,  /* Extended Supported Rates       */
-	IEXCHSWANNOUNC      = 60,  /* Extended Ch Switch Announcement*/
-	IHTOPERATION        = 61,  /* HT Information                 */
-	ISECCHOFF           = 62,  /* Secondary Channel Offeset      */
-	I2040COEX           = 72,  /* 20/40 Coexistence IE           */
-	I2040INTOLCHREPORT  = 73,  /* 20/40 Intolerant channel report*/
-	IOBSSSCAN           = 74,  /* OBSS Scan parameters           */
-	IEXTCAP             = 127, /* Extended capability            */
-	IWMM                = 221, /* WMM parameters                 */
-	IWPAELEMENT         = 221, /* WPA Information Element        */
-	INFOELEM_ID_FORCE_32BIT  = 0xFFFFFFFF
-};
-
 static inline u16 get_beacon_period(u8 *data)
 {
 	u16 bcn_per;
@@ -216,7 +173,7 @@ static u8 *get_tim_elm(u8 *msa, u16 rx_len, u16 tag_param_offset)
 	index = tag_param_offset;
 
 	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == ITIM)
+		if (msa[index] == WLAN_EID_TIM)
 			return &msa[index];
 		index += (IE_HDR_LEN + msa[index + 1]);
 	}
@@ -230,7 +187,7 @@ static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
 
 	index = TAG_PARAM_OFFSET;
 	while (index < (rx_len - FCS_LEN)) {
-		if (msa[index] == IDSPARMS)
+		if (msa[index] == WLAN_EID_DS_PARAMS)
 			return msa[index + 2];
 		index += msa[index + 1] + IE_HDR_LEN;
 	}

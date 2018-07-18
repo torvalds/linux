@@ -3861,7 +3861,7 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 	u8 i, j;
 	u16 index = *out_index;
 
-	if (ies[index] == SUPP_RATES_IE) {
+	if (ies[index] == WLAN_EID_SUPP_RATES) {
 		*rates_no = ies[index + 1];
 		param->supp_rates[0] = *rates_no;
 		index += 2;
@@ -3870,7 +3870,7 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 			param->supp_rates[i + 1] = ies[index + i];
 
 		index += *rates_no;
-	} else if (ies[index] == EXT_SUPP_RATES_IE) {
+	} else if (ies[index] == WLAN_EID_EXT_SUPP_RATES) {
 		ext_rates_no = ies[index + 1];
 		if (ext_rates_no > (MAX_RATES_SUPPORTED - *rates_no))
 			param->supp_rates[0] = MAX_RATES_SUPPORTED;
@@ -3881,10 +3881,10 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 			param->supp_rates[*rates_no + i + 1] = ies[index + i];
 
 		index += ext_rates_no;
-	} else if (ies[index] == HT_CAPABILITY_IE) {
+	} else if (ies[index] == WLAN_EID_HT_CAPABILITY) {
 		param->ht_capable = true;
 		index += ies[index + 1] + 2;
-	} else if ((ies[index] == WMM_IE) &&
+	} else if ((ies[index] == WLAN_EID_VENDOR_SPECIFIC) &&
 		   (ies[index + 2] == 0x00) && (ies[index + 3] == 0x50) &&
 		   (ies[index + 4] == 0xF2) && (ies[index + 5] == 0x02) &&
 		   ((ies[index + 6] == 0x00) || (ies[index + 6] == 0x01)) &&
@@ -3894,7 +3894,7 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 		if (ies[index + 8] & BIT(7))
 			param->uapsd_cap = true;
 		index += ies[index + 1] + 2;
-	} else if ((ies[index] == P2P_IE) &&
+	} else if ((ies[index] == WLAN_EID_VENDOR_SPECIFIC) &&
 		 (ies[index + 2] == 0x50) && (ies[index + 3] == 0x6f) &&
 		 (ies[index + 4] == 0x9a) &&
 		 (ies[index + 5] == 0x09) && (ies[index + 6] == 0x0c)) {
@@ -3923,13 +3923,14 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 		memcpy(param->start_time, ies + p2p_cnt, 4);
 
 		index += ies[index + 1] + 2;
-	} else if ((ies[index] == RSN_IE) ||
-		 ((ies[index] == WPA_IE) && (ies[index + 2] == 0x00) &&
+	} else if ((ies[index] == WLAN_EID_RSN) ||
+		 ((ies[index] == WLAN_EID_VENDOR_SPECIFIC) &&
+		  (ies[index + 2] == 0x00) &&
 		  (ies[index + 3] == 0x50) && (ies[index + 4] == 0xF2) &&
 		  (ies[index + 5] == 0x01))) {
 		u16 rsn_idx = index;
 
-		if (ies[rsn_idx] == RSN_IE) {
+		if (ies[rsn_idx] == WLAN_EID_RSN) {
 			param->mode_802_11i = 2;
 		} else {
 			if (param->mode_802_11i == 0)
@@ -3970,7 +3971,7 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 		*auth_total_cnt += auth_cnt;
 		rsn_idx += offset;
 
-		if (ies[index] == RSN_IE) {
+		if (ies[index] == WLAN_EID_RSN) {
 			param->rsn_cap[0] = ies[rsn_idx];
 			param->rsn_cap[1] = ies[rsn_idx + 1];
 			rsn_idx += 2;

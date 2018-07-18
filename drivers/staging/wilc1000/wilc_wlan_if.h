@@ -71,16 +71,6 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
 
-enum {
-	SUPP_RATES_IE		= 1,
-	EXT_SUPP_RATES_IE	= 50,
-	HT_CAPABILITY_IE	= 45,
-	RSN_IE			= 48,
-	WPA_IE			= 221,
-	WMM_IE			= 221,
-	P2P_IE			= 221,
-};
-
 enum bss_types {
 	INFRASTRUCTURE		= 0,
 	INDEPENDENT,
