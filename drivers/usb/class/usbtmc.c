@@ -558,6 +558,51 @@ static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 }
 
 /*
+ * Sends a TRIGGER Bulk-OUT command message
+ * See the USBTMC-USB488 specification, Table 2.
+ *
+ * Also updates bTag_last_write.
+ */
+static int usbtmc488_ioctl_trigger(struct usbtmc_file_data *file_data)
+{
+	struct usbtmc_device_data *data = file_data->data;
+	int retval;
+	u8 *buffer;
+	int actual;
+
+	buffer = kzalloc(USBTMC_HEADER_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	buffer[0] = 128;
+	buffer[1] = data->bTag;
+	buffer[2] = ~data->bTag;
+
+	retval = usb_bulk_msg(data->usb_dev,
+			      usb_sndbulkpipe(data->usb_dev,
+					      data->bulk_out),
+			      buffer, USBTMC_HEADER_SIZE,
+			      &actual, file_data->timeout);
+
+	/* Store bTag (in case we need to abort) */
+	data->bTag_last_write = data->bTag;
+
+	/* Increment bTag -- and increment again if zero */
+	data->bTag++;
+	if (!data->bTag)
+		data->bTag++;
+
+	kfree(buffer);
+	if (retval < 0) {
+		dev_err(&data->intf->dev, "%s returned %d\n",
+			__func__, retval);
+		return retval;
+	}
+
+	return 0;
+}
+
+/*
  * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-OUT endpoint.
  * @transfer_size: number of bytes to request from the device.
  *
@@ -1308,6 +1353,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC488_IOCTL_LOCAL_LOCKOUT:
 		retval = usbtmc488_ioctl_simple(data, (void __user *)arg,
 						USBTMC488_REQUEST_LOCAL_LOCKOUT);
+		break;
+
+	case USBTMC488_IOCTL_TRIGGER:
+		retval = usbtmc488_ioctl_trigger(file_data);
 		break;
 	}
 
