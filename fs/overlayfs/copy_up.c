@@ -25,34 +25,19 @@
 
 #define OVL_COPY_UP_CHUNK_SIZE (1 << 20)
 
-static bool __read_mostly ovl_check_copy_up;
-module_param_named(check_copy_up, ovl_check_copy_up, bool,
-		   S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(ovl_check_copy_up,
-		 "Warn on copy-up when causing process also has a R/O fd open");
-
-static int ovl_check_fd(const void *data, struct file *f, unsigned int fd)
+static int ovl_ccup_set(const char *buf, const struct kernel_param *param)
 {
-	const struct dentry *dentry = data;
-
-	if (file_inode(f) == d_inode(dentry))
-		pr_warn_ratelimited("overlayfs: Warning: Copying up %pD, but open R/O on fd %u which will cease to be coherent [pid=%d %s]\n",
-				    f, fd, current->pid, current->comm);
+	pr_warn("overlayfs: \"check_copy_up\" module option is obsolete\n");
 	return 0;
 }
 
-/*
- * Check the fds open by this process and warn if something like the following
- * scenario is about to occur:
- *
- *	fd1 = open("foo", O_RDONLY);
- *	fd2 = open("foo", O_RDWR);
- */
-static void ovl_do_check_copy_up(struct dentry *dentry)
+static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 {
-	if (ovl_check_copy_up)
-		iterate_fd(current->files, 0, ovl_check_fd, dentry);
+	return sprintf(buf, "N\n");
 }
+
+module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
+MODULE_PARM_DESC(ovl_check_copy_up, "Obsolete; does nothing");
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
@@ -719,7 +704,6 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		if (IS_ERR(ctx.link))
 			return PTR_ERR(ctx.link);
 	}
-	ovl_do_check_copy_up(ctx.lowerpath.dentry);
 
 	err = ovl_copy_up_start(dentry);
 	/* err < 0: interrupted, err > 0: raced with another copy-up */
