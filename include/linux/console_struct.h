@@ -17,7 +17,6 @@
 #include <linux/vt.h>
 #include <linux/workqueue.h>
 
-struct vt_struct;
 struct uni_pagedir;
 struct uni_screen;
 
@@ -150,7 +149,7 @@ struct vc {
 	struct vc_data *d;
 	struct work_struct SAK_work;
 
-	/* might add  scrmem, vt_struct, kbd  at some time,
+	/* might add  scrmem, kbd  at some time,
 	   to have everything in one place - the disadvantage
 	   would be that vc_cons etc can no longer be static */
 };
