@@ -722,9 +722,9 @@ unlock:
 	kfree(msg);
 }
 
-static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
+static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 {
-	s32 result = 0;
+	int result = 0;
 	u8 abort_running_scan;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
@@ -765,7 +765,7 @@ static void handle_scan(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct scan_attr *scan_info = &msg->body.scan_info;
-	s32 result = 0;
+	int result = 0;
 	struct wid wid_list[5];
 	u32 index = 0;
 	u32 i;
@@ -883,7 +883,7 @@ static void handle_connect(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct connect_attr *conn_attr = &msg->body.con_info;
-	s32 result = 0;
+	int result = 0;
 	struct wid wid_list[8];
 	u32 wid_cnt = 0, dummyval = 0;
 	u8 *cur_byte = NULL;
@@ -1148,7 +1148,7 @@ static void handle_connect_timeout(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	s32 result;
+	int result;
 	struct connect_info info;
 	struct wid wid;
 	u16 dummy_reason_code = 0;
@@ -1454,7 +1454,7 @@ static s32 host_int_get_assoc_res_info(struct wilc_vif *vif,
 				       u32 max_assoc_resp_info_len,
 				       u32 *rcvd_assoc_resp_info_len)
 {
-	s32 result;
+	int result;
 	struct wid wid;
 
 	wid.id = WID_ASSOC_RES_INFO;
@@ -1926,7 +1926,7 @@ static void handle_disconnect(struct work_struct *work)
 	struct disconnect_info disconn_info;
 	struct user_scan_req *scan_req;
 	struct user_conn_req *conn_req;
-	s32 result;
+	int result;
 	u16 dummy_reason_code = 0;
 
 	wid.id = WID_DISCONNECT;
@@ -2004,7 +2004,7 @@ static void handle_get_rssi(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	s32 result;
+	int result;
 	struct wid wid;
 
 	wid.id = WID_RSSI;
@@ -2084,7 +2084,7 @@ static void handle_get_inactive_time(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct sta_inactive_t *hif_sta_inactive = &msg->body.mac_info;
-	s32 result;
+	int result;
 	struct wid wid;
 
 	wid.id = WID_SET_STA_MAC_INACTIVE_TIME;
@@ -2126,7 +2126,7 @@ static void handle_add_beacon(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct beacon_attr *param = &msg->body.beacon_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
@@ -2181,7 +2181,7 @@ static void handle_del_beacon(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 del_beacon = 0;
 
@@ -2232,7 +2232,7 @@ static void handle_add_station(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct add_sta_param *param = &msg->body.add_sta_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
@@ -2263,7 +2263,7 @@ static void handle_del_all_sta(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct del_all_sta *param = &msg->body.del_all_sta_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *curr_byte;
 	u8 i;
@@ -2307,7 +2307,7 @@ static void handle_del_station(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct del_sta *param = &msg->body.del_sta_info;
-	s32 result;
+	int result;
 	struct wid wid;
 
 	wid.id = WID_REMOVE_STA;
@@ -2335,7 +2335,7 @@ static void handle_edit_station(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct add_sta_param *param = &msg->body.edit_sta_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
@@ -2364,7 +2364,7 @@ error:
 static int handle_remain_on_chan(struct wilc_vif *vif,
 				 struct remain_ch *hif_remain_ch)
 {
-	s32 result;
+	int result;
 	u8 remain_on_chan_flag;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
@@ -2433,7 +2433,7 @@ static void handle_register_frame(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct reg_frame *hif_reg_frame = &msg->body.reg_frame;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
@@ -2468,7 +2468,7 @@ static void handle_listen_state_expired(struct work_struct *work)
 	struct remain_ch *hif_remain_ch = &msg->body.remain_on_ch;
 	u8 remain_on_chan_flag;
 	struct wid wid;
-	s32 result;
+	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (p2p_listen_state) {
@@ -2510,7 +2510,7 @@ static void listen_timer_cb(struct timer_list *t)
 	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
 						      remain_on_ch_timer);
 	struct wilc_vif *vif = hif_drv->remain_on_ch_timer_vif;
-	s32 result;
+	int result;
 	struct host_if_msg *msg;
 
 	del_timer(&vif->hif_drv->remain_on_ch_timer);
@@ -2533,7 +2533,7 @@ static void handle_power_management(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct power_mgmt_param *pm_param = &msg->body.pwr_mgmt_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	s8 power_mode;
 
@@ -2559,7 +2559,7 @@ static void handle_set_mcast_filter(struct work_struct *work)
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
 	struct wilc_vif *vif = msg->vif;
 	struct set_multicast *hif_set_mc = &msg->body.multicast_info;
-	s32 result;
+	int result;
 	struct wid wid;
 	u8 *cur_byte;
 
@@ -3548,7 +3548,7 @@ int wilc_deinit(struct wilc_vif *vif)
 
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
-	s32 result;
+	int result;
 	struct host_if_msg *msg;
 	int id;
 	struct host_if_drv *hif_drv;
@@ -3589,7 +3589,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
-	s32 result;
+	int result;
 	struct host_if_msg *msg;
 	int id;
 	struct host_if_drv *hif_drv;
@@ -3646,7 +3646,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
-	s32 result;
+	int result;
 	int id;
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;

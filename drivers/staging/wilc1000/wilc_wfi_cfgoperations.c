@@ -615,7 +615,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct wilc_priv *priv;
 	u32 i;
-	s32 ret = 0;
+	int ret = 0;
 	u8 scan_ch_list[MAX_NUM_SCANNED_NETWORKS];
 	struct hidden_network hidden_ntwk;
 	struct wilc_vif *vif;
@@ -669,7 +669,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 static int connect(struct wiphy *wiphy, struct net_device *dev,
 		   struct cfg80211_connect_params *sme)
 {
-	s32 ret;
+	int ret;
 	u32 i;
 	u32 sel_bssi_idx = UINT_MAX;
 	u8 security = NO_ENCRYPT;
@@ -818,7 +818,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		      u16 reason_code)
 {
-	s32 ret;
+	int ret;
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
 	struct wilc_vif *vif;
@@ -914,7 +914,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 		   bool pairwise, const u8 *mac_addr, struct key_params *params)
 
 {
-	s32 ret = 0, keylen = params->key_len;
+	int ret = 0, keylen = params->key_len;
 	struct wilc_priv *priv;
 	const u8 *rx_mic = NULL;
 	const u8 *tx_mic = NULL;
@@ -1174,7 +1174,7 @@ static int change_bss(struct wiphy *wiphy, struct net_device *dev,
 
 static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	s32 ret;
+	int ret;
 	struct cfg_param_attr cfg_param_val;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
@@ -1213,7 +1213,7 @@ static int set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		     struct cfg80211_pmksa *pmksa)
 {
 	u32 i;
-	s32 ret = 0;
+	int ret = 0;
 	u8 flag = 0;
 	struct wilc_vif *vif;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
@@ -1249,7 +1249,7 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		     struct cfg80211_pmksa *pmksa)
 {
 	u32 i;
-	s32 ret = 0;
+	int ret = 0;
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 
 	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
@@ -1505,7 +1505,7 @@ static int remain_on_channel(struct wiphy *wiphy,
 			     struct ieee80211_channel *chan,
 			     unsigned int duration, u64 *cookie)
 {
-	s32 ret = 0;
+	int ret = 0;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 
@@ -1879,7 +1879,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		    struct cfg80211_ap_settings *settings)
 {
 	struct cfg80211_beacon_data *beacon = &settings->beacon;
-	s32 ret;
+	int ret;
 	struct wilc *wl;
 	struct wilc_vif *vif;
 
@@ -1916,7 +1916,7 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
-	s32 ret;
+	int ret;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 	u8 null_bssid[ETH_ALEN] = {0};
@@ -1940,7 +1940,7 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 static int add_station(struct wiphy *wiphy, struct net_device *dev,
 		       const u8 *mac, struct station_parameters *params)
 {
-	s32 ret = 0;
+	int ret = 0;
 	struct wilc_priv *priv;
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif;
@@ -1981,7 +1981,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 		       struct station_del_parameters *params)
 {
 	const u8 *mac = params->mac;
-	s32 ret = 0;
+	int ret = 0;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 	struct sta_info *info;
@@ -2009,7 +2009,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 static int change_station(struct wiphy *wiphy, struct net_device *dev,
 			  const u8 *mac, struct station_parameters *params)
 {
-	s32 ret = 0;
+	int ret = 0;
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif;
 
@@ -2215,7 +2215,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 {
 	struct wilc_priv *priv;
 	struct wireless_dev *wdev;
-	s32 ret;
+	int ret;
 
 	wdev = wilc_wfi_cfg_alloc();
 	if (!wdev) {
