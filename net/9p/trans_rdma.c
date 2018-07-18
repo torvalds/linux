@@ -396,7 +396,7 @@ static int
 post_recv(struct p9_client *client, struct p9_rdma_context *c)
 {
 	struct p9_trans_rdma *rdma = client->trans;
-	struct ib_recv_wr wr, *bad_wr;
+	struct ib_recv_wr wr;
 	struct ib_sge sge;
 
 	c->busa = ib_dma_map_single(rdma->cm_id->device,
@@ -415,7 +415,7 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 	wr.wr_cqe = &c->cqe;
 	wr.sg_list = &sge;
 	wr.num_sge = 1;
-	return ib_post_recv(rdma->qp, &wr, &bad_wr);
+	return ib_post_recv(rdma->qp, &wr, NULL);
 
  error:
 	p9_debug(P9_DEBUG_ERROR, "EIO\n");
@@ -425,7 +425,7 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 {
 	struct p9_trans_rdma *rdma = client->trans;
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_send_wr wr;
 	struct ib_sge sge;
 	int err = 0;
 	unsigned long flags;
@@ -520,7 +520,7 @@ dont_need_post_recv:
 	 * status in case of a very fast reply.
 	 */
 	req->status = REQ_STATUS_SENT;
-	err = ib_post_send(rdma->qp, &wr, &bad_wr);
+	err = ib_post_send(rdma->qp, &wr, NULL);
 	if (err)
 		goto send_error;
 
