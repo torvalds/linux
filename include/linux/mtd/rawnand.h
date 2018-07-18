@@ -1007,14 +1007,14 @@ struct nand_subop {
 	unsigned int last_instr_end_off;
 };
 
-int nand_subop_get_addr_start_off(const struct nand_subop *subop,
-				  unsigned int op_id);
-int nand_subop_get_num_addr_cyc(const struct nand_subop *subop,
-				unsigned int op_id);
-int nand_subop_get_data_start_off(const struct nand_subop *subop,
-				  unsigned int op_id);
-int nand_subop_get_data_len(const struct nand_subop *subop,
-			    unsigned int op_id);
+unsigned int nand_subop_get_addr_start_off(const struct nand_subop *subop,
+					   unsigned int op_id);
+unsigned int nand_subop_get_num_addr_cyc(const struct nand_subop *subop,
+					 unsigned int op_id);
+unsigned int nand_subop_get_data_start_off(const struct nand_subop *subop,
+					   unsigned int op_id);
+unsigned int nand_subop_get_data_len(const struct nand_subop *subop,
+				     unsigned int op_id);
 
 /**
  * struct nand_op_parser_addr_constraints - Constraints for address instructions

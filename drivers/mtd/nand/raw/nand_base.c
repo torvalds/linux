@@ -2668,8 +2668,8 @@ static bool nand_subop_instr_is_valid(const struct nand_subop *subop,
 	return subop && instr_idx < subop->ninstrs;
 }
 
-static int nand_subop_get_start_off(const struct nand_subop *subop,
-				    unsigned int instr_idx)
+static unsigned int nand_subop_get_start_off(const struct nand_subop *subop,
+					     unsigned int instr_idx)
 {
 	if (instr_idx)
 		return 0;
@@ -2688,12 +2688,12 @@ static int nand_subop_get_start_off(const struct nand_subop *subop,
  *
  * Given an address instruction, returns the offset of the first cycle to issue.
  */
-int nand_subop_get_addr_start_off(const struct nand_subop *subop,
-				  unsigned int instr_idx)
+unsigned int nand_subop_get_addr_start_off(const struct nand_subop *subop,
+					   unsigned int instr_idx)
 {
-	if (!nand_subop_instr_is_valid(subop, instr_idx) ||
-	    subop->instrs[instr_idx].type != NAND_OP_ADDR_INSTR)
-		return -EINVAL;
+	if (WARN_ON(!nand_subop_instr_is_valid(subop, instr_idx) ||
+		    subop->instrs[instr_idx].type != NAND_OP_ADDR_INSTR))
+		return 0;
 
 	return nand_subop_get_start_off(subop, instr_idx);
 }
@@ -2710,14 +2710,14 @@ EXPORT_SYMBOL_GPL(nand_subop_get_addr_start_off);
  *
  * Given an address instruction, returns the number of address cycle to issue.
  */
-int nand_subop_get_num_addr_cyc(const struct nand_subop *subop,
-				unsigned int instr_idx)
+unsigned int nand_subop_get_num_addr_cyc(const struct nand_subop *subop,
+					 unsigned int instr_idx)
 {
 	int start_off, end_off;
 
-	if (!nand_subop_instr_is_valid(subop, instr_idx) ||
-	    subop->instrs[instr_idx].type != NAND_OP_ADDR_INSTR)
-		return -EINVAL;
+	if (WARN_ON(!nand_subop_instr_is_valid(subop, instr_idx) ||
+		    subop->instrs[instr_idx].type != NAND_OP_ADDR_INSTR))
+		return 0;
 
 	start_off = nand_subop_get_addr_start_off(subop, instr_idx);
 
@@ -2742,12 +2742,12 @@ EXPORT_SYMBOL_GPL(nand_subop_get_num_addr_cyc);
  *
  * Given a data instruction, returns the offset to start from.
  */
-int nand_subop_get_data_start_off(const struct nand_subop *subop,
-				  unsigned int instr_idx)
+unsigned int nand_subop_get_data_start_off(const struct nand_subop *subop,
+					   unsigned int instr_idx)
 {
-	if (!nand_subop_instr_is_valid(subop, instr_idx) ||
-	    !nand_instr_is_data(&subop->instrs[instr_idx]))
-		return -EINVAL;
+	if (WARN_ON(!nand_subop_instr_is_valid(subop, instr_idx) ||
+		    !nand_instr_is_data(&subop->instrs[instr_idx])))
+		return 0;
 
 	return nand_subop_get_start_off(subop, instr_idx);
 }
@@ -2764,14 +2764,14 @@ EXPORT_SYMBOL_GPL(nand_subop_get_data_start_off);
  *
  * Returns the length of the chunk of data to send/receive.
  */
-int nand_subop_get_data_len(const struct nand_subop *subop,
-			    unsigned int instr_idx)
+unsigned int nand_subop_get_data_len(const struct nand_subop *subop,
+				     unsigned int instr_idx)
 {
 	int start_off = 0, end_off;
 
-	if (!nand_subop_instr_is_valid(subop, instr_idx) ||
-	    !nand_instr_is_data(&subop->instrs[instr_idx]))
-		return -EINVAL;
+	if (WARN_ON(!nand_subop_instr_is_valid(subop, instr_idx) ||
+		    !nand_instr_is_data(&subop->instrs[instr_idx])))
+		return 0;
 
 	start_off = nand_subop_get_data_start_off(subop, instr_idx);
 
