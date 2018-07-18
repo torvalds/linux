@@ -1300,9 +1300,10 @@ out:
 	return ret;
 }
 
-static int __del_qgroup_relation(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
+static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
+				 u64 dst)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
@@ -1356,7 +1357,7 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
-	ret = __del_qgroup_relation(trans, fs_info, src, dst);
+	ret = __del_qgroup_relation(trans, src, dst);
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 
 	return ret;
@@ -1429,9 +1430,8 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 	while (!list_empty(&qgroup->groups)) {
 		list = list_first_entry(&qgroup->groups,
 					struct btrfs_qgroup_list, next_group);
-		ret = __del_qgroup_relation(trans, fs_info,
-					   qgroupid,
-					   list->group->qgroupid);
+		ret = __del_qgroup_relation(trans, qgroupid,
+					    list->group->qgroupid);
 		if (ret)
 			goto out;
 	}
