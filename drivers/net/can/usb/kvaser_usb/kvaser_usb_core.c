@@ -3,6 +3,7 @@
  *  - Kvaser linux leaf driver (version 4.78)
  *  - CAN driver for esd CAN-USB/2
  *  - Kvaser linux usbcanII driver (version 5.3)
+ *  - Kvaser linux mhydra driver (version 5.24)
  *
  * Copyright (C) 2002-2018 KVASER AB, Sweden. All rights reserved.
  * Copyright (C) 2010 Matthias Fuchs <matthias.fuchs@esd.eu>, esd gmbh
@@ -64,16 +65,38 @@
 #define USB_USBCAN2_PRODUCT_ID			4
 #define USB_MEMORATOR_PRODUCT_ID		5
 
+/* Kvaser Minihydra USB devices product ids */
+#define USB_BLACKBIRD_V2_PRODUCT_ID		258
+#define USB_MEMO_PRO_5HS_PRODUCT_ID		260
+#define USB_USBCAN_PRO_5HS_PRODUCT_ID		261
+#define USB_USBCAN_LIGHT_4HS_PRODUCT_ID		262
+#define USB_LEAF_PRO_HS_V2_PRODUCT_ID		263
+#define USB_USBCAN_PRO_2HS_V2_PRODUCT_ID	264
+#define USB_MEMO_2HS_PRODUCT_ID			265
+#define USB_MEMO_PRO_2HS_V2_PRODUCT_ID		266
+#define USB_HYBRID_CANLIN_PRODUCT_ID		267
+#define USB_ATI_USBCAN_PRO_2HS_V2_PRODUCT_ID	268
+#define USB_ATI_MEMO_PRO_2HS_V2_PRODUCT_ID	269
+#define USB_HYBRID_PRO_CANLIN_PRODUCT_ID	270
+
 static inline bool kvaser_is_leaf(const struct usb_device_id *id)
 {
-	return id->idProduct >= USB_LEAF_DEVEL_PRODUCT_ID &&
-	       id->idProduct <= USB_MINI_PCIE_2HS_PRODUCT_ID;
+	return (id->idProduct >= USB_LEAF_DEVEL_PRODUCT_ID &&
+		id->idProduct <= USB_CAN_R_PRODUCT_ID) ||
+		(id->idProduct >= USB_LEAF_LITE_V2_PRODUCT_ID &&
+		 id->idProduct <= USB_MINI_PCIE_2HS_PRODUCT_ID);
 }
 
 static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 {
 	return id->idProduct >= USB_USBCAN_REVB_PRODUCT_ID &&
 	       id->idProduct <= USB_MEMORATOR_PRODUCT_ID;
+}
+
+static inline bool kvaser_is_hydra(const struct usb_device_id *id)
+{
+	return id->idProduct >= USB_BLACKBIRD_V2_PRODUCT_ID &&
+	       id->idProduct <= USB_HYBRID_PRO_CANLIN_PRODUCT_ID;
 }
 
 static const struct usb_device_id kvaser_usb_table[] = {
@@ -140,6 +163,20 @@ static const struct usb_device_id kvaser_usb_table[] = {
 		.driver_info = KVASER_USB_HAS_TXRX_ERRORS },
 	{ USB_DEVICE(KVASER_VENDOR_ID, USB_VCI2_PRODUCT_ID),
 		.driver_info = KVASER_USB_HAS_TXRX_ERRORS },
+
+	/* Minihydra USB product IDs */
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_BLACKBIRD_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_MEMO_PRO_5HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN_PRO_5HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN_LIGHT_4HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_LEAF_PRO_HS_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN_PRO_2HS_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_MEMO_2HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_MEMO_PRO_2HS_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_HYBRID_CANLIN_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_ATI_USBCAN_PRO_2HS_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_ATI_MEMO_PRO_2HS_V2_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_HYBRID_PRO_CANLIN_PRODUCT_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, kvaser_usb_table);
@@ -633,12 +670,19 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev,
 	priv->can.bittiming_const = dev->cfg->bittiming_const;
 	priv->can.do_set_bittiming = dev->ops->dev_set_bittiming;
 	priv->can.do_set_mode = dev->ops->dev_set_mode;
-	if (id->driver_info & KVASER_USB_HAS_TXRX_ERRORS)
+	if ((id->driver_info & KVASER_USB_HAS_TXRX_ERRORS) ||
+	    (priv->dev->card_data.capabilities & KVASER_USB_CAP_BERR_CAP))
 		priv->can.do_get_berr_counter = dev->ops->dev_get_berr_counter;
 	if (id->driver_info & KVASER_USB_HAS_SILENT_MODE)
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_LISTENONLY;
 
 	priv->can.ctrlmode_supported |= dev->card_data.ctrlmode_supported;
+
+	if (priv->can.ctrlmode_supported & CAN_CTRLMODE_FD) {
+		priv->can.data_bittiming_const = dev->cfg->data_bittiming_const;
+		priv->can.do_set_data_bittiming =
+					dev->ops->dev_set_data_bittiming;
+	}
 
 	netdev->flags |= IFF_ECHO;
 
@@ -679,6 +723,8 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	} else if (kvaser_is_usbcan(id)) {
 		dev->card_data.leaf.family = KVASER_USBCAN;
 		dev->ops = &kvaser_usb_leaf_dev_ops;
+	} else if (kvaser_is_hydra(id)) {
+		dev->ops = &kvaser_usb_hydra_dev_ops;
 	} else {
 		dev_err(&intf->dev,
 			"Product ID (%d) is not a supported Kvaser USB device\n",
@@ -701,6 +747,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, dev);
 
 	dev->card_data.ctrlmode_supported = 0;
+	dev->card_data.capabilities = 0;
 	err = dev->ops->dev_init_card(dev);
 	if (err) {
 		dev_err(&intf->dev,
@@ -713,6 +760,15 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		dev_err(&intf->dev,
 			"Cannot get software info, error %d\n", err);
 		return err;
+	}
+
+	if (dev->ops->dev_get_software_details) {
+		err = dev->ops->dev_get_software_details(dev);
+		if (err) {
+			dev_err(&intf->dev,
+				"Cannot get software details, error %d\n", err);
+			return err;
+		}
 	}
 
 	if (WARN_ON(!dev->cfg))
@@ -729,6 +785,16 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	if (err) {
 		dev_err(&intf->dev, "Cannot get card info, error %d\n", err);
 		return err;
+	}
+
+	if (dev->ops->dev_get_capabilities) {
+		err = dev->ops->dev_get_capabilities(dev);
+		if (err) {
+			dev_err(&intf->dev,
+				"Cannot get capabilities, error %d\n", err);
+			kvaser_usb_remove_interfaces(dev);
+			return err;
+		}
 	}
 
 	for (i = 0; i < dev->nchannels; i++) {

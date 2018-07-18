@@ -32,7 +32,7 @@ config CAN_KVASER_USB
 	tristate "Kvaser CAN/USB interface"
 	---help---
 	  This driver adds support for Kvaser CAN/USB devices like Kvaser
-	  Leaf Light and Kvaser USBcan II.
+	  Leaf Light, Kvaser USBcan II and Kvaser Memorator Pro 5xHS.
 
 	  The driver provides support for the following devices:
 	    - Kvaser Leaf Light
@@ -61,6 +61,18 @@ config CAN_KVASER_USB
 	    - Kvaser Memorator HS/HS
 	    - Kvaser Memorator HS/LS
 	    - Scania VCI2 (if you have the Kvaser logo on top)
+	    - Kvaser BlackBird v2
+	    - Kvaser Leaf Pro HS v2
+	    - Kvaser Hybrid 2xCAN/LIN
+	    - Kvaser Hybrid Pro 2xCAN/LIN
+	    - Kvaser Memorator 2xHS v2
+	    - Kvaser Memorator Pro 2xHS v2
+	    - Kvaser Memorator Pro 5xHS
+	    - Kvaser USBcan Light 4xHS
+	    - Kvaser USBcan Pro 2xHS v2
+	    - Kvaser USBcan Pro 5xHS
+	    - ATI Memorator Pro 2xHS v2
+	    - ATI USBcan Pro 2xHS v2
 
 	  If unsure, say N.
 
