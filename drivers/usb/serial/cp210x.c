@@ -1537,14 +1537,19 @@ static void cp210x_init_max_speed(struct usb_serial *serial)
 		max = 1000000;
 		break;
 	case CP210X_PARTNUM_CP2104:
+		use_actual_rate = true;
+		max = 2000000;
+		break;
 	case CP210X_PARTNUM_CP2108:
 		max = 2000000;
 		break;
 	case CP210X_PARTNUM_CP2105:
-		if (cp210x_interface_num(serial) == 0)
+		if (cp210x_interface_num(serial) == 0) {
+			use_actual_rate = true;
 			max = 2000000;	/* ECI */
-		else
+		} else {
 			max = 921600;	/* SCI */
+		}
 		break;
 	case CP210X_PARTNUM_CP2102N_QFN28:
 	case CP210X_PARTNUM_CP2102N_QFN24:
