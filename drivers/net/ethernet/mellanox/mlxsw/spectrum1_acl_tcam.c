@@ -151,6 +151,13 @@ mlxsw_sp1_acl_tcam_region_fini(struct mlxsw_sp *mlxsw_sp, void *region_priv)
 	mlxsw_sp_acl_ctcam_region_fini(&region->cregion);
 }
 
+static int
+mlxsw_sp1_acl_tcam_region_associate(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_tcam_region *region)
+{
+	return 0;
+}
+
 static void mlxsw_sp1_acl_tcam_chunk_init(void *region_priv, void *chunk_priv,
 					  unsigned int priority)
 {
@@ -235,6 +242,7 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops = {
 	.region_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_region),
 	.region_init		= mlxsw_sp1_acl_tcam_region_init,
 	.region_fini		= mlxsw_sp1_acl_tcam_region_fini,
+	.region_associate	= mlxsw_sp1_acl_tcam_region_associate,
 	.chunk_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_chunk),
 	.chunk_init		= mlxsw_sp1_acl_tcam_chunk_init,
 	.chunk_fini		= mlxsw_sp1_acl_tcam_chunk_fini,
