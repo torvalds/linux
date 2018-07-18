@@ -16,6 +16,7 @@
 
 #include "chip.h"
 #include "global2.h"
+#include "hwtstamp.h"
 #include "ptp.h"
 
 /* Raw timestamps are in units of 8-ns clock periods. */
@@ -318,7 +319,12 @@ const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 	.ptp_enable = mv88e6352_ptp_enable,
 	.ptp_verify = mv88e6352_ptp_verify,
 	.event_work = mv88e6352_tai_event_work,
+	.port_enable = mv88e6352_hwtstamp_port_enable,
+	.port_disable = mv88e6352_hwtstamp_port_disable,
 	.n_ext_ts = 1,
+	.arr0_sts_reg = MV88E6XXX_PORT_PTP_ARR0_STS,
+	.arr1_sts_reg = MV88E6XXX_PORT_PTP_ARR1_STS,
+	.dep_sts_reg = MV88E6XXX_PORT_PTP_DEP_STS,
 };
 
 const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {

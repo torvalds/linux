@@ -123,6 +123,8 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_hwtstamp_free(struct mv88e6xxx_chip *chip);
+int mv88e6352_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port);
+int mv88e6352_hwtstamp_port_disable(struct mv88e6xxx_chip *chip, int port);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 

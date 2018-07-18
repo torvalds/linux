@@ -92,10 +92,9 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 					 struct hwtstamp_config *config)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
 	bool tstamp_enable = false;
-	u16 port_config0;
-	int err;
 
 	/* Prevent the TX/RX paths from trying to interact with the
 	 * timestamp hardware while we reconfigure it.
@@ -141,23 +140,15 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		return -ERANGE;
 	}
 
-	if (tstamp_enable) {
-		/* Disable transportSpecific value matching, so that packets
-		 * with either 1588 (0) and 802.1AS (1) will be timestamped.
-		 */
-		port_config0 = MV88E6XXX_PORT_PTP_CFG0_DISABLE_TSPEC_MATCH;
-	} else {
-		/* Disable PTP. This disables both RX and TX timestamping. */
-		port_config0 = MV88E6XXX_PORT_PTP_CFG0_DISABLE_PTP;
-	}
-
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
-				       port_config0);
+	if (tstamp_enable) {
+		if (ptp_ops->port_enable)
+			ptp_ops->port_enable(chip, port);
+	} else {
+		if (ptp_ops->port_disable)
+			ptp_ops->port_disable(chip, port);
+	}
 	mutex_unlock(&chip->reg_lock);
-
-	if (err < 0)
-		return err;
 
 	/* Once hardware has been configured, enable timestamp checks
 	 * in the RX/TX paths.
@@ -338,17 +329,18 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 static void mv88e6xxx_rxtstamp_work(struct mv88e6xxx_chip *chip,
 				    struct mv88e6xxx_port_hwtstamp *ps)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	struct sk_buff *skb;
 
 	skb = skb_dequeue(&ps->rx_queue);
 
 	if (skb)
-		mv88e6xxx_get_rxts(chip, ps, skb, MV88E6XXX_PORT_PTP_ARR0_STS,
+		mv88e6xxx_get_rxts(chip, ps, skb, ptp_ops->arr0_sts_reg,
 				   &ps->rx_queue);
 
 	skb = skb_dequeue(&ps->rx_queue2);
 	if (skb)
-		mv88e6xxx_get_rxts(chip, ps, skb, MV88E6XXX_PORT_PTP_ARR1_STS,
+		mv88e6xxx_get_rxts(chip, ps, skb, ptp_ops->arr1_sts_reg,
 				   &ps->rx_queue2);
 }
 
@@ -389,6 +381,7 @@ bool mv88e6xxx_port_rxtstamp(struct dsa_switch *ds, int port,
 static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 				   struct mv88e6xxx_port_hwtstamp *ps)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u16 departure_block[4], status;
 	struct sk_buff *tmp_skb;
@@ -401,7 +394,7 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_ptp_read(chip, ps->port_id,
-				      MV88E6XXX_PORT_PTP_DEP_STS,
+				      ptp_ops->dep_sts_reg,
 				      departure_block,
 				      ARRAY_SIZE(departure_block));
 	mutex_unlock(&chip->reg_lock);
@@ -425,8 +418,7 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 
 	/* We have the timestamp; go ahead and clear valid now */
 	mutex_lock(&chip->reg_lock);
-	mv88e6xxx_port_ptp_write(chip, ps->port_id,
-				 MV88E6XXX_PORT_PTP_DEP_STS, 0);
+	mv88e6xxx_port_ptp_write(chip, ps->port_id, ptp_ops->dep_sts_reg, 0);
 	mutex_unlock(&chip->reg_lock);
 
 	status = departure_block[0] & MV88E6XXX_PTP_TS_STATUS_MASK;
@@ -522,8 +514,21 @@ bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 	return true;
 }
 
+int mv88e6352_hwtstamp_port_disable(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
+					MV88E6XXX_PORT_PTP_CFG0_DISABLE_PTP);
+}
+
+int mv88e6352_hwtstamp_port_enable(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
+					MV88E6XXX_PORT_PTP_CFG0_DISABLE_TSPEC_MATCH);
+}
+
 static int mv88e6xxx_hwtstamp_port_setup(struct mv88e6xxx_chip *chip, int port)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	struct mv88e6xxx_port_hwtstamp *ps = &chip->port_hwtstamp[port];
 
 	ps->port_id = port;
@@ -531,8 +536,10 @@ static int mv88e6xxx_hwtstamp_port_setup(struct mv88e6xxx_chip *chip, int port)
 	skb_queue_head_init(&ps->rx_queue);
 	skb_queue_head_init(&ps->rx_queue2);
 
-	return mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
-					MV88E6XXX_PORT_PTP_CFG0_DISABLE_PTP);
+	if (ptp_ops->port_disable)
+		return ptp_ops->port_disable(chip, port);
+
+	return 0;
 }
 
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)

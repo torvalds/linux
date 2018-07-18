@@ -497,7 +497,12 @@ struct mv88e6xxx_ptp_ops {
 	int (*ptp_verify)(struct ptp_clock_info *ptp, unsigned int pin,
 			  enum ptp_pin_function func, unsigned int chan);
 	void (*event_work)(struct work_struct *ugly);
+	int (*port_enable)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_disable)(struct mv88e6xxx_chip *chip, int port);
 	int n_ext_ts;
+	int arr0_sts_reg;
+	int arr1_sts_reg;
+	int dep_sts_reg;
 };
 
 #define STATS_TYPE_PORT		BIT(0)
