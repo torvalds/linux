@@ -1848,10 +1848,9 @@ static void kvaser_usb_remove_interfaces(struct kvaser_usb *dev)
 	}
 }
 
-static int kvaser_usb_init_one(struct usb_interface *intf,
+static int kvaser_usb_init_one(struct kvaser_usb *dev,
 			       const struct usb_device_id *id, int channel)
 {
-	struct kvaser_usb *dev = usb_get_intfdata(intf);
 	struct net_device *netdev;
 	struct kvaser_usb_net_priv *priv;
 	int err;
@@ -1864,7 +1863,7 @@ static int kvaser_usb_init_one(struct usb_interface *intf,
 			      dev->max_tx_urbs * sizeof(*priv->tx_contexts),
 			      dev->max_tx_urbs);
 	if (!netdev) {
-		dev_err(&intf->dev, "Cannot alloc candev\n");
+		dev_err(&dev->intf->dev, "Cannot alloc candev\n");
 		return -ENOMEM;
 	}
 
@@ -1896,14 +1895,14 @@ static int kvaser_usb_init_one(struct usb_interface *intf,
 
 	netdev->netdev_ops = &kvaser_usb_netdev_ops;
 
-	SET_NETDEV_DEV(netdev, &intf->dev);
+	SET_NETDEV_DEV(netdev, &dev->intf->dev);
 	netdev->dev_id = channel;
 
 	dev->nets[channel] = priv;
 
 	err = register_candev(netdev);
 	if (err) {
-		dev_err(&intf->dev, "Failed to register can device\n");
+		dev_err(&dev->intf->dev, "Failed to register can device\n");
 		free_candev(netdev);
 		dev->nets[channel] = NULL;
 		return err;
@@ -2005,7 +2004,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	}
 
 	for (i = 0; i < dev->nchannels; i++) {
-		err = kvaser_usb_init_one(intf, id, i);
+		err = kvaser_usb_init_one(dev, id, i);
 		if (err) {
 			kvaser_usb_remove_interfaces(dev);
 			return err;
