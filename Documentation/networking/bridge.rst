@@ -1,3 +1,9 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================
+Ethernet Bridging
+=================
+
 In order to use the Ethernet bridging functionality, you'll need the
 userspace tools.
 

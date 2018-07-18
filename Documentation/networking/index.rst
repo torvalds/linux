@@ -17,6 +17,8 @@ Contents:
    msg_zerocopy
    failover
    net_failover
+   alias
+   bridge
 
 .. only::  subproject
 
