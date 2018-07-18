@@ -31,6 +31,66 @@ static struct file *ovl_open_realfile(const struct file *file)
 	return realfile;
 }
 
+#define OVL_SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT)
+
+static int ovl_change_flags(struct file *file, unsigned int flags)
+{
+	struct inode *inode = file_inode(file);
+	int err;
+
+	/* No atime modificaton on underlying */
+	flags |= O_NOATIME;
+
+	/* If some flag changed that cannot be changed then something's amiss */
+	if (WARN_ON((file->f_flags ^ flags) & ~OVL_SETFL_MASK))
+		return -EIO;
+
+	flags &= OVL_SETFL_MASK;
+
+	if (((flags ^ file->f_flags) & O_APPEND) && IS_APPEND(inode))
+		return -EPERM;
+
+	if (flags & O_DIRECT) {
+		if (!file->f_mapping->a_ops ||
+		    !file->f_mapping->a_ops->direct_IO)
+			return -EINVAL;
+	}
+
+	if (file->f_op->check_flags) {
+		err = file->f_op->check_flags(flags);
+		if (err)
+			return err;
+	}
+
+	spin_lock(&file->f_lock);
+	file->f_flags = (file->f_flags & ~OVL_SETFL_MASK) | flags;
+	spin_unlock(&file->f_lock);
+
+	return 0;
+}
+
+static int ovl_real_fdget(const struct file *file, struct fd *real)
+{
+	struct inode *inode = file_inode(file);
+
+	real->flags = 0;
+	real->file = file->private_data;
+
+	/* Has it been copied up since we'd opened it? */
+	if (unlikely(file_inode(real->file) != ovl_inode_real(inode))) {
+		real->flags = FDPUT_FPUT;
+		real->file = ovl_open_realfile(file);
+
+		return PTR_ERR_OR_ZERO(real->file);
+	}
+
+	/* Did the flags change since open? */
+	if (unlikely((file->f_flags ^ real->file->f_flags) & ~O_NOATIME))
+		return ovl_change_flags(real->file, file->f_flags);
+
+	return 0;
+}
+
 static int ovl_open(struct inode *inode, struct file *file)
 {
 	struct dentry *dentry = file_dentry(file);
