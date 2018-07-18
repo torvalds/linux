@@ -110,36 +110,25 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 #define CMD_RX_EXT_MESSAGE		14
 #define CMD_TX_EXT_MESSAGE		15
 #define CMD_SET_BUS_PARAMS		16
-#define CMD_GET_BUS_PARAMS		17
-#define CMD_GET_BUS_PARAMS_REPLY	18
-#define CMD_GET_CHIP_STATE		19
 #define CMD_CHIP_STATE_EVENT		20
 #define CMD_SET_CTRL_MODE		21
-#define CMD_GET_CTRL_MODE		22
-#define CMD_GET_CTRL_MODE_REPLY		23
 #define CMD_RESET_CHIP			24
-#define CMD_RESET_CARD			25
 #define CMD_START_CHIP			26
 #define CMD_START_CHIP_REPLY		27
 #define CMD_STOP_CHIP			28
 #define CMD_STOP_CHIP_REPLY		29
 
-#define CMD_LEAF_GET_CARD_INFO2		32
-#define CMD_USBCAN_RESET_CLOCK		32
 #define CMD_USBCAN_CLOCK_OVERFLOW_EVENT	33
 
 #define CMD_GET_CARD_INFO		34
 #define CMD_GET_CARD_INFO_REPLY		35
 #define CMD_GET_SOFTWARE_INFO		38
 #define CMD_GET_SOFTWARE_INFO_REPLY	39
-#define CMD_ERROR_EVENT			45
 #define CMD_FLUSH_QUEUE			48
-#define CMD_RESET_ERROR_COUNTER		49
 #define CMD_TX_ACKNOWLEDGE		50
 #define CMD_CAN_ERROR_EVENT		51
 #define CMD_FLUSH_QUEUE_REPLY		68
 
-#define CMD_LEAF_USB_THROTTLE		77
 #define CMD_LEAF_LOG_MESSAGE		106
 
 /* error factors */
@@ -219,13 +208,6 @@ struct kvaser_msg_cardinfo {
 		} __packed usbcan1;
 	} __packed;
 	__le16 padding;
-} __packed;
-
-struct kvaser_msg_cardinfo2 {
-	u8 tid;
-	u8 reserved;
-	u8 pcb_id[24];
-	__le32 oem_unlock_code;
 } __packed;
 
 struct leaf_msg_softinfo {
@@ -323,23 +305,6 @@ struct kvaser_msg_tx_acknowledge_header {
 	u8 tid;
 } __packed;
 
-struct leaf_msg_tx_acknowledge {
-	u8 channel;
-	u8 tid;
-
-	__le16 time[3];
-	u8 flags;
-	u8 time_offset;
-} __packed;
-
-struct usbcan_msg_tx_acknowledge {
-	u8 channel;
-	u8 tid;
-
-	__le16 time;
-	__le16 padding;
-} __packed;
-
 struct leaf_msg_error_event {
 	u8 tid;
 	u8 flags;
@@ -394,7 +359,6 @@ struct kvaser_msg {
 	union	{
 		struct kvaser_msg_simple simple;
 		struct kvaser_msg_cardinfo cardinfo;
-		struct kvaser_msg_cardinfo2 cardinfo2;
 		struct kvaser_msg_busparams busparams;
 
 		struct kvaser_msg_rx_can_header rx_can_header;
@@ -404,7 +368,6 @@ struct kvaser_msg {
 			struct leaf_msg_softinfo softinfo;
 			struct leaf_msg_rx_can rx_can;
 			struct leaf_msg_chip_state_event chip_state_event;
-			struct leaf_msg_tx_acknowledge tx_acknowledge;
 			struct leaf_msg_error_event error_event;
 			struct leaf_msg_log_message log_message;
 		} __packed leaf;
@@ -413,7 +376,6 @@ struct kvaser_msg {
 			struct usbcan_msg_softinfo softinfo;
 			struct usbcan_msg_rx_can rx_can;
 			struct usbcan_msg_chip_state_event chip_state_event;
-			struct usbcan_msg_tx_acknowledge tx_acknowledge;
 			struct usbcan_msg_error_event error_event;
 		} __packed usbcan;
 
