@@ -685,7 +685,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		 * as the owner of the file extent changed from log tree
 		 * (doesn't affect qgroup) to fs/file tree(affects qgroup)
 		 */
-		ret = btrfs_qgroup_trace_extent(trans, fs_info,
+		ret = btrfs_qgroup_trace_extent(trans,
 				btrfs_file_extent_disk_bytenr(eb, item),
 				btrfs_file_extent_disk_num_bytes(eb, item),
 				GFP_NOFS);

@@ -1580,10 +1580,10 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
-		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
-		gfp_t gfp_flag)
+int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
+			      u64 num_bytes, gfp_t gfp_flag)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup_extent_record *record;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	int ret;
@@ -1591,8 +1591,6 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)
 	    || bytenr == 0 || num_bytes == 0)
 		return 0;
-	if (WARN_ON(trans == NULL))
-		return -EINVAL;
 	record = kmalloc(sizeof(*record), gfp_flag);
 	if (!record)
 		return -ENOMEM;
@@ -1645,8 +1643,8 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
 
-		ret = btrfs_qgroup_trace_extent(trans, fs_info, bytenr,
-						num_bytes, GFP_NOFS);
+		ret = btrfs_qgroup_trace_extent(trans, bytenr, num_bytes,
+						GFP_NOFS);
 		if (ret)
 			return ret;
 	}
@@ -1797,8 +1795,7 @@ walk_down:
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 
-			ret = btrfs_qgroup_trace_extent(trans, fs_info,
-							child_bytenr,
+			ret = btrfs_qgroup_trace_extent(trans, child_bytenr,
 							fs_info->nodesize,
 							GFP_NOFS);
 			if (ret)

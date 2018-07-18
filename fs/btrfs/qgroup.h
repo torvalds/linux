@@ -212,9 +212,8 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
  * Return <0 for error, like memory allocation failure or invalid parameter
  * (NULL trans)
  */
-int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
-		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
-		gfp_t gfp_flag);
+int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
+			      u64 num_bytes, gfp_t gfp_flag);
 
 /*
  * Inform qgroup to trace all leaf items of data
