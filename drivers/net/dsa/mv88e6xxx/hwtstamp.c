@@ -65,7 +65,7 @@ static int mv88e6xxx_ptp_read(struct mv88e6xxx_chip *chip, int addr,
  * within 1ms. Software may enounter delays due to MDIO contention, so
  * the timeout is set accordingly.
  */
-#define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(20)
+#define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)
 
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 			  struct ethtool_ts_info *info)
