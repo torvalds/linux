@@ -1944,6 +1944,28 @@ static inline void mlxsw_reg_cwtpm_pack(char *payload, u8 local_port,
 	mlxsw_reg_cwtpm_ntcp_r_set(payload, profile);
 }
 
+/* PGCR - Policy-Engine General Configuration Register
+ * ---------------------------------------------------
+ * This register configures general Policy-Engine settings.
+ */
+#define MLXSW_REG_PGCR_ID 0x3001
+#define MLXSW_REG_PGCR_LEN 0x20
+
+MLXSW_REG_DEFINE(pgcr, MLXSW_REG_PGCR_ID, MLXSW_REG_PGCR_LEN);
+
+/* reg_pgcr_default_action_pointer_base
+ * Default action pointer base. Each region has a default action pointer
+ * which is equal to default_action_pointer_base + region_id.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pgcr, default_action_pointer_base, 0x1C, 0, 24);
+
+static inline void mlxsw_reg_pgcr_pack(char *payload, u32 pointer_base)
+{
+	MLXSW_REG_ZERO(pgcr, payload);
+	mlxsw_reg_pgcr_default_action_pointer_base_set(payload, pointer_base);
+}
+
 /* PPBT - Policy-Engine Port Binding Table
  * ---------------------------------------
  * This register is used for configuration of the Port Binding Table.
@@ -8217,6 +8239,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
+	MLXSW_REG(pgcr),
 	MLXSW_REG(ppbt),
 	MLXSW_REG(pacl),
 	MLXSW_REG(pagt),
