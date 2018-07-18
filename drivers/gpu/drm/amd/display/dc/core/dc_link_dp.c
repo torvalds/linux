@@ -953,7 +953,10 @@ enum link_training_result dc_link_dp_perform_link_training(
 	 * LINK_SPREAD_05_DOWNSPREAD_30KHZ :
 	 * LINK_SPREAD_DISABLED;
 	 */
-	lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
+	if (link->dp_ss_off)
+		lt_settings.link_settings.link_spread = LINK_SPREAD_DISABLED;
+	else
+		lt_settings.link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 
 	/* 1. set link rate, lane count and spread*/
 	dpcd_set_link_settings(link, &lt_settings);
