@@ -1504,6 +1504,13 @@ enum FW_BOOT_CONTEXT {
 
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
 
+enum MR_ADAPTER_TYPE {
+	MFI_SERIES = 1,
+	THUNDERBOLT_SERIES = 2,
+	INVADER_SERIES = 3,
+	VENTURA_SERIES = 4,
+};
+
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -2092,6 +2099,7 @@ enum MR_PD_TYPE {
 
 struct megasas_instance {
 
+	unsigned int *reply_map;
 	__le32 *producer;
 	dma_addr_t producer_h;
 	__le32 *consumer;
@@ -2236,12 +2244,12 @@ struct megasas_instance {
 	bool dev_handle;
 	bool fw_sync_cache_support;
 	u32 mfi_frame_size;
-	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
 	/* preffered count to send as LDIO irrspective of FP capable.*/
 	u8  r1_ldio_hint_default;
 	u32 nvme_page_size;
+	u8 adapter_type;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
