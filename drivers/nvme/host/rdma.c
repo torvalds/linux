@@ -1038,7 +1038,6 @@ static void nvme_rdma_inv_rkey_done(struct ib_cq *cq, struct ib_wc *wc)
 static int nvme_rdma_inv_rkey(struct nvme_rdma_queue *queue,
 		struct nvme_rdma_request *req)
 {
-	struct ib_send_wr *bad_wr;
 	struct ib_send_wr wr = {
 		.opcode		    = IB_WR_LOCAL_INV,
 		.next		    = NULL,
@@ -1050,7 +1049,7 @@ static int nvme_rdma_inv_rkey(struct nvme_rdma_queue *queue,
 	req->reg_cqe.done = nvme_rdma_inv_rkey_done;
 	wr.wr_cqe = &req->reg_cqe;
 
-	return ib_post_send(queue->qp, &wr, &bad_wr);
+	return ib_post_send(queue->qp, &wr, NULL);
 }
 
 static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
@@ -1244,7 +1243,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 		struct nvme_rdma_qe *qe, struct ib_sge *sge, u32 num_sge,
 		struct ib_send_wr *first)
 {
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_send_wr wr;
 	int ret;
 
 	sge->addr   = qe->dma;
@@ -1263,7 +1262,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	else
 		first = &wr;
 
-	ret = ib_post_send(queue->qp, first, &bad_wr);
+	ret = ib_post_send(queue->qp, first, NULL);
 	if (unlikely(ret)) {
 		dev_err(queue->ctrl->ctrl.device,
 			     "%s failed with error code %d\n", __func__, ret);
@@ -1274,7 +1273,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 static int nvme_rdma_post_recv(struct nvme_rdma_queue *queue,
 		struct nvme_rdma_qe *qe)
 {
-	struct ib_recv_wr wr, *bad_wr;
+	struct ib_recv_wr wr;
 	struct ib_sge list;
 	int ret;
 
@@ -1289,7 +1288,7 @@ static int nvme_rdma_post_recv(struct nvme_rdma_queue *queue,
 	wr.sg_list  = &list;
 	wr.num_sge  = 1;
 
-	ret = ib_post_recv(queue->qp, &wr, &bad_wr);
+	ret = ib_post_recv(queue->qp, &wr, NULL);
 	if (unlikely(ret)) {
 		dev_err(queue->ctrl->ctrl.device,
 			"%s failed with error code %d\n", __func__, ret);
