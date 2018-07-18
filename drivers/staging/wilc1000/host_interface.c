@@ -1336,7 +1336,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	}
 
 	if (mac_status == MAC_STATUS_CONNECTED &&
-	    conn_info.status != SUCCESSFUL_STATUSCODE) {
+	    conn_info.status != WLAN_STATUS_SUCCESS) {
 		netdev_err(vif->ndev,
 			   "Received MAC status is MAC_STATUS_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
 		eth_zero_addr(wilc_connected_ssid);
@@ -1349,7 +1349,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 		memcpy(conn_info.bssid, hif_drv->usr_conn_req.bssid, 6);
 
 		if (mac_status == MAC_STATUS_CONNECTED &&
-		    conn_info.status == SUCCESSFUL_STATUSCODE) {
+		    conn_info.status == WLAN_STATUS_SUCCESS) {
 			memcpy(hif_drv->assoc_bssid,
 			       hif_drv->usr_conn_req.bssid, ETH_ALEN);
 		}
@@ -1369,7 +1369,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 					  hif_drv->usr_conn_req.arg);
 
 	if (mac_status == MAC_STATUS_CONNECTED &&
-	    conn_info.status == SUCCESSFUL_STATUSCODE) {
+	    conn_info.status == WLAN_STATUS_SUCCESS) {
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		hif_drv->hif_state = HOST_IF_CONNECTED;

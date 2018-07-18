@@ -489,7 +489,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 		connect_status = conn_info->status;
 
 		if (mac_status == MAC_STATUS_DISCONNECTED &&
-		    conn_info->status == SUCCESSFUL_STATUSCODE) {
+		    conn_info->status == WLAN_STATUS_SUCCESS) {
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, null_bssid,
 					    STATION_MODE);

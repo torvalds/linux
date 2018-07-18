@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/ieee80211.h>
+
 #include "coreconfigurator.h"
 
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
@@ -316,7 +318,7 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 	u16 ies_len = 0;
 
 	ret_conn_info->status = get_asoc_status(buffer);
-	if (ret_conn_info->status == SUCCESSFUL_STATUSCODE) {
+	if (ret_conn_info->status == WLAN_STATUS_SUCCESS) {
 		ies = &buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		ies_len = buffer_len - (CAP_INFO_LEN + STATUS_CODE_LEN +
 					AID_LEN);
