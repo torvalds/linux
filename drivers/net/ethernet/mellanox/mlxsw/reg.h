@@ -39,6 +39,7 @@
 #ifndef _MLXSW_REG_H
 #define _MLXSW_REG_H
 
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
@@ -2479,6 +2480,47 @@ static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 	mlxsw_reg_ptce2_offset_set(payload, offset);
 	mlxsw_reg_ptce2_priority_set(payload, priority);
 	mlxsw_reg_ptce2_tcam_region_info_memcpy_to(payload, tcam_region_info);
+}
+
+/* PERAR - Policy-Engine Region Association Register
+ * -------------------------------------------------
+ * This register associates a hw region for region_id's. Changing on the fly
+ * is supported by the device.
+ */
+#define MLXSW_REG_PERAR_ID 0x3026
+#define MLXSW_REG_PERAR_LEN 0x08
+
+MLXSW_REG_DEFINE(perar, MLXSW_REG_PERAR_ID, MLXSW_REG_PERAR_LEN);
+
+/* reg_perar_region_id
+ * Region identifier
+ * Range 0 .. cap_max_regions-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, perar, region_id, 0x00, 0, 16);
+
+static inline unsigned int
+mlxsw_reg_perar_hw_regions_needed(unsigned int block_num)
+{
+	return DIV_ROUND_UP(block_num, 4);
+}
+
+/* reg_perar_hw_region
+ * HW Region
+ * Range 0 .. cap_max_regions-1
+ * Default: hw_region = region_id
+ * For a 8 key block region, 2 consecutive regions are used
+ * For a 12 key block region, 3 consecutive regions are used
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, perar, hw_region, 0x04, 0, 16);
+
+static inline void mlxsw_reg_perar_pack(char *payload, u16 region_id,
+					u16 hw_region)
+{
+	MLXSW_REG_ZERO(perar, payload);
+	mlxsw_reg_perar_region_id_set(payload, region_id);
+	mlxsw_reg_perar_hw_region_set(payload, hw_region);
 }
 
 /* IEDR - Infrastructure Entry Delete Register
@@ -8057,6 +8099,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
+	MLXSW_REG(perar),
 	MLXSW_REG(iedr),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
