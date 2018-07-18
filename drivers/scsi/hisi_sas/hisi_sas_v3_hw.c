@@ -2465,6 +2465,41 @@ static pci_ers_result_t hisi_sas_slot_reset_v3_hw(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
+static void hisi_sas_reset_prepare_v3_hw(struct pci_dev *pdev)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+	int rc;
+
+	dev_info(dev, "FLR prepare\n");
+	set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+	hisi_sas_controller_reset_prepare(hisi_hba);
+
+	rc = disable_host_v3_hw(hisi_hba);
+	if (rc)
+		dev_err(dev, "FLR: disable host failed rc=%d\n", rc);
+}
+
+static void hisi_sas_reset_done_v3_hw(struct pci_dev *pdev)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+	int rc;
+
+	hisi_sas_init_mem(hisi_hba);
+
+	rc = hw_init_v3_hw(hisi_hba);
+	if (rc) {
+		dev_err(dev, "FLR: hw init failed rc=%d\n", rc);
+		return;
+	}
+
+	hisi_sas_controller_reset_done(hisi_hba);
+	dev_info(dev, "FLR done\n");
+}
+
 enum {
 	/* instances of the controller */
 	hip08,
@@ -2556,6 +2591,8 @@ static const struct pci_error_handlers hisi_sas_err_handler = {
 	.error_detected	= hisi_sas_error_detected_v3_hw,
 	.mmio_enabled	= hisi_sas_mmio_enabled_v3_hw,
 	.slot_reset	= hisi_sas_slot_reset_v3_hw,
+	.reset_prepare	= hisi_sas_reset_prepare_v3_hw,
+	.reset_done	= hisi_sas_reset_done_v3_hw,
 };
 
 static struct pci_driver sas_v3_pci_driver = {
