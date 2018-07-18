@@ -357,6 +357,13 @@ enum req_flag_bits {
 #define REQ_NOMERGE_FLAGS \
 	(REQ_NOMERGE | REQ_PREFLUSH | REQ_FUA)
 
+enum stat_group {
+	STAT_READ,
+	STAT_WRITE,
+
+	NR_STAT_GROUPS
+};
+
 #define bio_op(bio) \
 	((bio)->bi_opf & REQ_OP_MASK)
 #define req_op(req) \
