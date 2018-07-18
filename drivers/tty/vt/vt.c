@@ -328,6 +328,8 @@ void schedule_console_callback(void)
 #define get_vc_uniscr(vc) vc->vc_uni_screen
 #endif
 
+#define VC_UNI_SCREEN_DEBUG 0
+
 typedef uint32_t char32_t;
 
 /*
@@ -565,6 +567,42 @@ void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
 		while (nr--) {
 			u16 glyph = scr_readw(p++) & mask;
 			*uni_buf++ = inverse_translate(vc, glyph, true);
+		}
+	}
+}
+
+/* this is for validation and debugging only */
+static void vc_uniscr_debug_check(struct vc_data *vc)
+{
+	struct uni_screen *uniscr = get_vc_uniscr(vc);
+	unsigned short *p;
+	int x, y, mask;
+
+	if (!VC_UNI_SCREEN_DEBUG || !uniscr)
+		return;
+
+	WARN_CONSOLE_UNLOCKED();
+
+	/*
+	 * Make sure our unicode screen translates into the same glyphs
+	 * as the actual screen. This is brutal indeed.
+	 */
+	p = (unsigned short *)vc->vc_origin;
+	mask = vc->vc_hi_font_mask | 0xff;
+	for (y = 0; y < vc->vc_rows; y++) {
+		char32_t *line = uniscr->lines[y];
+		for (x = 0; x < vc->vc_cols; x++) {
+			u16 glyph = scr_readw(p++) & mask;
+			char32_t uc = line[x];
+			int tc = conv_uni_to_pc(vc, uc);
+			if (tc == -4)
+				tc = conv_uni_to_pc(vc, 0xfffd);
+			if (tc == -4)
+				tc = conv_uni_to_pc(vc, '?');
+			if (tc != glyph)
+				pr_err_ratelimited(
+					"%s: mismatch at %d,%d: glyph=%#x tc=%#x\n",
+					__func__, x, y, glyph, tc);
 		}
 	}
 }
@@ -2717,6 +2755,7 @@ rescan_last_byte:
 		do_con_trol(tty, vc, orig);
 	}
 	con_flush(vc, draw_from, draw_to, &draw_x);
+	vc_uniscr_debug_check(vc);
 	console_conditional_schedule();
 	console_unlock();
 	notify_update(vc);
