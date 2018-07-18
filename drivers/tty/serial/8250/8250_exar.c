@@ -113,7 +113,6 @@ struct exar8250_platform {
 struct exar8250_board {
 	unsigned int num_ports;
 	unsigned int reg_shift;
-	bool has_slave;
 	int	(*setup)(struct exar8250 *, struct pci_dev *,
 			 struct uart_8250_port *, int);
 	void	(*exit)(struct pci_dev *pcidev);
@@ -394,10 +393,10 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	port->port.rs485_config = platform->rs485_config;
 
 	/*
-	 * Setup the uart clock for the devices on expansion slot to
+	 * Setup the UART clock for the devices on expansion slot to
 	 * half the clock speed of the main chip (which is 125MHz)
 	 */
-	if (board->has_slave && idx >= 8)
+	if (idx >= 8)
 		port->port.uartclk /= 2;
 
 	ret = default_setup(priv, pcidev, idx, offset, port);
@@ -602,14 +601,12 @@ static const struct exar8250_board pbn_exar_XR17V35x = {
 
 static const struct exar8250_board pbn_exar_XR17V4358 = {
 	.num_ports	= 12,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };
 
 static const struct exar8250_board pbn_exar_XR17V8358 = {
 	.num_ports	= 16,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };
