@@ -1519,8 +1519,8 @@ int bnxt_re_query_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr)
 	return 0;
 }
 
-int bnxt_re_post_srq_recv(struct ib_srq *ib_srq, struct ib_recv_wr *wr,
-			  struct ib_recv_wr **bad_wr)
+int bnxt_re_post_srq_recv(struct ib_srq *ib_srq, const struct ib_recv_wr *wr,
+			  const struct ib_recv_wr **bad_wr)
 {
 	struct bnxt_re_srq *srq = container_of(ib_srq, struct bnxt_re_srq,
 					       ib_srq);
@@ -2048,7 +2048,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
  * and the MAD datagram out to the provided SGE.
  */
 static int bnxt_re_build_qp1_shadow_qp_recv(struct bnxt_re_qp *qp,
-					    struct ib_recv_wr *wr,
+					    const struct ib_recv_wr *wr,
 					    struct bnxt_qplib_swqe *wqe,
 					    int payload_size)
 {
@@ -2361,8 +2361,8 @@ bad:
 	return rc;
 }
 
-int bnxt_re_post_send(struct ib_qp *ib_qp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int bnxt_re_post_send(struct ib_qp *ib_qp, const struct ib_send_wr *wr,
+		      const struct ib_send_wr **bad_wr)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_qplib_swqe wqe;
@@ -2461,7 +2461,7 @@ bad:
 
 static int bnxt_re_post_recv_shadow_qp(struct bnxt_re_dev *rdev,
 				       struct bnxt_re_qp *qp,
-				       struct ib_recv_wr *wr)
+				       const struct ib_recv_wr *wr)
 {
 	struct bnxt_qplib_swqe wqe;
 	int rc = 0;
@@ -2494,8 +2494,8 @@ static int bnxt_re_post_recv_shadow_qp(struct bnxt_re_dev *rdev,
 	return rc;
 }
 
-int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int bnxt_re_post_recv(struct ib_qp *ib_qp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_qplib_swqe wqe;

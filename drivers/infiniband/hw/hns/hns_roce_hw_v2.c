@@ -103,7 +103,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			     struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 			     void *wqe, unsigned int *sge_ind,
-			     struct ib_send_wr **bad_wr)
+			     const struct ib_send_wr **bad_wr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_v2_wqe_data_seg *dseg = wqe;
@@ -164,8 +164,9 @@ static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	return 0;
 }
 
-static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-				 struct ib_send_wr **bad_wr)
+static int hns_roce_v2_post_send(struct ib_qp *ibqp,
+				 const struct ib_send_wr *wr,
+				 const struct ib_send_wr **bad_wr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_ah *ah = to_hr_ah(ud_wr(wr)->ah);
@@ -530,8 +531,9 @@ out:
 	return ret;
 }
 
-static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-				 struct ib_recv_wr **bad_wr)
+static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
+				 const struct ib_recv_wr *wr,
+				 const struct ib_recv_wr **bad_wr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);

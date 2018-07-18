@@ -3067,8 +3067,8 @@ fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
 /**
  * nes_post_send
  */
-static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
-		struct ib_send_wr **bad_wr)
+static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
+			 const struct ib_send_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;
@@ -3329,8 +3329,8 @@ out:
 /**
  * nes_post_recv
  */
-static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
-		struct ib_recv_wr **bad_wr)
+static int nes_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	u64 u64temp;
 	unsigned long flags = 0;

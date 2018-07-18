@@ -43,10 +43,10 @@
 #ifndef __OCRDMA_VERBS_H__
 #define __OCRDMA_VERBS_H__
 
-int ocrdma_post_send(struct ib_qp *, struct ib_send_wr *,
-		     struct ib_send_wr **bad_wr);
-int ocrdma_post_recv(struct ib_qp *, struct ib_recv_wr *,
-		     struct ib_recv_wr **bad_wr);
+int ocrdma_post_send(struct ib_qp *, const struct ib_send_wr *,
+		     const struct ib_send_wr **bad_wr);
+int ocrdma_post_recv(struct ib_qp *, const struct ib_recv_wr *,
+		     const struct ib_recv_wr **bad_wr);
 
 int ocrdma_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
 int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_notify_flags flags);
@@ -100,8 +100,8 @@ int ocrdma_modify_srq(struct ib_srq *, struct ib_srq_attr *,
 		      enum ib_srq_attr_mask, struct ib_udata *);
 int ocrdma_query_srq(struct ib_srq *, struct ib_srq_attr *);
 int ocrdma_destroy_srq(struct ib_srq *);
-int ocrdma_post_srq_recv(struct ib_srq *, struct ib_recv_wr *,
-			 struct ib_recv_wr **bad_recv_wr);
+int ocrdma_post_srq_recv(struct ib_srq *, const struct ib_recv_wr *,
+			 const struct ib_recv_wr **bad_recv_wr);
 
 int ocrdma_dereg_mr(struct ib_mr *);
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *, int acc);

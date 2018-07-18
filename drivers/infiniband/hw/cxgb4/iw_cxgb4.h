@@ -1033,10 +1033,10 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 void c4iw_init_dev_ucontext(struct c4iw_rdev *rdev,
 			    struct c4iw_dev_ucontext *uctx);
 int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr);
-int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr);
+int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr);
+int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 int c4iw_destroy_listen(struct iw_cm_id *cm_id);
@@ -1119,8 +1119,8 @@ void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 void c4iw_dispatch_srq_limit_reached_event(struct c4iw_srq *srq);
 void c4iw_copy_wr_to_srq(struct t4_srq *srq, union t4_recv_wr *wqe, u8 len16);
 void c4iw_flush_srqidx(struct c4iw_qp *qhp, u32 srqidx);
-int c4iw_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		       struct ib_recv_wr **bad_wr);
+int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr);
 struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp);
 
 typedef int c4iw_restrack_func(struct sk_buff *msg,

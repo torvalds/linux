@@ -537,8 +537,8 @@ static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 	return 0;
 }
 
-int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		       struct ib_send_wr **bad_wr)
+int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		       const struct ib_send_wr **bad_wr)
 {
 	struct qed_roce_ll2_packet *pkt = NULL;
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
@@ -607,8 +607,8 @@ err:
 	return rc;
 }
 
-int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		       struct ib_recv_wr **bad_wr)
+int qedr_gsi_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
 	struct qedr_qp *qp = get_qedr_qp(ibqp);

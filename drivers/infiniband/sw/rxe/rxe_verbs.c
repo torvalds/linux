@@ -287,7 +287,7 @@ static int rxe_destroy_ah(struct ib_ah *ibah)
 	return 0;
 }
 
-static int post_one_recv(struct rxe_rq *rq, struct ib_recv_wr *ibwr)
+static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 {
 	int err;
 	int i;
@@ -438,8 +438,8 @@ static int rxe_destroy_srq(struct ib_srq *ibsrq)
 	return 0;
 }
 
-static int rxe_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			     struct ib_recv_wr **bad_wr)
+static int rxe_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	unsigned long flags;
@@ -726,8 +726,8 @@ err1:
 	return err;
 }
 
-static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
-				struct ib_send_wr **bad_wr)
+static int rxe_post_send_kernel(struct rxe_qp *qp, const struct ib_send_wr *wr,
+				const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
 	unsigned int mask;
@@ -769,8 +769,8 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
 	return err;
 }
 
-static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			 struct ib_send_wr **bad_wr)
+static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			 const struct ib_send_wr **bad_wr)
 {
 	struct rxe_qp *qp = to_rqp(ibqp);
 
@@ -792,8 +792,8 @@ static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return rxe_post_send_kernel(qp, wr, bad_wr);
 }
 
-static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			 struct ib_recv_wr **bad_wr)
+static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	struct rxe_qp *qp = to_rqp(ibqp);

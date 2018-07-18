@@ -898,7 +898,7 @@ static int mlx5_ib_post_send_wait(struct mlx5_ib_dev *dev,
 				  struct mlx5_umr_wr *umrwr)
 {
 	struct umr_common *umrc = &dev->umrc;
-	struct ib_send_wr *bad;
+	const struct ib_send_wr *bad;
 	int err;
 	struct mlx5_ib_umr_context umr_context;
 

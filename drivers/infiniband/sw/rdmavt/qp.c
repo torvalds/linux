@@ -1538,8 +1538,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Return: 0 on success otherwise errno
  */
-int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		  struct ib_recv_wr **bad_wr)
+int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		  const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_rwq *wq = qp->r_rq.wq;
@@ -1891,8 +1891,8 @@ bail_inval_free:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		  struct ib_send_wr **bad_wr)
+int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		  const struct ib_send_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -1948,8 +1948,8 @@ bail:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;

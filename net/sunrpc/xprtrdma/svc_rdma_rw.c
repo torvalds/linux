@@ -307,7 +307,8 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 {
 	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct svc_xprt *xprt = &rdma->sc_xprt;
-	struct ib_send_wr *first_wr, *bad_wr;
+	struct ib_send_wr *first_wr;
+	const struct ib_send_wr *bad_wr;
 	struct list_head *tmp;
 	struct ib_cqe *cqe;
 	int ret;

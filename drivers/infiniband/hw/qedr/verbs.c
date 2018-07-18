@@ -2696,9 +2696,9 @@ static void swap_wqe_data64(u64 *p)
 
 static u32 qedr_prepare_sq_inline_data(struct qedr_dev *dev,
 				       struct qedr_qp *qp, u8 *wqe_size,
-				       struct ib_send_wr *wr,
-				       struct ib_send_wr **bad_wr, u8 *bits,
-				       u8 bit)
+				       const struct ib_send_wr *wr,
+				       const struct ib_send_wr **bad_wr,
+				       u8 *bits, u8 bit)
 {
 	u32 data_size = sge_data_len(wr->sg_list, wr->num_sge);
 	char *seg_prt, *wqe;
@@ -2805,8 +2805,8 @@ static u32 qedr_prepare_sq_rdma_data(struct qedr_dev *dev,
 				     struct qedr_qp *qp,
 				     struct rdma_sq_rdma_wqe_1st *rwqe,
 				     struct rdma_sq_rdma_wqe_2nd *rwqe2,
-				     struct ib_send_wr *wr,
-				     struct ib_send_wr **bad_wr)
+				     const struct ib_send_wr *wr,
+				     const struct ib_send_wr **bad_wr)
 {
 	rwqe2->r_key = cpu_to_le32(rdma_wr(wr)->rkey);
 	DMA_REGPAIR_LE(rwqe2->remote_va, rdma_wr(wr)->remote_addr);
@@ -2828,8 +2828,8 @@ static u32 qedr_prepare_sq_send_data(struct qedr_dev *dev,
 				     struct qedr_qp *qp,
 				     struct rdma_sq_send_wqe_1st *swqe,
 				     struct rdma_sq_send_wqe_2st *swqe2,
-				     struct ib_send_wr *wr,
-				     struct ib_send_wr **bad_wr)
+				     const struct ib_send_wr *wr,
+				     const struct ib_send_wr **bad_wr)
 {
 	memset(swqe2, 0, sizeof(*swqe2));
 	if (wr->send_flags & IB_SEND_INLINE) {
@@ -2945,8 +2945,8 @@ static inline bool qedr_can_post_send(struct qedr_qp *qp,
 	return true;
 }
 
-static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		     struct ib_send_wr **bad_wr)
+static int __qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			    const struct ib_send_wr **bad_wr)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
@@ -3160,8 +3160,8 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	return rc;
 }
 
-int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		   struct ib_send_wr **bad_wr)
+int qedr_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
@@ -3226,8 +3226,8 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	return rc;
 }
 
-int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		   struct ib_recv_wr **bad_wr)
+int qedr_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		   const struct ib_recv_wr **bad_wr)
 {
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	struct qedr_dev *dev = qp->dev;

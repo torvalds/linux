@@ -246,7 +246,7 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 }
 
 static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+			   const struct ib_recv_wr *wr)
 {
 	int i, err = 0;
 	u32 pbl_addr[T3_MAX_SGE];
@@ -286,7 +286,7 @@ static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 }
 
 static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
-				struct ib_recv_wr *wr)
+				const struct ib_recv_wr *wr)
 {
 	int i;
 	u32 pbl_addr;
@@ -348,8 +348,8 @@ static int build_zero_stag_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 	return 0;
 }
 
-int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int iwch_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		   const struct ib_send_wr **bad_wr)
 {
 	int err = 0;
 	u8 uninitialized_var(t3_wr_flit_cnt);
@@ -463,8 +463,8 @@ out:
 	return err;
 }
 
-int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int iwch_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	int err = 0;
 	struct iwch_qp *qhp;

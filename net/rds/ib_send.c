@@ -492,7 +492,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	struct rds_ib_send_work *send = NULL;
 	struct rds_ib_send_work *first;
 	struct rds_ib_send_work *prev;
-	struct ib_send_wr *failed_wr;
+	const struct ib_send_wr *failed_wr;
 	struct scatterlist *scat;
 	u32 pos;
 	u32 i;
@@ -758,7 +758,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_send_work *send = NULL;
-	struct ib_send_wr *failed_wr;
+	const struct ib_send_wr *failed_wr;
 	struct rds_ib_device *rds_ibdev;
 	u32 pos;
 	u32 work_alloc;
@@ -849,7 +849,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	struct rds_ib_send_work *send = NULL;
 	struct rds_ib_send_work *first;
 	struct rds_ib_send_work *prev;
-	struct ib_send_wr *failed_wr;
+	const struct ib_send_wr *failed_wr;
 	struct scatterlist *scat;
 	unsigned long len;
 	u64 remote_addr = op->op_remote_addr;

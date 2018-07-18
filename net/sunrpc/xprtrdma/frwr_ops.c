@@ -517,7 +517,8 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 static void
 frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 {
-	struct ib_send_wr *first, **prev, *last, *bad_wr;
+	struct ib_send_wr *first, **prev, *last;
+	const struct ib_send_wr *bad_wr;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;

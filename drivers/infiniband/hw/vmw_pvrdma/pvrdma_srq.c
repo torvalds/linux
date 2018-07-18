@@ -52,8 +52,8 @@
 
 #include "pvrdma.h"
 
-int pvrdma_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			 struct ib_recv_wr **bad_wr)
+int pvrdma_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			 const struct ib_recv_wr **bad_wr)
 {
 	/* No support for kernel clients. */
 	return -EOPNOTSUPP;

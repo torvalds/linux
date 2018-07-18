@@ -2201,8 +2201,8 @@ static void i40iw_copy_sg_list(struct i40iw_sge *sg_list, struct ib_sge *sgl, in
  * @bad_wr: return of bad wr if err
  */
 static int i40iw_post_send(struct ib_qp *ibqp,
-			   struct ib_send_wr *ib_wr,
-			   struct ib_send_wr **bad_wr)
+			   const struct ib_send_wr *ib_wr,
+			   const struct ib_send_wr **bad_wr)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_qp_uk *ukqp;
@@ -2377,9 +2377,8 @@ out:
  * @ib_wr: work request for receive
  * @bad_wr: bad wr caused an error
  */
-static int i40iw_post_recv(struct ib_qp *ibqp,
-			   struct ib_recv_wr *ib_wr,
-			   struct ib_recv_wr **bad_wr)
+static int i40iw_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
+			   const struct ib_recv_wr **bad_wr)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_qp_uk *ukqp;

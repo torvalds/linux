@@ -58,8 +58,9 @@ static void set_raddr_seg(struct hns_roce_wqe_raddr_seg *rseg, u64 remote_addr,
 	rseg->len   = 0;
 }
 
-static int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-				 struct ib_send_wr **bad_wr)
+static int hns_roce_v1_post_send(struct ib_qp *ibqp,
+				 const struct ib_send_wr *wr,
+				 const struct ib_send_wr **bad_wr)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_ah *ah = to_hr_ah(ud_wr(wr)->ah);
@@ -342,8 +343,9 @@ out:
 	return ret;
 }
 
-static int hns_roce_v1_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-				 struct ib_recv_wr **bad_wr)
+static int hns_roce_v1_post_recv(struct ib_qp *ibqp,
+				 const struct ib_recv_wr *wr,
+				 const struct ib_recv_wr **bad_wr)
 {
 	int ret = 0;
 	int nreq = 0;
@@ -993,7 +995,8 @@ static int hns_roce_v1_send_lp_wqe(struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(hr_qp->ibqp.device);
 	struct device *dev = &hr_dev->pdev->dev;
-	struct ib_send_wr send_wr, *bad_wr;
+	struct ib_send_wr send_wr;
+	const struct ib_send_wr *bad_wr;
 	int ret;
 
 	memset(&send_wr, 0, sizeof(send_wr));

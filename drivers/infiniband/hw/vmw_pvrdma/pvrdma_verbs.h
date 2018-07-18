@@ -435,8 +435,8 @@ int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int pvrdma_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
 int pvrdma_destroy_srq(struct ib_srq *srq);
-int pvrdma_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-			 struct ib_recv_wr **bad_wr);
+int pvrdma_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			 const struct ib_recv_wr **bad_wr);
 
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,
@@ -446,9 +446,9 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		    int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 int pvrdma_destroy_qp(struct ib_qp *qp);
-int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		     struct ib_send_wr **bad_wr);
-int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		     struct ib_recv_wr **bad_wr);
+int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		     const struct ib_send_wr **bad_wr);
+int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		     const struct ib_recv_wr **bad_wr);
 
 #endif /* __PVRDMA_VERBS_H__ */
