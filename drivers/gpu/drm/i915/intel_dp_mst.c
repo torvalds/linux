@@ -241,11 +241,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 				       connector->port,
 				       pipe_config->pbn,
 				       pipe_config->dp_m_n.tu);
-	if (ret == false) {
+	if (!ret)
 		DRM_ERROR("failed to allocate vcpi\n");
-		return;
-	}
-
 
 	intel_dp->active_mst_links++;
 	temp = I915_READ(DP_TP_STATUS(port));
