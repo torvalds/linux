@@ -91,7 +91,8 @@ static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
 	"." __stringify(MLXSW_SP1_FWREV_MINOR) \
 	"." __stringify(MLXSW_SP1_FWREV_SUBMINOR) ".mfa2"
 
-static const char mlxsw_sp_driver_name[] = "mlxsw_spectrum";
+static const char mlxsw_sp1_driver_name[] = "mlxsw_spectrum";
+static const char mlxsw_sp2_driver_name[] = "mlxsw_spectrum2";
 static const char mlxsw_sp_driver_version[] = "1.0";
 
 /* tx_hdr_version
@@ -1727,7 +1728,8 @@ static void mlxsw_sp_port_get_drvinfo(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
-	strlcpy(drvinfo->driver, mlxsw_sp_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, mlxsw_sp->bus_info->device_kind,
+		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, mlxsw_sp_driver_version,
 		sizeof(drvinfo->version));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -3696,14 +3698,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	int err;
 
-	mlxsw_sp->req_rev = &mlxsw_sp1_fw_rev;
-	mlxsw_sp->fw_filename = MLXSW_SP1_FW_FILENAME;
-	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
-	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
-	mlxsw_sp->afk_ops = &mlxsw_sp1_afk_ops;
-	mlxsw_sp->mr_tcam_ops = &mlxsw_sp1_mr_tcam_ops;
-	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
-
 	mlxsw_sp->core = mlxsw_core;
 	mlxsw_sp->bus_info = mlxsw_bus_info;
 
@@ -3842,6 +3836,36 @@ err_fids_init:
 	return err;
 }
 
+static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_bus_info *mlxsw_bus_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	mlxsw_sp->req_rev = &mlxsw_sp1_fw_rev;
+	mlxsw_sp->fw_filename = MLXSW_SP1_FW_FILENAME;
+	mlxsw_sp->kvdl_ops = &mlxsw_sp1_kvdl_ops;
+	mlxsw_sp->afa_ops = &mlxsw_sp1_act_afa_ops;
+	mlxsw_sp->afk_ops = &mlxsw_sp1_afk_ops;
+	mlxsw_sp->mr_tcam_ops = &mlxsw_sp1_mr_tcam_ops;
+	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
+
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+}
+
+static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
+			  const struct mlxsw_bus_info *mlxsw_bus_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	mlxsw_sp->kvdl_ops = &mlxsw_sp2_kvdl_ops;
+	mlxsw_sp->afa_ops = &mlxsw_sp2_act_afa_ops;
+	mlxsw_sp->afk_ops = &mlxsw_sp2_afk_ops;
+	mlxsw_sp->mr_tcam_ops = &mlxsw_sp2_mr_tcam_ops;
+	mlxsw_sp->acl_tcam_ops = &mlxsw_sp2_acl_tcam_ops;
+
+	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
+}
+
 static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
@@ -3862,7 +3886,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 }
 
-static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
+static const struct mlxsw_config_profile mlxsw_sp1_config_profile = {
 	.used_max_mid			= 1,
 	.max_mid			= MLXSW_SP_MID_MAX,
 	.used_flood_tables		= 1,
@@ -3880,6 +3904,28 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.kvd_hash_single_parts		= 59,
 	.kvd_hash_double_parts		= 41,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
+	.swid_config			= {
+		{
+			.used_type	= 1,
+			.type		= MLXSW_PORT_SWID_TYPE_ETH,
+		}
+	},
+};
+
+static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
+	.used_max_mid			= 1,
+	.max_mid			= MLXSW_SP_MID_MAX,
+	.used_flood_tables		= 1,
+	.used_flood_mode		= 1,
+	.flood_mode			= 3,
+	.max_fid_offset_flood_tables	= 3,
+	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
+	.max_fid_flood_tables		= 3,
+	.fid_flood_table_size		= MLXSW_SP_FID_8021D_MAX,
+	.used_max_ib_mc			= 1,
+	.max_ib_mc			= 0,
+	.used_max_pkey			= 1,
+	.max_pkey			= 0,
 	.swid_config			= {
 		{
 			.used_type	= 1,
@@ -3924,7 +3970,7 @@ mlxsw_sp_resource_size_params_prepare(struct mlxsw_core *mlxsw_core,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
 }
 
-static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
+static int mlxsw_sp1_resources_kvd_register(struct mlxsw_core *mlxsw_core)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 	struct devlink_resource_size_params hash_single_size_params;
@@ -3935,7 +3981,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	const struct mlxsw_config_profile *profile;
 	int err;
 
-	profile = &mlxsw_sp_config_profile;
+	profile = &mlxsw_sp1_config_profile;
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, KVD_SIZE))
 		return -EIO;
 
@@ -3987,6 +4033,16 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_sp1_resources_kvd_register(mlxsw_core);
+}
+
+static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
+{
 	return 0;
 }
 
@@ -4045,10 +4101,10 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-static struct mlxsw_driver mlxsw_sp_driver = {
-	.kind				= mlxsw_sp_driver_name,
+static struct mlxsw_driver mlxsw_sp1_driver = {
+	.kind				= mlxsw_sp1_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
-	.init				= mlxsw_sp_init,
+	.init				= mlxsw_sp1_init,
 	.fini				= mlxsw_sp_fini,
 	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
 	.port_split			= mlxsw_sp_port_split,
@@ -4064,10 +4120,35 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
-	.resources_register		= mlxsw_sp_resources_register,
+	.resources_register		= mlxsw_sp1_resources_register,
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
-	.profile			= &mlxsw_sp_config_profile,
+	.profile			= &mlxsw_sp1_config_profile,
+	.res_query_enabled		= true,
+};
+
+static struct mlxsw_driver mlxsw_sp2_driver = {
+	.kind				= mlxsw_sp2_driver_name,
+	.priv_size			= sizeof(struct mlxsw_sp),
+	.init				= mlxsw_sp2_init,
+	.fini				= mlxsw_sp_fini,
+	.basic_trap_groups_set		= mlxsw_sp_basic_trap_groups_set,
+	.port_split			= mlxsw_sp_port_split,
+	.port_unsplit			= mlxsw_sp_port_unsplit,
+	.sb_pool_get			= mlxsw_sp_sb_pool_get,
+	.sb_pool_set			= mlxsw_sp_sb_pool_set,
+	.sb_port_pool_get		= mlxsw_sp_sb_port_pool_get,
+	.sb_port_pool_set		= mlxsw_sp_sb_port_pool_set,
+	.sb_tc_pool_bind_get		= mlxsw_sp_sb_tc_pool_bind_get,
+	.sb_tc_pool_bind_set		= mlxsw_sp_sb_tc_pool_bind_set,
+	.sb_occ_snapshot		= mlxsw_sp_sb_occ_snapshot,
+	.sb_occ_max_clear		= mlxsw_sp_sb_occ_max_clear,
+	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
+	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
+	.txhdr_construct		= mlxsw_sp_txhdr_construct,
+	.resources_register		= mlxsw_sp2_resources_register,
+	.txhdr_len			= MLXSW_TXHDR_LEN,
+	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,
 };
 
@@ -4846,14 +4927,24 @@ static struct notifier_block mlxsw_sp_inet6addr_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inet6addr_event,
 };
 
-static const struct pci_device_id mlxsw_sp_pci_id_table[] = {
+static const struct pci_device_id mlxsw_sp1_pci_id_table[] = {
 	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
 	{0, },
 };
 
-static struct pci_driver mlxsw_sp_pci_driver = {
-	.name = mlxsw_sp_driver_name,
-	.id_table = mlxsw_sp_pci_id_table,
+static struct pci_driver mlxsw_sp1_pci_driver = {
+	.name = mlxsw_sp1_driver_name,
+	.id_table = mlxsw_sp1_pci_id_table,
+};
+
+static const struct pci_device_id mlxsw_sp2_pci_id_table[] = {
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM2), 0},
+	{0, },
+};
+
+static struct pci_driver mlxsw_sp2_pci_driver = {
+	.name = mlxsw_sp2_driver_name,
+	.id_table = mlxsw_sp2_pci_id_table,
 };
 
 static int __init mlxsw_sp_module_init(void)
@@ -4865,19 +4956,31 @@ static int __init mlxsw_sp_module_init(void)
 	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 
-	err = mlxsw_core_driver_register(&mlxsw_sp_driver);
+	err = mlxsw_core_driver_register(&mlxsw_sp1_driver);
 	if (err)
-		goto err_core_driver_register;
+		goto err_sp1_core_driver_register;
 
-	err = mlxsw_pci_driver_register(&mlxsw_sp_pci_driver);
+	err = mlxsw_core_driver_register(&mlxsw_sp2_driver);
 	if (err)
-		goto err_pci_driver_register;
+		goto err_sp2_core_driver_register;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sp1_pci_driver);
+	if (err)
+		goto err_sp1_pci_driver_register;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sp2_pci_driver);
+	if (err)
+		goto err_sp2_pci_driver_register;
 
 	return 0;
 
-err_pci_driver_register:
-	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
-err_core_driver_register:
+err_sp2_pci_driver_register:
+	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+err_sp1_pci_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
+err_sp2_core_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
+err_sp1_core_driver_register:
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4887,8 +4990,10 @@ err_core_driver_register:
 
 static void __exit mlxsw_sp_module_exit(void)
 {
-	mlxsw_pci_driver_unregister(&mlxsw_sp_pci_driver);
-	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
+	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
+	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
 	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4901,5 +5006,6 @@ module_exit(mlxsw_sp_module_exit);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Spectrum driver");
-MODULE_DEVICE_TABLE(pci, mlxsw_sp_pci_id_table);
+MODULE_DEVICE_TABLE(pci, mlxsw_sp1_pci_id_table);
+MODULE_DEVICE_TABLE(pci, mlxsw_sp2_pci_id_table);
 MODULE_FIRMWARE(MLXSW_SP1_FW_FILENAME);
