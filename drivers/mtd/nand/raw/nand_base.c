@@ -6718,6 +6718,20 @@ err_free_buf:
 }
 EXPORT_SYMBOL(nand_scan_tail);
 
+static int nand_attach(struct nand_chip *chip)
+{
+	if (chip->controller->ops && chip->controller->ops->attach_chip)
+		return chip->controller->ops->attach_chip(chip);
+
+	return 0;
+}
+
+static void nand_detach(struct nand_chip *chip)
+{
+	if (chip->controller->ops && chip->controller->ops->detach_chip)
+		chip->controller->ops->detach_chip(chip);
+}
+
 /**
  * nand_scan_with_ids - [NAND Interface] Scan for the NAND device
  * @mtd: MTD device structure
@@ -6731,11 +6745,21 @@ EXPORT_SYMBOL(nand_scan_tail);
 int nand_scan_with_ids(struct mtd_info *mtd, int maxchips,
 		       struct nand_flash_dev *ids)
 {
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
 
 	ret = nand_scan_ident(mtd, maxchips, ids);
-	if (!ret)
-		ret = nand_scan_tail(mtd);
+	if (ret)
+		return ret;
+
+	ret = nand_attach(chip);
+	if (ret)
+		return ret;
+
+	ret = nand_scan_tail(mtd);
+	if (ret)
+		nand_detach(chip);
+
 	return ret;
 }
 EXPORT_SYMBOL(nand_scan_with_ids);
@@ -6763,7 +6787,11 @@ void nand_cleanup(struct nand_chip *chip)
 
 	/* Free manufacturer priv data. */
 	nand_manufacturer_cleanup(chip);
+
+	/* Free controller specific allocations after chip identification */
+	nand_detach(chip);
 }
+
 EXPORT_SYMBOL_GPL(nand_cleanup);
 
 /**
