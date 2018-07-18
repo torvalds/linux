@@ -1309,22 +1309,12 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 	}
 }
 
-static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
+void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = hisi_hba->dev;
 	struct Scsi_Host *shost = hisi_hba->shost;
-	u32 old_state, state;
-	int rc;
-
-	if (!hisi_hba->hw->soft_reset)
-		return -1;
-
-	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
-		return -1;
 
 	down(&hisi_hba->sem);
-	dev_info(dev, "controller resetting...\n");
-	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
+	hisi_hba->phy_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
 	scsi_block_requests(shost);
 	hisi_hba->hw->wait_cmds_complete_timeout(hisi_hba, 100, 5000);
@@ -1333,15 +1323,13 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		del_timer_sync(&hisi_hba->timer);
 
 	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
-	rc = hisi_hba->hw->soft_reset(hisi_hba);
-	if (rc) {
-		dev_warn(dev, "controller reset failed (%d)\n", rc);
-		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
-		up(&hisi_hba->sem);
-		scsi_unblock_requests(shost);
-		clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
-		return rc;
-	}
+}
+EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_prepare);
+
+void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba)
+{
+	struct Scsi_Host *shost = hisi_hba->shost;
+	u32 state;
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
@@ -1357,7 +1345,36 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
-	hisi_sas_rescan_topology(hisi_hba, old_state, state);
+	hisi_sas_rescan_topology(hisi_hba, hisi_hba->phy_state, state);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_controller_reset_done);
+
+static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	int rc;
+
+	if (!hisi_hba->hw->soft_reset)
+		return -1;
+
+	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+		return -1;
+
+	dev_info(dev, "controller resetting...\n");
+	hisi_sas_controller_reset_prepare(hisi_hba);
+
+	rc = hisi_hba->hw->soft_reset(hisi_hba);
+	if (rc) {
+		dev_warn(dev, "controller reset failed (%d)\n", rc);
+		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+		up(&hisi_hba->sem);
+		scsi_unblock_requests(shost);
+		clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+		return rc;
+	}
+
+	hisi_sas_controller_reset_done(hisi_hba);
 	dev_info(dev, "controller reset complete\n");
 
 	return 0;

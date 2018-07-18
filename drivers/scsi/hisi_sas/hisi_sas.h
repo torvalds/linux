@@ -320,6 +320,7 @@ struct hisi_hba {
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
+	u32 phy_state;
 };
 
 /* Generic HW DMA host memory structures */
@@ -480,4 +481,6 @@ extern bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
 				enum hisi_sas_phy_event event);
 extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max);
+extern void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba);
+extern void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba);
 #endif
