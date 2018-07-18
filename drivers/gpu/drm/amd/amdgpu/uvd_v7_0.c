@@ -389,7 +389,6 @@ static int uvd_v7_0_early_init(void *handle)
 static int uvd_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	int i, j, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -419,17 +418,6 @@ static int uvd_v7_0_sw_init(void *handle)
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 		DRM_INFO("PSP loading UVD firmware\n");
-	}
-
-	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
-		ring = &adev->uvd.inst[j].ring_enc[0];
-		rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-		r = drm_sched_entity_init(&adev->uvd.inst[j].entity_enc,
-					  &rq, 1, NULL);
-		if (r) {
-			DRM_ERROR("(%d)Failed setting up UVD ENC run queue.\n", j);
-			return r;
-		}
 	}
 
 	r = amdgpu_uvd_resume(adev);
@@ -484,8 +472,6 @@ static int uvd_v7_0_sw_fini(void *handle)
 		return r;
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
-		drm_sched_entity_destroy(&adev->uvd.inst[j].ring_enc[0].sched, &adev->uvd.inst[j].entity_enc);
-
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst[j].ring_enc[i]);
 	}

@@ -48,7 +48,6 @@ struct amdgpu_uvd_inst {
 	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
 	struct drm_sched_entity entity;
-	struct drm_sched_entity entity_enc;
 	uint32_t                srbm_soft_reset;
 };
 
