@@ -2193,9 +2193,9 @@ cleanup:
 /*
  * called from commit_transaction. Writes all changed qgroups to disk.
  */
-int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info)
+int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *quota_root = fs_info->quota_root;
 	int ret = 0;
 

@@ -5177,7 +5177,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	}
 
 	/* update qgroup status and info */
-	err = btrfs_run_qgroups(trans, fs_info);
+	err = btrfs_run_qgroups(trans);
 	if (err < 0)
 		btrfs_handle_fs_error(fs_info, err,
 				      "failed to update qgroup status and info");
