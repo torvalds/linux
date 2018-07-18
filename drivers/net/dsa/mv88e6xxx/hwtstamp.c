@@ -51,6 +51,15 @@ static int mv88e6xxx_ptp_write(struct mv88e6xxx_chip *chip, int addr,
 	return chip->info->ops->avb_ops->ptp_write(chip, addr, data);
 }
 
+static int mv88e6xxx_ptp_read(struct mv88e6xxx_chip *chip, int addr,
+			      u16 *data)
+{
+	if (!chip->info->ops->avb_ops->ptp_read)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->avb_ops->ptp_read(chip, addr, data, 1);
+}
+
 /* TX_TSTAMP_TIMEOUT: This limits the time spent polling for a TX
  * timestamp. When working properly, hardware will produce a timestamp
  * within 1ms. Software may enounter delays due to MDIO contention, so
@@ -144,11 +153,17 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 
 	mutex_lock(&chip->reg_lock);
 	if (tstamp_enable) {
+		chip->enable_count += 1;
+		if (chip->enable_count == 1 && ptp_ops->global_enable)
+			ptp_ops->global_enable(chip);
 		if (ptp_ops->port_enable)
 			ptp_ops->port_enable(chip, port);
 	} else {
 		if (ptp_ops->port_disable)
 			ptp_ops->port_disable(chip, port);
+		chip->enable_count -= 1;
+		if (chip->enable_count == 0 && ptp_ops->global_disable)
+			ptp_ops->global_disable(chip);
 	}
 	mutex_unlock(&chip->reg_lock);
 
@@ -516,6 +531,33 @@ bool mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 	return true;
 }
 
+int mv88e6165_global_disable(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_ptp_read(chip, MV88E6165_PTP_CFG, &val);
+	if (err)
+		return err;
+	val |= MV88E6165_PTP_CFG_DISABLE_PTP;
+
+	return mv88e6xxx_ptp_write(chip, MV88E6165_PTP_CFG, val);
+}
+
+int mv88e6165_global_enable(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_ptp_read(chip, MV88E6165_PTP_CFG, &val);
+	if (err)
+		return err;
+
+	val &= ~(MV88E6165_PTP_CFG_DISABLE_PTP | MV88E6165_PTP_CFG_TSPEC_MASK);
+
+	return mv88e6xxx_ptp_write(chip, MV88E6165_PTP_CFG, val);
+}
+
 int mv88e6352_hwtstamp_port_disable(struct mv88e6xxx_chip *chip, int port)
 {
 	return mv88e6xxx_port_ptp_write(chip, port, MV88E6XXX_PORT_PTP_CFG0,
@@ -546,12 +588,20 @@ static int mv88e6xxx_hwtstamp_port_setup(struct mv88e6xxx_chip *chip, int port)
 
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)
 {
+	const struct mv88e6xxx_ptp_ops *ptp_ops = chip->info->ops->ptp_ops;
 	int err;
 	int i;
 
 	/* Disable timestamping on all ports. */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
 		err = mv88e6xxx_hwtstamp_port_setup(chip, i);
+		if (err)
+			return err;
+	}
+
+	/* Disable PTP globally */
+	if (ptp_ops->global_disable) {
+		err = ptp_ops->global_disable(chip);
 		if (err)
 			return err;
 	}

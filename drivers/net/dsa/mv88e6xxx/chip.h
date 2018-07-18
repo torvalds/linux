@@ -274,6 +274,7 @@ struct mv88e6xxx_chip {
 	struct ptp_pin_desc	pin_config[MV88E6XXX_MAX_GPIO];
 	u16 trig_config;
 	u16 evcap_config;
+	u16 enable_count;
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
@@ -499,6 +500,8 @@ struct mv88e6xxx_ptp_ops {
 	void (*event_work)(struct work_struct *ugly);
 	int (*port_enable)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_disable)(struct mv88e6xxx_chip *chip, int port);
+	int (*global_enable)(struct mv88e6xxx_chip *chip);
+	int (*global_disable)(struct mv88e6xxx_chip *chip);
 	int n_ext_ts;
 	int arr0_sts_reg;
 	int arr1_sts_reg;

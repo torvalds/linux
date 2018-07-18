@@ -339,6 +339,18 @@ const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 
 const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
 	.clock_read = mv88e6165_ptp_clock_read,
+	.global_enable = mv88e6165_global_enable,
+	.global_disable = mv88e6165_global_disable,
+	.arr0_sts_reg = MV88E6165_PORT_PTP_ARR0_STS,
+	.arr1_sts_reg = MV88E6165_PORT_PTP_ARR1_STS,
+	.dep_sts_reg = MV88E6165_PORT_PTP_DEP_STS,
+	.rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+		(1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
 };
 
 static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)

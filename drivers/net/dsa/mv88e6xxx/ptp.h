@@ -81,6 +81,7 @@
 /* Offset 0x00: Ether Type */
 #define MV88E6XXX_PTP_GC_ETYPE			0x00
 
+/* 6165 Global Control Registers */
 /* Offset 0x01: Message ID */
 #define MV88E6XXX_PTP_GC_MESSAGE_ID		0x01
 
@@ -104,6 +105,40 @@
 /* Offset 0x9/0xa: Global Time */
 #define MV88E6XXX_PTP_GC_TIME_LO		0x09
 #define MV88E6XXX_PTP_GC_TIME_HI		0x0A
+
+/* 6165 Per Port Registers */
+/* Offset 0: Arrival Time 0 Status */
+#define MV88E6165_PORT_PTP_ARR0_STS	0x00
+
+/* Offset 0x01/0x02: PTP Arrival 0 Time */
+#define MV88E6165_PORT_PTP_ARR0_TIME_LO	0x01
+#define MV88E6165_PORT_PTP_ARR0_TIME_HI	0x02
+
+/* Offset 0x03: PTP Arrival 0 Sequence ID */
+#define MV88E6165_PORT_PTP_ARR0_SEQID	0x03
+
+/* Offset 0x04: PTP Arrival 1 Status */
+#define MV88E6165_PORT_PTP_ARR1_STS	0x04
+
+/* Offset 0x05/0x6E: PTP Arrival 1 Time */
+#define MV88E6165_PORT_PTP_ARR1_TIME_LO	0x05
+#define MV88E6165_PORT_PTP_ARR1_TIME_HI	0x06
+
+/* Offset 0x07: PTP Arrival 1 Sequence ID */
+#define MV88E6165_PORT_PTP_ARR1_SEQID	0x07
+
+/* Offset 0x08: PTP Departure Status */
+#define MV88E6165_PORT_PTP_DEP_STS	0x08
+
+/* Offset 0x09/0x0a: PTP Deperture Time */
+#define MV88E6165_PORT_PTP_DEP_TIME_LO	0x09
+#define MV88E6165_PORT_PTP_DEP_TIME_HI	0x0a
+
+/* Offset 0x0b: PTP Departure Sequence ID */
+#define MV88E6165_PORT_PTP_DEP_SEQID	0x0b
+
+/* Offset 0x0d: Port Status */
+#define MV88E6164_PORT_STATUS		0x0d
 
 #ifdef CONFIG_NET_DSA_MV88E6XXX_PTP
 
