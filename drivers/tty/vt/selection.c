@@ -57,11 +57,13 @@ static inline void highlight_pointer(const int where)
 	complement_pos(sel_cons, where);
 }
 
-static u16
+static u32
 sel_pos(int n)
 {
+	if (use_unicode)
+		return screen_glyph_unicode(sel_cons, n / 2);
 	return inverse_translate(sel_cons, screen_glyph(sel_cons, n),
-				use_unicode);
+				0);
 }
 
 /**
@@ -90,7 +92,8 @@ static u32 inwordLut[]={
   0x07FFFFFE, /* lowercase         */
 };
 
-static inline int inword(const u16 c) {
+static inline int inword(const u32 c)
+{
 	return c > 0x7f || (( inwordLut[c>>5] >> (c & 0x1F) ) & 1);
 }
 
@@ -167,7 +170,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	struct tiocl_selection v;
 	char *bp, *obp;
 	int i, ps, pe, multiplier;
-	u16 c;
+	u32 c;
 	int mode;
 
 	poke_blanked_console();
