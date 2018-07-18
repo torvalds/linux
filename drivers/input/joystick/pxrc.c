@@ -19,12 +19,6 @@
 #define PXRC_VENDOR_ID	(0x1781)
 #define PXRC_PRODUCT_ID	(0x0898)
 
-static const struct usb_device_id pxrc_table[] = {
-	{ USB_DEVICE(PXRC_VENDOR_ID, PXRC_PRODUCT_ID) },
-	{ }
-};
-MODULE_DEVICE_TABLE(usb, pxrc_table);
-
 struct pxrc {
 	struct input_dev	*input;
 	struct usb_interface	*intf;
@@ -276,6 +270,12 @@ static int pxrc_reset_resume(struct usb_interface *intf)
 {
 	return pxrc_resume(intf);
 }
+
+static const struct usb_device_id pxrc_table[] = {
+	{ USB_DEVICE(PXRC_VENDOR_ID, PXRC_PRODUCT_ID) },
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, pxrc_table);
 
 static struct usb_driver pxrc_driver = {
 	.name =		"pxrc",
