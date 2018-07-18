@@ -467,7 +467,7 @@ static int vmballoon_send_batched_lock(struct vmballoon *b,
 		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
 {
 	unsigned long status;
-	unsigned long pfn = page_to_pfn(b->page);
+	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
 
 	STATS_INC(b->stats.lock[is_2m_pages]);
 
@@ -515,7 +515,7 @@ static bool vmballoon_send_batched_unlock(struct vmballoon *b,
 		unsigned int num_pages, bool is_2m_pages, unsigned int *target)
 {
 	unsigned long status;
-	unsigned long pfn = page_to_pfn(b->page);
+	unsigned long pfn = PHYS_PFN(virt_to_phys(b->batch_page));
 
 	STATS_INC(b->stats.unlock[is_2m_pages]);
 
