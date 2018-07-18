@@ -837,8 +837,6 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 			struct drm_device *drm_dev)
 {
 	int ret;
-	struct exynos_drm_private *priv;
-	priv = drm_dev->dev_private;
 
 	mixer_ctx->drm_dev = drm_dev;
 
