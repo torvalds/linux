@@ -328,35 +328,35 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case AMDGPU_HW_IP_GFX:
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-				ring_mask |= ((adev->gfx.gfx_ring[i].ready ? 1 : 0) << i);
+				ring_mask |= adev->gfx.gfx_ring[i].ready << i;
 			ib_start_alignment = 32;
 			ib_size_alignment = 32;
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
 			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_compute_rings; i++)
-				ring_mask |= ((adev->gfx.compute_ring[i].ready ? 1 : 0) << i);
+				ring_mask |= adev->gfx.compute_ring[i].ready << i;
 			ib_start_alignment = 32;
 			ib_size_alignment = 32;
 			break;
 		case AMDGPU_HW_IP_DMA:
 			type = AMD_IP_BLOCK_TYPE_SDMA;
 			for (i = 0; i < adev->sdma.num_instances; i++)
-				ring_mask |= ((adev->sdma.instance[i].ring.ready ? 1 : 0) << i);
+				ring_mask |= adev->sdma.instance[i].ring.ready << i;
 			ib_start_alignment = 256;
 			ib_size_alignment = 4;
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
-				ring_mask |= ((adev->uvd.inst[i].ring.ready ? 1 : 0) << i);
+				ring_mask |= adev->uvd.inst[i].ring.ready << i;
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
 			for (i = 0; i < adev->vce.num_rings; i++)
-				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
+				ring_mask |= adev->vce.ring[i].ready << i;
 			ib_start_alignment = 4;
 			ib_size_alignment = 1;
 			break;
@@ -365,27 +365,27 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
 				for (j = 0; j < adev->uvd.num_enc_rings; j++)
 					ring_mask |=
-					((adev->uvd.inst[i].ring_enc[j].ready ? 1 : 0) <<
-					(j + i * adev->uvd.num_enc_rings));
+					adev->uvd.inst[i].ring_enc[j].ready <<
+					(j + i * adev->uvd.num_enc_rings);
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
 			type = AMD_IP_BLOCK_TYPE_VCN;
-			ring_mask = adev->vcn.ring_dec.ready ? 1 : 0;
+			ring_mask = adev->vcn.ring_dec.ready;
 			ib_start_alignment = 16;
 			ib_size_alignment = 16;
 			break;
 		case AMDGPU_HW_IP_VCN_ENC:
 			type = AMD_IP_BLOCK_TYPE_VCN;
 			for (i = 0; i < adev->vcn.num_enc_rings; i++)
-				ring_mask |= ((adev->vcn.ring_enc[i].ready ? 1 : 0) << i);
+				ring_mask |= adev->vcn.ring_enc[i].ready << i;
 			ib_start_alignment = 64;
 			ib_size_alignment = 1;
 			break;
 		case AMDGPU_HW_IP_VCN_JPEG:
 			type = AMD_IP_BLOCK_TYPE_VCN;
-			ring_mask = adev->vcn.ring_jpeg.ready ? 1 : 0;
+			ring_mask = adev->vcn.ring_jpeg.ready;
 			ib_start_alignment = 16;
 			ib_size_alignment = 16;
 			break;
