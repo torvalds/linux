@@ -582,6 +582,8 @@ static int tsl2772_als_calibrate(struct iio_dev *indio_dev)
 			"%s: failed to get lux\n", __func__);
 		return lux_val;
 	}
+	if (lux_val == 0)
+		return -ERANGE;
 
 	ret = (chip->settings.als_cal_target * chip->settings.als_gain_trim) /
 			lux_val;

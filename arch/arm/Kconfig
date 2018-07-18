@@ -1245,8 +1245,14 @@ config PCI
 	  VESA. If you have PCI, say Y, otherwise N.
 
 config PCI_DOMAINS
-	bool
+	bool "Support for multiple PCI domains"
 	depends on PCI
+	help
+	  Enable PCI domains kernel management. Say Y if your machine
+	  has a PCI bus hierarchy that requires more than one PCI
+	  domain (aka segment) to be correctly managed. Say N otherwise.
+
+	  If you don't know what to do here, say N.
 
 config PCI_DOMAINS_GENERIC
 	def_bool PCI_DOMAINS

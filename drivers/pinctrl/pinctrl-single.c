@@ -1590,8 +1590,11 @@ static int pcs_save_context(struct pcs_device *pcs)
 
 	mux_bytes = pcs->width / BITS_PER_BYTE;
 
-	if (!pcs->saved_vals)
+	if (!pcs->saved_vals) {
 		pcs->saved_vals = devm_kzalloc(pcs->dev, pcs->size, GFP_ATOMIC);
+		if (!pcs->saved_vals)
+			return -ENOMEM;
+	}
 
 	switch (pcs->width) {
 	case 64:
@@ -1651,8 +1654,13 @@ static int pinctrl_single_suspend(struct platform_device *pdev,
 	if (!pcs)
 		return -EINVAL;
 
-	if (pcs->flags & PCS_CONTEXT_LOSS_OFF)
-		pcs_save_context(pcs);
+	if (pcs->flags & PCS_CONTEXT_LOSS_OFF) {
+		int ret;
+
+		ret = pcs_save_context(pcs);
+		if (ret < 0)
+			return ret;
+	}
 
 	return pinctrl_force_sleep(pcs->pctl);
 }

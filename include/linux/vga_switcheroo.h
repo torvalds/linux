@@ -84,8 +84,8 @@ enum vga_switcheroo_state {
  * Client identifier. Audio clients use the same identifier & 0x100.
  */
 enum vga_switcheroo_client_id {
-	VGA_SWITCHEROO_UNKNOWN_ID = -1,
-	VGA_SWITCHEROO_IGD,
+	VGA_SWITCHEROO_UNKNOWN_ID = 0x1000,
+	VGA_SWITCHEROO_IGD = 0,
 	VGA_SWITCHEROO_DIS,
 	VGA_SWITCHEROO_MAX_CLIENTS,
 };
@@ -151,7 +151,7 @@ int vga_switcheroo_register_client(struct pci_dev *dev,
 				   bool driver_power_control);
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 					 const struct vga_switcheroo_client_ops *ops,
-					 enum vga_switcheroo_client_id id);
+					 struct pci_dev *vga_dev);
 
 void vga_switcheroo_client_fb_set(struct pci_dev *dev,
 				  struct fb_info *info);
@@ -180,7 +180,7 @@ static inline int vga_switcheroo_register_handler(const struct vga_switcheroo_ha
 		enum vga_switcheroo_handler_flags_t handler_flags) { return 0; }
 static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	const struct vga_switcheroo_client_ops *ops,
-	enum vga_switcheroo_client_id id) { return 0; }
+	struct pci_dev *vga_dev) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline enum vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void) { return 0; }
 static inline int vga_switcheroo_lock_ddc(struct pci_dev *pdev) { return -ENODEV; }

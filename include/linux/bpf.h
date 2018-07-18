@@ -488,12 +488,15 @@ void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 
 /* Map specifics */
 struct xdp_buff;
+struct sk_buff;
 
 struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
 void __dev_map_insert_ctx(struct bpf_map *map, u32 index);
 void __dev_map_flush(struct bpf_map *map);
 int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
+int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
+			     struct bpf_prog *xdp_prog);
 
 struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key);
 void __cpu_map_insert_ctx(struct bpf_map *map, u32 index);
@@ -582,6 +585,15 @@ struct bpf_dtab_netdev;
 static inline
 int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 		    struct net_device *dev_rx)
+{
+	return 0;
+}
+
+struct sk_buff;
+
+static inline int dev_map_generic_redirect(struct bpf_dtab_netdev *dst,
+					   struct sk_buff *skb,
+					   struct bpf_prog *xdp_prog)
 {
 	return 0;
 }
@@ -684,6 +696,8 @@ static inline void bpf_map_offload_map_free(struct bpf_map *map)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
 struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key);
 int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
+int sockmap_get_from_fd(const union bpf_attr *attr, int type,
+			struct bpf_prog *prog);
 #else
 static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
 {
@@ -701,6 +715,12 @@ static inline int sock_map_prog(struct bpf_map *map,
 				u32 type)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int sockmap_get_from_fd(const union bpf_attr *attr, int type,
+				      struct bpf_prog *prog)
+{
+	return -EINVAL;
 }
 #endif
 

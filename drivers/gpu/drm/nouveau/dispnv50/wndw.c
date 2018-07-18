@@ -444,14 +444,17 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	if (ret)
 		return ret;
 
-	ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
-	if (IS_ERR(ctxdma)) {
-		nouveau_bo_unpin(fb->nvbo);
-		return PTR_ERR(ctxdma);
+	if (wndw->ctxdma.parent) {
+		ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
+		if (IS_ERR(ctxdma)) {
+			nouveau_bo_unpin(fb->nvbo);
+			return PTR_ERR(ctxdma);
+		}
+
+		asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
 	asyw->state.fence = reservation_object_get_excl_rcu(fb->nvbo->bo.resv);
-	asyw->image.handle[0] = ctxdma->object.handle;
 	asyw->image.offset[0] = fb->nvbo->bo.offset;
 
 	if (wndw->func->prepare) {

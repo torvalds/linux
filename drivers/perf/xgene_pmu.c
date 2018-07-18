@@ -1463,7 +1463,7 @@ static char *xgene_pmu_dev_name(struct device *dev, u32 type, int id)
 	case PMU_TYPE_IOB:
 		return devm_kasprintf(dev, GFP_KERNEL, "iob%d", id);
 	case PMU_TYPE_IOB_SLOW:
-		return devm_kasprintf(dev, GFP_KERNEL, "iob-slow%d", id);
+		return devm_kasprintf(dev, GFP_KERNEL, "iob_slow%d", id);
 	case PMU_TYPE_MCB:
 		return devm_kasprintf(dev, GFP_KERNEL, "mcb%d", id);
 	case PMU_TYPE_MC:

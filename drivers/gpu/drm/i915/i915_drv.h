@@ -340,14 +340,21 @@ struct drm_i915_file_private {
 
 	unsigned int bsd_engine;
 
-/* Client can have a maximum of 3 contexts banned before
- * it is denied of creating new contexts. As one context
- * ban needs 4 consecutive hangs, and more if there is
- * progress in between, this is a last resort stop gap measure
- * to limit the badly behaving clients access to gpu.
+/*
+ * Every context ban increments per client ban score. Also
+ * hangs in short succession increments ban score. If ban threshold
+ * is reached, client is considered banned and submitting more work
+ * will fail. This is a stop gap measure to limit the badly behaving
+ * clients access to gpu. Note that unbannable contexts never increment
+ * the client ban score.
  */
-#define I915_MAX_CLIENT_CONTEXT_BANS 3
-	atomic_t context_bans;
+#define I915_CLIENT_SCORE_HANG_FAST	1
+#define   I915_CLIENT_FAST_HANG_JIFFIES (60 * HZ)
+#define I915_CLIENT_SCORE_CONTEXT_BAN   3
+#define I915_CLIENT_SCORE_BANNED	9
+	/** ban_score: Accumulated score of all ctx bans and fast hangs. */
+	atomic_t ban_score;
+	unsigned long hang_timestamp;
 };
 
 /* Interface history:
@@ -2238,9 +2245,6 @@ static inline struct scatterlist *____sg_next(struct scatterlist *sg)
  **/
 static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg->sg_magic != SG_MAGIC);
-#endif
 	return sg_is_last(sg) ? NULL : ____sg_next(sg);
 }
 

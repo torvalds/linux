@@ -118,6 +118,9 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	u64 addr;
 	int err;
 
+	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
+		return -EINVAL;
+
 	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
 	    len > xs->umem->chunk_size_nohr) {
 		xs->rx_dropped++;
@@ -300,9 +303,10 @@ static int xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len)
 	return (xs->zc) ? xsk_zc_xmit(sk) : xsk_generic_xmit(sk, m, total_len);
 }
 
-static __poll_t xsk_poll_mask(struct socket *sock, __poll_t events)
+static unsigned int xsk_poll(struct file *file, struct socket *sock,
+			     struct poll_table_struct *wait)
 {
-	__poll_t mask = datagram_poll_mask(sock, events);
+	unsigned int mask = datagram_poll(file, sock, wait);
 	struct sock *sk = sock->sk;
 	struct xdp_sock *xs = xdp_sk(sk);
 
@@ -693,7 +697,7 @@ static const struct proto_ops xsk_proto_ops = {
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= sock_no_getname,
-	.poll_mask	= xsk_poll_mask,
+	.poll		= xsk_poll,
 	.ioctl		= sock_no_ioctl,
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,

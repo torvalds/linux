@@ -111,6 +111,11 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 {
 }
 
+static inline bool tcf_block_shared(struct tcf_block *block)
+{
+	return false;
+}
+
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
 	return NULL;

@@ -322,6 +322,8 @@
 		dwmmc_2: dwmmc2@f723f000 {
 			bus-width = <0x4>;
 			non-removable;
+			cap-power-off-card;
+			keep-power-in-suspend;
 			vmmc-supply = <&reg_vdd_3v3>;
 			mmc-pwrseq = <&wl1835_pwrseq>;
 

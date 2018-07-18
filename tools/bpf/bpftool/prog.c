@@ -90,7 +90,9 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 	}
 
 	wallclock_secs = (real_time_ts.tv_sec - boot_time_ts.tv_sec) +
-		nsecs / 1000000000;
+		(real_time_ts.tv_nsec - boot_time_ts.tv_nsec + nsecs) /
+		1000000000;
+
 
 	if (!localtime_r(&wallclock_secs, &load_tm)) {
 		snprintf(buf, size, "%llu", nsecs / 1000000000);
@@ -692,15 +694,19 @@ static int do_load(int argc, char **argv)
 		return -1;
 	}
 
-	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program");
-		return -1;
-	}
+	if (do_pin_fd(prog_fd, argv[1]))
+		goto err_close_obj;
 
 	if (json_output)
 		jsonw_null(json_wtr);
 
+	bpf_object__close(obj);
+
 	return 0;
+
+err_close_obj:
+	bpf_object__close(obj);
+	return -1;
 }
 
 static int do_help(int argc, char **argv)

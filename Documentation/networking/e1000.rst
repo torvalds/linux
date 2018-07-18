@@ -1,3 +1,4 @@
+===========================================================
 Linux* Base Driver for Intel(R) Ethernet Network Connection
 ===========================================================
 
@@ -354,57 +355,58 @@ previously mentioned to force the adapter to the same speed and duplex.
 Additional Configurations
 =========================
 
-  Jumbo Frames
-  ------------
-  Jumbo Frames support is enabled by changing the MTU to a value larger than
-  the default of 1500.  Use the ifconfig command to increase the MTU size.
-  For example::
+Jumbo Frames
+------------
+Jumbo Frames support is enabled by changing the MTU to a value larger
+than the default of 1500.  Use the ifconfig command to increase the MTU
+size.  For example::
 
        ifconfig eth<x> mtu 9000 up
 
-  This setting is not saved across reboots.  It can be made permanent if
-  you add::
+This setting is not saved across reboots.  It can be made permanent if
+you add::
 
        MTU=9000
 
-   to the file /etc/sysconfig/network-scripts/ifcfg-eth<x>.  This example
-   applies to the Red Hat distributions; other distributions may store this
-   setting in a different location.
+to the file /etc/sysconfig/network-scripts/ifcfg-eth<x>.  This example
+applies to the Red Hat distributions; other distributions may store this
+setting in a different location.
 
-  Notes:
-  Degradation in throughput performance may be observed in some Jumbo frames
-  environments. If this is observed, increasing the application's socket buffer
-  size and/or increasing the /proc/sys/net/ipv4/tcp_*mem entry values may help.
-  See the specific application manual and /usr/src/linux*/Documentation/
-  networking/ip-sysctl.txt for more details.
+Notes: Degradation in throughput performance may be observed in some
+Jumbo frames environments.  If this is observed, increasing the
+application's socket buffer size and/or increasing the
+/proc/sys/net/ipv4/tcp_*mem entry values may help.  See the specific
+application manual and /usr/src/linux*/Documentation/
+networking/ip-sysctl.txt for more details.
 
-  - The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
-    with the maximum Jumbo Frames size of 16128.
+- The maximum MTU setting for Jumbo Frames is 16110.  This value
+  coincides with the maximum Jumbo Frames size of 16128.
 
-  - Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
-    poor performance or loss of link.
+- Using Jumbo frames at 10 or 100 Mbps is not supported and may result
+  in poor performance or loss of link.
 
-  - Adapters based on the Intel(R) 82542 and 82573V/E controller do not
-    support Jumbo Frames. These correspond to the following product names:
-     Intel(R) PRO/1000 Gigabit Server Adapter
-     Intel(R) PRO/1000 PM Network Connection
+- Adapters based on the Intel(R) 82542 and 82573V/E controller do not
+  support Jumbo Frames.  These correspond to the following product names:
+  Intel(R) PRO/1000 Gigabit Server Adapter Intel(R) PRO/1000 PM Network
+  Connection
 
-  ethtool
-  -------
-  The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  The ethtool
-  version 1.6 or later is required for this functionality.
+ethtool
+-------
+The driver utilizes the ethtool interface for driver configuration and
+diagnostics, as well as displaying statistical information.  The ethtool
+version 1.6 or later is required for this functionality.
 
-  The latest release of ethtool can be found from
-  https://www.kernel.org/pub/software/network/ethtool/
+The latest release of ethtool can be found from
+https://www.kernel.org/pub/software/network/ethtool/
 
-  Enabling Wake on LAN* (WoL)
-  ---------------------------
-  WoL is configured through the ethtool* utility.
+Enabling Wake on LAN* (WoL)
+---------------------------
+WoL is configured through the ethtool* utility.
 
-  WoL will be enabled on the system during the next shut down or reboot.
-  For this driver version, in order to enable WoL, the e1000 driver must be
-  loaded when shutting down or rebooting the system.
+WoL will be enabled on the system during the next shut down or reboot.
+For this driver version, in order to enable WoL, the e1000 driver must be
+loaded when shutting down or rebooting the system.
+
 
 Support
 =======
