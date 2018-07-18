@@ -1206,6 +1206,34 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 }
 
 /**
+ * uvd_v7_0_ring_patch_cs_in_place - Patch the IB for command submission.
+ *
+ * @p: the CS parser with the IBs
+ * @ib_idx: which IB to patch
+ *
+ */
+static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
+					   uint32_t ib_idx)
+{
+	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
+	unsigned i;
+
+	/* No patching necessary for the first instance */
+	if (!p->ring->me)
+		return 0;
+
+	for (i = 0; i < ib->length_dw; i += 2) {
+		uint32_t reg = amdgpu_get_ib_value(p, ib_idx, i);
+
+		reg -= p->adev->reg_offset[UVD_HWIP][0][1];
+		reg += p->adev->reg_offset[UVD_HWIP][1][1];
+
+		amdgpu_set_ib_value(p, ib_idx, i, reg);
+	}
+	return 0;
+}
+
+/**
  * uvd_v7_0_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
@@ -1697,6 +1725,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.get_rptr = uvd_v7_0_ring_get_rptr,
 	.get_wptr = uvd_v7_0_ring_get_wptr,
 	.set_wptr = uvd_v7_0_ring_set_wptr,
+	.patch_cs_in_place = uvd_v7_0_ring_patch_cs_in_place,
 	.emit_frame_size =
 		6 + /* hdp invalidate */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
