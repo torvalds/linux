@@ -229,6 +229,14 @@ retry:
 	return ret;
 }
 
+int cg_enter_current(const char *cgroup)
+{
+	char pidbuf[64];
+
+	snprintf(pidbuf, sizeof(pidbuf), "%d", getpid());
+	return cg_write(cgroup, "cgroup.procs", pidbuf);
+}
+
 int cg_run(const char *cgroup,
 	   int (*fn)(const char *cgroup, void *arg),
 	   void *arg)
