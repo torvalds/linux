@@ -2523,6 +2523,62 @@ static inline void mlxsw_reg_perar_pack(char *payload, u16 region_id,
 	mlxsw_reg_perar_hw_region_set(payload, hw_region);
 }
 
+/* PERCR - Policy-Engine Region Configuration Register
+ * ---------------------------------------------------
+ * This register configures the region parameters. The region_id must be
+ * allocated.
+ */
+#define MLXSW_REG_PERCR_ID 0x302A
+#define MLXSW_REG_PERCR_LEN 0x80
+
+MLXSW_REG_DEFINE(percr, MLXSW_REG_PERCR_ID, MLXSW_REG_PERCR_LEN);
+
+/* reg_percr_region_id
+ * Region identifier.
+ * Range 0..cap_max_regions-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, percr, region_id, 0x00, 0, 16);
+
+/* reg_percr_atcam_ignore_prune
+ * Ignore prune_vector by other A-TCAM rules. Used e.g., for a new rule.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, percr, atcam_ignore_prune, 0x04, 25, 1);
+
+/* reg_percr_ctcam_ignore_prune
+ * Ignore prune_ctcam by other A-TCAM rules. Used e.g., for a new rule.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, percr, ctcam_ignore_prune, 0x04, 24, 1);
+
+/* reg_percr_bf_bypass
+ * Bloom filter bypass.
+ * 0 - Bloom filter is used (default)
+ * 1 - Bloom filter is bypassed. The bypass is an OR condition of
+ * region_id or eRP. See PERPT.bf_bypass
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, percr, bf_bypass, 0x04, 16, 1);
+
+/* reg_percr_master_mask
+ * Master mask. Logical OR mask of all masks of all rules of a region
+ * (both A-TCAM and C-TCAM). When there are no eRPs
+ * (erpt_pointer_valid = 0), then this provides the mask.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, percr, master_mask, 0x20, 96);
+
+static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
+{
+	MLXSW_REG_ZERO(percr, payload);
+	mlxsw_reg_percr_region_id_set(payload, region_id);
+	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
+	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
+	mlxsw_reg_percr_bf_bypass_set(payload, true);
+	memset(payload + 0x20, 0xff, 96);
+}
+
 /* IEDR - Infrastructure Entry Delete Register
  * ----------------------------------------------------
  * This register is used for deleting entries from the entry tables.
@@ -8100,6 +8156,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perar),
+	MLXSW_REG(percr),
 	MLXSW_REG(iedr),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
