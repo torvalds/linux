@@ -527,7 +527,6 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 	wilc = vif->wilc;
 
 	txb = wilc->tx_buffer;
-	wilc->txq_exit = 0;
 
 	if (wilc->quit)
 		goto out;
@@ -713,7 +712,6 @@ out_release_bus:
 out:
 	mutex_unlock(&wilc->txq_add_to_head_cs);
 
-	wilc->txq_exit = 1;
 	*txq_count = wilc->txq_entries;
 	return ret;
 }
@@ -780,8 +778,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 	u8 *buffer;
 	struct rxq_entry_t *rqe;
 
-	wilc->rxq_exit = 0;
-
 	do {
 		if (wilc->quit) {
 			complete(&wilc->cfg_event);
@@ -797,8 +793,6 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 
 		kfree(rqe);
 	} while (1);
-
-	wilc->rxq_exit = 1;
 }
 
 static void wilc_unknown_isr_ext(struct wilc *wilc)
