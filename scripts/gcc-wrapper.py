@@ -30,6 +30,7 @@
 # Invoke gcc, looking for warnings, and causing a failure if there are
 # non-whitelisted warnings.
 
+from __future__ import print_function
 import errno
 import re
 import os
@@ -58,13 +59,15 @@ allowed_warnings = set([
 # Capture the name of the object file, can find it.
 ofile = None
 
+do_exit = False;
+
 warning_re = re.compile(r'''(.*/|)([^/]+\.[a-z]+:\d+):(\d+:)? warning:''')
 def interpret_warning(line):
     """Decode the message from gcc.  The messages we care about have a filename, and a warning"""
     line = line.rstrip('\n')
     m = warning_re.match(line)
     if m and m.group(2) not in allowed_warnings:
-        print "error, forbidden warning:", m.group(2)
+        print ("error, forbidden warning:" + m.group(2))
 
         # If there is a warning, remove any object if it exists.
         if ofile:
@@ -72,7 +75,8 @@ def interpret_warning(line):
                 os.remove(ofile)
             except OSError:
                 pass
-        sys.exit(1)
+        global do_exit
+        do_exit = True;
 
 def run_gcc():
     args = sys.argv[1:]
@@ -89,17 +93,19 @@ def run_gcc():
     try:
         proc = subprocess.Popen(args, stderr=subprocess.PIPE)
         for line in proc.stderr:
-            print line,
-            interpret_warning(line)
+            print (line.decode("utf-8"), end="")
+            interpret_warning(line.decode("utf-8"))
+        if do_exit:
+            sys.exit(1)
 
         result = proc.wait()
     except OSError as e:
         result = e.errno
         if result == errno.ENOENT:
-            print args[0] + ':',e.strerror
-            print 'Is your PATH set correctly?'
+            print (args[0] + ':' + e.strerror)
+            print ('Is your PATH set correctly?')
         else:
-            print ' '.join(args), str(e)
+            print (' '.join(args) + str(e))
 
     return result
 
