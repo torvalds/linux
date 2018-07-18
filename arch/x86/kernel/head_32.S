@@ -19,7 +19,7 @@
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>

@@ -6,7 +6,7 @@
  *	- Copyright 2011 Fenghua Yu <fenghua.yu@intel.com>
  */
 #include <linux/linkage.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 
 #undef memmove

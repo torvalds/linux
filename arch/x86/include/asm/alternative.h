@@ -154,12 +154,6 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	".popsection\n"
 
 /*
- * This must be included *after* the definition of ALTERNATIVE due to
- * <asm/arch_hweight.h>
- */
-#include <asm/cpufeature.h>
-
-/*
  * Alternative instructions for different CPU types or capabilities.
  *
  * This allows to use optimized instructions even on generic binary

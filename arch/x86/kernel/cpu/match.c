@@ -1,5 +1,5 @@
 #include <asm/cpu_device_id.h>
-#include <asm/processor.h>
+#include <asm/cpufeature.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/slab.h>

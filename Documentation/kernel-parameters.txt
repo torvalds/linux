@@ -653,7 +653,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
-			arch/x86/include/asm/cpufeature.h for the valid bit
+			arch/x86/include/asm/cpufeatures.h for the valid bit
 			numbers. Note the Linux specific bits are not necessarily
 			stable over kernel options, but the vendor specific
 			ones should be.
