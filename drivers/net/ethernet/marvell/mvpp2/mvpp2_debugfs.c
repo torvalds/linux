@@ -245,7 +245,7 @@ static int mvpp2_dbgfs_flow_c2_enable_show(struct seq_file *s, void *unused)
 
 	mvpp2_cls_c2_read(port->priv, MVPP22_CLS_C2_RSS_ENTRY(port->id), &c2);
 
-	enabled = !!(c2.attr[2] | MVPP22_CLS_C2_ATTR2_RSS_EN);
+	enabled = !!(c2.attr[2] & MVPP22_CLS_C2_ATTR2_RSS_EN);
 
 	seq_printf(s, "%d\n", enabled);
 
