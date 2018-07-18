@@ -204,7 +204,6 @@ struct hisi_sas_slot {
 	int	ready;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
-	struct work_struct abort_slot;
 	struct timer_list internal_abort_timer;
 	bool is_internal;
 	struct hisi_sas_tmf_task *tmf;

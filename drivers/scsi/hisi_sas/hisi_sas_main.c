@@ -281,40 +281,6 @@ static void hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
 			device_id, abort_flag, tag_to_abort);
 }
 
-/*
- * This function will issue an abort TMF regardless of whether the
- * task is in the sdev or not. Then it will do the task complete
- * cleanup and callbacks.
- */
-static void hisi_sas_slot_abort(struct work_struct *work)
-{
-	struct hisi_sas_slot *abort_slot =
-		container_of(work, struct hisi_sas_slot, abort_slot);
-	struct sas_task *task = abort_slot->task;
-	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
-	struct scsi_cmnd *cmnd = task->uldd_task;
-	struct hisi_sas_tmf_task tmf_task;
-	struct scsi_lun lun;
-	struct device *dev = hisi_hba->dev;
-	int tag = abort_slot->idx;
-
-	if (!(task->task_proto & SAS_PROTOCOL_SSP)) {
-		dev_err(dev, "cannot abort slot for non-ssp task\n");
-		goto out;
-	}
-
-	int_to_scsilun(cmnd->device->lun, &lun);
-	tmf_task.tmf = TMF_ABORT_TASK;
-	tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
-
-	hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
-out:
-	/* Do cleanup for this task */
-	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
-	if (task->task_done)
-		task->task_done(task);
-}
-
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
 			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
@@ -451,7 +417,6 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	slot->tmf = tmf;
 	slot->is_internal = is_tmf;
 	task->lldd_task = slot;
-	INIT_WORK(&slot->abort_slot, hisi_sas_slot_abort);
 
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
 	memset(hisi_sas_cmd_hdr_addr_mem(slot), 0, HISI_SAS_COMMAND_TABLE_SZ);
