@@ -405,7 +405,8 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	wr = sig_handover_wr(iser_tx_next_wr(tx_desc));
+	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_sig_handover_wr,
+			  wr);
 	wr->wr.opcode = IB_WR_REG_SIG_MR;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.sg_list = &data_reg->sge;
@@ -457,7 +458,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return n < 0 ? n : -EINVAL;
 	}
 
-	wr = reg_wr(iser_tx_next_wr(tx_desc));
+	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_reg_wr, wr);
 	wr->wr.opcode = IB_WR_REG_MR;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.send_flags = 0;
