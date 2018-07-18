@@ -6,9 +6,9 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 
-#include "flash.h"
 #include "flash_com.h"
 #include "rkflash_debug.h"
+#include "rk_sftl.h"
 #include "sfc.h"
 #include "sfc_nand.h"
 

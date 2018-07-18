@@ -8,7 +8,7 @@
 #include "flash.h"
 #include "flash_com.h"
 #include "nandc.h"
-#include "typedef.h"
+#include "rk_sftl.h"
 
 #define     CPU_DELAY_NS(n)	ndelay(n)
 

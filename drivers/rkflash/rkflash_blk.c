@@ -25,9 +25,11 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/version.h>
+#include <linux/soc/rockchip/rk_vendor_storage.h>
 
 #include "rkflash_api.h"
 #include "rkflash_blk.h"
+#include "rk_sftl.h"
 
 #include "../soc/rockchip/flash_vendor_storage.h"
 
@@ -40,8 +42,8 @@ static struct flash_boot_ops nandc_nand_ops = {
 	sftl_flash_get_capacity,
 	sftl_flash_deinit,
 	sftl_flash_resume,
-	sftl_flash_read,
-	sftl_flash_write,
+	sftl_flash_vendor_read,
+	sftl_flash_vendor_write,
 #else
 	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif
@@ -72,8 +74,8 @@ static struct flash_boot_ops sfc_nand_ops = {
 	snand_get_capacity,
 	snand_deinit,
 	snand_resume,
-	snand_read,
-	snand_write,
+	snand_vendor_read,
+	snand_vendor_write,
 #else
 	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 #endif
@@ -106,7 +108,7 @@ static char *mtd_read_temp_buffer;
 #define MTD_RW_SECTORS (512)
 static DEFINE_MUTEX(g_flash_ops_mutex);
 
-static int vendor_read(u32 sec, u32 n_sec, void *p_data)
+int rkflash_vendor_read(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret;
 
@@ -121,7 +123,7 @@ static int vendor_read(u32 sec, u32 n_sec, void *p_data)
 	return ret;
 }
 
-static int vendor_write(u32 sec, u32 n_sec, void *p_data)
+int rkflash_vendor_write(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret;
 
@@ -679,8 +681,23 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 	pr_info("rkflash[%d] init success\n", tmp_id);
 	g_flash_type = tmp_id;
 	mytr.quit = 1;
-	flash_vendor_dev_ops_register(&vendor_read,
-				      &vendor_write);
+	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
+		flash_vendor_dev_ops_register(rkflash_vendor_read,
+					      rkflash_vendor_write);
+	} else {
+#if defined(CONFIG_RK_NANDC_NAND) || defined(CONFIG_RK_SFC_NAND)
+		rk_sftl_vendor_dev_ops_register(rkflash_vendor_read,
+						rkflash_vendor_write);
+		ret = rk_sftl_vendor_storage_init();
+		if (!ret) {
+			rk_vendor_register(sftl_vendor_read, sftl_vendor_write);
+			rk_sftl_vendor_register();
+			pr_info("rkflashd vendor storage init ok !\n");
+		} else {
+			pr_info("rkflash vendor storage init failed !\n");
+		}
+#endif
+	}
 #ifdef CONFIG_RK_SFC_NOR_MTD
 	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
 		pr_info("sfc_nor flash registered as a mtd device\n");

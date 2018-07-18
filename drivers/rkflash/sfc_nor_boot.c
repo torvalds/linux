@@ -8,7 +8,6 @@
 #include "sfc.h"
 #include "sfc_nor.h"
 #include "rkflash_api.h"
-#include "typedef.h"
 
 #define VENDOR_PART_NUM			4
 

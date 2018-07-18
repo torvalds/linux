@@ -27,15 +27,4 @@
 #define INVALID_UINT16	((u16)0xFFFF)
 #define INVALID_UINT32	((u32)0xFFFFFFFFL)
 
-#define PRINT_E	pr_info
-#define PRINT_I	pr_info
-
-void *ftl_malloc(int n_size);
-void *ftl_memset(void *s, int c, unsigned int n);
-void *ftl_memcpy(void *pv_to,
-		 const void *pv_from,
-		 unsigned int size);
-void ftl_free(void *p);
-void rknand_print_hex(char *s, void *buf, int width, int len);
-
 #endif  /*__TYPEDEF_H */
