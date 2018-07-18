@@ -730,4 +730,7 @@ struct mlxsw_sp_mr_tcam_ops {
 /* spectrum1_mr_tcam.c */
 extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp1_mr_tcam_ops;
 
+/* spectrum2_mr_tcam.c */
+extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops;
+
 #endif

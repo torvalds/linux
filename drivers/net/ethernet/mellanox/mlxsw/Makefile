@@ -24,7 +24,7 @@ mlxsw_spectrum-objs		:= spectrum.o spectrum_buffers.o \
 				   spectrum_fid.o spectrum_ipip.o \
 				   spectrum_acl_flex_actions.o \
 				   spectrum_acl_flex_keys.o \
-				   spectrum1_mr_tcam.o \
+				   spectrum1_mr_tcam.o spectrum2_mr_tcam.o \
 				   spectrum_mr_tcam.o spectrum_mr.o \
 				   spectrum_qdisc.o spectrum_span.o
 mlxsw_spectrum-$(CONFIG_MLXSW_SPECTRUM_DCB)	+= spectrum_dcb.o
