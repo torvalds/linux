@@ -79,6 +79,7 @@ enum {
 #define BYT_RT5651_SSP0_AIF1		BIT(20)
 #define BYT_RT5651_SSP0_AIF2		BIT(21)
 #define BYT_RT5651_HP_LR_SWAPPED	BIT(22)
+#define BYT_RT5651_MONO_SPEAKER		BIT(23)
 
 #define BYT_RT5651_DEFAULT_QUIRKS	(BYT_RT5651_MCLK_EN | \
 					 BYT_RT5651_JD1_1   | \
@@ -128,6 +129,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk SSP0_AIF1 enabled\n");
 	if (byt_rt5651_quirk & BYT_RT5651_SSP0_AIF2)
 		dev_info(dev, "quirk SSP0_AIF2 enabled\n");
+	if (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER)
+		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
 }
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
@@ -374,7 +377,8 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 		},
 		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_MAP |
-					BYT_RT5651_HP_LR_SWAPPED),
+					BYT_RT5651_HP_LR_SWAPPED |
+					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
 		/* Chuwi Vi8 Plus (CWI519) */
@@ -385,7 +389,8 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 		},
 		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
 					BYT_RT5651_IN2_MAP |
-					BYT_RT5651_HP_LR_SWAPPED),
+					BYT_RT5651_HP_LR_SWAPPED |
+					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
 		/* KIANO SlimNote 14.2 */
@@ -700,7 +705,7 @@ static struct snd_soc_dai_link byt_rt5651_dais[] = {
 static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
 static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
 static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
-static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-mic[-swapped-hp]" */
+static char byt_rt5651_long_name[50]; /* = "bytcr-rt5651-*-spk-*-mic[-swapped-hp]" */
 
 static int byt_rt5651_suspend(struct snd_soc_card *card)
 {
@@ -1025,7 +1030,9 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		hp_swapped = "";
 
 	snprintf(byt_rt5651_long_name, sizeof(byt_rt5651_long_name),
-		 "bytcr-rt5651-%s-mic%s",
+		 "bytcr-rt5651-%s-spk-%s-mic%s",
+		 (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER) ?
+			"mono" : "stereo",
 		 mic_name[BYT_RT5651_MAP(byt_rt5651_quirk)], hp_swapped);
 	byt_rt5651_card.long_name = byt_rt5651_long_name;
 
