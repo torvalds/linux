@@ -50,11 +50,9 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *contex
 	u32 in[MLX5_ST_SZ_DW(create_uctx_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
 	u64 general_obj_types;
-	void *uctx;
 	void *hdr;
 	int err;
 
-	uctx = MLX5_ADDR_OF(create_uctx_in, in, uctx);
 	hdr = MLX5_ADDR_OF(create_uctx_in, in, hdr);
 
 	general_obj_types = MLX5_CAP_GEN_64(dev->mdev, general_obj_types);

@@ -2041,7 +2041,7 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	struct mlx5_bfreg_info *bfregi = &context->bfregi;
 	int err;
 	unsigned long idx;
-	phys_addr_t pfn, pa;
+	phys_addr_t pfn;
 	pgprot_t prot;
 	u32 bfreg_dyn_idx = 0;
 	u32 uar_index;
@@ -2131,8 +2131,6 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 		err = -EAGAIN;
 		goto err;
 	}
-
-	pa = pfn << PAGE_SHIFT;
 
 	err = mlx5_ib_set_vma_data(vma, context);
 	if (err)
