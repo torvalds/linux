@@ -32,6 +32,7 @@
 #include "amdgpu.h"
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
+#define AMDGPU_BO_MAX_PLACEMENTS	3
 
 struct amdgpu_bo_param {
 	unsigned long			size;
@@ -77,7 +78,7 @@ struct amdgpu_bo {
 	/* Protected by tbo.reserved */
 	u32				preferred_domains;
 	u32				allowed_domains;
-	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	struct ttm_place		placements[AMDGPU_BO_MAX_PLACEMENTS];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
