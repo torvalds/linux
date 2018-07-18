@@ -102,7 +102,6 @@ static void rds_ib_free_frmr(struct rds_ib_mr *ibmr, bool drop)
 static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 {
 	struct rds_ib_frmr *frmr = &ibmr->u.frmr;
-	struct ib_send_wr *failed_wr;
 	struct ib_reg_wr reg_wr;
 	int ret, off = 0;
 
@@ -135,8 +134,7 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 			IB_ACCESS_REMOTE_WRITE;
 	reg_wr.wr.send_flags = IB_SEND_SIGNALED;
 
-	failed_wr = &reg_wr.wr;
-	ret = ib_post_send(ibmr->ic->i_cm_id->qp, &reg_wr.wr, &failed_wr);
+	ret = ib_post_send(ibmr->ic->i_cm_id->qp, &reg_wr.wr, NULL);
 	if (unlikely(ret)) {
 		/* Failure here can be because of -ENOMEM as well */
 		frmr->fr_state = FRMR_IS_STALE;
@@ -229,7 +227,7 @@ out_unmap:
 
 static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 {
-	struct ib_send_wr *s_wr, *failed_wr;
+	struct ib_send_wr *s_wr;
 	struct rds_ib_frmr *frmr = &ibmr->u.frmr;
 	struct rdma_cm_id *i_cm_id = ibmr->ic->i_cm_id;
 	int ret = -EINVAL;
@@ -254,8 +252,7 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 	s_wr->ex.invalidate_rkey = frmr->mr->rkey;
 	s_wr->send_flags = IB_SEND_SIGNALED;
 
-	failed_wr = s_wr;
-	ret = ib_post_send(i_cm_id->qp, s_wr, &failed_wr);
+	ret = ib_post_send(i_cm_id->qp, s_wr, NULL);
 	if (unlikely(ret)) {
 		frmr->fr_state = FRMR_IS_STALE;
 		frmr->fr_inv = false;
