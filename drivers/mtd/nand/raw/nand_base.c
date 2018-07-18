@@ -2967,6 +2967,23 @@ int nand_check_erased_ecc_chunk(void *data, int datalen,
 EXPORT_SYMBOL(nand_check_erased_ecc_chunk);
 
 /**
+ * nand_read_page_raw_notsupp - dummy read raw page function
+ * @mtd: mtd info structure
+ * @chip: nand chip info structure
+ * @buf: buffer to store read data
+ * @oob_required: caller requires OOB data read to chip->oob_poi
+ * @page: page number to read
+ *
+ * Returns -ENOTSUPP unconditionally.
+ */
+int nand_read_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+			       u8 *buf, int oob_required, int page)
+{
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(nand_read_page_raw_notsupp);
+
+/**
  * nand_read_page_raw - [INTERN] read raw page data without ecc
  * @mtd: mtd info structure
  * @chip: nand chip info structure
@@ -3960,6 +3977,22 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	return ret;
 }
 
+/**
+ * nand_write_page_raw_notsupp - dummy raw page write function
+ * @mtd: mtd info structure
+ * @chip: nand chip info structure
+ * @buf: data buffer
+ * @oob_required: must write chip->oob_poi to OOB
+ * @page: page number to write
+ *
+ * Returns -ENOTSUPP unconditionally.
+ */
+int nand_write_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+				const u8 *buf, int oob_required, int page)
+{
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(nand_write_page_raw_notsupp);
 
 /**
  * nand_write_page_raw - [INTERN] raw page write function

@@ -1681,10 +1681,14 @@ int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
 /* Default read_page_raw implementation */
 int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 		       uint8_t *buf, int oob_required, int page);
+int nand_read_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+			       u8 *buf, int oob_required, int page);
 
 /* Default write_page_raw implementation */
 int nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf, int oob_required, int page);
+int nand_write_page_raw_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+				const u8 *buf, int oob_required, int page);
 
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip, int chipnr);
