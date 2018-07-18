@@ -1277,11 +1277,10 @@ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
 			int offset, unsigned int op, struct bio *bio)
 {
 	unsigned long start_time = jiffies;
-	int rw_acct = op_is_write(op) ? REQ_OP_WRITE : REQ_OP_READ;
 	struct request_queue *q = zram->disk->queue;
 	int ret;
 
-	generic_start_io_acct(q, rw_acct, bvec->bv_len >> SECTOR_SHIFT,
+	generic_start_io_acct(q, op, bvec->bv_len >> SECTOR_SHIFT,
 			&zram->disk->part0);
 
 	if (!op_is_write(op)) {
@@ -1293,7 +1292,7 @@ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
 		ret = zram_bvec_write(zram, bvec, index, offset, bio);
 	}
 
-	generic_end_io_acct(q, rw_acct, &zram->disk->part0, start_time);
+	generic_end_io_acct(q, op, &zram->disk->part0, start_time);
 
 	zram_slot_lock(zram, index);
 	zram_accessed(zram, index);

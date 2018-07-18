@@ -496,9 +496,9 @@ extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 
-void generic_start_io_acct(struct request_queue *q, int rw,
+void generic_start_io_acct(struct request_queue *q, int op,
 				unsigned long sectors, struct hd_struct *part);
-void generic_end_io_acct(struct request_queue *q, int rw,
+void generic_end_io_acct(struct request_queue *q, int op,
 				struct hd_struct *part,
 				unsigned long start_time);
 

@@ -2702,13 +2702,13 @@ EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
 void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (blk_do_io_stat(req)) {
-		const int rw = rq_data_dir(req);
+		const int sgrp = op_stat_group(req_op(req));
 		struct hd_struct *part;
 		int cpu;
 
 		cpu = part_stat_lock();
 		part = req->part;
-		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
+		part_stat_add(cpu, part, sectors[sgrp], bytes >> 9);
 		part_stat_unlock();
 	}
 }
@@ -2722,7 +2722,7 @@ void blk_account_io_done(struct request *req, u64 now)
 	 */
 	if (blk_do_io_stat(req) && !(req->rq_flags & RQF_FLUSH_SEQ)) {
 		unsigned long duration;
-		const int rw = rq_data_dir(req);
+		const int sgrp = op_stat_group(req_op(req));
 		struct hd_struct *part;
 		int cpu;
 
@@ -2730,10 +2730,10 @@ void blk_account_io_done(struct request *req, u64 now)
 		cpu = part_stat_lock();
 		part = req->part;
 
-		part_stat_inc(cpu, part, ios[rw]);
-		part_stat_add(cpu, part, ticks[rw], duration);
+		part_stat_inc(cpu, part, ios[sgrp]);
+		part_stat_add(cpu, part, ticks[sgrp], duration);
 		part_round_stats(req->q, cpu, part);
-		part_dec_in_flight(req->q, part, rw);
+		part_dec_in_flight(req->q, part, rq_data_dir(req));
 
 		hd_struct_put(part);
 		part_stat_unlock();

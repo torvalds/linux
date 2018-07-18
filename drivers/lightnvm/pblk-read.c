@@ -199,7 +199,7 @@ static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
 	struct bio *int_bio = rqd->bio;
 	unsigned long start_time = r_ctx->start_time;
 
-	generic_end_io_acct(dev->q, READ, &pblk->disk->part0, start_time);
+	generic_end_io_acct(dev->q, REQ_OP_READ, &pblk->disk->part0, start_time);
 
 	if (rqd->error)
 		pblk_log_read_err(pblk, rqd);
@@ -461,7 +461,8 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		return NVM_IO_ERR;
 	}
 
-	generic_start_io_acct(q, READ, bio_sectors(bio), &pblk->disk->part0);
+	generic_start_io_acct(q, REQ_OP_READ, bio_sectors(bio),
+			      &pblk->disk->part0);
 
 	bitmap_zero(read_bitmap, nr_secs);
 

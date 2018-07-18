@@ -401,6 +401,11 @@ static inline bool op_is_sync(unsigned int op)
 		(op & (REQ_SYNC | REQ_FUA | REQ_PREFLUSH));
 }
 
+static inline int op_stat_group(unsigned int op)
+{
+	return op_is_write(op);
+}
+
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE		-1U
 #define BLK_QC_T_SHIFT		16
