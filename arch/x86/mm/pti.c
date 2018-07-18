@@ -462,7 +462,7 @@ static inline bool pti_kernel_image_global_ok(void)
  * For some configurations, map all of kernel text into the user page
  * tables.  This reduces TLB misses, especially on non-PCID systems.
  */
-void pti_clone_kernel_text(void)
+static void pti_clone_kernel_text(void)
 {
 	/*
 	 * rodata is part of the kernel image and is normally
@@ -525,4 +525,16 @@ void __init pti_init(void)
 	pti_clone_entry_text();
 	pti_setup_espfix64();
 	pti_setup_vsyscall();
+}
+
+/*
+ * Finalize the kernel mappings in the userspace page-table.
+ */
+void pti_finalize(void)
+{
+	/*
+	 * Do this after all of the manipulation of the
+	 * kernel text page tables are complete.
+	 */
+	pti_clone_kernel_text();
 }
