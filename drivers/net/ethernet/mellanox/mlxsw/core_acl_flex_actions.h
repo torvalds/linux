@@ -67,6 +67,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa);
 void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_commit(struct mlxsw_afa_block *block);
 char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
+char *mlxsw_afa_block_cur_set(struct mlxsw_afa_block *block);
 u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_activity_get(struct mlxsw_afa_block *block, bool *activity);
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);

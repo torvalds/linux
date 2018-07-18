@@ -646,6 +646,9 @@ struct mlxsw_sp_acl_tcam_ops {
 /* spectrum1_acl_tcam.c */
 extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops;
 
+/* spectrum2_acl_tcam.c */
+extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops;
+
 /* spectrum_acl_flex_actions.c */
 extern const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops;
 extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;

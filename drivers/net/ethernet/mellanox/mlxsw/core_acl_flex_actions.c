@@ -430,6 +430,12 @@ char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set);
 
+char *mlxsw_afa_block_cur_set(struct mlxsw_afa_block *block)
+{
+	return block->cur_set->ht_key.enc_actions;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_cur_set);
+
 u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block)
 {
 	/* First set is never in KVD linear. So the first set
