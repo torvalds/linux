@@ -2196,11 +2196,11 @@ static struct wireless_dev *wilc_wfi_cfg_alloc(void)
 
 	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
-		goto _fail_;
+		goto out;
 
 	wdev->wiphy = wiphy_new(&wilc_cfg80211_ops, sizeof(struct wilc_priv));
 	if (!wdev->wiphy)
-		goto _fail_mem_;
+		goto free_mem;
 
 	wilc_band_2ghz.ht_cap.ht_supported = 1;
 	wilc_band_2ghz.ht_cap.cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
@@ -2212,9 +2212,9 @@ static struct wireless_dev *wilc_wfi_cfg_alloc(void)
 
 	return wdev;
 
-_fail_mem_:
+free_mem:
 	kfree(wdev);
-_fail_:
+out:
 	return NULL;
 }
 
