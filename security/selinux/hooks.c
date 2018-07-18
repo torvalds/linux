@@ -3862,7 +3862,7 @@ static int selinux_file_receive(struct file *file)
 	return file_has_perm(cred, file, file_to_av(file));
 }
 
-static int selinux_file_open(struct file *file, const struct cred *cred)
+static int selinux_file_open(struct file *file)
 {
 	struct file_security_struct *fsec;
 	struct inode_security_struct *isec;
@@ -3886,7 +3886,7 @@ static int selinux_file_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return file_path_has_perm(cred, file, open_file_to_av(file));
+	return file_path_has_perm(file->f_cred, file, open_file_to_av(file));
 }
 
 /* task security operations */

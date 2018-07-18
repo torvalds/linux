@@ -395,7 +395,7 @@ static int apparmor_inode_getattr(const struct path *path)
 	return common_perm_cond(OP_GETATTR, path, AA_MAY_GETATTR);
 }
 
-static int apparmor_file_open(struct file *file, const struct cred *cred)
+static int apparmor_file_open(struct file *file)
 {
 	struct aa_file_ctx *fctx = file_ctx(file);
 	struct aa_label *label;
@@ -414,7 +414,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 		return 0;
 	}
 
-	label = aa_get_newest_cred_label(cred);
+	label = aa_get_newest_cred_label(file->f_cred);
 	if (!unconfined(label)) {
 		struct inode *inode = file_inode(file);
 		struct path_cond cond = { inode->i_uid, inode->i_mode };

@@ -970,11 +970,11 @@ int security_file_receive(struct file *file)
 	return call_int_hook(file_receive, 0, file);
 }
 
-int security_file_open(struct file *file, const struct cred *cred)
+int security_file_open(struct file *file)
 {
 	int ret;
 
-	ret = call_int_hook(file_open, 0, file, cred);
+	ret = call_int_hook(file_open, 0, file);
 	if (ret)
 		return ret;
 

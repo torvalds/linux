@@ -102,16 +102,15 @@ static struct file *cxl_getfile(const char *name,
 	path.mnt = mntget(cxl_vfs_mount);
 	d_instantiate(path.dentry, inode);
 
-	file = alloc_file(&path, OPEN_FMODE(flags), fops);
-	if (IS_ERR(file))
-		goto err_dput;
-	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
+	file = alloc_file(&path, flags & (O_ACCMODE | O_NONBLOCK), fops);
+	if (IS_ERR(file)) {
+		path_put(&path);
+		goto err_fs;
+	}
 	file->private_data = priv;
 
 	return file;
 
-err_dput:
-	path_put(&path);
 err_inode:
 	iput(inode);
 err_fs:

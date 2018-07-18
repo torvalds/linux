@@ -3396,19 +3396,15 @@ finish_open_created:
 	if (error)
 		goto out;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
-	error = vfs_open(&nd->path, file, current_cred());
+	error = vfs_open(&nd->path, file);
 	if (error)
 		goto out;
 	*opened |= FILE_OPENED;
 opened:
-	error = open_check_o_direct(file);
-	if (!error)
-		error = ima_file_check(file, op->acc_mode, *opened);
+	error = ima_file_check(file, op->acc_mode, *opened);
 	if (!error && will_truncate)
 		error = handle_truncate(file);
 out:
-	if (unlikely(error) && (*opened & FILE_OPENED))
-		fput(file);
 	if (unlikely(error > 0)) {
 		WARN_ON(1);
 		error = -EINVAL;
@@ -3481,11 +3477,6 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		goto out2;
 	file->f_path.mnt = path.mnt;
 	error = finish_open(file, child, NULL, opened);
-	if (error)
-		goto out2;
-	error = open_check_o_direct(file);
-	if (error)
-		fput(file);
 out2:
 	mnt_drop_write(path.mnt);
 out:
@@ -3499,7 +3490,7 @@ static int do_o_path(struct nameidata *nd, unsigned flags, struct file *file)
 	int error = path_lookupat(nd, flags, &path);
 	if (!error) {
 		audit_inode(nd->name, path.dentry, 0);
-		error = vfs_open(&path, file, current_cred());
+		error = vfs_open(&path, file);
 		path_put(&path);
 	}
 	return error;
@@ -3513,11 +3504,9 @@ static struct file *path_openat(struct nameidata *nd,
 	int opened = 0;
 	int error;
 
-	file = get_empty_filp();
+	file = alloc_empty_file(op->open_flag, current_cred());
 	if (IS_ERR(file))
 		return file;
-
-	file->f_flags = op->open_flag;
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(nd, flags, op, file, &opened);
@@ -3533,7 +3522,7 @@ static struct file *path_openat(struct nameidata *nd,
 
 	s = path_init(nd, flags);
 	if (IS_ERR(s)) {
-		put_filp(file);
+		fput(file);
 		return ERR_CAST(s);
 	}
 	while (!(error = link_path_walk(s, nd)) &&
@@ -3547,20 +3536,20 @@ static struct file *path_openat(struct nameidata *nd,
 	}
 	terminate_walk(nd);
 out2:
-	if (!(opened & FILE_OPENED)) {
-		BUG_ON(!error);
-		put_filp(file);
+	if (likely(!error)) {
+		if (likely(opened & FILE_OPENED))
+			return file;
+		WARN_ON(1);
+		error = -EINVAL;
 	}
-	if (unlikely(error)) {
-		if (error == -EOPENSTALE) {
-			if (flags & LOOKUP_RCU)
-				error = -ECHILD;
-			else
-				error = -ESTALE;
-		}
-		file = ERR_PTR(error);
+	fput(file);
+	if (error == -EOPENSTALE) {
+		if (flags & LOOKUP_RCU)
+			error = -ECHILD;
+		else
+			error = -ESTALE;
 	}
-	return file;
+	return ERR_PTR(error);
 }
 
 struct file *do_filp_open(int dfd, struct filename *pathname,

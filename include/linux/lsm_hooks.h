@@ -1569,7 +1569,7 @@ union security_list_options {
 	int (*file_send_sigiotask)(struct task_struct *tsk,
 					struct fown_struct *fown, int sig);
 	int (*file_receive)(struct file *file);
-	int (*file_open)(struct file *file, const struct cred *cred);
+	int (*file_open)(struct file *file);
 
 	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
