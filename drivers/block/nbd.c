@@ -1571,7 +1571,7 @@ static int find_free_cb(int id, void *ptr, void *data)
 }
 
 /* Netlink interface. */
-static struct nla_policy nbd_attr_policy[NBD_ATTR_MAX + 1] = {
+static const struct nla_policy nbd_attr_policy[NBD_ATTR_MAX + 1] = {
 	[NBD_ATTR_INDEX]		=	{ .type = NLA_U32 },
 	[NBD_ATTR_SIZE_BYTES]		=	{ .type = NLA_U64 },
 	[NBD_ATTR_BLOCK_SIZE_BYTES]	=	{ .type = NLA_U64 },
@@ -1583,14 +1583,14 @@ static struct nla_policy nbd_attr_policy[NBD_ATTR_MAX + 1] = {
 	[NBD_ATTR_DEVICE_LIST]		=	{ .type = NLA_NESTED},
 };
 
-static struct nla_policy nbd_sock_policy[NBD_SOCK_MAX + 1] = {
+static const struct nla_policy nbd_sock_policy[NBD_SOCK_MAX + 1] = {
 	[NBD_SOCK_FD]			=	{ .type = NLA_U32 },
 };
 
 /* We don't use this right now since we don't parse the incoming list, but we
  * still want it here so userspace knows what to expect.
  */
-static struct nla_policy __attribute__((unused))
+static const struct nla_policy __attribute__((unused))
 nbd_device_policy[NBD_DEVICE_ATTR_MAX + 1] = {
 	[NBD_DEVICE_INDEX]		=	{ .type = NLA_U32 },
 	[NBD_DEVICE_CONNECTED]		=	{ .type = NLA_U8 },
