@@ -242,7 +242,7 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		.newinode = inode,
 	};
 
-	ovl_dentry_version_inc(dentry->d_parent, false);
+	ovl_dir_modified(dentry->d_parent, false);
 	ovl_dentry_set_upper_alias(dentry);
 	if (!hardlink) {
 		/*
@@ -722,7 +722,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 	if (err)
 		goto out_d_drop;
 
-	ovl_dentry_version_inc(dentry->d_parent, true);
+	ovl_dir_modified(dentry->d_parent, true);
 out_d_drop:
 	d_drop(dentry);
 out_dput_upper:
@@ -767,7 +767,7 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir,
 		err = vfs_rmdir(dir, upper);
 	else
 		err = vfs_unlink(dir, upper, NULL);
-	ovl_dentry_version_inc(dentry->d_parent, ovl_type_origin(dentry));
+	ovl_dir_modified(dentry->d_parent, ovl_type_origin(dentry));
 
 	/*
 	 * Keeping this dentry hashed would mean having to release
@@ -797,6 +797,7 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 	int err;
 	bool locked = false;
 	const struct cred *old_cred;
+	struct dentry *upperdentry;
 	bool lower_positive = ovl_lower_positive(dentry);
 	LIST_HEAD(list);
 
@@ -832,6 +833,17 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 			drop_nlink(dentry->d_inode);
 	}
 	ovl_nlink_end(dentry, locked);
+
+	/*
+	 * Copy ctime
+	 *
+	 * Note: we fail to update ctime if there was no copy-up, only a
+	 * whiteout
+	 */
+	upperdentry = ovl_dentry_upper(dentry);
+	if (upperdentry)
+		ovl_copyattr(d_inode(upperdentry), d_inode(dentry));
+
 out_drop_write:
 	ovl_drop_write(dentry);
 out:
@@ -1138,10 +1150,15 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 			drop_nlink(d_inode(new));
 	}
 
-	ovl_dentry_version_inc(old->d_parent, ovl_type_origin(old) ||
-			       (!overwrite && ovl_type_origin(new)));
-	ovl_dentry_version_inc(new->d_parent, ovl_type_origin(old) ||
-			       (d_inode(new) && ovl_type_origin(new)));
+	ovl_dir_modified(old->d_parent, ovl_type_origin(old) ||
+			 (!overwrite && ovl_type_origin(new)));
+	ovl_dir_modified(new->d_parent, ovl_type_origin(old) ||
+			 (d_inode(new) && ovl_type_origin(new)));
+
+	/* copy ctime: */
+	ovl_copyattr(d_inode(olddentry), d_inode(old));
+	if (d_inode(new) && ovl_dentry_upper(new))
+		ovl_copyattr(d_inode(newdentry), d_inode(new));
 
 out_dput:
 	dput(newdentry);

@@ -304,6 +304,9 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 	}
 	revert_creds(old_cred);
 
+	/* copy c/mtime */
+	ovl_copyattr(d_inode(realdentry), inode);
+
 out_drop_write:
 	ovl_drop_write(dentry);
 out:
