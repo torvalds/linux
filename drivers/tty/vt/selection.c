@@ -116,12 +116,6 @@ static inline int atedge(const int p, int size_row)
 	return (!(p % size_row)	|| !((p + 2) % size_row));
 }
 
-/* constrain v such that v <= u */
-static inline unsigned short limit(const unsigned short v, const unsigned short u)
-{
-	return (v > u) ? u : v;
-}
-
 /* stores the char in UTF8 and returns the number of bytes used (1-3) */
 static int store_utf8(u16 c, char *p)
 {
@@ -167,10 +161,10 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	if (copy_from_user(&v, sel, sizeof(*sel)))
 		return -EFAULT;
 
-	v.xs = limit(v.xs - 1, vc->vc_cols - 1);
-	v.ys = limit(v.ys - 1, vc->vc_rows - 1);
-	v.xe = limit(v.xe - 1, vc->vc_cols - 1);
-	v.ye = limit(v.ye - 1, vc->vc_rows - 1);
+	v.xs = min_t(u16, v.xs - 1, vc->vc_cols - 1);
+	v.ys = min_t(u16, v.ys - 1, vc->vc_rows - 1);
+	v.xe = min_t(u16, v.xe - 1, vc->vc_cols - 1);
+	v.ye = min_t(u16, v.ye - 1, vc->vc_rows - 1);
 	ps = v.ys * vc->vc_size_row + (v.xs << 1);
 	pe = v.ye * vc->vc_size_row + (v.xe << 1);
 
