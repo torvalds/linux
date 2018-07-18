@@ -1355,8 +1355,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 		goto out;
 
 	/* Now qgroup are all updated, we can inherit it to new qgroups */
-	ret = btrfs_qgroup_inherit(trans, fs_info,
-				   src->root_key.objectid, dst_objectid,
+	ret = btrfs_qgroup_inherit(trans, src->root_key.objectid, dst_objectid,
 				   inherit);
 	if (ret < 0)
 		goto out;

@@ -601,7 +601,7 @@ static noinline int create_subvol(struct inode *dir,
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
 
-	ret = btrfs_qgroup_inherit(trans, fs_info, 0, objectid, inherit);
+	ret = btrfs_qgroup_inherit(trans, 0, objectid, inherit);
 	if (ret)
 		goto fail;
 

@@ -241,9 +241,8 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 				struct ulist *new_roots);
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
-int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
-			 struct btrfs_qgroup_inherit *inherit);
+int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
+			 u64 objectid, struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type);

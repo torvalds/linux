@@ -2238,13 +2238,13 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans)
  * cause a transaction abort so we take extra care here to only error
  * when a readonly fs is a reasonable outcome.
  */
-int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
-			 struct btrfs_qgroup_inherit *inherit)
+int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
+			 u64 objectid, struct btrfs_qgroup_inherit *inherit)
 {
 	int ret = 0;
 	int i;
 	u64 *i_qgroups;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *quota_root = fs_info->quota_root;
 	struct btrfs_qgroup *srcgroup;
 	struct btrfs_qgroup *dstgroup;
