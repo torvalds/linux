@@ -4,7 +4,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include "kobject_process.h"
-#include "kobject_ipc_common.h"
+#include "kobject_ipc.h"
 #include "evtype_ipc.h"
 
 struct ipc_semop_access {

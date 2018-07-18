@@ -3,7 +3,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include "evtype_ipc.h"
-#include "kobject_ipc_common.h"
+#include "kobject_ipc.h"
 
 struct ipc_event {
 	MEDUSA_ACCESS_HEADER;

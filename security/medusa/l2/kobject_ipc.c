@@ -1,7 +1,7 @@
 #include <linux/msg.h>
 #include "../../../ipc/util.h" //TODO
 #include "ipc_utils.h"
-#include "kobject_ipc_common.h"
+#include "kobject_ipc.h"
 
 static struct ipc_kobject storage;
 
@@ -61,7 +61,7 @@ struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc
 	rcu_read_unlock();
 
 	/* due to ipc_getref() refcount of an IPC object is increased by 1 */
-	ipc_kobj->ipc_perm.refcount--;
+	refcount_dec(&ipc_kobj->ipc_perm.refcount);
 
 	return ipc_kobj;
 }
