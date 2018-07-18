@@ -393,6 +393,21 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
+		/* I.T.Works TW701, Ployer Momo7w and Trekstor ST70416-6
+		 * (these all use the same mainboard) */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "INSYDE Corp."),
+			/* Partial match for all of itWORKS.G.WI71C.JGBMRBA,
+			 * TREK.G.WI71C.JGBMRBA0x and MOMO.G.WI71C.MABMRBA02 */
+			DMI_MATCH(DMI_BIOS_VERSION, ".G.WI71C."),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_SSP0_AIF1 |
+					BYT_RT5651_MONO_SPEAKER),
+	},
+	{
 		/* KIANO SlimNote 14.2 */
 		.callback = byt_rt5651_quirk_cb,
 		.matches = {
@@ -433,6 +448,19 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_OVCD_TH_2000UA |
 					BYT_RT5651_OVCD_SF_1P0 |
 					BYT_RT5651_MCLK_EN),
+	},
+	{
+		/* Yours Y8W81 (and others using the same mainboard) */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "INSYDE Corp."),
+			/* Partial match for all devs with a W86C mainboard */
+			DMI_MATCH(DMI_BIOS_VERSION, ".F.W86C."),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_SSP0_AIF1 |
+					BYT_RT5651_MONO_SPEAKER),
 	},
 	{}
 };
