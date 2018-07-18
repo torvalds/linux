@@ -26,7 +26,7 @@ struct host_if_wep_attr {
 	u8 key_len;
 	u8 index;
 	u8 mode;
-	enum AUTHTYPE auth_type;
+	enum authtype auth_type;
 };
 
 union host_if_key_attr {
@@ -62,7 +62,7 @@ struct connect_attr {
 	u8 security;
 	wilc_connect_result result;
 	void *arg;
-	enum AUTHTYPE auth_type;
+	enum authtype auth_type;
 	u8 ch;
 	void *params;
 };
@@ -2632,7 +2632,7 @@ free_msg:
 }
 
 int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
-			    u8 index, u8 mode, enum AUTHTYPE auth_type)
+			    u8 index, u8 mode, enum authtype auth_type)
 {
 	int result;
 	struct host_if_msg *msg;
@@ -2876,7 +2876,7 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
-		      u8 security, enum AUTHTYPE auth_type,
+		      u8 security, enum authtype auth_type,
 		      u8 channel, void *join_params)
 {
 	int result = 0;

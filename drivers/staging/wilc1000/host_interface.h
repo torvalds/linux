@@ -207,7 +207,7 @@ struct user_conn_req {
 	u8 *bssid;
 	u8 *ssid;
 	u8 security;
-	enum AUTHTYPE auth_type;
+	enum authtype auth_type;
 	size_t ssid_len;
 	u8 *ies;
 	size_t ies_len;
@@ -298,7 +298,7 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
 int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 			     u8 index);
 int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
-			    u8 index, u8 mode, enum AUTHTYPE auth_type);
+			    u8 index, u8 mode, enum authtype auth_type);
 int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index);
@@ -314,7 +314,7 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,
 		      wilc_connect_result connect_result, void *user_arg,
-		      u8 security, enum AUTHTYPE auth_type,
+		      u8 security, enum authtype auth_type,
 		      u8 channel, void *join_params);
 int wilc_disconnect(struct wilc_vif *vif, u16 reason_code);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);

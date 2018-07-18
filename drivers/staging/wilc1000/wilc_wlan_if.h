@@ -131,7 +131,7 @@ enum {
 	WPA2_AES_TKIP		= 0x71,	/* Aes or Tkip */
 };
 
-enum AUTHTYPE {
+enum authtype {
 	OPEN_SYSTEM		= 1,
 	SHARED_KEY		= 2,
 	ANY			= 3,

@@ -678,7 +678,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 i;
 	u32 sel_bssi_idx = UINT_MAX;
 	u8 security = NO_ENCRYPT;
-	enum AUTHTYPE auth_type = ANY;
+	enum authtype auth_type = ANY;
 	u32 cipher_group;
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
