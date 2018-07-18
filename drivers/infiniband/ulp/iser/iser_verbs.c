@@ -1022,7 +1022,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_login_desc *desc = &iser_conn->login_desc;
-	struct ib_recv_wr wr, *wr_failed;
+	struct ib_recv_wr wr;
 	int ib_ret;
 
 	desc->sge.addr = desc->rsp_dma;
@@ -1036,7 +1036,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	wr.next = NULL;
 
 	ib_conn->post_recv_buf_count++;
-	ib_ret = ib_post_recv(ib_conn->qp, &wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count--;
@@ -1050,7 +1050,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	unsigned int my_rx_head = iser_conn->rx_desc_head;
 	struct iser_rx_desc *rx_desc;
-	struct ib_recv_wr *wr, *wr_failed;
+	struct ib_recv_wr *wr;
 	int i, ib_ret;
 
 	for (wr = ib_conn->rx_wr, i = 0; i < count; i++, wr++) {
@@ -1067,7 +1067,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	wr->next = NULL; /* mark end of work requests list */
 
 	ib_conn->post_recv_buf_count += count;
-	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count -= count;
@@ -1086,7 +1086,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		   bool signal)
 {
-	struct ib_send_wr *bad_wr, *wr = iser_tx_next_wr(tx_desc);
+	struct ib_send_wr *wr = iser_tx_next_wr(tx_desc);
 	int ib_ret;
 
 	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
@@ -1100,10 +1100,10 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, NULL);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
-			 ib_ret, bad_wr->opcode);
+			 ib_ret, wr->opcode);
 
 	return ib_ret;
 }
