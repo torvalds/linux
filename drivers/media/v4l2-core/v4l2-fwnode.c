@@ -303,7 +303,11 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	pr_debug("===== begin V4L2 endpoint properties\n");
 
-	fwnode_graph_parse_endpoint(fwnode, &vep->base);
+	/*
+	 * Zero the fwnode graph endpoint memory in case we don't end up parsing
+	 * the endpoint.
+	 */
+	memset(&vep->base, 0, sizeof(vep->base));
 
 	/* Zero fields from bus_type to until the end */
 	memset(&vep->bus_type, 0, sizeof(*vep) -
@@ -345,6 +349,8 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		pr_warn("unsupported bus type %u\n", bus_type);
 		return -EINVAL;
 	}
+
+	fwnode_graph_parse_endpoint(fwnode, &vep->base);
 
 	return 0;
 }
