@@ -45,6 +45,8 @@ struct mlxsw_afa_ops {
 	int (*kvdl_set_add)(void *priv, u32 *p_kvdl_index,
 			    char *enc_actions, bool is_first);
 	void (*kvdl_set_del)(void *priv, u32 kvdl_index, bool is_first);
+	int (*kvdl_set_activity_get)(void *priv, u32 kvdl_index,
+				     bool *activity);
 	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u8 local_port);
 	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
 	int (*counter_index_get)(void *priv, unsigned int *p_counter_index);
@@ -66,6 +68,7 @@ void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_commit(struct mlxsw_afa_block *block);
 char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
 u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block);
+int mlxsw_afa_block_activity_get(struct mlxsw_afa_block *block, bool *activity);
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
 int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block);

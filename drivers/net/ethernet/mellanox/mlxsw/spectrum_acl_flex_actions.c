@@ -93,6 +93,27 @@ static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
 			   1, kvdl_index);
 }
 
+static int mlxsw_sp1_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
+					       bool *activity)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mlxsw_sp2_act_kvdl_set_activity_get(void *priv, u32 kvdl_index,
+					       bool *activity)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	char pefa_pl[MLXSW_REG_PEFA_LEN];
+	int err;
+
+	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, true, NULL);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
+	if (err)
+		return err;
+	mlxsw_reg_pefa_unpack(pefa_pl, activity);
+	return 0;
+}
+
 static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 					   u8 local_port)
 {
@@ -174,6 +195,7 @@ mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp1_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
+	.kvdl_set_activity_get	= mlxsw_sp1_act_kvdl_set_activity_get,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
 	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
 	.counter_index_get	= mlxsw_sp_act_counter_index_get,
@@ -185,6 +207,7 @@ const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp2_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
+	.kvdl_set_activity_get	= mlxsw_sp2_act_kvdl_set_activity_get,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
 	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
 	.counter_index_get	= mlxsw_sp_act_counter_index_get,
