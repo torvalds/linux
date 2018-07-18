@@ -5,6 +5,11 @@ config PINCTRL_BERLIN
 	select PINMUX
 	select REGMAP_MMIO
 
+config PINCTRL_AS370
+	bool "Synaptics as370 pin controller driver"
+	depends on OF
+	select PINCTRL_BERLIN
+
 config PINCTRL_BERLIN_BG2
 	def_bool MACH_BERLIN_BG2
 	depends on OF
