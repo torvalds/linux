@@ -5173,8 +5173,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	if (sa->assign) {
 		ret = btrfs_add_qgroup_relation(trans, sa->src, sa->dst);
 	} else {
-		ret = btrfs_del_qgroup_relation(trans, fs_info,
-						sa->src, sa->dst);
+		ret = btrfs_del_qgroup_relation(trans, sa->src, sa->dst);
 	}
 
 	/* update qgroup status and info */
