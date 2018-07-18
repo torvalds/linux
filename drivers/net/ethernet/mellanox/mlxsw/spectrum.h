@@ -650,6 +650,7 @@ extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
+extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,

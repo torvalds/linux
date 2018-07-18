@@ -172,3 +172,113 @@ const struct mlxsw_afk_ops mlxsw_sp1_afk_ops = {
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp1_afk_blocks),
 	.encode_one	= mlxsw_sp1_afk_encode_one,
 };
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_0[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_0_31, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_1[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_0_31, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_2[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_32_47, 0x04, 2),
+	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_32_47, 0x06, 2),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_3[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x00, 0, 3),
+	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
+	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_32_47, 0x06, 2),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_4[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x00, 0, 3),
+	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
+	MLXSW_AFK_ELEMENT_INST_U32(ETHERTYPE, 0x04, 0, 16),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
+	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x04, 0, 8), /* RX_ACL_SYSTEM_PORT */
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_0[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_0_31, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_1[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_2[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(IP_DSCP, 0x04, 0, 6),
+	MLXSW_AFK_ELEMENT_INST_U32(IP_ECN, 0x04, 6, 2),
+	MLXSW_AFK_ELEMENT_INST_U32(IP_TTL_, 0x04, 8, 8),
+	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x04, 16, 8),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_0[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_32_63, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_1[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_64_95, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_96_127, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_3[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_32_63, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_4[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_64_95, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_5[] = {
+	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_96_127, 0x04, 4),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_0[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(SRC_L4_PORT, 0x04, 16, 16),
+	MLXSW_AFK_ELEMENT_INST_U32(DST_L4_PORT, 0x04, 0, 16),
+};
+
+static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_2[] = {
+	MLXSW_AFK_ELEMENT_INST_U32(TCP_FLAGS, 0x04, 16, 9), /* TCP_CONTROL + TCP_ECN */
+};
+
+static const struct mlxsw_afk_block mlxsw_sp2_afk_blocks[] = {
+	MLXSW_AFK_BLOCK(0x10, mlxsw_sp_afk_element_info_mac_0),
+	MLXSW_AFK_BLOCK(0x11, mlxsw_sp_afk_element_info_mac_1),
+	MLXSW_AFK_BLOCK(0x12, mlxsw_sp_afk_element_info_mac_2),
+	MLXSW_AFK_BLOCK(0x13, mlxsw_sp_afk_element_info_mac_3),
+	MLXSW_AFK_BLOCK(0x14, mlxsw_sp_afk_element_info_mac_4),
+	MLXSW_AFK_BLOCK(0x15, mlxsw_sp_afk_element_info_mac_5),
+	MLXSW_AFK_BLOCK(0x38, mlxsw_sp_afk_element_info_ipv4_0),
+	MLXSW_AFK_BLOCK(0x39, mlxsw_sp_afk_element_info_ipv4_1),
+	MLXSW_AFK_BLOCK(0x3A, mlxsw_sp_afk_element_info_ipv4_2),
+	MLXSW_AFK_BLOCK(0x40, mlxsw_sp_afk_element_info_ipv6_0),
+	MLXSW_AFK_BLOCK(0x41, mlxsw_sp_afk_element_info_ipv6_1),
+	MLXSW_AFK_BLOCK(0x42, mlxsw_sp_afk_element_info_ipv6_2),
+	MLXSW_AFK_BLOCK(0x43, mlxsw_sp_afk_element_info_ipv6_3),
+	MLXSW_AFK_BLOCK(0x44, mlxsw_sp_afk_element_info_ipv6_4),
+	MLXSW_AFK_BLOCK(0x45, mlxsw_sp_afk_element_info_ipv6_5),
+	MLXSW_AFK_BLOCK(0x90, mlxsw_sp_afk_element_info_l4_0),
+	MLXSW_AFK_BLOCK(0x92, mlxsw_sp_afk_element_info_l4_2),
+};
+
+static void
+mlxsw_sp2_afk_encode_one(const struct mlxsw_afk_element_inst *elinst,
+			 int block_index, char *storage, char *output)
+{
+}
+
+const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
+	.blocks		= mlxsw_sp2_afk_blocks,
+	.blocks_count	= ARRAY_SIZE(mlxsw_sp2_afk_blocks),
+	.encode_one	= mlxsw_sp2_afk_encode_one,
+};
