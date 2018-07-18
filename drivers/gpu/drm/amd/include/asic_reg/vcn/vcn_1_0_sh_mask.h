@@ -982,6 +982,8 @@
 #define UVD_MASTINT_EN__VCPU_EN_MASK                                                                          0x00000002L
 #define UVD_MASTINT_EN__SYS_EN_MASK                                                                           0x00000004L
 #define UVD_MASTINT_EN__INT_OVERRUN_MASK                                                                      0x007FFFF0L
+//UVD_SYS_INT_EN
+#define UVD_SYS_INT_EN__UVD_JRBC_EN_MASK                                                                      0x00000010L
 //JPEG_CGC_CTRL
 #define JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT                                                                  0x0
 #define JPEG_CGC_CTRL__JPEG2_MODE__SHIFT                                                                      0x1
