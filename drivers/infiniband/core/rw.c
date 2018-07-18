@@ -564,10 +564,10 @@ EXPORT_SYMBOL(rdma_rw_ctx_wrs);
 int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr)
 {
-	struct ib_send_wr *first_wr, *bad_wr;
+	struct ib_send_wr *first_wr;
 
 	first_wr = rdma_rw_ctx_wrs(ctx, qp, port_num, cqe, chain_wr);
-	return ib_post_send(qp, first_wr, &bad_wr);
+	return ib_post_send(qp, first_wr, NULL);
 }
 EXPORT_SYMBOL(rdma_rw_ctx_post);
 

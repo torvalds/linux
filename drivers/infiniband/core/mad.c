@@ -1181,7 +1181,6 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_mad_qp_info *qp_info;
 	struct list_head *list;
-	struct ib_send_wr *bad_send_wr;
 	struct ib_mad_agent *mad_agent;
 	struct ib_sge *sge;
 	unsigned long flags;
@@ -1219,7 +1218,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
 		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr.wr,
-				   &bad_send_wr);
+				   NULL);
 		list = &qp_info->send_queue.list;
 	} else {
 		ret = 0;
@@ -2476,7 +2475,6 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_mad_send_wr_private	*mad_send_wr, *queued_send_wr;
 	struct ib_mad_qp_info		*qp_info;
 	struct ib_mad_queue		*send_queue;
-	struct ib_send_wr		*bad_send_wr;
 	struct ib_mad_send_wc		mad_send_wc;
 	unsigned long flags;
 	int ret;
@@ -2526,7 +2524,7 @@ retry:
 
 	if (queued_send_wr) {
 		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr.wr,
-				   &bad_send_wr);
+				   NULL);
 		if (ret) {
 			dev_err(&port_priv->device->dev,
 				"ib_post_send failed: %d\n", ret);
@@ -2571,11 +2569,9 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 	if (wc->status == IB_WC_WR_FLUSH_ERR) {
 		if (mad_send_wr->retry) {
 			/* Repost send */
-			struct ib_send_wr *bad_send_wr;
-
 			mad_send_wr->retry = 0;
 			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
-					&bad_send_wr);
+					   NULL);
 			if (!ret)
 				return false;
 		}
@@ -2891,7 +2887,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 	int post, ret;
 	struct ib_mad_private *mad_priv;
 	struct ib_sge sg_list;
-	struct ib_recv_wr recv_wr, *bad_recv_wr;
+	struct ib_recv_wr recv_wr;
 	struct ib_mad_queue *recv_queue = &qp_info->recv_queue;
 
 	/* Initialize common scatter list fields */
@@ -2935,7 +2931,7 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 		post = (++recv_queue->count < recv_queue->max_active);
 		list_add_tail(&mad_priv->header.mad_list.list, &recv_queue->list);
 		spin_unlock_irqrestore(&recv_queue->lock, flags);
-		ret = ib_post_recv(qp_info->qp, &recv_wr, &bad_recv_wr);
+		ret = ib_post_recv(qp_info->qp, &recv_wr, NULL);
 		if (ret) {
 			spin_lock_irqsave(&recv_queue->lock, flags);
 			list_del(&mad_priv->header.mad_list.list);
