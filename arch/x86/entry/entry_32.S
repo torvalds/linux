@@ -294,6 +294,9 @@
  * copied there. So allocate the stack-frame on the task-stack and
  * switch to it before we do any copying.
  */
+
+#define CS_FROM_ENTRY_STACK	(1 << 31)
+
 .macro SWITCH_TO_KERNEL_STACK
 
 	ALTERNATIVE     "", "jmp .Lend_\@", X86_FEATURE_XENPV
@@ -316,6 +319,16 @@
 	/* Load top of task-stack into %edi */
 	movl	TSS_entry2task_stack(%edi), %edi
 
+	/*
+	 * Clear unused upper bits of the dword containing the word-sized CS
+	 * slot in pt_regs in case hardware didn't clear it for us.
+	 */
+	andl	$(0x0000ffff), PT_CS(%esp)
+
+	/* Special case - entry from kernel mode via entry stack */
+	testl	$SEGMENT_RPL_MASK, PT_CS(%esp)
+	jz	.Lentry_from_kernel_\@
+
 	/* Bytes to copy */
 	movl	$PTREGS_SIZE, %ecx
 
@@ -329,8 +342,8 @@
 	 */
 	addl	$(4 * 4), %ecx
 
-.Lcopy_pt_regs_\@:
 #endif
+.Lcopy_pt_regs_\@:
 
 	/* Allocate frame on task-stack */
 	subl	%ecx, %edi
@@ -345,6 +358,56 @@
 	shrl	$2, %ecx
 	cld
 	rep movsl
+
+	jmp .Lend_\@
+
+.Lentry_from_kernel_\@:
+
+	/*
+	 * This handles the case when we enter the kernel from
+	 * kernel-mode and %esp points to the entry-stack. When this
+	 * happens we need to switch to the task-stack to run C code,
+	 * but switch back to the entry-stack again when we approach
+	 * iret and return to the interrupted code-path. This usually
+	 * happens when we hit an exception while restoring user-space
+	 * segment registers on the way back to user-space.
+	 *
+	 * When we switch to the task-stack here, we can't trust the
+	 * contents of the entry-stack anymore, as the exception handler
+	 * might be scheduled out or moved to another CPU. Therefore we
+	 * copy the complete entry-stack to the task-stack and set a
+	 * marker in the iret-frame (bit 31 of the CS dword) to detect
+	 * what we've done on the iret path.
+	 *
+	 * On the iret path we copy everything back and switch to the
+	 * entry-stack, so that the interrupted kernel code-path
+	 * continues on the same stack it was interrupted with.
+	 *
+	 * Be aware that an NMI can happen anytime in this code.
+	 *
+	 * %esi: Entry-Stack pointer (same as %esp)
+	 * %edi: Top of the task stack
+	 */
+
+	/* Calculate number of bytes on the entry stack in %ecx */
+	movl	%esi, %ecx
+
+	/* %ecx to the top of entry-stack */
+	andl	$(MASK_entry_stack), %ecx
+	addl	$(SIZEOF_entry_stack), %ecx
+
+	/* Number of bytes on the entry stack to %ecx */
+	sub	%esi, %ecx
+
+	/* Mark stackframe as coming from entry stack */
+	orl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
+
+	/*
+	 * %esi and %edi are unchanged, %ecx contains the number of
+	 * bytes to copy. The code at .Lcopy_pt_regs_\@ will allocate
+	 * the stack-frame on task-stack and copy everything over
+	 */
+	jmp .Lcopy_pt_regs_\@
 
 .Lend_\@:
 .endm
@@ -403,6 +466,56 @@
 .Lend_\@:
 .endm
 
+/*
+ * This macro handles the case when we return to kernel-mode on the iret
+ * path and have to switch back to the entry stack.
+ *
+ * See the comments below the .Lentry_from_kernel_\@ label in the
+ * SWITCH_TO_KERNEL_STACK macro for more details.
+ */
+.macro PARANOID_EXIT_TO_KERNEL_MODE
+
+	/*
+	 * Test if we entered the kernel with the entry-stack. Most
+	 * likely we did not, because this code only runs on the
+	 * return-to-kernel path.
+	 */
+	testl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
+	jz	.Lend_\@
+
+	/* Unlikely slow-path */
+
+	/* Clear marker from stack-frame */
+	andl	$(~CS_FROM_ENTRY_STACK), PT_CS(%esp)
+
+	/* Copy the remaining task-stack contents to entry-stack */
+	movl	%esp, %esi
+	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %edi
+
+	/* Bytes on the task-stack to ecx */
+	movl	PER_CPU_VAR(cpu_tss_rw + TSS_sp1), %ecx
+	subl	%esi, %ecx
+
+	/* Allocate stack-frame on entry-stack */
+	subl	%ecx, %edi
+
+	/*
+	 * Save future stack-pointer, we must not switch until the
+	 * copy is done, otherwise the NMI handler could destroy the
+	 * contents of the task-stack we are about to copy.
+	 */
+	movl	%edi, %ebx
+
+	/* Do the copy */
+	shrl	$2, %ecx
+	cld
+	rep movsl
+
+	/* Safe to switch to entry-stack now */
+	movl	%ebx, %esp
+
+.Lend_\@:
+.endm
 /*
  * %eax: prev task
  * %edx: next task
@@ -764,6 +877,7 @@ restore_all:
 
 restore_all_kernel:
 	TRACE_IRQS_IRET
+	PARANOID_EXIT_TO_KERNEL_MODE
 	RESTORE_REGS 4
 	jmp	.Lirq_return
 
