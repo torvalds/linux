@@ -137,7 +137,6 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 
 	failed_wr = &reg_wr.wr;
 	ret = ib_post_send(ibmr->ic->i_cm_id->qp, &reg_wr.wr, &failed_wr);
-	WARN_ON(failed_wr != &reg_wr.wr);
 	if (unlikely(ret)) {
 		/* Failure here can be because of -ENOMEM as well */
 		frmr->fr_state = FRMR_IS_STALE;
@@ -257,7 +256,6 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 
 	failed_wr = s_wr;
 	ret = ib_post_send(i_cm_id->qp, s_wr, &failed_wr);
-	WARN_ON(failed_wr != s_wr);
 	if (unlikely(ret)) {
 		frmr->fr_state = FRMR_IS_STALE;
 		frmr->fr_inv = false;
