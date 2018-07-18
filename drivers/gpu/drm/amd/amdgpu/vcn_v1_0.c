@@ -724,6 +724,11 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 		(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK),
 		~(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK));
 
+	/* enable system interrupt for JRBC, TODO: move to set interrupt*/
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_SYS_INT_EN),
+		UVD_SYS_INT_EN__UVD_JRBC_EN_MASK,
+		~UVD_SYS_INT_EN__UVD_JRBC_EN_MASK);
+
 	/* clear the bit 4 of VCN_STATUS */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0,
 			~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
@@ -1778,7 +1783,7 @@ static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
 
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->vcn.irq.num_types = adev->vcn.num_enc_rings + 1;
+	adev->vcn.irq.num_types = adev->vcn.num_enc_rings + 2;
 	adev->vcn.irq.funcs = &vcn_v1_0_irq_funcs;
 }
 
