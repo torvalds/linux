@@ -416,24 +416,74 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 }
 EXPORT_SYMBOL(mlxsw_afk_values_add_buf);
 
+static void mlxsw_sp_afk_encode_u32(const struct mlxsw_item *storage_item,
+				    const struct mlxsw_item *output_item,
+				    char *storage, char *output)
+{
+	u32 value;
+
+	value = __mlxsw_item_get32(storage, storage_item, 0);
+	__mlxsw_item_set32(output, output_item, 0, value);
+}
+
+static void mlxsw_sp_afk_encode_buf(const struct mlxsw_item *storage_item,
+				    const struct mlxsw_item *output_item,
+				    char *storage, char *output)
+{
+	char *storage_data = __mlxsw_item_data(storage, storage_item, 0);
+	char *output_data = __mlxsw_item_data(output, output_item, 0);
+	size_t len = output_item->size.bytes;
+
+	memcpy(output_data, storage_data, len);
+}
+
+static void
+mlxsw_sp_afk_encode_one(const struct mlxsw_afk_element_inst *elinst,
+			char *output, char *storage)
+{
+	const struct mlxsw_item *storage_item = &elinst->info->item;
+	const struct mlxsw_item *output_item = &elinst->item;
+
+	if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_U32)
+		mlxsw_sp_afk_encode_u32(storage_item, output_item,
+					storage, output);
+	else if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_BUF)
+		mlxsw_sp_afk_encode_buf(storage_item, output_item,
+					storage, output);
+}
+
+#define MLXSW_SP_AFK_KEY_BLOCK_MAX_SIZE 16
+
 void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
 		      char *key, char *mask)
 {
+	char block_mask[MLXSW_SP_AFK_KEY_BLOCK_MAX_SIZE];
+	char block_key[MLXSW_SP_AFK_KEY_BLOCK_MAX_SIZE];
 	const struct mlxsw_afk_element_inst *elinst;
 	enum mlxsw_afk_element element;
-	int block_index;
+	int block_index, i;
 
-	mlxsw_afk_element_usage_for_each(element, &values->elusage) {
-		elinst = mlxsw_afk_key_info_elinst_get(key_info, element,
-						       &block_index);
-		if (!elinst)
-			continue;
-		mlxsw_afk->ops->encode_one(elinst, block_index,
-					   values->storage.key, key);
-		mlxsw_afk->ops->encode_one(elinst, block_index,
-					   values->storage.mask, mask);
+	for (i = 0; i < key_info->blocks_count; i++) {
+		memset(block_key, 0, MLXSW_SP_AFK_KEY_BLOCK_MAX_SIZE);
+		memset(block_mask, 0, MLXSW_SP_AFK_KEY_BLOCK_MAX_SIZE);
+
+		mlxsw_afk_element_usage_for_each(element, &values->elusage) {
+			elinst = mlxsw_afk_key_info_elinst_get(key_info,
+							       element,
+							       &block_index);
+			if (!elinst || block_index != i)
+				continue;
+
+			mlxsw_sp_afk_encode_one(elinst, block_key,
+						values->storage.key);
+			mlxsw_sp_afk_encode_one(elinst, block_mask,
+						values->storage.mask);
+		}
+
+		mlxsw_afk->ops->encode_block(block_key, i, key);
+		mlxsw_afk->ops->encode_block(block_mask, i, mask);
 	}
 }
 EXPORT_SYMBOL(mlxsw_afk_encode);

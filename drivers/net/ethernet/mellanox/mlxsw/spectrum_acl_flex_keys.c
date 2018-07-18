@@ -127,50 +127,21 @@ static const struct mlxsw_afk_block mlxsw_sp1_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0xB0, mlxsw_sp_afk_element_info_packet_type),
 };
 
-static void mlxsw_sp1_afk_encode_u32(const struct mlxsw_item *storage_item,
-				     const struct mlxsw_item *output_item,
-				     char *storage, char *output_indexed)
-{
-	u32 value;
-
-	value = __mlxsw_item_get32(storage, storage_item, 0);
-	__mlxsw_item_set32(output_indexed, output_item, 0, value);
-}
-
-static void mlxsw_sp1_afk_encode_buf(const struct mlxsw_item *storage_item,
-				     const struct mlxsw_item *output_item,
-				     char *storage, char *output_indexed)
-{
-	char *storage_data = __mlxsw_item_data(storage, storage_item, 0);
-	char *output_data = __mlxsw_item_data(output_indexed, output_item, 0);
-	size_t len = output_item->size.bytes;
-
-	memcpy(output_data, storage_data, len);
-}
-
 #define MLXSW_SP1_AFK_KEY_BLOCK_SIZE 16
 
-static void
-mlxsw_sp1_afk_encode_one(const struct mlxsw_afk_element_inst *elinst,
-			 int block_index, char *storage, char *output)
+static void mlxsw_sp1_afk_encode_block(char *block, int block_index,
+				       char *output)
 {
 	unsigned int offset = block_index * MLXSW_SP1_AFK_KEY_BLOCK_SIZE;
 	char *output_indexed = output + offset;
-	const struct mlxsw_item *storage_item = &elinst->info->item;
-	const struct mlxsw_item *output_item = &elinst->item;
 
-	if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_U32)
-		mlxsw_sp1_afk_encode_u32(storage_item, output_item,
-					 storage, output_indexed);
-	else if (elinst->type == MLXSW_AFK_ELEMENT_TYPE_BUF)
-		mlxsw_sp1_afk_encode_buf(storage_item, output_item,
-					 storage, output_indexed);
+	memcpy(output_indexed, block, MLXSW_SP1_AFK_KEY_BLOCK_SIZE);
 }
 
 const struct mlxsw_afk_ops mlxsw_sp1_afk_ops = {
 	.blocks		= mlxsw_sp1_afk_blocks,
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp1_afk_blocks),
-	.encode_one	= mlxsw_sp1_afk_encode_one,
+	.encode_block	= mlxsw_sp1_afk_encode_block,
 };
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_0[] = {
@@ -271,14 +242,7 @@ static const struct mlxsw_afk_block mlxsw_sp2_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0x92, mlxsw_sp_afk_element_info_l4_2),
 };
 
-static void
-mlxsw_sp2_afk_encode_one(const struct mlxsw_afk_element_inst *elinst,
-			 int block_index, char *storage, char *output)
-{
-}
-
 const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
 	.blocks		= mlxsw_sp2_afk_blocks,
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp2_afk_blocks),
-	.encode_one	= mlxsw_sp2_afk_encode_one,
 };
