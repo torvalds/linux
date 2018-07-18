@@ -155,6 +155,7 @@ struct mv88e6xxx_bus_ops;
 struct mv88e6xxx_irq_ops;
 struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
+struct mv88e6xxx_ptp_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -439,6 +440,9 @@ struct mv88e6xxx_ops {
 
 	/* Remote Management Unit operations */
 	int (*rmu_disable)(struct mv88e6xxx_chip *chip);
+
+	/* Precision Time Protocol operations */
+	const struct mv88e6xxx_ptp_ops *ptp_ops;
 };
 
 struct mv88e6xxx_irq_ops {
@@ -484,6 +488,16 @@ struct mv88e6xxx_avb_ops {
 	int (*tai_read)(struct mv88e6xxx_chip *chip, int addr, u16 *data,
 			int len);
 	int (*tai_write)(struct mv88e6xxx_chip *chip, int addr, u16 data);
+};
+
+struct mv88e6xxx_ptp_ops {
+	u64 (*clock_read)(const struct cyclecounter *cc);
+	int (*ptp_enable)(struct ptp_clock_info *ptp,
+			  struct ptp_clock_request *rq, int on);
+	int (*ptp_verify)(struct ptp_clock_info *ptp, unsigned int pin,
+			  enum ptp_pin_function func, unsigned int chan);
+	void (*event_work)(struct work_struct *ugly);
+	int n_ext_ts;
 };
 
 #define STATS_TYPE_PORT		BIT(0)
