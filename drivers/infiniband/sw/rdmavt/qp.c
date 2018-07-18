@@ -1620,7 +1620,7 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 static inline int rvt_qp_valid_operation(
 	struct rvt_qp *qp,
 	const struct rvt_operation_params *post_parms,
-	struct ib_send_wr *wr)
+	const struct ib_send_wr *wr)
 {
 	int len;
 
@@ -1717,7 +1717,7 @@ static inline int rvt_qp_is_avail(
  * @wr: the work request to send
  */
 static int rvt_post_one_wr(struct rvt_qp *qp,
-			   struct ib_send_wr *wr,
+			   const struct ib_send_wr *wr,
 			   int *call_send)
 {
 	struct rvt_swqe *wqe;

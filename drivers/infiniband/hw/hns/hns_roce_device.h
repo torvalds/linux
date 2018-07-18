@@ -985,7 +985,7 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp);
 void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp);
 void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 			       int cnt);
-__be32 send_ieth(struct ib_send_wr *wr);
+__be32 send_ieth(const struct ib_send_wr *wr);
 int to_hr_qp_type(int qp_type);
 
 struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,

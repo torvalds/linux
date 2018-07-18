@@ -3508,7 +3508,7 @@ static __always_inline void set_raddr_seg(struct mlx5_wqe_raddr_seg *rseg,
 }
 
 static void *set_eth_seg(struct mlx5_wqe_eth_seg *eseg,
-			 struct ib_send_wr *wr, void *qend,
+			 const struct ib_send_wr *wr, void *qend,
 			 struct mlx5_ib_qp *qp, int *size)
 {
 	void *seg = eseg;
@@ -3561,7 +3561,7 @@ static void *set_eth_seg(struct mlx5_wqe_eth_seg *eseg,
 }
 
 static void set_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
-			     struct ib_send_wr *wr)
+			     const struct ib_send_wr *wr)
 {
 	memcpy(&dseg->av, &to_mah(ud_wr(wr)->ah)->av, sizeof(struct mlx5_av));
 	dseg->av.dqp_dct = cpu_to_be32(ud_wr(wr)->remote_qpn | MLX5_EXTENDED_UD_AV);
@@ -3709,9 +3709,9 @@ static int umr_check_mkey_mask(struct mlx5_ib_dev *dev, u64 mask)
 
 static int set_reg_umr_segment(struct mlx5_ib_dev *dev,
 			       struct mlx5_wqe_umr_ctrl_seg *umr,
-			       struct ib_send_wr *wr, int atomic)
+			       const struct ib_send_wr *wr, int atomic)
 {
-	struct mlx5_umr_wr *umrwr = umr_wr(wr);
+	const struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
 	memset(umr, 0, sizeof(*umr));
 
@@ -3782,9 +3782,10 @@ static void set_linv_mkey_seg(struct mlx5_mkey_seg *seg)
 	seg->status = MLX5_MKEY_STATUS_FREE;
 }
 
-static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr)
+static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg,
+				 const struct ib_send_wr *wr)
 {
-	struct mlx5_umr_wr *umrwr = umr_wr(wr);
+	const struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
 	memset(seg, 0, sizeof(*seg));
 	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
@@ -3833,7 +3834,7 @@ static void set_reg_umr_inline_seg(void *seg, struct mlx5_ib_qp *qp,
 	seg += mr_list_size;
 }
 
-static __be32 send_ieth(struct ib_send_wr *wr)
+static __be32 send_ieth(const struct ib_send_wr *wr)
 {
 	switch (wr->opcode) {
 	case IB_WR_SEND_WITH_IMM:
@@ -3865,7 +3866,7 @@ static u8 wq_sig(void *wqe)
 	return calc_sig(wqe, (*((u8 *)wqe + 8) & 0x3f) << 4);
 }
 
-static int set_data_inl_seg(struct mlx5_ib_qp *qp, struct ib_send_wr *wr,
+static int set_data_inl_seg(struct mlx5_ib_qp *qp, const struct ib_send_wr *wr,
 			    void *wqe, int *sz)
 {
 	struct mlx5_wqe_inline_seg *seg;
@@ -4011,7 +4012,7 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	return 0;
 }
 
-static int set_sig_data_segment(struct ib_sig_handover_wr *wr,
+static int set_sig_data_segment(const struct ib_sig_handover_wr *wr,
 				struct mlx5_ib_qp *qp, void **seg, int *size)
 {
 	struct ib_sig_attrs *sig_attrs = wr->sig_attrs;
@@ -4113,7 +4114,7 @@ static int set_sig_data_segment(struct ib_sig_handover_wr *wr,
 }
 
 static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
-				 struct ib_sig_handover_wr *wr, u32 size,
+				 const struct ib_sig_handover_wr *wr, u32 size,
 				 u32 length, u32 pdn)
 {
 	struct ib_mr *sig_mr = wr->sig_mr;
@@ -4144,10 +4145,10 @@ static void set_sig_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 }
 
 
-static int set_sig_umr_wr(struct ib_send_wr *send_wr, struct mlx5_ib_qp *qp,
-			  void **seg, int *size)
+static int set_sig_umr_wr(const struct ib_send_wr *send_wr,
+			  struct mlx5_ib_qp *qp, void **seg, int *size)
 {
-	struct ib_sig_handover_wr *wr = sig_handover_wr(send_wr);
+	const struct ib_sig_handover_wr *wr = sig_handover_wr(send_wr);
 	struct mlx5_ib_mr *sig_mr = to_mmr(wr->sig_mr);
 	u32 pdn = get_pd(qp)->pdn;
 	u32 xlt_size;
@@ -4222,7 +4223,7 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 }
 
 static int set_reg_wr(struct mlx5_ib_qp *qp,
-		      struct ib_reg_wr *wr,
+		      const struct ib_reg_wr *wr,
 		      void **seg, int *size)
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
@@ -4295,7 +4296,7 @@ static void dump_wqe(struct mlx5_ib_qp *qp, int idx, int size_16)
 
 static int begin_wqe(struct mlx5_ib_qp *qp, void **seg,
 		     struct mlx5_wqe_ctrl_seg **ctrl,
-		     struct ib_send_wr *wr, unsigned *idx,
+		     const struct ib_send_wr *wr, unsigned *idx,
 		     int *size, int nreq)
 {
 	if (unlikely(mlx5_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)))

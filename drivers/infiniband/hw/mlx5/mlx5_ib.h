@@ -469,7 +469,7 @@ struct mlx5_umr_wr {
 	u32				mkey;
 };
 
-static inline struct mlx5_umr_wr *umr_wr(struct ib_send_wr *wr)
+static inline const struct mlx5_umr_wr *umr_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct mlx5_umr_wr, wr);
 }

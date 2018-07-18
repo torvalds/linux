@@ -380,7 +380,7 @@ int qedr_destroy_gsi_qp(struct qedr_dev *dev)
 #define QEDR_GSI_QPN		(1)
 static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 					struct qedr_qp *qp,
-					struct ib_send_wr *swr,
+					const struct ib_send_wr *swr,
 					struct ib_ud_header *udh,
 					int *roce_mode)
 {
@@ -488,7 +488,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 
 static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 					struct qedr_qp *qp,
-					struct ib_send_wr *swr,
+					const struct ib_send_wr *swr,
 					struct qed_roce_ll2_packet **p_packet)
 {
 	u8 ud_header_buffer[QEDR_MAX_UD_HEADER_SIZE];

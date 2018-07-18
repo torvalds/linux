@@ -599,7 +599,8 @@ static inline void *get_rq_wqe(struct pvrdma_qp *qp, unsigned int n)
 				       qp->rq.offset + n * qp->rq.wqe_size);
 }
 
-static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr, struct ib_reg_wr *wr)
+static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr,
+		       const struct ib_reg_wr *wr)
 {
 	struct pvrdma_user_mr *mr = to_vmr(wr->mr);
 

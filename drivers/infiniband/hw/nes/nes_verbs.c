@@ -3040,7 +3040,8 @@ static int nes_process_mad(struct ib_device *ibdev, int mad_flags,
 }
 
 static inline void
-fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, struct ib_send_wr *ib_wr, u32 uselkey)
+fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
+		 u32 uselkey)
 {
 	int sge_index;
 	int total_payload_length = 0;

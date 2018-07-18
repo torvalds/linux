@@ -2781,7 +2781,7 @@ static u32 qedr_prepare_sq_inline_data(struct qedr_dev *dev,
 	} while (0)
 
 static u32 qedr_prepare_sq_sges(struct qedr_qp *qp, u8 *wqe_size,
-				struct ib_send_wr *wr)
+				const struct ib_send_wr *wr)
 {
 	u32 data_size = 0;
 	int i;
@@ -2845,7 +2845,7 @@ static u32 qedr_prepare_sq_send_data(struct qedr_dev *dev,
 
 static int qedr_prepare_reg(struct qedr_qp *qp,
 			    struct rdma_sq_fmr_wqe_1st *fwqe1,
-			    struct ib_reg_wr *wr)
+			    const struct ib_reg_wr *wr)
 {
 	struct qedr_mr *mr = get_qedr_mr(wr->mr);
 	struct rdma_sq_fmr_wqe_2nd *fwqe2;
@@ -2907,7 +2907,8 @@ static enum ib_wc_opcode qedr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 	}
 }
 
-static inline bool qedr_can_post_send(struct qedr_qp *qp, struct ib_send_wr *wr)
+static inline bool qedr_can_post_send(struct qedr_qp *qp,
+				      const struct ib_send_wr *wr)
 {
 	int wq_is_full, err_wr, pbl_is_full;
 	struct qedr_dev *dev = qp->dev;

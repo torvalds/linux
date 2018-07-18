@@ -53,7 +53,7 @@ static void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 	dseg->len  = cpu_to_le32(sg->length);
 }
 
-static void set_extend_sge(struct hns_roce_qp *qp, struct ib_send_wr *wr,
+static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 			   unsigned int *sge_ind)
 {
 	struct hns_roce_v2_wqe_data_seg *dseg;
@@ -100,7 +100,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, struct ib_send_wr *wr,
 	}
 }
 
-static int set_rwqe_data_seg(struct ib_qp *ibqp, struct ib_send_wr *wr,
+static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			     struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 			     void *wqe, unsigned int *sge_ind,
 			     struct ib_send_wr **bad_wr)

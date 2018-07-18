@@ -311,7 +311,7 @@ void qib_rc_rnr_retry(unsigned long arg);
 
 void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
-int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
+int qib_post_ud_send(struct rvt_qp *qp, const struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);

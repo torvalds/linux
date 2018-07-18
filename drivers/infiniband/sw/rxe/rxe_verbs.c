@@ -554,7 +554,7 @@ static int rxe_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
-static int validate_send_wr(struct rxe_qp *qp, struct ib_send_wr *ibwr,
+static int validate_send_wr(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 			    unsigned int mask, unsigned int length)
 {
 	int num_sge = ibwr->num_sge;
@@ -582,7 +582,7 @@ err1:
 }
 
 static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
-			 struct ib_send_wr *ibwr)
+			 const struct ib_send_wr *ibwr)
 {
 	wr->wr_id = ibwr->wr_id;
 	wr->num_sge = ibwr->num_sge;
@@ -637,7 +637,7 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 	}
 }
 
-static int init_send_wqe(struct rxe_qp *qp, struct ib_send_wr *ibwr,
+static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 			 unsigned int mask, unsigned int length,
 			 struct rxe_send_wqe *wqe)
 {
@@ -685,7 +685,7 @@ static int init_send_wqe(struct rxe_qp *qp, struct ib_send_wr *ibwr,
 	return 0;
 }
 
-static int post_one_send(struct rxe_qp *qp, struct ib_send_wr *ibwr,
+static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 			 unsigned int mask, u32 length)
 {
 	int err;

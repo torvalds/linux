@@ -1953,7 +1953,7 @@ int ocrdma_destroy_srq(struct ib_srq *ibsrq)
 /* unprivileged verbs and their support functions. */
 static void ocrdma_build_ud_hdr(struct ocrdma_qp *qp,
 				struct ocrdma_hdr_wqe *hdr,
-				struct ib_send_wr *wr)
+				const struct ib_send_wr *wr)
 {
 	struct ocrdma_ewqe_ud_hdr *ud_hdr =
 		(struct ocrdma_ewqe_ud_hdr *)(hdr + 1);
@@ -2000,7 +2000,7 @@ static inline uint32_t ocrdma_sglist_len(struct ib_sge *sg_list, int num_sge)
 static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 				    struct ocrdma_hdr_wqe *hdr,
 				    struct ocrdma_sge *sge,
-				    struct ib_send_wr *wr, u32 wqe_size)
+				    const struct ib_send_wr *wr, u32 wqe_size)
 {
 	int i;
 	char *dpp_addr;
@@ -2038,7 +2038,7 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 }
 
 static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			     struct ib_send_wr *wr)
+			     const struct ib_send_wr *wr)
 {
 	int status;
 	struct ocrdma_sge *sge;
@@ -2057,7 +2057,7 @@ static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 }
 
 static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			      struct ib_send_wr *wr)
+			      const struct ib_send_wr *wr)
 {
 	int status;
 	struct ocrdma_sge *ext_rw = (struct ocrdma_sge *)(hdr + 1);
@@ -2075,7 +2075,7 @@ static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 }
 
 static void ocrdma_build_read(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			      struct ib_send_wr *wr)
+			      const struct ib_send_wr *wr)
 {
 	struct ocrdma_sge *ext_rw = (struct ocrdma_sge *)(hdr + 1);
 	struct ocrdma_sge *sge = ext_rw + 1;
@@ -2105,7 +2105,7 @@ static int get_encoded_page_size(int pg_sz)
 
 static int ocrdma_build_reg(struct ocrdma_qp *qp,
 			    struct ocrdma_hdr_wqe *hdr,
-			    struct ib_reg_wr *wr)
+			    const struct ib_reg_wr *wr)
 {
 	u64 fbo;
 	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);

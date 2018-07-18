@@ -39,8 +39,8 @@
 
 #define NO_SUPPORT -1
 
-static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 * flit_cnt)
+static int build_rdma_send(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -84,8 +84,8 @@ static int build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
-				 u8 *flit_cnt)
+static int build_rdma_write(union t3_wr *wqe, const struct ib_send_wr *wr,
+			    u8 *flit_cnt)
 {
 	int i;
 	u32 plen;
@@ -125,8 +125,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_rdma_read(union t3_wr *wqe, const struct ib_send_wr *wr,
+			   u8 *flit_cnt)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
@@ -146,8 +146,8 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
-			  u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+static int build_memreg(union t3_wr *wqe, const struct ib_reg_wr *wr,
+			u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
 {
 	struct iwch_mr *mhp = to_iwch_mr(wr->mr);
 	int i;
@@ -189,8 +189,8 @@ static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
 	return 0;
 }
 
-static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
-				u8 *flit_cnt)
+static int build_inv_stag(union t3_wr *wqe, const struct ib_send_wr *wr,
+			  u8 *flit_cnt)
 {
 	wqe->local_inv.stag = cpu_to_be32(wr->ex.invalidate_rkey);
 	wqe->local_inv.reserved = 0;
