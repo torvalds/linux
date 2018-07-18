@@ -653,10 +653,10 @@ out:
 	return ret;
 }
 
-static int del_qgroup_item(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *quota_root, u64 qgroupid)
+static int del_qgroup_item(struct btrfs_trans_handle *trans, u64 qgroupid)
 {
 	int ret;
+	struct btrfs_root *quota_root = trans->fs_info->quota_root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 
@@ -1420,7 +1420,7 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 	}
-	ret = del_qgroup_item(trans, quota_root, qgroupid);
+	ret = del_qgroup_item(trans, qgroupid);
 	if (ret && ret != -ENOENT)
 		goto out;
 
