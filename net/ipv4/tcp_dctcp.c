@@ -133,21 +133,8 @@ static void dctcp_ce_state_0_to_1(struct sock *sk)
 	 * ACK has not sent yet.
 	 */
 	if (!ca->ce_state &&
-	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=0. */
-		tp->ecn_flags &= ~TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
-	}
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+		__tcp_send_ack(sk, ca->prior_rcv_nxt);
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
 	ca->ce_state = 1;
@@ -164,21 +151,8 @@ static void dctcp_ce_state_1_to_0(struct sock *sk)
 	 * ACK has not sent yet.
 	 */
 	if (ca->ce_state &&
-	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER) {
-		u32 tmp_rcv_nxt;
-
-		/* Save current rcv_nxt. */
-		tmp_rcv_nxt = tp->rcv_nxt;
-
-		/* Generate previous ack with CE=1. */
-		tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
-		tp->rcv_nxt = ca->prior_rcv_nxt;
-
-		tcp_send_ack(sk);
-
-		/* Recover current rcv_nxt. */
-		tp->rcv_nxt = tmp_rcv_nxt;
-	}
+	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_TIMER)
+		__tcp_send_ack(sk, ca->prior_rcv_nxt);
 
 	ca->prior_rcv_nxt = tp->rcv_nxt;
 	ca->ce_state = 0;
