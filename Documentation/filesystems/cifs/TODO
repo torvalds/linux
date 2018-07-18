@@ -9,14 +9,14 @@ is a partial list of the known problems and missing features:
 
 a) SMB3 (and SMB3.02) missing optional features:
    - multichannel (started), integration with RDMA
-   - directory leases (improved metadata caching)
-   - T10 copy offload (copy chunk, and "Duplicate Extents" ioctl
+   - directory leases (improved metadata caching), started (root dir only)
+   - T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
      currently the only two server side copy mechanisms supported)
 
 b) improved sparse file support
 
 c) Directory entry caching relies on a 1 second timer, rather than
-using Directory Leases
+using Directory Leases, currently only the root file handle is cached longer
 
 d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
@@ -42,6 +42,8 @@ mount or a per server basis to client UIDs or nobody if no mapping
 exists. Also better integration with winbind for resolving SID owners
 
 k) Add tools to take advantage of more smb3 specific ioctls and features
+(passthrough ioctl/fsctl for sending various SMB3 fsctls to the server
+is in progress)
 
 l) encrypted file support
 
@@ -71,9 +73,8 @@ t) split cifs and smb3 support into separate modules so legacy (and less
 secure) CIFS dialect can be disabled in environments that don't need it
 and simplify the code.
 
-u) Finish up SMB3.1.1 dialect support
-
-v) POSIX Extensions for SMB3.1.1
+v) POSIX Extensions for SMB3.1.1 (started, create and mkdir support added
+so far).
 
 KNOWN BUGS
 ====================================
@@ -92,8 +93,8 @@ Misc testing to do
 1) check out max path names and max path name components against various server
 types. Try nested symlinks (8 deep). Return max path name in stat -f information
 
-2) Improve xfstest's cifs enablement and adapt xfstests where needed to test
-cifs better
+2) Improve xfstest's cifs/smb3 enablement and adapt xfstests where needed to test
+cifs/smb3 better
 
 3) Additional performance testing and optimization using iozone and similar - 
 there are some easy changes that can be done to parallelize sequential writes,

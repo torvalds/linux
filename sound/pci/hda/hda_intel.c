@@ -1319,15 +1319,16 @@ static const struct vga_switcheroo_client_ops azx_vs_ops = {
 static int register_vga_switcheroo(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct pci_dev *p;
 	int err;
 
 	if (!hda->use_vga_switcheroo)
 		return 0;
-	/* FIXME: currently only handling DIS controller
-	 * is there any machine with two switchable HDMI audio controllers?
-	 */
-	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
-						   VGA_SWITCHEROO_DIS);
+
+	p = get_bound_vga(chip->pci);
+	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops, p);
+	pci_dev_put(p);
+
 	if (err < 0)
 		return err;
 	hda->vga_switcheroo_registered = 1;

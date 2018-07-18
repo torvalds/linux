@@ -350,6 +350,20 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	return prog_adj;
 }
 
+void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp)
+{
+	int i;
+
+	for (i = 0; i < fp->aux->func_cnt; i++)
+		bpf_prog_kallsyms_del(fp->aux->func[i]);
+}
+
+void bpf_prog_kallsyms_del_all(struct bpf_prog *fp)
+{
+	bpf_prog_kallsyms_del_subprogs(fp);
+	bpf_prog_kallsyms_del(fp);
+}
+
 #ifdef CONFIG_BPF_JIT
 /* All BPF JIT sysctl knobs here. */
 int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON);
@@ -1434,6 +1448,17 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
 	return 0;
 }
 
+static void bpf_prog_select_func(struct bpf_prog *fp)
+{
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
+
+	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
+#else
+	fp->bpf_func = __bpf_prog_ret0_warn;
+#endif
+}
+
 /**
  *	bpf_prog_select_runtime - select exec runtime for BPF program
  *	@fp: bpf_prog populated with internal BPF program
@@ -1444,13 +1469,13 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
-	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
+	/* In case of BPF to BPF calls, verifier did all the prep
+	 * work with regards to JITing, etc.
+	 */
+	if (fp->bpf_func)
+		goto finalize;
 
-	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
-#else
-	fp->bpf_func = __bpf_prog_ret0_warn;
-#endif
+	bpf_prog_select_func(fp);
 
 	/* eBPF JITs can rewrite the program in case constant
 	 * blinding is active. However, in case of error during
@@ -1471,6 +1496,8 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 		if (*err)
 			return fp;
 	}
+
+finalize:
 	bpf_prog_lock_ro(fp);
 
 	/* The tail call compatibility check can only be done at

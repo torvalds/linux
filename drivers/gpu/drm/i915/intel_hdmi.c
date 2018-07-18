@@ -1557,6 +1557,9 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	bool force_dvi =
 		READ_ONCE(to_intel_digital_connector_state(connector->state)->force_audio) == HDMI_AUDIO_OFF_DVI;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	clock = mode->clock;
 
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
@@ -1676,6 +1679,9 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	int clock_12bpc = clock_8bpc * 3 / 2;
 	int desired_bpp;
 	bool force_dvi = intel_conn_state->force_audio == HDMI_AUDIO_OFF_DVI;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	pipe_config->has_hdmi_sink = !force_dvi && intel_hdmi->has_hdmi_sink;
 

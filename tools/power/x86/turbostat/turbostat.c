@@ -109,6 +109,7 @@ unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;		/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 unsigned int has_misc_feature_control;
+unsigned int first_counter_read = 1;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -170,6 +171,8 @@ struct thread_data {
 	unsigned long long  irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
+	unsigned int apic_id;
+	unsigned int x2apic_id;
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
@@ -381,19 +384,23 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 }
 
 /*
- * Each string in this array is compared in --show and --hide cmdline.
- * Thus, strings that are proper sub-sets must follow their more specific peers.
+ * This list matches the column headers, except
+ * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 2. Core and CPU are moved to the end, we can't have strings that contain them
+ *    matching on them for --show and --hide.
  */
 struct msr_counter bic[] = {
 	{ 0x0, "usec" },
 	{ 0x0, "Time_Of_Day_Seconds" },
 	{ 0x0, "Package" },
+	{ 0x0, "Node" },
 	{ 0x0, "Avg_MHz" },
+	{ 0x0, "Busy%" },
 	{ 0x0, "Bzy_MHz" },
 	{ 0x0, "TSC_MHz" },
 	{ 0x0, "IRQ" },
 	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL},
-	{ 0x0, "Busy%" },
+	{ 0x0, "sysfs" },
 	{ 0x0, "CPU%c1" },
 	{ 0x0, "CPU%c3" },
 	{ 0x0, "CPU%c6" },
@@ -424,73 +431,73 @@ struct msr_counter bic[] = {
 	{ 0x0, "Cor_J" },
 	{ 0x0, "GFX_J" },
 	{ 0x0, "RAM_J" },
-	{ 0x0, "Core" },
-	{ 0x0, "CPU" },
 	{ 0x0, "Mod%c6" },
-	{ 0x0, "sysfs" },
 	{ 0x0, "Totl%C0" },
 	{ 0x0, "Any%C0" },
 	{ 0x0, "GFX%C0" },
 	{ 0x0, "CPUGFX%" },
-	{ 0x0, "Node%" },
+	{ 0x0, "Core" },
+	{ 0x0, "CPU" },
+	{ 0x0, "APIC" },
+	{ 0x0, "X2APIC" },
 };
-
-
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
 #define	BIC_USEC	(1ULL << 0)
 #define	BIC_TOD		(1ULL << 1)
 #define	BIC_Package	(1ULL << 2)
-#define	BIC_Avg_MHz	(1ULL << 3)
-#define	BIC_Bzy_MHz	(1ULL << 4)
-#define	BIC_TSC_MHz	(1ULL << 5)
-#define	BIC_IRQ		(1ULL << 6)
-#define	BIC_SMI		(1ULL << 7)
-#define	BIC_Busy	(1ULL << 8)
-#define	BIC_CPU_c1	(1ULL << 9)
-#define	BIC_CPU_c3	(1ULL << 10)
-#define	BIC_CPU_c6	(1ULL << 11)
-#define	BIC_CPU_c7	(1ULL << 12)
-#define	BIC_ThreadC	(1ULL << 13)
-#define	BIC_CoreTmp	(1ULL << 14)
-#define	BIC_CoreCnt	(1ULL << 15)
-#define	BIC_PkgTmp	(1ULL << 16)
-#define	BIC_GFX_rc6	(1ULL << 17)
-#define	BIC_GFXMHz	(1ULL << 18)
-#define	BIC_Pkgpc2	(1ULL << 19)
-#define	BIC_Pkgpc3	(1ULL << 20)
-#define	BIC_Pkgpc6	(1ULL << 21)
-#define	BIC_Pkgpc7	(1ULL << 22)
-#define	BIC_Pkgpc8	(1ULL << 23)
-#define	BIC_Pkgpc9	(1ULL << 24)
-#define	BIC_Pkgpc10	(1ULL << 25)
-#define BIC_CPU_LPI	(1ULL << 26)
-#define BIC_SYS_LPI	(1ULL << 27)
-#define	BIC_PkgWatt	(1ULL << 26)
-#define	BIC_CorWatt	(1ULL << 27)
-#define	BIC_GFXWatt	(1ULL << 28)
-#define	BIC_PkgCnt	(1ULL << 29)
-#define	BIC_RAMWatt	(1ULL << 30)
-#define	BIC_PKG__	(1ULL << 31)
-#define	BIC_RAM__	(1ULL << 32)
-#define	BIC_Pkg_J	(1ULL << 33)
-#define	BIC_Cor_J	(1ULL << 34)
-#define	BIC_GFX_J	(1ULL << 35)
-#define	BIC_RAM_J	(1ULL << 36)
-#define	BIC_Core	(1ULL << 37)
-#define	BIC_CPU		(1ULL << 38)
-#define	BIC_Mod_c6	(1ULL << 39)
-#define	BIC_sysfs	(1ULL << 40)
-#define	BIC_Totl_c0	(1ULL << 41)
-#define	BIC_Any_c0	(1ULL << 42)
-#define	BIC_GFX_c0	(1ULL << 43)
-#define	BIC_CPUGFX	(1ULL << 44)
-#define	BIC_Node	(1ULL << 45)
+#define	BIC_Node	(1ULL << 3)
+#define	BIC_Avg_MHz	(1ULL << 4)
+#define	BIC_Busy	(1ULL << 5)
+#define	BIC_Bzy_MHz	(1ULL << 6)
+#define	BIC_TSC_MHz	(1ULL << 7)
+#define	BIC_IRQ		(1ULL << 8)
+#define	BIC_SMI		(1ULL << 9)
+#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_CPU_c1	(1ULL << 11)
+#define	BIC_CPU_c3	(1ULL << 12)
+#define	BIC_CPU_c6	(1ULL << 13)
+#define	BIC_CPU_c7	(1ULL << 14)
+#define	BIC_ThreadC	(1ULL << 15)
+#define	BIC_CoreTmp	(1ULL << 16)
+#define	BIC_CoreCnt	(1ULL << 17)
+#define	BIC_PkgTmp	(1ULL << 18)
+#define	BIC_GFX_rc6	(1ULL << 19)
+#define	BIC_GFXMHz	(1ULL << 20)
+#define	BIC_Pkgpc2	(1ULL << 21)
+#define	BIC_Pkgpc3	(1ULL << 22)
+#define	BIC_Pkgpc6	(1ULL << 23)
+#define	BIC_Pkgpc7	(1ULL << 24)
+#define	BIC_Pkgpc8	(1ULL << 25)
+#define	BIC_Pkgpc9	(1ULL << 26)
+#define	BIC_Pkgpc10	(1ULL << 27)
+#define BIC_CPU_LPI	(1ULL << 28)
+#define BIC_SYS_LPI	(1ULL << 29)
+#define	BIC_PkgWatt	(1ULL << 30)
+#define	BIC_CorWatt	(1ULL << 31)
+#define	BIC_GFXWatt	(1ULL << 32)
+#define	BIC_PkgCnt	(1ULL << 33)
+#define	BIC_RAMWatt	(1ULL << 34)
+#define	BIC_PKG__	(1ULL << 35)
+#define	BIC_RAM__	(1ULL << 36)
+#define	BIC_Pkg_J	(1ULL << 37)
+#define	BIC_Cor_J	(1ULL << 38)
+#define	BIC_GFX_J	(1ULL << 39)
+#define	BIC_RAM_J	(1ULL << 40)
+#define	BIC_Mod_c6	(1ULL << 41)
+#define	BIC_Totl_c0	(1ULL << 42)
+#define	BIC_Any_c0	(1ULL << 43)
+#define	BIC_GFX_c0	(1ULL << 44)
+#define	BIC_CPUGFX	(1ULL << 45)
+#define	BIC_Core	(1ULL << 46)
+#define	BIC_CPU		(1ULL << 47)
+#define	BIC_APIC	(1ULL << 48)
+#define	BIC_X2APIC	(1ULL << 49)
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD)
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs;
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
 #define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
@@ -517,17 +524,34 @@ void help(void)
 	"when COMMAND completes.\n"
 	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
 	"to print statistics, until interrupted.\n"
-	"--add		add a counter\n"
-	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
-	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
-	"		{core | package | j,k,l..m,n-p }\n"
-	"--quiet	skip decoding system configuration header\n"
-	"--interval sec.subsec	Override default 5-second measurement interval\n"
-	"--help		print this help message\n"
-	"--list		list column headers only\n"
-	"--num_iterations num   number of the measurement iterations\n"
-	"--out file	create or truncate \"file\" for all output\n"
-	"--version	print version information\n"
+	"  -a, --add	add a counter\n"
+	"		  eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
+	"  -c, --cpu	cpu-set	limit output to summary plus cpu-set:\n"
+	"		  {core | package | j,k,l..m,n-p }\n"
+	"  -d, --debug	displays usec, Time_Of_Day_Seconds and more debugging\n"
+	"  -D, --Dump	displays the raw counter values\n"
+	"  -e, --enable	[all | column]\n"
+	"		shows all or the specified disabled column\n"
+	"  -H, --hide [column|column,column,...]\n"
+	"		hide the specified column(s)\n"
+	"  -i, --interval sec.subsec\n"
+	"		Override default 5-second measurement interval\n"
+	"  -J, --Joules	displays energy in Joules instead of Watts\n"
+	"  -l, --list	list column headers only\n"
+	"  -n, --num_iterations num\n"
+	"		number of the measurement iterations\n"
+	"  -o, --out file\n"
+	"		create or truncate \"file\" for all output\n"
+	"  -q, --quiet	skip decoding system configuration header\n"
+	"  -s, --show [column|column,column,...]\n"
+	"		show only the specified column(s)\n"
+	"  -S, --Summary\n"
+	"		limits output to 1-line system summary per interval\n"
+	"  -T, --TCC temperature\n"
+	"		sets the Thermal Control Circuit temperature in\n"
+	"		  degrees Celsius\n"
+	"  -h, --help	print this help message\n"
+	"  -v, --version	print version information\n"
 	"\n"
 	"For more help, run \"man turbostat\"\n");
 }
@@ -601,6 +625,10 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sCore", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU))
 		outp += sprintf(outp, "%sCPU", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_APIC))
+		outp += sprintf(outp, "%sAPIC", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_X2APIC))
+		outp += sprintf(outp, "%sX2APIC", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Avg_MHz))
 		outp += sprintf(outp, "%sAvg_MHz", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Busy))
@@ -880,6 +908,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_CPU))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_X2APIC))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 	} else {
 		if (DO_BIC(BIC_Package)) {
 			if (p)
@@ -904,6 +936,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		}
 		if (DO_BIC(BIC_CPU))
 			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->cpu_id);
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->apic_id);
+		if (DO_BIC(BIC_X2APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->x2apic_id);
 	}
 
 	if (DO_BIC(BIC_Avg_MHz))
@@ -1231,6 +1267,12 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	int i;
 	struct msr_counter *mp;
 
+	/* we run cpuid just the 1st time, copy the results */
+	if (DO_BIC(BIC_APIC))
+		new->apic_id = old->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		new->x2apic_id = old->x2apic_id;
+
 	/*
 	 * the timestamps from start of measurement interval are in "old"
 	 * the timestamp from end of measurement interval are in "new"
@@ -1392,6 +1434,12 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 {
 	int i;
 	struct msr_counter *mp;
+
+	/* copy un-changing apic_id's */
+	if (DO_BIC(BIC_APIC))
+		average.threads.apic_id = t->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		average.threads.x2apic_id = t->x2apic_id;
 
 	/* remember first tv_begin */
 	if (average.threads.tv_begin.tv_sec == 0)
@@ -1619,6 +1667,34 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 	return 0;
 }
 
+void get_apic_id(struct thread_data *t)
+{
+	unsigned int eax, ebx, ecx, edx, max_level;
+
+	eax = ebx = ecx = edx = 0;
+
+	if (!genuine_intel)
+		return;
+
+	__cpuid(0, max_level, ebx, ecx, edx);
+
+	__cpuid(1, eax, ebx, ecx, edx);
+	t->apic_id = (ebx >> 24) & 0xf;
+
+	if (max_level < 0xb)
+		return;
+
+	if (!DO_BIC(BIC_X2APIC))
+		return;
+
+	ecx = 0;
+	__cpuid(0xb, eax, ebx, ecx, edx);
+	t->x2apic_id = edx;
+
+	if (debug && (t->apic_id != t->x2apic_id))
+		fprintf(stderr, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -1632,7 +1708,6 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
-
 	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
 
 	if (cpu_migrate(cpu)) {
@@ -1640,6 +1715,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return -1;
 	}
 
+	if (first_counter_read)
+		get_apic_id(t);
 retry:
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
@@ -2432,6 +2509,12 @@ void set_node_data(void)
 		if (pni[pkg].count > topo.nodes_per_pkg)
 			topo.nodes_per_pkg = pni[0].count;
 
+	/* Fake 1 node per pkg for machines that don't
+	 * expose nodes and thus avoid -nan results
+	 */
+	if (topo.nodes_per_pkg == 0)
+		topo.nodes_per_pkg = 1;
+
 	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
 		pkg = cpus[cpu].physical_package_id;
 		node = cpus[cpu].physical_node_id;
@@ -2879,6 +2962,7 @@ void do_sleep(void)
 	}
 }
 
+
 void turbostat_loop()
 {
 	int retval;
@@ -2892,6 +2976,7 @@ restart:
 
 	snapshot_proc_sysfs_files();
 	retval = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (retval < -1) {
 		exit(retval);
 	} else if (retval == -1) {
@@ -4392,7 +4477,7 @@ void process_cpuid()
 	if (!quiet) {
 		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s\n",
+		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
 			ecx & (1 << 0) ? "SSE3" : "-",
 			ecx & (1 << 3) ? "MONITOR" : "-",
 			ecx & (1 << 6) ? "SMX" : "-",
@@ -4401,6 +4486,7 @@ void process_cpuid()
 			edx & (1 << 4) ? "TSC" : "-",
 			edx & (1 << 5) ? "MSR" : "-",
 			edx & (1 << 22) ? "ACPI-TM" : "-",
+			edx & (1 << 28) ? "HT" : "-",
 			edx & (1 << 29) ? "TM" : "-");
 	}
 
@@ -4652,7 +4738,6 @@ void process_cpuid()
 	return;
 }
 
-
 /*
  * in /dev/cpu/ return success for names that are numbers
  * ie. filter out ".", "..", "microcode".
@@ -4842,6 +4927,13 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct core_data *c;
 	struct pkg_data *p;
 
+
+	/* Workaround for systems where physical_node_id==-1
+	 * and logical_node_id==(-1 - topo.num_cpus)
+	 */
+	if (node_id < 0)
+		node_id = 0;
+
 	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
 	c = GET_CORE(core_base, core_id, node_id, pkg_id);
 	p = GET_PKG(pkg_base, pkg_id);
@@ -4946,6 +5038,7 @@ int fork_it(char **argv)
 
 	snapshot_proc_sysfs_files();
 	status = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (status)
 		exit(status);
 	/* clear affinity side-effect of get_counters() */
@@ -5009,7 +5102,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 18.06.01"
+	fprintf(outf, "turbostat version 18.06.20"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
@@ -5381,7 +5474,7 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'e':
 			/* --enable specified counter */
-			bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
 			break;
 		case 'd':
 			debug++;
@@ -5465,7 +5558,6 @@ void cmdline(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	outf = stderr;
-
 	cmdline(argc, argv);
 
 	if (!quiet)

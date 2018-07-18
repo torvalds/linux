@@ -1548,15 +1548,14 @@ skip_copy:
 			tp->urg_data = 0;
 
 		if ((avail + offset) >= skb->len) {
-			if (likely(skb))
-				chtls_free_skb(sk, skb);
-			buffers_freed++;
 			if (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_TLS_HDR) {
 				tp->copied_seq += skb->len;
 				hws->rcvpld = skb->hdr_len;
 			} else {
 				tp->copied_seq += hws->rcvpld;
 			}
+			chtls_free_skb(sk, skb);
+			buffers_freed++;
 			hws->copied_seq = 0;
 			if (copied >= target &&
 			    !skb_peek(&sk->sk_receive_queue))

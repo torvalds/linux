@@ -66,9 +66,22 @@
 
 &ethmac {
 	status = "okay";
-	phy-mode = "rgmii";
 	pinctrl-0 = <&eth_rgmii_y_pins>;
 	pinctrl-names = "default";
+	phy-handle = <&eth_phy0>;
+	phy-mode = "rgmii";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		eth_phy0: ethernet-phy@0 {
+			/* Realtek RTL8211F (0x001cc916) */
+			reg = <0>;
+			eee-broken-1000t;
+		};
+	};
 };
 
 &uart_A {

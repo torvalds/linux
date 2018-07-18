@@ -345,6 +345,20 @@ int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 	return bq_enqueue(dst, xdpf, dev_rx);
 }
 
+int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
+			     struct bpf_prog *xdp_prog)
+{
+	int err;
+
+	err = __xdp_generic_ok_fwd_dev(skb, dst->dev);
+	if (unlikely(err))
+		return err;
+	skb->dev = dst->dev;
+	generic_xdp_tx(skb, xdp_prog);
+
+	return 0;
+}
+
 static void *dev_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_dtab_netdev *obj = __dev_map_lookup_elem(map, *(u32 *)key);

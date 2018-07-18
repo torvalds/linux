@@ -304,6 +304,9 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
@@ -337,6 +340,12 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	return true;
 }
 
@@ -344,6 +353,12 @@ static bool pch_crt_compute_config(struct intel_encoder *encoder,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	pipe_config->has_pch_encoder = true;
 
 	return true;
@@ -354,6 +369,11 @@ static bool hsw_crt_compute_config(struct intel_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	pipe_config->has_pch_encoder = true;
 

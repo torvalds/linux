@@ -7148,7 +7148,7 @@ static void rtl8169_netpoll(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	rtl8169_interrupt(pci_irq_vector(tp->pci_dev, 0), dev);
+	rtl8169_interrupt(pci_irq_vector(tp->pci_dev, 0), tp);
 }
 #endif
 

@@ -812,6 +812,7 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 	u32 index;
 	u32 maxsize = 0;
 	u32 mask = 0;
+	u8 pid = 0;
 
 	maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
 
@@ -840,7 +841,11 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 			 ((len << DEV_DMA_NBYTES_SHIFT) & mask));
 
 	if (hs_ep->dir_in) {
-		desc->status |= ((hs_ep->mc << DEV_DMA_ISOC_PID_SHIFT) &
+		if (len)
+			pid = DIV_ROUND_UP(len, hs_ep->ep.maxpacket);
+		else
+			pid = 1;
+		desc->status |= ((pid << DEV_DMA_ISOC_PID_SHIFT) &
 				 DEV_DMA_ISOC_PID_MASK) |
 				((len % hs_ep->ep.maxpacket) ?
 				 DEV_DMA_SHORT : 0) |
@@ -884,6 +889,7 @@ static void dwc2_gadget_start_isoc_ddma(struct dwc2_hsotg_ep *hs_ep)
 	struct dwc2_dma_desc *desc;
 
 	if (list_empty(&hs_ep->queue)) {
+		hs_ep->target_frame = TARGET_FRAME_INITIAL;
 		dev_dbg(hsotg->dev, "%s: No requests in queue\n", __func__);
 		return;
 	}
@@ -2755,8 +2761,6 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 	 */
 	tmp = dwc2_hsotg_read_frameno(hsotg);
 
-	dwc2_hsotg_complete_request(hsotg, ep, get_ep_head(ep), 0);
-
 	if (using_desc_dma(hsotg)) {
 		if (ep->target_frame == TARGET_FRAME_INITIAL) {
 			/* Start first ISO Out */
@@ -2817,9 +2821,6 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 
 		tmp = dwc2_hsotg_read_frameno(hsotg);
 		if (using_desc_dma(hsotg)) {
-			dwc2_hsotg_complete_request(hsotg, hs_ep,
-						    get_ep_head(hs_ep), 0);
-
 			hs_ep->target_frame = tmp;
 			dwc2_gadget_incr_frame_num(hs_ep);
 			dwc2_gadget_start_isoc_ddma(hs_ep);
@@ -4739,9 +4740,11 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 	}
 
 	ret = usb_add_gadget_udc(dev, &hsotg->gadget);
-	if (ret)
+	if (ret) {
+		dwc2_hsotg_ep_free_request(&hsotg->eps_out[0]->ep,
+					   hsotg->ctrl_req);
 		return ret;
-
+	}
 	dwc2_hsotg_dump(hsotg);
 
 	return 0;
@@ -4755,6 +4758,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg)
 int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg)
 {
 	usb_del_gadget_udc(&hsotg->gadget);
+	dwc2_hsotg_ep_free_request(&hsotg->eps_out[0]->ep, hsotg->ctrl_req);
 
 	return 0;
 }
