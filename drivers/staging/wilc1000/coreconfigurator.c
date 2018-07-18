@@ -123,9 +123,7 @@ static inline void get_BSSID(u8 *data, u8 *bssid)
 
 static inline void get_ssid(u8 *data, u8 *ssid, u8 *p_ssid_len)
 {
-	u8 len = 0;
-	u8 i   = 0;
-	u8 j   = 0;
+	u8 i, j, len;
 
 	len = data[TAG_PARAM_OFFSET + 1];
 	j   = TAG_PARAM_OFFSET + 2;
@@ -198,18 +196,11 @@ static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
 s32 wilc_parse_network_info(u8 *msg_buffer,
 			    struct network_info **ret_network_info)
 {
-	struct network_info *network_info = NULL;
-	u8 msg_type = 0;
-	u16 wid_len  = 0;
-	u8 *wid_val = NULL;
-	u8 *msa = NULL;
-	u16 rx_len = 0;
-	u8 *tim_elm = NULL;
-	u8 *ies = NULL;
-	u16 ies_len = 0;
-	u8 index = 0;
-	u32 tsf_lo;
-	u32 tsf_hi;
+	struct network_info *network_info;
+	u8 *wid_val, *msa, *tim_elm, *ies;
+	u32 tsf_lo, tsf_hi;
+	u16 wid_len, rx_len, ies_len;
+	u8 msg_type, index;
 
 	msg_type = msg_buffer[0];
 
@@ -271,8 +262,8 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 			       struct connect_info *ret_conn_info)
 {
-	u8 *ies = NULL;
-	u16 ies_len = 0;
+	u8 *ies;
+	u16 ies_len;
 
 	ret_conn_info->status = get_asoc_status(buffer);
 	if (ret_conn_info->status == WLAN_STATUS_SUCCESS) {

@@ -669,7 +669,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 static int connect(struct wiphy *wiphy, struct net_device *dev,
 		   struct cfg80211_connect_params *sme)
 {
-	s32 ret = 0;
+	s32 ret;
 	u32 i;
 	u32 sel_bssi_idx = UINT_MAX;
 	u8 security = NO_ENCRYPT;
@@ -677,7 +677,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 cipher_group;
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
-	struct network_info *nw_info = NULL;
+	struct network_info *nw_info;
 	struct wilc_vif *vif;
 
 	wilc_connecting = 1;
@@ -818,7 +818,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		      u16 reason_code)
 {
-	s32 ret = 0;
+	s32 ret;
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
 	struct wilc_vif *vif;
@@ -1174,7 +1174,7 @@ static int change_bss(struct wiphy *wiphy, struct net_device *dev,
 
 static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	s32 ret = 0;
+	s32 ret;
 	struct cfg_param_attr cfg_param_val;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
@@ -1879,7 +1879,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		    struct cfg80211_ap_settings *settings)
 {
 	struct cfg80211_beacon_data *beacon = &settings->beacon;
-	s32 ret = 0;
+	s32 ret;
 	struct wilc *wl;
 	struct wilc_vif *vif;
 
@@ -1916,7 +1916,7 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
-	s32 ret = 0;
+	s32 ret;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 	u8 null_bssid[ETH_ALEN] = {0};
@@ -2049,7 +2049,7 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 {
 	struct wilc_vif *vif;
 	struct wilc_priv *priv;
-	struct net_device *new_ifc = NULL;
+	struct net_device *new_ifc;
 
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->wdev->netdev);
@@ -2215,7 +2215,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 {
 	struct wilc_priv *priv;
 	struct wireless_dev *wdev;
-	s32 ret = 0;
+	s32 ret;
 
 	wdev = wilc_wfi_cfg_alloc();
 	if (!wdev) {
@@ -2257,7 +2257,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 
 int wilc_init_host_int(struct net_device *net)
 {
-	int ret = 0;
+	int ret;
 	struct wilc_priv *priv;
 
 	priv = wdev_priv(net->ieee80211_ptr);
@@ -2279,7 +2279,7 @@ int wilc_init_host_int(struct net_device *net)
 
 int wilc_deinit_host_int(struct net_device *net)
 {
-	int ret = 0;
+	int ret;
 	struct wilc_vif *vif;
 	struct wilc_priv *priv;
 
