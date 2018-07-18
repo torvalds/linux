@@ -43,26 +43,31 @@ enum v4l2_fwnode_bus_type {
 };
 
 static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
-					       struct v4l2_fwnode_endpoint *vep)
+					       struct v4l2_fwnode_endpoint *vep,
+					       enum v4l2_fwnode_bus_type bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi2 *bus = &vep->bus.mipi_csi2;
 	bool have_clk_lane = false;
 	unsigned int flags = 0, lanes_used = 0;
+	u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
+	unsigned int num_data_lanes = 0;
 	unsigned int i;
 	u32 v;
 	int rval;
 
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY)
+		num_data_lanes = min_t(u32, bus->num_data_lanes,
+				       V4L2_FWNODE_CSI2_MAX_DATA_LANES);
+
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
-		u32 array[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
-
-		bus->num_data_lanes =
+		num_data_lanes =
 			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
-					       bus->num_data_lanes);
+					       num_data_lanes);
 
-		for (i = 0; i < bus->num_data_lanes; i++) {
+		for (i = 0; i < num_data_lanes; i++) {
 			if (lanes_used & BIT(array[i]))
 				pr_warn("duplicated lane %u in data-lanes\n",
 					array[i]);
@@ -71,30 +76,27 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			bus->data_lanes[i] = array[i];
 			pr_debug("lane %u position %u\n", i, array[i]);
 		}
+	}
 
-		rval = fwnode_property_read_u32_array(fwnode,
-						      "lane-polarities", NULL,
-						      0);
-		if (rval > 0) {
-			if (rval != 1 + bus->num_data_lanes /* clock+data */) {
-				pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
-					1 + bus->num_data_lanes, rval);
-				return -EINVAL;
-			}
-
-			fwnode_property_read_u32_array(fwnode,
-						       "lane-polarities", array,
-						       1 + bus->num_data_lanes);
-
-			for (i = 0; i < 1 + bus->num_data_lanes; i++) {
-				bus->lane_polarities[i] = array[i];
-				pr_debug("lane %u polarity %sinverted",
-					 i, array[i] ? "" : "not ");
-			}
-		} else {
-			pr_debug("no lane polarities defined, assuming not inverted\n");
+	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
+					      0);
+	if (rval > 0) {
+		if (rval != 1 + num_data_lanes /* clock+data */) {
+			pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
+				1 + num_data_lanes, rval);
+			return -EINVAL;
 		}
 
+		fwnode_property_read_u32_array(fwnode, "lane-polarities", array,
+					       1 + num_data_lanes);
+
+		for (i = 0; i < 1 + num_data_lanes; i++) {
+			bus->lane_polarities[i] = array[i];
+			pr_debug("lane %u polarity %sinverted",
+				 i, array[i] ? "" : "not ");
+		}
+	} else {
+		pr_debug("no lane polarities defined, assuming not inverted\n");
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
@@ -114,10 +116,11 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		flags |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	}
 
-	if (lanes_used || have_clk_lane ||
-	    (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
+	if (bus_type == V4L2_FWNODE_BUS_TYPE_CSI2_DPHY || lanes_used ||
+	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
 		bus->flags = flags;
 		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
+		bus->num_data_lanes = num_data_lanes;
 	}
 
 	return 0;
@@ -268,7 +271,8 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 
 	switch (bus_type) {
 	case V4L2_FWNODE_BUS_TYPE_GUESS:
-		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
+		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
+							   bus_type);
 		if (rval)
 			return rval;
 
@@ -284,7 +288,8 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 		break;
 	case V4L2_FWNODE_BUS_TYPE_CSI2_DPHY:
 		vep->bus_type = V4L2_MBUS_CSI2_DPHY;
-		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep);
+		rval = v4l2_fwnode_endpoint_parse_csi2_bus(fwnode, vep,
+							   bus_type);
 		if (rval)
 			return rval;
 
