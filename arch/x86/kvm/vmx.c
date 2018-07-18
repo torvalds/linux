@@ -13191,8 +13191,14 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 		kvm_state.vmx.vmxon_pa = vmx->nested.vmxon_ptr;
 		kvm_state.vmx.vmcs_pa = vmx->nested.current_vmptr;
 
-		if (vmx->nested.current_vmptr != -1ull)
+		if (vmx->nested.current_vmptr != -1ull) {
 			kvm_state.size += VMCS12_SIZE;
+
+			if (is_guest_mode(vcpu) &&
+			    nested_cpu_has_shadow_vmcs(vmcs12) &&
+			    vmcs12->vmcs_link_pointer != -1ull)
+				kvm_state.size += VMCS12_SIZE;
+		}
 
 		if (vmx->nested.smm.vmxon)
 			kvm_state.vmx.smm.flags |= KVM_STATE_NESTED_SMM_VMXON;
@@ -13231,6 +13237,13 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 
 	if (copy_to_user(user_kvm_nested_state->data, vmcs12, sizeof(*vmcs12)))
 		return -EFAULT;
+
+	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
+	    vmcs12->vmcs_link_pointer != -1ull) {
+		if (copy_to_user(user_kvm_nested_state->data + VMCS12_SIZE,
+				 get_shadow_vmcs12(vcpu), sizeof(*vmcs12)))
+			return -EFAULT;
+	}
 
 out:
 	return kvm_state.size;
@@ -13315,6 +13328,22 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 	vmx->nested.nested_run_pending =
 		!!(kvm_state->flags & KVM_STATE_NESTED_RUN_PENDING);
+
+	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
+	    vmcs12->vmcs_link_pointer != -1ull) {
+		struct vmcs12 *shadow_vmcs12 = get_shadow_vmcs12(vcpu);
+		if (kvm_state->size < sizeof(kvm_state) + 2 * sizeof(*vmcs12))
+			return -EINVAL;
+
+		if (copy_from_user(shadow_vmcs12,
+				   user_kvm_nested_state->data + VMCS12_SIZE,
+				   sizeof(*vmcs12)))
+			return -EFAULT;
+
+		if (shadow_vmcs12->hdr.revision_id != VMCS12_REVISION ||
+		    !shadow_vmcs12->hdr.shadow_vmcs)
+			return -EINVAL;
+	}
 
 	if (check_vmentry_prereqs(vcpu, vmcs12) ||
 	    check_vmentry_postreqs(vcpu, vmcs12, &exit_qual))
