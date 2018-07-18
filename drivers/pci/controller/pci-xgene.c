@@ -423,7 +423,7 @@ static int xgene_pcie_map_ranges(struct xgene_pcie_port *port,
 		case IORESOURCE_IO:
 			xgene_pcie_setup_ob_reg(port, res, OMR3BARL, io_base,
 						res->start - window->offset);
-			ret = pci_remap_iospace(res, io_base);
+			ret = devm_pci_remap_iospace(dev, res, io_base);
 			if (ret < 0)
 				return ret;
 			break;
