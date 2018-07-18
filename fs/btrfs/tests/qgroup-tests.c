@@ -249,8 +249,8 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
 		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
@@ -285,8 +285,8 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
 		test_err("couldn't account space for a qgroup %d", ret);
 		return -EINVAL;
@@ -350,8 +350,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
 		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
@@ -385,8 +385,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
 		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;
@@ -426,8 +426,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = btrfs_qgroup_account_extent(&trans, fs_info, nodesize,
-					  nodesize, old_roots, new_roots);
+	ret = btrfs_qgroup_account_extent(&trans, nodesize, nodesize, old_roots,
+					  new_roots);
 	if (ret) {
 		test_err("couldn't account space for a qgroup %d", ret);
 		return ret;

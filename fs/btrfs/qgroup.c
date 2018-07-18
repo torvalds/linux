@@ -2038,12 +2038,11 @@ static int maybe_fs_roots(struct ulist *roots)
 	return is_fstree(unode->val);
 }
 
-int
-btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info,
-			    u64 bytenr, u64 num_bytes,
-			    struct ulist *old_roots, struct ulist *new_roots)
+int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
+				u64 num_bytes, struct ulist *old_roots,
+				struct ulist *new_roots)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct ulist *qgroups = NULL;
 	struct ulist *tmp = NULL;
 	u64 seq;
@@ -2173,9 +2172,10 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 				ulist_del(record->old_roots, qgroup_to_skip,
 					  0);
 			}
-			ret = btrfs_qgroup_account_extent(trans, fs_info,
-					record->bytenr, record->num_bytes,
-					record->old_roots, new_roots);
+			ret = btrfs_qgroup_account_extent(trans, record->bytenr,
+							  record->num_bytes,
+							  record->old_roots,
+							  new_roots);
 			record->old_roots = NULL;
 			new_roots = NULL;
 		}
@@ -2711,8 +2711,8 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		if (ret < 0)
 			goto out;
 		/* For rescan, just pass old_roots as NULL */
-		ret = btrfs_qgroup_account_extent(trans, fs_info,
-				found.objectid, num_bytes, NULL, roots);
+		ret = btrfs_qgroup_account_extent(trans, found.objectid,
+						  num_bytes, NULL, roots);
 		if (ret < 0)
 			goto out;
 	}
