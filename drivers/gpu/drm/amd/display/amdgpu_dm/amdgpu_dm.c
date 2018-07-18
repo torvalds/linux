@@ -1340,6 +1340,7 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 	struct backlight_properties props = { 0 };
 
 	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
+	props.brightness = AMDGPU_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 
 	snprintf(bl_name, sizeof(bl_name), "amdgpu_bl%d",
