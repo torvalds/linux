@@ -448,6 +448,23 @@ int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
 	return 0;
 }
 
+static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		      u64 start, u64 len)
+{
+	int err;
+	struct inode *realinode = ovl_inode_real(inode);
+	const struct cred *old_cred;
+
+	if (!realinode->i_op->fiemap)
+		return -EOPNOTSUPP;
+
+	old_cred = ovl_override_creds(inode->i_sb);
+	err = realinode->i_op->fiemap(realinode, fieinfo, start, len);
+	revert_creds(old_cred);
+
+	return err;
+}
+
 static const struct inode_operations ovl_file_inode_operations = {
 	.setattr	= ovl_setattr,
 	.permission	= ovl_permission,
@@ -455,6 +472,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.listxattr	= ovl_listxattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
+	.fiemap		= ovl_fiemap,
 };
 
 static const struct inode_operations ovl_symlink_inode_operations = {
@@ -462,6 +480,15 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.get_link	= ovl_get_link,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
+	.update_time	= ovl_update_time,
+};
+
+static const struct inode_operations ovl_special_inode_operations = {
+	.setattr	= ovl_setattr,
+	.permission	= ovl_permission,
+	.getattr	= ovl_getattr,
+	.listxattr	= ovl_listxattr,
+	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 };
 
@@ -548,7 +575,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 		break;
 
 	default:
-		inode->i_op = &ovl_file_inode_operations;
+		inode->i_op = &ovl_special_inode_operations;
 		init_special_inode(inode, mode, rdev);
 		break;
 	}
