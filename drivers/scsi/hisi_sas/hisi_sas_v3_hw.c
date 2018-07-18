@@ -120,6 +120,8 @@
 #define PHY_CFG_ENA_MSK			(0x1 << PHY_CFG_ENA_OFF)
 #define PHY_CFG_DC_OPT_OFF		2
 #define PHY_CFG_DC_OPT_MSK		(0x1 << PHY_CFG_DC_OPT_OFF)
+#define PHY_CFG_PHY_RST_OFF		3
+#define PHY_CFG_PHY_RST_MSK		(0x1 << PHY_CFG_PHY_RST_OFF)
 #define PROG_PHY_LINK_RATE		(PORT_BASE + 0x8)
 #define PHY_CTRL			(PORT_BASE + 0x14)
 #define PHY_CTRL_RESET_OFF		0
@@ -760,15 +762,25 @@ static void enable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
 
 	cfg |= PHY_CFG_ENA_MSK;
+	cfg &= ~PHY_CFG_PHY_RST_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
 }
 
 static void disable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
+	u32 state;
 
 	cfg &= ~PHY_CFG_ENA_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+
+	mdelay(50);
+
+	state = hisi_sas_read32(hisi_hba, PHY_STATE);
+	if (state & BIT(phy_no)) {
+		cfg |= PHY_CFG_PHY_RST_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+	}
 }
 
 static void start_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -1385,8 +1397,6 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
 	}
 
-	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, irq_value);
-
 	if ((irq_value & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
 	    (pci_dev->revision == 0x20)) {
 		u32 reg_value;
@@ -1396,15 +1406,11 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 				HILINK_ERR_DFX, reg_value,
 				!((reg_value >> 8) & BIT(phy_no)),
 				1000, 10000);
-		if (rc) {
-			disable_phy_v3_hw(hisi_hba, phy_no);
-			hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
-					     BIT(CHL_INT2_RX_INVLD_DW_OFF));
-			hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
-			mdelay(1);
-			enable_phy_v3_hw(hisi_hba, phy_no);
-		}
+		if (rc)
+			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
 	}
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, irq_value);
 }
 
 static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
