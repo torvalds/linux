@@ -27,6 +27,7 @@
 #include "atom.h"
 #include "ivsrcid/thm/irqsrcs_thm_9_0.h"
 #include "ivsrcid/smuio/irqsrcs_smuio_9_0.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -545,17 +546,17 @@ int phm_irq_process(struct amdgpu_device *adev,
 	uint32_t src_id = entry->src_id;
 
 	if (client_id == AMDGPU_IH_CLIENTID_LEGACY) {
-		if (src_id == 230)
+		if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH)
 			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
 						PCI_BUS_NUM(adev->pdev->devfn),
 						PCI_SLOT(adev->pdev->devfn),
 						PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == 231)
+		else if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW)
 			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
 					PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == 83)
+		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19)
 			pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
 					PCI_BUS_NUM(adev->pdev->devfn),
 					PCI_SLOT(adev->pdev->devfn),
