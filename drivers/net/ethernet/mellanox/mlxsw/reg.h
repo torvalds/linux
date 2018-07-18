@@ -2456,6 +2456,67 @@ static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 	mlxsw_reg_ptce2_tcam_region_info_memcpy_to(payload, tcam_region_info);
 }
 
+/* IEDR - Infrastructure Entry Delete Register
+ * ----------------------------------------------------
+ * This register is used for deleting entries from the entry tables.
+ * It is legitimate to attempt to delete a nonexisting entry (the device will
+ * respond as a good flow).
+ */
+#define MLXSW_REG_IEDR_ID 0x3804
+#define MLXSW_REG_IEDR_BASE_LEN 0x10 /* base length, without records */
+#define MLXSW_REG_IEDR_REC_LEN 0x8 /* record length */
+#define MLXSW_REG_IEDR_REC_MAX_COUNT 64
+#define MLXSW_REG_IEDR_LEN (MLXSW_REG_IEDR_BASE_LEN +	\
+			    MLXSW_REG_IEDR_REC_LEN *	\
+			    MLXSW_REG_IEDR_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(iedr, MLXSW_REG_IEDR_ID, MLXSW_REG_IEDR_LEN);
+
+/* reg_iedr_num_rec
+ * Number of records.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, iedr, num_rec, 0x00, 0, 8);
+
+/* reg_iedr_rec_type
+ * Resource type.
+ * Access: OP
+ */
+MLXSW_ITEM32_INDEXED(reg, iedr, rec_type, MLXSW_REG_IEDR_BASE_LEN, 24, 8,
+		     MLXSW_REG_IEDR_REC_LEN, 0x00, false);
+
+/* reg_iedr_rec_size
+ * Size of entries do be deleted. The unit is 1 entry, regardless of entry type.
+ * Access: OP
+ */
+MLXSW_ITEM32_INDEXED(reg, iedr, rec_size, MLXSW_REG_IEDR_BASE_LEN, 0, 11,
+		     MLXSW_REG_IEDR_REC_LEN, 0x00, false);
+
+/* reg_iedr_rec_index_start
+ * Resource index start.
+ * Access: OP
+ */
+MLXSW_ITEM32_INDEXED(reg, iedr, rec_index_start, MLXSW_REG_IEDR_BASE_LEN, 0, 24,
+		     MLXSW_REG_IEDR_REC_LEN, 0x04, false);
+
+static inline void mlxsw_reg_iedr_pack(char *payload)
+{
+	MLXSW_REG_ZERO(iedr, payload);
+}
+
+static inline void mlxsw_reg_iedr_rec_pack(char *payload, int rec_index,
+					   u8 rec_type, u16 rec_size,
+					   u32 rec_index_start)
+{
+	u8 num_rec = mlxsw_reg_iedr_num_rec_get(payload);
+
+	if (rec_index >= num_rec)
+		mlxsw_reg_iedr_num_rec_set(payload, rec_index + 1);
+	mlxsw_reg_iedr_rec_type_set(payload, rec_index, rec_type);
+	mlxsw_reg_iedr_rec_size_set(payload, rec_index, rec_size);
+	mlxsw_reg_iedr_rec_index_start_set(payload, rec_index, rec_index_start);
+}
+
 /* QPCR - QoS Policer Configuration Register
  * -----------------------------------------
  * The QPCR register is used to create policers - that limit
@@ -7971,6 +8032,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
+	MLXSW_REG(iedr),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
