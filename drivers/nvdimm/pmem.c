@@ -120,7 +120,7 @@ static blk_status_t read_pmem(struct page *page, unsigned int off,
 }
 
 static blk_status_t pmem_do_bvec(struct pmem_device *pmem, struct page *page,
-			unsigned int len, unsigned int off, bool is_write,
+			unsigned int len, unsigned int off, unsigned int op,
 			sector_t sector)
 {
 	blk_status_t rc = BLK_STS_OK;
@@ -131,7 +131,7 @@ static blk_status_t pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
 		bad_pmem = true;
 
-	if (!is_write) {
+	if (!op_is_write(op)) {
 		if (unlikely(bad_pmem))
 			rc = BLK_STS_IOERR;
 		else {
@@ -180,8 +180,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	do_acct = nd_iostat_start(bio, &start);
 	bio_for_each_segment(bvec, bio, iter) {
 		rc = pmem_do_bvec(pmem, bvec.bv_page, bvec.bv_len,
-				bvec.bv_offset, op_is_write(bio_op(bio)),
-				iter.bi_sector);
+				bvec.bv_offset, bio_op(bio), iter.bi_sector);
 		if (rc) {
 			bio->bi_status = rc;
 			break;
@@ -198,13 +197,13 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, bool is_write)
+		       struct page *page, unsigned int op)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	blk_status_t rc;
 
 	rc = pmem_do_bvec(pmem, page, hpage_nr_pages(page) * PAGE_SIZE,
-			  0, is_write, sector);
+			  0, op, sector);
 
 	/*
 	 * The ->rw_page interface is subtle and tricky.  The core
@@ -213,7 +212,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	 * caused by double completion.
 	 */
 	if (rc == 0)
-		page_endio(page, is_write, 0);
+		page_endio(page, op_is_write(op), 0);
 
 	return blk_status_to_errno(rc);
 }
