@@ -2640,10 +2640,10 @@ static bool is_last_leaf(struct btrfs_path *path)
  * returns < 0 on error, 0 when more leafs are to be scanned.
  * returns 1 when done.
  */
-static int
-qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
-		   struct btrfs_trans_handle *trans)
+static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
+			      struct btrfs_path *path)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_key found;
 	struct extent_buffer *scratch_leaf = NULL;
 	struct ulist *roots = NULL;
@@ -2758,7 +2758,7 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 		if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
 			err = -EINTR;
 		} else {
-			err = qgroup_rescan_leaf(fs_info, path, trans);
+			err = qgroup_rescan_leaf(trans, path);
 		}
 		if (err > 0)
 			btrfs_commit_transaction(trans);
