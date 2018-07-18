@@ -26,10 +26,7 @@
 #include <linux/can/error.h>
 
 #define MAX_RX_URBS			4
-#define START_TIMEOUT			1000 /* msecs */
-#define STOP_TIMEOUT			1000 /* msecs */
-#define USB_SEND_TIMEOUT		1000 /* msecs */
-#define USB_RECV_TIMEOUT		1000 /* msecs */
+#define KVASER_USB_TIMEOUT		1000 /* msecs */
 #define RX_BUFFER_SIZE			3072
 #define CAN_USB_CLOCK			8000000
 #define MAX_NET_DEVICES			3
@@ -529,8 +526,7 @@ static inline int kvaser_usb_send_cmd(const struct kvaser_usb *dev,
 	return usb_bulk_msg(dev->udev,
 			    usb_sndbulkpipe(dev->udev,
 					dev->bulk_out->bEndpointAddress),
-			    cmd, cmd->len, &actual_len,
-			    USB_SEND_TIMEOUT);
+			    cmd, cmd->len, &actual_len, KVASER_USB_TIMEOUT);
 }
 
 static int kvaser_usb_wait_cmd(const struct kvaser_usb *dev, u8 id,
@@ -541,7 +537,7 @@ static int kvaser_usb_wait_cmd(const struct kvaser_usb *dev, u8 id,
 	int actual_len;
 	int err;
 	int pos;
-	unsigned long to = jiffies + msecs_to_jiffies(USB_RECV_TIMEOUT);
+	unsigned long to = jiffies + msecs_to_jiffies(KVASER_USB_TIMEOUT);
 
 	buf = kzalloc(RX_BUFFER_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -552,7 +548,7 @@ static int kvaser_usb_wait_cmd(const struct kvaser_usb *dev, u8 id,
 				   usb_rcvbulkpipe(dev->udev,
 					dev->bulk_in->bEndpointAddress),
 				   buf, RX_BUFFER_SIZE, &actual_len,
-				   USB_RECV_TIMEOUT);
+				   KVASER_USB_TIMEOUT);
 		if (err < 0)
 			goto end;
 
@@ -1450,7 +1446,7 @@ static int kvaser_usb_start_chip(struct kvaser_usb_net_priv *priv)
 		return err;
 
 	if (!wait_for_completion_timeout(&priv->start_comp,
-					 msecs_to_jiffies(START_TIMEOUT)))
+					 msecs_to_jiffies(KVASER_USB_TIMEOUT)))
 		return -ETIMEDOUT;
 
 	return 0;
@@ -1540,7 +1536,7 @@ static int kvaser_usb_stop_chip(struct kvaser_usb_net_priv *priv)
 		return err;
 
 	if (!wait_for_completion_timeout(&priv->stop_comp,
-					 msecs_to_jiffies(STOP_TIMEOUT)))
+					 msecs_to_jiffies(KVASER_USB_TIMEOUT)))
 		return -ETIMEDOUT;
 
 	return 0;
