@@ -116,8 +116,8 @@ static inline int atedge(const int p, int size_row)
 	return (!(p % size_row)	|| !((p + 2) % size_row));
 }
 
-/* stores the char in UTF8 and returns the number of bytes used (1-3) */
-static int store_utf8(u16 c, char *p)
+/* stores the char in UTF8 and returns the number of bytes used (1-4) */
+static int store_utf8(u32 c, char *p)
 {
 	if (c < 0x80) {
 		/*  0******* */
@@ -128,13 +128,26 @@ static int store_utf8(u16 c, char *p)
 		p[0] = 0xc0 | (c >> 6);
 		p[1] = 0x80 | (c & 0x3f);
 		return 2;
-    	} else {
+	} else if (c < 0x10000) {
 		/* 1110**** 10****** 10****** */
 		p[0] = 0xe0 | (c >> 12);
 		p[1] = 0x80 | ((c >> 6) & 0x3f);
 		p[2] = 0x80 | (c & 0x3f);
 		return 3;
-    	}
+	} else if (c < 0x110000) {
+		/* 11110*** 10****** 10****** 10****** */
+		p[0] = 0xf0 | (c >> 18);
+		p[1] = 0x80 | ((c >> 12) & 0x3f);
+		p[2] = 0x80 | ((c >> 6) & 0x3f);
+		p[3] = 0x80 | (c & 0x3f);
+		return 4;
+	} else {
+		/* outside Unicode, replace with U+FFFD */
+		p[0] = 0xef;
+		p[1] = 0xbf;
+		p[2] = 0xbd;
+		return 3;
+	}
 }
 
 /**
@@ -273,7 +286,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	sel_end = new_sel_end;
 
 	/* Allocate a new buffer before freeing the old one ... */
-	multiplier = use_unicode ? 3 : 1;  /* chars can take up to 3 bytes */
+	multiplier = use_unicode ? 4 : 1;  /* chars can take up to 4 bytes */
 	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, multiplier,
 			   GFP_KERNEL);
 	if (!bp) {
