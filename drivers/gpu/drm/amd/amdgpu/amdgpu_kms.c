@@ -286,7 +286,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
-	int i, j, found;
+	int i, found;
 	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
@@ -348,8 +348,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
-				ring_mask |= adev->uvd.inst[i].ring.ready << i;
+			ring_mask |= adev->uvd.inst[0].ring.ready;
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
@@ -362,11 +361,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
-			for (i = 0; i < adev->uvd.num_uvd_inst; i++)
-				for (j = 0; j < adev->uvd.num_enc_rings; j++)
-					ring_mask |=
-					adev->uvd.inst[i].ring_enc[j].ready <<
-					(j + i * adev->uvd.num_enc_rings);
+			for (i = 0; i < adev->uvd.num_enc_rings; i++)
+				ring_mask |=
+					adev->uvd.inst[0].ring_enc[i].ready << i;
 			ib_start_alignment = 64;
 			ib_size_alignment = 64;
 			break;
