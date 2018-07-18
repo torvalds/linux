@@ -468,7 +468,7 @@ static int usbtmc488_ioctl_read_stb(struct usbtmc_file_data *file_data,
 
 		if (rv == 0) {
 			dev_dbg(dev, "wait timed out\n");
-			rv = -ETIME;
+			rv = -ETIMEDOUT;
 			goto exit;
 		}
 
