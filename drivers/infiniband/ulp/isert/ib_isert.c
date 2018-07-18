@@ -810,7 +810,7 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 static int
 isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 {
-	struct ib_recv_wr *rx_wr, *rx_wr_failed;
+	struct ib_recv_wr *rx_wr;
 	int i, ret;
 	struct iser_rx_desc *rx_desc;
 
@@ -826,8 +826,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
 
-	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr,
-			   &rx_wr_failed);
+	ret = ib_post_recv(isert_conn->qp, isert_conn->rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 
@@ -837,7 +836,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 static int
 isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 {
-	struct ib_recv_wr *rx_wr_failed, rx_wr;
+	struct ib_recv_wr rx_wr;
 	int ret;
 
 	if (!rx_desc->in_use) {
@@ -854,7 +853,7 @@ isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 	rx_wr.num_sge = 1;
 	rx_wr.next = NULL;
 
-	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_failed);
+	ret = ib_post_recv(isert_conn->qp, &rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed with ret: %d\n", ret);
 
@@ -865,7 +864,7 @@ static int
 isert_login_post_send(struct isert_conn *isert_conn, struct iser_tx_desc *tx_desc)
 {
 	struct ib_device *ib_dev = isert_conn->cm_id->device;
-	struct ib_send_wr send_wr, *send_wr_failed;
+	struct ib_send_wr send_wr;
 	int ret;
 
 	ib_dma_sync_single_for_device(ib_dev, tx_desc->dma_addr,
@@ -880,7 +879,7 @@ isert_login_post_send(struct isert_conn *isert_conn, struct iser_tx_desc *tx_des
 	send_wr.opcode	= IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	ret = ib_post_send(isert_conn->qp, &send_wr, &send_wr_failed);
+	ret = ib_post_send(isert_conn->qp, &send_wr, NULL);
 	if (ret)
 		isert_err("ib_post_send() failed, ret: %d\n", ret);
 
@@ -968,7 +967,7 @@ isert_init_send_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 static int
 isert_login_post_recv(struct isert_conn *isert_conn)
 {
-	struct ib_recv_wr rx_wr, *rx_wr_fail;
+	struct ib_recv_wr rx_wr;
 	struct ib_sge sge;
 	int ret;
 
@@ -987,7 +986,7 @@ isert_login_post_recv(struct isert_conn *isert_conn)
 	rx_wr.sg_list = &sge;
 	rx_wr.num_sge = 1;
 
-	ret = ib_post_recv(isert_conn->qp, &rx_wr, &rx_wr_fail);
+	ret = ib_post_recv(isert_conn->qp, &rx_wr, NULL);
 	if (ret)
 		isert_err("ib_post_recv() failed: %d\n", ret);
 
@@ -1830,7 +1829,6 @@ isert_send_done(struct ib_cq *cq, struct ib_wc *wc)
 static int
 isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 {
-	struct ib_send_wr *wr_failed;
 	int ret;
 
 	ret = isert_post_recv(isert_conn, isert_cmd->rx_desc);
@@ -1839,8 +1837,7 @@ isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 		return ret;
 	}
 
-	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr,
-			   &wr_failed);
+	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr, NULL);
 	if (ret) {
 		isert_err("ib_post_send failed with %d\n", ret);
 		return ret;
