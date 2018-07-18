@@ -130,9 +130,6 @@ struct mvneta_bm_pool {
 };
 
 /* Declarations and definitions */
-void *mvneta_frag_alloc(unsigned int frag_size);
-void mvneta_frag_free(unsigned int frag_size, void *data);
-
 #if IS_ENABLED(CONFIG_MVNETA_BM)
 struct mvneta_bm *mvneta_bm_get(struct device_node *node);
 void mvneta_bm_put(struct mvneta_bm *priv);

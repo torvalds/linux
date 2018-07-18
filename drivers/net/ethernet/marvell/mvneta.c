@@ -1795,47 +1795,30 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	}
 }
 
-void *mvneta_frag_alloc(unsigned int frag_size)
-{
-	if (likely(frag_size <= PAGE_SIZE))
-		return netdev_alloc_frag(frag_size);
-	else
-		return kmalloc(frag_size, GFP_ATOMIC);
-}
-EXPORT_SYMBOL_GPL(mvneta_frag_alloc);
-
-void mvneta_frag_free(unsigned int frag_size, void *data)
-{
-	if (likely(frag_size <= PAGE_SIZE))
-		skb_free_frag(data);
-	else
-		kfree(data);
-}
-EXPORT_SYMBOL_GPL(mvneta_frag_free);
-
 /* Refill processing for SW buffer management */
+/* Allocate page per descriptor */
 static int mvneta_rx_refill(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc,
-			    struct mvneta_rx_queue *rxq)
-
+			    struct mvneta_rx_queue *rxq,
+			    gfp_t gfp_mask)
 {
 	dma_addr_t phys_addr;
-	void *data;
+	struct page *page;
 
-	data = mvneta_frag_alloc(pp->frag_size);
-	if (!data)
+	page = __dev_alloc_page(gfp_mask);
+	if (!page)
 		return -ENOMEM;
 
-	phys_addr = dma_map_single(pp->dev->dev.parent, data,
-				   MVNETA_RX_BUF_SIZE(pp->pkt_size),
-				   DMA_FROM_DEVICE);
+	/* map page for use */
+	phys_addr = dma_map_page(pp->dev->dev.parent, page, 0, PAGE_SIZE,
+				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(pp->dev->dev.parent, phys_addr))) {
-		mvneta_frag_free(pp->frag_size, data);
+		__free_page(page);
 		return -ENOMEM;
 	}
 
 	phys_addr += pp->rx_offset_correction;
-	mvneta_rx_desc_fill(rx_desc, phys_addr, data, rxq);
+	mvneta_rx_desc_fill(rx_desc, phys_addr, page, rxq);
 	return 0;
 }
 
@@ -1901,7 +1884,7 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 
 		dma_unmap_single(pp->dev->dev.parent, rx_desc->buf_phys_addr,
 				 MVNETA_RX_BUF_SIZE(pp->pkt_size), DMA_FROM_DEVICE);
-		mvneta_frag_free(pp->frag_size, data);
+		__free_page(data);
 	}
 }
 
@@ -1928,6 +1911,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		struct mvneta_rx_desc *rx_desc = mvneta_rxq_next_desc_get(rxq);
 		struct sk_buff *skb;
 		unsigned char *data;
+		struct page *page;
 		dma_addr_t phys_addr;
 		u32 rx_status, frag_size;
 		int rx_bytes, err, index;
@@ -1936,7 +1920,10 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		rx_status = rx_desc->status;
 		rx_bytes = rx_desc->data_size - (ETH_FCS_LEN + MVNETA_MH_SIZE);
 		index = rx_desc - rxq->descs;
-		data = rxq->buf_virt_addr[index];
+		page = (struct page *)rxq->buf_virt_addr[index];
+		data = page_address(page);
+		/* Prefetch header */
+		prefetch(data);
 		phys_addr = rx_desc->buf_phys_addr - pp->rx_offset_correction;
 
 		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
@@ -1979,7 +1966,7 @@ err_drop_frame:
 		}
 
 		/* Refill processing */
-		err = mvneta_rx_refill(pp, rx_desc, rxq);
+		err = mvneta_rx_refill(pp, rx_desc, rxq, GFP_KERNEL);
 		if (err) {
 			netdev_err(dev, "Linux processing - Can't refill\n");
 			rxq->refill_err++;
@@ -2773,9 +2760,11 @@ static int mvneta_rxq_fill(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 
 	for (i = 0; i < num; i++) {
 		memset(rxq->descs + i, 0, sizeof(struct mvneta_rx_desc));
-		if (mvneta_rx_refill(pp, rxq->descs + i, rxq) != 0) {
-			netdev_err(pp->dev, "%s:rxq %d, %d of %d buffs  filled\n",
-				__func__, rxq->id, i, num);
+		if (mvneta_rx_refill(pp, rxq->descs + i, rxq,
+				     GFP_KERNEL) != 0) {
+			netdev_err(pp->dev,
+				   "%s:rxq %d, %d of %d buffs  filled\n",
+				   __func__, rxq->id, i, num);
 			break;
 		}
 	}
@@ -3189,8 +3178,6 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 		mvneta_bm_update_mtu(pp, mtu);
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(dev->mtu);
-	pp->frag_size = SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(pp->pkt_size)) +
-	                SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	ret = mvneta_setup_rxqs(pp);
 	if (ret) {
@@ -3677,8 +3664,7 @@ static int mvneta_open(struct net_device *dev)
 	int ret;
 
 	pp->pkt_size = MVNETA_RX_PKT_SIZE(pp->dev->mtu);
-	pp->frag_size = SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(pp->pkt_size)) +
-	                SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	pp->frag_size = PAGE_SIZE;
 
 	ret = mvneta_setup_rxqs(pp);
 	if (ret)
