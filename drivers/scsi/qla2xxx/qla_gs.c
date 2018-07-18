@@ -3708,6 +3708,10 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	return rval;
 
 done_free_sp:
+	spin_lock_irqsave(&vha->hw->vport_slock, flags);
+	list_del(&sp->elem);
+	spin_unlock_irqrestore(&vha->hw->vport_slock, flags);
+
 	if (sp->u.iocb_cmd.u.ctarg.req) {
 		dma_free_coherent(&vha->hw->pdev->dev,
 			sizeof(struct ct_sns_pkt),
