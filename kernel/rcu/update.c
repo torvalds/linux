@@ -472,6 +472,7 @@ int rcu_jiffies_till_stall_check(void)
 	}
 	return till_stall_check * HZ + RCU_STALL_DELAY_DELTA;
 }
+EXPORT_SYMBOL_GPL(rcu_jiffies_till_stall_check);
 
 void rcu_sysrq_start(void)
 {
