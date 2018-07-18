@@ -1333,11 +1333,83 @@ static const struct hisi_sas_hw_error port_axi_error[] = {
 	},
 };
 
+static void handle_chl_int1_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1);
+	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT1_MSK);
+	struct device *dev = hisi_hba->dev;
+	int i;
+
+	irq_value &= ~irq_msk;
+	if (!irq_value)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(port_axi_error); i++) {
+		const struct hisi_sas_hw_error *error = &port_axi_error[i];
+
+		if (!(irq_value & error->irq_msk))
+			continue;
+
+		dev_err(dev, "%s error (phy%d 0x%x) found!\n",
+			error->msg, phy_no, irq_value);
+		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+	}
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);
+}
+
+static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
+	u32 irq_value = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2);
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct pci_dev *pci_dev = hisi_hba->pci_dev;
+	struct device *dev = hisi_hba->dev;
+
+	irq_value &= ~irq_msk;
+	if (!irq_value)
+		return;
+
+	if (irq_value & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
+		dev_warn(dev, "phy%d identify timeout\n", phy_no);
+		hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+	}
+
+	if (irq_value & BIT(CHL_INT2_STP_LINK_TIMEOUT_OFF)) {
+		u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_no,
+				STP_LINK_TIMEOUT_STATE);
+
+		dev_warn(dev, "phy%d stp link timeout (0x%x)\n",
+			 phy_no, reg_value);
+		if (reg_value & BIT(4))
+			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+	}
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2, irq_value);
+
+	if ((irq_value & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
+	    (pci_dev->revision == 0x20)) {
+		u32 reg_value;
+		int rc;
+
+		rc = hisi_sas_read32_poll_timeout_atomic(
+				HILINK_ERR_DFX, reg_value,
+				!((reg_value >> 8) & BIT(phy_no)),
+				1000, 10000);
+		if (rc) {
+			disable_phy_v3_hw(hisi_hba, phy_no);
+			hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,
+					     BIT(CHL_INT2_RX_INVLD_DW_OFF));
+			hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
+			mdelay(1);
+			enable_phy_v3_hw(hisi_hba, phy_no);
+		}
+	}
+}
+
 static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	struct device *dev = hisi_hba->dev;
-	struct pci_dev *pci_dev = hisi_hba->pci_dev;
 	u32 irq_msk;
 	int phy_no = 0;
 
@@ -1347,84 +1419,12 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 	while (irq_msk) {
 		u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no,
 						     CHL_INT0);
-		u32 irq_value1 = hisi_sas_phy_read32(hisi_hba, phy_no,
-						     CHL_INT1);
-		u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no,
-						     CHL_INT2);
-		u32 irq_msk1 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							CHL_INT1_MSK);
-		u32 irq_msk2 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							CHL_INT2_MSK);
 
-		irq_value1 &= ~irq_msk1;
-		irq_value2 &= ~irq_msk2;
+		if (irq_msk & (4 << (phy_no * 4)))
+			handle_chl_int1_v3_hw(hisi_hba, phy_no);
 
-		if ((irq_msk & (4 << (phy_no * 4))) &&
-						irq_value1) {
-			int i;
-
-			for (i = 0; i < ARRAY_SIZE(port_axi_error); i++) {
-				const struct hisi_sas_hw_error *error =
-						&port_axi_error[i];
-
-				if (!(irq_value1 & error->irq_msk))
-					continue;
-
-				dev_err(dev, "%s error (phy%d 0x%x) found!\n",
-					error->msg, phy_no, irq_value1);
-				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-			}
-
-			hisi_sas_phy_write32(hisi_hba, phy_no,
-					     CHL_INT1, irq_value1);
-		}
-
-		if (irq_msk & (8 << (phy_no * 4)) && irq_value2) {
-			struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-
-			if (irq_value2 & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
-				dev_warn(dev, "phy%d identify timeout\n",
-							phy_no);
-				hisi_sas_notify_phy_event(phy,
-					HISI_PHYE_LINK_RESET);
-
-			}
-
-			if (irq_value2 & BIT(CHL_INT2_STP_LINK_TIMEOUT_OFF)) {
-				u32 reg_value = hisi_sas_phy_read32(hisi_hba,
-						phy_no, STP_LINK_TIMEOUT_STATE);
-
-				dev_warn(dev, "phy%d stp link timeout (0x%x)\n",
-							phy_no, reg_value);
-				if (reg_value & BIT(4))
-					hisi_sas_notify_phy_event(phy,
-						HISI_PHYE_LINK_RESET);
-			}
-
-			hisi_sas_phy_write32(hisi_hba, phy_no,
-					     CHL_INT2, irq_value2);
-
-			if ((irq_value2 & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
-			    (pci_dev->revision == 0x20)) {
-				u32 reg_value;
-				int rc;
-
-				rc = hisi_sas_read32_poll_timeout_atomic(
-					HILINK_ERR_DFX, reg_value,
-					!((reg_value >> 8) & BIT(phy_no)),
-					1000, 10000);
-				if (rc) {
-					disable_phy_v3_hw(hisi_hba, phy_no);
-					hisi_sas_phy_write32(hisi_hba, phy_no,
-						CHL_INT2,
-						BIT(CHL_INT2_RX_INVLD_DW_OFF));
-					hisi_sas_phy_read32(hisi_hba, phy_no,
-						ERR_CNT_INVLD_DW);
-					mdelay(1);
-					enable_phy_v3_hw(hisi_hba, phy_no);
-				}
-			}
-		}
+		if (irq_msk & (8 << (phy_no * 4)))
+			handle_chl_int2_v3_hw(hisi_hba, phy_no);
 
 		if (irq_msk & (2 << (phy_no * 4)) && irq_value0) {
 			hisi_sas_phy_write32(hisi_hba, phy_no,
