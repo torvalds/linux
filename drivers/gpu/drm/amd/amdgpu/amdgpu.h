@@ -28,6 +28,8 @@
 #ifndef __AMDGPU_H__
 #define __AMDGPU_H__
 
+#include "amdgpu_ctx.h"
+
 #include <linux/atomic.h>
 #include <linux/wait.h>
 #include <linux/list.h>
@@ -476,63 +478,6 @@ struct amdgpu_ib {
 };
 
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
-
-/*
- * context related structures
- */
-
-struct amdgpu_ctx_ring {
-	uint64_t		sequence;
-	struct dma_fence	**fences;
-	struct drm_sched_entity	entity;
-};
-
-struct amdgpu_ctx {
-	struct kref		refcount;
-	struct amdgpu_device    *adev;
-	unsigned		reset_counter;
-	unsigned        reset_counter_query;
-	uint32_t		vram_lost_counter;
-	spinlock_t		ring_lock;
-	struct dma_fence	**fences;
-	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
-	bool			preamble_presented;
-	enum drm_sched_priority init_priority;
-	enum drm_sched_priority override_priority;
-	struct mutex            lock;
-	atomic_t	guilty;
-};
-
-struct amdgpu_ctx_mgr {
-	struct amdgpu_device	*adev;
-	struct mutex		lock;
-	/* protected by lock */
-	struct idr		ctx_handles;
-};
-
-struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
-int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
-
-int amdgpu_ctx_get_ring(struct amdgpu_ctx *ctx,
-			u32 hw_ip, u32 instance, u32 ring,
-			struct amdgpu_ring **out_ring);
-int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct dma_fence *fence, uint64_t *seq);
-struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
-				   struct amdgpu_ring *ring, uint64_t seq);
-void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
-				  enum drm_sched_priority priority);
-
-int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
-		     struct drm_file *filp);
-
-int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id);
-
-void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
-void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
-void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr);
-void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
-
 
 /*
  * file private structure
