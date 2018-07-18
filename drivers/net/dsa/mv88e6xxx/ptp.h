@@ -78,6 +78,33 @@
 /* Offset 0x12: Lock Status */
 #define MV88E6XXX_TAI_LOCK_STATUS		0x12
 
+/* Offset 0x00: Ether Type */
+#define MV88E6XXX_PTP_GC_ETYPE			0x00
+
+/* Offset 0x01: Message ID */
+#define MV88E6XXX_PTP_GC_MESSAGE_ID		0x01
+
+/* Offset 0x02: Time Stamp Arrive Time */
+#define MV88E6XXX_PTP_GC_TS_ARR_PTR		0x02
+
+/* Offset 0x03: Port Arrival Interrupt Enable */
+#define MV88E6XXX_PTP_GC_PORT_ARR_INT_EN	0x03
+
+/* Offset 0x04: Port Departure Interrupt Enable */
+#define MV88E6XXX_PTP_GC_PORT_DEP_INT_EN	0x04
+
+/* Offset 0x05: Configuration */
+#define MV88E6XXX_PTP_GC_CONFIG			0x05
+#define MV88E6XXX_PTP_GC_CONFIG_DIS_OVERWRITE	BIT(1)
+#define MV88E6XXX_PTP_GC_CONFIG_DIS_TS		BIT(0)
+
+/* Offset 0x8: Interrupt Status */
+#define MV88E6XXX_PTP_GC_INT_STATUS		0x08
+
+/* Offset 0x9/0xa: Global Time */
+#define MV88E6XXX_PTP_GC_TIME_LO		0x09
+#define MV88E6XXX_PTP_GC_TIME_HI		0x0A
+
 #ifdef CONFIG_NET_DSA_MV88E6XXX_PTP
 
 long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp);
@@ -88,6 +115,7 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 				      ptp_clock_info)
 
 extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
+extern const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 
@@ -106,6 +134,7 @@ static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 }
 
 static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
+static const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_PTP */
 

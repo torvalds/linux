@@ -79,6 +79,20 @@ static u64 mv88e6352_ptp_clock_read(const struct cyclecounter *cc)
 		return ((u32)phc_time[1] << 16) | phc_time[0];
 }
 
+static u64 mv88e6165_ptp_clock_read(const struct cyclecounter *cc)
+{
+	struct mv88e6xxx_chip *chip = cc_to_chip(cc);
+	u16 phc_time[2];
+	int err;
+
+	err = mv88e6xxx_tai_read(chip, MV88E6XXX_PTP_GC_TIME_LO, phc_time,
+				 ARRAY_SIZE(phc_time));
+	if (err)
+		return 0;
+	else
+		return ((u32)phc_time[1] << 16) | phc_time[0];
+}
+
 /* mv88e6352_config_eventcap - configure TAI event capture
  * @event: PTP_CLOCK_PPS (internal) or PTP_CLOCK_EXTTS (external)
  * @rising: zero for falling-edge trigger, else rising-edge trigger
@@ -305,6 +319,10 @@ const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {
 	.ptp_verify = mv88e6352_ptp_verify,
 	.event_work = mv88e6352_tai_event_work,
 	.n_ext_ts = 1,
+};
+
+const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {
+	.clock_read = mv88e6165_ptp_clock_read,
 };
 
 static u64 mv88e6xxx_ptp_clock_read(const struct cyclecounter *cc)

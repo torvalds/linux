@@ -2811,6 +2811,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.avb_ops = &mv88e6165_avb_ops,
+	.ptp_ops = &mv88e6165_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -2840,6 +2841,7 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.avb_ops = &mv88e6165_avb_ops,
+	.ptp_ops = &mv88e6165_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
@@ -3693,6 +3695,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.pvt = true,
 		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
+		.ptp_support = true,
 		.ops = &mv88e6161_ops,
 	},
 
@@ -3715,6 +3718,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.pvt = true,
 		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ptp_support = true,
 		.ops = &mv88e6165_ops,
 	},
 
