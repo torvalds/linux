@@ -404,7 +404,7 @@ static void __init pti_setup_espfix64(void)
 /*
  * Clone the populated PMDs of the entry and irqentry text and force it RO.
  */
-static void __init pti_clone_entry_text(void)
+static void pti_clone_entry_text(void)
 {
 	pti_clone_pmds((unsigned long) __entry_text_start,
 			(unsigned long) __irqentry_text_end,
@@ -528,13 +528,18 @@ void __init pti_init(void)
 }
 
 /*
- * Finalize the kernel mappings in the userspace page-table.
+ * Finalize the kernel mappings in the userspace page-table. Some of the
+ * mappings for the kernel image might have changed since pti_init()
+ * cloned them. This is because parts of the kernel image have been
+ * mapped RO and/or NX.  These changes need to be cloned again to the
+ * userspace page-table.
  */
 void pti_finalize(void)
 {
 	/*
-	 * Do this after all of the manipulation of the
-	 * kernel text page tables are complete.
+	 * We need to clone everything (again) that maps parts of the
+	 * kernel image.
 	 */
+	pti_clone_entry_text();
 	pti_clone_kernel_text();
 }
