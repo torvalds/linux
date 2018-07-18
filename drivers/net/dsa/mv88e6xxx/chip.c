@@ -2810,6 +2810,8 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6165_avb_ops,
+	.ptp_ops = &mv88e6165_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -2838,6 +2840,8 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6165_avb_ops,
+	.ptp_ops = &mv88e6165_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
@@ -3134,6 +3138,8 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.vtu_getnext = mv88e6390_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6390_g1_vtu_loadpurge,
 	.serdes_power = mv88e6390_serdes_power,
+	.avb_ops = &mv88e6390_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
@@ -3176,6 +3182,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.serdes_power = mv88e6352_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6290_ops = {
@@ -3215,6 +3222,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.serdes_power = mv88e6390_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3253,6 +3261,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -3289,6 +3298,7 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6341_ops = {
@@ -3329,6 +3339,7 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
@@ -3402,6 +3413,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
@@ -3444,6 +3456,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.serdes_power = mv88e6352_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 	.serdes_get_sset_count = mv88e6352_serdes_get_sset_count,
 	.serdes_get_strings = mv88e6352_serdes_get_strings,
 	.serdes_get_stats = mv88e6352_serdes_get_stats,
@@ -3488,6 +3501,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.serdes_power = mv88e6390_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6390x_ops = {
@@ -3529,6 +3543,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.serdes_power = mv88e6390_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
+	.ptp_ops = &mv88e6352_ptp_ops,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
@@ -3680,6 +3695,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.pvt = true,
 		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
+		.ptp_support = true,
 		.ops = &mv88e6161_ops,
 	},
 
@@ -3702,6 +3718,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.pvt = true,
 		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ptp_support = true,
 		.ops = &mv88e6165_ops,
 	},
 
