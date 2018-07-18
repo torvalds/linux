@@ -4461,12 +4461,16 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	/* Obtain access to BM resources if enabled and already initialized */
 	bm_node = of_parse_phandle(dn, "buffer-manager", 0);
-	if (bm_node && bm_node->data) {
-		pp->bm_priv = bm_node->data;
-		err = mvneta_bm_port_init(pdev, pp);
-		if (err < 0) {
-			dev_info(&pdev->dev, "use SW buffer management\n");
-			pp->bm_priv = NULL;
+	if (bm_node) {
+		pp->bm_priv = mvneta_bm_get(bm_node);
+		if (pp->bm_priv) {
+			err = mvneta_bm_port_init(pdev, pp);
+			if (err < 0) {
+				dev_info(&pdev->dev,
+					 "use SW buffer management\n");
+				mvneta_bm_put(pp->bm_priv);
+				pp->bm_priv = NULL;
+			}
 		}
 	}
 	of_node_put(bm_node);
@@ -4527,6 +4531,7 @@ err_netdev:
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
 				       1 << pp->id);
+		mvneta_bm_put(pp->bm_priv);
 	}
 err_free_stats:
 	free_percpu(pp->stats);
@@ -4564,6 +4569,7 @@ static int mvneta_remove(struct platform_device *pdev)
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
 				       1 << pp->id);
+		mvneta_bm_put(pp->bm_priv);
 	}
 
 	return 0;
