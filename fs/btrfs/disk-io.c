@@ -106,7 +106,6 @@ void __cold btrfs_end_io_wq_exit(void)
  */
 struct async_submit_bio {
 	void *private_data;
-	struct btrfs_fs_info *fs_info;
 	struct bio *bio;
 	extent_submit_bio_start_t *submit_bio_start;
 	extent_submit_bio_done_t *submit_bio_done;
@@ -801,7 +800,6 @@ blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		return BLK_STS_RESOURCE;
 
 	async->private_data = private_data;
-	async->fs_info = fs_info;
 	async->bio = bio;
 	async->mirror_num = mirror_num;
 	async->submit_bio_start = submit_bio_start;
