@@ -353,6 +353,10 @@ static inline void free_part_stats(struct hd_struct *part)
 
 #endif /* CONFIG_SMP */
 
+#define part_stat_read_accum(part, field)				\
+	(part_stat_read(part, field[0]) +				\
+	 part_stat_read(part, field[1]))
+
 #define part_stat_add(cpu, part, field, addnd)	do {			\
 	__part_stat_add((cpu), (part), field, addnd);			\
 	if ((part)->partno)						\
