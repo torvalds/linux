@@ -1781,9 +1781,6 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 
-	if (!wiphy)
-		return -ENOENT;
-
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 	if (!priv->hif_drv)
@@ -1921,9 +1918,6 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	struct wilc_vif *vif;
 	u8 null_bssid[ETH_ALEN] = {0};
 
-	if (!wiphy)
-		return -EFAULT;
-
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 
@@ -1944,9 +1938,6 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv;
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif;
-
-	if (!wiphy)
-		return -EFAULT;
 
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
@@ -1986,9 +1977,6 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_vif *vif;
 	struct sta_info *info;
 
-	if (!wiphy)
-		return -EFAULT;
-
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
 
@@ -2012,9 +2000,6 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 	int ret = 0;
 	struct add_sta_param sta_params = { {0} };
 	struct wilc_vif *vif;
-
-	if (!wiphy)
-		return -EFAULT;
 
 	vif = netdev_priv(dev);
 
