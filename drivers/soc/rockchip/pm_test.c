@@ -29,6 +29,7 @@
 #define CLK_NR_CLKS 550
 
 static int cpu_usage_run;
+static struct file *wdt_filp;
 
 static DEFINE_PER_CPU(struct work_struct, work_cpu_usage);
 static DEFINE_PER_CPU(struct workqueue_struct *, workqueue_cpu_usage);
@@ -583,10 +584,105 @@ static ssize_t cpu_usage_store(struct kobject *kobj,
 	return n;
 }
 
+static ssize_t dvfs_table_scan_show(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    char *buf)
+{
+	char *str = buf;
+
+	str += sprintf(str, "start: start scan dvfs table\n");
+	str += sprintf(str, "alive: send alive\n");
+	str += sprintf(str, "stop: stop scan dvfs table\n");
+	if (str != buf)
+		*(str - 1) = '\n';
+
+	return (str - buf);
+}
+
+static int wdt_start(void)
+{
+	if (wdt_filp)
+		return 0;
+
+	wdt_filp = filp_open("/dev/watchdog", O_WRONLY, 0);
+	if (IS_ERR(wdt_filp)) {
+		pr_err("%s: failed to open /dev/watchdog\n", __func__);
+		wdt_filp = NULL;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int wdt_keepalive(void)
+{
+	mm_segment_t old_fs;
+
+	if (!wdt_filp) {
+		pr_err("%s: /dev/watchdog filp error\n", __func__);
+		return -EINVAL;
+	}
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	if (wdt_filp->f_op->write(wdt_filp, "\0", 1, &wdt_filp->f_pos) <= 0)
+		pr_err("%s: write 0 error\n", __func__);
+	set_fs(old_fs);
+
+	return 0;
+}
+
+static int wdt_stop(void)
+{
+	mm_segment_t old_fs;
+
+	if (!wdt_filp) {
+		pr_err("%s: /dev/watchdog filp error\n", __func__);
+		return -EINVAL;
+	}
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	if (wdt_filp->f_op->write(wdt_filp, "V", 1, &wdt_filp->f_pos) <= 0)
+		pr_err("%s: write V error\n", __func__);
+	set_fs(old_fs);
+	filp_close(wdt_filp, NULL);
+
+	return 0;
+}
+
+static ssize_t dvfs_table_scan_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t n)
+{
+	char cmd[20];
+	int ret;
+
+	ret = sscanf(buf, "%s", cmd);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (!strcmp(cmd, "start")) {
+		ret = wdt_start();
+		if (ret)
+			return ret;
+	} else if (!strcmp(cmd, "alive")) {
+		ret = wdt_keepalive();
+		if (ret)
+			return ret;
+	} else if (!strcmp(cmd, "stop")) {
+		ret = wdt_stop();
+		if (ret)
+			return ret;
+	}
+
+	return n;
+}
+
 static struct pm_attribute pm_attrs[] = {
 	__ATTR(clk_rate, 0644, clk_rate_show, clk_rate_store),
 	__ATTR(clk_volt, 0644, clk_volt_show, clk_volt_store),
 	__ATTR(cpu_usage, 0644, cpu_usage_show, cpu_usage_store),
+	__ATTR(dvfs_table_scan, 0644, dvfs_table_scan_show,
+	       dvfs_table_scan_store),
 };
 
 static int __init pm_test_init(void)
