@@ -101,9 +101,6 @@ struct extent_io_ops {
 	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
 				    struct page *page, u64 start, u64 end,
 				    int mirror);
-	int (*merge_bio_hook)(struct page *page, unsigned long offset,
-			      size_t size, struct bio *bio,
-			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 

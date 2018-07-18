@@ -1898,8 +1898,8 @@ static void btrfs_clear_bit_hook(void *private_data,
 }
 
 /*
- * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
- * we don't create bios that span stripes or chunks
+ * Merge bio hook, this must check the chunk tree to make sure we don't create
+ * bios that span stripes or chunks
  *
  * return 1 if page cannot be merged to bio
  * return 0 if page can be merged to bio
@@ -10545,7 +10545,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
-	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 	.set_range_writeback = btrfs_set_range_writeback,
 

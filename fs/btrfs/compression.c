@@ -299,7 +299,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	struct bio *bio = NULL;
 	struct compressed_bio *cb;
 	unsigned long bytes_left;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	int pg_index = 0;
 	struct page *page;
 	u64 first_byte = disk_start;
@@ -338,9 +337,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		page = compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		if (bio->bi_iter.bi_size)
-			submit = io_tree->ops->merge_bio_hook(page, 0,
-							   PAGE_SIZE,
-							   bio, 0);
+			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE, bio, 0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(bio, page, PAGE_SIZE, 0) <
@@ -622,9 +619,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		page->index = em_start >> PAGE_SHIFT;
 
 		if (comp_bio->bi_iter.bi_size)
-			submit = tree->ops->merge_bio_hook(page, 0,
-							PAGE_SIZE,
-							comp_bio, 0);
+			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE,
+					comp_bio, 0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <
