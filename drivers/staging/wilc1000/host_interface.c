@@ -695,7 +695,7 @@ static void handle_cfg_param(struct work_struct *work)
 		i++;
 	}
 	if (param->flag & CURRENT_TX_RATE) {
-		enum CURRENT_TXRATE curr_tx_rate = param->curr_tx_rate;
+		enum current_tx_rate curr_tx_rate = param->curr_tx_rate;
 
 		if (curr_tx_rate == AUTORATE || curr_tx_rate == MBPS_1 ||
 		    curr_tx_rate == MBPS_2 || curr_tx_rate == MBPS_5_5 ||
