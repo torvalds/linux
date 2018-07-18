@@ -181,7 +181,7 @@ no_present:
  * set bit 0 if execute only is supported. Here, we repurpose ACC_USER_MASK
  * to signify readability since it isn't used in the EPT case
  */
-static inline unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, u64 gpte)
+static inline unsigned FNAME(gpte_access)(u64 gpte)
 {
 	unsigned access;
 #if PTTYPE == PTTYPE_EPT
@@ -394,8 +394,8 @@ retry_walk:
 	accessed_dirty = have_ad ? pte_access & PT_GUEST_ACCESSED_MASK : 0;
 
 	/* Convert to ACC_*_MASK flags for struct guest_walker.  */
-	walker->pt_access = FNAME(gpte_access)(vcpu, pt_access ^ walk_nx_mask);
-	walker->pte_access = FNAME(gpte_access)(vcpu, pte_access ^ walk_nx_mask);
+	walker->pt_access = FNAME(gpte_access)(pt_access ^ walk_nx_mask);
+	walker->pte_access = FNAME(gpte_access)(pte_access ^ walk_nx_mask);
 	errcode = permission_fault(vcpu, mmu, walker->pte_access, pte_pkey, access);
 	if (unlikely(errcode))
 		goto error;
@@ -508,7 +508,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 
 	gfn = gpte_to_gfn(gpte);
-	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+	pte_access = sp->role.access & FNAME(gpte_access)(gpte);
 	FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
 	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 			no_dirty_log && (pte_access & ACC_WRITE_MASK));
@@ -1002,7 +1002,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		gfn = gpte_to_gfn(gpte);
 		pte_access = sp->role.access;
-		pte_access &= FNAME(gpte_access)(vcpu, gpte);
+		pte_access &= FNAME(gpte_access)(gpte);
 		FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
 
 		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access,
