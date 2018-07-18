@@ -242,7 +242,75 @@ static const struct mlxsw_afk_block mlxsw_sp2_afk_blocks[] = {
 	MLXSW_AFK_BLOCK(0x92, mlxsw_sp_afk_element_info_l4_2),
 };
 
+#define MLXSW_SP2_AFK_BITS_PER_BLOCK 36
+
+/* A block in Spectrum-2 is of the following form:
+ *
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |35|34|33|32|
+ * +-----------------------------------------------------------------------------------------------+
+ * |31|30|29|28|27|26|25|24|23|22|21|20|19|18|17|16|15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ */
+MLXSW_ITEM64(sp2_afk, block, value, 0x00, 0, MLXSW_SP2_AFK_BITS_PER_BLOCK);
+
+/* The key / mask block layout in Spectrum-2 is of the following form:
+ *
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |                block11_high                   |
+ * +-----------------------------------------------------------------------------------------------+
+ * |                    block11_low                               |         block10_high           |
+ * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+ * ...
+ */
+
+struct mlxsw_sp2_afk_block_layout {
+	unsigned short offset;
+	struct mlxsw_item item;
+};
+
+#define MLXSW_SP2_AFK_BLOCK_LAYOUT(_block, _offset, _shift)			\
+	{									\
+		.offset = _offset,						\
+		{								\
+			.shift = _shift,					\
+			.size = {.bits = MLXSW_SP2_AFK_BITS_PER_BLOCK},		\
+			.name = #_block,					\
+		}								\
+	}									\
+
+static const struct mlxsw_sp2_afk_block_layout mlxsw_sp2_afk_blocks_layout[] = {
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block0, 0x30, 0),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block1, 0x2C, 4),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block2, 0x28, 8),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block3, 0x24, 12),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block4, 0x20, 16),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block5, 0x1C, 20),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block6, 0x18, 24),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block7, 0x14, 28),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block8, 0x0C, 0),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block9, 0x08, 4),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block10, 0x04, 8),
+	MLXSW_SP2_AFK_BLOCK_LAYOUT(block11, 0x00, 12),
+};
+
+static void mlxsw_sp2_afk_encode_block(char *block, int block_index,
+				       char *output)
+{
+	u64 block_value = mlxsw_sp2_afk_block_value_get(block);
+	const struct mlxsw_sp2_afk_block_layout *block_layout;
+
+	if (WARN_ON(block_index < 0 ||
+		    block_index >= ARRAY_SIZE(mlxsw_sp2_afk_blocks_layout)))
+		return;
+
+	block_layout = &mlxsw_sp2_afk_blocks_layout[block_index];
+	__mlxsw_item_set64(output + block_layout->offset,
+			   &block_layout->item, 0, block_value);
+}
+
 const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
 	.blocks		= mlxsw_sp2_afk_blocks,
 	.blocks_count	= ARRAY_SIZE(mlxsw_sp2_afk_blocks),
+	.encode_block	= mlxsw_sp2_afk_encode_block,
 };
