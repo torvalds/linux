@@ -1340,6 +1340,10 @@ static void vcn_v1_0_jpeg_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u6
 	amdgpu_ring_write(ring,
 		PACKETJ(0, 0, 0, PACKETJ_TYPE0));
 	amdgpu_ring_write(ring, 0x1);
+
+	/* emit trap */
+	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE7));
+	amdgpu_ring_write(ring, 0);
 }
 
 /**
