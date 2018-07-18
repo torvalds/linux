@@ -374,7 +374,8 @@ static int micron_nand_init(struct nand_chip *chip)
 
 	ondie = micron_supports_on_die_ecc(chip);
 
-	if (ondie == MICRON_ON_DIE_MANDATORY) {
+	if (ondie == MICRON_ON_DIE_MANDATORY &&
+	    chip->ecc.mode != NAND_ECC_ON_DIE) {
 		pr_err("On-die ECC forcefully enabled, not supported\n");
 		return -EINVAL;
 	}
@@ -398,8 +399,14 @@ static int micron_nand_init(struct nand_chip *chip)
 		chip->ecc.algo = NAND_ECC_BCH;
 		chip->ecc.read_page = micron_nand_read_page_on_die_ecc;
 		chip->ecc.write_page = micron_nand_write_page_on_die_ecc;
-		chip->ecc.read_page_raw = nand_read_page_raw;
-		chip->ecc.write_page_raw = nand_write_page_raw;
+
+		if (ondie == MICRON_ON_DIE_MANDATORY) {
+			chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
+			chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
+		} else {
+			chip->ecc.read_page_raw = nand_read_page_raw;
+			chip->ecc.write_page_raw = nand_write_page_raw;
+		}
 	}
 
 	return 0;
