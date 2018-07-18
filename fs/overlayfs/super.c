@@ -92,7 +92,7 @@ static int ovl_check_append_only(struct inode *inode, int flag)
 
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode,
-				 unsigned int open_flags, unsigned int flags)
+				 unsigned int open_flags)
 {
 	struct dentry *real;
 	int err;
@@ -128,7 +128,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		goto bug;
 
 	/* Handle recursion */
-	real = d_real(real, inode, open_flags, 0);
+	real = d_real(real, inode, open_flags);
 
 	if (!inode || inode == d_inode(real))
 		return real;
