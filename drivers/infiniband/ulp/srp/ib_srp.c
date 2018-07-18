@@ -1208,7 +1208,6 @@ static void srp_inv_rkey_err_done(struct ib_cq *cq, struct ib_wc *wc)
 static int srp_inv_rkey(struct srp_request *req, struct srp_rdma_ch *ch,
 		u32 rkey)
 {
-	struct ib_send_wr *bad_wr;
 	struct ib_send_wr wr = {
 		.opcode		    = IB_WR_LOCAL_INV,
 		.next		    = NULL,
@@ -1219,7 +1218,7 @@ static int srp_inv_rkey(struct srp_request *req, struct srp_rdma_ch *ch,
 
 	wr.wr_cqe = &req->reg_cqe;
 	req->reg_cqe.done = srp_inv_rkey_err_done;
-	return ib_post_send(ch->qp, &wr, &bad_wr);
+	return ib_post_send(ch->qp, &wr, NULL);
 }
 
 static void srp_unmap_data(struct scsi_cmnd *scmnd,
@@ -1500,7 +1499,6 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
-	struct ib_send_wr *bad_wr;
 	struct ib_reg_wr wr;
 	struct srp_fr_desc *desc;
 	u32 rkey;
@@ -1564,7 +1562,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	srp_map_desc(state, desc->mr->iova,
 		     desc->mr->length, desc->mr->rkey);
 
-	err = ib_post_send(ch->qp, &wr.wr, &bad_wr);
+	err = ib_post_send(ch->qp, &wr.wr, NULL);
 	if (unlikely(err)) {
 		WARN_ON_ONCE(err == -ENOMEM);
 		return err;
@@ -2015,7 +2013,7 @@ static int srp_post_send(struct srp_rdma_ch *ch, struct srp_iu *iu, int len)
 {
 	struct srp_target_port *target = ch->target;
 	struct ib_sge list;
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_send_wr wr;
 
 	list.addr   = iu->dma;
 	list.length = len;
@@ -2030,13 +2028,13 @@ static int srp_post_send(struct srp_rdma_ch *ch, struct srp_iu *iu, int len)
 	wr.opcode     = IB_WR_SEND;
 	wr.send_flags = IB_SEND_SIGNALED;
 
-	return ib_post_send(ch->qp, &wr, &bad_wr);
+	return ib_post_send(ch->qp, &wr, NULL);
 }
 
 static int srp_post_recv(struct srp_rdma_ch *ch, struct srp_iu *iu)
 {
 	struct srp_target_port *target = ch->target;
-	struct ib_recv_wr wr, *bad_wr;
+	struct ib_recv_wr wr;
 	struct ib_sge list;
 
 	list.addr   = iu->dma;
@@ -2050,7 +2048,7 @@ static int srp_post_recv(struct srp_rdma_ch *ch, struct srp_iu *iu)
 	wr.sg_list  = &list;
 	wr.num_sge  = 1;
 
-	return ib_post_recv(ch->qp, &wr, &bad_wr);
+	return ib_post_recv(ch->qp, &wr, NULL);
 }
 
 static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
