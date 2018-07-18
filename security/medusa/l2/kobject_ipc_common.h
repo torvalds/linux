@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
+#include <../../../ipc/util.h>	// FIXME FIXME FIXME TODO
 #include <linux/medusa/l3/kobject.h>
 #include <linux/medusa/l3/model.h>
 #include <linux/medusa/l3/registry.h>
@@ -43,3 +44,6 @@ medusa_answer_t ipc_kobj2kern(struct ipc_kobject *, struct kern_ipc_perm *);
 
 struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *);
 medusa_answer_t ipc_update(struct medusa_kobject_s * kobj);
+
+int ipc_getref(struct kern_ipc_perm *ipcp, bool unlock);
+int ipc_putref(struct kern_ipc_perm *ipcp, bool lock);

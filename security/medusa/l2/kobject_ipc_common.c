@@ -45,22 +45,30 @@ MED_ATTRS(ipc_kobject) {
  * @ipcp - pointer to kernel structure used to get data
  * Return: pointer to ipc_kobject with data on success, NULL on error
  *
- * This routine expects the existing Medusa ipcp security struct!
+ * This routine expects the existing Medusa ipcp security struct.
+ * For validity of an IPC object must be always called after ipc_getref(),
+ * before ipc_putref() functions.
  */
 struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp)
 {
 	memset(ipc_kobj, '\0', sizeof(struct ipc_kobject));
-	ipc_kobj->ipc_class = ipc_security(ipcp)->ipc_class;
 
+	rcu_read_lock();
+	ipc_kobj->ipc_class = ipc_security(ipcp)->ipc_class;
 	COPY_WRITE_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
 	COPY_READ_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
 	COPY_MEDUSA_OBJECT_VARS(ipc_kobj, ipc_security(ipcp));
+	rcu_read_unlock();
+
+	/* due to ipc_getref() refcount of an IPC object is increased by 1 */
+	ipc_kobj->ipc_perm.refcount--;
 
 	return ipc_kobj;
 }
 
 /**
  * TODO TODO TODO
+ * write races to IPC object! need ipc_trylock_object()
  */
 medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm *ipcp)
 {
@@ -68,9 +76,11 @@ medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm 
 	if (!security_s)
 		return MED_ERR;
 
+	rcu_read_lock();
 	COPY_WRITE_IPC_VARS(ipcp, &(ipc_obj->ipc_perm));
 	COPY_MEDUSA_OBJECT_VARS(ipc_security(ipcp), ipc_obj);
 	MED_MAGIC_VALIDATE(ipc_security(ipcp));
+	rcu_read_unlock();
 	
 	return MED_OK;
 }
@@ -148,6 +158,47 @@ medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 out_rcu_unlock:
 	rcu_read_unlock();
 out_err:
+	return retval;
+}
+
+/**
+ * Increase references to an IPC object given by his @ipcp kern_ipc_perm
+ * structure. If @unlock is True, also unlock this IPC object. At the
+ * end release RCU read lock.
+ * @ipcp - pointer to kern_ipc_perm struct of relevant IPC object
+ * @unlock - if True, unlock relevant IPC object
+ * Return: -EIDRM if IPC object is marked to deletion, 0 otherwise
+ */
+inline int ipc_getref(struct kern_ipc_perm *ipcp, bool unlock) {
+	/* increase references to IPC object; check races with IPC_RMID */
+	if (unlikely(!ipc_rcu_getref(ipcp)))
+		return -EIDRM;
+	if (unlock)
+		ipc_unlock_object(ipcp);
+	rcu_read_unlock();
+	return 0;
+}
+
+/**
+ * Decrease references to an IPC object given by his @ipcp kern_ipc_perm
+ * structure. If @lock is True, returns with locked IPC object. Takes
+ * RCU read lock.
+ * @ipcp - pointer to kern_ipc_perm struct of relevant IPC object
+ * @lock - if True, returns with locked IPC object
+ * Return: -EIDRM if IPC object is marked to deletion, 0 otherwise
+ */
+inline int ipc_putref(struct kern_ipc_perm *ipcp, bool lock) {
+	int retval = 0;
+	rcu_read_lock();
+	/* ipc_valid_object() must be called with lock */
+	ipc_lock_object(ipcp);
+	/* decrease references to IPC object */
+	ipc_rcu_putref(ipcp, ipcp->rcu_free);
+	/* check validity of IPC object due to races with IPC_RMID */
+	if (unlikely(!ipc_valid_object(ipcp)))
+		retval = -EIDRM;
+	if (!lock)
+		ipc_unlock_object(ipcp);
 	return retval;
 }
 

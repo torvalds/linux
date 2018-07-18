@@ -37,6 +37,12 @@ int __init ipc_acctype_msgsnd_init(void) {
  * @ipcp contains kernel ipc permissions for related message queue
  * @msg contains the message to be enqueued
  * @msgflg contains the operational flags
+ *
+ * This function is always called with rcu_read_lock() and ipcp->lock held.
+ *
+ * security_msg_queue_msgsnd()
+ *  |
+ *  |<-- do_msgsnd() (always get ipcp->lock)
  */
 medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *msg, int msgflg)
 {
@@ -45,8 +51,10 @@ medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *ms
 	struct process_kobject process;
 	struct ipc_kobject object;
 
-	memset(&access, '\0', sizeof(struct ipc_msgsnd_access));
-	/* process_kobject parent is zeroed by process_kern2kobj function */
+	/* second argument true: returns with unlocked IPC object */
+	if (unlikely(ipc_getref(ipcp, true)))
+		/* for now, we don't support error codes */
+		return MED_NO;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out;
@@ -54,20 +62,25 @@ medusa_answer_t medusa_ipc_msgsnd(struct kern_ipc_perm *ipcp, struct msg_msg *ms
 		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_msgsnd_access, &task_security(current))) {
-		access.m_type = msg->m_type;
-		access.m_ts = msg->m_ts;
-		access.msgflg = msgflg;
-		access.ipc_class = ipc_security(ipcp)->ipc_class;
-
 		process_kern2kobj(&process, current);
 		if (ipc_kern2kobj(&object, ipcp) == NULL)
 			goto out;
+
+		memset(&access, '\0', sizeof(struct ipc_msgsnd_access));
+		access.m_type = msg->m_type;
+		access.m_ts = msg->m_ts;
+		access.msgflg = msgflg;
+		access.ipc_class = object.ipc_class;
 
 		retval = MED_DECIDE(ipc_msgsnd_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
 out:
+	/* second argument true: returns with locked IPC object */
+	if (unlikely(ipc_putref(ipcp, true)))
+		/* for now, we don't support error codes */
+		retval = MED_NO;
 	return retval;
 }
 __initcall(ipc_acctype_msgsnd_init);

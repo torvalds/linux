@@ -31,9 +31,21 @@ int __init ipc_acctype_associate_init(void) {
  *	2) a shared memory region is requested through the shmget system call
  *	3) a semaphore is requested through the semget system call
  * This hook is only called when returning the identifier for an existing IPC
- * object, not when a new one must be created!
+ * object (when the key is not IPC_PRIVATE), not when a new one must be created!
  * @ipcp contains kernel permission IPC structure
  * @flag contains the operation control flags
+ *
+ * This routine is called only by ipc_check_perms() (ipc/util.c)
+ * always with ipc_ids.rwsem and ipcp->lock held, so we need unlock spinlock
+ * before waiting.
+ *
+ * security_[sem|shm|msg]_associate()
+ *  |
+ *  |<-- ipc_check_perms()
+ *       this routine is called by sys_msgget(), sys_semget(), sys_shmget()
+ *       when the key is not IPC_PRIVATE and exists in the ds IDR
+ *       is always called with ipcp->lock held
+ *
  */
 medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 {
@@ -42,8 +54,10 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 	struct process_kobject process;
 	struct ipc_kobject object;
 
-	memset(&access, '\0', sizeof(struct ipc_associate_access));
-	/* process_kobject parent is zeroed by process_kern2kobj function */
+	/* second argument true: returns with unlocked IPC object */
+	if (unlikely(ipc_getref(ipcp, true)))
+		/* for now, we don't support error codes */
+		return MED_NO;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out;
@@ -56,18 +70,23 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 		return MED_NO;
 	
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_associate_access, &task_security(current))) {
-		access.flag = flag;
-		access.ipc_class = ipc_security(ipcp)->ipc_class;
-
 		process_kern2kobj(&process, current);
 		if (ipc_kern2kobj(&object, ipcp) == NULL)
 			goto out;
+
+		memset(&access, '\0', sizeof(struct ipc_associate_access));
+		access.flag = flag;
+		access.ipc_class = object.ipc_class;
 
 		retval = MED_DECIDE(ipc_associate_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
 out:
+	/* second argument true: returns with locked IPC object */
+	if (unlikely(ipc_putref(ipcp, true)))
+		/* for now, we don't support error codes */
+		retval = MED_NO;
 	return retval;
 }
 __initcall(ipc_acctype_associate_init);

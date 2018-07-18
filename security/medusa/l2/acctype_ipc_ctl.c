@@ -33,6 +33,40 @@ int __init ipc_acctype_ctl_init(void) {
  * IPC_INFO or MSG_INFO or SEM_INFO or SHM_INFO @cmd value.
  * @ipcp contains kernel IPC permission of the related IPC object
  * @cmd contains the operation to be performed
+ *
+ * This function is called with rcu_read_lock() held if @ipcp is not NULL.
+ * So in this case it is necessary to release rcu lock, because
+ * this routine may wait while authorisation server is decising.
+ *
+ * medusa_ipc_ctl()
+ *  |
+ *  |<-- medusa_l1_msg_queue_msgctl()
+ *  |     |
+ *  |     |<-- security_msg_queue_msgctl()
+ *  |           |
+ *  |           |<-- msgctl_stat()
+ *  |           |<-- msgctl_down()
+ *  |           |<-- msgctl_info() (@ipcp is NULL, no rcu_read_lock())
+ *  |
+ *  |<-- medusa_l1_sem_semctl()
+ *  |     |
+ *  |     |<-- security_sem_semctl()
+ *  |           |
+ *  |           |<-- semctl_stat()
+ *  |           |<-- semctl_down()
+ *  |           |<-- semctl_setval()
+ *  |           |<-- semctl_main()
+ *  |           |<-- semctl_info() (@ipcp is NULL, no rcu_read_lock())
+ *  |
+ *  |<-- medusa_l1_shm_shmctl()
+ *        |
+ *        |<-- security_shm_shmctl()
+ *              |
+ *              |<-- shmctl_stat()
+ *              |<-- shmctl_down()
+ *              |<-- shmctl_do_lock()
+ *              |<-- shmctl_shm_info() (@ipcp is NULL, no rcu_read_lock())
+ *              |<-- shmctl_ipc_info() (@ipcp is NULL, no rcu_read_lock())
  */
 medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 {
@@ -41,28 +75,31 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 	struct process_kobject process;
 	struct ipc_kobject object, *object_p = NULL;
 
-	memset(&access, '\0', sizeof(struct ipc_ctl_access));
-	/* process_kobject parent is zeroed by process_kern2kobj function */
-
-	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
-		goto out;
-
 	/* 'ipcp' is NULL in case of 'cmd': IPC_INFO, MSG_INFO, SEM_INFO, SHM_INFO */
-	if(likely(ipcp)) {
+	if (likely(ipcp)) {
+		/* second argument false: don't need to unlock IPC object */
+		if (unlikely(ipc_getref(ipcp, false)))
+			/* for now, we don't support error codes */
+			return MED_NO;
+
 		object_p = &object;
 		if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
 			goto out;
 	}
 
+	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
+		goto out;
+
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_ctl_access, &task_security(current))) {
+		memset(&access, '\0', sizeof(struct ipc_ctl_access));
 		access.cmd = cmd;
 		access.ipc_class = MED_IPC_UNDEFINED;
 
 		process_kern2kobj(&process, current);
 		if (likely(object_p)) {
-			access.ipc_class = ipc_security(ipcp)->ipc_class;
 			if (ipc_kern2kobj(object_p, ipcp) <= 0)
 				goto out;
+			access.ipc_class = object_p->ipc_class;
 		}
 
 		/* in case of NULL 'ipcp', 'object_p' is NULL too */
@@ -71,6 +108,12 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 			retval = MED_OK;
 	}
 out:
+	if (likely(ipcp)) {
+		/* second argument false: don't need to lock IPC object */
+		if (unlikely(ipc_putref(ipcp, false)))
+			/* for now, we don't support error codes */
+			retval = MED_NO;
+	}
 	return retval;
 }
 __initcall(ipc_acctype_ctl_init);

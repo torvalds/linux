@@ -43,6 +43,12 @@ int __init ipc_acctype_semop_init(void) {
  * @nsops contains the number of operations to perform
  * @alter contains the flag indicating whether changes are to be made;
  *	if @alter flag is nonzero, the semaphore set may be modified
+ *
+ * This routine is called only by do_semtimedop() (ipc/sem.c) in RCU read-side.
+ *
+ * security_sem_semop()
+ *  |
+ *  |<-- do_semtimedop()
  */
 medusa_answer_t medusa_ipc_semop(struct kern_ipc_perm *ipcp, struct sembuf *sops, unsigned nsops, int alter)
 {
@@ -51,8 +57,10 @@ medusa_answer_t medusa_ipc_semop(struct kern_ipc_perm *ipcp, struct sembuf *sops
 	struct process_kobject process;
 	struct ipc_kobject object;
 
-	memset(&access, '\0', sizeof(struct ipc_semop_access));
-	/* process_kobject parent is zeroed by process_kern2kobj function */
+	/* second argument false: don't need to unlock IPC object */
+	if (unlikely(ipc_getref(ipcp, false)))
+		/* for now, we don't support error codes */
+		return MED_NO;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out;
@@ -60,22 +68,27 @@ medusa_answer_t medusa_ipc_semop(struct kern_ipc_perm *ipcp, struct sembuf *sops
 		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_semop_access, &task_security(current))) {
+		process_kern2kobj(&process, current);
+		if (ipc_kern2kobj(&object, ipcp) == NULL)
+			goto out;
+
+		memset(&access, '\0', sizeof(struct ipc_semop_access));
 		access.sem_op = sops->sem_op;
 		access.sem_num = sops->sem_num;
 		access.sem_flg = sops->sem_flg;
 		access.nsops = nsops;
 		access.alter = alter;
-		access.ipc_class = ipc_security(ipcp)->ipc_class;
-
-		process_kern2kobj(&process, current);
-		if (ipc_kern2kobj(&object, ipcp) == NULL)
-			goto out;
+		access.ipc_class = object.ipc_class;
 
 		retval = MED_DECIDE(ipc_semop_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
 out:
+	/* second argument false: don't need to lock IPC object */
+	if (unlikely(ipc_putref(ipcp, false)))
+		/* for now, we don't support error codes */
+		retval = MED_NO;
 	return retval;
 }
 __initcall(ipc_acctype_semop_init);

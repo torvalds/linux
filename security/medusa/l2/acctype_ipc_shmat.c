@@ -35,6 +35,12 @@ int __init ipc_acctype_shmat_init(void) {
  * @ipcp contains shared memory segment ipc_perm structure
  * @shmaddr contains the address to attach memory region to
  * @shmflag contains the operational flags
+ *
+ * This routine is called only by do_shmat() (ipc/shm.c) in RCU read-side.
+ *
+ * security_shm_shmat()
+ *  |
+ *  |<-- do_shmat()
  */
 medusa_answer_t medusa_ipc_shmat(struct kern_ipc_perm *ipcp, char __user *shmaddr, int shmflg)
 {
@@ -43,8 +49,10 @@ medusa_answer_t medusa_ipc_shmat(struct kern_ipc_perm *ipcp, char __user *shmadd
 	struct process_kobject process;
 	struct ipc_kobject object;
 
-	memset(&access, '\0', sizeof(struct ipc_shmat_access));
-	/* process_kobject parent is zeroed by process_kern2kobj function */
+	/* second argument false: don't need to unlock IPC object */
+	if (unlikely(ipc_getref(ipcp, false)))
+		/* for now, we don't support error codes */
+		return MED_NO;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out;
@@ -52,19 +60,24 @@ medusa_answer_t medusa_ipc_shmat(struct kern_ipc_perm *ipcp, char __user *shmadd
 		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_shmat_access, &task_security(current))) {
-		access.shmflg = shmflg;
-		access.shmaddr = shmaddr;
-		access.ipc_class = ipc_security(ipcp)->ipc_class;
-
 		process_kern2kobj(&process, current);
 		if (ipc_kern2kobj(&object, ipcp) == NULL)
 			goto out;
+
+		memset(&access, '\0', sizeof(struct ipc_shmat_access));
+		access.shmflg = shmflg;
+		access.shmaddr = shmaddr;
+		access.ipc_class = object.ipc_class;
 
 		retval = MED_DECIDE(ipc_shmat_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}
 out:
+	/* second argument false: don't need to lock IPC object */
+	if (unlikely(ipc_putref(ipcp, false)))
+		/* for now, we don't support error codes */
+		retval = MED_NO;
 	return retval;
 }
 __initcall(ipc_acctype_shmat_init);
