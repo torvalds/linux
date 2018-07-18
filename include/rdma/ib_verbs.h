@@ -3278,7 +3278,9 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 				   struct ib_recv_wr *recv_wr,
 				   struct ib_recv_wr **bad_recv_wr)
 {
-	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr);
+	struct ib_recv_wr *dummy;
+
+	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr ? : &dummy);
 }
 
 /**
@@ -3379,7 +3381,9 @@ static inline int ib_post_send(struct ib_qp *qp,
 			       struct ib_send_wr *send_wr,
 			       struct ib_send_wr **bad_send_wr)
 {
-	return qp->device->post_send(qp, send_wr, bad_send_wr);
+	struct ib_send_wr *dummy;
+
+	return qp->device->post_send(qp, send_wr, bad_send_wr ? : &dummy);
 }
 
 /**
@@ -3394,7 +3398,9 @@ static inline int ib_post_recv(struct ib_qp *qp,
 			       struct ib_recv_wr *recv_wr,
 			       struct ib_recv_wr **bad_recv_wr)
 {
-	return qp->device->post_recv(qp, recv_wr, bad_recv_wr);
+	struct ib_recv_wr *dummy;
+
+	return qp->device->post_recv(qp, recv_wr, bad_recv_wr ? : &dummy);
 }
 
 struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
