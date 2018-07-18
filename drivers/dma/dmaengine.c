@@ -770,8 +770,14 @@ struct dma_chan *dma_request_chan_by_mask(const dma_cap_mask_t *mask)
 		return ERR_PTR(-ENODEV);
 
 	chan = __dma_request_channel(mask, NULL, NULL);
-	if (!chan)
-		chan = ERR_PTR(-ENODEV);
+	if (!chan) {
+		mutex_lock(&dma_list_mutex);
+		if (list_empty(&dma_device_list))
+			chan = ERR_PTR(-EPROBE_DEFER);
+		else
+			chan = ERR_PTR(-ENODEV);
+		mutex_unlock(&dma_list_mutex);
+	}
 
 	return chan;
 }
