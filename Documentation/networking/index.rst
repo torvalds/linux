@@ -18,6 +18,7 @@ Contents:
    failover
    net_failover
    alias
+   bridge
 
 .. only::  subproject
 
