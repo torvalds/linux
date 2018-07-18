@@ -1780,6 +1780,92 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
+static int qede_get_module_info(struct net_device *dev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u8 buf[4];
+	int rc;
+
+	/* Read first 4 bytes to find the sfp type */
+	rc = edev->ops->common->read_module_eeprom(edev->cdev, buf,
+						   QED_I2C_DEV_ADDR_A0, 0, 4);
+	if (rc) {
+		DP_ERR(edev, "Failed reading EEPROM data %d\n", rc);
+		return rc;
+	}
+
+	switch (buf[0]) {
+	case 0x3: /* SFP, SFP+, SFP-28 */
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		break;
+	case 0xc: /* QSFP */
+	case 0xd: /* QSFP+ */
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+	case 0x11: /* QSFP-28 */
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		break;
+	default:
+		DP_ERR(edev, "Unknown transceiver type 0x%x\n", buf[0]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qede_get_module_eeprom(struct net_device *dev,
+				  struct ethtool_eeprom *ee, u8 *data)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u32 start_addr = ee->offset, size = 0;
+	u8 *buf = data;
+	int rc = 0;
+
+	/* Read A0 section */
+	if (ee->offset < ETH_MODULE_SFF_8079_LEN) {
+		/* Limit transfer size to the A0 section boundary */
+		if (ee->offset + ee->len > ETH_MODULE_SFF_8079_LEN)
+			size = ETH_MODULE_SFF_8079_LEN - ee->offset;
+		else
+			size = ee->len;
+
+		rc = edev->ops->common->read_module_eeprom(edev->cdev, buf,
+							   QED_I2C_DEV_ADDR_A0,
+							   start_addr, size);
+		if (rc) {
+			DP_ERR(edev, "Failed reading A0 section  %d\n", rc);
+			return rc;
+		}
+
+		buf += size;
+		start_addr += size;
+	}
+
+	/* Read A2 section */
+	if (start_addr >= ETH_MODULE_SFF_8079_LEN &&
+	    start_addr < ETH_MODULE_SFF_8472_LEN) {
+		size = ee->len - size;
+		/* Limit transfer size to the A2 section boundary */
+		if (start_addr + size > ETH_MODULE_SFF_8472_LEN)
+			size = ETH_MODULE_SFF_8472_LEN - start_addr;
+		start_addr -= ETH_MODULE_SFF_8079_LEN;
+		rc = edev->ops->common->read_module_eeprom(edev->cdev, buf,
+							   QED_I2C_DEV_ADDR_A2,
+							   start_addr, size);
+		if (rc) {
+			DP_VERBOSE(edev, QED_MSG_DEBUG,
+				   "Failed reading A2 section %d\n", rc);
+			return 0;
+		}
+	}
+
+	return rc;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
@@ -1813,6 +1899,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
 	.self_test = qede_self_test,
+	.get_module_info = qede_get_module_info,
+	.get_module_eeprom = qede_get_module_eeprom,
 	.get_eee = qede_get_eee,
 	.set_eee = qede_set_eee,
 
