@@ -121,6 +121,8 @@ struct usbtmc_file_data {
 	u8             srq_byte;
 	atomic_t       srq_asserted;
 	u8             eom_val;
+	u8             term_char;
+	bool           term_char_enabled;
 };
 
 /* Forward declarations */
@@ -157,7 +159,10 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	mutex_lock(&data->io_mutex);
 	file_data->data = data;
 
+	/* copy default values from device settings */
 	file_data->timeout = USBTMC_TIMEOUT;
+	file_data->term_char = data->TermChar;
+	file_data->term_char_enabled = data->TermCharEnabled;
 	file_data->eom_val = 1;
 
 	INIT_LIST_HEAD(&file_data->file_elem);
@@ -634,9 +639,9 @@ static int send_request_dev_dep_msg_in(struct usbtmc_file_data *file_data,
 	buffer[5] = transfer_size >> 8;
 	buffer[6] = transfer_size >> 16;
 	buffer[7] = transfer_size >> 24;
-	buffer[8] = data->TermCharEnabled * 2;
+	buffer[8] = file_data->term_char_enabled * 2;
 	/* Use term character? */
-	buffer[9] = data->TermChar;
+	buffer[9] = file_data->term_char;
 	buffer[10] = 0; /* Reserved */
 	buffer[11] = 0; /* Reserved */
 
@@ -1298,6 +1303,28 @@ static int usbtmc_ioctl_eom_enable(struct usbtmc_file_data *file_data,
 	return 0;
 }
 
+/*
+ * Configure termination character for read()
+ */
+static int usbtmc_ioctl_config_termc(struct usbtmc_file_data *file_data,
+				void __user *arg)
+{
+	struct usbtmc_termchar termc;
+
+	if (copy_from_user(&termc, arg, sizeof(termc)))
+		return -EFAULT;
+
+	if ((termc.term_char_enabled > 1) ||
+		(termc.term_char_enabled &&
+		!(file_data->data->capabilities.device_capabilities & 1)))
+		return -EINVAL;
+
+	file_data->term_char = termc.term_char;
+	file_data->term_char_enabled = termc.term_char_enabled;
+
+	return 0;
+}
+
 static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct usbtmc_file_data *file_data;
@@ -1351,6 +1378,11 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case USBTMC_IOCTL_EOM_ENABLE:
 		retval = usbtmc_ioctl_eom_enable(file_data,
 						 (void __user *)arg);
+		break;
+
+	case USBTMC_IOCTL_CONFIG_TERMCHAR:
+		retval = usbtmc_ioctl_config_termc(file_data,
+						   (void __user *)arg);
 		break;
 
 	case USBTMC488_IOCTL_GET_CAPS:

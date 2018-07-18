@@ -40,6 +40,11 @@
 #define USBTMC488_REQUEST_GOTO_LOCAL			161
 #define USBTMC488_REQUEST_LOCAL_LOCKOUT			162
 
+struct usbtmc_termchar {
+	__u8 term_char;
+	__u8 term_char_enabled;
+} __attribute__ ((packed));
+
 /* Request values for USBTMC driver's ioctl entry point */
 #define USBTMC_IOC_NR			91
 #define USBTMC_IOCTL_INDICATOR_PULSE	_IO(USBTMC_IOC_NR, 1)
@@ -51,6 +56,7 @@
 #define USBTMC_IOCTL_GET_TIMEOUT	_IOR(USBTMC_IOC_NR, 9, __u32)
 #define USBTMC_IOCTL_SET_TIMEOUT	_IOW(USBTMC_IOC_NR, 10, __u32)
 #define USBTMC_IOCTL_EOM_ENABLE	        _IOW(USBTMC_IOC_NR, 11, __u8)
+#define USBTMC_IOCTL_CONFIG_TERMCHAR	_IOW(USBTMC_IOC_NR, 12, struct usbtmc_termchar)
 
 #define USBTMC488_IOCTL_GET_CAPS	_IOR(USBTMC_IOC_NR, 17, unsigned char)
 #define USBTMC488_IOCTL_READ_STB	_IOR(USBTMC_IOC_NR, 18, unsigned char)
