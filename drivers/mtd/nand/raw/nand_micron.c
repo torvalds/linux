@@ -65,6 +65,7 @@ struct nand_onfi_vendor_micron {
 } __packed;
 
 struct micron_on_die_ecc {
+	bool forced;
 	void *rawbuf;
 };
 
@@ -171,7 +172,11 @@ static const struct mtd_ooblayout_ops micron_nand_on_die_8_ooblayout_ops = {
 
 static int micron_nand_on_die_ecc_setup(struct nand_chip *chip, bool enable)
 {
+	struct micron_nand *micron = nand_get_manufacturer_data(chip);
 	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = { 0, };
+
+	if (micron->ecc.forced)
+		return 0;
 
 	if (enable)
 		feature[0] |= ONFI_FEATURE_ON_DIE_ECC_EN;
@@ -451,6 +456,9 @@ static int micron_nand_init(struct nand_chip *chip)
 			ret = -EINVAL;
 			goto err_free_manuf_data;
 		}
+
+		if (ondie == MICRON_ON_DIE_MANDATORY)
+			micron->ecc.forced = true;
 
 		/*
 		 * In case of 4bit on-die ECC, we need a buffer to store a
