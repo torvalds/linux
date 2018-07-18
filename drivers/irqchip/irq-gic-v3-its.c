@@ -162,7 +162,7 @@ static struct {
 } vpe_proxy;
 
 static LIST_HEAD(its_nodes);
-static DEFINE_SPINLOCK(its_lock);
+static DEFINE_RAW_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
 static struct irq_domain *its_parent;
 
@@ -2063,12 +2063,12 @@ static void its_cpu_init_collections(void)
 {
 	struct its_node *its;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 
 	list_for_each_entry(its, &its_nodes, entry)
 		its_cpu_init_collection(its);
 
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
@@ -3139,7 +3139,7 @@ static int its_save_disable(void)
 	struct its_node *its;
 	int err = 0;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 
@@ -3171,7 +3171,7 @@ err:
 			writel_relaxed(its->ctlr_save, base + GITS_CTLR);
 		}
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return err;
 }
@@ -3181,7 +3181,7 @@ static void its_restore_enable(void)
 	struct its_node *its;
 	int ret;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_for_each_entry(its, &its_nodes, entry) {
 		void __iomem *base;
 		int i;
@@ -3233,7 +3233,7 @@ static void its_restore_enable(void)
 		    GITS_TYPER_HCC(gic_read_typer(base + GITS_TYPER)))
 			its_cpu_init_collection(its);
 	}
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 }
 
 static struct syscore_ops its_syscore_ops = {
@@ -3467,9 +3467,9 @@ static int __init its_probe_one(struct resource *res,
 	if (err)
 		goto out_free_tables;
 
-	spin_lock(&its_lock);
+	raw_spin_lock(&its_lock);
 	list_add(&its->entry, &its_nodes);
-	spin_unlock(&its_lock);
+	raw_spin_unlock(&its_lock);
 
 	return 0;
 
