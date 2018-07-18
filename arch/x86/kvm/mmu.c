@@ -2136,12 +2136,8 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			    struct list_head *invalid_list)
 {
-	if (sp->role.cr4_pae != !!is_pae(vcpu)) {
-		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
-		return false;
-	}
-
-	if (vcpu->arch.mmu.sync_page(vcpu, sp) == 0) {
+	if (sp->role.cr4_pae != !!is_pae(vcpu)
+	    || vcpu->arch.mmu.sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return false;
 	}
