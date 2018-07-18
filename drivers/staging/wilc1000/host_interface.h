@@ -252,12 +252,6 @@ struct reg_frame {
 	u8 reg_id;
 };
 
-enum p2p_listen_state {
-	P2P_IDLE,
-	P2P_LISTEN,
-	P2P_GRP_FORMATION
-};
-
 struct wilc;
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;
