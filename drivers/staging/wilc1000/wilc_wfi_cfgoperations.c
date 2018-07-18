@@ -1250,7 +1250,6 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 {
 	u32 i;
 	s32 ret = 0;
-
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 
 	for (i = 0; i < priv->pmkid_list.numpmkid; i++)	{
@@ -1315,7 +1314,6 @@ static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u8 ch_list_attr_idx,
 static void wilc_wfi_cfg_parse_rx_action(u8 *buf, u32 len)
 {
 	u32 index = 0;
-
 	u8 op_channel_attr_index = 0;
 	u8 channel_list_attr_index = 0;
 
@@ -1338,7 +1336,6 @@ static void wilc_wfi_cfg_parse_tx_action(u8 *buf, u32 len, bool oper_ch,
 					 u8 iftype)
 {
 	u32 index = 0;
-
 	u8 op_channel_attr_index = 0;
 	u8 channel_list_attr_index = 0;
 
@@ -2261,7 +2258,6 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 int wilc_init_host_int(struct net_device *net)
 {
 	int ret = 0;
-
 	struct wilc_priv *priv;
 
 	priv = wdev_priv(net->ieee80211_ptr);

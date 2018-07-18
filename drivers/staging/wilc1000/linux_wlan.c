@@ -780,7 +780,6 @@ static int mac_init_fn(struct net_device *ndev)
 static int wilc_mac_open(struct net_device *ndev)
 {
 	struct wilc_vif *vif;
-
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
 	int i = 0;

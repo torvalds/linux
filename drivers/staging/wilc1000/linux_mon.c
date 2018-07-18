@@ -147,7 +147,6 @@ static netdev_tx_t wilc_wfi_mon_xmit(struct sk_buff *skb,
 {
 	u32 rtap_len, ret = 0;
 	struct wilc_wfi_mon_priv  *mon_priv;
-
 	struct sk_buff *skb2;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
