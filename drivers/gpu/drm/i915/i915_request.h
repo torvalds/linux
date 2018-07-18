@@ -258,6 +258,8 @@ void i915_request_add(struct i915_request *rq);
 void __i915_request_submit(struct i915_request *request);
 void i915_request_submit(struct i915_request *request);
 
+void i915_request_skip(struct i915_request *request, int error);
+
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
 
@@ -378,6 +380,7 @@ static inline void
 init_request_active(struct i915_gem_active *active,
 		    i915_gem_retire_fn retire)
 {
+	RCU_INIT_POINTER(active->request, NULL);
 	INIT_LIST_HEAD(&active->link);
 	active->retire = retire ?: i915_gem_retire_noop;
 }

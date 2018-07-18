@@ -514,7 +514,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	intel_connector->mst_port = NULL;
 	drm_modeset_unlock(&connector->dev->mode_config.connection_mutex);
 
-	drm_connector_unreference(connector);
+	drm_connector_put(connector);
 }
 
 static void intel_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)

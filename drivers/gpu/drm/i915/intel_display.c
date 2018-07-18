@@ -5632,6 +5632,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
 	bool psl_clkgate_wa;
+	u32 pipe_chicken;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5690,6 +5691,17 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	 * clocks enabled
 	 */
 	intel_color_load_luts(&pipe_config->base);
+
+	/*
+	 * Display WA #1153: enable hardware to bypass the alpha math
+	 * and rounding for per-pixel values 00 and 0xff
+	 */
+	if (INTEL_GEN(dev_priv) >= 11) {
+		pipe_chicken = I915_READ(PIPE_CHICKEN(pipe));
+		if (!(pipe_chicken & PER_PIXEL_ALPHA_BYPASS_EN))
+			I915_WRITE_FW(PIPE_CHICKEN(pipe),
+				      pipe_chicken | PER_PIXEL_ALPHA_BYPASS_EN);
+	}
 
 	intel_ddi_set_pipe_settings(pipe_config);
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -9347,6 +9359,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
 			WARN(1, "unknown pipe linked to edp transcoder\n");
+			/* fall through */
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			trans_edp_pipe = PIPE_A;
@@ -9402,7 +9415,7 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		 * registers/MIPI[BXT]. We can break out here early, since we
 		 * need the same DSI PLL to be enabled for both DSI ports.
 		 */
-		if (!intel_dsi_pll_is_enabled(dev_priv))
+		if (!bxt_dsi_pll_is_enabled(dev_priv))
 			break;
 
 		/* XXX: this works for video mode only */
@@ -10724,7 +10737,7 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->base.state->crtc)
-			drm_connector_unreference(&connector->base);
+			drm_connector_put(&connector->base);
 
 		if (connector->base.encoder) {
 			connector->base.state->best_encoder =
@@ -10732,7 +10745,7 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 			connector->base.state->crtc =
 				connector->base.encoder->crtc;
 
-			drm_connector_reference(&connector->base);
+			drm_connector_get(&connector->base);
 		} else {
 			connector->base.state->best_encoder = NULL;
 			connector->base.state->crtc = NULL;
@@ -11011,6 +11024,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 		case INTEL_OUTPUT_DDI:
 			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
+			/* else: fall through */
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
 		case INTEL_OUTPUT_EDP:
@@ -12542,6 +12556,19 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	finish_wait(&dev_priv->gpu_error.wait_queue, &wait_reset);
 }
 
+static void intel_atomic_cleanup_work(struct work_struct *work)
+{
+	struct drm_atomic_state *state =
+		container_of(work, struct drm_atomic_state, commit_work);
+	struct drm_i915_private *i915 = to_i915(state->dev);
+
+	drm_atomic_helper_cleanup_planes(&i915->drm, state);
+	drm_atomic_helper_commit_cleanup_done(state);
+	drm_atomic_state_put(state);
+
+	intel_atomic_helper_free_state(i915);
+}
+
 static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -12702,13 +12729,16 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
-	drm_atomic_helper_cleanup_planes(dev, state);
-
-	drm_atomic_helper_commit_cleanup_done(state);
-
-	drm_atomic_state_put(state);
-
-	intel_atomic_helper_free_state(dev_priv);
+	/*
+	 * Defer the cleanup of the old state to a separate worker to not
+	 * impede the current task (userspace for blocking modesets) that
+	 * are executed inline. For out-of-line asynchronous modesets/flips,
+	 * deferring to a new worker seems overkill, but we would place a
+	 * schedule point (cond_resched()) here anyway to keep latencies
+	 * down.
+	 */
+	INIT_WORK(&state->commit_work, intel_atomic_cleanup_work);
+	schedule_work(&state->commit_work);
 }
 
 static void intel_atomic_commit_work(struct work_struct *work)
@@ -14105,7 +14135,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_ddi_init(dev_priv, PORT_B);
 		intel_ddi_init(dev_priv, PORT_C);
 
-		intel_dsi_init(dev_priv);
+		vlv_dsi_init(dev_priv);
 	} else if (HAS_DDI(dev_priv)) {
 		int found;
 
@@ -14211,7 +14241,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 				intel_hdmi_init(dev_priv, CHV_HDMID, PORT_D);
 		}
 
-		intel_dsi_init(dev_priv);
+		vlv_dsi_init(dev_priv);
 	} else if (!IS_GEN2(dev_priv) && !IS_PINEVIEW(dev_priv)) {
 		bool found = false;
 
@@ -14493,11 +14523,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 		break;
 	case DRM_FORMAT_NV12:
-		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_Y_TILED_CCS ||
-		    mode_cmd->modifier[0] == I915_FORMAT_MOD_Yf_TILED_CCS) {
-			DRM_DEBUG_KMS("RC not to be enabled with NV12\n");
-			goto err;
-		}
 		if (INTEL_GEN(dev_priv) < 9 || IS_SKYLAKE(dev_priv) ||
 		    IS_BROXTON(dev_priv)) {
 			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
@@ -15676,11 +15701,20 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		u64 get_domains;
 		enum intel_display_power_domain domain;
+		struct intel_crtc_state *crtc_state;
 
 		if (!encoder->get_power_domains)
 			continue;
 
-		get_domains = encoder->get_power_domains(encoder);
+		/*
+		 * MST-primary and inactive encoders don't have a crtc state
+		 * and neither of these require any power domain references.
+		 */
+		if (!encoder->base.crtc)
+			continue;
+
+		crtc_state = to_intel_crtc_state(encoder->base.crtc->state);
+		get_domains = encoder->get_power_domains(encoder, crtc_state);
 		for_each_power_domain(domain, get_domains)
 			intel_display_power_get(dev_priv, domain);
 	}

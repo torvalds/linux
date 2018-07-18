@@ -130,13 +130,19 @@ static int emit_recurse_batch(struct hang *h,
 	if (err)
 		goto unpin_vma;
 
-	i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	i915_vma_move_to_active(hws, rq, 0);
+	err = i915_vma_move_to_active(hws, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(hws->obj)) {
 		i915_gem_object_get(hws->obj);
 		i915_gem_object_set_active_reference(hws->obj);
@@ -171,7 +177,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = MI_BATCH_BUFFER_START | 1 << 8;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else if (INTEL_GEN(i915) >= 4) {
-		*batch++ = MI_STORE_DWORD_IMM_GEN4 | 1 << 22;
+		*batch++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*batch++ = 0;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
@@ -184,7 +190,7 @@ static int emit_recurse_batch(struct hang *h,
 		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	} else {
-		*batch++ = MI_STORE_DWORD_IMM;
+		*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 		*batch++ = lower_32_bits(hws_address(hws, rq));
 		*batch++ = rq->fence.seqno;
 		*batch++ = MI_ARB_CHECK;
@@ -193,7 +199,7 @@ static int emit_recurse_batch(struct hang *h,
 		batch += 1024 / sizeof(*batch);
 
 		*batch++ = MI_ARB_CHECK;
-		*batch++ = MI_BATCH_BUFFER_START | 2 << 6 | 1;
+		*batch++ = MI_BATCH_BUFFER_START | 2 << 6;
 		*batch++ = lower_32_bits(vma->node.start);
 	}
 	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
@@ -205,6 +211,7 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
+unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
@@ -1242,6 +1249,9 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 
 	if (!intel_has_gpu_reset(i915))
 		return 0;
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return -EIO; /* we're long past hope of a successful reset */
 
 	intel_runtime_pm_get(i915);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);

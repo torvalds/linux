@@ -300,24 +300,44 @@ struct intel_engine_execlists {
 	struct rb_node *first;
 
 	/**
-	 * @fw_domains: forcewake domains for irq tasklet
+	 * @csb_read: control register for Context Switch buffer
+	 *
+	 * Note this register is always in mmio.
 	 */
-	unsigned int fw_domains;
+	u32 __iomem *csb_read;
 
 	/**
-	 * @csb_head: context status buffer head
+	 * @csb_write: control register for Context Switch buffer
+	 *
+	 * Note this register may be either mmio or HWSP shadow.
 	 */
-	unsigned int csb_head;
+	u32 *csb_write;
 
 	/**
-	 * @csb_use_mmio: access csb through mmio, instead of hwsp
+	 * @csb_status: status array for Context Switch buffer
+	 *
+	 * Note these register may be either mmio or HWSP shadow.
 	 */
-	bool csb_use_mmio;
+	u32 *csb_status;
 
 	/**
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
+
+	/**
+	 * @csb_write_reset: reset value for CSB write pointer
+	 *
+	 * As the CSB write pointer maybe either in HWSP or as a field
+	 * inside an mmio register, we want to reprogram it slightly
+	 * differently to avoid later confusion.
+	 */
+	u32 csb_write_reset;
+
+	/**
+	 * @csb_head: context status buffer head
+	 */
+	u8 csb_head;
 };
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
@@ -345,10 +365,8 @@ struct intel_engine_cs {
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 
-	atomic_t irq_count;
 	unsigned long irq_posted;
 #define ENGINE_IRQ_BREADCRUMB 0
-#define ENGINE_IRQ_EXECLIST 1
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -380,6 +398,7 @@ struct intel_engine_cs {
 
 		unsigned int hangcheck_interrupts;
 		unsigned int irq_enabled;
+		unsigned int irq_count;
 
 		bool irq_armed : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
@@ -928,11 +947,10 @@ static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
-static inline void intel_wait_init(struct intel_wait *wait,
-				   struct i915_request *rq)
+static inline void intel_wait_init(struct intel_wait *wait)
 {
 	wait->tsk = current;
-	wait->request = rq;
+	wait->request = NULL;
 }
 
 static inline void intel_wait_init_for_seqno(struct intel_wait *wait, u32 seqno)

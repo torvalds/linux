@@ -111,8 +111,8 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
  * XXX: The muxing and gating is hard coded for now. Need to add support for
  * sharing PLLs with two DSI outputs.
  */
-static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
-			       struct intel_crtc_state *config)
+int vlv_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -142,8 +142,8 @@ static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void vlv_enable_dsi_pll(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *config)
+void vlv_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -175,7 +175,7 @@ static void vlv_enable_dsi_pll(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
 
-static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
+void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp;
@@ -192,7 +192,7 @@ static void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
-static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
+bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 {
 	bool enabled;
 	u32 val;
@@ -229,7 +229,7 @@ static bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	return enabled;
 }
 
-static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
+void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val;
@@ -261,8 +261,8 @@ static void assert_bpp_mismatch(enum mipi_dsi_pixel_format fmt, int pipe_bpp)
 	     bpp, pipe_bpp);
 }
 
-static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
-			    struct intel_crtc_state *config)
+u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -327,8 +327,8 @@ static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 	return pclk;
 }
 
-static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
-			    struct intel_crtc_state *config)
+u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config)
 {
 	u32 pclk;
 	u32 dsi_clk;
@@ -357,16 +357,7 @@ static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 	return pclk;
 }
 
-u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
-		       struct intel_crtc_state *config)
-{
-	if (IS_GEN9_LP(to_i915(encoder->base.dev)))
-		return bxt_dsi_get_pclk(encoder, pipe_bpp, config);
-	else
-		return vlv_dsi_get_pclk(encoder, pipe_bpp, config);
-}
-
-static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -480,8 +471,8 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
 }
 
-static int gen9lp_compute_dsi_pll(struct intel_encoder *encoder,
-			       struct intel_crtc_state *config)
+int bxt_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -528,8 +519,8 @@ static int gen9lp_compute_dsi_pll(struct intel_encoder *encoder,
 	return 0;
 }
 
-static void gen9lp_enable_dsi_pll(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *config)
+void bxt_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -568,52 +559,7 @@ static void gen9lp_enable_dsi_pll(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
 
-bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
-{
-	if (IS_GEN9_LP(dev_priv))
-		return bxt_dsi_pll_is_enabled(dev_priv);
-
-	MISSING_CASE(INTEL_DEVID(dev_priv));
-
-	return false;
-}
-
-int intel_compute_dsi_pll(struct intel_encoder *encoder,
-			  struct intel_crtc_state *config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_compute_dsi_pll(encoder, config);
-	else if (IS_GEN9_LP(dev_priv))
-		return gen9lp_compute_dsi_pll(encoder, config);
-
-	return -ENODEV;
-}
-
-void intel_enable_dsi_pll(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *config)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		vlv_enable_dsi_pll(encoder, config);
-	else if (IS_GEN9_LP(dev_priv))
-		gen9lp_enable_dsi_pll(encoder, config);
-}
-
-void intel_disable_dsi_pll(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		vlv_disable_dsi_pll(encoder);
-	else if (IS_GEN9_LP(dev_priv))
-		bxt_disable_dsi_pll(encoder);
-}
-
-static void gen9lp_dsi_reset_clocks(struct intel_encoder *encoder,
-				    enum port port)
+void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 tmp;
 	struct drm_device *dev = encoder->base.dev;
@@ -637,14 +583,4 @@ static void gen9lp_dsi_reset_clocks(struct intel_encoder *encoder,
 		I915_WRITE(MIPIO_TXESC_CLK_DIV2, tmp);
 	}
 	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
-}
-
-void intel_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (IS_GEN9_LP(dev_priv))
-		gen9lp_dsi_reset_clocks(encoder, port);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		vlv_dsi_reset_clocks(encoder, port);
 }

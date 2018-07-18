@@ -56,43 +56,6 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static inline enum intel_display_power_domain
-psr_aux_domain(struct intel_dp *intel_dp)
-{
-	/* CNL HW requires corresponding AUX IOs to be powered up for PSR.
-	 * However, for non-A AUX ports the corresponding non-EDP transcoders
-	 * would have already enabled power well 2 and DC_OFF. This means we can
-	 * acquire a wider POWER_DOMAIN_AUX_{B,C,D,F} reference instead of a
-	 * specific AUX_IO reference without powering up any extra wells.
-	 * Note that PSR is enabled only on Port A even though this function
-	 * returns the correct domain for other ports too.
-	 */
-	return intel_dp->aux_ch == AUX_CH_A ? POWER_DOMAIN_AUX_IO_A :
-					      intel_dp->aux_power_domain;
-}
-
-static void psr_aux_io_power_get(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-
-	if (INTEL_GEN(dev_priv) < 10)
-		return;
-
-	intel_display_power_get(dev_priv, psr_aux_domain(intel_dp));
-}
-
-static void psr_aux_io_power_put(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
-
-	if (INTEL_GEN(dev_priv) < 10)
-		return;
-
-	intel_display_power_put(dev_priv, psr_aux_domain(intel_dp));
-}
-
 void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
 {
 	u32 debug_mask, mask;
@@ -278,8 +241,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	}
 }
 
-static void hsw_psr_setup_vsc(struct intel_dp *intel_dp,
-			      const struct intel_crtc_state *crtc_state)
+static void intel_psr_setup_vsc(struct intel_dp *intel_dp,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
@@ -336,7 +299,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
 	/* Start with bits set for DDI_AUX_CTL register */
-	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, 0, sizeof(aux_msg),
+	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, sizeof(aux_msg),
 					     aux_clock_divider);
 
 	/* Select only valid bits for SRD_AUX_CTL */
@@ -344,7 +307,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR_AUX_CTL, aux_ctl);
 }
 
-static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
+static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -360,6 +323,8 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	if (dev_priv->psr.link_standby)
 		dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
+	if (!dev_priv->psr.psr2_enabled && INTEL_GEN(dev_priv) >= 8)
+		dpcd_val |= DP_PSR_CRC_VERIFICATION;
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
@@ -415,6 +380,9 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	else
 		val |= EDP_PSR_TP1_TP2_SEL;
 
+	if (INTEL_GEN(dev_priv) >= 8)
+		val |= EDP_PSR_CRC_ENABLE;
+
 	val |= I915_READ(EDP_PSR_CTL) & EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK;
 	I915_WRITE(EDP_PSR_CTL, val);
 }
@@ -454,24 +422,6 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_TP2_TIME_2500us;
 
 	I915_WRITE(EDP_PSR2_CTL, val);
-}
-
-static void hsw_psr_activate(struct intel_dp *intel_dp)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	/* On HSW+ after we enable PSR on source it will activate it
-	 * as soon as it match configure idle_frame count. So
-	 * we just actually enable it here on activation time.
-	 */
-
-	/* psr1 and psr2 are mutually exclusive.*/
-	if (dev_priv->psr.psr2_enabled)
-		hsw_activate_psr2(intel_dp);
-	else
-		hsw_activate_psr1(intel_dp);
 }
 
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
@@ -576,26 +526,28 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (dev_priv->psr.psr2_enabled)
+	if (INTEL_GEN(dev_priv) >= 9)
 		WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
-	else
-		WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
+	WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
-	dev_priv->psr.activate(intel_dp);
+	/* psr1 and psr2 are mutually exclusive.*/
+	if (dev_priv->psr.psr2_enabled)
+		hsw_activate_psr2(intel_dp);
+	else
+		hsw_activate_psr1(intel_dp);
+
 	dev_priv->psr.active = true;
 }
 
-static void hsw_psr_enable_source(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state)
+static void intel_psr_enable_source(struct intel_dp *intel_dp,
+				    const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-
-	psr_aux_io_power_get(intel_dp);
 
 	/* Only HSW and BDW have PSR AUX registers that need to be setup. SKL+
 	 * use hardcoded values PSR AUX transactions
@@ -632,7 +584,8 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
 			   EDP_PSR_DEBUG_MASK_LPSP |
-			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
+			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE |
+			   EDP_PSR_DEBUG_MASK_MAX_SLEEP);
 	}
 }
 
@@ -666,9 +619,9 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	dev_priv->psr.psr2_enabled = crtc_state->has_psr2;
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
-	dev_priv->psr.setup_vsc(intel_dp, crtc_state);
-	dev_priv->psr.enable_sink(intel_dp);
-	dev_priv->psr.enable_source(intel_dp, crtc_state);
+	intel_psr_setup_vsc(intel_dp, crtc_state);
+	intel_psr_enable_sink(intel_dp);
+	intel_psr_enable_source(intel_dp, crtc_state);
 	dev_priv->psr.enabled = intel_dp;
 
 	intel_psr_activate(intel_dp);
@@ -677,8 +630,8 @@ unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
-static void hsw_psr_disable(struct intel_dp *intel_dp,
-			    const struct intel_crtc_state *old_crtc_state)
+static void
+intel_psr_disable_source(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -717,8 +670,25 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 		else
 			WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
 	}
+}
 
-	psr_aux_io_power_put(intel_dp);
+static void intel_psr_disable_locked(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	lockdep_assert_held(&dev_priv->psr.lock);
+
+	if (!dev_priv->psr.enabled)
+		return;
+
+	intel_psr_disable_source(intel_dp);
+
+	/* Disable PSR on Sink */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
+
+	dev_priv->psr.enabled = NULL;
 }
 
 /**
@@ -742,22 +712,44 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
-	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
-		return;
-	}
-
-	dev_priv->psr.disable_source(intel_dp, old_crtc_state);
-
-	/* Disable PSR on Sink */
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
-
-	dev_priv->psr.enabled = NULL;
+	intel_psr_disable_locked(intel_dp);
 	mutex_unlock(&dev_priv->psr.lock);
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
-static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
+int intel_psr_wait_for_idle(struct drm_i915_private *dev_priv)
+{
+	i915_reg_t reg;
+	u32 mask;
+
+	/*
+	 * The sole user right now is intel_pipe_update_start(),
+	 * which won't race with psr_enable/disable, which is
+	 * where psr2_enabled is written to. So, we don't need
+	 * to acquire the psr.lock. More importantly, we want the
+	 * latency inside intel_pipe_update_start() to be as low
+	 * as possible, so no need to acquire psr.lock when it is
+	 * not needed and will induce latencies in the atomic
+	 * update path.
+	 */
+	if (dev_priv->psr.psr2_enabled) {
+		reg = EDP_PSR2_STATUS;
+		mask = EDP_PSR2_STATUS_STATE_MASK;
+	} else {
+		reg = EDP_PSR_STATUS;
+		mask = EDP_PSR_STATUS_STATE_MASK;
+	}
+
+	/*
+	 * Max time for PSR to idle = Inverse of the refresh rate +
+	 * 6 ms of exit training time + 1.5 ms of aux channel
+	 * handshake. 50 msec is defesive enough to cover everything.
+	 */
+	return intel_wait_for_register(dev_priv, reg, mask,
+				       EDP_PSR_STATUS_STATE_IDLE, 50);
+}
+
+static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 {
 	struct intel_dp *intel_dp;
 	i915_reg_t reg;
@@ -803,7 +795,7 @@ static void intel_psr_work(struct work_struct *work)
 	 * PSR might take some time to get fully disabled
 	 * and be ready for re-enable.
 	 */
-	if (!psr_wait_for_idle(dev_priv))
+	if (!__psr_wait_for_idle_locked(dev_priv))
 		goto unlock;
 
 	/*
@@ -811,7 +803,7 @@ static void intel_psr_work(struct work_struct *work)
 	 * recheck. Since psr_flush first clears this and then reschedules we
 	 * won't ever miss a flush when bailing out here.
 	 */
-	if (dev_priv->psr.busy_frontbuffer_bits)
+	if (dev_priv->psr.busy_frontbuffer_bits || dev_priv->psr.active)
 		goto unlock;
 
 	intel_psr_activate(dev_priv->psr.enabled);
@@ -986,11 +978,58 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
+}
 
-	dev_priv->psr.enable_source = hsw_psr_enable_source;
-	dev_priv->psr.disable_source = hsw_psr_disable;
-	dev_priv->psr.enable_sink = hsw_psr_enable_sink;
-	dev_priv->psr.activate = hsw_psr_activate;
-	dev_priv->psr.setup_vsc = hsw_psr_setup_vsc;
+void intel_psr_short_pulse(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 val;
+	const u8 errors = DP_PSR_RFB_STORAGE_ERROR |
+			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
+			  DP_PSR_LINK_CRC_ERROR;
 
+	if (!CAN_PSR(dev_priv) || !intel_dp_is_edp(intel_dp))
+		return;
+
+	mutex_lock(&psr->lock);
+
+	if (psr->enabled != intel_dp)
+		goto exit;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) != 1) {
+		DRM_ERROR("PSR_STATUS dpcd read failed\n");
+		goto exit;
+	}
+
+	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
+		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+		intel_psr_disable_locked(intel_dp);
+	}
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
+		DRM_ERROR("PSR_ERROR_STATUS dpcd read failed\n");
+		goto exit;
+	}
+
+	if (val & DP_PSR_RFB_STORAGE_ERROR)
+		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
+	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
+	if (val & DP_PSR_LINK_CRC_ERROR)
+		DRM_ERROR("PSR Link CRC error, disabling PSR\n");
+
+	if (val & ~errors)
+		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
+			  val & ~errors);
+	if (val & errors)
+		intel_psr_disable_locked(intel_dp);
+	/* clear status register */
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
+
+	/* TODO: handle PSR2 errors */
+exit:
+	mutex_unlock(&psr->lock);
 }

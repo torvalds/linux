@@ -837,6 +837,10 @@ flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 		}
 		break;
 
+	case I915_GEM_DOMAIN_WC:
+		wmb();
+		break;
+
 	case I915_GEM_DOMAIN_CPU:
 		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
 		break;
@@ -2006,7 +2010,6 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 	struct i915_vma *vma;
 	pgoff_t page_offset;
-	unsigned int flags;
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
@@ -2042,27 +2045,34 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		goto err_unlock;
 	}
 
-	/* If the object is smaller than a couple of partial vma, it is
-	 * not worth only creating a single partial vma - we may as well
-	 * clear enough space for the full object.
-	 */
-	flags = PIN_MAPPABLE;
-	if (obj->base.size > 2 * MIN_CHUNK_PAGES << PAGE_SHIFT)
-		flags |= PIN_NONBLOCK | PIN_NONFAULT;
 
 	/* Now pin it into the GTT as needed */
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, flags);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       PIN_MAPPABLE |
+				       PIN_NONBLOCK |
+				       PIN_NONFAULT);
 	if (IS_ERR(vma)) {
 		/* Use a partial view if it is bigger than available space */
 		struct i915_ggtt_view view =
 			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
+		unsigned int flags;
 
-		/* Userspace is now writing through an untracked VMA, abandon
+		flags = PIN_MAPPABLE;
+		if (view.type == I915_GGTT_VIEW_NORMAL)
+			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
+
+		/*
+		 * Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
 		 */
 		obj->frontbuffer_ggtt_origin = ORIGIN_CPU;
 
-		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
+		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
+		if (IS_ERR(vma) && !view.type) {
+			flags = PIN_MAPPABLE;
+			view.type = I915_GGTT_VIEW_PARTIAL;
+			vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, flags);
+		}
 	}
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
@@ -2114,6 +2124,7 @@ err:
 		 */
 		if (!i915_terminally_wedged(&dev_priv->gpu_error))
 			return VM_FAULT_SIGBUS;
+		/* else: fall through */
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
@@ -2256,7 +2267,9 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 
 	/* Attempt to reap some mmap space from dead objects */
 	do {
-		err = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
+		err = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (err)
 			break;
 
@@ -3074,25 +3087,6 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 	return err;
 }
 
-static void skip_request(struct i915_request *request)
-{
-	void *vaddr = request->ring->vaddr;
-	u32 head;
-
-	/* As this request likely depends on state from the lost
-	 * context, clear out all the user operations leaving the
-	 * breadcrumb at the end (so we get the fence notifications).
-	 */
-	head = request->head;
-	if (request->postfix < head) {
-		memset(vaddr + head, 0, request->ring->size - head);
-		head = 0;
-	}
-	memset(vaddr + head, 0, request->postfix - head);
-
-	dma_fence_set_error(&request->fence, -EIO);
-}
-
 static void engine_skip_context(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -3103,14 +3097,14 @@ static void engine_skip_context(struct i915_request *request)
 	GEM_BUG_ON(timeline == &engine->timeline);
 
 	spin_lock_irqsave(&engine->timeline.lock, flags);
-	spin_lock_nested(&timeline->lock, SINGLE_DEPTH_NESTING);
+	spin_lock(&timeline->lock);
 
 	list_for_each_entry_continue(request, &engine->timeline.requests, link)
 		if (request->gem_context == hung_ctx)
-			skip_request(request);
+			i915_request_skip(request, -EIO);
 
 	list_for_each_entry(request, &timeline->requests, link)
-		skip_request(request);
+		i915_request_skip(request, -EIO);
 
 	spin_unlock(&timeline->lock);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
@@ -3153,7 +3147,7 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 
 	if (stalled) {
 		i915_gem_context_mark_guilty(request->gem_context);
-		skip_request(request);
+		i915_request_skip(request, -EIO);
 
 		/* If this context is now banned, skip all pending requests. */
 		if (i915_gem_context_is_banned(request->gem_context))
@@ -3750,14 +3744,14 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	return ret;
 }
 
-static int wait_for_timeline(struct i915_timeline *tl, unsigned int flags)
+static long wait_for_timeline(struct i915_timeline *tl,
+			      unsigned int flags, long timeout)
 {
 	struct i915_request *rq;
-	long ret;
 
 	rq = i915_gem_active_get_unlocked(&tl->last_request);
 	if (!rq)
-		return 0;
+		return timeout;
 
 	/*
 	 * "Race-to-idle".
@@ -3771,10 +3765,10 @@ static int wait_for_timeline(struct i915_timeline *tl, unsigned int flags)
 	if (flags & I915_WAIT_FOR_IDLE_BOOST)
 		gen6_rps_boost(rq, NULL);
 
-	ret = i915_request_wait(rq, flags, MAX_SCHEDULE_TIMEOUT);
+	timeout = i915_request_wait(rq, flags, timeout);
 	i915_request_put(rq);
 
-	return ret < 0 ? ret : 0;
+	return timeout;
 }
 
 static int wait_for_engines(struct drm_i915_private *i915)
@@ -3790,10 +3784,12 @@ static int wait_for_engines(struct drm_i915_private *i915)
 	return 0;
 }
 
-int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
+int i915_gem_wait_for_idle(struct drm_i915_private *i915,
+			   unsigned int flags, long timeout)
 {
-	GEM_TRACE("flags=%x (%s)\n",
-		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked");
+	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
+		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
+		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
 
 	/* If the device is asleep, we have no requests outstanding */
 	if (!READ_ONCE(i915->gt.awake))
@@ -3806,27 +3802,31 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 		lockdep_assert_held(&i915->drm.struct_mutex);
 
 		list_for_each_entry(tl, &i915->gt.timelines, link) {
-			err = wait_for_timeline(tl, flags);
-			if (err)
-				return err;
+			timeout = wait_for_timeline(tl, flags, timeout);
+			if (timeout < 0)
+				return timeout;
 		}
+
+		err = wait_for_engines(i915);
+		if (err)
+			return err;
+
 		i915_retire_requests(i915);
 		GEM_BUG_ON(i915->gt.active_requests);
-
-		return wait_for_engines(i915);
 	} else {
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
-		int err;
 
 		for_each_engine(engine, i915, id) {
-			err = wait_for_timeline(&engine->timeline, flags);
-			if (err)
-				return err;
-		}
+			struct i915_timeline *tl = &engine->timeline;
 
-		return 0;
+			timeout = wait_for_timeline(tl, flags, timeout);
+			if (timeout < 0)
+				return timeout;
+		}
 	}
+
+	return 0;
 }
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
@@ -5057,7 +5057,8 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 		ret = i915_gem_wait_for_idle(dev_priv,
 					     I915_WAIT_INTERRUPTIBLE |
 					     I915_WAIT_LOCKED |
-					     I915_WAIT_FOR_IDLE_BOOST);
+					     I915_WAIT_FOR_IDLE_BOOST,
+					     MAX_SCHEDULE_TIMEOUT);
 		if (ret && ret != -EIO)
 			goto err_unlock;
 
@@ -5361,9 +5362,11 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	if (err)
 		goto err_active;
 
-	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
-	if (err)
+	if (i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED, HZ / 5)) {
+		i915_gem_set_wedged(i915);
+		err = -EIO; /* Caller will declare us wedged */
 		goto err_active;
+	}
 
 	assert_kernel_context_is_current(i915);
 
@@ -5426,7 +5429,9 @@ err_active:
 	if (WARN_ON(i915_gem_switch_to_kernel_context(i915)))
 		goto out_ctx;
 
-	if (WARN_ON(i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED)))
+	if (WARN_ON(i915_gem_wait_for_idle(i915,
+					   I915_WAIT_LOCKED,
+					   MAX_SCHEDULE_TIMEOUT)))
 		goto out_ctx;
 
 	i915_gem_contexts_lost(i915);
@@ -5456,13 +5461,13 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	ret = intel_wopcm_init(&dev_priv->wopcm);
-	if (ret)
-		return ret;
-
 	ret = intel_uc_init_misc(dev_priv);
 	if (ret)
 		return ret;
+
+	ret = intel_wopcm_init(&dev_priv->wopcm);
+	if (ret)
+		goto err_uc_misc;
 
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -5560,6 +5565,7 @@ err_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+err_uc_misc:
 	intel_uc_fini_misc(dev_priv);
 
 	if (ret != -EIO)

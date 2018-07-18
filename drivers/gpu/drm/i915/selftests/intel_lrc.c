@@ -104,13 +104,19 @@ static int emit_recurse_batch(struct spinner *spin,
 	if (err)
 		goto unpin_vma;
 
-	i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	i915_vma_move_to_active(hws, rq, 0);
+	err = i915_vma_move_to_active(hws, rq, 0);
+	if (err)
+		goto unpin_hws;
+
 	if (!i915_gem_object_has_active_reference(hws->obj)) {
 		i915_gem_object_get(hws->obj);
 		i915_gem_object_set_active_reference(hws->obj);
@@ -134,6 +140,7 @@ static int emit_recurse_batch(struct spinner *spin,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
 
+unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
@@ -453,6 +460,9 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 	};
 
 	if (!HAS_EXECLISTS(i915))
+		return 0;
+
+	if (i915_terminally_wedged(&i915->gpu_error))
 		return 0;
 
 	return i915_subtests(tests, i915);

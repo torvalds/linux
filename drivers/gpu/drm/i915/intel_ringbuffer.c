@@ -1169,8 +1169,11 @@ static void intel_ring_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->pin_count);
 
-	if (ce->state)
-		__i915_gem_object_release_unless_active(ce->state->obj);
+	if (!ce->state)
+		return;
+
+	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
+	i915_gem_object_put(ce->state->obj);
 }
 
 static int __context_pin_ppgtt(struct i915_gem_context *ctx)

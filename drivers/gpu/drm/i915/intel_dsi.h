@@ -129,21 +129,29 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
-/* intel_dsi.c */
-void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
+/* vlv_dsi.c */
+void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
 
-/* intel_dsi_pll.c */
-bool intel_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
-int intel_compute_dsi_pll(struct intel_encoder *encoder,
-			  struct intel_crtc_state *config);
-void intel_enable_dsi_pll(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *config);
-void intel_disable_dsi_pll(struct intel_encoder *encoder);
-u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
-		       struct intel_crtc_state *config);
-void intel_dsi_reset_clocks(struct intel_encoder *encoder,
-			    enum port port);
+/* vlv_dsi_pll.c */
+int vlv_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config);
+void vlv_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config);
+void vlv_dsi_pll_disable(struct intel_encoder *encoder);
+u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config);
+void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
+
+bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv);
+int bxt_dsi_pll_compute(struct intel_encoder *encoder,
+			struct intel_crtc_state *config);
+void bxt_dsi_pll_enable(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config);
+void bxt_dsi_pll_disable(struct intel_encoder *encoder);
+u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+		     struct intel_crtc_state *config);
+void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
 /* intel_dsi_vbt.c */
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);

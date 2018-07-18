@@ -953,7 +953,7 @@ intel_dp_check_edp(struct intel_dp *intel_dp)
 }
 
 static uint32_t
-intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
+intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
@@ -961,14 +961,10 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	bool done;
 
 #define C (((status = I915_READ_NOTRACE(ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
-	if (has_aux_irq)
-		done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
-					  msecs_to_jiffies_timeout(10));
-	else
-		done = wait_for(C, 10) == 0;
+	done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+				  msecs_to_jiffies_timeout(10));
 	if (!done)
-		DRM_ERROR("dp aux hw did not signal timeout (has irq: %i)!\n",
-			  has_aux_irq);
+		DRM_ERROR("dp aux hw did not signal timeout!\n");
 #undef C
 
 	return status;
@@ -1033,7 +1029,6 @@ static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 }
 
 static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
-				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider)
 {
@@ -1054,7 +1049,7 @@ static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 
 	return DP_AUX_CH_CTL_SEND_BUSY |
 	       DP_AUX_CH_CTL_DONE |
-	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_INTERRUPT |
 	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
 	       timeout |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
@@ -1064,13 +1059,12 @@ static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 }
 
 static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
-				      bool has_aux_irq,
 				      int send_bytes,
 				      uint32_t unused)
 {
 	return DP_AUX_CH_CTL_SEND_BUSY |
 	       DP_AUX_CH_CTL_DONE |
-	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_INTERRUPT |
 	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
 	       DP_AUX_CH_CTL_TIME_OUT_MAX |
 	       DP_AUX_CH_CTL_RECEIVE_ERROR |
@@ -1093,7 +1087,6 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	int i, ret, recv_bytes;
 	uint32_t status;
 	int try, clock = 0;
-	bool has_aux_irq = HAS_AUX_IRQ(dev_priv);
 	bool vdd;
 
 	ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
@@ -1148,7 +1141,6 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	while ((aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, clock++))) {
 		u32 send_ctl = intel_dp->get_aux_send_ctl(intel_dp,
-							  has_aux_irq,
 							  send_bytes,
 							  aux_clock_divider);
 
@@ -1165,7 +1157,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			/* Send the command and wait for it to complete */
 			I915_WRITE(ch_ctl, send_ctl);
 
-			status = intel_dp_aux_wait_done(intel_dp, has_aux_irq);
+			status = intel_dp_aux_wait_done(intel_dp);
 
 			/* Clear done status and any errors */
 			I915_WRITE(ch_ctl,
@@ -4498,6 +4490,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	/* defer to the hotplug work for link retraining if needed */
 	if (intel_dp_needs_link_retrain(intel_dp))
 		return false;
+
+	intel_psr_short_pulse(intel_dp);
 
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
 		DRM_DEBUG_KMS("Link Training Compliance Test requested\n");

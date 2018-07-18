@@ -1659,11 +1659,6 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	else
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 
-	if (fbc->work.scheduled)
-		seq_printf(m, "FBC worker scheduled on vblank %llu, now %llu\n",
-			   fbc->work.scheduled_vblank,
-			   drm_crtc_vblank_count(&fbc->crtc->base));
-
 	if (intel_fbc_is_active(dev_priv)) {
 		u32 mask;
 
@@ -2597,27 +2592,55 @@ static const struct file_operations i915_guc_log_relay_fops = {
 	.release = i915_guc_log_relay_release,
 };
 
-static const char *psr2_live_status(u32 val)
+static void
+psr_source_status(struct drm_i915_private *dev_priv, struct seq_file *m)
 {
-	static const char * const live_status[] = {
-		"IDLE",
-		"CAPTURE",
-		"CAPTURE_FS",
-		"SLEEP",
-		"BUFON_FW",
-		"ML_UP",
-		"SU_STANDBY",
-		"FAST_SLEEP",
-		"DEEP_SLEEP",
-		"BUF_ON",
-		"TG_ON"
-	};
+	u32 val, psr_status;
 
-	val = (val & EDP_PSR2_STATUS_STATE_MASK) >> EDP_PSR2_STATUS_STATE_SHIFT;
-	if (val < ARRAY_SIZE(live_status))
-		return live_status[val];
+	if (dev_priv->psr.psr2_enabled) {
+		static const char * const live_status[] = {
+			"IDLE",
+			"CAPTURE",
+			"CAPTURE_FS",
+			"SLEEP",
+			"BUFON_FW",
+			"ML_UP",
+			"SU_STANDBY",
+			"FAST_SLEEP",
+			"DEEP_SLEEP",
+			"BUF_ON",
+			"TG_ON"
+		};
+		psr_status = I915_READ(EDP_PSR2_STATUS);
+		val = (psr_status & EDP_PSR2_STATUS_STATE_MASK) >>
+			EDP_PSR2_STATUS_STATE_SHIFT;
+		if (val < ARRAY_SIZE(live_status)) {
+			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
+				   psr_status, live_status[val]);
+			return;
+		}
+	} else {
+		static const char * const live_status[] = {
+			"IDLE",
+			"SRDONACK",
+			"SRDENT",
+			"BUFOFF",
+			"BUFON",
+			"AUXACK",
+			"SRDOFFACK",
+			"SRDENT_ON",
+		};
+		psr_status = I915_READ(EDP_PSR_STATUS);
+		val = (psr_status & EDP_PSR_STATUS_STATE_MASK) >>
+			EDP_PSR_STATUS_STATE_SHIFT;
+		if (val < ARRAY_SIZE(live_status)) {
+			seq_printf(m, "Source PSR status: 0x%x [%s]\n",
+				   psr_status, live_status[val]);
+			return;
+		}
+	}
 
-	return "unknown";
+	seq_printf(m, "Source PSR status: 0x%x [%s]\n", psr_status, "unknown");
 }
 
 static const char *psr_sink_status(u8 val)
@@ -2681,12 +2704,8 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
-	if (dev_priv->psr.psr2_enabled) {
-		u32 psr2 = I915_READ(EDP_PSR2_STATUS);
 
-		seq_printf(m, "EDP_PSR2_STATUS: %x [%s]\n",
-			   psr2, psr2_live_status(psr2));
-	}
+	psr_source_status(dev_priv, m);
 
 	if (dev_priv->psr.enabled) {
 		struct drm_dp_aux *aux = &dev_priv->psr.enabled->aux;
@@ -4086,7 +4105,8 @@ fault_irq_set(struct drm_i915_private *i915,
 
 	err = i915_gem_wait_for_idle(i915,
 				     I915_WAIT_LOCKED |
-				     I915_WAIT_INTERRUPTIBLE);
+				     I915_WAIT_INTERRUPTIBLE,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		goto err_unlock;
 
@@ -4191,7 +4211,8 @@ i915_drop_caches_set(void *data, u64 val)
 		if (val & DROP_ACTIVE)
 			ret = i915_gem_wait_for_idle(dev_priv,
 						     I915_WAIT_INTERRUPTIBLE |
-						     I915_WAIT_LOCKED);
+						     I915_WAIT_LOCKED,
+						     MAX_SCHEDULE_TIMEOUT);
 
 		if (val & DROP_RETIRE)
 			i915_retire_requests(dev_priv);
@@ -4799,7 +4820,6 @@ static const struct i915_debugfs_files {
 #endif
 	{"i915_fifo_underrun_reset", &i915_fifo_underrun_reset_ops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
-	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
 	{"i915_spr_wm_latency", &i915_spr_wm_latency_fops},
 	{"i915_cur_wm_latency", &i915_cur_wm_latency_fops},
@@ -4819,17 +4839,13 @@ int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_minor *minor = dev_priv->drm.primary;
 	struct dentry *ent;
-	int ret, i;
+	int i;
 
 	ent = debugfs_create_file("i915_forcewake_user", S_IRUSR,
 				  minor->debugfs_root, to_i915(minor->dev),
 				  &i915_forcewake_fops);
 	if (!ent)
 		return -ENOMEM;
-
-	ret = intel_pipe_crc_create(minor);
-	if (ret)
-		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
 		ent = debugfs_create_file(i915_debugfs_files[i].name,

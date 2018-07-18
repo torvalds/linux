@@ -335,21 +335,16 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-	int i;
-
 	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x_%08x %8u %02x %02x [ ",
+		err_printf(m, "    %08x_%08x %8u %02x %02x %02x",
 			   upper_32_bits(err->gtt_offset),
 			   lower_32_bits(err->gtt_offset),
 			   err->size,
 			   err->read_domains,
-			   err->write_domain);
-		for (i = 0; i < I915_NUM_ENGINES; i++)
-			err_printf(m, "%02x ", err->rseqno[i]);
-
-		err_printf(m, "] %02x", err->wseqno);
+			   err->write_domain,
+			   err->wseqno);
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
@@ -1021,13 +1016,10 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	int i;
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
 
-	for (i = 0; i < I915_NUM_ENGINES; i++)
-		err->rseqno[i] = __active_get_seqno(&vma->last_read[i]);
 	err->wseqno = __active_get_seqno(&obj->frontbuffer_write);
 	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 

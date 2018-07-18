@@ -222,7 +222,7 @@ int i915_gem_render_state_emit(struct i915_request *rq)
 			goto err_unpin;
 	}
 
-	i915_vma_move_to_active(so.vma, rq, 0);
+	err = i915_vma_move_to_active(so.vma, rq, 0);
 err_unpin:
 	i915_vma_unpin(so.vma);
 err_vma:

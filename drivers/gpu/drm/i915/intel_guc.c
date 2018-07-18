@@ -27,6 +27,8 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc);
+
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -73,7 +75,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
-int intel_guc_init_wq(struct intel_guc *guc)
+static int guc_init_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -124,7 +126,7 @@ int intel_guc_init_wq(struct intel_guc *guc)
 	return 0;
 }
 
-void intel_guc_fini_wq(struct intel_guc *guc)
+static void guc_fini_wq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -133,6 +135,28 @@ void intel_guc_fini_wq(struct intel_guc *guc)
 		destroy_workqueue(guc->preempt_wq);
 
 	destroy_workqueue(guc->log.relay.flush_wq);
+}
+
+int intel_guc_init_misc(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	int ret;
+
+	guc_init_ggtt_pin_bias(guc);
+
+	ret = guc_init_wq(guc);
+	if (ret)
+		return ret;
+
+	intel_uc_fw_fetch(i915, &guc->fw);
+
+	return 0;
+}
+
+void intel_guc_fini_misc(struct intel_guc *guc)
+{
+	intel_uc_fw_fini(&guc->fw);
+	guc_fini_wq(guc);
 }
 
 static int guc_shared_data_create(struct intel_guc *guc)
@@ -169,7 +193,7 @@ int intel_guc_init(struct intel_guc *guc)
 
 	ret = guc_shared_data_create(guc);
 	if (ret)
-		return ret;
+		goto err_fetch;
 	GEM_BUG_ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(&guc->log);
@@ -190,6 +214,8 @@ err_log:
 	intel_guc_log_destroy(&guc->log);
 err_shared:
 	guc_shared_data_destroy(guc);
+err_fetch:
+	intel_uc_fw_fini(&guc->fw);
 	return ret;
 }
 
@@ -201,12 +227,17 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
+	intel_uc_fw_fini(&guc->fw);
 }
 
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
-	u32 flags = 0;
+	u32 flags;
+	u32 ads;
+
+	ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
+	flags = ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
 
 	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
@@ -216,13 +247,6 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 	else
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
 			 GUC_LOG_VERBOSITY_SHIFT;
-
-	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
-		u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma)
-			>> PAGE_SHIFT;
-
-		flags |= ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
-	}
 
 	return flags;
 }
@@ -326,6 +350,9 @@ void intel_guc_init_params(struct intel_guc *guc)
 	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
 	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
+
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		DRM_DEBUG_DRIVER("param[%2d] = %#x\n", i, params[i]);
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
@@ -585,13 +612,13 @@ int intel_guc_resume(struct intel_guc *guc)
  */
 
 /**
- * intel_guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
+ * guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
  * @guc: intel_guc structure.
  *
  * This function will calculate and initialize the ggtt_pin_bias value based on
  * overall WOPCM size and GuC WOPCM size.
  */
-void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc)
+static void guc_init_ggtt_pin_bias(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 

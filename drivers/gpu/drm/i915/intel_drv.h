@@ -254,7 +254,8 @@ struct intel_encoder {
 			   struct intel_crtc_state *pipe_config);
 	/* Returns a mask of power domains that need to be referenced as part
 	 * of the hardware state readout code. */
-	u64 (*get_power_domains)(struct intel_encoder *encoder);
+	u64 (*get_power_domains)(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state);
 	/*
 	 * Called during system suspend after all pending requests for the
 	 * encoder are flushed (for example for DP AUX transactions) and
@@ -1133,7 +1134,6 @@ struct intel_dp {
 	 * register with to kick off an AUX transaction.
 	 */
 	uint32_t (*get_aux_send_ctl)(struct intel_dp *dp,
-				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
 
@@ -1254,6 +1254,7 @@ enc_to_dig_port(struct drm_encoder *encoder)
 	switch (intel_encoder->type) {
 	case INTEL_OUTPUT_DDI:
 		WARN_ON(!HAS_DDI(to_i915(encoder->dev)));
+		/* fall through */
 	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_EDP:
 	case INTEL_OUTPUT_HDMI:
@@ -1730,8 +1731,8 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
-/* intel_dsi.c */
-void intel_dsi_init(struct drm_i915_private *dev_priv);
+/* vlv_dsi.c */
+void vlv_dsi_init(struct drm_i915_private *dev_priv);
 
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
@@ -1921,6 +1922,8 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
 void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug);
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
+void intel_psr_short_pulse(struct intel_dp *intel_dp);
+int intel_psr_wait_for_idle(struct drm_i915_private *dev_priv);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
@@ -2151,7 +2154,6 @@ void lspcon_resume(struct intel_lspcon *lspcon);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
 
 /* intel_pipe_crc.c */
-int intel_pipe_crc_create(struct drm_minor *minor);
 #ifdef CONFIG_DEBUG_FS
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 			      size_t *values_cnt);
@@ -2167,5 +2169,4 @@ static inline void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 {
 }
 #endif
-extern const struct file_operations i915_display_crc_ctl_fops;
 #endif /* __INTEL_DRV_H__ */

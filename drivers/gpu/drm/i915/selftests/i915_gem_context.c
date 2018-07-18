@@ -63,12 +63,12 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 			*cmd++ = value;
 		} else if (gen >= 4) {
 			*cmd++ = MI_STORE_DWORD_IMM_GEN4 |
-				(gen < 6 ? 1 << 22 : 0);
+				(gen < 6 ? MI_USE_GGTT : 0);
 			*cmd++ = 0;
 			*cmd++ = offset;
 			*cmd++ = value;
 		} else {
-			*cmd++ = MI_STORE_DWORD_IMM | 1 << 22;
+			*cmd++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 			*cmd++ = offset;
 			*cmd++ = value;
 		}
@@ -170,22 +170,26 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	if (err)
 		goto err_request;
 
-	i915_vma_move_to_active(batch, rq, 0);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
+
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
+
 	i915_gem_object_set_active_reference(batch->obj);
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
 
-	i915_vma_move_to_active(vma, rq, 0);
 	i915_vma_unpin(vma);
-
-	reservation_object_lock(obj->resv, NULL);
-	reservation_object_add_excl_fence(obj->resv, &rq->fence);
-	reservation_object_unlock(obj->resv);
 
 	i915_request_add(rq);
 
 	return 0;
 
+skip_request:
+	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_batch:
@@ -336,10 +340,14 @@ static int igt_ctx_exec(void *arg)
 	bool first_shared_gtt = true;
 	int err = -ENODEV;
 
-	/* Create a few different contexts (with different mm) and write
+	/*
+	 * Create a few different contexts (with different mm) and write
 	 * through each ctx/mm using the GPU making sure those writes end
 	 * up in the expected pages of our obj.
 	 */
+
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
+		return 0;
 
 	file = mock_file(i915);
 	if (IS_ERR(file))
@@ -367,6 +375,9 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
+			if (!engine->context_size)
+				continue; /* No logical context support in HW */
+
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
@@ -467,7 +478,9 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 		}
 	}
 
-	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	err = i915_gem_wait_for_idle(i915,
+				     I915_WAIT_LOCKED,
+				     MAX_SCHEDULE_TIMEOUT);
 	if (err)
 		return err;
 
@@ -586,7 +599,7 @@ int i915_gem_context_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_unref(&i915->drm);
+	drm_dev_put(&i915->drm);
 	return err;
 }
 
@@ -598,6 +611,9 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 	};
 	bool fake_alias = false;
 	int err;
+
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return 0;
 
 	/* Install a fake aliasing gtt for exercise */
 	if (USES_PPGTT(dev_priv) && !dev_priv->mm.aliasing_ppgtt) {
