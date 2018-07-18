@@ -414,6 +414,7 @@ struct kvaser_usb_tx_urb_context {
 
 struct kvaser_usb {
 	struct usb_device *udev;
+	struct usb_interface *intf;
 	struct kvaser_usb_net_priv *nets[MAX_NET_DEVICES];
 
 	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
@@ -1961,6 +1962,8 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 			id->idProduct);
 		return -ENODEV;
 	}
+
+	dev->intf = intf;
 
 	err = kvaser_usb_get_endpoints(intf, &dev->bulk_in, &dev->bulk_out);
 	if (err) {
