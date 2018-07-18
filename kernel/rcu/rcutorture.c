@@ -1673,7 +1673,8 @@ static int __init rcu_torture_stall_init(void)
 /* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
-	unsigned long cvar;
+	unsigned long cver;
+	unsigned long gps;
 	int idx;
 	unsigned long stopat;
 	bool tested = false;
@@ -1681,7 +1682,8 @@ static int rcu_torture_fwd_prog(void *args)
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
-		cvar = READ_ONCE(rcu_torture_current_version);
+		cver = READ_ONCE(rcu_torture_current_version);
+		gps = cur_ops->get_gp_seq();
 		stopat = jiffies + cur_ops->stall_dur() / fwd_progress_div;
 		while (time_before(jiffies, stopat) && !torture_must_stop()) {
 			idx = cur_ops->readlock();
@@ -1692,8 +1694,9 @@ static int rcu_torture_fwd_prog(void *args)
 		}
 		if (!time_before(jiffies, stopat) && !torture_must_stop()) {
 			tested = true;
-			WARN_ON_ONCE(cvar ==
-				     READ_ONCE(rcu_torture_current_version));
+			cver = cver == READ_ONCE(rcu_torture_current_version);
+			gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
+			WARN_ON_ONCE(cver && gps < 2);
 		}
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
