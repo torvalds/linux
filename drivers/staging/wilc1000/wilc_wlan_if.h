@@ -138,7 +138,7 @@ enum AUTHTYPE {
 	IEEE8021		= 5
 };
 
-enum SITESURVEY {
+enum site_survey {
 	SITE_SURVEY_1CH		= 0,
 	SITE_SURVEY_ALL_CH	= 1,
 	SITE_SURVEY_OFF		= 2

@@ -635,7 +635,7 @@ static void handle_cfg_param(struct work_struct *work)
 		i++;
 	}
 	if (param->flag & SITE_SURVEY) {
-		enum SITESURVEY enabled = param->site_survey_enabled;
+		enum site_survey enabled = param->site_survey_enabled;
 
 		if (enabled < 3) {
 			wid_list[i].id = WID_SITE_SURVEY;
