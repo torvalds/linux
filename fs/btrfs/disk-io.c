@@ -4523,12 +4523,6 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-static struct btrfs_fs_info *btree_fs_info(void *private_data)
-{
-	struct inode *inode = private_data;
-	return btrfs_sb(inode->i_sb);
-}
-
 static const struct extent_io_ops btree_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
@@ -4537,7 +4531,6 @@ static const struct extent_io_ops btree_extent_io_ops = {
 	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_failed_hook = btree_io_failed_hook,
 	.set_range_writeback = btrfs_set_range_writeback,
-	.tree_fs_info = btree_fs_info,
 
 	/* optional callbacks */
 };

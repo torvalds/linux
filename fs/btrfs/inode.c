@@ -10473,12 +10473,6 @@ static int btrfs_readpage_io_failed_hook(struct page *page, int failed_mirror)
 	return -EAGAIN;
 }
 
-static struct btrfs_fs_info *iotree_fs_info(void *private_data)
-{
-	struct inode *inode = private_data;
-	return btrfs_sb(inode->i_sb);
-}
-
 static void btrfs_check_extent_io_range(void *private_data, const char *caller,
 					u64 start, u64 end)
 {
@@ -10553,7 +10547,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
-	.tree_fs_info = iotree_fs_info,
 	.set_range_writeback = btrfs_set_range_writeback,
 
 	/* optional callbacks */

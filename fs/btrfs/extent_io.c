@@ -140,14 +140,6 @@ static int add_extent_changeset(struct extent_state *state, unsigned bits,
 
 static void flush_write_bio(struct extent_page_data *epd);
 
-static inline struct btrfs_fs_info *
-tree_fs_info(struct extent_io_tree *tree)
-{
-	if (tree->ops)
-		return tree->ops->tree_fs_info(tree->private_data);
-	return NULL;
-}
-
 int __init extent_io_init(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
@@ -564,8 +556,10 @@ alloc_extent_state_atomic(struct extent_state *prealloc)
 
 static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
 {
-	btrfs_panic(tree_fs_info(tree), err,
-		    "Locking error: Extent tree was modified by another thread while locked.");
+	struct inode *inode = tree->private_data;
+
+	btrfs_panic(btrfs_sb(inode->i_sb), err,
+	"locking error: extent tree was modified by another thread while locked");
 }
 
 /*

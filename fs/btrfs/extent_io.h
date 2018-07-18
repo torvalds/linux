@@ -105,7 +105,6 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	struct btrfs_fs_info *(*tree_fs_info)(void *private_data);
 	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 
 	/*
