@@ -87,7 +87,7 @@ static inline void refresh_sysenter_cs(struct thread_struct *thread)
 #endif
 
 /* This is used when switching tasks or entering/exiting vm86 mode. */
-static inline void update_sp0(struct task_struct *task)
+static inline void update_task_stack(struct task_struct *task)
 {
 	/* sp0 always points to the entry trampoline stack, which is constant: */
 #ifdef CONFIG_X86_32
