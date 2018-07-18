@@ -331,11 +331,13 @@ static const struct snd_kcontrol_new rt5651_snd_controls[] = {
 	SOC_DOUBLE_TLV("Mono DAC Playback Volume", RT5651_DAC2_DIG_VOL,
 			RT5651_L_VOL_SFT, RT5651_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
-	/* IN1/IN2 Control */
+	/* IN1/IN2/IN3 Control */
 	SOC_SINGLE_TLV("IN1 Boost", RT5651_IN1_IN2,
 		RT5651_BST_SFT1, 8, 0, bst_tlv),
 	SOC_SINGLE_TLV("IN2 Boost", RT5651_IN1_IN2,
 		RT5651_BST_SFT2, 8, 0, bst_tlv),
+	SOC_SINGLE_TLV("IN3 Boost", RT5651_IN3,
+		RT5651_BST_SFT1, 8, 0, bst_tlv),
 	/* INL/INR Volume Control */
 	SOC_DOUBLE_TLV("IN Capture Volume", RT5651_INL1_INR1_VOL,
 			RT5651_INL_VOL_SFT, RT5651_INR_VOL_SFT,
