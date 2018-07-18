@@ -1551,6 +1551,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	uint8_t *keys;
 	uint64_t hva;
 	int srcu_idx, i, r = 0;
+	bool unlocked;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1575,9 +1576,11 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (r)
 		goto out;
 
+	i = 0;
 	down_read(&current->mm->mmap_sem);
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	for (i = 0; i < args->count; i++) {
+        while (i < args->count) {
+		unlocked = false;
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
 			r = -EFAULT;
@@ -1591,8 +1594,14 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		}
 
 		r = set_guest_storage_key(current->mm, hva, keys[i], 0);
-		if (r)
-			break;
+		if (r) {
+			r = fixup_user_fault(current, current->mm, hva,
+					     FAULT_FLAG_WRITE, &unlocked);
+			if (r)
+				break;
+		}
+		if (!r)
+			i++;
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
