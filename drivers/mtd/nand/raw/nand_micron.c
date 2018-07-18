@@ -196,6 +196,9 @@ enum {
 	MICRON_ON_DIE_MANDATORY,
 };
 
+#define MICRON_ID_INTERNAL_ECC_MASK	GENMASK(1, 0)
+#define MICRON_ID_ECC_ENABLED		BIT(7)
+
 /*
  * Try to detect if the NAND support on-die ECC. To do this, we enable
  * the feature, and read back if it has been enabled as expected. We
@@ -208,7 +211,7 @@ enum {
  */
 static int micron_supports_on_die_ecc(struct nand_chip *chip)
 {
-	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = { 0, };
+	u8 id[5];
 	int ret;
 
 	if (!chip->parameters.onfi.version)
@@ -217,26 +220,37 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	if (chip->bits_per_cell != 1)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
+	/*
+	 * We only support on-die ECC of 4/512 or 8/512
+	 */
+	if  (chip->ecc_strength_ds != 4 && chip->ecc_strength_ds != 8)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	/* 0x2 means on-die ECC is available. */
+	if (chip->id.len != 5 ||
+	    (chip->id.data[4] & MICRON_ID_INTERNAL_ECC_MASK) != 0x2)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
 	ret = micron_nand_on_die_ecc_setup(chip, true);
 	if (ret)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	ret = nand_get_features(chip, ONFI_FEATURE_ON_DIE_ECC, feature);
-	if (ret < 0)
-		return ret;
+	ret = nand_readid_op(chip, 0, id, sizeof(id));
+	if (ret)
+		return MICRON_ON_DIE_UNSUPPORTED;
 
-	if ((feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN) == 0)
+	if (!(id[4] & MICRON_ID_ECC_ENABLED))
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	ret = micron_nand_on_die_ecc_setup(chip, false);
 	if (ret)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	ret = nand_get_features(chip, ONFI_FEATURE_ON_DIE_ECC, feature);
-	if (ret < 0)
-		return ret;
+	ret = nand_readid_op(chip, 0, id, sizeof(id));
+	if (ret)
+		return MICRON_ON_DIE_UNSUPPORTED;
 
-	if (feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN)
+	if (id[4] & MICRON_ID_ECC_ENABLED)
 		return MICRON_ON_DIE_MANDATORY;
 
 	/*
