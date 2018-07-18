@@ -377,6 +377,9 @@ struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
 int ovl_cleanup(struct inode *dir, struct dentry *dentry);
 struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
 
+/* file.c */
+extern const struct file_operations ovl_file_operations;
+
 /* copy_up.c */
 int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);

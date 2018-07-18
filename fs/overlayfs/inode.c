@@ -535,6 +535,7 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_op = &ovl_file_inode_operations;
+		inode->i_fop = &ovl_file_operations;
 		break;
 
 	case S_IFDIR:
