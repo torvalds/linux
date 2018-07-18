@@ -1383,8 +1383,6 @@ resubmit_urb:
 		dev_err(dev->udev->dev.parent,
 			"Failed resubmitting read bulk urb: %d\n", err);
 	}
-
-	return;
 }
 
 static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
