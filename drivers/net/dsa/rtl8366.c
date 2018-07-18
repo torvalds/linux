@@ -231,7 +231,6 @@ EXPORT_SYMBOL_GPL(rtl8366_enable_vlan);
 int rtl8366_reset_vlan(struct realtek_smi *smi)
 {
 	struct rtl8366_vlan_mc vlanmc;
-	struct rtl8366_vlan_4k vlan4k;
 	int ret;
 	int i;
 
