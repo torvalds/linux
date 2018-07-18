@@ -45,7 +45,7 @@ static int dev_state_ev_handler(struct notifier_block *this,
 	switch (event) {
 	case NETDEV_UP:
 		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
-			hif_drv->IFC_UP = 1;
+			hif_drv->ifc_up = 1;
 			wilc_optaining_ip = false;
 			del_timer(&wilc_during_ip_timer);
 		}
@@ -65,7 +65,7 @@ static int dev_state_ev_handler(struct notifier_block *this,
 
 	case NETDEV_DOWN:
 		if (vif->iftype == STATION_MODE || vif->iftype == CLIENT_MODE) {
-			hif_drv->IFC_UP = 0;
+			hif_drv->ifc_up = 0;
 			wilc_optaining_ip = false;
 		}
 

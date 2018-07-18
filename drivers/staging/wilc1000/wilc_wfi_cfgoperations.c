@@ -535,9 +535,9 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
-		if (wfi_drv->IFC_UP && dev == wl->vif[1]->ndev)
+		if (wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
 			disconn_info->reason = 3;
-		else if (!wfi_drv->IFC_UP && dev == wl->vif[1]->ndev)
+		else if (!wfi_drv->ifc_up && dev == wl->vif[1]->ndev)
 			disconn_info->reason = 1;
 
 		cfg80211_disconnected(dev, disconn_info->reason,

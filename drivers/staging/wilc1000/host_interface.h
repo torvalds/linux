@@ -277,7 +277,7 @@ struct host_if_drv {
 	struct timer_list remain_on_ch_timer;
 	struct wilc_vif *remain_on_ch_timer_vif;
 
-	bool IFC_UP;
+	bool ifc_up;
 	int driver_handler_id;
 };
 
