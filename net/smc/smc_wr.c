@@ -240,15 +240,13 @@ int smc_wr_tx_put_slot(struct smc_link *link,
  */
 int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 {
-	struct ib_send_wr *failed_wr = NULL;
 	struct smc_wr_tx_pend *pend;
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
 			 IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS);
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
-	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
-			  &failed_wr);
+	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx], NULL);
 	if (rc) {
 		struct smc_link_group *lgr =
 			container_of(link, struct smc_link_group,
@@ -263,7 +261,6 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 /* Register a memory region and wait for result. */
 int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 {
-	struct ib_send_wr *failed_wr = NULL;
 	int rc;
 
 	ib_req_notify_cq(link->smcibdev->roce_cq_send,
@@ -272,8 +269,7 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 	link->wr_reg.wr.wr_id = (u64)(uintptr_t)mr;
 	link->wr_reg.mr = mr;
 	link->wr_reg.key = mr->rkey;
-	failed_wr = &link->wr_reg.wr;
-	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, &failed_wr);
+	rc = ib_post_send(link->roce_qp, &link->wr_reg.wr, NULL);
 	if (rc)
 		return rc;
 
