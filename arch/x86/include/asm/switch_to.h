@@ -89,13 +89,23 @@ static inline void refresh_sysenter_cs(struct thread_struct *thread)
 /* This is used when switching tasks or entering/exiting vm86 mode. */
 static inline void update_sp0(struct task_struct *task)
 {
-	/* On x86_64, sp0 always points to the entry trampoline stack, which is constant: */
+	/* sp0 always points to the entry trampoline stack, which is constant: */
 #ifdef CONFIG_X86_32
-	load_sp0(task->thread.sp0);
+	if (static_cpu_has(X86_FEATURE_XENPV))
+		load_sp0(task->thread.sp0);
+	else
+		this_cpu_write(cpu_tss_rw.x86_tss.sp1, task->thread.sp0);
 #else
+	/*
+	 * x86-64 updates x86_tss.sp1 via cpu_current_top_of_stack. That
+	 * doesn't work on x86-32 because sp1 and
+	 * cpu_current_top_of_stack have different values (because of
+	 * the non-zero stack-padding on 32bit).
+	 */
 	if (static_cpu_has(X86_FEATURE_XENPV))
 		load_sp0(task_top_of_stack(task));
 #endif
+
 }
 
 #endif /* _ASM_X86_SWITCH_TO_H */
