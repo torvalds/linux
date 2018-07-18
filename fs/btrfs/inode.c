@@ -10487,9 +10487,9 @@ static void btrfs_check_extent_io_range(void *private_data, const char *caller,
 	}
 }
 
-void btrfs_set_range_writeback(void *private_data, u64 start, u64 end)
+void btrfs_set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
-	struct inode *inode = private_data;
+	struct inode *inode = tree->private_data;
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
 	struct page *page;
@@ -10546,7 +10546,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
-	.set_range_writeback = btrfs_set_range_writeback,
 
 	/* optional callbacks */
 	.fill_delalloc = run_delalloc_range,

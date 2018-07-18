@@ -102,7 +102,6 @@ struct extent_io_ops {
 				    struct page *page, u64 start, u64 end,
 				    int mirror);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 
 	/*
 	 * Optional hooks, called if the pointer is not NULL
