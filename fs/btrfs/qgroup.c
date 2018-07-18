@@ -554,11 +554,11 @@ static int add_qgroup_relation_item(struct btrfs_trans_handle *trans, u64 src,
 	return ret;
 }
 
-static int del_qgroup_relation_item(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *quota_root,
-				    u64 src, u64 dst)
+static int del_qgroup_relation_item(struct btrfs_trans_handle *trans, u64 src,
+				    u64 dst)
 {
 	int ret;
+	struct btrfs_root *quota_root = trans->fs_info->quota_root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 
@@ -1280,7 +1280,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 
 	ret = add_qgroup_relation_item(trans, dst, src);
 	if (ret) {
-		del_qgroup_relation_item(trans, quota_root, src, dst);
+		del_qgroup_relation_item(trans, src, dst);
 		goto out;
 	}
 
@@ -1334,8 +1334,8 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans,
 	ret = -ENOENT;
 	goto out;
 exist:
-	ret = del_qgroup_relation_item(trans, quota_root, src, dst);
-	err = del_qgroup_relation_item(trans, quota_root, dst, src);
+	ret = del_qgroup_relation_item(trans, src, dst);
+	err = del_qgroup_relation_item(trans, dst, src);
 	if (err && !ret)
 		ret = err;
 
