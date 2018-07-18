@@ -4220,6 +4220,9 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	mbx_cmd_t *mcp = &mc;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (!ha->flags.fw_started)
+		return QLA_SUCCESS;
+
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10d3,
 	    "Entered %s.\n", __func__);
 
@@ -4288,6 +4291,9 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->flags.fw_started)
+		return QLA_SUCCESS;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10d6,
 	    "Entered %s.\n", __func__);

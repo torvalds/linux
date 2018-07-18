@@ -303,6 +303,7 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 static int qla2xxx_map_queues(struct Scsi_Host *shost);
 static void qla2x00_destroy_deferred_work(struct qla_hw_data *);
 
+
 struct scsi_host_template qla2xxx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= QLA2XXX_DRIVER_NAME,
@@ -3603,6 +3604,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
+	ql_log(ql_log_info, base_vha, 0xb079,
+	    "Removing driver\n");
 
 	/* Indicate device removal to prevent future board_disable and wait
 	 * until any pending board_disable has completed. */
@@ -3624,6 +3627,21 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		return;
 	}
 	qla2x00_wait_for_hba_ready(base_vha);
+
+	if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha)) {
+		if (ha->flags.fw_started)
+			qla2x00_abort_isp_cleanup(base_vha);
+	} else if (!IS_QLAFX00(ha)) {
+		if (IS_QLA8031(ha)) {
+			ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
+			    "Clearing fcoe driver presence.\n");
+			if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
+				ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
+				    "Error while clearing DRV-Presence.\n");
+		}
+
+		qla2x00_try_to_stop_firmware(base_vha);
+	}
 
 	qla2x00_wait_for_sess_deletion(base_vha);
 
@@ -3647,14 +3665,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		qlafx00_driver_shutdown(base_vha, 20);
 
 	qla2x00_delete_all_vps(ha, base_vha);
-
-	if (IS_QLA8031(ha)) {
-		ql_dbg(ql_dbg_p3p, base_vha, 0xb07e,
-		    "Clearing fcoe driver presence.\n");
-		if (qla83xx_clear_drv_presence(base_vha) != QLA_SUCCESS)
-			ql_dbg(ql_dbg_p3p, base_vha, 0xb079,
-			    "Error while clearing DRV-Presence.\n");
-	}
 
 	qla2x00_abort_all_cmds(base_vha, DID_NO_CONNECT << 16);
 
@@ -3715,24 +3725,6 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 		qla2x00_stop_timer(vha);
 
 	qla25xx_delete_queues(vha);
-
-	if (ha->flags.fce_enabled)
-		qla2x00_disable_fce_trace(vha, NULL, NULL);
-
-	if (ha->eft)
-		qla2x00_disable_eft_trace(vha);
-
-	if (IS_QLA25XX(ha) ||  IS_QLA2031(ha) || IS_QLA27XX(ha)) {
-		if (ha->flags.fw_started)
-			qla2x00_abort_isp_cleanup(vha);
-	} else {
-		if (ha->flags.fw_started) {
-			/* Stop currently executing firmware. */
-			qla2x00_try_to_stop_firmware(vha);
-			ha->flags.fw_started = 0;
-		}
-	}
-
 	vha->flags.online = 0;
 
 	/* turn-off interrupts on the card */

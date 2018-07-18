@@ -631,6 +631,9 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	unsigned long	flags;
 	fc_port_t	*fcport = NULL;
 
+	if (!vha->hw->flags.fw_started)
+		return;
+
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
 	if (IS_CNA_CAPABLE(ha))

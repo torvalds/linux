@@ -152,10 +152,12 @@ int
 qla24xx_disable_vp(scsi_qla_host_t *vha)
 {
 	unsigned long flags;
-	int ret;
+	int ret = QLA_SUCCESS;
 	fc_port_t *fcport;
 
-	ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
+	if (vha->hw->flags.fw_started)
+		ret = qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
+
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	list_for_each_entry(fcport, &vha->vp_fcports, list)
