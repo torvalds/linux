@@ -67,9 +67,11 @@ struct mtd_erase_region_info {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, it is allowed to read more than one OOB area at one go, but not write.
- * The interface assumes that the OOB write requests program only one page's
- * OOB area.
+ * Note, some MTD drivers do not allow you to write more than one OOB area at
+ * one go. If you try to do that on such an MTD device, -EINVAL will be
+ * returned. If you want to make your implementation portable on all kind of MTD
+ * devices you should split the write request into several sub-requests when the
+ * request crosses a page boundary.
  */
 struct mtd_oob_ops {
 	unsigned int	mode;
