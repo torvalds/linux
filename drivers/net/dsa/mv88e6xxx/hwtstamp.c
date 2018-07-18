@@ -606,6 +606,11 @@ int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip)
 			return err;
 	}
 
+	/* Set the ethertype of L2 PTP messages */
+	err = mv88e6xxx_ptp_write(chip, MV88E6XXX_PTP_GC_ETYPE, ETH_P_1588);
+	if (err)
+		return err;
+
 	/* MV88E6XXX_PTP_MSG_TYPE is a mask of PTP message types to
 	 * timestamp. This affects all ports that have timestamping enabled,
 	 * but the timestamp config is per-port; thus we configure all events
