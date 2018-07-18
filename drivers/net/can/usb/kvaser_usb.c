@@ -1914,27 +1914,25 @@ static int kvaser_usb_init_one(struct usb_interface *intf,
 	return 0;
 }
 
-static int kvaser_usb_get_endpoints(const struct usb_interface *intf,
-				    struct usb_endpoint_descriptor **in,
-				    struct usb_endpoint_descriptor **out)
+static int kvaser_usb_setup_endpoints(struct kvaser_usb *dev)
 {
 	const struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int i;
 
-	iface_desc = &intf->altsetting[0];
+	iface_desc = &dev->intf->altsetting[0];
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (!*in && usb_endpoint_is_bulk_in(endpoint))
-			*in = endpoint;
+		if (!dev->bulk_in && usb_endpoint_is_bulk_in(endpoint))
+			dev->bulk_in = endpoint;
 
-		if (!*out && usb_endpoint_is_bulk_out(endpoint))
-			*out = endpoint;
+		if (!dev->bulk_out && usb_endpoint_is_bulk_out(endpoint))
+			dev->bulk_out = endpoint;
 
 		/* use first bulk endpoint for in and out */
-		if (*in && *out)
+		if (dev->bulk_in && dev->bulk_out)
 			return 0;
 	}
 
@@ -1965,7 +1963,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	dev->intf = intf;
 
-	err = kvaser_usb_get_endpoints(intf, &dev->bulk_in, &dev->bulk_out);
+	err = kvaser_usb_setup_endpoints(dev);
 	if (err) {
 		dev_err(&intf->dev, "Cannot get usb endpoint(s)");
 		return err;
