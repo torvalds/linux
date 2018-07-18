@@ -501,6 +501,9 @@ int mlxsw_sp_kvdl_alloc_count_query(struct mlxsw_sp *mlxsw_sp,
 extern const struct mlxsw_sp_kvdl_ops mlxsw_sp1_kvdl_ops;
 int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 
+/* spectrum2_kvdl.c */
+extern const struct mlxsw_sp_kvdl_ops mlxsw_sp2_kvdl_ops;
+
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
@@ -621,6 +624,8 @@ struct mlxsw_sp_acl_tcam_ops {
 	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			   struct mlxsw_sp_acl_tcam_region *region);
 	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
+	int (*region_associate)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_tcam_region *region);
 	size_t chunk_priv_size;
 	void (*chunk_init)(void *region_priv, void *chunk_priv,
 			   unsigned int priority);
@@ -641,11 +646,16 @@ struct mlxsw_sp_acl_tcam_ops {
 /* spectrum1_acl_tcam.c */
 extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops;
 
+/* spectrum2_acl_tcam.c */
+extern const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops;
+
 /* spectrum_acl_flex_actions.c */
 extern const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops;
+extern const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops;
 
 /* spectrum_acl_flex_keys.c */
 extern const struct mlxsw_afk_ops mlxsw_sp1_afk_ops;
+extern const struct mlxsw_afk_ops mlxsw_sp2_afk_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -726,5 +736,8 @@ struct mlxsw_sp_mr_tcam_ops {
 
 /* spectrum1_mr_tcam.c */
 extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp1_mr_tcam_ops;
+
+/* spectrum2_mr_tcam.c */
+extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops;
 
 #endif

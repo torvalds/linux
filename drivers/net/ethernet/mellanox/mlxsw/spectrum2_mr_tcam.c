@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/pci.h
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * drivers/net/ethernet/mellanox/mlxsw/spectrum2_mr_tcam.c
+ * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Jiri Pirko <jiri@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,35 +32,51 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MLXSW_PCI_H
-#define _MLXSW_PCI_H
+#include <linux/kernel.h>
 
-#include <linux/pci.h>
+#include "core_acl_flex_actions.h"
+#include "spectrum.h"
+#include "spectrum_mr.h"
 
-#define PCI_DEVICE_ID_MELLANOX_SWITCHX2		0xc738
-#define PCI_DEVICE_ID_MELLANOX_SPECTRUM		0xcb84
-#define PCI_DEVICE_ID_MELLANOX_SPECTRUM2	0xcf6c
-#define PCI_DEVICE_ID_MELLANOX_SWITCHIB		0xcb20
-#define PCI_DEVICE_ID_MELLANOX_SWITCHIB2	0xcf08
-
-#if IS_ENABLED(CONFIG_MLXSW_PCI)
-
-int mlxsw_pci_driver_register(struct pci_driver *pci_driver);
-void mlxsw_pci_driver_unregister(struct pci_driver *pci_driver);
-
-#else
-
-static inline int
-mlxsw_pci_driver_register(struct pci_driver *pci_driver)
+static int
+mlxsw_sp2_mr_tcam_route_create(struct mlxsw_sp *mlxsw_sp, void *priv,
+			       void *route_priv,
+			       struct mlxsw_sp_mr_route_key *key,
+			       struct mlxsw_afa_block *afa_block,
+			       enum mlxsw_sp_mr_route_prio prio)
 {
 	return 0;
 }
 
-static inline void
-mlxsw_pci_driver_unregister(struct pci_driver *pci_driver)
+static void
+mlxsw_sp2_mr_tcam_route_destroy(struct mlxsw_sp *mlxsw_sp, void *priv,
+				void *route_priv,
+				struct mlxsw_sp_mr_route_key *key)
 {
 }
 
-#endif
+static int
+mlxsw_sp2_mr_tcam_route_update(struct mlxsw_sp *mlxsw_sp,
+			       void *route_priv,
+			       struct mlxsw_sp_mr_route_key *key,
+			       struct mlxsw_afa_block *afa_block)
+{
+	return 0;
+}
 
-#endif
+static int mlxsw_sp2_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
+{
+	return 0;
+}
+
+static void mlxsw_sp2_mr_tcam_fini(void *priv)
+{
+}
+
+const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops = {
+	.init = mlxsw_sp2_mr_tcam_init,
+	.fini = mlxsw_sp2_mr_tcam_fini,
+	.route_create = mlxsw_sp2_mr_tcam_route_create,
+	.route_destroy = mlxsw_sp2_mr_tcam_route_destroy,
+	.route_update = mlxsw_sp2_mr_tcam_route_update,
+};

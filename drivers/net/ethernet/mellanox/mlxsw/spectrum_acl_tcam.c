@@ -547,6 +547,10 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_region_id_get;
 
+	err = ops->region_associate(mlxsw_sp, region);
+	if (err)
+		goto err_tcam_region_associate;
+
 	region->key_type = ops->key_type;
 	err = mlxsw_sp_acl_tcam_region_alloc(mlxsw_sp, region);
 	if (err)
@@ -567,6 +571,7 @@ err_tcam_region_init:
 err_tcam_region_enable:
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
 err_tcam_region_alloc:
+err_tcam_region_associate:
 	mlxsw_sp_acl_tcam_region_id_put(tcam, region->id);
 err_region_id_get:
 	mlxsw_afk_key_info_put(region->key_info);

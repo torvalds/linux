@@ -430,6 +430,12 @@ char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block)
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_set);
 
+char *mlxsw_afa_block_cur_set(struct mlxsw_afa_block *block)
+{
+	return block->cur_set->ht_key.enc_actions;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_cur_set);
+
 u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block)
 {
 	/* First set is never in KVD linear. So the first set
@@ -440,6 +446,15 @@ u32 mlxsw_afa_block_first_kvdl_index(struct mlxsw_afa_block *block)
 	return block->first_set->next->kvdl_index;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_first_kvdl_index);
+
+int mlxsw_afa_block_activity_get(struct mlxsw_afa_block *block, bool *activity)
+{
+	u32 kvdl_index = mlxsw_afa_block_first_kvdl_index(block);
+
+	return block->afa->ops->kvdl_set_activity_get(block->afa->ops_priv,
+						      kvdl_index, activity);
+}
+EXPORT_SYMBOL(mlxsw_afa_block_activity_get);
 
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block)
 {
