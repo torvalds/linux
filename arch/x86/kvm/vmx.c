@@ -1720,6 +1720,12 @@ static inline bool nested_cpu_supports_monitor_trap_flag(struct kvm_vcpu *vcpu)
 			CPU_BASED_MONITOR_TRAP_FLAG;
 }
 
+static inline bool nested_cpu_has_vmx_shadow_vmcs(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.msrs.secondary_ctls_high &
+		SECONDARY_EXEC_SHADOW_VMCS;
+}
+
 static inline bool nested_cpu_has(struct vmcs12 *vmcs12, u32 bit)
 {
 	return vmcs12->cpu_based_vm_exec_control & bit;
@@ -8465,7 +8471,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		}
 		new_vmcs12 = kmap(page);
 		if (new_vmcs12->hdr.revision_id != VMCS12_REVISION ||
-		    new_vmcs12->hdr.shadow_vmcs) {
+		    (new_vmcs12->hdr.shadow_vmcs &&
+		     !nested_cpu_has_vmx_shadow_vmcs(vcpu))) {
 			kunmap(page);
 			kvm_release_page_clean(page);
 			nested_vmx_failValid(vcpu,
