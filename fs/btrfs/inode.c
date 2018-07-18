@@ -1957,7 +1957,7 @@ static blk_status_t btrfs_submit_bio_start(void *private_data, struct bio *bio,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
+blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
 			  int mirror_num)
 {
 	struct inode *inode = private_data;
@@ -2030,8 +2030,7 @@ static blk_status_t btrfs_submit_bio_hook(void *private_data, struct bio *bio,
 		/* we're doing a write, do the async checksumming */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, bio_flags,
 					  bio_offset, inode,
-					  btrfs_submit_bio_start,
-					  btrfs_submit_bio_done);
+					  btrfs_submit_bio_start);
 		goto out;
 	} else if (!skip_sum) {
 		ret = btrfs_csum_one_bio(inode, bio, 0, 0);
@@ -8295,8 +8294,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 	if (write && async_submit) {
 		ret = btrfs_wq_submit_bio(fs_info, bio, 0, 0,
 					  file_offset, inode,
-					  btrfs_submit_bio_start_direct_io,
-					  btrfs_submit_bio_done);
+					  btrfs_submit_bio_start_direct_io);
 		goto err;
 	} else if (write) {
 		/*

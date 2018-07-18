@@ -108,7 +108,6 @@ struct async_submit_bio {
 	void *private_data;
 	struct bio *bio;
 	extent_submit_bio_start_t *submit_bio_start;
-	extent_submit_bio_done_t *submit_bio_done;
 	int mirror_num;
 	/*
 	 * bio_offset is optional, can be used if the pages in the bio
@@ -775,7 +774,7 @@ static void run_one_async_done(struct btrfs_work *work)
 		return;
 	}
 
-	async->submit_bio_done(async->private_data, async->bio, async->mirror_num);
+	btrfs_submit_bio_done(async->private_data, async->bio, async->mirror_num);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -789,8 +788,7 @@ static void run_one_async_free(struct btrfs_work *work)
 blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
 				 u64 bio_offset, void *private_data,
-				 extent_submit_bio_start_t *submit_bio_start,
-				 extent_submit_bio_done_t *submit_bio_done)
+				 extent_submit_bio_start_t *submit_bio_start)
 {
 	struct async_submit_bio *async;
 
@@ -802,7 +800,6 @@ blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	async->bio = bio;
 	async->mirror_num = mirror_num;
 	async->submit_bio_start = submit_bio_start;
-	async->submit_bio_done = submit_bio_done;
 
 	btrfs_init_work(&async->work, btrfs_worker_helper, run_one_async_start,
 			run_one_async_done, run_one_async_free);
@@ -843,24 +840,6 @@ static blk_status_t btree_submit_bio_start(void *private_data, struct bio *bio,
 	 * submission context.  Just jump into btrfs_map_bio
 	 */
 	return btree_csum_one_bio(bio);
-}
-
-static blk_status_t btree_submit_bio_done(void *private_data, struct bio *bio,
-					    int mirror_num)
-{
-	struct inode *inode = private_data;
-	blk_status_t ret;
-
-	/*
-	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump into btrfs_map_bio
-	 */
-	ret = btrfs_map_bio(btrfs_sb(inode->i_sb), bio, mirror_num, 1);
-	if (ret) {
-		bio->bi_status = ret;
-		bio_endio(bio);
-	}
-	return ret;
 }
 
 static int check_async_write(struct btrfs_inode *bi)
@@ -905,8 +884,7 @@ static blk_status_t btree_submit_bio_hook(void *private_data, struct bio *bio,
 		 */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, 0,
 					  bio_offset, private_data,
-					  btree_submit_bio_start,
-					  btree_submit_bio_done);
+					  btree_submit_bio_start);
 	}
 
 	if (ret)
