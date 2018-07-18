@@ -85,6 +85,7 @@ struct bpf_map {
 	char name[BPF_OBJ_NAME_LEN];
 };
 
+struct bpf_offload_dev;
 struct bpf_offloaded_map;
 
 struct bpf_map_dev_ops {
@@ -648,7 +649,15 @@ int bpf_map_offload_delete_elem(struct bpf_map *map, void *key);
 int bpf_map_offload_get_next_key(struct bpf_map *map,
 				 void *key, void *next_key);
 
-bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
+bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
+
+struct bpf_offload_dev *bpf_offload_dev_create(void);
+void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev);
+int bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
+				    struct net_device *netdev);
+void bpf_offload_dev_netdev_unregister(struct bpf_offload_dev *offdev,
+				       struct net_device *netdev);
+bool bpf_offload_dev_match(struct bpf_prog *prog, struct net_device *netdev);
 
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
