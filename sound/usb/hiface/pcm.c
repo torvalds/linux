@@ -523,7 +523,6 @@ static const struct snd_pcm_ops pcm_ops = {
 	.trigger = hiface_pcm_trigger,
 	.pointer = hiface_pcm_pointer,
 	.page = snd_pcm_lib_get_vmalloc_page,
-	.mmap = snd_pcm_lib_mmap_vmalloc,
 };
 
 static int hiface_pcm_init_urb(struct pcm_urb *urb,

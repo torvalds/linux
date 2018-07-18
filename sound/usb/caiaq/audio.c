@@ -348,7 +348,6 @@ static const struct snd_pcm_ops snd_usb_caiaq_ops = {
 	.trigger =	snd_usb_caiaq_pcm_trigger,
 	.pointer =	snd_usb_caiaq_pcm_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static void check_for_elapsed_periods(struct snd_usb_caiaqdev *cdev,
