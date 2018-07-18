@@ -203,7 +203,6 @@ struct vega20_dpmlevel_enable_mask {
 };
 
 struct vega20_vbios_boot_state {
-	bool        bsoc_vddc_lock;
 	uint8_t     uc_cooling_id;
 	uint16_t    vddc;
 	uint16_t    vddci;
