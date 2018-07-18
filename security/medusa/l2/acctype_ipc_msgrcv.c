@@ -37,9 +37,10 @@ int __init ipc_acctype_msgrcv_init(void) {
 
 /*
  * Check permission before a message @msg is removed from the message queue,
- * which kernel permission structure @ipcp is given. The @target task structure
- * contains a pointer to the process that will be receiving the message
- * (not equal to the current process when inline receives are being performed).
+ * for which kernel permission structure @ipcp is given. The @target task
+ * structure contains a pointer to the process that will be receiving the
+ * message (not equal to the current process when inline receives are being
+ * performed).
  * @ipcp contains kernel permission structure for message queue
  * @msg contains the message destination
  * @target contains the task structure for recipient process

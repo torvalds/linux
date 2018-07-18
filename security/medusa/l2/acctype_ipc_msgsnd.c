@@ -32,8 +32,8 @@ int __init ipc_acctype_msgsnd_init(void) {
 }
 
 /*
- * Check permission before a message @msg is enqueued on the message queue which
- * kernel ipc permission @ipcp is given.
+ * Check permission before a message @msg is enqueued on the message queue for
+ * which kernel ipc permission @ipcp is given.
  * @ipcp contains kernel ipc permissions for related message queue
  * @msg contains the message to be enqueued
  * @msgflg contains the operational flags

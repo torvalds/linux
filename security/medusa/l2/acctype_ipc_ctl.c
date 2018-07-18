@@ -28,15 +28,15 @@ int __init ipc_acctype_ctl_init(void) {
 
 /*
  * Check permission when an IPC object (semaphore, message queue, shared memory)
- * operation specified by @cmd is to be performed on the IPC object which
+ * operation specified by @cmd is to be performed on the IPC object for which
  * kernel ipc permission @ipcp is given. The @ipcp may be NULL, e.g. for
  * IPC_INFO or MSG_INFO or SEM_INFO or SHM_INFO @cmd value.
  * @ipcp contains kernel IPC permission of the related IPC object
  * @cmd contains the operation to be performed
  *
  * This function is called with rcu_read_lock() held if @ipcp is not NULL.
- * So in this case it is necessary to release rcu lock, because
- * this routine may wait while authorisation server is decising.
+ * So in this case it is necessary to release rcu lock because
+ * this routine may wait while authorisation server is deciding.
  *
  * medusa_ipc_ctl()
  *  |

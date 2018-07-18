@@ -45,8 +45,8 @@ MED_ATTRS(ipc_kobject) {
  * @ipcp - pointer to kernel structure used to get data
  * Return: pointer to ipc_kobject with data on success, NULL on error
  *
- * This routine expects the existing Medusa ipcp security struct.
- * For validity of an IPC object must be always called after ipc_getref(),
+ * This routine expects existing Medusa ipcp security struct.
+ * For validity of an IPC object, it must be always called after ipc_getref(),
  * before ipc_putref() functions.
  */
 struct ipc_kobject *ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp)
@@ -162,7 +162,7 @@ out_err:
 }
 
 /**
- * Increase references to an IPC object given by his @ipcp kern_ipc_perm
+ * Increase references to an IPC object given by its @ipcp kern_ipc_perm
  * structure. If @unlock is True, also unlock this IPC object. At the
  * end release RCU read lock.
  * @ipcp - pointer to kern_ipc_perm struct of relevant IPC object

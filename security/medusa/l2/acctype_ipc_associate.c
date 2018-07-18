@@ -36,8 +36,8 @@ int __init ipc_acctype_associate_init(void) {
  * @flag contains the operation control flags
  *
  * This routine is called only by ipc_check_perms() (ipc/util.c)
- * always with ipc_ids.rwsem and ipcp->lock held, so we need unlock spinlock
- * before waiting.
+ * always with ipc_ids.rwsem and ipcp->lock held, so we need to unlock the
+ * spinlock before waiting.
  *
  * security_[sem|shm|msg]_associate()
  *  |

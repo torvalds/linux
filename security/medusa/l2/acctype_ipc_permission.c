@@ -41,9 +41,9 @@ int __init ipc_acctype_init(void) {
  *        |<-- !!! ipc_check_perms() !!!
  *        |        this routine is called by sys_msgget(), sys_semget(), sys_shmget()
  *        |        when the key is not IPC_PRIVATE and exists in the ds IDR;
- *        |        is always called with ipcp->lock held
+ *        |        it is always called with ipcp->lock held
  *        |
- *        |<-- !!! do_msgsnd() !!! (due to crapy implementation always get ipcp->lock)
+ *        |<-- !!! do_msgsnd() !!! (due to crappy implementation always get ipcp->lock)
  *        |<-- do_msgrcv()
  *        |<-- msgctl_stat()
  *        |
@@ -67,15 +67,15 @@ medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 	/*
 	 * WORKAROUND!!!
 	 *
-	 * An IPC object enters in this call in different conditions: once its
-	 * spinlock is held, sometimes not. This behaviour is crazy, because
-	 * it is not possibly to implement one easy code path (with regard to
-	 * ipmlementation of spinlocks)...
+	 * An IPC object enters this call in different conditions: sometimes its
+	 * spinlock is held, sometimes not. This behaviour is crazy because
+	 * it is not possible to implement one simple code path (with regard to
+	 * implementation of spinlocks)...
 	 *
-	 * If a spinlock is locked, we need determine the owner of this spinlock.
-	 * Spin can be locked by our process, but also from another (concurrently running)
-	 * part(s) of IPC subsystem, and this is indistinguishable without turned
-	 * CONFIG_DEBUG_SPINLOCK on.
+	 * If a spinlock is locked, we need to determine the owner of this spinlock.
+	 * Spinlock can be locked by our process, but also from another (concurrently
+	 * running) part(s) of IPC subsystem, and this is indistinguishable without
+	 * CONFIG_DEBUG_SPINLOCK turned on.
 	 *
 	 * Note: On UP spins doesn't exist, lucky us ;)
 	 *       Medusa on UP always can make a decision without a carry on spinlocks...
@@ -84,7 +84,7 @@ medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 	if (spin_is_locked(&(ipcp->lock))) {
 #ifdef CONFIG_DEBUG_SPINLOCK
 		/*
-		 * If current process is holding the spinlock, we need unlock it;
+		 * If current process is holding the spinlock, we need to unlock it;
 		 * otherwise another process is holding the spinlock, we don't touch it.
 		 *
 		 * It is not necessary to check rlock.owner_cpu == raw_smp_processor_id(),
@@ -98,14 +98,14 @@ medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 		/*
 		 * If CONFIG_DEBUG_SPINLOCK is off and a spinlock is held, there is no
 		 * possibility to determine the owner of this spinlock. So we cannot
-		 * determine, whether can be or not (un)locked the spinlock.
+		 * determine, whether the spinlock can be or not (un)locked.
 		 *
 		 * We should return MED_ERR, because Medusa subsystem can't make a decision,
 		 * but this value has to be converted to MED_OK, so function directly
 		 * returns MED_OK.
 		 *
 		 * Note:
-		 * Yes, due to nondeterministics behaviour of IPC object's spinlock
+		 * Yes, due to nondeterministic behaviour of IPC object's spinlock
 		 * in this function this way we lose do_msgsnd() and ipc_check_perms()
 		 * controls...
 		 */
