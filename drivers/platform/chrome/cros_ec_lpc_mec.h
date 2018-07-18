@@ -21,8 +21,8 @@
  * expensive.
  */
 
-#ifndef __LINUX_MFD_CROS_EC_MEC_H
-#define __LINUX_MFD_CROS_EC_MEC_H
+#ifndef __CROS_EC_LPC_MEC_H
+#define __CROS_EC_LPC_MEC_H
 
 #include <linux/mfd/cros_ec_commands.h>
 
@@ -87,4 +87,4 @@ void cros_ec_lpc_mec_destroy(void);
 u8 cros_ec_lpc_io_bytes_mec(enum cros_ec_lpc_mec_io_type io_type,
 			    unsigned int offset, unsigned int length, u8 *buf);
 
-#endif /* __LINUX_MFD_CROS_EC_MEC_H */
+#endif /* __CROS_EC_LPC_MEC_H */

@@ -27,11 +27,12 @@
 #include <linux/io.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
-#include <linux/mfd/cros_ec_lpc_reg.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/suspend.h>
+
+#include "cros_ec_lpc_reg.h"
 
 #define DRV_NAME "cros_ec_lpcs"
 #define ACPI_DRV_NAME "GOOG0004"

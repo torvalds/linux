@@ -21,8 +21,8 @@
  * expensive.
  */
 
-#ifndef __LINUX_MFD_CROS_EC_REG_H
-#define __LINUX_MFD_CROS_EC_REG_H
+#ifndef __CROS_EC_LPC_REG_H
+#define __CROS_EC_LPC_REG_H
 
 /**
  * cros_ec_lpc_read_bytes - Read bytes from a given LPC-mapped address.
@@ -58,4 +58,4 @@ void cros_ec_lpc_reg_init(void);
  */
 void cros_ec_lpc_reg_destroy(void);
 
-#endif /* __LINUX_MFD_CROS_EC_REG_H */
+#endif /* __CROS_EC_LPC_REG_H */
