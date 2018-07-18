@@ -2810,6 +2810,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6165_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -2838,6 +2839,7 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6352_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6165_avb_ops,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
