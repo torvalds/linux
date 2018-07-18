@@ -88,22 +88,6 @@ enum bss_types {
 };
 
 enum {
-	RATE_AUTO		= 0,
-	RATE_1MB		= 1,
-	RATE_2MB		= 2,
-	RATE_5MB		= 5,
-	RATE_6MB		= 6,
-	RATE_9MB		= 9,
-	RATE_11MB		= 11,
-	RATE_12MB		= 12,
-	RATE_18MB		= 18,
-	RATE_24MB		= 24,
-	RATE_26MB		= 36,
-	RATE_48MB		= 48,
-	RATE_54MB		= 54
-};
-
-enum {
 	B_ONLY_MODE		= 0,    /* 1, 2 M, otherwise 5, 11 M */
 	G_ONLY_MODE,			/* 6,12,24 otherwise 9,18,36,48,54 */
 	G_MIXED_11B_1_MODE,		/* 1,2,5.5,11 otherwise all on */
