@@ -35,6 +35,7 @@ enum blkg_rwstat_type {
 	BLKG_RWSTAT_WRITE,
 	BLKG_RWSTAT_SYNC,
 	BLKG_RWSTAT_ASYNC,
+	BLKG_RWSTAT_DISCARD,
 
 	BLKG_RWSTAT_NR,
 	BLKG_RWSTAT_TOTAL = BLKG_RWSTAT_NR,
@@ -649,7 +650,9 @@ static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
 {
 	struct percpu_counter *cnt;
 
-	if (op_is_write(op))
+	if (op_is_discard(op))
+		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_DISCARD];
+	else if (op_is_write(op))
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_WRITE];
 	else
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_READ];

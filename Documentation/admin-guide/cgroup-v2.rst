@@ -1317,17 +1317,19 @@ IO Interface Files
 	Lines are keyed by $MAJ:$MIN device numbers and not ordered.
 	The following nested keys are defined.
 
-	  ======	===================
+	  ======	=====================
 	  rbytes	Bytes read
 	  wbytes	Bytes written
 	  rios		Number of read IOs
 	  wios		Number of write IOs
-	  ======	===================
+	  dbytes	Bytes discarded
+	  dios		Number of discard IOs
+	  ======	=====================
 
 	An example read output follows:
 
-	  8:16 rbytes=1459200 wbytes=314773504 rios=192 wios=353
-	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252
+	  8:16 rbytes=1459200 wbytes=314773504 rios=192 wios=353 dbytes=0 dios=0
+	  8:0 rbytes=90430464 wbytes=299008000 rios=8950 wios=1252 dbytes=50331648 dios=3021
 
   io.weight
 	A read-write flat-keyed file which exists on non-root cgroups.

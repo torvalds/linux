@@ -567,6 +567,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		[BLKG_RWSTAT_WRITE]	= "Write",
 		[BLKG_RWSTAT_SYNC]	= "Sync",
 		[BLKG_RWSTAT_ASYNC]	= "Async",
+		[BLKG_RWSTAT_DISCARD]	= "Discard",
 	};
 	const char *dname = blkg_dev_name(pd->blkg);
 	u64 v;
@@ -580,7 +581,8 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			   (unsigned long long)atomic64_read(&rwstat->aux_cnt[i]));
 
 	v = atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]);
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]) +
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_DISCARD]);
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
@@ -959,7 +961,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 		const char *dname;
 		char *buf;
 		struct blkg_rwstat rwstat;
-		u64 rbytes, wbytes, rios, wios;
+		u64 rbytes, wbytes, rios, wios, dbytes, dios;
 		size_t size = seq_get_buf(sf, &buf), off = 0;
 		int i;
 		bool has_stats = false;
@@ -982,19 +984,22 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 					offsetof(struct blkcg_gq, stat_bytes));
 		rbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
 		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
 					offsetof(struct blkcg_gq, stat_ios));
 		rios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
 		wios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+		dios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
 
 		spin_unlock_irq(blkg->q->queue_lock);
 
 		if (rbytes || wbytes || rios || wios) {
 			has_stats = true;
 			off += scnprintf(buf+off, size-off,
-					 "rbytes=%llu wbytes=%llu rios=%llu wios=%llu",
-					 rbytes, wbytes, rios, wios);
+					 "rbytes=%llu wbytes=%llu rios=%llu wios=%llu dbytes=%llu dios=%llu",
+					 rbytes, wbytes, rios, wios,
+					 dbytes, dios);
 		}
 
 		if (!blkcg_debug_stats)
