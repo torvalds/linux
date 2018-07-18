@@ -1352,7 +1352,7 @@ static bool map_regamma_hw_to_x_user(
 #define _EXTRA_POINTS 3
 
 bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
-		const struct dc_gamma *ramp, bool mapUserRamp)
+		const struct dc_gamma *ramp, bool mapUserRamp, bool canRomBeUsed)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
 	struct dividers dividers;
@@ -1368,7 +1368,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		return false;
 
 	/* we can use hardcoded curve for plain SRGB TF */
-	if (output_tf->type == TF_TYPE_PREDEFINED &&
+	if (output_tf->type == TF_TYPE_PREDEFINED && canRomBeUsed == true &&
 			output_tf->tf == TRANSFER_FUNCTION_SRGB &&
 			(!mapUserRamp && ramp->type == GAMMA_RGB_256))
 		return true;
@@ -1430,7 +1430,6 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 				MAX_HW_POINTS,
 				coordinates_x, tf == TRANSFER_FUNCTION_SRGB ? true:false);
 	}
-
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
 			coordinates_x, axix_x, rgb_regamma,
 			MAX_HW_POINTS, tf_pts,
@@ -1659,7 +1658,8 @@ rgb_user_alloc_fail:
 
 
 bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
-				struct dc_transfer_func_distributed_points *points)
+				struct dc_transfer_func_distributed_points *points,
+				uint32_t sdr_ref_white_level)
 {
 	uint32_t i;
 	bool ret = false;
@@ -1693,7 +1693,7 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 		build_pq(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				80);
+				sdr_ref_white_level);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_regamma[i].r;
 			points->green[i]  = rgb_regamma[i].g;
