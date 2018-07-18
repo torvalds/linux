@@ -2069,6 +2069,15 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 	policy->cpuinfo.max_freq *= cpu->pstate.scaling;
 
+	if (hwp_active) {
+		unsigned int max_freq;
+
+		max_freq = global.turbo_disabled ?
+			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
+		if (max_freq < policy->cpuinfo.max_freq)
+			policy->cpuinfo.max_freq = max_freq;
+	}
+
 	intel_pstate_init_acpi_perf_limits(policy);
 
 	policy->fast_switch_possible = true;
