@@ -1738,10 +1738,10 @@ static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
 		6 + 6 + /* hdp invalidate / flush */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
-		8 + /* vcn_v1_0_dec_ring_emit_vm_flush */
-		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+		8 + /* vcn_v1_0_jpeg_ring_emit_vm_flush */
+		26 + 26 + /* vcn_v1_0_jpeg_ring_emit_fence x2 vm fence */
 		6,
-	.emit_ib_size = 22, /* vcn_v1_0_dec_ring_emit_ib */
+	.emit_ib_size = 22, /* vcn_v1_0_jpeg_ring_emit_ib */
 	.emit_ib = vcn_v1_0_jpeg_ring_emit_ib,
 	.emit_fence = vcn_v1_0_jpeg_ring_emit_fence,
 	.emit_vm_flush = vcn_v1_0_jpeg_ring_emit_vm_flush,
