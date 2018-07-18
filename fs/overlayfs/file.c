@@ -233,10 +233,33 @@ out_unlock:
 	return ret;
 }
 
+static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+{
+	struct fd real;
+	const struct cred *old_cred;
+	int ret;
+
+	ret = ovl_real_fdget(file, &real);
+	if (ret)
+		return ret;
+
+	/* Don't sync lower file for fear of receiving EROFS error */
+	if (file_inode(real.file) == ovl_inode_upper(file_inode(file))) {
+		old_cred = ovl_override_creds(file_inode(file)->i_sb);
+		ret = vfs_fsync_range(real.file, start, end, datasync);
+		revert_creds(old_cred);
+	}
+
+	fdput(real);
+
+	return ret;
+}
+
 const struct file_operations ovl_file_operations = {
 	.open		= ovl_open,
 	.release	= ovl_release,
 	.llseek		= ovl_llseek,
 	.read_iter	= ovl_read_iter,
 	.write_iter	= ovl_write_iter,
+	.fsync		= ovl_fsync,
 };
