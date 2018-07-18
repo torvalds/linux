@@ -6,9 +6,6 @@
 
 #define FALSE_FRMWR_CHANNEL			100
 
-#define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
-#define DEFAULT_LINK_SPEED			72
-
 #define REAL_JOIN_REQ				0
 
 struct host_if_wpa_attr {

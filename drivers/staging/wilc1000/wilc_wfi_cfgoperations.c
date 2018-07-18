@@ -77,11 +77,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-#define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
-#define DEFAULT_LINK_SPEED			72
-
-#define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
-
 static struct network_info last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 static u32 last_scanned_cnt;
 struct timer_list wilc_during_ip_timer;
