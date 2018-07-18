@@ -168,6 +168,18 @@ const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.mirror_del		= mlxsw_sp_act_mirror_del,
 };
 
+const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
+	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
+	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
+	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
+	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
+	.counter_index_get	= mlxsw_sp_act_counter_index_get,
+	.counter_index_put	= mlxsw_sp_act_counter_index_put,
+	.mirror_add		= mlxsw_sp_act_mirror_add,
+	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.dummy_first_set	= true,
+};
+
 int mlxsw_sp_afa_init(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp->afa = mlxsw_afa_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
