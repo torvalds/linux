@@ -464,7 +464,7 @@ out_mapmr_err:
 static int
 frwr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 {
-	struct ib_send_wr *post_wr, *bad_wr;
+	struct ib_send_wr *post_wr;
 	struct rpcrdma_mr *mr;
 
 	post_wr = &req->rl_sendctx->sc_wr;
@@ -486,7 +486,7 @@ frwr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	/* If ib_post_send fails, the next ->send_request for
 	 * @req will queue these MWs for recovery.
 	 */
-	return ib_post_send(ia->ri_id->qp, post_wr, &bad_wr);
+	return ib_post_send(ia->ri_id->qp, post_wr, NULL);
 }
 
 /* Handle a remotely invalidated mr on the @mrs list

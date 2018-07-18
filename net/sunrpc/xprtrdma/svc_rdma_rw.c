@@ -329,7 +329,7 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 	do {
 		if (atomic_sub_return(cc->cc_sqecount,
 				      &rdma->sc_sq_avail) > 0) {
-			ret = ib_post_send(rdma->sc_qp, first_wr, &bad_wr);
+			ret = ib_post_send(rdma->sc_qp, first_wr, NULL);
 			trace_svcrdma_post_rw(&cc->cc_cqe,
 					      cc->cc_sqecount, ret);
 			if (ret)
