@@ -8660,7 +8660,7 @@ skip:
 		}
 
 		if (need_account) {
-			ret = btrfs_qgroup_trace_subtree(trans, root, next,
+			ret = btrfs_qgroup_trace_subtree(trans, next,
 							 generation, level - 1);
 			if (ret) {
 				btrfs_err_rl(fs_info,

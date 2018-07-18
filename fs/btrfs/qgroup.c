@@ -1714,11 +1714,10 @@ static int adjust_slots_upwards(struct btrfs_path *path, int root_level)
 }
 
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret = 0;
 	int level;
 	struct extent_buffer *eb = root_eb;

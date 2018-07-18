@@ -1879,13 +1879,12 @@ again:
 		 *    and tree block numbers, if current trans doesn't free
 		 *    data reloc tree inode.
 		 */
-		ret = btrfs_qgroup_trace_subtree(trans, src, parent,
+		ret = btrfs_qgroup_trace_subtree(trans, parent,
 				btrfs_header_generation(parent),
 				btrfs_header_level(parent));
 		if (ret < 0)
 			break;
-		ret = btrfs_qgroup_trace_subtree(trans, dest,
-				path->nodes[level],
+		ret = btrfs_qgroup_trace_subtree(trans, path->nodes[level],
 				btrfs_header_generation(path->nodes[level]),
 				btrfs_header_level(path->nodes[level]));
 		if (ret < 0)

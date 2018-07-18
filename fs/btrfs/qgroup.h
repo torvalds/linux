@@ -234,7 +234,6 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
  * Return <0 for error(ENOMEM or tree search error)
  */
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level);
 int
