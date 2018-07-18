@@ -370,13 +370,17 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 	spin_lock_bh(&tn->node_list_lock);
 	n = tipc_node_find(net, addr);
 	if (n) {
+		if (n->capabilities == capabilities)
+			goto exit;
 		/* Same node may come back with new capabilities */
+		write_lock_bh(&n->lock);
 		n->capabilities = capabilities;
 		for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
 			l = n->links[bearer_id].link;
 			if (l)
 				tipc_link_update_caps(l, capabilities);
 		}
+		write_unlock_bh(&n->lock);
 		goto exit;
 	}
 	n = kzalloc(sizeof(*n), GFP_ATOMIC);
