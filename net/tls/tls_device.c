@@ -615,7 +615,7 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 			     TLS_CIPHER_AES_GCM_128_TAG_SIZE);
 
 		if (skb_iter->decrypted)
-			skb_store_bits(skb, offset, buf, copy);
+			skb_store_bits(skb_iter, offset, buf, copy);
 
 		offset += copy;
 		buf += copy;
