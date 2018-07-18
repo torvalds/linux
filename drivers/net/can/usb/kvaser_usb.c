@@ -568,7 +568,7 @@ static int kvaser_usb_wait_cmd(const struct kvaser_usb *dev, u8 id,
 			}
 
 			if (pos + tmp->len > actual_len) {
-				dev_err_ratelimited(dev->udev->dev.parent,
+				dev_err_ratelimited(&dev->intf->dev,
 						    "Format error\n");
 				break;
 			}
@@ -677,7 +677,7 @@ static void kvaser_usb_tx_acknowledge(const struct kvaser_usb *dev,
 	tid = cmd->u.tx_acknowledge_header.tid;
 
 	if (channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", channel);
 		return;
 	}
@@ -858,7 +858,7 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 	enum can_state old_state, new_state;
 
 	if (es->channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", es->channel);
 		return;
 	}
@@ -951,7 +951,7 @@ static void kvaser_usbcan_conditionally_rx_error(const struct kvaser_usb *dev,
 
 	channel = es->channel;
 	if (channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", channel);
 		return;
 	}
@@ -1016,8 +1016,7 @@ static void kvaser_usbcan_rx_error(const struct kvaser_usb *dev,
 		break;
 
 	default:
-		dev_err(dev->udev->dev.parent, "Invalid cmd id (%d)\n",
-			cmd->id);
+		dev_err(&dev->intf->dev, "Invalid cmd id (%d)\n", cmd->id);
 	}
 }
 
@@ -1049,8 +1048,7 @@ static void kvaser_leaf_rx_error(const struct kvaser_usb *dev,
 		es.leaf.error_factor = 0;
 		break;
 	default:
-		dev_err(dev->udev->dev.parent, "Invalid cmd id (%d)\n",
-			cmd->id);
+		dev_err(&dev->intf->dev, "Invalid cmd id (%d)\n", cmd->id);
 		return;
 	}
 
@@ -1103,7 +1101,7 @@ static void kvaser_usb_rx_can_msg(const struct kvaser_usb *dev,
 	const u8 *rx_data = NULL;	/* GCC */
 
 	if (channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", channel);
 		return;
 	}
@@ -1187,7 +1185,7 @@ static void kvaser_usb_start_chip_reply(const struct kvaser_usb *dev,
 	u8 channel = cmd->u.simple.channel;
 
 	if (channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", channel);
 		return;
 	}
@@ -1210,7 +1208,7 @@ static void kvaser_usb_stop_chip_reply(const struct kvaser_usb *dev,
 	u8 channel = cmd->u.simple.channel;
 
 	if (channel >= dev->nchannels) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Invalid channel number (%d)\n", channel);
 		return;
 	}
@@ -1267,8 +1265,7 @@ static void kvaser_usb_handle_cmd(const struct kvaser_usb *dev,
 		break;
 
 	default:
-warn:		dev_warn(dev->udev->dev.parent,
-			 "Unhandled command (%d)\n", cmd->id);
+warn:		dev_warn(&dev->intf->dev, "Unhandled command (%d)\n", cmd->id);
 		break;
 	}
 }
@@ -1289,8 +1286,7 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:
-		dev_info(dev->udev->dev.parent, "Rx URB aborted (%d)\n",
-			 urb->status);
+		dev_info(&dev->intf->dev, "Rx URB aborted (%d)\n", urb->status);
 		goto resubmit_urb;
 	}
 
@@ -1313,8 +1309,7 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 		}
 
 		if (pos + cmd->len > urb->actual_length) {
-			dev_err_ratelimited(dev->udev->dev.parent,
-					    "Format error\n");
+			dev_err_ratelimited(&dev->intf->dev, "Format error\n");
 			break;
 		}
 
@@ -1338,7 +1333,7 @@ resubmit_urb:
 			netif_device_detach(dev->nets[i]->netdev);
 		}
 	} else if (err) {
-		dev_err(dev->udev->dev.parent,
+		dev_err(&dev->intf->dev,
 			"Failed resubmitting read bulk urb: %d\n", err);
 	}
 }
@@ -1364,7 +1359,7 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE,
 					 GFP_KERNEL, &buf_dma);
 		if (!buf) {
-			dev_warn(dev->udev->dev.parent,
+			dev_warn(&dev->intf->dev,
 				 "No memory left for USB buffer\n");
 			usb_free_urb(urb);
 			err = -ENOMEM;
@@ -1397,12 +1392,11 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 	}
 
 	if (i == 0) {
-		dev_warn(dev->udev->dev.parent,
-			 "Cannot setup read URBs, error %d\n", err);
+		dev_warn(&dev->intf->dev, "Cannot setup read URBs, error %d\n",
+			 err);
 		return err;
 	} else if (i < MAX_RX_URBS) {
-		dev_warn(dev->udev->dev.parent,
-			 "RX performances may be slow\n");
+		dev_warn(&dev->intf->dev, "RX performances may be slow\n");
 	}
 
 	dev->rxinitdone = true;
