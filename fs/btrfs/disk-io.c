@@ -110,7 +110,6 @@ struct async_submit_bio {
 	extent_submit_bio_start_t *submit_bio_start;
 	extent_submit_bio_done_t *submit_bio_done;
 	int mirror_num;
-	unsigned long bio_flags;
 	/*
 	 * bio_offset is optional, can be used if the pages in the bio
 	 * can't tell us where in the file the bio should go
@@ -808,7 +807,6 @@ blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	btrfs_init_work(&async->work, btrfs_worker_helper, run_one_async_start,
 			run_one_async_done, run_one_async_free);
 
-	async->bio_flags = bio_flags;
 	async->bio_offset = bio_offset;
 
 	async->status = 0;
