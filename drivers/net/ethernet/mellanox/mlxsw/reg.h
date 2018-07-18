@@ -2579,6 +2579,76 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	memset(payload + 0x20, 0xff, 96);
 }
 
+/* PERERP - Policy-Engine Region eRP Register
+ * ------------------------------------------
+ * This register configures the region eRP. The region_id must be
+ * allocated.
+ */
+#define MLXSW_REG_PERERP_ID 0x302B
+#define MLXSW_REG_PERERP_LEN 0x1C
+
+MLXSW_REG_DEFINE(pererp, MLXSW_REG_PERERP_ID, MLXSW_REG_PERERP_LEN);
+
+/* reg_pererp_region_id
+ * Region identifier.
+ * Range 0..cap_max_regions-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pererp, region_id, 0x00, 0, 16);
+
+/* reg_pererp_ctcam_le
+ * C-TCAM lookup enable. Reserved when erpt_pointer_valid = 0.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pererp, ctcam_le, 0x04, 28, 1);
+
+/* reg_pererp_erpt_pointer_valid
+ * erpt_pointer is valid.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pererp, erpt_pointer_valid, 0x10, 31, 1);
+
+/* reg_pererp_erpt_bank_pointer
+ * Pointer to eRP table bank. May be modified at any time.
+ * Range 0..cap_max_erp_table_banks-1
+ * Reserved when erpt_pointer_valid = 0
+ */
+MLXSW_ITEM32(reg, pererp, erpt_bank_pointer, 0x10, 16, 4);
+
+/* reg_pererp_erpt_pointer
+ * Pointer to eRP table within the eRP bank. Can be changed for an
+ * existing region.
+ * Range 0..cap_max_erp_table_size-1
+ * Reserved when erpt_pointer_valid = 0
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pererp, erpt_pointer, 0x10, 0, 8);
+
+/* reg_pererp_erpt_vector
+ * Vector of allowed eRP indexes starting from erpt_pointer within the
+ * erpt_bank_pointer. Next entries will be in next bank.
+ * Note that eRP index is used and not eRP ID.
+ * Reserved when erpt_pointer_valid = 0
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, pererp, erpt_vector, 0x14, 4, 1);
+
+/* reg_pererp_master_rp_id
+ * Master RP ID. When there are no eRPs, then this provides the eRP ID
+ * for the lookup. Can be changed for an existing region.
+ * Reserved when erpt_pointer_valid = 1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pererp, master_rp_id, 0x18, 0, 4);
+
+static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id)
+{
+	MLXSW_REG_ZERO(pererp, payload);
+	mlxsw_reg_pererp_region_id_set(payload, region_id);
+	mlxsw_reg_pererp_ctcam_le_set(payload, true);
+	mlxsw_reg_pererp_erpt_pointer_valid_set(payload, true);
+}
+
 /* IEDR - Infrastructure Entry Delete Register
  * ----------------------------------------------------
  * This register is used for deleting entries from the entry tables.
@@ -8157,6 +8227,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perar),
 	MLXSW_REG(percr),
+	MLXSW_REG(pererp),
 	MLXSW_REG(iedr),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
