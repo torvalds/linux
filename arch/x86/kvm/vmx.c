@@ -214,6 +214,7 @@ static void *vmx_l1d_flush_pages;
 static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 {
 	struct page *page;
+	unsigned int i;
 
 	if (!enable_ept) {
 		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_EPT_DISABLED;
@@ -246,6 +247,16 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 		if (!page)
 			return -ENOMEM;
 		vmx_l1d_flush_pages = page_address(page);
+
+		/*
+		 * Initialize each page with a different pattern in
+		 * order to protect against KSM in the nested
+		 * virtualization case.
+		 */
+		for (i = 0; i < 1u << L1D_CACHE_ORDER; ++i) {
+			memset(vmx_l1d_flush_pages + i * PAGE_SIZE, i + 1,
+			       PAGE_SIZE);
+		}
 	}
 
 	l1tf_vmx_mitigation = l1tf;
@@ -9176,7 +9187,7 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 		/* First ensure the pages are in the TLB */
 		"xorl	%%eax, %%eax\n"
 		".Lpopulate_tlb:\n\t"
-		"movzbl	(%[empty_zp], %%" _ASM_AX "), %%ecx\n\t"
+		"movzbl	(%[flush_pages], %%" _ASM_AX "), %%ecx\n\t"
 		"addl	$4096, %%eax\n\t"
 		"cmpl	%%eax, %[size]\n\t"
 		"jne	.Lpopulate_tlb\n\t"
@@ -9185,12 +9196,12 @@ static void vmx_l1d_flush(struct kvm_vcpu *vcpu)
 		/* Now fill the cache */
 		"xorl	%%eax, %%eax\n"
 		".Lfill_cache:\n"
-		"movzbl	(%[empty_zp], %%" _ASM_AX "), %%ecx\n\t"
+		"movzbl	(%[flush_pages], %%" _ASM_AX "), %%ecx\n\t"
 		"addl	$64, %%eax\n\t"
 		"cmpl	%%eax, %[size]\n\t"
 		"jne	.Lfill_cache\n\t"
 		"lfence\n"
-		:: [empty_zp] "r" (vmx_l1d_flush_pages),
+		:: [flush_pages] "r" (vmx_l1d_flush_pages),
 		    [size] "r" (size)
 		: "eax", "ebx", "ecx", "edx");
 }
