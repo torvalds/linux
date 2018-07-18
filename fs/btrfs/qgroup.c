@@ -1611,9 +1611,9 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 }
 
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int nr = btrfs_header_nritems(eb);
 	int i, extent_type, ret;
 	struct btrfs_key key;
@@ -1737,7 +1737,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	}
 
 	if (root_level == 0) {
-		ret = btrfs_qgroup_trace_leaf_items(trans, fs_info, root_eb);
+		ret = btrfs_qgroup_trace_leaf_items(trans, root_eb);
 		goto out;
 	}
 
@@ -1803,8 +1803,8 @@ walk_down:
 		}
 
 		if (level == 0) {
-			ret = btrfs_qgroup_trace_leaf_items(trans,fs_info,
-							   path->nodes[level]);
+			ret = btrfs_qgroup_trace_leaf_items(trans,
+							    path->nodes[level]);
 			if (ret)
 				goto out;
 

@@ -8760,7 +8760,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			else
 				ret = btrfs_dec_ref(trans, root, eb, 0);
 			BUG_ON(ret); /* -ENOMEM */
-			ret = btrfs_qgroup_trace_leaf_items(trans, fs_info, eb);
+			ret = btrfs_qgroup_trace_leaf_items(trans, eb);
 			if (ret) {
 				btrfs_err_rl(fs_info,
 					     "error %d accounting leaf items. Quota is out of sync, rescan required.",

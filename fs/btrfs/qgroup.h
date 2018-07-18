@@ -222,7 +222,6 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
  * Return <0 for error(ENOMEM)
  */
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct extent_buffer *eb);
 /*
  * Inform qgroup to trace a whole subtree, including all its child tree
