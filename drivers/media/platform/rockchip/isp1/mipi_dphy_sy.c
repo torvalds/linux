@@ -666,39 +666,70 @@ static int mipidphy_rx_stream_on(struct mipidphy_priv *priv,
 			break;
 		}
 	}
+
+	/* RK3288 isp connected to phy0-rx */
 	write_grf_reg(priv, GRF_CON_ISP_DPHY_SEL, 0);
-	write_grf_reg(priv, GRF_DPHY_RX0_FORCERXMODE, 0);
-	write_grf_reg(priv, GRF_DPHY_RX0_FORCETXSTOPMODE, 0);
-	/* Disable lan turn around, which is ignored in receive mode */
-	write_grf_reg(priv, GRF_DPHY_RX0_TURNREQUEST, 0);
-	write_grf_reg(priv, GRF_DPHY_RX0_TURNDISABLE, 0xf);
 
-	write_grf_reg(priv, GRF_DPHY_RX0_ENABLE, GENMASK(sensor->lanes - 1, 0));
+	/* Belowed is the sequence of mipi configuration */
+	/* Step1: set RSTZ = 1'b0, phy0 controlled by isp0 */
 
-	/* dphy start */
+	/* Step2: set SHUTDOWNZ = 1'b0, controlled by isp0 */
+
+	/* Step3: set TESTCLEAR = 1'b1 */
 	write_grf_reg(priv, GRF_DPHY_RX0_TESTCLK, 1);
 	write_grf_reg(priv, GRF_DPHY_RX0_TESTCLR, 1);
 	usleep_range(100, 150);
+
+	/* Step4: apply REFCLK signal with the appropriate frequency */
+
+	/* Step5: apply CFG_CLK signal with the appropriate frequency */
+
+	/* Step6: set MASTERSLAVEZ = 1'b0 (for SLAVE), phy0 default is slave */
+
+	/* Step7: set BASEDIR_N = 1’b1 (for SLAVE), phy0 default is slave */
+
+	/*
+	 * Step8: set all REQUEST inputs to zero, need to wait 15ns:
+	 * step8.1:set lan turndisab as 1
+	 * step8.2:set lan turnrequest as 0
+	 */
+	write_grf_reg(priv, GRF_DPHY_RX0_TURNDISABLE, 0xf);
+	write_grf_reg(priv, GRF_DPHY_RX0_FORCERXMODE, 0);
+	write_grf_reg(priv, GRF_DPHY_RX0_TURNREQUEST, 0);
+	usleep_range(100, 150);
+
+	/* Step9: set TESTCLR to low, need to wait 15ns */
 	write_grf_reg(priv, GRF_DPHY_RX0_TESTCLR, 0);
 	usleep_range(100, 150);
 
-	/* set clock lane */
-	/* HS hsfreq_range & lane 0  settle bypass */
+	/*
+	 * Step10: configure Test Code 0x44 hsfreqrange according to values
+	 * step10.1:set clock lane
+	 * step10.2:set hsfreqrange by lane0(test code 0x44)
+	 */
+	hsfreq <<= 1;
 	mipidphy0_wr_reg(priv, CLOCK_LANE_HS_RX_CONTROL, 0);
-	/* HS RX Control of lane0 */
-	mipidphy0_wr_reg(priv, LANE0_HS_RX_CONTROL, hsfreq << 1);
-	/* HS RX Control of lane1 */
-	mipidphy0_wr_reg(priv, LANE1_HS_RX_CONTROL, 0);
-	/* HS RX Control of lane2 */
-	mipidphy0_wr_reg(priv, LANE2_HS_RX_CONTROL, 0);
-	/* HS RX Control of lane3 */
-	mipidphy0_wr_reg(priv, LANE3_HS_RX_CONTROL, 0);
-	/* HS RX Data Lanes Settle State Time Control */
-	mipidphy0_wr_reg(priv, HS_RX_DATA_LANES_THS_SETTLE_CONTROL,
-			 THS_SETTLE_COUNTER_THRESHOLD);
+	mipidphy0_wr_reg(priv, LANE0_HS_RX_CONTROL, hsfreq);
+	mipidphy0_wr_reg(priv, LANE1_HS_RX_CONTROL, hsfreq);
+	mipidphy0_wr_reg(priv, LANE2_HS_RX_CONTROL, hsfreq);
+	mipidphy0_wr_reg(priv, LANE3_HS_RX_CONTROL, hsfreq);
 
-	/* Normal operation */
-	mipidphy0_wr_reg(priv, 0x0, 0);
+	/* Step11: Configure analog references: of Test Code 0x22 */
+
+	/* Step12: Set ENABLE_N=1'b1, need to wait 5ns */
+	/* set lane num */
+	write_grf_reg(priv, GRF_DPHY_RX0_ENABLE, GENMASK(sensor->lanes - 1, 0));
+
+	/* Step13: Set SHUTDOWNZ=1'b1, controlled by isp need to wait 5ns */
+
+	/* Step14: Set RSTZ=1'b1, controlled by isp */
+
+	/*
+	 * Step15: Wait until STOPSTATEDATA_N & STOPSTATECLK
+	 *         outputs are asserted
+	 */
+
+	usleep_range(100, 150);
 
 	return 0;
 }
@@ -719,40 +750,98 @@ static int mipidphy_txrx_stream_on(struct mipidphy_priv *priv,
 			break;
 		}
 	}
+
+	/*
+	 *Config rk3288:
+	 *step1:rk3288 isp connected to phy1-rx
+	 *step2:rk3288 phy1-rx test bus connected to csi host
+	 *step3:rk3288 phy1-rx source selected as: isp = 1'b1,csi-host = 1'b0
+	 */
 	write_grf_reg(priv, GRF_CON_ISP_DPHY_SEL, 1);
 	write_grf_reg(priv, GRF_DSI_CSI_TESTBUS_SEL, 1);
 	write_grf_reg(priv, GRF_DPHY_RX1_SRC_SEL, 1);
+
+	/*
+	 * Config rk3399：
+	 * step1:rk3399 phy1-rx source selected as:1'b0=isp1,1'b1=isp0
+	 */
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_SRC_SEL, 0);
+
+	/* Belowed is the sequence of mipi configuration */
+	/* Step1: set RSTZ = 1'b0, phy1-rx controlled by isp */
+
+	/* Step2: set SHUTDOWNZ = 1'b0, phy1-rx controlled by isp */
+
+	/* Step3: set TESTCLR= 1'b1,TESTCLK=1'b1 */
+	write_txrx_reg(priv, TXRX_PHY_TEST_CTRL0, PHY_TESTCLR | PHY_TESTCLK);
+	usleep_range(100, 150);
+
+	/* Step4: apply REFCLK signal with the appropriate frequency */
+
+	/* Step5: apply CFG_CLK signal with the appropriate frequency */
+
+	/*
+	 * Step6: set MASTERSLAVEZ = 1'b0 (for SLAVE),
+	 *        phy1 is set as slave,controlled by isp
+	 */
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_MASTERSLAVEZ, 0);
+
+	/*
+	 * Step7: set BASEDIR_N = 1’b1 (for SLAVE),
+	 *        phy1 is set as slave,controlled by isp
+	 */
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_BASEDIR, 1);
-	/* Disable lan turn around, which is ignored in receive mode */
+
+	/* Step8: set all REQUEST inputs to zero, need to wait 15ns */
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_FORCERXMODE, 0);
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_FORCETXSTOPMODE, 0);
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_TURNREQUEST, 0);
 	write_grf_reg(priv, GRF_DPHY_TX1RX1_TURNDISABLE, 0xf);
-	write_grf_reg(priv, GRF_DPHY_TX1RX1_ENABLE,
-		      GENMASK(sensor->lanes - 1, 0));
-	/* dphy start */
-	write_txrx_reg(priv, TXRX_PHY_SHUTDOWNZ, 0x00);
-	write_txrx_reg(priv, TXRX_PHY_RSTZ, 0x00);
-	write_txrx_reg(priv, TXRX_PHY_TEST_CTRL0, PHY_TESTCLK);
-	write_txrx_reg(priv, TXRX_PHY_TEST_CTRL0, PHY_TESTCLR);
 	usleep_range(100, 150);
+
+	/* Step9: set TESTCLR=1'b0,TESTCLK=1'b1 need to wait 15ns */
 	write_txrx_reg(priv, TXRX_PHY_TEST_CTRL0, PHY_TESTCLK);
 	usleep_range(100, 150);
 
-	/* set clock lane */
+	/*
+	 * Step10: configure Test Code 0x44 hsfreqrange according to values
+	 * step10.1:set clock lane
+	 * step10.2:set hsfreqrange by lane0(test code 0x44)
+	 */
+	hsfreq <<= 1;
 	mipidphy1_wr_reg(priv, CLOCK_LANE_HS_RX_CONTROL, 0);
-	mipidphy1_wr_reg(priv, LANE0_HS_RX_CONTROL, hsfreq << 1);
+	mipidphy1_wr_reg(priv, LANE0_HS_RX_CONTROL, hsfreq);
 	mipidphy1_wr_reg(priv, LANE1_HS_RX_CONTROL, 0);
 	mipidphy1_wr_reg(priv, LANE2_HS_RX_CONTROL, 0);
 	mipidphy1_wr_reg(priv, LANE3_HS_RX_CONTROL, 0);
-	/* HS RX Data Lanes Settle State Time Control */
-	mipidphy1_wr_reg(priv, HS_RX_DATA_LANES_THS_SETTLE_CONTROL,
-			 THS_SETTLE_COUNTER_THRESHOLD);
 
-	/* Normal operation */
-	mipidphy1_wr_reg(priv, 0x0, 0);
+	/* Step11: Configure analog references: of Test Code 0x22 */
+
+	/*
+	 * Step12: Set ENABLE_N=1'b1, need to wait 5ns
+	 * Set lane num:
+	 * for 3288,controlled by isp,enable lanes actually
+	 * is set by grf_soc_con9[12:15];
+	 * for 3399,controlled by isp1,enable lanes actually
+	 * is set by isp1,
+	 * if run 3399 here operates grf_soc_con23[0:3]
+	 */
+	write_grf_reg(priv, GRF_DPHY_TX1RX1_ENABLE,
+		      GENMASK(sensor->lanes - 1, 0));
+
+	/*
+	 * Step13:Set SHUTDOWNZ=1'b1, phy1-rx controlled by isp,
+	 *        need to wait 5ns
+	 */
+
+	/* Step14:Set RSTZ=1'b1, phy1-rx controlled by isp*/
+
+	/*
+	 * Step15:Wait until STOPSTATEDATA_N & STOPSTATECLK
+	 *        outputs are asserted
+	 */
+
+	usleep_range(100, 150);
 
 	return 0;
 }
