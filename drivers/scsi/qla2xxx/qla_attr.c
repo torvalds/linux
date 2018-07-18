@@ -2141,6 +2141,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		msleep(1000);
 
 	qla24xx_disable_vp(vha);
+	qla2x00_wait_for_sess_deletion(vha);
 
 	vha->flags.delete_progress = 1;
 

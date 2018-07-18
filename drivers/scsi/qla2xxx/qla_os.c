@@ -1147,7 +1147,7 @@ static inline int test_fcport_count(scsi_qla_host_t *vha)
  * qla2x00_wait_for_sess_deletion can only be called from remove_one.
  * it has dependency on UNLOADING flag to stop device discovery
  */
-static void
+void
 qla2x00_wait_for_sess_deletion(scsi_qla_host_t *vha)
 {
 	qla2x00_mark_all_devices_lost(vha, 0);
