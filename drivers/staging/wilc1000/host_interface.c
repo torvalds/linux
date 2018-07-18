@@ -199,7 +199,6 @@ static u32 clients_count;
 
 static void *host_int_parse_join_bss_param(struct network_info *info);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
-static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt);
 
 /* 'msg' should be free by the caller for syc */
 static struct host_if_msg*
@@ -724,6 +723,44 @@ unlock:
 	kfree(msg);
 }
 
+static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
+{
+	s32 result = 0;
+	u8 abort_running_scan;
+	struct wid wid;
+	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct user_scan_req *scan_req;
+
+	if (evt == SCAN_EVENT_ABORTED) {
+		abort_running_scan = 1;
+		wid.id = WID_ABORT_RUNNING_SCAN;
+		wid.type = WID_CHAR;
+		wid.val = (s8 *)&abort_running_scan;
+		wid.size = sizeof(char);
+
+		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
+					      wilc_get_vif_idx(vif));
+
+		if (result) {
+			netdev_err(vif->ndev, "Failed to set abort running\n");
+			result = -EFAULT;
+		}
+	}
+
+	if (!hif_drv) {
+		netdev_err(vif->ndev, "Driver handler is NULL\n");
+		return result;
+	}
+
+	scan_req = &hif_drv->usr_scan_req;
+	if (scan_req->scan_result) {
+		scan_req->scan_result(evt, NULL, scan_req->arg, NULL);
+		scan_req->scan_result = NULL;
+	}
+
+	return result;
+}
+
 static void handle_scan(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -839,44 +876,6 @@ error:
 	kfree(hdn_ntwk_wid_val);
 
 	kfree(msg);
-}
-
-static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
-{
-	s32 result = 0;
-	u8 abort_running_scan;
-	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct user_scan_req *scan_req;
-
-	if (evt == SCAN_EVENT_ABORTED) {
-		abort_running_scan = 1;
-		wid.id = WID_ABORT_RUNNING_SCAN;
-		wid.type = WID_CHAR;
-		wid.val = (s8 *)&abort_running_scan;
-		wid.size = sizeof(char);
-
-		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
-					      wilc_get_vif_idx(vif));
-
-		if (result) {
-			netdev_err(vif->ndev, "Failed to set abort running\n");
-			result = -EFAULT;
-		}
-	}
-
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "Driver handler is NULL\n");
-		return result;
-	}
-
-	scan_req = &hif_drv->usr_scan_req;
-	if (scan_req->scan_result) {
-		scan_req->scan_result(evt, NULL, scan_req->arg, NULL);
-		scan_req->scan_result = NULL;
-	}
-
-	return result;
 }
 
 u8 wilc_connected_ssid[6] = {0};
