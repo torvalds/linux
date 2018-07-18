@@ -2332,6 +2332,23 @@ MLXSW_REG_DEFINE(pefa, MLXSW_REG_PEFA_ID, MLXSW_REG_PEFA_LEN);
  */
 MLXSW_ITEM32(reg, pefa, index, 0x00, 0, 24);
 
+/* reg_pefa_a
+ * Index in the KVD Linear Centralized Database.
+ * Activity
+ * For a new entry: set if ca=0, clear if ca=1
+ * Set if a packet lookup has hit on the specific entry
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pefa, a, 0x04, 29, 1);
+
+/* reg_pefa_ca
+ * Clear activity
+ * When write: activity is according to this field
+ * When read: after reading the activity is cleared according to ca
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, pefa, ca, 0x04, 24, 1);
+
 #define MLXSW_REG_FLEX_ACTION_SET_LEN 0xA8
 
 /* reg_pefa_flex_action_set
@@ -2341,12 +2358,20 @@ MLXSW_ITEM32(reg, pefa, index, 0x00, 0, 24);
  */
 MLXSW_ITEM_BUF(reg, pefa, flex_action_set, 0x08, MLXSW_REG_FLEX_ACTION_SET_LEN);
 
-static inline void mlxsw_reg_pefa_pack(char *payload, u32 index,
+static inline void mlxsw_reg_pefa_pack(char *payload, u32 index, bool ca,
 				       const char *flex_action_set)
 {
 	MLXSW_REG_ZERO(pefa, payload);
 	mlxsw_reg_pefa_index_set(payload, index);
-	mlxsw_reg_pefa_flex_action_set_memcpy_to(payload, flex_action_set);
+	mlxsw_reg_pefa_ca_set(payload, ca);
+	if (flex_action_set)
+		mlxsw_reg_pefa_flex_action_set_memcpy_to(payload,
+							 flex_action_set);
+}
+
+static inline void mlxsw_reg_pefa_unpack(char *payload, bool *p_a)
+{
+	*p_a = mlxsw_reg_pefa_a_get(payload);
 }
 
 /* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
