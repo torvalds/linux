@@ -715,8 +715,14 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
-		if (hdev->commands[25] & 0x40) {
-			/* Read LE Advertising Channel TX Power */
+		/* Read LE Advertising Channel TX Power */
+		if ((hdev->commands[25] & 0x40) && !ext_adv_capable(hdev)) {
+			/* HCI TS spec forbids mixing of legacy and extended
+			 * advertising commands wherein READ_ADV_TX_POWER is
+			 * also included. So do not call it if extended adv
+			 * is supported otherwise controller will return
+			 * COMMAND_DISALLOWED for extended commands.
+			 */
 			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
 		}
 
@@ -748,6 +754,12 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 
 			/* Read LE Suggested Default Data Length */
 			hci_req_add(req, HCI_OP_LE_READ_DEF_DATA_LEN, 0, NULL);
+		}
+
+		if (ext_adv_capable(hdev)) {
+			/* Read LE Number of Supported Advertising Sets */
+			hci_req_add(req, HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS,
+				    0, NULL);
 		}
 
 		hci_set_le_support(req);

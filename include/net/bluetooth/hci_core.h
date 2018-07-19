@@ -222,6 +222,7 @@ struct hci_dev {
 	__u8		le_features[8];
 	__u8		le_white_list_size;
 	__u8		le_resolv_list_size;
+	__u8		le_num_of_adv_sets;
 	__u8		le_states[8];
 	__u8		commands[64];
 	__u8		hci_ver;
@@ -1179,6 +1180,9 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 			   ((dev)->commands[37] & 0x40))
 /* Use ext create connection if command is supported */
 #define use_ext_conn(dev) ((dev)->commands[37] & 0x80)
+
+/* Extended advertising support */
+#define ext_adv_capable(dev) (((dev)->le_features[1] & HCI_LE_EXT_ADV))
 
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01

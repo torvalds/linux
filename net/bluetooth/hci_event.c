@@ -1267,6 +1267,20 @@ static void hci_cc_le_set_ext_scan_enable(struct hci_dev *hdev,
 	le_set_scan_enable_complete(hdev, cp->enable);
 }
 
+static void hci_cc_le_read_num_adv_sets(struct hci_dev *hdev,
+				      struct sk_buff *skb)
+{
+	struct hci_rp_le_read_num_supported_adv_sets *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x No of Adv sets %u", hdev->name, rp->status,
+	       rp->num_of_sets);
+
+	if (rp->status)
+		return;
+
+	hdev->le_num_of_adv_sets = rp->num_of_sets;
+}
+
 static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
 					   struct sk_buff *skb)
 {
@@ -3187,6 +3201,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_SET_DEFAULT_PHY:
 		hci_cc_le_set_default_phy(hdev, skb);
+		break;
+
+	case HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS:
+		hci_cc_le_read_num_adv_sets(hdev, skb);
 		break;
 
 	default:

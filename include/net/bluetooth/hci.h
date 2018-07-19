@@ -410,6 +410,7 @@ enum {
 #define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
+#define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_EXT_SCAN_POLICY		0x80
 #define HCI_LE_PHY_2M			0x01
 #define HCI_LE_PHY_CODED		0x08
@@ -1577,6 +1578,12 @@ struct hci_cp_le_ext_conn_param {
 	__le16 supervision_timeout;
 	__le16 min_ce_len;
 	__le16 max_ce_len;
+} __packed;
+
+#define HCI_OP_LE_READ_NUM_SUPPORTED_ADV_SETS	0x203b
+struct hci_rp_le_read_num_supported_adv_sets {
+	__u8  status;
+	__u8  num_of_sets;
 } __packed;
 
 /* ---- HCI Events ---- */
