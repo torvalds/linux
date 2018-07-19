@@ -1141,6 +1141,10 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_inq_tx_pwr_capable(dev) ((dev)->features[0][7] & LMP_INQ_TX_PWR)
 #define lmp_ext_feat_capable(dev)  ((dev)->features[0][7] & LMP_EXTFEATURES)
 #define lmp_transp_capable(dev)    ((dev)->features[0][2] & LMP_TRANSPARENT)
+#define lmp_edr_2m_capable(dev)    ((dev)->features[0][3] & LMP_EDR_2M)
+#define lmp_edr_3m_capable(dev)    ((dev)->features[0][3] & LMP_EDR_3M)
+#define lmp_edr_3slot_capable(dev) ((dev)->features[0][4] & LMP_EDR_3SLOT)
+#define lmp_edr_5slot_capable(dev) ((dev)->features[0][5] & LMP_EDR_5SLOT)
 
 /* ----- Extended LMP capabilities ----- */
 #define lmp_csb_master_capable(dev) ((dev)->features[2][0] & LMP_CSB_MASTER)

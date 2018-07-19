@@ -291,6 +291,14 @@ enum {
 #define HCI_DH3		0x0800
 #define HCI_DH5		0x8000
 
+/* HCI packet types inverted masks */
+#define HCI_2DH1	0x0002
+#define HCI_3DH1	0x0004
+#define HCI_2DH3	0x0100
+#define HCI_3DH3	0x0200
+#define HCI_2DH5	0x1000
+#define HCI_3DH5	0x2000
+
 #define HCI_HV1		0x0020
 #define HCI_HV2		0x0040
 #define HCI_HV3		0x0080
@@ -354,6 +362,8 @@ enum {
 #define LMP_PCONTROL	0x04
 #define LMP_TRANSPARENT	0x08
 
+#define LMP_EDR_2M		0x02
+#define LMP_EDR_3M		0x04
 #define LMP_RSSI_INQ	0x40
 #define LMP_ESCO	0x80
 
@@ -361,7 +371,9 @@ enum {
 #define LMP_EV5		0x02
 #define LMP_NO_BREDR	0x20
 #define LMP_LE		0x40
+#define LMP_EDR_3SLOT	0x80
 
+#define LMP_EDR_5SLOT	0x01
 #define LMP_SNIFF_SUBR	0x02
 #define LMP_PAUSE_ENC	0x04
 #define LMP_EDR_ESCO_2M	0x20
@@ -399,6 +411,8 @@ enum {
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
+#define HCI_LE_PHY_2M			0x01
+#define HCI_LE_PHY_CODED		0x08
 #define HCI_LE_CHAN_SEL_ALG2		0x40
 
 /* Connection modes */
