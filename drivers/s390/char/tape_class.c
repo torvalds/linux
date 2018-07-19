@@ -77,7 +77,7 @@ struct tape_class_device *register_tape_dev(
 	tcd->class_device = device_create(tape_class, device,
 					  tcd->char_device->dev, NULL,
 					  "%s", tcd->device_name);
-	rc = PTR_RET(tcd->class_device);
+	rc = PTR_ERR_OR_ZERO(tcd->class_device);
 	if (rc)
 		goto fail_with_cdev;
 	rc = sysfs_create_link(
