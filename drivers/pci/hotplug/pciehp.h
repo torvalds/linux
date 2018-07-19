@@ -97,7 +97,7 @@ struct event_info {
  *	used for synchronous writes to the Slot Control register
  * @slot_cap: cached copy of the Slot Capabilities register
  * @slot_ctrl: cached copy of the Slot Control register
- * @poll_timer: timer to poll for slot events if no IRQ is available,
+ * @poll_thread: thread to poll for slot events if no IRQ is available,
  *	enabled with pciehp_poll_mode module parameter
  * @cmd_started: jiffies when the Slot Control register was last written;
  *	the next write is allowed 1 second later, absent a Command Completed
@@ -122,7 +122,7 @@ struct controller {
 	wait_queue_head_t queue;
 	u32 slot_cap;
 	u16 slot_ctrl;
-	struct timer_list poll_timer;
+	struct task_struct *poll_thread;
 	unsigned long cmd_started;	/* jiffies */
 	unsigned int cmd_busy:1;
 	unsigned int link_active_reporting:1;
