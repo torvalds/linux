@@ -472,7 +472,7 @@ static int rockchip_pcie_ep_send_msi_irq(struct rockchip_pcie_ep *ep, u8 fn,
 
 static int rockchip_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn,
 				      enum pci_epc_irq_type type,
-				      u8 interrupt_num)
+				      u16 interrupt_num)
 {
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 
