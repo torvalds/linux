@@ -334,37 +334,41 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 	      int cmd, int perm)
 {
 	struct kbentry tmp;
+	unsigned long kb_index, kb_table;
 	ushort *key_map, val, ov;
 
 	if (copy_from_user(&tmp, user_kbe, sizeof(struct kbentry)))
 		return -EFAULT;
+	kb_index = (unsigned long) tmp.kb_index;
 #if NR_KEYS < 256
-	if (tmp.kb_index >= NR_KEYS)
+	if (kb_index >= NR_KEYS)
 		return -EINVAL;
 #endif
+	kb_table = (unsigned long) tmp.kb_table;
 #if MAX_NR_KEYMAPS < 256
-	if (tmp.kb_table >= MAX_NR_KEYMAPS)
+	if (kb_table >= MAX_NR_KEYMAPS)
 		return -EINVAL;	
+	kb_table = array_index_nospec(kb_table , MAX_NR_KEYMAPS);
 #endif
 
 	switch (cmd) {
 	case KDGKBENT:
-		key_map = kbd->key_maps[tmp.kb_table];
+		key_map = kbd->key_maps[kb_table];
 		if (key_map) {
-		    val = U(key_map[tmp.kb_index]);
+		    val = U(key_map[kb_index]);
 		    if (KTYP(val) >= KBD_NR_TYPES)
 			val = K_HOLE;
 		} else
-		    val = (tmp.kb_index ? K_HOLE : K_NOSUCHMAP);
+		    val = (kb_index ? K_HOLE : K_NOSUCHMAP);
 		return put_user(val, &user_kbe->kb_value);
 	case KDSKBENT:
 		if (!perm)
 			return -EPERM;
-		if (!tmp.kb_index && tmp.kb_value == K_NOSUCHMAP) {
+		if (!kb_index && tmp.kb_value == K_NOSUCHMAP) {
 			/* disallocate map */
-			key_map = kbd->key_maps[tmp.kb_table];
+			key_map = kbd->key_maps[kb_table];
 			if (key_map) {
-			    kbd->key_maps[tmp.kb_table] = NULL;
+			    kbd->key_maps[kb_table] = NULL;
 			    kfree(key_map);
 			}
 			break;
@@ -375,18 +379,18 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 		if (KVAL(tmp.kb_value) > kbd_max_vals[KTYP(tmp.kb_value)])
 			return -EINVAL;
 
-		if (!(key_map = kbd->key_maps[tmp.kb_table])) {
+		if (!(key_map = kbd->key_maps[kb_table])) {
 			int j;
 
 			key_map = kmalloc(sizeof(plain_map),
 						     GFP_KERNEL);
 			if (!key_map)
 				return -ENOMEM;
-			kbd->key_maps[tmp.kb_table] = key_map;
+			kbd->key_maps[kb_table] = key_map;
 			for (j = 0; j < NR_KEYS; j++)
 				key_map[j] = U(K_HOLE);
 		}
-		ov = U(key_map[tmp.kb_index]);
+		ov = U(key_map[kb_index]);
 		if (tmp.kb_value == ov)
 			break;	/* nothing to do */
 		/*
@@ -395,7 +399,7 @@ do_kdsk_ioctl(struct kbd_data *kbd, struct kbentry __user *user_kbe,
 		if (((ov == K_SAK) || (tmp.kb_value == K_SAK)) &&
 		    !capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		key_map[tmp.kb_index] = U(tmp.kb_value);
+		key_map[kb_index] = U(tmp.kb_value);
 		break;
 	}
 	return 0;
