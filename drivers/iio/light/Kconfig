@@ -1,3 +1,4 @@
+
 #
 # Light sensors
 #
@@ -318,6 +319,17 @@ config PA12203001
 
          This driver can also be built as a module.  If so, the module
          will be called pa12203001.
+
+config SI1133
+	tristate "SI1133 UV Index Sensor and Ambient Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	  help
+	  Say Y here if you want to build a driver for the Silicon Labs SI1133
+	  UV Index Sensor and Ambient Light Sensor chip.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called si1133.
 
 config SI1145
 	tristate "SI1132 and SI1141/2/3/5/6/7 combined ALS, UV index and proximity sensor"
