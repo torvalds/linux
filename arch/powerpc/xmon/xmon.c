@@ -2429,7 +2429,6 @@ static void dump_one_paca(int cpu)
 	DUMP(p, thread_idle_state, "%#-*x");
 	DUMP(p, thread_mask, "%#-*x");
 	DUMP(p, subcore_sibling_mask, "%#-*x");
-	DUMP(p, thread_sibling_pacas, "%-*px");
 	DUMP(p, requested_psscr, "%#-*llx");
 	DUMP(p, stop_sprs.pid, "%#-*llx");
 	DUMP(p, stop_sprs.ldbar, "%#-*llx");

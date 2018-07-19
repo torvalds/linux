@@ -226,16 +226,6 @@ void radix__mark_rodata_ro(void)
 {
 	unsigned long start, end;
 
-	/*
-	 * mark_rodata_ro() will mark itself as !writable at some point.
-	 * Due to DD1 workaround in radix__pte_update(), we'll end up with
-	 * an invalid pte and the system will crash quite severly.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		pr_warn("Warning: Unable to mark rodata read only on P9 DD1\n");
-		return;
-	}
-
 	start = (unsigned long)_stext;
 	end = (unsigned long)__init_begin;
 
@@ -533,35 +523,6 @@ found:
 	return;
 }
 
-static void update_hid_for_radix(void)
-{
-	unsigned long hid0;
-	unsigned long rb = 3UL << PPC_BITLSHIFT(53); /* IS = 3 */
-
-	asm volatile("ptesync": : :"memory");
-	/* prs = 0, ric = 2, rs = 0, r = 1 is = 3 */
-	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
-		     : : "r"(rb), "i"(1), "i"(0), "i"(2), "r"(0) : "memory");
-	/* prs = 1, ric = 2, rs = 0, r = 1 is = 3 */
-	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
-		     : : "r"(rb), "i"(1), "i"(1), "i"(2), "r"(0) : "memory");
-	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
-	trace_tlbie(0, 0, rb, 0, 2, 0, 1);
-	trace_tlbie(0, 0, rb, 0, 2, 1, 1);
-
-	/*
-	 * now switch the HID
-	 */
-	hid0  = mfspr(SPRN_HID0);
-	hid0 |= HID0_POWER9_RADIX;
-	mtspr(SPRN_HID0, hid0);
-	asm volatile("isync": : :"memory");
-
-	/* Wait for it to happen */
-	while (!(mfspr(SPRN_HID0) & HID0_POWER9_RADIX))
-		cpu_relax();
-}
-
 static void radix_init_amor(void)
 {
 	/*
@@ -576,22 +537,12 @@ static void radix_init_amor(void)
 
 static void radix_init_iamr(void)
 {
-	unsigned long iamr;
-
-	/*
-	 * The IAMR should set to 0 on DD1.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		iamr = 0;
-	else
-		iamr = (1ul << 62);
-
 	/*
 	 * Radix always uses key0 of the IAMR to determine if an access is
 	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
 	 * fetch.
 	 */
-	mtspr(SPRN_IAMR, iamr);
+	mtspr(SPRN_IAMR, (1ul << 62));
 }
 
 void __init radix__early_init_mmu(void)
@@ -644,8 +595,6 @@ void __init radix__early_init_mmu(void)
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			update_hid_for_radix();
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
@@ -671,10 +620,6 @@ void radix__early_init_mmu_secondary(void)
 	 * update partition table control register and UPRT
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			update_hid_for_radix();
-
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
@@ -1095,8 +1040,7 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 	 * To avoid NMMU hang while relaxing access, we need mark
 	 * the pte invalid in between.
 	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1) ||
-	    atomic_read(&mm->context.copros) > 0) {
+	if (atomic_read(&mm->context.copros) > 0) {
 		unsigned long old_pte, new_pte;
 
 		old_pte = __radix_pte_update(ptep, ~0, 0);

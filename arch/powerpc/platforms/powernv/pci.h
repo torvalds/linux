@@ -197,13 +197,6 @@ struct pnv_phb {
 };
 
 extern struct pci_ops pnv_pci_ops;
-extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
-		unsigned long uaddr, enum dma_data_direction direction,
-		unsigned long attrs);
-extern void pnv_tce_free(struct iommu_table *tbl, long index, long npages);
-extern int pnv_tce_xchg(struct iommu_table *tbl, long index,
-		unsigned long *hpa, enum dma_data_direction *direction);
-extern unsigned long pnv_tce_get(struct iommu_table *tbl, long index);
 
 void pnv_pci_dump_phb_diag_data(struct pci_controller *hose,
 				unsigned char *log_buff);
@@ -213,14 +206,6 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 		      int where, int size, u32 val);
 extern struct iommu_table *pnv_pci_table_alloc(int nid);
 
-extern long pnv_pci_link_table_and_group(int node, int num,
-		struct iommu_table *tbl,
-		struct iommu_table_group *table_group);
-extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
-		struct iommu_table_group *table_group);
-extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
-				      void *tce_mem, u64 tce_size,
-				      u64 dma_offset, unsigned page_shift);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_init_npu_phb(struct device_node *np);
@@ -256,5 +241,34 @@ extern long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num);
 extern void pnv_npu_take_ownership(struct pnv_ioda_pe *npe);
 extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
 extern int pnv_npu2_init(struct pnv_phb *phb);
+
+/* pci-ioda-tce.c */
+#define POWERNV_IOMMU_DEFAULT_LEVELS	1
+#define POWERNV_IOMMU_MAX_LEVELS	5
+
+extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
+		unsigned long uaddr, enum dma_data_direction direction,
+		unsigned long attrs);
+extern void pnv_tce_free(struct iommu_table *tbl, long index, long npages);
+extern int pnv_tce_xchg(struct iommu_table *tbl, long index,
+		unsigned long *hpa, enum dma_data_direction *direction,
+		bool alloc);
+extern __be64 *pnv_tce_useraddrptr(struct iommu_table *tbl, long index,
+		bool alloc);
+extern unsigned long pnv_tce_get(struct iommu_table *tbl, long index);
+
+extern long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
+		__u32 page_shift, __u64 window_size, __u32 levels,
+		bool alloc_userspace_copy, struct iommu_table *tbl);
+extern void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
+
+extern long pnv_pci_link_table_and_group(int node, int num,
+		struct iommu_table *tbl,
+		struct iommu_table_group *table_group);
+extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
+		struct iommu_table_group *table_group);
+extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
+		void *tce_mem, u64 tce_size,
+		u64 dma_offset, unsigned int page_shift);
 
 #endif /* __POWERNV_PCI_H */

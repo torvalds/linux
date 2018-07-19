@@ -319,7 +319,7 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 		 * The FW told us to call it. This happens for some
 		 * interrupt sources that need additional HW whacking
 		 * beyond the ESB manipulation. For example LPC interrupts
-		 * on P9 DD1.0 need a latch to be clared in the LPC bridge
+		 * on P9 DD1.0 needed a latch to be clared in the LPC bridge
 		 * itself. The Firmware will take care of it.
 		 */
 		if (WARN_ON_ONCE(!xive_ops->eoi))
@@ -337,9 +337,9 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 		 * This allows us to then do a re-trigger if Q was set
 		 * rather than synthesizing an interrupt in software
 		 *
-		 * For LSIs, using the HW EOI cycle works around a problem
-		 * on P9 DD1 PHBs where the other ESB accesses don't work
-		 * properly.
+		 * For LSIs the HW EOI cycle is used rather than PQ bits,
+		 * as they are automatically re-triggred in HW when still
+		 * pending.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
 			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
