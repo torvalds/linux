@@ -1216,6 +1216,27 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			goto out;
 
 		/*
+		 * If visible width or height are not aligned to macroblock
+		 * size, the crop_right and crop_bottom SPS fields must be set
+		 * to the difference between visible and coded size.  This is
+		 * only supported by CODA960 firmware. All others do not allow
+		 * writing frame cropping parameters, so we have to manually
+		 * fix up the SPS RBSP (Sequence Parameter Set Raw Byte
+		 * Sequence Payload) ourselves.
+		 */
+		if (ctx->dev->devtype->product != CODA_960 &&
+		    ((q_data_src->rect.width % 16) ||
+		     (q_data_src->rect.height % 16))) {
+			ret = coda_h264_sps_fixup(ctx, q_data_src->rect.width,
+						  q_data_src->rect.height,
+						  &ctx->vpu_header[0][0],
+						  &ctx->vpu_header_size[0],
+						  sizeof(ctx->vpu_header[0]));
+			if (ret < 0)
+				goto out;
+		}
+
+		/*
 		 * Get PPS in the first frame and copy it to an
 		 * intermediate buffer.
 		 */
