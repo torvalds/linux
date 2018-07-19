@@ -985,6 +985,7 @@ struct kvm_x86_ops {
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu, bool invalidate_gpa);
+	int  (*tlb_remote_flush)(struct kvm *kvm);
 
 	/*
 	 * Flush any TLB entries associated with the given GVA.
@@ -1143,6 +1144,16 @@ static inline struct kvm *kvm_arch_alloc_vm(void)
 static inline void kvm_arch_free_vm(struct kvm *kvm)
 {
 	return kvm_x86_ops->vm_free(kvm);
+}
+
+#define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
+static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
+{
+	if (kvm_x86_ops->tlb_remote_flush &&
+	    !kvm_x86_ops->tlb_remote_flush(kvm))
+		return 0;
+	else
+		return -ENOTSUPP;
 }
 
 int kvm_mmu_module_init(void);

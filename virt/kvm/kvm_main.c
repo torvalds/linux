@@ -273,7 +273,8 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	 * kvm_make_all_cpus_request() reads vcpu->mode. We reuse that
 	 * barrier here.
 	 */
-	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
+	if (!kvm_arch_flush_remote_tlb(kvm)
+	    || kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
 		++kvm->stat.remote_tlb_flush;
 	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
 }
