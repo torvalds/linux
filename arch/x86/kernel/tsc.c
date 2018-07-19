@@ -680,29 +680,16 @@ static unsigned long cpu_khz_from_cpuid(void)
 	return eax_base_mhz * 1000;
 }
 
-/**
- * native_calibrate_cpu - calibrate the cpu on boot
+/*
+ * calibrate cpu using pit, hpet, and ptimer methods. They are available
+ * later in boot after acpi is initialized.
  */
-unsigned long native_calibrate_cpu(void)
+static unsigned long pit_hpet_ptimer_calibrate_cpu(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, latch, ms, fast_calibrate;
+	unsigned long flags, latch, ms;
 	int hpet = is_hpet_enabled(), i, loopmin;
-
-	fast_calibrate = cpu_khz_from_cpuid();
-	if (fast_calibrate)
-		return fast_calibrate;
-
-	fast_calibrate = cpu_khz_from_msr();
-	if (fast_calibrate)
-		return fast_calibrate;
-
-	local_irq_save(flags);
-	fast_calibrate = quick_pit_calibrate();
-	local_irq_restore(flags);
-	if (fast_calibrate)
-		return fast_calibrate;
 
 	/*
 	 * Run 5 calibration loops to get the lowest frequency value
@@ -844,6 +831,37 @@ unsigned long native_calibrate_cpu(void)
 		hpet ? "HPET" : "PMTIMER", tsc_pit_min, tsc_ref_min);
 	pr_info("Using PIT calibration value\n");
 	return tsc_pit_min;
+}
+
+/**
+ * native_calibrate_cpu_early - can calibrate the cpu early in boot
+ */
+unsigned long native_calibrate_cpu_early(void)
+{
+	unsigned long flags, fast_calibrate = cpu_khz_from_cpuid();
+
+	if (!fast_calibrate)
+		fast_calibrate = cpu_khz_from_msr();
+	if (!fast_calibrate) {
+		local_irq_save(flags);
+		fast_calibrate = quick_pit_calibrate();
+		local_irq_restore(flags);
+	}
+	return fast_calibrate;
+}
+
+
+/**
+ * native_calibrate_cpu - calibrate the cpu
+ */
+unsigned long native_calibrate_cpu(void)
+{
+	unsigned long tsc_freq = native_calibrate_cpu_early();
+
+	if (!tsc_freq)
+		tsc_freq = pit_hpet_ptimer_calibrate_cpu();
+
+	return tsc_freq;
 }
 
 void recalibrate_cpu_khz(void)
