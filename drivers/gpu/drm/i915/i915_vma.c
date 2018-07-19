@@ -942,6 +942,14 @@ static struct i915_gem_active *active_instance(struct i915_vma *vma, u64 idx)
 	}
 
 	active = kmalloc(sizeof(*active), GFP_KERNEL);
+
+	/* kmalloc may retire the vma->last_active request (thanks shrinker)! */
+	if (unlikely(!i915_gem_active_raw(&vma->last_active,
+					  &vma->vm->i915->drm.struct_mutex))) {
+		kfree(active);
+		goto out;
+	}
+
 	if (unlikely(!active))
 		return ERR_PTR(-ENOMEM);
 
