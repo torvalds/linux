@@ -247,8 +247,7 @@ static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 	 *   U' = irq + ------- * U
 	 *                max
 	 */
-	util *= (max - irq);
-	util /= max;
+	util = scale_irq_capacity(util, irq, max);
 	util += irq;
 
 	/*
