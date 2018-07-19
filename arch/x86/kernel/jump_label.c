@@ -37,14 +37,17 @@ static void bug_at(unsigned char *ip, int line)
 	BUG();
 }
 
-static void __jump_label_transform(struct jump_entry *entry,
-				   enum jump_label_type type,
-				   void *(*poker)(void *, const void *, size_t),
-				   int init)
+static void __ref __jump_label_transform(struct jump_entry *entry,
+					 enum jump_label_type type,
+					 void *(*poker)(void *, const void *, size_t),
+					 int init)
 {
 	union jump_code_union code;
 	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
 	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
+
+	if (early_boot_irqs_disabled)
+		poker = text_poke_early;
 
 	if (type == JUMP_LABEL_JMP) {
 		if (init) {
