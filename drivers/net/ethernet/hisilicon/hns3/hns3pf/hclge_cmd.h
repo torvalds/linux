@@ -579,13 +579,13 @@ enum hclge_mac_vlan_tbl_opcode {
 	HCLGE_MAC_VLAN_LKUP,    /* Lookup a entry through mac_vlan key */
 };
 
-#define HCLGE_MAC_VLAN_BIT0_EN_B	0x0
-#define HCLGE_MAC_VLAN_BIT1_EN_B	0x1
-#define HCLGE_MAC_EPORT_SW_EN_B		0xc
-#define HCLGE_MAC_EPORT_TYPE_B		0xb
-#define HCLGE_MAC_EPORT_VFID_S		0x3
+#define HCLGE_MAC_VLAN_BIT0_EN_B	0
+#define HCLGE_MAC_VLAN_BIT1_EN_B	1
+#define HCLGE_MAC_EPORT_SW_EN_B		12
+#define HCLGE_MAC_EPORT_TYPE_B		11
+#define HCLGE_MAC_EPORT_VFID_S		3
 #define HCLGE_MAC_EPORT_VFID_M		GENMASK(10, 3)
-#define HCLGE_MAC_EPORT_PFID_S		0x0
+#define HCLGE_MAC_EPORT_PFID_S		0
 #define HCLGE_MAC_EPORT_PFID_M		GENMASK(2, 0)
 struct hclge_mac_vlan_tbl_entry_cmd {
 	u8	flags;
@@ -601,7 +601,7 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	u8      rsv2[6];
 };
 
-#define HCLGE_VLAN_MASK_EN_B		0x0
+#define HCLGE_VLAN_MASK_EN_B		0
 struct hclge_mac_vlan_mask_entry_cmd {
 	u8 rsv0[2];
 	u8 vlan_mask;
@@ -632,23 +632,23 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      rsv3[2];
 };
 
-#define HCLGE_CFG_MTA_MAC_SEL_S		0x0
+#define HCLGE_CFG_MTA_MAC_SEL_S		0
 #define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
-#define HCLGE_CFG_MTA_MAC_EN_B		0x7
+#define HCLGE_CFG_MTA_MAC_EN_B		7
 struct hclge_mta_filter_mode_cmd {
 	u8	dmac_sel_en; /* Use lowest 2 bit as sel_mode, bit 7 as enable */
 	u8      rsv[23];
 };
 
-#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0x0
+#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0
 struct hclge_cfg_func_mta_filter_cmd {
 	u8	accept; /* Only used lowest 1 bit */
 	u8      function_id;
 	u8      rsv[22];
 };
 
-#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0x0
-#define HCLGE_CFG_MTA_ITEM_IDX_S	0x0
+#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0
+#define HCLGE_CFG_MTA_ITEM_IDX_S	0
 #define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
 struct hclge_cfg_func_mta_item_cmd {
 	__le16	item_idx; /* Only used lowest 12 bit */
