@@ -355,7 +355,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		mtd->size += chip->chipsize;
 	}
 
-	dev_info(&pdev->dev, "Found chip %i on bank %i\n", chipnr, bank);
+	dev_info(&pdev->dev, "Found chip %zu on bank %i\n", chipnr, bank);
 	return 0;
 
 notfound_id:
