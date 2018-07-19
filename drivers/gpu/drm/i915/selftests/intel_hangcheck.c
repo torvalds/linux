@@ -1144,19 +1144,27 @@ static int igt_reset_evict_ppgtt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
+	struct drm_file *file;
 	int err;
 
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
 	mutex_lock(&i915->drm.struct_mutex);
-	ctx = kernel_context(i915);
+	ctx = live_context(i915, file);
 	mutex_unlock(&i915->drm.struct_mutex);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out;
+	}
 
 	err = 0;
 	if (ctx->ppgtt) /* aliasing == global gtt locking, covered above */
 		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm);
 
-	kernel_context_close(ctx);
+out:
+	mock_file_free(i915, file);
 	return err;
 }
 
