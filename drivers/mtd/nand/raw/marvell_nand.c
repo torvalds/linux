@@ -1295,11 +1295,11 @@ static int marvell_nfc_hw_ecc_bch_read_page(struct nand_chip *chip,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
-	int data_len = lt->data_bytes, spare_len = lt->spare_bytes, ecc_len;
-	u8 *data = buf, *spare = chip->oob_poi, *ecc;
+	int data_len = lt->data_bytes, spare_len = lt->spare_bytes;
+	u8 *data = buf, *spare = chip->oob_poi;
 	int max_bitflips = 0;
 	u32 failure_mask = 0;
-	int chunk, ecc_offset_in_page, ret;
+	int chunk, ret;
 
 	/*
 	 * With BCH, OOB is not fully used (and thus not read entirely), not
@@ -1340,46 +1340,57 @@ static int marvell_nfc_hw_ecc_bch_read_page(struct nand_chip *chip,
 	 * the controller in normal mode and must be re-read in raw mode. To
 	 * avoid dropping the performances, we prefer not to include them. The
 	 * user should re-read the page in raw mode if ECC bytes are required.
+	 */
+
+	/*
+	 * In case there is any subpage read error reported by ->correct(), we
+	 * usually re-read only ECC bytes in raw mode and check if the whole
+	 * page is empty. In this case, it is normal that the ECC check failed
+	 * and we just ignore the error.
 	 *
 	 * However, for any subpage read error reported by ->correct(), the ECC
 	 * bytes must be read in raw mode and the full subpage must be checked
 	 * to see if it is entirely empty of if there was an actual error.
 	 */
 	for (chunk = 0; chunk < lt->nchunks; chunk++) {
+		int data_off_in_page, spare_off_in_page, ecc_off_in_page;
+		int data_off, spare_off, ecc_off;
+		int data_len, spare_len, ecc_len;
+
 		/* No failure reported for this chunk, move to the next one */
 		if (!(failure_mask & BIT(chunk)))
 			continue;
 
-		/* Derive ECC bytes positions (in page/buffer) and length */
-		ecc = chip->oob_poi +
-			(lt->full_chunk_cnt * lt->spare_bytes) +
-			lt->last_spare_bytes +
-			(chunk * ALIGN(lt->ecc_bytes, 32));
-		ecc_offset_in_page =
-			(chunk * (lt->data_bytes + lt->spare_bytes +
-				  lt->ecc_bytes)) +
-			(chunk < lt->full_chunk_cnt ?
-			 lt->data_bytes + lt->spare_bytes :
-			 lt->last_data_bytes + lt->last_spare_bytes);
-		ecc_len = chunk < lt->full_chunk_cnt ?
-			lt->ecc_bytes : lt->last_ecc_bytes;
+		data_off_in_page = chunk * (lt->data_bytes + lt->spare_bytes +
+					    lt->ecc_bytes);
+		spare_off_in_page = data_off_in_page +
+			(chunk < lt->full_chunk_cnt ? lt->data_bytes :
+						      lt->last_data_bytes);
+		ecc_off_in_page = spare_off_in_page +
+			(chunk < lt->full_chunk_cnt ? lt->spare_bytes :
+						      lt->last_spare_bytes);
 
-		/* Do the actual raw read of the ECC bytes */
-		nand_change_read_column_op(chip, ecc_offset_in_page,
-					   ecc, ecc_len, false);
+		data_off = chunk * lt->data_bytes;
+		spare_off = chunk * lt->spare_bytes;
+		ecc_off = (lt->full_chunk_cnt * lt->spare_bytes) +
+			  lt->last_spare_bytes +
+			  (chunk * (lt->ecc_bytes + 2));
 
-		/* Derive data/spare bytes positions (in buffer) and length */
-		data = buf + (chunk * lt->data_bytes);
-		data_len = chunk < lt->full_chunk_cnt ?
-			lt->data_bytes : lt->last_data_bytes;
-		spare = chip->oob_poi + (chunk * (lt->spare_bytes +
-						  lt->ecc_bytes));
-		spare_len = chunk < lt->full_chunk_cnt ?
-			lt->spare_bytes : lt->last_spare_bytes;
+		data_len = chunk < lt->full_chunk_cnt ? lt->data_bytes :
+							lt->last_data_bytes;
+		spare_len = chunk < lt->full_chunk_cnt ? lt->spare_bytes :
+							 lt->last_spare_bytes;
+		ecc_len = chunk < lt->full_chunk_cnt ? lt->ecc_bytes :
+						       lt->last_ecc_bytes;
+
+		nand_change_read_column_op(chip, ecc_off_in_page,
+					   chip->oob_poi + ecc_off, ecc_len,
+					   false);
 
 		/* Check the entire chunk (data + spare + ecc) for emptyness */
-		marvell_nfc_check_empty_chunk(chip, data, data_len, spare,
-					      spare_len, ecc, ecc_len,
+		marvell_nfc_check_empty_chunk(chip, buf + data_off, data_len,
+					      chip->oob_poi + spare_off, spare_len,
+					      chip->oob_poi + ecc_off, ecc_len,
 					      &max_bitflips);
 	}
 
