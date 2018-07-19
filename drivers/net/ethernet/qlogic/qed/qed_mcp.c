@@ -1308,9 +1308,15 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	phy_cfg.pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
 	phy_cfg.adv_speed = params->speed.advertised_speeds;
 	phy_cfg.loopback_mode = params->loopback_mode;
-	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
-		if (params->eee.enable)
-			phy_cfg.eee_cfg |= EEE_CFG_EEE_ENABLED;
+
+	/* There are MFWs that share this capability regardless of whether
+	 * this is feasible or not. And given that at the very least adv_caps
+	 * would be set internally by qed, we want to make sure LFA would
+	 * still work.
+	 */
+	if ((p_hwfn->mcp_info->capabilities &
+	     FW_MB_PARAM_FEATURE_SUPPORT_EEE) && params->eee.enable) {
+		phy_cfg.eee_cfg |= EEE_CFG_EEE_ENABLED;
 		if (params->eee.tx_lpi_enable)
 			phy_cfg.eee_cfg |= EEE_CFG_TX_LPI;
 		if (params->eee.adv_caps & QED_EEE_1G_ADV)
