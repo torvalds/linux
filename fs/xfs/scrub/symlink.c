@@ -27,7 +27,7 @@
 int
 xchk_setup_symlink(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	/* Allocate the buffer without the inode lock held. */
 	sc->buf = kmem_zalloc_large(XFS_SYMLINK_MAXLEN + 1, KM_SLEEP);
@@ -43,10 +43,10 @@ int
 xchk_symlink(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode		*ip = sc->ip;
-	struct xfs_ifork		*ifp;
-	loff_t				len;
-	int				error = 0;
+	struct xfs_inode	*ip = sc->ip;
+	struct xfs_ifork	*ifp;
+	loff_t			len;
+	int			error = 0;
 
 	if (!S_ISLNK(VFS_I(ip)->i_mode))
 		return -ENOENT;

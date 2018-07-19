@@ -153,7 +153,7 @@ static int
 xchk_probe(
 	struct xfs_scrub	*sc)
 {
-	int				error = 0;
+	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
 		return error;
@@ -167,8 +167,8 @@ xchk_probe(
 STATIC int
 xchk_teardown(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip_in,
-	int				error)
+	struct xfs_inode	*ip_in,
+	int			error)
 {
 	xchk_ag_free(sc, &sc->sa);
 	if (sc->tp) {
@@ -479,7 +479,7 @@ xfs_scrub_metadata(
 	struct xfs_inode		*ip,
 	struct xfs_scrub_metadata	*sm)
 {
-	struct xfs_scrub	sc;
+	struct xfs_scrub		sc;
 	struct xfs_mount		*mp = ip->i_mount;
 	bool				try_harder = false;
 	bool				already_fixed = false;

@@ -37,7 +37,7 @@
 int
 xchk_setup_ag_iallocbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, sc->try_harder);
 }
@@ -51,7 +51,7 @@ xchk_setup_ag_iallocbt(
  */
 static inline void
 xchk_iallocbt_chunk_xref_other(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_inobt_rec_incore	*irec,
 	xfs_agino_t			agino)
 {
@@ -76,7 +76,7 @@ xchk_iallocbt_chunk_xref_other(
 /* Cross-reference with the other btrees. */
 STATIC void
 xchk_iallocbt_chunk_xref(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_inobt_rec_incore	*irec,
 	xfs_agino_t			agino,
 	xfs_agblock_t			agbno,
@@ -364,13 +364,13 @@ out:
 STATIC void
 xchk_iallocbt_xref_rmap_btreeblks(
 	struct xfs_scrub	*sc,
-	int				which)
+	int			which)
 {
-	struct xfs_owner_info		oinfo;
-	xfs_filblks_t			blocks;
-	xfs_extlen_t			inobt_blocks = 0;
-	xfs_extlen_t			finobt_blocks = 0;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	xfs_filblks_t		blocks;
+	xfs_extlen_t		inobt_blocks = 0;
+	xfs_extlen_t		finobt_blocks = 0;
+	int			error;
 
 	if (!sc->sa.ino_cur || !sc->sa.rmap_cur ||
 	    (xfs_sb_version_hasfinobt(&sc->mp->m_sb) && !sc->sa.fino_cur) ||
@@ -404,12 +404,12 @@ xchk_iallocbt_xref_rmap_btreeblks(
 STATIC void
 xchk_iallocbt_xref_rmap_inodes(
 	struct xfs_scrub	*sc,
-	int				which,
-	xfs_filblks_t			inode_blocks)
+	int			which,
+	xfs_filblks_t		inode_blocks)
 {
-	struct xfs_owner_info		oinfo;
-	xfs_filblks_t			blocks;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	xfs_filblks_t		blocks;
+	int			error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
@@ -428,12 +428,12 @@ xchk_iallocbt_xref_rmap_inodes(
 STATIC int
 xchk_iallocbt(
 	struct xfs_scrub	*sc,
-	xfs_btnum_t			which)
+	xfs_btnum_t		which)
 {
-	struct xfs_btree_cur		*cur;
-	struct xfs_owner_info		oinfo;
-	xfs_filblks_t			inode_blocks = 0;
-	int				error;
+	struct xfs_btree_cur	*cur;
+	struct xfs_owner_info	oinfo;
+	xfs_filblks_t		inode_blocks = 0;
+	int			error;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INOBT);
 	cur = which == XFS_BTNUM_INO ? sc->sa.ino_cur : sc->sa.fino_cur;
@@ -475,13 +475,13 @@ xchk_finobt(
 static inline void
 xchk_xref_inode_check(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len,
-	struct xfs_btree_cur		**icur,
-	bool				should_have_inodes)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len,
+	struct xfs_btree_cur	**icur,
+	bool			should_have_inodes)
 {
-	bool				has_inodes;
-	int				error;
+	bool			has_inodes;
+	int			error;
 
 	if (!(*icur) || xchk_skip_xref(sc->sm))
 		return;
@@ -497,8 +497,8 @@ xchk_xref_inode_check(
 void
 xchk_xref_is_not_inode_chunk(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
 	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, false);
 	xchk_xref_inode_check(sc, agbno, len, &sc->sa.fino_cur, false);
@@ -508,8 +508,8 @@ xchk_xref_is_not_inode_chunk(
 void
 xchk_xref_is_inode_chunk(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
 	xchk_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, true);
 }

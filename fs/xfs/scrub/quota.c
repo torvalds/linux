@@ -49,10 +49,10 @@ xchk_quota_to_dqtype(
 int
 xchk_setup_quota(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	uint				dqtype;
-	int				error;
+	uint			dqtype;
+	int			error;
 
 	if (!XFS_IS_QUOTA_RUNNING(sc->mp) || !XFS_IS_QUOTA_ON(sc->mp))
 		return -ENOENT;
@@ -77,33 +77,33 @@ xchk_setup_quota(
 
 struct xchk_quota_info {
 	struct xfs_scrub	*sc;
-	xfs_dqid_t			last_id;
+	xfs_dqid_t		last_id;
 };
 
 /* Scrub the fields in an individual quota item. */
 STATIC int
 xchk_quota_item(
-	struct xfs_dquot		*dq,
-	uint				dqtype,
-	void				*priv)
+	struct xfs_dquot	*dq,
+	uint			dqtype,
+	void			*priv)
 {
-	struct xchk_quota_info		*sqi = priv;
+	struct xchk_quota_info	*sqi = priv;
 	struct xfs_scrub	*sc = sqi->sc;
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_disk_dquot		*d = &dq->q_core;
-	struct xfs_quotainfo		*qi = mp->m_quotainfo;
-	xfs_fileoff_t			offset;
-	unsigned long long		bsoft;
-	unsigned long long		isoft;
-	unsigned long long		rsoft;
-	unsigned long long		bhard;
-	unsigned long long		ihard;
-	unsigned long long		rhard;
-	unsigned long long		bcount;
-	unsigned long long		icount;
-	unsigned long long		rcount;
-	xfs_ino_t			fs_icount;
-	xfs_dqid_t			id = be32_to_cpu(d->d_id);
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_disk_dquot	*d = &dq->q_core;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	xfs_fileoff_t		offset;
+	unsigned long long	bsoft;
+	unsigned long long	isoft;
+	unsigned long long	rsoft;
+	unsigned long long	bhard;
+	unsigned long long	ihard;
+	unsigned long long	rhard;
+	unsigned long long	bcount;
+	unsigned long long	icount;
+	unsigned long long	rcount;
+	xfs_ino_t		fs_icount;
+	xfs_dqid_t		id = be32_to_cpu(d->d_id);
 
 	/*
 	 * Except for the root dquot, the actual dquot we got must either have
@@ -197,12 +197,12 @@ STATIC int
 xchk_quota_data_fork(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_bmbt_irec		irec = { 0 };
-	struct xfs_iext_cursor		icur;
-	struct xfs_quotainfo		*qi = sc->mp->m_quotainfo;
-	struct xfs_ifork		*ifp;
-	xfs_fileoff_t			max_dqid_off;
-	int				error = 0;
+	struct xfs_bmbt_irec	irec = { 0 };
+	struct xfs_iext_cursor	icur;
+	struct xfs_quotainfo	*qi = sc->mp->m_quotainfo;
+	struct xfs_ifork	*ifp;
+	xfs_fileoff_t		max_dqid_off;
+	int			error = 0;
 
 	/* Invoke the fork scrubber. */
 	error = xchk_metadata_inode_forks(sc);
@@ -236,11 +236,11 @@ int
 xchk_quota(
 	struct xfs_scrub	*sc)
 {
-	struct xchk_quota_info		sqi;
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_quotainfo		*qi = mp->m_quotainfo;
-	uint				dqtype;
-	int				error = 0;
+	struct xchk_quota_info	sqi;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	uint			dqtype;
+	int			error = 0;
 
 	dqtype = xchk_quota_to_dqtype(sc);
 

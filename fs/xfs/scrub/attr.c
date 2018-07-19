@@ -34,9 +34,9 @@
 int
 xchk_setup_xattr(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	size_t				sz;
+	size_t			sz;
 
 	/*
 	 * Allocate the buffer without the inode lock held.  We need enough
@@ -57,7 +57,7 @@ xchk_setup_xattr(
 
 struct xchk_xattr {
 	struct xfs_attr_list_context	context;
-	struct xfs_scrub	*sc;
+	struct xfs_scrub		*sc;
 };
 
 /*
@@ -128,12 +128,12 @@ fail_xref:
 STATIC bool
 xchk_xattr_set_map(
 	struct xfs_scrub	*sc,
-	unsigned long			*map,
-	unsigned int			start,
-	unsigned int			len)
+	unsigned long		*map,
+	unsigned int		start,
+	unsigned int		len)
 {
-	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
-	bool				ret = true;
+	unsigned int		mapsize = sc->mp->m_attr_geo->blksize;
+	bool			ret = true;
 
 	if (start >= mapsize)
 		return false;
@@ -155,7 +155,7 @@ xchk_xattr_set_map(
  */
 STATIC bool
 xchk_xattr_check_freemap(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
@@ -405,7 +405,7 @@ out:
 /* Scrub the extended attribute metadata. */
 int
 xchk_xattr(
-	struct xfs_scrub	*sc)
+	struct xfs_scrub		*sc)
 {
 	struct xchk_xattr		sx;
 	struct attrlist_cursor_kern	cursor = { 0 };

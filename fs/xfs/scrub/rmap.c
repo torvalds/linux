@@ -31,7 +31,7 @@
 int
 xchk_setup_ag_rmapbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
 }
@@ -42,15 +42,15 @@ xchk_setup_ag_rmapbt(
 STATIC void
 xchk_rmapbt_xref_refc(
 	struct xfs_scrub	*sc,
-	struct xfs_rmap_irec		*irec)
+	struct xfs_rmap_irec	*irec)
 {
-	xfs_agblock_t			fbno;
-	xfs_extlen_t			flen;
-	bool				non_inode;
-	bool				is_bmbt;
-	bool				is_attr;
-	bool				is_unwritten;
-	int				error;
+	xfs_agblock_t		fbno;
+	xfs_extlen_t		flen;
+	bool			non_inode;
+	bool			is_bmbt;
+	bool			is_attr;
+	bool			is_unwritten;
+	int			error;
 
 	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
 		return;
@@ -73,10 +73,10 @@ xchk_rmapbt_xref_refc(
 STATIC void
 xchk_rmapbt_xref(
 	struct xfs_scrub	*sc,
-	struct xfs_rmap_irec		*irec)
+	struct xfs_rmap_irec	*irec)
 {
-	xfs_agblock_t			agbno = irec->rm_startblock;
-	xfs_extlen_t			len = irec->rm_blockcount;
+	xfs_agblock_t		agbno = irec->rm_startblock;
+	xfs_extlen_t		len = irec->rm_blockcount;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -96,17 +96,17 @@ xchk_rmapbt_xref(
 /* Scrub an rmapbt record. */
 STATIC int
 xchk_rmapbt_rec(
-	struct xchk_btree		*bs,
-	union xfs_btree_rec		*rec)
+	struct xchk_btree	*bs,
+	union xfs_btree_rec	*rec)
 {
-	struct xfs_mount		*mp = bs->cur->bc_mp;
-	struct xfs_rmap_irec		irec;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
-	bool				non_inode;
-	bool				is_unwritten;
-	bool				is_bmbt;
-	bool				is_attr;
-	int				error;
+	struct xfs_mount	*mp = bs->cur->bc_mp;
+	struct xfs_rmap_irec	irec;
+	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
+	bool			non_inode;
+	bool			is_unwritten;
+	bool			is_bmbt;
+	bool			is_attr;
+	int			error;
 
 	error = xfs_rmap_btrec_to_irec(rec, &irec);
 	if (!xchk_btree_process_error(bs->sc, bs->cur, 0, &error))
@@ -174,7 +174,7 @@ int
 xchk_rmapbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info		oinfo;
+	struct xfs_owner_info	oinfo;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	return xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
@@ -185,13 +185,13 @@ xchk_rmapbt(
 static inline void
 xchk_xref_check_owner(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			bno,
-	xfs_extlen_t			len,
-	struct xfs_owner_info		*oinfo,
-	bool				should_have_rmap)
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	struct xfs_owner_info	*oinfo,
+	bool			should_have_rmap)
 {
-	bool				has_rmap;
-	int				error;
+	bool			has_rmap;
+	int			error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
@@ -208,9 +208,9 @@ xchk_xref_check_owner(
 void
 xchk_xref_is_owned_by(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			bno,
-	xfs_extlen_t			len,
-	struct xfs_owner_info		*oinfo)
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	struct xfs_owner_info	*oinfo)
 {
 	xchk_xref_check_owner(sc, bno, len, oinfo, true);
 }
@@ -219,9 +219,9 @@ xchk_xref_is_owned_by(
 void
 xchk_xref_is_not_owned_by(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			bno,
-	xfs_extlen_t			len,
-	struct xfs_owner_info		*oinfo)
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	struct xfs_owner_info	*oinfo)
 {
 	xchk_xref_check_owner(sc, bno, len, oinfo, false);
 }
@@ -230,11 +230,11 @@ xchk_xref_is_not_owned_by(
 void
 xchk_xref_has_no_owner(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			bno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len)
 {
-	bool				has_rmap;
-	int				error;
+	bool			has_rmap;
+	int			error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;

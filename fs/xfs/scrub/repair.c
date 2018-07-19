@@ -42,11 +42,11 @@
  */
 int
 xrep_attempt(
-	struct xfs_inode		*ip,
+	struct xfs_inode	*ip,
 	struct xfs_scrub	*sc,
-	bool				*fixed)
+	bool			*fixed)
 {
-	int				error = 0;
+	int			error = 0;
 
 	trace_xrep_attempt(ip, sc->sm, error);
 
@@ -94,7 +94,7 @@ xrep_attempt(
  */
 void
 xrep_failure(
-	struct xfs_mount		*mp)
+	struct xfs_mount	*mp)
 {
 	xfs_alert_ratelimited(mp,
 "Corruption not fixed during online repair.  Unmount and run xfs_repair.");
@@ -108,7 +108,7 @@ int
 xrep_probe(
 	struct xfs_scrub	*sc)
 {
-	int				error = 0;
+	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
 		return error;
@@ -124,7 +124,7 @@ int
 xrep_roll_ag_trans(
 	struct xfs_scrub	*sc)
 {
-	int				error;
+	int			error;
 
 	/* Keep the AG header buffers locked so we can keep going. */
 	xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
@@ -163,9 +163,9 @@ out_release:
  */
 bool
 xrep_ag_has_space(
-	struct xfs_perag		*pag,
-	xfs_extlen_t			nr_blocks,
-	enum xfs_ag_resv_type		type)
+	struct xfs_perag	*pag,
+	xfs_extlen_t		nr_blocks,
+	enum xfs_ag_resv_type	type)
 {
 	return  !xfs_ag_resv_critical(pag, XFS_AG_RESV_RMAPBT) &&
 		!xfs_ag_resv_critical(pag, XFS_AG_RESV_METADATA) &&
@@ -179,7 +179,7 @@ xrep_ag_has_space(
  */
 xfs_extlen_t
 xrep_calc_ag_resblks(
-	struct xfs_scrub	*sc)
+	struct xfs_scrub		*sc)
 {
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_scrub_metadata	*sm = sc->sm;
@@ -280,13 +280,13 @@ xrep_calc_ag_resblks(
 int
 xrep_alloc_ag_block(
 	struct xfs_scrub	*sc,
-	struct xfs_owner_info		*oinfo,
-	xfs_fsblock_t			*fsbno,
-	enum xfs_ag_resv_type		resv)
+	struct xfs_owner_info	*oinfo,
+	xfs_fsblock_t		*fsbno,
+	enum xfs_ag_resv_type	resv)
 {
-	struct xfs_alloc_arg		args = {0};
-	xfs_agblock_t			bno;
-	int				error;
+	struct xfs_alloc_arg	args = {0};
+	xfs_agblock_t		bno;
+	int			error;
 
 	switch (resv) {
 	case XFS_AG_RESV_AGFL:
@@ -330,7 +330,7 @@ xrep_alloc_ag_block(
 /* Initialize a new AG btree root block with zero entries. */
 int
 xrep_init_btblock(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_fsblock_t			fsb,
 	struct xfs_buf			**bpp,
 	xfs_btnum_t			btnum,
@@ -386,11 +386,11 @@ xrep_init_btblock(
 int
 xrep_collect_btree_extent(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list		*exlist,
-	xfs_fsblock_t			fsbno,
-	xfs_extlen_t			len)
+	struct xrep_extent_list	*exlist,
+	xfs_fsblock_t		fsbno,
+	xfs_extlen_t		len)
 {
-	struct xrep_extent		*rex;
+	struct xrep_extent	*rex;
 
 	trace_xrep_collect_btree_extent(sc->mp,
 			XFS_FSB_TO_AGNO(sc->mp, fsbno),
@@ -416,10 +416,10 @@ xrep_collect_btree_extent(
 void
 xrep_cancel_btree_extents(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list		*exlist)
+	struct xrep_extent_list	*exlist)
 {
-	struct xrep_extent		*rex;
-	struct xrep_extent		*n;
+	struct xrep_extent	*rex;
+	struct xrep_extent	*n;
 
 	for_each_xrep_extent_safe(rex, n, exlist) {
 		list_del(&rex->list);
@@ -430,12 +430,12 @@ xrep_cancel_btree_extents(
 /* Compare two btree extents. */
 static int
 xrep_btree_extent_cmp(
-	void				*priv,
-	struct list_head		*a,
-	struct list_head		*b)
+	void			*priv,
+	struct list_head	*a,
+	struct list_head	*b)
 {
-	struct xrep_extent		*ap;
-	struct xrep_extent		*bp;
+	struct xrep_extent	*ap;
+	struct xrep_extent	*bp;
 
 	ap = container_of(a, struct xrep_extent, list);
 	bp = container_of(b, struct xrep_extent, list);
@@ -464,17 +464,17 @@ xrep_btree_extent_cmp(
 int
 xrep_subtract_extents(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list		*exlist,
-	struct xrep_extent_list		*sublist)
+	struct xrep_extent_list	*exlist,
+	struct xrep_extent_list	*sublist)
 {
-	struct list_head		*lp;
-	struct xrep_extent		*ex;
-	struct xrep_extent		*newex;
-	struct xrep_extent		*subex;
-	xfs_fsblock_t			sub_fsb;
-	xfs_extlen_t			sub_len;
-	int				state;
-	int				error = 0;
+	struct list_head	*lp;
+	struct xrep_extent	*ex;
+	struct xrep_extent	*newex;
+	struct xrep_extent	*subex;
+	xfs_fsblock_t		sub_fsb;
+	xfs_extlen_t		sub_len;
+	int			state;
+	int			error = 0;
 
 	if (list_empty(&exlist->list) || list_empty(&sublist->list))
 		return 0;
@@ -621,13 +621,13 @@ out:
 int
 xrep_invalidate_blocks(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list		*exlist)
+	struct xrep_extent_list	*exlist)
 {
-	struct xrep_extent		*rex;
-	struct xrep_extent		*n;
-	struct xfs_buf			*bp;
-	xfs_fsblock_t			fsbno;
-	xfs_agblock_t			i;
+	struct xrep_extent	*rex;
+	struct xrep_extent	*n;
+	struct xfs_buf		*bp;
+	xfs_fsblock_t		fsbno;
+	xfs_agblock_t		i;
 
 	/*
 	 * For each block in each extent, see if there's an incore buffer for
@@ -659,9 +659,9 @@ xrep_invalidate_blocks(
 int
 xrep_fix_freelist(
 	struct xfs_scrub	*sc,
-	bool				can_shrink)
+	bool			can_shrink)
 {
-	struct xfs_alloc_arg		args = {0};
+	struct xfs_alloc_arg	args = {0};
 
 	args.mp = sc->mp;
 	args.tp = sc->tp;
@@ -679,10 +679,10 @@ xrep_fix_freelist(
 STATIC int
 xrep_put_freelist(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno)
+	xfs_agblock_t		agbno)
 {
-	struct xfs_owner_info		oinfo;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	int			error;
 
 	/* Make sure there's space on the freelist. */
 	error = xrep_fix_freelist(sc, true);
@@ -715,16 +715,16 @@ xrep_put_freelist(
 STATIC int
 xrep_dispose_btree_block(
 	struct xfs_scrub	*sc,
-	xfs_fsblock_t			fsbno,
-	struct xfs_owner_info		*oinfo,
-	enum xfs_ag_resv_type		resv)
+	xfs_fsblock_t		fsbno,
+	struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type	resv)
 {
-	struct xfs_btree_cur		*cur;
-	struct xfs_buf			*agf_bp = NULL;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	bool				has_other_rmap;
-	int				error;
+	struct xfs_btree_cur	*cur;
+	struct xfs_buf		*agf_bp = NULL;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	bool			has_other_rmap;
+	int			error;
 
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
@@ -789,13 +789,13 @@ out_free:
 int
 xrep_reap_btree_extents(
 	struct xfs_scrub	*sc,
-	struct xrep_extent_list		*exlist,
-	struct xfs_owner_info		*oinfo,
-	enum xfs_ag_resv_type		type)
+	struct xrep_extent_list	*exlist,
+	struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type	type)
 {
-	struct xrep_extent		*rex;
-	struct xrep_extent		*n;
-	int				error = 0;
+	struct xrep_extent	*rex;
+	struct xrep_extent	*n;
+	int			error = 0;
 
 	ASSERT(xfs_sb_version_hasrmapbt(&sc->mp->m_sb));
 
@@ -851,7 +851,7 @@ out:
  */
 
 struct xrep_findroot {
-	struct xfs_scrub	*sc;
+	struct xfs_scrub		*sc;
 	struct xfs_buf			*agfl_bp;
 	struct xfs_agf			*agf;
 	struct xrep_find_ag_btree	*btree_info;
@@ -860,11 +860,11 @@ struct xrep_findroot {
 /* See if our block is in the AGFL. */
 STATIC int
 xrep_findroot_agfl_walk(
-	struct xfs_mount		*mp,
-	xfs_agblock_t			bno,
-	void				*priv)
+	struct xfs_mount	*mp,
+	xfs_agblock_t		bno,
+	void			*priv)
 {
-	xfs_agblock_t			*agbno = priv;
+	xfs_agblock_t		*agbno = priv;
 
 	return (*agbno == bno) ? XFS_BTREE_QUERY_RANGE_ABORT : 0;
 }
@@ -981,7 +981,7 @@ xrep_findroot_rmap(
 /* Find the roots of the per-AG btrees described in btree_info. */
 int
 xrep_find_ag_btree_roots(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_buf			*agf_bp,
 	struct xrep_find_ag_btree	*btree_info,
 	struct xfs_buf			*agfl_bp)
@@ -1017,9 +1017,9 @@ xrep_find_ag_btree_roots(
 void
 xrep_force_quotacheck(
 	struct xfs_scrub	*sc,
-	uint				dqtype)
+	uint			dqtype)
 {
-	uint				flag;
+	uint			flag;
 
 	flag = xfs_quota_chkd_flag(dqtype);
 	if (!(flag & sc->mp->m_qflags))
@@ -1046,7 +1046,7 @@ int
 xrep_ino_dqattach(
 	struct xfs_scrub	*sc)
 {
-	int				error;
+	int			error;
 
 	error = xfs_qm_dqattach_locked(sc->ip, false);
 	switch (error) {

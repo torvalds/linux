@@ -31,11 +31,11 @@
 static bool
 __xchk_btree_process_error(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level,
-	int				*error,
-	__u32				errflag,
-	void				*ret_ip)
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*error,
+	__u32			errflag,
+	void			*ret_ip)
 {
 	if (*error == 0)
 		return true;
@@ -66,9 +66,9 @@ __xchk_btree_process_error(
 bool
 xchk_btree_process_error(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level,
-	int				*error)
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*error)
 {
 	return __xchk_btree_process_error(sc, cur, level, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
@@ -77,9 +77,9 @@ xchk_btree_process_error(
 bool
 xchk_btree_xref_process_error(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level,
-	int				*error)
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*error)
 {
 	return __xchk_btree_process_error(sc, cur, level, error,
 			XFS_SCRUB_OFLAG_XFAIL, __return_address);
@@ -89,10 +89,10 @@ xchk_btree_xref_process_error(
 static void
 __xchk_btree_set_corrupt(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level,
-	__u32				errflag,
-	void				*ret_ip)
+	struct xfs_btree_cur	*cur,
+	int			level,
+	__u32			errflag,
+	void			*ret_ip)
 {
 	sc->sm->sm_flags |= errflag;
 
@@ -107,8 +107,8 @@ __xchk_btree_set_corrupt(
 void
 xchk_btree_set_corrupt(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level)
+	struct xfs_btree_cur	*cur,
+	int			level)
 {
 	__xchk_btree_set_corrupt(sc, cur, level, XFS_SCRUB_OFLAG_CORRUPT,
 			__return_address);
@@ -117,8 +117,8 @@ xchk_btree_set_corrupt(
 void
 xchk_btree_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	int				level)
+	struct xfs_btree_cur	*cur,
+	int			level)
 {
 	__xchk_btree_set_corrupt(sc, cur, level, XFS_SCRUB_OFLAG_XCORRUPT,
 			__return_address);
@@ -225,11 +225,11 @@ xchk_btree_key(
  */
 static bool
 xchk_btree_ptr_ok(
-	struct xchk_btree		*bs,
-	int				level,
-	union xfs_btree_ptr		*ptr)
+	struct xchk_btree	*bs,
+	int			level,
+	union xfs_btree_ptr	*ptr)
 {
-	bool				res;
+	bool			res;
 
 	/* A btree rooted in an inode has no block pointer to the root. */
 	if ((bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
@@ -250,18 +250,18 @@ xchk_btree_ptr_ok(
 /* Check that a btree block's sibling matches what we expect it. */
 STATIC int
 xchk_btree_block_check_sibling(
-	struct xchk_btree		*bs,
-	int				level,
-	int				direction,
-	union xfs_btree_ptr		*sibling)
+	struct xchk_btree	*bs,
+	int			level,
+	int			direction,
+	union xfs_btree_ptr	*sibling)
 {
-	struct xfs_btree_cur		*cur = bs->cur;
-	struct xfs_btree_block		*pblock;
-	struct xfs_buf			*pbp;
-	struct xfs_btree_cur		*ncur = NULL;
-	union xfs_btree_ptr		*pp;
-	int				success;
-	int				error;
+	struct xfs_btree_cur	*cur = bs->cur;
+	struct xfs_btree_block	*pblock;
+	struct xfs_buf		*pbp;
+	struct xfs_btree_cur	*ncur = NULL;
+	union xfs_btree_ptr	*pp;
+	int			success;
+	int			error;
 
 	error = xfs_btree_dup_cursor(cur, &ncur);
 	if (!xchk_btree_process_error(bs->sc, cur, level + 1, &error) ||
@@ -313,14 +313,14 @@ out:
 /* Check the siblings of a btree block. */
 STATIC int
 xchk_btree_block_check_siblings(
-	struct xchk_btree		*bs,
-	struct xfs_btree_block		*block)
+	struct xchk_btree	*bs,
+	struct xfs_btree_block	*block)
 {
-	struct xfs_btree_cur		*cur = bs->cur;
-	union xfs_btree_ptr		leftsib;
-	union xfs_btree_ptr		rightsib;
-	int				level;
-	int				error = 0;
+	struct xfs_btree_cur	*cur = bs->cur;
+	union xfs_btree_ptr	leftsib;
+	union xfs_btree_ptr	rightsib;
+	int			level;
+	int			error = 0;
 
 	xfs_btree_get_sibling(cur, block, &leftsib, XFS_BB_LEFTSIB);
 	xfs_btree_get_sibling(cur, block, &rightsib, XFS_BB_RIGHTSIB);
@@ -361,15 +361,15 @@ struct check_owner {
  */
 STATIC int
 xchk_btree_check_block_owner(
-	struct xchk_btree		*bs,
-	int				level,
-	xfs_daddr_t			daddr)
+	struct xchk_btree	*bs,
+	int			level,
+	xfs_daddr_t		daddr)
 {
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_btnum_t			btnum;
-	bool				init_sa;
-	int				error = 0;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	xfs_btnum_t		btnum;
+	bool			init_sa;
+	int			error = 0;
 
 	if (!bs->cur)
 		return 0;
@@ -408,12 +408,12 @@ xchk_btree_check_block_owner(
 /* Check the owner of a btree block. */
 STATIC int
 xchk_btree_check_owner(
-	struct xchk_btree		*bs,
-	int				level,
-	struct xfs_buf			*bp)
+	struct xchk_btree	*bs,
+	int			level,
+	struct xfs_buf		*bp)
 {
-	struct xfs_btree_cur		*cur = bs->cur;
-	struct check_owner		*co;
+	struct xfs_btree_cur	*cur = bs->cur;
+	struct check_owner	*co;
 
 	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) && bp == NULL)
 		return 0;
@@ -484,14 +484,14 @@ xchk_btree_check_minrecs(
  */
 STATIC int
 xchk_btree_get_block(
-	struct xchk_btree		*bs,
-	int				level,
-	union xfs_btree_ptr		*pp,
-	struct xfs_btree_block		**pblock,
-	struct xfs_buf			**pbp)
+	struct xchk_btree	*bs,
+	int			level,
+	union xfs_btree_ptr	*pp,
+	struct xfs_btree_block	**pblock,
+	struct xfs_buf		**pbp)
 {
-	void				*failed_at;
-	int				error;
+	xfs_failaddr_t		failed_at;
+	int			error;
 
 	*pblock = NULL;
 	*pbp = NULL;
@@ -538,17 +538,17 @@ xchk_btree_get_block(
  */
 STATIC void
 xchk_btree_block_keys(
-	struct xchk_btree		*bs,
-	int				level,
-	struct xfs_btree_block		*block)
+	struct xchk_btree	*bs,
+	int			level,
+	struct xfs_btree_block	*block)
 {
-	union xfs_btree_key		block_keys;
-	struct xfs_btree_cur		*cur = bs->cur;
-	union xfs_btree_key		*high_bk;
-	union xfs_btree_key		*parent_keys;
-	union xfs_btree_key		*high_pk;
-	struct xfs_btree_block		*parent_block;
-	struct xfs_buf			*bp;
+	union xfs_btree_key	block_keys;
+	struct xfs_btree_cur	*cur = bs->cur;
+	union xfs_btree_key	*high_bk;
+	union xfs_btree_key	*parent_keys;
+	union xfs_btree_key	*high_pk;
+	struct xfs_btree_block	*parent_block;
+	struct xfs_buf		*bp;
 
 	if (level >= cur->bc_nlevels - 1)
 		return;
@@ -584,22 +584,22 @@ xchk_btree_block_keys(
 int
 xchk_btree(
 	struct xfs_scrub	*sc,
-	struct xfs_btree_cur		*cur,
-	xchk_btree_rec_fn		scrub_fn,
-	struct xfs_owner_info		*oinfo,
-	void				*private)
+	struct xfs_btree_cur	*cur,
+	xchk_btree_rec_fn	scrub_fn,
+	struct xfs_owner_info	*oinfo,
+	void			*private)
 {
-	struct xchk_btree		bs = { NULL };
-	union xfs_btree_ptr		ptr;
-	union xfs_btree_ptr		*pp;
-	union xfs_btree_rec		*recp;
-	struct xfs_btree_block		*block;
-	int				level;
-	struct xfs_buf			*bp;
-	struct check_owner		*co;
-	struct check_owner		*n;
-	int				i;
-	int				error = 0;
+	struct xchk_btree	bs = { NULL };
+	union xfs_btree_ptr	ptr;
+	union xfs_btree_ptr	*pp;
+	union xfs_btree_rec	*recp;
+	struct xfs_btree_block	*block;
+	int			level;
+	struct xfs_buf		*bp;
+	struct check_owner	*co;
+	struct check_owner	*n;
+	int			i;
+	int			error = 0;
 
 	/* Initialize scrub state */
 	bs.cur = cur;

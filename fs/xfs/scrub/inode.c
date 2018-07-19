@@ -39,9 +39,9 @@
 int
 xchk_setup_inode(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	int				error;
+	int			error;
 
 	/*
 	 * Try to get the inode.  If the verifiers fail, we try again
@@ -78,12 +78,12 @@ out:
 STATIC void
 xchk_inode_extsize(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip,
-	xfs_ino_t			ino,
-	uint16_t			mode,
-	uint16_t			flags)
+	struct xfs_dinode	*dip,
+	xfs_ino_t		ino,
+	uint16_t		mode,
+	uint16_t		flags)
 {
-	xfs_failaddr_t			fa;
+	xfs_failaddr_t		fa;
 
 	fa = xfs_inode_validate_extsize(sc->mp, be32_to_cpu(dip->di_extsize),
 			mode, flags);
@@ -100,13 +100,13 @@ xchk_inode_extsize(
 STATIC void
 xchk_inode_cowextsize(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip,
-	xfs_ino_t			ino,
-	uint16_t			mode,
-	uint16_t			flags,
-	uint64_t			flags2)
+	struct xfs_dinode	*dip,
+	xfs_ino_t		ino,
+	uint16_t		mode,
+	uint16_t		flags,
+	uint64_t		flags2)
 {
-	xfs_failaddr_t			fa;
+	xfs_failaddr_t		fa;
 
 	fa = xfs_inode_validate_cowextsize(sc->mp,
 			be32_to_cpu(dip->di_cowextsize), mode, flags,
@@ -119,12 +119,12 @@ xchk_inode_cowextsize(
 STATIC void
 xchk_inode_flags(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip,
-	xfs_ino_t			ino,
-	uint16_t			mode,
-	uint16_t			flags)
+	struct xfs_dinode	*dip,
+	xfs_ino_t		ino,
+	uint16_t		mode,
+	uint16_t		flags)
 {
-	struct xfs_mount		*mp = sc->mp;
+	struct xfs_mount	*mp = sc->mp;
 
 	if (flags & ~XFS_DIFLAG_ANY)
 		goto bad;
@@ -164,13 +164,13 @@ bad:
 STATIC void
 xchk_inode_flags2(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip,
-	xfs_ino_t			ino,
-	uint16_t			mode,
-	uint16_t			flags,
-	uint64_t			flags2)
+	struct xfs_dinode	*dip,
+	xfs_ino_t		ino,
+	uint16_t		mode,
+	uint16_t		flags,
+	uint64_t		flags2)
 {
-	struct xfs_mount		*mp = sc->mp;
+	struct xfs_mount	*mp = sc->mp;
 
 	if (flags2 & ~XFS_DIFLAG2_ANY)
 		goto bad;
@@ -207,16 +207,16 @@ bad:
 STATIC void
 xchk_dinode(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip,
-	xfs_ino_t			ino)
+	struct xfs_dinode	*dip,
+	xfs_ino_t		ino)
 {
-	struct xfs_mount		*mp = sc->mp;
-	size_t				fork_recs;
-	unsigned long long		isize;
-	uint64_t			flags2;
-	uint32_t			nextents;
-	uint16_t			flags;
-	uint16_t			mode;
+	struct xfs_mount	*mp = sc->mp;
+	size_t			fork_recs;
+	unsigned long long	isize;
+	uint64_t		flags2;
+	uint32_t		nextents;
+	uint16_t		flags;
+	uint16_t		mode;
 
 	flags = be16_to_cpu(dip->di_flags);
 	if (dip->di_version >= 3)
@@ -426,7 +426,7 @@ xchk_dinode(
  */
 static void
 xchk_inode_xref_finobt(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_ino_t			ino)
 {
 	struct xfs_inobt_rec_incore	rec;
@@ -470,12 +470,12 @@ xchk_inode_xref_finobt(
 STATIC void
 xchk_inode_xref_bmap(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode		*dip)
+	struct xfs_dinode	*dip)
 {
-	xfs_extnum_t			nextents;
-	xfs_filblks_t			count;
-	xfs_filblks_t			acount;
-	int				error;
+	xfs_extnum_t		nextents;
+	xfs_filblks_t		count;
+	xfs_filblks_t		acount;
+	int			error;
 
 	if (xchk_skip_xref(sc->sm))
 		return;
@@ -504,13 +504,13 @@ xchk_inode_xref_bmap(
 STATIC void
 xchk_inode_xref(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino,
-	struct xfs_dinode		*dip)
+	xfs_ino_t		ino,
+	struct xfs_dinode	*dip)
 {
-	struct xfs_owner_info		oinfo;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -541,11 +541,11 @@ xchk_inode_xref(
 static void
 xchk_inode_check_reflink_iflag(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino)
+	xfs_ino_t		ino)
 {
-	struct xfs_mount		*mp = sc->mp;
-	bool				has_shared;
-	int				error;
+	struct xfs_mount	*mp = sc->mp;
+	bool			has_shared;
+	int			error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return;
@@ -566,8 +566,8 @@ int
 xchk_inode(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_dinode		di;
-	int				error = 0;
+	struct xfs_dinode	di;
+	int			error = 0;
 
 	/*
 	 * If sc->ip is NULL, that means that the setup function called

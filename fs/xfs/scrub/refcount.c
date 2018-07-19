@@ -30,7 +30,7 @@
 int
 xchk_setup_ag_refcountbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
 }
@@ -74,21 +74,21 @@ xchk_setup_ag_refcountbt(
  * should always hold true.  If not, the refcount is incorrect.
  */
 struct xchk_refcnt_frag {
-	struct list_head		list;
-	struct xfs_rmap_irec		rm;
+	struct list_head	list;
+	struct xfs_rmap_irec	rm;
 };
 
 struct xchk_refcnt_check {
 	struct xfs_scrub	*sc;
-	struct list_head		fragments;
+	struct list_head	fragments;
 
 	/* refcount extent we're examining */
-	xfs_agblock_t			bno;
-	xfs_extlen_t			len;
-	xfs_nlink_t			refcount;
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len;
+	xfs_nlink_t		refcount;
 
 	/* number of owners seen */
-	xfs_nlink_t			seen;
+	xfs_nlink_t		seen;
 };
 
 /*
@@ -278,7 +278,7 @@ done:
 /* Use the rmap entries covering this extent to verify the refcount. */
 STATIC void
 xchk_refcountbt_xref_rmap(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	xfs_nlink_t			refcount)
@@ -326,9 +326,9 @@ out_free:
 STATIC void
 xchk_refcountbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len,
-	xfs_nlink_t			refcount)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len,
+	xfs_nlink_t		refcount)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -341,17 +341,17 @@ xchk_refcountbt_xref(
 /* Scrub a refcountbt record. */
 STATIC int
 xchk_refcountbt_rec(
-	struct xchk_btree		*bs,
-	union xfs_btree_rec		*rec)
+	struct xchk_btree	*bs,
+	union xfs_btree_rec	*rec)
 {
-	struct xfs_mount		*mp = bs->cur->bc_mp;
-	xfs_agblock_t			*cow_blocks = bs->private;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
-	xfs_agblock_t			bno;
-	xfs_extlen_t			len;
-	xfs_nlink_t			refcount;
-	bool				has_cowflag;
-	int				error = 0;
+	struct xfs_mount	*mp = bs->cur->bc_mp;
+	xfs_agblock_t		*cow_blocks = bs->private;
+	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len;
+	xfs_nlink_t		refcount;
+	bool			has_cowflag;
+	int			error = 0;
 
 	bno = be32_to_cpu(rec->refc.rc_startblock);
 	len = be32_to_cpu(rec->refc.rc_blockcount);
@@ -383,12 +383,12 @@ xchk_refcountbt_rec(
 STATIC void
 xchk_refcount_xref_rmap(
 	struct xfs_scrub	*sc,
-	struct xfs_owner_info		*oinfo,
-	xfs_filblks_t			cow_blocks)
+	struct xfs_owner_info	*oinfo,
+	xfs_filblks_t		cow_blocks)
 {
-	xfs_extlen_t			refcbt_blocks = 0;
-	xfs_filblks_t			blocks;
-	int				error;
+	xfs_extlen_t		refcbt_blocks = 0;
+	xfs_filblks_t		blocks;
+	int			error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
@@ -419,9 +419,9 @@ int
 xchk_refcountbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info		oinfo;
-	xfs_agblock_t			cow_blocks = 0;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	xfs_agblock_t		cow_blocks = 0;
+	int			error;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_REFC);
 	error = xchk_btree(sc, sc->sa.refc_cur, xchk_refcountbt_rec,
@@ -437,7 +437,7 @@ xchk_refcountbt(
 /* xref check that a cow staging extent is marked in the refcountbt. */
 void
 xchk_xref_is_cow_staging(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
@@ -484,11 +484,11 @@ xchk_xref_is_cow_staging(
 void
 xchk_xref_is_not_shared(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
-	bool				shared;
-	int				error;
+	bool			shared;
+	int			error;
 
 	if (!sc->sa.refc_cur || xchk_skip_xref(sc->sm))
 		return;

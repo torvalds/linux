@@ -30,7 +30,7 @@
 int
 xchk_setup_ag_allocbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
 }
@@ -43,14 +43,14 @@ xchk_setup_ag_allocbt(
 STATIC void
 xchk_allocbt_xref_other(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
-	struct xfs_btree_cur		**pcur;
-	xfs_agblock_t			fbno;
-	xfs_extlen_t			flen;
-	int				has_otherrec;
-	int				error;
+	struct xfs_btree_cur	**pcur;
+	xfs_agblock_t		fbno;
+	xfs_extlen_t		flen;
+	int			has_otherrec;
+	int			error;
 
 	if (sc->sm->sm_type == XFS_SCRUB_TYPE_BNOBT)
 		pcur = &sc->sa.cnt_cur;
@@ -83,8 +83,8 @@ xchk_allocbt_xref_other(
 STATIC void
 xchk_allocbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -98,14 +98,14 @@ xchk_allocbt_xref(
 /* Scrub a bnobt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
-	struct xchk_btree		*bs,
-	union xfs_btree_rec		*rec)
+	struct xchk_btree	*bs,
+	union xfs_btree_rec	*rec)
 {
-	struct xfs_mount		*mp = bs->cur->bc_mp;
-	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
-	xfs_agblock_t			bno;
-	xfs_extlen_t			len;
-	int				error = 0;
+	struct xfs_mount	*mp = bs->cur->bc_mp;
+	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len;
+	int			error = 0;
 
 	bno = be32_to_cpu(rec->alloc.ar_startblock);
 	len = be32_to_cpu(rec->alloc.ar_blockcount);
@@ -124,10 +124,10 @@ xchk_allocbt_rec(
 STATIC int
 xchk_allocbt(
 	struct xfs_scrub	*sc,
-	xfs_btnum_t			which)
+	xfs_btnum_t		which)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_btree_cur		*cur;
+	struct xfs_owner_info	oinfo;
+	struct xfs_btree_cur	*cur;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
@@ -152,11 +152,11 @@ xchk_cntbt(
 void
 xchk_xref_is_used_space(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	xfs_extlen_t			len)
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len)
 {
-	bool				is_freesp;
-	int				error;
+	bool			is_freesp;
+	int			error;
 
 	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
 		return;

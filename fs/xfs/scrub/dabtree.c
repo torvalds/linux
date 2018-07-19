@@ -36,9 +36,9 @@
  */
 bool
 xchk_da_process_error(
-	struct xchk_da_btree		*ds,
-	int				level,
-	int				*error)
+	struct xchk_da_btree	*ds,
+	int			level,
+	int			*error)
 {
 	struct xfs_scrub	*sc = ds->sc;
 
@@ -72,8 +72,8 @@ xchk_da_process_error(
  */
 void
 xchk_da_set_corrupt(
-	struct xchk_da_btree		*ds,
-	int				level)
+	struct xchk_da_btree	*ds,
+	int			level)
 {
 	struct xfs_scrub	*sc = ds->sc;
 
@@ -88,13 +88,13 @@ xchk_da_set_corrupt(
 /* Find an entry at a certain level in a da btree. */
 STATIC void *
 xchk_da_btree_entry(
-	struct xchk_da_btree		*ds,
-	int				level,
-	int				rec)
+	struct xchk_da_btree	*ds,
+	int			level,
+	int			rec)
 {
-	char				*ents;
-	struct xfs_da_state_blk		*blk;
-	void				*baddr;
+	char			*ents;
+	struct xfs_da_state_blk	*blk;
+	void			*baddr;
 
 	/* Dispatch the entry finding function. */
 	blk = &ds->state->path.blk[level];
@@ -158,9 +158,9 @@ xchk_da_btree_hash(
  */
 STATIC bool
 xchk_da_btree_ptr_ok(
-	struct xchk_da_btree		*ds,
-	int				level,
-	xfs_dablk_t			blkno)
+	struct xchk_da_btree	*ds,
+	int			level,
+	xfs_dablk_t		blkno)
 {
 	if (blkno < ds->lowest || (ds->highest != 0 && blkno >= ds->highest)) {
 		xchk_da_set_corrupt(ds, level);
@@ -246,13 +246,13 @@ static const struct xfs_buf_ops xchk_da_btree_buf_ops = {
 /* Check a block's sibling. */
 STATIC int
 xchk_da_btree_block_check_sibling(
-	struct xchk_da_btree		*ds,
-	int				level,
-	int				direction,
-	xfs_dablk_t			sibling)
+	struct xchk_da_btree	*ds,
+	int			level,
+	int			direction,
+	xfs_dablk_t		sibling)
 {
-	int				retval;
-	int				error;
+	int			retval;
+	int			error;
 
 	memcpy(&ds->state->altpath, &ds->state->path,
 			sizeof(ds->state->altpath));
@@ -294,13 +294,13 @@ out:
 /* Check a block's sibling pointers. */
 STATIC int
 xchk_da_btree_block_check_siblings(
-	struct xchk_da_btree		*ds,
-	int				level,
-	struct xfs_da_blkinfo		*hdr)
+	struct xchk_da_btree	*ds,
+	int			level,
+	struct xfs_da_blkinfo	*hdr)
 {
-	xfs_dablk_t			forw;
-	xfs_dablk_t			back;
-	int				error = 0;
+	xfs_dablk_t		forw;
+	xfs_dablk_t		back;
+	int			error = 0;
 
 	forw = be32_to_cpu(hdr->forw);
 	back = be32_to_cpu(hdr->back);
@@ -474,9 +474,9 @@ out_nobuf:
 /* Visit all nodes and leaves of a da btree. */
 int
 xchk_da_btree(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	int				whichfork,
-	xchk_da_btree_rec_fn	scrub_fn,
+	xchk_da_btree_rec_fn		scrub_fn,
 	void				*private)
 {
 	struct xchk_da_btree		ds = {};

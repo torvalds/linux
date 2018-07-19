@@ -36,21 +36,21 @@ struct xchk_meta_ops {
 
 /* Buffer pointers and btree cursors for an entire AG. */
 struct xchk_ag {
-	xfs_agnumber_t			agno;
-	struct xfs_perag		*pag;
+	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
 
 	/* AG btree roots */
-	struct xfs_buf			*agf_bp;
-	struct xfs_buf			*agfl_bp;
-	struct xfs_buf			*agi_bp;
+	struct xfs_buf		*agf_bp;
+	struct xfs_buf		*agfl_bp;
+	struct xfs_buf		*agi_bp;
 
 	/* AG btrees */
-	struct xfs_btree_cur		*bno_cur;
-	struct xfs_btree_cur		*cnt_cur;
-	struct xfs_btree_cur		*ino_cur;
-	struct xfs_btree_cur		*fino_cur;
-	struct xfs_btree_cur		*rmap_cur;
-	struct xfs_btree_cur		*refc_cur;
+	struct xfs_btree_cur	*bno_cur;
+	struct xfs_btree_cur	*cnt_cur;
+	struct xfs_btree_cur	*ino_cur;
+	struct xfs_btree_cur	*fino_cur;
+	struct xfs_btree_cur	*rmap_cur;
+	struct xfs_btree_cur	*refc_cur;
 };
 
 struct xfs_scrub {
@@ -66,7 +66,7 @@ struct xfs_scrub {
 	bool				has_quotaofflock;
 
 	/* State tracking for single-AG operations. */
-	struct xchk_ag		sa;
+	struct xchk_ag			sa;
 };
 
 /* Metadata scrubbers */
@@ -115,27 +115,25 @@ xchk_quota(struct xfs_scrub *sc)
 #endif
 
 /* cross-referencing helpers */
-void xchk_xref_is_used_space(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len);
-void xchk_xref_is_not_inode_chunk(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len);
-void xchk_xref_is_inode_chunk(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len);
-void xchk_xref_is_owned_by(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len,
-		struct xfs_owner_info *oinfo);
-void xchk_xref_is_not_owned_by(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len,
-		struct xfs_owner_info *oinfo);
-void xchk_xref_has_no_owner(struct xfs_scrub *sc,
-		xfs_agblock_t agbno, xfs_extlen_t len);
-void xchk_xref_is_cow_staging(struct xfs_scrub *sc,
-		xfs_agblock_t bno, xfs_extlen_t len);
-void xchk_xref_is_not_shared(struct xfs_scrub *sc,
-		xfs_agblock_t bno, xfs_extlen_t len);
+void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len);
+void xchk_xref_is_not_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len);
+void xchk_xref_is_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len);
+void xchk_xref_is_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len, struct xfs_owner_info *oinfo);
+void xchk_xref_is_not_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len, struct xfs_owner_info *oinfo);
+void xchk_xref_has_no_owner(struct xfs_scrub *sc, xfs_agblock_t agbno,
+		xfs_extlen_t len);
+void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
+		xfs_extlen_t len);
+void xchk_xref_is_not_shared(struct xfs_scrub *sc, xfs_agblock_t bno,
+		xfs_extlen_t len);
 #ifdef CONFIG_XFS_RT
-void xchk_xref_is_used_rt_space(struct xfs_scrub *sc,
-		xfs_rtblock_t rtbno, xfs_extlen_t len);
+void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
+		xfs_extlen_t len);
 #else
 # define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
 #endif

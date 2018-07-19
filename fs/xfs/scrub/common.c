@@ -70,11 +70,11 @@
 static bool
 __xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t			agno,
-	xfs_agblock_t			bno,
-	int				*error,
-	__u32				errflag,
-	void				*ret_ip)
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		bno,
+	int			*error,
+	__u32			errflag,
+	void			*ret_ip)
 {
 	switch (*error) {
 	case 0:
@@ -100,9 +100,9 @@ __xchk_process_error(
 bool
 xchk_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t			agno,
-	xfs_agblock_t			bno,
-	int				*error)
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		bno,
+	int			*error)
 {
 	return __xchk_process_error(sc, agno, bno, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
@@ -111,9 +111,9 @@ xchk_process_error(
 bool
 xchk_xref_process_error(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t			agno,
-	xfs_agblock_t			bno,
-	int				*error)
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		bno,
+	int			*error)
 {
 	return __xchk_process_error(sc, agno, bno, error,
 			XFS_SCRUB_OFLAG_XFAIL, __return_address);
@@ -123,11 +123,11 @@ xchk_xref_process_error(
 static bool
 __xchk_fblock_process_error(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset,
-	int				*error,
-	__u32				errflag,
-	void				*ret_ip)
+	int			whichfork,
+	xfs_fileoff_t		offset,
+	int			*error,
+	__u32			errflag,
+	void			*ret_ip)
 {
 	switch (*error) {
 	case 0:
@@ -153,9 +153,9 @@ __xchk_fblock_process_error(
 bool
 xchk_fblock_process_error(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset,
-	int				*error)
+	int			whichfork,
+	xfs_fileoff_t		offset,
+	int			*error)
 {
 	return __xchk_fblock_process_error(sc, whichfork, offset, error,
 			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
@@ -164,9 +164,9 @@ xchk_fblock_process_error(
 bool
 xchk_fblock_xref_process_error(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset,
-	int				*error)
+	int			whichfork,
+	xfs_fileoff_t		offset,
+	int			*error)
 {
 	return __xchk_fblock_process_error(sc, whichfork, offset, error,
 			XFS_SCRUB_OFLAG_XFAIL, __return_address);
@@ -188,7 +188,7 @@ xchk_fblock_xref_process_error(
 void
 xchk_block_set_preen(
 	struct xfs_scrub	*sc,
-	struct xfs_buf			*bp)
+	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
 	trace_xchk_block_preen(sc, bp->b_bn, __return_address);
@@ -202,7 +202,7 @@ xchk_block_set_preen(
 void
 xchk_ino_set_preen(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino)
+	xfs_ino_t		ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
 	trace_xchk_ino_preen(sc, ino, __return_address);
@@ -212,7 +212,7 @@ xchk_ino_set_preen(
 void
 xchk_block_set_corrupt(
 	struct xfs_scrub	*sc,
-	struct xfs_buf			*bp)
+	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xchk_block_error(sc, bp->b_bn, __return_address);
@@ -222,7 +222,7 @@ xchk_block_set_corrupt(
 void
 xchk_block_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	struct xfs_buf			*bp)
+	struct xfs_buf		*bp)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
 	trace_xchk_block_error(sc, bp->b_bn, __return_address);
@@ -236,7 +236,7 @@ xchk_block_xref_set_corrupt(
 void
 xchk_ino_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino)
+	xfs_ino_t		ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xchk_ino_error(sc, ino, __return_address);
@@ -246,7 +246,7 @@ xchk_ino_set_corrupt(
 void
 xchk_ino_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino)
+	xfs_ino_t		ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
 	trace_xchk_ino_error(sc, ino, __return_address);
@@ -256,8 +256,8 @@ xchk_ino_xref_set_corrupt(
 void
 xchk_fblock_set_corrupt(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset)
+	int			whichfork,
+	xfs_fileoff_t		offset)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xchk_fblock_error(sc, whichfork, offset, __return_address);
@@ -267,8 +267,8 @@ xchk_fblock_set_corrupt(
 void
 xchk_fblock_xref_set_corrupt(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset)
+	int			whichfork,
+	xfs_fileoff_t		offset)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
 	trace_xchk_fblock_error(sc, whichfork, offset, __return_address);
@@ -281,7 +281,7 @@ xchk_fblock_xref_set_corrupt(
 void
 xchk_ino_set_warning(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			ino)
+	xfs_ino_t		ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
 	trace_xchk_ino_warning(sc, ino, __return_address);
@@ -291,8 +291,8 @@ xchk_ino_set_warning(
 void
 xchk_fblock_set_warning(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	xfs_fileoff_t			offset)
+	int			whichfork,
+	xfs_fileoff_t		offset)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
 	trace_xchk_fblock_warning(sc, whichfork, offset, __return_address);
@@ -319,13 +319,13 @@ struct xchk_rmap_ownedby_info {
 
 STATIC int
 xchk_count_rmap_ownedby_irec(
-	struct xfs_btree_cur			*cur,
-	struct xfs_rmap_irec			*rec,
-	void					*priv)
+	struct xfs_btree_cur		*cur,
+	struct xfs_rmap_irec		*rec,
+	void				*priv)
 {
-	struct xchk_rmap_ownedby_info		*sroi = priv;
-	bool					irec_attr;
-	bool					oinfo_attr;
+	struct xchk_rmap_ownedby_info	*sroi = priv;
+	bool				irec_attr;
+	bool				oinfo_attr;
 
 	irec_attr = rec->rm_flags & XFS_RMAP_ATTR_FORK;
 	oinfo_attr = sroi->oinfo->oi_flags & XFS_OWNER_INFO_ATTR_FORK;
@@ -346,11 +346,11 @@ xchk_count_rmap_ownedby_irec(
 int
 xchk_count_rmap_ownedby_ag(
 	struct xfs_scrub		*sc,
-	struct xfs_btree_cur			*cur,
-	struct xfs_owner_info			*oinfo,
-	xfs_filblks_t				*blocks)
+	struct xfs_btree_cur		*cur,
+	struct xfs_owner_info		*oinfo,
+	xfs_filblks_t			*blocks)
 {
-	struct xchk_rmap_ownedby_info		sroi;
+	struct xchk_rmap_ownedby_info	sroi;
 
 	sroi.oinfo = oinfo;
 	*blocks = 0;
@@ -372,7 +372,7 @@ xchk_count_rmap_ownedby_ag(
 static inline bool
 want_ag_read_header_failure(
 	struct xfs_scrub	*sc,
-	unsigned int			type)
+	unsigned int		type)
 {
 	/* Return all AG header read failures when scanning btrees. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_AGF &&
@@ -399,13 +399,13 @@ want_ag_read_header_failure(
 int
 xchk_ag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t			agno,
-	struct xfs_buf			**agi,
-	struct xfs_buf			**agf,
-	struct xfs_buf			**agfl)
+	xfs_agnumber_t		agno,
+	struct xfs_buf		**agi,
+	struct xfs_buf		**agf,
+	struct xfs_buf		**agfl)
 {
-	struct xfs_mount		*mp = sc->mp;
-	int				error;
+	struct xfs_mount	*mp = sc->mp;
+	int			error;
 
 	error = xfs_ialloc_read_agi(mp, sc->tp, agno, agi);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
@@ -455,8 +455,8 @@ xchk_ag_btcur_init(
 	struct xfs_scrub	*sc,
 	struct xchk_ag		*sa)
 {
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agnumber_t			agno = sa->agno;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agnumber_t		agno = sa->agno;
 
 	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
@@ -545,10 +545,10 @@ xchk_ag_free(
 int
 xchk_ag_init(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t			agno,
+	xfs_agnumber_t		agno,
 	struct xchk_ag		*sa)
 {
-	int				error;
+	int			error;
 
 	sa->agno = agno;
 	error = xchk_ag_read_headers(sc, agno, &sa->agi_bp,
@@ -566,7 +566,7 @@ xchk_ag_init(
 void
 xchk_perag_get(
 	struct xfs_mount	*mp,
-	struct xchk_ag	*sa)
+	struct xchk_ag		*sa)
 {
 	if (!sa->pag)
 		sa->pag = xfs_perag_get(mp, sa->agno);
@@ -587,7 +587,7 @@ xchk_perag_get(
 int
 xchk_trans_alloc(
 	struct xfs_scrub	*sc,
-	uint				resblks)
+	uint			resblks)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
 		return xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
@@ -600,9 +600,9 @@ xchk_trans_alloc(
 int
 xchk_setup_fs(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	uint				resblks;
+	uint			resblks;
 
 	resblks = xrep_calc_ag_resblks(sc);
 	return xchk_trans_alloc(sc, resblks);
@@ -612,11 +612,11 @@ xchk_setup_fs(
 int
 xchk_setup_ag_btree(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip,
-	bool				force_log)
+	struct xfs_inode	*ip,
+	bool			force_log)
 {
-	struct xfs_mount		*mp = sc->mp;
-	int				error;
+	struct xfs_mount	*mp = sc->mp;
+	int			error;
 
 	/*
 	 * If the caller asks us to checkpont the log, do so.  This
@@ -659,12 +659,12 @@ xchk_checkpoint_log(
 int
 xchk_get_inode(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip_in)
+	struct xfs_inode	*ip_in)
 {
-	struct xfs_imap			imap;
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_inode		*ip = NULL;
-	int				error;
+	struct xfs_imap		imap;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip = NULL;
+	int			error;
 
 	/* We want to scan the inode we already had opened. */
 	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
@@ -723,10 +723,10 @@ xchk_get_inode(
 int
 xchk_setup_inode_contents(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip,
-	unsigned int			resblks)
+	struct xfs_inode	*ip,
+	unsigned int		resblks)
 {
-	int				error;
+	int			error;
 
 	error = xchk_get_inode(sc, ip);
 	if (error)
@@ -754,8 +754,8 @@ out:
 bool
 xchk_should_check_xref(
 	struct xfs_scrub	*sc,
-	int				*error,
-	struct xfs_btree_cur		**curpp)
+	int			*error,
+	struct xfs_btree_cur	**curpp)
 {
 	/* No point in xref if we already know we're corrupt. */
 	if (xchk_skip_xref(sc->sm))
@@ -789,9 +789,9 @@ xchk_should_check_xref(
 void
 xchk_buffer_recheck(
 	struct xfs_scrub	*sc,
-	struct xfs_buf			*bp)
+	struct xfs_buf		*bp)
 {
-	xfs_failaddr_t			fa;
+	xfs_failaddr_t		fa;
 
 	if (bp->b_ops == NULL) {
 		xchk_block_set_corrupt(sc, bp);
@@ -816,9 +816,9 @@ int
 xchk_metadata_inode_forks(
 	struct xfs_scrub	*sc)
 {
-	__u32				smtype;
-	bool				shared;
-	int				error;
+	__u32			smtype;
+	bool			shared;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;

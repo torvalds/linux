@@ -27,9 +27,9 @@
 int
 xchk_setup_rt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	int				error;
+	int			error;
 
 	error = xchk_setup_fs(sc, ip);
 	if (error)
@@ -47,13 +47,13 @@ xchk_setup_rt(
 /* Scrub a free extent record from the realtime bitmap. */
 STATIC int
 xchk_rtbitmap_rec(
-	struct xfs_trans		*tp,
-	struct xfs_rtalloc_rec		*rec,
-	void				*priv)
+	struct xfs_trans	*tp,
+	struct xfs_rtalloc_rec	*rec,
+	void			*priv)
 {
 	struct xfs_scrub	*sc = priv;
-	xfs_rtblock_t			startblock;
-	xfs_rtblock_t			blockcount;
+	xfs_rtblock_t		startblock;
+	xfs_rtblock_t		blockcount;
 
 	startblock = rec->ar_startext * tp->t_mountp->m_sb.sb_rextsize;
 	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
@@ -70,7 +70,7 @@ int
 xchk_rtbitmap(
 	struct xfs_scrub	*sc)
 {
-	int				error;
+	int			error;
 
 	/* Invoke the fork scrubber. */
 	error = xchk_metadata_inode_forks(sc);
@@ -90,10 +90,10 @@ int
 xchk_rtsummary(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode		*rsumip = sc->mp->m_rsumip;
-	struct xfs_inode		*old_ip = sc->ip;
-	uint				old_ilock_flags = sc->ilock_flags;
-	int				error = 0;
+	struct xfs_inode	*rsumip = sc->mp->m_rsumip;
+	struct xfs_inode	*old_ip = sc->ip;
+	uint			old_ilock_flags = sc->ilock_flags;
+	int			error = 0;
 
 	/*
 	 * We ILOCK'd the rt bitmap ip in the setup routine, now lock the
@@ -126,14 +126,14 @@ out:
 void
 xchk_xref_is_used_rt_space(
 	struct xfs_scrub	*sc,
-	xfs_rtblock_t			fsbno,
-	xfs_extlen_t			len)
+	xfs_rtblock_t		fsbno,
+	xfs_extlen_t		len)
 {
-	xfs_rtblock_t			startext;
-	xfs_rtblock_t			endext;
-	xfs_rtblock_t			extcount;
-	bool				is_free;
-	int				error;
+	xfs_rtblock_t		startext;
+	xfs_rtblock_t		endext;
+	xfs_rtblock_t		extcount;
+	bool			is_free;
+	int			error;
 
 	if (xchk_skip_xref(sc->sm))
 		return;

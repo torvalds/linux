@@ -31,10 +31,10 @@ int
 xrep_superblock(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_buf			*bp;
-	xfs_agnumber_t			agno;
-	int				error;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_buf		*bp;
+	xfs_agnumber_t		agno;
+	int			error;
 
 	/* Don't try to repair AG 0's sb; let xfs_repair deal with it. */
 	agno = sc->sm->sm_agno;

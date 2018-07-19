@@ -33,7 +33,7 @@
 int
 xchk_setup_directory(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_inode_contents(sc, ip, 0);
 }
@@ -44,7 +44,7 @@ xchk_setup_directory(
 
 struct xchk_dir_ctx {
 	/* VFS fill-directory iterator */
-	struct dir_context		dir_iter;
+	struct dir_context	dir_iter;
 
 	struct xfs_scrub	*sc;
 };
@@ -52,15 +52,15 @@ struct xchk_dir_ctx {
 /* Check that an inode's mode matches a given DT_ type. */
 STATIC int
 xchk_dir_check_ftype(
-	struct xchk_dir_ctx		*sdc,
-	xfs_fileoff_t			offset,
-	xfs_ino_t			inum,
-	int				dtype)
+	struct xchk_dir_ctx	*sdc,
+	xfs_fileoff_t		offset,
+	xfs_ino_t		inum,
+	int			dtype)
 {
-	struct xfs_mount		*mp = sdc->sc->mp;
-	struct xfs_inode		*ip;
-	int				ino_dtype;
-	int				error = 0;
+	struct xfs_mount	*mp = sdc->sc->mp;
+	struct xfs_inode	*ip;
+	int			ino_dtype;
+	int			error = 0;
 
 	if (!xfs_sb_version_hasftype(&mp->m_sb)) {
 		if (dtype != DT_UNKNOWN && dtype != DT_DIR)
@@ -102,20 +102,20 @@ out:
  */
 STATIC int
 xchk_dir_actor(
-	struct dir_context		*dir_iter,
-	const char			*name,
-	int				namelen,
-	loff_t				pos,
-	u64				ino,
-	unsigned			type)
+	struct dir_context	*dir_iter,
+	const char		*name,
+	int			namelen,
+	loff_t			pos,
+	u64			ino,
+	unsigned		type)
 {
-	struct xfs_mount		*mp;
-	struct xfs_inode		*ip;
-	struct xchk_dir_ctx		*sdc;
-	struct xfs_name			xname;
-	xfs_ino_t			lookup_ino;
-	xfs_dablk_t			offset;
-	int				error = 0;
+	struct xfs_mount	*mp;
+	struct xfs_inode	*ip;
+	struct xchk_dir_ctx	*sdc;
+	struct xfs_name		xname;
+	xfs_ino_t		lookup_ino;
+	xfs_dablk_t		offset;
+	int			error = 0;
 
 	sdc = container_of(dir_iter, struct xchk_dir_ctx, dir_iter);
 	ip = sdc->sc->ip;
@@ -289,7 +289,7 @@ out:
  */
 STATIC void
 xchk_directory_check_free_entry(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_dir2_data_free	*bf,
 	struct xfs_dir2_data_unused	*dup)
@@ -314,7 +314,7 @@ xchk_directory_check_free_entry(
 /* Check free space info in a directory data block. */
 STATIC int
 xchk_directory_data_bestfree(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_dablk_t			lblk,
 	bool				is_block)
 {
@@ -455,7 +455,7 @@ out:
  */
 STATIC void
 xchk_directory_check_freesp(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	xfs_dablk_t			lblk,
 	struct xfs_buf			*dbp,
 	unsigned int			len)
@@ -474,7 +474,7 @@ xchk_directory_check_freesp(
 /* Check free space info in a directory leaf1 block. */
 STATIC int
 xchk_directory_leaf1_bestfree(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
 {
@@ -572,7 +572,7 @@ out:
 /* Check free space info in a directory freespace block. */
 STATIC int
 xchk_directory_free_bestfree(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	struct xfs_da_args		*args,
 	xfs_dablk_t			lblk)
 {
@@ -628,18 +628,18 @@ STATIC int
 xchk_directory_blocks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_bmbt_irec		got;
-	struct xfs_da_args		args;
-	struct xfs_ifork		*ifp;
-	struct xfs_mount		*mp = sc->mp;
-	xfs_fileoff_t			leaf_lblk;
-	xfs_fileoff_t			free_lblk;
-	xfs_fileoff_t			lblk;
-	struct xfs_iext_cursor		icur;
-	xfs_dablk_t			dabno;
-	bool				found;
-	int				is_block = 0;
-	int				error;
+	struct xfs_bmbt_irec	got;
+	struct xfs_da_args	args;
+	struct xfs_ifork	*ifp;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_fileoff_t		leaf_lblk;
+	xfs_fileoff_t		free_lblk;
+	xfs_fileoff_t		lblk;
+	struct xfs_iext_cursor	icur;
+	xfs_dablk_t		dabno;
+	bool			found;
+	int			is_block = 0;
+	int			error;
 
 	/* Ignore local format directories. */
 	if (sc->ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
@@ -772,14 +772,14 @@ int
 xchk_directory(
 	struct xfs_scrub	*sc)
 {
-	struct xchk_dir_ctx		sdc = {
+	struct xchk_dir_ctx	sdc = {
 		.dir_iter.actor = xchk_dir_actor,
 		.dir_iter.pos = 0,
 		.sc = sc,
 	};
-	size_t				bufsize;
-	loff_t				oldpos;
-	int				error = 0;
+	size_t			bufsize;
+	loff_t			oldpos;
+	int			error = 0;
 
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;

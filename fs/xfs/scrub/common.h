@@ -108,24 +108,21 @@ xchk_setup_quota(struct xfs_scrub *sc, struct xfs_inode *ip)
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
-		      struct xchk_ag *sa);
+		struct xchk_ag *sa);
 void xchk_perag_get(struct xfs_mount *mp, struct xchk_ag *sa);
 int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
-			      struct xfs_buf **agi, struct xfs_buf **agf,
-			      struct xfs_buf **agfl);
+		struct xfs_buf **agi, struct xfs_buf **agf,
+		struct xfs_buf **agfl);
 void xchk_ag_btcur_free(struct xchk_ag *sa);
-int xchk_ag_btcur_init(struct xfs_scrub *sc,
-			    struct xchk_ag *sa);
-int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc,
-				    struct xfs_btree_cur *cur,
-				    struct xfs_owner_info *oinfo,
-				    xfs_filblks_t *blocks);
+int xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
+int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
+		struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
-int xchk_setup_ag_btree(struct xfs_scrub *sc,
-			     struct xfs_inode *ip, bool force_log);
+int xchk_setup_ag_btree(struct xfs_scrub *sc, struct xfs_inode *ip,
+		bool force_log);
 int xchk_get_inode(struct xfs_scrub *sc, struct xfs_inode *ip_in);
-int xchk_setup_inode_contents(struct xfs_scrub *sc,
-				   struct xfs_inode *ip, unsigned int resblks);
+int xchk_setup_inode_contents(struct xfs_scrub *sc, struct xfs_inode *ip,
+		unsigned int resblks);
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
 
 /*

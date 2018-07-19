@@ -14,8 +14,7 @@ bool xchk_btree_process_error(struct xfs_scrub *sc,
 
 /* Check for btree xref operation errors. */
 bool xchk_btree_xref_process_error(struct xfs_scrub *sc,
-				struct xfs_btree_cur *cur, int level,
-				int *error);
+		struct xfs_btree_cur *cur, int level, int *error);
 
 /* Check for btree corruption. */
 void xchk_btree_set_corrupt(struct xfs_scrub *sc,
@@ -33,20 +32,20 @@ typedef int (*xchk_btree_rec_fn)(
 struct xchk_btree {
 	/* caller-provided scrub state */
 	struct xfs_scrub	*sc;
-	struct xfs_btree_cur		*cur;
-	xchk_btree_rec_fn		scrub_rec;
-	struct xfs_owner_info		*oinfo;
-	void				*private;
+	struct xfs_btree_cur	*cur;
+	xchk_btree_rec_fn	scrub_rec;
+	struct xfs_owner_info	*oinfo;
+	void			*private;
 
 	/* internal scrub state */
-	union xfs_btree_rec		lastrec;
-	bool				firstrec;
-	union xfs_btree_key		lastkey[XFS_BTREE_MAXLEVELS];
-	bool				firstkey[XFS_BTREE_MAXLEVELS];
-	struct list_head		to_check;
+	union xfs_btree_rec	lastrec;
+	bool			firstrec;
+	union xfs_btree_key	lastkey[XFS_BTREE_MAXLEVELS];
+	bool			firstkey[XFS_BTREE_MAXLEVELS];
+	struct list_head	to_check;
 };
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
-		    xchk_btree_rec_fn scrub_fn,
-		    struct xfs_owner_info *oinfo, void *private);
+		xchk_btree_rec_fn scrub_fn, struct xfs_owner_info *oinfo,
+		void *private);
 
 #endif /* __XFS_SCRUB_BTREE_H__ */

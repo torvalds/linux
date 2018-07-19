@@ -29,7 +29,7 @@
 int
 xchk_setup_parent(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
 	return xchk_setup_inode_contents(sc, ip, 0);
 }
@@ -39,22 +39,22 @@ xchk_setup_parent(
 /* Look for an entry in a parent pointing to this inode. */
 
 struct xchk_parent_ctx {
-	struct dir_context		dc;
-	xfs_ino_t			ino;
-	xfs_nlink_t			nlink;
+	struct dir_context	dc;
+	xfs_ino_t		ino;
+	xfs_nlink_t		nlink;
 };
 
 /* Look for a single entry in a directory pointing to an inode. */
 STATIC int
 xchk_parent_actor(
-	struct dir_context		*dc,
-	const char			*name,
-	int				namelen,
-	loff_t				pos,
-	u64				ino,
-	unsigned			type)
+	struct dir_context	*dc,
+	const char		*name,
+	int			namelen,
+	loff_t			pos,
+	u64			ino,
+	unsigned		type)
 {
-	struct xchk_parent_ctx		*spc;
+	struct xchk_parent_ctx	*spc;
 
 	spc = container_of(dc, struct xchk_parent_ctx, dc);
 	if (spc->ino == ino)
@@ -66,19 +66,19 @@ xchk_parent_actor(
 STATIC int
 xchk_parent_count_parent_dentries(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*parent,
-	xfs_nlink_t			*nlink)
+	struct xfs_inode	*parent,
+	xfs_nlink_t		*nlink)
 {
-	struct xchk_parent_ctx		spc = {
+	struct xchk_parent_ctx	spc = {
 		.dc.actor = xchk_parent_actor,
 		.dc.pos = 0,
 		.ino = sc->ip->i_ino,
 		.nlink = 0,
 	};
-	size_t				bufsize;
-	loff_t				oldpos;
-	uint				lock_mode;
-	int				error = 0;
+	size_t			bufsize;
+	loff_t			oldpos;
+	uint			lock_mode;
+	int			error = 0;
 
 	/*
 	 * If there are any blocks, read-ahead block 0 as we're almost
@@ -122,14 +122,14 @@ out:
 STATIC int
 xchk_parent_validate(
 	struct xfs_scrub	*sc,
-	xfs_ino_t			dnum,
-	bool				*try_again)
+	xfs_ino_t		dnum,
+	bool			*try_again)
 {
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_inode		*dp = NULL;
-	xfs_nlink_t			expected_nlink;
-	xfs_nlink_t			nlink;
-	int				error = 0;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*dp = NULL;
+	xfs_nlink_t		expected_nlink;
+	xfs_nlink_t		nlink;
+	int			error = 0;
 
 	*try_again = false;
 
@@ -257,11 +257,11 @@ int
 xchk_parent(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_mount		*mp = sc->mp;
-	xfs_ino_t			dnum;
-	bool				try_again;
-	int				tries = 0;
-	int				error = 0;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_ino_t		dnum;
+	bool			try_again;
+	int			tries = 0;
+	int			error = 0;
 
 	/*
 	 * If we're a directory, check that the '..' link points up to

@@ -30,13 +30,13 @@
 STATIC void
 xchk_superblock_xref(
 	struct xfs_scrub	*sc,
-	struct xfs_buf			*bp)
+	struct xfs_buf		*bp)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agnumber_t			agno = sc->sm->sm_agno;
-	xfs_agblock_t			agbno;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agnumber_t		agno = sc->sm->sm_agno;
+	xfs_agblock_t		agbno;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -68,14 +68,14 @@ int
 xchk_superblock(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_buf			*bp;
-	struct xfs_dsb			*sb;
-	xfs_agnumber_t			agno;
-	uint32_t			v2_ok;
-	__be32				features_mask;
-	int				error;
-	__be16				vernum_mask;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_buf		*bp;
+	struct xfs_dsb		*sb;
+	xfs_agnumber_t		agno;
+	uint32_t		v2_ok;
+	__be32			features_mask;
+	int			error;
+	__be16			vernum_mask;
 
 	agno = sc->sm->sm_agno;
 	if (agno == 0)
@@ -367,9 +367,9 @@ static inline void
 xchk_agf_xref_freeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
-	xfs_extlen_t			blocks = 0;
-	int				error;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_extlen_t		blocks = 0;
+	int			error;
 
 	if (!sc->sa.bno_cur)
 		return;
@@ -387,11 +387,11 @@ static inline void
 xchk_agf_xref_cntbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
-	xfs_agblock_t			agbno;
-	xfs_extlen_t			blocks;
-	int				have;
-	int				error;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_agblock_t		agbno;
+	xfs_extlen_t		blocks;
+	int			have;
+	int			error;
 
 	if (!sc->sa.cnt_cur)
 		return;
@@ -419,11 +419,11 @@ STATIC void
 xchk_agf_xref_btreeblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agblock_t			blocks;
-	xfs_agblock_t			btreeblks;
-	int				error;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agblock_t		blocks;
+	xfs_agblock_t		btreeblks;
+	int			error;
 
 	/* Check agf_rmap_blocks; set up for agf_btreeblks check */
 	if (sc->sa.rmap_cur) {
@@ -465,9 +465,9 @@ static inline void
 xchk_agf_xref_refcblks(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
-	xfs_agblock_t			blocks;
-	int				error;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_agblock_t		blocks;
+	int			error;
 
 	if (!sc->sa.refc_cur)
 		return;
@@ -484,10 +484,10 @@ STATIC void
 xchk_agf_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agblock_t			agbno;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agblock_t		agbno;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -516,17 +516,17 @@ int
 xchk_agf(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_agf			*agf;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_agblock_t			eoag;
-	xfs_agblock_t			agfl_first;
-	xfs_agblock_t			agfl_last;
-	xfs_agblock_t			agfl_count;
-	xfs_agblock_t			fl_count;
-	int				level;
-	int				error = 0;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_agf		*agf;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	xfs_agblock_t		eoag;
+	xfs_agblock_t		agfl_first;
+	xfs_agblock_t		agfl_last;
+	xfs_agblock_t		agfl_count;
+	xfs_agblock_t		fl_count;
+	int			level;
+	int			error = 0;
 
 	agno = sc->sa.agno = sc->sm->sm_agno;
 	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
@@ -598,10 +598,10 @@ out:
 /* AGFL */
 
 struct xchk_agfl_info {
-	struct xfs_owner_info		oinfo;
-	unsigned int			sz_entries;
-	unsigned int			nr_entries;
-	xfs_agblock_t			*entries;
+	struct xfs_owner_info	oinfo;
+	unsigned int		sz_entries;
+	unsigned int		nr_entries;
+	xfs_agblock_t		*entries;
 	struct xfs_scrub	*sc;
 };
 
@@ -609,8 +609,8 @@ struct xchk_agfl_info {
 STATIC void
 xchk_agfl_block_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t			agbno,
-	struct xfs_owner_info		*oinfo)
+	xfs_agblock_t		agbno,
+	struct xfs_owner_info	*oinfo)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -624,13 +624,13 @@ xchk_agfl_block_xref(
 /* Scrub an AGFL block. */
 STATIC int
 xchk_agfl_block(
-	struct xfs_mount		*mp,
-	xfs_agblock_t			agbno,
-	void				*priv)
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agbno,
+	void			*priv)
 {
-	struct xchk_agfl_info		*sai = priv;
+	struct xchk_agfl_info	*sai = priv;
 	struct xfs_scrub	*sc = sai->sc;
-	xfs_agnumber_t			agno = sc->sa.agno;
+	xfs_agnumber_t		agno = sc->sa.agno;
 
 	if (xfs_verify_agbno(mp, agno, agbno) &&
 	    sai->nr_entries < sai->sz_entries)
@@ -662,10 +662,10 @@ STATIC void
 xchk_agfl_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agblock_t			agbno;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agblock_t		agbno;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -693,12 +693,12 @@ int
 xchk_agfl(
 	struct xfs_scrub	*sc)
 {
-	struct xchk_agfl_info		sai;
-	struct xfs_agf			*agf;
-	xfs_agnumber_t			agno;
-	unsigned int			agflcount;
-	unsigned int			i;
-	int				error;
+	struct xchk_agfl_info	sai;
+	struct xfs_agf		*agf;
+	xfs_agnumber_t		agno;
+	unsigned int		agflcount;
+	unsigned int		i;
+	int			error;
 
 	agno = sc->sa.agno = sc->sm->sm_agno;
 	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,
@@ -770,10 +770,10 @@ static inline void
 xchk_agi_xref_icounts(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_agi			*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
-	xfs_agino_t			icount;
-	xfs_agino_t			freecount;
-	int				error;
+	struct xfs_agi		*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	xfs_agino_t		icount;
+	xfs_agino_t		freecount;
+	int			error;
 
 	if (!sc->sa.ino_cur)
 		return;
@@ -791,10 +791,10 @@ STATIC void
 xchk_agi_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agblock_t			agbno;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agblock_t		agbno;
+	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -820,18 +820,18 @@ int
 xchk_agi(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_agi			*agi;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_agblock_t			eoag;
-	xfs_agino_t			agino;
-	xfs_agino_t			first_agino;
-	xfs_agino_t			last_agino;
-	xfs_agino_t			icount;
-	int				i;
-	int				level;
-	int				error = 0;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_agi		*agi;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	xfs_agblock_t		eoag;
+	xfs_agino_t		agino;
+	xfs_agino_t		first_agino;
+	xfs_agino_t		last_agino;
+	xfs_agino_t		icount;
+	int			i;
+	int			level;
+	int			error = 0;
 
 	agno = sc->sa.agno = sc->sm->sm_agno;
 	error = xchk_ag_read_headers(sc, agno, &sc->sa.agi_bp,

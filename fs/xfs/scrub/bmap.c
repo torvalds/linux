@@ -35,9 +35,9 @@
 int
 xchk_setup_inode_bmap(
 	struct xfs_scrub	*sc,
-	struct xfs_inode		*ip)
+	struct xfs_inode	*ip)
 {
-	int				error;
+	int			error;
 
 	error = xchk_get_inode(sc, ip);
 	if (error)
@@ -80,25 +80,25 @@ out:
 
 struct xchk_bmap_info {
 	struct xfs_scrub	*sc;
-	xfs_fileoff_t			lastoff;
-	bool				is_rt;
-	bool				is_shared;
-	int				whichfork;
+	xfs_fileoff_t		lastoff;
+	bool			is_rt;
+	bool			is_shared;
+	int			whichfork;
 };
 
 /* Look for a corresponding rmap for this irec. */
 static inline bool
 xchk_bmap_get_rmap(
-	struct xchk_bmap_info		*info,
-	struct xfs_bmbt_irec		*irec,
-	xfs_agblock_t			agbno,
-	uint64_t			owner,
-	struct xfs_rmap_irec		*rmap)
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec,
+	xfs_agblock_t		agbno,
+	uint64_t		owner,
+	struct xfs_rmap_irec	*rmap)
 {
-	xfs_fileoff_t			offset;
-	unsigned int			rflags = 0;
-	int				has_rmap;
-	int				error;
+	xfs_fileoff_t		offset;
+	unsigned int		rflags = 0;
+	int			has_rmap;
+	int			error;
 
 	if (info->whichfork == XFS_ATTR_FORK)
 		rflags |= XFS_RMAP_ATTR_FORK;
@@ -152,13 +152,13 @@ out:
 /* Make sure that we have rmapbt records for this extent. */
 STATIC void
 xchk_bmap_xref_rmap(
-	struct xchk_bmap_info		*info,
-	struct xfs_bmbt_irec		*irec,
-	xfs_agblock_t			agbno)
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec,
+	xfs_agblock_t		agbno)
 {
-	struct xfs_rmap_irec		rmap;
-	unsigned long long		rmap_end;
-	uint64_t			owner;
+	struct xfs_rmap_irec	rmap;
+	unsigned long long	rmap_end;
+	uint64_t		owner;
 
 	if (!info->sc->sa.rmap_cur || xchk_skip_xref(info->sc->sm))
 		return;
@@ -222,10 +222,10 @@ xchk_bmap_xref_rmap(
 /* Cross-reference a single rtdev extent record. */
 STATIC void
 xchk_bmap_rt_extent_xref(
-	struct xchk_bmap_info		*info,
-	struct xfs_inode		*ip,
-	struct xfs_btree_cur		*cur,
-	struct xfs_bmbt_irec		*irec)
+	struct xchk_bmap_info	*info,
+	struct xfs_inode	*ip,
+	struct xfs_btree_cur	*cur,
+	struct xfs_bmbt_irec	*irec)
 {
 	if (info->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -237,16 +237,16 @@ xchk_bmap_rt_extent_xref(
 /* Cross-reference a single datadev extent record. */
 STATIC void
 xchk_bmap_extent_xref(
-	struct xchk_bmap_info		*info,
-	struct xfs_inode		*ip,
-	struct xfs_btree_cur		*cur,
-	struct xfs_bmbt_irec		*irec)
+	struct xchk_bmap_info	*info,
+	struct xfs_inode	*ip,
+	struct xfs_btree_cur	*cur,
+	struct xfs_bmbt_irec	*irec)
 {
-	struct xfs_mount		*mp = info->sc->mp;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_extlen_t			len;
-	int				error;
+	struct xfs_mount	*mp = info->sc->mp;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	xfs_extlen_t		len;
+	int			error;
 
 	if (info->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
@@ -284,15 +284,15 @@ xchk_bmap_extent_xref(
 /* Scrub a single extent record. */
 STATIC int
 xchk_bmap_extent(
-	struct xfs_inode		*ip,
-	struct xfs_btree_cur		*cur,
-	struct xchk_bmap_info		*info,
-	struct xfs_bmbt_irec		*irec)
+	struct xfs_inode	*ip,
+	struct xfs_btree_cur	*cur,
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec)
 {
-	struct xfs_mount		*mp = info->sc->mp;
-	struct xfs_buf			*bp = NULL;
-	xfs_filblks_t			end;
-	int				error = 0;
+	struct xfs_mount	*mp = info->sc->mp;
+	struct xfs_buf		*bp = NULL;
+	xfs_filblks_t		end;
+	int			error = 0;
 
 	if (cur)
 		xfs_btree_get_block(cur, 0, &bp);
@@ -357,16 +357,16 @@ xchk_bmap_extent(
 /* Scrub a bmbt record. */
 STATIC int
 xchk_bmapbt_rec(
-	struct xchk_btree		*bs,
-	union xfs_btree_rec		*rec)
+	struct xchk_btree	*bs,
+	union xfs_btree_rec	*rec)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xchk_bmap_info		*info = bs->private;
-	struct xfs_inode		*ip = bs->cur->bc_private.b.ip;
-	struct xfs_buf			*bp = NULL;
-	struct xfs_btree_block		*block;
-	uint64_t			owner;
-	int				i;
+	struct xfs_bmbt_irec	irec;
+	struct xchk_bmap_info	*info = bs->private;
+	struct xfs_inode	*ip = bs->cur->bc_private.b.ip;
+	struct xfs_buf		*bp = NULL;
+	struct xfs_btree_block	*block;
+	uint64_t		owner;
+	int			i;
 
 	/*
 	 * Check the owners of the btree blocks up to the level below
@@ -392,14 +392,14 @@ xchk_bmapbt_rec(
 STATIC int
 xchk_bmap_btree(
 	struct xfs_scrub	*sc,
-	int				whichfork,
-	struct xchk_bmap_info		*info)
+	int			whichfork,
+	struct xchk_bmap_info	*info)
 {
-	struct xfs_owner_info		oinfo;
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_inode		*ip = sc->ip;
-	struct xfs_btree_cur		*cur;
-	int				error;
+	struct xfs_owner_info	oinfo;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip = sc->ip;
+	struct xfs_btree_cur	*cur;
+	int			error;
 
 	cur = xfs_bmbt_init_cursor(mp, sc->tp, ip, whichfork);
 	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, whichfork);
@@ -410,8 +410,8 @@ xchk_bmap_btree(
 
 struct xchk_bmap_check_rmap_info {
 	struct xfs_scrub	*sc;
-	int				whichfork;
-	struct xfs_iext_cursor		icur;
+	int			whichfork;
+	struct xfs_iext_cursor	icur;
 };
 
 /* Can we find bmaps that fit this rmap? */
@@ -424,7 +424,7 @@ xchk_bmap_check_rmap(
 	struct xfs_bmbt_irec		irec;
 	struct xchk_bmap_check_rmap_info	*sbcri = priv;
 	struct xfs_ifork		*ifp;
-	struct xfs_scrub	*sc = sbcri->sc;
+	struct xfs_scrub		*sc = sbcri->sc;
 	bool				have_map;
 
 	/* Is this even the right fork? */
@@ -488,7 +488,7 @@ out:
 /* Make sure each rmap has a corresponding bmbt entry. */
 STATIC int
 xchk_bmap_check_ag_rmaps(
-	struct xfs_scrub	*sc,
+	struct xfs_scrub		*sc,
 	int				whichfork,
 	xfs_agnumber_t			agno)
 {
@@ -523,11 +523,11 @@ out_agf:
 STATIC int
 xchk_bmap_check_rmaps(
 	struct xfs_scrub	*sc,
-	int				whichfork)
+	int			whichfork)
 {
-	loff_t				size;
-	xfs_agnumber_t			agno;
-	int				error;
+	loff_t			size;
+	xfs_agnumber_t		agno;
+	int			error;
 
 	if (!xfs_sb_version_hasrmapbt(&sc->mp->m_sb) ||
 	    whichfork == XFS_COW_FORK ||
@@ -580,16 +580,16 @@ xchk_bmap_check_rmaps(
 STATIC int
 xchk_bmap(
 	struct xfs_scrub	*sc,
-	int				whichfork)
+	int			whichfork)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xchk_bmap_info		info = { NULL };
-	struct xfs_mount		*mp = sc->mp;
-	struct xfs_inode		*ip = sc->ip;
-	struct xfs_ifork		*ifp;
-	xfs_fileoff_t			endoff;
-	struct xfs_iext_cursor		icur;
-	int				error = 0;
+	struct xfs_bmbt_irec	irec;
+	struct xchk_bmap_info	info = { NULL };
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip = sc->ip;
+	struct xfs_ifork	*ifp;
+	xfs_fileoff_t		endoff;
+	struct xfs_iext_cursor	icur;
+	int			error = 0;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 

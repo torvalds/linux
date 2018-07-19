@@ -23,8 +23,8 @@
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t
 xchk_btree_cur_fsbno(
-	struct xfs_btree_cur		*cur,
-	int				level)
+	struct xfs_btree_cur	*cur,
+	int			level)
 {
 	if (level < cur->bc_nlevels && cur->bc_bufs[level])
 		return XFS_DADDR_TO_FSB(cur->bc_mp, cur->bc_bufs[level]->b_bn);
