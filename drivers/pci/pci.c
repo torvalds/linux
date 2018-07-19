@@ -2290,7 +2290,7 @@ void pci_config_pm_runtime_put(struct pci_dev *pdev)
  * @bridge: Bridge to check
  *
  * This function checks if it is possible to move the bridge to D3.
- * Currently we only allow D3 for recent enough PCIe ports.
+ * Currently we only allow D3 for recent enough PCIe ports and Thunderbolt.
  */
 bool pci_bridge_d3_possible(struct pci_dev *bridge)
 {
@@ -2312,6 +2312,10 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 			return false;
 
 		if (pci_bridge_d3_force)
+			return true;
+
+		/* Even the oldest 2010 Thunderbolt controller supports D3. */
+		if (bridge->is_thunderbolt)
 			return true;
 
 		/*
