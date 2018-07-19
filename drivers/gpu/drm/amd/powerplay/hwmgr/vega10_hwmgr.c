@@ -289,7 +289,15 @@ static int vega10_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table[3];
 	struct phm_ppt_v1_clock_voltage_dependency_table *od_table[3];
+	struct pp_atomfwctrl_avfs_parameters avfs_params = {0};
 	uint32_t i;
+	int result;
+
+	result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
+	if (!result) {
+		data->odn_dpm_table.max_vddc = avfs_params.ulMaxVddc;
+		data->odn_dpm_table.min_vddc = avfs_params.ulMinVddc;
+	}
 
 	od_lookup_table = &odn_table->vddc_lookup_table;
 	vddc_lookup_table = table_info->vddc_lookup_table;
@@ -2072,9 +2080,6 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 	if (data->smu_features[GNLD_AVFS].supported) {
 		result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
 		if (!result) {
-			data->odn_dpm_table.max_vddc = avfs_params.ulMaxVddc;
-			data->odn_dpm_table.min_vddc = avfs_params.ulMinVddc;
-
 			pp_table->MinVoltageVid = (uint8_t)
 					convert_to_vid((uint16_t)(avfs_params.ulMinVddc));
 			pp_table->MaxVoltageVid = (uint8_t)
