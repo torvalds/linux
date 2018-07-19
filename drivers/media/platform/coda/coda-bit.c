@@ -536,6 +536,8 @@ static int coda_encode_header(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 {
 	struct vb2_buffer *vb = &buf->vb2_buf;
 	struct coda_dev *dev = ctx->dev;
+	struct coda_q_data *q_data_src;
+	struct v4l2_rect *r;
 	size_t bufsize;
 	int ret;
 	int i;
@@ -549,6 +551,23 @@ static int coda_encode_header(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 	if (dev->devtype->product == CODA_960)
 		bufsize /= 1024;
 	coda_write(dev, bufsize, CODA_CMD_ENC_HEADER_BB_SIZE);
+	if (dev->devtype->product == CODA_960 &&
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264 &&
+	    header_code == CODA_HEADER_H264_SPS) {
+		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		r = &q_data_src->rect;
+
+		if (r->width % 16 || r->height % 16) {
+			u32 crop_right = round_up(r->width, 16) -  r->width;
+			u32 crop_bottom = round_up(r->height, 16) - r->height;
+
+			coda_write(dev, crop_right,
+				   CODA9_CMD_ENC_HEADER_FRAME_CROP_H);
+			coda_write(dev, crop_bottom,
+				   CODA9_CMD_ENC_HEADER_FRAME_CROP_V);
+			header_code |= CODA9_HEADER_FRAME_CROP;
+		}
+	}
 	coda_write(dev, header_code, CODA_CMD_ENC_HEADER_CODE);
 	ret = coda_command_sync(ctx, CODA_COMMAND_ENCODE_HEADER);
 	if (ret < 0) {
