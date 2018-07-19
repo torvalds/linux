@@ -100,10 +100,10 @@ static int init_slot(struct controller *ctrl)
 	slot->hotplug_slot = hotplug;
 	snprintf(name, SLOT_NAME_SIZE, "%u", PSN(ctrl));
 
-	retval = pci_hp_register(hotplug,
-				 ctrl->pcie->port->subordinate, 0, name);
+	retval = pci_hp_initialize(hotplug,
+				   ctrl->pcie->port->subordinate, 0, name);
 	if (retval)
-		ctrl_err(ctrl, "pci_hp_register failed: error %d\n", retval);
+		ctrl_err(ctrl, "pci_hp_initialize failed: error %d\n", retval);
 out:
 	if (retval) {
 		kfree(ops);
@@ -117,7 +117,7 @@ static void cleanup_slot(struct controller *ctrl)
 {
 	struct hotplug_slot *hotplug_slot = ctrl->slot->hotplug_slot;
 
-	pci_hp_deregister(hotplug_slot);
+	pci_hp_destroy(hotplug_slot);
 	kfree(hotplug_slot->ops);
 	kfree(hotplug_slot->info);
 	kfree(hotplug_slot);
@@ -231,8 +231,15 @@ static int pciehp_probe(struct pcie_device *dev)
 		goto err_out_free_ctrl_slot;
 	}
 
-	/* Check if slot is occupied */
+	/* Publish to user space */
 	slot = ctrl->slot;
+	rc = pci_hp_add(slot->hotplug_slot);
+	if (rc) {
+		ctrl_err(ctrl, "Publication to user space failed (%d)\n", rc);
+		goto err_out_shutdown_notification;
+	}
+
+	/* Check if slot is occupied */
 	pciehp_get_adapter_status(slot, &occupied);
 	pciehp_get_power_status(slot, &poweron);
 	if (occupied && pciehp_force)
@@ -243,6 +250,8 @@ static int pciehp_probe(struct pcie_device *dev)
 
 	return 0;
 
+err_out_shutdown_notification:
+	pcie_shutdown_notification(ctrl);
 err_out_free_ctrl_slot:
 	cleanup_slot(ctrl);
 err_out_release_ctlr:
@@ -254,6 +263,7 @@ static void pciehp_remove(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
 
+	pci_hp_del(ctrl->slot->hotplug_slot);
 	pcie_shutdown_notification(ctrl);
 	cleanup_slot(ctrl);
 	pciehp_release_ctrl(ctrl);
