@@ -122,11 +122,24 @@ struct controller {
 	atomic_t pending_events;
 };
 
-#define STATIC_STATE			0
+/**
+ * DOC: Slot state
+ *
+ * @OFF_STATE: slot is powered off, no subordinate devices are enumerated
+ * @BLINKINGON_STATE: slot will be powered on after the 5 second delay,
+ *	green led is blinking
+ * @BLINKINGOFF_STATE: slot will be powered off after the 5 second delay,
+ *	green led is blinking
+ * @POWERON_STATE: slot is currently powering on
+ * @POWEROFF_STATE: slot is currently powering off
+ * @ON_STATE: slot is powered on, subordinate devices have been enumerated
+ */
+#define OFF_STATE			0
 #define BLINKINGON_STATE		1
 #define BLINKINGOFF_STATE		2
 #define POWERON_STATE			3
 #define POWEROFF_STATE			4
+#define ON_STATE			5
 
 #define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_ABP)
 #define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_PCP)
