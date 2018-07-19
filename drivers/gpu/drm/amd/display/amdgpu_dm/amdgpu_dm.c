@@ -1320,7 +1320,12 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 
 static int amdgpu_dm_backlight_get_brightness(struct backlight_device *bd)
 {
-	return bd->props.brightness;
+	struct amdgpu_display_manager *dm = bl_get_data(bd);
+	int ret = dc_link_get_backlight_level(dm->backlight_link);
+
+	if (ret == DC_ERROR_UNEXPECTED)
+		return bd->props.brightness;
+	return ret;
 }
 
 static const struct backlight_ops amdgpu_dm_backlight_ops = {

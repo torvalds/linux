@@ -2026,6 +2026,15 @@ enum dc_status dc_link_validate_mode_timing(
 	return DC_OK;
 }
 
+int dc_link_get_backlight_level(const struct dc_link *link)
+{
+	struct abm *abm = link->ctx->dc->res_pool->abm;
+
+	if (abm == NULL || abm->funcs->get_current_backlight_8_bit == NULL)
+		return DC_ERROR_UNEXPECTED;
+
+	return (int) abm->funcs->get_current_backlight_8_bit(abm);
+}
 
 bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream_state *stream)
