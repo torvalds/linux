@@ -1924,7 +1924,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 		break;
 
 	case HCISETPTYPE:
+		if (hdev->pkt_type == (__u16) dr.dev_opt)
+			break;
+
 		hdev->pkt_type = (__u16) dr.dev_opt;
+		mgmt_phy_configuration_changed(hdev, NULL);
 		break;
 
 	case HCISETACLMTU:

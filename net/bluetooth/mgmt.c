@@ -3328,6 +3328,18 @@ static int get_phy_configuration(struct sock *sk, struct hci_dev *hdev,
 				 &rp, sizeof(rp));
 }
 
+int mgmt_phy_configuration_changed(struct hci_dev *hdev, struct sock *skip)
+{
+	struct mgmt_ev_phy_configuration_changed ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.selected_phys = cpu_to_le32(get_selected_phys(hdev));
+
+	return mgmt_event(MGMT_EV_PHY_CONFIGURATION_CHANGED, hdev, &ev,
+			  sizeof(ev), skip);
+}
+
 static void set_default_phy_complete(struct hci_dev *hdev, u8 status,
 				     u16 opcode, struct sk_buff *skb)
 {
@@ -3352,6 +3364,8 @@ static void set_default_phy_complete(struct hci_dev *hdev, u8 status,
 		mgmt_cmd_complete(cmd->sk, hdev->id,
 				  MGMT_OP_SET_PHY_CONFIGURATION, 0,
 				  NULL, 0);
+
+		mgmt_phy_configuration_changed(hdev, cmd->sk);
 	}
 
 	mgmt_pending_remove(cmd);
@@ -3369,6 +3383,7 @@ static int set_phy_configuration(struct sock *sk, struct hci_dev *hdev,
 	struct hci_request req;
 	u32 selected_phys, configurable_phys, supported_phys, unconfigure_phys;
 	u16 pkt_type = (HCI_DH1 | HCI_DM1);
+	bool changed = false;
 	int err;
 
 	BT_DBG("sock %p %s", sk, hdev->name);
@@ -3450,11 +3465,16 @@ static int set_phy_configuration(struct sock *sk, struct hci_dev *hdev,
 	else
 		pkt_type |= HCI_3DH5;
 
-	if (pkt_type != hdev->pkt_type)
+	if (pkt_type != hdev->pkt_type) {
 		hdev->pkt_type = pkt_type;
+		changed = true;
+	}
 
 	if ((selected_phys & MGMT_PHY_LE_MASK) ==
 	    (get_selected_phys(hdev) & MGMT_PHY_LE_MASK)) {
+		if (changed)
+			mgmt_phy_configuration_changed(hdev, sk);
+
 		err = mgmt_cmd_complete(sk, hdev->id,
 					MGMT_OP_SET_PHY_CONFIGURATION,
 					0, NULL, 0);

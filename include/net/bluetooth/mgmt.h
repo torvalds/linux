@@ -868,3 +868,8 @@ struct mgmt_ev_ext_info_changed {
 	__le16	eir_len;
 	__u8	eir[0];
 } __packed;
+
+#define MGMT_EV_PHY_CONFIGURATION_CHANGED	0x0026
+struct mgmt_ev_phy_configuration_changed {
+	__le32	selected_phys;
+} __packed;
