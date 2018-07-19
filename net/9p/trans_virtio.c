@@ -144,24 +144,25 @@ static void req_done(struct virtqueue *vq)
 	struct virtio_chan *chan = vq->vdev->priv;
 	unsigned int len;
 	struct p9_req_t *req;
+	bool need_wakeup = false;
 	unsigned long flags;
 
 	p9_debug(P9_DEBUG_TRANS, ": request done\n");
 
-	while (1) {
-		spin_lock_irqsave(&chan->lock, flags);
-		req = virtqueue_get_buf(chan->vq, &len);
-		if (req == NULL) {
-			spin_unlock_irqrestore(&chan->lock, flags);
-			break;
+	spin_lock_irqsave(&chan->lock, flags);
+	while ((req = virtqueue_get_buf(chan->vq, &len)) != NULL) {
+		if (!chan->ring_bufs_avail) {
+			chan->ring_bufs_avail = 1;
+			need_wakeup = true;
 		}
-		chan->ring_bufs_avail = 1;
-		spin_unlock_irqrestore(&chan->lock, flags);
-		/* Wakeup if anyone waiting for VirtIO ring space. */
-		wake_up(chan->vc_wq);
+
 		if (len)
 			p9_client_cb(chan->client, req, REQ_STATUS_RCVD);
 	}
+	spin_unlock_irqrestore(&chan->lock, flags);
+	/* Wakeup if anyone waiting for VirtIO ring space. */
+	if (need_wakeup)
+		wake_up(chan->vc_wq);
 }
 
 /**
