@@ -61,20 +61,22 @@ struct amdgpu_ctx_mgr {
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
-int amdgpu_ctx_get_ring(struct amdgpu_ctx *ctx,
-			u32 hw_ip, u32 instance, u32 ring,
-			struct amdgpu_ring **out_ring);
-int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct dma_fence *fence, uint64_t *seq);
+int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
+			  u32 ring, struct drm_sched_entity **entity);
+int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
+			 struct drm_sched_entity *entity,
+			 struct dma_fence *fence, uint64_t *seq);
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
-				   struct amdgpu_ring *ring, uint64_t seq);
+				       struct drm_sched_entity *entity,
+				       uint64_t seq);
 void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
 				  enum drm_sched_priority priority);
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);
 
-int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx, unsigned ring_id);
+int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
+			       struct drm_sched_entity *entity);
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);

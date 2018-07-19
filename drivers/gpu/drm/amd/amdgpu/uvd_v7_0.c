@@ -1264,11 +1264,12 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 					   uint32_t ib_idx)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
 	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
 	unsigned i;
 
 	/* No patching necessary for the first instance */
-	if (!p->ring->me)
+	if (!ring->me)
 		return 0;
 
 	for (i = 0; i < ib->length_dw; i += 2) {

@@ -893,13 +893,13 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 				 struct amdgpu_cs_parser *p)
 {
+	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
-	struct amdgpu_ring *ring = p->ring;
 	int r;
 
 	/* Only for UVD/VCE VM emulation */
-	if (p->ring->funcs->parse_cs || p->ring->funcs->patch_cs_in_place) {
+	if (ring->funcs->parse_cs || ring->funcs->patch_cs_in_place) {
 		unsigned i, j;
 
 		for (i = 0, j = 0; i < p->nchunks && j < p->job->num_ibs; i++) {
@@ -940,7 +940,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 			offset = m->start * AMDGPU_GPU_PAGE_SIZE;
 			kptr += va_start - offset;
 
-			if (p->ring->funcs->parse_cs) {
+			if (ring->funcs->parse_cs) {
 				memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 				amdgpu_bo_kunmap(aobj);
 
@@ -979,14 +979,15 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 {
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
-	int i, j;
 	int r, ce_preempt = 0, de_preempt = 0;
+	struct amdgpu_ring *ring;
+	int i, j;
 
 	for (i = 0, j = 0; i < parser->nchunks && j < parser->job->num_ibs; i++) {
 		struct amdgpu_cs_chunk *chunk;
 		struct amdgpu_ib *ib;
 		struct drm_amdgpu_cs_chunk_ib *chunk_ib;
-		struct amdgpu_ring *ring;
+		struct drm_sched_entity *entity;
 
 		chunk = &parser->chunks[i];
 		ib = &parser->job->ibs[j];
@@ -1008,9 +1009,9 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 				return -EINVAL;
 		}
 
-		r = amdgpu_ctx_get_ring(parser->ctx, chunk_ib->ip_type,
-					chunk_ib->ip_instance, chunk_ib->ring,
-					&ring);
+		r = amdgpu_ctx_get_entity(parser->ctx, chunk_ib->ip_type,
+					  chunk_ib->ip_instance, chunk_ib->ring,
+					  &entity);
 		if (r)
 			return r;
 
@@ -1018,14 +1019,14 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			parser->job->preamble_status |=
 				AMDGPU_PREAMBLE_IB_PRESENT;
 
-		if (parser->ring && parser->ring != ring)
+		if (parser->entity && parser->entity != entity)
 			return -EINVAL;
 
-		parser->ring = ring;
+		parser->entity = entity;
 
-		r =  amdgpu_ib_get(adev, vm,
-					ring->funcs->parse_cs ? chunk_ib->ib_bytes : 0,
-					ib);
+		ring = to_amdgpu_ring(entity->rq->sched);
+		r =  amdgpu_ib_get(adev, vm, ring->funcs->parse_cs ?
+				   chunk_ib->ib_bytes : 0, ib);
 		if (r) {
 			DRM_ERROR("Failed to get ib !\n");
 			return r;
@@ -1039,12 +1040,13 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	}
 
 	/* UVD & VCE fw doesn't support user fences */
+	ring = to_amdgpu_ring(parser->entity->rq->sched);
 	if (parser->job->uf_addr && (
-	    parser->ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
-	    parser->ring->funcs->type == AMDGPU_RING_TYPE_VCE))
+	    ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
+	    ring->funcs->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
 
-	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->ring->idx);
+	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->entity);
 }
 
 static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
@@ -1060,23 +1062,23 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 		sizeof(struct drm_amdgpu_cs_chunk_dep);
 
 	for (i = 0; i < num_deps; ++i) {
-		struct amdgpu_ring *ring;
 		struct amdgpu_ctx *ctx;
+		struct drm_sched_entity *entity;
 		struct dma_fence *fence;
 
 		ctx = amdgpu_ctx_get(fpriv, deps[i].ctx_id);
 		if (ctx == NULL)
 			return -EINVAL;
 
-		r = amdgpu_ctx_get_ring(ctx, deps[i].ip_type,
-					deps[i].ip_instance,
-					deps[i].ring, &ring);
+		r = amdgpu_ctx_get_entity(ctx, deps[i].ip_type,
+					  deps[i].ip_instance,
+					  deps[i].ring, &entity);
 		if (r) {
 			amdgpu_ctx_put(ctx);
 			return r;
 		}
 
-		fence = amdgpu_ctx_get_fence(ctx, ring,
+		fence = amdgpu_ctx_get_fence(ctx, entity,
 					     deps[i].handle);
 		if (IS_ERR(fence)) {
 			r = PTR_ERR(fence);
@@ -1195,9 +1197,9 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	struct amdgpu_ring *ring = p->ring;
-	struct drm_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
+	struct drm_sched_entity *entity = p->entity;
 	enum drm_sched_priority priority;
+	struct amdgpu_ring *ring;
 	struct amdgpu_bo_list_entry *e;
 	struct amdgpu_job *job;
 	uint64_t seq;
@@ -1227,7 +1229,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job->owner = p->filp;
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
 
-	r = amdgpu_ctx_add_fence(p->ctx, ring, p->fence, &seq);
+	r = amdgpu_ctx_add_fence(p->ctx, entity, p->fence, &seq);
 	if (r) {
 		dma_fence_put(p->fence);
 		dma_fence_put(&job->base.s_fence->finished);
@@ -1332,7 +1334,7 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_wait_cs *wait = data;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
-	struct amdgpu_ring *ring = NULL;
+	struct drm_sched_entity *entity;
 	struct amdgpu_ctx *ctx;
 	struct dma_fence *fence;
 	long r;
@@ -1341,14 +1343,14 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	if (ctx == NULL)
 		return -EINVAL;
 
-	r = amdgpu_ctx_get_ring(ctx, wait->in.ip_type, wait->in.ip_instance,
-				wait->in.ring, &ring);
+	r = amdgpu_ctx_get_entity(ctx, wait->in.ip_type, wait->in.ip_instance,
+				  wait->in.ring, &entity);
 	if (r) {
 		amdgpu_ctx_put(ctx);
 		return r;
 	}
 
-	fence = amdgpu_ctx_get_fence(ctx, ring, wait->in.handle);
+	fence = amdgpu_ctx_get_fence(ctx, entity, wait->in.handle);
 	if (IS_ERR(fence))
 		r = PTR_ERR(fence);
 	else if (fence) {
@@ -1380,7 +1382,7 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 					     struct drm_file *filp,
 					     struct drm_amdgpu_fence *user)
 {
-	struct amdgpu_ring *ring;
+	struct drm_sched_entity *entity;
 	struct amdgpu_ctx *ctx;
 	struct dma_fence *fence;
 	int r;
@@ -1389,14 +1391,14 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 	if (ctx == NULL)
 		return ERR_PTR(-EINVAL);
 
-	r = amdgpu_ctx_get_ring(ctx, user->ip_type, user->ip_instance,
-				user->ring, &ring);
+	r = amdgpu_ctx_get_entity(ctx, user->ip_type, user->ip_instance,
+				  user->ring, &entity);
 	if (r) {
 		amdgpu_ctx_put(ctx);
 		return ERR_PTR(r);
 	}
 
-	fence = amdgpu_ctx_get_fence(ctx, ring, user->seq_no);
+	fence = amdgpu_ctx_get_fence(ctx, entity, user->seq_no);
 	amdgpu_ctx_put(ctx);
 
 	return fence;
