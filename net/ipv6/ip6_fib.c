@@ -935,20 +935,19 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 {
 	struct fib6_info *leaf = rcu_dereference_protected(fn->leaf,
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
-	enum fib_event_type event = FIB_EVENT_ENTRY_ADD;
-	struct fib6_info *iter = NULL, *match = NULL;
+	struct fib6_info *iter = NULL;
 	struct fib6_info __rcu **ins;
+	struct fib6_info __rcu **fallback_ins = NULL;
 	int replace = (info->nlh &&
 		       (info->nlh->nlmsg_flags & NLM_F_REPLACE));
-	int append = (info->nlh &&
-		       (info->nlh->nlmsg_flags & NLM_F_APPEND));
 	int add = (!info->nlh ||
 		   (info->nlh->nlmsg_flags & NLM_F_CREATE));
 	int found = 0;
+	bool rt_can_ecmp = rt6_qualify_for_ecmp(rt);
 	u16 nlflags = NLM_F_EXCL;
 	int err;
 
-	if (append)
+	if (info->nlh && (info->nlh->nlmsg_flags & NLM_F_APPEND))
 		nlflags |= NLM_F_APPEND;
 
 	ins = &fn->leaf;
@@ -970,8 +969,13 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 
 			nlflags &= ~NLM_F_EXCL;
 			if (replace) {
-				found++;
-				break;
+				if (rt_can_ecmp == rt6_qualify_for_ecmp(iter)) {
+					found++;
+					break;
+				}
+				if (rt_can_ecmp)
+					fallback_ins = fallback_ins ?: ins;
+				goto next_iter;
 			}
 
 			if (rt6_duplicate_nexthop(iter, rt)) {
@@ -986,16 +990,35 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 				fib6_metric_set(iter, RTAX_MTU, rt->fib6_pmtu);
 				return -EEXIST;
 			}
-
-			/* first route that matches */
-			if (!match)
-				match = iter;
+			/* If we have the same destination and the same metric,
+			 * but not the same gateway, then the route we try to
+			 * add is sibling to this route, increment our counter
+			 * of siblings, and later we will add our route to the
+			 * list.
+			 * Only static routes (which don't have flag
+			 * RTF_EXPIRES) are used for ECMPv6.
+			 *
+			 * To avoid long list, we only had siblings if the
+			 * route have a gateway.
+			 */
+			if (rt_can_ecmp &&
+			    rt6_qualify_for_ecmp(iter))
+				rt->fib6_nsiblings++;
 		}
 
 		if (iter->fib6_metric > rt->fib6_metric)
 			break;
 
+next_iter:
 		ins = &iter->fib6_next;
+	}
+
+	if (fallback_ins && !found) {
+		/* No ECMP-able route found, replace first non-ECMP one */
+		ins = fallback_ins;
+		iter = rcu_dereference_protected(*ins,
+				    lockdep_is_held(&rt->fib6_table->tb6_lock));
+		found++;
 	}
 
 	/* Reset round-robin state, if necessary */
@@ -1003,34 +1026,35 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 		fn->rr_ptr = NULL;
 
 	/* Link this route to others same route. */
-	if (append && match) {
+	if (rt->fib6_nsiblings) {
+		unsigned int fib6_nsiblings;
 		struct fib6_info *sibling, *temp_sibling;
 
-		if (rt->fib6_flags & RTF_REJECT) {
-			NL_SET_ERR_MSG(extack,
-				       "Can not append a REJECT route");
-			return -EINVAL;
-		} else if (match->fib6_flags & RTF_REJECT) {
-			NL_SET_ERR_MSG(extack,
-				       "Can not append to a REJECT route");
-			return -EINVAL;
+		/* Find the first route that have the same metric */
+		sibling = leaf;
+		while (sibling) {
+			if (sibling->fib6_metric == rt->fib6_metric &&
+			    rt6_qualify_for_ecmp(sibling)) {
+				list_add_tail(&rt->fib6_siblings,
+					      &sibling->fib6_siblings);
+				break;
+			}
+			sibling = rcu_dereference_protected(sibling->fib6_next,
+				    lockdep_is_held(&rt->fib6_table->tb6_lock));
 		}
-		event = FIB_EVENT_ENTRY_APPEND;
-		rt->fib6_nsiblings = match->fib6_nsiblings;
-		list_add_tail(&rt->fib6_siblings, &match->fib6_siblings);
-		match->fib6_nsiblings++;
-
 		/* For each sibling in the list, increment the counter of
 		 * siblings. BUG() if counters does not match, list of siblings
 		 * is broken!
 		 */
+		fib6_nsiblings = 0;
 		list_for_each_entry_safe(sibling, temp_sibling,
-					 &match->fib6_siblings, fib6_siblings) {
+					 &rt->fib6_siblings, fib6_siblings) {
 			sibling->fib6_nsiblings++;
-			BUG_ON(sibling->fib6_nsiblings != match->fib6_nsiblings);
+			BUG_ON(sibling->fib6_nsiblings != rt->fib6_nsiblings);
+			fib6_nsiblings++;
 		}
-
-		rt6_multipath_rebalance(match);
+		BUG_ON(fib6_nsiblings != rt->fib6_nsiblings);
+		rt6_multipath_rebalance(temp_sibling);
 	}
 
 	/*
@@ -1043,8 +1067,9 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 add:
 		nlflags |= NLM_F_CREATE;
 
-		err = call_fib6_entry_notifiers(info->nl_net, event, rt,
-						extack);
+		err = call_fib6_entry_notifiers(info->nl_net,
+						FIB_EVENT_ENTRY_ADD,
+						rt, extack);
 		if (err)
 			return err;
 
@@ -1062,7 +1087,7 @@ add:
 		}
 
 	} else {
-		struct fib6_info *tmp;
+		int nsiblings;
 
 		if (!found) {
 			if (add)
@@ -1077,57 +1102,48 @@ add:
 		if (err)
 			return err;
 
-		/* if route being replaced has siblings, set tmp to
-		 * last one, otherwise tmp is current route. this is
-		 * used to set fib6_next for new route
-		 */
-		if (iter->fib6_nsiblings)
-			tmp = list_last_entry(&iter->fib6_siblings,
-					      struct fib6_info,
-					      fib6_siblings);
-		else
-			tmp = iter;
-
-		/* insert new route */
 		atomic_inc(&rt->fib6_ref);
 		rcu_assign_pointer(rt->fib6_node, fn);
-		rt->fib6_next = tmp->fib6_next;
+		rt->fib6_next = iter->fib6_next;
 		rcu_assign_pointer(*ins, rt);
-
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
-
-		/* delete old route */
-		rt = iter;
-
-		if (rt->fib6_nsiblings) {
-			struct fib6_info *tmp;
-
-			/* Replacing an ECMP route, remove all siblings */
-			list_for_each_entry_safe(iter, tmp, &rt->fib6_siblings,
-						 fib6_siblings) {
-				iter->fib6_node = NULL;
-				fib6_purge_rt(iter, fn, info->nl_net);
-				if (rcu_access_pointer(fn->rr_ptr) == iter)
-					fn->rr_ptr = NULL;
-				fib6_info_release(iter);
-
-				rt->fib6_nsiblings--;
-				info->nl_net->ipv6.rt6_stats->fib_rt_entries--;
-			}
-		}
-
-		WARN_ON(rt->fib6_nsiblings != 0);
-
-		rt->fib6_node = NULL;
-		fib6_purge_rt(rt, fn, info->nl_net);
-		if (rcu_access_pointer(fn->rr_ptr) == rt)
+		nsiblings = iter->fib6_nsiblings;
+		iter->fib6_node = NULL;
+		fib6_purge_rt(iter, fn, info->nl_net);
+		if (rcu_access_pointer(fn->rr_ptr) == iter)
 			fn->rr_ptr = NULL;
-		fib6_info_release(rt);
+		fib6_info_release(iter);
+
+		if (nsiblings) {
+			/* Replacing an ECMP route, remove all siblings */
+			ins = &rt->fib6_next;
+			iter = rcu_dereference_protected(*ins,
+				    lockdep_is_held(&rt->fib6_table->tb6_lock));
+			while (iter) {
+				if (iter->fib6_metric > rt->fib6_metric)
+					break;
+				if (rt6_qualify_for_ecmp(iter)) {
+					*ins = iter->fib6_next;
+					iter->fib6_node = NULL;
+					fib6_purge_rt(iter, fn, info->nl_net);
+					if (rcu_access_pointer(fn->rr_ptr) == iter)
+						fn->rr_ptr = NULL;
+					fib6_info_release(iter);
+					nsiblings--;
+					info->nl_net->ipv6.rt6_stats->fib_rt_entries--;
+				} else {
+					ins = &iter->fib6_next;
+				}
+				iter = rcu_dereference_protected(*ins,
+					lockdep_is_held(&rt->fib6_table->tb6_lock));
+			}
+			WARN_ON(nsiblings != 0);
+		}
 	}
 
 	return 0;

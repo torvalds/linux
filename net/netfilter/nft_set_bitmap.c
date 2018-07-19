@@ -296,7 +296,7 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_bitmap_type __read_mostly = {
+struct nft_set_type nft_set_bitmap_type __read_mostly = {
 	.owner		= THIS_MODULE,
 	.ops		= {
 		.privsize	= nft_bitmap_privsize,
@@ -314,20 +314,3 @@ static struct nft_set_type nft_bitmap_type __read_mostly = {
 		.get		= nft_bitmap_get,
 	},
 };
-
-static int __init nft_bitmap_module_init(void)
-{
-	return nft_register_set(&nft_bitmap_type);
-}
-
-static void __exit nft_bitmap_module_exit(void)
-{
-	nft_unregister_set(&nft_bitmap_type);
-}
-
-module_init(nft_bitmap_module_init);
-module_exit(nft_bitmap_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
-MODULE_ALIAS_NFT_SET();
