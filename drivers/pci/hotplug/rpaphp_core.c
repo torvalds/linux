@@ -404,13 +404,13 @@ static void __exit cleanup_slots(void)
 	/*
 	 * Unregister all of our slots with the pci_hotplug subsystem,
 	 * and free up all memory that we had allocated.
-	 * memory will be freed in release_slot callback.
 	 */
 
 	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
 				 rpaphp_slot_list) {
 		list_del(&slot->rpaphp_slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
+		dealloc_slot_struct(slot);
 	}
 	return;
 }

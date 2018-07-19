@@ -396,8 +396,9 @@ static struct hotplug_slot *get_slot_from_name(const char *name)
  * @owner: caller module owner
  * @mod_name: caller module name
  *
- * Registers a hotplug slot with the pci hotplug subsystem, which will allow
- * userspace interaction to the slot.
+ * Prepares a hotplug slot for in-kernel use and immediately publishes it to
+ * user space in one go.  Drivers may alternatively carry out the two steps
+ * separately by invoking pci_hp_initialize() and pci_hp_add().
  *
  * Returns 0 if successful, anything else for an error.
  */
@@ -406,54 +407,91 @@ int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus,
 		      struct module *owner, const char *mod_name)
 {
 	int result;
+
+	result = __pci_hp_initialize(slot, bus, devnr, name, owner, mod_name);
+	if (result)
+		return result;
+
+	result = pci_hp_add(slot);
+	if (result)
+		pci_hp_destroy(slot);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(__pci_hp_register);
+
+/**
+ * __pci_hp_initialize - prepare hotplug slot for in-kernel use
+ * @slot: pointer to the &struct hotplug_slot to initialize
+ * @bus: bus this slot is on
+ * @devnr: slot number
+ * @name: name registered with kobject core
+ * @owner: caller module owner
+ * @mod_name: caller module name
+ *
+ * Allocate and fill in a PCI slot for use by a hotplug driver.  Once this has
+ * been called, the driver may invoke hotplug_slot_name() to get the slot's
+ * unique name.  The driver must be prepared to handle a ->reset_slot callback
+ * from this point on.
+ *
+ * Returns 0 on success or a negative int on error.
+ */
+int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus,
+			int devnr, const char *name, struct module *owner,
+			const char *mod_name)
+{
 	struct pci_slot *pci_slot;
 
 	if (slot == NULL)
 		return -ENODEV;
 	if ((slot->info == NULL) || (slot->ops == NULL))
 		return -EINVAL;
-	if (slot->release == NULL) {
-		dbg("Why are you trying to register a hotplug slot without a proper release function?\n");
-		return -EINVAL;
-	}
 
 	slot->ops->owner = owner;
 	slot->ops->mod_name = mod_name;
 
-	mutex_lock(&pci_hp_mutex);
 	/*
 	 * No problems if we call this interface from both ACPI_PCI_SLOT
 	 * driver and call it here again. If we've already created the
 	 * pci_slot, the interface will simply bump the refcount.
 	 */
 	pci_slot = pci_create_slot(bus, devnr, name, slot);
-	if (IS_ERR(pci_slot)) {
-		result = PTR_ERR(pci_slot);
-		goto out;
-	}
+	if (IS_ERR(pci_slot))
+		return PTR_ERR(pci_slot);
 
 	slot->pci_slot = pci_slot;
 	pci_slot->hotplug = slot;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__pci_hp_initialize);
 
-	list_add(&slot->slot_list, &pci_hotplug_slot_list);
+/**
+ * pci_hp_add - publish hotplug slot to user space
+ * @slot: pointer to the &struct hotplug_slot to publish
+ *
+ * Make a hotplug slot's sysfs interface available and inform user space of its
+ * addition by sending a uevent.  The hotplug driver must be prepared to handle
+ * all &struct hotplug_slot_ops callbacks from this point on.
+ *
+ * Returns 0 on success or a negative int on error.
+ */
+int pci_hp_add(struct hotplug_slot *slot)
+{
+	struct pci_slot *pci_slot = slot->pci_slot;
+	int result;
 
 	result = fs_add_slot(pci_slot);
 	if (result)
-		goto err_list_del;
+		return result;
 
 	kobject_uevent(&pci_slot->kobj, KOBJ_ADD);
-	dbg("Added slot %s to the list\n", name);
-	goto out;
-
-err_list_del:
-	list_del(&slot->slot_list);
-	pci_slot->hotplug = NULL;
-	pci_destroy_slot(pci_slot);
-out:
+	mutex_lock(&pci_hp_mutex);
+	list_add(&slot->slot_list, &pci_hotplug_slot_list);
 	mutex_unlock(&pci_hp_mutex);
-	return result;
+	dbg("Added slot %s to the list\n", hotplug_slot_name(slot));
+	return 0;
 }
-EXPORT_SYMBOL_GPL(__pci_hp_register);
+EXPORT_SYMBOL_GPL(pci_hp_add);
 
 /**
  * pci_hp_deregister - deregister a hotplug_slot with the PCI hotplug subsystem
@@ -464,35 +502,62 @@ EXPORT_SYMBOL_GPL(__pci_hp_register);
  *
  * Returns 0 if successful, anything else for an error.
  */
-int pci_hp_deregister(struct hotplug_slot *slot)
+void pci_hp_deregister(struct hotplug_slot *slot)
+{
+	pci_hp_del(slot);
+	pci_hp_destroy(slot);
+}
+EXPORT_SYMBOL_GPL(pci_hp_deregister);
+
+/**
+ * pci_hp_del - unpublish hotplug slot from user space
+ * @slot: pointer to the &struct hotplug_slot to unpublish
+ *
+ * Remove a hotplug slot's sysfs interface.
+ *
+ * Returns 0 on success or a negative int on error.
+ */
+void pci_hp_del(struct hotplug_slot *slot)
 {
 	struct hotplug_slot *temp;
-	struct pci_slot *pci_slot;
 
-	if (!slot)
-		return -ENODEV;
+	if (WARN_ON(!slot))
+		return;
 
 	mutex_lock(&pci_hp_mutex);
 	temp = get_slot_from_name(hotplug_slot_name(slot));
-	if (temp != slot) {
+	if (WARN_ON(temp != slot)) {
 		mutex_unlock(&pci_hp_mutex);
-		return -ENODEV;
+		return;
 	}
 
 	list_del(&slot->slot_list);
-
-	pci_slot = slot->pci_slot;
-	fs_remove_slot(pci_slot);
+	mutex_unlock(&pci_hp_mutex);
 	dbg("Removed slot %s from the list\n", hotplug_slot_name(slot));
+	fs_remove_slot(slot->pci_slot);
+}
+EXPORT_SYMBOL_GPL(pci_hp_del);
 
-	slot->release(slot);
+/**
+ * pci_hp_destroy - remove hotplug slot from in-kernel use
+ * @slot: pointer to the &struct hotplug_slot to destroy
+ *
+ * Destroy a PCI slot used by a hotplug driver.  Once this has been called,
+ * the driver may no longer invoke hotplug_slot_name() to get the slot's
+ * unique name.  The driver no longer needs to handle a ->reset_slot callback
+ * from this point on.
+ *
+ * Returns 0 on success or a negative int on error.
+ */
+void pci_hp_destroy(struct hotplug_slot *slot)
+{
+	struct pci_slot *pci_slot = slot->pci_slot;
+
+	slot->pci_slot = NULL;
 	pci_slot->hotplug = NULL;
 	pci_destroy_slot(pci_slot);
-	mutex_unlock(&pci_hp_mutex);
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(pci_hp_deregister);
+EXPORT_SYMBOL_GPL(pci_hp_destroy);
 
 /**
  * pci_hp_change_slot_info - changes the slot's information structure in the core

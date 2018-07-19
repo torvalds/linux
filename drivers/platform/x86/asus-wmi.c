@@ -858,12 +858,6 @@ static int asus_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static void asus_cleanup_pci_hotplug(struct hotplug_slot *hotplug_slot)
-{
-	kfree(hotplug_slot->info);
-	kfree(hotplug_slot);
-}
-
 static struct hotplug_slot_ops asus_hotplug_slot_ops = {
 	.owner = THIS_MODULE,
 	.get_adapter_status = asus_get_adapter_status,
@@ -905,7 +899,6 @@ static int asus_setup_pci_hotplug(struct asus_wmi *asus)
 		goto error_info;
 
 	asus->hotplug_slot->private = asus;
-	asus->hotplug_slot->release = &asus_cleanup_pci_hotplug;
 	asus->hotplug_slot->ops = &asus_hotplug_slot_ops;
 	asus_get_adapter_status(asus->hotplug_slot,
 				&asus->hotplug_slot->info->adapter_status);
@@ -1051,8 +1044,11 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 	 * asus_unregister_rfkill_notifier()
 	 */
 	asus_rfkill_hotplug(asus);
-	if (asus->hotplug_slot)
+	if (asus->hotplug_slot) {
 		pci_hp_deregister(asus->hotplug_slot);
+		kfree(asus->hotplug_slot->info);
+		kfree(asus->hotplug_slot);
+	}
 	if (asus->hotplug_workqueue)
 		destroy_workqueue(asus->hotplug_workqueue);
 

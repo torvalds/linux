@@ -56,17 +56,6 @@ static int get_latch_status(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 static int reset_slot(struct hotplug_slot *slot, int probe);
 
-/**
- * release_slot - free up the memory used by a slot
- * @hotplug_slot: slot to free
- */
-static void release_slot(struct hotplug_slot *hotplug_slot)
-{
-	kfree(hotplug_slot->ops);
-	kfree(hotplug_slot->info);
-	kfree(hotplug_slot);
-}
-
 static int init_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
@@ -107,7 +96,6 @@ static int init_slot(struct controller *ctrl)
 	/* register this slot with the hotplug pci core */
 	hotplug->info = info;
 	hotplug->private = slot;
-	hotplug->release = &release_slot;
 	hotplug->ops = ops;
 	slot->hotplug_slot = hotplug;
 	snprintf(name, SLOT_NAME_SIZE, "%u", PSN(ctrl));
@@ -127,7 +115,12 @@ out:
 
 static void cleanup_slot(struct controller *ctrl)
 {
-	pci_hp_deregister(ctrl->slot->hotplug_slot);
+	struct hotplug_slot *hotplug_slot = ctrl->slot->hotplug_slot;
+
+	pci_hp_deregister(hotplug_slot);
+	kfree(hotplug_slot->ops);
+	kfree(hotplug_slot->info);
+	kfree(hotplug_slot);
 }
 
 /*
