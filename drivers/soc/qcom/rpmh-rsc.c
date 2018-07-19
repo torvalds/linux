@@ -193,7 +193,7 @@ static const struct tcs_request *get_req_from_tcs(struct rsc_drv *drv,
 	struct tcs_group *tcs;
 	int i;
 
-	for (i = 0; i < drv->num_tcs; i++) {
+	for (i = 0; i < TCS_TYPE_NR; i++) {
 		tcs = &drv->tcs[i];
 		if (tcs->mask & BIT(tcs_id))
 			return tcs->req[tcs_id - tcs->offset];
