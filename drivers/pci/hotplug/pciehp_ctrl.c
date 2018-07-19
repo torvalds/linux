@@ -277,9 +277,6 @@ void pciehp_handle_presence_change(struct slot *slot)
 	}
 }
 
-/*
- * Note: This function must be called with slot->hotplug_lock held
- */
 static int __pciehp_enable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
@@ -316,10 +313,7 @@ int pciehp_enable_slot(struct slot *slot)
 	struct controller *ctrl = slot->ctrl;
 	int ret;
 
-	mutex_lock(&slot->hotplug_lock);
 	ret = __pciehp_enable_slot(slot);
-	mutex_unlock(&slot->hotplug_lock);
-
 	if (ret && ATTN_BUTTN(ctrl))
 		pciehp_green_led_off(slot); /* may be blinking */
 
@@ -330,9 +324,6 @@ int pciehp_enable_slot(struct slot *slot)
 	return ret;
 }
 
-/*
- * Note: This function must be called with slot->hotplug_lock held
- */
 static int __pciehp_disable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
@@ -355,9 +346,7 @@ int pciehp_disable_slot(struct slot *slot)
 {
 	int ret;
 
-	mutex_lock(&slot->hotplug_lock);
 	ret = __pciehp_disable_slot(slot);
-	mutex_unlock(&slot->hotplug_lock);
 
 	mutex_lock(&slot->lock);
 	slot->state = OFF_STATE;
