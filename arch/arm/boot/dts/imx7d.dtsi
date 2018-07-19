@@ -18,11 +18,6 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
-			operating-points = <
-				/* KHz	uV */
-				996000	1075000
-				792000	975000
-			>;
 			clock-frequency = <996000000>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
