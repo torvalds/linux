@@ -1926,7 +1926,7 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 }
 
 /**
- * amdgpu_device_ip_suspend - run suspend for hardware IPs
+ * amdgpu_device_ip_suspend_phase1 - run suspend for hardware IPs (phase 1)
  *
  * @adev: amdgpu_device pointer
  *
@@ -1936,7 +1936,55 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
  * in each IP into a state suitable for suspend.
  * Returns 0 on success, negative error code on failure.
  */
-int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
+static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
+
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled separately */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
+			/* ungate blocks so that suspend can properly shut them down */
+			if (adev->ip_blocks[i].version->funcs->set_clockgating_state) {
+				r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+											     AMD_CG_STATE_UNGATE);
+				if (r) {
+					DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+						  adev->ip_blocks[i].version->funcs->name, r);
+				}
+			}
+			/* XXX handle errors */
+			r = adev->ip_blocks[i].version->funcs->suspend(adev);
+			/* XXX handle errors */
+			if (r) {
+				DRM_ERROR("suspend of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+			}
+		}
+	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, false);
+
+	return 0;
+}
+
+/**
+ * amdgpu_device_ip_suspend_phase2 - run suspend for hardware IPs (phase 2)
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -1956,6 +2004,9 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled in phase1 */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_SMC &&
@@ -1980,6 +2031,29 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		amdgpu_virt_release_full_gpu(adev, false);
 
 	return 0;
+}
+
+/**
+ * amdgpu_device_ip_suspend - run suspend for hardware IPs
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_device_ip_suspend_phase1(adev);
+	if (r)
+		return r;
+	r = amdgpu_device_ip_suspend_phase2(adev);
+
+	return r;
 }
 
 static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
