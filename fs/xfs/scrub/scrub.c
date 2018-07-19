@@ -202,150 +202,150 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.type	= ST_NONE,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_probe,
-		.repair = xfs_repair_probe,
+		.repair = xrep_probe,
 	},
 	[XFS_SCRUB_TYPE_SB] = {		/* superblock */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_superblock,
-		.repair	= xfs_repair_superblock,
+		.repair	= xrep_superblock,
 	},
 	[XFS_SCRUB_TYPE_AGF] = {	/* agf */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_agf,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_AGFL]= {	/* agfl */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_agfl,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_AGI] = {	/* agi */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_agi,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_BNOBT] = {	/* bnobt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_allocbt,
 		.scrub	= xchk_bnobt,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_CNTBT] = {	/* cntbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_allocbt,
 		.scrub	= xchk_cntbt,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_INOBT] = {	/* inobt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_iallocbt,
 		.scrub	= xchk_inobt,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_FINOBT] = {	/* finobt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_iallocbt,
 		.scrub	= xchk_finobt,
 		.has	= xfs_sb_version_hasfinobt,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_RMAPBT] = {	/* rmapbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_rmapbt,
 		.scrub	= xchk_rmapbt,
 		.has	= xfs_sb_version_hasrmapbt,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_REFCNTBT] = {	/* refcountbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_refcountbt,
 		.scrub	= xchk_refcountbt,
 		.has	= xfs_sb_version_hasreflink,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_INODE] = {	/* inode record */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_inode,
 		.scrub	= xchk_inode,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_BMBTD] = {	/* inode data fork */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_inode_bmap,
 		.scrub	= xchk_bmap_data,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_BMBTA] = {	/* inode attr fork */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_inode_bmap,
 		.scrub	= xchk_bmap_attr,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_BMBTC] = {	/* inode CoW fork */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_inode_bmap,
 		.scrub	= xchk_bmap_cow,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_DIR] = {	/* directory */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_directory,
 		.scrub	= xchk_directory,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_XATTR] = {	/* extended attributes */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_xattr,
 		.scrub	= xchk_xattr,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_SYMLINK] = {	/* symbolic link */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_symlink,
 		.scrub	= xchk_symlink,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_PARENT] = {	/* parent pointers */
 		.type	= ST_INODE,
 		.setup	= xchk_setup_parent,
 		.scrub	= xchk_parent,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
 		.type	= ST_FS,
 		.setup	= xchk_setup_rt,
 		.scrub	= xchk_rtbitmap,
 		.has	= xfs_sb_version_hasrealtime,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
 		.type	= ST_FS,
 		.setup	= xchk_setup_rt,
 		.scrub	= xchk_rtsummary,
 		.has	= xfs_sb_version_hasrealtime,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_UQUOTA] = {	/* user quota */
 		.type	= ST_FS,
 		.setup	= xchk_setup_quota,
 		.scrub	= xchk_quota,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_GQUOTA] = {	/* group quota */
 		.type	= ST_FS,
 		.setup	= xchk_setup_quota,
 		.scrub	= xchk_quota,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 	[XFS_SCRUB_TYPE_PQUOTA] = {	/* project quota */
 		.type	= ST_FS,
 		.setup	= xchk_setup_quota,
 		.scrub	= xchk_quota,
-		.repair	= xfs_repair_notsupported,
+		.repair	= xrep_notsupported,
 	},
 };
 
@@ -457,7 +457,7 @@ static inline void xchk_postmortem(struct xfs_scrub_context *sc)
 	if ((sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
 	    (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
 				 XFS_SCRUB_OFLAG_XCORRUPT)))
-		xfs_repair_failure(sc->mp);
+		xrep_failure(sc->mp);
 }
 #else
 static inline void xchk_postmortem(struct xfs_scrub_context *sc)
@@ -555,13 +555,13 @@ retry_op:
 		 * If it's broken, userspace wants us to fix it, and we haven't
 		 * already tried to fix it, then attempt a repair.
 		 */
-		error = xfs_repair_attempt(ip, &sc, &already_fixed);
+		error = xrep_attempt(ip, &sc, &already_fixed);
 		if (error == -EAGAIN) {
 			if (sc.try_harder)
 				try_harder = true;
 			error = xchk_teardown(&sc, ip, 0);
 			if (error) {
-				xfs_repair_failure(mp);
+				xrep_failure(mp);
 				goto out;
 			}
 			goto retry_op;

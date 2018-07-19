@@ -55,8 +55,8 @@ DEFINE_EVENT(xchk_class, name, \
 DEFINE_SCRUB_EVENT(xchk_start);
 DEFINE_SCRUB_EVENT(xchk_done);
 DEFINE_SCRUB_EVENT(xchk_deadlock_retry);
-DEFINE_SCRUB_EVENT(xfs_repair_attempt);
-DEFINE_SCRUB_EVENT(xfs_repair_done);
+DEFINE_SCRUB_EVENT(xrep_attempt);
+DEFINE_SCRUB_EVENT(xrep_done);
 
 TRACE_EVENT(xchk_op_error,
 	TP_PROTO(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
@@ -483,7 +483,7 @@ TRACE_EVENT(xchk_xref_error,
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
 
-DECLARE_EVENT_CLASS(xfs_repair_extent_class,
+DECLARE_EVENT_CLASS(xrep_extent_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len),
 	TP_ARGS(mp, agno, agbno, len),
@@ -506,15 +506,15 @@ DECLARE_EVENT_CLASS(xfs_repair_extent_class,
 		  __entry->len)
 );
 #define DEFINE_REPAIR_EXTENT_EVENT(name) \
-DEFINE_EVENT(xfs_repair_extent_class, name, \
+DEFINE_EVENT(xrep_extent_class, name, \
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
 		 xfs_agblock_t agbno, xfs_extlen_t len), \
 	TP_ARGS(mp, agno, agbno, len))
-DEFINE_REPAIR_EXTENT_EVENT(xfs_repair_dispose_btree_extent);
-DEFINE_REPAIR_EXTENT_EVENT(xfs_repair_collect_btree_extent);
-DEFINE_REPAIR_EXTENT_EVENT(xfs_repair_agfl_insert);
+DEFINE_REPAIR_EXTENT_EVENT(xrep_dispose_btree_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xrep_collect_btree_extent);
+DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
 
-DECLARE_EVENT_CLASS(xfs_repair_rmap_class,
+DECLARE_EVENT_CLASS(xrep_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len,
 		 uint64_t owner, uint64_t offset, unsigned int flags),
@@ -547,17 +547,17 @@ DECLARE_EVENT_CLASS(xfs_repair_rmap_class,
 		  __entry->flags)
 );
 #define DEFINE_REPAIR_RMAP_EVENT(name) \
-DEFINE_EVENT(xfs_repair_rmap_class, name, \
+DEFINE_EVENT(xrep_rmap_class, name, \
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, \
 		 uint64_t owner, uint64_t offset, unsigned int flags), \
 	TP_ARGS(mp, agno, agbno, len, owner, offset, flags))
-DEFINE_REPAIR_RMAP_EVENT(xfs_repair_alloc_extent_fn);
-DEFINE_REPAIR_RMAP_EVENT(xfs_repair_ialloc_extent_fn);
-DEFINE_REPAIR_RMAP_EVENT(xfs_repair_rmap_extent_fn);
-DEFINE_REPAIR_RMAP_EVENT(xfs_repair_bmap_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_alloc_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_ialloc_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_rmap_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_bmap_extent_fn);
 
-TRACE_EVENT(xfs_repair_refcount_extent_fn,
+TRACE_EVENT(xrep_refcount_extent_fn,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 struct xfs_refcount_irec *irec),
 	TP_ARGS(mp, agno, irec),
@@ -583,7 +583,7 @@ TRACE_EVENT(xfs_repair_refcount_extent_fn,
 		  __entry->refcount)
 )
 
-TRACE_EVENT(xfs_repair_init_btblock,
+TRACE_EVENT(xrep_init_btblock,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
 		 xfs_btnum_t btnum),
 	TP_ARGS(mp, agno, agbno, btnum),
@@ -605,7 +605,7 @@ TRACE_EVENT(xfs_repair_init_btblock,
 		  __entry->agbno,
 		  __entry->btnum)
 )
-TRACE_EVENT(xfs_repair_findroot_block,
+TRACE_EVENT(xrep_findroot_block,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
 		 uint32_t magic, uint16_t level),
 	TP_ARGS(mp, agno, agbno, magic, level),
@@ -630,7 +630,7 @@ TRACE_EVENT(xfs_repair_findroot_block,
 		  __entry->magic,
 		  __entry->level)
 )
-TRACE_EVENT(xfs_repair_calc_ag_resblks,
+TRACE_EVENT(xrep_calc_ag_resblks,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agino_t icount, xfs_agblock_t aglen, xfs_agblock_t freelen,
 		 xfs_agblock_t usedlen),
@@ -659,7 +659,7 @@ TRACE_EVENT(xfs_repair_calc_ag_resblks,
 		  __entry->freelen,
 		  __entry->usedlen)
 )
-TRACE_EVENT(xfs_repair_calc_ag_resblks_btsize,
+TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t bnobt_sz, xfs_agblock_t inobt_sz,
 		 xfs_agblock_t rmapbt_sz, xfs_agblock_t refcbt_sz),
@@ -688,7 +688,7 @@ TRACE_EVENT(xfs_repair_calc_ag_resblks_btsize,
 		  __entry->rmapbt_sz,
 		  __entry->refcbt_sz)
 )
-TRACE_EVENT(xfs_repair_reset_counters,
+TRACE_EVENT(xrep_reset_counters,
 	TP_PROTO(struct xfs_mount *mp),
 	TP_ARGS(mp),
 	TP_STRUCT__entry(
@@ -701,7 +701,7 @@ TRACE_EVENT(xfs_repair_reset_counters,
 		  MAJOR(__entry->dev), MINOR(__entry->dev))
 )
 
-TRACE_EVENT(xfs_repair_ialloc_insert,
+TRACE_EVENT(xrep_ialloc_insert,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agino_t startino, uint16_t holemask, uint8_t count,
 		 uint8_t freecount, uint64_t freemask),

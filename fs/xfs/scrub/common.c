@@ -604,7 +604,7 @@ xchk_setup_fs(
 {
 	uint				resblks;
 
-	resblks = xfs_repair_calc_ag_resblks(sc);
+	resblks = xrep_calc_ag_resblks(sc);
 	return xchk_trans_alloc(sc, resblks);
 }
 
