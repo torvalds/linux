@@ -214,8 +214,8 @@ comment "MII PHY device drivers"
 config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
+	depends on HWMON || HWMON=n
 	select MDIO_I2C
-	imply HWMON
 
 config AMD_PHY
 	tristate "AMD PHYs"
