@@ -653,7 +653,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 						cmd->hdr.return_code, card);
 				}
 				card->lan_online = 0;
-				if (card->dev && netif_carrier_ok(card->dev))
+				if (card->dev)
 					netif_carrier_off(card->dev);
 				return NULL;
 			case IPA_CMD_STARTLAN:
