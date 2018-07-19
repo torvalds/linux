@@ -188,12 +188,21 @@ module_param(ple_window_max, uint, 0444);
 
 extern const ulong vmx_return;
 
+enum ept_pointers_status {
+	EPT_POINTERS_CHECK = 0,
+	EPT_POINTERS_MATCH = 1,
+	EPT_POINTERS_MISMATCH = 2
+};
+
 struct kvm_vmx {
 	struct kvm kvm;
 
 	unsigned int tss_addr;
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
+
+	enum ept_pointers_status ept_pointers_match;
+	spinlock_t ept_pointer_lock;
 };
 
 #define NR_AUTOLOAD_MSRS 8
@@ -863,6 +872,7 @@ struct vcpu_vmx {
 	 */
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
+	u64 ept_pointer;
 };
 
 enum segment_cache_field {
@@ -1356,6 +1366,48 @@ static void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 	 * Currently unsupported in KVM:
 	 *	GUEST_IA32_RTIT_CTL		= 0x00002814,
 	 */
+}
+
+/* check_ept_pointer() should be under protection of ept_pointer_lock. */
+static void check_ept_pointer_match(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	u64 tmp_eptp = INVALID_PAGE;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (!VALID_PAGE(tmp_eptp)) {
+			tmp_eptp = to_vmx(vcpu)->ept_pointer;
+		} else if (tmp_eptp != to_vmx(vcpu)->ept_pointer) {
+			to_kvm_vmx(kvm)->ept_pointers_match
+				= EPT_POINTERS_MISMATCH;
+			return;
+		}
+	}
+
+	to_kvm_vmx(kvm)->ept_pointers_match = EPT_POINTERS_MATCH;
+}
+
+static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
+{
+	int ret;
+
+	spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
+
+	if (to_kvm_vmx(kvm)->ept_pointers_match == EPT_POINTERS_CHECK)
+		check_ept_pointer_match(kvm);
+
+	if (to_kvm_vmx(kvm)->ept_pointers_match != EPT_POINTERS_MATCH) {
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	ret = hyperv_flush_guest_mapping(
+			to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer);
+
+out:
+	spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
+	return ret;
 }
 #else /* !IS_ENABLED(CONFIG_HYPERV) */
 static inline void evmcs_write64(unsigned long field, u64 value) {}
@@ -5041,6 +5093,7 @@ static u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
+	struct kvm *kvm = vcpu->kvm;
 	unsigned long guest_cr3;
 	u64 eptp;
 
@@ -5048,11 +5101,20 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	if (enable_ept) {
 		eptp = construct_eptp(vcpu, cr3);
 		vmcs_write64(EPT_POINTER, eptp);
+
+		if (kvm_x86_ops->tlb_remote_flush) {
+			spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
+			to_vmx(vcpu)->ept_pointer = eptp;
+			to_kvm_vmx(kvm)->ept_pointers_match
+				= EPT_POINTERS_CHECK;
+			spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
+		}
+
 		if (enable_unrestricted_guest || is_paging(vcpu) ||
 		    is_guest_mode(vcpu))
 			guest_cr3 = kvm_read_cr3(vcpu);
 		else
-			guest_cr3 = to_kvm_vmx(vcpu->kvm)->ept_identity_map_addr;
+			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
 		ept_load_pdptrs(vcpu);
 	}
 
@@ -7621,6 +7683,12 @@ static __init int hardware_setup(void)
 
 	if (enable_ept && !cpu_has_vmx_ept_2m_page())
 		kvm_disable_largepages();
+
+#if IS_ENABLED(CONFIG_HYPERV)
+	if (ms_hyperv.nested_features & HV_X64_NESTED_GUEST_MAPPING_FLUSH
+	    && enable_ept)
+		kvm_x86_ops->tlb_remote_flush = vmx_hv_remote_flush_tlb;
+#endif
 
 	if (!cpu_has_vmx_ple()) {
 		ple_gap = 0;
@@ -10665,6 +10733,8 @@ free_vcpu:
 
 static int vmx_vm_init(struct kvm *kvm)
 {
+	spin_lock_init(&to_kvm_vmx(kvm)->ept_pointer_lock);
+
 	if (!ple_gap)
 		kvm->arch.pause_in_guest = true;
 	return 0;
