@@ -160,26 +160,13 @@ static void pciehp_power_thread(struct work_struct *work)
 	struct power_work_info *info =
 		container_of(work, struct power_work_info, work);
 	struct slot *p_slot = info->p_slot;
-	int ret;
 
 	switch (info->req) {
 	case DISABLE_REQ:
-		mutex_lock(&p_slot->hotplug_lock);
 		pciehp_disable_slot(p_slot);
-		mutex_unlock(&p_slot->hotplug_lock);
-		mutex_lock(&p_slot->lock);
-		p_slot->state = STATIC_STATE;
-		mutex_unlock(&p_slot->lock);
 		break;
 	case ENABLE_REQ:
-		mutex_lock(&p_slot->hotplug_lock);
-		ret = pciehp_enable_slot(p_slot);
-		mutex_unlock(&p_slot->hotplug_lock);
-		if (ret)
-			pciehp_green_led_off(p_slot);
-		mutex_lock(&p_slot->lock);
-		p_slot->state = STATIC_STATE;
-		mutex_unlock(&p_slot->lock);
+		pciehp_enable_slot(p_slot);
 		break;
 	default:
 		break;
@@ -369,7 +356,7 @@ static void interrupt_event_handler(struct work_struct *work)
 /*
  * Note: This function must be called with slot->hotplug_lock held
  */
-int pciehp_enable_slot(struct slot *p_slot)
+static int __pciehp_enable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
@@ -400,10 +387,29 @@ int pciehp_enable_slot(struct slot *p_slot)
 	return board_added(p_slot);
 }
 
+int pciehp_enable_slot(struct slot *slot)
+{
+	struct controller *ctrl = slot->ctrl;
+	int ret;
+
+	mutex_lock(&slot->hotplug_lock);
+	ret = __pciehp_enable_slot(slot);
+	mutex_unlock(&slot->hotplug_lock);
+
+	if (ret && ATTN_BUTTN(ctrl))
+		pciehp_green_led_off(slot); /* may be blinking */
+
+	mutex_lock(&slot->lock);
+	slot->state = STATIC_STATE;
+	mutex_unlock(&slot->lock);
+
+	return ret;
+}
+
 /*
  * Note: This function must be called with slot->hotplug_lock held
  */
-int pciehp_disable_slot(struct slot *p_slot)
+static int __pciehp_disable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
@@ -421,9 +427,23 @@ int pciehp_disable_slot(struct slot *p_slot)
 	return 0;
 }
 
+int pciehp_disable_slot(struct slot *slot)
+{
+	int ret;
+
+	mutex_lock(&slot->hotplug_lock);
+	ret = __pciehp_disable_slot(slot);
+	mutex_unlock(&slot->hotplug_lock);
+
+	mutex_lock(&slot->lock);
+	slot->state = STATIC_STATE;
+	mutex_unlock(&slot->lock);
+
+	return ret;
+}
+
 int pciehp_sysfs_enable_slot(struct slot *p_slot)
 {
-	int retval = -ENODEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);
@@ -433,12 +453,7 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 	case STATIC_STATE:
 		p_slot->state = POWERON_STATE;
 		mutex_unlock(&p_slot->lock);
-		mutex_lock(&p_slot->hotplug_lock);
-		retval = pciehp_enable_slot(p_slot);
-		mutex_unlock(&p_slot->hotplug_lock);
-		mutex_lock(&p_slot->lock);
-		p_slot->state = STATIC_STATE;
-		break;
+		return pciehp_enable_slot(p_slot);
 	case POWERON_STATE:
 		ctrl_info(ctrl, "Slot(%s): Already in powering on state\n",
 			  slot_name(p_slot));
@@ -455,12 +470,11 @@ int pciehp_sysfs_enable_slot(struct slot *p_slot)
 	}
 	mutex_unlock(&p_slot->lock);
 
-	return retval;
+	return -ENODEV;
 }
 
 int pciehp_sysfs_disable_slot(struct slot *p_slot)
 {
-	int retval = -ENODEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);
@@ -470,12 +484,7 @@ int pciehp_sysfs_disable_slot(struct slot *p_slot)
 	case STATIC_STATE:
 		p_slot->state = POWEROFF_STATE;
 		mutex_unlock(&p_slot->lock);
-		mutex_lock(&p_slot->hotplug_lock);
-		retval = pciehp_disable_slot(p_slot);
-		mutex_unlock(&p_slot->hotplug_lock);
-		mutex_lock(&p_slot->lock);
-		p_slot->state = STATIC_STATE;
-		break;
+		return pciehp_disable_slot(p_slot);
 	case POWEROFF_STATE:
 		ctrl_info(ctrl, "Slot(%s): Already in powering off state\n",
 			  slot_name(p_slot));
@@ -492,5 +501,5 @@ int pciehp_sysfs_disable_slot(struct slot *p_slot)
 	}
 	mutex_unlock(&p_slot->lock);
 
-	return retval;
+	return -ENODEV;
 }
