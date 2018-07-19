@@ -36,7 +36,7 @@ that the endpoint device must perform.
 Bitfield Description:
   Bit 0		: raise legacy IRQ
   Bit 1		: raise MSI IRQ
-  Bit 2		: raise MSI-X IRQ (reserved for future implementation)
+  Bit 2		: raise MSI-X IRQ
   Bit 3		: read command (read data from RC buffer)
   Bit 4		: write command (write data to RC buffer)
   Bit 5		: copy command (copy data from one RC buffer to another
@@ -75,6 +75,7 @@ for the READ/WRITE/COPY and raise IRQ (Legacy/MSI) commands.
 Possible types:
  - Legacy	: 0
  - MSI		: 1
+ - MSI-X	: 2
 
 *) PCI_ENDPOINT_TEST_IRQ_NUMBER
 
@@ -83,3 +84,4 @@ This register contains the triggered ID interrupt.
 Admissible values:
  - Legacy	: 0
  - MSI		: [1 .. 32]
+ - MSI-X	: [1 .. 2048]

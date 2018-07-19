@@ -102,6 +102,7 @@ struct pci_epc {
 
 #define EPC_FEATURE_NO_LINKUP_NOTIFIER		BIT(0)
 #define EPC_FEATURE_BAR_MASK			(BIT(1) | BIT(2) | BIT(3))
+#define EPC_FEATURE_MSIX_AVAILABLE		BIT(4)
 #define EPC_FEATURE_SET_BAR(features, bar)	\
 		(features |= (EPC_FEATURE_BAR_MASK & (bar << 1)))
 #define EPC_FEATURE_GET_BAR(features)		\

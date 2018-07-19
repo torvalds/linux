@@ -20,10 +20,11 @@
 
 #define IRQ_TYPE_LEGACY			0
 #define IRQ_TYPE_MSI			1
+#define IRQ_TYPE_MSIX			2
 
 #define COMMAND_RAISE_LEGACY_IRQ	BIT(0)
 #define COMMAND_RAISE_MSI_IRQ		BIT(1)
-/* BIT(2) is reserved for raising MSI-X IRQ command */
+#define COMMAND_RAISE_MSIX_IRQ		BIT(2)
 #define COMMAND_READ			BIT(3)
 #define COMMAND_WRITE			BIT(4)
 #define COMMAND_COPY			BIT(5)
@@ -47,6 +48,7 @@ struct pci_epf_test {
 	struct pci_epf		*epf;
 	enum pci_barno		test_reg_bar;
 	bool			linkup_notifier;
+	bool			msix_available;
 	struct delayed_work	cmd_handler;
 };
 
@@ -266,6 +268,9 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test, u8 irq_type,
 	case IRQ_TYPE_MSI:
 		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSI, irq);
 		break;
+	case IRQ_TYPE_MSIX:
+		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSIX, irq);
+		break;
 	default:
 		dev_err(dev, "Failed to raise IRQ, unknown type\n");
 		break;
@@ -292,7 +297,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	reg->command = 0;
 	reg->status = 0;
 
-	if (reg->irq_type > IRQ_TYPE_MSI) {
+	if (reg->irq_type > IRQ_TYPE_MSIX) {
 		dev_err(dev, "Failed to detect IRQ type\n");
 		goto reset_handler;
 	}
@@ -342,6 +347,16 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 			goto reset_handler;
 		reg->status = STATUS_IRQ_RAISED;
 		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSI,
+				  reg->irq_number);
+		goto reset_handler;
+	}
+
+	if (command & COMMAND_RAISE_MSIX_IRQ) {
+		count = pci_epc_get_msix(epc, epf->func_no);
+		if (reg->irq_number > count || count <= 0)
+			goto reset_handler;
+		reg->status = STATUS_IRQ_RAISED;
+		pci_epc_raise_irq(epc, epf->func_no, PCI_EPC_IRQ_MSIX,
 				  reg->irq_number);
 		goto reset_handler;
 	}
@@ -459,6 +474,8 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	else
 		epf_test->linkup_notifier = true;
 
+	epf_test->msix_available = epc->features & EPC_FEATURE_MSIX_AVAILABLE;
+
 	epf_test->test_reg_bar = EPC_FEATURE_GET_BAR(epc->features);
 
 	ret = pci_epc_write_header(epc, epf->func_no, header);
@@ -479,6 +496,14 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	if (ret) {
 		dev_err(dev, "MSI configuration failed\n");
 		return ret;
+	}
+
+	if (epf_test->msix_available) {
+		ret = pci_epc_set_msix(epc, epf->func_no, epf->msix_interrupts);
+		if (ret) {
+			dev_err(dev, "MSI-X configuration failed\n");
+			return ret;
+		}
 	}
 
 	if (!epf_test->linkup_notifier)

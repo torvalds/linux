@@ -45,9 +45,9 @@ The PCI endpoint framework populates the directory with the following
 configurable fields.
 
 	# ls functions/pci_epf_test/func1
-	  baseclass_code	interrupt_pin	revid		subsys_vendor_id
-	  cache_line_size	msi_interrupts	subclass_code	vendorid
-	  deviceid          	progif_code	subsys_id
+	  baseclass_code	interrupt_pin	progif_code	subsys_id
+	  cache_line_size	msi_interrupts	revid		subsys_vendorid
+	  deviceid          	msix_interrupts	subclass_code	vendorid
 
 The PCI endpoint function driver populates these entries with default values
 when the device is bound to the driver. The pci-epf-test driver populates
@@ -67,6 +67,7 @@ device, the following commands can be used.
 	# echo 0x104c > functions/pci_epf_test/func1/vendorid
 	# echo 0xb500 > functions/pci_epf_test/func1/deviceid
 	# echo 16 > functions/pci_epf_test/func1/msi_interrupts
+	# echo 8 > functions/pci_epf_test/func1/msix_interrupts
 
 1.5 Binding pci-epf-test Device to EP Controller
 
@@ -153,6 +154,21 @@ following commands.
 	MSI30:          NOT OKAY
 	MSI31:          NOT OKAY
 	MSI32:          NOT OKAY
+	MSIX1:          OKAY
+	MSIX2:          OKAY
+	MSIX3:          OKAY
+	MSIX4:          OKAY
+	MSIX5:          OKAY
+	MSIX6:          OKAY
+	MSIX7:          OKAY
+	MSIX8:          OKAY
+	MSIX9:          NOT OKAY
+	MSIX10:         NOT OKAY
+	MSIX11:         NOT OKAY
+	MSIX12:         NOT OKAY
+	MSIX13:         NOT OKAY
+	[...]
+	MSIX2048:       NOT OKAY
 
 	Read Tests
 
