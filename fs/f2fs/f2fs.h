@@ -604,6 +604,8 @@ enum {
 #define FADVISE_HOT_BIT		0x20
 #define FADVISE_VERITY_BIT	0x40	/* reserved */
 
+#define FADVISE_MODIFIABLE_BITS	(FADVISE_COLD_BIT | FADVISE_HOT_BIT)
+
 #define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
 #define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
 #define file_set_cold(inode)	set_file(inode, FADVISE_COLD_BIT)
