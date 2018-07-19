@@ -2,7 +2,6 @@
 #include <linux/medusa/l1/ipc.h>
 #include <linux/init.h>
 #include <linux/mm.h>
-#include "evtype_ipc.h"
 #include "kobject_ipc.h"
 
 struct ipc_event {
@@ -25,7 +24,7 @@ int __init ipc_evtype_init(void) {
 /*
  * This routine expects the existing, but !MED_MAGIC_VALID Medusa ipcp security struct!
  */
-int medusa_ipc_validate(struct kern_ipc_perm *ipcp) {
+int ipc_kobj_validate_ipcp(struct kern_ipc_perm *ipcp) {
 	medusa_answer_t retval;
 	struct ipc_event event;
 	struct ipc_kobject sender;

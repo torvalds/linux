@@ -5,7 +5,6 @@
 #include <linux/mm.h>
 #include "kobject_process.h"
 #include "kobject_ipc.h"
-#include "evtype_ipc.h"
 
 struct ipc_ctl_access {
 	MEDUSA_ACCESS_HEADER;
@@ -83,7 +82,7 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 			return MED_NO;
 
 		object_p = &object;
-		if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
+		if (!MED_MAGIC_VALID(ipc_security(ipcp)) && ipc_kobj_validate_ipcp(ipcp) <= 0)
 			goto out;
 	}
 

@@ -5,7 +5,6 @@
 #include <linux/mm.h>
 #include "kobject_process.h"
 #include "kobject_ipc.h"
-#include "evtype_ipc.h"
 
 struct ipc_shmat_access {
 	MEDUSA_ACCESS_HEADER;
@@ -56,7 +55,7 @@ medusa_answer_t medusa_ipc_shmat(struct kern_ipc_perm *ipcp, char __user *shmadd
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out;
-	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
+	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && ipc_kobj_validate_ipcp(ipcp) <= 0)
 		goto out;
 
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_shmat_access, &task_security(current))) {
