@@ -5731,6 +5731,13 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 	dev->mtu = 0;
 	SET_NETDEV_DEV(dev, &card->gdev->dev);
 	netif_carrier_off(dev);
+
+	if (!IS_OSN(card)) {
+		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		dev->hw_features |= NETIF_F_SG;
+		dev->vlan_features |= NETIF_F_SG;
+	}
+
 	return dev;
 }
 

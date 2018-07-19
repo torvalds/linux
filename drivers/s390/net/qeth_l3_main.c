@@ -2556,13 +2556,10 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		return -ENODEV;
 
 	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
-	card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	card->dev->needed_headroom = sizeof(struct qeth_hdr) - ETH_HLEN;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;
-	card->dev->hw_features |= NETIF_F_SG;
-	card->dev->vlan_features |= NETIF_F_SG;
 
 	netif_keep_dst(card->dev);
 	if (card->dev->hw_features & NETIF_F_TSO)
