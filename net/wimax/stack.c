@@ -486,7 +486,8 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	d_fnstart(3, dev, "(wimax_dev %p net_dev %p)\n", wimax_dev, net_dev);
 
 	/* Do the RFKILL setup before locking, as RFKILL will call
-	 * into our functions. */
+	 * into our functions.
+	 */
 	wimax_dev->net_dev = net_dev;
 	result = wimax_rfkill_add(wimax_dev);
 	if (result < 0)
