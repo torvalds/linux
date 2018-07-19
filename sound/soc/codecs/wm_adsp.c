@@ -1343,6 +1343,9 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 			int avail = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - ret - 2;
 			int skip = 0;
 
+			if (dsp->component->name_prefix)
+				avail -= strlen(dsp->component->name_prefix) + 1;
+
 			if (subname_len > avail)
 				skip = subname_len - avail;
 
