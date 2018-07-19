@@ -11,7 +11,6 @@
 #include <asm/page.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
-#include "sizes.h"
 #include "decompressor.h"
 
 /*
@@ -26,10 +25,10 @@
 #define memzero(s, n) memset((s), 0, (n))
 
 /* Symbols defined by linker scripts */
-extern char input_data[];
-extern int input_len;
 extern char _end[];
 extern char _bss[], _ebss[];
+extern unsigned char _compressed_start[];
+extern unsigned char _compressed_end[];
 
 static void error(char *m);
 
@@ -83,12 +82,12 @@ static void error(char *x)
 	asm volatile("lpsw %0" : : "Q" (psw));
 }
 
-void *decompress_kernel(unsigned long *uncompressed_size)
+void *decompress_kernel(void)
 {
 	void *output, *kernel_end;
 
 	output = (void *) ALIGN((unsigned long) _end + HEAP_SIZE, PAGE_SIZE);
-	kernel_end = output + SZ__bss_start;
+	kernel_end = output + vmlinux.image_size;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
@@ -111,9 +110,7 @@ void *decompress_kernel(unsigned long *uncompressed_size)
 	free_mem_ptr = (unsigned long) _end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
-	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);
-	if (uncompressed_size)
-		*uncompressed_size = SZ__bss_start;
+	__decompress(_compressed_start, _compressed_end - _compressed_start,
+		     NULL, NULL, output, 0, NULL, error);
 	return output;
 }
-

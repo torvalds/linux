@@ -8,9 +8,6 @@ ENTRY(startup)
 
 SECTIONS
 {
-	/* Be careful parts of head_64.S assume startup_32 is at
-	 * address 0.
-	 */
 	. = 0;
 	.head.text : {
 		_head = . ;
@@ -26,7 +23,7 @@ SECTIONS
 	.rodata : {
 		_rodata = . ;
 		*(.rodata)	 /* read-only data */
-		*(EXCLUDE_FILE (*piggy.o) .rodata.compressed)
+		*(.rodata.*)
 		_erodata = . ;
 	}
 	.data :	{
@@ -35,14 +32,26 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
-	startup_continue = 0x100000;
+	/*
+	 * uncompressed image info used by the decompressor it should match
+	 * struct vmlinux_info. It comes from .vmlinux.info section of
+	 * uncompressed vmlinux in a form of info.o
+	 */
+	. = ALIGN(8);
+	.vmlinux.info : {
+		_vmlinux_info = .;
+		*(.vmlinux.info)
+	}
+
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 	. = 0x100000;
 #else
 	. = ALIGN(8);
 #endif
 	.rodata.compressed : {
-		*(.rodata.compressed)
+		_compressed_start = .;
+		*(.vmlinux.bin.compressed)
+		_compressed_end = .;
 	}
 	. = ALIGN(256);
 	.bss : {

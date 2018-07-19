@@ -5,13 +5,11 @@
 
 void startup_kernel(void)
 {
-	void (*startup_continue)(void) = (void *)0x100000;
-	unsigned long uncompressed_size;
-	void *uncompressed_img;
+	void *img;
 
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {
-		uncompressed_img = decompress_kernel(&uncompressed_size);
-		memmove(startup_continue, uncompressed_img, uncompressed_size);
+		img = decompress_kernel();
+		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
 	}
-	startup_continue();
+	vmlinux.entry();
 }

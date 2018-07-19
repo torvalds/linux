@@ -146,6 +146,16 @@ SECTIONS
 
 	_end = . ;
 
+	/*
+	 * uncompressed image info used by the decompressor
+	 * it should match struct vmlinux_info
+	 */
+	.vmlinux.info 0 : {
+		QUAD(_stext)			/* default_lma */
+		QUAD(startup_continue)		/* entry */
+		QUAD(__bss_start - _stext)	/* image_size */
+	}
+
 	/* Debugging sections.	*/
 	STABS_DEBUG
 	DWARF_DEBUG
