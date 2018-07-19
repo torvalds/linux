@@ -112,7 +112,7 @@ static ssize_t qeth_dev_portno_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	return sprintf(buf, "%i\n", card->info.portno);
+	return sprintf(buf, "%i\n", card->dev->dev_port);
 }
 
 static ssize_t qeth_dev_portno_store(struct device *dev,
@@ -143,7 +143,6 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		rc = -EINVAL;
 		goto out;
 	}
-	card->info.portno = portno;
 	card->dev->dev_port = portno;
 out:
 	mutex_unlock(&card->conf_mutex);

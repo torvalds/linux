@@ -1920,7 +1920,7 @@ static int qeth_idx_activate_channel(struct qeth_channel *channel,
 		memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data),
 		       &card->seqno.trans_hdr, QETH_SEQ_NO_LENGTH);
 	}
-	tmp = ((__u8)card->info.portno) | 0x80;
+	tmp = ((u8)card->dev->dev_port) | 0x80;
 	memcpy(QETH_IDX_ACT_PNO(iob->data), &tmp, 1);
 	memcpy(QETH_IDX_ACT_ISSUER_RM_TOKEN(iob->data),
 	       &card->token.issuer_rm_w, QETH_MPC_TOKEN_LENGTH);
@@ -2389,8 +2389,7 @@ static int qeth_ulp_enable(struct qeth_card *card)
 	iob = qeth_wait_for_buffer(&card->write);
 	memcpy(iob->data, ULP_ENABLE, ULP_ENABLE_SIZE);
 
-	*(QETH_ULP_ENABLE_LINKNUM(iob->data)) =
-		(__u8) card->info.portno;
+	*(QETH_ULP_ENABLE_LINKNUM(iob->data)) = (u8) card->dev->dev_port;
 	if (card->options.layer2)
 		if (card->info.type == QETH_CARD_TYPE_OSN)
 			prot_type = QETH_PROT_OSN2;
@@ -2918,7 +2917,7 @@ static void qeth_fill_ipacmd_header(struct qeth_card *card,
 	cmd->hdr.initiator = IPA_CMD_INITIATOR_HOST;
 	/* cmd->hdr.seqno is set by qeth_send_control_data() */
 	cmd->hdr.adapter_type = qeth_get_ipa_adp_type(card->info.link_type);
-	cmd->hdr.rel_adapter_no = (__u8) card->info.portno;
+	cmd->hdr.rel_adapter_no = (u8) card->dev->dev_port;
 	if (card->options.layer2)
 		cmd->hdr.prim_version_no = 2;
 	else

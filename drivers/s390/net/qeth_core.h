@@ -658,7 +658,6 @@ struct qeth_card_info {
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	int guestlan;
 	int mac_bits;
-	int portno;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
 	int initial_mtu;
