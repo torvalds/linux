@@ -72,7 +72,7 @@ static int hclge_alloc_cmd_queue(struct hclge_dev *hdev, int ring_type)
 		(ring_type == HCLGE_TYPE_CSQ) ? &hw->cmq.csq : &hw->cmq.crq;
 	int ret;
 
-	ring->flag = ring_type;
+	ring->ring_type = ring_type;
 	ring->dev = hdev;
 
 	ret = hclge_alloc_cmd_desc(ring);
@@ -111,7 +111,7 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 	struct hclge_dev *hdev = ring->dev;
 	struct hclge_hw *hw = &hdev->hw;
 
-	if (ring->flag == HCLGE_TYPE_CSQ) {
+	if (ring->ring_type == HCLGE_TYPE_CSQ) {
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG,
 				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,

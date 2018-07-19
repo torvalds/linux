@@ -62,9 +62,9 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
-static irqreturn_t hns3_irq_handle(int irq, void *dev)
+static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
-	struct hns3_enet_tqp_vector *tqp_vector = dev;
+	struct hns3_enet_tqp_vector *tqp_vector = vector;
 
 	napi_schedule(&tqp_vector->napi);
 
