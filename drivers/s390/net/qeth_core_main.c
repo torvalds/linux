@@ -3831,6 +3831,17 @@ int qeth_get_elements_for_frags(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
 
+static unsigned int qeth_count_elements(struct sk_buff *skb, int data_offset)
+{
+	unsigned int elements = qeth_get_elements_for_frags(skb);
+	addr_t end = (addr_t)skb->data + skb_headlen(skb);
+	addr_t start = (addr_t)skb->data + data_offset;
+
+	if (start != end)
+		elements += qeth_get_elements_for_range(start, end);
+	return elements;
+}
+
 /**
  * qeth_get_elements_no() -	find number of SBALEs for skb data, inc. frags.
  * @card:			qeth card structure, to check max. elems.
@@ -3846,12 +3857,7 @@ EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
 int qeth_get_elements_no(struct qeth_card *card,
 		     struct sk_buff *skb, int extra_elems, int data_offset)
 {
-	addr_t end = (addr_t)skb->data + skb_headlen(skb);
-	int elements = qeth_get_elements_for_frags(skb);
-	addr_t start = (addr_t)skb->data + data_offset;
-
-	if (start != end)
-		elements += qeth_get_elements_for_range(start, end);
+	int elements = qeth_count_elements(skb, data_offset);
 
 	if ((elements + extra_elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
 		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
@@ -3885,22 +3891,72 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
 /**
- * qeth_push_hdr() - push a qeth_hdr onto an skb.
- * @skb: skb that the qeth_hdr should be pushed onto.
+ * qeth_add_hw_header() - add a HW header to an skb.
+ * @skb: skb that the HW header should be added to.
  * @hdr: double pointer to a qeth_hdr. When returning with >= 0,
  *	 it contains a valid pointer to a qeth_hdr.
- * @len: length of the hdr that needs to be pushed on.
+ * @len: length of the HW header.
  *
  * Returns the pushed length. If the header can't be pushed on
  * (eg. because it would cross a page boundary), it is allocated from
  * the cache instead and 0 is returned.
+ * The number of needed buffer elements is returned in @elements.
  * Error to create the hdr is indicated by returning with < 0.
  */
-int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len)
+int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
+		       struct qeth_hdr **hdr, unsigned int len,
+		       unsigned int *elements)
 {
-	if (skb_headroom(skb) >= len &&
-	    qeth_get_elements_for_range((addr_t)skb->data - len,
-					(addr_t)skb->data) == 1) {
+	const unsigned int max_elements = QETH_MAX_BUFFER_ELEMENTS(card);
+	unsigned int __elements;
+	addr_t start, end;
+	bool push_ok;
+	int rc;
+
+check_layout:
+	start = (addr_t)skb->data - len;
+	end = (addr_t)skb->data;
+
+	if (qeth_get_elements_for_range(start, end + 1) == 1) {
+		/* Push HW header into same page as first protocol header. */
+		push_ok = true;
+		__elements = qeth_count_elements(skb, 0);
+	} else {
+		__elements = 1 + qeth_count_elements(skb, 0);
+		if (qeth_get_elements_for_range(start, end) == 1)
+			/* Push HW header into a new page. */
+			push_ok = true;
+		else
+			/* Use header cache. */
+			push_ok = false;
+	}
+
+	/* Compress skb to fit into one IO buffer: */
+	if (__elements > max_elements) {
+		if (!skb_is_nonlinear(skb)) {
+			/* Drop it, no easy way of shrinking it further. */
+			QETH_DBF_MESSAGE(2, "Dropped an oversized skb (Max Elements=%u / Actual=%u / Length=%u).\n",
+					 max_elements, __elements, skb->len);
+			return -E2BIG;
+		}
+
+		rc = skb_linearize(skb);
+		if (card->options.performance_stats) {
+			if (rc)
+				card->perf_stats.tx_linfail++;
+			else
+				card->perf_stats.tx_lin++;
+		}
+		if (rc)
+			return rc;
+
+		/* Linearization changed the layout, re-evaluate: */
+		goto check_layout;
+	}
+
+	*elements = __elements;
+	/* Add the header: */
+	if (push_ok) {
 		*hdr = skb_push(skb, len);
 		return len;
 	}
@@ -3910,7 +3966,7 @@ int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len)
 		return -ENOMEM;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(qeth_push_hdr);
+EXPORT_SYMBOL_GPL(qeth_add_hw_header);
 
 static void __qeth_fill_buffer(struct sk_buff *skb,
 			       struct qeth_qdio_out_buffer *buf,

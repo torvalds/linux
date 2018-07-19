@@ -672,39 +672,21 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 			    int ipv)
 {
 	int push_len = sizeof(struct qeth_hdr);
-	unsigned int hdr_elements = 0;
 	struct qeth_hdr *hdr = NULL;
 	unsigned int hd_len = 0;
 	unsigned int elements;
 	bool is_sg;
 	int rc;
 
-	/* fix hardware limitation: as long as we do not have sbal
-	 * chaining we can not send long frag lists
-	 */
-	if (!qeth_get_elements_no(card, skb, 0, 0)) {
-		rc = skb_linearize(skb);
-
-		if (card->options.performance_stats) {
-			if (rc)
-				card->perf_stats.tx_linfail++;
-			else
-				card->perf_stats.tx_lin++;
-		}
-		if (rc)
-			return rc;
-	}
-
 	rc = skb_cow_head(skb, push_len);
 	if (rc)
 		return rc;
-	push_len = qeth_push_hdr(skb, &hdr, push_len);
+	push_len = qeth_add_hw_header(card, skb, &hdr, push_len, &elements);
 	if (push_len < 0)
 		return push_len;
 	if (!push_len) {
 		/* hdr was allocated from cache */
 		hd_len = sizeof(*hdr);
-		hdr_elements = 1;
 	}
 	qeth_l2_fill_header(hdr, skb, cast_type, skb->len - push_len);
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -713,18 +695,11 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 			card->perf_stats.tx_csum++;
 	}
 
-	elements = qeth_get_elements_no(card, skb, hdr_elements, 0);
-	if (!elements) {
-		rc = -E2BIG;
-		goto out;
-	}
-	elements += hdr_elements;
-
 	is_sg = skb_is_nonlinear(skb);
 	/* TODO: remove the skb_orphan() once TX completion is fast enough */
 	skb_orphan(skb);
 	rc = qeth_do_send_packet(card, queue, skb, hdr, 0, hd_len, elements);
-out:
+
 	if (!rc) {
 		if (card->options.performance_stats) {
 			card->perf_stats.buf_elements_sent += elements;

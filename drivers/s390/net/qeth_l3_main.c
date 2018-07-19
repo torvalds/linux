@@ -2166,27 +2166,12 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 				int cast_type)
 {
 	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
+	unsigned int frame_len, elements;
 	unsigned char eth_hdr[ETH_HLEN];
-	unsigned int hdr_elements = 0;
 	struct qeth_hdr *hdr = NULL;
-	int elements, push_len, rc;
 	unsigned int hd_len = 0;
-	unsigned int frame_len;
+	int push_len, rc;
 	bool is_sg;
-
-	/* compress skb to fit into one IO buffer: */
-	if (!qeth_get_elements_no(card, skb, 0, 0)) {
-		rc = skb_linearize(skb);
-
-		if (card->options.performance_stats) {
-			if (rc)
-				card->perf_stats.tx_linfail++;
-			else
-				card->perf_stats.tx_lin++;
-		}
-		if (rc)
-			return rc;
-	}
 
 	/* re-use the L2 header area for the HW header: */
 	rc = skb_cow_head(skb, hw_hdr_len - ETH_HLEN);
@@ -2196,21 +2181,13 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 	frame_len = skb->len;
 
-	push_len = qeth_push_hdr(skb, &hdr, hw_hdr_len);
+	push_len = qeth_add_hw_header(card, skb, &hdr, hw_hdr_len, &elements);
 	if (push_len < 0)
 		return push_len;
 	if (!push_len) {
 		/* hdr was added discontiguous from skb->data */
 		hd_len = hw_hdr_len;
-		hdr_elements = 1;
 	}
-
-	elements = qeth_get_elements_no(card, skb, hdr_elements, 0);
-	if (!elements) {
-		rc = -E2BIG;
-		goto out;
-	}
-	elements += hdr_elements;
 
 	if (skb->protocol == htons(ETH_P_AF_IUCV))
 		qeth_l3_fill_af_iucv_hdr(hdr, skb, frame_len);
@@ -2226,7 +2203,7 @@ static int qeth_l3_xmit_offload(struct qeth_card *card, struct sk_buff *skb,
 		rc = qeth_do_send_packet(card, queue, skb, hdr, 0, hd_len,
 					 elements);
 	}
-out:
+
 	if (!rc) {
 		if (card->options.performance_stats) {
 			card->perf_stats.buf_elements_sent += elements;
