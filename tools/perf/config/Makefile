@@ -200,6 +200,7 @@ CFLAGS += -I$(src-perf)/arch/$(ARCH)/include
 CFLAGS += -I$(srctree)/tools/include/
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include
 CFLAGS += -I$(srctree)/include/uapi
 CFLAGS += -I$(srctree)/include
 

@@ -686,13 +686,14 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_1_EDX] = edx;
 	}
 
+	/* Thermal and Power Management Leaf: level 0x00000006 (eax) */
+	if (c->cpuid_level >= 0x00000006)
+		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
+
 	/* Additional Intel-defined flags: level 0x00000007 */
 	if (c->cpuid_level >= 0x00000007) {
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
-
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
-
-		c->x86_capability[CPUID_6_EAX] = cpuid_eax(0x00000006);
 		c->x86_capability[CPUID_7_ECX] = ecx;
 	}
 
