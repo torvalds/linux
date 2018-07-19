@@ -5866,6 +5866,7 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	u32 *rss_indir;
 	int ret, i;
 
+	/* Free old tqps, and reallocate with new tqp number when nic setup */
 	hclge_release_tqp(vport);
 
 	ret = hclge_knic_setup(vport, new_tqps_num);

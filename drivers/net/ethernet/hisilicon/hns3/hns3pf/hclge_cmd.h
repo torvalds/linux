@@ -71,7 +71,7 @@ struct hclge_misc_vector {
 struct hclge_cmq {
 	struct hclge_cmq_ring csq;
 	struct hclge_cmq_ring crq;
-	u16 tx_timeout; /* Tx timeout */
+	u16 tx_timeout;
 	enum hclge_cmd_status last_status;
 };
 
@@ -90,7 +90,7 @@ struct hclge_cmq {
 #define HCLGE_CMD_FLAG_ERR_INTR	BIT(HCLGE_CMD_FLAG_ERR_INTR_SHIFT)
 
 enum hclge_opcode_type {
-	/* Generic command */
+	/* Generic commands */
 	HCLGE_OPC_QUERY_FW_VER		= 0x0001,
 	HCLGE_OPC_CFG_RST_TRIGGER	= 0x0020,
 	HCLGE_OPC_GBL_RST_STATUS	= 0x0021,
@@ -106,18 +106,16 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
 	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
 	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
-	/* Device management command */
 
-	/* MAC commond */
+	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
 	HCLGE_OPC_CONFIG_AN_MODE	= 0x0304,
 	HCLGE_OPC_QUERY_AN_RESULT	= 0x0306,
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
-	/* MACSEC command */
 
-	/* PFC/Pause CMD*/
+	/* PFC/Pause commands */
 	HCLGE_OPC_CFG_MAC_PAUSE_EN      = 0x0701,
 	HCLGE_OPC_CFG_PFC_PAUSE_EN      = 0x0702,
 	HCLGE_OPC_CFG_MAC_PARA          = 0x0703,
@@ -148,7 +146,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
 
-	/* Packet buffer allocate command */
+	/* Packet buffer allocate commands */
 	HCLGE_OPC_TX_BUFF_ALLOC		= 0x0901,
 	HCLGE_OPC_RX_PRIV_BUFF_ALLOC	= 0x0902,
 	HCLGE_OPC_RX_PRIV_WL_ALLOC	= 0x0903,
@@ -156,11 +154,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_RX_COM_WL_ALLOC	= 0x0905,
 	HCLGE_OPC_RX_GBL_PKT_CNT	= 0x0906,
 
-	/* PTP command */
 	/* TQP management command */
 	HCLGE_OPC_SET_TQP_MAP		= 0x0A01,
 
-	/* TQP command */
+	/* TQP commands */
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
 	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
@@ -172,10 +169,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
 	HCLGE_OPC_RESET_TQP_QUEUE	= 0x0B22,
 
-	/* TSO cmd */
+	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
 
-	/* RSS cmd */
+	/* RSS commands */
 	HCLGE_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
 	HCLGE_OPC_RSS_INDIR_TABLE	= 0x0D07,
 	HCLGE_OPC_RSS_TC_MODE		= 0x0D08,
@@ -184,15 +181,15 @@ enum hclge_opcode_type {
 	/* Promisuous mode command */
 	HCLGE_OPC_CFG_PROMISC_MODE	= 0x0E01,
 
-	/* Vlan offload command */
+	/* Vlan offload commands */
 	HCLGE_OPC_VLAN_PORT_TX_CFG	= 0x0F01,
 	HCLGE_OPC_VLAN_PORT_RX_CFG	= 0x0F02,
 
-	/* Interrupts cmd */
+	/* Interrupts commands */
 	HCLGE_OPC_ADD_RING_TO_VECTOR	= 0x1503,
 	HCLGE_OPC_DEL_RING_TO_VECTOR	= 0x1504,
 
-	/* MAC command */
+	/* MAC commands */
 	HCLGE_OPC_MAC_VLAN_ADD		    = 0x1000,
 	HCLGE_OPC_MAC_VLAN_REMOVE	    = 0x1001,
 	HCLGE_OPC_MAC_VLAN_TYPE_ID	    = 0x1002,
@@ -201,13 +198,13 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
 	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
 
-	/* Multicast linear table cmd */
+	/* Multicast linear table commands */
 	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
 	HCLGE_OPC_MTA_MAC_FUNC_CFG	    = 0x1021,
 	HCLGE_OPC_MTA_TBL_ITEM_CFG	    = 0x1022,
 	HCLGE_OPC_MTA_TBL_ITEM_QUERY	= 0x1023,
 
-	/* VLAN command */
+	/* VLAN commands */
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
@@ -215,7 +212,7 @@ enum hclge_opcode_type {
 	/* MDIO command */
 	HCLGE_OPC_MDIO_CONFIG		= 0x1900,
 
-	/* QCN command */
+	/* QCN commands */
 	HCLGE_OPC_QCN_MOD_CFG		= 0x1A01,
 	HCLGE_OPC_QCN_GRP_TMPLT_CFG	= 0x1A02,
 	HCLGE_OPC_QCN_SHAPPING_IR_CFG	= 0x1A03,
@@ -225,7 +222,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QCN_AJUST_INIT	= 0x1A07,
 	HCLGE_OPC_QCN_DFX_CNT_STATUS    = 0x1A08,
 
-	/* Mailbox cmd */
+	/* Mailbox command */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
 
 	/* Led command */

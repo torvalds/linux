@@ -203,7 +203,10 @@ struct hlcge_tqp_stats {
 };
 
 struct hclge_tqp {
-	struct device *dev;	/* Device for DMA mapping */
+	/* copy of device pointer from pci_dev,
+	 * used when perform DMA mapping
+	 */
+	struct device *dev;
 	struct hnae3_queue q;
 	struct hlcge_tqp_stats tqp_stats;
 	u16 index;	/* Global index in a NIC controller */
@@ -493,13 +496,11 @@ struct hclge_dev {
 	u16 num_tqps;			/* Num task queue pairs of this PF */
 	u16 num_req_vfs;		/* Num VFs requested for this PF */
 
-	/* Base task tqp physical id of this PF */
-	u16 base_tqp_pid;
+	u16 base_tqp_pid;	/* Base task tqp physical id of this PF */
 	u16 alloc_rss_size;		/* Allocated RSS task queue */
 	u16 rss_size_max;		/* HW defined max RSS task queue */
 
-	/* Num of guaranteed filters for this PF */
-	u16 fdir_pf_filter_count;
+	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
@@ -561,7 +562,7 @@ struct hclge_dev {
 	u32 mps; /* Max packet size */
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
-	bool enable_mta; /* Mutilcast filter enable */
+	bool enable_mta; /* Multicast filter enable */
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
