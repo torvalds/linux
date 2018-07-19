@@ -602,17 +602,11 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	/*
 	 * Disable requests have higher priority than Presence Detect Changed
 	 * or Data Link Layer State Changed events.
-	 *
-	 * Check Link Status Changed at higher precedence than Presence
-	 * Detect Changed.  The PDS value may be set to "card present" from
-	 * out-of-band detection, which may be in conflict with a Link Down.
 	 */
 	if (events & DISABLE_SLOT)
 		pciehp_handle_disable_request(slot);
-	else if (events & PCI_EXP_SLTSTA_DLLSC)
-		pciehp_handle_link_change(slot);
-	else if (events & PCI_EXP_SLTSTA_PDC)
-		pciehp_handle_presence_change(slot);
+	else if (events & (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC))
+		pciehp_handle_presence_or_link_change(slot, events);
 
 	/* Check Power Fault Detected */
 	if ((events & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {

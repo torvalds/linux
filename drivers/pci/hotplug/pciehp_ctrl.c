@@ -217,66 +217,60 @@ void pciehp_handle_disable_request(struct slot *slot)
 	ctrl->request_result = pciehp_disable_slot(slot);
 }
 
-void pciehp_handle_link_change(struct slot *p_slot)
-{
-	struct controller *ctrl = p_slot->ctrl;
-	bool link_active;
-
-	mutex_lock(&p_slot->lock);
-	link_active = pciehp_check_link_active(ctrl);
-
-	switch (p_slot->state) {
-	case BLINKINGON_STATE:
-	case BLINKINGOFF_STATE:
-		cancel_delayed_work(&p_slot->work);
-		/* Fall through */
-	case ON_STATE:
-	case OFF_STATE:
-		if (link_active) {
-			p_slot->state = POWERON_STATE;
-			mutex_unlock(&p_slot->lock);
-			ctrl_info(ctrl, "Slot(%s): Link Up\n", slot_name(p_slot));
-			pciehp_enable_slot(p_slot);
-		} else {
-			p_slot->state = POWEROFF_STATE;
-			mutex_unlock(&p_slot->lock);
-			ctrl_info(ctrl, "Slot(%s): Link Down\n", slot_name(p_slot));
-			pciehp_disable_slot(p_slot);
-		}
-		return;
-		break;
-	default:
-		ctrl_err(ctrl, "Slot(%s): Ignoring invalid state %#x\n",
-			 slot_name(p_slot), p_slot->state);
-		break;
-	}
-	mutex_unlock(&p_slot->lock);
-}
-
-void pciehp_handle_presence_change(struct slot *slot)
+void pciehp_handle_presence_or_link_change(struct slot *slot, u32 events)
 {
 	struct controller *ctrl = slot->ctrl;
+	bool link_active;
 	u8 present;
 
+	/*
+	 * If the slot is on and presence or link has changed, turn it off.
+	 * Even if it's occupied again, we cannot assume the card is the same.
+	 */
 	mutex_lock(&slot->lock);
 	switch (slot->state) {
-	case BLINKINGON_STATE:
 	case BLINKINGOFF_STATE:
 		cancel_delayed_work(&slot->work);
-	}
-
-	pciehp_get_adapter_status(slot, &present);
-	ctrl_info(ctrl, "Slot(%s): Card %spresent\n", slot_name(slot),
-		  present ? "" : "not ");
-
-	if (present) {
-		slot->state = POWERON_STATE;
-		mutex_unlock(&slot->lock);
-		ctrl->request_result = pciehp_enable_slot(slot);
-	} else {
+	case ON_STATE:
 		slot->state = POWEROFF_STATE;
 		mutex_unlock(&slot->lock);
+		if (events & PCI_EXP_SLTSTA_DLLSC)
+			ctrl_info(ctrl, "Slot(%s): Link Down\n",
+				  slot_name(slot));
+		if (events & PCI_EXP_SLTSTA_PDC)
+			ctrl_info(ctrl, "Slot(%s): Card not present\n",
+				  slot_name(slot));
 		pciehp_disable_slot(slot);
+		break;
+	default:
+		mutex_unlock(&slot->lock);
+	}
+
+	/* Turn the slot on if it's occupied or link is up */
+	mutex_lock(&slot->lock);
+	pciehp_get_adapter_status(slot, &present);
+	link_active = pciehp_check_link_active(ctrl);
+	if (!present && !link_active) {
+		mutex_unlock(&slot->lock);
+		return;
+	}
+
+	switch (slot->state) {
+	case BLINKINGON_STATE:
+		cancel_delayed_work(&slot->work);
+	case OFF_STATE:
+		slot->state = POWERON_STATE;
+		mutex_unlock(&slot->lock);
+		if (present)
+			ctrl_info(ctrl, "Slot(%s): Card present\n",
+				  slot_name(slot));
+		if (link_active)
+			ctrl_info(ctrl, "Slot(%s): Link Up\n",
+				  slot_name(slot));
+		ctrl->request_result = pciehp_enable_slot(slot);
+		break;
+	default:
+		mutex_unlock(&slot->lock);
 	}
 }
 
