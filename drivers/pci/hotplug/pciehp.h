@@ -105,6 +105,9 @@ struct slot {
  *	that has not yet been cleared by the user
  * @pending_events: used by the IRQ handler to save events retrieved from the
  *	Slot Status register for later consumption by the IRQ thread
+ * @request_result: result of last user request submitted to the IRQ thread
+ * @requester: wait queue to wake up on completion of user request,
+ *	used for synchronous slot enable/disable request via sysfs
  */
 struct controller {
 	struct mutex ctrl_lock;
@@ -120,6 +123,8 @@ struct controller {
 	unsigned int notification_enabled:1;
 	unsigned int power_fault_detected;
 	atomic_t pending_events;
+	int request_result;
+	wait_queue_head_t requester;
 };
 
 /**
@@ -141,6 +146,17 @@ struct controller {
 #define POWEROFF_STATE			4
 #define ON_STATE			5
 
+/**
+ * DOC: Flags to request an action from the IRQ thread
+ *
+ * These are stored together with events read from the Slot Status register,
+ * hence must be greater than its 16-bit width.
+ *
+ * %DISABLE_SLOT: Disable the slot in response to a user request via sysfs or
+ *	an Attention Button press after the 5 second delay
+ */
+#define DISABLE_SLOT		(1 << 16)
+
 #define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_ABP)
 #define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_PCP)
 #define MRL_SENS(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_MRLSP)
@@ -153,7 +169,9 @@ struct controller {
 
 int pciehp_sysfs_enable_slot(struct slot *slot);
 int pciehp_sysfs_disable_slot(struct slot *slot);
+void pciehp_request(struct controller *ctrl, int action);
 void pciehp_handle_button_press(struct slot *slot);
+void pciehp_handle_disable_request(struct slot *slot);
 void pciehp_handle_link_change(struct slot *slot);
 void pciehp_handle_presence_change(struct slot *slot);
 int pciehp_configure_device(struct slot *p_slot);

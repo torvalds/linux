@@ -240,13 +240,19 @@ static int pciehp_probe(struct pcie_device *dev)
 	}
 
 	/* Check if slot is occupied */
+	mutex_lock(&slot->lock);
 	pciehp_get_adapter_status(slot, &occupied);
 	pciehp_get_power_status(slot, &poweron);
-	if (occupied && pciehp_force)
-		pciehp_enable_slot(slot);
+	if (pciehp_force &&
+	    ((occupied && (slot->state == OFF_STATE ||
+			   slot->state == BLINKINGON_STATE)) ||
+	     (!occupied && (slot->state == ON_STATE ||
+			    slot->state == BLINKINGOFF_STATE))))
+		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 	/* If empty slot's power status is on, turn power off */
 	if (!occupied && poweron && POWER_CTRL(ctrl))
 		pciehp_power_off_slot(slot);
+	mutex_unlock(&slot->lock);
 
 	return 0;
 
@@ -290,10 +296,14 @@ static int pciehp_resume(struct pcie_device *dev)
 
 	/* Check if slot is occupied */
 	pciehp_get_adapter_status(slot, &status);
-	if (status)
-		pciehp_enable_slot(slot);
-	else
-		pciehp_disable_slot(slot);
+	mutex_lock(&slot->lock);
+	if ((status && (slot->state == OFF_STATE ||
+			slot->state == BLINKINGON_STATE)) ||
+	    (!status && (slot->state == ON_STATE ||
+			 slot->state == BLINKINGOFF_STATE)))
+		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
+	mutex_unlock(&slot->lock);
+
 	return 0;
 }
 #endif /* PM */

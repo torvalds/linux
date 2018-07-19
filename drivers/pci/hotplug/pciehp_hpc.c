@@ -595,11 +595,16 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	}
 
 	/*
+	 * Disable requests have higher priority than Presence Detect Changed
+	 * or Data Link Layer State Changed events.
+	 *
 	 * Check Link Status Changed at higher precedence than Presence
 	 * Detect Changed.  The PDS value may be set to "card present" from
 	 * out-of-band detection, which may be in conflict with a Link Down.
 	 */
-	if (events & PCI_EXP_SLTSTA_DLLSC)
+	if (events & DISABLE_SLOT)
+		pciehp_handle_disable_request(slot);
+	else if (events & PCI_EXP_SLTSTA_DLLSC)
 		pciehp_handle_link_change(slot);
 	else if (events & PCI_EXP_SLTSTA_PDC)
 		pciehp_handle_presence_change(slot);
@@ -612,6 +617,7 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 		pciehp_green_led_off(slot);
 	}
 
+	wake_up(&ctrl->requester);
 	return IRQ_HANDLED;
 }
 
@@ -625,8 +631,9 @@ static int pciehp_poll(void *data)
 		if (kthread_should_park())
 			kthread_parkme();
 
-		/* poll for interrupt events */
-		while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD)
+		/* poll for interrupt events or user requests */
+		while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD ||
+		       atomic_read(&ctrl->pending_events))
 			pciehp_ist(IRQ_NOTCONNECTED, ctrl);
 
 		if (pciehp_poll_time <= 0 || pciehp_poll_time > 60)
@@ -830,6 +837,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl->slot_cap = slot_cap;
 	mutex_init(&ctrl->ctrl_lock);
+	init_waitqueue_head(&ctrl->requester);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
 
