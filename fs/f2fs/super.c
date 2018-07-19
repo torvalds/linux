@@ -1164,7 +1164,8 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = F2FS_SUPER_MAGIC;
 	buf->f_bsize = sbi->blocksize;
 
-	buf->f_blocks = total_count - start_count;
+	/* f_blocks should not include overhead of filesystem */
+	buf->f_blocks = user_block_count;
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
 	if (buf->f_bfree > F2FS_OPTION(sbi).root_reserved_blocks)
