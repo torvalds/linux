@@ -940,7 +940,10 @@ static void rpa_expired(struct work_struct *work)
 	 * function.
 	 */
 	hci_req_init(&req, hdev);
-	__hci_req_enable_advertising(&req);
+	if (ext_adv_capable(hdev))
+		__hci_req_start_ext_adv(&req, hdev->cur_adv_instance);
+	else
+		__hci_req_enable_advertising(&req);
 	hci_req_run(&req, NULL);
 }
 
@@ -4382,9 +4385,14 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * HCI_ADVERTISING flag is not yet set.
 		 */
 		hdev->cur_adv_instance = 0x00;
-		__hci_req_update_adv_data(&req, 0x00);
-		__hci_req_update_scan_rsp_data(&req, 0x00);
-		__hci_req_enable_advertising(&req);
+
+		if (ext_adv_capable(hdev)) {
+			__hci_req_start_ext_adv(&req, 0x00);
+		} else {
+			__hci_req_update_adv_data(&req, 0x00);
+			__hci_req_update_scan_rsp_data(&req, 0x00);
+			__hci_req_enable_advertising(&req);
+		}
 	} else {
 		__hci_req_disable_advertising(&req);
 	}
@@ -6312,7 +6320,11 @@ static u32 get_supported_adv_flags(struct hci_dev *hdev)
 	flags |= MGMT_ADV_FLAG_APPEARANCE;
 	flags |= MGMT_ADV_FLAG_LOCAL_NAME;
 
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID)
+	/* In extended adv TX_POWER returned from Set Adv Param
+	 * will be always valid.
+	 */
+	if ((hdev->adv_tx_power != HCI_TX_POWER_INVALID) ||
+	    ext_adv_capable(hdev))
 		flags |= MGMT_ADV_FLAG_TX_POWER;
 
 	return flags;

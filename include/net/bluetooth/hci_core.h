@@ -171,6 +171,7 @@ struct adv_info {
 	__u8	adv_data[HCI_MAX_AD_LENGTH];
 	__u16	scan_rsp_len;
 	__u8	scan_rsp_data[HCI_MAX_AD_LENGTH];
+	__s8	tx_power;
 };
 
 #define HCI_MAX_ADV_INSTANCES		5

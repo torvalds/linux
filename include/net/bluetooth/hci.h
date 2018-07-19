@@ -1586,6 +1586,45 @@ struct hci_rp_le_read_num_supported_adv_sets {
 	__u8  num_of_sets;
 } __packed;
 
+#define HCI_OP_LE_SET_EXT_ADV_PARAMS		0x2036
+struct hci_cp_le_set_ext_adv_params {
+	__u8      handle;
+	__le16    evt_properties;
+	__u8      min_interval[3];
+	__u8      max_interval[3];
+	__u8      channel_map;
+	__u8      own_addr_type;
+	__u8      peer_addr_type;
+	bdaddr_t  peer_addr;
+	__u8      filter_policy;
+	__u8      tx_power;
+	__u8      primary_phy;
+	__u8      secondary_max_skip;
+	__u8      secondary_phy;
+	__u8      sid;
+	__u8      notif_enable;
+} __packed;
+
+#define HCI_ADV_PHY_1M		0X01
+
+struct hci_rp_le_set_ext_adv_params {
+	__u8  status;
+	__u8  tx_power;
+} __packed;
+
+#define HCI_OP_LE_SET_EXT_ADV_ENABLE		0x2039
+struct hci_cp_le_set_ext_adv_enable {
+	__u8  enable;
+	__u8  num_of_sets;
+	__u8  data[0];
+} __packed;
+
+struct hci_cp_ext_adv_set {
+	__u8  handle;
+	__le16 duration;
+	__u8  max_events;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 

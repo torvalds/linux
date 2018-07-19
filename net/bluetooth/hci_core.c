@@ -2779,6 +2779,8 @@ int hci_add_adv_instance(struct hci_dev *hdev, u8 instance, u32 flags,
 	else
 		adv_instance->duration = duration;
 
+	adv_instance->tx_power = HCI_TX_POWER_INVALID;
+
 	BT_DBG("%s for %dMR", hdev->name, instance);
 
 	return 0;

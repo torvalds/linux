@@ -895,6 +895,24 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 			   hdev->le_scan_window, own_addr_type, filter_policy);
 }
 
+static u8 get_adv_instance_scan_rsp_len(struct hci_dev *hdev, u8 instance)
+{
+	struct adv_info *adv_instance;
+
+	/* Ignore instance 0 */
+	if (instance == 0x00)
+		return 0;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return 0;
+
+	/* TODO: Take into account the "appearance" and "local-name" flags here.
+	 * These are currently being ignored as they are not supported.
+	 */
+	return adv_instance->scan_rsp_len;
+}
+
 static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
 {
 	u8 instance = hdev->cur_adv_instance;
@@ -1235,15 +1253,27 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		ptr += adv_instance->adv_data_len;
 	}
 
-	/* Provide Tx Power only if we can provide a valid value for it */
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
-	    (instance_flags & MGMT_ADV_FLAG_TX_POWER)) {
-		ptr[0] = 0x02;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8)hdev->adv_tx_power;
+	if (instance_flags & MGMT_ADV_FLAG_TX_POWER) {
+		s8 adv_tx_power;
 
-		ad_len += 3;
-		ptr += 3;
+		if (ext_adv_capable(hdev)) {
+			if (adv_instance)
+				adv_tx_power = adv_instance->tx_power;
+			else
+				adv_tx_power = hdev->adv_tx_power;
+		} else {
+			adv_tx_power = hdev->adv_tx_power;
+		}
+
+		/* Provide Tx Power only if we can provide a valid value for it */
+		if (adv_tx_power != HCI_TX_POWER_INVALID) {
+			ptr[0] = 0x02;
+			ptr[1] = EIR_TX_POWER;
+			ptr[2] = (u8)adv_tx_power;
+
+			ad_len += 3;
+			ptr += 3;
+		}
 	}
 
 	return ad_len;
@@ -1304,9 +1334,13 @@ void hci_req_reenable_advertising(struct hci_dev *hdev)
 		__hci_req_schedule_adv_instance(&req, hdev->cur_adv_instance,
 						true);
 	} else {
-		__hci_req_update_adv_data(&req, 0x00);
-		__hci_req_update_scan_rsp_data(&req, 0x00);
-		__hci_req_enable_advertising(&req);
+		if (ext_adv_capable(hdev)) {
+			__hci_req_start_ext_adv(&req, 0x00);
+		} else {
+			__hci_req_update_adv_data(&req, 0x00);
+			__hci_req_update_scan_rsp_data(&req, 0x00);
+			__hci_req_enable_advertising(&req);
+		}
 	}
 
 	hci_req_run(&req, adv_enable_complete);
@@ -1341,6 +1375,87 @@ static void adv_timeout_expire(struct work_struct *work)
 
 unlock:
 	hci_dev_unlock(hdev);
+}
+
+static int __hci_req_setup_ext_adv_instance(struct hci_request *req,
+					    u8 instance)
+{
+	struct hci_cp_le_set_ext_adv_params cp;
+	struct hci_dev *hdev = req->hdev;
+	bool connectable;
+	u32 flags;
+	/* In ext adv set param interval is 3 octets */
+	const u8 adv_interval[3] = { 0x00, 0x08, 0x00 };
+
+	flags = get_adv_instance_flags(hdev, instance);
+
+	/* If the "connectable" instance flag was not set, then choose between
+	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
+	 */
+	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
+		      mgmt_get_connectable(hdev);
+
+	 if (!is_advertising_allowed(hdev, connectable))
+		return -EPERM;
+
+	memset(&cp, 0, sizeof(cp));
+
+	memcpy(cp.min_interval, adv_interval, sizeof(cp.min_interval));
+	memcpy(cp.max_interval, adv_interval, sizeof(cp.max_interval));
+
+	if (connectable)
+		cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_IND);
+	else if (get_adv_instance_scan_rsp_len(hdev, instance))
+		cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
+	else
+		cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
+
+	cp.own_addr_type = BDADDR_LE_PUBLIC;
+	cp.channel_map = hdev->le_adv_channel_map;
+	cp.tx_power = 127;
+	cp.primary_phy = HCI_ADV_PHY_1M;
+	cp.secondary_phy = HCI_ADV_PHY_1M;
+	cp.handle = 0;
+
+	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
+
+	return 0;
+}
+
+void __hci_req_enable_ext_advertising(struct hci_request *req)
+{
+	struct hci_cp_le_set_ext_adv_enable *cp;
+	struct hci_cp_ext_adv_set *adv_set;
+	u8 data[sizeof(*cp) + sizeof(*adv_set) * 1];
+
+	cp = (void *) data;
+	adv_set = (void *) cp->data;
+
+	memset(cp, 0, sizeof(*cp));
+
+	cp->enable = 0x01;
+	cp->num_of_sets = 0x01;
+
+	memset(adv_set, 0, sizeof(*adv_set));
+
+	adv_set->handle = 0;
+
+	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_ENABLE,
+		    sizeof(*cp) + sizeof(*adv_set) * cp->num_of_sets,
+		    data);
+}
+
+int __hci_req_start_ext_adv(struct hci_request *req, u8 instance)
+{
+	int err;
+
+	err = __hci_req_setup_ext_adv_instance(req, instance);
+	if (err < 0)
+		return err;
+
+	__hci_req_enable_ext_advertising(req);
+
+	return 0;
 }
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
@@ -1396,9 +1511,13 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 		return 0;
 
 	hdev->cur_adv_instance = instance;
-	__hci_req_update_adv_data(req, instance);
-	__hci_req_update_scan_rsp_data(req, instance);
-	__hci_req_enable_advertising(req);
+	if (ext_adv_capable(hdev)) {
+		__hci_req_start_ext_adv(req, instance);
+	} else {
+		__hci_req_update_adv_data(req, instance);
+		__hci_req_update_scan_rsp_data(req, instance);
+		__hci_req_enable_advertising(req);
+	}
 
 	return 0;
 }
@@ -1669,8 +1788,12 @@ static int connectable_update(struct hci_request *req, unsigned long opt)
 
 	/* Update the advertising parameters if necessary */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    !list_empty(&hdev->adv_instances))
-		__hci_req_enable_advertising(req);
+	    !list_empty(&hdev->adv_instances)) {
+		if (ext_adv_capable(hdev))
+			__hci_req_start_ext_adv(req, hdev->cur_adv_instance);
+		else
+			__hci_req_enable_advertising(req);
+	}
 
 	__hci_update_background_scan(req);
 
@@ -1779,8 +1902,12 @@ static int discoverable_update(struct hci_request *req, unsigned long opt)
 		/* Discoverable mode affects the local advertising
 		 * address in limited privacy mode.
 		 */
-		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
-			__hci_req_enable_advertising(req);
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY)) {
+			if (ext_adv_capable(hdev))
+				__hci_req_start_ext_adv(req, 0x00);
+			else
+				__hci_req_enable_advertising(req);
+		}
 	}
 
 	hci_dev_unlock(hdev);
@@ -2376,8 +2503,12 @@ static int powered_update_hci(struct hci_request *req, unsigned long opt)
 			__hci_req_update_adv_data(req, 0x00);
 			__hci_req_update_scan_rsp_data(req, 0x00);
 
-			if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-				__hci_req_enable_advertising(req);
+			if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
+				if (ext_adv_capable(hdev))
+					__hci_req_start_ext_adv(req, 0x00);
+				else
+					__hci_req_enable_advertising(req);
+			}
 		} else if (!list_empty(&hdev->adv_instances)) {
 			struct adv_info *adv_instance;
 
