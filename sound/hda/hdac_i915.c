@@ -15,88 +15,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/component.h>
-#include <drm/i915_component.h>
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
-
-static struct i915_audio_component *hdac_acomp;
-
-/**
- * snd_hdac_set_codec_wakeup - Enable / disable HDMI/DP codec wakeup
- * @bus: HDA core bus
- * @enable: enable or disable the wakeup
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function should be called during the chip reset, also called at
- * resume for updating STATESTS register read.
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
-{
-	struct i915_audio_component *acomp = bus->audio_component;
-
-	if (!acomp || !acomp->ops)
-		return -ENODEV;
-
-	if (!acomp->ops->codec_wake_override) {
-		dev_warn(bus->dev,
-			"Invalid codec wake callback\n");
-		return 0;
-	}
-
-	dev_dbg(bus->dev, "%s codec wakeup\n",
-		enable ? "enable" : "disable");
-
-	acomp->ops->codec_wake_override(acomp->dev, enable);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_set_codec_wakeup);
-
-/**
- * snd_hdac_display_power - Power up / down the power refcount
- * @bus: HDA core bus
- * @enable: power up or down
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function manages a refcount and calls the i915 get_power() and
- * put_power() ops accordingly, toggling the codec wakeup, too.
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
-{
-	struct i915_audio_component *acomp = bus->audio_component;
-
-	if (!acomp || !acomp->ops)
-		return -ENODEV;
-
-	dev_dbg(bus->dev, "display power %s\n",
-		enable ? "enable" : "disable");
-
-	if (enable) {
-		if (!bus->i915_power_refcount++) {
-			acomp->ops->get_power(acomp->dev);
-			snd_hdac_set_codec_wakeup(bus, true);
-			snd_hdac_set_codec_wakeup(bus, false);
-		}
-	} else {
-		WARN_ON(!bus->i915_power_refcount);
-		if (!--bus->i915_power_refcount)
-			acomp->ops->put_power(acomp->dev);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 
 #define CONTROLLER_IN_GPU(pci) (((pci)->device == 0x0a0c) || \
 				((pci)->device == 0x0c0c) || \
@@ -119,7 +41,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_display_power);
  */
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {
-	struct i915_audio_component *acomp = bus->audio_component;
+	struct drm_audio_component *acomp = bus->audio_component;
 	struct pci_dev *pci = to_pci_dev(bus->dev);
 	int cdclk_freq;
 	unsigned int bclk_m, bclk_n;
@@ -158,180 +80,10 @@ void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_set_bclk);
 
-/* There is a fixed mapping between audio pin node and display port.
- * on SNB, IVY, HSW, BSW, SKL, BXT, KBL:
- * Pin Widget 5 - PORT B (port = 1 in i915 driver)
- * Pin Widget 6 - PORT C (port = 2 in i915 driver)
- * Pin Widget 7 - PORT D (port = 3 in i915 driver)
- *
- * on VLV, ILK:
- * Pin Widget 4 - PORT B (port = 1 in i915 driver)
- * Pin Widget 5 - PORT C (port = 2 in i915 driver)
- * Pin Widget 6 - PORT D (port = 3 in i915 driver)
- */
-static int pin2port(struct hdac_device *codec, hda_nid_t pin_nid)
+static int i915_component_master_match(struct device *dev, void *data)
 {
-	int base_nid;
-
-	switch (codec->vendor_id) {
-	case 0x80860054: /* ILK */
-	case 0x80862804: /* ILK */
-	case 0x80862882: /* VLV */
-		base_nid = 3;
-		break;
-	default:
-		base_nid = 4;
-		break;
-	}
-
-	if (WARN_ON(pin_nid <= base_nid || pin_nid > base_nid + 3))
-		return -1;
-	return pin_nid - base_nid;
-}
-
-/**
- * snd_hdac_sync_audio_rate - Set N/CTS based on the sample rate
- * @codec: HDA codec
- * @nid: the pin widget NID
- * @dev_id: device identifier
- * @rate: the sample rate to set
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function sets N/CTS value based on the given sample rate.
- * Returns zero for success, or a negative error code.
- */
-int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
-			     int dev_id, int rate)
-{
-	struct hdac_bus *bus = codec->bus;
-	struct i915_audio_component *acomp = bus->audio_component;
-	int port, pipe;
-
-	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
-		return -ENODEV;
-	port = pin2port(codec, nid);
-	if (port < 0)
-		return -EINVAL;
-	pipe = dev_id;
-	return acomp->ops->sync_audio_rate(acomp->dev, port, pipe, rate);
-}
-EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
-
-/**
- * snd_hdac_acomp_get_eld - Get the audio state and ELD via component
- * @codec: HDA codec
- * @nid: the pin widget NID
- * @dev_id: device identifier
- * @audio_enabled: the pointer to store the current audio state
- * @buffer: the buffer pointer to store ELD bytes
- * @max_bytes: the max bytes to be stored on @buffer
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function queries the current state of the audio on the given
- * digital port and fetches the ELD bytes onto the given buffer.
- * It returns the number of bytes for the total ELD data, zero for
- * invalid ELD, or a negative error code.
- *
- * The return size is the total bytes required for the whole ELD bytes,
- * thus it may be over @max_bytes.  If it's over @max_bytes, it implies
- * that only a part of ELD bytes have been fetched.
- */
-int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
-			   bool *audio_enabled, char *buffer, int max_bytes)
-{
-	struct hdac_bus *bus = codec->bus;
-	struct i915_audio_component *acomp = bus->audio_component;
-	int port, pipe;
-
-	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
-		return -ENODEV;
-
-	port = pin2port(codec, nid);
-	if (port < 0)
-		return -EINVAL;
-
-	pipe = dev_id;
-	return acomp->ops->get_eld(acomp->dev, port, pipe, audio_enabled,
-				   buffer, max_bytes);
-}
-EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);
-
-static int hdac_component_master_bind(struct device *dev)
-{
-	struct i915_audio_component *acomp = hdac_acomp;
-	int ret;
-
-	ret = component_bind_all(dev, acomp);
-	if (ret < 0)
-		return ret;
-
-	if (WARN_ON(!(acomp->dev && acomp->ops && acomp->ops->get_power &&
-		      acomp->ops->put_power && acomp->ops->get_cdclk_freq))) {
-		ret = -EINVAL;
-		goto out_unbind;
-	}
-
-	/*
-	 * Atm, we don't support dynamic unbinding initiated by the child
-	 * component, so pin its containing module until we unbind.
-	 */
-	if (!try_module_get(acomp->ops->owner)) {
-		ret = -ENODEV;
-		goto out_unbind;
-	}
-
-	return 0;
-
-out_unbind:
-	component_unbind_all(dev, acomp);
-
-	return ret;
-}
-
-static void hdac_component_master_unbind(struct device *dev)
-{
-	struct i915_audio_component *acomp = hdac_acomp;
-
-	module_put(acomp->ops->owner);
-	component_unbind_all(dev, acomp);
-	WARN_ON(acomp->ops || acomp->dev);
-}
-
-static const struct component_master_ops hdac_component_master_ops = {
-	.bind = hdac_component_master_bind,
-	.unbind = hdac_component_master_unbind,
-};
-
-static int hdac_component_master_match(struct device *dev, void *data)
-{
-	/* i915 is the only supported component */
 	return !strcmp(dev->driver->name, "i915");
 }
-
-/**
- * snd_hdac_i915_register_notifier - Register i915 audio component ops
- * @aops: i915 audio component ops
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function sets the given ops to be called by the i915 graphics driver.
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
-{
-	if (!hdac_acomp)
-		return -ENODEV;
-
-	hdac_acomp->audio_ops = aops;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
 
 /* check whether intel graphics is present */
 static bool i915_gfx_present(void)
@@ -359,83 +111,26 @@ static bool i915_gfx_present(void)
  */
 int snd_hdac_i915_init(struct hdac_bus *bus)
 {
-	struct component_match *match = NULL;
-	struct device *dev = bus->dev;
-	struct i915_audio_component *acomp;
-	int ret;
-
-	if (WARN_ON(hdac_acomp))
-		return -EBUSY;
+	struct drm_audio_component *acomp;
+	int err;
 
 	if (!i915_gfx_present())
 		return -ENODEV;
 
-	acomp = kzalloc(sizeof(*acomp), GFP_KERNEL);
+	err = snd_hdac_acomp_init(bus, NULL,
+				  i915_component_master_match,
+				  sizeof(struct i915_audio_component) - sizeof(*acomp));
+	if (err < 0)
+		return err;
+	acomp = bus->audio_component;
 	if (!acomp)
-		return -ENOMEM;
-	bus->audio_component = acomp;
-	hdac_acomp = acomp;
-
-	component_match_add(dev, &match, hdac_component_master_match, bus);
-	ret = component_master_add_with_match(dev, &hdac_component_master_ops,
-					      match);
-	if (ret < 0)
-		goto out_err;
-
-	/*
-	 * Atm, we don't support deferring the component binding, so make sure
-	 * i915 is loaded and that the binding successfully completes.
-	 */
-	request_module("i915");
-
+		return -ENODEV;
+	if (!acomp->ops)
+		request_module("i915");
 	if (!acomp->ops) {
-		ret = -ENODEV;
-		goto out_master_del;
+		snd_hdac_acomp_exit(bus);
+		return -ENODEV;
 	}
-	dev_dbg(dev, "bound to i915 component master\n");
-
 	return 0;
-out_master_del:
-	component_master_del(dev, &hdac_component_master_ops);
-out_err:
-	kfree(acomp);
-	bus->audio_component = NULL;
-	hdac_acomp = NULL;
-	dev_info(dev, "failed to add i915 component master (%d)\n", ret);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_init);
-
-/**
- * snd_hdac_i915_exit - Finalize i915 audio component
- * @bus: HDA core bus
- *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
- *
- * This function releases the i915 audio component that has been used.
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_i915_exit(struct hdac_bus *bus)
-{
-	struct device *dev = bus->dev;
-	struct i915_audio_component *acomp = bus->audio_component;
-
-	if (!acomp)
-		return 0;
-
-	WARN_ON(bus->i915_power_refcount);
-	if (bus->i915_power_refcount > 0 && acomp->ops)
-		acomp->ops->put_power(acomp->dev);
-
-	component_master_del(dev, &hdac_component_master_ops);
-
-	kfree(acomp);
-	bus->audio_component = NULL;
-	hdac_acomp = NULL;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_i915_exit);
